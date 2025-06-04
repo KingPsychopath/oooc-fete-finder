@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { type Event, EVENT_DAYS, formatPrice } from '@/types/events';
+import { useOutsideClick } from '@/lib/useOutsideClick';
 
 interface EventModalProps {
   event: Event | null;
@@ -24,6 +25,12 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
+  const modalRef = useOutsideClick<HTMLDivElement>(() => {
+    if (isOpen) {
+      onClose();
+    }
+  });
+
   if (!isOpen || !event) return null;
 
   const dayInfo = EVENT_DAYS.find(d => d.key === event.day);
@@ -36,7 +43,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <Card ref={modalRef} className="w-full max-w-md max-h-[90vh] overflow-y-auto">
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-2">
