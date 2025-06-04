@@ -16,9 +16,9 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
 	title: "Fête de la Musique Paris 2025",
-	description: "Interactive map of music events across Paris arrondissements for Fête de la Musique 2025",
-  };
-  
+	description:
+		"Interactive map of music events across Paris arrondissements for Fête de la Musique 2025",
+};
 
 export default function RootLayout({
 	children,
@@ -26,18 +26,21 @@ export default function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
-		<body suppressHydrationWarning className="antialiased">
-		  <ThemeProvider
-			attribute="class"
-			defaultTheme="system"
-			enableSystem
-			disableTransitionOnChange
-		  >
-			<ClientBody>{children}</ClientBody>
-		  </ThemeProvider>
-		</body>
-	  </html>
-  
+		<html
+			lang="en"
+			className={`${geistSans.variable} ${geistMono.variable}`}
+			suppressHydrationWarning
+		>
+			<body suppressHydrationWarning className="antialiased">
+				<ThemeProvider
+					attribute="class"
+					defaultTheme="system"
+					enableSystem
+					disableTransitionOnChange
+				>
+					<ClientBody>{children}</ClientBody>
+				</ThemeProvider>
+			</body>
+		</html>
 	);
 }

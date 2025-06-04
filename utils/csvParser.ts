@@ -1,21 +1,34 @@
-import type { Event, EventDay, MusicGenre, EventType, ParisArrondissement, HostCountry } from '@/types/events';
-import Papa from 'papaparse';
+import type {
+	Event,
+	EventDay,
+	MusicGenre,
+	EventType,
+	ParisArrondissement,
+	HostCountry,
+} from "@/types/events";
+import Papa from "papaparse";
 
 // Define the expected CSV column headers and their possible variations
 const COLUMN_MAPPINGS = {
-  oocPicks: ['OOOC Picks', 'OOC Picks', 'oocPicks', 'picks', '🌟'],
-  hostCountry: ['GB/FR', 'Host Country', 'Country', 'hostCountry', 'Host'],
-  name: ['Event Name', 'Name', 'name', 'Event', 'Title'],
-  date: ['Date', 'Day', 'date', 'Event Date'],
-  startTime: ['Start Time', 'Time', 'startTime', 'Start', 'Event Time'],
-  endTime: ['End Time', 'endTime', 'End', 'Finish Time'],
-  location: ['Location', 'Venue', 'location', 'Place', 'Address'],
-  arrondissement: ['Arr', 'Arr.', 'Arrondissement', 'arrondissement', 'District'],
-  genre: ['Genre', 'Music Genre', 'genre', 'Type', 'Music'],
-  price: ['Price', 'Cost', 'price', 'Ticket Price', 'Entry'],
-  ticketLink: ['Ticket Link', 'Link', 'ticketLink', 'URL', 'Website'],
-  age: ['Age', 'Age Limit', 'age', 'Age Restriction'],
-  notes: ['Notes', 'Description', 'notes', 'Details', 'Info']
+	oocPicks: ["OOOC Picks", "OOC Picks", "oocPicks", "picks", "🌟"],
+	hostCountry: ["GB/FR", "Host Country", "Country", "hostCountry", "Host"],
+	name: ["Event Name", "Name", "name", "Event", "Title"],
+	date: ["Date", "Day", "date", "Event Date"],
+	startTime: ["Start Time", "Time", "startTime", "Start", "Event Time"],
+	endTime: ["End Time", "endTime", "End", "Finish Time"],
+	location: ["Location", "Venue", "location", "Place", "Address"],
+	arrondissement: [
+		"Arr",
+		"Arr.",
+		"Arrondissement",
+		"arrondissement",
+		"District",
+	],
+	genre: ["Genre", "Music Genre", "genre", "Type", "Music"],
+	price: ["Price", "Cost", "price", "Ticket Price", "Entry"],
+	ticketLink: ["Ticket Link", "Link", "ticketLink", "URL", "Website"],
+	age: ["Age", "Age Limit", "age", "Age Restriction"],
+	notes: ["Notes", "Description", "notes", "Details", "Info"],
 } as const;
 
 // Type for raw CSV row data
@@ -23,514 +36,575 @@ type RawCSVRow = Record<string, string>;
 
 // Enhanced CSV event row type
 export type CSVEventRow = {
-  oocPicks: string;
-  hostCountry: string;
-  name: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  arrondissement: string;
-  genre: string;
-  price: string;
-  ticketLink: string;
-  age: string;
-  notes: string;
+	oocPicks: string;
+	hostCountry: string;
+	name: string;
+	date: string;
+	startTime: string;
+	endTime: string;
+	location: string;
+	arrondissement: string;
+	genre: string;
+	price: string;
+	ticketLink: string;
+	age: string;
+	notes: string;
 };
 
 /**
  * Find the correct column name from possible variations
  */
-const findColumnName = (headers: string[], possibleNames: readonly string[]): string | null => {
-  // Try exact matches first
-  for (const possibleName of possibleNames) {
-    const exactMatch = headers.find(header => header.trim() === possibleName);
-    if (exactMatch) return exactMatch;
-  }
-  
-  // Try case-insensitive matches
-  for (const possibleName of possibleNames) {
-    const caseInsensitiveMatch = headers.find(header => 
-      header.trim().toLowerCase() === possibleName.toLowerCase()
-    );
-    if (caseInsensitiveMatch) return caseInsensitiveMatch;
-  }
-  
-  // Try partial matches
-  for (const possibleName of possibleNames) {
-    const partialMatch = headers.find(header => 
-      header.trim().toLowerCase().includes(possibleName.toLowerCase()) ||
-      possibleName.toLowerCase().includes(header.trim().toLowerCase())
-    );
-    if (partialMatch) return partialMatch;
-  }
-  
-  return null;
+const findColumnName = (
+	headers: string[],
+	possibleNames: readonly string[],
+): string | null => {
+	// Try exact matches first
+	for (const possibleName of possibleNames) {
+		const exactMatch = headers.find((header) => header.trim() === possibleName);
+		if (exactMatch) return exactMatch;
+	}
+
+	// Try case-insensitive matches
+	for (const possibleName of possibleNames) {
+		const caseInsensitiveMatch = headers.find(
+			(header) => header.trim().toLowerCase() === possibleName.toLowerCase(),
+		);
+		if (caseInsensitiveMatch) return caseInsensitiveMatch;
+	}
+
+	// Try partial matches
+	for (const possibleName of possibleNames) {
+		const partialMatch = headers.find(
+			(header) =>
+				header.trim().toLowerCase().includes(possibleName.toLowerCase()) ||
+				possibleName.toLowerCase().includes(header.trim().toLowerCase()),
+		);
+		if (partialMatch) return partialMatch;
+	}
+
+	return null;
 };
 
 /**
  * Create column mapping from CSV headers
  */
-const createColumnMapping = (headers: string[]): Record<keyof CSVEventRow, string | null> => {
-  const mapping: Record<keyof CSVEventRow, string | null> = {
-    oocPicks: findColumnName(headers, COLUMN_MAPPINGS.oocPicks),
-    hostCountry: findColumnName(headers, COLUMN_MAPPINGS.hostCountry),
-    name: findColumnName(headers, COLUMN_MAPPINGS.name),
-    date: findColumnName(headers, COLUMN_MAPPINGS.date),
-    startTime: findColumnName(headers, COLUMN_MAPPINGS.startTime),
-    endTime: findColumnName(headers, COLUMN_MAPPINGS.endTime),
-    location: findColumnName(headers, COLUMN_MAPPINGS.location),
-    arrondissement: findColumnName(headers, COLUMN_MAPPINGS.arrondissement),
-    genre: findColumnName(headers, COLUMN_MAPPINGS.genre),
-    price: findColumnName(headers, COLUMN_MAPPINGS.price),
-    ticketLink: findColumnName(headers, COLUMN_MAPPINGS.ticketLink),
-    age: findColumnName(headers, COLUMN_MAPPINGS.age),
-    notes: findColumnName(headers, COLUMN_MAPPINGS.notes)
-  };
+const createColumnMapping = (
+	headers: string[],
+): Record<keyof CSVEventRow, string | null> => {
+	const mapping: Record<keyof CSVEventRow, string | null> = {
+		oocPicks: findColumnName(headers, COLUMN_MAPPINGS.oocPicks),
+		hostCountry: findColumnName(headers, COLUMN_MAPPINGS.hostCountry),
+		name: findColumnName(headers, COLUMN_MAPPINGS.name),
+		date: findColumnName(headers, COLUMN_MAPPINGS.date),
+		startTime: findColumnName(headers, COLUMN_MAPPINGS.startTime),
+		endTime: findColumnName(headers, COLUMN_MAPPINGS.endTime),
+		location: findColumnName(headers, COLUMN_MAPPINGS.location),
+		arrondissement: findColumnName(headers, COLUMN_MAPPINGS.arrondissement),
+		genre: findColumnName(headers, COLUMN_MAPPINGS.genre),
+		price: findColumnName(headers, COLUMN_MAPPINGS.price),
+		ticketLink: findColumnName(headers, COLUMN_MAPPINGS.ticketLink),
+		age: findColumnName(headers, COLUMN_MAPPINGS.age),
+		notes: findColumnName(headers, COLUMN_MAPPINGS.notes),
+	};
 
-  // Log mapping for debugging
-  console.log('CSV Column Mapping:', mapping);
-  
-  return mapping;
+	// Log mapping for debugging
+	console.log("CSV Column Mapping:", mapping);
+
+	return mapping;
 };
 
 /**
  * Parse CSV content into CSVEventRow objects using papaparse
  */
 export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
-  try {
-    const parseResult = Papa.parse(csvContent, {
-      header: true,
-      skipEmptyLines: true,
-      transform: (value: string) => value.trim()
-    });
+	try {
+		const parseResult = Papa.parse(csvContent, {
+			header: true,
+			skipEmptyLines: true,
+			transform: (value: string) => value.trim(),
+		});
 
-    if (parseResult.errors.length > 0) {
-      console.warn('CSV parsing errors:', parseResult.errors);
-    }
+		if (parseResult.errors.length > 0) {
+			console.warn("CSV parsing errors:", parseResult.errors);
+		}
 
-    const rawData = parseResult.data as RawCSVRow[];
-    const headers = Object.keys(rawData[0] || {});
-    console.log('CSV Headers found:', headers);
-    
-    const columnMapping = createColumnMapping(headers);
-    
-    // Validate that we have at least the essential columns
-    const essentialColumns = ['name', 'date'] as const;
-    const missingEssential = essentialColumns.filter(col => !columnMapping[col]);
-    
-    if (missingEssential.length > 0) {
-      throw new Error(`Missing essential CSV columns: ${missingEssential.join(', ')}. Available headers: ${headers.join(', ')}`);
-    }
+		const rawData = parseResult.data as RawCSVRow[];
+		const headers = Object.keys(rawData[0] || {});
+		console.log("CSV Headers found:", headers);
 
-    return rawData.map((row: RawCSVRow, index: number) => {
-      const csvRow: CSVEventRow = {
-        oocPicks: (columnMapping.oocPicks && row[columnMapping.oocPicks]) || '',
-        hostCountry: (columnMapping.hostCountry && row[columnMapping.hostCountry]) || '',
-        name: (columnMapping.name && row[columnMapping.name]) || `Event ${index + 1}`,
-        date: (columnMapping.date && row[columnMapping.date]) || '',
-        startTime: (columnMapping.startTime && row[columnMapping.startTime]) || '',
-        endTime: (columnMapping.endTime && row[columnMapping.endTime]) || '',
-        location: (columnMapping.location && row[columnMapping.location]) || '',
-        arrondissement: (columnMapping.arrondissement && row[columnMapping.arrondissement]) || '',
-        genre: (columnMapping.genre && row[columnMapping.genre]) || '',
-        price: (columnMapping.price && row[columnMapping.price]) || '',
-        ticketLink: (columnMapping.ticketLink && row[columnMapping.ticketLink]) || '',
-        age: (columnMapping.age && row[columnMapping.age]) || '',
-        notes: (columnMapping.notes && row[columnMapping.notes]) || ''
-      };
+		const columnMapping = createColumnMapping(headers);
 
-      // Log first few rows for debugging
-      if (index < 3) {
-        console.log(`CSV Row ${index + 1}:`, csvRow);
-      }
+		// Validate that we have at least the essential columns
+		const essentialColumns = ["name", "date"] as const;
+		const missingEssential = essentialColumns.filter(
+			(col) => !columnMapping[col],
+		);
 
-      return csvRow;
-    });
-  } catch (error) {
-    console.error('Error parsing CSV content:', error);
-    throw new Error(`Failed to parse CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+		if (missingEssential.length > 0) {
+			throw new Error(
+				`Missing essential CSV columns: ${missingEssential.join(", ")}. Available headers: ${headers.join(", ")}`,
+			);
+		}
+
+		return rawData.map((row: RawCSVRow, index: number) => {
+			const csvRow: CSVEventRow = {
+				oocPicks: (columnMapping.oocPicks && row[columnMapping.oocPicks]) || "",
+				hostCountry:
+					(columnMapping.hostCountry && row[columnMapping.hostCountry]) || "",
+				name:
+					(columnMapping.name && row[columnMapping.name]) ||
+					`Event ${index + 1}`,
+				date: (columnMapping.date && row[columnMapping.date]) || "",
+				startTime:
+					(columnMapping.startTime && row[columnMapping.startTime]) || "",
+				endTime: (columnMapping.endTime && row[columnMapping.endTime]) || "",
+				location: (columnMapping.location && row[columnMapping.location]) || "",
+				arrondissement:
+					(columnMapping.arrondissement && row[columnMapping.arrondissement]) ||
+					"",
+				genre: (columnMapping.genre && row[columnMapping.genre]) || "",
+				price: (columnMapping.price && row[columnMapping.price]) || "",
+				ticketLink:
+					(columnMapping.ticketLink && row[columnMapping.ticketLink]) || "",
+				age: (columnMapping.age && row[columnMapping.age]) || "",
+				notes: (columnMapping.notes && row[columnMapping.notes]) || "",
+			};
+
+			// Log first few rows for debugging
+			if (index < 3) {
+				console.log(`CSV Row ${index + 1}:`, csvRow);
+			}
+
+			return csvRow;
+		});
+	} catch (error) {
+		console.error("Error parsing CSV content:", error);
+		throw new Error(
+			`Failed to parse CSV: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
 };
 
 /**
  * Convert date string to EventDay
  */
 const convertToEventDay = (dateStr: string): EventDay => {
-  if (!dateStr) return 'tbc';
-  
-  const lowerDate = dateStr.toLowerCase().trim();
-  
-  // Handle various date formats
-  const dateMapping = {
-    'friday': 'friday' as const,
-    'saturday': 'saturday' as const,
-    'sunday': 'sunday' as const,
-    'monday': 'monday' as const,
-    'fri': 'friday' as const,
-    'sat': 'saturday' as const,
-    'sun': 'sunday' as const,
-    'mon': 'monday' as const,
-    '19 june': 'friday' as const,
-    '20 june': 'friday' as const,
-    '21 june': 'saturday' as const,
-    '22 june': 'sunday' as const,
-    'june 19': 'friday' as const,
-    'june 20': 'friday' as const,
-    'june 21': 'saturday' as const,
-    'june 22': 'sunday' as const,
-    '19/06': 'friday' as const,
-    '20/06': 'friday' as const,
-    '21/06': 'saturday' as const,
-    '22/06': 'sunday' as const
-  };
-  
-  // Find matching date
-  for (const [key, value] of Object.entries(dateMapping)) {
-    if (lowerDate.includes(key)) {
-      return value;
-    }
-  }
-  
-  return 'tbc';
+	if (!dateStr) return "tbc";
+
+	const lowerDate = dateStr.toLowerCase().trim();
+
+	// Handle various date formats
+	const dateMapping = {
+		friday: "friday" as const,
+		saturday: "saturday" as const,
+		sunday: "sunday" as const,
+		monday: "monday" as const,
+		fri: "friday" as const,
+		sat: "saturday" as const,
+		sun: "sunday" as const,
+		mon: "monday" as const,
+		"19 june": "friday" as const,
+		"20 june": "friday" as const,
+		"21 june": "saturday" as const,
+		"22 june": "sunday" as const,
+		"june 19": "friday" as const,
+		"june 20": "friday" as const,
+		"june 21": "saturday" as const,
+		"june 22": "sunday" as const,
+		"19/06": "friday" as const,
+		"20/06": "friday" as const,
+		"21/06": "saturday" as const,
+		"22/06": "sunday" as const,
+	};
+
+	// Find matching date
+	for (const [key, value] of Object.entries(dateMapping)) {
+		if (lowerDate.includes(key)) {
+			return value;
+		}
+	}
+
+	return "tbc";
 };
 
 /**
  * Convert host country flag/text to HostCountry type
  */
-const convertToHostCountry = (hostCountryStr: string): HostCountry | undefined => {
-  if (!hostCountryStr) return undefined;
-  
-  const cleaned = hostCountryStr.trim().toLowerCase();
-  
-  // Handle various formats
-  if (cleaned === '🇬🇧' || cleaned === 'gb' || cleaned === 'uk' || cleaned === 'united kingdom' || cleaned === 'britain') {
-    return 'UK';
-  }
-  if (cleaned === '🇫🇷' || cleaned === 'fr' || cleaned === 'france' || cleaned === 'french') {
-    return 'FR';
-  }
-  
-  return undefined;
+const convertToHostCountry = (
+	hostCountryStr: string,
+): HostCountry | undefined => {
+	if (!hostCountryStr) return undefined;
+
+	const cleaned = hostCountryStr.trim().toLowerCase();
+
+	// Handle various formats
+	if (
+		cleaned === "🇬🇧" ||
+		cleaned === "gb" ||
+		cleaned === "uk" ||
+		cleaned === "united kingdom" ||
+		cleaned === "britain"
+	) {
+		return "UK";
+	}
+	if (
+		cleaned === "🇫🇷" ||
+		cleaned === "fr" ||
+		cleaned === "france" ||
+		cleaned === "french"
+	) {
+		return "FR";
+	}
+
+	return undefined;
 };
 
 /**
  * Convert arrondissement string to ParisArrondissement
  */
-const convertToArrondissement = (arrStr: string, location: string): ParisArrondissement => {
-  if (!arrStr || arrStr.trim() === '') {
-    // Fall back to location-based estimation if arrondissement is empty
-    return estimateArrondissement(location);
-  }
-  
-  // Clean the string and extract number
-  const cleaned = arrStr.trim().toLowerCase();
-  const arrMatch = cleaned.match(/(\d+)/);
-  
-  if (arrMatch) {
-    const arrNumber = parseInt(arrMatch[1]);
-    
-    // Validate arrondissement is between 1-20
-    if (arrNumber >= 1 && arrNumber <= 20) {
-      return arrNumber as ParisArrondissement;
-    }
-  }
-  
-  return 'unknown';
+const convertToArrondissement = (
+	arrStr: string,
+	location: string,
+): ParisArrondissement => {
+	if (!arrStr || arrStr.trim() === "") {
+		// Fall back to location-based estimation if arrondissement is empty
+		return estimateArrondissement(location);
+	}
+
+	// Clean the string and extract number
+	const cleaned = arrStr.trim().toLowerCase();
+	const arrMatch = cleaned.match(/(\d+)/);
+
+	if (arrMatch) {
+		const arrNumber = parseInt(arrMatch[1]);
+
+		// Validate arrondissement is between 1-20
+		if (arrNumber >= 1 && arrNumber <= 20) {
+			return arrNumber as ParisArrondissement;
+		}
+	}
+
+	return "unknown";
 };
 
 /**
  * Convert genre string to MusicGenre array
  */
 const convertToMusicGenres = (genreStr: string): MusicGenre[] => {
-  if (!genreStr) return ['afrobeats']; // Default fallback
-  
-  const genreMap = {
-    'afrobeats': 'afrobeats',
-    'afro beats': 'afrobeats',
-    'afro': 'afro',
-    'amapiano': 'amapiano',
-    'piano': 'amapiano',
-    'hip hop': 'hip hop',
-    'hiphop': 'hip hop',
-    'hip-hop': 'hip hop',
-    'r&b': 'r&b',
-    'rnb': 'r&b',
-    'r and b': 'r&b',
-    'shatta': 'shatta',
-    'dancehall': 'dancehall',
-    'dance hall': 'dancehall',
-    'reggaeton': 'reggaeton',
-    'reggaetón': 'reggaeton',
-    'baile funk': 'baile funk',
-    'house': 'house',
-    'disco': 'disco',
-    'afro house': 'afro house',
-    'afrohouse': 'afro house',
-    'electro': 'electro',
-    'electronic': 'electro',
-    'funk': 'funk',
-    'rap': 'rap',
-    'trap': 'trap',
-    'uk drill': 'uk drill',
-    'drill': 'uk drill',
-    'uk garage': 'uk garage',
-    'garage': 'uk garage',
-    'bouyon': 'bouyon',
-    'zouk': 'zouk',
-    'bashment': 'bashment',
-    'soca': 'soca',
-    'pop': 'pop',
-    'coupé-décalé': 'coupé-décalé',
-    'coupe decale': 'coupé-décalé',
-    'urban fr': 'urban fr',
-    'urban french': 'urban fr',
-    'kompa': 'kompa',
-    'gqom': 'gqom'
-  } as const;
-  
-  const genres = genreStr.toLowerCase()
-    .split(/[,;\/&+]/) // Split on various separators
-    .map(g => g.trim())
-    .filter(g => g.length > 0);
-  
-  const mappedGenres = genres
-    .map(genre => genreMap[genre as keyof typeof genreMap])
-    .filter((genre): genre is MusicGenre => Boolean(genre))
-    .filter((genre, index, arr) => arr.indexOf(genre) === index); // Remove duplicates
-  
-  return mappedGenres.length > 0 ? mappedGenres : ['afrobeats']; // Default fallback
+	if (!genreStr) return ["afrobeats"]; // Default fallback
+
+	const genreMap = {
+		afrobeats: "afrobeats",
+		"afro beats": "afrobeats",
+		afro: "afro",
+		amapiano: "amapiano",
+		piano: "amapiano",
+		"hip hop": "hip hop",
+		hiphop: "hip hop",
+		"hip-hop": "hip hop",
+		"r&b": "r&b",
+		rnb: "r&b",
+		"r and b": "r&b",
+		shatta: "shatta",
+		dancehall: "dancehall",
+		"dance hall": "dancehall",
+		reggaeton: "reggaeton",
+		reggaetón: "reggaeton",
+		"baile funk": "baile funk",
+		house: "house",
+		disco: "disco",
+		"afro house": "afro house",
+		afrohouse: "afro house",
+		electro: "electro",
+		electronic: "electro",
+		funk: "funk",
+		rap: "rap",
+		trap: "trap",
+		"uk drill": "uk drill",
+		drill: "uk drill",
+		"uk garage": "uk garage",
+		garage: "uk garage",
+		bouyon: "bouyon",
+		zouk: "zouk",
+		bashment: "bashment",
+		soca: "soca",
+		pop: "pop",
+		"coupé-décalé": "coupé-décalé",
+		"coupe decale": "coupé-décalé",
+		"urban fr": "urban fr",
+		"urban french": "urban fr",
+		kompa: "kompa",
+		gqom: "gqom",
+	} as const;
+
+	const genres = genreStr
+		.toLowerCase()
+		.split(/[,;\/&+]/) // Split on various separators
+		.map((g) => g.trim())
+		.filter((g) => g.length > 0);
+
+	const mappedGenres = genres
+		.map((genre) => genreMap[genre as keyof typeof genreMap])
+		.filter((genre): genre is MusicGenre => Boolean(genre))
+		.filter((genre, index, arr) => arr.indexOf(genre) === index); // Remove duplicates
+
+	return mappedGenres.length > 0 ? mappedGenres : ["afrobeats"]; // Default fallback
 };
 
 /**
  * Convert time string to 24-hour format
  */
 const convertToTime = (timeStr: string): string => {
-  if (!timeStr || timeStr.toLowerCase().includes('tbc') || timeStr.toLowerCase().includes('tba')) {
-    return 'TBC';
-  }
-  
-  const cleaned = timeStr.trim();
-  
-  // Handle various time formats
-  const timeFormats = [
-    /(\d{1,2}):(\d{2})\s*(am|pm)/i,  // 2:00 pm, 11:00 am
-    /(\d{1,2})\s*(am|pm)/i,          // 2 pm, 11 am
-    /(\d{1,2}):(\d{2})/,             // 14:00, 02:30
-    /(\d{1,2})h(\d{2})/i,            // 14h00, 2h30
-    /(\d{1,2})h/i                    // 14h, 2h
-  ];
-  
-  for (const format of timeFormats) {
-    const match = cleaned.match(format);
-    if (match) {
-      let hours = parseInt(match[1]);
-      const minutes = match[2] ? parseInt(match[2]) : 0;
-      const period = match[3]?.toLowerCase();
-      
-      // Convert 12-hour to 24-hour
-      if (period) {
-        if (period === 'am' && hours === 12) hours = 0;
-        if (period === 'pm' && hours !== 12) hours += 12;
-      }
-      
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    }
-  }
-  
-  return cleaned; // Return as-is if no format matches
+	if (
+		!timeStr ||
+		timeStr.toLowerCase().includes("tbc") ||
+		timeStr.toLowerCase().includes("tba")
+	) {
+		return "TBC";
+	}
+
+	const cleaned = timeStr.trim();
+
+	// Handle various time formats
+	const timeFormats = [
+		/(\d{1,2}):(\d{2})\s*(am|pm)/i, // 2:00 pm, 11:00 am
+		/(\d{1,2})\s*(am|pm)/i, // 2 pm, 11 am
+		/(\d{1,2}):(\d{2})/, // 14:00, 02:30
+		/(\d{1,2})h(\d{2})/i, // 14h00, 2h30
+		/(\d{1,2})h/i, // 14h, 2h
+	];
+
+	for (const format of timeFormats) {
+		const match = cleaned.match(format);
+		if (match) {
+			let hours = parseInt(match[1]);
+			const minutes = match[2] ? parseInt(match[2]) : 0;
+			const period = match[3]?.toLowerCase();
+
+			// Convert 12-hour to 24-hour
+			if (period) {
+				if (period === "am" && hours === 12) hours = 0;
+				if (period === "pm" && hours !== 12) hours += 12;
+			}
+
+			return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+		}
+	}
+
+	return cleaned; // Return as-is if no format matches
 };
 
 /**
  * Estimate arrondissement from location string
  */
 const estimateArrondissement = (location: string): ParisArrondissement => {
-  if (!location) return 'unknown';
-  
-  const locationLower = location.toLowerCase();
-  
-  const locationMap = {
-    'temple': 3,
-    'montparnasse': 14,
-    'bellevilloise': 20,
-    'wanderlust': 12,
-    'belleville': 20,
-    'marais': 4,
-    'bastille': 11,
-    'république': 11,
-    'republic': 11,
-    'châtelet': 1,
-    'chatelet': 1,
-    'louvre': 1,
-    'pigalle': 18,
-    'moulin rouge': 18,
-    'canal': 10,
-    'notre dame': 4,
-    'richerand': 10,
-    'quai françois mauriac': 13,
-    'champs élysées': 8,
-    'champs elysees': 8,
-    'montmartre': 18,
-    'oberkampf': 11,
-    'ménilmontant': 20,
-    'menilmontant': 20,
-    'père lachaise': 20,
-    'pere lachaise': 20,
-    'panthéon': 5,
-    'pantheon': 5,
-    'opéra': 9,
-    'opera': 9,
-    'gare du nord': 10,
-    'gare de l\'est': 10,
-    'gare de lyon': 12,
-    'bercy': 12,
-    'invalides': 7,
-    'tour eiffel': 7,
-    'eiffel': 7,
-    'trocadéro': 16,
-    'trocadero': 16,
-    'arc de triomphe': 8,
-    'grands boulevards': 9,
-    'grands magasins': 9
-  } as const;
-  
-  // Find matching arrondissement
-  for (const [key, value] of Object.entries(locationMap)) {
-    if (locationLower.includes(key)) {
-      return value as ParisArrondissement;
-    }
-  }
-  
-  return 'unknown';
+	if (!location) return "unknown";
+
+	const locationLower = location.toLowerCase();
+
+	const locationMap = {
+		temple: 3,
+		montparnasse: 14,
+		bellevilloise: 20,
+		wanderlust: 12,
+		belleville: 20,
+		marais: 4,
+		bastille: 11,
+		république: 11,
+		republic: 11,
+		châtelet: 1,
+		chatelet: 1,
+		louvre: 1,
+		pigalle: 18,
+		"moulin rouge": 18,
+		canal: 10,
+		"notre dame": 4,
+		richerand: 10,
+		"quai françois mauriac": 13,
+		"champs élysées": 8,
+		"champs elysees": 8,
+		montmartre: 18,
+		oberkampf: 11,
+		ménilmontant: 20,
+		menilmontant: 20,
+		"père lachaise": 20,
+		"pere lachaise": 20,
+		panthéon: 5,
+		pantheon: 5,
+		opéra: 9,
+		opera: 9,
+		"gare du nord": 10,
+		"gare de l'est": 10,
+		"gare de lyon": 12,
+		bercy: 12,
+		invalides: 7,
+		"tour eiffel": 7,
+		eiffel: 7,
+		trocadéro: 16,
+		trocadero: 16,
+		"arc de triomphe": 8,
+		"grands boulevards": 9,
+		"grands magasins": 9,
+	} as const;
+
+	// Find matching arrondissement
+	for (const [key, value] of Object.entries(locationMap)) {
+		if (locationLower.includes(key)) {
+			return value as ParisArrondissement;
+		}
+	}
+
+	return "unknown";
 };
 
 /**
  * Determine if event is after party based on name and time
  */
 const isAfterParty = (name: string, startTime: string): boolean => {
-  const nameLower = name.toLowerCase();
-  const time = convertToTime(startTime);
-  
-  const hasAfterPartyInName = nameLower.includes('after') || 
-                             nameLower.includes('afterparty') ||
-                             nameLower.includes('after-party');
-  
-  const isLateNight = (() => {
-    if (time === 'TBC') return false;
-    const hourMatch = time.match(/(\d{1,2})/);
-    if (!hourMatch) return false;
-    const hours = parseInt(hourMatch[1]);
-    return hours >= 23 || hours <= 5;
-  })();
-  
-  return hasAfterPartyInName || isLateNight;
+	const nameLower = name.toLowerCase();
+	const time = convertToTime(startTime);
+
+	const hasAfterPartyInName =
+		nameLower.includes("after") ||
+		nameLower.includes("afterparty") ||
+		nameLower.includes("after-party");
+
+	const isLateNight = (() => {
+		if (time === "TBC") return false;
+		const hourMatch = time.match(/(\d{1,2})/);
+		if (!hourMatch) return false;
+		const hours = parseInt(hourMatch[1]);
+		return hours >= 23 || hours <= 5;
+	})();
+
+	return hasAfterPartyInName || isLateNight;
 };
 
 /**
  * Convert ISO date format
  */
 const convertToISODate = (dateStr: string): string => {
-  if (!dateStr) return '2025-06-21'; // Default to Saturday
-  
-  const dateMatch = dateStr.match(/(\d{1,2})/);
-  if (dateMatch) {
-    const day = parseInt(dateMatch[1]).toString().padStart(2, '0');
-    return `2025-06-${day}`;
-  }
-  return '2025-06-21'; // Default to Saturday
+	if (!dateStr) return "2025-06-21"; // Default to Saturday
+
+	const dateMatch = dateStr.match(/(\d{1,2})/);
+	if (dateMatch) {
+		const day = parseInt(dateMatch[1]).toString().padStart(2, "0");
+		return `2025-06-${day}`;
+	}
+	return "2025-06-21"; // Default to Saturday
 };
 
 /**
  * Convert CSVEventRow to Event
  */
-export const convertCSVRowToEvent = (csvRow: CSVEventRow, index: number): Event => {
-  const eventType: EventType = isAfterParty(csvRow.name, csvRow.startTime) ? 'After Party' : 'Block Party';
-  const time = convertToTime(csvRow.startTime);
-  const endTime = csvRow.endTime ? convertToTime(csvRow.endTime) : undefined;
-  
-  // Process the ticket links (can be multiple)
-  const processTicketLinks = (linkField: string, eventName: string): string[] => {
-    if (!linkField || linkField.trim() === '' || linkField === '#') {
-      return [`https://www.google.com/search?q=${encodeURIComponent(eventName)}`];
-    }
-    // Split on newlines, commas, or semicolons
-    const rawLinks = linkField.split(/\n|,|;/).map(l => l.trim()).filter(Boolean);
-    return rawLinks.map(link => {
-      // Clean and validate each link
-      if (!link || link === '#') return `https://www.google.com/search?q=${encodeURIComponent(eventName)}`;
-      try {
-        if (!link.startsWith('http://') && !link.startsWith('https://')) {
-          if (link.includes('.') && !link.includes(' ')) {
-            return `https://${link}`;
-          }
-          return `https://www.google.com/search?q=${encodeURIComponent(eventName)}`;
-        }
-        new URL(link);
-        return link;
-      } catch {
-        return `https://www.google.com/search?q=${encodeURIComponent(eventName)}`;
-      }
-    });
-  };
-  const links = processTicketLinks(csvRow.ticketLink, csvRow.name);
-  return {
-    id: `csv-event-${index}`,
-    name: csvRow.name || `Event ${index + 1}`,
-    day: convertToEventDay(csvRow.date),
-    date: convertToISODate(csvRow.date),
-    time: time === 'TBC' ? undefined : time,
-    endTime: endTime === 'TBC' ? undefined : endTime,
-    arrondissement: convertToArrondissement(csvRow.arrondissement, csvRow.location),
-    location: csvRow.location || 'TBA',
-    link: links[0], // for backwards compatibility
-    links, // new field
-    description: csvRow.notes || `${csvRow.genre || 'Music'} event`,
-    type: eventType,
-    genre: convertToMusicGenres(csvRow.genre),
-    indoor: !csvRow.location.toLowerCase().includes('outdoor') && 
-            !csvRow.location.toLowerCase().includes('open air') &&
-            !csvRow.location.toLowerCase().includes('plein air'),
-    verified: false,
-    price: csvRow.price || undefined,
-    age: csvRow.age || undefined,
-    isOOOCPick: csvRow.oocPicks === '🌟' || csvRow.oocPicks.toLowerCase().includes('pick'),
-    hostCountry: convertToHostCountry(csvRow.hostCountry)
-  };
+export const convertCSVRowToEvent = (
+	csvRow: CSVEventRow,
+	index: number,
+): Event => {
+	const eventType: EventType = isAfterParty(csvRow.name, csvRow.startTime)
+		? "After Party"
+		: "Block Party";
+	const time = convertToTime(csvRow.startTime);
+	const endTime = csvRow.endTime ? convertToTime(csvRow.endTime) : undefined;
+
+	// Process the ticket links (can be multiple)
+	const processTicketLinks = (
+		linkField: string,
+		eventName: string,
+	): string[] => {
+		if (!linkField || linkField.trim() === "" || linkField === "#") {
+			return [
+				`https://www.google.com/search?q=${encodeURIComponent(eventName)}`,
+			];
+		}
+		// Split on newlines, commas, or semicolons
+		const rawLinks = linkField
+			.split(/\n|,|;/)
+			.map((l) => l.trim())
+			.filter(Boolean);
+		return rawLinks.map((link) => {
+			// Clean and validate each link
+			if (!link || link === "#")
+				return `https://www.google.com/search?q=${encodeURIComponent(eventName)}`;
+			try {
+				if (!link.startsWith("http://") && !link.startsWith("https://")) {
+					if (link.includes(".") && !link.includes(" ")) {
+						return `https://${link}`;
+					}
+					return `https://www.google.com/search?q=${encodeURIComponent(eventName)}`;
+				}
+				new URL(link);
+				return link;
+			} catch {
+				return `https://www.google.com/search?q=${encodeURIComponent(eventName)}`;
+			}
+		});
+	};
+	const links = processTicketLinks(csvRow.ticketLink, csvRow.name);
+	return {
+		id: `csv-event-${index}`,
+		name: csvRow.name || `Event ${index + 1}`,
+		day: convertToEventDay(csvRow.date),
+		date: convertToISODate(csvRow.date),
+		time: time === "TBC" ? undefined : time,
+		endTime: endTime === "TBC" ? undefined : endTime,
+		arrondissement: convertToArrondissement(
+			csvRow.arrondissement,
+			csvRow.location,
+		),
+		location: csvRow.location || "TBA",
+		link: links[0], // for backwards compatibility
+		links, // new field
+		description: csvRow.notes || `${csvRow.genre || "Music"} event`,
+		type: eventType,
+		genre: convertToMusicGenres(csvRow.genre),
+		indoor:
+			!csvRow.location.toLowerCase().includes("outdoor") &&
+			!csvRow.location.toLowerCase().includes("open air") &&
+			!csvRow.location.toLowerCase().includes("plein air"),
+		verified: false,
+		price: csvRow.price || undefined,
+		age: csvRow.age || undefined,
+		isOOOCPick:
+			csvRow.oocPicks === "🌟" ||
+			csvRow.oocPicks.toLowerCase().includes("pick"),
+		hostCountry: convertToHostCountry(csvRow.hostCountry),
+	};
 };
 
 /**
  * Load and parse events from CSV via API route
  */
 export const loadEventsFromCSV = async (): Promise<Event[]> => {
-  try {
-    const response = await fetch('/api/events');
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.message || 'Failed to load events');
-    }
-    
-    return result.data;
-  } catch (error) {
-    console.error('Error loading CSV events from API:', error);
-    throw new Error('Failed to load events from CSV');
-  }
+	try {
+		const response = await fetch("/api/events");
+
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		}
+
+		const result = await response.json();
+
+		if (!result.success) {
+			throw new Error(result.message || "Failed to load events");
+		}
+
+		return result.data;
+	} catch (error) {
+		console.error("Error loading CSV events from API:", error);
+		throw new Error("Failed to load events from CSV");
+	}
 };
 
 /**
  * Get events count from CSV
  */
 export const getCSVEventsCount = async (): Promise<number> => {
-  try {
-    const events = await loadEventsFromCSV();
-    return events.length;
-  } catch (error) {
-    console.error('Error getting CSV events count:', error);
-    return 0;
-  }
-}; 
+	try {
+		const events = await loadEventsFromCSV();
+		return events.length;
+	} catch (error) {
+		console.error("Error getting CSV events count:", error);
+		return 0;
+	}
+};
