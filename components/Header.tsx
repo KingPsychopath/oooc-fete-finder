@@ -6,6 +6,7 @@ import { Moon, Sun, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
+import Countdown from '@/components/Countdown';
 
 const Header: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -54,7 +55,7 @@ const Header: React.FC = () => {
               <Music className="h-8 w-8 text-primary" />
               <div>
                 <h1 className="text-2xl font-bold">Fête de la Musique</h1>
-                <p className="text-sm text-muted-foreground">Paris 2025</p>
+                <p className="text-sm text-muted-foreground">Paris 2025 • OOOC</p>
               </div>
             </div>
 
@@ -63,15 +64,16 @@ const Header: React.FC = () => {
               <Image
                 src="/OOOCLogo.svg"
                 alt="OOOC - Event Organizer"
-                width={80}
-                height={80}
-                className="h-16 w-16 sm:h-20 sm:w-20"
+                width={120}
+                height={120}
+                className="h-24 w-24 sm:h-32 sm:w-32"
               />
             </div>
 
             {/* Right - Spacer for balance */}
             <div className="flex-1"></div>
           </div>
+          <Countdown />
         </div>
       </header>
     );
@@ -86,8 +88,8 @@ const Header: React.FC = () => {
             <Music className="h-8 w-8 text-primary" />
             <div>
               <h1 className="text-2xl font-bold">Fête de la Musique</h1>
-			  <p className="text-sm text-muted-foreground">Paris 2025 • OOOC</p>
-			  </div>
+              <p className="text-sm text-muted-foreground">Paris 2025 • OOOC</p>
+            </div>
           </div>
 
           {/* Center - OOOC Logo */}
@@ -95,9 +97,9 @@ const Header: React.FC = () => {
             <Image
               src="/OOOCLogo.svg"
               alt="OOOC - Event Organizer"
-              width={80}
-              height={80}
-              className="h-16 w-16 sm:h-20 sm:w-20 transition-transform hover:scale-105"
+              width={120}
+              height={120}
+              className="h-24 w-24 sm:h-32 sm:w-32 transition-transform hover:scale-105"
             />
           </div>
 
@@ -137,12 +139,7 @@ const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Countdown to Fête de la Musique */}
-        <div className="mt-4 text-center">
-          <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
-            🎵 Saturday, June 21st, 2025 - Fête de la Musique
-          </div>
-        </div>
+        <Countdown />
       </div>
     </header>
   );
