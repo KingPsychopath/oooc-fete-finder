@@ -167,125 +167,127 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 	// Active Filters Component (reusable)
 	const ActiveFiltersDisplay = () => (
-		hasActiveFilters && (
-			<div className="pb-4 border-b">
-				<div className="text-xs font-medium text-muted-foreground mb-2">
-					Active Filters ({activeFilterCount}):
-				</div>
-				<div className="flex flex-wrap gap-2">
-					{selectedDays.map((day) => (
-						<Badge key={day} variant="secondary" className="text-xs">
-							{EVENT_DAYS.find((d) => d.key === day)?.label}
-							<Button
-								variant="ghost"
-								size="sm"
-								className="h-auto p-0 ml-1 hover:bg-transparent"
-								onClick={() => onDayToggle(day)}
-							>
-								<X className="h-3 w-3" />
-							</Button>
-						</Badge>
-					))}
-					{selectedDayNightPeriods.map((period) => (
-						<Badge key={period} variant="secondary" className="text-xs">
-							{DAY_NIGHT_PERIODS.find((p) => p.key === period)?.icon} {period}
-							<Button
-								variant="ghost"
-								size="sm"
-								className="h-auto p-0 ml-1 hover:bg-transparent"
-								onClick={() => onDayNightPeriodToggle(period)}
-							>
-								<X className="h-3 w-3" />
-							</Button>
-						</Badge>
-					))}
-					{selectedEventTypes.map((eventType) => (
-						<Badge key={eventType} variant="secondary" className="text-xs">
-							{EVENT_TYPES.find((t) => t.key === eventType)?.label}
-							<Button
-								variant="ghost"
-								size="sm"
-								className="h-auto p-0 ml-1 hover:bg-transparent"
-								onClick={() => onEventTypeToggle(eventType)}
-							>
-								<X className="h-3 w-3" />
-							</Button>
-						</Badge>
-					))}
-					{selectedIndoorPreference !== null && (
-						<Badge variant="secondary" className="text-xs">
-							{selectedIndoorPreference ? "🏢 Indoor" : "🌤️ Outdoor"}
-							<Button
-								variant="ghost"
-								size="sm"
-								className="h-auto p-0 ml-1 hover:bg-transparent"
-								onClick={() => onIndoorPreferenceChange(null)}
-							>
-								<X className="h-3 w-3" />
-							</Button>
-						</Badge>
-					)}
-					{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
-						selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
-						<Badge variant="secondary" className="text-xs">
-							💰 {formatPriceRange(selectedPriceRange)}
-							<Button
-								variant="ghost"
-								size="sm"
-								className="h-auto p-0 ml-1 hover:bg-transparent"
-								onClick={resetPriceRange}
-							>
-								<X className="h-3 w-3" />
-							</Button>
-						</Badge>
-					)}
-					{selectedArrondissements.map((arr) => (
-						<Badge key={arr} variant="secondary" className="text-xs">
-							{arr === "unknown" ? "?" : `${arr}e`}
-							<Button
-								variant="ghost"
-								size="sm"
-								className="h-auto p-0 ml-1 hover:bg-transparent"
-								onClick={() => onArrondissementToggle(arr)}
-							>
-								<X className="h-3 w-3" />
-							</Button>
-						</Badge>
-					))}
-					{selectedGenres.slice(0, 4).map((genre) => (
-						<Badge key={genre} variant="secondary" className="text-xs">
-							{MUSIC_GENRES.find((g) => g.key === genre)?.label}
-							<Button
-								variant="ghost"
-								size="sm"
-								className="h-auto p-0 ml-1 hover:bg-transparent"
-								onClick={() => onGenreToggle(genre)}
-							>
-								<X className="h-3 w-3" />
-							</Button>
-						</Badge>
-					))}
-					{selectedGenres.length > 4 && (
-						<Badge variant="outline" className="text-xs">
-							+{selectedGenres.length - 4} more
-						</Badge>
-					)}
-					{selectedNationalities.map((nationality) => (
-						<Badge key={nationality} variant="secondary" className="text-xs">
-							{nationality}
-							<Button
-								variant="ghost"
-								size="sm"
-								className="h-auto p-0 ml-1 hover:bg-transparent"
-								onClick={() => onNationalityToggle(nationality)}
-							>
-								<X className="h-3 w-3" />
-							</Button>
-						</Badge>
-					))}
-				</div>
-			</div>
-		)
+		<div className={`transition-all duration-200 ease-in-out ${hasActiveFilters ? 'pb-4 border-b opacity-100' : 'h-0 overflow-hidden opacity-0'}`}>
+			{hasActiveFilters && (
+				<>
+					<div className="text-xs font-medium text-muted-foreground mb-2">
+						Active Filters ({activeFilterCount}):
+					</div>
+					<div className="flex flex-wrap gap-2 min-h-[28px]">
+						{selectedDays.map((day) => (
+							<Badge key={day} variant="secondary" className="text-xs">
+								{EVENT_DAYS.find((d) => d.key === day)?.label}
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={() => onDayToggle(day)}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						))}
+						{selectedDayNightPeriods.map((period) => (
+							<Badge key={period} variant="secondary" className="text-xs">
+								{DAY_NIGHT_PERIODS.find((p) => p.key === period)?.icon} {period}
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={() => onDayNightPeriodToggle(period)}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						))}
+						{selectedEventTypes.map((eventType) => (
+							<Badge key={eventType} variant="secondary" className="text-xs">
+								{EVENT_TYPES.find((t) => t.key === eventType)?.label}
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={() => onEventTypeToggle(eventType)}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						))}
+						{selectedNationalities.map((nationality) => (
+							<Badge key={nationality} variant="secondary" className="text-xs">
+								{nationality}
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={() => onNationalityToggle(nationality)}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						))}
+						{selectedIndoorPreference !== null && (
+							<Badge variant="secondary" className="text-xs">
+								{selectedIndoorPreference ? "🏢 Indoor" : "🌤️ Outdoor"}
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={() => onIndoorPreferenceChange(null)}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						)}
+						{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
+							selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
+							<Badge variant="secondary" className="text-xs">
+								💰 {formatPriceRange(selectedPriceRange)}
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={resetPriceRange}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						)}
+						{selectedArrondissements.map((arr) => (
+							<Badge key={arr} variant="secondary" className="text-xs">
+								{arr === "unknown" ? "?" : `${arr}e`}
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={() => onArrondissementToggle(arr)}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						))}
+						{selectedGenres.slice(0, 4).map((genre) => (
+							<Badge key={genre} variant="secondary" className="text-xs">
+								{MUSIC_GENRES.find((g) => g.key === genre)?.label}
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={() => onGenreToggle(genre)}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						))}
+						{selectedGenres.length > 4 && (
+							<Badge variant="outline" className="text-xs">
+								+{selectedGenres.length - 4} more
+							</Badge>
+						)}
+					</div>
+				</>
+			)}
+		</div>
 	);
 
 	// Mobile floating button when closed - only show on mobile
@@ -557,14 +559,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									{/* Music Genres */}
 									<div>
 										<h3 className="font-semibold mb-3">Music Genres</h3>
-										<div className="relative">
-											<div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto border rounded-md p-2 bg-muted/20">
+										<div className="relative contain-layout">
+											<div className="grid grid-cols-2 gap-1 max-h-48 min-h-[12rem] overflow-y-auto border rounded-md p-2 bg-muted/20">
 												{MUSIC_GENRES.map(({ key, label, color }) => (
 													<Toggle
 														key={key}
 														pressed={selectedGenres.includes(key)}
 														onPressedChange={() => onGenreToggle(key)}
-														className="justify-start w-full h-7"
+														className="justify-start w-full h-7 shrink-0"
 														size="sm"
 													>
 														<div className={`w-2 h-2 rounded-full ${color} mr-1.5 flex-shrink-0`} />
@@ -574,7 +576,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											</div>
 											<div className="absolute top-2 left-2 right-2 h-2 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
 											<div className="absolute bottom-2 left-2 right-2 h-2 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
-											<div className="text-xs text-muted-foreground mt-1 text-center opacity-70">
+											<div className="text-xs text-muted-foreground mt-1 text-center opacity-70 h-4">
 												{MUSIC_GENRES.length} genres • scroll ↕
 											</div>
 										</div>
@@ -583,14 +585,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									{/* Arrondissements */}
 									<div>
 										<h3 className="font-semibold mb-3">Arrondissements</h3>
-										<div className="grid grid-cols-5 gap-1">
+										<div className="grid grid-cols-4 lg:grid-cols-5 gap-1 min-h-[7rem] content-start">
 											{availableArrondissements.map((arr) => (
 												<Toggle
 													key={arr}
 													pressed={selectedArrondissements.includes(arr)}
 													onPressedChange={() => onArrondissementToggle(arr)}
 													size="sm"
-													className="h-7 text-xs"
+													className="h-7 text-xs shrink-0"
 												>
 													{arr === "unknown" ? "?" : `${arr}e`}
 												</Toggle>
@@ -871,14 +873,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								{/* Music Genres */}
 								<div>
 									<h3 className="font-semibold mb-3">Music Genres</h3>
-									<div className="relative">
-										<div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto border rounded-md p-2 bg-muted/20">
+									<div className="relative contain-layout">
+										<div className="grid grid-cols-2 gap-1 max-h-48 min-h-[12rem] overflow-y-auto border rounded-md p-2 bg-muted/20">
 											{MUSIC_GENRES.map(({ key, label, color }) => (
 												<Toggle
 													key={key}
 													pressed={selectedGenres.includes(key)}
 													onPressedChange={() => onGenreToggle(key)}
-													className="justify-start w-full h-7"
+													className="justify-start w-full h-7 shrink-0"
 													size="sm"
 												>
 													<div className={`w-2 h-2 rounded-full ${color} mr-1.5 flex-shrink-0`} />
@@ -888,7 +890,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										</div>
 										<div className="absolute top-2 left-2 right-2 h-2 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
 										<div className="absolute bottom-2 left-2 right-2 h-2 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
-										<div className="text-xs text-muted-foreground mt-1 text-center opacity-70">
+										<div className="text-xs text-muted-foreground mt-1 text-center opacity-70 h-4">
 											{MUSIC_GENRES.length} genres • scroll ↕
 										</div>
 									</div>
@@ -897,14 +899,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								{/* Arrondissements */}
 								<div>
 									<h3 className="font-semibold mb-3">Arrondissements</h3>
-									<div className="grid grid-cols-4 lg:grid-cols-5 gap-1">
+									<div className="grid grid-cols-4 lg:grid-cols-5 gap-1 min-h-[7rem] content-start">
 										{availableArrondissements.map((arr) => (
 											<Toggle
 												key={arr}
 												pressed={selectedArrondissements.includes(arr)}
 												onPressedChange={() => onArrondissementToggle(arr)}
 												size="sm"
-												className="h-7 text-xs"
+												className="h-7 text-xs shrink-0"
 											>
 												{arr === "unknown" ? "?" : `${arr}e`}
 											</Toggle>
