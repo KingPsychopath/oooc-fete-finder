@@ -62,11 +62,11 @@ const Header: React.FC = () => {
             {/* Center - OOOC Logo */}
             <div className="flex justify-center flex-1">
               <Image
-                src="/OOOCLogo.svg"
+                src="/OOOCLogoDark.svg"
                 alt="OOOC - Event Organizer"
                 width={120}
                 height={120}
-                className="h-24 w-24 sm:h-32 sm:w-32"
+                className="h-24 w-24 sm:h-32 sm:w-32 dark:invert"
               />
             </div>
 
@@ -95,11 +95,11 @@ const Header: React.FC = () => {
           {/* Center - OOOC Logo */}
           <div className="flex justify-center flex-1">
             <Image
-              src="/OOOCLogo.svg"
+              src="/OOOCLogoDark.svg"
               alt="OOOC - Event Organizer"
               width={120}
               height={120}
-              className="h-24 w-24 sm:h-32 sm:w-32 transition-transform hover:scale-105"
+              className="h-24 w-24 sm:h-32 sm:w-32 transition-transform hover:scale-105 dark:invert"
             />
           </div>
 
