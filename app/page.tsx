@@ -479,7 +479,10 @@ export default function Home() {
 												<div className="flex items-center space-x-1">
 													<Clock className="h-3 w-3 flex-shrink-0" />
 													<span className="truncate">
-														{event.time || "TBC"} • {event.day}
+														{event.time || "TBC"}
+														{event.endTime && event.time !== "TBC" && (
+															<> - {event.endTime}</>
+														)} • {event.day}
 													</span>
 													{event.time && getDayNightPeriod(event.time) && (
 														<span className="flex-shrink-0">

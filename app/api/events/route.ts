@@ -9,7 +9,7 @@ import { parseCSVContent, convertCSVRowToEvent } from "@/utils/csvParser";
 export async function GET() {
 	try {
 		// Read the CSV file from the server-side
-		const csvPath = path.join(process.cwd(), "data", "ooc_list_tracker2.csv");
+		const csvPath = path.join(process.cwd(), "data", "ooc_list_tracker3.csv");
 		const csvContent = await fs.readFile(csvPath, "utf-8");
 
 		// Parse the CSV content
