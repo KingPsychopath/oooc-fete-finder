@@ -54,6 +54,7 @@ type FilterPanelProps = {
 	availableArrondissements: ParisArrondissement[];
 	isOpen: boolean;
 	onClose: () => void;
+	onOpen?: () => void;
 };
 
 const FilterPanel: React.FC<FilterPanelProps> = ({
@@ -75,6 +76,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	availableArrondissements,
 	isOpen,
 	onClose,
+	onOpen,
 }) => {
 	// Stable accordion state for desktop compact mode
 	const [openAccordionSections, setOpenAccordionSections] = useState<string[]>([
@@ -271,7 +273,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 				<Button
 					variant="outline"
 					className="fixed bottom-4 right-4 z-40 shadow-lg lg:hidden"
-					onClick={onClose}
+					onClick={onOpen || onClose}
 				>
 					<Filter className="h-4 w-4 mr-2" />
 					Filters

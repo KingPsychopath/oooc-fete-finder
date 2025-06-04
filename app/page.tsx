@@ -401,6 +401,7 @@ export default function Home() {
 									availableArrondissements={availableArrondissements}
 									isOpen={isFilterOpen}
 									onClose={() => setIsFilterOpen(false)}
+									onOpen={() => setIsFilterOpen(true)}
 								/>
 							</div>
 						</div>
