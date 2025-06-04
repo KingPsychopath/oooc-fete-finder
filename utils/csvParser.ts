@@ -4,14 +4,14 @@ import type {
 	MusicGenre,
 	EventType,
 	ParisArrondissement,
-	HostCountry,
+	Nationality,
 } from "@/types/events";
 import Papa from "papaparse";
 
 // Define the expected CSV column headers and their possible variations
 const COLUMN_MAPPINGS = {
 	oocPicks: ["OOOC Picks", "OOC Picks", "oocPicks", "picks", "🌟"],
-	hostCountry: ["GB/FR", "Host Country", "Country", "hostCountry", "Host"],
+	nationality: ["GB/FR", "Host Country", "Country", "hostCountry", "Host", "Nationality"],
 	name: ["Event Name", "Name", "name", "Event", "Title"],
 	date: ["Date", "Day", "date", "Event Date"],
 	startTime: ["Start Time", "Time", "startTime", "Start", "Event Time"],
@@ -37,7 +37,7 @@ type RawCSVRow = Record<string, string>;
 // Enhanced CSV event row type
 export type CSVEventRow = {
 	oocPicks: string;
-	hostCountry: string;
+	nationality: string;
 	name: string;
 	date: string;
 	startTime: string;
@@ -93,7 +93,7 @@ const createColumnMapping = (
 ): Record<keyof CSVEventRow, string | null> => {
 	const mapping: Record<keyof CSVEventRow, string | null> = {
 		oocPicks: findColumnName(headers, COLUMN_MAPPINGS.oocPicks),
-		hostCountry: findColumnName(headers, COLUMN_MAPPINGS.hostCountry),
+		nationality: findColumnName(headers, COLUMN_MAPPINGS.nationality),
 		name: findColumnName(headers, COLUMN_MAPPINGS.name),
 		date: findColumnName(headers, COLUMN_MAPPINGS.date),
 		startTime: findColumnName(headers, COLUMN_MAPPINGS.startTime),
@@ -149,8 +149,8 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 		return rawData.map((row: RawCSVRow, index: number) => {
 			const csvRow: CSVEventRow = {
 				oocPicks: (columnMapping.oocPicks && row[columnMapping.oocPicks]) || "",
-				hostCountry:
-					(columnMapping.hostCountry && row[columnMapping.hostCountry]) || "",
+				nationality:
+					(columnMapping.nationality && row[columnMapping.nationality]) || "",
 				name:
 					(columnMapping.name && row[columnMapping.name]) ||
 					`Event ${index + 1}`,
@@ -228,14 +228,14 @@ const convertToEventDay = (dateStr: string): EventDay => {
 };
 
 /**
- * Convert host country flag/text to HostCountry type
+ * Convert host country flag/text to Nationality type
  */
-const convertToHostCountry = (
-	hostCountryStr: string,
-): HostCountry | undefined => {
-	if (!hostCountryStr) return undefined;
+const convertToNationality = (
+	nationalityStr: string,
+): Nationality | undefined => {
+	if (!nationalityStr) return undefined;
 
-	const cleaned = hostCountryStr.trim().toLowerCase();
+	const cleaned = nationalityStr.trim().toLowerCase();
 
 	// Handle various formats
 	if (
@@ -568,7 +568,7 @@ export const convertCSVRowToEvent = (
 		isOOOCPick:
 			csvRow.oocPicks === "🌟" ||
 			csvRow.oocPicks.toLowerCase().includes("pick"),
-		hostCountry: convertToHostCountry(csvRow.hostCountry),
+		nationality: convertToNationality(csvRow.nationality),
 	};
 };
 

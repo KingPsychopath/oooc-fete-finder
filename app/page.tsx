@@ -12,7 +12,7 @@ import {
 	isEventInDayNightPeriod,
 	MUSIC_GENRES,
 	EVENT_TYPES,
-	HOST_COUNTRIES,
+	NATIONALITIES,
 	formatPrice,
 	isPriceInRange,
 	PRICE_RANGE_CONFIG,
@@ -22,7 +22,7 @@ import {
 	type DayNightPeriod,
 	type MusicGenre,
 	type EventType,
-	type HostCountry,
+	type Nationality,
 	type ParisArrondissement,
 } from "@/types/events";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,7 +50,7 @@ export default function Home() {
 	>([]);
 	const [selectedGenres, setSelectedGenres] = useState<MusicGenre[]>([]);
 	const [selectedEventTypes, setSelectedEventTypes] = useState<EventType[]>([]);
-	const [selectedHostCountries, setSelectedHostCountries] = useState<HostCountry[]>([]);
+	const [selectedNationalities, setSelectedNationalities] = useState<Nationality[]>([]);
 	const [selectedIndoorPreference, setSelectedIndoorPreference] = useState<
 		boolean | null
 	>(null);
@@ -129,9 +129,9 @@ export default function Home() {
 			)
 				return false;
 
-			// Filter by selected host countries
-			if (selectedHostCountries.length > 0) {
-				if (!event.hostCountry || !selectedHostCountries.includes(event.hostCountry)) {
+			// Filter by selected nationalities
+			if (selectedNationalities.length > 0) {
+				if (!event.nationality || !selectedNationalities.includes(event.nationality)) {
 					return false;
 				}
 			}
@@ -189,7 +189,7 @@ export default function Home() {
 		selectedArrondissements,
 		selectedGenres,
 		selectedEventTypes,
-		selectedHostCountries,
+		selectedNationalities,
 		selectedIndoorPreference,
 		selectedPriceRange,
 		searchQuery,
@@ -233,9 +233,9 @@ export default function Home() {
 		);
 	};
 
-	const handleHostCountryToggle = (country: HostCountry) => {
-		setSelectedHostCountries((prev) =>
-			prev.includes(country) ? prev.filter((c) => c !== country) : [...prev, country],
+	const handleNationalityToggle = (nationality: Nationality) => {
+		setSelectedNationalities((prev) =>
+			prev.includes(nationality) ? prev.filter((n) => n !== nationality) : [...prev, nationality],
 		);
 	};
 
@@ -253,7 +253,7 @@ export default function Home() {
 		setSelectedArrondissements([]);
 		setSelectedGenres([]);
 		setSelectedEventTypes([]);
-		setSelectedHostCountries([]);
+		setSelectedNationalities([]);
 		setSelectedIndoorPreference(null);
 		setSelectedPriceRange(PRICE_RANGE_CONFIG.defaultRange);
 		setSearchQuery("");
@@ -269,7 +269,7 @@ export default function Home() {
 		selectedArrondissements.length > 0 ||
 		selectedGenres.length > 0 ||
 		selectedEventTypes.length > 0 ||
-		selectedHostCountries.length > 0 ||
+		selectedNationalities.length > 0 ||
 		selectedIndoorPreference !== null ||
 		selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 		selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
@@ -378,7 +378,7 @@ export default function Home() {
 															selectedArrondissements.length +
 															selectedGenres.length +
 															selectedEventTypes.length +
-															selectedHostCountries.length +
+															selectedNationalities.length +
 															(selectedPriceRange[0] !==
 																PRICE_RANGE_CONFIG.min ||
 															selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
@@ -408,7 +408,7 @@ export default function Home() {
 									selectedArrondissements={selectedArrondissements}
 									selectedGenres={selectedGenres}
 									selectedEventTypes={selectedEventTypes}
-									selectedHostCountries={selectedHostCountries}
+									selectedNationalities={selectedNationalities}
 									selectedIndoorPreference={selectedIndoorPreference}
 									selectedPriceRange={selectedPriceRange}
 									onDayToggle={handleDayToggle}
@@ -416,7 +416,7 @@ export default function Home() {
 									onArrondissementToggle={handleArrondissementToggle}
 									onGenreToggle={handleGenreToggle}
 									onEventTypeToggle={handleEventTypeToggle}
-									onHostCountryToggle={handleHostCountryToggle}
+									onNationalityToggle={handleNationalityToggle}
 									onIndoorPreferenceChange={handleIndoorPreferenceChange}
 									onPriceRangeChange={handlePriceRangeChange}
 									onClearFilters={handleClearFilters}
@@ -520,10 +520,10 @@ export default function Home() {
 												<Badge variant="secondary" className="text-xs">
 													{event.type}
 												</Badge>
-												{event.hostCountry && (
+												{event.nationality && (
 													<Badge variant="outline" className="text-xs">
-														{HOST_COUNTRIES.find((country) => country.key === event.hostCountry)?.flag}{" "}
-														{HOST_COUNTRIES.find((country) => country.key === event.hostCountry)?.shortCode}
+														{NATIONALITIES.find((nationality) => nationality.key === event.nationality)?.flag}{" "}
+														{NATIONALITIES.find((nationality) => nationality.key === event.nationality)?.shortCode}
 													</Badge>
 												)}
 												{event.genre.slice(0, 2).map((genre) => (

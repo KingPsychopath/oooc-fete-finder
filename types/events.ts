@@ -6,7 +6,7 @@ export type DayNightPeriod = "day" | "night";
 export type EventType = "After Party" | "Block Party";
 
 // Host country type for GB/FR column
-export type HostCountry = "UK" | "FR";
+export type Nationality = "UK" | "FR";
 
 // Expanded genre types based on CSV data
 export type MusicGenre =
@@ -91,7 +91,7 @@ export type Event = {
 	price?: string; // Price information from CSV
 	age?: string; // Age restrictions from CSV
 	isOOOCPick?: boolean; // 🌟 indicator from CSV
-	hostCountry?: HostCountry; // GB/FR indicator from CSV
+	nationality?: Nationality; // GB/FR indicator from CSV
 	// Legacy field for backwards compatibility
 	category?: EventCategory;
 };
@@ -99,7 +99,7 @@ export type Event = {
 // CSV data type matching the structure in ooc_list_tracker.csv
 export type CSVEventRow = {
 	oocPicks: string; // "🌟" or empty
-	hostCountry: string; // "🇬🇧" or "🇫🇷"
+	nationality: string; // "🇬🇧" or "🇫🇷"
 	name: string;
 	date: string;
 	startTime: string;
@@ -201,7 +201,7 @@ export const EVENT_TYPES = [
 	{ key: "Block Party" as const, label: "Block Party", icon: "🎉" },
 ] as const;
 
-export const HOST_COUNTRIES = [
+export const NATIONALITIES = [
 	{ key: "UK" as const, label: "United Kingdom", flag: "🇬🇧", shortCode: "GB" },
 	{ key: "FR" as const, label: "France", flag: "🇫🇷", shortCode: "FR" },
 ] as const;

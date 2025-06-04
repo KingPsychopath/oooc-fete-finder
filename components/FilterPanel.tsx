@@ -25,14 +25,14 @@ import {
 	DAY_NIGHT_PERIODS,
 	MUSIC_GENRES,
 	EVENT_TYPES,
-	HOST_COUNTRIES,
+	NATIONALITIES,
 	PRICE_RANGE_CONFIG,
 	formatPriceRange,
 	type EventDay,
 	type DayNightPeriod,
 	type MusicGenre,
 	type EventType,
-	type HostCountry,
+	type Nationality,
 	type ParisArrondissement,
 } from "@/types/events";
 import { Slider } from "@/components/ui/slider";
@@ -43,7 +43,7 @@ type FilterPanelProps = {
 	selectedArrondissements: ParisArrondissement[];
 	selectedGenres: MusicGenre[];
 	selectedEventTypes: EventType[];
-	selectedHostCountries: HostCountry[];
+	selectedNationalities: Nationality[];
 	selectedIndoorPreference: boolean | null;
 	selectedPriceRange: [number, number];
 	onDayToggle: (day: EventDay) => void;
@@ -51,7 +51,7 @@ type FilterPanelProps = {
 	onArrondissementToggle: (arrondissement: ParisArrondissement) => void;
 	onGenreToggle: (genre: MusicGenre) => void;
 	onEventTypeToggle: (eventType: EventType) => void;
-	onHostCountryToggle: (hostCountry: HostCountry) => void;
+	onNationalityToggle: (nationality: Nationality) => void;
 	onIndoorPreferenceChange: (preference: boolean | null) => void;
 	onPriceRangeChange: (range: [number, number]) => void;
 	onClearFilters: () => void;
@@ -67,7 +67,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	selectedArrondissements,
 	selectedGenres,
 	selectedEventTypes,
-	selectedHostCountries,
+	selectedNationalities,
 	selectedIndoorPreference,
 	selectedPriceRange,
 	onDayToggle,
@@ -75,7 +75,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onArrondissementToggle,
 	onGenreToggle,
 	onEventTypeToggle,
-	onHostCountryToggle,
+	onNationalityToggle,
 	onIndoorPreferenceChange,
 	onPriceRangeChange,
 	onClearFilters,
@@ -104,7 +104,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedArrondissements.length > 0 ||
 			selectedGenres.length > 0 ||
 			selectedEventTypes.length > 0 ||
-			selectedHostCountries.length > 0 ||
+			selectedNationalities.length > 0 ||
 			selectedIndoorPreference !== null ||
 			selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max,
@@ -114,7 +114,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedArrondissements,
 			selectedGenres,
 			selectedEventTypes,
-			selectedHostCountries,
+			selectedNationalities,
 			selectedIndoorPreference,
 			selectedPriceRange,
 		],
@@ -128,7 +128,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedArrondissements.length +
 			selectedGenres.length +
 			selectedEventTypes.length +
-			selectedHostCountries.length +
+			selectedNationalities.length +
 			(selectedIndoorPreference !== null ? 1 : 0) +
 			(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
@@ -141,7 +141,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		selectedArrondissements,
 		selectedGenres,
 		selectedEventTypes,
-		selectedHostCountries,
+		selectedNationalities,
 		selectedIndoorPreference,
 		selectedPriceRange,
 	]);
@@ -270,14 +270,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							+{selectedGenres.length - 4} more
 						</Badge>
 					)}
-					{selectedHostCountries.map((country) => (
-						<Badge key={country} variant="secondary" className="text-xs">
-							{country}
+					{selectedNationalities.map((nationality) => (
+						<Badge key={nationality} variant="secondary" className="text-xs">
+							{nationality}
 							<Button
 								variant="ghost"
 								size="sm"
 								className="h-auto p-0 ml-1 hover:bg-transparent"
-								onClick={() => onHostCountryToggle(country)}
+								onClick={() => onNationalityToggle(nationality)}
 							>
 								<X className="h-3 w-3" />
 							</Button>
@@ -481,15 +481,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										</div>
 									</div>
 
-									{/* Host Country */}
+									{/* Nationality */}
 									<div>
-										<h3 className="font-semibold mb-3">Host Country</h3>
-										<div className="space-y-1">
-											{HOST_COUNTRIES.map(({ key, flag, shortCode }) => (
+										<h3 className="font-semibold mb-3">Nationality</h3>
+										<div className="grid grid-cols-2 gap-1">
+											{NATIONALITIES.map(({ key, flag, shortCode }) => (
 												<Toggle
 													key={key}
-													pressed={selectedHostCountries.includes(key)}
-													onPressedChange={() => onHostCountryToggle(key)}
+													pressed={selectedNationalities.includes(key)}
+													onPressedChange={() => onNationalityToggle(key)}
 													className="justify-start w-full h-8"
 													size="sm"
 												>
@@ -795,15 +795,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</div>
 								</div>
 
-								{/* Host Country */}
+								{/* Nationality */}
 								<div>
-									<h3 className="font-semibold mb-3">Host Country</h3>
-									<div className="space-y-1">
-										{HOST_COUNTRIES.map(({ key, flag, shortCode }) => (
+									<h3 className="font-semibold mb-3">Nationality</h3>
+									<div className="grid grid-cols-2 gap-1">
+										{NATIONALITIES.map(({ key, flag, shortCode }) => (
 											<Toggle
 												key={key}
-												pressed={selectedHostCountries.includes(key)}
-												onPressedChange={() => onHostCountryToggle(key)}
+												pressed={selectedNationalities.includes(key)}
+												onPressedChange={() => onNationalityToggle(key)}
 												className="justify-start w-full h-8"
 												size="sm"
 											>
