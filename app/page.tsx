@@ -241,6 +241,10 @@ export default function Home() {
 		setSearchQuery("");
 	}, []);
 
+	const toggleFilterPanel = useCallback(() => {
+		setIsFilterOpen(prev => !prev);
+	}, []);
+
 	const hasActiveFilters =
 		selectedDays.length > 0 ||
 		selectedDayNightPeriods.length > 0 ||
@@ -340,7 +344,7 @@ export default function Home() {
 											<Button
 												variant="outline"
 												size="sm"
-												onClick={() => setIsFilterOpen(!isFilterOpen)}
+												onClick={toggleFilterPanel}
 												className="lg:hidden"
 											>
 												<Filter className="h-4 w-4 mr-2" />
@@ -376,8 +380,8 @@ export default function Home() {
 								</Card>
 							</div>
 
-							{/* Filter Panel - Desktop */}
-							<div className="hidden lg:block">
+							{/* Unified Filter Panel - Responsive */}
+							<div className="lg:block">
 								<FilterPanel
 									selectedDays={selectedDays}
 									selectedDayNightPeriods={selectedDayNightPeriods}
@@ -395,8 +399,8 @@ export default function Home() {
 									onPriceRangeChange={handlePriceRangeChange}
 									onClearFilters={handleClearFilters}
 									availableArrondissements={availableArrondissements}
-									isOpen={true}
-									onClose={() => {}}
+									isOpen={isFilterOpen}
+									onClose={() => setIsFilterOpen(false)}
 								/>
 							</div>
 						</div>
@@ -512,28 +516,6 @@ export default function Home() {
 					</>
 				)}
 			</main>
-
-			{/* Mobile Filter Panel */}
-			<FilterPanel
-				selectedDays={selectedDays}
-				selectedDayNightPeriods={selectedDayNightPeriods}
-				selectedArrondissements={selectedArrondissements}
-				selectedGenres={selectedGenres}
-				selectedEventTypes={selectedEventTypes}
-				selectedIndoorPreference={selectedIndoorPreference}
-				selectedPriceRange={selectedPriceRange}
-				onDayToggle={handleDayToggle}
-				onDayNightPeriodToggle={handleDayNightPeriodToggle}
-				onArrondissementToggle={handleArrondissementToggle}
-				onGenreToggle={handleGenreToggle}
-				onEventTypeToggle={handleEventTypeToggle}
-				onIndoorPreferenceChange={handleIndoorPreferenceChange}
-				onPriceRangeChange={handlePriceRangeChange}
-				onClearFilters={handleClearFilters}
-				availableArrondissements={availableArrondissements}
-				isOpen={isFilterOpen}
-				onClose={() => setIsFilterOpen(!isFilterOpen)}
-			/>
 
 			{/* Event Modal */}
 			<EventModal
