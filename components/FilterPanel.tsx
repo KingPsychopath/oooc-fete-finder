@@ -59,6 +59,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   isOpen,
   onClose
 }) => {
+  // Add state for accordion sections - initially open for frequently used filters
+  const [openAccordionSections, setOpenAccordionSections] = useState<string[]>(['days', 'types']);
+
   const hasActiveFilters = 
     selectedDays.length > 0 || 
     selectedDayNightPeriods.length > 0 ||
@@ -121,7 +124,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <Accordion type="multiple" defaultValue={["days", "types"]} className="w-full">
+        <Accordion 
+          type="multiple" 
+          value={openAccordionSections}
+          onValueChange={setOpenAccordionSections}
+          className="w-full"
+        >
           {/* Quick Day/Time Filters - Always visible for easy access */}
           <AccordionItem value="days" className="border-b-0">
             <AccordionTrigger className="py-2 text-sm font-medium">
@@ -153,32 +161,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 {/* Day/Night periods - show when any day is selected */}
                 {selectedDays.length > 0 && (
                   <div className="pt-2 border-t">
-                    <div className="flex items-center mb-2">
-                      <span className="text-xs text-muted-foreground mr-2">Time of day:</span>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="text-xs space-y-1">
-                              <p><strong>Day:</strong> 6AM - 9:59PM ☀️</p>
-                              <p><strong>Night:</strong> 10PM - 5:59AM 🌙</p>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <div className="flex gap-2">
-                      {DAY_NIGHT_PERIODS.map(({ key: periodKey, label: periodLabel, icon }) => (
+                    <div className="text-xs font-medium text-muted-foreground mb-2">Time Periods:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {DAY_NIGHT_PERIODS.map(({ key, label, icon }) => (
                         <Toggle
-                          key={periodKey}
-                          pressed={selectedDayNightPeriods.includes(periodKey)}
-                          onPressedChange={() => onDayNightPeriodToggle(periodKey)}
+                          key={key}
+                          pressed={selectedDayNightPeriods.includes(key)}
+                          onPressedChange={() => onDayNightPeriodToggle(key)}
                           size="sm"
                           className="text-xs"
                         >
-                          {icon} {periodLabel}
+                          <span className="mr-1.5">{icon}</span>
+                          {label}
                         </Toggle>
                       ))}
                     </div>
@@ -341,6 +335,45 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   </Button>
                 </Badge>
               ))}
+              {selectedEventTypes.map(eventType => (
+                <Badge key={eventType} variant="secondary" className="text-xs h-6">
+                  {EVENT_TYPES.find(t => t.key === eventType)?.label}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 ml-1 hover:bg-transparent"
+                    onClick={() => onEventTypeToggle(eventType)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+              {selectedIndoorPreference !== null && (
+                <Badge variant="secondary" className="text-xs h-6">
+                  {selectedIndoorPreference ? '🏢 Indoor' : '🌤️ Outdoor'}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 ml-1 hover:bg-transparent"
+                    onClick={() => onIndoorPreferenceChange(null)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              )}
+              {selectedArrondissements.map(arr => (
+                <Badge key={arr} variant="secondary" className="text-xs h-6">
+                  {arr}e
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 ml-1 hover:bg-transparent"
+                    onClick={() => onArrondissementToggle(arr)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
               {selectedGenres.slice(0, 3).map(genre => (
                 <Badge key={genre} variant="secondary" className="text-xs h-6">
                   {MUSIC_GENRES.find(g => g.key === genre)?.label}
@@ -359,19 +392,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   +{selectedGenres.length - 3} more
                 </Badge>
               )}
-              {selectedEventTypes.map(eventType => (
-                <Badge key={eventType} variant="secondary" className="text-xs h-6">
-                  {EVENT_TYPES.find(t => t.key === eventType)?.label}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 ml-1 hover:bg-transparent"
-                    onClick={() => onEventTypeToggle(eventType)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              ))}
             </div>
           </div>
         )}
