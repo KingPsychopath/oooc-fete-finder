@@ -562,10 +562,6 @@ const ActiveFiltersSection = memo<ActiveFiltersSectionProps>(
 		onGenreToggle,
 		compact = false,
 	}) => {
-		const resetPriceRange = useCallback(() => {
-			onPriceRangeChange(PRICE_RANGE_CONFIG.defaultRange);
-		}, [onPriceRangeChange]);
-
 		const maxGenres = compact ? 3 : 4;
 		const containerClass = compact
 			? "flex flex-wrap gap-1 max-h-16 overflow-y-auto"
@@ -655,7 +651,7 @@ const ActiveFiltersSection = memo<ActiveFiltersSectionProps>(
 								variant="ghost"
 								size="sm"
 								className="h-auto p-0 ml-1 hover:bg-transparent"
-								onClick={resetPriceRange}
+								onClick={() => onPriceRangeChange(PRICE_RANGE_CONFIG.defaultRange)}
 							>
 								<X className="h-3 w-3" />
 							</Button>
@@ -737,6 +733,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		"types",
 		"price",
 	]);
+
+	// Stable price range reset handler
+	const resetPriceRange = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation(); // Prevent accordion from toggling
+		onPriceRangeChange(PRICE_RANGE_CONFIG.defaultRange);
+	}, [onPriceRangeChange]);
 
 	// Memoize the hasActiveFilters calculation to prevent unnecessary re-renders
 	const hasActiveFilters = useMemo(
@@ -909,9 +911,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							Price Range
 							{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 								selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
-								<Badge variant="secondary" className="ml-2 text-xs">
-									Custom
-								</Badge>
+								<span
+									className="ml-2 inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 cursor-pointer transition-colors"
+									onClick={resetPriceRange}
+								>
+									Reset
+								</span>
 							)}
 						</AccordionTrigger>
 						<AccordionContent className="pb-3">
@@ -1097,6 +1102,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			<div className="lg:hidden">
 				<MobileFilterPanel />
 			</div>
+      <Slider defaultValue={[33]} max={100} step={1} />
+
 		</>
 	);
 };
