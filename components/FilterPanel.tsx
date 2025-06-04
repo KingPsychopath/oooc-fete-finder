@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EVENT_DAYS, type EventDay, type EventCategory } from '@/types/events';
 import { Toggle } from '@/components/ui/toggle';
+import { useOutsideClick } from '@/lib/useOutsideClick';
 
 interface FilterPanelProps {
   selectedDays: EventDay[];
@@ -46,12 +47,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   onClose
 }) => {
   const hasActiveFilters = selectedDays.length > 0 || selectedArrondissements.length > 0 || selectedCategories.length > 0;
+  
+  // Use outside click hook to close panel on mobile/tablet
+  const panelRef = useOutsideClick<HTMLDivElement>(() => {
+    if (isOpen) {
+      onClose();
+    }
+  });
 
   if (!isOpen) {
     return (
       <Button
         variant="outline"
-        className="fixed bottom-4 right-4 z-40 shadow-lg"
+        className="fixed bottom-4 right-4 z-40 shadow-lg lg:hidden"
         onClick={() => onClose()}
       >
         <Filter className="h-4 w-4 mr-2" />
@@ -67,7 +75,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 lg:relative lg:bg-transparent lg:inset-auto">
-      <div className="absolute right-0 top-0 h-full w-full max-w-sm bg-background border-l lg:relative lg:border lg:rounded-lg lg:shadow-lg">
+      <div 
+        ref={panelRef}
+        className="absolute right-0 top-0 h-full w-full max-w-sm bg-background border-l lg:relative lg:border lg:rounded-lg lg:shadow-lg"
+      >
         <Card className="h-full border-0 lg:border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <CardTitle className="flex items-center">
