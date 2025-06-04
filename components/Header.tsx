@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { Moon, Sun, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from 'next-themes';
+import Image from 'next/image';
 
 const Header: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -48,13 +49,28 @@ const Header: React.FC = () => {
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+            {/* Left - Event Branding */}
+            <div className="flex items-center space-x-3 flex-1">
               <Music className="h-8 w-8 text-primary" />
               <div>
                 <h1 className="text-2xl font-bold">Fête de la Musique</h1>
                 <p className="text-sm text-muted-foreground">Paris 2025</p>
               </div>
             </div>
+
+            {/* Center - OOOC Logo */}
+            <div className="flex justify-center flex-1">
+              <Image
+                src="/OOOCLogo.svg"
+                alt="OOOC - Event Organizer"
+                width={80}
+                height={80}
+                className="h-16 w-16 sm:h-20 sm:w-20"
+              />
+            </div>
+
+            {/* Right - Spacer for balance */}
+            <div className="flex-1"></div>
           </div>
         </div>
       </header>
@@ -65,17 +81,30 @@ const Header: React.FC = () => {
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          {/* Left - Event Branding */}
+          <div className="flex items-center space-x-3 flex-1">
             <Music className="h-8 w-8 text-primary" />
             <div>
               <h1 className="text-2xl font-bold">Fête de la Musique</h1>
-              <p className="text-sm text-muted-foreground">Paris 2025</p>
-            </div>
+			  <p className="text-sm text-muted-foreground">Paris 2025 • OOOC</p>
+			  </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          {/* Center - OOOC Logo */}
+          <div className="flex justify-center flex-1">
+            <Image
+              src="/OOOCLogo.svg"
+              alt="OOOC - Event Organizer"
+              width={80}
+              height={80}
+              className="h-16 w-16 sm:h-20 sm:w-20 transition-transform hover:scale-105"
+            />
+          </div>
+
+          {/* Right - Controls */}
+          <div className="flex items-center justify-end space-x-4 flex-1">
             {/* Clock */}
-            <div className="text-center hidden sm:block">
+            <div className="text-center hidden md:block">
               <div className="text-lg font-mono font-bold">
                 {formatTime(currentTime)}
               </div>
@@ -85,7 +114,7 @@ const Header: React.FC = () => {
             </div>
 
             {/* Mobile clock */}
-            <div className="text-center sm:hidden">
+            <div className="text-center md:hidden sm:block hidden">
               <div className="text-sm font-mono font-bold">
                 {formatTime(currentTime)}
               </div>

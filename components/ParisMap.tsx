@@ -56,6 +56,14 @@ const ParisMap: React.FC<ParisMapProps> = ({
     );
   };
 
+  // Get events with unknown arrondissement
+  const getUnknownEvents = () => {
+    return events.filter(event =>
+      event.arrondissement === 'unknown' &&
+      (!selectedDay || event.day === selectedDay)
+    );
+  };
+
   const getArrondissementColor = (arrondissement: number) => {
     const eventsInArr = getEventsInArrondissement(arrondissement);
     if (eventsInArr.length === 0) return '#f3f4f6';
@@ -65,14 +73,34 @@ const ParisMap: React.FC<ParisMapProps> = ({
     return '#10b981';
   };
 
+  const getUnknownColor = () => {
+    const unknownEvents = getUnknownEvents();
+    if (unknownEvents.length === 0) return '#f3f4f6';
+    if (hoveredArrondissement === -1) return '#3b82f6'; // Use -1 for unknown hover
+    if (unknownEvents.length >= 3) return '#ef4444';
+    if (unknownEvents.length >= 2) return '#f59e0b';
+    return '#10b981';
+  };
+
   const handleArrondissementClick = (arrondissement: number) => {
     setSelectedArrondissement(arrondissement === selectedArrondissement ? null : arrondissement);
+  };
+
+  const handleUnknownClick = () => {
+    setSelectedArrondissement(selectedArrondissement === -1 ? null : -1);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent, arrondissement: number) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       handleArrondissementClick(arrondissement);
+    }
+  };
+
+  const handleUnknownKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleUnknownClick();
     }
   };
 
@@ -184,6 +212,90 @@ const ParisMap: React.FC<ParisMapProps> = ({
             );
           })}
 
+          {/* Unknown location - small island */}
+          {(() => {
+            const unknownEvents = getUnknownEvents();
+            const isSelected = selectedArrondissement === -1;
+            
+            if (unknownEvents.length === 0) return null;
+            
+            return (
+              <Tooltip key="unknown">
+                <TooltipTrigger asChild>
+                  <g>
+                    <ellipse
+                      cx={420}
+                      cy={350}
+                      rx={25}
+                      ry={15}
+                      fill={getUnknownColor()}
+                      stroke={isSelected ? '#1f2937' : '#6b7280'}
+                      strokeWidth={isSelected ? 3 : 1}
+                      className="cursor-pointer transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary"
+                      onMouseEnter={() => onArrondissementHover(-1)}
+                      onMouseLeave={() => onArrondissementHover(null)}
+                      onClick={handleUnknownClick}
+                      onKeyDown={handleUnknownKeyDown}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`Unknown location, ${unknownEvents.length} event${unknownEvents.length !== 1 ? 's' : ''}. Click to see details.`}
+                    />
+                    <text
+                      x={420}
+                      y={350}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="text-xs font-bold fill-white pointer-events-none"
+                      style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}
+                    >
+                      ?
+                    </text>
+                    <circle
+                      cx={435}
+                      cy={340}
+                      r="6"
+                      fill="#dc2626"
+                      stroke="white"
+                      strokeWidth="2"
+                      className="pointer-events-none"
+                    />
+                    <text
+                      x={435}
+                      y={340}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="text-xs font-bold fill-white pointer-events-none"
+                    >
+                      {unknownEvents.length}
+                    </text>
+                  </g>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="p-2">
+                    <p className="font-semibold">Unknown Location</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      {unknownEvents.length} event{unknownEvents.length !== 1 ? 's' : ''} - Location TBD
+                    </p>
+                    {unknownEvents.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {unknownEvents.slice(0, 3).map(event => (
+                          <Badge key={event.id} variant="secondary" className="text-xs">
+                            {event.name}
+                          </Badge>
+                        ))}
+                        {unknownEvents.length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{unknownEvents.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })()}
+
           {/* Map title */}
           <text
             x="250"
@@ -212,7 +324,7 @@ const ParisMap: React.FC<ParisMapProps> = ({
           <div className="absolute bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 max-w-sm">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold">
-                {selectedArrondissement}e Arrondissement Events
+                {selectedArrondissement === -1 ? 'Unknown Location Events' : `${selectedArrondissement}e Arrondissement Events`}
               </h3>
               <button
                 onClick={() => setSelectedArrondissement(null)}
@@ -223,7 +335,7 @@ const ParisMap: React.FC<ParisMapProps> = ({
               </button>
             </div>
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {getEventsInArrondissement(selectedArrondissement).map(event => (
+              {(selectedArrondissement === -1 ? getUnknownEvents() : getEventsInArrondissement(selectedArrondissement)).map(event => (
                 <button
                   key={event.id}
                   className={`w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-primary relative ${

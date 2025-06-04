@@ -33,13 +33,22 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 
   if (!isOpen || !event) return null;
 
-  const dayInfo = EVENT_DAYS.find(d => d.key === event.day);
-
-  const handleLinkClick = () => {
-    if (event.link && event.link !== '#') {
-      window.open(event.link, '_blank', 'noopener,noreferrer');
+  const getLinkButtonText = (url: string) => {
+    if (!url || url === '#') {
+      return 'Link Coming Soon';
+    }
+    try {
+      const parsed = new URL(url);
+      return `View on ${parsed.hostname.replace('www.', '')}`;
+    } catch {
+      return 'View Event Details';
     }
   };
+
+  // Helper to get all links (primary + secondary)
+  const allLinks = event.links && event.links.length > 0 ? event.links : [event.link];
+  const primaryLink = allLinks[0];
+  const secondaryLinks = allLinks.slice(1);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -80,7 +89,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
           <div className="flex items-center space-x-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm">
-              {dayInfo?.label || event.day}
+              {event.day}
               {event.time && event.time !== 'TBC' && (
                 <>
                   {' '}at{' '}
@@ -100,7 +109,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
             <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
             <div className="text-sm">
               <div className="font-medium">
-                {event.arrondissement}e Arrondissement
+                {event.arrondissement === 'unknown' ? 'Location TBD' : `${event.arrondissement}e Arrondissement`}
               </div>
               {event.location && event.location !== 'TBA' && (
                 <div className="text-muted-foreground">{event.location}</div>
@@ -154,10 +163,14 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 
           {/* Actions */}
           <div className="flex flex-col space-y-2 pt-4 border-t">
-            {event.link && event.link !== '#' ? (
-              <Button onClick={handleLinkClick} className="w-full">
+            {primaryLink && primaryLink !== '#' ? (
+              <Button 
+                onClick={() => window.open(primaryLink, '_blank', 'noopener,noreferrer')} 
+                className="w-full"
+                title={primaryLink}
+              >
                 <ExternalLink className="h-4 w-4 mr-2" />
-                View Event Details
+                {getLinkButtonText(primaryLink)}
               </Button>
             ) : (
               <Button disabled className="w-full">
@@ -165,7 +178,24 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
                 Link Coming Soon
               </Button>
             )}
-
+            {/* Secondary links as smaller buttons */}
+            {secondaryLinks.length > 0 && (
+              <div className="flex flex-col space-y-1">
+                {secondaryLinks.map((link) => (
+                  <Button
+                    key={link}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(link, '_blank', 'noopener,noreferrer')}
+                    className="w-full"
+                    title={link}
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    {getLinkButtonText(link)}
+                  </Button>
+                ))}
+              </div>
+            )}
             <Button variant="outline" onClick={onClose} className="w-full">
               Close
             </Button>

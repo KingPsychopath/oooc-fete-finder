@@ -5,6 +5,9 @@ export type DayNightPeriod = 'day' | 'night';
 
 export type EventType = 'After Party' | 'Block Party';
 
+// Host country type for GB/FR column
+export type HostCountry = 'UK' | 'FR';
+
 // Expanded genre types based on CSV data
 export type MusicGenre = 
   | 'amapiano' 
@@ -32,9 +35,10 @@ export type MusicGenre =
   | 'coupé-décalé'
   | 'urban fr'
   | 'kompa'
-  | 'afro';
+  | 'afro'
+  | 'gqom';
 
-export type ParisArrondissement = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20;
+export type ParisArrondissement = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 'unknown';
 
 // Legacy type for backwards compatibility
 export type EventCategory = 'electronic' | 'block-party' | 'afterparty' | 'club' | 'cruise' | 'outdoor' | 'cultural';
@@ -50,6 +54,7 @@ export type Event = {
   location?: string;
   address?: string;
   link: string;
+  links?: string[]; // All ticket links, if multiple
   description?: string;
   type: EventType;
   genre: MusicGenre[];
@@ -58,6 +63,7 @@ export type Event = {
   price?: string; // Price information from CSV
   age?: string; // Age restrictions from CSV
   isOOOCPick?: boolean; // 🌟 indicator from CSV
+  hostCountry?: HostCountry; // GB/FR indicator from CSV
   // Legacy field for backwards compatibility
   category?: EventCategory;
 };
@@ -65,11 +71,13 @@ export type Event = {
 // CSV data type matching the structure in ooc_list_tracker.csv
 export type CSVEventRow = {
   oocPicks: string; // "🌟" or empty
+  hostCountry: string; // "🇬🇧" or "🇫🇷"
   name: string;
   date: string;
   startTime: string;
   endTime: string;
   location: string;
+  arrondissement: string; // New Arr column
   genre: string; // Comma-separated genres
   price: string;
   ticketLink: string;
@@ -142,7 +150,8 @@ export const MUSIC_GENRES = [
   { key: 'coupé-décalé' as const, label: 'Coupé-Décalé', color: 'bg-yellow-600' },
   { key: 'urban fr' as const, label: 'Urban FR', color: 'bg-indigo-600' },
   { key: 'kompa' as const, label: 'Kompa', color: 'bg-pink-600' },
-  { key: 'afro' as const, label: 'Afro', color: 'bg-orange-400' }
+  { key: 'afro' as const, label: 'Afro', color: 'bg-orange-400' },
+  { key: 'gqom' as const, label: 'Gqom', color: 'bg-purple-400' }
 ] as const;
 
 export const EVENT_TYPES = [
@@ -170,7 +179,8 @@ export const PARIS_ARRONDISSEMENTS = [
   { id: 17 as ParisArrondissement, name: '17e - Batignolles-Monceau', coordinates: { lat: 48.8848, lng: 2.3120 } },
   { id: 18 as ParisArrondissement, name: '18e - Butte-Montmartre', coordinates: { lat: 48.8927, lng: 2.3436 } },
   { id: 19 as ParisArrondissement, name: '19e - Buttes-Chaumont', coordinates: { lat: 48.8799, lng: 2.3781 } },
-  { id: 20 as ParisArrondissement, name: '20e - Ménilmontant', coordinates: { lat: 48.8632, lng: 2.3969 } }
+  { id: 20 as ParisArrondissement, name: '20e - Ménilmontant', coordinates: { lat: 48.8632, lng: 2.3969 } },
+  { id: 'unknown' as ParisArrondissement, name: 'Unknown - Location TBD', coordinates: { lat: 48.8400, lng: 2.4200 } }
 ];
 
 // Price range constants for the slider

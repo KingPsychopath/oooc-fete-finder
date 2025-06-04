@@ -68,7 +68,13 @@ export default function Home() {
   // Get available filter options
   const availableArrondissements = useMemo(() => {
     const arrondissements = new Set(events.map(event => event.arrondissement));
-    return Array.from(arrondissements).sort((a, b) => a - b) as ParisArrondissement[];
+    return Array.from(arrondissements).sort((a, b) => {
+      // Put 'unknown' at the end
+      if (a === 'unknown') return 1;
+      if (b === 'unknown') return -1;
+      // Sort numbers normally
+      return (a as number) - (b as number);
+    }) as ParisArrondissement[];
   }, [events]);
 
   // Filter events based on selected filters and search query
@@ -357,7 +363,7 @@ export default function Home() {
                           )}
                         </div>
                         <Badge variant="outline" className="text-xs flex-shrink-0 ml-auto">
-                          {event.arrondissement}e
+                          {event.arrondissement === 'unknown' ? '?' : `${event.arrondissement}e`}
                         </Badge>
                       </div>
                       
