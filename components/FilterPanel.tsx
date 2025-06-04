@@ -1,7 +1,7 @@
 'use client';
 
 import type React from 'react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Filter, X, Info, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -259,19 +259,37 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               )}
             </AccordionTrigger>
             <AccordionContent className="pb-3">
-              <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
-                {MUSIC_GENRES.map(({ key, label, color }) => (
-                  <Toggle
-                    key={key}
-                    pressed={selectedGenres.includes(key)}
-                    onPressedChange={() => onGenreToggle(key)}
-                    size="sm"
-                    className="justify-start text-xs h-8"
-                  >
-                    <div className={`w-2 h-2 rounded-full ${color} mr-1.5 flex-shrink-0`} />
-                    <span className="truncate">{label}</span>
-                  </Toggle>
-                ))}
+              <div className="relative">
+                {/* Scrollable content with improved visibility */}
+                <div 
+                  className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto border rounded-md p-2 bg-muted/20"
+                  style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: 'rgb(156 163 175) rgb(243 244 246)'
+                  }}
+                >
+                  {MUSIC_GENRES.map(({ key, label, color }) => (
+                    <Toggle
+                      key={key}
+                      pressed={selectedGenres.includes(key)}
+                      onPressedChange={() => onGenreToggle(key)}
+                      size="sm"
+                      className="justify-start text-xs h-8"
+                    >
+                      <div className={`w-2 h-2 rounded-full ${color} mr-1.5 flex-shrink-0`} />
+                      <span className="truncate">{label}</span>
+                    </Toggle>
+                  ))}
+                </div>
+                {/* Subtle gradient overlays to indicate scrollability */}
+                <div className="absolute top-2 left-2 right-2 h-2 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
+                <div className="absolute bottom-2 left-2 right-2 h-2 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
+                {/* Scroll hint text */}
+                <div className="text-xs text-muted-foreground mt-1 text-center opacity-70 flex items-center justify-center gap-1">
+                  <span>{MUSIC_GENRES.length} genres</span>
+                  <span>•</span>
+                  <span>scroll for more ↕</span>
+                </div>
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -399,181 +417,323 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     </Card>
   );
 
-  // Mobile version (unchanged for now)
-  const MobileFilterPanel = () => (
-    <div className="fixed inset-0 z-50 bg-black/50">
-      <div 
-        ref={panelRef}
-        className="absolute right-0 top-0 h-full w-full max-w-sm bg-background border-l"
-      >
-        <Card className="h-full border-0">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <CardTitle className="flex items-center">
-              <Filter className="h-5 w-5 mr-2" />
-              Filters
-            </CardTitle>
-            <div className="flex items-center space-x-2">
-              {hasActiveFilters && (
+  // Mobile version with scroll position preservation
+  const MobileFilterPanel = () => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [tooltipOpen, setTooltipOpen] = useState(false);
+    const tooltipButtonRef = useRef<HTMLButtonElement>(null);
+
+    // Click outside to close tooltip - best practice for mobile
+    useEffect(() => {
+      const handleClickOutside = (event: Event) => {
+        if (tooltipOpen && tooltipButtonRef.current && !tooltipButtonRef.current.contains(event.target as Node)) {
+          setTooltipOpen(false);
+        }
+      };
+
+      if (tooltipOpen) {
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+      }
+
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('touchstart', handleClickOutside);
+      };
+    }, [tooltipOpen]);
+
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50">
+        <div 
+          ref={panelRef}
+          className="absolute right-0 top-0 h-full w-full max-w-sm bg-background border-l"
+        >
+          <Card className="h-full border-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="flex items-center">
+                <Filter className="h-5 w-5 mr-2" />
+                Filters
+              </CardTitle>
+              <div className="flex items-center space-x-2">
+                {hasActiveFilters && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onClearFilters}
+                    className="text-xs"
+                  >
+                    Clear all
+                  </Button>
+                )}
                 <Button
                   variant="outline"
-                  size="sm"
-                  onClick={onClearFilters}
-                  className="text-xs"
+                  size="icon"
+                  onClick={onClose}
+                  className="h-8 w-8"
                 >
-                  Clear all
+                  <X className="h-4 w-4" />
                 </Button>
-              )}
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onClose}
-                className="h-8 w-8"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-
-          <CardContent className="space-y-6 overflow-y-auto">
-            {/* Mobile filters use the original vertical layout for touch accessibility */}
-            {/* Day filters */}
-            <div>
-              <div className="flex items-center mb-3">
-                <h3 className="font-semibold">Days</h3>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 ml-2 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className="text-sm space-y-1">
-                        <p><strong>Day:</strong> 6:00 AM - 9:59 PM ☀️</p>
-                        <p><strong>Night:</strong> 10:00 PM - 5:59 AM 🌙</p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
               </div>
-              
-              <div className="space-y-3">
-                {EVENT_DAYS.map(({ key, label, color }) => (
-                  <div key={key} className="space-y-2">
-                    <div className="flex items-center space-x-2">
+            </CardHeader>
+
+            <CardContent className="space-y-6 overflow-y-auto" ref={scrollRef}>
+              {/* Active Filters Summary - Mobile version */}
+              {hasActiveFilters && (
+                <div className="pb-4 border-b">
+                  <div className="text-sm font-medium text-muted-foreground mb-3">Active Filters:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedDays.map(day => (
+                      <Badge key={day} variant="secondary" className="text-xs">
+                        {EVENT_DAYS.find(d => d.key === day)?.label}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 ml-1 hover:bg-transparent"
+                          onClick={() => onDayToggle(day)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                    {selectedDayNightPeriods.map(period => (
+                      <Badge key={period} variant="secondary" className="text-xs">
+                        {DAY_NIGHT_PERIODS.find(p => p.key === period)?.icon} {period}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 ml-1 hover:bg-transparent"
+                          onClick={() => onDayNightPeriodToggle(period)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                    {selectedEventTypes.map(eventType => (
+                      <Badge key={eventType} variant="secondary" className="text-xs">
+                        {EVENT_TYPES.find(t => t.key === eventType)?.label}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 ml-1 hover:bg-transparent"
+                          onClick={() => onEventTypeToggle(eventType)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                    {selectedIndoorPreference !== null && (
+                      <Badge variant="secondary" className="text-xs">
+                        {selectedIndoorPreference ? '🏢 Indoor' : '🌤️ Outdoor'}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 ml-1 hover:bg-transparent"
+                          onClick={() => onIndoorPreferenceChange(null)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    )}
+                    {selectedArrondissements.map(arr => (
+                      <Badge key={arr} variant="secondary" className="text-xs">
+                        {arr}e
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 ml-1 hover:bg-transparent"
+                          onClick={() => onArrondissementToggle(arr)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                    {selectedGenres.slice(0, 4).map(genre => (
+                      <Badge key={genre} variant="secondary" className="text-xs">
+                        {MUSIC_GENRES.find(g => g.key === genre)?.label}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 ml-1 hover:bg-transparent"
+                          onClick={() => onGenreToggle(genre)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                    {selectedGenres.length > 4 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{selectedGenres.length - 4} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Mobile filters use the original vertical layout for touch accessibility */}
+              {/* Day filters */}
+              <div>
+                <div className="flex items-center mb-3">
+                  <h3 className="font-semibold">Days</h3>
+                  <TooltipProvider>
+                    <Tooltip open={tooltipOpen}>
+                      <TooltipTrigger asChild>
+                        <button
+                          ref={tooltipButtonRef}
+                          className="h-4 w-4 ml-2 text-muted-foreground cursor-help focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm"
+                          onClick={() => setTooltipOpen(!tooltipOpen)}
+                          type="button"
+                          aria-label="Show day and night time definitions"
+                        >
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="text-sm space-y-1">
+                          <p><strong>Day:</strong> 6:00 AM - 9:59 PM ☀️</p>
+                          <p><strong>Night:</strong> 10:00 PM - 5:59 AM 🌙</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                
+                <div className="space-y-3">
+                  {EVENT_DAYS.map(({ key, label, color }) => (
+                    <div key={key} className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Toggle
+                          pressed={selectedDays.includes(key)}
+                          onPressedChange={() => onDayToggle(key)}
+                          className="justify-start w-full"
+                        >
+                          <div className={`w-3 h-3 rounded-full ${color} mr-2`} />
+                          {label}
+                        </Toggle>
+                      </div>
+                      
+                      {selectedDays.includes(key) && (
+                        <div className="ml-6 flex space-x-2">
+                          {DAY_NIGHT_PERIODS.map(({ key: periodKey, label: periodLabel, icon }) => (
+                            <Toggle
+                              key={periodKey}
+                              pressed={selectedDayNightPeriods.includes(periodKey)}
+                              onPressedChange={() => onDayNightPeriodToggle(periodKey)}
+                              size="sm"
+                              className="text-xs"
+                            >
+                              {icon} {periodLabel}
+                            </Toggle>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Event Types */}
+              <div>
+                <h3 className="font-semibold mb-3">Event Type</h3>
+                <div className="space-y-2">
+                  {EVENT_TYPES.map(({ key, label, icon }) => (
+                    <Toggle
+                      key={key}
+                      pressed={selectedEventTypes.includes(key)}
+                      onPressedChange={() => onEventTypeToggle(key)}
+                      className="justify-start w-full"
+                    >
+                      <span className="mr-2">{icon}</span>
+                      {label}
+                    </Toggle>
+                  ))}
+                </div>
+              </div>
+
+              {/* Venue Type */}
+              <div>
+                <h3 className="font-semibold mb-3">Venue Type</h3>
+                <div className="space-y-2">
+                  <Toggle
+                    pressed={selectedIndoorPreference === null}
+                    onPressedChange={() => onIndoorPreferenceChange(null)}
+                    className="justify-start w-full"
+                  >
+                    Both Indoor & Outdoor
+                  </Toggle>
+                  <Toggle
+                    pressed={selectedIndoorPreference === true}
+                    onPressedChange={() => onIndoorPreferenceChange(true)}
+                    className="justify-start w-full"
+                  >
+                    🏢 Indoor Only
+                  </Toggle>
+                  <Toggle
+                    pressed={selectedIndoorPreference === false}
+                    onPressedChange={() => onIndoorPreferenceChange(false)}
+                    className="justify-start w-full"
+                  >
+                    🌤️ Outdoor Only
+                  </Toggle>
+                </div>
+              </div>
+
+              {/* Genres */}
+              <div>
+                <h3 className="font-semibold mb-3">Music Genres</h3>
+                <div className="relative">
+                  <div 
+                    className="space-y-2 max-h-64 overflow-y-auto border rounded-md p-3 bg-muted/20"
+                    style={{
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: 'rgb(156 163 175) rgb(243 244 246)'
+                    }}
+                  >
+                    {MUSIC_GENRES.map(({ key, label, color }) => (
                       <Toggle
-                        pressed={selectedDays.includes(key)}
-                        onPressedChange={() => onDayToggle(key)}
+                        key={key}
+                        pressed={selectedGenres.includes(key)}
+                        onPressedChange={() => onGenreToggle(key)}
                         className="justify-start w-full"
                       >
                         <div className={`w-3 h-3 rounded-full ${color} mr-2`} />
                         {label}
                       </Toggle>
-                    </div>
-                    
-                    {selectedDays.includes(key) && (
-                      <div className="ml-6 flex space-x-2">
-                        {DAY_NIGHT_PERIODS.map(({ key: periodKey, label: periodLabel, icon }) => (
-                          <Toggle
-                            key={periodKey}
-                            pressed={selectedDayNightPeriods.includes(periodKey)}
-                            onPressedChange={() => onDayNightPeriodToggle(periodKey)}
-                            size="sm"
-                            className="text-xs"
-                          >
-                            {icon} {periodLabel}
-                          </Toggle>
-                        ))}
-                      </div>
-                    )}
+                    ))}
                   </div>
-                ))}
+                  {/* Subtle gradient overlays to indicate scrollability */}
+                  <div className="absolute top-3 left-3 right-3 h-3 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
+                  <div className="absolute bottom-3 left-3 right-3 h-3 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
+                  {/* Scroll hint text */}
+                  <div className="text-xs text-muted-foreground mt-2 text-center opacity-70 flex items-center justify-center gap-1">
+                    <span>{MUSIC_GENRES.length} genres</span>
+                    <span>•</span>
+                    <span>swipe to scroll ↕</span>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Event Types */}
-            <div>
-              <h3 className="font-semibold mb-3">Event Type</h3>
-              <div className="space-y-2">
-                {EVENT_TYPES.map(({ key, label, icon }) => (
-                  <Toggle
-                    key={key}
-                    pressed={selectedEventTypes.includes(key)}
-                    onPressedChange={() => onEventTypeToggle(key)}
-                    className="justify-start w-full"
-                  >
-                    <span className="mr-2">{icon}</span>
-                    {label}
-                  </Toggle>
-                ))}
+              {/* Arrondissements */}
+              <div>
+                <h3 className="font-semibold mb-3">Arrondissements</h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {availableArrondissements.map(arr => (
+                    <Toggle
+                      key={arr}
+                      pressed={selectedArrondissements.includes(arr)}
+                      onPressedChange={() => onArrondissementToggle(arr)}
+                      className="h-8 text-xs"
+                    >
+                      {arr}e
+                    </Toggle>
+                  ))}
+                </div>
               </div>
-            </div>
-
-            {/* Venue Type */}
-            <div>
-              <h3 className="font-semibold mb-3">Venue Type</h3>
-              <div className="space-y-2">
-                <Toggle
-                  pressed={selectedIndoorPreference === null}
-                  onPressedChange={() => onIndoorPreferenceChange(null)}
-                  className="justify-start w-full"
-                >
-                  Both Indoor & Outdoor
-                </Toggle>
-                <Toggle
-                  pressed={selectedIndoorPreference === true}
-                  onPressedChange={() => onIndoorPreferenceChange(true)}
-                  className="justify-start w-full"
-                >
-                  🏢 Indoor Only
-                </Toggle>
-                <Toggle
-                  pressed={selectedIndoorPreference === false}
-                  onPressedChange={() => onIndoorPreferenceChange(false)}
-                  className="justify-start w-full"
-                >
-                  🌤️ Outdoor Only
-                </Toggle>
-              </div>
-            </div>
-
-            {/* Genres */}
-            <div>
-              <h3 className="font-semibold mb-3">Music Genres</h3>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {MUSIC_GENRES.map(({ key, label, color }) => (
-                  <Toggle
-                    key={key}
-                    pressed={selectedGenres.includes(key)}
-                    onPressedChange={() => onGenreToggle(key)}
-                    className="justify-start w-full"
-                  >
-                    <div className={`w-3 h-3 rounded-full ${color} mr-2`} />
-                    {label}
-                  </Toggle>
-                ))}
-              </div>
-            </div>
-
-            {/* Arrondissements */}
-            <div>
-              <h3 className="font-semibold mb-3">Arrondissements</h3>
-              <div className="grid grid-cols-4 gap-2">
-                {availableArrondissements.map(arr => (
-                  <Toggle
-                    key={arr}
-                    pressed={selectedArrondissements.includes(arr)}
-                    onPressedChange={() => onArrondissementToggle(arr)}
-                    className="h-8 text-xs"
-                  >
-                    {arr}e
-                  </Toggle>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Return desktop or mobile version based on screen size
   return (
