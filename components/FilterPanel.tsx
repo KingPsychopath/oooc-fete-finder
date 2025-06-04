@@ -2,12 +2,13 @@
 
 import type React from 'react';
 import { useState } from 'react';
-import { Filter, X, Info } from 'lucide-react';
+import { Filter, X, Info, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Toggle } from '@/components/ui/toggle';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useOutsideClick } from '@/lib/useOutsideClick';
 import { 
   EVENT_DAYS, 
@@ -27,7 +28,7 @@ type FilterPanelProps = {
   selectedArrondissements: ParisArrondissement[];
   selectedGenres: MusicGenre[];
   selectedEventTypes: EventType[];
-  selectedIndoorPreference: boolean | null; // null = both, true = indoor only, false = outdoor only
+  selectedIndoorPreference: boolean | null;
   onDayToggle: (day: EventDay) => void;
   onDayNightPeriodToggle: (period: DayNightPeriod) => void;
   onArrondissementToggle: (arrondissement: ParisArrondissement) => void;
@@ -73,10 +74,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     }
   });
 
-  const handleDayToggle = (day: EventDay) => {
-    onDayToggle(day);
-  };
-
+  // Mobile floating button when closed
   if (!isOpen) {
     return (
       <Button
@@ -95,13 +93,300 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     );
   }
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/50 lg:relative lg:bg-transparent lg:inset-auto">
+  // Desktop version with compact accordion layout
+  const DesktopFilterPanel = () => (
+    <Card className="h-fit">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center justify-between text-lg">
+          <div className="flex items-center">
+            <Filter className="h-4 w-4 mr-2" />
+            Filters
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                {selectedDays.length + selectedDayNightPeriods.length + selectedArrondissements.length + selectedGenres.length + selectedEventTypes.length}
+              </Badge>
+            )}
+          </div>
+          {hasActiveFilters && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClearFilters}
+              className="text-xs h-7"
+            >
+              Clear all
+            </Button>
+          )}
+        </CardTitle>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        <Accordion type="multiple" defaultValue={["days", "types"]} className="w-full">
+          {/* Quick Day/Time Filters - Always visible for easy access */}
+          <AccordionItem value="days" className="border-b-0">
+            <AccordionTrigger className="py-2 text-sm font-medium">
+              Days & Times
+              {(selectedDays.length > 0 || selectedDayNightPeriods.length > 0) && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  {selectedDays.length + selectedDayNightPeriods.length}
+                </Badge>
+              )}
+            </AccordionTrigger>
+            <AccordionContent className="pb-3">
+              {/* Day toggles in horizontal layout */}
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {EVENT_DAYS.map(({ key, label, color }) => (
+                    <Toggle
+                      key={key}
+                      pressed={selectedDays.includes(key)}
+                      onPressedChange={() => onDayToggle(key)}
+                      size="sm"
+                      className="text-xs"
+                    >
+                      <div className={`w-2 h-2 rounded-full ${color} mr-1.5`} />
+                      {label}
+                    </Toggle>
+                  ))}
+                </div>
+                
+                {/* Day/Night periods - show when any day is selected */}
+                {selectedDays.length > 0 && (
+                  <div className="pt-2 border-t">
+                    <div className="flex items-center mb-2">
+                      <span className="text-xs text-muted-foreground mr-2">Time of day:</span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-xs space-y-1">
+                              <p><strong>Day:</strong> 6AM - 9:59PM ☀️</p>
+                              <p><strong>Night:</strong> 10PM - 5:59AM 🌙</p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <div className="flex gap-2">
+                      {DAY_NIGHT_PERIODS.map(({ key: periodKey, label: periodLabel, icon }) => (
+                        <Toggle
+                          key={periodKey}
+                          pressed={selectedDayNightPeriods.includes(periodKey)}
+                          onPressedChange={() => onDayNightPeriodToggle(periodKey)}
+                          size="sm"
+                          className="text-xs"
+                        >
+                          {icon} {periodLabel}
+                        </Toggle>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Event Types */}
+          <AccordionItem value="types" className="border-b-0">
+            <AccordionTrigger className="py-2 text-sm font-medium">
+              Event Types
+              {selectedEventTypes.length > 0 && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  {selectedEventTypes.length}
+                </Badge>
+              )}
+            </AccordionTrigger>
+            <AccordionContent className="pb-3">
+              <div className="flex flex-wrap gap-2">
+                {EVENT_TYPES.map(({ key, label, icon }) => (
+                  <Toggle
+                    key={key}
+                    pressed={selectedEventTypes.includes(key)}
+                    onPressedChange={() => onEventTypeToggle(key)}
+                    size="sm"
+                    className="text-xs"
+                  >
+                    <span className="mr-1.5">{icon}</span>
+                    {label}
+                  </Toggle>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Venue Type */}
+          <AccordionItem value="venue" className="border-b-0">
+            <AccordionTrigger className="py-2 text-sm font-medium">
+              Venue Type
+              {selectedIndoorPreference !== null && (
+                <Badge variant="secondary" className="ml-2 text-xs">1</Badge>
+              )}
+            </AccordionTrigger>
+            <AccordionContent className="pb-3">
+              <div className="flex flex-wrap gap-2">
+                <Toggle
+                  pressed={selectedIndoorPreference === null}
+                  onPressedChange={() => onIndoorPreferenceChange(null)}
+                  size="sm"
+                  className="text-xs"
+                >
+                  Both
+                </Toggle>
+                <Toggle
+                  pressed={selectedIndoorPreference === true}
+                  onPressedChange={() => onIndoorPreferenceChange(true)}
+                  size="sm"
+                  className="text-xs"
+                >
+                  🏢 Indoor
+                </Toggle>
+                <Toggle
+                  pressed={selectedIndoorPreference === false}
+                  onPressedChange={() => onIndoorPreferenceChange(false)}
+                  size="sm"
+                  className="text-xs"
+                >
+                  🌤️ Outdoor
+                </Toggle>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Music Genres - Collapsed by default to save space */}
+          <AccordionItem value="genres" className="border-b-0">
+            <AccordionTrigger className="py-2 text-sm font-medium">
+              Music Genres
+              {selectedGenres.length > 0 && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  {selectedGenres.length}
+                </Badge>
+              )}
+            </AccordionTrigger>
+            <AccordionContent className="pb-3">
+              <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
+                {MUSIC_GENRES.map(({ key, label, color }) => (
+                  <Toggle
+                    key={key}
+                    pressed={selectedGenres.includes(key)}
+                    onPressedChange={() => onGenreToggle(key)}
+                    size="sm"
+                    className="justify-start text-xs h-8"
+                  >
+                    <div className={`w-2 h-2 rounded-full ${color} mr-1.5 flex-shrink-0`} />
+                    <span className="truncate">{label}</span>
+                  </Toggle>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Arrondissements */}
+          <AccordionItem value="arrondissements" className="border-b-0">
+            <AccordionTrigger className="py-2 text-sm font-medium">
+              Arrondissements
+              {selectedArrondissements.length > 0 && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  {selectedArrondissements.length}
+                </Badge>
+              )}
+            </AccordionTrigger>
+            <AccordionContent className="pb-3">
+              <div className="grid grid-cols-5 gap-1.5">
+                {availableArrondissements.map(arr => (
+                  <Toggle
+                    key={arr}
+                    pressed={selectedArrondissements.includes(arr)}
+                    onPressedChange={() => onArrondissementToggle(arr)}
+                    size="sm"
+                    className="h-8 text-xs"
+                  >
+                    {arr}e
+                  </Toggle>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
+        {/* Active Filters Summary - Compact horizontal display */}
+        {hasActiveFilters && (
+          <div className="pt-3 border-t">
+            <div className="text-xs font-medium text-muted-foreground mb-2">Active Filters:</div>
+            <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+              {selectedDays.map(day => (
+                <Badge key={day} variant="secondary" className="text-xs h-6">
+                  {EVENT_DAYS.find(d => d.key === day)?.label}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 ml-1 hover:bg-transparent"
+                    onClick={() => onDayToggle(day)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+              {selectedDayNightPeriods.map(period => (
+                <Badge key={period} variant="secondary" className="text-xs h-6">
+                  {DAY_NIGHT_PERIODS.find(p => p.key === period)?.icon} {period}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 ml-1 hover:bg-transparent"
+                    onClick={() => onDayNightPeriodToggle(period)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+              {selectedGenres.slice(0, 3).map(genre => (
+                <Badge key={genre} variant="secondary" className="text-xs h-6">
+                  {MUSIC_GENRES.find(g => g.key === genre)?.label}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 ml-1 hover:bg-transparent"
+                    onClick={() => onGenreToggle(genre)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+              {selectedGenres.length > 3 && (
+                <Badge variant="outline" className="text-xs h-6">
+                  +{selectedGenres.length - 3} more
+                </Badge>
+              )}
+              {selectedEventTypes.map(eventType => (
+                <Badge key={eventType} variant="secondary" className="text-xs h-6">
+                  {EVENT_TYPES.find(t => t.key === eventType)?.label}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 ml-1 hover:bg-transparent"
+                    onClick={() => onEventTypeToggle(eventType)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  // Mobile version (unchanged for now)
+  const MobileFilterPanel = () => (
+    <div className="fixed inset-0 z-50 bg-black/50">
       <div 
         ref={panelRef}
-        className="absolute right-0 top-0 h-full w-full max-w-sm bg-background border-l lg:relative lg:border lg:rounded-lg lg:shadow-lg"
+        className="absolute right-0 top-0 h-full w-full max-w-sm bg-background border-l"
       >
-        <Card className="h-full border-0 lg:border">
+        <Card className="h-full border-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <CardTitle className="flex items-center">
               <Filter className="h-5 w-5 mr-2" />
@@ -122,7 +407,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 variant="outline"
                 size="icon"
                 onClick={onClose}
-                className="h-8 w-8 lg:hidden"
+                className="h-8 w-8"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -130,7 +415,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           </CardHeader>
 
           <CardContent className="space-y-6 overflow-y-auto">
-            {/* Day filters with day/night toggle */}
+            {/* Mobile filters use the original vertical layout for touch accessibility */}
+            {/* Day filters */}
             <div>
               <div className="flex items-center mb-3">
                 <h3 className="font-semibold">Days</h3>
@@ -152,11 +438,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               <div className="space-y-3">
                 {EVENT_DAYS.map(({ key, label, color }) => (
                   <div key={key} className="space-y-2">
-                    {/* Day toggle */}
                     <div className="flex items-center space-x-2">
                       <Toggle
                         pressed={selectedDays.includes(key)}
-                        onPressedChange={() => handleDayToggle(key)}
+                        onPressedChange={() => onDayToggle(key)}
                         className="justify-start w-full"
                       >
                         <div className={`w-3 h-3 rounded-full ${color} mr-2`} />
@@ -164,7 +449,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                       </Toggle>
                     </div>
                     
-                    {/* Day/Night period toggles - show when day is selected */}
                     {selectedDays.includes(key) && (
                       <div className="ml-6 flex space-x-2">
                         {DAY_NIGHT_PERIODS.map(({ key: periodKey, label: periodLabel, icon }) => (
@@ -185,7 +469,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               </div>
             </div>
 
-            {/* Event Type filters */}
+            {/* Event Types */}
             <div>
               <h3 className="font-semibold mb-3">Event Type</h3>
               <div className="space-y-2">
@@ -203,25 +487,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               </div>
             </div>
 
-            {/* Genre filters */}
-            <div>
-              <h3 className="font-semibold mb-3">Music Genres</h3>
-              <div className="space-y-2">
-                {MUSIC_GENRES.map(({ key, label, color }) => (
-                  <Toggle
-                    key={key}
-                    pressed={selectedGenres.includes(key)}
-                    onPressedChange={() => onGenreToggle(key)}
-                    className="justify-start w-full"
-                  >
-                    <div className={`w-3 h-3 rounded-full ${color} mr-2`} />
-                    {label}
-                  </Toggle>
-                ))}
-              </div>
-            </div>
-
-            {/* Indoor/Outdoor preference */}
+            {/* Venue Type */}
             <div>
               <h3 className="font-semibold mb-3">Venue Type</h3>
               <div className="space-y-2">
@@ -249,7 +515,25 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               </div>
             </div>
 
-            {/* Arrondissement filters */}
+            {/* Genres */}
+            <div>
+              <h3 className="font-semibold mb-3">Music Genres</h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {MUSIC_GENRES.map(({ key, label, color }) => (
+                  <Toggle
+                    key={key}
+                    pressed={selectedGenres.includes(key)}
+                    onPressedChange={() => onGenreToggle(key)}
+                    className="justify-start w-full"
+                  >
+                    <div className={`w-3 h-3 rounded-full ${color} mr-2`} />
+                    {label}
+                  </Toggle>
+                ))}
+              </div>
+            </div>
+
+            {/* Arrondissements */}
             <div>
               <h3 className="font-semibold mb-3">Arrondissements</h3>
               <div className="grid grid-cols-4 gap-2">
@@ -265,73 +549,22 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 ))}
               </div>
             </div>
-
-            {/* Active filters summary */}
-            {hasActiveFilters && (
-              <div>
-                <h3 className="font-semibold mb-3">Active Filters</h3>
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-1">
-                    {selectedDays.map(day => (
-                      <Badge key={day} variant="secondary" className="text-xs">
-                        {EVENT_DAYS.find(d => d.key === day)?.label}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-auto p-0 ml-1"
-                          onClick={() => onDayToggle(day)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </Badge>
-                    ))}
-                    {selectedDayNightPeriods.map(period => (
-                      <Badge key={period} variant="secondary" className="text-xs">
-                        {DAY_NIGHT_PERIODS.find(p => p.key === period)?.icon} {period}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-auto p-0 ml-1"
-                          onClick={() => onDayNightPeriodToggle(period)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </Badge>
-                    ))}
-                    {selectedGenres.map(genre => (
-                      <Badge key={genre} variant="secondary" className="text-xs">
-                        {MUSIC_GENRES.find(g => g.key === genre)?.label}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-auto p-0 ml-1"
-                          onClick={() => onGenreToggle(genre)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </Badge>
-                    ))}
-                    {selectedEventTypes.map(eventType => (
-                      <Badge key={eventType} variant="secondary" className="text-xs">
-                        {EVENT_TYPES.find(t => t.key === eventType)?.label}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-auto p-0 ml-1"
-                          onClick={() => onEventTypeToggle(eventType)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
     </div>
+  );
+
+  // Return desktop or mobile version based on screen size
+  return (
+    <>
+      <div className="hidden lg:block">
+        <DesktopFilterPanel />
+      </div>
+      <div className="lg:hidden">
+        <MobileFilterPanel />
+      </div>
+    </>
   );
 };
 
