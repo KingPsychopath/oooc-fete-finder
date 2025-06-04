@@ -76,7 +76,7 @@ const Countdown: React.FC = () => {
 		if (difference <= 0) {
 			return (
 				<div className="text-center">
-					<div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium font-mono">
+					<div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium font-mono min-w-[280px] justify-center">
 						🎉 C'est aujourd'hui ! Fête de la Musique is happening now! 🎊
 					</div>
 				</div>
@@ -94,7 +94,7 @@ const Countdown: React.FC = () => {
 		
 		return (
 			<div className="text-center">
-				<div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium font-mono">
+				<div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium font-mono min-w-[280px] justify-center">
 					⏰ {parts.join(" ")} until Saturday, June 21st
 				</div>
 			</div>
@@ -103,7 +103,7 @@ const Countdown: React.FC = () => {
 
 	return (
 		<div className="text-center">
-			<div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium font-mono">
+			<div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium font-mono min-w-[280px] justify-center">
 				{formatCountdown(countdown)}
 			</div>
 		</div>
