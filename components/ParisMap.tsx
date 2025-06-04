@@ -201,29 +201,45 @@ const ParisMap: React.FC<ParisMapProps> = ({
 									</g>
 								</TooltipTrigger>
 								<TooltipContent>
-									<div className="p-2">
-										<p className="font-semibold">
-											{arrondissement}e Arrondissement
-										</p>
-										<p className="text-sm text-gray-600 dark:text-gray-300">
-											{eventsInArr.length} event
-											{eventsInArr.length !== 1 ? "s" : ""}
-										</p>
+									<div className="p-3 max-w-[280px]">
+										<div className="mb-2">
+											<p className="font-semibold text-sm">
+												{arrondissement}e Arrondissement
+											</p>
+											<p className="text-xs text-gray-600 dark:text-gray-300">
+												{eventsInArr.length} event
+												{eventsInArr.length !== 1 ? "s" : ""}
+											</p>
+										</div>
 										{eventsInArr.length > 0 && (
-											<div className="mt-2 space-y-1">
-												{eventsInArr.slice(0, 3).map((event) => (
-													<Badge
-														key={event.id}
-														variant="secondary"
-														className="text-xs"
-													>
-														{event.name}
-													</Badge>
-												))}
-												{eventsInArr.length > 3 && (
-													<Badge variant="outline" className="text-xs">
-														+{eventsInArr.length - 3} more
-													</Badge>
+											<div className="space-y-2">
+												{/* Show events in a 2-column grid */}
+												<div className="grid grid-cols-2 gap-1">
+													{eventsInArr.slice(0, 4).map((event) => (
+														<Badge
+															key={event.id}
+															variant="secondary"
+															className="text-xs text-center truncate max-w-[120px] justify-center"
+															title={event.name} // Show full name on hover
+														>
+															{event.name.length > 12 
+																? `${event.name.substring(0, 12)}...` 
+																: event.name
+															}
+														</Badge>
+													))}
+												</div>
+												{eventsInArr.length > 4 && (
+													<div className="text-center">
+														<Badge variant="secondary" className="text-xs">
+															+{eventsInArr.length - 4} more
+														</Badge>
+													</div>
+												)}
+												{eventsInArr.length <= 4 && eventsInArr.length > 0 && (
+													<p className="text-xs text-gray-500 dark:text-gray-400 text-center italic">
+														Click to see details
+													</p>
 												)}
 											</div>
 										)}
@@ -292,27 +308,43 @@ const ParisMap: React.FC<ParisMapProps> = ({
 									</g>
 								</TooltipTrigger>
 								<TooltipContent>
-									<div className="p-2">
-										<p className="font-semibold">Unknown Location</p>
-										<p className="text-sm text-gray-600 dark:text-gray-300">
-											{unknownEvents.length} event
-											{unknownEvents.length !== 1 ? "s" : ""} - Location TBD
-										</p>
+									<div className="p-3 max-w-[280px]">
+										<div className="mb-2">
+											<p className="font-semibold text-sm">Unknown Location</p>
+											<p className="text-xs text-gray-600 dark:text-gray-300">
+												{unknownEvents.length} event
+												{unknownEvents.length !== 1 ? "s" : ""} - Location TBD
+											</p>
+										</div>
 										{unknownEvents.length > 0 && (
-											<div className="mt-2 space-y-1">
-												{unknownEvents.slice(0, 3).map((event) => (
-													<Badge
-														key={event.id}
-														variant="secondary"
-														className="text-xs"
-													>
-														{event.name}
-													</Badge>
-												))}
-												{unknownEvents.length > 3 && (
-													<Badge variant="outline" className="text-xs">
-														+{unknownEvents.length - 3} more
-													</Badge>
+											<div className="space-y-2">
+												{/* Show events in a 2-column grid */}
+												<div className="grid grid-cols-2 gap-1">
+													{unknownEvents.slice(0, 4).map((event) => (
+														<Badge
+															key={event.id}
+															variant="secondary"
+															className="text-xs text-center truncate max-w-[120px] justify-center"
+															title={event.name} // Show full name on hover
+														>
+															{event.name.length > 12 
+																? `${event.name.substring(0, 12)}...` 
+																: event.name
+															}
+														</Badge>
+													))}
+												</div>
+												{unknownEvents.length > 4 && (
+													<div className="text-center">
+														<Badge variant="secondary" className="text-xs">
+															+{unknownEvents.length - 4} more
+														</Badge>
+													</div>
+												)}
+												{unknownEvents.length <= 4 && unknownEvents.length > 0 && (
+													<p className="text-xs text-gray-500 dark:text-gray-400 text-center italic">
+														Click to see details
+													</p>
 												)}
 											</div>
 										)}
