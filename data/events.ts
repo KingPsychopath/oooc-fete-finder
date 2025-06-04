@@ -1,4 +1,4 @@
-import type { Event, MusicGenre } from '@/types/events';
+import type { Event, MusicGenre, ParisArrondissement } from '@/types/events';
 import { loadEventsFromCSV, parseCSVContent } from '@/utils/csvParser';
 
 // Toggle flag to switch between test data and CSV data
@@ -574,10 +574,18 @@ export const getEventsCount = async (): Promise<number> => {
   return events.length;
 };
 
-export const getArrondissementsWithEvents = async (): Promise<number[]> => {
+export const getArrondissementsWithEvents = async (): Promise<ParisArrondissement[]> => {
   const events = await getAllEvents();
   const arrondissements = new Set(events.map(event => event.arrondissement));
-  return Array.from(arrondissements).sort((a, b) => a - b);
+  return Array.from(arrondissements).sort((a, b) => {
+    // Handle 'unknown' arrondissement - put it at the end
+    if (a === 'unknown' && b === 'unknown') return 0;
+    if (a === 'unknown') return 1;
+    if (b === 'unknown') return -1;
+    
+    // Both are numbers, sort numerically
+    return (a as number) - (b as number);
+  });
 };
 
 export const getOOOCPickEvents = async (): Promise<Event[]> => {
@@ -612,7 +620,15 @@ export const getEventsCountSync = () => {
   return EVENTS_DATA.length;
 };
 
-export const getArrondissementsWithEventsSync = () => {
+export const getArrondissementsWithEventsSync = (): ParisArrondissement[] => {
   const arrondissements = new Set(EVENTS_DATA.map(event => event.arrondissement));
-  return Array.from(arrondissements).sort((a, b) => a - b);
+  return Array.from(arrondissements).sort((a, b) => {
+    // Handle 'unknown' arrondissement - put it at the end
+    if (a === 'unknown' && b === 'unknown') return 0;
+    if (a === 'unknown') return 1;
+    if (b === 'unknown') return -1;
+    
+    // Both are numbers, sort numerically
+    return (a as number) - (b as number);
+  });
 };
