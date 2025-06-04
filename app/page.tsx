@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
 import ParisMap from '@/components/ParisMap';
 import FilterPanel from '@/components/FilterPanel';
@@ -12,6 +12,10 @@ import {
   isEventInDayNightPeriod,
   MUSIC_GENRES,
   EVENT_TYPES,
+  formatPrice,
+  isPriceInRange,
+  PRICE_RANGE_CONFIG,
+  formatPriceRange,
   type Event, 
   type EventDay, 
   type DayNightPeriod,
@@ -21,7 +25,7 @@ import {
 } from '@/types/events';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Clock, Filter } from 'lucide-react';
+import { MapPin, Clock, Filter, Star, Euro } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function Home() {
@@ -39,6 +43,7 @@ export default function Home() {
   const [selectedGenres, setSelectedGenres] = useState<MusicGenre[]>([]);
   const [selectedEventTypes, setSelectedEventTypes] = useState<EventType[]>([]);
   const [selectedIndoorPreference, setSelectedIndoorPreference] = useState<boolean | null>(null);
+  const [selectedPriceRange, setSelectedPriceRange] = useState<[number, number]>(PRICE_RANGE_CONFIG.defaultRange);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Load events on component mount
@@ -97,6 +102,13 @@ export default function Home() {
         if (selectedIndoorPreference !== event.indoor) return false;
       }
 
+      // Filter by price range
+      if (selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min || selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) {
+        if (!isPriceInRange(event.price, selectedPriceRange)) {
+          return false;
+        }
+      }
+
       // Filter by search query
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -115,7 +127,7 @@ export default function Home() {
 
       return true;
     });
-  }, [selectedDays, selectedDayNightPeriods, selectedArrondissements, selectedGenres, selectedEventTypes, selectedIndoorPreference, searchQuery, events]);
+  }, [selectedDays, selectedDayNightPeriods, selectedArrondissements, selectedGenres, selectedEventTypes, selectedIndoorPreference, selectedPriceRange, searchQuery, events]);
 
   // Filter handlers
   const handleDayToggle = (day: EventDay) => {
@@ -152,15 +164,20 @@ export default function Home() {
     setSelectedIndoorPreference(preference);
   };
 
-  const handleClearFilters = () => {
+  const handlePriceRangeChange = useCallback((range: [number, number]) => {
+    setSelectedPriceRange(range);
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
     setSelectedDays([]);
     setSelectedDayNightPeriods([]);
     setSelectedArrondissements([]);
     setSelectedGenres([]);
     setSelectedEventTypes([]);
     setSelectedIndoorPreference(null);
+    setSelectedPriceRange(PRICE_RANGE_CONFIG.defaultRange);
     setSearchQuery('');
-  };
+  }, []);
 
   const hasActiveFilters = 
     selectedDays.length > 0 || 
@@ -169,6 +186,7 @@ export default function Home() {
     selectedGenres.length > 0 ||
     selectedEventTypes.length > 0 ||
     selectedIndoorPreference !== null ||
+    (selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min || selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) ||
     searchQuery.length > 0;
 
   return (
@@ -262,7 +280,7 @@ export default function Home() {
                         Filters
                         {hasActiveFilters && (
                           <Badge variant="destructive" className="ml-2 h-4 w-4 rounded-full p-0 text-xs">
-                            {selectedDays.length + selectedDayNightPeriods.length + selectedArrondissements.length + selectedGenres.length + selectedEventTypes.length}
+                            {selectedDays.length + selectedDayNightPeriods.length + selectedArrondissements.length + selectedGenres.length + selectedEventTypes.length + (selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min || selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ? 1 : 0)}
                           </Badge>
                         )}
                       </Button>
@@ -288,12 +306,14 @@ export default function Home() {
                   selectedGenres={selectedGenres}
                   selectedEventTypes={selectedEventTypes}
                   selectedIndoorPreference={selectedIndoorPreference}
+                  selectedPriceRange={selectedPriceRange}
                   onDayToggle={handleDayToggle}
                   onDayNightPeriodToggle={handleDayNightPeriodToggle}
                   onArrondissementToggle={handleArrondissementToggle}
                   onGenreToggle={handleGenreToggle}
                   onEventTypeToggle={handleEventTypeToggle}
                   onIndoorPreferenceChange={handleIndoorPreferenceChange}
+                  onPriceRangeChange={handlePriceRangeChange}
                   onClearFilters={handleClearFilters}
                   availableArrondissements={availableArrondissements}
                   isOpen={true}
@@ -312,11 +332,27 @@ export default function Home() {
                   {filteredEvents.map(event => (
                     <div
                       key={event.id}
-                      className="p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                      className={`p-4 border rounded-lg cursor-pointer transition-colors relative ${
+                        event.isOOOCPick 
+                          ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-50 hover:from-yellow-100 hover:to-amber-100 dark:from-yellow-950 dark:to-amber-950 dark:hover:from-yellow-900 dark:hover:to-amber-900' 
+                          : 'hover:bg-muted/50'
+                      }`}
                       onClick={() => setSelectedEvent(event)}
                     >
+                      {/* OOOC Pick Badge */}
+                      {event.isOOOCPick && (
+                        <div className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md">
+                          <Star className="h-3 w-3 fill-current" />
+                        </div>
+                      )}
+                      
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold truncate">{event.name}</h3>
+                        <div className="flex items-center space-x-2">
+                          <h3 className="font-semibold truncate">{event.name}</h3>
+                          {event.isOOOCPick && (
+                            <span className="text-yellow-500 text-sm">🌟</span>
+                          )}
+                        </div>
                         <Badge variant="outline" className="text-xs">
                           {event.arrondissement}e
                         </Badge>
@@ -336,6 +372,15 @@ export default function Home() {
                             <span>{event.indoor ? '🏢' : '🌤️'}</span>
                           </div>
                         )}
+                        {/* Price Display */}
+                        <div className="flex items-center space-x-1">
+                          <Euro className="h-3 w-3" />
+                          <span className={`text-xs font-medium ${
+                            formatPrice(event.price) === 'Free' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'
+                          }`}>
+                            {formatPrice(event.price)}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-1 mt-2">
                         <Badge variant="secondary" className="text-xs">
@@ -364,12 +409,14 @@ export default function Home() {
         selectedGenres={selectedGenres}
         selectedEventTypes={selectedEventTypes}
         selectedIndoorPreference={selectedIndoorPreference}
+        selectedPriceRange={selectedPriceRange}
         onDayToggle={handleDayToggle}
         onDayNightPeriodToggle={handleDayNightPeriodToggle}
         onArrondissementToggle={handleArrondissementToggle}
         onGenreToggle={handleGenreToggle}
         onEventTypeToggle={handleEventTypeToggle}
         onIndoorPreferenceChange={handleIndoorPreferenceChange}
+        onPriceRangeChange={handlePriceRangeChange}
         onClearFilters={handleClearFilters}
         availableArrondissements={availableArrondissements}
         isOpen={isFilterOpen}

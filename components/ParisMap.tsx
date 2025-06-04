@@ -5,6 +5,8 @@ import { useState } from 'react';
 import type { Event } from '@/types/events';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Star, Euro } from 'lucide-react';
+import { formatPrice } from '@/types/events';
 
 interface ParisMapProps {
   events: Event[];
@@ -224,14 +226,41 @@ const ParisMap: React.FC<ParisMapProps> = ({
               {getEventsInArrondissement(selectedArrondissement).map(event => (
                 <button
                   key={event.id}
-                  className="w-full text-left p-2 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={`w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-primary relative ${
+                    event.isOOOCPick 
+                      ? 'bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-950 dark:to-amber-950 border border-yellow-200 dark:border-yellow-800' 
+                      : 'bg-gray-50 dark:bg-gray-700'
+                  }`}
                   onClick={() => onEventClick(event)}
                   aria-label={`Event: ${event.name}, ${event.time}, ${event.day}`}
                 >
-                  <p className="font-medium text-sm">{event.name}</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    {event.time} • {event.day}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-1">
+                        <p className="font-medium text-sm">{event.name}</p>
+                        {event.isOOOCPick && (
+                          <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {event.time} • {event.day}
+                      </p>
+                      {/* Price display */}
+                      <div className="flex items-center space-x-1 mt-1">
+                        <Euro className="h-3 w-3 text-gray-400" />
+                        <span className={`text-xs ${
+                          formatPrice(event.price) === 'Free' 
+                            ? 'text-green-600 dark:text-green-400 font-medium' 
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {formatPrice(event.price)}
+                        </span>
+                      </div>
+                    </div>
+                    {event.isOOOCPick && (
+                      <span className="text-yellow-500 text-xs">🌟</span>
+                    )}
+                  </div>
                 </button>
               ))}
             </div>

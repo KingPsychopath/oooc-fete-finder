@@ -95,6 +95,7 @@ export type EventFilters = {
   genres?: MusicGenre[];
   indoor?: boolean | null; // null = both, true = indoor only, false = outdoor only
   searchTerm?: string;
+  priceRange?: [number, number]; // [min, max] price range
 };
 
 export type MapViewport = {
@@ -172,6 +173,14 @@ export const PARIS_ARRONDISSEMENTS = [
   { id: 20 as ParisArrondissement, name: '20e - Ménilmontant', coordinates: { lat: 48.8632, lng: 2.3969 } }
 ];
 
+// Price range constants for the slider
+export const PRICE_RANGE_CONFIG = {
+  min: 0,
+  max: 150,
+  step: 1,
+  defaultRange: [0, 150] as [number, number]
+} as const;
+
 // Utility functions for time-based classification
 export const getDayNightPeriod = (time: string): DayNightPeriod | null => {
   if (!time || time === 'TBC') return null;
@@ -199,4 +208,70 @@ export const formatTimeWithPeriod = (time: string): string => {
   const periodEmoji = period === 'day' ? '☀️' : '🌙';
 
   return `${time} ${periodEmoji}`;
+};
+
+// Utility functions for price handling
+export const parsePrice = (priceStr?: string): number | null => {
+  if (!priceStr) return null;
+  
+  const cleanPrice = priceStr.toLowerCase().trim();
+  
+  // Handle free cases
+  if (cleanPrice === 'free' || cleanPrice === '0' || cleanPrice === '0€' || cleanPrice === '£0') {
+    return 0;
+  }
+  
+  // Extract numbers from price string, handle both € and £
+  const priceMatch = cleanPrice.match(/(\d+(?:\.\d+)?)/);
+  if (!priceMatch) return null;
+  
+  const numericPrice = parseFloat(priceMatch[1]);
+  
+  // Convert pounds to euros (approximate rate: 1 GBP = 1.17 EUR)
+  if (cleanPrice.includes('£') || cleanPrice.includes('gbp') || cleanPrice.includes('pound')) {
+    return numericPrice * 1.17;
+  }
+  
+  return numericPrice;
+};
+
+export const formatPrice = (priceStr?: string): string => {
+  if (!priceStr) return 'TBA';
+  
+  const cleanPrice = priceStr.toLowerCase().trim();
+  
+  // Handle free cases
+  if (cleanPrice === 'free' || cleanPrice === '0' || cleanPrice === '0€' || cleanPrice === '£0') {
+    return 'Free';
+  }
+  
+  // Return original format if it already looks formatted
+  if (priceStr.includes('€') || priceStr.includes('£')) {
+    return priceStr;
+  }
+  
+  // Try to parse and format
+  const numericPrice = parsePrice(priceStr);
+  if (numericPrice === null) return priceStr;
+  if (numericPrice === 0) return 'Free';
+  
+  return `€${numericPrice.toFixed(0)}`;
+};
+
+export const isPriceInRange = (priceStr: string | undefined, priceRange: [number, number]): boolean => {
+  const numericPrice = parsePrice(priceStr);
+  if (numericPrice === null) return false;
+  
+  const [min, max] = priceRange;
+  return numericPrice >= min && numericPrice <= max;
+};
+
+export const formatPriceRange = (range: [number, number]): string => {
+  const [min, max] = range;
+  
+  if (min === 0 && max === 0) return 'Free only';
+  if (min === 0) return `Free - €${max}`;
+  if (max >= PRICE_RANGE_CONFIG.max) return `€${min}+`;
+  
+  return `€${min} - €${max}`;
 };

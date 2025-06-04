@@ -1,11 +1,11 @@
 'use client';
 
 import type React from 'react';
-import { X, MapPin, Clock, ExternalLink, Calendar, Tag } from 'lucide-react';
+import { X, MapPin, Clock, ExternalLink, Calendar, Tag, Star, Euro } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { type Event, EVENT_DAYS } from '@/types/events';
+import { type Event, EVENT_DAYS, formatPrice } from '@/types/events';
 
 interface EventModalProps {
   event: Event | null;
@@ -39,7 +39,18 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
       <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
           <div className="flex-1">
-            <CardTitle className="text-xl mb-2">{event.name}</CardTitle>
+            <div className="flex items-center space-x-2 mb-2">
+              <CardTitle className="text-xl">{event.name}</CardTitle>
+              {event.isOOOCPick && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-yellow-500">🌟</span>
+                  <Badge className="bg-yellow-400 text-black hover:bg-yellow-500">
+                    <Star className="h-3 w-3 mr-1 fill-current" />
+                    OOOC Pick
+                  </Badge>
+                </div>
+              )}
+            </div>
             {event.category && (
               <Badge className={CATEGORY_COLORS[event.category] || 'bg-gray-100 text-gray-800'}>
                 <Tag className="h-3 w-3 mr-1" />
@@ -96,6 +107,24 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
                 </Badge>
               )}
             </div>
+          </div>
+
+          {/* Price */}
+          <div className="flex items-center space-x-2">
+            <Euro className="h-4 w-4 text-muted-foreground" />
+            <span className={`text-sm font-medium ${
+              formatPrice(event.price) === 'Free' 
+                ? 'text-green-600 dark:text-green-400' 
+                : 'text-gray-900 dark:text-gray-100'
+            }`}>
+              {formatPrice(event.price)}
+            </span>
+            {event.age && (
+              <>
+                <span className="text-muted-foreground">•</span>
+                <span className="text-sm text-muted-foreground">{event.age}</span>
+              </>
+            )}
           </div>
 
           {/* Description */}

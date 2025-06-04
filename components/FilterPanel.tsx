@@ -1,7 +1,7 @@
 'use client';
 
 import type React from 'react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Filter, X, Info, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,12 +15,15 @@ import {
   DAY_NIGHT_PERIODS, 
   MUSIC_GENRES, 
   EVENT_TYPES,
+  PRICE_RANGE_CONFIG,
+  formatPriceRange,
   type EventDay, 
   type DayNightPeriod,
   type MusicGenre,
   type EventType,
   type ParisArrondissement
 } from '@/types/events';
+import { Slider } from '@/components/ui/slider';
 
 type FilterPanelProps = {
   selectedDays: EventDay[];
@@ -29,12 +32,14 @@ type FilterPanelProps = {
   selectedGenres: MusicGenre[];
   selectedEventTypes: EventType[];
   selectedIndoorPreference: boolean | null;
+  selectedPriceRange: [number, number];
   onDayToggle: (day: EventDay) => void;
   onDayNightPeriodToggle: (period: DayNightPeriod) => void;
   onArrondissementToggle: (arrondissement: ParisArrondissement) => void;
   onGenreToggle: (genre: MusicGenre) => void;
   onEventTypeToggle: (eventType: EventType) => void;
   onIndoorPreferenceChange: (preference: boolean | null) => void;
+  onPriceRangeChange: (range: [number, number]) => void;
   onClearFilters: () => void;
   availableArrondissements: ParisArrondissement[];
   isOpen: boolean;
@@ -48,28 +53,42 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   selectedGenres,
   selectedEventTypes,
   selectedIndoorPreference,
+  selectedPriceRange,
   onDayToggle,
   onDayNightPeriodToggle,
   onArrondissementToggle,
   onGenreToggle,
   onEventTypeToggle,
   onIndoorPreferenceChange,
+  onPriceRangeChange,
   onClearFilters,
   availableArrondissements,
   isOpen,
   onClose
 }) => {
   // Add state for accordion sections - initially open for frequently used filters
-  const [openAccordionSections, setOpenAccordionSections] = useState<string[]>(['days', 'types']);
+  // Use useCallback to prevent accordion state from resetting on price changes
+  const [openAccordionSections, setOpenAccordionSections] = useState<string[]>(['days', 'types', 'price']);
 
-  const hasActiveFilters = 
+  // Memoize the hasActiveFilters calculation to prevent unnecessary re-renders
+  const hasActiveFilters = useMemo(() => (
     selectedDays.length > 0 || 
     selectedDayNightPeriods.length > 0 ||
     selectedArrondissements.length > 0 || 
     selectedGenres.length > 0 ||
     selectedEventTypes.length > 0 ||
-    selectedIndoorPreference !== null;
-  
+    selectedIndoorPreference !== null ||
+    (selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min || selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max)
+  ), [selectedDays, selectedDayNightPeriods, selectedArrondissements, selectedGenres, selectedEventTypes, selectedIndoorPreference, selectedPriceRange]);
+
+  // Memoize the price range change handler to prevent re-renders
+  const handlePriceRangeChange = useCallback((value: number[]) => {
+    // Prevent the default scroll behavior that might happen on value change
+    requestAnimationFrame(() => {
+      onPriceRangeChange(value as [number, number]);
+    });
+  }, [onPriceRangeChange]);
+
   // Use outside click hook to close panel on mobile/tablet
   const panelRef = useOutsideClick<HTMLDivElement>(() => {
     if (isOpen) {
@@ -89,7 +108,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         Filters
         {hasActiveFilters && (
           <Badge variant="destructive" className="ml-2 h-5 w-5 rounded-full p-0 text-xs">
-            {selectedDays.length + selectedDayNightPeriods.length + selectedArrondissements.length + selectedGenres.length + selectedEventTypes.length}
+            {selectedDays.length + selectedDayNightPeriods.length + selectedArrondissements.length + selectedGenres.length + selectedEventTypes.length + (selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min || selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ? 1 : 0)}
           </Badge>
         )}
       </Button>
@@ -106,7 +125,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             Filters
             {hasActiveFilters && (
               <Badge variant="secondary" className="ml-2 text-xs">
-                {selectedDays.length + selectedDayNightPeriods.length + selectedArrondissements.length + selectedGenres.length + selectedEventTypes.length}
+                {selectedDays.length + selectedDayNightPeriods.length + selectedArrondissements.length + selectedGenres.length + selectedEventTypes.length + (selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min || selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ? 1 : 0)}
               </Badge>
             )}
           </div>
@@ -248,6 +267,41 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             </AccordionContent>
           </AccordionItem>
 
+          {/* Price Range Slider */}
+          <AccordionItem value="price" className="border-b-0">
+            <AccordionTrigger className="py-2 text-sm font-medium">
+              Price Range
+              {(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min || selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  Custom
+                </Badge>
+              )}
+            </AccordionTrigger>
+            <AccordionContent className="pb-3">
+              <div className="space-y-3">
+                <div className="px-2">
+                  <Slider
+                    value={selectedPriceRange}
+                    onValueChange={handlePriceRangeChange}
+                    min={PRICE_RANGE_CONFIG.min}
+                    max={PRICE_RANGE_CONFIG.max}
+                    step={PRICE_RANGE_CONFIG.step}
+                    className="w-full touch-none select-none"
+                    aria-label="Price range filter"
+                    style={{ touchAction: 'none' }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>€{PRICE_RANGE_CONFIG.min}</span>
+                  <span className="font-medium text-center">
+                    {formatPriceRange(selectedPriceRange)}
+                  </span>
+                  <span>€{PRICE_RANGE_CONFIG.max}+</span>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
           {/* Music Genres - Collapsed by default to save space */}
           <AccordionItem value="genres" className="border-b-0">
             <AccordionTrigger className="py-2 text-sm font-medium">
@@ -374,6 +428,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                     size="sm"
                     className="h-auto p-0 ml-1 hover:bg-transparent"
                     onClick={() => onIndoorPreferenceChange(null)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              )}
+              {(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min || selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
+                <Badge variant="secondary" className="text-xs h-6">
+                  💰 {formatPriceRange(selectedPriceRange)}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 ml-1 hover:bg-transparent"
+                    onClick={() => onPriceRangeChange(PRICE_RANGE_CONFIG.defaultRange)}
                   >
                     <X className="h-3 w-3" />
                   </Button>
@@ -534,8 +601,21 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                         </Button>
                       </Badge>
                     )}
+                    {(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min || selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
+                      <Badge variant="secondary" className="text-xs h-6">
+                        💰 {formatPriceRange(selectedPriceRange)}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 ml-1 hover:bg-transparent"
+                          onClick={() => onPriceRangeChange(PRICE_RANGE_CONFIG.defaultRange)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    )}
                     {selectedArrondissements.map(arr => (
-                      <Badge key={arr} variant="secondary" className="text-xs">
+                      <Badge key={arr} variant="secondary" className="text-xs h-6">
                         {arr}e
                         <Button
                           variant="ghost"
@@ -674,6 +754,30 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   >
                     🌤️ Outdoor Only
                   </Toggle>
+                </div>
+              </div>
+
+              {/* Price Range */}
+              <div>
+                <h3 className="font-semibold mb-3">Price Range</h3>
+                <div className="space-y-3">
+                  <Slider
+                    value={selectedPriceRange}
+                    onValueChange={handlePriceRangeChange}
+                    min={PRICE_RANGE_CONFIG.min}
+                    max={PRICE_RANGE_CONFIG.max}
+                    step={PRICE_RANGE_CONFIG.step}
+                    className="w-full touch-none select-none"
+                    aria-label="Price range filter"
+                    style={{ touchAction: 'none' }}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>€{PRICE_RANGE_CONFIG.min}</span>
+                    <span className="font-medium">
+                      {formatPriceRange(selectedPriceRange)}
+                    </span>
+                    <span>€{PRICE_RANGE_CONFIG.max}+</span>
+                  </div>
                 </div>
               </div>
 
