@@ -7,7 +7,18 @@ import FilterPanel from '@/components/FilterPanel';
 import EventModal from '@/components/EventModal';
 import SearchBar from '@/components/SearchBar';
 import { EVENTS_DATA } from '@/data/events';
-import type { Event, EventDay, EventCategory } from '@/types/events';
+import { 
+  getDayNightPeriod, 
+  isEventInDayNightPeriod,
+  MUSIC_GENRES,
+  EVENT_TYPES,
+  type Event, 
+  type EventDay, 
+  type DayNightPeriod,
+  type MusicGenre,
+  type EventType,
+  type ParisArrondissement
+} from '@/types/events';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock, Filter } from 'lucide-react';
@@ -18,19 +29,17 @@ export default function Home() {
   const [hoveredArrondissement, setHoveredArrondissement] = useState<number | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedDays, setSelectedDays] = useState<EventDay[]>([]);
-  const [selectedArrondissements, setSelectedArrondissements] = useState<number[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<EventCategory[]>([]);
+  const [selectedDayNightPeriods, setSelectedDayNightPeriods] = useState<DayNightPeriod[]>([]);
+  const [selectedArrondissements, setSelectedArrondissements] = useState<ParisArrondissement[]>([]);
+  const [selectedGenres, setSelectedGenres] = useState<MusicGenre[]>([]);
+  const [selectedEventTypes, setSelectedEventTypes] = useState<EventType[]>([]);
+  const [selectedIndoorPreference, setSelectedIndoorPreference] = useState<boolean | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Get available filter options
   const availableArrondissements = useMemo(() => {
     const arrondissements = new Set(EVENTS_DATA.map(event => event.arrondissement));
-    return Array.from(arrondissements).sort((a, b) => a - b);
-  }, []);
-
-  const availableCategories = useMemo(() => {
-    const categories = new Set(EVENTS_DATA.map(event => event.category).filter(Boolean));
-    return Array.from(categories) as EventCategory[];
+    return Array.from(arrondissements).sort((a, b) => a - b) as ParisArrondissement[];
   }, []);
 
   // Filter events based on selected filters and search query
@@ -39,11 +48,30 @@ export default function Home() {
       // Filter by selected days
       if (selectedDays.length > 0 && !selectedDays.includes(event.day)) return false;
 
+      // Filter by day/night periods
+      if (selectedDayNightPeriods.length > 0) {
+        const hasMatchingPeriod = selectedDayNightPeriods.some(period => 
+          isEventInDayNightPeriod(event, period)
+        );
+        if (!hasMatchingPeriod) return false;
+      }
+
       // Filter by selected arrondissements
       if (selectedArrondissements.length > 0 && !selectedArrondissements.includes(event.arrondissement)) return false;
 
-      // Filter by selected categories
-      if (selectedCategories.length > 0 && event.category && !selectedCategories.includes(event.category)) return false;
+      // Filter by selected genres
+      if (selectedGenres.length > 0) {
+        const hasMatchingGenre = event.genre.some(genre => selectedGenres.includes(genre));
+        if (!hasMatchingGenre) return false;
+      }
+
+      // Filter by selected event types
+      if (selectedEventTypes.length > 0 && !selectedEventTypes.includes(event.type)) return false;
+
+      // Filter by indoor preference
+      if (selectedIndoorPreference !== null) {
+        if (selectedIndoorPreference !== event.indoor) return false;
+      }
 
       // Filter by search query
       if (searchQuery) {
@@ -53,15 +81,17 @@ export default function Home() {
         const matchesDescription = event.description?.toLowerCase().includes(query);
         const matchesArrondissement = event.arrondissement.toString().includes(query);
         const matchesDay = event.day.toLowerCase().includes(query);
+        const matchesGenre = event.genre.some(genre => genre.toLowerCase().includes(query));
+        const matchesType = event.type.toLowerCase().includes(query);
 
-        if (!matchesName && !matchesLocation && !matchesDescription && !matchesArrondissement && !matchesDay) {
+        if (!matchesName && !matchesLocation && !matchesDescription && !matchesArrondissement && !matchesDay && !matchesGenre && !matchesType) {
           return false;
         }
       }
 
       return true;
     });
-  }, [selectedDays, selectedArrondissements, selectedCategories, searchQuery]);
+  }, [selectedDays, selectedDayNightPeriods, selectedArrondissements, selectedGenres, selectedEventTypes, selectedIndoorPreference, searchQuery]);
 
   // Filter handlers
   const handleDayToggle = (day: EventDay) => {
@@ -70,26 +100,52 @@ export default function Home() {
     );
   };
 
-  const handleArrondissementToggle = (arrondissement: number) => {
+  const handleDayNightPeriodToggle = (period: DayNightPeriod) => {
+    setSelectedDayNightPeriods(prev =>
+      prev.includes(period) ? prev.filter(p => p !== period) : [...prev, period]
+    );
+  };
+
+  const handleArrondissementToggle = (arrondissement: ParisArrondissement) => {
     setSelectedArrondissements(prev =>
       prev.includes(arrondissement) ? prev.filter(a => a !== arrondissement) : [...prev, arrondissement]
     );
   };
 
-  const handleCategoryToggle = (category: EventCategory) => {
-    setSelectedCategories(prev =>
-      prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
+  const handleGenreToggle = (genre: MusicGenre) => {
+    setSelectedGenres(prev =>
+      prev.includes(genre) ? prev.filter(g => g !== genre) : [...prev, genre]
     );
+  };
+
+  const handleEventTypeToggle = (eventType: EventType) => {
+    setSelectedEventTypes(prev =>
+      prev.includes(eventType) ? prev.filter(t => t !== eventType) : [...prev, eventType]
+    );
+  };
+
+  const handleIndoorPreferenceChange = (preference: boolean | null) => {
+    setSelectedIndoorPreference(preference);
   };
 
   const handleClearFilters = () => {
     setSelectedDays([]);
+    setSelectedDayNightPeriods([]);
     setSelectedArrondissements([]);
-    setSelectedCategories([]);
+    setSelectedGenres([]);
+    setSelectedEventTypes([]);
+    setSelectedIndoorPreference(null);
     setSearchQuery('');
   };
 
-  const hasActiveFilters = selectedDays.length > 0 || selectedArrondissements.length > 0 || selectedCategories.length > 0 || searchQuery.length > 0;
+  const hasActiveFilters = 
+    selectedDays.length > 0 || 
+    selectedDayNightPeriods.length > 0 ||
+    selectedArrondissements.length > 0 || 
+    selectedGenres.length > 0 ||
+    selectedEventTypes.length > 0 ||
+    selectedIndoorPreference !== null ||
+    searchQuery.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -100,7 +156,7 @@ export default function Home() {
         <div className="mb-6">
           <SearchBar
             onSearch={setSearchQuery}
-            placeholder="Search events, locations, arrondissements..."
+            placeholder="Search events, locations, genres, types..."
             className="max-w-md mx-auto"
           />
         </div>
@@ -159,7 +215,7 @@ export default function Home() {
                     Filters
                     {hasActiveFilters && (
                       <Badge variant="destructive" className="ml-2 h-4 w-4 rounded-full p-0 text-xs">
-                        {selectedDays.length + selectedArrondissements.length + selectedCategories.length}
+                        {selectedDays.length + selectedDayNightPeriods.length + selectedArrondissements.length + selectedGenres.length + selectedEventTypes.length}
                       </Badge>
                     )}
                   </Button>
@@ -180,14 +236,19 @@ export default function Home() {
           <div className="hidden lg:block">
             <FilterPanel
               selectedDays={selectedDays}
+              selectedDayNightPeriods={selectedDayNightPeriods}
               selectedArrondissements={selectedArrondissements}
-              selectedCategories={selectedCategories}
+              selectedGenres={selectedGenres}
+              selectedEventTypes={selectedEventTypes}
+              selectedIndoorPreference={selectedIndoorPreference}
               onDayToggle={handleDayToggle}
+              onDayNightPeriodToggle={handleDayNightPeriodToggle}
               onArrondissementToggle={handleArrondissementToggle}
-              onCategoryToggle={handleCategoryToggle}
+              onGenreToggle={handleGenreToggle}
+              onEventTypeToggle={handleEventTypeToggle}
+              onIndoorPreferenceChange={handleIndoorPreferenceChange}
               onClearFilters={handleClearFilters}
               availableArrondissements={availableArrondissements}
-              availableCategories={availableCategories}
               isOpen={true}
               onClose={() => {}}
             />
@@ -217,19 +278,28 @@ export default function Home() {
                     <div className="flex items-center space-x-1 mb-1">
                       <Clock className="h-3 w-3" />
                       <span>{event.time || 'TBC'} • {event.day}</span>
+                      {event.time && getDayNightPeriod(event.time) && (
+                        <span>{getDayNightPeriod(event.time) === 'day' ? '☀️' : '🌙'}</span>
+                      )}
                     </div>
                     {event.location && event.location !== 'TBA' && (
                       <div className="flex items-center space-x-1">
                         <MapPin className="h-3 w-3" />
                         <span className="truncate">{event.location}</span>
+                        <span>{event.indoor ? '🏢' : '🌤️'}</span>
                       </div>
                     )}
                   </div>
-                  {event.category && (
-                    <Badge variant="secondary" className="mt-2 text-xs">
-                      {event.category}
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {event.type}
                     </Badge>
-                  )}
+                    {event.genre.slice(0, 2).map(genre => (
+                      <Badge key={genre} variant="outline" className="text-xs">
+                        {MUSIC_GENRES.find(g => g.key === genre)?.label || genre}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
@@ -240,14 +310,19 @@ export default function Home() {
       {/* Mobile Filter Panel */}
       <FilterPanel
         selectedDays={selectedDays}
+        selectedDayNightPeriods={selectedDayNightPeriods}
         selectedArrondissements={selectedArrondissements}
-        selectedCategories={selectedCategories}
+        selectedGenres={selectedGenres}
+        selectedEventTypes={selectedEventTypes}
+        selectedIndoorPreference={selectedIndoorPreference}
         onDayToggle={handleDayToggle}
+        onDayNightPeriodToggle={handleDayNightPeriodToggle}
         onArrondissementToggle={handleArrondissementToggle}
-        onCategoryToggle={handleCategoryToggle}
+        onGenreToggle={handleGenreToggle}
+        onEventTypeToggle={handleEventTypeToggle}
+        onIndoorPreferenceChange={handleIndoorPreferenceChange}
         onClearFilters={handleClearFilters}
         availableArrondissements={availableArrondissements}
-        availableCategories={availableCategories}
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(!isFilterOpen)}
       />

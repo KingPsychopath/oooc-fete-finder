@@ -3,7 +3,7 @@ export type EventDay = 'friday' | 'saturday' | 'sunday' | 'monday' | 'tbc';
 
 export type DayNightPeriod = 'day' | 'night';
 
-export type EventType = 'afterparty' | 'blockparty';
+export type EventType = 'After Party' | 'Block Party';
 
 export type MusicGenre = 'amapiano' | 'afrobeats' | 'soca' | 'pop' | 'bashment';
 
@@ -12,7 +12,7 @@ export type ParisArrondissement = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 
 // Legacy type for backwards compatibility
 export type EventCategory = 'electronic' | 'block-party' | 'afterparty' | 'club' | 'cruise' | 'outdoor' | 'cultural';
 
-export interface Event {
+export type Event = {
   id: string;
   name: string;
   day: EventDay;
@@ -29,9 +29,9 @@ export interface Event {
   verified: boolean;
   // Legacy field for backwards compatibility
   category?: EventCategory;
-}
+};
 
-export interface Arrondissement {
+export type Arrondissement = {
   id: number;
   name: string;
   events: Event[];
@@ -39,9 +39,9 @@ export interface Arrondissement {
     lat: number;
     lng: number;
   };
-}
+};
 
-export interface EventFilters {
+export type EventFilters = {
   day?: EventDay[];
   dayNightPeriod?: DayNightPeriod[];
   arrondissements?: ParisArrondissement[];
@@ -49,38 +49,38 @@ export interface EventFilters {
   genres?: MusicGenre[];
   indoor?: boolean | null; // null = both, true = indoor only, false = outdoor only
   searchTerm?: string;
-}
+};
 
-export interface MapViewport {
+export type MapViewport = {
   center: [number, number];
   zoom: number;
-}
+};
 
-export const EVENT_DAYS: { key: EventDay; label: string; color: string }[] = [
-  { key: 'friday', label: 'Friday', color: 'bg-blue-500' },
-  { key: 'saturday', label: 'Saturday', color: 'bg-green-500' },
-  { key: 'sunday', label: 'Sunday', color: 'bg-orange-500' },
-  { key: 'monday', label: 'Monday', color: 'bg-purple-500' },
-  { key: 'tbc', label: 'TBC', color: 'bg-gray-500' }
-];
+export const EVENT_DAYS = [
+  { key: 'friday' as const, label: 'Friday', color: 'bg-blue-500' },
+  { key: 'saturday' as const, label: 'Saturday', color: 'bg-green-500' },
+  { key: 'sunday' as const, label: 'Sunday', color: 'bg-orange-500' },
+  { key: 'monday' as const, label: 'Monday', color: 'bg-purple-500' },
+  { key: 'tbc' as const, label: 'TBC', color: 'bg-gray-500' }
+] as const;
 
-export const DAY_NIGHT_PERIODS: { key: DayNightPeriod; label: string; timeRange: string; icon: string }[] = [
-  { key: 'day', label: 'Day', timeRange: '6:00 AM - 9:59 PM', icon: '☀️' },
-  { key: 'night', label: 'Night', timeRange: '10:00 PM - 5:59 AM', icon: '🌙' }
-];
+export const DAY_NIGHT_PERIODS = [
+  { key: 'day' as const, label: 'Day', timeRange: '6:00 AM - 9:59 PM', icon: '☀️' },
+  { key: 'night' as const, label: 'Night', timeRange: '10:00 PM - 5:59 AM', icon: '🌙' }
+] as const;
 
-export const MUSIC_GENRES: { key: MusicGenre; label: string; color: string }[] = [
-  { key: 'amapiano', label: 'Amapiano', color: 'bg-emerald-500' },
-  { key: 'afrobeats', label: 'Afrobeats', color: 'bg-orange-500' },
-  { key: 'soca', label: 'Soca', color: 'bg-yellow-500' },
-  { key: 'pop', label: 'Pop', color: 'bg-pink-500' },
-  { key: 'bashment', label: 'Bashment', color: 'bg-red-500' }
-];
+export const MUSIC_GENRES = [
+  { key: 'amapiano' as const, label: 'Amapiano', color: 'bg-emerald-500' },
+  { key: 'afrobeats' as const, label: 'Afrobeats', color: 'bg-orange-500' },
+  { key: 'soca' as const, label: 'Soca', color: 'bg-yellow-500' },
+  { key: 'pop' as const, label: 'Pop', color: 'bg-pink-500' },
+  { key: 'bashment' as const, label: 'Bashment', color: 'bg-red-500' }
+] as const;
 
-export const EVENT_TYPES: { key: EventType; label: string; icon: string }[] = [
-  { key: 'afterparty', label: 'After Party', icon: '🌃' },
-  { key: 'blockparty', label: 'Block Party', icon: '🎉' }
-];
+export const EVENT_TYPES = [
+  { key: 'After Party' as const, label: 'After Party', icon: '🌃' },
+  { key: 'Block Party' as const, label: 'Block Party', icon: '🎉' }
+] as const;
 
 export const PARIS_ARRONDISSEMENTS = [
   { id: 1 as ParisArrondissement, name: '1er - Louvre', coordinates: { lat: 48.8606, lng: 2.3376 } },
