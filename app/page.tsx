@@ -12,6 +12,7 @@ import {
 	isEventInDayNightPeriod,
 	MUSIC_GENRES,
 	EVENT_TYPES,
+	HOST_COUNTRIES,
 	formatPrice,
 	isPriceInRange,
 	PRICE_RANGE_CONFIG,
@@ -21,6 +22,7 @@ import {
 	type DayNightPeriod,
 	type MusicGenre,
 	type EventType,
+	type HostCountry,
 	type ParisArrondissement,
 } from "@/types/events";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +50,7 @@ export default function Home() {
 	>([]);
 	const [selectedGenres, setSelectedGenres] = useState<MusicGenre[]>([]);
 	const [selectedEventTypes, setSelectedEventTypes] = useState<EventType[]>([]);
+	const [selectedHostCountries, setSelectedHostCountries] = useState<HostCountry[]>([]);
 	const [selectedIndoorPreference, setSelectedIndoorPreference] = useState<
 		boolean | null
 	>(null);
@@ -126,6 +129,13 @@ export default function Home() {
 			)
 				return false;
 
+			// Filter by selected host countries
+			if (selectedHostCountries.length > 0) {
+				if (!event.hostCountry || !selectedHostCountries.includes(event.hostCountry)) {
+					return false;
+				}
+			}
+
 			// Filter by indoor preference
 			if (selectedIndoorPreference !== null) {
 				if (selectedIndoorPreference !== event.indoor) return false;
@@ -179,6 +189,7 @@ export default function Home() {
 		selectedArrondissements,
 		selectedGenres,
 		selectedEventTypes,
+		selectedHostCountries,
 		selectedIndoorPreference,
 		selectedPriceRange,
 		searchQuery,
@@ -222,6 +233,12 @@ export default function Home() {
 		);
 	};
 
+	const handleHostCountryToggle = (country: HostCountry) => {
+		setSelectedHostCountries((prev) =>
+			prev.includes(country) ? prev.filter((c) => c !== country) : [...prev, country],
+		);
+	};
+
 	const handleIndoorPreferenceChange = (preference: boolean | null) => {
 		setSelectedIndoorPreference(preference);
 	};
@@ -236,6 +253,7 @@ export default function Home() {
 		setSelectedArrondissements([]);
 		setSelectedGenres([]);
 		setSelectedEventTypes([]);
+		setSelectedHostCountries([]);
 		setSelectedIndoorPreference(null);
 		setSelectedPriceRange(PRICE_RANGE_CONFIG.defaultRange);
 		setSearchQuery("");
@@ -251,6 +269,7 @@ export default function Home() {
 		selectedArrondissements.length > 0 ||
 		selectedGenres.length > 0 ||
 		selectedEventTypes.length > 0 ||
+		selectedHostCountries.length > 0 ||
 		selectedIndoorPreference !== null ||
 		selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 		selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
@@ -359,6 +378,7 @@ export default function Home() {
 															selectedArrondissements.length +
 															selectedGenres.length +
 															selectedEventTypes.length +
+															selectedHostCountries.length +
 															(selectedPriceRange[0] !==
 																PRICE_RANGE_CONFIG.min ||
 															selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
@@ -388,6 +408,7 @@ export default function Home() {
 									selectedArrondissements={selectedArrondissements}
 									selectedGenres={selectedGenres}
 									selectedEventTypes={selectedEventTypes}
+									selectedHostCountries={selectedHostCountries}
 									selectedIndoorPreference={selectedIndoorPreference}
 									selectedPriceRange={selectedPriceRange}
 									onDayToggle={handleDayToggle}
@@ -395,6 +416,7 @@ export default function Home() {
 									onArrondissementToggle={handleArrondissementToggle}
 									onGenreToggle={handleGenreToggle}
 									onEventTypeToggle={handleEventTypeToggle}
+									onHostCountryToggle={handleHostCountryToggle}
 									onIndoorPreferenceChange={handleIndoorPreferenceChange}
 									onPriceRangeChange={handlePriceRangeChange}
 									onClearFilters={handleClearFilters}
@@ -498,6 +520,12 @@ export default function Home() {
 												<Badge variant="secondary" className="text-xs">
 													{event.type}
 												</Badge>
+												{event.hostCountry && (
+													<Badge variant="outline" className="text-xs">
+														{HOST_COUNTRIES.find((country) => country.key === event.hostCountry)?.flag}{" "}
+														{HOST_COUNTRIES.find((country) => country.key === event.hostCountry)?.shortCode}
+													</Badge>
+												)}
 												{event.genre.slice(0, 2).map((genre) => (
 													<Badge
 														key={genre}

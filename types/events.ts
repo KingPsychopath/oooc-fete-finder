@@ -201,6 +201,11 @@ export const EVENT_TYPES = [
 	{ key: "Block Party" as const, label: "Block Party", icon: "🎉" },
 ] as const;
 
+export const HOST_COUNTRIES = [
+	{ key: "UK" as const, label: "United Kingdom", flag: "🇬🇧", shortCode: "GB" },
+	{ key: "FR" as const, label: "France", flag: "🇫🇷", shortCode: "FR" },
+] as const;
+
 export const PARIS_ARRONDISSEMENTS = [
 	{
 		id: 1 as ParisArrondissement,

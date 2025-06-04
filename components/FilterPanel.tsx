@@ -25,12 +25,14 @@ import {
 	DAY_NIGHT_PERIODS,
 	MUSIC_GENRES,
 	EVENT_TYPES,
+	HOST_COUNTRIES,
 	PRICE_RANGE_CONFIG,
 	formatPriceRange,
 	type EventDay,
 	type DayNightPeriod,
 	type MusicGenre,
 	type EventType,
+	type HostCountry,
 	type ParisArrondissement,
 } from "@/types/events";
 import { Slider } from "@/components/ui/slider";
@@ -41,6 +43,7 @@ type FilterPanelProps = {
 	selectedArrondissements: ParisArrondissement[];
 	selectedGenres: MusicGenre[];
 	selectedEventTypes: EventType[];
+	selectedHostCountries: HostCountry[];
 	selectedIndoorPreference: boolean | null;
 	selectedPriceRange: [number, number];
 	onDayToggle: (day: EventDay) => void;
@@ -48,6 +51,7 @@ type FilterPanelProps = {
 	onArrondissementToggle: (arrondissement: ParisArrondissement) => void;
 	onGenreToggle: (genre: MusicGenre) => void;
 	onEventTypeToggle: (eventType: EventType) => void;
+	onHostCountryToggle: (hostCountry: HostCountry) => void;
 	onIndoorPreferenceChange: (preference: boolean | null) => void;
 	onPriceRangeChange: (range: [number, number]) => void;
 	onClearFilters: () => void;
@@ -63,6 +67,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	selectedArrondissements,
 	selectedGenres,
 	selectedEventTypes,
+	selectedHostCountries,
 	selectedIndoorPreference,
 	selectedPriceRange,
 	onDayToggle,
@@ -70,6 +75,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onArrondissementToggle,
 	onGenreToggle,
 	onEventTypeToggle,
+	onHostCountryToggle,
 	onIndoorPreferenceChange,
 	onPriceRangeChange,
 	onClearFilters,
@@ -98,6 +104,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedArrondissements.length > 0 ||
 			selectedGenres.length > 0 ||
 			selectedEventTypes.length > 0 ||
+			selectedHostCountries.length > 0 ||
 			selectedIndoorPreference !== null ||
 			selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max,
@@ -107,6 +114,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedArrondissements,
 			selectedGenres,
 			selectedEventTypes,
+			selectedHostCountries,
 			selectedIndoorPreference,
 			selectedPriceRange,
 		],
@@ -120,6 +128,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedArrondissements.length +
 			selectedGenres.length +
 			selectedEventTypes.length +
+			selectedHostCountries.length +
 			(selectedIndoorPreference !== null ? 1 : 0) +
 			(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
@@ -132,6 +141,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		selectedArrondissements,
 		selectedGenres,
 		selectedEventTypes,
+		selectedHostCountries,
 		selectedIndoorPreference,
 		selectedPriceRange,
 	]);
@@ -260,6 +270,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							+{selectedGenres.length - 4} more
 						</Badge>
 					)}
+					{selectedHostCountries.map((country) => (
+						<Badge key={country} variant="secondary" className="text-xs">
+							{country}
+							<Button
+								variant="ghost"
+								size="sm"
+								className="h-auto p-0 ml-1 hover:bg-transparent"
+								onClick={() => onHostCountryToggle(country)}
+							>
+								<X className="h-3 w-3" />
+							</Button>
+						</Badge>
+					))}
 				</div>
 			</div>
 		)
@@ -453,6 +476,25 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												>
 													<span className="mr-1.5 text-sm">{icon}</span>
 													<span className="text-xs">{label}</span>
+												</Toggle>
+											))}
+										</div>
+									</div>
+
+									{/* Host Country */}
+									<div>
+										<h3 className="font-semibold mb-3">Host Country</h3>
+										<div className="space-y-1">
+											{HOST_COUNTRIES.map(({ key, flag, shortCode }) => (
+												<Toggle
+													key={key}
+													pressed={selectedHostCountries.includes(key)}
+													onPressedChange={() => onHostCountryToggle(key)}
+													className="justify-start w-full h-8"
+													size="sm"
+												>
+													<span className="mr-1.5 text-sm">{flag}</span>
+													<span className="text-xs">{shortCode}</span>
 												</Toggle>
 											))}
 										</div>
@@ -748,6 +790,25 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											>
 												<span className="mr-1.5 text-sm">{icon}</span>
 												<span className="text-xs">{label}</span>
+											</Toggle>
+										))}
+									</div>
+								</div>
+
+								{/* Host Country */}
+								<div>
+									<h3 className="font-semibold mb-3">Host Country</h3>
+									<div className="space-y-1">
+										{HOST_COUNTRIES.map(({ key, flag, shortCode }) => (
+											<Toggle
+												key={key}
+												pressed={selectedHostCountries.includes(key)}
+												onPressedChange={() => onHostCountryToggle(key)}
+												className="justify-start w-full h-8"
+												size="sm"
+											>
+												<span className="mr-1.5 text-sm">{flag}</span>
+												<span className="text-xs">{shortCode}</span>
 											</Toggle>
 										))}
 									</div>
