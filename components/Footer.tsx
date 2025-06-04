@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ExternalLink, Globe } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Custom Instagram icon component matching Instagram's brand symbol
 const InstagramIcon = ({ className }: { className?: string }) => (
@@ -73,17 +74,29 @@ const Footer = () => {
 					</div>
 
 					{/* Version and Attribution */}
-					<div className="flex items-center space-x-1 text-xs text-muted-foreground">
-						<span>Web app v1.0.0 • Made by</span>
-						<Link
-							href="https://x.com/milkandh3nny"
-							target="_blank"
-							rel="noopener noreferrer"
-							className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm"
-							title="Follow Milkandhenny on X (Twitter)"
-						>
-							Milkandhenny
-						</Link>
+					<div className="flex flex-col items-center sm:items-end space-y-1">
+						<div className="flex items-center space-x-1 text-xs text-muted-foreground">
+							<span>Web app v1.0.0 • Made by</span>
+							<Link
+								href="https://x.com/milkandh3nny"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm"
+								title="Follow Milkandhenny on X (Twitter)"
+							>
+								Milkandhenny
+							</Link>
+						</div>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<span className="text-xs text-muted-foreground/70 cursor-help">
+									Maintained by OOOC Community
+								</span>
+							</TooltipTrigger>
+							<TooltipContent>
+								<p>With special thanks to Mel</p>
+							</TooltipContent>
+						</Tooltip>
 					</div>
 				</div>
 			</div>
