@@ -341,40 +341,45 @@ export default function Home() {
                     >
                       {/* OOOC Pick Badge */}
                       {event.isOOOCPick && (
-                        <div className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md">
-                          <Star className="h-3 w-3 fill-current" />
+                        <div className="absolute -top-3 -right-3 bg-yellow-400 text-black text-xs font-bold rounded-full w-8 h-8 flex items-center justify-center shadow-md z-10 border-2 border-white dark:border-gray-900">
+                          <Star className="h-4 w-4 fill-current" />
                         </div>
                       )}
                       
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center space-x-2">
-                          <h3 className="font-semibold truncate">{event.name}</h3>
+                      {/* Header with proper overflow handling */}
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-center space-x-2 min-w-0 flex-1">
+                          <h3 className="font-semibold text-sm leading-tight truncate flex-1 min-w-0">
+                            {event.name}
+                          </h3>
                           {event.isOOOCPick && (
-                            <span className="text-yellow-500 text-sm">🌟</span>
+                            <span className="text-yellow-500 text-sm flex-shrink-0">🌟</span>
                           )}
                         </div>
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs flex-shrink-0 ml-auto">
                           {event.arrondissement}e
                         </Badge>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        <div className="flex items-center space-x-1 mb-1">
-                          <Clock className="h-3 w-3" />
-                          <span>{event.time || 'TBC'} • {event.day}</span>
+                      
+                      {/* Event details */}
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <div className="flex items-center space-x-1">
+                          <Clock className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{event.time || 'TBC'} • {event.day}</span>
                           {event.time && getDayNightPeriod(event.time) && (
-                            <span>{getDayNightPeriod(event.time) === 'day' ? '☀️' : '🌙'}</span>
+                            <span className="flex-shrink-0">{getDayNightPeriod(event.time) === 'day' ? '☀️' : '🌙'}</span>
                           )}
                         </div>
                         {event.location && event.location !== 'TBA' && (
                           <div className="flex items-center space-x-1">
-                            <MapPin className="h-3 w-3" />
-                            <span className="truncate">{event.location}</span>
-                            <span>{event.indoor ? '🏢' : '🌤️'}</span>
+                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate flex-1 min-w-0">{event.location}</span>
+                            <span className="flex-shrink-0">{event.indoor ? '🏢' : '🌤️'}</span>
                           </div>
                         )}
                         {/* Price Display */}
                         <div className="flex items-center space-x-1">
-                          <Euro className="h-3 w-3" />
+                          <Euro className="h-3 w-3 flex-shrink-0" />
                           <span className={`text-xs font-medium ${
                             formatPrice(event.price) === 'Free' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'
                           }`}>
@@ -382,6 +387,8 @@ export default function Home() {
                           </span>
                         </div>
                       </div>
+                      
+                      {/* Badges */}
                       <div className="flex flex-wrap gap-1 mt-2">
                         <Badge variant="secondary" className="text-xs">
                           {event.type}
