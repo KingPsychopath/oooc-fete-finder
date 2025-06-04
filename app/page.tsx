@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Header from '@/components/Header';
 import ParisMap from '@/components/ParisMap';
 import FilterPanel from '@/components/FilterPanel';
 import EventModal from '@/components/EventModal';
 import SearchBar from '@/components/SearchBar';
-import { EVENTS_DATA } from '@/data/events';
+import { getAllEvents } from '@/data/events';
 import { 
   getDayNightPeriod, 
   isEventInDayNightPeriod,
@@ -25,6 +25,11 @@ import { MapPin, Clock, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function Home() {
+  // Add state for events loading
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [hoveredArrondissement, setHoveredArrondissement] = useState<number | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -36,15 +41,34 @@ export default function Home() {
   const [selectedIndoorPreference, setSelectedIndoorPreference] = useState<boolean | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Load events on component mount
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setLoading(true);
+        const loadedEvents = await getAllEvents();
+        setEvents(loadedEvents);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load events');
+        console.error('Error loading events:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEvents();
+  }, []);
+
   // Get available filter options
   const availableArrondissements = useMemo(() => {
-    const arrondissements = new Set(EVENTS_DATA.map(event => event.arrondissement));
+    const arrondissements = new Set(events.map(event => event.arrondissement));
     return Array.from(arrondissements).sort((a, b) => a - b) as ParisArrondissement[];
-  }, []);
+  }, [events]);
 
   // Filter events based on selected filters and search query
   const filteredEvents = useMemo(() => {
-    return EVENTS_DATA.filter(event => {
+    return events.filter(event => {
       // Filter by selected days
       if (selectedDays.length > 0 && !selectedDays.includes(event.day)) return false;
 
@@ -91,7 +115,7 @@ export default function Home() {
 
       return true;
     });
-  }, [selectedDays, selectedDayNightPeriods, selectedArrondissements, selectedGenres, selectedEventTypes, selectedIndoorPreference, searchQuery]);
+  }, [selectedDays, selectedDayNightPeriods, selectedArrondissements, selectedGenres, selectedEventTypes, selectedIndoorPreference, searchQuery, events]);
 
   // Filter handlers
   const handleDayToggle = (day: EventDay) => {
@@ -152,159 +176,184 @@ export default function Home() {
       <Header />
 
       <main className="container mx-auto px-4 py-6">
-        {/* Search Bar */}
-        <div className="mb-6">
-          <SearchBar
-            onSearch={setSearchQuery}
-            placeholder="Search events, locations, genres, types..."
-            className="max-w-md mx-auto"
-          />
-        </div>
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading events...</p>
+            </div>
+          </div>
+        )}
 
-        {/* Stats and Quick Info */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <div className="text-2xl font-bold text-primary">{filteredEvents.length}</div>
-                <div className="text-sm text-muted-foreground">
-                  Event{filteredEvents.length !== 1 ? 's' : ''} {hasActiveFilters ? 'filtered' : 'total'}
-                </div>
+        {/* Error State */}
+        {error && (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <p className="text-destructive mb-2">Error loading events</p>
+              <p className="text-sm text-muted-foreground">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content - Only show when not loading and no error */}
+        {!loading && !error && (
+          <>
+            {/* Search Bar */}
+            <div className="mb-6">
+              <SearchBar
+                onSearch={setSearchQuery}
+                placeholder="Search events, locations, genres, types..."
+                className="max-w-md mx-auto"
+              />
+            </div>
+
+            {/* Stats and Quick Info */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="text-2xl font-bold text-primary">{filteredEvents.length}</div>
+                    <div className="text-sm text-muted-foreground">
+                      Event{filteredEvents.length !== 1 ? 's' : ''} {hasActiveFilters ? 'filtered' : 'total'}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <div className="text-sm text-muted-foreground">
+                      {availableArrondissements.length} arrondissements with events
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <div className="text-sm text-muted-foreground">
+                      June 19-22, 2025
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Map */}
+              <div className="lg:col-span-3">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      Paris Event Map
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsFilterOpen(!isFilterOpen)}
+                        className="lg:hidden"
+                      >
+                        <Filter className="h-4 w-4 mr-2" />
+                        Filters
+                        {hasActiveFilters && (
+                          <Badge variant="destructive" className="ml-2 h-4 w-4 rounded-full p-0 text-xs">
+                            {selectedDays.length + selectedDayNightPeriods.length + selectedArrondissements.length + selectedGenres.length + selectedEventTypes.length}
+                          </Badge>
+                        )}
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ParisMap
+                      events={filteredEvents}
+                      onEventClick={setSelectedEvent}
+                      onArrondissementHover={setHoveredArrondissement}
+                      hoveredArrondissement={hoveredArrondissement}
+                    />
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <div className="text-sm text-muted-foreground">
-                  {availableArrondissements.length} arrondissements with events
-                </div>
+              {/* Filter Panel - Desktop */}
+              <div className="hidden lg:block">
+                <FilterPanel
+                  selectedDays={selectedDays}
+                  selectedDayNightPeriods={selectedDayNightPeriods}
+                  selectedArrondissements={selectedArrondissements}
+                  selectedGenres={selectedGenres}
+                  selectedEventTypes={selectedEventTypes}
+                  selectedIndoorPreference={selectedIndoorPreference}
+                  onDayToggle={handleDayToggle}
+                  onDayNightPeriodToggle={handleDayNightPeriodToggle}
+                  onArrondissementToggle={handleArrondissementToggle}
+                  onGenreToggle={handleGenreToggle}
+                  onEventTypeToggle={handleEventTypeToggle}
+                  onIndoorPreferenceChange={handleIndoorPreferenceChange}
+                  onClearFilters={handleClearFilters}
+                  availableArrondissements={availableArrondissements}
+                  isOpen={true}
+                  onClose={() => {}}
+                />
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <div className="text-sm text-muted-foreground">
-                  June 19-22, 2025
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Map */}
-          <div className="lg:col-span-3">
-            <Card>
+            {/* Event List */}
+            <Card className="mt-6">
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Paris Event Map
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsFilterOpen(!isFilterOpen)}
-                    className="lg:hidden"
-                  >
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filters
-                    {hasActiveFilters && (
-                      <Badge variant="destructive" className="ml-2 h-4 w-4 rounded-full p-0 text-xs">
-                        {selectedDays.length + selectedDayNightPeriods.length + selectedArrondissements.length + selectedGenres.length + selectedEventTypes.length}
-                      </Badge>
-                    )}
-                  </Button>
-                </CardTitle>
+                <CardTitle>All Events ({filteredEvents.length})</CardTitle>
               </CardHeader>
               <CardContent>
-                <ParisMap
-                  events={filteredEvents}
-                  onEventClick={setSelectedEvent}
-                  onArrondissementHover={setHoveredArrondissement}
-                  hoveredArrondissement={hoveredArrondissement}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredEvents.map(event => (
+                    <div
+                      key={event.id}
+                      className="p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => setSelectedEvent(event)}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold truncate">{event.name}</h3>
+                        <Badge variant="outline" className="text-xs">
+                          {event.arrondissement}e
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        <div className="flex items-center space-x-1 mb-1">
+                          <Clock className="h-3 w-3" />
+                          <span>{event.time || 'TBC'} • {event.day}</span>
+                          {event.time && getDayNightPeriod(event.time) && (
+                            <span>{getDayNightPeriod(event.time) === 'day' ? '☀️' : '🌙'}</span>
+                          )}
+                        </div>
+                        {event.location && event.location !== 'TBA' && (
+                          <div className="flex items-center space-x-1">
+                            <MapPin className="h-3 w-3" />
+                            <span className="truncate">{event.location}</span>
+                            <span>{event.indoor ? '🏢' : '🌤️'}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        <Badge variant="secondary" className="text-xs">
+                          {event.type}
+                        </Badge>
+                        {event.genre.slice(0, 2).map(genre => (
+                          <Badge key={genre} variant="outline" className="text-xs">
+                            {MUSIC_GENRES.find(g => g.key === genre)?.label || genre}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
-          </div>
-
-          {/* Filter Panel - Desktop */}
-          <div className="hidden lg:block">
-            <FilterPanel
-              selectedDays={selectedDays}
-              selectedDayNightPeriods={selectedDayNightPeriods}
-              selectedArrondissements={selectedArrondissements}
-              selectedGenres={selectedGenres}
-              selectedEventTypes={selectedEventTypes}
-              selectedIndoorPreference={selectedIndoorPreference}
-              onDayToggle={handleDayToggle}
-              onDayNightPeriodToggle={handleDayNightPeriodToggle}
-              onArrondissementToggle={handleArrondissementToggle}
-              onGenreToggle={handleGenreToggle}
-              onEventTypeToggle={handleEventTypeToggle}
-              onIndoorPreferenceChange={handleIndoorPreferenceChange}
-              onClearFilters={handleClearFilters}
-              availableArrondissements={availableArrondissements}
-              isOpen={true}
-              onClose={() => {}}
-            />
-          </div>
-        </div>
-
-        {/* Event List */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>All Events ({filteredEvents.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredEvents.map(event => (
-                <div
-                  key={event.id}
-                  className="p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => setSelectedEvent(event)}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold truncate">{event.name}</h3>
-                    <Badge variant="outline" className="text-xs">
-                      {event.arrondissement}e
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    <div className="flex items-center space-x-1 mb-1">
-                      <Clock className="h-3 w-3" />
-                      <span>{event.time || 'TBC'} • {event.day}</span>
-                      {event.time && getDayNightPeriod(event.time) && (
-                        <span>{getDayNightPeriod(event.time) === 'day' ? '☀️' : '🌙'}</span>
-                      )}
-                    </div>
-                    {event.location && event.location !== 'TBA' && (
-                      <div className="flex items-center space-x-1">
-                        <MapPin className="h-3 w-3" />
-                        <span className="truncate">{event.location}</span>
-                        <span>{event.indoor ? '🏢' : '🌤️'}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {event.type}
-                    </Badge>
-                    {event.genre.slice(0, 2).map(genre => (
-                      <Badge key={genre} variant="outline" className="text-xs">
-                        {MUSIC_GENRES.find(g => g.key === genre)?.label || genre}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+          </>
+        )}
       </main>
 
       {/* Mobile Filter Panel */}

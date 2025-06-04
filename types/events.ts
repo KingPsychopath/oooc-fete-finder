@@ -5,7 +5,34 @@ export type DayNightPeriod = 'day' | 'night';
 
 export type EventType = 'After Party' | 'Block Party';
 
-export type MusicGenre = 'amapiano' | 'afrobeats' | 'soca' | 'pop' | 'bashment';
+// Expanded genre types based on CSV data
+export type MusicGenre = 
+  | 'amapiano' 
+  | 'afrobeats' 
+  | 'soca' 
+  | 'pop' 
+  | 'bashment'
+  | 'hip hop'
+  | 'r&b'
+  | 'shatta'
+  | 'dancehall'
+  | 'reggaeton'
+  | 'baile funk'
+  | 'house'
+  | 'disco'
+  | 'afro house'
+  | 'electro'
+  | 'funk'
+  | 'rap'
+  | 'trap'
+  | 'uk drill'
+  | 'uk garage'
+  | 'bouyon'
+  | 'zouk'
+  | 'coupé-décalé'
+  | 'urban fr'
+  | 'kompa'
+  | 'afro';
 
 export type ParisArrondissement = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20;
 
@@ -18,6 +45,7 @@ export type Event = {
   day: EventDay;
   date: string; // ISO date string (YYYY-MM-DD)
   time?: string; // 24-hour format (HH:MM) or 'TBC'
+  endTime?: string; // 24-hour format (HH:MM) or 'TBC'
   arrondissement: ParisArrondissement;
   location?: string;
   address?: string;
@@ -27,8 +55,26 @@ export type Event = {
   genre: MusicGenre[];
   indoor: boolean;
   verified: boolean;
+  price?: string; // Price information from CSV
+  age?: string; // Age restrictions from CSV
+  isOOOCPick?: boolean; // 🌟 indicator from CSV
   // Legacy field for backwards compatibility
   category?: EventCategory;
+};
+
+// CSV data type matching the structure in ooc_list_tracker.csv
+export type CSVEventRow = {
+  oocPicks: string; // "🌟" or empty
+  name: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  genre: string; // Comma-separated genres
+  price: string;
+  ticketLink: string;
+  age: string;
+  notes: string;
 };
 
 export type Arrondissement = {
@@ -74,7 +120,28 @@ export const MUSIC_GENRES = [
   { key: 'afrobeats' as const, label: 'Afrobeats', color: 'bg-orange-500' },
   { key: 'soca' as const, label: 'Soca', color: 'bg-yellow-500' },
   { key: 'pop' as const, label: 'Pop', color: 'bg-pink-500' },
-  { key: 'bashment' as const, label: 'Bashment', color: 'bg-red-500' }
+  { key: 'bashment' as const, label: 'Bashment', color: 'bg-red-500' },
+  { key: 'hip hop' as const, label: 'Hip Hop', color: 'bg-purple-600' },
+  { key: 'r&b' as const, label: 'R&B', color: 'bg-indigo-500' },
+  { key: 'shatta' as const, label: 'Shatta', color: 'bg-green-600' },
+  { key: 'dancehall' as const, label: 'Dancehall', color: 'bg-lime-500' },
+  { key: 'reggaeton' as const, label: 'Reggaeton', color: 'bg-amber-500' },
+  { key: 'baile funk' as const, label: 'Baile Funk', color: 'bg-teal-500' },
+  { key: 'house' as const, label: 'House', color: 'bg-blue-600' },
+  { key: 'disco' as const, label: 'Disco', color: 'bg-violet-500' },
+  { key: 'afro house' as const, label: 'Afro House', color: 'bg-orange-600' },
+  { key: 'electro' as const, label: 'Electro', color: 'bg-cyan-500' },
+  { key: 'funk' as const, label: 'Funk', color: 'bg-fuchsia-500' },
+  { key: 'rap' as const, label: 'Rap', color: 'bg-gray-600' },
+  { key: 'trap' as const, label: 'Trap', color: 'bg-slate-600' },
+  { key: 'uk drill' as const, label: 'UK Drill', color: 'bg-red-600' },
+  { key: 'uk garage' as const, label: 'UK Garage', color: 'bg-blue-500' },
+  { key: 'bouyon' as const, label: 'Bouyon', color: 'bg-emerald-600' },
+  { key: 'zouk' as const, label: 'Zouk', color: 'bg-rose-500' },
+  { key: 'coupé-décalé' as const, label: 'Coupé-Décalé', color: 'bg-yellow-600' },
+  { key: 'urban fr' as const, label: 'Urban FR', color: 'bg-indigo-600' },
+  { key: 'kompa' as const, label: 'Kompa', color: 'bg-pink-600' },
+  { key: 'afro' as const, label: 'Afro', color: 'bg-orange-400' }
 ] as const;
 
 export const EVENT_TYPES = [

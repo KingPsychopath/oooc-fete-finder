@@ -1,4 +1,9 @@
-import type { Event } from '@/types/events';
+import type { Event, MusicGenre } from '@/types/events';
+import { loadEventsFromCSV, parseCSVContent } from '@/utils/csvParser';
+
+// Toggle flag to switch between test data and CSV data
+// Set this to true to use CSV data, false to use test data
+export const USE_CSV_DATA = true;
 
 // Event data with enhanced categorization and strict typing
 export const EVENTS_DATA: Event[] = [
@@ -541,20 +546,73 @@ export const EVENTS_DATA: Event[] = [
   }
 ];
 
-// Helper functions
-export const getEventsByDay = (day: string) => {
+// Enhanced helper functions with CSV support
+export const getAllEvents = async (): Promise<Event[]> => {
+  if (USE_CSV_DATA) {
+    try {
+      return await loadEventsFromCSV();
+    } catch (error) {
+      console.error('Failed to load CSV data, falling back to test data:', error);
+      return EVENTS_DATA;
+    }
+  }
+  return EVENTS_DATA;
+};
+
+export const getEventsByDay = async (day: string): Promise<Event[]> => {
+  const events = await getAllEvents();
+  return events.filter(event => event.day === day);
+};
+
+export const getEventsByArrondissement = async (arrondissement: number): Promise<Event[]> => {
+  const events = await getAllEvents();
+  return events.filter(event => event.arrondissement === arrondissement);
+};
+
+export const getEventsCount = async (): Promise<number> => {
+  const events = await getAllEvents();
+  return events.length;
+};
+
+export const getArrondissementsWithEvents = async (): Promise<number[]> => {
+  const events = await getAllEvents();
+  const arrondissements = new Set(events.map(event => event.arrondissement));
+  return Array.from(arrondissements).sort((a, b) => a - b);
+};
+
+export const getOOOCPickEvents = async (): Promise<Event[]> => {
+  const events = await getAllEvents();
+  return events.filter(event => event.isOOOCPick);
+};
+
+export const getEventsByGenre = async (genre: MusicGenre): Promise<Event[]> => {
+  const events = await getAllEvents();
+  return events.filter(event => event.genre.includes(genre));
+};
+
+export const getFreeEvents = async (): Promise<Event[]> => {
+  const events = await getAllEvents();
+  return events.filter(event => 
+    event.price?.toLowerCase().includes('free') || 
+    event.price === '' || 
+    !event.price
+  );
+};
+
+// Synchronous versions for backwards compatibility (using test data only)
+export const getEventsByDaySync = (day: string) => {
   return EVENTS_DATA.filter(event => event.day === day);
 };
 
-export const getEventsByArrondissement = (arrondissement: number) => {
+export const getEventsByArrondissementSync = (arrondissement: number) => {
   return EVENTS_DATA.filter(event => event.arrondissement === arrondissement);
 };
 
-export const getEventsCount = () => {
+export const getEventsCountSync = () => {
   return EVENTS_DATA.length;
 };
 
-export const getArrondissementsWithEvents = () => {
+export const getArrondissementsWithEventsSync = () => {
   const arrondissements = new Set(EVENTS_DATA.map(event => event.arrondissement));
   return Array.from(arrondissements).sort((a, b) => a - b);
 };
