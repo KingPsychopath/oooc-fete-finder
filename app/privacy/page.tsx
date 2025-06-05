@@ -39,6 +39,7 @@ export default function PrivacyPolicy() {
 							</h3>
 							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
 								<li>To provide personalized event recommendations</li>
+								<li>To add your email to our mailing list for event updates and notifications about future OOOC events,</li>
 								<li>
 									To send you updates about future Fête de la Musique events
 								</li>
