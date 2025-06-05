@@ -11,7 +11,14 @@ import Papa from "papaparse";
 // Define the expected CSV column headers and their possible variations
 const COLUMN_MAPPINGS = {
 	oocPicks: ["OOOC Picks", "OOC Picks", "oocPicks", "picks", "🌟"],
-	nationality: ["GB/FR", "Host Country", "Country", "hostCountry", "Host", "Nationality"],
+	nationality: [
+		"GB/FR",
+		"Host Country",
+		"Country",
+		"hostCountry",
+		"Host",
+		"Nationality",
+	],
 	name: ["Event Name", "Name", "name", "Event", "Title"],
 	date: ["Date", "Day", "date", "Event Date"],
 	startTime: ["Start Time", "Time", "startTime", "Start", "Event Time"],

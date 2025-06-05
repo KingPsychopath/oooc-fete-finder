@@ -551,7 +551,7 @@ export const EVENTS_DATA: Event[] = [
 export async function getAllEvents(): Promise<Event[]> {
 	try {
 		const { data: events, error } = await getEvents();
-		
+
 		if (error) {
 			console.error("Error loading events:", error);
 			return [];

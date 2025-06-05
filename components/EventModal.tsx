@@ -16,7 +16,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { type Event, EVENT_DAYS, formatPrice, MUSIC_GENRES } from "@/types/events";
+import {
+	type Event,
+	EVENT_DAYS,
+	formatPrice,
+	MUSIC_GENRES,
+} from "@/types/events";
 import { useOutsideClick } from "@/lib/useOutsideClick";
 
 interface EventModalProps {
@@ -95,7 +100,8 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							{event.category && (
 								<Badge
 									className={
-										CATEGORY_COLORS[event.category] || "bg-gray-100 text-gray-800"
+										CATEGORY_COLORS[event.category] ||
+										"bg-gray-100 text-gray-800"
 									}
 								>
 									<Tag className="h-3 w-3 mr-1" />
@@ -140,7 +146,9 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 									{event.endTime && event.endTime !== "TBC" && (
 										<>
 											{" - "}
-											<span className="font-mono font-medium">{event.endTime}</span>
+											<span className="font-mono font-medium">
+												{event.endTime}
+											</span>
 										</>
 									)}
 								</>

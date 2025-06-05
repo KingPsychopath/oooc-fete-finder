@@ -9,7 +9,7 @@ import Image from "next/image";
 import Countdown from "@/components/Countdown";
 
 // Get base path from environment variable
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const Header: React.FC = () => {
 	const [currentTime, setCurrentTime] = useState(new Date());

@@ -33,8 +33,8 @@ const Countdown: React.FC = () => {
 		return { days, hours, minutes, seconds };
 	}, []);
 
-	const [countdown, setCountdown] = useState<CountdownTime>(() => 
-		calculateCountdown(new Date())
+	const [countdown, setCountdown] = useState<CountdownTime>(() =>
+		calculateCountdown(new Date()),
 	);
 
 	const formatCountdown = (countdown: CountdownTime): string => {
@@ -58,7 +58,7 @@ const Countdown: React.FC = () => {
 
 	useEffect(() => {
 		setMounted(true);
-		
+
 		const timer = setInterval(() => {
 			const now = new Date();
 			setCountdown(calculateCountdown(now));
@@ -72,7 +72,7 @@ const Countdown: React.FC = () => {
 		// Calculate approximate countdown for static display (no seconds to avoid hydration mismatch)
 		const now = new Date();
 		const difference = eventDate.getTime() - now.getTime();
-		
+
 		if (difference <= 0) {
 			return (
 				<div className="text-center">
@@ -82,16 +82,18 @@ const Countdown: React.FC = () => {
 				</div>
 			);
 		}
-		
+
 		const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-		const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+		const hours = Math.floor(
+			(difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+		);
 		const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-		
+
 		const parts = [];
 		if (days > 0) parts.push(`${days}d`);
 		if (hours > 0) parts.push(`${hours}h`);
 		if (minutes > 0) parts.push(`${minutes}m`);
-		
+
 		return (
 			<div className="text-center">
 				<div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium font-mono min-w-[280px] justify-center">

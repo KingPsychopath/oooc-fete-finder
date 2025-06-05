@@ -471,16 +471,17 @@ export const formatAge = (ageStr?: string): string => {
 	if (!ageStr) return "All ages";
 
 	const cleanAge = ageStr.toLowerCase().trim();
-	
+
 	// Handle common formats
-	if (cleanAge === "all ages" || cleanAge === "0+" || cleanAge === "0") return "All ages";
+	if (cleanAge === "all ages" || cleanAge === "0+" || cleanAge === "0")
+		return "All ages";
 	if (cleanAge.includes("+")) return ageStr;
-	
+
 	// Try to parse and format
 	const numericAge = parseAge(ageStr);
 	if (numericAge === null) return ageStr;
 	if (numericAge === 0) return "All ages";
-	
+
 	return `${numericAge}+`;
 };
 
@@ -502,9 +503,9 @@ export const formatAgeRange = (range: [number, number]): string => {
 	if (min === AGE_RANGE_CONFIG.min && max === AGE_RANGE_CONFIG.max) {
 		return "All ages";
 	}
-	
+
 	if (min === 18 && max === 25) return "18-25";
 	if (max >= AGE_RANGE_CONFIG.max) return `${min}+`;
-	
+
 	return `${min}-${max}`;
 };

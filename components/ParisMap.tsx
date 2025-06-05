@@ -222,10 +222,9 @@ const ParisMap: React.FC<ParisMapProps> = ({
 															className="text-xs text-center truncate max-w-[120px] justify-center"
 															title={event.name} // Show full name on hover
 														>
-															{event.name.length > 12 
-																? `${event.name.substring(0, 12)}...` 
-																: event.name
-															}
+															{event.name.length > 12
+																? `${event.name.substring(0, 12)}...`
+																: event.name}
 														</Badge>
 													))}
 												</div>
@@ -327,10 +326,9 @@ const ParisMap: React.FC<ParisMapProps> = ({
 															className="text-xs text-center truncate max-w-[120px] justify-center"
 															title={event.name} // Show full name on hover
 														>
-															{event.name.length > 12 
-																? `${event.name.substring(0, 12)}...` 
-																: event.name
-															}
+															{event.name.length > 12
+																? `${event.name.substring(0, 12)}...`
+																: event.name}
 														</Badge>
 													))}
 												</div>
@@ -341,11 +339,12 @@ const ParisMap: React.FC<ParisMapProps> = ({
 														</Badge>
 													</div>
 												)}
-												{unknownEvents.length <= 4 && unknownEvents.length > 0 && (
-													<p className="text-xs text-gray-500 dark:text-gray-400 text-center italic">
-														Click to see details
-													</p>
-												)}
+												{unknownEvents.length <= 4 &&
+													unknownEvents.length > 0 && (
+														<p className="text-xs text-gray-500 dark:text-gray-400 text-center italic">
+															Click to see details
+														</p>
+													)}
 											</div>
 										)}
 									</div>

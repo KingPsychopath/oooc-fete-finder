@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 // Get base path from environment variable
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export const metadata: Metadata = {
 	title: "Fête Finder - Out Of Office Collective",
@@ -36,12 +36,37 @@ export default function RootLayout({
 			suppressHydrationWarning
 		>
 			<head>
-				<link rel="icon" href={`${basePath}/OOOCLogoDark.svg`} type="image/svg+xml" />
-				<link rel="apple-touch-icon" sizes="180x180" href={`${basePath}/OOOCLogoDark.svg`} />
-				<link rel="icon" type="image/png" sizes="32x32" href={`${basePath}/OOOCLogoDark.svg`} />
-				<link rel="icon" type="image/png" sizes="16x16" href={`${basePath}/OOOCLogoDark.svg`} />
-				<link rel="mask-icon" href={`${basePath}/OOOCLogoDark.svg`} color="#000000" />
-				<meta name="msapplication-TileImage" content={`${basePath}/OOOCLogoDark.svg`} />
+				<link
+					rel="icon"
+					href={`${basePath}/OOOCLogoDark.svg`}
+					type="image/svg+xml"
+				/>
+				<link
+					rel="apple-touch-icon"
+					sizes="180x180"
+					href={`${basePath}/OOOCLogoDark.svg`}
+				/>
+				<link
+					rel="icon"
+					type="image/png"
+					sizes="32x32"
+					href={`${basePath}/OOOCLogoDark.svg`}
+				/>
+				<link
+					rel="icon"
+					type="image/png"
+					sizes="16x16"
+					href={`${basePath}/OOOCLogoDark.svg`}
+				/>
+				<link
+					rel="mask-icon"
+					href={`${basePath}/OOOCLogoDark.svg`}
+					color="#000000"
+				/>
+				<meta
+					name="msapplication-TileImage"
+					content={`${basePath}/OOOCLogoDark.svg`}
+				/>
 			</head>
 			<body suppressHydrationWarning className="antialiased">
 				<ThemeProvider
