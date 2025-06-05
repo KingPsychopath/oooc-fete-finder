@@ -12,18 +12,40 @@ const Header = () => {
 		<header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
 			<div className="container mx-auto px-4 py-4">
 				<div className="flex items-center justify-between">
-					{/* Left - Event Branding */}
+					{/* Mobile: OOOC Logo Left, Desktop: Event Branding Left */}
 					<div className="flex items-center space-x-3 flex-1">
-						<Music className="h-8 w-8 text-primary" />
-						<div>
-							<h1 className="text-2xl font-bold">Fête Finder</h1>
-							<p className="text-sm text-muted-foreground">Paris 2025 • OOOC</p>
+						{/* OOOC Logo - Left on mobile, hidden on desktop */}
+						<div className="relative h-12 w-12 sm:hidden">
+							<Image
+								src={`${basePath}/OOOCLogoDark.svg`}
+								alt="OOOC - Event Organizer"
+								fill
+								priority
+								sizes="48px"
+								className="object-contain transition-transform hover:scale-105 dark:invert"
+							/>
+						</div>
+						
+						{/* Music icon and text - Hidden on mobile, shown on desktop */}
+						<div className="hidden sm:flex items-center space-x-3">
+							<Music className="h-8 w-8 text-primary" />
+							<div>
+								<h1 className="text-2xl font-bold">Fête Finder</h1>
+								<p className="text-sm text-muted-foreground">Paris 2025 • OOOC</p>
+							</div>
 						</div>
 					</div>
 
-					{/* Center - OOOC Logo */}
+					{/* Mobile: Fête Finder Center, Desktop: OOOC Logo Center */}
 					<div className="flex justify-center flex-1">
-						<div className="relative h-24 w-24 sm:h-32 sm:w-32">
+						{/* Fête Finder title - Centered on mobile, hidden on desktop */}
+						<div className="text-center sm:hidden">
+							<h1 className="text-xl font-bold">Fête Finder</h1>
+							<p className="text-xs text-muted-foreground">Paris 2025 • OOOC</p>
+						</div>
+						
+						{/* OOOC Logo - Centered on desktop, hidden on mobile */}
+						<div className="relative h-24 w-24 sm:h-32 sm:w-32 hidden sm:block">
 							<Image
 								src={`${basePath}/OOOCLogoDark.svg`}
 								alt="OOOC - Event Organizer"
@@ -41,7 +63,9 @@ const Header = () => {
 						<ThemeToggle />
 					</div>
 				</div>
-				<Countdown />
+				<div className="mt-4 sm:mt-2">
+					<Countdown />
+				</div>
 			</div>
 		</header>
 	);
