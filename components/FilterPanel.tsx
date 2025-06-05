@@ -659,6 +659,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												</span>
 												<span>€{PRICE_RANGE_CONFIG.max}+</span>
 											</div>
+											{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
+												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
+												<div className="flex justify-center">
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={resetPriceRange}
+														className="text-xs h-6 px-2"
+													>
+														Clear price filter
+													</Button>
+												</div>
+											)}
 										</div>
 									</div>
 
@@ -1081,6 +1094,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											</span>
 											<span>€{PRICE_RANGE_CONFIG.max}+</span>
 										</div>
+										{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
+											selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
+											<div className="flex justify-center">
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={resetPriceRange}
+													className="text-xs h-6 px-2"
+												>
+													Clear price filter
+												</Button>
+											</div>
+										)}
 									</div>
 								</div>
 

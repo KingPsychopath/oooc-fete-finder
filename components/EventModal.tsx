@@ -114,6 +114,12 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								<>
 									{" "}
 									at <span className="font-mono font-medium">{event.time}</span>
+									{event.endTime && event.endTime !== "TBC" && (
+										<>
+											{" - "}
+											<span className="font-mono font-medium">{event.endTime}</span>
+										</>
+									)}
 								</>
 							)}
 							{event.time === "TBC" && (
