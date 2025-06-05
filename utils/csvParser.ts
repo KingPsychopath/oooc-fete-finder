@@ -578,13 +578,28 @@ export const convertCSVRowToEvent = (
  */
 export const loadEventsFromCSV = async (): Promise<Event[]> => {
 	try {
-		const response = await fetch("/api/events");
+		// Get the base path from environment variable
+		const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+		const apiUrl = `${basePath}/api/events`;
+		
+		console.log('Environment:', process.env.NODE_ENV);
+		console.log('Base Path:', basePath);
+		console.log('Attempting to fetch from:', apiUrl);
+		
+		const response = await fetch(apiUrl, {
+			headers: {
+				'Accept': 'application/json',
+			},
+			cache: 'no-store'
+		});
 
 		if (!response.ok) {
+			console.error('API Response not OK:', response.status, response.statusText);
 			throw new Error(`HTTP error! status: ${response.status}`);
 		}
 
 		const result = await response.json();
+		console.log('API Response:', result);
 
 		if (!result.success) {
 			throw new Error(result.message || "Failed to load events");
