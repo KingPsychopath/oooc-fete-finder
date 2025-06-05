@@ -30,7 +30,17 @@ import {
 } from "@/types/events";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Clock, Filter, Star, Euro, Users, ChevronDown, ChevronUp, Calendar } from "lucide-react";
+import {
+	MapPin,
+	Clock,
+	Filter,
+	Star,
+	Euro,
+	Users,
+	ChevronDown,
+	ChevronUp,
+	Calendar,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface EventsClientProps {
@@ -120,7 +130,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 			// Filter by selected nationalities
 			if (selectedNationalities.length > 0) {
 				if (!event.nationality || event.nationality.length === 0) return false;
-				
+
 				const hasMatchingNationality = event.nationality.some((nationality) =>
 					selectedNationalities.includes(nationality),
 				);
@@ -299,9 +309,9 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		searchQuery.length > 0;
 
 	const scrollToAllEvents = () => {
-		allEventsRef.current?.scrollIntoView({ 
-			behavior: 'smooth',
-			block: 'start'
+		allEventsRef.current?.scrollIntoView({
+			behavior: "smooth",
+			block: "start",
 		});
 	};
 
@@ -344,18 +354,14 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 
 				<Card>
 					<CardContent className="p-4 text-center">
-						<div className="text-2xl font-bold text-primary">
-							19-22
-						</div>
-						<div className="text-sm text-muted-foreground">
-							June 2025
-						</div>
+						<div className="text-2xl font-bold text-primary">19-22</div>
+						<div className="text-sm text-muted-foreground">June 2025</div>
 					</CardContent>
 				</Card>
 			</div>
 
 			{/* Featured Events Section */}
-			<FeaturedEvents 
+			<FeaturedEvents
 				events={filteredEvents}
 				onEventClick={setSelectedEvent}
 				onScrollToAllEvents={scrollToAllEvents}
@@ -370,7 +376,8 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 								<MapPin className="h-5 w-5" />
 								<span>Paris Event Map</span>
 								<Badge variant="secondary" className="text-xs">
-									{filteredEvents.length} event{filteredEvents.length !== 1 ? "s" : ""}
+									{filteredEvents.length} event
+									{filteredEvents.length !== 1 ? "s" : ""}
 								</Badge>
 							</div>
 							<div className="flex flex-col space-y-2">
@@ -426,9 +433,11 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="pt-2">
-						<div className={`relative transition-all duration-300 ease-in-out ${
-							isMapExpanded ? 'h-[600px]' : 'h-32'
-						} overflow-hidden rounded-md`}>
+						<div
+							className={`relative transition-all duration-300 ease-in-out ${
+								isMapExpanded ? "h-[600px]" : "h-32"
+							} overflow-hidden rounded-md`}
+						>
 							<div className="w-full h-full p-1">
 								<ParisMap
 									events={filteredEvents}
@@ -477,7 +486,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 			</div>
 
 			{/* All Events Section */}
-			<AllEvents 
+			<AllEvents
 				ref={allEventsRef}
 				events={filteredEvents}
 				onEventClick={setSelectedEvent}

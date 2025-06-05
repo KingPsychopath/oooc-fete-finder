@@ -25,13 +25,15 @@ const Header = () => {
 								className="object-contain transition-transform hover:scale-105 dark:invert"
 							/>
 						</div>
-						
+
 						{/* Music icon and text - Hidden on mobile, shown on desktop */}
 						<div className="hidden sm:flex items-center space-x-3">
 							<Music className="h-8 w-8 text-primary" />
 							<div>
 								<h1 className="text-2xl font-bold">Fête Finder</h1>
-								<p className="text-sm text-muted-foreground">Paris 2025 • OOOC</p>
+								<p className="text-sm text-muted-foreground">
+									Paris 2025 • OOOC
+								</p>
 							</div>
 						</div>
 					</div>
@@ -43,7 +45,7 @@ const Header = () => {
 							<h1 className="text-xl font-bold">Fête Finder</h1>
 							<p className="text-xs text-muted-foreground">Paris 2025 • OOOC</p>
 						</div>
-						
+
 						{/* OOOC Logo - Centered on desktop, hidden on mobile */}
 						<div className="relative h-24 w-24 sm:h-32 sm:w-32 hidden sm:block">
 							<Image

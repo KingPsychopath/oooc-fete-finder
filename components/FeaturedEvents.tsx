@@ -21,65 +21,80 @@ type FeaturedEventsProps = {
 	onScrollToAllEvents: () => void;
 };
 
-export function FeaturedEvents({ events, onEventClick, onScrollToAllEvents }: FeaturedEventsProps) {
-	// Deterministic shuffle function using date as seed for consistent server/client results
-	const deterministicShuffle = <T,>(array: T[]): T[] => {
-		const shuffled = [...array];
-		const seed = new Date().toDateString(); // Same seed for entire day
-		let hash = 0;
-		for (let i = 0; i < seed.length; i++) {
-			hash = ((hash << 5) - hash) + seed.charCodeAt(i);
-			hash = hash & hash; // Convert to 32-bit integer
-		}
-		
-		// Simple deterministic shuffle using the hash as seed
-		for (let i = shuffled.length - 1; i > 0; i--) {
-			hash = (hash * 1664525 + 1013904223) % Math.pow(2, 32); // Linear congruential generator
-			const j = Math.floor((hash / Math.pow(2, 32)) * (i + 1));
-			[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-		}
-		
-		return shuffled;
-	};
-
+export function FeaturedEvents({
+	events,
+	onEventClick,
+	onScrollToAllEvents,
+}: FeaturedEventsProps) {
 	// Get preview events: prioritize manually featured events, then OOOC picks with deterministic daily shuffle
 	// Desktop: max 3 events, Mobile/tablet: max 2 events
 	const previewEvents = useMemo(() => {
+		// Deterministic shuffle function using date as seed for consistent server/client results
+		const deterministicShuffle = <T,>(array: T[]): T[] => {
+			const shuffled = [...array];
+			const seed = new Date().toDateString(); // Same seed for entire day
+			let hash = 0;
+			for (let i = 0; i < seed.length; i++) {
+				hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+				hash = hash & hash; // Convert to 32-bit integer
+			}
+			
+			// Simple deterministic shuffle using the hash as seed
+			for (let i = shuffled.length - 1; i > 0; i--) {
+				hash = (hash * 1664525 + 1013904223) % Math.pow(2, 32); // Linear congruential generator
+				const j = Math.floor((hash / Math.pow(2, 32)) * (i + 1));
+				[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+			}
+			
+			return shuffled;
+		};
+
 		// First, get manually featured events
-		const manuallyFeatured = events.filter(event => event != null && event.isFeatured === true);
-		
+		const manuallyFeatured = events.filter(
+			(event) => event != null && event.isFeatured === true,
+		);
+
 		// Get remaining event pools
-		const oooPicksEvents = events.filter(event => event != null && event.isOOOCPick === true && event.isFeatured !== true);
-		const regularEvents = events.filter(event => event != null && event.isOOOCPick !== true && event.isFeatured !== true);
-		
+		const oooPicksEvents = events.filter(
+			(event) =>
+				event != null && event.isOOOCPick === true && event.isFeatured !== true,
+		);
+		const regularEvents = events.filter(
+			(event) =>
+				event != null && event.isOOOCPick !== true && event.isFeatured !== true,
+		);
+
 		// Use deterministic shuffle for OOOC picks that aren't manually featured
 		const shuffledOOOCPicks = deterministicShuffle(oooPicksEvents);
-		
+
 		// Build preview starting with manually featured events
 		const preview = [...manuallyFeatured];
-		
+
 		// Calculate max events based on screen size - we'll show up to 3 and let CSS handle responsiveness
 		const maxEvents = 3;
 		const remainingSlots = maxEvents - preview.length;
-		
+
 		// Fill remaining slots with shuffled OOOC picks first
 		const availableOOOCPicks = shuffledOOOCPicks.slice(0, remainingSlots);
 		preview.push(...availableOOOCPicks);
-		
+
 		// If still need more events, add regular events
 		if (preview.length < maxEvents) {
 			const stillRemainingSlots = maxEvents - preview.length;
 			preview.push(...regularEvents.slice(0, stillRemainingSlots));
 		}
-		
+
 		// Safety check: filter out any undefined events
-		const safePreview = preview.filter(event => event != null);
-		
+		const safePreview = preview.filter((event) => event != null);
+
 		// Debug logging if we have issues
 		if (safePreview.length !== preview.length) {
-			console.warn('Found undefined events in preview, filtered out:', preview.length - safePreview.length);
+			console.warn(
+				"Found undefined events in preview, filtered out:",
+				preview.length - safePreview.length,
+			);
 		}
-		
+
 		return safePreview;
 	}, [events]);
 
@@ -88,8 +103,8 @@ export function FeaturedEvents({ events, onEventClick, onScrollToAllEvents }: Fe
 			<CardHeader>
 				<div className="flex items-center justify-between">
 					<CardTitle>Featured Events</CardTitle>
-					<Button 
-						variant="outline" 
+					<Button
+						variant="outline"
 						size="sm"
 						onClick={onScrollToAllEvents}
 						className="text-sm"
@@ -198,24 +213,23 @@ export function FeaturedEvents({ events, onEventClick, onScrollToAllEvents }: Fe
 								<Badge variant="secondary" className="text-xs">
 									{event.type}
 								</Badge>
-								{event.nationality && event.nationality.map((nationality) => (
-									<Badge key={nationality} variant="outline" className="text-xs">
-										{
-											NATIONALITIES.find(
-												(n) => n.key === nationality,
-											)?.flag
-										}{" "}
-										{
-											NATIONALITIES.find(
-												(n) => n.key === nationality,
-											)?.shortCode
-										}
-									</Badge>
-								))}
+								{event.nationality &&
+									event.nationality.map((nationality) => (
+										<Badge
+											key={nationality}
+											variant="outline"
+											className="text-xs"
+										>
+											{NATIONALITIES.find((n) => n.key === nationality)?.flag}{" "}
+											{
+												NATIONALITIES.find((n) => n.key === nationality)
+													?.shortCode
+											}
+										</Badge>
+									))}
 								{event.genre.slice(0, 2).map((genre) => (
 									<Badge key={genre} variant="outline" className="text-xs">
-										{MUSIC_GENRES.find((g) => g.key === genre)?.label ||
-											genre}
+										{MUSIC_GENRES.find((g) => g.key === genre)?.label || genre}
 									</Badge>
 								))}
 							</div>
@@ -224,8 +238,8 @@ export function FeaturedEvents({ events, onEventClick, onScrollToAllEvents }: Fe
 				</div>
 				{events.length > 3 && (
 					<div className="mt-4 text-center">
-						<Button 
-							variant="secondary" 
+						<Button
+							variant="secondary"
 							onClick={onScrollToAllEvents}
 							className="w-full sm:w-auto"
 						>
@@ -237,4 +251,4 @@ export function FeaturedEvents({ events, onEventClick, onScrollToAllEvents }: Fe
 			</CardContent>
 		</Card>
 	);
-} 
+}

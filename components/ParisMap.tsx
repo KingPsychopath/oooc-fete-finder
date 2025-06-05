@@ -207,7 +207,8 @@ const ParisMap: React.FC<ParisMapProps> = ({
 												{arrondissement}e Arrondissement
 											</p>
 											<p className="text-xs text-gray-600 dark:text-gray-300">
-												{eventsInArr.length} event{eventsInArr.length !== 1 ? "s" : ""}
+												{eventsInArr.length} event
+												{eventsInArr.length !== 1 ? "s" : ""}
 											</p>
 										</div>
 										{eventsInArr.length > 0 && (
@@ -310,7 +311,8 @@ const ParisMap: React.FC<ParisMapProps> = ({
 										<div className="mb-2">
 											<p className="font-semibold text-sm">Unknown Location</p>
 											<p className="text-xs text-gray-600 dark:text-gray-300">
-												{unknownEvents.length} event{unknownEvents.length !== 1 ? "s" : ""} - Location TBD
+												{unknownEvents.length} event
+												{unknownEvents.length !== 1 ? "s" : ""} - Location TBD
 											</p>
 										</div>
 										{unknownEvents.length > 0 && (

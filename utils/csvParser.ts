@@ -256,7 +256,7 @@ const convertToNationality = (
 		nationalities.push("UK");
 	}
 
-	// Check for FR indicators  
+	// Check for FR indicators
 	if (
 		cleaned.includes("🇫🇷") ||
 		cleaned.includes("fr") ||
@@ -268,7 +268,7 @@ const convertToNationality = (
 
 	// Handle combined formats like "GB/FR", "UK/FR", etc.
 	if (cleaned.includes("/") || cleaned.includes("&") || cleaned.includes("+")) {
-		const parts = cleaned.split(/[\/&+]/).map(part => part.trim());
+		const parts = cleaned.split(/[\/&+]/).map((part) => part.trim());
 		for (const part of parts) {
 			if ((part === "gb" || part === "uk") && !nationalities.includes("UK")) {
 				nationalities.push("UK");

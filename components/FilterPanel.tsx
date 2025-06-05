@@ -402,9 +402,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</div>
 						</CardHeader>
 
-						<CardContent className={`transition-all duration-300 ease-in-out overflow-hidden relative ${
-							isExpanded === undefined || isExpanded ? 'max-h-[650px]' : 'max-h-24'
-						}`}>
+						<CardContent
+							className={`transition-all duration-300 ease-in-out overflow-hidden relative ${
+								isExpanded === undefined || isExpanded
+									? "max-h-[650px]"
+									: "max-h-24"
+							}`}
+						>
 							<div className="h-[calc(650px-4rem)] overflow-y-auto relative">
 								{/* Active Filters - Top when few filters */}
 								{uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
@@ -419,9 +423,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									<AccordionItem value="days">
 										<AccordionTrigger className="text-sm font-medium">
 											Days & Times
-											{(selectedDays.length > 0 || selectedDayNightPeriods.length > 0) && (
+											{(selectedDays.length > 0 ||
+												selectedDayNightPeriods.length > 0) && (
 												<Badge variant="secondary" className="ml-2 text-xs">
-													{selectedDays.length + selectedDayNightPeriods.length} active
+													{selectedDays.length + selectedDayNightPeriods.length}{" "}
+													active
 												</Badge>
 											)}
 										</AccordionTrigger>
@@ -439,7 +445,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															<Toggle
 																key={key}
 																pressed={selectedDayNightPeriods.includes(key)}
-																onPressedChange={() => onDayNightPeriodToggle(key)}
+																onPressedChange={() =>
+																	onDayNightPeriodToggle(key)
+																}
 																size="sm"
 																className="text-xs h-6 px-2"
 															>
@@ -482,13 +490,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										</AccordionTrigger>
 										<AccordionContent>
 											<div className="space-y-3">
-												<h3 className="font-medium text-sm mb-2">Arrondissements</h3>
+												<h3 className="font-medium text-sm mb-2">
+													Arrondissements
+												</h3>
 												<div className="grid grid-cols-5 gap-1 min-h-[5rem] content-start">
 													{availableArrondissements.map((arr) => (
 														<Toggle
 															key={arr}
 															pressed={selectedArrondissements.includes(arr)}
-															onPressedChange={() => onArrondissementToggle(arr)}
+															onPressedChange={() =>
+																onArrondissementToggle(arr)
+															}
 															size="sm"
 															className="h-6 text-xs shrink-0"
 														>
@@ -504,9 +516,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									<AccordionItem value="music">
 										<AccordionTrigger className="text-sm font-medium">
 											Music & Culture
-											{(selectedGenres.length > 0 || selectedNationalities.length > 0) && (
+											{(selectedGenres.length > 0 ||
+												selectedNationalities.length > 0) && (
 												<Badge variant="secondary" className="ml-2 text-xs">
-													{selectedGenres.length + selectedNationalities.length} active
+													{selectedGenres.length + selectedNationalities.length}{" "}
+													active
 												</Badge>
 											)}
 										</AccordionTrigger>
@@ -514,7 +528,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											<div className="space-y-4">
 												{/* Music Genres */}
 												<div>
-													<h3 className="font-medium text-sm mb-2">Music Genres</h3>
+													<h3 className="font-medium text-sm mb-2">
+														Music Genres
+													</h3>
 													<div className="relative contain-layout">
 														<div className="grid grid-cols-2 gap-1 max-h-36 min-h-[8rem] overflow-y-auto border rounded-md p-1.5 bg-muted/20">
 															{MUSIC_GENRES.map(({ key, label, color }) => (
@@ -528,7 +544,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																	<div
 																		className={`w-1.5 h-1.5 rounded-full ${color} mr-1.5 flex-shrink-0`}
 																	/>
-																	<span className="text-xs truncate">{label}</span>
+																	<span className="text-xs truncate">
+																		{label}
+																	</span>
 																</Toggle>
 															))}
 														</div>
@@ -536,7 +554,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														<div className="absolute bottom-1.5 left-1.5 right-1.5 h-4 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
 														<div className="text-xs text-muted-foreground mt-1 text-center opacity-70 flex items-center justify-center gap-1">
 															<span>{MUSIC_GENRES.length} genres</span>
-															<span className="text-muted-foreground/50">•</span>
+															<span className="text-muted-foreground/50">
+																•
+															</span>
 															<span className="flex items-center gap-0.5">
 																<span className="animate-bounce">↓</span>
 																scroll
@@ -547,7 +567,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Nationality */}
 												<div>
-													<h3 className="font-medium text-sm mb-2">Nationality</h3>
+													<h3 className="font-medium text-sm mb-2">
+														Nationality
+													</h3>
 													<div className="grid grid-cols-2 gap-1">
 														{NATIONALITIES.map(({ key, flag, shortCode }) => (
 															<Toggle
@@ -577,13 +599,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												selectedAgeRange !== null ||
 												selectedOOOCPicks) && (
 												<Badge variant="secondary" className="ml-2 text-xs">
-													{[
-														selectedIndoorPreference !== null,
-														selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
-															selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max,
-														selectedAgeRange !== null,
-														selectedOOOCPicks,
-													].filter(Boolean).length} active
+													{
+														[
+															selectedIndoorPreference !== null,
+															selectedPriceRange[0] !==
+																PRICE_RANGE_CONFIG.min ||
+																selectedPriceRange[1] !==
+																	PRICE_RANGE_CONFIG.max,
+															selectedAgeRange !== null,
+															selectedOOOCPicks,
+														].filter(Boolean).length
+													}{" "}
+													active
 												</Badge>
 											)}
 										</AccordionTrigger>
@@ -591,7 +618,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											<div className="space-y-4">
 												{/* OOOC Picks */}
 												<div>
-													<h3 className="font-medium text-sm mb-2">OOOC Picks</h3>
+													<h3 className="font-medium text-sm mb-2">
+														OOOC Picks
+													</h3>
 													<Toggle
 														pressed={selectedOOOCPicks}
 														onPressedChange={onOOOCPicksToggle}
@@ -599,13 +628,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														size="sm"
 													>
 														<Star className="h-3.5 w-3.5 mr-1.5 fill-yellow-400" />
-														<span className="text-xs">Show only OOOC Picks</span>
+														<span className="text-xs">
+															Show only OOOC Picks
+														</span>
 													</Toggle>
 												</div>
 
 												{/* Venue Type */}
 												<div>
-													<h3 className="font-medium text-sm mb-2">Venue Type</h3>
+													<h3 className="font-medium text-sm mb-2">
+														Venue Type
+													</h3>
 													<div className="grid grid-cols-2 gap-1">
 														<Toggle
 															pressed={selectedIndoorPreference === true}
@@ -620,7 +653,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														<Toggle
 															pressed={selectedIndoorPreference === false}
 															onPressedChange={(pressed) => {
-																onIndoorPreferenceChange(pressed ? false : null);
+																onIndoorPreferenceChange(
+																	pressed ? false : null,
+																);
 															}}
 															className="justify-start w-full h-7"
 															size="sm"
@@ -632,7 +667,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Price Range */}
 												<div>
-													<h3 className="font-medium text-sm mb-2">Price Range</h3>
+													<h3 className="font-medium text-sm mb-2">
+														Price Range
+													</h3>
 													<div className="space-y-1.5 px-1">
 														<Slider
 															value={selectedPriceRange}
@@ -652,8 +689,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															</span>
 															<span>€{PRICE_RANGE_CONFIG.max}+</span>
 														</div>
-														{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
-															selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
+														{(selectedPriceRange[0] !==
+															PRICE_RANGE_CONFIG.min ||
+															selectedPriceRange[1] !==
+																PRICE_RANGE_CONFIG.max) && (
 															<div className="flex justify-center">
 																<Button
 																	variant="ghost"
@@ -670,10 +709,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Age Range */}
 												<div>
-													<h3 className="font-medium text-sm mb-2">Age Range</h3>
+													<h3 className="font-medium text-sm mb-2">
+														Age Range
+													</h3>
 													<div className="space-y-1.5 px-1">
 														<Slider
-															value={selectedAgeRange || AGE_RANGE_CONFIG.defaultRange}
+															value={
+																selectedAgeRange ||
+																AGE_RANGE_CONFIG.defaultRange
+															}
 															onValueChange={(value) =>
 																onAgeRangeChange(value as [number, number])
 															}
@@ -725,7 +769,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</div>
 								</div>
 							</div>
-							
+
 							{/* Gradient overlay when collapsed */}
 							{!(isExpanded === undefined || isExpanded) && (
 								<div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
@@ -815,7 +859,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															<Toggle
 																key={key}
 																pressed={selectedDayNightPeriods.includes(key)}
-																onPressedChange={() => onDayNightPeriodToggle(key)}
+																onPressedChange={() =>
+																	onDayNightPeriodToggle(key)
+																}
 																size="sm"
 																className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
 															>

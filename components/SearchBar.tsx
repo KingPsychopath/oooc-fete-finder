@@ -12,13 +12,13 @@ type SearchBarProps = {
 	className?: string;
 	exampleSearches?: string[];
 	events?: Event[];
-}
+};
 
 type SearchResult = {
 	event: Event;
 	score: number;
 	matchedFields: string[];
-}
+};
 
 /**
  * Extracts arrondissement number from any format
@@ -26,15 +26,15 @@ type SearchResult = {
  */
 const extractArrondissementNumber = (text: string): number | null => {
 	// Remove all spaces and normalize
-	const cleaned = text.replace(/\s+/g, '').toLowerCase();
-	
+	const cleaned = text.replace(/\s+/g, "").toLowerCase();
+
 	// Match patterns: number optionally followed by suffix
 	const patterns = [
-		/^(\d{1,2})(?:th|er|ème|eme)?$/,  // "9", "9th", "9er", "9ème"
-		/(\d{1,2})(?:th|er|ème|eme)/,     // Extract from longer strings
-		/^(\d{1,2})$/                     // Just the number
+		/^(\d{1,2})(?:th|er|ème|eme)?$/, // "9", "9th", "9er", "9ème"
+		/(\d{1,2})(?:th|er|ème|eme)/, // Extract from longer strings
+		/^(\d{1,2})$/, // Just the number
 	];
-	
+
 	for (const pattern of patterns) {
 		const match = cleaned.match(pattern);
 		if (match) {
@@ -44,18 +44,22 @@ const extractArrondissementNumber = (text: string): number | null => {
 			}
 		}
 	}
-	
+
 	return null;
 };
 
 /**
  * Checks if text contains arrondissement match
  */
-const matchesArrondissement = (eventArr: number | string, searchTerms: string[]): boolean => {
-	const eventArrNum = typeof eventArr === 'string' ? parseInt(eventArr) : eventArr;
+const matchesArrondissement = (
+	eventArr: number | string,
+	searchTerms: string[],
+): boolean => {
+	const eventArrNum =
+		typeof eventArr === "string" ? parseInt(eventArr) : eventArr;
 	if (isNaN(eventArrNum)) return false;
-	
-	return searchTerms.some(term => {
+
+	return searchTerms.some((term) => {
 		const extractedNum = extractArrondissementNumber(term);
 		return extractedNum === eventArrNum;
 	});
@@ -68,8 +72,8 @@ const getMatchScore = (targetText: string, searchTerms: string[]): number => {
 	if (!targetText) return 0;
 	const target = targetText.toLowerCase();
 	let score = 0;
-	
-	searchTerms.forEach(term => {
+
+	searchTerms.forEach((term) => {
 		if (target.includes(term)) {
 			// Exact substring match
 			score += term.length * 2;
@@ -83,7 +87,7 @@ const getMatchScore = (targetText: string, searchTerms: string[]): number => {
 			}
 		}
 	});
-	
+
 	return score;
 };
 
@@ -95,23 +99,24 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 	if (!query.trim() || !events || events.length === 0) return [];
 
 	// Split query into individual search terms and clean them
-	const searchTerms = query.toLowerCase()
+	const searchTerms = query
+		.toLowerCase()
 		.split(/\s+/)
-		.filter(term => term.length > 0)
-		.map(term => term.trim());
+		.filter((term) => term.length > 0)
+		.map((term) => term.trim());
 
 	if (searchTerms.length === 0) return [];
 
 	const results: SearchResult[] = [];
 
-	events.forEach(event => {
+	events.forEach((event) => {
 		let totalScore = 0;
 		const matchedFields: string[] = [];
 
 		// PRIORITY 1: Arrondissement (Score: 100 per match)
 		if (matchesArrondissement(event.arrondissement, searchTerms)) {
 			totalScore += 100;
-			matchedFields.push('arrondissement');
+			matchedFields.push("arrondissement");
 		}
 
 		// PRIORITY 2: Event Name (Score: 80 + match quality)
@@ -119,7 +124,7 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			const nameScore = getMatchScore(event.name, searchTerms);
 			if (nameScore > 0) {
 				totalScore += 80 + nameScore;
-				matchedFields.push('name');
+				matchedFields.push("name");
 			}
 		}
 
@@ -128,22 +133,22 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			const locationScore = getMatchScore(event.location, searchTerms);
 			if (locationScore > 0) {
 				totalScore += 60 + locationScore;
-				matchedFields.push('location');
+				matchedFields.push("location");
 			}
 		}
 
 		// PRIORITY 4: Genres (Score: 40 + match quality)
 		if (event.genre && Array.isArray(event.genre)) {
 			let genreScore = 0;
-			const hasGenreMatch = event.genre.some(genre => {
+			const hasGenreMatch = event.genre.some((genre) => {
 				const score = getMatchScore(genre, searchTerms);
 				genreScore = Math.max(genreScore, score);
 				return score > 0;
 			});
-			
+
 			if (hasGenreMatch) {
 				totalScore += 40 + genreScore;
-				matchedFields.push('genre');
+				matchedFields.push("genre");
 			}
 		}
 
@@ -152,7 +157,7 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			const typeScore = getMatchScore(event.type, searchTerms);
 			if (typeScore > 0) {
 				totalScore += 30 + typeScore;
-				matchedFields.push('type');
+				matchedFields.push("type");
 			}
 		}
 
@@ -161,7 +166,7 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			const descScore = getMatchScore(event.description, searchTerms);
 			if (descScore > 0) {
 				totalScore += 20 + descScore;
-				matchedFields.push('description');
+				matchedFields.push("description");
 			}
 		}
 
@@ -170,7 +175,7 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			const timeScore = getMatchScore(event.time, searchTerms);
 			if (timeScore > 0) {
 				totalScore += 15 + timeScore;
-				matchedFields.push('time');
+				matchedFields.push("time");
 			}
 		}
 
@@ -179,7 +184,7 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			const dayScore = getMatchScore(event.day, searchTerms);
 			if (dayScore > 0) {
 				totalScore += 10 + dayScore;
-				matchedFields.push('day');
+				matchedFields.push("day");
 			}
 		}
 
@@ -190,10 +195,10 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 
 		// Only include events with meaningful matches
 		if (totalScore > 0) {
-			results.push({ 
-				event, 
-				score: totalScore, 
-				matchedFields 
+			results.push({
+				event,
+				score: totalScore,
+				matchedFields,
 			});
 		}
 	});
@@ -206,12 +211,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	onSearch,
 	placeholder = "Search events...",
 	className = "",
-	exampleSearches = [
-		"Ovmbr",
-		"Amapiano",
-		"Day Party",
-		"19",
-	],
+	exampleSearches = ["Ovmbr", "Amapiano", "Day Party", "19"],
 	events = [],
 }) => {
 	const [query, setQuery] = useState("");
@@ -275,10 +275,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
 						</Button>
 					))}
 				</div>
-				
+
 				{/* Visual Separator */}
 				<div className="w-full h-px bg-border my-2" />
-				
+
 				{/* Arrondissement Examples */}
 				<div className="flex flex-wrap gap-2">
 					{exampleSearches.slice(4).map((example) => (

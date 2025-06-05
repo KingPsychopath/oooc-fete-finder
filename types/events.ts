@@ -514,31 +514,35 @@ export const formatAgeRange = (range: [number, number]): string => {
 // Utility function to format day with date number
 export const formatDayWithDate = (day: EventDay, isoDate: string): string => {
 	if (day === "tbc") return "TBC";
-	
+
 	// Extract day number from ISO date (YYYY-MM-DD)
 	const dayNumber = parseInt(isoDate.split("-")[2], 10);
-	
+
 	// Add ordinal suffix (st, nd, rd, th)
 	const getOrdinalSuffix = (num: number): string => {
 		const lastDigit = num % 10;
 		const lastTwoDigits = num % 100;
-		
+
 		// Special cases for 11th, 12th, 13th
 		if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
 			return "th";
 		}
-		
+
 		// Regular cases
 		switch (lastDigit) {
-			case 1: return "st";
-			case 2: return "nd"; 
-			case 3: return "rd";
-			default: return "th";
+			case 1:
+				return "st";
+			case 2:
+				return "nd";
+			case 3:
+				return "rd";
+			default:
+				return "th";
 		}
 	};
-	
+
 	// Capitalize first letter of day
 	const capitalizedDay = day.charAt(0).toUpperCase() + day.slice(1);
-	
+
 	return `${capitalizedDay} ${dayNumber}${getOrdinalSuffix(dayNumber)}`;
 };
