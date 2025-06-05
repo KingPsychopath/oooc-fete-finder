@@ -8,6 +8,9 @@ import { useTheme } from "next-themes";
 import Image from "next/image";
 import Countdown from "@/components/Countdown";
 
+// Get base path from environment variable
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 const Header: React.FC = () => {
 	const [currentTime, setCurrentTime] = useState(new Date());
 	const { theme, setTheme } = useTheme();
@@ -64,7 +67,7 @@ const Header: React.FC = () => {
 						{/* Center - OOOC Logo */}
 						<div className="flex justify-center flex-1">
 							<Image
-								src="/OOOCLogoDark.svg"
+								src={`${basePath}/OOOCLogoDark.svg`}
 								alt="OOOC - Event Organizer"
 								width={120}
 								height={120}
@@ -97,7 +100,7 @@ const Header: React.FC = () => {
 					{/* Center - OOOC Logo */}
 					<div className="flex justify-center flex-1">
 						<Image
-							src="/OOOCLogoDark.svg"
+							src={`${basePath}/OOOCLogoDark.svg`}
 							alt="OOOC - Event Organizer"
 							width={120}
 							height={120}
