@@ -193,41 +193,57 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 };
 
 /**
- * Convert date string to EventDay
+ * Convert date string to EventDay using actual date calculation
  */
 const convertToEventDay = (dateStr: string): EventDay => {
 	if (!dateStr) return "tbc";
 
 	const lowerDate = dateStr.toLowerCase().trim();
 
-	// Handle various date formats
-	const dateMapping = {
+	// Handle explicit day names first
+	const explicitDayMapping = {
+		thursday: "thursday" as const,
 		friday: "friday" as const,
 		saturday: "saturday" as const,
 		sunday: "sunday" as const,
 		monday: "monday" as const,
+		thu: "thursday" as const,
 		fri: "friday" as const,
 		sat: "saturday" as const,
 		sun: "sunday" as const,
 		mon: "monday" as const,
-		"19 june": "friday" as const,
-		"20 june": "friday" as const,
-		"21 june": "saturday" as const,
-		"22 june": "sunday" as const,
-		"june 19": "friday" as const,
-		"june 20": "friday" as const,
-		"june 21": "saturday" as const,
-		"june 22": "sunday" as const,
-		"19/06": "friday" as const,
-		"20/06": "friday" as const,
-		"21/06": "saturday" as const,
-		"22/06": "sunday" as const,
 	};
 
-	// Find matching date
-	for (const [key, value] of Object.entries(dateMapping)) {
+	// Check for explicit day names in the string
+	for (const [key, value] of Object.entries(explicitDayMapping)) {
 		if (lowerDate.includes(key)) {
 			return value;
+		}
+	}
+
+	// Extract date numbers and calculate actual day of week
+	const dateMatch = dateStr.match(/(\d{1,2})\s*june|june\s*(\d{1,2})|(\d{1,2})\/06|(\d{1,2})-06/i);
+	if (dateMatch) {
+		// Get the day number from whichever capture group matched
+		const dayNumber = parseInt(dateMatch[1] || dateMatch[2] || dateMatch[3] || dateMatch[4]);
+		
+		if (dayNumber >= 1 && dayNumber <= 31) {
+			// Create a Date object for the date (assuming 2025 based on the event context)
+			const eventDate = new Date(2025, 5, dayNumber); // Month is 0-indexed, so 5 = June
+			const dayOfWeek = eventDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+			
+			// Map JavaScript day of week to our EventDay type
+			const dayMapping = {
+				0: "sunday" as const,    // Sunday
+				1: "monday" as const,    // Monday  
+				2: "tbc" as const,       // Tuesday (not in our event days)
+				3: "tbc" as const,       // Wednesday (not in our event days) 
+				4: "thursday" as const,  // Thursday
+				5: "friday" as const,    // Friday
+				6: "saturday" as const,  // Saturday
+			};
+			
+			return dayMapping[dayOfWeek as keyof typeof dayMapping];
 		}
 	}
 
@@ -505,17 +521,32 @@ const isAfterParty = (name: string, startTime: string): boolean => {
 };
 
 /**
- * Convert ISO date format
+ * Convert date string to ISO date format (YYYY-MM-DD)
  */
 const convertToISODate = (dateStr: string): string => {
-	if (!dateStr) return "2025-06-21"; // Default to Saturday
+	if (!dateStr) return "2025-06-21"; // Default to Saturday, June 21st, 2025
 
-	const dateMatch = dateStr.match(/(\d{1,2})/);
+	// Extract day number from various date formats
+	const dateMatch = dateStr.match(/(\d{1,2})\s*june|june\s*(\d{1,2})|(\d{1,2})\/06|(\d{1,2})-06/i);
 	if (dateMatch) {
-		const day = parseInt(dateMatch[1]).toString().padStart(2, "0");
-		return `2025-06-${day}`;
+		const dayNumber = parseInt(dateMatch[1] || dateMatch[2] || dateMatch[3] || dateMatch[4]);
+		if (dayNumber >= 1 && dayNumber <= 31) {
+			const day = dayNumber.toString().padStart(2, "0");
+			return `2025-06-${day}`;
+		}
 	}
-	return "2025-06-21"; // Default to Saturday
+
+	// If no specific date found, try to extract just a number
+	const simpleMatch = dateStr.match(/(\d{1,2})/);
+	if (simpleMatch) {
+		const dayNumber = parseInt(simpleMatch[1]);
+		if (dayNumber >= 1 && dayNumber <= 31) {
+			const day = dayNumber.toString().padStart(2, "0");
+			return `2025-06-${day}`;
+		}
+	}
+
+	return "2025-06-21"; // Default to Saturday, June 21st, 2025
 };
 
 /**
