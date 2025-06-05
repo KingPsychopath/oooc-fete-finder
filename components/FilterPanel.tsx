@@ -402,8 +402,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</div>
 						</CardHeader>
 
-						<CardContent className={`transition-all duration-300 ease-in-out overflow-hidden ${
-							isExpanded === undefined || isExpanded ? 'max-h-[650px]' : 'max-h-0'
+						<CardContent className={`transition-all duration-300 ease-in-out overflow-hidden relative ${
+							isExpanded === undefined || isExpanded ? 'max-h-[650px]' : 'max-h-24'
 						}`}>
 							<div className="h-[calc(650px-4rem)] overflow-y-auto relative">
 								{/* Active Filters - Top when few filters */}
@@ -725,6 +725,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</div>
 								</div>
 							</div>
+							
+							{/* Gradient overlay when collapsed */}
+							{!(isExpanded === undefined || isExpanded) && (
+								<div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+							)}
 						</CardContent>
 					</Card>
 				</div>
