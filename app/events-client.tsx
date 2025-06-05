@@ -5,6 +5,7 @@ import ParisMap from "@/components/ParisMap";
 import FilterPanel from "@/components/FilterPanel";
 import EventModal from "@/components/EventModal";
 import SearchBar from "@/components/SearchBar";
+import EventStats from "@/components/EventStats";
 import { FeaturedEvents } from "@/components/FeaturedEvents";
 import { AllEvents } from "@/components/AllEvents";
 import {
@@ -202,14 +203,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		selectedOOOCPicks,
 	]);
 
-	// Get filtered arrondissements count
-	const filteredArrondissements = useMemo(() => {
-		const arrondissements = new Set(
-			filteredEvents.map((event) => event.arrondissement),
-		);
-		return arrondissements.size;
-	}, [filteredEvents]);
-
 	// Filter handlers
 	const handleDayToggle = (day: EventDay) => {
 		setSelectedDays((prev) =>
@@ -326,39 +319,18 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 				/>
 			</div>
 
-			{/* Three Column Stats */}
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-				<Card>
-					<CardContent className="p-4 text-center">
-						<div className="text-2xl font-bold text-primary">
-							{filteredEvents.length}
-						</div>
-						<div className="text-sm text-muted-foreground">
-							Event{filteredEvents.length !== 1 ? "s" : ""}{" "}
-							{hasActiveFilters ? "filtered" : "total"}
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardContent className="p-4 text-center">
-						<div className="text-2xl font-bold text-primary">
-							{filteredArrondissements}
-						</div>
-						<div className="text-sm text-muted-foreground">
-							Arrondissement{filteredArrondissements !== 1 ? "s" : ""}{" "}
-							{hasActiveFilters ? "with events" : "total"}
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardContent className="p-4 text-center">
-						<div className="text-2xl font-bold text-primary">19-22</div>
-						<div className="text-sm text-muted-foreground">June 2025</div>
-					</CardContent>
-				</Card>
-			</div>
+			{/* Event Stats */}
+			<EventStats
+				events={events}
+				filteredEvents={filteredEvents}
+				filteredArrondissementsCount={useMemo(() => {
+					const arrondissements = new Set(
+						filteredEvents.map((event) => event.arrondissement),
+					);
+					return arrondissements.size;
+				}, [filteredEvents])}
+				hasActiveFilters={hasActiveFilters}
+			/>
 
 			{/* Featured Events Section */}
 			<FeaturedEvents
