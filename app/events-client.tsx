@@ -30,7 +30,7 @@ import {
 } from "@/types/events";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Clock, Filter, Star, Euro, Users, ChevronDown } from "lucide-react";
+import { MapPin, Clock, Filter, Star, Euro, Users, ChevronDown, ChevronUp, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface EventsClientProps {
@@ -44,6 +44,8 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		number | null
 	>(null);
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
+	const [isMapExpanded, setIsMapExpanded] = useState(false);
+	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 	const [selectedDays, setSelectedDays] = useState<EventDay[]>([]);
 	const [selectedDayNightPeriods, setSelectedDayNightPeriods] = useState<
 		DayNightPeriod[]
@@ -190,6 +192,14 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		selectedOOOCPicks,
 	]);
 
+	// Get filtered arrondissements count
+	const filteredArrondissements = useMemo(() => {
+		const arrondissements = new Set(
+			filteredEvents.map((event) => event.arrondissement),
+		);
+		return arrondissements.size;
+	}, [filteredEvents]);
+
 	// Filter handlers
 	const handleDayToggle = (day: EventDay) => {
 		setSelectedDays((prev) =>
@@ -265,6 +275,14 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		setIsFilterOpen((prev) => !prev);
 	}, []);
 
+	const toggleMapExpansion = useCallback(() => {
+		setIsMapExpanded((prev) => !prev);
+	}, []);
+
+	const toggleFilterExpansion = useCallback(() => {
+		setIsFilterExpanded((prev) => !prev);
+	}, []);
+
 	const hasActiveFilters =
 		selectedDays.length > 0 ||
 		selectedDayNightPeriods.length > 0 ||
@@ -298,40 +316,39 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 				/>
 			</div>
 
-			{/* Stats and Quick Info */}
+			{/* Three Column Stats */}
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 				<Card>
-					<CardContent className="p-4">
-						<div className="flex items-center space-x-2">
-							<div className="text-2xl font-bold text-primary">
-								{filteredEvents.length}
-							</div>
-							<div className="text-sm text-muted-foreground">
-								Event{filteredEvents.length !== 1 ? "s" : ""}{" "}
-								{hasActiveFilters ? "filtered" : "total"}
-							</div>
+					<CardContent className="p-4 text-center">
+						<div className="text-2xl font-bold text-primary">
+							{filteredEvents.length}
+						</div>
+						<div className="text-sm text-muted-foreground">
+							Event{filteredEvents.length !== 1 ? "s" : ""}{" "}
+							{hasActiveFilters ? "filtered" : "total"}
 						</div>
 					</CardContent>
 				</Card>
 
 				<Card>
-					<CardContent className="p-4">
-						<div className="flex items-center space-x-2">
-							<MapPin className="h-4 w-4 text-muted-foreground" />
-							<div className="text-sm text-muted-foreground">
-								{availableArrondissements.length} arrondissements with events
-							</div>
+					<CardContent className="p-4 text-center">
+						<div className="text-2xl font-bold text-primary">
+							{filteredArrondissements}
+						</div>
+						<div className="text-sm text-muted-foreground">
+							Arrondissement{filteredArrondissements !== 1 ? "s" : ""}{" "}
+							{hasActiveFilters ? "with events" : "total"}
 						</div>
 					</CardContent>
 				</Card>
 
 				<Card>
-					<CardContent className="p-4">
-						<div className="flex items-center space-x-2">
-							<Clock className="h-4 w-4 text-muted-foreground" />
-							<div className="text-sm text-muted-foreground">
-								June 19-22, 2025
-							</div>
+					<CardContent className="p-4 text-center">
+						<div className="text-2xl font-bold text-primary">
+							19-22
+						</div>
+						<div className="text-sm text-muted-foreground">
+							June 2025
 						</div>
 					</CardContent>
 				</Card>
@@ -344,14 +361,19 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 				onScrollToAllEvents={scrollToAllEvents}
 			/>
 
-			{/* Main Content Grid */}
-			<div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-				{/* Map */}
-				<div className="lg:col-span-3">
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center justify-between">
-								Paris Event Map
+			{/* Collapsible Paris Event Map */}
+			<div className="mb-6">
+				<Card>
+					<CardHeader className="pb-2">
+						<CardTitle className="flex items-center justify-between">
+							<div className="flex items-center space-x-2">
+								<MapPin className="h-5 w-5" />
+								<span>Paris Event Map</span>
+								<Badge variant="secondary" className="text-xs">
+									{filteredEvents.length} events
+								</Badge>
+							</div>
+							<div className="flex flex-col space-y-2">
 								<Button
 									variant="outline"
 									size="sm"
@@ -382,21 +404,132 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 										</Badge>
 									)}
 								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={toggleMapExpansion}
+									className="text-muted-foreground hover:text-foreground"
+								>
+									{isMapExpanded ? (
+										<>
+											<ChevronUp className="h-4 w-4 mr-1" />
+											Collapse
+										</>
+									) : (
+										<>
+											<ChevronDown className="h-4 w-4 mr-1" />
+											Expand
+										</>
+									)}
+								</Button>
+							</div>
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="pt-2">
+						<div className={`relative transition-all duration-300 ease-in-out ${
+							isMapExpanded ? 'h-[600px]' : 'h-32'
+						} overflow-hidden rounded-md`}>
+							<div className="w-full h-full p-1">
+								<ParisMap
+									events={filteredEvents}
+									onEventClick={setSelectedEvent}
+									onArrondissementHover={setHoveredArrondissement}
+									hoveredArrondissement={hoveredArrondissement}
+								/>
+							</div>
+							{!isMapExpanded && (
+								<div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none rounded-b-md" />
+							)}
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+
+			{/* Collapsible Filter Panel - Desktop */}
+			<div className="mb-6">
+				<div className="hidden lg:block">
+					<Card>
+						<CardHeader className="pb-2">
+							<CardTitle className="flex items-center justify-between">
+								<div className="flex items-center space-x-2">
+									<Filter className="h-5 w-5" />
+									<span>Event Filters</span>
+									{hasActiveFilters && (
+										<Badge variant="secondary" className="text-xs">
+											{selectedDays.length +
+												selectedDayNightPeriods.length +
+												selectedArrondissements.length +
+												selectedGenres.length +
+												selectedNationalities.length +
+												(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
+												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
+													? 1
+													: 0) +
+												(selectedAgeRange !== null &&
+												(selectedAgeRange[0] !== AGE_RANGE_CONFIG.min ||
+													selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)
+													? 1
+													: 0) +
+												(selectedOOOCPicks ? 1 : 0)} active
+										</Badge>
+									)}
+								</div>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={toggleFilterExpansion}
+									className="text-muted-foreground hover:text-foreground"
+								>
+									{isFilterExpanded ? (
+										<>
+											<ChevronUp className="h-4 w-4 mr-1" />
+											Collapse
+										</>
+									) : (
+										<>
+											<ChevronDown className="h-4 w-4 mr-1" />
+											Expand
+										</>
+									)}
+								</Button>
 							</CardTitle>
 						</CardHeader>
-						<CardContent>
-							<ParisMap
-								events={filteredEvents}
-								onEventClick={setSelectedEvent}
-								onArrondissementHover={setHoveredArrondissement}
-								hoveredArrondissement={hoveredArrondissement}
-							/>
+						<CardContent className="pt-2">
+							<div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+								isFilterExpanded ? 'h-auto max-h-[2000px]' : 'h-0 max-h-0'
+							}`}>
+								<FilterPanel
+									selectedDays={selectedDays}
+									selectedDayNightPeriods={selectedDayNightPeriods}
+									selectedArrondissements={selectedArrondissements}
+									selectedGenres={selectedGenres}
+									selectedNationalities={selectedNationalities}
+									selectedIndoorPreference={selectedIndoorPreference}
+									selectedPriceRange={selectedPriceRange}
+									selectedAgeRange={selectedAgeRange}
+									selectedOOOCPicks={selectedOOOCPicks}
+									onDayToggle={handleDayToggle}
+									onDayNightPeriodToggle={handleDayNightPeriodToggle}
+									onArrondissementToggle={handleArrondissementToggle}
+									onGenreToggle={handleGenreToggle}
+									onNationalityToggle={handleNationalityToggle}
+									onIndoorPreferenceChange={handleIndoorPreferenceChange}
+									onPriceRangeChange={handlePriceRangeChange}
+									onAgeRangeChange={handleAgeRangeChange}
+									onOOOCPicksToggle={setSelectedOOOCPicks}
+									onClearFilters={handleClearFilters}
+									availableArrondissements={availableArrondissements}
+									isOpen={isFilterOpen}
+									onClose={() => setIsFilterOpen(false)}
+									onOpen={() => setIsFilterOpen(true)}
+								/>
+							</div>
 						</CardContent>
 					</Card>
 				</div>
-
-				{/* Unified Filter Panel - Responsive */}
-				<div className="lg:block">
+				
+				{/* Mobile Filter Panel */}
+				<div className="lg:hidden">
 					<FilterPanel
 						selectedDays={selectedDays}
 						selectedDayNightPeriods={selectedDayNightPeriods}
