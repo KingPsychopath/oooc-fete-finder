@@ -364,6 +364,16 @@ const ParisMap: React.FC<ParisMapProps> = ({
 						Paris Arrondissements
 					</text>
 
+					{/* Instructional text */}
+					<text
+						x="250"
+						y="50"
+						textAnchor="middle"
+						className="text-sm fill-gray-600 dark:fill-gray-400"
+					>
+						Click arrondissements to explore events
+					</text>
+
 					{/* Legend */}
 					<g transform="translate(20, 320)" aria-label="Map legend">
 						<rect x="0" y="0" width="12" height="12" fill="#10b981" rx="2" />

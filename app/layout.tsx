@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-	title: "Fête de la Musique Paris 2025",
+	title: "Fête de la Musique - Out Of Office Collective",
 	description:
 		"Interactive map of music events across Paris arrondissements for Fête de la Musique 2025",
 };
