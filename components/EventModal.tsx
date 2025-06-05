@@ -20,6 +20,7 @@ import {
 	type Event,
 	EVENT_DAYS,
 	formatPrice,
+	formatDayWithDate,
 	MUSIC_GENRES,
 } from "@/types/events";
 import { useOutsideClick } from "@/lib/useOutsideClick";
@@ -138,7 +139,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 					<div className="flex items-center space-x-2">
 						<Calendar className="h-4 w-4 text-muted-foreground" />
 						<span className="text-sm">
-							{event.day}
+							{formatDayWithDate(event.day, event.date)}
 							{event.time && event.time !== "TBC" && (
 								<>
 									{" "}

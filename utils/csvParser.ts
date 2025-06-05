@@ -235,35 +235,51 @@ const convertToEventDay = (dateStr: string): EventDay => {
 };
 
 /**
- * Convert host country flag/text to Nationality type
+ * Convert host country flag/text to Nationality type array
  */
 const convertToNationality = (
 	nationalityStr: string,
-): Nationality | undefined => {
+): Nationality[] | undefined => {
 	if (!nationalityStr) return undefined;
 
 	const cleaned = nationalityStr.trim().toLowerCase();
+	const nationalities: Nationality[] = [];
 
-	// Handle various formats
+	// Check for UK/GB indicators
 	if (
-		cleaned === "🇬🇧" ||
-		cleaned === "gb" ||
-		cleaned === "uk" ||
-		cleaned === "united kingdom" ||
-		cleaned === "britain"
+		cleaned.includes("🇬🇧") ||
+		cleaned.includes("gb") ||
+		cleaned.includes("uk") ||
+		cleaned.includes("united kingdom") ||
+		cleaned.includes("britain")
 	) {
-		return "UK";
-	}
-	if (
-		cleaned === "🇫🇷" ||
-		cleaned === "fr" ||
-		cleaned === "france" ||
-		cleaned === "french"
-	) {
-		return "FR";
+		nationalities.push("UK");
 	}
 
-	return undefined;
+	// Check for FR indicators  
+	if (
+		cleaned.includes("🇫🇷") ||
+		cleaned.includes("fr") ||
+		cleaned.includes("france") ||
+		cleaned.includes("french")
+	) {
+		nationalities.push("FR");
+	}
+
+	// Handle combined formats like "GB/FR", "UK/FR", etc.
+	if (cleaned.includes("/") || cleaned.includes("&") || cleaned.includes("+")) {
+		const parts = cleaned.split(/[\/&+]/).map(part => part.trim());
+		for (const part of parts) {
+			if ((part === "gb" || part === "uk") && !nationalities.includes("UK")) {
+				nationalities.push("UK");
+			}
+			if (part === "fr" && !nationalities.includes("FR")) {
+				nationalities.push("FR");
+			}
+		}
+	}
+
+	return nationalities.length > 0 ? nationalities : undefined;
 };
 
 /**
