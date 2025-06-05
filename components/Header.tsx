@@ -23,13 +23,16 @@ const Header = () => {
 
 					{/* Center - OOOC Logo */}
 					<div className="flex justify-center flex-1">
-						<Image
-							src={`${basePath}/OOOCLogoDark.svg`}
-							alt="OOOC - Event Organizer"
-							width={120}
-							height={120}
-							className="h-24 w-24 sm:h-32 sm:w-32 transition-transform hover:scale-105 dark:invert"
-						/>
+						<div className="relative h-24 w-24 sm:h-32 sm:w-32">
+							<Image
+								src={`${basePath}/OOOCLogoDark.svg`}
+								alt="OOOC - Event Organizer"
+								fill
+								priority
+								sizes="(max-width: 640px) 96px, 128px"
+								className="object-contain transition-transform hover:scale-105 dark:invert"
+							/>
+						</div>
 					</div>
 
 					{/* Right - Controls */}
