@@ -120,3 +120,17 @@
 		@apply bg-background text-foreground;
 	}
 }
+
+/* Sliding Banner Animation */
+@keyframes slide-banner {
+	0% {
+		transform: translateX(100%);
+	}
+	100% {
+		transform: translateX(-100%);
+	}
+}
+
+.animate-slide-banner {
+	animation: slide-banner linear infinite;
+}
