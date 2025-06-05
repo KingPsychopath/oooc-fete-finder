@@ -114,32 +114,34 @@ const EmailGateModal = ({
 					</div>
 
 					{/* GDPR Consent */}
-					<div className="flex items-start space-x-2">
-						<input
-							id="consent"
-							type="checkbox"
-							checked={consent}
-							onChange={(e) => {
-								setConsent(e.target.checked);
-								setError("");
-							}}
-							className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-							disabled={isSubmitting}
-						/>
-						<Label
-							htmlFor="consent"
-							className="text-xs leading-relaxed cursor-pointer"
-						>
-							I agree to the collection and processing of my email address for
-							event recommendations and updates.{" "}
-							<button
-								type="button"
-								onClick={() => window.open("/privacy", "_blank")}
-								className="text-primary underline hover:no-underline whitespace-nowrap"
+					<div className="space-y-2">
+						<div className="flex items-start space-x-2">
+							<input
+								id="consent"
+								type="checkbox"
+								checked={consent}
+								onChange={(e) => {
+									setConsent(e.target.checked);
+									setError("");
+								}}
+								className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+								disabled={isSubmitting}
+							/>
+							<Label
+								htmlFor="consent"
+								className="text-xs leading-relaxed cursor-pointer"
 							>
-								Read our Privacy Policy
-							</button>
-						</Label>
+								I agree to the collection and processing of my email address for
+								event recommendations and updates.
+							</Label>
+						</div>
+						<button
+							type="button"
+							onClick={() => window.open("/privacy", "_blank")}
+							className="text-xs text-primary underline hover:no-underline ml-6"
+						>
+							Read our Privacy Policy
+						</button>
 					</div>
 
 					{error && <p className="text-sm text-destructive">{error}</p>}
