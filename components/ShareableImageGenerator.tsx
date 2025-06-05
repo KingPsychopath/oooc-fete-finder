@@ -15,6 +15,38 @@ type ShareableImageGeneratorProps = {
 };
 
 const generateShareableImage = async (event: Event): Promise<void> => {
+	// Create a subtle camera flash effect
+	const flashOverlay = document.createElement('div');
+	flashOverlay.style.position = 'fixed';
+	flashOverlay.style.top = '0';
+	flashOverlay.style.left = '0';
+	flashOverlay.style.width = '100vw';
+	flashOverlay.style.height = '100vh';
+	flashOverlay.style.backgroundColor = '#ffffff';
+	flashOverlay.style.zIndex = '99999';
+	flashOverlay.style.opacity = '0';
+	flashOverlay.style.pointerEvents = 'none';
+	flashOverlay.style.transition = 'opacity 0.3s ease-in-out';
+
+	// Add flash to body and trigger animation
+	document.body.appendChild(flashOverlay);
+	
+	// Brief flash animation
+	setTimeout(() => {
+		flashOverlay.style.opacity = '0.3';
+	}, 50);
+	
+	setTimeout(() => {
+		flashOverlay.style.opacity = '0';
+	}, 400);
+	
+	// Remove flash overlay after animation
+	setTimeout(() => {
+		if (document.body.contains(flashOverlay)) {
+			document.body.removeChild(flashOverlay);
+		}
+	}, 800);
+
 	// Create a modal overlay to temporarily show the content
 	const overlay = document.createElement('div');
 	overlay.style.position = 'fixed';
