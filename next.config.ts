@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-	basePath: "/fete",
-	assetPrefix: "/fete",
-	trailingSlash: true,
+	// Configuration for root domain deployment
 };
 
 export default nextConfig;
