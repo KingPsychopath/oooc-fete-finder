@@ -47,6 +47,7 @@ type FilterPanelProps = {
 	selectedNationalities: Nationality[];
 	selectedIndoorPreference: boolean | null;
 	selectedPriceRange: [number, number];
+	selectedGlobalDayNight: DayNightPeriod | null;
 	selectedAgeRange: AgeRange | null;
 	selectedOOOCPicks: boolean;
 	onDayToggle: (day: EventDay) => void;
@@ -56,6 +57,7 @@ type FilterPanelProps = {
 	onNationalityToggle: (nationality: Nationality) => void;
 	onIndoorPreferenceChange: (preference: boolean | null) => void;
 	onPriceRangeChange: (range: [number, number]) => void;
+	onGlobalDayNightChange: (period: DayNightPeriod | null) => void;
 	onAgeRangeChange: (range: AgeRange | null) => void;
 	onOOOCPicksToggle: (selected: boolean) => void;
 	onClearFilters: () => void;
@@ -73,6 +75,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	selectedNationalities,
 	selectedIndoorPreference,
 	selectedPriceRange,
+	selectedGlobalDayNight,
 	selectedAgeRange,
 	selectedOOOCPicks,
 	onDayToggle,
@@ -82,6 +85,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onNationalityToggle,
 	onIndoorPreferenceChange,
 	onPriceRangeChange,
+	onGlobalDayNightChange,
 	onAgeRangeChange,
 	onOOOCPicksToggle,
 	onClearFilters,
@@ -116,6 +120,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedGenres.length > 0 ||
 			selectedNationalities.length > 0 ||
 			selectedIndoorPreference !== null ||
+			selectedGlobalDayNight !== null ||
 			selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
 			(selectedAgeRange !== null &&
@@ -129,6 +134,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedGenres,
 			selectedNationalities,
 			selectedIndoorPreference,
+			selectedGlobalDayNight,
 			selectedPriceRange,
 			selectedAgeRange,
 			selectedOOOCPicks,
@@ -144,6 +150,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedGenres.length +
 			selectedNationalities.length +
 			(selectedIndoorPreference !== null ? 1 : 0) +
+			(selectedGlobalDayNight !== null ? 1 : 0) +
 			(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
 				? 1
@@ -162,6 +169,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		selectedGenres,
 		selectedNationalities,
 		selectedIndoorPreference,
+		selectedGlobalDayNight,
 		selectedPriceRange,
 		selectedAgeRange,
 		selectedOOOCPicks,
@@ -206,6 +214,22 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									size="sm"
 									className="h-auto p-0 ml-1 hover:bg-transparent"
 									onClick={() => onOOOCPicksToggle(false)}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						)}
+						{selectedGlobalDayNight && (
+							<Badge variant="secondary" className="text-xs">
+								🌐{" "}
+								{selectedGlobalDayNight === "day"
+									? "☀️ Day Events"
+									: "🌙 Night Events"}
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={() => onGlobalDayNightChange(null)}
 								>
 									<X className="h-3 w-3" />
 								</Button>
@@ -353,10 +377,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 				{/* Desktop version - always visible */}
 				<div className="hidden lg:block">
-					<Card className="h-[650px]">
-						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="flex items-center text-base">
-								<Filter className="h-4 w-4 mr-2" />
+					<Card className="h-fit">
+						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+							<CardTitle className="flex items-center">
+								<Filter className="h-5 w-5 mr-2" />
 								Filters
 								{hasActiveFilters && (
 									<Badge variant="secondary" className="ml-2 text-xs">
@@ -369,332 +393,461 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									variant="outline"
 									size="sm"
 									onClick={onClearFilters}
-									className="text-xs h-7"
+									className="text-xs"
 								>
 									Clear all
 								</Button>
 							)}
 						</CardHeader>
 
-						<CardContent className="h-[calc(650px-4rem)] overflow-y-auto relative">
+						<CardContent className="space-y-6">
 							{/* Active Filters - Top when few filters */}
 							{uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
 
-							<Accordion
-								type="multiple"
-								value={openAccordionSections}
-								onValueChange={setOpenAccordionSections}
-								className="w-full space-y-2"
-							>
-								{/* Days & Times Section */}
-								<AccordionItem value="days">
-									<AccordionTrigger className="text-sm font-medium">
-										Days & Times
-										{(selectedDays.length > 0 || selectedDayNightPeriods.length > 0) && (
-											<Badge variant="secondary" className="ml-2 text-xs">
-												{selectedDays.length + selectedDayNightPeriods.length}
-											</Badge>
-										)}
-									</AccordionTrigger>
-									<AccordionContent>
-										<div className="space-y-3">
-											{/* Day/Night Periods */}
-											<div className="p-1.5 bg-muted/20 rounded-md border overflow-hidden">
-												<div className="flex items-center justify-between mb-1">
-													<h4 className="text-xs font-medium truncate">
-														Filter by Time
-													</h4>
+							{/* Conditional Layout: Accordion vs Expanded */}
+							{uiDecisions.useAccordion ? (
+								// Accordion Layout when space is needed
+								<Accordion
+									type="multiple"
+									value={openAccordionSections}
+									onValueChange={setOpenAccordionSections}
+									className="w-full"
+								>
+									<AccordionItem value="days">
+										<AccordionTrigger className="text-sm font-medium">
+											Days & Times
+											{(selectedDays.length > 0 ||
+												selectedDayNightPeriods.length > 0) && (
+												<Badge variant="secondary" className="ml-2 text-xs">
+													{selectedDays.length + selectedDayNightPeriods.length}
+												</Badge>
+											)}
+										</AccordionTrigger>
+										<AccordionContent>
+											{/* Compact Days Section for Accordion */}
+											<div className="space-y-3">
+												{/* Global Day/Night Filter */}
+												<div className="p-1.5 sm:p-2 bg-muted/20 rounded-md border overflow-hidden">
+													<div className="flex items-center justify-between mb-2">
+														<h4 className="text-xs font-medium truncate">
+															Filter by Time
+														</h4>
+														{selectedGlobalDayNight && (
+															<Button
+																variant="ghost"
+																size="sm"
+																onClick={() => onGlobalDayNightChange(null)}
+																className="h-5 px-1 text-xs flex-shrink-0"
+															>
+																Clear
+															</Button>
+														)}
+													</div>
+													<ToggleGroup
+														type="single"
+														value={selectedGlobalDayNight || ""}
+														onValueChange={(value) =>
+															onGlobalDayNightChange(
+																value === "" ? null : (value as DayNightPeriod),
+															)
+														}
+														className="w-full grid grid-cols-2 gap-1"
+													>
+														<ToggleGroupItem
+															value="day"
+															size="sm"
+															className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
+														>
+															☀️ Day
+														</ToggleGroupItem>
+														<ToggleGroupItem
+															value="night"
+															size="sm"
+															className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
+														>
+															🌙 Night
+														</ToggleGroupItem>
+													</ToggleGroup>
+													<p className="text-xs text-muted-foreground mt-1 leading-tight">
+														{selectedGlobalDayNight
+															? `${selectedGlobalDayNight} events only`
+															: "Global or per-day filters"}
+													</p>
 												</div>
-												<div className="grid grid-cols-2 gap-1">
-													{DAY_NIGHT_PERIODS.map(({ key, label, icon }) => (
+
+												<div className="grid grid-cols-2 gap-2">
+													{EVENT_DAYS.map(({ key, label, color }) => (
 														<Toggle
 															key={key}
-															pressed={selectedDayNightPeriods.includes(key)}
-															onPressedChange={() => onDayNightPeriodToggle(key)}
+															pressed={selectedDays.includes(key)}
+															onPressedChange={() => onDayToggle(key)}
 															size="sm"
-															className="text-xs h-6 px-2"
+															className={`text-xs justify-start ${selectedGlobalDayNight ? "opacity-50 pointer-events-none" : ""}`}
+															disabled={selectedGlobalDayNight !== null}
 														>
-															{icon} {label}
+															<div
+																className={`w-2 h-2 rounded-full ${color} mr-1.5`}
+															/>
+															{label}
 														</Toggle>
 													))}
 												</div>
-											</div>
-
-											{/* Days */}
-											<div className="grid grid-cols-2 gap-1">
-												{EVENT_DAYS.map(({ key, label, color }) => (
-													<Toggle
-														key={key}
-														pressed={selectedDays.includes(key)}
-														onPressedChange={() => onDayToggle(key)}
-														className="text-xs justify-start"
-														size="sm"
-													>
-														<div
-															className={`w-2 h-2 rounded-full ${color} mr-1.5`}
-														/>
-														<span className="text-xs">{label}</span>
-													</Toggle>
-												))}
-											</div>
-										</div>
-									</AccordionContent>
-								</AccordionItem>
-
-								{/* Location Section */}
-								<AccordionItem value="location">
-									<AccordionTrigger className="text-sm font-medium">
-										Location
-										{selectedArrondissements.length > 0 && (
-											<Badge variant="secondary" className="ml-2 text-xs">
-												{selectedArrondissements.length}
-											</Badge>
-										)}
-									</AccordionTrigger>
-									<AccordionContent>
-										<div className="space-y-3">
-											<h3 className="font-medium text-sm mb-2">Arrondissements</h3>
-											<div className="grid grid-cols-5 gap-1 min-h-[5rem] content-start">
-												{availableArrondissements.map((arr) => (
-													<Toggle
-														key={arr}
-														pressed={selectedArrondissements.includes(arr)}
-														onPressedChange={() => onArrondissementToggle(arr)}
-														size="sm"
-														className="h-6 text-xs shrink-0"
-													>
-														{arr === "unknown" ? "?" : `${arr}e`}
-													</Toggle>
-												))}
-											</div>
-										</div>
-									</AccordionContent>
-								</AccordionItem>
-
-								{/* Music & Culture Section */}
-								<AccordionItem value="music">
-									<AccordionTrigger className="text-sm font-medium">
-										Music & Culture
-										{(selectedGenres.length > 0 || selectedNationalities.length > 0) && (
-											<Badge variant="secondary" className="ml-2 text-xs">
-												{selectedGenres.length + selectedNationalities.length}
-											</Badge>
-										)}
-									</AccordionTrigger>
-									<AccordionContent>
-										<div className="space-y-4">
-											{/* Music Genres */}
-											<div>
-												<h3 className="font-medium text-sm mb-2">Music Genres</h3>
-												<div className="relative contain-layout">
-													<div className="grid grid-cols-2 gap-1 max-h-36 min-h-[8rem] overflow-y-auto border rounded-md p-1.5 bg-muted/20">
-														{MUSIC_GENRES.map(({ key, label, color }) => (
+												{selectedDays.length > 0 && !selectedGlobalDayNight && (
+													<div className="flex flex-wrap gap-1">
+														{DAY_NIGHT_PERIODS.map(({ key, label, icon }) => (
 															<Toggle
 																key={key}
-																pressed={selectedGenres.includes(key)}
-																onPressedChange={() => onGenreToggle(key)}
-																className="justify-start w-full h-6 shrink-0"
+																pressed={selectedDayNightPeriods.includes(key)}
+																onPressedChange={() =>
+																	onDayNightPeriodToggle(key)
+																}
 																size="sm"
+																className="text-xs"
 															>
-																<div
-																	className={`w-1.5 h-1.5 rounded-full ${color} mr-1.5 flex-shrink-0`}
-																/>
-																<span className="text-xs truncate">{label}</span>
+																{icon} {label}
 															</Toggle>
 														))}
 													</div>
-													<div className="absolute top-1.5 left-1.5 right-1.5 h-4 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
-													<div className="absolute bottom-1.5 left-1.5 right-1.5 h-4 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
-													<div className="text-xs text-muted-foreground mt-1 text-center opacity-70 flex items-center justify-center gap-1">
-														<span>{MUSIC_GENRES.length} genres</span>
-														<span className="text-muted-foreground/50">•</span>
-														<span className="flex items-center gap-0.5">
-															<span className="animate-bounce">↓</span>
-															scroll
-														</span>
-													</div>
-												</div>
+												)}
 											</div>
-
-											{/* Nationality */}
-											<div>
-												<h3 className="font-medium text-sm mb-2">Nationality</h3>
-												<div className="grid grid-cols-2 gap-1">
-													{NATIONALITIES.map(({ key, flag, shortCode }) => (
-														<Toggle
-															key={key}
-															pressed={selectedNationalities.includes(key)}
-															onPressedChange={() => onNationalityToggle(key)}
-															className="justify-start w-full h-7"
-															size="sm"
+										</AccordionContent>
+									</AccordionItem>
+									{/* Add other accordion sections here when needed */}
+								</Accordion>
+							) : (
+								// Expanded Layout when space allows
+								<div className="space-y-4">
+									{/* Days & Times */}
+									<div>
+										<div className="flex items-center mb-3">
+											<h3 className="font-semibold">Days & Times</h3>
+											<TooltipProvider>
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<button
+															className="h-4 w-4 ml-2 text-muted-foreground cursor-help focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm"
+															type="button"
+															aria-label="Show day and night time definitions"
 														>
-															<span className="mr-1.5 text-sm">{flag}</span>
-															<span className="text-xs">{shortCode}</span>
+															<Info className="h-4 w-4" />
+														</button>
+													</TooltipTrigger>
+													<TooltipContent>
+														<div className="text-sm space-y-1">
+															<p>
+																<strong>Day:</strong> 6:00 AM - 9:59 PM ☀️
+															</p>
+															<p>
+																<strong>Night:</strong> 10:00 PM - 5:59 AM 🌙
+															</p>
+														</div>
+													</TooltipContent>
+												</Tooltip>
+											</TooltipProvider>
+										</div>
+
+										{/* Global Day/Night Filter */}
+										<div className="mb-4 p-2 sm:p-3 bg-muted/20 rounded-md border overflow-hidden">
+											<div className="flex items-center justify-between mb-2">
+												<h4 className="text-sm font-medium truncate">
+													Filter by Time
+												</h4>
+												{selectedGlobalDayNight && (
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={() => onGlobalDayNightChange(null)}
+														className="h-6 px-2 text-xs flex-shrink-0"
+													>
+														Clear
+													</Button>
+												)}
+											</div>
+											<ToggleGroup
+												type="single"
+												value={selectedGlobalDayNight || ""}
+												onValueChange={(value) =>
+													onGlobalDayNightChange(
+														value === "" ? null : (value as DayNightPeriod),
+													)
+												}
+												className="w-full grid grid-cols-2 gap-1 sm:gap-2"
+											>
+												<ToggleGroupItem
+													value="day"
+													size="sm"
+													className="text-xs px-2 py-2 sm:px-3 flex-1 justify-center min-w-0 truncate"
+												>
+													<span className="hidden sm:inline">☀️ Day</span>
+													<span className="sm:hidden">☀️ Day</span>
+												</ToggleGroupItem>
+												<ToggleGroupItem
+													value="night"
+													size="sm"
+													className="text-xs px-2 py-2 sm:px-3 flex-1 justify-center min-w-0 truncate"
+												>
+													<span className="hidden sm:inline">🌙 Night</span>
+													<span className="sm:hidden">🌙 Night</span>
+												</ToggleGroupItem>
+											</ToggleGroup>
+											<p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+												{selectedGlobalDayNight ? (
+													<span className="hidden sm:inline">{`Showing ${selectedGlobalDayNight} events across all days. Individual day filters are disabled.`}</span>
+												) : (
+													<span className="hidden sm:inline">
+														Select to filter events globally by time, or use
+														individual day filters below.
+													</span>
+												)}
+												{selectedGlobalDayNight ? (
+													<span className="sm:hidden">{`${selectedGlobalDayNight} events only`}</span>
+												) : (
+													<span className="sm:hidden">
+														Global or per-day filters
+													</span>
+												)}
+											</p>
+										</div>
+
+										<div className="space-y-2">
+											<div className="grid grid-cols-2 gap-2">
+												{EVENT_DAYS.map(({ key, label, color }) => (
+													<div key={key} className="space-y-1">
+														<Toggle
+															pressed={selectedDays.includes(key)}
+															onPressedChange={() => onDayToggle(key)}
+															className={`justify-start w-full h-8 ${selectedGlobalDayNight ? "opacity-50 pointer-events-none" : ""}`}
+															size="sm"
+															disabled={selectedGlobalDayNight !== null}
+														>
+															<div
+																className={`w-2 h-2 rounded-full ${color} mr-1.5`}
+															/>
+															<span className="text-xs">{label}</span>
 														</Toggle>
-													))}
-												</div>
+
+														{selectedDays.includes(key) &&
+															!selectedGlobalDayNight && (
+																<div className="ml-4 flex flex-wrap gap-1">
+																	{DAY_NIGHT_PERIODS.map(
+																		({
+																			key: periodKey,
+																			label: periodLabel,
+																			icon,
+																		}) => (
+																			<Toggle
+																				key={periodKey}
+																				pressed={selectedDayNightPeriods.includes(
+																					periodKey,
+																				)}
+																				onPressedChange={() =>
+																					onDayNightPeriodToggle(periodKey)
+																				}
+																				size="sm"
+																				className="text-xs h-6 px-2"
+																			>
+																				{icon} {periodLabel}
+																			</Toggle>
+																		),
+																	)}
+																</div>
+															)}
+													</div>
+												))}
 											</div>
 										</div>
-									</AccordionContent>
-								</AccordionItem>
+									</div>
 
-								{/* Preferences Section */}
-								<AccordionItem value="preferences">
-									<AccordionTrigger className="text-sm font-medium">
-										Preferences
-										{(selectedIndoorPreference !== null ||
-											selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
-											selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
-											selectedAgeRange !== null ||
-											selectedOOOCPicks) && (
-											<Badge variant="secondary" className="ml-2 text-xs">
-												{[
-													selectedIndoorPreference !== null,
-													selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
-														selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max,
-													selectedAgeRange !== null,
-													selectedOOOCPicks,
-												].filter(Boolean).length}
-											</Badge>
-										)}
-									</AccordionTrigger>
-									<AccordionContent>
-										<div className="space-y-4">
-											{/* OOOC Picks */}
-											<div>
-												<h3 className="font-medium text-sm mb-2">OOOC Picks</h3>
+									{/* OOOC Picks */}
+									<div>
+										<h3 className="font-semibold mb-3">OOOC Picks</h3>
+										<Toggle
+											pressed={selectedOOOCPicks}
+											onPressedChange={onOOOCPicksToggle}
+											className="justify-start w-full h-8"
+											size="sm"
+										>
+											<Star className="h-4 w-4 mr-2 fill-yellow-400" />
+											<span className="text-xs">Show only OOOC Picks</span>
+										</Toggle>
+									</div>
+
+									{/* Rest of desktop sections with compact styling */}
+									{/* Nationality */}
+									<div>
+										<h3 className="font-semibold mb-3">Nationality</h3>
+										<div className="grid grid-cols-2 gap-1">
+											{NATIONALITIES.map(({ key, flag, shortCode }) => (
 												<Toggle
-													pressed={selectedOOOCPicks}
-													onPressedChange={onOOOCPicksToggle}
-													className="justify-start w-full h-7"
+													key={key}
+													pressed={selectedNationalities.includes(key)}
+													onPressedChange={() => onNationalityToggle(key)}
+													className="justify-start w-full h-8"
 													size="sm"
 												>
-													<Star className="h-3.5 w-3.5 mr-1.5 fill-yellow-400" />
-													<span className="text-xs">Show only OOOC Picks</span>
+													<span className="mr-1.5 text-sm">{flag}</span>
+													<span className="text-xs">{shortCode}</span>
 												</Toggle>
-											</div>
+											))}
+										</div>
+									</div>
 
-											{/* Venue Type */}
-											<div>
-												<h3 className="font-medium text-sm mb-2">Venue Type</h3>
-												<div className="grid grid-cols-2 gap-1">
+									{/* Venue Type */}
+									<div>
+										<h3 className="font-semibold mb-3">Venue Type</h3>
+										<div className="space-y-1">
+											<Toggle
+												pressed={selectedIndoorPreference === true}
+												onPressedChange={(pressed) => {
+													onIndoorPreferenceChange(pressed ? true : null);
+												}}
+												className="justify-start w-full h-8"
+												size="sm"
+											>
+												<span className="text-xs">🏢 Indoor</span>
+											</Toggle>
+											<Toggle
+												pressed={selectedIndoorPreference === false}
+												onPressedChange={(pressed) => {
+													onIndoorPreferenceChange(pressed ? false : null);
+												}}
+												className="justify-start w-full h-8"
+												size="sm"
+											>
+												<span className="text-xs">🌤️ Outdoor</span>
+											</Toggle>
+										</div>
+									</div>
+
+									{/* Price Range */}
+									<div>
+										<h3 className="font-semibold mb-3">Price Range</h3>
+										<div className="space-y-2 px-1">
+											<Slider
+												value={selectedPriceRange}
+												onValueChange={(value) =>
+													onPriceRangeChange(value as [number, number])
+												}
+												min={PRICE_RANGE_CONFIG.min}
+												max={PRICE_RANGE_CONFIG.max}
+												step={PRICE_RANGE_CONFIG.step}
+												className="w-full"
+												aria-label="Price range filter"
+											/>
+											<div className="flex justify-between text-xs text-muted-foreground">
+												<span>€{PRICE_RANGE_CONFIG.min}</span>
+												<span className="font-medium text-center">
+													{formatPriceRange(selectedPriceRange)}
+												</span>
+												<span>€{PRICE_RANGE_CONFIG.max}+</span>
+											</div>
+											{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
+												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
+												<div className="flex justify-center">
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={resetPriceRange}
+														className="text-xs h-6 px-2"
+													>
+														Clear price filter
+													</Button>
+												</div>
+											)}
+										</div>
+									</div>
+
+									{/* Age Range */}
+									<div>
+										<h3 className="font-semibold mb-3">Age Range</h3>
+										<div className="space-y-2 px-1">
+											<Slider
+												value={
+													selectedAgeRange || AGE_RANGE_CONFIG.defaultRange
+												}
+												onValueChange={(value) =>
+													onAgeRangeChange(value as [number, number])
+												}
+												min={AGE_RANGE_CONFIG.min}
+												max={AGE_RANGE_CONFIG.max}
+												step={AGE_RANGE_CONFIG.step}
+												className="w-full"
+												aria-label="Age range filter"
+											/>
+											<div className="flex justify-between text-xs text-muted-foreground">
+												<span>{AGE_RANGE_CONFIG.min} or less</span>
+												<span className="font-medium text-center">
+													{selectedAgeRange
+														? formatAgeRange(selectedAgeRange)
+														: "All ages"}
+												</span>
+												<span>{AGE_RANGE_CONFIG.max}+</span>
+											</div>
+											{selectedAgeRange && (
+												<div className="flex justify-center">
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={resetAgeRange}
+														className="text-xs h-6 px-2"
+													>
+														Clear age filter
+													</Button>
+												</div>
+											)}
+										</div>
+									</div>
+
+									{/* Music Genres */}
+									<div>
+										<h3 className="font-semibold mb-3">Music Genres</h3>
+										<div className="relative contain-layout">
+											<div className="grid grid-cols-2 gap-1 max-h-48 min-h-[12rem] overflow-y-auto border rounded-md p-2 bg-muted/20">
+												{MUSIC_GENRES.map(({ key, label, color }) => (
 													<Toggle
-														pressed={selectedIndoorPreference === true}
-														onPressedChange={(pressed) => {
-															onIndoorPreferenceChange(pressed ? true : null);
-														}}
-														className="justify-start w-full h-7"
+														key={key}
+														pressed={selectedGenres.includes(key)}
+														onPressedChange={() => onGenreToggle(key)}
+														className="justify-start w-full h-7 shrink-0"
 														size="sm"
 													>
-														<span className="text-xs">🏢 Indoor</span>
+														<div
+															className={`w-2 h-2 rounded-full ${color} mr-1.5 flex-shrink-0`}
+														/>
+														<span className="text-xs truncate">{label}</span>
 													</Toggle>
-													<Toggle
-														pressed={selectedIndoorPreference === false}
-														onPressedChange={(pressed) => {
-															onIndoorPreferenceChange(pressed ? false : null);
-														}}
-														className="justify-start w-full h-7"
-														size="sm"
-													>
-														<span className="text-xs">🌤️ Outdoor</span>
-													</Toggle>
-												</div>
+												))}
 											</div>
-
-											{/* Price Range */}
-											<div>
-												<h3 className="font-medium text-sm mb-2">Price Range</h3>
-												<div className="space-y-1.5 px-1">
-													<Slider
-														value={selectedPriceRange}
-														onValueChange={(value) =>
-															onPriceRangeChange(value as [number, number])
-														}
-														min={PRICE_RANGE_CONFIG.min}
-														max={PRICE_RANGE_CONFIG.max}
-														step={PRICE_RANGE_CONFIG.step}
-														className="w-full"
-														aria-label="Price range filter"
-													/>
-													<div className="flex justify-between text-xs text-muted-foreground">
-														<span>€{PRICE_RANGE_CONFIG.min}</span>
-														<span className="font-medium text-center">
-															{formatPriceRange(selectedPriceRange)}
-														</span>
-														<span>€{PRICE_RANGE_CONFIG.max}+</span>
-													</div>
-													{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
-														selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
-														<div className="flex justify-center">
-															<Button
-																variant="ghost"
-																size="sm"
-																onClick={resetPriceRange}
-																className="text-xs h-6 px-2"
-															>
-																Clear price filter
-															</Button>
-														</div>
-													)}
-												</div>
-											</div>
-
-											{/* Age Range */}
-											<div>
-												<h3 className="font-medium text-sm mb-2">Age Range</h3>
-												<div className="space-y-1.5 px-1">
-													<Slider
-														value={selectedAgeRange || AGE_RANGE_CONFIG.defaultRange}
-														onValueChange={(value) =>
-															onAgeRangeChange(value as [number, number])
-														}
-														min={AGE_RANGE_CONFIG.min}
-														max={AGE_RANGE_CONFIG.max}
-														step={AGE_RANGE_CONFIG.step}
-														className="w-full"
-														aria-label="Age range filter"
-													/>
-													<div className="flex justify-between text-xs text-muted-foreground">
-														<span>{AGE_RANGE_CONFIG.min} or less</span>
-														<span className="font-medium text-center">
-															{selectedAgeRange
-																? formatAgeRange(selectedAgeRange)
-																: "All ages"}
-														</span>
-														<span>{AGE_RANGE_CONFIG.max}+</span>
-													</div>
-													{selectedAgeRange && (
-														<div className="flex justify-center">
-															<Button
-																variant="ghost"
-																size="sm"
-																onClick={resetAgeRange}
-																className="text-xs h-6 px-2"
-															>
-																Clear age filter
-															</Button>
-														</div>
-													)}
-												</div>
+											<div className="absolute top-2 left-2 right-2 h-2 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
+											<div className="absolute bottom-2 left-2 right-2 h-2 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
+											<div className="text-xs text-muted-foreground mt-1 text-center opacity-70 h-4">
+												{MUSIC_GENRES.length} genres • scroll ↕
 											</div>
 										</div>
-									</AccordionContent>
-								</AccordionItem>
-							</Accordion>
+									</div>
+
+									{/* Arrondissements */}
+									<div>
+										<h3 className="font-semibold mb-3">Arrondissements</h3>
+										<div className="grid grid-cols-4 lg:grid-cols-5 gap-1 min-h-[7rem] content-start">
+											{availableArrondissements.map((arr) => (
+												<Toggle
+													key={arr}
+													pressed={selectedArrondissements.includes(arr)}
+													onPressedChange={() => onArrondissementToggle(arr)}
+													size="sm"
+													className="h-7 text-xs shrink-0"
+												>
+													{arr === "unknown" ? "?" : `${arr}e`}
+												</Toggle>
+											))}
+										</div>
+									</div>
+								</div>
+							)}
 
 							{/* Active Filters - Bottom when many filters */}
 							{!uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
-
-							{/* Scroll indicator at the bottom */}
-							<div className="sticky bottom-0 left-0 right-0">
-								<div className="h-8 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none flex items-end justify-center pb-0.5 relative">
-									<div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent blur-sm" />
-									<div className="relative text-xs text-muted-foreground/70 flex items-center gap-1">
-										<span className="animate-bounce">↓</span>
-										scroll for more
-									</div>
-								</div>
-							</div>
 						</CardContent>
 					</Card>
 				</div>
@@ -768,29 +921,55 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<AccordionContent>
 											{/* Compact Days Section for Accordion */}
 											<div className="space-y-3">
-												{/* Day/Night Periods */}
-												<div className="p-1.5 bg-muted/20 rounded-md border overflow-hidden">
-													<div className="flex items-center justify-between mb-1">
+												{/* Global Day/Night Filter */}
+												<div className="p-1.5 sm:p-2 bg-muted/20 rounded-md border overflow-hidden">
+													<div className="flex items-center justify-between mb-2">
 														<h4 className="text-xs font-medium truncate">
 															Filter by Time
 														</h4>
-													</div>
-													<div className="grid grid-cols-2 gap-1">
-														{DAY_NIGHT_PERIODS.map(({ key, label, icon }) => (
-															<Toggle
-																key={key}
-																pressed={selectedDayNightPeriods.includes(key)}
-																onPressedChange={() => onDayNightPeriodToggle(key)}
+														{selectedGlobalDayNight && (
+															<Button
+																variant="ghost"
 																size="sm"
-																className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
+																onClick={() => onGlobalDayNightChange(null)}
+																className="h-5 px-1 text-xs flex-shrink-0"
 															>
-																{icon} {label}
-															</Toggle>
-														))}
+																Clear
+															</Button>
+														)}
 													</div>
+													<ToggleGroup
+														type="single"
+														value={selectedGlobalDayNight || ""}
+														onValueChange={(value) =>
+															onGlobalDayNightChange(
+																value === "" ? null : (value as DayNightPeriod),
+															)
+														}
+														className="w-full grid grid-cols-2 gap-1"
+													>
+														<ToggleGroupItem
+															value="day"
+															size="sm"
+															className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
+														>
+															☀️ Day
+														</ToggleGroupItem>
+														<ToggleGroupItem
+															value="night"
+															size="sm"
+															className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
+														>
+															🌙 Night
+														</ToggleGroupItem>
+													</ToggleGroup>
+													<p className="text-xs text-muted-foreground mt-1 leading-tight">
+														{selectedGlobalDayNight
+															? `${selectedGlobalDayNight} events only`
+															: "Global or per-day filters"}
+													</p>
 												</div>
 
-												{/* Days */}
 												<div className="grid grid-cols-2 gap-2">
 													{EVENT_DAYS.map(({ key, label, color }) => (
 														<Toggle
@@ -798,7 +977,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															pressed={selectedDays.includes(key)}
 															onPressedChange={() => onDayToggle(key)}
 															size="sm"
-															className={`text-xs justify-start`}
+															className={`text-xs justify-start ${selectedGlobalDayNight ? "opacity-50 pointer-events-none" : ""}`}
+															disabled={selectedGlobalDayNight !== null}
 														>
 															<div
 																className={`w-2 h-2 rounded-full ${color} mr-1.5`}
@@ -807,10 +987,27 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														</Toggle>
 													))}
 												</div>
+												{selectedDays.length > 0 && !selectedGlobalDayNight && (
+													<div className="flex flex-wrap gap-1">
+														{DAY_NIGHT_PERIODS.map(({ key, label, icon }) => (
+															<Toggle
+																key={key}
+																pressed={selectedDayNightPeriods.includes(key)}
+																onPressedChange={() =>
+																	onDayNightPeriodToggle(key)
+																}
+																size="sm"
+																className="text-xs"
+															>
+																{icon} {label}
+															</Toggle>
+														))}
+													</div>
+												)}
 											</div>
 										</AccordionContent>
 									</AccordionItem>
-									{/* Add other accordion sections here when needed */}
+									{/* Add other accordion sections here */}
 								</Accordion>
 							</div>
 						) : (
@@ -845,44 +1042,112 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										</TooltipProvider>
 									</div>
 
-									<div className="space-y-2">
-										{/* Day/Night Periods */}
-										<div className="p-2 bg-muted/20 rounded-md border overflow-hidden">
-											<div className="flex items-center justify-between mb-2">
-												<h4 className="text-sm font-medium truncate">
-													Filter by Time
-												</h4>
-											</div>
-											<div className="grid grid-cols-2 gap-2">
-												{DAY_NIGHT_PERIODS.map(({ key, label, icon }) => (
-													<Toggle
-														key={key}
-														pressed={selectedDayNightPeriods.includes(key)}
-														onPressedChange={() => onDayNightPeriodToggle(key)}
-														size="sm"
-														className="text-xs h-8"
-													>
-														{icon} {label}
-													</Toggle>
-												))}
-											</div>
+									{/* Global Day/Night Filter */}
+									<div className="mb-4 p-2 sm:p-3 bg-muted/20 rounded-md border overflow-hidden">
+										<div className="flex items-center justify-between mb-2">
+											<h4 className="text-sm font-medium truncate">
+												Filter by Time
+											</h4>
+											{selectedGlobalDayNight && (
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => onGlobalDayNightChange(null)}
+													className="h-6 px-2 text-xs flex-shrink-0"
+												>
+													Clear
+												</Button>
+											)}
 										</div>
+										<ToggleGroup
+											type="single"
+											value={selectedGlobalDayNight || ""}
+											onValueChange={(value) =>
+												onGlobalDayNightChange(
+													value === "" ? null : (value as DayNightPeriod),
+												)
+											}
+											className="w-full grid grid-cols-2 gap-1 sm:gap-2"
+										>
+											<ToggleGroupItem
+												value="day"
+												size="sm"
+												className="text-xs px-2 py-2 sm:px-3 flex-1 justify-center min-w-0 truncate"
+											>
+												<span className="hidden sm:inline">☀️ Day</span>
+												<span className="sm:hidden">☀️ Day</span>
+											</ToggleGroupItem>
+											<ToggleGroupItem
+												value="night"
+												size="sm"
+												className="text-xs px-2 py-2 sm:px-3 flex-1 justify-center min-w-0 truncate"
+											>
+												<span className="hidden sm:inline">🌙 Night</span>
+												<span className="sm:hidden">🌙 Night</span>
+											</ToggleGroupItem>
+										</ToggleGroup>
+										<p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+											{selectedGlobalDayNight ? (
+												<span className="hidden sm:inline">{`Showing ${selectedGlobalDayNight} events across all days. Individual day filters are disabled.`}</span>
+											) : (
+												<span className="hidden sm:inline">
+													Select to filter events globally by time, or use
+													individual day filters below.
+												</span>
+											)}
+											{selectedGlobalDayNight ? (
+												<span className="sm:hidden">{`${selectedGlobalDayNight} events only`}</span>
+											) : (
+												<span className="sm:hidden">
+													Global or per-day filters
+												</span>
+											)}
+										</p>
+									</div>
 
-										{/* Days */}
+									<div className="space-y-2">
 										<div className="grid grid-cols-2 gap-2">
 											{EVENT_DAYS.map(({ key, label, color }) => (
 												<div key={key} className="space-y-1">
 													<Toggle
 														pressed={selectedDays.includes(key)}
 														onPressedChange={() => onDayToggle(key)}
-														className="justify-start w-full h-8"
+														className={`justify-start w-full h-8 ${selectedGlobalDayNight ? "opacity-50 pointer-events-none" : ""}`}
 														size="sm"
+														disabled={selectedGlobalDayNight !== null}
 													>
 														<div
 															className={`w-2 h-2 rounded-full ${color} mr-1.5`}
 														/>
 														<span className="text-xs">{label}</span>
 													</Toggle>
+
+													{selectedDays.includes(key) &&
+														!selectedGlobalDayNight && (
+															<div className="ml-4 flex flex-wrap gap-1">
+																{DAY_NIGHT_PERIODS.map(
+																	({
+																		key: periodKey,
+																		label: periodLabel,
+																		icon,
+																	}) => (
+																		<Toggle
+																			key={periodKey}
+																			pressed={selectedDayNightPeriods.includes(
+																				periodKey,
+																			)}
+																			onPressedChange={() =>
+																				onDayNightPeriodToggle(periodKey)
+																			}
+																			size="sm"
+																			className="text-xs h-6 px-2"
+																		>
+																			{icon} {periodLabel}
+																		</Toggle>
+																	),
+																)}
+															</div>
+														)}
 												</div>
 											))}
 										</div>
@@ -1074,7 +1339,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</div>
 						)}
 
-						{/* Active Filters - Bottom when many filters */}
+						{/* Active Filters - Bottom (Desktop when many filters) */}
 						{!uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
 					</CardContent>
 				</Card>
