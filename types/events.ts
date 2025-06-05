@@ -3,7 +3,7 @@ export type EventDay = "friday" | "saturday" | "sunday" | "monday" | "tbc";
 
 export type DayNightPeriod = "day" | "night";
 
-export type EventType = "After Party" | "Block Party";
+export type EventType = "After Party" | "Day Party";
 
 // Host country type for GB/FR column
 export type Nationality = "UK" | "FR";
@@ -198,7 +198,7 @@ export const MUSIC_GENRES = [
 
 export const EVENT_TYPES = [
 	{ key: "After Party" as const, label: "After Party", icon: "🌃" },
-	{ key: "Block Party" as const, label: "Block Party", icon: "🎉" },
+	{ key: "Day Party" as const, label: "Day Party", icon: "☀️" },
 ] as const;
 
 export const NATIONALITIES = [
@@ -322,6 +322,17 @@ export const PRICE_RANGE_CONFIG = {
 	defaultRange: [0, 150] as [number, number],
 } as const;
 
+// Age range constants for the slider
+export const AGE_RANGE_CONFIG = {
+	min: 18,
+	max: 25,
+	step: 1,
+	defaultRange: [18, 25] as [number, number],
+} as const;
+
+// Age range type for filtering
+export type AgeRange = [number, number];
+
 // Utility functions for time-based classification
 export const getDayNightPeriod = (time: string): DayNightPeriod | null => {
 	if (!time || time === "TBC") return null;
@@ -435,4 +446,65 @@ export const formatPriceRange = (range: [number, number]): string => {
 	if (max >= PRICE_RANGE_CONFIG.max) return `€${min}+`;
 
 	return `€${min} - €${max}`;
+};
+
+// Utility functions for age handling
+export const parseAge = (ageStr?: string): number | null => {
+	if (!ageStr) return null;
+
+	const cleanAge = ageStr.toLowerCase().trim();
+
+	// Handle common age formats
+	if (cleanAge === "all ages" || cleanAge === "0+") return 0;
+	if (cleanAge === "18+" || cleanAge === "18") return 18;
+	if (cleanAge === "21+" || cleanAge === "21") return 21;
+	if (cleanAge === "25+" || cleanAge === "25") return 25;
+
+	// Extract numbers from age string
+	const ageMatch = cleanAge.match(/(\d+)/);
+	if (!ageMatch) return null;
+
+	return parseInt(ageMatch[1], 10);
+};
+
+export const formatAge = (ageStr?: string): string => {
+	if (!ageStr) return "All ages";
+
+	const cleanAge = ageStr.toLowerCase().trim();
+	
+	// Handle common formats
+	if (cleanAge === "all ages" || cleanAge === "0+" || cleanAge === "0") return "All ages";
+	if (cleanAge.includes("+")) return ageStr;
+	
+	// Try to parse and format
+	const numericAge = parseAge(ageStr);
+	if (numericAge === null) return ageStr;
+	if (numericAge === 0) return "All ages";
+	
+	return `${numericAge}+`;
+};
+
+export const isAgeInRange = (
+	ageStr: string | undefined,
+	ageRange: [number, number],
+): boolean => {
+	const numericAge = parseAge(ageStr);
+	if (numericAge === null) return false; // Unknown age, exclude when filtering
+	if (numericAge === 0) return ageRange[0] <= 18; // All ages events included if range includes 18 or less
+
+	const [min, max] = ageRange;
+	return numericAge >= min && numericAge <= max;
+};
+
+export const formatAgeRange = (range: [number, number]): string => {
+	const [min, max] = range;
+
+	if (min === AGE_RANGE_CONFIG.min && max === AGE_RANGE_CONFIG.max) {
+		return "All ages";
+	}
+	
+	if (min === 18 && max === 25) return "18-25";
+	if (max >= AGE_RANGE_CONFIG.max) return `${min}+`;
+	
+	return `${min}-${max}`;
 };

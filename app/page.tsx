@@ -11,23 +11,26 @@ import {
 	getDayNightPeriod,
 	isEventInDayNightPeriod,
 	MUSIC_GENRES,
-	EVENT_TYPES,
 	NATIONALITIES,
 	formatPrice,
 	isPriceInRange,
 	PRICE_RANGE_CONFIG,
 	formatPriceRange,
+	AGE_RANGE_CONFIG,
+	formatAge,
+	isAgeInRange,
+	formatAgeRange,
 	type Event,
 	type EventDay,
 	type DayNightPeriod,
 	type MusicGenre,
-	type EventType,
 	type Nationality,
 	type ParisArrondissement,
+	type AgeRange,
 } from "@/types/events";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Clock, Filter, Star, Euro } from "lucide-react";
+import { MapPin, Clock, Filter, Star, Euro, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -49,7 +52,6 @@ export default function Home() {
 		ParisArrondissement[]
 	>([]);
 	const [selectedGenres, setSelectedGenres] = useState<MusicGenre[]>([]);
-	const [selectedEventTypes, setSelectedEventTypes] = useState<EventType[]>([]);
 	const [selectedNationalities, setSelectedNationalities] = useState<Nationality[]>([]);
 	const [selectedIndoorPreference, setSelectedIndoorPreference] = useState<
 		boolean | null
@@ -57,6 +59,8 @@ export default function Home() {
 	const [selectedPriceRange, setSelectedPriceRange] = useState<
 		[number, number]
 	>(PRICE_RANGE_CONFIG.defaultRange);
+	const [selectedGlobalDayNight, setSelectedGlobalDayNight] = useState<DayNightPeriod | null>(null);
+	const [selectedAgeRange, setSelectedAgeRange] = useState<AgeRange | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 
 	// Load events on component mount
@@ -95,16 +99,23 @@ export default function Home() {
 	// Filter events based on selected filters and search query
 	const filteredEvents = useMemo(() => {
 		return events.filter((event) => {
-			// Filter by selected days
-			if (selectedDays.length > 0 && !selectedDays.includes(event.day))
-				return false;
+			// Filter by global day/night preference first (overrides individual filters)
+			if (selectedGlobalDayNight) {
+				const matchesGlobalPeriod = isEventInDayNightPeriod(event, selectedGlobalDayNight);
+				if (!matchesGlobalPeriod) return false;
+			} else {
+				// Only apply individual day/night filters if no global filter is set
+				// Filter by selected days
+				if (selectedDays.length > 0 && !selectedDays.includes(event.day))
+					return false;
 
-			// Filter by day/night periods
-			if (selectedDayNightPeriods.length > 0) {
-				const hasMatchingPeriod = selectedDayNightPeriods.some((period) =>
-					isEventInDayNightPeriod(event, period),
-				);
-				if (!hasMatchingPeriod) return false;
+				// Filter by day/night periods
+				if (selectedDayNightPeriods.length > 0) {
+					const hasMatchingPeriod = selectedDayNightPeriods.some((period) =>
+						isEventInDayNightPeriod(event, period),
+					);
+					if (!hasMatchingPeriod) return false;
+				}
 			}
 
 			// Filter by selected arrondissements
@@ -121,13 +132,6 @@ export default function Home() {
 				);
 				if (!hasMatchingGenre) return false;
 			}
-
-			// Filter by selected event types
-			if (
-				selectedEventTypes.length > 0 &&
-				!selectedEventTypes.includes(event.type)
-			)
-				return false;
 
 			// Filter by selected nationalities
 			if (selectedNationalities.length > 0) {
@@ -147,6 +151,14 @@ export default function Home() {
 				selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
 			) {
 				if (!isPriceInRange(event.price, selectedPriceRange)) {
+					return false;
+				}
+			}
+
+			// Filter by age range
+			if (selectedAgeRange) {
+				// When age filter is active, only show events that have age data AND match the range
+				if (!event.age || !isAgeInRange(event.age, selectedAgeRange)) {
 					return false;
 				}
 			}
@@ -188,12 +200,13 @@ export default function Home() {
 		selectedDayNightPeriods,
 		selectedArrondissements,
 		selectedGenres,
-		selectedEventTypes,
 		selectedNationalities,
 		selectedIndoorPreference,
 		selectedPriceRange,
+		selectedAgeRange,
 		searchQuery,
 		events,
+		selectedGlobalDayNight,
 	]);
 
 	// Filter handlers
@@ -225,14 +238,6 @@ export default function Home() {
 		);
 	};
 
-	const handleEventTypeToggle = (eventType: EventType) => {
-		setSelectedEventTypes((prev) =>
-			prev.includes(eventType)
-				? prev.filter((t) => t !== eventType)
-				: [...prev, eventType],
-		);
-	};
-
 	const handleNationalityToggle = (nationality: Nationality) => {
 		setSelectedNationalities((prev) =>
 			prev.includes(nationality) ? prev.filter((n) => n !== nationality) : [...prev, nationality],
@@ -247,15 +252,36 @@ export default function Home() {
 		setSelectedPriceRange(range);
 	}, []);
 
+	const handleGlobalDayNightChange = useCallback((period: DayNightPeriod | null) => {
+		setSelectedGlobalDayNight(period);
+		// When global filter is set, clear individual day/night filters to avoid conflicts
+		if (period !== null) {
+			setSelectedDays([]);
+			setSelectedDayNightPeriods([]);
+		}
+	}, []);
+
+	const handleAgeRangeChange = useCallback((range: AgeRange | null) => {
+		// If the range is set to the default full range, treat it as no filter
+		if (range && 
+		    range[0] === AGE_RANGE_CONFIG.min && 
+		    range[1] === AGE_RANGE_CONFIG.max) {
+			setSelectedAgeRange(null);
+		} else {
+			setSelectedAgeRange(range);
+		}
+	}, []);
+
 	const handleClearFilters = useCallback(() => {
 		setSelectedDays([]);
 		setSelectedDayNightPeriods([]);
 		setSelectedArrondissements([]);
 		setSelectedGenres([]);
-		setSelectedEventTypes([]);
 		setSelectedNationalities([]);
 		setSelectedIndoorPreference(null);
 		setSelectedPriceRange(PRICE_RANGE_CONFIG.defaultRange);
+		setSelectedGlobalDayNight(null);
+		setSelectedAgeRange(null);
 		setSearchQuery("");
 	}, []);
 
@@ -268,11 +294,13 @@ export default function Home() {
 		selectedDayNightPeriods.length > 0 ||
 		selectedArrondissements.length > 0 ||
 		selectedGenres.length > 0 ||
-		selectedEventTypes.length > 0 ||
 		selectedNationalities.length > 0 ||
 		selectedIndoorPreference !== null ||
 		selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 		selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
+		selectedGlobalDayNight !== null ||
+		(selectedAgeRange !== null && 
+		 (selectedAgeRange[0] !== AGE_RANGE_CONFIG.min || selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)) ||
 		searchQuery.length > 0;
 
 	return (
@@ -377,11 +405,15 @@ export default function Home() {
 															selectedDayNightPeriods.length +
 															selectedArrondissements.length +
 															selectedGenres.length +
-															selectedEventTypes.length +
 															selectedNationalities.length +
+															(selectedGlobalDayNight !== null ? 1 : 0) +
 															(selectedPriceRange[0] !==
 																PRICE_RANGE_CONFIG.min ||
 															selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
+																? 1
+																: 0) +
+															(selectedAgeRange !== null && 
+															 (selectedAgeRange[0] !== AGE_RANGE_CONFIG.min || selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)
 																? 1
 																: 0)}
 													</Badge>
@@ -407,18 +439,20 @@ export default function Home() {
 									selectedDayNightPeriods={selectedDayNightPeriods}
 									selectedArrondissements={selectedArrondissements}
 									selectedGenres={selectedGenres}
-									selectedEventTypes={selectedEventTypes}
 									selectedNationalities={selectedNationalities}
 									selectedIndoorPreference={selectedIndoorPreference}
 									selectedPriceRange={selectedPriceRange}
+									selectedGlobalDayNight={selectedGlobalDayNight}
+									selectedAgeRange={selectedAgeRange}
 									onDayToggle={handleDayToggle}
 									onDayNightPeriodToggle={handleDayNightPeriodToggle}
 									onArrondissementToggle={handleArrondissementToggle}
 									onGenreToggle={handleGenreToggle}
-									onEventTypeToggle={handleEventTypeToggle}
 									onNationalityToggle={handleNationalityToggle}
 									onIndoorPreferenceChange={handleIndoorPreferenceChange}
 									onPriceRangeChange={handlePriceRangeChange}
+									onGlobalDayNightChange={handleGlobalDayNightChange}
+									onAgeRangeChange={handleAgeRangeChange}
 									onClearFilters={handleClearFilters}
 									availableArrondissements={availableArrondissements}
 									isOpen={isFilterOpen}
@@ -516,6 +550,15 @@ export default function Home() {
 														{formatPrice(event.price)}
 													</span>
 												</div>
+												{/* Age Display */}
+												{event.age && (
+													<div className="flex items-center space-x-1">
+														<Users className="h-3 w-3 flex-shrink-0" />
+														<span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+															{formatAge(event.age)}
+														</span>
+													</div>
+												)}
 											</div>
 
 											{/* Badges */}

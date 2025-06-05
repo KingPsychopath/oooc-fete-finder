@@ -24,36 +24,40 @@ import {
 	EVENT_DAYS,
 	DAY_NIGHT_PERIODS,
 	MUSIC_GENRES,
-	EVENT_TYPES,
 	NATIONALITIES,
 	PRICE_RANGE_CONFIG,
 	formatPriceRange,
+	AGE_RANGE_CONFIG,
+	formatAgeRange,
 	type EventDay,
 	type DayNightPeriod,
 	type MusicGenre,
-	type EventType,
 	type Nationality,
 	type ParisArrondissement,
+	type AgeRange,
 } from "@/types/events";
 import { Slider } from "@/components/ui/slider";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type FilterPanelProps = {
 	selectedDays: EventDay[];
 	selectedDayNightPeriods: DayNightPeriod[];
 	selectedArrondissements: ParisArrondissement[];
 	selectedGenres: MusicGenre[];
-	selectedEventTypes: EventType[];
 	selectedNationalities: Nationality[];
 	selectedIndoorPreference: boolean | null;
 	selectedPriceRange: [number, number];
+	selectedGlobalDayNight: DayNightPeriod | null;
+	selectedAgeRange: AgeRange | null;
 	onDayToggle: (day: EventDay) => void;
 	onDayNightPeriodToggle: (period: DayNightPeriod) => void;
 	onArrondissementToggle: (arrondissement: ParisArrondissement) => void;
 	onGenreToggle: (genre: MusicGenre) => void;
-	onEventTypeToggle: (eventType: EventType) => void;
 	onNationalityToggle: (nationality: Nationality) => void;
 	onIndoorPreferenceChange: (preference: boolean | null) => void;
 	onPriceRangeChange: (range: [number, number]) => void;
+	onGlobalDayNightChange: (period: DayNightPeriod | null) => void;
+	onAgeRangeChange: (range: AgeRange | null) => void;
 	onClearFilters: () => void;
 	availableArrondissements: ParisArrondissement[];
 	isOpen: boolean;
@@ -66,18 +70,20 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	selectedDayNightPeriods,
 	selectedArrondissements,
 	selectedGenres,
-	selectedEventTypes,
 	selectedNationalities,
 	selectedIndoorPreference,
 	selectedPriceRange,
+	selectedGlobalDayNight,
+	selectedAgeRange,
 	onDayToggle,
 	onDayNightPeriodToggle,
 	onArrondissementToggle,
 	onGenreToggle,
-	onEventTypeToggle,
 	onNationalityToggle,
 	onIndoorPreferenceChange,
 	onPriceRangeChange,
+	onGlobalDayNightChange,
+	onAgeRangeChange,
 	onClearFilters,
 	availableArrondissements,
 	isOpen,
@@ -96,6 +102,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		onPriceRangeChange(PRICE_RANGE_CONFIG.defaultRange);
 	}, [onPriceRangeChange]);
 
+	// Stable age range reset handler
+	const resetAgeRange = useCallback(() => {
+		onAgeRangeChange(null);
+	}, [onAgeRangeChange]);
+
 	// Memoize the hasActiveFilters calculation
 	const hasActiveFilters = useMemo(
 		() =>
@@ -103,20 +114,23 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedDayNightPeriods.length > 0 ||
 			selectedArrondissements.length > 0 ||
 			selectedGenres.length > 0 ||
-			selectedEventTypes.length > 0 ||
 			selectedNationalities.length > 0 ||
 			selectedIndoorPreference !== null ||
+			selectedGlobalDayNight !== null ||
 			selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
-			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max,
+			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
+			(selectedAgeRange !== null && 
+			 (selectedAgeRange[0] !== AGE_RANGE_CONFIG.min || selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)),
 		[
 			selectedDays,
 			selectedDayNightPeriods,
 			selectedArrondissements,
 			selectedGenres,
-			selectedEventTypes,
 			selectedNationalities,
 			selectedIndoorPreference,
+			selectedGlobalDayNight,
 			selectedPriceRange,
+			selectedAgeRange,
 		],
 	);
 
@@ -127,11 +141,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedDayNightPeriods.length +
 			selectedArrondissements.length +
 			selectedGenres.length +
-			selectedEventTypes.length +
 			selectedNationalities.length +
 			(selectedIndoorPreference !== null ? 1 : 0) +
+			(selectedGlobalDayNight !== null ? 1 : 0) +
 			(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
+				? 1
+				: 0) +
+			(selectedAgeRange !== null && 
+			 (selectedAgeRange[0] !== AGE_RANGE_CONFIG.min || selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)
 				? 1
 				: 0)
 		);
@@ -140,10 +158,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		selectedDayNightPeriods,
 		selectedArrondissements,
 		selectedGenres,
-		selectedEventTypes,
 		selectedNationalities,
 		selectedIndoorPreference,
+		selectedGlobalDayNight,
 		selectedPriceRange,
+		selectedAgeRange,
 	]);
 
 	// Decision logic for UI variations
@@ -174,6 +193,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						Active Filters ({activeFilterCount}):
 					</div>
 					<div className="flex flex-wrap gap-2 min-h-[28px]">
+						{selectedGlobalDayNight && (
+							<Badge variant="secondary" className="text-xs">
+								🌐 {selectedGlobalDayNight === "day" ? "☀️ Day Events" : "🌙 Night Events"}
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={() => onGlobalDayNightChange(null)}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						)}
 						{selectedDays.map((day) => (
 							<Badge key={day} variant="secondary" className="text-xs">
 								{EVENT_DAYS.find((d) => d.key === day)?.label}
@@ -195,19 +227,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									size="sm"
 									className="h-auto p-0 ml-1 hover:bg-transparent"
 									onClick={() => onDayNightPeriodToggle(period)}
-								>
-									<X className="h-3 w-3" />
-								</Button>
-							</Badge>
-						))}
-						{selectedEventTypes.map((eventType) => (
-							<Badge key={eventType} variant="secondary" className="text-xs">
-								{EVENT_TYPES.find((t) => t.key === eventType)?.label}
-								<Button
-									variant="ghost"
-									size="sm"
-									className="h-auto p-0 ml-1 hover:bg-transparent"
-									onClick={() => onEventTypeToggle(eventType)}
 								>
 									<X className="h-3 w-3" />
 								</Button>
@@ -248,6 +267,20 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									size="sm"
 									className="h-auto p-0 ml-1 hover:bg-transparent"
 									onClick={resetPriceRange}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						)}
+						{selectedAgeRange && 
+						 (selectedAgeRange[0] !== AGE_RANGE_CONFIG.min || selectedAgeRange[1] !== AGE_RANGE_CONFIG.max) && (
+							<Badge variant="secondary" className="text-xs">
+								👥 {formatAgeRange(selectedAgeRange)}
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={resetAgeRange}
 								>
 									<X className="h-3 w-3" />
 								</Button>
@@ -362,6 +395,50 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<AccordionContent>
 											{/* Compact Days Section for Accordion */}
 											<div className="space-y-3">
+												{/* Global Day/Night Filter */}
+												<div className="p-1.5 sm:p-2 bg-muted/20 rounded-md border overflow-hidden">
+													<div className="flex items-center justify-between mb-2">
+														<h4 className="text-xs font-medium truncate">Filter by Time</h4>
+														{selectedGlobalDayNight && (
+															<Button
+																variant="ghost"
+																size="sm"
+																onClick={() => onGlobalDayNightChange(null)}
+																className="h-5 px-1 text-xs flex-shrink-0"
+															>
+																Clear
+															</Button>
+														)}
+													</div>
+													<ToggleGroup
+														type="single"
+														value={selectedGlobalDayNight || ""}
+														onValueChange={(value) => onGlobalDayNightChange(value === "" ? null : value as DayNightPeriod)}
+														className="w-full grid grid-cols-2 gap-1"
+													>
+														<ToggleGroupItem 
+															value="day" 
+															size="sm" 
+															className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
+														>
+															☀️ Day
+														</ToggleGroupItem>
+														<ToggleGroupItem 
+															value="night" 
+															size="sm" 
+															className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
+														>
+															🌙 Night
+														</ToggleGroupItem>
+													</ToggleGroup>
+													<p className="text-xs text-muted-foreground mt-1 leading-tight">
+														{selectedGlobalDayNight 
+															? `${selectedGlobalDayNight} events only`
+															: "Global or per-day filters"
+														}
+													</p>
+												</div>
+
 												<div className="grid grid-cols-2 gap-2">
 													{EVENT_DAYS.map(({ key, label, color }) => (
 														<Toggle
@@ -369,14 +446,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															pressed={selectedDays.includes(key)}
 															onPressedChange={() => onDayToggle(key)}
 															size="sm"
-															className="text-xs justify-start"
+															className={`text-xs justify-start ${selectedGlobalDayNight ? 'opacity-50 pointer-events-none' : ''}`}
+															disabled={selectedGlobalDayNight !== null}
 														>
 															<div className={`w-2 h-2 rounded-full ${color} mr-1.5`} />
 															{label}
 														</Toggle>
 													))}
 												</div>
-												{selectedDays.length > 0 && (
+												{selectedDays.length > 0 && !selectedGlobalDayNight && (
 													<div className="flex flex-wrap gap-1">
 														{DAY_NIGHT_PERIODS.map(({ key, label, icon }) => (
 															<Toggle
@@ -424,6 +502,56 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											</TooltipProvider>
 										</div>
 
+										{/* Global Day/Night Filter */}
+										<div className="mb-4 p-2 sm:p-3 bg-muted/20 rounded-md border overflow-hidden">
+											<div className="flex items-center justify-between mb-2">
+												<h4 className="text-sm font-medium truncate">Filter by Time</h4>
+												{selectedGlobalDayNight && (
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={() => onGlobalDayNightChange(null)}
+														className="h-6 px-2 text-xs flex-shrink-0"
+													>
+														Clear
+													</Button>
+												)}
+											</div>
+											<ToggleGroup
+												type="single"
+												value={selectedGlobalDayNight || ""}
+												onValueChange={(value) => onGlobalDayNightChange(value === "" ? null : value as DayNightPeriod)}
+												className="w-full grid grid-cols-2 gap-1 sm:gap-2"
+											>
+												<ToggleGroupItem 
+													value="day" 
+													size="sm" 
+													className="text-xs px-2 py-2 sm:px-3 flex-1 justify-center min-w-0 truncate"
+												>
+													<span className="hidden sm:inline">☀️ Day</span>
+													<span className="sm:hidden">☀️ Day</span>
+												</ToggleGroupItem>
+												<ToggleGroupItem 
+													value="night" 
+													size="sm" 
+													className="text-xs px-2 py-2 sm:px-3 flex-1 justify-center min-w-0 truncate"
+												>
+													<span className="hidden sm:inline">🌙 Night</span>
+													<span className="sm:hidden">🌙 Night</span>
+												</ToggleGroupItem>
+											</ToggleGroup>
+											<p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+												{selectedGlobalDayNight 
+													? <span className="hidden sm:inline">{`Showing ${selectedGlobalDayNight} events across all days. Individual day filters are disabled.`}</span>
+													: <span className="hidden sm:inline">Select to filter events globally by time, or use individual day filters below.</span>
+												}
+												{selectedGlobalDayNight 
+													? <span className="sm:hidden">{`${selectedGlobalDayNight} events only`}</span>
+													: <span className="sm:hidden">Global or per-day filters</span>
+												}
+											</p>
+										</div>
+
 										<div className="space-y-2">
 											<div className="grid grid-cols-2 gap-2">
 												{EVENT_DAYS.map(({ key, label, color }) => (
@@ -431,14 +559,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														<Toggle
 															pressed={selectedDays.includes(key)}
 															onPressedChange={() => onDayToggle(key)}
-															className="justify-start w-full h-8"
+															className={`justify-start w-full h-8 ${selectedGlobalDayNight ? 'opacity-50 pointer-events-none' : ''}`}
 															size="sm"
+															disabled={selectedGlobalDayNight !== null}
 														>
 															<div className={`w-2 h-2 rounded-full ${color} mr-1.5`} />
 															<span className="text-xs">{label}</span>
 														</Toggle>
 
-														{selectedDays.includes(key) && (
+														{selectedDays.includes(key) && !selectedGlobalDayNight && (
 															<div className="ml-4 flex flex-wrap gap-1">
 																{DAY_NIGHT_PERIODS.map(
 																	({ key: periodKey, label: periodLabel, icon }) => (
@@ -464,25 +593,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</div>
 
 									{/* Rest of desktop sections with compact styling */}
-									{/* Event Types */}
-									<div>
-										<h3 className="font-semibold mb-3">Event Types</h3>
-										<div className="space-y-1">
-											{EVENT_TYPES.map(({ key, label, icon }) => (
-												<Toggle
-													key={key}
-													pressed={selectedEventTypes.includes(key)}
-													onPressedChange={() => onEventTypeToggle(key)}
-													className="justify-start w-full h-8"
-													size="sm"
-												>
-													<span className="mr-1.5 text-sm">{icon}</span>
-													<span className="text-xs">{label}</span>
-												</Toggle>
-											))}
-										</div>
-									</div>
-
 									{/* Nationality */}
 									<div>
 										<h3 className="font-semibold mb-3">Nationality</h3>
@@ -549,6 +659,41 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												</span>
 												<span>€{PRICE_RANGE_CONFIG.max}+</span>
 											</div>
+										</div>
+									</div>
+
+									{/* Age Range */}
+									<div>
+										<h3 className="font-semibold mb-3">Age Range</h3>
+										<div className="space-y-2 px-1">
+											<Slider
+												value={selectedAgeRange || AGE_RANGE_CONFIG.defaultRange}
+												onValueChange={(value) => onAgeRangeChange(value as [number, number])}
+												min={AGE_RANGE_CONFIG.min}
+												max={AGE_RANGE_CONFIG.max}
+												step={AGE_RANGE_CONFIG.step}
+												className="w-full"
+												aria-label="Age range filter"
+											/>
+											<div className="flex justify-between text-xs text-muted-foreground">
+												<span>{AGE_RANGE_CONFIG.min} or less</span>
+												<span className="font-medium text-center">
+													{selectedAgeRange ? formatAgeRange(selectedAgeRange) : "All ages"}
+												</span>
+												<span>{AGE_RANGE_CONFIG.max}+</span>
+											</div>
+											{selectedAgeRange && (
+												<div className="flex justify-center">
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={resetAgeRange}
+														className="text-xs h-6 px-2"
+													>
+														Clear age filter
+													</Button>
+												</div>
+											)}
 										</div>
 									</div>
 
@@ -672,6 +817,50 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<AccordionContent>
 											{/* Compact Days Section for Accordion */}
 											<div className="space-y-3">
+												{/* Global Day/Night Filter */}
+												<div className="p-1.5 sm:p-2 bg-muted/20 rounded-md border overflow-hidden">
+													<div className="flex items-center justify-between mb-2">
+														<h4 className="text-xs font-medium truncate">Filter by Time</h4>
+														{selectedGlobalDayNight && (
+															<Button
+																variant="ghost"
+																size="sm"
+																onClick={() => onGlobalDayNightChange(null)}
+																className="h-5 px-1 text-xs flex-shrink-0"
+															>
+																Clear
+															</Button>
+														)}
+													</div>
+													<ToggleGroup
+														type="single"
+														value={selectedGlobalDayNight || ""}
+														onValueChange={(value) => onGlobalDayNightChange(value === "" ? null : value as DayNightPeriod)}
+														className="w-full grid grid-cols-2 gap-1"
+													>
+														<ToggleGroupItem 
+															value="day" 
+															size="sm" 
+															className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
+														>
+															☀️ Day
+														</ToggleGroupItem>
+														<ToggleGroupItem 
+															value="night" 
+															size="sm" 
+															className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
+														>
+															🌙 Night
+														</ToggleGroupItem>
+													</ToggleGroup>
+													<p className="text-xs text-muted-foreground mt-1 leading-tight">
+														{selectedGlobalDayNight 
+															? `${selectedGlobalDayNight} events only`
+															: "Global or per-day filters"
+														}
+													</p>
+												</div>
+
 												<div className="grid grid-cols-2 gap-2">
 													{EVENT_DAYS.map(({ key, label, color }) => (
 														<Toggle
@@ -679,14 +868,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															pressed={selectedDays.includes(key)}
 															onPressedChange={() => onDayToggle(key)}
 															size="sm"
-															className="text-xs justify-start"
+															className={`text-xs justify-start ${selectedGlobalDayNight ? 'opacity-50 pointer-events-none' : ''}`}
+															disabled={selectedGlobalDayNight !== null}
 														>
 															<div className={`w-2 h-2 rounded-full ${color} mr-1.5`} />
 															{label}
 														</Toggle>
 													))}
 												</div>
-												{selectedDays.length > 0 && (
+												{selectedDays.length > 0 && !selectedGlobalDayNight && (
 													<div className="flex flex-wrap gap-1">
 														{DAY_NIGHT_PERIODS.map(({ key, label, icon }) => (
 															<Toggle
@@ -735,6 +925,56 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										</TooltipProvider>
 									</div>
 
+									{/* Global Day/Night Filter */}
+									<div className="mb-4 p-2 sm:p-3 bg-muted/20 rounded-md border overflow-hidden">
+										<div className="flex items-center justify-between mb-2">
+											<h4 className="text-sm font-medium truncate">Filter by Time</h4>
+											{selectedGlobalDayNight && (
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => onGlobalDayNightChange(null)}
+													className="h-6 px-2 text-xs flex-shrink-0"
+												>
+													Clear
+												</Button>
+											)}
+										</div>
+										<ToggleGroup
+											type="single"
+											value={selectedGlobalDayNight || ""}
+											onValueChange={(value) => onGlobalDayNightChange(value === "" ? null : value as DayNightPeriod)}
+											className="w-full grid grid-cols-2 gap-1 sm:gap-2"
+										>
+											<ToggleGroupItem 
+												value="day" 
+												size="sm" 
+												className="text-xs px-2 py-2 sm:px-3 flex-1 justify-center min-w-0 truncate"
+											>
+												<span className="hidden sm:inline">☀️ Day</span>
+												<span className="sm:hidden">☀️ Day</span>
+											</ToggleGroupItem>
+											<ToggleGroupItem 
+												value="night" 
+												size="sm" 
+												className="text-xs px-2 py-2 sm:px-3 flex-1 justify-center min-w-0 truncate"
+											>
+												<span className="hidden sm:inline">🌙 Night</span>
+												<span className="sm:hidden">🌙 Night</span>
+											</ToggleGroupItem>
+										</ToggleGroup>
+										<p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+											{selectedGlobalDayNight 
+												? <span className="hidden sm:inline">{`Showing ${selectedGlobalDayNight} events across all days. Individual day filters are disabled.`}</span>
+												: <span className="hidden sm:inline">Select to filter events globally by time, or use individual day filters below.</span>
+											}
+											{selectedGlobalDayNight 
+												? <span className="sm:hidden">{`${selectedGlobalDayNight} events only`}</span>
+												: <span className="sm:hidden">Global or per-day filters</span>
+											}
+										</p>
+									</div>
+
 									<div className="space-y-2">
 										<div className="grid grid-cols-2 gap-2">
 											{EVENT_DAYS.map(({ key, label, color }) => (
@@ -742,14 +982,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													<Toggle
 														pressed={selectedDays.includes(key)}
 														onPressedChange={() => onDayToggle(key)}
-														className="justify-start w-full h-8"
+														className={`justify-start w-full h-8 ${selectedGlobalDayNight ? 'opacity-50 pointer-events-none' : ''}`}
 														size="sm"
+														disabled={selectedGlobalDayNight !== null}
 													>
 														<div className={`w-2 h-2 rounded-full ${color} mr-1.5`} />
 														<span className="text-xs">{label}</span>
 													</Toggle>
 
-													{selectedDays.includes(key) && (
+													{selectedDays.includes(key) && !selectedGlobalDayNight && (
 														<div className="ml-4 flex flex-wrap gap-1">
 															{DAY_NIGHT_PERIODS.map(
 																({ key: periodKey, label: periodLabel, icon }) => (
@@ -771,25 +1012,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												</div>
 											))}
 										</div>
-									</div>
-								</div>
-
-								{/* Event Types */}
-								<div>
-									<h3 className="font-semibold mb-3">Event Types</h3>
-									<div className="space-y-1">
-										{EVENT_TYPES.map(({ key, label, icon }) => (
-											<Toggle
-												key={key}
-												pressed={selectedEventTypes.includes(key)}
-												onPressedChange={() => onEventTypeToggle(key)}
-												className="justify-start w-full h-8"
-												size="sm"
-											>
-												<span className="mr-1.5 text-sm">{icon}</span>
-												<span className="text-xs">{label}</span>
-											</Toggle>
-										))}
 									</div>
 								</div>
 
@@ -859,6 +1081,41 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											</span>
 											<span>€{PRICE_RANGE_CONFIG.max}+</span>
 										</div>
+									</div>
+								</div>
+
+								{/* Age Range */}
+								<div>
+									<h3 className="font-semibold mb-3">Age Range</h3>
+									<div className="space-y-2 px-1">
+										<Slider
+											value={selectedAgeRange || AGE_RANGE_CONFIG.defaultRange}
+											onValueChange={(value) => onAgeRangeChange(value as [number, number])}
+											min={AGE_RANGE_CONFIG.min}
+											max={AGE_RANGE_CONFIG.max}
+											step={AGE_RANGE_CONFIG.step}
+											className="w-full"
+											aria-label="Age range filter"
+										/>
+										<div className="flex justify-between text-xs text-muted-foreground">
+											<span>{AGE_RANGE_CONFIG.min} or less</span>
+											<span className="font-medium text-center">
+												{selectedAgeRange ? formatAgeRange(selectedAgeRange) : "All ages"}
+											</span>
+											<span>{AGE_RANGE_CONFIG.max}+</span>
+										</div>
+										{selectedAgeRange && (
+											<div className="flex justify-center">
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={resetAgeRange}
+													className="text-xs h-6 px-2"
+												>
+													Clear age filter
+												</Button>
+											</div>
+										)}
 									</div>
 								</div>
 

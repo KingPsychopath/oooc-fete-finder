@@ -474,7 +474,8 @@ const isAfterParty = (name: string, startTime: string): boolean => {
 		const hourMatch = time.match(/(\d{1,2})/);
 		if (!hourMatch) return false;
 		const hours = parseInt(hourMatch[1]);
-		return hours >= 23 || hours <= 5;
+		// Align with day/night boundaries: Night starts at 10:00 PM (22:00)
+		return hours >= 22 || hours <= 5;
 	})();
 
 	return hasAfterPartyInName || isLateNight;
@@ -503,7 +504,7 @@ export const convertCSVRowToEvent = (
 ): Event => {
 	const eventType: EventType = isAfterParty(csvRow.name, csvRow.startTime)
 		? "After Party"
-		: "Block Party";
+		: "Day Party";
 	const time = convertToTime(csvRow.startTime);
 	const endTime = csvRow.endTime ? convertToTime(csvRow.endTime) : undefined;
 
