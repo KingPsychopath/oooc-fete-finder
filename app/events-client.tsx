@@ -59,8 +59,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	const [selectedPriceRange, setSelectedPriceRange] = useState<
 		[number, number]
 	>(PRICE_RANGE_CONFIG.defaultRange);
-	const [selectedGlobalDayNight, setSelectedGlobalDayNight] =
-		useState<DayNightPeriod | null>(null);
 	const [selectedAgeRange, setSelectedAgeRange] = useState<AgeRange | null>(
 		null,
 	);
@@ -88,26 +86,16 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 			// Filter by OOOC Picks
 			if (selectedOOOCPicks && event.isOOOCPick !== true) return false;
 
-			// Filter by global day/night preference first (overrides individual filters)
-			if (selectedGlobalDayNight) {
-				const matchesGlobalPeriod = isEventInDayNightPeriod(
-					event,
-					selectedGlobalDayNight,
-				);
-				if (!matchesGlobalPeriod) return false;
-			} else {
-				// Only apply individual day/night filters if no global filter is set
-				// Filter by selected days
-				if (selectedDays.length > 0 && !selectedDays.includes(event.day))
-					return false;
+			// Filter by selected days
+			if (selectedDays.length > 0 && !selectedDays.includes(event.day))
+				return false;
 
-				// Filter by day/night periods
-				if (selectedDayNightPeriods.length > 0) {
-					const hasMatchingPeriod = selectedDayNightPeriods.some((period) =>
-						isEventInDayNightPeriod(event, period),
-					);
-					if (!hasMatchingPeriod) return false;
-				}
+			// Filter by day/night periods
+			if (selectedDayNightPeriods.length > 0) {
+				const hasMatchingPeriod = selectedDayNightPeriods.some((period) =>
+					isEventInDayNightPeriod(event, period),
+				);
+				if (!hasMatchingPeriod) return false;
 			}
 
 			// Filter by selected arrondissements
@@ -196,7 +184,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		selectedAgeRange,
 		searchQuery,
 		events,
-		selectedGlobalDayNight,
 		selectedOOOCPicks,
 	]);
 
@@ -245,18 +232,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		setSelectedPriceRange(range);
 	}, []);
 
-	const handleGlobalDayNightChange = useCallback(
-		(period: DayNightPeriod | null) => {
-			setSelectedGlobalDayNight(period);
-			// When global filter is set, clear individual day/night filters to avoid conflicts
-			if (period !== null) {
-				setSelectedDays([]);
-				setSelectedDayNightPeriods([]);
-			}
-		},
-		[],
-	);
-
 	const handleAgeRangeChange = useCallback((range: AgeRange | null) => {
 		// If the range is set to the default full range, treat it as no filter
 		if (
@@ -278,7 +253,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		setSelectedNationalities([]);
 		setSelectedIndoorPreference(null);
 		setSelectedPriceRange(PRICE_RANGE_CONFIG.defaultRange);
-		setSelectedGlobalDayNight(null);
 		setSelectedAgeRange(null);
 		setSelectedOOOCPicks(false);
 		setSearchQuery("");
@@ -297,7 +271,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		selectedIndoorPreference !== null ||
 		selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 		selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
-		selectedGlobalDayNight !== null ||
 		(selectedAgeRange !== null &&
 			(selectedAgeRange[0] !== AGE_RANGE_CONFIG.min ||
 				selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)) ||
@@ -604,7 +577,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 												selectedArrondissements.length +
 												selectedGenres.length +
 												selectedNationalities.length +
-												(selectedGlobalDayNight !== null ? 1 : 0) +
 												(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
 													? 1
@@ -640,7 +612,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 						selectedNationalities={selectedNationalities}
 						selectedIndoorPreference={selectedIndoorPreference}
 						selectedPriceRange={selectedPriceRange}
-						selectedGlobalDayNight={selectedGlobalDayNight}
 						selectedAgeRange={selectedAgeRange}
 						selectedOOOCPicks={selectedOOOCPicks}
 						onDayToggle={handleDayToggle}
@@ -650,7 +621,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 						onNationalityToggle={handleNationalityToggle}
 						onIndoorPreferenceChange={handleIndoorPreferenceChange}
 						onPriceRangeChange={handlePriceRangeChange}
-						onGlobalDayNightChange={handleGlobalDayNightChange}
 						onAgeRangeChange={handleAgeRangeChange}
 						onOOOCPicksToggle={setSelectedOOOCPicks}
 						onClearFilters={handleClearFilters}
