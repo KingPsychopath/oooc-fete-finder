@@ -35,12 +35,13 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 	shareContainer.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
 	shareContainer.style.borderRadius = '24px';
 	shareContainer.style.padding = '24px';
-	shareContainer.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+	shareContainer.style.fontFamily = '"Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 	shareContainer.style.color = '#ffffff';
 	shareContainer.style.boxSizing = 'border-box';
 	shareContainer.style.display = 'flex';
 	shareContainer.style.flexDirection = 'column';
 	shareContainer.style.justifyContent = 'space-between';
+	shareContainer.style.position = 'relative';
 
 	// Create the HTML content for the shareable image
 	shareContainer.innerHTML = `
@@ -48,7 +49,7 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 			<!-- Header with badges -->
 			<div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px;">
 				<div style="display: flex; flex-direction: column; gap: 8px;">
-					${event.isOOOCPick ? '<div style="background: #fbbf24; color: #000000; padding: 8px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; width: fit-content;">⭐ OOOC PICK</div>' : ''}
+					${event.isOOOCPick ? '<div style="background: #fbbf24; color: #000000; padding: 10px 20px; border-radius: 16px; font-size: 11px; font-weight: 700; display: inline-block; text-align: center; letter-spacing: 0.5px; white-space: nowrap;">⭐ OOOC PICK</div>' : ''}
 				</div>
 				<div style="background: rgba(255,255,255,0.25); color: #ffffff; padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
 					${event.arrondissement === "unknown" ? "?" : `${event.arrondissement}e`}
@@ -56,10 +57,10 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 			</div>
 			
 			<!-- Event Title -->
-			<h1 style="font-size: 24px; font-weight: bold; margin: 0 0 20px 0; line-height: 1.1; color: #ffffff; word-wrap: break-word;">${event.name}</h1>
+			<h1 style="font-size: 26px; font-weight: 800; margin: 0 0 20px 0; line-height: 1.1; color: #ffffff; word-wrap: break-word; letter-spacing: -0.5px;">${event.name}</h1>
 			
 			<!-- Main Details Card -->
-			<div style="background: rgba(255,255,255,0.12); border-radius: 16px; padding: 20px; margin-bottom: 16px;">
+			<div style="background: rgba(255,255,255,0.12); border-radius: 16px; padding: 20px; margin-bottom: 16px; backdrop-filter: blur(10px);">
 				<div style="display: flex; align-items: center; margin-bottom: 12px;">
 					<div style="margin-right: 10px; font-size: 16px;">📅</div>
 					<span style="font-size: 14px; color: #ffffff; font-weight: 500;">${formatDayWithDate(event.day, event.date)}</span>
@@ -68,14 +69,14 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 				${event.time && event.time !== 'TBC' ? `
 					<div style="display: flex; align-items: center; margin-bottom: 12px;">
 						<div style="margin-right: 10px; font-size: 16px;">⏰</div>
-						<span style="font-size: 14px; font-family: monospace; color: #ffffff; font-weight: 500;">${event.time}${event.endTime && event.endTime !== 'TBC' ? ` - ${event.endTime}` : ''}</span>
+						<span style="font-size: 14px; font-family: 'JetBrains Mono', 'SF Mono', Monaco, monospace; color: #ffffff; font-weight: 500;">${event.time}${event.endTime && event.endTime !== 'TBC' ? ` - ${event.endTime}` : ''}</span>
 					</div>
 				` : ''}
 				
 				${event.location && event.location !== 'TBA' ? `
 					<div style="display: flex; align-items: center; margin-bottom: 12px;">
 						<div style="margin-right: 10px; font-size: 16px;">📍</div>
-						<span style="font-size: 13px; color: #ffffff; word-wrap: break-word; line-height: 1.3;">${event.location}</span>
+						<span style="font-size: 13px; color: #ffffff; word-wrap: break-word; line-height: 1.3; font-weight: 400;">${event.location}</span>
 					</div>
 				` : ''}
 				
@@ -102,8 +103,8 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 			<!-- Genre Tags -->
 			${event.genre && event.genre.length > 0 ? `
 				<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;">
-					${event.genre.slice(0, 3).map(genre => `
-						<div style="background: rgba(255,255,255,0.15); color: #ffffff; padding: 6px 12px; border-radius: 16px; font-size: 11px; white-space: nowrap; display: flex; align-items: center; gap: 4px;">
+					${event.genre.map(genre => `
+						<div style="background: rgba(255,255,255,0.15); color: #ffffff; padding: 6px 12px; border-radius: 16px; font-size: 11px; white-space: nowrap; display: flex; align-items: center; gap: 4px; font-weight: 500;">
 							<span>🎵</span> ${MUSIC_GENRES.find(g => g.key === genre)?.label || genre}
 						</div>
 					`).join('')}
@@ -114,7 +115,7 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 			${event.nationality && event.nationality.length > 0 ? `
 				<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;">
 					${event.nationality.slice(0, 3).map(nationality => `
-						<div style="background: rgba(255,255,255,0.15); color: #ffffff; padding: 6px 12px; border-radius: 16px; font-size: 11px; white-space: nowrap;">
+						<div style="background: rgba(255,255,255,0.15); color: #ffffff; padding: 6px 12px; border-radius: 16px; font-size: 11px; white-space: nowrap; font-weight: 500;">
 							${NATIONALITIES.find(n => n.key === nationality)?.flag} ${NATIONALITIES.find(n => n.key === nationality)?.shortCode || nationality}
 						</div>
 					`).join('')}
@@ -124,7 +125,7 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 			<!-- Environment Badge -->
 			${event.indoor !== undefined ? `
 				<div style="margin-bottom: 16px;">
-					<div style="background: rgba(255,255,255,0.15); color: #ffffff; padding: 6px 12px; border-radius: 16px; font-size: 11px; display: inline-block;">
+					<div style="background: rgba(255,255,255,0.15); color: #ffffff; padding: 6px 12px; border-radius: 16px; font-size: 11px; display: inline-block; white-space: nowrap; font-weight: 500;">
 						${event.indoor ? '🏢 Indoor' : '🌤️ Outdoor'}
 					</div>
 				</div>
@@ -133,8 +134,8 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 		
 		<!-- Footer Branding -->
 		<div style="text-align: center; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.25); margin-top: auto;">
-			<div style="font-size: 16px; font-weight: bold; margin-bottom: 4px; color: #ffffff;">OOOC Fête Finder</div>
-			<div style="font-size: 12px; opacity: 0.9; color: #ffffff;">Discover the best events in Paris</div>
+			<div style="font-size: 16px; font-weight: 700; margin-bottom: 4px; color: #ffffff; letter-spacing: 0.5px;">OOOC Fête Finder</div>
+			<div style="font-size: 12px; opacity: 0.9; color: #ffffff; font-weight: 400;">Discover the best events in Paris</div>
 		</div>
 	`;
 
