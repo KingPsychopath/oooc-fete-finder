@@ -60,6 +60,8 @@ type FilterPanelProps = {
 	onOOOCPicksToggle: (selected: boolean) => void;
 	onClearFilters: () => void;
 	availableArrondissements: ParisArrondissement[];
+	availableEventDays: EventDay[];
+	filteredEventsCount: number;
 	isOpen: boolean;
 	onClose: () => void;
 	onOpen?: () => void;
@@ -88,6 +90,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onOOOCPicksToggle,
 	onClearFilters,
 	availableArrondissements,
+	availableEventDays,
+	filteredEventsCount,
 	isOpen,
 	onClose,
 	onOpen,
@@ -189,6 +193,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			onClose();
 		}
 	});
+
+	// Filter EVENT_DAYS to only show days that are available in the events data
+	const filteredEventDays = useMemo(() => {
+		return EVENT_DAYS.filter(day => 
+			availableEventDays.includes(day.key) || day.key === "tbc"
+		);
+	}, [availableEventDays]);
 
 	// Active Filters Component (reusable)
 	const ActiveFiltersDisplay = () => (
@@ -367,6 +378,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										{activeFilterCount} active
 									</Badge>
 								)}
+								<Badge variant="outline" className="ml-2 text-xs">
+									{filteredEventsCount} result{filteredEventsCount !== 1 ? 's' : ''}
+								</Badge>
 							</CardTitle>
 							<div className="flex items-center space-x-2">
 								{hasActiveFilters && (
@@ -459,7 +473,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Days */}
 												<div className="grid grid-cols-2 gap-1">
-													{EVENT_DAYS.map(({ key, label, color }) => (
+													{filteredEventDays.map(({ key, label, color }) => (
 														<Toggle
 															key={key}
 															pressed={selectedDays.includes(key)}
@@ -797,6 +811,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									{activeFilterCount} active
 								</Badge>
 							)}
+							<Badge variant="outline" className="ml-2 text-xs">
+								{filteredEventsCount} result{filteredEventsCount !== 1 ? 's' : ''}
+							</Badge>
 						</CardTitle>
 						<div className="flex items-center space-x-2">
 							{hasActiveFilters && (
@@ -873,7 +890,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Days */}
 												<div className="grid grid-cols-2 gap-2">
-													{EVENT_DAYS.map(({ key, label, color }) => (
+													{filteredEventDays.map(({ key, label, color }) => (
 														<Toggle
 															key={key}
 															pressed={selectedDays.includes(key)}
@@ -951,7 +968,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 										{/* Days */}
 										<div className="grid grid-cols-2 gap-2">
-											{EVENT_DAYS.map(({ key, label, color }) => (
+											{filteredEventDays.map(({ key, label, color }) => (
 												<div key={key} className="space-y-1">
 													<Toggle
 														pressed={selectedDays.includes(key)}

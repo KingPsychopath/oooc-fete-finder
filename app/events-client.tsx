@@ -95,6 +95,14 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		}) as ParisArrondissement[];
 	}, [events]);
 
+	// Get available event days from the events data
+	const availableEventDays = useMemo(() => {
+		const days = new Set(events.map((event) => event.day));
+		return Array.from(days).filter((day): day is EventDay => 
+			day !== undefined
+		);
+	}, [events]);
+
 	// Filter events based on selected filters and search query
 	const filteredEvents = useMemo(() => {
 		return events.filter((event) => {
@@ -449,6 +457,8 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 					onOOOCPicksToggle={setSelectedOOOCPicks}
 					onClearFilters={handleClearFilters}
 					availableArrondissements={availableArrondissements}
+					availableEventDays={availableEventDays}
+					filteredEventsCount={filteredEvents.length}
 					isOpen={isFilterOpen}
 					onClose={() => setIsFilterOpen(false)}
 					onOpen={() => setIsFilterOpen(true)}

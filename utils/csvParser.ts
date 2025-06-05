@@ -202,16 +202,20 @@ const convertToEventDay = (dateStr: string): EventDay => {
 
 	// Handle explicit day names first
 	const explicitDayMapping = {
+		monday: "monday" as const,
+		tuesday: "tuesday" as const,
+		wednesday: "wednesday" as const,
 		thursday: "thursday" as const,
 		friday: "friday" as const,
 		saturday: "saturday" as const,
 		sunday: "sunday" as const,
-		monday: "monday" as const,
+		mon: "monday" as const,
+		tue: "tuesday" as const,
+		wed: "wednesday" as const,
 		thu: "thursday" as const,
 		fri: "friday" as const,
 		sat: "saturday" as const,
 		sun: "sunday" as const,
-		mon: "monday" as const,
 	};
 
 	// Check for explicit day names in the string
@@ -236,8 +240,8 @@ const convertToEventDay = (dateStr: string): EventDay => {
 			const dayMapping = {
 				0: "sunday" as const,    // Sunday
 				1: "monday" as const,    // Monday  
-				2: "tbc" as const,       // Tuesday (not in our event days)
-				3: "tbc" as const,       // Wednesday (not in our event days) 
+				2: "tuesday" as const,   // Tuesday
+				3: "wednesday" as const, // Wednesday
 				4: "thursday" as const,  // Thursday
 				5: "friday" as const,    // Friday
 				6: "saturday" as const,  // Saturday

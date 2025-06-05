@@ -1,5 +1,5 @@
 // Strict type definitions for enhanced event categorization
-export type EventDay = "thursday" | "friday" | "saturday" | "sunday" | "monday" | "tbc";
+export type EventDay = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday" | "tbc";
 
 export type DayNightPeriod = "day" | "night";
 
@@ -141,11 +141,13 @@ export type MapViewport = {
 };
 
 export const EVENT_DAYS = [
+	{ key: "monday" as const, label: "Monday", color: "bg-purple-500" },
+	{ key: "tuesday" as const, label: "Tuesday", color: "bg-pink-500" },
+	{ key: "wednesday" as const, label: "Wednesday", color: "bg-rose-500" },
 	{ key: "thursday" as const, label: "Thursday", color: "bg-indigo-500" },
 	{ key: "friday" as const, label: "Friday", color: "bg-blue-500" },
 	{ key: "saturday" as const, label: "Saturday", color: "bg-green-500" },
 	{ key: "sunday" as const, label: "Sunday", color: "bg-orange-500" },
-	{ key: "monday" as const, label: "Monday", color: "bg-purple-500" },
 	{ key: "tbc" as const, label: "TBC", color: "bg-gray-500" },
 ] as const;
 
