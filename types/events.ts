@@ -91,6 +91,7 @@ export type Event = {
 	price?: string; // Price information from CSV
 	age?: string; // Age restrictions from CSV
 	isOOOCPick?: boolean; // 🌟 indicator from CSV
+	isFeatured?: boolean; // Manual override for featured events in preview section
 	nationality?: Nationality; // GB/FR indicator from CSV
 	// Legacy field for backwards compatibility
 	category?: EventCategory;

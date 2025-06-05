@@ -23,6 +23,7 @@ export const EVENTS_DATA: Event[] = [
 		genre: ["pop", "afrobeats"],
 		indoor: false,
 		verified: false,
+		isFeatured: true,
 		category: "electronic",
 	},
 	{
@@ -413,6 +414,7 @@ export const EVENTS_DATA: Event[] = [
 		genre: ["soca", "pop"],
 		indoor: false,
 		verified: false,
+		isFeatured: true,
 		category: "cruise",
 	},
 
