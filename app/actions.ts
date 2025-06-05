@@ -2,8 +2,9 @@
 
 import { promises as fs } from "fs";
 import path from "path";
+import Papa from "papaparse";
 import { parseCSVContent, convertCSVRowToEvent } from "@/utils/csvParser";
-import type { Event } from "@/types/events";
+import { Event, EventDay, MusicGenre, Nationality, VenueType } from "@/types/events";
 
 // Cache the events data in memory
 let cachedEvents: Event[] | null = null;
@@ -73,5 +74,54 @@ export async function getEvents(): Promise<{
 			cached: false,
 			error: error instanceof Error ? error.message : "Unknown error",
 		};
+	}
+}
+
+// Email authentication server action
+export async function authenticateUser(formData: FormData) {
+	"use server";
+	
+	const email = formData.get("email") as string;
+	const consent = formData.get("consent") === "true";
+	
+	// Validation
+	if (!email) {
+		return { success: false, error: "Email is required" };
+	}
+	
+	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+	if (!emailRegex.test(email)) {
+		return { success: false, error: "Invalid email address" };
+	}
+	
+	if (!consent) {
+		return { success: false, error: "Consent is required" };
+	}
+	
+	try {
+		// Log the authentication with consent info
+		console.log("User authenticated:", {
+			email,
+			consent,
+			timestamp: new Date().toISOString(),
+			source: 'fete-finder-auth'
+		});
+		
+		// Here you would typically:
+		// await storeEmailWithConsent({
+		//   email,
+		//   consentGiven: true,
+		//   consentTimestamp: new Date(),
+		//   source: 'fete-finder-auth'
+		// });
+		
+		return { 
+			success: true, 
+			message: "Email collected with consent",
+			email 
+		};
+	} catch (error) {
+		console.error("Error processing email:", error);
+		return { success: false, error: "Something went wrong. Please try again." };
 	}
 }

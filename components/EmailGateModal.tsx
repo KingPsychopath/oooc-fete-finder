@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail, Lock } from "lucide-react";
+import { authenticateUser } from "@/app/actions";
 
 type EmailGateModalProps = {
 	isOpen: boolean;
@@ -34,7 +35,7 @@ const EmailGateModal = ({
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-
+		
 		if (!email.trim()) {
 			setError("Please enter your email address");
 			return;
@@ -54,22 +55,18 @@ const EmailGateModal = ({
 		setError("");
 
 		try {
-			// Optional: Send email to backend API
-			try {
-				await fetch("/api/auth", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({ email, consent: true }),
-				});
-			} catch (apiError) {
-				// If API fails, we still proceed with local storage
-				console.warn("Failed to store email in backend:", apiError);
+			// Use server action instead of API endpoint
+			const formData = new FormData();
+			formData.append("email", email);
+			formData.append("consent", "true");
+			
+			const result = await authenticateUser(formData);
+			
+			if (result.success) {
+				onEmailSubmit(email);
+			} else {
+				setError(result.error || "Something went wrong. Please try again.");
 			}
-
-			// Proceed with local authentication
-			onEmailSubmit(email);
 		} catch {
 			setError("Something went wrong. Please try again.");
 		} finally {
@@ -137,7 +134,10 @@ const EmailGateModal = ({
 						</div>
 						<button
 							type="button"
-							onClick={() => window.open("/privacy", "_blank")}
+							onClick={() => {
+								// Use relative navigation which works with any base path
+								window.open("./privacy", "_blank");
+							}}
 							className="text-xs text-primary underline hover:no-underline ml-6"
 						>
 							Read our Privacy Policy
