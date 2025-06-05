@@ -11,6 +11,14 @@ let cachedEvents: Event[] | null = null;
 let lastFetchTime = 0;
 const CACHE_DURATION = 3600 * 1000; // 1 hour in milliseconds
 
+// Simple in-memory email storage (will reset on deployment, but good for development)
+const collectedEmails: Array<{
+	email: string;
+	timestamp: string;
+	consent: boolean;
+	source: string;
+}> = [];
+
 export async function getEvents(): Promise<{
 	success: boolean;
 	data: Event[];
@@ -77,6 +85,36 @@ export async function getEvents(): Promise<{
 	}
 }
 
+// Optional Google Sheets integration
+async function sendToGoogleSheets(emailRecord: {
+	email: string;
+	consent: boolean;
+	timestamp: string;
+	source: string;
+}) {
+	// Only run if Google Sheets credentials are provided
+	if (!process.env.GOOGLE_SHEETS_URL) {
+		return;
+	}
+
+	try {
+		// Google Apps Script Web App URL (you'll create this)
+		const response = await fetch(process.env.GOOGLE_SHEETS_URL, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(emailRecord),
+		});
+
+		if (response.ok) {
+			console.log('Email sent to Google Sheets successfully');
+		}
+	} catch (error) {
+		console.error('Failed to send to Google Sheets:', error);
+	}
+}
+
 // Email authentication server action
 export async function authenticateUser(formData: FormData) {
 	"use server";
@@ -99,21 +137,21 @@ export async function authenticateUser(formData: FormData) {
 	}
 	
 	try {
-		// Log the authentication with consent info
-		console.log("User authenticated:", {
+		// Store email in memory
+		const emailRecord = {
 			email,
 			consent,
 			timestamp: new Date().toISOString(),
 			source: 'fete-finder-auth'
-		});
+		};
 		
-		// Here you would typically:
-		// await storeEmailWithConsent({
-		//   email,
-		//   consentGiven: true,
-		//   consentTimestamp: new Date(),
-		//   source: 'fete-finder-auth'
-		// });
+		collectedEmails.push(emailRecord);
+		
+		// Log the authentication with consent info
+		console.log("User authenticated:", emailRecord);
+		
+		// Optionally send to Google Sheets
+		await sendToGoogleSheets(emailRecord);
 		
 		return { 
 			success: true, 
@@ -124,4 +162,22 @@ export async function authenticateUser(formData: FormData) {
 		console.error("Error processing email:", error);
 		return { success: false, error: "Something went wrong. Please try again." };
 	}
+}
+
+// Admin function to get collected emails
+export async function getCollectedEmails(adminKey?: string) {
+	"use server";
+	
+	// Simple protection - you can set this as an environment variable
+	const expectedKey = process.env.ADMIN_KEY || "your-secret-key-123";
+	
+	if (adminKey !== expectedKey) {
+		return { success: false, error: "Unauthorized" };
+	}
+	
+	return {
+		success: true,
+		emails: collectedEmails,
+		count: collectedEmails.length
+	};
 }
