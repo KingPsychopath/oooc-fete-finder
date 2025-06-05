@@ -67,37 +67,12 @@ const Countdown: React.FC = () => {
 		return () => clearInterval(timer);
 	}, [calculateCountdown]);
 
-	// Show static message during SSR and initial hydration
+	// Show static placeholder during SSR and initial hydration to prevent mismatches
 	if (!mounted) {
-		// Calculate approximate countdown for static display (no seconds to avoid hydration mismatch)
-		const now = new Date();
-		const difference = eventDate.getTime() - now.getTime();
-
-		if (difference <= 0) {
-			return (
-				<div className="text-center">
-					<div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium font-mono min-w-[280px] justify-center">
-						🎉 C'est aujourd'hui ! Fête de la Musique is happening now! 🎊
-					</div>
-				</div>
-			);
-		}
-
-		const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-		const hours = Math.floor(
-			(difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
-		);
-		const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-
-		const parts = [];
-		if (days > 0) parts.push(`${days}d`);
-		if (hours > 0) parts.push(`${hours}h`);
-		if (minutes > 0) parts.push(`${minutes}m`);
-
 		return (
 			<div className="text-center">
 				<div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium font-mono min-w-[280px] justify-center">
-					⏰ {parts.join(" ")} until Saturday, June 21st
+					⏰ Loading countdown...
 				</div>
 			</div>
 		);
