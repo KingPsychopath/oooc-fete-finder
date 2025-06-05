@@ -25,6 +25,7 @@ import {
 	DAY_NIGHT_PERIODS,
 	MUSIC_GENRES,
 	NATIONALITIES,
+	VENUE_TYPES,
 	PRICE_RANGE_CONFIG,
 	formatPriceRange,
 	AGE_RANGE_CONFIG,
@@ -33,6 +34,7 @@ import {
 	type DayNightPeriod,
 	type MusicGenre,
 	type Nationality,
+	type VenueType,
 	type ParisArrondissement,
 	type AgeRange,
 } from "@/types/events";
@@ -45,6 +47,7 @@ type FilterPanelProps = {
 	selectedArrondissements: ParisArrondissement[];
 	selectedGenres: MusicGenre[];
 	selectedNationalities: Nationality[];
+	selectedVenueTypes: VenueType[];
 	selectedIndoorPreference: boolean | null;
 	selectedPriceRange: [number, number];
 	selectedAgeRange: AgeRange | null;
@@ -54,6 +57,7 @@ type FilterPanelProps = {
 	onArrondissementToggle: (arrondissement: ParisArrondissement) => void;
 	onGenreToggle: (genre: MusicGenre) => void;
 	onNationalityToggle: (nationality: Nationality) => void;
+	onVenueTypeToggle: (venueType: VenueType) => void;
 	onIndoorPreferenceChange: (preference: boolean | null) => void;
 	onPriceRangeChange: (range: [number, number]) => void;
 	onAgeRangeChange: (range: AgeRange | null) => void;
@@ -75,6 +79,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	selectedArrondissements,
 	selectedGenres,
 	selectedNationalities,
+	selectedVenueTypes,
 	selectedIndoorPreference,
 	selectedPriceRange,
 	selectedAgeRange,
@@ -84,6 +89,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onArrondissementToggle,
 	onGenreToggle,
 	onNationalityToggle,
+	onVenueTypeToggle,
 	onIndoorPreferenceChange,
 	onPriceRangeChange,
 	onAgeRangeChange,
@@ -123,6 +129,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedArrondissements.length > 0 ||
 			selectedGenres.length > 0 ||
 			selectedNationalities.length > 0 ||
+			selectedVenueTypes.length > 0 ||
 			selectedIndoorPreference !== null ||
 			selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
@@ -136,6 +143,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedArrondissements,
 			selectedGenres,
 			selectedNationalities,
+			selectedVenueTypes,
 			selectedIndoorPreference,
 			selectedPriceRange,
 			selectedAgeRange,
@@ -151,6 +159,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedArrondissements.length +
 			selectedGenres.length +
 			selectedNationalities.length +
+			selectedVenueTypes.length +
 			(selectedIndoorPreference !== null ? 1 : 0) +
 			(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
@@ -169,6 +178,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		selectedArrondissements,
 		selectedGenres,
 		selectedNationalities,
+		selectedVenueTypes,
 		selectedIndoorPreference,
 		selectedPriceRange,
 		selectedAgeRange,
@@ -260,6 +270,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									size="sm"
 									className="h-auto p-0 ml-1 hover:bg-transparent"
 									onClick={() => onNationalityToggle(nationality)}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						))}
+						{selectedVenueTypes.map((venueType) => (
+							<Badge key={venueType} variant="secondary" className="text-xs">
+								{VENUE_TYPES.find((v) => v.key === venueType)?.icon} {VENUE_TYPES.find((v) => v.key === venueType)?.label}
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={() => onVenueTypeToggle(venueType)}
 								>
 									<X className="h-3 w-3" />
 								</Button>
@@ -607,7 +630,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									<AccordionItem value="preferences">
 										<AccordionTrigger className="text-sm font-medium">
 											Preferences
-											{(selectedIndoorPreference !== null ||
+											{(selectedVenueTypes.length > 0 ||
+												selectedIndoorPreference !== null ||
 												selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
 												selectedAgeRange !== null ||
@@ -615,6 +639,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												<Badge variant="secondary" className="ml-2 text-xs">
 													{
 														[
+															selectedVenueTypes.length > 0,
 															selectedIndoorPreference !== null,
 															selectedPriceRange[0] !==
 																PRICE_RANGE_CONFIG.min ||
@@ -650,32 +675,38 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Venue Type */}
 												<div>
-													<h3 className="font-medium text-sm mb-2">
-														Venue Type
-													</h3>
+													<h3 className="font-semibold mb-3">Venue Type</h3>
 													<div className="grid grid-cols-2 gap-1">
-														<Toggle
-															pressed={selectedIndoorPreference === true}
-															onPressedChange={(pressed) => {
-																onIndoorPreferenceChange(pressed ? true : null);
-															}}
-															className="justify-start w-full h-7"
-															size="sm"
-														>
-															<span className="text-xs">🏢 Indoor</span>
-														</Toggle>
-														<Toggle
-															pressed={selectedIndoorPreference === false}
-															onPressedChange={(pressed) => {
-																onIndoorPreferenceChange(
-																	pressed ? false : null,
-																);
-															}}
-															className="justify-start w-full h-7"
-															size="sm"
-														>
-															<span className="text-xs">🌤️ Outdoor</span>
-														</Toggle>
+														{VENUE_TYPES.map(({ key, label, icon }) => (
+															<Toggle
+																key={key}
+																pressed={selectedVenueTypes.includes(key)}
+																onPressedChange={() => onVenueTypeToggle(key)}
+																className="justify-start w-full h-8"
+																size="sm"
+															>
+																<span className="text-xs">{icon} {label}</span>
+															</Toggle>
+														))}
+													</div>
+												</div>
+
+												{/* Nationality */}
+												<div>
+													<h3 className="font-semibold mb-3">Nationality</h3>
+													<div className="grid grid-cols-2 gap-1">
+														{NATIONALITIES.map(({ key, flag, shortCode }) => (
+															<Toggle
+																key={key}
+																pressed={selectedNationalities.includes(key)}
+																onPressedChange={() => onNationalityToggle(key)}
+																className="justify-start w-full h-8"
+																size="sm"
+															>
+																<span className="mr-1.5 text-sm">{flag}</span>
+																<span className="text-xs">{shortCode}</span>
+															</Toggle>
+														))}
 													</div>
 												</div>
 
@@ -1001,6 +1032,24 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</Toggle>
 								</div>
 
+								{/* Venue Type */}
+								<div>
+									<h3 className="font-semibold mb-3">Venue Type</h3>
+									<div className="grid grid-cols-2 gap-1">
+										{VENUE_TYPES.map(({ key, label, icon }) => (
+											<Toggle
+												key={key}
+												pressed={selectedVenueTypes.includes(key)}
+												onPressedChange={() => onVenueTypeToggle(key)}
+												className="justify-start w-full h-8"
+												size="sm"
+											>
+												<span className="text-xs">{icon} {label}</span>
+											</Toggle>
+										))}
+									</div>
+								</div>
+
 								{/* Nationality */}
 								<div>
 									<h3 className="font-semibold mb-3">Nationality</h3>
@@ -1017,33 +1066,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												<span className="text-xs">{shortCode}</span>
 											</Toggle>
 										))}
-									</div>
-								</div>
-
-								{/* Venue Type */}
-								<div>
-									<h3 className="font-semibold mb-3">Venue Type</h3>
-									<div className="space-y-1">
-										<Toggle
-											pressed={selectedIndoorPreference === true}
-											onPressedChange={(pressed) => {
-												onIndoorPreferenceChange(pressed ? true : null);
-											}}
-											className="justify-start w-full h-8"
-											size="sm"
-										>
-											<span className="text-xs">🏢 Indoor</span>
-										</Toggle>
-										<Toggle
-											pressed={selectedIndoorPreference === false}
-											onPressedChange={(pressed) => {
-												onIndoorPreferenceChange(pressed ? false : null);
-											}}
-											className="justify-start w-full h-8"
-											size="sm"
-										>
-											<span className="text-xs">🌤️ Outdoor</span>
-										</Toggle>
 									</div>
 								</div>
 

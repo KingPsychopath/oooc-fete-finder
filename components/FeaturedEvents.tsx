@@ -10,6 +10,7 @@ import {
 	formatPrice,
 	formatAge,
 	formatDayWithDate,
+	formatVenueTypeIcons,
 	MUSIC_GENRES,
 	NATIONALITIES,
 	type Event,
@@ -180,7 +181,7 @@ export function FeaturedEvents({
 											{event.location}
 										</span>
 										<span className="flex-shrink-0">
-											{event.indoor ? "🏢" : "🌤️"}
+											{formatVenueTypeIcons(event)}
 										</span>
 									</div>
 								)}

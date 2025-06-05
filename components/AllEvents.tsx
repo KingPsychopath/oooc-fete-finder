@@ -9,6 +9,7 @@ import {
 	formatPrice,
 	formatAge,
 	formatDayWithDate,
+	formatVenueTypeIcons,
 	MUSIC_GENRES,
 	NATIONALITIES,
 	type Event,
@@ -93,7 +94,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 													{event.location}
 												</span>
 												<span className="flex-shrink-0">
-													{event.indoor ? "🏢" : "🌤️"}
+													{formatVenueTypeIcons(event)}
 												</span>
 											</div>
 										)}

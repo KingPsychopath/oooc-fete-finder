@@ -7,6 +7,8 @@ import {
 	formatAge,
 	MUSIC_GENRES,
 	NATIONALITIES,
+	formatVenueTypeIcons,
+	VENUE_TYPES,
 } from "@/types/events";
 
 type ShareableImageGeneratorProps = {
@@ -155,7 +157,13 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 			` : ''}
 
 			<!-- Environment Badge -->
-			${event.indoor !== undefined ? `
+			${event.venueTypes && event.venueTypes.length > 0 ? `
+				<div style="margin-bottom: 16px;">
+					<div style="background: rgba(255,255,255,0.15); color: #ffffff; padding: 6px 12px; border-radius: 16px; font-size: 11px; display: inline-block; white-space: nowrap; font-weight: 500;">
+						${formatVenueTypeIcons(event)} ${event.venueTypes.map(vt => VENUE_TYPES.find(v => v.key === vt)?.label).filter(Boolean).join(' & ')}
+					</div>
+				</div>
+			` : event.indoor !== undefined ? `
 				<div style="margin-bottom: 16px;">
 					<div style="background: rgba(255,255,255,0.15); color: #ffffff; padding: 6px 12px; border-radius: 16px; font-size: 11px; display: inline-block; white-space: nowrap; font-weight: 500;">
 						${event.indoor ? '🏢 Indoor' : '🌤️ Outdoor'}

@@ -26,6 +26,7 @@ import {
 	type DayNightPeriod,
 	type MusicGenre,
 	type Nationality,
+	type VenueType,
 	type ParisArrondissement,
 	type AgeRange,
 } from "@/types/events";
@@ -68,6 +69,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	const [selectedNationalities, setSelectedNationalities] = useState<
 		Nationality[]
 	>([]);
+	const [selectedVenueTypes, setSelectedVenueTypes] = useState<VenueType[]>([]);
 	const [selectedIndoorPreference, setSelectedIndoorPreference] = useState<
 		boolean | null
 	>(null);
@@ -137,18 +139,56 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 			}
 
 			// Filter by selected nationalities
-			if (selectedNationalities.length > 0) {
-				if (!event.nationality || event.nationality.length === 0) return false;
-
-				const hasMatchingNationality = event.nationality.some((nationality) =>
-					selectedNationalities.includes(nationality),
-				);
-				if (!hasMatchingNationality) return false;
+			if (
+				selectedNationalities.length > 0 &&
+				(!event.nationality ||
+					!selectedNationalities.some((nationality) =>
+						event.nationality?.includes(nationality),
+					))
+			) {
+				return false;
 			}
 
-			// Filter by indoor preference
+			// Filter by venue types
+			if (selectedVenueTypes.length > 0) {
+				// Check if event has the new venueTypes field
+				if (event.venueTypes && event.venueTypes.length > 0) {
+					if (!selectedVenueTypes.some((vt) => event.venueTypes.includes(vt))) {
+						return false;
+					}
+				} else {
+					// Fallback to legacy indoor field
+					const hasIndoor = selectedVenueTypes.includes("indoor");
+					const hasOutdoor = selectedVenueTypes.includes("outdoor");
+					if (hasIndoor && hasOutdoor) {
+						// If both selected, show all events
+						// No filtering needed
+					} else if (hasIndoor && !event.indoor) {
+						return false;
+					} else if (hasOutdoor && event.indoor) {
+						return false;
+					}
+				}
+			}
+
+			// Legacy indoor preference filter (for backwards compatibility)
 			if (selectedIndoorPreference !== null) {
-				if (selectedIndoorPreference !== event.indoor) return false;
+				if (event.venueTypes && event.venueTypes.length > 0) {
+					// Use new venueTypes field
+					const hasIndoor = event.venueTypes.includes("indoor");
+					const hasOutdoor = event.venueTypes.includes("outdoor");
+					if (selectedIndoorPreference && !hasIndoor) {
+						return false;
+					}
+					if (!selectedIndoorPreference && !hasOutdoor) {
+						return false;
+					}
+				} else {
+					// Fallback to legacy indoor field
+					if (event.indoor !== selectedIndoorPreference) {
+						return false;
+					}
+				}
 			}
 
 			// Filter by price range
@@ -203,6 +243,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		selectedArrondissements,
 		selectedGenres,
 		selectedNationalities,
+		selectedVenueTypes,
 		selectedIndoorPreference,
 		selectedPriceRange,
 		selectedAgeRange,
@@ -248,6 +289,14 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		);
 	};
 
+	const handleVenueTypeToggle = (venueType: VenueType) => {
+		setSelectedVenueTypes((prev) =>
+			prev.includes(venueType)
+				? prev.filter((v) => v !== venueType)
+				: [...prev, venueType],
+		);
+	};
+
 	const handleIndoorPreferenceChange = (preference: boolean | null) => {
 		setSelectedIndoorPreference(preference);
 	};
@@ -275,6 +324,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		setSelectedArrondissements([]);
 		setSelectedGenres([]);
 		setSelectedNationalities([]);
+		setSelectedVenueTypes([]);
 		setSelectedIndoorPreference(null);
 		setSelectedPriceRange(PRICE_RANGE_CONFIG.defaultRange);
 		setSelectedAgeRange(null);
@@ -300,6 +350,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		selectedArrondissements.length > 0 ||
 		selectedGenres.length > 0 ||
 		selectedNationalities.length > 0 ||
+		selectedVenueTypes.length > 0 ||
 		selectedIndoorPreference !== null ||
 		selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 		selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
@@ -379,6 +430,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 												selectedArrondissements.length +
 												selectedGenres.length +
 												selectedNationalities.length +
+												selectedVenueTypes.length +
 												(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
 													? 1
@@ -442,6 +494,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 					selectedArrondissements={selectedArrondissements}
 					selectedGenres={selectedGenres}
 					selectedNationalities={selectedNationalities}
+					selectedVenueTypes={selectedVenueTypes}
 					selectedIndoorPreference={selectedIndoorPreference}
 					selectedPriceRange={selectedPriceRange}
 					selectedAgeRange={selectedAgeRange}
@@ -451,6 +504,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 					onArrondissementToggle={handleArrondissementToggle}
 					onGenreToggle={handleGenreToggle}
 					onNationalityToggle={handleNationalityToggle}
+					onVenueTypeToggle={handleVenueTypeToggle}
 					onIndoorPreferenceChange={handleIndoorPreferenceChange}
 					onPriceRangeChange={handlePriceRangeChange}
 					onAgeRangeChange={handleAgeRangeChange}

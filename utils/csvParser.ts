@@ -5,6 +5,7 @@ import type {
 	EventType,
 	ParisArrondissement,
 	Nationality,
+	VenueType,
 } from "@/types/events";
 import Papa from "papaparse";
 
@@ -35,6 +36,7 @@ const COLUMN_MAPPINGS = {
 	price: ["Price", "Cost", "price", "Ticket Price", "Entry"],
 	ticketLink: ["Ticket Link", "Link", "ticketLink", "URL", "Website"],
 	age: ["Age", "Age Limit", "age", "Age Restriction"],
+	indoorOutdoor: ["Indoor/Outdoor", "Indoor Outdoor", "Venue Type", "indoorOutdoor", "Type"],
 	notes: ["Notes", "Description", "notes", "Details", "Info"],
 } as const;
 
@@ -55,6 +57,7 @@ export type CSVEventRow = {
 	price: string;
 	ticketLink: string;
 	age: string;
+	indoorOutdoor: string;
 	notes: string;
 };
 
@@ -111,6 +114,7 @@ const createColumnMapping = (
 		price: findColumnName(headers, COLUMN_MAPPINGS.price),
 		ticketLink: findColumnName(headers, COLUMN_MAPPINGS.ticketLink),
 		age: findColumnName(headers, COLUMN_MAPPINGS.age),
+		indoorOutdoor: findColumnName(headers, COLUMN_MAPPINGS.indoorOutdoor),
 		notes: findColumnName(headers, COLUMN_MAPPINGS.notes),
 	};
 
@@ -174,6 +178,8 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 				ticketLink:
 					(columnMapping.ticketLink && row[columnMapping.ticketLink]) || "",
 				age: (columnMapping.age && row[columnMapping.age]) || "",
+				indoorOutdoor:
+					(columnMapping.indoorOutdoor && row[columnMapping.indoorOutdoor]) || "",
 				notes: (columnMapping.notes && row[columnMapping.notes]) || "",
 			};
 
@@ -554,6 +560,52 @@ const convertToISODate = (dateStr: string): string => {
 };
 
 /**
+ * Convert indoor/outdoor string to VenueType array
+ */
+const convertToVenueTypes = (indoorOutdoorStr: string): VenueType[] => {
+	if (!indoorOutdoorStr) {
+		// Default to indoor if no information available
+		return ["indoor"];
+	}
+
+	const cleaned = indoorOutdoorStr.toLowerCase().trim();
+	const venueTypes: VenueType[] = [];
+
+	// Split on newlines to handle multiline entries like "Indoor\nOutdoor"
+	const lines = cleaned.split(/\n/).map(line => line.trim());
+
+	// Check each line for venue type indicators
+	for (const line of lines) {
+		// Check for indoor indicators
+		if (line.includes("indoor")) {
+			if (!venueTypes.includes("indoor")) {
+				venueTypes.push("indoor");
+			}
+		}
+
+		// Check for outdoor indicators  
+		if (
+			line.includes("outdoor") ||
+			line.includes("open air") ||
+			line.includes("plein air") ||
+			line.includes("outside")
+		) {
+			if (!venueTypes.includes("outdoor")) {
+				venueTypes.push("outdoor");
+			}
+		}
+	}
+
+	// If no specific venue type found, try to infer from context
+	if (venueTypes.length === 0) {
+		// Default to indoor if no clear indication
+		venueTypes.push("indoor");
+	}
+
+	return venueTypes;
+};
+
+/**
  * Convert CSVEventRow to Event
  */
 export const convertCSVRowToEvent = (
@@ -565,6 +617,7 @@ export const convertCSVRowToEvent = (
 		: "Day Party";
 	const time = convertToTime(csvRow.startTime);
 	const endTime = csvRow.endTime ? convertToTime(csvRow.endTime) : undefined;
+	const venueTypes = convertToVenueTypes(csvRow.indoorOutdoor);
 
 	// Process the ticket links (can be multiple)
 	const processTicketLinks = (
@@ -617,10 +670,8 @@ export const convertCSVRowToEvent = (
 		description: csvRow.notes || `${csvRow.genre || "Music"} event`,
 		type: eventType,
 		genre: convertToMusicGenres(csvRow.genre),
-		indoor:
-			!csvRow.location.toLowerCase().includes("outdoor") &&
-			!csvRow.location.toLowerCase().includes("open air") &&
-			!csvRow.location.toLowerCase().includes("plein air"),
+		venueTypes,
+		indoor: venueTypes.includes("indoor"), // Backwards compatibility
 		verified: false,
 		price: csvRow.price || undefined,
 		age: csvRow.age || undefined,

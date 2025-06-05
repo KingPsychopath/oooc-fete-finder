@@ -8,6 +8,9 @@ export type EventType = "After Party" | "Day Party";
 // Host country type for GB/FR column
 export type Nationality = "UK" | "FR";
 
+// Venue type for Indoor/Outdoor column
+export type VenueType = "indoor" | "outdoor";
+
 // Expanded genre types based on CSV data
 export type MusicGenre =
 	| "amapiano"
@@ -86,7 +89,8 @@ export type Event = {
 	description?: string;
 	type: EventType;
 	genre: MusicGenre[];
-	indoor: boolean;
+	venueTypes: VenueType[]; // New field for venue types
+	indoor: boolean; // Deprecated: kept for backwards compatibility
 	verified: boolean;
 	price?: string; // Price information from CSV
 	age?: string; // Age restrictions from CSV
@@ -111,6 +115,7 @@ export type CSVEventRow = {
 	price: string;
 	ticketLink: string;
 	age: string;
+	indoorOutdoor: string; // New Indoor/Outdoor column
 	notes: string;
 };
 
@@ -130,7 +135,8 @@ export type EventFilters = {
 	arrondissements?: ParisArrondissement[];
 	eventTypes?: EventType[];
 	genres?: MusicGenre[];
-	indoor?: boolean | null; // null = both, true = indoor only, false = outdoor only
+	venueTypes?: VenueType[]; // New venue types filter
+	indoor?: boolean | null; // Deprecated: kept for backwards compatibility
 	searchTerm?: string;
 	priceRange?: [number, number]; // [min, max] price range
 };
@@ -514,6 +520,24 @@ export const formatAgeRange = (range: [number, number]): string => {
 	return `${min}-${max}`;
 };
 
+// Utility function to format venue type icons
+export const formatVenueTypeIcons = (event: Event): string => {
+	if (!event.venueTypes || event.venueTypes.length === 0) {
+		// Fallback to legacy indoor field
+		return event.indoor ? "🏢" : "🌤️";
+	}
+
+	// Map venue types to icons
+	const icons = event.venueTypes.map(venueType => {
+		const venueInfo = VENUE_TYPES.find(v => v.key === venueType);
+		return venueInfo?.icon || (venueType === "indoor" ? "🏢" : "🌤️");
+	});
+
+	// Remove duplicates and join
+	const uniqueIcons = [...new Set(icons)];
+	return uniqueIcons.join("");
+};
+
 // Utility function to format day with date number
 export const formatDayWithDate = (day: EventDay, isoDate: string): string => {
 	if (day === "tbc") return "TBC";
@@ -549,3 +573,8 @@ export const formatDayWithDate = (day: EventDay, isoDate: string): string => {
 
 	return `${capitalizedDay} ${dayNumber}${getOrdinalSuffix(dayNumber)}`;
 };
+
+export const VENUE_TYPES = [
+	{ key: "indoor" as const, label: "Indoor", icon: "🏢" },
+	{ key: "outdoor" as const, label: "Outdoor", icon: "🌤️" },
+] as const;
