@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import ClientBody from "./ClientBody";
 import Footer from "@/components/Footer";
+import { AuthProvider } from "@/lib/auth-context";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -75,8 +76,10 @@ export default function RootLayout({
 					enableSystem
 					disableTransitionOnChange
 				>
-					<ClientBody>{children}</ClientBody>
-					<Footer />
+					<AuthProvider>
+						<ClientBody>{children}</ClientBody>
+						<Footer />
+					</AuthProvider>
 				</ThemeProvider>
 			</body>
 		</html>

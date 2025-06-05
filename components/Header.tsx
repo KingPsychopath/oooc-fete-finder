@@ -1,14 +1,21 @@
-import { Music } from "lucide-react";
+"use client";
+
+import { Music, User, LogOut } from "lucide-react";
 import Image from "next/image";
 import Countdown from "@/components/Countdown";
 import { Clock } from "@/components/Clock";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import SlidingBanner from "@/components/SlidingBanner";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/lib/auth-context";
 
 // Get base path from environment variable
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const Header = () => {
+	const { isAuthenticated, userEmail, logout } = useAuth();
+
 	return (
 		<>
 			<header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
@@ -63,6 +70,24 @@ const Header = () => {
 
 						{/* Right - Controls */}
 						<div className="flex items-center justify-end space-x-4 flex-1">
+							{/* Authentication Status */}
+							{isAuthenticated && userEmail && (
+								<div className="hidden sm:flex items-center space-x-2">
+									<Badge variant="secondary" className="gap-1">
+										<User className="h-3 w-3" />
+										{userEmail.split('@')[0]}
+									</Badge>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={logout}
+										className="h-8 w-8 p-0"
+										title="Logout"
+									>
+										<LogOut className="h-4 w-4" />
+									</Button>
+								</div>
+							)}
 							<Clock />
 							<ThemeToggle />
 						</div>

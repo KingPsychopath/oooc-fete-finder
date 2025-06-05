@@ -8,6 +8,9 @@ import SearchBar from "@/components/SearchBar";
 import EventStats from "@/components/EventStats";
 import { FeaturedEvents } from "@/components/FeaturedEvents";
 import { AllEvents } from "@/components/AllEvents";
+import EmailGateModal from "@/components/EmailGateModal";
+import AuthGate from "@/components/AuthGate";
+import { useAuth } from "@/lib/auth-context";
 import {
 	getDayNightPeriod,
 	isEventInDayNightPeriod,
@@ -81,6 +84,10 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	);
 	const [selectedOOOCPicks, setSelectedOOOCPicks] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
+
+	// Authentication state
+	const { isAuthenticated, authenticate } = useAuth();
+	const [showEmailGate, setShowEmailGate] = useState(false);
 
 	// Ref for scrolling to all events section
 	const allEventsRef = useRef<HTMLDivElement>(null);
@@ -252,14 +259,31 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		selectedOOOCPicks,
 	]);
 
+	// Handle authentication requirement
+	const requireAuth = useCallback(() => {
+		if (!isAuthenticated) {
+			setShowEmailGate(true);
+			return false;
+		}
+		return true;
+	}, [isAuthenticated]);
+
+	// Handle email submission
+	const handleEmailSubmit = useCallback((email: string) => {
+		authenticate(email);
+		setShowEmailGate(false);
+	}, [authenticate]);
+
 	// Filter handlers
 	const handleDayToggle = (day: EventDay) => {
+		if (!requireAuth()) return;
 		setSelectedDays((prev) =>
 			prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
 		);
 	};
 
 	const handleDayNightPeriodToggle = (period: DayNightPeriod) => {
+		if (!requireAuth()) return;
 		setSelectedDayNightPeriods((prev) =>
 			prev.includes(period)
 				? prev.filter((p) => p !== period)
@@ -268,6 +292,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	};
 
 	const handleArrondissementToggle = (arrondissement: ParisArrondissement) => {
+		if (!requireAuth()) return;
 		setSelectedArrondissements((prev) =>
 			prev.includes(arrondissement)
 				? prev.filter((a) => a !== arrondissement)
@@ -276,12 +301,14 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	};
 
 	const handleGenreToggle = (genre: MusicGenre) => {
+		if (!requireAuth()) return;
 		setSelectedGenres((prev) =>
 			prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre],
 		);
 	};
 
 	const handleNationalityToggle = (nationality: Nationality) => {
+		if (!requireAuth()) return;
 		setSelectedNationalities((prev) =>
 			prev.includes(nationality)
 				? prev.filter((n) => n !== nationality)
@@ -290,6 +317,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	};
 
 	const handleVenueTypeToggle = (venueType: VenueType) => {
+		if (!requireAuth()) return;
 		setSelectedVenueTypes((prev) =>
 			prev.includes(venueType)
 				? prev.filter((v) => v !== venueType)
@@ -298,14 +326,17 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	};
 
 	const handleIndoorPreferenceChange = (preference: boolean | null) => {
+		if (!requireAuth()) return;
 		setSelectedIndoorPreference(preference);
 	};
 
 	const handlePriceRangeChange = useCallback((range: [number, number]) => {
+		if (!requireAuth()) return;
 		setSelectedPriceRange(range);
-	}, []);
+	}, [requireAuth]);
 
 	const handleAgeRangeChange = useCallback((range: AgeRange | null) => {
+		if (!requireAuth()) return;
 		// If the range is set to the default full range, treat it as no filter
 		if (
 			range &&
@@ -316,9 +347,10 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		} else {
 			setSelectedAgeRange(range);
 		}
-	}, []);
+	}, [requireAuth]);
 
 	const handleClearFilters = useCallback(() => {
+		if (!requireAuth()) return;
 		setSelectedDays([]);
 		setSelectedDayNightPeriods([]);
 		setSelectedArrondissements([]);
@@ -330,11 +362,12 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		setSelectedAgeRange(null);
 		setSelectedOOOCPicks(false);
 		setSearchQuery("");
-	}, []);
+	}, [requireAuth]);
 
 	const toggleFilterPanel = useCallback(() => {
+		if (!requireAuth()) return;
 		setIsFilterOpen((prev) => !prev);
-	}, []);
+	}, [requireAuth]);
 
 	const toggleMapExpansion = useCallback(() => {
 		setIsMapExpanded((prev) => !prev);
@@ -370,12 +403,21 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	return (
 		<>
 			{/* Search Bar */}
-			<div className="mb-6">
-				<SearchBar
-					onSearch={setSearchQuery}
-					placeholder="Search events, locations, genres, types..."
-					className="max-w-md mx-auto"
-				/>
+			<div className="mb-8">
+				<AuthGate 
+					isAuthenticated={isAuthenticated}
+					onAuthRequired={() => setShowEmailGate(true)}
+					className="min-h-[120px] flex items-center"
+				>
+					<SearchBar
+						onSearch={(query) => {
+							if (!requireAuth()) return;
+							setSearchQuery(query);
+						}}
+						placeholder="Search events, locations, genres, types..."
+						className="max-w-md mx-auto"
+					/>
+				</AuthGate>
 			</div>
 
 			{/* Event Stats */}
@@ -399,7 +441,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 			/>
 
 			{/* Collapsible Paris Event Map */}
-			<div className="mb-6">
+			<div className="mb-8 relative z-10">
 				<Card>
 					<CardHeader className="pb-2">
 						<CardTitle className="flex items-center justify-between">
@@ -487,38 +529,47 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 			</div>
 
 			{/* Filter Panel - Desktop and Mobile */}
-			<div className="mb-6">
-				<FilterPanel
-					selectedDays={selectedDays}
-					selectedDayNightPeriods={selectedDayNightPeriods}
-					selectedArrondissements={selectedArrondissements}
-					selectedGenres={selectedGenres}
-					selectedNationalities={selectedNationalities}
-					selectedVenueTypes={selectedVenueTypes}
-					selectedIndoorPreference={selectedIndoorPreference}
-					selectedPriceRange={selectedPriceRange}
-					selectedAgeRange={selectedAgeRange}
-					selectedOOOCPicks={selectedOOOCPicks}
-					onDayToggle={handleDayToggle}
-					onDayNightPeriodToggle={handleDayNightPeriodToggle}
-					onArrondissementToggle={handleArrondissementToggle}
-					onGenreToggle={handleGenreToggle}
-					onNationalityToggle={handleNationalityToggle}
-					onVenueTypeToggle={handleVenueTypeToggle}
-					onIndoorPreferenceChange={handleIndoorPreferenceChange}
-					onPriceRangeChange={handlePriceRangeChange}
-					onAgeRangeChange={handleAgeRangeChange}
-					onOOOCPicksToggle={setSelectedOOOCPicks}
-					onClearFilters={handleClearFilters}
-					availableArrondissements={availableArrondissements}
-					availableEventDays={availableEventDays}
-					filteredEventsCount={filteredEvents.length}
-					isOpen={isFilterOpen}
-					onClose={() => setIsFilterOpen(false)}
-					onOpen={() => setIsFilterOpen(true)}
-					isExpanded={isFilterExpanded}
-					onToggleExpanded={toggleFilterExpansion}
-				/>
+			<div className="mb-8">
+				<AuthGate 
+					isAuthenticated={isAuthenticated}
+					onAuthRequired={() => setShowEmailGate(true)}
+					className="min-h-[400px]"
+				>
+					<FilterPanel
+						selectedDays={selectedDays}
+						selectedDayNightPeriods={selectedDayNightPeriods}
+						selectedArrondissements={selectedArrondissements}
+						selectedGenres={selectedGenres}
+						selectedNationalities={selectedNationalities}
+						selectedVenueTypes={selectedVenueTypes}
+						selectedIndoorPreference={selectedIndoorPreference}
+						selectedPriceRange={selectedPriceRange}
+						selectedAgeRange={selectedAgeRange}
+						selectedOOOCPicks={selectedOOOCPicks}
+						onDayToggle={handleDayToggle}
+						onDayNightPeriodToggle={handleDayNightPeriodToggle}
+						onArrondissementToggle={handleArrondissementToggle}
+						onGenreToggle={handleGenreToggle}
+						onNationalityToggle={handleNationalityToggle}
+						onVenueTypeToggle={handleVenueTypeToggle}
+						onIndoorPreferenceChange={handleIndoorPreferenceChange}
+						onPriceRangeChange={handlePriceRangeChange}
+						onAgeRangeChange={handleAgeRangeChange}
+						onOOOCPicksToggle={(value) => {
+							if (!requireAuth()) return;
+							setSelectedOOOCPicks(value);
+						}}
+						onClearFilters={handleClearFilters}
+						availableArrondissements={availableArrondissements}
+						availableEventDays={availableEventDays}
+						filteredEventsCount={filteredEvents.length}
+						isOpen={isFilterOpen}
+						onClose={() => setIsFilterOpen(false)}
+						onOpen={() => setIsFilterOpen(true)}
+						isExpanded={isFilterExpanded}
+						onToggleExpanded={toggleFilterExpansion}
+					/>
+				</AuthGate>
 			</div>
 
 			{/* All Events Section */}
@@ -533,6 +584,13 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 				event={selectedEvent}
 				isOpen={!!selectedEvent}
 				onClose={() => setSelectedEvent(null)}
+			/>
+
+			{/* Email Gate Modal */}
+			<EmailGateModal
+				isOpen={showEmailGate}
+				onClose={() => setShowEmailGate(false)}
+				onEmailSubmit={handleEmailSubmit}
 			/>
 		</>
 	);
