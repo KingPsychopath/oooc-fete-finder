@@ -370,7 +370,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 								<MapPin className="h-5 w-5" />
 								<span>Paris Event Map</span>
 								<Badge variant="secondary" className="text-xs">
-									{filteredEvents.length} events
+									{filteredEvents.length} event{filteredEvents.length !== 1 ? "s" : ""}
 								</Badge>
 							</div>
 							<div className="flex flex-col space-y-2">
@@ -445,117 +445,35 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 				</Card>
 			</div>
 
-			{/* Collapsible Filter Panel - Desktop */}
+			{/* Filter Panel - Desktop and Mobile */}
 			<div className="mb-6">
-				<div className="hidden lg:block">
-					<Card>
-						<CardHeader className="pb-2">
-							<CardTitle className="flex items-center justify-between">
-								<div className="flex items-center space-x-2">
-									<Filter className="h-5 w-5" />
-									<span>Event Filters</span>
-									{hasActiveFilters && (
-										<Badge variant="secondary" className="text-xs">
-											{selectedDays.length +
-												selectedDayNightPeriods.length +
-												selectedArrondissements.length +
-												selectedGenres.length +
-												selectedNationalities.length +
-												(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
-												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
-													? 1
-													: 0) +
-												(selectedAgeRange !== null &&
-												(selectedAgeRange[0] !== AGE_RANGE_CONFIG.min ||
-													selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)
-													? 1
-													: 0) +
-												(selectedOOOCPicks ? 1 : 0)} active
-										</Badge>
-									)}
-								</div>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={toggleFilterExpansion}
-									className="text-muted-foreground hover:text-foreground"
-								>
-									{isFilterExpanded ? (
-										<>
-											<ChevronUp className="h-4 w-4 mr-1" />
-											Collapse
-										</>
-									) : (
-										<>
-											<ChevronDown className="h-4 w-4 mr-1" />
-											Expand
-										</>
-									)}
-								</Button>
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pt-2">
-							<div className={`transition-all duration-300 ease-in-out overflow-hidden ${
-								isFilterExpanded ? 'h-auto max-h-[2000px]' : 'h-0 max-h-0'
-							}`}>
-								<FilterPanel
-									selectedDays={selectedDays}
-									selectedDayNightPeriods={selectedDayNightPeriods}
-									selectedArrondissements={selectedArrondissements}
-									selectedGenres={selectedGenres}
-									selectedNationalities={selectedNationalities}
-									selectedIndoorPreference={selectedIndoorPreference}
-									selectedPriceRange={selectedPriceRange}
-									selectedAgeRange={selectedAgeRange}
-									selectedOOOCPicks={selectedOOOCPicks}
-									onDayToggle={handleDayToggle}
-									onDayNightPeriodToggle={handleDayNightPeriodToggle}
-									onArrondissementToggle={handleArrondissementToggle}
-									onGenreToggle={handleGenreToggle}
-									onNationalityToggle={handleNationalityToggle}
-									onIndoorPreferenceChange={handleIndoorPreferenceChange}
-									onPriceRangeChange={handlePriceRangeChange}
-									onAgeRangeChange={handleAgeRangeChange}
-									onOOOCPicksToggle={setSelectedOOOCPicks}
-									onClearFilters={handleClearFilters}
-									availableArrondissements={availableArrondissements}
-									isOpen={isFilterOpen}
-									onClose={() => setIsFilterOpen(false)}
-									onOpen={() => setIsFilterOpen(true)}
-								/>
-							</div>
-						</CardContent>
-					</Card>
-				</div>
-				
-				{/* Mobile Filter Panel */}
-				<div className="lg:hidden">
-					<FilterPanel
-						selectedDays={selectedDays}
-						selectedDayNightPeriods={selectedDayNightPeriods}
-						selectedArrondissements={selectedArrondissements}
-						selectedGenres={selectedGenres}
-						selectedNationalities={selectedNationalities}
-						selectedIndoorPreference={selectedIndoorPreference}
-						selectedPriceRange={selectedPriceRange}
-						selectedAgeRange={selectedAgeRange}
-						selectedOOOCPicks={selectedOOOCPicks}
-						onDayToggle={handleDayToggle}
-						onDayNightPeriodToggle={handleDayNightPeriodToggle}
-						onArrondissementToggle={handleArrondissementToggle}
-						onGenreToggle={handleGenreToggle}
-						onNationalityToggle={handleNationalityToggle}
-						onIndoorPreferenceChange={handleIndoorPreferenceChange}
-						onPriceRangeChange={handlePriceRangeChange}
-						onAgeRangeChange={handleAgeRangeChange}
-						onOOOCPicksToggle={setSelectedOOOCPicks}
-						onClearFilters={handleClearFilters}
-						availableArrondissements={availableArrondissements}
-						isOpen={isFilterOpen}
-						onClose={() => setIsFilterOpen(false)}
-						onOpen={() => setIsFilterOpen(true)}
-					/>
-				</div>
+				<FilterPanel
+					selectedDays={selectedDays}
+					selectedDayNightPeriods={selectedDayNightPeriods}
+					selectedArrondissements={selectedArrondissements}
+					selectedGenres={selectedGenres}
+					selectedNationalities={selectedNationalities}
+					selectedIndoorPreference={selectedIndoorPreference}
+					selectedPriceRange={selectedPriceRange}
+					selectedAgeRange={selectedAgeRange}
+					selectedOOOCPicks={selectedOOOCPicks}
+					onDayToggle={handleDayToggle}
+					onDayNightPeriodToggle={handleDayNightPeriodToggle}
+					onArrondissementToggle={handleArrondissementToggle}
+					onGenreToggle={handleGenreToggle}
+					onNationalityToggle={handleNationalityToggle}
+					onIndoorPreferenceChange={handleIndoorPreferenceChange}
+					onPriceRangeChange={handlePriceRangeChange}
+					onAgeRangeChange={handleAgeRangeChange}
+					onOOOCPicksToggle={setSelectedOOOCPicks}
+					onClearFilters={handleClearFilters}
+					availableArrondissements={availableArrondissements}
+					isOpen={isFilterOpen}
+					onClose={() => setIsFilterOpen(false)}
+					onOpen={() => setIsFilterOpen(true)}
+					isExpanded={isFilterExpanded}
+					onToggleExpanded={toggleFilterExpansion}
+				/>
 			</div>
 
 			{/* All Events Section */}
