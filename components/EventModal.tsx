@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { useRef } from "react";
 import {
 	X,
 	MapPin,
@@ -12,6 +13,7 @@ import {
 	Euro,
 	Music,
 	User,
+	Share,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +26,7 @@ import {
 	MUSIC_GENRES,
 } from "@/types/events";
 import { useOutsideClick } from "@/lib/useOutsideClick";
+import { ShareableImageGenerator } from "@/components/ShareableImageGenerator";
 
 interface EventModalProps {
 	event: Event | null;
@@ -76,6 +79,16 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		const genreInfo = MUSIC_GENRES.find((g) => g.key === genre);
 		return genreInfo?.color || "bg-gray-100 text-gray-800";
 	};
+
+	// Handle share image generation
+	const handleShareError = (message: string) => {
+		alert(`Unable to generate shareable image: ${message}. Please try again.`);
+	};
+
+	const shareImageGenerator = ShareableImageGenerator({
+		event,
+		onError: handleShareError,
+	});
 
 	return (
 		<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -250,6 +263,17 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								Link Coming Soon
 							</Button>
 						)}
+						
+						{/* Share Button */}
+						<Button
+							variant="outline"
+							onClick={shareImageGenerator.generateImage}
+							className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 hover:from-purple-600 hover:to-pink-600"
+						>
+							<Share className="h-4 w-4 mr-2" />
+							Share to Story
+						</Button>
+						
 						{/* Secondary links as smaller buttons */}
 						{secondaryLinks.length > 0 && (
 							<div className="flex flex-col space-y-1">

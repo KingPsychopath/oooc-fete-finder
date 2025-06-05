@@ -41,6 +41,9 @@ importers:
       lucide-react:
         specifier: ^0.513.0
         version: 0.513.0(react@19.1.0)
+      modern-screenshot:
+        specifier: ^4.6.0
+        version: 4.6.0
       next:
         specifier: 15.3.3
         version: 15.3.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -974,6 +977,9 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  modern-screenshot@4.6.0:
+    resolution: {integrity: sha512-L7osQAWpJiWY1ST1elhLRSGD5i7og5uoICqiXs38whAjWtIayp3cBMJmyML4iyJcBhRfHOyciq1g1Ft5G0QvSg==}
+
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
@@ -1897,6 +1903,8 @@ snapshots:
       minipass: 7.1.2
 
   mkdirp@3.0.1: {}
+
+  modern-screenshot@4.6.0: {}
 
   nanoid@3.3.11: {}
 
