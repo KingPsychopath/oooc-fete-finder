@@ -201,18 +201,25 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 					</div>
 
 					{/* Venue Type */}
-					{(event.venueTypes && event.venueTypes.length > 0) || event.indoor !== undefined ? (
+					{(event.venueTypes && event.venueTypes.length > 0) ||
+					event.indoor !== undefined ? (
 						<div className="flex items-center space-x-2">
 							<div className="h-4 w-4 text-muted-foreground flex items-center justify-center text-sm">
 								{formatVenueTypeIcons(event)}
 							</div>
 							<div className="text-sm">
 								<span className="font-medium">
-									{event.venueTypes && event.venueTypes.length > 0 ? (
-										event.venueTypes.map(vt => VENUE_TYPES.find(v => v.key === vt)?.label).filter(Boolean).join(' & ')
-									) : (
-										event.indoor ? 'Indoor' : 'Outdoor'
-									)} Venue
+									{event.venueTypes && event.venueTypes.length > 0
+										? event.venueTypes
+												.map(
+													(vt) => VENUE_TYPES.find((v) => v.key === vt)?.label,
+												)
+												.filter(Boolean)
+												.join(" & ")
+										: event.indoor
+											? "Indoor"
+											: "Outdoor"}{" "}
+									Venue
 								</span>
 							</div>
 						</div>
@@ -283,7 +290,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								Link Coming Soon
 							</Button>
 						)}
-						
+
 						{/* Share Button */}
 						<Button
 							variant="outline"
@@ -293,7 +300,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							<Share className="h-4 w-4 mr-2" />
 							Share to Story
 						</Button>
-						
+
 						{/* Secondary links as smaller buttons */}
 						{secondaryLinks.length > 0 && (
 							<div className="flex flex-col space-y-1">

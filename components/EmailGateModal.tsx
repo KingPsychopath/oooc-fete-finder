@@ -17,7 +17,11 @@ type EmailGateModalProps = {
 	onClose?: () => void;
 };
 
-const EmailGateModal = ({ isOpen, onEmailSubmit, onClose }: EmailGateModalProps) => {
+const EmailGateModal = ({
+	isOpen,
+	onEmailSubmit,
+	onClose,
+}: EmailGateModalProps) => {
 	const [email, setEmail] = useState("");
 	const [consent, setConsent] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,7 +34,7 @@ const EmailGateModal = ({ isOpen, onEmailSubmit, onClose }: EmailGateModalProps)
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		
+
 		if (!email.trim()) {
 			setError("Please enter your email address");
 			return;
@@ -82,11 +86,12 @@ const EmailGateModal = ({ isOpen, onEmailSubmit, onClose }: EmailGateModalProps)
 						Access Required
 					</DialogTitle>
 					<DialogDescription>
-						To use filters and explore events, please provide your email address. 
-						We'll use this to improve our recommendations and keep you updated on future events.
+						To use filters and explore events, please provide your email
+						address. We'll use this to improve our recommendations and keep you
+						updated on future events.
 					</DialogDescription>
 				</DialogHeader>
-				
+
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<div className="space-y-2">
 						<Label htmlFor="email">Email Address</Label>
@@ -121,11 +126,15 @@ const EmailGateModal = ({ isOpen, onEmailSubmit, onClose }: EmailGateModalProps)
 							className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
 							disabled={isSubmitting}
 						/>
-						<Label htmlFor="consent" className="text-xs leading-relaxed cursor-pointer">
-							I agree to the collection and processing of my email address for event recommendations and updates.{" "}
+						<Label
+							htmlFor="consent"
+							className="text-xs leading-relaxed cursor-pointer"
+						>
+							I agree to the collection and processing of my email address for
+							event recommendations and updates.{" "}
 							<button
 								type="button"
-								onClick={() => window.open('/privacy', '_blank')}
+								onClick={() => window.open("/privacy", "_blank")}
 								className="text-primary underline hover:no-underline whitespace-nowrap"
 							>
 								Read our Privacy Policy
@@ -133,20 +142,19 @@ const EmailGateModal = ({ isOpen, onEmailSubmit, onClose }: EmailGateModalProps)
 						</Label>
 					</div>
 
-					{error && (
-						<p className="text-sm text-destructive">{error}</p>
-					)}
-					
+					{error && <p className="text-sm text-destructive">{error}</p>}
+
 					<div className="flex flex-col gap-2">
-						<Button 
-							type="submit" 
+						<Button
+							type="submit"
 							className="w-full"
 							disabled={isSubmitting || !consent}
 						>
 							{isSubmitting ? "Verifying..." : "Continue to Events"}
 						</Button>
 						<p className="text-xs text-muted-foreground text-center">
-							Your data is secure and will only be used as described in our privacy policy.
+							Your data is secure and will only be used as described in our
+							privacy policy.
 						</p>
 					</div>
 				</form>
@@ -155,4 +163,4 @@ const EmailGateModal = ({ isOpen, onEmailSubmit, onClose }: EmailGateModalProps)
 	);
 };
 
-export default EmailGateModal; 
+export default EmailGateModal;

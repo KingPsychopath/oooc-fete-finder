@@ -20,7 +20,7 @@ const SlidingBanner: React.FC<SlidingBannerProps> = ({
 		>
 			{/* Glass overlay for extra depth */}
 			<div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-			
+
 			{/* Animated content */}
 			<div
 				className="relative whitespace-nowrap animate-slide-banner py-1.5 px-4 text-xs font-medium text-foreground/80 tracking-wide"
@@ -34,4 +34,4 @@ const SlidingBanner: React.FC<SlidingBannerProps> = ({
 	);
 };
 
-export default SlidingBanner; 
+export default SlidingBanner;

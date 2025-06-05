@@ -9,7 +9,12 @@ type AuthGateProps = {
 	className?: string;
 };
 
-const AuthGate = ({ isAuthenticated, onAuthRequired, children, className = "" }: AuthGateProps) => {
+const AuthGate = ({
+	isAuthenticated,
+	onAuthRequired,
+	children,
+	className = "",
+}: AuthGateProps) => {
 	if (isAuthenticated) {
 		return <>{children}</>;
 	}
@@ -26,14 +31,16 @@ const AuthGate = ({ isAuthenticated, onAuthRequired, children, className = "" }:
 						</div>
 					</div>
 					<div className="space-y-2">
-						<h3 className="font-semibold text-base text-foreground">Authentication Required</h3>
+						<h3 className="font-semibold text-base text-foreground">
+							Authentication Required
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Provide your email to access filtering and search
 						</p>
 					</div>
-					<Button 
-						onClick={onAuthRequired} 
-						className="gap-2 w-full shadow-md hover:shadow-lg transition-all duration-200" 
+					<Button
+						onClick={onAuthRequired}
+						className="gap-2 w-full shadow-md hover:shadow-lg transition-all duration-200"
 						size="default"
 					>
 						<Mail className="h-4 w-4" />
@@ -45,4 +52,4 @@ const AuthGate = ({ isAuthenticated, onAuthRequired, children, className = "" }:
 	);
 };
 
-export default AuthGate; 
+export default AuthGate;

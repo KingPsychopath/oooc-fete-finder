@@ -36,17 +36,17 @@ export function FeaturedEvents({
 			const seed = new Date().toDateString(); // Same seed for entire day
 			let hash = 0;
 			for (let i = 0; i < seed.length; i++) {
-				hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+				hash = (hash << 5) - hash + seed.charCodeAt(i);
 				hash = hash & hash; // Convert to 32-bit integer
 			}
-			
+
 			// Simple deterministic shuffle using the hash as seed
 			for (let i = shuffled.length - 1; i > 0; i--) {
 				hash = (hash * 1664525 + 1013904223) % Math.pow(2, 32); // Linear congruential generator
 				const j = Math.floor((hash / Math.pow(2, 32)) * (i + 1));
 				[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
 			}
-			
+
 			return shuffled;
 		};
 

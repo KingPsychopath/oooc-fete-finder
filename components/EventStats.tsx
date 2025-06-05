@@ -64,7 +64,9 @@ const EventStats: React.FC<EventStatsProps> = ({
 
 	// Calculate unique days from events
 	const uniqueDays = useMemo(() => {
-		const days = new Set(events.map((event) => event.day).filter((day) => day !== "tbc"));
+		const days = new Set(
+			events.map((event) => event.day).filter((day) => day !== "tbc"),
+		);
 		return days.size;
 	}, [events]);
 
@@ -111,4 +113,4 @@ const EventStats: React.FC<EventStatsProps> = ({
 	);
 };
 
-export default EventStats; 
+export default EventStats;

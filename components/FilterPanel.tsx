@@ -206,8 +206,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 	// Filter EVENT_DAYS to only show days that are available in the events data
 	const filteredEventDays = useMemo(() => {
-		return EVENT_DAYS.filter(day => 
-			availableEventDays.includes(day.key) || day.key === "tbc"
+		return EVENT_DAYS.filter(
+			(day) => availableEventDays.includes(day.key) || day.key === "tbc",
 		);
 	}, [availableEventDays]);
 
@@ -277,7 +277,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						))}
 						{selectedVenueTypes.map((venueType) => (
 							<Badge key={venueType} variant="secondary" className="text-xs">
-								{VENUE_TYPES.find((v) => v.key === venueType)?.icon} {VENUE_TYPES.find((v) => v.key === venueType)?.label}
+								{VENUE_TYPES.find((v) => v.key === venueType)?.icon}{" "}
+								{VENUE_TYPES.find((v) => v.key === venueType)?.label}
 								<Button
 									variant="ghost"
 									size="sm"
@@ -402,7 +403,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</Badge>
 								)}
 								<Badge variant="outline" className="ml-2 text-xs">
-									{filteredEventsCount} result{filteredEventsCount !== 1 ? 's' : ''}
+									{filteredEventsCount} result
+									{filteredEventsCount !== 1 ? "s" : ""}
 								</Badge>
 							</CardTitle>
 							<div className="flex items-center space-x-2">
@@ -685,7 +687,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																className="justify-start w-full h-8"
 																size="sm"
 															>
-																<span className="text-xs">{icon} {label}</span>
+																<span className="text-xs">
+																	{icon} {label}
+																</span>
 															</Toggle>
 														))}
 													</div>
@@ -843,7 +847,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</Badge>
 							)}
 							<Badge variant="outline" className="ml-2 text-xs">
-								{filteredEventsCount} result{filteredEventsCount !== 1 ? 's' : ''}
+								{filteredEventsCount} result
+								{filteredEventsCount !== 1 ? "s" : ""}
 							</Badge>
 						</CardTitle>
 						<div className="flex items-center space-x-2">
@@ -1044,7 +1049,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												className="justify-start w-full h-8"
 												size="sm"
 											>
-												<span className="text-xs">{icon} {label}</span>
+												<span className="text-xs">
+													{icon} {label}
+												</span>
 											</Toggle>
 										))}
 									</div>

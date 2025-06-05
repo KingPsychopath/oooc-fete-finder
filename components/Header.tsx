@@ -52,7 +52,9 @@ const Header = () => {
 							{/* Fête Finder title - Centered on mobile, hidden on desktop */}
 							<div className="text-center sm:hidden">
 								<h1 className="text-xl font-bold">Fête Finder</h1>
-								<p className="text-xs text-muted-foreground">Paris 2025 • OOOC</p>
+								<p className="text-xs text-muted-foreground">
+									Paris 2025 • OOOC
+								</p>
 							</div>
 
 							{/* OOOC Logo - Centered on desktop, hidden on mobile */}
@@ -75,7 +77,7 @@ const Header = () => {
 								<div className="hidden sm:flex items-center space-x-2">
 									<Badge variant="secondary" className="gap-1">
 										<User className="h-3 w-3" />
-										{userEmail.split('@')[0]}
+										{userEmail.split("@")[0]}
 									</Badge>
 									<Button
 										variant="ghost"
@@ -97,8 +99,12 @@ const Header = () => {
 					</div>
 				</div>
 			</header>
-			<SlidingBanner 
-				messages={["When I push it in", "When I push it in", "She say ooouuuuuuuu"]}
+			<SlidingBanner
+				messages={[
+					"When I push it in",
+					"When I push it in",
+					"She say ooouuuuuuuu",
+				]}
 				speed={15}
 			/>
 		</>

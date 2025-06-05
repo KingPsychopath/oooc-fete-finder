@@ -107,9 +107,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	// Get available event days from the events data
 	const availableEventDays = useMemo(() => {
 		const days = new Set(events.map((event) => event.day));
-		return Array.from(days).filter((day): day is EventDay => 
-			day !== undefined
-		);
+		return Array.from(days).filter((day): day is EventDay => day !== undefined);
 	}, [events]);
 
 	// Filter events based on selected filters and search query
@@ -269,10 +267,13 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	}, [isAuthenticated]);
 
 	// Handle email submission
-	const handleEmailSubmit = useCallback((email: string) => {
-		authenticate(email);
-		setShowEmailGate(false);
-	}, [authenticate]);
+	const handleEmailSubmit = useCallback(
+		(email: string) => {
+			authenticate(email);
+			setShowEmailGate(false);
+		},
+		[authenticate],
+	);
 
 	// Filter handlers
 	const handleDayToggle = (day: EventDay) => {
@@ -330,24 +331,30 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		setSelectedIndoorPreference(preference);
 	};
 
-	const handlePriceRangeChange = useCallback((range: [number, number]) => {
-		if (!requireAuth()) return;
-		setSelectedPriceRange(range);
-	}, [requireAuth]);
+	const handlePriceRangeChange = useCallback(
+		(range: [number, number]) => {
+			if (!requireAuth()) return;
+			setSelectedPriceRange(range);
+		},
+		[requireAuth],
+	);
 
-	const handleAgeRangeChange = useCallback((range: AgeRange | null) => {
-		if (!requireAuth()) return;
-		// If the range is set to the default full range, treat it as no filter
-		if (
-			range &&
-			range[0] === AGE_RANGE_CONFIG.min &&
-			range[1] === AGE_RANGE_CONFIG.max
-		) {
-			setSelectedAgeRange(null);
-		} else {
-			setSelectedAgeRange(range);
-		}
-	}, [requireAuth]);
+	const handleAgeRangeChange = useCallback(
+		(range: AgeRange | null) => {
+			if (!requireAuth()) return;
+			// If the range is set to the default full range, treat it as no filter
+			if (
+				range &&
+				range[0] === AGE_RANGE_CONFIG.min &&
+				range[1] === AGE_RANGE_CONFIG.max
+			) {
+				setSelectedAgeRange(null);
+			} else {
+				setSelectedAgeRange(range);
+			}
+		},
+		[requireAuth],
+	);
 
 	const handleClearFilters = useCallback(() => {
 		if (!requireAuth()) return;
@@ -404,7 +411,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		<>
 			{/* Search Bar */}
 			<div className="mb-8">
-				<AuthGate 
+				<AuthGate
 					isAuthenticated={isAuthenticated}
 					onAuthRequired={() => setShowEmailGate(true)}
 					className="min-h-[120px] flex items-center"
@@ -530,7 +537,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 
 			{/* Filter Panel - Desktop and Mobile */}
 			<div className="mb-8">
-				<AuthGate 
+				<AuthGate
 					isAuthenticated={isAuthenticated}
 					onAuthRequired={() => setShowEmailGate(true)}
 					className="min-h-[400px]"

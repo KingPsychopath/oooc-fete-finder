@@ -1,5 +1,13 @@
 // Strict type definitions for enhanced event categorization
-export type EventDay = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday" | "tbc";
+export type EventDay =
+	| "monday"
+	| "tuesday"
+	| "wednesday"
+	| "thursday"
+	| "friday"
+	| "saturday"
+	| "sunday"
+	| "tbc";
 
 export type DayNightPeriod = "day" | "night";
 
@@ -528,8 +536,8 @@ export const formatVenueTypeIcons = (event: Event): string => {
 	}
 
 	// Map venue types to icons
-	const icons = event.venueTypes.map(venueType => {
-		const venueInfo = VENUE_TYPES.find(v => v.key === venueType);
+	const icons = event.venueTypes.map((venueType) => {
+		const venueInfo = VENUE_TYPES.find((v) => v.key === venueType);
 		return venueInfo?.icon || (venueType === "indoor" ? "🏢" : "🌤️");
 	});
 

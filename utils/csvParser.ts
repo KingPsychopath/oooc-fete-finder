@@ -36,7 +36,13 @@ const COLUMN_MAPPINGS = {
 	price: ["Price", "Cost", "price", "Ticket Price", "Entry"],
 	ticketLink: ["Ticket Link", "Link", "ticketLink", "URL", "Website"],
 	age: ["Age", "Age Limit", "age", "Age Restriction"],
-	indoorOutdoor: ["Indoor/Outdoor", "Indoor Outdoor", "Venue Type", "indoorOutdoor", "Type"],
+	indoorOutdoor: [
+		"Indoor/Outdoor",
+		"Indoor Outdoor",
+		"Venue Type",
+		"indoorOutdoor",
+		"Type",
+	],
 	notes: ["Notes", "Description", "notes", "Details", "Info"],
 } as const;
 
@@ -179,7 +185,8 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 					(columnMapping.ticketLink && row[columnMapping.ticketLink]) || "",
 				age: (columnMapping.age && row[columnMapping.age]) || "",
 				indoorOutdoor:
-					(columnMapping.indoorOutdoor && row[columnMapping.indoorOutdoor]) || "",
+					(columnMapping.indoorOutdoor && row[columnMapping.indoorOutdoor]) ||
+					"",
 				notes: (columnMapping.notes && row[columnMapping.notes]) || "",
 			};
 
@@ -232,27 +239,31 @@ const convertToEventDay = (dateStr: string): EventDay => {
 	}
 
 	// Extract date numbers and calculate actual day of week
-	const dateMatch = dateStr.match(/(\d{1,2})\s*june|june\s*(\d{1,2})|(\d{1,2})\/06|(\d{1,2})-06/i);
+	const dateMatch = dateStr.match(
+		/(\d{1,2})\s*june|june\s*(\d{1,2})|(\d{1,2})\/06|(\d{1,2})-06/i,
+	);
 	if (dateMatch) {
 		// Get the day number from whichever capture group matched
-		const dayNumber = parseInt(dateMatch[1] || dateMatch[2] || dateMatch[3] || dateMatch[4]);
-		
+		const dayNumber = parseInt(
+			dateMatch[1] || dateMatch[2] || dateMatch[3] || dateMatch[4],
+		);
+
 		if (dayNumber >= 1 && dayNumber <= 31) {
 			// Create a Date object for the date (assuming 2025 based on the event context)
 			const eventDate = new Date(2025, 5, dayNumber); // Month is 0-indexed, so 5 = June
 			const dayOfWeek = eventDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-			
+
 			// Map JavaScript day of week to our EventDay type
 			const dayMapping = {
-				0: "sunday" as const,    // Sunday
-				1: "monday" as const,    // Monday  
-				2: "tuesday" as const,   // Tuesday
+				0: "sunday" as const, // Sunday
+				1: "monday" as const, // Monday
+				2: "tuesday" as const, // Tuesday
 				3: "wednesday" as const, // Wednesday
-				4: "thursday" as const,  // Thursday
-				5: "friday" as const,    // Friday
-				6: "saturday" as const,  // Saturday
+				4: "thursday" as const, // Thursday
+				5: "friday" as const, // Friday
+				6: "saturday" as const, // Saturday
 			};
-			
+
 			return dayMapping[dayOfWeek as keyof typeof dayMapping];
 		}
 	}
@@ -537,9 +548,13 @@ const convertToISODate = (dateStr: string): string => {
 	if (!dateStr) return "2025-06-21"; // Default to Saturday, June 21st, 2025
 
 	// Extract day number from various date formats
-	const dateMatch = dateStr.match(/(\d{1,2})\s*june|june\s*(\d{1,2})|(\d{1,2})\/06|(\d{1,2})-06/i);
+	const dateMatch = dateStr.match(
+		/(\d{1,2})\s*june|june\s*(\d{1,2})|(\d{1,2})\/06|(\d{1,2})-06/i,
+	);
 	if (dateMatch) {
-		const dayNumber = parseInt(dateMatch[1] || dateMatch[2] || dateMatch[3] || dateMatch[4]);
+		const dayNumber = parseInt(
+			dateMatch[1] || dateMatch[2] || dateMatch[3] || dateMatch[4],
+		);
 		if (dayNumber >= 1 && dayNumber <= 31) {
 			const day = dayNumber.toString().padStart(2, "0");
 			return `2025-06-${day}`;
@@ -572,7 +587,7 @@ const convertToVenueTypes = (indoorOutdoorStr: string): VenueType[] => {
 	const venueTypes: VenueType[] = [];
 
 	// Split on newlines to handle multiline entries like "Indoor\nOutdoor"
-	const lines = cleaned.split(/\n/).map(line => line.trim());
+	const lines = cleaned.split(/\n/).map((line) => line.trim());
 
 	// Check each line for venue type indicators
 	for (const line of lines) {
@@ -583,7 +598,7 @@ const convertToVenueTypes = (indoorOutdoorStr: string): VenueType[] => {
 			}
 		}
 
-		// Check for outdoor indicators  
+		// Check for outdoor indicators
 		if (
 			line.includes("outdoor") ||
 			line.includes("open air") ||

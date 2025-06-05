@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
 		if (!email || !emailRegex.test(email)) {
 			return NextResponse.json(
 				{ error: "Invalid email address" },
-				{ status: 400 }
+				{ status: 400 },
 			);
 		}
 
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 		if (!consent) {
 			return NextResponse.json(
 				{ error: "Consent is required" },
-				{ status: 400 }
+				{ status: 400 },
 			);
 		}
 
@@ -32,9 +32,9 @@ export async function POST(request: NextRequest) {
 			email,
 			consent,
 			timestamp: new Date().toISOString(),
-			ip: request.headers.get('x-forwarded-for') || 'unknown'
+			ip: request.headers.get("x-forwarded-for") || "unknown",
 		});
-		
+
 		// You could store in a database like this:
 		// await storeEmailWithConsent({
 		//   email,
@@ -43,21 +43,20 @@ export async function POST(request: NextRequest) {
 		//   ipAddress: request.headers.get('x-forwarded-for'),
 		//   source: 'fete-finder-auth'
 		// });
-		
-		return NextResponse.json(
-			{ 
-				success: true, 
-				message: "Email collected with consent",
-				timestamp: new Date().toISOString()
-			},
-			{ status: 200 }
-		);
 
+		return NextResponse.json(
+			{
+				success: true,
+				message: "Email collected with consent",
+				timestamp: new Date().toISOString(),
+			},
+			{ status: 200 },
+		);
 	} catch (error) {
 		console.error("Error processing email:", error);
 		return NextResponse.json(
 			{ error: "Internal server error" },
-			{ status: 500 }
+			{ status: 500 },
 		);
 	}
-} 
+}

@@ -51,17 +51,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 		const EXPIRY_DAYS = 30;
 		const expiryDate = new Date();
 		expiryDate.setDate(expiryDate.getDate() + EXPIRY_DAYS);
-		
+
 		const authData = {
 			email,
 			expires: expiryDate.getTime(),
-			timestamp: new Date().toISOString()
+			timestamp: new Date().toISOString(),
 		};
-		
+
 		localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
 		setUserEmail(email);
 		setIsAuthenticated(true);
-		
+
 		// Optional: Send email to your backend here
 		console.log("User authenticated with email:", email);
 	};
@@ -73,7 +73,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 	};
 
 	return (
-		<AuthContext.Provider value={{ isAuthenticated, userEmail, authenticate, logout }}>
+		<AuthContext.Provider
+			value={{ isAuthenticated, userEmail, authenticate, logout }}
+		>
 			{children}
 		</AuthContext.Provider>
 	);
@@ -85,4 +87,4 @@ export const useAuth = () => {
 		throw new Error("useAuth must be used within an AuthProvider");
 	}
 	return context;
-}; 
+};
