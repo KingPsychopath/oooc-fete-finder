@@ -458,7 +458,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								>
 									{/* Days & Times Section */}
 									<AccordionItem value="days">
-										<AccordionTrigger className="text-sm font-medium">
+										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
 											Days & Times
 											{(selectedDays.length > 0 ||
 												selectedDayNightPeriods.length > 0) && (
@@ -517,7 +517,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 									{/* Location Section */}
 									<AccordionItem value="location">
-										<AccordionTrigger className="text-sm font-medium">
+										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
 											Location
 											{selectedArrondissements.length > 0 && (
 												<Badge variant="secondary" className="ml-2 text-xs">
@@ -551,7 +551,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 									{/* Music & Culture Section */}
 									<AccordionItem value="music">
-										<AccordionTrigger className="text-sm font-medium">
+										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
 											Music & Culture
 											{(selectedGenres.length > 0 ||
 												selectedNationalities.length > 0) && (
@@ -628,7 +628,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 									{/* Preferences Section */}
 									<AccordionItem value="preferences">
-										<AccordionTrigger className="text-sm font-medium">
+										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
 											Preferences
 											{(selectedVenueTypes.length > 0 ||
 												selectedIndoorPreference !== null ||
@@ -883,7 +883,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									className="w-full"
 								>
 									<AccordionItem value="days">
-										<AccordionTrigger className="text-sm font-medium">
+										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
 											Days & Times
 											{(selectedDays.length > 0 ||
 												selectedDayNightPeriods.length > 0) && (
