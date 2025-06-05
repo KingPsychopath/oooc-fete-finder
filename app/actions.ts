@@ -145,7 +145,10 @@ export async function authenticateUser(formData: FormData) {
 			source: 'fete-finder-auth'
 		};
 		
+		console.log("About to push email to collectedEmails array. Current length:", collectedEmails.length);
 		collectedEmails.push(emailRecord);
+		console.log("After push - new length:", collectedEmails.length);
+		console.log("Just added:", emailRecord);
 		
 		// Log the authentication with consent info
 		console.log("User authenticated:", emailRecord);
@@ -174,6 +177,10 @@ export async function getCollectedEmails(adminKey?: string) {
 	if (adminKey !== expectedKey) {
 		return { success: false, error: "Unauthorized" };
 	}
+	
+	// Debug logging
+	console.log("Admin panel accessed - current emails in memory:", collectedEmails.length);
+	console.log("Emails:", collectedEmails);
 	
 	return {
 		success: true,
