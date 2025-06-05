@@ -57,7 +57,7 @@ const Header: React.FC = () => {
 						<div className="flex items-center space-x-3 flex-1">
 							<Music className="h-8 w-8 text-primary" />
 							<div>
-								<h1 className="text-2xl font-bold">Fête de la Musique</h1>
+								<h1 className="text-2xl font-bold">Fête Finder</h1>
 								<p className="text-sm text-muted-foreground">
 									Paris 2025 • OOOC
 								</p>
@@ -92,7 +92,7 @@ const Header: React.FC = () => {
 					<div className="flex items-center space-x-3 flex-1">
 						<Music className="h-8 w-8 text-primary" />
 						<div>
-							<h1 className="text-2xl font-bold">Fête de la Musique</h1>
+							<h1 className="text-2xl font-bold">Fête Finder</h1>
 							<p className="text-sm text-muted-foreground">Paris 2025 • OOOC</p>
 						</div>
 					</div>
