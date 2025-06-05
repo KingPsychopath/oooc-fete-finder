@@ -1,5 +1,6 @@
 import type { Event, MusicGenre, ParisArrondissement } from "@/types/events";
-import { loadEventsFromCSV, parseCSVContent } from "@/utils/csvParser";
+import { parseCSVContent } from "@/utils/csvParser";
+import { getEvents } from "@/app/actions";
 
 // Toggle flag to switch between test data and CSV data
 // Set this to true to use CSV data, false to use test data
@@ -547,20 +548,21 @@ export const EVENTS_DATA: Event[] = [
 ];
 
 // Enhanced helper functions with CSV support
-export const getAllEvents = async (): Promise<Event[]> => {
-	if (USE_CSV_DATA) {
-		try {
-			return await loadEventsFromCSV();
-		} catch (error) {
-			console.error(
-				"Failed to load CSV data, falling back to test data:",
-				error,
-			);
-			return EVENTS_DATA;
+export async function getAllEvents(): Promise<Event[]> {
+	try {
+		const { data: events, error } = await getEvents();
+		
+		if (error) {
+			console.error("Error loading events:", error);
+			return [];
 		}
+
+		return events;
+	} catch (error) {
+		console.error("Error in getAllEvents:", error);
+		return [];
 	}
-	return EVENTS_DATA;
-};
+}
 
 export const getEventsByDay = async (day: string): Promise<Event[]> => {
 	const events = await getAllEvents();
