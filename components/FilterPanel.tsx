@@ -507,28 +507,24 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<h3 className="font-semibold mb-3">Venue Type</h3>
 										<div className="space-y-1">
 											<Toggle
-												pressed={selectedIndoorPreference === null}
-												onPressedChange={() => onIndoorPreferenceChange(null)}
-												className="justify-start w-full h-8"
-												size="sm"
-											>
-												<span className="text-xs">Both Indoor & Outdoor</span>
-											</Toggle>
-											<Toggle
 												pressed={selectedIndoorPreference === true}
-												onPressedChange={() => onIndoorPreferenceChange(true)}
+												onPressedChange={(pressed) => {
+													onIndoorPreferenceChange(pressed ? true : null);
+												}}
 												className="justify-start w-full h-8"
 												size="sm"
 											>
-												<span className="text-xs">🏢 Indoor Only</span>
+												<span className="text-xs">🏢 Indoor</span>
 											</Toggle>
 											<Toggle
 												pressed={selectedIndoorPreference === false}
-												onPressedChange={() => onIndoorPreferenceChange(false)}
+												onPressedChange={(pressed) => {
+													onIndoorPreferenceChange(pressed ? false : null);
+												}}
 												className="justify-start w-full h-8"
 												size="sm"
 											>
-												<span className="text-xs">🌤️ Outdoor Only</span>
+												<span className="text-xs">🌤️ Outdoor</span>
 											</Toggle>
 										</div>
 									</div>
@@ -821,28 +817,24 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									<h3 className="font-semibold mb-3">Venue Type</h3>
 									<div className="space-y-1">
 										<Toggle
-											pressed={selectedIndoorPreference === null}
-											onPressedChange={() => onIndoorPreferenceChange(null)}
-											className="justify-start w-full h-8"
-											size="sm"
-										>
-											<span className="text-xs">Both Indoor & Outdoor</span>
-										</Toggle>
-										<Toggle
 											pressed={selectedIndoorPreference === true}
-											onPressedChange={() => onIndoorPreferenceChange(true)}
+											onPressedChange={(pressed) => {
+												onIndoorPreferenceChange(pressed ? true : null);
+											}}
 											className="justify-start w-full h-8"
 											size="sm"
 										>
-											<span className="text-xs">🏢 Indoor Only</span>
+											<span className="text-xs">🏢 Indoor</span>
 										</Toggle>
 										<Toggle
 											pressed={selectedIndoorPreference === false}
-											onPressedChange={() => onIndoorPreferenceChange(false)}
+											onPressedChange={(pressed) => {
+												onIndoorPreferenceChange(pressed ? false : null);
+											}}
 											className="justify-start w-full h-8"
 											size="sm"
 										>
-											<span className="text-xs">🌤️ Outdoor Only</span>
+											<span className="text-xs">🌤️ Outdoor</span>
 										</Toggle>
 									</div>
 								</div>
