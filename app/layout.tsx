@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 export const metadata: Metadata = {
-	title: "Fête de la Musique - Out Of Office Collective",
+	title: "Fête Finder - Out Of Office Collective",
 	description:
 		"Interactive map of music events across Paris arrondissements for Fête de la Musique 2025",
 };

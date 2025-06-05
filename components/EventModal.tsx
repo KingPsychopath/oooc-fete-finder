@@ -10,11 +10,13 @@ import {
 	Tag,
 	Star,
 	Euro,
+	Music,
+	User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { type Event, EVENT_DAYS, formatPrice } from "@/types/events";
+import { type Event, EVENT_DAYS, formatPrice, MUSIC_GENRES } from "@/types/events";
 import { useOutsideClick } from "@/lib/useOutsideClick";
 
 interface EventModalProps {
@@ -63,6 +65,12 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 	const primaryLink = allLinks[0];
 	const secondaryLinks = allLinks.slice(1);
 
+	// Get genre color from MUSIC_GENRES
+	const getGenreColor = (genre: string) => {
+		const genreInfo = MUSIC_GENRES.find((g) => g.key === genre);
+		return genreInfo?.color || "bg-gray-100 text-gray-800";
+	};
+
 	return (
 		<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
 			<Card
@@ -83,16 +91,31 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								</div>
 							)}
 						</div>
-						{event.category && (
-							<Badge
-								className={
-									CATEGORY_COLORS[event.category] || "bg-gray-100 text-gray-800"
-								}
-							>
-								<Tag className="h-3 w-3 mr-1" />
-								{event.category}
-							</Badge>
-						)}
+						<div className="flex flex-wrap gap-2">
+							{event.category && (
+								<Badge
+									className={
+										CATEGORY_COLORS[event.category] || "bg-gray-100 text-gray-800"
+									}
+								>
+									<Tag className="h-3 w-3 mr-1" />
+									{event.category}
+								</Badge>
+							)}
+							{event.genre && event.genre.length > 0 && (
+								<>
+									{event.genre.map((genre) => (
+										<Badge
+											key={genre}
+											className={`${getGenreColor(genre)} dark:bg-opacity-20`}
+										>
+											<Music className="h-3 w-3 mr-1" />
+											{genre}
+										</Badge>
+									))}
+								</>
+							)}
+						</div>
 					</div>
 					<Button
 						variant="outline"
@@ -153,25 +176,27 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 						</div>
 					</div>
 
-					{/* Price */}
-					<div className="flex items-center space-x-2">
-						<Euro className="h-4 w-4 text-muted-foreground" />
-						<span
-							className={`text-sm font-medium ${
-								formatPrice(event.price) === "Free"
-									? "text-green-600 dark:text-green-400"
-									: "text-gray-900 dark:text-gray-100"
-							}`}
-						>
-							{formatPrice(event.price)}
-						</span>
+					{/* Price and Age */}
+					<div className="flex items-center space-x-4">
+						<div className="flex items-center space-x-2">
+							<Euro className="h-4 w-4 text-muted-foreground" />
+							<span
+								className={`text-sm font-medium ${
+									formatPrice(event.price) === "Free"
+										? "text-green-600 dark:text-green-400"
+										: "text-gray-900 dark:text-gray-100"
+								}`}
+							>
+								{formatPrice(event.price)}
+							</span>
+						</div>
 						{event.age && (
-							<>
-								<span className="text-muted-foreground">•</span>
+							<div className="flex items-center space-x-2">
+								<User className="h-4 w-4 text-muted-foreground" />
 								<span className="text-sm text-muted-foreground">
 									{event.age}
 								</span>
-							</>
+							</div>
 						)}
 					</div>
 

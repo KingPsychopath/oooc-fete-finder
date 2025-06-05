@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
-import { Filter, X, Info, ChevronDown } from "lucide-react";
+import { Filter, X, Info, ChevronDown, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +49,7 @@ type FilterPanelProps = {
 	selectedPriceRange: [number, number];
 	selectedGlobalDayNight: DayNightPeriod | null;
 	selectedAgeRange: AgeRange | null;
+	selectedOOOCPicks: boolean;
 	onDayToggle: (day: EventDay) => void;
 	onDayNightPeriodToggle: (period: DayNightPeriod) => void;
 	onArrondissementToggle: (arrondissement: ParisArrondissement) => void;
@@ -58,6 +59,7 @@ type FilterPanelProps = {
 	onPriceRangeChange: (range: [number, number]) => void;
 	onGlobalDayNightChange: (period: DayNightPeriod | null) => void;
 	onAgeRangeChange: (range: AgeRange | null) => void;
+	onOOOCPicksToggle: (selected: boolean) => void;
 	onClearFilters: () => void;
 	availableArrondissements: ParisArrondissement[];
 	isOpen: boolean;
@@ -75,6 +77,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	selectedPriceRange,
 	selectedGlobalDayNight,
 	selectedAgeRange,
+	selectedOOOCPicks,
 	onDayToggle,
 	onDayNightPeriodToggle,
 	onArrondissementToggle,
@@ -84,6 +87,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onPriceRangeChange,
 	onGlobalDayNightChange,
 	onAgeRangeChange,
+	onOOOCPicksToggle,
 	onClearFilters,
 	availableArrondissements,
 	isOpen,
@@ -120,7 +124,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
 			(selectedAgeRange !== null && 
-			 (selectedAgeRange[0] !== AGE_RANGE_CONFIG.min || selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)),
+			 (selectedAgeRange[0] !== AGE_RANGE_CONFIG.min || selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)) ||
+			selectedOOOCPicks,
 		[
 			selectedDays,
 			selectedDayNightPeriods,
@@ -131,6 +136,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedGlobalDayNight,
 			selectedPriceRange,
 			selectedAgeRange,
+			selectedOOOCPicks,
 		],
 	);
 
@@ -151,7 +157,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			(selectedAgeRange !== null && 
 			 (selectedAgeRange[0] !== AGE_RANGE_CONFIG.min || selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)
 				? 1
-				: 0)
+				: 0) +
+			(selectedOOOCPicks ? 1 : 0)
 		);
 	}, [
 		selectedDays,
@@ -163,6 +170,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		selectedGlobalDayNight,
 		selectedPriceRange,
 		selectedAgeRange,
+		selectedOOOCPicks,
 	]);
 
 	// Decision logic for UI variations
@@ -193,6 +201,20 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						Active Filters ({activeFilterCount}):
 					</div>
 					<div className="flex flex-wrap gap-2 min-h-[28px]">
+						{selectedOOOCPicks && (
+							<Badge variant="secondary" className="text-xs">
+								<Star className="h-3 w-3 mr-1 fill-yellow-400" />
+								OOOC Picks
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 ml-1 hover:bg-transparent"
+									onClick={() => onOOOCPicksToggle(false)}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						)}
 						{selectedGlobalDayNight && (
 							<Badge variant="secondary" className="text-xs">
 								🌐 {selectedGlobalDayNight === "day" ? "☀️ Day Events" : "🌙 Night Events"}
@@ -590,6 +612,20 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												))}
 											</div>
 										</div>
+									</div>
+
+									{/* OOOC Picks */}
+									<div>
+										<h3 className="font-semibold mb-3">OOOC Picks</h3>
+										<Toggle
+											pressed={selectedOOOCPicks}
+											onPressedChange={onOOOCPicksToggle}
+											className="justify-start w-full h-8"
+											size="sm"
+										>
+											<Star className="h-4 w-4 mr-2 fill-yellow-400" />
+											<span className="text-xs">Show only OOOC Picks</span>
+										</Toggle>
 									</div>
 
 									{/* Rest of desktop sections with compact styling */}
@@ -1026,6 +1062,20 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											))}
 										</div>
 									</div>
+								</div>
+
+								{/* OOOC Picks */}
+								<div>
+									<h3 className="font-semibold mb-3">OOOC Picks</h3>
+									<Toggle
+										pressed={selectedOOOCPicks}
+										onPressedChange={onOOOCPicksToggle}
+										className="justify-start w-full h-8"
+										size="sm"
+									>
+										<Star className="h-4 w-4 mr-2 fill-yellow-400" />
+										<span className="text-xs">Show only OOOC Picks</span>
+									</Toggle>
 								</div>
 
 								{/* Nationality */}
