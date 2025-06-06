@@ -2,6 +2,7 @@
 
 import { Music, User, LogOut } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import Countdown from "@/components/Countdown";
 import { Clock } from "@/components/Clock";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -24,7 +25,12 @@ const Header = () => {
 						{/* Mobile: OOOC Logo Left, Desktop: Event Branding Left */}
 						<div className="flex items-center space-x-3 flex-1">
 							{/* OOOC Logo - Left on mobile, hidden on desktop */}
-							<div className="relative h-12 w-12 sm:hidden">
+							<Link 
+								href="https://outofofficecollective.co.uk" 
+								target="_blank" 
+								rel="noopener noreferrer"
+								className="relative h-12 w-12 sm:hidden"
+							>
 								<Image
 									src={`${basePath}/OOOCLogoDark.svg`}
 									alt="OOOC - Event Organizer"
@@ -33,7 +39,7 @@ const Header = () => {
 									sizes="48px"
 									className="object-contain transition-transform hover:scale-105 dark:invert"
 								/>
-							</div>
+							</Link>
 
 							{/* Music icon and text - Hidden on mobile, shown on desktop */}
 							<div className="hidden sm:flex items-center space-x-3">
@@ -58,7 +64,12 @@ const Header = () => {
 							</div>
 
 							{/* OOOC Logo - Centered on desktop, hidden on mobile */}
-							<div className="relative h-24 w-24 sm:h-32 sm:w-32 hidden sm:block">
+							<Link 
+								href="https://outofofficecollective.co.uk" 
+								target="_blank" 
+								rel="noopener noreferrer"
+								className="relative h-24 w-24 sm:h-32 sm:w-32 hidden sm:block"
+							>
 								<Image
 									src={`${basePath}/OOOCLogoDark.svg`}
 									alt="OOOC - Event Organizer"
@@ -67,7 +78,7 @@ const Header = () => {
 									sizes="(max-width: 640px) 96px, 128px"
 									className="object-contain transition-transform hover:scale-105 dark:invert"
 								/>
-							</div>
+							</Link>
 						</div>
 
 						{/* Right - Controls */}
