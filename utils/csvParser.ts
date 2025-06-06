@@ -137,12 +137,30 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 	try {
 		const parseResult = Papa.parse(csvContent, {
 			header: true,
-			skipEmptyLines: true,
 			transform: (value: string) => value.trim(),
+			// Handle variable column counts gracefully
+			dynamicTyping: false,
+			skipEmptyLines: 'greedy',
 		});
 
 		if (parseResult.errors.length > 0) {
-			console.warn("CSV parsing errors:", parseResult.errors);
+			// Filter out field mismatch errors for missing columns (they're not critical)
+			const criticalErrors = parseResult.errors.filter(
+				error => error.code !== 'TooFewFields' && error.code !== 'TooManyFields'
+			);
+			
+			if (criticalErrors.length > 0) {
+				console.warn("Critical CSV parsing errors:", criticalErrors);
+			}
+			
+			// Log field mismatch errors as info rather than warnings
+			const fieldErrors = parseResult.errors.filter(
+				error => error.code === 'TooFewFields' || error.code === 'TooManyFields'
+			);
+			
+			if (fieldErrors.length > 0) {
+				console.log(`ℹ️ ${fieldErrors.length} rows have missing columns (this is normal if your sheet doesn't have all optional columns)`);
+			}
 		}
 
 		const rawData = parseResult.data as RawCSVRow[];
@@ -187,6 +205,7 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 				indoorOutdoor:
 					(columnMapping.indoorOutdoor && row[columnMapping.indoorOutdoor]) ||
 					"",
+				// Handle missing notes column gracefully
 				notes: (columnMapping.notes && row[columnMapping.notes]) || "",
 			};
 
