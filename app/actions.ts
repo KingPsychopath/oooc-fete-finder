@@ -1098,3 +1098,175 @@ export async function getCollectedEmails(
 		count: collectedUsers.length,
 	};
 }
+
+// Google Sheets Admin Utilities - communicate with the merged script's admin functions
+export async function getGoogleSheetsStats(adminKey?: string): Promise<{
+	success: boolean;
+	stats?: {
+		totalUsers: number;
+		totalWithNames: number;
+		totalLegacy: number;
+		duplicateEmails: number;
+		recentActivity: string;
+		sheetHealth: string;
+	};
+	error?: string;
+}> {
+	"use server";
+
+	// Admin authentication
+	const expectedKey = process.env.ADMIN_KEY || "your-secret-key-123";
+	if (adminKey !== expectedKey) {
+		return { success: false, error: "Unauthorized" };
+	}
+
+	if (!process.env.GOOGLE_SHEETS_URL) {
+		return {
+			success: false,
+			error: "Google Sheets integration not configured",
+		};
+	}
+
+	try {
+		console.log("📊 Fetching Google Sheets statistics...");
+
+		// Call the Google Apps Script with a special stats request
+		const response = await fetch(
+			`${process.env.GOOGLE_SHEETS_URL}?action=stats`,
+			{
+				method: "GET",
+				signal: AbortSignal.timeout(10000),
+			},
+		);
+
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+		}
+
+		const data = await response.json();
+
+		// Extract stats from the response
+		const stats = {
+			totalUsers: data.totalUsers || 0,
+			totalWithNames: data.totalWithNames || 0,
+			totalLegacy: data.totalLegacy || 0,
+			duplicateEmails: data.duplicateEmails || 0,
+			recentActivity: data.lastActivity || "No recent activity",
+			sheetHealth: data.sheetHealth || "Unknown",
+		};
+
+		console.log("✅ Google Sheets stats retrieved:", stats);
+		return { success: true, stats };
+	} catch (error) {
+		const errorMsg = error instanceof Error ? error.message : "Unknown error";
+		console.error("❌ Failed to get Google Sheets stats:", errorMsg);
+		return { success: false, error: errorMsg };
+	}
+}
+
+export async function getRecentSheetEntries(
+	adminKey?: string,
+	limit: number = 5,
+): Promise<{
+	success: boolean;
+	entries?: Array<{
+		firstName: string;
+		lastName: string;
+		email: string;
+		timestamp: string;
+		consent: boolean;
+		source: string;
+	}>;
+	error?: string;
+}> {
+	"use server";
+
+	// Admin authentication
+	const expectedKey = process.env.ADMIN_KEY || "your-secret-key-123";
+	if (adminKey !== expectedKey) {
+		return { success: false, error: "Unauthorized" };
+	}
+
+	if (!process.env.GOOGLE_SHEETS_URL) {
+		return {
+			success: false,
+			error: "Google Sheets integration not configured",
+		};
+	}
+
+	try {
+		console.log(`📋 Fetching ${limit} recent entries from Google Sheets...`);
+
+		const response = await fetch(
+			`${process.env.GOOGLE_SHEETS_URL}?action=recent&limit=${limit}`,
+			{
+				method: "GET",
+				signal: AbortSignal.timeout(10000),
+			},
+		);
+
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+		}
+
+		const data = await response.json();
+
+		console.log("✅ Recent entries retrieved:", data.entries?.length || 0);
+		return { success: true, entries: data.entries || [] };
+	} catch (error) {
+		const errorMsg = error instanceof Error ? error.message : "Unknown error";
+		console.error("❌ Failed to get recent entries:", errorMsg);
+		return { success: false, error: errorMsg };
+	}
+}
+
+export async function cleanupSheetDuplicates(adminKey?: string): Promise<{
+	success: boolean;
+	removed?: number;
+	message?: string;
+	error?: string;
+}> {
+	"use server";
+
+	// Admin authentication
+	const expectedKey = process.env.ADMIN_KEY || "your-secret-key-123";
+	if (adminKey !== expectedKey) {
+		return { success: false, error: "Unauthorized" };
+	}
+
+	if (!process.env.GOOGLE_SHEETS_URL) {
+		return {
+			success: false,
+			error: "Google Sheets integration not configured",
+		};
+	}
+
+	try {
+		console.log("🧹 Initiating duplicate cleanup in Google Sheets...");
+
+		const response = await fetch(
+			`${process.env.GOOGLE_SHEETS_URL}?action=cleanup`,
+			{
+				method: "POST",
+				signal: AbortSignal.timeout(15000), // Longer timeout for cleanup
+			},
+		);
+
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+		}
+
+		const data = await response.json();
+
+		console.log("✅ Duplicate cleanup completed:", data);
+		return {
+			success: true,
+			removed: data.removed || 0,
+			message: data.message || "Cleanup completed successfully",
+		};
+	} catch (error) {
+		const errorMsg = error instanceof Error ? error.message : "Unknown error";
+		console.error("❌ Failed to cleanup duplicates:", errorMsg);
+		return { success: false, error: errorMsg };
+	}
+}

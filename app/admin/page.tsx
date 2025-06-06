@@ -10,6 +10,8 @@ import {
 	getCacheStatus,
 	setDynamicSheet,
 	getDynamicSheetConfig,
+	getGoogleSheetsStats,
+	getRecentSheetEntries,
 } from "@/app/actions";
 
 // Import local components
@@ -17,6 +19,9 @@ import { AuthForm } from "./components/AuthForm";
 import { CacheManagementCard } from "./components/CacheManagementCard";
 import { DynamicSheetCard } from "./components/DynamicSheetCard";
 import { EmailCollectionCard } from "./components/EmailCollectionCard";
+import { GoogleSheetsStatsCard } from "./components/GoogleSheetsStatsCard";
+import { RecentEntriesCard } from "./components/RecentEntriesCard";
+import { SheetActionsCard } from "./components/SheetActionsCard";
 
 // Import types
 import { EmailRecord, CacheStatus, DynamicSheetConfig } from "./types";
@@ -245,7 +250,7 @@ export default function AdminPage() {
 	};
 
 	const handleBackToHome = () => {
-		const homeUrl = basePath ? `${basePath}/` : "/";
+		const homeUrl = basePath || "/";
 		router.push(homeUrl);
 	};
 
@@ -300,6 +305,26 @@ export default function AdminPage() {
 				refreshing={refreshing}
 				refreshMessage={refreshMessage}
 				onRefresh={handleRefresh}
+			/>
+
+			<Separator />
+
+			{/* Google Sheets Live Data Section */}
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				<GoogleSheetsStatsCard adminKey={adminKey} />
+				<RecentEntriesCard adminKey={adminKey} limit={5} />
+			</div>
+
+			<Separator />
+
+			{/* Sheet Maintenance Section */}
+			<SheetActionsCard
+				adminKey={adminKey}
+				onActionComplete={() => {
+					// Refresh all data when maintenance actions complete
+					loadCacheStatus();
+					setRefreshMessage("Sheet maintenance completed - data refreshed");
+				}}
 			/>
 
 			<Separator />

@@ -3,7 +3,7 @@
 	"vcs": { "enabled": false, "clientKind": "git", "useIgnoreFile": false },
 	"files": {
 		"ignoreUnknown": true,
-		"ignore": [".next/**", "node_modules/**"],
+		"ignore": [".next/**", "node_modules/**", "enhanced-google-apps-script.js"],
 		"include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
 	},
 	"formatter": { "enabled": true, "indentStyle": "tab" },
