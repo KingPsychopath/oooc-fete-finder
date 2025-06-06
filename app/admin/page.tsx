@@ -43,6 +43,16 @@ export default function AdminPage() {
 		setIsLoading(true);
 		setError("");
 
+		// Log Google Sheets configuration status for admin
+		console.log("🔐 Admin panel access attempt");
+		console.log("📊 Checking Google Sheets configuration...");
+		const sheetsConfigured = Boolean(process.env.GOOGLE_SHEETS_URL);
+		if (!sheetsConfigured) {
+			console.warn("⚠️ WARNING: Google Sheets integration not configured in admin panel check");
+		} else {
+			console.log("✅ Google Sheets integration appears to be configured");
+		}
+
 		try {
 			const result = await getCollectedEmails(adminKey);
 
@@ -51,11 +61,15 @@ export default function AdminPage() {
 				setEmails(result.emails || []);
 				await loadCacheStatus();
 				await loadDynamicConfig();
+				
+				console.log(`✅ Admin authenticated successfully. Found ${result.emails?.length || 0} collected users.`);
 			} else {
 				setError(result.error || "Invalid admin key");
+				console.error("❌ Admin authentication failed:", result.error);
 			}
-		} catch {
+		} catch (error) {
 			setError("Something went wrong");
+			console.error("❌ Admin panel error:", error);
 		} finally {
 			setIsLoading(false);
 		}
@@ -182,12 +196,14 @@ export default function AdminPage() {
 
 	const exportAsCSV = () => {
 		const csvContent = [
-			["Email", "Timestamp", "Consent", "Source"],
-			...emails.map((email) => [
-				email.email,
-				email.timestamp,
-				email.consent.toString(),
-				email.source,
+			["First Name", "Last Name", "Email", "Timestamp", "Consent", "Source"],
+			...emails.map((user) => [
+				user.firstName,
+				user.lastName,
+				user.email,
+				user.timestamp,
+				user.consent.toString(),
+				user.source,
 			]),
 		];
 
@@ -197,7 +213,7 @@ export default function AdminPage() {
 
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `fete-finder-emails-${new Date().toISOString().split("T")[0]}.csv`;
+		a.download = `fete-finder-users-${new Date().toISOString().split("T")[0]}.csv`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);

@@ -13,6 +13,7 @@ import {
 	VenueType,
 } from "@/types/events";
 import { USE_CSV_DATA } from "@/data/events";
+import type { UserRecord, AuthenticateUserResponse, CollectedEmailsResponse } from "@/types/user";
 
 // Cache the events data in memory
 let cachedEvents: Event[] | null = null;
@@ -37,13 +38,8 @@ let lastRemoteErrorMessage = "";
 const LOCAL_CSV_LAST_UPDATED =
 	process.env.LOCAL_CSV_LAST_UPDATED || "2025-01-18";
 
-// Simple in-memory email storage (will reset on deployment, but good for development)
-const collectedEmails: Array<{
-	email: string;
-	timestamp: string;
-	consent: boolean;
-	source: string;
-}> = [];
+// Simple in-memory user storage (will reset on deployment, but good for development)
+const collectedUsers: UserRecord[] = [];
 
 // Dynamic Google Sheet override (stored in memory for admin use)
 let dynamicSheetId: string | null = null;
@@ -814,44 +810,166 @@ export async function getCacheStatus(): Promise<{
 	return status;
 }
 
+// Configuration validation function - runs at startup
+function validateGoogleSheetsConfig() {
+	const sheetsUrl = process.env.GOOGLE_SHEETS_URL;
+	const isConfigured = Boolean(sheetsUrl);
+	
+	if (!isConfigured) {
+		console.warn("⚠️ WARNING: Google Sheets integration not configured!");
+		console.warn("📋 Set GOOGLE_SHEETS_URL environment variable to enable user data collection");
+		console.warn("🚫 User authentication will be BLOCKED until Google Sheets is configured");
+	} else {
+		console.log("✅ Google Sheets integration configured");
+		console.log(`📤 Google Sheets URL: ${sheetsUrl!.substring(0, 50)}...`);
+	}
+	
+	return isConfigured;
+}
+
+// Run configuration check at startup
+validateGoogleSheetsConfig();
+
 // Optional Google Sheets integration
-async function sendToGoogleSheets(emailRecord: {
-	email: string;
-	consent: boolean;
-	timestamp: string;
-	source: string;
-}) {
-	// Only run if Google Sheets credentials are provided
+async function sendToGoogleSheets(userRecord: UserRecord): Promise<{
+	success: boolean;
+	error?: string;
+	configured: boolean;
+}> {
+	// Check if Google Sheets URL is configured
 	if (!process.env.GOOGLE_SHEETS_URL) {
-		return;
+		const errorMsg = "❌ Google Sheets integration not configured - GOOGLE_SHEETS_URL environment variable is missing";
+		console.error(errorMsg);
+		return {
+			success: false,
+			error: "Google Sheets integration not configured",
+			configured: false
+		};
 	}
 
 	try {
-		// Google Apps Script Web App URL (you'll create this)
+		console.log("📤 Attempting to send user data to Google Sheets...");
+		
+		// Google Apps Script Web App URL
 		const response = await fetch(process.env.GOOGLE_SHEETS_URL, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify(emailRecord),
+			body: JSON.stringify(userRecord),
+			// Add timeout to prevent hanging
+			signal: AbortSignal.timeout(10000) // 10 second timeout
 		});
 
-		if (response.ok) {
-			console.log("Email sent to Google Sheets successfully");
+		if (!response.ok) {
+			const errorMsg = `❌ Google Sheets API error: ${response.status} ${response.statusText}`;
+			console.error(errorMsg);
+			
+			// Try to get more error details
+			let errorDetails = "";
+			try {
+				const errorBody = await response.text();
+				errorDetails = errorBody ? ` - ${errorBody}` : "";
+			} catch {
+				// Ignore if we can't read the error body
+			}
+			
+			return {
+				success: false,
+				error: `Google Sheets API error: ${response.status}${errorDetails}`,
+				configured: true
+			};
 		}
+
+		// Try to parse the response
+		let responseData;
+		try {
+			responseData = await response.json();
+		} catch {
+			const errorMsg = "❌ Invalid response from Google Sheets script - not valid JSON";
+			console.error(errorMsg);
+			return {
+				success: false,
+				error: "Invalid response from Google Sheets script",
+				configured: true
+			};
+		}
+
+		// Check if the Google Apps Script reported success
+		if (responseData.success === false) {
+			const errorMsg = `❌ Google Apps Script error: ${responseData.error || 'Unknown error'}`;
+			console.error(errorMsg);
+			return {
+				success: false,
+				error: responseData.error || "Google Apps Script error",
+				configured: true
+			};
+		}
+
+		// Success!
+		console.log("✅ User data sent to Google Sheets successfully");
+		if (responseData.duplicate) {
+			console.log("ℹ️ Note: Email was already in the sheet (duplicate detected)");
+		}
+		
+		return {
+			success: true,
+			configured: true
+		};
+
 	} catch (error) {
-		console.error("Failed to send to Google Sheets:", error);
+		let errorMsg = "❌ Failed to send to Google Sheets: ";
+		
+		if (error instanceof Error) {
+			if (error.name === 'AbortError') {
+				errorMsg += "Request timeout - Google Sheets took too long to respond";
+			} else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+				errorMsg += "Network error - could not reach Google Sheets";
+			} else {
+				errorMsg += error.message;
+			}
+		} else {
+			errorMsg += "Unknown error";
+		}
+		
+		console.error(errorMsg);
+		return {
+			success: false,
+			error: errorMsg.replace("❌ Failed to send to Google Sheets: ", ""),
+			configured: true
+		};
 	}
 }
 
 // Email authentication server action
-export async function authenticateUser(formData: FormData) {
+export async function authenticateUser(formData: FormData): Promise<AuthenticateUserResponse> {
 	"use server";
 
+	const firstName = formData.get("firstName") as string;
+	const lastName = formData.get("lastName") as string;
 	const email = formData.get("email") as string;
 	const consent = formData.get("consent") === "true";
 
+	console.log("🔐 Starting user authentication process...");
+	console.log(`📊 User data: ${firstName} ${lastName} (${email}), consent: ${consent}`);
+
 	// Validation
+	if (!firstName) {
+		return { success: false, error: "First name is required" };
+	}
+
+	if (firstName.trim().length < 2) {
+		return { success: false, error: "First name must be at least 2 characters" };
+	}
+
+	if (!lastName) {
+		return { success: false, error: "Last name is required" };
+	}
+
+	if (lastName.trim().length < 2) {
+		return { success: false, error: "Last name must be at least 2 characters" };
+	}
+
 	if (!email) {
 		return { success: false, error: "Email is required" };
 	}
@@ -865,42 +983,70 @@ export async function authenticateUser(formData: FormData) {
 		return { success: false, error: "Consent is required" };
 	}
 
+	console.log("✅ Basic validation passed");
+
 	try {
-		// Store email in memory
-		const emailRecord = {
-			email,
+		// Store user data in memory
+		const userRecord: UserRecord = {
+			firstName: firstName.trim(),
+			lastName: lastName.trim(),
+			email: email.trim(),
 			consent,
 			timestamp: new Date().toISOString(),
 			source: "fete-finder-auth",
 		};
 
+		// Attempt to send to Google Sheets (this is now REQUIRED for authentication)
+		const sheetsResult = await sendToGoogleSheets(userRecord);
+		
+		if (!sheetsResult.configured) {
+			// Google Sheets isn't configured - this is a critical error
+			const criticalError = "Authentication system not properly configured. Please contact support.";
+			console.error("🚨 CRITICAL: Google Sheets integration not configured - blocking authentication");
+			return { 
+				success: false, 
+				error: criticalError
+			};
+		}
+
+		if (!sheetsResult.success) {
+			// Google Sheets is configured but failed - this is also a critical error
+			const criticalError = "Unable to save your information. Please try again or contact support.";
+			console.error(`🚨 CRITICAL: Google Sheets integration failed - blocking authentication: ${sheetsResult.error}`);
+			return { 
+				success: false, 
+				error: criticalError
+			};
+		}
+
+		// Only proceed with in-memory storage if Google Sheets was successful
 		console.log(
-			"About to push email to collectedEmails array. Current length:",
-			collectedEmails.length,
+			"📝 Google Sheets success - adding to in-memory storage. Current length:",
+			collectedUsers.length,
 		);
-		collectedEmails.push(emailRecord);
-		console.log("After push - new length:", collectedEmails.length);
-		console.log("Just added:", emailRecord);
+		collectedUsers.push(userRecord);
+		console.log("📈 After push - new length:", collectedUsers.length);
+		console.log("✅ User successfully added:", userRecord);
 
-		// Log the authentication with consent info
-		console.log("User authenticated:", emailRecord);
-
-		// Optionally send to Google Sheets
-		await sendToGoogleSheets(emailRecord);
+		console.log("🎉 User authentication completed successfully");
 
 		return {
 			success: true,
-			message: "Email collected with consent",
+			message: "User data collected and saved successfully",
 			email,
 		};
 	} catch (error) {
-		console.error("Error processing email:", error);
-		return { success: false, error: "Something went wrong. Please try again." };
+		const errorMsg = error instanceof Error ? error.message : "Unknown error";
+		console.error("❌ Critical error during authentication:", errorMsg);
+		return { 
+			success: false, 
+			error: "Something went wrong during authentication. Please try again." 
+		};
 	}
 }
 
 // Admin function to get collected emails
-export async function getCollectedEmails(adminKey?: string) {
+export async function getCollectedEmails(adminKey?: string): Promise<CollectedEmailsResponse> {
 	"use server";
 
 	// Simple protection - you can set this as an environment variable
@@ -913,13 +1059,13 @@ export async function getCollectedEmails(adminKey?: string) {
 	// Debug logging
 	console.log(
 		"Admin panel accessed - current emails in memory:",
-		collectedEmails.length,
+		collectedUsers.length,
 	);
-	console.log("Emails:", collectedEmails);
+	console.log("Emails:", collectedUsers);
 
 	return {
 		success: true,
-		emails: collectedEmails,
-		count: collectedEmails.length,
+		emails: collectedUsers,
+		count: collectedUsers.length,
 	};
 }

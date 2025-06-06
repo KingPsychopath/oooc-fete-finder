@@ -48,7 +48,7 @@ const AuthGate = ({
 				}`}
 			>
 				<div
-					className={`text-center space-y-4 p-6 max-w-sm mx-auto transition-all duration-700 ease-out delay-200 ${
+					className={`text-center space-y-4 p-8 max-w-md mx-auto transition-all duration-700 ease-out delay-200 ${
 						showOverlay
 							? "opacity-100 translate-y-0"
 							: "opacity-0 translate-y-4"
@@ -64,7 +64,7 @@ const AuthGate = ({
 							Authentication Required
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Provide your email to access filtering and search
+							Provide your name and email to access filtering and search
 						</p>
 					</div>
 					<Button
@@ -73,7 +73,7 @@ const AuthGate = ({
 						size="default"
 					>
 						<Mail className="h-4 w-4" />
-						Continue with Email
+						Continue with Details
 					</Button>
 				</div>
 			</div>

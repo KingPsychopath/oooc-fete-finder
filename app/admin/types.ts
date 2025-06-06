@@ -1,9 +1,5 @@
-export type EmailRecord = {
-	email: string;
-	timestamp: string;
-	consent: boolean;
-	source: string;
-};
+// Import shared user types
+export type { UserRecord as EmailRecord } from "@/types/user";
 
 export type CacheStatus = {
 	hasCachedData: boolean;

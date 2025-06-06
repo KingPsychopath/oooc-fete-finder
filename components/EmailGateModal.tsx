@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock, User } from "lucide-react";
 import { authenticateUser } from "@/app/actions";
 
 type EmailGateModalProps = {
@@ -23,6 +23,8 @@ const EmailGateModal = ({
 	onEmailSubmit,
 	onClose,
 }: EmailGateModalProps) => {
+	const [firstName, setFirstName] = useState("");
+	const [lastName, setLastName] = useState("");
 	const [email, setEmail] = useState("");
 	const [consent, setConsent] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,8 +35,33 @@ const EmailGateModal = ({
 		return emailRegex.test(email);
 	};
 
+	const validateName = (name: string) => {
+		return name.trim().length >= 2;
+	};
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+
+		// Validation
+		if (!firstName.trim()) {
+			setError("Please enter your first name");
+			return;
+		}
+
+		if (!validateName(firstName)) {
+			setError("First name must be at least 2 characters");
+			return;
+		}
+
+		if (!lastName.trim()) {
+			setError("Please enter your last name");
+			return;
+		}
+
+		if (!validateName(lastName)) {
+			setError("Last name must be at least 2 characters");
+			return;
+		}
 
 		if (!email.trim()) {
 			setError("Please enter your email address");
@@ -55,9 +82,11 @@ const EmailGateModal = ({
 		setError("");
 
 		try {
-			// Use server action instead of API endpoint
+			// Use server action with updated data
 			const formData = new FormData();
-			formData.append("email", email);
+			formData.append("firstName", firstName.trim());
+			formData.append("lastName", lastName.trim());
+			formData.append("email", email.trim());
 			formData.append("consent", "true");
 
 			const result = await authenticateUser(formData);
@@ -83,13 +112,56 @@ const EmailGateModal = ({
 						Access Required
 					</DialogTitle>
 					<DialogDescription>
-						To use filters and explore events, please provide your email
-						address. We'll use this to improve our recommendations and keep you
+						To use filters and explore events, please provide your details. 
+						We'll use this to improve our recommendations and keep you
 						updated on future events.
 					</DialogDescription>
 				</DialogHeader>
 
 				<form onSubmit={handleSubmit} className="space-y-4">
+					{/* Name Fields */}
+					<div className="grid grid-cols-2 gap-3">
+						<div className="space-y-2">
+							<Label htmlFor="firstName">First Name</Label>
+							<div className="relative">
+								<User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+								<Input
+									id="firstName"
+									type="text"
+									placeholder="John"
+									value={firstName}
+									onChange={(e) => {
+										setFirstName(e.target.value);
+										setError("");
+									}}
+									className="pl-10"
+									disabled={isSubmitting}
+									autoFocus
+								/>
+							</div>
+						</div>
+
+						<div className="space-y-2">
+							<Label htmlFor="lastName">Last Name</Label>
+							<div className="relative">
+								<User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+								<Input
+									id="lastName"
+									type="text"
+									placeholder="Doe"
+									value={lastName}
+									onChange={(e) => {
+										setLastName(e.target.value);
+										setError("");
+									}}
+									className="pl-10"
+									disabled={isSubmitting}
+								/>
+							</div>
+						</div>
+					</div>
+
+					{/* Email Field */}
 					<div className="space-y-2">
 						<Label htmlFor="email">Email Address</Label>
 						<div className="relative">
@@ -97,7 +169,7 @@ const EmailGateModal = ({
 							<Input
 								id="email"
 								type="email"
-								placeholder="your@email.com"
+								placeholder="john.doe@email.com"
 								value={email}
 								onChange={(e) => {
 									setEmail(e.target.value);
@@ -105,7 +177,6 @@ const EmailGateModal = ({
 								}}
 								className="pl-10"
 								disabled={isSubmitting}
-								autoFocus
 							/>
 						</div>
 					</div>
@@ -128,7 +199,7 @@ const EmailGateModal = ({
 								htmlFor="consent"
 								className="text-xs leading-relaxed cursor-pointer"
 							>
-								I agree to the collection and processing of my email address for
+								I agree to the collection and processing of my personal information for
 								event recommendations and updates.
 							</Label>
 						</div>
