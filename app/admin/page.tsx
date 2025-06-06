@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -61,14 +61,14 @@ export default function AdminPage() {
 		}
 	};
 
-	const loadCacheStatus = async () => {
+	const loadCacheStatus = useCallback(async () => {
 		try {
 			const status = await getCacheStatus();
 			setCacheStatus(status);
 		} catch {
 			console.error("Failed to load cache status");
 		}
-	};
+	}, []);
 
 	const loadDynamicConfig = async () => {
 		try {
@@ -85,7 +85,7 @@ export default function AdminPage() {
 
 		const interval = setInterval(loadCacheStatus, 30000);
 		return () => clearInterval(interval);
-	}, [isAuthenticated]);
+	}, [isAuthenticated, loadCacheStatus]);
 
 	const handleRefresh = async () => {
 		setRefreshing(true);
