@@ -38,21 +38,21 @@ interface EventModalProps {
 
 /**
  * Converts an integer to its ordinal form (1st, 2nd, 3rd, etc.).
- * 
+ *
  * @param num - The number to convert to ordinal
  * @returns String with ordinal suffix (e.g., "1st", "2nd", "3rd", "4th")
- * 
+ *
  * **Rules:**
  * - Numbers ending in 11, 12, 13 use "th" (11th, 12th, 13th)
  * - Numbers ending in 1 use "st" (1st, 21st, 31st)
- * - Numbers ending in 2 use "nd" (2nd, 22nd, 32nd) 
+ * - Numbers ending in 2 use "nd" (2nd, 22nd, 32nd)
  * - Numbers ending in 3 use "rd" (3rd, 23rd, 33rd)
  * - All others use "th" (4th, 5th, 6th, etc.)
- * 
+ *
  * @example
  * ```tsx
  * getOrdinal(1)   // → "1st"
- * getOrdinal(2)   // → "2nd" 
+ * getOrdinal(2)   // → "2nd"
  * getOrdinal(3)   // → "3rd"
  * getOrdinal(11)  // → "11th"
  * getOrdinal(21)  // → "21st"
@@ -83,25 +83,27 @@ const getOrdinal = (num: number): string => {
 
 /**
  * Determines if a string is a valid URL or plain text location name.
- * 
+ *
  * @param input - The string to analyze (could be URL or location name)
  * @returns Object with isUrl boolean and the processed value
- * 
+ *
  * **Detection Logic:**
  * - Checks for common URL patterns (http://, https://, maps://, geo:)
  * - Validates URL structure using URL constructor
  * - Handles Google Sheets export edge cases
- * 
+ *
  * @example
  * ```tsx
- * parseLocationInput("https://maps.google.com/...") 
+ * parseLocationInput("https://maps.google.com/...")
  * // → { isUrl: true, value: "https://maps.google.com/..." }
- * 
+ *
  * parseLocationInput("Le Comptoir Général")
  * // → { isUrl: false, value: "Le Comptoir Général" }
  * ```
  */
-const parseLocationInput = (input: string): { isUrl: boolean; value: string } => {
+const parseLocationInput = (
+	input: string,
+): { isUrl: boolean; value: string } => {
 	if (!input || input === "TBA") {
 		return { isUrl: false, value: input };
 	}
@@ -110,21 +112,23 @@ const parseLocationInput = (input: string): { isUrl: boolean; value: string } =>
 
 	// Check for URL patterns
 	const urlPatterns = [
-		/^https?:\/\//i,           // http:// or https://
-		/^maps:\/\//i,             // maps:// (Apple Maps)
-		/^geo:/i,                  // geo: (Android)
-		/^www\./i,                 // www. (common shorthand)
+		/^https?:\/\//i, // http:// or https://
+		/^maps:\/\//i, // maps:// (Apple Maps)
+		/^geo:/i, // geo: (Android)
+		/^www\./i, // www. (common shorthand)
 	];
 
-	const hasUrlPattern = urlPatterns.some(pattern => pattern.test(trimmedInput));
+	const hasUrlPattern = urlPatterns.some((pattern) =>
+		pattern.test(trimmedInput),
+	);
 
 	if (hasUrlPattern) {
 		try {
 			// For www. links, prepend https://
-			const urlToTest = trimmedInput.startsWith('www.') 
-				? `https://${trimmedInput}` 
+			const urlToTest = trimmedInput.startsWith("www.")
+				? `https://${trimmedInput}`
 				: trimmedInput;
-			
+
 			new URL(urlToTest);
 			return { isUrl: true, value: urlToTest };
 		} catch {
@@ -134,10 +138,13 @@ const parseLocationInput = (input: string): { isUrl: boolean; value: string } =>
 	}
 
 	// Additional check for Google Maps URLs that might not start with protocol
-	if (trimmedInput.includes('google.com/maps') || trimmedInput.includes('maps.google.com')) {
+	if (
+		trimmedInput.includes("google.com/maps") ||
+		trimmedInput.includes("maps.google.com")
+	) {
 		try {
-			const urlToTest = trimmedInput.startsWith('http') 
-				? trimmedInput 
+			const urlToTest = trimmedInput.startsWith("http")
+				? trimmedInput
 				: `https://${trimmedInput}`;
 			new URL(urlToTest);
 			return { isUrl: true, value: urlToTest };
@@ -153,43 +160,46 @@ const parseLocationInput = (input: string): { isUrl: boolean; value: string } =>
 /**
  * Opens a location in the most appropriate maps application based on the user's platform.
  * Handles both plain text location names and direct URLs.
- * 
+ *
  * @param locationInput - The location string (venue name, address, or URL)
  * @param arrondissement - Optional arrondissement (number or "unknown") to append to plain text searches
- * 
+ *
  * **Input Handling:**
  * - **URLs**: Opens directly in new tab (preserves Google Sheets hyperlinks)
  * - **Plain text**: Uses platform-specific maps integration with optional arrondissement context
- * 
+ *
  * **Arrondissement Enhancement:**
  * - For plain text locations, appends "Location Name + 3rd arrondissement" for better search accuracy
  * - Only applies to plain text searches, not direct URLs
  * - Uses proper ordinal formatting (1st, 2nd, 3rd, etc.)
- * 
+ *
  * **Platform Behavior:**
  * - **iOS**: Opens Apple Maps first, with automatic fallback to Google Maps web
  * - **Android**: Opens native Google Maps app using geo: protocol
  * - **Desktop/Web**: Opens Google Maps web interface with full API features
- * 
+ *
  * **Accessibility:**
  * - Handles native app failures gracefully with web fallbacks
  * - Uses proper URL encoding for special characters and spaces
  * - Maintains consistent behavior across all platforms
- * 
+ *
  * @example
  * ```tsx
  * // Plain text location with arrondissement
  * <button onClick={() => openLocationInMaps("Le Comptoir Général", 10)}>
  *   View Location  // Searches: "Le Comptoir Général 10th arrondissement"
  * </button>
- * 
+ *
  * // Direct URL (arrondissement ignored)
  * <button onClick={() => openLocationInMaps("https://maps.google.com/...", 3)}>
  *   View Location  // Opens URL directly
  * </button>
  * ```
  */
-const openLocationInMaps = (locationInput: string, arrondissement?: number | "unknown"): void => {
+const openLocationInMaps = (
+	locationInput: string,
+	arrondissement?: number | "unknown",
+): void => {
 	const { isUrl, value } = parseLocationInput(locationInput);
 
 	if (!value || value === "TBA") return;
@@ -203,7 +213,11 @@ const openLocationInMaps = (locationInput: string, arrondissement?: number | "un
 	// Handle plain text location names with platform-specific logic
 	// Enhance search with arrondissement context for better accuracy
 	let searchQuery = value;
-	if (arrondissement && arrondissement !== "unknown" && typeof arrondissement === "number") {
+	if (
+		arrondissement &&
+		arrondissement !== "unknown" &&
+		typeof arrondissement === "number"
+	) {
 		const ordinalArrondissement = getOrdinal(arrondissement);
 		searchQuery = `${value} ${ordinalArrondissement} arrondissement`;
 	}
@@ -216,10 +230,14 @@ const openLocationInMaps = (locationInput: string, arrondissement?: number | "un
 		// iOS: Try Apple Maps first, fallback to Google Maps web
 		const appleMapsUrl = `maps://maps.apple.com/?q=${query}`;
 		window.open(appleMapsUrl, "_blank", "noopener,noreferrer");
-		
+
 		// Automatic fallback to Google Maps web if Apple Maps fails
 		setTimeout(() => {
-			window.open(`https://maps.google.com/?q=${query}`, "_blank", "noopener,noreferrer");
+			window.open(
+				`https://maps.google.com/?q=${query}`,
+				"_blank",
+				"noopener,noreferrer",
+			);
 		}, 100);
 	} else if (isAndroid) {
 		// Android: Use geo: protocol for native Google Maps
@@ -228,7 +246,11 @@ const openLocationInMaps = (locationInput: string, arrondissement?: number | "un
 			window.open(mapsUrl, "_blank", "noopener,noreferrer");
 		} catch {
 			// Fallback to web version if native app fails
-			window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, "_blank", "noopener,noreferrer");
+			window.open(
+				`https://www.google.com/maps/search/?api=1&query=${query}`,
+				"_blank",
+				"noopener,noreferrer",
+			);
 		}
 	} else {
 		// Desktop/Web: Use Google Maps web interface
@@ -389,7 +411,9 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							</div>
 							{event.location && event.location !== "TBA" && (
 								<button
-									onClick={() => openLocationInMaps(event.location!, event.arrondissement)}
+									onClick={() =>
+										openLocationInMaps(event.location!, event.arrondissement)
+									}
 									className="text-muted-foreground hover:text-primary hover:underline transition-colors text-left min-h-[44px] py-2 -my-2 pr-2 -mr-2 flex items-center"
 									title={`Open "${event.location}" in maps`}
 								>

@@ -35,7 +35,7 @@ const EmailGateModal = ({
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		
+
 		if (!email.trim()) {
 			setError("Please enter your email address");
 			return;
@@ -59,9 +59,9 @@ const EmailGateModal = ({
 			const formData = new FormData();
 			formData.append("email", email);
 			formData.append("consent", "true");
-			
+
 			const result = await authenticateUser(formData);
-			
+
 			if (result.success) {
 				onEmailSubmit(email);
 			} else {

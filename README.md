@@ -92,6 +92,127 @@ GOOGLE_SHEETS_URL=your-google-apps-script-url
 5. **Admin Control**: Use `/admin` to monitor cache status and force refresh
 6. **Error Handling**: User-friendly messages when using fallback data with last-updated dates
 
+## System Architecture & Data Flow
+
+### 🏗️ Application Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   User Visit    │───▶│   Check Cache    │───▶│  Return Cached  │
+│      "/"        │    │  (< 1 hour old?) │    │   (if fresh)    │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                              │ No/Expired
+                              ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│  Try Remote     │───▶│  Service Account │───▶│   Update Cache  │
+│ (every 5 min)   │    │    API Key       │    │ lastDataSource  │
+└─────────────────┘    │   Direct CSV     │    │   = 'remote'    │
+                       └──────────────────┘    └─────────────────┘
+                              │ All Fail
+                              ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│  Local Fallback │───▶│  Read CSV File   │───▶│   Update Cache  │
+│   (backup)      │    │ oooc-list-*.csv  │    │ lastDataSource  │
+└─────────────────┘    └──────────────────┘    │   = 'local'     │
+                                               └─────────────────┘
+```
+
+### 📊 Data Source States
+
+#### **📡 "Remote" - Live Google Sheets Data**
+- **When**: Successfully fetched from Google Sheets
+- **Triggers**: 
+  - First app load (if no cache)
+  - Every 5 minutes auto-refresh
+  - Force refresh from admin panel
+- **Best State**: Most up-to-date data
+
+#### **📁 "Local" - Backup CSV File**
+- **When**: Remote Google Sheets fetch fails
+- **File**: `data/oooc-list-tracker4.csv`
+- **Triggers**:
+  - Google Sheets API errors (401, 403, etc.)
+  - Network connectivity issues
+  - Invalid credentials
+- **Fallback State**: Uses backup data
+
+#### **💾 "Cached" - Startup State**
+- **When**: 
+  - Server restart/cold start (initial state)
+  - Very first admin panel access before data loads
+- **Rare State**: Quickly changes to 'remote' or 'local' once data loads
+
+### 🔄 Data Loading Flow
+
+1. **Initial Page Load** (`app/page.tsx`)
+   ```typescript
+   export default async function Home() {
+       const { data: events } = await getEvents(); // Server-side fetch
+       return <EventsClient initialEvents={events} />;
+   }
+   ```
+
+2. **Smart Caching Logic** (`app/actions.ts`)
+   ```
+   getEvents() → Check Cache → Try Remote → Fallback to Local
+   ```
+
+3. **Multiple Authentication Methods**
+   ```
+   fetchRemoteCSV() tries in order:
+   ├── Direct CSV (public sheets)
+   ├── Service Account (most secure)
+   └── API Key (simpler setup)
+   ```
+
+### ⚙️ Key Configuration
+
+```typescript
+// Timing Configuration (environment variables)
+CACHE_DURATION = 1 hour           // How long cache is "fresh"
+REMOTE_REFRESH_INTERVAL = 5 minutes  // How often to check Google Sheets
+
+// In-Memory Cache Variables (server-side)
+let cachedEvents: Event[] | null = null;
+let lastFetchTime = 0;
+let lastRemoteFetchTime = 0;
+let lastDataSource: 'remote' | 'local' | 'cached';
+```
+
+### 🕐 Auto-refresh Triggers
+
+1. **User visits main page** + cache expired (> 1 hour)
+2. **Admin panel auto-refresh** (every 30 seconds)
+3. **Background refresh** when remote check interval passes (5 minutes)
+4. **Manual force refresh** from admin panel
+
+### 📁 File Structure & Responsibilities
+
+#### **Data Layer**
+- **`app/actions.ts`** - All data fetching, caching, and server actions
+- **`data/events.ts`** - Configuration flags (`USE_CSV_DATA`) and helper functions
+- **`data/oooc-list-tracker4.csv`** - Local backup data
+
+#### **UI Layer**
+- **`app/page.tsx`** - Server-side initial data fetch
+- **`app/events-client.tsx`** - Client-side event display and filtering
+- **`app/admin/`** - Admin panel for monitoring and management
+
+#### **Admin Monitoring**
+- **`app/admin/page.tsx`** - Main admin interface
+- **`app/admin/components/CacheManagementCard.tsx`** - Cache status display
+- **`app/admin/types.ts`** - TypeScript definitions for admin data
+
+### 💡 Monitoring Tips
+
+- **"Remote" = Best** - Live, up-to-date data from Google Sheets
+- **"Local" = Check connectivity** - Google Sheets may be unreachable
+- **"Cached" = Server restart** - Rare, usually means fresh server instance
+- **Watch timestamps** - "Last Successful Remote Connection" shows data freshness
+- **Cache Age** - Shows how old your current data is
+
+The system is designed for **resilience** - it always tries to get the freshest data from Google Sheets, but gracefully falls back to local CSV if there are issues, ensuring your app always has event data to display.
+
 ### Admin Panel
 
 Access the admin panel at `/admin` to:

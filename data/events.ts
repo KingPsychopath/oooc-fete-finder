@@ -4,13 +4,13 @@ import { getEvents } from "@/app/actions";
 
 // Toggle flag to switch between test data and CSV data
 // Set this to true to use CSV data, false to use test data
-// 
+//
 // When USE_CSV_DATA is true:
 // - The app will attempt to fetch data from Google Sheets CSV URL every 5 minutes
 // - Falls back to local CSV file if remote fetch fails
 // - Data is cached for 1 hour to improve performance
 // - Admin panel provides manual refresh and cache monitoring
-// 
+//
 // When USE_CSV_DATA is false:
 // - Only local CSV file is used (no remote fetching)
 // - Maintains backwards compatibility
