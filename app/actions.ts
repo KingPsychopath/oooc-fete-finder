@@ -36,21 +36,145 @@ const collectedEmails: Array<{
 	source: string;
 }> = [];
 
+// Dynamic Google Sheet override (stored in memory for admin use)
+let dynamicSheetId: string | null = null;
+let dynamicSheetRange: string | null = null;
+
+/**
+ * Extract Google Sheet ID from various URL formats
+ */
+function extractSheetId(input: string): string | null {
+	if (!input || input.trim() === '') return null;
+	
+	const trimmed = input.trim();
+	
+	// If it's already just an ID (alphanumeric with dashes/underscores)
+	if (/^[a-zA-Z0-9_-]+$/.test(trimmed) && trimmed.length > 20) {
+		return trimmed;
+	}
+	
+	// Extract from various Google Sheets URL formats
+	const patterns = [
+		// https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0
+		/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/,
+		// https://docs.google.com/spreadsheets/d/SHEET_ID/export?format=csv
+		/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/,
+		// Any other pattern with /d/ followed by the ID
+		/\/d\/([a-zA-Z0-9-_]+)/
+	];
+	
+	for (const pattern of patterns) {
+		const match = trimmed.match(pattern);
+		if (match && match[1]) {
+			return match[1];
+		}
+	}
+	
+	return null;
+}
+
+/**
+ * Set dynamic Google Sheet configuration (admin only)
+ */
+export async function setDynamicSheet(formData: FormData): Promise<{
+	success: boolean;
+	message: string;
+	sheetId?: string;
+	range?: string;
+}> {
+	"use server";
+	
+	const adminKey = formData.get("adminKey") as string;
+	const sheetInput = formData.get("sheetInput") as string;
+	const sheetRange = formData.get("sheetRange") as string;
+	
+	// Verify admin access
+	const expectedKey = process.env.ADMIN_KEY || "your-secret-key-123";
+	if (adminKey !== expectedKey) {
+		return { success: false, message: "Unauthorized access" };
+	}
+	
+	try {
+		if (!sheetInput || sheetInput.trim() === '') {
+			// Clear dynamic override
+			dynamicSheetId = null;
+			dynamicSheetRange = null;
+			return { 
+				success: true, 
+				message: "Dynamic sheet override cleared - using environment variables" 
+			};
+		}
+		
+		const extractedId = extractSheetId(sheetInput);
+		if (!extractedId) {
+			return { 
+				success: false, 
+				message: "Invalid Google Sheet URL or ID format" 
+			};
+		}
+		
+		// Set dynamic override
+		dynamicSheetId = extractedId;
+		dynamicSheetRange = (sheetRange && sheetRange.trim()) || 'A:Z';
+		
+		console.log(`🔄 Admin set dynamic Google Sheet: ${dynamicSheetId} (Range: ${dynamicSheetRange})`);
+		
+		return {
+			success: true,
+			message: `Dynamic sheet override set successfully`,
+			sheetId: dynamicSheetId,
+			range: dynamicSheetRange
+		};
+		
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		console.error('❌ Error setting dynamic sheet:', errorMessage);
+		return {
+			success: false,
+			message: `Error: ${errorMessage}`
+		};
+	}
+}
+
+/**
+ * Get current dynamic sheet configuration
+ */
+export async function getDynamicSheetConfig(): Promise<{
+	hasDynamicOverride: boolean;
+	sheetId: string | null;
+	range: string | null;
+	envSheetId: string | null;
+	envRange: string | null;
+}> {
+	"use server";
+	
+	return {
+		hasDynamicOverride: Boolean(dynamicSheetId),
+		sheetId: dynamicSheetId,
+		range: dynamicSheetRange,
+		envSheetId: process.env.GOOGLE_SHEET_ID || null,
+		envRange: process.env.GOOGLE_SHEET_RANGE || 'A:Z'
+	};
+}
+
 /**
  * Fetch CSV content from Google Sheets using Service Account (most secure)
  */
 async function fetchRemoteCSVWithServiceAccount(): Promise<string> {
 	const GOOGLE_SERVICE_ACCOUNT_KEY = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
 	const GOOGLE_SERVICE_ACCOUNT_FILE = process.env.GOOGLE_SERVICE_ACCOUNT_FILE;
-	const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
-	const GOOGLE_SHEET_RANGE = process.env.GOOGLE_SHEET_RANGE || 'A:Z';
+	
+	// Use dynamic override if available, otherwise fall back to environment variables
+	const GOOGLE_SHEET_ID = dynamicSheetId || process.env.GOOGLE_SHEET_ID;
+	const GOOGLE_SHEET_RANGE = dynamicSheetRange || process.env.GOOGLE_SHEET_RANGE || 'A:Z';
 	
 	if ((!GOOGLE_SERVICE_ACCOUNT_KEY && !GOOGLE_SERVICE_ACCOUNT_FILE) || !GOOGLE_SHEET_ID) {
 		throw new Error('Service account credentials not configured. Set GOOGLE_SERVICE_ACCOUNT_KEY or GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_SHEET_ID environment variables.');
 	}
 
 	try {
-		console.log('🔐 Attempting to fetch Google Sheet with service account authentication...');
+		const sheetSource = dynamicSheetId ? `dynamic override (${GOOGLE_SHEET_ID})` : `environment variable (${GOOGLE_SHEET_ID})`;
+		console.log(`🔐 Attempting to fetch Google Sheet via service account from ${sheetSource}...`);
 		
 		// Parse the service account key (from environment variable or file)
 		let serviceAccount;
@@ -159,8 +283,10 @@ async function fetchRemoteCSVWithServiceAccount(): Promise<string> {
  */
 async function fetchRemoteCSVWithAuth(): Promise<string> {
 	const GOOGLE_SHEETS_API_KEY = process.env.GOOGLE_SHEETS_API_KEY;
-	const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
-	const GOOGLE_SHEET_RANGE = process.env.GOOGLE_SHEET_RANGE || 'A:Z';
+	
+	// Use dynamic override if available, otherwise fall back to environment variables
+	const GOOGLE_SHEET_ID = dynamicSheetId || process.env.GOOGLE_SHEET_ID;
+	const GOOGLE_SHEET_RANGE = dynamicSheetRange || process.env.GOOGLE_SHEET_RANGE || 'A:Z';
 	
 	if (!GOOGLE_SHEETS_API_KEY || !GOOGLE_SHEET_ID) {
 		throw new Error('Google Sheets API credentials not configured. Set GOOGLE_SHEETS_API_KEY and GOOGLE_SHEET_ID environment variables.');
@@ -169,7 +295,8 @@ async function fetchRemoteCSVWithAuth(): Promise<string> {
 	const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${GOOGLE_SHEET_RANGE}?key=${GOOGLE_SHEETS_API_KEY}`;
 
 	try {
-		console.log('🔑 Attempting to fetch private Google Sheet via API key...');
+		const sheetSource = dynamicSheetId ? `dynamic override (${GOOGLE_SHEET_ID})` : `environment variable (${GOOGLE_SHEET_ID})`;
+		console.log(`🔑 Attempting to fetch Google Sheet via API key from ${sheetSource}...`);
 		
 		const response = await fetch(apiUrl, {
 			headers: {
