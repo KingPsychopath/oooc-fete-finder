@@ -13,7 +13,11 @@ import {
 	VenueType,
 } from "@/types/events";
 import { USE_CSV_DATA } from "@/data/events";
-import type { UserRecord, AuthenticateUserResponse, CollectedEmailsResponse } from "@/types/user";
+import type {
+	UserRecord,
+	AuthenticateUserResponse,
+	CollectedEmailsResponse,
+} from "@/types/user";
 
 // Cache the events data in memory
 let cachedEvents: Event[] | null = null;
@@ -814,16 +818,20 @@ export async function getCacheStatus(): Promise<{
 function validateGoogleSheetsConfig() {
 	const sheetsUrl = process.env.GOOGLE_SHEETS_URL;
 	const isConfigured = Boolean(sheetsUrl);
-	
+
 	if (!isConfigured) {
 		console.warn("⚠️ WARNING: Google Sheets integration not configured!");
-		console.warn("📋 Set GOOGLE_SHEETS_URL environment variable to enable user data collection");
-		console.warn("🚫 User authentication will be BLOCKED until Google Sheets is configured");
+		console.warn(
+			"📋 Set GOOGLE_SHEETS_URL environment variable to enable user data collection",
+		);
+		console.warn(
+			"🚫 User authentication will be BLOCKED until Google Sheets is configured",
+		);
 	} else {
 		console.log("✅ Google Sheets integration configured");
 		console.log(`📤 Google Sheets URL: ${sheetsUrl!.substring(0, 50)}...`);
 	}
-	
+
 	return isConfigured;
 }
 
@@ -838,18 +846,19 @@ async function sendToGoogleSheets(userRecord: UserRecord): Promise<{
 }> {
 	// Check if Google Sheets URL is configured
 	if (!process.env.GOOGLE_SHEETS_URL) {
-		const errorMsg = "❌ Google Sheets integration not configured - GOOGLE_SHEETS_URL environment variable is missing";
+		const errorMsg =
+			"❌ Google Sheets integration not configured - GOOGLE_SHEETS_URL environment variable is missing";
 		console.error(errorMsg);
 		return {
 			success: false,
 			error: "Google Sheets integration not configured",
-			configured: false
+			configured: false,
 		};
 	}
 
 	try {
 		console.log("📤 Attempting to send user data to Google Sheets...");
-		
+
 		// Google Apps Script Web App URL
 		const response = await fetch(process.env.GOOGLE_SHEETS_URL, {
 			method: "POST",
@@ -858,13 +867,13 @@ async function sendToGoogleSheets(userRecord: UserRecord): Promise<{
 			},
 			body: JSON.stringify(userRecord),
 			// Add timeout to prevent hanging
-			signal: AbortSignal.timeout(10000) // 10 second timeout
+			signal: AbortSignal.timeout(10000), // 10 second timeout
 		});
 
 		if (!response.ok) {
 			const errorMsg = `❌ Google Sheets API error: ${response.status} ${response.statusText}`;
 			console.error(errorMsg);
-			
+
 			// Try to get more error details
 			let errorDetails = "";
 			try {
@@ -873,11 +882,11 @@ async function sendToGoogleSheets(userRecord: UserRecord): Promise<{
 			} catch {
 				// Ignore if we can't read the error body
 			}
-			
+
 			return {
 				success: false,
 				error: `Google Sheets API error: ${response.status}${errorDetails}`,
-				configured: true
+				configured: true,
 			};
 		}
 
@@ -886,44 +895,49 @@ async function sendToGoogleSheets(userRecord: UserRecord): Promise<{
 		try {
 			responseData = await response.json();
 		} catch {
-			const errorMsg = "❌ Invalid response from Google Sheets script - not valid JSON";
+			const errorMsg =
+				"❌ Invalid response from Google Sheets script - not valid JSON";
 			console.error(errorMsg);
 			return {
 				success: false,
 				error: "Invalid response from Google Sheets script",
-				configured: true
+				configured: true,
 			};
 		}
 
 		// Check if the Google Apps Script reported success
 		if (responseData.success === false) {
-			const errorMsg = `❌ Google Apps Script error: ${responseData.error || 'Unknown error'}`;
+			const errorMsg = `❌ Google Apps Script error: ${responseData.error || "Unknown error"}`;
 			console.error(errorMsg);
 			return {
 				success: false,
 				error: responseData.error || "Google Apps Script error",
-				configured: true
+				configured: true,
 			};
 		}
 
 		// Success!
 		console.log("✅ User data sent to Google Sheets successfully");
 		if (responseData.duplicate) {
-			console.log("ℹ️ Note: Email was already in the sheet (duplicate detected)");
+			console.log(
+				"ℹ️ Note: Email was already in the sheet (duplicate detected)",
+			);
 		}
-		
+
 		return {
 			success: true,
-			configured: true
+			configured: true,
 		};
-
 	} catch (error) {
 		let errorMsg = "❌ Failed to send to Google Sheets: ";
-		
+
 		if (error instanceof Error) {
-			if (error.name === 'AbortError') {
+			if (error.name === "AbortError") {
 				errorMsg += "Request timeout - Google Sheets took too long to respond";
-			} else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+			} else if (
+				error.name === "TypeError" &&
+				error.message.includes("fetch")
+			) {
 				errorMsg += "Network error - could not reach Google Sheets";
 			} else {
 				errorMsg += error.message;
@@ -931,18 +945,20 @@ async function sendToGoogleSheets(userRecord: UserRecord): Promise<{
 		} else {
 			errorMsg += "Unknown error";
 		}
-		
+
 		console.error(errorMsg);
 		return {
 			success: false,
 			error: errorMsg.replace("❌ Failed to send to Google Sheets: ", ""),
-			configured: true
+			configured: true,
 		};
 	}
 }
 
 // Email authentication server action
-export async function authenticateUser(formData: FormData): Promise<AuthenticateUserResponse> {
+export async function authenticateUser(
+	formData: FormData,
+): Promise<AuthenticateUserResponse> {
 	"use server";
 
 	const firstName = formData.get("firstName") as string;
@@ -951,7 +967,9 @@ export async function authenticateUser(formData: FormData): Promise<Authenticate
 	const consent = formData.get("consent") === "true";
 
 	console.log("🔐 Starting user authentication process...");
-	console.log(`📊 User data: ${firstName} ${lastName} (${email}), consent: ${consent}`);
+	console.log(
+		`📊 User data: ${firstName} ${lastName} (${email}), consent: ${consent}`,
+	);
 
 	// Validation
 	if (!firstName) {
@@ -959,7 +977,10 @@ export async function authenticateUser(formData: FormData): Promise<Authenticate
 	}
 
 	if (firstName.trim().length < 2) {
-		return { success: false, error: "First name must be at least 2 characters" };
+		return {
+			success: false,
+			error: "First name must be at least 2 characters",
+		};
 	}
 
 	if (!lastName) {
@@ -998,24 +1019,30 @@ export async function authenticateUser(formData: FormData): Promise<Authenticate
 
 		// Attempt to send to Google Sheets (this is now REQUIRED for authentication)
 		const sheetsResult = await sendToGoogleSheets(userRecord);
-		
+
 		if (!sheetsResult.configured) {
 			// Google Sheets isn't configured - this is a critical error
-			const criticalError = "Authentication system not properly configured. Please contact support.";
-			console.error("🚨 CRITICAL: Google Sheets integration not configured - blocking authentication");
-			return { 
-				success: false, 
-				error: criticalError
+			const criticalError =
+				"Authentication system not properly configured. Please contact support.";
+			console.error(
+				"🚨 CRITICAL: Google Sheets integration not configured - blocking authentication",
+			);
+			return {
+				success: false,
+				error: criticalError,
 			};
 		}
 
 		if (!sheetsResult.success) {
 			// Google Sheets is configured but failed - this is also a critical error
-			const criticalError = "Unable to save your information. Please try again or contact support.";
-			console.error(`🚨 CRITICAL: Google Sheets integration failed - blocking authentication: ${sheetsResult.error}`);
-			return { 
-				success: false, 
-				error: criticalError
+			const criticalError =
+				"Unable to save your information. Please try again or contact support.";
+			console.error(
+				`🚨 CRITICAL: Google Sheets integration failed - blocking authentication: ${sheetsResult.error}`,
+			);
+			return {
+				success: false,
+				error: criticalError,
 			};
 		}
 
@@ -1038,15 +1065,17 @@ export async function authenticateUser(formData: FormData): Promise<Authenticate
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : "Unknown error";
 		console.error("❌ Critical error during authentication:", errorMsg);
-		return { 
-			success: false, 
-			error: "Something went wrong during authentication. Please try again." 
+		return {
+			success: false,
+			error: "Something went wrong during authentication. Please try again.",
 		};
 	}
 }
 
 // Admin function to get collected emails
-export async function getCollectedEmails(adminKey?: string): Promise<CollectedEmailsResponse> {
+export async function getCollectedEmails(
+	adminKey?: string,
+): Promise<CollectedEmailsResponse> {
 	"use server";
 
 	// Simple protection - you can set this as an environment variable

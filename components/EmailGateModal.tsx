@@ -112,9 +112,9 @@ const EmailGateModal = ({
 						Access Required
 					</DialogTitle>
 					<DialogDescription>
-						To use filters and explore events, please provide your details. 
-						We'll use this to improve our recommendations and keep you
-						updated on future events.
+						To use filters and explore events, please provide your details.
+						We'll use this to improve our recommendations and keep you updated
+						on future events.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -199,8 +199,8 @@ const EmailGateModal = ({
 								htmlFor="consent"
 								className="text-xs leading-relaxed cursor-pointer"
 							>
-								I agree to the collection and processing of my personal information for
-								event recommendations and updates.
+								I agree to the collection and processing of my personal
+								information for event recommendations and updates.
 							</Label>
 						</div>
 						<button

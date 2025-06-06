@@ -24,4 +24,4 @@ export type CollectedEmailsResponse = {
 	emails?: UserRecord[];
 	count?: number;
 	error?: string;
-}; 
+};

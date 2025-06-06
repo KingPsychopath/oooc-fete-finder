@@ -48,7 +48,9 @@ export default function AdminPage() {
 		console.log("📊 Checking Google Sheets configuration...");
 		const sheetsConfigured = Boolean(process.env.GOOGLE_SHEETS_URL);
 		if (!sheetsConfigured) {
-			console.warn("⚠️ WARNING: Google Sheets integration not configured in admin panel check");
+			console.warn(
+				"⚠️ WARNING: Google Sheets integration not configured in admin panel check",
+			);
 		} else {
 			console.log("✅ Google Sheets integration appears to be configured");
 		}
@@ -61,8 +63,10 @@ export default function AdminPage() {
 				setEmails(result.emails || []);
 				await loadCacheStatus();
 				await loadDynamicConfig();
-				
-				console.log(`✅ Admin authenticated successfully. Found ${result.emails?.length || 0} collected users.`);
+
+				console.log(
+					`✅ Admin authenticated successfully. Found ${result.emails?.length || 0} collected users.`,
+				);
 			} else {
 				setError(result.error || "Invalid admin key");
 				console.error("❌ Admin authentication failed:", result.error);
@@ -114,45 +118,59 @@ export default function AdminPage() {
 			if (result.success) {
 				try {
 					console.log("🔄 Attempting page revalidation...");
-					
+
 					// Use the same basePath as configured in next.config.ts
 					const revalidateUrl = `${basePath}/api/revalidate/`;
 					console.log("📡 Revalidate URL:", revalidateUrl);
-					
+
 					const revalidateResponse = await fetch(revalidateUrl, {
-						method: 'POST',
+						method: "POST",
 						headers: {
-							'Content-Type': 'application/json',
+							"Content-Type": "application/json",
 						},
 						body: JSON.stringify({
 							adminKey: adminKey,
-							path: '/'
+							path: "/",
 						}),
 					});
 
-					console.log("📡 Revalidate response status:", revalidateResponse.status);
-					
+					console.log(
+						"📡 Revalidate response status:",
+						revalidateResponse.status,
+					);
+
 					if (revalidateResponse.ok) {
 						const revalidateData = await revalidateResponse.json();
-						setRefreshMessage(prev => `${prev} + Page revalidated successfully.`);
+						setRefreshMessage(
+							(prev) => `${prev} + Page revalidated successfully.`,
+						);
 						console.log("✅ Page revalidation triggered:", revalidateData);
 					} else {
 						// Get the error details
 						let errorDetails = `Status: ${revalidateResponse.status}`;
 						try {
 							const errorData = await revalidateResponse.json();
-							errorDetails += ` - ${errorData.message || 'Unknown error'}`;
+							errorDetails += ` - ${errorData.message || "Unknown error"}`;
 							console.error("❌ Revalidation failed:", errorData);
 						} catch {
 							errorDetails += ` - ${revalidateResponse.statusText}`;
 						}
 						console.warn("⚠️ Page revalidation failed:", errorDetails);
-						setRefreshMessage(prev => `${prev} (Note: Cache updated but page revalidation failed: ${errorDetails})`);
+						setRefreshMessage(
+							(prev) =>
+								`${prev} (Note: Cache updated but page revalidation failed: ${errorDetails})`,
+						);
 					}
 				} catch (revalidateError) {
 					console.error("❌ Revalidation error:", revalidateError);
-					const errorMsg = revalidateError instanceof Error ? revalidateError.message : 'Unknown error';
-					setRefreshMessage(prev => `${prev} (Note: Cache updated but page revalidation error: ${errorMsg})`);
+					const errorMsg =
+						revalidateError instanceof Error
+							? revalidateError.message
+							: "Unknown error";
+					setRefreshMessage(
+						(prev) =>
+							`${prev} (Note: Cache updated but page revalidation error: ${errorMsg})`,
+					);
 				}
 			}
 
