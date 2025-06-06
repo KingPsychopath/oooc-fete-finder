@@ -1,7 +1,8 @@
 {
   "functions": {
-    "app/api/events/route.ts": {
-      "maxDuration": 10
+    "app/api/revalidate/route.ts": {
+      "maxDuration": 5
     }
   }
 }
+g
