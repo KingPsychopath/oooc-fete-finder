@@ -94,7 +94,7 @@ const Footer = () => {
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<span className="text-xs text-muted-foreground/70 cursor-help">
-									Maintained by OOOC Community
+									Maintained by the OOOC Community
 								</span>
 							</TooltipTrigger>
 							<TooltipContent>
