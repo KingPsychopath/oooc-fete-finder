@@ -92,8 +92,55 @@ export default function AdminPage() {
 		setRefreshMessage("");
 
 		try {
+			// Step 1: Refresh the events cache
 			const result = await forceRefreshEvents();
 			setRefreshMessage(result.message);
+
+			// Step 2: If cache refresh was successful, trigger page revalidation
+			if (result.success) {
+				try {
+					console.log("🔄 Attempting page revalidation...");
+					
+					// Use the same basePath as configured in next.config.ts
+					const revalidateUrl = `${basePath}/api/revalidate/`;
+					console.log("📡 Revalidate URL:", revalidateUrl);
+					
+					const revalidateResponse = await fetch(revalidateUrl, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+						},
+						body: JSON.stringify({
+							adminKey: adminKey,
+							path: '/'
+						}),
+					});
+
+					console.log("📡 Revalidate response status:", revalidateResponse.status);
+					
+					if (revalidateResponse.ok) {
+						const revalidateData = await revalidateResponse.json();
+						setRefreshMessage(prev => `${prev} + Page revalidated successfully.`);
+						console.log("✅ Page revalidation triggered:", revalidateData);
+					} else {
+						// Get the error details
+						let errorDetails = `Status: ${revalidateResponse.status}`;
+						try {
+							const errorData = await revalidateResponse.json();
+							errorDetails += ` - ${errorData.message || 'Unknown error'}`;
+							console.error("❌ Revalidation failed:", errorData);
+						} catch {
+							errorDetails += ` - ${revalidateResponse.statusText}`;
+						}
+						console.warn("⚠️ Page revalidation failed:", errorDetails);
+						setRefreshMessage(prev => `${prev} (Note: Cache updated but page revalidation failed: ${errorDetails})`);
+					}
+				} catch (revalidateError) {
+					console.error("❌ Revalidation error:", revalidateError);
+					const errorMsg = revalidateError instanceof Error ? revalidateError.message : 'Unknown error';
+					setRefreshMessage(prev => `${prev} (Note: Cache updated but page revalidation error: ${errorMsg})`);
+				}
+			}
 
 			// Reload cache status after refresh
 			setTimeout(() => {

@@ -3,6 +3,10 @@ import Header from "@/components/Header";
 import { EventsClient } from "@/app/events-client";
 import { getEvents } from "./actions";
 
+// Use ISR with a reasonable revalidation time (e.g., 1 hour)
+// This can be overridden with on-demand revalidation
+export const revalidate = 3600; // 1 hour in seconds
+
 // Make the page component async to allow server-side data fetching
 export default async function Home() {
 	// Fetch events using server action
