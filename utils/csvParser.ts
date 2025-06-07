@@ -45,7 +45,6 @@ const COLUMN_MAPPINGS = {
 	],
 	notes: ["Notes", "Description", "notes", "Details", "Info"],
 	featured: ["Featured", "featured", "Feature", "Promoted", "Premium"],
-	featuredAt: ["Featured At", "featuredAt", "Featured Time", "Feature Time", "Featured Timestamp"],
 } as const;
 
 // Type for raw CSV row data
@@ -126,18 +125,17 @@ const createColumnMapping = (
 		indoorOutdoor: findColumnName(headers, COLUMN_MAPPINGS.indoorOutdoor),
 		notes: findColumnName(headers, COLUMN_MAPPINGS.notes),
 		featured: findColumnName(headers, COLUMN_MAPPINGS.featured),
-		featuredAt: findColumnName(headers, COLUMN_MAPPINGS.featuredAt),
 	};
 
 	// Log mapping for debugging
 	console.log("CSV Column Mapping:", mapping);
 	
-	// Special debug for featuredAt column
-	if (mapping.featuredAt) {
-		console.log(`✅ Featured At column found: "${mapping.featuredAt}"`);
+	// Special debug for featured column
+	if (mapping.featured) {
+		console.log(`✅ Featured column found: "${mapping.featured}"`);
 	} else {
-		console.warn(`⚠️ Featured At column not found. Available headers: [${headers.join(", ")}]`);
-		console.warn(`💡 Expected one of: ${COLUMN_MAPPINGS.featuredAt.join(", ")}`);
+		console.warn(`⚠️ Featured column not found. Available headers: [${headers.join(", ")}]`);
+		console.warn(`💡 Expected one of: ${COLUMN_MAPPINGS.featured.join(", ")}`);
 	}
 
 	return mapping;
@@ -226,16 +224,14 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 				notes: (columnMapping.notes && row[columnMapping.notes]) || "",
 				// Handle missing featured column gracefully
 				featured: (columnMapping.featured && row[columnMapping.featured]) || "",
-				// Handle missing featuredAt column gracefully
-				featuredAt: (columnMapping.featuredAt && row[columnMapping.featuredAt]) || "",
 			};
 
 			// Log first few rows for debugging
 			if (index < 3) {
 				console.log(`CSV Row ${index + 1}:`, csvRow);
-				// Special debug for featuredAt field
-				if (csvRow.featuredAt) {
-					console.log(`📅 Row ${index + 1} featuredAt: "${csvRow.featuredAt}"`);
+				// Special debug for featured field
+				if (csvRow.featured) {
+					console.log(`📅 Row ${index + 1} featured: "${csvRow.featured}"`);
 				}
 			}
 
@@ -619,25 +615,36 @@ const convertToISODate = (dateStr: string): string => {
 };
 
 /**
- * Convert featured string to boolean
- * Any non-empty value indicates the event should be featured
+ * Process the unified featured column that can contain either a timestamp or any other string
+ * @param featuredStr - The featured column value
+ * @returns Object with isFeatured and featuredAt properties
  */
-const convertToFeatured = (featuredStr: string): boolean => {
+const processFeaturedColumn = (featuredStr: string): { isFeatured: boolean; featuredAt?: string } => {
 	// Handle null, undefined, or non-string values
 	if (featuredStr == null || typeof featuredStr !== "string") {
-		return false;
+		return { isFeatured: false };
 	}
 	
-	const cleaned = featuredStr.trim().toLowerCase();
+	const cleaned = featuredStr.trim();
 	
 	// Empty string or explicit false values should be false
 	const falseValues = ["", "no", "false", "0", "n", "none", "null", "undefined"];
-	if (falseValues.includes(cleaned)) {
-		return false;
+	if (falseValues.includes(cleaned.toLowerCase())) {
+		return { isFeatured: false };
 	}
 	
-	// Any other non-empty value should be true
-	return true;
+	// Try to parse as timestamp first
+	const parsedTimestamp = parseFeaturedAt(featuredStr);
+	if (parsedTimestamp) {
+		// Valid timestamp - set both isFeatured and featuredAt
+		return { 
+			isFeatured: true, 
+			featuredAt: parsedTimestamp 
+		};
+	}
+	
+	// Not a valid timestamp but non-empty - set only isFeatured
+	return { isFeatured: true };
 };
 
 /**
@@ -819,8 +826,7 @@ export const convertCSVRowToEvent = (
 		isOOOCPick:
 			csvRow.oocPicks === "🌟" ||
 			csvRow.oocPicks.toLowerCase().includes("pick"),
-		isFeatured: convertToFeatured(csvRow.featured),
-		featuredAt: parseFeaturedAt(csvRow.featuredAt),
+		...processFeaturedColumn(csvRow.featured),
 		nationality: convertToNationality(csvRow.nationality),
 	};
 };

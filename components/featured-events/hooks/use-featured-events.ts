@@ -4,10 +4,13 @@ import { useMemo } from "react";
 import type { Event } from "@/types/events";
 import type { FeaturedEventSelectionResult } from "../types";
 import { FEATURED_EVENTS_CONFIG, FEATURED_EVENTS_LIMITS } from "../constants";
+import { shouldDisplayFeaturedEvent } from "../utils/timestamp-utils";
 
 /**
  * Custom hook to select and manage featured events
- * Uses deterministic shuffling to avoid hydration errors
+ * - Automatically filters out expired timestamp-based featured events
+ * - Permanently displays manually featured events without timestamps
+ * - Uses deterministic shuffling to avoid hydration errors
  */
 export function useFeaturedEvents(
 	events: Event[],
@@ -62,19 +65,19 @@ export function useFeaturedEvents(
 			return shuffled;
 		};
 
-		// Filter events by type
+		// Filter events by type and check expiration for featured events
 		const manuallyFeatured = events.filter(
-			(event) => event != null && event.isFeatured === true,
+			(event) => event != null && shouldDisplayFeaturedEvent(event),
 		);
 
 		const oooPicksEvents = events.filter(
 			(event) =>
-				event != null && event.isOOOCPick === true && event.isFeatured !== true,
+				event != null && event.isOOOCPick === true && !shouldDisplayFeaturedEvent(event),
 		);
 
 		const regularEvents = events.filter(
 			(event) =>
-				event != null && event.isOOOCPick !== true && event.isFeatured !== true,
+				event != null && event.isOOOCPick !== true && !shouldDisplayFeaturedEvent(event),
 		);
 
 		// Build featured events list starting with manually featured events
