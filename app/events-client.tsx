@@ -427,6 +427,13 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 				</AuthGate>
 			</div>
 
+			{/* Featured Events Section */}
+			<FeaturedEvents
+				events={filteredEvents}
+				onEventClick={setSelectedEvent}
+				onScrollToAllEvents={scrollToAllEvents}
+			/>
+
 			{/* Event Stats */}
 			<EventStats
 				events={events}
@@ -438,13 +445,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 					return arrondissements.size;
 				}, [filteredEvents])}
 				hasActiveFilters={hasActiveFilters}
-			/>
-
-			{/* Featured Events Section */}
-			<FeaturedEvents
-				events={filteredEvents}
-				onEventClick={setSelectedEvent}
-				onScrollToAllEvents={scrollToAllEvents}
 			/>
 
 			{/* Collapsible Paris Event Map */}
