@@ -30,8 +30,10 @@ export function isFeaturedEventExpired(
 	}
 
 	const featuredDate = new Date(featuredAt as string);
-	const expirationDate = new Date(featuredDate.getTime() + durationHours * 60 * 60 * 1000);
-	
+	const expirationDate = new Date(
+		featuredDate.getTime() + durationHours * 60 * 60 * 1000,
+	);
+
 	return new Date() > expirationDate;
 }
 
@@ -73,4 +75,4 @@ export function getFeaturedEventExpirationDate(
 
 	const featuredDate = new Date(featuredAt as string);
 	return new Date(featuredDate.getTime() + durationHours * 60 * 60 * 1000);
-} 
+}

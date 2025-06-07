@@ -45,42 +45,50 @@ export const OGImageTestCard = () => {
 
 	const generatePreviewUrl = () => {
 		const searchParams = new URLSearchParams();
-		
-		if (params.title.trim()) searchParams.set('title', params.title.trim());
-		if (params.subtitle.trim()) searchParams.set('subtitle', params.subtitle.trim());
-		if (params.theme && params.theme !== 'default') searchParams.set('theme', params.theme);
+
+		if (params.title.trim()) searchParams.set("title", params.title.trim());
+		if (params.subtitle.trim())
+			searchParams.set("subtitle", params.subtitle.trim());
+		if (params.theme && params.theme !== "default")
+			searchParams.set("theme", params.theme);
 		if (params.eventCount && !isNaN(Number(params.eventCount))) {
-			searchParams.set('eventCount', params.eventCount);
+			searchParams.set("eventCount", params.eventCount);
 		}
-		if (params.arrondissement.trim()) searchParams.set('arrondissement', params.arrondissement.trim());
-		if (params.localImage) searchParams.set('localImage', params.localImage);
-		
+		if (params.arrondissement.trim())
+			searchParams.set("arrondissement", params.arrondissement.trim());
+		if (params.localImage) searchParams.set("localImage", params.localImage);
+
 		const query = searchParams.toString();
-		
+
 		// Dynamically detect base path from current URL
-		const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-		const basePath = currentPath.includes('/fete/') ? '/fete' : '';
-		
-		return `${basePath}/api/og${query ? `?${query}` : ''}`;
+		const currentPath =
+			typeof window !== "undefined" ? window.location.pathname : "";
+		const basePath = currentPath.includes("/fete/") ? "/fete" : "";
+
+		return `${basePath}/api/og${query ? `?${query}` : ""}`;
 	};
 
 	const handleGeneratePreview = async () => {
 		setIsLoading(true);
 		setError("");
-		
+
 		try {
 			const url = generatePreviewUrl();
-			
+
 			// Test the endpoint
 			const response = await fetch(url);
 			if (!response.ok) {
-				throw new Error(`Failed to generate image: ${response.status} ${response.statusText}`);
+				throw new Error(
+					`Failed to generate image: ${response.status} ${response.statusText}`,
+				);
 			}
-			
+
 			// Add timestamp to force reload
 			setPreviewUrl(`${url}&t=${Date.now()}`);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to generate preview');
+			setError(
+				err instanceof Error ? err.message : "Failed to generate preview",
+			);
 		} finally {
 			setIsLoading(false);
 		}
@@ -91,7 +99,9 @@ export const OGImageTestCard = () => {
 		navigator.clipboard.writeText(fullUrl);
 	};
 
-	const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+	const handleImageUpload = async (
+		event: React.ChangeEvent<HTMLInputElement>,
+	) => {
 		const file = event.target.files?.[0];
 		if (!file) return;
 
@@ -100,36 +110,38 @@ export const OGImageTestCard = () => {
 
 		try {
 			const formData = new FormData();
-			formData.append('image', file);
-			formData.append('type', params.theme);
+			formData.append("image", file);
+			formData.append("type", params.theme);
 
 			// Get admin key from localStorage or wherever it's stored
-			const adminKey = localStorage.getItem('adminKey') || 'your-secret-key-123';
+			const adminKey =
+				localStorage.getItem("adminKey") || "your-secret-key-123";
 
 			// Dynamically detect base path from current URL
-			const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-			const basePath = currentPath.includes('/fete/') ? '/fete' : '';
-			
+			const currentPath =
+				typeof window !== "undefined" ? window.location.pathname : "";
+			const basePath = currentPath.includes("/fete/") ? "/fete" : "";
+
 			const response = await fetch(`${basePath}/api/og-upload`, {
-				method: 'POST',
+				method: "POST",
 				headers: {
-					'x-admin-key': adminKey,
+					"x-admin-key": adminKey,
 				},
 				body: formData,
 			});
 
 			if (!response.ok) {
 				const errorData = await response.json();
-				throw new Error(errorData.error || 'Upload failed');
+				throw new Error(errorData.error || "Upload failed");
 			}
 
 			const result = await response.json();
 			setUploadMessage(`✅ Image uploaded successfully: ${result.filename}`);
-			
+
 			// Automatically set the local image path
-			setParams(prev => ({ ...prev, localImage: result.url }));
+			setParams((prev) => ({ ...prev, localImage: result.url }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Upload failed');
+			setError(err instanceof Error ? err.message : "Upload failed");
 		} finally {
 			setIsUploading(false);
 		}
@@ -145,7 +157,7 @@ export const OGImageTestCard = () => {
 				eventCount: "55",
 				arrondissement: "",
 				localImage: "",
-			}
+			},
 		},
 		{
 			name: "Admin Dashboard",
@@ -156,7 +168,7 @@ export const OGImageTestCard = () => {
 				eventCount: "",
 				arrondissement: "",
 				localImage: "",
-			}
+			},
 		},
 		{
 			name: "Montmartre Events",
@@ -167,7 +179,7 @@ export const OGImageTestCard = () => {
 				eventCount: "12",
 				arrondissement: "Montmartre",
 				localImage: "",
-			}
+			},
 		},
 		{
 			name: "Custom Event",
@@ -178,7 +190,7 @@ export const OGImageTestCard = () => {
 				eventCount: "8",
 				arrondissement: "Le Marais",
 				localImage: "",
-			}
+			},
 		},
 	];
 
@@ -217,7 +229,9 @@ export const OGImageTestCard = () => {
 						<Input
 							id="title"
 							value={params.title}
-							onChange={(e) => setParams(prev => ({ ...prev, title: e.target.value }))}
+							onChange={(e) =>
+								setParams((prev) => ({ ...prev, title: e.target.value }))
+							}
 							placeholder="Main title text"
 							maxLength={100}
 						/>
@@ -227,7 +241,9 @@ export const OGImageTestCard = () => {
 						<Label htmlFor="theme">Theme</Label>
 						<Select
 							value={params.theme}
-							onValueChange={(value) => setParams(prev => ({ ...prev, theme: value }))}
+							onValueChange={(value) =>
+								setParams((prev) => ({ ...prev, theme: value }))
+							}
 						>
 							<SelectTrigger>
 								<SelectValue />
@@ -246,7 +262,9 @@ export const OGImageTestCard = () => {
 						<Textarea
 							id="subtitle"
 							value={params.subtitle}
-							onChange={(e) => setParams(prev => ({ ...prev, subtitle: e.target.value }))}
+							onChange={(e) =>
+								setParams((prev) => ({ ...prev, subtitle: e.target.value }))
+							}
 							placeholder="Description text"
 							maxLength={100}
 							rows={2}
@@ -259,7 +277,9 @@ export const OGImageTestCard = () => {
 							id="eventCount"
 							type="number"
 							value={params.eventCount}
-							onChange={(e) => setParams(prev => ({ ...prev, eventCount: e.target.value }))}
+							onChange={(e) =>
+								setParams((prev) => ({ ...prev, eventCount: e.target.value }))
+							}
 							placeholder="Number of events"
 							min="0"
 							max="9999"
@@ -271,7 +291,12 @@ export const OGImageTestCard = () => {
 						<Input
 							id="arrondissement"
 							value={params.arrondissement}
-							onChange={(e) => setParams(prev => ({ ...prev, arrondissement: e.target.value }))}
+							onChange={(e) =>
+								setParams((prev) => ({
+									...prev,
+									arrondissement: e.target.value,
+								}))
+							}
 							placeholder="Paris district name"
 							maxLength={50}
 						/>
@@ -282,50 +307,53 @@ export const OGImageTestCard = () => {
 						<Input
 							id="localImage"
 							value={params.localImage}
-							onChange={(e) => setParams(prev => ({ ...prev, localImage: e.target.value }))}
+							onChange={(e) =>
+								setParams((prev) => ({ ...prev, localImage: e.target.value }))
+							}
 							placeholder="/og-images/your-image.jpg"
 							maxLength={255}
 						/>
 						<div className="text-xs text-gray-500">
-							Use images from public/og-images/ folder. Path must start with /og-images/
+							Use images from public/og-images/ folder. Path must start with
+							/og-images/
 						</div>
 					</div>
 
 					{/* Upload Local Image Section */}
 					<div className="md:col-span-2 space-y-4 p-4 border rounded-lg bg-blue-50">
 						<div className="flex items-center gap-2">
-							<Label className="text-sm font-medium">📁 Upload Local Image</Label>
+							<Label className="text-sm font-medium">
+								📁 Upload Local Image
+							</Label>
 							<Badge variant="secondary">PNG, JPEG, WebP up to 5MB</Badge>
 						</div>
-						
+
 						<Input
 							type="file"
 							accept="image/*"
 							onChange={handleImageUpload}
 							disabled={isUploading}
 						/>
-						
+
 						<div className="text-xs text-gray-600">
-							Upload an image to use as background. Theme will be set based on current selection.
+							Upload an image to use as background. Theme will be set based on
+							current selection.
 						</div>
 					</div>
 				</div>
 
 				{/* Actions */}
 				<div className="flex flex-col sm:flex-row gap-2">
-					<Button 
-						onClick={handleGeneratePreview} 
+					<Button
+						onClick={handleGeneratePreview}
 						disabled={isLoading}
 						className="flex-1"
 					>
 						{isLoading ? "🔄 Generating..." : "🎨 Generate Preview"}
 					</Button>
-					
+
 					{previewUrl && (
-						<Button 
-							variant="outline" 
-							onClick={handleCopyUrl}
-						>
+						<Button variant="outline" onClick={handleCopyUrl}>
 							📋 Copy URL
 						</Button>
 					)}
@@ -362,8 +390,8 @@ export const OGImageTestCard = () => {
 								src={previewUrl}
 								alt="OG Image Preview"
 								className="w-full h-auto"
-								style={{ aspectRatio: '1200/630' }}
-								onError={() => setError('Failed to load preview image')}
+								style={{ aspectRatio: "1200/630" }}
+								onError={() => setError("Failed to load preview image")}
 							/>
 						</div>
 						<div className="text-xs text-gray-500">
@@ -375,26 +403,43 @@ export const OGImageTestCard = () => {
 				{/* Social Media Testing Links */}
 				{previewUrl && (
 					<div className="space-y-2">
-						<Label className="text-sm font-medium">Test on Social Platforms</Label>
+						<Label className="text-sm font-medium">
+							Test on Social Platforms
+						</Label>
 						<div className="flex flex-wrap gap-2">
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={() => window.open(`https://cards-dev.twitter.com/validator`, '_blank')}
+								onClick={() =>
+									window.open(
+										`https://cards-dev.twitter.com/validator`,
+										"_blank",
+									)
+								}
 							>
 								🐦 Twitter Validator
 							</Button>
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={() => window.open(`https://developers.facebook.com/tools/debug/`, '_blank')}
+								onClick={() =>
+									window.open(
+										`https://developers.facebook.com/tools/debug/`,
+										"_blank",
+									)
+								}
 							>
 								📘 Facebook Debugger
 							</Button>
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={() => window.open(`https://www.linkedin.com/post-inspector/`, '_blank')}
+								onClick={() =>
+									window.open(
+										`https://www.linkedin.com/post-inspector/`,
+										"_blank",
+									)
+								}
 							>
 								💼 LinkedIn Inspector
 							</Button>
@@ -411,4 +456,4 @@ export const OGImageTestCard = () => {
 			</CardContent>
 		</Card>
 	);
-}; 
+};

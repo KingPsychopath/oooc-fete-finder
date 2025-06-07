@@ -46,7 +46,7 @@ export function useFeaturedEvents(
 			};
 		}
 		// Deterministic shuffle function using date as seed for consistent server/client results
-		const deterministicShuffle = <T,>(array: T[]): T[] => {
+		const deterministicShuffle = <T>(array: T[]): T[] => {
 			const shuffled = [...array];
 			const seed = new Date().toDateString(); // Same seed for entire day
 			let hash = 0;
@@ -72,12 +72,16 @@ export function useFeaturedEvents(
 
 		const oooPicksEvents = events.filter(
 			(event) =>
-				event != null && event.isOOOCPick === true && !shouldDisplayFeaturedEvent(event),
+				event != null &&
+				event.isOOOCPick === true &&
+				!shouldDisplayFeaturedEvent(event),
 		);
 
 		const regularEvents = events.filter(
 			(event) =>
-				event != null && event.isOOOCPick !== true && !shouldDisplayFeaturedEvent(event),
+				event != null &&
+				event.isOOOCPick !== true &&
+				!shouldDisplayFeaturedEvent(event),
 		);
 
 		// Build featured events list starting with manually featured events
@@ -89,7 +93,7 @@ export function useFeaturedEvents(
 		if (remainingSlots > 0) {
 			// Use deterministic shuffle for OOOC picks that aren't manually featured
 			const shuffledOOOCPicks = deterministicShuffle(oooPicksEvents);
-			
+
 			// Fill remaining slots with shuffled OOOC picks first
 			const availableOOOCPicks = shuffledOOOCPicks.slice(0, remainingSlots);
 			featured.push(...availableOOOCPicks);
@@ -121,4 +125,4 @@ export function useFeaturedEvents(
 	}, [events, maxFeaturedEvents]);
 
 	return result;
-} 
+}

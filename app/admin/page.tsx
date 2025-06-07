@@ -337,7 +337,6 @@ export default function AdminPage() {
 
 			<Separator />
 
-
 			{/* Google Sheets Live Data Section */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 				<GoogleSheetsStatsCard adminKey={adminKey} />
@@ -378,7 +377,5 @@ export default function AdminPage() {
 			{/* OG:Image Testing Section */}
 			<OGImageTestCard />
 		</div>
-
-
 	);
 }

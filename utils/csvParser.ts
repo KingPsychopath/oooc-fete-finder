@@ -129,12 +129,14 @@ const createColumnMapping = (
 
 	// Log mapping for debugging
 	console.log("CSV Column Mapping:", mapping);
-	
+
 	// Special debug for featured column
 	if (mapping.featured) {
 		console.log(`✅ Featured column found: "${mapping.featured}"`);
 	} else {
-		console.warn(`⚠️ Featured column not found. Available headers: [${headers.join(", ")}]`);
+		console.warn(
+			`⚠️ Featured column not found. Available headers: [${headers.join(", ")}]`,
+		);
 		console.warn(`💡 Expected one of: ${COLUMN_MAPPINGS.featured.join(", ")}`);
 	}
 
@@ -619,30 +621,41 @@ const convertToISODate = (dateStr: string): string => {
  * @param featuredStr - The featured column value
  * @returns Object with isFeatured and featuredAt properties
  */
-const processFeaturedColumn = (featuredStr: string): { isFeatured: boolean; featuredAt?: string } => {
+const processFeaturedColumn = (
+	featuredStr: string,
+): { isFeatured: boolean; featuredAt?: string } => {
 	// Handle null, undefined, or non-string values
 	if (featuredStr == null || typeof featuredStr !== "string") {
 		return { isFeatured: false };
 	}
-	
+
 	const cleaned = featuredStr.trim();
-	
+
 	// Empty string or explicit false values should be false
-	const falseValues = ["", "no", "false", "0", "n", "none", "null", "undefined"];
+	const falseValues = [
+		"",
+		"no",
+		"false",
+		"0",
+		"n",
+		"none",
+		"null",
+		"undefined",
+	];
 	if (falseValues.includes(cleaned.toLowerCase())) {
 		return { isFeatured: false };
 	}
-	
+
 	// Try to parse as timestamp first
 	const parsedTimestamp = parseFeaturedAt(featuredStr);
 	if (parsedTimestamp) {
 		// Valid timestamp - set both isFeatured and featuredAt
-		return { 
-			isFeatured: true, 
-			featuredAt: parsedTimestamp 
+		return {
+			isFeatured: true,
+			featuredAt: parsedTimestamp,
 		};
 	}
-	
+
 	// Not a valid timestamp but non-empty - set only isFeatured
 	return { isFeatured: true };
 };
@@ -711,12 +724,13 @@ const parseFeaturedAt = (featuredAtStr: string): string | undefined => {
 		}
 
 		// Try parsing Excel date formats (MM/DD/YYYY HH:MM, DD/MM/YYYY HH:MM, etc.)
-		const excelDateRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i;
+		const excelDateRegex =
+			/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i;
 		const match = featuredAtStr.match(excelDateRegex);
-		
+
 		if (match) {
 			const [, month, day, year, hour, minute, second = "0", ampm] = match;
-			
+
 			// Handle AM/PM
 			let hourNum = parseInt(hour, 10);
 			if (ampm) {
@@ -728,9 +742,13 @@ const parseFeaturedAt = (featuredAtStr: string): string | undefined => {
 			}
 
 			// Create date (assuming MM/DD/YYYY format first, but could be DD/MM/YYYY)
-			const date1 = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hourNum.toString().padStart(2, '0')}:${minute}:${second.padStart(2, '0')}`);
-			const date2 = new Date(`${year}-${day.padStart(2, '0')}-${month.padStart(2, '0')}T${hourNum.toString().padStart(2, '0')}:${minute}:${second.padStart(2, '0')}`);
-			
+			const date1 = new Date(
+				`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second.padStart(2, "0")}`,
+			);
+			const date2 = new Date(
+				`${year}-${day.padStart(2, "0")}-${month.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second.padStart(2, "0")}`,
+			);
+
 			// Use the date that doesn't result in an invalid date
 			if (!isNaN(date1.getTime())) {
 				return date1.toISOString();
@@ -748,7 +766,10 @@ const parseFeaturedAt = (featuredAtStr: string): string | undefined => {
 		console.warn(`Could not parse featuredAt timestamp: "${featuredAtStr}"`);
 		return undefined;
 	} catch (error) {
-		console.warn(`Error parsing featuredAt timestamp: "${featuredAtStr}"`, error);
+		console.warn(
+			`Error parsing featuredAt timestamp: "${featuredAtStr}"`,
+			error,
+		);
 		return undefined;
 	}
 };

@@ -7,9 +7,11 @@ import type { FeatureTimeRemaining } from "../types";
  * Custom hook to calculate time remaining for a feature period
  * Updates every minute to show live countdown
  */
-export function useFeatureTimeRemaining(endDate: Date | null): FeatureTimeRemaining {
-	const [timeRemaining, setTimeRemaining] = useState<FeatureTimeRemaining>(() => 
-		calculateTimeRemaining(endDate)
+export function useFeatureTimeRemaining(
+	endDate: Date | null,
+): FeatureTimeRemaining {
+	const [timeRemaining, setTimeRemaining] = useState<FeatureTimeRemaining>(() =>
+		calculateTimeRemaining(endDate),
 	);
 
 	useEffect(() => {
@@ -33,31 +35,31 @@ function calculateTimeRemaining(endDate: Date | null): FeatureTimeRemaining {
 
 	const now = new Date();
 	const timeDiff = endDate.getTime() - now.getTime();
-	
+
 	if (timeDiff <= 0) {
 		return {
 			timeRemaining: "Featured period has ended",
 			isExpired: true,
 		};
 	}
-	
+
 	const hours = Math.floor(timeDiff / (1000 * 60 * 60));
 	const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-	
+
 	let formattedTime: string;
-	
+
 	if (hours > 24) {
 		const days = Math.floor(hours / 24);
 		const remainingHours = hours % 24;
-		formattedTime = `${days} day${days > 1 ? 's' : ''} ${remainingHours} hour${remainingHours !== 1 ? 's' : ''} remaining`;
+		formattedTime = `${days} day${days > 1 ? "s" : ""} ${remainingHours} hour${remainingHours !== 1 ? "s" : ""} remaining`;
 	} else if (hours > 0) {
-		formattedTime = `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''} remaining`;
+		formattedTime = `${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""} remaining`;
 	} else {
-		formattedTime = `${minutes} minute${minutes !== 1 ? 's' : ''} remaining`;
+		formattedTime = `${minutes} minute${minutes !== 1 ? "s" : ""} remaining`;
 	}
-	
+
 	return {
 		timeRemaining: formattedTime,
 		isExpired: false,
 	};
-} 
+}

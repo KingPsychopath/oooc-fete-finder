@@ -23,4 +23,4 @@ export type FeaturedEventSelectionResult = {
 export type FeatureTimeRemaining = {
 	timeRemaining: string;
 	isExpired: boolean;
-}; 
+};

@@ -26,7 +26,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 export const metadata: Metadata = {
 	title: {
 		default: "Fête Finder - Out Of Office Collective",
-		template: "%s | Fête Finder - OOOC"
+		template: "%s | Fête Finder - OOOC",
 	},
 	description:
 		"Interactive map of music events across Paris arrondissements for Fête de la Musique 2025. Discover live music performances, street concerts, and cultural events happening during the annual French music celebration.",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
 		"Out Of Office Collective",
 		"OOOC",
 		"interactive map",
-		"2025 events"
+		"2025 events",
 	],
 	authors: [{ name: "Out Of Office Collective" }],
 	creator: "Out Of Office Collective",

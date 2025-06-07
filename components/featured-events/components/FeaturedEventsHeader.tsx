@@ -30,7 +30,7 @@ export function FeaturedEventsHeader({
 					<ChevronDown className="h-4 w-4 ml-1" />
 				</Button>
 			</div>
-			
+
 			{/* CTA Message for Event Hosts */}
 			<div className="mt-2">
 				<Link
@@ -42,4 +42,4 @@ export function FeaturedEventsHeader({
 			</div>
 		</div>
 	);
-} 
+}

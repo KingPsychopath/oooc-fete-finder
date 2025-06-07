@@ -1,9 +1,9 @@
 /**
  * FeatureCountdown Component - Simplified Version
- * 
+ *
  * Shows status for all featured events without live updates for better performance.
  * Updates on page load/refresh only, which is sufficient for hourly precision.
- * 
+ *
  * Benefits:
  * - No timers or intervals (better performance, battery life)
  * - Simple hourly precision (good enough for event management)
@@ -19,10 +19,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, AlertCircle, Star, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { FEATURED_EVENTS_CONFIG } from "../constants";
-import { 
-	isValidTimestamp, 
-	isFeaturedEventExpired, 
-	getFeaturedEventExpirationDate 
+import {
+	isValidTimestamp,
+	isFeaturedEventExpired,
+	getFeaturedEventExpirationDate,
 } from "../utils/timestamp-utils";
 import type { Event } from "@/types/events";
 
@@ -55,28 +55,36 @@ function getEventStatus(event: Event): EventStatus {
 	// Timestamp-based events - using centralized utilities
 	const isExpired = isFeaturedEventExpired(event.featuredAt);
 	const endTime = getFeaturedEventExpirationDate(event.featuredAt);
-	
+
 	if (isExpired) {
 		// Calculate time since expiration (runs fresh each render)
-		const hoursAgo = endTime ? Math.floor((Date.now() - endTime.getTime()) / (1000 * 60 * 60)) : 0;
+		const hoursAgo = endTime
+			? Math.floor((Date.now() - endTime.getTime()) / (1000 * 60 * 60))
+			: 0;
 		return {
 			event,
 			status: "expired",
-			message: hoursAgo < 24 ? `Ended ${hoursAgo}h ago` : `Ended ${Math.floor(hoursAgo / 24)}d ago`,
+			message:
+				hoursAgo < 24
+					? `Ended ${hoursAgo}h ago`
+					: `Ended ${Math.floor(hoursAgo / 24)}d ago`,
 			endTime,
 		};
 	}
 
 	// Active with time remaining (calculated fresh each render)
-	const hoursRemaining = endTime ? Math.floor((endTime.getTime() - Date.now()) / (1000 * 60 * 60)) : 0;
+	const hoursRemaining = endTime
+		? Math.floor((endTime.getTime() - Date.now()) / (1000 * 60 * 60))
+		: 0;
 	const status = hoursRemaining <= 6 ? "expires-soon" : "active-timed";
-	
+
 	return {
 		event,
 		status,
-		message: hoursRemaining > 24 
-			? `${Math.floor(hoursRemaining / 24)}d remaining`
-			: `${hoursRemaining}h remaining`,
+		message:
+			hoursRemaining > 24
+				? `${Math.floor(hoursRemaining / 24)}d remaining`
+				: `${hoursRemaining}h remaining`,
 		endTime,
 		hoursRemaining,
 	};
@@ -131,21 +139,23 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 	const getProgressPercentage = () => {
 		if (status === "expired") return 100;
 		if (status === "active-manual") return 100; // Full bar for manual events
-		
+
 		// For timed events, calculate based on 48-hour duration
 		if (endTime && hoursRemaining !== undefined) {
 			const totalHours = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS;
 			const elapsedHours = totalHours - hoursRemaining;
 			return Math.min(100, Math.max(0, (elapsedHours / totalHours) * 100));
 		}
-		
+
 		return 0;
 	};
 
 	const progressPercentage = getProgressPercentage();
 
 	return (
-		<div className={`border rounded-lg p-4 transition-all duration-300 hover:shadow-md ${config.bgColor} ${config.borderColor}`}>
+		<div
+			className={`border rounded-lg p-4 transition-all duration-300 hover:shadow-md ${config.bgColor} ${config.borderColor}`}
+		>
 			{/* Header with title and badge */}
 			<div className="flex items-start justify-between mb-3">
 				<div className="flex-1 min-w-0">
@@ -158,8 +168,8 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 						<span className={config.textColor}>{message}</span>
 					</div>
 				</div>
-				<Badge 
-					variant={status === "expired" ? "outline" : "secondary"} 
+				<Badge
+					variant={status === "expired" ? "outline" : "secondary"}
 					className={`flex items-center gap-1 text-xs flex-shrink-0 ml-2 ${
 						status === "expired" ? "opacity-60" : ""
 					}`}
@@ -176,7 +186,9 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 						{status === "active-manual" ? "Status" : "Progress"}
 					</span>
 					<span className={`font-medium ${config.textColor}`}>
-						{status === "active-manual" ? "Active" : `${Math.round(progressPercentage)}%`}
+						{status === "active-manual"
+							? "Active"
+							: `${Math.round(progressPercentage)}%`}
 					</span>
 				</div>
 				<div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
@@ -190,7 +202,11 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 			{/* Show end time for expired events */}
 			{status === "expired" && endTime && (
 				<div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-					📅 Ended: {endTime.toLocaleDateString()} at {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+					📅 Ended: {endTime.toLocaleDateString()} at{" "}
+					{endTime.toLocaleTimeString([], {
+						hour: "2-digit",
+						minute: "2-digit",
+					})}
 				</div>
 			)}
 		</div>
@@ -201,12 +217,14 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 	// Simple calculation on render - no memoization needed
 	// This runs fresh each time: SSR, client render, page refresh
 	const eventStatuses = featuredEvents.map(getEventStatus);
-	
-	const activeEvents = eventStatuses.filter(s => s.status.startsWith("active") || s.status === "expires-soon");
-	const expiredEvents = eventStatuses.filter(s => s.status === "expired");
-	
+
+	const activeEvents = eventStatuses.filter(
+		(s) => s.status.startsWith("active") || s.status === "expires-soon",
+	);
+	const expiredEvents = eventStatuses.filter((s) => s.status === "expired");
+
 	// Only show expired events from last 48 hours (calculated fresh each render)
-	const recentExpiredEvents = expiredEvents.filter(s => {
+	const recentExpiredEvents = expiredEvents.filter((s) => {
 		if (!s.endTime) return false;
 		const hoursAgo = (Date.now() - s.endTime.getTime()) / (1000 * 60 * 60);
 		return hoursAgo <= 48;
@@ -227,7 +245,8 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 						No events currently featured
 					</div>
 					<p className="text-sm text-muted-foreground mt-1">
-						Events can be featured for {FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours
+						Events can be featured for{" "}
+						{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours
 					</p>
 				</CardContent>
 			</Card>
@@ -235,7 +254,7 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 	}
 
 	// If all featured events have no timestamps
-	if (eventStatuses.every(status => !status.endTime)) {
+	if (eventStatuses.every((status) => !status.endTime)) {
 		return (
 			<Card className="mb-8 border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-800">
 				<CardHeader>
@@ -246,10 +265,12 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 				</CardHeader>
 				<CardContent>
 					<div className="text-lg font-semibold text-orange-700 dark:text-orange-300 mb-2">
-						{featuredEvents.length} event{featuredEvents.length > 1 ? 's' : ''} featured, but timestamps missing
+						{featuredEvents.length} event{featuredEvents.length > 1 ? "s" : ""}{" "}
+						featured, but timestamps missing
 					</div>
 					<p className="text-sm text-muted-foreground">
-						Add a "Featured At" column to your spreadsheet with timestamps to see countdown timers
+						Add a "Featured At" column to your spreadsheet with timestamps to
+						see countdown timers
 					</p>
 				</CardContent>
 			</Card>
@@ -313,7 +334,9 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 					<div className="text-xs text-muted-foreground pt-3 border-t space-y-1">
 						<div className="flex items-center justify-between">
 							<span>
-								⏱️ Feature duration: {FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours • 🔄 Refresh page for updates
+								⏱️ Feature duration:{" "}
+								{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours • 🔄
+								Refresh page for updates
 							</span>
 							{activeEvents.length > 0 && (
 								<span className="text-green-600 dark:text-green-400 font-medium">
@@ -323,7 +346,8 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 						</div>
 						{recentExpiredEvents.length > 0 && (
 							<div className="text-gray-500">
-								🧹 Expired events auto-hide after 48 hours to keep this list clean
+								🧹 Expired events auto-hide after 48 hours to keep this list
+								clean
 							</div>
 						)}
 					</div>
@@ -331,4 +355,4 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 			</CardContent>
 		</Card>
 	);
-} 
+}
