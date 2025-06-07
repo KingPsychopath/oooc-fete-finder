@@ -311,8 +311,8 @@ const ParisMap: React.FC<ParisMapProps> = ({
 										<div className="mb-2">
 											<p className="font-semibold text-sm">Unknown Location</p>
 											<p className="text-xs text-gray-600 dark:text-gray-300">
-												{unknownEvents.length} event
-												{unknownEvents.length !== 1 ? "s" : ""} - Location TBD
+																	{unknownEvents.length} event
+					{unknownEvents.length !== 1 ? "s" : ""} - Location TBC
 											</p>
 										</div>
 										{unknownEvents.length > 0 && (

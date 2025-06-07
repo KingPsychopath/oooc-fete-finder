@@ -91,7 +91,7 @@ export function EventCard({ event, onClick }: EventCardProps) {
 						className="text-xs"
 					>
 						{event.arrondissement === "unknown"
-							? "?"
+							? "TBC"
 							: `${event.arrondissement}e`}
 					</Badge>
 				</div>

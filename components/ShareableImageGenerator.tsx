@@ -88,7 +88,7 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 					${event.isOOOCPick ? '<div style="background: #fbbf24; color: #000000; padding: 10px 20px; border-radius: 16px; font-size: 11px; font-weight: 700; display: inline-block; text-align: center; letter-spacing: 0.5px; white-space: nowrap;">⭐ OOOC PICK</div>' : ""}
 				</div>
 				<div style="background: rgba(255,255,255,0.25); color: #ffffff; padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-					${event.arrondissement === "unknown" ? "?" : `${event.arrondissement}e`}
+					${event.arrondissement === "unknown" ? "TBC" : `${event.arrondissement}e`}
 				</div>
 			</div>
 			

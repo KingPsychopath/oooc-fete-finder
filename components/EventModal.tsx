@@ -406,7 +406,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 						<div className="text-sm">
 							<div className="font-medium">
 								{event.arrondissement === "unknown"
-									? "Location TBD"
+									? "Location TBC"
 									: `${event.arrondissement}e Arrondissement`}
 							</div>
 							{event.location && event.location !== "TBA" && (

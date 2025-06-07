@@ -333,7 +333,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							)}
 						{selectedArrondissements.map((arr) => (
 							<Badge key={arr} variant="secondary" className="text-xs">
-								{arr === "unknown" ? "?" : `${arr}e`}
+								{arr === "unknown" ? "TBC" : `${arr}e`}
 								<Button
 									variant="ghost"
 									size="sm"
@@ -543,7 +543,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															size="sm"
 															className="h-6 text-xs shrink-0"
 														>
-															{arr === "unknown" ? "?" : `${arr}e`}
+															{arr === "unknown" ? "TBC" : `${arr}e`}
 														</Toggle>
 													))}
 												</div>
@@ -1193,7 +1193,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												size="sm"
 												className="h-7 text-xs shrink-0"
 											>
-												{arr === "unknown" ? "?" : `${arr}e`}
+												{arr === "unknown" ? "TBC" : `${arr}e`}
 											</Toggle>
 										))}
 									</div>

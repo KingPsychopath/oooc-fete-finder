@@ -91,7 +91,6 @@ export type Event = {
 	endTime?: string; // 24-hour format (HH:MM) or 'TBC'
 	arrondissement: ParisArrondissement;
 	location?: string;
-	address?: string;
 	link: string;
 	links?: string[]; // All ticket links, if multiple
 	description?: string;
@@ -328,7 +327,7 @@ export const PARIS_ARRONDISSEMENTS = [
 	},
 	{
 		id: "unknown" as ParisArrondissement,
-		name: "Unknown - Location TBD",
+		name: "Unknown - Location TBC",
 		coordinates: { lat: 48.84, lng: 2.42 },
 	},
 ];
