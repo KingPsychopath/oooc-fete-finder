@@ -71,7 +71,7 @@ const Countdown: React.FC = () => {
 	if (!mounted) {
 		return (
 			<div className="text-center">
-				<div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium font-mono min-w-[280px] justify-center">
+				<div className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium font-mono min-w-[200px] justify-center">
 					⏰ Loading countdown...
 				</div>
 			</div>
@@ -80,7 +80,7 @@ const Countdown: React.FC = () => {
 
 	return (
 		<div className="text-center">
-			<div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium font-mono min-w-[280px] justify-center">
+			<div className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium font-mono min-w-[200px] justify-center">
 				{formatCountdown(countdown)}
 			</div>
 		</div>
