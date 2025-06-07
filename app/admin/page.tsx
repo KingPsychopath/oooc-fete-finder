@@ -116,6 +116,7 @@ export default function AdminPage() {
 
 		try {
 			// Step 1: Refresh the events cache
+			console.log("🔄 Starting cache refresh...");
 			const result = await forceRefreshEvents();
 			setRefreshMessage(result.message);
 
@@ -124,66 +125,99 @@ export default function AdminPage() {
 				try {
 					console.log("🔄 Attempting page revalidation...");
 
-					// Use the same basePath as configured in next.config.ts
-					const revalidateUrl = `${basePath}/api/revalidate/`;
+					// Construct revalidate URL more robustly
+					const baseUrl = window.location.origin;
+					const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+					const revalidateUrl = `${baseUrl}${basePath}/api/revalidate`;
+					
 					console.log("📡 Revalidate URL:", revalidateUrl);
+					console.log("📡 Admin key length:", adminKey ? adminKey.length : 0);
+
+					const revalidatePayload = {
+						adminKey: adminKey,
+						path: "/",
+					};
 
 					const revalidateResponse = await fetch(revalidateUrl, {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
 						},
-						body: JSON.stringify({
-							adminKey: adminKey,
-							path: "/",
-						}),
+						body: JSON.stringify(revalidatePayload),
+						// Add timeout and error handling
+						signal: AbortSignal.timeout(15000), // 15 second timeout
 					});
 
-					console.log(
-						"📡 Revalidate response status:",
-						revalidateResponse.status,
-					);
+					console.log("📡 Revalidate response status:", revalidateResponse.status);
+					console.log("📡 Revalidate response headers:", Object.fromEntries(revalidateResponse.headers.entries()));
 
 					if (revalidateResponse.ok) {
 						const revalidateData = await revalidateResponse.json();
+						const timingInfo = revalidateData.processingTimeMs 
+							? `${revalidateData.processingTimeMs}ms` 
+							: 'completed';
 						setRefreshMessage(
-							(prev) => `${prev} + Page revalidated successfully.`,
+							(prev) => `${prev} ✅ Page revalidated successfully (${timingInfo}).`,
 						);
-						console.log("✅ Page revalidation triggered:", revalidateData);
+						console.log("✅ Page revalidation successful:", revalidateData);
+						
+						// Optional: Add small delay then reload cache status to confirm changes
+						setTimeout(() => {
+							loadCacheStatus();
+						}, 2000);
 					} else {
-						// Get the error details
+						// Enhanced error handling with response details
 						let errorDetails = `Status: ${revalidateResponse.status}`;
+						let errorData: { message?: string; error?: string } | null = null;
+						
 						try {
-							const errorData = await revalidateResponse.json();
-							errorDetails += ` - ${errorData.message || "Unknown error"}`;
-							console.error("❌ Revalidation failed:", errorData);
-						} catch {
+							errorData = await revalidateResponse.json();
+							errorDetails += ` - ${errorData?.message || "Unknown error"}`;
+							if (errorData?.error) {
+								errorDetails += ` (${errorData.error})`;
+							}
+							console.error("❌ Revalidation failed with data:", errorData);
+						} catch (parseError) {
 							errorDetails += ` - ${revalidateResponse.statusText}`;
+							console.error("❌ Failed to parse revalidation error response:", parseError);
 						}
+						
 						console.warn("⚠️ Page revalidation failed:", errorDetails);
 						setRefreshMessage(
 							(prev) =>
-								`${prev} (Note: Cache updated but page revalidation failed: ${errorDetails})`,
+								`${prev} ⚠️ Note: Cache updated but page revalidation failed: ${errorDetails}`,
 						);
 					}
 				} catch (revalidateError) {
-					console.error("❌ Revalidation error:", revalidateError);
-					const errorMsg =
-						revalidateError instanceof Error
-							? revalidateError.message
-							: "Unknown error";
+					console.error("❌ Revalidation request error:", revalidateError);
+					
+					let errorMsg = "Unknown error";
+					if (revalidateError instanceof Error) {
+						errorMsg = revalidateError.message;
+						// Handle specific error types
+						if (revalidateError.name === "AbortError") {
+							errorMsg = "Request timed out";
+						} else if (revalidateError.name === "TypeError") {
+							errorMsg = "Network error - check connection";
+						}
+					}
+					
 					setRefreshMessage(
 						(prev) =>
-							`${prev} (Note: Cache updated but page revalidation error: ${errorMsg})`,
+							`${prev} ⚠️ Note: Cache updated but page revalidation error: ${errorMsg}`,
 					);
 				}
+			} else {
+				console.error("❌ Cache refresh failed:", result.error);
+				setRefreshMessage(`Failed to refresh cache: ${result.error || 'Unknown error'}`);
 			}
 
-			// Reload cache status after refresh
+			// Always reload cache status after any operation
 			setTimeout(() => {
 				loadCacheStatus();
 			}, 1000);
 		} catch (error) {
+			console.error("❌ Overall refresh error:", error);
 			setRefreshMessage(
 				`Failed to refresh: ${error instanceof Error ? error.message : "Unknown error"}`,
 			);
