@@ -2,6 +2,7 @@
 
 import React, { forwardRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { EventCard } from "@/components/event-card/EventCard";
 import type { Event } from "@/types/events";
 
@@ -15,7 +16,12 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		return (
 			<Card ref={ref} className="mt-6">
 				<CardHeader>
-					<CardTitle>All Events ({events.length})</CardTitle>
+					<CardTitle className="flex items-center">
+						All Events
+						<Badge variant="outline" className="ml-2 text-xs">
+							{events.length} event{events.length !== 1 ? "s" : ""}
+						</Badge>
+					</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
