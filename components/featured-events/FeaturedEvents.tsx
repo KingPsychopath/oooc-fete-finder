@@ -29,10 +29,7 @@ export function FeaturedEvents({
 	return (
 		<Card className="mb-6">
 			<CardHeader>
-				<FeaturedEventsHeader
-					totalEventsCount={totalEventsCount}
-					onScrollToAllEvents={onScrollToAllEvents}
-				/>
+				<FeaturedEventsHeader />
 			</CardHeader>
 			<CardContent>
 				{/* Responsive grid: 1 col on mobile, 2 cols on tablet, 3 cols on desktop */}
