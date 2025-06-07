@@ -103,6 +103,7 @@ export type Event = {
 	age?: string; // Age restrictions from CSV
 	isOOOCPick?: boolean; // 🌟 indicator from CSV
 	isFeatured?: boolean; // Manual override for featured events in preview section
+	featuredAt?: string; // ISO timestamp when event was featured (e.g., "2024-01-20T14:30:00Z")
 	nationality?: Nationality[]; // GB/FR indicators from CSV - now supports multiple
 	// Legacy field for backwards compatibility
 	category?: EventCategory;
@@ -125,6 +126,7 @@ export type CSVEventRow = {
 	indoorOutdoor: string; // New Indoor/Outdoor column
 	notes: string;
 	featured: string; // Featured column - any non-empty value means featured
+	featuredAt: string; // Featured timestamp column - ISO timestamp or Excel date format
 };
 
 export type Arrondissement = {
@@ -584,5 +586,5 @@ export const formatDayWithDate = (day: EventDay, isoDate: string): string => {
 
 export const VENUE_TYPES = [
 	{ key: "indoor" as const, label: "Indoor", icon: "🏢" },
-	{ key: "outdoor" as const, label: "Outdoor", icon: "🌤️" },
+	{ key: "outdoor" as const, label: "Outdoor", icon: "��️" },
 ] as const;

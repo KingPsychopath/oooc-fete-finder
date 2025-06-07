@@ -7,7 +7,7 @@ import type { FeatureTimeRemaining } from "../types";
  * Custom hook to calculate time remaining for a feature period
  * Updates every minute to show live countdown
  */
-export function useFeatureTimeRemaining(endDate: Date): FeatureTimeRemaining {
+export function useFeatureTimeRemaining(endDate: Date | null): FeatureTimeRemaining {
 	const [timeRemaining, setTimeRemaining] = useState<FeatureTimeRemaining>(() => 
 		calculateTimeRemaining(endDate)
 	);
@@ -23,7 +23,14 @@ export function useFeatureTimeRemaining(endDate: Date): FeatureTimeRemaining {
 	return timeRemaining;
 }
 
-function calculateTimeRemaining(endDate: Date): FeatureTimeRemaining {
+function calculateTimeRemaining(endDate: Date | null): FeatureTimeRemaining {
+	if (!endDate) {
+		return {
+			timeRemaining: "No active feature period",
+			isExpired: true,
+		};
+	}
+
 	const now = new Date();
 	const timeDiff = endDate.getTime() - now.getTime();
 	

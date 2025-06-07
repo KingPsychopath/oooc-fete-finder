@@ -1,3 +1,24 @@
+/**
+ * Feature Event Page - Countdown Implementation
+ * 
+ * This page shows a real countdown for currently featured events based on timestamps
+ * from your Excel/Google Sheets data.
+ * 
+ * SETUP REQUIRED:
+ * 1. Add a new column to your spreadsheet called "Featured At" or "featuredAt"
+ * 2. When you manually set an event as featured, populate this column with the current timestamp
+ * 3. Supported timestamp formats:
+ *    - ISO format: "2024-01-20T14:30:00Z"
+ *    - Excel format: "1/20/2024 2:30 PM" or "20/01/2024 14:30"
+ *    - Simple date: "2024-01-20 14:30:00"
+ * 
+ * HOW IT WORKS:
+ * - The countdown calculates when each featured event's feature period will end
+ * - Feature period = featuredAt timestamp + FEATURE_DURATION_HOURS (24 hours)
+ * - Shows the earliest upcoming feature period end time
+ * - If no valid timestamps are found, shows a helpful message instead
+ */
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Euro, Star, CheckCircle, Calendar, Target } from "lucide-react";
 import { FEATURED_EVENTS_CONFIG } from "@/components/featured-events/constants";
 import { FeatureCountdown } from "@/components/featured-events/components/FeatureCountdown";
+import { getFeaturedEvents } from "@/data/events";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -14,10 +36,9 @@ export const metadata: Metadata = {
 	keywords: ["feature event", "paris events", "event promotion", "event marketing"],
 };
 
-export default function FeatureEventPage() {
-	// Calculate feature period end time (this would be dynamic in a real app)
-	const currentFeaturePeriodEnd = new Date();
-	currentFeaturePeriodEnd.setHours(currentFeaturePeriodEnd.getHours() + 24); // Example: 24 hours left
+export default async function FeatureEventPage() {
+	// Get current featured events to show real countdown
+	const featuredEvents = await getFeaturedEvents();
 
 	return (
 		<div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -30,7 +51,27 @@ export default function FeatureEventPage() {
 			</div>
 
 			{/* Current Feature Period Status */}
-			<FeatureCountdown endDate={currentFeaturePeriodEnd} />
+			<FeatureCountdown featuredEvents={featuredEvents} />
+
+			{/* Setup Instructions (only show if no valid featured events) */}
+			{featuredEvents.length === 0 && (
+				<Card className="mb-8 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
+					<CardHeader>
+						<CardTitle>💡 How to Feature Events</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<ol className="list-decimal list-inside space-y-2 text-sm">
+							<li>Add a "Featured At" column to your Excel/Google Sheets</li>
+							<li>Set the "Featured" column to "Yes" or "✓" for the event</li>
+							<li>Add the current timestamp to "Featured At" (e.g., "1/20/2024 2:30 PM")</li>
+							<li>The countdown will show the remaining time automatically</li>
+						</ol>
+						<p className="text-xs text-muted-foreground mt-3">
+							Events stay featured for {FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours from the timestamp
+						</p>
+					</CardContent>
+				</Card>
+			)}
 
 			<div className="grid md:grid-cols-2 gap-8 mb-8">
 				{/* Pricing Card */}

@@ -45,6 +45,7 @@ const COLUMN_MAPPINGS = {
 	],
 	notes: ["Notes", "Description", "notes", "Details", "Info"],
 	featured: ["Featured", "featured", "Feature", "Promoted", "Premium"],
+	featuredAt: ["Featured At", "featuredAt", "Featured Time", "Feature Time", "Featured Timestamp"],
 } as const;
 
 // Type for raw CSV row data
@@ -125,10 +126,19 @@ const createColumnMapping = (
 		indoorOutdoor: findColumnName(headers, COLUMN_MAPPINGS.indoorOutdoor),
 		notes: findColumnName(headers, COLUMN_MAPPINGS.notes),
 		featured: findColumnName(headers, COLUMN_MAPPINGS.featured),
+		featuredAt: findColumnName(headers, COLUMN_MAPPINGS.featuredAt),
 	};
 
 	// Log mapping for debugging
 	console.log("CSV Column Mapping:", mapping);
+	
+	// Special debug for featuredAt column
+	if (mapping.featuredAt) {
+		console.log(`✅ Featured At column found: "${mapping.featuredAt}"`);
+	} else {
+		console.warn(`⚠️ Featured At column not found. Available headers: [${headers.join(", ")}]`);
+		console.warn(`💡 Expected one of: ${COLUMN_MAPPINGS.featuredAt.join(", ")}`);
+	}
 
 	return mapping;
 };
@@ -216,11 +226,17 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 				notes: (columnMapping.notes && row[columnMapping.notes]) || "",
 				// Handle missing featured column gracefully
 				featured: (columnMapping.featured && row[columnMapping.featured]) || "",
+				// Handle missing featuredAt column gracefully
+				featuredAt: (columnMapping.featuredAt && row[columnMapping.featuredAt]) || "",
 			};
 
 			// Log first few rows for debugging
 			if (index < 3) {
 				console.log(`CSV Row ${index + 1}:`, csvRow);
+				// Special debug for featuredAt field
+				if (csvRow.featuredAt) {
+					console.log(`📅 Row ${index + 1} featuredAt: "${csvRow.featuredAt}"`);
+				}
 			}
 
 			return csvRow;
@@ -671,6 +687,66 @@ const convertToVenueTypes = (indoorOutdoorStr: string): VenueType[] => {
 };
 
 /**
+ * Parse featured timestamp from various formats
+ */
+const parseFeaturedAt = (featuredAtStr: string): string | undefined => {
+	if (!featuredAtStr || featuredAtStr.trim() === "") {
+		return undefined;
+	}
+
+	try {
+		// Try parsing as ISO string first
+		if (featuredAtStr.includes("T") || featuredAtStr.includes("Z")) {
+			const date = new Date(featuredAtStr);
+			if (!isNaN(date.getTime())) {
+				return date.toISOString();
+			}
+		}
+
+		// Try parsing Excel date formats (MM/DD/YYYY HH:MM, DD/MM/YYYY HH:MM, etc.)
+		const excelDateRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i;
+		const match = featuredAtStr.match(excelDateRegex);
+		
+		if (match) {
+			const [, month, day, year, hour, minute, second = "0", ampm] = match;
+			
+			// Handle AM/PM
+			let hourNum = parseInt(hour, 10);
+			if (ampm) {
+				if (ampm.toUpperCase() === "PM" && hourNum !== 12) {
+					hourNum += 12;
+				} else if (ampm.toUpperCase() === "AM" && hourNum === 12) {
+					hourNum = 0;
+				}
+			}
+
+			// Create date (assuming MM/DD/YYYY format first, but could be DD/MM/YYYY)
+			const date1 = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hourNum.toString().padStart(2, '0')}:${minute}:${second.padStart(2, '0')}`);
+			const date2 = new Date(`${year}-${day.padStart(2, '0')}-${month.padStart(2, '0')}T${hourNum.toString().padStart(2, '0')}:${minute}:${second.padStart(2, '0')}`);
+			
+			// Use the date that doesn't result in an invalid date
+			if (!isNaN(date1.getTime())) {
+				return date1.toISOString();
+			} else if (!isNaN(date2.getTime())) {
+				return date2.toISOString();
+			}
+		}
+
+		// Try parsing as simple date
+		const date = new Date(featuredAtStr);
+		if (!isNaN(date.getTime())) {
+			return date.toISOString();
+		}
+
+		console.warn(`Could not parse featuredAt timestamp: "${featuredAtStr}"`);
+		return undefined;
+	} catch (error) {
+		console.warn(`Error parsing featuredAt timestamp: "${featuredAtStr}"`, error);
+		return undefined;
+	}
+};
+
+/**
  * Convert CSVEventRow to Event
  */
 export const convertCSVRowToEvent = (
@@ -744,6 +820,7 @@ export const convertCSVRowToEvent = (
 			csvRow.oocPicks === "🌟" ||
 			csvRow.oocPicks.toLowerCase().includes("pick"),
 		isFeatured: convertToFeatured(csvRow.featured),
+		featuredAt: parseFeaturedAt(csvRow.featuredAt),
 		nationality: convertToNationality(csvRow.nationality),
 	};
 };
