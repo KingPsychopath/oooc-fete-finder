@@ -423,19 +423,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										variant="ghost"
 										size="sm"
 										onClick={onToggleExpanded}
-										className="text-muted-foreground hover:text-foreground"
+										className="text-muted-foreground hover:text-foreground w-[100px] justify-center flex-shrink-0"
 									>
-										{isExpanded ? (
-											<>
-												<ChevronUp className="h-4 w-4 mr-1" />
-												Collapse
-											</>
-										) : (
-											<>
-												<ChevronDown className="h-4 w-4 mr-1" />
-												Expand
-											</>
-										)}
+										<ChevronDown className={`h-4 w-4 mr-1 transition-transform duration-500 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} style={{transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)'}} />
+										<span className="text-sm">{isExpanded ? 'Collapse' : 'Expand'}</span>
 									</Button>
 								)}
 							</div>

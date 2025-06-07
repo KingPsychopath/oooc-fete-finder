@@ -75,20 +75,36 @@ const ParisMap: React.FC<ParisMapProps> = ({
 
 	const getArrondissementColor = (arrondissement: number) => {
 		const eventsInArr = getEventsInArrondissement(arrondissement);
-		if (eventsInArr.length === 0) return "#f3f4f6";
-		if (hoveredArrondissement === arrondissement) return "#3b82f6";
-		if (eventsInArr.length >= 3) return "#ef4444";
-		if (eventsInArr.length >= 2) return "#f59e0b";
-		return "#10b981";
+		if (eventsInArr.length === 0) return "#e5e7eb";
+		if (hoveredArrondissement === arrondissement) return "#1d4ed8";
+		if (eventsInArr.length >= 3) return "#b91c1c";
+		if (eventsInArr.length >= 2) return "#d97706";
+		return "#059669";
 	};
 
 	const getUnknownColor = () => {
 		const unknownEvents = getUnknownEvents();
-		if (unknownEvents.length === 0) return "#f3f4f6";
-		if (hoveredArrondissement === -1) return "#3b82f6"; // Use -1 for unknown hover
-		if (unknownEvents.length >= 3) return "#ef4444";
-		if (unknownEvents.length >= 2) return "#f59e0b";
-		return "#10b981";
+		if (unknownEvents.length === 0) return "#e5e7eb";
+		if (hoveredArrondissement === -1) return "#1d4ed8";
+		if (unknownEvents.length >= 3) return "#b91c1c";
+		if (unknownEvents.length >= 2) return "#d97706";
+		return "#059669";
+	};
+
+	const getArrondissementPattern = (arrondissement: number) => {
+		const eventsInArr = getEventsInArrondissement(arrondissement);
+		if (eventsInArr.length >= 3) return "url(#pattern-3-events)";
+		if (eventsInArr.length >= 2) return "url(#pattern-2-events)";
+		if (eventsInArr.length === 1) return "url(#pattern-1-event)";
+		return null;
+	};
+
+	const getUnknownPattern = () => {
+		const unknownEvents = getUnknownEvents();
+		if (unknownEvents.length >= 3) return "url(#pattern-3-events)";
+		if (unknownEvents.length >= 2) return "url(#pattern-2-events)";
+		if (unknownEvents.length === 1) return "url(#pattern-1-event)";
+		return null;
 	};
 
 	const handleArrondissementClick = (arrondissement: number) => {
@@ -128,6 +144,23 @@ const ParisMap: React.FC<ParisMapProps> = ({
 					role="img"
 					aria-label="Interactive map of Paris arrondissements with event information"
 				>
+					{/* Pattern definitions for accessibility */}
+					<defs>
+						<pattern id="pattern-1-event" patternUnits="userSpaceOnUse" width="4" height="4">
+							<rect width="4" height="4" fill="#059669" />
+							<circle cx="2" cy="2" r="0.5" fill="white" opacity="0.3" />
+						</pattern>
+						<pattern id="pattern-2-events" patternUnits="userSpaceOnUse" width="4" height="4">
+							<rect width="4" height="4" fill="#d97706" />
+							<rect x="0" y="0" width="2" height="2" fill="white" opacity="0.2" />
+							<rect x="2" y="2" width="2" height="2" fill="white" opacity="0.2" />
+						</pattern>
+						<pattern id="pattern-3-events" patternUnits="userSpaceOnUse" width="4" height="4">
+							<rect width="4" height="4" fill="#b91c1c" />
+							<path d="M0,0 L4,4 M4,0 L0,4" stroke="white" strokeWidth="0.5" opacity="0.3" />
+						</pattern>
+					</defs>
+
 					{/* Seine River simplified */}
 					<path
 						d="M 50 220 Q 150 200 250 210 Q 350 220 450 230"
@@ -153,9 +186,9 @@ const ParisMap: React.FC<ParisMapProps> = ({
 											y={pos.y}
 											width={pos.width}
 											height={pos.height}
-											fill={getArrondissementColor(arrondissement)}
-											stroke={isSelected ? "#1f2937" : "#6b7280"}
-											strokeWidth={isSelected ? 3 : 1}
+											fill={getArrondissementPattern(arrondissement) || getArrondissementColor(arrondissement)}
+											stroke={isSelected ? "#1f2937" : "#374151"}
+											strokeWidth={isSelected ? 3 : 1.5}
 											rx="4"
 											className="cursor-pointer transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary"
 											onMouseEnter={() => onArrondissementHover(arrondissement)}
@@ -181,7 +214,7 @@ const ParisMap: React.FC<ParisMapProps> = ({
 												cx={pos.x + pos.width - 8}
 												cy={pos.y + 8}
 												r="6"
-												fill="#dc2626"
+												fill="#991b1b"
 												stroke="white"
 												strokeWidth="2"
 												className="pointer-events-none"
@@ -194,6 +227,7 @@ const ParisMap: React.FC<ParisMapProps> = ({
 												textAnchor="middle"
 												dominantBaseline="middle"
 												className="text-xs font-bold fill-white pointer-events-none"
+												style={{ textShadow: "0.5px 0.5px 1px rgba(0,0,0,0.8)" }}
 											>
 												{eventsInArr.length}
 											</text>
@@ -264,9 +298,9 @@ const ParisMap: React.FC<ParisMapProps> = ({
 											cy={350}
 											rx={25}
 											ry={15}
-											fill={getUnknownColor()}
-											stroke={isSelected ? "#1f2937" : "#6b7280"}
-											strokeWidth={isSelected ? 3 : 1}
+											fill={getUnknownPattern() || getUnknownColor()}
+											stroke={isSelected ? "#1f2937" : "#374151"}
+											strokeWidth={isSelected ? 3 : 1.5}
 											className="cursor-pointer transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary"
 											onMouseEnter={() => onArrondissementHover(-1)}
 											onMouseLeave={() => onArrondissementHover(null)}
@@ -290,7 +324,7 @@ const ParisMap: React.FC<ParisMapProps> = ({
 											cx={435}
 											cy={340}
 											r="6"
-											fill="#dc2626"
+											fill="#991b1b"
 											stroke="white"
 											strokeWidth="2"
 											className="pointer-events-none"
@@ -301,6 +335,7 @@ const ParisMap: React.FC<ParisMapProps> = ({
 											textAnchor="middle"
 											dominantBaseline="middle"
 											className="text-xs font-bold fill-white pointer-events-none"
+											style={{ textShadow: "0.5px 0.5px 1px rgba(0,0,0,0.8)" }}
 										>
 											{unknownEvents.length}
 										</text>
@@ -374,32 +409,41 @@ const ParisMap: React.FC<ParisMapProps> = ({
 					</text>
 
 					{/* Legend */}
-					<g transform="translate(20, 320)" aria-label="Map legend">
-						<rect x="0" y="0" width="12" height="12" fill="#10b981" rx="2" />
+					<g transform="translate(20, 310)" aria-label="Map legend">
+						<rect x="0" y="0" width="12" height="12" fill="url(#pattern-1-event)" rx="2" stroke="#1f2937" strokeWidth="0.5" />
 						<text
 							x="18"
 							y="10"
-							className="text-xs fill-gray-700 dark:fill-gray-300"
+							className="text-xs fill-gray-800 dark:fill-gray-200 font-medium"
 						>
 							1 event
 						</text>
 
-						<rect x="0" y="20" width="12" height="12" fill="#f59e0b" rx="2" />
+						<rect x="0" y="18" width="12" height="12" fill="url(#pattern-2-events)" rx="2" stroke="#1f2937" strokeWidth="0.5" />
 						<text
 							x="18"
-							y="30"
-							className="text-xs fill-gray-700 dark:fill-gray-300"
+							y="28"
+							className="text-xs fill-gray-800 dark:fill-gray-200 font-medium"
 						>
 							2 events
 						</text>
 
-						<rect x="0" y="40" width="12" height="12" fill="#ef4444" rx="2" />
+						<rect x="0" y="36" width="12" height="12" fill="url(#pattern-3-events)" rx="2" stroke="#1f2937" strokeWidth="0.5" />
 						<text
 							x="18"
-							y="50"
-							className="text-xs fill-gray-700 dark:fill-gray-300"
+							y="46"
+							className="text-xs fill-gray-800 dark:fill-gray-200 font-medium"
 						>
 							3+ events
+						</text>
+
+						<rect x="0" y="54" width="12" height="12" fill="#e5e7eb" rx="2" stroke="#1f2937" strokeWidth="0.5" />
+						<text
+							x="18"
+							y="64"
+							className="text-xs fill-gray-800 dark:fill-gray-200 font-medium"
+						>
+							No events
 						</text>
 					</g>
 				</svg>

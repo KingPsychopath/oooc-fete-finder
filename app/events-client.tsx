@@ -450,17 +450,17 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 			{/* Collapsible Paris Event Map */}
 			<div className="mb-8 relative z-10">
 				<Card>
-					<CardHeader className="pb-2">
-						<CardTitle className="flex items-center justify-between">
-							<div className="flex items-center space-x-2">
+					<CardHeader className="pb-3">
+						<div className="flex items-center justify-between">
+							<CardTitle className="flex items-center space-x-2">
 								<MapPin className="h-5 w-5" />
 								<span>Paris Event Map</span>
 								<Badge variant="secondary" className="text-xs">
 									{filteredEvents.length} event
 									{filteredEvents.length !== 1 ? "s" : ""}
 								</Badge>
-							</div>
-							<div className="flex flex-col space-y-2">
+							</CardTitle>
+							<div className="flex items-center space-x-2">
 								<Button
 									variant="outline"
 									size="sm"
@@ -496,22 +496,13 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 									variant="ghost"
 									size="sm"
 									onClick={toggleMapExpansion}
-									className="text-muted-foreground hover:text-foreground"
+									className="text-muted-foreground hover:text-foreground w-[100px] justify-center flex-shrink-0"
 								>
-									{isMapExpanded ? (
-										<>
-											<ChevronUp className="h-4 w-4 mr-1" />
-											Collapse
-										</>
-									) : (
-										<>
-											<ChevronDown className="h-4 w-4 mr-1" />
-											Expand
-										</>
-									)}
+									<ChevronDown className={`h-4 w-4 mr-1 transition-transform duration-500 ${isMapExpanded ? 'rotate-180' : 'rotate-0'}`} style={{transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)'}} />
+									<span className="text-sm">{isMapExpanded ? 'Collapse' : 'Expand'}</span>
 								</Button>
 							</div>
-						</CardTitle>
+						</div>
 					</CardHeader>
 					<CardContent className="pt-2">
 						<div
