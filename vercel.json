@@ -2,6 +2,27 @@
   "functions": {
     "app/api/revalidate/route.ts": {
       "maxDuration": 5
+    },
+    "app/api/og/route.tsx": {
+      "maxDuration": 10
+    },
+    "app/api/og-upload/route.ts": {
+      "maxDuration": 30
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/api/og",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "s-maxage=86400, stale-while-revalidate=604800"
+        },
+        {
+          "key": "Content-Type",
+          "value": "image/png"
+        }
+      ]
+    }
+  ]
 }

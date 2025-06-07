@@ -20,6 +20,7 @@ import { CacheManagementCard } from "./components/CacheManagementCard";
 import { DynamicSheetCard } from "./components/DynamicSheetCard";
 import { EmailCollectionCard } from "./components/EmailCollectionCard";
 import { GoogleSheetsStatsCard } from "./components/GoogleSheetsStatsCard";
+import { OGImageTestCard } from "./components/OGImageTestCard";
 import { RecentEntriesCard } from "./components/RecentEntriesCard";
 import { SheetActionsCard } from "./components/SheetActionsCard";
 
@@ -336,6 +337,7 @@ export default function AdminPage() {
 
 			<Separator />
 
+
 			{/* Google Sheets Live Data Section */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 				<GoogleSheetsStatsCard adminKey={adminKey} />
@@ -370,6 +372,13 @@ export default function AdminPage() {
 				onCopyEmails={copyEmails}
 				onExportCSV={exportAsCSV}
 			/>
+
+			<Separator />
+
+			{/* OG:Image Testing Section */}
+			<OGImageTestCard />
 		</div>
+
+
 	);
 }
