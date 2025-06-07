@@ -44,19 +44,16 @@ export function FeaturedEventCard({ event, onClick }: FeaturedEventCardProps) {
 			}`}
 			onClick={handleClick}
 		>
-			{/* OOOC Pick Badge */}
-			{event.isOOOCPick === true && (
+			{/* Priority Badge System - Featured takes precedence over OOOC Pick */}
+			{event.isFeatured === true ? (
+				<div className="absolute -top-3 -right-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold rounded-full w-10 h-10 flex items-center justify-center shadow-lg z-10 border-2 border-white dark:border-gray-900 animate-pulse">
+					<span className="text-sm">✨</span>
+				</div>
+			) : event.isOOOCPick === true ? (
 				<div className="absolute -top-3 -right-3 bg-yellow-400 text-black text-xs font-bold rounded-full w-8 h-8 flex items-center justify-center shadow-md z-10 border-2 border-white dark:border-gray-900">
 					<Star className="h-4 w-4 fill-current" />
 				</div>
-			)}
-
-			{/* Featured Badge */}
-			{event.isFeatured === true && (
-				<div className="absolute -top-3 -left-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold rounded-full w-10 h-10 flex items-center justify-center shadow-lg z-10 border-2 border-white dark:border-gray-900 animate-pulse">
-					<span className="text-sm">✨</span>
-				</div>
-			)}
+			) : null}
 
 			{/* Header with proper overflow handling */}
 			<div className="flex items-start justify-between gap-3 mb-2">
@@ -68,17 +65,20 @@ export function FeaturedEventCard({ event, onClick }: FeaturedEventCardProps) {
 					}`}>
 						{event.isFeatured === true && <span className="mr-1">👑</span>}
 						{event.name}
+						{/* Show OOOC star in title only when it doesn't have featured badge (since featured takes precedence in corner) */}
+						{event.isOOOCPick === true && !event.isFeatured && (
+							<span className="ml-1 text-yellow-500 text-sm">🌟</span>
+						)}
 					</h3>
-					{event.isOOOCPick === true && (
-						<span className="text-yellow-500 text-sm flex-shrink-0">
-							🌟
-						</span>
-					)}
 				</div>
 				<div className="flex items-center gap-1 flex-shrink-0 ml-auto">
 					{event.isFeatured === true && (
-						<Badge className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 font-bold px-2">
-							FEATURED
+						<Badge className={`text-xs text-white border-0 font-bold px-2 ${
+							event.isOOOCPick === true 
+								? "bg-gradient-to-r from-blue-500 via-purple-600 to-yellow-500" // Special gradient when both featured and OOOC pick
+								: "bg-gradient-to-r from-blue-500 to-purple-600" // Standard featured gradient
+						}`}>
+							FEATURED{event.isOOOCPick === true ? " ⭐" : ""}
 						</Badge>
 					)}
 					<Badge
