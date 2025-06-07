@@ -13,6 +13,7 @@ import {
 	NATIONALITIES,
 	type Event,
 } from "@/types/events";
+import { shouldDisplayFeaturedEvent } from "@/components/featured-events/utils/timestamp-utils";
 
 type EventCardProps = {
 	event: Event;
@@ -37,9 +38,12 @@ export function EventCard({ event, onClick }: EventCardProps) {
 		return null;
 	}
 
+	// Check if event should display as featured (with expiration logic)
+	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
+
 	// Enhanced styling classes
 	const cardClasses = `p-4 border rounded-lg cursor-pointer transition-all duration-300 relative ${
-		event.isFeatured === true
+		isCurrentlyFeatured
 			? "border-2 border-blue-500 bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50 hover:from-blue-100 hover:via-purple-100 hover:to-indigo-100 dark:from-blue-950/40 dark:via-purple-950/40 dark:to-indigo-950/40 dark:hover:from-blue-900/50 dark:hover:via-purple-900/50 dark:hover:to-indigo-900/50 shadow-lg hover:shadow-xl ring-1 ring-blue-200 dark:ring-blue-800"
 			: event.isOOOCPick === true
 			? "border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-50 hover:from-yellow-100 hover:to-amber-100 dark:from-yellow-950 dark:to-amber-950 dark:hover:from-yellow-900 dark:hover:to-amber-900"
@@ -49,7 +53,7 @@ export function EventCard({ event, onClick }: EventCardProps) {
 	return (
 		<div className={cardClasses} onClick={handleClick}>
 			{/* Priority Badge System - Featured takes precedence over OOOC Pick */}
-			{event.isFeatured === true ? (
+			{isCurrentlyFeatured ? (
 				<div className="absolute -top-3 -right-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold rounded-full w-10 h-10 flex items-center justify-center shadow-lg z-10 border-2 border-white dark:border-gray-900 animate-pulse">
 					<span className="text-sm">✨</span>
 				</div>
@@ -63,21 +67,21 @@ export function EventCard({ event, onClick }: EventCardProps) {
 			<div className="flex items-start justify-between gap-3 mb-2">
 				<div className="flex items-center space-x-2 min-w-0 flex-1">
 					<h3 className={`font-semibold text-sm leading-tight truncate flex-1 min-w-0 ${
-						event.isFeatured === true 
+						isCurrentlyFeatured 
 							? "text-blue-800 dark:text-blue-200 font-bold" 
 							: ""
 					}`}>
-						{event.isFeatured === true && <span className="mr-1">👑</span>}
+						{isCurrentlyFeatured && <span className="mr-1">👑</span>}
 						{event.name}
 						{/* Show OOOC star in title only when it doesn't have featured badge (since featured takes precedence in corner) */}
-						{event.isOOOCPick === true && !event.isFeatured && (
+						{event.isOOOCPick === true && !isCurrentlyFeatured && (
 							<span className="ml-1 text-yellow-500 text-sm">🌟</span>
 						)}
 					</h3>
 				</div>
 				<div className="flex items-center gap-1 flex-shrink-0 ml-auto">
-					{/* Featured badge - show whenever event is featured, regardless of variant */}
-					{event.isFeatured === true && (
+					{/* Featured badge - show whenever event is currently featured, regardless of variant */}
+					{isCurrentlyFeatured && (
 						<Badge className={`text-xs text-white border-0 font-bold px-2 ${
 							event.isOOOCPick === true 
 								? "bg-gradient-to-r from-blue-500 via-purple-600 to-yellow-500" // Special gradient when both featured and OOOC pick
