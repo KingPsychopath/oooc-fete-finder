@@ -10,6 +10,7 @@ import { FeaturedEvents } from "@/components/featured-events/FeaturedEvents";
 import { AllEvents } from "@/components/AllEvents";
 import EmailGateModal from "@/components/EmailGateModal";
 import AuthGate from "@/components/AuthGate";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { useAuth } from "@/lib/auth-context";
 import {
 	getDayNightPeriod,
@@ -590,6 +591,9 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 				onClose={() => setShowEmailGate(false)}
 				onEmailSubmit={handleEmailSubmit}
 			/>
+
+			{/* Scroll to Top Button */}
+			<ScrollToTopButton />
 		</>
 	);
 }
