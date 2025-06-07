@@ -24,12 +24,13 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Euro, Star, CheckCircle, Calendar, Target } from "lucide-react";
+import { Euro, Star, CheckCircle, Calendar, Target, Copy } from "lucide-react";
 import { FEATURED_EVENTS_CONFIG } from "@/components/featured-events/constants";
 import { FeatureCountdown } from "@/components/featured-events/components/FeatureCountdown";
 import { getFeaturedEvents } from "@/data/events";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { CopyEmailButton } from "./components/CopyEmailButton";
 
 export const metadata: Metadata = {
 	title: "Feature Your Event | OOOC Fete Finder",
@@ -116,7 +117,7 @@ export default async function FeatureEventPage() {
 							</div>
 							<div className="flex items-center gap-2 text-sm">
 								<CheckCircle className="h-4 w-4 text-green-600" />
-								<span>Visible on homepage and search results</span>
+								<span>Increased visibility on homepage and search results</span>
 							</div>
 							<div className="flex items-center gap-2 text-sm">
 								<CheckCircle className="h-4 w-4 text-green-600" />
@@ -263,15 +264,16 @@ export default async function FeatureEventPage() {
 
 			{/* CTA Section */}
 			<div className="text-center">
-				<Button
-					size="lg"
-					className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-				>
-					Feature My Event - €{FEATURED_EVENTS_CONFIG.FEATURE_PRICE}
+				<Button asChild size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+					<a href="mailto:hello@outofofficecollective.co.uk?subject=Fete%20Finder:%20Feature%20My%20Event%20Inquiry%20[YOUR_EVENT_NAME_HERE]">
+						Feature My Event - €{FEATURED_EVENTS_CONFIG.FEATURE_PRICE}
+					</a>
 				</Button>
 				<p className="text-sm text-muted-foreground mt-3">
-					Secure payment processed by Stripe • Money-back guarantee if not
-					featured within 2 hours
+					<span className="line-through">Secure payment processed by Stripe • Money-back guarantee if not featured within 2 hours</span>
+					<br />
+					Direct payment coming soon, click the button or email us directly at hello@outofofficecollective.co.uk
+					<CopyEmailButton email="hello@outofofficecollective.co.uk" />
 				</p>
 				<div className="mt-4">
 					<Link

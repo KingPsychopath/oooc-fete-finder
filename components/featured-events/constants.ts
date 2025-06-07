@@ -7,10 +7,10 @@ export const FEATURED_EVENTS_CONFIG = {
 	FEATURE_DURATION_HOURS: 48,
 
 	// Pricing for featuring an event (in euros)
-	FEATURE_PRICE: 50,
+	FEATURE_PRICE: 60,
 
 	// CTA message for event hosts
-	CTA_MESSAGE: "Get noticed by thousands more by featuring your event →",
+	CTA_MESSAGE: "Get noticed by thousands more yearners by featuring your event →",
 
 	// Feature page route
 	FEATURE_PAGE_ROUTE: "/feature-event",
