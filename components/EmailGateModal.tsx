@@ -82,14 +82,12 @@ const EmailGateModal = ({
 		setError("");
 
 		try {
-			// Use server action with updated data
-			const formData = new FormData();
-			formData.append("firstName", firstName.trim());
-			formData.append("lastName", lastName.trim());
-			formData.append("email", email.trim());
-			formData.append("consent", "true");
-
-			const result = await authenticateUser(formData);
+			// Call server action with individual parameters instead of FormData
+			const result = await authenticateUser(
+				firstName.trim(),
+				lastName.trim(),
+				email.trim()
+			);
 
 			if (result.success) {
 				onEmailSubmit(email);

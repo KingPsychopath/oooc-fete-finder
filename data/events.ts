@@ -1,6 +1,5 @@
 import type { Event, MusicGenre, ParisArrondissement } from "@/types/events";
-import { parseCSVContent } from "@/utils/csvParser";
-import { getEvents } from "@/app/actions";
+import { CacheManager } from "@/lib/cache-manager";
 
 // Toggle flag to switch between test data and CSV data
 // Set this to true to use CSV data, false to use test data
@@ -612,17 +611,17 @@ export const EVENTS_DATA: Event[] = [
 	},
 ];
 
-// Enhanced helper functions with CSV support
+// Enhanced helper functions with CSV support using centralized cache manager
 export async function getAllEvents(): Promise<Event[]> {
 	try {
-		const { data: events, error } = await getEvents();
+		const result = await CacheManager.getEvents();
 
-		if (error) {
-			console.error("Error loading events:", error);
+		if (result.error) {
+			console.error("Error loading events:", result.error);
 			return [];
 		}
 
-		return events;
+		return result.data;
 	} catch (error) {
 		console.error("Error in getAllEvents:", error);
 		return [];
@@ -646,20 +645,9 @@ export const getEventsCount = async (): Promise<number> => {
 	return events.length;
 };
 
-export const getArrondissementsWithEvents = async (): Promise<
-	ParisArrondissement[]
-> => {
+export const getFeaturedEvents = async (): Promise<Event[]> => {
 	const events = await getAllEvents();
-	const arrondissements = new Set(events.map((event) => event.arrondissement));
-	return Array.from(arrondissements).sort((a, b) => {
-		// Handle 'unknown' arrondissement - put it at the end
-		if (a === "unknown" && b === "unknown") return 0;
-		if (a === "unknown") return 1;
-		if (b === "unknown") return -1;
-
-		// Both are numbers, sort numerically
-		return (a as number) - (b as number);
-	});
+	return events.filter((event) => event.isFeatured);
 };
 
 export const getOOOCPickEvents = async (): Promise<Event[]> => {
@@ -682,7 +670,7 @@ export const getFreeEvents = async (): Promise<Event[]> => {
 	);
 };
 
-// Synchronous versions for backwards compatibility (using test data only)
+// Synchronous versions for backwards compatibility (using static data only)
 export const getEventsByDaySync = (day: string) => {
 	return EVENTS_DATA.filter((event) => event.day === day);
 };
@@ -693,19 +681,4 @@ export const getEventsByArrondissementSync = (arrondissement: number) => {
 
 export const getEventsCountSync = () => {
 	return EVENTS_DATA.length;
-};
-
-export const getArrondissementsWithEventsSync = (): ParisArrondissement[] => {
-	const arrondissements = new Set(
-		EVENTS_DATA.map((event) => event.arrondissement),
-	);
-	return Array.from(arrondissements).sort((a, b) => {
-		// Handle 'unknown' arrondissement - put it at the end
-		if (a === "unknown" && b === "unknown") return 0;
-		if (a === "unknown") return 1;
-		if (b === "unknown") return -1;
-
-		// Both are numbers, sort numerically
-		return (a as number) - (b as number);
-	});
 };

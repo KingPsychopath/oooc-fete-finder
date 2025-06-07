@@ -206,9 +206,17 @@ export const CacheManagementCard = ({
 				{refreshMessage && (
 					<div
 						className={`p-3 rounded-md text-sm ${
-							refreshMessage.includes("Successfully")
-								? "bg-green-50 text-green-700 border border-green-200"
-								: "bg-red-50 text-red-700 border border-red-200"
+							refreshMessage.includes("✅") || 
+							refreshMessage.includes("completed") || 
+							refreshMessage.includes("successful") ||
+							refreshMessage.includes("Success") ||
+							refreshMessage.includes("refreshed")
+								? "bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+								: refreshMessage.includes("⚠️") || 
+								  refreshMessage.includes("warning") ||
+								  refreshMessage.includes("Warning")
+								? "bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800"
+								: "bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
 						}`}
 					>
 						{refreshMessage}
