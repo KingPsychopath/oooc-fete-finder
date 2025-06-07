@@ -44,14 +44,14 @@ components/featured-events/
 ### Timestamp Behavior
 
 #### Valid Timestamps
-Events with valid ISO timestamps (e.g., `"2024-01-20T14:30:00Z"`) in the `featuredAt` field:
+Events with valid ISO timestamps in the `featured` column (e.g., `"2024-01-20T14:30:00Z"`):
 - Display with real-time countdown timers
 - Automatically expire after configured duration (default: 48 hours)
 - Show progress bars indicating time remaining
 - Removed from featured section when expired
 
 #### Manual Features
-Events marked as featured without valid timestamps (e.g., `featured: "Yes"` or `featured: "urgent"`):
+Events with non-timestamp values in the `featured` column (e.g., `"Yes"`, `"urgent"`, `"premium"`):
 - Display permanently until manually removed
 - Show "Featured for 24 hours" message
 - Green theme with shimmer effects
@@ -103,18 +103,72 @@ export const FEATURED_EVENTS_LIMITS = {
 
 ## CSV Integration
 
-The system reads from CSV files with these columns:
+The system reads from CSV files with a unified `featured` column that can contain:
 
-- `featured`: Any non-empty value marks event as featured
-- `featuredAt`: ISO timestamp or Excel date format for expiration tracking
+- **Timestamps**: ISO timestamp or Excel date format for automatic expiration tracking
+- **Text values**: Any non-empty string (e.g., "Yes", "urgent", "premium") for permanent featuring
+- **Empty**: No featuring
+
+### For Data Stewards: Valid Timestamp Formats
+
+When you want an event to automatically expire after 48 hours, use any of these timestamp formats in the "Featured" column:
+
+#### ✅ **Recommended Formats**
+
+1. **ISO Format (Most Reliable)**
+   ```
+   2024-01-20T14:30:00Z
+   2024-12-25T09:15:00Z
+   ```
+
+2. **Excel Date/Time (US Format)**
+   ```
+   1/20/2024 2:30 PM
+   12/25/2024 9:15 AM
+   1/20/2024 14:30
+   ```
+
+3. **Excel Date/Time (European Format)**
+   ```
+   20/01/2024 14:30
+   25/12/2024 09:15
+   20/01/2024 2:30 PM
+   ```
+
+4. **Standard DateTime**
+   ```
+   2024-01-20 14:30:00
+   2024-12-25 09:15:00
+   ```
+
+#### 📅 **How to Get Current Timestamp**
+
+**In Excel/Google Sheets:**
+- **For current moment**: `=NOW()` then format as "1/20/2024 2:30 PM"
+- **For specific time**: Type directly like "1/20/2024 2:30 PM"
+- **Copy from web**: Use [timestamp generator](https://www.timestamp-converter.com/)
+
+**Online Tools:**
+- Current timestamp: [TimeStamp.Live](https://timestamp.live/)
+- Convert dates: [EpochConverter.com](https://www.epochconverter.com/)
+- Format picker: [TimestampConverter.com](https://www.timestamp-converter.com/)
+
+#### ⚠️ **Important Notes for Data Stewards**
+
+- **Automatic Expiration**: Events with valid timestamps will automatically disappear from the featured section after 48 hours
+- **Manual Control**: Use text like "Yes", "urgent", "premium" for events that should stay featured until manually removed
+- **Testing**: Use `1/1/2030 12:00 PM` for testing (far future, won't expire soon)
+- **Time Zone**: All times are treated as local Paris time
 
 ### Example CSV Data
 
 ```csv
-featured,featuredAt,name,date,location
-Yes,,Manual Feature Event,2024-01-25,Paris
-urgent,2024-01-20T14:30:00Z,Timestamp Event,2024-01-26,London
-,2024-01-19T10:00:00Z,Expired Event,2024-01-27,Berlin
+featured,name,date,location
+2024-01-20T14:30:00Z,Auto-Expires in 48h,2024-01-26,London
+1/20/2024 2:30 PM,Auto-Expires in 48h (Excel format),2024-01-25,Paris
+Yes,Permanent Until Removed,2024-01-27,Berlin
+urgent,Priority Permanent Feature,2024-01-28,Nice
+,Regular Event (Not Featured),2024-01-29,Cannes
 ```
 
 ## API Reference
@@ -197,4 +251,33 @@ Returns:
 - Admin interface for managing featured events
 - Analytics for featured event performance
 - A/B testing for different featured layouts
-- Integration with payment processing for automated featuring 
+- Integration with payment processing for automated featuring
+
+---
+
+## 📋 Quick Reference for Data Stewards
+
+### **Featured Column Options:**
+
+| **Use Case** | **What to Enter** | **Result** |
+|-------------|------------------|------------|
+| **Auto-expire in 48h** | `1/20/2024 2:30 PM` | ⏰ Shows countdown, disappears automatically |
+| **Stay featured permanently** | `Yes` or `urgent` | 🌟 Green theme, stays until removed |
+| **Not featured** | (leave empty) | Regular event listing |
+
+### **Get Current Timestamp:**
+- **Excel**: `=NOW()` → Format as `1/20/2024 2:30 PM`
+- **Online**: [timestamp.live](https://timestamp.live/) 
+- **Google Sheets**: `=NOW()` → Format as `1/20/2024 2:30 PM`
+
+### **Common Formats:**
+```
+✅ 1/20/2024 2:30 PM    (US Excel format)
+✅ 20/01/2024 14:30     (European format)  
+✅ 2024-01-20T14:30:00Z (ISO format)
+✅ Yes                  (permanent)
+✅ urgent               (permanent)
+❌ (empty)              (not featured)
+```
+
+**Questions? Check the full documentation above or contact the development team.** 

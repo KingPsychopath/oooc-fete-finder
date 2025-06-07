@@ -5,18 +5,19 @@
  * from your Excel/Google Sheets data.
  * 
  * SETUP REQUIRED:
- * 1. Add a new column to your spreadsheet called "Featured At" or "featuredAt"
- * 2. When you manually set an event as featured, populate this column with the current timestamp
- * 3. Supported timestamp formats:
+ * 1. Use the "Featured" column in your spreadsheet
+ * 2. For timestamp-based featuring: Enter a valid timestamp (automatic expiration)
+ * 3. For manual featuring: Enter any text like "Yes", "urgent", etc. (permanent until removed)
+ * 4. Supported timestamp formats:
  *    - ISO format: "2024-01-20T14:30:00Z"
  *    - Excel format: "1/20/2024 2:30 PM" or "20/01/2024 14:30"
  *    - Simple date: "2024-01-20 14:30:00"
  * 
  * HOW IT WORKS:
- * - The countdown calculates when each featured event's feature period will end
- * - Feature period = featuredAt timestamp + FEATURE_DURATION_HOURS (24 hours)
- * - Shows the earliest upcoming feature period end time
- * - If no valid timestamps are found, shows a helpful message instead
+ * - The system auto-detects if "Featured" column contains a timestamp or text
+ * - Timestamp values: Show countdown and expire after FEATURE_DURATION_HOURS (48 hours)
+ * - Text values: Display permanently with green theme until manually removed
+ * - Shows real-time countdown for timestamp-based featured events
  */
 
 import React from "react";
@@ -61,13 +62,13 @@ export default async function FeatureEventPage() {
 					</CardHeader>
 					<CardContent>
 						<ol className="list-decimal list-inside space-y-2 text-sm">
-							<li>Add a "Featured At" column to your Excel/Google Sheets</li>
-							<li>Set the "Featured" column to "Yes" or "✓" for the event</li>
-							<li>Add the current timestamp to "Featured At" (e.g., "1/20/2024 2:30 PM")</li>
-							<li>The countdown will show the remaining time automatically</li>
+							<li>Use the "Featured" column in your Excel/Google Sheets</li>
+							<li><strong>For automatic expiration:</strong> Enter a timestamp (e.g., "1/20/2024 2:30 PM")</li>
+							<li><strong>For permanent featuring:</strong> Enter any text (e.g., "Yes", "urgent", "premium")</li>
+							<li>The system automatically detects the type and shows appropriate countdown/status</li>
 						</ol>
 						<p className="text-xs text-muted-foreground mt-3">
-							Events stay featured for {FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours from the timestamp
+							Timestamp-based events expire after {FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours. Text-based events stay featured until manually removed.
 						</p>
 					</CardContent>
 				</Card>

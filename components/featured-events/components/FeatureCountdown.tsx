@@ -23,6 +23,11 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, AlertCircle, Star, Timer } from "lucide-react";
 import { FEATURED_EVENTS_CONFIG } from "../constants";
+import { 
+	isValidTimestamp, 
+	isFeaturedEventExpired, 
+	getFeaturedEventExpirationDate 
+} from "../utils/timestamp-utils";
 import type { Event } from "@/types/events";
 import { Badge } from "@/components/ui/badge";
 
@@ -40,13 +45,13 @@ type EventTimeStatus = {
 };
 
 /**
- * Calculate time status for a single featured event
+ * Calculate time status for a single featured event using centralized utilities
  */
 function calculateEventTimeStatus(event: Event): EventTimeStatus {
 	const now = new Date();
 	
-	// If no featuredAt timestamp, treat as currently featured without countdown
-	if (!event.featuredAt) {
+	// If no featuredAt timestamp or invalid timestamp, treat as currently featured without countdown
+	if (!isValidTimestamp(event.featuredAt)) {
 		return {
 			event,
 			timeRemaining: `Featured for ${FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours`,
@@ -56,9 +61,12 @@ function calculateEventTimeStatus(event: Event): EventTimeStatus {
 		};
 	}
 
-	const featuredAt = new Date(event.featuredAt);
-	// If invalid timestamp, treat as currently featured without countdown
-	if (isNaN(featuredAt.getTime())) {
+	// Use centralized utility to check if expired
+	const isExpired = isFeaturedEventExpired(event.featuredAt);
+	const endTime = getFeaturedEventExpirationDate(event.featuredAt);
+	
+	if (!endTime) {
+		// This shouldn't happen if isValidTimestamp passed, but handle gracefully
 		return {
 			event,
 			timeRemaining: `Featured for ${FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours`,
@@ -68,14 +76,9 @@ function calculateEventTimeStatus(event: Event): EventTimeStatus {
 		};
 	}
 
-	const featureDurationMs = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS * 60 * 60 * 1000;
-	const endTime = new Date(featuredAt.getTime() + featureDurationMs);
-	const totalDuration = featureDurationMs;
-	const timeElapsed = now.getTime() - featuredAt.getTime();
-	const timeRemaining = endTime.getTime() - now.getTime();
-
-	if (timeRemaining <= 0) {
-		const hoursExpired = Math.floor(Math.abs(timeRemaining) / (1000 * 60 * 60));
+	if (isExpired) {
+		const timeSinceExpired = now.getTime() - endTime.getTime();
+		const hoursExpired = Math.floor(timeSinceExpired / (1000 * 60 * 60));
 		const daysExpired = Math.floor(hoursExpired / 24);
 		
 		let expiredTimeText: string;
@@ -97,7 +100,12 @@ function calculateEventTimeStatus(event: Event): EventTimeStatus {
 		};
 	}
 
-	// Calculate progress percentage (how much time has elapsed)
+	// Calculate progress and remaining time
+	const featuredAt = new Date(event.featuredAt as string);
+	const totalDuration = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS * 60 * 60 * 1000;
+	const timeElapsed = now.getTime() - featuredAt.getTime();
+	const timeRemaining = endTime.getTime() - now.getTime();
+	
 	const progressPercentage = Math.min(100, Math.max(0, (timeElapsed / totalDuration) * 100));
 
 	// Format remaining time

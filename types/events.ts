@@ -125,8 +125,7 @@ export type CSVEventRow = {
 	age: string;
 	indoorOutdoor: string; // New Indoor/Outdoor column
 	notes: string;
-	featured: string; // Featured column - any non-empty value means featured
-	featuredAt: string; // Featured timestamp column - ISO timestamp or Excel date format
+	featured: string; // Featured column - can contain timestamp or any string indicating featured status
 };
 
 export type Arrondissement = {
