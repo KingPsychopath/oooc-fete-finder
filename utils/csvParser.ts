@@ -44,6 +44,7 @@ const COLUMN_MAPPINGS = {
 		"Type",
 	],
 	notes: ["Notes", "Description", "notes", "Details", "Info"],
+	featured: ["Featured", "featured", "Feature", "Promoted", "Premium"],
 } as const;
 
 // Type for raw CSV row data
@@ -65,6 +66,7 @@ export type CSVEventRow = {
 	age: string;
 	indoorOutdoor: string;
 	notes: string;
+	featured: string;
 };
 
 /**
@@ -122,6 +124,7 @@ const createColumnMapping = (
 		age: findColumnName(headers, COLUMN_MAPPINGS.age),
 		indoorOutdoor: findColumnName(headers, COLUMN_MAPPINGS.indoorOutdoor),
 		notes: findColumnName(headers, COLUMN_MAPPINGS.notes),
+		featured: findColumnName(headers, COLUMN_MAPPINGS.featured),
 	};
 
 	// Log mapping for debugging
@@ -211,6 +214,8 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 					"",
 				// Handle missing notes column gracefully
 				notes: (columnMapping.notes && row[columnMapping.notes]) || "",
+				// Handle missing featured column gracefully
+				featured: (columnMapping.featured && row[columnMapping.featured]) || "",
 			};
 
 			// Log first few rows for debugging
@@ -598,6 +603,30 @@ const convertToISODate = (dateStr: string): string => {
 };
 
 /**
+ * Convert featured string to boolean
+ * Any non-empty value indicates the event should be featured
+ */
+const convertToFeatured = (featuredStr: string): boolean => {
+	if (!featuredStr) return false;
+	
+	const cleaned = featuredStr.trim().toLowerCase();
+	
+	// Empty string, "no", "false", "0" should be false
+	if (
+		cleaned === "" || 
+		cleaned === "no" || 
+		cleaned === "false" || 
+		cleaned === "0" ||
+		cleaned === "n"
+	) {
+		return false;
+	}
+	
+	// Any other non-empty value should be true
+	return true;
+};
+
+/**
  * Convert indoor/outdoor string to VenueType array
  */
 const convertToVenueTypes = (indoorOutdoorStr: string): VenueType[] => {
@@ -705,7 +734,7 @@ export const convertCSVRowToEvent = (
 		location: csvRow.location || "TBA",
 		link: links[0], // for backwards compatibility
 		links, // new field
-		description: csvRow.notes || `${csvRow.genre || "Music"} event`,
+		description: csvRow.notes || undefined,
 		type: eventType,
 		genre: convertToMusicGenres(csvRow.genre),
 		venueTypes,
@@ -716,6 +745,7 @@ export const convertCSVRowToEvent = (
 		isOOOCPick:
 			csvRow.oocPicks === "🌟" ||
 			csvRow.oocPicks.toLowerCase().includes("pick"),
+		isFeatured: convertToFeatured(csvRow.featured),
 		nationality: convertToNationality(csvRow.nationality),
 	};
 };
