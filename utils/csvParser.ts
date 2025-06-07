@@ -9,6 +9,38 @@ import type {
 } from "@/types/events";
 import Papa from "papaparse";
 
+// Warning collection system for date format issues
+export type DateFormatWarning = {
+	originalValue: string;
+	eventName?: string;
+	columnType: "featured" | "date" | "startTime" | "endTime";
+	warningType: "ambiguous" | "future_featured" | "invalid" | "unparseable";
+	potentialFormats: {
+		us: { date: string; description: string };
+		uk: { date: string; description: string };
+		iso: string;
+	};
+	detectedFormat: string;
+	recommendedAction: string;
+	rowIndex: number;
+};
+
+// Global warnings collector
+let dateFormatWarnings: DateFormatWarning[] = [];
+
+// Functions to manage warnings
+export const clearDateFormatWarnings = (): void => {
+	dateFormatWarnings = [];
+};
+
+export const getDateFormatWarnings = (): DateFormatWarning[] => {
+	return [...dateFormatWarnings];
+};
+
+const addDateFormatWarning = (warning: DateFormatWarning): void => {
+	dateFormatWarnings.push(warning);
+};
+
 // Define the expected CSV column headers and their possible variations
 const COLUMN_MAPPINGS = {
 	oocPicks: ["OOOC Picks", "OOC Picks", "oocPicks", "picks", "🌟"],
@@ -147,6 +179,9 @@ const createColumnMapping = (
  * Parse CSV content into CSVEventRow objects using papaparse
  */
 export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
+	// Clear previous warnings
+	clearDateFormatWarnings();
+	
 	try {
 		const parseResult = Papa.parse(csvContent, {
 			header: true,
@@ -619,10 +654,14 @@ const convertToISODate = (dateStr: string): string => {
 /**
  * Process the unified featured column that can contain either a timestamp or any other string
  * @param featuredStr - The featured column value
+ * @param eventName - The event name for warning context
+ * @param rowIndex - The row index for warning context
  * @returns Object with isFeatured and featuredAt properties
  */
 const processFeaturedColumn = (
 	featuredStr: string,
+	eventName: string = "Unknown Event",
+	rowIndex: number = 0,
 ): { isFeatured: boolean; featuredAt?: string } => {
 	// Handle null, undefined, or non-string values
 	if (featuredStr == null || typeof featuredStr !== "string") {
@@ -647,7 +686,7 @@ const processFeaturedColumn = (
 	}
 
 	// Try to parse as timestamp first
-	const parsedTimestamp = parseFeaturedAt(cleaned);
+	const parsedTimestamp = parseFeaturedAt(cleaned, eventName, rowIndex);
 	if (parsedTimestamp) {
 		const parsedDate = new Date(parsedTimestamp);
 		const now = new Date();
@@ -726,7 +765,11 @@ const convertToVenueTypes = (indoorOutdoorStr: string): VenueType[] => {
 /**
  * Parse featured timestamp from various formats with improved UK/US date handling
  */
-const parseFeaturedAt = (featuredAtStr: string): string | undefined => {
+const parseFeaturedAt = (
+	featuredAtStr: string, 
+	eventName: string = "Unknown Event", 
+	rowIndex: number = 0
+): string | undefined => {
 	if (!featuredAtStr || featuredAtStr.trim() === "") {
 		return undefined;
 	}
@@ -831,6 +874,28 @@ const parseFeaturedAt = (featuredAtStr: string): string | undefined => {
 				console.warn(`   ✅ ISO format: ${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}T${hour}:${minute}:${second_val}`);
 				console.warn(`   ✅ Or with month name: ${first}-${getMonthName(second)}-${year} ${hour}:${minute}${ampm ? ` ${ampm}` : ''}`);
 				
+				// Collect warning for admin panel
+				addDateFormatWarning({
+					originalValue: featuredAtStr,
+					eventName,
+					columnType: "featured",
+					warningType: "ambiguous",
+					potentialFormats: {
+						us: {
+							date: `${year}-${first.padStart(2, "0")}-${second.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second_val.padStart(2, "0")}`,
+							description: `US: ${getMonthName(first)} ${second}, ${year} ${hourNum % 12 || 12}:${minute}${hourNum >= 12 ? ' PM' : ' AM'}`,
+						},
+						uk: {
+							date: `${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second_val.padStart(2, "0")}`,
+							description: `UK: ${first} ${getMonthName(second)}, ${year} ${hourNum % 12 || 12}:${minute}${hourNum >= 12 ? ' PM' : ' AM'}`,
+						},
+						iso: `${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second_val.padStart(2, "0")}`,
+					},
+					detectedFormat: "UK (DD/MM/YYYY) - ASSUMED",
+					recommendedAction: "Use ISO format or month name to avoid ambiguity",
+					rowIndex,
+				});
+				
 				// Default to UK format (DD/MM/YYYY) for European app
 				day = first;
 				month = second;
@@ -847,6 +912,37 @@ const parseFeaturedAt = (featuredAtStr: string): string | undefined => {
 
 			if (!isNaN(date.getTime())) {
 				console.log(`✅ Parsed potentially ambiguous timestamp: "${featuredAtStr}" → ${date.toISOString()} (detected as ${format})`);
+				
+				// Check for future dates in featured column
+				const now = new Date();
+				if (date > now) {
+					console.log(`📅 Future date detected in featured column: "${featuredAtStr}"`);
+					console.log(`   Parsed as: ${date.toISOString()}`);
+					console.log(`   Since this is a future date, starting featuring NOW instead`);
+					console.log(`   💡 Tip: For future event dates, use the event date column, not featured column`);
+					
+					addDateFormatWarning({
+						originalValue: featuredAtStr,
+						eventName,
+						columnType: "featured",
+						warningType: "future_featured",
+						potentialFormats: {
+							us: {
+								date: date.toISOString(),
+								description: `Future: ${date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+							},
+							uk: {
+								date: date.toISOString(),
+								description: `Future: ${date.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+							},
+							iso: date.toISOString().split('.')[0],
+						},
+						detectedFormat: format,
+						recommendedAction: "Future date detected - featuring started immediately. Use event date column for future events.",
+						rowIndex,
+					});
+				}
+				
 				return date.toISOString();
 			}
 		}
@@ -863,6 +959,29 @@ const parseFeaturedAt = (featuredAtStr: string): string | undefined => {
 		console.warn(`   • ISO: 2025-06-07T20:00:00`);
 		console.warn(`   • Month name: 7-Jun-2025 20:00:00`);
 		console.warn(`   • Unambiguous: 2025-06-07 20:00:00`);
+		
+		// Collect unparseable warning
+		addDateFormatWarning({
+			originalValue: featuredAtStr,
+			eventName,
+			columnType: "featured",
+			warningType: "unparseable",
+			potentialFormats: {
+				us: {
+					date: "Invalid",
+					description: "Could not parse as US format",
+				},
+				uk: {
+					date: "Invalid",
+					description: "Could not parse as UK format",
+				},
+				iso: "2025-06-07T20:00:00",
+			},
+			detectedFormat: "UNPARSEABLE",
+			recommendedAction: "Use ISO format (YYYY-MM-DDTHH:MM:SS) or month names for clarity",
+			rowIndex,
+		});
+		
 		return undefined;
 	} catch (error) {
 		console.warn(
@@ -964,7 +1083,7 @@ export const convertCSVRowToEvent = (
 		isOOOCPick:
 			csvRow.oocPicks === "🌟" ||
 			csvRow.oocPicks.toLowerCase().includes("pick"),
-		...processFeaturedColumn(csvRow.featured),
+		...processFeaturedColumn(csvRow.featured, csvRow.name || `Event ${index + 1}`, index),
 		nationality: convertToNationality(csvRow.nationality),
 	};
 };

@@ -27,20 +27,7 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { analyzeDateFormats } from "@/app/actions";
-
-type DateFormatWarning = {
-	originalValue: string;
-	eventName?: string;
-	columnType: "featured" | "date" | "startTime" | "endTime";
-	warningType: "ambiguous" | "future_featured" | "invalid";
-	potentialFormats: {
-		us: { date: string; description: string };
-		uk: { date: string; description: string };
-		iso: string;
-	};
-	detectedFormat: string;
-	recommendedAction: string;
-};
+import type { DateFormatWarning } from "@/utils/csvParser";
 
 type DateFormatNotificationsCardProps = {
 	adminKey: string;
@@ -75,6 +62,7 @@ export const DateFormatNotificationsCard = ({
 			detectedFormat: "UK (DD/MM/YYYY) - ASSUMED",
 			recommendedAction:
 				"Use ISO format or month name to avoid ambiguity",
+			rowIndex: 1,
 		},
 		{
 			originalValue: "15/06/2025 14:30:00",
@@ -95,6 +83,7 @@ export const DateFormatNotificationsCard = ({
 			detectedFormat: "UK (DD/MM/YYYY) - CLEAR",
 			recommendedAction:
 				"Future date detected - featuring started immediately",
+			rowIndex: 2,
 		},
 		{
 			originalValue: "32/13/2025 25:00:00",
@@ -114,6 +103,7 @@ export const DateFormatNotificationsCard = ({
 			},
 			detectedFormat: "INVALID",
 			recommendedAction: "Fix date format - values exceed valid ranges",
+			rowIndex: 3,
 		},
 	];
 
