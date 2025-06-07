@@ -25,9 +25,9 @@ const Header = () => {
 						{/* Mobile: OOOC Logo Left, Desktop: Event Branding Left */}
 						<div className="flex items-center space-x-3 flex-1">
 							{/* OOOC Logo - Left on mobile, hidden on desktop */}
-							<Link 
-								href="https://outofofficecollective.co.uk" 
-								target="_blank" 
+							<Link
+								href="https://outofofficecollective.co.uk"
+								target="_blank"
 								rel="noopener noreferrer"
 								className="relative h-12 w-12 sm:hidden"
 							>
@@ -64,9 +64,9 @@ const Header = () => {
 							</div>
 
 							{/* OOOC Logo - Centered on desktop, hidden on mobile */}
-							<Link 
-								href="https://outofofficecollective.co.uk" 
-								target="_blank" 
+							<Link
+								href="https://outofofficecollective.co.uk"
+								target="_blank"
 								rel="noopener noreferrer"
 								className="relative h-24 w-24 sm:h-32 sm:w-32 hidden sm:block"
 							>

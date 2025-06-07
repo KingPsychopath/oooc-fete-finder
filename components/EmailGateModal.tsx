@@ -86,7 +86,7 @@ const EmailGateModal = ({
 			const result = await authenticateUser(
 				firstName.trim(),
 				lastName.trim(),
-				email.trim()
+				email.trim(),
 			);
 
 			if (result.success) {

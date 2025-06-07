@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 		if (storedData) {
 			try {
 				const parsed = JSON.parse(storedData);
-				
+
 				if (parsed.email && parsed.expires && parsed.timestamp) {
 					// Validate email format
 					if (!isValidEmail(parsed.email)) {
@@ -74,7 +74,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 		}
 
 		// Store with configurable expiry (default 30 days)
-		const EXPIRY_DAYS = parseInt(process.env.NEXT_PUBLIC_AUTH_EXPIRY_DAYS || "30");
+		const EXPIRY_DAYS = parseInt(
+			process.env.NEXT_PUBLIC_AUTH_EXPIRY_DAYS || "30",
+		);
 		const expiryDate = new Date();
 		expiryDate.setDate(expiryDate.getDate() + EXPIRY_DAYS);
 
@@ -87,7 +89,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 		// Store as plain JSON - simpler and more debuggable
 		localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
-		
+
 		setUserEmail(email.toLowerCase().trim());
 		setIsAuthenticated(true);
 

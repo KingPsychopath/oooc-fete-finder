@@ -13,16 +13,16 @@ const normalizePath = (path: string | null): string => {
 	if (!path || typeof path !== "string") {
 		return "/";
 	}
-	
+
 	// Ensure path starts with /
 	const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-	
+
 	// Basic path validation to prevent malicious paths
 	if (normalizedPath.includes("..") || !normalizedPath.match(/^\/[\w\-\/]*$/)) {
 		console.warn(`⚠️ Invalid path provided, falling back to root: ${path}`);
 		return "/";
 	}
-	
+
 	return normalizedPath;
 };
 
@@ -32,12 +32,12 @@ export async function POST(request: NextRequest) {
 
 	try {
 		// Parse request body with timeout handling
-		const body = await Promise.race([
+		const body = (await Promise.race([
 			request.json(),
-			new Promise((_, reject) => 
-				setTimeout(() => reject(new Error("Request timeout")), 10000)
-			)
-		]) as { adminKey?: string; path?: string };
+			new Promise((_, reject) =>
+				setTimeout(() => reject(new Error("Request timeout")), 10000),
+			),
+		])) as { adminKey?: string; path?: string };
 
 		const { adminKey, path = "/" } = body;
 		const normalizedPath = normalizePath(path);
@@ -56,10 +56,10 @@ export async function POST(request: NextRequest) {
 				expected: process.env.ADMIN_KEY ? "***" : "not set",
 			});
 			return NextResponse.json(
-				{ 
-					success: false, 
+				{
+					success: false,
 					message: "Unauthorized access - invalid admin key",
-					error: "INVALID_ADMIN_KEY"
+					error: "INVALID_ADMIN_KEY",
 				},
 				{ status: 401 },
 			);
@@ -68,7 +68,8 @@ export async function POST(request: NextRequest) {
 		console.log("✅ Admin key verified, starting full revalidation...");
 
 		// Use the centralized cache manager for full revalidation
-		const revalidationResult = await CacheManager.fullRevalidation(normalizedPath);
+		const revalidationResult =
+			await CacheManager.fullRevalidation(normalizedPath);
 
 		const processingTime = Date.now() - startTime;
 		console.log(`✅ Revalidation completed in ${processingTime}ms`);
@@ -79,11 +80,10 @@ export async function POST(request: NextRequest) {
 			timestamp: new Date().toISOString(),
 			processingTimeMs: processingTime,
 		});
-
 	} catch (error) {
 		const processingTime = Date.now() - startTime;
 		console.error("❌ Revalidation error:", error);
-		
+
 		return NextResponse.json(
 			{
 				success: false,
@@ -119,10 +119,10 @@ export async function GET(request: NextRequest) {
 		if (!validateAdminKey(adminKey)) {
 			console.error("❌ GET Admin key validation failed");
 			return NextResponse.json(
-				{ 
-					success: false, 
+				{
+					success: false,
 					message: "Unauthorized access - invalid admin key",
-					error: "INVALID_ADMIN_KEY"
+					error: "INVALID_ADMIN_KEY",
 				},
 				{ status: 401 },
 			);
@@ -131,7 +131,8 @@ export async function GET(request: NextRequest) {
 		console.log("✅ GET Admin key verified, starting full revalidation...");
 
 		// Use the centralized cache manager for full revalidation
-		const revalidationResult = await CacheManager.fullRevalidation(normalizedPath);
+		const revalidationResult =
+			await CacheManager.fullRevalidation(normalizedPath);
 
 		const processingTime = Date.now() - startTime;
 		console.log(`✅ GET Revalidation completed in ${processingTime}ms`);
@@ -143,11 +144,10 @@ export async function GET(request: NextRequest) {
 			processingTimeMs: processingTime,
 			method: "GET",
 		});
-
 	} catch (error) {
 		const processingTime = Date.now() - startTime;
 		console.error("❌ GET Revalidation error:", error);
-		
+
 		return NextResponse.json(
 			{
 				success: false,

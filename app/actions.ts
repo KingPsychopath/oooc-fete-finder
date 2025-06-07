@@ -25,7 +25,9 @@ const collectedUsers: UserRecord[] = [];
 /**
  * Get events data using the centralized cache manager
  */
-export async function getEvents(forceRefresh: boolean = false): Promise<EventsResult> {
+export async function getEvents(
+	forceRefresh: boolean = false,
+): Promise<EventsResult> {
 	return CacheManager.getEvents(forceRefresh);
 }
 
@@ -129,7 +131,7 @@ export async function authenticateUser(
 			timestamp: user.timestamp,
 		};
 		console.log(`✅ Updated existing user: ${user.email}`);
-			} else {
+	} else {
 		// Add new user
 		collectedUsers.push(user);
 		console.log(`✅ Added new user: ${user.email}`);
@@ -137,14 +139,16 @@ export async function authenticateUser(
 
 	// Submit to Google Sheets if configured
 	if (process.env.GOOGLE_SHEETS_URL) {
-		console.log("📊 Google Sheets integration configured - submitting user data...");
-		
+		console.log(
+			"📊 Google Sheets integration configured - submitting user data...",
+		);
+
 		try {
-		const response = await fetch(process.env.GOOGLE_SHEETS_URL, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
+			const response = await fetch(process.env.GOOGLE_SHEETS_URL, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
 				body: JSON.stringify({
 					firstName: user.firstName,
 					lastName: user.lastName,
@@ -153,8 +157,8 @@ export async function authenticateUser(
 					source: user.source,
 					timestamp: user.timestamp,
 				}),
-			signal: AbortSignal.timeout(10000), // 10 second timeout
-		});
+				signal: AbortSignal.timeout(10000), // 10 second timeout
+			});
 
 			if (response.ok) {
 				const result = await response.json();
@@ -165,31 +169,50 @@ export async function authenticateUser(
 				console.warn("⚠️ Failed to submit user data to Google Sheets:");
 				console.warn(`   Status: ${response.status} ${response.statusText}`);
 				console.warn(`   Error: ${errorText}`);
-				
+
 				// Provide more specific error context
 				if (response.status === 401) {
-					console.warn("   💡 This may indicate authentication issues with your Google Apps Script");
+					console.warn(
+						"   💡 This may indicate authentication issues with your Google Apps Script",
+					);
 				} else if (response.status === 403) {
-					console.warn("   💡 This may indicate permission issues with your Google Apps Script");
+					console.warn(
+						"   💡 This may indicate permission issues with your Google Apps Script",
+					);
 				} else if (response.status === 404) {
-					console.warn("   💡 Check if your Google Apps Script URL is correct and deployed");
+					console.warn(
+						"   💡 Check if your Google Apps Script URL is correct and deployed",
+					);
 				} else if (response.status >= 500) {
-					console.warn("   💡 This may be a temporary Google Apps Script issue");
+					console.warn(
+						"   💡 This may be a temporary Google Apps Script issue",
+					);
 				}
 			}
-	} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : "Unknown error";
-			console.error("❌ Error submitting user data to Google Sheets:", errorMessage);
-			
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error";
+			console.error(
+				"❌ Error submitting user data to Google Sheets:",
+				errorMessage,
+			);
+
 			// Provide more specific error context
 			if (errorMessage.includes("timeout")) {
-				console.error("   💡 Request timed out - Google Sheets may be slow to respond");
-			} else if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
+				console.error(
+					"   💡 Request timed out - Google Sheets may be slow to respond",
+				);
+			} else if (
+				errorMessage.includes("network") ||
+				errorMessage.includes("fetch")
+			) {
 				console.error("   💡 Network error - check your internet connection");
 			} else {
-				console.error("   💡 Check your Google Sheets URL and Apps Script configuration");
+				console.error(
+					"   💡 Check your Google Sheets URL and Apps Script configuration",
+				);
 			}
-			
+
 			// Don't fail the authentication if Google Sheets submission fails
 		}
 	} else {
@@ -200,8 +223,8 @@ export async function authenticateUser(
 		console.log("   • User data will be stored locally only until then");
 	}
 
-		return {
-			success: true,
+	return {
+		success: true,
 		message: "User authenticated successfully",
 		email: user.email,
 	};
@@ -372,7 +395,8 @@ export async function cleanupSheetDuplicates(adminKey?: string): Promise<{
 	if (!process.env.GOOGLE_SHEETS_URL) {
 		return {
 			success: false,
-			error: "Google Sheets integration not configured. Please set GOOGLE_SHEETS_URL environment variable.",
+			error:
+				"Google Sheets integration not configured. Please set GOOGLE_SHEETS_URL environment variable.",
 		};
 	}
 
@@ -396,15 +420,18 @@ export async function cleanupSheetDuplicates(adminKey?: string): Promise<{
 
 		if (!response.ok) {
 			const errorText = await response.text().catch(() => "Unknown error");
-			throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+			throw new Error(
+				`HTTP ${response.status}: ${response.statusText} - ${errorText}`,
+			);
 		}
 
 		const data = await response.json();
 
 		const removedCount = data.removed || 0;
-		const successMessage = removedCount > 0
-			? `Successfully removed ${removedCount} duplicate entries from Google Sheets`
-			: "No duplicate entries found to remove";
+		const successMessage =
+			removedCount > 0
+				? `Successfully removed ${removedCount} duplicate entries from Google Sheets`
+				: "No duplicate entries found to remove";
 
 		console.log(`✅ Cleanup completed: ${successMessage}`);
 
@@ -416,22 +443,26 @@ export async function cleanupSheetDuplicates(adminKey?: string): Promise<{
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : "Unknown error";
 		console.error("❌ Failed to cleanup duplicates:", errorMsg);
-		
+
 		// Provide more specific error messages
 		let userFriendlyError = errorMsg;
 		if (errorMsg.includes("timeout")) {
-			userFriendlyError = "Operation timed out. The cleanup may take longer for large datasets.";
+			userFriendlyError =
+				"Operation timed out. The cleanup may take longer for large datasets.";
 		} else if (errorMsg.includes("404")) {
-			userFriendlyError = "Google Sheets cleanup endpoint not found. Please check your Google Apps Script deployment.";
+			userFriendlyError =
+				"Google Sheets cleanup endpoint not found. Please check your Google Apps Script deployment.";
 		} else if (errorMsg.includes("401") || errorMsg.includes("403")) {
-			userFriendlyError = "Authorization failed. Please check your Google Sheets permissions.";
+			userFriendlyError =
+				"Authorization failed. Please check your Google Sheets permissions.";
 		} else if (errorMsg.includes("500")) {
-			userFriendlyError = "Server error occurred. Please try again later or check your Google Apps Script logs.";
+			userFriendlyError =
+				"Server error occurred. Please try again later or check your Google Apps Script logs.";
 		}
 
-		return { 
-			success: false, 
-			error: userFriendlyError
+		return {
+			success: false,
+			error: userFriendlyError,
 		};
 	}
 }

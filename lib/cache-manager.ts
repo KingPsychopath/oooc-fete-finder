@@ -103,7 +103,10 @@ export interface FullRevalidationResult {
 /**
  * Create a JWT token for Google API authentication
  */
-async function createGoogleJWT(credentials: { client_email: string; private_key: string }, now: number): Promise<string> {
+async function createGoogleJWT(
+	credentials: { client_email: string; private_key: string },
+	now: number,
+): Promise<string> {
 	const header = {
 		alg: "RS256",
 		typ: "JWT",
@@ -118,13 +121,19 @@ async function createGoogleJWT(credentials: { client_email: string; private_key:
 	};
 
 	// Create JWT header and payload
-	const encodedHeader = btoa(JSON.stringify(header)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-	const encodedPayload = btoa(JSON.stringify(payload)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+	const encodedHeader = btoa(JSON.stringify(header))
+		.replace(/=/g, "")
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_");
+	const encodedPayload = btoa(JSON.stringify(payload))
+		.replace(/=/g, "")
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_");
 	const unsignedToken = `${encodedHeader}.${encodedPayload}`;
 
 	// Import crypto for RSA signing
 	const crypto = await import("crypto");
-	
+
 	// Create signature
 	const signature = crypto
 		.createSign("RSA-SHA256")
@@ -142,12 +151,12 @@ async function createGoogleJWT(credentials: { client_email: string; private_key:
  */
 function extractSheetId(input: string): string | null {
 	if (!input) return null;
-	
+
 	// If it's already just an ID
-	if (input.length === 44 && !input.includes('/')) {
+	if (input.length === 44 && !input.includes("/")) {
 		return input;
 	}
-	
+
 	// Extract from full URL
 	const match = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
 	return match ? match[1] : null;
@@ -156,47 +165,59 @@ function extractSheetId(input: string): string | null {
 /**
  * Fetch CSV using Google Sheets API with service account authentication
  */
-async function fetchRemoteCSVWithServiceAccount(sheetId: string, range: string = "A:Z"): Promise<string> {
+async function fetchRemoteCSVWithServiceAccount(
+	sheetId: string,
+	range: string = "A:Z",
+): Promise<string> {
 	console.log("🔐 Attempting Google Sheets API access with service account...");
-	
+
 	// Get service account credentials
 	const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
 	const serviceAccountFile = process.env.GOOGLE_SERVICE_ACCOUNT_FILE;
-	
+
 	if (!serviceAccountKey && !serviceAccountFile) {
 		throw new Error("No service account credentials configured");
 	}
 
 	let credentials: { client_email: string; private_key: string } | null = null;
-	
+
 	try {
 		if (serviceAccountKey) {
 			console.log("🔑 Using service account from environment variable");
 			credentials = JSON.parse(serviceAccountKey);
 		} else if (serviceAccountFile) {
-			console.log(`🔑 Reading service account from file: ${serviceAccountFile}`);
+			console.log(
+				`🔑 Reading service account from file: ${serviceAccountFile}`,
+			);
 			const fs = await import("fs/promises");
 			const path = await import("path");
 			const keyPath = path.resolve(serviceAccountFile);
 			const keyContent = await fs.readFile(keyPath, "utf-8");
 			credentials = JSON.parse(keyContent);
 		}
-		
+
 		if (!credentials?.client_email || !credentials?.private_key) {
-			throw new Error("Invalid service account credentials - missing client_email or private_key");
+			throw new Error(
+				"Invalid service account credentials - missing client_email or private_key",
+			);
 		}
-		
+
 		console.log(`✅ Service account loaded: ${credentials.client_email}`);
 	} catch (error) {
-		console.error("❌ Failed to load service account credentials:", error instanceof Error ? error.message : "Unknown error");
-		throw new Error(`Service account configuration error: ${error instanceof Error ? error.message : "Unknown error"}`);
+		console.error(
+			"❌ Failed to load service account credentials:",
+			error instanceof Error ? error.message : "Unknown error",
+		);
+		throw new Error(
+			`Service account configuration error: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
 	}
 
 	try {
 		// Generate JWT token for Google API authentication
 		const now = Math.floor(Date.now() / 1000);
 		const jwt = await createGoogleJWT(credentials, now);
-		
+
 		// Exchange JWT for access token
 		const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
 			method: "POST",
@@ -212,7 +233,9 @@ async function fetchRemoteCSVWithServiceAccount(sheetId: string, range: string =
 
 		if (!tokenResponse.ok) {
 			const errorText = await tokenResponse.text().catch(() => "Unknown error");
-			throw new Error(`Token exchange failed: ${tokenResponse.status} ${tokenResponse.statusText} - ${errorText}`);
+			throw new Error(
+				`Token exchange failed: ${tokenResponse.status} ${tokenResponse.statusText} - ${errorText}`,
+			);
 		}
 
 		const tokenData = await tokenResponse.json();
@@ -226,18 +249,22 @@ async function fetchRemoteCSVWithServiceAccount(sheetId: string, range: string =
 
 		// Fetch sheet data using Google Sheets API
 		const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}?valueRenderOption=FORMATTED_VALUE`;
-		
+
 		const sheetsResponse = await fetch(apiUrl, {
 			headers: {
-				"Authorization": `Bearer ${accessToken}`,
-				"Accept": "application/json",
+				Authorization: `Bearer ${accessToken}`,
+				Accept: "application/json",
 			},
 			signal: AbortSignal.timeout(15000),
 		});
 
 		if (!sheetsResponse.ok) {
-			const errorText = await sheetsResponse.text().catch(() => "Unknown error");
-			throw new Error(`Google Sheets API error: ${sheetsResponse.status} ${sheetsResponse.statusText} - ${errorText}`);
+			const errorText = await sheetsResponse
+				.text()
+				.catch(() => "Unknown error");
+			throw new Error(
+				`Google Sheets API error: ${sheetsResponse.status} ${sheetsResponse.statusText} - ${errorText}`,
+			);
 		}
 
 		const sheetsData = await sheetsResponse.json();
@@ -250,17 +277,24 @@ async function fetchRemoteCSVWithServiceAccount(sheetId: string, range: string =
 		// Debug: Log the headers to see what we're actually getting
 		if (values.length > 0) {
 			const headers = values[0];
-			console.log(`📊 Google Sheets API returned ${headers.length} columns:`, headers);
-			console.log(`📊 Headers: ${headers.join(', ')}`);
-			
+			console.log(
+				`📊 Google Sheets API returned ${headers.length} columns:`,
+				headers,
+			);
+			console.log(`📊 Headers: ${headers.join(", ")}`);
+
 			// Check if Notes column is present
-			const notesColIndex = headers.findIndex((header: string) => 
-				header && header.toLowerCase().includes('notes')
+			const notesColIndex = headers.findIndex(
+				(header: string) => header && header.toLowerCase().includes("notes"),
 			);
 			if (notesColIndex >= 0) {
-				console.log(`✅ Notes column found at index ${notesColIndex}: "${headers[notesColIndex]}"`);
+				console.log(
+					`✅ Notes column found at index ${notesColIndex}: "${headers[notesColIndex]}"`,
+				);
 			} else {
-				console.warn(`⚠️ Notes column not found in headers. Available columns: [${headers.join(', ')}]`);
+				console.warn(
+					`⚠️ Notes column not found in headers. Available columns: [${headers.join(", ")}]`,
+				);
 			}
 		}
 
@@ -269,33 +303,47 @@ async function fetchRemoteCSVWithServiceAccount(sheetId: string, range: string =
 		console.log(`📊 Expected ${maxColumns} columns per row`);
 
 		// Convert Google Sheets API response to CSV format
-		const csvContent = values.map((row: unknown[], rowIndex: number) => {
-			// Pad the row to ensure it has the same number of columns as the header
-			const paddedRow = [...row];
-			while (paddedRow.length < maxColumns) {
-				paddedRow.push("");
-			}
-			
-			// Log row length for debugging (first few rows only)
-			if (rowIndex < 3) {
-				console.log(`📊 Row ${rowIndex}: ${row.length} -> ${paddedRow.length} columns`);
-			}
-			
-			return paddedRow.map((cell: unknown) => {
-				// Escape commas and quotes in CSV format
-				const cellStr = String(cell || "");
-				if (cellStr.includes(",") || cellStr.includes('"') || cellStr.includes("\n")) {
-					return `"${cellStr.replace(/"/g, '""')}"`;
+		const csvContent = values
+			.map((row: unknown[], rowIndex: number) => {
+				// Pad the row to ensure it has the same number of columns as the header
+				const paddedRow = [...row];
+				while (paddedRow.length < maxColumns) {
+					paddedRow.push("");
 				}
-				return cellStr;
-			}).join(",");
-		}).join("\n");
 
-		console.log(`✅ Successfully fetched ${values.length - 1} rows from Google Sheets API`);
+				// Log row length for debugging (first few rows only)
+				if (rowIndex < 3) {
+					console.log(
+						`📊 Row ${rowIndex}: ${row.length} -> ${paddedRow.length} columns`,
+					);
+				}
+
+				return paddedRow
+					.map((cell: unknown) => {
+						// Escape commas and quotes in CSV format
+						const cellStr = String(cell || "");
+						if (
+							cellStr.includes(",") ||
+							cellStr.includes('"') ||
+							cellStr.includes("\n")
+						) {
+							return `"${cellStr.replace(/"/g, '""')}"`;
+						}
+						return cellStr;
+					})
+					.join(",");
+			})
+			.join("\n");
+
+		console.log(
+			`✅ Successfully fetched ${values.length - 1} rows from Google Sheets API`,
+		);
 		return csvContent;
-
 	} catch (error) {
-		console.error("❌ Service account authentication failed:", error instanceof Error ? error.message : "Unknown error");
+		console.error(
+			"❌ Service account authentication failed:",
+			error instanceof Error ? error.message : "Unknown error",
+		);
 		throw error;
 	}
 }
@@ -303,35 +351,41 @@ async function fetchRemoteCSVWithServiceAccount(sheetId: string, range: string =
 async function fetchLocalCSV(): Promise<string> {
 	const fs = await import("fs/promises");
 	const path = await import("path");
-	
+
 	const csvPath = path.join(process.cwd(), "data", "events.csv");
-	
+
 	try {
 		console.log(`📁 Loading local CSV from: ${csvPath}`);
 		const csvContent = await fs.readFile(csvPath, "utf-8");
-		
+
 		if (!csvContent || csvContent.trim().length === 0) {
 			throw new Error("Local CSV file is empty");
 		}
-		
-		const rowCount = csvContent.split('\n').length - 1;
+
+		const rowCount = csvContent.split("\n").length - 1;
 		console.log(`✅ Successfully loaded ${rowCount} rows from local CSV`);
 		return csvContent;
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : "Unknown error";
-		
+		const errorMessage =
+			error instanceof Error ? error.message : "Unknown error";
+
 		if (errorMessage.includes("ENOENT")) {
 			console.error("❌ Local CSV file not found. Please ensure:");
 			console.error(`   • File exists at: ${csvPath}`);
 			console.error("   • The file has proper read permissions");
-			console.error("   • You may need to create this file as a fallback for when remote CSV fails");
+			console.error(
+				"   • You may need to create this file as a fallback for when remote CSV fails",
+			);
 		}
-		
+
 		throw new Error(`Failed to read local CSV: ${errorMessage}`);
 	}
 }
 
-function buildGoogleSheetsCSVUrl(sheetId: string, range: string = "A1:O1000"): string {
+function buildGoogleSheetsCSVUrl(
+	sheetId: string,
+	range: string = "A1:O1000",
+): string {
 	return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&range=${encodeURIComponent(range)}`;
 }
 
@@ -339,7 +393,7 @@ function buildGoogleSheetsCSVUrl(sheetId: string, range: string = "A1:O1000"): s
  * Original public CSV fetching function
  */
 async function fetchRemoteCSV(): Promise<string> {
-	const targetUrl = dynamicSheetId 
+	const targetUrl = dynamicSheetId
 		? buildGoogleSheetsCSVUrl(dynamicSheetId, dynamicSheetRange || "A:Z")
 		: REMOTE_CSV_URL;
 
@@ -351,24 +405,29 @@ async function fetchRemoteCSV(): Promise<string> {
 	}
 
 	console.log(`📡 Fetching remote CSV from: ${targetUrl.substring(0, 50)}...`);
-	
+
 	try {
 		const response = await fetch(targetUrl, {
 			signal: AbortSignal.timeout(15000), // 15 second timeout
 			headers: {
-				'User-Agent': 'OOOC-Fete-Finder/1.0',
+				"User-Agent": "OOOC-Fete-Finder/1.0",
 			},
 		});
 
 		if (!response.ok) {
 			// Provide more specific error messages for common issues
 			let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-			
+
 			if (response.status === 401) {
-				errorMessage += " - Google Sheet may be private or authentication failed";
+				errorMessage +=
+					" - Google Sheet may be private or authentication failed";
 				console.error("❌ Google Sheets access denied. Please ensure:");
-				console.error("   • The Google Sheet is publicly accessible (sharing settings)");
-				console.error("   • Or configure proper authentication (API key/service account)");
+				console.error(
+					"   • The Google Sheet is publicly accessible (sharing settings)",
+				);
+				console.error(
+					"   • Or configure proper authentication (API key/service account)",
+				);
 			} else if (response.status === 404) {
 				errorMessage += " - Google Sheet not found or invalid URL";
 				console.error("❌ Google Sheet not found. Please check:");
@@ -381,26 +440,33 @@ async function fetchRemoteCSV(): Promise<string> {
 				console.error("   • Sheet sharing settings allow public access");
 				console.error("   • API quotas haven't been exceeded");
 			}
-			
+
 			throw new Error(errorMessage);
 		}
 
 		const csvContent = await response.text();
-		
+
 		if (!csvContent || csvContent.trim().length === 0) {
 			console.error("❌ Empty CSV content received from Google Sheets");
 			throw new Error("Empty CSV content received");
 		}
 
-		console.log(`✅ Successfully fetched ${csvContent.split('\n').length - 1} rows from remote CSV`);
+		console.log(
+			`✅ Successfully fetched ${csvContent.split("\n").length - 1} rows from remote CSV`,
+		);
 		return csvContent;
 	} catch (error) {
 		if (error instanceof Error) {
 			// Log more context for network errors
 			if (error.name === "AbortError") {
 				console.error("❌ Google Sheets request timed out after 15 seconds");
-				console.error("   This may indicate network issues or a slow Google Sheets response");
-			} else if (error.name === "TypeError" && error.message.includes("fetch")) {
+				console.error(
+					"   This may indicate network issues or a slow Google Sheets response",
+				);
+			} else if (
+				error.name === "TypeError" &&
+				error.message.includes("fetch")
+			) {
 				console.error("❌ Network error connecting to Google Sheets");
 				console.error("   Please check your internet connection");
 			}
@@ -416,7 +482,7 @@ async function fetchCSVWithFallbacks(): Promise<string> {
 	const errors: string[] = [];
 
 	// Strategy 1: Try public CSV URL first
-	const publicUrl = dynamicSheetId 
+	const publicUrl = dynamicSheetId
 		? buildGoogleSheetsCSVUrl(dynamicSheetId, dynamicSheetRange || "A:Z")
 		: REMOTE_CSV_URL;
 
@@ -425,25 +491,38 @@ async function fetchCSVWithFallbacks(): Promise<string> {
 			console.log("📡 Strategy 1: Attempting public CSV URL...");
 			return await fetchRemoteCSV();
 		} catch (publicError) {
-			const errorMsg = publicError instanceof Error ? publicError.message : "Unknown error";
+			const errorMsg =
+				publicError instanceof Error ? publicError.message : "Unknown error";
 			errors.push(`Public URL: ${errorMsg}`);
 			console.warn(`⚠️ Public CSV failed: ${errorMsg}`);
 		}
 	}
 
 	// Strategy 2: Try service account authentication
-	const hasServiceAccount = Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_FILE);
-	const sheetId = dynamicSheetId || (process.env.GOOGLE_SHEET_ID || extractSheetId(REMOTE_CSV_URL || ""));
-	
+	const hasServiceAccount = Boolean(
+		process.env.GOOGLE_SERVICE_ACCOUNT_KEY ||
+			process.env.GOOGLE_SERVICE_ACCOUNT_FILE,
+	);
+	const sheetId =
+		dynamicSheetId ||
+		process.env.GOOGLE_SHEET_ID ||
+		extractSheetId(REMOTE_CSV_URL || "");
+
 	if (hasServiceAccount && sheetId) {
 		try {
-			console.log("🔐 Strategy 2: Attempting service account authentication...");
+			console.log(
+				"🔐 Strategy 2: Attempting service account authentication...",
+			);
 			// Use a wider range to ensure we get all columns including Notes (A-N minimum, but go wider to be safe)
-			const range = dynamicSheetRange || process.env.GOOGLE_SHEET_RANGE || "A1:O1000";
+			const range =
+				dynamicSheetRange || process.env.GOOGLE_SHEET_RANGE || "A1:O1000";
 			console.log(`📊 Using Google Sheets range: ${range}`);
 			return await fetchRemoteCSVWithServiceAccount(sheetId, range);
 		} catch (serviceAccountError) {
-			const errorMsg = serviceAccountError instanceof Error ? serviceAccountError.message : "Unknown error";
+			const errorMsg =
+				serviceAccountError instanceof Error
+					? serviceAccountError.message
+					: "Unknown error";
 			errors.push(`Service Account: ${errorMsg}`);
 			console.warn(`⚠️ Service account authentication failed: ${errorMsg}`);
 		}
@@ -460,17 +539,20 @@ async function fetchCSVWithFallbacks(): Promise<string> {
 	try {
 		console.log("📁 Strategy 3: Falling back to local CSV...");
 		const localCsv = await fetchLocalCSV();
-		console.log(`ℹ️ Using local CSV fallback (last updated: ${LOCAL_CSV_LAST_UPDATED})`);
+		console.log(
+			`ℹ️ Using local CSV fallback (last updated: ${LOCAL_CSV_LAST_UPDATED})`,
+		);
 		return localCsv;
 	} catch (localError) {
-		const errorMsg = localError instanceof Error ? localError.message : "Unknown error";
+		const errorMsg =
+			localError instanceof Error ? localError.message : "Unknown error";
 		errors.push(`Local CSV: ${errorMsg}`);
 		console.error(`❌ Local CSV fallback failed: ${errorMsg}`);
 	}
 
 	// All strategies failed
 	console.error("💥 All data fetching strategies failed:");
-	errors.forEach(error => console.error(`   • ${error}`));
+	errors.forEach((error) => console.error(`   • ${error}`));
 	throw new Error(`All data sources failed: ${errors.join("; ")}`);
 }
 
@@ -486,8 +568,14 @@ export class CacheManager {
 			const now = Date.now();
 
 			// Return cached data if valid and not forcing refresh
-			if (!forceRefresh && cacheState.events && now - cacheState.lastFetchTime < CACHE_DURATION) {
-				console.log(`🔄 Using cached events data (${cacheState.events.length} events, cached ${Math.round((now - cacheState.lastFetchTime) / 1000)}s ago)`);
+			if (
+				!forceRefresh &&
+				cacheState.events &&
+				now - cacheState.lastFetchTime < CACHE_DURATION
+			) {
+				console.log(
+					`🔄 Using cached events data (${cacheState.events.length} events, cached ${Math.round((now - cacheState.lastFetchTime) / 1000)}s ago)`,
+				);
 				return {
 					success: true,
 					data: cacheState.events,
@@ -500,14 +588,16 @@ export class CacheManager {
 
 			console.log("🔄 Loading fresh events data...");
 			console.log(`📊 Configuration: USE_CSV_DATA=${USE_CSV_DATA}`);
-			
+
 			let csvContent: string;
 			const errors: string[] = [];
 
 			// Try to fetch data based on USE_CSV_DATA flag
 			if (USE_CSV_DATA) {
-				console.log("📡 CSV data mode enabled - attempting remote fetch with multiple strategies");
-				
+				console.log(
+					"📡 CSV data mode enabled - attempting remote fetch with multiple strategies",
+				);
+
 				// First try remote CSV if it's time for a refresh or forced
 				const shouldTryRemote =
 					forceRefresh ||
@@ -516,16 +606,18 @@ export class CacheManager {
 
 				if (shouldTryRemote) {
 					console.log("🌐 Attempting multi-strategy data fetching...");
-					
+
 					try {
 						csvContent = await fetchCSVWithFallbacks();
 						cacheState.lastRemoteFetchTime = now;
 						cacheState.lastRemoteSuccessTime = now;
 						cacheState.lastRemoteErrorMessage = "";
-						
+
 						// Determine the actual source based on what was used
 						if (csvContent.includes("local CSV fallback")) {
-							console.log("✅ Successfully loaded data using local CSV fallback");
+							console.log(
+								"✅ Successfully loaded data using local CSV fallback",
+							);
 							cacheState.lastDataSource = "local";
 						} else {
 							console.log("✅ Successfully loaded data from remote source");
@@ -540,10 +632,16 @@ export class CacheManager {
 						cacheState.lastRemoteErrorMessage = errorMsg;
 						console.error("❌ All data fetching strategies failed:", errorMsg);
 						console.error("💡 To fix this issue:");
-						console.error("   1. Check Google Sheets configuration and permissions");
-						console.error("   2. Ensure local CSV file exists at data/events.csv");
-						console.error("   3. Set proper environment variables (see documentation)");
-						
+						console.error(
+							"   1. Check Google Sheets configuration and permissions",
+						);
+						console.error(
+							"   2. Ensure local CSV file exists at data/events.csv",
+						);
+						console.error(
+							"   3. Set proper environment variables (see documentation)",
+						);
+
 						throw new Error(`All data sources failed: ${errorMsg}`);
 					}
 				} else {
@@ -582,7 +680,9 @@ export class CacheManager {
 			cacheState.events = events;
 			cacheState.lastFetchTime = now;
 
-			console.log(`✅ Successfully loaded and cached ${events.length} events from ${cacheState.lastDataSource} source`);
+			console.log(
+				`✅ Successfully loaded and cached ${events.length} events from ${cacheState.lastDataSource} source`,
+			);
 
 			const result: EventsResult = {
 				success: true,
@@ -608,7 +708,9 @@ export class CacheManager {
 			// If we have cached data, return it even if expired
 			if (cacheState.events) {
 				console.log("⚠️ Returning expired cached data due to error");
-				console.log(`   Cached data: ${cacheState.events.length} events from ${cacheState.lastDataSource} source`);
+				console.log(
+					`   Cached data: ${cacheState.events.length} events from ${cacheState.lastDataSource} source`,
+				);
 				return {
 					success: true,
 					data: cacheState.events,
@@ -691,10 +793,10 @@ export class CacheManager {
 		// Check if any remote configuration is available
 		const remoteConfigured = Boolean(
 			REMOTE_CSV_URL ||
-			process.env.GOOGLE_SHEETS_API_KEY ||
-			process.env.GOOGLE_SERVICE_ACCOUNT_KEY ||
-			process.env.GOOGLE_SERVICE_ACCOUNT_FILE ||
-			dynamicSheetId,
+				process.env.GOOGLE_SHEETS_API_KEY ||
+				process.env.GOOGLE_SERVICE_ACCOUNT_KEY ||
+				process.env.GOOGLE_SERVICE_ACCOUNT_FILE ||
+				dynamicSheetId,
 		);
 
 		return {
@@ -711,7 +813,10 @@ export class CacheManager {
 			lastRemoteErrorMessage: cacheState.lastRemoteErrorMessage,
 			cacheAge: cacheState.lastFetchTime ? now - cacheState.lastFetchTime : 0,
 			nextRemoteCheck: cacheState.lastRemoteFetchTime
-				? Math.max(0, REMOTE_REFRESH_INTERVAL - (now - cacheState.lastRemoteFetchTime))
+				? Math.max(
+						0,
+						REMOTE_REFRESH_INTERVAL - (now - cacheState.lastRemoteFetchTime),
+					)
 				: 0,
 			dataSource: cacheState.lastDataSource,
 			useCsvData: USE_CSV_DATA,
@@ -724,13 +829,15 @@ export class CacheManager {
 	/**
 	 * Complete revalidation - refresh cache AND invalidate page cache
 	 */
-	static async fullRevalidation(path: string = "/"): Promise<FullRevalidationResult> {
+	static async fullRevalidation(
+		path: string = "/",
+	): Promise<FullRevalidationResult> {
 		console.log(`🔄 Starting full revalidation for path: ${path}`);
 		const startTime = Date.now();
-		
+
 		let cacheRefreshed = false;
 		let pageRevalidated = false;
-		const details: FullRevalidationResult['details'] = {};
+		const details: FullRevalidationResult["details"] = {};
 
 		try {
 			// Step 1: Force refresh the events cache
@@ -738,7 +845,7 @@ export class CacheManager {
 				console.log("🔄 Step 1: Force refreshing events cache...");
 				const cacheResult = await this.forceRefresh();
 				details.cacheResult = cacheResult;
-				
+
 				if (cacheResult.success) {
 					cacheRefreshed = true;
 					console.log(`✅ Step 1: Successfully refreshed events cache`);
@@ -748,7 +855,10 @@ export class CacheManager {
 			} catch (cacheError) {
 				const cacheErrorMessage =
 					cacheError instanceof Error ? cacheError.message : "Unknown error";
-				console.error("❌ Step 1: Error refreshing events cache:", cacheErrorMessage);
+				console.error(
+					"❌ Step 1: Error refreshing events cache:",
+					cacheErrorMessage,
+				);
 				details.cacheError = cacheErrorMessage;
 			}
 
@@ -757,11 +867,18 @@ export class CacheManager {
 				console.log(`🔄 Step 2: Revalidating page cache for path: ${path}`);
 				revalidatePath(path, "page");
 				pageRevalidated = true;
-				console.log(`✅ Step 2: Successfully revalidated page cache for path: ${path}`);
+				console.log(
+					`✅ Step 2: Successfully revalidated page cache for path: ${path}`,
+				);
 			} catch (revalidationError) {
 				const revalidationErrorMessage =
-					revalidationError instanceof Error ? revalidationError.message : "Unknown error";
-				console.error("❌ Step 2: Error revalidating page cache:", revalidationErrorMessage);
+					revalidationError instanceof Error
+						? revalidationError.message
+						: "Unknown error";
+				console.error(
+					"❌ Step 2: Error revalidating page cache:",
+					revalidationErrorMessage,
+				);
 				details.revalidationError = revalidationErrorMessage;
 			}
 
@@ -770,7 +887,7 @@ export class CacheManager {
 
 			return {
 				success: cacheRefreshed || pageRevalidated, // Success if at least one operation succeeded
-				message: `Full revalidation completed in ${duration}ms. Cache: ${cacheRefreshed ? 'refreshed' : 'failed'}, Page: ${pageRevalidated ? 'revalidated' : 'failed'}`,
+				message: `Full revalidation completed in ${duration}ms. Cache: ${cacheRefreshed ? "refreshed" : "failed"}, Page: ${pageRevalidated ? "revalidated" : "failed"}`,
 				cacheRefreshed,
 				pageRevalidated,
 				details,
@@ -793,7 +910,10 @@ export class CacheManager {
 	/**
 	 * Dynamic sheet configuration management
 	 */
-	static setDynamicSheet(sheetId: string | null, range: string | null = null): {
+	static setDynamicSheet(
+		sheetId: string | null,
+		range: string | null = null,
+	): {
 		success: boolean;
 		message: string;
 		sheetId?: string;
@@ -806,7 +926,8 @@ export class CacheManager {
 				dynamicSheetRange = null;
 				return {
 					success: true,
-					message: "Dynamic sheet override cleared - using environment variables",
+					message:
+						"Dynamic sheet override cleared - using environment variables",
 				};
 			}
 

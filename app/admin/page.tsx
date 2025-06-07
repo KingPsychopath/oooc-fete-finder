@@ -129,7 +129,7 @@ export default function AdminPage() {
 				const baseUrl = window.location.origin;
 				const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 				const revalidateUrl = `${baseUrl}${basePath}/api/revalidate`;
-				
+
 				console.log("📡 Revalidate URL:", revalidateUrl);
 
 				const revalidatePayload = {
@@ -146,18 +146,21 @@ export default function AdminPage() {
 					signal: AbortSignal.timeout(30000), // 30 second timeout for full revalidation
 				});
 
-				console.log("📡 Revalidate response status:", revalidateResponse.status);
+				console.log(
+					"📡 Revalidate response status:",
+					revalidateResponse.status,
+				);
 
 				if (revalidateResponse.ok) {
 					const revalidateData = await revalidateResponse.json();
-					const timingInfo = revalidateData.processingTimeMs 
-						? `${revalidateData.processingTimeMs}ms` 
-						: 'completed';
-					
-					const successMessage = `✅ Full revalidation completed (${timingInfo}). Cache: ${revalidateData.cacheRefreshed ? 'refreshed' : 'failed'}, Page: ${revalidateData.pageRevalidated ? 'revalidated' : 'failed'}`;
+					const timingInfo = revalidateData.processingTimeMs
+						? `${revalidateData.processingTimeMs}ms`
+						: "completed";
+
+					const successMessage = `✅ Full revalidation completed (${timingInfo}). Cache: ${revalidateData.cacheRefreshed ? "refreshed" : "failed"}, Page: ${revalidateData.pageRevalidated ? "revalidated" : "failed"}`;
 					setRefreshMessage(successMessage);
 					console.log("✅ Full revalidation successful:", revalidateData);
-					
+
 					// Reload cache status to confirm changes
 					setTimeout(() => {
 						loadCacheStatus();
@@ -166,7 +169,7 @@ export default function AdminPage() {
 					// Enhanced error handling
 					let errorDetails = `Status: ${revalidateResponse.status}`;
 					let errorData: { message?: string; error?: string } | null = null;
-					
+
 					try {
 						errorData = await revalidateResponse.json();
 						errorDetails += ` - ${errorData?.message || "Unknown error"}`;
@@ -176,15 +179,18 @@ export default function AdminPage() {
 						console.error("❌ Revalidation failed with data:", errorData);
 					} catch (parseError) {
 						errorDetails += ` - ${revalidateResponse.statusText}`;
-						console.error("❌ Failed to parse revalidation error response:", parseError);
+						console.error(
+							"❌ Failed to parse revalidation error response:",
+							parseError,
+						);
 					}
-					
+
 					console.warn("⚠️ Full revalidation failed:", errorDetails);
 					setRefreshMessage(`❌ Revalidation failed: ${errorDetails}`);
 				}
 			} catch (revalidateError) {
 				console.error("❌ Revalidation request error:", revalidateError);
-				
+
 				let errorMsg = "Unknown error";
 				if (revalidateError instanceof Error) {
 					errorMsg = revalidateError.message;
@@ -195,7 +201,7 @@ export default function AdminPage() {
 						errorMsg = "Network error - check connection";
 					}
 				}
-				
+
 				setRefreshMessage(`❌ Revalidation error: ${errorMsg}`);
 			}
 
