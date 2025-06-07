@@ -17,6 +17,7 @@ import {
 // Import local components
 import { AuthForm } from "./components/AuthForm";
 import { CacheManagementCard } from "./components/CacheManagementCard";
+import { DateFormatNotificationsCard } from "./components/DateFormatNotificationsCard";
 import { DynamicSheetCard } from "./components/DynamicSheetCard";
 import { EmailCollectionCard } from "./components/EmailCollectionCard";
 import { GoogleSheetsStatsCard } from "./components/GoogleSheetsStatsCard";
@@ -342,6 +343,11 @@ export default function AdminPage() {
 				<GoogleSheetsStatsCard adminKey={adminKey} />
 				<RecentEntriesCard adminKey={adminKey} limit={5} />
 			</div>
+
+			<Separator />
+
+			{/* Date Format Notifications Section */}
+			<DateFormatNotificationsCard adminKey={adminKey} />
 
 			<Separator />
 
