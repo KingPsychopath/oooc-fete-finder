@@ -230,6 +230,11 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 		return hoursAgo <= 48;
 	});
 
+	// Don't render component if there are 0 active and 0 recent events
+	if (activeEvents.length === 0 && recentExpiredEvents.length === 0) {
+		return null;
+	}
+
 	// If no featured events, show setup instructions
 	if (featuredEvents.length === 0) {
 		return (
