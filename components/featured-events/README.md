@@ -7,7 +7,6 @@ A colocated, well-organized module for managing featured events with custom hook
 ```
 featured-events/
 ├── README.md                          # This documentation
-├── index.ts                          # Main exports
 ├── constants.ts                      # Configuration constants (server)
 ├── types.ts                         # TypeScript type definitions (server)
 ├── FeaturedEvents.tsx               # Main component (client)
@@ -51,7 +50,7 @@ featured-events/
 ### Basic Implementation
 
 ```tsx
-import { FeaturedEvents } from "@/components/featured-events";
+import { FeaturedEvents } from "@/components/featured-events/FeaturedEvents";
 
 function HomePage({ events }) {
   const handleEventClick = (event) => {
@@ -76,12 +75,10 @@ function HomePage({ events }) {
 ### Using Individual Components
 
 ```tsx
-import { 
-  FeaturedEventCard, 
-  FeaturedEventsHeader,
-  FeatureCountdown,
-  useFeaturedEvents 
-} from "@/components/featured-events";
+import { FeaturedEventCard } from "@/components/featured-events/components/FeaturedEventCard";
+import { FeaturedEventsHeader } from "@/components/featured-events/components/FeaturedEventsHeader";
+import { FeatureCountdown } from "@/components/featured-events/components/FeatureCountdown";
+import { useFeaturedEvents } from "@/components/featured-events/hooks/use-featured-events";
 
 function CustomFeaturedSection({ events }) {
   const { featuredEvents, totalEventsCount } = useFeaturedEvents(events);

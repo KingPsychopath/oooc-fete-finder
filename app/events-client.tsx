@@ -6,7 +6,7 @@ import FilterPanel from "@/components/FilterPanel";
 import EventModal from "@/components/EventModal";
 import SearchBar from "@/components/SearchBar";
 import EventStats from "@/components/EventStats";
-import { FeaturedEvents } from "@/components/FeaturedEvents";
+import { FeaturedEvents } from "@/components/featured-events/FeaturedEvents";
 import { AllEvents } from "@/components/AllEvents";
 import EmailGateModal from "@/components/EmailGateModal";
 import AuthGate from "@/components/AuthGate";

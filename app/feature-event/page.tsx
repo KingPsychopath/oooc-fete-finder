@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Euro, Star, CheckCircle, Calendar, Target } from "lucide-react";
-import { FEATURED_EVENTS_CONFIG, FeatureCountdown } from "@/components/featured-events";
+import { FEATURED_EVENTS_CONFIG } from "@/components/featured-events/constants";
+import { FeatureCountdown } from "@/components/featured-events/components/FeatureCountdown";
 import Link from "next/link";
 import type { Metadata } from "next";
 
