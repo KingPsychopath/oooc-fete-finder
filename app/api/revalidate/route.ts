@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { forceRefreshEvents } from "@/app/actions";
 
 // Admin key validation function for consistency
 const validateAdminKey = (providedKey: string | null): boolean => {
@@ -66,12 +67,28 @@ export async function POST(request: NextRequest) {
 
 		console.log("✅ Admin key verified, attempting revalidation...");
 
-		// Revalidate with error handling
+		// Step 1: Force refresh the events cache first
+		try {
+			console.log("🔄 Force refreshing events cache before path revalidation...");
+			const cacheRefreshResult = await forceRefreshEvents();
+			
+			if (cacheRefreshResult.success) {
+				console.log(`✅ Events cache refreshed: ${cacheRefreshResult.count} events from ${cacheRefreshResult.source} source`);
+			} else {
+				console.warn(`⚠️ Events cache refresh failed: ${cacheRefreshResult.error}`);
+				// Continue with path revalidation even if cache refresh fails
+			}
+		} catch (cacheError) {
+			console.error("❌ Error during cache refresh:", cacheError);
+			// Continue with path revalidation even if cache refresh fails
+		}
+
+		// Step 2: Revalidate the path
 		try {
 			revalidatePath(normalizedPath, "page");
-			console.log(`🔄 Revalidation completed for path: ${normalizedPath}`);
+			console.log(`🔄 Path revalidation completed for: ${normalizedPath}`);
 		} catch (revalidationError) {
-			console.error("❌ Revalidation failed:", revalidationError);
+			console.error("❌ Path revalidation failed:", revalidationError);
 			return NextResponse.json(
 				{
 					success: false,
@@ -84,11 +101,11 @@ export async function POST(request: NextRequest) {
 		}
 
 		const processingTime = Date.now() - startTime;
-		console.log(`✅ Revalidation successful in ${processingTime}ms`);
+		console.log(`✅ Complete revalidation successful in ${processingTime}ms`);
 
 		return NextResponse.json({
 			success: true,
-			message: `Page revalidated successfully for path: ${normalizedPath}`,
+			message: `Page and cache revalidated successfully for path: ${normalizedPath}`,
 			path: normalizedPath,
 			timestamp: new Date().toISOString(),
 			processingTimeMs: processingTime,
@@ -142,11 +159,28 @@ export async function GET(request: NextRequest) {
 			);
 		}
 
+		// Step 1: Force refresh the events cache first
+		try {
+			console.log("🔄 GET: Force refreshing events cache before path revalidation...");
+			const cacheRefreshResult = await forceRefreshEvents();
+			
+			if (cacheRefreshResult.success) {
+				console.log(`✅ GET: Events cache refreshed: ${cacheRefreshResult.count} events from ${cacheRefreshResult.source} source`);
+			} else {
+				console.warn(`⚠️ GET: Events cache refresh failed: ${cacheRefreshResult.error}`);
+				// Continue with path revalidation even if cache refresh fails
+			}
+		} catch (cacheError) {
+			console.error("❌ GET: Error during cache refresh:", cacheError);
+			// Continue with path revalidation even if cache refresh fails
+		}
+
+		// Step 2: Revalidate the path
 		try {
 			revalidatePath(normalizedPath, "page");
-			console.log(`🔄 GET Revalidation completed for path: ${normalizedPath}`);
+			console.log(`🔄 GET: Path revalidation completed for: ${normalizedPath}`);
 		} catch (revalidationError) {
-			console.error("❌ GET Revalidation failed:", revalidationError);
+			console.error("❌ GET: Path revalidation failed:", revalidationError);
 			return NextResponse.json(
 				{
 					success: false,
@@ -159,11 +193,11 @@ export async function GET(request: NextRequest) {
 		}
 
 		const processingTime = Date.now() - startTime;
-		console.log(`✅ GET Revalidation successful in ${processingTime}ms`);
+		console.log(`✅ GET: Complete revalidation successful in ${processingTime}ms`);
 
 		return NextResponse.json({
 			success: true,
-			message: `Page revalidated successfully for path: ${normalizedPath}`,
+			message: `Page and cache revalidated successfully for path: ${normalizedPath}`,
 			path: normalizedPath,
 			timestamp: new Date().toISOString(),
 			processingTimeMs: processingTime,
