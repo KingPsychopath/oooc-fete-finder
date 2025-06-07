@@ -16,4 +16,14 @@ export const FEATURED_EVENTS_CONFIG = {
 	FEATURE_PAGE_ROUTE: "/feature-event",
 } as const;
 
+// Validation constants
+export const FEATURED_EVENTS_LIMITS = {
+	MIN_FEATURED_EVENTS: 1,
+	MAX_FEATURED_EVENTS_LIMIT: 10,
+	MIN_FEATURE_DURATION_HOURS: 1,
+	MAX_FEATURE_DURATION_HOURS: 168, // 1 week
+	MIN_FEATURE_PRICE: 0,
+	MAX_FEATURE_PRICE: 1000,
+} as const;
+
 export type FeaturedEventsConfig = typeof FEATURED_EVENTS_CONFIG; 

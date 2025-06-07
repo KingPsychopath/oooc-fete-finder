@@ -21,8 +21,17 @@ type FeaturedEventCardProps = {
 
 export function FeaturedEventCard({ event, onClick }: FeaturedEventCardProps) {
 	const handleClick = () => {
+		if (!event || !onClick) {
+			console.warn("FeaturedEventCard: Missing event or onClick handler");
+			return;
+		}
 		onClick(event);
 	};
+
+	// Defensive check for event
+	if (!event) {
+		return null;
+	}
 
 	return (
 		<div

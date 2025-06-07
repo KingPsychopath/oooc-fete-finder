@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import type { Event } from "@/types/events";
 import type { FeaturedEventSelectionResult } from "../types";
-import { FEATURED_EVENTS_CONFIG } from "../constants";
+import { FEATURED_EVENTS_CONFIG, FEATURED_EVENTS_LIMITS } from "../constants";
 
 /**
  * Custom hook to select and manage featured events
@@ -14,6 +14,34 @@ export function useFeaturedEvents(
 	maxFeaturedEvents: number = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS,
 ): FeaturedEventSelectionResult {
 	const result = useMemo(() => {
+		// Input validation
+		if (!Array.isArray(events)) {
+			console.warn("useFeaturedEvents: events must be an array");
+			return {
+				featuredEvents: [],
+				totalEventsCount: 0,
+				hasMoreEvents: false,
+			};
+		}
+
+		if (
+			maxFeaturedEvents < FEATURED_EVENTS_LIMITS.MIN_FEATURED_EVENTS ||
+			maxFeaturedEvents > FEATURED_EVENTS_LIMITS.MAX_FEATURED_EVENTS_LIMIT
+		) {
+			console.warn(
+				`useFeaturedEvents: maxFeaturedEvents (${maxFeaturedEvents}) should be between ${FEATURED_EVENTS_LIMITS.MIN_FEATURED_EVENTS} and ${FEATURED_EVENTS_LIMITS.MAX_FEATURED_EVENTS_LIMIT}, using default`,
+			);
+			maxFeaturedEvents = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS;
+		}
+
+		// Handle empty events array
+		if (events.length === 0) {
+			return {
+				featuredEvents: [],
+				totalEventsCount: 0,
+				hasMoreEvents: false,
+			};
+		}
 		// Deterministic shuffle function using date as seed for consistent server/client results
 		const deterministicShuffle = <T,>(array: T[]): T[] => {
 			const shuffled = [...array];

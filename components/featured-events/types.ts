@@ -7,6 +7,13 @@ export type FeaturedEventsProps = {
 	maxFeaturedEvents?: number;
 };
 
+export type SafeFeaturedEventsProps = {
+	events: NonNullable<Event>[];
+	onEventClick: (event: NonNullable<Event>) => void;
+	onScrollToAllEvents: () => void;
+	maxFeaturedEvents?: number;
+};
+
 export type FeaturedEventSelectionResult = {
 	featuredEvents: Event[];
 	totalEventsCount: number;

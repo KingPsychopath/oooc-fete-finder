@@ -11,7 +11,21 @@ type FeatureCountdownProps = {
 };
 
 export function FeatureCountdown({ endDate }: FeatureCountdownProps) {
+	// Always call hooks first (rules of hooks)
 	const { timeRemaining, isExpired } = useFeatureTimeRemaining(endDate);
+
+	// Validate endDate after hooks
+	if (!endDate || !(endDate instanceof Date) || isNaN(endDate.getTime())) {
+		return (
+			<Card className="mb-8 border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800">
+				<CardContent className="p-4">
+					<div className="text-sm text-red-600 dark:text-red-400">
+						Invalid feature period date
+					</div>
+				</CardContent>
+			</Card>
+		);
+	}
 
 	return (
 		<Card className="mb-8 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">

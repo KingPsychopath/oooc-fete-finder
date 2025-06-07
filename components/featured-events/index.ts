@@ -13,10 +13,11 @@ export { useFeatureTimeRemaining } from "./hooks/use-feature-time-remaining";
 // Types
 export type {
 	FeaturedEventsProps,
+	SafeFeaturedEventsProps,
 	FeaturedEventSelectionResult,
 	FeatureTimeRemaining,
 } from "./types";
 
 // Constants
-export { FEATURED_EVENTS_CONFIG } from "./constants";
+export { FEATURED_EVENTS_CONFIG, FEATURED_EVENTS_LIMITS } from "./constants";
 export type { FeaturedEventsConfig } from "./constants"; 

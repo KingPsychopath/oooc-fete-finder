@@ -607,18 +607,16 @@ const convertToISODate = (dateStr: string): string => {
  * Any non-empty value indicates the event should be featured
  */
 const convertToFeatured = (featuredStr: string): boolean => {
-	if (!featuredStr) return false;
+	// Handle null, undefined, or non-string values
+	if (featuredStr == null || typeof featuredStr !== "string") {
+		return false;
+	}
 	
 	const cleaned = featuredStr.trim().toLowerCase();
 	
-	// Empty string, "no", "false", "0" should be false
-	if (
-		cleaned === "" || 
-		cleaned === "no" || 
-		cleaned === "false" || 
-		cleaned === "0" ||
-		cleaned === "n"
-	) {
+	// Empty string or explicit false values should be false
+	const falseValues = ["", "no", "false", "0", "n", "none", "null", "undefined"];
+	if (falseValues.includes(cleaned)) {
 		return false;
 	}
 	
