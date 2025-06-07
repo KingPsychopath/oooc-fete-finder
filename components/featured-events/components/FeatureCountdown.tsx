@@ -1,27 +1,23 @@
 /**
- * Feature Countdown Component
+ * FeatureCountdown Component - Simplified Version
  * 
- * This component shows individual countdown progress bars for each featured event.
- * Each event displays its remaining feature time with a visual progress indicator.
+ * Shows status for all featured events without live updates for better performance.
+ * Updates on page load/refresh only, which is sufficient for hourly precision.
  * 
- * ALTERNATIVE APPROACH (simpler):
- * If you don't want to manage timestamps in your spreadsheet, you could implement
- * a fixed rotation schedule instead. For example:
- * - Events rotate every day at 12:00 PM
- * - Or every Monday, Wednesday, Friday at specific times
- * - The countdown would show time until the next fixed rotation
- * 
- * To implement fixed rotation:
- * 1. Remove the featuredAt timestamp logic
- * 2. Calculate next rotation time based on a fixed schedule
- * 3. Use that as the countdown target
+ * Benefits:
+ * - No timers or intervals (better performance, battery life)
+ * - Simple hourly precision (good enough for event management)
+ * - Clean, maintainable code
+ * - Still uses centralized timestamp utilities (DRY)
+ * - Updates with SSR and client renders (NOT static at build time)
  */
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, AlertCircle, Star, Timer } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { FEATURED_EVENTS_CONFIG } from "../constants";
 import { 
 	isValidTimestamp, 
@@ -29,159 +25,143 @@ import {
 	getFeaturedEventExpirationDate 
 } from "../utils/timestamp-utils";
 import type { Event } from "@/types/events";
-import { Badge } from "@/components/ui/badge";
 
 type FeatureCountdownProps = {
 	featuredEvents: Event[];
 };
 
-type EventTimeStatus = {
+type EventStatus = {
 	event: Event;
-	timeRemaining: string;
-	isExpired: boolean;
-	progressPercentage: number;
-	endTime: Date | null;
-	hoursExpired?: number; // How many hours ago the feature period ended
+	status: "active-manual" | "active-timed" | "expires-soon" | "expired";
+	message: string;
+	endTime?: Date | null;
+	hoursRemaining?: number;
 };
 
 /**
- * Calculate time status for a single featured event using centralized utilities
+ * Calculate simple status without complex time formatting
+ * This runs fresh on every render (SSR, client render, refresh)
  */
-function calculateEventTimeStatus(event: Event): EventTimeStatus {
-	const now = new Date();
-	
-	// If no featuredAt timestamp or invalid timestamp, treat as currently featured without countdown
+function getEventStatus(event: Event): EventStatus {
+	// Manual featured events (no timestamp)
 	if (!isValidTimestamp(event.featuredAt)) {
 		return {
 			event,
-			timeRemaining: `Featured for ${FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours`,
-			isExpired: false,
-			progressPercentage: 0,
-			endTime: null,
+			status: "active-manual",
+			message: "Featured until manually removed",
 		};
 	}
 
-	// Use centralized utility to check if expired
+	// Timestamp-based events - using centralized utilities
 	const isExpired = isFeaturedEventExpired(event.featuredAt);
 	const endTime = getFeaturedEventExpirationDate(event.featuredAt);
 	
-	if (!endTime) {
-		// This shouldn't happen if isValidTimestamp passed, but handle gracefully
-		return {
-			event,
-			timeRemaining: `Featured for ${FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours`,
-			isExpired: false,
-			progressPercentage: 0,
-			endTime: null,
-		};
-	}
-
 	if (isExpired) {
-		const timeSinceExpired = now.getTime() - endTime.getTime();
-		const hoursExpired = Math.floor(timeSinceExpired / (1000 * 60 * 60));
-		const daysExpired = Math.floor(hoursExpired / 24);
-		
-		let expiredTimeText: string;
-		if (daysExpired > 0) {
-			expiredTimeText = `Ended ${daysExpired} day${daysExpired > 1 ? 's' : ''} ago`;
-		} else if (hoursExpired > 0) {
-			expiredTimeText = `Ended ${hoursExpired} hour${hoursExpired > 1 ? 's' : ''} ago`;
-		} else {
-			expiredTimeText = "Ended recently";
-		}
-
+		// Calculate time since expiration (runs fresh each render)
+		const hoursAgo = endTime ? Math.floor((Date.now() - endTime.getTime()) / (1000 * 60 * 60)) : 0;
 		return {
 			event,
-			timeRemaining: expiredTimeText,
-			isExpired: true,
-			progressPercentage: 100,
+			status: "expired",
+			message: hoursAgo < 24 ? `Ended ${hoursAgo}h ago` : `Ended ${Math.floor(hoursAgo / 24)}d ago`,
 			endTime,
-			hoursExpired,
 		};
 	}
 
-	// Calculate progress and remaining time
-	const featuredAt = new Date(event.featuredAt as string);
-	const totalDuration = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS * 60 * 60 * 1000;
-	const timeElapsed = now.getTime() - featuredAt.getTime();
-	const timeRemaining = endTime.getTime() - now.getTime();
+	// Active with time remaining (calculated fresh each render)
+	const hoursRemaining = endTime ? Math.floor((endTime.getTime() - Date.now()) / (1000 * 60 * 60)) : 0;
+	const status = hoursRemaining <= 6 ? "expires-soon" : "active-timed";
 	
-	const progressPercentage = Math.min(100, Math.max(0, (timeElapsed / totalDuration) * 100));
-
-	// Format remaining time
-	const hours = Math.floor(timeRemaining / (1000 * 60 * 60));
-	const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
-
-	let formattedTime: string;
-	if (hours > 0) {
-		formattedTime = `${hours}h ${minutes}m remaining`;
-	} else {
-		formattedTime = `${minutes}m remaining`;
-	}
-
 	return {
 		event,
-		timeRemaining: formattedTime,
-		isExpired: false,
-		progressPercentage,
+		status,
+		message: hoursRemaining > 24 
+			? `${Math.floor(hoursRemaining / 24)}d remaining`
+			: `${hoursRemaining}h remaining`,
 		endTime,
+		hoursRemaining,
 	};
 }
 
 /**
- * Individual event countdown card component
+ * Event card with proper spacing and progress bar
  */
-function EventCountdownCard({ eventStatus }: { eventStatus: EventTimeStatus }) {
-	const { event, timeRemaining, isExpired, progressPercentage, endTime } = eventStatus;
+function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
+	const { event, status, message, endTime, hoursRemaining } = eventStatus;
 
-	const cardBgClass = isExpired 
-		? "bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50 border-gray-300 dark:border-gray-700"
-		: !endTime 
-			? "bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800"
-			: progressPercentage > 75 
-				? "bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 border-orange-200 dark:border-orange-800"
-				: "bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-blue-200 dark:border-blue-800";
+	const getStatusConfig = () => {
+		switch (status) {
+			case "active-manual":
+				return {
+					emoji: "🌟",
+					bgColor: "bg-green-50 dark:bg-green-950/20",
+					borderColor: "border-green-200 dark:border-green-800",
+					textColor: "text-green-600 dark:text-green-400",
+					progressColor: "bg-gradient-to-r from-green-400 to-green-600",
+				};
+			case "active-timed":
+				return {
+					emoji: "✨",
+					bgColor: "bg-blue-50 dark:bg-blue-950/20",
+					borderColor: "border-blue-200 dark:border-blue-800",
+					textColor: "text-blue-600 dark:text-blue-400",
+					progressColor: "bg-gradient-to-r from-blue-400 to-blue-600",
+				};
+			case "expires-soon":
+				return {
+					emoji: "⚡",
+					bgColor: "bg-orange-50 dark:bg-orange-950/20",
+					borderColor: "border-orange-200 dark:border-orange-800",
+					textColor: "text-orange-600 dark:text-orange-400",
+					progressColor: "bg-gradient-to-r from-orange-400 to-red-500",
+				};
+			case "expired":
+				return {
+					emoji: "😴",
+					bgColor: "bg-gray-50 dark:bg-gray-950/20",
+					borderColor: "border-gray-200 dark:border-gray-800",
+					textColor: "text-gray-600 dark:text-gray-400",
+					progressColor: "bg-gray-400",
+				};
+		}
+	};
+
+	const config = getStatusConfig();
+
+	// Calculate progress percentage for progress bar
+	const getProgressPercentage = () => {
+		if (status === "expired") return 100;
+		if (status === "active-manual") return 100; // Full bar for manual events
+		
+		// For timed events, calculate based on 48-hour duration
+		if (endTime && hoursRemaining !== undefined) {
+			const totalHours = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS;
+			const elapsedHours = totalHours - hoursRemaining;
+			return Math.min(100, Math.max(0, (elapsedHours / totalHours) * 100));
+		}
+		
+		return 0;
+	};
+
+	const progressPercentage = getProgressPercentage();
 
 	return (
-		<div className={`border rounded-lg p-4 transition-all duration-300 hover:shadow-md ${cardBgClass}`}>
+		<div className={`border rounded-lg p-4 transition-all duration-300 hover:shadow-md ${config.bgColor} ${config.borderColor}`}>
+			{/* Header with title and badge */}
 			<div className="flex items-start justify-between mb-3">
-				<div className="flex-1">
-					<h4 className="font-semibold text-sm line-clamp-1 mb-1 flex items-center gap-2">
-						{isExpired 
-							? "😴" 
-							: !endTime 
-								? "🌟" 
-								: progressPercentage > 85 
-									? "🔥" 
-									: progressPercentage > 60 
-										? "⚡" 
-										: "✨"
-						}
-						{event.name}
+				<div className="flex-1 min-w-0">
+					<h4 className="font-semibold text-sm flex items-center gap-2 mb-1">
+						{config.emoji}
+						<span className="truncate">{event.name}</span>
 					</h4>
-					<div className="flex items-center gap-2 text-xs text-muted-foreground">
+					<div className="flex items-center gap-2 text-xs">
 						<Timer className="h-3 w-3" />
-						<span className={
-							isExpired 
-								? "text-gray-600 dark:text-gray-400" 
-								: !endTime 
-									? "text-green-600 dark:text-green-400"
-									: "text-blue-600 dark:text-blue-400"
-						}>
-							{timeRemaining}
-						</span>
+						<span className={config.textColor}>{message}</span>
 					</div>
-					{/* Show end time for expired events */}
-					{isExpired && endTime && (
-						<div className="text-xs text-muted-foreground mt-1">
-							📅 Ended: {endTime.toLocaleDateString()} at {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-						</div>
-					)}
 				</div>
 				<Badge 
-					variant={isExpired ? "outline" : "secondary"} 
-					className={`flex items-center gap-1 text-xs ${
-						isExpired ? "opacity-60" : ""
+					variant={status === "expired" ? "outline" : "secondary"} 
+					className={`flex items-center gap-1 text-xs flex-shrink-0 ml-2 ${
+						status === "expired" ? "opacity-60" : ""
 					}`}
 				>
 					<Star className="h-3 w-3" />
@@ -193,71 +173,44 @@ function EventCountdownCard({ eventStatus }: { eventStatus: EventTimeStatus }) {
 			<div className="space-y-2">
 				<div className="flex items-center justify-between text-xs">
 					<span className="text-muted-foreground">
-						{endTime ? "Feature Progress" : "Feature Status"}
+						{status === "active-manual" ? "Status" : "Progress"}
 					</span>
-					<span className={`font-medium ${
-						isExpired 
-							? "text-red-600 dark:text-red-400" 
-							: !endTime 
-								? "text-green-600 dark:text-green-400"
-								: "text-blue-600 dark:text-blue-400"
-					}`}>
-						{endTime ? `${Math.round(progressPercentage)}%` : "Active"}
+					<span className={`font-medium ${config.textColor}`}>
+						{status === "active-manual" ? "Active" : `${Math.round(progressPercentage)}%`}
 					</span>
 				</div>
 				<div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
 					<div
-						className={`h-2.5 rounded-full transition-all duration-500 ease-out relative ${
-							isExpired 
-								? "bg-red-500" 
-								: !endTime 
-									? "bg-gradient-to-r from-green-400 to-blue-500" 
-									: progressPercentage > 85 
-										? "bg-gradient-to-r from-red-400 to-red-600" 
-										: progressPercentage > 60 
-											? "bg-gradient-to-r from-orange-400 to-red-500" 
-											: "bg-gradient-to-r from-blue-400 to-purple-600"
-						}`}
-						style={{ width: `${endTime ? progressPercentage : 100}%` }}
-					>
-						{/* Cute shimmer effect for active progress bars */}
-						{!isExpired && (
-							<div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
-						)}
-					</div>
+						className={`h-2.5 rounded-full transition-all duration-500 ease-out ${config.progressColor}`}
+						style={{ width: `${progressPercentage}%` }}
+					/>
 				</div>
 			</div>
+
+			{/* Show end time for expired events */}
+			{status === "expired" && endTime && (
+				<div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+					📅 Ended: {endTime.toLocaleDateString()} at {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+				</div>
+			)}
 		</div>
 	);
 }
 
 export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
-	// State for live updates
-	const [updateTrigger, setUpdateTrigger] = useState(0);
-	// State for showing/hiding expired events
-	const [showExpired, setShowExpired] = useState(true);
-
-	// Update every minute for live countdowns
-	useEffect(() => {
-		const interval = setInterval(() => {
-			setUpdateTrigger(prev => prev + 1);
-		}, 60000); // Update every minute
-
-		return () => clearInterval(interval);
-	}, []);
-
-	// Calculate status for all featured events (will recalculate when updateTrigger changes)
-	const eventStatuses = React.useMemo(() => {
-		// Include updateTrigger to force recalculation
-		return featuredEvents.map(calculateEventTimeStatus);
-	}, [featuredEvents, updateTrigger]);
+	// Simple calculation on render - no memoization needed
+	// This runs fresh each time: SSR, client render, page refresh
+	const eventStatuses = featuredEvents.map(getEventStatus);
 	
-	const activeEvents = eventStatuses.filter(status => !status.isExpired);
-	// Only show expired events from the last 48 hours to prevent bloat
-	const recentExpiredEvents = eventStatuses.filter(status => 
-		status.isExpired && (status.hoursExpired ?? 0) <= 48
-	);
-	const expiredEventsToShow = showExpired ? recentExpiredEvents : [];
+	const activeEvents = eventStatuses.filter(s => s.status.startsWith("active") || s.status === "expires-soon");
+	const expiredEvents = eventStatuses.filter(s => s.status === "expired");
+	
+	// Only show expired events from last 48 hours (calculated fresh each render)
+	const recentExpiredEvents = expiredEvents.filter(s => {
+		if (!s.endTime) return false;
+		const hoursAgo = (Date.now() - s.endTime.getTime()) / (1000 * 60 * 60);
+		return hoursAgo <= 48;
+	});
 
 	// If no featured events, show setup instructions
 	if (featuredEvents.length === 0) {
@@ -336,7 +289,7 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 							</h5>
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 								{activeEvents.map((status) => (
-									<EventCountdownCard key={status.event.id} eventStatus={status} />
+									<SimpleEventCard key={status.event.id} eventStatus={status} />
 								))}
 							</div>
 						</div>
@@ -345,24 +298,14 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 					{/* Expired Events */}
 					{recentExpiredEvents.length > 0 && (
 						<div>
-							<div className="flex items-center justify-between mb-3">
-								<h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
-									⏰ Recently Ended ({recentExpiredEvents.length})
-								</h5>
-								<button
-									onClick={() => setShowExpired(!showExpired)}
-									className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-								>
-									{showExpired ? "Hide" : "Show"}
-								</button>
+							<h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">
+								⏰ Recently Ended ({recentExpiredEvents.length})
+							</h5>
+							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+								{recentExpiredEvents.map((status) => (
+									<SimpleEventCard key={status.event.id} eventStatus={status} />
+								))}
 							</div>
-							{showExpired && (
-								<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-									{expiredEventsToShow.map((status) => (
-										<EventCountdownCard key={status.event.id} eventStatus={status} />
-									))}
-								</div>
-							)}
 						</div>
 					)}
 
@@ -370,7 +313,7 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 					<div className="text-xs text-muted-foreground pt-3 border-t space-y-1">
 						<div className="flex items-center justify-between">
 							<span>
-								⏱️ Feature duration: {FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours • 🔄 Updates every minute
+								⏱️ Feature duration: {FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours • 🔄 Refresh page for updates
 							</span>
 							{activeEvents.length > 0 && (
 								<span className="text-green-600 dark:text-green-400 font-medium">
