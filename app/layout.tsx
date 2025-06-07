@@ -157,8 +157,8 @@ export default function RootLayout({
 						<Footer />
 					</AuthProvider>
 				</ThemeProvider>
+				<Analytics />
 			</body>
-			<Analytics />
 		</html>
 	);
 }
