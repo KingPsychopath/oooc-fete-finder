@@ -253,29 +253,7 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 		);
 	}
 
-	// If all featured events have no timestamps
-	if (eventStatuses.every((status) => !status.endTime)) {
-		return (
-			<Card className="mb-8 border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-800">
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<AlertCircle className="h-5 w-5 text-orange-600" />
-						Feature Periods Not Configured
-					</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="text-lg font-semibold text-orange-700 dark:text-orange-300 mb-2">
-						{featuredEvents.length} event{featuredEvents.length > 1 ? "s" : ""}{" "}
-						featured, but timestamps missing
-					</div>
-					<p className="text-sm text-muted-foreground">
-						Add a "Featured At" column to your spreadsheet with timestamps to
-						see countdown timers
-					</p>
-				</CardContent>
-			</Card>
-		);
-	}
+
 
 	return (
 		<Card className="mb-8 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
