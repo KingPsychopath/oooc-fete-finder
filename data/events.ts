@@ -13,7 +13,7 @@ import { CacheManager } from "@/lib/cache-manager";
 // When USE_CSV_DATA is false:
 // - Only local CSV file is used (no remote fetching)
 // - Maintains backwards compatibility
-export const USE_CSV_DATA = false;
+export const USE_CSV_DATA = true;
 
 // Event data with enhanced categorization and strict typing
 export const EVENTS_DATA: Event[] = [
