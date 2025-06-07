@@ -235,9 +235,14 @@ export default async function FeatureEventPage() {
 							<div>
 								<h4 className="font-semibold mb-2">📊 Analytics Included</h4>
 								<p className="text-sm text-muted-foreground">
-									Track clicks, views, and engagement for your featured event
-									during the feature period.
+									<span className="line-through">Track clicks, views, and engagement for your featured event
+									during the feature period.</span>
 								</p>
+								<div className="mt-2 px-3 py-1 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
+									<span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+										🚀 Coming Soon
+									</span>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -289,10 +294,9 @@ export default async function FeatureEventPage() {
 						Feature My Event - €{FEATURED_EVENTS_CONFIG.FEATURE_PRICE}
 					</a>
 				</Button>
-				<p className="text-sm text-muted-foreground mt-3">
-					<span className="line-through">Secure payment processed by Stripe • Money-back guarantee if not featured within 2 hours</span>
+				<p className="text-sm text-muted-foreground">
 					<br />
-					Direct payment coming soon, click the button or email us directly at hello@outofofficecollective.co.uk
+					You can also email us directly at hello@outofofficecollective.co.uk
 					<CopyEmailButton email="hello@outofofficecollective.co.uk" />
 				</p>
 				<div className="mt-4">

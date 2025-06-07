@@ -172,38 +172,39 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 
 	return (
 		<div
-			className={`border rounded-lg p-4 transition-all duration-300 hover:shadow-md ${config.bgColor} ${config.borderColor}`}
+			className={`border rounded-lg p-4 transition-all duration-300 hover:shadow-md w-full min-w-0 ${config.bgColor} ${config.borderColor}`}
 		>
 			{/* Header with title and badge */}
-			<div className="flex items-start justify-between mb-3">
+			<div className="flex items-start justify-between mb-3 gap-2">
 				<div className="flex-1 min-w-0">
 					<h4 className="font-semibold text-sm flex items-center gap-2 mb-1">
 						{config.emoji}
 						<span className="truncate">{event.name}</span>
 					</h4>
 					<div className="flex items-center gap-2 text-xs">
-						<Timer className="h-3 w-3" />
-						<span className={config.textColor}>{message}</span>
+						<Timer className="h-3 w-3 flex-shrink-0" />
+						<span className={`${config.textColor} truncate`}>{message}</span>
 					</div>
 				</div>
 				<Badge
 					variant={status === "expired" ? "outline" : "secondary"}
-					className={`flex items-center gap-1 text-xs flex-shrink-0 ml-2 ${
+					className={`flex items-center gap-1 text-xs flex-shrink-0 ${
 						status === "expired" ? "opacity-60" : ""
 					}`}
 				>
 					<Star className="h-3 w-3" />
-					Featured
+					<span className="hidden sm:inline">Featured</span>
+					<span className="sm:hidden">⭐</span>
 				</Badge>
 			</div>
 
 			{/* Progress Bar */}
 			<div className="space-y-2">
-				<div className="flex items-center justify-between text-xs">
-					<span className="text-muted-foreground">
+				<div className="flex items-center justify-between text-xs gap-2">
+					<span className="text-muted-foreground flex-shrink-0">
 						{status === "active-manual" ? "Status" : "Progress"}
 					</span>
-					<span className={`font-medium ${config.textColor}`}>
+					<span className={`font-medium ${config.textColor} flex-shrink-0`}>
 						{status === "active-manual"
 							? "Active"
 							: `${Math.round(progressPercentage)}%`}
@@ -219,12 +220,14 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 
 			{/* Show end time for expired events */}
 			{status === "expired" && endTime && (
-				<div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-					📅 Ended: {endTime.toLocaleDateString()} at{" "}
-					{endTime.toLocaleTimeString([], {
-						hour: "2-digit",
-						minute: "2-digit",
-					})}
+				<div className="text-xs text-muted-foreground mt-2 pt-2 border-t break-words">
+					📅 Ended: <span className="whitespace-nowrap">{endTime.toLocaleDateString()}</span> at{" "}
+					<span className="whitespace-nowrap">
+						{endTime.toLocaleTimeString([], {
+							hour: "2-digit",
+							minute: "2-digit",
+						})}
+					</span>
 				</div>
 			)}
 		</div>
