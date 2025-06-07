@@ -48,7 +48,7 @@ function getEventStatus(event: Event): EventStatus {
 		return {
 			event,
 			status: "active-manual",
-			message: "Featured until manually removed",
+			message: "Currently featured",
 		};
 	}
 

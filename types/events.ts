@@ -585,5 +585,5 @@ export const formatDayWithDate = (day: EventDay, isoDate: string): string => {
 
 export const VENUE_TYPES = [
 	{ key: "indoor" as const, label: "Indoor", icon: "🏢" },
-	{ key: "outdoor" as const, label: "Outdoor", icon: "��️" },
+	{ key: "outdoor" as const, label: "Outdoor", icon: "🌤️" },
 ] as const;
