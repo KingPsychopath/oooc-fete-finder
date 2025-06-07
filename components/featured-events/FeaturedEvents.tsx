@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import { useFeaturedEvents } from "./hooks/use-featured-events";
-import { FeaturedEventCard } from "./components/FeaturedEventCard";
+import { EventCard } from "@/components/event-card/EventCard";
 import { FeaturedEventsHeader } from "./components/FeaturedEventsHeader";
 import type { FeaturedEventsProps } from "./types";
 import { FEATURED_EVENTS_CONFIG } from "./constants";
@@ -38,7 +38,7 @@ export function FeaturedEvents({
 				{/* Responsive grid: 1 col on mobile, 2 cols on tablet, 3 cols on desktop */}
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 					{featuredEvents.map((event) => (
-						<FeaturedEventCard
+						<EventCard
 							key={event.id}
 							event={event}
 							onClick={onEventClick}

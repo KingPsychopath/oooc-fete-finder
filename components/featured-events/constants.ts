@@ -7,7 +7,7 @@ export const FEATURED_EVENTS_CONFIG = {
 	FEATURE_DURATION_HOURS: 48,
 	
 	// Pricing for featuring an event (in euros)
-	FEATURE_PRICE: 25,
+	FEATURE_PRICE: 50,
 	
 	// CTA message for event hosts
 	CTA_MESSAGE: "Get noticed by thousands more by featuring your event →",
