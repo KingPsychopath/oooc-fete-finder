@@ -81,10 +81,7 @@ function getEventStatus(event: Event): EventStatus {
 	return {
 		event,
 		status,
-		message:
-			hoursRemaining > 24
-				? `${Math.floor(hoursRemaining / 24)}d remaining`
-				: `${hoursRemaining}h remaining`,
+		message: `${hoursRemaining}h remaining`,
 		endTime,
 		hoursRemaining,
 	};
@@ -94,7 +91,7 @@ function getEventStatus(event: Event): EventStatus {
  * Event card with proper spacing and progress bar
  */
 function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
-	const { event, status, message, endTime, hoursRemaining } = eventStatus;
+	const { event, status, message, endTime } = eventStatus;
 
 	const getStatusConfig = () => {
 		switch (status) {
@@ -104,7 +101,7 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 					bgColor: "bg-green-50 dark:bg-green-950/20",
 					borderColor: "border-green-200 dark:border-green-800",
 					textColor: "text-green-600 dark:text-green-400",
-					progressColor: "bg-gradient-to-r from-green-400 to-green-600",
+					progressColor: "bg-gradient-to-r from-emerald-400 via-green-500 to-green-600",
 				};
 			case "active-timed":
 				return {
@@ -112,7 +109,7 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 					bgColor: "bg-blue-50 dark:bg-blue-950/20",
 					borderColor: "border-blue-200 dark:border-blue-800",
 					textColor: "text-blue-600 dark:text-blue-400",
-					progressColor: "bg-gradient-to-r from-blue-400 to-blue-600",
+					progressColor: "bg-gradient-to-r from-cyan-400 via-blue-500 to-blue-600",
 				};
 			case "expires-soon":
 				return {
@@ -120,7 +117,7 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 					bgColor: "bg-orange-50 dark:bg-orange-950/20",
 					borderColor: "border-orange-200 dark:border-orange-800",
 					textColor: "text-orange-600 dark:text-orange-400",
-					progressColor: "bg-gradient-to-r from-orange-400 to-red-500",
+					progressColor: "bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500",
 				};
 			case "expired":
 				return {
@@ -128,7 +125,7 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 					bgColor: "bg-gray-50 dark:bg-gray-950/20",
 					borderColor: "border-gray-200 dark:border-gray-800",
 					textColor: "text-gray-600 dark:text-gray-400",
-					progressColor: "bg-gray-400",
+					progressColor: "bg-gradient-to-r from-gray-300 to-gray-500",
 				};
 		}
 	};
@@ -140,11 +137,32 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 		if (status === "expired") return 100;
 		if (status === "active-manual") return 100; // Full bar for manual events
 
-		// For timed events, calculate based on 48-hour duration
-		if (endTime && hoursRemaining !== undefined) {
-			const totalHours = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS;
-			const elapsedHours = totalHours - hoursRemaining;
-			return Math.min(100, Math.max(0, (elapsedHours / totalHours) * 100));
+		// For timed events, calculate based on actual timestamps for maximum accuracy
+		if (endTime && event.featuredAt && isValidTimestamp(event.featuredAt)) {
+			const startTime = new Date(event.featuredAt);
+			const now = new Date();
+			
+			const totalDuration = endTime.getTime() - startTime.getTime(); // Total feature duration in milliseconds
+			const elapsedDuration = now.getTime() - startTime.getTime(); // Time elapsed since start
+			
+			// Calculate percentage based on actual time elapsed vs total duration
+			const percentage = Math.min(100, Math.max(0, (elapsedDuration / totalDuration) * 100));
+			
+			// Debug logging for progress bar accuracy
+			if (process.env.NODE_ENV === 'development') {
+				const totalHours = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS;
+				const elapsedHours = elapsedDuration / (1000 * 60 * 60);
+				console.log(`📊 Progress for "${event.name}":`, {
+					startTime: startTime.toISOString(),
+					endTime: endTime.toISOString(),
+					now: now.toISOString(),
+					totalHours,
+					elapsedHours: Math.round(elapsedHours * 100) / 100,
+					percentage: Math.round(percentage * 100) / 100
+				});
+			}
+			
+			return percentage;
 		}
 
 		return 0;

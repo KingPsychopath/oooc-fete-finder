@@ -647,9 +647,26 @@ const processFeaturedColumn = (
 	}
 
 	// Try to parse as timestamp first
-	const parsedTimestamp = parseFeaturedAt(featuredStr);
+	const parsedTimestamp = parseFeaturedAt(cleaned);
 	if (parsedTimestamp) {
-		// Valid timestamp - set both isFeatured and featuredAt
+		const parsedDate = new Date(parsedTimestamp);
+		const now = new Date();
+		
+		// If the timestamp is in the future, treat it as "start featuring now"
+		if (parsedDate.getTime() > now.getTime()) {
+			console.log(`📅 Future date detected in featured column: "${featuredStr}"`);
+			console.log(`   Parsed as: ${parsedDate.toISOString()}`);
+			console.log(`   Since this is a future date, starting featuring NOW instead`);
+			console.log(`   💡 Tip: For future event dates, use the event date column, not featured column`);
+			
+			// Use current time as start of featuring
+			return {
+				isFeatured: true,
+				featuredAt: now.toISOString(),
+			};
+		}
+
+		// Valid timestamp in past/present - use as-is
 		return {
 			isFeatured: true,
 			featuredAt: parsedTimestamp,
@@ -707,7 +724,7 @@ const convertToVenueTypes = (indoorOutdoorStr: string): VenueType[] => {
 };
 
 /**
- * Parse featured timestamp from various formats
+ * Parse featured timestamp from various formats with improved UK/US date handling
  */
 const parseFeaturedAt = (featuredAtStr: string): string | undefined => {
 	if (!featuredAtStr || featuredAtStr.trim() === "") {
@@ -715,21 +732,73 @@ const parseFeaturedAt = (featuredAtStr: string): string | undefined => {
 	}
 
 	try {
-		// Try parsing as ISO string first
+		// Try parsing as ISO string first (recommended format)
 		if (featuredAtStr.includes("T") || featuredAtStr.includes("Z")) {
 			const date = new Date(featuredAtStr);
 			if (!isNaN(date.getTime())) {
+				console.log(`✅ Parsed ISO timestamp: "${featuredAtStr}" → ${date.toISOString()}`);
 				return date.toISOString();
 			}
 		}
 
-		// Try parsing Excel date formats (MM/DD/YYYY HH:MM, DD/MM/YYYY HH:MM, etc.)
-		const excelDateRegex =
+		// Try unambiguous formats first (month names, etc.)
+		const unambiguousFormats = [
+			// Month names (Jan, January, etc.)
+			/^(\d{1,2})[-\s](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-\s](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i,
+			/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-\s](\d{1,2})[-\s](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i,
+			// ISO-like without T
+			/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/
+		];
+
+		for (const regex of unambiguousFormats) {
+			const match = featuredAtStr.match(regex);
+			if (match) {
+				// Handle different match groups based on regex
+				let year: string, month: string, day: string, hour: string, minute: string, second: string, ampm: string | undefined;
+				
+				if (regex.source.includes('(\\d{4})')) {
+					// ISO-like format: YYYY-MM-DD HH:MM
+					[, year, month, day, hour, minute, second = "0"] = match;
+				} else if (regex.source.startsWith('^(\\d{1,2})')) {
+					// DD-MMM-YYYY format
+					[, day, month, year, hour, minute, second = "0", ampm] = match;
+					month = getMonthNumber(month);
+				} else {
+					// MMM-DD-YYYY format
+					[, month, day, year, hour, minute, second = "0", ampm] = match;
+					month = getMonthNumber(month);
+				}
+
+				// Handle AM/PM
+				let hourNum = parseInt(hour, 10);
+				if (ampm) {
+					if (ampm.toUpperCase() === "PM" && hourNum !== 12) {
+						hourNum += 12;
+					} else if (ampm.toUpperCase() === "AM" && hourNum === 12) {
+						hourNum = 0;
+					}
+				}
+
+				const date = new Date(
+					`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second.padStart(2, "0")}`
+				);
+
+				if (!isNaN(date.getTime())) {
+					console.log(`✅ Parsed unambiguous timestamp: "${featuredAtStr}" → ${date.toISOString()}`);
+					return date.toISOString();
+				}
+			}
+		}
+
+		// Handle potentially ambiguous DD/MM/YYYY or MM/DD/YYYY formats
+		const ambiguousDateRegex =
 			/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i;
-		const match = featuredAtStr.match(excelDateRegex);
+		const match = featuredAtStr.match(ambiguousDateRegex);
 
 		if (match) {
-			const [, month, day, year, hour, minute, second = "0", ampm] = match;
+			const [, first, second, year, hour, minute, second_val = "0", ampm] = match;
+			const firstNum = parseInt(first, 10);
+			const secondNum = parseInt(second, 10);
 
 			// Handle AM/PM
 			let hourNum = parseInt(hour, 10);
@@ -741,29 +810,59 @@ const parseFeaturedAt = (featuredAtStr: string): string | undefined => {
 				}
 			}
 
-			// Create date (assuming MM/DD/YYYY format first, but could be DD/MM/YYYY)
-			const date1 = new Date(
-				`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second.padStart(2, "0")}`,
-			);
-			const date2 = new Date(
-				`${year}-${day.padStart(2, "0")}-${month.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second.padStart(2, "0")}`,
+			// Smart disambiguation logic
+			let month: string, day: string, format: string;
+
+			if (firstNum > 12 && secondNum <= 12) {
+				// First number > 12, must be DD/MM/YYYY (UK format)
+				day = first;
+				month = second;
+				format = "UK (DD/MM/YYYY)";
+			} else if (secondNum > 12 && firstNum <= 12) {
+				// Second number > 12, must be MM/DD/YYYY (US format)
+				month = first;
+				day = second;
+				format = "US (MM/DD/YYYY)";
+			} else if (firstNum <= 12 && secondNum <= 12) {
+				// Both numbers could be month or day - this is ambiguous!
+				console.warn(`⚠️ AMBIGUOUS DATE FORMAT: "${featuredAtStr}"`);
+				console.warn(`   Could be: ${first}/${second}/${year} (US: ${getMonthName(first)} ${second}) or ${first}/${second}/${year} (UK: ${first} ${getMonthName(second)})`);
+				console.warn(`   Using UK format (DD/MM/YYYY) by default for European app. For clarity, please use:`);
+				console.warn(`   ✅ ISO format: ${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}T${hour}:${minute}:${second_val}`);
+				console.warn(`   ✅ Or with month name: ${first}-${getMonthName(second)}-${year} ${hour}:${minute}${ampm ? ` ${ampm}` : ''}`);
+				
+				// Default to UK format (DD/MM/YYYY) for European app
+				day = first;
+				month = second;
+				format = "UK (DD/MM/YYYY) - ASSUMED";
+			} else {
+				// Both numbers > 12, invalid
+				console.error(`❌ Invalid date: both ${first} and ${second} cannot be valid month or day`);
+				return undefined;
+			}
+
+			const date = new Date(
+				`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second_val.padStart(2, "0")}`
 			);
 
-			// Use the date that doesn't result in an invalid date
-			if (!isNaN(date1.getTime())) {
-				return date1.toISOString();
-			} else if (!isNaN(date2.getTime())) {
-				return date2.toISOString();
+			if (!isNaN(date.getTime())) {
+				console.log(`✅ Parsed potentially ambiguous timestamp: "${featuredAtStr}" → ${date.toISOString()} (detected as ${format})`);
+				return date.toISOString();
 			}
 		}
 
-		// Try parsing as simple date
+		// Try parsing as simple date (last resort)
 		const date = new Date(featuredAtStr);
 		if (!isNaN(date.getTime())) {
+			console.log(`✅ Parsed generic timestamp: "${featuredAtStr}" → ${date.toISOString()}`);
 			return date.toISOString();
 		}
 
-		console.warn(`Could not parse featuredAt timestamp: "${featuredAtStr}"`);
+		console.warn(`❌ Could not parse featuredAt timestamp: "${featuredAtStr}"`);
+		console.warn(`💡 Recommended formats:`);
+		console.warn(`   • ISO: 2025-06-07T20:00:00`);
+		console.warn(`   • Month name: 7-Jun-2025 20:00:00`);
+		console.warn(`   • Unambiguous: 2025-06-07 20:00:00`);
 		return undefined;
 	} catch (error) {
 		console.warn(
@@ -773,6 +872,24 @@ const parseFeaturedAt = (featuredAtStr: string): string | undefined => {
 		return undefined;
 	}
 };
+
+// Helper function to convert month abbreviations to numbers
+function getMonthNumber(monthStr: string): string {
+	const months: Record<string, string> = {
+		jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
+		jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12",
+		january: "01", february: "02", march: "03", april: "04", june: "06",
+		july: "07", august: "08", september: "09", october: "10", november: "11", december: "12"
+	};
+	return months[monthStr.toLowerCase()] || monthStr;
+}
+
+// Helper function to get month name from number
+function getMonthName(monthNum: string): string {
+	const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+	const num = parseInt(monthNum, 10);
+	return months[num - 1] || monthNum;
+}
 
 /**
  * Convert CSVEventRow to Event

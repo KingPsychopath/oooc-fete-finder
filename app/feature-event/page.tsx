@@ -8,16 +8,21 @@
  * 1. Use the "Featured" column in your spreadsheet
  * 2. For timestamp-based featuring: Enter a valid timestamp (automatic expiration)
  * 3. For manual featuring: Enter any text like "Yes", "urgent", etc. (permanent until removed)
- * 4. Supported timestamp formats:
- *    - ISO format: "2024-01-20T14:30:00Z"
- *    - Excel format: "1/20/2024 2:30 PM" or "20/01/2024 14:30"
- *    - Simple date: "2024-01-20 14:30:00"
+ * 4. Supported timestamp formats (UK format prioritized for European app):
+ *    - ISO format: "2025-06-07T20:00:00" (RECOMMENDED - no ambiguity)
+ *    - Month name: "7-Jun-2025 20:00:00" or "Jun-7-2025 20:00:00"
+ *    - ISO without T: "2025-06-07 20:00:00"
+ *    - UK Excel format: "07/06/2025 20:00:00" (DD/MM/YYYY - prioritized)
+ *    - US Excel format: "06/07/2025 20:00:00" (MM/DD/YYYY - only if unambiguous)
  *
  * HOW IT WORKS:
  * - The system auto-detects if "Featured" column contains a timestamp or text
- * - Timestamp values: Show countdown and expire after FEATURE_DURATION_HOURS (48 hours)
+ * - Timestamp values (past/present): Start featuring from that time, expire after 48 hours
+ * - Timestamp values (future): Start featuring NOW, expire after 48 hours (future dates auto-corrected)
  * - Text values: Display permanently with green theme until manually removed
  * - Shows real-time countdown for timestamp-based featured events
+ * 
+ * IMPORTANT: Featured column = WHEN TO START FEATURING, not the event date!
  */
 
 import React from "react";
@@ -71,8 +76,23 @@ export default async function FeatureEventPage() {
 						<ol className="list-decimal list-inside space-y-2 text-sm">
 							<li>Use the "Featured" column in your Excel/Google Sheets</li>
 							<li>
-								<strong>For automatic expiration:</strong> Enter a timestamp
-								(e.g., "1/20/2024 2:30 PM")
+								<strong>For automatic expiration:</strong> Enter when to START featuring
+								<br />
+								<span className="text-xs text-green-600 ml-4">
+									✅ Now: "2025-01-18T10:30:00" (current time to start immediately)
+								</span>
+								<br />
+								<span className="text-xs text-blue-600 ml-4">
+									📍 UK format: "18/01/2025 10:30:00" = Start featuring on 18th Jan (DD/MM/YYYY)
+								</span>
+								<br />
+								<span className="text-xs text-purple-600 ml-4">
+									🔄 Future dates: Automatically start featuring NOW instead of waiting
+								</span>
+								<br />
+								<span className="text-xs text-orange-600 ml-4">
+									⚠️ Don't put event date here - this is for FEATURING start time!
+								</span>
 							</li>
 							<li>
 								<strong>For permanent featuring:</strong> Enter any text (e.g.,
