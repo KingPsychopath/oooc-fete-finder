@@ -7,6 +7,8 @@ import Footer from "@/components/Footer";
 import { AuthProvider } from "@/lib/auth-context";
 import { generateMainOGImage } from "@/lib/og-utils";
 import { Analytics } from "@vercel/analytics/next";
+import { VignetteAd } from "@/features/vignette-ad/components/vignette-ad";
+import { VIGNETTE_AD_CONFIG } from "@/features/vignette-ad/config";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -154,6 +156,11 @@ export default function RootLayout({
 					<AuthProvider>
 						<ClientBody>{children}</ClientBody>
 						<Footer />
+						<VignetteAd 
+							whatsappUrl={VIGNETTE_AD_CONFIG.WHATSAPP_URL}
+							delayAfterChatClick={VIGNETTE_AD_CONFIG.DELAYS.AFTER_CHAT_CLICK}
+							delayAfterDismiss={VIGNETTE_AD_CONFIG.DELAYS.AFTER_DISMISS}
+						/>
 					</AuthProvider>
 				</ThemeProvider>
 				<Analytics />
