@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { Filter, X, Info, ChevronDown, ChevronUp, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { FilterButton } from "@/components/FilterButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Toggle } from "@/components/ui/toggle";
 import {
@@ -373,22 +374,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		return (
 			<>
 				{/* Mobile floating button */}
-				<Button
-					variant="outline"
+				<FilterButton
+					onClickAction={onOpen || onClose}
+					hasActiveFilters={hasActiveFilters}
+					activeFiltersCount={activeFilterCount}
 					className="fixed bottom-4 right-4 z-40 shadow-lg lg:hidden"
-					onClick={onOpen || onClose}
-				>
-					<Filter className="h-4 w-4 mr-2" />
-					Filters
-					{hasActiveFilters && (
-						<Badge
-							variant="destructive"
-							className="ml-2 h-5 w-5 rounded-full p-0 text-xs"
-						>
-							{activeFilterCount}
-						</Badge>
-					)}
-				</Button>
+					variant="outline"
+					size="sm"
+				/>
 
 				{/* Desktop version - always visible */}
 				<div className="hidden lg:block">
