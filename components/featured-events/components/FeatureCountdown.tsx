@@ -14,7 +14,7 @@
 
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, AlertCircle, Star, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -91,10 +91,64 @@ function getEventStatus(event: Event): EventStatus {
  * Event card with proper spacing and progress bar
  */
 function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
-	const { event, status, message, endTime } = eventStatus;
+	const { event, endTime } = eventStatus;
+	
+	// Use state to handle hydration consistency
+	const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
+
+	// Update time after hydration to avoid mismatch
+	useEffect(() => {
+		setCurrentTime(new Date());
+		
+		// Set up interval for live updates after hydration
+		const interval = setInterval(() => {
+			setCurrentTime(new Date());
+		}, 60000); // Update every minute
+		
+		return () => clearInterval(interval);
+	}, []);
+
+	// Calculate live status and message based on current time
+	const getLiveStatus = () => {
+		// Manual featured events (no timestamp)
+		if (!isValidTimestamp(event.featuredAt)) {
+			return {
+				status: "active-manual",
+				message: "Currently featured"
+			};
+		}
+
+		// Check if expired using current time
+		const isExpired = endTime && currentTime > endTime;
+
+		if (isExpired) {
+			const hoursAgo = endTime
+				? Math.floor((currentTime.getTime() - endTime.getTime()) / (1000 * 60 * 60))
+				: 0;
+			return {
+				status: "expired",
+				message: hoursAgo < 24
+					? `Ended ${hoursAgo}h ago`
+					: `Ended ${Math.floor(hoursAgo / 24)}d ago`
+			};
+		}
+
+		// Active with time remaining
+		const hoursRemaining = endTime
+			? Math.floor((endTime.getTime() - currentTime.getTime()) / (1000 * 60 * 60))
+			: 0;
+		const liveStatus = hoursRemaining <= 6 ? "expires-soon" : "active-timed";
+
+		return {
+			status: liveStatus,
+			message: `${Math.max(0, hoursRemaining)}h remaining`
+		};
+	};
+
+	const { status: liveStatus, message } = getLiveStatus();
 
 	const getStatusConfig = () => {
-		switch (status) {
+		switch (liveStatus) {
 			case "active-manual":
 				return {
 					emoji: "🌟",
@@ -127,20 +181,28 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 					textColor: "text-gray-600 dark:text-gray-400",
 					progressColor: "bg-gradient-to-r from-gray-300 to-gray-500",
 				};
+			default:
+				return {
+					emoji: "✨",
+					bgColor: "bg-blue-50 dark:bg-blue-950/20",
+					borderColor: "border-blue-200 dark:border-blue-800",
+					textColor: "text-blue-600 dark:text-blue-400",
+					progressColor: "bg-gradient-to-r from-cyan-400 via-blue-500 to-blue-600",
+				};
 		}
 	};
 
 	const config = getStatusConfig();
 
-	// Calculate progress percentage for progress bar
 	const getProgressPercentage = () => {
-		if (status === "expired") return 100;
-		if (status === "active-manual") return 100; // Full bar for manual events
+		if (liveStatus === "expired") return 100;
+		if (liveStatus === "active-manual") return 100; // Full bar for manual events
 
 		// For timed events, calculate based on actual timestamps for maximum accuracy
 		if (endTime && event.featuredAt && isValidTimestamp(event.featuredAt)) {
 			const startTime = new Date(event.featuredAt);
-			const now = new Date();
+			// Use consistent currentTime to avoid hydration mismatch
+			const now = currentTime;
 			
 			const totalDuration = endTime.getTime() - startTime.getTime(); // Total feature duration in milliseconds
 			const elapsedDuration = now.getTime() - startTime.getTime(); // Time elapsed since start
@@ -187,9 +249,9 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 					</div>
 				</div>
 				<Badge
-					variant={status === "expired" ? "outline" : "secondary"}
+					variant={liveStatus === "expired" ? "outline" : "secondary"}
 					className={`flex items-center gap-1 text-xs flex-shrink-0 ${
-						status === "expired" ? "opacity-60" : ""
+						liveStatus === "expired" ? "opacity-60" : ""
 					}`}
 				>
 					<Star className="h-3 w-3" />
@@ -202,10 +264,10 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 			<div className="space-y-2">
 				<div className="flex items-center justify-between text-xs gap-2">
 					<span className="text-muted-foreground flex-shrink-0">
-						{status === "active-manual" ? "Status" : "Progress"}
+						{liveStatus === "active-manual" ? "Status" : "Progress"}
 					</span>
 					<span className={`font-medium ${config.textColor} flex-shrink-0`}>
-						{status === "active-manual"
+						{liveStatus === "active-manual"
 							? "Active"
 							: `${Math.round(progressPercentage)}%`}
 					</span>
@@ -214,12 +276,13 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 					<div
 						className={`h-2.5 rounded-full transition-all duration-500 ease-out ${config.progressColor}`}
 						style={{ width: `${progressPercentage}%` }}
+						suppressHydrationWarning={true}
 					/>
 				</div>
 			</div>
 
 			{/* Show end time for expired events */}
-			{status === "expired" && endTime && (
+			{liveStatus === "expired" && endTime && (
 				<div className="text-xs text-muted-foreground mt-2 pt-2 border-t break-words">
 					📅 Ended: <span className="whitespace-nowrap">{endTime.toLocaleDateString()}</span> at{" "}
 					<span className="whitespace-nowrap">
@@ -278,8 +341,6 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 			</Card>
 		);
 	}
-
-
 
 	return (
 		<Card className="mb-8 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
