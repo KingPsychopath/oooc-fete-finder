@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,52 +10,45 @@ import { useScrollVisibility } from "@/hooks/use-scroll-visibility";
 import { VIGNETTE_AD_CONFIG } from "../config";
 
 export function VignetteAd({
-  whatsappUrl,
-  delayAfterChatClick,
-  delayAfterDismiss,
+  whatsappUrl = VIGNETTE_AD_CONFIG.WHATSAPP_URL,
+  delayAfterChatClick = VIGNETTE_AD_CONFIG.DELAYS.AFTER_CHAT_CLICK,
+  delayAfterDismiss = VIGNETTE_AD_CONFIG.DELAYS.AFTER_DISMISS,
   scrollHideThreshold = VIGNETTE_AD_CONFIG.SCROLL.HIDE_THRESHOLD_PERCENTAGE,
   className = "",
-}: VignetteAdProps) {
+}: VignetteAdProps = {}) {
   const [isAnimating, setIsAnimating] = useState(false);
-  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Storage logic: check if user has dismissed/clicked recently
   const { shouldShow, markChatClicked, markDismissed } = useVignetteAdStorage({
     delayAfterChatClick,
     delayAfterDismiss,
   });
 
-  const { isVisible: isScrollVisible } = useScrollVisibility({
+  // Scroll logic: check if within visible scroll area
+  const { isVisible: isInScrollArea } = useScrollVisibility({
     threshold: scrollHideThreshold,
     mode: "hide-after",
     initiallyVisible: true,
   });
 
-  // Combined visibility: must pass both storage and scroll checks
-  const shouldBeVisible = shouldShow && isScrollVisible;
+  // INVARIANTS:
+  // Show ad IF: within visible scroll area AND localStorage permits it
+  // Hide ad IF: outside scroll range (regardless of localStorage)
+  const shouldBeVisible = isInScrollArea && shouldShow;
 
   useEffect(() => {
     if (shouldBeVisible) {
-      // Show with animation
-      const animationTimer = setTimeout(() => setIsAnimating(true), 100);
-      return () => clearTimeout(animationTimer);
+      // Show with animation delay
+      const timer = setTimeout(() => setIsAnimating(true), 100);
+      return () => clearTimeout(timer);
     } else {
-      // Hide with animation
+      // Hide immediately
       setIsAnimating(false);
     }
   }, [shouldBeVisible]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
-      }
-    };
-  }, []);
-
   const handleChatClick = useCallback((): void => {
     markChatClicked();
-    // Open WhatsApp in new tab
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   }, [markChatClicked, whatsappUrl]);
 
@@ -63,7 +56,6 @@ export function VignetteAd({
     markDismissed();
   }, [markDismissed]);
 
-  // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent): void => {
     if (e.key === 'Escape') {
       e.preventDefault();

@@ -111,59 +111,79 @@ const thirtyMins = minutesToMs(30); // 30 minutes in milliseconds
 
 ## Implementation
 
-The ad is currently added to the root layout (`app/layout.tsx`) so it appears on all pages:
+The ad is currently added to the root layout (`app/layout.tsx`) so it appears on all pages. All configuration is handled automatically via defaults:
 
 ```tsx
 import { VignetteAd } from "@/features/vignette-ad/components/vignette-ad";
-import { VIGNETTE_AD_CONFIG } from "@/features/vignette-ad/config";
 
-// In your JSX:
+// Simple usage with all defaults from config:
+<VignetteAd />
+```
+
+### Advanced Usage (Optional)
+
+You can override specific settings if needed:
+
+```tsx
 <VignetteAd 
-  whatsappUrl={VIGNETTE_AD_CONFIG.WHATSAPP_URL}
-  delayAfterChatClick={VIGNETTE_AD_CONFIG.DELAYS.AFTER_CHAT_CLICK}
-  delayAfterDismiss={VIGNETTE_AD_CONFIG.DELAYS.AFTER_DISMISS}
-  scrollHideThreshold={VIGNETTE_AD_CONFIG.SCROLL.HIDE_THRESHOLD_PERCENTAGE}
+  whatsappUrl="your-custom-url"
+  delayAfterChatClick={daysToMs(7)}  // 7 days instead of default 4
+  scrollHideThreshold={30}           // 30% instead of default 20%
 />
 ```
 
 ## Customization
 
-### Custom Delays
+### Default Usage (Recommended)
 
-You can override the default delays:
+Simply use the component without any props - all settings come from the config:
+
+```tsx
+<VignetteAd />
+```
+
+### Custom Delays (Optional)
+
+Override specific delays while keeping other defaults:
 
 ```tsx
 <VignetteAd 
-  whatsappUrl="your-whatsapp-url"
-  delayAfterChatClick={daysToMs(7)}  // 7 days instead of 4
-  delayAfterDismiss={hoursToMs(12)}  // 12 hours instead of 2 days
+  delayAfterChatClick={daysToMs(7)}  // 7 days instead of default 4
+  delayAfterDismiss={hoursToMs(12)}  // 12 hours instead of default 2 days
 />
 ```
 
-### Custom Scroll Behavior
+### Custom Scroll Behavior (Optional)
 
 Configure when the ad hides based on scroll position:
 
 ```tsx
 <VignetteAd 
-  whatsappUrl="your-whatsapp-url"
-  scrollHideThreshold={30}  // Hide after scrolling 30% instead of 20%
+  scrollHideThreshold={30}  // Hide after scrolling 30% instead of default 20%
 />
 
 // Or disable scroll behavior entirely
 <VignetteAd 
-  whatsappUrl="your-whatsapp-url"
   scrollHideThreshold={100}  // Never hide based on scroll (always visible)
 />
 ```
 
-### Custom Styling
+### Custom WhatsApp URL (Optional)
+
+Use a different WhatsApp chat link:
+
+```tsx
+<VignetteAd 
+  whatsappUrl="https://chat.whatsapp.com/your-custom-link"
+/>
+```
+
+### Custom Styling (Optional)
 
 Add custom CSS classes:
 
 ```tsx
 <VignetteAd 
-  whatsappUrl="your-whatsapp-url"
   className="custom-positioning"
 />
 ```

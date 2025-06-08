@@ -1,5 +1,5 @@
 export type VignetteAdProps = {
-  whatsappUrl: string;
+  whatsappUrl?: string;
   delayAfterChatClick?: number;
   delayAfterDismiss?: number;
   scrollHideThreshold?: number;
