@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { parseCSVContent, convertCSVRowToEvent } from "@/utils/csvParser";
 import { Event } from "@/types/events";
 import { USE_CSV_DATA } from "@/data/events";
@@ -1084,14 +1084,27 @@ export class CacheInvalidation {
 			}
 		}
 
-		// Step 3: Also clear layout cache to be thorough
+		// Step 3: Clear layout cache more aggressively
 		try {
 			revalidatePath("/", "layout");
-			console.log("✅ Layout cache cleared");
+			revalidatePath("/events", "layout");
+			revalidatePath("/admin", "layout");
+			console.log("✅ Layout cache cleared for multiple paths");
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : "Unknown error";
 			errors.push(`Layout cache: ${errorMsg}`);
 			console.error("❌ Failed to clear layout cache:", errorMsg);
+		}
+
+		// Step 4: Clear cache tags (if we implement them later)
+		try {
+			revalidateTag("events");
+			revalidateTag("events-data");
+			console.log("✅ Cache tags cleared");
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : "Unknown error";
+			errors.push(`Cache tags: ${errorMsg}`);
+			console.error("❌ Failed to clear cache tags:", errorMsg);
 		}
 
 		const success = errors.length === 0;
@@ -1306,58 +1319,61 @@ export class CacheInvalidation {
 			dataChanged = true;
 			console.log("📊 No cached data exists - invalidation needed");
 		} else {
+			// DEBUG: Log data details for investigation
+			console.log(`🔍 DEBUG: Comparing data...`);
+			console.log(`   Current cache: ${currentData.length} events`);
+			console.log(`   New data: ${newData.length} events`);
+			
+			// Sample first few events for debugging
+			if (currentData.length > 0 && newData.length > 0) {
+				console.log(`🔍 DEBUG: First event comparison:`);
+				const firstOld = currentData[0];
+				const firstNew = newData[0];
+				console.log(`   Old: id="${firstOld.id}", name="${firstOld.name}", location="${firstOld.location}"`);
+				console.log(`   New: id="${firstNew.id}", name="${firstNew.name}", location="${firstNew.location}"`);
+			}
+
 			// Perform detailed change detection
 			const changeResult = this.detectChanges(currentData, newData);
 			dataChanged = changeResult.hasChanges;
 			changeDetails = changeResult.changeDetails;
 
 			if (dataChanged) {
-				console.log("📊 Event data changes detected:");
-				if (changeDetails.countChanged) {
-					console.log(`   📈 Count: ${currentData.length} → ${newData.length}`);
-				}
-				if (changeDetails.addedEvents.length > 0) {
-					console.log(`   ➕ Added: ${changeDetails.addedEvents.join(", ")}`);
-				}
-				if (changeDetails.removedEvents.length > 0) {
-					console.log(`   ➖ Removed: ${changeDetails.removedEvents.join(", ")}`);
-				}
-				if (changeDetails.modifiedEvents.length > 0) {
-					console.log(`   🔄 Modified: ${changeDetails.modifiedEvents.join(", ")}`);
-				}
-				console.log("🧹 Cache invalidation needed");
-			} else {
-				console.log("📊 No data changes detected - skipping invalidation");
-			}
-		}
-
-		let invalidated = false;
-		if (dataChanged) {
-			const clearResult = await this.clearAllCaches(paths);
-			invalidated = clearResult.success;
-		}
-
-		// Create detailed message
-		let message = "No data changes detected, cache invalidation skipped";
-		if (dataChanged) {
-			if (invalidated) {
-				const changeSummary = [];
-				if (changeDetails?.addedEvents.length) changeSummary.push(`${changeDetails.addedEvents.length} added`);
-				if (changeDetails?.removedEvents.length) changeSummary.push(`${changeDetails.removedEvents.length} removed`);
-				if (changeDetails?.modifiedEvents.length) changeSummary.push(`${changeDetails.modifiedEvents.length} modified`);
+				console.log("📊 Data changes detected - performing cache invalidation");
+				const clearResult = await this.clearAllCaches(paths);
 				
-				message = `Data changed (${changeSummary.join(", ")}), cache invalidated successfully`;
+				return {
+					success: clearResult.success,
+					dataChanged: true,
+					invalidated: clearResult.success,
+					message: clearResult.success 
+						? `Cache invalidated due to data changes. Cleared paths: ${clearResult.clearedPaths.join(", ")}`
+						: `Cache invalidation failed: ${clearResult.errors.join("; ")}`,
+					changeDetails,
+				};
 			} else {
-				message = "Data changed, but cache invalidation had errors";
+				console.log("📊 No data changes detected - forcing cache clear anyway (ISR fix)");
+				
+				// FORCE cache clear even when no changes detected to fix ISR issues
+				const clearResult = await this.clearAllCaches(paths);
+				
+				return {
+					success: clearResult.success,
+					dataChanged: false,
+					invalidated: clearResult.success,
+					message: clearResult.success 
+						? `Forced cache invalidation completed (ISR refresh). Cleared paths: ${clearResult.clearedPaths.join(", ")}`
+						: `Forced cache invalidation failed: ${clearResult.errors.join("; ")}`,
+				};
 			}
 		}
 
+		// Fallback return (should never reach here)
 		return {
-			success: true,
-			dataChanged,
-			invalidated,
-			message,
-			changeDetails,
+			success: false,
+			dataChanged: false,
+			invalidated: false,
+			message: "Unexpected error in cache invalidation",
 		};
 	}
 }

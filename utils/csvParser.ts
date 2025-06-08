@@ -912,7 +912,7 @@ const parseFeaturedAt = (
 					`   Using UK format (DD/MM/YYYY) by default for European app. For clarity, please use:`,
 				);
 				console.warn(
-					`   ✅ ISO format: ${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}T${hour}:${minute}:${second_val}`,
+					`   ✅ ISO format: ${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second_val}`,
 				);
 				console.warn(
 					`   ✅ Or with month name: ${first}-${getMonthName(second)}-${year} ${hour}:${minute}${ampm ? ` ${ampm}` : ""}`,
@@ -1101,6 +1101,28 @@ function getMonthName(monthNum: string): string {
 }
 
 /**
+ * Generate a stable, content-based ID for an event
+ * This ensures that if event content changes, the change detection will catch it
+ */
+const generateEventId = (csvRow: CSVEventRow, index: number): string => {
+	// Create ID based on event content for better change detection
+	// Use name + date + location as the primary identifier
+	const name = (csvRow.name || `Event ${index + 1}`).toLowerCase().trim();
+	const date = csvRow.date || '';
+	const location = (csvRow.location || '').toLowerCase().trim();
+	
+	// Create a more stable identifier
+	const contentHash = `${name}-${date}-${location}`.replace(/[^a-z0-9\-]/g, '-');
+	
+	// Fallback to index-based ID if content is too generic
+	if (!csvRow.name || csvRow.name.trim() === '' || csvRow.name === `Event ${index + 1}`) {
+		return `csv-event-${index}`;
+	}
+	
+	return `csv-${contentHash}-${index}`;
+};
+
+/**
  * Convert CSVEventRow to Event
  */
 export const convertCSVRowToEvent = (
@@ -1149,7 +1171,7 @@ export const convertCSVRowToEvent = (
 	};
 	const links = processTicketLinks(csvRow.ticketLink, csvRow.name);
 	return {
-		id: `csv-event-${index}`,
+		id: generateEventId(csvRow, index),
 		name: csvRow.name || `Event ${index + 1}`,
 		day: convertToEventDay(csvRow.date),
 		date: convertToISODate(csvRow.date),
