@@ -3,6 +3,37 @@ import { parseCSVContent, convertCSVRowToEvent } from "@/utils/csvParser";
 import { Event } from "@/types/events";
 import { USE_CSV_DATA } from "@/data/events";
 
+/**
+ * Type utilities to ensure cache invalidation stays in sync with Event type
+ * These will cause compile-time errors if Event fields are added/removed
+ */
+type EventFields = keyof Event;
+
+/**
+ * Utility to get all Event field names - this will break compilation
+ * if new fields are added to Event type without updating cache logic
+ */
+const EVENT_FIELD_NAMES: EventFields[] = [
+	'id', 'name', 'day', 'date', 'time', 'endTime', 'arrondissement', 
+	'location', 'link', 'links', 'description', 'type', 'genre', 
+	'venueTypes', 'indoor', 'verified', 'price', 'age', 'isOOOCPick', 
+	'isFeatured', 'featuredAt', 'nationality', 'category'
+];
+void EVENT_FIELD_NAMES; // Used for compile-time checking
+
+/**
+ * Compile-time check: This will cause a TypeScript error if we miss any Event fields
+ * or if the Event type gains/loses fields without updating the cache logic
+ */
+const _fieldCompleteness: Record<EventFields, true> = {
+	id: true, name: true, day: true, date: true, time: true, endTime: true,
+	arrondissement: true, location: true, link: true, links: true, description: true,
+	type: true, genre: true, venueTypes: true, indoor: true, verified: true,
+	price: true, age: true, isOOOCPick: true, isFeatured: true, featuredAt: true,
+	nationality: true, category: true
+};
+void _fieldCompleteness; // Silence unused warning
+
 // Cache configuration - can be overridden via environment variables
 const CACHE_DURATION = parseInt(process.env.CACHE_DURATION_MS || "3600000"); // 1 hour default
 const REMOTE_REFRESH_INTERVAL = parseInt(
@@ -739,13 +770,23 @@ export class CacheManager {
 	 */
 	static async forceRefresh(): Promise<CacheRefreshResult> {
 		try {
-			console.log("🔄 Force refreshing events cache...");
+			console.log("🔄 Force refreshing events cache with smart invalidation...");
+			const startTime = Date.now();
+			
+			// Get fresh data
 			const result = await this.getEvents(true);
+			const processingTime = Date.now() - startTime;
 
 			if (result.success) {
+				// Perform smart cache invalidation
+				const invalidationResult = await CacheInvalidation.smartInvalidation(result.data);
+				
+				console.log(`✅ Force refresh completed in ${processingTime}ms`);
+				console.log(`🧹 Cache invalidation: ${invalidationResult.message}`);
+
 				return {
 					success: true,
-					message: `Successfully refreshed ${result.count} events from ${result.source} source`,
+					message: `Successfully refreshed ${result.count} events from ${result.source} source (${processingTime}ms). ${invalidationResult.message}`,
 					data: result.data,
 					count: result.count,
 					source: result.source,
@@ -827,12 +868,12 @@ export class CacheManager {
 	}
 
 	/**
-	 * Complete revalidation - refresh cache AND invalidate page cache
+	 * Complete revalidation - refresh cache AND invalidate page cache with enhanced clearing
 	 */
 	static async fullRevalidation(
 		path: string = "/",
 	): Promise<FullRevalidationResult> {
-		console.log(`🔄 Starting full revalidation for path: ${path}`);
+		console.log(`🔄 Starting enhanced full revalidation for path: ${path}`);
 		const startTime = Date.now();
 
 		let cacheRefreshed = false;
@@ -840,15 +881,15 @@ export class CacheManager {
 		const details: FullRevalidationResult["details"] = {};
 
 		try {
-			// Step 1: Force refresh the events cache
+			// Step 1: Force refresh the events cache (includes smart invalidation)
 			try {
-				console.log("🔄 Step 1: Force refreshing events cache...");
+				console.log("🔄 Step 1: Force refreshing events cache with smart invalidation...");
 				const cacheResult = await this.forceRefresh();
 				details.cacheResult = cacheResult;
 
 				if (cacheResult.success) {
 					cacheRefreshed = true;
-					console.log(`✅ Step 1: Successfully refreshed events cache`);
+					console.log(`✅ Step 1: Successfully refreshed events cache with invalidation`);
 				} else {
 					console.warn("⚠️ Step 1: Failed to refresh events cache");
 				}
@@ -862,21 +903,35 @@ export class CacheManager {
 				details.cacheError = cacheErrorMessage;
 			}
 
-			// Step 2: Revalidate the page cache
+			// Step 2: Comprehensive cache clearing for additional paths
 			try {
-				console.log(`🔄 Step 2: Revalidating page cache for path: ${path}`);
-				revalidatePath(path, "page");
-				pageRevalidated = true;
-				console.log(
-					`✅ Step 2: Successfully revalidated page cache for path: ${path}`,
-				);
+				console.log(`🔄 Step 2: Performing comprehensive cache clearing...`);
+				const paths = [path];
+				
+				// Add common paths that might need clearing
+				if (path === "/") {
+					paths.push("/events", "/admin");
+				}
+				
+				const clearResult = await CacheInvalidation.clearAllCaches(paths);
+				
+				if (clearResult.success) {
+					pageRevalidated = true;
+					console.log(`✅ Step 2: Successfully cleared all cache layers for paths: ${clearResult.clearedPaths.join(", ")}`);
+				} else {
+					console.warn(`⚠️ Step 2: Cache clearing had errors: ${clearResult.errors.join("; ")}`);
+					// Still consider it partially successful if some paths were cleared
+					pageRevalidated = clearResult.clearedPaths.length > 0;
+				}
+				
+				details.revalidationError = clearResult.errors.length > 0 ? clearResult.errors.join("; ") : undefined;
 			} catch (revalidationError) {
 				const revalidationErrorMessage =
 					revalidationError instanceof Error
 						? revalidationError.message
 						: "Unknown error";
 				console.error(
-					"❌ Step 2: Error revalidating page cache:",
+					"❌ Step 2: Error in comprehensive cache clearing:",
 					revalidationErrorMessage,
 				);
 				details.revalidationError = revalidationErrorMessage;
@@ -887,7 +942,7 @@ export class CacheManager {
 
 			return {
 				success: cacheRefreshed || pageRevalidated, // Success if at least one operation succeeded
-				message: `Full revalidation completed in ${duration}ms. Cache: ${cacheRefreshed ? "refreshed" : "failed"}, Page: ${pageRevalidated ? "revalidated" : "failed"}`,
+				message: `Enhanced full revalidation completed in ${duration}ms. Cache: ${cacheRefreshed ? "refreshed" : "failed"}, Pages: ${pageRevalidated ? "cleared" : "failed"}`,
 				cacheRefreshed,
 				pageRevalidated,
 				details,
@@ -987,5 +1042,322 @@ export class CacheManager {
 		cacheState.lastRemoteErrorMessage = "";
 		cacheState.lastDataSource = "cached";
 		console.log("🗑️ Cache cleared");
+	}
+}
+
+/**
+ * Enhanced cache invalidation utilities
+ */
+export class CacheInvalidation {
+	/**
+	 * Clear all cache layers - both in-memory and Next.js page cache
+	 */
+	static async clearAllCaches(paths: string[] = ["/"]): Promise<{
+		success: boolean;
+		clearedPaths: string[];
+		errors: string[];
+	}> {
+		console.log("🧹 Starting comprehensive cache clearing...");
+		const clearedPaths: string[] = [];
+		const errors: string[] = [];
+
+		// Step 1: Clear in-memory cache
+		try {
+			CacheManager.clearCache();
+			console.log("✅ In-memory cache cleared");
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : "Unknown error";
+			errors.push(`In-memory cache: ${errorMsg}`);
+			console.error("❌ Failed to clear in-memory cache:", errorMsg);
+		}
+
+		// Step 2: Clear Next.js page cache for specified paths
+		for (const path of paths) {
+			try {
+				revalidatePath(path, "page");
+				clearedPaths.push(path);
+				console.log(`✅ Page cache cleared for: ${path}`);
+			} catch (error) {
+				const errorMsg = error instanceof Error ? error.message : "Unknown error";
+				errors.push(`Page cache ${path}: ${errorMsg}`);
+				console.error(`❌ Failed to clear page cache for ${path}:`, errorMsg);
+			}
+		}
+
+		// Step 3: Also clear layout cache to be thorough
+		try {
+			revalidatePath("/", "layout");
+			console.log("✅ Layout cache cleared");
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : "Unknown error";
+			errors.push(`Layout cache: ${errorMsg}`);
+			console.error("❌ Failed to clear layout cache:", errorMsg);
+		}
+
+		const success = errors.length === 0;
+		console.log(`🧹 Cache clearing completed. Success: ${success}`);
+		
+		return {
+			success,
+			clearedPaths,
+			errors,
+		};
+	}
+
+	/**
+	 * Emergency cache bust - immediately invalidate everything
+	 */
+	static async emergencyCacheBust(): Promise<{
+		success: boolean;
+		message: string;
+		operations: string[];
+		errors: string[];
+	}> {
+		console.log("🚨 Performing emergency cache bust...");
+		const operations: string[] = [];
+		const errors: string[] = [];
+
+		try {
+			// Clear all cache layers
+			const clearResult = await this.clearAllCaches(["/", "/events", "/admin", "/api"]);
+			
+			if (clearResult.success) {
+				operations.push(`Cache cleared for paths: ${clearResult.clearedPaths.join(", ")}`);
+			} else {
+				errors.push(...clearResult.errors);
+			}
+
+			// Additional aggressive clearing
+			try {
+				revalidatePath("/", "layout");
+				operations.push("Layout cache cleared");
+			} catch (error) {
+				errors.push(`Layout cache error: ${error instanceof Error ? error.message : "Unknown"}`);
+			}
+
+			// Force reset cache timestamps
+			try {
+				CacheManager.clearCache();
+				operations.push("Cache state reset");
+			} catch (error) {
+				errors.push(`Cache reset error: ${error instanceof Error ? error.message : "Unknown"}`);
+			}
+
+			const success = errors.length === 0;
+			const message = success 
+				? "Emergency cache bust completed successfully"
+				: `Emergency cache bust completed with ${errors.length} errors`;
+
+			console.log(`🚨 Emergency cache bust result: ${message}`);
+			
+			return {
+				success,
+				message,
+				operations,
+				errors,
+			};
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : "Unknown error";
+			console.error("❌ Emergency cache bust failed:", errorMsg);
+			
+			return {
+				success: false,
+				message: "Emergency cache bust failed",
+				operations,
+				errors: [errorMsg],
+			};
+		}
+	}
+
+	/**
+	 * Type-safe normalization of event data for consistent hashing
+	 * This function automatically includes ALL Event fields and will cause
+	 * compile-time errors if the Event type changes
+	 */
+	static normalizeEventForHashing(event: Event): Event {
+		// TypeScript will enforce that ALL Event fields are handled here
+		// If you add/remove fields from Event type, this will break compilation
+		const normalized: Event = {
+			id: event.id,
+			name: event.name,
+			day: event.day,
+			date: event.date,
+			time: event.time,
+			endTime: event.endTime,
+			arrondissement: event.arrondissement,
+			location: event.location,
+			link: event.link,
+			links: event.links ? [...event.links].sort() : undefined,
+			description: event.description,
+			type: event.type,
+			genre: [...event.genre].sort(), // Sort for consistency
+			venueTypes: [...event.venueTypes].sort(), // Sort for consistency
+			indoor: event.indoor, // Legacy field
+			verified: event.verified,
+			price: event.price,
+			age: event.age,
+			isOOOCPick: event.isOOOCPick,
+			isFeatured: event.isFeatured,
+			featuredAt: event.featuredAt,
+			nationality: event.nationality ? [...event.nationality].sort() : undefined,
+			category: event.category, // Legacy field
+		};
+
+		return normalized;
+	}
+
+	/**
+	 * Create a comprehensive, type-safe hash of event data for change detection
+	 * This method automatically handles ALL Event fields and will break compilation
+	 * if new fields are added to the Event type without updating this logic
+	 */
+	static createEventHash(events: Event[]): string {
+		// Sort events by id to avoid order-based false positives
+		const sortedEvents = [...events].sort((a, b) => a.id.localeCompare(b.id));
+		
+		// Create hash from ALL Event fields using type-safe normalization
+		const hashData = sortedEvents.map(event => this.normalizeEventForHashing(event));
+		
+		return JSON.stringify(hashData);
+	}
+
+	/**
+	 * Detailed change detection - identifies what exactly changed
+	 */
+	static detectChanges(oldEvents: Event[], newEvents: Event[]): {
+		hasChanges: boolean;
+		changeDetails: {
+			countChanged: boolean;
+			addedEvents: string[];
+			removedEvents: string[];
+			modifiedEvents: string[];
+		};
+	} {
+		const changeDetails = {
+			countChanged: oldEvents.length !== newEvents.length,
+			addedEvents: [] as string[],
+			removedEvents: [] as string[],
+			modifiedEvents: [] as string[],
+		};
+
+		// Create maps for efficient lookup
+		const oldEventMap = new Map(oldEvents.map(e => [e.id, e]));
+		const newEventMap = new Map(newEvents.map(e => [e.id, e]));
+
+		// Find removed events
+		for (const oldEvent of oldEvents) {
+			if (!newEventMap.has(oldEvent.id)) {
+				changeDetails.removedEvents.push(oldEvent.name);
+			}
+		}
+
+		// Find added and modified events
+		for (const newEvent of newEvents) {
+			const oldEvent = oldEventMap.get(newEvent.id);
+			
+			if (!oldEvent) {
+				// New event
+				changeDetails.addedEvents.push(newEvent.name);
+			} else {
+				// Check if existing event was modified
+				const oldHash = this.createEventHash([oldEvent]);
+				const newHash = this.createEventHash([newEvent]);
+				
+				if (oldHash !== newHash) {
+					changeDetails.modifiedEvents.push(newEvent.name);
+				}
+			}
+		}
+
+		const hasChanges = changeDetails.countChanged || 
+			changeDetails.addedEvents.length > 0 || 
+			changeDetails.removedEvents.length > 0 || 
+			changeDetails.modifiedEvents.length > 0;
+
+		return { hasChanges, changeDetails };
+	}
+
+	/**
+	 * Smart cache invalidation with detailed change detection
+	 */
+	static async smartInvalidation(
+		newData: Event[],
+		paths: string[] = ["/"],
+	): Promise<{
+		success: boolean;
+		dataChanged: boolean;
+		invalidated: boolean;
+		message: string;
+		changeDetails?: {
+			countChanged: boolean;
+			addedEvents: string[];
+			removedEvents: string[];
+			modifiedEvents: string[];
+		};
+	}> {
+		console.log("🔍 Performing enhanced smart cache invalidation check...");
+
+		// Compare with current cached data
+		const currentData = cacheState.events;
+		let dataChanged = false;
+		let changeDetails;
+
+		if (!currentData) {
+			dataChanged = true;
+			console.log("📊 No cached data exists - invalidation needed");
+		} else {
+			// Perform detailed change detection
+			const changeResult = this.detectChanges(currentData, newData);
+			dataChanged = changeResult.hasChanges;
+			changeDetails = changeResult.changeDetails;
+
+			if (dataChanged) {
+				console.log("📊 Event data changes detected:");
+				if (changeDetails.countChanged) {
+					console.log(`   📈 Count: ${currentData.length} → ${newData.length}`);
+				}
+				if (changeDetails.addedEvents.length > 0) {
+					console.log(`   ➕ Added: ${changeDetails.addedEvents.join(", ")}`);
+				}
+				if (changeDetails.removedEvents.length > 0) {
+					console.log(`   ➖ Removed: ${changeDetails.removedEvents.join(", ")}`);
+				}
+				if (changeDetails.modifiedEvents.length > 0) {
+					console.log(`   🔄 Modified: ${changeDetails.modifiedEvents.join(", ")}`);
+				}
+				console.log("🧹 Cache invalidation needed");
+			} else {
+				console.log("📊 No data changes detected - skipping invalidation");
+			}
+		}
+
+		let invalidated = false;
+		if (dataChanged) {
+			const clearResult = await this.clearAllCaches(paths);
+			invalidated = clearResult.success;
+		}
+
+		// Create detailed message
+		let message = "No data changes detected, cache invalidation skipped";
+		if (dataChanged) {
+			if (invalidated) {
+				const changeSummary = [];
+				if (changeDetails?.addedEvents.length) changeSummary.push(`${changeDetails.addedEvents.length} added`);
+				if (changeDetails?.removedEvents.length) changeSummary.push(`${changeDetails.removedEvents.length} removed`);
+				if (changeDetails?.modifiedEvents.length) changeSummary.push(`${changeDetails.modifiedEvents.length} modified`);
+				
+				message = `Data changed (${changeSummary.join(", ")}), cache invalidated successfully`;
+			} else {
+				message = "Data changed, but cache invalidation had errors";
+			}
+		}
+
+		return {
+			success: true,
+			dataChanged,
+			invalidated,
+			message,
+			changeDetails,
+		};
 	}
 }

@@ -25,7 +25,7 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
 	hasActiveFilters,
 	activeFiltersCount,
 	className = "",
-	size = "sm",
+	size = "default",
 	variant = "outline",
 }) => {
 	return (
@@ -33,7 +33,7 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
 			variant={variant}
 			size={size}
 			onClick={onClickAction}
-			className={className}
+			className={`min-h-[44px] ${className}`}
 		>
 			<Filter className="h-4 w-4 mr-2" />
 			Filters

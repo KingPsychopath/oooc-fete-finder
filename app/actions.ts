@@ -4,7 +4,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import Papa from "papaparse";
 import jwt from "jsonwebtoken";
-import { CacheManager } from "@/lib/cache-manager";
+import { CacheManager, CacheInvalidation } from "@/lib/cache-manager";
 import type { CacheStatus, EventsResult } from "@/lib/cache-manager";
 import {
 	getDateFormatWarnings,
@@ -36,7 +36,7 @@ export async function getEvents(
 }
 
 /**
- * Force refresh the events cache using the centralized cache manager
+ * Force refresh the events cache using the centralized cache manager with smart invalidation
  */
 export async function forceRefreshEvents(): Promise<{
 	success: boolean;
@@ -47,6 +47,29 @@ export async function forceRefreshEvents(): Promise<{
 	error?: string;
 }> {
 	return CacheManager.forceRefresh();
+}
+
+/**
+ * Emergency cache bust - clear all cache layers immediately
+ */
+export async function emergencyCacheBust(): Promise<{
+	success: boolean;
+	message: string;
+	operations: string[];
+	errors: string[];
+}> {
+	return CacheInvalidation.emergencyCacheBust();
+}
+
+/**
+ * Smart cache invalidation - only invalidate if data changed
+ */
+export async function smartCacheInvalidation(paths: string[] = ["/"]): Promise<{
+	success: boolean;
+	clearedPaths: string[];
+	errors: string[];
+}> {
+	return CacheInvalidation.clearAllCaches(paths);
 }
 
 /**
