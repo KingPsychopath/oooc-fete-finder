@@ -160,6 +160,7 @@ export default function RootLayout({
 							whatsappUrl={VIGNETTE_AD_CONFIG.WHATSAPP_URL}
 							delayAfterChatClick={VIGNETTE_AD_CONFIG.DELAYS.AFTER_CHAT_CLICK}
 							delayAfterDismiss={VIGNETTE_AD_CONFIG.DELAYS.AFTER_DISMISS}
+							scrollHideThreshold={VIGNETTE_AD_CONFIG.SCROLL.HIDE_THRESHOLD_PERCENTAGE}
 						/>
 					</AuthProvider>
 				</ThemeProvider>

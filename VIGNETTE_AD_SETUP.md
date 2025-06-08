@@ -9,13 +9,16 @@ The vignette ad feature is organized in `features/vignette-ad/` with clean folde
 ```
 features/vignette-ad/
 ├── components/
-│   └── vignette-ad.tsx      # Main component
+│   └── vignette-ad.tsx            # Main component
 ├── hooks/
 │   └── use-vignette-ad-storage.ts # Storage hook
-├── config.ts                # Configuration
-├── constants.ts             # Storage keys and delays
-├── utils.ts                 # Time conversion utilities
-└── types.ts                 # TypeScript types
+├── config.ts                      # Configuration
+├── constants.ts                   # Storage keys and delays
+├── utils.ts                       # Time conversion utilities
+└── types.ts                       # TypeScript types
+
+hooks/                             # Shared hooks directory
+└── use-scroll-visibility.ts       # Scroll detection hook (shared)
 ```
 
 ### Architecture Benefits
@@ -43,15 +46,18 @@ features/vignette-ad/
 - **Professional design** - Optimal spacing, typography, and visual hierarchy
 - **Theme-aware** - Integrates seamlessly with light/dark theme system
 - **Performance optimized** - Enhanced shadows, smooth animations, minimal re-renders
+- **Scroll-aware** - Automatically hides when scrolling past configurable threshold
 
 ## How it Works
 
-The vignette ad appears in the bottom-right corner of the screen with smart behavior:
+The vignette ad appears in the bottom-right corner of the screen with intelligent behavior:
 
 1. **Initial Display**: Shows after 1 second of page load (configurable)
-2. **User Clicks Chat Link**: Ad won't appear again for 4 days (configurable)
-3. **User Dismisses Ad**: Ad will reappear after 2 days or next visit (configurable)
-4. **Graceful Degradation**: Works even if localStorage is unavailable
+2. **Scroll Behavior**: Automatically hides when scrolling past 20% of page (configurable)
+3. **Scroll Return**: Reappears when scrolling back within threshold range
+4. **User Clicks Chat Link**: Ad won't appear again for 4 days (configurable)
+5. **User Dismisses Ad**: Ad will reappear after 2 days or next visit (configurable)
+6. **Graceful Degradation**: Works even if localStorage is unavailable
 
 ## Configuration
 
@@ -67,6 +73,11 @@ export const VIGNETTE_AD_CONFIG = {
     AFTER_CHAT_CLICK: 4 * 24 * 60 * 60 * 1000, // 4 days
     AFTER_DISMISS: 2 * 24 * 60 * 60 * 1000,    // 2 days
     INITIAL_DELAY: 1000,                        // 1 second
+  },
+  
+  // Scroll behavior configuration
+  SCROLL: {
+    HIDE_THRESHOLD_PERCENTAGE: 20, // Hide after scrolling 20% down
   },
   
   // UI Configuration
@@ -111,6 +122,7 @@ import { VIGNETTE_AD_CONFIG } from "@/features/vignette-ad/config";
   whatsappUrl={VIGNETTE_AD_CONFIG.WHATSAPP_URL}
   delayAfterChatClick={VIGNETTE_AD_CONFIG.DELAYS.AFTER_CHAT_CLICK}
   delayAfterDismiss={VIGNETTE_AD_CONFIG.DELAYS.AFTER_DISMISS}
+  scrollHideThreshold={VIGNETTE_AD_CONFIG.SCROLL.HIDE_THRESHOLD_PERCENTAGE}
 />
 ```
 
@@ -125,6 +137,23 @@ You can override the default delays:
   whatsappUrl="your-whatsapp-url"
   delayAfterChatClick={daysToMs(7)}  // 7 days instead of 4
   delayAfterDismiss={hoursToMs(12)}  // 12 hours instead of 2 days
+/>
+```
+
+### Custom Scroll Behavior
+
+Configure when the ad hides based on scroll position:
+
+```tsx
+<VignetteAd 
+  whatsappUrl="your-whatsapp-url"
+  scrollHideThreshold={30}  // Hide after scrolling 30% instead of 20%
+/>
+
+// Or disable scroll behavior entirely
+<VignetteAd 
+  whatsappUrl="your-whatsapp-url"
+  scrollHideThreshold={100}  // Never hide based on scroll (always visible)
 />
 ```
 
@@ -166,6 +195,31 @@ const { clearStorage } = useVignetteAdStorage();
 clearStorage(); // Clears all vignette ad related storage
 ```
 
+### Debugging
+
+If the ad is not behaving as expected, you can debug the current state:
+
+```javascript
+// Check current storage values in browser console:
+console.log('Chat clicked:', localStorage.getItem('whatsapp_chat_clicked'));
+console.log('Ad dismissed:', localStorage.getItem('whatsapp_ad_dismissed'));
+
+// Check timestamps
+const now = Date.now();
+const chatClicked = localStorage.getItem('whatsapp_chat_clicked');
+const dismissed = localStorage.getItem('whatsapp_ad_dismissed');
+
+if (chatClicked) {
+  const hoursSinceClick = (now - parseInt(chatClicked)) / (1000 * 60 * 60);
+  console.log(`Hours since chat click: ${hoursSinceClick}`);
+}
+
+if (dismissed) {
+  const hoursSinceDismiss = (now - parseInt(dismissed)) / (1000 * 60 * 60);
+  console.log(`Hours since dismiss: ${hoursSinceDismiss}`);
+}
+```
+
 ## Design & UX
 
 ### Professional Appearance
@@ -186,6 +240,12 @@ clearStorage(); // Clears all vignette ad related storage
 - **Icon Treatment**: Icons placed in subtle background containers for better visual grouping
 - **Button States**: Comprehensive hover, active, and focus states
 - **Animation**: Subtle spring-like animation with optimal timing curves
+
+### Scroll Performance
+- **Throttled Scroll Detection**: Uses `requestAnimationFrame` for smooth performance
+- **Passive Event Listeners**: Non-blocking scroll event handling
+- **Smart Calculations**: Efficient percentage calculations with edge case handling
+- **Smooth Transitions**: 500ms duration with custom easing curves
 
 ## Browser Support
 

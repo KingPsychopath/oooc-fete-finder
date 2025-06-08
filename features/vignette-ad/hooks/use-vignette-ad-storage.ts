@@ -10,6 +10,7 @@ export function useVignetteAdStorage({
   initialDelay = 1000,
 }: UseVignetteAdStorageOptions = {}): VignetteAdStorageReturn {
   const [shouldShow, setShouldShow] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0);
 
   // Check if localStorage is available
   const isLocalStorageAvailable = (): boolean => {
@@ -83,23 +84,30 @@ export function useVignetteAdStorage({
   }, [delayAfterChatClick, delayAfterDismiss]);
 
   // Mark that user clicked the chat link
-  const markChatClicked = (): void => {
+  const markChatClicked = useCallback((): void => {
     setTimestamp(STORAGE_KEYS.CLICKED_CHAT);
     // Clear dismissed timestamp since user engaged
     removeItem(STORAGE_KEYS.DISMISSED);
-  };
+    // Force immediate update
+    setForceUpdate(prev => prev + 1);
+  }, []);
 
   // Mark that user dismissed the ad
-  const markDismissed = (): void => {
+  const markDismissed = useCallback((): void => {
     setTimestamp(STORAGE_KEYS.DISMISSED);
-  };
+    // Force immediate update
+    setForceUpdate(prev => prev + 1);
+  }, []);
 
   // Clear all storage (useful for testing)
-  const clearStorage = (): void => {
+  const clearStorage = useCallback((): void => {
     removeItem(STORAGE_KEYS.CLICKED_CHAT);
     removeItem(STORAGE_KEYS.DISMISSED);
-  };
+    // Force immediate update
+    setForceUpdate(prev => prev + 1);
+  }, []);
 
+  // Update shouldShow whenever dependencies change
   useEffect(() => {
     const timer = setTimeout(() => {
       setShouldShow(checkShouldShow());
@@ -107,6 +115,13 @@ export function useVignetteAdStorage({
 
     return () => clearTimeout(timer);
   }, [delayAfterChatClick, delayAfterDismiss, initialDelay, checkShouldShow]);
+
+  // Update shouldShow immediately when storage changes
+  useEffect(() => {
+    if (forceUpdate > 0) {
+      setShouldShow(checkShouldShow());
+    }
+  }, [forceUpdate, checkShouldShow]);
 
   return {
     shouldShow,

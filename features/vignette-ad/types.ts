@@ -2,6 +2,7 @@ export type VignetteAdProps = {
   whatsappUrl: string;
   delayAfterChatClick?: number;
   delayAfterDismiss?: number;
+  scrollHideThreshold?: number;
   className?: string;
 };
 
@@ -35,6 +36,9 @@ export type VignetteAdConfig = {
     readonly AFTER_CHAT_CLICK: number;
     readonly AFTER_DISMISS: number;
     readonly INITIAL_DELAY: number;
+  };
+  readonly SCROLL: {
+    readonly HIDE_THRESHOLD_PERCENTAGE: number;
   };
   readonly UI: {
     readonly ANIMATION_DURATION: number;

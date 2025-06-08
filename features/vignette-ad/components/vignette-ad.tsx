@@ -6,15 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { VignetteAdProps } from "../types";
 import { useVignetteAdStorage } from "../hooks/use-vignette-ad-storage";
+import { useScrollVisibility } from "@/hooks/use-scroll-visibility";
 import { VIGNETTE_AD_CONFIG } from "../config";
 
 export function VignetteAd({
   whatsappUrl,
   delayAfterChatClick,
   delayAfterDismiss,
+  scrollHideThreshold = VIGNETTE_AD_CONFIG.SCROLL.HIDE_THRESHOLD_PERCENTAGE,
   className = "",
 }: VignetteAdProps) {
-  const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -23,13 +24,25 @@ export function VignetteAd({
     delayAfterDismiss,
   });
 
+  const { isVisible: isScrollVisible } = useScrollVisibility({
+    threshold: scrollHideThreshold,
+    mode: "hide-after",
+    initiallyVisible: true,
+  });
+
+  // Combined visibility: must pass both storage and scroll checks
+  const shouldBeVisible = shouldShow && isScrollVisible;
+
   useEffect(() => {
-    if (shouldShow) {
-      setIsVisible(true);
+    if (shouldBeVisible) {
+      // Show with animation
       const animationTimer = setTimeout(() => setIsAnimating(true), 100);
       return () => clearTimeout(animationTimer);
+    } else {
+      // Hide with animation
+      setIsAnimating(false);
     }
-  }, [shouldShow]);
+  }, [shouldBeVisible]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -40,31 +53,15 @@ export function VignetteAd({
     };
   }, []);
 
-  const handleClose = useCallback((): void => {
-    setIsAnimating(false);
-    
-    // Clear any existing timeout
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-    }
-    
-    closeTimeoutRef.current = setTimeout(() => {
-      setIsVisible(false);
-      closeTimeoutRef.current = null;
-    }, VIGNETTE_AD_CONFIG.UI.ANIMATION_DURATION);
-  }, []);
-
   const handleChatClick = useCallback((): void => {
     markChatClicked();
     // Open WhatsApp in new tab
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-    handleClose();
-  }, [markChatClicked, whatsappUrl, handleClose]);
+  }, [markChatClicked, whatsappUrl]);
 
   const handleDismiss = useCallback((): void => {
     markDismissed();
-    handleClose();
-  }, [markDismissed, handleClose]);
+  }, [markDismissed]);
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent): void => {
@@ -74,7 +71,8 @@ export function VignetteAd({
     }
   }, [handleDismiss]);
 
-  if (!isVisible) return null;
+  // Don't render if storage logic says don't show
+  if (!shouldShow) return null;
 
   return (
     <div 
@@ -93,25 +91,27 @@ export function VignetteAd({
       <div className="flex justify-end">
         <Card
           className={`
-            pointer-events-auto
             w-[320px] max-w-[calc(100vw-2.5rem)]
             sm:w-[300px]
             bg-card/98 backdrop-blur-md
             border border-border/60
             shadow-xl shadow-black/5
             ring-1 ring-black/5
-            transition-all duration-300 ease-out
+            transition-all duration-500 ease-out
             touch-manipulation
-            ${isAnimating 
-              ? "translate-y-0 opacity-100 scale-100" 
-              : "translate-y-3 opacity-0 scale-98"
+            ${shouldBeVisible && isAnimating
+              ? "translate-y-0 opacity-100 scale-100 pointer-events-auto" 
+              : "translate-y-4 opacity-0 scale-95 pointer-events-none"
             }
           `}
           style={{
-            // Enhanced shadow for depth
-            boxShadow: isAnimating 
+            // Enhanced shadow for depth with smooth transition
+            boxShadow: (shouldBeVisible && isAnimating)
               ? '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' 
-              : '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+              : '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            transitionTimingFunction: (shouldBeVisible && isAnimating)
+              ? "cubic-bezier(0.16, 1, 0.3, 1)" // Smooth ease-out for entry
+              : "cubic-bezier(0.7, 0, 0.84, 0)", // Smooth ease-in for exit
           }}
         >
           <div className="p-5 space-y-4">

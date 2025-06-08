@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useScrollVisibility } from "@/hooks/use-scroll-visibility";
 
 // Configurable appearance threshold (percentage of page scrolled)
-const SCROLL_APPEARANCE_THRESHOLD = 20; // Show button after scrolling 1/3 of the page
+const SCROLL_APPEARANCE_THRESHOLD = 20; // Show button after scrolling 20% of the page
 
 type ScrollToTopButtonProps = {
 	className?: string;
@@ -14,28 +14,11 @@ type ScrollToTopButtonProps = {
 export const ScrollToTopButton = ({
 	className = "",
 }: ScrollToTopButtonProps) => {
-	const [isVisible, setIsVisible] = useState(false);
-
-	useEffect(() => {
-		const toggleVisibility = () => {
-			// Show button when user has scrolled down at least the configured threshold
-			const scrolled = document.documentElement.scrollTop;
-			const maxHeight =
-				document.documentElement.scrollHeight -
-				document.documentElement.clientHeight;
-			const scrollPercentage = (scrolled / maxHeight) * 100;
-
-			if (scrollPercentage > SCROLL_APPEARANCE_THRESHOLD) {
-				setIsVisible(true);
-			} else {
-				setIsVisible(false);
-			}
-		};
-
-		window.addEventListener("scroll", toggleVisibility);
-
-		return () => window.removeEventListener("scroll", toggleVisibility);
-	}, []);
+	const { isVisible } = useScrollVisibility({
+		threshold: SCROLL_APPEARANCE_THRESHOLD,
+		mode: "show-after",
+		initiallyVisible: false,
+	});
 
 	const scrollToTop = () => {
 		window.scrollTo({

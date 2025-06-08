@@ -17,6 +17,12 @@ export const VIGNETTE_AD_CONFIG: VignetteAdConfig = {
     INITIAL_DELAY: 1000, // 1 second
   },
   
+  // Scroll behavior configuration
+  SCROLL: {
+    // Hide the ad after scrolling past this percentage of the page
+    HIDE_THRESHOLD_PERCENTAGE: 20, // Hide after scrolling 20% down
+  },
+  
   // UI Configuration
   UI: {
     // Animation duration
