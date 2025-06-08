@@ -145,15 +145,20 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 				if (!hasMatchingGenre) return false;
 			}
 
-			// Filter by selected nationalities
-			if (
-				selectedNationalities.length > 0 &&
-				(!event.nationality ||
-					!selectedNationalities.some((nationality) =>
-						event.nationality?.includes(nationality),
-					))
-			) {
-				return false;
+			// Filter by selected nationalities (AND logic - event must have ALL selected nationalities)
+			if (selectedNationalities.length > 0) {
+				if (!event.nationality || event.nationality.length === 0) {
+					return false; // Event has no nationality info
+				}
+				
+				// Check if event has ALL selected nationalities
+				const hasAllSelectedNationalities = selectedNationalities.every((nationality) =>
+					event.nationality?.includes(nationality)
+				);
+				
+				if (!hasAllSelectedNationalities) {
+					return false;
+				}
 			}
 
 			// Filter by venue types

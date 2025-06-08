@@ -14,7 +14,7 @@ export type DayNightPeriod = "day" | "night";
 export type EventType = "After Party" | "Day Party";
 
 // Host country type for GB/FR column
-export type Nationality = "UK" | "FR";
+export type Nationality = "UK" | "FR" | "CA";
 
 // Venue type for Indoor/Outdoor column
 export type VenueType = "indoor" | "outdoor";
@@ -221,8 +221,9 @@ export const EVENT_TYPES = [
 ] as const;
 
 export const NATIONALITIES = [
-	{ key: "UK" as const, label: "United Kingdom", flag: "🇬🇧", shortCode: "GB" },
+	{ key: "CA" as const, label: "Canada", flag: "🇨🇦", shortCode: "CA" },
 	{ key: "FR" as const, label: "France", flag: "🇫🇷", shortCode: "FR" },
+	{ key: "UK" as const, label: "United Kingdom", flag: "🇬🇧", shortCode: "GB" },
 ] as const;
 
 export const PARIS_ARRONDISSEMENTS = [

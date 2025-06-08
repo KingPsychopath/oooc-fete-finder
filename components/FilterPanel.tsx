@@ -598,16 +598,16 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Nationality */}
 												<div>
-													<h3 className="font-medium text-sm mb-2">
-														Nationality
+													<h3 className="font-semibold mb-3">
+														Nationality {selectedNationalities.length > 1 && <span className="text-sm text-muted-foreground font-normal">(must INCLUDE)</span>}
 													</h3>
-													<div className="grid grid-cols-2 gap-1">
+													<div className="grid grid-cols-3 gap-1">
 														{NATIONALITIES.map(({ key, flag, shortCode }) => (
 															<Toggle
 																key={key}
 																pressed={selectedNationalities.includes(key)}
 																onPressedChange={() => onNationalityToggle(key)}
-																className="justify-start w-full h-7"
+																className="justify-start w-full h-8"
 																size="sm"
 															>
 																<span className="mr-1.5 text-sm">{flag}</span>
@@ -682,25 +682,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																<span className="text-xs">
 																	{icon} {label}
 																</span>
-															</Toggle>
-														))}
-													</div>
-												</div>
-
-												{/* Nationality */}
-												<div>
-													<h3 className="font-semibold mb-3">Nationality</h3>
-													<div className="grid grid-cols-2 gap-1">
-														{NATIONALITIES.map(({ key, flag, shortCode }) => (
-															<Toggle
-																key={key}
-																pressed={selectedNationalities.includes(key)}
-																onPressedChange={() => onNationalityToggle(key)}
-																className="justify-start w-full h-8"
-																size="sm"
-															>
-																<span className="mr-1.5 text-sm">{flag}</span>
-																<span className="text-xs">{shortCode}</span>
 															</Toggle>
 														))}
 													</div>
@@ -1051,8 +1032,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 								{/* Nationality */}
 								<div>
-									<h3 className="font-semibold mb-3">Nationality</h3>
-									<div className="grid grid-cols-2 gap-1">
+									<h3 className="font-semibold mb-3">
+										Nationality {selectedNationalities.length > 1 && <span className="text-sm text-muted-foreground font-normal">(must INCLUDE)</span>}
+									</h3>
+									<div className="grid grid-cols-3 gap-1">
 										{NATIONALITIES.map(({ key, flag, shortCode }) => (
 											<Toggle
 												key={key}
