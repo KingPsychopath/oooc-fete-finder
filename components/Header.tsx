@@ -10,6 +10,7 @@ import SlidingBanner from "@/components/SlidingBanner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Get base path from environment variable
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -90,24 +91,33 @@ const Header = () => {
 							{/* Top Row - Main Controls */}
 							<div className="flex items-center justify-end space-x-2 sm:space-x-3 w-full">
 								{/* Paris Food List Link */}
-								<Link
-									href="https://maps.app.goo.gl/YZdYYpsh2ViR2tQi8?g_st=i"
-									target="_blank"
-									rel="noopener noreferrer"
-									className="group flex-shrink-0"
-									aria-label="View Paris Food Guide by Mel on Google Maps"
-								>
-									<Button
-										variant="outline"
-										size="sm"
-										className="gap-1 text-xs sm:text-sm hover:bg-primary hover:text-primary-foreground transition-colors p-1.5 sm:p-2 h-8 sm:h-9"
-									>
-										<div className="flex items-center gap-1">
-											<Utensils className="h-3 w-3 sm:h-4 sm:w-4" />
-											<MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
-										</div>
-									</Button>
-								</Link>
+								<TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Link
+												href="https://maps.app.goo.gl/YZdYYpsh2ViR2tQi8?g_st=i"
+												target="_blank"
+												rel="noopener noreferrer"
+												className="group flex-shrink-0"
+												aria-label="View Paris Food Guide by Mel on Google Maps"
+											>
+												<Button
+													variant="outline"
+													size="sm"
+													className="gap-1 text-xs sm:text-sm hover:bg-accent hover:text-accent-foreground transition-colors p-1.5 sm:p-2 h-8 sm:h-9"
+												>
+													<div className="flex items-center gap-1">
+														<Utensils className="h-3 w-3 sm:h-4 sm:w-4" />
+														<MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
+													</div>
+												</Button>
+											</Link>
+										</TooltipTrigger>
+										<TooltipContent>
+											<p>View Paris Food Guide by Mel on Google Maps</p>
+										</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
 
 								<div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
 									<Clock />
