@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { CacheManager } from "@/lib/cache-manager";
+import { CacheManager } from "@/lib/cache-management/cache-management";
 
 // Admin key validation function for consistency
 const validateAdminKey = (providedKey: string | null): boolean => {

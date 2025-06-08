@@ -1,7 +1,7 @@
 import React from "react";
 import Header from "@/components/Header";
 import { EventsClient } from "@/app/events-client";
-import { CacheManager } from "@/lib/cache-manager";
+import { CacheManager } from "@/lib/cache-management/cache-management";
 
 // Use ISR with a reasonable revalidation time (e.g., 1 hour)
 // This can be overridden with on-demand revalidation

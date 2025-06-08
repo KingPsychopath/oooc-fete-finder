@@ -109,7 +109,7 @@ export const CacheManagementCard = ({
 							<div className="text-sm">
 								{cacheStatus.cacheAge > 0
 									? formatDuration(cacheStatus.cacheAge)
-									: "Just refreshed"}
+									: <span className="text-green-600 font-medium">✨ Just refreshed</span>}
 							</div>
 						</div>
 					</div>
@@ -194,6 +194,8 @@ export const CacheManagementCard = ({
 					<Button onClick={onRefresh} disabled={refreshing} className="flex-1">
 						{refreshing ? "🔄 Refreshing..." : "🔄 Force Refresh Events"}
 					</Button>
+
+
 
 					{cacheStatus?.lastFetchTime && (
 						<div className="text-sm text-gray-500 flex items-center">

@@ -4,8 +4,8 @@ import { promises as fs } from "fs";
 import path from "path";
 import Papa from "papaparse";
 import jwt from "jsonwebtoken";
-import { CacheManager, CacheInvalidation } from "@/lib/cache-manager";
-import type { CacheStatus, EventsResult } from "@/lib/cache-manager";
+import { CacheManager, CacheInvalidationManager } from "@/lib/cache-management/cache-management";
+import type { CacheStatus, EventsResult } from "@/lib/cache-management/cache-management";
 import {
 	getDateFormatWarnings,
 	type DateFormatWarning,
@@ -58,7 +58,7 @@ export async function emergencyCacheBust(): Promise<{
 	operations: string[];
 	errors: string[];
 }> {
-	return CacheInvalidation.emergencyCacheBust();
+	return CacheInvalidationManager.emergencyCacheBust();
 }
 
 /**
@@ -69,7 +69,7 @@ export async function smartCacheInvalidation(paths: string[] = ["/"]): Promise<{
 	clearedPaths: string[];
 	errors: string[];
 }> {
-	return CacheInvalidation.clearAllCaches(paths);
+	return CacheInvalidationManager.clearAllCaches(paths);
 }
 
 /**

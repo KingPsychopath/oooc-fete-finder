@@ -1,5 +1,5 @@
 import type { Event, MusicGenre, ParisArrondissement } from "@/types/events";
-import { CacheManager } from "@/lib/cache-manager";
+import { CacheManager } from "@/lib/cache-management/cache-management";
 
 // Toggle flag to switch between test data and CSV data
 // Set this to true to use CSV data, false to use test data
