@@ -1,15 +1,16 @@
 /**
- * FeatureCountdown Component - Simplified Version
+ * FeatureCountdown Component - Live Updates Version
  *
- * Shows status for all featured events without live updates for better performance.
- * Updates on page load/refresh only, which is sufficient for hourly precision.
+ * Shows real-time status for all featured events with live countdown updates.
+ * Updates every minute for accurate progress tracking and time remaining.
  *
- * Benefits:
- * - No timers or intervals (better performance, battery life)
- * - Simple hourly precision (good enough for event management)
- * - Clean, maintainable code
- * - Still uses centralized timestamp utilities (DRY)
- * - Updates with SSR and client renders (NOT static at build time)
+ * Features:
+ * - Live timers with 60-second intervals for real-time updates
+ * - Dynamic progress bars showing actual elapsed time
+ * - Automatic status transitions (active → expires-soon → expired)
+ * - Hydration-safe rendering with suppressHydrationWarning
+ * - Future date detection and user warnings
+ * - Uses centralized timestamp utilities (DRY)
  */
 
 "use client";
@@ -281,12 +282,45 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 				</div>
 			</div>
 
+			{/* Show future date correction warning */}
+			{(() => {
+				// Check if the featuredAt timestamp was originally a future date
+				// by comparing if the featuredAt is very close to currentTime (indicating auto-correction)
+				if (!event.featuredAt || !isValidTimestamp(event.featuredAt)) return null;
+				
+				const featuredAtTime = new Date(event.featuredAt);
+				const timeDiff = Math.abs(currentTime.getTime() - featuredAtTime.getTime());
+				
+				// If the featuredAt time is within 5 minutes of current time, it might be auto-corrected
+				// This is a heuristic - if featuring started very recently, it might have been a future date
+				const isLikelyAutoCorrected = timeDiff < 5 * 60 * 1000; // 5 minutes in milliseconds
+				
+				return isLikelyAutoCorrected && (
+					<div className="text-xs bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 mt-2 p-2 rounded border border-amber-200 dark:border-amber-800">
+						<div className="flex items-start gap-1">
+							<span className="text-amber-600 dark:text-amber-400 flex-shrink-0">⚠️</span>
+							<div>
+								<div className="font-medium">Recent feature start detected</div>
+								<div className="text-xs mt-0.5">
+									This event started featuring very recently. If you used a future date in your spreadsheet, 
+									it was automatically corrected to start immediately. Please verify your "Featured" column timestamp.
+								</div>
+							</div>
+						</div>
+					</div>
+				);
+			})()}
+
 			{/* Show end time for expired events */}
 			{liveStatus === "expired" && endTime && (
 				<div className="text-xs text-muted-foreground mt-2 pt-2 border-t break-words">
-					📅 Ended: <span className="whitespace-nowrap">{endTime.toLocaleDateString()}</span> at{" "}
+					📅 Ended: <span className="whitespace-nowrap">{endTime.toLocaleDateString("en-GB", { 
+						year: "numeric", 
+						month: "2-digit", 
+						day: "2-digit" 
+					})}</span> at{" "}
 					<span className="whitespace-nowrap">
-						{endTime.toLocaleTimeString([], {
+						{endTime.toLocaleTimeString("en-GB", {
 							hour: "2-digit",
 							minute: "2-digit",
 						})}

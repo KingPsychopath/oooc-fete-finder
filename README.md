@@ -20,77 +20,151 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Real-time CSV Updates
+## 🏗️ System Architecture & Data Flow
 
-This application supports real-time updates from Google Sheets CSV data. The system automatically fetches updated event data from a Google Sheets document.
+This application uses a sophisticated caching system to provide fresh event data from Google Sheets while maintaining excellent performance.
 
-### Configuration
+### 📊 Complete Data Flow
 
-Create a `.env.local` file in your project root with the following environment variables:
-
-```bash
-# Google Sheets CSV URL for real-time data updates (for public sheets)
-# Example: https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv
-REMOTE_CSV_URL=
-
-# Alternative: Google Sheets API (for private sheets)
-# Get API key from Google Cloud Console: https://console.cloud.google.com/
-GOOGLE_SHEETS_API_KEY=
-GOOGLE_SHEET_ID=
-GOOGLE_SHEET_RANGE=A:Z
-
-# Cache duration in milliseconds (default: 3600000 = 1 hour)
-CACHE_DURATION_MS=3600000
-
-# Remote refresh check interval in milliseconds (default: 300000 = 5 minutes)
-REMOTE_REFRESH_INTERVAL_MS=300000
-
-# Date when local CSV was last updated (for fallback messaging)
-# Format: YYYY-MM-DD
-LOCAL_CSV_LAST_UPDATED=2025-01-18
-
-# Admin panel access key (default: your-secret-key-123)
-ADMIN_KEY=your-secret-key-123
-
-# Optional: Google Sheets integration for email collection
-GOOGLE_SHEETS_URL=
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│  Google Sheets  │───▶│  Cache Manager   │───▶│   User Visits   │
+│   (Data Source) │    │ (Smart Caching)  │    │   Website       │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                       │
+         │ Every 5-30min         │ Cache Duration        │ Live Updates
+         │ (configurable)        │ 30min - 2hrs          │ Every 60sec
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   API Calls     │    │   Memory Cache   │    │  Progress Bars  │
+│   Rate Limited  │    │   + Fallbacks    │    │  & Countdowns   │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-**.env.example file contents:**
+### ⚙️ Smart Cache Strategy
+
+**Two-Layer System:**
+1. **Remote Check Interval** (5-30 min): How often to check if refresh is needed
+2. **Cache Duration** (30min-2hrs): How long to serve cached data before forcing refresh
+
+**Why This Works:**
+- Frequent monitoring without excessive API calls
+- Fresh data when needed, cached performance when possible
+- Admin override for immediate updates
+
+### 🎯 Recommended Settings by Traffic
+
+| Traffic Level | Visitors/Day | Cache Duration | Check Interval | API Calls/Day |
+|---------------|--------------|----------------|----------------|---------------|
+| **Low**       | < 1,000      | 30 minutes     | 5 minutes      | ~288          |
+| **Medium**    | 1K - 10K     | 1 hour         | 10 minutes     | ~144          |
+| **High**      | 10K+         | 2 hours        | 30 minutes     | ~48           |
+
+### 🔧 Configuration
+
+Create a `.env.local` file with these environment variables:
+
 ```bash
-# Option 1: Public Google Sheets (simplest - make sheet public)
+# === GOOGLE SHEETS INTEGRATION (choose one method) ===
+
+# Method 1: Public Sheet (simplest - make sheet publicly viewable)
 REMOTE_CSV_URL=https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv
 
-# Option 2: Private Google Sheets via API Key (requires API key)
-# GOOGLE_SHEETS_API_KEY=your-api-key
-# GOOGLE_SHEET_ID=your-sheet-id
+# Method 2: Private Sheet with API Key (requires Google Cloud setup)
+# GOOGLE_SHEETS_API_KEY=your-api-key-from-google-cloud
+# GOOGLE_SHEET_ID=your-sheet-id-from-url
 # GOOGLE_SHEET_RANGE=A:Z
 
-# Option 3: Private Google Sheets via Service Account (most secure - requires JSON file)
-# GOOGLE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"...","private_key":"..."}
-# GOOGLE_SHEET_ID=your-sheet-id
+# Method 3: Private Sheet with Service Account (most secure)
+# GOOGLE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"..."}
+# GOOGLE_SHEET_ID=your-sheet-id-from-url
 # GOOGLE_SHEET_RANGE=A:Z
 
-# Cache settings
-CACHE_DURATION_MS=3600000
-REMOTE_REFRESH_INTERVAL_MS=300000
+# === CACHE PERFORMANCE SETTINGS ===
+# How long to cache data before forcing refresh
+CACHE_DURATION_MS=3600000          # 1 hour (recommended for medium traffic)
+
+# How often to check if refresh is needed
+REMOTE_REFRESH_INTERVAL_MS=600000   # 10 minutes (recommended for medium traffic)
+
+# === FALLBACK & ADMIN ===
+# Date when local CSV was last updated (for fallback messaging)
 LOCAL_CSV_LAST_UPDATED=2025-01-18
 
-# Admin access
-ADMIN_KEY=your-secret-key-123
+# Admin panel access (change this!)
+ADMIN_KEY=your-secret-admin-key-123
 
-# Optional integrations
-GOOGLE_SHEETS_URL=your-google-apps-script-url
+# === OPTIONAL INTEGRATIONS ===
+# Google Apps Script URL for email collection
+GOOGLE_SHEETS_URL=your-google-apps-script-deployment-url
 ```
 
-### How it works
+### 📈 How The System Works
 
-1. **Data Source**: When `USE_CSV_DATA` is `true` in `data/events.ts` and `REMOTE_CSV_URL` is configured, the app fetches data from Google Sheets
-2. **Fallback**: If Google Sheets is unavailable, it falls back to the local CSV file
-3. **Caching**: Data is cached for 1 hour (configurable) to improve performance
-4. **Auto-refresh**: Remote data is checked every 5 minutes (configurable)
-5. **Admin Control**: Use `/admin` to monitor cache status and force refresh
-6. **Error Handling**: User-friendly messages when using fallback data with last-updated dates
+#### 1. **Data Source (Google Sheets)**
+- Your event data lives in a Google Sheets document
+- Contains columns: name, date, location, genre, featured, etc.
+- Can be public (anyone with link) or private (API access)
+
+#### 2. **Cache Manager (Server-Side)**
+```
+Every [Check Interval]:
+├── Is cache expired? (older than Cache Duration)
+│   ├── YES → Fetch fresh data from Google Sheets
+│   └── NO → Keep serving cached data
+├── Admin forced refresh?
+│   └── YES → Fetch fresh data immediately
+└── Google Sheets unavailable?
+    └── Serve local CSV fallback with timestamp
+```
+
+#### 3. **User Experience (Client-Side)**
+- **Page Load**: Gets data from cache (fast)
+- **Live Updates**: Progress bars update every 60 seconds
+- **Featured Events**: Real-time countdown timers
+- **Fresh Data**: New events appear within your check interval
+
+#### 4. **Admin Control (`/admin`)**
+- Monitor cache status and data freshness
+- Force immediate refresh (bypasses cache)
+- View Google Sheets statistics
+- Handle date format warnings
+- Configure dynamic sheet sources
+
+### 🔄 Real-World Example
+
+**Timeline with 1-hour cache, 10-minute checks:**
+
+```
+09:00 - User visits → Fresh data fetched, cached
+09:10 - Check: "Cache 10min old" → Serve cached data
+09:20 - Check: "Cache 20min old" → Serve cached data
+09:30 - Check: "Cache 30min old" → Serve cached data
+...
+10:10 - Check: "Cache 70min old, expired!" → Fetch fresh data
+10:20 - Check: "Cache 10min old" → Serve cached data
+```
+
+**Admin override:**
+```
+09:15 - Admin clicks refresh → Immediate fresh fetch
+09:25 - Check: "Cache 10min old" → Serve cached data
+```
+
+### 🛡️ Fallback Strategy
+
+1. **Primary**: Google Sheets API/CSV export
+2. **Secondary**: Local CSV file (when remote fails)
+3. **Graceful**: Show last-updated timestamp to users
+4. **Recovery**: Automatic retry on next check interval
+
+### 🎨 User Interface Features
+
+- **Live Countdown**: Featured events show real-time progress
+- **Auto-Refresh**: Progress bars update every minute
+- **Status Indicators**: Active → Expires Soon → Expired
+- **Smart Warnings**: Future date corrections with user guidance
+- **Hydration Safe**: Server/client rendering consistency
 
 ## System Architecture & Data Flow
 
