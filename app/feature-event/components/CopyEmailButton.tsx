@@ -30,4 +30,4 @@ export function CopyEmailButton({ email }: CopyEmailButtonProps) {
 			{copied && <span className="text-xs text-green-600">Copied!</span>}
 		</button>
 	);
-} 
+}

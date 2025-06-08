@@ -6,8 +6,7 @@ import ClientBody from "./ClientBody";
 import Footer from "@/components/Footer";
 import { AuthProvider } from "@/lib/auth-context";
 import { generateMainOGImage } from "@/lib/og-utils";
-import { Analytics } from "@vercel/analytics/next"
-
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",

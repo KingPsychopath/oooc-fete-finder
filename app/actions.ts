@@ -6,7 +6,10 @@ import Papa from "papaparse";
 import jwt from "jsonwebtoken";
 import { CacheManager } from "@/lib/cache-manager";
 import type { CacheStatus, EventsResult } from "@/lib/cache-manager";
-import { getDateFormatWarnings, type DateFormatWarning } from "@/utils/csvParser";
+import {
+	getDateFormatWarnings,
+	type DateFormatWarning,
+} from "@/utils/csvParser";
 import {
 	Event,
 	EventDay,
@@ -92,10 +95,10 @@ export async function getDynamicSheetConfig(): Promise<{
  * Configuration for which columns to check for date format issues
  */
 const DATE_COLUMNS_TO_CHECK = {
-	featured: true,    // Check the Featured column for timestamp issues
-	date: false,       // Check the Date column for ambiguous dates
-	startTime: false,  // Check the Start Time column for time format issues
-	endTime: false,    // Check the End Time column for time format issues
+	featured: true, // Check the Featured column for timestamp issues
+	date: false, // Check the Date column for ambiguous dates
+	startTime: false, // Check the Start Time column for time format issues
+	endTime: false, // Check the End Time column for time format issues
 } as const;
 
 /**
@@ -117,16 +120,19 @@ export async function analyzeDateFormats(adminKey?: string): Promise<{
 	try {
 		// Force refresh to ensure we get fresh parsing warnings
 		const eventsResult = await CacheManager.getEvents(true);
-		
+
 		if (!eventsResult.success || !eventsResult.data) {
-			return { success: false, error: "Failed to load events data for analysis" };
+			return {
+				success: false,
+				error: "Failed to load events data for analysis",
+			};
 		}
 
 		// Get real warnings captured during CSV parsing
 		const allWarnings = getDateFormatWarnings();
-		
+
 		// Filter warnings based on configured columns
-		const warnings = allWarnings.filter(warning => {
+		const warnings = allWarnings.filter((warning) => {
 			switch (warning.columnType) {
 				case "featured":
 					return DATE_COLUMNS_TO_CHECK.featured;
@@ -140,12 +146,16 @@ export async function analyzeDateFormats(adminKey?: string): Promise<{
 					return false;
 			}
 		});
-		
-		console.log(`📊 Found ${warnings.length} date format warnings from CSV parsing`);
+
+		console.log(
+			`📊 Found ${warnings.length} date format warnings from CSV parsing`,
+		);
 		if (warnings.length > 0) {
 			console.log("📋 Warning summary:");
 			warnings.forEach((warning, index) => {
-				console.log(`   ${index + 1}. ${warning.warningType}: "${warning.originalValue}" in ${warning.eventName} (${warning.columnType} column)`);
+				console.log(
+					`   ${index + 1}. ${warning.warningType}: "${warning.originalValue}" in ${warning.eventName} (${warning.columnType} column)`,
+				);
 			});
 		}
 
@@ -157,7 +167,10 @@ export async function analyzeDateFormats(adminKey?: string): Promise<{
 		console.error("❌ Error analyzing date formats:", error);
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : "Unknown error analyzing date formats",
+			error:
+				error instanceof Error
+					? error.message
+					: "Unknown error analyzing date formats",
 		};
 	}
 }

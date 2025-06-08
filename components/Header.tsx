@@ -45,7 +45,9 @@ const Header = () => {
 							<div className="hidden sm:flex items-center space-x-2 md:space-x-3">
 								<Music className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary flex-shrink-0" />
 								<div className="min-w-0">
-									<h1 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">Fête Finder</h1>
+									<h1 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">
+										Fête Finder
+									</h1>
 									<p className="text-xs sm:text-sm text-muted-foreground leading-tight">
 										Paris 2025 • OOOC
 									</p>
@@ -57,7 +59,9 @@ const Header = () => {
 						<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
 							{/* Fête Finder title - Centered on mobile, hidden on desktop */}
 							<div className="text-center sm:hidden px-2">
-								<h1 className="text-lg sm:text-xl font-bold leading-tight">Fête Finder</h1>
+								<h1 className="text-lg sm:text-xl font-bold leading-tight">
+									Fête Finder
+								</h1>
 								<p className="text-xs text-muted-foreground leading-tight">
 									Paris 2025 • OOOC
 								</p>
@@ -104,7 +108,7 @@ const Header = () => {
 										</div>
 									</Button>
 								</Link>
-								
+
 								<div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
 									<Clock />
 									<ThemeToggle />
@@ -116,7 +120,9 @@ const Header = () => {
 								<div className="hidden sm:flex items-center justify-end space-x-2 flex-shrink-0">
 									<Badge variant="secondary" className="gap-1 text-xs">
 										<User className="h-3 w-3" />
-										<span className="max-w-[80px] truncate">{userEmail.split("@")[0]}</span>
+										<span className="max-w-[80px] truncate">
+											{userEmail.split("@")[0]}
+										</span>
 									</Badge>
 									<Button
 										variant="ghost"
@@ -131,11 +137,10 @@ const Header = () => {
 							)}
 						</div>
 					</div>
-					
+
 					{/* Countdown Section with optimized spacing */}
 
-						<Countdown />
-
+					<Countdown />
 				</div>
 			</header>
 			<SlidingBanner

@@ -146,18 +146,52 @@ const ParisMap: React.FC<ParisMapProps> = ({
 				>
 					{/* Pattern definitions for accessibility */}
 					<defs>
-						<pattern id="pattern-1-event" patternUnits="userSpaceOnUse" width="4" height="4">
+						<pattern
+							id="pattern-1-event"
+							patternUnits="userSpaceOnUse"
+							width="4"
+							height="4"
+						>
 							<rect width="4" height="4" fill="#059669" />
 							<circle cx="2" cy="2" r="0.5" fill="white" opacity="0.3" />
 						</pattern>
-						<pattern id="pattern-2-events" patternUnits="userSpaceOnUse" width="4" height="4">
+						<pattern
+							id="pattern-2-events"
+							patternUnits="userSpaceOnUse"
+							width="4"
+							height="4"
+						>
 							<rect width="4" height="4" fill="#d97706" />
-							<rect x="0" y="0" width="2" height="2" fill="white" opacity="0.2" />
-							<rect x="2" y="2" width="2" height="2" fill="white" opacity="0.2" />
+							<rect
+								x="0"
+								y="0"
+								width="2"
+								height="2"
+								fill="white"
+								opacity="0.2"
+							/>
+							<rect
+								x="2"
+								y="2"
+								width="2"
+								height="2"
+								fill="white"
+								opacity="0.2"
+							/>
 						</pattern>
-						<pattern id="pattern-3-events" patternUnits="userSpaceOnUse" width="4" height="4">
+						<pattern
+							id="pattern-3-events"
+							patternUnits="userSpaceOnUse"
+							width="4"
+							height="4"
+						>
 							<rect width="4" height="4" fill="#b91c1c" />
-							<path d="M0,0 L4,4 M4,0 L0,4" stroke="white" strokeWidth="0.5" opacity="0.3" />
+							<path
+								d="M0,0 L4,4 M4,0 L0,4"
+								stroke="white"
+								strokeWidth="0.5"
+								opacity="0.3"
+							/>
 						</pattern>
 					</defs>
 
@@ -186,7 +220,10 @@ const ParisMap: React.FC<ParisMapProps> = ({
 											y={pos.y}
 											width={pos.width}
 											height={pos.height}
-											fill={getArrondissementPattern(arrondissement) || getArrondissementColor(arrondissement)}
+											fill={
+												getArrondissementPattern(arrondissement) ||
+												getArrondissementColor(arrondissement)
+											}
 											stroke={isSelected ? "#1f2937" : "#374151"}
 											strokeWidth={isSelected ? 3 : 1.5}
 											rx="4"
@@ -227,7 +264,9 @@ const ParisMap: React.FC<ParisMapProps> = ({
 												textAnchor="middle"
 												dominantBaseline="middle"
 												className="text-xs font-bold fill-white pointer-events-none"
-												style={{ textShadow: "0.5px 0.5px 1px rgba(0,0,0,0.8)" }}
+												style={{
+													textShadow: "0.5px 0.5px 1px rgba(0,0,0,0.8)",
+												}}
 											>
 												{eventsInArr.length}
 											</text>
@@ -410,7 +449,16 @@ const ParisMap: React.FC<ParisMapProps> = ({
 
 					{/* Legend */}
 					<g transform="translate(20, 310)" aria-label="Map legend">
-						<rect x="0" y="0" width="12" height="12" fill="url(#pattern-1-event)" rx="2" stroke="#1f2937" strokeWidth="0.5" />
+						<rect
+							x="0"
+							y="0"
+							width="12"
+							height="12"
+							fill="url(#pattern-1-event)"
+							rx="2"
+							stroke="#1f2937"
+							strokeWidth="0.5"
+						/>
 						<text
 							x="18"
 							y="10"
@@ -419,7 +467,16 @@ const ParisMap: React.FC<ParisMapProps> = ({
 							1 event
 						</text>
 
-						<rect x="0" y="18" width="12" height="12" fill="url(#pattern-2-events)" rx="2" stroke="#1f2937" strokeWidth="0.5" />
+						<rect
+							x="0"
+							y="18"
+							width="12"
+							height="12"
+							fill="url(#pattern-2-events)"
+							rx="2"
+							stroke="#1f2937"
+							strokeWidth="0.5"
+						/>
 						<text
 							x="18"
 							y="28"
@@ -428,7 +485,16 @@ const ParisMap: React.FC<ParisMapProps> = ({
 							2 events
 						</text>
 
-						<rect x="0" y="36" width="12" height="12" fill="url(#pattern-3-events)" rx="2" stroke="#1f2937" strokeWidth="0.5" />
+						<rect
+							x="0"
+							y="36"
+							width="12"
+							height="12"
+							fill="url(#pattern-3-events)"
+							rx="2"
+							stroke="#1f2937"
+							strokeWidth="0.5"
+						/>
 						<text
 							x="18"
 							y="46"
@@ -437,7 +503,16 @@ const ParisMap: React.FC<ParisMapProps> = ({
 							3+ events
 						</text>
 
-						<rect x="0" y="54" width="12" height="12" fill="#e5e7eb" rx="2" stroke="#1f2937" strokeWidth="0.5" />
+						<rect
+							x="0"
+							y="54"
+							width="12"
+							height="12"
+							fill="#e5e7eb"
+							rx="2"
+							stroke="#1f2937"
+							strokeWidth="0.5"
+						/>
 						<text
 							x="18"
 							y="64"

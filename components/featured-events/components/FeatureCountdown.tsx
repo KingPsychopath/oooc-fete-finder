@@ -93,19 +93,19 @@ function getEventStatus(event: Event): EventStatus {
  */
 function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 	const { event, endTime } = eventStatus;
-	
+
 	// Use state to handle hydration consistency
 	const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
 
 	// Update time after hydration to avoid mismatch
 	useEffect(() => {
 		setCurrentTime(new Date());
-		
+
 		// Set up interval for live updates after hydration
 		const interval = setInterval(() => {
 			setCurrentTime(new Date());
 		}, 60000); // Update every minute
-		
+
 		return () => clearInterval(interval);
 	}, []);
 
@@ -115,7 +115,7 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 		if (!isValidTimestamp(event.featuredAt)) {
 			return {
 				status: "active-manual",
-				message: "Currently featured"
+				message: "Currently featured",
 			};
 		}
 
@@ -124,25 +124,30 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 
 		if (isExpired) {
 			const hoursAgo = endTime
-				? Math.floor((currentTime.getTime() - endTime.getTime()) / (1000 * 60 * 60))
+				? Math.floor(
+						(currentTime.getTime() - endTime.getTime()) / (1000 * 60 * 60),
+					)
 				: 0;
 			return {
 				status: "expired",
-				message: hoursAgo < 24
-					? `Ended ${hoursAgo}h ago`
-					: `Ended ${Math.floor(hoursAgo / 24)}d ago`
+				message:
+					hoursAgo < 24
+						? `Ended ${hoursAgo}h ago`
+						: `Ended ${Math.floor(hoursAgo / 24)}d ago`,
 			};
 		}
 
 		// Active with time remaining
 		const hoursRemaining = endTime
-			? Math.floor((endTime.getTime() - currentTime.getTime()) / (1000 * 60 * 60))
+			? Math.floor(
+					(endTime.getTime() - currentTime.getTime()) / (1000 * 60 * 60),
+				)
 			: 0;
 		const liveStatus = hoursRemaining <= 6 ? "expires-soon" : "active-timed";
 
 		return {
 			status: liveStatus,
-			message: `${Math.max(0, hoursRemaining)}h remaining`
+			message: `${Math.max(0, hoursRemaining)}h remaining`,
 		};
 	};
 
@@ -156,7 +161,8 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 					bgColor: "bg-green-50 dark:bg-green-950/20",
 					borderColor: "border-green-200 dark:border-green-800",
 					textColor: "text-green-600 dark:text-green-400",
-					progressColor: "bg-gradient-to-r from-emerald-400 via-green-500 to-green-600",
+					progressColor:
+						"bg-gradient-to-r from-emerald-400 via-green-500 to-green-600",
 				};
 			case "active-timed":
 				return {
@@ -164,7 +170,8 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 					bgColor: "bg-blue-50 dark:bg-blue-950/20",
 					borderColor: "border-blue-200 dark:border-blue-800",
 					textColor: "text-blue-600 dark:text-blue-400",
-					progressColor: "bg-gradient-to-r from-cyan-400 via-blue-500 to-blue-600",
+					progressColor:
+						"bg-gradient-to-r from-cyan-400 via-blue-500 to-blue-600",
 				};
 			case "expires-soon":
 				return {
@@ -172,7 +179,8 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 					bgColor: "bg-orange-50 dark:bg-orange-950/20",
 					borderColor: "border-orange-200 dark:border-orange-800",
 					textColor: "text-orange-600 dark:text-orange-400",
-					progressColor: "bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500",
+					progressColor:
+						"bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500",
 				};
 			case "expired":
 				return {
@@ -188,7 +196,8 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 					bgColor: "bg-blue-50 dark:bg-blue-950/20",
 					borderColor: "border-blue-200 dark:border-blue-800",
 					textColor: "text-blue-600 dark:text-blue-400",
-					progressColor: "bg-gradient-to-r from-cyan-400 via-blue-500 to-blue-600",
+					progressColor:
+						"bg-gradient-to-r from-cyan-400 via-blue-500 to-blue-600",
 				};
 		}
 	};
@@ -204,15 +213,18 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 			const startTime = new Date(event.featuredAt);
 			// Use consistent currentTime to avoid hydration mismatch
 			const now = currentTime;
-			
+
 			const totalDuration = endTime.getTime() - startTime.getTime(); // Total feature duration in milliseconds
 			const elapsedDuration = now.getTime() - startTime.getTime(); // Time elapsed since start
-			
+
 			// Calculate percentage based on actual time elapsed vs total duration
-			const percentage = Math.min(100, Math.max(0, (elapsedDuration / totalDuration) * 100));
-			
+			const percentage = Math.min(
+				100,
+				Math.max(0, (elapsedDuration / totalDuration) * 100),
+			);
+
 			// Debug logging for progress bar accuracy
-			if (process.env.NODE_ENV === 'development') {
+			if (process.env.NODE_ENV === "development") {
 				const totalHours = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS;
 				const elapsedHours = elapsedDuration / (1000 * 60 * 60);
 				console.log(`📊 Progress for "${event.name}":`, {
@@ -221,10 +233,10 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 					now: now.toISOString(),
 					totalHours,
 					elapsedHours: Math.round(elapsedHours * 100) / 100,
-					percentage: Math.round(percentage * 100) / 100
+					percentage: Math.round(percentage * 100) / 100,
 				});
 			}
-			
+
 			return percentage;
 		}
 
@@ -286,39 +298,54 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 			{(() => {
 				// Check if the featuredAt timestamp was originally a future date
 				// by comparing if the featuredAt is very close to currentTime (indicating auto-correction)
-				if (!event.featuredAt || !isValidTimestamp(event.featuredAt)) return null;
-				
+				if (!event.featuredAt || !isValidTimestamp(event.featuredAt))
+					return null;
+
 				const featuredAtTime = new Date(event.featuredAt);
-				const timeDiff = Math.abs(currentTime.getTime() - featuredAtTime.getTime());
-				
+				const timeDiff = Math.abs(
+					currentTime.getTime() - featuredAtTime.getTime(),
+				);
+
 				// If the featuredAt time is within 5 minutes of current time, it might be auto-corrected
 				// This is a heuristic - if featuring started very recently, it might have been a future date
 				const isLikelyAutoCorrected = timeDiff < 5 * 60 * 1000; // 5 minutes in milliseconds
-				
-				return isLikelyAutoCorrected && (
-					<div className="text-xs bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 mt-2 p-2 rounded border border-amber-200 dark:border-amber-800">
-						<div className="flex items-start gap-1">
-							<span className="text-amber-600 dark:text-amber-400 flex-shrink-0">⚠️</span>
-							<div>
-								<div className="font-medium">Recent feature start detected</div>
-								<div className="text-xs mt-0.5">
-									This event started featuring very recently. If you used a future date in your spreadsheet, 
-									it was automatically corrected to start immediately. Please verify your "Featured" column timestamp.
+
+				return (
+					isLikelyAutoCorrected && (
+						<div className="text-xs bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 mt-2 p-2 rounded border border-amber-200 dark:border-amber-800">
+							<div className="flex items-start gap-1">
+								<span className="text-amber-600 dark:text-amber-400 flex-shrink-0">
+									⚠️
+								</span>
+								<div>
+									<div className="font-medium">
+										Recent feature start detected
+									</div>
+									<div className="text-xs mt-0.5">
+										This event started featuring very recently. If you used a
+										future date in your spreadsheet, it was automatically
+										corrected to start immediately. Please verify your
+										"Featured" column timestamp.
+									</div>
 								</div>
 							</div>
 						</div>
-					</div>
+					)
 				);
 			})()}
 
 			{/* Show end time for expired events */}
 			{liveStatus === "expired" && endTime && (
 				<div className="text-xs text-muted-foreground mt-2 pt-2 border-t break-words">
-					📅 Ended: <span className="whitespace-nowrap">{endTime.toLocaleDateString("en-GB", { 
-						year: "numeric", 
-						month: "2-digit", 
-						day: "2-digit" 
-					})}</span> at{" "}
+					📅 Ended:{" "}
+					<span className="whitespace-nowrap">
+						{endTime.toLocaleDateString("en-GB", {
+							year: "numeric",
+							month: "2-digit",
+							day: "2-digit",
+						})}
+					</span>{" "}
+					at{" "}
 					<span className="whitespace-nowrap">
 						{endTime.toLocaleTimeString("en-GB", {
 							hour: "2-digit",

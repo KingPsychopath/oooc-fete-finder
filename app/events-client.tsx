@@ -387,7 +387,8 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	}, []);
 
 	const activeFiltersCount = useMemo(() => {
-		return selectedDays.length +
+		return (
+			selectedDays.length +
 			selectedDayNightPeriods.length +
 			selectedArrondissements.length +
 			selectedGenres.length +
@@ -404,7 +405,8 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 				: 0) +
 			(selectedIndoorPreference !== null ? 1 : 0) +
 			(selectedOOOCPicks ? 1 : 0) +
-			(searchQuery.length > 0 ? 1 : 0);
+			(searchQuery.length > 0 ? 1 : 0)
+		);
 	}, [
 		selectedDays.length,
 		selectedDayNightPeriods.length,
@@ -416,7 +418,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		selectedAgeRange,
 		selectedIndoorPreference,
 		selectedOOOCPicks,
-		searchQuery.length
+		searchQuery.length,
 	]);
 
 	const hasActiveFilters =
@@ -501,8 +503,16 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 								onClick={toggleMapExpansion}
 								className="text-muted-foreground hover:text-foreground w-[100px] justify-center flex-shrink-0"
 							>
-								<ChevronDown className={`h-4 w-4 mr-1 transition-transform duration-500 ${isMapExpanded ? 'rotate-180' : 'rotate-0'}`} style={{transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)'}} />
-								<span className="text-sm">{isMapExpanded ? 'Collapse' : 'Expand'}</span>
+								<ChevronDown
+									className={`h-4 w-4 mr-1 transition-transform duration-500 ${isMapExpanded ? "rotate-180" : "rotate-0"}`}
+									style={{
+										transitionTimingFunction:
+											"cubic-bezier(0.34, 1.56, 0.64, 1)",
+									}}
+								/>
+								<span className="text-sm">
+									{isMapExpanded ? "Collapse" : "Expand"}
+								</span>
 							</Button>
 						</div>
 					</CardHeader>

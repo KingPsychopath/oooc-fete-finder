@@ -21,7 +21,7 @@
  * - Timestamp values (future): Start featuring NOW, expire after 48 hours (future dates auto-corrected)
  * - Text values: Display permanently with green theme until manually removed
  * - Shows real-time countdown for timestamp-based featured events
- * 
+ *
  * IMPORTANT: Featured column = WHEN TO START FEATURING, not the event date!
  */
 
@@ -76,22 +76,27 @@ export default async function FeatureEventPage() {
 						<ol className="list-decimal list-inside space-y-2 text-sm">
 							<li>Use the "Featured" column in your Excel/Google Sheets</li>
 							<li>
-								<strong>For automatic expiration:</strong> Enter when to START featuring
+								<strong>For automatic expiration:</strong> Enter when to START
+								featuring
 								<br />
 								<span className="text-xs text-green-600 ml-4">
-									✅ Now: "2025-01-18T10:30:00" (current time to start immediately)
+									✅ Now: "2025-01-18T10:30:00" (current time to start
+									immediately)
 								</span>
 								<br />
 								<span className="text-xs text-blue-600 ml-4">
-									📍 UK format: "18/01/2025 10:30:00" = Start featuring on 18th Jan (DD/MM/YYYY)
+									📍 UK format: "18/01/2025 10:30:00" = Start featuring on 18th
+									Jan (DD/MM/YYYY)
 								</span>
 								<br />
 								<span className="text-xs text-purple-600 ml-4">
-									🔄 Future dates: Automatically start featuring NOW instead of waiting
+									🔄 Future dates: Automatically start featuring NOW instead of
+									waiting
 								</span>
 								<br />
 								<span className="text-xs text-orange-600 ml-4">
-									⚠️ Don't put event date here - this is for FEATURING start time!
+									⚠️ Don't put event date here - this is for FEATURING start
+									time!
 								</span>
 							</li>
 							<li>
@@ -235,8 +240,10 @@ export default async function FeatureEventPage() {
 							<div>
 								<h4 className="font-semibold mb-2">📊 Analytics Included</h4>
 								<p className="text-sm text-muted-foreground">
-									<span className="line-through">Track clicks, views, and engagement for your featured event
-									during the feature period.</span>
+									<span className="line-through">
+										Track clicks, views, and engagement for your featured event
+										during the feature period.
+									</span>
 								</p>
 								<div className="mt-2 px-3 py-1 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
 									<span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
@@ -289,7 +296,11 @@ export default async function FeatureEventPage() {
 
 			{/* CTA Section */}
 			<div className="text-center">
-				<Button asChild size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+				<Button
+					asChild
+					size="lg"
+					className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+				>
 					<a href="mailto:hello@outofofficecollective.co.uk?subject=Fete%20Finder:%20Feature%20My%20Event%20Inquiry%20[YOUR_EVENT_NAME_HERE]">
 						Feature My Event - €{FEATURED_EVENTS_CONFIG.FEATURE_PRICE}
 					</a>

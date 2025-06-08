@@ -60,8 +60,7 @@ export const DateFormatNotificationsCard = ({
 				iso: "2025-07-06T20:07:39",
 			},
 			detectedFormat: "UK (DD/MM/YYYY) - ASSUMED",
-			recommendedAction:
-				"Use ISO format or month name to avoid ambiguity",
+			recommendedAction: "Use ISO format or month name to avoid ambiguity",
 			rowIndex: 1,
 		},
 		{
@@ -81,8 +80,7 @@ export const DateFormatNotificationsCard = ({
 				iso: "2025-06-15T14:30:00",
 			},
 			detectedFormat: "UK (DD/MM/YYYY) - CLEAR",
-			recommendedAction:
-				"Future date detected - featuring started immediately",
+			recommendedAction: "Future date detected - featuring started immediately",
 			rowIndex: 2,
 		},
 		{
@@ -113,7 +111,7 @@ export const DateFormatNotificationsCard = ({
 
 		try {
 			const result = await analyzeDateFormats(adminKey);
-			
+
 			if (result.success) {
 				setRealWarnings(result.warnings || []);
 				setLastUpdate(new Date().toLocaleTimeString());
@@ -167,10 +165,7 @@ export const DateFormatNotificationsCard = ({
 	};
 
 	const renderWarning = (warning: DateFormatWarning, index: number) => (
-		<div
-			key={index}
-			className="border rounded-lg p-4 space-y-3"
-		>
+		<div key={index} className="border rounded-lg p-4 space-y-3">
 			{/* Warning Header */}
 			<div className="flex items-start justify-between">
 				<div className="flex items-start gap-2">
@@ -198,9 +193,7 @@ export const DateFormatNotificationsCard = ({
 			{/* Format Interpretations */}
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 				<div className="space-y-2">
-					<h4 className="text-sm font-medium">
-						Potential Interpretations:
-					</h4>
+					<h4 className="text-sm font-medium">Potential Interpretations:</h4>
 					<div className="space-y-1 text-sm">
 						<div className="flex justify-between items-center p-2 bg-blue-50 rounded">
 							<span>🇺🇸 US Format:</span>
@@ -218,22 +211,16 @@ export const DateFormatNotificationsCard = ({
 				</div>
 
 				<div className="space-y-2">
-					<h4 className="text-sm font-medium">
-						Recommended Solutions:
-					</h4>
+					<h4 className="text-sm font-medium">Recommended Solutions:</h4>
 					<div className="space-y-2">
 						<div className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
 							<span>✅ ISO Format:</span>
 							<div className="flex items-center gap-1">
-								<code className="text-xs">
-									{warning.potentialFormats.iso}
-								</code>
+								<code className="text-xs">{warning.potentialFormats.iso}</code>
 								<Button
 									variant="ghost"
 									size="sm"
-									onClick={() =>
-										copyToClipboard(warning.potentialFormats.iso)
-									}
+									onClick={() => copyToClipboard(warning.potentialFormats.iso)}
 									className="h-6 w-6 p-0"
 								>
 									<Copy className="h-3 w-3" />
@@ -339,7 +326,9 @@ export const DateFormatNotificationsCard = ({
 									<AlertTriangle className="h-5 w-5 text-orange-600" />
 									Current Issues Detected ({realWarnings.length})
 								</h3>
-								{realWarnings.map((warning, index) => renderWarning(warning, index))}
+								{realWarnings.map((warning, index) =>
+									renderWarning(warning, index),
+								)}
 							</div>
 						) : (
 							<div className="text-center py-4">
@@ -348,7 +337,8 @@ export const DateFormatNotificationsCard = ({
 									All date formats look good!
 								</p>
 								<p className="text-sm text-muted-foreground mt-1">
-									No ambiguous or problematic date formats detected in your current data.
+									No ambiguous or problematic date formats detected in your
+									current data.
 								</p>
 							</div>
 						)}
@@ -367,9 +357,12 @@ export const DateFormatNotificationsCard = ({
 								<AccordionContent>
 									<div className="space-y-4">
 										<p className="text-sm text-muted-foreground mb-4">
-											These examples show common date format issues you might encounter:
+											These examples show common date format issues you might
+											encounter:
 										</p>
-										{exampleWarnings.map((warning, index) => renderWarning(warning, index))}
+										{exampleWarnings.map((warning, index) =>
+											renderWarning(warning, index),
+										)}
 									</div>
 								</AccordionContent>
 							</AccordionItem>
@@ -412,4 +405,4 @@ export const DateFormatNotificationsCard = ({
 			</CardContent>
 		</Card>
 	);
-}; 
+};

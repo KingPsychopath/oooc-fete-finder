@@ -16,7 +16,16 @@ type AllEventsProps = {
 };
 
 export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
-	({ events, onEventClick, onFilterClickAction, hasActiveFilters, activeFiltersCount }, ref) => {
+	(
+		{
+			events,
+			onEventClick,
+			onFilterClickAction,
+			hasActiveFilters,
+			activeFiltersCount,
+		},
+		ref,
+	) => {
 		return (
 			<Card ref={ref} className="mt-6">
 				<CardHeader>

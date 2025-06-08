@@ -11,7 +11,13 @@ type FilterButtonProps = {
 	activeFiltersCount: number;
 	className?: string;
 	size?: "sm" | "default" | "lg";
-	variant?: "outline" | "default" | "destructive" | "secondary" | "ghost" | "link";
+	variant?:
+		| "outline"
+		| "default"
+		| "destructive"
+		| "secondary"
+		| "ghost"
+		| "link";
 };
 
 export const FilterButton: React.FC<FilterButtonProps> = ({
@@ -41,4 +47,4 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
 			)}
 		</Button>
 	);
-}; 
+};

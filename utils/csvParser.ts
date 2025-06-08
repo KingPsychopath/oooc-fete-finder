@@ -181,7 +181,7 @@ const createColumnMapping = (
 export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 	// Clear previous warnings
 	clearDateFormatWarnings();
-	
+
 	try {
 		const parseResult = Papa.parse(csvContent, {
 			header: true,
@@ -690,14 +690,20 @@ const processFeaturedColumn = (
 	if (parsedTimestamp) {
 		const parsedDate = new Date(parsedTimestamp);
 		const now = new Date();
-		
+
 		// If the timestamp is in the future, treat it as "start featuring now"
 		if (parsedDate.getTime() > now.getTime()) {
-			console.log(`📅 Future date detected in featured column: "${featuredStr}"`);
+			console.log(
+				`📅 Future date detected in featured column: "${featuredStr}"`,
+			);
 			console.log(`   Parsed as: ${parsedDate.toISOString()}`);
-			console.log(`   Since this is a future date, starting featuring NOW instead`);
-			console.log(`   💡 Tip: For future event dates, use the event date column, not featured column`);
-			
+			console.log(
+				`   Since this is a future date, starting featuring NOW instead`,
+			);
+			console.log(
+				`   💡 Tip: For future event dates, use the event date column, not featured column`,
+			);
+
 			// Use current time as start of featuring
 			return {
 				isFeatured: true,
@@ -766,9 +772,9 @@ const convertToVenueTypes = (indoorOutdoorStr: string): VenueType[] => {
  * Parse featured timestamp from various formats with improved UK/US date handling
  */
 const parseFeaturedAt = (
-	featuredAtStr: string, 
-	eventName: string = "Unknown Event", 
-	rowIndex: number = 0
+	featuredAtStr: string,
+	eventName: string = "Unknown Event",
+	rowIndex: number = 0,
 ): string | undefined => {
 	if (!featuredAtStr || featuredAtStr.trim() === "") {
 		return undefined;
@@ -779,7 +785,9 @@ const parseFeaturedAt = (
 		if (featuredAtStr.includes("T") || featuredAtStr.includes("Z")) {
 			const date = new Date(featuredAtStr);
 			if (!isNaN(date.getTime())) {
-				console.log(`✅ Parsed ISO timestamp: "${featuredAtStr}" → ${date.toISOString()}`);
+				console.log(
+					`✅ Parsed ISO timestamp: "${featuredAtStr}" → ${date.toISOString()}`,
+				);
 				return date.toISOString();
 			}
 		}
@@ -790,19 +798,25 @@ const parseFeaturedAt = (
 			/^(\d{1,2})[-\s](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-\s](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i,
 			/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-\s](\d{1,2})[-\s](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i,
 			// ISO-like without T
-			/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/
+			/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/,
 		];
 
 		for (const regex of unambiguousFormats) {
 			const match = featuredAtStr.match(regex);
 			if (match) {
 				// Handle different match groups based on regex
-				let year: string, month: string, day: string, hour: string, minute: string, second: string, ampm: string | undefined;
-				
-				if (regex.source.includes('(\\d{4})')) {
+				let year: string,
+					month: string,
+					day: string,
+					hour: string,
+					minute: string,
+					second: string,
+					ampm: string | undefined;
+
+				if (regex.source.includes("(\\d{4})")) {
 					// ISO-like format: YYYY-MM-DD HH:MM
 					[, year, month, day, hour, minute, second = "0"] = match;
-				} else if (regex.source.startsWith('^(\\d{1,2})')) {
+				} else if (regex.source.startsWith("^(\\d{1,2})")) {
 					// DD-MMM-YYYY format
 					[, day, month, year, hour, minute, second = "0", ampm] = match;
 					month = getMonthNumber(month);
@@ -823,11 +837,13 @@ const parseFeaturedAt = (
 				}
 
 				const date = new Date(
-					`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second.padStart(2, "0")}`
+					`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second.padStart(2, "0")}`,
 				);
 
 				if (!isNaN(date.getTime())) {
-					console.log(`✅ Parsed unambiguous timestamp: "${featuredAtStr}" → ${date.toISOString()}`);
+					console.log(
+						`✅ Parsed unambiguous timestamp: "${featuredAtStr}" → ${date.toISOString()}`,
+					);
 					return date.toISOString();
 				}
 			}
@@ -839,7 +855,8 @@ const parseFeaturedAt = (
 		const match = featuredAtStr.match(ambiguousDateRegex);
 
 		if (match) {
-			const [, first, second, year, hour, minute, second_val = "0", ampm] = match;
+			const [, first, second, year, hour, minute, second_val = "0", ampm] =
+				match;
 			const firstNum = parseInt(first, 10);
 			const secondNum = parseInt(second, 10);
 
@@ -869,11 +886,19 @@ const parseFeaturedAt = (
 			} else if (firstNum <= 12 && secondNum <= 12) {
 				// Both numbers could be month or day - this is ambiguous!
 				console.warn(`⚠️ AMBIGUOUS DATE FORMAT: "${featuredAtStr}"`);
-				console.warn(`   Could be: ${first}/${second}/${year} (US: ${getMonthName(first)} ${second}) or ${first}/${second}/${year} (UK: ${first} ${getMonthName(second)})`);
-				console.warn(`   Using UK format (DD/MM/YYYY) by default for European app. For clarity, please use:`);
-				console.warn(`   ✅ ISO format: ${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}T${hour}:${minute}:${second_val}`);
-				console.warn(`   ✅ Or with month name: ${first}-${getMonthName(second)}-${year} ${hour}:${minute}${ampm ? ` ${ampm}` : ''}`);
-				
+				console.warn(
+					`   Could be: ${first}/${second}/${year} (US: ${getMonthName(first)} ${second}) or ${first}/${second}/${year} (UK: ${first} ${getMonthName(second)})`,
+				);
+				console.warn(
+					`   Using UK format (DD/MM/YYYY) by default for European app. For clarity, please use:`,
+				);
+				console.warn(
+					`   ✅ ISO format: ${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}T${hour}:${minute}:${second_val}`,
+				);
+				console.warn(
+					`   ✅ Or with month name: ${first}-${getMonthName(second)}-${year} ${hour}:${minute}${ampm ? ` ${ampm}` : ""}`,
+				);
+
 				// Collect warning for admin panel
 				addDateFormatWarning({
 					originalValue: featuredAtStr,
@@ -883,11 +908,11 @@ const parseFeaturedAt = (
 					potentialFormats: {
 						us: {
 							date: `${year}-${first.padStart(2, "0")}-${second.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second_val.padStart(2, "0")}`,
-							description: `US: ${getMonthName(first)} ${second}, ${year} ${hourNum % 12 || 12}:${minute}${hourNum >= 12 ? ' PM' : ' AM'}`,
+							description: `US: ${getMonthName(first)} ${second}, ${year} ${hourNum % 12 || 12}:${minute}${hourNum >= 12 ? " PM" : " AM"}`,
 						},
 						uk: {
 							date: `${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second_val.padStart(2, "0")}`,
-							description: `UK: ${first} ${getMonthName(second)}, ${year} ${hourNum % 12 || 12}:${minute}${hourNum >= 12 ? ' PM' : ' AM'}`,
+							description: `UK: ${first} ${getMonthName(second)}, ${year} ${hourNum % 12 || 12}:${minute}${hourNum >= 12 ? " PM" : " AM"}`,
 						},
 						iso: `${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second_val.padStart(2, "0")}`,
 					},
@@ -895,32 +920,42 @@ const parseFeaturedAt = (
 					recommendedAction: "Use ISO format or month name to avoid ambiguity",
 					rowIndex,
 				});
-				
+
 				// Default to UK format (DD/MM/YYYY) for European app
 				day = first;
 				month = second;
 				format = "UK (DD/MM/YYYY) - ASSUMED";
 			} else {
 				// Both numbers > 12, invalid
-				console.error(`❌ Invalid date: both ${first} and ${second} cannot be valid month or day`);
+				console.error(
+					`❌ Invalid date: both ${first} and ${second} cannot be valid month or day`,
+				);
 				return undefined;
 			}
 
 			const date = new Date(
-				`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second_val.padStart(2, "0")}`
+				`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hourNum.toString().padStart(2, "0")}:${minute}:${second_val.padStart(2, "0")}`,
 			);
 
 			if (!isNaN(date.getTime())) {
-				console.log(`✅ Parsed potentially ambiguous timestamp: "${featuredAtStr}" → ${date.toISOString()} (detected as ${format})`);
-				
+				console.log(
+					`✅ Parsed potentially ambiguous timestamp: "${featuredAtStr}" → ${date.toISOString()} (detected as ${format})`,
+				);
+
 				// Check for future dates in featured column
 				const now = new Date();
 				if (date > now) {
-					console.log(`📅 Future date detected in featured column: "${featuredAtStr}"`);
+					console.log(
+						`📅 Future date detected in featured column: "${featuredAtStr}"`,
+					);
 					console.log(`   Parsed as: ${date.toISOString()}`);
-					console.log(`   Since this is a future date, starting featuring NOW instead`);
-					console.log(`   💡 Tip: For future event dates, use the event date column, not featured column`);
-					
+					console.log(
+						`   Since this is a future date, starting featuring NOW instead`,
+					);
+					console.log(
+						`   💡 Tip: For future event dates, use the event date column, not featured column`,
+					);
+
 					addDateFormatWarning({
 						originalValue: featuredAtStr,
 						eventName,
@@ -929,20 +964,21 @@ const parseFeaturedAt = (
 						potentialFormats: {
 							us: {
 								date: date.toISOString(),
-								description: `Future: ${date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+								description: `Future: ${date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`,
 							},
 							uk: {
 								date: date.toISOString(),
-								description: `Future: ${date.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+								description: `Future: ${date.toLocaleDateString("en-GB", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`,
 							},
-							iso: date.toISOString().split('.')[0],
+							iso: date.toISOString().split(".")[0],
 						},
 						detectedFormat: format,
-						recommendedAction: "Future date detected - featuring started immediately. Use event date column for future events.",
+						recommendedAction:
+							"Future date detected - featuring started immediately. Use event date column for future events.",
 						rowIndex,
 					});
 				}
-				
+
 				return date.toISOString();
 			}
 		}
@@ -950,7 +986,9 @@ const parseFeaturedAt = (
 		// Try parsing as simple date (last resort)
 		const date = new Date(featuredAtStr);
 		if (!isNaN(date.getTime())) {
-			console.log(`✅ Parsed generic timestamp: "${featuredAtStr}" → ${date.toISOString()}`);
+			console.log(
+				`✅ Parsed generic timestamp: "${featuredAtStr}" → ${date.toISOString()}`,
+			);
 			return date.toISOString();
 		}
 
@@ -959,7 +997,7 @@ const parseFeaturedAt = (
 		console.warn(`   • ISO: 2025-06-07T20:00:00`);
 		console.warn(`   • Month name: 7-Jun-2025 20:00:00`);
 		console.warn(`   • Unambiguous: 2025-06-07 20:00:00`);
-		
+
 		// Collect unparseable warning
 		addDateFormatWarning({
 			originalValue: featuredAtStr,
@@ -978,10 +1016,11 @@ const parseFeaturedAt = (
 				iso: "2025-06-07T20:00:00",
 			},
 			detectedFormat: "UNPARSEABLE",
-			recommendedAction: "Use ISO format (YYYY-MM-DDTHH:MM:SS) or month names for clarity",
+			recommendedAction:
+				"Use ISO format (YYYY-MM-DDTHH:MM:SS) or month names for clarity",
 			rowIndex,
 		});
-		
+
 		return undefined;
 	} catch (error) {
 		console.warn(
@@ -995,17 +1034,49 @@ const parseFeaturedAt = (
 // Helper function to convert month abbreviations to numbers
 function getMonthNumber(monthStr: string): string {
 	const months: Record<string, string> = {
-		jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
-		jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12",
-		january: "01", february: "02", march: "03", april: "04", june: "06",
-		july: "07", august: "08", september: "09", october: "10", november: "11", december: "12"
+		jan: "01",
+		feb: "02",
+		mar: "03",
+		apr: "04",
+		may: "05",
+		jun: "06",
+		jul: "07",
+		aug: "08",
+		sep: "09",
+		oct: "10",
+		nov: "11",
+		dec: "12",
+		january: "01",
+		february: "02",
+		march: "03",
+		april: "04",
+		june: "06",
+		july: "07",
+		august: "08",
+		september: "09",
+		october: "10",
+		november: "11",
+		december: "12",
 	};
 	return months[monthStr.toLowerCase()] || monthStr;
 }
 
 // Helper function to get month name from number
 function getMonthName(monthNum: string): string {
-	const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+	const months = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	];
 	const num = parseInt(monthNum, 10);
 	return months[num - 1] || monthNum;
 }
@@ -1083,7 +1154,11 @@ export const convertCSVRowToEvent = (
 		isOOOCPick:
 			csvRow.oocPicks === "🌟" ||
 			csvRow.oocPicks.toLowerCase().includes("pick"),
-		...processFeaturedColumn(csvRow.featured, csvRow.name || `Event ${index + 1}`, index),
+		...processFeaturedColumn(
+			csvRow.featured,
+			csvRow.name || `Event ${index + 1}`,
+			index,
+		),
 		nationality: convertToNationality(csvRow.nationality),
 	};
 };
