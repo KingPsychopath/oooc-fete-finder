@@ -8,6 +8,7 @@ import SearchBar from "@/components/SearchBar";
 import EventStats from "@/components/EventStats";
 import { FeaturedEvents } from "@/components/featured-events/FeaturedEvents";
 import { AllEvents } from "@/components/AllEvents";
+import { FilterButton } from "@/components/FilterButton";
 import EmailGateModal from "@/components/EmailGateModal";
 import AuthGate from "@/components/AuthGate";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
@@ -385,6 +386,39 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		setIsFilterExpanded((prev) => !prev);
 	}, []);
 
+	const activeFiltersCount = useMemo(() => {
+		return selectedDays.length +
+			selectedDayNightPeriods.length +
+			selectedArrondissements.length +
+			selectedGenres.length +
+			selectedNationalities.length +
+			selectedVenueTypes.length +
+			(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
+			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
+				? 1
+				: 0) +
+			(selectedAgeRange !== null &&
+			(selectedAgeRange[0] !== AGE_RANGE_CONFIG.min ||
+				selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)
+				? 1
+				: 0) +
+			(selectedIndoorPreference !== null ? 1 : 0) +
+			(selectedOOOCPicks ? 1 : 0) +
+			(searchQuery.length > 0 ? 1 : 0);
+	}, [
+		selectedDays.length,
+		selectedDayNightPeriods.length,
+		selectedArrondissements.length,
+		selectedGenres.length,
+		selectedNationalities.length,
+		selectedVenueTypes.length,
+		selectedPriceRange,
+		selectedAgeRange,
+		selectedIndoorPreference,
+		selectedOOOCPicks,
+		searchQuery.length
+	]);
+
 	const hasActiveFilters =
 		selectedDays.length > 0 ||
 		selectedDayNightPeriods.length > 0 ||
@@ -461,48 +495,15 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 									{filteredEvents.length !== 1 ? "s" : ""}
 								</Badge>
 							</CardTitle>
-							<div className="flex items-center space-x-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={toggleFilterPanel}
-									className="lg:hidden"
-								>
-									<Filter className="h-4 w-4 mr-2" />
-									Filters
-									{hasActiveFilters && (
-										<Badge
-											variant="destructive"
-											className="ml-2 h-4 w-4 rounded-full p-0 text-xs"
-										>
-											{selectedDays.length +
-												selectedDayNightPeriods.length +
-												selectedArrondissements.length +
-												selectedGenres.length +
-												selectedNationalities.length +
-												selectedVenueTypes.length +
-												(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
-												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
-													? 1
-													: 0) +
-												(selectedAgeRange !== null &&
-												(selectedAgeRange[0] !== AGE_RANGE_CONFIG.min ||
-													selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)
-													? 1
-													: 0)}
-										</Badge>
-									)}
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={toggleMapExpansion}
-									className="text-muted-foreground hover:text-foreground w-[100px] justify-center flex-shrink-0"
-								>
-									<ChevronDown className={`h-4 w-4 mr-1 transition-transform duration-500 ${isMapExpanded ? 'rotate-180' : 'rotate-0'}`} style={{transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)'}} />
-									<span className="text-sm">{isMapExpanded ? 'Collapse' : 'Expand'}</span>
-								</Button>
-							</div>
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={toggleMapExpansion}
+								className="text-muted-foreground hover:text-foreground w-[100px] justify-center flex-shrink-0"
+							>
+								<ChevronDown className={`h-4 w-4 mr-1 transition-transform duration-500 ${isMapExpanded ? 'rotate-180' : 'rotate-0'}`} style={{transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)'}} />
+								<span className="text-sm">{isMapExpanded ? 'Collapse' : 'Expand'}</span>
+							</Button>
 						</div>
 					</CardHeader>
 					<CardContent className="pt-2">
@@ -576,6 +577,9 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 				ref={allEventsRef}
 				events={filteredEvents}
 				onEventClick={setSelectedEvent}
+				onFilterClickAction={toggleFilterPanel}
+				hasActiveFilters={hasActiveFilters}
+				activeFiltersCount={activeFiltersCount}
 			/>
 
 			{/* Event Modal */}
