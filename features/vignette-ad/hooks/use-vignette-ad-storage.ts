@@ -13,7 +13,7 @@ export function useVignetteAdStorage({
   const [forceUpdate, setForceUpdate] = useState(0);
 
   // Check if localStorage is available
-  const isLocalStorageAvailable = (): boolean => {
+  const isLocalStorageAvailable = useCallback((): boolean => {
     try {
       const test = "__localStorage_test__";
       localStorage.setItem(test, test);
@@ -22,10 +22,10 @@ export function useVignetteAdStorage({
     } catch {
       return false;
     }
-  };
+  }, []);
 
   // Get timestamp from localStorage safely
-  const getTimestamp = (key: string): number | null => {
+  const getTimestamp = useCallback((key: string): number | null => {
     if (!isLocalStorageAvailable()) return null;
     
     try {
@@ -34,10 +34,10 @@ export function useVignetteAdStorage({
     } catch {
       return null;
     }
-  };
+  }, [isLocalStorageAvailable]);
 
   // Set timestamp in localStorage safely
-  const setTimestamp = (key: string, timestamp: number = Date.now()): void => {
+  const setTimestamp = useCallback((key: string, timestamp: number = Date.now()): void => {
     if (!isLocalStorageAvailable()) return;
     
     try {
@@ -45,10 +45,10 @@ export function useVignetteAdStorage({
     } catch {
       // Silently fail
     }
-  };
+  }, [isLocalStorageAvailable]);
 
   // Remove item from localStorage safely
-  const removeItem = (key: string): void => {
+  const removeItem = useCallback((key: string): void => {
     if (!isLocalStorageAvailable()) return;
     
     try {
@@ -56,7 +56,7 @@ export function useVignetteAdStorage({
     } catch {
       // Silently fail
     }
-  };
+  }, [isLocalStorageAvailable]);
 
   // Check if the ad should be shown
   const checkShouldShow = useCallback((): boolean => {
@@ -81,7 +81,7 @@ export function useVignetteAdStorage({
     }
 
     return true;
-  }, [delayAfterChatClick, delayAfterDismiss]);
+  }, [delayAfterChatClick, delayAfterDismiss, getTimestamp]);
 
   // Mark that user clicked the chat link
   const markChatClicked = useCallback((): void => {
@@ -90,14 +90,14 @@ export function useVignetteAdStorage({
     removeItem(STORAGE_KEYS.DISMISSED);
     // Force immediate update
     setForceUpdate(prev => prev + 1);
-  }, []);
+  }, [setTimestamp, removeItem]);
 
   // Mark that user dismissed the ad
   const markDismissed = useCallback((): void => {
     setTimestamp(STORAGE_KEYS.DISMISSED);
     // Force immediate update
     setForceUpdate(prev => prev + 1);
-  }, []);
+  }, [setTimestamp]);
 
   // Clear all storage (useful for testing)
   const clearStorage = useCallback((): void => {
@@ -105,7 +105,7 @@ export function useVignetteAdStorage({
     removeItem(STORAGE_KEYS.DISMISSED);
     // Force immediate update
     setForceUpdate(prev => prev + 1);
-  }, []);
+  }, [removeItem]);
 
   // Update shouldShow whenever dependencies change
   useEffect(() => {
@@ -114,7 +114,7 @@ export function useVignetteAdStorage({
     }, initialDelay);
 
     return () => clearTimeout(timer);
-  }, [delayAfterChatClick, delayAfterDismiss, initialDelay, checkShouldShow]);
+  }, [initialDelay, checkShouldShow]);
 
   // Update shouldShow immediately when storage changes
   useEffect(() => {
