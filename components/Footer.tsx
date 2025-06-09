@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, Globe } from "lucide-react";
+import { ExternalLink, Globe, Coffee } from "lucide-react";
 import {
 	Tooltip,
 	TooltipContent,
@@ -79,16 +79,29 @@ const Footer = () => {
 
 					{/* Version and Attribution */}
 					<div className="flex flex-col items-center sm:items-end space-y-1">
-						<div className="flex items-center space-x-1 text-xs text-muted-foreground">
-							<span>Web app v1.0.0 • Made by</span>
+						<div className="flex flex-col items-center sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-1 text-xs text-muted-foreground">
+							<div className="flex items-center space-x-1">
+								<span>Web app v1.0.0 • Made by</span>
+								<Link
+									href="https://x.com/milkandh3nny"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm"
+									title="Follow Milkandhenny on X (Twitter)"
+								>
+									Milkandhenny
+								</Link>
+							</div>
+							<span className="hidden sm:inline">•</span>
 							<Link
-								href="https://x.com/milkandh3nny"
+								href="https://coff.ee/milkandhenny"
 								target="_blank"
 								rel="noopener noreferrer"
-								className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm"
-								title="Follow Milkandhenny on X (Twitter)"
+								className="inline-flex items-center space-x-1 font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm"
+								title="Buy me a drink if this was helpful"
 							>
-								Milkandhenny
+								<Coffee className="h-3 w-3" />
+								<span>Buy me a coffee</span>
 							</Link>
 						</div>
 						<Tooltip>
