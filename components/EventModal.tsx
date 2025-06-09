@@ -174,7 +174,7 @@ const parseLocationInput = (
  * - Uses proper ordinal formatting (1st, 2nd, 3rd, etc.)
  *
  * **Platform Behavior:**
- * - **iOS/Mac**: Opens Apple Maps first, with intelligent fallback to Google Maps web only if Apple Maps fails to launch
+ * - **iOS/Mac**: Opens Apple Maps using reliable URL scheme handling with intelligent fallback to Google Maps web only if Apple Maps fails to launch
  * - **Android**: Opens native Google Maps app using geo: protocol
  * - **Desktop/Web**: Opens Google Maps web interface with full API features
  *
@@ -228,36 +228,55 @@ const openLocationInMaps = (
 	const isAndroid = /Android/.test(navigator.userAgent);
 
 	if (isIOS || isMac) {
-		// iOS/Mac: Try Apple Maps first, only fallback to Google Maps if Apple Maps fails
-		const appleMapsUrl = `maps://maps.apple.com/?q=${query}`;
+		// iOS/Mac: Try Apple Maps first using the most reliable method
+		const appleMapsUrl = `maps://?q=${query}`;
 		
-		// Track if user left the page (indicating Apple Maps opened successfully)
-		let hasLeftPage = false;
+		// Track if Apple Maps opened successfully
+		let appleMapsOpened = false;
+		
+		// Listen for page visibility/focus changes (indicates app switch)
 		const handleVisibilityChange = () => {
 			if (document.hidden) {
-				hasLeftPage = true;
+				appleMapsOpened = true;
 			}
 		};
 		
-		// Listen for page visibility changes
+		const handleBlur = () => {
+			appleMapsOpened = true;
+		};
+		
+		// Set up event listeners
 		document.addEventListener('visibilitychange', handleVisibilityChange);
+		window.addEventListener('blur', handleBlur);
 		
-		// Attempt to open Apple Maps
-		window.open(appleMapsUrl, "_blank", "noopener,noreferrer");
+		// Try to open Apple Maps using window.location.href (most reliable method)
+		try {
+			window.location.href = appleMapsUrl;
+		} catch {
+			// If that fails, try creating a link and clicking it
+			const link = document.createElement('a');
+			link.href = appleMapsUrl;
+			link.style.display = 'none';
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+		}
 		
-		// Only fallback to Google Maps if Apple Maps likely failed
+		// Clean up and fallback after timeout
 		setTimeout(() => {
+			// Clean up
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
+			window.removeEventListener('blur', handleBlur);
 			
-			// If user hasn't left page, Apple Maps likely failed to open
-			if (!hasLeftPage) {
+			// If Apple Maps didn't open, fallback to Google Maps
+			if (!appleMapsOpened) {
 				window.open(
 					`https://maps.google.com/?q=${query}`,
 					"_blank",
 					"noopener,noreferrer",
 				);
 			}
-		}, 1500); // Increased timeout to give Apple Maps more time to launch
+		}, 2000);
 	} else if (isAndroid) {
 		// Android: Use geo: protocol for native Google Maps
 		const mapsUrl = `geo:0,0?q=${query}`;
