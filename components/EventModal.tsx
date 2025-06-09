@@ -174,7 +174,7 @@ const parseLocationInput = (
  * - Uses proper ordinal formatting (1st, 2nd, 3rd, etc.)
  *
  * **Platform Behavior:**
- * - **iOS**: Opens Apple Maps first, with automatic fallback to Google Maps web
+ * - **iOS/Mac**: Opens Apple Maps first, with intelligent fallback to Google Maps web only if Apple Maps fails to launch
  * - **Android**: Opens native Google Maps app using geo: protocol
  * - **Desktop/Web**: Opens Google Maps web interface with full API features
  *
@@ -224,21 +224,40 @@ const openLocationInMaps = (
 
 	const query = encodeURIComponent(searchQuery);
 	const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+	const isMac = /Macintosh|Mac OS X/.test(navigator.userAgent);
 	const isAndroid = /Android/.test(navigator.userAgent);
 
-	if (isIOS) {
-		// iOS: Try Apple Maps first, fallback to Google Maps web
+	if (isIOS || isMac) {
+		// iOS/Mac: Try Apple Maps first, only fallback to Google Maps if Apple Maps fails
 		const appleMapsUrl = `maps://maps.apple.com/?q=${query}`;
+		
+		// Track if user left the page (indicating Apple Maps opened successfully)
+		let hasLeftPage = false;
+		const handleVisibilityChange = () => {
+			if (document.hidden) {
+				hasLeftPage = true;
+			}
+		};
+		
+		// Listen for page visibility changes
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		
+		// Attempt to open Apple Maps
 		window.open(appleMapsUrl, "_blank", "noopener,noreferrer");
-
-		// Automatic fallback to Google Maps web if Apple Maps fails
+		
+		// Only fallback to Google Maps if Apple Maps likely failed
 		setTimeout(() => {
-			window.open(
-				`https://maps.google.com/?q=${query}`,
-				"_blank",
-				"noopener,noreferrer",
-			);
-		}, 100);
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+			
+			// If user hasn't left page, Apple Maps likely failed to open
+			if (!hasLeftPage) {
+				window.open(
+					`https://maps.google.com/?q=${query}`,
+					"_blank",
+					"noopener,noreferrer",
+				);
+			}
+		}, 1500); // Increased timeout to give Apple Maps more time to launch
 	} else if (isAndroid) {
 		// Android: Use geo: protocol for native Google Maps
 		const mapsUrl = `geo:0,0?q=${query}`;
