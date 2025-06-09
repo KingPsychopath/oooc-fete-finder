@@ -158,6 +158,7 @@ const Header = () => {
 					"When I push it in",
 					"When I push it in",
 					"She say ooouuuuuuuu",
+					"Start relaxing your hair!",
 				]}
 				speed={15}
 			/>
