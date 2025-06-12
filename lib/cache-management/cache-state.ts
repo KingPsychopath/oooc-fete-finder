@@ -124,10 +124,23 @@ export class CacheStateManager {
 		}
 
 		const now = Date.now();
-		const previousFetchTime = cacheState.lastFetchTime;
+		const originalFetchTime = cacheState.lastFetchTime;
+		const cacheAge = now - originalFetchTime;
 		
-		// Update the cache validity timer to treat cached data as fresh
-		cacheState.lastFetchTime = now;
+		// Hybrid approach: Balance between keeping service available and preventing indefinitely old data
+		const MAX_CACHE_AGE = CACHE_CONFIG.MAX_CACHE_AGE;
+		const EXTENSION_DURATION = CACHE_CONFIG.CACHE_EXTENSION_DURATION;
+		
+		if (cacheAge < MAX_CACHE_AGE) {
+			// Cache is not too old yet - extend its validity by a reasonable amount
+			cacheState.lastFetchTime = now - (cacheAge - EXTENSION_DURATION);
+			console.log(`🔄 Cache validity extended: age ${Math.round(cacheAge / 60000)}min, extended by ${EXTENSION_DURATION / 60000}min`);
+		} else {
+			// Cache is getting very old - refresh to current time but log warning
+			cacheState.lastFetchTime = now;
+			console.log(`⚠️ Cache is very old (${Math.round(cacheAge / 60000)}min), refreshing to current time`);
+			console.log("📊 Consider checking data source connectivity - cache data may be significantly outdated");
+		}
 		
 		// Record the remote attempt
 		cacheState.lastRemoteFetchTime = now;
@@ -135,9 +148,8 @@ export class CacheStateManager {
 			cacheState.lastRemoteErrorMessage = errorMessage;
 		}
 
-		const timeSincePrevious = previousFetchTime ? now - previousFetchTime : 0;
-		console.log(`🔄 Cache validity refreshed: keeping ${cacheState.events.length} cached events fresh`);
-		console.log(`⏰ Cache timer refreshed - lastFetchTime: ${now}, previous: ${previousFetchTime}, extended validity by: ${timeSincePrevious}ms`);
+		const newCacheAge = now - cacheState.lastFetchTime;
+		console.log(`⏰ Cache validity refreshed - effective age: ${Math.round(newCacheAge / 60000)}min`);
 		
 		if (errorMessage) {
 			console.log(`📡 Remote fetch failed, but cached data remains valid: ${errorMessage}`);

@@ -16,12 +16,12 @@ console.log("=========================================\n");
 
 // Mock Event data for demonstration
 const mockValidEvents = [
-  { id: "1", title: "Test Event 1", date: "2025-01-20" },
-  { id: "2", title: "Test Event 2", date: "2025-01-21" },
+  { id: "1", name: "Test Event 1", date: "2025-01-20" },
+  { id: "2", name: "Test Event 2", date: "2025-01-21" },
 ];
 
 const mockInvalidEvents = [
-  { id: "", title: "", date: "" }, // Invalid event
+  { id: "", name: "", date: "" }, // Invalid event
   null, // Null event
 ];
 
@@ -35,12 +35,14 @@ function isValidEventsData(events) {
     event && 
     typeof event.id === 'string' && 
     event.id.trim() !== '' &&
-    typeof event.title === 'string' && 
-    event.title.trim() !== ''
+    typeof event.name === 'string' && 
+    event.name.trim() !== '' &&
+    typeof event.date === 'string' &&
+    event.date.trim() !== ''
   );
 
   const validPercentage = validEvents.length / events.length;
-  return validPercentage >= 0.5;
+  return validPercentage >= 0.8;
 }
 
 // Mock cache state
@@ -66,13 +68,34 @@ function refreshCacheValidity(errorMessage) {
   }
 
   const now = Date.now();
+  const originalFetchTime = cacheState.lastFetchTime;
+  const cacheAge = now - originalFetchTime;
   
-  cacheState.lastFetchTime = now;
+  // Hybrid approach: Balance between keeping service available and preventing indefinitely old data
+  const MAX_CACHE_AGE = 6 * 60 * 60 * 1000; // 6 hours maximum age
+  const EXTENSION_DURATION = 30 * 60 * 1000; // 30 minutes extension
+  
+  if (cacheAge < MAX_CACHE_AGE) {
+    // Cache is not too old yet - extend its validity by a reasonable amount
+    cacheState.lastFetchTime = now - (cacheAge - EXTENSION_DURATION);
+    console.log(`🔄 Cache validity extended: age ${Math.round(cacheAge / 60000)}min, extended by ${EXTENSION_DURATION / 60000}min`);
+  } else {
+    // Cache is getting very old - refresh to current time but log warning
+    cacheState.lastFetchTime = now;
+    console.log(`⚠️ Cache is very old (${Math.round(cacheAge / 60000)}min), refreshing to current time`);
+    console.log("📊 Consider checking data source connectivity - cache data may be significantly outdated");
+  }
+  
+  // Record the remote attempt
   cacheState.lastRemoteFetchTime = now;
   cacheState.lastRemoteErrorMessage = errorMessage;
 
-  console.log(`🔄 Cache validity refreshed: keeping ${cacheState.events.length} cached events fresh`);
-  console.log(`📡 Remote fetch failed, but cached data remains valid: ${errorMessage}`);
+  const newCacheAge = now - cacheState.lastFetchTime;
+  console.log(`⏰ Cache validity refreshed - effective age: ${Math.round(newCacheAge / 60000)}min`);
+  
+  if (errorMessage) {
+    console.log(`📡 Remote fetch failed, but cached data remains valid: ${errorMessage}`);
+  }
 }
 
 function getCachedEventsForced() {
@@ -117,7 +140,7 @@ async function simulateScenario(scenarioName, remoteData, shouldFail = false) {
         console.log("❌ No valid cached data available, activating bootstrap mode");
         const bootstrapEvent = {
           id: "bootstrap-fallback-1",
-          title: "Service Temporarily Unavailable",
+          name: "Service Temporarily Unavailable",
           date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         };
         cacheState.events = [bootstrapEvent];
@@ -149,11 +172,11 @@ async function simulateScenario(scenarioName, remoteData, shouldFail = false) {
     } else {
       // Bootstrap mode - create fallback event
       console.log("❌ Exception with no valid cached data, activating bootstrap mode");
-      const bootstrapEvent = {
-        id: "bootstrap-fallback-1",
-        title: "Service Temporarily Unavailable",
-        date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      };
+             const bootstrapEvent = {
+         id: "bootstrap-fallback-1",
+         name: "Service Temporarily Unavailable",
+         date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+       };
       cacheState.events = [bootstrapEvent];
       cacheState.lastFetchTime = Date.now();
       console.log("🚨 Bootstrap mode: Serving fallback event after exception");
@@ -181,23 +204,32 @@ async function runDemo() {
   // Scenario 4: Remote returns partially invalid data
   await simulateScenario("Remote returns partially invalid data", mockInvalidEvents);
   
-  // Scenario 5: Bootstrap mode - no cache, all sources fail
+  // Scenario 5: Test cache age behavior - recent cache
+  cacheState.lastFetchTime = Date.now() - (2 * 60 * 60 * 1000); // 2 hours old
+  await simulateScenario("Recent cache (2h old) + remote fails", null, true);
+  
+  // Scenario 6: Test cache age behavior - old cache
+  cacheState.lastFetchTime = Date.now() - (8 * 60 * 60 * 1000); // 8 hours old (very old)
+  await simulateScenario("Very old cache (8h old) + remote fails", null, true);
+  
+  // Scenario 7: Bootstrap mode - no cache, all sources fail
   cacheState.events = null; // Clear cache to simulate fresh start
   await simulateScenario("Bootstrap mode: No cache + all sources fail", null, true);
   
-  // Scenario 6: Another successful fetch updates the cache
+  // Scenario 8: Another successful fetch updates the cache
   await simulateScenario("Successful fetch updates cache", [
     ...mockValidEvents,
-    { id: "3", title: "New Event", date: "2025-01-22" }
+    { id: "3", name: "New Event", date: "2025-01-22" }
   ]);
   
   console.log("\n🎉 Demonstration Complete!");
   console.log("\nKey Benefits of Resilient Caching:");
   console.log("• Continues serving users even when remote data source fails");
-  console.log("• Prevents cache expiration during outages");
-  console.log("• Maintains service availability during API issues");
+  console.log("• Hybrid cache validity: extends recent cache, refreshes very old cache");
+  console.log("• Prevents indefinitely stale data while maintaining availability");
   console.log("• Bootstrap mode prevents infinite empty cache loops");
   console.log("• Automatically recovers when remote source becomes available");
+  console.log("• Configurable cache age limits and extension durations");
 }
 
 // Run the demonstration

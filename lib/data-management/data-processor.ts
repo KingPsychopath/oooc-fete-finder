@@ -24,20 +24,34 @@ export function isValidEventsData(events: Event[] | null | undefined): boolean {
 	}
 
 	// Check if events have required fields (basic validation)
-	// At least 50% of events should have valid required fields
+	// At least 80% of events should have valid required fields
 	const validEvents = events.filter(event => 
 		event && 
 		typeof event.id === 'string' && 
 		event.id.trim() !== '' &&
-		typeof event.title === 'string' && 
-		event.title.trim() !== ''
+		typeof event.name === 'string' && 
+		event.name.trim() !== '' &&
+		typeof event.date === 'string' &&
+		event.date.trim() !== ''
 	);
 
 	const validPercentage = validEvents.length / events.length;
-	const isValid = validPercentage >= 0.5; // At least 50% should be valid
+	const isValid = validPercentage >= 0.8; // At least 80% should be valid
 
 	if (!isValid) {
 		console.log(`⚠️ Data validation failed: ${validEvents.length}/${events.length} events are valid (${Math.round(validPercentage * 100)}%)`);
+		// Log a few invalid events for debugging
+		const invalidEvents = events.filter(event => !validEvents.includes(event));
+		console.log("📋 Sample invalid events:", invalidEvents.slice(0, 3).map(e => ({
+			id: e?.id,
+			name: e?.name,
+			date: e?.date,
+			hasRequiredFields: {
+				id: typeof e?.id === 'string' && e?.id.trim() !== '',
+				name: typeof e?.name === 'string' && e?.name.trim() !== '',
+				date: typeof e?.date === 'string' && e?.date.trim() !== ''
+			}
+		})));
 	}
 
 	return isValid;

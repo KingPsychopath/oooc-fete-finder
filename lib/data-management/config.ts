@@ -10,6 +10,12 @@ export const CACHE_CONFIG = {
 	/** Remote refresh interval in milliseconds (5 minutes default) */
 	REMOTE_REFRESH_INTERVAL: parseInt(process.env.REMOTE_REFRESH_INTERVAL_MS || "300000"),
 	
+	/** Maximum cache age before forcing refresh to current time (6 hours default) */
+	MAX_CACHE_AGE: parseInt(process.env.MAX_CACHE_AGE_MS || "21600000"),
+	
+	/** Extension duration when refreshing cache validity (30 minutes default) */
+	CACHE_EXTENSION_DURATION: parseInt(process.env.CACHE_EXTENSION_DURATION_MS || "1800000"),
+	
 	/** Local CSV file last updated date */
 	LOCAL_CSV_LAST_UPDATED: process.env.LOCAL_CSV_LAST_UPDATED || "2025-01-18",
 } as const;
