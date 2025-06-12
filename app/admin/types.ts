@@ -10,7 +10,7 @@ export type CacheStatus = {
 	cacheAge: number;
 	nextRemoteCheck: number;
 	dataSource: "remote" | "local" | "cached";
-	useCsvData: boolean;
+	configuredDataSource: "remote" | "local" | "static";
 	eventCount: number;
 	localCsvLastUpdated: string;
 	remoteConfigured: boolean;

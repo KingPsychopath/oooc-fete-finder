@@ -4,7 +4,7 @@
  */
 
 import { Event } from "@/types/events";
-import { USE_CSV_DATA } from "@/data/events";
+import { DATA_SOURCE } from "@/data/events";
 import { DATA_CONFIG, CACHE_CONFIG } from "./config";
 import { fetchCSVWithFallbacks, extractSheetId, buildGoogleSheetsCSVUrl } from "./csv-fetcher";
 import { processCSVData } from "./data-processor";
@@ -43,13 +43,28 @@ export class DataManager {
 	 */
 	static async getEventsData(): Promise<DataManagerResult> {
 		console.log("🔄 Loading events data...");
-		console.log(`📊 Configuration: USE_CSV_DATA=${USE_CSV_DATA}`);
+		console.log(`📊 Configuration: DATA_SOURCE=${DATA_SOURCE}`);
 
 		const warnings: string[] = [];
 
 		try {
-			if (!USE_CSV_DATA) {
-				console.log("📁 CSV remote fetching disabled (USE_CSV_DATA=false)");
+			if (DATA_SOURCE === "static") {
+				console.log("📦 Using static EVENTS_DATA object (DATA_SOURCE=static)");
+				const { EVENTS_DATA } = await import('@/data/events');
+				
+				return {
+					success: true,
+					data: EVENTS_DATA,
+					count: EVENTS_DATA.length,
+					source: 'local',
+					cached: false,
+					warnings: [],
+					lastUpdate: new Date().toISOString(),
+				};
+			}
+
+			if (DATA_SOURCE === "local") {
+				console.log("📁 Using local CSV only (DATA_SOURCE=local)");
 				const { fetchLocalCSV } = await import('./csv-fetcher');
 				const csvContent = await fetchLocalCSV();
 				const processResult = await processCSVData(csvContent, 'local', false);
@@ -109,7 +124,7 @@ export class DataManager {
 			const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
 			// Record the failed remote attempt for cache management
-			if (USE_CSV_DATA) {
+			if (DATA_SOURCE === "remote") {
 				const { CacheStateManager } = await import('../cache-management/cache-state');
 				CacheStateManager.updateRemoteAttempt(errorMessage);
 			}
@@ -201,7 +216,7 @@ export class DataManager {
 	 * Get data configuration status
 	 */
 	static getDataConfigStatus(): {
-		useCsvData: boolean;
+		dataSource: "remote" | "local" | "static";
 		remoteConfigured: boolean;
 		localCsvLastUpdated: string;
 		hasServiceAccount: boolean;
@@ -221,7 +236,7 @@ export class DataManager {
 		);
 
 		return {
-			useCsvData: USE_CSV_DATA,
+			dataSource: DATA_SOURCE,
 			remoteConfigured,
 			localCsvLastUpdated: CACHE_CONFIG.LOCAL_CSV_LAST_UPDATED,
 			hasServiceAccount,

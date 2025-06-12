@@ -264,7 +264,7 @@ let lastDataSource: 'remote' | 'local' | 'cached';
 
 #### **Data Layer**
 - **`app/actions.ts`** - All data fetching, caching, and server actions
-- **`data/events.ts`** - Configuration flags (`USE_CSV_DATA`) and helper functions
+- **`data/events.ts`** - Configuration flags (`DATA_SOURCE`) and helper functions
 - **`data/oooc-list-tracker4.csv`** - Local backup data
 
 #### **UI Layer**

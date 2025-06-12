@@ -1,19 +1,29 @@
 import type { Event, MusicGenre, ParisArrondissement } from "@/types/events";
 import { CacheManager } from "@/lib/cache-management/cache-management";
 
-// Toggle flag to switch between test data and CSV data
-// Set this to true to use CSV data, false to use test data
+// Data source configuration - choose how the app loads event data
+// 
+// Options:
+// - "remote": Fetch from Google Sheets with local CSV fallback (production mode)
+// - "local": Use local CSV file only (development/testing mode)  
+// - "static": Use EVENTS_DATA object below (demo/offline mode)
 //
-// When USE_CSV_DATA is true:
+// When DATA_SOURCE is "remote":
 // - The app will attempt to fetch data from Google Sheets CSV URL every 5 minutes
 // - Falls back to local CSV file if remote fetch fails
 // - Data is cached for 1 hour to improve performance
 // - Admin panel provides manual refresh and cache monitoring
 //
-// When USE_CSV_DATA is false:
+// When DATA_SOURCE is "local":
 // - Only local CSV file is used (no remote fetching)
-// - Maintains backwards compatibility
-export const USE_CSV_DATA = true;
+// - Good for development and testing
+// - Still uses caching system
+//
+// When DATA_SOURCE is "static":
+// - Uses the EVENTS_DATA object defined in this file
+// - No external dependencies
+// - Good for demos and offline development
+export const DATA_SOURCE: "remote" | "local" | "static" = "remote";
 
 // Event data with enhanced categorization and strict typing
 export const EVENTS_DATA: Event[] = [

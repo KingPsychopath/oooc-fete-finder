@@ -50,7 +50,7 @@ export interface CacheStatus {
 	cacheAge: number;
 	nextRemoteCheck: number;
 	dataSource: "remote" | "local" | "cached";
-	useCsvData: boolean;
+	configuredDataSource: "remote" | "local" | "static";
 	eventCount: number;
 	localCsvLastUpdated: string;
 	remoteConfigured: boolean;
@@ -321,7 +321,7 @@ export class CacheManager {
 		// Combine both statuses
 		return {
 			...baseCacheStatus,
-			useCsvData: dataConfigStatus.useCsvData,
+			configuredDataSource: dataConfigStatus.dataSource,
 			localCsvLastUpdated: dataConfigStatus.localCsvLastUpdated,
 			remoteConfigured: dataConfigStatus.remoteConfigured,
 		};

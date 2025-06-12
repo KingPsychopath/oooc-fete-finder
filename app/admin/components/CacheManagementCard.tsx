@@ -46,6 +46,23 @@ const getDataSourceBadge = (source: string) => {
 	}
 };
 
+const getConfiguredDataSourceBadge = (source: string) => {
+	switch (source) {
+		case "remote":
+			return (
+				<Badge variant="default" className="bg-blue-500">
+					🌐 Remote Mode
+				</Badge>
+			);
+		case "local":
+			return <Badge variant="secondary">📁 Local Mode</Badge>;
+		case "static":
+			return <Badge variant="outline">📦 Static Mode</Badge>;
+		default:
+			return <Badge variant="destructive">❓ Unknown</Badge>;
+	}
+};
+
 export const CacheManagementCard = ({
 	cacheStatus,
 	refreshing,
@@ -66,20 +83,18 @@ export const CacheManagementCard = ({
 				<div className="space-y-6">
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 						<div className="space-y-2">
-							<Label className="text-sm font-medium">Data Source</Label>
+							<Label className="text-sm font-medium">Current Data Source</Label>
 							<div>{getDataSourceBadge(cacheStatus.dataSource)}</div>
+						</div>
+
+						<div className="space-y-2">
+							<Label className="text-sm font-medium">Configured Mode</Label>
+							<div>{getConfiguredDataSourceBadge(cacheStatus.configuredDataSource)}</div>
 						</div>
 
 						<div className="space-y-2">
 							<Label className="text-sm font-medium">Events Count</Label>
 							<div className="text-2xl font-bold">{cacheStatus.eventCount}</div>
-						</div>
-
-						<div className="space-y-2">
-							<Label className="text-sm font-medium">CSV Data Enabled</Label>
-							<Badge variant={cacheStatus.useCsvData ? "default" : "secondary"}>
-								{cacheStatus.useCsvData ? "✅ Enabled" : "❌ Disabled"}
-							</Badge>
 						</div>
 
 						<div className="space-y-2">
@@ -117,21 +132,21 @@ export const CacheManagementCard = ({
 					{/* Data Source Explanation */}
 					<div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
 						<Label className="text-sm font-medium text-blue-800">
-							💡 Data Source Types:
+							💡 Data Source Configuration:
 						</Label>
 						<div className="text-xs text-blue-700 mt-1 space-y-1">
 							<div>
-								<strong>📡 Remote:</strong> Live data fetched directly from
-								Google Sheets (most up-to-date)
+								<strong>🌐 Remote Mode:</strong> Fetches from Google Sheets with local CSV fallback (production)
 							</div>
 							<div>
-								<strong>📁 Local:</strong> Backup CSV file used when remote is
-								unavailable
+								<strong>📁 Local Mode:</strong> Uses local CSV file only (development/testing)
 							</div>
 							<div>
-								<strong>💾 Cached:</strong> Previously fetched remote data
-								stored in memory
+								<strong>📦 Static Mode:</strong> Uses hardcoded events data (demo/offline)
 							</div>
+						</div>
+						<div className="text-xs text-blue-600 mt-2 pt-2 border-t border-blue-200">
+							<strong>Current Data Source:</strong> Where the data is actually coming from right now
 						</div>
 					</div>
 
