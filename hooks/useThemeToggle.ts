@@ -13,14 +13,23 @@ interface UseThemeToggleReturn {
   currentThemeIcon: string;
   currentThemeLabel: string;
   nextThemeLabel: string;
+  mounted: boolean;
 }
 
 export const useThemeToggle = (): UseThemeToggleReturn => {
   const { theme, setTheme } = useTheme();
   const [isSystemDark, setIsSystemDark] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch by only rendering theme-dependent content after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Check system theme preference
   useEffect(() => {
+    if (!mounted) return;
+    
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     setIsSystemDark(mediaQuery.matches);
 
@@ -30,7 +39,7 @@ export const useThemeToggle = (): UseThemeToggleReturn => {
 
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
+  }, [mounted]);
 
   const getNextTheme = (currentTheme: ThemeMode): ThemeMode => {
     switch (currentTheme) {
@@ -51,6 +60,9 @@ export const useThemeToggle = (): UseThemeToggleReturn => {
   };
 
   const getThemeIcon = (theme: ThemeMode): string => {
+    // Show a neutral icon until mounted to prevent hydration mismatch
+    if (!mounted) return "🌓";
+    
     switch (theme) {
       case "system":
         return "🌓";
@@ -86,5 +98,6 @@ export const useThemeToggle = (): UseThemeToggleReturn => {
     currentThemeIcon: getThemeIcon(theme as ThemeMode),
     currentThemeLabel: getThemeLabel(theme as ThemeMode),
     nextThemeLabel: getThemeLabel(nextTheme),
+    mounted,
   };
 }; 
