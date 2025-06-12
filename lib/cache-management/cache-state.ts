@@ -3,7 +3,7 @@
  * Handles in-memory cache state and operations
  */
 
-import { Event } from "@/types/events";
+import { Event, MusicGenre, ParisArrondissement, Nationality } from "@/types/events";
 import { CACHE_CONFIG } from "../data-management/config";
 
 export interface CacheState {
@@ -107,6 +107,89 @@ export class CacheStateManager {
 		cacheState.lastRemoteErrorMessage = errorMessage;
 		
 		console.log(`📡 Remote fetch attempt recorded: ${errorMessage}`);
+	}
+
+	/**
+	 * Refresh cache validity timer without updating the cached data
+	 * Used when remote fetch fails but we want to keep serving existing cached data
+	 * 
+	 * This implements resilient caching: when remote data is unavailable or invalid,
+	 * we continue serving the previous cached data and refresh its validity timer
+	 * to prevent it from expiring.
+	 */
+	static refreshCacheValidity(errorMessage?: string): void {
+		if (!cacheState.events) {
+			console.log("⚠️ Cannot refresh cache validity - no cached data exists");
+			return;
+		}
+
+		const now = Date.now();
+		const previousFetchTime = cacheState.lastFetchTime;
+		
+		// Update the cache validity timer to treat cached data as fresh
+		cacheState.lastFetchTime = now;
+		
+		// Record the remote attempt
+		cacheState.lastRemoteFetchTime = now;
+		if (errorMessage) {
+			cacheState.lastRemoteErrorMessage = errorMessage;
+		}
+
+		const timeSincePrevious = previousFetchTime ? now - previousFetchTime : 0;
+		console.log(`🔄 Cache validity refreshed: keeping ${cacheState.events.length} cached events fresh`);
+		console.log(`⏰ Cache timer refreshed - lastFetchTime: ${now}, previous: ${previousFetchTime}, extended validity by: ${timeSincePrevious}ms`);
+		
+		if (errorMessage) {
+			console.log(`📡 Remote fetch failed, but cached data remains valid: ${errorMessage}`);
+		}
+	}
+
+	/**
+	 * Bootstrap cache with minimal fallback data to prevent infinite empty cache loops
+	 * This ensures the system always has some data to serve, even if all data sources fail
+	 */
+	static bootstrapCacheWithFallback(errorMessage: string): void {
+		if (cacheState.events && cacheState.events.length > 0) {
+			console.log("ℹ️ Cache already has data, skipping bootstrap");
+			return;
+		}
+
+		const now = Date.now();
+		const fallbackEvents: Event[] = [
+			{
+				id: "bootstrap-fallback-1",
+				name: "Service Temporarily Unavailable",
+				day: "tbc",
+				date: new Date(now + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Tomorrow
+				time: "12:00",
+				endTime: "23:59",
+				location: "Paris",
+				arrondissement: 1,
+				link: "",
+				description: "Event data is temporarily unavailable. Please check back later or contact support.",
+				type: "Day Party",
+				genre: ["house"],
+				venueTypes: ["indoor"],
+				indoor: true,
+				verified: false,
+				price: "Free",
+				age: "All ages",
+				isOOOCPick: false,
+				isFeatured: false,
+				nationality: [],
+			}
+		];
+
+		// Set bootstrap cache
+		cacheState.events = fallbackEvents;
+		cacheState.lastFetchTime = now;
+		cacheState.lastRemoteFetchTime = now;
+		cacheState.lastRemoteErrorMessage = `Bootstrap mode: ${errorMessage}`;
+		cacheState.lastDataSource = "local";
+
+		console.log("🚨 Bootstrap mode activated: Cache populated with fallback event");
+		console.log(`📡 Bootstrap reason: ${errorMessage}`);
+		console.log("⚠️ This prevents infinite empty cache loops while data sources are unavailable");
 	}
 
 	/**

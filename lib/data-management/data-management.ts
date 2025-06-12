@@ -108,6 +108,12 @@ export class DataManager {
 			console.error("❌ Error loading events data:", error);
 			const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
+			// Record the failed remote attempt for cache management
+			if (USE_CSV_DATA) {
+				const { CacheStateManager } = await import('../cache-management/cache-state');
+				CacheStateManager.updateRemoteAttempt(errorMessage);
+			}
+
 			return {
 				success: false,
 				data: [],

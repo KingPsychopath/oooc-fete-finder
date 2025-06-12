@@ -14,6 +14,36 @@ export interface ProcessedDataResult {
 }
 
 /**
+ * Validate if events data is considered valid for caching
+ * Returns true if data is valid, false if it should be considered invalid
+ */
+export function isValidEventsData(events: Event[] | null | undefined): boolean {
+	// Check for null, undefined, or empty array
+	if (!events || !Array.isArray(events) || events.length === 0) {
+		return false;
+	}
+
+	// Check if events have required fields (basic validation)
+	// At least 50% of events should have valid required fields
+	const validEvents = events.filter(event => 
+		event && 
+		typeof event.id === 'string' && 
+		event.id.trim() !== '' &&
+		typeof event.title === 'string' && 
+		event.title.trim() !== ''
+	);
+
+	const validPercentage = validEvents.length / events.length;
+	const isValid = validPercentage >= 0.5; // At least 50% should be valid
+
+	if (!isValid) {
+		console.log(`⚠️ Data validation failed: ${validEvents.length}/${events.length} events are valid (${Math.round(validPercentage * 100)}%)`);
+	}
+
+	return isValid;
+}
+
+/**
  * Process CSV content into Event objects with fallback logic
  */
 export async function processCSVData(

@@ -7,6 +7,7 @@ import { Event } from "@/types/events";
 import { CacheStateManager } from "./cache-state";
 import { CacheInvalidationManager } from "./cache-invalidation";
 import { DataManager } from "../data-management/data-management";
+import { isValidEventsData } from "../data-management/data-processor";
 
 export interface EventsResult {
 	success: boolean;
@@ -90,8 +91,8 @@ export class CacheManager {
 			// Fetch fresh data from data management layer
 			const dataResult = await DataManager.getEventsData();
 
-			if (dataResult.success) {
-				// Update cache with new data
+			if (dataResult.success && isValidEventsData(dataResult.data)) {
+				// Update cache with new valid data
 				CacheStateManager.updateCache(
 					dataResult.data,
 					dataResult.source,
@@ -119,48 +120,81 @@ export class CacheManager {
 
 				return result;
 			} else {
-				// Data fetch failed, try to return cached data even if expired
-				const expiredCachedEvents = CacheStateManager.getCachedEventsForced();
-				if (expiredCachedEvents) {
+				// Data fetch failed or returned invalid data
+				const errorMessage = dataResult.success 
+					? "Remote data validation failed - data is empty or invalid"
+					: dataResult.error || "Unknown error";
+
+				// Try to return cached data (even if expired) and refresh its validity
+				const cachedEvents = CacheStateManager.getCachedEventsForced();
+				if (cachedEvents && isValidEventsData(cachedEvents)) {
 					const cacheState = CacheStateManager.getState();
-					console.log("⚠️ Returning expired cached data due to fetch failure");
+					
+					// Refresh cache validity timer to keep serving cached data
+					CacheStateManager.refreshCacheValidity(errorMessage);
+					
+					console.log("🔄 Remote fetch failed/invalid, refreshed cached data validity");
 					console.log(
-						`   Cached data: ${expiredCachedEvents.length} events from ${cacheState.lastDataSource} source`,
+						`   Serving cached data: ${cachedEvents.length} events from ${cacheState.lastDataSource} source`,
 					);
+					
 					return {
 						success: true,
-						data: expiredCachedEvents,
-						count: expiredCachedEvents.length,
+						data: cachedEvents,
+						count: cachedEvents.length,
 						cached: true,
 						source: cacheState.lastDataSource,
-						error: `Using cached data due to error: ${dataResult.error}`,
+						error: `Using cached data due to remote issue: ${errorMessage}`,
 						lastUpdate: new Date(cacheState.lastFetchTime).toISOString(),
 					};
 				}
 
-				console.error("❌ No cached data available, returning empty result");
+				// No valid cached data available - activate bootstrap mode
+				console.error("❌ No valid cached data available, activating bootstrap mode");
+				CacheStateManager.bootstrapCacheWithFallback(errorMessage);
+				
+				const bootstrapEvents = CacheStateManager.getCachedEventsForced();
+				if (bootstrapEvents) {
+					console.log("🚨 Bootstrap mode: Serving fallback event to prevent empty cache loop");
+					return {
+						success: true,
+						data: bootstrapEvents,
+						count: bootstrapEvents.length,
+						cached: true,
+						source: "local",
+						error: `Bootstrap mode activated: ${errorMessage}`,
+					};
+				}
+
+				// This should never happen, but just in case
 				return {
 					success: false,
 					data: [],
 					count: 0,
 					cached: false,
 					source: "local",
-					error: dataResult.error,
+					error: errorMessage,
 				};
 			}
 		} catch (error) {
 			console.error("❌ Error in cache manager:", error);
 			const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
-			// Try to return cached data as fallback
-			const expiredCachedEvents = CacheStateManager.getCachedEventsForced();
-			if (expiredCachedEvents) {
+			// Try to return cached data as fallback and refresh its validity
+			const cachedEvents = CacheStateManager.getCachedEventsForced();
+			if (cachedEvents && isValidEventsData(cachedEvents)) {
 				const cacheState = CacheStateManager.getState();
-				console.log("⚠️ Returning expired cached data due to error");
+				
+				// Refresh cache validity timer to keep serving cached data
+				CacheStateManager.refreshCacheValidity(errorMessage);
+				
+				console.log("🔄 Exception occurred, refreshed cached data validity");
+				console.log(`   Serving cached data: ${cachedEvents.length} events from ${cacheState.lastDataSource} source`);
+				
 				return {
 					success: true,
-					data: expiredCachedEvents,
-					count: expiredCachedEvents.length,
+					data: cachedEvents,
+					count: cachedEvents.length,
 					cached: true,
 					source: cacheState.lastDataSource,
 					error: `Using cached data due to error: ${errorMessage}`,
@@ -168,6 +202,24 @@ export class CacheManager {
 				};
 			}
 
+			// No valid cached data available - activate bootstrap mode
+			console.error("❌ Exception occurred with no valid cached data, activating bootstrap mode");
+			CacheStateManager.bootstrapCacheWithFallback(errorMessage);
+			
+			const bootstrapEvents = CacheStateManager.getCachedEventsForced();
+			if (bootstrapEvents) {
+				console.log("🚨 Bootstrap mode: Serving fallback event after exception");
+				return {
+					success: true,
+					data: bootstrapEvents,
+					count: bootstrapEvents.length,
+					cached: true,
+					source: "local",
+					error: `Bootstrap mode activated after exception: ${errorMessage}`,
+				};
+			}
+
+			// This should never happen, but just in case
 			return {
 				success: false,
 				data: [],
@@ -212,9 +264,22 @@ export class CacheManager {
 					source: result.source,
 				};
 			} else {
+				// Force refresh failed, but if we have valid cached data, the system is still operational
+				if (currentData && isValidEventsData(currentData)) {
+					console.log("⚠️ Force refresh failed, but cached data is still valid and being served");
+					return {
+						success: false,
+						message: `Force refresh failed, but ${currentData.length} cached events are still being served`,
+						error: result.error,
+						data: currentData,
+						count: currentData.length,
+						source: "cached",
+					};
+				}
+				
 				return {
 					success: false,
-					message: "Failed to refresh events",
+					message: "Failed to refresh events and no valid cached data available",
 					error: result.error,
 				};
 			}
