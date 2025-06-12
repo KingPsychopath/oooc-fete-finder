@@ -3,7 +3,7 @@ import type { VignetteAdConfig } from "./types";
 // Vignette Ad Configuration
 export const VIGNETTE_AD_CONFIG: VignetteAdConfig = {
   // WhatsApp chat URL
-  WHATSAPP_URL: "https://chat.whatsapp.com/J67nTzkE5BtIbWZm5lOOPr",
+  WHATSAPP_URL: "https://chat.whatsapp.com/DcwqLpx0oHl093E3uApKQj",
   
   // Delay configurations (in milliseconds)
   DELAYS: {

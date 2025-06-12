@@ -66,7 +66,7 @@ All settings are centralized in `features/vignette-ad/config.ts`:
 ```typescript
 export const VIGNETTE_AD_CONFIG = {
   // WhatsApp chat URL
-  WHATSAPP_URL: "https://chat.whatsapp.com/J67nTzkE5BtIbWZm5lOOPr",
+  WHATSAPP_URL: "https://chat.whatsapp.com/DcwqLpx0oHl093E3uApKQj",
   
   // Delay configurations (in milliseconds)
   DELAYS: {
