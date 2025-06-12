@@ -5,16 +5,25 @@ import { formatDayWithDate, type Event } from "@/types/events";
 interface EventStatsProps {
 	events: Event[];
 	filteredEvents: Event[];
-	filteredArrondissementsCount: number;
-	hasActiveFilters: boolean;
 }
 
 const EventStats: React.FC<EventStatsProps> = ({
 	events,
 	filteredEvents,
-	filteredArrondissementsCount,
-	hasActiveFilters,
 }) => {
+	// Infer if filters are active by comparing array lengths
+	const hasActiveFilters = filteredEvents.length !== events.length;
+
+	// Calculate filtered arrondissements count (excluding unknown)
+	const filteredArrondissementsCount = useMemo(() => {
+		const arrondissements = new Set(
+			filteredEvents
+				.map((event) => event.arrondissement)
+				.filter((arr) => arr !== "unknown")
+		);
+		return arrondissements.size;
+	}, [filteredEvents]);
+
 	// Calculate dynamic date range from events data
 	const dateRange = useMemo(() => {
 		if (events.length === 0) return "No events";

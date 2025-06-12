@@ -480,13 +480,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 			<EventStats
 				events={events}
 				filteredEvents={filteredEvents}
-				filteredArrondissementsCount={useMemo(() => {
-					const arrondissements = new Set(
-						filteredEvents.map((event) => event.arrondissement),
-					);
-					return arrondissements.size;
-				}, [filteredEvents])}
-				hasActiveFilters={hasActiveFilters}
 			/>
 
 			{/* Collapsible Paris Event Map */}
