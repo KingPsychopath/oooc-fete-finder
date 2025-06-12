@@ -3,37 +3,7 @@
  * Centralized configuration for all cache-related settings
  */
 
-export interface CacheConfiguration {
-	// Core cache settings
-	cacheDuration: number;
-	remoteRefreshInterval: number;
-	maxCacheAge: number;
-	cacheExtensionDuration: number;
-	
-	// Memory management
-	maxMemoryUsage: number;
-	memoryCheckInterval: number;
-	cleanupThreshold: number;
-	emergencyThreshold: number;
-	
-	// Performance settings
-	maxMetricsHistory: number;
-	metricsResetInterval: number;
-	deduplicationTimeout: number;
-	
-	// Error handling
-	maxRetryAttempts: number;
-	retryBackoffMs: number;
-	bootstrapMode: boolean;
-	
-	// Logging
-	verboseLogging: boolean;
-	logMemoryUsage: boolean;
-	logPerformanceMetrics: boolean;
-	
-	// Data source metadata
-	localCsvLastUpdated: string;
-}
+import type { CacheConfiguration } from "./cache-types";
 
 /**
  * Default cache configuration

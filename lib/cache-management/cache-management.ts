@@ -486,6 +486,7 @@ export type {
 	CacheRefreshResult,
 	FullRevalidationResult,
 	CacheStatus,
+	CacheStateStatus,
 	CacheState,
 	CacheMetricsData,
 	ChangeDetails, 

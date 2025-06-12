@@ -3,18 +3,7 @@
  * Handles cache hit/miss tracking, performance monitoring, and statistics
  */
 
-export interface CacheMetricsData {
-	cacheHits: number;
-	cacheMisses: number;
-	totalRequests: number;
-	lastReset: number;
-	fetchTimes: number[];
-	errorCount: number;
-	memoryCleanups: number;
-	hitRate: number;
-	averageFetchTime: number;
-	uptime: number;
-}
+import type { CacheMetricsData } from "./cache-types";
 
 /**
  * Cache Performance Metrics Manager

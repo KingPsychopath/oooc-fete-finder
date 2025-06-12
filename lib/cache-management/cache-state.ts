@@ -5,35 +5,8 @@
 
 import { Event } from "@/types/events";
 import { getCacheConfig } from "./cache-config";
-import { CacheMemoryManager, type MemoryStats } from "./cache-memory";
-
-export interface CacheState {
-	events: Event[] | null;
-	lastFetchTime: number;
-	lastRemoteFetchTime: number;
-	lastRemoteSuccessTime: number;
-	lastRemoteErrorMessage: string;
-	lastDataSource: "remote" | "local" | "cached";
-	// Memory management fields
-	memoryUsage: number;
-	lastMemoryCheck: number;
-}
-
-export interface CacheStatus {
-	hasCachedData: boolean;
-	lastFetchTime: string | null;
-	lastRemoteFetchTime: string | null;
-	lastRemoteSuccessTime: string | null;
-	lastRemoteErrorMessage: string;
-	cacheAge: number;
-	nextRemoteCheck: number;
-	dataSource: "remote" | "local" | "cached";
-	eventCount: number;
-	// Memory management status
-	memoryUsage: number;
-	memoryLimit: number;
-	memoryUtilization: number;
-}
+import { CacheMemoryManager } from "./cache-memory";
+import type { CacheState, CacheStateStatus, MemoryStats } from "./cache-types";
 
 // Memory management configuration
 const MEMORY_CONFIG = {
@@ -399,7 +372,7 @@ export class CacheStateManager {
 	/**
 	 * Get comprehensive cache status
 	 */
-	static getCacheStatus(): CacheStatus {
+	static getCacheStatus(): CacheStateStatus {
 		const now = Date.now();
 		const cacheAge = cacheState.lastFetchTime ? now - cacheState.lastFetchTime : 0;
 

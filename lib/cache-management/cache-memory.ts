@@ -4,22 +4,7 @@
  */
 
 import { Event } from "@/types/events";
-
-export interface MemoryStats {
-	currentUsage: number;
-	maxLimit: number;
-	utilizationPercent: number;
-	eventCount: number;
-	averageSizePerEvent: number;
-	lastCleanup?: string;
-}
-
-export interface MemoryLimitsCheck {
-	withinLimits: boolean;
-	needsCleanup: boolean;
-	needsEmergencyCleanup: boolean;
-	stats: MemoryStats;
-}
+import type { MemoryStats, MemoryLimitsCheck } from "./cache-types";
 
 // Memory management configuration
 const MEMORY_CONFIG = {

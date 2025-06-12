@@ -57,7 +57,7 @@ export interface CacheState {
 	lastMemoryCheck: number;
 }
 
-export interface CacheStatus {
+export interface CacheStateStatus {
 	hasCachedData: boolean;
 	lastFetchTime: string | null;
 	lastRemoteFetchTime: string | null;
@@ -66,14 +66,17 @@ export interface CacheStatus {
 	cacheAge: number;
 	nextRemoteCheck: number;
 	dataSource: "remote" | "local" | "cached";
-	configuredDataSource: "remote" | "local" | "static";
 	eventCount: number;
-	localCsvLastUpdated: string;
-	remoteConfigured: boolean;
 	// Memory management status
 	memoryUsage: number;
 	memoryLimit: number;
 	memoryUtilization: number;
+}
+
+export interface CacheStatus extends CacheStateStatus {
+	configuredDataSource: "remote" | "local" | "static";
+	localCsvLastUpdated: string;
+	remoteConfigured: boolean;
 }
 
 // ========================================

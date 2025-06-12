@@ -36,33 +36,12 @@ const _fieldCompleteness: Record<EventFields, true> = {
 };
 void _fieldCompleteness; // Silence unused warning
 
-export interface ChangeDetails {
-	countChanged: boolean;
-	addedEvents: string[];
-	removedEvents: string[];
-	modifiedEvents: string[];
-}
-
-export interface InvalidationResult {
-	success: boolean;
-	dataChanged: boolean;
-	invalidated: boolean;
-	message: string;
-	changeDetails?: ChangeDetails;
-}
-
-export interface CacheClearResult {
-	success: boolean;
-	clearedPaths: string[];
-	errors: string[];
-}
-
-export interface EmergencyCacheBustResult {
-	success: boolean;
-	message: string;
-	operations: string[];
-	errors: string[];
-}
+import type { 
+	ChangeDetails, 
+	InvalidationResult, 
+	CacheClearResult, 
+	EmergencyCacheBustResult 
+} from "./cache-types";
 
 /**
  * Cache Invalidation Manager class
