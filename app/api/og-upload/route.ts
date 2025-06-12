@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { validateAdminKeyForApiRoute } from "@/lib/admin-validation";
 
 export async function POST(request: NextRequest) {
 	try {
 		// Check for admin authentication
 		const adminKey = request.headers.get("x-admin-key");
-		const expectedAdminKey = process.env.ADMIN_KEY || "your-secret-key-123";
 
-		if (adminKey !== expectedAdminKey) {
+		if (!validateAdminKeyForApiRoute(adminKey)) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 
@@ -88,9 +88,8 @@ export async function GET(request: NextRequest) {
 		// List uploaded images
 		const { searchParams } = new URL(request.url);
 		const adminKey = searchParams.get("adminKey");
-		const expectedAdminKey = process.env.ADMIN_KEY || "your-secret-key-123";
 
-		if (adminKey !== expectedAdminKey) {
+		if (!validateAdminKeyForApiRoute(adminKey)) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 

@@ -22,6 +22,7 @@ import type {
 	AuthenticateUserResponse,
 	CollectedEmailsResponse,
 } from "@/types/user";
+import { validateDirectAdminKey } from "@/lib/admin-validation";
 
 // Simple in-memory user storage (will reset on deployment, but good for development)
 const collectedUsers: UserRecord[] = [];
@@ -90,13 +91,12 @@ export async function setDynamicSheet(formData: FormData): Promise<{
 }> {
 	"use server";
 
-	const adminKey = formData.get("adminKey") as string;
+	const keyOrToken = formData.get("adminKey") as string;
 	const sheetInput = formData.get("sheetInput") as string;
 	const sheetRange = formData.get("sheetRange") as string;
 
 	// Verify admin access
-	const expectedKey = process.env.ADMIN_KEY || "your-secret-key-123";
-	if (adminKey !== expectedKey) {
+	if (!validateAdminAccess(keyOrToken)) {
 		return { success: false, message: "Unauthorized access" };
 	}
 
@@ -127,7 +127,7 @@ const DATE_COLUMNS_TO_CHECK = {
 /**
  * Analyze date formats from Google Sheets data
  */
-export async function analyzeDateFormats(adminKey?: string): Promise<{
+export async function analyzeDateFormats(keyOrToken?: string): Promise<{
 	success: boolean;
 	warnings?: DateFormatWarning[];
 	error?: string;
@@ -135,8 +135,7 @@ export async function analyzeDateFormats(adminKey?: string): Promise<{
 	"use server";
 
 	// Verify admin access first
-	const expectedKey = process.env.ADMIN_KEY || "your-secret-key-123";
-	if (adminKey !== expectedKey) {
+	if (!validateAdminAccess(keyOrToken)) {
 		return { success: false, error: "Unauthorized access" };
 	}
 
@@ -341,16 +340,92 @@ export async function authenticateUser(
 	};
 }
 
-// Admin function to get collected emails
+// In-memory session store for server-side validation
+const adminSessions = new Map<string, {
+	adminKey: string;
+	expiresAt: number;
+	createdAt: number;
+}>();
+
+// Helper function to validate admin access (key or session token)
+function validateAdminAccess(keyOrToken?: string): boolean {
+	if (!keyOrToken) return false;
+	
+	// Direct admin key check
+	if (validateDirectAdminKey(keyOrToken)) {
+		return true;
+	}
+
+	// Session token check
+	const session = adminSessions.get(keyOrToken);
+	if (session && Date.now() < session.expiresAt) {
+		return true;
+	}
+
+	// Clean up expired session if found
+	if (session && Date.now() >= session.expiresAt) {
+		adminSessions.delete(keyOrToken);
+	}
+
+	return false;
+}
+
+// Create admin session (used during login)
+export async function createAdminSession(
+	adminKey: string,
+	sessionToken: string,
+): Promise<{ success: boolean; error?: string; expiresAt?: number }> {
+	"use server";
+
+	if (!validateDirectAdminKey(adminKey)) {
+		return { success: false, error: "Invalid admin key" };
+	}
+
+	const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+	
+	adminSessions.set(sessionToken, {
+		adminKey,
+		expiresAt,
+		createdAt: Date.now(),
+	});
+
+	console.log(`✅ Server session created for token: ${sessionToken.substring(0, 8)}...`);
+	
+	return { success: true, expiresAt };
+}
+
+// Extend admin session
+export async function extendAdminSession(
+	sessionToken: string,
+): Promise<{ success: boolean; error?: string; expiresAt?: number }> {
+	"use server";
+
+	const session = adminSessions.get(sessionToken);
+	
+	if (!session) {
+		return { success: false, error: "Session not found" };
+	}
+
+	if (Date.now() >= session.expiresAt) {
+		adminSessions.delete(sessionToken);
+		return { success: false, error: "Session expired" };
+	}
+
+	const newExpiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+	session.expiresAt = newExpiresAt;
+	
+	console.log(`✅ Server session extended for token: ${sessionToken.substring(0, 8)}...`);
+	
+	return { success: true, expiresAt: newExpiresAt };
+}
+
+// Admin function to get collected emails (accepts admin key OR session token)
 export async function getCollectedEmails(
-	adminKey?: string,
+	keyOrToken?: string,
 ): Promise<CollectedEmailsResponse> {
 	"use server";
 
-	// Simple protection - you can set this as an environment variable
-	const expectedKey = process.env.ADMIN_KEY || "your-secret-key-123";
-
-	if (adminKey !== expectedKey) {
+	if (!validateAdminAccess(keyOrToken)) {
 		return { success: false, error: "Unauthorized" };
 	}
 
@@ -369,7 +444,7 @@ export async function getCollectedEmails(
 }
 
 // Google Sheets Admin Utilities - communicate with the merged script's admin functions
-export async function getGoogleSheetsStats(adminKey?: string): Promise<{
+export async function getGoogleSheetsStats(keyOrToken?: string): Promise<{
 	success: boolean;
 	stats?: {
 		totalUsers: number;
@@ -383,9 +458,7 @@ export async function getGoogleSheetsStats(adminKey?: string): Promise<{
 }> {
 	"use server";
 
-	// Admin authentication
-	const expectedKey = process.env.ADMIN_KEY || "your-secret-key-123";
-	if (adminKey !== expectedKey) {
+	if (!validateAdminAccess(keyOrToken)) {
 		return { success: false, error: "Unauthorized" };
 	}
 
@@ -434,7 +507,7 @@ export async function getGoogleSheetsStats(adminKey?: string): Promise<{
 }
 
 export async function getRecentSheetEntries(
-	adminKey?: string,
+	keyOrToken?: string,
 	limit: number = 5,
 ): Promise<{
 	success: boolean;
@@ -450,9 +523,7 @@ export async function getRecentSheetEntries(
 }> {
 	"use server";
 
-	// Admin authentication
-	const expectedKey = process.env.ADMIN_KEY || "your-secret-key-123";
-	if (adminKey !== expectedKey) {
+	if (!validateAdminAccess(keyOrToken)) {
 		return { success: false, error: "Unauthorized" };
 	}
 
@@ -489,7 +560,7 @@ export async function getRecentSheetEntries(
 	}
 }
 
-export async function cleanupSheetDuplicates(adminKey?: string): Promise<{
+export async function cleanupSheetDuplicates(keyOrToken?: string): Promise<{
 	success: boolean;
 	message?: string;
 	removed?: number;
@@ -498,8 +569,7 @@ export async function cleanupSheetDuplicates(adminKey?: string): Promise<{
 	"use server";
 
 	// Admin authentication
-	const expectedKey = process.env.ADMIN_KEY || "your-secret-key-123";
-	if (adminKey !== expectedKey) {
+	if (!validateAdminAccess(keyOrToken)) {
 		return { success: false, error: "Unauthorized access" };
 	}
 

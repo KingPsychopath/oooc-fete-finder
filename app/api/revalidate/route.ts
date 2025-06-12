@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { CacheManager } from "@/lib/cache-management/cache-management";
-
-// Admin key validation function for consistency
-const validateAdminKey = (providedKey: string | null): boolean => {
-	const expectedKey = process.env.ADMIN_KEY || "your-secret-key-123";
-	return providedKey === expectedKey && providedKey.length > 0;
-};
+import { validateAdminKeyForApiRoute, getExpectedAdminKey } from "@/lib/admin-validation";
 
 // Validate and normalize path for revalidation
 const normalizePath = (path: string | null): string => {
@@ -50,10 +45,10 @@ export async function POST(request: NextRequest) {
 		});
 
 		// Verify admin access with improved validation
-		if (!validateAdminKey(adminKey || null)) {
+		if (!validateAdminKeyForApiRoute(adminKey || null)) {
 			console.error("❌ Admin key validation failed:", {
 				provided: adminKey ? "***" : "missing",
-				expected: process.env.ADMIN_KEY ? "***" : "not set",
+				expected: getExpectedAdminKey() ? "***" : "not set",
 			});
 			return NextResponse.json(
 				{
@@ -116,7 +111,7 @@ export async function GET(request: NextRequest) {
 		});
 
 		// Verify admin access
-		if (!validateAdminKey(adminKey)) {
+		if (!validateAdminKeyForApiRoute(adminKey)) {
 			console.error("❌ GET Admin key validation failed");
 			return NextResponse.json(
 				{

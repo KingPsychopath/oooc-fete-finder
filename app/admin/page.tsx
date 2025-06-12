@@ -12,10 +12,13 @@ import {
 	getDynamicSheetConfig,
 	getGoogleSheetsStats,
 	getRecentSheetEntries,
+	createAdminSession,
+	extendAdminSession,
 } from "@/app/actions";
 
 // Import local components
 import { AuthForm } from "./components/AuthForm";
+import { AdminSessionStatus } from "./components/AdminSessionStatus";
 import { CacheManagementCard } from "./components/CacheManagementCard";
 import { DateFormatNotificationsCard } from "./components/DateFormatNotificationsCard";
 import { DynamicSheetCard } from "./components/DynamicSheetCard";
@@ -27,6 +30,13 @@ import { SheetActionsCard } from "./components/SheetActionsCard";
 
 // Import types
 import { EmailRecord, CacheStatus, DynamicSheetConfig } from "./types";
+
+// Import session management
+import { 
+	getSessionToken, 
+	createAdminSession as createClientSession,
+	clearAdminSession 
+} from "@/lib/admin-session";
 
 // Get base path from environment variable
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -45,6 +55,8 @@ export default function AdminPage() {
 	const [dynamicConfig, setDynamicConfig] = useState<DynamicSheetConfig | null>(
 		null,
 	);
+
+
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -67,14 +79,27 @@ export default function AdminPage() {
 			const result = await getCollectedEmails(adminKey);
 
 			if (result.success) {
-				setIsAuthenticated(true);
-				setEmails(result.emails || []);
-				await loadCacheStatus();
-				await loadDynamicConfig();
+				// Create client-side session token
+				const sessionToken = createClientSession();
+				
+				// Create server-side session
+				const sessionResult = await createAdminSession(adminKey, sessionToken);
+				
+				if (sessionResult.success) {
+					setIsAuthenticated(true);
+					setEmails(result.emails || []);
+					await loadCacheStatus();
+					await loadDynamicConfig();
 
-				console.log(
-					`✅ Admin authenticated successfully. Found ${result.emails?.length || 0} collected users.`,
-				);
+					console.log(
+						`✅ Admin authenticated successfully. Found ${result.emails?.length || 0} collected users.`,
+					);
+				} else {
+					setError("Failed to create session");
+					console.error("❌ Session creation failed:", sessionResult.error);
+					// Clear the client session if server session failed
+					clearAdminSession();
+				}
 			} else {
 				setError(result.error || "Invalid admin key");
 				console.error("❌ Admin authentication failed:", result.error);
@@ -85,6 +110,19 @@ export default function AdminPage() {
 		} finally {
 			setIsLoading(false);
 		}
+	};
+
+	// Handle logout
+	const handleLogout = () => {
+		clearAdminSession();
+		setIsAuthenticated(false);
+		setAdminKey("");
+		setEmails([]);
+		setCacheStatus(null);
+		setDynamicConfig(null);
+		setError("");
+		setRefreshMessage("");
+		console.log("🔓 Admin logged out");
 	};
 
 	const loadCacheStatus = useCallback(async () => {
@@ -119,7 +157,7 @@ export default function AdminPage() {
 		}
 	}, [loadCacheStatus]);
 
-	const loadDynamicConfig = async () => {
+	const loadDynamicConfig = useCallback(async () => {
 		try {
 			const config = await getDynamicSheetConfig();
 			setDynamicConfig({
@@ -132,7 +170,37 @@ export default function AdminPage() {
 		} catch {
 			console.error("Failed to load dynamic config");
 		}
-	};
+	}, []);
+
+	// Check for existing session on component mount
+	useEffect(() => {
+		const checkExistingSession = async () => {
+			const sessionToken = getSessionToken();
+			if (sessionToken) {
+				console.log("✅ Found local session, validating with server...");
+				
+				// Try to use the session token to get emails (this validates it server-side)
+				try {
+					const result = await getCollectedEmails(sessionToken);
+					if (result.success) {
+						setIsAuthenticated(true);
+						setEmails(result.emails || []);
+						await loadCacheStatus();
+						await loadDynamicConfig();
+						console.log("✅ Admin session restored successfully");
+					} else {
+						console.log("❌ Session invalid, clearing...");
+						clearAdminSession();
+					}
+				} catch (error) {
+					console.error("❌ Error validating session:", error);
+					clearAdminSession();
+				}
+			}
+		};
+
+		checkExistingSession();
+	}, [loadCacheStatus, loadDynamicConfig]);
 
 	// Auto-refresh cache status every 30 seconds when authenticated
 	useEffect(() => {
@@ -397,6 +465,9 @@ export default function AdminPage() {
 					</Button>
 				</div>
 			</div>
+
+			{/* Admin Session Status */}
+			<AdminSessionStatus onLogout={handleLogout} />
 
 			{/* Cache Management Section */}
 			<CacheManagementCard

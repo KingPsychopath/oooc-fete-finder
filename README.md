@@ -94,6 +94,10 @@ LOCAL_CSV_LAST_UPDATED=2025-01-18
 # Admin panel access (change this!)
 ADMIN_KEY=your-secret-admin-key-123
 
+# Admin session duration in hours (optional, default: 24 hours)
+# Min: 1 hour, Max: 168 hours (1 week)
+NEXT_PUBLIC_ADMIN_SESSION_HOURS=24
+
 # === OPTIONAL INTEGRATIONS ===
 # Google Apps Script URL for email collection
 GOOGLE_SHEETS_URL=your-google-apps-script-deployment-url
@@ -295,8 +299,18 @@ Access the admin panel at `/admin` to:
 - See when remote data was last successfully fetched
 - Force refresh the events data
 - Manage collected email addresses
+- **NEW**: Session management with automatic login
 
-Default admin key: `your-secret-key-123` (set `ADMIN_KEY` env var to change)
+**🔐 Session Management Features:**
+- **Auto-login**: Once authenticated, stay logged in for 24 hours (configurable)
+- **Session status**: See when your session expires and extend it
+- **Secure logout**: Clear session data instantly
+- **Session expiry warnings**: Get notified when session is about to expire
+
+**Configuration:**
+- Default admin key: `your-secret-key-123` (set `ADMIN_KEY` env var to change)
+- Session duration: 24 hours (set `NEXT_PUBLIC_ADMIN_SESSION_HOURS` to customize: 1-168 hours)
+- Session storage: Browser localStorage with expiration tracking
 
 ## Learn More
 
