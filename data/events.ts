@@ -1,5 +1,4 @@
 import type { Event, MusicGenre, ParisArrondissement } from "@/types/events";
-import { CacheManager } from "@/lib/cache-management/cache-management";
 
 // Data source configuration - choose how the app loads event data
 // 
@@ -621,64 +620,8 @@ export const EVENTS_DATA: Event[] = [
 	},
 ];
 
-// Enhanced helper functions with CSV support using centralized cache manager
-export async function getAllEvents(): Promise<Event[]> {
-	try {
-		const result = await CacheManager.getEvents();
-
-		if (result.error) {
-			console.error("Error loading events:", result.error);
-			return [];
-		}
-
-		return result.data;
-	} catch (error) {
-		console.error("Error in getAllEvents:", error);
-		return [];
-	}
-}
-
-export const getEventsByDay = async (day: string): Promise<Event[]> => {
-	const events = await getAllEvents();
-	return events.filter((event) => event.day === day);
-};
-
-export const getEventsByArrondissement = async (
-	arrondissement: number,
-): Promise<Event[]> => {
-	const events = await getAllEvents();
-	return events.filter((event) => event.arrondissement === arrondissement);
-};
-
-export const getEventsCount = async (): Promise<number> => {
-	const events = await getAllEvents();
-	return events.length;
-};
-
-export const getFeaturedEvents = async (): Promise<Event[]> => {
-	const events = await getAllEvents();
-	return events.filter((event) => event.isFeatured);
-};
-
-export const getOOOCPickEvents = async (): Promise<Event[]> => {
-	const events = await getAllEvents();
-	return events.filter((event) => event.isOOOCPick);
-};
-
-export const getEventsByGenre = async (genre: MusicGenre): Promise<Event[]> => {
-	const events = await getAllEvents();
-	return events.filter((event) => event.genre.includes(genre));
-};
-
-export const getFreeEvents = async (): Promise<Event[]> => {
-	const events = await getAllEvents();
-	return events.filter(
-		(event) =>
-			event.price?.toLowerCase().includes("free") ||
-			event.price === "" ||
-			!event.price,
-	);
-};
+// Note: Async helper functions have been moved to lib/events/events-service.ts
+// to avoid circular dependencies. Import from there instead.
 
 // Synchronous versions for backwards compatibility (using static data only)
 export const getEventsByDaySync = (day: string) => {

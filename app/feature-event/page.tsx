@@ -32,7 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Euro, Star, CheckCircle, Calendar, Target, Copy } from "lucide-react";
 import { FEATURED_EVENTS_CONFIG } from "@/components/featured-events/constants";
 import { FeatureCountdown } from "@/components/featured-events/components/FeatureCountdown";
-import { getFeaturedEvents } from "@/data/events";
+import { getFeaturedEvents } from "@/lib/events/events-service";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { CopyEmailButton } from "./components/CopyEmailButton";

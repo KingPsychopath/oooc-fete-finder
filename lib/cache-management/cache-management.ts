@@ -125,7 +125,8 @@ export class CacheManager {
 					? "Remote data validation failed - data is empty or invalid"
 					: dataResult.error || "Unknown error";
 
-				// Try to return cached data (even if expired) and refresh its validity
+				// PRIORITIZED FALLBACK LOGIC:
+				// 1. Try cached data first (more recent than local CSV)
 				const cachedEvents = CacheStateManager.getCachedEventsForced();
 				if (cachedEvents && isValidEventsData(cachedEvents)) {
 					const cacheState = CacheStateManager.getState();
@@ -133,7 +134,7 @@ export class CacheManager {
 					// Refresh cache validity timer to keep serving cached data
 					CacheStateManager.refreshCacheValidity(errorMessage);
 					
-					console.log("🔄 Remote fetch failed/invalid, refreshed cached data validity");
+					console.log("🔄 Remote fetch failed/invalid, using cached data (prioritized over local CSV)");
 					console.log(
 						`   Serving cached data: ${cachedEvents.length} events from ${cacheState.lastDataSource} source`,
 					);
@@ -149,8 +150,42 @@ export class CacheManager {
 					};
 				}
 
-				// No valid cached data available - activate bootstrap mode
-				console.error("❌ No valid cached data available, activating bootstrap mode");
+				// 2. No cached data - try local CSV fallback
+				console.log("🔄 No cached data available, trying local CSV fallback...");
+				try {
+					const { fetchLocalCSV } = await import('../data-management/csv-fetcher');
+					const { processCSVData } = await import('../data-management/data-processor');
+					
+					const localCsvContent = await fetchLocalCSV();
+					const localProcessResult = await processCSVData(localCsvContent, 'local', false);
+					
+					if (isValidEventsData(localProcessResult.events)) {
+						console.log(`✅ Successfully fell back to local CSV with ${localProcessResult.count} events`);
+						
+						// Cache the local data for future use
+						CacheStateManager.updateCache(
+							localProcessResult.events,
+							'local',
+							`Fallback from remote failure: ${errorMessage}`
+						);
+						
+						return {
+							success: true,
+							data: localProcessResult.events,
+							count: localProcessResult.count,
+							cached: false,
+							source: 'local',
+							error: `Used local CSV fallback due to remote issue: ${errorMessage}`,
+							lastUpdate: new Date().toISOString(),
+						};
+					}
+				} catch (localError) {
+					const localErrorMsg = localError instanceof Error ? localError.message : "Unknown error";
+					console.error(`❌ Local CSV fallback also failed: ${localErrorMsg}`);
+				}
+
+				// 3. Both remote and local failed - activate bootstrap mode
+				console.error("❌ All data sources failed, activating bootstrap mode");
 				CacheStateManager.bootstrapCacheWithFallback(errorMessage);
 				
 				const bootstrapEvents = CacheStateManager.getCachedEventsForced();

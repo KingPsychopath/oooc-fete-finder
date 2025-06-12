@@ -97,15 +97,38 @@ export class DataManager {
 			// Fetch CSV with multiple fallback strategies
 			const fetchResult = await fetchCSVWithFallbacks(remoteUrl, sheetId, range);
 			
-			// Process the fetched data
+			// Process the fetched data (disable local fallback here - we'll handle it at a higher level)
 			const processResult = await processCSVData(
 				fetchResult.content, 
 				fetchResult.source, 
-				true // Enable local fallback
+				false // Disable local fallback - we'll handle cache vs local CSV priority
 			);
 
 			// Combine any warnings
 			warnings.push(...processResult.errors);
+
+			// Check if the processed data is valid
+			const { isValidEventsData } = await import('./data-processor');
+			if (!isValidEventsData(processResult.events)) {
+				console.warn(`⚠️ Remote data validation failed (${processResult.count} events), checking for cached data before local CSV fallback`);
+				
+				// Don't check cache here - let the cache manager handle fallback logic
+				// This breaks the circular dependency
+				console.log(`🔄 Remote data validation failed, letting cache manager handle fallback`);
+				
+				// Return failure to let cache manager decide between cached data vs local CSV
+				return {
+					success: false,
+					data: [],
+					count: 0,
+					source: "remote",
+					cached: false,
+					error: `Remote data validation failed`,
+					warnings: [...warnings, "Remote data invalid - cache manager will handle fallback"],
+				};
+				
+
+			}
 
 			console.log(`✅ Successfully loaded and processed ${processResult.count} events from ${processResult.source} source`);
 
@@ -125,8 +148,9 @@ export class DataManager {
 
 			// Record the failed remote attempt for cache management
 			if (DATA_SOURCE === "remote") {
-				const { CacheStateManager } = await import('../cache-management/cache-state');
-				CacheStateManager.updateRemoteAttempt(errorMessage);
+				// Don't check cache here - let the cache manager handle fallback logic
+				// This breaks the circular dependency
+				console.log(`🔄 Remote fetch failed in ${DATA_SOURCE} mode: ${errorMessage}`);
 			}
 
 			return {
