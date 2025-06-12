@@ -3,7 +3,7 @@
  * Handles fetching CSV data from local files, remote URLs, and Google Sheets
  */
 
-import { CACHE_CONFIG } from './config';
+import { getCacheConfig } from '../cache-management/cache-config';
 
 export interface CSVFetchResult {
 	content: string;
@@ -200,7 +200,7 @@ export async function fetchCSVWithFallbacks(
 	try {
 		console.log("📁 Strategy 3: Falling back to local CSV...");
 		const content = await fetchLocalCSV();
-		console.log(`ℹ️ Using local CSV fallback (last updated: ${CACHE_CONFIG.LOCAL_CSV_LAST_UPDATED})`);
+		console.log(`ℹ️ Using local CSV fallback (last updated: ${getCacheConfig().localCsvLastUpdated})`);
 		return {
 			content,
 			source: 'local',

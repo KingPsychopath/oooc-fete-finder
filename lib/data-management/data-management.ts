@@ -5,7 +5,8 @@
 
 import { Event } from "@/types/events";
 import { DATA_SOURCE } from "@/data/events";
-import { DATA_CONFIG, CACHE_CONFIG } from "./config";
+import { DATA_CONFIG } from "./config";
+import { getCacheConfig } from "../cache-management/cache-config";
 import { fetchCSVWithFallbacks, extractSheetId, buildGoogleSheetsCSVUrl } from "./csv-fetcher";
 import { processCSVData } from "./data-processor";
 
@@ -262,7 +263,7 @@ export class DataManager {
 		return {
 			dataSource: DATA_SOURCE,
 			remoteConfigured,
-			localCsvLastUpdated: CACHE_CONFIG.LOCAL_CSV_LAST_UPDATED,
+			localCsvLastUpdated: getCacheConfig().localCsvLastUpdated,
 			hasServiceAccount,
 			hasDynamicOverride: dynamicSheetConfig.sheetId !== null,
 		};
