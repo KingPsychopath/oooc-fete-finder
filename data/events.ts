@@ -1,10 +1,10 @@
 import type { Event, MusicGenre, ParisArrondissement } from "@/types/events";
 
 // Data source configuration - choose how the app loads event data
-// 
+//
 // Options:
 // - "remote": Fetch from Google Sheets with local CSV fallback (production mode)
-// - "local": Use local CSV file only (development/testing mode)  
+// - "local": Use local CSV file only (development/testing mode)
 // - "static": Use EVENTS_DATA object below (demo/offline mode)
 //
 // When DATA_SOURCE is "remote":

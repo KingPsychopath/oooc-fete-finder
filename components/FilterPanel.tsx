@@ -599,7 +599,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												{/* Nationality */}
 												<div>
 													<h3 className="font-semibold mb-3">
-														Nationality {selectedNationalities.length > 1 && <span className="text-sm text-muted-foreground font-normal">(must INCLUDE)</span>}
+														Nationality{" "}
+														{selectedNationalities.length > 1 && (
+															<span className="text-sm text-muted-foreground font-normal">
+																(must INCLUDE)
+															</span>
+														)}
 													</h3>
 													<div className="grid grid-cols-3 gap-1">
 														{NATIONALITIES.map(({ key, flag, shortCode }) => (
@@ -1033,7 +1038,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								{/* Nationality */}
 								<div>
 									<h3 className="font-semibold mb-3">
-										Nationality {selectedNationalities.length > 1 && <span className="text-sm text-muted-foreground font-normal">(must INCLUDE)</span>}
+										Nationality{" "}
+										{selectedNationalities.length > 1 && (
+											<span className="text-sm text-muted-foreground font-normal">
+												(must INCLUDE)
+											</span>
+										)}
 									</h3>
 									<div className="grid grid-cols-3 gap-1">
 										{NATIONALITIES.map(({ key, flag, shortCode }) => (

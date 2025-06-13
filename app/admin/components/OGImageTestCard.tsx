@@ -234,9 +234,7 @@ export const OGImageTestCard = ({ isAuthenticated }: OGImageTestCardProps) => {
 		return (
 			<div className="md:col-span-2 space-y-4 p-4 border rounded-lg bg-blue-50">
 				<div className="flex items-center gap-2">
-					<Label className="text-sm font-medium">
-						📁 Upload Local Image
-					</Label>
+					<Label className="text-sm font-medium">📁 Upload Local Image</Label>
 					<Badge variant="secondary">PNG, JPEG, WebP up to 5MB</Badge>
 				</div>
 
@@ -271,7 +269,9 @@ export const OGImageTestCard = ({ isAuthenticated }: OGImageTestCardProps) => {
 					<Alert className="border-red-500">
 						<AlertTriangle className="h-4 w-4 text-red-600" />
 						<AlertDescription className="flex justify-between items-center">
-							<span><strong>Error:</strong> {error}</span>
+							<span>
+								<strong>Error:</strong> {error}
+							</span>
 							<Button
 								onClick={clearMessages}
 								variant="ghost"

@@ -2,10 +2,16 @@
 
 import { Button } from "@/components/ui/button";
 import { useThemeToggle } from "@/hooks/useThemeToggle";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export const ThemeToggle = () => {
-	const { toggleTheme, currentThemeIcon, nextThemeLabel, mounted } = useThemeToggle();
+	const { toggleTheme, currentThemeIcon, nextThemeLabel, mounted } =
+		useThemeToggle();
 
 	return (
 		<TooltipProvider>
@@ -23,7 +29,9 @@ export const ThemeToggle = () => {
 					</Button>
 				</TooltipTrigger>
 				<TooltipContent>
-					<p>{mounted ? `Switch to ${nextThemeLabel} mode` : 'Loading theme...'}</p>
+					<p>
+						{mounted ? `Switch to ${nextThemeLabel} mode` : "Loading theme..."}
+					</p>
 				</TooltipContent>
 			</Tooltip>
 		</TooltipProvider>

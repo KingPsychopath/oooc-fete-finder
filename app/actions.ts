@@ -4,8 +4,14 @@ import { promises as fs } from "fs";
 import path from "path";
 import Papa from "papaparse";
 import jwt from "jsonwebtoken";
-import { CacheManager, CacheInvalidationManager } from "@/lib/cache-management/cache-management";
-import type { CacheStatus, EventsResult } from "@/lib/cache-management/cache-management";
+import {
+	CacheManager,
+	CacheInvalidationManager,
+} from "@/lib/cache-management/cache-management";
+import type {
+	CacheStatus,
+	EventsResult,
+} from "@/lib/cache-management/cache-management";
 import {
 	getDateFormatWarnings,
 	type DateFormatWarning,
@@ -341,12 +347,10 @@ export async function authenticateUser(
 	};
 }
 
-
-
 // Helper function to validate admin access (key or session token)
 function validateAdminAccess(keyOrToken?: string): boolean {
 	if (!keyOrToken) return false;
-	
+
 	// Direct admin key check
 	if (validateDirectAdminKey(keyOrToken)) {
 		return true;
@@ -367,16 +371,18 @@ export async function createAdminSession(
 		return { success: false, error: "Invalid admin key" };
 	}
 
-	const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
-	
+	const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
 	adminSessions.set(sessionToken, {
 		adminKey,
 		expiresAt,
 		createdAt: Date.now(),
 	});
 
-	console.log(`✅ Server session created for token: ${sessionToken.substring(0, 8)}...`);
-	
+	console.log(
+		`✅ Server session created for token: ${sessionToken.substring(0, 8)}...`,
+	);
+
 	return { success: true, expiresAt };
 }
 
@@ -387,7 +393,7 @@ export async function extendAdminSession(
 	"use server";
 
 	const session = adminSessions.get(sessionToken);
-	
+
 	if (!session) {
 		return { success: false, error: "Session not found" };
 	}
@@ -397,11 +403,13 @@ export async function extendAdminSession(
 		return { success: false, error: "Session expired" };
 	}
 
-	const newExpiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+	const newExpiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 	session.expiresAt = newExpiresAt;
-	
-	console.log(`✅ Server session extended for token: ${sessionToken.substring(0, 8)}...`);
-	
+
+	console.log(
+		`✅ Server session extended for token: ${sessionToken.substring(0, 8)}...`,
+	);
+
 	return { success: true, expiresAt: newExpiresAt };
 }
 
@@ -665,11 +673,18 @@ export async function revalidatePages(
 		}
 
 		// Ensure path starts with /
-		const normalizedPath = inputPath.startsWith("/") ? inputPath : `/${inputPath}`;
+		const normalizedPath = inputPath.startsWith("/")
+			? inputPath
+			: `/${inputPath}`;
 
 		// Basic path validation to prevent malicious paths
-		if (normalizedPath.includes("..") || !normalizedPath.match(/^\/[\w\-\/]*$/)) {
-			console.warn(`⚠️ Invalid path provided, falling back to root: ${inputPath}`);
+		if (
+			normalizedPath.includes("..") ||
+			!normalizedPath.match(/^\/[\w\-\/]*$/)
+		) {
+			console.warn(
+				`⚠️ Invalid path provided, falling back to root: ${inputPath}`,
+			);
 			return "/";
 		}
 
@@ -687,7 +702,8 @@ export async function revalidatePages(
 		console.log("✅ Admin access verified, starting full revalidation...");
 
 		// Use the centralized cache manager for full revalidation
-		const revalidationResult = await CacheManager.fullRevalidation(normalizedPath);
+		const revalidationResult =
+			await CacheManager.fullRevalidation(normalizedPath);
 
 		const processingTime = Date.now() - startTime;
 		console.log(`✅ Revalidation completed in ${processingTime}ms`);

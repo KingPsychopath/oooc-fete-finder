@@ -2,10 +2,10 @@
 
 /**
  * Test script to demonstrate the new prioritized fallback logic
- * 
+ *
  * Priority order in remote mode:
  * 1. Fresh remote data (if valid)
- * 2. Cached remote data (extend validity) 
+ * 2. Cached remote data (extend validity)
  * 3. Local CSV fallback (only if no cache)
  * 4. Bootstrap mode (fallback event)
  */
@@ -18,40 +18,56 @@ const scenarios = [
 	{
 		name: "✅ Happy Path",
 		description: "Remote fetch succeeds with valid data",
-		conditions: ["Remote API available", "Data passes validation", "Cache expires"],
+		conditions: [
+			"Remote API available",
+			"Data passes validation",
+			"Cache expires",
+		],
 		result: "Use fresh remote data → Update cache → Serve to users",
-		priority: 1
+		priority: 1,
 	},
 	{
 		name: "🔄 Cache Extension (NEW BEHAVIOR)",
 		description: "Remote fails but cached data exists",
-		conditions: ["Remote API fails/503", "Valid cached data exists", "Cache expired"],
+		conditions: [
+			"Remote API fails/503",
+			"Valid cached data exists",
+			"Cache expired",
+		],
 		result: "Extend cached data validity → Serve cached data → Skip local CSV",
 		priority: 2,
-		highlight: true
+		highlight: true,
 	},
 	{
-		name: "🔄 Invalid Data Cache Extension (NEW BEHAVIOR)", 
+		name: "🔄 Invalid Data Cache Extension (NEW BEHAVIOR)",
 		description: "Remote data invalid but cached data exists",
-		conditions: ["Remote API succeeds", "Data fails validation (<80%)", "Valid cached data exists"],
+		conditions: [
+			"Remote API succeeds",
+			"Data fails validation (<80%)",
+			"Valid cached data exists",
+		],
 		result: "Extend cached data validity → Serve cached data → Skip local CSV",
 		priority: 2,
-		highlight: true
+		highlight: true,
 	},
 	{
 		name: "📁 Local CSV Fallback",
 		description: "Remote fails and no cached data",
-		conditions: ["Remote API fails", "No cached data available", "Local CSV exists"],
+		conditions: [
+			"Remote API fails",
+			"No cached data available",
+			"Local CSV exists",
+		],
 		result: "Use local CSV → Cache local data → Serve to users",
-		priority: 3
+		priority: 3,
 	},
 	{
 		name: "🚨 Bootstrap Mode",
 		description: "All sources fail",
 		conditions: ["Remote API fails", "No cached data", "Local CSV fails"],
 		result: "Create fallback event → Cache fallback → Prevent empty UI",
-		priority: 4
-	}
+		priority: 4,
+	},
 ];
 
 scenarios.forEach((scenario) => {
@@ -60,7 +76,7 @@ scenarios.forEach((scenario) => {
 	console.log(`   Priority: ${scenario.priority}`);
 	console.log(`   Description: ${scenario.description}`);
 	console.log(`   Conditions:`);
-	scenario.conditions.forEach(condition => {
+	scenario.conditions.forEach((condition) => {
 		console.log(`     • ${condition}`);
 	});
 	console.log(`   Result: ${scenario.result}`);
@@ -96,4 +112,4 @@ console.log("AFTER (New Logic):");
 console.log("Remote fails → Cached data → Local CSV");
 console.log();
 
-console.log("✅ Test completed successfully!"); 
+console.log("✅ Test completed successfully!");

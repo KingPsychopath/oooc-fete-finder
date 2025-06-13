@@ -3,11 +3,11 @@
  * Handles fetching CSV data from local files, remote URLs, and Google Sheets
  */
 
-import { getCacheConfig } from '../cache-management/cache-config';
+import { getCacheConfig } from "../cache-management/cache-config";
 
 export interface CSVFetchResult {
 	content: string;
-	source: 'local' | 'remote';
+	source: "local" | "remote";
 	timestamp: number;
 }
 
@@ -37,7 +37,8 @@ export async function fetchLocalCSV(): Promise<string> {
 		console.log(`✅ Successfully loaded ${rowCount} rows from local CSV`);
 		return csvContent;
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : "Unknown error";
+		const errorMessage =
+			error instanceof Error ? error.message : "Unknown error";
 
 		if (errorMessage.includes("ENOENT")) {
 			console.error("❌ Local CSV file not found. Please ensure:");
@@ -100,10 +101,15 @@ export async function fetchRemoteCSV(targetUrl: string): Promise<string> {
 			let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 
 			if (response.status === 401) {
-				errorMessage += " - Google Sheet may be private or authentication failed";
+				errorMessage +=
+					" - Google Sheet may be private or authentication failed";
 				console.error("❌ Google Sheets access denied. Please ensure:");
-				console.error("   • The Google Sheet is publicly accessible (sharing settings)");
-				console.error("   • Or configure proper authentication (API key/service account)");
+				console.error(
+					"   • The Google Sheet is publicly accessible (sharing settings)",
+				);
+				console.error(
+					"   • Or configure proper authentication (API key/service account)",
+				);
 			} else if (response.status === 404) {
 				errorMessage += " - Google Sheet not found or invalid URL";
 				console.error("❌ Google Sheet not found. Please check:");
@@ -135,8 +141,13 @@ export async function fetchRemoteCSV(targetUrl: string): Promise<string> {
 		if (error instanceof Error) {
 			if (error.name === "AbortError") {
 				console.error("❌ Google Sheets request timed out after 15 seconds");
-				console.error("   This may indicate network issues or a slow Google Sheets response");
-			} else if (error.name === "TypeError" && error.message.includes("fetch")) {
+				console.error(
+					"   This may indicate network issues or a slow Google Sheets response",
+				);
+			} else if (
+				error.name === "TypeError" &&
+				error.message.includes("fetch")
+			) {
 				console.error("❌ Network error connecting to Google Sheets");
 				console.error("   Please check your internet connection");
 			}
@@ -151,7 +162,7 @@ export async function fetchRemoteCSV(targetUrl: string): Promise<string> {
 export async function fetchCSVWithFallbacks(
 	remoteUrl: string | null,
 	sheetId: string | null,
-	range: string = "A:Z"
+	range: string = "A:Z",
 ): Promise<CSVFetchResult> {
 	const errors: CSVFetchError[] = [];
 
@@ -162,11 +173,12 @@ export async function fetchCSVWithFallbacks(
 			const content = await fetchRemoteCSV(remoteUrl);
 			return {
 				content,
-				source: 'remote',
-				timestamp: Date.now()
+				source: "remote",
+				timestamp: Date.now(),
 			};
 		} catch (publicError) {
-			const errorMsg = publicError instanceof Error ? publicError.message : "Unknown error";
+			const errorMsg =
+				publicError instanceof Error ? publicError.message : "Unknown error";
 			errors.push({ source: "Public URL", message: errorMsg });
 			console.warn(`⚠️ Public CSV failed: ${errorMsg}`);
 		}
@@ -174,23 +186,29 @@ export async function fetchCSVWithFallbacks(
 
 	// Strategy 2: Try service account authentication (handled by google-sheets module)
 	const hasServiceAccount = Boolean(
-		process.env.GOOGLE_SERVICE_ACCOUNT_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_FILE
+		process.env.GOOGLE_SERVICE_ACCOUNT_KEY ||
+			process.env.GOOGLE_SERVICE_ACCOUNT_FILE,
 	);
 
 	if (hasServiceAccount && sheetId) {
 		try {
-			console.log("🔐 Strategy 2: Attempting service account authentication...");
-			const { fetchRemoteCSVWithServiceAccount } = await import('./google-sheets');
+			console.log(
+				"🔐 Strategy 2: Attempting service account authentication...",
+			);
+			const { fetchRemoteCSVWithServiceAccount } = await import(
+				"./google-sheets"
+			);
 			const content = await fetchRemoteCSVWithServiceAccount(sheetId, range);
 			return {
 				content,
-				source: 'remote',
-				timestamp: Date.now()
+				source: "remote",
+				timestamp: Date.now(),
 			};
 		} catch (serviceAccountError) {
-			const errorMsg = serviceAccountError instanceof Error 
-				? serviceAccountError.message 
-				: "Unknown error";
+			const errorMsg =
+				serviceAccountError instanceof Error
+					? serviceAccountError.message
+					: "Unknown error";
 			errors.push({ source: "Service Account", message: errorMsg });
 			console.warn(`⚠️ Service account authentication failed: ${errorMsg}`);
 		}
@@ -200,22 +218,29 @@ export async function fetchCSVWithFallbacks(
 	try {
 		console.log("📁 Strategy 3: Falling back to local CSV...");
 		const content = await fetchLocalCSV();
-		console.log(`ℹ️ Using local CSV fallback (last updated: ${getCacheConfig().localCsvLastUpdated})`);
+		console.log(
+			`ℹ️ Using local CSV fallback (last updated: ${getCacheConfig().localCsvLastUpdated})`,
+		);
 		return {
 			content,
-			source: 'local',
-			timestamp: Date.now()
+			source: "local",
+			timestamp: Date.now(),
 		};
 	} catch (localError) {
-		const errorMsg = localError instanceof Error ? localError.message : "Unknown error";
+		const errorMsg =
+			localError instanceof Error ? localError.message : "Unknown error";
 		errors.push({ source: "Local CSV", message: errorMsg });
 		console.error(`❌ Local CSV fallback failed: ${errorMsg}`);
 	}
 
 	// All strategies failed
 	console.error("💥 All data fetching strategies failed:");
-	errors.forEach((error) => console.error(`   • ${error.source}: ${error.message}`));
-	
-	const errorMessages = errors.map(e => `${e.source}: ${e.message}`).join("; ");
+	errors.forEach((error) =>
+		console.error(`   • ${error.source}: ${error.message}`),
+	);
+
+	const errorMessages = errors
+		.map((e) => `${e.source}: ${e.message}`)
+		.join("; ");
 	throw new Error(`All data sources failed: ${errorMessages}`);
-} 
+}

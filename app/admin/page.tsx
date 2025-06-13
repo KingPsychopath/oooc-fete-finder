@@ -35,10 +35,10 @@ import { SheetActionsCard } from "./components/SheetActionsCard";
 import { EmailRecord, CacheStatus, DynamicSheetConfig } from "./types";
 
 // Import session management
-import { 
-	getSessionToken, 
+import {
+	getSessionToken,
 	createAdminSession as createClientSession,
-	clearAdminSession 
+	clearAdminSession,
 } from "@/lib/admin-session";
 
 // Get base path from environment variable
@@ -58,8 +58,6 @@ export default function AdminPage() {
 	const [dynamicConfig, setDynamicConfig] = useState<DynamicSheetConfig | null>(
 		null,
 	);
-
-
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -84,10 +82,10 @@ export default function AdminPage() {
 			if (result.success) {
 				// Create client-side session token
 				const sessionToken = createClientSession();
-				
+
 				// Create server-side session
 				const sessionResult = await createAdminSession(adminKey, sessionToken);
-				
+
 				if (sessionResult.success) {
 					setIsAuthenticated(true);
 					setEmails(result.emails || []);
@@ -136,12 +134,13 @@ export default function AdminPage() {
 				cacheAge: status.cacheAge,
 				lastFetchTime: status.lastFetchTime,
 				dataSource: status.dataSource,
-				eventCount: status.eventCount
+				eventCount: status.eventCount,
 			});
 			setCacheStatus(status);
 			return status;
 		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error";
 			console.error("❌ Failed to load cache status:", errorMessage);
 			throw error; // Re-throw so calling code can handle
 		}
@@ -181,7 +180,7 @@ export default function AdminPage() {
 			const sessionToken = getSessionToken();
 			if (sessionToken) {
 				console.log("✅ Found local session, validating with server...");
-				
+
 				// Try to use the session token to get emails (this validates it server-side)
 				try {
 					const result = await getCollectedEmails(sessionToken);
@@ -217,7 +216,9 @@ export default function AdminPage() {
 		// Check if we have either adminKey or session token
 		const sessionToken = getSessionToken();
 		if (!adminKey && !sessionToken) {
-			setRefreshMessage("❌ No authentication available. Please re-authenticate.");
+			setRefreshMessage(
+				"❌ No authentication available. Please re-authenticate.",
+			);
 			return;
 		}
 
@@ -248,33 +249,49 @@ export default function AdminPage() {
 					// ✅ IMPROVED: Multiple attempts to reload cache status
 					// Clear any existing cache status immediately to show loading state
 					setCacheStatus(null);
-					
+
 					// Try loading cache status multiple times with progressive delays
 					const reloadCacheStatusRobustly = async () => {
 						const maxAttempts = 3;
 						let lastError: Error | null = null;
-						
+
 						for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 							try {
 								// Progressive delay: 1s, 2s, 3s
-								await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-								
-								console.log(`🔄 Loading cache status (attempt ${attempt}/${maxAttempts})...`);
+								await new Promise((resolve) =>
+									setTimeout(resolve, 1000 * attempt),
+								);
+
+								console.log(
+									`🔄 Loading cache status (attempt ${attempt}/${maxAttempts})...`,
+								);
 								await loadCacheStatus();
-								console.log(`✅ Cache status loaded successfully on attempt ${attempt}`);
+								console.log(
+									`✅ Cache status loaded successfully on attempt ${attempt}`,
+								);
 								break;
 							} catch (error) {
-								lastError = error instanceof Error ? error : new Error('Unknown error');
-								console.warn(`⚠️ Cache status load attempt ${attempt} failed:`, lastError.message);
-								
+								lastError =
+									error instanceof Error ? error : new Error("Unknown error");
+								console.warn(
+									`⚠️ Cache status load attempt ${attempt} failed:`,
+									lastError.message,
+								);
+
 								if (attempt === maxAttempts) {
-									console.error("❌ All cache status load attempts failed:", lastError);
-									setRefreshMessage(prev => `${prev} (Note: Cache status may need manual refresh)`);
+									console.error(
+										"❌ All cache status load attempts failed:",
+										lastError,
+									);
+									setRefreshMessage(
+										(prev) =>
+											`${prev} (Note: Cache status may need manual refresh)`,
+									);
 								}
 							}
 						}
 					};
-					
+
 					// Start the robust reload process
 					reloadCacheStatusRobustly();
 				} else {
@@ -297,7 +314,7 @@ export default function AdminPage() {
 			const ensureCacheStatusRefresh = async () => {
 				try {
 					// Small delay to ensure backend state has stabilized
-					await new Promise(resolve => setTimeout(resolve, 1500));
+					await new Promise((resolve) => setTimeout(resolve, 1500));
 					console.log("🔄 Final cache status refresh after operation...");
 					await loadCacheStatus();
 					console.log("✅ Final cache status refresh completed");
@@ -306,7 +323,7 @@ export default function AdminPage() {
 					// Don't throw - this is just cleanup
 				}
 			};
-			
+
 			ensureCacheStatusRefresh();
 		} catch (error) {
 			console.error("❌ Overall refresh error:", error);
@@ -317,8 +334,6 @@ export default function AdminPage() {
 			setRefreshing(false);
 		}
 	};
-
-
 
 	const exportAsCSV = () => {
 		const csvContent = [
@@ -378,17 +393,27 @@ export default function AdminPage() {
 						<Button onClick={handleBackToHome} variant="outline" size="sm">
 							← Back to Home
 						</Button>
-						<Button onClick={handleStatusRefresh} variant="outline" size="sm" disabled={!cacheStatus || statusRefreshing}>
+						<Button
+							onClick={handleStatusRefresh}
+							variant="outline"
+							size="sm"
+							disabled={!cacheStatus || statusRefreshing}
+						>
 							{statusRefreshing ? "⏳ Refreshing..." : "📊 Refresh Status"}
 						</Button>
 					</div>
 				</div>
 				<div className="text-center py-8">
-					<div className="animate-spin inline-block w-6 h-6 border-[3px] border-current border-t-transparent text-blue-600 rounded-full mb-4" role="status" aria-label="loading">
-					</div>
+					<div
+						className="animate-spin inline-block w-6 h-6 border-[3px] border-current border-t-transparent text-blue-600 rounded-full mb-4"
+						role="status"
+						aria-label="loading"
+					></div>
 					<div className="text-lg font-medium">Loading cache status...</div>
 					<div className="text-sm text-gray-500 mt-2">
-						{!cacheStatus ? "Fetching cache information..." : "Loading dynamic configuration..."}
+						{!cacheStatus
+							? "Fetching cache information..."
+							: "Loading dynamic configuration..."}
 					</div>
 				</div>
 			</div>
@@ -403,7 +428,12 @@ export default function AdminPage() {
 					<Button onClick={handleBackToHome} variant="outline" size="sm">
 						← Back to Home
 					</Button>
-					<Button onClick={handleStatusRefresh} variant="outline" size="sm" disabled={statusRefreshing || refreshing}>
+					<Button
+						onClick={handleStatusRefresh}
+						variant="outline"
+						size="sm"
+						disabled={statusRefreshing || refreshing}
+					>
 						{statusRefreshing ? "⏳ Refreshing..." : "📊 Refresh Status"}
 					</Button>
 				</div>

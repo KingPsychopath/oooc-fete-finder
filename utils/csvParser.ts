@@ -350,12 +350,12 @@ const convertToEventDay = (dateStr: string): EventDay => {
 
 /**
  * Convert host country flag/text to Nationality type array
- * 
+ *
  * To add a new country:
  * 1. Add the country code to the Nationality type in types/events.ts (e.g., "US" | "DE")
  * 2. Add the country to the NATIONALITIES constant in types/events.ts with flag and shortCode
  * 3. Add the country mapping here with all possible indicators (flag, code, name variations)
- * 
+ *
  * Example for adding USA:
  * ```
  * US: {
@@ -390,7 +390,7 @@ const convertToNationality = (
 
 	// Check for each country's indicators
 	for (const [, { indicators, key }] of Object.entries(countryMappings)) {
-		if (indicators.some(indicator => cleaned.includes(indicator))) {
+		if (indicators.some((indicator) => cleaned.includes(indicator))) {
 			if (!nationalities.includes(key)) {
 				nationalities.push(key);
 			}
@@ -403,7 +403,11 @@ const convertToNationality = (
 		for (const part of parts) {
 			// Check each part against all country mappings
 			for (const [, { indicators, key }] of Object.entries(countryMappings)) {
-				if (indicators.some(indicator => part === indicator || part.includes(indicator))) {
+				if (
+					indicators.some(
+						(indicator) => part === indicator || part.includes(indicator),
+					)
+				) {
 					if (!nationalities.includes(key)) {
 						nationalities.push(key);
 					}
@@ -1108,17 +1112,24 @@ const generateEventId = (csvRow: CSVEventRow, index: number): string => {
 	// Create ID based on event content for better change detection
 	// Use name + date + location as the primary identifier
 	const name = (csvRow.name || `Event ${index + 1}`).toLowerCase().trim();
-	const date = csvRow.date || '';
-	const location = (csvRow.location || '').toLowerCase().trim();
-	
+	const date = csvRow.date || "";
+	const location = (csvRow.location || "").toLowerCase().trim();
+
 	// Create a more stable identifier
-	const contentHash = `${name}-${date}-${location}`.replace(/[^a-z0-9\-]/g, '-');
-	
+	const contentHash = `${name}-${date}-${location}`.replace(
+		/[^a-z0-9\-]/g,
+		"-",
+	);
+
 	// Fallback to index-based ID if content is too generic
-	if (!csvRow.name || csvRow.name.trim() === '' || csvRow.name === `Event ${index + 1}`) {
+	if (
+		!csvRow.name ||
+		csvRow.name.trim() === "" ||
+		csvRow.name === `Event ${index + 1}`
+	) {
 		return `csv-event-${index}`;
 	}
-	
+
 	return `csv-${contentHash}-${index}`;
 };
 

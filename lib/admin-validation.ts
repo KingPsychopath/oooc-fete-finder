@@ -26,9 +26,11 @@ export const validateDirectAdminKey = (providedKey: string | null): boolean => {
  * Unified admin validation for API routes
  * Supports both direct admin keys and session tokens
  */
-export const validateAdminKeyForApiRoute = (keyOrToken: string | null): boolean => {
+export const validateAdminKeyForApiRoute = (
+	keyOrToken: string | null,
+): boolean => {
 	if (!keyOrToken) return false;
-	
+
 	// Try direct admin key first
 	if (validateDirectAdminKey(keyOrToken)) {
 		return true;
@@ -36,4 +38,4 @@ export const validateAdminKeyForApiRoute = (keyOrToken: string | null): boolean 
 
 	// Try session token
 	return validateSessionToken(keyOrToken);
-}; 
+};

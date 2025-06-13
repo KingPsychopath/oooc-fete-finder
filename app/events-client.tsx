@@ -150,12 +150,12 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 				if (!event.nationality || event.nationality.length === 0) {
 					return false; // Event has no nationality info
 				}
-				
+
 				// Check if event has ALL selected nationalities
-				const hasAllSelectedNationalities = selectedNationalities.every((nationality) =>
-					event.nationality?.includes(nationality)
+				const hasAllSelectedNationalities = selectedNationalities.every(
+					(nationality) => event.nationality?.includes(nationality),
 				);
-				
+
 				if (!hasAllSelectedNationalities) {
 					return false;
 				}
@@ -477,10 +477,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 			/>
 
 			{/* Event Stats */}
-			<EventStats
-				events={events}
-				filteredEvents={filteredEvents}
-			/>
+			<EventStats events={events} filteredEvents={filteredEvents} />
 
 			{/* Collapsible Paris Event Map */}
 			<div className="mb-8 relative z-10">

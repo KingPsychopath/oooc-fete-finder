@@ -7,10 +7,7 @@ interface EventStatsProps {
 	filteredEvents: Event[];
 }
 
-const EventStats: React.FC<EventStatsProps> = ({
-	events,
-	filteredEvents,
-}) => {
+const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 	// Infer if filters are active by comparing array lengths
 	const hasActiveFilters = filteredEvents.length !== events.length;
 
@@ -19,7 +16,7 @@ const EventStats: React.FC<EventStatsProps> = ({
 		const arrondissements = new Set(
 			filteredEvents
 				.map((event) => event.arrondissement)
-				.filter((arr) => arr !== "unknown")
+				.filter((arr) => arr !== "unknown"),
 		);
 		return arrondissements.size;
 	}, [filteredEvents]);

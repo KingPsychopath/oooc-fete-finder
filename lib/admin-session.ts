@@ -21,7 +21,9 @@ const DEFAULT_SESSION_HOURS = 24;
 const generateSessionToken = (): string => {
 	const array = new Uint8Array(32);
 	crypto.getRandomValues(array);
-	return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+	return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
+		"",
+	);
 };
 
 /**
@@ -39,7 +41,7 @@ const getSessionDuration = (): number => {
 export const createAdminSession = (): string => {
 	const now = Date.now();
 	const sessionHours = getSessionDuration();
-	const expiresAt = now + (sessionHours * 60 * 60 * 1000);
+	const expiresAt = now + sessionHours * 60 * 60 * 1000;
 	const sessionToken = generateSessionToken();
 
 	const session: AdminSession = {
@@ -51,7 +53,7 @@ export const createAdminSession = (): string => {
 
 	localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
 	console.log(`✅ Admin session created, expires in ${sessionHours} hours`);
-	
+
 	return sessionToken;
 };
 
@@ -64,7 +66,7 @@ export const getSessionToken = (): string | null => {
 		if (!stored) return null;
 
 		const session: AdminSession = JSON.parse(stored);
-		
+
 		// Check local expiration
 		if (Date.now() > session.expiresAt) {
 			localStorage.removeItem(ADMIN_SESSION_KEY);
@@ -103,7 +105,7 @@ export const getSessionInfo = (): {
 
 		const session: AdminSession = JSON.parse(stored);
 		const now = Date.now();
-		
+
 		if (now > session.expiresAt) {
 			localStorage.removeItem(ADMIN_SESSION_KEY);
 			return { isValid: false };
@@ -132,4 +134,4 @@ export const getSessionInfo = (): {
 		console.error("❌ Error getting session info:", error);
 		return { isValid: false };
 	}
-}; 
+};

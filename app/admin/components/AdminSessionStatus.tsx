@@ -3,14 +3,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock, LogOut, RefreshCw, User } from "lucide-react";
-import { getSessionInfo, getSessionToken, clearAdminSession } from "@/lib/admin-session";
+import {
+	getSessionInfo,
+	getSessionToken,
+	clearAdminSession,
+} from "@/lib/admin-session";
 import { extendAdminSession } from "@/app/actions";
 
 interface AdminSessionStatusProps {
 	onLogout: () => void;
 }
 
-export const AdminSessionStatus: React.FC<AdminSessionStatusProps> = ({ onLogout }) => {
+export const AdminSessionStatus: React.FC<AdminSessionStatusProps> = ({
+	onLogout,
+}) => {
 	const [sessionInfo, setSessionInfo] = useState(getSessionInfo());
 	const [isExtending, setIsExtending] = useState(false);
 
@@ -51,11 +57,12 @@ export const AdminSessionStatus: React.FC<AdminSessionStatusProps> = ({ onLogout
 
 	// Determine session status
 	const getSessionStatus = () => {
-		if (!sessionInfo.expiresIn) return { variant: "destructive" as const, text: "Expired" };
-		
+		if (!sessionInfo.expiresIn)
+			return { variant: "destructive" as const, text: "Expired" };
+
 		const expiresInMs = sessionInfo.expiresAt!.getTime() - Date.now();
 		const hoursUntilExpiry = expiresInMs / (1000 * 60 * 60);
-		
+
 		if (hoursUntilExpiry < 1) {
 			return { variant: "destructive" as const, text: "Expiring Soon" };
 		}
@@ -85,7 +92,7 @@ export const AdminSessionStatus: React.FC<AdminSessionStatusProps> = ({ onLogout
 							{sessionInfo.expiresIn || "Expired"}
 						</span>
 					</div>
-					
+
 					<div className="flex items-center gap-2">
 						<Clock className="h-4 w-4 text-muted-foreground" />
 						<span className="text-muted-foreground">Created:</span>
@@ -110,7 +117,9 @@ export const AdminSessionStatus: React.FC<AdminSessionStatusProps> = ({ onLogout
 						size="sm"
 						className="flex items-center gap-2"
 					>
-						<RefreshCw className={`h-4 w-4 ${isExtending ? 'animate-spin' : ''}`} />
+						<RefreshCw
+							className={`h-4 w-4 ${isExtending ? "animate-spin" : ""}`}
+						/>
 						{isExtending ? "Extending..." : "Extend Session"}
 					</Button>
 
@@ -127,4 +136,4 @@ export const AdminSessionStatus: React.FC<AdminSessionStatusProps> = ({ onLogout
 			</CardContent>
 		</Card>
 	);
-}; 
+};

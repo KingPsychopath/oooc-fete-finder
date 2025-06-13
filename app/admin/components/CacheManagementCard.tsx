@@ -89,7 +89,9 @@ export const CacheManagementCard = ({
 
 						<div className="space-y-2">
 							<Label className="text-sm font-medium">Configured Mode</Label>
-							<div>{getConfiguredDataSourceBadge(cacheStatus.configuredDataSource)}</div>
+							<div>
+								{getConfiguredDataSourceBadge(cacheStatus.configuredDataSource)}
+							</div>
 						</div>
 
 						<div className="space-y-2">
@@ -122,9 +124,13 @@ export const CacheManagementCard = ({
 						<div className="space-y-2">
 							<Label className="text-sm font-medium">Cache Age</Label>
 							<div className="text-sm">
-								{cacheStatus.cacheAge > 0
-									? formatDuration(cacheStatus.cacheAge)
-									: <span className="text-green-600 font-medium">✨ Just refreshed</span>}
+								{cacheStatus.cacheAge > 0 ? (
+									formatDuration(cacheStatus.cacheAge)
+								) : (
+									<span className="text-green-600 font-medium">
+										✨ Just refreshed
+									</span>
+								)}
 							</div>
 						</div>
 					</div>
@@ -136,17 +142,21 @@ export const CacheManagementCard = ({
 						</Label>
 						<div className="text-xs text-blue-700 mt-1 space-y-1">
 							<div>
-								<strong>🌐 Remote Mode:</strong> Fetches from Google Sheets with local CSV fallback (production)
+								<strong>🌐 Remote Mode:</strong> Fetches from Google Sheets with
+								local CSV fallback (production)
 							</div>
 							<div>
-								<strong>📁 Local Mode:</strong> Uses local CSV file only (development/testing)
+								<strong>📁 Local Mode:</strong> Uses local CSV file only
+								(development/testing)
 							</div>
 							<div>
-								<strong>📦 Static Mode:</strong> Uses hardcoded events data (demo/offline)
+								<strong>📦 Static Mode:</strong> Uses hardcoded events data
+								(demo/offline)
 							</div>
 						</div>
 						<div className="text-xs text-blue-600 mt-2 pt-2 border-t border-blue-200">
-							<strong>Current Data Source:</strong> Where the data is actually coming from right now
+							<strong>Current Data Source:</strong> Where the data is actually
+							coming from right now
 						</div>
 					</div>
 
@@ -209,8 +219,6 @@ export const CacheManagementCard = ({
 					<Button onClick={onRefresh} disabled={refreshing} className="flex-1">
 						{refreshing ? "🔄 Refreshing..." : "🔄 Force Refresh Events"}
 					</Button>
-
-
 
 					{cacheStatus?.lastFetchTime && (
 						<div className="text-sm text-gray-500 flex items-center">

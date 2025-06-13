@@ -230,44 +230,44 @@ const openLocationInMaps = (
 	if (isIOS || isMac) {
 		// iOS/Mac: Try Apple Maps first using the most reliable method
 		const appleMapsUrl = `maps://?q=${query}`;
-		
+
 		// Track if Apple Maps opened successfully
 		let appleMapsOpened = false;
-		
+
 		// Listen for page visibility/focus changes (indicates app switch)
 		const handleVisibilityChange = () => {
 			if (document.hidden) {
 				appleMapsOpened = true;
 			}
 		};
-		
+
 		const handleBlur = () => {
 			appleMapsOpened = true;
 		};
-		
+
 		// Set up event listeners
-		document.addEventListener('visibilitychange', handleVisibilityChange);
-		window.addEventListener('blur', handleBlur);
-		
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+		window.addEventListener("blur", handleBlur);
+
 		// Try to open Apple Maps using window.location.href (most reliable method)
 		try {
 			window.location.href = appleMapsUrl;
 		} catch {
 			// If that fails, try creating a link and clicking it
-			const link = document.createElement('a');
+			const link = document.createElement("a");
 			link.href = appleMapsUrl;
-			link.style.display = 'none';
+			link.style.display = "none";
 			document.body.appendChild(link);
 			link.click();
 			document.body.removeChild(link);
 		}
-		
+
 		// Clean up and fallback after timeout
 		setTimeout(() => {
 			// Clean up
-			document.removeEventListener('visibilitychange', handleVisibilityChange);
-			window.removeEventListener('blur', handleBlur);
-			
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+			window.removeEventListener("blur", handleBlur);
+
 			// If Apple Maps didn't open, fallback to Google Maps
 			if (!appleMapsOpened) {
 				window.open(

@@ -1,6 +1,6 @@
 /**
  * Events Service - Centralized event data access
- * 
+ *
  * This service provides a clean interface for accessing event data
  * without creating circular dependencies between data and cache layers.
  */
@@ -38,7 +38,9 @@ export async function getEventsByDay(day: string): Promise<Event[]> {
 /**
  * Get events filtered by arrondissement
  */
-export async function getEventsByArrondissement(arrondissement: number): Promise<Event[]> {
+export async function getEventsByArrondissement(
+	arrondissement: number,
+): Promise<Event[]> {
 	const events = await getAllEvents();
 	return events.filter((event) => event.arrondissement === arrondissement);
 }
@@ -86,4 +88,4 @@ export async function getFreeEvents(): Promise<Event[]> {
 			event.price === "" ||
 			!event.price,
 	);
-} 
+}

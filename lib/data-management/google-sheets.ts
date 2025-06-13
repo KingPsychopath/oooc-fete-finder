@@ -75,13 +75,15 @@ async function loadServiceAccountCredentials(): Promise<ServiceAccountCredential
 			console.log("🔑 Using service account from environment variable");
 			credentials = JSON.parse(serviceAccountKey);
 		} else if (serviceAccountFile) {
-			console.log(`🔑 Reading service account from file: ${serviceAccountFile}`);
+			console.log(
+				`🔑 Reading service account from file: ${serviceAccountFile}`,
+			);
 			const fs = await import("fs/promises");
 			const path = await import("path");
 			// Look for service account in scripts directory if no absolute path is provided
-			const keyPath = path.isAbsolute(serviceAccountFile) 
-				? serviceAccountFile 
-				: path.resolve(process.cwd(), 'scripts', serviceAccountFile);
+			const keyPath = path.isAbsolute(serviceAccountFile)
+				? serviceAccountFile
+				: path.resolve(process.cwd(), "scripts", serviceAccountFile);
 			const keyContent = await fs.readFile(keyPath, "utf-8");
 			credentials = JSON.parse(keyContent);
 		}
@@ -108,7 +110,9 @@ async function loadServiceAccountCredentials(): Promise<ServiceAccountCredential
 /**
  * Exchange JWT for Google API access token
  */
-async function getAccessToken(credentials: ServiceAccountCredentials): Promise<string> {
+async function getAccessToken(
+	credentials: ServiceAccountCredentials,
+): Promise<string> {
 	const now = Math.floor(Date.now() / 1000);
 	const jwt = await createGoogleJWT(credentials, now);
 
@@ -149,7 +153,7 @@ async function getAccessToken(credentials: ServiceAccountCredentials): Promise<s
 async function fetchSheetData(
 	sheetId: string,
 	range: string,
-	accessToken: string
+	accessToken: string,
 ): Promise<unknown[][]> {
 	const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}?valueRenderOption=FORMATTED_VALUE`;
 
@@ -187,12 +191,16 @@ function convertToCsv(values: unknown[][]): string {
 	// Debug logging for headers
 	if (values.length > 0) {
 		const headers = values[0];
-		console.log(`📊 Google Sheets API returned ${headers.length} columns:`, headers);
+		console.log(
+			`📊 Google Sheets API returned ${headers.length} columns:`,
+			headers,
+		);
 		console.log(`📊 Headers: ${headers.join(", ")}`);
 
 		// Check if Notes column is present
 		const notesColIndex = headers.findIndex(
-			(header: unknown) => header && String(header).toLowerCase().includes("notes"),
+			(header: unknown) =>
+				header && String(header).toLowerCase().includes("notes"),
 		);
 		if (notesColIndex >= 0) {
 			console.log(
@@ -276,4 +284,4 @@ export async function fetchRemoteCSVWithServiceAccount(
 		);
 		throw error;
 	}
-} 
+}

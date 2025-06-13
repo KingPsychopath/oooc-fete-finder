@@ -34,7 +34,7 @@ export const DynamicSheetCard = ({
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		
+
 		// Don't proceed if not authenticated
 		if (!isAuthenticated) {
 			setError("Authentication required to modify sheet configuration");
@@ -115,7 +115,9 @@ export const DynamicSheetCard = ({
 					<Alert className="border-red-500">
 						<AlertTriangle className="h-4 w-4 text-red-600" />
 						<AlertDescription className="flex justify-between items-center">
-							<span><strong>Error:</strong> {error}</span>
+							<span>
+								<strong>Error:</strong> {error}
+							</span>
 							<Button
 								onClick={clearMessages}
 								variant="ghost"
@@ -132,7 +134,9 @@ export const DynamicSheetCard = ({
 					<Alert className="border-green-500">
 						<CheckCircle className="h-4 w-4 text-green-600" />
 						<AlertDescription className="flex justify-between items-center">
-							<span><strong>Success:</strong> {successMessage}</span>
+							<span>
+								<strong>Success:</strong> {successMessage}
+							</span>
 							<Button
 								onClick={clearMessages}
 								variant="ghost"

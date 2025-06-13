@@ -158,28 +158,28 @@ export interface CacheConfiguration {
 	remoteRefreshInterval: number;
 	maxCacheAge: number;
 	cacheExtensionDuration: number;
-	
+
 	// Memory management
 	maxMemoryUsage: number;
 	memoryCheckInterval: number;
 	cleanupThreshold: number;
 	emergencyThreshold: number;
-	
+
 	// Performance settings
 	maxMetricsHistory: number;
 	metricsResetInterval: number;
 	deduplicationTimeout: number;
-	
+
 	// Error handling
 	maxRetryAttempts: number;
 	retryBackoffMs: number;
 	bootstrapMode: boolean;
-	
+
 	// Logging
 	verboseLogging: boolean;
 	logMemoryUsage: boolean;
 	logPerformanceMetrics: boolean;
-	
+
 	// Data source metadata
 	localCsvLastUpdated: string;
 }
@@ -197,4 +197,4 @@ export type CacheOperationResult<T = unknown> = {
 };
 
 export type MemoryHealthStatus = "healthy" | "warning" | "critical";
-export type CacheOperation = "get" | "set" | "clear" | "invalidate" | "refresh"; 
+export type CacheOperation = "get" | "set" | "clear" | "invalidate" | "refresh";

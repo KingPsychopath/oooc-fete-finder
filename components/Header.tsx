@@ -10,7 +10,12 @@ import SlidingBanner from "@/components/SlidingBanner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Get base path from environment variable
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
