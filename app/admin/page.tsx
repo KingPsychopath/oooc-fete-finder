@@ -214,7 +214,12 @@ export default function AdminPage() {
 	}, [isAuthenticated, loadCacheStatus]);
 
 	const handleRefresh = async () => {
-		if (!adminKey) return;
+		// Check if we have either adminKey or session token
+		const sessionToken = getSessionToken();
+		if (!adminKey && !sessionToken) {
+			setRefreshMessage("❌ No authentication available. Please re-authenticate.");
+			return;
+		}
 
 		setRefreshing(true);
 		setRefreshMessage("🔄 Starting refresh...");
@@ -226,7 +231,7 @@ export default function AdminPage() {
 				console.log("🔄 Starting revalidation with server action...");
 
 				// Use session token if available, fallback to admin key
-				const keyOrToken = getSessionToken() || adminKey;
+				const keyOrToken = sessionToken || adminKey;
 				const revalidateResult = await revalidatePages(keyOrToken, "/");
 
 				console.log("📡 Revalidate result:", revalidateResult);
