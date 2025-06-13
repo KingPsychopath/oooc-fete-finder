@@ -1,20 +1,8 @@
 // Import shared user types
 export type { UserRecord as EmailRecord } from "@/types/user";
 
-export type CacheStatus = {
-	hasCachedData: boolean;
-	lastFetchTime: string | null;
-	lastRemoteFetchTime: string | null;
-	lastRemoteSuccessTime: string | null;
-	lastRemoteErrorMessage: string;
-	cacheAge: number;
-	nextRemoteCheck: number;
-	dataSource: "remote" | "local" | "cached";
-	configuredDataSource: "remote" | "local" | "static";
-	eventCount: number;
-	localCsvLastUpdated: string;
-	remoteConfigured: boolean;
-};
+// Import centralized cache types instead of duplicating
+export type { CacheStatus } from "@/lib/cache-management/cache-types";
 
 export type DynamicSheetConfig = {
 	hasDynamicOverride: boolean;

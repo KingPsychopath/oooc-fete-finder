@@ -16,16 +16,18 @@ import {
 	CheckCircle,
 	Loader2,
 	Settings,
+	Database,
 } from "lucide-react";
 import { cleanupSheetDuplicates } from "@/app/actions";
+import { getSessionToken } from "@/lib/admin-session";
 
 type SheetActionsCardProps = {
-	adminKey: string;
+	isAuthenticated: boolean;
 	onActionComplete?: () => void;
 };
 
 export const SheetActionsCard = ({
-	adminKey,
+	isAuthenticated,
 	onActionComplete,
 }: SheetActionsCardProps) => {
 	const [cleanupLoading, setCleanupLoading] = useState(false);
@@ -36,11 +38,30 @@ export const SheetActionsCard = ({
 	} | null>(null);
 
 	const handleCleanupDuplicates = async () => {
+		// Don't proceed if not authenticated
+		if (!isAuthenticated) {
+			setCleanupResult({
+				type: "error",
+				message: "Authentication required to perform maintenance actions",
+			});
+			return;
+		}
+
+		// Get session token - this should be available if user is authenticated
+		const sessionToken = getSessionToken();
+		if (!sessionToken) {
+			setCleanupResult({
+				type: "error",
+				message: "No valid session found. Please re-authenticate.",
+			});
+			return;
+		}
+
 		setCleanupLoading(true);
 		setCleanupResult(null);
 
 		try {
-			const result = await cleanupSheetDuplicates(adminKey);
+			const result = await cleanupSheetDuplicates(sessionToken);
 
 			if (result.success) {
 				setCleanupResult({
@@ -72,6 +93,29 @@ export const SheetActionsCard = ({
 	const clearResult = () => {
 		setCleanupResult(null);
 	};
+
+	// Show placeholder when not authenticated
+	if (!isAuthenticated) {
+		return (
+			<Card>
+				<CardHeader>
+					<CardTitle className="flex items-center gap-2">
+						<Settings className="h-5 w-5" />
+						Sheet Maintenance
+					</CardTitle>
+					<CardDescription>
+						Advanced maintenance actions for your Google Sheet
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="text-center py-8 text-muted-foreground">
+						<Database className="h-8 w-8 mx-auto mb-2" />
+						<p>Please authenticate to access maintenance actions</p>
+					</div>
+				</CardContent>
+			</Card>
+		);
+	}
 
 	return (
 		<Card>

@@ -313,30 +313,7 @@ export default function AdminPage() {
 		}
 	};
 
-	const handleDynamicSheetSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setIsLoading(true);
-		setError("");
 
-		try {
-			const formData = new FormData(e.target as HTMLFormElement);
-			formData.set("adminKey", adminKey);
-
-			const result = await setDynamicSheet(formData);
-
-			if (result.success) {
-				setRefreshMessage(result.message);
-				await loadDynamicConfig();
-				await loadCacheStatus();
-			} else {
-				setError(result.message);
-			}
-		} catch {
-			setError("Failed to set dynamic sheet");
-		} finally {
-			setIsLoading(false);
-		}
-	};
 
 	const exportAsCSV = () => {
 		const csvContent = [
@@ -455,7 +432,7 @@ export default function AdminPage() {
 
 			{/* Sheet Maintenance Section */}
 			<SheetActionsCard
-				adminKey={adminKey}
+				isAuthenticated={isAuthenticated}
 				onActionComplete={() => {
 					// Refresh all data when maintenance actions complete
 					loadCacheStatus();
@@ -468,9 +445,13 @@ export default function AdminPage() {
 			{/* Dynamic Sheet Override Section */}
 			<DynamicSheetCard
 				dynamicConfig={dynamicConfig}
-				adminKey={adminKey}
-				isLoading={isLoading}
-				onSubmit={handleDynamicSheetSubmit}
+				isAuthenticated={isAuthenticated}
+				onConfigUpdate={async () => {
+					// Refresh configuration and cache when sheet config changes
+					await loadDynamicConfig();
+					await loadCacheStatus();
+					setRefreshMessage("Sheet configuration updated - data refreshed");
+				}}
 			/>
 
 			{/* Email Collection Section */}
@@ -483,7 +464,7 @@ export default function AdminPage() {
 			<Separator />
 
 			{/* OG:Image Testing Section */}
-			<OGImageTestCard />
+			<OGImageTestCard isAuthenticated={isAuthenticated} />
 		</div>
 	);
 }

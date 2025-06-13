@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import {
 	Card,
 	CardContent,
@@ -9,21 +11,95 @@ import {
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, CheckCircle, Database } from "lucide-react";
 import { DynamicSheetConfig } from "../types";
+import { setDynamicSheet } from "@/app/actions";
+import { getSessionToken } from "@/lib/admin-session";
 
 type DynamicSheetCardProps = {
 	dynamicConfig: DynamicSheetConfig;
-	adminKey: string;
-	isLoading: boolean;
-	onSubmit: (e: React.FormEvent) => void;
+	isAuthenticated: boolean;
+	onConfigUpdate?: () => void;
 };
 
 export const DynamicSheetCard = ({
 	dynamicConfig,
-	adminKey,
-	isLoading,
-	onSubmit,
+	isAuthenticated,
+	onConfigUpdate,
 }: DynamicSheetCardProps) => {
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState("");
+	const [successMessage, setSuccessMessage] = useState("");
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		
+		// Don't proceed if not authenticated
+		if (!isAuthenticated) {
+			setError("Authentication required to modify sheet configuration");
+			return;
+		}
+
+		// Get session token - this should be available if user is authenticated
+		const sessionToken = getSessionToken();
+		if (!sessionToken) {
+			setError("No valid session found. Please re-authenticate.");
+			return;
+		}
+
+		setIsLoading(true);
+		setError("");
+		setSuccessMessage("");
+
+		try {
+			const formData = new FormData(e.target as HTMLFormElement);
+			formData.set("adminKey", sessionToken); // Use session token for authentication
+
+			const result = await setDynamicSheet(formData);
+
+			if (result.success) {
+				setSuccessMessage(result.message);
+				// Notify parent component to refresh its data
+				if (onConfigUpdate) {
+					onConfigUpdate();
+				}
+			} else {
+				setError(result.message);
+			}
+		} catch {
+			setError("Failed to set dynamic sheet");
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const clearMessages = () => {
+		setError("");
+		setSuccessMessage("");
+	};
+
+	// Show placeholder when not authenticated
+	if (!isAuthenticated) {
+		return (
+			<Card>
+				<CardHeader>
+					<CardTitle>📊 Dynamic Google Sheet Override</CardTitle>
+					<CardDescription>
+						Temporarily override the Google Sheet source for testing different
+						data
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="text-center py-8 text-muted-foreground">
+						<Database className="h-8 w-8 mx-auto mb-2" />
+						<p>Please authenticate to access sheet configuration</p>
+					</div>
+				</CardContent>
+			</Card>
+		);
+	}
+
 	return (
 		<Card>
 			<CardHeader>
@@ -33,8 +109,43 @@ export const DynamicSheetCard = ({
 					data
 				</CardDescription>
 			</CardHeader>
-			<CardContent>
-				<div className="mb-4 p-4 bg-muted rounded-lg">
+			<CardContent className="space-y-4">
+				{/* Status Messages */}
+				{error && (
+					<Alert className="border-red-500">
+						<AlertTriangle className="h-4 w-4 text-red-600" />
+						<AlertDescription className="flex justify-between items-center">
+							<span><strong>Error:</strong> {error}</span>
+							<Button
+								onClick={clearMessages}
+								variant="ghost"
+								size="sm"
+								className="ml-2"
+							>
+								×
+							</Button>
+						</AlertDescription>
+					</Alert>
+				)}
+
+				{successMessage && (
+					<Alert className="border-green-500">
+						<CheckCircle className="h-4 w-4 text-green-600" />
+						<AlertDescription className="flex justify-between items-center">
+							<span><strong>Success:</strong> {successMessage}</span>
+							<Button
+								onClick={clearMessages}
+								variant="ghost"
+								size="sm"
+								className="ml-2"
+							>
+								×
+							</Button>
+						</AlertDescription>
+					</Alert>
+				)}
+
+				<div className="p-4 bg-muted rounded-lg">
 					<h3 className="font-medium mb-2">Current Configuration:</h3>
 					<div className="space-y-1 text-sm">
 						{dynamicConfig.hasDynamicOverride ? (
@@ -67,9 +178,7 @@ export const DynamicSheetCard = ({
 					</div>
 				</div>
 
-				<form onSubmit={onSubmit} className="space-y-4">
-					<input type="hidden" name="adminKey" value={adminKey} />
-
+				<form onSubmit={handleSubmit} className="space-y-4">
 					<div>
 						<Label htmlFor="sheetInput">Google Sheet URL or ID:</Label>
 						<Input
@@ -106,7 +215,7 @@ export const DynamicSheetCard = ({
 					</div>
 				</form>
 
-				<div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+				<div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
 					<p className="text-sm text-blue-800">
 						<strong>💡 How it works:</strong> This temporarily overrides the
 						Google Sheet ID from your environment variables. Changes are stored

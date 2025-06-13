@@ -23,6 +23,7 @@ import type {
 	CollectedEmailsResponse,
 } from "@/types/user";
 import { validateDirectAdminKey } from "@/lib/admin-validation";
+import { adminSessions, validateSessionToken } from "@/lib/admin-session-store";
 
 // Simple in-memory user storage (will reset on deployment, but good for development)
 const collectedUsers: UserRecord[] = [];
@@ -340,12 +341,7 @@ export async function authenticateUser(
 	};
 }
 
-// In-memory session store for server-side validation
-const adminSessions = new Map<string, {
-	adminKey: string;
-	expiresAt: number;
-	createdAt: number;
-}>();
+
 
 // Helper function to validate admin access (key or session token)
 function validateAdminAccess(keyOrToken?: string): boolean {
@@ -357,17 +353,7 @@ function validateAdminAccess(keyOrToken?: string): boolean {
 	}
 
 	// Session token check
-	const session = adminSessions.get(keyOrToken);
-	if (session && Date.now() < session.expiresAt) {
-		return true;
-	}
-
-	// Clean up expired session if found
-	if (session && Date.now() >= session.expiresAt) {
-		adminSessions.delete(keyOrToken);
-	}
-
-	return false;
+	return validateSessionToken(keyOrToken);
 }
 
 // Create admin session (used during login)

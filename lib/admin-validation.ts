@@ -3,6 +3,9 @@
  * Used by both server actions and API routes
  */
 
+// Import session management for unified validation
+import { validateSessionToken } from "@/lib/admin-session-store";
+
 /**
  * Get the expected admin key from environment
  */
@@ -20,9 +23,17 @@ export const validateDirectAdminKey = (providedKey: string | null): boolean => {
 };
 
 /**
- * Basic admin key validation for API routes
- * (They can't access server action session store)
+ * Unified admin validation for API routes
+ * Supports both direct admin keys and session tokens
  */
-export const validateAdminKeyForApiRoute = (providedKey: string | null): boolean => {
-	return validateDirectAdminKey(providedKey);
+export const validateAdminKeyForApiRoute = (keyOrToken: string | null): boolean => {
+	if (!keyOrToken) return false;
+	
+	// Try direct admin key first
+	if (validateDirectAdminKey(keyOrToken)) {
+		return true;
+	}
+
+	// Try session token
+	return validateSessionToken(keyOrToken);
 }; 

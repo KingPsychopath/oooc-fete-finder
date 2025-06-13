@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import {
 	Card,
@@ -18,6 +20,9 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, Database } from "lucide-react";
+import { getSessionToken } from "@/lib/admin-session";
 
 type OGTestParams = {
 	title: string;
@@ -28,7 +33,11 @@ type OGTestParams = {
 	localImage: string;
 };
 
-export const OGImageTestCard = () => {
+type OGImageTestCardProps = {
+	isAuthenticated: boolean;
+};
+
+export const OGImageTestCard = ({ isAuthenticated }: OGImageTestCardProps) => {
 	const [params, setParams] = useState<OGTestParams>({
 		title: "Fête Finder",
 		subtitle: "Interactive Paris Music Events Map",
@@ -105,17 +114,27 @@ export const OGImageTestCard = () => {
 		const file = event.target.files?.[0];
 		if (!file) return;
 
+		// Check authentication before proceeding
+		if (!isAuthenticated) {
+			setError("Authentication required to upload images");
+			return;
+		}
+
+		// Get session token - this should be available if user is authenticated
+		const sessionToken = getSessionToken();
+		if (!sessionToken) {
+			setError("No valid session found. Please re-authenticate.");
+			return;
+		}
+
 		setIsUploading(true);
 		setError("");
+		setUploadMessage("");
 
 		try {
 			const formData = new FormData();
 			formData.append("image", file);
 			formData.append("type", params.theme);
-
-			// Get admin key from localStorage or wherever it's stored
-			const adminKey =
-				localStorage.getItem("adminKey") || "your-secret-key-123";
 
 			// Dynamically detect base path from current URL
 			const currentPath =
@@ -125,7 +144,7 @@ export const OGImageTestCard = () => {
 			const response = await fetch(`${basePath}/api/og-upload`, {
 				method: "POST",
 				headers: {
-					"x-admin-key": adminKey,
+					"x-admin-key": sessionToken, // Use session token instead of localStorage
 				},
 				body: formData,
 			});
@@ -145,6 +164,11 @@ export const OGImageTestCard = () => {
 		} finally {
 			setIsUploading(false);
 		}
+	};
+
+	const clearMessages = () => {
+		setError("");
+		setUploadMessage("");
 	};
 
 	const presets = [
@@ -194,6 +218,43 @@ export const OGImageTestCard = () => {
 		},
 	];
 
+	// Show placeholder when not authenticated (only for upload functionality)
+	const renderUploadSection = () => {
+		if (!isAuthenticated) {
+			return (
+				<div className="md:col-span-2 space-y-4 p-4 border rounded-lg bg-gray-50">
+					<div className="text-center py-4 text-muted-foreground">
+						<Database className="h-6 w-6 mx-auto mb-2" />
+						<p className="text-sm">Please authenticate to upload images</p>
+					</div>
+				</div>
+			);
+		}
+
+		return (
+			<div className="md:col-span-2 space-y-4 p-4 border rounded-lg bg-blue-50">
+				<div className="flex items-center gap-2">
+					<Label className="text-sm font-medium">
+						📁 Upload Local Image
+					</Label>
+					<Badge variant="secondary">PNG, JPEG, WebP up to 5MB</Badge>
+				</div>
+
+				<Input
+					type="file"
+					accept="image/*"
+					onChange={handleImageUpload}
+					disabled={isUploading}
+				/>
+
+				<div className="text-xs text-gray-600">
+					Upload an image to use as background. Theme will be set based on
+					current selection.
+				</div>
+			</div>
+		);
+	};
+
 	return (
 		<Card>
 			<CardHeader>
@@ -205,6 +266,40 @@ export const OGImageTestCard = () => {
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-6">
+				{/* Status Messages */}
+				{error && (
+					<Alert className="border-red-500">
+						<AlertTriangle className="h-4 w-4 text-red-600" />
+						<AlertDescription className="flex justify-between items-center">
+							<span><strong>Error:</strong> {error}</span>
+							<Button
+								onClick={clearMessages}
+								variant="ghost"
+								size="sm"
+								className="ml-2"
+							>
+								×
+							</Button>
+						</AlertDescription>
+					</Alert>
+				)}
+
+				{uploadMessage && (
+					<Alert className="border-green-500">
+						<AlertDescription className="flex justify-between items-center">
+							<span>{uploadMessage}</span>
+							<Button
+								onClick={clearMessages}
+								variant="ghost"
+								size="sm"
+								className="ml-2"
+							>
+								×
+							</Button>
+						</AlertDescription>
+					</Alert>
+				)}
+
 				{/* Presets */}
 				<div className="space-y-2">
 					<Label className="text-sm font-medium">Quick Presets</Label>
@@ -320,26 +415,7 @@ export const OGImageTestCard = () => {
 					</div>
 
 					{/* Upload Local Image Section */}
-					<div className="md:col-span-2 space-y-4 p-4 border rounded-lg bg-blue-50">
-						<div className="flex items-center gap-2">
-							<Label className="text-sm font-medium">
-								📁 Upload Local Image
-							</Label>
-							<Badge variant="secondary">PNG, JPEG, WebP up to 5MB</Badge>
-						</div>
-
-						<Input
-							type="file"
-							accept="image/*"
-							onChange={handleImageUpload}
-							disabled={isUploading}
-						/>
-
-						<div className="text-xs text-gray-600">
-							Upload an image to use as background. Theme will be set based on
-							current selection.
-						</div>
-					</div>
+					{renderUploadSection()}
 				</div>
 
 				{/* Actions */}
@@ -371,13 +447,6 @@ export const OGImageTestCard = () => {
 							<Badge variant="secondary">PNG Format</Badge>
 							<Badge variant="secondary">Edge Runtime</Badge>
 						</div>
-					</div>
-				)}
-
-				{/* Error Display */}
-				{error && (
-					<div className="p-3 rounded-md bg-red-50 text-red-700 border border-red-200">
-						<strong>Error:</strong> {error}
 					</div>
 				)}
 
@@ -444,13 +513,6 @@ export const OGImageTestCard = () => {
 								💼 LinkedIn Inspector
 							</Button>
 						</div>
-					</div>
-				)}
-
-				{/* Upload Message */}
-				{uploadMessage && (
-					<div className="p-3 rounded-md bg-green-50 text-green-700 border border-green-200">
-						{uploadMessage}
 					</div>
 				)}
 			</CardContent>
