@@ -434,7 +434,7 @@ export default function AdminPage() {
 						size="sm"
 						disabled={statusRefreshing || refreshing}
 					>
-						{statusRefreshing ? "⏳ Refreshing..." : "📊 Refresh Status"}
+  						{statusRefreshing ? "⏳ Refreshing..." : "📊 Refresh Status"}
 					</Button>
 				</div>
 			</div>
