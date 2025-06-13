@@ -18,8 +18,15 @@ import {
 	AlertTriangle,
 	Activity,
 	RefreshCw,
+	Clock,
+	Database,
+	FileText,
+	CheckCircle,
+	XCircle,
+	Activity as ActivityIcon,
 } from "lucide-react";
 import { getGoogleSheetsStats } from "@/app/actions";
+import { getSessionToken } from "@/lib/admin-session";
 
 type SheetsStats = {
 	totalUsers: number;
@@ -31,11 +38,11 @@ type SheetsStats = {
 };
 
 type GoogleSheetsStatsCardProps = {
-	adminKey: string;
+	isAuthenticated: boolean;
 };
 
 export const GoogleSheetsStatsCard = ({
-	adminKey,
+	isAuthenticated,
 }: GoogleSheetsStatsCardProps) => {
 	const [stats, setStats] = useState<SheetsStats | null>(null);
 	const [loading, setLoading] = useState(false);
@@ -43,11 +50,23 @@ export const GoogleSheetsStatsCard = ({
 	const [lastUpdate, setLastUpdate] = useState<string>("");
 
 	const loadStats = useCallback(async () => {
+		// Don't load if not authenticated
+		if (!isAuthenticated) {
+			return;
+		}
+
+		// Get session token - this should be available if user is authenticated
+		const sessionToken = getSessionToken();
+		if (!sessionToken) {
+			setError("No valid session found. Please re-authenticate.");
+			return;
+		}
+
 		setLoading(true);
 		setError("");
 
 		try {
-			const result = await getGoogleSheetsStats(adminKey);
+			const result = await getGoogleSheetsStats(sessionToken);
 
 			if (result.success && result.stats) {
 				setStats(result.stats);
@@ -60,15 +79,21 @@ export const GoogleSheetsStatsCard = ({
 		} finally {
 			setLoading(false);
 		}
-	}, [adminKey]);
+	}, [isAuthenticated]);
 
-	// Auto-refresh every 30 seconds
+	// Auto-refresh every 30 seconds, but only when authenticated
 	useEffect(() => {
+		if (!isAuthenticated) {
+			setStats(null);
+			setError("");
+			return;
+		}
+
 		loadStats(); // Initial load
 
 		const interval = setInterval(loadStats, 30000);
 		return () => clearInterval(interval);
-	}, [loadStats]);
+	}, [loadStats, isAuthenticated]);
 
 	const getHealthColor = (health: string) => {
 		if (
@@ -85,6 +110,29 @@ export const GoogleSheetsStatsCard = ({
 		}
 		return "bg-red-100 text-red-800 border-red-200";
 	};
+
+	// Show placeholder when not authenticated
+	if (!isAuthenticated) {
+		return (
+			<Card>
+				<CardHeader>
+					<CardTitle className="flex items-center gap-2">
+						<BarChart3 className="h-5 w-5" />
+						Google Sheets Statistics
+					</CardTitle>
+					<CardDescription>
+						Live statistics from your Google Sheet
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="text-center py-8 text-muted-foreground">
+						<Database className="h-8 w-8 mx-auto mb-2" />
+						<p>Please authenticate to view statistics</p>
+					</div>
+				</CardContent>
+			</Card>
+		);
+	}
 
 	if (error) {
 		return (
@@ -243,10 +291,36 @@ export const GoogleSheetsStatsCard = ({
 								/>
 							</div>
 						</div>
+
+						{/* Actions */}
+						{stats.duplicateEmails > 0 && (
+							<div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+								<div className="flex items-center">
+									<AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
+									<span className="text-sm font-medium text-yellow-800">
+										{stats.duplicateEmails} duplicate email
+										{stats.duplicateEmails > 1 ? "s" : ""} detected
+									</span>
+								</div>
+								<p className="text-xs text-yellow-700 mt-1">
+									Consider cleaning up duplicates to improve data quality
+								</p>
+							</div>
+						)}
 					</div>
 				) : (
-					<div className="text-center py-4 text-muted-foreground">
+					<div className="text-center py-8 text-muted-foreground">
+						<Database className="h-8 w-8 mx-auto mb-2" />
 						<p>No statistics available</p>
+						<Button
+							onClick={loadStats}
+							variant="outline"
+							size="sm"
+							className="mt-2"
+						>
+							<RefreshCw className="h-4 w-4 mr-2" />
+							Load Stats
+						</Button>
 					</div>
 				)}
 			</CardContent>

@@ -14,6 +14,9 @@ import {
 	getRecentSheetEntries,
 	createAdminSession,
 	extendAdminSession,
+	analyzeDateFormats,
+	cleanupSheetDuplicates,
+	revalidatePages,
 } from "@/app/actions";
 
 // Import local components
@@ -211,49 +214,31 @@ export default function AdminPage() {
 	}, [isAuthenticated, loadCacheStatus]);
 
 	const handleRefresh = async () => {
+		if (!adminKey) return;
+
 		setRefreshing(true);
-		setRefreshMessage("");
+		setRefreshMessage("🔄 Starting refresh...");
 
 		try {
-			console.log("🔄 Starting full revalidation via CacheManager...");
-
 			// Use the centralized cache manager for full revalidation
 			// This handles both cache refresh and page revalidation in a single operation
 			try {
-				const baseUrl = window.location.origin;
-				const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-				const revalidateUrl = `${baseUrl}${basePath}/api/revalidate`;
+				console.log("🔄 Starting revalidation with server action...");
 
-				console.log("📡 Revalidate URL:", revalidateUrl);
+				// Use session token if available, fallback to admin key
+				const keyOrToken = getSessionToken() || adminKey;
+				const revalidateResult = await revalidatePages(keyOrToken, "/");
 
-				const revalidatePayload = {
-					adminKey: adminKey,
-					path: "/",
-				};
+				console.log("📡 Revalidate result:", revalidateResult);
 
-				const revalidateResponse = await fetch(revalidateUrl, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify(revalidatePayload),
-					signal: AbortSignal.timeout(30000), // 30 second timeout for full revalidation
-				});
-
-				console.log(
-					"📡 Revalidate response status:",
-					revalidateResponse.status,
-				);
-
-				if (revalidateResponse.ok) {
-					const revalidateData = await revalidateResponse.json();
-					const timingInfo = revalidateData.processingTimeMs
-						? `${revalidateData.processingTimeMs}ms`
+				if (revalidateResult.success) {
+					const timingInfo = revalidateResult.processingTimeMs
+						? `${revalidateResult.processingTimeMs}ms`
 						: "completed";
 
-					const successMessage = `✅ Full revalidation completed (${timingInfo}). Cache: ${revalidateData.cacheRefreshed ? "refreshed" : "failed"}, Page: ${revalidateData.pageRevalidated ? "revalidated" : "failed"}`;
+					const successMessage = `✅ Full revalidation completed (${timingInfo}). Cache: ${revalidateResult.cacheRefreshed ? "refreshed" : "failed"}, Page: ${revalidateResult.pageRevalidated ? "revalidated" : "failed"}`;
 					setRefreshMessage(successMessage);
-					console.log("✅ Full revalidation successful:", revalidateData);
+					console.log("✅ Full revalidation successful:", revalidateResult);
 
 					// ✅ IMPROVED: Multiple attempts to reload cache status
 					// Clear any existing cache status immediately to show loading state
@@ -288,25 +273,7 @@ export default function AdminPage() {
 					// Start the robust reload process
 					reloadCacheStatusRobustly();
 				} else {
-					// Enhanced error handling
-					let errorDetails = `Status: ${revalidateResponse.status}`;
-					let errorData: { message?: string; error?: string } | null = null;
-
-					try {
-						errorData = await revalidateResponse.json();
-						errorDetails += ` - ${errorData?.message || "Unknown error"}`;
-						if (errorData?.error) {
-							errorDetails += ` (${errorData.error})`;
-						}
-						console.error("❌ Revalidation failed with data:", errorData);
-					} catch (parseError) {
-						errorDetails += ` - ${revalidateResponse.statusText}`;
-						console.error(
-							"❌ Failed to parse revalidation error response:",
-							parseError,
-						);
-					}
-
+					const errorDetails = revalidateResult.error || "Unknown error";
 					console.warn("⚠️ Full revalidation failed:", errorDetails);
 					setRefreshMessage(`❌ Revalidation failed: ${errorDetails}`);
 				}
@@ -316,12 +283,6 @@ export default function AdminPage() {
 				let errorMsg = "Unknown error";
 				if (revalidateError instanceof Error) {
 					errorMsg = revalidateError.message;
-					// Handle specific error types
-					if (revalidateError.name === "AbortError") {
-						errorMsg = "Request timed out";
-					} else if (revalidateError.name === "TypeError") {
-						errorMsg = "Network error - check connection";
-					}
 				}
 
 				setRefreshMessage(`❌ Revalidation error: ${errorMsg}`);
@@ -481,8 +442,8 @@ export default function AdminPage() {
 
 			{/* Google Sheets Live Data Section */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<GoogleSheetsStatsCard adminKey={adminKey} />
-				<RecentEntriesCard adminKey={adminKey} limit={5} />
+				<GoogleSheetsStatsCard isAuthenticated={isAuthenticated} />
+				<RecentEntriesCard isAuthenticated={isAuthenticated} limit={5} />
 			</div>
 
 			<Separator />

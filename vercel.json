@@ -1,8 +1,5 @@
 {
   "functions": {
-    "app/api/revalidate/route.ts": {
-      "maxDuration": 5
-    },
     "app/api/og/route.tsx": {
       "maxDuration": 10
     },

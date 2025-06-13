@@ -10,16 +10,20 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
 	Clock,
 	Users,
 	RefreshCw,
 	User,
 	Mail,
+	Calendar,
 	Check,
 	AlertTriangle,
+	Database,
 } from "lucide-react";
 import { getRecentSheetEntries } from "@/app/actions";
+import { getSessionToken } from "@/lib/admin-session";
 
 type RecentEntry = {
 	firstName: string;
@@ -31,12 +35,12 @@ type RecentEntry = {
 };
 
 type RecentEntriesCardProps = {
-	adminKey: string;
+	isAuthenticated: boolean;
 	limit?: number;
 };
 
 export const RecentEntriesCard = ({
-	adminKey,
+	isAuthenticated,
 	limit = 5,
 }: RecentEntriesCardProps) => {
 	const [entries, setEntries] = useState<RecentEntry[]>([]);
@@ -45,11 +49,23 @@ export const RecentEntriesCard = ({
 	const [lastUpdate, setLastUpdate] = useState<string>("");
 
 	const loadEntries = useCallback(async () => {
+		// Don't load if not authenticated
+		if (!isAuthenticated) {
+			return;
+		}
+
+		// Get session token - this should be available if user is authenticated
+		const sessionToken = getSessionToken();
+		if (!sessionToken) {
+			setError("No valid session found. Please re-authenticate.");
+			return;
+		}
+
 		setLoading(true);
 		setError("");
 
 		try {
-			const result = await getRecentSheetEntries(adminKey, limit);
+			const result = await getRecentSheetEntries(sessionToken, limit);
 
 			if (result.success && result.entries) {
 				setEntries(result.entries);
@@ -62,43 +78,63 @@ export const RecentEntriesCard = ({
 		} finally {
 			setLoading(false);
 		}
-	}, [adminKey, limit]);
+	}, [limit, isAuthenticated]);
 
-	// Auto-refresh every 30 seconds
+	// Auto-refresh every 60 seconds, but only when authenticated
 	useEffect(() => {
+		if (!isAuthenticated) {
+			setEntries([]);
+			setError("");
+			return;
+		}
+
 		loadEntries(); // Initial load
 
-		const interval = setInterval(loadEntries, 30000);
+		const interval = setInterval(loadEntries, 60000); // Every minute
 		return () => clearInterval(interval);
-	}, [loadEntries]);
+	}, [loadEntries, isAuthenticated]);
 
-	const formatTime = (timestamp: string) => {
+	const formatTimestamp = (timestamp: string) => {
 		try {
 			const date = new Date(timestamp);
-			const now = new Date();
-			const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-			if (diffInHours < 1) {
-				const diffInMinutes = Math.floor(diffInHours * 60);
-				return `${diffInMinutes}m ago`;
-			} else if (diffInHours < 24) {
-				const hours = Math.floor(diffInHours);
-				return `${hours}h ago`;
-			} else {
-				const days = Math.floor(diffInHours / 24);
-				return `${days}d ago`;
-			}
+			return date.toLocaleString();
 		} catch {
-			return "Unknown time";
+			return timestamp;
 		}
 	};
 
-	const getSourceColor = (source: string) => {
-		if (source.includes("fete-finder")) {
+	const getSourceBadgeColor = (source: string) => {
+		if (source.includes("auth")) {
 			return "bg-blue-100 text-blue-800 border-blue-200";
+		}
+		if (source.includes("newsletter")) {
+			return "bg-green-100 text-green-800 border-green-200";
 		}
 		return "bg-gray-100 text-gray-800 border-gray-200";
 	};
+
+	// Show placeholder when not authenticated
+	if (!isAuthenticated) {
+		return (
+			<Card>
+				<CardHeader>
+					<CardTitle className="flex items-center gap-2">
+						<Clock className="h-5 w-5" />
+						Recent Entries
+					</CardTitle>
+					<CardDescription>
+						Latest user registrations from Google Sheets
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="text-center py-8 text-muted-foreground">
+						<Users className="h-8 w-8 mx-auto mb-2" />
+						<p>Please authenticate to view recent entries</p>
+					</div>
+				</CardContent>
+			</Card>
+		);
+	}
 
 	if (error) {
 		return (
@@ -109,7 +145,7 @@ export const RecentEntriesCard = ({
 						Recent Entries
 					</CardTitle>
 					<CardDescription>
-						Latest user registrations from Google Sheet
+						Latest user registrations from Google Sheets
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
@@ -141,7 +177,7 @@ export const RecentEntriesCard = ({
 							Recent Entries
 						</CardTitle>
 						<CardDescription>
-							Latest {limit} user registrations from Google Sheet
+							Latest {limit} user registrations from Google Sheets
 							{lastUpdate && (
 								<span className="text-xs text-muted-foreground ml-2">
 									• Updated {lastUpdate}
@@ -171,66 +207,40 @@ export const RecentEntriesCard = ({
 				) : entries.length > 0 ? (
 					<div className="space-y-4">
 						{entries.map((entry, index) => (
-							<div
-								key={`${entry.email}-${entry.timestamp}-${index}`}
-								className="flex items-start space-x-3 p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors"
-							>
-								<div className="flex-shrink-0">
-									<div className="w-10 h-10 bg-gradient-to-br from-primary/10 to-primary/5 rounded-full border border-primary/20 flex items-center justify-center">
-										<User className="h-4 w-4 text-primary" />
+							<div key={index} className="border border-gray-200 rounded-lg p-4">
+								<div className="flex items-start justify-between mb-2">
+									<div className="flex items-center gap-2">
+										<User className="h-4 w-4 text-muted-foreground" />
+										<span className="font-medium">
+											{entry.firstName} {entry.lastName}
+										</span>
+										{entry.consent && (
+											<div title="Consented">
+												<Check className="h-4 w-4 text-green-600" />
+											</div>
+										)}
 									</div>
+									<Badge className={getSourceBadgeColor(entry.source)}>
+										{entry.source}
+									</Badge>
 								</div>
 
-								<div className="flex-grow min-w-0">
-									<div className="flex items-center justify-between">
-										<div className="flex-grow">
-											{entry.firstName && entry.lastName ? (
-												<h4 className="text-sm font-semibold text-foreground">
-													{entry.firstName} {entry.lastName}
-												</h4>
-											) : (
-												<h4 className="text-sm font-semibold text-muted-foreground italic">
-													Anonymous User
-												</h4>
-											)}
-											<div className="flex items-center gap-2 mt-1">
-												<Mail className="h-3 w-3 text-muted-foreground" />
-												<span className="text-sm text-muted-foreground font-mono">
-													{entry.email}
-												</span>
-											</div>
-										</div>
-
-										<div className="flex items-center gap-2 flex-shrink-0">
-											{entry.consent && (
-												<div className="flex items-center gap-1">
-													<Check className="h-3 w-3 text-green-600" />
-													<span className="text-xs text-green-600">
-														Consent
-													</span>
-												</div>
-											)}
-											<Badge
-												className={getSourceColor(entry.source)}
-												variant="outline"
-											>
-												{entry.source.replace("fete-finder-", "")}
-											</Badge>
-										</div>
+								<div className="space-y-1 text-sm text-muted-foreground">
+									<div className="flex items-center gap-2">
+										<Mail className="h-3 w-3" />
+										{entry.email}
 									</div>
-
-									<div className="flex items-center gap-2 mt-2">
-										<Clock className="h-3 w-3 text-muted-foreground" />
-										<span className="text-xs text-muted-foreground">
-											{formatTime(entry.timestamp)}
-										</span>
+									<div className="flex items-center gap-2">
+										<Calendar className="h-3 w-3" />
+										{formatTimestamp(entry.timestamp)}
 									</div>
 								</div>
 							</div>
 						))}
 
-						{entries.length === limit && (
-							<div className="text-center pt-2">
+						{entries.length >= limit && (
+							<div className="text-center">
+								<Separator className="mb-4" />
 								<p className="text-xs text-muted-foreground">
 									Showing latest {limit} entries
 								</p>
@@ -239,9 +249,17 @@ export const RecentEntriesCard = ({
 					</div>
 				) : (
 					<div className="text-center py-8 text-muted-foreground">
-						<Users className="h-8 w-8 mx-auto mb-2" />
+						<Database className="h-8 w-8 mx-auto mb-2" />
 						<p>No recent entries found</p>
-						<p className="text-xs mt-1">New registrations will appear here</p>
+						<Button
+							onClick={loadEntries}
+							variant="outline"
+							size="sm"
+							className="mt-2"
+						>
+							<RefreshCw className="h-4 w-4 mr-2" />
+							Load Entries
+						</Button>
 					</div>
 				)}
 			</CardContent>
