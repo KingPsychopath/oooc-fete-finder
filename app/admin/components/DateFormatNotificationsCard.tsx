@@ -19,6 +19,7 @@ import {
 	Copy,
 	RefreshCw,
 	HelpCircle,
+	Database,
 } from "lucide-react";
 import {
 	Accordion,
@@ -27,14 +28,15 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { analyzeDateFormats } from "@/app/actions";
+import { getSessionToken } from "@/lib/admin-session";
 import type { DateFormatWarning } from "@/utils/csvParser";
 
 type DateFormatNotificationsCardProps = {
-	adminKey: string;
+	isAuthenticated: boolean;
 };
 
 export const DateFormatNotificationsCard = ({
-	adminKey,
+	isAuthenticated,
 }: DateFormatNotificationsCardProps) => {
 	const [realWarnings, setRealWarnings] = useState<DateFormatWarning[]>([]);
 	const [loading, setLoading] = useState(false);
@@ -106,11 +108,23 @@ export const DateFormatNotificationsCard = ({
 	];
 
 	const loadDateWarnings = useCallback(async () => {
+		// Don't load if not authenticated
+		if (!isAuthenticated) {
+			return;
+		}
+
+		// Get session token - this should be available if user is authenticated
+		const sessionToken = getSessionToken();
+		if (!sessionToken) {
+			setError("No valid session found. Please re-authenticate.");
+			return;
+		}
+
 		setLoading(true);
 		setError("");
 
 		try {
-			const result = await analyzeDateFormats(adminKey);
+			const result = await analyzeDateFormats(sessionToken);
 
 			if (result.success) {
 				setRealWarnings(result.warnings || []);
@@ -123,15 +137,21 @@ export const DateFormatNotificationsCard = ({
 		} finally {
 			setLoading(false);
 		}
-	}, [adminKey]);
+	}, [isAuthenticated]);
 
-	// Auto-refresh every 2 minutes (less frequent than other stats)
+	// Auto-refresh every 2 minutes (less frequent than other stats), but only when authenticated
 	useEffect(() => {
+		if (!isAuthenticated) {
+			setRealWarnings([]);
+			setError("");
+			return;
+		}
+
 		loadDateWarnings(); // Initial load
 
 		const interval = setInterval(loadDateWarnings, 120000);
 		return () => clearInterval(interval);
-	}, [loadDateWarnings]);
+	}, [loadDateWarnings, isAuthenticated]);
 
 	const getWarningColor = (warningType: string) => {
 		switch (warningType) {
@@ -243,6 +263,29 @@ export const DateFormatNotificationsCard = ({
 			</div>
 		</div>
 	);
+
+	// Show placeholder when not authenticated
+	if (!isAuthenticated) {
+		return (
+			<Card>
+				<CardHeader>
+					<CardTitle className="flex items-center gap-2">
+						<Calendar className="h-5 w-5" />
+						Date Format Notifications
+					</CardTitle>
+					<CardDescription>
+						Notifications about ambiguous or problematic date formats
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="text-center py-8 text-muted-foreground">
+						<Database className="h-8 w-8 mx-auto mb-2" />
+						<p>Please authenticate to view date format analysis</p>
+					</div>
+				</CardContent>
+			</Card>
+		);
+	}
 
 	if (error) {
 		return (

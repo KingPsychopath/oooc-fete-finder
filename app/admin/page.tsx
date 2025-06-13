@@ -449,7 +449,7 @@ export default function AdminPage() {
 			<Separator />
 
 			{/* Date Format Notifications Section */}
-			<DateFormatNotificationsCard adminKey={adminKey} />
+			<DateFormatNotificationsCard isAuthenticated={isAuthenticated} />
 
 			<Separator />
 
