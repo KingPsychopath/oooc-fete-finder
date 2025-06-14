@@ -3,7 +3,7 @@
  * Handles service account authentication and data fetching from Google Sheets
  */
 
-import { ServerEnvironmentManager } from "@/lib/config/env";
+import { env } from "@/lib/env";
 
 /**
  * Service account credentials interface
@@ -63,8 +63,8 @@ async function createGoogleJWT(
  * Load service account credentials from environment
  */
 async function loadServiceAccountCredentials(): Promise<ServiceAccountCredentials> {
-	const serviceAccountKey = ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_KEY");
-	const serviceAccountFile = ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_FILE");
+	const serviceAccountKey = env.server.GOOGLE_SERVICE_ACCOUNT_KEY;
+	const serviceAccountFile = env.server.GOOGLE_SERVICE_ACCOUNT_FILE;
 
 	if (!serviceAccountKey && !serviceAccountFile) {
 		throw new Error("No service account credentials configured");

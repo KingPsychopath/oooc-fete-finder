@@ -26,7 +26,7 @@ import {
 	getFeaturedEventExpirationDate,
 } from "../utils/timestamp-utils";
 import type { Event } from "@/types/events";
-import { isDev } from "@/lib/config/env";
+import { isDev } from "@/lib/env";
 
 type FeatureCountdownProps = {
 	featuredEvents: Event[];
@@ -225,7 +225,7 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 			);
 
 			// Debug logging for progress bar accuracy
-			if (isDev) {
+			if (isDev()) {
 				const totalHours = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS;
 				const elapsedHours = elapsedDuration / (1000 * 60 * 60);
 				console.log(`📊 Progress for "${event.name}":`, {

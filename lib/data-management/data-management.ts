@@ -6,14 +6,14 @@
 import { Event } from "@/types/events";
 import { DATA_SOURCE } from "@/data/events";
 import { DATA_CONFIG } from "./config";
-import { getCacheConfig } from "../cache-management/cache-config";
+import { getCacheManagerConfig } from "../cache-management/cache-config";
 import {
 	fetchCSVWithFallbacks,
 	extractSheetId,
 	buildGoogleSheetsCSVUrl,
 } from "./csv-fetcher";
 import { processCSVData } from "./data-processor";
-import { ServerEnvironmentManager } from "@/lib/config/env";
+import { env } from "@/lib/env";
 
 export interface DataManagerResult {
 	success: boolean;
@@ -272,21 +272,21 @@ export class DataManager {
 	} {
 		const remoteConfigured = Boolean(
 			DATA_CONFIG.REMOTE_CSV_URL ||
-				ServerEnvironmentManager.get("GOOGLE_SHEETS_API_KEY") ||
-				ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_KEY") ||
-				ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_FILE") ||
+				env.server.GOOGLE_SHEETS_API_KEY ||
+				env.server.GOOGLE_SERVICE_ACCOUNT_KEY ||
+				env.server.GOOGLE_SERVICE_ACCOUNT_FILE ||
 				dynamicSheetConfig.sheetId,
 		);
 
 		const hasServiceAccount = Boolean(
-			ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_KEY") ||
-				ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_FILE"),
+			env.server.GOOGLE_SERVICE_ACCOUNT_KEY ||
+				env.server.GOOGLE_SERVICE_ACCOUNT_FILE,
 		);
 
 		return {
 			dataSource: DATA_SOURCE,
 			remoteConfigured,
-			localCsvLastUpdated: getCacheConfig().localCsvLastUpdated,
+			localCsvLastUpdated: getCacheManagerConfig().localCsvLastUpdated,
 			hasServiceAccount,
 			hasDynamicOverride: dynamicSheetConfig.sheetId !== null,
 		};

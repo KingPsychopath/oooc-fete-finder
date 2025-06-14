@@ -8,7 +8,7 @@ import { CacheStateManager } from "./cache-state";
 import { CacheInvalidationManager } from "./cache-invalidation";
 import { CacheRequestDeduplicator } from "./cache-deduplication";
 import { CacheMetrics } from "./cache-metrics";
-import { getCacheConfig, CacheConfigManager } from "./cache-config";
+import { getCacheManagerConfig, CacheConfigManager } from "./cache-config";
 import { DataManager } from "../data-management/data-management";
 import { isValidEventsData } from "../data-management/data-processor";
 import type {

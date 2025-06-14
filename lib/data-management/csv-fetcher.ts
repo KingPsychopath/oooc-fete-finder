@@ -3,8 +3,8 @@
  * Handles fetching CSV data from local files, remote URLs, and Google Sheets
  */
 
-import { getCacheConfig } from "../cache-management/cache-config";
-import { ServerEnvironmentManager } from "@/lib/config/env";
+import { getCacheManagerConfig } from "../cache-management/cache-config";
+import { env } from "@/lib/env";
 
 export interface CSVFetchResult {
 	content: string;
@@ -187,8 +187,8 @@ export async function fetchCSVWithFallbacks(
 
 	// Strategy 2: Try service account authentication (handled by google-sheets module)
 	const hasServiceAccount = Boolean(
-				ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_KEY") ||
-		ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_FILE"),
+				env.server.GOOGLE_SERVICE_ACCOUNT_KEY ||
+		env.server.GOOGLE_SERVICE_ACCOUNT_FILE,
 	);
 
 	if (hasServiceAccount && sheetId) {
@@ -219,7 +219,7 @@ export async function fetchCSVWithFallbacks(
 		console.log("📁 Strategy 3: Falling back to local CSV...");
 		const content = await fetchLocalCSV();
 		console.log(
-			`ℹ️ Using local CSV fallback (last updated: ${getCacheConfig().localCsvLastUpdated})`,
+			`ℹ️ Using local CSV fallback (last updated: ${getCacheManagerConfig().localCsvLastUpdated})`,
 		);
 		return {
 			content,

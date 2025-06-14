@@ -7,7 +7,7 @@
  * Deployment: https://script.google.com/macros/s/.../exec
  */
 
-import { ServerEnvironmentManager } from "@/lib/config/env";
+import { env } from "@/lib/env";
 
 /**
  * Google Apps Script utilities
@@ -56,14 +56,14 @@ export const GoogleAppsScript = {
 	 * Check if Apps Script is configured
 	 */
 	isConfigured: () => {
-		return Boolean(ServerEnvironmentManager.get("GOOGLE_SHEETS_URL"));
+		return Boolean(env.server.GOOGLE_SHEETS_URL);
 	},
 
 	/**
 	 * Get configuration status
 	 */
 	getConfig: () => ({
-		webhookUrl: ServerEnvironmentManager.get("GOOGLE_SHEETS_URL"),
-		isConfigured: Boolean(ServerEnvironmentManager.get("GOOGLE_SHEETS_URL")),
+		webhookUrl: env.server.GOOGLE_SHEETS_URL,
+		isConfigured: Boolean(env.server.GOOGLE_SHEETS_URL),
 	}),
 } as const; 

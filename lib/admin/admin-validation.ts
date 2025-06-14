@@ -6,13 +6,13 @@
 // Import session management for unified validation
 import { validateSessionToken } from "@/lib/admin/admin-session-store";
 
-import { ServerEnvironmentManager } from "@/lib/config/env";
+import { env } from "@/lib/env";
 
 /**
  * Get the expected admin key from centralized environment configuration
  */
 export const getExpectedAdminKey = (): string => {
-	return ServerEnvironmentManager.get("ADMIN_KEY");
+	return env.server.ADMIN_KEY;
 };
 
 /**

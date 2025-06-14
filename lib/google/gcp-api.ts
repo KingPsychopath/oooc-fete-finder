@@ -7,7 +7,7 @@
  * Scope: spreadsheets.readonly
  */
 
-import { ServerEnvironmentManager } from "@/lib/config/env";
+import { env } from "@/lib/env";
 
 // Re-export with clear naming
 export {
@@ -33,8 +33,8 @@ export const GoogleCloudAPI = {
 	 */
 	isConfigured: () => {
 		return Boolean(
-			ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_KEY") ||
-				ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_FILE"),
+			env.server.GOOGLE_SERVICE_ACCOUNT_KEY ||
+				env.server.GOOGLE_SERVICE_ACCOUNT_FILE,
 		);
 	},
 
@@ -43,10 +43,10 @@ export const GoogleCloudAPI = {
 	 */
 	getConfig: () => ({
 		hasServiceAccount: Boolean(
-			ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_KEY") ||
-				ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_FILE"),
+			env.server.GOOGLE_SERVICE_ACCOUNT_KEY ||
+				env.server.GOOGLE_SERVICE_ACCOUNT_FILE,
 		),
-		sheetId: ServerEnvironmentManager.get("GOOGLE_SHEET_ID"),
-		range: ServerEnvironmentManager.get("GOOGLE_SHEET_RANGE"),
+		sheetId: env.server.GOOGLE_SHEET_ID,
+		range: env.server.GOOGLE_SHEET_RANGE,
 	}),
 } as const; 

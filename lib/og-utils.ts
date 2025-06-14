@@ -3,7 +3,7 @@
  * Used throughout the app to create custom social media images
  */
 
-import { ClientEnvironmentManager } from "@/lib/config/env";
+import { env } from "@/lib/env";
 
 type OGImageTheme = "default" | "event" | "admin";
 
@@ -90,7 +90,7 @@ export const generateOGMetadata = (params: {
 	url?: string;
 	noIndex?: boolean;
 }) => {
-	const siteUrl = ClientEnvironmentManager.get("NEXT_PUBLIC_SITE_URL");
+	const siteUrl = env.client.NEXT_PUBLIC_SITE_URL;
 
 	return {
 		title: params.title,

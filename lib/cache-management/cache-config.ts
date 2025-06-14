@@ -3,7 +3,7 @@
  * Now uses centralized environment configuration
  */
 
-import { ServerEnvironmentManager } from "@/lib/config/env";
+import { getCacheConfig } from "@/lib/env";
 import type { CacheConfiguration } from "./cache-types";
 
 /**
@@ -17,7 +17,7 @@ export class CacheConfigManager {
 	 * Load configuration from centralized environment manager
 	 */
 	private static loadConfig(): CacheConfiguration {
-		return ServerEnvironmentManager.getCacheConfig();
+		return getCacheConfig();
 	}
 
 	/**
@@ -163,7 +163,7 @@ export class CacheConfigManager {
 }
 
 // Export commonly used configuration getters for convenience
-export const getCacheConfig = () => CacheConfigManager.getConfig();
+export const getCacheManagerConfig = () => CacheConfigManager.getConfig();
 export const getMemoryConfig = () => CacheConfigManager.getMemoryConfig();
 export const getPerformanceConfig = () =>
 	CacheConfigManager.getPerformanceConfig();

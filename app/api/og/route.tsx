@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
-import { ServerEnvironmentManager, ClientEnvironmentManager } from "@/lib/config/env";
+import { env } from "@/lib/env";
 
 export const runtime = "edge";
 
@@ -62,12 +62,12 @@ export async function GET(request: NextRequest) {
 			const defaultImagePaths = [
 				"/og-image.png", // Standard location
 				"/og-images/default.png", // Our folder
-				ServerEnvironmentManager.get("DEFAULT_OG_IMAGE"), // Environment override
+				env.server.DEFAULT_OG_IMAGE, // Environment override
 			].filter(Boolean);
 
 			for (const imagePath of defaultImagePaths) {
 				try {
-					const imageUrl = `${ClientEnvironmentManager.get("NEXT_PUBLIC_SITE_URL")}${imagePath}`;
+					const imageUrl = `${env.client.NEXT_PUBLIC_SITE_URL}${imagePath}`;
 					const imageResponse = await fetch(imageUrl, { method: "HEAD" });
 
 					if (imageResponse.ok) {
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
 
 		// Check for default override image (put your default image as public/og-images/default.png)
 		const defaultImagePath = "/og-images/default.png";
-		const envDefaultImage = ServerEnvironmentManager.get("DEFAULT_OG_IMAGE"); // Set DEFAULT_OG_IMAGE=/og-images/your-default.png
+		const envDefaultImage = env.server.DEFAULT_OG_IMAGE; // Set DEFAULT_OG_IMAGE=/og-images/your-default.png
 		const useDefaultImage =
 			!localImage && !searchParams.has("title") && !searchParams.has("theme");
 		const finalImage =
@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
 		// Determine background style
 		const backgroundStyle = finalImage
 			? {
-					backgroundImage: `url(${ClientEnvironmentManager.get("NEXT_PUBLIC_SITE_URL")}${finalImage})`,
+					backgroundImage: `url(${env.client.NEXT_PUBLIC_SITE_URL}${finalImage})`,
 					backgroundSize: "cover",
 					backgroundPosition: "center",
 					backgroundRepeat: "no-repeat",

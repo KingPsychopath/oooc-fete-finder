@@ -4,26 +4,29 @@
  */
 
 import { Event } from "@/types/events";
-import { getCacheConfig } from "./cache-config";
+import { getCacheManagerConfig } from "./cache-config";
 import { CacheMemoryManager } from "./cache-memory";
 import type { CacheState, CacheStateStatus, MemoryStats } from "./cache-types";
 
-import { ServerEnvironmentManager } from "@/lib/config/env";
+import { env } from "@/lib/env";
 
-// Memory management configuration
-const MEMORY_CONFIG = {
-	/** Maximum memory usage for cache in bytes (50MB default) */
-	MAX_MEMORY_USAGE: ServerEnvironmentManager.get("CACHE_MAX_MEMORY_BYTES"),
+// Memory management configuration - uses cache config
+const getMemoryConfig = () => {
+	const config = getCacheManagerConfig();
+	return {
+		/** Maximum memory usage for cache in bytes (50MB default) */
+		MAX_MEMORY_USAGE: config.maxMemoryUsage,
 
-	/** Memory check interval in ms (5 minutes) */
-	MEMORY_CHECK_INTERVAL: ServerEnvironmentManager.get("CACHE_MEMORY_CHECK_INTERVAL_MS"),
+		/** Memory check interval in ms (5 minutes) */
+		MEMORY_CHECK_INTERVAL: config.memoryCheckInterval,
 
-	/** Cleanup threshold percentage (80% of max memory) */
-	CLEANUP_THRESHOLD: ServerEnvironmentManager.get("CACHE_CLEANUP_THRESHOLD"),
+		/** Cleanup threshold percentage (80% of max memory) */
+		CLEANUP_THRESHOLD: config.cleanupThreshold,
 
-	/** Emergency cleanup threshold (95% of max memory) */
-	EMERGENCY_THRESHOLD: ServerEnvironmentManager.get("CACHE_EMERGENCY_THRESHOLD"),
-} as const;
+		/** Emergency cleanup threshold (95% of max memory) */
+		EMERGENCY_THRESHOLD: config.emergencyThreshold,
+	} as const;
+};
 
 /**
  * Cache state - centralized in this module
@@ -74,7 +77,7 @@ export class CacheStateManager {
 	} {
 		const now = Date.now();
 		const currentUsage = cacheState.memoryUsage;
-		const maxLimit = MEMORY_CONFIG.MAX_MEMORY_USAGE;
+		const maxLimit = getMemoryConfig().MAX_MEMORY_USAGE;
 		const utilizationPercent = (currentUsage / maxLimit) * 100;
 
 		const stats: MemoryStats = {
@@ -88,14 +91,14 @@ export class CacheStateManager {
 		};
 
 		const needsEmergencyCleanup =
-			utilizationPercent > MEMORY_CONFIG.EMERGENCY_THRESHOLD * 100;
+			utilizationPercent > getMemoryConfig().EMERGENCY_THRESHOLD * 100;
 		const needsCleanup =
-			utilizationPercent > MEMORY_CONFIG.CLEANUP_THRESHOLD * 100;
+			utilizationPercent > getMemoryConfig().CLEANUP_THRESHOLD * 100;
 		const withinLimits = utilizationPercent < 100;
 
 		// Log memory status periodically (check before updating lastMemoryCheck)
 		const shouldLog =
-			now - cacheState.lastMemoryCheck > MEMORY_CONFIG.MEMORY_CHECK_INTERVAL;
+			now - cacheState.lastMemoryCheck > getMemoryConfig().MEMORY_CHECK_INTERVAL;
 		if (shouldLog || needsCleanup) {
 			console.log(
 				`💾 Memory Usage: ${(currentUsage / 1024 / 1024).toFixed(2)}MB / ${(maxLimit / 1024 / 1024).toFixed(2)}MB (${utilizationPercent.toFixed(1)}%)`,
@@ -156,7 +159,7 @@ export class CacheStateManager {
 		if (!cacheState.events) return false;
 
 		const now = Date.now();
-		const config = getCacheConfig();
+		const config = getCacheManagerConfig();
 		return now - cacheState.lastFetchTime < config.cacheDuration;
 	}
 
@@ -165,7 +168,7 @@ export class CacheStateManager {
 	 */
 	static shouldRefreshRemote(): boolean {
 		const now = Date.now();
-		const config = getCacheConfig();
+		const config = getCacheManagerConfig();
 		return now - cacheState.lastRemoteFetchTime > config.remoteRefreshInterval;
 	}
 
@@ -193,7 +196,7 @@ export class CacheStateManager {
 				"🚨 Cannot update cache: would exceed emergency memory threshold",
 			);
 			console.error(
-				`   Requested: ${(newMemoryUsage / 1024 / 1024).toFixed(2)}MB, Limit: ${(MEMORY_CONFIG.MAX_MEMORY_USAGE / 1024 / 1024).toFixed(2)}MB`,
+				`   Requested: ${(newMemoryUsage / 1024 / 1024).toFixed(2)}MB, Limit: ${(getMemoryConfig().MAX_MEMORY_USAGE / 1024 / 1024).toFixed(2)}MB`,
 			);
 
 			// Restore previous memory usage and attempt cleanup
@@ -233,7 +236,7 @@ export class CacheStateManager {
 			`📦 Cache updated: ${events.length} events from ${source} source`,
 		);
 		console.log(
-			`💾 Memory usage: ${(newMemoryUsage / 1024 / 1024).toFixed(2)}MB (${((newMemoryUsage / MEMORY_CONFIG.MAX_MEMORY_USAGE) * 100).toFixed(1)}%)`,
+			`💾 Memory usage: ${(newMemoryUsage / 1024 / 1024).toFixed(2)}MB (${((newMemoryUsage / getMemoryConfig().MAX_MEMORY_USAGE) * 100).toFixed(1)}%)`,
 		);
 		console.log(
 			`⏰ Cache timestamps - lastFetchTime: ${now}, previous: ${previousFetchTime}, age reset from: ${timeSincePrevious}ms to 0ms`,
@@ -283,7 +286,7 @@ export class CacheStateManager {
 		const cacheAge = now - originalFetchTime;
 
 		// Hybrid approach: Balance between keeping service available and preventing indefinitely old data
-		const config = getCacheConfig();
+		const config = getCacheManagerConfig();
 		const MAX_CACHE_AGE = config.maxCacheAge;
 		const EXTENSION_DURATION = config.cacheExtensionDuration;
 
@@ -437,18 +440,18 @@ export class CacheStateManager {
 			nextRemoteCheck: cacheState.lastRemoteFetchTime
 				? Math.max(
 						0,
-						getCacheConfig().remoteRefreshInterval -
+						getCacheManagerConfig().remoteRefreshInterval -
 							(now - cacheState.lastRemoteFetchTime),
 					)
 				: 0,
 			dataSource: cacheState.lastDataSource,
 			eventCount: cacheState.events?.length || 0,
 			memoryUsage: cacheState.memoryUsage,
-			memoryLimit: MEMORY_CONFIG.MAX_MEMORY_USAGE,
+			memoryLimit: getMemoryConfig().MAX_MEMORY_USAGE,
 			memoryUtilization: cacheState.memoryUsage
 				? parseFloat(
 						(
-							(cacheState.memoryUsage / MEMORY_CONFIG.MAX_MEMORY_USAGE) *
+							(cacheState.memoryUsage / getMemoryConfig().MAX_MEMORY_USAGE) *
 							100
 						).toFixed(1),
 					)
