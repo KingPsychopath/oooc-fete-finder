@@ -26,7 +26,7 @@ import {
 	getFeaturedEventExpirationDate,
 } from "../utils/timestamp-utils";
 import type { Event } from "@/types/events";
-import { isDev } from "@/lib/env";
+import { isDev } from "@/lib/config/env";
 
 type FeatureCountdownProps = {
 	featuredEvents: Event[];

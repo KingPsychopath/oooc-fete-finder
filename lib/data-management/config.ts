@@ -4,7 +4,7 @@
  * Note: Cache-related configuration has moved to lib/cache-management/cache-config.ts
  */
 
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 export const DATA_CONFIG = {
 	/** Google Sheets CSV URL - configurable via environment variable */

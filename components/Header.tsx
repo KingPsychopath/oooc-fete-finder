@@ -16,7 +16,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 // Get base path from environment variable
 	const basePath = env.client.NEXT_PUBLIC_BASE_PATH;

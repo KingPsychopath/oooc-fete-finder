@@ -3,7 +3,7 @@
  * Server-side validation happens in server actions
  */
 
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 const ADMIN_SESSION_KEY = "fete_finder_admin_session";
 

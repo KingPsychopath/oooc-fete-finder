@@ -7,7 +7,7 @@
  * Deployment: https://script.google.com/macros/s/.../exec
  */
 
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 /**
  * Google Apps Script utilities

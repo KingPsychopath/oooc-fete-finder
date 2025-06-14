@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { generateAdminOGImage, generateOGMetadata } from "@/lib/og-utils";
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 // Get the site URL from environment or default
 const siteUrl = env.client.NEXT_PUBLIC_SITE_URL;

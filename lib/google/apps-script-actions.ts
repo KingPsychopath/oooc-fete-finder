@@ -2,7 +2,7 @@
 
 import { validateDirectAdminKey } from "@/lib/admin/admin-validation";
 import { validateSessionToken } from "@/lib/admin/admin-session-store";
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 /**
  * ✍️ Google Apps Script Server Actions

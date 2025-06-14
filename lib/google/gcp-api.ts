@@ -7,7 +7,7 @@
  * Scope: spreadsheets.readonly
  */
 
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 // Re-export with clear naming
 export {

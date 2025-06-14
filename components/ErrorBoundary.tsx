@@ -4,7 +4,7 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw } from "lucide-react";
-import { isDev } from "@/lib/env";
+import { isDev } from "@/lib/config/env";
 
 type ErrorBoundaryState = {
 	hasError: boolean;

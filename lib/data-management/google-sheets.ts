@@ -3,7 +3,7 @@
  * Handles service account authentication and data fetching from Google Sheets
  */
 
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 /**
  * Service account credentials interface

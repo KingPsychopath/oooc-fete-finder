@@ -15,7 +15,7 @@ import {
 	analyzeDateFormats,
 	revalidatePages,
 } from "@/app/actions";
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 // Google Apps Script server actions are imported directly in their respective card components
 

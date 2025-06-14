@@ -6,7 +6,7 @@
 import { Event } from "@/types/events";
 import type { MemoryStats, MemoryLimitsCheck } from "./cache-types";
 
-import { getCacheConfig } from "@/lib/env";
+import { getCacheConfig } from "@/lib/config/env";
 
 // Memory management configuration - lazy loaded from environment
 const getMemoryConfig = () => {

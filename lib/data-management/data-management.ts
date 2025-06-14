@@ -13,7 +13,7 @@ import {
 	buildGoogleSheetsCSVUrl,
 } from "./csv-fetcher";
 import { processCSVData } from "./data-processor";
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 export interface DataManagerResult {
 	success: boolean;

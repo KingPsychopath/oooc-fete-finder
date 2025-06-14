@@ -3,7 +3,7 @@
  * Used throughout the app to create custom social media images
  */
 
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 type OGImageTheme = "default" | "event" | "admin";
 

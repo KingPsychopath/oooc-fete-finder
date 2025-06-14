@@ -8,7 +8,7 @@ import { getCacheManagerConfig } from "./cache-config";
 import { CacheMemoryManager } from "./cache-memory";
 import type { CacheState, CacheStateStatus, MemoryStats } from "./cache-types";
 
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 // Memory management configuration - uses cache config
 const getMemoryConfig = () => {

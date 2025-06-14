@@ -4,7 +4,7 @@
  */
 
 import { getCacheManagerConfig } from "../cache-management/cache-config";
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 export interface CSVFetchResult {
 	content: string;

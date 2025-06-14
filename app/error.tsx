@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { isDev } from "@/lib/env";
+import { isDev } from "@/lib/config/env";
 
 type ErrorPageProps = {
 	error: Error & { digest?: string };

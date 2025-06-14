@@ -3,7 +3,7 @@
  * Now uses centralized environment configuration
  */
 
-import { getCacheConfig } from "@/lib/env";
+import { getCacheConfig } from "@/lib/config/env";
 import type { CacheConfiguration } from "./cache-types";
 
 /**

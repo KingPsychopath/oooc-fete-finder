@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
-import { env } from "@/lib/env";
+import { env } from "@/lib/config/env";
 
 export const runtime = "edge";
 
