@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 interface OfflineIndicatorProps {
 	className?: string;
@@ -47,42 +45,19 @@ export function OfflineIndicator({ className }: OfflineIndicatorProps) {
 
 	return (
 		<div
-			className={`fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300 ${className || ""}`}
+			className={`fixed bottom-4 right-4 z-[9999] animate-in slide-in-from-bottom-2 duration-300 ${className || ""}`}
 		>
-			<Card className="shadow-lg border-2">
-				<CardContent className="p-3">
-					<div className="flex items-center gap-2">
-						{isOnline ? (
-							<>
-								<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-								<Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-									🟢 Back Online
-								</Badge>
-								<span className="text-sm text-green-600">
-									All features available
-								</span>
-							</>
-						) : (
-							<>
-								<div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-								<Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-									🟠 Offline Mode
-								</Badge>
-								<span className="text-sm text-orange-600">
-									Using cached data
-								</span>
-							</>
-						)}
-					</div>
-					{!isOnline && (
-						<div className="mt-2 text-xs text-gray-500">
-							✅ Events still available from cache
-							<br />
-							⚠️ Some features may be limited
-						</div>
-					)}
-				</CardContent>
-			</Card>
+			{isOnline ? (
+				<div className="bg-green-500/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-medium shadow-lg flex items-center gap-1.5">
+					<div className="w-1.5 h-1.5 bg-white rounded-full" />
+					Back online
+				</div>
+			) : (
+				<div className="bg-orange-500/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-medium shadow-lg flex items-center gap-1.5">
+					<div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+					Offline mode
+				</div>
+			)}
 		</div>
 	);
 }
