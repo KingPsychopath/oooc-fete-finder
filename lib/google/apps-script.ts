@@ -56,14 +56,14 @@ export const GoogleAppsScript = {
 	 * Check if Apps Script is configured
 	 */
 	isConfigured: () => {
-		return Boolean(env.server.GOOGLE_SHEETS_URL);
+		return Boolean(env.GOOGLE_SHEETS_URL);
 	},
 
 	/**
 	 * Get configuration status
 	 */
 	getConfig: () => ({
-		webhookUrl: env.server.GOOGLE_SHEETS_URL,
-		isConfigured: Boolean(env.server.GOOGLE_SHEETS_URL),
+		webhookUrl: env.GOOGLE_SHEETS_URL,
+		isConfigured: Boolean(env.GOOGLE_SHEETS_URL),
 	}),
 } as const; 

@@ -19,7 +19,7 @@ import {
 import { env } from "@/lib/config/env";
 
 // Get base path from environment variable
-	const basePath = env.client.NEXT_PUBLIC_BASE_PATH;
+	const basePath = env.NEXT_PUBLIC_BASE_PATH;
 
 const Header = () => {
 	const { isAuthenticated, userEmail, logout } = useAuth();

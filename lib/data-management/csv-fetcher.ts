@@ -187,8 +187,8 @@ export async function fetchCSVWithFallbacks(
 
 	// Strategy 2: Try service account authentication (handled by google-sheets module)
 	const hasServiceAccount = Boolean(
-				env.server.GOOGLE_SERVICE_ACCOUNT_KEY ||
-		env.server.GOOGLE_SERVICE_ACCOUNT_FILE,
+				env.GOOGLE_SERVICE_ACCOUNT_KEY ||
+		env.GOOGLE_SERVICE_ACCOUNT_FILE,
 	);
 
 	if (hasServiceAccount && sheetId) {

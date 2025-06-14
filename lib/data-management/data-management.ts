@@ -87,17 +87,17 @@ export class DataManager {
 			}
 
 			// Determine URLs and IDs for fetching
-			const remoteUrl = dynamicSheetConfig.sheetId
-				? buildGoogleSheetsCSVUrl(
-						dynamicSheetConfig.sheetId,
-						dynamicSheetConfig.range || "A:Z",
-					)
-				: DATA_CONFIG.REMOTE_CSV_URL;
+					const remoteUrl = dynamicSheetConfig.sheetId
+			? buildGoogleSheetsCSVUrl(
+					dynamicSheetConfig.sheetId,
+					dynamicSheetConfig.range || "A:Z",
+				)
+			: DATA_CONFIG.REMOTE_CSV_URL || null;
 
-			const sheetId =
-				dynamicSheetConfig.sheetId ||
-				DATA_CONFIG.GOOGLE_SHEET_ID ||
-				extractSheetId(DATA_CONFIG.REMOTE_CSV_URL);
+					const sheetId =
+			dynamicSheetConfig.sheetId ||
+			DATA_CONFIG.GOOGLE_SHEET_ID ||
+			(DATA_CONFIG.REMOTE_CSV_URL ? extractSheetId(DATA_CONFIG.REMOTE_CSV_URL) : null);
 
 			const range = dynamicSheetConfig.range || DATA_CONFIG.DEFAULT_SHEET_RANGE;
 
@@ -272,15 +272,15 @@ export class DataManager {
 	} {
 		const remoteConfigured = Boolean(
 			DATA_CONFIG.REMOTE_CSV_URL ||
-				env.server.GOOGLE_SHEETS_API_KEY ||
-				env.server.GOOGLE_SERVICE_ACCOUNT_KEY ||
-				env.server.GOOGLE_SERVICE_ACCOUNT_FILE ||
+				env.GOOGLE_SHEETS_API_KEY ||
+				env.GOOGLE_SERVICE_ACCOUNT_KEY ||
+				env.GOOGLE_SERVICE_ACCOUNT_FILE ||
 				dynamicSheetConfig.sheetId,
 		);
 
 		const hasServiceAccount = Boolean(
-			env.server.GOOGLE_SERVICE_ACCOUNT_KEY ||
-				env.server.GOOGLE_SERVICE_ACCOUNT_FILE,
+			env.GOOGLE_SERVICE_ACCOUNT_KEY ||
+				env.GOOGLE_SERVICE_ACCOUNT_FILE,
 		);
 
 		return {

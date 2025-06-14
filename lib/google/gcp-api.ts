@@ -33,8 +33,8 @@ export const GoogleCloudAPI = {
 	 */
 	isConfigured: () => {
 		return Boolean(
-			env.server.GOOGLE_SERVICE_ACCOUNT_KEY ||
-				env.server.GOOGLE_SERVICE_ACCOUNT_FILE,
+			env.GOOGLE_SERVICE_ACCOUNT_KEY ||
+				env.GOOGLE_SERVICE_ACCOUNT_FILE,
 		);
 	},
 
@@ -43,10 +43,10 @@ export const GoogleCloudAPI = {
 	 */
 	getConfig: () => ({
 		hasServiceAccount: Boolean(
-			env.server.GOOGLE_SERVICE_ACCOUNT_KEY ||
-				env.server.GOOGLE_SERVICE_ACCOUNT_FILE,
+			env.GOOGLE_SERVICE_ACCOUNT_KEY ||
+				env.GOOGLE_SERVICE_ACCOUNT_FILE,
 		),
-		sheetId: env.server.GOOGLE_SHEET_ID,
-		range: env.server.GOOGLE_SHEET_RANGE,
+		sheetId: env.GOOGLE_SHEET_ID,
+		range: "A:Z", // Default range since GOOGLE_SHEET_RANGE not in env
 	}),
 } as const; 

@@ -74,7 +74,7 @@ export async function submitUserDataToScript(
 	lastName: string,
 	email: string,
 ): Promise<AuthenticateUserResponse> {
-	if (!env.server.GOOGLE_SHEETS_URL) {
+	if (!env.GOOGLE_SHEETS_URL) {
 		return {
 			success: false,
 			error: "Google Sheets integration not configured",
@@ -115,7 +115,7 @@ export async function submitUserDataToScript(
 	try {
 		console.log("📊 Submitting user data to Google Apps Script...");
 
-		const response = await fetch(env.server.GOOGLE_SHEETS_URL, {
+		const response = await fetch(env.GOOGLE_SHEETS_URL, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -158,7 +158,7 @@ export async function getScriptStats(keyOrToken?: string): Promise<GoogleSheetsS
 		return { success: false, error: "Unauthorized" };
 	}
 
-	if (!env.server.GOOGLE_SHEETS_URL) {
+	if (!env.GOOGLE_SHEETS_URL) {
 		return {
 			success: false,
 			error: "Google Sheets integration not configured",
@@ -169,7 +169,7 @@ export async function getScriptStats(keyOrToken?: string): Promise<GoogleSheetsS
 		console.log("📊 Fetching Google Apps Script statistics...");
 
 		const response = await fetch(
-			`${env.server.GOOGLE_SHEETS_URL}?action=stats`,
+			`${env.GOOGLE_SHEETS_URL}?action=stats`,
 			{
 				method: "GET",
 				signal: AbortSignal.timeout(10000),
@@ -208,7 +208,7 @@ export async function cleanupScriptDuplicates(keyOrToken?: string): Promise<Clea
 		return { success: false, error: "Unauthorized access" };
 	}
 
-	if (!env.server.GOOGLE_SHEETS_URL) {
+	if (!env.GOOGLE_SHEETS_URL) {
 		return {
 			success: false,
 			error: "Google Sheets integration not configured. Please set GOOGLE_SHEETS_URL environment variable.",
@@ -219,7 +219,7 @@ export async function cleanupScriptDuplicates(keyOrToken?: string): Promise<Clea
 		console.log("🗑️ Starting duplicate cleanup via Google Apps Script...");
 
 		const response = await fetch(
-			`${env.server.GOOGLE_SHEETS_URL}?action=cleanup`,
+			`${env.GOOGLE_SHEETS_URL}?action=cleanup`,
 			{
 				method: "POST",
 				headers: {
@@ -284,7 +284,7 @@ export async function getRecentScriptEntries(
 		return { success: false, error: "Unauthorized" };
 	}
 
-	if (!env.server.GOOGLE_SHEETS_URL) {
+	if (!env.GOOGLE_SHEETS_URL) {
 		return {
 			success: false,
 			error: "Google Sheets integration not configured",
@@ -295,7 +295,7 @@ export async function getRecentScriptEntries(
 		console.log("📋 Fetching recent entries from Google Apps Script...");
 
 		const response = await fetch(
-			`${env.server.GOOGLE_SHEETS_URL}?action=recent&limit=${limit}`,
+			`${env.GOOGLE_SHEETS_URL}?action=recent&limit=${limit}`,
 			{
 				method: "GET",
 				signal: AbortSignal.timeout(10000),

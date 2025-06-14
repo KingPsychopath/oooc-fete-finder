@@ -3,7 +3,7 @@ import { generateAdminOGImage, generateOGMetadata } from "@/lib/og-utils";
 import { env } from "@/lib/config/env";
 
 // Get the site URL from environment or default
-const siteUrl = env.client.NEXT_PUBLIC_SITE_URL;
+const siteUrl = env.NEXT_PUBLIC_SITE_URL;
 
 export const metadata: Metadata = generateOGMetadata({
 	title: "Admin Dashboard | Fête Finder - OOOC",

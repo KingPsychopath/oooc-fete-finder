@@ -90,7 +90,7 @@ export const generateOGMetadata = (params: {
 	url?: string;
 	noIndex?: boolean;
 }) => {
-	const siteUrl = env.client.NEXT_PUBLIC_SITE_URL;
+	const siteUrl = env.NEXT_PUBLIC_SITE_URL;
 
 	return {
 		title: params.title,

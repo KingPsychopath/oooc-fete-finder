@@ -42,7 +42,7 @@ import {
 } from "@/lib/admin/admin-session";
 
 // Get base path from environment variable
-	const basePath = env.client.NEXT_PUBLIC_BASE_PATH;
+	const basePath = env.NEXT_PUBLIC_BASE_PATH;
 
 export default function AdminPage() {
 	const router = useRouter();
@@ -67,7 +67,7 @@ export default function AdminPage() {
 		// Log Google Sheets configuration status for admin
 		console.log("🔐 Admin panel access attempt");
 		console.log("📊 Checking Google Sheets configuration...");
-		const sheetsConfigured = Boolean(env.client.NEXT_PUBLIC_SITE_URL); // Using a client-safe check
+		const sheetsConfigured = Boolean(env.NEXT_PUBLIC_SITE_URL); // Using a client-safe check
 		if (!sheetsConfigured) {
 			console.warn(
 				"⚠️ WARNING: Site URL not configured in admin panel check",

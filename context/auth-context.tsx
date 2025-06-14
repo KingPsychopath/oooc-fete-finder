@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 		}
 
 		// Store with configurable expiry (default 30 days)
-		const EXPIRY_DAYS = env.client.NEXT_PUBLIC_AUTH_EXPIRY_DAYS;
+		const EXPIRY_DAYS = env.NEXT_PUBLIC_AUTH_EXPIRY_DAYS;
 		const expiryDate = new Date();
 		expiryDate.setDate(expiryDate.getDate() + EXPIRY_DAYS);
 

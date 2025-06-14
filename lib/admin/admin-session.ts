@@ -31,7 +31,7 @@ const generateSessionToken = (): string => {
  * Get session duration from environment or use default
  */
 const getSessionDuration = (): number => {
-	const envHours = env.client.NEXT_PUBLIC_ADMIN_SESSION_HOURS;
+	const envHours = env.NEXT_PUBLIC_ADMIN_SESSION_HOURS;
 	return Math.max(1, Math.min(envHours, 168)); // Min 1 hour, max 1 week
 };
 

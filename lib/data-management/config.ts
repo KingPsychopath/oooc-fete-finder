@@ -8,11 +8,11 @@ import { env } from "@/lib/config/env";
 
 export const DATA_CONFIG = {
 	/** Google Sheets CSV URL - configurable via environment variable */
-	REMOTE_CSV_URL: env.server.REMOTE_CSV_URL,
+	REMOTE_CSV_URL: env.REMOTE_CSV_URL,
 
 	/** Default Google Sheets range */
-	DEFAULT_SHEET_RANGE: env.server.GOOGLE_SHEET_RANGE,
+	DEFAULT_SHEET_RANGE: "A:Z", // Default range since GOOGLE_SHEET_RANGE not in env
 
 	/** Google Sheet ID from environment */
-	GOOGLE_SHEET_ID: env.server.GOOGLE_SHEET_ID,
+	GOOGLE_SHEET_ID: env.GOOGLE_SHEET_ID,
 } as const;

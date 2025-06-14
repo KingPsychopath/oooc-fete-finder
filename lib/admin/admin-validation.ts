@@ -12,7 +12,7 @@ import { env } from "@/lib/config/env";
  * Get the expected admin key from centralized environment configuration
  */
 export const getExpectedAdminKey = (): string => {
-	return env.server.ADMIN_KEY;
+	return env.ADMIN_KEY;
 };
 
 /**
