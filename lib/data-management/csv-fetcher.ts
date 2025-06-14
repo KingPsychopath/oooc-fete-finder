@@ -4,6 +4,7 @@
  */
 
 import { getCacheConfig } from "../cache-management/cache-config";
+import { ServerEnvironmentManager } from "@/lib/config/env";
 
 export interface CSVFetchResult {
 	content: string;
@@ -186,8 +187,8 @@ export async function fetchCSVWithFallbacks(
 
 	// Strategy 2: Try service account authentication (handled by google-sheets module)
 	const hasServiceAccount = Boolean(
-		process.env.GOOGLE_SERVICE_ACCOUNT_KEY ||
-			process.env.GOOGLE_SERVICE_ACCOUNT_FILE,
+				ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_KEY") ||
+		ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_FILE"),
 	);
 
 	if (hasServiceAccount && sheetId) {

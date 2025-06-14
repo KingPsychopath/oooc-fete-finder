@@ -15,6 +15,7 @@ import {
 	analyzeDateFormats,
 	revalidatePages,
 } from "@/app/actions";
+import { ClientEnvironmentManager } from "@/lib/config/env";
 
 // Google Apps Script server actions are imported directly in their respective card components
 
@@ -41,7 +42,7 @@ import {
 } from "@/lib/admin/admin-session";
 
 // Get base path from environment variable
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const basePath = ClientEnvironmentManager.get("NEXT_PUBLIC_BASE_PATH");
 
 export default function AdminPage() {
 	const router = useRouter();
@@ -66,13 +67,13 @@ export default function AdminPage() {
 		// Log Google Sheets configuration status for admin
 		console.log("🔐 Admin panel access attempt");
 		console.log("📊 Checking Google Sheets configuration...");
-		const sheetsConfigured = Boolean(process.env.GOOGLE_SHEETS_URL);
+		const sheetsConfigured = Boolean(ClientEnvironmentManager.get("NEXT_PUBLIC_SITE_URL")); // Using a client-safe check
 		if (!sheetsConfigured) {
 			console.warn(
-				"⚠️ WARNING: Google Sheets integration not configured in admin panel check",
+				"⚠️ WARNING: Site URL not configured in admin panel check",
 			);
 		} else {
-			console.log("✅ Google Sheets integration appears to be configured");
+			console.log("✅ Site configuration appears to be set");
 		}
 
 		try {
@@ -165,8 +166,8 @@ export default function AdminPage() {
 				hasDynamicOverride: config.isActive,
 				sheetId: config.sheetId,
 				range: config.range,
-				envSheetId: process.env.GOOGLE_SHEET_ID || null,
-				envRange: process.env.GOOGLE_SHEET_RANGE || "A:Z",
+				envSheetId: null, // Server-only data not accessible on client
+				envRange: "A:Z", // Default range
 			});
 		} catch {
 			console.error("Failed to load dynamic config");

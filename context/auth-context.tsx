@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { ClientEnvironmentManager } from "@/lib/config/env";
 
 type AuthContextType = {
 	isAuthenticated: boolean;
@@ -74,9 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 		}
 
 		// Store with configurable expiry (default 30 days)
-		const EXPIRY_DAYS = parseInt(
-			process.env.NEXT_PUBLIC_AUTH_EXPIRY_DAYS || "30",
-		);
+		const EXPIRY_DAYS = ClientEnvironmentManager.get("NEXT_PUBLIC_AUTH_EXPIRY_DAYS");
 		const expiryDate = new Date();
 		expiryDate.setDate(expiryDate.getDate() + EXPIRY_DAYS);
 

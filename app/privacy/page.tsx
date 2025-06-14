@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
+// Force static generation for this page
+export const dynamic = 'force-static';
+
 export default function PrivacyPolicy() {
 	return (
 		<div className="min-h-screen bg-background">
@@ -20,7 +23,7 @@ export default function PrivacyPolicy() {
 					<CardHeader>
 						<CardTitle className="text-2xl">Privacy Policy</CardTitle>
 						<p className="text-sm text-muted-foreground">
-							Last updated: {new Date().toLocaleDateString()}
+							Last updated: January 18, 2025
 						</p>
 					</CardHeader>
 					<CardContent className="prose prose-sm max-w-none space-y-6">

@@ -3,6 +3,8 @@
  * Server-side validation happens in server actions
  */
 
+import { ClientEnvironmentManager } from "@/lib/config/env";
+
 const ADMIN_SESSION_KEY = "fete_finder_admin_session";
 
 interface AdminSession {
@@ -12,8 +14,7 @@ interface AdminSession {
 	version: string;
 }
 
-// Default session duration in hours
-const DEFAULT_SESSION_HOURS = 24;
+
 
 /**
  * Generate a secure session token
@@ -30,9 +31,8 @@ const generateSessionToken = (): string => {
  * Get session duration from environment or use default
  */
 const getSessionDuration = (): number => {
-	const envHours = process.env.NEXT_PUBLIC_ADMIN_SESSION_HOURS;
-	const hours = envHours ? parseInt(envHours, 10) : DEFAULT_SESSION_HOURS;
-	return Math.max(1, Math.min(hours, 168)); // Min 1 hour, max 1 week
+	const envHours = ClientEnvironmentManager.get("NEXT_PUBLIC_ADMIN_SESSION_HOURS");
+	return Math.max(1, Math.min(envHours, 168)); // Min 1 hour, max 1 week
 };
 
 /**

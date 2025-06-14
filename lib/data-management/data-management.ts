@@ -13,6 +13,7 @@ import {
 	buildGoogleSheetsCSVUrl,
 } from "./csv-fetcher";
 import { processCSVData } from "./data-processor";
+import { ServerEnvironmentManager } from "@/lib/config/env";
 
 export interface DataManagerResult {
 	success: boolean;
@@ -271,15 +272,15 @@ export class DataManager {
 	} {
 		const remoteConfigured = Boolean(
 			DATA_CONFIG.REMOTE_CSV_URL ||
-				process.env.GOOGLE_SHEETS_API_KEY ||
-				process.env.GOOGLE_SERVICE_ACCOUNT_KEY ||
-				process.env.GOOGLE_SERVICE_ACCOUNT_FILE ||
+				ServerEnvironmentManager.get("GOOGLE_SHEETS_API_KEY") ||
+				ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_KEY") ||
+				ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_FILE") ||
 				dynamicSheetConfig.sheetId,
 		);
 
 		const hasServiceAccount = Boolean(
-			process.env.GOOGLE_SERVICE_ACCOUNT_KEY ||
-				process.env.GOOGLE_SERVICE_ACCOUNT_FILE,
+			ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_KEY") ||
+				ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_FILE"),
 		);
 
 		return {

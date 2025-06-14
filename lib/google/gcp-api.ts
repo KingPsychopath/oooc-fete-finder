@@ -7,6 +7,8 @@
  * Scope: spreadsheets.readonly
  */
 
+import { ServerEnvironmentManager } from "@/lib/config/env";
+
 // Re-export with clear naming
 export {
 	fetchRemoteCSVWithServiceAccount as fetchEventDataViaGCP,
@@ -31,8 +33,8 @@ export const GoogleCloudAPI = {
 	 */
 	isConfigured: () => {
 		return Boolean(
-			process.env.GOOGLE_SERVICE_ACCOUNT_KEY ||
-				process.env.GOOGLE_SERVICE_ACCOUNT_FILE,
+			ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_KEY") ||
+				ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_FILE"),
 		);
 	},
 
@@ -41,10 +43,10 @@ export const GoogleCloudAPI = {
 	 */
 	getConfig: () => ({
 		hasServiceAccount: Boolean(
-			process.env.GOOGLE_SERVICE_ACCOUNT_KEY ||
-				process.env.GOOGLE_SERVICE_ACCOUNT_FILE,
+			ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_KEY") ||
+				ServerEnvironmentManager.get("GOOGLE_SERVICE_ACCOUNT_FILE"),
 		),
-		sheetId: process.env.GOOGLE_SHEET_ID || null,
-		range: process.env.GOOGLE_SHEET_RANGE || "A:Z",
+		sheetId: ServerEnvironmentManager.get("GOOGLE_SHEET_ID"),
+		range: ServerEnvironmentManager.get("GOOGLE_SHEET_RANGE"),
 	}),
 } as const; 

@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 	subsets: ["latin"],
 });
 
-// Get base path from environment variable
+// Get base path from environment variable - use direct access for build-time
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 // Get the site URL from environment or default to localhost for development

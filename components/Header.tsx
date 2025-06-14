@@ -16,9 +16,10 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ClientEnvironmentManager } from "@/lib/config/env";
 
 // Get base path from environment variable
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+	const basePath = ClientEnvironmentManager.get("NEXT_PUBLIC_BASE_PATH");
 
 const Header = () => {
 	const { isAuthenticated, userEmail, logout } = useAuth();

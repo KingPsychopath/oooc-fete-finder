@@ -4,6 +4,7 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { isDev } from "@/lib/config/env";
 
 type ErrorBoundaryState = {
 	hasError: boolean;
@@ -109,7 +110,7 @@ const DefaultErrorFallback = ({
 						look into it.
 					</p>
 
-					{process.env.NODE_ENV === "development" && error && (
+					{isDev && error && (
 						<details className="text-left">
 							<summary className="cursor-pointer text-sm font-medium mb-2">
 								Error Details (Development)

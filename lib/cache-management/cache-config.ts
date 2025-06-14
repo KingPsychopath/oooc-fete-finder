@@ -1,107 +1,23 @@
 /**
  * Cache Configuration Management
- * Centralized configuration for all cache-related settings
+ * Now uses centralized environment configuration
  */
 
+import { ServerEnvironmentManager } from "@/lib/config/env";
 import type { CacheConfiguration } from "./cache-types";
 
 /**
- * Default cache configuration
- */
-const DEFAULT_CONFIG: CacheConfiguration = {
-	// Core cache settings (1 hour cache, 5 min refresh check)
-	cacheDuration: 3600000, // 1 hour
-	remoteRefreshInterval: 300000, // 5 minutes
-	maxCacheAge: 21600000, // 6 hours
-	cacheExtensionDuration: 1800000, // 30 minutes
-
-	// Memory management (50MB limit)
-	maxMemoryUsage: 52428800, // 50MB
-	memoryCheckInterval: 300000, // 5 minutes
-	cleanupThreshold: 0.8, // 80%
-	emergencyThreshold: 0.95, // 95%
-
-	// Performance settings
-	maxMetricsHistory: 100, // Keep last 100 measurements
-	metricsResetInterval: 86400000, // 24 hours
-	deduplicationTimeout: 30000, // 30 seconds
-
-	// Error handling
-	maxRetryAttempts: 3,
-	retryBackoffMs: 1000,
-	bootstrapMode: true,
-
-	// Logging
-	verboseLogging: false,
-	logMemoryUsage: true,
-	logPerformanceMetrics: false,
-
-	// Data source metadata
-	localCsvLastUpdated: "2025-01-18",
-};
-
-/**
- * Environment variable mappings
- */
-const ENV_MAPPINGS = {
-	CACHE_DURATION_MS: "cacheDuration",
-	REMOTE_REFRESH_INTERVAL_MS: "remoteRefreshInterval",
-	MAX_CACHE_AGE_MS: "maxCacheAge",
-	CACHE_EXTENSION_DURATION_MS: "cacheExtensionDuration",
-	CACHE_MAX_MEMORY_BYTES: "maxMemoryUsage",
-	CACHE_MEMORY_CHECK_INTERVAL_MS: "memoryCheckInterval",
-	CACHE_CLEANUP_THRESHOLD: "cleanupThreshold",
-	CACHE_EMERGENCY_THRESHOLD: "emergencyThreshold",
-	CACHE_MAX_METRICS_HISTORY: "maxMetricsHistory",
-	CACHE_METRICS_RESET_INTERVAL_MS: "metricsResetInterval",
-	CACHE_DEDUPLICATION_TIMEOUT_MS: "deduplicationTimeout",
-	CACHE_MAX_RETRY_ATTEMPTS: "maxRetryAttempts",
-	CACHE_RETRY_BACKOFF_MS: "retryBackoffMs",
-	CACHE_BOOTSTRAP_MODE: "bootstrapMode",
-	CACHE_VERBOSE_LOGGING: "verboseLogging",
-	CACHE_LOG_MEMORY_USAGE: "logMemoryUsage",
-	CACHE_LOG_PERFORMANCE_METRICS: "logPerformanceMetrics",
-	LOCAL_CSV_LAST_UPDATED: "localCsvLastUpdated",
-} as const;
-
-/**
  * Cache Configuration Manager
+ * Now delegates to centralized environment management
  */
 export class CacheConfigManager {
 	private static config: CacheConfiguration | null = null;
 
 	/**
-	 * Load configuration from environment variables and defaults
+	 * Load configuration from centralized environment manager
 	 */
 	private static loadConfig(): CacheConfiguration {
-		const config = { ...DEFAULT_CONFIG };
-
-		// Load from environment variables
-		for (const [envKey, configKey] of Object.entries(ENV_MAPPINGS)) {
-			const envValue = process.env[envKey];
-			if (envValue !== undefined) {
-				const defaultValue =
-					DEFAULT_CONFIG[configKey as keyof CacheConfiguration];
-
-				if (typeof defaultValue === "number") {
-					const parsed = configKey.includes("Threshold")
-						? parseFloat(envValue)
-						: parseInt(envValue, 10);
-					if (!isNaN(parsed)) {
-						(config as Record<string, number | boolean | string>)[configKey] =
-							parsed;
-					}
-				} else if (typeof defaultValue === "boolean") {
-					(config as Record<string, number | boolean | string>)[configKey] =
-						envValue.toLowerCase() === "true";
-				} else if (typeof defaultValue === "string") {
-					(config as Record<string, number | boolean | string>)[configKey] =
-						envValue;
-				}
-			}
-		}
-
-		return config;
+		return ServerEnvironmentManager.getCacheConfig();
 	}
 
 	/**

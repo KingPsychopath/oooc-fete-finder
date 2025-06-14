@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { generateAdminOGImage, generateOGMetadata } from "@/lib/og-utils";
+import { ClientEnvironmentManager } from "@/lib/config/env";
 
 // Get the site URL from environment or default
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://your-domain.com";
+const siteUrl = ClientEnvironmentManager.get("NEXT_PUBLIC_SITE_URL");
 
 export const metadata: Metadata = generateOGMetadata({
 	title: "Admin Dashboard | Fête Finder - OOOC",

@@ -6,23 +6,21 @@
 import { Event } from "@/types/events";
 import type { MemoryStats, MemoryLimitsCheck } from "./cache-types";
 
+import { ServerEnvironmentManager } from "@/lib/config/env";
+
 // Memory management configuration
 const MEMORY_CONFIG = {
 	/** Maximum memory usage for cache in bytes (50MB default) */
-	MAX_MEMORY_USAGE: parseInt(process.env.CACHE_MAX_MEMORY_BYTES || "52428800"), // 50MB
+	MAX_MEMORY_USAGE: ServerEnvironmentManager.get("CACHE_MAX_MEMORY_BYTES"),
 
 	/** Memory check interval in ms (5 minutes) */
-	MEMORY_CHECK_INTERVAL: parseInt(
-		process.env.CACHE_MEMORY_CHECK_INTERVAL_MS || "300000",
-	),
+	MEMORY_CHECK_INTERVAL: ServerEnvironmentManager.get("CACHE_MEMORY_CHECK_INTERVAL_MS"),
 
 	/** Cleanup threshold percentage (80% of max memory) */
-	CLEANUP_THRESHOLD: parseFloat(process.env.CACHE_CLEANUP_THRESHOLD || "0.8"),
+	CLEANUP_THRESHOLD: ServerEnvironmentManager.get("CACHE_CLEANUP_THRESHOLD"),
 
 	/** Emergency cleanup threshold (95% of max memory) */
-	EMERGENCY_THRESHOLD: parseFloat(
-		process.env.CACHE_EMERGENCY_THRESHOLD || "0.95",
-	),
+	EMERGENCY_THRESHOLD: ServerEnvironmentManager.get("CACHE_EMERGENCY_THRESHOLD"),
 } as const;
 
 /**
