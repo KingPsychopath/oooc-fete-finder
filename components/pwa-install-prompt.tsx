@@ -26,7 +26,7 @@ export function PWAInstallPrompt() {
 
 		// Check if recently dismissed with progressive delays
 		const isRecentlyDismissed = () => {
-			const dismissalData = JSON.parse(sessionStorage.getItem('pwa-dismissals') || '{"count": 0, "timestamp": 0}');
+			const dismissalData = JSON.parse(localStorage.getItem('pwa-dismissals') || '{"count": 0, "timestamp": 0}');
 			const { count, timestamp } = dismissalData;
 			
 			if (count === 0) return false; // Never dismissed
@@ -92,12 +92,12 @@ export function PWAInstallPrompt() {
 		setIsVisible(false);
 		
 		// Update dismissal count and timestamp
-		const currentData = JSON.parse(sessionStorage.getItem('pwa-dismissals') || '{"count": 0, "timestamp": 0}');
+		const currentData = JSON.parse(localStorage.getItem('pwa-dismissals') || '{"count": 0, "timestamp": 0}');
 		const newData = {
 			count: currentData.count + 1,
 			timestamp: Date.now()
 		};
-		sessionStorage.setItem('pwa-dismissals', JSON.stringify(newData));
+		localStorage.setItem('pwa-dismissals', JSON.stringify(newData));
 	};
 
 	if (!isVisible) {
