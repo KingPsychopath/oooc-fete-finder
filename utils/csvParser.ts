@@ -162,16 +162,6 @@ const createColumnMapping = (
 	// Log mapping for debugging
 	console.log("CSV Column Mapping:", mapping);
 
-	// Special debug for featured column
-	if (mapping.featured) {
-		console.log(`✅ Featured column found: "${mapping.featured}"`);
-	} else {
-		console.warn(
-			`⚠️ Featured column not found. Available headers: [${headers.join(", ")}]`,
-		);
-		console.warn(`💡 Expected one of: ${COLUMN_MAPPINGS.featured.join(", ")}`);
-	}
-
 	return mapping;
 };
 

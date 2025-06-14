@@ -123,10 +123,6 @@ export async function processCSVData(
 			}
 		}
 
-		console.log(
-			`✅ Successfully processed ${events.length} events from ${source} source`,
-		);
-
 		return {
 			events,
 			count: events.length,
