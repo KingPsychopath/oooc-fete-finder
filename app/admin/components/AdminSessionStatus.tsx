@@ -7,7 +7,7 @@ import {
 	getSessionInfo,
 	getSessionToken,
 	clearAdminSession,
-} from "@/lib/admin-session";
+} from "@/lib/admin/admin-session";
 import { extendAdminSession } from "@/app/actions";
 
 interface AdminSessionStatusProps {

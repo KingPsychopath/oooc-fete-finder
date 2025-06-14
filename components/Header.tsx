@@ -9,7 +9,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import SlidingBanner from "@/components/SlidingBanner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/context/auth-context";
 import {
 	Tooltip,
 	TooltipContent,

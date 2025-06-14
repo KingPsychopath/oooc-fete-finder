@@ -4,7 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import ClientBody from "./ClientBody";
 import Footer from "@/components/Footer";
-import { AuthProvider } from "@/lib/auth-context";
+import { AuthProvider } from "@/context/auth-context";
 import { generateMainOGImage } from "@/lib/og-utils";
 import { Analytics } from "@vercel/analytics/next";
 import { VignetteAd } from "@/features/vignette-ad/components/vignette-ad";

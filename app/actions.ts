@@ -28,8 +28,8 @@ import type {
 	// AuthenticateUserResponse moved to lib/google/apps-script-actions.ts
 	CollectedEmailsResponse,
 } from "@/types/user";
-import { validateDirectAdminKey } from "@/lib/admin-validation";
-import { adminSessions, validateSessionToken } from "@/lib/admin-session-store";
+import { validateDirectAdminKey } from "@/lib/admin/admin-validation";
+import { adminSessions, validateSessionToken } from "@/lib/admin/admin-session-store";
 
 // Simple in-memory user storage (will reset on deployment, but good for development)
 const collectedUsers: UserRecord[] = [];

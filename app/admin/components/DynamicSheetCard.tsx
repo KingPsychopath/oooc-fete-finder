@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, CheckCircle, Database } from "lucide-react";
 import { DynamicSheetConfig } from "../types";
 import { setDynamicSheet } from "@/app/actions";
-import { getSessionToken } from "@/lib/admin-session";
+import { getSessionToken } from "@/lib/admin/admin-session";
 
 type DynamicSheetCardProps = {
 	dynamicConfig: DynamicSheetConfig;

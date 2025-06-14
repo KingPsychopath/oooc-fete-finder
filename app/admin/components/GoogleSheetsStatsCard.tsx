@@ -26,7 +26,7 @@ import {
 	Activity as ActivityIcon,
 } from "lucide-react";
 import { GoogleAppsScript } from "@/lib/google/apps-script";
-import { getSessionToken } from "@/lib/admin-session";
+import { getSessionToken } from "@/lib/admin/admin-session";
 
 type SheetsStats = {
 	totalUsers: number;

@@ -38,7 +38,7 @@ import {
 	getSessionToken,
 	createAdminSession as createClientSession,
 	clearAdminSession,
-} from "@/lib/admin-session";
+} from "@/lib/admin/admin-session";
 
 // Get base path from environment variable
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";

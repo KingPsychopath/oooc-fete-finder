@@ -12,7 +12,7 @@ import { FilterButton } from "@/components/FilterButton";
 import EmailGateModal from "@/components/EmailGateModal";
 import AuthGate from "@/components/AuthGate";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/context/auth-context";
 import {
 	getDayNightPeriod,
 	isEventInDayNightPeriod,

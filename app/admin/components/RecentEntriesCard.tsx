@@ -23,7 +23,7 @@ import {
 	Database,
 } from "lucide-react";
 import { GoogleAppsScript } from "@/lib/google/apps-script";
-import { getSessionToken } from "@/lib/admin-session";
+import { getSessionToken } from "@/lib/admin/admin-session";
 
 type RecentEntry = {
 	firstName: string;

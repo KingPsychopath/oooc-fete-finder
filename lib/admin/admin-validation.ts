@@ -4,7 +4,7 @@
  */
 
 // Import session management for unified validation
-import { validateSessionToken } from "@/lib/admin-session-store";
+import { validateSessionToken } from "@/lib/admin/admin-session-store";
 
 /**
  * Get the expected admin key from environment

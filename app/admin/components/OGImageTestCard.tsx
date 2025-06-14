@@ -22,7 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Database } from "lucide-react";
-import { getSessionToken } from "@/lib/admin-session";
+import { getSessionToken } from "@/lib/admin/admin-session";
 
 type OGTestParams = {
 	title: string;

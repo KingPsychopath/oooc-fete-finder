@@ -1,5 +1,8 @@
 "use server";
 
+import { validateDirectAdminKey } from "@/lib/admin/admin-validation";
+import { validateSessionToken } from "@/lib/admin/admin-session-store";
+
 /**
  * ✍️ Google Apps Script Server Actions
  * 
@@ -52,10 +55,14 @@ interface RecentEntriesResponse {
  */
 function validateAdminAccess(keyOrToken?: string): boolean {
 	if (!keyOrToken) return false;
-	
-	// Simple validation - could be enhanced with proper session validation
-	const validKeys = ["admin", process.env.ADMIN_KEY].filter(Boolean);
-	return validKeys.includes(keyOrToken);
+
+	// Direct admin key check
+	if (validateDirectAdminKey(keyOrToken)) {
+		return true;
+	}
+
+	// Session token check
+	return validateSessionToken(keyOrToken);
 }
 
 /**

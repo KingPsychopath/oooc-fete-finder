@@ -28,7 +28,7 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { analyzeDateFormats } from "@/app/actions";
-import { getSessionToken } from "@/lib/admin-session";
+import { getSessionToken } from "@/lib/admin/admin-session";
 import type { DateFormatWarning } from "@/utils/csvParser";
 
 type DateFormatNotificationsCardProps = {

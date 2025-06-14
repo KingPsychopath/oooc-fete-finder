@@ -19,7 +19,7 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useOutsideClick } from "@/lib/useOutsideClick";
+import { useOutsideClick } from "@/hooks/useOutsideClick";
 import {
 	EVENT_DAYS,
 	DAY_NIGHT_PERIODS,

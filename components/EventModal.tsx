@@ -27,7 +27,7 @@ import {
 	MUSIC_GENRES,
 	VENUE_TYPES,
 } from "@/types/events";
-import { useOutsideClick } from "@/lib/useOutsideClick";
+import { useOutsideClick } from "@/hooks/useOutsideClick";
 import { ShareableImageGenerator } from "@/components/ShareableImageGenerator";
 
 interface EventModalProps {
