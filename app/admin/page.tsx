@@ -10,14 +10,13 @@ import {
 	getCacheStatus,
 	setDynamicSheet,
 	getDynamicSheetConfig,
-	getGoogleSheetsStats,
-	getRecentSheetEntries,
 	createAdminSession,
 	extendAdminSession,
 	analyzeDateFormats,
-	cleanupSheetDuplicates,
 	revalidatePages,
 } from "@/app/actions";
+
+// Google Apps Script server actions are imported directly in their respective card components
 
 // Import local components
 import { AuthForm } from "./components/AuthForm";

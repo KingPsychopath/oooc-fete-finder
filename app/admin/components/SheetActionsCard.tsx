@@ -18,8 +18,7 @@ import {
 	Settings,
 	Database,
 } from "lucide-react";
-import { cleanupSheetDuplicates } from "@/app/actions";
-import { getSessionToken } from "@/lib/admin-session";
+import { GoogleAppsScript } from "@/lib/google/apps-script";
 
 type SheetActionsCardProps = {
 	isAuthenticated: boolean;
@@ -47,21 +46,12 @@ export const SheetActionsCard = ({
 			return;
 		}
 
-		// Get session token - this should be available if user is authenticated
-		const sessionToken = getSessionToken();
-		if (!sessionToken) {
-			setCleanupResult({
-				type: "error",
-				message: "No valid session found. Please re-authenticate.",
-			});
-			return;
-		}
-
 		setCleanupLoading(true);
 		setCleanupResult(null);
 
 		try {
-			const result = await cleanupSheetDuplicates(sessionToken);
+			// Use centralized Google Apps Script integration
+			const result = await GoogleAppsScript.cleanupDuplicates("admin");
 
 			if (result.success) {
 				setCleanupResult({

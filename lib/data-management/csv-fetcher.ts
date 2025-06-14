@@ -195,10 +195,9 @@ export async function fetchCSVWithFallbacks(
 			console.log(
 				"🔐 Strategy 2: Attempting service account authentication...",
 			);
-			const { fetchRemoteCSVWithServiceAccount } = await import(
-				"./google-sheets"
-			);
-			const content = await fetchRemoteCSVWithServiceAccount(sheetId, range);
+			// Use centralized Google integration
+			const { GoogleCloudAPI } = await import("../google/gcp-api");
+			const content = await GoogleCloudAPI.fetchEventData(sheetId, range);
 			return {
 				content,
 				source: "remote",

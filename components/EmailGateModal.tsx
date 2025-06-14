@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail, Lock, User } from "lucide-react";
-import { authenticateUser } from "@/app/actions";
+import { GoogleAppsScript } from "@/lib/google/apps-script";
 
 type EmailGateModalProps = {
 	isOpen: boolean;
@@ -82,12 +82,15 @@ const EmailGateModal = ({
 		setError("");
 
 		try {
-			// Call server action with individual parameters instead of FormData
-			const result = await authenticateUser(
-				firstName.trim(),
-				lastName.trim(),
-				email.trim(),
-			);
+			// Call server action with the new Google Apps Script integration
+			const result = await GoogleAppsScript.submitUserData({
+				firstName: firstName.trim(),
+				lastName: lastName.trim(),
+				email: email.trim(),
+				consent: true,
+				source: "fete-finder-auth",
+				timestamp: new Date().toISOString(),
+			});
 
 			if (result.success) {
 				onEmailSubmit(email);

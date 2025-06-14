@@ -22,7 +22,7 @@ import {
 	AlertTriangle,
 	Database,
 } from "lucide-react";
-import { getRecentSheetEntries } from "@/app/actions";
+import { GoogleAppsScript } from "@/lib/google/apps-script";
 import { getSessionToken } from "@/lib/admin-session";
 
 type RecentEntry = {
@@ -65,7 +65,7 @@ export const RecentEntriesCard = ({
 		setError("");
 
 		try {
-			const result = await getRecentSheetEntries(sessionToken, limit);
+			const result = await GoogleAppsScript.getRecentEntries(sessionToken, limit);
 
 			if (result.success && result.entries) {
 				setEntries(result.entries);

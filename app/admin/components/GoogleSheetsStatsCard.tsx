@@ -25,7 +25,7 @@ import {
 	XCircle,
 	Activity as ActivityIcon,
 } from "lucide-react";
-import { getGoogleSheetsStats } from "@/app/actions";
+import { GoogleAppsScript } from "@/lib/google/apps-script";
 import { getSessionToken } from "@/lib/admin-session";
 
 type SheetsStats = {
@@ -66,7 +66,7 @@ export const GoogleSheetsStatsCard = ({
 		setError("");
 
 		try {
-			const result = await getGoogleSheetsStats(sessionToken);
+			const result = await GoogleAppsScript.getAdminStats(sessionToken);
 
 			if (result.success && result.stats) {
 				setStats(result.stats);
