@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
 	X,
 	MapPin,
@@ -14,10 +14,17 @@ import {
 	Music,
 	User,
 	Share,
+	Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
 	type Event,
 	EVENT_DAYS,
@@ -29,6 +36,11 @@ import {
 } from "@/types/events";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
 import { ShareableImageGenerator } from "@/components/ShareableImageGenerator";
+import { useMapPreference } from "@/features/map-preferences/hooks/use-map-preference";
+import { openLocationInMaps } from "@/features/map-preferences/utils/map-launcher";
+import { MapSelectionModal } from "@/features/map-preferences/components/map-selection-modal";
+import { MapPreferenceSettings } from "@/features/map-preferences/components/map-preference-settings";
+import type { MapProvider } from "@/features/map-preferences/types/map-preferences";
 
 interface EventModalProps {
 	event: Event | null;
@@ -36,266 +48,7 @@ interface EventModalProps {
 	onClose: () => void;
 }
 
-/**
- * Converts an integer to its ordinal form (1st, 2nd, 3rd, etc.).
- *
- * @param num - The number to convert to ordinal
- * @returns String with ordinal suffix (e.g., "1st", "2nd", "3rd", "4th")
- *
- * **Rules:**
- * - Numbers ending in 11, 12, 13 use "th" (11th, 12th, 13th)
- * - Numbers ending in 1 use "st" (1st, 21st, 31st)
- * - Numbers ending in 2 use "nd" (2nd, 22nd, 32nd)
- * - Numbers ending in 3 use "rd" (3rd, 23rd, 33rd)
- * - All others use "th" (4th, 5th, 6th, etc.)
- *
- * @example
- * ```tsx
- * getOrdinal(1)   // → "1st"
- * getOrdinal(2)   // → "2nd"
- * getOrdinal(3)   // → "3rd"
- * getOrdinal(11)  // → "11th"
- * getOrdinal(21)  // → "21st"
- * getOrdinal(103) // → "103rd"
- * ```
- */
-const getOrdinal = (num: number): string => {
-	const lastDigit = num % 10;
-	const lastTwoDigits = num % 100;
 
-	// Special cases for 11th, 12th, 13th
-	if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
-		return `${num}th`;
-	}
-
-	// Regular cases
-	switch (lastDigit) {
-		case 1:
-			return `${num}st`;
-		case 2:
-			return `${num}nd`;
-		case 3:
-			return `${num}rd`;
-		default:
-			return `${num}th`;
-	}
-};
-
-/**
- * Determines if a string is a valid URL or plain text location name.
- *
- * @param input - The string to analyze (could be URL or location name)
- * @returns Object with isUrl boolean and the processed value
- *
- * **Detection Logic:**
- * - Checks for common URL patterns (http://, https://, maps://, geo:)
- * - Validates URL structure using URL constructor
- * - Handles Google Sheets export edge cases
- *
- * @example
- * ```tsx
- * parseLocationInput("https://maps.google.com/...")
- * // → { isUrl: true, value: "https://maps.google.com/..." }
- *
- * parseLocationInput("Le Comptoir Général")
- * // → { isUrl: false, value: "Le Comptoir Général" }
- * ```
- */
-const parseLocationInput = (
-	input: string,
-): { isUrl: boolean; value: string } => {
-	if (!input || input === "TBA") {
-		return { isUrl: false, value: input };
-	}
-
-	const trimmedInput = input.trim();
-
-	// Check for URL patterns
-	const urlPatterns = [
-		/^https?:\/\//i, // http:// or https://
-		/^maps:\/\//i, // maps:// (Apple Maps)
-		/^geo:/i, // geo: (Android)
-		/^www\./i, // www. (common shorthand)
-	];
-
-	const hasUrlPattern = urlPatterns.some((pattern) =>
-		pattern.test(trimmedInput),
-	);
-
-	if (hasUrlPattern) {
-		try {
-			// For www. links, prepend https://
-			const urlToTest = trimmedInput.startsWith("www.")
-				? `https://${trimmedInput}`
-				: trimmedInput;
-
-			new URL(urlToTest);
-			return { isUrl: true, value: urlToTest };
-		} catch {
-			// If URL parsing fails, treat as plain text
-			return { isUrl: false, value: trimmedInput };
-		}
-	}
-
-	// Additional check for Google Maps URLs that might not start with protocol
-	if (
-		trimmedInput.includes("google.com/maps") ||
-		trimmedInput.includes("maps.google.com")
-	) {
-		try {
-			const urlToTest = trimmedInput.startsWith("http")
-				? trimmedInput
-				: `https://${trimmedInput}`;
-			new URL(urlToTest);
-			return { isUrl: true, value: urlToTest };
-		} catch {
-			return { isUrl: false, value: trimmedInput };
-		}
-	}
-
-	// Default: treat as plain text location name
-	return { isUrl: false, value: trimmedInput };
-};
-
-/**
- * Opens a location in the most appropriate maps application based on the user's platform.
- * Handles both plain text location names and direct URLs.
- *
- * @param locationInput - The location string (venue name, address, or URL)
- * @param arrondissement - Optional arrondissement (number or "unknown") to append to plain text searches
- *
- * **Input Handling:**
- * - **URLs**: Opens directly in new tab (preserves Google Sheets hyperlinks)
- * - **Plain text**: Uses platform-specific maps integration with optional arrondissement context
- *
- * **Arrondissement Enhancement:**
- * - For plain text locations, appends "Location Name + 3rd arrondissement" for better search accuracy
- * - Only applies to plain text searches, not direct URLs
- * - Uses proper ordinal formatting (1st, 2nd, 3rd, etc.)
- *
- * **Platform Behavior:**
- * - **iOS/Mac**: Opens Apple Maps using reliable URL scheme handling with intelligent fallback to Google Maps web only if Apple Maps fails to launch
- * - **Android**: Opens native Google Maps app using geo: protocol
- * - **Desktop/Web**: Opens Google Maps web interface with full API features
- *
- * **Accessibility:**
- * - Handles native app failures gracefully with web fallbacks
- * - Uses proper URL encoding for special characters and spaces
- * - Maintains consistent behavior across all platforms
- *
- * @example
- * ```tsx
- * // Plain text location with arrondissement
- * <button onClick={() => openLocationInMaps("Le Comptoir Général", 10)}>
- *   View Location  // Searches: "Le Comptoir Général 10th arrondissement"
- * </button>
- *
- * // Direct URL (arrondissement ignored)
- * <button onClick={() => openLocationInMaps("https://maps.google.com/...", 3)}>
- *   View Location  // Opens URL directly
- * </button>
- * ```
- */
-const openLocationInMaps = (
-	locationInput: string,
-	arrondissement?: number | "unknown",
-): void => {
-	const { isUrl, value } = parseLocationInput(locationInput);
-
-	if (!value || value === "TBA") return;
-
-	// If it's already a URL, open it directly (ignore arrondissement)
-	if (isUrl) {
-		window.open(value, "_blank", "noopener,noreferrer");
-		return;
-	}
-
-	// Handle plain text location names with platform-specific logic
-	// Enhance search with arrondissement context for better accuracy
-	let searchQuery = value;
-	if (
-		arrondissement &&
-		arrondissement !== "unknown" &&
-		typeof arrondissement === "number"
-	) {
-		const ordinalArrondissement = getOrdinal(arrondissement);
-		searchQuery = `${value} ${ordinalArrondissement} arrondissement`;
-	}
-
-	const query = encodeURIComponent(searchQuery);
-	const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-	const isMac = /Macintosh|Mac OS X/.test(navigator.userAgent);
-	const isAndroid = /Android/.test(navigator.userAgent);
-
-	if (isIOS || isMac) {
-		// iOS/Mac: Try Apple Maps first using the most reliable method
-		const appleMapsUrl = `maps://?q=${query}`;
-
-		// Track if Apple Maps opened successfully
-		let appleMapsOpened = false;
-
-		// Listen for page visibility/focus changes (indicates app switch)
-		const handleVisibilityChange = () => {
-			if (document.hidden) {
-				appleMapsOpened = true;
-			}
-		};
-
-		const handleBlur = () => {
-			appleMapsOpened = true;
-		};
-
-		// Set up event listeners
-		document.addEventListener("visibilitychange", handleVisibilityChange);
-		window.addEventListener("blur", handleBlur);
-
-		// Try to open Apple Maps using window.location.href (most reliable method)
-		try {
-			window.location.href = appleMapsUrl;
-		} catch {
-			// If that fails, try creating a link and clicking it
-			const link = document.createElement("a");
-			link.href = appleMapsUrl;
-			link.style.display = "none";
-			document.body.appendChild(link);
-			link.click();
-			document.body.removeChild(link);
-		}
-
-		// Clean up and fallback after timeout
-		setTimeout(() => {
-			// Clean up
-			document.removeEventListener("visibilitychange", handleVisibilityChange);
-			window.removeEventListener("blur", handleBlur);
-
-			// If Apple Maps didn't open, fallback to Google Maps
-			if (!appleMapsOpened) {
-				window.open(
-					`https://maps.google.com/?q=${query}`,
-					"_blank",
-					"noopener,noreferrer",
-				);
-			}
-		}, 2000);
-	} else if (isAndroid) {
-		// Android: Use geo: protocol for native Google Maps
-		const mapsUrl = `geo:0,0?q=${query}`;
-		try {
-			window.open(mapsUrl, "_blank", "noopener,noreferrer");
-		} catch {
-			// Fallback to web version if native app fails
-			window.open(
-				`https://www.google.com/maps/search/?api=1&query=${query}`,
-				"_blank",
-				"noopener,noreferrer",
-			);
-		}
-	} else {
-		// Desktop/Web: Use Google Maps web interface
-		const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${query}`;
-		window.open(mapsUrl, "_blank", "noopener,noreferrer");
-	}
-};
 
 const CATEGORY_COLORS: Record<string, string> = {
 	electronic:
@@ -311,13 +64,66 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
+	const { mapPreference, setMapPreference, isLoaded } = useMapPreference();
+	const [showMapSelection, setShowMapSelection] = useState(false);
+	const [showMapSettings, setShowMapSettings] = useState(false);
+	const [pendingLocationData, setPendingLocationData] = useState<{
+		location: string;
+		arrondissement?: number | "unknown";
+	} | null>(null);
+
 	const modalRef = useOutsideClick<HTMLDivElement>(() => {
-		if (isOpen) {
+		// Only close EventModal if no overlays are open
+		if (isOpen && !showMapSelection && !showMapSettings) {
 			onClose();
 		}
 	});
 
+	// Reset map selection state when EventModal closes
+	useEffect(() => {
+		if (!isOpen) {
+			setShowMapSelection(false);
+			setShowMapSettings(false);
+			setPendingLocationData(null);
+		}
+	}, [isOpen]);
+
 	if (!isOpen || !event) return null;
+
+	// Handle map opening with preference support
+	const handleOpenLocation = async (
+		location: string,
+		arrondissement?: number | "unknown"
+	) => {
+		if (!isLoaded) return; // Wait for preferences to load
+
+		if (mapPreference === "ask") {
+			// Show selection modal
+			setPendingLocationData({ location, arrondissement });
+			setShowMapSelection(true);
+		} else {
+			// Use preferred map directly
+			await openLocationInMaps(location, arrondissement, mapPreference);
+		}
+	};
+
+	// Handle map selection from modal
+	const handleMapSelection = async (selectedProvider: MapProvider) => {
+		if (pendingLocationData) {
+			await openLocationInMaps(
+				pendingLocationData.location,
+				pendingLocationData.arrondissement,
+				selectedProvider
+			);
+			setPendingLocationData(null);
+		}
+		setShowMapSelection(false);
+	};
+
+	// Handle setting new preference from modal
+	const handleSetMapPreference = (provider: MapProvider) => {
+		setMapPreference(provider);
+	};
 
 	const getLinkButtonText = (url: string) => {
 		if (!url || url === "#") {
@@ -441,16 +247,35 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 					{/* Location */}
 					<div className="flex items-start space-x-2">
 						<MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-						<div className="text-sm">
-							<div className="font-medium">
-								{event.arrondissement === "unknown"
-									? "Location TBC"
-									: `${event.arrondissement}e Arrondissement`}
+						<div className="text-sm flex-1">
+							<div className="font-medium flex items-center justify-between">
+								<span>
+									{event.arrondissement === "unknown"
+										? "Location TBC"
+										: `${event.arrondissement}e Arrondissement`}
+								</span>
+								<TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												onClick={() => setShowMapSettings(!showMapSettings)}
+												className="h-6 w-6 hover:bg-muted"
+											>
+												<Settings className="h-3 w-3" />
+											</Button>
+										</TooltipTrigger>
+										<TooltipContent>
+											<p>Map preferences</p>
+										</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
 							</div>
 							{event.location && event.location !== "TBA" && (
 								<button
 									onClick={() =>
-										openLocationInMaps(event.location!, event.arrondissement)
+										handleOpenLocation(event.location!, event.arrondissement)
 									}
 									className="text-muted-foreground hover:text-primary hover:underline transition-colors text-left min-h-[44px] py-2 -my-2 pr-2 -mr-2 flex items-center"
 									title={`Open "${event.location}" in maps`}
@@ -462,6 +287,17 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								<Badge variant="outline" className="mt-1">
 									Location TBA
 								</Badge>
+							)}
+							
+							{/* Map Settings Panel */}
+							{showMapSettings && (
+								<div className="mt-3 pt-3 border-t">
+									<MapPreferenceSettings 
+										compact={true} 
+										showTitle={false}
+										className="w-full"
+									/>
+								</div>
 							)}
 						</div>
 					</div>
@@ -603,6 +439,19 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 					</div>
 				</CardContent>
 			</Card>
+
+			{/* Map Selection Modal */}
+			<MapSelectionModal
+				isOpen={showMapSelection}
+				onClose={() => {
+					setShowMapSelection(false);
+					setPendingLocationData(null);
+				}}
+				onSelect={handleMapSelection}
+				onRememberPreference={handleSetMapPreference}
+				title="Choose Map App"
+				description="How would you like to open this location?"
+			/>
 		</div>
 	);
 };
