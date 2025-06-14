@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { VignetteAdProps } from "../types";
 import { useVignetteAdStorage } from "../hooks/use-vignette-ad-storage";
-import { useScrollVisibility } from "@/hooks/use-scroll-visibility";
+import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { VIGNETTE_AD_CONFIG } from "../config";
 
 export function VignetteAd({

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Background -->
+  <rect width="16" height="16" fill="#000000" rx="2"/>
+  
+  <!-- OOOC Logo - simplified for icon clarity -->
+  <g fill="none" stroke="#ffffff" stroke-width="2">
+    <!-- Three O's representing "Out Of Office" -->
+    <circle cx="4" cy="8" r="1.92"/>
+    <circle cx="8" cy="8" r="1.92"/>
+    <circle cx="12" cy="8" r="1.92"/>
+  </g>
+  
+  <!-- "C" for Collective -->
+  <path d="M 8 12 A 1.28 1.28 0 0 1 8 14.56 A 1.28 1.28 0 0 1 8 12" 
+        fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Subtle text for larger icons -->
+  
+</svg>

@@ -8,6 +8,8 @@ import { AuthProvider } from "@/context/auth-context";
 import { generateMainOGImage } from "@/lib/og-utils";
 import { Analytics } from "@vercel/analytics/next";
 import { VignetteAd } from "@/features/vignette-ad/components/vignette-ad";
+import { OfflineIndicator } from "@/components/offline-indicator";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -113,36 +115,53 @@ export default function RootLayout({
 			suppressHydrationWarning
 		>
 			<head>
+				{/* PWA Manifest */}
+				<link rel="manifest" href="/manifest.json" />
+				<meta name="theme-color" content="#000000" />
+				<meta name="background-color" content="#ffffff" />
+				
+				{/* PWA Meta Tags */}
+				<meta name="mobile-web-app-capable" content="yes" />
+				<meta name="apple-mobile-web-app-capable" content="yes" />
+				<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+				<meta name="apple-mobile-web-app-title" content="Fête Finder" />
+				<meta name="msapplication-TileColor" content="#000000" />
+				<meta name="msapplication-tap-highlight" content="no" />
+				
+				{/* Viewport for PWA */}
+				<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover" />
+				
+				{/* Favicon links */}
 				<link
 					rel="icon"
-					href={`${basePath}/OOOCLogoDark.svg`}
+					href={`${basePath}/favicon.svg`}
 					type="image/svg+xml"
-				/>
-				<link
-					rel="apple-touch-icon"
-					sizes="180x180"
-					href={`${basePath}/OOOCLogoDark.svg`}
 				/>
 				<link
 					rel="icon"
 					type="image/png"
 					sizes="32x32"
-					href={`${basePath}/OOOCLogoDark.svg`}
+					href={`${basePath}/favicon-32x32.png`}
 				/>
 				<link
 					rel="icon"
 					type="image/png"
 					sizes="16x16"
-					href={`${basePath}/OOOCLogoDark.svg`}
+					href={`${basePath}/favicon-16x16.png`}
+				/>
+				<link
+					rel="apple-touch-icon"
+					sizes="180x180"
+					href={`${basePath}/icons/icon-192x192.png`}
 				/>
 				<link
 					rel="mask-icon"
-					href={`${basePath}/OOOCLogoDark.svg`}
+					href={`${basePath}/favicon.svg`}
 					color="#000000"
 				/>
 				<meta
 					name="msapplication-TileImage"
-					content={`${basePath}/OOOCLogoDark.svg`}
+					content={`${basePath}/icons/icon-192x192.png`}
 				/>
 			</head>
 			<body suppressHydrationWarning className="antialiased">
@@ -156,6 +175,8 @@ export default function RootLayout({
 						<ClientBody>{children}</ClientBody>
 						<Footer />
 						<VignetteAd />
+						<OfflineIndicator />
+						<PWAInstallPrompt />
 					</AuthProvider>
 				</ThemeProvider>
 				<Analytics />
