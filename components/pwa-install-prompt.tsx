@@ -15,10 +15,18 @@ export function PWAInstallPrompt() {
 	const [showPrompt, setShowPrompt] = useState(false);
 	const [isInstalled, setIsInstalled] = useState(false);
 	const [isClient, setIsClient] = useState(false);
+	const [isIOS, setIsIOS] = useState(false);
 
 	useEffect(() => {
 		// Mark as client-side to avoid SSR issues
 		setIsClient(true);
+
+		// Detect iOS
+		const detectIOS = () => {
+			if (typeof window === 'undefined') return false;
+			return /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window);
+		};
+		setIsIOS(detectIOS());
 
 		// Check if already installed
 		const checkInstalled = () => {
@@ -27,8 +35,8 @@ export function PWAInstallPrompt() {
 			// @ts-ignore - checking for PWA display mode
 			const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 			// @ts-ignore - checking for iOS PWA
-			const isIOS = window.navigator?.standalone;
-			const installed = isStandalone || isIOS;
+			const isIOSStandalone = window.navigator?.standalone;
+			const installed = isStandalone || isIOSStandalone;
 			setIsInstalled(installed);
 		};
 
@@ -124,8 +132,11 @@ export function PWAInstallPrompt() {
 		return true;
 	};
 
-	// Don't show if conditions not met
-	if (isInstalled || !canShowPrompt() || !showPrompt || !deferredPrompt) {
+	// Show iOS instructions if on iOS and not installed
+	const shouldShowIOSInstructions = isIOS && !isInstalled && canShowPrompt() && !deferredPrompt;
+	
+	// Don't show if conditions not met (but allow iOS instructions)
+	if (isInstalled || !canShowPrompt() || (!showPrompt && !shouldShowIOSInstructions) || (!deferredPrompt && !isIOS)) {
 		return null;
 	}
 
@@ -167,23 +178,44 @@ export function PWAInstallPrompt() {
 							<span>🏠</span>
 							<span>Add to home screen</span>
 						</div>
-						<div className="flex flex-col gap-2">
-							<Button
-								onClick={handleInstall}
-								className="w-full gap-2"
-								size="sm"
-							>
-								<Download className="w-4 h-4" />
-								Install App
-							</Button>
-							<Button
-								variant="outline"
-								onClick={handleDismiss}
-								size="sm"
-							>
-								Maybe Later
-							</Button>
-						</div>
+											<div className="flex flex-col gap-2">
+						{isIOS ? (
+							<div className="text-sm space-y-2">
+								<p className="font-medium">To install on iOS:</p>
+								<ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+									<li>Tap the Share button (📤)</li>
+									<li>Scroll down and tap "Add to Home Screen"</li>
+									<li>Tap "Add" to confirm</li>
+								</ol>
+								<Button
+									variant="outline"
+									onClick={handleDismiss}
+									size="sm"
+									className="w-full mt-3"
+								>
+									Got it
+								</Button>
+							</div>
+						) : (
+							<>
+								<Button
+									onClick={handleInstall}
+									className="w-full gap-2"
+									size="sm"
+								>
+									<Download className="w-4 h-4" />
+									Install App
+								</Button>
+								<Button
+									variant="outline"
+									onClick={handleDismiss}
+									size="sm"
+								>
+									Maybe Later
+								</Button>
+							</>
+						)}
+					</div>
 					</div>
 				</CardContent>
 			</Card>
