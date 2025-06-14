@@ -12,64 +12,62 @@ interface BeforeInstallPromptEvent extends Event {
 
 export function PWAInstallPrompt() {
 	const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-	const [showPrompt, setShowPrompt] = useState(false);
-	const [isInstalled, setIsInstalled] = useState(false);
-	const [isClient, setIsClient] = useState(false);
+	const [isVisible, setIsVisible] = useState(false);
 	const [isIOS, setIsIOS] = useState(false);
 
 	useEffect(() => {
-		// Mark as client-side to avoid SSR issues
-		setIsClient(true);
-
-		// Detect iOS
-		const detectIOS = () => {
-			if (typeof window === 'undefined') return false;
-			return /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window);
-		};
-		setIsIOS(detectIOS());
-
 		// Check if already installed
-		const checkInstalled = () => {
-			if (typeof window === 'undefined') return;
-			
+		const isInstalled = () => {
 			// @ts-ignore - checking for PWA display mode
-			const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-			// @ts-ignore - checking for iOS PWA
-			const isIOSStandalone = window.navigator?.standalone;
-			const installed = isStandalone || isIOSStandalone;
-			setIsInstalled(installed);
+			return window.matchMedia('(display-mode: standalone)').matches || 
+				   // @ts-ignore - checking for iOS PWA
+				   window.navigator?.standalone === true;
 		};
 
-		checkInstalled();
-
-		// Listen for PWA install prompt
-		const handleBeforeInstallPrompt = (e: Event) => {
-			// Prevent the mini-infobar from appearing on mobile
-			e.preventDefault();
-			// Stash the event so it can be triggered later
-			const event = e as BeforeInstallPromptEvent;
-			setDeferredPrompt(event);
-			// Show our custom install prompt
-			setShowPrompt(true);
+		// Check if recently dismissed with progressive delays
+		const isRecentlyDismissed = () => {
+			const dismissalData = JSON.parse(sessionStorage.getItem('pwa-dismissals') || '{"count": 0, "timestamp": 0}');
+			const { count, timestamp } = dismissalData;
+			
+			if (count === 0) return false; // Never dismissed
+			
+			const hoursSince = (Date.now() - timestamp) / (1000 * 60 * 60);
+			
+			// Progressive delays: 1st dismissal = 1 hour, 2nd = 24 hours, 3rd+ = 7 days
+			if (count === 1 && hoursSince < 1) return true;
+			if (count === 2 && hoursSince < 24) return true;
+			if (count >= 3 && hoursSince < 168) return true; // 7 days
+			
+			return false;
 		};
 
-		// Listen for successful app install
-		const handleAppInstalled = () => {
-			setIsInstalled(true);
-			setShowPrompt(false);
-			setDeferredPrompt(null);
-		};
-
-		if (typeof window !== 'undefined') {
-			window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-			window.addEventListener('appinstalled', handleAppInstalled);
+		// Don't show if already installed or recently dismissed
+		if (isInstalled() || isRecentlyDismissed()) {
+			return;
 		}
 
+		// Detect iOS
+		const detectIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window);
+		setIsIOS(detectIOS);
+
+		// For iOS, show instructions immediately
+		if (detectIOS) {
+			setIsVisible(true);
+			return;
+		}
+
+		// For other browsers, wait for beforeinstallprompt
+		const handleBeforeInstallPrompt = (e: Event) => {
+			e.preventDefault();
+			const event = e as BeforeInstallPromptEvent;
+			setDeferredPrompt(event);
+			setIsVisible(true);
+		};
+
+		window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
 		return () => {
-			if (typeof window !== 'undefined') {
-				window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-				window.removeEventListener('appinstalled', handleAppInstalled);
-			}
+			window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 		};
 	}, []);
 
@@ -77,72 +75,38 @@ export function PWAInstallPrompt() {
 		if (!deferredPrompt) return;
 
 		try {
-			// Show the install prompt
 			await deferredPrompt.prompt();
-			
-			// Wait for the user to respond to the prompt
 			const choiceResult = await deferredPrompt.userChoice;
-			const { outcome } = choiceResult;
-
-			if (outcome === 'accepted') {
-				setIsInstalled(true);
+			
+			if (choiceResult.outcome === 'accepted') {
+				setIsVisible(false);
 			}
-
-			// Clear the deferredPrompt
+		} catch (error) {
+			console.warn('Install prompt failed:', error);
+		} finally {
 			setDeferredPrompt(null);
-			setShowPrompt(false);
-		} catch {
-			// Silently handle errors - user can try manual install
 		}
 	};
 
 	const handleDismiss = () => {
-		setShowPrompt(false);
-		// Remember dismissal with timestamp for less frequent prompts
-		if (typeof window !== 'undefined') {
-			const dismissalData = {
-				timestamp: Date.now(),
-				count: (JSON.parse(sessionStorage.getItem('pwa-install-dismissals') || '{"count": 0}').count || 0) + 1
-			};
-			sessionStorage.setItem('pwa-install-dismissals', JSON.stringify(dismissalData));
-		}
+		setIsVisible(false);
+		
+		// Update dismissal count and timestamp
+		const currentData = JSON.parse(sessionStorage.getItem('pwa-dismissals') || '{"count": 0, "timestamp": 0}');
+		const newData = {
+			count: currentData.count + 1,
+			timestamp: Date.now()
+		};
+		sessionStorage.setItem('pwa-dismissals', JSON.stringify(newData));
 	};
 
-	// Don't render anything on server side
-	if (!isClient) {
-		return null;
-	}
-
-	// Check dismissal logic inline
-	const canShowPrompt = () => {
-		if (typeof window === 'undefined') return false;
-		
-		const dismissalData = JSON.parse(sessionStorage.getItem('pwa-install-dismissals') || '{"count": 0, "timestamp": 0}');
-		const { count, timestamp } = dismissalData;
-		
-		if (count === 0) return true; // Never dismissed
-		
-		const hoursSinceDismissal = (Date.now() - timestamp) / (1000 * 60 * 60);
-		
-		// Progressive delays: 1st dismissal = 1 hour, 2nd = 24 hours, 3rd+ = 7 days
-		if (count === 1 && hoursSinceDismissal < 1) return false;
-		if (count === 2 && hoursSinceDismissal < 24) return false;
-		if (count >= 3 && hoursSinceDismissal < 168) return false; // 7 days
-		
-		return true;
-	};
-
-	// Show iOS instructions if on iOS and not installed
-	const shouldShowIOSInstructions = isIOS && !isInstalled && canShowPrompt() && !deferredPrompt;
-	
-	// Don't show if conditions not met (but allow iOS instructions)
-	if (isInstalled || !canShowPrompt() || (!showPrompt && !shouldShowIOSInstructions) || (!deferredPrompt && !isIOS)) {
+	if (!isVisible) {
 		return null;
 	}
 
 	return (
 		<div className="fixed bottom-4 left-4 right-4 z-50 max-w-sm mx-auto animate-in slide-in-from-bottom-2 duration-300">
-			<Card className="shadow-lg border-2 bg-background/95 backdrop-blur-sm dark:bg-background/95">
+			<Card className="shadow-lg border-2 bg-background/95 backdrop-blur-sm">
 				<CardHeader className="pb-3">
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
@@ -154,8 +118,7 @@ export function PWAInstallPrompt() {
 							size="sm"
 							onClick={handleDismiss}
 							className="h-8 w-8 p-0"
-							aria-label="Dismiss install prompt"
-							title="Dismiss"
+							aria-label="Close"
 						>
 							<X className="w-4 h-4" />
 						</Button>
@@ -178,44 +141,45 @@ export function PWAInstallPrompt() {
 							<span>🏠</span>
 							<span>Add to home screen</span>
 						</div>
-											<div className="flex flex-col gap-2">
-						{isIOS ? (
-							<div className="text-sm space-y-2">
-								<p className="font-medium">To install on iOS:</p>
-								<ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-									<li>Tap the Share button (📤)</li>
-									<li>Scroll down and tap "Add to Home Screen"</li>
-									<li>Tap "Add" to confirm</li>
-								</ol>
-								<Button
-									variant="outline"
-									onClick={handleDismiss}
-									size="sm"
-									className="w-full mt-3"
-								>
-									Got it
-								</Button>
-							</div>
-						) : (
-							<>
-								<Button
-									onClick={handleInstall}
-									className="w-full gap-2"
-									size="sm"
-								>
-									<Download className="w-4 h-4" />
-									Install App
-								</Button>
-								<Button
-									variant="outline"
-									onClick={handleDismiss}
-									size="sm"
-								>
-									Maybe Later
-								</Button>
-							</>
-						)}
-					</div>
+						
+						<div className="flex flex-col gap-2 mt-2">
+							{isIOS ? (
+								<div className="text-sm space-y-2">
+									<p className="font-medium">To install on iOS:</p>
+									<ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+										<li>Tap the Share button (📤)</li>
+										<li>Scroll down and tap "Add to Home Screen"</li>
+										<li>Tap "Add" to confirm</li>
+									</ol>
+									<Button
+										variant="outline"
+										onClick={handleDismiss}
+										size="sm"
+										className="w-full mt-3"
+									>
+										Got it
+									</Button>
+								</div>
+							) : (
+								<>
+									<Button
+										onClick={handleInstall}
+										className="w-full gap-2"
+										size="sm"
+									>
+										<Download className="w-4 h-4" />
+										Install App
+									</Button>
+									<Button
+										variant="outline"
+										onClick={handleDismiss}
+										size="sm"
+									>
+										Maybe Later
+									</Button>
+								</>
+							)}
+						</div>
 					</div>
 				</CardContent>
 			</Card>
