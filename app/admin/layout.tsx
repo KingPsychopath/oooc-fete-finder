@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { generateAdminOGImage, generateOGMetadata } from "@/lib/og-utils";
+import { generateAdminOGImage, generateOGMetadata } from "@/lib/social/og-utils";
 import { env } from "@/lib/config/env";
 
 // Get the site URL from environment or default

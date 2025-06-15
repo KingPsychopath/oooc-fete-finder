@@ -7,11 +7,7 @@ import { Event } from "@/types/events";
 import { DATA_SOURCE } from "@/data/events";
 import { DATA_CONFIG } from "./config";
 import { getCacheManagerConfig } from "../cache-management/cache-config";
-import {
-	fetchCSVWithFallbacks,
-	extractSheetId,
-	buildGoogleSheetsCSVUrl,
-} from "./csv-fetcher";
+import { fetchCSVWithFallbacks } from "./csv-fetcher";
 import { processCSVData } from "./data-processor";
 import { env } from "@/lib/config/env";
 
@@ -86,18 +82,21 @@ export class DataManager {
 				};
 			}
 
-			// Determine URLs and IDs for fetching
-					const remoteUrl = dynamicSheetConfig.sheetId
-			? buildGoogleSheetsCSVUrl(
-					dynamicSheetConfig.sheetId,
-					dynamicSheetConfig.range || "A:Z",
-				)
-			: DATA_CONFIG.REMOTE_CSV_URL || null;
+					// Import Google utilities for URL handling
+		const { GoogleCloudAPI } = await import("../google/gcp-api");
 
-					const sheetId =
-			dynamicSheetConfig.sheetId ||
-			DATA_CONFIG.GOOGLE_SHEET_ID ||
-			(DATA_CONFIG.REMOTE_CSV_URL ? extractSheetId(DATA_CONFIG.REMOTE_CSV_URL) : null);
+		// Determine URLs and IDs for fetching
+		const remoteUrl = dynamicSheetConfig.sheetId
+		? GoogleCloudAPI.buildSheetsUrl(
+				dynamicSheetConfig.sheetId,
+				dynamicSheetConfig.range || "A:Z",
+			)
+		: DATA_CONFIG.REMOTE_CSV_URL || null;
+
+		const sheetId =
+		dynamicSheetConfig.sheetId ||
+		DATA_CONFIG.GOOGLE_SHEET_ID ||
+		(DATA_CONFIG.REMOTE_CSV_URL ? GoogleCloudAPI.extractSheetId(DATA_CONFIG.REMOTE_CSV_URL) : null);
 
 			const range = dynamicSheetConfig.range || DATA_CONFIG.DEFAULT_SHEET_RANGE;
 
@@ -190,15 +189,15 @@ export class DataManager {
 	/**
 	 * Set dynamic sheet configuration for admin overrides
 	 */
-	static setDynamicSheet(
+	static async setDynamicSheet(
 		sheetId: string | null,
 		range: string | null = null,
-	): {
+	): Promise<{
 		success: boolean;
 		message: string;
 		sheetId?: string;
 		range?: string;
-	} {
+	}> {
 		try {
 			if (!sheetId || sheetId.trim() === "") {
 				// Clear dynamic override
@@ -210,7 +209,9 @@ export class DataManager {
 				};
 			}
 
-			const extractedId = extractSheetId(sheetId);
+			// Import Google utilities for sheet ID extraction
+			const { GoogleCloudAPI } = await import("../google/gcp-api");
+			const extractedId = GoogleCloudAPI.extractSheetId(sheetId);
 			if (!extractedId) {
 				return {
 					success: false,
@@ -270,17 +271,17 @@ export class DataManager {
 		hasServiceAccount: boolean;
 		hasDynamicOverride: boolean;
 	} {
-		const remoteConfigured = Boolean(
-			DATA_CONFIG.REMOTE_CSV_URL ||
-				env.GOOGLE_SHEETS_API_KEY ||
-				env.GOOGLE_SERVICE_ACCOUNT_KEY ||
-				env.GOOGLE_SERVICE_ACCOUNT_FILE ||
-				dynamicSheetConfig.sheetId,
-		);
-
+		// Use consolidated service account check (synchronous check)
 		const hasServiceAccount = Boolean(
 			env.GOOGLE_SERVICE_ACCOUNT_KEY ||
 				env.GOOGLE_SERVICE_ACCOUNT_FILE,
+		);
+		
+		const remoteConfigured = Boolean(
+			DATA_CONFIG.REMOTE_CSV_URL ||
+				env.GOOGLE_SHEETS_API_KEY ||
+				hasServiceAccount ||
+				dynamicSheetConfig.sheetId,
 		);
 
 		return {
@@ -296,4 +297,4 @@ export class DataManager {
 // Re-export types and utilities for convenience
 export type { CSVFetchResult, CSVFetchError } from "./csv-fetcher";
 export type { ProcessedDataResult } from "./data-processor";
-export { extractSheetId, buildGoogleSheetsCSVUrl } from "./csv-fetcher";
+// Google Sheets utilities are now available via @/lib/google/gcp-api

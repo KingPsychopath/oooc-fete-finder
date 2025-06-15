@@ -4,7 +4,7 @@ This directory provides **properly separated and co-located modules** for your t
 
 ## 📖 GCP Service Account API
 - **Purpose**: Reading event data from Google Sheets
-- **File**: `lib/data-management/google-sheets.ts`
+- **File**: `lib/google/gcp-api.ts` (**Consolidated**)
 - **Authentication**: Service account with private key
 - **API**: `sheets.googleapis.com/v4`
 - **Scope**: `spreadsheets.readonly`
@@ -81,14 +81,14 @@ console.log(status);
 
 ```
 lib/google/
-├── gcp-api.ts                   # 📖 GCP Service Account API utilities
+├── gcp-api.ts                   # 📖 GCP Service Account API utilities (CONSOLIDATED)
 ├── apps-script.ts               # ✍️ Google Apps Script utilities  
 ├── apps-script-actions.ts       # ✍️ Google Apps Script server actions (co-located)
 ├── integration-status.ts        # 🔧 Status validation and guides
 └── README.md                    # 📚 This documentation
 
 lib/data-management/
-└── google-sheets.ts             # 📖 GCP Service Account implementation
+└── (Service account code consolidated into lib/google/gcp-api.ts)
 
 scripts/
 └── enhanced-google-apps-script.js  # ✍️ Apps Script webhook implementation

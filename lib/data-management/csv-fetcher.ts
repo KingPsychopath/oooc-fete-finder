@@ -1,10 +1,11 @@
 /**
  * CSV data fetching utilities
- * Handles fetching CSV data from local files, remote URLs, and Google Sheets
+ * Handles local CSV file operations only
+ * 
+ * Google Sheets functionality has been moved to @/lib/google/gcp-api.ts
  */
 
 import { getCacheManagerConfig } from "../cache-management/cache-config";
-import { env } from "@/lib/config/env";
 
 export interface CSVFetchResult {
 	content: string;
@@ -55,110 +56,8 @@ export async function fetchLocalCSV(): Promise<string> {
 }
 
 /**
- * Build Google Sheets CSV export URL
- */
-export function buildGoogleSheetsCSVUrl(
-	sheetId: string,
-	range: string = "A1:O1000",
-): string {
-	return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&range=${encodeURIComponent(range)}`;
-}
-
-/**
- * Extract sheet ID from various Google Sheets URL formats
- */
-export function extractSheetId(input: string): string | null {
-	if (!input) return null;
-
-	// If it's already just an ID
-	if (input.length === 44 && !input.includes("/")) {
-		return input;
-	}
-
-	// Extract from full URL
-	const match = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-	return match ? match[1] : null;
-}
-
-/**
- * Fetch CSV from public Google Sheets URL
- */
-export async function fetchRemoteCSV(targetUrl: string): Promise<string> {
-	if (!targetUrl) {
-		throw new Error("No remote CSV URL provided");
-	}
-
-	console.log(`📡 Fetching remote CSV from: ${targetUrl.substring(0, 50)}...`);
-
-	try {
-		const response = await fetch(targetUrl, {
-			signal: AbortSignal.timeout(15000), // 15 second timeout
-			headers: {
-				"User-Agent": "OOOC-Fete-Finder/1.0",
-			},
-		});
-
-		if (!response.ok) {
-			let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-
-			if (response.status === 401) {
-				errorMessage +=
-					" - Google Sheet may be private or authentication failed";
-				console.error("❌ Google Sheets access denied. Please ensure:");
-				console.error(
-					"   • The Google Sheet is publicly accessible (sharing settings)",
-				);
-				console.error(
-					"   • Or configure proper authentication (API key/service account)",
-				);
-			} else if (response.status === 404) {
-				errorMessage += " - Google Sheet not found or invalid URL";
-				console.error("❌ Google Sheet not found. Please check:");
-				console.error("   • The sheet ID is correct");
-				console.error("   • The sheet exists and hasn't been deleted");
-				console.error("   • The range is valid (if specified)");
-			} else if (response.status === 403) {
-				errorMessage += " - Access forbidden, check sharing permissions";
-				console.error("❌ Google Sheets access forbidden. Please check:");
-				console.error("   • Sheet sharing settings allow public access");
-				console.error("   • API quotas haven't been exceeded");
-			}
-
-			throw new Error(errorMessage);
-		}
-
-		const csvContent = await response.text();
-
-		if (!csvContent || csvContent.trim().length === 0) {
-			console.error("❌ Empty CSV content received from Google Sheets");
-			throw new Error("Empty CSV content received");
-		}
-
-		console.log(
-			`✅ Successfully fetched ${csvContent.split("\n").length - 1} rows from remote CSV`,
-		);
-		return csvContent;
-	} catch (error) {
-		if (error instanceof Error) {
-			if (error.name === "AbortError") {
-				console.error("❌ Google Sheets request timed out after 15 seconds");
-				console.error(
-					"   This may indicate network issues or a slow Google Sheets response",
-				);
-			} else if (
-				error.name === "TypeError" &&
-				error.message.includes("fetch")
-			) {
-				console.error("❌ Network error connecting to Google Sheets");
-				console.error("   Please check your internet connection");
-			}
-		}
-		throw error;
-	}
-}
-
-/**
  * Multi-strategy CSV fetching with comprehensive fallback logic
+ * Coordinates between Google Sheets (via Google module) and local CSV
  */
 export async function fetchCSVWithFallbacks(
 	remoteUrl: string | null,
@@ -167,56 +66,30 @@ export async function fetchCSVWithFallbacks(
 ): Promise<CSVFetchResult> {
 	const errors: CSVFetchError[] = [];
 
-	// Strategy 1: Try public CSV URL first
-	if (remoteUrl) {
+	// Try Google Sheets strategies first (delegated to Google module)
+	if (remoteUrl || sheetId) {
 		try {
-			console.log("📡 Strategy 1: Attempting public CSV URL...");
-			const content = await fetchRemoteCSV(remoteUrl);
-			return {
-				content,
-				source: "remote",
-				timestamp: Date.now(),
-			};
-		} catch (publicError) {
-			const errorMsg =
-				publicError instanceof Error ? publicError.message : "Unknown error";
-			errors.push({ source: "Public URL", message: errorMsg });
-			console.warn(`⚠️ Public CSV failed: ${errorMsg}`);
-		}
-	}
-
-	// Strategy 2: Try service account authentication (handled by google-sheets module)
-	const hasServiceAccount = Boolean(
-				env.GOOGLE_SERVICE_ACCOUNT_KEY ||
-		env.GOOGLE_SERVICE_ACCOUNT_FILE,
-	);
-
-	if (hasServiceAccount && sheetId) {
-		try {
-			console.log(
-				"🔐 Strategy 2: Attempting service account authentication...",
-			);
-			// Use centralized Google integration
+			console.log("🌐 Attempting Google Sheets data fetching...");
+			// Use consolidated Google integration
 			const { GoogleCloudAPI } = await import("../google/gcp-api");
-			const content = await GoogleCloudAPI.fetchEventData(sheetId, range);
+			
+			const result = await GoogleCloudAPI.fetchSheetsData(remoteUrl, sheetId, range);
 			return {
-				content,
+				content: result.content,
 				source: "remote",
-				timestamp: Date.now(),
+				timestamp: result.timestamp,
 			};
-		} catch (serviceAccountError) {
+		} catch (googleError) {
 			const errorMsg =
-				serviceAccountError instanceof Error
-					? serviceAccountError.message
-					: "Unknown error";
-			errors.push({ source: "Service Account", message: errorMsg });
-			console.warn(`⚠️ Service account authentication failed: ${errorMsg}`);
+				googleError instanceof Error ? googleError.message : "Unknown error";
+			errors.push({ source: "Google Sheets", message: errorMsg });
+			console.warn(`⚠️ Google Sheets strategies failed: ${errorMsg}`);
 		}
 	}
 
-	// Strategy 3: Fall back to local CSV
+	// Fallback to local CSV
 	try {
-		console.log("📁 Strategy 3: Falling back to local CSV...");
+		console.log("📁 Strategy: Falling back to local CSV...");
 		const content = await fetchLocalCSV();
 		console.log(
 			`ℹ️ Using local CSV fallback (last updated: ${getCacheManagerConfig().localCsvLastUpdated})`,
