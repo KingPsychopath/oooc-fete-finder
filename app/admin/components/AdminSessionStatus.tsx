@@ -8,7 +8,7 @@ import {
 	getSessionToken,
 	clearAdminSession,
 } from "@/lib/admin/admin-session";
-import { extendAdminSession } from "@/app/actions";
+import { extendAdminSession } from "@/lib/admin/actions";
 
 interface AdminSessionStatusProps {
 	onLogout: () => void;

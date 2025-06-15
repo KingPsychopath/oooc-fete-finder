@@ -3,7 +3,8 @@
  * Handles CSV parsing and event data conversion
  */
 
-import { parseCSVContent, convertCSVRowToEvent } from "@/utils/csvParser";
+import { parseCSVContent } from "@/utils/csv-parser";
+import { convertCSVRowToEvent, clearDateFormatWarnings, getDateFormatWarnings, type DateFormatWarning } from "./event-transformer";
 import { Event } from "@/types/events";
 
 export interface ProcessedDataResult {
@@ -11,6 +12,7 @@ export interface ProcessedDataResult {
 	count: number;
 	source: "local" | "remote";
 	errors: string[];
+	warnings: DateFormatWarning[];
 }
 
 /**
@@ -66,7 +68,62 @@ export function isValidEventsData(events: Event[] | null | undefined): boolean {
 }
 
 /**
- * Process CSV content into Event objects with fallback logic
+ * Enhanced event quality checks
+ */
+export function performEventQualityChecks(events: Event[]): {
+	qualityScore: number;
+	issues: string[];
+	recommendations: string[];
+} {
+	const issues: string[] = [];
+	const recommendations: string[] = [];
+	
+	// Check for missing locations
+	const eventsWithoutLocation = events.filter(event => !event.location || event.location === "TBA");
+	if (eventsWithoutLocation.length > 0) {
+		issues.push(`${eventsWithoutLocation.length} events missing location information`);
+		recommendations.push("Consider adding venue/location details for better user experience");
+	}
+	
+	// Check for missing times
+	const eventsWithoutTime = events.filter(event => !event.time);
+	if (eventsWithoutTime.length > 0) {
+		issues.push(`${eventsWithoutTime.length} events missing start time`);
+		recommendations.push("Add specific start times to help users plan their attendance");
+	}
+	
+	// Check for generic event names
+	const genericEvents = events.filter(event => 
+		event.name.includes("Event ") || 
+		event.name.toLowerCase() === "tba" ||
+		event.name.toLowerCase() === "tbc"
+	);
+	if (genericEvents.length > 0) {
+		issues.push(`${genericEvents.length} events have generic/placeholder names`);
+		recommendations.push("Update event names to be more descriptive and engaging");
+	}
+	
+	// Check for missing descriptions
+	const eventsWithoutDescription = events.filter(event => !event.description);
+	if (eventsWithoutDescription.length > 0) {
+		issues.push(`${eventsWithoutDescription.length} events missing descriptions`);
+		recommendations.push("Add event descriptions to provide more context to users");
+	}
+	
+	// Calculate quality score (0-100)
+	const totalChecks = 4;
+	const issueWeight = issues.length / totalChecks;
+	const qualityScore = Math.max(0, Math.round((1 - issueWeight) * 100));
+	
+	return {
+		qualityScore,
+		issues,
+		recommendations,
+	};
+}
+
+/**
+ * Process CSV content into Event objects with fallback logic and enhanced validation
  */
 export async function processCSVData(
 	csvContent: string,
@@ -77,12 +134,21 @@ export async function processCSVData(
 
 	console.log("🔄 Parsing CSV content...");
 
+	// Clear any previous transformation warnings
+	clearDateFormatWarnings();
+
 	try {
 		// Parse CSV content
 		const csvRows = parseCSVContent(csvContent);
 		let events: Event[] = csvRows.map((row, index) =>
 			convertCSVRowToEvent(row, index),
 		);
+
+		// Collect transformation warnings
+		const transformationWarnings = getDateFormatWarnings();
+		if (transformationWarnings.length > 0) {
+			console.log(`📊 Collected ${transformationWarnings.length} transformation warnings`);
+		}
 
 		// Check if remote source returned 0 events and fall back to local CSV
 		if (events.length === 0 && source === "remote" && enableLocalFallback) {
@@ -93,6 +159,10 @@ export async function processCSVData(
 			try {
 				const { fetchLocalCSV } = await import("./csv-fetcher");
 				const localCsvContent = await fetchLocalCSV();
+				
+				// Clear warnings before processing local data
+				clearDateFormatWarnings();
+				
 				const localCsvRows = parseCSVContent(localCsvContent);
 				const localEvents = localCsvRows.map((row, index) =>
 					convertCSVRowToEvent(row, index),
@@ -105,6 +175,11 @@ export async function processCSVData(
 						`✅ Successfully fell back to local CSV with ${localEvents.length} events`,
 					);
 					errors.push("Remote returned 0 events - used local CSV fallback");
+					
+					// Update warnings with local data warnings
+					const localWarnings = getDateFormatWarnings();
+					transformationWarnings.length = 0;
+					transformationWarnings.push(...localWarnings);
 				} else {
 					console.log(
 						"ℹ️ Local CSV also has 0 events, proceeding with empty state",
@@ -123,11 +198,22 @@ export async function processCSVData(
 			}
 		}
 
+		// Perform quality checks
+		const qualityCheck = performEventQualityChecks(events);
+		if (qualityCheck.issues.length > 0) {
+			console.log(`📊 Data quality score: ${qualityCheck.qualityScore}%`);
+			console.log("📋 Quality issues:", qualityCheck.issues);
+			if (qualityCheck.recommendations.length > 0) {
+				console.log("💡 Recommendations:", qualityCheck.recommendations);
+			}
+		}
+
 		return {
 			events,
 			count: events.length,
 			source,
 			errors,
+			warnings: transformationWarnings,
 		};
 	} catch (error) {
 		const errorMessage =
@@ -139,6 +225,7 @@ export async function processCSVData(
 			count: 0,
 			source,
 			errors: [errorMessage],
+			warnings: getDateFormatWarnings(),
 		};
 	}
 }

@@ -4,17 +4,26 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+// Admin management actions
 import {
 	getCollectedEmails,
-	forceRefreshEvents,
+	createAdminSession,
+	extendAdminSession,
+} from "@/lib/admin/actions";
+
+// Data management actions
+import {
 	getCacheStatus,
 	setDynamicSheet,
 	getDynamicSheetConfig,
-	createAdminSession,
-	extendAdminSession,
 	analyzeDateFormats,
+	forceRefreshEvents,
+} from "@/lib/data-management/actions";
+
+// Cache management actions
+import {
 	revalidatePages,
-} from "@/app/actions";
+} from "@/lib/cache-management/actions";
 import { env } from "@/lib/config/env";
 
 // Google Apps Script server actions are imported directly in their respective card components
