@@ -106,7 +106,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	selectedDay,
 }) => {
 	const mapContainer = useRef<HTMLDivElement>(null);
-	const map = useRef<any>(null);
+	const map = useRef<maplibregl.Map | null>(null);
 	const [mapLoaded, setMapLoaded] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
@@ -139,7 +139,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		}
 
 		// Create color expression for MapLibre
-		const colorExpression: any[] = ["case"];
+		const colorExpression: (string | number | (string | number | (string | number)[])[] | boolean)[] = ["case"];
 
 		// Add selected arrondissement (always blue)
 		if (selectedArrondissement) {
@@ -215,8 +215,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		return () => {
 			if (map.current) {
 				try {
-					// Remove all event listeners
-					map.current.off();
+					// Remove all event listeners (remove all listeners by not specifying event type)
+					if (map.current._listeners) {
+						map.current._listeners = {};
+					}
 					
 					// Safely get style - it may be undefined during cleanup
 					const style = map.current.getStyle();
@@ -224,15 +226,15 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						// Remove all layers
 						const layers = style.layers;
 						if (layers) {
-							layers.forEach((layer: any) => {
-								try {
-									if (map.current && map.current.getLayer(layer.id)) {
-										map.current.removeLayer(layer.id);
+															layers.forEach((layer: maplibregl.LayerSpecification) => {
+									try {
+										if (map.current && map.current.getLayer(layer.id)) {
+											map.current.removeLayer(layer.id);
+										}
+									} catch (_e) {
+										// Ignore errors during cleanup
 									}
-								} catch (e) {
-									// Ignore errors during cleanup
-								}
-							});
+								});
 						}
 						
 						// Remove all sources
@@ -243,9 +245,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 									if (map.current && map.current.getSource(sourceId)) {
 										map.current.removeSource(sourceId);
 									}
-								} catch (e) {
-									// Ignore errors during cleanup
-								}
+																	} catch (_e) {
+										// Ignore errors during cleanup
+									}
 							});
 						}
 					}
@@ -272,18 +274,23 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			try {
 				// Lazy load GeoJSON data
 				const { default: arrondissementData } = await import("@/data/paris-arr-v2.json");
+				
+				// Type assert the data to use our interface 
+				const typedData = arrondissementData as GeoJSON.FeatureCollection & {
+					features: ParisArrondissementFeature[];
+				};
 
 				// Check if source already exists
-				if (!map.current.getSource("admin-boundaries")) {
-					map.current.addSource("admin-boundaries", {
+				if (!map.current?.getSource("admin-boundaries")) {
+					map.current?.addSource("admin-boundaries", {
 						type: "geojson",
-						data: arrondissementData,
+						data: typedData,
 					});
 				}
 
 				// Add fill layer
-				if (!map.current.getLayer("admin-fill")) {
-					map.current.addLayer({
+				if (!map.current?.getLayer("admin-fill")) {
+					map.current?.addLayer({
 						id: "admin-fill",
 						type: "fill",
 						source: "admin-boundaries",
@@ -295,8 +302,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				}
 
 				// Add stroke layer
-				if (!map.current.getLayer("admin-stroke")) {
-					map.current.addLayer({
+				if (!map.current?.getLayer("admin-stroke")) {
+					map.current?.addLayer({
 						id: "admin-stroke",
 						type: "line",
 						source: "admin-boundaries",
@@ -312,8 +319,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				updateArrondissementColors();
 
 				// Add click handler
-				if (map.current.getLayer("admin-fill")) {
-					map.current.on("click", "admin-fill", (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+				if (map.current?.getLayer("admin-fill")) {
+					map.current?.on("click", "admin-fill", (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
 						if (e.features && e.features[0]) {
 							const properties = e.features[0].properties as ParisArrondissementProperties;
 							const arrondissement = properties.c_ar;
@@ -327,13 +334,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					});
 
 					// Add hover effects
-					map.current.on("mouseenter", "admin-fill", () => {
+					map.current?.on("mouseenter", "admin-fill", () => {
 						if (map.current) {
 							map.current.getCanvas().style.cursor = "pointer";
 						}
 					});
 
-					map.current.on("mouseleave", "admin-fill", () => {
+					map.current?.on("mouseleave", "admin-fill", () => {
 						if (map.current) {
 							map.current.getCanvas().style.cursor = "";
 						}
@@ -351,7 +358,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	// Update colors when events change
 	useEffect(() => {
 		updateArrondissementColors();
-	}, [filteredEvents, updateArrondissementColors]);
+	}, [updateArrondissementColors]);
 
 	// Add event markers (only when coordinates enabled)
 	useEffect(() => {
