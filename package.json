@@ -11,7 +11,7 @@
     "fix": "biome check --write",
     "format": "biome format . --write"
   },
-  "dependgencies": {
+  "dependencies": {
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",
