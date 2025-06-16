@@ -139,7 +139,7 @@ function createEventDescription(event: Event): string {
   }
   
   if (event.price !== undefined) {
-    const price = event.price === 0 ? "Free" : `€${event.price}`;
+    const price = event.price === "0" || event.price === "Free" ? "Free" : `€${event.price}`;
     details.push(`Price: ${price}`);
   }
   
