@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 type UseScrollVisibilityOptions = {
 	threshold: number; // Percentage of page scrolled (0-100)

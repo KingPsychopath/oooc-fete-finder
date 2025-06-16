@@ -5,8 +5,8 @@
  * without creating circular dependencies between data and cache layers.
  */
 
+import { CacheManager } from "@/lib/cache-management/cache-manager";
 import type { Event, MusicGenre } from "@/types/events";
-import { CacheManager } from "@/lib/cache-management/cache-management";
 
 /**
  * Get all events from the cache manager

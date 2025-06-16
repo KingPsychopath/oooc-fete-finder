@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type { VignetteAdProps } from "../types";
-import { useVignetteAdStorage } from "../hooks/use-vignette-ad-storage";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
+import { MessageCircle, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { VIGNETTE_AD_CONFIG } from "../config";
+import { useVignetteAdStorage } from "../hooks/use-vignette-ad-storage";
+import type { VignetteAdProps } from "../types";
 
 export function VignetteAd({
 	whatsappUrl = VIGNETTE_AD_CONFIG.WHATSAPP_URL,

@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "next-themes";
-import ClientBody from "./ClientBody";
 import Footer from "@/components/Footer";
-import { AuthProvider } from "@/context/auth-context";
-import { generateMainOGImage } from "@/lib/og-utils";
-import { Analytics } from "@vercel/analytics/next";
-import { VignetteAd } from "@/features/vignette-ad/components/vignette-ad";
 import { OfflineIndicator } from "@/components/offline-indicator";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { AuthProvider } from "@/context/auth-context";
+import { VignetteAd } from "@/features/vignette-ad/components/vignette-ad";
+import { generateMainOGImage } from "@/lib/social/og-utils";
+import { Analytics } from "@vercel/analytics/next";
+import { ThemeProvider } from "next-themes";
+import { BodyClassHandler } from "@/components/body-class-handler";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -119,7 +119,7 @@ export default function RootLayout({
 				<link rel="manifest" href="/manifest.json" />
 				<meta name="theme-color" content="#000000" />
 				<meta name="background-color" content="#ffffff" />
-				
+
 				{/* PWA Meta Tags */}
 				<meta name="mobile-web-app-capable" content="yes" />
 				<meta name="apple-mobile-web-app-capable" content="yes" />
@@ -127,10 +127,13 @@ export default function RootLayout({
 				<meta name="apple-mobile-web-app-title" content="Fête Finder" />
 				<meta name="msapplication-TileColor" content="#000000" />
 				<meta name="msapplication-tap-highlight" content="no" />
-				
+
 				{/* Viewport for PWA */}
-				<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover" />
-				
+				<meta
+					name="viewport"
+					content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover"
+				/>
+
 				{/* Favicon links */}
 				<link
 					rel="icon"
@@ -165,6 +168,7 @@ export default function RootLayout({
 				/>
 			</head>
 			<body suppressHydrationWarning className="antialiased">
+				<BodyClassHandler />
 				<ThemeProvider
 					attribute="class"
 					defaultTheme="system"
@@ -172,7 +176,7 @@ export default function RootLayout({
 					disableTransitionOnChange
 				>
 					<AuthProvider>
-						<ClientBody>{children}</ClientBody>
+						{children}
 						<Footer />
 						<VignetteAd />
 						<OfflineIndicator />

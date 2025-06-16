@@ -15,18 +15,18 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, AlertCircle, Star, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { isDev } from "@/lib/config/env";
+import type { Event } from "@/types/events";
+import { AlertCircle, Clock, Star, Timer } from "lucide-react";
+import { useEffect, useState } from "react";
 import { FEATURED_EVENTS_CONFIG } from "../constants";
 import {
-	isValidTimestamp,
-	isFeaturedEventExpired,
 	getFeaturedEventExpirationDate,
+	isFeaturedEventExpired,
+	isValidTimestamp,
 } from "../utils/timestamp-utils";
-import type { Event } from "@/types/events";
-import { isDev } from "@/lib/config/env";
 
 type FeatureCountdownProps = {
 	featuredEvents: Event[];

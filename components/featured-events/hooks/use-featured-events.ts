@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
 import type { Event } from "@/types/events";
-import type { FeaturedEventSelectionResult } from "../types";
+import { useMemo } from "react";
 import { FEATURED_EVENTS_CONFIG, FEATURED_EVENTS_LIMITS } from "../constants";
+import type { FeaturedEventSelectionResult } from "../types";
 import { shouldDisplayFeaturedEvent } from "../utils/timestamp-utils";
 
 /**

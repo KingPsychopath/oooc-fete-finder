@@ -5,10 +5,7 @@
 
 import { Event } from "@/types/events";
 import { getCacheManagerConfig } from "./cache-config";
-import { CacheMemoryManager } from "./cache-memory";
 import type { CacheState, CacheStateStatus, MemoryStats } from "./cache-types";
-
-import { env } from "@/lib/config/env";
 
 // Memory management configuration - uses cache config
 const getMemoryConfig = () => {
@@ -98,7 +95,8 @@ export class CacheStateManager {
 
 		// Log memory status periodically (check before updating lastMemoryCheck)
 		const shouldLog =
-			now - cacheState.lastMemoryCheck > getMemoryConfig().MEMORY_CHECK_INTERVAL;
+			now - cacheState.lastMemoryCheck >
+			getMemoryConfig().MEMORY_CHECK_INTERVAL;
 		if (shouldLog || needsCleanup) {
 			console.log(
 				`💾 Memory Usage: ${(currentUsage / 1024 / 1024).toFixed(2)}MB / ${(maxLimit / 1024 / 1024).toFixed(2)}MB (${utilizationPercent.toFixed(1)}%)`,

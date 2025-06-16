@@ -1,13 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useThemeToggle } from "@/hooks/useThemeToggle";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useThemeToggle } from "@/hooks/useThemeToggle";
 
 export const ThemeToggle = () => {
 	const { toggleTheme, currentThemeIcon, nextThemeLabel, mounted } =

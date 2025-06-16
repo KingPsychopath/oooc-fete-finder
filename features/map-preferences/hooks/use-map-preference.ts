@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import type { MapProvider, MapPreferenceState } from "../types/map-preferences";
+import { useCallback, useEffect, useState } from "react";
 import { MAP_PREFERENCE_STORAGE_KEY } from "../constants/map-options";
+import type { MapPreferenceState, MapProvider } from "../types/map-preferences";
 
 // Global state to sync across hook instances
 let globalMapPreference: MapProvider = "system";
@@ -11,16 +11,17 @@ const listeners: Set<(preference: MapProvider) => void> = new Set();
 // Global setter that notifies all hook instances
 const setGlobalMapPreference = (preference: MapProvider) => {
 	globalMapPreference = preference;
-	listeners.forEach(listener => listener(preference));
+	listeners.forEach((listener) => listener(preference));
 };
 
 /**
  * Hook for managing user's preferred map application
- * 
+ *
  * @returns Object containing current preference, setter, and loading state
  */
 export const useMapPreference = (): MapPreferenceState => {
-	const [mapPreference, setMapPreferenceState] = useState<MapProvider>(globalMapPreference);
+	const [mapPreference, setMapPreferenceState] =
+		useState<MapProvider>(globalMapPreference);
 	const [isLoaded, setIsLoaded] = useState(false);
 
 	// Subscribe to global state changes
@@ -28,9 +29,9 @@ export const useMapPreference = (): MapPreferenceState => {
 		const listener = (preference: MapProvider) => {
 			setMapPreferenceState(preference);
 		};
-		
+
 		listeners.add(listener);
-		
+
 		return () => {
 			listeners.delete(listener);
 		};
@@ -74,4 +75,4 @@ export const useMapPreference = (): MapPreferenceState => {
 		setMapPreference,
 		isLoaded,
 	};
-}; 
+};

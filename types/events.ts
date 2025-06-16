@@ -19,6 +19,22 @@ export type Nationality = "UK" | "FR" | "CA";
 // Venue type for Indoor/Outdoor column
 export type VenueType = "indoor" | "outdoor";
 
+// Coordinate types for MapLibre GL JS integration
+export type Coordinates = {
+	lng: number;
+	lat: number;
+};
+
+export type EventLocation = {
+	id: string;
+	name: string;
+	arrondissement: ParisArrondissement;
+	coordinates: Coordinates;
+	confidence?: number; // Geocoding confidence score 0-1
+	source: "manual" | "geocoded" | "estimated";
+	lastUpdated: string; // ISO timestamp
+};
+
 // Expanded genre types based on CSV data
 export type MusicGenre =
 	| "amapiano"
@@ -47,7 +63,8 @@ export type MusicGenre =
 	| "urban fr"
 	| "kompa"
 	| "afro"
-	| "gqom";
+	| "gqom"
+	| "other";
 
 export type ParisArrondissement =
 	| 1
@@ -91,6 +108,7 @@ export type Event = {
 	endTime?: string; // 24-hour format (HH:MM) or 'TBC'
 	arrondissement: ParisArrondissement;
 	location?: string;
+	coordinates?: Coordinates; // Event-specific coordinates from geocoding or manual entry
 	link: string;
 	links?: string[]; // All ticket links, if multiple
 	description?: string;
@@ -213,6 +231,7 @@ export const MUSIC_GENRES = [
 	{ key: "kompa" as const, label: "Kompa", color: "bg-pink-600" },
 	{ key: "afro" as const, label: "Afro", color: "bg-orange-400" },
 	{ key: "gqom" as const, label: "Gqom", color: "bg-purple-400" },
+	{ key: "other" as const, label: "Other", color: "bg-gray-500" },
 ] as const;
 
 export const EVENT_TYPES = [

@@ -1,8 +1,6 @@
 "use client";
-
-import React from "react";
-import Link from "next/link";
 import { CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 import { FEATURED_EVENTS_CONFIG } from "../constants";
 
 export function FeaturedEventsHeader() {

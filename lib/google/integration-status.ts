@@ -1,10 +1,10 @@
 /**
  * 🔧 Google Integration Status & Validation
- * 
+ *
  * Utilities to check configuration and status of both Google integrations
  */
 
-import { GoogleCloudAPI } from "./gcp-api";
+import { GoogleCloudAPI } from "./api";
 import { GoogleAppsScript } from "./apps-script";
 
 /**
@@ -39,6 +39,9 @@ export const validateGoogleIntegrations = () => {
 			purpose: "Writing user data & admin functions",
 			status: scriptConfigured ? "✅ Ready" : "❌ Missing webhook URL",
 		},
-		overall: gcpConfigured && scriptConfigured ? "✅ Fully configured" : "⚠️ Partial configuration",
+		overall:
+			gcpConfigured && scriptConfigured
+				? "✅ Fully configured"
+				: "⚠️ Partial configuration",
 	};
-}; 
+};

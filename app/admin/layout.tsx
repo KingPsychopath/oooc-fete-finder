@@ -1,6 +1,9 @@
-import type { Metadata } from "next";
-import { generateAdminOGImage, generateOGMetadata } from "@/lib/og-utils";
 import { env } from "@/lib/config/env";
+import {
+	generateAdminOGImage,
+	generateOGMetadata,
+} from "@/lib/social/og-utils";
+import type { Metadata } from "next";
 
 // Get the site URL from environment or default
 const siteUrl = env.NEXT_PUBLIC_SITE_URL;

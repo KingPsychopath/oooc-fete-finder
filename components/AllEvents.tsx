@@ -1,11 +1,11 @@
 "use client";
 
-import React, { forwardRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { EventCard } from "@/components/event-card/EventCard";
 import { FilterButton } from "@/components/FilterButton";
+import { EventCard } from "@/components/event-card/EventCard";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Event } from "@/types/events";
+import { forwardRef } from "react";
 
 type AllEventsProps = {
 	events: Event[];

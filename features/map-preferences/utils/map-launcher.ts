@@ -12,30 +12,33 @@ const getOrdinal = (num: number): string => {
 	}
 
 	switch (lastDigit) {
-		case 1: return `${num}st`;
-		case 2: return `${num}nd`;
-		case 3: return `${num}rd`;
-		default: return `${num}th`;
+		case 1:
+			return `${num}st`;
+		case 2:
+			return `${num}nd`;
+		case 3:
+			return `${num}rd`;
+		default:
+			return `${num}th`;
 	}
 };
 
 /**
  * Parses location input to determine if it's a URL or plain text
  */
-const parseLocationInput = (input: string): { isUrl: boolean; value: string } => {
+const parseLocationInput = (
+	input: string,
+): { isUrl: boolean; value: string } => {
 	if (!input || input === "TBA") {
 		return { isUrl: false, value: input };
 	}
 
 	const trimmedInput = input.trim();
-	const urlPatterns = [
-		/^https?:\/\//i,
-		/^maps:\/\//i,
-		/^geo:/i,
-		/^www\./i,
-	];
+	const urlPatterns = [/^https?:\/\//i, /^maps:\/\//i, /^geo:/i, /^www\./i];
 
-	const hasUrlPattern = urlPatterns.some((pattern) => pattern.test(trimmedInput));
+	const hasUrlPattern = urlPatterns.some((pattern) =>
+		pattern.test(trimmedInput),
+	);
 
 	if (hasUrlPattern) {
 		try {
@@ -49,9 +52,14 @@ const parseLocationInput = (input: string): { isUrl: boolean; value: string } =>
 		}
 	}
 
-	if (trimmedInput.includes("google.com/maps") || trimmedInput.includes("maps.google.com")) {
+	if (
+		trimmedInput.includes("google.com/maps") ||
+		trimmedInput.includes("maps.google.com")
+	) {
 		try {
-			const urlToTest = trimmedInput.startsWith("http") ? trimmedInput : `https://${trimmedInput}`;
+			const urlToTest = trimmedInput.startsWith("http")
+				? trimmedInput
+				: `https://${trimmedInput}`;
 			new URL(urlToTest);
 			return { isUrl: true, value: urlToTest };
 		} catch {
@@ -68,18 +76,26 @@ const parseLocationInput = (input: string): { isUrl: boolean; value: string } =>
 const openInGoogleMaps = (searchQuery: string): void => {
 	const query = encodeURIComponent(searchQuery);
 	const isAndroid = /Android/.test(navigator.userAgent);
-	
+
 	if (isAndroid) {
 		// Try native Google Maps app first on Android
 		try {
 			window.open(`geo:0,0?q=${query}`, "_blank", "noopener,noreferrer");
 		} catch {
 			// Fallback to web version
-			window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, "_blank", "noopener,noreferrer");
+			window.open(
+				`https://www.google.com/maps/search/?api=1&query=${query}`,
+				"_blank",
+				"noopener,noreferrer",
+			);
 		}
 	} else {
 		// Use web version for all other platforms
-		window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, "_blank", "noopener,noreferrer");
+		window.open(
+			`https://www.google.com/maps/search/?api=1&query=${query}`,
+			"_blank",
+			"noopener,noreferrer",
+		);
 	}
 };
 
@@ -89,7 +105,7 @@ const openInGoogleMaps = (searchQuery: string): void => {
 const openInAppleMaps = (searchQuery: string): Promise<boolean> => {
 	const query = encodeURIComponent(searchQuery);
 	const appleMapsUrl = `maps://?q=${query}`;
-	
+
 	return new Promise((resolve) => {
 		let appleMapsOpened = false;
 
@@ -145,7 +161,7 @@ const openWithSystemDefault = async (searchQuery: string): Promise<void> => {
 /**
  * Opens location in maps based on user preference
  * YES - This includes ordinal formatting and arrondissement enhancement
- * 
+ *
  * @param locationInput - The location string (venue name, address, or URL)
  * @param arrondissement - Optional arrondissement to enhance search accuracy
  * @param preference - User's preferred map provider
@@ -155,7 +171,7 @@ export const openLocationInMaps = async (
 	locationInput: string,
 	arrondissement?: number | "unknown",
 	preference: MapProvider = "system",
-	onAskForPreference?: () => Promise<MapProvider>
+	onAskForPreference?: () => Promise<MapProvider>,
 ): Promise<void> => {
 	const { isUrl, value } = parseLocationInput(locationInput);
 
@@ -169,7 +185,11 @@ export const openLocationInMaps = async (
 
 	// Build search query with arrondissement context for better accuracy
 	let searchQuery = value;
-	if (arrondissement && arrondissement !== "unknown" && typeof arrondissement === "number") {
+	if (
+		arrondissement &&
+		arrondissement !== "unknown" &&
+		typeof arrondissement === "number"
+	) {
 		const ordinalArrondissement = getOrdinal(arrondissement);
 		searchQuery = `${value} ${ordinalArrondissement} arrondissement`;
 	}
@@ -197,4 +217,4 @@ export const openLocationInMaps = async (
 			await openWithSystemDefault(searchQuery);
 			break;
 	}
-}; 
+};

@@ -1,54 +1,37 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useRef } from "react";
-import ParisMap from "@/components/ParisMap";
-import FilterPanel from "@/components/FilterPanel";
-import EventModal from "@/components/EventModal";
-import SearchBar from "@/components/SearchBar";
-import EventStats from "@/components/EventStats";
-import { FeaturedEvents } from "@/components/featured-events/FeaturedEvents";
 import { AllEvents } from "@/components/AllEvents";
-import { FilterButton } from "@/components/FilterButton";
-import EmailGateModal from "@/components/EmailGateModal";
 import AuthGate from "@/components/AuthGate";
+import EmailGateModal from "@/components/EmailGateModal";
+import EventModal from "@/components/EventModal";
+import EventStats from "@/components/EventStats";
+import FilterPanel from "@/components/FilterPanel";
+import ParisMap from "@/components/ParisMap";
+import ParisMapLibre from "@/components/ParisMapLibre";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
+import SearchBar from "@/components/SearchBar";
+import { FeaturedEvents } from "@/components/featured-events/FeaturedEvents";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
 import {
-	getDayNightPeriod,
-	isEventInDayNightPeriod,
-	MUSIC_GENRES,
-	NATIONALITIES,
-	formatPrice,
-	isPriceInRange,
-	PRICE_RANGE_CONFIG,
-	formatPriceRange,
 	AGE_RANGE_CONFIG,
-	formatAge,
-	isAgeInRange,
-	formatAgeRange,
+	type AgeRange,
+	type DayNightPeriod,
 	type Event,
 	type EventDay,
-	type DayNightPeriod,
 	type MusicGenre,
 	type Nationality,
-	type VenueType,
+	PRICE_RANGE_CONFIG,
 	type ParisArrondissement,
-	type AgeRange,
+	type VenueType,
+	isAgeInRange,
+	isEventInDayNightPeriod,
+	isPriceInRange,
 } from "@/types/events";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-	MapPin,
-	Clock,
-	Filter,
-	Star,
-	Euro,
-	Users,
-	ChevronDown,
-	ChevronUp,
-	Calendar,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ChevronDown, MapPin } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 interface EventsClientProps {
 	initialEvents: Event[];
@@ -63,6 +46,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [isMapExpanded, setIsMapExpanded] = useState(false);
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+	const [useMapLibre, setUseMapLibre] = useState(true);
 	const [selectedDays, setSelectedDays] = useState<EventDay[]>([]);
 	const [selectedDayNightPeriods, setSelectedDayNightPeriods] = useState<
 		DayNightPeriod[]
@@ -483,50 +467,97 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 			<div className="mb-8 relative z-10">
 				<Card>
 					<CardHeader className="pb-3">
-						<div className="flex items-center justify-between">
-							<CardTitle className="flex items-center space-x-2">
-								<MapPin className="h-5 w-5" />
-								<span>Paris Event Map</span>
-								<Badge variant="secondary" className="text-xs">
-									{filteredEvents.length} event
-									{filteredEvents.length !== 1 ? "s" : ""}
-								</Badge>
-							</CardTitle>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={toggleMapExpansion}
-								className="text-muted-foreground hover:text-foreground w-[100px] justify-center flex-shrink-0"
-							>
-								<ChevronDown
-									className={`h-4 w-4 mr-1 transition-transform duration-500 ${isMapExpanded ? "rotate-180" : "rotate-0"}`}
-									style={{
-										transitionTimingFunction:
-											"cubic-bezier(0.34, 1.56, 0.64, 1)",
-									}}
-								/>
-								<span className="text-sm">
-									{isMapExpanded ? "Collapse" : "Expand"}
-								</span>
-							</Button>
+						{/* Mobile-first responsive header */}
+						<div className="space-y-3 sm:space-y-0">
+							{/* Top row - Title and main info */}
+							<div className="flex items-center justify-between">
+								<CardTitle className="flex items-center space-x-2 flex-wrap">
+									<div className="flex items-center space-x-2">
+										<MapPin className="h-5 w-5 flex-shrink-0" />
+										<span className="text-base sm:text-lg">Paris Event Map</span>
+									</div>
+									<div className="flex items-center space-x-1 mt-1 sm:mt-0">
+										<Badge variant="secondary" className="text-xs">
+											{filteredEvents.length} event
+											{filteredEvents.length !== 1 ? "s" : ""}
+										</Badge>
+										{useMapLibre && (
+											<Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+												Beta
+											</Badge>
+										)}
+									</div>
+								</CardTitle>
+								{/* Expand/Collapse button - always visible */}
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={toggleMapExpansion}
+									className="text-muted-foreground hover:text-foreground flex-shrink-0 ml-2"
+								>
+									<ChevronDown
+										className={`h-4 w-4 mr-1 transition-transform duration-500 ${isMapExpanded ? "rotate-180" : "rotate-0"}`}
+										style={{
+											transitionTimingFunction:
+												"cubic-bezier(0.34, 1.56, 0.64, 1)",
+										}}
+									/>
+									<span className="text-sm hidden sm:inline">
+										{isMapExpanded ? "Collapse" : "Expand"}
+									</span>
+								</Button>
+							</div>
+							
+							{/* Bottom row - Map Type Toggle (mobile: full width, desktop: right-aligned) */}
+							<div className="flex justify-center sm:justify-end">
+								<div className="flex items-center space-x-2 bg-muted/50 rounded-lg p-1">
+									<span className="text-xs text-muted-foreground px-2">Map:</span>
+									<Button
+										variant={!useMapLibre ? "default" : "secondary"}
+										size="sm"
+										onClick={() => setUseMapLibre(false)}
+										className="text-xs h-7 px-3"
+									>
+										Classic
+									</Button>
+									<Button
+										variant={useMapLibre ? "default" : "secondary"}
+										size="sm"
+										onClick={() => setUseMapLibre(true)}
+										className="text-xs h-7 px-3"
+									>
+										Beta
+									</Button>
+								</div>
+							</div>
 						</div>
 					</CardHeader>
-					<CardContent className="pt-2">
+					<CardContent className="pt-2 px-3 sm:px-6">
 						<div
 							className={`relative transition-all duration-300 ease-in-out ${
-								isMapExpanded ? "h-[600px]" : "h-32"
+								isMapExpanded 
+									? "h-[400px] sm:h-[500px] lg:h-[600px]" 
+									: "h-24 sm:h-32"
 							} overflow-hidden rounded-md`}
 						>
-							<div className="w-full h-full p-1">
-								<ParisMap
-									events={filteredEvents}
-									onEventClick={setSelectedEvent}
-									onArrondissementHover={setHoveredArrondissement}
-									hoveredArrondissement={hoveredArrondissement}
-								/>
+							<div className="w-full h-full p-0.5 sm:p-1">
+								{useMapLibre ? (
+									<ParisMapLibre
+										events={filteredEvents}
+										onEventClick={setSelectedEvent}
+										selectedDay={selectedDays.length === 1 ? selectedDays[0] : undefined}
+									/>
+								) : (
+									<ParisMap
+										events={filteredEvents}
+										onEventClick={setSelectedEvent}
+										onArrondissementHover={setHoveredArrondissement}
+										hoveredArrondissement={hoveredArrondissement}
+									/>
+								)}
 							</div>
 							{!isMapExpanded && (
-								<div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none rounded-b-md" />
+								<div className="absolute inset-x-0 bottom-0 h-6 sm:h-8 bg-gradient-to-t from-card to-transparent pointer-events-none rounded-b-md" />
 							)}
 						</div>
 					</CardContent>

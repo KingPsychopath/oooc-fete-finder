@@ -1,6 +1,6 @@
 /**
  * ✍️ Google Apps Script Integration
- * 
+ *
  * Used for: Writing user data and admin functions
  * File: scripts/enhanced-google-apps-script.js
  * Auth: Public webhook endpoint
@@ -25,7 +25,11 @@ export const GoogleAppsScript = {
 		timestamp: string;
 	}) => {
 		const { submitUserDataToScript } = await import("./apps-script-actions");
-		return submitUserDataToScript(userData.firstName, userData.lastName, userData.email);
+		return submitUserDataToScript(
+			userData.firstName,
+			userData.lastName,
+			userData.email,
+		);
 	},
 
 	/**
@@ -66,4 +70,4 @@ export const GoogleAppsScript = {
 		webhookUrl: env.GOOGLE_SHEETS_URL,
 		isConfigured: Boolean(env.GOOGLE_SHEETS_URL),
 	}),
-} as const; 
+} as const;

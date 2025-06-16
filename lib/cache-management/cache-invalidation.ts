@@ -3,8 +3,8 @@
  * Handles smart cache invalidation, change detection, and Next.js cache clearing
  */
 
-import { revalidatePath, revalidateTag } from "next/cache";
 import { Event } from "@/types/events";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 /**
  * Type utilities to ensure cache invalidation stays in sync with Event type
@@ -55,6 +55,7 @@ const _fieldCompleteness: Record<EventFields, true> = {
 	endTime: true,
 	arrondissement: true,
 	location: true,
+	coordinates: true,
 	link: true,
 	links: true,
 	description: true,
@@ -74,10 +75,10 @@ const _fieldCompleteness: Record<EventFields, true> = {
 void _fieldCompleteness; // Silence unused warning
 
 import type {
-	ChangeDetails,
-	InvalidationResult,
 	CacheClearResult,
+	ChangeDetails,
 	EmergencyCacheBustResult,
+	InvalidationResult,
 } from "./cache-types";
 
 /**
@@ -100,6 +101,7 @@ export class CacheInvalidationManager {
 			endTime: event.endTime,
 			arrondissement: event.arrondissement,
 			location: event.location,
+			coordinates: event.coordinates,
 			link: event.link,
 			links: event.links ? [...event.links].sort() : undefined,
 			description: event.description,

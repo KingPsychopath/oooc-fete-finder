@@ -1,21 +1,14 @@
-/**
- * Cache Management Module
- * Main interface for cache operations, state management, and invalidation
- */
-
-import { Event } from "@/types/events";
-import { CacheStateManager } from "./cache-state";
-import { CacheInvalidationManager } from "./cache-invalidation";
-import { CacheRequestDeduplicator } from "./cache-deduplication";
-import { CacheMetrics } from "./cache-metrics";
-import { getCacheManagerConfig, CacheConfigManager } from "./cache-config";
-import { DataManager } from "../data-management/data-management";
+import { DataManager } from "../data-management/data-manager";
 import { isValidEventsData } from "../data-management/data-processor";
+import { CacheRequestDeduplicator } from "./cache-deduplication";
+import { CacheInvalidationManager } from "./cache-invalidation";
+import { CacheMetrics } from "./cache-metrics";
+import { CacheStateManager } from "./cache-state";
 import type {
-	EventsResult,
 	CacheRefreshResult,
-	FullRevalidationResult,
 	CacheStatus,
+	EventsResult,
+	FullRevalidationResult,
 } from "./cache-types";
 
 /**
@@ -137,7 +130,7 @@ export class CacheManager {
 						);
 						try {
 							const { fetchLocalCSV } = await import(
-								"../data-management/csv-fetcher"
+								"../data-management/csv/fetcher"
 							);
 							const { processCSVData } = await import(
 								"../data-management/data-processor"
@@ -511,14 +504,20 @@ export class CacheManager {
 	}
 
 	/**
-	 * Dynamic sheet configuration methods (delegated to DataManager)
+	 * Dynamic sheet configuration methods (delegated to DynamicSheetManager)
 	 */
 	static setDynamicSheet(sheetId: string | null, range: string | null = null) {
-		return DataManager.setDynamicSheet(sheetId, range);
+		const {
+			DynamicSheetManager,
+		} = require("../data-management/dynamic-sheet-manager");
+		return DynamicSheetManager.setDynamicSheet(sheetId, range);
 	}
 
 	static getDynamicSheetConfig() {
-		return DataManager.getDynamicSheetConfig();
+		const {
+			DynamicSheetManager,
+		} = require("../data-management/dynamic-sheet-manager");
+		return DynamicSheetManager.getDynamicSheetConfig();
 	}
 
 	/**

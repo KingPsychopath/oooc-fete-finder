@@ -1,7 +1,6 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Home, Search, MapPin } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Home, MapPin, Search } from "lucide-react";
 import Link from "next/link";
 
 export default function NotFound() {
@@ -49,4 +48,4 @@ export default function NotFound() {
 			</Card>
 		</div>
 	);
-} 
+}

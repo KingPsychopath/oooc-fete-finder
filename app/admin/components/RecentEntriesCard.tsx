@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -8,22 +9,21 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { getSessionToken } from "@/lib/admin/admin-session";
+import { GoogleAppsScript } from "@/lib/google/apps-script";
 import {
-	Clock,
-	Users,
-	RefreshCw,
-	User,
-	Mail,
+	AlertTriangle,
 	Calendar,
 	Check,
-	AlertTriangle,
+	Clock,
 	Database,
+	Mail,
+	RefreshCw,
+	User,
+	Users,
 } from "lucide-react";
-import { GoogleAppsScript } from "@/lib/google/apps-script";
-import { getSessionToken } from "@/lib/admin/admin-session";
+import { useCallback, useEffect, useState } from "react";
 
 type RecentEntry = {
 	firstName: string;
@@ -65,7 +65,10 @@ export const RecentEntriesCard = ({
 		setError("");
 
 		try {
-			const result = await GoogleAppsScript.getRecentEntries(sessionToken, limit);
+			const result = await GoogleAppsScript.getRecentEntries(
+				sessionToken,
+				limit,
+			);
 
 			if (result.success && result.entries) {
 				setEntries(result.entries);

@@ -4,7 +4,7 @@
  */
 
 import { Event } from "@/types/events";
-import type { MemoryStats, MemoryLimitsCheck } from "./cache-types";
+import type { MemoryLimitsCheck, MemoryStats } from "./cache-types";
 
 import { getCacheConfig } from "@/lib/config/env";
 

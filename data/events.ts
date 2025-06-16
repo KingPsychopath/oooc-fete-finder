@@ -1,30 +1,6 @@
-import type { Event, MusicGenre, ParisArrondissement } from "@/types/events";
+import type { Event } from "@/types/events";
 
-// Data source configuration - choose how the app loads event data
-//
-// Options:
-// - "remote": Fetch from Google Sheets with local CSV fallback (production mode)
-// - "local": Use local CSV file only (development/testing mode)
-// - "static": Use EVENTS_DATA object below (demo/offline mode)
-//
-// When DATA_SOURCE is "remote":
-// - The app will attempt to fetch data from Google Sheets CSV URL every 5 minutes
-// - Falls back to local CSV file if remote fetch fails
-// - Data is cached for 1 hour to improve performance
-// - Admin panel provides manual refresh and cache monitoring
-//
-// When DATA_SOURCE is "local":
-// - Only local CSV file is used (no remote fetching)
-// - Good for development and testing
-// - Still uses caching system
-//
-// When DATA_SOURCE is "static":
-// - Uses the EVENTS_DATA object defined in this file
-// - No external dependencies
-// - Good for demos and offline development
-export const DATA_SOURCE: "remote" | "local" | "static" = "remote";
-
-// Event data with enhanced categorization and strict typing
+// Static Event data for testing
 export const EVENTS_DATA: Event[] = [
 	// Friday Events
 	{
@@ -619,19 +595,3 @@ export const EVENTS_DATA: Event[] = [
 		category: "cultural",
 	},
 ];
-
-// Note: Async helper functions have been moved to lib/events/events-service.ts
-// to avoid circular dependencies. Import from there instead.
-
-// Synchronous versions for backwards compatibility (using static data only)
-export const getEventsByDaySync = (day: string) => {
-	return EVENTS_DATA.filter((event) => event.day === day);
-};
-
-export const getEventsByArrondissementSync = (arrondissement: number) => {
-	return EVENTS_DATA.filter((event) => event.arrondissement === arrondissement);
-};
-
-export const getEventsCountSync = () => {
-	return EVENTS_DATA.length;
-};

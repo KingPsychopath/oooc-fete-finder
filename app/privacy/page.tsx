@@ -1,10 +1,9 @@
-import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 // Force static generation for this page
-export const dynamic = 'force-static';
+export const dynamic = "force-static";
 
 export default function PrivacyPolicy() {
 	return (

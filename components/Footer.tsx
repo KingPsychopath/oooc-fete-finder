@@ -1,10 +1,10 @@
-import Link from "next/link";
-import { ExternalLink, Globe, Coffee } from "lucide-react";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Coffee, ExternalLink, Globe } from "lucide-react";
+import Link from "next/link";
 
 // Custom Instagram icon component matching Instagram's brand symbol
 const InstagramIcon = ({ className }: { className?: string }) => (

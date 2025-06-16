@@ -16,4 +16,4 @@ export interface MapPreferenceState {
 export interface LocationData {
 	location: string;
 	arrondissement?: number | "unknown";
-} 
+}

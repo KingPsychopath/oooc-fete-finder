@@ -1,23 +1,8 @@
 "use client";
 
-import type React from "react";
-import { useRef, useState, useEffect } from "react";
-import {
-	X,
-	MapPin,
-	Clock,
-	ExternalLink,
-	Calendar,
-	Tag,
-	Star,
-	Euro,
-	Music,
-	User,
-	Share,
-	Settings,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ShareableImageGenerator } from "@/components/ShareableImageGenerator";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Tooltip,
@@ -25,30 +10,42 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { MapPreferenceSettings } from "@/features/map-preferences/components/map-preference-settings";
+import { MapSelectionModal } from "@/features/map-preferences/components/map-selection-modal";
+import { useMapPreference } from "@/features/map-preferences/hooks/use-map-preference";
+import type { MapProvider } from "@/features/map-preferences/types/map-preferences";
+import { openLocationInMaps } from "@/features/map-preferences/utils/map-launcher";
+import { useOutsideClick } from "@/hooks/useOutsideClick";
 import {
 	type Event,
-	EVENT_DAYS,
-	formatPrice,
-	formatDayWithDate,
-	formatVenueTypeIcons,
 	MUSIC_GENRES,
 	VENUE_TYPES,
+	formatDayWithDate,
+	formatPrice,
+	formatVenueTypeIcons,
 } from "@/types/events";
-import { useOutsideClick } from "@/hooks/useOutsideClick";
-import { ShareableImageGenerator } from "@/components/ShareableImageGenerator";
-import { useMapPreference } from "@/features/map-preferences/hooks/use-map-preference";
-import { openLocationInMaps } from "@/features/map-preferences/utils/map-launcher";
-import { MapSelectionModal } from "@/features/map-preferences/components/map-selection-modal";
-import { MapPreferenceSettings } from "@/features/map-preferences/components/map-preference-settings";
-import type { MapProvider } from "@/features/map-preferences/types/map-preferences";
+import {
+	Calendar,
+	Clock,
+	Euro,
+	ExternalLink,
+	MapPin,
+	Music,
+	Settings,
+	Share,
+	Star,
+	Tag,
+	User,
+	X,
+} from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
 
 interface EventModalProps {
 	event: Event | null;
 	isOpen: boolean;
 	onClose: () => void;
 }
-
-
 
 const CATEGORY_COLORS: Record<string, string> = {
 	electronic:
@@ -93,7 +90,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 	// Handle map opening with preference support
 	const handleOpenLocation = async (
 		location: string,
-		arrondissement?: number | "unknown"
+		arrondissement?: number | "unknown",
 	) => {
 		if (!isLoaded) return; // Wait for preferences to load
 
@@ -113,7 +110,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 			await openLocationInMaps(
 				pendingLocationData.location,
 				pendingLocationData.arrondissement,
-				selectedProvider
+				selectedProvider,
 			);
 			setPendingLocationData(null);
 		}
@@ -288,12 +285,12 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 									Location TBA
 								</Badge>
 							)}
-							
+
 							{/* Map Settings Panel */}
 							{showMapSettings && (
 								<div className="mt-3 pt-3 border-t">
-									<MapPreferenceSettings 
-										compact={true} 
+									<MapPreferenceSettings
+										compact={true}
 										showTitle={false}
 										className="w-full"
 									/>

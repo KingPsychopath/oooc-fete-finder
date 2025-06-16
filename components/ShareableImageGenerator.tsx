@@ -2,13 +2,13 @@
 
 import type { Event } from "@/types/events";
 import {
-	formatPrice,
-	formatDayWithDate,
-	formatAge,
 	MUSIC_GENRES,
 	NATIONALITIES,
-	formatVenueTypeIcons,
 	VENUE_TYPES,
+	formatAge,
+	formatDayWithDate,
+	formatPrice,
+	formatVenueTypeIcons,
 } from "@/types/events";
 
 type ShareableImageGeneratorProps = {

@@ -1,8 +1,8 @@
 "use client";
 
-import { ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
+import { ChevronUp } from "lucide-react";
 
 // Configurable appearance threshold (percentage of page scrolled)
 const SCROLL_APPEARANCE_THRESHOLD = 20; // Show button after scrolling 20% of the page

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { Lock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Lock, Mail } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
 type AuthGateProps = {
 	isAuthenticated: boolean;

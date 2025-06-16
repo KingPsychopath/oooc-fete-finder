@@ -1,8 +1,5 @@
 "use client";
 
-import type React from "react";
-import { useState } from "react";
-import type { Event } from "@/types/events";
 import { Badge } from "@/components/ui/badge";
 import {
 	Tooltip,
@@ -10,8 +7,11 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Star, Euro } from "lucide-react";
+import type { Event } from "@/types/events";
 import { formatPrice } from "@/types/events";
+import { Euro, Star } from "lucide-react";
+import type React from "react";
+import { useState } from "react";
 
 interface ParisMapProps {
 	events: Event[];

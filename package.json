@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "biome lint .",
+    "lint:fix": "biome lint . --write",
+    "fix": "biome check --write",
     "format": "biome format . --write"
   },
-  "dependencies": {
+  "dependgencies": {
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",
@@ -27,6 +29,7 @@
     "clsx": "^2.1.1",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.513.0",
+    "maplibre-gl": "^5.6.0",
     "modern-screenshot": "^4.6.0",
     "next": "15.3.3",
     "next-pwa": "^5.6.0",
@@ -42,6 +45,7 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@tailwindcss/postcss": "^4",
+    "@types/geojson": "^7946.0.16",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/next-pwa": "^5.6.9",
     "@types/node": "^20",

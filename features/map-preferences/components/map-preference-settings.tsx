@@ -1,7 +1,5 @@
 "use client";
 
-import React from "react";
-import { Settings } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Select,
@@ -10,9 +8,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Settings } from "lucide-react";
+import React from "react";
+import { MAP_OPTIONS } from "../constants/map-options";
 import { useMapPreference } from "../hooks/use-map-preference";
 import type { MapProvider } from "../types/map-preferences";
-import { MAP_OPTIONS } from "../constants/map-options";
 
 interface MapPreferenceSettingsProps {
 	className?: string;
@@ -44,7 +44,9 @@ export const MapPreferenceSettings: React.FC<MapPreferenceSettingsProps> = ({
 		);
 	}
 
-	const currentOption = MAP_OPTIONS.find(option => option.id === mapPreference);
+	const currentOption = MAP_OPTIONS.find(
+		(option) => option.id === mapPreference,
+	);
 
 	if (compact) {
 		return (
@@ -101,7 +103,7 @@ export const MapPreferenceSettings: React.FC<MapPreferenceSettingsProps> = ({
 				<div className="text-sm text-muted-foreground">
 					Choose how you'd like to open locations in maps:
 				</div>
-				
+
 				<Select
 					value={mapPreference}
 					onValueChange={(value: MapProvider) => setMapPreference(value)}
@@ -134,10 +136,22 @@ export const MapPreferenceSettings: React.FC<MapPreferenceSettingsProps> = ({
 				<div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg">
 					<p className="font-medium mb-1">💡 How it works</p>
 					<ul className="space-y-1">
-						<li><strong>Auto-detect:</strong> Uses Apple Maps on iOS/Mac, Google Maps elsewhere</li>
-						<li><strong>Google Maps:</strong> Always opens in Google Maps (web or app)</li>
-						<li><strong>Apple Maps:</strong> Uses Apple Maps app, falls back to Google Maps</li>
-						<li><strong>Ask me each time:</strong> Shows a selection modal when you click locations</li>
+						<li>
+							<strong>Auto-detect:</strong> Uses Apple Maps on iOS/Mac, Google
+							Maps elsewhere
+						</li>
+						<li>
+							<strong>Google Maps:</strong> Always opens in Google Maps (web or
+							app)
+						</li>
+						<li>
+							<strong>Apple Maps:</strong> Uses Apple Maps app, falls back to
+							Google Maps
+						</li>
+						<li>
+							<strong>Ask me each time:</strong> Shows a selection modal when
+							you click locations
+						</li>
 					</ul>
 				</div>
 
@@ -145,11 +159,12 @@ export const MapPreferenceSettings: React.FC<MapPreferenceSettingsProps> = ({
 					<div className="text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
 						<p className="font-medium mb-1">🎯 Test the Modal</p>
 						<p>
-							With "Ask me each time" selected, click any location in an event modal to see the map selection options.
+							With "Ask me each time" selected, click any location in an event
+							modal to see the map selection options.
 						</p>
 					</div>
 				)}
 			</CardContent>
 		</Card>
 	);
-}; 
+};

@@ -14,8 +14,6 @@ interface AdminSession {
 	version: string;
 }
 
-
-
 /**
  * Generate a secure session token
  */

@@ -1,14 +1,12 @@
 "use client";
-
-import React from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
-import { useFeaturedEvents } from "./hooks/use-featured-events";
 import { EventCard } from "@/components/event-card/EventCard";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ChevronDown } from "lucide-react";
 import { FeaturedEventsHeader } from "./components/FeaturedEventsHeader";
-import type { FeaturedEventsProps } from "./types";
 import { FEATURED_EVENTS_CONFIG } from "./constants";
+import { useFeaturedEvents } from "./hooks/use-featured-events";
+import type { FeaturedEventsProps } from "./types";
 
 /**
  * FeaturedEvents component displays a curated selection of events

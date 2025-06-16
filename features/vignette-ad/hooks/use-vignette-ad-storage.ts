@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { DELAY_CONFIG, STORAGE_KEYS } from "../constants";
 import type {
 	UseVignetteAdStorageOptions,
 	VignetteAdStorageReturn,
 } from "../types";
-import { STORAGE_KEYS, DELAY_CONFIG } from "../constants";
 
 export function useVignetteAdStorage({
 	delayAfterChatClick = DELAY_CONFIG.CHAT_CLICKED_DELAY,

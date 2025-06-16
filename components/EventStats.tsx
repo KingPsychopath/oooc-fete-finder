@@ -1,6 +1,6 @@
-import React, { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatDayWithDate, type Event } from "@/types/events";
+import { type Event } from "@/types/events";
+import React, { useMemo } from "react";
 
 interface EventStatsProps {
 	events: Event[];

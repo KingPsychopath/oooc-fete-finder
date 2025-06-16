@@ -1,10 +1,10 @@
 "use client";
 
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isDev } from "@/lib/config/env";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import React from "react";
 
 type ErrorBoundaryState = {
 	hasError: boolean;

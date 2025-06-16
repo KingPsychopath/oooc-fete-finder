@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Shield, RefreshCw, Home, AlertTriangle } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isDev } from "@/lib/config/env";
+import { AlertTriangle, Home, RefreshCw, Shield } from "lucide-react";
+import { useRouter } from "next/navigation";
+import React from "react";
 
 type AdminErrorPageProps = {
 	error: Error & { digest?: string };
@@ -56,8 +56,8 @@ export default function AdminError({ error, reset }: AdminErrorPageProps) {
 							: "We encountered an error in the admin panel. This has been logged and we'll look into it."}
 					</p>
 
-									{/* Development error details */}
-				{isDev() && (
+					{/* Development error details */}
+					{isDev() && (
 						<details className="text-left bg-muted p-4 rounded-lg">
 							<summary className="cursor-pointer text-sm font-medium mb-2 text-red-600">
 								🔧 Admin Error Details (Development)

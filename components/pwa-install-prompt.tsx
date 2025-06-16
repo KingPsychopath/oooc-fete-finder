@@ -1,17 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { X, Download, Smartphone } from "lucide-react";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { Download, Smartphone, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
 	prompt(): Promise<void>;
-	userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+	userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
 export function PWAInstallPrompt() {
-	const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+	const [deferredPrompt, setDeferredPrompt] =
+		useState<BeforeInstallPromptEvent | null>(null);
 	const [isVisible, setIsVisible] = useState(false);
 	const [isIOS, setIsIOS] = useState(false);
 
@@ -19,25 +26,30 @@ export function PWAInstallPrompt() {
 		// Check if already installed
 		const isInstalled = () => {
 			// @ts-ignore - checking for PWA display mode
-			return window.matchMedia('(display-mode: standalone)').matches || 
-				   // @ts-ignore - checking for iOS PWA
-				   window.navigator?.standalone === true;
+			return (
+				window.matchMedia("(display-mode: standalone)").matches ||
+				// @ts-ignore - checking for iOS PWA
+				window.navigator?.standalone === true
+			);
 		};
 
 		// Check if recently dismissed with progressive delays
 		const isRecentlyDismissed = () => {
-			const dismissalData = JSON.parse(localStorage.getItem('fete-finder:pwa-install-dismissals') || '{"count": 0, "timestamp": 0}');
+			const dismissalData = JSON.parse(
+				localStorage.getItem("fete-finder:pwa-install-dismissals") ||
+					'{"count": 0, "timestamp": 0}',
+			);
 			const { count, timestamp } = dismissalData;
-			
+
 			if (count === 0) return false; // Never dismissed
-			
+
 			const hoursSince = (Date.now() - timestamp) / (1000 * 60 * 60);
-			
+
 			// Progressive delays: 1st dismissal = 1 hour, 2nd = 24 hours, 3rd+ = 7 days
 			if (count === 1 && hoursSince < 1) return true;
 			if (count === 2 && hoursSince < 24) return true;
 			if (count >= 3 && hoursSince < 168) return true; // 7 days
-			
+
 			return false;
 		};
 
@@ -47,7 +59,8 @@ export function PWAInstallPrompt() {
 		}
 
 		// Detect iOS
-		const detectIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window);
+		const detectIOS =
+			/iPad|iPhone|iPod/.test(navigator.userAgent) && !("MSStream" in window);
 		setIsIOS(detectIOS);
 
 		// For iOS, show instructions immediately
@@ -64,10 +77,13 @@ export function PWAInstallPrompt() {
 			setIsVisible(true);
 		};
 
-		window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+		window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
 		return () => {
-			window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+			window.removeEventListener(
+				"beforeinstallprompt",
+				handleBeforeInstallPrompt,
+			);
 		};
 	}, []);
 
@@ -77,12 +93,12 @@ export function PWAInstallPrompt() {
 		try {
 			await deferredPrompt.prompt();
 			const choiceResult = await deferredPrompt.userChoice;
-			
-			if (choiceResult.outcome === 'accepted') {
+
+			if (choiceResult.outcome === "accepted") {
 				setIsVisible(false);
 			}
 		} catch (error) {
-			console.warn('Install prompt failed:', error);
+			console.warn("Install prompt failed:", error);
 		} finally {
 			setDeferredPrompt(null);
 		}
@@ -90,14 +106,20 @@ export function PWAInstallPrompt() {
 
 	const handleDismiss = () => {
 		setIsVisible(false);
-		
+
 		// Update dismissal count and timestamp
-		const currentData = JSON.parse(localStorage.getItem('fete-finder:pwa-install-dismissals') || '{"count": 0, "timestamp": 0}');
+		const currentData = JSON.parse(
+			localStorage.getItem("fete-finder:pwa-install-dismissals") ||
+				'{"count": 0, "timestamp": 0}',
+		);
 		const newData = {
 			count: currentData.count + 1,
-			timestamp: Date.now()
+			timestamp: Date.now(),
 		};
-		localStorage.setItem('fete-finder:pwa-install-dismissals', JSON.stringify(newData));
+		localStorage.setItem(
+			"fete-finder:pwa-install-dismissals",
+			JSON.stringify(newData),
+		);
 	};
 
 	if (!isVisible) {
@@ -141,7 +163,7 @@ export function PWAInstallPrompt() {
 							<span>🏠</span>
 							<span>Add to home screen</span>
 						</div>
-						
+
 						<div className="flex flex-col gap-2 mt-2">
 							{isIOS ? (
 								<div className="text-sm space-y-2">
@@ -170,11 +192,7 @@ export function PWAInstallPrompt() {
 										<Download className="w-4 h-4" />
 										Install App
 									</Button>
-									<Button
-										variant="outline"
-										onClick={handleDismiss}
-										size="sm"
-									>
+									<Button variant="outline" onClick={handleDismiss} size="sm">
 										Maybe Later
 									</Button>
 								</>
@@ -185,4 +203,4 @@ export function PWAInstallPrompt() {
 			</Card>
 		</div>
 	);
-} 
+}

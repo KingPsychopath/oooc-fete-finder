@@ -1,19 +1,17 @@
 "use client";
-
-import React from "react";
+import { shouldDisplayFeaturedEvent } from "@/components/featured-events/utils/timestamp-utils";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Clock, Star, Euro, Users } from "lucide-react";
 import {
-	getDayNightPeriod,
-	formatPrice,
-	formatAge,
-	formatDayWithDate,
-	formatVenueTypeIcons,
+	type Event,
 	MUSIC_GENRES,
 	NATIONALITIES,
-	type Event,
+	formatAge,
+	formatDayWithDate,
+	formatPrice,
+	formatVenueTypeIcons,
+	getDayNightPeriod,
 } from "@/types/events";
-import { shouldDisplayFeaturedEvent } from "@/components/featured-events/utils/timestamp-utils";
+import { Clock, Euro, MapPin, Star, Users } from "lucide-react";
 
 type EventCardProps = {
 	event: Event;

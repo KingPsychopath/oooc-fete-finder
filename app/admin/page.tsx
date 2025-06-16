@@ -1,27 +1,27 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+// Admin management actions
+import { createAdminSession, getCollectedEmails } from "@/lib/admin/actions";
+import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useCallback } from "react";
+
+// Data management actions
 import {
-	getCollectedEmails,
-	forceRefreshEvents,
 	getCacheStatus,
-	setDynamicSheet,
 	getDynamicSheetConfig,
-	createAdminSession,
-	extendAdminSession,
-	analyzeDateFormats,
-	revalidatePages,
-} from "@/app/actions";
+} from "@/lib/data-management/actions";
+
+// Cache management actions
+import { revalidatePages } from "@/lib/cache-management/actions";
 import { env } from "@/lib/config/env";
 
 // Google Apps Script server actions are imported directly in their respective card components
 
+import { AdminSessionStatus } from "./components/AdminSessionStatus";
 // Import local components
 import { AuthForm } from "./components/AuthForm";
-import { AdminSessionStatus } from "./components/AdminSessionStatus";
 import { CacheManagementCard } from "./components/CacheManagementCard";
 import { DateFormatNotificationsCard } from "./components/DateFormatNotificationsCard";
 import { DynamicSheetCard } from "./components/DynamicSheetCard";
@@ -32,17 +32,17 @@ import { RecentEntriesCard } from "./components/RecentEntriesCard";
 import { SheetActionsCard } from "./components/SheetActionsCard";
 
 // Import types
-import { EmailRecord, CacheStatus, DynamicSheetConfig } from "./types";
+import { CacheStatus, DynamicSheetConfig, EmailRecord } from "./types";
 
 // Import session management
 import {
-	getSessionToken,
-	createAdminSession as createClientSession,
 	clearAdminSession,
+	createAdminSession as createClientSession,
+	getSessionToken,
 } from "@/lib/admin/admin-session";
 
 // Get base path from environment variable
-	const basePath = env.NEXT_PUBLIC_BASE_PATH;
+const basePath = env.NEXT_PUBLIC_BASE_PATH;
 
 export default function AdminPage() {
 	const router = useRouter();
@@ -69,9 +69,7 @@ export default function AdminPage() {
 		console.log("📊 Checking Google Sheets configuration...");
 		const sheetsConfigured = Boolean(env.NEXT_PUBLIC_SITE_URL); // Using a client-safe check
 		if (!sheetsConfigured) {
-			console.warn(
-				"⚠️ WARNING: Site URL not configured in admin panel check",
-			);
+			console.warn("⚠️ WARNING: Site URL not configured in admin panel check");
 		} else {
 			console.log("✅ Site configuration appears to be set");
 		}
@@ -434,7 +432,7 @@ export default function AdminPage() {
 						size="sm"
 						disabled={statusRefreshing || refreshing}
 					>
-  						{statusRefreshing ? "⏳ Refreshing..." : "📊 Refresh Status"}
+						{statusRefreshing ? "⏳ Refreshing..." : "📊 Refresh Status"}
 					</Button>
 				</div>
 			</div>

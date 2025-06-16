@@ -1,12 +1,12 @@
 "use client";
 
-import React from "react";
-import { X, Settings, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
-import type { MapProvider } from "../types/map-preferences";
+import { MapPin, Settings, X } from "lucide-react";
+import React from "react";
 import { MAP_OPTIONS } from "../constants/map-options";
+import type { MapProvider } from "../types/map-preferences";
 
 interface MapSelectionModalProps {
 	isOpen: boolean;
@@ -44,7 +44,7 @@ export const MapSelectionModal: React.FC<MapSelectionModalProps> = ({
 	};
 
 	return (
-		<div 
+		<div
 			className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4"
 			onClick={(e) => e.stopPropagation()}
 		>
@@ -60,11 +60,14 @@ export const MapSelectionModal: React.FC<MapSelectionModalProps> = ({
 							{title}
 						</CardTitle>
 						{description && (
-							<p className="text-sm text-muted-foreground mt-1">{description}</p>
+							<p className="text-sm text-muted-foreground mt-1">
+								{description}
+							</p>
 						)}
 						<div className="mt-2 p-2 bg-blue-50 dark:bg-blue-950 rounded-lg">
 							<p className="text-xs text-blue-700 dark:text-blue-300">
-								💡 <strong>First time?</strong> Choose your preferred map app or set a default for future use.
+								💡 <strong>First time?</strong> Choose your preferred map app or
+								set a default for future use.
 							</p>
 						</div>
 					</div>
@@ -79,13 +82,18 @@ export const MapSelectionModal: React.FC<MapSelectionModalProps> = ({
 				</CardHeader>
 
 				<CardContent className="space-y-3">
-					{MAP_OPTIONS.filter(option => option.id !== "ask").map((option) => (
-						<div key={option.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+					{MAP_OPTIONS.filter((option) => option.id !== "ask").map((option) => (
+						<div
+							key={option.id}
+							className="flex items-center justify-between gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+						>
 							<div className="flex items-center gap-3 flex-1">
 								<span className="text-xl">{option.icon}</span>
 								<div className="flex-1">
 									<div className="font-medium">{option.name}</div>
-									<div className="text-xs text-muted-foreground">{option.description}</div>
+									<div className="text-xs text-muted-foreground">
+										{option.description}
+									</div>
 								</div>
 							</div>
 							<div className="flex gap-2">
@@ -121,8 +129,9 @@ export const MapSelectionModal: React.FC<MapSelectionModalProps> = ({
 						<div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg">
 							<p className="font-medium mb-1">⚡ Quick tip</p>
 							<p>
-								Click <strong>"Set Default"</strong> to remember your choice, or <strong>"Open"</strong> for just this time. 
-								You can always change your preference in settings later.
+								Click <strong>"Set Default"</strong> to remember your choice, or{" "}
+								<strong>"Open"</strong> for just this time. You can always
+								change your preference in settings later.
 							</p>
 						</div>
 					)}
@@ -130,4 +139,4 @@ export const MapSelectionModal: React.FC<MapSelectionModalProps> = ({
 			</Card>
 		</div>
 	);
-}; 
+};

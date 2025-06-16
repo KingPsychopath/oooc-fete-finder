@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -8,25 +9,19 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-	BarChart3,
-	Users,
-	UserCheck,
-	AlertTriangle,
-	Activity,
-	RefreshCw,
-	Clock,
-	Database,
-	FileText,
-	CheckCircle,
-	XCircle,
-	Activity as ActivityIcon,
-} from "lucide-react";
-import { GoogleAppsScript } from "@/lib/google/apps-script";
 import { getSessionToken } from "@/lib/admin/admin-session";
+import { GoogleAppsScript } from "@/lib/google/apps-script";
+import {
+	Activity,
+	AlertTriangle,
+	BarChart3,
+	Database,
+	RefreshCw,
+	UserCheck,
+	Users,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 type SheetsStats = {
 	totalUsers: number;

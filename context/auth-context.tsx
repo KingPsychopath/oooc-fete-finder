@@ -1,7 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
 import { env } from "@/lib/config/env";
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 type AuthContextType = {
 	isAuthenticated: boolean;

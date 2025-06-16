@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -8,17 +9,16 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { GoogleAppsScript } from "@/lib/google/apps-script";
 import {
-	Trash2,
 	AlertTriangle,
 	CheckCircle,
+	Database,
 	Loader2,
 	Settings,
-	Database,
+	Trash2,
 } from "lucide-react";
-import { GoogleAppsScript } from "@/lib/google/apps-script";
+import { useState } from "react";
 
 type SheetActionsCardProps = {
 	isAuthenticated: boolean;

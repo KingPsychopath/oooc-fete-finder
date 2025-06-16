@@ -1,12 +1,12 @@
 "use server";
 
-import { validateDirectAdminKey } from "@/lib/admin/admin-validation";
 import { validateSessionToken } from "@/lib/admin/admin-session-store";
+import { validateDirectAdminKey } from "@/lib/admin/admin-validation";
 import { env } from "@/lib/config/env";
 
 /**
  * ✍️ Google Apps Script Server Actions
- * 
+ *
  * Server actions that interact with the Google Apps Script webhook
  * Co-located with the Google Apps Script integration module
  */
@@ -132,17 +132,23 @@ export async function submitUserDataToScript(
 				email: user.email,
 			};
 		} else {
-			console.warn(`⚠️ Google Apps Script error: ${response.status} ${response.statusText}`);
-			
+			console.warn(
+				`⚠️ Google Apps Script error: ${response.status} ${response.statusText}`,
+			);
+
 			return {
 				success: false,
 				error: `Failed to save user data: ${response.status} ${response.statusText}`,
 			};
 		}
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : "Unknown error";
-		console.error("❌ Error submitting user data to Google Apps Script:", errorMessage);
-		
+		const errorMessage =
+			error instanceof Error ? error.message : "Unknown error";
+		console.error(
+			"❌ Error submitting user data to Google Apps Script:",
+			errorMessage,
+		);
+
 		return {
 			success: false,
 			error: "Failed to connect to Google Sheets. Please try again.",
@@ -153,7 +159,9 @@ export async function submitUserDataToScript(
 /**
  * Get statistics from Google Apps Script
  */
-export async function getScriptStats(keyOrToken?: string): Promise<GoogleSheetsStatsResponse> {
+export async function getScriptStats(
+	keyOrToken?: string,
+): Promise<GoogleSheetsStatsResponse> {
 	if (!validateAdminAccess(keyOrToken)) {
 		return { success: false, error: "Unauthorized" };
 	}
@@ -168,13 +176,10 @@ export async function getScriptStats(keyOrToken?: string): Promise<GoogleSheetsS
 	try {
 		console.log("📊 Fetching Google Apps Script statistics...");
 
-		const response = await fetch(
-			`${env.GOOGLE_SHEETS_URL}?action=stats`,
-			{
-				method: "GET",
-				signal: AbortSignal.timeout(10000),
-			},
-		);
+		const response = await fetch(`${env.GOOGLE_SHEETS_URL}?action=stats`, {
+			method: "GET",
+			signal: AbortSignal.timeout(10000),
+		});
 
 		if (!response.ok) {
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -203,7 +208,9 @@ export async function getScriptStats(keyOrToken?: string): Promise<GoogleSheetsS
 /**
  * Cleanup duplicate entries via Google Apps Script
  */
-export async function cleanupScriptDuplicates(keyOrToken?: string): Promise<CleanupDuplicatesResponse> {
+export async function cleanupScriptDuplicates(
+	keyOrToken?: string,
+): Promise<CleanupDuplicatesResponse> {
 	if (!validateAdminAccess(keyOrToken)) {
 		return { success: false, error: "Unauthorized access" };
 	}
@@ -211,38 +218,39 @@ export async function cleanupScriptDuplicates(keyOrToken?: string): Promise<Clea
 	if (!env.GOOGLE_SHEETS_URL) {
 		return {
 			success: false,
-			error: "Google Sheets integration not configured. Please set GOOGLE_SHEETS_URL environment variable.",
+			error:
+				"Google Sheets integration not configured. Please set GOOGLE_SHEETS_URL environment variable.",
 		};
 	}
 
 	try {
 		console.log("🗑️ Starting duplicate cleanup via Google Apps Script...");
 
-		const response = await fetch(
-			`${env.GOOGLE_SHEETS_URL}?action=cleanup`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					operation: "remove_duplicates",
-					criteria: "email",
-				}),
-				signal: AbortSignal.timeout(30000),
+		const response = await fetch(`${env.GOOGLE_SHEETS_URL}?action=cleanup`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
 			},
-		);
+			body: JSON.stringify({
+				operation: "remove_duplicates",
+				criteria: "email",
+			}),
+			signal: AbortSignal.timeout(30000),
+		});
 
 		if (!response.ok) {
 			const errorText = await response.text().catch(() => "Unknown error");
-			throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+			throw new Error(
+				`HTTP ${response.status}: ${response.statusText} - ${errorText}`,
+			);
 		}
 
 		const data = await response.json();
 		const removedCount = data.removed || 0;
-		const successMessage = removedCount > 0
-			? `Successfully removed ${removedCount} duplicate entries from Google Sheets`
-			: "No duplicate entries found to remove";
+		const successMessage =
+			removedCount > 0
+				? `Successfully removed ${removedCount} duplicate entries from Google Sheets`
+				: "No duplicate entries found to remove";
 
 		console.log(`✅ Cleanup completed: ${successMessage}`);
 
@@ -253,17 +261,24 @@ export async function cleanupScriptDuplicates(keyOrToken?: string): Promise<Clea
 		};
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : "Unknown error";
-		console.error("❌ Failed to cleanup duplicates via Google Apps Script:", errorMsg);
+		console.error(
+			"❌ Failed to cleanup duplicates via Google Apps Script:",
+			errorMsg,
+		);
 
 		let userFriendlyError = errorMsg;
 		if (errorMsg.includes("timeout")) {
-			userFriendlyError = "Operation timed out. The cleanup may take longer for large datasets.";
+			userFriendlyError =
+				"Operation timed out. The cleanup may take longer for large datasets.";
 		} else if (errorMsg.includes("404")) {
-			userFriendlyError = "Google Apps Script cleanup endpoint not found. Please check your deployment.";
+			userFriendlyError =
+				"Google Apps Script cleanup endpoint not found. Please check your deployment.";
 		} else if (errorMsg.includes("401") || errorMsg.includes("403")) {
-			userFriendlyError = "Authorization failed. Please check your Google Apps Script permissions.";
+			userFriendlyError =
+				"Authorization failed. Please check your Google Apps Script permissions.";
 		} else if (errorMsg.includes("500")) {
-			userFriendlyError = "Server error occurred. Please try again later or check your Google Apps Script logs.";
+			userFriendlyError =
+				"Server error occurred. Please try again later or check your Google Apps Script logs.";
 		}
 
 		return {
@@ -316,7 +331,10 @@ export async function getRecentScriptEntries(
 		return { success: true, entries: data.entries || [] };
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : "Unknown error";
-		console.error("❌ Failed to get recent entries from Google Apps Script:", errorMsg);
+		console.error(
+			"❌ Failed to get recent entries from Google Apps Script:",
+			errorMsg,
+		);
 		return { success: false, error: errorMsg };
 	}
-} 
+}

@@ -1,4 +1,4 @@
-import type { StorageKeys, DelayConfig } from "./types";
+import type { DelayConfig, StorageKeys } from "./types";
 
 // Storage keys for localStorage
 export const STORAGE_KEYS: StorageKeys = {

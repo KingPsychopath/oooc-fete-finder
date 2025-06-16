@@ -1,43 +1,43 @@
 "use client";
 
-import type React from "react";
-import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
-import { Filter, X, Info, ChevronDown, Star } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Toggle } from "@/components/ui/toggle";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
 	Accordion,
 	AccordionContent,
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
+import { Toggle } from "@/components/ui/toggle";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
 import {
-	EVENT_DAYS,
-	DAY_NIGHT_PERIODS,
-	MUSIC_GENRES,
-	NATIONALITIES,
-	PRICE_RANGE_CONFIG,
-	formatPriceRange,
 	AGE_RANGE_CONFIG,
-	formatAgeRange,
-	type EventDay,
-	type DayNightPeriod,
-	type MusicGenre,
-	type Nationality,
-	type ParisArrondissement,
 	type AgeRange,
+	DAY_NIGHT_PERIODS,
+	type DayNightPeriod,
+	EVENT_DAYS,
+	type EventDay,
+	MUSIC_GENRES,
+	type MusicGenre,
+	NATIONALITIES,
+	type Nationality,
+	PRICE_RANGE_CONFIG,
+	type ParisArrondissement,
+	formatAgeRange,
+	formatPriceRange,
 } from "@/types/events";
-import { Slider } from "@/components/ui/slider";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Filter, Info, Star, X } from "lucide-react";
+import type React from "react";
+import { useCallback, useMemo, useState } from "react";
 
 type FilterPanelProps = {
 	selectedDays: EventDay[];

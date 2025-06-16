@@ -3,86 +3,81 @@
  * Handles CSV parsing and event data conversion
  */
 
-import { parseCSVContent, convertCSVRowToEvent } from "@/utils/csvParser";
+import { GoogleCloudAPI } from "@/lib/google/api";
 import { Event } from "@/types/events";
+import { parseCSVContent } from "./csv/parser";
+import { EventCoordinatePopulator } from "./event-coordinate-populator";
+import { assembleEvent } from "./events/event-assembler";
+import {
+	type DateFormatWarning,
+	WarningSystem,
+} from "./validation/date-warnings";
 
 export interface ProcessedDataResult {
 	events: Event[];
 	count: number;
 	source: "local" | "remote";
 	errors: string[];
+	warnings: DateFormatWarning[];
+	coordinatesPopulated?: boolean; // Indicates if coordinates were populated
+	coordinatesCount?: number; // Number of events with coordinates
 }
 
-/**
- * Validate if events data is considered valid for caching
- * Returns true if data is valid, false if it should be considered invalid
- */
-export function isValidEventsData(events: Event[] | null | undefined): boolean {
-	// Check for null, undefined, or empty array
-	if (!events || !Array.isArray(events) || events.length === 0) {
-		return false;
-	}
+// Import validation functions from focused module
+import { isValidEventsData } from "./validation/event-validation";
+import { performEventQualityChecks } from "./validation/quality-checks";
 
-	// Check if events have required fields (basic validation)
-	// At least 80% of events should have valid required fields
-	const validEvents = events.filter(
-		(event) =>
-			event &&
-			typeof event.id === "string" &&
-			event.id.trim() !== "" &&
-			typeof event.name === "string" &&
-			event.name.trim() !== "" &&
-			typeof event.date === "string" &&
-			event.date.trim() !== "",
-	);
-
-	const validPercentage = validEvents.length / events.length;
-	const isValid = validPercentage >= 0.8; // At least 80% should be valid
-
-	if (!isValid) {
-		console.log(
-			`⚠️ Data validation failed: ${validEvents.length}/${events.length} events are valid (${Math.round(validPercentage * 100)}%)`,
-		);
-		// Log a few invalid events for debugging
-		const invalidEvents = events.filter(
-			(event) => !validEvents.includes(event),
-		);
-		console.log(
-			"📋 Sample invalid events:",
-			invalidEvents.slice(0, 3).map((e) => ({
-				id: e?.id,
-				name: e?.name,
-				date: e?.date,
-				hasRequiredFields: {
-					id: typeof e?.id === "string" && e?.id.trim() !== "",
-					name: typeof e?.name === "string" && e?.name.trim() !== "",
-					date: typeof e?.date === "string" && e?.date.trim() !== "",
-				},
-			})),
-		);
-	}
-
-	return isValid;
-}
+// Re-export for backwards compatibility
+export { isValidEventsData, performEventQualityChecks };
 
 /**
- * Process CSV content into Event objects with fallback logic
+ * Process CSV content into Event objects with fallback logic and enhanced validation
+ *
+ * Coordinate population behavior:
+ * - REMOTE sources: Automatically enabled (requires Google Cloud service account)
+ * - LOCAL sources: Automatically disabled (no API access needed)
+ * - Override with options.populateCoordinates: true/false
+ *
+ * Examples:
+ * - processCSVData(csv, "remote") // Auto-geocodes remote data
+ * - processCSVData(csv, "local")  // Skips geocoding for local data
+ * - processCSVData(csv, "local", true, { populateCoordinates: true }) // Force geocoding for local
  */
 export async function processCSVData(
 	csvContent: string,
 	source: "local" | "remote",
 	enableLocalFallback: boolean = true,
+	options: {
+		populateCoordinates?: boolean; // Override coordinate population (defaults to true for remote, false for local)
+		coordinateBatchSize?: number;
+		onCoordinateProgress?: (
+			processed: number,
+			total: number,
+			current: Event,
+		) => void;
+	} = {},
 ): Promise<ProcessedDataResult> {
 	const errors: string[] = [];
 
 	console.log("🔄 Parsing CSV content...");
 
+	// Clear any previous transformation warnings
+	WarningSystem.clearDateFormatWarnings();
+
 	try {
 		// Parse CSV content
 		const csvRows = parseCSVContent(csvContent);
 		let events: Event[] = csvRows.map((row, index) =>
-			convertCSVRowToEvent(row, index),
+			assembleEvent(row, index),
 		);
+
+		// Collect transformation warnings
+		const transformationWarnings = WarningSystem.getDateFormatWarnings();
+		if (transformationWarnings.length > 0) {
+			console.log(
+				`📊 Collected ${transformationWarnings.length} transformation warnings`,
+			);
+		}
 
 		// Check if remote source returned 0 events and fall back to local CSV
 		if (events.length === 0 && source === "remote" && enableLocalFallback) {
@@ -91,11 +86,15 @@ export async function processCSVData(
 			);
 
 			try {
-				const { fetchLocalCSV } = await import("./csv-fetcher");
+				const { fetchLocalCSV } = await import("./csv/fetcher");
 				const localCsvContent = await fetchLocalCSV();
+
+				// Clear warnings before processing local data
+				WarningSystem.clearDateFormatWarnings();
+
 				const localCsvRows = parseCSVContent(localCsvContent);
 				const localEvents = localCsvRows.map((row, index) =>
-					convertCSVRowToEvent(row, index),
+					assembleEvent(row, index),
 				);
 
 				if (localEvents.length > 0) {
@@ -105,6 +104,11 @@ export async function processCSVData(
 						`✅ Successfully fell back to local CSV with ${localEvents.length} events`,
 					);
 					errors.push("Remote returned 0 events - used local CSV fallback");
+
+					// Update warnings with local data warnings
+					const localWarnings = WarningSystem.getDateFormatWarnings();
+					transformationWarnings.length = 0;
+					transformationWarnings.push(...localWarnings);
 				} else {
 					console.log(
 						"ℹ️ Local CSV also has 0 events, proceeding with empty state",
@@ -123,11 +127,116 @@ export async function processCSVData(
 			}
 		}
 
+		// Perform quality checks
+		const qualityCheck = performEventQualityChecks(events);
+		if (qualityCheck.issues.length > 0) {
+			console.log(`📊 Data quality score: ${qualityCheck.qualityScore}%`);
+			console.log("📋 Quality issues:", qualityCheck.issues);
+			if (qualityCheck.recommendations.length > 0) {
+				console.log("💡 Recommendations:", qualityCheck.recommendations);
+			}
+		}
+
+		// Determine if coordinate population should be enabled
+		// Default: true for remote sources (where API access is available), false for local
+		// TEMPORARY: Disabled for performance testing
+		const shouldPopulateCoordinates =
+			options.populateCoordinates !== undefined
+				? options.populateCoordinates
+				: false; // Temporarily disabled: source === "remote";
+
+		console.log(
+			`🗺️ Coordinate population for ${source} source: ${shouldPopulateCoordinates ? "ENABLED" : "DISABLED"}${options.populateCoordinates !== undefined ? " (manually overridden)" : " (automatic)"}`,
+		);
+
+		let coordinatesPopulated = false;
+		let coordinatesCount = 0;
+
+		if (shouldPopulateCoordinates && GoogleCloudAPI.supportsGeocoding()) {
+			try {
+				console.log("🗺️ Populating event coordinates...");
+				console.log(`📊 Starting with ${events.length} events`);
+
+				// Log a sample of events before geocoding
+				console.log("📋 Sample events before geocoding:");
+				events.slice(0, 3).forEach((event, index) => {
+					console.log(
+						`   ${index + 1}. "${event.name}" - Location: "${event.location}", Arrondissement: ${event.arrondissement}, Has Coordinates: ${!!event.coordinates}`,
+					);
+				});
+
+				const eventsWithCoords =
+					await EventCoordinatePopulator.populateCoordinates(events, {
+						batchSize: options.coordinateBatchSize || 5,
+						onProgress: options.onCoordinateProgress,
+						onError: (error, event) => {
+							console.warn(
+								`⚠️ Failed to geocode "${event.name}": ${error.message}`,
+							);
+						},
+						fallbackToArrondissement: true,
+					});
+
+				events = eventsWithCoords;
+				coordinatesCount = events.filter((e) => e.coordinates).length;
+				coordinatesPopulated = true;
+
+				console.log(
+					`✅ Populated coordinates for ${coordinatesCount}/${events.length} events`,
+				);
+
+				// Log detailed results
+				console.log("📍 Coordinate population results:");
+				events.forEach((event, index) => {
+					if (event.coordinates) {
+						console.log(
+							`   ✅ ${index + 1}. "${event.name}" (${event.location}) → lat: ${event.coordinates.lat}, lng: ${event.coordinates.lng}`,
+						);
+					} else {
+						console.log(
+							`   ❌ ${index + 1}. "${event.name}" (${event.location}) → No coordinates`,
+						);
+					}
+				});
+
+				// Log complete event objects for first few events
+				console.log("🔍 Complete Event Objects (first 3 with coordinates):");
+				const eventsWithCoordinates = events
+					.filter((e) => e.coordinates)
+					.slice(0, 3);
+				eventsWithCoordinates.forEach((event, index) => {
+					console.log(`Event ${index + 1}:`, JSON.stringify(event, null, 2));
+				});
+			} catch (error) {
+				const errorMessage =
+					error instanceof Error ? error.message : "Unknown error";
+				console.warn(`⚠️ Coordinate population failed: ${errorMessage}`);
+				errors.push(`Coordinate population failed: ${errorMessage}`);
+			}
+		} else if (
+			shouldPopulateCoordinates &&
+			!GoogleCloudAPI.supportsGeocoding()
+		) {
+			console.log(
+				"⚠️ Coordinate population requested but service account not configured",
+			);
+			errors.push(
+				"Coordinate population requested but Google Cloud service account not configured",
+			);
+		} else if (!shouldPopulateCoordinates) {
+			console.log(
+				`📍 Coordinate population skipped for ${source} source (${events.length} events)`,
+			);
+		}
+
 		return {
 			events,
 			count: events.length,
 			source,
 			errors,
+			warnings: transformationWarnings,
+			coordinatesPopulated,
+			coordinatesCount,
 		};
 	} catch (error) {
 		const errorMessage =
@@ -139,6 +248,9 @@ export async function processCSVData(
 			count: 0,
 			source,
 			errors: [errorMessage],
+			warnings: WarningSystem.getDateFormatWarnings(),
+			coordinatesPopulated: false,
+			coordinatesCount: 0,
 		};
 	}
 }

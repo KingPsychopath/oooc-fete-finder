@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import {
 	Card,
 	CardContent,
@@ -8,8 +8,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Cloud, Code, AlertCircle, CheckCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, Cloud, Code } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface IntegrationStatus {
 	gcp: {
@@ -31,7 +31,9 @@ export const GoogleIntegrationStatus = () => {
 	useEffect(() => {
 		const checkStatus = async () => {
 			try {
-				const { validateGoogleIntegrations } = await import("@/lib/google/integration-status");
+				const { validateGoogleIntegrations } = await import(
+					"@/lib/google/integration-status"
+				);
 				const integrationStatus = validateGoogleIntegrations();
 				setStatus(integrationStatus);
 			} catch (error) {
@@ -113,7 +115,9 @@ export const GoogleIntegrationStatus = () => {
 						<div className="flex items-center gap-2 mb-1">
 							<h3 className="font-semibold text-sm">Google Apps Script</h3>
 							<Badge
-								variant={status.appsScript.configured ? "default" : "destructive"}
+								variant={
+									status.appsScript.configured ? "default" : "destructive"
+								}
 								className="text-xs"
 							>
 								{status.appsScript.configured ? "Configured" : "Missing"}
@@ -143,4 +147,4 @@ export const GoogleIntegrationStatus = () => {
 			</CardContent>
 		</Card>
 	);
-}; 
+};

@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, LogOut, RefreshCw, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { extendAdminSession } from "@/lib/admin/actions";
 import {
+	clearAdminSession,
 	getSessionInfo,
 	getSessionToken,
-	clearAdminSession,
 } from "@/lib/admin/admin-session";
-import { extendAdminSession } from "@/app/actions";
+import { Clock, LogOut, RefreshCw, User } from "lucide-react";
+import React, { useState, useEffect } from "react";
 
 interface AdminSessionStatusProps {
 	onLogout: () => void;

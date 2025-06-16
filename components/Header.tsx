@@ -1,25 +1,25 @@
 "use client";
 
-import { Music, User, LogOut, MapPin, Utensils } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import Countdown from "@/components/Countdown";
 import { Clock } from "@/components/Clock";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import Countdown from "@/components/Countdown";
 import SlidingBanner from "@/components/SlidingBanner";
-import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/context/auth-context";
+import { Button } from "@/components/ui/button";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAuth } from "@/context/auth-context";
 import { env } from "@/lib/config/env";
+import { LogOut, MapPin, Music, User, Utensils } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 
 // Get base path from environment variable
-	const basePath = env.NEXT_PUBLIC_BASE_PATH;
+const basePath = env.NEXT_PUBLIC_BASE_PATH;
 
 const Header = () => {
 	const { isAuthenticated, userEmail, logout } = useAuth();

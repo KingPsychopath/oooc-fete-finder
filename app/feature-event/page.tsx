@@ -1,41 +1,13 @@
-/**
- * Feature Event Page - Countdown Implementation
- *
- * This page shows a real countdown for currently featured events based on timestamps
- * from your Excel/Google Sheets data.
- *
- * SETUP REQUIRED:
- * 1. Use the "Featured" column in your spreadsheet
- * 2. For timestamp-based featuring: Enter a valid timestamp (automatic expiration)
- * 3. For manual featuring: Enter any text like "Yes", "urgent", etc. (permanent until removed)
- * 4. Supported timestamp formats (UK format prioritized for European app):
- *    - ISO format: "2025-06-07T20:00:00" (RECOMMENDED - no ambiguity)
- *    - Month name: "7-Jun-2025 20:00:00" or "Jun-7-2025 20:00:00"
- *    - ISO without T: "2025-06-07 20:00:00"
- *    - UK Excel format: "07/06/2025 20:00:00" (DD/MM/YYYY - prioritized)
- *    - US Excel format: "06/07/2025 20:00:00" (MM/DD/YYYY - only if unambiguous)
- *
- * HOW IT WORKS:
- * - The system auto-detects if "Featured" column contains a timestamp or text
- * - Timestamp values (past/present): Start featuring from that time, expire after 48 hours
- * - Timestamp values (future): Start featuring NOW, expire after 48 hours (future dates auto-corrected)
- * - Text values: Display permanently with green theme until manually removed
- * - Shows real-time countdown for timestamp-based featured events
- *
- * IMPORTANT: Featured column = WHEN TO START FEATURING, not the event date!
- */
-
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Euro, Star, CheckCircle, Calendar, Target, Copy } from "lucide-react";
-import { FEATURED_EVENTS_CONFIG } from "@/components/featured-events/constants";
 import { FeatureCountdown } from "@/components/featured-events/components/FeatureCountdown";
+import { FEATURED_EVENTS_CONFIG } from "@/components/featured-events/constants";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFeaturedEvents } from "@/lib/events/events-service";
-import Link from "next/link";
+import { Calendar, CheckCircle, Euro, Star, Target } from "lucide-react";
 import type { Metadata } from "next";
-import { CopyEmailButton } from "./components/CopyEmailButton";
+import Link from "next/link";
+import { CopyEmailButton } from "../../components/CopyEmailButton";
 
 export const metadata: Metadata = {
 	title: "Feature Your Event | OOOC Fete Finder",
