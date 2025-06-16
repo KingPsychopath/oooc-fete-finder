@@ -396,7 +396,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	// Error state
 	if (loadError) {
 		return (
-			<div className="relative w-full h-[600px] bg-red-50 dark:bg-red-900/20 rounded-lg overflow-hidden flex items-center justify-center">
+			<div className="relative w-full h-full bg-red-50 dark:bg-red-900/20 rounded-lg overflow-hidden flex items-center justify-center">
 				<div className="text-center p-6">
 					<div className="text-red-600 dark:text-red-400 mb-2">⚠️ Map Load Error</div>
 					<p className="text-sm text-red-600 dark:text-red-400">{loadError}</p>
@@ -412,7 +412,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	}
 
 	return (
-		<div className="relative w-full h-[600px] bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 rounded-lg overflow-hidden">
+		<div className="relative w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 rounded-lg overflow-hidden">
 			{/* Map container */}
 			<div
 				ref={mapContainer}

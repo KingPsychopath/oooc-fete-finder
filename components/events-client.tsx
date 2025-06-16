@@ -540,7 +540,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 									: "h-24 sm:h-32"
 							} overflow-hidden rounded-md`}
 						>
-							<div className="w-full h-full p-0.5 sm:p-1">
+							<div className="w-full h-full">
 								{useMapLibre ? (
 									<ParisMapLibre
 										events={filteredEvents}
