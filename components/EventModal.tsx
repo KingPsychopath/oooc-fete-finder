@@ -16,6 +16,7 @@ import { useMapPreference } from "@/features/map-preferences/hooks/use-map-prefe
 import type { MapProvider } from "@/features/map-preferences/types/map-preferences";
 import { openLocationInMaps } from "@/features/map-preferences/utils/map-launcher";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
+import { addToCalendar } from "@/lib/calendar/calendar-utils";
 import {
 	type Event,
 	MUSIC_GENRES,
@@ -26,6 +27,7 @@ import {
 } from "@/types/events";
 import {
 	Calendar,
+	CalendarPlus,
 	Clock,
 	Euro,
 	ExternalLink,
@@ -390,15 +392,32 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							</Button>
 						)}
 
-						{/* Share Button */}
-						<Button
-							variant="outline"
-							onClick={shareImageGenerator.generateImage}
-							className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 hover:from-purple-600 hover:to-pink-600"
-						>
-							<Share className="h-4 w-4 mr-2" />
-							Share to Story
-						</Button>
+						{/* Action Buttons Row */}
+						<div className="flex flex-col sm:flex-row gap-2">
+							{/* Add to Calendar Button */}
+							<Button
+								variant="outline"
+								onClick={() => addToCalendar(event)}
+								className="flex-1 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-900"
+								title="Add event to your calendar"
+							>
+								<CalendarPlus className="h-4 w-4 mr-2" />
+								<span className="hidden sm:inline">Add to Calendar</span>
+								<span className="sm:hidden">Calendar</span>
+							</Button>
+
+							{/* Share Button */}
+							<Button
+								variant="outline"
+								onClick={shareImageGenerator.generateImage}
+								className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 hover:from-purple-600 hover:to-pink-600"
+								title="Share event to social media story"
+							>
+								<Share className="h-4 w-4 mr-2" />
+								<span className="hidden sm:inline">Share to Story</span>
+								<span className="sm:hidden">Share</span>
+							</Button>
+						</div>
 
 						{/* Secondary links as smaller buttons */}
 						{secondaryLinks.length > 0 && (
