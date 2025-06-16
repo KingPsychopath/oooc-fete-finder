@@ -175,7 +175,14 @@ function createEventDescription(event: Event): string {
 	parts.push(""); // Empty line
 	parts.push("📅 Added via OOOC Fete Finder");
 
-	return parts.join("\\n").replace(/[,;\\]/g, "\\$&");
+	// Join parts and properly escape for ICS format
+	const description = parts.join("\n");
+	// Escape special characters for ICS: commas, semicolons, backslashes, and newlines
+	return description
+		.replace(/\\/g, "\\\\") // Escape backslashes first
+		.replace(/,/g, "\\,") // Escape commas
+		.replace(/;/g, "\\;") // Escape semicolons
+		.replace(/\n/g, "\\n"); // Convert newlines to ICS format
 }
 
 /**
