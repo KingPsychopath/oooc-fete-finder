@@ -135,7 +135,7 @@ const ParisMap: React.FC<ParisMapProps> = ({
 	};
 
 	return (
-		<div className="relative w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 rounded-lg overflow-hidden">
+		<div className="relative w-full h-[600px] bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 rounded-lg overflow-hidden">
 			<TooltipProvider>
 				<svg
 					viewBox="0 0 500 400"

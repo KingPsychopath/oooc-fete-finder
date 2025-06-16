@@ -536,7 +536,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 						<div
 							className={`relative transition-all duration-300 ease-in-out ${
 								isMapExpanded 
-									? "h-[400px] sm:h-[500px] lg:h-[600px]" 
+									? "h-[600px]" 
 									: "h-24 sm:h-32"
 							} overflow-hidden rounded-md`}
 						>
