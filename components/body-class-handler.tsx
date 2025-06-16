@@ -15,4 +15,4 @@ export function BodyClassHandler() {
 
 	// This component renders nothing - it only handles the side effect
 	return null;
-} 
+}

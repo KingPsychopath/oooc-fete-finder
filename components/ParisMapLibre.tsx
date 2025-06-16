@@ -110,7 +110,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const [mapLoaded, setMapLoaded] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
-	const [selectedArrondissement, setSelectedArrondissement] = useState<number | null>(null);
+	const [selectedArrondissement, setSelectedArrondissement] = useState<
+		number | null
+	>(null);
 	const [showCoordinates, setShowCoordinates] = useState(false);
 
 	// Filter events based on selected day
@@ -122,11 +124,14 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	}, [events, selectedDay]);
 
 	// Get events in specific arrondissement
-	const getEventsInArrondissement = useCallback((arrondissement: number) => {
-		return filteredEvents.filter(
-			(event) => event.arrondissement === arrondissement,
-		);
-	}, [filteredEvents]);
+	const getEventsInArrondissement = useCallback(
+		(arrondissement: number) => {
+			return filteredEvents.filter(
+				(event) => event.arrondissement === arrondissement,
+			);
+		},
+		[filteredEvents],
+	);
 
 	// Update arrondissement colors based on event density
 	const updateArrondissementColors = useCallback(() => {
@@ -139,7 +144,12 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		}
 
 		// Create color expression for MapLibre
-		const colorExpression: (string | number | (string | number | (string | number)[])[] | boolean)[] = ["case"];
+		const colorExpression: (
+			| string
+			| number
+			| (string | number | (string | number)[])[]
+			| boolean
+		)[] = ["case"];
 
 		// Add selected arrondissement (always blue)
 		if (selectedArrondissement) {
@@ -183,9 +193,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					minZoom: 10,
 					maxZoom: 18,
 					maxBounds: [
-						[2.18, 48.80],  // Southwest corner (medium expansion)
-						[2.51, 48.92],  // Northeast corner (medium expansion)
-										  ],
+						[2.18, 48.8], // Southwest corner (medium expansion)
+						[2.51, 48.92], // Northeast corner (medium expansion)
+					],
 				});
 
 				// Add navigation controls
@@ -201,10 +211,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					setLoadError("Failed to load map tiles");
 					setIsLoading(false);
 				});
-
 			} catch (error) {
 				console.error("Failed to initialize map:", error);
-				setLoadError(error instanceof Error ? error.message : "Failed to load map");
+				setLoadError(
+					error instanceof Error ? error.message : "Failed to load map",
+				);
 				setIsLoading(false);
 			}
 		};
@@ -219,24 +230,24 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					if (map.current._listeners) {
 						map.current._listeners = {};
 					}
-					
+
 					// Safely get style - it may be undefined during cleanup
 					const style = map.current.getStyle();
 					if (style) {
 						// Remove all layers
 						const layers = style.layers;
 						if (layers) {
-															layers.forEach((layer: maplibregl.LayerSpecification) => {
-									try {
-										if (map.current && map.current.getLayer(layer.id)) {
-											map.current.removeLayer(layer.id);
-										}
-									} catch (_e) {
-										// Ignore errors during cleanup
+							layers.forEach((layer: maplibregl.LayerSpecification) => {
+								try {
+									if (map.current && map.current.getLayer(layer.id)) {
+										map.current.removeLayer(layer.id);
 									}
-								});
+								} catch (_e) {
+									// Ignore errors during cleanup
+								}
+							});
 						}
-						
+
 						// Remove all sources
 						const sources = style.sources;
 						if (sources) {
@@ -245,18 +256,18 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 									if (map.current && map.current.getSource(sourceId)) {
 										map.current.removeSource(sourceId);
 									}
-																	} catch (_e) {
-										// Ignore errors during cleanup
-									}
+								} catch (_e) {
+									// Ignore errors during cleanup
+								}
 							});
 						}
 					}
-					
+
 					// Remove map instance and free WebGL context
 					map.current.remove();
 				} catch (e) {
 					// Ignore cleanup errors
-					console.warn('Map cleanup error:', e);
+					console.warn("Map cleanup error:", e);
 				} finally {
 					map.current = null;
 					setMapLoaded(false);
@@ -273,9 +284,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		const loadBoundaries = async () => {
 			try {
 				// Lazy load GeoJSON data
-				const { default: arrondissementData } = await import("@/data/paris-arr-v2.json");
-				
-				// Type assert the data to use our interface 
+				const { default: arrondissementData } = await import(
+					"@/data/paris-arr-v2.json"
+				);
+
+				// Type assert the data to use our interface
 				const typedData = arrondissementData as GeoJSON.FeatureCollection & {
 					features: ParisArrondissementFeature[];
 				};
@@ -320,18 +333,29 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 				// Add click handler
 				if (map.current?.getLayer("admin-fill")) {
-					map.current?.on("click", "admin-fill", (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-						if (e.features && e.features[0]) {
-							const properties = e.features[0].properties as ParisArrondissementProperties;
-							const arrondissement = properties.c_ar;
-							
-							if (arrondissement) {
-								setSelectedArrondissement(
-									selectedArrondissement === arrondissement ? null : arrondissement,
-								);
+					map.current?.on(
+						"click",
+						"admin-fill",
+						(
+							e: maplibregl.MapMouseEvent & {
+								features?: maplibregl.MapGeoJSONFeature[];
+							},
+						) => {
+							if (e.features && e.features[0]) {
+								const properties = e.features[0]
+									.properties as ParisArrondissementProperties;
+								const arrondissement = properties.c_ar;
+
+								if (arrondissement) {
+									setSelectedArrondissement(
+										selectedArrondissement === arrondissement
+											? null
+											: arrondissement,
+									);
+								}
 							}
-						}
-					});
+						},
+					);
 
 					// Add hover effects
 					map.current?.on("mouseenter", "admin-fill", () => {
@@ -346,7 +370,6 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						}
 					});
 				}
-
 			} catch (error) {
 				console.error("Failed to load boundaries:", error);
 			}
@@ -389,7 +412,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				type: "Feature" as const,
 				geometry: {
 					type: "Point" as const,
-					coordinates: [event.coordinates!.lng, event.coordinates!.lat] as [number, number],
+					coordinates: [event.coordinates!.lng, event.coordinates!.lat] as [
+						number,
+						number,
+					],
 				},
 				properties: {
 					id: event.id,
@@ -419,17 +445,25 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		});
 
 		// Add click handler
-		map.current.on("click", "event-markers", (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-			if (e.features && e.features[0]) {
-				const eventId = e.features[0].properties?.id;
-				const event = eventsWithCoords.find((e) => e.id === eventId);
-				if (event) {
-					onEventClick(event);
+		map.current.on(
+			"click",
+			"event-markers",
+			(
+				e: maplibregl.MapMouseEvent & {
+					features?: maplibregl.MapGeoJSONFeature[];
+				},
+			) => {
+				if (e.features && e.features[0]) {
+					const eventId = e.features[0].properties?.id;
+					const event = eventsWithCoords.find((e) => e.id === eventId);
+					if (event) {
+						onEventClick(event);
+					}
 				}
-			}
-		});
+			},
+		);
 
-		// Add hover effects  
+		// Add hover effects
 		map.current.on("mouseenter", "event-markers", () => {
 			if (map.current) {
 				map.current.getCanvas().style.cursor = "pointer";
@@ -441,7 +475,6 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				map.current.getCanvas().style.cursor = "";
 			}
 		});
-
 	}, [mapLoaded, filteredEvents, onEventClick, showCoordinates]);
 
 	// Error state
@@ -449,9 +482,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		return (
 			<div className="relative w-full h-[600px] bg-red-50 dark:bg-red-900/20 rounded-lg overflow-hidden flex items-center justify-center">
 				<div className="text-center p-6">
-					<div className="text-red-600 dark:text-red-400 mb-2">⚠️ Map Load Error</div>
+					<div className="text-red-600 dark:text-red-400 mb-2">
+						⚠️ Map Load Error
+					</div>
 					<p className="text-sm text-red-600 dark:text-red-400">{loadError}</p>
-					<button 
+					<button
 						onClick={() => window.location.reload()}
 						className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700"
 					>
@@ -556,7 +591,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				</div>
 			)}
 
-			{/* Color Legend */}  
+			{/* Color Legend */}
 			{mapLoaded && (
 				<div className="absolute bottom-4 left-4 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg p-3 border border-gray-200 dark:border-gray-700">
 					<h4 className="font-medium text-xs text-gray-900 dark:text-gray-100 mb-2">
@@ -565,19 +600,27 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					<div className="space-y-1">
 						<div className="flex items-center space-x-2">
 							<div className="w-3 h-2 rounded-sm bg-gray-300"></div>
-							<span className="text-xs text-gray-600 dark:text-gray-400">0 events</span>
+							<span className="text-xs text-gray-600 dark:text-gray-400">
+								0 events
+							</span>
 						</div>
 						<div className="flex items-center space-x-2">
 							<div className="w-3 h-2 rounded-sm bg-green-600"></div>
-							<span className="text-xs text-gray-600 dark:text-gray-400">1 event</span>
+							<span className="text-xs text-gray-600 dark:text-gray-400">
+								1 event
+							</span>
 						</div>
 						<div className="flex items-center space-x-2">
 							<div className="w-3 h-2 rounded-sm bg-orange-600"></div>
-							<span className="text-xs text-gray-600 dark:text-gray-400">2-4 events</span>
+							<span className="text-xs text-gray-600 dark:text-gray-400">
+								2-4 events
+							</span>
 						</div>
 						<div className="flex items-center space-x-2">
 							<div className="w-3 h-2 rounded-sm bg-red-600"></div>
-							<span className="text-xs text-gray-600 dark:text-gray-400">5+ events</span>
+							<span className="text-xs text-gray-600 dark:text-gray-400">
+								5+ events
+							</span>
 						</div>
 					</div>
 				</div>

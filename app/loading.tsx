@@ -82,7 +82,7 @@ export default function Loading() {
 									{/* Expand/Collapse button */}
 									<Skeleton className="h-8 w-20" />
 								</div>
-								
+
 								{/* Bottom row - Map Type Toggle */}
 								<div className="flex justify-center sm:justify-end">
 									<div className="flex items-center space-x-2 bg-muted/50 rounded-lg p-1">
@@ -126,7 +126,7 @@ export default function Loading() {
 										</div>
 									</div>
 								))}
-								
+
 								{/* Clear filters button */}
 								<div className="pt-4 border-t">
 									<Skeleton className="h-9 w-24" />

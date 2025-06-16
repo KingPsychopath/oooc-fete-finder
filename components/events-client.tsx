@@ -81,10 +81,10 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 
 	// Load map preference from localStorage on mount
 	useEffect(() => {
-		const savedPreference = localStorage.getItem('fete:preferred-map');
-		if (savedPreference === 'classic') {
+		const savedPreference = localStorage.getItem("fete:preferred-map");
+		if (savedPreference === "classic") {
 			setUseMapLibre(false);
-		} else if (savedPreference === 'maplibre') {
+		} else if (savedPreference === "maplibre") {
 			setUseMapLibre(true);
 		}
 		// Default is already MapLibre (true)
@@ -93,7 +93,10 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	// Save map preference to localStorage when changed
 	const handleMapTypeChange = (isMapLibre: boolean) => {
 		setUseMapLibre(isMapLibre);
-		localStorage.setItem('fete:preferred-map', isMapLibre ? 'maplibre' : 'classic');
+		localStorage.setItem(
+			"fete:preferred-map",
+			isMapLibre ? "maplibre" : "classic",
+		);
 	};
 
 	// Get available filter options
@@ -492,7 +495,9 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 								<CardTitle className="flex items-center space-x-2 flex-wrap">
 									<div className="flex items-center space-x-2">
 										<MapPin className="h-5 w-5 flex-shrink-0" />
-										<span className="text-base sm:text-lg">Paris Event Map</span>
+										<span className="text-base sm:text-lg">
+											Paris Event Map
+										</span>
 									</div>
 									<div className="flex items-center space-x-1 mt-1 sm:mt-0">
 										<Badge variant="secondary" className="text-xs">
@@ -500,7 +505,10 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 											{filteredEvents.length !== 1 ? "s" : ""}
 										</Badge>
 										{useMapLibre && (
-											<Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+											<Badge
+												variant="outline"
+												className="text-xs bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800"
+											>
 												Beta
 											</Badge>
 										)}
@@ -525,11 +533,13 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 									</span>
 								</Button>
 							</div>
-							
+
 							{/* Bottom row - Map Type Toggle (mobile: full width, desktop: right-aligned) */}
 							<div className="flex justify-center sm:justify-end">
 								<div className="flex items-center space-x-2 bg-muted/50 rounded-lg p-1">
-									<span className="text-xs text-muted-foreground px-2">Map:</span>
+									<span className="text-xs text-muted-foreground px-2">
+										Map:
+									</span>
 									<Button
 										variant={!useMapLibre ? "default" : "secondary"}
 										size="sm"
@@ -553,9 +563,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 					<CardContent className="pt-2 px-3 sm:px-6">
 						<div
 							className={`relative transition-all duration-300 ease-in-out ${
-								isMapExpanded 
-									? "h-[600px]" 
-									: "h-24 sm:h-32"
+								isMapExpanded ? "h-[600px]" : "h-24 sm:h-32"
 							} overflow-hidden rounded-md`}
 						>
 							<div className="w-full h-full">
@@ -563,7 +571,9 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 									<ParisMapLibre
 										events={filteredEvents}
 										onEventClick={setSelectedEvent}
-										selectedDay={selectedDays.length === 1 ? selectedDays[0] : undefined}
+										selectedDay={
+											selectedDays.length === 1 ? selectedDays[0] : undefined
+										}
 									/>
 								) : (
 									<ParisMap
