@@ -183,9 +183,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					minZoom: 10,
 					maxZoom: 18,
 					maxBounds: [
-						[2.224, 48.815], // Southwest corner
-						[2.47, 48.902], // Northeast corner
-					],
+						[2.18, 48.80],  // Southwest corner (medium expansion)
+						[2.51, 48.92],  // Northeast corner (medium expansion)
+										  ],
 				});
 
 				// Add navigation controls
