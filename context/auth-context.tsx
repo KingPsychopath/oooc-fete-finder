@@ -1,6 +1,6 @@
 "use client";
 
-import { env } from "@/lib/config/env";
+// Note: Using process.env directly to avoid server-side env variable access on client
 import React, { createContext, useContext, useState, useEffect } from "react";
 
 type AuthContextType = {
@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 		}
 
 		// Store with configurable expiry (default 30 days)
-		const EXPIRY_DAYS = env.NEXT_PUBLIC_AUTH_EXPIRY_DAYS;
+		const EXPIRY_DAYS = Number(process.env.NEXT_PUBLIC_AUTH_EXPIRY_DAYS) || 30;
 		const expiryDate = new Date();
 		expiryDate.setDate(expiryDate.getDate() + EXPIRY_DAYS);
 

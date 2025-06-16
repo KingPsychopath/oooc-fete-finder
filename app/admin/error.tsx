@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { isDev } from "@/lib/config/env";
+// Note: Using process.env.NODE_ENV directly to avoid server-side env variable access on client
 import { AlertTriangle, Home, RefreshCw, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
@@ -57,7 +57,7 @@ export default function AdminError({ error, reset }: AdminErrorPageProps) {
 					</p>
 
 					{/* Development error details */}
-					{isDev() && (
+					{process.env.NODE_ENV === "development" && (
 						<details className="text-left bg-muted p-4 rounded-lg">
 							<summary className="cursor-pointer text-sm font-medium mb-2 text-red-600">
 								🔧 Admin Error Details (Development)

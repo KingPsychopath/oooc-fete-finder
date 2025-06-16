@@ -6,8 +6,7 @@ import EmailGateModal from "@/components/EmailGateModal";
 import EventModal from "@/components/EventModal";
 import EventStats from "@/components/EventStats";
 import FilterPanel from "@/components/FilterPanel";
-import ParisMap from "@/components/ParisMap";
-import ParisMapLibre from "@/components/ParisMapLibre";
+
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import SearchBar from "@/components/SearchBar";
 import { FeaturedEvents } from "@/components/featured-events/FeaturedEvents";
@@ -31,7 +30,9 @@ import {
 	isPriceInRange,
 } from "@/types/events";
 import { ChevronDown, MapPin } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ParisMap from "@/components/ParisMap";
+import ParisMapLibre from "@/components/ParisMapLibre";
 
 interface EventsClientProps {
 	initialEvents: Event[];
@@ -46,7 +47,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [isMapExpanded, setIsMapExpanded] = useState(false);
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
-	const [useMapLibre, setUseMapLibre] = useState(true);
+	const [useMapLibre, setUseMapLibre] = useState(true); // Default to MapLibre
 	const [selectedDays, setSelectedDays] = useState<EventDay[]>([]);
 	const [selectedDayNightPeriods, setSelectedDayNightPeriods] = useState<
 		DayNightPeriod[]
@@ -77,6 +78,23 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 
 	// Ref for scrolling to all events section
 	const allEventsRef = useRef<HTMLDivElement>(null);
+
+	// Load map preference from localStorage on mount
+	useEffect(() => {
+		const savedPreference = localStorage.getItem('fete:preferred-map');
+		if (savedPreference === 'classic') {
+			setUseMapLibre(false);
+		} else if (savedPreference === 'maplibre') {
+			setUseMapLibre(true);
+		}
+		// Default is already MapLibre (true)
+	}, []);
+
+	// Save map preference to localStorage when changed
+	const handleMapTypeChange = (isMapLibre: boolean) => {
+		setUseMapLibre(isMapLibre);
+		localStorage.setItem('fete:preferred-map', isMapLibre ? 'maplibre' : 'classic');
+	};
 
 	// Get available filter options
 	const availableArrondissements = useMemo(() => {
@@ -515,7 +533,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 									<Button
 										variant={!useMapLibre ? "default" : "secondary"}
 										size="sm"
-										onClick={() => setUseMapLibre(false)}
+										onClick={() => handleMapTypeChange(false)}
 										className="text-xs h-7 px-3"
 									>
 										Classic
@@ -523,7 +541,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 									<Button
 										variant={useMapLibre ? "default" : "secondary"}
 										size="sm"
-										onClick={() => setUseMapLibre(true)}
+										onClick={() => handleMapTypeChange(true)}
 										className="text-xs h-7 px-3"
 									>
 										Beta

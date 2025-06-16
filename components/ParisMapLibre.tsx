@@ -165,7 +165,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		}
 	}, [mapLoaded, selectedArrondissement, getEventsInArrondissement]);
 
-	// Initialize map with lazy loading
+	// Initialize map with proper cleanup
 	useEffect(() => {
 		if (!mapContainer.current || map.current) return;
 
@@ -196,7 +196,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					setIsLoading(false);
 				});
 
-				map.current.on("error", (e: any) => {
+				map.current.on("error", (e: maplibregl.ErrorEvent) => {
 					console.error("Map loading error:", e);
 					setLoadError("Failed to load map tiles");
 					setIsLoading(false);
@@ -211,11 +211,55 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 		initMap();
 
+		// Proper cleanup function
 		return () => {
 			if (map.current) {
-				map.current.remove();
-				map.current = null;
-				setMapLoaded(false);
+				try {
+					// Remove all event listeners
+					map.current.off();
+					
+					// Safely get style - it may be undefined during cleanup
+					const style = map.current.getStyle();
+					if (style) {
+						// Remove all layers
+						const layers = style.layers;
+						if (layers) {
+							layers.forEach((layer: any) => {
+								try {
+									if (map.current && map.current.getLayer(layer.id)) {
+										map.current.removeLayer(layer.id);
+									}
+								} catch (e) {
+									// Ignore errors during cleanup
+								}
+							});
+						}
+						
+						// Remove all sources
+						const sources = style.sources;
+						if (sources) {
+							Object.keys(sources).forEach((sourceId) => {
+								try {
+									if (map.current && map.current.getSource(sourceId)) {
+										map.current.removeSource(sourceId);
+									}
+								} catch (e) {
+									// Ignore errors during cleanup
+								}
+							});
+						}
+					}
+					
+					// Remove map instance and free WebGL context
+					map.current.remove();
+				} catch (e) {
+					// Ignore cleanup errors
+					console.warn('Map cleanup error:', e);
+				} finally {
+					map.current = null;
+					setMapLoaded(false);
+					setIsLoading(true);
+				}
 			}
 		};
 	}, []);
@@ -269,7 +313,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 				// Add click handler
 				if (map.current.getLayer("admin-fill")) {
-					map.current.on("click", "admin-fill", (e: any) => {
+					map.current.on("click", "admin-fill", (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
 						if (e.features && e.features[0]) {
 							const properties = e.features[0].properties as ParisArrondissementProperties;
 							const arrondissement = properties.c_ar;
@@ -368,7 +412,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		});
 
 		// Add click handler
-		map.current.on("click", "event-markers", (e: any) => {
+		map.current.on("click", "event-markers", (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
 			if (e.features && e.features[0]) {
 				const eventId = e.features[0].properties?.id;
 				const event = eventsWithCoords.find((e) => e.id === eventId);

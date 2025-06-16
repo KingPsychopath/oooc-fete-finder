@@ -17,7 +17,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { isDev } from "@/lib/config/env";
+// Note: Using process.env.NODE_ENV directly to avoid server-side env variable access on client
 import type { Event } from "@/types/events";
 import { AlertCircle, Clock, Star, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -225,7 +225,7 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 			);
 
 			// Debug logging for progress bar accuracy
-			if (isDev()) {
+			if (process.env.NODE_ENV === "development") {
 				const totalHours = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS;
 				const elapsedHours = elapsedDuration / (1000 * 60 * 60);
 				console.log(`📊 Progress for "${event.name}":`, {

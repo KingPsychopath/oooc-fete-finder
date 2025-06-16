@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { isDev } from "@/lib/config/env";
+// Note: Using process.env.NODE_ENV directly to avoid server-side env variable access on client
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import React from "react";
 
@@ -110,7 +110,7 @@ const DefaultErrorFallback = ({
 						look into it.
 					</p>
 
-					{isDev() && error && (
+					{process.env.NODE_ENV === "development" && error && (
 						<details className="text-left">
 							<summary className="cursor-pointer text-sm font-medium mb-2">
 								Error Details (Development)

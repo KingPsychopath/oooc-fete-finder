@@ -13,13 +13,13 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/auth-context";
-import { env } from "@/lib/config/env";
+// Note: Using process.env directly to avoid server-side env variable access on client
 import { LogOut, MapPin, Music, User, Utensils } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-// Get base path from environment variable
-const basePath = env.NEXT_PUBLIC_BASE_PATH;
+// Get base path from environment variable directly
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
 
 const Header = () => {
 	const { isAuthenticated, userEmail, logout } = useAuth();
