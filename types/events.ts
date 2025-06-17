@@ -64,6 +64,8 @@ export type MusicGenre =
 	| "kompa"
 	| "afro"
 	| "gqom"
+	| "alternative"
+	| "dance"
 	| "other";
 
 export type ParisArrondissement =
@@ -231,6 +233,8 @@ export const MUSIC_GENRES = [
 	{ key: "kompa" as const, label: "Kompa", color: "bg-pink-600" },
 	{ key: "afro" as const, label: "Afro", color: "bg-orange-400" },
 	{ key: "gqom" as const, label: "Gqom", color: "bg-purple-400" },
+	{ key: "alternative" as const, label: "Alternative", color: "bg-stone-500" },
+	{ key: "dance" as const, label: "Dance", color: "bg-sky-500" },
 	{ key: "other" as const, label: "Other", color: "bg-gray-500" },
 ] as const;
 

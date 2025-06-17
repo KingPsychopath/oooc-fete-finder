@@ -492,6 +492,13 @@ export const GenreTransformers = {
 			"coupé-décalé": "coupé-décalé",
 			"urban fr": "urban fr",
 			gqom: "gqom",
+			alternative: "alternative",
+			alt: "alternative",
+			indie: "alternative",
+			"alternative rock": "alternative",
+			dance: "dance",
+			"dance music": "dance",
+			"dance/electronic": "dance",
 		};
 
 		// Split by common separators and check each part
