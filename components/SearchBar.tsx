@@ -211,7 +211,17 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	onSearch,
 	placeholder = "Search events...",
 	className = "",
-	exampleSearches = ["Sixtion", "Amapiano", "Day Party", "After Party", "19", "Free", "Friday", "Saturday", "Sunday"],
+	exampleSearches = [
+		"Sixtion",
+		"Amapiano",
+		"Day Party",
+		"After Party",
+		"19",
+		"Free",
+		"Friday",
+		"Saturday",
+		"Sunday",
+	],
 	events = [],
 }) => {
 	const [query, setQuery] = useState("");

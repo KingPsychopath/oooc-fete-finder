@@ -73,48 +73,52 @@ const processFeaturedColumn = (
 /**
  * Determine if an event should be considered "verified" based on data completeness
  */
-const determineVerificationStatus = (csvRow: CSVEventRow, assembledFields: {
-	arrondissement: ParisArrondissement;
-	time: string;
-	mainLink: string;
-}): boolean => {
+const determineVerificationStatus = (
+	csvRow: CSVEventRow,
+	assembledFields: {
+		arrondissement: ParisArrondissement;
+		time: string;
+		mainLink: string;
+	},
+): boolean => {
 	// Core completeness criteria for verification
-	const hasValidLocation = 
+	const hasValidLocation =
 		csvRow.location !== undefined &&
-		csvRow.location.trim() !== "" && 
+		csvRow.location.trim() !== "" &&
 		csvRow.location.toLowerCase() !== "tba" &&
 		csvRow.location.toLowerCase() !== "tbc";
-	
+
 	const hasValidArrondissement = assembledFields.arrondissement !== "unknown";
-	
-	const hasValidTime = 
+
+	const hasValidTime =
 		assembledFields.time !== undefined &&
 		assembledFields.time.trim() !== "" &&
 		assembledFields.time.toLowerCase() !== "tbc";
-	
-	const hasValidLink = 
+
+	const hasValidLink =
 		assembledFields.mainLink !== undefined &&
-		assembledFields.mainLink !== "#" && 
+		assembledFields.mainLink !== "#" &&
 		assembledFields.mainLink.trim() !== "";
-	
-	const hasValidDate = 
+
+	const hasValidDate =
 		csvRow.date !== undefined &&
-		csvRow.date.trim() !== "" && 
+		csvRow.date.trim() !== "" &&
 		csvRow.date.toLowerCase() !== "tbc";
-	
-	const hasValidPrice = 
+
+	const hasValidPrice =
 		csvRow.price !== undefined &&
-		csvRow.price.trim() !== "" && 
+		csvRow.price.trim() !== "" &&
 		csvRow.price.toLowerCase() !== "tbc" &&
 		csvRow.price.toLowerCase() !== "tba";
-	
+
 	// Event is verified if it has:
 	// 1. Valid location AND arrondissement
 	// 2. Valid date
 	// 3. At least two of: valid time, valid link, OR valid price
-	const coreDataComplete = hasValidLocation && hasValidArrondissement && hasValidDate;
+	const coreDataComplete =
+		hasValidLocation && hasValidArrondissement && hasValidDate;
 	const hasEssentialDetails = hasValidTime || hasValidLink || hasValidPrice;
-	
+
 	return coreDataComplete && hasEssentialDetails;
 };
 

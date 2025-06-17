@@ -35,7 +35,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 		const userAgent = navigator.userAgent.toLowerCase();
 		const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
 		const isAndroidDevice = /android/.test(userAgent);
-		
+
 		setIsIOS(isIOSDevice);
 		setIsAndroid(isAndroidDevice);
 	}, []);
@@ -58,18 +58,18 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 		if (isIOS) {
 			return {
 				url: "https://apps.apple.com/app/id311896604",
-				description: "Download from App Store"
+				description: "Download from App Store",
 			};
 		} else if (isAndroid) {
 			return {
 				url: "https://play.google.com/store/apps/details?id=com.bto.toilet&hl=en_GB",
-				description: "Download from Play Store"
+				description: "Download from Play Store",
 			};
 		} else {
 			// Default to iOS link for desktop/other devices
 			return {
 				url: "https://apps.apple.com/app/id311896604",
-				description: "150,000+ restrooms worldwide"
+				description: "150,000+ restrooms worldwide",
 			};
 		}
 	};
