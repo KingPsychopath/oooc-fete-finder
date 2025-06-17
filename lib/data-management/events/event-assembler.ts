@@ -5,7 +5,7 @@
  * This replaces the massive event-transformer.ts with a cleaner, more maintainable approach.
  */
 
-import type { Event, EventType } from "@/types/events";
+import type { Event, EventType, ParisArrondissement } from "@/types/events";
 import type { CSVEventRow } from "../csv/parser";
 
 // Import our focused transformers
@@ -68,6 +68,44 @@ const processFeaturedColumn = (
 	const featuredAt = timestampPattern.test(cleaned) ? cleaned : undefined;
 
 	return { isFeatured, featuredAt };
+};
+
+/**
+ * Determine if an event should be considered "verified" based on data completeness
+ */
+const determineVerificationStatus = (csvRow: CSVEventRow, assembledFields: {
+	arrondissement: ParisArrondissement;
+	time: string;
+	mainLink: string;
+}): boolean => {
+	// Core completeness criteria for verification
+	const hasValidLocation = csvRow.location && 
+		csvRow.location.trim() !== "" && 
+		csvRow.location.toLowerCase() !== "tba" &&
+		csvRow.location.toLowerCase() !== "tbc";
+	
+	const hasValidArrondissement = assembledFields.arrondissement !== "unknown";
+	
+	const hasValidTime = assembledFields.time && 
+		assembledFields.time.trim() !== "" &&
+		assembledFields.time.toLowerCase() !== "tbc";
+	
+	const hasValidLink = assembledFields.mainLink && 
+		assembledFields.mainLink !== "#" && 
+		assembledFields.mainLink.trim() !== "";
+	
+	const hasValidDate = csvRow.date && 
+		csvRow.date.trim() !== "" && 
+		csvRow.date.toLowerCase() !== "tbc";
+	
+	// Event is verified if it has:
+	// 1. Valid location AND arrondissement
+	// 2. Valid date
+	// 3. Either valid time OR valid link (at minimum)
+	const coreDataComplete = hasValidLocation && hasValidArrondissement && hasValidDate;
+	const hasEssentialDetails = hasValidTime || hasValidLink;
+	
+	return coreDataComplete && hasEssentialDetails;
 };
 
 /**
@@ -139,7 +177,11 @@ export const assembleEvent = (csvRow: CSVEventRow, index: number): Event => {
 		genre,
 		venueTypes,
 		indoor, // Legacy field
-		verified: true, // Assume CSV data is verified
+		verified: determineVerificationStatus(csvRow, {
+			arrondissement,
+			time,
+			mainLink,
+		}),
 		price: csvRow.price.trim() || undefined,
 		age: csvRow.age.trim() || undefined,
 		isOOOCPick,
