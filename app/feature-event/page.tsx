@@ -21,6 +21,9 @@ export const metadata: Metadata = {
 };
 
 export default async function FeatureEventPage() {
+	// Toggle to show internal setup instructions (for development/debugging)
+	const SHOW_SETUP_INSTRUCTIONS = false;
+	
 	// Get current featured events to show real countdown
 	const featuredEvents = await getFeaturedEvents();
 
@@ -38,8 +41,8 @@ export default async function FeatureEventPage() {
 			{/* Current Feature Period Status */}
 			<FeatureCountdown featuredEvents={featuredEvents} />
 
-			{/* Setup Instructions (only show if no valid featured events) */}
-			{featuredEvents.length === 0 && (
+			{/* Setup Instructions (only show if enabled and no valid featured events) */}
+			{SHOW_SETUP_INSTRUCTIONS && featuredEvents.length === 0 && (
 				<Card className="mb-8 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
 					<CardHeader>
 						<CardTitle>💡 How to Feature Events</CardTitle>
