@@ -211,7 +211,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	onSearch,
 	placeholder = "Search events...",
 	className = "",
-	exampleSearches = ["Sixtion", "Amapiano", "Day Party", "19", "Free", "Friday", "Sunday", "After Party"],
+	exampleSearches = ["Sixtion", "Amapiano", "Day Party", "After Party", "19", "Free", "Friday", "Saturday", "Sunday"],
 	events = [],
 }) => {
 	const [query, setQuery] = useState("");
@@ -260,39 +260,18 @@ const SearchBar: React.FC<SearchBarProps> = ({
 			</div>
 
 			{/* Example Search Chips */}
-			<div className="flex flex-wrap gap-2 mt-2">
-				{/* Event Type Examples */}
-				<div className="flex flex-wrap gap-2">
-					{exampleSearches.slice(0, 4).map((example) => (
-						<Button
-							key={example}
-							variant="outline"
-							size="sm"
-							onClick={() => handleSearch(example)}
-							className="text-xs px-2 py-1 h-auto"
-						>
-							{example}
-						</Button>
-					))}
-				</div>
-
-				{/* Visual Separator */}
-				<div className="w-full h-px bg-border my-2" />
-
-				{/* Arrondissement Examples */}
-				<div className="flex flex-wrap gap-2">
-					{exampleSearches.slice(4).map((example) => (
-						<Button
-							key={example}
-							variant="outline"
-							size="sm"
-							onClick={() => handleSearch(example)}
-							className="text-xs px-2 py-1 h-auto"
-						>
-							{example}
-						</Button>
-					))}
-				</div>
+			<div className="flex flex-wrap gap-1.5 mt-3">
+				{exampleSearches.map((example) => (
+					<Button
+						key={example}
+						variant="outline"
+						size="sm"
+						onClick={() => handleSearch(example)}
+						className="text-xs px-3 py-1.5 h-auto rounded-full border-border/60 hover:border-border hover:bg-accent/50 transition-colors"
+					>
+						{example}
+					</Button>
+				))}
 			</div>
 		</div>
 	);
