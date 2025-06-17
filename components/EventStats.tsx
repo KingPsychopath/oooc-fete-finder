@@ -28,7 +28,7 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 		// Get all dates and sort them
 		const dates = events
 			.map((event) => event.date)
-			.filter((date) => date && date !== "2025-06-21") // Filter out default dates
+			.filter((date) => date) // Only filter out empty/null dates
 			.sort();
 
 		if (dates.length === 0) return "June 2025";
