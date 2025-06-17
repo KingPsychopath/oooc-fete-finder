@@ -2,27 +2,25 @@
 
 import { Clock } from "@/components/Clock";
 import Countdown from "@/components/Countdown";
+import MusicPlatformModal from "@/components/MusicPlatformModal";
+import QuickActionsDropdown from "@/components/QuickActionsDropdown";
 import SlidingBanner from "@/components/SlidingBanner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useAuth } from "@/context/auth-context";
 // Note: Using process.env directly to avoid server-side env variable access on client
-import { LogOut, MapPin, Music, User, Utensils } from "lucide-react";
+import { LogOut, Music2, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 // Get base path from environment variable directly
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
 
 const Header = () => {
 	const { isAuthenticated, userEmail, logout } = useAuth();
+	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
 
 	return (
 		<>
@@ -50,7 +48,7 @@ const Header = () => {
 
 							{/* Music icon and text - Hidden on mobile, shown on desktop */}
 							<div className="hidden sm:flex items-center space-x-2 md:space-x-3">
-								<Music className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary flex-shrink-0" />
+								<Music2 className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary flex-shrink-0" />
 								<div className="min-w-0">
 									<h1 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">
 										Fête Finder
@@ -96,34 +94,10 @@ const Header = () => {
 						<div className="flex flex-col items-end space-y-2 flex-1">
 							{/* Top Row - Main Controls */}
 							<div className="flex items-center justify-end space-x-2 sm:space-x-3 w-full">
-								{/* Paris Food List Link */}
-								<TooltipProvider>
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Link
-												href="https://maps.app.goo.gl/YZdYYpsh2ViR2tQi8?g_st=i"
-												target="_blank"
-												rel="noopener noreferrer"
-												className="group flex-shrink-0"
-												aria-label="View Paris Food Guide by Mel on Google Maps"
-											>
-												<Button
-													variant="outline"
-													size="sm"
-													className="gap-1 text-xs sm:text-sm hover:bg-accent hover:text-accent-foreground transition-colors p-1.5 sm:p-2 h-8 sm:h-9"
-												>
-													<div className="flex items-center gap-1">
-														<Utensils className="h-3 w-3 sm:h-4 sm:w-4" />
-														<MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
-													</div>
-												</Button>
-											</Link>
-										</TooltipTrigger>
-										<TooltipContent>
-											<p>View Paris Food Guide by Mel on Google Maps</p>
-										</TooltipContent>
-									</Tooltip>
-								</TooltipProvider>
+								{/* Quick Actions Dropdown - Music & Food */}
+								<QuickActionsDropdown 
+									onMusicSelect={() => setIsMusicModalOpen(true)} 
+								/>
 
 								<div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
 									<Clock />
@@ -167,6 +141,10 @@ const Header = () => {
 					"Start relaxing your hair!",
 				]}
 				speed={15}
+			/>
+			<MusicPlatformModal
+				isOpen={isMusicModalOpen}
+				onClose={() => setIsMusicModalOpen(false)}
 			/>
 		</>
 	);
