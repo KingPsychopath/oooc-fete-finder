@@ -28,7 +28,12 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 		// Get all dates and sort them
 		const dates = events
 			.map((event) => event.date)
-			.filter((date) => date) // Only filter out empty/null dates
+			.filter((date) => {
+				if (!date) return false; // Filter out empty/null dates
+				// Test if the date string can be parsed into a valid date
+				const testDate = new Date(date);
+				return !isNaN(testDate.getTime()); // Only keep valid dates
+			})
 			.sort();
 
 		if (dates.length === 0) return "June 2025";
@@ -36,7 +41,7 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 		const earliestDate = dates[0];
 		const latestDate = dates[dates.length - 1];
 
-		// Parse dates
+		// Parse dates (we know these are valid now)
 		const earliestDateObj = new Date(earliestDate);
 		const latestDateObj = new Date(latestDate);
 
