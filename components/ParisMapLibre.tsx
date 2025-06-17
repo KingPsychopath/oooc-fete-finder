@@ -534,16 +534,22 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 					{/* Coordinates Toggle */}
 					<div className="mb-3 pb-3 border-b border-gray-200 dark:border-gray-600">
-						<label className="flex items-center space-x-2 cursor-pointer">
+						<label className="flex items-center space-x-2 cursor-not-allowed">
 							<input
 								type="checkbox"
 								checked={showCoordinates}
 								onChange={(e) => setShowCoordinates(e.target.checked)}
+								disabled={true}
 								className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
 							/>
-							<span className="text-sm text-gray-700 dark:text-gray-300">
-								Show Event Pins
-							</span>
+							<div className="flex flex-col">
+								<span className="text-sm text-gray-700 dark:text-gray-300">
+									Show Event Pins
+								</span>
+								<span className="text-xs text-gray-400 dark:text-gray-500">
+									Coming soon
+								</span>
+							</div>
 						</label>
 					</div>
 
@@ -628,7 +634,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 			{/* Selected arrondissement events */}
 			{selectedArrondissement && (
-				<div className="absolute bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 max-w-sm">
+				<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 w-80 max-w-[calc(100vw-2rem)]">
 					<div className="flex items-center justify-between mb-2">
 						<h3 className="font-semibold">
 							{selectedArrondissement}e Arrondissement Events
