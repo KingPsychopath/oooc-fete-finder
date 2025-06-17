@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { CopyEmailButton } from "@/components/CopyEmailButton";
 
 // Force static generation for this page
 export const dynamic = "force-static";
@@ -22,7 +23,7 @@ export default function PrivacyPolicy() {
 					<CardHeader>
 						<CardTitle className="text-2xl">Privacy Policy</CardTitle>
 						<p className="text-sm text-muted-foreground">
-							Last updated: December 2024
+							Last updated: 10 June 2025
 						</p>
 					</CardHeader>
 					<CardContent className="prose prose-sm max-w-none space-y-6">
@@ -39,6 +40,9 @@ export default function PrivacyPolicy() {
 							<h3 className="text-lg font-semibold mb-3">
 								How We Use Your Data
 							</h3>
+							<p className="text-muted-foreground mb-2">
+								<strong>Legal basis:</strong> Consent (you can withdraw this anytime by unsubscribing or contacting us)
+							</p>
 							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
 								<li>To provide personalized event recommendations</li>
 								<li>
@@ -51,6 +55,9 @@ export default function PrivacyPolicy() {
 								<li>To improve our service and user experience</li>
 								<li>To build our community of music event enthusiasts</li>
 							</ul>
+							<p className="text-sm text-muted-foreground mt-3">
+								<strong>Unsubscribe:</strong> You can unsubscribe from emails at any time using the unsubscribe link in any email we send you, or by contacting us directly.
+							</p>
 						</section>
 
 						<section>
@@ -58,7 +65,7 @@ export default function PrivacyPolicy() {
 								Data Storage & Security
 							</h3>
 							<p className="text-muted-foreground">
-								Your email is stored securely and will be kept for up to 30 days
+								Your email is stored securely and will be kept for up to 2 years
 								after collection. We use industry-standard security measures to
 								protect your information.
 							</p>
@@ -100,8 +107,11 @@ export default function PrivacyPolicy() {
 							<h3 className="text-lg font-semibold mb-3">Contact Us</h3>
 							<p className="text-muted-foreground">
 								If you have any questions about this privacy policy or want to
-								exercise your rights, please contact us through our main website
-								or social media channels.
+								exercise your rights, please contact us at hello@outofofficecollective.co.uk
+								<CopyEmailButton email="hello@outofofficecollective.co.uk" />
+							</p>
+							<p className="text-sm text-muted-foreground mt-2">
+								You can also reach us through our main website or social media channels.
 							</p>
 						</section>
 
