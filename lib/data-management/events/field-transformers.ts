@@ -144,17 +144,25 @@ export const DateTransformers = {
 		// Handle various date formats and convert to ISO
 		// Check if the date string doesn't include a year and add current year (2025)
 		const currentYear = 2025; // Use 2025 for the fête events
-		
+
 		// If the string looks like it's missing a year (e.g., "June 19", "19 June", "19/06")
 		const hasYear = /\b(19|20)\d{2}\b/.test(cleaned);
-		
+
 		let dateToparse = cleaned;
 		if (!hasYear) {
 			// Try to detect common date patterns without years and add 2025
-			if (/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}\b/i.test(cleaned)) {
+			if (
+				/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}\b/i.test(
+					cleaned,
+				)
+			) {
 				// "June 19" -> "June 19 2025"
 				dateToparse = `${cleaned} ${currentYear}`;
-			} else if (/\b\d{1,2}\s+(january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(cleaned)) {
+			} else if (
+				/\b\d{1,2}\s+(january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(
+					cleaned,
+				)
+			) {
 				// "19 June" -> "19 June 2025"
 				dateToparse = `${cleaned} ${currentYear}`;
 			} else if (/^\d{1,2}\/\d{1,2}$/.test(cleaned)) {
@@ -165,7 +173,7 @@ export const DateTransformers = {
 				dateToparse = `${cleaned}-${currentYear}`;
 			}
 		}
-		
+
 		try {
 			const parsedDate = new Date(dateToparse);
 			if (!isNaN(parsedDate.getTime())) {
