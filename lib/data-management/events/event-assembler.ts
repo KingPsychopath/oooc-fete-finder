@@ -102,12 +102,18 @@ const determineVerificationStatus = (csvRow: CSVEventRow, assembledFields: {
 		csvRow.date.trim() !== "" && 
 		csvRow.date.toLowerCase() !== "tbc";
 	
+	const hasValidPrice = 
+		csvRow.price !== undefined &&
+		csvRow.price.trim() !== "" && 
+		csvRow.price.toLowerCase() !== "tbc" &&
+		csvRow.price.toLowerCase() !== "tba";
+	
 	// Event is verified if it has:
 	// 1. Valid location AND arrondissement
 	// 2. Valid date
-	// 3. Either valid time OR valid link (at minimum)
+	// 3. At least two of: valid time, valid link, OR valid price
 	const coreDataComplete = hasValidLocation && hasValidArrondissement && hasValidDate;
-	const hasEssentialDetails = hasValidTime || hasValidLink;
+	const hasEssentialDetails = hasValidTime || hasValidLink || hasValidPrice;
 	
 	return coreDataComplete && hasEssentialDetails;
 };
