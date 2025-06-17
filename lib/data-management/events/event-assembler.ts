@@ -79,22 +79,26 @@ const determineVerificationStatus = (csvRow: CSVEventRow, assembledFields: {
 	mainLink: string;
 }): boolean => {
 	// Core completeness criteria for verification
-	const hasValidLocation = csvRow.location && 
+	const hasValidLocation = 
+		csvRow.location !== undefined &&
 		csvRow.location.trim() !== "" && 
 		csvRow.location.toLowerCase() !== "tba" &&
 		csvRow.location.toLowerCase() !== "tbc";
 	
 	const hasValidArrondissement = assembledFields.arrondissement !== "unknown";
 	
-	const hasValidTime = assembledFields.time && 
+	const hasValidTime = 
+		assembledFields.time !== undefined &&
 		assembledFields.time.trim() !== "" &&
 		assembledFields.time.toLowerCase() !== "tbc";
 	
-	const hasValidLink = assembledFields.mainLink && 
+	const hasValidLink = 
+		assembledFields.mainLink !== undefined &&
 		assembledFields.mainLink !== "#" && 
 		assembledFields.mainLink.trim() !== "";
 	
-	const hasValidDate = csvRow.date && 
+	const hasValidDate = 
+		csvRow.date !== undefined &&
 		csvRow.date.trim() !== "" && 
 		csvRow.date.toLowerCase() !== "tbc";
 	
