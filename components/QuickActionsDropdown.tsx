@@ -8,7 +8,13 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
-import { ChevronDown, ExternalLink, MapPin, Music2, Utensils } from "lucide-react";
+import {
+	ChevronDown,
+	ExternalLink,
+	MapPin,
+	Music2,
+	Utensils,
+} from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 
@@ -20,7 +26,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 	onMusicSelect,
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
-	
+
 	const dropdownRef = useOutsideClick<HTMLDivElement>(() => {
 		setIsOpen(false);
 	});
@@ -49,7 +55,9 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 							aria-haspopup="true"
 						>
 							<Music2 className="h-3 w-3 sm:h-4 sm:w-4" />
-							<ChevronDown className={`h-3 w-3 sm:h-4 sm:w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+							<ChevronDown
+								className={`h-3 w-3 sm:h-4 sm:w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+							/>
 						</Button>
 					</TooltipTrigger>
 					<TooltipContent>
@@ -60,17 +68,21 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 
 			{/* Dropdown Menu */}
 			{isOpen && (
-				<div className="absolute right-0 top-full mt-2 w-48 bg-popover border rounded-md shadow-lg z-50 animate-in fade-in-0 zoom-in-95 duration-200">
+				<div className="absolute right-0 top-full mt-2 w-56 bg-popover border rounded-md shadow-lg z-50 animate-in fade-in-0 zoom-in-95 duration-200">
 					<div className="p-1">
 						{/* Music Option */}
 						<button
 							onClick={handleMusicClick}
 							className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors text-left"
 						>
-							<Music2 className="h-4 w-4 text-primary" />
+							<div className="w-10 flex items-center justify-center">
+								<Music2 className="h-4 w-4 text-primary" />
+							</div>
 							<div className="flex-1">
 								<div className="font-medium">Listen to Playlist</div>
-								<div className="text-xs text-muted-foreground">Paris vibes playlist</div>
+								<div className="text-xs text-muted-foreground">
+									Paris vibes playlist
+								</div>
 							</div>
 							<ExternalLink className="h-3 w-3 opacity-50" />
 						</button>
@@ -86,13 +98,15 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 							onClick={() => setIsOpen(false)}
 							className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors"
 						>
-							<div className="flex items-center gap-1">
+							<div className="w-10 flex items-center justify-center gap-1">
 								<Utensils className="h-4 w-4 text-orange-600" />
 								<MapPin className="h-4 w-4 text-blue-600" />
 							</div>
 							<div className="flex-1">
 								<div className="font-medium">Food Guide</div>
-								<div className="text-xs text-muted-foreground">Paris restaurants by Mel</div>
+								<div className="text-xs text-muted-foreground">
+									Paris restaurants by Mel
+								</div>
 							</div>
 							<ExternalLink className="h-3 w-3 opacity-50" />
 						</Link>
@@ -103,4 +117,4 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 	);
 };
 
-export default QuickActionsDropdown; 
+export default QuickActionsDropdown;

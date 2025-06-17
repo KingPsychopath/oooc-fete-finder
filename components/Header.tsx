@@ -95,8 +95,8 @@ const Header = () => {
 							{/* Top Row - Main Controls */}
 							<div className="flex items-center justify-end space-x-2 sm:space-x-3 w-full">
 								{/* Quick Actions Dropdown - Music & Food */}
-								<QuickActionsDropdown 
-									onMusicSelect={() => setIsMusicModalOpen(true)} 
+								<QuickActionsDropdown
+									onMusicSelect={() => setIsMusicModalOpen(true)}
 								/>
 
 								<div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
