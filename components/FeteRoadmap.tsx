@@ -82,6 +82,7 @@ const getItineraryData = (): DaySchedule[] => [
 				title: "Spiritual Gangsta",
 				type: "music",
 				searchHint: "Spiritual Gangster", // Exact match to avoid confusion with other "gang" events
+				disableClick: true,
 			},
 			{
 				time: "22:00",
@@ -147,9 +148,24 @@ const getEventBadgeColor = (type?: string) => {
 	}
 };
 
-// Enhanced fuzzy matching function with search hint support
-const findMatchingEvent = (event: ScheduleEvent, allEvents?: Event[]): Event | null => {
+// Enhanced fuzzy matching function with search hint support and day filtering
+const findMatchingEvent = (event: ScheduleEvent, allEvents?: Event[], daySchedule?: DaySchedule): Event | null => {
 	if (!allEvents) return null;
+
+	// Map itinerary day names to EventDay types
+	const dayMapping: Record<string, string[]> = {
+		"Friday": ["friday"],
+		"Saturday": ["saturday"], 
+		"Sunday": ["sunday"],
+	};
+
+	// Get the allowed days for this event based on the itinerary day
+	const allowedDays = daySchedule ? dayMapping[daySchedule.day] || [] : [];
+
+	// Filter events by day first if we have day information
+	const dayFilteredEvents = allowedDays.length > 0 
+		? allEvents.filter(e => allowedDays.includes(e.day))
+		: allEvents;
 
 	// Normalize the search title
 	const normalizeString = (str: string) => 
@@ -162,18 +178,18 @@ const findMatchingEvent = (event: ScheduleEvent, allEvents?: Event[]): Event | n
 	const searchText = event.searchHint || event.title;
 	const searchTitle = normalizeString(searchText);
 	
-	// Try exact match with search hint first (highest priority)
-	const exactMatch = allEvents.find(e => normalizeString(e.name) === searchTitle);
+	// Try exact match with search hint first (highest priority) - within the correct day
+	const exactMatch = dayFilteredEvents.find(e => normalizeString(e.name) === searchTitle);
 	if (exactMatch) return exactMatch;
 
-	// If searchHint was used and didn't match exactly, try original title
+	// If searchHint was used and didn't match exactly, try original title - within the correct day
 	if (event.searchHint) {
-		const titleMatch = allEvents.find(e => normalizeString(e.name) === normalizeString(event.title));
+		const titleMatch = dayFilteredEvents.find(e => normalizeString(e.name) === normalizeString(event.title));
 		if (titleMatch) return titleMatch;
 	}
 
-	// Try partial matches with stricter criteria
-	const partialMatches = allEvents.filter(e => {
+	// Try partial matches with stricter criteria - within the correct day
+	const partialMatches = dayFilteredEvents.filter(e => {
 		const eventName = normalizeString(e.name);
 		
 		// Strategy 1: Check if search text is contained in event name (more restrictive)
@@ -343,7 +359,7 @@ export function FeteRoadmap({ events, onEventClick }: FeteRoadmapProps) {
 								<AccordionContent className="px-8 pb-8">
 									<div className="space-y-4 pt-4">
 										{daySchedule.events.map((event: ScheduleEvent, eventIndex: number) => {
-											const matchingEvent = findMatchingEvent(event, events);
+											const matchingEvent = findMatchingEvent(event, events, daySchedule);
 											const isClickable = matchingEvent && onEventClick && !event.disableClick;
 											
 											const handleEventClick = () => {
