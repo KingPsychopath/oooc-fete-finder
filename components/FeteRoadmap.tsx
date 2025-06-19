@@ -73,7 +73,6 @@ const getItineraryData = (): DaySchedule[] => [
 			{
 				time: "18:00",
 				title: "Hotel Zamara / Mondial",
-				location: "Hotel Zamara / Mondial",
 				type: "music",
 				searchHint: "Hotel Zamara",
 			},
@@ -100,7 +99,6 @@ const getItineraryData = (): DaySchedule[] => [
 			{
 				time: "13:00",
 				title: "Bourse de Commerce Meet-Up",
-				location: "Bourse de Commerce",
 				type: "meetup",
 			},
 			{
