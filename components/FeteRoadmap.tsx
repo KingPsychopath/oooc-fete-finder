@@ -11,22 +11,30 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { Event } from "@/types/events";
 
-interface ItineraryEvent {
+interface ScheduleEvent {
 	time: string;
 	title: string;
+	type: string;
 	location?: string;
-	type?: "drinks" | "brunch" | "meetup" | "music" | "party";
+	searchHint?: string; // Hidden property to help with exact event matching
+	disableClick?: boolean; // Explicitly disable clickability even if event matches
 }
 
 interface DaySchedule {
 	day: string;
 	date: string;
-	events: ItineraryEvent[];
 	color: string;
+	events: ScheduleEvent[];
 }
 
-const itineraryData: DaySchedule[] = [
+interface FeteRoadmapProps {
+	events?: Event[];
+	onEventClick?: (event: Event) => void;
+}
+
+const getItineraryData = (): DaySchedule[] => [
 	{
 		day: "Friday",
 		date: "20th June",
@@ -36,6 +44,7 @@ const itineraryData: DaySchedule[] = [
 				time: "22:00",
 				title: "Pre-drinks @ Zezei",
 				type: "drinks",
+				searchHint: "Zesei",
 			},
 		],
 	},
@@ -53,27 +62,32 @@ const itineraryData: DaySchedule[] = [
 				time: "14:00",
 				title: "Damside",
 				type: "music",
+				searchHint: "Damside Block Party 🇫🇷x🇳🇱",
 			},
 			{
 				time: "16:00",
 				title: "Genesis",
 				type: "music",
+				searchHint: "Genesis", // No exact match in current data
 			},
 			{
 				time: "18:00",
 				title: "Hotel Zamara / Mondial",
 				location: "Hotel Zamara / Mondial",
 				type: "music",
+				searchHint: "Hotel Zamara",
 			},
 			{
 				time: "19:00",
 				title: "Spiritual Gangsta",
 				type: "music",
+				searchHint: "Spiritual Gangster", // Exact match to avoid confusion with other "gang" events
 			},
 			{
 				time: "22:00",
 				title: "Sixtion x Recess x Everyday People",
 				type: "party",
+				searchHint: "Sixtion x Recess x Everyday People",
 			},
 		],
 	},
@@ -96,6 +110,8 @@ const itineraryData: DaySchedule[] = [
 		],
 	},
 ];
+
+
 
 const getEventIcon = (type?: string) => {
 	switch (type) {
@@ -131,7 +147,87 @@ const getEventBadgeColor = (type?: string) => {
 	}
 };
 
-export function FeteRoadmap() {
+// Enhanced fuzzy matching function with search hint support
+const findMatchingEvent = (event: ScheduleEvent, allEvents?: Event[]): Event | null => {
+	if (!allEvents) return null;
+
+	// Normalize the search title
+	const normalizeString = (str: string) => 
+		str.toLowerCase()
+			.replace(/[^a-z0-9\s]/g, '') // Remove special chars
+			.replace(/\s+/g, ' ') // Normalize spaces
+			.trim();
+
+	// Use searchHint if available, otherwise fall back to title
+	const searchText = event.searchHint || event.title;
+	const searchTitle = normalizeString(searchText);
+	
+	// Try exact match with search hint first (highest priority)
+	const exactMatch = allEvents.find(e => normalizeString(e.name) === searchTitle);
+	if (exactMatch) return exactMatch;
+
+	// If searchHint was used and didn't match exactly, try original title
+	if (event.searchHint) {
+		const titleMatch = allEvents.find(e => normalizeString(e.name) === normalizeString(event.title));
+		if (titleMatch) return titleMatch;
+	}
+
+	// Try partial matches with stricter criteria
+	const partialMatches = allEvents.filter(e => {
+		const eventName = normalizeString(e.name);
+		
+		// Strategy 1: Check if search text is contained in event name (more restrictive)
+		if (eventName.includes(searchTitle)) {
+			return true;
+		}
+		
+		// Strategy 2: Check if event name is contained in search text (less likely to cause false matches)
+		if (searchTitle.includes(eventName) && eventName.length >= 4) {
+			return true;
+		}
+		
+		// Strategy 3: Word-based matching with higher threshold
+		const searchWords = searchTitle.split(' ').filter(w => w.length > 3); // Increased minimum word length
+		const eventWords = eventName.split(' ').filter(w => w.length > 3);
+		
+		if (searchWords.length === 0 || eventWords.length === 0) return false;
+		
+		const matchingWords = searchWords.filter(sw => 
+			eventWords.some(ew => ew === sw || (ew.includes(sw) && sw.length > 4) || (sw.includes(ew) && ew.length > 4))
+		);
+		
+		// Require a higher percentage of words to match for more accuracy
+		const threshold = Math.max(1, Math.ceil(Math.min(searchWords.length, eventWords.length) * 0.7)); // 70% match required
+		return matchingWords.length >= threshold;
+	});
+
+	// Return the best partial match (prefer exact word matches over partial)
+	if (partialMatches.length > 0) {
+		return partialMatches.reduce((best, current) => {
+			const bestName = normalizeString(best.name);
+			const currentName = normalizeString(current.name);
+			
+			// Prioritize events with exact word matches
+			const searchWords = searchTitle.split(' ').filter(w => w.length > 3);
+			const bestExactMatches = searchWords.filter(w => bestName.split(' ').includes(w)).length;
+			const currentExactMatches = searchWords.filter(w => currentName.split(' ').includes(w)).length;
+			
+			if (currentExactMatches > bestExactMatches) return current;
+			if (bestExactMatches > currentExactMatches) return best;
+			
+			// If equal exact matches, prefer shorter names (more specific)
+			return currentName.length < bestName.length ? current : best;
+		});
+	}
+
+	return null;
+};
+
+export function FeteRoadmap({ events, onEventClick }: FeteRoadmapProps) {
+	const itineraryData = getItineraryData();
+	
+
+
 	return (
 		<div className="mb-12 relative">
 			{/* Decorative musical notes */}
@@ -200,7 +296,7 @@ export function FeteRoadmap() {
 				</CardHeader>
 				<CardContent className="px-6 pb-8 relative z-10">
 					<Accordion type="multiple" className="w-full space-y-6">
-						{itineraryData.map((daySchedule, dayIndex) => (
+						{itineraryData.map((daySchedule: DaySchedule, dayIndex: number) => (
 							<AccordionItem
 								key={daySchedule.day}
 								value={`day-${dayIndex}`}
@@ -246,72 +342,95 @@ export function FeteRoadmap() {
 								</AccordionTrigger>
 								<AccordionContent className="px-8 pb-8">
 									<div className="space-y-4 pt-4">
-										{daySchedule.events.map((event, eventIndex) => (
-											<div
-												key={eventIndex}
-												className="relative group"
-											>
-												<div className="flex flex-col sm:flex-row sm:items-start space-y-3 sm:space-y-0 sm:space-x-5 p-4 sm:p-6 bg-gradient-to-r from-gray-50 to-white rounded-xl border-l-4 border-purple-500 hover:shadow-lg transition-all duration-300 hover:from-purple-50 hover:to-pink-50">
-													{/* Mobile: Stack vertically, Desktop: Side by side */}
-													<div className="flex items-start space-x-4 sm:space-x-0">
-														<div className="flex-shrink-0">
-															<div className={cn(
-																"w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br rounded-lg sm:rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform",
-																getEventBadgeColor(event.type)
-															)}>
-																{getEventIcon(event.type)}
-															</div>
-														</div>
-														<div className="flex-grow sm:hidden">
-															<h4 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-purple-700 transition-colors">
-																{event.title}
-															</h4>
-															{event.location && (
-																<div className="flex items-center space-x-2 text-gray-600 mb-2">
-																	<MapPin className="h-4 w-4 text-purple-500" />
-																	<span className="text-sm font-medium">{event.location}</span>
-																</div>
-															)}
-														</div>
-													</div>
-													
-													<div className="flex-grow">
-														{/* Mobile: Horizontal badges, Desktop: Maintain layout */}
-														<div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-3">
-															<div className="flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold px-3 py-1 sm:px-4 sm:py-2 rounded-full">
-																<Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-																<span className="text-sm sm:text-lg font-mono">{event.time}</span>
-															</div>
-															{event.type && (
-																<Badge className={cn(
-																	"font-semibold px-2 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm shadow-sm",
+										{daySchedule.events.map((event: ScheduleEvent, eventIndex: number) => {
+											const matchingEvent = findMatchingEvent(event, events);
+											const isClickable = matchingEvent && onEventClick && !event.disableClick;
+											
+											const handleEventClick = () => {
+												if (isClickable && matchingEvent && onEventClick) {
+													onEventClick(matchingEvent);
+												}
+											};
+
+											return (
+												<div
+													key={eventIndex}
+													className="relative group"
+												>
+													<div 
+														className={cn(
+															"flex flex-col sm:flex-row sm:items-start space-y-3 sm:space-y-0 sm:space-x-5 p-4 sm:p-6 bg-gradient-to-r from-gray-50 to-white rounded-xl border-l-4 border-purple-500 hover:shadow-lg transition-all duration-300 hover:from-purple-50 hover:to-pink-50",
+															isClickable && "cursor-pointer hover:scale-[1.02] hover:shadow-xl"
+														)}
+														onClick={handleEventClick}
+													>
+														{/* Mobile: Stack vertically, Desktop: Side by side */}
+														<div className="flex items-start space-x-4 sm:space-x-0">
+															<div className="flex-shrink-0">
+																<div className={cn(
+																	"w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br rounded-lg sm:rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform",
 																	getEventBadgeColor(event.type)
 																)}>
-																	{event.type}
-																</Badge>
-															)}
+																	{getEventIcon(event.type)}
+																</div>
+															</div>
+															<div className="flex-grow sm:hidden">
+																<h4 className={cn(
+																	"text-lg font-bold text-gray-900 mb-1 group-hover:text-purple-700 transition-colors flex items-center gap-2",
+																	isClickable && "text-purple-600"
+																)}>
+																	{event.title}
+																</h4>
+																{event.location && (
+																	<div className="flex items-center space-x-2 text-gray-600 mb-2">
+																		<MapPin className="h-4 w-4 text-purple-500" />
+																		<span className="text-sm font-medium">{event.location}</span>
+																	</div>
+																)}
+															</div>
 														</div>
 														
-														{/* Desktop title and location */}
-														<div className="hidden sm:block">
-															<h4 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-700 transition-colors">
-																{event.title}
-															</h4>
-															{event.location && (
-																<div className="flex items-center space-x-2 text-gray-600">
-																	<MapPin className="h-5 w-5 text-purple-500" />
-																	<span className="text-base font-medium">{event.location}</span>
+														<div className="flex-grow">
+															{/* Mobile: Horizontal badges, Desktop: Maintain layout */}
+															<div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-3">
+																<div className="flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold px-3 py-1 sm:px-4 sm:py-2 rounded-full">
+																	<Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+																	<span className="text-sm sm:text-lg font-mono">{event.time}</span>
 																</div>
-															)}
+																{event.type && (
+																	<Badge className={cn(
+																		"font-semibold px-2 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm shadow-sm",
+																		getEventBadgeColor(event.type)
+																	)}>
+																		{event.type}
+																	</Badge>
+																)}
+															</div>
+															
+															{/* Desktop title and location */}
+															<div className="hidden sm:block">
+																<h4 className={cn(
+																	"text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-700 transition-colors flex items-center gap-2",
+																	isClickable && "text-purple-600"
+																)}>
+																	{event.title}
+																</h4>
+																{event.location && (
+																	<div className="flex items-center space-x-2 text-gray-600">
+																		<MapPin className="h-5 w-5 text-purple-500" />
+																		<span className="text-base font-medium">{event.location}</span>
+																	</div>
+																)}
+															</div>
 														</div>
 													</div>
+													{/* Decorative element */}
+													<div className="absolute -right-1 sm:-right-2 top-1/2 transform -translate-y-1/2 text-lg sm:text-2xl opacity-20 group-hover:opacity-40 transition-opacity">
+														🎵
+													</div>
 												</div>
-												{/* Decorative element */}
-												<div className="absolute -right-1 sm:-right-2 top-1/2 transform -translate-y-1/2 text-lg sm:text-2xl opacity-20 group-hover:opacity-40 transition-opacity">
-													🎵
-												</div>
-											</div>
-										))}
+											);
+										})}
 									</div>
 								</AccordionContent>
 							</AccordionItem>

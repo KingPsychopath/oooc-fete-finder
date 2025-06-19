@@ -458,7 +458,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	return (
 		<>
 			{/* Fête Roadmap */}
-			<FeteRoadmap />
+			<FeteRoadmap events={events} onEventClick={setSelectedEvent} />
 
 			{/* Search Bar */}
 			<div className="mb-8">
