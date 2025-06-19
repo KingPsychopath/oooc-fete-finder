@@ -33,6 +33,7 @@ import { ChevronDown, MapPin } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ParisMap from "@/components/ParisMap";
 import ParisMapLibre from "@/components/ParisMapLibre";
+import { FeteRoadmap } from "@/components/FeteRoadmap";
 
 interface EventsClientProps {
 	initialEvents: Event[];
@@ -456,6 +457,9 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 
 	return (
 		<>
+			{/* Fête Roadmap */}
+			<FeteRoadmap />
+
 			{/* Search Bar */}
 			<div className="mb-8">
 				<AuthGate
