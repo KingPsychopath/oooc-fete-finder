@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Clock, MapPin, Music, Users, Volume2, Star, Sparkles } from "lucide-react";
+import { Calendar, Clock, MapPin, Music, Users, Volume2, Star, Sparkles, PartyPopper } from "lucide-react";
 import {
 	Accordion,
 	AccordionContent,
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface ItineraryEvent {
@@ -172,6 +173,22 @@ export function FeteRoadmap() {
 								<Star className="absolute -top-2 -right-8 h-6 w-6 text-yellow-300 animate-pulse hidden md:block" />
 							</div>
 						</div>
+						
+						{/* Call to Action */}
+						<div className="flex flex-col items-center space-y-4">
+							<Button 
+								size="lg"
+								className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-gray-900 font-black text-xl px-8 py-4 rounded-full shadow-2xl hover:shadow-yellow-500/25 transition-all duration-300 hover:scale-105 border-0"
+							>
+								<PartyPopper className="h-6 w-6 mr-3 animate-bounce" />
+								REJOIGNEZ-NOUS !
+								<Sparkles className="h-6 w-6 ml-3 animate-pulse" />
+							</Button>
+							<p className="text-white/80 text-lg font-medium max-w-md text-center">
+								Découvrez Paris avec nous pendant la Fête de la Musique
+							</p>
+						</div>
+						
 						<div className="bg-white/20 backdrop-blur-sm rounded-full px-6 py-3 border border-white/30">
 							<div className="flex items-center space-x-3 text-white">
 								<Calendar className="h-6 w-6" />
@@ -189,33 +206,41 @@ export function FeteRoadmap() {
 								value={`day-${dayIndex}`}
 								className="border-0 rounded-2xl bg-white/95 backdrop-blur-sm shadow-xl overflow-hidden"
 							>
-								<AccordionTrigger className="px-8 py-6 text-left hover:no-underline group">
-									<div className="flex items-center space-x-6 w-full">
-										<div className="flex-shrink-0 relative">
-											<div className={cn(
-												"w-16 h-16 bg-gradient-to-br rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform",
-												daySchedule.color
-											)}>
-												<Calendar className="h-8 w-8 text-white" />
+								<AccordionTrigger className="px-4 sm:px-8 py-4 sm:py-6 text-left hover:no-underline group">
+									{/* Mobile-first responsive layout */}
+									<div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-6 w-full">
+										{/* Top row on mobile: Icon + Title */}
+										<div className="flex items-center space-x-4 sm:space-x-6">
+											<div className="flex-shrink-0 relative">
+												<div className={cn(
+													"w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform",
+													daySchedule.color
+												)}>
+													<Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+												</div>
+												<div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-yellow-400 rounded-full animate-pulse"></div>
 											</div>
-											<div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full animate-pulse"></div>
+											<div className="flex-grow">
+												<h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-0 sm:mb-1">
+													{daySchedule.day}
+												</h3>
+												<p className="text-lg sm:text-xl text-gray-600 font-medium">
+													{daySchedule.date}
+												</p>
+											</div>
 										</div>
-										<div className="flex-grow">
-											<h3 className="text-3xl font-bold text-gray-900 mb-1">
-												{daySchedule.day}
-											</h3>
-											<p className="text-xl text-gray-600 font-medium">
-												{daySchedule.date}
-											</p>
-										</div>
-										<div className="flex items-center space-x-3">
+										
+										{/* Bottom row on mobile: Badges */}
+										<div className="flex items-center justify-start sm:justify-end space-x-2 sm:space-x-3 ml-16 sm:ml-0">
 											<Badge className={cn(
-												"text-white font-bold px-4 py-2 text-sm",
+												"text-white font-bold px-3 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm whitespace-nowrap",
 												`bg-gradient-to-r ${daySchedule.color}`
 											)}>
 												{daySchedule.events.length} événement{daySchedule.events.length !== 1 ? "s" : ""}
 											</Badge>
-											<Music className="h-6 w-6 text-purple-600 group-hover:animate-spin" />
+											<div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-100 dark:bg-purple-900/20">
+												<Music className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 group-hover:animate-spin transition-transform" />
+											</div>
 										</div>
 									</div>
 								</AccordionTrigger>
@@ -226,43 +251,63 @@ export function FeteRoadmap() {
 												key={eventIndex}
 												className="relative group"
 											>
-												<div className="flex items-start space-x-5 p-6 bg-gradient-to-r from-gray-50 to-white rounded-xl border-l-4 border-purple-500 hover:shadow-lg transition-all duration-300 hover:from-purple-50 hover:to-pink-50">
-													<div className="flex-shrink-0 pt-1">
-														<div className={cn(
-															"w-12 h-12 bg-gradient-to-br rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform",
-															getEventBadgeColor(event.type)
-														)}>
-															{getEventIcon(event.type)}
+												<div className="flex flex-col sm:flex-row sm:items-start space-y-3 sm:space-y-0 sm:space-x-5 p-4 sm:p-6 bg-gradient-to-r from-gray-50 to-white rounded-xl border-l-4 border-purple-500 hover:shadow-lg transition-all duration-300 hover:from-purple-50 hover:to-pink-50">
+													{/* Mobile: Stack vertically, Desktop: Side by side */}
+													<div className="flex items-start space-x-4 sm:space-x-0">
+														<div className="flex-shrink-0">
+															<div className={cn(
+																"w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br rounded-lg sm:rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform",
+																getEventBadgeColor(event.type)
+															)}>
+																{getEventIcon(event.type)}
+															</div>
+														</div>
+														<div className="flex-grow sm:hidden">
+															<h4 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-purple-700 transition-colors">
+																{event.title}
+															</h4>
+															{event.location && (
+																<div className="flex items-center space-x-2 text-gray-600 mb-2">
+																	<MapPin className="h-4 w-4 text-purple-500" />
+																	<span className="text-sm font-medium">{event.location}</span>
+																</div>
+															)}
 														</div>
 													</div>
+													
 													<div className="flex-grow">
-														<div className="flex items-center space-x-4 mb-3">
-															<div className="flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold px-4 py-2 rounded-full">
-																<Clock className="h-4 w-4" />
-																<span className="text-lg font-mono">{event.time}</span>
+														{/* Mobile: Horizontal badges, Desktop: Maintain layout */}
+														<div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-3">
+															<div className="flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold px-3 py-1 sm:px-4 sm:py-2 rounded-full">
+																<Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+																<span className="text-sm sm:text-lg font-mono">{event.time}</span>
 															</div>
 															{event.type && (
 																<Badge className={cn(
-																	"font-semibold px-3 py-1 text-sm shadow-sm",
+																	"font-semibold px-2 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm shadow-sm",
 																	getEventBadgeColor(event.type)
 																)}>
 																	{event.type}
 																</Badge>
 															)}
 														</div>
-														<h4 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-700 transition-colors">
-															{event.title}
-														</h4>
-														{event.location && (
-															<div className="flex items-center space-x-2 text-gray-600">
-																<MapPin className="h-5 w-5 text-purple-500" />
-																<span className="text-base font-medium">{event.location}</span>
-															</div>
-														)}
+														
+														{/* Desktop title and location */}
+														<div className="hidden sm:block">
+															<h4 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-700 transition-colors">
+																{event.title}
+															</h4>
+															{event.location && (
+																<div className="flex items-center space-x-2 text-gray-600">
+																	<MapPin className="h-5 w-5 text-purple-500" />
+																	<span className="text-base font-medium">{event.location}</span>
+																</div>
+															)}
+														</div>
 													</div>
 												</div>
 												{/* Decorative element */}
-												<div className="absolute -right-2 top-1/2 transform -translate-y-1/2 text-2xl opacity-20 group-hover:opacity-40 transition-opacity">
+												<div className="absolute -right-1 sm:-right-2 top-1/2 transform -translate-y-1/2 text-lg sm:text-2xl opacity-20 group-hover:opacity-40 transition-opacity">
 													🎵
 												</div>
 											</div>
