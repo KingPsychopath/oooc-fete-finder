@@ -384,10 +384,12 @@ export function FeteRoadmap({ events, onEventClick }: FeteRoadmapProps) {
 														<div className="flex items-start space-x-4 sm:space-x-0">
 															<div className="flex-shrink-0">
 																<div className={cn(
-																	"w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br rounded-lg sm:rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform",
+																	"w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br rounded-lg sm:rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform overflow-hidden",
 																	getEventBadgeColor(event.type)
 																)}>
-																	{getEventIcon(event.type)}
+																	<div className="flex items-center justify-center w-full h-full">
+																		{getEventIcon(event.type)}
+																	</div>
 																</div>
 															</div>
 															<div className="flex-grow sm:hidden">
@@ -439,10 +441,6 @@ export function FeteRoadmap({ events, onEventClick }: FeteRoadmapProps) {
 																)}
 															</div>
 														</div>
-													</div>
-													{/* Decorative element */}
-													<div className="absolute -right-1 sm:-right-2 top-1/2 transform -translate-y-1/2 text-lg sm:text-2xl opacity-20 group-hover:opacity-40 transition-opacity">
-														🎵
 													</div>
 												</div>
 											);
