@@ -232,8 +232,8 @@ export class CacheInvalidationManager {
 
 		// Clear cache tags
 		try {
-			revalidateTag("events");
-			revalidateTag("events-data");
+			revalidateTag("events", "max");
+			revalidateTag("events-data", "max");
 			console.log("✅ Cache tags cleared");
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : "Unknown error";
