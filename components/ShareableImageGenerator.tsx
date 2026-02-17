@@ -155,15 +155,6 @@ const buildPortraitTemplate = (event: Event): string => {
 			}</div>`
 		: "";
 
-	const nationalityChips =
-		meta.nationalityBadges.length > 0 ?
-			`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">${meta.nationalityBadges
-				.map(
-					(nationality) => `<div style="padding:6px 10px;border-radius:999px;background:#f4f1eb;border:1px solid #d7d3cb;color:#171717;font-size:11px;font-weight:600;">${nationality}</div>`,
-				)
-				.join("")}</div>`
-		: "";
-
 	return `
 		<div style="display:flex;flex-direction:column;height:100%;background:
 			radial-gradient(120% 82% at 50% 95%, rgba(26,16,12,0.18) 0%, rgba(26,16,12,0) 54%),
@@ -181,17 +172,32 @@ const buildPortraitTemplate = (event: Event): string => {
 				<div style="margin-top:26px;">
 					<h1 style="margin:0;font-family:'Swear Display','Times New Roman',serif;font-size:96px;line-height:0.9;font-weight:400;color:#121212;word-break:break-word;">${meta.eventName}</h1>
 					${genreChips}
-					${nationalityChips}
 				</div>
 
-				<div style="margin-top:24px;border-radius:24px;border:1px solid #D6D0C7;background:#FFFFFF;padding:16px;">
+				<div style="margin-top:24px;border-radius:24px;border:1px solid #D6D0C7;background:#FFFFFF;padding:16px;display:flex;flex-direction:column;gap:12px;flex:1;">
 					<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
 						<div style="border-radius:15px;border:1px solid #DDD9D1;background:#FAF9F7;padding:14px;"><p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Date</p><p style="margin:8px 0 0 0;font-size:38px;font-weight:600;color:#161616;line-height:1.1;">${meta.dateLabel}</p></div>
 						<div style="border-radius:15px;border:1px solid #DDD9D1;background:#FAF9F7;padding:14px;"><p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Time</p><p style="margin:8px 0 0 0;font-size:38px;font-weight:600;color:#161616;line-height:1.1;">${meta.timeLabel}</p></div>
 						<div style="border-radius:15px;border:1px solid #DDD9D1;background:#FAF9F7;padding:14px;"><p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Price</p><p style="margin:8px 0 0 0;font-size:42px;font-weight:700;color:#161616;line-height:1.1;">${meta.priceLabel}</p></div>
 						<div style="border-radius:15px;border:1px solid #DDD9D1;background:#FAF9F7;padding:14px;"><p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Venue</p><p style="margin:8px 0 0 0;font-size:33px;font-weight:600;color:#161616;line-height:1.1;">${escapeHtml(`${formatVenueTypeIcons(event)} ${meta.venueLabel}`)}</p></div>
 					</div>
-					<div style="margin-top:12px;border-radius:15px;border:1px solid #DDD9D1;background:#FAF9F7;padding:14px;"><p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Location</p><p style="margin:8px 0 0 0;font-size:30px;font-weight:500;color:#161616;line-height:1.2;">${meta.locationLabel}</p><p style="margin:7px 0 0 0;font-size:20px;color:#57534c;">Age: ${meta.ageLabel} · ${escapeHtml(event.type)}</p></div>
+					<div style="border-radius:15px;border:1px solid #DDD9D1;background:#FAF9F7;padding:14px;">
+						<p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Location</p>
+						<p style="margin:8px 0 0 0;font-size:34px;font-weight:500;color:#161616;line-height:1.16;">${meta.locationLabel}</p>
+						<p style="margin:7px 0 0 0;font-size:21px;color:#57534c;">Age: ${meta.ageLabel} · ${escapeHtml(event.type)}</p>
+					</div>
+					${
+						meta.nationalityBadges.length > 0 ?
+							`<div style="margin-top:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid #DDD9D1;padding-top:12px;">
+								<span style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#67625A;">Host origin</span>
+								${meta.nationalityBadges
+									.map(
+										(nationality) => `<span style="display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#F2EEE7;border:1px solid #D8D2C8;color:#2D2A25;font-size:13px;font-weight:600;line-height:1;">${nationality}</span>`,
+									)
+									.join("")}
+							</div>`
+						: ""
+					}
 				</div>
 
 				<div style="margin-top:auto;padding-top:20px;">
@@ -242,7 +248,7 @@ const buildLandscapeTemplate = (event: Event): string => {
 					</div>
 				</div>
 
-				<div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #d7d3cb;padding-top:10px;">
+				<div style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;padding-top:8px;">
 					<div><p style="margin:0;font-size:17px;font-weight:700;color:#121212;">OOOC Fête Finder</p><p style="margin:4px 0 0 0;font-size:13px;color:#57534c;">Paris Event Post</p></div>
 					${event.isOOOCPick ? '<div style="padding:8px 12px;border-radius:999px;background:#121212;color:#ffffff;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">OOOC Pick</div>' : ""}
 				</div>
