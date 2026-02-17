@@ -19,11 +19,11 @@ import {
 } from "@/features/data-management/actions";
 import type { EditableSheetColumn, EditableSheetRow } from "@/features/data-management/csv/sheet-editor";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
-import type { CacheStatus } from "../types";
+import type { RuntimeDataStatus } from "../types";
 
 type LocalEventStoreCardProps = {
 	isAuthenticated: boolean;
-	cacheStatus?: CacheStatus;
+	runtimeDataStatus?: RuntimeDataStatus;
 	initialStatus?: Awaited<ReturnType<typeof getLocalEventStoreStatus>>;
 	initialPreview?: Awaited<ReturnType<typeof getLocalEventStorePreview>>;
 	onStoreUpdated?: () => Promise<void> | void;
@@ -45,7 +45,7 @@ type RemotePreviewState = {
 
 export const LocalEventStoreCard = ({
 	isAuthenticated,
-	cacheStatus,
+	runtimeDataStatus,
 	initialStatus,
 	initialPreview,
 	onStoreUpdated,
@@ -316,8 +316,8 @@ export const LocalEventStoreCard = ({
 	};
 
 	const fallbackActive =
-		cacheStatus?.configuredDataSource === "remote" &&
-		cacheStatus.dataSource !== "store";
+		runtimeDataStatus?.configuredDataSource === "remote" &&
+		runtimeDataStatus.dataSource !== "store";
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
@@ -340,7 +340,7 @@ export const LocalEventStoreCard = ({
 							Live Events
 						</p>
 						<p className="mt-1 text-base font-semibold">
-							{cacheStatus?.eventCount ?? 0}
+							{runtimeDataStatus?.eventCount ?? 0}
 						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">

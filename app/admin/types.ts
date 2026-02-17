@@ -10,18 +10,18 @@ import type {
 	getLocalEventStoreStatus,
 } from "@/features/data-management/actions";
 import type { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
-import type { CacheStatus } from "@/lib/cache/cache-types";
+import type { RuntimeDataStatus } from "@/lib/cache/cache-types";
 
 export type {
 	UserCollectionAnalytics,
 	UserCollectionStoreSummary,
 	UserRecord as EmailRecord,
 } from "@/features/auth/types";
-export type { CacheStatus } from "@/lib/cache/cache-types";
+export type { RuntimeDataStatus } from "@/lib/cache/cache-types";
 
 /** Payload passed from server admin page to AdminDashboardClient for first-paint data */
 export type AdminInitialData = {
-	cacheStatus: CacheStatus;
+	runtimeDataStatus: RuntimeDataStatus;
 	emailsResult: CollectedEmailsResponse;
 	sessionStatus: Awaited<ReturnType<typeof getAdminSessionStatus>>;
 	tokenSessions: Awaited<ReturnType<typeof getAdminTokenSessions>>;

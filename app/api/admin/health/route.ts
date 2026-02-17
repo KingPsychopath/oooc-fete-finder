@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
-import { CacheManager } from "@/lib/cache/cache-manager";
+import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
 import { processCSVData } from "@/features/data-management/data-processor";
 import { DataManager } from "@/features/data-management/data-manager";
 import { LocalEventStore } from "@/features/data-management/local-event-store";
@@ -19,12 +19,12 @@ export async function GET(request: NextRequest) {
 	try {
 		const kvRepository = getAppKVStoreRepository();
 		const eventRepository = getEventSheetStoreRepository();
-		const [storeStatus, csv, dataConfig, cacheStatus, eventStoreCounts, eventStoreMeta] =
+		const [storeStatus, csv, dataConfig, runtimeDataStatus, eventStoreCounts, eventStoreMeta] =
 			await Promise.all([
 			LocalEventStore.getStatus(),
 			LocalEventStore.getCsv(),
 			DataManager.getDataConfigStatus(),
-			CacheManager.getCacheStatus(),
+			EventsRuntimeManager.getRuntimeDataStatus(),
 			eventRepository?.getCounts() ??
 				Promise.resolve({
 					rowCount: 0,
@@ -70,9 +70,9 @@ export async function GET(request: NextRequest) {
 				`Parsed event count (${parsedEventCount}) differs from raw CSV rows (${csvRowCount}); this usually means rows were filtered/invalid during parsing`,
 			);
 		}
-		if (cacheStatus.eventCount !== parsedEventCount) {
+		if (runtimeDataStatus.eventCount !== parsedEventCount) {
 			mismatches.push(
-				`Live runtime event count (${cacheStatus.eventCount}) differs from parsed event count (${parsedEventCount}); runtime source may still be on fallback`,
+				`Live runtime event count (${runtimeDataStatus.eventCount}) differs from parsed event count (${parsedEventCount}); runtime source may still be on fallback`,
 			);
 		}
 		if (eventStoreMeta.rowCount !== eventStoreCounts.rowCount) {
@@ -94,15 +94,15 @@ export async function GET(request: NextRequest) {
 			},
 			mode: {
 				configuredDataMode: dataConfig.dataSource,
-				liveDataSource: cacheStatus.dataSource,
+				liveDataSource: runtimeDataStatus.dataSource,
 				remoteConfigured: dataConfig.remoteConfigured,
 			},
 			counts: {
 				storeMetadataRows: storeStatus.rowCount,
 				csvRawRows: csvRowCount,
 				parsedEvents: parsedEventCount,
-				liveCachedEvents: cacheStatus.eventCount,
-				liveEvents: cacheStatus.eventCount,
+				liveRuntimeEvents: runtimeDataStatus.eventCount,
+				liveEvents: runtimeDataStatus.eventCount,
 			},
 			store: {
 				hasStoreData: storeStatus.hasStoreData,
@@ -120,14 +120,9 @@ export async function GET(request: NextRequest) {
 				parsingWarnings,
 				countMismatches: mismatches,
 			},
-			cache: {
-				lastFetchTime: cacheStatus.lastFetchTime,
-				cacheAgeMs: cacheStatus.cacheAge,
-				lastRemoteErrorMessage: cacheStatus.lastRemoteErrorMessage,
-			},
 			runtime: {
-				lastCheckTime: cacheStatus.lastFetchTime,
-				lastErrorMessage: cacheStatus.lastRemoteErrorMessage,
+				lastCheckTime: runtimeDataStatus.lastFetchTime,
+				lastErrorMessage: runtimeDataStatus.lastRemoteErrorMessage,
 			},
 		});
 	} catch (error) {

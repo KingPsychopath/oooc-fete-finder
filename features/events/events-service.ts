@@ -5,7 +5,7 @@
  * without creating circular dependencies between data and delivery layers.
  */
 
-import { CacheManager } from "@/lib/cache/cache-manager";
+import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
 import type { Event, MusicGenre } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
 
@@ -14,7 +14,7 @@ import { log } from "@/lib/platform/logger";
  */
 export async function getAllEvents(): Promise<Event[]> {
 	try {
-		const result = await CacheManager.getEvents();
+		const result = await EventsRuntimeManager.getEvents();
 
 		if (result.error) {
 			log.error("events", "Error loading events", { error: result.error });

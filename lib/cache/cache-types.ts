@@ -12,7 +12,7 @@ export interface EventsResult {
 	lastUpdate?: string;
 }
 
-export interface CacheRefreshResult {
+export interface RuntimeRefreshResult {
 	success: boolean;
 	message: string;
 	data?: Event[];
@@ -29,7 +29,7 @@ export interface FullRevalidationResult {
 	error?: string;
 }
 
-export interface CacheStatus {
+export interface RuntimeDataStatus {
 	hasCachedData: boolean;
 	lastFetchTime: string | null;
 	lastRemoteFetchTime: string | null;
@@ -53,7 +53,7 @@ export interface CacheStatus {
 	storeKeyCount: number;
 }
 
-export interface CacheMetricsData {
+export interface RuntimeMetricsData {
 	cacheHits: number;
 	cacheMisses: number;
 	totalRequests: number;

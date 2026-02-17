@@ -6,20 +6,20 @@ import {
 	getCollectedEmails,
 	logoutAdminSession,
 } from "@/features/auth/actions";
-import { getCacheStatus } from "@/features/data-management/actions";
+import { getRuntimeDataStatus } from "@/features/data-management/actions";
 import { revalidatePages } from "@/lib/cache/actions";
 import { env } from "@/lib/config/env";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { AdminSessionStatus } from "./components/AdminSessionStatus";
-import { CacheManagementCard } from "./components/CacheManagementCard";
+import { RuntimeDataStatusCard } from "./components/RuntimeDataStatusCard";
 import { EmailCollectionCard } from "./components/EmailCollectionCard";
 import { EventSheetEditorCard } from "./components/EventSheetEditorCard";
 import { LiveEventsSnapshotCard } from "./components/LiveEventsSnapshotCard";
 import { LocalEventStoreCard } from "./components/LocalEventStoreCard";
 import { SlidingBannerSettingsCard } from "./components/SlidingBannerSettingsCard";
 import type {
-	CacheStatus,
+	RuntimeDataStatus,
 	EmailRecord,
 	UserCollectionAnalytics,
 	UserCollectionStoreSummary,
@@ -36,8 +36,8 @@ export function AdminDashboardClient({
 	initialData,
 }: AdminDashboardClientProps) {
 	const router = useRouter();
-	const [cacheStatus, setCacheStatus] = useState<CacheStatus>(
-		initialData.cacheStatus,
+	const [runtimeDataStatus, setRuntimeDataStatus] = useState<RuntimeDataStatus>(
+		initialData.runtimeDataStatus,
 	);
 	const [emails, setEmails] = useState<EmailRecord[]>(
 		initialData.emailsResult.success
@@ -60,9 +60,9 @@ export function AdminDashboardClient({
 	const [refreshMessage, setRefreshMessage] = useState("");
 	const [statusRefreshing, setStatusRefreshing] = useState(false);
 
-	const loadCacheStatus = useCallback(async () => {
-		const status = await getCacheStatus();
-		setCacheStatus(status);
+	const loadRuntimeDataStatus = useCallback(async () => {
+		const status = await getRuntimeDataStatus();
+		setRuntimeDataStatus(status);
 		return status;
 	}, []);
 
@@ -83,7 +83,7 @@ export function AdminDashboardClient({
 	const handleStatusRefresh = useCallback(async () => {
 		setStatusRefreshing(true);
 		try {
-			await Promise.all([loadCacheStatus(), loadEmails()]);
+			await Promise.all([loadRuntimeDataStatus(), loadEmails()]);
 			setRefreshMessage("Status refreshed");
 		} catch (statusError) {
 			setRefreshMessage(
@@ -94,7 +94,7 @@ export function AdminDashboardClient({
 		} finally {
 			setStatusRefreshing(false);
 		}
-	}, [loadCacheStatus, loadEmails]);
+	}, [loadRuntimeDataStatus, loadEmails]);
 
 	const handleRefresh = useCallback(async () => {
 		setRefreshing(true);
@@ -107,7 +107,7 @@ export function AdminDashboardClient({
 				);
 				return;
 			}
-			await Promise.all([loadCacheStatus(), loadEmails()]);
+			await Promise.all([loadRuntimeDataStatus(), loadEmails()]);
 			setRefreshMessage(
 				`Revalidated in ${revalidateResult.processingTimeMs ?? 0}ms`,
 			);
@@ -120,7 +120,7 @@ export function AdminDashboardClient({
 		} finally {
 			setRefreshing(false);
 		}
-	}, [loadCacheStatus, loadEmails]);
+	}, [loadRuntimeDataStatus, loadEmails]);
 
 	const exportAsCSV = useCallback(async () => {
 		const result = await exportCollectedEmailsCsv();
@@ -148,8 +148,8 @@ export function AdminDashboardClient({
 	}, [router]);
 
 	const onDataSaved = useCallback(async () => {
-		await Promise.all([loadCacheStatus(), loadEmails()]);
-	}, [loadCacheStatus, loadEmails]);
+		await Promise.all([loadRuntimeDataStatus(), loadEmails()]);
+	}, [loadRuntimeDataStatus, loadEmails]);
 
 	return (
 		<div className="ooo-admin-shell overflow-x-hidden">
@@ -180,8 +180,8 @@ export function AdminDashboardClient({
 
 				<div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
 					<div className="min-w-0 space-y-6">
-						<CacheManagementCard
-							cacheStatus={cacheStatus}
+						<RuntimeDataStatusCard
+							runtimeDataStatus={runtimeDataStatus}
 							refreshing={refreshing}
 							refreshMessage={refreshMessage}
 							onRefresh={handleRefresh}
@@ -205,7 +205,7 @@ export function AdminDashboardClient({
 						/>
 						<LocalEventStoreCard
 							isAuthenticated
-							cacheStatus={cacheStatus}
+							runtimeDataStatus={runtimeDataStatus}
 							initialStatus={initialData.localStoreStatus}
 							initialPreview={initialData.localStorePreview}
 							onStoreUpdated={onDataSaved}

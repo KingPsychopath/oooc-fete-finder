@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
-import { CacheManager } from "@/lib/cache/cache-manager";
+import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
 import { DataManager } from "@/features/data-management/data-manager";
 import { LocalEventStore } from "@/features/data-management/local-event-store";
 
@@ -22,11 +22,11 @@ export async function GET(request: NextRequest) {
 	}
 
 	try {
-		const [storeStatus, dataConfig, cacheStatus, cacheMetrics] = await Promise.all([
+		const [storeStatus, dataConfig, runtimeDataStatus, runtimeMetrics] = await Promise.all([
 			LocalEventStore.getStatus(),
 			DataManager.getDataConfigStatus(),
-			CacheManager.getCacheStatus(),
-			Promise.resolve(CacheManager.getCacheMetrics()),
+			EventsRuntimeManager.getRuntimeDataStatus(),
+			Promise.resolve(EventsRuntimeManager.getRuntimeMetrics()),
 		]);
 
 		return NextResponse.json({
@@ -41,9 +41,8 @@ export async function GET(request: NextRequest) {
 			},
 			store: storeStatus,
 			config: dataConfig,
-			cache: cacheStatus,
-			runtime: cacheStatus,
-			metrics: cacheMetrics,
+			runtime: runtimeDataStatus,
+			metrics: runtimeMetrics,
 		});
 	} catch (error) {
 		return NextResponse.json(

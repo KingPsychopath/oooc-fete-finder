@@ -1,7 +1,7 @@
 import Header from "@/components/Header";
 import { EventsClient } from "@/features/events/components/events-client";
 import { getPublicSlidingBannerSettingsCached } from "@/features/site-settings/queries";
-import { CacheManager } from "@/lib/cache/cache-manager";
+import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
 import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
 
@@ -12,7 +12,7 @@ export const revalidate = 300; // 5 minutes in seconds
 export default async function Home() {
 	// Fetch events from live runtime source manager
 	const [result, bannerSettings] = await Promise.all([
-		CacheManager.getEvents(),
+		EventsRuntimeManager.getEvents(),
 		getPublicSlidingBannerSettingsCached(),
 	]);
 	const isRemoteMode = env.DATA_MODE === "remote";

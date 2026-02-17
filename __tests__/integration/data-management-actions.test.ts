@@ -19,8 +19,7 @@ const makeEvent = (id: string) => ({
 
 type Setup = {
 	getLiveSiteEventsSnapshot: typeof import("@/features/data-management/actions").getLiveSiteEventsSnapshot;
-	cacheManagerGetEvents: ReturnType<typeof vi.fn>;
-	cacheManagerGetEventsSnapshot: ReturnType<typeof vi.fn>;
+	runtimeManagerGetEvents: ReturnType<typeof vi.fn>;
 	dataManagerGetEventsData: ReturnType<typeof vi.fn>;
 	validateAdminAccess: ReturnType<typeof vi.fn>;
 };
@@ -28,8 +27,7 @@ type Setup = {
 const loadActions = async (): Promise<Setup> => {
 	vi.resetModules();
 
-	const cacheManagerGetEvents = vi.fn();
-	const cacheManagerGetEventsSnapshot = vi.fn();
+	const runtimeManagerGetEvents = vi.fn();
 	const dataManagerGetEventsData = vi.fn();
 	const validateAdminAccess = vi.fn().mockResolvedValue(true);
 
@@ -54,11 +52,11 @@ const loadActions = async (): Promise<Setup> => {
 	}));
 
 	vi.doMock("@/lib/cache/cache-manager", () => ({
-		CacheManager: {
-			getEvents: cacheManagerGetEvents,
-			getEventsSnapshot: cacheManagerGetEventsSnapshot,
+		EventsRuntimeManager: {
+			getEvents: runtimeManagerGetEvents,
 			forceRefresh: vi.fn(),
-			getCacheStatus: vi.fn(),
+			getRuntimeDataStatus: vi.fn(),
+			getRuntimeMetrics: vi.fn(),
 			fullRevalidation: vi.fn(),
 		},
 	}));
@@ -83,8 +81,7 @@ const loadActions = async (): Promise<Setup> => {
 	const actions = await import("@/features/data-management/actions");
 	return {
 		getLiveSiteEventsSnapshot: actions.getLiveSiteEventsSnapshot,
-		cacheManagerGetEvents,
-		cacheManagerGetEventsSnapshot,
+		runtimeManagerGetEvents,
 		dataManagerGetEventsData,
 		validateAdminAccess,
 	};
@@ -95,19 +92,18 @@ describe("getLiveSiteEventsSnapshot", () => {
 		vi.clearAllMocks();
 	});
 
-	it("uses cached site payload path when forceRefresh=false", async () => {
+	it("uses runtime site payload path when forceRefresh=false", async () => {
 		const {
 			getLiveSiteEventsSnapshot,
-			cacheManagerGetEvents,
-			cacheManagerGetEventsSnapshot,
+			runtimeManagerGetEvents,
 			dataManagerGetEventsData,
 		} =
 			await loadActions();
-		cacheManagerGetEventsSnapshot.mockReturnValue({
+		runtimeManagerGetEvents.mockResolvedValue({
 			success: true,
 			data: [makeEvent("1")],
 			count: 1,
-			cached: true,
+			cached: false,
 			source: "store",
 			lastUpdate: "2026-02-17T00:00:00.000Z",
 		});
@@ -117,23 +113,24 @@ describe("getLiveSiteEventsSnapshot", () => {
 		});
 
 		expect(result.success).toBe(true);
-		expect(result.cached).toBe(true);
 		expect(result.source).toBe("store");
 		expect(result.totalCount).toBe(1);
-		expect(cacheManagerGetEventsSnapshot).toHaveBeenCalledTimes(1);
-		expect(cacheManagerGetEvents).not.toHaveBeenCalled();
+		expect(runtimeManagerGetEvents).toHaveBeenCalledTimes(1);
 		expect(dataManagerGetEventsData).not.toHaveBeenCalled();
 	});
 
 	it("uses fresh preview path when forceRefresh=true without mutating live cache", async () => {
-		const { getLiveSiteEventsSnapshot, cacheManagerGetEvents, dataManagerGetEventsData } =
+		const {
+			getLiveSiteEventsSnapshot,
+			runtimeManagerGetEvents,
+			dataManagerGetEventsData,
+		} =
 			await loadActions();
 		dataManagerGetEventsData.mockResolvedValue({
 			success: true,
 			data: [makeEvent("2")],
 			count: 1,
 			source: "store",
-			cached: false,
 			warnings: ["fresh preview"],
 			lastUpdate: "2026-02-17T01:00:00.000Z",
 		});
@@ -143,11 +140,10 @@ describe("getLiveSiteEventsSnapshot", () => {
 		});
 
 		expect(result.success).toBe(true);
-		expect(result.cached).toBe(false);
 		expect(result.source).toBe("store");
 		expect(result.totalCount).toBe(1);
 		expect(dataManagerGetEventsData).toHaveBeenCalledTimes(1);
-		expect(cacheManagerGetEvents).not.toHaveBeenCalled();
+		expect(runtimeManagerGetEvents).not.toHaveBeenCalled();
 	});
 
 	it("returns unauthorized when admin validation fails", async () => {

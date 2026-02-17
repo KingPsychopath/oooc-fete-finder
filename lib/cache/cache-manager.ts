@@ -2,9 +2,9 @@ import { DataManager } from "@/features/data-management/data-manager";
 import { isValidEventsData } from "@/features/data-management/data-processor";
 import { invalidateEventsCache } from "./cache-policy";
 import type {
-	CacheMetricsData,
-	CacheRefreshResult,
-	CacheStatus,
+	RuntimeDataStatus,
+	RuntimeMetricsData,
+	RuntimeRefreshResult,
 	DataSource,
 	EventsResult,
 	FullRevalidationResult,
@@ -48,7 +48,7 @@ const normalizeFailureSource = (
 	return "store";
 };
 
-export class CacheManager {
+export class EventsRuntimeManager {
 	static getEventsSnapshot(): EventsResult {
 		return {
 			success: false,
@@ -112,7 +112,7 @@ export class CacheManager {
 		}
 	}
 
-	static async forceRefresh(): Promise<CacheRefreshResult> {
+	static async forceRefresh(): Promise<RuntimeRefreshResult> {
 		const result = await this.getEvents(true);
 		invalidateEventsCache(["/"]);
 
@@ -166,7 +166,7 @@ export class CacheManager {
 		runtimeStatus.lastEventCount = 0;
 	}
 
-	static async getCacheStatus(): Promise<CacheStatus> {
+	static async getRuntimeDataStatus(): Promise<RuntimeDataStatus> {
 		const [configStatus, liveResult] = await Promise.all([
 			DataManager.getDataConfigStatus(),
 			this.getEvents(false),
@@ -211,7 +211,7 @@ export class CacheManager {
 		};
 	}
 
-	static getCacheMetrics(): CacheMetricsData {
+	static getRuntimeMetrics(): RuntimeMetricsData {
 		const totalRequests = metrics.fetchCount;
 		return {
 			cacheHits: 0,
@@ -233,9 +233,9 @@ export class CacheManager {
 }
 
 export type {
-	CacheMetricsData,
-	CacheRefreshResult,
-	CacheStatus,
+	RuntimeDataStatus,
+	RuntimeMetricsData,
+	RuntimeRefreshResult,
 	DataSource,
 	EventsResult,
 	FullRevalidationResult,

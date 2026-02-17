@@ -4,7 +4,7 @@ import {
 	getCollectedEmails,
 } from "@/features/auth/actions";
 import {
-	getCacheStatus,
+	getRuntimeDataStatus,
 	getLocalEventStorePreview,
 	getLocalEventStoreStatus,
 } from "@/features/data-management/actions";
@@ -23,14 +23,14 @@ export default async function AdminPage() {
 	}
 
 	const [
-		cacheStatus,
+		runtimeDataStatus,
 		emailsResult,
 		tokenSessions,
 		localStoreStatus,
 		localStorePreview,
 		slidingBannerSettings,
 	] = await Promise.all([
-		getCacheStatus(),
+		getRuntimeDataStatus(),
 		getCollectedEmails(),
 		getAdminTokenSessions(),
 		getLocalEventStoreStatus(),
@@ -39,7 +39,7 @@ export default async function AdminPage() {
 	]);
 
 	const initialData: AdminInitialData = {
-		cacheStatus,
+		runtimeDataStatus,
 		emailsResult,
 		sessionStatus,
 		tokenSessions,

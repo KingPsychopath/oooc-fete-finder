@@ -7,17 +7,17 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import type { CacheStatus } from "../types";
+import type { RuntimeDataStatus } from "../types";
 
-type CacheManagementCardProps = {
-	cacheStatus: CacheStatus;
+type RuntimeDataStatusCardProps = {
+	runtimeDataStatus: RuntimeDataStatus;
 	refreshing: boolean;
 	refreshMessage: string;
 	onRefresh: () => void;
 };
 
 const sourcePresentation = (
-	source: CacheStatus["dataSource"],
+	source: RuntimeDataStatus["dataSource"],
 ): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } => {
 	switch (source) {
 		case "store":
@@ -34,7 +34,7 @@ const sourcePresentation = (
 };
 
 const modePresentation = (
-	mode: CacheStatus["configuredDataSource"],
+	mode: RuntimeDataStatus["configuredDataSource"],
 ): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } => {
 	switch (mode) {
 		case "remote":
@@ -68,17 +68,17 @@ const getRefreshMessageTone = (message: string) => {
 	return "border-rose-200 bg-rose-50 text-rose-800";
 };
 
-export const CacheManagementCard = ({
-	cacheStatus,
+export const RuntimeDataStatusCard = ({
+	runtimeDataStatus,
 	refreshing,
 	refreshMessage,
 	onRefresh,
-}: CacheManagementCardProps) => {
-	const source = sourcePresentation(cacheStatus.dataSource);
-	const mode = modePresentation(cacheStatus.configuredDataSource);
+}: RuntimeDataStatusCardProps) => {
+	const source = sourcePresentation(runtimeDataStatus.dataSource);
+	const mode = modePresentation(runtimeDataStatus.configuredDataSource);
 	const fallbackActive =
-		cacheStatus.configuredDataSource === "remote" &&
-		cacheStatus.dataSource === "local";
+		runtimeDataStatus.configuredDataSource === "remote" &&
+		runtimeDataStatus.dataSource === "local";
 
 	return (
 		<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
@@ -103,7 +103,7 @@ export const CacheManagementCard = ({
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Live Events
 						</p>
-						<p className="mt-1 text-lg font-semibold">{cacheStatus.eventCount}</p>
+						<p className="mt-1 text-lg font-semibold">{runtimeDataStatus.eventCount}</p>
 						<p className="mt-1 text-xs text-muted-foreground">
 							Current runtime payload count.
 						</p>
@@ -112,7 +112,7 @@ export const CacheManagementCard = ({
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Store Events
 						</p>
-						<p className="mt-1 text-lg font-semibold">{cacheStatus.storeRowCount}</p>
+						<p className="mt-1 text-lg font-semibold">{runtimeDataStatus.storeRowCount}</p>
 						<p className="mt-1 text-xs text-muted-foreground">
 							Currently saved in the managed database-backed store.
 						</p>
@@ -122,8 +122,8 @@ export const CacheManagementCard = ({
 							Last Runtime Check
 						</p>
 						<p className="mt-1 text-sm font-medium">
-							{cacheStatus.lastFetchTime ?
-								new Date(cacheStatus.lastFetchTime).toLocaleString()
+							{runtimeDataStatus.lastFetchTime ?
+								new Date(runtimeDataStatus.lastFetchTime).toLocaleString()
 							: 	"Never"}
 						</p>
 						<p className="mt-1 text-xs text-muted-foreground">
@@ -139,10 +139,10 @@ export const CacheManagementCard = ({
 					</div>
 				)}
 
-				{cacheStatus.lastRemoteErrorMessage && (
+				{runtimeDataStatus.lastRemoteErrorMessage && (
 					<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
 						<p className="font-medium">Latest fallback reason</p>
-						<p className="mt-1">{cacheStatus.lastRemoteErrorMessage}</p>
+						<p className="mt-1">{runtimeDataStatus.lastRemoteErrorMessage}</p>
 					</div>
 				)}
 

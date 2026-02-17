@@ -1,12 +1,12 @@
 "use server";
 
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
-import { CacheManager } from "@/lib/cache/cache-manager";
+import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
 import { invalidateEventsCache } from "@/lib/cache/cache-policy";
 import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
 import type {
-	CacheStatus,
+	RuntimeDataStatus,
 	EventsResult,
 } from "@/lib/cache/cache-manager";
 import { LocalEventStore } from "./local-event-store";
@@ -59,7 +59,7 @@ const resolveRemoteSheetConfig = async (): Promise<{
 export async function getEvents(
 	forceRefresh: boolean = false,
 ): Promise<EventsResult> {
-	return CacheManager.getEvents(forceRefresh);
+	return EventsRuntimeManager.getEvents(forceRefresh);
 }
 
 /**
@@ -115,7 +115,7 @@ export async function getLiveSiteEventsSnapshot(
 							fresh.warnings.length > 0 ? fresh.warnings.join("; ") : undefined,
 					};
 				})()
-			: await CacheManager.getEvents(false);
+			: await EventsRuntimeManager.getEvents(false);
 		if (!result.success) {
 			return { success: false, error: result.error || "Failed to load events" };
 		}
@@ -158,14 +158,14 @@ export async function forceRefreshEvents(): Promise<{
 	source?: "remote" | "local" | "store" | "test";
 	error?: string;
 }> {
-	return CacheManager.forceRefresh();
+	return EventsRuntimeManager.forceRefresh();
 }
 
 /**
  * Get live data/system status from source of truth.
  */
-export async function getCacheStatus(): Promise<CacheStatus> {
-	return CacheManager.getCacheStatus();
+export async function getRuntimeDataStatus(): Promise<RuntimeDataStatus> {
+	return EventsRuntimeManager.getRuntimeDataStatus();
 }
 
 /**
@@ -235,7 +235,7 @@ export async function saveLocalEventStoreCsv(
 			updatedBy: "admin-panel",
 			origin: "manual",
 		});
-		await CacheManager.forceRefresh();
+		await EventsRuntimeManager.forceRefresh();
 		return {
 			success: true,
 			message: "Managed store updated and homepage revalidated",
@@ -264,7 +264,7 @@ export async function clearLocalEventStoreCsv(keyOrToken?: string): Promise<{
 
 	try {
 		await LocalEventStore.clearCsv();
-		await CacheManager.forceRefresh();
+		await EventsRuntimeManager.forceRefresh();
 		return {
 			success: true,
 			message: "Managed store cleared and homepage revalidated",
@@ -354,7 +354,7 @@ export async function importRemoteCsvToLocalEventStore(
 			updatedBy: "admin-google-import",
 			origin: "google-import",
 		});
-		await CacheManager.forceRefresh();
+		await EventsRuntimeManager.forceRefresh();
 
 		return {
 			success: true,
@@ -474,7 +474,7 @@ export async function saveEventSheetEditorRows(
 		});
 		const shouldRevalidateHomepage = options?.revalidateHomepage !== false;
 		if (shouldRevalidateHomepage) {
-			await CacheManager.forceRefresh();
+			await EventsRuntimeManager.forceRefresh();
 		} else {
 			invalidateEventsCache(["/"]);
 		}
@@ -524,7 +524,7 @@ export async function analyzeDateFormats(keyOrToken?: string): Promise<{
 
 	try {
 		// Force refresh to ensure we get fresh parsing warnings
-		const eventsResult = await CacheManager.getEvents(true);
+		const eventsResult = await EventsRuntimeManager.getEvents(true);
 
 		if (!eventsResult.success || !eventsResult.data) {
 			return {

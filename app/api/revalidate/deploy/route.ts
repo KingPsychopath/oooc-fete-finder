@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CacheManager } from "@/lib/cache/cache-manager";
+import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
 import { log } from "@/lib/platform/logger";
 
 export const runtime = "nodejs";
@@ -46,7 +46,7 @@ async function handleRevalidation(request: NextRequest): Promise<NextResponse> {
 	}
 
 	try {
-		const refreshed = await CacheManager.forceRefresh();
+		const refreshed = await EventsRuntimeManager.forceRefresh();
 		if (!refreshed.success) {
 			log.warn("cache", "Deploy revalidation completed with live data errors", {
 				error: refreshed.error,

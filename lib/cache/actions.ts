@@ -2,7 +2,7 @@
 
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { log } from "@/lib/platform/logger";
-import { CacheManager } from "./cache-manager";
+import { EventsRuntimeManager } from "./cache-manager";
 
 /**
  * Revalidation Server Actions
@@ -76,7 +76,7 @@ export async function revalidatePages(
 
 		// Use the centralized cache manager for full revalidation
 		const revalidationResult =
-			await CacheManager.fullRevalidation(normalizedPath);
+			await EventsRuntimeManager.fullRevalidation(normalizedPath);
 
 		const processingTime = Date.now() - startTime;
 		log.info("cache", "Revalidation completed", { processingTimeMs: processingTime });
