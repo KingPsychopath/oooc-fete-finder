@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revokeAllAdminSessions } from "@/lib/admin/admin-auth-token";
-import { validateAdminKeyForApiRoute } from "@/lib/admin/admin-validation";
+import { revokeAllAdminSessions } from "@/features/auth/admin-auth-token";
+import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
 
 export async function POST(request: NextRequest) {
 	if (!(await validateAdminKeyForApiRoute(request))) {

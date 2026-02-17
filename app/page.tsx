@@ -1,6 +1,6 @@
-import { EventsClient } from "@/components/events-client";
+import { EventsClient } from "@/features/events/components/events-client";
 import Header from "@/components/Header";
-import { CacheManager } from "@/lib/cache-management/cache-manager";
+import { CacheManager } from "@/lib/cache/cache-manager";
 import { env } from "@/lib/config/env";
 
 // Use ISR with a reasonable revalidation time (e.g., 1 hour)

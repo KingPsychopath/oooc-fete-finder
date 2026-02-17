@@ -17,8 +17,8 @@ import {
 	importRemoteCsvToLocalEventStore,
 	previewRemoteCsvForAdmin,
 	saveLocalEventStoreCsv,
-} from "@/lib/data-management/actions";
-import type { EditableSheetColumn, EditableSheetRow } from "@/lib/data-management/csv/sheet-editor";
+} from "@/features/data-management/actions";
+import type { EditableSheetColumn, EditableSheetRow } from "@/features/data-management/csv/sheet-editor";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import type { CacheStatus } from "../types";
 

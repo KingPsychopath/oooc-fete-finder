@@ -16,8 +16,8 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { analyzeDateFormats } from "@/lib/data-management/actions";
-import type { DateFormatWarning } from "@/lib/data-management/validation/date-warnings";
+import { analyzeDateFormats } from "@/features/data-management/actions";
+import type { DateFormatWarning } from "@/features/data-management/validation/date-warnings";
 import {
 	AlertTriangle,
 	Calendar,

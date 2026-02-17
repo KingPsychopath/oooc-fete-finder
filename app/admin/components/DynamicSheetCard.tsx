@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { setDynamicSheet } from "@/lib/data-management/actions";
+import { setDynamicSheet } from "@/features/data-management/actions";
 import { AlertTriangle, CheckCircle, Database } from "lucide-react";
 import React, { useState } from "react";
 import { DynamicSheetConfig } from "../types";

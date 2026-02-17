@@ -1,11 +1,11 @@
-import { FeatureCountdown } from "@/components/featured-events/components/FeatureCountdown";
-import { FEATURED_EVENTS_CONFIG } from "@/components/featured-events/constants";
+import { FeatureCountdown } from "@/features/events/featured/components/FeatureCountdown";
+import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
 import { CopyEmailButton } from "@/components/CopyEmailButton";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getFeaturedEvents } from "@/lib/events/events-service";
+import { getFeaturedEvents } from "@/features/events/events-service";
 import { Calendar, CheckCircle, Euro, Star, Target } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";

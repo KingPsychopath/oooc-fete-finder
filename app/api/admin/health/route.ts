@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateAdminKeyForApiRoute } from "@/lib/admin/admin-validation";
-import { CacheManager } from "@/lib/cache-management/cache-manager";
-import { processCSVData } from "@/lib/data-management/data-processor";
-import { DataManager } from "@/lib/data-management/data-manager";
-import { LocalEventStore } from "@/lib/data-management/local-event-store";
+import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
+import { CacheManager } from "@/lib/cache/cache-manager";
+import { processCSVData } from "@/features/data-management/data-processor";
+import { DataManager } from "@/features/data-management/data-manager";
+import { LocalEventStore } from "@/features/data-management/local-event-store";
 import {
 	getAppKVStoreRepository,
 	getAppKVStoreTableName,

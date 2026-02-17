@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revokeAdminSessionByJti } from "@/lib/admin/admin-auth-token";
-import { validateAdminKeyForApiRoute } from "@/lib/admin/admin-validation";
+import { revokeAdminSessionByJti } from "@/features/auth/admin-auth-token";
+import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
 
 type RouteContext = {
 	params: Promise<{ jti: string }>;

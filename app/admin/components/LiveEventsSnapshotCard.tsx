@@ -9,7 +9,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { getLiveSiteEventsSnapshot } from "@/lib/data-management/actions";
+import { getLiveSiteEventsSnapshot } from "@/features/data-management/actions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type LiveEventsSnapshotCardProps = {

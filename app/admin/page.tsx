@@ -7,10 +7,10 @@ import {
 	getAdminSessionStatus,
 	getCollectedEmails,
 	logoutAdminSession,
-} from "@/lib/admin/actions";
-import { revalidatePages } from "@/lib/cache-management/actions";
+} from "@/features/auth/actions";
+import { revalidatePages } from "@/lib/cache/actions";
 import { env } from "@/lib/config/env";
-import { getCacheStatus } from "@/lib/data-management/actions";
+import { getCacheStatus } from "@/features/data-management/actions";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useState } from "react";

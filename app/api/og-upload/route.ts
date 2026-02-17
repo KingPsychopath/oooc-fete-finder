@@ -1,5 +1,5 @@
 import path from "path";
-import { validateAdminKeyForApiRoute } from "@/lib/admin/admin-validation";
+import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
 import { mkdir, writeFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 

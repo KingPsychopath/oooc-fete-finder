@@ -1,11 +1,11 @@
 "use client";
 
-import EventModal from "@/components/EventModal";
-import FilterPanel from "@/components/FilterPanel";
-import ParisMap from "@/components/ParisMap";
-import ParisMapLibre from "@/components/ParisMapLibre";
-import { SelectedEventDisplay } from "@/components/SelectedEventDisplay";
-import { getEvents } from "@/lib/data-management/actions";
+import EventModal from "@/features/events/components/EventModal";
+import FilterPanel from "@/features/events/components/FilterPanel";
+import ParisMap from "@/features/maps/components/ParisMap";
+import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
+import { SelectedEventDisplay } from "@/features/events/components/SelectedEventDisplay";
+import { getEvents } from "@/features/data-management/actions";
 import type {
 	AgeRange,
 	DayNightPeriod,
@@ -14,14 +14,14 @@ import type {
 	Nationality,
 	ParisArrondissement,
 	VenueType,
-} from "@/types/events";
+} from "@/features/events/types";
 import {
 	AGE_RANGE_CONFIG,
 	PRICE_RANGE_CONFIG,
 	isAgeInRange,
 	isEventInDayNightPeriod,
 	isPriceInRange,
-} from "@/types/events";
+} from "@/features/events/types";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 
 export default function MapsDemoPage() {

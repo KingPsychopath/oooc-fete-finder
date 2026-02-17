@@ -3,16 +3,15 @@ import "./globals.css";
 import Footer from "@/components/Footer";
 import { OfflineIndicator } from "@/components/offline-indicator";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
-import { AuthProvider } from "@/context/auth-context";
-import { VignetteAd } from "@/features/vignette-ad/components/vignette-ad";
+import { AuthProvider } from "@/features/auth/auth-context";
+import { CommunityInvite } from "@/features/social/components/CommunityInvite";
 import {
 	USER_AUTH_COOKIE_NAME,
 	getUserSessionFromCookieHeader,
-} from "@/lib/auth/user-session-cookie";
+} from "@/features/auth/user-session-cookie";
 import { generateMainOGImage } from "@/lib/social/og-utils";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "next-themes";
-import { BodyClassHandler } from "@/components/body-class-handler";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import { cookies } from "next/headers";
@@ -169,7 +168,6 @@ export default async function RootLayout({
 				/>
 			</head>
 			<body suppressHydrationWarning className="antialiased">
-				<BodyClassHandler />
 				<ThemeProvider
 					attribute="class"
 					defaultTheme="system"
@@ -182,7 +180,7 @@ export default async function RootLayout({
 					>
 						{children}
 						<Footer />
-						<VignetteAd />
+						<CommunityInvite />
 						<OfflineIndicator />
 						<PWAInstallPrompt />
 					</AuthProvider>

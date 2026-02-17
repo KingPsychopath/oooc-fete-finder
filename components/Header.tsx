@@ -1,14 +1,14 @@
 "use client";
 
 import { Clock } from "@/components/Clock";
-import Countdown from "@/components/Countdown";
+import Countdown from "@/features/events/components/Countdown";
 import MusicPlatformModal from "@/components/MusicPlatformModal";
 import QuickActionsDropdown from "@/components/QuickActionsDropdown";
 import SlidingBanner from "@/components/SlidingBanner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/features/auth/auth-context";
 // Note: Using process.env directly to avoid server-side env variable access on client
 import { LogOut, User } from "lucide-react";
 import Image from "next/image";

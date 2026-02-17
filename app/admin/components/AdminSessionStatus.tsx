@@ -12,7 +12,7 @@ import {
 	getAdminTokenSessions,
 	revokeAdminTokenSessionByJti,
 	revokeAllAdminTokenSessionsAction,
-} from "@/lib/admin/actions";
+} from "@/features/auth/actions";
 import { Clock3, LogOut, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 

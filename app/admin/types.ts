@@ -4,10 +4,10 @@ export type {
 	UserCollectionMirrorStatus,
 	UserCollectionStoreSummary,
 	UserRecord as EmailRecord,
-} from "@/types/user";
+} from "@/features/auth/types";
 
 // Import centralized cache types instead of duplicating
-export type { CacheStatus } from "@/lib/cache-management/cache-types";
+export type { CacheStatus } from "@/lib/cache/cache-types";
 
 export type DynamicSheetConfig = {
 	hasDynamicOverride: boolean;

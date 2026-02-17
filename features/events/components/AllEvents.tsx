@@ -1,0 +1,65 @@
+"use client";
+
+import { FilterButton } from "@/features/events/components/FilterButton";
+import { EventCard } from "@/features/events/components/EventCard";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Event } from "@/features/events/types";
+import { forwardRef } from "react";
+
+type AllEventsProps = {
+	events: Event[];
+	onEventClick: (event: Event) => void;
+	onFilterClickAction: () => void;
+	hasActiveFilters: boolean;
+	activeFiltersCount: number;
+};
+
+export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
+	(
+		{
+			events,
+			onEventClick,
+			onFilterClickAction,
+			hasActiveFilters,
+			activeFiltersCount,
+		},
+		ref,
+	) => {
+		return (
+			<Card ref={ref} className="ooo-site-card mt-6 py-0">
+				<CardHeader className="border-b border-border/70 py-5">
+					<div className="flex items-center justify-between">
+						<CardTitle className="flex items-center text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
+							All Events
+							<Badge variant="outline" className="ml-2 text-xs">
+								{events.length} event{events.length !== 1 ? "s" : ""}
+							</Badge>
+						</CardTitle>
+						<FilterButton
+							onClickAction={onFilterClickAction}
+							hasActiveFilters={hasActiveFilters}
+							activeFiltersCount={activeFiltersCount}
+							className="lg:hidden"
+						/>
+					</div>
+				</CardHeader>
+				<CardContent className="py-5">
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+						{events
+							.filter((event) => event != null)
+							.map((event) => (
+								<EventCard
+									key={event.id}
+									event={event}
+									onClick={onEventClick}
+								/>
+							))}
+					</div>
+				</CardContent>
+			</Card>
+		);
+	},
+);
+
+AllEvents.displayName = "AllEvents";

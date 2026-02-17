@@ -3,8 +3,8 @@ import {
 	USER_AUTH_COOKIE_NAME,
 	getUserAuthCookieOptions,
 	signUserSessionToken,
-} from "@/lib/auth/user-session-cookie";
-import { UserCollectionStore } from "@/lib/user-management/user-collection-store";
+} from "@/features/auth/user-session-cookie";
+import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { NextResponse } from "next/server";
 
 type VerifyBody = {

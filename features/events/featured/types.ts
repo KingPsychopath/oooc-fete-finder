@@ -1,0 +1,26 @@
+import type { Event } from "@/features/events/types";
+
+export type FeaturedEventsProps = {
+	events: Event[];
+	onEventClick: (event: Event) => void;
+	onScrollToAllEvents: () => void;
+	maxFeaturedEvents?: number;
+};
+
+export type SafeFeaturedEventsProps = {
+	events: NonNullable<Event>[];
+	onEventClick: (event: NonNullable<Event>) => void;
+	onScrollToAllEvents: () => void;
+	maxFeaturedEvents?: number;
+};
+
+export type FeaturedEventSelectionResult = {
+	featuredEvents: Event[];
+	totalEventsCount: number;
+	hasMoreEvents: boolean;
+};
+
+export type FeatureTimeRemaining = {
+	timeRemaining: string;
+	isExpired: boolean;
+};

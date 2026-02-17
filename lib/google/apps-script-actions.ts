@@ -1,8 +1,8 @@
 "use server";
 
-import { validateAdminAccessFromServerContext } from "@/lib/admin/admin-validation";
+import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { env } from "@/lib/config/env";
-import { UserCollectionStore } from "@/lib/user-management/user-collection-store";
+import { UserCollectionStore } from "@/features/auth/user-collection-store";
 
 /**
  * ✍️ Google Apps Script Server Actions

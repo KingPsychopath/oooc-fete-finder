@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateAdminKeyForApiRoute } from "@/lib/admin/admin-validation";
+import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
 import {
 	getCurrentTokenVersion,
 	listAdminTokenSessions,
-} from "@/lib/admin/admin-auth-token";
+} from "@/features/auth/admin-auth-token";
 
 export async function GET(request: NextRequest) {
 	if (!(await validateAdminKeyForApiRoute(request))) {

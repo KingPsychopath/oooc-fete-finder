@@ -1,4 +1,4 @@
-import type { Event } from "@/types/events";
+import type { Event } from "@/features/events/types";
 
 // Static Event data for testing
 export const EVENTS_DATA: Event[] = [

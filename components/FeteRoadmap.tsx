@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { Event } from "@/types/events";
+import type { Event } from "@/features/events/types";
 
 interface ScheduleEvent {
 	time: string;

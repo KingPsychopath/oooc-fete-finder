@@ -3,7 +3,7 @@ import {
 	USER_AUTH_COOKIE_NAME,
 	getUserAuthCookieOptions,
 	getUserSessionFromCookieHeader,
-} from "@/lib/auth/user-session-cookie";
+} from "@/features/auth/user-session-cookie";
 
 export async function GET(request: NextRequest) {
 	const session = getUserSessionFromCookieHeader(

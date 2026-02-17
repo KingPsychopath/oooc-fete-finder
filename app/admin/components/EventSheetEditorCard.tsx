@@ -14,13 +14,13 @@ import { Label } from "@/components/ui/label";
 import {
 	getEventSheetEditorData,
 	saveEventSheetEditorRows,
-} from "@/lib/data-management/actions";
+} from "@/features/data-management/actions";
 import {
 	createBlankEditableSheetRow,
 	createCustomColumnKey,
 	type EditableSheetColumn,
 	type EditableSheetRow,
-} from "@/lib/data-management/csv/sheet-editor";
+} from "@/features/data-management/csv/sheet-editor";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
