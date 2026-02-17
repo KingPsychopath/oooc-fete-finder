@@ -10,7 +10,7 @@ import { useOptionalAuth } from "@/features/auth/auth-context";
 import Countdown from "@/features/events/components/Countdown";
 import type { SlidingBannerPublicSettings } from "@/features/site-settings/types";
 // Note: Using process.env directly to avoid server-side env variable access on client
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -195,8 +195,9 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							{isAdminAuthenticated && (
 								<Link
 									href={`${basePath || ""}/admin`}
-									className="inline-flex items-center rounded-full border border-border/80 bg-background/70 px-3 py-2 text-[11px] tracking-[0.08em] text-foreground/85 transition-colors hover:bg-accent"
+									className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/70 px-3 py-2 text-[11px] tracking-[0.08em] text-foreground/85 transition-colors hover:bg-accent"
 								>
+									<ShieldCheck className="h-3.5 w-3.5" />
 									Admin
 								</Link>
 							)}
