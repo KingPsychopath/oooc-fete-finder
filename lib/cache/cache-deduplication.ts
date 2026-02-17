@@ -3,6 +3,8 @@
  * Prevents race conditions by ensuring only one request of each type runs at a time
  */
 
+import { log } from "@/lib/platform/logger";
+
 /**
  * Generic request deduplicator to prevent race conditions
  */
@@ -17,11 +19,8 @@ export class RequestDeduplicator {
 		key: string,
 		operation: () => Promise<T>,
 	): Promise<T> {
-		// Check if operation is already in progress
 		if (this.pendingRequests.has(key)) {
-			console.log(
-				`🔄 Request deduplication: ${key} already in progress, waiting for existing request`,
-			);
+			log.info("cache", "Request deduplicated, waiting", { key });
 			return this.pendingRequests.get(key) as Promise<T>;
 		}
 
@@ -57,7 +56,6 @@ export class RequestDeduplicator {
 	 * Clear all pending requests (useful for testing or error recovery)
 	 */
 	static clearPendingRequests(): void {
-		console.log("🧹 Clearing pending request cache");
 		this.pendingRequests.clear();
 	}
 

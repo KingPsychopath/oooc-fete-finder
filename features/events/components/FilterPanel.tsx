@@ -1027,7 +1027,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											<Tooltip>
 												<TooltipTrigger asChild>
 													<button
-														className="h-4 w-4 ml-2 text-muted-foreground cursor-help focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm"
+														className="h-4 w-4 ml-2 text-muted-foreground cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
 														type="button"
 														aria-label="Show day and night time definitions"
 													>

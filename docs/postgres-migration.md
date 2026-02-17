@@ -20,7 +20,6 @@ Source model:
 DATABASE_URL=postgres://...
 DATA_MODE=remote
 ADMIN_KEY=your-admin-key
-GOOGLE_MIRROR_WRITES=false
 
 # Optional backup import/preview source
 REMOTE_CSV_URL=
@@ -83,4 +82,4 @@ If required, set `DATA_MODE=local` to force local CSV-only runtime.
 
 When you are ready to fully remove Google output, follow:
 
-- `/Users/owenamenze/workspace/github.com/personal/oooc-fete-finder/docs/google-output-deprecation.md`
+- `/Users/owenamenze/workspace/github.com/personal/oooc-fete-finder/docs/google-integrations.md`

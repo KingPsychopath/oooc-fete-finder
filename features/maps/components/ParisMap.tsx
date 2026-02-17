@@ -227,7 +227,7 @@ const ParisMap: React.FC<ParisMapProps> = ({
 											stroke={isSelected ? "#1f2937" : "#374151"}
 											strokeWidth={isSelected ? 3 : 1.5}
 											rx="4"
-											className="cursor-pointer transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary"
+											className="cursor-pointer transition-all duration-200 hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 											onMouseEnter={() => onArrondissementHover(arrondissement)}
 											onMouseLeave={() => onArrondissementHover(null)}
 											onClick={() => handleArrondissementClick(arrondissement)}
@@ -340,7 +340,7 @@ const ParisMap: React.FC<ParisMapProps> = ({
 											fill={getUnknownPattern() || getUnknownColor()}
 											stroke={isSelected ? "#1f2937" : "#374151"}
 											strokeWidth={isSelected ? 3 : 1.5}
-											className="cursor-pointer transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary"
+											className="cursor-pointer transition-all duration-200 hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 											onMouseEnter={() => onArrondissementHover(-1)}
 											onMouseLeave={() => onArrondissementHover(null)}
 											onClick={handleUnknownClick}
@@ -547,7 +547,7 @@ const ParisMap: React.FC<ParisMapProps> = ({
 							).map((event) => (
 								<button
 									key={event.id}
-									className={`w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-primary relative ${
+									className={`w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary relative ${
 										event.isOOOCPick
 											? "bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-950 dark:to-amber-950 border border-yellow-200 dark:border-yellow-800"
 											: "bg-gray-50 dark:bg-gray-700"

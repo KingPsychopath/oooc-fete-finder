@@ -3,10 +3,11 @@
  * Handles memory usage monitoring, limits, and cleanup for cache operations
  */
 
+import { log } from "@/lib/platform/logger";
 import { Event } from "@/features/events/types";
 import type { MemoryLimitsCheck, MemoryStats } from "./cache-types";
 
-import { getCacheConfig } from "@/lib/config/env";
+import { getCacheConfig } from "@/lib/cache/cache-config";
 
 // Memory management configuration - lazy loaded from environment
 const getMemoryConfig = () => {
@@ -41,11 +42,11 @@ export class CacheMemoryManager {
 			const jsonSize = JSON.stringify(events).length;
 			return jsonSize * 2;
 		} catch (error) {
-			console.warn(
-				"⚠️ Failed to calculate memory usage, using fallback estimation:",
-				error instanceof Error ? error.message : "Unknown error",
+			log.warn(
+				"cache",
+				"Failed to calculate memory usage, using fallback",
+				{ error: error instanceof Error ? error.message : "Unknown error" },
 			);
-			// Fallback: estimate ~2KB per event (conservative)
 			return events.length * 2048;
 		}
 	}
@@ -76,21 +77,6 @@ export class CacheMemoryManager {
 			utilizationPercent > getMemoryConfig().CLEANUP_THRESHOLD * 100;
 		const withinLimits = utilizationPercent < 100;
 
-		// Log memory status periodically (check before updating lastMemoryCheck)
-		const shouldLog =
-			now - lastMemoryCheck > getMemoryConfig().MEMORY_CHECK_INTERVAL;
-		if (shouldLog || needsCleanup) {
-			console.log(
-				`💾 Memory Usage: ${(currentUsage / 1024 / 1024).toFixed(2)}MB / ${(maxLimit / 1024 / 1024).toFixed(2)}MB (${utilizationPercent.toFixed(1)}%)`,
-			);
-
-			if (needsEmergencyCleanup) {
-				console.warn("🚨 EMERGENCY: Cache memory usage critical!");
-			} else if (needsCleanup) {
-				console.warn("⚠️ Cache memory usage high, cleanup recommended");
-			}
-		}
-
 		return {
 			withinLimits,
 			needsCleanup,
@@ -111,15 +97,12 @@ export class CacheMemoryManager {
 		const memoryCheck = this.checkMemoryLimits(newMemoryUsage, newData.length);
 
 		if (memoryCheck.needsEmergencyCleanup) {
-			console.error(
-				"🚨 Cannot update cache: would exceed emergency memory threshold",
-			);
-			console.error(
-				`   Requested: ${(newMemoryUsage / 1024 / 1024).toFixed(2)}MB, Limit: ${(getMemoryConfig().MAX_MEMORY_USAGE / 1024 / 1024).toFixed(2)}MB`,
-			);
-
-			// Attempt cleanup
-			console.log("🧹 Attempting memory cleanup before cache update...");
+			log.warn("cache", "Memory limit exceeded, attempting cleanup", {
+				requestedMB: (newMemoryUsage / 1024 / 1024).toFixed(2),
+				limitMB: (getMemoryConfig().MAX_MEMORY_USAGE / 1024 / 1024).toFixed(
+					2,
+				),
+			});
 			clearCacheCallback();
 
 			// Try again after cleanup
@@ -129,9 +112,7 @@ export class CacheMemoryManager {
 			);
 
 			if (recheckMemory.needsEmergencyCleanup) {
-				console.error(
-					"🚨 Still exceeds memory limits after cleanup, rejecting cache update",
-				);
+				log.warn("cache", "Still exceeds memory limits after cleanup, rejecting update");
 				return false;
 			}
 		}

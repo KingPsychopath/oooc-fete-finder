@@ -2,7 +2,6 @@
 
 import type { CollectedEmailsResponse, UserRecord } from "@/features/auth/types";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
-import { env } from "@/lib/config/env";
 import {
 	clearAdminSessionCookie,
 	createAdminSessionWithCookie,
@@ -223,10 +222,6 @@ export async function getCollectedEmails(
 		count: collectedUsers.length,
 		store: storeStatus,
 		analytics,
-		mirror: {
-			enabled: env.GOOGLE_MIRROR_WRITES,
-			endpointConfigured: Boolean(env.GOOGLE_SHEETS_URL),
-		},
 	};
 }
 

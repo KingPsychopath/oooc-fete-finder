@@ -53,11 +53,9 @@ export const GoogleCloudAPI = {
 		);
 	},
 
-	// Geocoding support check
+	// Geocoding support check (Maps Geocoding API requires an API key)
 	supportsGeocoding: () => {
 		const { env } = require("@/lib/config/env");
-		return Boolean(
-			env.GOOGLE_SERVICE_ACCOUNT_KEY || env.GOOGLE_SERVICE_ACCOUNT_FILE,
-		);
+		return Boolean(env.GOOGLE_MAPS_API_KEY?.trim());
 	},
 } as const;

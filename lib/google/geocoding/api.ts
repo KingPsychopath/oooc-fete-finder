@@ -1,14 +1,11 @@
 /**
  * 🗺️ Google Geocoding API
  *
- * Handles all geocoding operations using Google Maps API.
- * Used for: Converting addresses to coordinates
- * Auth: Service account with private key
- * Scope: cloud-platform
+ * Handles all geocoding operations using Google Maps Geocoding API.
+ * The Geocoding API requires an API key (key=) in the request; it does not accept OAuth.
  */
 
 import { env } from "@/lib/config/env";
-import type { ServiceAccountCredentials } from "../sheets/api";
 
 /**
  * Geocoding result interface
@@ -46,149 +43,33 @@ export interface GeocodingBatchResult {
 	successRate: number;
 }
 
-/**
- * Create JWT token for Google API authentication (geocoding scope)
- */
-async function createGeocodingJWT(
-	credentials: ServiceAccountCredentials,
-	now: number,
-): Promise<string> {
-	const header = {
-		alg: "RS256",
-		typ: "JWT",
-	};
-
-	const payload = {
-		iss: credentials.client_email,
-		scope: "https://www.googleapis.com/auth/cloud-platform",
-		aud: "https://oauth2.googleapis.com/token",
-		exp: now + 3600, // 1 hour
-		iat: now,
-	};
-
-	// Create JWT header and payload
-	const encodedHeader = btoa(JSON.stringify(header))
-		.replace(/=/g, "")
-		.replace(/\+/g, "-")
-		.replace(/\//g, "_");
-	const encodedPayload = btoa(JSON.stringify(payload))
-		.replace(/=/g, "")
-		.replace(/\+/g, "-")
-		.replace(/\//g, "_");
-	const unsignedToken = `${encodedHeader}.${encodedPayload}`;
-
-	// Import crypto for RSA signing
-	const crypto = await import("crypto");
-
-	// Create signature
-	const signature = crypto
-		.createSign("RSA-SHA256")
-		.update(unsignedToken)
-		.sign(credentials.private_key, "base64")
-		.replace(/=/g, "")
-		.replace(/\+/g, "-")
-		.replace(/\//g, "_");
-
-	return `${unsignedToken}.${signature}`;
-}
-
-/**
- * Get access token for geocoding API
- */
-async function getGeocodingAccessToken(
-	credentials: ServiceAccountCredentials,
-): Promise<string> {
-	const now = Math.floor(Date.now() / 1000);
-	const jwt = await createGeocodingJWT(credentials, now);
-
-	// Exchange JWT for access token
-	const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/x-www-form-urlencoded",
-		},
-		body: new URLSearchParams({
-			grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-			assertion: jwt,
-		}),
-		signal: AbortSignal.timeout(10000),
-	});
-
-	if (!tokenResponse.ok) {
-		const errorText = await tokenResponse.text();
+function getGeocodingApiKey(): string {
+	const key = env.GOOGLE_MAPS_API_KEY?.trim();
+	if (!key) {
 		throw new Error(
-			`Failed to get geocoding access token: ${tokenResponse.status} - ${errorText}`,
+			"GOOGLE_MAPS_API_KEY is required for geocoding. Set it in your environment. See https://developers.google.com/maps/documentation/geocoding/get-api-key",
 		);
 	}
-
-	const tokenData = await tokenResponse.json();
-	return tokenData.access_token;
+	return key;
 }
 
 /**
- * Load service account credentials (shared with sheets API)
- */
-async function loadServiceAccountCredentials(): Promise<ServiceAccountCredentials> {
-	const serviceAccountKey = env.GOOGLE_SERVICE_ACCOUNT_KEY;
-	const serviceAccountFile = env.GOOGLE_SERVICE_ACCOUNT_FILE;
-
-	if (!serviceAccountKey && !serviceAccountFile) {
-		throw new Error("No service account credentials configured for geocoding");
-	}
-
-	let credentials: ServiceAccountCredentials | null = null;
-
-	try {
-		if (serviceAccountKey) {
-			credentials = JSON.parse(serviceAccountKey);
-		} else if (serviceAccountFile) {
-			const fs = await import("fs/promises");
-			const path = await import("path");
-			const keyPath = path.isAbsolute(serviceAccountFile)
-				? serviceAccountFile
-				: path.resolve(process.cwd(), "scripts", serviceAccountFile);
-			const keyContent = await fs.readFile(keyPath, "utf-8");
-			credentials = JSON.parse(keyContent);
-		}
-
-		if (!credentials?.client_email || !credentials?.private_key) {
-			throw new Error(
-				"Invalid service account credentials - missing client_email or private_key",
-			);
-		}
-
-		return credentials;
-	} catch (error) {
-		throw new Error(
-			`Service account configuration error: ${error instanceof Error ? error.message : "Unknown error"}`,
-		);
-	}
-}
-
-/**
- * Geocode a single address using Google Maps API
+ * Geocode a single address using Google Maps Geocoding API (requires API key)
  */
 async function geocodeAddressWithMapsAPI(
 	address: string,
 ): Promise<GeocodingResult> {
-	console.log(`🗺️ Geocoding address: ${address}`);
 
 	if (!address || address.trim().length === 0) {
 		throw new Error("Address cannot be empty");
 	}
 
 	try {
-		const credentials = await loadServiceAccountCredentials();
-		const accessToken = await getGeocodingAccessToken(credentials);
-
 		const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
 		url.searchParams.set("address", address.trim());
-		url.searchParams.set("key", ""); // Using service account token instead
+		url.searchParams.set("key", getGeocodingApiKey());
 
 		const response = await fetch(url.toString(), {
-			headers: {
-				Authorization: `Bearer ${accessToken}`,
-			},
 			signal: AbortSignal.timeout(10000),
 		});
 
@@ -230,7 +111,6 @@ async function geocodeAddressWithMapsAPI(
 	} catch (error) {
 		const errorMessage =
 			error instanceof Error ? error.message : "Unknown geocoding error";
-		console.error(`❌ Geocoding failed for "${address}":`, errorMessage);
 		throw new Error(`Geocoding failed: ${errorMessage}`);
 	}
 }
@@ -339,16 +219,11 @@ async function reverseGeocodeWithMapsAPI(
 	console.log(`🗺️ Reverse geocoding coordinates: ${latitude}, ${longitude}`);
 
 	try {
-		const credentials = await loadServiceAccountCredentials();
-		const accessToken = await getGeocodingAccessToken(credentials);
-
 		const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
 		url.searchParams.set("latlng", `${latitude},${longitude}`);
+		url.searchParams.set("key", getGeocodingApiKey());
 
 		const response = await fetch(url.toString(), {
-			headers: {
-				Authorization: `Bearer ${accessToken}`,
-			},
 			signal: AbortSignal.timeout(10000),
 		});
 

@@ -33,7 +33,7 @@ export class DataManager {
 		}
 
 		const storeResult = await processCSVData(storeCsv, "store", false, {
-			populateCoordinates: false,
+			populateCoordinates: true,
 		});
 
 		if (

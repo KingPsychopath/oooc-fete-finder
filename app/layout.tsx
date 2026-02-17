@@ -11,6 +11,7 @@ import {
 } from "@/features/auth/user-session-cookie";
 import { generateMainOGImage } from "@/lib/social/og-utils";
 import { Analytics } from "@vercel/analytics/next";
+import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { ThemeProvider } from "next-themes";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
@@ -174,6 +175,7 @@ export default async function RootLayout({
 					enableSystem
 					disableTransitionOnChange
 				>
+					<ThemeColorSync />
 					<AuthProvider
 						initialIsAuthenticated={userSession.isAuthenticated}
 						initialUserEmail={userSession.email}

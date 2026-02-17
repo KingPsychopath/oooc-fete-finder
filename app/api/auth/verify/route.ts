@@ -1,4 +1,3 @@
-import { env } from "@/lib/config/env";
 import {
 	USER_AUTH_COOKIE_NAME,
 	getUserAuthCookieOptions,
@@ -74,33 +73,6 @@ export async function POST(request: Request) {
 		const storeResult = await UserCollectionStore.addOrUpdate(user);
 		const storeStatus = await UserCollectionStore.getStatus();
 
-		const shouldMirrorToGoogle = Boolean(
-			env.GOOGLE_MIRROR_WRITES && env.GOOGLE_SHEETS_URL,
-		);
-		let mirrorWarning: string | null = null;
-
-		if (shouldMirrorToGoogle && env.GOOGLE_SHEETS_URL) {
-			try {
-				const mirrorResponse = await fetch(env.GOOGLE_SHEETS_URL, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify(user),
-					signal: AbortSignal.timeout(10000),
-				});
-				if (!mirrorResponse.ok) {
-					mirrorWarning =
-						`Google mirror failed: ${mirrorResponse.status} ${mirrorResponse.statusText}`;
-				}
-			} catch (mirrorError) {
-				mirrorWarning =
-					mirrorError instanceof Error
-						? `Google mirror failed: ${mirrorError.message}`
-						: "Google mirror failed";
-			}
-		}
-
 		const response = NextResponse.json({
 			success: true,
 			email,
@@ -109,7 +81,6 @@ export async function POST(request: Request) {
 				storeResult.alreadyExisted
 					? "Existing user verified"
 					: "User verified",
-			mirrorWarning,
 		});
 		response.cookies.set(
 			USER_AUTH_COOKIE_NAME,

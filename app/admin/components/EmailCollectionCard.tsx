@@ -10,7 +10,6 @@ import {
 import type {
 	EmailRecord,
 	UserCollectionAnalytics,
-	UserCollectionMirrorStatus,
 	UserCollectionStoreSummary,
 } from "../types";
 
@@ -18,7 +17,6 @@ type EmailCollectionCardProps = {
 	emails: EmailRecord[];
 	store: UserCollectionStoreSummary | null;
 	analytics: UserCollectionAnalytics | null;
-	mirror: UserCollectionMirrorStatus | null;
 	onCopyEmails: () => void;
 	onExportCSV: () => void;
 };
@@ -27,7 +25,6 @@ export const EmailCollectionCard = ({
 	emails,
 	store,
 	analytics,
-	mirror,
 	onCopyEmails,
 	onExportCSV,
 }: EmailCollectionCardProps) => {
@@ -59,16 +56,7 @@ export const EmailCollectionCard = ({
 					<Badge variant="secondary" className="capitalize">
 						Store: {store?.provider ?? "unknown"}
 					</Badge>
-					<Badge variant={mirror?.enabled ? "outline" : "default"}>
-						Google mirror: {mirror?.enabled ? "enabled" : "disabled"}
-					</Badge>
 				</div>
-				{mirror?.enabled && !mirror.endpointConfigured && (
-					<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-						Google mirroring is enabled but <code>GOOGLE_SHEETS_URL</code> is not
-						configured.
-					</div>
-				)}
 				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -150,29 +138,6 @@ export const EmailCollectionCard = ({
 						</div>
 					)}
 				</div>
-				<details className="rounded-md border bg-background/60 px-3 py-2">
-					<summary className="cursor-pointer text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-						Google Mirror Deprecation Checklist
-					</summary>
-					<div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
-						<p>
-							1. Keep <code>GOOGLE_MIRROR_WRITES=false</code> once Postgres
-							stability is confirmed.
-						</p>
-						<p>
-							2. Remove <code>GOOGLE_SHEETS_URL</code> after you no longer need
-							mirror writes.
-						</p>
-						<p>
-							3. Remove legacy Apps Script actions/cards that are only for sheet
-							stats/cleanup.
-						</p>
-						<p>
-							4. Keep CSV export enabled here so editors retain the familiar
-							workflow.
-						</p>
-					</div>
-				</details>
 			</CardHeader>
 			<CardContent>
 				{emails.length === 0 ? (

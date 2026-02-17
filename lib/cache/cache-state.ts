@@ -3,6 +3,7 @@
  * Handles in-memory cache state and operations
  */
 
+import { log } from "@/lib/platform/logger";
 import { Event } from "@/features/events/types";
 import { getCacheManagerConfig } from "./cache-config";
 import type { CacheState, CacheStateStatus, MemoryStats } from "./cache-types";
@@ -93,19 +94,21 @@ export class CacheStateManager {
 			utilizationPercent > getMemoryConfig().CLEANUP_THRESHOLD * 100;
 		const withinLimits = utilizationPercent < 100;
 
-		// Log memory status periodically (check before updating lastMemoryCheck)
 		const shouldLog =
 			now - cacheState.lastMemoryCheck >
 			getMemoryConfig().MEMORY_CHECK_INTERVAL;
 		if (shouldLog || needsCleanup) {
-			console.log(
-				`💾 Memory Usage: ${(currentUsage / 1024 / 1024).toFixed(2)}MB / ${(maxLimit / 1024 / 1024).toFixed(2)}MB (${utilizationPercent.toFixed(1)}%)`,
-			);
-
 			if (needsEmergencyCleanup) {
-				console.warn("🚨 EMERGENCY: Cache memory usage critical!");
+				log.warn("cache", "Memory usage critical", {
+					usageMB: (currentUsage / 1024 / 1024).toFixed(2),
+					limitMB: (maxLimit / 1024 / 1024).toFixed(2),
+					percent: utilizationPercent.toFixed(1),
+				});
 			} else if (needsCleanup) {
-				console.warn("⚠️ Cache memory usage high, cleanup recommended");
+				log.info("cache", "Memory cleanup recommended", {
+					usageMB: (currentUsage / 1024 / 1024).toFixed(2),
+					percent: utilizationPercent.toFixed(1),
+				});
 			}
 		}
 
@@ -124,23 +127,15 @@ export class CacheStateManager {
 	 * Perform memory cleanup
 	 */
 	private static performMemoryCleanup(): void {
-		if (!cacheState.events || cacheState.events.length === 0) {
-			console.log("💾 No cached data to clean up");
-			return;
-		}
+		if (!cacheState.events || cacheState.events.length === 0) return;
 
-		console.log("🧹 Performing cache memory cleanup...");
-
-		// For events cache, we can't partial-cleanup easily, so we clear the whole cache
-		// In a more complex scenario, you might implement LRU or keep only recent events
 		const oldEventCount = cacheState.events.length;
-		const oldMemoryUsage = cacheState.memoryUsage;
-
+		const oldMemoryMB = (cacheState.memoryUsage / 1024 / 1024).toFixed(2);
 		this.clearCache();
-
-		console.log(
-			`✅ Memory cleanup completed: ${oldEventCount} events (${(oldMemoryUsage / 1024 / 1024).toFixed(2)}MB) cleared`,
-		);
+		log.info("cache", "Memory cleanup completed", {
+			eventsCleared: oldEventCount,
+			memoryMB: oldMemoryMB,
+		});
 	}
 
 	/**
@@ -190,25 +185,18 @@ export class CacheStateManager {
 		const memoryCheck = this.checkMemoryLimits();
 
 		if (memoryCheck.needsEmergencyCleanup) {
-			console.error(
-				"🚨 Cannot update cache: would exceed emergency memory threshold",
-			);
-			console.error(
-				`   Requested: ${(newMemoryUsage / 1024 / 1024).toFixed(2)}MB, Limit: ${(getMemoryConfig().MAX_MEMORY_USAGE / 1024 / 1024).toFixed(2)}MB`,
-			);
-
-			// Restore previous memory usage and attempt cleanup
+			log.warn("cache", "Cache update would exceed memory limit, cleaning up", {
+				requestedMB: (newMemoryUsage / 1024 / 1024).toFixed(2),
+				limitMB: (getMemoryConfig().MAX_MEMORY_USAGE / 1024 / 1024).toFixed(
+					2,
+				),
+			});
 			cacheState.memoryUsage = tempMemoryUsage;
 			this.performMemoryCleanup();
-
-			// Try again after cleanup
 			cacheState.memoryUsage = newMemoryUsage;
 			const recheckMemory = this.checkMemoryLimits();
-
 			if (recheckMemory.needsEmergencyCleanup) {
-				console.error(
-					"🚨 Still exceeds memory limits after cleanup, rejecting cache update",
-				);
+				log.error("cache", "Still over memory limit after cleanup, rejecting");
 				cacheState.memoryUsage = tempMemoryUsage;
 				return;
 			}
@@ -229,20 +217,20 @@ export class CacheStateManager {
 			}
 		}
 
-		const timeSincePrevious = previousFetchTime ? now - previousFetchTime : 0;
-		console.log(
-			`📦 Cache updated: ${events.length} events from ${source} source`,
-		);
-		console.log(
-			`💾 Memory usage: ${(newMemoryUsage / 1024 / 1024).toFixed(2)}MB (${((newMemoryUsage / getMemoryConfig().MAX_MEMORY_USAGE) * 100).toFixed(1)}%)`,
-		);
-		console.log(
-			`⏰ Cache timestamps - lastFetchTime: ${now}, previous: ${previousFetchTime}, age reset from: ${timeSincePrevious}ms to 0ms`,
-		);
+		const memoryMB = (newMemoryUsage / 1024 / 1024).toFixed(2);
+		const percent = (
+			(newMemoryUsage / getMemoryConfig().MAX_MEMORY_USAGE) *
+			100
+		).toFixed(1);
+		log.info("cache", "Cache updated", {
+			events: events.length,
+			source,
+			memoryMB: `${memoryMB}MB`,
+			usagePercent: `${percent}%`,
+		});
 
-		// Perform cleanup if needed
 		if (memoryCheck.needsCleanup && !memoryCheck.needsEmergencyCleanup) {
-			console.log("🧹 Scheduling memory cleanup for next cycle");
+			log.info("cache", "Memory cleanup scheduled for next cycle");
 		}
 	}
 
@@ -261,8 +249,6 @@ export class CacheStateManager {
 		const now = Date.now();
 		cacheState.lastRemoteFetchTime = now;
 		cacheState.lastRemoteErrorMessage = errorMessage;
-
-		console.log(`📡 Remote fetch attempt recorded: ${errorMessage}`);
 	}
 
 	/**
@@ -274,52 +260,27 @@ export class CacheStateManager {
 	 * to prevent it from expiring.
 	 */
 	static refreshCacheValidity(errorMessage?: string): void {
-		if (!cacheState.events) {
-			console.log("⚠️ Cannot refresh cache validity - no cached data exists");
-			return;
-		}
+		if (!cacheState.events) return;
 
 		const now = Date.now();
 		const originalFetchTime = cacheState.lastFetchTime;
 		const cacheAge = now - originalFetchTime;
-
-		// Hybrid approach: Balance between keeping service available and preventing indefinitely old data
 		const config = getCacheManagerConfig();
 		const MAX_CACHE_AGE = config.maxCacheAge;
 		const EXTENSION_DURATION = config.cacheExtensionDuration;
 
 		if (cacheAge < MAX_CACHE_AGE) {
-			// Cache is not too old yet - extend its validity by a reasonable amount
 			cacheState.lastFetchTime = now - (cacheAge - EXTENSION_DURATION);
-			console.log(
-				`🔄 Cache validity extended: age ${Math.round(cacheAge / 60000)}min, extended by ${EXTENSION_DURATION / 60000}min`,
-			);
 		} else {
-			// Cache is getting very old - refresh to current time but log warning
 			cacheState.lastFetchTime = now;
-			console.log(
-				`⚠️ Cache is very old (${Math.round(cacheAge / 60000)}min), refreshing to current time`,
-			);
-			console.log(
-				"📊 Consider checking data source connectivity - cache data may be significantly outdated",
-			);
+			log.warn("cache", "Cache validity extended (data may be stale)", {
+				ageMin: Math.round(cacheAge / 60000),
+			});
 		}
 
-		// Record the remote attempt
 		cacheState.lastRemoteFetchTime = now;
 		if (errorMessage) {
 			cacheState.lastRemoteErrorMessage = errorMessage;
-		}
-
-		const newCacheAge = now - cacheState.lastFetchTime;
-		console.log(
-			`⏰ Cache validity refreshed - effective age: ${Math.round(newCacheAge / 60000)}min`,
-		);
-
-		if (errorMessage) {
-			console.log(
-				`📡 Remote fetch failed, but cached data remains valid: ${errorMessage}`,
-			);
 		}
 	}
 
@@ -328,10 +289,7 @@ export class CacheStateManager {
 	 * This ensures the system always has some data to serve, even if all data sources fail
 	 */
 	static bootstrapCacheWithFallback(errorMessage: string): void {
-		if (cacheState.events && cacheState.events.length > 0) {
-			console.log("ℹ️ Cache already has data, skipping bootstrap");
-			return;
-		}
+		if (cacheState.events && cacheState.events.length > 0) return;
 
 		const now = Date.now();
 		const fallbackEvents: Event[] = [
@@ -366,14 +324,9 @@ export class CacheStateManager {
 		cacheState.lastRemoteFetchTime = now;
 		cacheState.lastRemoteErrorMessage = `Bootstrap mode: ${errorMessage}`;
 		cacheState.lastDataSource = "local";
-
-		console.log(
-			"🚨 Bootstrap mode activated: Cache populated with fallback event",
-		);
-		console.log(`📡 Bootstrap reason: ${errorMessage}`);
-		console.log(
-			"⚠️ This prevents infinite empty cache loops while data sources are unavailable",
-		);
+		log.warn("cache", "Bootstrap mode: fallback event loaded", {
+			reason: errorMessage,
+		});
 	}
 
 	/**
@@ -405,8 +358,6 @@ export class CacheStateManager {
 		cacheState.lastRemoteErrorMessage = "";
 		cacheState.lastDataSource = "cached";
 		cacheState.memoryUsage = 0;
-
-		console.log("🗑️ Cache state cleared");
 	}
 
 	/**
@@ -417,10 +368,6 @@ export class CacheStateManager {
 		const cacheAge = cacheState.lastFetchTime
 			? now - cacheState.lastFetchTime
 			: 0;
-
-		console.log(
-			`📊 Cache status calculated - now: ${now}, lastFetchTime: ${cacheState.lastFetchTime}, cacheAge: ${cacheAge}ms`,
-		);
 
 		return {
 			hasCachedData: cacheState.events !== null,

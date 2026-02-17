@@ -26,6 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type EventSheetEditorCardProps = {
 	isAuthenticated: boolean;
+	initialEditorData?: EditorPayload;
 	onDataSaved?: () => Promise<void> | void;
 };
 
@@ -47,18 +48,44 @@ const MAX_FROZEN_COLUMNS = 4;
 const cellRefKey = (rowIndex: number, columnKey: string) =>
 	`${rowIndex}:${columnKey}`;
 
+function initialEditorState(initialEditorData?: EditorPayload): {
+	loading: boolean;
+	columns: EditableSheetColumn[];
+	rows: EditableSheetRow[];
+	statusMessage: string;
+	lastSavedAt: string | null;
+} {
+	const hasInitial =
+		initialEditorData?.success &&
+		initialEditorData.columns &&
+		initialEditorData.rows;
+	return {
+		loading: !hasInitial,
+		columns: hasInitial ? (initialEditorData.columns ?? []) : [],
+		rows: hasInitial ? (initialEditorData.rows ?? []) : [],
+		statusMessage: hasInitial
+			? `Loaded ${initialEditorData.rows?.length ?? 0} rows and ${initialEditorData.columns?.length ?? 0} columns from Postgres store`
+			: "Loading sheet...",
+		lastSavedAt: hasInitial ? initialEditorData.status?.updatedAt ?? null : null,
+	};
+}
+
 export const EventSheetEditorCard = ({
 	isAuthenticated,
+	initialEditorData,
 	onDataSaved,
 }: EventSheetEditorCardProps) => {
-	const [isLoading, setIsLoading] = useState(true);
+	const initial = initialEditorState(initialEditorData);
+	const [isLoading, setIsLoading] = useState(initial.loading);
 	const [isSaving, setIsSaving] = useState(false);
-	const [rows, setRows] = useState<EditableSheetRow[]>([]);
-	const [columns, setColumns] = useState<EditableSheetColumn[]>([]);
+	const [rows, setRows] = useState<EditableSheetRow[]>(initial.rows);
+	const [columns, setColumns] = useState<EditableSheetColumn[]>(initial.columns);
 	const [query, setQuery] = useState("");
-	const [statusMessage, setStatusMessage] = useState("Loading sheet...");
+	const [statusMessage, setStatusMessage] = useState(initial.statusMessage);
 	const [errorMessage, setErrorMessage] = useState("");
-	const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+	const [lastSavedAt, setLastSavedAt] = useState<string | null>(
+		initial.lastSavedAt,
+	);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [newColumnLabel, setNewColumnLabel] = useState("");
 	const [displayLimit, setDisplayLimit] = useState(50);
@@ -157,8 +184,15 @@ export const EventSheetEditorCard = ({
 	}, [isAuthenticated, refreshHistoryFlags]);
 
 	useEffect(() => {
+		if (
+			initialEditorData?.success &&
+			initialEditorData.columns &&
+			initialEditorData.rows
+		) {
+			return;
+		}
 		void loadEditorData();
-	}, [loadEditorData]);
+	}, [loadEditorData, initialEditorData?.success]);
 
 	const performSave = useCallback(
 		async (mode: "auto" | "manual") => {

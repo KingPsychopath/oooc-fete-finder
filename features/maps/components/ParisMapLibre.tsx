@@ -540,7 +540,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 								checked={showCoordinates}
 								onChange={(e) => setShowCoordinates(e.target.checked)}
 								disabled={true}
-								className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+								className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
 							/>
 							<div className="flex flex-col">
 								<span className="text-sm text-gray-700 dark:text-gray-300">
@@ -650,7 +650,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						{getEventsInArrondissement(selectedArrondissement).map((event) => (
 							<button
 								key={event.id}
-								className={`w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-primary relative ${
+								className={`w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary relative ${
 									event.isOOOCPick
 										? "bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-950 dark:to-amber-950 border border-yellow-200 dark:border-yellow-800"
 										: "bg-gray-50 dark:bg-gray-700"

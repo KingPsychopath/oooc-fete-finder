@@ -210,7 +210,7 @@ const EmailGateModal = ({
 									setConsent(e.target.checked);
 									setError("");
 								}}
-								className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+								className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
 								disabled={isSubmitting}
 							/>
 							<Label

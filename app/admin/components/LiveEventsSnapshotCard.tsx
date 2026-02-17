@@ -12,18 +12,22 @@ import {
 import { getLiveSiteEventsSnapshot } from "@/features/data-management/actions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+type SnapshotState = Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
+
 type LiveEventsSnapshotCardProps = {
 	isAuthenticated: boolean;
+	initialSnapshot?: SnapshotState | null;
 };
-
-type SnapshotState = Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
 
 const DEFAULT_VISIBLE_ROWS = 5;
 
 export const LiveEventsSnapshotCard = ({
 	isAuthenticated,
+	initialSnapshot,
 }: LiveEventsSnapshotCardProps) => {
-	const [snapshot, setSnapshot] = useState<SnapshotState | null>(null);
+	const [snapshot, setSnapshot] = useState<SnapshotState | null>(
+		initialSnapshot ?? null,
+	);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isExpanded, setIsExpanded] = useState(false);
 
@@ -40,8 +44,9 @@ export const LiveEventsSnapshotCard = ({
 	}, [isAuthenticated]);
 
 	useEffect(() => {
+		if (initialSnapshot != null) return;
 		void loadSnapshot();
-	}, [loadSnapshot]);
+	}, [loadSnapshot, initialSnapshot]);
 
 	const rows = snapshot?.rows || [];
 	const visibleRows = useMemo(

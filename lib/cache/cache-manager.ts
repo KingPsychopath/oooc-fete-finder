@@ -1,3 +1,4 @@
+import { log } from "@/lib/platform/logger";
 import { DataManager } from "@/features/data-management/data-manager";
 import { isValidEventsData } from "@/features/data-management/data-processor";
 import { CacheRequestDeduplicator } from "./cache-deduplication";
@@ -32,9 +33,14 @@ export class CacheManager {
 						const cachedEvents = CacheStateManager.getCachedEvents();
 						if (cachedEvents) {
 							const cacheState = CacheStateManager.getState();
-							console.log(
-								`🔄 Using cached events data (${cachedEvents.length} events, cached ${Math.round((now - cacheState.lastFetchTime) / 1000)}s ago)`,
+							const ageSec = Math.round(
+								(now - cacheState.lastFetchTime) / 1000,
 							);
+							log.info("cache", "Serving cached events", {
+								events: cachedEvents.length,
+								source: cacheState.lastDataSource,
+								ageSec,
+							});
 
 							// Record cache hit
 							CacheMetrics.recordCacheHit();
@@ -50,23 +56,16 @@ export class CacheManager {
 						}
 					}
 
-					// Record cache miss
 					CacheMetrics.recordCacheMiss();
-					console.log("🔄 Loading fresh events data...");
+					log.info("cache", "Loading fresh events");
 
-					// Fetch fresh data from data management layer
 					const dataResult = await DataManager.getEventsData();
 
 					if (dataResult.success && isValidEventsData(dataResult.data)) {
-						// Update cache with new valid data
 						CacheStateManager.updateCache(
 							dataResult.data,
 							dataResult.source,
 							dataResult.error,
-						);
-
-						console.log(
-							`✅ Successfully loaded and cached ${dataResult.count} events from ${dataResult.source} source`,
 						);
 
 						const result: EventsResult = {
@@ -78,10 +77,11 @@ export class CacheManager {
 							lastUpdate: dataResult.lastUpdate,
 						};
 
-						// Add warnings if there were any
 						if (dataResult.warnings.length > 0) {
 							result.error = `Warnings: ${dataResult.warnings.join("; ")}`;
-							console.warn("⚠️ Non-fatal errors occurred:", dataResult.warnings);
+							log.warn("cache", "Non-fatal warnings", {
+								warnings: dataResult.warnings,
+							});
 						}
 
 						// Record successful fetch time
@@ -105,13 +105,11 @@ export class CacheManager {
 
 							// Refresh cache validity timer to keep serving cached data
 							CacheStateManager.refreshCacheValidity(errorMessage);
-
-							console.log(
-								"🔄 Remote fetch failed/invalid, using cached data (prioritized over local CSV)",
-							);
-							console.log(
-								`   Serving cached data: ${cachedEvents.length} events from ${cacheState.lastDataSource} source`,
-							);
+							log.info("cache", "Serving cached data (remote failed)", {
+								events: cachedEvents.length,
+								source: cacheState.lastDataSource,
+								reason: errorMessage,
+							});
 
 							return {
 								success: true,
@@ -124,10 +122,7 @@ export class CacheManager {
 							};
 						}
 
-						// 2. No cached data - try local CSV fallback
-						console.log(
-							"🔄 No cached data available, trying local CSV fallback...",
-						);
+						log.info("cache", "No cache, trying local CSV fallback");
 						try {
 const { fetchLocalCSV } = await import(
 							"@/features/data-management/csv/fetcher"
@@ -144,9 +139,9 @@ const { fetchLocalCSV } = await import(
 							);
 
 							if (isValidEventsData(localProcessResult.events)) {
-								console.log(
-									`✅ Successfully fell back to local CSV with ${localProcessResult.count} events`,
-								);
+								log.info("cache", "Local CSV fallback loaded", {
+									events: localProcessResult.count,
+								});
 
 								// Cache the local data for future use
 								CacheStateManager.updateCache(
@@ -170,22 +165,20 @@ const { fetchLocalCSV } = await import(
 								localError instanceof Error
 									? localError.message
 									: "Unknown error";
-							console.error(
-								`❌ Local CSV fallback also failed: ${localErrorMsg}`,
+							log.error(
+								"cache",
+								"Local CSV fallback failed",
+								{ error: localErrorMsg },
+								localError,
 							);
 						}
 
-						// 3. Both remote and local failed - activate bootstrap mode
-						console.error(
-							"❌ All data sources failed, activating bootstrap mode",
-						);
 						CacheStateManager.bootstrapCacheWithFallback(errorMessage);
-
 						const bootstrapEvents = CacheStateManager.getCachedEventsForced();
 						if (bootstrapEvents) {
-							console.log(
-								"🚨 Bootstrap mode: Serving fallback event to prevent empty cache loop",
-							);
+							log.warn("cache", "Bootstrap mode: serving fallback", {
+								events: bootstrapEvents.length,
+							});
 							return {
 								success: true,
 								data: bootstrapEvents,
@@ -207,27 +200,19 @@ const { fetchLocalCSV } = await import(
 						};
 					}
 				} catch (error) {
-					console.error("❌ Error in cache manager:", error);
 					const errorMessage =
 						error instanceof Error ? error.message : "Unknown error";
-
-					// Record error
+					log.error("cache", "Cache manager error", undefined, error);
 					CacheMetrics.recordError();
 
-					// Try to return cached data as fallback and refresh its validity
 					const cachedEvents = CacheStateManager.getCachedEventsForced();
 					if (cachedEvents && isValidEventsData(cachedEvents)) {
 						const cacheState = CacheStateManager.getState();
-
-						// Refresh cache validity timer to keep serving cached data
 						CacheStateManager.refreshCacheValidity(errorMessage);
-
-						console.log(
-							"🔄 Exception occurred, refreshed cached data validity",
-						);
-						console.log(
-							`   Serving cached data: ${cachedEvents.length} events from ${cacheState.lastDataSource} source`,
-						);
+						log.info("cache", "Serving cached data after error", {
+							events: cachedEvents.length,
+							source: cacheState.lastDataSource,
+						});
 
 						return {
 							success: true,

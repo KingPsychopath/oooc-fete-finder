@@ -9,6 +9,7 @@ type MapRenderer = "classic" | "maplibre";
 export const useMapRenderer = () => {
 	const [renderer, setRendererState] = useState<MapRenderer>("maplibre");
 
+	// UI-only preference (classic vs MapLibre): localStorage intentional; server does not need it.
 	useEffect(() => {
 		const savedPreference = localStorage.getItem(MAP_RENDERER_STORAGE_KEY);
 		if (savedPreference === "classic" || savedPreference === "maplibre") {

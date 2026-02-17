@@ -208,9 +208,6 @@ const createColumnMapping = (
 		featured: findColumnName(headers, COLUMN_MAPPINGS.featured),
 	};
 
-	// Log mapping for debugging
-	console.log("CSV Column Mapping:", mapping);
-
 	return mapping;
 };
 
@@ -263,24 +260,12 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 				console.warn("Critical CSV parsing errors:", criticalErrors);
 			}
 
-			// Log field mismatch errors as info rather than warnings
-			const fieldErrors = parseResult.errors.filter(
-				(error) =>
-					error.code === "TooFewFields" || error.code === "TooManyFields",
-			);
-
-			if (fieldErrors.length > 0) {
-				console.log(
-					`ℹ️ ${fieldErrors.length} rows have missing columns (this is normal if your sheet doesn't have all optional columns)`,
-				);
-			}
 		}
 
 		const rawData = parseResult.data as Array<RawCSVRow | null | undefined>;
 		const headers = (parseResult.meta.fields || [])
 			.map((header) => String(header).trim())
 			.filter((header) => header.length > 0);
-		console.log("CSV Headers found:", headers);
 		if (headers.length === 0) {
 			throw new Error("CSV header row is missing or empty");
 		}
@@ -329,13 +314,6 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 					featured:
 						(columnMapping.featured && row[columnMapping.featured]) || "",
 				};
-
-				if (index < 3) {
-					console.log(`CSV Row ${index + 1}:`, csvRow);
-					if (csvRow.featured) {
-						console.log(`📅 Row ${index + 1} featured: "${csvRow.featured}"`);
-					}
-				}
 
 				return csvRow;
 			})

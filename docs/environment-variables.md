@@ -1,53 +1,46 @@
 # Environment Variables Reference
 
-This file mirrors the typed schema in `/Users/owenamenze/workspace/github.com/personal/oooc-fete-finder/lib/config/env.ts`.
+Schema lives in `lib/config/env.ts`. Cache defaults live in code (`lib/cache/cache-defaults.ts`); only optional overrides are documented below.
 
-## Server Variables
+## Server Variables (app actually reads these)
 
-| Variable | Type | Required | Default | Notes |
-| --- | --- | --- | --- | --- |
-| `NODE_ENV` | `development \| production \| test` | No | `development` | Runtime mode |
-| `ADMIN_KEY` | `string` | Yes | - | Admin auth key |
-| `AUTH_SECRET` | `string` | No | - | JWT/cookie signing secret |
-| `DATABASE_URL` | `string` | No | - | Postgres connection for source-of-truth store |
-| `DATA_MODE` | `remote \| local \| test` | No | `remote` | Data loading mode |
-| `GOOGLE_MIRROR_WRITES` | `boolean` | No | `false` | Optional Apps Script mirror writes |
-| `REMOTE_CSV_URL` | `url \| empty` | No | - | Google backup CSV source (admin preview/import) |
-| `GOOGLE_MAPS_API_KEY` | `string` | No | - | Geocoding support |
-| `GOOGLE_SHEET_ID` | `string` | No | - | Backup sheet id |
-| `GOOGLE_SERVICE_ACCOUNT_KEY` | `string` | No | - | Service account JSON string |
-| `GOOGLE_SERVICE_ACCOUNT_FILE` | `string` | No | `service-account.json` | Local service account file |
-| `GOOGLE_SHEETS_URL` | `url \| empty` | No | - | Apps Script endpoint |
-| `CACHE_DURATION_MS` | `number` | No | `3600000` | Fresh cache TTL |
-| `REMOTE_REFRESH_INTERVAL_MS` | `number` | No | `1800000` | Refresh check interval |
-| `MAX_CACHE_AGE_MS` | `number` | No | `86400000` | Max stale age |
-| `CACHE_EXTENSION_DURATION_MS` | `number` | No | `7200000` | Stale extension |
-| `CACHE_MAX_MEMORY_BYTES` | `number` | No | `52428800` | Cache memory limit |
-| `CACHE_MEMORY_CHECK_INTERVAL_MS` | `number` | No | `300000` | Memory check interval |
-| `CACHE_CLEANUP_THRESHOLD` | `number` | No | `0.8` | Cleanup threshold |
-| `CACHE_EMERGENCY_THRESHOLD` | `number` | No | `0.95` | Emergency threshold |
-| `CACHE_MAX_METRICS_HISTORY` | `number` | No | `100` | Metrics samples |
-| `CACHE_METRICS_RESET_INTERVAL_MS` | `number` | No | `86400000` | Metrics reset interval |
-| `CACHE_DEDUPLICATION_TIMEOUT_MS` | `number` | No | `5000` | Request dedupe timeout |
-| `CACHE_MAX_RETRY_ATTEMPTS` | `number` | No | `3` | Retry attempts |
-| `CACHE_RETRY_BACKOFF_MS` | `number` | No | `1000` | Retry backoff |
-| `CACHE_BOOTSTRAP_MODE` | `strict \| fallback \| graceful` | No | `graceful` | Failure strategy |
-| `CACHE_VERBOSE_LOGGING` | `boolean` | No | `false` | Verbose logs |
-| `CACHE_LOG_MEMORY_USAGE` | `boolean` | No | `true` | Memory logs |
-| `CACHE_LOG_PERFORMANCE_METRICS` | `boolean` | No | `false` | Perf metrics logs |
-| `LOCAL_CSV_LAST_UPDATED` | `string` | No | - | UI fallback metadata |
-| `DEFAULT_OG_IMAGE` | `string` | No | - | OG image override |
+| Variable | Required | Default | Notes |
+| --- | --- | --- | --- |
+| `NODE_ENV` | No | `development` | `development` \| `production` \| `test` |
+| `ADMIN_KEY` | **Yes** | - | Admin auth key |
+| `AUTH_SECRET` | No | - | JWT/cookie signing |
+| `DATABASE_URL` | No | - | Postgres connection (app uses only this for DB) |
+| `DATA_MODE` | No | `remote` | `remote` \| `local` \| `test` |
+| `REMOTE_CSV_URL` | No | - | CSV URL for admin backup preview/import |
+| `GOOGLE_MAPS_API_KEY` | No | - | Geocoding; if unset, arrondissement centre fallback |
+| `GOOGLE_SHEET_ID` | No | - | Backup sheet for admin import |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | No | - | Service account JSON string |
+| `GOOGLE_SERVICE_ACCOUNT_FILE` | No | `service-account.json` | Path to service account file |
+| `LOCAL_CSV_LAST_UPDATED` | No | - | Metadata only (e.g. last CSV sync time) |
+| `DEFAULT_OG_IMAGE` | No | - | OG image URL override |
+
+## Optional cache overrides (read by `lib/cache/cache-defaults.ts`)
+
+All other cache behaviour (memory limits, thresholds, retries, logging) is fixed in code.
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `CACHE_DURATION_MS` | `3600000` (1h) | In-memory cache TTL |
+| `REMOTE_REFRESH_INTERVAL_MS` | `1800000` (30m) | How often to re-check remote/store |
 
 ## Client Variables
 
-| Variable | Type | Required | Default | Notes |
-| --- | --- | --- | --- | --- |
-| `NEXT_PUBLIC_BASE_PATH` | `string` | No | `` | Subpath deployment |
-| `NEXT_PUBLIC_SITE_URL` | `url` | No | `http://localhost:3000` | Canonical origin |
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_BASE_PATH` | `` | Subpath deployment |
+| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Canonical origin |
 
-## Recommended Setup (Postgres Primary)
+## Postgres
 
-1. Set `DATA_MODE=remote`
-2. Set `DATABASE_URL` (Neon pooler URL)
-3. Keep `REMOTE_CSV_URL` / Google vars only for backup preview/import
-4. Keep `GOOGLE_MIRROR_WRITES=false` unless you explicitly need Apps Script mirroring
+The app uses **only** `DATABASE_URL`. Variables like `PGHOST`, `PGUSER`, `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, etc. are often set by Vercel/Neon for convenience; the app does not read them. You only need `DATABASE_URL` for the app to use Postgres.
+
+## Recommended setup (Postgres primary)
+
+1. Set `DATA_MODE=remote` and `DATABASE_URL` (e.g. Neon pooler URL).
+2. Use Google vars only for admin backup preview/import and geocoding.
+3. Leave cache vars unset unless you need to tune TTL/refresh.

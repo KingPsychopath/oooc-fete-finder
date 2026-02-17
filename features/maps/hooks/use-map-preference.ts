@@ -37,7 +37,8 @@ export const useMapPreference = (): MapPreferenceState => {
 		};
 	}, []);
 
-	// Load preference from localStorage on mount
+	// UI-only preference (which map app to open): localStorage is intentional;
+	// server does not need this. Use cookies only for auth or server-readable state.
 	useEffect(() => {
 		try {
 			const stored = localStorage.getItem(MAP_PREFERENCE_STORAGE_KEY);

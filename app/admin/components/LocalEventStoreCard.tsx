@@ -25,6 +25,8 @@ import type { CacheStatus } from "../types";
 type LocalEventStoreCardProps = {
 	isAuthenticated: boolean;
 	cacheStatus?: CacheStatus;
+	initialStatus?: Awaited<ReturnType<typeof getLocalEventStoreStatus>>;
+	initialPreview?: Awaited<ReturnType<typeof getLocalEventStorePreview>>;
 	onStoreUpdated?: () => Promise<void> | void;
 };
 
@@ -45,11 +47,19 @@ type RemotePreviewState = {
 export const LocalEventStoreCard = ({
 	isAuthenticated,
 	cacheStatus,
+	initialStatus,
+	initialPreview,
 	onStoreUpdated,
 }: LocalEventStoreCardProps) => {
-	const [status, setStatus] = useState<StatusState | undefined>(undefined);
-	const [headers, setHeaders] = useState<readonly string[]>([]);
-	const [rows, setRows] = useState<PreviewRows>([]);
+	const [status, setStatus] = useState<StatusState | undefined>(() =>
+		initialStatus?.success ? initialStatus.status : undefined,
+	);
+	const [headers, setHeaders] = useState<readonly string[]>(() =>
+		initialPreview?.success ? initialPreview.headers ?? [] : [],
+	);
+	const [rows, setRows] = useState<PreviewRows>(() =>
+		initialPreview?.success ? initialPreview.rows ?? [] : [],
+	);
 	const [remotePreview, setRemotePreview] = useState<RemotePreviewState | null>(
 		null,
 	);
@@ -78,15 +88,15 @@ export const LocalEventStoreCard = ({
 	}, []);
 
 	useEffect(() => {
-		if (!isAuthenticated) return;
+		if (!isAuthenticated || (initialStatus && initialPreview)) return;
 		loadStatusAndPreview().catch((loadError) => {
 			setError(
 				loadError instanceof Error ?
 					loadError.message
-				: 	"Failed to load store status",
+				:	"Failed to load store status",
 			);
 		});
-	}, [isAuthenticated, loadStatusAndPreview]);
+	}, [isAuthenticated, initialStatus, initialPreview, loadStatusAndPreview]);
 
 	if (!isAuthenticated) {
 		return null;

@@ -68,7 +68,7 @@ const Footer = () => {
 									target="_blank"
 									rel="noopener noreferrer"
 									aria-label={social.ariaLabel}
-									className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+									className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 								>
 									<IconComponent className="h-4 w-4" />
 									<ExternalLink className="ml-1 h-3 w-3" />
@@ -86,7 +86,7 @@ const Footer = () => {
 									href="https://x.com/milkandh3nny"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm"
+									className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
 									title="Follow Milkandhenny on X (Twitter)"
 								>
 									Milkandhenny
@@ -97,7 +97,7 @@ const Footer = () => {
 								href="https://coff.ee/milkandhenny"
 								target="_blank"
 								rel="noopener noreferrer"
-								className="inline-flex items-center space-x-1 font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm"
+								className="inline-flex items-center space-x-1 font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
 								title="Buy me a drink if this was helpful"
 							>
 								<Coffee className="h-3 w-3" />

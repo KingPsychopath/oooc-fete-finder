@@ -47,16 +47,29 @@ DATABASE_URL=postgresql://...
 DATA_MODE=remote
 ```
 
-Optional Google backup import/preview envs:
+Optional Google backup import/preview and geocoding:
 
 ```bash
 REMOTE_CSV_URL=
 GOOGLE_SHEET_ID=
 GOOGLE_SERVICE_ACCOUNT_KEY=
 GOOGLE_SERVICE_ACCOUNT_FILE=service-account.json
-GOOGLE_MIRROR_WRITES=false
-GOOGLE_SHEETS_URL=
+GOOGLE_MAPS_API_KEY=   # optional; enable Geocoding API in Cloud Console for precise coords
 ```
+
+Cache defaults (TTL, memory, etc.) live in code; optional overrides: `CACHE_DURATION_MS`, `REMOTE_REFRESH_INTERVAL_MS`. See `docs/environment-variables.md`.
+
+## Logging
+
+One-line startup banner (data mode, DB, geocoding). Runtime logs use `lib/platform/logger` (scope + message; no per-event or memory spam). See `docs/logging.md`.
+
+## Documentation
+
+- `docs/environment-variables.md` — env reference (app only uses `DATABASE_URL` for Postgres)
+- `docs/logging.md` — logging and startup
+- `docs/geocoding.md` — Geocoding API and arrondissement fallback
+- `docs/postgres-migration.md` — Postgres migration
+- `docs/google-integrations.md` — Google backup/import
 
 ## Development
 
@@ -84,10 +97,8 @@ pnpm exec tsc --noEmit
 
 All admin endpoints require valid admin auth.
 
-## Migration Notes
+## Migration notes
 
-Detailed migration steps are in:
-
-- `/Users/owenamenze/workspace/github.com/personal/oooc-fete-finder/docs/postgres-migration.md`
-- `/Users/owenamenze/workspace/github.com/personal/oooc-fete-finder/docs/environment-variables.md`
-- `/Users/owenamenze/workspace/github.com/personal/oooc-fete-finder/docs/google-output-deprecation.md`
+- `docs/postgres-migration.md` — Postgres migration
+- `docs/environment-variables.md` — env reference
+- `docs/google-integrations.md` — Google backup/import

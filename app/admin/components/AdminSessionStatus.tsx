@@ -16,9 +16,46 @@ import {
 import { Clock3, LogOut, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+type SessionInfo = {
+	isValid: boolean;
+	expiresAt?: number;
+	expiresIn?: string;
+	sessionAge?: string;
+	jti?: string;
+};
+
+type TokenSession = {
+	jti: string;
+	tv: number;
+	iat: number;
+	exp: number;
+	ip: string;
+	ua: string;
+	status: "active" | "expired" | "revoked" | "invalidated";
+};
+
 type AdminSessionStatusProps = {
+	initialSessionStatus?: Awaited<
+		ReturnType<typeof getAdminSessionStatus>
+	>;
+	initialTokenSessions?: Awaited<
+		ReturnType<typeof getAdminTokenSessions>
+	>;
 	onLogout: () => void | Promise<void>;
 };
+
+function sessionInfoFromStatus(
+	status: AdminSessionStatusProps["initialSessionStatus"],
+): SessionInfo {
+	if (!status?.success) return { isValid: false };
+	return {
+		isValid: status.isValid,
+		expiresAt: status.expiresAt,
+		expiresIn: status.expiresIn,
+		sessionAge: status.sessionAge,
+		jti: status.jti,
+	};
+}
 
 const getSessionBadge = (expiresAt: number | undefined) => {
 	if (!expiresAt) {
@@ -70,26 +107,20 @@ const TOKEN_SESSION_STATUS = {
 	},
 } as const;
 
-export const AdminSessionStatus = ({ onLogout }: AdminSessionStatusProps) => {
-	const [sessionInfo, setSessionInfo] = useState<{
-		isValid: boolean;
-		expiresAt?: number;
-		expiresIn?: string;
-		sessionAge?: string;
-		jti?: string;
-	}>({ isValid: false });
-	const [sessions, setSessions] = useState<
-		Array<{
-			jti: string;
-			tv: number;
-			iat: number;
-			exp: number;
-			ip: string;
-			ua: string;
-			status: "active" | "expired" | "revoked" | "invalidated";
-		}>
-	>([]);
-	const [currentTokenVersion, setCurrentTokenVersion] = useState<number>(1);
+export const AdminSessionStatus = ({
+	initialSessionStatus,
+	initialTokenSessions,
+	onLogout,
+}: AdminSessionStatusProps) => {
+	const [sessionInfo, setSessionInfo] = useState<SessionInfo>(() =>
+		sessionInfoFromStatus(initialSessionStatus),
+	);
+	const [sessions, setSessions] = useState<TokenSession[]>(() =>
+		initialTokenSessions?.success ? initialTokenSessions.sessions ?? [] : [],
+	);
+	const [currentTokenVersion, setCurrentTokenVersion] = useState<number>(
+		() => initialTokenSessions?.currentTokenVersion ?? 1,
+	);
 	const [isRevokingAll, setIsRevokingAll] = useState(false);
 	const [revokingJti, setRevokingJti] = useState<string | null>(null);
 	const [statusMessage, setStatusMessage] = useState("");
@@ -101,27 +132,19 @@ export const AdminSessionStatus = ({ onLogout }: AdminSessionStatusProps) => {
 		]);
 
 		if (status.success) {
-			setSessionInfo({
-				isValid: status.isValid,
-				expiresAt: status.expiresAt,
-				expiresIn: status.expiresIn,
-				sessionAge: status.sessionAge,
-				jti: status.jti,
-			});
+			setSessionInfo(sessionInfoFromStatus(status));
 		}
 
 		if (tokenSessions.success) {
-			setSessions(tokenSessions.sessions || []);
-			setCurrentTokenVersion(tokenSessions.currentTokenVersion || 1);
+			setSessions(tokenSessions.sessions ?? []);
+			setCurrentTokenVersion(tokenSessions.currentTokenVersion ?? 1);
 		}
 	}, []);
 
 	useEffect(() => {
-		void loadStatus();
 		const interval = setInterval(() => {
 			void loadStatus();
 		}, 60000);
-
 		return () => clearInterval(interval);
 	}, [loadStatus]);
 

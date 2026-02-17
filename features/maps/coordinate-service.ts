@@ -201,6 +201,46 @@ export async function geocodeLocation(
 	}
 }
 
+/** Fatal API errors: one warning per run, then use arrondissement fallback only */
+let geocodingUnavailable = false;
+let geocodingUnavailableLogged = false;
+
+function isFatalGeocodingError(message: string): boolean {
+	const lower = message.toLowerCase();
+	return (
+		lower.includes("request_denied") ||
+		lower.includes("not activated") ||
+		lower.includes("enable this api") ||
+		lower.includes("api key") ||
+		lower.includes("must use an api key") ||
+		lower.includes("trial has ended") ||
+		lower.includes("upgrade to a paid account") ||
+		lower.includes("pay-as-you-go") ||
+		lower.includes("billing") ||
+		lower.includes("google_maps_api_key")
+	);
+}
+
+function markGeocodingUnavailableAndWarnOnce(_message: string): void {
+	geocodingUnavailable = true;
+	if (geocodingUnavailableLogged) return;
+	geocodingUnavailableLogged = true;
+	const { log } = require("@/lib/platform/logger");
+	log.warn(
+		"geocoding",
+		"Geocoding API unavailable — using arrondissement centre for all events. Set GOOGLE_MAPS_API_KEY and enable Geocoding API in Cloud Console to geocode addresses.",
+	);
+}
+
+/**
+ * Reset run state so the next populate run can try the API again.
+ * Called at the start of each coordinate population run.
+ */
+export function resetGeocodingRunState(): void {
+	geocodingUnavailable = false;
+	geocodingUnavailableLogged = false;
+}
+
 /**
  * Generate a storage key for location lookup
  */
@@ -238,7 +278,7 @@ export class CoordinateService {
 			forceRefresh?: boolean;
 		} = {},
 	): Promise<CoordinateResult | null> {
-		const { forceRefresh = false } = options;
+		const { forceRefresh = false, fallbackToArrondissement = true } = options;
 
 		// STRICT VALIDATION: Both arrondissement and location must be valid
 		// If either is missing/invalid, return null (no coordinates at all)
@@ -257,11 +297,7 @@ export class CoordinateService {
 			arrondissement >= 1 &&
 			arrondissement <= 20;
 
-		// If either location or arrondissement is invalid, return null
 		if (!hasValidLocation || !hasValidArrondissement) {
-			console.log(
-				`🚫 Skipping coordinates for "${locationName}" (arr: ${arrondissement}) - missing required data`,
-			);
 			return null;
 		}
 
@@ -276,6 +312,22 @@ export class CoordinateService {
 				confidence: stored.confidence || 0.5,
 				wasInStorage: true,
 			};
+		}
+
+		// Skip API for this run if we already hit a fatal error (single warning, then fallback only)
+		if (geocodingUnavailable) {
+			if (fallbackToArrondissement) {
+				const coords = getArrondissementCenter(arrondissement);
+				if (coords) {
+					return {
+						coordinates: coords,
+						source: "estimated",
+						confidence: 0.5,
+						wasInStorage: false,
+					};
+				}
+			}
+			return null;
 		}
 
 		// Try geocoding with unified GCP API
@@ -309,12 +361,36 @@ export class CoordinateService {
 			};
 		} catch (error) {
 			const geocodingError = error as GeocodingError;
-			console.log(
-				`❌ Geocoding failed for "${locationName}" (arr: ${arrondissement}): ${geocodingError.message}`,
-			);
+			const isFatal = isFatalGeocodingError(geocodingError.message);
 
-			// NO FALLBACK: If we can't geocode a valid location+arrondissement, return null
-			// This ensures events without proper location data don't get coordinates
+			if (isFatal) {
+				markGeocodingUnavailableAndWarnOnce(geocodingError.message);
+				if (fallbackToArrondissement) {
+					const coords = getArrondissementCenter(arrondissement);
+					if (coords) {
+						return {
+							coordinates: coords,
+							source: "estimated",
+							confidence: 0.5,
+							wasInStorage: false,
+						};
+					}
+				}
+				return null;
+			}
+
+			// Non-fatal (e.g. no results): log once per event is acceptable; return null or fallback
+			if (fallbackToArrondissement) {
+				const coords = getArrondissementCenter(arrondissement);
+				if (coords) {
+					return {
+						coordinates: coords,
+						source: "estimated",
+						confidence: 0.5,
+						wasInStorage: false,
+					};
+				}
+			}
 			return null;
 		}
 	}

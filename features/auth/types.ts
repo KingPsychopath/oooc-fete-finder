@@ -38,11 +38,6 @@ export type UserCollectionAnalytics = {
 	lastCapturedAt: string | null;
 };
 
-export type UserCollectionMirrorStatus = {
-	enabled: boolean;
-	endpointConfigured: boolean;
-};
-
 export type AuthenticateUserResponse = {
 	success: boolean;
 	message?: string;
@@ -56,6 +51,5 @@ export type CollectedEmailsResponse = {
 	count?: number;
 	store?: UserCollectionStoreSummary;
 	analytics?: UserCollectionAnalytics;
-	mirror?: UserCollectionMirrorStatus;
 	error?: string;
 };

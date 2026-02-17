@@ -1,8 +1,10 @@
+import { log } from "@/lib/platform/logger";
 import type { Event, ParisArrondissement } from "@/features/events/types";
 import {
 	type CoordinateResult,
 	CoordinateService,
 	type GeocodingError,
+	resetGeocodingRunState,
 } from "./coordinate-service";
 import { LocationStorage } from "./location-storage";
 
@@ -41,17 +43,9 @@ export class EventCoordinatePopulator {
 			forceRefresh = false,
 		} = options;
 
-		// 1. LOAD STORAGE ONCE
+		resetGeocodingRunState();
 		const storedLocations = await LocationStorage.load();
-		console.log(`📍 Loaded ${storedLocations.size} stored locations`);
-
-		// Count events that need coordinates
 		const needingCoords = events.filter((e) => !e.coordinates);
-		if (needingCoords.length > 0) {
-			console.log(
-				`🗺️ Processing coordinates for ${needingCoords.length}/${events.length} events`,
-			);
-		}
 
 		let storageHits = 0;
 		let apiCalls = 0;
@@ -131,24 +125,27 @@ export class EventCoordinatePopulator {
 			}
 		}
 
-		// 3. SAVE STORAGE ONCE
 		if (apiCalls > 0 || fallbacks > 0) {
 			try {
 				await LocationStorage.save(storedLocations);
-				console.log(`📍 Saved ${storedLocations.size} locations to storage`);
 			} catch (error) {
-				console.error("❌ Failed to save updated locations:", error);
+				log.error(
+					"coordinates",
+					"Failed to save location storage",
+					undefined,
+					error,
+				);
 			}
 		}
 
-		// Summary
 		const coordCount = eventsWithCoords.filter((e) => e.coordinates).length;
-		console.log(
-			`✅ Coordinates populated: ${coordCount}/${events.length} events`,
-		);
-		console.log(
-			`📊 Sources: ${storageHits} stored, ${apiCalls} geocoded, ${fallbacks} estimated`,
-		);
+		log.info("coordinates", "Coordinate population done", {
+			withCoords: coordCount,
+			total: events.length,
+			fromCache: storageHits,
+			geocoded: apiCalls,
+			arrondissementFallback: fallbacks,
+		});
 
 		return eventsWithCoords;
 	}
@@ -158,7 +155,7 @@ export class EventCoordinatePopulator {
 	 */
 	static async clearStorage(): Promise<void> {
 		await LocationStorage.clear();
-		console.log("🗑️ Location storage cleared");
+		log.info("coordinates", "Location storage cleared");
 	}
 
 	/**
@@ -197,8 +194,10 @@ export class EventCoordinatePopulator {
 		);
 
 		await LocationStorage.save(storedLocations);
-		console.log(
-			`📍 Manual location set for "${locationName}": ${coordinates.lat}, ${coordinates.lng}`,
-		);
+		log.info("coordinates", "Manual location set", {
+			location: locationName,
+			lat: coordinates.lat,
+			lng: coordinates.lng,
+		});
 	}
 }

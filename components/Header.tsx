@@ -57,25 +57,25 @@ const Header = () => {
 							:	"min-h-[72px] py-3 sm:min-h-[84px]"
 						}`}
 					>
-						<div className="flex min-w-0 flex-1 items-center gap-3">
-							<Link
-								href="https://outofofficecollective.co.uk"
-								target="_blank"
-								rel="noopener noreferrer"
+						<Link
+							href={basePath || "/"}
+							className="flex min-w-0 flex-1 items-center gap-3 transition-colors hover:opacity-90"
+							aria-label="Fete Finder home"
+						>
+							<div
 								className={`relative shrink-0 transition-all duration-500 ${
 									isCompressed ? "h-8 w-8 sm:h-9 sm:w-9" : "h-10 w-10 sm:h-12 sm:w-12"
 								}`}
 							>
 								<Image
 									src={`${basePath}/OOOCLogoDark.svg`}
-									alt="Out Of Office Collective"
+									alt=""
 									fill
 									priority
 									sizes="(max-width: 640px) 40px, 48px"
 									className="object-contain transition-transform hover:scale-105 dark:invert"
 								/>
-							</Link>
-
+							</div>
 							<div className="min-w-0">
 								<p className="truncate text-[10px] uppercase tracking-[0.26em] text-foreground/55 sm:text-[11px]">
 									Out Of Office Collective
@@ -84,15 +84,9 @@ const Header = () => {
 									Fete Finder
 								</h1>
 							</div>
-						</div>
+						</Link>
 
-						<nav className="hidden items-center gap-5 lg:flex">
-							<Link
-								href={basePath || "/"}
-								className="text-sm tracking-wide text-foreground/85 underline-offset-4 transition-colors hover:text-foreground hover:underline"
-							>
-								Home
-							</Link>
+						<nav className="hidden items-center gap-5 lg:flex" aria-label="Main">
 							<Link
 								href={`${basePath || ""}/feature-event`}
 								className="text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
@@ -160,7 +154,7 @@ const Header = () => {
 							!isCompressed && !isCollapsed ? "max-h-20" : ""
 						}`}
 					>
-						<div className="px-3 pb-2 sm:px-5 sm:pb-3">
+						<div className="px-3 pt-2 pb-2 sm:px-5 sm:pt-2.5 sm:pb-3">
 							<Countdown />
 						</div>
 					</div>

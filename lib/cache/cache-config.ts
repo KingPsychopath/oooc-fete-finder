@@ -1,23 +1,17 @@
 /**
  * Cache Configuration Management
- * Now uses centralized environment configuration
+ * Defaults live in cache-defaults; optional overrides via CACHE_DURATION_MS, REMOTE_REFRESH_INTERVAL_MS.
  */
 
-import { getCacheConfig } from "@/lib/config/env";
+import { log } from "@/lib/platform/logger";
+import { getCacheConfigFromEnv } from "./cache-defaults";
 import type { CacheConfiguration } from "./cache-types";
 
-/**
- * Cache Configuration Manager
- * Now delegates to centralized environment management
- */
 export class CacheConfigManager {
 	private static config: CacheConfiguration | null = null;
 
-	/**
-	 * Load configuration from centralized environment manager
-	 */
 	private static loadConfig(): CacheConfiguration {
-		return getCacheConfig();
+		return getCacheConfigFromEnv();
 	}
 
 	/**
@@ -38,7 +32,7 @@ export class CacheConfigManager {
 			...this.getConfig(),
 			...updates,
 		};
-		console.log("⚙️ Cache configuration updated:", Object.keys(updates));
+		log.info("cache", "Configuration updated", { keys: Object.keys(updates) });
 	}
 
 	/**
@@ -46,7 +40,7 @@ export class CacheConfigManager {
 	 */
 	static resetConfig(): void {
 		this.config = this.loadConfig();
-		console.log("⚙️ Cache configuration reset to defaults");
+		log.info("cache", "Configuration reset to defaults");
 	}
 
 	/**
@@ -162,8 +156,8 @@ export class CacheConfigManager {
 	}
 }
 
-// Export commonly used configuration getters for convenience
-export const getCacheManagerConfig = () => CacheConfigManager.getConfig();
+export const getCacheConfig = () => CacheConfigManager.getConfig();
+export const getCacheManagerConfig = getCacheConfig;
 export const getMemoryConfig = () => CacheConfigManager.getMemoryConfig();
 export const getPerformanceConfig = () =>
 	CacheConfigManager.getPerformanceConfig();

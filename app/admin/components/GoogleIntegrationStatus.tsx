@@ -8,7 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { AlertCircle, CheckCircle, Cloud, Code } from "lucide-react";
+import { AlertCircle, CheckCircle, Cloud, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface IntegrationStatus {
@@ -17,7 +17,7 @@ interface IntegrationStatus {
 		purpose: string;
 		status: string;
 	};
-	appsScript: {
+	geocoding: {
 		configured: boolean;
 		purpose: string;
 		status: string;
@@ -66,11 +66,10 @@ export const GoogleIntegrationStatus = () => {
 					Google Integrations
 				</CardTitle>
 				<CardDescription>
-					Current status of your Google Cloud and Apps Script integrations
+					Geocoding (map) and admin sheet import/preview only
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
-				{/* Overall Status */}
 				<div className="flex items-center gap-2">
 					{status.overall.includes("✅") ? (
 						<CheckCircle className="h-4 w-4 text-green-600" />
@@ -80,7 +79,6 @@ export const GoogleIntegrationStatus = () => {
 					<span className="font-medium">{status.overall}</span>
 				</div>
 
-				{/* GCP Service Account API */}
 				<div className="flex items-start gap-3 p-3 border rounded-lg">
 					<div className="flex-shrink-0">
 						<div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -89,7 +87,7 @@ export const GoogleIntegrationStatus = () => {
 					</div>
 					<div className="flex-grow">
 						<div className="flex items-center gap-2 mb-1">
-							<h3 className="font-semibold text-sm">GCP Service Account API</h3>
+							<h3 className="font-semibold text-sm">GCP Service Account</h3>
 							<Badge
 								variant={status.gcp.configured ? "default" : "destructive"}
 								className="text-xs"
@@ -104,43 +102,41 @@ export const GoogleIntegrationStatus = () => {
 					</div>
 				</div>
 
-				{/* Google Apps Script */}
 				<div className="flex items-start gap-3 p-3 border rounded-lg">
 					<div className="flex-shrink-0">
-						<div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-							<Code className="h-4 w-4 text-orange-600" />
+						<div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+							<MapPin className="h-4 w-4 text-green-600" />
 						</div>
 					</div>
 					<div className="flex-grow">
 						<div className="flex items-center gap-2 mb-1">
-							<h3 className="font-semibold text-sm">Google Apps Script</h3>
+							<h3 className="font-semibold text-sm">Geocoding (Maps API)</h3>
 							<Badge
 								variant={
-									status.appsScript.configured ? "default" : "destructive"
+									status.geocoding.configured ? "default" : "destructive"
 								}
 								className="text-xs"
 							>
-								{status.appsScript.configured ? "Configured" : "Missing"}
+								{status.geocoding.configured ? "Configured" : "Missing"}
 							</Badge>
 						</div>
 						<p className="text-xs text-muted-foreground mb-1">
-							{status.appsScript.purpose}
+							{status.geocoding.purpose}
 						</p>
-						<p className="text-xs font-mono">{status.appsScript.status}</p>
+						<p className="text-xs font-mono">{status.geocoding.status}</p>
 					</div>
 				</div>
 
-				{/* Integration Guide */}
 				<div className="mt-4 p-3 bg-muted rounded-lg">
-					<h4 className="font-semibold text-sm mb-2">📚 Quick Reference:</h4>
+					<h4 className="font-semibold text-sm mb-2">📚 Google usage (only these):</h4>
 					<ul className="text-xs space-y-1 text-muted-foreground">
 						<li>
-							<span className="font-mono text-blue-600">GCP API:</span> Reading
-							event data (high performance)
+							<span className="font-mono text-green-600">Geocoding</span> — Map
+							coordinates (GOOGLE_MAPS_API_KEY)
 						</li>
 						<li>
-							<span className="font-mono text-orange-600">Apps Script:</span>{" "}
-							Writing user data & admin functions
+							<span className="font-mono text-blue-600">Admin</span> — Import /
+							Preview from your event Sheet (GOOGLE_SHEET_ID or REMOTE_CSV_URL)
 						</li>
 					</ul>
 				</div>
