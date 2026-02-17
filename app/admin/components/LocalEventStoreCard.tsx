@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -80,7 +79,7 @@ export const LocalEventStoreCard = ({
 		}
 
 		if (!previewResult.success) {
-			throw new Error(previewResult.error || "Failed to load Postgres sample");
+			throw new Error(previewResult.error || "Failed to load store sample");
 		}
 
 		setHeaders(previewResult.headers || []);
@@ -142,9 +141,7 @@ export const LocalEventStoreCard = ({
 				throw new Error(result.error || result.message);
 			}
 
-			setMessage(
-				`Uploaded ${file.name} to Postgres store (${result.rowCount ?? 0} rows)`,
-			);
+			setMessage(`Uploaded ${file.name} to store (${result.rowCount ?? 0} rows)`);
 			await loadStatusAndPreview();
 		});
 	};
@@ -187,7 +184,7 @@ export const LocalEventStoreCard = ({
 
 			const csvContent = (result.csvContent || "").trim();
 			if (!csvContent) {
-				throw new Error("No CSV data exists in Postgres store");
+				throw new Error("No CSV data exists in store");
 			}
 
 			const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -200,14 +197,14 @@ export const LocalEventStoreCard = ({
 			anchor.click();
 			document.body.removeChild(anchor);
 			URL.revokeObjectURL(url);
-			setMessage("Postgres store exported to CSV");
+			setMessage("Store exported to CSV");
 		});
 	};
 
 	const handleClearStore = async () => {
 		if (
 			!window.confirm(
-				"Clear all event data from Postgres store? This cannot be undone.",
+				"Clear all event data from store? This cannot be undone.",
 			)
 		) {
 			return;
@@ -246,20 +243,11 @@ export const LocalEventStoreCard = ({
 			<CardHeader className="space-y-2">
 				<CardTitle>Data Store Controls</CardTitle>
 				<CardDescription>
-					Postgres is the source of truth for live events. Google CSV remains a
-					backup import source only.
+					Manage the live event store and import CSV backups when needed.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-5">
 				<div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-					<div className="rounded-md border bg-background/60 p-3">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Provider
-						</p>
-						<Badge variant="secondary" className="mt-2 text-xs">
-							{status?.provider || "unknown"}
-						</Badge>
-					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Store Rows (CSV)
@@ -282,24 +270,32 @@ export const LocalEventStoreCard = ({
 							{status?.updatedAt ? new Date(status.updatedAt).toLocaleString() : "Never"}
 						</p>
 					</div>
+					<div className="rounded-md border bg-background/60 p-3">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Store Location
+						</p>
+						<p className="mt-1 text-xs leading-snug text-muted-foreground">
+							{status?.providerLocation || "Unavailable"}
+						</p>
+					</div>
 				</div>
 
 				<div className="rounded-md border bg-background/60 p-3 text-sm text-muted-foreground">
 					<p className="font-medium text-foreground">Workflow</p>
-					<p className="mt-1">1. Upload CSV or import from Google backup into Postgres.</p>
+					<p className="mt-1">1. Upload CSV or import from Google backup into store.</p>
 					<p>2. Edit in Event Sheet Editor and publish to live cache.</p>
 					<p>3. Export CSV anytime for external workflows.</p>
 				</div>
 
 				{fallbackActive && (
 					<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-						Live site is currently serving local CSV fallback, not Postgres.
+						Live site is currently serving local CSV fallback, not store-backed data.
 					</div>
 				)}
 
 				<div className="flex flex-wrap gap-2">
 					<Button type="button" disabled={isLoading} onClick={handleSelectCsvUpload}>
-						Upload CSV to Postgres
+						Upload CSV to Store
 					</Button>
 					<Button
 						type="button"
@@ -345,7 +341,7 @@ export const LocalEventStoreCard = ({
 				<div className="grid gap-4 2xl:grid-cols-2">
 					<div className="rounded-md border bg-background/60 p-3">
 						<div className="mb-2 flex items-center justify-between gap-3">
-							<p className="text-sm font-medium">Postgres Store Sample (2 rows)</p>
+							<p className="text-sm font-medium">Store Sample (2 rows)</p>
 							<div className="flex items-center gap-3">
 								{sampleNote && (
 									<span className="text-xs text-muted-foreground">{sampleNote}</span>
@@ -410,7 +406,7 @@ export const LocalEventStoreCard = ({
 						{!remotePreview ? (
 							<div className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">
 								Run "Preview Google Backup" to compare the backup source without
-								changing Postgres.
+								changing the live store.
 							</div>
 						) : (
 							<>

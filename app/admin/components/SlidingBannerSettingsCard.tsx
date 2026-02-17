@@ -170,6 +170,53 @@ export const SlidingBannerSettingsCard = ({
 		parsedMessages,
 	]);
 
+	const handleToggleEnabled = useCallback(async () => {
+		const nextEnabled = !enabled;
+		if (nextEnabled && parsedMessages.length === 0) {
+			setErrorMessage("Add at least one message before enabling the banner");
+			setStatusMessage("");
+			return;
+		}
+
+		setEnabled(nextEnabled);
+		setIsSaving(true);
+		setStatusMessage("");
+		setErrorMessage("");
+		try {
+			const normalizedDurationMs = Math.round(
+				Number.parseFloat(messageDurationSeconds) * 1000,
+			);
+			const result = await updateAdminSlidingBannerSettings(undefined, {
+				enabled: nextEnabled,
+				messages: parsedMessages,
+				messageDurationMs: normalizedDurationMs,
+				desktopMessageCount,
+			});
+
+			if (!result.success || !result.settings) {
+				throw new Error(result.error || "Failed to update banner status");
+			}
+
+			applySettings(result.settings, result.store);
+			setStatusMessage(
+				nextEnabled ? "Banner enabled and saved" : "Banner disabled and saved",
+			);
+		} catch (error) {
+			setEnabled(!nextEnabled);
+			setErrorMessage(
+				error instanceof Error ? error.message : "Unknown toggle error",
+			);
+		} finally {
+			setIsSaving(false);
+		}
+	}, [
+		applySettings,
+		desktopMessageCount,
+		enabled,
+		messageDurationSeconds,
+		parsedMessages,
+	]);
+
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
 			<CardHeader className="space-y-2">
@@ -190,14 +237,6 @@ export const SlidingBannerSettingsCard = ({
 				<div className="grid gap-3 sm:grid-cols-3">
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Provider
-						</p>
-						<p className="mt-1 text-sm font-medium capitalize">
-							{storeMeta?.provider || "unknown"}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 p-3">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Active Messages
 						</p>
 						<p className="mt-1 text-sm font-medium">{parsedMessages.length}</p>
@@ -210,6 +249,14 @@ export const SlidingBannerSettingsCard = ({
 							{storeMeta?.updatedAt
 								? new Date(storeMeta.updatedAt).toLocaleString()
 								: "Never"}
+						</p>
+					</div>
+					<div className="rounded-md border bg-background/60 p-3">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Store Location
+						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							{storeMeta?.location || "Unavailable"}
 						</p>
 					</div>
 				</div>
@@ -274,7 +321,7 @@ export const SlidingBannerSettingsCard = ({
 						type="button"
 						variant={enabled ? "outline" : "default"}
 						disabled={isSaving || isRefreshing}
-						onClick={() => setEnabled((current) => !current)}
+						onClick={handleToggleEnabled}
 					>
 						{enabled ? "Disable Banner" : "Enable Banner"}
 					</Button>

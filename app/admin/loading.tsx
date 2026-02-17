@@ -1,12 +1,12 @@
 import { Loader2 } from "lucide-react";
 
-export default function Loading() {
+export default function AdminLoading() {
 	return (
-		<div className="ooo-site-shell min-h-screen">
-			<div className="mx-auto flex min-h-[68vh] max-w-5xl items-center justify-center px-4">
+		<div className="ooo-admin-shell min-h-screen">
+			<div className="mx-auto flex min-h-[70vh] max-w-[1960px] items-center justify-center px-4 sm:px-6 lg:px-8">
 				<div className="flex items-center gap-3 rounded-full border bg-card/70 px-4 py-2 text-sm text-muted-foreground backdrop-blur">
 					<Loader2 className="h-4 w-4 animate-spin" />
-					Loading page...
+					Loading admin console...
 				</div>
 			</div>
 		</div>

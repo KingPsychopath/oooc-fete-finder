@@ -19,14 +19,6 @@ export type {
 } from "@/features/auth/types";
 export type { CacheStatus } from "@/lib/cache/cache-types";
 
-export type DynamicSheetConfig = {
-	hasDynamicOverride: boolean;
-	sheetId: string | null;
-	range: string | null;
-	envSheetId: string | null;
-	envRange: string | null;
-};
-
 /** Payload passed from server admin page to AdminDashboardClient for first-paint data */
 export type AdminInitialData = {
 	cacheStatus: CacheStatus;

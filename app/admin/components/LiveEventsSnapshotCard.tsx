@@ -9,6 +9,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getLiveSiteEventsSnapshot } from "@/features/data-management/actions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -25,18 +26,24 @@ export const LiveEventsSnapshotCard = ({
 	isAuthenticated,
 	initialSnapshot,
 }: LiveEventsSnapshotCardProps) => {
+	const [responseMode, setResponseMode] = useState<"cached" | "fresh">(
+		initialSnapshot?.cached ? "cached" : "fresh",
+	);
 	const [snapshot, setSnapshot] = useState<SnapshotState | null>(
 		initialSnapshot ?? null,
 	);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isExpanded, setIsExpanded] = useState(false);
 
-	const loadSnapshot = useCallback(async () => {
+	const loadSnapshot = useCallback(async (mode: "cached" | "fresh") => {
 		if (!isAuthenticated) return;
 
 		setIsLoading(true);
 		try {
-			const result = await getLiveSiteEventsSnapshot(undefined, 500);
+			const result = await getLiveSiteEventsSnapshot(undefined, 500, {
+				forceRefresh: mode === "fresh",
+			});
+			setResponseMode(mode);
 			setSnapshot(result);
 		} finally {
 			setIsLoading(false);
@@ -45,7 +52,7 @@ export const LiveEventsSnapshotCard = ({
 
 	useEffect(() => {
 		if (initialSnapshot != null) return;
-		void loadSnapshot();
+		void loadSnapshot("cached");
 	}, [loadSnapshot, initialSnapshot]);
 
 	const rows = snapshot?.rows || [];
@@ -76,14 +83,26 @@ export const LiveEventsSnapshotCard = ({
 					<div>
 						<CardTitle>Live Site Snapshot</CardTitle>
 						<CardDescription>
-							Shows the exact event payload currently served by site cache.
+							Toggle between cached and forced-fresh site payload responses.
 						</CardDescription>
 					</div>
 					<div className="flex items-center gap-2">
 						<Badge variant={sourceBadgeVariant}>{sourceDisplayLabel}</Badge>
-						<Badge variant="outline">
-							{snapshot?.cached ? "Cached response" : "Fresh response"}
-						</Badge>
+						<ToggleGroup
+							type="single"
+							value={responseMode}
+							onValueChange={(value) => {
+								if (value === "cached" || value === "fresh") {
+									void loadSnapshot(value);
+								}
+							}}
+							disabled={isLoading}
+							variant="outline"
+							size="sm"
+						>
+							<ToggleGroupItem value="cached">Cached</ToggleGroupItem>
+							<ToggleGroupItem value="fresh">Fresh</ToggleGroupItem>
+						</ToggleGroup>
 					</div>
 				</div>
 				<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -99,7 +118,7 @@ export const LiveEventsSnapshotCard = ({
 						size="sm"
 						variant="outline"
 						disabled={isLoading}
-						onClick={() => void loadSnapshot()}
+						onClick={() => void loadSnapshot(responseMode)}
 					>
 						{isLoading ? "Refreshing..." : "Refresh snapshot"}
 					</Button>

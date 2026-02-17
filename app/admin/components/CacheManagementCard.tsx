@@ -125,20 +125,17 @@ export const CacheManagementCard = ({
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Store Provider
-						</p>
-						<p className="mt-1 text-sm font-medium capitalize">
-							{cacheStatus.storeProvider}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 p-3">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Last Refresh
 						</p>
 						<p className="mt-1 text-sm font-medium">
 							{cacheStatus.lastFetchTime ?
 								new Date(cacheStatus.lastFetchTime).toLocaleString()
 							: 	"Never"}
+						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							{cacheStatus.lastFetchTime
+								? `Next refresh in ${formatDuration(cacheStatus.nextRemoteCheck)}`
+								: "Next refresh on first request"}
 						</p>
 					</div>
 				</div>

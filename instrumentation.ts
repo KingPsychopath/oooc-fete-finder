@@ -16,4 +16,8 @@ export async function register(): Promise<void> {
 		`geocoding=${hasGeocoding ? "api" : "arrondissement-fallback"}`,
 	];
 	console.log(parts.join(" | "));
+
+	// Warm events cache once at process start to reduce first-page latency.
+	const { CacheManager } = await import("@/lib/cache/cache-manager");
+	await CacheManager.prewarmInBackground();
 }

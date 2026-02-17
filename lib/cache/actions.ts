@@ -1,41 +1,17 @@
 "use server";
 
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
-import { CacheInvalidationManager, CacheManager } from "./cache-manager";
+import { CacheManager } from "./cache-manager";
 
 /**
  * Cache Management Server Actions
  *
- * Server actions specifically related to cache invalidation, revalidation,
- * and cache busting operations. Colocated with cache management modules.
+ * Minimal server action surface for cache refresh/revalidation.
  */
 
 // Helper function to validate admin access (key or session token)
 async function validateAdminAccess(keyOrToken?: string): Promise<boolean> {
 	return validateAdminAccessFromServerContext(keyOrToken ?? null);
-}
-
-/**
- * Emergency cache bust - clear all cache layers immediately
- */
-export async function emergencyCacheBust(): Promise<{
-	success: boolean;
-	message: string;
-	operations: string[];
-	errors: string[];
-}> {
-	return CacheInvalidationManager.emergencyCacheBust();
-}
-
-/**
- * Smart cache invalidation - only invalidate if data changed
- */
-export async function smartCacheInvalidation(paths: string[] = ["/"]): Promise<{
-	success: boolean;
-	clearedPaths: string[];
-	errors: string[];
-}> {
-	return CacheInvalidationManager.clearAllCaches(paths);
 }
 
 /**

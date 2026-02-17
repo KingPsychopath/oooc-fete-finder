@@ -1,560 +1,268 @@
-import { log } from "@/lib/platform/logger";
 import { DataManager } from "@/features/data-management/data-manager";
 import { isValidEventsData } from "@/features/data-management/data-processor";
-import { CacheRequestDeduplicator } from "./cache-deduplication";
-import { CacheInvalidationManager } from "./cache-invalidation";
-import { CacheMetrics } from "./cache-metrics";
-import { CacheStateManager } from "./cache-state";
+import type { Event } from "@/features/events/types";
+import { invalidateEventsCache } from "./cache-policy";
+import { RuntimeCache } from "./runtime-cache";
 import type {
+	CacheMetricsData,
 	CacheRefreshResult,
 	CacheStatus,
+	DataSource,
 	EventsResult,
 	FullRevalidationResult,
 } from "./cache-types";
 
-/**
- * Cache Manager class - main interface for cache operations
- */
+const DEFAULT_CACHE_TTL_MS = 60 * 60 * 1000;
+const CACHE_TTL_MS = Number.parseInt(
+	process.env.CACHE_DURATION_MS ?? `${DEFAULT_CACHE_TTL_MS}`,
+	10,
+);
+const RESOLVED_CACHE_TTL_MS =
+	Number.isFinite(CACHE_TTL_MS) && CACHE_TTL_MS > 0
+		? CACHE_TTL_MS
+		: DEFAULT_CACHE_TTL_MS;
+const MEMORY_LIMIT_BYTES = 50 * 1024 * 1024;
+
+type EventsMeta = {
+	source: DataSource;
+	lastUpdateIso: string | null;
+};
+
+type MetricsState = {
+	hits: number;
+	misses: number;
+	errors: number;
+	totalFetchMs: number;
+	fetchCount: number;
+	lastReset: number;
+};
+
+const estimateEventsBytes = (events: Event[] | null): number => {
+	if (!events) return 0;
+	return Buffer.byteLength(JSON.stringify(events), "utf8");
+};
+
+const eventsCache = new RuntimeCache<Event[], EventsMeta>({
+	ttlMs: RESOLVED_CACHE_TTL_MS,
+	estimateBytes: estimateEventsBytes,
+	initialMeta: {
+		source: "cached",
+		lastUpdateIso: null,
+	},
+});
+
+const metrics: MetricsState = {
+	hits: 0,
+	misses: 0,
+	errors: 0,
+	totalFetchMs: 0,
+	fetchCount: 0,
+	lastReset: Date.now(),
+};
+
+const loadFreshEvents = async (): Promise<{ value: Event[]; meta: EventsMeta }> => {
+	const startedAt = Date.now();
+	const result = await DataManager.getEventsData();
+
+	if (!result.success || !isValidEventsData(result.data) || result.data.length === 0) {
+		throw new Error(result.error || "Fresh events fetch failed");
+	}
+
+	metrics.totalFetchMs += Date.now() - startedAt;
+	metrics.fetchCount += 1;
+
+	return {
+		value: result.data,
+		meta: {
+			source: result.source,
+			lastUpdateIso: result.lastUpdate ?? new Date().toISOString(),
+		},
+	};
+};
+
+const toCachedResult = (
+	cachedEvents: Event[],
+	meta: EventsMeta,
+	errorMessage?: string,
+): EventsResult => ({
+	success: true,
+	data: cachedEvents,
+	count: cachedEvents.length,
+	cached: true,
+	source: meta.source,
+	lastUpdate: meta.lastUpdateIso ?? undefined,
+	error: errorMessage,
+});
+
 export class CacheManager {
-	/**
-	 * Get events with smart caching and fallback logic
-	 */
-	static async getEvents(forceRefresh: boolean = false): Promise<EventsResult> {
-		return CacheRequestDeduplicator.deduplicateGetEvents(
-			forceRefresh,
-			async () => {
-				const startTime = Date.now();
+	static async getEvents(forceRefresh = false): Promise<EventsResult> {
+		const snapshot = eventsCache.getSnapshot();
 
-				try {
-					const now = Date.now();
+		try {
+			const result = await eventsCache.get(loadFreshEvents, { forceRefresh });
 
-					// Return cached data if valid and not forcing refresh
-					if (!forceRefresh) {
-						const cachedEvents = CacheStateManager.getCachedEvents();
-						if (cachedEvents) {
-							const cacheState = CacheStateManager.getState();
-							const ageSec = Math.round(
-								(now - cacheState.lastFetchTime) / 1000,
-							);
-							log.info("cache", "Serving cached events", {
-								events: cachedEvents.length,
-								source: cacheState.lastDataSource,
-								ageSec,
-							});
+			if (result.fromCache) {
+				metrics.hits += 1;
+				return toCachedResult(result.value, result.meta);
+			}
 
-							// Record cache hit
-							CacheMetrics.recordCacheHit();
+			metrics.misses += 1;
+			return {
+				success: true,
+				data: result.value,
+				count: result.value.length,
+				cached: false,
+				source: result.meta.source,
+				lastUpdate: result.meta.lastUpdateIso ?? undefined,
+			};
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Unknown cache error";
+			eventsCache.setError(message);
+			metrics.errors += 1;
 
-							return {
-								success: true,
-								data: cachedEvents,
-								count: cachedEvents.length,
-								cached: true,
-								source: cacheState.lastDataSource,
-								lastUpdate: new Date(cacheState.lastFetchTime).toISOString(),
-							};
-						}
-					}
+			if (snapshot.value && snapshot.meta && snapshot.value.length > 0) {
+				eventsCache.setStaleMeta({
+					source: snapshot.meta.source,
+					lastUpdateIso: snapshot.meta.lastUpdateIso,
+				});
+				return toCachedResult(snapshot.value, snapshot.meta, `Using previous cache: ${message}`);
+			}
 
-					CacheMetrics.recordCacheMiss();
-					log.info("cache", "Loading fresh events");
-
-					const dataResult = await DataManager.getEventsData();
-
-					if (dataResult.success && isValidEventsData(dataResult.data)) {
-						CacheStateManager.updateCache(
-							dataResult.data,
-							dataResult.source,
-							dataResult.error,
-						);
-
-						const result: EventsResult = {
-							success: true,
-							data: dataResult.data,
-							count: dataResult.count,
-							cached: false,
-							source: dataResult.source,
-							lastUpdate: dataResult.lastUpdate,
-						};
-
-						if (dataResult.warnings.length > 0) {
-							result.error = `Warnings: ${dataResult.warnings.join("; ")}`;
-							log.warn("cache", "Non-fatal warnings", {
-								warnings: dataResult.warnings,
-							});
-						}
-
-						// Record successful fetch time
-						CacheMetrics.recordFetchTime(Date.now() - startTime);
-
-						return result;
-					} else {
-						// Data fetch failed or returned invalid data
-						const errorMessage = dataResult.success
-							? "Remote data validation failed - data is empty or invalid"
-							: dataResult.error || "Unknown error";
-
-						// Record error
-						CacheMetrics.recordError();
-
-						// PRIORITIZED FALLBACK LOGIC:
-						// 1. Try cached data first (more recent than local CSV)
-						const cachedEvents = CacheStateManager.getCachedEventsForced();
-						if (cachedEvents && isValidEventsData(cachedEvents)) {
-							const cacheState = CacheStateManager.getState();
-
-							// Refresh cache validity timer to keep serving cached data
-							CacheStateManager.refreshCacheValidity(errorMessage);
-							log.info("cache", "Serving cached data (remote failed)", {
-								events: cachedEvents.length,
-								source: cacheState.lastDataSource,
-								reason: errorMessage,
-							});
-
-							return {
-								success: true,
-								data: cachedEvents,
-								count: cachedEvents.length,
-								cached: true,
-								source: cacheState.lastDataSource,
-								error: `Using cached data due to remote issue: ${errorMessage}`,
-								lastUpdate: new Date(cacheState.lastFetchTime).toISOString(),
-							};
-						}
-
-						log.info("cache", "No cache, trying local CSV fallback");
-						try {
-const { fetchLocalCSV } = await import(
-							"@/features/data-management/csv/fetcher"
-						);
-						const { processCSVData } = await import(
-							"@/features/data-management/data-processor"
-						);
-
-							const localCsvContent = await fetchLocalCSV();
-							const localProcessResult = await processCSVData(
-								localCsvContent,
-								"local",
-								false,
-							);
-
-							if (isValidEventsData(localProcessResult.events)) {
-								log.info("cache", "Local CSV fallback loaded", {
-									events: localProcessResult.count,
-								});
-
-								// Cache the local data for future use
-								CacheStateManager.updateCache(
-									localProcessResult.events,
-									"local",
-									`Fallback from remote failure: ${errorMessage}`,
-								);
-
-								return {
-									success: true,
-									data: localProcessResult.events,
-									count: localProcessResult.count,
-									cached: false,
-									source: "local",
-									error: `Used local CSV fallback due to remote issue: ${errorMessage}`,
-									lastUpdate: new Date().toISOString(),
-								};
-							}
-						} catch (localError) {
-							const localErrorMsg =
-								localError instanceof Error
-									? localError.message
-									: "Unknown error";
-							log.error(
-								"cache",
-								"Local CSV fallback failed",
-								{ error: localErrorMsg },
-								localError,
-							);
-						}
-
-						CacheStateManager.bootstrapCacheWithFallback(errorMessage);
-						const bootstrapEvents = CacheStateManager.getCachedEventsForced();
-						if (bootstrapEvents) {
-							log.warn("cache", "Bootstrap mode: serving fallback", {
-								events: bootstrapEvents.length,
-							});
-							return {
-								success: true,
-								data: bootstrapEvents,
-								count: bootstrapEvents.length,
-								cached: true,
-								source: "local",
-								error: `Bootstrap mode activated: ${errorMessage}`,
-							};
-						}
-
-						// This should never happen, but just in case
-						return {
-							success: false,
-							data: [],
-							count: 0,
-							cached: false,
-							source: "local",
-							error: errorMessage,
-						};
-					}
-				} catch (error) {
-					const errorMessage =
-						error instanceof Error ? error.message : "Unknown error";
-					log.error("cache", "Cache manager error", undefined, error);
-					CacheMetrics.recordError();
-
-					const cachedEvents = CacheStateManager.getCachedEventsForced();
-					if (cachedEvents && isValidEventsData(cachedEvents)) {
-						const cacheState = CacheStateManager.getState();
-						CacheStateManager.refreshCacheValidity(errorMessage);
-						log.info("cache", "Serving cached data after error", {
-							events: cachedEvents.length,
-							source: cacheState.lastDataSource,
-						});
-
-						return {
-							success: true,
-							data: cachedEvents,
-							count: cachedEvents.length,
-							cached: true,
-							source: cacheState.lastDataSource,
-							error: `Using cached data due to error: ${errorMessage}`,
-							lastUpdate: new Date(cacheState.lastFetchTime).toISOString(),
-						};
-					}
-
-					// No valid cached data available - activate bootstrap mode
-					console.error(
-						"❌ Exception occurred with no valid cached data, activating bootstrap mode",
-					);
-					CacheStateManager.bootstrapCacheWithFallback(errorMessage);
-
-					const bootstrapEvents = CacheStateManager.getCachedEventsForced();
-					if (bootstrapEvents) {
-						console.log(
-							"🚨 Bootstrap mode: Serving fallback event after exception",
-						);
-						return {
-							success: true,
-							data: bootstrapEvents,
-							count: bootstrapEvents.length,
-							cached: true,
-							source: "local",
-							error: `Bootstrap mode activated after exception: ${errorMessage}`,
-						};
-					}
-
-					// This should never happen, but just in case
-					return {
-						success: false,
-						data: [],
-						count: 0,
-						cached: false,
-						source: "local",
-						error: errorMessage,
-					};
-				}
-			},
-		);
+			return {
+				success: false,
+				data: [],
+				count: 0,
+				cached: false,
+				source: "local",
+				error: message,
+			};
+		}
 	}
 
-	/**
-	 * Force refresh the events cache with smart invalidation
-	 */
 	static async forceRefresh(): Promise<CacheRefreshResult> {
-		return CacheRequestDeduplicator.deduplicateForceRefresh(async () => {
-			try {
-				console.log(
-					"🔄 Force refreshing events cache with smart invalidation...",
-				);
-				const startTime = Date.now();
+		const result = await this.getEvents(true);
+		invalidateEventsCache(["/"]);
 
-				// Get current cached data for comparison
-				const currentData = CacheStateManager.getCachedEventsForced();
-
-				// Get fresh data
-				const result = await this.getEvents(true);
-				const processingTime = Date.now() - startTime;
-
-				if (result.success) {
-					// Perform smart cache invalidation
-					const invalidationResult =
-						await CacheInvalidationManager.smartInvalidation(
-							result.data,
-							currentData,
-						);
-
-					console.log(`✅ Force refresh completed in ${processingTime}ms`);
-					console.log(`🧹 Cache invalidation: ${invalidationResult.message}`);
-
-					return {
-						success: true,
-						message: `Successfully refreshed ${result.count} events from ${result.source} source (${processingTime}ms). ${invalidationResult.message}`,
-						data: result.data,
-						count: result.count,
-						source: result.source,
-					};
-				} else {
-					// Force refresh failed, but if we have valid cached data, the system is still operational
-					if (currentData && isValidEventsData(currentData)) {
-						console.log(
-							"⚠️ Force refresh failed, but cached data is still valid and being served",
-						);
-						return {
-							success: false,
-							message: `Force refresh failed, but ${currentData.length} cached events are still being served`,
-							error: result.error,
-							data: currentData,
-							count: currentData.length,
-							source: "cached",
-						};
-					}
-
-					return {
-						success: false,
-						message:
-							"Failed to refresh events and no valid cached data available",
-						error: result.error,
-					};
-				}
-			} catch (error) {
-				const errorMessage =
-					error instanceof Error ? error.message : "Unknown error";
-				console.error("❌ Force refresh failed:", errorMessage);
-				CacheMetrics.recordError();
-				return {
-					success: false,
-					message: "Force refresh failed",
-					error: errorMessage,
-				};
-			}
-		});
-	}
-
-	/**
-	 * Get comprehensive cache status
-	 */
-	static async getCacheStatus(): Promise<CacheStatus> {
-		// If we have no cached data, try to load some first
-		const cacheState = CacheStateManager.getState();
-		if (!cacheState.events) {
-			console.log(
-				"🔄 No cached data found, attempting to load events for cache status...",
-			);
-			try {
-				await this.getEvents(false);
-			} catch (error) {
-				console.log(
-					"⚠️ Failed to load events for cache status:",
-					error instanceof Error ? error.message : "Unknown error",
-				);
-			}
+		if (!result.success) {
+			return {
+				success: false,
+				message: "Force refresh failed",
+				error: result.error,
+			};
 		}
 
-		// Get cache status from state manager
-		const baseCacheStatus = CacheStateManager.getCacheStatus();
-
-		// Get data configuration from data manager
-		const dataConfigStatus = await DataManager.getDataConfigStatus();
-
-		// Combine both statuses
 		return {
-			...baseCacheStatus,
-			configuredDataSource: dataConfigStatus.dataSource,
-			localCsvLastUpdated: dataConfigStatus.localCsvLastUpdated,
-			remoteConfigured: dataConfigStatus.remoteConfigured,
-			hasLocalStoreData: dataConfigStatus.hasLocalStoreData,
-			storeProvider: dataConfigStatus.storeProvider,
-			storeProviderLocation: dataConfigStatus.storeProviderLocation,
-			storeRowCount: dataConfigStatus.storeRowCount,
-			storeUpdatedAt: dataConfigStatus.storeUpdatedAt,
-			storeKeyCount: dataConfigStatus.storeKeyCount,
+			success: true,
+			message: `Refreshed ${result.count} events from ${result.source}`,
+			data: result.data,
+			count: result.count,
+			source: result.source,
+			error: result.error,
 		};
 	}
 
-	/**
-	 * Complete revalidation - refresh cache AND invalidate page cache
-	 */
-	static async fullRevalidation(
-		path: string = "/",
-	): Promise<FullRevalidationResult> {
-		console.log(`🔄 Starting enhanced full revalidation for path: ${path}`);
-		const startTime = Date.now();
-
-		let cacheRefreshed = false;
-		let pageRevalidated = false;
-		const details: FullRevalidationResult["details"] = {};
-
+	static async fullRevalidation(path = "/"): Promise<FullRevalidationResult> {
 		try {
-			// Step 1: Force refresh the events cache (includes smart invalidation)
-			try {
-				console.log(
-					"🔄 Step 1: Force refreshing events cache with smart invalidation...",
-				);
-				const cacheResult = await this.forceRefresh();
-				details.cacheResult = cacheResult;
-
-				if (cacheResult.success) {
-					cacheRefreshed = true;
-					console.log(
-						"✅ Step 1: Successfully refreshed events cache with invalidation",
-					);
-				} else {
-					console.warn("⚠️ Step 1: Failed to refresh events cache");
-				}
-			} catch (cacheError) {
-				const cacheErrorMessage =
-					cacheError instanceof Error ? cacheError.message : "Unknown error";
-				console.error(
-					"❌ Step 1: Error refreshing events cache:",
-					cacheErrorMessage,
-				);
-				details.cacheError = cacheErrorMessage;
-			}
-
-			// Step 2: Additional cache clearing
-			try {
-				console.log("🔄 Step 2: Performing additional cache clearing...");
-				const paths = [path];
-
-				// Add common paths that might need clearing
-				if (path === "/") {
-					paths.push("/events", "/admin");
-				}
-
-				const clearResult =
-					await CacheInvalidationManager.clearAllCaches(paths);
-
-				if (clearResult.success) {
-					pageRevalidated = true;
-					console.log(
-						`✅ Step 2: Successfully cleared all cache layers for paths: ${clearResult.clearedPaths.join(", ")}`,
-					);
-				} else {
-					console.warn(
-						`⚠️ Step 2: Cache clearing had errors: ${clearResult.errors.join("; ")}`,
-					);
-					pageRevalidated = clearResult.clearedPaths.length > 0;
-				}
-
-				details.revalidationError =
-					clearResult.errors.length > 0
-						? clearResult.errors.join("; ")
-						: undefined;
-			} catch (revalidationError) {
-				const revalidationErrorMessage =
-					revalidationError instanceof Error
-						? revalidationError.message
-						: "Unknown error";
-				console.error(
-					"❌ Step 2: Error in cache clearing:",
-					revalidationErrorMessage,
-				);
-				details.revalidationError = revalidationErrorMessage;
-			}
-
-			const endTime = Date.now();
-			const duration = endTime - startTime;
-
+			const refreshResult = await this.forceRefresh();
+			invalidateEventsCache([path]);
 			return {
-				success: cacheRefreshed || pageRevalidated,
-				message: `Enhanced full revalidation completed in ${duration}ms. Cache: ${cacheRefreshed ? "refreshed" : "failed"}, Pages: ${pageRevalidated ? "cleared" : "failed"}`,
-				cacheRefreshed,
-				pageRevalidated,
-				details,
+				success: refreshResult.success,
+				message: refreshResult.success
+					? "Cache refreshed and revalidated"
+					: "Revalidation completed with cache refresh errors",
+				cacheRefreshed: refreshResult.success,
+				pageRevalidated: true,
+				error: refreshResult.error,
 			};
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : "Unknown error";
-			console.error("❌ Full revalidation failed:", errorMessage);
 			return {
 				success: false,
 				message: "Full revalidation failed",
-				cacheRefreshed,
-				pageRevalidated,
-				error: errorMessage,
-				details,
+				cacheRefreshed: false,
+				pageRevalidated: false,
+				error: error instanceof Error ? error.message : "Unknown error",
 			};
 		}
 	}
 
-	/**
-	 * Clear all cache data (useful for testing or admin operations)
-	 */
 	static clearCache(): void {
-		CacheStateManager.clearCache();
+		eventsCache.clear();
 	}
 
-	/**
-	 * Emergency cache bust
-	 */
-	static async emergencyCacheBust() {
-		return CacheInvalidationManager.emergencyCacheBust();
+	static async getCacheStatus(): Promise<CacheStatus> {
+		const configStatus = await DataManager.getDataConfigStatus();
+		const snapshot = eventsCache.getSnapshot();
+		const now = Date.now();
+		const cacheAge = snapshot.lastLoadedAt ? now - snapshot.lastLoadedAt : 0;
+		const memoryUsage = snapshot.memoryUsageBytes;
+
+		return {
+			hasCachedData: Boolean(snapshot.value && snapshot.value.length > 0),
+			lastFetchTime: snapshot.lastLoadedAt
+				? new Date(snapshot.lastLoadedAt).toISOString()
+				: null,
+			lastRemoteFetchTime: snapshot.lastLoadedAt
+				? new Date(snapshot.lastLoadedAt).toISOString()
+				: null,
+			lastRemoteSuccessTime: snapshot.lastSuccessAt
+				? new Date(snapshot.lastSuccessAt).toISOString()
+				: null,
+			lastRemoteErrorMessage: snapshot.lastErrorMessage,
+			cacheAge,
+			nextRemoteCheck: snapshot.lastLoadedAt
+				? Math.max(0, RESOLVED_CACHE_TTL_MS - cacheAge)
+				: 0,
+			dataSource: snapshot.meta?.source ?? "cached",
+			eventCount: snapshot.value?.length ?? 0,
+			memoryUsage,
+			memoryLimit: MEMORY_LIMIT_BYTES,
+			memoryUtilization:
+				MEMORY_LIMIT_BYTES > 0
+					? Number(((memoryUsage / MEMORY_LIMIT_BYTES) * 100).toFixed(1))
+					: 0,
+			configuredDataSource: configStatus.dataSource,
+			localCsvLastUpdated: configStatus.localCsvLastUpdated,
+			remoteConfigured: configStatus.remoteConfigured,
+			hasLocalStoreData: configStatus.hasLocalStoreData,
+			storeProvider: configStatus.storeProvider,
+			storeProviderLocation: configStatus.storeProviderLocation,
+			storeRowCount: configStatus.storeRowCount,
+			storeUpdatedAt: configStatus.storeUpdatedAt,
+			storeKeyCount: configStatus.storeKeyCount,
+		};
 	}
 
-	/**
-	 * Dynamic sheet configuration methods (delegated to DynamicSheetManager)
-	 */
-	static setDynamicSheet(sheetId: string | null, range: string | null = null) {
-		const {
-			DynamicSheetManager,
-		} = require("@/features/data-management/dynamic-sheet-manager");
-		return DynamicSheetManager.setDynamicSheet(sheetId, range);
+	static getCacheMetrics(): CacheMetricsData {
+		const totalRequests = metrics.hits + metrics.misses;
+		return {
+			cacheHits: metrics.hits,
+			cacheMisses: metrics.misses,
+			totalRequests,
+			lastReset: metrics.lastReset,
+			errorCount: metrics.errors,
+			hitRate:
+				totalRequests > 0
+					? Number(((metrics.hits / totalRequests) * 100).toFixed(1))
+					: 0,
+			averageFetchTimeMs:
+				metrics.fetchCount > 0
+					? Number((metrics.totalFetchMs / metrics.fetchCount).toFixed(1))
+					: 0,
+		};
 	}
 
-	static getDynamicSheetConfig() {
-		const {
-			DynamicSheetManager,
-		} = require("@/features/data-management/dynamic-sheet-manager");
-		return DynamicSheetManager.getDynamicSheetConfig();
-	}
-
-	/**
-	 * Get cache performance metrics
-	 */
-	static getCacheMetrics() {
-		return CacheMetrics.getMetrics();
-	}
-
-	/**
-	 * Reset cache performance metrics
-	 */
-	static resetCacheMetrics(): void {
-		CacheMetrics.resetMetrics();
-	}
-
-	/**
-	 * Clear all pending requests (useful for testing)
-	 */
-	static clearPendingRequests(): void {
-		// Use the base RequestDeduplicator for clearing
-		const { RequestDeduplicator } = require("./cache-deduplication");
-		RequestDeduplicator.clearPendingRequests();
+	static async prewarmInBackground(): Promise<void> {
+		void this.getEvents(false).catch(() => {
+			// Silent by design: prewarm should not crash startup.
+		});
 	}
 }
 
-// Re-export types and utilities for convenience
 export type {
-	EventsResult,
-	CacheRefreshResult,
-	FullRevalidationResult,
-	CacheStatus,
-	CacheStateStatus,
-	CacheState,
 	CacheMetricsData,
-	ChangeDetails,
-	InvalidationResult,
-	CacheClearResult,
-	EmergencyCacheBustResult,
-	MemoryStats,
-	MemoryLimitsCheck,
-	CacheConfiguration,
+	CacheRefreshResult,
+	CacheStatus,
 	DataSource,
-	CacheOperationResult,
-	MemoryHealthStatus,
-	CacheOperation,
+	EventsResult,
+	FullRevalidationResult,
 } from "./cache-types";
-export { CacheStateManager } from "./cache-state";
-export { CacheInvalidationManager } from "./cache-invalidation";

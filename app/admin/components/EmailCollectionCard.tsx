@@ -39,8 +39,8 @@ export const EmailCollectionCard = ({
 					<div>
 						<CardTitle>Collected Users</CardTitle>
 						<CardDescription>
-							Auth modal submissions are stored in your managed store first
-							(Postgres when available) and can be exported to CSV at any time.
+							Auth modal submissions are stored in your managed user store and
+							can be exported to CSV at any time.
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap gap-2">
@@ -51,11 +51,6 @@ export const EmailCollectionCard = ({
 							Export CSV
 						</Button>
 					</div>
-				</div>
-				<div className="flex flex-wrap gap-2">
-					<Badge variant="secondary" className="capitalize">
-						Store: {store?.provider ?? "unknown"}
-					</Badge>
 				</div>
 				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
 					<div className="rounded-md border bg-background/60 px-3 py-2">

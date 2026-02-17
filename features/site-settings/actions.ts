@@ -1,7 +1,7 @@
 "use server";
 
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
-import { revalidatePath, revalidateTag } from "next/cache";
+import { invalidateSlidingBannerCache } from "./cache";
 import { getPublicSlidingBannerSettingsCached } from "./queries";
 import { SlidingBannerStore } from "./sliding-banner-store";
 import type {
@@ -106,9 +106,7 @@ export async function updateAdminSlidingBannerSettings(
 			updates,
 			"admin-panel",
 		);
-		revalidateTag("sliding-banner", "max");
-		revalidatePath("/", "layout");
-		revalidatePath("/feature-event", "layout");
+		invalidateSlidingBannerCache();
 		const store = await SlidingBannerStore.getStatus();
 		return {
 			success: true,

@@ -1,20 +1,13 @@
-/**
- * Cache Management Type Definitions
- * Centralized type definitions for all cache-related interfaces
- */
+import type { Event } from "@/features/events/types";
 
-import { Event } from "@/features/events/types";
-
-// ========================================
-// Core Cache Operation Results
-// ========================================
+export type DataSource = "remote" | "local" | "store" | "test" | "cached";
 
 export interface EventsResult {
 	success: boolean;
 	data: Event[];
 	count: number;
 	cached: boolean;
-	source: "remote" | "local" | "store" | "test" | "cached";
+	source: DataSource;
 	error?: string;
 	lastUpdate?: string;
 }
@@ -24,7 +17,7 @@ export interface CacheRefreshResult {
 	message: string;
 	data?: Event[];
 	count?: number;
-	source?: "remote" | "local" | "store" | "test" | "cached";
+	source?: DataSource;
 	error?: string;
 }
 
@@ -34,30 +27,9 @@ export interface FullRevalidationResult {
 	cacheRefreshed: boolean;
 	pageRevalidated: boolean;
 	error?: string;
-	details?: {
-		cacheResult?: CacheRefreshResult;
-		cacheError?: string;
-		revalidationError?: string;
-	};
 }
 
-// ========================================
-// Cache Status & State
-// ========================================
-
-export interface CacheState {
-	events: Event[] | null;
-	lastFetchTime: number;
-	lastRemoteFetchTime: number;
-	lastRemoteSuccessTime: number;
-	lastRemoteErrorMessage: string;
-	lastDataSource: "remote" | "local" | "store" | "test" | "cached";
-	// Memory management fields
-	memoryUsage: number;
-	lastMemoryCheck: number;
-}
-
-export interface CacheStateStatus {
+export interface CacheStatus {
 	hasCachedData: boolean;
 	lastFetchTime: string | null;
 	lastRemoteFetchTime: string | null;
@@ -65,15 +37,11 @@ export interface CacheStateStatus {
 	lastRemoteErrorMessage: string;
 	cacheAge: number;
 	nextRemoteCheck: number;
-	dataSource: "remote" | "local" | "store" | "test" | "cached";
+	dataSource: DataSource;
 	eventCount: number;
-	// Memory management status
 	memoryUsage: number;
 	memoryLimit: number;
 	memoryUtilization: number;
-}
-
-export interface CacheStatus extends CacheStateStatus {
 	configuredDataSource: "remote" | "local" | "test";
 	localCsvLastUpdated: string;
 	remoteConfigured: boolean;
@@ -85,122 +53,12 @@ export interface CacheStatus extends CacheStateStatus {
 	storeKeyCount: number;
 }
 
-// ========================================
-// Memory Management
-// ========================================
-
-export interface MemoryStats {
-	currentUsage: number;
-	maxLimit: number;
-	utilizationPercent: number;
-	eventCount: number;
-	averageSizePerEvent: number;
-	lastCleanup?: string;
-}
-
-export interface MemoryLimitsCheck {
-	withinLimits: boolean;
-	needsCleanup: boolean;
-	needsEmergencyCleanup: boolean;
-	stats: MemoryStats;
-}
-
-// ========================================
-// Cache Invalidation
-// ========================================
-
-export interface ChangeDetails {
-	countChanged: boolean;
-	addedEvents: string[];
-	removedEvents: string[];
-	modifiedEvents: string[];
-}
-
-export interface InvalidationResult {
-	success: boolean;
-	dataChanged: boolean;
-	invalidated: boolean;
-	message: string;
-	changeDetails?: ChangeDetails;
-}
-
-export interface CacheClearResult {
-	success: boolean;
-	clearedPaths: string[];
-	errors: string[];
-}
-
-export interface EmergencyCacheBustResult {
-	success: boolean;
-	message: string;
-	operations: string[];
-	errors: string[];
-}
-
-// ========================================
-// Performance Metrics
-// ========================================
-
 export interface CacheMetricsData {
 	cacheHits: number;
 	cacheMisses: number;
 	totalRequests: number;
 	lastReset: number;
-	fetchTimes: number[];
 	errorCount: number;
-	memoryCleanups: number;
 	hitRate: number;
-	averageFetchTime: number;
-	uptime: number;
+	averageFetchTimeMs: number;
 }
-
-// ========================================
-// Configuration
-// ========================================
-
-export interface CacheConfiguration {
-	// Core cache settings
-	cacheDuration: number;
-	remoteRefreshInterval: number;
-	maxCacheAge: number;
-	cacheExtensionDuration: number;
-
-	// Memory management
-	maxMemoryUsage: number;
-	memoryCheckInterval: number;
-	cleanupThreshold: number;
-	emergencyThreshold: number;
-
-	// Performance settings
-	maxMetricsHistory: number;
-	metricsResetInterval: number;
-	deduplicationTimeout: number;
-
-	// Error handling
-	maxRetryAttempts: number;
-	retryBackoffMs: number;
-	bootstrapMode: boolean;
-
-	// Logging
-	verboseLogging: boolean;
-	logMemoryUsage: boolean;
-	logPerformanceMetrics: boolean;
-
-	// Data source metadata
-	localCsvLastUpdated: string;
-}
-
-// ========================================
-// Type Utilities & Helpers
-// ========================================
-
-export type DataSource = "remote" | "local" | "store" | "test" | "cached";
-export type CacheOperationResult<T = unknown> = {
-	success: boolean;
-	data?: T;
-	error?: string;
-	timestamp: number;
-};
-
-export type MemoryHealthStatus = "healthy" | "warning" | "critical";
-export type CacheOperation = "get" | "set" | "clear" | "invalidate" | "refresh";

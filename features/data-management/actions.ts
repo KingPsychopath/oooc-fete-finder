@@ -16,7 +16,6 @@ import {
 	type EditableSheetRow,
 	validateEditableSheet,
 } from "./csv/sheet-editor";
-import { DynamicSheetManager } from "./dynamic-sheet-manager";
 import {
 	type DateFormatWarning,
 	WarningSystem,
@@ -39,24 +38,13 @@ const resolveRemoteSheetConfig = async (): Promise<{
 	sheetId: string | null;
 	range: string;
 }> => {
-	const effectiveConfig = DynamicSheetManager.getEffectiveConfig(
-		env.GOOGLE_SHEET_ID,
-		"A:Z",
-	);
+	const remoteUrl = env.REMOTE_CSV_URL || null;
+	let sheetId = env.GOOGLE_SHEET_ID || null;
+	const range = "A:Z";
 
-	let remoteUrl: string | null = null;
-	let sheetId: string | null = effectiveConfig.sheetId;
-	const range = effectiveConfig.range || "A:Z";
-
-	if (effectiveConfig.isDynamic && effectiveConfig.sheetId) {
+	if (!sheetId && remoteUrl) {
 		const { GoogleCloudAPI } = await import("@/lib/google/api");
-		remoteUrl = GoogleCloudAPI.buildSheetsUrl(effectiveConfig.sheetId, range);
-	} else {
-		remoteUrl = env.REMOTE_CSV_URL || null;
-		if (!sheetId && remoteUrl) {
-			const { GoogleCloudAPI } = await import("@/lib/google/api");
-			sheetId = GoogleCloudAPI.extractSheetId(remoteUrl);
-		}
+		sheetId = GoogleCloudAPI.extractSheetId(remoteUrl);
 	}
 
 	return { remoteUrl, sheetId, range };
@@ -77,6 +65,9 @@ export async function getEvents(
 export async function getLiveSiteEventsSnapshot(
 	keyOrToken?: string,
 	limit = 200,
+	options?: {
+		forceRefresh?: boolean;
+	},
 ): Promise<{
 	success: boolean;
 	source?: EventsResult["source"];
@@ -100,7 +91,7 @@ export async function getLiveSiteEventsSnapshot(
 	}
 
 	try {
-		const result = await CacheManager.getEvents(false);
+		const result = await CacheManager.getEvents(Boolean(options?.forceRefresh));
 		if (!result.success) {
 			return { success: false, error: result.error || "Failed to load events" };
 		}
@@ -152,42 +143,6 @@ export async function forceRefreshEvents(): Promise<{
  */
 export async function getCacheStatus(): Promise<CacheStatus> {
 	return CacheManager.getCacheStatus();
-}
-
-/**
- * Set dynamic Google Sheet configuration using the centralized cache manager
- */
-export async function setDynamicSheet(formData: FormData): Promise<{
-	success: boolean;
-	message: string;
-	sheetId?: string;
-	range?: string;
-}> {
-	"use server";
-
-	const keyOrTokenRaw = formData.get("adminKey");
-	const keyOrToken =
-		typeof keyOrTokenRaw === "string" ? keyOrTokenRaw : undefined;
-	const sheetInput = formData.get("sheetInput") as string;
-	const sheetRange = formData.get("sheetRange") as string;
-
-	// Verify admin access
-	if (!(await validateAdminAccess(keyOrToken))) {
-		return { success: false, message: "Unauthorized access" };
-	}
-
-	return CacheManager.setDynamicSheet(sheetInput, sheetRange);
-}
-
-/**
- * Get dynamic Google Sheet configuration using the centralized cache manager
- */
-export async function getDynamicSheetConfig(): Promise<{
-	sheetId: string | null;
-	range: string | null;
-	isActive: boolean;
-}> {
-	return CacheManager.getDynamicSheetConfig();
 }
 
 /**
