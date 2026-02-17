@@ -14,6 +14,7 @@ import type { SlidingBannerPublicSettings } from "@/features/site-settings/types
 import { LogOut, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 // Get base path from environment variable directly
@@ -43,11 +44,24 @@ type HeaderProps = {
 const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 	const { isAuthenticated, isAdminAuthenticated, userEmail, logout } =
 		useOptionalAuth();
+	const pathname = usePathname();
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
 	const [scrollState, setScrollState] = useState({
 		compressed: false,
 		collapsed: false,
 	});
+	const normalizedPathname = (pathname || "/").replace(/\/+$/, "") || "/";
+	const pathWithoutBasePath =
+		basePath &&
+		basePath !== "/" &&
+		normalizedPathname.startsWith(basePath)
+			? normalizedPathname.slice(basePath.length) || "/"
+			: normalizedPathname;
+	const isFeatureEventPage =
+		pathWithoutBasePath === "/feature-event" ||
+		pathWithoutBasePath.startsWith("/feature-event/") ||
+		pathWithoutBasePath === "/featured-event" ||
+		pathWithoutBasePath.startsWith("/featured-event/");
 
 	useEffect(() => {
 		let rafId: number | null = null;
@@ -94,7 +108,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 					}`}
 				>
 					<div
-						className={`mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 transition-transform duration-300 ease-out will-change-transform sm:min-h-[84px] sm:px-5 ${
+						className={`mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 transition-transform duration-300 ease-out will-change-transform sm:min-h-[84px] sm:px-5 lg:grid lg:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] lg:gap-6 ${
 							isCompressed
 								? "scale-[0.94] sm:scale-[0.96]"
 								: "scale-100"
@@ -102,7 +116,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 					>
 						<Link
 							href={basePath || "/"}
-							className="flex min-w-0 flex-1 items-center gap-3 transition-colors hover:opacity-90"
+							className="flex min-w-0 items-center gap-3 transition-colors hover:opacity-90 lg:justify-self-start"
 							aria-label="Fete Finder home"
 						>
 							<div
@@ -132,7 +146,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 						</Link>
 
 						<nav
-							className="hidden items-center gap-5 lg:flex"
+							className="hidden items-center gap-6 lg:flex lg:justify-self-center lg:gap-7"
 							aria-label="Main"
 						>
 							{isAdminAuthenticated && (
@@ -143,12 +157,14 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 									Admin
 								</Link>
 							)}
-							<Link
-								href={`${basePath || ""}/feature-event`}
-								className="text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
-							>
-								Featured Event
-							</Link>
+							{!isFeatureEventPage && (
+								<Link
+									href={`${basePath || ""}/feature-event`}
+									className="text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
+								>
+									Featured Event
+								</Link>
+							)}
 							<Link
 								href="https://outofofficecollective.co.uk/faqs"
 								target="_blank"
@@ -167,7 +183,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							</Link>
 						</nav>
 
-						<div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
+						<div className="flex min-w-0 items-center justify-end gap-2 sm:gap-3 lg:justify-self-end lg:justify-end">
 							<div className="hidden items-center gap-2 sm:flex">
 								<Clock />
 								<ThemeToggle className="h-9 w-9 rounded-full border border-border/80 bg-background/70 hover:bg-accent" />
