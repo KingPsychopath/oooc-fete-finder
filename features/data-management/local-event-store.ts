@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash } from "crypto";
 import Papa from "papaparse";
+import { env } from "@/lib/config/env";
 import { CSV_EVENT_COLUMNS } from "./csv/parser";
 import {
 	csvToEditableSheet,
@@ -315,9 +316,44 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 
 const postgresAdapter = new PostgresEventStoreAdapter();
 const memoryAdapter = new MemoryEventStoreAdapter();
+class UnavailableEventStoreAdapter implements EventStoreAdapter {
+	private readonly reason =
+		"Managed Postgres store is unavailable in this environment. Configure DATABASE_URL.";
+
+	async getCsv(): Promise<string | null> {
+		throw new Error(this.reason);
+	}
+
+	async saveCsv(_csvContent: string, _meta: SaveCsvMeta): Promise<EventStoreMetadata> {
+		throw new Error(this.reason);
+	}
+
+	async clearCsv(): Promise<void> {
+		throw new Error(this.reason);
+	}
+
+	async getStatus(): Promise<EventStoreStatus> {
+		return {
+			hasStoreData: false,
+			rowCount: 0,
+			keyCount: 0,
+			updatedAt: null,
+			updatedBy: null,
+			origin: null,
+			provider: "memory",
+			providerLocation: this.reason,
+		};
+	}
+}
+const unavailableAdapter = new UnavailableEventStoreAdapter();
 
 const resolveAdapter = (): EventStoreAdapter => {
-	return getEventSheetStoreRepository() ? postgresAdapter : memoryAdapter;
+	if (getEventSheetStoreRepository()) {
+		return postgresAdapter;
+	}
+
+	const allowMemoryFallback = env.NODE_ENV !== "production";
+	return allowMemoryFallback ? memoryAdapter : unavailableAdapter;
 };
 
 export class LocalEventStore {

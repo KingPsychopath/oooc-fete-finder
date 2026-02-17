@@ -201,6 +201,69 @@
 	background: color-mix(in oklab, var(--card) 88%, rgba(19, 14, 10, 0.24));
 }
 
+.ooo-scroll-crescent {
+	position: relative;
+	isolation: isolate;
+	overflow: hidden;
+	border-color: color-mix(in oklab, var(--border) 82%, rgba(23, 16, 11, 0.15));
+	background: color-mix(in oklab, var(--card) 90%, rgba(250, 246, 239, 0.36));
+	backdrop-filter: blur(10px);
+	box-shadow:
+		0 14px 28px -20px rgba(30, 22, 17, 0.58),
+		0 1px 0 rgba(255, 255, 255, 0.44) inset;
+}
+
+.ooo-scroll-crescent::before {
+	content: "";
+	position: absolute;
+	inset: 1px;
+	border-radius: 9999px;
+	background: linear-gradient(
+		145deg,
+		rgba(255, 255, 255, 0.62) 8%,
+		rgba(255, 255, 255, 0) 62%
+	);
+	pointer-events: none;
+	z-index: 0;
+}
+
+.ooo-scroll-crescent::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	right: -0.56rem;
+	width: 1.7rem;
+	height: 1.7rem;
+	transform: translateY(-50%);
+	border-radius: 9999px;
+	background: var(--ooo-main-background);
+	box-shadow: inset 0 0 0 1px
+		color-mix(in oklab, var(--border) 70%, rgba(255, 255, 255, 0.2));
+	pointer-events: none;
+	z-index: 1;
+}
+
+.dark .ooo-scroll-crescent {
+	border-color: color-mix(in oklab, var(--border) 84%, rgba(255, 255, 255, 0.11));
+	background: color-mix(in oklab, var(--card) 91%, rgba(16, 12, 9, 0.42));
+	box-shadow:
+		0 18px 34px -24px rgba(0, 0, 0, 0.75),
+		0 1px 0 rgba(255, 255, 255, 0.08) inset;
+}
+
+.dark .ooo-scroll-crescent::before {
+	background: linear-gradient(
+		145deg,
+		rgba(255, 255, 255, 0.18) 8%,
+		rgba(255, 255, 255, 0) 62%
+	);
+}
+
+.dark .ooo-scroll-crescent::after {
+	box-shadow: inset 0 0 0 1px
+		color-mix(in oklab, var(--border) 76%, rgba(255, 255, 255, 0.08));
+}
+
 /* Bouncy Transition for Interactive Elements */
 .transition-bouncy {
 	transition-duration: 500ms;

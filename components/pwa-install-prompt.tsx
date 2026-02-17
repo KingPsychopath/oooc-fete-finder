@@ -8,13 +8,42 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Download, Smartphone, X } from "lucide-react";
+import { Download, HousePlus, Share2, Smartphone, Wifi, X, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
 	prompt(): Promise<void>;
 	userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
+
+type InstallDismissalData = {
+	count: number;
+	timestamp: number;
+};
+
+const DISMISSAL_STORAGE_KEY = "fete-finder:pwa-install-dismissals";
+const DEFAULT_DISMISSAL_DATA: InstallDismissalData = {
+	count: 0,
+	timestamp: 0,
+};
+
+const readDismissalData = (): InstallDismissalData => {
+	try {
+		const raw = localStorage.getItem(DISMISSAL_STORAGE_KEY);
+		if (!raw) return DEFAULT_DISMISSAL_DATA;
+		const parsed = JSON.parse(raw) as Partial<InstallDismissalData>;
+		return {
+			count: Number.isFinite(parsed.count) ? Number(parsed.count) : 0,
+			timestamp: Number.isFinite(parsed.timestamp) ? Number(parsed.timestamp) : 0,
+		};
+	} catch {
+		return DEFAULT_DISMISSAL_DATA;
+	}
+};
+
+const writeDismissalData = (data: InstallDismissalData) => {
+	localStorage.setItem(DISMISSAL_STORAGE_KEY, JSON.stringify(data));
+};
 
 export function PWAInstallPrompt() {
 	const [deferredPrompt, setDeferredPrompt] =
@@ -25,20 +54,18 @@ export function PWAInstallPrompt() {
 	useEffect(() => {
 		// Check if already installed
 		const isInstalled = () => {
-			// @ts-ignore - checking for PWA display mode
+			const iosNavigator = window.navigator as Navigator & {
+				standalone?: boolean;
+			};
 			return (
 				window.matchMedia("(display-mode: standalone)").matches ||
-				// @ts-ignore - checking for iOS PWA
-				window.navigator?.standalone === true
+				iosNavigator.standalone === true
 			);
 		};
 
 		// Check if recently dismissed with progressive delays
 		const isRecentlyDismissed = () => {
-			const dismissalData = JSON.parse(
-				localStorage.getItem("fete-finder:pwa-install-dismissals") ||
-					'{"count": 0, "timestamp": 0}',
-			);
+			const dismissalData = readDismissalData();
 			const { count, timestamp } = dismissalData;
 
 			if (count === 0) return false; // Never dismissed
@@ -108,18 +135,12 @@ export function PWAInstallPrompt() {
 		setIsVisible(false);
 
 		// Update dismissal count and timestamp
-		const currentData = JSON.parse(
-			localStorage.getItem("fete-finder:pwa-install-dismissals") ||
-				'{"count": 0, "timestamp": 0}',
-		);
-		const newData = {
+		const currentData = readDismissalData();
+		const newData: InstallDismissalData = {
 			count: currentData.count + 1,
 			timestamp: Date.now(),
 		};
-		localStorage.setItem(
-			"fete-finder:pwa-install-dismissals",
-			JSON.stringify(newData),
-		);
+		writeDismissalData(newData);
 	};
 
 	if (!isVisible) {
@@ -127,80 +148,125 @@ export function PWAInstallPrompt() {
 	}
 
 	return (
-		<div className="fixed bottom-4 left-4 right-4 z-50 max-w-sm mx-auto animate-in slide-in-from-bottom-2 duration-300">
-			<Card className="shadow-lg border-2 bg-background/95 backdrop-blur-sm">
-				<CardHeader className="pb-3">
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-2">
-							<Smartphone className="w-5 h-5 text-primary" />
-							<CardTitle className="text-lg">Install Fête Finder</CardTitle>
+		<div
+			className="pointer-events-none fixed inset-x-0 z-50 px-4 sm:px-6"
+			style={{
+				bottom: "max(1rem, env(safe-area-inset-bottom))",
+			}}
+		>
+			<div className="pointer-events-auto mx-auto w-full max-w-md animate-in slide-in-from-bottom-4 fade-in duration-500">
+				<Card className="overflow-hidden rounded-2xl border backdrop-blur-[9px] [border-color:color-mix(in_oklab,var(--border)_84%,rgba(23,16,11,0.14))] [background:linear-gradient(145deg,rgba(255,255,255,0.56)_10%,rgba(255,255,255,0)_65%),color-mix(in_oklab,var(--card)_90%,rgba(250,246,239,0.3))] [box-shadow:0_20px_40px_-28px_rgba(20,14,10,0.6),0_1px_0_rgba(255,255,255,0.42)_inset] dark:[border-color:color-mix(in_oklab,var(--border)_84%,rgba(255,255,255,0.12))] dark:[background:linear-gradient(145deg,rgba(255,255,255,0.14)_10%,rgba(255,255,255,0)_65%),color-mix(in_oklab,var(--card)_91%,rgba(17,13,10,0.4))] dark:[box-shadow:0_22px_40px_-30px_rgba(0,0,0,0.78),0_1px_0_rgba(255,255,255,0.08)_inset]">
+					<CardHeader className="pb-3">
+						<div className="flex items-start justify-between gap-3">
+							<div className="min-w-0">
+								<p className="mb-2 text-[0.64rem] uppercase tracking-[0.22em] text-muted-foreground/85">
+									Out Of Office Collective
+								</p>
+								<div className="flex items-center gap-2">
+									<div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border/70 bg-background/72">
+										<Smartphone className="h-4 w-4 text-foreground/88" />
+									</div>
+									<CardTitle className="text-[1.45rem] leading-none [font-family:var(--ooo-font-display)] font-light tracking-[0.02em]">
+										Install Fête Finder
+									</CardTitle>
+								</div>
+								<CardDescription className="mt-3 text-sm leading-relaxed text-muted-foreground">
+									Add the app for quicker loading, offline access, and
+									home-screen launch.
+								</CardDescription>
+							</div>
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={handleDismiss}
+								className="mt-0.5 size-8 shrink-0 rounded-full border border-border/55 bg-background/65 hover:bg-accent"
+								aria-label="Dismiss install prompt"
+							>
+								<X className="h-3.5 w-3.5" />
+							</Button>
 						</div>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleDismiss}
-							className="h-8 w-8 p-0"
-							aria-label="Close"
-						>
-							<X className="w-4 h-4" />
-						</Button>
-					</div>
-					<CardDescription>
-						Get the full app experience with offline access and faster loading
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="pt-0">
-					<div className="flex flex-col gap-3">
-						<div className="flex items-center gap-2 text-sm text-muted-foreground">
-							<span>📱</span>
-							<span>Works offline</span>
-						</div>
-						<div className="flex items-center gap-2 text-sm text-muted-foreground">
-							<span>⚡</span>
-							<span>Faster loading</span>
-						</div>
-						<div className="flex items-center gap-2 text-sm text-muted-foreground">
-							<span>🏠</span>
-							<span>Add to home screen</span>
+					</CardHeader>
+					<CardContent className="space-y-3 pt-0">
+						<div className="grid grid-cols-3 gap-2">
+							<div className="rounded-xl border border-border/65 bg-background/58 p-2 text-center">
+								<Wifi className="mx-auto h-3.5 w-3.5 text-foreground/86" />
+								<p className="mt-1 text-[11px] leading-tight text-muted-foreground">
+									Offline-ready
+								</p>
+							</div>
+							<div className="rounded-xl border border-border/65 bg-background/58 p-2 text-center">
+								<Zap className="mx-auto h-3.5 w-3.5 text-foreground/86" />
+								<p className="mt-1 text-[11px] leading-tight text-muted-foreground">
+									Faster launch
+								</p>
+							</div>
+							<div className="rounded-xl border border-border/65 bg-background/58 p-2 text-center">
+								<HousePlus className="mx-auto h-3.5 w-3.5 text-foreground/86" />
+								<p className="mt-1 text-[11px] leading-tight text-muted-foreground">
+									Home screen
+								</p>
+							</div>
 						</div>
 
-						<div className="flex flex-col gap-2 mt-2">
-							{isIOS ? (
-								<div className="text-sm space-y-2">
-									<p className="font-medium">To install on iOS:</p>
-									<ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-										<li>Tap the Share button (📤)</li>
-										<li>Scroll down and tap "Add to Home Screen"</li>
-										<li>Tap "Add" to confirm</li>
+						{isIOS ? (
+							<div className="space-y-3">
+								<div className="rounded-xl border border-border/65 bg-background/58 p-3">
+									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+										Install On iPhone
+									</p>
+									<ol className="mt-2 space-y-2 text-sm text-muted-foreground">
+										<li className="flex items-start gap-2">
+											<span className="mt-0.5 inline-flex size-4 items-center justify-center rounded-full border border-border/70 text-[10px] text-foreground">
+												1
+											</span>
+											<span>
+												Tap <span className="font-medium text-foreground">Share</span>{" "}
+												<Share2 className="mb-0.5 ml-1 inline h-3 w-3" />
+											</span>
+										</li>
+										<li className="flex items-start gap-2">
+											<span className="mt-0.5 inline-flex size-4 items-center justify-center rounded-full border border-border/70 text-[10px] text-foreground">
+												2
+											</span>
+											<span>Select "Add to Home Screen"</span>
+										</li>
+										<li className="flex items-start gap-2">
+											<span className="mt-0.5 inline-flex size-4 items-center justify-center rounded-full border border-border/70 text-[10px] text-foreground">
+												3
+											</span>
+											<span>Tap "Add" to confirm</span>
+										</li>
 									</ol>
-									<Button
-										variant="outline"
-										onClick={handleDismiss}
-										size="sm"
-										className="w-full mt-3"
-									>
-										Got it
-									</Button>
 								</div>
-							) : (
-								<>
-									<Button
-										onClick={handleInstall}
-										className="w-full gap-2"
-										size="sm"
-									>
-										<Download className="w-4 h-4" />
-										Install App
-									</Button>
-									<Button variant="outline" onClick={handleDismiss} size="sm">
-										Maybe Later
-									</Button>
-								</>
-							)}
-						</div>
-					</div>
-				</CardContent>
-			</Card>
+								<Button
+									variant="outline"
+									onClick={handleDismiss}
+									className="h-9 w-full rounded-full border-border/70 bg-background/65 hover:bg-accent"
+								>
+									Got it
+								</Button>
+							</div>
+						) : (
+							<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+								<Button
+									onClick={handleInstall}
+									className="h-9 rounded-full border border-border/70 bg-primary text-primary-foreground hover:bg-primary/90"
+								>
+									<Download className="mr-1.5 h-3.5 w-3.5" />
+									Install App
+								</Button>
+								<Button
+									variant="outline"
+									onClick={handleDismiss}
+									className="h-9 rounded-full border-border/70 bg-background/65 hover:bg-accent"
+								>
+									Maybe later
+								</Button>
+							</div>
+						)}
+					</CardContent>
+				</Card>
+			</div>
 		</div>
 	);
 }

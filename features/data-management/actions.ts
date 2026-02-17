@@ -114,7 +114,11 @@ export async function getLiveSiteEventsSnapshot(
 							fresh.warnings.length > 0 ? fresh.warnings.join("; ") : undefined,
 					};
 				})()
-			: CacheManager.getEventsSnapshot();
+			: await (async () => {
+					const snapshot = CacheManager.getEventsSnapshot();
+					if (snapshot.success) return snapshot;
+					return CacheManager.getEvents(false);
+				})();
 		if (!result.success) {
 			return { success: false, error: result.error || "Failed to load events" };
 		}
