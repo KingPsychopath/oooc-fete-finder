@@ -25,11 +25,11 @@ export function FeaturedEvents({
 	);
 
 	return (
-		<Card className="mb-6">
-			<CardHeader>
+		<Card className="ooo-site-card mb-6 py-0">
+			<CardHeader className="border-b border-border/70 py-5">
 				<FeaturedEventsHeader />
 			</CardHeader>
-			<CardContent>
+			<CardContent className="py-5">
 				{/* Responsive grid: 1 col on mobile, 2 cols on tablet, 3 cols on desktop */}
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 					{featuredEvents.map((event) => (
@@ -41,9 +41,9 @@ export function FeaturedEvents({
 				{hasMoreEvents && (
 					<div className="mt-4 text-center">
 						<Button
-							variant="secondary"
+							variant="outline"
 							onClick={onScrollToAllEvents}
-							className="w-full sm:w-auto"
+							className="w-full border-border/80 bg-background/65 text-foreground/85 hover:bg-accent sm:w-auto"
 						>
 							Browse All {totalEventsCount} Events
 							<ChevronDown className="h-4 w-4 ml-1" />

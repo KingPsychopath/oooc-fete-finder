@@ -33,7 +33,7 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
 			variant={variant}
 			size={size}
 			onClick={onClickAction}
-			className={`min-h-[44px] ${className}`}
+			className={`min-h-[44px] border-border/80 bg-background/72 text-foreground/85 hover:bg-accent ${className}`}
 		>
 			<Filter className="h-4 w-4 mr-2" />
 			Filters

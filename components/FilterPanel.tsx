@@ -443,8 +443,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 				{/* Desktop version - always visible */}
 				<div className="hidden lg:block">
-					<Card className="overflow-hidden">
-						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+					<Card className="ooo-site-card overflow-hidden py-0">
+						<CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/70 py-5 pb-4">
 							<CardTitle className="flex items-center text-base">
 								<Filter className="h-4 w-4 mr-2" />
 								Event Filters
@@ -492,7 +492,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								isExpanded === undefined || isExpanded
 									? "max-h-[650px]"
 									: "max-h-24"
-							}`}
+							} py-4`}
 						>
 							<div className="h-[calc(650px-4rem)] overflow-y-auto relative">
 								{/* Active Filters - Top when few filters */}
@@ -848,13 +848,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	}
 
 	return (
-		<div className="fixed inset-0 z-50 bg-black/50 lg:static lg:bg-transparent lg:z-auto">
+		<div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] lg:static lg:bg-transparent lg:z-auto">
 			<div
 				ref={panelRef}
-				className="absolute right-0 top-0 h-full w-full max-w-sm bg-background border-l lg:static lg:max-w-none lg:border-l-0 lg:h-fit"
+				className="absolute right-0 top-0 h-full w-full max-w-sm border-l border-border/70 bg-background/97 lg:static lg:max-w-none lg:border-l-0 lg:h-fit"
 			>
-				<Card className="h-full border-0 lg:border lg:h-fit">
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+				<Card className="ooo-site-card h-full border-0 py-0 lg:h-fit lg:border">
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/70 py-5 pb-4">
 						<CardTitle className="flex items-center">
 							<Filter className="h-5 w-5 mr-2" />
 							Filters
@@ -890,7 +890,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						</div>
 					</CardHeader>
 
-					<CardContent className="space-y-6 overflow-y-auto lg:overflow-y-visible">
+					<CardContent className="space-y-6 overflow-y-auto py-4 lg:overflow-y-visible">
 						{/* Active Filters - Top (Mobile) or when few filters */}
 						{uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
 

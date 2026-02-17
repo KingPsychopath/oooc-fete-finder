@@ -43,7 +43,7 @@ const AuthGate = ({
 			{children}
 			{/* Beautiful auth overlay with fade-in animation */}
 			<div
-				className={`absolute inset-0 bg-gradient-to-br from-background/95 via-background/90 to-background/95 backdrop-blur-md rounded-xl border border-border/50 shadow-lg flex items-center justify-center z-30 transition-all duration-500 ease-out ${
+				className={`absolute inset-0 z-30 flex items-center justify-center rounded-xl border border-border/70 bg-card/92 shadow-lg backdrop-blur-md transition-all duration-500 ease-out ${
 					showOverlay ? "opacity-100 scale-100" : "opacity-0 scale-95"
 				}`}
 			>
@@ -55,7 +55,7 @@ const AuthGate = ({
 					}`}
 				>
 					<div className="flex justify-center">
-						<div className="p-3 bg-gradient-to-br from-primary/10 to-primary/5 rounded-full border border-primary/20 shadow-md">
+						<div className="rounded-full border border-border/70 bg-background/72 p-3 shadow-sm">
 							<Lock className="h-5 w-5 text-primary" />
 						</div>
 					</div>

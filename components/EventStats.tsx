@@ -82,14 +82,17 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 	}, [events]);
 
 	return (
-		<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+		<div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
 			{/* Events Count */}
-			<Card>
+			<Card className="ooo-site-card py-0">
 				<CardContent className="p-4 text-center">
-					<div className="text-2xl font-bold text-primary">
-						{filteredEvents.length}
+					<div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+						Events
 					</div>
-					<div className="text-sm text-muted-foreground">
+					<div className="mt-1 text-3xl [font-family:var(--ooo-font-display)] font-light text-foreground">
+						{filteredEvents.length.toLocaleString()}
+					</div>
+					<div className="mt-1 text-sm text-muted-foreground">
 						Event{filteredEvents.length !== 1 ? "s" : ""}{" "}
 						{hasActiveFilters ? "filtered" : "total"}
 					</div>
@@ -97,12 +100,15 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 			</Card>
 
 			{/* Arrondissements Count */}
-			<Card>
+			<Card className="ooo-site-card py-0">
 				<CardContent className="p-4 text-center">
-					<div className="text-2xl font-bold text-primary">
+					<div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+						Coverage
+					</div>
+					<div className="mt-1 text-3xl [font-family:var(--ooo-font-display)] font-light text-foreground">
 						{filteredArrondissementsCount}
 					</div>
-					<div className="text-sm text-muted-foreground">
+					<div className="mt-1 text-sm text-muted-foreground">
 						Arrondissement{filteredArrondissementsCount !== 1 ? "s" : ""}{" "}
 						{hasActiveFilters ? "with events" : "total"}
 					</div>
@@ -110,12 +116,15 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 			</Card>
 
 			{/* Dynamic Date Range */}
-			<Card>
+			<Card className="ooo-site-card py-0">
 				<CardContent className="p-4 text-center">
-					<div className="text-2xl font-bold text-primary">
+					<div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+						Date Span
+					</div>
+					<div className="mt-1 text-3xl [font-family:var(--ooo-font-display)] font-light text-foreground">
 						{uniqueDays > 0 ? uniqueDays : "—"}
 					</div>
-					<div className="text-sm text-muted-foreground">
+					<div className="mt-1 text-sm text-muted-foreground">
 						{uniqueDays === 1 ? "Day" : "Days"} • {dateRange}
 					</div>
 				</CardContent>

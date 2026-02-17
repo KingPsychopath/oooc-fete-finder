@@ -169,6 +169,34 @@
 	background: var(--ooo-main-background);
 }
 
+.ooo-site-card {
+	border-color: color-mix(in oklab, var(--border) 86%, rgba(23, 16, 11, 0.18));
+	background: color-mix(in oklab, var(--card) 90%, rgba(252, 249, 244, 0.35));
+	backdrop-filter: blur(8px);
+	box-shadow:
+		0 10px 24px -18px rgba(30, 22, 17, 0.38),
+		0 1px 0 rgba(255, 255, 255, 0.38) inset;
+}
+
+.dark .ooo-site-card {
+	border-color: color-mix(in oklab, var(--border) 78%, rgba(255, 255, 255, 0.1));
+	background: color-mix(in oklab, var(--card) 92%, rgba(14, 10, 8, 0.38));
+	box-shadow:
+		0 14px 28px -20px rgba(0, 0, 0, 0.65),
+		0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+.ooo-site-card-soft {
+	border-color: color-mix(in oklab, var(--border) 80%, rgba(23, 16, 11, 0.12));
+	background: color-mix(in oklab, var(--card) 82%, rgba(248, 242, 231, 0.2));
+	backdrop-filter: blur(6px);
+}
+
+.dark .ooo-site-card-soft {
+	border-color: color-mix(in oklab, var(--border) 80%, rgba(255, 255, 255, 0.06));
+	background: color-mix(in oklab, var(--card) 84%, rgba(13, 10, 8, 0.24));
+}
+
 /* Sliding Banner Animation */
 @keyframes slide-banner {
 	0% {

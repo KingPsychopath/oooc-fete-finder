@@ -39,24 +39,23 @@ export function EventCard({ event, onClick }: EventCardProps) {
 	// Check if event should display as featured (with expiration logic)
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
 
-	// Enhanced styling classes
-	const cardClasses = `p-4 border rounded-lg cursor-pointer transition-all duration-300 relative ${
+	const cardClasses = `group relative cursor-pointer rounded-xl border p-4 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-lg ${
 		isCurrentlyFeatured
-			? "border-2 border-blue-500 bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50 hover:from-blue-100 hover:via-purple-100 hover:to-indigo-100 dark:from-blue-950/40 dark:via-purple-950/40 dark:to-indigo-950/40 dark:hover:from-blue-900/50 dark:hover:via-purple-900/50 dark:hover:to-indigo-900/50 shadow-lg hover:shadow-xl ring-1 ring-blue-200 dark:ring-blue-800"
+			? "border-amber-300/75 bg-[linear-gradient(145deg,rgba(248,238,222,0.86),rgba(244,229,205,0.72))] dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.45),rgba(47,36,24,0.32))]"
 			: event.isOOOCPick === true
-				? "border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-50 hover:from-yellow-100 hover:to-amber-100 dark:from-yellow-950 dark:to-amber-950 dark:hover:from-yellow-900 dark:hover:to-amber-900"
-				: "hover:bg-muted/50"
+				? "border-border/90 bg-[linear-gradient(145deg,rgba(247,241,231,0.82),rgba(242,235,224,0.68))] dark:bg-[linear-gradient(145deg,rgba(52,41,31,0.36),rgba(42,33,26,0.28))]"
+				: "border-border/85 bg-card/72 hover:bg-card/88"
 	}`;
 
 	return (
 		<div className={cardClasses} onClick={handleClick}>
 			{/* Priority Badge System - Featured takes precedence over OOOC Pick */}
 			{isCurrentlyFeatured ? (
-				<div className="absolute -top-3 -right-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold rounded-full w-10 h-10 flex items-center justify-center shadow-lg z-10 border-2 border-white dark:border-gray-900 animate-pulse">
+				<div className="absolute -top-2.5 -right-2.5 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-amber-200 bg-[linear-gradient(145deg,rgba(212,164,96,0.95),rgba(178,131,70,0.95))] text-sm shadow-lg dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(184,140,79,0.85),rgba(141,100,49,0.88))]">
 					<span className="text-sm">✨</span>
 				</div>
 			) : event.isOOOCPick === true ? (
-				<div className="absolute -top-3 -right-3 bg-yellow-400 text-black text-xs font-bold rounded-full w-8 h-8 flex items-center justify-center shadow-md z-10 border-2 border-white dark:border-gray-900">
+				<div className="absolute -top-2.5 -right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-amber-200/90 bg-[linear-gradient(145deg,rgba(242,219,176,0.95),rgba(221,196,148,0.95))] text-black shadow-md dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(166,131,79,0.88),rgba(126,96,59,0.86))] dark:text-amber-100">
 					<Star className="h-4 w-4 fill-current" />
 				</div>
 			) : null}
@@ -65,9 +64,9 @@ export function EventCard({ event, onClick }: EventCardProps) {
 			<div className="flex items-start justify-between gap-3 mb-2">
 				<div className="flex items-center space-x-2 min-w-0 flex-1">
 					<h3
-						className={`font-semibold text-sm leading-tight truncate flex-1 min-w-0 ${
+						className={`min-w-0 flex-1 truncate text-sm leading-tight font-medium ${
 							isCurrentlyFeatured
-								? "text-blue-800 dark:text-blue-200 font-bold"
+								? "text-foreground font-semibold"
 								: ""
 						}`}
 					>
@@ -83,10 +82,10 @@ export function EventCard({ event, onClick }: EventCardProps) {
 					{/* Featured badge - show whenever event is currently featured, regardless of variant */}
 					{isCurrentlyFeatured && (
 						<Badge
-							className={`text-xs text-white border-0 font-bold px-2 ${
+							className={`border-0 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] ${
 								event.isOOOCPick === true
-									? "bg-gradient-to-r from-blue-500 via-purple-600 to-yellow-500" // Special gradient when both featured and OOOC pick
-									: "bg-gradient-to-r from-blue-500 to-purple-600" // Standard featured gradient
+									? "bg-[linear-gradient(145deg,rgba(190,145,82,0.96),rgba(154,112,58,0.96))] text-amber-50"
+									: "bg-[linear-gradient(145deg,rgba(204,159,93,0.96),rgba(167,122,67,0.96))] text-amber-50"
 							}`}
 						>
 							FEATURED{event.isOOOCPick === true ? " ⭐" : ""}
@@ -129,7 +128,7 @@ export function EventCard({ event, onClick }: EventCardProps) {
 						className={`text-xs font-medium ${
 							formatPrice(event.price) === "Free"
 								? "text-green-600 dark:text-green-400"
-								: "text-gray-600 dark:text-gray-400"
+								: "text-muted-foreground"
 						}`}
 					>
 						{formatPrice(event.price)}
@@ -139,7 +138,7 @@ export function EventCard({ event, onClick }: EventCardProps) {
 				{event.age && (
 					<div className="flex items-center space-x-1">
 						<Users className="h-3 w-3 flex-shrink-0" />
-						<span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+						<span className="text-xs font-medium text-muted-foreground">
 							{formatAge(event.age)}
 						</span>
 					</div>
@@ -148,18 +147,18 @@ export function EventCard({ event, onClick }: EventCardProps) {
 
 			{/* Badges */}
 			<div className="flex flex-wrap gap-1 mt-2">
-				<Badge variant="secondary" className="text-xs">
+				<Badge variant="secondary" className="border border-border/70 bg-secondary/72 text-xs">
 					{event.type}
 				</Badge>
 				{event.nationality &&
 					event.nationality.map((nationality) => (
-						<Badge key={nationality} variant="outline" className="text-xs">
+						<Badge key={nationality} variant="outline" className="border-border/75 bg-background/50 text-xs">
 							{NATIONALITIES.find((n) => n.key === nationality)?.flag}{" "}
 							{NATIONALITIES.find((n) => n.key === nationality)?.shortCode}
 						</Badge>
 					))}
 				{event.genre.slice(0, 2).map((genre) => (
-					<Badge key={genre} variant="outline" className="text-xs">
+					<Badge key={genre} variant="outline" className="border-border/75 bg-background/50 text-xs">
 						{MUSIC_GENRES.find((g) => g.key === genre)?.label || genre}
 					</Badge>
 				))}

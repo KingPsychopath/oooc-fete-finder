@@ -244,7 +244,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	};
 
 	return (
-		<div className={`relative ${className}`}>
+		<div className={`relative rounded-xl border p-3 ooo-site-card-soft ${className}`}>
 			{/* Search Input */}
 			<div className="relative">
 				<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -253,7 +253,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 					value={query}
 					onChange={(e) => handleSearch(e.target.value)}
 					placeholder={placeholder}
-					className="w-full pl-10 pr-10 py-2 border border-input bg-background rounded-md text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+					className="w-full rounded-full border border-border/75 bg-background/70 py-2 pr-10 pl-10 text-sm placeholder:text-muted-foreground/90 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
 					aria-label={placeholder}
 				/>
 				{query && (
@@ -270,7 +270,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 			</div>
 
 			{/* Example Search Chips */}
-			<div className="flex flex-wrap gap-1.5 mt-3">
+			<div className="mt-3 flex flex-wrap gap-1.5">
 				{exampleSearches.map((example) => (
 					<Button
 						key={example}

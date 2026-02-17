@@ -53,7 +53,7 @@ const socialLinks = [
 
 const Footer = () => {
 	return (
-		<footer className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+		<footer className="mt-10 border-t border-border/70 bg-card/78 backdrop-blur">
 			<div className="container mx-auto px-4 py-6">
 				<div className="flex flex-col items-center justify-center space-y-4 sm:flex-row sm:justify-between sm:space-y-0">
 					{/* Social Links */}

@@ -27,10 +27,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		ref,
 	) => {
 		return (
-			<Card ref={ref} className="mt-6">
-				<CardHeader>
+			<Card ref={ref} className="ooo-site-card mt-6 py-0">
+				<CardHeader className="border-b border-border/70 py-5">
 					<div className="flex items-center justify-between">
-						<CardTitle className="flex items-center">
+						<CardTitle className="flex items-center text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
 							All Events
 							<Badge variant="outline" className="ml-2 text-xs">
 								{events.length} event{events.length !== 1 ? "s" : ""}
@@ -44,7 +44,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 						/>
 					</div>
 				</CardHeader>
-				<CardContent>
+				<CardContent className="py-5">
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 						{events
 							.filter((event) => event != null)
