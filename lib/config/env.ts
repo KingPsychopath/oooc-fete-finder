@@ -4,17 +4,26 @@ import { z } from "zod";
 
 const isServerRuntime = typeof window === "undefined";
 const rawDataMode = process.env.DATA_MODE?.trim() ?? "";
+const isVercelHosted = process.env.VERCEL === "1";
+const vercelEnv = process.env.VERCEL_ENV;
+const isVercelDeployTarget =
+	isVercelHosted && (vercelEnv === "production" || vercelEnv === "preview");
 
-if (isServerRuntime && process.env.NODE_ENV === "production" && !rawDataMode) {
+if (
+	isServerRuntime &&
+	process.env.NODE_ENV === "production" &&
+	isVercelDeployTarget &&
+	!rawDataMode
+) {
 	throw new Error(
 		"Missing required DATA_MODE in production. Set DATA_MODE to remote, local, or test.",
 	);
 }
 
-if (isServerRuntime && process.env.NODE_ENV !== "production" && !rawDataMode) {
+if (isServerRuntime && !rawDataMode) {
 	clientLog.warn(
 		"env",
-		"DATA_MODE is not set; defaulting to remote for non-production runtime.",
+		"DATA_MODE is not set; defaulting to remote. Set DATA_MODE explicitly for Vercel preview/production deploys.",
 	);
 }
 

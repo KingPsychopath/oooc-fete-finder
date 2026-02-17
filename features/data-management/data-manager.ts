@@ -41,9 +41,16 @@ interface SourceAttemptFailure {
 
 type SourceAttemptResult = SourceAttemptSuccess | SourceAttemptFailure;
 
+interface DataReadOptions {
+	populateCoordinates?: boolean;
+}
+
 interface SourceDescriptor {
 	id: LiveDataSource;
-	load: (warnings: string[]) => Promise<SourceAttemptResult>;
+	load: (
+		warnings: string[],
+		options?: DataReadOptions,
+	) => Promise<SourceAttemptResult>;
 }
 
 const isSourceAttemptSuccess = (
@@ -82,7 +89,7 @@ const validateProcessedEvents = (
 
 const loadFromStore: SourceDescriptor = {
 	id: "store",
-	async load() {
+	async load(_warnings, options) {
 		try {
 			const storeCsv = await LocalEventStore.getCsv();
 			if (!storeCsv) {
@@ -90,7 +97,7 @@ const loadFromStore: SourceDescriptor = {
 			}
 
 			const parsed = await processCSVData(storeCsv, "store", false, {
-				populateCoordinates: true,
+				populateCoordinates: options?.populateCoordinates ?? true,
 			});
 
 			const validation = validateProcessedEvents(
@@ -117,11 +124,11 @@ const loadFromStore: SourceDescriptor = {
 
 const loadFromLocal: SourceDescriptor = {
 	id: "local",
-	async load() {
+	async load(_warnings, options) {
 		try {
 			const localCsv = await fetchLocalCSV();
 			const parsed = await processCSVData(localCsv, "local", false, {
-				populateCoordinates: false,
+				populateCoordinates: options?.populateCoordinates ?? false,
 			});
 			const validation = validateProcessedEvents(
 				parsed.events,
@@ -148,11 +155,12 @@ const loadFromLocal: SourceDescriptor = {
 const runSourceChain = async (
 	sources: SourceDescriptor[],
 	startingWarnings: string[] = [],
+	options?: DataReadOptions,
 ): Promise<DataManagerResult> => {
 	const warnings = [...startingWarnings];
 
 	for (const source of sources) {
-		const result = await source.load(warnings);
+		const result = await source.load(warnings, options);
 		if (isSourceAttemptSuccess(result)) {
 			return {
 				success: true,
@@ -190,7 +198,7 @@ const runTestMode = async (): Promise<DataManagerResult> => {
 };
 
 export class DataManager {
-	static async getEventsData(): Promise<DataManagerResult> {
+	static async getEventsData(options?: DataReadOptions): Promise<DataManagerResult> {
 		const configuredMode = env.DATA_MODE as ConfiguredDataMode;
 
 		if (configuredMode === "test") {
@@ -198,13 +206,13 @@ export class DataManager {
 		}
 
 		if (configuredMode === "local") {
-			return runSourceChain([loadFromLocal]);
+			return runSourceChain([loadFromLocal], [], options);
 		}
 
 		// Remote mode pipeline:
 		// 1) managed store
 		// 2) local CSV stale-safe fallback
-		const result = await runSourceChain([loadFromStore, loadFromLocal]);
+		const result = await runSourceChain([loadFromStore, loadFromLocal], [], options);
 		if (result.success && result.source === "local") {
 			return {
 				...result,

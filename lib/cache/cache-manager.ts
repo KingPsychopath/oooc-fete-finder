@@ -167,30 +167,30 @@ export class EventsRuntimeManager {
 	}
 
 	static async getRuntimeDataStatus(): Promise<RuntimeDataStatus> {
-		const [configStatus, liveResult] = await Promise.all([
+		const [configStatus, statusRead] = await Promise.all([
 			DataManager.getDataConfigStatus(),
-			this.getEvents(false),
+			DataManager.getEventsData({ populateCoordinates: false }),
 		]);
 
 		const source =
-			liveResult.success ?
-				liveResult.source
+			statusRead.success ?
+				statusRead.source
 			:	normalizeFailureSource(runtimeStatus.lastSource, configStatus.dataSource);
-		const eventCount = liveResult.success ? liveResult.count : 0;
+		const eventCount = statusRead.success ? statusRead.count : 0;
 		const lastFetchTime =
-			liveResult.success ?
-				liveResult.lastUpdate ?? runtimeStatus.lastFetchTime
+			statusRead.success ?
+				(statusRead.lastUpdate ?? runtimeStatus.lastFetchTime)
 			:	runtimeStatus.lastFetchTime;
 		const errorMessage =
-			liveResult.success ?
+			statusRead.success ?
 				""
-			:	(liveResult.error ?? runtimeStatus.lastErrorMessage);
+			:	(statusRead.error ?? runtimeStatus.lastErrorMessage);
 
 		return {
 			hasCachedData: false,
 			lastFetchTime: lastFetchTime ?? null,
 			lastRemoteFetchTime: lastFetchTime ?? null,
-			lastRemoteSuccessTime: liveResult.success ? (lastFetchTime ?? null) : null,
+			lastRemoteSuccessTime: statusRead.success ? (lastFetchTime ?? null) : null,
 			lastRemoteErrorMessage: errorMessage,
 			cacheAge: 0,
 			nextRemoteCheck: 0,
