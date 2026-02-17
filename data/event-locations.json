@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-02-17T18:54:24.660Z",
+  "lastUpdated": "2026-02-17T18:56:20.544Z",
   "locations": {
     "139_rue_du_temple_3": {
       "id": "139_rue_du_temple_3",
@@ -685,6 +685,42 @@
       "confidence": 0.5,
       "source": "estimated",
       "lastUpdated": "2026-02-17T18:54:24.658Z"
+    },
+    "barbanegra_|_terrasse_festive_12": {
+      "id": "barbanegra_|_terrasse_festive_12",
+      "name": "Barbanegra | Terrasse Festive",
+      "arrondissement": 12,
+      "coordinates": {
+        "lat": 48.8448,
+        "lng": 2.389
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:56:20.538Z"
+    },
+    "41_quai_françois_mauriac_13": {
+      "id": "41_quai_françois_mauriac_13",
+      "name": "41 Quai François Mauriac",
+      "arrondissement": 13,
+      "coordinates": {
+        "lat": 48.8322,
+        "lng": 2.3647
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:56:20.540Z"
+    },
+    "point_éphémère_10": {
+      "id": "point_éphémère_10",
+      "name": "Point Éphémère",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.876,
+        "lng": 2.359
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:56:20.543Z"
     }
   }
 }
