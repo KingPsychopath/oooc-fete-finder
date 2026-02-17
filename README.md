@@ -41,11 +41,12 @@ Other app state (auth/session/user collection) remains in:
 Copy `.env.example` and set at least:
 
 ```bash
-ADMIN_KEY=change-me
 AUTH_SECRET=change-me
 DATABASE_URL=postgresql://...
 DATA_MODE=remote
 ```
+
+`ADMIN_KEY` is optional for builds. If unset, admin login/admin APIs are disabled.
 
 Optional Google backup import/preview and geocoding:
 

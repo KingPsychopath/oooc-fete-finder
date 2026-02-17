@@ -4,7 +4,7 @@ import { createHash, randomUUID, timingSafeEqual } from "crypto";
 import jwt from "jsonwebtoken";
 import { cookies, headers } from "next/headers";
 import type { NextRequest } from "next/server";
-import { env } from "@/lib/config/env";
+import { env, isAdminAuthEnabled } from "@/lib/config/env";
 import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
 import { log } from "@/lib/platform/logger";
 
@@ -271,6 +271,10 @@ export const signAdminSessionToken = async (): Promise<{
 	expiresAt: number;
 	payload: AdminTokenPayload;
 }> => {
+	if (!isAdminAuthEnabled()) {
+		throw new Error("Admin authentication is disabled");
+	}
+
 	const tokenVersion = await getCurrentTokenVersion();
 	const jti = randomUUID();
 
@@ -311,6 +315,10 @@ export const signAdminSessionToken = async (): Promise<{
 export const verifyAdminSessionToken = async (
 	token: string,
 ): Promise<AdminTokenPayload | null> => {
+	if (!isAdminAuthEnabled()) {
+		return null;
+	}
+
 	try {
 		const decoded = jwt.verify(token, getAuthSecret(), {
 			algorithms: ["HS256"],
@@ -489,6 +497,10 @@ export const registerAdminSessionFromRequest = async (
 	expiresAt: number;
 	payload: AdminTokenPayload;
 }> => {
+	if (!isAdminAuthEnabled()) {
+		throw new Error("Admin authentication is disabled");
+	}
+
 	const tokenVersion = await getCurrentTokenVersion();
 	const jti = randomUUID();
 

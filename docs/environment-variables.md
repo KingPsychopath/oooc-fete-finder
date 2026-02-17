@@ -7,7 +7,7 @@ Schema lives in `lib/config/env.ts`. Cache defaults live in code (`lib/cache/cac
 | Variable | Required | Default | Notes |
 | --- | --- | --- | --- |
 | `NODE_ENV` | No | `development` | `development` \| `production` \| `test` |
-| `ADMIN_KEY` | **Yes** | - | Admin auth key |
+| `ADMIN_KEY` | No | `""` | Admin auth key. If unset/empty, admin authentication is disabled. |
 | `AUTH_SECRET` | No | - | JWT/cookie signing |
 | `DATABASE_URL` | No | - | Postgres connection (app uses only this for DB) |
 | `DATA_MODE` | No | `remote` | `remote` \| `local` \| `test` |

@@ -12,7 +12,7 @@ export const env = createEnv({
 		NODE_ENV: z
 			.enum(["development", "production", "test"])
 			.default("development"),
-		ADMIN_KEY: z.string().min(1, "ADMIN_KEY is required"),
+		ADMIN_KEY: z.string().default(""),
 		AUTH_SECRET: z.string().optional(),
 		DATABASE_URL: z.string().optional(),
 		DATA_MODE: z.enum(["remote", "local", "test"]).default("remote"),
@@ -97,6 +97,11 @@ export const isTest = () => env.NODE_ENV === "test";
 export const currentEnv = () => env.NODE_ENV;
 
 /**
+ * Check if admin authentication is enabled.
+ */
+export const isAdminAuthEnabled = () => env.ADMIN_KEY.trim().length > 0;
+
+/**
  * Get Google Sheets configuration status
  */
 export const getGoogleSheetsStatus = () => ({
@@ -118,6 +123,7 @@ export const getGoogleSheetsStatus = () => ({
 export const getAdminConfig = () => {
 	return {
 		key: env.ADMIN_KEY,
+		enabled: isAdminAuthEnabled(),
 		isDevelopment: isDev(),
 		isProduction: isProd(),
 	};

@@ -2,6 +2,7 @@
 
 import type { CollectedEmailsResponse, UserRecord } from "@/features/auth/types";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
+import { isAdminAuthEnabled } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
 import {
 	clearAdminSessionCookie,
@@ -69,6 +70,13 @@ export async function createAdminSession(
 	expiresAt?: number;
 	jti?: string;
 }> {
+	if (!isAdminAuthEnabled()) {
+		return {
+			success: false,
+			error: "Admin access is disabled (ADMIN_KEY is not configured)",
+		};
+	}
+
 	if (!validateDirectAdminKey(adminKey)) {
 		return { success: false, error: "Invalid admin key" };
 	}

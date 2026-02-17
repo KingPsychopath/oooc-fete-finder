@@ -2,6 +2,7 @@ import "server-only";
 
 import jwt from "jsonwebtoken";
 import { env } from "@/lib/config/env";
+import { log } from "@/lib/platform/logger";
 
 export const USER_AUTH_COOKIE_NAME = "oooc_user_session";
 const USER_AUTH_COOKIE_TTL_SECONDS = 60 * 60 * 24 * 30;
@@ -13,8 +14,29 @@ type UserSessionPayload = {
 	v: 1;
 } & jwt.JwtPayload;
 
+const RUNTIME_FALLBACK_USER_AUTH_SECRET = `user-session-fallback-${Math.random()
+	.toString(36)
+	.slice(2)}-${Date.now()}`;
+let warnedAboutFallbackSecret = false;
+
 const getUserAuthSecret = (): string => {
-	return env.AUTH_SECRET || env.ADMIN_KEY;
+	if (env.AUTH_SECRET?.trim()) {
+		return env.AUTH_SECRET.trim();
+	}
+
+	if (env.ADMIN_KEY.trim()) {
+		return env.ADMIN_KEY.trim();
+	}
+
+	if (!warnedAboutFallbackSecret) {
+		warnedAboutFallbackSecret = true;
+		log.warn(
+			"auth",
+			"AUTH_SECRET and ADMIN_KEY are both unset; using process-local fallback secret for user session cookies",
+		);
+	}
+
+	return RUNTIME_FALLBACK_USER_AUTH_SECRET;
 };
 
 export const signUserSessionToken = (email: string): string => {

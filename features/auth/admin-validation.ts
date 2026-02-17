@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { env } from "@/lib/config/env";
+import { env, isAdminAuthEnabled } from "@/lib/config/env";
 import {
 	secureCompare,
 	verifyAdminSessionFromRequest,
@@ -10,7 +10,7 @@ import {
  * Get the expected admin key from centralized environment configuration
  */
 export const getExpectedAdminKey = (): string => {
-	return env.ADMIN_KEY;
+	return env.ADMIN_KEY.trim();
 };
 
 /**
@@ -18,7 +18,9 @@ export const getExpectedAdminKey = (): string => {
  */
 export const validateDirectAdminKey = (providedKey: string | null): boolean => {
 	if (!providedKey) return false;
+	if (!isAdminAuthEnabled()) return false;
 	const expectedKey = getExpectedAdminKey();
+	if (!expectedKey) return false;
 	return providedKey.length > 0 && secureCompare(providedKey, expectedKey);
 };
 
@@ -30,6 +32,8 @@ export const validateAdminKeyForApiRoute = async (
 	request: NextRequest,
 	overrideCredential?: string | null,
 ): Promise<boolean> => {
+	if (!isAdminAuthEnabled()) return false;
+
 	const candidate = overrideCredential?.trim() || request.headers.get("x-admin-key");
 	if (validateDirectAdminKey(candidate)) {
 		return true;
@@ -46,6 +50,8 @@ export const validateAdminKeyForApiRoute = async (
 export const validateAdminAccessFromServerContext = async (
 	keyOrToken?: string | null,
 ): Promise<boolean> => {
+	if (!isAdminAuthEnabled()) return false;
+
 	const candidate = keyOrToken?.trim() || "";
 	if (candidate && validateDirectAdminKey(candidate)) {
 		return true;
