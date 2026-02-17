@@ -1,10 +1,7 @@
 /**
  * Data Management Module
- * Main interface for data fetching, processing, and management
  *
- * This module provides a centralized interface for handling event data operations,
- * including fetching from various sources (remote, local, static), processing,
- * and managing dynamic configurations.
+ * Centralized orchestration for event data loading with source fallbacks.
  */
 
 import { env } from "@/lib/config/env";
@@ -12,207 +9,192 @@ import { Event } from "@/types/events";
 import { fetchRemoteCSV } from "./csv/fetcher";
 import { processCSVData } from "./data-processor";
 import { DynamicSheetManager } from "./dynamic-sheet-manager";
+import { LocalEventStore } from "./local-event-store";
 
-// When DATA_SOURCE is "static":
-// - Uses the EVENTS_DATA object defined in this file
-// - No external dependencies
-// - Good for demos and offline development
 export const DATA_SOURCE: "remote" | "local" | "static" = "remote";
 
-/**
- * Result interface for data management operations
- * @interface DataManagerResult
- * @property {boolean} success - Whether the operation was successful
- * @property {Event[]} data - Array of processed events
- * @property {number} count - Number of events processed
- * @property {"remote" | "local"} source - Source of the data
- * @property {boolean} cached - Whether the data was served from cache
- * @property {string} [error] - Error message if operation failed
- * @property {string[]} warnings - Array of warning messages
- * @property {string} [lastUpdate] - ISO timestamp of last data update
- */
 export interface DataManagerResult {
 	success: boolean;
 	data: Event[];
 	count: number;
-	source: "remote" | "local";
+	source: "remote" | "local" | "store";
 	cached: boolean;
 	error?: string;
 	warnings: string[];
 	lastUpdate?: string;
 }
 
-/**
- * Data Manager class - handles all data operations
- *
- * This class provides static methods for managing event data, including:
- * - Fetching and processing events from various sources
- * - Providing data configuration status
- *
- * Note: Dynamic sheet configuration is now handled by DynamicSheetManager
- */
 export class DataManager {
-	/**
-	 * Fetch and process events data with smart fallback logic
-	 *
-	 * This method implements a multi-strategy approach to fetch event data:
-	 * 1. Static data (if configured)
-	 * 2. Local CSV (if configured)
-	 * 3. Remote sources (Google Sheets/CSV) with fallback to cache
-	 *
-	 * @returns {Promise<DataManagerResult>} Result containing processed events and metadata
-	 * @throws {Error} If data processing fails
-	 */
-	static async getEventsData(): Promise<DataManagerResult> {
-		console.log("🔄 Loading events data...");
-		console.log(`📊 Configuration: DATA_SOURCE=${DATA_SOURCE}`);
-		console.log(
-			"🗺️ Coordinate population: AUTO (enabled for remote sources, disabled for local)",
-		);
+	private static async tryStoreData(
+		warnings: string[],
+	): Promise<DataManagerResult | null> {
+		const storeCsv = await LocalEventStore.getCsv();
+		if (!storeCsv) {
+			return null;
+		}
 
+		const storeResult = await processCSVData(storeCsv, "store", false, {
+			populateCoordinates: false,
+		});
+
+		if (storeResult.count === 0 || storeResult.events.length === 0) {
+			return null;
+		}
+
+		return {
+			success: true,
+			data: storeResult.events,
+			count: storeResult.count,
+			source: "store",
+			cached: false,
+			warnings: [...warnings, ...storeResult.errors],
+			lastUpdate: new Date().toISOString(),
+		};
+	}
+
+	static async getEventsData(): Promise<DataManagerResult> {
 		const warnings: string[] = [];
 
 		try {
 			if (DATA_SOURCE === "static") {
-				console.log("📦 Using static EVENTS_DATA object (DATA_SOURCE=static)");
 				const { EVENTS_DATA } = await import("@/data/events");
-
 				return {
 					success: true,
 					data: EVENTS_DATA,
 					count: EVENTS_DATA.length,
 					source: "local",
 					cached: false,
-					warnings: [],
+					warnings,
 					lastUpdate: new Date().toISOString(),
 				};
 			}
 
 			if (DATA_SOURCE === "local") {
-				console.log("📁 Using local CSV only (DATA_SOURCE=local)");
 				const { fetchLocalCSV } = await import("./csv/fetcher");
-				const csvContent = await fetchLocalCSV();
-				const processResult = await processCSVData(csvContent, "local", false);
+				const localCsv = await fetchLocalCSV();
+				const localResult = await processCSVData(localCsv, "local", false, {
+					populateCoordinates: false,
+				});
 
 				return {
 					success: true,
-					data: processResult.events,
-					count: processResult.count,
+					data: localResult.events,
+					count: localResult.count,
 					source: "local",
 					cached: false,
-					warnings: processResult.errors,
+					warnings: localResult.errors,
 					lastUpdate: new Date().toISOString(),
 				};
 			}
 
-			// Get effective sheet configuration (dynamic override or environment)
+			const storeSettings = await LocalEventStore.getSettings();
+			if (storeSettings.sourcePreference === "store-first") {
+				const storeFirstResult = await this.tryStoreData(warnings);
+				if (storeFirstResult) {
+					console.log("💾 Using local event store (store-first mode)");
+					return storeFirstResult;
+				}
+			}
+
 			const effectiveConfig = DynamicSheetManager.getEffectiveConfig(
 				env.GOOGLE_SHEET_ID,
-				"A:Z", // Default sheet range
+				"A:Z",
 			);
 
-			// Determine URLs and IDs for fetching
 			let remoteUrl: string | null = null;
 			let sheetId: string | null = effectiveConfig.sheetId;
 			const range = effectiveConfig.range || "A:Z";
 
-			// If we have a dynamic override, build the URL
 			if (effectiveConfig.isDynamic && effectiveConfig.sheetId) {
-				// Import Google utilities only when needed for URL building
 				const { GoogleCloudAPI } = await import("../google/api");
-				remoteUrl = GoogleCloudAPI.buildSheetsUrl(
-					effectiveConfig.sheetId,
-					range,
-				);
+				remoteUrl = GoogleCloudAPI.buildSheetsUrl(effectiveConfig.sheetId, range);
 			} else {
-				// Use environment configuration
 				remoteUrl = env.REMOTE_CSV_URL || null;
-
-				// Extract sheet ID from remote URL if needed
 				if (!sheetId && remoteUrl) {
 					const { GoogleCloudAPI } = await import("../google/api");
 					sheetId = GoogleCloudAPI.extractSheetId(remoteUrl);
 				}
 			}
 
-			console.log("🌐 Attempting multi-strategy data fetching...");
-
-			// Fetch CSV with multiple fallback strategies
-			const fetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range);
-
-			// Process the fetched data (coordinate population auto-enabled for remote)
-			const processResult = await processCSVData(
-				fetchResult.content,
-				fetchResult.source,
-				false, // Disable local fallback - we'll handle cache vs local CSV priority
+			const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range);
+			const processed = await processCSVData(
+				remoteFetchResult.content,
+				remoteFetchResult.source,
+				false,
 				{
 					coordinateBatchSize: 5,
-					onCoordinateProgress: (processed, total, current) => {
-						if (processed % 10 === 0 || processed === total) {
+					populateCoordinates: false,
+					onCoordinateProgress: (processedCount, total, currentEvent) => {
+						if (processedCount % 10 === 0 || processedCount === total) {
 							console.log(
-								`🗺️ Geocoding progress: ${processed}/${total} events processed (current: ${current.name})`,
+								`🗺️ Geocoding progress: ${processedCount}/${total} (${currentEvent.name})`,
 							);
 						}
 					},
 				},
 			);
 
-			// Combine any warnings
-			warnings.push(...processResult.errors);
+			warnings.push(...processed.errors);
 
-			// Check if the processed data is valid
+			if (
+				remoteFetchResult.source === "remote" &&
+				storeSettings.autoSyncFromGoogle &&
+				processed.count > 0
+			) {
+				try {
+					await LocalEventStore.saveCsv(remoteFetchResult.content, {
+						updatedBy: "system-google-sync",
+						origin: "google-sync",
+					});
+				} catch (syncError) {
+					warnings.push(
+						`Failed to sync Google data to local store: ${
+							syncError instanceof Error ? syncError.message : "Unknown error"
+						}`,
+					);
+				}
+			}
+
 			const { isValidEventsData } = await import("./data-processor");
-			if (!isValidEventsData(processResult.events)) {
-				console.warn(
-					`⚠️ Remote data validation failed (${processResult.count} events), checking for cached data before local CSV fallback`,
-				);
-
-				// Don't check cache here - let the cache manager handle fallback logic
-				// This breaks the circular dependency
-				console.log(
-					`🔄 Remote data validation failed, letting cache manager handle fallback`,
-				);
-
-				// Return failure to let cache manager decide between cached data vs local CSV
+			if (isValidEventsData(processed.events)) {
 				return {
-					success: false,
-					data: [],
-					count: 0,
-					source: "remote",
+					success: true,
+					data: processed.events,
+					count: processed.count,
+					source: processed.source,
 					cached: false,
-					error: `Remote data validation failed`,
-					warnings: [
-						...warnings,
-						"Remote data invalid - cache manager will handle fallback",
-					],
+					warnings,
+					lastUpdate: new Date(remoteFetchResult.timestamp).toISOString(),
 				};
 			}
 
-			console.log(
-				`✅ Successfully loaded and processed ${processResult.count} events from ${processResult.source} source`,
-			);
+			const storeFallback = await this.tryStoreData(warnings);
+			if (storeFallback) {
+				storeFallback.warnings.push(
+					"Remote data invalid - using local event store fallback",
+				);
+				return storeFallback;
+			}
 
 			return {
-				success: true,
-				data: processResult.events,
-				count: processResult.count,
-				source: processResult.source,
+				success: false,
+				data: [],
+				count: 0,
+				source: "remote",
 				cached: false,
+				error: "Remote data validation failed",
 				warnings,
-				lastUpdate: new Date(fetchResult.timestamp).toISOString(),
 			};
 		} catch (error) {
-			console.error("❌ Error loading events data:", error);
 			const errorMessage =
 				error instanceof Error ? error.message : "Unknown error";
 
-			// Record the failed remote attempt for cache management
-			if (DATA_SOURCE === "remote") {
-				// Don't check cache here - let the cache manager handle fallback logic
-				// This breaks the circular dependency
-				console.log(
-					`🔄 Remote fetch failed in ${DATA_SOURCE} mode: ${errorMessage}`,
+			const storeFallback = await this.tryStoreData(warnings);
+			if (storeFallback) {
+				storeFallback.warnings.push(
+					`Primary data source failed (${errorMessage}) - using local store fallback`,
 				);
+				return storeFallback;
 			}
 
 			return {
@@ -227,31 +209,18 @@ export class DataManager {
 		}
 	}
 
-	/**
-	 * Get data configuration status
-	 *
-	 * Provides a comprehensive overview of the current data configuration state,
-	 * including source type, remote configuration status, and service account availability.
-	 *
-	 * @returns {{
-	 *   dataSource: "remote" | "local" | "static";
-	 *   remoteConfigured: boolean;
-	 *   localCsvLastUpdated: string;
-	 *   hasServiceAccount: boolean;
-	 *   hasDynamicOverride: boolean;
-	 * }} Current configuration status
-	 */
-	static getDataConfigStatus(): {
+	static async getDataConfigStatus(): Promise<{
 		dataSource: "remote" | "local" | "static";
 		remoteConfigured: boolean;
 		localCsvLastUpdated: string;
 		hasServiceAccount: boolean;
 		hasDynamicOverride: boolean;
-	} {
-		// Use consolidated service account check (synchronous check)
+		hasLocalStoreData: boolean;
+	}> {
 		const hasServiceAccount = Boolean(
 			env.GOOGLE_SERVICE_ACCOUNT_KEY || env.GOOGLE_SERVICE_ACCOUNT_FILE,
 		);
+		const storeStatus = await LocalEventStore.getStatus();
 
 		const remoteConfigured = Boolean(
 			env.REMOTE_CSV_URL ||
@@ -266,6 +235,7 @@ export class DataManager {
 			localCsvLastUpdated: env.LOCAL_CSV_LAST_UPDATED || "unknown",
 			hasServiceAccount,
 			hasDynamicOverride: DynamicSheetManager.hasDynamicOverride(),
+			hasLocalStoreData: storeStatus.hasStoreData,
 		};
 	}
 }

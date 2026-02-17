@@ -1,9 +1,9 @@
 /**
  * ✍️ Google Apps Script Integration
  *
- * Used for: Writing user data and admin functions
+ * Used for: optional Google mirroring and Google admin functions
  * File: scripts/enhanced-google-apps-script.js
- * Auth: Public webhook endpoint
+ * Auth: Public webhook endpoint (optional)
  * Deployment: https://script.google.com/macros/s/.../exec
  */
 

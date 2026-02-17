@@ -2,6 +2,7 @@
 
 import { validateAdminKeyForApiRoute } from "@/lib/admin/admin-validation";
 import { env } from "@/lib/config/env";
+import { UserCollectionStore } from "@/lib/user-management/user-collection-store";
 
 /**
  * ✍️ Google Apps Script Server Actions
@@ -58,20 +59,15 @@ function validateAdminAccess(keyOrToken?: string): boolean {
 }
 
 /**
- * Submit user authentication data to Google Apps Script
+ * Submit user authentication data
+ * Primary write target is local provider-backed storage.
+ * Google Apps Script mirroring is optional via GOOGLE_MIRROR_WRITES.
  */
 export async function submitUserDataToScript(
 	firstName: string,
 	lastName: string,
 	email: string,
 ): Promise<AuthenticateUserResponse> {
-	if (!env.GOOGLE_SHEETS_URL) {
-		return {
-			success: false,
-			error: "Google Sheets integration not configured",
-		};
-	}
-
 	// Basic validation
 	if (!firstName?.trim() || firstName.trim().length < 2) {
 		return {
@@ -104,45 +100,56 @@ export async function submitUserDataToScript(
 	};
 
 	try {
-		console.log("📊 Submitting user data to Google Apps Script...");
+		const storeWriteResult = await UserCollectionStore.addOrUpdate(user);
+		const storeStatus = await UserCollectionStore.getStatus();
 
-		const response = await fetch(env.GOOGLE_SHEETS_URL, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(user),
-			signal: AbortSignal.timeout(10000),
-		});
+		let mirrorWarning: string | null = null;
+		const shouldMirrorToGoogle = Boolean(
+			env.GOOGLE_MIRROR_WRITES && env.GOOGLE_SHEETS_URL,
+		);
+		if (shouldMirrorToGoogle && env.GOOGLE_SHEETS_URL) {
+			try {
+				const response = await fetch(env.GOOGLE_SHEETS_URL, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(user),
+					signal: AbortSignal.timeout(10000),
+				});
 
-		if (response.ok) {
-			console.log("✅ User data successfully submitted to Google Sheets");
-			return {
-				success: true,
-				message: "User authenticated successfully",
-				email: user.email,
-			};
-		} else {
-			console.warn(
-				`⚠️ Google Apps Script error: ${response.status} ${response.statusText}`,
-			);
-
-			return {
-				success: false,
-				error: `Failed to save user data: ${response.status} ${response.statusText}`,
-			};
+				if (!response.ok) {
+					mirrorWarning = `Google mirror failed: ${response.status} ${response.statusText}`;
+					console.warn(`⚠️ ${mirrorWarning}`);
+				}
+			} catch (mirrorError) {
+				mirrorWarning =
+					mirrorError instanceof Error
+						? `Google mirror failed: ${mirrorError.message}`
+						: "Google mirror failed";
+				console.warn(`⚠️ ${mirrorWarning}`);
+			}
 		}
+
+		const duplicateMessage = storeWriteResult.alreadyExisted
+			? "Existing user updated"
+			: "New user stored";
+
+		return {
+			success: true,
+			message: mirrorWarning
+				? `${duplicateMessage} in ${storeStatus.provider}. ${mirrorWarning}`
+				: `${duplicateMessage} in ${storeStatus.provider}`,
+			email: user.email,
+		};
 	} catch (error) {
 		const errorMessage =
 			error instanceof Error ? error.message : "Unknown error";
-		console.error(
-			"❌ Error submitting user data to Google Apps Script:",
-			errorMessage,
-		);
+		console.error("❌ Error storing user data:", errorMessage);
 
 		return {
 			success: false,
-			error: "Failed to connect to Google Sheets. Please try again.",
+			error: "Failed to store user data. Please try again.",
 		};
 	}
 }

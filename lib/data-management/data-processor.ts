@@ -16,7 +16,7 @@ import {
 export interface ProcessedDataResult {
 	events: Event[];
 	count: number;
-	source: "local" | "remote";
+	source: "local" | "remote" | "store";
 	errors: string[];
 	warnings: DateFormatWarning[];
 	coordinatesPopulated?: boolean; // Indicates if coordinates were populated
@@ -45,7 +45,7 @@ export { isValidEventsData, performEventQualityChecks };
  */
 export async function processCSVData(
 	csvContent: string,
-	source: "local" | "remote",
+	source: "local" | "remote" | "store",
 	enableLocalFallback: boolean = true,
 	options: {
 		populateCoordinates?: boolean; // Override coordinate population (defaults to true for remote, false for local)

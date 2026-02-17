@@ -13,6 +13,12 @@ export const env = createEnv({
 			.default("development"),
 		ADMIN_KEY: z.string().min(1, "ADMIN_KEY is required"),
 		AUTH_SECRET: z.string().optional(),
+		DATABASE_URL: z.string().optional(),
+		DATA_STORE_PROVIDER: z
+			.enum(["auto", "postgres", "kv"])
+			.default("auto"),
+		LOCAL_KV_FILE_PATH: z.string().optional(),
+		GOOGLE_MIRROR_WRITES: z.coerce.boolean().default(false),
 
 		// Google configuration
 		GOOGLE_SHEETS_API_KEY: z.string().optional(),
@@ -96,6 +102,10 @@ export const env = createEnv({
 		NODE_ENV: process.env.NODE_ENV,
 		ADMIN_KEY: process.env.ADMIN_KEY,
 		AUTH_SECRET: process.env.AUTH_SECRET,
+		DATABASE_URL: process.env.DATABASE_URL,
+		DATA_STORE_PROVIDER: process.env.DATA_STORE_PROVIDER,
+		LOCAL_KV_FILE_PATH: process.env.LOCAL_KV_FILE_PATH,
+		GOOGLE_MIRROR_WRITES: process.env.GOOGLE_MIRROR_WRITES,
 
 		// Google configuration
 		GOOGLE_SHEETS_API_KEY: process.env.GOOGLE_SHEETS_API_KEY,
@@ -288,6 +298,9 @@ export const logConfigStatus = (): void => {
 	console.log("🔧 Environment Configuration Status:");
 	console.log(`   Environment: ${env.NODE_ENV}`);
 	console.log(`   Admin Key: ${env.ADMIN_KEY ? "✅ Set" : "❌ Missing"}`);
+	console.log(
+		`   Data Store Provider: ${env.DATA_STORE_PROVIDER}${env.DATABASE_URL ? " (DATABASE_URL set)" : ""}`,
+	);
 	console.log(
 		`   Google Sheets: ${googleStatus.isConfigured() ? "✅ Configured" : "⚠️ Not configured"}`,
 	);

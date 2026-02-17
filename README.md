@@ -20,6 +20,10 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Postgres Migration
+
+Use `/Users/owenamenze/workspace/github.com/personal/oooc-fete-finder/docs/postgres-migration.md` for the complete cutover plan from Google Sheets to provider-backed Postgres storage.
+
 ## 🏗️ System Architecture & Data Flow
 
 This application uses a sophisticated caching system to provide fresh event data from Google Sheets while maintaining excellent performance.

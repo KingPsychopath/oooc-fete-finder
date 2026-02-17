@@ -33,7 +33,13 @@ const getDataSourceBadge = (source: string) => {
 		case "remote":
 			return (
 				<Badge variant="default" className="bg-green-500">
-					📡 Remote (Google Sheets)
+					📡 Remote Source
+				</Badge>
+			);
+		case "store":
+			return (
+				<Badge variant="default" className="bg-blue-500">
+					🗄️ Store (Provider-backed)
 				</Badge>
 			);
 		case "local":
@@ -75,7 +81,7 @@ export const CacheManagementCard = ({
 					📊 Events Data Management
 				</CardTitle>
 				<CardDescription>
-					Monitor and manage the events data cache from Google Sheets CSV
+					Monitor cache and active data source for your store-backed events.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
@@ -139,14 +145,18 @@ export const CacheManagementCard = ({
 						<Label className="text-sm font-medium text-blue-800">
 							💡 Data Source Configuration:
 						</Label>
-						<div className="text-xs text-blue-700 mt-1 space-y-1">
-							<div>
-								<strong>🌐 Remote Mode:</strong> Fetches from Google Sheets with
-								local CSV fallback (production)
-							</div>
+							<div className="text-xs text-blue-700 mt-1 space-y-1">
+								<div>
+									<strong>🌐 Remote Mode:</strong> Fetches from remote CSV with
+									managed store and local CSV fallback
+								</div>
 							<div>
 								<strong>📁 Local Mode:</strong> Uses local CSV file only
 								(development/testing)
+							</div>
+							<div>
+								<strong>🗄️ Managed Store:</strong> Persistent provider-backed CSV
+								storage used when source preference is store-first
 							</div>
 							<div>
 								<strong>📦 Static Mode:</strong> Uses hardcoded events data
@@ -206,6 +216,16 @@ export const CacheManagementCard = ({
 								<div className="text-sm mt-1">
 									Local CSV data may be out of date. Last updated:{" "}
 									{cacheStatus.localCsvLastUpdated}
+								</div>
+							</div>
+						)}
+						{cacheStatus.dataSource === "store" && (
+							<div className="p-3 rounded-md bg-blue-50 text-blue-800 border border-blue-200">
+								<Label className="text-sm font-medium">
+									Using Managed Store Data
+								</Label>
+								<div className="text-sm mt-1">
+									Serving events from your local provider-backed store.
 								</div>
 							</div>
 						)}

@@ -14,7 +14,7 @@ export interface EventsResult {
 	data: Event[];
 	count: number;
 	cached: boolean;
-	source: "remote" | "local" | "cached";
+	source: "remote" | "local" | "store" | "cached";
 	error?: string;
 	lastUpdate?: string;
 }
@@ -24,7 +24,7 @@ export interface CacheRefreshResult {
 	message: string;
 	data?: Event[];
 	count?: number;
-	source?: "remote" | "local" | "cached";
+	source?: "remote" | "local" | "store" | "cached";
 	error?: string;
 }
 
@@ -51,7 +51,7 @@ export interface CacheState {
 	lastRemoteFetchTime: number;
 	lastRemoteSuccessTime: number;
 	lastRemoteErrorMessage: string;
-	lastDataSource: "remote" | "local" | "cached";
+	lastDataSource: "remote" | "local" | "store" | "cached";
 	// Memory management fields
 	memoryUsage: number;
 	lastMemoryCheck: number;
@@ -65,7 +65,7 @@ export interface CacheStateStatus {
 	lastRemoteErrorMessage: string;
 	cacheAge: number;
 	nextRemoteCheck: number;
-	dataSource: "remote" | "local" | "cached";
+	dataSource: "remote" | "local" | "store" | "cached";
 	eventCount: number;
 	// Memory management status
 	memoryUsage: number;
@@ -77,6 +77,7 @@ export interface CacheStatus extends CacheStateStatus {
 	configuredDataSource: "remote" | "local" | "static";
 	localCsvLastUpdated: string;
 	remoteConfigured: boolean;
+	hasLocalStoreData: boolean;
 }
 
 // ========================================
@@ -188,7 +189,7 @@ export interface CacheConfiguration {
 // Type Utilities & Helpers
 // ========================================
 
-export type DataSource = "remote" | "local" | "cached";
+export type DataSource = "remote" | "local" | "store" | "cached";
 export type CacheOperationResult<T = unknown> = {
 	success: boolean;
 	data?: T;

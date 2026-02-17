@@ -1,59 +1,51 @@
 ---
-description: Milk & Henny blog design system — editorial typewriter aesthetic
+description: Out Of Office design system — refined travel editorial language
 alwaysApply: true
 ---
 
-# Milk & Henny Design System
+# Out Of Office Design System
 
-The design language is **"editorial typewriter"** — a blend of Substack's writing-first simplicity, The Browser Company's monospace confidence, and a warm Milk & Henny identity.
+The design language is **"luxury travel editorial"** — restrained, elegant, atmospheric, and premium. Interfaces should feel calm, intentional, and high-end.
 
 ## Core Principles
 
-- **Writing-first**: Content breathes. No clutter, no sidebars, no widgets. Single column, max-w-2xl.
-- **Typewriter chrome, serif prose**: UI elements (nav, dates, labels, footer) use Geist Mono — lowercase, tight tracking. Post titles and body use Lora serif.
-- **Warm, not cold**: Stone palette (#fafaf9 light, #1c1917 dark). Never blue-grey. Amber (#fbbf24 / #b45309) is the accent.
-- **Sunlight to moonlight**: Light mode is cream/warm stone. Dark mode is deep warm brown, not blue-black. Transitions are 0.4s ease.
-- **Subtle interactions**: Opacity shifts on hover, not colour changes. The lamp pull-cord for theme toggle. The 2px reading progress bar. Nothing flashy.
+- **Atmosphere-first**: Full-bleed imagery, layered overlays, and disciplined spacing over dense UI chrome.
+- **Timeless typography**: Brand/logotype elements use Swear Display; all body/UI text uses Degular.
+- **Neutral sophistication**: Warm off-whites, soft charcoals, muted bronze accents. Avoid loud saturation.
+- **Minimal motion**: Smooth fades, subtle reveal, and gentle transitions. No jumpy micro-interaction noise.
+- **Editorial hierarchy**: Clear visual rhythm from hero to detail sections, with generous whitespace.
 
 ## Typography
 
 | Use | Font | Style |
 |---|---|---|
-| UI / nav / dates / footer | Geist Mono | lowercase, tracking-tighter to tracking-wide |
-| Post titles | Lora | serif, 700 weight |
-| Post body / prose | Lora | serif, 400 weight, 1.8 line-height |
-| Brand "milk & henny" | Geist Mono | bold, tracking-tighter |
+| Logo / hero brand lockups | Swear Display | high contrast, elegant serif, moderate tracking |
+| Headings | Degular (display weights) | clean sans with tight but breathable tracking |
+| Body / labels / controls | Degular | medium regularity, highly legible |
+| Meta / utility text | Degular | slightly increased letter spacing for clarity |
 
 ## Colour (CSS variables)
 
-All colours use CSS custom properties on `:root` and `[data-theme="dark"]`. Never hardcode hex in components — use `var(--foreground)`, `var(--stone-400)`, `var(--prose-body)`, etc., or the utility classes `.theme-muted`, `.theme-subtle`, `.theme-faint`, `.theme-border`, `.highlight-selection`.
+All colors should be defined as CSS variables and used through tokens. Avoid hardcoded component-level hex values. Keep contrast accessible while preserving a refined muted palette.
 
 ## Layout
 
-- Max width: `max-w-2xl` (672px)
-- Horizontal padding: `px-6`
-- Generous vertical spacing: pt-20 for masthead, pt-14 for post content
-- Hairline dividers using `border-t theme-border`
+- Hero sections can be full viewport height with layered overlays.
+- Content sections should stay constrained and readable with clear vertical rhythm.
+- Navigation should feel light and integrated over imagery (not boxed/heavy).
+- Use thin rules, restrained card treatments, and generous breathing room.
 
 ## Components
 
-- **LampToggle**: Pull-cord in top-right corner. Hidden on party/game pages.
-- **ReadingProgress**: 2px bar at viewport top on blog posts. Uses ref + rAF, no re-renders.
-- **PostBody**: Client component for react-markdown. Rehype plugin handles #hashtags.
-- **Hashtags**: Inline warm colour shift (no background, no chip). Flows naturally in text.
-
-## Blog posts
-
-- Markdown files in `content/posts/`. Filename = slug.
-- Frontmatter: title, date, subtitle (optional), image (optional).
-- Reading time calculated at 230 WPM, shown on homepage and post page.
-- Images with alt text render as figure + caption.
-- Social cards (OG/Twitter) are per-post, statically generated.
+- **Primary CTA**: Simple, premium button styling with subtle borders and clean hover states.
+- **Nav links**: Underline/opacity emphasis, not loud color shifts.
+- **Cards/panels**: Soft borders, low-contrast surfaces, minimal decorative clutter.
+- **Media blocks**: Respect imagery; overlays should improve readability without flattening the image.
 
 ## What NOT to do
 
-- No sidebars, TOCs, or floating elements on posts
-- No bright/saturated colours — everything is muted, warm
-- No client components unless they genuinely need the browser
-- No barrel files or index.ts exports
-- No `!important` in CSS — use specificity
+- No playful/neon palettes or loud gradients.
+- No dense dashboards with cramped spacing and heavy boxes.
+- No typography drift away from Swear Display (brand) + Degular (body/UI).
+- No aggressive animation, bouncing transitions, or novelty effects.
+- No inconsistent visual language between admin and front-end surfaces.

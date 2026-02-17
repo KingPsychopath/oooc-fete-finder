@@ -8,6 +8,24 @@
 
 import Papa from "papaparse";
 
+export const CSV_EVENT_COLUMNS = [
+	"oocPicks",
+	"nationality",
+	"name",
+	"date",
+	"startTime",
+	"endTime",
+	"location",
+	"arrondissement",
+	"genre",
+	"price",
+	"ticketLink",
+	"age",
+	"indoorOutdoor",
+	"notes",
+	"featured",
+] as const;
+
 // Define the expected CSV column headers and their possible variations
 const COLUMN_MAPPINGS = {
 	oocPicks: ["OOOC Picks", "OOC Picks", "oocPicks", "picks", "🌟"],

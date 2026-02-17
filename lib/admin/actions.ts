@@ -1,6 +1,7 @@
 "use server";
 
 import type { CollectedEmailsResponse, UserRecord } from "@/types/user";
+import { UserCollectionStore } from "@/lib/user-management/user-collection-store";
 import {
 	signAdminSessionToken,
 	verifyAdminSessionToken,
@@ -16,9 +17,6 @@ import {
  * Server actions specifically related to admin authentication, session management,
  * and user collection operations. Colocated with admin modules.
  */
-
-// Simple in-memory user storage (will reset on deployment, but good for development)
-const collectedUsers: UserRecord[] = [];
 
 // Helper function to validate admin access (key or session token)
 function validateAdminAccess(keyOrToken?: string): boolean {
@@ -80,12 +78,11 @@ export async function getCollectedEmails(
 		return { success: false, error: "Unauthorized" };
 	}
 
-	// Debug logging
+	const collectedUsers: UserRecord[] = await UserCollectionStore.listAll();
+	const storeStatus = await UserCollectionStore.getStatus();
 	console.log(
-		"Admin panel accessed - current emails in memory:",
-		collectedUsers.length,
+		`Admin panel accessed - loaded ${collectedUsers.length} users from ${storeStatus.provider} provider`,
 	);
-	console.log("Emails:", collectedUsers);
 
 	return {
 		success: true,

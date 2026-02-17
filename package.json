@@ -9,7 +9,8 @@
     "lint": "biome lint .",
     "lint:fix": "biome lint . --write",
     "fix": "biome check --write",
-    "format": "biome format . --write"
+    "format": "biome format . --write",
+    "bootstrap:postgres-store": "node scripts/bootstrap-postgres-store.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
@@ -36,6 +37,7 @@
     "next-pwa": "^5.6.0",
     "next-themes": "^0.4.6",
     "papaparse": "^5.5.3",
+    "postgres": "^3.4.8",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tailwind-merge": "^3.4.1",

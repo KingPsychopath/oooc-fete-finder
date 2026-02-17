@@ -372,7 +372,7 @@ export class CacheManager {
 		const baseCacheStatus = CacheStateManager.getCacheStatus();
 
 		// Get data configuration from data manager
-		const dataConfigStatus = DataManager.getDataConfigStatus();
+		const dataConfigStatus = await DataManager.getDataConfigStatus();
 
 		// Combine both statuses
 		return {
@@ -380,6 +380,7 @@ export class CacheManager {
 			configuredDataSource: dataConfigStatus.dataSource,
 			localCsvLastUpdated: dataConfigStatus.localCsvLastUpdated,
 			remoteConfigured: dataConfigStatus.remoteConfigured,
+			hasLocalStoreData: dataConfigStatus.hasLocalStoreData,
 		};
 	}
 

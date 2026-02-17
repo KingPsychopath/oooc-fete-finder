@@ -175,7 +175,7 @@ export class CacheStateManager {
 	 */
 	static updateCache(
 		events: Event[],
-		source: "remote" | "local",
+		source: "remote" | "local" | "store",
 		errorMessage?: string,
 	): void {
 		const now = Date.now();
