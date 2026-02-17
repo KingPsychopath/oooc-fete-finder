@@ -7,6 +7,7 @@
  */
 
 import Papa from "papaparse";
+import { clientLog } from "@/lib/platform/client-logger";
 
 export const CSV_EVENT_COLUMNS = [
 	"oocPicks",
@@ -257,7 +258,9 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 			);
 
 			if (criticalErrors.length > 0) {
-				console.warn("Critical CSV parsing errors:", criticalErrors);
+				clientLog.warn("csv-parser", "Critical CSV parsing errors", {
+					criticalErrors,
+				});
 			}
 
 		}
@@ -327,7 +330,7 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 
 		return normalizedRows;
 	} catch (error) {
-		console.error("Error parsing CSV content:", error);
+		clientLog.error("csv-parser", "Error parsing CSV content", undefined, error);
 		throw new Error(
 			`Failed to parse CSV: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);

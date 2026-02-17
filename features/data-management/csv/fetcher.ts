@@ -6,6 +6,7 @@
  */
 
 import { env } from "@/lib/config/env";
+import { log } from "@/lib/platform/logger";
 
 /**
  * Result of a successful CSV fetch operation
@@ -57,7 +58,7 @@ export async function fetchLocalCSV(): Promise<string> {
 	const csvPath = path.join(process.cwd(), "data", "events.csv");
 
 	try {
-		console.log(`📁 Loading local CSV from: ${csvPath}`);
+		log.info("data-fetch", "Loading local CSV", { path: csvPath });
 		const csvContent = await fs.readFile(csvPath, "utf-8");
 
 		if (!csvContent || csvContent.trim().length === 0) {
@@ -65,18 +66,18 @@ export async function fetchLocalCSV(): Promise<string> {
 		}
 
 		const rowCount = csvContent.split("\n").length - 1;
-		console.log(`✅ Successfully loaded ${rowCount} rows from local CSV`);
+		log.info("data-fetch", "Loaded local CSV", { rowCount });
 		return csvContent;
 	} catch (error) {
 		const errorMessage =
 			error instanceof Error ? error.message : "Unknown error";
 
 		if (errorMessage.includes("ENOENT")) {
-			console.error("❌ Local CSV file not found. Please ensure:");
-			console.error(`   • File exists at: ${csvPath}`);
-			console.error("   • The file has proper read permissions");
-			console.error(
-				"   • You may need to create this file as a fallback for when remote CSV fails",
+			log.error(
+				"data-fetch",
+				"Local CSV file not found",
+				{ path: csvPath },
+				error,
 			);
 		}
 
@@ -134,7 +135,7 @@ export async function fetchRemoteCSV(
 	// Try Google Sheets strategies first (delegated to Google module)
 	if (remoteUrl || sheetId) {
 		try {
-			console.log("🌐 Attempting Google Sheets data fetching...");
+			log.info("data-fetch", "Attempting Google Sheets data fetch");
 			// Use consolidated Google integration
 			const { GoogleCloudAPI } = await import("@/lib/google/api");
 
@@ -152,7 +153,9 @@ export async function fetchRemoteCSV(
 			const errorMsg =
 				googleError instanceof Error ? googleError.message : "Unknown error";
 			errors.push({ source: "Google Sheets", message: errorMsg });
-			console.warn(`⚠️ Google Sheets strategies failed: ${errorMsg}`);
+			log.warn("data-fetch", "Google Sheets strategies failed", {
+				error: errorMsg,
+			});
 		}
 	}
 
@@ -167,11 +170,11 @@ export async function fetchRemoteCSV(
 
 	// Fallback to local CSV
 	try {
-		console.log("📁 Strategy: Falling back to local CSV...");
+		log.info("data-fetch", "Falling back to local CSV");
 		const content = await fetchLocalCSV();
-		console.log(
-			`ℹ️ Using local CSV fallback (last updated: ${env.LOCAL_CSV_LAST_UPDATED || "unknown"})`,
-		);
+		log.info("data-fetch", "Using local CSV fallback", {
+			lastUpdated: env.LOCAL_CSV_LAST_UPDATED || "unknown",
+		});
 		return {
 			content,
 			source: "local",
@@ -181,14 +184,11 @@ export async function fetchRemoteCSV(
 		const errorMsg =
 			localError instanceof Error ? localError.message : "Unknown error";
 		errors.push({ source: "Local CSV", message: errorMsg });
-		console.error(`❌ Local CSV fallback failed: ${errorMsg}`);
+		log.error("data-fetch", "Local CSV fallback failed", { error: errorMsg });
 	}
 
 	// All strategies failed
-	console.error("💥 All data fetching strategies failed:");
-	errors.forEach((error) =>
-		console.error(`   • ${error.source}: ${error.message}`),
-	);
+	log.error("data-fetch", "All data fetching strategies failed", { errors });
 
 	const errorMessages = errors
 		.map((e) => `${e.source}: ${e.message}`)

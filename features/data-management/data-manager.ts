@@ -1,236 +1,225 @@
 /**
- * Data Management Module
+ * Data management orchestration.
  *
- * Centralized orchestration for event data loading with source fallbacks.
+ * Generic source pipeline with explicit source priority and fallback reasons.
  */
 
 import { env } from "@/lib/config/env";
 import { Event } from "@/features/events/types";
-import { fetchLocalCSV, fetchRemoteCSV } from "./csv/fetcher";
+import { fetchLocalCSV } from "./csv/fetcher";
 import { isValidEventsData, processCSVData } from "./data-processor";
 import { LocalEventStore } from "./local-event-store";
 
 export type ConfiguredDataMode = "remote" | "local" | "test";
 
+type LiveDataSource = "remote" | "local" | "store" | "test";
+
 export interface DataManagerResult {
 	success: boolean;
 	data: Event[];
 	count: number;
-	source: "remote" | "local" | "store" | "test";
+	source: LiveDataSource;
 	cached: boolean;
 	error?: string;
 	warnings: string[];
 	lastUpdate?: string;
 }
 
-export class DataManager {
-	private static async tryStoreData(
-		warnings: string[],
-	): Promise<DataManagerResult | null> {
-		const storeCsv = await LocalEventStore.getCsv();
-		if (!storeCsv) {
-			return null;
-		}
+interface SourceAttemptSuccess {
+	success: true;
+	events: Event[];
+	count: number;
+	source: LiveDataSource;
+	warnings: string[];
+	lastUpdate: string;
+}
 
-		const storeResult = await processCSVData(storeCsv, "store", false, {
-			populateCoordinates: true,
-		});
+interface SourceAttemptFailure {
+	success: false;
+	reason: string;
+	warnings: string[];
+}
 
-		if (
-			storeResult.count === 0 ||
-			storeResult.events.length === 0 ||
-			!isValidEventsData(storeResult.events)
-		) {
-			return null;
-		}
+type SourceAttemptResult = SourceAttemptSuccess | SourceAttemptFailure;
 
-		return {
-			success: true,
-			data: storeResult.events,
-			count: storeResult.count,
-			source: "store",
-			cached: false,
-			warnings: [...warnings, ...storeResult.errors],
-			lastUpdate: new Date().toISOString(),
-		};
+interface SourceDescriptor {
+	id: LiveDataSource;
+	load: (warnings: string[]) => Promise<SourceAttemptResult>;
+}
+
+const isSourceAttemptSuccess = (
+	result: SourceAttemptResult,
+): result is SourceAttemptSuccess => result.success;
+
+const toFailure = (reason: string, warnings: string[] = []): SourceAttemptFailure => ({
+	success: false,
+	reason,
+	warnings,
+});
+
+const validateProcessedEvents = (
+	events: Event[],
+	count: number,
+	source: LiveDataSource,
+	errors: string[],
+): SourceAttemptResult => {
+	if (count === 0 || events.length === 0) {
+		return toFailure(`${source} returned no rows`, errors);
 	}
 
-	private static async tryLocalCsvFallback(
-		warnings: string[],
-		reason: string,
-	): Promise<DataManagerResult | null> {
+	if (!isValidEventsData(events)) {
+		return toFailure(`${source} returned invalid events`, errors);
+	}
+
+	return {
+		success: true,
+		events,
+		count,
+		source,
+		warnings: errors,
+		lastUpdate: new Date().toISOString(),
+	};
+};
+
+const loadFromStore: SourceDescriptor = {
+	id: "store",
+	async load() {
+		try {
+			const storeCsv = await LocalEventStore.getCsv();
+			if (!storeCsv) {
+				return toFailure("Managed store unavailable or empty");
+			}
+
+			const parsed = await processCSVData(storeCsv, "store", false, {
+				populateCoordinates: true,
+			});
+
+			const validation = validateProcessedEvents(
+				parsed.events,
+				parsed.count,
+				"store",
+				parsed.errors,
+			);
+			if (!isSourceAttemptSuccess(validation)) {
+				return toFailure(validation.reason, parsed.errors);
+			}
+
+			return {
+				...validation,
+				source: "store",
+			};
+		} catch (error) {
+			return toFailure(
+				`Managed store failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+		}
+	},
+};
+
+const loadFromLocal: SourceDescriptor = {
+	id: "local",
+	async load() {
 		try {
 			const localCsv = await fetchLocalCSV();
-			const localResult = await processCSVData(localCsv, "local", false, {
+			const parsed = await processCSVData(localCsv, "local", false, {
 				populateCoordinates: false,
 			});
-
-			if (
-				localResult.count === 0 ||
-				localResult.events.length === 0 ||
-				!isValidEventsData(localResult.events)
-			) {
-				return null;
+			const validation = validateProcessedEvents(
+				parsed.events,
+				parsed.count,
+				"local",
+				parsed.errors,
+			);
+			if (!isSourceAttemptSuccess(validation)) {
+				return toFailure(validation.reason, parsed.errors);
 			}
 
 			return {
-				success: true,
-				data: localResult.events,
-				count: localResult.count,
+				...validation,
 				source: "local",
-				cached: false,
-				warnings: [reason, ...warnings, ...localResult.errors],
-				lastUpdate: new Date().toISOString(),
 			};
 		} catch (error) {
-			warnings.push(
-				`Local CSV fallback failed: ${
-					error instanceof Error ? error.message : "Unknown error"
-				}`,
+			return toFailure(
+				`Local CSV fallback failed: ${error instanceof Error ? error.message : "Unknown error"}`,
 			);
-			return null;
 		}
-	}
+	},
+};
 
-	private static async tryRemoteData(
-		warnings: string[],
-	): Promise<DataManagerResult | null> {
-		const remoteUrl = env.REMOTE_CSV_URL || null;
-		const sheetId = env.GOOGLE_SHEET_ID || null;
-		if (!remoteUrl && !sheetId) {
-			warnings.push(
-				"Remote source not configured (set REMOTE_CSV_URL or GOOGLE_SHEET_ID)",
-			);
-			return null;
-		}
+const runSourceChain = async (
+	sources: SourceDescriptor[],
+	startingWarnings: string[] = [],
+): Promise<DataManagerResult> => {
+	const warnings = [...startingWarnings];
 
-		try {
-			const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, "A:Z", {
-				allowLocalFallback: false,
-			});
-			const remoteResult = await processCSVData(
-				remoteFetchResult.content,
-				"remote",
-				false,
-				{ populateCoordinates: true },
-			);
-
-			if (
-				remoteResult.count === 0 ||
-				remoteResult.events.length === 0 ||
-				!isValidEventsData(remoteResult.events)
-			) {
-				warnings.push("Remote source returned empty or invalid data");
-				return null;
-			}
-
+	for (const source of sources) {
+		const result = await source.load(warnings);
+		if (isSourceAttemptSuccess(result)) {
 			return {
 				success: true,
-				data: remoteResult.events,
-				count: remoteResult.count,
-				source: "remote",
+				data: result.events,
+				count: result.count,
+				source: result.source,
 				cached: false,
-				warnings: [...warnings, ...remoteResult.errors],
-				lastUpdate: new Date(remoteFetchResult.timestamp).toISOString(),
+				warnings: [...warnings, ...result.warnings],
+				lastUpdate: result.lastUpdate,
 			};
-		} catch (error) {
-			warnings.push(
-				`Remote source failed: ${
-					error instanceof Error ? error.message : "Unknown error"
-				}`,
-			);
-			return null;
 		}
+
+		warnings.push(result.reason, ...result.warnings);
 	}
 
+	return {
+		success: false,
+		data: [],
+		count: 0,
+		source: sources[sources.length - 1]?.id ?? "local",
+		cached: false,
+		error: warnings[0] ?? "No data source succeeded",
+		warnings,
+	};
+};
+
+const runTestMode = async (): Promise<DataManagerResult> => {
+	const { EVENTS_DATA } = await import("@/data/events");
+	return {
+		success: true,
+		data: EVENTS_DATA,
+		count: EVENTS_DATA.length,
+		source: "test",
+		cached: false,
+		warnings: [],
+		lastUpdate: new Date().toISOString(),
+	};
+};
+
+export class DataManager {
 	static async getEventsData(): Promise<DataManagerResult> {
-		const warnings: string[] = [];
 		const configuredMode = env.DATA_MODE as ConfiguredDataMode;
 
-		try {
-			if (configuredMode === "test") {
-				const { EVENTS_DATA } = await import("@/data/events");
-				return {
-					success: true,
-					data: EVENTS_DATA,
-					count: EVENTS_DATA.length,
-					source: "test",
-					cached: false,
-					warnings,
-					lastUpdate: new Date().toISOString(),
-				};
-			}
+		if (configuredMode === "test") {
+			return runTestMode();
+		}
 
-			if (configuredMode === "local") {
-				const localCsv = await fetchLocalCSV();
-				const localResult = await processCSVData(localCsv, "local", false, {
-					populateCoordinates: false,
-				});
+		if (configuredMode === "local") {
+			return runSourceChain([loadFromLocal]);
+		}
 
-				return {
-					success: true,
-					data: localResult.events,
-					count: localResult.count,
-					source: "local",
-					cached: false,
-					warnings: localResult.errors,
-					lastUpdate: new Date().toISOString(),
-				};
-			}
-
-			// Remote mode contract:
-			// 1) Primary: managed store (Postgres-backed when DATABASE_URL configured)
-			// 2) Secondary: remote CSV/Google Sheets source
-			// 3) Fallback: local CSV file (stale-safe backup)
-			const storeFirstResult = await this.tryStoreData(warnings);
-			if (storeFirstResult) {
-				return storeFirstResult;
-			}
-
-			const remoteResult = await this.tryRemoteData(warnings);
-			if (remoteResult) {
-				return remoteResult;
-			}
-
-			const localFallback = await this.tryLocalCsvFallback(
-				warnings,
-				"Managed store and remote source unavailable; serving local CSV fallback (stale-safe mode).",
-			);
-			if (localFallback) {
-				return localFallback;
-			}
-
+		// Remote mode pipeline:
+		// 1) managed store
+		// 2) local CSV stale-safe fallback
+		const result = await runSourceChain([loadFromStore, loadFromLocal]);
+		if (result.success && result.source === "local") {
 			return {
-				success: false,
-				data: [],
-				count: 0,
-				source: "store",
-				cached: false,
-				error:
-					"Managed store/remote source unavailable and local CSV fallback could not be loaded",
-				warnings,
-			};
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : "Unknown error";
-			const localFallback = await this.tryLocalCsvFallback(
-				warnings,
-				`Managed store failed (${errorMessage}); serving local CSV fallback (stale-safe mode).`,
-			);
-			if (localFallback) {
-				return localFallback;
-			}
-
-			return {
-				success: false,
-				data: [],
-				count: 0,
-				source: "local",
-				cached: false,
-				error: errorMessage,
-				warnings,
+				...result,
+				warnings: [
+					"Managed store unavailable; serving local CSV fallback (stale-safe mode).",
+					...result.warnings,
+				],
 			};
 		}
+
+		return result;
 	}
 
 	static async getDataConfigStatus(): Promise<{
@@ -249,15 +238,9 @@ export class DataManager {
 		const hasServiceAccount = Boolean(
 			env.GOOGLE_SERVICE_ACCOUNT_KEY || env.GOOGLE_SERVICE_ACCOUNT_FILE,
 		);
-		const hasRemoteSource = Boolean(
-			(env.REMOTE_CSV_URL && env.REMOTE_CSV_URL.trim()) ||
-				(env.GOOGLE_SHEET_ID && env.GOOGLE_SHEET_ID.trim()),
-		);
 		const storeStatus = await LocalEventStore.getStatus();
 
-		const remoteConfigured = Boolean(
-			env.DATABASE_URL || storeStatus.hasStoreData || hasRemoteSource,
-		);
+		const remoteConfigured = Boolean(env.DATABASE_URL || storeStatus.hasStoreData);
 
 		return {
 			dataSource: env.DATA_MODE as ConfiguredDataMode,

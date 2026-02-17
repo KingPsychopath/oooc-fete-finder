@@ -74,8 +74,9 @@ export async function processCSVData(
 
 		// Check if remote source returned 0 events and fall back to local CSV
 		if (events.length === 0 && source === "remote" && enableLocalFallback) {
-			console.warn(
-				"⚠️ Remote source returned 0 events, attempting fallback to local CSV...",
+			log.warn(
+				"data",
+				"Remote source returned 0 events, attempting local fallback",
 			);
 
 			try {
@@ -93,9 +94,9 @@ export async function processCSVData(
 				if (localEvents.length > 0) {
 					events = localEvents;
 					source = "local";
-					console.log(
-						`✅ Successfully fell back to local CSV with ${localEvents.length} events`,
-					);
+					log.info("data", "Fell back to local CSV", {
+						eventCount: localEvents.length,
+					});
 					errors.push("Remote returned 0 events - used local CSV fallback");
 
 					// Update warnings with local data warnings
@@ -103,17 +104,18 @@ export async function processCSVData(
 					transformationWarnings.length = 0;
 					transformationWarnings.push(...localWarnings);
 				} else {
-					console.log(
-						"ℹ️ Local CSV also has 0 events, proceeding with empty state",
+					log.info(
+						"data",
+						"Local CSV also returned 0 events, keeping empty state",
 					);
 					errors.push("Both remote and local CSV contain 0 events");
 				}
 			} catch (localError) {
 				const localErrorMsg =
 					localError instanceof Error ? localError.message : "Unknown error";
-				console.log(
-					`⚠️ Local CSV fallback failed: ${localErrorMsg}, proceeding with 0 events from remote`,
-				);
+				log.warn("data", "Local CSV fallback failed, keeping remote empty state", {
+					error: localErrorMsg,
+				});
 				errors.push(
 					`Remote returned 0 events, local CSV fallback failed: ${localErrorMsg}`,
 				);

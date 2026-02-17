@@ -1,5 +1,6 @@
 "use client";
 
+import { clientLog } from "@/lib/platform/client-logger";
 import { useCallback, useEffect, useState } from "react";
 import { MAP_PREFERENCE_STORAGE_KEY } from "../constants/map-options";
 import type { MapPreferenceState, MapProvider } from "../types";
@@ -52,7 +53,9 @@ export const useMapPreference = (): MapPreferenceState => {
 				setMapPreferenceState("system");
 			}
 		} catch (error) {
-			console.warn("Failed to load map preference:", error);
+			clientLog.warn("maps.preference", "Failed to load map preference", {
+				error: error instanceof Error ? error.message : String(error),
+			});
 		} finally {
 			setIsLoaded(true);
 		}
@@ -65,7 +68,9 @@ export const useMapPreference = (): MapPreferenceState => {
 			// Update global state and notify all instances
 			setGlobalMapPreference(preference);
 		} catch (error) {
-			console.warn("Failed to save map preference:", error);
+			clientLog.warn("maps.preference", "Failed to save map preference", {
+				error: error instanceof Error ? error.message : String(error),
+			});
 			// Still update state even if localStorage fails
 			setGlobalMapPreference(preference);
 		}

@@ -6,6 +6,7 @@
  */
 
 import type { Event } from "@/features/events/types";
+import { log } from "@/lib/platform/logger";
 
 /**
  * Validate if events data is considered valid for caching
@@ -34,16 +35,17 @@ export function isValidEventsData(events: Event[] | null | undefined): boolean {
 	const isValid = validPercentage >= 0.8; // At least 80% should be valid
 
 	if (!isValid) {
-		console.log(
-			`⚠️ Data validation failed: ${validEvents.length}/${events.length} events are valid (${Math.round(validPercentage * 100)}%)`,
-		);
+		log.warn("data-validation", "Data validation failed", {
+			validCount: validEvents.length,
+			totalCount: events.length,
+			validPercentage: Math.round(validPercentage * 100),
+		});
 		// Log a few invalid events for debugging
 		const invalidEvents = events.filter(
 			(event) => !validEvents.includes(event),
 		);
-		console.log(
-			"📋 Sample invalid events:",
-			invalidEvents.slice(0, 3).map((e) => ({
+		log.info("data-validation", "Sample invalid events", {
+			sample: invalidEvents.slice(0, 3).map((e) => ({
 				id: e?.id,
 				name: e?.name,
 				date: e?.date,
@@ -53,7 +55,7 @@ export function isValidEventsData(events: Event[] | null | undefined): boolean {
 					date: typeof e?.date === "string" && e?.date.trim() !== "",
 				},
 			})),
-		);
+		});
 	}
 
 	return isValid;

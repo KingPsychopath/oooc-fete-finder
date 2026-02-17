@@ -1,6 +1,7 @@
 "use client";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import { Badge } from "@/components/ui/badge";
+import { clientLog } from "@/lib/platform/client-logger";
 import {
 	type Event,
 	MUSIC_GENRES,
@@ -25,7 +26,7 @@ type EventCardProps = {
 export function EventCard({ event, onClick }: EventCardProps) {
 	const handleClick = () => {
 		if (!event || !onClick) {
-			console.warn("EventCard: Missing event or onClick handler");
+			clientLog.warn("event-card", "Missing event or onClick handler");
 			return;
 		}
 		onClick(event);

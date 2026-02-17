@@ -2,6 +2,7 @@
 
 import type { CollectedEmailsResponse, UserRecord } from "@/features/auth/types";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
+import { log } from "@/lib/platform/logger";
 import {
 	clearAdminSessionCookie,
 	createAdminSessionWithCookie,
@@ -212,9 +213,10 @@ export async function getCollectedEmails(
 		UserCollectionStore.getAnalytics(),
 	]);
 
-	console.log(
-		`Admin panel accessed - loaded ${collectedUsers.length} users from ${storeStatus.provider} provider`,
-	);
+	log.info("admin-users", "Loaded collected users for admin panel", {
+		count: collectedUsers.length,
+		provider: storeStatus.provider,
+	});
 
 	return {
 		success: true,

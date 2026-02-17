@@ -4,6 +4,7 @@ import {
 	signUserSessionToken,
 } from "@/features/auth/user-session-cookie";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
+import { log } from "@/lib/platform/logger";
 import { NextResponse } from "next/server";
 
 type VerifyBody = {
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
 	} catch (error) {
 		const message =
 			error instanceof Error ? error.message : "Unexpected verify error";
-		console.error("Failed to verify user:", message);
+		log.error("auth-verify", "Failed to verify user", { message }, error);
 		return NextResponse.json(
 			{
 				success: false,

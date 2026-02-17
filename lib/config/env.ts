@@ -1,4 +1,5 @@
 import { createEnv } from "@t3-oss/env-nextjs";
+import { clientLog } from "@/lib/platform/client-logger";
 import { z } from "zod";
 
 export const env = createEnv({
@@ -140,21 +141,18 @@ export const logConfigStatus = (): void => {
 
 	const googleStatus = getGoogleSheetsStatus();
 
-	console.log("🔧 Environment Configuration Status:");
-	console.log(`   Environment: ${env.NODE_ENV}`);
-	console.log(`   Admin Key: ${env.ADMIN_KEY ? "✅ Set" : "❌ Missing"}`);
-	console.log(
-		`   Data Store: ${env.DATABASE_URL ? "Postgres configured" : "Fallback providers only"}`,
-	);
-	console.log(
-		`   Google Sheets: ${googleStatus.isConfigured() ? "✅ Configured" : "⚠️ Not configured"}`,
-	);
-	console.log(`   Site URL: ${env.NEXT_PUBLIC_SITE_URL}`);
+	clientLog.info("env", "Environment configuration status", {
+		environment: env.NODE_ENV,
+		hasAdminKey: Boolean(env.ADMIN_KEY),
+		dataStore: env.DATABASE_URL ? "Postgres configured" : "Fallback providers only",
+		googleSheets: googleStatus.isConfigured() ? "configured" : "not-configured",
+		siteUrl: env.NEXT_PUBLIC_SITE_URL,
+	});
 
 	if (googleStatus.isConfigured()) {
-		console.log("   Google Sheets Details:");
-		if (googleStatus.hasServiceAccount)
-			console.log("     - Service Account: ✅");
-		if (googleStatus.hasRemoteUrl) console.log("     - Remote CSV: ✅");
+		clientLog.info("env", "Google Sheets details", {
+			hasServiceAccount: googleStatus.hasServiceAccount,
+			hasRemoteUrl: googleStatus.hasRemoteUrl,
+		});
 	}
 };

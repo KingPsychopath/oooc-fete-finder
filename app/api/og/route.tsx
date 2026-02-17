@@ -1,4 +1,5 @@
 import { env } from "@/lib/config/env";
+import { log } from "@/lib/platform/logger";
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
 
@@ -12,6 +13,15 @@ const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour in ms
 // Allowed parameters to prevent injection
 const ALLOWED_THEMES = ["default", "event", "admin", "custom"] as const;
 const MAX_TEXT_LENGTH = 100;
+
+const ogDebug = (...args: unknown[]) => {
+	log.info("og-image", "trace", { args });
+};
+
+const ogError = (...args: unknown[]) => {
+	log.error("og-image", "trace", { args });
+};
+
 
 function rateLimit(ip: string): boolean {
 	const now = Date.now();
@@ -72,19 +82,19 @@ export async function GET(request: NextRequest) {
 
 					if (imageResponse.ok) {
 						// Static image exists, redirect to it
-						console.log(`✅ Using static default image: ${imagePath}`);
+						ogDebug(`✅ Using static default image: ${imagePath}`);
 						return Response.redirect(imageUrl, 302);
 					}
 				} catch (error) {
 					// Log the specific path that failed, but continue gracefully
-					console.log(
+					ogDebug(
 						`📝 Default image not found at ${imagePath} - continuing to dynamic generation`,
 					);
 					if (
 						error instanceof Error &&
 						error.message.includes("Unsupported image type")
 					) {
-						console.log(
+						ogDebug(
 							`💡 Note: "Unsupported image type: unknown" means the image file doesn't exist at this path`,
 						);
 					}
@@ -93,7 +103,7 @@ export async function GET(request: NextRequest) {
 			}
 
 			// No static default images found, proceeding with dynamic generation
-			console.log(
+			ogDebug(
 				`🎨 No static default images found - generating dynamic OG:image`,
 			);
 		}
@@ -171,9 +181,9 @@ export async function GET(request: NextRequest) {
 
 		// Log what we're generating
 		if (finalImage) {
-			console.log(`🖼️ Generating OG:image with background: ${finalImage}`);
+			ogDebug(`🖼️ Generating OG:image with background: ${finalImage}`);
 		} else {
-			console.log(`🎨 Generating dynamic OG:image with ${theme} theme`);
+			ogDebug(`🎨 Generating dynamic OG:image with ${theme} theme`);
 		}
 
 		return new ImageResponse(
@@ -342,28 +352,28 @@ export async function GET(request: NextRequest) {
 			},
 		);
 	} catch (error) {
-		console.error("🚨 OG Image generation error:", error);
+		ogError("🚨 OG Image generation error:", error);
 
 		// Provide specific guidance for common errors
 		if (error instanceof Error) {
 			if (error.message.includes("Unsupported image type")) {
-				console.error(
+				ogError(
 					"💡 Image Error: The specified image file could not be loaded. This usually means:",
 				);
-				console.error(
+				ogError(
 					"   - The image file does not exist at the specified path",
 				);
-				console.error(
+				ogError(
 					"   - The image format is not supported (use PNG, JPEG, or WebP)",
 				);
-				console.error("   - The image path is incorrect or inaccessible");
-				console.error("🔄 Falling back to simple text-based OG:image");
+				ogError("   - The image path is incorrect or inaccessible");
+				ogError("🔄 Falling back to simple text-based OG:image");
 			} else if (error.message.includes("fetch")) {
-				console.error("💡 Network Error: Could not fetch image from URL");
-				console.error("🔄 Falling back to simple text-based OG:image");
+				ogError("💡 Network Error: Could not fetch image from URL");
+				ogError("🔄 Falling back to simple text-based OG:image");
 			} else {
-				console.error("💡 General Error: OG:image generation failed");
-				console.error("🔄 Using fallback image");
+				ogError("💡 General Error: OG:image generation failed");
+				ogError("🔄 Using fallback image");
 			}
 		}
 

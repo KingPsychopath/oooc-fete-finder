@@ -159,7 +159,7 @@ async function getAccessToken(
 
 	if (!tokenResponse.ok) {
 		const errorText = await tokenResponse.text();
-		console.error("❌ Token exchange failed:", {
+		log.error("google-sheets", "Token exchange failed", {
 			status: tokenResponse.status,
 			statusText: tokenResponse.statusText,
 			body: errorText,
@@ -181,7 +181,7 @@ async function fetchSheetData(
 	range: string,
 	accessToken: string,
 ): Promise<unknown[][]> {
-	console.log(`📊 Fetching sheet data: ${sheetId}, range: ${range}`);
+	log.info("google-sheets", "Fetching sheet data", { sheetId, range });
 
 	const sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`;
 
@@ -194,7 +194,7 @@ async function fetchSheetData(
 
 	if (!response.ok) {
 		const errorText = await response.text();
-		console.error("❌ Sheets API request failed:", {
+		log.error("google-sheets", "Sheets API request failed", {
 			status: response.status,
 			statusText: response.statusText,
 			body: errorText,
@@ -249,7 +249,7 @@ export async function fetchRemoteCSVWithServiceAccount(
 	sheetId: string,
 	range: string = "A:Z",
 ): Promise<string> {
-	console.log("🔐 Fetching Google Sheets data via service account...");
+	log.info("google-sheets", "Fetching data via service account");
 
 	try {
 		const credentials = await loadServiceAccountCredentials();
@@ -257,14 +257,16 @@ export async function fetchRemoteCSVWithServiceAccount(
 		const values = await fetchSheetData(sheetId, range, accessToken);
 		const csvContent = convertToCsv(values);
 
-		console.log(
-			`✅ Successfully fetched ${values.length} rows from Google Sheets via service account`,
-		);
+		log.info("google-sheets", "Fetched rows via service account", {
+			rowCount: values.length,
+		});
 		return csvContent;
 	} catch (error) {
 		const errorMessage =
 			error instanceof Error ? error.message : "Unknown error";
-		console.error("❌ Service account fetch failed:", errorMessage);
+		log.error("google-sheets", "Service account fetch failed", {
+			error: errorMessage,
+		});
 		throw new Error(`Service account fetch failed: ${errorMessage}`);
 	}
 }
@@ -306,7 +308,7 @@ export function extractSheetId(input: string): string | null {
 export async function fetchPublicGoogleSheetsCSV(
 	targetUrl: string,
 ): Promise<string> {
-	console.log(`🌐 Fetching public Google Sheets CSV from: ${targetUrl}`);
+	log.info("google-sheets", "Fetching public CSV", { targetUrl });
 
 	const response = await fetch(targetUrl, {
 		signal: AbortSignal.timeout(15000),
@@ -332,9 +334,9 @@ export async function fetchPublicGoogleSheetsCSV(
 		);
 	}
 
-	console.log(
-		`✅ Successfully fetched ${lines.length - 1} data rows from public Google Sheets`,
-	);
+	log.info("google-sheets", "Fetched rows from public CSV", {
+		rowCount: lines.length - 1,
+	});
 	return csvContent;
 }
 
@@ -352,7 +354,7 @@ export async function fetchGoogleSheetsData(
 	// Strategy 1: Direct URL (public sheets)
 	if (remoteUrl) {
 		try {
-			console.log("📊 Strategy 1: Direct URL fetch");
+			log.info("google-sheets", "Strategy: direct URL fetch");
 			const content = await fetchPublicGoogleSheetsCSV(remoteUrl);
 			return {
 				content,
@@ -363,14 +365,14 @@ export async function fetchGoogleSheetsData(
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Unknown error";
 			errors.push({ strategy: "Direct URL", message });
-			console.warn(`⚠️ Direct URL strategy failed: ${message}`);
+			log.warn("google-sheets", "Direct URL strategy failed", { error: message });
 		}
 	}
 
 	// Strategy 2: Service account (private sheets)
 	if (sheetId) {
 		try {
-			console.log("📊 Strategy 2: Service account fetch");
+			log.info("google-sheets", "Strategy: service account fetch");
 			const content = await fetchRemoteCSVWithServiceAccount(sheetId, range);
 			return {
 				content,
@@ -381,15 +383,14 @@ export async function fetchGoogleSheetsData(
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Unknown error";
 			errors.push({ strategy: "Service Account", message });
-			console.warn(`⚠️ Service account strategy failed: ${message}`);
+			log.warn("google-sheets", "Service account strategy failed", {
+				error: message,
+			});
 		}
 	}
 
 	// All strategies failed
-	console.error("💥 All Google Sheets strategies failed:");
-	errors.forEach((error) =>
-		console.error(`   • ${error.strategy}: ${error.message}`),
-	);
+	log.error("google-sheets", "All Google Sheets strategies failed", { errors });
 
 	const errorMessages = errors
 		.map((e) => `${e.strategy}: ${e.message}`)

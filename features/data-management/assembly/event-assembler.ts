@@ -6,6 +6,7 @@
  */
 
 import type { Event, EventType, ParisArrondissement } from "@/features/events/types";
+import { log } from "@/lib/platform/logger";
 import type { CSVEventRow } from "../csv/parser";
 
 // Import our focused transformers
@@ -224,8 +225,12 @@ export const assembleEventSafely = (
 	try {
 		return assembleEvent(csvRow, index);
 	} catch (error) {
-		console.error(`Error assembling event at row ${index}:`, error);
-		console.error("CSV Row data:", csvRow);
+		log.error(
+			"event-assembler",
+			"Error assembling event row",
+			{ rowIndex: index, csvRow },
+			error,
+		);
 		return null;
 	}
 };

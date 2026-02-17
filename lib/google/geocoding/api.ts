@@ -6,10 +6,24 @@
  */
 
 import { env } from "@/lib/config/env";
+import { log } from "@/lib/platform/logger";
 
 /**
  * Geocoding result interface
  */
+
+const geoInfo = (...args: unknown[]) => {
+	log.info("google-geocoding", "trace", { args });
+};
+
+const geoWarn = (...args: unknown[]) => {
+	log.warn("google-geocoding", "trace", { args });
+};
+
+const geoError = (...args: unknown[]) => {
+	log.error("google-geocoding", "trace", { args });
+};
+
 export interface GeocodingResult {
 	address: string;
 	latitude: number;
@@ -132,7 +146,7 @@ async function geocodeAddressesBatchOptimized(
 	const failed: GeocodingError[] = [];
 	const total = addresses.length;
 
-	console.log(
+	geoInfo(
 		`🗺️ Starting batch geocoding for ${total} addresses (batch size: ${batchSize})`,
 	);
 
@@ -140,7 +154,7 @@ async function geocodeAddressesBatchOptimized(
 	for (let i = 0; i < addresses.length; i += batchSize) {
 		const batch = addresses.slice(i, i + batchSize);
 
-		console.log(
+		geoInfo(
 			`📍 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(addresses.length / batchSize)} (${batch.length} addresses)`,
 		);
 
@@ -158,7 +172,7 @@ async function geocodeAddressesBatchOptimized(
 						error instanceof Error ? error.message : "Unknown error";
 
 					if (retries <= maxRetries) {
-						console.warn(
+						geoWarn(
 							`⚠️ Retry ${retries}/${maxRetries} for "${address}": ${errorMessage}`,
 						);
 						// Exponential backoff
@@ -197,7 +211,7 @@ async function geocodeAddressesBatchOptimized(
 	}
 
 	const successRate = total > 0 ? successful.length / total : 0;
-	console.log(
+	geoInfo(
 		`✅ Batch geocoding completed: ${successful.length}/${total} successful (${Math.round(successRate * 100)}%)`,
 	);
 
@@ -216,7 +230,7 @@ async function reverseGeocodeWithMapsAPI(
 	latitude: number,
 	longitude: number,
 ): Promise<GeocodingResult> {
-	console.log(`🗺️ Reverse geocoding coordinates: ${latitude}, ${longitude}`);
+	geoInfo(`🗺️ Reverse geocoding coordinates: ${latitude}, ${longitude}`);
 
 	try {
 		const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
@@ -271,7 +285,7 @@ async function reverseGeocodeWithMapsAPI(
 			error instanceof Error
 				? error.message
 				: "Unknown reverse geocoding error";
-		console.error(
+		geoError(
 			`❌ Reverse geocoding failed for ${latitude}, ${longitude}:`,
 			errorMessage,
 		);

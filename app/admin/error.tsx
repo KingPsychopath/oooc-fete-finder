@@ -2,6 +2,7 @@
 
 import { RouteState } from "@/components/route-state";
 import { Button } from "@/components/ui/button";
+import { clientLog } from "@/lib/platform/client-logger";
 import { AlertTriangle, Home, RefreshCw, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
@@ -15,7 +16,7 @@ export default function AdminError({ error, reset }: AdminErrorPageProps) {
 	const router = useRouter();
 
 	React.useEffect(() => {
-		console.error("🚨 Admin Panel Error:", error);
+		clientLog.error("admin", "Admin panel error boundary caught an error", undefined, error);
 	}, [error]);
 
 	const goHome = () => {

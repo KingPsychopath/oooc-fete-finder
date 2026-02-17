@@ -1,6 +1,7 @@
 "use client";
 
 import type { Event } from "@/features/events/types";
+import { clientLog } from "@/lib/platform/client-logger";
 import { useMemo } from "react";
 import { FEATURED_EVENTS_CONFIG, FEATURED_EVENTS_LIMITS } from "../constants";
 import type { FeaturedEventSelectionResult } from "../types";
@@ -19,7 +20,7 @@ export function useFeaturedEvents(
 	const result = useMemo(() => {
 		// Input validation
 		if (!Array.isArray(events)) {
-			console.warn("useFeaturedEvents: events must be an array");
+			clientLog.warn("events.featured", "events must be an array");
 			return {
 				featuredEvents: [],
 				totalEventsCount: 0,
@@ -31,9 +32,11 @@ export function useFeaturedEvents(
 			maxFeaturedEvents < FEATURED_EVENTS_LIMITS.MIN_FEATURED_EVENTS ||
 			maxFeaturedEvents > FEATURED_EVENTS_LIMITS.MAX_FEATURED_EVENTS_LIMIT
 		) {
-			console.warn(
-				`useFeaturedEvents: maxFeaturedEvents (${maxFeaturedEvents}) should be between ${FEATURED_EVENTS_LIMITS.MIN_FEATURED_EVENTS} and ${FEATURED_EVENTS_LIMITS.MAX_FEATURED_EVENTS_LIMIT}, using default`,
-			);
+			clientLog.warn("events.featured", "maxFeaturedEvents out of bounds; using default", {
+				requested: maxFeaturedEvents,
+				min: FEATURED_EVENTS_LIMITS.MIN_FEATURED_EVENTS,
+				max: FEATURED_EVENTS_LIMITS.MAX_FEATURED_EVENTS_LIMIT,
+			});
 			maxFeaturedEvents = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS;
 		}
 
@@ -111,10 +114,9 @@ export function useFeaturedEvents(
 
 		// Debug logging if we have issues
 		if (safeFeatured.length !== featured.length) {
-			console.warn(
-				"Found undefined events in featured selection, filtered out:",
-				featured.length - safeFeatured.length,
-			);
+			clientLog.warn("events.featured", "Filtered undefined events in featured selection", {
+				filteredCount: featured.length - safeFeatured.length,
+			});
 		}
 
 		return {

@@ -25,6 +25,16 @@ type AuthProviderProps = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
+const defaultAuthContext: AuthContextType = {
+	isAuthenticated: false,
+	isAdminAuthenticated: false,
+	isAuthResolved: true,
+	userEmail: null,
+	refreshSession: async () => {},
+	authenticate: () => {},
+	logout: async () => {},
+};
+
 const isValidEmail = (email: string): boolean => {
 	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 	return emailRegex.test(email);
@@ -116,4 +126,9 @@ export const useAuth = () => {
 		throw new Error("useAuth must be used within an AuthProvider");
 	}
 	return context;
+};
+
+export const useOptionalAuth = (): AuthContextType => {
+	const context = useContext(AuthContext);
+	return context ?? defaultAuthContext;
 };

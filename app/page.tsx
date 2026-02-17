@@ -3,6 +3,7 @@ import { EventsClient } from "@/features/events/components/events-client";
 import { getPublicSlidingBannerSettingsCached } from "@/features/site-settings/queries";
 import { CacheManager } from "@/lib/cache/cache-manager";
 import { env } from "@/lib/config/env";
+import { log } from "@/lib/platform/logger";
 
 // Use ISR with a reasonable revalidation time (e.g., 1 hour)
 // This can be overridden with on-demand revalidation
@@ -19,7 +20,7 @@ export default async function Home() {
 	const isLocalFallback = isRemoteMode && result.source === "local";
 
 	if (result.error) {
-		console.error("Error loading events:", result.error);
+		log.error("home", "Error loading events", { error: result.error });
 		// You might want to show an error UI here
 	}
 

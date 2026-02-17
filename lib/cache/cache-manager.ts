@@ -95,6 +95,26 @@ const toCachedResult = (
 });
 
 export class CacheManager {
+	static getEventsSnapshot(): EventsResult {
+		const snapshot = eventsCache.getSnapshot();
+		if (snapshot.value && snapshot.meta && snapshot.value.length > 0) {
+			return toCachedResult(
+				snapshot.value,
+				snapshot.meta,
+				snapshot.lastErrorMessage || undefined,
+			);
+		}
+
+		return {
+			success: false,
+			data: [],
+			count: 0,
+			cached: true,
+			source: "cached",
+			error: snapshot.lastErrorMessage || "No cached events available",
+		};
+	}
+
 	static async getEvents(forceRefresh = false): Promise<EventsResult> {
 		const snapshot = eventsCache.getSnapshot();
 
@@ -253,6 +273,16 @@ export class CacheManager {
 
 	static async prewarmInBackground(): Promise<void> {
 		try {
+			const configStatus = await DataManager.getDataConfigStatus();
+			// Startup prewarm should only happen for real managed-store data.
+			// If remote mode has no store rows yet, skip warming to avoid seeding
+			// runtime cache with local CSV fallback at boot.
+			if (
+				configStatus.dataSource === "remote" &&
+				!configStatus.hasLocalStoreData
+			) {
+				return;
+			}
 			await this.getEvents(false);
 		} catch {
 			// Silent by design: prewarm should not crash startup.

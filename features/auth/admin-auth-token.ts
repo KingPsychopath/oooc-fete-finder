@@ -6,6 +6,7 @@ import { cookies, headers } from "next/headers";
 import type { NextRequest } from "next/server";
 import { env } from "@/lib/config/env";
 import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
+import { log } from "@/lib/platform/logger";
 
 const TOKEN_ISSUER = "oooc-fete-finder";
 const TOKEN_AUDIENCE = "admin-api";
@@ -69,8 +70,9 @@ const getAuthSecret = (): string => {
 	}
 
 	if (env.AUTH_SECRET && env.AUTH_SECRET.length > 0) {
-		console.warn(
-			"AUTH_SECRET is shorter than recommended. Falling back to ADMIN_KEY for admin tokens.",
+		log.warn(
+			"admin-auth",
+			"AUTH_SECRET is shorter than recommended; falling back to ADMIN_KEY",
 		);
 	}
 

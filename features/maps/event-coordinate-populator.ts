@@ -63,6 +63,7 @@ export class EventCoordinatePopulator {
 		let processed = 0;
 
 		for (const batch of batches) {
+			const apiCallsBeforeBatch = apiCalls;
 			const batchPromises = batch.map(async (event) => {
 				try {
 					// Skip if event already has coordinates
@@ -119,9 +120,11 @@ export class EventCoordinatePopulator {
 			const batchResults = await Promise.all(batchPromises);
 			eventsWithCoords.push(...batchResults);
 
-			// Delay between batches to respect rate limits
-			if (batch !== batches[batches.length - 1]) {
-				await new Promise((resolve) => setTimeout(resolve, 500)); // Increased from 100ms to 500ms
+			// Delay only when we actually called external geocoding API in this batch.
+			// If we're serving from storage or arrondissement fallback, avoid artificial waits.
+			const usedApiInBatch = apiCalls > apiCallsBeforeBatch;
+			if (usedApiInBatch && batch !== batches[batches.length - 1]) {
+				await new Promise((resolve) => setTimeout(resolve, 500));
 			}
 		}
 

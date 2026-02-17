@@ -1,5 +1,6 @@
 import path from "path";
 import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
+import { log } from "@/lib/platform/logger";
 import { mkdir, writeFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
 			size: file.size,
 		});
 	} catch (error) {
-		console.error("Upload error:", error);
+		log.error("og-upload", "Upload error", undefined, error);
 		return NextResponse.json(
 			{
 				error: "Failed to upload file",
@@ -99,7 +100,7 @@ export async function GET(request: NextRequest) {
 			message: "Image listing not implemented yet",
 		});
 	} catch (error) {
-		console.error("List images error:", error);
+		log.error("og-upload", "List images error", undefined, error);
 		return NextResponse.json(
 			{
 				error: "Failed to list images",

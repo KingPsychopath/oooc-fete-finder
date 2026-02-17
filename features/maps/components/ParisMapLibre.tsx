@@ -5,6 +5,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Event } from "@/features/events/types";
 import { formatPrice } from "@/features/events/types";
+import { clientLog } from "@/lib/platform/client-logger";
 import { Euro, Star } from "lucide-react";
 
 // Paris Arrondissements GeoJSON Types - Updated for v2 JSON structure
@@ -207,12 +208,12 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				});
 
 				map.current.on("error", (e: maplibregl.ErrorEvent) => {
-					console.error("Map loading error:", e);
+					clientLog.error("maps.maplibre", "Map loading error", undefined, e);
 					setLoadError("Failed to load map tiles");
 					setIsLoading(false);
 				});
 			} catch (error) {
-				console.error("Failed to initialize map:", error);
+				clientLog.error("maps.maplibre", "Failed to initialize map", undefined, error);
 				setLoadError(
 					error instanceof Error ? error.message : "Failed to load map",
 				);
@@ -267,7 +268,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					map.current.remove();
 				} catch (e) {
 					// Ignore cleanup errors
-					console.warn("Map cleanup error:", e);
+					clientLog.warn("maps.maplibre", "Map cleanup error", {
+						error: e instanceof Error ? e.message : String(e),
+					});
 				} finally {
 					map.current = null;
 					setMapLoaded(false);
@@ -371,7 +374,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					});
 				}
 			} catch (error) {
-				console.error("Failed to load boundaries:", error);
+				clientLog.error("maps.maplibre", "Failed to load boundaries", undefined, error);
 			}
 		};
 

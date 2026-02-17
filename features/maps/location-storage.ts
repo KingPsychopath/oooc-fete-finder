@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import type { EventLocation } from "@/features/events/types";
+import { log } from "@/lib/platform/logger";
 
 /**
  * Location storage configuration
@@ -43,7 +44,10 @@ export class LocationStorage {
 
 			// Version check
 			if (data.version !== STORAGE_CONFIG.version) {
-				console.warn(`⚠️ Storage version mismatch, starting fresh`);
+				log.warn("maps.storage", "Storage version mismatch, starting fresh", {
+					expected: STORAGE_CONFIG.version,
+					found: data.version,
+				});
 				return new Map();
 			}
 
@@ -55,7 +59,9 @@ export class LocationStorage {
 
 			return locationMap;
 		} catch (error) {
-			console.warn("Failed to load location storage:", error);
+			log.warn("maps.storage", "Failed to load location storage", {
+				error: error instanceof Error ? error.message : String(error),
+			});
 			return new Map();
 		}
 	}
@@ -100,7 +106,12 @@ export class LocationStorage {
 					"utf-8",
 				);
 			} catch (fallbackError) {
-				console.error("❌ Failed to save location storage:", fallbackError);
+				log.error(
+					"maps.storage",
+					"Failed to save location storage",
+					undefined,
+					fallbackError,
+				);
 				throw fallbackError;
 			}
 		}

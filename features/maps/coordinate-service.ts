@@ -2,6 +2,7 @@ import {
 	type GeocodingResult as GCPGeocodingResult,
 	GoogleCloudAPI,
 } from "@/lib/google/api";
+import { log } from "@/lib/platform/logger";
 import type {
 	Coordinates,
 	EventLocation,
@@ -159,7 +160,8 @@ export async function geocodeLocation(
 
 		// Validate coordinates are within Paris bounds
 		if (!isWithinParisBounds({ lat: result.latitude, lng: result.longitude })) {
-			console.warn(`Geocoded location "${query}" is outside Paris bounds:`, {
+			log.warn("maps.geocoding", "Geocoded location is outside Paris bounds", {
+				query,
 				lat: result.latitude,
 				lng: result.longitude,
 			});
@@ -368,6 +370,16 @@ export class CoordinateService {
 				if (fallbackToArrondissement) {
 					const coords = getArrondissementCenter(arrondissement);
 					if (coords) {
+						const estimatedLocation: EventLocation = {
+							id: storageKey,
+							name: locationName,
+							arrondissement,
+							coordinates: coords,
+							confidence: 0.5,
+							source: "estimated",
+							lastUpdated: new Date().toISOString(),
+						};
+						storedLocations.set(storageKey, estimatedLocation);
 						return {
 							coordinates: coords,
 							source: "estimated",
@@ -383,6 +395,16 @@ export class CoordinateService {
 			if (fallbackToArrondissement) {
 				const coords = getArrondissementCenter(arrondissement);
 				if (coords) {
+					const estimatedLocation: EventLocation = {
+						id: storageKey,
+						name: locationName,
+						arrondissement,
+						coordinates: coords,
+						confidence: 0.5,
+						source: "estimated",
+						lastUpdated: new Date().toISOString(),
+					};
+					storedLocations.set(storageKey, estimatedLocation);
 					return {
 						coordinates: coords,
 						source: "estimated",

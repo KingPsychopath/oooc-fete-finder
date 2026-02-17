@@ -9,20 +9,12 @@ import {
 	type EditableSheetColumn,
 	validateEditableSheet,
 } from "./csv/sheet-editor";
-import { getKVStore, getKVStoreInfo } from "@/lib/platform/kv/kv-store-factory";
 import {
 	getEventSheetStoreRepository,
 	type EventStoreOrigin,
+	type EventSheetColumnRecord,
+	type EventSheetRowRecord,
 } from "@/lib/platform/postgres/event-sheet-store-repository";
-
-const EVENTS_CSV_KEY = "events-store:csv";
-const EVENTS_META_KEY = "events-store:meta";
-const EVENTS_SETTINGS_KEY = "events-store:settings";
-
-export interface EventStoreSettings {
-	autoSyncFromGoogle: boolean;
-	updatedAt: string;
-}
 
 interface EventStoreMetadata {
 	rowCount: number;
@@ -39,7 +31,6 @@ export interface EventStoreStatus {
 	updatedAt: string | null;
 	updatedBy: string | null;
 	origin: EventStoreMetadata["origin"] | null;
-	autoSyncFromGoogle: boolean;
 	provider: "file" | "memory" | "postgres";
 	providerLocation: string;
 }
@@ -49,40 +40,34 @@ interface StorePreviewOptions {
 	random?: boolean;
 }
 
-const DEFAULT_SETTINGS: EventStoreSettings = {
-	autoSyncFromGoogle: false,
+type SaveCsvMeta = {
+	updatedBy: string;
+	origin: EventStoreMetadata["origin"];
+};
+
+interface EventStoreAdapter {
+	getCsv(): Promise<string | null>;
+	saveCsv(csvContent: string, meta: SaveCsvMeta): Promise<EventStoreMetadata>;
+	clearCsv(): Promise<void>;
+	getStatus(): Promise<EventStoreStatus>;
+}
+
+const DEFAULT_META: EventStoreMetadata = {
+	rowCount: 0,
 	updatedAt: new Date(0).toISOString(),
+	updatedBy: "system",
+	origin: "manual",
+	checksum: "",
 };
 
-const parseJson = <T>(raw: string | null, fallback: T): T => {
-	if (!raw) return fallback;
-	try {
-		const parsed = JSON.parse(raw) as T;
-		if (parsed && typeof parsed === "object") {
-			return parsed;
-		}
-		return fallback;
-	} catch {
-		return fallback;
-	}
-};
+const sanitizeCsv = (csvContent: string): string =>
+	csvContent.replace(/\r\n/g, "\n").trim();
 
-const sanitizeCsv = (csvContent: string): string => {
-	return csvContent.replace(/\r\n/g, "\n").trim();
-};
-
-const buildChecksum = (csvContent: string): string => {
-	return createHash("sha256").update(csvContent).digest("hex").slice(0, 16);
-};
+const buildChecksum = (csvContent: string): string =>
+	createHash("sha256").update(csvContent).digest("hex").slice(0, 16);
 
 const toEditableColumns = (
-	columns: Array<{
-		key: string;
-		label: string;
-		isCore: boolean;
-		isRequired: boolean;
-		displayOrder: number;
-	}>,
+	columns: EventSheetColumnRecord[],
 ): EditableSheetColumn[] =>
 	columns
 		.slice()
@@ -94,185 +79,87 @@ const toEditableColumns = (
 			isRequired: column.isRequired,
 		}));
 
-export class LocalEventStore {
-	private static sampleRows<T>(rows: T[], count: number): T[] {
-		if (rows.length <= count) {
-			return rows.slice();
-		}
+const toRepositoryColumns = (
+	columns: EditableSheetColumn[],
+): EventSheetColumnRecord[] =>
+	columns.map((column, index) => ({
+		key: column.key,
+		label: column.label,
+		isCore: column.isCore,
+		isRequired: column.isRequired,
+		displayOrder: index,
+	}));
 
-		const shuffled = rows.slice();
-		for (let index = shuffled.length - 1; index > 0; index -= 1) {
-			const randomIndex = Math.floor(Math.random() * (index + 1));
-			[shuffled[index], shuffled[randomIndex]] = [
-				shuffled[randomIndex],
-				shuffled[index],
-			];
-		}
-
-		return shuffled.slice(0, count);
+const sampleRows = <T>(rows: T[], count: number): T[] => {
+	if (rows.length <= count) {
+		return rows.slice();
 	}
 
-	private static async isPostgresTableStoreMode(): Promise<boolean> {
-		const providerInfo = await getKVStoreInfo();
-		return providerInfo.provider === "postgres";
+	const shuffled = rows.slice();
+	for (let index = shuffled.length - 1; index > 0; index -= 1) {
+		const randomIndex = Math.floor(Math.random() * (index + 1));
+		[shuffled[index], shuffled[randomIndex]] = [
+			shuffled[randomIndex],
+			shuffled[index],
+		];
 	}
 
-	private static async migrateLegacyKvToPostgresTablesIfNeeded(): Promise<void> {
-		if (!(await this.isPostgresTableStoreMode())) {
-			return;
-		}
+	return shuffled.slice(0, count);
+};
 
-		const repository = getEventSheetStoreRepository();
+const parseCsvPreview = (
+	csv: string,
+	limit: number,
+	options?: StorePreviewOptions,
+): {
+	headers: readonly string[];
+	rows: StorePreviewRow[];
+} => {
+	const parseResult = Papa.parse<Record<string, string>>(csv, {
+		header: true,
+		skipEmptyLines: "greedy",
+		transform: (value: string) => value.trim(),
+	});
+	const headers = parseResult.meta.fields || CSV_EVENT_COLUMNS;
+	const normalizedLimit = Math.max(1, Math.min(limit, 100));
+	const sourceRows =
+		options?.random ?
+			sampleRows(parseResult.data, normalizedLimit)
+		: 	parseResult.data.slice(0, normalizedLimit);
+
+	const rows = sourceRows.map((row) => {
+		const normalizedRow: StorePreviewRow = {};
+		for (const header of headers) {
+			normalizedRow[header] = row[header] ?? "";
+		}
+		return normalizedRow;
+	});
+
+	return { headers, rows };
+};
+
+class PostgresEventStoreAdapter implements EventStoreAdapter {
+	private get repository() {
+		return getEventSheetStoreRepository();
+	}
+
+	private ensureRepository() {
+		const repository = this.repository;
 		if (!repository) {
-			return;
+			throw new Error("Postgres store is unavailable. Set DATABASE_URL.");
 		}
-
-		const counts = await repository.getCounts();
-		if (counts.rowCount > 0 || counts.columnCount > 0) {
-			return;
-		}
-
-		const kv = await getKVStore();
-		const legacyCsv = await kv.get(EVENTS_CSV_KEY);
-		if (!legacyCsv || legacyCsv.trim().length === 0) {
-			return;
-		}
-
-		const sheet = csvToEditableSheet(legacyCsv);
-		const validation = validateEditableSheet(sheet.columns, sheet.rows);
-		if (!validation.valid) {
-			throw new Error(validation.error || "Failed to validate legacy event store");
-		}
-
-		const metaRaw = await kv.get(EVENTS_META_KEY);
-		const legacyMeta = parseJson<Partial<EventStoreMetadata> | null>(metaRaw, null);
-		const updatedBy =
-			typeof legacyMeta?.updatedBy === "string" && legacyMeta.updatedBy.trim().length > 0 ?
-				legacyMeta.updatedBy
-			:	"legacy-kv-migration";
-		const origin =
-			legacyMeta?.origin === "manual" ||
-			legacyMeta?.origin === "google-import" ||
-			legacyMeta?.origin === "google-sync" ||
-			legacyMeta?.origin === "local-file-import" ?
-				legacyMeta.origin
-			:	"manual";
-
-		await repository.replaceSheet(
-			validation.columns.map((column, index) => ({
-				key: column.key,
-				label: column.label,
-				isCore: column.isCore,
-				isRequired: column.isRequired,
-				displayOrder: index,
-			})),
-			validation.rows,
-			{
-				updatedBy,
-				origin,
-				checksum: buildChecksum(legacyCsv),
-			},
-		);
-
-		const legacySettingsRaw = await kv.get(EVENTS_SETTINGS_KEY);
-		const legacySettings = parseJson<Partial<EventStoreSettings> | null>(
-			legacySettingsRaw,
-			null,
-		);
-		if (typeof legacySettings?.autoSyncFromGoogle === "boolean") {
-			await repository.updateSettings({
-				autoSyncFromGoogle: legacySettings.autoSyncFromGoogle,
-			});
-		}
-
-		// Remove legacy event keys after successful migration to prevent stale dual sources.
-		await kv.delete(EVENTS_CSV_KEY);
-		await kv.delete(EVENTS_META_KEY);
-		await kv.delete(EVENTS_SETTINGS_KEY);
+		return repository;
 	}
 
-	private static async getLegacySettings(): Promise<EventStoreSettings> {
-		const kv = await getKVStore();
-		const raw = await kv.get(EVENTS_SETTINGS_KEY);
-		const settings = parseJson<EventStoreSettings>(raw, DEFAULT_SETTINGS);
-
-		return {
-			autoSyncFromGoogle: Boolean(settings.autoSyncFromGoogle),
-			updatedAt:
-				typeof settings.updatedAt === "string" ?
-					settings.updatedAt
-				:	DEFAULT_SETTINGS.updatedAt,
-		};
-	}
-
-	private static async updateLegacySettings(
-		updates: Partial<Pick<EventStoreSettings, "autoSyncFromGoogle">>,
-	): Promise<EventStoreSettings> {
-		const kv = await getKVStore();
-		const current = await this.getLegacySettings();
-		const next: EventStoreSettings = {
-			autoSyncFromGoogle:
-				typeof updates.autoSyncFromGoogle === "boolean" ?
-					updates.autoSyncFromGoogle
-				:	current.autoSyncFromGoogle,
-			updatedAt: new Date().toISOString(),
-		};
-		await kv.set(EVENTS_SETTINGS_KEY, JSON.stringify(next));
-		return next;
-	}
-
-	static async getSettings(): Promise<EventStoreSettings> {
-		if (await this.isPostgresTableStoreMode()) {
-			await this.migrateLegacyKvToPostgresTablesIfNeeded();
-			const repository = getEventSheetStoreRepository();
-			if (repository) {
-				return repository.getSettings();
-			}
+	async getCsv(): Promise<string | null> {
+		const sheet = await this.ensureRepository().getSheet();
+		if (sheet.rows.length === 0 || sheet.columns.length === 0) {
+			return null;
 		}
-
-		return this.getLegacySettings();
+		return editableSheetToCsv(toEditableColumns(sheet.columns), sheet.rows);
 	}
 
-	static async updateSettings(
-		updates: Partial<Pick<EventStoreSettings, "autoSyncFromGoogle">>,
-	): Promise<EventStoreSettings> {
-		if (await this.isPostgresTableStoreMode()) {
-			await this.migrateLegacyKvToPostgresTablesIfNeeded();
-			const repository = getEventSheetStoreRepository();
-			if (repository) {
-				return repository.updateSettings(updates);
-			}
-		}
-
-		return this.updateLegacySettings(updates);
-	}
-
-	static async getCsv(): Promise<string | null> {
-		if (await this.isPostgresTableStoreMode()) {
-			await this.migrateLegacyKvToPostgresTablesIfNeeded();
-			const repository = getEventSheetStoreRepository();
-			if (repository) {
-				const sheet = await repository.getSheet();
-				if (sheet.rows.length === 0 || sheet.columns.length === 0) {
-					return null;
-				}
-
-				const editableColumns = toEditableColumns(sheet.columns);
-				return editableSheetToCsv(editableColumns, sheet.rows);
-			}
-		}
-
-		const kv = await getKVStore();
-		return kv.get(EVENTS_CSV_KEY);
-	}
-
-	static async saveCsv(
-		csvContent: string,
-		meta: {
-			updatedBy: string;
-			origin: EventStoreMetadata["origin"];
-		},
-	): Promise<EventStoreMetadata> {
+	async saveCsv(csvContent: string, meta: SaveCsvMeta): Promise<EventStoreMetadata> {
 		const cleanedCsv = sanitizeCsv(csvContent);
 		if (!cleanedCsv) {
 			throw new Error("CSV content cannot be empty");
@@ -284,63 +171,170 @@ export class LocalEventStore {
 			throw new Error(validation.error || "Invalid CSV content");
 		}
 
-		const record: EventStoreMetadata = {
+		const checksum = buildChecksum(cleanedCsv);
+		const savedMeta = await this.ensureRepository().replaceSheet(
+			toRepositoryColumns(validation.columns),
+			validation.rows,
+			{
+				updatedBy: meta.updatedBy,
+				origin: meta.origin,
+				checksum,
+			},
+		);
+
+		return {
+			rowCount: savedMeta.rowCount,
+			updatedAt: savedMeta.updatedAt,
+			updatedBy: savedMeta.updatedBy,
+			origin: savedMeta.origin,
+			checksum: savedMeta.checksum,
+		};
+	}
+
+	async clearCsv(): Promise<void> {
+		await this.ensureRepository().clearSheet();
+	}
+
+	async getStatus(): Promise<EventStoreStatus> {
+		const repository = this.repository;
+		if (!repository) {
+			return {
+				hasStoreData: false,
+				rowCount: 0,
+				keyCount: 0,
+				updatedAt: null,
+				updatedBy: null,
+				origin: null,
+				provider: "memory",
+				providerLocation: "Postgres unavailable (DATABASE_URL not configured)",
+			};
+		}
+
+		const [meta, counts] = await Promise.all([
+			repository.getMeta(),
+			repository.getCounts(),
+		]);
+
+		return {
+			hasStoreData: counts.rowCount > 0,
+			rowCount: counts.rowCount,
+			keyCount: counts.rowCount + counts.columnCount + 2,
+			updatedAt: meta.updatedAt,
+			updatedBy: meta.updatedBy,
+			origin: meta.origin,
+			provider: "postgres",
+			providerLocation: repository.getStorageLocation(),
+		};
+	}
+}
+
+declare global {
+	var __ooocFeteFinderMemoryEventStoreData:
+		| {
+			columns: EventSheetColumnRecord[];
+			rows: EventSheetRowRecord[];
+			meta: EventStoreMetadata;
+		}
+		| undefined;
+}
+
+class MemoryEventStoreAdapter implements EventStoreAdapter {
+	private readonly providerLocation = "in-memory event store fallback";
+
+	private get state() {
+		if (!globalThis.__ooocFeteFinderMemoryEventStoreData) {
+			globalThis.__ooocFeteFinderMemoryEventStoreData = {
+				columns: CSV_EVENT_COLUMNS.map((column, index) => ({
+					key: column,
+					label: column,
+					isCore: true,
+					isRequired: false,
+					displayOrder: index,
+				})),
+				rows: [],
+				meta: DEFAULT_META,
+			};
+		}
+
+		return globalThis.__ooocFeteFinderMemoryEventStoreData;
+	}
+
+	async getCsv(): Promise<string | null> {
+		if (this.state.rows.length === 0) {
+			return null;
+		}
+		return editableSheetToCsv(toEditableColumns(this.state.columns), this.state.rows);
+	}
+
+	async saveCsv(csvContent: string, meta: SaveCsvMeta): Promise<EventStoreMetadata> {
+		const cleanedCsv = sanitizeCsv(csvContent);
+		if (!cleanedCsv) {
+			throw new Error("CSV content cannot be empty");
+		}
+
+		const sheet = csvToEditableSheet(cleanedCsv);
+		const validation = validateEditableSheet(sheet.columns, sheet.rows);
+		if (!validation.valid) {
+			throw new Error(validation.error || "Invalid CSV content");
+		}
+
+		const now = new Date().toISOString();
+		this.state.columns = toRepositoryColumns(validation.columns);
+		this.state.rows = validation.rows;
+		this.state.meta = {
 			rowCount: validation.rows.length,
-			updatedAt: new Date().toISOString(),
+			updatedAt: now,
 			updatedBy: meta.updatedBy,
 			origin: meta.origin,
 			checksum: buildChecksum(cleanedCsv),
 		};
+		return this.state.meta;
+	}
 
-		if (await this.isPostgresTableStoreMode()) {
-			await this.migrateLegacyKvToPostgresTablesIfNeeded();
-			const repository = getEventSheetStoreRepository();
-			if (repository) {
-				const savedMeta = await repository.replaceSheet(
-					validation.columns.map((column, index) => ({
-						key: column.key,
-						label: column.label,
-						isCore: column.isCore,
-						isRequired: column.isRequired,
-						displayOrder: index,
-					})),
-					validation.rows,
-					{
-						updatedBy: record.updatedBy,
-						origin: record.origin,
-						checksum: record.checksum,
-					},
-				);
+	async clearCsv(): Promise<void> {
+		this.state.rows = [];
+		this.state.meta = {
+			...DEFAULT_META,
+			updatedAt: new Date().toISOString(),
+		};
+	}
 
-				return {
-					rowCount: savedMeta.rowCount,
-					updatedAt: savedMeta.updatedAt,
-					updatedBy: savedMeta.updatedBy,
-					origin: savedMeta.origin,
-					checksum: savedMeta.checksum,
-				};
-			}
-		}
+	async getStatus(): Promise<EventStoreStatus> {
+		return {
+			hasStoreData: this.state.rows.length > 0,
+			rowCount: this.state.rows.length,
+			keyCount: this.state.rows.length + this.state.columns.length + 2,
+			updatedAt: this.state.meta.updatedAt,
+			updatedBy: this.state.meta.updatedBy,
+			origin: this.state.meta.origin,
+			provider: "memory",
+			providerLocation: this.providerLocation,
+		};
+	}
+}
 
-		const kv = await getKVStore();
-		await kv.set(EVENTS_CSV_KEY, cleanedCsv);
-		await kv.set(EVENTS_META_KEY, JSON.stringify(record));
-		return record;
+const postgresAdapter = new PostgresEventStoreAdapter();
+const memoryAdapter = new MemoryEventStoreAdapter();
+
+const resolveAdapter = (): EventStoreAdapter => {
+	return getEventSheetStoreRepository() ? postgresAdapter : memoryAdapter;
+};
+
+export class LocalEventStore {
+	private static adapter(): EventStoreAdapter {
+		return resolveAdapter();
+	}
+
+	static async getCsv(): Promise<string | null> {
+		return this.adapter().getCsv();
+	}
+
+	static async saveCsv(csvContent: string, meta: SaveCsvMeta): Promise<EventStoreMetadata> {
+		return this.adapter().saveCsv(csvContent, meta);
 	}
 
 	static async clearCsv(): Promise<void> {
-		if (await this.isPostgresTableStoreMode()) {
-			await this.migrateLegacyKvToPostgresTablesIfNeeded();
-			const repository = getEventSheetStoreRepository();
-			if (repository) {
-				await repository.clearSheet();
-				return;
-			}
-		}
-
-		const kv = await getKVStore();
-		await kv.delete(EVENTS_CSV_KEY);
-		await kv.delete(EVENTS_META_KEY);
+		return this.adapter().clearCsv();
 	}
 
 	static async getPreview(
@@ -355,75 +349,10 @@ export class LocalEventStore {
 			return { headers: CSV_EVENT_COLUMNS, rows: [] };
 		}
 
-		const parseResult = Papa.parse<Record<string, string>>(csv, {
-			header: true,
-			skipEmptyLines: "greedy",
-			transform: (value: string) => value.trim(),
-		});
-		const headers = parseResult.meta.fields || CSV_EVENT_COLUMNS;
-		const normalizedLimit = Math.max(1, Math.min(limit, 100));
-		const sourceRows =
-			options?.random ?
-				this.sampleRows(parseResult.data, normalizedLimit)
-			:	parseResult.data.slice(0, normalizedLimit);
-
-		const rows = sourceRows.map((row) => {
-			const normalizedRow: StorePreviewRow = {};
-			for (const header of headers) {
-				normalizedRow[header] = row[header] ?? "";
-			}
-			return normalizedRow;
-		});
-
-		return {
-			headers,
-			rows,
-		};
+		return parseCsvPreview(csv, limit, options);
 	}
 
 	static async getStatus(): Promise<EventStoreStatus> {
-		const providerInfo = await getKVStoreInfo();
-		const settings = await this.getSettings();
-
-		if (providerInfo.provider === "postgres") {
-			await this.migrateLegacyKvToPostgresTablesIfNeeded();
-			const repository = getEventSheetStoreRepository();
-			if (repository) {
-				const [meta, counts] = await Promise.all([
-					repository.getMeta(),
-					repository.getCounts(),
-				]);
-
-				return {
-					hasStoreData: counts.rowCount > 0,
-					rowCount: counts.rowCount,
-					keyCount: counts.rowCount + counts.columnCount + 2,
-					updatedAt: meta.updatedAt,
-					updatedBy: meta.updatedBy,
-					origin: meta.origin,
-					autoSyncFromGoogle: settings.autoSyncFromGoogle,
-					provider: "postgres",
-					providerLocation: repository.getStorageLocation(),
-				};
-			}
-		}
-
-		const kv = await getKVStore();
-		const keys = await kv.list();
-		const csv = await kv.get(EVENTS_CSV_KEY);
-		const metaRaw = await kv.get(EVENTS_META_KEY);
-		const meta = parseJson<EventStoreMetadata | null>(metaRaw, null);
-
-		return {
-			hasStoreData: Boolean(csv),
-			rowCount: meta?.rowCount ?? 0,
-			keyCount: keys.length,
-			updatedAt: meta?.updatedAt ?? null,
-			updatedBy: meta?.updatedBy ?? null,
-			origin: meta?.origin ?? null,
-			autoSyncFromGoogle: settings.autoSyncFromGoogle,
-			provider: providerInfo.provider,
-			providerLocation: providerInfo.location,
-		};
+		return this.adapter().getStatus();
 	}
 }

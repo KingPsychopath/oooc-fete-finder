@@ -2,6 +2,7 @@
 
 import { RouteState } from "@/components/route-state";
 import { Button } from "@/components/ui/button";
+import { clientLog } from "@/lib/platform/client-logger";
 import { AlertTriangle, Home, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
@@ -16,7 +17,7 @@ export default function Error({ error, reset }: ErrorPageProps) {
 
 	React.useEffect(() => {
 		// Log the error to your error reporting service
-		console.error("🚨 Next.js Error Boundary caught an error:", error);
+		clientLog.error("route-error", "Next.js error boundary caught an error", undefined, error);
 
 		// You could send to an error reporting service here
 		// Example: errorReportingService.captureException(error)

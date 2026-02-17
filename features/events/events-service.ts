@@ -7,6 +7,7 @@
 
 import { CacheManager } from "@/lib/cache/cache-manager";
 import type { Event, MusicGenre } from "@/features/events/types";
+import { log } from "@/lib/platform/logger";
 
 /**
  * Get all events from the cache manager
@@ -16,13 +17,13 @@ export async function getAllEvents(): Promise<Event[]> {
 		const result = await CacheManager.getEvents();
 
 		if (result.error) {
-			console.error("Error loading events:", result.error);
+			log.error("events", "Error loading events", { error: result.error });
 			return [];
 		}
 
 		return result.data;
 	} catch (error) {
-		console.error("Error in getAllEvents:", error);
+		log.error("events", "Error in getAllEvents", undefined, error);
 		return [];
 	}
 }

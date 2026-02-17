@@ -11,7 +11,9 @@ type Setup = {
 	fetchLocalCSV: ReturnType<typeof vi.fn>;
 };
 
-const loadDataManager = async (mode: "remote" | "local" | "test" = "remote"): Promise<Setup> => {
+const loadDataManager = async (mode: "remote" | "local" | "test" = "remote"): Promise<
+	Setup
+> => {
 	vi.resetModules();
 
 	const localEventStore = {
@@ -23,7 +25,6 @@ const loadDataManager = async (mode: "remote" | "local" | "test" = "remote"): Pr
 			updatedAt: null,
 			updatedBy: null,
 			origin: null,
-			autoSyncFromGoogle: false,
 			provider: "postgres",
 			providerLocation: "db",
 		}),
@@ -39,6 +40,8 @@ const loadDataManager = async (mode: "remote" | "local" | "test" = "remote"): Pr
 			LOCAL_CSV_LAST_UPDATED: "2026-02-17",
 			GOOGLE_SERVICE_ACCOUNT_KEY: "",
 			GOOGLE_SERVICE_ACCOUNT_FILE: "",
+			REMOTE_CSV_URL: "",
+			GOOGLE_SHEET_ID: "",
 		},
 	}));
 
@@ -109,7 +112,9 @@ describe("DataManager source orchestration", () => {
 
 		expect(result.success).toBe(true);
 		expect(result.source).toBe("local");
-		expect(result.warnings[0]).toContain("Managed store unavailable or empty");
+		expect(result.warnings.join(" | ")).toContain(
+			"Managed store unavailable or empty",
+		);
 	});
 
 	it("falls back to local CSV when store data is invalid", async () => {

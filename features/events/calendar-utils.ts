@@ -1,4 +1,5 @@
 import type { Event } from "@/features/events/types";
+import { clientLog } from "@/lib/platform/client-logger";
 
 /**
  * Generate an .ics file content for a calendar event
@@ -245,7 +246,12 @@ export function addToCalendar(event: Event): void {
 			downloadICSFile(event);
 		}
 	} catch (error) {
-		console.error("Error adding event to calendar:", error);
+		clientLog.error(
+			"events.calendar",
+			"Error adding event to calendar",
+			undefined,
+			error,
+		);
 		// Fallback to download
 		downloadICSFile(event);
 	}

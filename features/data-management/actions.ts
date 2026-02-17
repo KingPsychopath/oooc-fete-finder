@@ -3,6 +3,7 @@
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { CacheManager } from "@/lib/cache/cache-manager";
 import { env } from "@/lib/config/env";
+import { log } from "@/lib/platform/logger";
 import type {
 	CacheStatus,
 	EventsResult,
@@ -113,7 +114,7 @@ export async function getLiveSiteEventsSnapshot(
 							fresh.warnings.length > 0 ? fresh.warnings.join("; ") : undefined,
 					};
 				})()
-			: await CacheManager.getEvents(false);
+			: CacheManager.getEventsSnapshot();
 		if (!result.success) {
 			return { success: false, error: result.error || "Failed to load events" };
 		}
@@ -272,35 +273,6 @@ export async function clearLocalEventStoreCsv(keyOrToken?: string): Promise<{
 		return {
 			success: false,
 			message: "Failed to clear managed store",
-			error: error instanceof Error ? error.message : "Unknown error",
-		};
-	}
-}
-
-/**
- * Update local event store settings
- */
-export async function updateLocalEventStoreSettings(
-	keyOrToken: string | undefined,
-	updates: {
-		autoSyncFromGoogle?: boolean;
-	},
-): Promise<{
-	success: boolean;
-	settings?: Awaited<ReturnType<typeof LocalEventStore.getSettings>>;
-	error?: string;
-}> {
-	if (!(await validateAdminAccess(keyOrToken))) {
-		return { success: false, error: "Unauthorized access" };
-	}
-
-	try {
-		const settings = await LocalEventStore.updateSettings(updates);
-		await CacheManager.forceRefresh();
-		return { success: true, settings };
-	} catch (error) {
-		return {
-			success: false,
 			error: error instanceof Error ? error.message : "Unknown error",
 		};
 	}
@@ -578,15 +550,19 @@ export async function analyzeDateFormats(keyOrToken?: string): Promise<{
 			}
 		});
 
-		console.log(
-			`📊 Found ${warnings.length} date format warnings from CSV parsing`,
-		);
+		log.info("data-validation", "Date format warnings found", {
+			count: warnings.length,
+		});
 		if (warnings.length > 0) {
-			console.log("📋 Warning summary:");
+			log.info("data-validation", "Date warning summary follows");
 			warnings.forEach((warning: DateFormatWarning, index: number) => {
-				console.log(
-					`   ${index + 1}. ${warning.warningType}: "${warning.originalValue}" in ${warning.eventName} (${warning.columnType} column)`,
-				);
+				log.info("data-validation", "Date warning", {
+					index: index + 1,
+					type: warning.warningType,
+					value: warning.originalValue,
+					eventName: warning.eventName,
+					columnType: warning.columnType,
+				});
 			});
 		}
 
@@ -595,7 +571,7 @@ export async function analyzeDateFormats(keyOrToken?: string): Promise<{
 			warnings,
 		};
 	} catch (error) {
-		console.error("❌ Error analyzing date formats:", error);
+		log.error("data-validation", "Error analyzing date formats", undefined, error);
 		return {
 			success: false,
 			error:

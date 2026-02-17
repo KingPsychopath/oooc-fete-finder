@@ -32,11 +32,6 @@ export interface EventSheetMetaRecord {
 	checksum: string;
 }
 
-export interface EventSheetSettingsRecord {
-	autoSyncFromGoogle: boolean;
-	updatedAt: string;
-}
-
 declare global {
 	var __ooocFeteFinderEventSheetStoreRepository:
 		| EventSheetStoreRepository
@@ -52,11 +47,6 @@ const defaultMeta = (): EventSheetMetaRecord => ({
 	updatedBy: "system",
 	origin: "manual",
 	checksum: "",
-});
-
-const defaultSettings = (): EventSheetSettingsRecord => ({
-	autoSyncFromGoogle: false,
-	updatedAt: new Date(0).toISOString(),
 });
 
 export class EventSheetStoreRepository {
@@ -107,13 +97,6 @@ export class EventSheetStoreRepository {
 			)
 		`;
 
-		await this.sql`
-			CREATE TABLE IF NOT EXISTS app_event_store_settings (
-				singleton BOOLEAN PRIMARY KEY DEFAULT TRUE,
-				auto_sync_from_google BOOLEAN NOT NULL DEFAULT FALSE,
-				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-			)
-		`;
 	}
 
 	private async ready(): Promise<void> {
@@ -147,51 +130,6 @@ export class EventSheetStoreRepository {
 			origin: record.origin,
 			checksum: record.checksum,
 		};
-	}
-
-	async getSettings(): Promise<EventSheetSettingsRecord> {
-		await this.ready();
-		const rows = await this.sql<
-			{ auto_sync_from_google: boolean; updated_at: Date | string }[]
-		>`
-			SELECT auto_sync_from_google, updated_at
-			FROM app_event_store_settings
-			WHERE singleton = TRUE
-			LIMIT 1
-		`;
-
-		const record = rows[0];
-		if (!record) return defaultSettings();
-		return {
-			autoSyncFromGoogle: record.auto_sync_from_google,
-			updatedAt: toIsoString(record.updated_at),
-		};
-	}
-
-	async updateSettings(
-		updates: Partial<Pick<EventSheetSettingsRecord, "autoSyncFromGoogle">>,
-	): Promise<EventSheetSettingsRecord> {
-		await this.ready();
-		const current = await this.getSettings();
-		const nextAutoSync =
-			typeof updates.autoSyncFromGoogle === "boolean" ?
-				updates.autoSyncFromGoogle
-			:	current.autoSyncFromGoogle;
-
-		await this.sql`
-			INSERT INTO app_event_store_settings (
-				singleton,
-				auto_sync_from_google,
-				updated_at
-			)
-			VALUES (TRUE, ${nextAutoSync}, NOW())
-			ON CONFLICT (singleton)
-			DO UPDATE SET
-				auto_sync_from_google = EXCLUDED.auto_sync_from_google,
-				updated_at = NOW()
-		`;
-
-		return this.getSettings();
 	}
 
 	async getColumns(): Promise<EventSheetColumnRecord[]> {

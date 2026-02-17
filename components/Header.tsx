@@ -7,7 +7,7 @@ import SlidingBanner from "@/components/SlidingBanner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/features/auth/auth-context";
+import { useOptionalAuth } from "@/features/auth/auth-context";
 import Countdown from "@/features/events/components/Countdown";
 import type { SlidingBannerPublicSettings } from "@/features/site-settings/types";
 // Note: Using process.env directly to avoid server-side env variable access on client
@@ -42,7 +42,7 @@ type HeaderProps = {
 
 const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 	const { isAuthenticated, isAdminAuthenticated, userEmail, logout } =
-		useAuth();
+		useOptionalAuth();
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
 	const [scrollState, setScrollState] = useState({
 		compressed: false,

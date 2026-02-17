@@ -1,5 +1,582 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-02-17T17:55:44.778Z",
-  "locations": {}
+  "lastUpdated": "2026-02-17T18:46:19.130Z",
+  "locations": {
+    "139_rue_du_temple_3": {
+      "id": "139_rue_du_temple_3",
+      "name": "139 Rue du Temple",
+      "arrondissement": 3,
+      "coordinates": {
+        "lat": 48.8644,
+        "lng": 2.3615
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:36:59.009Z"
+    },
+    "folies_pigalle_9": {
+      "id": "folies_pigalle_9",
+      "name": "Folies Pigalle",
+      "arrondissement": 9,
+      "coordinates": {
+        "lat": 48.8785,
+        "lng": 2.3373
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:36:59.009Z"
+    },
+    "64_bd_diderot_12": {
+      "id": "64_bd_diderot_12",
+      "name": "64 Bd Diderot",
+      "arrondissement": 12,
+      "coordinates": {
+        "lat": 48.8448,
+        "lng": 2.389
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:36:59.009Z"
+    },
+    "titi_palacio_4": {
+      "id": "titi_palacio_4",
+      "name": "TiTi Palacio",
+      "arrondissement": 4,
+      "coordinates": {
+        "lat": 48.8551,
+        "lng": 2.3618
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:05.606Z"
+    },
+    "mama_shelter_paris_east_20": {
+      "id": "mama_shelter_paris_east_20",
+      "name": "Mama Shelter Paris East",
+      "arrondissement": 20,
+      "coordinates": {
+        "lat": 48.8632,
+        "lng": 2.3969
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:05.626Z"
+    },
+    "belushi's_paris_(canal)_19": {
+      "id": "belushi's_paris_(canal)_19",
+      "name": "Belushi's Paris (Canal)",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.8799,
+        "lng": 2.3781
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:05.644Z"
+    },
+    "california_avenue_1": {
+      "id": "california_avenue_1",
+      "name": "California Avenue",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8606,
+        "lng": 2.3376
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:05.647Z"
+    },
+    "level_paris_club_8": {
+      "id": "level_paris_club_8",
+      "name": "Level Paris Club",
+      "arrondissement": 8,
+      "coordinates": {
+        "lat": 48.8736,
+        "lng": 2.3111
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:58.406Z"
+    },
+    "folie's_pigalle_9": {
+      "id": "folie's_pigalle_9",
+      "name": "Folie's Pigalle",
+      "arrondissement": 9,
+      "coordinates": {
+        "lat": 48.8785,
+        "lng": 2.3373
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:58.408Z"
+    },
+    "211_19": {
+      "id": "211_19",
+      "name": "211",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.8799,
+        "lng": 2.3781
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:58.409Z"
+    },
+    "la_calavados_8": {
+      "id": "la_calavados_8",
+      "name": "La Calavados",
+      "arrondissement": 8,
+      "coordinates": {
+        "lat": 48.8736,
+        "lng": 2.3111
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:58.414Z"
+    },
+    "la_java_10": {
+      "id": "la_java_10",
+      "name": "La Java",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.876,
+        "lng": 2.359
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:58.415Z"
+    },
+    "carré_montparnasse_14": {
+      "id": "carré_montparnasse_14",
+      "name": "Carré Montparnasse",
+      "arrondissement": 14,
+      "coordinates": {
+        "lat": 48.8339,
+        "lng": 2.3273
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:59.415Z"
+    },
+    "bridge_club_15": {
+      "id": "bridge_club_15",
+      "name": "Bridge Club",
+      "arrondissement": 15,
+      "coordinates": {
+        "lat": 48.8422,
+        "lng": 2.2966
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:59.419Z"
+    },
+    "yoyo_16": {
+      "id": "yoyo_16",
+      "name": "YOYO",
+      "arrondissement": 16,
+      "coordinates": {
+        "lat": 48.8555,
+        "lng": 2.269
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:59.430Z"
+    },
+    "la_bellevilloise_20": {
+      "id": "la_bellevilloise_20",
+      "name": "La Bellevilloise",
+      "arrondissement": 20,
+      "coordinates": {
+        "lat": 48.8632,
+        "lng": 2.3969
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:59.441Z"
+    },
+    "wanderlust_13": {
+      "id": "wanderlust_13",
+      "name": "Wanderlust",
+      "arrondissement": 13,
+      "coordinates": {
+        "lat": 48.8322,
+        "lng": 2.3647
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:40:59.444Z"
+    },
+    "la_nuit_9": {
+      "id": "la_nuit_9",
+      "name": "La Nuit",
+      "arrondissement": 9,
+      "coordinates": {
+        "lat": 48.8785,
+        "lng": 2.3373
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:42:04.830Z"
+    },
+    "jump_in_bastille_11": {
+      "id": "jump_in_bastille_11",
+      "name": "Jump in bastille",
+      "arrondissement": 11,
+      "coordinates": {
+        "lat": 48.8594,
+        "lng": 2.3765
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:42:04.831Z"
+    },
+    "bateau_concorde_atlantique_7": {
+      "id": "bateau_concorde_atlantique_7",
+      "name": "Bateau Concorde Atlantique",
+      "arrondissement": 7,
+      "coordinates": {
+        "lat": 48.8566,
+        "lng": 2.3165
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:42:04.833Z"
+    },
+    "movida_club_19": {
+      "id": "movida_club_19",
+      "name": "Movida Club",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.8799,
+        "lng": 2.3781
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:42:04.835Z"
+    },
+    "solum_7": {
+      "id": "solum_7",
+      "name": "Solum",
+      "arrondissement": 7,
+      "coordinates": {
+        "lat": 48.8566,
+        "lng": 2.3165
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:42:04.857Z"
+    },
+    "le_mondial_10": {
+      "id": "le_mondial_10",
+      "name": "Le Mondial",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.876,
+        "lng": 2.359
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:43:27.826Z"
+    },
+    "the_hideout_clothing_·_thc_-_paris_3": {
+      "id": "the_hideout_clothing_·_thc_-_paris_3",
+      "name": "The Hideout Clothing · THC - Paris",
+      "arrondissement": 3,
+      "coordinates": {
+        "lat": 48.8644,
+        "lng": 2.3615
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:43:27.830Z"
+    },
+    "2_pass._du_jeu_de_boules_3": {
+      "id": "2_pass._du_jeu_de_boules_3",
+      "name": "2 Pass. du Jeu de Boules",
+      "arrondissement": 3,
+      "coordinates": {
+        "lat": 48.8644,
+        "lng": 2.3615
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:43:27.831Z"
+    },
+    "36_rue_notre_dame_de_nazareth_3": {
+      "id": "36_rue_notre_dame_de_nazareth_3",
+      "name": "36 Rue Notre Dame de Nazareth",
+      "arrondissement": 3,
+      "coordinates": {
+        "lat": 48.8644,
+        "lng": 2.3615
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:43:27.834Z"
+    },
+    "esplanade_nathalie_sarraute_18": {
+      "id": "esplanade_nathalie_sarraute_18",
+      "name": "Esplanade Nathalie Sarraute",
+      "arrondissement": 18,
+      "coordinates": {
+        "lat": 48.8927,
+        "lng": 2.3436
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:43:40.463Z"
+    },
+    "velvet_bar_paris_1": {
+      "id": "velvet_bar_paris_1",
+      "name": "Velvet Bar Paris",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8606,
+        "lng": 2.3376
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:43:40.464Z"
+    },
+    "kalbas_1": {
+      "id": "kalbas_1",
+      "name": "Kalbas",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8606,
+        "lng": 2.3376
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:43:40.465Z"
+    },
+    "place_joachim_du_bellay_1": {
+      "id": "place_joachim_du_bellay_1",
+      "name": "Place Joachim du Bellay",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8606,
+        "lng": 2.3376
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:43:40.470Z"
+    },
+    "petit_bao_-_faubourg_saint-denis_10": {
+      "id": "petit_bao_-_faubourg_saint-denis_10",
+      "name": "Petit Bao - Faubourg Saint-Denis",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.876,
+        "lng": 2.359
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:43:41.535Z"
+    },
+    "safe_concept_3": {
+      "id": "safe_concept_3",
+      "name": "SAFE Concept",
+      "arrondissement": 3,
+      "coordinates": {
+        "lat": 48.8644,
+        "lng": 2.3615
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:43:41.536Z"
+    },
+    "132_rue_rambuteau_1": {
+      "id": "132_rue_rambuteau_1",
+      "name": "132 Rue Rambuteau",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8606,
+        "lng": 2.3376
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:43:41.536Z"
+    },
+    "18_av._richerand_10": {
+      "id": "18_av._richerand_10",
+      "name": "18 Av. Richerand",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.876,
+        "lng": 2.359
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:43:41.537Z"
+    },
+    "zinga_10": {
+      "id": "zinga_10",
+      "name": "Zinga",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.876,
+        "lng": 2.359
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:45:36.807Z"
+    },
+    "griffon_4": {
+      "id": "griffon_4",
+      "name": "Griffon",
+      "arrondissement": 4,
+      "coordinates": {
+        "lat": 48.8551,
+        "lng": 2.3618
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:45:36.810Z"
+    },
+    "valma_brasserie_provençale_10": {
+      "id": "valma_brasserie_provençale_10",
+      "name": "Valma Brasserie Provençale",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.876,
+        "lng": 2.359
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:45:36.814Z"
+    },
+    "porte_saint-denis_2": {
+      "id": "porte_saint-denis_2",
+      "name": "Porte Saint-Denis",
+      "arrondissement": 2,
+      "coordinates": {
+        "lat": 48.8677,
+        "lng": 2.3414
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:45:36.820Z"
+    },
+    "le_verre_taquin_/_la_taquinerie_10": {
+      "id": "le_verre_taquin_/_la_taquinerie_10",
+      "name": "Le Verre Taquin / La Taquinerie",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.876,
+        "lng": 2.359
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:45:36.835Z"
+    },
+    "67_rue_d'aboukir_2": {
+      "id": "67_rue_d'aboukir_2",
+      "name": "67 Rue d'Aboukir",
+      "arrondissement": 2,
+      "coordinates": {
+        "lat": 48.8677,
+        "lng": 2.3414
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:46:18.216Z"
+    },
+    "le_bunker_paris_18": {
+      "id": "le_bunker_paris_18",
+      "name": "Le Bunker Paris",
+      "arrondissement": 18,
+      "coordinates": {
+        "lat": 48.8927,
+        "lng": 2.3436
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:46:18.217Z"
+    },
+    "café_divan_11": {
+      "id": "café_divan_11",
+      "name": "Café Divan",
+      "arrondissement": 11,
+      "coordinates": {
+        "lat": 48.8594,
+        "lng": 2.3765
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:46:18.217Z"
+    },
+    "bomaye_burger_paradis_10": {
+      "id": "bomaye_burger_paradis_10",
+      "name": "Bomaye Burger Paradis",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.876,
+        "lng": 2.359
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:46:18.231Z"
+    },
+    "trabendo_19": {
+      "id": "trabendo_19",
+      "name": "Trabendo",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.8799,
+        "lng": 2.3781
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:46:19.093Z"
+    },
+    "7_rue_tiquetonne_2": {
+      "id": "7_rue_tiquetonne_2",
+      "name": "7 Rue Tiquetonne",
+      "arrondissement": 2,
+      "coordinates": {
+        "lat": 48.8677,
+        "lng": 2.3414
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:46:19.096Z"
+    },
+    "djoon_club_13": {
+      "id": "djoon_club_13",
+      "name": "Djoon Club",
+      "arrondissement": 13,
+      "coordinates": {
+        "lat": 48.8322,
+        "lng": 2.3647
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:46:19.101Z"
+    },
+    "obey_1": {
+      "id": "obey_1",
+      "name": "OBEY",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8606,
+        "lng": 2.3376
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:46:19.103Z"
+    },
+    "bb_restaurant_9": {
+      "id": "bb_restaurant_9",
+      "name": "BB RESTAURANT",
+      "arrondissement": 9,
+      "coordinates": {
+        "lat": 48.8785,
+        "lng": 2.3373
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:46:19.120Z"
+    }
+  }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Event } from "@/features/events/types";
+import { clientLog } from "@/lib/platform/client-logger";
 import {
 	MUSIC_GENRES,
 	NATIONALITIES,
@@ -374,7 +375,7 @@ const generateShareableImage = async (
 
 		triggerDownload(blob);
 	} catch (error) {
-		console.error("Error generating shareable image:", error);
+		clientLog.error("share-image", "Error generating shareable image", undefined, error);
 		throw error;
 	} finally {
 		if (document.body.contains(container)) {

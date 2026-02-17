@@ -2,6 +2,7 @@ import "server-only";
 
 import path from "path";
 import { isPostgresConfigured } from "@/lib/platform/postgres/postgres-client";
+import { log } from "@/lib/platform/logger";
 import { FileKVStore } from "./file-kv-store";
 import type { KeyValueStore, KVProviderInfo } from "./kv-types";
 import { MemoryKVStore } from "./memory-kv-store";
@@ -30,10 +31,9 @@ const createStore = async (): Promise<{
 				},
 			};
 		} catch (error) {
-			console.warn(
-				"Failed to initialize Postgres KV store. Falling back to file provider:",
-				error instanceof Error ? error.message : "Unknown error",
-			);
+			log.warn("kv", "Failed to initialize Postgres KV store; falling back to file", {
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
 		}
 	}
 
@@ -48,10 +48,9 @@ const createStore = async (): Promise<{
 				info: { provider: "file", location: filePath },
 			};
 		} catch (error) {
-			console.warn(
-				"Failed to initialize file KV store. Falling back to memory provider:",
-				error instanceof Error ? error.message : "Unknown error",
-			);
+			log.warn("kv", "Failed to initialize file KV store; falling back to memory", {
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
 		}
 	}
 

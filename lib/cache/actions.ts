@@ -1,6 +1,7 @@
 "use server";
 
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
+import { log } from "@/lib/platform/logger";
 import { CacheManager } from "./cache-manager";
 
 /**
@@ -31,7 +32,7 @@ export async function revalidatePages(
 	"use server";
 
 	const startTime = Date.now();
-	console.log("🔄 Revalidate server action called");
+	log.info("cache", "Revalidate server action called");
 
 	// Verify admin access
 	if (!(await validateAdminAccess(keyOrToken))) {
@@ -54,9 +55,9 @@ export async function revalidatePages(
 			normalizedPath.includes("..") ||
 			!normalizedPath.match(/^\/[\w\-\/]*$/)
 		) {
-			console.warn(
-				`⚠️ Invalid path provided, falling back to root: ${inputPath}`,
-			);
+			log.warn("cache", "Invalid revalidate path provided; using root", {
+				inputPath,
+			});
 			return "/";
 		}
 
@@ -65,20 +66,20 @@ export async function revalidatePages(
 
 	const normalizedPath = normalizePath(path);
 
-	console.log("📋 Revalidate request:", {
+	log.info("cache", "Revalidate request", {
 		normalizedPath,
 		timestamp: new Date().toISOString(),
 	});
 
 	try {
-		console.log("✅ Admin access verified, starting full revalidation...");
+		log.info("cache", "Admin access verified; starting full revalidation");
 
 		// Use the centralized cache manager for full revalidation
 		const revalidationResult =
 			await CacheManager.fullRevalidation(normalizedPath);
 
 		const processingTime = Date.now() - startTime;
-		console.log(`✅ Revalidation completed in ${processingTime}ms`);
+		log.info("cache", "Revalidation completed", { processingTimeMs: processingTime });
 
 		return {
 			...revalidationResult,
@@ -86,7 +87,7 @@ export async function revalidatePages(
 		};
 	} catch (error) {
 		const processingTime = Date.now() - startTime;
-		console.error("❌ Revalidation error:", error);
+		log.error("cache", "Revalidation error", undefined, error);
 
 		return {
 			success: false,
