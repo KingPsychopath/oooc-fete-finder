@@ -45,7 +45,7 @@ export const LiveEventsSnapshotCard = ({
 
 			setResponseMode(mode);
 			const cachedModeSnapshot = modeSnapshotsRef.current[mode];
-			if (!forceNetwork && cachedModeSnapshot) {
+			if (!forceNetwork && cachedModeSnapshot?.success) {
 				setSnapshot(cachedModeSnapshot);
 				return;
 			}
