@@ -14,6 +14,13 @@ type ModalOption = {
 	highlightClassName: string;
 };
 
+type WildConcept = {
+	id: string;
+	name: string;
+	description: string;
+	className: string;
+};
+
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const MODAL_OPTIONS: ModalOption[] = [
@@ -119,6 +126,33 @@ const MODAL_OPTIONS: ModalOption[] = [
 		actionSecondaryClassName:
 			"border-[#bc9b6e] bg-[#f4e6d2] text-[#4b341d] hover:bg-[#ebdbc3]",
 		highlightClassName: "border-[#c3a37a] bg-[#f2e2ca]",
+	},
+];
+
+const WILD_CONCEPTS: WildConcept[] = [
+	{
+		id: "W1",
+		name: "Metro Departure Board",
+		description:
+			"A split board with countdown-first UX: departure-time style hierarchy for fast scanning.",
+		className:
+			"border-[#2f3f37] bg-[linear-gradient(180deg,#0f1714_0%,#17241f_100%)] text-[#d5e5d8]",
+	},
+	{
+		id: "W2",
+		name: "Travel Passport Stamp",
+		description:
+			"Passport-card aesthetic with stamp metadata chips and an itinerary-like info order.",
+		className:
+			"border-[#b28957] bg-[radial-gradient(circle_at_20%_20%,#f8edd8,#f2dec0)] text-[#4b3520]",
+	},
+	{
+		id: "W3",
+		name: "Minimalist Timeline Strip",
+		description:
+			"Vertical timeline where each data row is an actionable step (when, where, cost, entry).",
+		className:
+			"border-border/70 bg-[linear-gradient(180deg,#f8f7f5_0%,#ece9e4_100%)] text-foreground",
 	},
 ];
 
@@ -316,6 +350,42 @@ export default function EventModalLabPage() {
 						</section>
 					))}
 				</div>
+
+				<section className="mt-10">
+					<div className="mb-4">
+						<p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">
+							Wild Concepts
+						</p>
+						<h2 className="text-2xl [font-family:var(--ooo-font-display)] font-light">
+							Random New Directions
+						</h2>
+						<p className="mt-1 text-sm text-muted-foreground">
+							More experimental ideas to spark direction before we commit production
+							time.
+						</p>
+					</div>
+					<div className="grid gap-4 lg:grid-cols-3">
+						{WILD_CONCEPTS.map((concept) => (
+							<article
+								key={concept.id}
+								className={`rounded-2xl border p-4 shadow-[0_20px_45px_-34px_rgba(0,0,0,0.45)] ${concept.className}`}
+							>
+								<p className="text-[11px] uppercase tracking-[0.16em] opacity-75">
+									{concept.id}
+								</p>
+								<h3 className="mt-1 text-lg [font-family:var(--ooo-font-display)] font-light">
+									{concept.name}
+								</h3>
+								<p className="mt-2 text-sm/relaxed opacity-85">
+									{concept.description}
+								</p>
+								<div className="mt-3 rounded-lg border border-current/20 px-3 py-2 text-xs opacity-85">
+									Core scan order: time, location, cost, venue, CTA.
+								</div>
+							</article>
+						))}
+					</div>
+				</section>
 			</div>
 		</div>
 	);

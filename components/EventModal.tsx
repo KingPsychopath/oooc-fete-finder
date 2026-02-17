@@ -26,10 +26,8 @@ import {
 	formatVenueTypeIcons,
 } from "@/types/events";
 import {
-	Calendar,
 	CalendarPlus,
 	Clock,
-	Euro,
 	ExternalLink,
 	MapPin,
 	Music,
@@ -72,13 +70,11 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 	} | null>(null);
 
 	const modalRef = useOutsideClick<HTMLDivElement>(() => {
-		// Only close EventModal if no overlays are open
 		if (isOpen && !showMapSelection && !showMapSettings) {
 			onClose();
 		}
 	});
 
-	// Reset map selection state when EventModal closes
 	useEffect(() => {
 		if (!isOpen) {
 			setShowMapSelection(false);
@@ -89,24 +85,20 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 
 	if (!isOpen || !event) return null;
 
-	// Handle map opening with preference support
 	const handleOpenLocation = async (
 		location: string,
 		arrondissement?: number | "unknown",
 	) => {
-		if (!isLoaded) return; // Wait for preferences to load
+		if (!isLoaded) return;
 
 		if (mapPreference === "ask") {
-			// Show selection modal
 			setPendingLocationData({ location, arrondissement });
 			setShowMapSelection(true);
 		} else {
-			// Use preferred map directly
 			await openLocationInMaps(location, arrondissement, mapPreference);
 		}
 	};
 
-	// Handle map selection from modal
 	const handleMapSelection = async (selectedProvider: MapProvider) => {
 		if (pendingLocationData) {
 			await openLocationInMaps(
@@ -119,7 +111,6 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		setShowMapSelection(false);
 	};
 
-	// Handle setting new preference from modal
 	const handleSetMapPreference = (provider: MapProvider) => {
 		setMapPreference(provider);
 	};
@@ -136,19 +127,15 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		}
 	};
 
-	// Helper to get all links (primary + secondary)
-	const allLinks =
-		event.links && event.links.length > 0 ? event.links : [event.link];
+	const allLinks = event.links && event.links.length > 0 ? event.links : [event.link];
 	const primaryLink = allLinks[0];
 	const secondaryLinks = allLinks.slice(1);
 
-	// Get genre color from MUSIC_GENRES
 	const getGenreColor = (genre: string) => {
 		const genreInfo = MUSIC_GENRES.find((g) => g.key === genre);
 		return genreInfo?.color || "bg-gray-100 text-gray-800";
 	};
 
-	// Handle share image generation
 	const handleShareError = (message: string) => {
 		alert(`Unable to generate shareable image: ${message}. Please try again.`);
 	};
@@ -158,270 +145,253 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		onError: handleShareError,
 	});
 
+	const hasTime = Boolean(event.time && event.time !== "TBC");
+	const hasEndTime = Boolean(event.endTime && event.endTime !== "TBC");
+	const timeRange =
+		hasTime ?
+			hasEndTime ? `${event.time} - ${event.endTime}`
+			: (event.time ?? "TBC")
+		: "TBC";
+	const venueTypeLabel =
+		event.venueTypes && event.venueTypes.length > 0 ?
+			event.venueTypes
+				.map((vt) => VENUE_TYPES.find((v) => v.key === vt)?.label)
+				.filter(Boolean)
+				.join(" & ")
+		: event.indoor ?
+			"Indoor"
+		: 	"Outdoor";
+	const locationLabel =
+		event.arrondissement === "unknown" ?
+			"Location TBC"
+		: 	`${event.arrondissement}e Arrondissement`;
+	const priceLabel = formatPrice(event.price);
+	const ageLabel = event.age || "All ages";
+
 	return (
-		<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]">
 			<Card
 				ref={modalRef}
-				className="w-full max-w-md max-h-[90vh] overflow-y-auto"
+				className="max-h-[90vh] w-full max-w-[38rem] overflow-y-auto rounded-[26px] border border-border/70 bg-card/95 shadow-[0_36px_90px_-52px_rgba(16,12,8,0.82)]"
 			>
-				<CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
-					<div className="flex-1">
-						<div className="flex items-center space-x-2 mb-2">
-							<CardTitle className="text-xl">{event.name}</CardTitle>
-							{event.isOOOCPick && (
-								<div className="flex items-center space-x-1">
-									<span className="text-yellow-500">🌟</span>
-									<Badge className="bg-yellow-400 text-black hover:bg-yellow-500">
-										<Star className="h-3 w-3 mr-1 fill-current" />
-										OOOC Pick
-									</Badge>
-								</div>
-							)}
+				<CardHeader className="pb-3">
+					<div className="flex items-start justify-between gap-3">
+						<div className="min-w-0 flex-1">
+							<p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+								Out Of Office Collective
+							</p>
+							<div className="mt-1 flex flex-wrap items-center gap-2">
+								<CardTitle className="break-words text-[clamp(1.4rem,3.8vw,2rem)] [font-family:var(--ooo-font-display)] font-light leading-tight">
+									{event.name}
+								</CardTitle>
+								{event.isOOOCPick && <span className="text-yellow-500">🌟</span>}
+							</div>
 						</div>
-						<div className="flex flex-wrap gap-2">
-							{event.category && (
-								<Badge
-									className={
-										CATEGORY_COLORS[event.category] ||
-										"bg-gray-100 text-gray-800"
-									}
-								>
-									<Tag className="h-3 w-3 mr-1" />
-									{event.category}
-								</Badge>
-							)}
-							{event.genre && event.genre.length > 0 && (
-								<>
-									{event.genre.map((genre) => (
-										<Badge
-											key={genre}
-											className={`${getGenreColor(genre)} dark:bg-opacity-20`}
-										>
-											<Music className="h-3 w-3 mr-1" />
-											{genre}
-										</Badge>
-									))}
-								</>
-							)}
-						</div>
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={onClose}
+							className="h-11 w-11 shrink-0 rounded-xl border-border/70 bg-background/70 hover:bg-accent"
+						>
+							<X className="h-5 w-5" />
+						</Button>
 					</div>
-					<Button
-						variant="outline"
-						size="icon"
-						onClick={onClose}
-						className="h-8 w-8"
-					>
-						<X className="h-4 w-4" />
-					</Button>
+
+					<div className="mt-3 flex flex-wrap items-center gap-2">
+						{event.isOOOCPick && (
+							<Badge className="border-yellow-300 bg-yellow-400 text-black hover:bg-yellow-500">
+								<Star className="mr-1 h-3.5 w-3.5 fill-current" />
+								OOOC Pick
+							</Badge>
+						)}
+						{event.category && (
+							<Badge
+								className={
+									CATEGORY_COLORS[event.category] || "bg-gray-100 text-gray-800"
+								}
+							>
+								<Tag className="mr-1 h-3 w-3" />
+								{event.category}
+							</Badge>
+						)}
+						{event.genre?.map((genre) => (
+							<Badge
+								key={genre}
+								className={`${getGenreColor(genre)} border border-white/20 dark:bg-opacity-25`}
+							>
+								<Music className="mr-1 h-3 w-3" />
+								{genre}
+							</Badge>
+						))}
+					</div>
 				</CardHeader>
 
-				<CardContent className="space-y-4">
-					{/* Day and Time */}
-					<div className="flex items-center space-x-2">
-						<Calendar className="h-4 w-4 text-muted-foreground" />
-						<span className="text-sm">
-							{formatDayWithDate(event.day, event.date)}
-							{event.time && event.time !== "TBC" && (
-								<>
-									{" "}
-									at <span className="font-mono font-medium">{event.time}</span>
-									{event.endTime && event.endTime !== "TBC" && (
-										<>
-											{" - "}
-											<span className="font-mono font-medium">
-												{event.endTime}
-											</span>
-										</>
-									)}
-								</>
-							)}
-							{event.time === "TBC" && (
-								<Badge variant="outline" className="ml-2">
-									Time TBC
-								</Badge>
-							)}
-						</span>
-					</div>
-
-					{/* Location */}
-					<div className="flex items-start space-x-2">
-						<MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-						<div className="text-sm flex-1">
-							<div className="font-medium flex items-center justify-between">
-								<span>
-									{event.arrondissement === "unknown"
-										? "Location TBC"
-										: `${event.arrondissement}e Arrondissement`}
-								</span>
-								<TooltipProvider>
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												onClick={() => setShowMapSettings(!showMapSettings)}
-												className="h-6 w-6 hover:bg-muted"
-											>
-												<Settings className="h-3 w-3" />
-											</Button>
-										</TooltipTrigger>
-										<TooltipContent>
-											<p>Map preferences</p>
-										</TooltipContent>
-									</Tooltip>
-								</TooltipProvider>
-							</div>
-							{event.location && event.location !== "TBA" && (
-								<button
-									onClick={() =>
-										handleOpenLocation(event.location!, event.arrondissement)
-									}
-									className="text-muted-foreground hover:text-primary hover:underline transition-colors text-left min-h-[44px] py-2 -my-2 pr-2 -mr-2 flex items-center"
-									title={`Open "${event.location}" in maps`}
-								>
-									{event.location}
-								</button>
-							)}
-							{(!event.location || event.location === "TBA") && (
-								<Badge variant="outline" className="mt-1">
-									Location TBA
-								</Badge>
-							)}
-
-							{/* Map Settings Panel */}
-							{showMapSettings && (
-								<div className="mt-3 pt-3 border-t">
-									<MapPreferenceSettings
-										compact={true}
-										showTitle={false}
-										className="w-full"
-									/>
-								</div>
-							)}
+				<CardContent className="space-y-4 pt-0">
+					<div className="grid gap-2 rounded-xl border border-border/70 bg-background/55 p-3 sm:grid-cols-2">
+						<div className="rounded-lg border border-border/70 bg-background/80 px-3 py-2">
+							<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+								Date
+							</p>
+							<p className="mt-1 break-words text-sm font-medium">
+								{formatDayWithDate(event.day, event.date)}
+							</p>
 						</div>
-					</div>
-
-					{/* Venue Type */}
-					{(event.venueTypes && event.venueTypes.length > 0) ||
-					event.indoor !== undefined ? (
-						<div className="flex items-center space-x-2">
-							<div className="h-4 w-4 text-muted-foreground flex items-center justify-center text-sm">
-								{formatVenueTypeIcons(event)}
-							</div>
-							<div className="text-sm">
-								<span className="font-medium">
-									{event.venueTypes && event.venueTypes.length > 0
-										? event.venueTypes
-												.map(
-													(vt) => VENUE_TYPES.find((v) => v.key === vt)?.label,
-												)
-												.filter(Boolean)
-												.join(" & ")
-										: event.indoor
-											? "Indoor"
-											: "Outdoor"}{" "}
-									Venue
-								</span>
-							</div>
+						<div className="rounded-lg border border-border/70 bg-background/80 px-3 py-2">
+							<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+								Time
+							</p>
+							<p className="mt-1 text-sm font-medium">{timeRange}</p>
 						</div>
-					) : null}
-
-					{/* Price and Age */}
-					<div className="flex items-center space-x-4">
-						<div className="flex items-center space-x-2">
-							<Euro className="h-4 w-4 text-muted-foreground" />
-							<span
-								className={`text-sm font-medium ${
-									formatPrice(event.price) === "Free"
-										? "text-green-600 dark:text-green-400"
-										: "text-gray-900 dark:text-gray-100"
+						<div className="rounded-lg border border-border/70 bg-background/80 px-3 py-2">
+							<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+								Venue Type
+							</p>
+							<p className="mt-1 text-sm font-medium">
+								<span className="mr-1.5">{formatVenueTypeIcons(event)}</span>
+								{venueTypeLabel}
+							</p>
+						</div>
+						<div className="rounded-lg border border-border/70 bg-background/80 px-3 py-2">
+							<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+								Price
+							</p>
+							<p
+								className={`mt-1 text-sm font-medium ${
+									priceLabel === "Free" ?
+										"text-green-600 dark:text-green-400"
+									: 	"text-foreground"
 								}`}
 							>
-								{formatPrice(event.price)}
-							</span>
+								{priceLabel}
+							</p>
 						</div>
-						{event.age && (
-							<div className="flex items-center space-x-2">
-								<User className="h-4 w-4 text-muted-foreground" />
-								<span className="text-sm text-muted-foreground">
-									{event.age}
-								</span>
+					</div>
+
+					<div className="rounded-xl border border-border/70 bg-background/55 p-3">
+						<div className="flex items-start gap-2">
+							<MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
+							<div className="min-w-0 flex-1">
+								<div className="flex items-center justify-between gap-2">
+									<p className="text-sm font-medium">{locationLabel}</p>
+									<TooltipProvider>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => setShowMapSettings(!showMapSettings)}
+													className="h-8 px-2 text-xs"
+												>
+													<Settings className="mr-1 h-3.5 w-3.5" />
+													Map settings
+												</Button>
+											</TooltipTrigger>
+											<TooltipContent>
+												<p>Map preferences</p>
+											</TooltipContent>
+										</Tooltip>
+									</TooltipProvider>
+								</div>
+
+								{event.location && event.location !== "TBA" ? (
+									<button
+										onClick={() =>
+											handleOpenLocation(event.location!, event.arrondissement)
+										}
+										className="mt-1 min-h-[44px] break-words text-left text-sm text-muted-foreground transition-colors hover:text-primary hover:underline"
+										title={`Open "${event.location}" in maps`}
+									>
+										{event.location}
+									</button>
+								) : (
+									<Badge variant="outline" className="mt-2">
+										Location TBA
+									</Badge>
+								)}
+
+								<div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+									<User className="h-3.5 w-3.5" />
+									<span>{ageLabel}</span>
+								</div>
+							</div>
+						</div>
+
+						{showMapSettings && (
+							<div className="mt-3 border-t border-border/60 pt-3">
+								<MapPreferenceSettings
+									compact={true}
+									showTitle={false}
+									className="w-full"
+								/>
 							</div>
 						)}
 					</div>
 
-					{/* Description */}
 					{event.description && (
-						<div>
-							<h4 className="font-medium mb-2">Notes</h4>
-							<p className="text-sm text-muted-foreground">
+						<div className="rounded-xl border border-border/70 bg-background/55 p-3">
+							<h4 className="mb-1.5 text-sm font-medium">Notes</h4>
+							<p className="text-sm leading-relaxed text-muted-foreground">
 								{event.description}
 							</p>
 						</div>
 					)}
 
-					{/* Verification Status */}
-					<div className="flex items-center space-x-2">
+					<div className="flex items-center gap-2 text-xs text-muted-foreground">
 						<div
-							className={`w-2 h-2 rounded-full ${event.verified ? "bg-green-500" : "bg-yellow-500"}`}
+							className={`h-2 w-2 rounded-full ${
+								event.verified ? "bg-green-500" : "bg-yellow-500"
+							}`}
 						/>
-						<span className="text-xs text-muted-foreground">
-							{event.verified
-								? "Verified event"
-								: "Unverified - details may change"}
+						<span>
+							{event.verified ?
+								"Verified event"
+							: 	"Unverified - details may change"}
 						</span>
 					</div>
 
-					{/* Actions */}
-					<div className="flex flex-col space-y-2 pt-4 border-t">
+					<div className="space-y-2 border-t border-border/70 pt-4">
 						{primaryLink && primaryLink !== "#" ? (
 							<Button
 								onClick={() =>
 									window.open(primaryLink, "_blank", "noopener,noreferrer")
 								}
-								className="w-full"
+								className="h-11 w-full"
 								title={primaryLink}
 							>
-								<ExternalLink className="h-4 w-4 mr-2" />
+								<ExternalLink className="mr-2 h-4 w-4" />
 								{getLinkButtonText(primaryLink)}
 							</Button>
 						) : (
-							<Button disabled className="w-full">
-								<Clock className="h-4 w-4 mr-2" />
+							<Button disabled className="h-11 w-full">
+								<Clock className="mr-2 h-4 w-4" />
 								Link Coming Soon
 							</Button>
 						)}
 
-						{/* Action Buttons Row */}
-						<div className="flex flex-col sm:flex-row gap-2">
-							{/* Add to Calendar Button */}
+						<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 							<Button
 								variant="outline"
 								onClick={() => addToCalendar(event)}
-								className="flex-1 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-900"
+								className="h-11 border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 								title="Add event to your calendar"
 							>
-								<CalendarPlus className="h-4 w-4 mr-2" />
-								<span className="hidden sm:inline">Add to Calendar</span>
-								<span className="sm:hidden">Calendar</span>
+								<CalendarPlus className="mr-2 h-4 w-4" />
+								Add to Calendar
 							</Button>
 
-							{/* Share Button */}
 							<Button
 								variant="outline"
 								onClick={shareImageGenerator.generateImage}
-								className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 hover:from-purple-600 hover:to-pink-600"
+								className="h-11 border-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600"
 								title="Share event to social media story"
 							>
-								<Share className="h-4 w-4 mr-2" />
-								<span className="hidden sm:inline">Share to Story</span>
-								<span className="sm:hidden">Share</span>
+								<Share className="mr-2 h-4 w-4" />
+								Share to Story
 							</Button>
 						</div>
 
-						{/* Secondary links as smaller buttons */}
 						{secondaryLinks.length > 0 && (
-							<div className="flex flex-col space-y-1">
+							<div className="space-y-1">
 								{secondaryLinks.map((link) => (
 									<Button
 										key={link}
@@ -433,20 +403,20 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 										className="w-full"
 										title={link}
 									>
-										<ExternalLink className="h-3 w-3 mr-1" />
+										<ExternalLink className="mr-1 h-3 w-3" />
 										{getLinkButtonText(link)}
 									</Button>
 								))}
 							</div>
 						)}
-						<Button variant="outline" onClick={onClose} className="w-full">
+
+						<Button variant="outline" onClick={onClose} className="h-11 w-full">
 							Close
 						</Button>
 					</div>
 
-					{/* Data Notice */}
-					<div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg">
-						<p className="font-medium mb-1">Event Information</p>
+					<div className="rounded-xl border border-border/70 bg-muted/35 p-3 text-xs text-muted-foreground">
+						<p className="mb-1 font-medium">Event Information</p>
 						<p>
 							This information is preliminary. Please check the official event
 							page for the most up-to-date details including exact location,
@@ -456,7 +426,6 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 				</CardContent>
 			</Card>
 
-			{/* Map Selection Modal */}
 			<MapSelectionModal
 				isOpen={showMapSelection}
 				onClose={() => {
