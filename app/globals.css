@@ -291,3 +291,16 @@
 	font-size: 1.125rem;
 	letter-spacing: 0.02em;
 }
+
+@keyframes slide-banner {
+	0% {
+		transform: translateX(100%);
+	}
+	100% {
+		transform: translateX(-100%);
+	}
+}
+
+.animate-slide-banner {
+	animation: slide-banner linear infinite;
+}

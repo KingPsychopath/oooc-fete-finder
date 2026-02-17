@@ -69,6 +69,7 @@ One-line startup banner (data mode, DB, geocoding). Runtime logs use `lib/platfo
 - `docs/geocoding.md` — Geocoding API and arrondissement fallback
 - `docs/postgres-migration.md` — Postgres migration
 - `docs/google-integrations.md` — Google backup/import
+- `docs/architecture.md` — rendering/auth/cache contract (public static-first + server-authenticated admin)
 
 ## Development
 
@@ -103,3 +104,9 @@ All admin endpoints require valid admin auth.
 - `docs/postgres-migration.md` — Postgres migration
 - `docs/environment-variables.md` — env reference
 - `docs/google-integrations.md` — Google backup/import
+
+## Future Architecture Option
+
+- Keep current static-first rendering for best ISR/cache performance.
+- Optional future upgrade: dynamic auth island (partial prerendering boundary) so auth-dependent UI is request-correct on first paint while preserving static shell/cache for the rest of the page.
+- Tradeoff: higher implementation/runtime complexity in exchange for eliminating auth bootstrap reconciliation on first paint.
