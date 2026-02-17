@@ -16,7 +16,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { getSessionToken } from "@/lib/admin/admin-session";
 import { analyzeDateFormats } from "@/lib/data-management/actions";
 import type { DateFormatWarning } from "@/lib/data-management/validation/date-warnings";
 import {
@@ -113,18 +112,11 @@ export const DateFormatNotificationsCard = ({
 			return;
 		}
 
-		// Get session token - this should be available if user is authenticated
-		const sessionToken = getSessionToken();
-		if (!sessionToken) {
-			setError("No valid session found. Please re-authenticate.");
-			return;
-		}
-
 		setLoading(true);
 		setError("");
 
 		try {
-			const result = await analyzeDateFormats(sessionToken);
+			const result = await analyzeDateFormats();
 
 			if (result.success) {
 				setRealWarnings(result.warnings || []);

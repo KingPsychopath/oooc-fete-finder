@@ -10,10 +10,7 @@ const EVENTS_CSV_KEY = "events-store:csv";
 const EVENTS_META_KEY = "events-store:meta";
 const EVENTS_SETTINGS_KEY = "events-store:settings";
 
-export type EventStoreSourcePreference = "store-first" | "google-first";
-
 export interface EventStoreSettings {
-	sourcePreference: EventStoreSourcePreference;
 	autoSyncFromGoogle: boolean;
 	updatedAt: string;
 }
@@ -29,19 +26,21 @@ interface EventStoreMetadata {
 export interface EventStoreStatus {
 	hasStoreData: boolean;
 	rowCount: number;
+	keyCount: number;
 	updatedAt: string | null;
 	updatedBy: string | null;
 	origin: EventStoreMetadata["origin"] | null;
-	sourcePreference: EventStoreSourcePreference;
 	autoSyncFromGoogle: boolean;
 	provider: "file" | "memory" | "postgres";
 	providerLocation: string;
 }
 
 type StorePreviewRow = Record<string, string>;
+interface StorePreviewOptions {
+	random?: boolean;
+}
 
 const DEFAULT_SETTINGS: EventStoreSettings = {
-	sourcePreference: "store-first",
 	autoSyncFromGoogle: false,
 	updatedAt: new Date(0).toISOString(),
 };
@@ -70,16 +69,29 @@ const buildChecksum = (csvContent: string): string => {
 const countRows = (rows: CSVEventRow[]): number => rows.length;
 
 export class LocalEventStore {
+	private static sampleRows<T>(rows: T[], count: number): T[] {
+		if (rows.length <= count) {
+			return rows.slice();
+		}
+
+		const shuffled = rows.slice();
+		for (let index = shuffled.length - 1; index > 0; index -= 1) {
+			const randomIndex = Math.floor(Math.random() * (index + 1));
+			[shuffled[index], shuffled[randomIndex]] = [
+				shuffled[randomIndex],
+				shuffled[index],
+			];
+		}
+
+		return shuffled.slice(0, count);
+	}
+
 	static async getSettings(): Promise<EventStoreSettings> {
 		const kv = await getKVStore();
 		const raw = await kv.get(EVENTS_SETTINGS_KEY);
 		const settings = parseJson<EventStoreSettings>(raw, DEFAULT_SETTINGS);
 
 		return {
-			sourcePreference:
-				settings.sourcePreference === "google-first"
-					? "google-first"
-					: "store-first",
 			autoSyncFromGoogle: Boolean(settings.autoSyncFromGoogle),
 			updatedAt:
 				typeof settings.updatedAt === "string"
@@ -89,14 +101,11 @@ export class LocalEventStore {
 	}
 
 	static async updateSettings(
-		updates: Partial<Pick<EventStoreSettings, "sourcePreference" | "autoSyncFromGoogle">>,
+		updates: Partial<Pick<EventStoreSettings, "autoSyncFromGoogle">>,
 	): Promise<EventStoreSettings> {
 		const kv = await getKVStore();
 		const current = await this.getSettings();
 		const next: EventStoreSettings = {
-			sourcePreference:
-				updates.sourcePreference === "google-first" ? "google-first" :
-				updates.sourcePreference === "store-first" ? "store-first" : current.sourcePreference,
 			autoSyncFromGoogle:
 				typeof updates.autoSyncFromGoogle === "boolean"
 					? updates.autoSyncFromGoogle
@@ -145,7 +154,10 @@ export class LocalEventStore {
 		await kv.delete(EVENTS_META_KEY);
 	}
 
-	static async getPreview(limit = 20): Promise<{
+	static async getPreview(
+		limit = 20,
+		options?: StorePreviewOptions,
+	): Promise<{
 		headers: readonly string[];
 		rows: StorePreviewRow[];
 	}> {
@@ -160,8 +172,13 @@ export class LocalEventStore {
 			transform: (value: string) => value.trim(),
 		});
 		const headers = parseResult.meta.fields || CSV_EVENT_COLUMNS;
-		const rows = parseResult.data
-			.slice(0, Math.max(1, Math.min(limit, 100)))
+		const normalizedLimit = Math.max(1, Math.min(limit, 100));
+		const sourceRows =
+			options?.random ?
+				this.sampleRows(parseResult.data, normalizedLimit)
+			:	parseResult.data.slice(0, normalizedLimit);
+
+		const rows = sourceRows
 			.map((row) => {
 				const normalizedRow: StorePreviewRow = {};
 				for (const header of headers) {
@@ -181,6 +198,7 @@ export class LocalEventStore {
 		const providerInfo = await getKVStoreInfo();
 		const settings = await this.getSettings();
 
+		const keys = await kv.list();
 		const csv = await kv.get(EVENTS_CSV_KEY);
 		const metaRaw = await kv.get(EVENTS_META_KEY);
 		const meta = parseJson<EventStoreMetadata | null>(metaRaw, null);
@@ -188,10 +206,10 @@ export class LocalEventStore {
 		return {
 			hasStoreData: Boolean(csv),
 			rowCount: meta?.rowCount ?? 0,
+			keyCount: keys.length,
 			updatedAt: meta?.updatedAt ?? null,
 			updatedBy: meta?.updatedBy ?? null,
 			origin: meta?.origin ?? null,
-			sourcePreference: settings.sourcePreference,
 			autoSyncFromGoogle: settings.autoSyncFromGoogle,
 			provider: providerInfo.provider,
 			providerLocation: providerInfo.location,

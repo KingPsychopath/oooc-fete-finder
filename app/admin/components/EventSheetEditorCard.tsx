@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getSessionToken } from "@/lib/admin/admin-session";
 import {
 	getEventSheetEditorData,
 	saveEventSheetEditorRows,
@@ -130,17 +129,11 @@ export const EventSheetEditorCard = ({
 
 	const loadEditorData = useCallback(async () => {
 		if (!isAuthenticated) return;
-		const token = getSessionToken();
-		if (!token) {
-			setErrorMessage("No valid admin session found");
-			setIsLoading(false);
-			return;
-		}
 
 		setIsLoading(true);
 		setErrorMessage("");
 		try {
-			const result: EditorPayload = await getEventSheetEditorData(token);
+			const result: EditorPayload = await getEventSheetEditorData();
 			if (!result.success || !result.columns || !result.rows) {
 				throw new Error(result.error || "Failed to load sheet data");
 			}
@@ -173,19 +166,13 @@ export const EventSheetEditorCard = ({
 
 	const performSave = useCallback(
 		async (mode: "auto" | "manual") => {
-			const token = getSessionToken();
-			if (!token) {
-				setErrorMessage("No valid admin session found");
-				return;
-			}
-
 			const versionToSave = editVersionRef.current;
 			setIsSaving(true);
 			setErrorMessage("");
 
 			try {
 				const result = await saveEventSheetEditorRows(
-					token,
+					undefined,
 					columnsRef.current,
 					rowsRef.current,
 					{ refreshCache: mode === "manual" },

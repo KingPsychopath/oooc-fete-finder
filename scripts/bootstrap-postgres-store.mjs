@@ -97,7 +97,6 @@ const bootstrap = async () => {
 		await upsertKey(
 			EVENTS_SETTINGS_KEY,
 			JSON.stringify({
-				sourcePreference: "store-first",
 				autoSyncFromGoogle: false,
 				updatedAt: nowIso,
 			}),

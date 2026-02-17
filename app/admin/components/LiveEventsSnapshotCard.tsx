@@ -9,7 +9,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { getSessionToken } from "@/lib/admin/admin-session";
 import { getLiveSiteEventsSnapshot } from "@/lib/data-management/actions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -30,12 +29,10 @@ export const LiveEventsSnapshotCard = ({
 
 	const loadSnapshot = useCallback(async () => {
 		if (!isAuthenticated) return;
-		const token = getSessionToken();
-		if (!token) return;
 
 		setIsLoading(true);
 		try {
-			const result = await getLiveSiteEventsSnapshot(token, 500);
+			const result = await getLiveSiteEventsSnapshot(undefined, 500);
 			setSnapshot(result);
 		} finally {
 			setIsLoading(false);
@@ -54,10 +51,18 @@ export const LiveEventsSnapshotCard = ({
 	const canExpand = rows.length > DEFAULT_VISIBLE_ROWS;
 
 	const sourceLabel = snapshot?.source || "unknown";
+	const sourceDisplayLabel =
+		sourceLabel === "store" ? "Postgres Store" :
+		sourceLabel === "remote" ? "Remote CSV" :
+		sourceLabel === "local" ? "Local File" :
+		sourceLabel === "test" ? "Test Dataset" :
+		sourceLabel === "cached" ? "Cached" :
+		"Unknown";
 	const sourceBadgeVariant =
 		sourceLabel === "store" ? "default" :
 		sourceLabel === "remote" ? "secondary" :
-		sourceLabel === "local" ? "outline" : "outline";
+		sourceLabel === "local" ? "outline" :
+		sourceLabel === "test" ? "outline" : "outline";
 
 	return (
 		<Card className="border-white/20 bg-white/85 backdrop-blur-sm">
@@ -70,7 +75,7 @@ export const LiveEventsSnapshotCard = ({
 						</CardDescription>
 					</div>
 					<div className="flex items-center gap-2">
-						<Badge variant={sourceBadgeVariant}>{sourceLabel}</Badge>
+						<Badge variant={sourceBadgeVariant}>{sourceDisplayLabel}</Badge>
 						<Badge variant="outline">
 							{snapshot?.cached ? "Cached response" : "Fresh response"}
 						</Badge>

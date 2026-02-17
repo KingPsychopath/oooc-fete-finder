@@ -3,25 +3,28 @@
 import type { CollectedEmailsResponse, UserRecord } from "@/types/user";
 import { UserCollectionStore } from "@/lib/user-management/user-collection-store";
 import {
-	signAdminSessionToken,
-	verifyAdminSessionToken,
+	clearAdminSessionCookie,
+	createAdminSessionWithCookie,
+	getCurrentAdminSession,
+	getCurrentTokenVersion,
+	listAdminTokenSessions,
+	revokeAdminSessionByJti,
+	revokeAllAdminSessions,
 } from "./admin-auth-token";
 import {
-	validateAdminKeyForApiRoute,
+	validateAdminAccessFromServerContext,
 	validateDirectAdminKey,
 } from "./admin-validation";
 
 /**
  * Admin Management Server Actions
  *
- * Server actions specifically related to admin authentication, session management,
- * and user collection operations. Colocated with admin modules.
+ * Cookie-authenticated admin workflow with JWT sessions and revocation support.
  */
 
-// Helper function to validate admin access (key or session token)
-function validateAdminAccess(keyOrToken?: string): boolean {
-	if (!keyOrToken) return false;
-	return validateAdminKeyForApiRoute(keyOrToken);
+// Helper function to validate admin access (key, bearer token, or auth cookie)
+async function validateAdminAccess(keyOrToken?: string): Promise<boolean> {
+	return validateAdminAccessFromServerContext(keyOrToken ?? null);
 }
 
 /**
@@ -33,48 +36,143 @@ export async function createAdminSession(
 	success: boolean;
 	error?: string;
 	expiresAt?: number;
-	sessionToken?: string;
+	jti?: string;
 }> {
-	"use server";
-
 	if (!validateDirectAdminKey(adminKey)) {
 		return { success: false, error: "Invalid admin key" };
 	}
 
-	const { token, expiresAt } = signAdminSessionToken();
-	return { success: true, expiresAt, sessionToken: token };
+	const session = await createAdminSessionWithCookie();
+	return {
+		success: true,
+		expiresAt: session.expiresAt,
+		jti: session.jti,
+	};
 }
 
 /**
- * Extend admin session
+ * Clear current admin auth cookie
  */
-export async function extendAdminSession(
-	sessionToken: string,
+export async function logoutAdminSession(): Promise<{ success: boolean }> {
+	await clearAdminSessionCookie();
+	return { success: true };
+}
+
+/**
+ * Return current session status for dashboard UI
+ */
+export async function getAdminSessionStatus(): Promise<{
+	success: boolean;
+	isValid: boolean;
+	expiresAt?: number;
+	iat?: number;
+	jti?: string;
+	expiresIn?: string;
+	sessionAge?: string;
+	error?: string;
+}> {
+	const payload = await getCurrentAdminSession();
+	if (!payload) {
+		return { success: true, isValid: false };
+	}
+
+	const nowMs = Date.now();
+	const expiresAtMs = payload.exp * 1000;
+	const issuedAtMs = payload.iat * 1000;
+	const expiresInMs = Math.max(0, expiresAtMs - nowMs);
+	const sessionAgeMs = Math.max(0, nowMs - issuedAtMs);
+
+	const formatDuration = (durationMs: number): string => {
+		const totalMinutes = Math.floor(durationMs / (1000 * 60));
+		const hours = Math.floor(totalMinutes / 60);
+		const minutes = totalMinutes % 60;
+		return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+	};
+
+	return {
+		success: true,
+		isValid: true,
+		expiresAt: expiresAtMs,
+		iat: issuedAtMs,
+		jti: payload.jti,
+		expiresIn: formatDuration(expiresInMs),
+		sessionAge: `${formatDuration(sessionAgeMs)} ago`,
+	};
+}
+
+/**
+ * List issued admin JWT sessions and their status.
+ */
+export async function getAdminTokenSessions(keyOrToken?: string): Promise<{
+	success: boolean;
+	error?: string;
+	sessions?: Awaited<ReturnType<typeof listAdminTokenSessions>>;
+	count?: number;
+	currentTokenVersion?: number;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized" };
+	}
+
+	const sessions = await listAdminTokenSessions();
+	return {
+		success: true,
+		sessions,
+		count: sessions.length,
+		currentTokenVersion: await getCurrentTokenVersion(),
+	};
+}
+
+/**
+ * Revoke a single JWT session by jti.
+ */
+export async function revokeAdminTokenSessionByJti(
+	jti: string,
+	keyOrToken?: string,
 ): Promise<{
 	success: boolean;
 	error?: string;
-	expiresAt?: number;
-	sessionToken?: string;
 }> {
-	"use server";
-
-	if (!verifyAdminSessionToken(sessionToken)) {
-		return { success: false, error: "Session invalid" };
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized" };
 	}
 
-	const next = signAdminSessionToken();
-	return { success: true, expiresAt: next.expiresAt, sessionToken: next.token };
+	const ok = await revokeAdminSessionByJti(jti);
+	if (!ok) {
+		return { success: false, error: "Session not found or invalid jti" };
+	}
+
+	return { success: true };
 }
 
 /**
- * Admin function to get collected emails (accepts admin key OR session token)
+ * Revoke all admin JWT sessions by bumping token version.
+ */
+export async function revokeAllAdminTokenSessionsAction(
+	keyOrToken?: string,
+): Promise<{
+	success: boolean;
+	error?: string;
+	nextTokenVersion?: number;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized" };
+	}
+
+	const nextTokenVersion = await revokeAllAdminSessions();
+	return {
+		success: true,
+		nextTokenVersion,
+	};
+}
+
+/**
+ * Admin function to get collected emails.
  */
 export async function getCollectedEmails(
 	keyOrToken?: string,
 ): Promise<CollectedEmailsResponse> {
-	"use server";
-
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized" };
 	}
 

@@ -2,11 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import {
-	clearAdminSession,
-	getSessionToken,
-	storeAdminSession,
-} from "@/lib/admin/admin-session";
-import { createAdminSession, getCollectedEmails } from "@/lib/admin/actions";
+	createAdminSession,
+	getAdminSessionStatus,
+	getCollectedEmails,
+	logoutAdminSession,
+} from "@/lib/admin/actions";
 import { revalidatePages } from "@/lib/cache-management/actions";
 import { env } from "@/lib/config/env";
 import { getCacheStatus } from "@/lib/data-management/actions";
@@ -42,9 +42,7 @@ export default function AdminPage() {
 		return status;
 	}, []);
 
-	const loadEmails = useCallback(async (keyOrToken?: string) => {
-		const credential = keyOrToken || getSessionToken() || "";
-		if (!credential) return;
+	const loadEmails = useCallback(async (credential?: string) => {
 		const result = await getCollectedEmails(credential);
 		if (result.success) {
 			setEmails(result.emails || []);
@@ -57,48 +55,36 @@ export default function AdminPage() {
 		setError("");
 
 		try {
-			const emailResult = await getCollectedEmails(adminKey);
-			if (!emailResult.success) {
-				setError(emailResult.error || "Invalid admin key");
-				return;
-			}
-
 			const sessionResult = await createAdminSession(adminKey);
-			if (
-				!sessionResult.success ||
-				!sessionResult.sessionToken ||
-				!sessionResult.expiresAt
-			) {
-				setError(sessionResult.error || "Failed to create admin session");
-				clearAdminSession();
+			if (!sessionResult.success) {
+				setError(sessionResult.error || "Invalid admin key");
 				return;
 			}
 
-			storeAdminSession(sessionResult.sessionToken, sessionResult.expiresAt);
 			setIsAuthenticated(true);
-			setEmails(emailResult.emails || []);
-			await loadCacheStatus();
+			await Promise.all([loadCacheStatus(), loadEmails(adminKey)]);
 			setRefreshMessage("Admin session started");
+			setAdminKey("");
 		} catch (submitError) {
 			setError(
 				submitError instanceof Error ?
 					submitError.message
-				:	"Something went wrong",
+				: 	"Something went wrong",
 			);
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
-	const handleLogout = () => {
-		clearAdminSession();
+	const handleLogout = useCallback(async () => {
+		await logoutAdminSession();
 		setIsAuthenticated(false);
 		setAdminKey("");
 		setEmails([]);
 		setCacheStatus(null);
 		setError("");
 		setRefreshMessage("");
-	};
+	}, []);
 
 	const handleStatusRefresh = useCallback(async () => {
 		setStatusRefreshing(true);
@@ -117,16 +103,10 @@ export default function AdminPage() {
 	}, [loadCacheStatus, loadEmails]);
 
 	const handleRefresh = async () => {
-		const token = getSessionToken() || adminKey;
-		if (!token) {
-			setRefreshMessage("No authentication available");
-			return;
-		}
-
 		setRefreshing(true);
 		setRefreshMessage("Starting cache + page revalidation...");
 		try {
-			const revalidateResult = await revalidatePages(token, "/");
+			const revalidateResult = await revalidatePages(undefined, "/");
 			if (!revalidateResult.success) {
 				setRefreshMessage(
 					`Revalidation failed: ${revalidateResult.error || "Unknown error"}`,
@@ -134,7 +114,7 @@ export default function AdminPage() {
 				return;
 			}
 
-			await Promise.all([loadCacheStatus(), loadEmails(token)]);
+			await Promise.all([loadCacheStatus(), loadEmails()]);
 			setRefreshMessage(
 				`Revalidated in ${revalidateResult.processingTimeMs || 0}ms`,
 			);
@@ -184,27 +164,23 @@ export default function AdminPage() {
 
 	useEffect(() => {
 		const checkExistingSession = async () => {
-			const sessionToken = getSessionToken();
-			if (!sessionToken) return;
-
 			try {
-				const result = await getCollectedEmails(sessionToken);
-				if (!result.success) {
-					clearAdminSession();
+				const status = await getAdminSessionStatus();
+				if (!status.success || !status.isValid) {
+					setIsAuthenticated(false);
 					return;
 				}
 
 				setIsAuthenticated(true);
-				setEmails(result.emails || []);
-				await loadCacheStatus();
+				await Promise.all([loadCacheStatus(), loadEmails()]);
 				setRefreshMessage("Session restored");
 			} catch {
-				clearAdminSession();
+				setIsAuthenticated(false);
 			}
 		};
 
 		void checkExistingSession();
-	}, [loadCacheStatus]);
+	}, [loadCacheStatus, loadEmails]);
 
 	useEffect(() => {
 		if (!isAuthenticated) return;

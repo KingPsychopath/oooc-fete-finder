@@ -10,7 +10,9 @@
     "lint:fix": "biome lint . --write",
     "fix": "biome check --write",
     "format": "biome format . --write",
-    "bootstrap:postgres-store": "node scripts/bootstrap-postgres-store.mjs"
+    "bootstrap:postgres-store": "node scripts/bootstrap-postgres-store.mjs",
+    "health:check": "node scripts/health-check.mjs",
+    "db:cli": "node scripts/db-cli.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

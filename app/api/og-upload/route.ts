@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 		// Check for admin authentication
 		const adminKey = request.headers.get("x-admin-key");
 
-		if (!validateAdminKeyForApiRoute(adminKey)) {
+		if (!(await validateAdminKeyForApiRoute(request, adminKey))) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
 		const { searchParams } = new URL(request.url);
 		const adminKey = searchParams.get("adminKey");
 
-		if (!validateAdminKeyForApiRoute(adminKey)) {
+		if (!(await validateAdminKeyForApiRoute(request, adminKey))) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 

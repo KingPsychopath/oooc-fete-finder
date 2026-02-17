@@ -14,7 +14,7 @@ export interface EventsResult {
 	data: Event[];
 	count: number;
 	cached: boolean;
-	source: "remote" | "local" | "store" | "cached";
+	source: "remote" | "local" | "store" | "test" | "cached";
 	error?: string;
 	lastUpdate?: string;
 }
@@ -24,7 +24,7 @@ export interface CacheRefreshResult {
 	message: string;
 	data?: Event[];
 	count?: number;
-	source?: "remote" | "local" | "store" | "cached";
+	source?: "remote" | "local" | "store" | "test" | "cached";
 	error?: string;
 }
 
@@ -51,7 +51,7 @@ export interface CacheState {
 	lastRemoteFetchTime: number;
 	lastRemoteSuccessTime: number;
 	lastRemoteErrorMessage: string;
-	lastDataSource: "remote" | "local" | "store" | "cached";
+	lastDataSource: "remote" | "local" | "store" | "test" | "cached";
 	// Memory management fields
 	memoryUsage: number;
 	lastMemoryCheck: number;
@@ -65,7 +65,7 @@ export interface CacheStateStatus {
 	lastRemoteErrorMessage: string;
 	cacheAge: number;
 	nextRemoteCheck: number;
-	dataSource: "remote" | "local" | "store" | "cached";
+	dataSource: "remote" | "local" | "store" | "test" | "cached";
 	eventCount: number;
 	// Memory management status
 	memoryUsage: number;
@@ -74,10 +74,15 @@ export interface CacheStateStatus {
 }
 
 export interface CacheStatus extends CacheStateStatus {
-	configuredDataSource: "remote" | "local" | "static";
+	configuredDataSource: "remote" | "local" | "test";
 	localCsvLastUpdated: string;
 	remoteConfigured: boolean;
 	hasLocalStoreData: boolean;
+	storeProvider: "file" | "memory" | "postgres";
+	storeProviderLocation: string;
+	storeRowCount: number;
+	storeUpdatedAt: string | null;
+	storeKeyCount: number;
 }
 
 // ========================================
@@ -189,7 +194,7 @@ export interface CacheConfiguration {
 // Type Utilities & Helpers
 // ========================================
 
-export type DataSource = "remote" | "local" | "store" | "cached";
+export type DataSource = "remote" | "local" | "store" | "test" | "cached";
 export type CacheOperationResult<T = unknown> = {
 	success: boolean;
 	data?: T;

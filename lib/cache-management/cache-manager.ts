@@ -381,6 +381,11 @@ export class CacheManager {
 			localCsvLastUpdated: dataConfigStatus.localCsvLastUpdated,
 			remoteConfigured: dataConfigStatus.remoteConfigured,
 			hasLocalStoreData: dataConfigStatus.hasLocalStoreData,
+			storeProvider: dataConfigStatus.storeProvider,
+			storeProviderLocation: dataConfigStatus.storeProviderLocation,
+			storeRowCount: dataConfigStatus.storeRowCount,
+			storeUpdatedAt: dataConfigStatus.storeUpdatedAt,
+			storeKeyCount: dataConfigStatus.storeKeyCount,
 		};
 	}
 

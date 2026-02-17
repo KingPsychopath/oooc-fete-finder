@@ -20,7 +20,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getSessionToken } from "@/lib/admin/admin-session";
 import { AlertTriangle, Database } from "lucide-react";
 import React, { useState } from "react";
 
@@ -120,13 +119,6 @@ export const OGImageTestCard = ({ isAuthenticated }: OGImageTestCardProps) => {
 			return;
 		}
 
-		// Get session token - this should be available if user is authenticated
-		const sessionToken = getSessionToken();
-		if (!sessionToken) {
-			setError("No valid session found. Please re-authenticate.");
-			return;
-		}
-
 		setIsUploading(true);
 		setError("");
 		setUploadMessage("");
@@ -143,9 +135,6 @@ export const OGImageTestCard = ({ isAuthenticated }: OGImageTestCardProps) => {
 
 			const response = await fetch(`${basePath}/api/og-upload`, {
 				method: "POST",
-				headers: {
-					"x-admin-key": sessionToken, // Use session token instead of localStorage
-				},
 				body: formData,
 			});
 

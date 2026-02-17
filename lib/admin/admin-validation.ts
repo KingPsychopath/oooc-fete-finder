@@ -1,7 +1,9 @@
+import type { NextRequest } from "next/server";
 import { env } from "@/lib/config/env";
 import {
 	secureCompare,
-	verifyAdminSessionToken,
+	verifyAdminSessionFromRequest,
+	verifyAdminSessionFromServerContext,
 } from "@/lib/admin/admin-auth-token";
 
 /**
@@ -21,19 +23,34 @@ export const validateDirectAdminKey = (providedKey: string | null): boolean => {
 };
 
 /**
- * Unified admin validation for API routes
- * Supports both direct admin keys and session tokens
+ * Unified admin validation for API routes.
+ * Supports direct ADMIN_KEY, bearer/header token, and httpOnly auth cookie.
  */
-export const validateAdminKeyForApiRoute = (
-	keyOrToken: string | null,
-): boolean => {
-	if (!keyOrToken) return false;
-
-	// Try direct admin key first
-	if (validateDirectAdminKey(keyOrToken)) {
+export const validateAdminKeyForApiRoute = async (
+	request: NextRequest,
+	overrideCredential?: string | null,
+): Promise<boolean> => {
+	const candidate = overrideCredential?.trim() || request.headers.get("x-admin-key");
+	if (validateDirectAdminKey(candidate)) {
 		return true;
 	}
 
-	// Try signed admin session token
-	return verifyAdminSessionToken(keyOrToken);
+	const payload = await verifyAdminSessionFromRequest(request, candidate);
+	return Boolean(payload);
+};
+
+/**
+ * Unified admin validation for server actions.
+ * Supports direct ADMIN_KEY, bearer/header token, and httpOnly auth cookie.
+ */
+export const validateAdminAccessFromServerContext = async (
+	keyOrToken?: string | null,
+): Promise<boolean> => {
+	const candidate = keyOrToken?.trim() || "";
+	if (candidate && validateDirectAdminKey(candidate)) {
+		return true;
+	}
+
+	const payload = await verifyAdminSessionFromServerContext(candidate || undefined);
+	return Boolean(payload);
 };

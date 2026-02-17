@@ -98,10 +98,6 @@ LOCAL_CSV_LAST_UPDATED=2025-01-18
 # Admin panel access (change this!)
 ADMIN_KEY=your-secret-admin-key-123
 
-# Admin session duration in hours (optional, default: 24 hours)
-# Min: 1 hour, Max: 168 hours (1 week)
-NEXT_PUBLIC_ADMIN_SESSION_HOURS=24
-
 # === OPTIONAL INTEGRATIONS ===
 # Google Apps Script URL for email collection
 GOOGLE_SHEETS_URL=your-google-apps-script-deployment-url
@@ -272,7 +268,7 @@ let lastDataSource: 'remote' | 'local' | 'cached';
 
 #### **Data Layer**
 - **`app/actions.ts`** - All data fetching, caching, and server actions
-- **`data/events.ts`** - Configuration flags (`DATA_SOURCE`) and helper functions
+- **`lib/data-management/data-manager.ts`** - Data mode orchestration (`DATA_MODE=remote|local|test`)
 - **`data/oooc-list-tracker4.csv`** - Local backup data
 
 #### **UI Layer**
@@ -287,11 +283,11 @@ let lastDataSource: 'remote' | 'local' | 'cached';
 
 ### 💡 Monitoring Tips
 
-- **"Remote" = Best** - Live, up-to-date data from Google Sheets
-- **"Local" = Check connectivity** - Google Sheets may be unreachable
-- **"Cached" = Server restart** - Rare, usually means fresh server instance
-- **Watch timestamps** - "Last Successful Remote Connection" shows data freshness
-- **Cache Age** - Shows how old your current data is
+- **Remote Mode**: Postgres/provider-backed store is priority, remote CSV is fallback
+- **Local Mode**: Uses local file fallback only (`data/events.csv`)
+- **Test Mode**: Uses hardcoded events data for demo/offline runs
+- **Watch timestamps** - "Last Successful Remote Connection" shows fallback freshness
+- **Cache Age** - Shows how old your currently served data is
 
 The system is designed for **resilience** - it always tries to get the freshest data from Google Sheets, but gracefully falls back to local CSV if there are issues, ensuring your app always has event data to display.
 
@@ -306,15 +302,25 @@ Access the admin panel at `/admin` to:
 - **NEW**: Session management with automatic login
 
 **🔐 Session Management Features:**
-- **Auto-login**: Once authenticated, stay logged in for 24 hours (configurable)
-- **Session status**: See when your session expires and extend it
+- **Auto-login**: Uses signed HTTP-only JWT cookies
+- **Session status**: See when your session expires and inspect token metadata
 - **Secure logout**: Clear session data instantly
 - **Session expiry warnings**: Get notified when session is about to expire
+- **Session revoke controls**: Revoke specific JWT sessions or all sessions from admin panel
 
 **Configuration:**
 - Default admin key: `your-secret-key-123` (set `ADMIN_KEY` env var to change)
-- Session duration: 24 hours (set `NEXT_PUBLIC_ADMIN_SESSION_HOURS` to customize: 1-168 hours)
-- Session storage: Browser localStorage with expiration tracking
+- Session duration: 1 hour (fixed admin JWT TTL, same as party-guest-list pattern)
+- Session storage: HTTP-only signed cookie + server-side token registry
+
+**Health + Integration Validation:**
+- `pnpm run health:check` (validates Postgres connectivity + KV keys + row counts)
+- `pnpm run db:cli` (interactive Postgres CLI for quick audit commands)
+- `GET /api/admin/health` (returns store/cache/connectivity diagnostics)
+- `GET /api/admin/postgres/kv` (typed Postgres KV audit endpoint, supports prefix/key query)
+- `GET /api/admin/tokens/sessions` (lists tracked JWT sessions)
+- `DELETE /api/admin/tokens/sessions/{jti}` (revoke one session)
+- `POST /api/admin/tokens/revoke` (revoke all admin sessions via token-version bump)
 
 ## Learn More
 

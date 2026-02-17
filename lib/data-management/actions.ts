@@ -1,6 +1,6 @@
 "use server";
 
-import { validateAdminKeyForApiRoute } from "@/lib/admin/admin-validation";
+import { validateAdminAccessFromServerContext } from "@/lib/admin/admin-validation";
 import { CacheManager } from "@/lib/cache-management/cache-manager";
 import { env } from "@/lib/config/env";
 import type {
@@ -30,8 +30,8 @@ import {
  */
 
 // Helper function to validate admin access (key or session token)
-function validateAdminAccess(keyOrToken?: string): boolean {
-	return validateAdminKeyForApiRoute(keyOrToken ?? null);
+async function validateAdminAccess(keyOrToken?: string): Promise<boolean> {
+	return validateAdminAccessFromServerContext(keyOrToken ?? null);
 }
 
 /**
@@ -67,7 +67,7 @@ export async function getLiveSiteEventsSnapshot(
 	}>;
 	error?: string;
 }> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized access" };
 	}
 
@@ -113,7 +113,7 @@ export async function forceRefreshEvents(): Promise<{
 	message: string;
 	data?: import("@/types/events").Event[];
 	count?: number;
-	source?: "remote" | "local" | "store" | "cached";
+	source?: "remote" | "local" | "store" | "test" | "cached";
 	error?: string;
 }> {
 	return CacheManager.forceRefresh();
@@ -137,12 +137,14 @@ export async function setDynamicSheet(formData: FormData): Promise<{
 }> {
 	"use server";
 
-	const keyOrToken = formData.get("adminKey") as string;
+	const keyOrTokenRaw = formData.get("adminKey");
+	const keyOrToken =
+		typeof keyOrTokenRaw === "string" ? keyOrTokenRaw : undefined;
 	const sheetInput = formData.get("sheetInput") as string;
 	const sheetRange = formData.get("sheetRange") as string;
 
 	// Verify admin access
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, message: "Unauthorized access" };
 	}
 
@@ -168,7 +170,7 @@ export async function getLocalEventStoreStatus(keyOrToken?: string): Promise<{
 	status?: Awaited<ReturnType<typeof LocalEventStore.getStatus>>;
 	error?: string;
 }> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized access" };
 	}
 
@@ -191,7 +193,7 @@ export async function getLocalEventStoreCsv(keyOrToken?: string): Promise<{
 	csvContent?: string;
 	error?: string;
 }> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized access" };
 	}
 
@@ -218,7 +220,7 @@ export async function saveLocalEventStoreCsv(
 	rowCount?: number;
 	error?: string;
 }> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, message: "Unauthorized access" };
 	}
 
@@ -230,13 +232,13 @@ export async function saveLocalEventStoreCsv(
 		await CacheManager.forceRefresh();
 		return {
 			success: true,
-			message: "Local event store updated and cache refreshed",
+			message: "Managed store updated and cache refreshed",
 			rowCount: result.rowCount,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			message: "Failed to save local event store",
+			message: "Failed to save managed store",
 			error: error instanceof Error ? error.message : "Unknown error",
 		};
 	}
@@ -250,7 +252,7 @@ export async function clearLocalEventStoreCsv(keyOrToken?: string): Promise<{
 	message: string;
 	error?: string;
 }> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, message: "Unauthorized access" };
 	}
 
@@ -259,12 +261,12 @@ export async function clearLocalEventStoreCsv(keyOrToken?: string): Promise<{
 		await CacheManager.forceRefresh();
 		return {
 			success: true,
-			message: "Local event store cleared and cache refreshed",
+			message: "Managed store cleared and cache refreshed",
 		};
 	} catch (error) {
 		return {
 			success: false,
-			message: "Failed to clear local event store",
+			message: "Failed to clear managed store",
 			error: error instanceof Error ? error.message : "Unknown error",
 		};
 	}
@@ -276,7 +278,6 @@ export async function clearLocalEventStoreCsv(keyOrToken?: string): Promise<{
 export async function updateLocalEventStoreSettings(
 	keyOrToken: string | undefined,
 	updates: {
-		sourcePreference?: "store-first" | "google-first";
 		autoSyncFromGoogle?: boolean;
 	},
 ): Promise<{
@@ -284,7 +285,7 @@ export async function updateLocalEventStoreSettings(
 	settings?: Awaited<ReturnType<typeof LocalEventStore.getSettings>>;
 	error?: string;
 }> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized access" };
 	}
 
@@ -311,7 +312,7 @@ export async function importRemoteCsvToLocalEventStore(
 	rowCount?: number;
 	error?: string;
 }> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, message: "Unauthorized access" };
 	}
 
@@ -345,13 +346,13 @@ export async function importRemoteCsvToLocalEventStore(
 
 		return {
 			success: true,
-			message: `Imported ${saved.rowCount} rows from remote source into local event store`,
+			message: `Imported ${saved.rowCount} rows from remote source into managed store`,
 			rowCount: saved.rowCount,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			message: "Failed to import remote CSV into local event store",
+			message: "Failed to import remote CSV into managed store",
 			error: error instanceof Error ? error.message : "Unknown error",
 		};
 	}
@@ -363,18 +364,21 @@ export async function importRemoteCsvToLocalEventStore(
 export async function getLocalEventStorePreview(
 	keyOrToken?: string,
 	limit = 20,
+	options?: {
+		random?: boolean;
+	},
 ): Promise<{
 	success: boolean;
 	headers?: readonly string[];
 	rows?: Awaited<ReturnType<typeof LocalEventStore.getPreview>>["rows"];
 	error?: string;
 }> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized access" };
 	}
 
 	try {
-		const preview = await LocalEventStore.getPreview(limit);
+		const preview = await LocalEventStore.getPreview(limit, options);
 		return { success: true, headers: preview.headers, rows: preview.rows };
 	} catch (error) {
 		return {
@@ -395,7 +399,7 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 	sheetSource?: "store" | "remote" | "local";
 	error?: string;
 }> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized access" };
 	}
 
@@ -472,7 +476,7 @@ export async function saveEventSheetEditorRows(
 	updatedAt?: string;
 	error?: string;
 }> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, message: "Unauthorized access" };
 	}
 
@@ -534,7 +538,7 @@ export async function analyzeDateFormats(keyOrToken?: string): Promise<{
 	"use server";
 
 	// Verify admin access first
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized access" };
 	}
 

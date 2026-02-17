@@ -28,7 +28,7 @@ const createStore = async (): Promise<{
 				store: postgresStore,
 				info: {
 					provider: "postgres",
-					location: "DATABASE_URL/app_kv_store",
+					location: "Postgres table app_kv_store (DATABASE_URL)",
 				},
 			};
 		} catch (error) {
@@ -40,9 +40,7 @@ const createStore = async (): Promise<{
 	}
 
 	if (process.env.NEXT_RUNTIME !== "edge") {
-		const filePath = env.LOCAL_KV_FILE_PATH
-			? path.resolve(env.LOCAL_KV_FILE_PATH)
-			: path.join(process.cwd(), "data", "local-kv-store.json");
+		const filePath = path.join(process.cwd(), "data", "local-kv-store.json");
 
 		try {
 			const fileStore = new FileKVStore(filePath);

@@ -1,6 +1,6 @@
 "use server";
 
-import { validateAdminKeyForApiRoute } from "@/lib/admin/admin-validation";
+import { validateAdminAccessFromServerContext } from "@/lib/admin/admin-validation";
 import { CacheInvalidationManager, CacheManager } from "./cache-manager";
 
 /**
@@ -11,8 +11,8 @@ import { CacheInvalidationManager, CacheManager } from "./cache-manager";
  */
 
 // Helper function to validate admin access (key or session token)
-function validateAdminAccess(keyOrToken?: string): boolean {
-	return validateAdminKeyForApiRoute(keyOrToken ?? null);
+async function validateAdminAccess(keyOrToken?: string): Promise<boolean> {
+	return validateAdminAccessFromServerContext(keyOrToken ?? null);
 }
 
 /**
@@ -58,7 +58,7 @@ export async function revalidatePages(
 	console.log("🔄 Revalidate server action called");
 
 	// Verify admin access
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized access" };
 	}
 

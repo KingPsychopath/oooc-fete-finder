@@ -11,13 +11,13 @@ import { processCSVData } from "./data-processor";
 import { DynamicSheetManager } from "./dynamic-sheet-manager";
 import { LocalEventStore } from "./local-event-store";
 
-export const DATA_SOURCE: "remote" | "local" | "static" = "remote";
+export type ConfiguredDataMode = "remote" | "local" | "test";
 
 export interface DataManagerResult {
 	success: boolean;
 	data: Event[];
 	count: number;
-	source: "remote" | "local" | "store";
+	source: "remote" | "local" | "store" | "test";
 	cached: boolean;
 	error?: string;
 	warnings: string[];
@@ -54,22 +54,23 @@ export class DataManager {
 
 	static async getEventsData(): Promise<DataManagerResult> {
 		const warnings: string[] = [];
+		const configuredMode = env.DATA_MODE as ConfiguredDataMode;
 
 		try {
-			if (DATA_SOURCE === "static") {
+			if (configuredMode === "test") {
 				const { EVENTS_DATA } = await import("@/data/events");
 				return {
 					success: true,
 					data: EVENTS_DATA,
 					count: EVENTS_DATA.length,
-					source: "local",
+					source: "test",
 					cached: false,
 					warnings,
 					lastUpdate: new Date().toISOString(),
 				};
 			}
 
-			if (DATA_SOURCE === "local") {
+			if (configuredMode === "local") {
 				const { fetchLocalCSV } = await import("./csv/fetcher");
 				const localCsv = await fetchLocalCSV();
 				const localResult = await processCSVData(localCsv, "local", false, {
@@ -87,14 +88,14 @@ export class DataManager {
 				};
 			}
 
-			const storeSettings = await LocalEventStore.getSettings();
-			if (storeSettings.sourcePreference === "store-first") {
-				const storeFirstResult = await this.tryStoreData(warnings);
-				if (storeFirstResult) {
-					console.log("💾 Using local event store (store-first mode)");
-					return storeFirstResult;
-				}
+			// Remote mode: Postgres/provider-backed store is always first-class.
+			// If store is unavailable/empty, we fall back to remote CSV sources.
+			const storeFirstResult = await this.tryStoreData(warnings);
+			if (storeFirstResult) {
+				console.log("💾 Using managed event store (remote mode, store-priority)");
+				return storeFirstResult;
 			}
+			const storeSettings = await LocalEventStore.getSettings();
 
 			const effectiveConfig = DynamicSheetManager.getEffectiveConfig(
 				env.GOOGLE_SHEET_ID,
@@ -148,7 +149,7 @@ export class DataManager {
 					});
 				} catch (syncError) {
 					warnings.push(
-						`Failed to sync Google data to local store: ${
+						`Failed to sync Google data to managed store: ${
 							syncError instanceof Error ? syncError.message : "Unknown error"
 						}`,
 					);
@@ -171,7 +172,7 @@ export class DataManager {
 			const storeFallback = await this.tryStoreData(warnings);
 			if (storeFallback) {
 				storeFallback.warnings.push(
-					"Remote data invalid - using local event store fallback",
+					"Remote data invalid - using managed store fallback",
 				);
 				return storeFallback;
 			}
@@ -192,7 +193,7 @@ export class DataManager {
 			const storeFallback = await this.tryStoreData(warnings);
 			if (storeFallback) {
 				storeFallback.warnings.push(
-					`Primary data source failed (${errorMessage}) - using local store fallback`,
+					`Primary data source failed (${errorMessage}) - using managed store fallback`,
 				);
 				return storeFallback;
 			}
@@ -210,12 +211,17 @@ export class DataManager {
 	}
 
 	static async getDataConfigStatus(): Promise<{
-		dataSource: "remote" | "local" | "static";
+		dataSource: ConfiguredDataMode;
 		remoteConfigured: boolean;
 		localCsvLastUpdated: string;
 		hasServiceAccount: boolean;
 		hasDynamicOverride: boolean;
 		hasLocalStoreData: boolean;
+		storeProvider: "file" | "memory" | "postgres";
+		storeProviderLocation: string;
+		storeRowCount: number;
+		storeUpdatedAt: string | null;
+		storeKeyCount: number;
 	}> {
 		const hasServiceAccount = Boolean(
 			env.GOOGLE_SERVICE_ACCOUNT_KEY || env.GOOGLE_SERVICE_ACCOUNT_FILE,
@@ -230,12 +236,17 @@ export class DataManager {
 		);
 
 		return {
-			dataSource: DATA_SOURCE,
+			dataSource: env.DATA_MODE as ConfiguredDataMode,
 			remoteConfigured,
 			localCsvLastUpdated: env.LOCAL_CSV_LAST_UPDATED || "unknown",
 			hasServiceAccount,
 			hasDynamicOverride: DynamicSheetManager.hasDynamicOverride(),
 			hasLocalStoreData: storeStatus.hasStoreData,
+			storeProvider: storeStatus.provider,
+			storeProviderLocation: storeStatus.providerLocation,
+			storeRowCount: storeStatus.rowCount,
+			storeUpdatedAt: storeStatus.updatedAt,
+			storeKeyCount: storeStatus.keyCount,
 		};
 	}
 }

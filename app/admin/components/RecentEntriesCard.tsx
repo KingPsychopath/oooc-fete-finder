@@ -10,7 +10,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { getSessionToken } from "@/lib/admin/admin-session";
 import { GoogleAppsScript } from "@/lib/google/apps-script";
 import {
 	AlertTriangle,
@@ -54,21 +53,11 @@ export const RecentEntriesCard = ({
 			return;
 		}
 
-		// Get session token - this should be available if user is authenticated
-		const sessionToken = getSessionToken();
-		if (!sessionToken) {
-			setError("No valid session found. Please re-authenticate.");
-			return;
-		}
-
 		setLoading(true);
 		setError("");
 
 		try {
-			const result = await GoogleAppsScript.getRecentEntries(
-				sessionToken,
-				limit,
-			);
+			const result = await GoogleAppsScript.getRecentEntries(undefined, limit);
 
 			if (result.success && result.entries) {
 				setEntries(result.entries);

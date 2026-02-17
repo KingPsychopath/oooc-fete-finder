@@ -15,9 +15,9 @@ export const env = createEnv({
 		AUTH_SECRET: z.string().optional(),
 		DATABASE_URL: z.string().optional(),
 		DATA_STORE_PROVIDER: z
-			.enum(["auto", "postgres", "kv"])
+			.enum(["auto", "postgres"])
 			.default("auto"),
-		LOCAL_KV_FILE_PATH: z.string().optional(),
+		DATA_MODE: z.enum(["remote", "local", "test"]).default("remote"),
 		GOOGLE_MIRROR_WRITES: z.coerce.boolean().default(false),
 
 		// Google configuration
@@ -89,8 +89,6 @@ export const env = createEnv({
 	client: {
 		NEXT_PUBLIC_BASE_PATH: z.string().default(""),
 		NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
-		NEXT_PUBLIC_ADMIN_SESSION_HOURS: z.coerce.number().int().min(1).default(24),
-		NEXT_PUBLIC_AUTH_EXPIRY_DAYS: z.coerce.number().int().min(1).default(30),
 	},
 
 	/**
@@ -104,7 +102,7 @@ export const env = createEnv({
 		AUTH_SECRET: process.env.AUTH_SECRET,
 		DATABASE_URL: process.env.DATABASE_URL,
 		DATA_STORE_PROVIDER: process.env.DATA_STORE_PROVIDER,
-		LOCAL_KV_FILE_PATH: process.env.LOCAL_KV_FILE_PATH,
+		DATA_MODE: process.env.DATA_MODE,
 		GOOGLE_MIRROR_WRITES: process.env.GOOGLE_MIRROR_WRITES,
 
 		// Google configuration
@@ -151,9 +149,6 @@ export const env = createEnv({
 		// Client
 		NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH,
 		NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-		NEXT_PUBLIC_ADMIN_SESSION_HOURS:
-			process.env.NEXT_PUBLIC_ADMIN_SESSION_HOURS,
-		NEXT_PUBLIC_AUTH_EXPIRY_DAYS: process.env.NEXT_PUBLIC_AUTH_EXPIRY_DAYS,
 	},
 
 	/**
@@ -274,16 +269,6 @@ export const getSiteConfig = () => {
 	return {
 		basePath: env.NEXT_PUBLIC_BASE_PATH,
 		siteUrl: env.NEXT_PUBLIC_SITE_URL,
-	};
-};
-
-/**
- * Get admin UI configuration
- */
-export const getAdminUIConfig = () => {
-	return {
-		sessionHours: env.NEXT_PUBLIC_ADMIN_SESSION_HOURS,
-		authExpiryDays: env.NEXT_PUBLIC_AUTH_EXPIRY_DAYS,
 	};
 };
 

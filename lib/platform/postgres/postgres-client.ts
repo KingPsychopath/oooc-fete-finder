@@ -25,6 +25,7 @@ export const getPostgresClient = (): Sql | null => {
 		globalThis.__ooocFeteFinderPostgresClient = postgres(databaseUrl, {
 			prepare: false,
 			max: 1,
+			onnotice: () => {},
 		});
 	}
 

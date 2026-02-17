@@ -44,10 +44,10 @@ Notes:
 Use the Admin panel:
 
 1. Open `/admin`.
-2. In `Local Event Store`:
+2. In `Data Store Controls`:
    - Click `Import Remote CSV` once (if your Google source is still available), or
    - Click `Load CSV`, paste/upload your CSV, then `Save CSV`.
-3. Set source preference to `Store First`.
+3. Keep `DATA_MODE=remote` so runtime reads from store first.
 4. Confirm cache source changes to `Store`.
 
 Or run the bootstrap script:
@@ -60,8 +60,10 @@ This seeds:
 
 - `events-store:csv`
 - `events-store:meta`
-- `events-store:settings` (`store-first`)
+- `events-store:settings`
 - `users:collection:v1` (empty payload)
+
+All of these keys are stored in a single Postgres table: `app_kv_store`.
 
 ## 4. Disable Google Reads
 
@@ -90,7 +92,7 @@ Admin export remains available from `/admin` as CSV.
 
 1. Configure Postgres + `DATA_STORE_PROVIDER=postgres`
 2. Import event CSV into local store
-3. Switch to `Store First`
+3. Keep `DATA_MODE=remote`
 4. Verify frontend/admin behavior
 5. Disable Google env vars
 
@@ -98,6 +100,6 @@ Admin export remains available from `/admin` as CSV.
 
 If needed:
 
-1. Set `DATA_STORE_PROVIDER=kv`
+1. Set `DATA_STORE_PROVIDER=auto`
 2. Re-enable `REMOTE_CSV_URL` and/or Google credentials
 3. Redeploy

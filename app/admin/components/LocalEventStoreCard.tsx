@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { getSessionToken } from "@/lib/admin/admin-session";
 import {
 	clearLocalEventStoreCsv,
 	getLocalEventStoreCsv,
@@ -54,28 +53,44 @@ export const LocalEventStoreCard = ({
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState("");
 
-	const loadStatusAndPreview = useCallback(async () => {
-		const token = getSessionToken();
-		if (!token) return;
+	const loadPreview = useCallback(async () => {
+		const previewResult = await getLocalEventStorePreview(undefined, 2, {
+			random: true,
+		});
+		if (!previewResult.success) {
+			throw new Error(previewResult.error || "Failed to load random preview");
+		}
+		setHeaders(previewResult.headers || []);
+		setRows(previewResult.rows || []);
+	}, []);
 
+	const loadStatusAndPreview = useCallback(async () => {
 		const [statusResult, previewResult] = await Promise.all([
-			getLocalEventStoreStatus(token),
-			getLocalEventStorePreview(token, 8),
+			getLocalEventStoreStatus(),
+			getLocalEventStorePreview(undefined, 2, { random: true }),
 		]);
 
 		if (statusResult.success) {
 			setStatus(statusResult.status);
 		}
 
-		if (previewResult.success) {
-			setHeaders(previewResult.headers || []);
-			setRows(previewResult.rows || []);
+		if (!previewResult.success) {
+			throw new Error(previewResult.error || "Failed to load random preview");
 		}
+
+		setHeaders(previewResult.headers || []);
+		setRows(previewResult.rows || []);
 	}, []);
 
 	useEffect(() => {
 		if (!isAuthenticated) return;
-		loadStatusAndPreview();
+		loadStatusAndPreview().catch((loadError) => {
+			setError(
+				loadError instanceof Error ?
+					loadError.message
+				:	"Failed to load store status",
+			);
+		});
 	}, [isAuthenticated, loadStatusAndPreview]);
 
 	if (!isAuthenticated) {
@@ -102,10 +117,7 @@ export const LocalEventStoreCard = ({
 
 	const handleLoadCsv = async () => {
 		await withTask(async () => {
-			const token = getSessionToken();
-			if (!token) throw new Error("No valid admin session");
-
-			const result = await getLocalEventStoreCsv(token);
+			const result = await getLocalEventStoreCsv();
 			if (!result.success) {
 				throw new Error(result.error || "Failed to load local store CSV");
 			}
@@ -117,11 +129,9 @@ export const LocalEventStoreCard = ({
 
 	const handleSaveCsv = async () => {
 		await withTask(async () => {
-			const token = getSessionToken();
-			if (!token) throw new Error("No valid admin session");
 			if (!csvEditor.trim()) throw new Error("CSV editor is empty");
 
-			const result = await saveLocalEventStoreCsv(token, csvEditor);
+			const result = await saveLocalEventStoreCsv(undefined, csvEditor);
 			if (!result.success) {
 				throw new Error(result.error || result.message);
 			}
@@ -133,10 +143,7 @@ export const LocalEventStoreCard = ({
 
 	const handleImportRemote = async () => {
 		await withTask(async () => {
-			const token = getSessionToken();
-			if (!token) throw new Error("No valid admin session");
-
-			const result = await importRemoteCsvToLocalEventStore(token);
+			const result = await importRemoteCsvToLocalEventStore();
 			if (!result.success) {
 				throw new Error(result.error || result.message);
 			}
@@ -148,10 +155,7 @@ export const LocalEventStoreCard = ({
 
 	const handleClearStore = async () => {
 		await withTask(async () => {
-			const token = getSessionToken();
-			if (!token) throw new Error("No valid admin session");
-
-			const result = await clearLocalEventStoreCsv(token);
+			const result = await clearLocalEventStoreCsv();
 			if (!result.success) {
 				throw new Error(result.error || result.message);
 			}
@@ -162,34 +166,9 @@ export const LocalEventStoreCard = ({
 		});
 	};
 
-	const handleUpdatePreference = async (
-		sourcePreference: "store-first" | "google-first",
-	) => {
-		await withTask(async () => {
-			const token = getSessionToken();
-			if (!token) throw new Error("No valid admin session");
-
-			const result = await updateLocalEventStoreSettings(token, {
-				sourcePreference,
-			});
-			if (!result.success) {
-				throw new Error(result.error || "Failed to update source preference");
-			}
-
-			setStatus((current) => {
-				if (!current) return current;
-				return { ...current, sourcePreference };
-			});
-			setMessage(`Source preference updated to ${sourcePreference}`);
-		});
-	};
-
 	const handleToggleAutoSync = async (enabled: boolean) => {
 		await withTask(async () => {
-			const token = getSessionToken();
-			if (!token) throw new Error("No valid admin session");
-
-			const result = await updateLocalEventStoreSettings(token, {
+			const result = await updateLocalEventStoreSettings(undefined, {
 				autoSyncFromGoogle: enabled,
 			});
 			if (!result.success) {
@@ -206,10 +185,7 @@ export const LocalEventStoreCard = ({
 
 	const handleExportCsv = async () => {
 		await withTask(async () => {
-			const token = getSessionToken();
-			if (!token) throw new Error("No valid admin session");
-
-			const result = await getLocalEventStoreCsv(token);
+			const result = await getLocalEventStoreCsv();
 			if (!result.success) {
 				throw new Error(result.error || "Failed to export CSV");
 			}
@@ -259,28 +235,35 @@ export const LocalEventStoreCard = ({
 		setMessage("Preview CSV exported");
 	};
 
+	const handleRefreshPreview = async () => {
+		await withTask(async () => {
+			await loadPreview();
+			setMessage("Preview shuffled with another random 2 rows");
+		});
+	};
+
 	return (
 		<Card className="border-white/20 bg-white/90 backdrop-blur-sm">
 			<CardHeader>
-				<CardTitle>Local Event Store Control Center</CardTitle>
+				<CardTitle>Data Store Controls</CardTitle>
 				<CardDescription>
-					Manage your primary CSV source, sync from Google when needed, and
-					export clean copies for editors.
+					Manage the primary remote data store (Postgres when configured), mirror
+					from Google fallback when needed, and export CSV anytime.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-5">
 				<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
 					<p className="font-semibold">Recommended workflow</p>
 					<p className="mt-1">
-						Import once from Google, validate/edit in the Event Sheet Editor, then
-						save and publish to keep the local store as source of truth.
+						Import once from Google backup, validate/edit in the Event Sheet
+						Editor, then publish to keep Postgres store as source of truth.
 					</p>
 				</div>
 
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Provider
+							Remote Provider
 						</p>
 						{status ? (
 							<div className="space-y-1">
@@ -303,9 +286,12 @@ export const LocalEventStoreCard = ({
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Row Count
+							Store CSV Rows
 						</p>
 						<p className="text-sm">{status?.rowCount ?? 0}</p>
+						<p className="mt-1 text-[11px] text-muted-foreground">
+							Raw rows in stored CSV (before parsing/filtering)
+						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -321,45 +307,21 @@ export const LocalEventStoreCard = ({
 
 				<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 					<div className="rounded-md border bg-background/60 p-3 space-y-2">
-						<Label className="text-sm font-medium">Data Source Strategy</Label>
+						<Label className="text-sm font-medium">Remote Mode Contract</Label>
 						<p className="text-xs text-muted-foreground">
-							Choose whether the site should prioritize this local store or
-							continue preferring Google.
+							Postgres store is prioritized first. File/memory are emergency local
+							fallbacks only when Postgres is unreachable. Remote CSV is fallback
+							only when store is empty or unavailable.
 						</p>
-						<div className="flex gap-2">
-							<Button
-								type="button"
-								variant={
-									status?.sourcePreference === "store-first"
-										? "default"
-										: "outline"
-								}
-								size="sm"
-								disabled={isLoading}
-								onClick={() => handleUpdatePreference("store-first")}
-							>
-								Store First
-							</Button>
-							<Button
-								type="button"
-								variant={
-									status?.sourcePreference === "google-first"
-										? "default"
-										: "outline"
-								}
-								size="sm"
-								disabled={isLoading}
-								onClick={() => handleUpdatePreference("google-first")}
-							>
-								Google First
-							</Button>
-						</div>
+						<Badge variant="outline" className="w-fit">
+							Store-first enforced
+						</Badge>
 					</div>
 
 					<div className="rounded-md border bg-background/60 p-3 space-y-2">
-						<Label className="text-sm font-medium">Google Auto Sync</Label>
+						<Label className="text-sm font-medium">Google Mirror Sync</Label>
 						<p className="text-xs text-muted-foreground">
-							When enabled, remote fetches can refresh the local store
+							When enabled, remote CSV fetches can mirror into Postgres store
 							automatically.
 						</p>
 						<div className="flex gap-2">
@@ -387,10 +349,10 @@ export const LocalEventStoreCard = ({
 
 				<div className="grid gap-4 lg:grid-cols-2">
 					<div className="rounded-md border bg-background/60 p-3 space-y-3">
-						<Label className="text-sm font-medium">Sync + Store Actions</Label>
+						<Label className="text-sm font-medium">Import + Store Actions</Label>
 						<div className="flex flex-wrap gap-2">
 							<Button type="button" disabled={isLoading} onClick={handleImportRemote}>
-								Import Remote CSV
+								Import Google CSV
 							</Button>
 							<Button
 								type="button"
@@ -401,7 +363,7 @@ export const LocalEventStoreCard = ({
 								Load Store CSV
 							</Button>
 							<Button type="button" disabled={isLoading} onClick={handleSaveCsv}>
-								Save Editor to Store
+								Save CSV to Store
 							</Button>
 							<Button
 								type="button"
@@ -446,18 +408,29 @@ export const LocalEventStoreCard = ({
 				</div>
 
 				<div className="space-y-2">
-					<Label htmlFor="event-store-csv-editor">Manual CSV Editor (Advanced)</Label>
+					<Label htmlFor="event-store-csv-editor">Store CSV Editor (Advanced)</Label>
 					<Textarea
 						id="event-store-csv-editor"
 						value={csvEditor}
 						onChange={(event) => setCsvEditor(event.target.value)}
-						placeholder="Load Store CSV, edit values, then Save Editor to Store."
+						placeholder="Load Store CSV, edit values, then save back to store."
 						className="min-h-[180px] font-mono text-xs"
 					/>
 				</div>
 
 				<div className="space-y-2">
-					<Label>Store Preview ({rows.length} rows)</Label>
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<Label>Store Preview ({rows.length} random rows)</Label>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							disabled={isLoading}
+							onClick={handleRefreshPreview}
+						>
+							Show Another Random 2
+						</Button>
+					</div>
 					<div className="overflow-x-auto rounded-md border">
 						<table className="w-full text-xs">
 							<thead className="bg-muted/60">

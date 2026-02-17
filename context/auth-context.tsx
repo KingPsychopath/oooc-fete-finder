@@ -13,6 +13,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = "fete_finder_user_email";
+const USER_AUTH_EXPIRY_DAYS = 30;
 
 // Validate email format
 const isValidEmail = (email: string): boolean => {
@@ -74,10 +75,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 			return;
 		}
 
-		// Store with configurable expiry (default 30 days)
-		const EXPIRY_DAYS = Number(process.env.NEXT_PUBLIC_AUTH_EXPIRY_DAYS) || 30;
 		const expiryDate = new Date();
-		expiryDate.setDate(expiryDate.getDate() + EXPIRY_DAYS);
+		expiryDate.setDate(expiryDate.getDate() + USER_AUTH_EXPIRY_DAYS);
 
 		const authData = {
 			email: email.toLowerCase().trim(), // Normalize email

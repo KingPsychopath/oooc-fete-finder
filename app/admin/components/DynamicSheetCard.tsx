@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getSessionToken } from "@/lib/admin/admin-session";
 import { setDynamicSheet } from "@/lib/data-management/actions";
 import { AlertTriangle, CheckCircle, Database } from "lucide-react";
 import React, { useState } from "react";
@@ -41,20 +40,12 @@ export const DynamicSheetCard = ({
 			return;
 		}
 
-		// Get session token - this should be available if user is authenticated
-		const sessionToken = getSessionToken();
-		if (!sessionToken) {
-			setError("No valid session found. Please re-authenticate.");
-			return;
-		}
-
 		setIsLoading(true);
 		setError("");
 		setSuccessMessage("");
 
 		try {
 			const formData = new FormData(e.target as HTMLFormElement);
-			formData.set("adminKey", sessionToken); // Use session token for authentication
 
 			const result = await setDynamicSheet(formData);
 

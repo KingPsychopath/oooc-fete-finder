@@ -1,6 +1,6 @@
 "use server";
 
-import { validateAdminKeyForApiRoute } from "@/lib/admin/admin-validation";
+import { validateAdminAccessFromServerContext } from "@/lib/admin/admin-validation";
 import { env } from "@/lib/config/env";
 import { UserCollectionStore } from "@/lib/user-management/user-collection-store";
 
@@ -54,8 +54,8 @@ interface RecentEntriesResponse {
 /**
  * Validate admin access for Google Apps Script operations
  */
-function validateAdminAccess(keyOrToken?: string): boolean {
-	return validateAdminKeyForApiRoute(keyOrToken ?? null);
+async function validateAdminAccess(keyOrToken?: string): Promise<boolean> {
+	return validateAdminAccessFromServerContext(keyOrToken ?? null);
 }
 
 /**
@@ -160,7 +160,7 @@ export async function submitUserDataToScript(
 export async function getScriptStats(
 	keyOrToken?: string,
 ): Promise<GoogleSheetsStatsResponse> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized" };
 	}
 
@@ -209,7 +209,7 @@ export async function getScriptStats(
 export async function cleanupScriptDuplicates(
 	keyOrToken?: string,
 ): Promise<CleanupDuplicatesResponse> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized access" };
 	}
 
@@ -293,7 +293,7 @@ export async function getRecentScriptEntries(
 	keyOrToken?: string,
 	limit: number = 5,
 ): Promise<RecentEntriesResponse> {
-	if (!validateAdminAccess(keyOrToken)) {
+	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized" };
 	}
 
