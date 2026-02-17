@@ -19,6 +19,9 @@ const TOKEN_VERSION_KEY = "admin-auth:token-version";
 const SESSION_KEY_PREFIX = "admin-auth:session:";
 const REVOKED_KEY_PREFIX = "admin-auth:revoked:";
 
+/** Delete session records only after this long past expiry (traceability window). */
+const SESSION_CLEANUP_GRACE_SECONDS = 7 * 24 * 60 * 60; // 7 days
+
 const SAFE_JTI = /^[0-9a-fA-F-]{32,64}$/;
 
 export type AdminTokenPayload = {
@@ -384,6 +387,7 @@ export const listAdminTokenSessions = async (): Promise<AdminTokenSessionRecord[
 	const currentVersion = await getCurrentTokenVersion();
 
 	const sessions: AdminTokenSessionRecord[] = [];
+
 	for (const key of keys) {
 		const raw = await kv.get(key);
 		const parsed = parseJson<{
@@ -424,6 +428,32 @@ export const listAdminTokenSessions = async (): Promise<AdminTokenSessionRecord[
 
 	sessions.sort((left, right) => right.iat - left.iat);
 	return sessions;
+};
+
+/**
+ * Delete expired admin session records that are past the grace window (exp + SESSION_CLEANUP_GRACE_SECONDS).
+ * Intended to be called by a cron job (e.g. daily). Returns the number of records deleted.
+ */
+export const cleanupExpiredAdminSessions = async (): Promise<number> => {
+	const kv = await getKVStore();
+	const keys = await kv.list(SESSION_KEY_PREFIX);
+	const nowSeconds = Math.floor(Date.now() / 1000);
+	const cutoff = nowSeconds - SESSION_CLEANUP_GRACE_SECONDS;
+	let deleted = 0;
+
+	for (const key of keys) {
+		const raw = await kv.get(key);
+		const parsed = parseJson<{ exp?: number }>(raw);
+		if (!parsed || typeof parsed.exp !== "number") {
+			continue;
+		}
+		if (parsed.exp <= cutoff) {
+			await kv.delete(key);
+			deleted++;
+		}
+	}
+
+	return deleted;
 };
 
 export const revokeAdminSessionByJti = async (jti: string): Promise<boolean> => {

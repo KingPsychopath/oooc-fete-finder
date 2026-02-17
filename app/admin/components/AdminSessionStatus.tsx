@@ -124,6 +124,7 @@ export const AdminSessionStatus = ({
 	const [isRevokingAll, setIsRevokingAll] = useState(false);
 	const [revokingJti, setRevokingJti] = useState<string | null>(null);
 	const [statusMessage, setStatusMessage] = useState("");
+	const [showExpired, setShowExpired] = useState(false);
 
 	const loadStatus = useCallback(async () => {
 		const [status, tokenSessions] = await Promise.all([
@@ -287,14 +288,40 @@ export const AdminSessionStatus = ({
 						Token Sessions
 					</p>
 					<p className="mt-1 text-xs text-muted-foreground">
-						Expandable JWT session records (jti, expiry, ip, user-agent).
+						Expandable JWT session records (jti, expiry, ip, user-agent). Expired records are kept for 7 days then removed by a daily cron.
 					</p>
 
-					<div className="mt-3 space-y-2">
-						{sessions.length === 0 ? (
-							<p className="text-xs text-muted-foreground">No tracked sessions yet.</p>
-						) : (
-							sessions.map((session) => {
+					{(() => {
+						const expiredCount = sessions.filter((s) => s.status === "expired").length;
+						const visibleSessions = showExpired
+							? sessions
+							: sessions.filter((s) => s.status !== "expired");
+						return (
+							<>
+								{expiredCount > 0 && (
+									<div className="mt-2 flex items-center gap-2">
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className="h-auto py-1 text-xs text-muted-foreground hover:text-foreground"
+											onClick={() => setShowExpired((v) => !v)}
+										>
+											{showExpired
+												? "Hide expired"
+												: `Show ${expiredCount} expired`}
+										</Button>
+									</div>
+								)}
+								<div className="mt-3 space-y-2">
+									{visibleSessions.length === 0 ? (
+										<p className="text-xs text-muted-foreground">
+											{sessions.length === 0
+												? "No tracked sessions yet."
+												: "No non-expired sessions. Toggle “Show expired” to see expired records (cleaned up after 7 days by cron)."}
+										</p>
+									) : (
+										visibleSessions.map((session) => {
 								const expiresIn = session.exp - Math.floor(Date.now() / 1000);
 								const issuedAgo = Math.max(0, Math.floor(Date.now() / 1000) - session.iat);
 								const statusDef = TOKEN_SESSION_STATUS[session.status];
@@ -340,8 +367,11 @@ export const AdminSessionStatus = ({
 									</details>
 								);
 							})
-						)}
-					</div>
+									)}
+								</div>
+							</>
+						);
+					})()}
 				</div>
 
 				{statusMessage && (

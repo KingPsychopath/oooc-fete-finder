@@ -1,24 +1,17 @@
 {
   "functions": {
-    "app/api/og/route.tsx": {
-      "maxDuration": 10
-    },
-    "app/api/og-upload/route.ts": {
-      "maxDuration": 30
-    }
+    "app/api/og/route.tsx": { "maxDuration": 10 },
+    "app/api/og-upload/route.ts": { "maxDuration": 30 }
   },
+  "crons": [
+    { "path": "/api/cron/cleanup-admin-sessions", "schedule": "0 4 * * *" }
+  ],
   "headers": [
     {
       "source": "/api/og",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "s-maxage=86400, stale-while-revalidate=604800"
-        },
-        {
-          "key": "Content-Type",
-          "value": "image/png"
-        }
+        { "key": "Cache-Control", "value": "s-maxage=86400, stale-while-revalidate=604800" },
+        { "key": "Content-Type", "value": "image/png" }
       ]
     }
   ]

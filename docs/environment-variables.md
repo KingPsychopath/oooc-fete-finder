@@ -18,6 +18,7 @@ Schema lives in `lib/config/env.ts`. Cache defaults live in code (`lib/cache/cac
 | `GOOGLE_SERVICE_ACCOUNT_FILE` | No | - | Optional: path to JSON key file (e.g. `scripts/service-account.json`) for local dev only. |
 | `LOCAL_CSV_LAST_UPDATED` | No | - | Metadata only (e.g. last CSV sync time) |
 | `DEFAULT_OG_IMAGE` | No | - | OG image URL override |
+| `CRON_SECRET` | No | - | Secret for cron routes (e.g. cleanup admin sessions). Vercel cron sends `Authorization: Bearer <CRON_SECRET>`. |
 
 ## Optional cache overrides (read by `lib/cache/cache-defaults.ts`)
 

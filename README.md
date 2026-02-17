@@ -96,6 +96,8 @@ pnpm exec tsc --noEmit
 
 All admin endpoints require valid admin auth.
 
+**Cron (scheduled):** `GET /api/cron/cleanup-admin-sessions` — removes admin session records that expired more than 7 days ago. Secured with `CRON_SECRET` (Bearer token). Configured in `vercel.json` to run daily at 04:00 UTC.
+
 ## Migration notes
 
 - `docs/postgres-migration.md` — Postgres migration
