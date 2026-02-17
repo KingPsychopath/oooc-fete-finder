@@ -18,7 +18,7 @@ type ThemeToggleProps = {
 export const ThemeToggle = ({ className }: ThemeToggleProps) => {
 	const { theme, toggleTheme, currentThemeIcon, nextThemeLabel, mounted } =
 		useThemeToggle();
-	const isLightTheme = theme === "light";
+	const isLightTheme = mounted && theme === "light";
 
 	return (
 		<TooltipProvider>

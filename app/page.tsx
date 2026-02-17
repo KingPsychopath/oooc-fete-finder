@@ -1,44 +1,66 @@
 import Header from "@/components/Header";
-import { EventsClient } from "@/features/events/components/events-client";
-import { getPublicSlidingBannerSettingsCached } from "@/features/site-settings/queries";
-import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
-import { env } from "@/lib/config/env";
-import { log } from "@/lib/platform/logger";
+import { Suspense } from "react";
+import { HomeEventsSection } from "./HomeEventsSection";
+import { HomeHeader } from "./HomeHeader";
 
 // Keep ISR short to limit stale windows when data changes.
 export const revalidate = 300; // 5 minutes in seconds
 
-// Make the page component async to allow server-side data fetching
-export default async function Home() {
-	// Fetch events from live runtime source manager
-	const [result, bannerSettings] = await Promise.all([
-		EventsRuntimeManager.getEvents(),
-		getPublicSlidingBannerSettingsCached(),
-	]);
-	const isRemoteMode = env.DATA_MODE === "remote";
-	const isLocalFallback = isRemoteMode && result.source === "local";
+function HomeEventsFallback() {
+	return (
+		<div className="space-y-6" aria-hidden="true">
+			<div className="mb-8 flex min-h-[120px] items-center justify-center rounded-xl border border-border bg-card/60 px-4">
+				<div className="h-10 w-full max-w-md animate-pulse rounded-md bg-muted/60" />
+			</div>
 
-	if (result.error) {
-		log.error("home", "Error loading events", { error: result.error });
-		// You might want to show an error UI here
-	}
+			<div className="rounded-xl border border-border bg-card/60 p-5">
+				<div className="mb-4 h-6 w-44 animate-pulse rounded bg-muted/60" />
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+					<div className="h-44 animate-pulse rounded-lg bg-muted/55" />
+					<div className="h-44 animate-pulse rounded-lg bg-muted/55" />
+					<div className="hidden h-44 animate-pulse rounded-lg bg-muted/55 lg:block" />
+				</div>
+			</div>
 
+			<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+				<div className="h-28 animate-pulse rounded-xl border border-border bg-card/60" />
+				<div className="h-28 animate-pulse rounded-xl border border-border bg-card/60" />
+				<div className="h-28 animate-pulse rounded-xl border border-border bg-card/60" />
+			</div>
+
+			<div className="rounded-xl border border-border bg-card/60 p-5">
+				<div className="mb-4 h-6 w-48 animate-pulse rounded bg-muted/60" />
+				<div className="h-24 animate-pulse rounded-lg border border-border bg-muted/50" />
+			</div>
+
+			<div className="min-h-[400px] rounded-xl border border-border bg-card/60 p-5">
+				<div className="mb-3 h-6 w-40 animate-pulse rounded bg-muted/60" />
+				<div className="h-[320px] animate-pulse rounded-lg bg-muted/50" />
+			</div>
+
+			<div className="rounded-xl border border-border bg-card/60 p-5">
+				<div className="mb-4 h-6 w-32 animate-pulse rounded bg-muted/60" />
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+					<div className="h-44 animate-pulse rounded-lg bg-muted/55" />
+					<div className="h-44 animate-pulse rounded-lg bg-muted/55" />
+					<div className="hidden h-44 animate-pulse rounded-lg bg-muted/55 lg:block" />
+				</div>
+			</div>
+		</div>
+	);
+}
+
+export default function Home() {
 	return (
 		<div className="ooo-site-shell">
-			<Header bannerSettings={bannerSettings} />
+			<Suspense fallback={<Header />}>
+				<HomeHeader />
+			</Suspense>
 			<main
 				id="main-content"
 				className="container mx-auto px-4 py-8"
 				tabIndex={-1}
 			>
-				{isLocalFallback && (
-					<div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-						<strong>Note:</strong> Live Postgres data is currently unavailable.
-						The app is serving local CSV fallback data until the store is
-						restored.
-					</div>
-				)}
-
 				{/* Editorial intro — design system: section label + display heading + divider */}
 				<section className="mb-8" aria-label="Introduction">
 					<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -57,7 +79,9 @@ export default async function Home() {
 					<div className="mt-6 border-t border-border" role="presentation" />
 				</section>
 
-				<EventsClient initialEvents={result.data} />
+				<Suspense fallback={<HomeEventsFallback />}>
+					<HomeEventsSection />
+				</Suspense>
 			</main>
 		</div>
 	);
