@@ -184,7 +184,7 @@ export const AdminSessionStatus = ({ onLogout }: AdminSessionStatusProps) => {
 	}
 
 	return (
-		<Card className="ooo-admin-card">
+		<Card className="ooo-admin-card min-w-0 overflow-hidden">
 			<CardHeader className="space-y-2">
 				<div className="flex items-center justify-between gap-3">
 					<div>

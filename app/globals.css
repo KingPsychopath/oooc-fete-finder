@@ -180,6 +180,7 @@
 
 .ooo-admin-shell {
 	min-height: 100vh;
+	overflow-x: clip;
 	font-family: var(--ooo-font-body);
 	line-height: 1.6;
 	background:

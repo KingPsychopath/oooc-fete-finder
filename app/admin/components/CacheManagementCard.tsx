@@ -93,7 +93,7 @@ export const CacheManagementCard = ({
 		cacheStatus.dataSource !== "store";
 
 	return (
-		<Card className="ooo-admin-card-soft">
+		<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
 			<CardHeader className="space-y-2">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<div>

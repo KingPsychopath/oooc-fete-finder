@@ -197,7 +197,7 @@ export default function AdminPage() {
 
 	if (!cacheStatus) {
 		return (
-			<div className="ooo-admin-shell">
+			<div className="ooo-admin-shell overflow-x-hidden">
 				<div className="mx-auto w-full max-w-[1960px] px-6 py-10">
 					<div className="flex items-center justify-between">
 						<h1 className="ooo-admin-title">Admin Workflow Console</h1>
@@ -214,7 +214,7 @@ export default function AdminPage() {
 	}
 
 	return (
-		<div className="ooo-admin-shell">
+		<div className="ooo-admin-shell overflow-x-hidden">
 			<div className="mx-auto w-full max-w-[1960px] px-4 py-8 sm:px-6 lg:px-8">
 				<div className="mb-6 flex flex-wrap items-start justify-between gap-4">
 					<div>
@@ -225,7 +225,7 @@ export default function AdminPage() {
 							editing controls.
 						</p>
 					</div>
-					<div className="flex gap-2">
+					<div className="flex flex-wrap gap-2">
 						<Button onClick={handleBackToHome} variant="outline" size="sm">
 							Back to Home
 						</Button>
@@ -240,8 +240,8 @@ export default function AdminPage() {
 					</div>
 				</div>
 
-				<div className="grid gap-6 2xl:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.9fr)]">
-					<div className="space-y-6">
+				<div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
+					<div className="min-w-0 space-y-6">
 						<CacheManagementCard
 							cacheStatus={cacheStatus}
 							refreshing={refreshing}
@@ -259,7 +259,7 @@ export default function AdminPage() {
 						<LiveEventsSnapshotCard isAuthenticated={isAuthenticated} />
 					</div>
 
-					<div className="space-y-6">
+					<div className="min-w-0 space-y-6">
 						<AdminSessionStatus onLogout={handleLogout} />
 
 						<LocalEventStoreCard

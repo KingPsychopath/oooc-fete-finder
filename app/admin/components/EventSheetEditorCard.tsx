@@ -482,7 +482,7 @@ export const EventSheetEditorCard = ({
 	}
 
 	return (
-		<Card className="ooo-admin-card-soft">
+		<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
 			<CardHeader>
 				<CardTitle className="text-2xl tracking-tight">Event Sheet Editor</CardTitle>
 				<CardDescription>
@@ -508,7 +508,7 @@ export const EventSheetEditorCard = ({
 					)}
 				</div>
 
-				<div className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto_auto]">
+				<div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-[minmax(0,1fr)_minmax(0,260px)_auto_auto_auto]">
 					<div className="space-y-2">
 						<Label htmlFor="sheet-search">Search rows</Label>
 						<Input
@@ -641,8 +641,8 @@ export const EventSheetEditorCard = ({
 					Showing {visibleRowIndexes.length} of {filteredRowIndexes.length} filtered
 					rows ({rows.length} total).
 				</div>
-				<div className="overflow-auto rounded-md border max-h-[70vh]">
-					<table className="min-w-max table-fixed border-separate border-spacing-0 text-xs">
+				<div className="max-w-full overflow-auto rounded-md border max-h-[70vh]">
+					<table className="w-max min-w-full table-fixed border-separate border-spacing-0 text-xs">
 						<colgroup>
 							<col style={{ width: `${ROW_NUMBER_COLUMN_WIDTH}px` }} />
 							{columns.map((column) => (

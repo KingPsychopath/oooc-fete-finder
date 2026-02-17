@@ -24,7 +24,7 @@ export const EmailCollectionCard = ({
 	const notConsentedCount = emails.length - consentedCount;
 
 	return (
-		<Card className="ooo-admin-card">
+		<Card className="ooo-admin-card min-w-0 overflow-hidden">
 			<CardHeader className="space-y-3">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div>
@@ -42,7 +42,7 @@ export const EmailCollectionCard = ({
 						</Button>
 					</div>
 				</div>
-				<div className="grid grid-cols-3 gap-2">
+				<div className="grid gap-2 sm:grid-cols-3">
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Total

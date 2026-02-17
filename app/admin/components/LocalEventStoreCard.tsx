@@ -232,7 +232,7 @@ export const LocalEventStoreCard = ({
 		cacheStatus.dataSource !== "store";
 
 	return (
-		<Card className="ooo-admin-card">
+		<Card className="ooo-admin-card min-w-0 overflow-hidden">
 			<CardHeader className="space-y-2">
 				<CardTitle>Data Store Controls</CardTitle>
 				<CardDescription>
@@ -241,7 +241,7 @@ export const LocalEventStoreCard = ({
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-5">
-				<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+				<div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Provider
@@ -332,7 +332,7 @@ export const LocalEventStoreCard = ({
 					/>
 				</div>
 
-				<div className="grid gap-4 xl:grid-cols-2">
+				<div className="grid gap-4 2xl:grid-cols-2">
 					<div className="rounded-md border bg-background/60 p-3">
 						<div className="mb-2 flex items-center justify-between gap-3">
 							<p className="text-sm font-medium">Postgres Store Sample (2 rows)</p>
@@ -351,7 +351,7 @@ export const LocalEventStoreCard = ({
 								</Button>
 							</div>
 						</div>
-						<div className="overflow-x-auto rounded-md border">
+						<div className="max-w-full overflow-x-auto rounded-md border">
 							<table className="w-full text-xs">
 								<thead className="bg-muted/40">
 									<tr>
@@ -407,7 +407,7 @@ export const LocalEventStoreCard = ({
 								<p className="mb-2 text-xs text-muted-foreground">
 									Showing {remotePreview.rows.length} of {remotePreview.totalRows} rows.
 								</p>
-								<div className="overflow-x-auto rounded-md border">
+								<div className="max-w-full overflow-x-auto rounded-md border">
 									<table className="w-full text-xs">
 										<thead className="bg-muted/40">
 											<tr>
