@@ -16,292 +16,364 @@ type ShareableImageGeneratorProps = {
 	onError: (message: string) => void;
 };
 
-const generateShareableImage = async (event: Event): Promise<void> => {
-	// Create a subtle camera flash effect
-	const flashOverlay = document.createElement("div");
-	flashOverlay.style.position = "fixed";
-	flashOverlay.style.top = "0";
-	flashOverlay.style.left = "0";
-	flashOverlay.style.width = "100vw";
-	flashOverlay.style.height = "100vh";
-	flashOverlay.style.backgroundColor = "#ffffff";
-	flashOverlay.style.zIndex = "99999";
-	flashOverlay.style.opacity = "0";
-	flashOverlay.style.pointerEvents = "none";
-	flashOverlay.style.transition = "opacity 0.3s ease-in-out";
+export type ShareImageFormat = "portrait" | "landscape";
 
-	// Add flash to body and trigger animation
-	document.body.appendChild(flashOverlay);
+const FORMATS: Record<ShareImageFormat, { width: number; height: number; label: string }> = {
+	portrait: { width: 1080, height: 1920, label: "story" },
+	landscape: { width: 1200, height: 630, label: "post" },
+};
 
-	// Brief flash animation
-	setTimeout(() => {
-		flashOverlay.style.opacity = "0.3";
-	}, 50);
+const RENDER_SCALE = 2;
 
-	setTimeout(() => {
-		flashOverlay.style.opacity = "0";
-	}, 400);
+const isMobileDevice = (): boolean => {
+	if (typeof navigator === "undefined" || typeof window === "undefined") return false;
+	return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+};
 
-	// Remove flash overlay after animation
-	setTimeout(() => {
-		if (document.body.contains(flashOverlay)) {
-			document.body.removeChild(flashOverlay);
-		}
-	}, 800);
+const canUseNativeShareWithFiles = (): boolean => {
+	if (typeof navigator === "undefined" || typeof window === "undefined") return false;
+	return isMobileDevice() && typeof navigator.share === "function";
+};
 
-	// Create a modal overlay to temporarily show the content
-	const overlay = document.createElement("div");
-	overlay.style.position = "fixed";
-	overlay.style.top = "0";
-	overlay.style.left = "0";
-	overlay.style.width = "100vw";
-	overlay.style.height = "100vh";
-	overlay.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
-	overlay.style.zIndex = "10000";
-	overlay.style.display = "flex";
-	overlay.style.alignItems = "center";
-	overlay.style.justifyContent = "center";
+const escapeHtml = (value: string): string =>
+	value
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#39;");
 
-	// Create a temporary div for the shareable content
-	const shareContainer = document.createElement("div");
-	shareContainer.style.width = "400px";
-	shareContainer.style.height = "700px";
-	shareContainer.style.background =
-		"linear-gradient(145deg, #f3e8d8 0%, #ead9c1 45%, #ddc6a5 100%)";
-	shareContainer.style.borderRadius = "24px";
-	shareContainer.style.padding = "24px";
-	shareContainer.style.fontFamily =
-		'"Degular", "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-	shareContainer.style.color = "#2f2418";
-	shareContainer.style.boxSizing = "border-box";
-	shareContainer.style.display = "flex";
-	shareContainer.style.flexDirection = "column";
-	shareContainer.style.justifyContent = "space-between";
-	shareContainer.style.position = "relative";
+const resolveGenreChipColors = (genreKey: string): { background: string; text: string } => {
+	const colorClass = MUSIC_GENRES.find((g) => g.key === genreKey)?.color;
+	const colorMap: Record<string, { background: string; text: string }> = {
+		"bg-emerald-500": { background: "#10B981", text: "#FFFFFF" },
+		"bg-orange-500": { background: "#F97316", text: "#111111" },
+		"bg-yellow-500": { background: "#EAB308", text: "#111111" },
+		"bg-pink-500": { background: "#EC4899", text: "#FFFFFF" },
+		"bg-red-500": { background: "#EF4444", text: "#FFFFFF" },
+		"bg-purple-600": { background: "#9333EA", text: "#FFFFFF" },
+		"bg-indigo-500": { background: "#6366F1", text: "#FFFFFF" },
+		"bg-green-600": { background: "#16A34A", text: "#FFFFFF" },
+		"bg-lime-500": { background: "#84CC16", text: "#111111" },
+		"bg-amber-500": { background: "#F59E0B", text: "#111111" },
+		"bg-teal-500": { background: "#14B8A6", text: "#FFFFFF" },
+		"bg-blue-600": { background: "#2563EB", text: "#FFFFFF" },
+		"bg-violet-500": { background: "#8B5CF6", text: "#FFFFFF" },
+		"bg-orange-600": { background: "#EA580C", text: "#FFFFFF" },
+		"bg-cyan-500": { background: "#06B6D4", text: "#111111" },
+		"bg-fuchsia-500": { background: "#D946EF", text: "#FFFFFF" },
+		"bg-gray-600": { background: "#4B5563", text: "#FFFFFF" },
+		"bg-slate-600": { background: "#475569", text: "#FFFFFF" },
+		"bg-red-600": { background: "#DC2626", text: "#FFFFFF" },
+		"bg-blue-500": { background: "#3B82F6", text: "#FFFFFF" },
+		"bg-emerald-600": { background: "#059669", text: "#FFFFFF" },
+		"bg-rose-500": { background: "#F43F5E", text: "#FFFFFF" },
+		"bg-yellow-600": { background: "#CA8A04", text: "#FFFFFF" },
+		"bg-indigo-600": { background: "#4F46E5", text: "#FFFFFF" },
+		"bg-pink-600": { background: "#DB2777", text: "#FFFFFF" },
+		"bg-orange-400": { background: "#FB923C", text: "#111111" },
+		"bg-purple-400": { background: "#C084FC", text: "#111111" },
+		"bg-stone-500": { background: "#78716C", text: "#FFFFFF" },
+		"bg-sky-500": { background: "#0EA5E9", text: "#FFFFFF" },
+		"bg-gray-500": { background: "#6B7280", text: "#FFFFFF" },
+	};
 
-	// Create the HTML content for the shareable image
-	shareContainer.innerHTML = `
-		<div style="flex: 1; display: flex; flex-direction: column;">
-			<!-- Header with badges -->
-			<div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px;">
-				<div style="display: flex; flex-direction: column; gap: 8px;">
-					${event.isOOOCPick ? '<div style="background: #f0be39; color: #2f2418; padding: 10px 16px; border-radius: 16px; font-size: 11px; font-weight: 700; display: inline-block; text-align: center; letter-spacing: 0.5px; white-space: nowrap;">OOOC PICK</div>' : ""}
+	return colorMap[colorClass || ""] || { background: "#D6D3CD", text: "#191714" };
+};
+
+const buildBaseMeta = (event: Event) => {
+	const eventName = escapeHtml(event.name);
+	const dateLabel = escapeHtml(formatDayWithDate(event.day, event.date));
+	const timeLabel = escapeHtml(
+		event.time && event.time !== "TBC" ?
+			event.endTime && event.endTime !== "TBC" ? `${event.time} - ${event.endTime}` : event.time
+		: 	"TBC",
+	);
+	const priceLabel = escapeHtml(formatPrice(event.price));
+	const locationLabel = escapeHtml(
+		event.location && event.location !== "TBA" ? event.location : "Location TBA",
+	);
+	const arrondissementLabel = escapeHtml(
+		event.arrondissement === "unknown" ? "Arrondissement TBC" : `${event.arrondissement}e Arrondissement`,
+	);
+	const venueLabel = escapeHtml(
+		event.venueTypes && event.venueTypes.length > 0 ?
+			event.venueTypes
+				.map((vt) => VENUE_TYPES.find((v) => v.key === vt)?.label || vt)
+				.join(" & ")
+		: event.indoor ?
+			"Indoor"
+		: 	"Outdoor",
+	);
+	const ageLabel = escapeHtml(event.age ? formatAge(event.age) : "All ages");
+	const genres = (event.genre || []).slice(0, 4).map((genre) => {
+		const label = escapeHtml(MUSIC_GENRES.find((g) => g.key === genre)?.label || genre);
+		const colors = resolveGenreChipColors(genre);
+		return { label, background: colors.background, text: colors.text };
+	});
+	const genreOverflow = Math.max(0, (event.genre?.length || 0) - genres.length);
+	const nationalityBadges = (event.nationality || [])
+		.slice(0, 3)
+		.map((nationality) => {
+			const found = NATIONALITIES.find((n) => n.key === nationality);
+			if (!found) return escapeHtml(nationality);
+			return `${found.flag} ${escapeHtml(found.shortCode)}`;
+		});
+
+	return {
+		eventName,
+		dateLabel,
+		timeLabel,
+		priceLabel,
+		locationLabel,
+		arrondissementLabel,
+		venueLabel,
+		ageLabel,
+		genres,
+		genreOverflow,
+		nationalityBadges,
+	};
+};
+
+const buildPortraitTemplate = (event: Event): string => {
+	const meta = buildBaseMeta(event);
+	const pickBadge =
+		event.isOOOCPick ?
+			'<div style="display:inline-flex;align-items:center;padding:9px 14px;border-radius:999px;background:#121212;color:#ffffff;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">OOOC Pick</div>'
+		: "";
+
+	const genreChips =
+		meta.genres.length > 0 ?
+			`<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;">${meta.genres
+				.map(
+					(genre) => `<div style="padding:8px 14px;border-radius:999px;background:${genre.background};color:${genre.text};font-size:14px;font-weight:600;">${genre.label}</div>`,
+				)
+				.join("")}${
+				meta.genreOverflow > 0 ?
+					`<div style="padding:8px 14px;border-radius:999px;background:#E9E5DE;border:1px solid #D0CBC2;color:#171717;font-size:14px;font-weight:600;">+${meta.genreOverflow} more</div>`
+				: ""
+			}</div>`
+		: "";
+
+	const nationalityChips =
+		meta.nationalityBadges.length > 0 ?
+			`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">${meta.nationalityBadges
+				.map(
+					(nationality) => `<div style="padding:6px 10px;border-radius:999px;background:#f4f1eb;border:1px solid #d7d3cb;color:#171717;font-size:11px;font-weight:600;">${nationality}</div>`,
+				)
+				.join("")}</div>`
+		: "";
+
+	return `
+		<div style="display:flex;flex-direction:column;height:100%;background:
+			radial-gradient(120% 82% at 50% 95%, rgba(26,16,12,0.18) 0%, rgba(26,16,12,0) 54%),
+			linear-gradient(180deg,#FCFBF9 0%,#F4F0E8 100%);
+			padding:56px;box-sizing:border-box;color:#161616;">
+			<div style="display:flex;flex-direction:column;height:100%;border-radius:34px;border:1px solid #D8D2C8;background:#FBF9F5;padding:38px;">
+				<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+					<div>
+						<p style="margin:0;font-size:13px;letter-spacing:0.22em;text-transform:uppercase;color:#57534c;">Out Of Office Collective</p>
+						<div style="margin-top:12px;">${pickBadge}</div>
+					</div>
+					<div style="padding:10px 16px;border-radius:999px;background:#ffffff;border:1px solid #d7d3cb;font-size:16px;font-weight:600;color:#171717;">${meta.arrondissementLabel}</div>
 				</div>
-				<div style="background: rgba(60,43,27,0.08); color: #2f2418; padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-					${event.arrondissement === "unknown" ? "TBC" : `${event.arrondissement}e`}
+
+				<div style="margin-top:26px;">
+					<h1 style="margin:0;font-family:'Swear Display','Times New Roman',serif;font-size:96px;line-height:0.9;font-weight:400;color:#121212;word-break:break-word;">${meta.eventName}</h1>
+					${genreChips}
+					${nationalityChips}
+				</div>
+
+				<div style="margin-top:24px;border-radius:24px;border:1px solid #D6D0C7;background:#FFFFFF;padding:16px;">
+					<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+						<div style="border-radius:15px;border:1px solid #DDD9D1;background:#FAF9F7;padding:14px;"><p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Date</p><p style="margin:8px 0 0 0;font-size:38px;font-weight:600;color:#161616;line-height:1.1;">${meta.dateLabel}</p></div>
+						<div style="border-radius:15px;border:1px solid #DDD9D1;background:#FAF9F7;padding:14px;"><p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Time</p><p style="margin:8px 0 0 0;font-size:38px;font-weight:600;color:#161616;line-height:1.1;">${meta.timeLabel}</p></div>
+						<div style="border-radius:15px;border:1px solid #DDD9D1;background:#FAF9F7;padding:14px;"><p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Price</p><p style="margin:8px 0 0 0;font-size:42px;font-weight:700;color:#161616;line-height:1.1;">${meta.priceLabel}</p></div>
+						<div style="border-radius:15px;border:1px solid #DDD9D1;background:#FAF9F7;padding:14px;"><p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Venue</p><p style="margin:8px 0 0 0;font-size:33px;font-weight:600;color:#161616;line-height:1.1;">${escapeHtml(`${formatVenueTypeIcons(event)} ${meta.venueLabel}`)}</p></div>
+					</div>
+					<div style="margin-top:12px;border-radius:15px;border:1px solid #DDD9D1;background:#FAF9F7;padding:14px;"><p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Location</p><p style="margin:8px 0 0 0;font-size:30px;font-weight:500;color:#161616;line-height:1.2;">${meta.locationLabel}</p><p style="margin:7px 0 0 0;font-size:20px;color:#57534c;">Age: ${meta.ageLabel} · ${escapeHtml(event.type)}</p></div>
+				</div>
+
+				<div style="margin-top:auto;padding-top:20px;">
+					<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #D7D3CB;padding-top:14px;">
+						<div><p style="margin:0;font-size:18px;font-weight:700;color:#121212;">OOOC Fête Finder</p><p style="margin:4px 0 0 0;font-size:14px;color:#57534c;">outofofficecollective.co.uk</p></div>
+						<div style="padding:10px 16px;border-radius:999px;background:#121212;color:#ffffff;font-size:14px;font-weight:600;">Paris Event Story</div>
+					</div>
 				</div>
 			</div>
-			
-			<!-- Event Title -->
-			<h1 style="font-size: 30px; font-weight: 400; margin: 0 0 20px 0; line-height: 1.08; color: #2f2418; word-wrap: break-word; letter-spacing: -0.3px; font-family: 'Swear Display', 'Times New Roman', serif;">${event.name}</h1>
-			
-			<!-- Main Details Card -->
-			<div style="background: rgba(255,255,255,0.42); border: 1px solid rgba(60,43,27,0.14); border-radius: 16px; padding: 20px; margin-bottom: 16px; backdrop-filter: blur(6px);">
-				<div style="display: flex; align-items: center; margin-bottom: 12px;">
-					<div style="margin-right: 10px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #6a543c; min-width: 56px;">Date</div>
-					<span style="font-size: 14px; color: #2f2418; font-weight: 500;">${formatDayWithDate(event.day, event.date)}</span>
-				</div>
-				
-				${
-					event.time && event.time !== "TBC"
-						? `
-					<div style="display: flex; align-items: center; margin-bottom: 12px;">
-						<div style="margin-right: 10px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #6a543c; min-width: 56px;">Time</div>
-						<span style="font-size: 14px; font-family: 'JetBrains Mono', 'SF Mono', Monaco, monospace; color: #2f2418; font-weight: 500;">${event.time}${event.endTime && event.endTime !== "TBC" ? ` - ${event.endTime}` : ""}</span>
-					</div>
-				`
-						: ""
-				}
-				
-				${
-					event.location && event.location !== "TBA"
-						? `
-					<div style="display: flex; align-items: center; margin-bottom: 12px;">
-						<div style="margin-right: 10px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #6a543c; min-width: 56px;">Place</div>
-						<span style="font-size: 13px; color: #3b2d1e; word-wrap: break-word; line-height: 1.3; font-weight: 400;">${event.location}</span>
-					</div>
-				`
-						: ""
-				}
-				
-				<div style="display: flex; align-items: center; margin-bottom: 12px;">
-					<div style="margin-right: 10px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #6a543c; min-width: 56px;">Price</div>
-					<span style="font-size: 16px; font-weight: 700; color: ${formatPrice(event.price) === "Free" ? "#0f7a4b" : "#2f2418"};">${formatPrice(event.price)}</span>
-				</div>
-
-				${
-					event.age
-						? `
-					<div style="display: flex; align-items: center;">
-						<div style="margin-right: 10px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #6a543c; min-width: 56px;">Age</div>
-						<span style="font-size: 14px; color: #2f2418; font-weight: 500;">${formatAge(event.age)}</span>
-					</div>
-				`
-						: ""
-				}
-			</div>
-			
-			<!-- Event Type -->
-			<div style="margin-bottom: 16px;">
-				<div style="background: rgba(60,43,27,0.1); color: #2f2418; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block;">
-					${event.type}
-				</div>
-			</div>
-
-			<!-- Genre Tags -->
-			${
-				event.genre && event.genre.length > 0
-					? `
-				<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;">
-					${event.genre
-						.map(
-							(genre) => `
-						<div style="background: rgba(60,43,27,0.1); color: #2f2418; padding: 6px 12px; border-radius: 16px; font-size: 11px; white-space: nowrap; display: flex; align-items: center; gap: 4px; font-weight: 500;">
-							${MUSIC_GENRES.find((g) => g.key === genre)?.label || genre}
-						</div>
-					`,
-						)
-						.join("")}
-				</div>
-			`
-					: ""
-			}
-
-			<!-- Nationality Tags -->
-			${
-				event.nationality && event.nationality.length > 0
-					? `
-				<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;">
-					${event.nationality
-						.slice(0, 3)
-						.map(
-							(nationality) => `
-						<div style="background: rgba(60,43,27,0.1); color: #2f2418; padding: 6px 12px; border-radius: 16px; font-size: 11px; white-space: nowrap; font-weight: 500;">
-							${NATIONALITIES.find((n) => n.key === nationality)?.flag} ${NATIONALITIES.find((n) => n.key === nationality)?.shortCode || nationality}
-						</div>
-					`,
-						)
-						.join("")}
-				</div>
-			`
-					: ""
-			}
-
-			<!-- Environment Badge -->
-			${
-				event.venueTypes && event.venueTypes.length > 0
-					? `
-				<div style="margin-bottom: 16px;">
-					<div style="background: rgba(60,43,27,0.1); color: #2f2418; padding: 6px 12px; border-radius: 16px; font-size: 11px; display: inline-block; white-space: nowrap; font-weight: 500;">
-						${formatVenueTypeIcons(event)} ${event.venueTypes
-							.map((vt) => VENUE_TYPES.find((v) => v.key === vt)?.label)
-							.filter(Boolean)
-							.join(" & ")}
-					</div>
-				</div>
-			`
-					: event.indoor !== undefined
-						? `
-				<div style="margin-bottom: 16px;">
-					<div style="background: rgba(60,43,27,0.1); color: #2f2418; padding: 6px 12px; border-radius: 16px; font-size: 11px; display: inline-block; white-space: nowrap; font-weight: 500;">
-						${event.indoor ? "Indoor" : "Outdoor"}
-					</div>
-				</div>
-			`
-						: ""
-			}
-		</div>
-		
-		<!-- Footer Branding -->
-		<div style="text-align: center; padding-top: 20px; border-top: 1px solid rgba(60,43,27,0.22); margin-top: auto;">
-			<div style="font-size: 16px; font-weight: 700; margin-bottom: 4px; color: #2f2418; letter-spacing: 0.5px;">OOOC Fête Finder</div>
-			<div style="font-size: 12px; opacity: 0.9; color: #3b2d1e; font-weight: 400;">Curated Paris events, updated live</div>
 		</div>
 	`;
+};
 
-	// Add container to overlay and overlay to body
-	overlay.appendChild(shareContainer);
-	document.body.appendChild(overlay);
+const buildLandscapeTemplate = (event: Event): string => {
+	const meta = buildBaseMeta(event);
+	const genreChips =
+		meta.genres.length > 0 ?
+			`<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px;">${meta.genres
+				.map(
+					(genre) => `<div style="padding:6px 10px;border-radius:999px;background:${genre.background};color:${genre.text};font-size:12px;font-weight:600;">${genre.label}</div>`,
+				)
+				.join("")}</div>`
+		: "";
+
+	return `
+		<div style="display:flex;flex-direction:column;height:100%;background:
+			radial-gradient(120% 90% at 50% 100%, rgba(26,16,12,0.28) 0%, rgba(26,16,12,0) 62%),
+			linear-gradient(180deg,#F6F2EC 0%,#EEE8DF 100%);
+			padding:24px;box-sizing:border-box;color:#161616;">
+			<div style="display:flex;flex-direction:column;height:100%;border-radius:32px;border:1px solid #D8D2C8;background:#FBF9F5;padding:26px;">
+				<div style="display:flex;justify-content:space-between;align-items:flex-start;">
+					<p style="margin:0;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;color:#57534c;">Out Of Office Collective</p>
+					<div style="padding:8px 12px;border-radius:999px;background:#ffffff;border:1px solid #d7d3cb;font-size:14px;font-weight:600;color:#171717;">${meta.arrondissementLabel}</div>
+				</div>
+				<h1 style="margin:14px 0 0;font-family:'Swear Display','Times New Roman',serif;font-size:72px;line-height:0.9;font-weight:400;color:#121212;max-width:88%;word-break:break-word;">${meta.eventName}</h1>
+				${genreChips}
+
+				<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:0;">
+					<div style="border-radius:20px;border:1px solid #d7d3cb;background:#ffffff;padding:16px;display:flex;flex-direction:column;gap:12px;">
+						<div><p style="margin:0;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Date</p><p style="margin:6px 0 0 0;font-size:42px;font-weight:600;color:#161616;line-height:1.08;">${meta.dateLabel}</p></div>
+						<div><p style="margin:0;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Time</p><p style="margin:6px 0 0 0;font-size:42px;font-weight:600;color:#161616;line-height:1.08;">${meta.timeLabel}</p></div>
+						<div><p style="margin:0;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Location</p><p style="margin:6px 0 0 0;font-size:29px;font-weight:500;color:#161616;line-height:1.2;">${meta.locationLabel}</p></div>
+					</div>
+					<div style="border-radius:20px;border:1px solid #d7d3cb;background:#ffffff;padding:16px;display:flex;flex-direction:column;gap:12px;">
+						<div><p style="margin:0;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Price</p><p style="margin:6px 0 0 0;font-size:46px;font-weight:700;color:#161616;line-height:1.08;">${meta.priceLabel}</p></div>
+						<div><p style="margin:0;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Venue</p><p style="margin:6px 0 0 0;font-size:30px;font-weight:600;color:#161616;line-height:1.15;">${escapeHtml(`${formatVenueTypeIcons(event)} ${meta.venueLabel}`)}</p></div>
+						<div><p style="margin:0;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Age</p><p style="margin:6px 0 0 0;font-size:28px;font-weight:500;color:#161616;line-height:1.15;">${meta.ageLabel}</p></div>
+					</div>
+				</div>
+
+				<div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #d7d3cb;padding-top:10px;">
+					<div><p style="margin:0;font-size:17px;font-weight:700;color:#121212;">OOOC Fête Finder</p><p style="margin:4px 0 0 0;font-size:13px;color:#57534c;">Paris Event Post</p></div>
+					${event.isOOOCPick ? '<div style="padding:8px 12px;border-radius:999px;background:#121212;color:#ffffff;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">OOOC Pick</div>' : ""}
+				</div>
+			</div>
+		</div>
+	`;
+};
+
+const generateShareableImage = async (
+	event: Event,
+	format: ShareImageFormat = "portrait",
+): Promise<void> => {
+	const dimensions = FORMATS[format];
+	const container = document.createElement("div");
+	container.style.position = "fixed";
+	container.style.inset = "0";
+	container.style.display = "flex";
+	container.style.alignItems = "center";
+	container.style.justifyContent = "center";
+	container.style.overflow = "hidden";
+	container.style.background = "rgba(12, 10, 8, 0.42)";
+	container.style.backdropFilter = "blur(2px)";
+	container.style.setProperty("-webkit-backdrop-filter", "blur(2px)");
+	container.style.opacity = "0";
+	container.style.transition = "opacity 110ms ease";
+	container.style.pointerEvents = "none";
+	container.style.zIndex = "2147483647";
+	container.setAttribute("aria-hidden", "true");
+
+	const previewWrapper = document.createElement("div");
+	previewWrapper.style.transformOrigin = "center center";
+	previewWrapper.style.willChange = "transform";
+
+	const frame = document.createElement("div");
+	frame.style.width = `${dimensions.width}px`;
+	frame.style.height = `${dimensions.height}px`;
+	frame.style.overflow = "hidden";
+	frame.style.borderRadius = "24px";
+	frame.style.boxShadow = "0 28px 80px rgba(0, 0, 0, 0.35)";
+	frame.innerHTML =
+		format === "portrait" ? buildPortraitTemplate(event) : buildLandscapeTemplate(event);
+
+	const previewScale = Math.min(
+		0.62,
+		window.innerWidth / dimensions.width,
+		window.innerHeight / dimensions.height,
+	);
+	previewWrapper.style.transform = `scale(${Math.max(previewScale, 0.24).toFixed(3)})`;
+
+	previewWrapper.appendChild(frame);
+	container.appendChild(previewWrapper);
+	document.body.appendChild(container);
 
 	try {
-		// Wait a moment for styles to be applied and rendered
-		await new Promise((resolve) => setTimeout(resolve, 200));
+		if (typeof document !== "undefined" && "fonts" in document) {
+			await document.fonts.ready;
+		}
+		await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+		container.style.opacity = "1";
+		await new Promise((resolve) => setTimeout(resolve, 120));
 
-		// Dynamic import of modern-screenshot
 		const { domToCanvas } = await import("modern-screenshot");
-
-		const canvas = await domToCanvas(shareContainer, {
-			scale: 2, // Higher resolution for crisp images
-			quality: 1, // Maximum quality
-			width: 400,
-			height: 700,
+		const canvas = await domToCanvas(frame, {
+			scale: RENDER_SCALE,
+			quality: 1,
+			width: dimensions.width,
+			height: dimensions.height,
 		});
+		container.style.opacity = "0";
 
-		// Verify canvas has content by checking if it's not just white
-		const context = canvas.getContext("2d");
-		const imageData = context?.getImageData(
-			0,
-			0,
-			Math.min(100, canvas.width),
-			Math.min(100, canvas.height),
-		);
-		const hasContent = imageData?.data.some((channel, index) => {
-			// Check if any pixel has non-white color in the first 100x100 area
-			return index % 4 !== 3 && channel !== 255;
-		});
-
-		if (!hasContent) {
-			throw new Error(
-				"Generated image appears to be blank - content may not be rendering",
-			);
-		}
-
-		// Create download link as fallback
-		const link = document.createElement("a");
-		link.download = `${event.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}-event.png`;
-		link.href = canvas.toDataURL("image/png", 1.0);
-
-		// Check if we can use the Web Share API (primarily mobile)
-		if (navigator.share) {
-			// Convert canvas to blob for sharing
-			canvas.toBlob(
-				async (blob: Blob | null) => {
-					if (blob) {
-						const file = new File([blob], `${event.name}-event.png`, {
-							type: "image/png",
-						});
-						try {
-							await navigator.share({
-								title: `${event.name} - OOOC Fête Finder`,
-								text: `Check out this event: ${event.name}`,
-								files: [file],
-							});
-						} catch {
-							// If native sharing fails, download the image
-							link.click();
-						}
-					} else {
-						// If blob creation fails, download the image
-						link.click();
-					}
-				},
-				"image/png",
-				1.0,
-			);
-		} else {
-			// Desktop browsers - download the image
+		const fileName =
+			`${event.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}-${FORMATS[format].label}.png`;
+		const triggerDownload = (blob?: Blob) => {
+			const link = document.createElement("a");
+			link.download = fileName;
+			const objectUrl = blob ? URL.createObjectURL(blob) : canvas.toDataURL("image/png", 1.0);
+			link.href = objectUrl;
+			document.body.appendChild(link);
 			link.click();
+			document.body.removeChild(link);
+
+			if (blob) {
+				setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+			}
+		};
+
+		const blob = await new Promise<Blob | null>((resolve) => {
+			canvas.toBlob(resolve, "image/png", 1.0);
+		});
+
+		if (!blob) {
+			triggerDownload();
+			return;
 		}
+
+		if (canUseNativeShareWithFiles()) {
+			const file = new File([blob], fileName, {
+				type: "image/png",
+			});
+
+			const canShareFile =
+				typeof navigator.canShare === "function" ?
+					navigator.canShare({ files: [file] })
+				: false;
+
+			if (canShareFile) {
+				try {
+					await navigator.share({
+						title: `${event.name} - OOOC Fête Finder`,
+						text: `Check out this event: ${event.name}`,
+						files: [file],
+					});
+					return;
+				} catch {
+					triggerDownload(blob);
+					return;
+				}
+			}
+		} else {
+			triggerDownload(blob);
+			return;
+		}
+
+		triggerDownload(blob);
 	} catch (error) {
 		console.error("Error generating shareable image:", error);
 		throw error;
 	} finally {
-		// Remove the overlay after a short delay to prevent flashing
-		setTimeout(() => {
-			if (document.body.contains(overlay)) {
-				document.body.removeChild(overlay);
-			}
-		}, 100);
+		if (document.body.contains(container)) {
+			document.body.removeChild(container);
+		}
 	}
 };
 
@@ -309,9 +381,9 @@ export const ShareableImageGenerator = ({
 	event,
 	onError,
 }: ShareableImageGeneratorProps) => {
-	const handleGenerateImage = async () => {
+	const handleGenerateImage = async (format: ShareImageFormat = "portrait") => {
 		try {
-			await generateShareableImage(event);
+			await generateShareableImage(event, format);
 		} catch (error) {
 			onError(
 				error instanceof Error ? error.message : "Unknown error occurred",

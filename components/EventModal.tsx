@@ -1,6 +1,7 @@
 "use client";
 
 import { ShareableImageGenerator } from "@/components/ShareableImageGenerator";
+import type { ShareImageFormat } from "@/components/ShareableImageGenerator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -151,11 +152,11 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		onError: handleShareError,
 	});
 
-	const handleShareToStory = async () => {
+	const handleShareToStory = async (format: ShareImageFormat) => {
 		setIsSharing(true);
 		setShareError(null);
 		try {
-			await shareImageGenerator.generateImage();
+			await shareImageGenerator.generateImage(format);
 		} finally {
 			setIsSharing(false);
 		}
@@ -289,51 +290,51 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 					</div>
 
 					<div className="rounded-xl border border-border/70 bg-background/55 p-3">
-						<div className="flex items-start gap-2">
-							<MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
-							<div className="min-w-0 flex-1">
-								<div className="flex items-center justify-between gap-2">
-									<p className="text-sm font-medium">{locationLabel}</p>
-									<TooltipProvider>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<Button
-													variant="outline"
-													size="sm"
-													onClick={() => setShowMapSettings(!showMapSettings)}
-													className="h-8 px-2 text-xs"
-												>
-													<Settings className="mr-1 h-3.5 w-3.5" />
-													Map settings
-												</Button>
-											</TooltipTrigger>
-											<TooltipContent>
-												<p>Map preferences</p>
-											</TooltipContent>
-										</Tooltip>
-									</TooltipProvider>
+						<div className="min-w-0">
+							<div className="flex items-center justify-between gap-2">
+								<div className="min-w-0 flex items-center gap-2">
+									<MapPin className="h-4.5 w-4.5 shrink-0 text-muted-foreground" />
+									<p className="truncate text-sm font-medium">{locationLabel}</p>
 								</div>
+								<TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => setShowMapSettings(!showMapSettings)}
+												className="h-8 px-2 text-xs"
+											>
+												<Settings className="mr-1 h-3.5 w-3.5" />
+												Map settings
+											</Button>
+										</TooltipTrigger>
+										<TooltipContent>
+											<p>Map preferences</p>
+										</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
+							</div>
 
-								{event.location && event.location !== "TBA" ? (
-									<button
-										onClick={() =>
-											handleOpenLocation(event.location!, event.arrondissement)
-										}
-										className="mt-1 min-h-[44px] break-words text-left text-sm text-muted-foreground transition-colors hover:text-primary hover:underline"
-										title={`Open "${event.location}" in maps`}
-									>
-										{event.location}
-									</button>
-								) : (
-									<Badge variant="outline" className="mt-2">
-										Location TBA
-									</Badge>
-								)}
+							{event.location && event.location !== "TBA" ? (
+								<button
+									onClick={() =>
+										handleOpenLocation(event.location!, event.arrondissement)
+									}
+									className="mt-2 ml-[1.625rem] min-h-[44px] break-words text-left text-sm text-muted-foreground transition-colors hover:text-primary hover:underline"
+									title={`Open "${event.location}" in maps`}
+								>
+									{event.location}
+								</button>
+							) : (
+								<Badge variant="outline" className="mt-2 ml-[1.625rem]">
+									Location TBA
+								</Badge>
+							)}
 
-								<div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-									<User className="h-3.5 w-3.5" />
-									<span>{ageLabel}</span>
-								</div>
+							<div className="mt-2 ml-[1.625rem] flex items-center gap-2 text-xs text-muted-foreground">
+								<User className="h-3.5 w-3.5" />
+								<span>{ageLabel}</span>
 							</div>
 						</div>
 
@@ -400,16 +401,27 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								Add to Calendar
 							</Button>
 
-							<Button
-								variant="outline"
-								onClick={() => void handleShareToStory()}
-								disabled={isSharing}
-								className="h-11 border-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600"
-								title="Share event to social media story"
-							>
-								<Share className="mr-2 h-4 w-4" />
-								{isSharing ? "Generating..." : "Share to Story"}
-							</Button>
+							<div className="grid grid-cols-2 gap-2">
+								<Button
+									variant="outline"
+									onClick={() => void handleShareToStory("portrait")}
+									disabled={isSharing}
+									className="h-11 border-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600"
+									title="Generate Instagram story (portrait)"
+								>
+									<Share className="mr-2 h-4 w-4" />
+									{isSharing ? "Generating..." : "Story"}
+								</Button>
+								<Button
+									variant="outline"
+									onClick={() => void handleShareToStory("landscape")}
+									disabled={isSharing}
+									className="h-11 border-border/70 bg-background/70 text-foreground hover:bg-accent"
+									title="Generate social post (landscape)"
+								>
+									{isSharing ? "Generating..." : "Post"}
+								</Button>
+							</div>
 						</div>
 						{shareError && (
 							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
