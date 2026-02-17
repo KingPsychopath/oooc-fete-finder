@@ -116,12 +116,18 @@ export const CacheManagementCard = ({
 							Live Events
 						</p>
 						<p className="mt-1 text-lg font-semibold">{cacheStatus.eventCount}</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Currently being served on the site (may be fallback cache/source).
+						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Store Rows (CSV)
+							Store Events
 						</p>
 						<p className="mt-1 text-lg font-semibold">{cacheStatus.storeRowCount}</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Currently saved in the managed database-backed store.
+						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">

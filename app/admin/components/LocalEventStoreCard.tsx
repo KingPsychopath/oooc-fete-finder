@@ -66,6 +66,10 @@ export const LocalEventStoreCard = ({
 	const [remotePreview, setRemotePreview] = useState<RemotePreviewState | null>(
 		null,
 	);
+	const [remotePreviewHistory, setRemotePreviewHistory] = useState<
+		RemotePreviewState[]
+	>([]);
+	const [remotePreviewIndex, setRemotePreviewIndex] = useState(0);
 	const [isLoading, setIsLoading] = useState(false);
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState("");
@@ -172,13 +176,40 @@ export const LocalEventStoreCard = ({
 				throw new Error(result.error || "Failed to preview Google backup source");
 			}
 
-			setRemotePreview({
+			const nextPreview = {
 				columns: result.columns,
 				rows: result.rows,
 				totalRows: result.totalRows || result.rows.length,
 				fetchedAt: result.fetchedAt || new Date().toISOString(),
-			});
+			};
+			setRemotePreview(nextPreview);
+			setRemotePreviewHistory([nextPreview]);
+			setRemotePreviewIndex(0);
 			setMessage("Google backup preview refreshed");
+		});
+	};
+
+	const handleShuffleGooglePreview = async () => {
+		await withTask(async () => {
+			const result = await previewRemoteCsvForAdmin(undefined, 5, { random: true });
+			if (!result.success || !result.columns || !result.rows) {
+				throw new Error(result.error || "Failed to shuffle Google backup preview");
+			}
+
+			const nextPreview = {
+				columns: result.columns,
+				rows: result.rows,
+				totalRows: result.totalRows || result.rows.length,
+				fetchedAt: result.fetchedAt || new Date().toISOString(),
+			};
+
+			setRemotePreviewHistory((current) => {
+				const nextHistory = [...current, nextPreview];
+				setRemotePreviewIndex(nextHistory.length - 1);
+				return nextHistory;
+			});
+			setRemotePreview(nextPreview);
+			setMessage("Google backup preview shuffled");
 		});
 	};
 
@@ -264,6 +295,24 @@ export const LocalEventStoreCard = ({
 		setSampleIndex(nextIndex);
 		setRows(sampleHistory[nextIndex] ?? []);
 		setSampleNote(`Viewing sample ${nextIndex + 1} of ${sampleHistory.length}`);
+	};
+
+	const canViewPreviousRemotePreview = remotePreviewIndex > 0;
+	const canViewNextRemotePreview =
+		remotePreviewIndex < remotePreviewHistory.length - 1;
+
+	const handlePreviousGooglePreview = () => {
+		if (!canViewPreviousRemotePreview) return;
+		const nextIndex = remotePreviewIndex - 1;
+		setRemotePreviewIndex(nextIndex);
+		setRemotePreview(remotePreviewHistory[nextIndex] || null);
+	};
+
+	const handleNextGooglePreview = () => {
+		if (!canViewNextRemotePreview) return;
+		const nextIndex = remotePreviewIndex + 1;
+		setRemotePreviewIndex(nextIndex);
+		setRemotePreview(remotePreviewHistory[nextIndex] || null);
 	};
 
 	const fallbackActive =
@@ -407,8 +456,8 @@ export const LocalEventStoreCard = ({
 								</Button>
 							</div>
 						</div>
-						<div className="w-full overflow-x-auto rounded-md border">
-							<table className="min-w-[760px] text-xs">
+						<div className="relative w-full overflow-x-auto overscroll-x-contain rounded-md border">
+							<table className="w-max min-w-full text-xs">
 								<thead className="bg-muted/40">
 									<tr>
 										{headers.map((header) => (
@@ -447,15 +496,44 @@ export const LocalEventStoreCard = ({
 						</div>
 					</div>
 
-					<div className="rounded-md border bg-background/60 p-3">
-						<div className="mb-2 flex items-center justify-between gap-3">
-							<p className="text-sm font-medium">Google Backup Preview</p>
-							{remotePreview?.fetchedAt && (
-								<span className="text-xs text-muted-foreground">
-									{new Date(remotePreview.fetchedAt).toLocaleTimeString()}
-								</span>
-							)}
-						</div>
+						<div className="rounded-md border bg-background/60 p-3">
+							<div className="mb-2 flex items-center justify-between gap-3">
+								<p className="text-sm font-medium">Google Backup Preview</p>
+								<div className="flex items-center gap-2">
+									{remotePreview?.fetchedAt && (
+										<span className="text-xs text-muted-foreground">
+											{new Date(remotePreview.fetchedAt).toLocaleTimeString()}
+										</span>
+									)}
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										disabled={isLoading || !canViewPreviousRemotePreview}
+										onClick={handlePreviousGooglePreview}
+									>
+										Previous
+									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										disabled={isLoading}
+										onClick={handleShuffleGooglePreview}
+									>
+										Shuffle
+									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										disabled={isLoading || !canViewNextRemotePreview}
+										onClick={handleNextGooglePreview}
+									>
+										Next
+									</Button>
+								</div>
+							</div>
 						{!remotePreview ? (
 							<div className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">
 								Run "Preview Google Backup" to compare the backup source without
@@ -466,8 +544,8 @@ export const LocalEventStoreCard = ({
 								<p className="mb-2 text-xs text-muted-foreground">
 									Showing {remotePreview.rows.length} of {remotePreview.totalRows} rows.
 								</p>
-								<div className="w-full overflow-x-auto rounded-md border">
-									<table className="min-w-[760px] text-xs">
+									<div className="relative w-full overflow-x-auto overscroll-x-contain rounded-md border">
+										<table className="w-max min-w-full text-xs">
 										<thead className="bg-muted/40">
 											<tr>
 												{remotePreview.columns.map((column) => (

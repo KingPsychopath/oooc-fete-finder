@@ -8,6 +8,7 @@ import type {
 	EventsResult,
 } from "@/lib/cache/cache-manager";
 import { LocalEventStore } from "./local-event-store";
+import { DataManager } from "./data-manager";
 import { fetchRemoteCSV } from "./csv/fetcher";
 import {
 	csvToEditableSheet,
@@ -91,7 +92,28 @@ export async function getLiveSiteEventsSnapshot(
 	}
 
 	try {
-		const result = await CacheManager.getEvents(Boolean(options?.forceRefresh));
+		const forceRefresh = Boolean(options?.forceRefresh);
+		const result = forceRefresh
+			? await (async () => {
+					const fresh = await DataManager.getEventsData();
+					if (!fresh.success) {
+						return {
+							success: false as const,
+							error: fresh.error || "Failed to load fresh events",
+						};
+					}
+					return {
+						success: true as const,
+						data: fresh.data,
+						count: fresh.count,
+						cached: false,
+						source: fresh.source,
+						lastUpdate: fresh.lastUpdate,
+						error:
+							fresh.warnings.length > 0 ? fresh.warnings.join("; ") : undefined,
+					};
+				})()
+			: await CacheManager.getEvents(false);
 		if (!result.success) {
 			return { success: false, error: result.error || "Failed to load events" };
 		}
@@ -290,6 +312,9 @@ export async function updateLocalEventStoreSettings(
 export async function previewRemoteCsvForAdmin(
 	keyOrToken?: string,
 	limit = 5,
+	options?: {
+		random?: boolean;
+	},
 ): Promise<{
 	success: boolean;
 	columns?: EditableSheetColumn[];
@@ -309,11 +334,19 @@ export async function previewRemoteCsvForAdmin(
 		});
 		const sheet = csvToEditableSheet(remoteFetchResult.content);
 		const normalizedLimit = Math.max(1, Math.min(limit, 50));
+		const allRows = sheet.rows;
+		let previewRows = allRows.slice(0, normalizedLimit);
+
+		if (options?.random && allRows.length > normalizedLimit) {
+			const maxStart = Math.max(0, allRows.length - normalizedLimit);
+			const start = Math.floor(Math.random() * (maxStart + 1));
+			previewRows = allRows.slice(start, start + normalizedLimit);
+		}
 
 		return {
 			success: true,
 			columns: sheet.columns,
-			rows: sheet.rows.slice(0, normalizedLimit),
+			rows: previewRows,
 			totalRows: sheet.rows.length,
 			fetchedAt: new Date(remoteFetchResult.timestamp).toISOString(),
 		};
