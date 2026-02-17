@@ -4,6 +4,9 @@ import Papa from "papaparse";
 import postgres from "postgres";
 
 const TABLE_NAME = "app_kv_store";
+const EVENT_COLUMNS_TABLE = "app_event_store_columns";
+const EVENT_ROWS_TABLE = "app_event_store_rows";
+const EVENT_META_TABLE = "app_event_store_meta";
 const EVENTS_CSV_KEY = "events-store:csv";
 const EVENTS_META_KEY = "events-store:meta";
 const DEFAULT_BASE_URL = "http://localhost:3000";
@@ -27,6 +30,41 @@ const ensureTable = async () => {
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)
+	`;
+};
+
+const ensureEventTables = async () => {
+	await sql`
+		CREATE TABLE IF NOT EXISTS app_event_store_columns (
+			key TEXT PRIMARY KEY,
+			label TEXT NOT NULL,
+			is_core BOOLEAN NOT NULL,
+			is_required BOOLEAN NOT NULL,
+			display_order INTEGER NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)
+	`;
+
+	await sql`
+		CREATE TABLE IF NOT EXISTS app_event_store_rows (
+			id TEXT PRIMARY KEY,
+			display_order INTEGER NOT NULL,
+			row_data JSONB NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)
+	`;
+
+	await sql`
+		CREATE TABLE IF NOT EXISTS app_event_store_meta (
+			singleton BOOLEAN PRIMARY KEY DEFAULT TRUE,
+			row_count INTEGER NOT NULL DEFAULT 0,
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_by TEXT NOT NULL DEFAULT 'system',
+			origin TEXT NOT NULL DEFAULT 'manual',
+			checksum TEXT NOT NULL DEFAULT ''
 		)
 	`;
 };
@@ -92,10 +130,42 @@ const getStoreStats = async () => {
 	};
 };
 
+const getEventTableStats = async () => {
+	await ensureEventTables();
+	const [rowCountRows, columnCountRows, metaRows] = await Promise.all([
+		sql`SELECT COUNT(*)::int AS count FROM app_event_store_rows`,
+		sql`SELECT COUNT(*)::int AS count FROM app_event_store_columns`,
+		sql`
+			SELECT row_count, updated_at, updated_by, origin
+			FROM app_event_store_meta
+			WHERE singleton = TRUE
+			LIMIT 1
+		`,
+	]);
+
+	const rowCount = rowCountRows[0]?.count ?? 0;
+	const columnCount = columnCountRows[0]?.count ?? 0;
+	const meta = metaRows[0] || null;
+	const metadataRowCount = meta?.row_count ?? 0;
+
+	return {
+		rowCount,
+		columnCount,
+		hasMeta: Boolean(meta),
+		metadataRowCount,
+		rowCountMatches: rowCount === metadataRowCount,
+		updatedAt: meta?.updated_at ? meta.updated_at.toISOString() : null,
+		updatedBy: meta?.updated_by || null,
+		origin: meta?.origin || null,
+	};
+};
+
 const cmdStatus = async () => {
 	await ensureTable();
+	await ensureEventTables();
 	await sql`select 1`;
 	const stats = await getStoreStats();
+	const eventStats = await getEventTableStats();
 	console.log("\nPostgres status");
 	console.log(`- table: ${TABLE_NAME}`);
 	console.log(`- key count: ${stats.keyCount}`);
@@ -105,6 +175,16 @@ const cmdStatus = async () => {
 	console.log(`- events raw csv rows: ${stats.csvRawRowCount}`);
 	console.log(`- row counts match: ${stats.rowCountMatches ? "yes" : "no"}`);
 	console.log(`- meta updated at: ${stats.metaUpdatedAt ?? "n/a"}`);
+	console.log(`- event table rows (${EVENT_ROWS_TABLE}): ${eventStats.rowCount}`);
+	console.log(
+		`- event table columns (${EVENT_COLUMNS_TABLE}): ${eventStats.columnCount}`,
+	);
+	console.log(
+		`- event meta row count (${EVENT_META_TABLE}.row_count): ${eventStats.metadataRowCount}`,
+	);
+	console.log(
+		`- event tables/meta aligned: ${eventStats.rowCountMatches ? "yes" : "no"}`,
+	);
 };
 
 const cmdKeys = async (prefix = "", limit = 100) => {
@@ -152,19 +232,58 @@ const cmdGet = async (key) => {
 
 const cmdRows = async () => {
 	await ensureTable();
-	const stats = await getStoreStats();
+	await ensureEventTables();
+	const [stats, eventStats] = await Promise.all([
+		getStoreStats(),
+		getEventTableStats(),
+	]);
 	console.log("\nEvents row diagnostics");
-	console.log(`- metadata rowCount: ${stats.metadataRowCount}`);
-	console.log(`- raw CSV row count: ${stats.csvRawRowCount}`);
-	console.log(`- counts match: ${stats.rowCountMatches ? "yes" : "no"}`);
+	console.log(`- legacy KV metadata rowCount: ${stats.metadataRowCount}`);
+	console.log(`- legacy KV raw CSV row count: ${stats.csvRawRowCount}`);
+	console.log(`- legacy KV counts match: ${stats.rowCountMatches ? "yes" : "no"}`);
+	console.log(`- table rows count: ${eventStats.rowCount}`);
+	console.log(`- table meta row_count: ${eventStats.metadataRowCount}`);
+	console.log(`- table counts match: ${eventStats.rowCountMatches ? "yes" : "no"}`);
 };
 
 const cmdSample = async (count = 2) => {
 	await ensureTable();
+	await ensureEventTables();
 	const normalizedCount = Math.max(1, Math.min(Number.parseInt(String(count), 10) || 2, 20));
+	const [columnsRows, tableRows] = await Promise.all([
+		sql`
+			SELECT key, label
+			FROM app_event_store_columns
+			ORDER BY display_order ASC, key ASC
+		`,
+		sql`
+			SELECT row_data
+			FROM app_event_store_rows
+			ORDER BY display_order ASC
+		`,
+	]);
+
+	if (columnsRows.length > 0 && tableRows.length > 0) {
+		const sample = randomSample(tableRows, normalizedCount);
+		console.log(`\nRandom sample (${sample.length} rows)`);
+		console.log(columnsRows.map((column) => column.label).join(" | "));
+
+		for (const row of sample) {
+			const values = columnsRows.map((column) => {
+				const value =
+					row?.row_data && typeof row.row_data === "object" ?
+						row.row_data[column.key]
+					:	"";
+				return value == null ? "" : String(value);
+			});
+			console.log(values.join(" | "));
+		}
+		return;
+	}
+
 	const csvRecord = await getRecord(EVENTS_CSV_KEY);
 	if (!csvRecord) {
-		console.log("No events CSV found in store.");
+		console.log("No events found in table store or legacy KV store.");
 		return;
 	}
 
@@ -177,7 +296,7 @@ const cmdSample = async (count = 2) => {
 	const headers = parsed.meta.fields || [];
 	const sample = randomSample(rows, normalizedCount);
 
-	console.log(`\nRandom sample (${sample.length} rows)`);
+	console.log(`\nRandom sample (${sample.length} rows) [legacy KV CSV]`);
 	console.log(headers.join(" | "));
 	for (const row of sample) {
 		const line = headers.map((header) => row[header] ?? "").join(" | ");
@@ -214,11 +333,11 @@ Usage:
   pnpm run db:cli -- <command> [args]
 
 Commands:
-  status                    Postgres + store summary
+  status                    Postgres + KV + event tables summary
   keys [prefix] [limit]     List keys in app_kv_store
   get <key>                 Show value for one key
-  rows                      Compare events row counts (meta vs raw CSV)
-  sample [count]            Print random event rows from store CSV
+  rows                      Compare row counts across legacy KV and event tables
+  sample [count]            Print random event rows (table store first)
   health [baseUrl]          Call /api/admin/health (requires ADMIN_KEY)
   help                      Show this message
 `);

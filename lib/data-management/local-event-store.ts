@@ -4,7 +4,17 @@ import { createHash } from "crypto";
 import Papa from "papaparse";
 import type { CSVEventRow } from "./csv/parser";
 import { CSV_EVENT_COLUMNS, parseCSVContent } from "./csv/parser";
+import {
+	csvToEditableSheet,
+	editableSheetToCsv,
+	type EditableSheetColumn,
+	validateEditableSheet,
+} from "./csv/sheet-editor";
 import { getKVStore, getKVStoreInfo } from "@/lib/platform/kv/kv-store-factory";
+import {
+	getEventSheetStoreRepository,
+	type EventStoreOrigin,
+} from "@/lib/platform/postgres/event-sheet-store-repository";
 
 const EVENTS_CSV_KEY = "events-store:csv";
 const EVENTS_META_KEY = "events-store:meta";
@@ -19,7 +29,7 @@ interface EventStoreMetadata {
 	rowCount: number;
 	updatedAt: string;
 	updatedBy: string;
-	origin: "manual" | "google-import" | "google-sync" | "local-file-import";
+	origin: EventStoreOrigin;
 	checksum: string;
 }
 
@@ -68,6 +78,25 @@ const buildChecksum = (csvContent: string): string => {
 
 const countRows = (rows: CSVEventRow[]): number => rows.length;
 
+const toEditableColumns = (
+	columns: Array<{
+		key: string;
+		label: string;
+		isCore: boolean;
+		isRequired: boolean;
+		displayOrder: number;
+	}>,
+): EditableSheetColumn[] =>
+	columns
+		.slice()
+		.sort((left, right) => left.displayOrder - right.displayOrder)
+		.map((column) => ({
+			key: column.key,
+			label: column.label,
+			isCore: column.isCore,
+			isRequired: column.isRequired,
+		}));
+
 export class LocalEventStore {
 	private static sampleRows<T>(rows: T[], count: number): T[] {
 		if (rows.length <= count) {
@@ -86,7 +115,86 @@ export class LocalEventStore {
 		return shuffled.slice(0, count);
 	}
 
-	static async getSettings(): Promise<EventStoreSettings> {
+	private static async isPostgresTableStoreMode(): Promise<boolean> {
+		const providerInfo = await getKVStoreInfo();
+		return providerInfo.provider === "postgres";
+	}
+
+	private static async migrateLegacyKvToPostgresTablesIfNeeded(): Promise<void> {
+		if (!(await this.isPostgresTableStoreMode())) {
+			return;
+		}
+
+		const repository = getEventSheetStoreRepository();
+		if (!repository) {
+			return;
+		}
+
+		const counts = await repository.getCounts();
+		if (counts.rowCount > 0 || counts.columnCount > 0) {
+			return;
+		}
+
+		const kv = await getKVStore();
+		const legacyCsv = await kv.get(EVENTS_CSV_KEY);
+		if (!legacyCsv || legacyCsv.trim().length === 0) {
+			return;
+		}
+
+		const sheet = csvToEditableSheet(legacyCsv);
+		const validation = validateEditableSheet(sheet.columns, sheet.rows);
+		if (!validation.valid) {
+			throw new Error(validation.error || "Failed to validate legacy event store");
+		}
+
+		const metaRaw = await kv.get(EVENTS_META_KEY);
+		const legacyMeta = parseJson<Partial<EventStoreMetadata> | null>(metaRaw, null);
+		const updatedBy =
+			typeof legacyMeta?.updatedBy === "string" && legacyMeta.updatedBy.trim().length > 0 ?
+				legacyMeta.updatedBy
+			:	"legacy-kv-migration";
+		const origin =
+			legacyMeta?.origin === "manual" ||
+			legacyMeta?.origin === "google-import" ||
+			legacyMeta?.origin === "google-sync" ||
+			legacyMeta?.origin === "local-file-import" ?
+				legacyMeta.origin
+			:	"manual";
+
+		await repository.replaceSheet(
+			validation.columns.map((column, index) => ({
+				key: column.key,
+				label: column.label,
+				isCore: column.isCore,
+				isRequired: column.isRequired,
+				displayOrder: index,
+			})),
+			validation.rows,
+			{
+				updatedBy,
+				origin,
+				checksum: buildChecksum(legacyCsv),
+			},
+		);
+
+		const legacySettingsRaw = await kv.get(EVENTS_SETTINGS_KEY);
+		const legacySettings = parseJson<Partial<EventStoreSettings> | null>(
+			legacySettingsRaw,
+			null,
+		);
+		if (typeof legacySettings?.autoSyncFromGoogle === "boolean") {
+			await repository.updateSettings({
+				autoSyncFromGoogle: legacySettings.autoSyncFromGoogle,
+			});
+		}
+
+		// Remove legacy event keys after successful migration to prevent stale dual sources.
+		await kv.delete(EVENTS_CSV_KEY);
+		await kv.delete(EVENTS_META_KEY);
+		await kv.delete(EVENTS_SETTINGS_KEY);
+	}
+
+	private static async getLegacySettings(): Promise<EventStoreSettings> {
 		const kv = await getKVStore();
 		const raw = await kv.get(EVENTS_SETTINGS_KEY);
 		const settings = parseJson<EventStoreSettings>(raw, DEFAULT_SETTINGS);
@@ -94,29 +202,69 @@ export class LocalEventStore {
 		return {
 			autoSyncFromGoogle: Boolean(settings.autoSyncFromGoogle),
 			updatedAt:
-				typeof settings.updatedAt === "string"
-					? settings.updatedAt
-					: DEFAULT_SETTINGS.updatedAt,
+				typeof settings.updatedAt === "string" ?
+					settings.updatedAt
+				:	DEFAULT_SETTINGS.updatedAt,
 		};
 	}
 
-	static async updateSettings(
+	private static async updateLegacySettings(
 		updates: Partial<Pick<EventStoreSettings, "autoSyncFromGoogle">>,
 	): Promise<EventStoreSettings> {
 		const kv = await getKVStore();
-		const current = await this.getSettings();
+		const current = await this.getLegacySettings();
 		const next: EventStoreSettings = {
 			autoSyncFromGoogle:
-				typeof updates.autoSyncFromGoogle === "boolean"
-					? updates.autoSyncFromGoogle
-					: current.autoSyncFromGoogle,
+				typeof updates.autoSyncFromGoogle === "boolean" ?
+					updates.autoSyncFromGoogle
+				:	current.autoSyncFromGoogle,
 			updatedAt: new Date().toISOString(),
 		};
 		await kv.set(EVENTS_SETTINGS_KEY, JSON.stringify(next));
 		return next;
 	}
 
+	static async getSettings(): Promise<EventStoreSettings> {
+		if (await this.isPostgresTableStoreMode()) {
+			await this.migrateLegacyKvToPostgresTablesIfNeeded();
+			const repository = getEventSheetStoreRepository();
+			if (repository) {
+				return repository.getSettings();
+			}
+		}
+
+		return this.getLegacySettings();
+	}
+
+	static async updateSettings(
+		updates: Partial<Pick<EventStoreSettings, "autoSyncFromGoogle">>,
+	): Promise<EventStoreSettings> {
+		if (await this.isPostgresTableStoreMode()) {
+			await this.migrateLegacyKvToPostgresTablesIfNeeded();
+			const repository = getEventSheetStoreRepository();
+			if (repository) {
+				return repository.updateSettings(updates);
+			}
+		}
+
+		return this.updateLegacySettings(updates);
+	}
+
 	static async getCsv(): Promise<string | null> {
+		if (await this.isPostgresTableStoreMode()) {
+			await this.migrateLegacyKvToPostgresTablesIfNeeded();
+			const repository = getEventSheetStoreRepository();
+			if (repository) {
+				const sheet = await repository.getSheet();
+				if (sheet.rows.length === 0 || sheet.columns.length === 0) {
+					return null;
+				}
+
+				const editableColumns = toEditableColumns(sheet.columns);
+				return editableSheetToCsv(editableColumns, sheet.rows);
+			}
+		}
+
 		const kv = await getKVStore();
 		return kv.get(EVENTS_CSV_KEY);
 	}
@@ -142,6 +290,42 @@ export class LocalEventStore {
 			checksum: buildChecksum(cleanedCsv),
 		};
 
+		if (await this.isPostgresTableStoreMode()) {
+			await this.migrateLegacyKvToPostgresTablesIfNeeded();
+			const repository = getEventSheetStoreRepository();
+			if (repository) {
+				const sheet = csvToEditableSheet(cleanedCsv);
+				const validation = validateEditableSheet(sheet.columns, sheet.rows);
+				if (!validation.valid) {
+					throw new Error(validation.error || "Invalid CSV content");
+				}
+
+				const savedMeta = await repository.replaceSheet(
+					validation.columns.map((column, index) => ({
+						key: column.key,
+						label: column.label,
+						isCore: column.isCore,
+						isRequired: column.isRequired,
+						displayOrder: index,
+					})),
+					validation.rows,
+					{
+						updatedBy: record.updatedBy,
+						origin: record.origin,
+						checksum: record.checksum,
+					},
+				);
+
+				return {
+					rowCount: savedMeta.rowCount,
+					updatedAt: savedMeta.updatedAt,
+					updatedBy: savedMeta.updatedBy,
+					origin: savedMeta.origin,
+					checksum: savedMeta.checksum,
+				};
+			}
+		}
+
 		const kv = await getKVStore();
 		await kv.set(EVENTS_CSV_KEY, cleanedCsv);
 		await kv.set(EVENTS_META_KEY, JSON.stringify(record));
@@ -149,6 +333,15 @@ export class LocalEventStore {
 	}
 
 	static async clearCsv(): Promise<void> {
+		if (await this.isPostgresTableStoreMode()) {
+			await this.migrateLegacyKvToPostgresTablesIfNeeded();
+			const repository = getEventSheetStoreRepository();
+			if (repository) {
+				await repository.clearSheet();
+				return;
+			}
+		}
+
 		const kv = await getKVStore();
 		await kv.delete(EVENTS_CSV_KEY);
 		await kv.delete(EVENTS_META_KEY);
@@ -178,14 +371,13 @@ export class LocalEventStore {
 				this.sampleRows(parseResult.data, normalizedLimit)
 			:	parseResult.data.slice(0, normalizedLimit);
 
-		const rows = sourceRows
-			.map((row) => {
-				const normalizedRow: StorePreviewRow = {};
-				for (const header of headers) {
-					normalizedRow[header] = row[header] ?? "";
-				}
-				return normalizedRow;
-			});
+		const rows = sourceRows.map((row) => {
+			const normalizedRow: StorePreviewRow = {};
+			for (const header of headers) {
+				normalizedRow[header] = row[header] ?? "";
+			}
+			return normalizedRow;
+		});
 
 		return {
 			headers,
@@ -194,10 +386,33 @@ export class LocalEventStore {
 	}
 
 	static async getStatus(): Promise<EventStoreStatus> {
-		const kv = await getKVStore();
 		const providerInfo = await getKVStoreInfo();
 		const settings = await this.getSettings();
 
+		if (providerInfo.provider === "postgres") {
+			await this.migrateLegacyKvToPostgresTablesIfNeeded();
+			const repository = getEventSheetStoreRepository();
+			if (repository) {
+				const [meta, counts] = await Promise.all([
+					repository.getMeta(),
+					repository.getCounts(),
+				]);
+
+				return {
+					hasStoreData: counts.rowCount > 0,
+					rowCount: counts.rowCount,
+					keyCount: counts.rowCount + counts.columnCount + 2,
+					updatedAt: meta.updatedAt,
+					updatedBy: meta.updatedBy,
+					origin: meta.origin,
+					autoSyncFromGoogle: settings.autoSyncFromGoogle,
+					provider: "postgres",
+					providerLocation: repository.getStorageLocation(),
+				};
+			}
+		}
+
+		const kv = await getKVStore();
 		const keys = await kv.list();
 		const csv = await kv.get(EVENTS_CSV_KEY);
 		const metaRaw = await kv.get(EVENTS_META_KEY);

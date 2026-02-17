@@ -1,7 +1,6 @@
 import "server-only";
 
 import path from "path";
-import { env } from "@/lib/config/env";
 import { isPostgresConfigured } from "@/lib/platform/postgres/postgres-client";
 import { FileKVStore } from "./file-kv-store";
 import type { KeyValueStore, KVProviderInfo } from "./kv-types";
@@ -17,8 +16,7 @@ const createStore = async (): Promise<{
 }> => {
 	const shouldPreferPostgres =
 		process.env.NEXT_RUNTIME !== "edge" &&
-		(env.DATA_STORE_PROVIDER === "postgres" ||
-			(env.DATA_STORE_PROVIDER === "auto" && isPostgresConfigured()));
+		isPostgresConfigured();
 
 	if (shouldPreferPostgres) {
 		try {

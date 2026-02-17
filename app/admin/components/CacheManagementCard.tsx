@@ -32,12 +32,12 @@ const sourcePresentation = (
 	switch (source) {
 		case "store":
 			return { label: "Postgres Store", variant: "default" };
-		case "remote":
-			return { label: "Remote CSV", variant: "secondary" };
 		case "local":
-			return { label: "Local File", variant: "outline" };
+			return { label: "Local CSV Fallback", variant: "secondary" };
 		case "test":
 			return { label: "Test Dataset", variant: "outline" };
+		case "remote":
+			return { label: "Remote CSV", variant: "outline" };
 		case "cached":
 			return { label: "Cached", variant: "outline" };
 		default:
@@ -50,34 +50,33 @@ const modePresentation = (
 ): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } => {
 	switch (mode) {
 		case "remote":
-			return { label: "Remote Mode", variant: "secondary" };
+			return { label: "Remote Mode", variant: "default" };
 		case "local":
-			return { label: "Local Mode", variant: "outline" };
+			return { label: "Local Mode", variant: "secondary" };
 		case "test":
 			return { label: "Test Mode", variant: "outline" };
 		default:
-			return { label: "Unknown Mode", variant: "destructive" };
+			return { label: "Unknown", variant: "destructive" };
 	}
 };
 
 const getRefreshMessageTone = (message: string) => {
 	if (!message) return "";
-
 	const normalized = message.toLowerCase();
+
 	if (
 		normalized.includes("success") ||
 		normalized.includes("completed") ||
+		normalized.includes("revalidated") ||
 		normalized.includes("refreshed")
 	) {
 		return "border-emerald-200 bg-emerald-50 text-emerald-800";
 	}
-	if (
-		normalized.includes("warning") ||
-		normalized.includes("fallback") ||
-		normalized.includes("cached")
-	) {
+
+	if (normalized.includes("fallback") || normalized.includes("cached")) {
 		return "border-amber-200 bg-amber-50 text-amber-800";
 	}
+
 	return "border-rose-200 bg-rose-50 text-rose-800";
 };
 
@@ -89,177 +88,82 @@ export const CacheManagementCard = ({
 }: CacheManagementCardProps) => {
 	const source = sourcePresentation(cacheStatus.dataSource);
 	const mode = modePresentation(cacheStatus.configuredDataSource);
-
-	const cacheFreshness =
-		cacheStatus.cacheAge > 0 ? formatDuration(cacheStatus.cacheAge) : "Just refreshed";
+	const fallbackActive =
+		cacheStatus.configuredDataSource === "remote" &&
+		cacheStatus.dataSource !== "store";
 
 	return (
-		<Card className="border-white/20 bg-white/90 backdrop-blur-sm">
+		<Card className="ooo-admin-card-soft">
 			<CardHeader className="space-y-2">
-				<CardTitle>Events Data Management</CardTitle>
-				<CardDescription>
-					Track what is live, verify source alignment, and refresh the cache when
-					publishing updates.
-				</CardDescription>
+				<div className="flex flex-wrap items-center justify-between gap-2">
+					<div>
+						<CardTitle>Events Data Management</CardTitle>
+						<CardDescription>
+							Remote Mode serves Postgres first. If unavailable, the app serves local
+							CSV fallback until store data is restored.
+						</CardDescription>
+					</div>
+					<div className="flex items-center gap-2">
+						<Badge variant={mode.variant}>{mode.label}</Badge>
+						<Badge variant={source.variant}>{source.label}</Badge>
+					</div>
+				</div>
 			</CardHeader>
-			<CardContent className="space-y-5">
+			<CardContent className="space-y-4">
 				<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Live Source
+							Live Events
 						</p>
-						<Badge variant={source.variant} className="mt-2">
-							{source.label}
-						</Badge>
+						<p className="mt-1 text-lg font-semibold">{cacheStatus.eventCount}</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Configured Mode
+							Store Rows (CSV)
 						</p>
-						<Badge variant={mode.variant} className="mt-2">
-							{mode.label}
-						</Badge>
-					</div>
-					<div className="rounded-md border bg-background/60 p-3">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Events Count
-						</p>
-						<p className="mt-1 text-2xl font-semibold">{cacheStatus.eventCount}</p>
-					</div>
-					<div className="rounded-md border bg-background/60 p-3">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Cache Freshness
-						</p>
-						<p className="mt-1 text-sm font-medium">{cacheFreshness}</p>
-					</div>
-				</div>
-
-				{cacheStatus.dataSource === "store" ? (
-					<div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-						Serving from Postgres-backed managed store. This is the expected
-						Remote Mode behavior.
-					</div>
-				) : cacheStatus.dataSource === "test" ? (
-					<div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-						Running in Test Mode with hardcoded data. Postgres and remote CSV are
-						bypassed in this mode.
-					</div>
-				) : cacheStatus.hasLocalStoreData ? (
-					<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-						Live source is <strong>{source.label}</strong>, not Postgres store. Use
-						Publish in the sheet editor if you want managed store data to become
-						live.
-					</div>
-				) : (
-					<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-						Managed store is empty. Import remote CSV in Data Store Controls, then
-						publish from the sheet editor.
-					</div>
-				)}
-
-				<div className="rounded-md border bg-background/60 p-3 text-xs text-muted-foreground">
-					<p className="font-medium text-foreground">Mode semantics (single source model)</p>
-					<p className="mt-1">
-						Remote: read from managed Postgres store first. File/memory are
-						emergency local fallbacks. Remote CSV (Google legacy mirror) is used
-						only if store is empty/unavailable.
-					</p>
-					<p className="mt-1">
-						Local: read from local fallback file (`data/events.csv`) only.
-					</p>
-					<p className="mt-1">Test: read from hardcoded demo dataset only.</p>
-				</div>
-
-				<div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-					<div className="rounded-md border bg-background/60 p-3">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Remote Configured
-						</p>
-						<p className="mt-1 text-sm font-medium">
-							{cacheStatus.remoteConfigured ? "Yes" : "No"}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 p-3">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Store Has Data
-						</p>
-						<p className="mt-1 text-sm font-medium">
-							{cacheStatus.hasLocalStoreData ? "Yes" : "No"}
-						</p>
+						<p className="mt-1 text-lg font-semibold">{cacheStatus.storeRowCount}</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Store Provider
 						</p>
-						<p className="mt-1 text-sm font-medium">{cacheStatus.storeProvider}</p>
-					</div>
-					<div className="rounded-md border bg-background/60 p-3">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Store Keys
+						<p className="mt-1 text-sm font-medium capitalize">
+							{cacheStatus.storeProvider}
 						</p>
-						<p className="mt-1 text-sm font-medium">{cacheStatus.storeKeyCount}</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Last Remote Success
+							Last Refresh
 						</p>
 						<p className="mt-1 text-sm font-medium">
-							{cacheStatus.lastRemoteSuccessTime ?
-								new Date(cacheStatus.lastRemoteSuccessTime).toLocaleString()
-							:	"Never"}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 p-3">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Next Remote Check
-						</p>
-						<p className="mt-1 text-sm font-medium">
-							{cacheStatus.nextRemoteCheck > 0 ?
-								`In ${formatDuration(cacheStatus.nextRemoteCheck)}`
-							:	"Due now"}
+							{cacheStatus.lastFetchTime ?
+								new Date(cacheStatus.lastFetchTime).toLocaleString()
+							: 	"Never"}
 						</p>
 					</div>
 				</div>
 
-				<div className="grid gap-3 md:grid-cols-2">
-					<div className="rounded-md border bg-background/60 p-3">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Store Rows
-						</p>
-						<p className="mt-1 text-sm font-medium">{cacheStatus.storeRowCount}</p>
+				{fallbackActive && (
+					<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+						Postgres is not currently serving live data. The site is using local CSV
+						fallback until Postgres data is available again.
 					</div>
-					<div className="rounded-md border bg-background/60 p-3">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Store Updated
-						</p>
-						<p className="mt-1 text-sm font-medium">
-							{cacheStatus.storeUpdatedAt ?
-								new Date(cacheStatus.storeUpdatedAt).toLocaleString()
-							:	"Never"}
-						</p>
-						<p className="mt-1 break-all text-[11px] text-muted-foreground">
-							{cacheStatus.storeProviderLocation}
-						</p>
-					</div>
-				</div>
+				)}
 
 				{cacheStatus.lastRemoteErrorMessage && (
 					<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-						<p className="font-medium">Last remote warning</p>
+						<p className="font-medium">Latest fallback reason</p>
 						<p className="mt-1">{cacheStatus.lastRemoteErrorMessage}</p>
 					</div>
 				)}
 
 				<div className="flex flex-wrap items-center gap-3">
 					<Button onClick={onRefresh} disabled={refreshing}>
-						{refreshing ? "Refreshing..." : "Refresh Cache + Revalidate"}
+						{refreshing ? "Refreshing..." : "Refresh Live Cache"}
 					</Button>
-					<div className="text-xs text-muted-foreground">
-						Last cache update:{" "}
-						{cacheStatus.lastFetchTime ?
-							new Date(cacheStatus.lastFetchTime).toLocaleString()
-						:	"Unknown"}
-					</div>
+					<span className="text-xs text-muted-foreground">
+						Cache age: {formatDuration(cacheStatus.cacheAge)}
+					</span>
 				</div>
 
 				{refreshMessage && (

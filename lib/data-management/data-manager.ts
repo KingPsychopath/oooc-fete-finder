@@ -6,9 +6,8 @@
 
 import { env } from "@/lib/config/env";
 import { Event } from "@/types/events";
-import { fetchRemoteCSV } from "./csv/fetcher";
+import { fetchLocalCSV } from "./csv/fetcher";
 import { processCSVData } from "./data-processor";
-import { DynamicSheetManager } from "./dynamic-sheet-manager";
 import { LocalEventStore } from "./local-event-store";
 
 export type ConfiguredDataMode = "remote" | "local" | "test";
@@ -52,6 +51,39 @@ export class DataManager {
 		};
 	}
 
+	private static async tryLocalCsvFallback(
+		warnings: string[],
+		reason: string,
+	): Promise<DataManagerResult | null> {
+		try {
+			const localCsv = await fetchLocalCSV();
+			const localResult = await processCSVData(localCsv, "local", false, {
+				populateCoordinates: false,
+			});
+
+			if (localResult.count === 0 || localResult.events.length === 0) {
+				return null;
+			}
+
+			return {
+				success: true,
+				data: localResult.events,
+				count: localResult.count,
+				source: "local",
+				cached: false,
+				warnings: [reason, ...warnings, ...localResult.errors],
+				lastUpdate: new Date().toISOString(),
+			};
+		} catch (error) {
+			warnings.push(
+				`Local CSV fallback failed: ${
+					error instanceof Error ? error.message : "Unknown error"
+				}`,
+			);
+			return null;
+		}
+	}
+
 	static async getEventsData(): Promise<DataManagerResult> {
 		const warnings: string[] = [];
 		const configuredMode = env.DATA_MODE as ConfiguredDataMode;
@@ -71,7 +103,6 @@ export class DataManager {
 			}
 
 			if (configuredMode === "local") {
-				const { fetchLocalCSV } = await import("./csv/fetcher");
 				const localCsv = await fetchLocalCSV();
 				const localResult = await processCSVData(localCsv, "local", false, {
 					populateCoordinates: false,
@@ -88,114 +119,41 @@ export class DataManager {
 				};
 			}
 
-			// Remote mode: Postgres/provider-backed store is always first-class.
-			// If store is unavailable/empty, we fall back to remote CSV sources.
+			// Remote mode contract:
+			// 1) Primary: managed store (Postgres-backed when DATABASE_URL configured)
+			// 2) Fallback: local CSV file (stale-safe backup)
 			const storeFirstResult = await this.tryStoreData(warnings);
 			if (storeFirstResult) {
-				console.log("💾 Using managed event store (remote mode, store-priority)");
 				return storeFirstResult;
 			}
-			const storeSettings = await LocalEventStore.getSettings();
 
-			const effectiveConfig = DynamicSheetManager.getEffectiveConfig(
-				env.GOOGLE_SHEET_ID,
-				"A:Z",
+			const localFallback = await this.tryLocalCsvFallback(
+				warnings,
+				"Managed store unavailable or empty; serving local CSV fallback (stale-safe mode).",
 			);
-
-			let remoteUrl: string | null = null;
-			let sheetId: string | null = effectiveConfig.sheetId;
-			const range = effectiveConfig.range || "A:Z";
-
-			if (effectiveConfig.isDynamic && effectiveConfig.sheetId) {
-				const { GoogleCloudAPI } = await import("../google/api");
-				remoteUrl = GoogleCloudAPI.buildSheetsUrl(effectiveConfig.sheetId, range);
-			} else {
-				remoteUrl = env.REMOTE_CSV_URL || null;
-				if (!sheetId && remoteUrl) {
-					const { GoogleCloudAPI } = await import("../google/api");
-					sheetId = GoogleCloudAPI.extractSheetId(remoteUrl);
-				}
-			}
-
-			const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range);
-			const processed = await processCSVData(
-				remoteFetchResult.content,
-				remoteFetchResult.source,
-				false,
-				{
-					coordinateBatchSize: 5,
-					populateCoordinates: false,
-					onCoordinateProgress: (processedCount, total, currentEvent) => {
-						if (processedCount % 10 === 0 || processedCount === total) {
-							console.log(
-								`🗺️ Geocoding progress: ${processedCount}/${total} (${currentEvent.name})`,
-							);
-						}
-					},
-				},
-			);
-
-			warnings.push(...processed.errors);
-
-			if (
-				remoteFetchResult.source === "remote" &&
-				storeSettings.autoSyncFromGoogle &&
-				processed.count > 0
-			) {
-				try {
-					await LocalEventStore.saveCsv(remoteFetchResult.content, {
-						updatedBy: "system-google-sync",
-						origin: "google-sync",
-					});
-				} catch (syncError) {
-					warnings.push(
-						`Failed to sync Google data to managed store: ${
-							syncError instanceof Error ? syncError.message : "Unknown error"
-						}`,
-					);
-				}
-			}
-
-			const { isValidEventsData } = await import("./data-processor");
-			if (isValidEventsData(processed.events)) {
-				return {
-					success: true,
-					data: processed.events,
-					count: processed.count,
-					source: processed.source,
-					cached: false,
-					warnings,
-					lastUpdate: new Date(remoteFetchResult.timestamp).toISOString(),
-				};
-			}
-
-			const storeFallback = await this.tryStoreData(warnings);
-			if (storeFallback) {
-				storeFallback.warnings.push(
-					"Remote data invalid - using managed store fallback",
-				);
-				return storeFallback;
+			if (localFallback) {
+				return localFallback;
 			}
 
 			return {
 				success: false,
 				data: [],
 				count: 0,
-				source: "remote",
+				source: "store",
 				cached: false,
-				error: "Remote data validation failed",
+				error:
+					"Managed store has no data and local CSV fallback could not be loaded",
 				warnings,
 			};
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "Unknown error";
-
-			const storeFallback = await this.tryStoreData(warnings);
-			if (storeFallback) {
-				storeFallback.warnings.push(
-					`Primary data source failed (${errorMessage}) - using managed store fallback`,
-				);
-				return storeFallback;
+			const localFallback = await this.tryLocalCsvFallback(
+				warnings,
+				`Managed store failed (${errorMessage}); serving local CSV fallback (stale-safe mode).`,
+			);
+			if (localFallback) {
+				return localFallback;
 			}
 
 			return {
@@ -228,19 +186,14 @@ export class DataManager {
 		);
 		const storeStatus = await LocalEventStore.getStatus();
 
-		const remoteConfigured = Boolean(
-			env.REMOTE_CSV_URL ||
-				env.GOOGLE_SHEETS_API_KEY ||
-				hasServiceAccount ||
-				DynamicSheetManager.hasDynamicOverride(),
-		);
+		const remoteConfigured = Boolean(env.DATABASE_URL || storeStatus.hasStoreData);
 
 		return {
 			dataSource: env.DATA_MODE as ConfiguredDataMode,
 			remoteConfigured,
 			localCsvLastUpdated: env.LOCAL_CSV_LAST_UPDATED || "unknown",
 			hasServiceAccount,
-			hasDynamicOverride: DynamicSheetManager.hasDynamicOverride(),
+			hasDynamicOverride: false,
 			hasLocalStoreData: storeStatus.hasStoreData,
 			storeProvider: storeStatus.provider,
 			storeProviderLocation: storeStatus.providerLocation,

@@ -124,7 +124,11 @@ export async function fetchRemoteCSV(
 	remoteUrl: string | null,
 	sheetId: string | null,
 	range: string = "A:Z",
+	options?: {
+		allowLocalFallback?: boolean;
+	},
 ): Promise<CSVFetchResult> {
+	const allowLocalFallback = options?.allowLocalFallback !== false;
 	const errors: CSVFetchError[] = [];
 
 	// Try Google Sheets strategies first (delegated to Google module)
@@ -150,6 +154,15 @@ export async function fetchRemoteCSV(
 			errors.push({ source: "Google Sheets", message: errorMsg });
 			console.warn(`⚠️ Google Sheets strategies failed: ${errorMsg}`);
 		}
+	}
+
+	if (!allowLocalFallback) {
+		const errorMessages = errors
+			.map((e) => `${e.source}: ${e.message}`)
+			.join("; ");
+		throw new Error(
+			errorMessages || "Google Sheets source is not configured or unavailable",
+		);
 	}
 
 	// Fallback to local CSV

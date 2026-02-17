@@ -14,14 +14,10 @@ export const env = createEnv({
 		ADMIN_KEY: z.string().min(1, "ADMIN_KEY is required"),
 		AUTH_SECRET: z.string().optional(),
 		DATABASE_URL: z.string().optional(),
-		DATA_STORE_PROVIDER: z
-			.enum(["auto", "postgres"])
-			.default("auto"),
 		DATA_MODE: z.enum(["remote", "local", "test"]).default("remote"),
 		GOOGLE_MIRROR_WRITES: z.coerce.boolean().default(false),
 
 		// Google configuration
-		GOOGLE_SHEETS_API_KEY: z.string().optional(),
 		GOOGLE_MAPS_API_KEY: z.string().optional(),
 		GOOGLE_SHEET_ID: z.string().optional(),
 		GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
@@ -101,12 +97,10 @@ export const env = createEnv({
 		ADMIN_KEY: process.env.ADMIN_KEY,
 		AUTH_SECRET: process.env.AUTH_SECRET,
 		DATABASE_URL: process.env.DATABASE_URL,
-		DATA_STORE_PROVIDER: process.env.DATA_STORE_PROVIDER,
 		DATA_MODE: process.env.DATA_MODE,
 		GOOGLE_MIRROR_WRITES: process.env.GOOGLE_MIRROR_WRITES,
 
 		// Google configuration
-		GOOGLE_SHEETS_API_KEY: process.env.GOOGLE_SHEETS_API_KEY,
 		GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
 		GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID,
 		GOOGLE_SERVICE_ACCOUNT_KEY: process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
@@ -230,7 +224,6 @@ export const getMemoryConfig = () => ({
  * Get Google Sheets configuration status
  */
 export const getGoogleSheetsStatus = () => ({
-	hasApiKey: !!(env.GOOGLE_SHEETS_API_KEY && env.GOOGLE_SHEET_ID),
 	hasServiceAccount: !!(
 		(env.GOOGLE_SERVICE_ACCOUNT_KEY || env.GOOGLE_SERVICE_ACCOUNT_FILE) &&
 		env.GOOGLE_SHEET_ID
@@ -243,7 +236,6 @@ export const getGoogleSheetsStatus = () => ({
 	),
 	isConfigured: function () {
 		return (
-			this.hasApiKey ||
 			this.hasServiceAccount ||
 			this.hasDirectUrl ||
 			this.hasRemoteUrl
@@ -284,7 +276,7 @@ export const logConfigStatus = (): void => {
 	console.log(`   Environment: ${env.NODE_ENV}`);
 	console.log(`   Admin Key: ${env.ADMIN_KEY ? "✅ Set" : "❌ Missing"}`);
 	console.log(
-		`   Data Store Provider: ${env.DATA_STORE_PROVIDER}${env.DATABASE_URL ? " (DATABASE_URL set)" : ""}`,
+		`   Data Store: ${env.DATABASE_URL ? "Postgres configured" : "Fallback providers only"}`,
 	);
 	console.log(
 		`   Google Sheets: ${googleStatus.isConfigured() ? "✅ Configured" : "⚠️ Not configured"}`,
@@ -295,7 +287,6 @@ export const logConfigStatus = (): void => {
 
 	if (googleStatus.isConfigured()) {
 		console.log("   Google Sheets Details:");
-		if (googleStatus.hasApiKey) console.log("     - API Key: ✅");
 		if (googleStatus.hasServiceAccount)
 			console.log("     - Service Account: ✅");
 		if (googleStatus.hasDirectUrl) console.log("     - Direct URL: ✅");

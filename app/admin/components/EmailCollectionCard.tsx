@@ -24,13 +24,13 @@ export const EmailCollectionCard = ({
 	const notConsentedCount = emails.length - consentedCount;
 
 	return (
-		<Card className="border-white/20 bg-white/90 backdrop-blur-sm">
+		<Card className="ooo-admin-card">
 			<CardHeader className="space-y-3">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div>
 						<CardTitle>Collected Users</CardTitle>
 						<CardDescription>
-							Newsletter and community signups captured by the site.
+							Newsletter/community signups stored in Postgres and exportable to CSV.
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap gap-2">

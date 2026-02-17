@@ -1,5 +1,7 @@
 import { FeatureCountdown } from "@/components/featured-events/components/FeatureCountdown";
 import { FEATURED_EVENTS_CONFIG } from "@/components/featured-events/constants";
+import { CopyEmailButton } from "@/components/CopyEmailButton";
+import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +9,6 @@ import { getFeaturedEvents } from "@/lib/events/events-service";
 import { Calendar, CheckCircle, Euro, Star, Target } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CopyEmailButton } from "../../components/CopyEmailButton";
 
 export const metadata: Metadata = {
 	title: "Feature Your Event | OOOC Fete Finder",
@@ -21,279 +22,257 @@ export const metadata: Metadata = {
 };
 
 export default async function FeatureEventPage() {
-	// Toggle to show internal setup instructions (for development/debugging)
 	const SHOW_SETUP_INSTRUCTIONS = false;
-	
-	// Get current featured events to show real countdown
 	const featuredEvents = await getFeaturedEvents();
 
 	return (
-		<div className="container mx-auto px-4 py-8 max-w-4xl">
-			{/* Header */}
-			<div className="text-center mb-8">
-				<h1 className="text-4xl font-bold mb-4">Feature Your Event</h1>
-				<p className="text-lg text-muted-foreground">
-					Get maximum visibility for your event in Paris with our featured
-					placement
-				</p>
-			</div>
+		<div className="min-h-screen bg-background">
+			<Header />
+			<main className="ooo-feature-page container mx-auto px-4 py-10 max-w-3xl">
+				{/* Editorial header */}
+				<header className="mb-12">
+					<h1 className="ooo-feature-title text-foreground mb-2">
+						Feature your event
+					</h1>
+					<p className="text-muted-foreground text-base tracking-wide">
+						Get maximum visibility for your event in Paris with our featured
+						placement.
+					</p>
+					<div
+						className="mt-6 h-px w-full max-w-[4rem]"
+						style={{ backgroundColor: "var(--border)" }}
+					/>
+				</header>
 
-			{/* Current Feature Period Status */}
-			<FeatureCountdown featuredEvents={featuredEvents} />
+				<FeatureCountdown featuredEvents={featuredEvents} variant="editorial" />
 
-			{/* Setup Instructions (only show if enabled and no valid featured events) */}
-			{SHOW_SETUP_INSTRUCTIONS && featuredEvents.length === 0 && (
-				<Card className="mb-8 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
+				{SHOW_SETUP_INSTRUCTIONS && featuredEvents.length === 0 && (
+					<Card className="mb-10 ooo-admin-card-soft border">
+						<CardHeader>
+							<CardTitle className="ooo-feature-heading">
+								How to feature events
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+								<li>Use the &quot;Featured&quot; column in your sheet.</li>
+								<li>
+									<strong>Automatic expiration:</strong> Enter when to start
+									featuring (e.g. current time or future date in UK format
+									DD/MM/YYYY).
+								</li>
+								<li>
+									<strong>Permanent featuring:</strong> Enter any text (e.g.
+									Yes, premium).
+								</li>
+								<li>
+									Timestamp-based events expire after{" "}
+									{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours.
+								</li>
+							</ol>
+						</CardContent>
+					</Card>
+				)}
+
+				<div className="grid md:grid-cols-2 gap-8 mb-10">
+					<Card className="border border-border bg-card ooo-admin-card-soft">
+						<CardHeader>
+							<CardTitle className="ooo-feature-heading flex items-center gap-2">
+								<Euro className="h-4 w-4 text-muted-foreground" />
+								Pricing
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<p className="text-2xl font-medium text-foreground mb-3">
+								€{FEATURED_EVENTS_CONFIG.FEATURE_PRICE}
+							</p>
+							<p className="text-sm text-muted-foreground mb-5">
+								One-time payment for{" "}
+								{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours of
+								featured placement.
+							</p>
+							<ul className="space-y-2.5 text-sm text-muted-foreground">
+								<li className="flex items-start gap-2">
+									<CheckCircle className="h-4 w-4 text-foreground/70 mt-0.5 flex-shrink-0" />
+									<span>Top placement in Featured Events</span>
+								</li>
+								<li className="flex items-start gap-2">
+									<CheckCircle className="h-4 w-4 text-foreground/70 mt-0.5 flex-shrink-0" />
+									<span>Increased visibility on homepage and search</span>
+								</li>
+								<li className="flex items-start gap-2">
+									<CheckCircle className="h-4 w-4 text-foreground/70 mt-0.5 flex-shrink-0" />
+									<span>Featured badge on your event listing</span>
+								</li>
+							</ul>
+						</CardContent>
+					</Card>
+
+					<Card className="border border-border bg-card ooo-admin-card-soft">
+						<CardHeader>
+							<CardTitle className="ooo-feature-heading flex items-center gap-2">
+								<Star className="h-4 w-4 text-muted-foreground" />
+								How it works
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<ol className="space-y-4 text-sm">
+								<li className="flex gap-3">
+									<span className="text-muted-foreground font-medium w-5">
+										1
+									</span>
+									<div>
+										<p className="font-medium text-foreground">Submit payment</p>
+										<p className="text-muted-foreground mt-0.5">
+											Pay €{FEATURED_EVENTS_CONFIG.FEATURE_PRICE} via our secure
+											payment system.
+										</p>
+									</div>
+								</li>
+								<li className="flex gap-3">
+									<span className="text-muted-foreground font-medium w-5">
+										2
+									</span>
+									<div>
+										<p className="font-medium text-foreground">Get featured</p>
+										<p className="text-muted-foreground mt-0.5">
+											Your event is featured within 2 hours of payment.
+										</p>
+									</div>
+								</li>
+								<li className="flex gap-3">
+									<span className="text-muted-foreground font-medium w-5">
+										3
+									</span>
+									<div>
+										<p className="font-medium text-foreground">Stay featured</p>
+										<p className="text-muted-foreground mt-0.5">
+											Remain featured for{" "}
+											{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours.
+										</p>
+									</div>
+								</li>
+							</ol>
+						</CardContent>
+					</Card>
+				</div>
+
+				<Card className="mb-10 border border-border bg-card ooo-admin-card-soft">
 					<CardHeader>
-						<CardTitle>💡 How to Feature Events</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<ol className="list-decimal list-inside space-y-2 text-sm">
-							<li>Use the "Featured" column in your Excel/Google Sheets</li>
-							<li>
-								<strong>For automatic expiration:</strong> Enter when to START
-								featuring
-								<br />
-								<span className="text-xs text-green-600 ml-4">
-									✅ Now: "2025-01-18T10:30:00" (current time to start
-									immediately)
-								</span>
-								<br />
-								<span className="text-xs text-blue-600 ml-4">
-									📍 UK format: "18/01/2025 10:30:00" = Start featuring on 18th
-									Jan (DD/MM/YYYY)
-								</span>
-								<br />
-								<span className="text-xs text-purple-600 ml-4">
-									🔄 Future dates: Automatically start featuring NOW instead of
-									waiting
-								</span>
-								<br />
-								<span className="text-xs text-orange-600 ml-4">
-									⚠️ Don't put event date here - this is for FEATURING start
-									time!
-								</span>
-							</li>
-							<li>
-								<strong>For permanent featuring:</strong> Enter any text (e.g.,
-								"Yes", "urgent", "premium")
-							</li>
-							<li>
-								The system automatically detects the type and shows appropriate
-								countdown/status
-							</li>
-						</ol>
-						<p className="text-xs text-muted-foreground mt-3">
-							Timestamp-based events expire after{" "}
-							{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours. Text-based
-							events stay featured until manually removed.
-						</p>
-					</CardContent>
-				</Card>
-			)}
-
-			<div className="grid md:grid-cols-2 gap-8 mb-8">
-				{/* Pricing Card */}
-				<Card className="border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800">
-					<CardHeader>
-						<CardTitle className="flex items-center gap-2">
-							<Euro className="h-5 w-5 text-green-600" />
-							Simple Pricing
+						<CardTitle className="ooo-feature-heading flex items-center gap-2">
+							<Target className="h-4 w-4 text-muted-foreground" />
+							Why feature your event
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="text-3xl font-bold text-green-700 dark:text-green-300 mb-2">
-							€{FEATURED_EVENTS_CONFIG.FEATURE_PRICE}
-						</div>
-						<p className="text-sm text-muted-foreground mb-4">
-							One-time payment for{" "}
-							{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours of featured
-							placement
-						</p>
-						<div className="space-y-2">
-							<div className="flex items-center gap-2 text-sm">
-								<CheckCircle className="h-4 w-4 text-green-600" />
-								<span>Top placement in Featured Events section</span>
+						<div className="grid sm:grid-cols-2 gap-8 text-sm">
+							<div className="space-y-4">
+								<div>
+									<h4 className="font-medium text-foreground mb-1">
+										Maximum visibility
+									</h4>
+									<p className="text-muted-foreground">
+										Featured events appear at the top of our homepage and
+										receive significantly more views than standard listings.
+									</p>
+								</div>
+								<div>
+									<h4 className="font-medium text-foreground mb-1">
+										Mobile optimised
+									</h4>
+									<p className="text-muted-foreground">
+										Your event is highlighted across all devices with clear
+										badging.
+									</p>
+								</div>
 							</div>
-							<div className="flex items-center gap-2 text-sm">
-								<CheckCircle className="h-4 w-4 text-green-600" />
-								<span>Increased visibility on homepage and search results</span>
-							</div>
-							<div className="flex items-center gap-2 text-sm">
-								<CheckCircle className="h-4 w-4 text-green-600" />
-								<span>Special featured badge (📌) on your event</span>
+							<div className="space-y-4">
+								<div>
+									<h4 className="font-medium text-foreground mb-1">
+										Quick activation
+									</h4>
+									<p className="text-muted-foreground">
+										Your event is featured within 2 hours of payment
+										confirmation.
+									</p>
+								</div>
+								<div>
+									<h4 className="font-medium text-foreground mb-1">
+										Analytics
+									</h4>
+									<p className="text-muted-foreground">
+										<span className="line-through">
+											Track clicks and engagement during your feature period.
+										</span>{" "}
+										Coming soon.
+									</p>
+								</div>
 							</div>
 						</div>
 					</CardContent>
 				</Card>
 
-				{/* How It Works Card */}
-				<Card>
+				<Card className="mb-10 border border-border bg-card ooo-admin-card-soft">
 					<CardHeader>
-						<CardTitle className="flex items-center gap-2">
-							<Star className="h-5 w-5 text-yellow-600" />
-							How It Works
+						<CardTitle className="ooo-feature-heading flex items-center gap-2">
+							<Calendar className="h-4 w-4 text-muted-foreground" />
+							Feature period details
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="space-y-4">
-							<div className="flex gap-3">
-								<div className="bg-blue-100 dark:bg-blue-900 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold">
-									1
-								</div>
-								<div>
-									<h4 className="font-semibold text-sm">Submit Payment</h4>
-									<p className="text-sm text-muted-foreground">
-										Pay €{FEATURED_EVENTS_CONFIG.FEATURE_PRICE} via our secure
-										payment system
-									</p>
-								</div>
+						<div className="space-y-3 text-sm">
+							<div className="flex justify-between items-center">
+								<span className="text-muted-foreground">Feature duration</span>
+								<Badge variant="secondary" className="font-normal">
+									{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours
+								</Badge>
 							</div>
-							<div className="flex gap-3">
-								<div className="bg-blue-100 dark:bg-blue-900 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold">
-									2
-								</div>
-								<div>
-									<h4 className="font-semibold text-sm">Get Featured</h4>
-									<p className="text-sm text-muted-foreground">
-										Your event gets featured within 2 hours of payment
-									</p>
-								</div>
+							<div className="flex justify-between items-center">
+								<span className="text-muted-foreground">Featured at a time</span>
+								<Badge variant="secondary" className="font-normal">
+									{FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS}
+								</Badge>
 							</div>
-							<div className="flex gap-3">
-								<div className="bg-blue-100 dark:bg-blue-900 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold">
-									3
-								</div>
-								<div>
-									<h4 className="font-semibold text-sm">Stay Featured</h4>
-									<p className="text-sm text-muted-foreground">
-										Remain featured for{" "}
-										{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours
-										guaranteed
-									</p>
-								</div>
+							<div className="flex justify-between items-center">
+								<span className="text-muted-foreground">Rotation</span>
+								<Badge variant="secondary" className="font-normal">
+									Every {FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours
+								</Badge>
+							</div>
+							<div className="flex justify-between items-center">
+								<span className="text-muted-foreground">Next slot</span>
+								<Badge variant="outline" className="font-normal">
+									When current period ends
+								</Badge>
 							</div>
 						</div>
 					</CardContent>
 				</Card>
-			</div>
 
-			{/* Benefits Section */}
-			<Card className="mb-8">
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<Target className="h-5 w-5 text-purple-600" />
-						Why Feature Your Event?
-					</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="grid sm:grid-cols-2 gap-6">
-						<div className="space-y-4">
-							<div>
-								<h4 className="font-semibold mb-2">🎯 Maximum Visibility</h4>
-								<p className="text-sm text-muted-foreground">
-									Featured events appear at the top of our homepage, getting 5x
-									more views than regular listings.
-								</p>
-							</div>
-							<div>
-								<h4 className="font-semibold mb-2">📱 Mobile Optimized</h4>
-								<p className="text-sm text-muted-foreground">
-									Your featured event looks great on all devices, with special
-									highlighting and badges.
-								</p>
-							</div>
-						</div>
-						<div className="space-y-4">
-							<div>
-								<h4 className="font-semibold mb-2">⚡ Instant Activation</h4>
-								<p className="text-sm text-muted-foreground">
-									No waiting periods - your event gets featured within 2 hours
-									of payment confirmation.
-								</p>
-							</div>
-							<div>
-								<h4 className="font-semibold mb-2">📊 Analytics Included</h4>
-								<p className="text-sm text-muted-foreground">
-									<span className="line-through">
-										Track clicks, views, and engagement for your featured event
-										during the feature period.
-									</span>
-								</p>
-								<div className="mt-2 px-3 py-1 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
-									<span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-										🚀 Coming Soon
-									</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-
-			{/* Feature Period Details */}
-			<Card className="mb-8">
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<Calendar className="h-5 w-5 text-indigo-600" />
-						Feature Period Details
-					</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="space-y-3">
-						<div className="flex justify-between items-center">
-							<span className="font-medium">Feature Duration:</span>
-							<Badge variant="secondary">
-								{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours
-							</Badge>
-						</div>
-						<div className="flex justify-between items-center">
-							<span className="font-medium">Maximum Featured Events:</span>
-							<Badge variant="secondary">
-								{FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS} at a time
-							</Badge>
-						</div>
-						<div className="flex justify-between items-center">
-							<span className="font-medium">Rotation Period:</span>
-							<Badge variant="secondary">
-								Every {FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours
-							</Badge>
-						</div>
-						<div className="flex justify-between items-center">
-							<span className="font-medium">Next Available Slot:</span>
-							<Badge variant="outline" className="text-green-600">
-								When current period ends
-							</Badge>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-
-			{/* CTA Section */}
-			<div className="text-center">
-				<Button
-					asChild
-					size="lg"
-					className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-				>
-					<a href="mailto:hello@outofofficecollective.co.uk?subject=Fete%20Finder:%20Feature%20My%20Event%20Inquiry%20[YOUR_EVENT_NAME_HERE]">
-						Feature My Event - €{FEATURED_EVENTS_CONFIG.FEATURE_PRICE}
-					</a>
-				</Button>
-				<p className="text-sm text-muted-foreground">
-					<br />
-					You can also email us directly at hello@outofofficecollective.co.uk
-					<CopyEmailButton email="hello@outofofficecollective.co.uk" />
-				</p>
-				<div className="mt-4">
+				{/* CTA */}
+				<footer className="text-center pt-4 pb-8">
+					<Button
+						asChild
+						size="lg"
+						variant="default"
+						className="border border-border bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm font-medium"
+					>
+						<a href="mailto:hello@outofofficecollective.co.uk?subject=Fete%20Finder:%20Feature%20My%20Event%20Inquiry%20[YOUR_EVENT_NAME_HERE]">
+							Feature my event — €{FEATURED_EVENTS_CONFIG.FEATURE_PRICE}
+						</a>
+					</Button>
+					<p className="text-sm text-muted-foreground mt-5">
+						Or email us at hello@outofofficecollective.co.uk
+						<CopyEmailButton email="hello@outofofficecollective.co.uk" />
+					</p>
 					<Link
 						href="/"
-						className="text-sm text-muted-foreground hover:underline"
+						className="inline-block mt-6 text-sm text-muted-foreground hover:text-foreground hover:underline transition-colors"
 					>
-						← Back to Events
+						Back to events
 					</Link>
-				</div>
-			</div>
+				</footer>
+			</main>
 		</div>
 	);
 }

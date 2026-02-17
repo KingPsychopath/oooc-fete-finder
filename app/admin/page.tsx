@@ -104,7 +104,7 @@ export default function AdminPage() {
 
 	const handleRefresh = async () => {
 		setRefreshing(true);
-		setRefreshMessage("Starting cache + page revalidation...");
+		setRefreshMessage("Refreshing cache and revalidating routes...");
 		try {
 			const revalidateResult = await revalidatePages(undefined, "/");
 			if (!revalidateResult.success) {
@@ -146,7 +146,8 @@ export default function AdminPage() {
 		const url = URL.createObjectURL(blob);
 		const anchor = document.createElement("a");
 		anchor.href = url;
-		anchor.download = `fete-finder-users-${new Date().toISOString().split("T")[0]}.csv`;
+		anchor.download =
+			`fete-finder-users-${new Date().toISOString().split("T")[0]}.csv`;
 		document.body.appendChild(anchor);
 		anchor.click();
 		document.body.removeChild(anchor);
@@ -182,14 +183,6 @@ export default function AdminPage() {
 		void checkExistingSession();
 	}, [loadCacheStatus, loadEmails]);
 
-	useEffect(() => {
-		if (!isAuthenticated) return;
-		const interval = setInterval(() => {
-			void loadCacheStatus();
-		}, 30000);
-		return () => clearInterval(interval);
-	}, [isAuthenticated, loadCacheStatus]);
-
 	if (!isAuthenticated) {
 		return (
 			<AuthForm
@@ -205,14 +198,16 @@ export default function AdminPage() {
 	if (!cacheStatus) {
 		return (
 			<div className="ooo-admin-shell">
-				<div className="mx-auto w-full max-w-[1780px] px-6 py-10 space-y-6">
+				<div className="mx-auto w-full max-w-[1960px] px-6 py-10">
 					<div className="flex items-center justify-between">
 						<h1 className="ooo-admin-title">Admin Workflow Console</h1>
 						<Button onClick={handleBackToHome} variant="outline" size="sm">
 							Back to Home
 						</Button>
 					</div>
-					<div className="text-sm text-muted-foreground">Loading cache status...</div>
+					<div className="mt-4 text-sm text-muted-foreground">
+						Loading admin status...
+					</div>
 				</div>
 			</div>
 		);
@@ -220,14 +215,14 @@ export default function AdminPage() {
 
 	return (
 		<div className="ooo-admin-shell">
-			<div className="mx-auto w-full max-w-[1780px] px-6 py-8 space-y-6">
-				<div className="flex items-center justify-between gap-4">
+			<div className="mx-auto w-full max-w-[1960px] px-4 py-8 sm:px-6 lg:px-8">
+				<div className="mb-6 flex flex-wrap items-start justify-between gap-4">
 					<div>
 						<p className="ooo-admin-kicker">Out Of Office Collective</p>
 						<h1 className="ooo-admin-title">Admin Workflow Console</h1>
-						<p className="text-sm text-muted-foreground">
-							Postgres-first editing, dynamic columns, and live site data
-							visibility.
+						<p className="mt-1 text-sm text-muted-foreground">
+							Postgres-first workflow with explicit fallback visibility and cleaner
+							editing controls.
 						</p>
 					</div>
 					<div className="flex gap-2">
@@ -245,10 +240,8 @@ export default function AdminPage() {
 					</div>
 				</div>
 
-				<div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+				<div className="grid gap-6 2xl:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.9fr)]">
 					<div className="space-y-6">
-						<AdminSessionStatus onLogout={handleLogout} />
-
 						<CacheManagementCard
 							cacheStatus={cacheStatus}
 							refreshing={refreshing}
@@ -256,12 +249,22 @@ export default function AdminPage() {
 							onRefresh={handleRefresh}
 						/>
 
+						<EventSheetEditorCard
+							isAuthenticated={isAuthenticated}
+							onDataSaved={async () => {
+								await Promise.all([loadCacheStatus(), loadEmails()]);
+							}}
+						/>
+
 						<LiveEventsSnapshotCard isAuthenticated={isAuthenticated} />
 					</div>
 
 					<div className="space-y-6">
+						<AdminSessionStatus onLogout={handleLogout} />
+
 						<LocalEventStoreCard
 							isAuthenticated={isAuthenticated}
+							cacheStatus={cacheStatus}
 							onStoreUpdated={async () => {
 								await Promise.all([loadCacheStatus(), loadEmails()]);
 							}}
@@ -274,13 +277,6 @@ export default function AdminPage() {
 						/>
 					</div>
 				</div>
-
-				<EventSheetEditorCard
-					isAuthenticated={isAuthenticated}
-					onDataSaved={async () => {
-						await Promise.all([loadCacheStatus(), loadEmails()]);
-					}}
-				/>
 			</div>
 		</div>
 	);

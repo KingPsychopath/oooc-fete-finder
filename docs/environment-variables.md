@@ -1,6 +1,6 @@
 # Environment Variables Reference
 
-This file mirrors the typed schema in `lib/config/env.ts`.
+This file mirrors the typed schema in `/Users/owenamenze/workspace/github.com/personal/oooc-fete-finder/lib/config/env.ts`.
 
 ## Server Variables
 
@@ -8,20 +8,18 @@ This file mirrors the typed schema in `lib/config/env.ts`.
 | --- | --- | --- | --- | --- |
 | `NODE_ENV` | `development \| production \| test` | No | `development` | Runtime mode |
 | `ADMIN_KEY` | `string` | Yes | - | Admin auth key |
-| `AUTH_SECRET` | `string` | No | - | Optional signing secret |
-| `DATABASE_URL` | `string` | No | - | Required for Postgres-backed store |
-| `DATA_STORE_PROVIDER` | `auto \| postgres` | No | `auto` | Store provider strategy |
+| `AUTH_SECRET` | `string` | No | - | JWT/cookie signing secret |
+| `DATABASE_URL` | `string` | No | - | Postgres connection for source-of-truth store |
 | `DATA_MODE` | `remote \| local \| test` | No | `remote` | Data loading mode |
-| `GOOGLE_MIRROR_WRITES` | `boolean` | No | `false` | Mirror writes to Google fallback |
-| `REMOTE_CSV_URL` | `url \| empty` | No | - | Remote CSV fallback source |
-| `GOOGLE_SHEETS_API_KEY` | `string` | No | - | Optional fallback auth |
+| `GOOGLE_MIRROR_WRITES` | `boolean` | No | `false` | Optional Apps Script mirror writes |
+| `REMOTE_CSV_URL` | `url \| empty` | No | - | Google backup CSV source (admin preview/import) |
 | `GOOGLE_MAPS_API_KEY` | `string` | No | - | Geocoding support |
-| `GOOGLE_SHEET_ID` | `string` | No | - | Remote sheet id |
+| `GOOGLE_SHEET_ID` | `string` | No | - | Backup sheet id |
 | `GOOGLE_SERVICE_ACCOUNT_KEY` | `string` | No | - | Service account JSON string |
 | `GOOGLE_SERVICE_ACCOUNT_FILE` | `string` | No | `service-account.json` | Local service account file |
 | `GOOGLE_SHEETS_URL` | `url \| empty` | No | - | Apps Script endpoint |
 | `CACHE_DURATION_MS` | `number` | No | `3600000` | Fresh cache TTL |
-| `REMOTE_REFRESH_INTERVAL_MS` | `number` | No | `1800000` | Remote check interval |
+| `REMOTE_REFRESH_INTERVAL_MS` | `number` | No | `1800000` | Refresh check interval |
 | `MAX_CACHE_AGE_MS` | `number` | No | `86400000` | Max stale age |
 | `CACHE_EXTENSION_DURATION_MS` | `number` | No | `7200000` | Stale extension |
 | `CACHE_MAX_MEMORY_BYTES` | `number` | No | `52428800` | Cache memory limit |
@@ -49,8 +47,7 @@ This file mirrors the typed schema in `lib/config/env.ts`.
 
 ## Recommended Setup (Postgres Primary)
 
-1. Set `DATA_STORE_PROVIDER=postgres`
-2. Set `DATA_MODE=remote`
-3. Set `DATABASE_URL` (Neon pooler URL)
-4. Keep `REMOTE_CSV_URL` and Google vars only as fallback/migration inputs
-5. Keep `GOOGLE_MIRROR_WRITES=false` unless you explicitly need mirror writes
+1. Set `DATA_MODE=remote`
+2. Set `DATABASE_URL` (Neon pooler URL)
+3. Keep `REMOTE_CSV_URL` / Google vars only for backup preview/import
+4. Keep `GOOGLE_MIRROR_WRITES=false` unless you explicitly need Apps Script mirroring

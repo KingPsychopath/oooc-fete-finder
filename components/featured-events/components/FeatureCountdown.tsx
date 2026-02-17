@@ -28,8 +28,13 @@ import {
 	isValidTimestamp,
 } from "../utils/timestamp-utils";
 
+const FEATURE_COUNTDOWN_VARIANTS = ["default", "editorial"] as const;
+type FeatureCountdownVariant = (typeof FEATURE_COUNTDOWN_VARIANTS)[number];
+
 type FeatureCountdownProps = {
 	featuredEvents: Event[];
+	/** Use "editorial" on feature-event page for muted, emoji-free styling */
+	variant?: FeatureCountdownVariant;
 };
 
 type EventStatus = {
@@ -90,10 +95,18 @@ function getEventStatus(event: Event): EventStatus {
 }
 
 /**
- * Event card with proper spacing and progress bar
+ * Event card with proper spacing and progress bar.
+ * When variant is "editorial", uses muted colours and no emojis.
  */
-function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
+function SimpleEventCard({
+	eventStatus,
+	variant = "default",
+}: {
+	eventStatus: EventStatus;
+	variant?: FeatureCountdownVariant;
+}) {
 	const { event, endTime } = eventStatus;
+	const isEditorial = variant === "editorial";
 
 	// Use state to handle hydration consistency
 	const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
@@ -155,51 +168,67 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 	const { status: liveStatus, message } = getLiveStatus();
 
 	const getStatusConfig = () => {
+		const editorial = {
+			bgColor: "bg-muted/50",
+			borderColor: "border-border",
+			textColor: "text-muted-foreground",
+			progressColor: "bg-foreground/25",
+		};
 		switch (liveStatus) {
 			case "active-manual":
-				return {
-					emoji: "🌟",
-					bgColor: "bg-green-50 dark:bg-green-950/20",
-					borderColor: "border-green-200 dark:border-green-800",
-					textColor: "text-green-600 dark:text-green-400",
-					progressColor:
-						"bg-gradient-to-r from-emerald-400 via-green-500 to-green-600",
-				};
+				return isEditorial
+					? { emoji: "", ...editorial }
+					: {
+							emoji: "🌟",
+							bgColor: "bg-green-50 dark:bg-green-950/20",
+							borderColor: "border-green-200 dark:border-green-800",
+							textColor: "text-green-600 dark:text-green-400",
+							progressColor:
+								"bg-gradient-to-r from-emerald-400 via-green-500 to-green-600",
+						};
 			case "active-timed":
-				return {
-					emoji: "✨",
-					bgColor: "bg-blue-50 dark:bg-blue-950/20",
-					borderColor: "border-blue-200 dark:border-blue-800",
-					textColor: "text-blue-600 dark:text-blue-400",
-					progressColor:
-						"bg-gradient-to-r from-cyan-400 via-blue-500 to-blue-600",
-				};
+				return isEditorial
+					? { emoji: "", ...editorial }
+					: {
+							emoji: "✨",
+							bgColor: "bg-blue-50 dark:bg-blue-950/20",
+							borderColor: "border-blue-200 dark:border-blue-800",
+							textColor: "text-blue-600 dark:text-blue-400",
+							progressColor:
+								"bg-gradient-to-r from-cyan-400 via-blue-500 to-blue-600",
+						};
 			case "expires-soon":
-				return {
-					emoji: "⚡",
-					bgColor: "bg-orange-50 dark:bg-orange-950/20",
-					borderColor: "border-orange-200 dark:border-orange-800",
-					textColor: "text-orange-600 dark:text-orange-400",
-					progressColor:
-						"bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500",
-				};
+				return isEditorial
+					? { emoji: "", ...editorial }
+					: {
+							emoji: "⚡",
+							bgColor: "bg-orange-50 dark:bg-orange-950/20",
+							borderColor: "border-orange-200 dark:border-orange-800",
+							textColor: "text-orange-600 dark:text-orange-400",
+							progressColor:
+								"bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500",
+						};
 			case "expired":
-				return {
-					emoji: "😴",
-					bgColor: "bg-gray-50 dark:bg-gray-950/20",
-					borderColor: "border-gray-200 dark:border-gray-800",
-					textColor: "text-gray-600 dark:text-gray-400",
-					progressColor: "bg-gradient-to-r from-gray-300 to-gray-500",
-				};
+				return isEditorial
+					? { emoji: "", ...editorial }
+					: {
+							emoji: "😴",
+							bgColor: "bg-gray-50 dark:bg-gray-950/20",
+							borderColor: "border-gray-200 dark:border-gray-800",
+							textColor: "text-gray-600 dark:text-gray-400",
+							progressColor: "bg-gradient-to-r from-gray-300 to-gray-500",
+						};
 			default:
-				return {
-					emoji: "✨",
-					bgColor: "bg-blue-50 dark:bg-blue-950/20",
-					borderColor: "border-blue-200 dark:border-blue-800",
-					textColor: "text-blue-600 dark:text-blue-400",
-					progressColor:
-						"bg-gradient-to-r from-cyan-400 via-blue-500 to-blue-600",
-				};
+				return isEditorial
+					? { emoji: "", ...editorial }
+					: {
+							emoji: "✨",
+							bgColor: "bg-blue-50 dark:bg-blue-950/20",
+							borderColor: "border-blue-200 dark:border-blue-800",
+							textColor: "text-blue-600 dark:text-blue-400",
+							progressColor:
+								"bg-gradient-to-r from-cyan-400 via-blue-500 to-blue-600",
+						};
 		}
 	};
 
@@ -228,7 +257,7 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 			if (process.env.NODE_ENV === "development") {
 				const totalHours = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS;
 				const elapsedHours = elapsedDuration / (1000 * 60 * 60);
-				console.log(`📊 Progress for "${event.name}":`, {
+				console.log(`Progress for "${event.name}":`, {
 					startTime: startTime.toISOString(),
 					endTime: endTime.toISOString(),
 					now: now.toISOString(),
@@ -248,13 +277,12 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 
 	return (
 		<div
-			className={`border rounded-lg p-4 transition-all duration-300 hover:shadow-md w-full min-w-0 ${config.bgColor} ${config.borderColor}`}
+			className={`border rounded-lg p-4 transition-all duration-300 w-full min-w-0 ${config.bgColor} ${config.borderColor} ${!isEditorial ? "hover:shadow-md" : ""}`}
 		>
-			{/* Header with title and badge */}
 			<div className="flex items-start justify-between mb-3 gap-2">
 				<div className="flex-1 min-w-0">
 					<h4 className="font-semibold text-sm flex items-center gap-2 mb-1">
-						{config.emoji}
+						{config.emoji ? <span>{config.emoji}</span> : null}
 						<span className="truncate">{event.name}</span>
 					</h4>
 					<div className="flex items-center gap-2 text-xs">
@@ -264,13 +292,14 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 				</div>
 				<Badge
 					variant={liveStatus === "expired" ? "outline" : "secondary"}
-					className={`flex items-center gap-1 text-xs flex-shrink-0 ${
+					className={`flex items-center gap-1 text-xs flex-shrink-0 font-normal ${
 						liveStatus === "expired" ? "opacity-60" : ""
 					}`}
 				>
 					<Star className="h-3 w-3" />
 					<span className="hidden sm:inline">Featured</span>
-					<span className="sm:hidden">⭐</span>
+					{!isEditorial && <span className="sm:hidden">⭐</span>}
+					{isEditorial && <span className="sm:hidden">Featured</span>}
 				</Badge>
 			</div>
 
@@ -313,11 +342,19 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 
 				return (
 					isLikelyAutoCorrected && (
-						<div className="text-xs bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 mt-2 p-2 rounded border border-amber-200 dark:border-amber-800">
+						<div
+							className={`text-xs mt-2 p-2 rounded border ${
+								isEditorial
+									? "bg-muted/50 border-border text-muted-foreground"
+									: "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+							}`}
+						>
 							<div className="flex items-start gap-1">
-								<span className="text-amber-600 dark:text-amber-400 flex-shrink-0">
-									⚠️
-								</span>
+								{!isEditorial && (
+									<span className="text-amber-600 dark:text-amber-400 flex-shrink-0">
+										⚠️
+									</span>
+								)}
 								<div>
 									<div className="font-medium">
 										Recent feature start detected
@@ -337,8 +374,8 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 
 			{/* Show end time for expired events */}
 			{liveStatus === "expired" && endTime && (
-				<div className="text-xs text-muted-foreground mt-2 pt-2 border-t break-words">
-					📅 Ended:{" "}
+				<div className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border break-words">
+					{isEditorial ? "Ended: " : "📅 Ended: "}
 					<span className="whitespace-nowrap">
 						{endTime.toLocaleDateString("en-GB", {
 							year: "numeric",
@@ -359,42 +396,52 @@ function SimpleEventCard({ eventStatus }: { eventStatus: EventStatus }) {
 	);
 }
 
-export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
-	// Simple calculation on render - no memoization needed
-	// This runs fresh each time: SSR, client render, page refresh
+export function FeatureCountdown({
+	featuredEvents,
+	variant = "default",
+}: FeatureCountdownProps) {
 	const eventStatuses = featuredEvents.map(getEventStatus);
+	const isEditorial = variant === "editorial";
 
 	const activeEvents = eventStatuses.filter(
 		(s) => s.status.startsWith("active") || s.status === "expires-soon",
 	);
 	const expiredEvents = eventStatuses.filter((s) => s.status === "expired");
 
-	// Only show expired events from last 48 hours (calculated fresh each render)
 	const recentExpiredEvents = expiredEvents.filter((s) => {
 		if (!s.endTime) return false;
 		const hoursAgo = (Date.now() - s.endTime.getTime()) / (1000 * 60 * 60);
 		return hoursAgo <= 48;
 	});
 
-	// Don't render component if there are 0 active and 0 recent events
 	if (activeEvents.length === 0 && recentExpiredEvents.length === 0) {
 		return null;
 	}
 
-	// If no featured events, show setup instructions
 	if (featuredEvents.length === 0) {
+		const cardClass = isEditorial
+			? "mb-8 border border-border bg-card"
+			: "mb-8 border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800";
 		return (
-			<Card className="mb-8 border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800">
+			<Card className={cardClass}>
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2">
-						<AlertCircle className="h-5 w-5 text-yellow-600" />
-						No Featured Events
+						{!isEditorial && (
+							<AlertCircle className="h-5 w-5 text-yellow-600" />
+						)}
+						No featured events
 					</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<div className="text-lg font-semibold text-yellow-700 dark:text-yellow-300">
+					<p
+						className={
+							isEditorial
+								? "text-foreground font-medium"
+								: "text-lg font-semibold text-yellow-700 dark:text-yellow-300"
+						}
+					>
 						No events currently featured
-					</div>
+					</p>
 					<p className="text-sm text-muted-foreground mt-1">
 						Events can be featured for{" "}
 						{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours
@@ -404,24 +451,39 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 		);
 	}
 
+	const statusCardClass = isEditorial
+		? "mb-8 border border-border bg-card"
+		: "mb-8 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800";
+
 	return (
-		<Card className="mb-8 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
+		<Card className={statusCardClass}>
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
-					<Clock className="h-5 w-5 text-blue-600" />
-					Featured Events Status
-					<Badge variant="outline" className="ml-auto">
-						{activeEvents.length} active • {recentExpiredEvents.length} recent
+					{!isEditorial && <Clock className="h-5 w-5 text-blue-600" />}
+					Featured events status
+					<Badge variant="outline" className="ml-auto font-normal">
+						{activeEvents.length} active · {recentExpiredEvents.length} recent
 					</Badge>
 				</CardTitle>
 			</CardHeader>
 			<CardContent>
 				<div className="space-y-4">
-					{/* Show message when no active events but some recent expired */}
 					{activeEvents.length === 0 && recentExpiredEvents.length > 0 && (
-						<div className="text-center py-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-							<div className="text-yellow-700 dark:text-yellow-300 text-sm font-medium mb-1">
-								⏰ All featured events have ended
+						<div
+							className={
+								isEditorial
+									? "text-center py-4 bg-muted/30 rounded-lg border border-border text-sm text-muted-foreground"
+									: "text-center py-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800"
+							}
+						>
+							<div
+								className={
+									isEditorial
+										? "text-foreground font-medium mb-1"
+										: "text-yellow-700 dark:text-yellow-300 text-sm font-medium mb-1"
+								}
+							>
+								{isEditorial ? "" : "⏰ "}All featured events have ended
 							</div>
 							<div className="text-xs text-muted-foreground">
 								Check recently ended events below or feature new events
@@ -429,52 +491,72 @@ export function FeatureCountdown({ featuredEvents }: FeatureCountdownProps) {
 						</div>
 					)}
 
-					{/* Active Events */}
 					{activeEvents.length > 0 && (
 						<div>
-							<h5 className="text-sm font-medium text-green-700 dark:text-green-300 mb-3 flex items-center gap-2">
-								✨ Currently Featured ({activeEvents.length})
+							<h5
+								className={
+									isEditorial
+										? "text-sm font-medium text-foreground mb-3"
+										: "text-sm font-medium text-green-700 dark:text-green-300 mb-3 flex items-center gap-2"
+								}
+							>
+								{!isEditorial && "✨ "}Currently featured ({activeEvents.length})
 							</h5>
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 								{activeEvents.map((status) => (
-									<SimpleEventCard key={status.event.id} eventStatus={status} />
+									<SimpleEventCard
+										key={status.event.id}
+										eventStatus={status}
+										variant={variant}
+									/>
 								))}
 							</div>
 						</div>
 					)}
 
-					{/* Expired Events */}
 					{recentExpiredEvents.length > 0 && (
 						<div>
-							<h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">
-								⏰ Recently Ended ({recentExpiredEvents.length})
+							<h5
+								className={
+									isEditorial
+										? "text-sm font-medium text-muted-foreground mb-3"
+										: "text-sm font-medium text-gray-600 dark:text-gray-400 mb-3"
+								}
+							>
+								{!isEditorial && "⏰ "}Recently ended ({recentExpiredEvents.length})
 							</h5>
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 								{recentExpiredEvents.map((status) => (
-									<SimpleEventCard key={status.event.id} eventStatus={status} />
+									<SimpleEventCard
+										key={status.event.id}
+										eventStatus={status}
+										variant={variant}
+									/>
 								))}
 							</div>
 						</div>
 					)}
 
-					{/* Summary Info */}
-					<div className="text-xs text-muted-foreground pt-3 border-t space-y-1">
+					<div className="text-xs text-muted-foreground pt-3 border-t border-border space-y-1">
 						<div className="flex items-center justify-between">
 							<span>
-								⏱️ Feature duration:{" "}
-								{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours • 🔄
-								Refresh page for updates
+								{!isEditorial && "⏱️ "}Feature duration:{" "}
+								{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours
+								{!isEditorial && " · 🔄 Refresh page for updates"}
 							</span>
 							{activeEvents.length > 0 && (
-								<span className="text-green-600 dark:text-green-400 font-medium">
+								<span
+									className={
+										isEditorial ? "font-medium" : "text-green-600 dark:text-green-400 font-medium"
+									}
+								>
 									{activeEvents.length} live
 								</span>
 							)}
 						</div>
 						{recentExpiredEvents.length > 0 && (
-							<div className="text-gray-500">
-								🧹 Expired events auto-hide after 48 hours to keep this list
-								clean
+							<div>
+								{!isEditorial && "🧹 "}Expired events auto-hide after 48 hours
 							</div>
 						)}
 					</div>

@@ -65,7 +65,7 @@ export const LiveEventsSnapshotCard = ({
 		sourceLabel === "test" ? "outline" : "outline";
 
 	return (
-		<Card className="border-white/20 bg-white/85 backdrop-blur-sm">
+		<Card className="ooo-admin-card-soft">
 			<CardHeader className="space-y-3">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<div>
@@ -111,6 +111,11 @@ export const LiveEventsSnapshotCard = ({
 					</div>
 				) : (
 					<>
+						{sourceLabel === "local" && (
+							<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+								Live site is currently serving local CSV fallback, not Postgres.
+							</div>
+						)}
 						<div className="overflow-auto rounded-md border">
 							<table className="w-full text-xs">
 								<thead className="bg-muted/40">

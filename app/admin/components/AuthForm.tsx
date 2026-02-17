@@ -19,14 +19,14 @@ export const AuthForm = ({
 	setAdminKey,
 }: AuthFormProps) => {
 	return (
-		<div className="min-h-screen bg-[linear-gradient(160deg,#f8f6f3_0%,#ede8e1_45%,#ded6ca_100%)]">
+		<div className="ooo-admin-shell">
 			<div className="container mx-auto max-w-lg px-6 py-20">
-				<div className="rounded-2xl border border-white/30 bg-white/80 p-8 shadow-lg backdrop-blur-sm">
+				<div className="ooo-admin-card rounded-2xl p-8 shadow-lg">
 					<div className="space-y-2">
-						<div className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
+						<div className="ooo-admin-kicker">
 							Out Of Office
 						</div>
-						<h1 className="text-3xl font-semibold tracking-tight">Admin Access</h1>
+						<h1 className="ooo-admin-title text-3xl">Admin Access</h1>
 						<p className="text-sm text-muted-foreground">
 							Secure access to the event workflow console.
 						</p>

@@ -62,12 +62,9 @@ export const EventSheetEditorCard = ({
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [newColumnLabel, setNewColumnLabel] = useState("");
 	const [displayLimit, setDisplayLimit] = useState(50);
-	const [pinnedColumnsCount, setPinnedColumnsCount] = useState(1);
+	const [pinnedColumnsCount, setPinnedColumnsCount] = useState(0);
 	const [canUndo, setCanUndo] = useState(false);
 	const [canRedo, setCanRedo] = useState(false);
-	const [editorSource, setEditorSource] = useState<"store" | "remote" | "local">(
-		"store",
-	);
 
 	const rowsRef = useRef<EditableSheetRow[]>([]);
 	const columnsRef = useRef<EditableSheetColumn[]>([]);
@@ -140,7 +137,6 @@ export const EventSheetEditorCard = ({
 
 			setColumns(result.columns);
 			setRows(result.rows);
-			setEditorSource(result.sheetSource || "store");
 			setLastSavedAt(result.status?.updatedAt ?? null);
 			setHasUnsavedChanges(false);
 			pastRef.current = [];
@@ -148,7 +144,7 @@ export const EventSheetEditorCard = ({
 			activeCellEditRef.current = null;
 			refreshHistoryFlags();
 			setStatusMessage(
-				`Loaded ${result.rows.length} rows and ${result.columns.length} columns from ${result.sheetSource || "store"} source`,
+				`Loaded ${result.rows.length} rows and ${result.columns.length} columns from Postgres store`,
 			);
 		} catch (error) {
 			setErrorMessage(
@@ -472,11 +468,11 @@ export const EventSheetEditorCard = ({
 		return {
 			position: "sticky",
 			left: `${ROW_NUMBER_COLUMN_WIDTH + columnIndex * DATA_COLUMN_WIDTH}px`,
-			zIndex: layer === "header" ? 28 : 12,
-			background: "var(--background)",
+			zIndex: layer === "header" ? 22 : 8,
+			background: "color-mix(in oklab, var(--background) 94%, transparent)",
 			boxShadow:
 				columnIndex === safePinnedCount - 1 ?
-					"2px 0 0 rgba(0,0,0,0.08), 10px 0 16px -14px rgba(0,0,0,0.35)"
+					"1px 0 0 rgba(0,0,0,0.1), 8px 0 14px -14px rgba(0,0,0,0.4)"
 				:	undefined,
 		};
 	};
@@ -486,7 +482,7 @@ export const EventSheetEditorCard = ({
 	}
 
 	return (
-		<Card className="border-white/20 bg-white/85 backdrop-blur-sm">
+		<Card className="ooo-admin-card-soft">
 			<CardHeader>
 				<CardTitle className="text-2xl tracking-tight">Event Sheet Editor</CardTitle>
 				<CardDescription>
@@ -503,7 +499,7 @@ export const EventSheetEditorCard = ({
 					) : (
 						<Badge variant="default">All changes saved</Badge>
 					)}
-					<Badge variant="outline">Source: {editorSource}</Badge>
+					<Badge variant="outline">Source of truth: Postgres</Badge>
 					<span className="text-xs text-muted-foreground">{statusMessage}</span>
 					{lastSavedAt && (
 						<span className="text-xs text-muted-foreground">
@@ -645,14 +641,6 @@ export const EventSheetEditorCard = ({
 					Showing {visibleRowIndexes.length} of {filteredRowIndexes.length} filtered
 					rows ({rows.length} total).
 				</div>
-				{editorSource !== "store" && (
-					<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-						Local store is empty, so the editor loaded data from {editorSource}.
-						Click "Publish to live cache" to persist this as your primary local
-						store.
-					</div>
-				)}
-
 				<div className="overflow-auto rounded-md border max-h-[70vh]">
 					<table className="min-w-max table-fixed border-separate border-spacing-0 text-xs">
 						<colgroup>
@@ -665,7 +653,7 @@ export const EventSheetEditorCard = ({
 							))}
 							<col style={{ width: "96px" }} />
 						</colgroup>
-						<thead className="sticky top-0 z-20 bg-background">
+						<thead className="sticky top-0 z-20 bg-background/95 backdrop-blur-[2px]">
 							<tr>
 								<th
 									className="sticky z-30 border-b border-r bg-background px-2 py-2 text-left"

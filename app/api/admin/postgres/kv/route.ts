@@ -4,6 +4,7 @@ import {
 	getAppKVStoreRepository,
 	getAppKVStoreTableName,
 } from "@/lib/platform/postgres/app-kv-store-repository";
+import { getEventSheetStoreRepository } from "@/lib/platform/postgres/event-sheet-store-repository";
 
 const parseLimit = (value: string | null, fallback: number, max: number): number => {
 	const parsed = Number.parseInt(value ?? "", 10);
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
 		const prefix = searchParams.get("prefix")?.trim() ?? "";
 		const limit = parseLimit(searchParams.get("limit"), 100, 500);
 		const includeValues = searchParams.get("includeValues") === "1";
+		const eventRepository = getEventSheetStoreRepository();
 
 		if (key) {
 			const record = await repository.getRecord(key);
@@ -60,10 +62,24 @@ export async function GET(request: NextRequest) {
 			});
 		}
 
-		const [records, totalKeyCount, eventsStoreStats] = await Promise.all([
+		const [records, totalKeyCount, legacyEventsStoreStats, eventStoreCounts, eventStoreMeta] =
+			await Promise.all([
 			repository.listRecords({ prefix, limit }),
 			repository.countKeys(prefix),
 			repository.getEventsStoreStats(),
+			eventRepository?.getCounts() ??
+				Promise.resolve({
+					rowCount: 0,
+					columnCount: 0,
+				}),
+			eventRepository?.getMeta() ??
+				Promise.resolve({
+					rowCount: 0,
+					updatedAt: null,
+					updatedBy: "unknown",
+					origin: "manual",
+					checksum: "",
+				}),
 		]);
 
 		return NextResponse.json({
@@ -76,7 +92,12 @@ export async function GET(request: NextRequest) {
 			},
 			totalKeyCount,
 			returnedCount: records.length,
-			eventsStore: eventsStoreStats,
+			legacyEventsStoreKv: legacyEventsStoreStats,
+			eventStoreTables: {
+				rowCount: eventStoreCounts.rowCount,
+				columnCount: eventStoreCounts.columnCount,
+				meta: eventStoreMeta,
+			},
 			records:
 				includeValues ?
 					records

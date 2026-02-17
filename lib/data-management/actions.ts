@@ -8,7 +8,7 @@ import type {
 	EventsResult,
 } from "@/lib/cache-management/cache-manager";
 import { LocalEventStore } from "./local-event-store";
-import { fetchLocalCSV, fetchRemoteCSV } from "./csv/fetcher";
+import { fetchRemoteCSV } from "./csv/fetcher";
 import {
 	csvToEditableSheet,
 	editableSheetToCsv,
@@ -33,6 +33,34 @@ import {
 async function validateAdminAccess(keyOrToken?: string): Promise<boolean> {
 	return validateAdminAccessFromServerContext(keyOrToken ?? null);
 }
+
+const resolveRemoteSheetConfig = async (): Promise<{
+	remoteUrl: string | null;
+	sheetId: string | null;
+	range: string;
+}> => {
+	const effectiveConfig = DynamicSheetManager.getEffectiveConfig(
+		env.GOOGLE_SHEET_ID,
+		"A:Z",
+	);
+
+	let remoteUrl: string | null = null;
+	let sheetId: string | null = effectiveConfig.sheetId;
+	const range = effectiveConfig.range || "A:Z";
+
+	if (effectiveConfig.isDynamic && effectiveConfig.sheetId) {
+		const { GoogleCloudAPI } = await import("../google/api");
+		remoteUrl = GoogleCloudAPI.buildSheetsUrl(effectiveConfig.sheetId, range);
+	} else {
+		remoteUrl = env.REMOTE_CSV_URL || null;
+		if (!sheetId && remoteUrl) {
+			const { GoogleCloudAPI } = await import("../google/api");
+			sheetId = GoogleCloudAPI.extractSheetId(remoteUrl);
+		}
+	}
+
+	return { remoteUrl, sheetId, range };
+};
 
 /**
  * Get events data using the centralized cache manager
@@ -302,6 +330,47 @@ export async function updateLocalEventStoreSettings(
 }
 
 /**
+ * Preview Google backup CSV without writing to Postgres store
+ */
+export async function previewRemoteCsvForAdmin(
+	keyOrToken?: string,
+	limit = 5,
+): Promise<{
+	success: boolean;
+	columns?: EditableSheetColumn[];
+	rows?: EditableSheetRow[];
+	totalRows?: number;
+	fetchedAt?: string;
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized access" };
+	}
+
+	try {
+		const { remoteUrl, sheetId, range } = await resolveRemoteSheetConfig();
+		const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range, {
+			allowLocalFallback: false,
+		});
+		const sheet = csvToEditableSheet(remoteFetchResult.content);
+		const normalizedLimit = Math.max(1, Math.min(limit, 50));
+
+		return {
+			success: true,
+			columns: sheet.columns,
+			rows: sheet.rows.slice(0, normalizedLimit),
+			totalRows: sheet.rows.length,
+			fetchedAt: new Date(remoteFetchResult.timestamp).toISOString(),
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+/**
  * Import CSV from remote Google source into local event store
  */
 export async function importRemoteCsvToLocalEventStore(
@@ -317,27 +386,10 @@ export async function importRemoteCsvToLocalEventStore(
 	}
 
 	try {
-		const effectiveConfig = DynamicSheetManager.getEffectiveConfig(
-			env.GOOGLE_SHEET_ID,
-			"A:Z",
-		);
-
-		let remoteUrl: string | null = null;
-		let sheetId: string | null = effectiveConfig.sheetId;
-		const range = effectiveConfig.range || "A:Z";
-
-		if (effectiveConfig.isDynamic && effectiveConfig.sheetId) {
-			const { GoogleCloudAPI } = await import("../google/api");
-			remoteUrl = GoogleCloudAPI.buildSheetsUrl(effectiveConfig.sheetId, range);
-		} else {
-			remoteUrl = env.REMOTE_CSV_URL || null;
-			if (!sheetId && remoteUrl) {
-				const { GoogleCloudAPI } = await import("../google/api");
-				sheetId = GoogleCloudAPI.extractSheetId(remoteUrl);
-			}
-		}
-
-		const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range);
+		const { remoteUrl, sheetId, range } = await resolveRemoteSheetConfig();
+		const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range, {
+			allowLocalFallback: false,
+		});
 		const saved = await LocalEventStore.saveCsv(remoteFetchResult.content, {
 			updatedBy: "admin-google-import",
 			origin: "google-import",
@@ -396,7 +448,7 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 	columns?: EditableSheetColumn[];
 	rows?: EditableSheetRow[];
 	status?: Awaited<ReturnType<typeof LocalEventStore.getStatus>>;
-	sheetSource?: "store" | "remote" | "local";
+	sheetSource?: "store";
 	error?: string;
 }> {
 	if (!(await validateAdminAccess(keyOrToken))) {
@@ -408,48 +460,14 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 			LocalEventStore.getStatus(),
 			LocalEventStore.getCsv(),
 		]);
-		let source: "store" | "remote" | "local" = "store";
-		let csvContent = csv;
-
-		if (!csvContent || csvContent.trim().length === 0) {
-			try {
-				const effectiveConfig = DynamicSheetManager.getEffectiveConfig(
-					env.GOOGLE_SHEET_ID,
-					"A:Z",
-				);
-
-				let remoteUrl: string | null = null;
-				let sheetId: string | null = effectiveConfig.sheetId;
-				const range = effectiveConfig.range || "A:Z";
-
-				if (effectiveConfig.isDynamic && effectiveConfig.sheetId) {
-					const { GoogleCloudAPI } = await import("../google/api");
-					remoteUrl = GoogleCloudAPI.buildSheetsUrl(effectiveConfig.sheetId, range);
-				} else {
-					remoteUrl = env.REMOTE_CSV_URL || null;
-					if (!sheetId && remoteUrl) {
-						const { GoogleCloudAPI } = await import("../google/api");
-						sheetId = GoogleCloudAPI.extractSheetId(remoteUrl);
-					}
-				}
-
-				const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range);
-				csvContent = remoteFetchResult.content;
-				source = remoteFetchResult.source;
-			} catch {
-				csvContent = await fetchLocalCSV();
-				source = "local";
-			}
-		}
-
-		const sheet = csvToEditableSheet(csvContent);
+		const sheet = csvToEditableSheet(csv);
 
 		return {
 			success: true,
 			columns: sheet.columns,
 			rows: sheet.rows,
 			status,
-			sheetSource: source,
+			sheetSource: "store",
 		};
 	} catch (error) {
 		return {

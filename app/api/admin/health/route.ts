@@ -8,6 +8,7 @@ import {
 	getAppKVStoreRepository,
 	getAppKVStoreTableName,
 } from "@/lib/platform/postgres/app-kv-store-repository";
+import { getEventSheetStoreRepository } from "@/lib/platform/postgres/event-sheet-store-repository";
 import { isPostgresConfigured } from "@/lib/platform/postgres/postgres-client";
 
 export async function GET(request: NextRequest) {
@@ -16,21 +17,26 @@ export async function GET(request: NextRequest) {
 	}
 
 	try {
-		const repository = getAppKVStoreRepository();
-		const [storeStatus, csv, dataConfig, cacheStatus, eventsStats] =
+		const kvRepository = getAppKVStoreRepository();
+		const eventRepository = getEventSheetStoreRepository();
+		const [storeStatus, csv, dataConfig, cacheStatus, eventStoreCounts, eventStoreMeta] =
 			await Promise.all([
 			LocalEventStore.getStatus(),
 			LocalEventStore.getCsv(),
 			DataManager.getDataConfigStatus(),
 			CacheManager.getCacheStatus(),
-			repository?.getEventsStoreStats() ??
+			eventRepository?.getCounts() ??
 				Promise.resolve({
-					hasCsv: false,
-					hasMeta: false,
-					metadataRowCount: 0,
-					rawCsvRowCount: 0,
-					rowCountMatches: true,
-					metadataUpdatedAt: null,
+					rowCount: 0,
+					columnCount: 0,
+				}),
+			eventRepository?.getMeta() ??
+				Promise.resolve({
+					rowCount: 0,
+					updatedAt: null,
+					updatedBy: "unknown",
+					origin: "manual",
+					checksum: "",
 				}),
 		]);
 
@@ -69,9 +75,9 @@ export async function GET(request: NextRequest) {
 				`Live cache event count (${cacheStatus.eventCount}) differs from parsed event count (${parsedEventCount}); cache may be stale or using a fallback source`,
 			);
 		}
-		if (!eventsStats.rowCountMatches) {
+		if (eventStoreMeta.rowCount !== eventStoreCounts.rowCount) {
 			mismatches.push(
-				`Postgres events-store keys disagree: meta rowCount (${eventsStats.metadataRowCount}) vs CSV raw rows (${eventsStats.rawCsvRowCount})`,
+				`Postgres event tables disagree: meta rowCount (${eventStoreMeta.rowCount}) vs rows table count (${eventStoreCounts.rowCount})`,
 			);
 		}
 
@@ -81,7 +87,8 @@ export async function GET(request: NextRequest) {
 			connectivity: {
 				postgresConfigured: isPostgresConfigured(),
 				postgresTable: getAppKVStoreTableName(),
-				postgresReachable: Boolean(repository),
+				postgresReachable: Boolean(kvRepository),
+				eventStoreReachable: Boolean(eventRepository),
 				storeProvider: storeStatus.provider,
 				storeProviderLocation: storeStatus.providerLocation,
 			},
@@ -102,7 +109,11 @@ export async function GET(request: NextRequest) {
 				updatedAt: storeStatus.updatedAt,
 				updatedBy: storeStatus.updatedBy,
 				origin: storeStatus.origin,
-				postgresEventsStore: eventsStats,
+				postgresEventTables: {
+					rowCount: eventStoreCounts.rowCount,
+					columnCount: eventStoreCounts.columnCount,
+					meta: eventStoreMeta,
+				},
 			},
 			warnings: {
 				parsingWarnings,

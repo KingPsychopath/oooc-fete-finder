@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 			timestamp: new Date().toISOString(),
 			modeModel: {
 				remote:
-					"Primary source is managed store (Postgres preferred); remote CSV/Google is fallback only.",
+					"Primary source is managed Postgres store; local CSV file is stale-safe fallback if store is unavailable.",
 				local:
 					"Primary source is local fallback file (data/events.csv) with no remote reads.",
 				test: "Primary source is hardcoded demo dataset only.",
