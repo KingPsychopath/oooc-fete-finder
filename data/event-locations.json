@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-02-17T18:55:11.958Z",
+  "lastUpdated": "2026-02-17T18:58:31.164Z",
   "locations": {
     "139_rue_du_temple_3": {
       "id": "139_rue_du_temple_3",
@@ -612,19 +612,7 @@
       },
       "confidence": 0.5,
       "source": "estimated",
-      "lastUpdated": "2026-02-17T18:55:11.947Z"
-    },
-    "aquarium_de_paris_16": {
-      "id": "aquarium_de_paris_16",
-      "name": "Aquarium de Paris",
-      "arrondissement": 16,
-      "coordinates": {
-        "lat": 48.8555,
-        "lng": 2.269
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:55:11.951Z"
+      "lastUpdated": "2026-02-17T18:54:17.845Z"
     },
     "punk_paradise_11": {
       "id": "punk_paradise_11",
@@ -636,7 +624,7 @@
       },
       "confidence": 0.5,
       "source": "estimated",
-      "lastUpdated": "2026-02-17T18:55:11.952Z"
+      "lastUpdated": "2026-02-17T18:54:17.848Z"
     },
     "cha-cha_club_1": {
       "id": "cha-cha_club_1",
@@ -648,7 +636,19 @@
       },
       "confidence": 0.5,
       "source": "estimated",
-      "lastUpdated": "2026-02-17T18:55:11.954Z"
+      "lastUpdated": "2026-02-17T18:54:17.850Z"
+    },
+    "aquarium_de_paris_16": {
+      "id": "aquarium_de_paris_16",
+      "name": "Aquarium de Paris",
+      "arrondissement": 16,
+      "coordinates": {
+        "lat": 48.8555,
+        "lng": 2.269
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:54:17.856Z"
     },
     "la_machine_du_moulin_rouge_18": {
       "id": "la_machine_du_moulin_rouge_18",
@@ -660,7 +660,91 @@
       },
       "confidence": 0.5,
       "source": "estimated",
-      "lastUpdated": "2026-02-17T18:55:11.956Z"
+      "lastUpdated": "2026-02-17T18:54:17.863Z"
+    },
+    "terminal_7_15": {
+      "id": "terminal_7_15",
+      "name": "Terminal 7",
+      "arrondissement": 15,
+      "coordinates": {
+        "lat": 48.8422,
+        "lng": 2.2966
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:54:24.648Z"
+    },
+    "le_cardinal_2": {
+      "id": "le_cardinal_2",
+      "name": "Le Cardinal",
+      "arrondissement": 2,
+      "coordinates": {
+        "lat": 48.8677,
+        "lng": 2.3414
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:54:24.658Z"
+    },
+    "barbanegra_|_terrasse_festive_12": {
+      "id": "barbanegra_|_terrasse_festive_12",
+      "name": "Barbanegra | Terrasse Festive",
+      "arrondissement": 12,
+      "coordinates": {
+        "lat": 48.8448,
+        "lng": 2.389
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:56:20.538Z"
+    },
+    "41_quai_françois_mauriac_13": {
+      "id": "41_quai_françois_mauriac_13",
+      "name": "41 Quai François Mauriac",
+      "arrondissement": 13,
+      "coordinates": {
+        "lat": 48.8322,
+        "lng": 2.3647
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:56:20.540Z"
+    },
+    "point_éphémère_10": {
+      "id": "point_éphémère_10",
+      "name": "Point Éphémère",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.876,
+        "lng": 2.359
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:56:20.543Z"
+    },
+    "pavillon_tilsitt_17": {
+      "id": "pavillon_tilsitt_17",
+      "name": "Pavillon Tilsitt",
+      "arrondissement": 17,
+      "coordinates": {
+        "lat": 48.8848,
+        "lng": 2.312
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:58:06.234Z"
+    },
+    "la_planque_10": {
+      "id": "la_planque_10",
+      "name": "La Planque",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.876,
+        "lng": 2.359
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:58:31.163Z"
     }
   }
 }
