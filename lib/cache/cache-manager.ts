@@ -252,9 +252,11 @@ export class CacheManager {
 	}
 
 	static async prewarmInBackground(): Promise<void> {
-		void this.getEvents(false).catch(() => {
+		try {
+			await this.getEvents(false);
+		} catch {
 			// Silent by design: prewarm should not crash startup.
-		});
+		}
 	}
 }
 

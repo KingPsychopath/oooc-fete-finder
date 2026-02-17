@@ -90,7 +90,7 @@ export const CacheManagementCard = ({
 	const mode = modePresentation(cacheStatus.configuredDataSource);
 	const fallbackActive =
 		cacheStatus.configuredDataSource === "remote" &&
-		cacheStatus.dataSource !== "store";
+		cacheStatus.dataSource === "local";
 
 	return (
 		<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">

@@ -30,7 +30,6 @@ export const EmailCollectionCard = ({
 }: EmailCollectionCardProps) => {
 	const consentedCount = analytics?.consentedUsers ?? 0;
 	const notConsentedCount = analytics?.nonConsentedUsers ?? 0;
-	const topSources = analytics?.topSources.slice(0, 3) ?? [];
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
@@ -107,32 +106,6 @@ export const EmailCollectionCard = ({
 						: 	"Never"}
 					</p>
 				</div>
-				<div className="rounded-md border bg-background/60 px-3 py-2">
-					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-						Top Sources
-					</p>
-					{topSources.length === 0 ? (
-						<p className="mt-2 text-xs text-muted-foreground">
-							No sources captured yet.
-						</p>
-					) : (
-						<div className="mt-2 space-y-1.5">
-							{topSources.map((source) => (
-								<p
-									key={source.source}
-									className="flex flex-wrap items-center justify-between gap-2 text-xs"
-								>
-									<span className="font-medium text-foreground">
-										{source.source}
-									</span>
-									<span className="text-muted-foreground">
-										{source.users} users • {source.submissions} submissions
-									</span>
-								</p>
-							))}
-						</div>
-					)}
-				</div>
 			</CardHeader>
 			<CardContent>
 				{emails.length === 0 ? (
@@ -160,7 +133,7 @@ export const EmailCollectionCard = ({
 									</Badge>
 								</div>
 								<div className="mt-2 text-xs text-muted-foreground">
-									{new Date(user.timestamp).toLocaleString()} • {user.source}
+									{new Date(user.timestamp).toLocaleString()}
 								</div>
 							</div>
 						))}

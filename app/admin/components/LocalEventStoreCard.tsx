@@ -59,6 +59,10 @@ export const LocalEventStoreCard = ({
 	const [rows, setRows] = useState<PreviewRows>(() =>
 		initialPreview?.success ? initialPreview.rows ?? [] : [],
 	);
+	const [sampleHistory, setSampleHistory] = useState<PreviewRows[]>(() =>
+		initialPreview?.success && initialPreview.rows ? [initialPreview.rows] : [],
+	);
+	const [sampleIndex, setSampleIndex] = useState(0);
 	const [remotePreview, setRemotePreview] = useState<RemotePreviewState | null>(
 		null,
 	);
@@ -83,7 +87,10 @@ export const LocalEventStoreCard = ({
 		}
 
 		setHeaders(previewResult.headers || []);
-		setRows(previewResult.rows || []);
+		const nextRows = previewResult.rows || [];
+		setRows(nextRows);
+		setSampleHistory(nextRows.length > 0 ? [nextRows] : []);
+		setSampleIndex(0);
 	}, []);
 
 	useEffect(() => {
@@ -221,17 +228,42 @@ export const LocalEventStoreCard = ({
 		});
 	};
 
-	const handleRefreshSample = async () => {
+	const handleShuffleSample = async () => {
 		await withTask(async () => {
 			const result = await getLocalEventStorePreview(undefined, 2, { random: true });
 			if (!result.success) {
-				throw new Error(result.error || "Failed to refresh sample");
+				throw new Error(result.error || "Failed to shuffle sample");
 			}
 
 			setHeaders(result.headers || []);
-			setRows(result.rows || []);
-			setSampleNote(`Sample refreshed at ${new Date().toLocaleTimeString()}`);
+			const nextRows = result.rows || [];
+			setSampleHistory((current) => {
+				const nextHistory = [...current, nextRows];
+				setSampleIndex(nextHistory.length - 1);
+				return nextHistory;
+			});
+			setRows(nextRows);
+			setSampleNote(`Sample shuffled at ${new Date().toLocaleTimeString()}`);
 		});
+	};
+
+	const canViewPreviousSample = sampleIndex > 0;
+	const canViewNextSample = sampleIndex < sampleHistory.length - 1;
+
+	const handlePreviousSample = () => {
+		if (!canViewPreviousSample) return;
+		const nextIndex = sampleIndex - 1;
+		setSampleIndex(nextIndex);
+		setRows(sampleHistory[nextIndex] ?? []);
+		setSampleNote(`Viewing sample ${nextIndex + 1} of ${sampleHistory.length}`);
+	};
+
+	const handleNextSample = () => {
+		if (!canViewNextSample) return;
+		const nextIndex = sampleIndex + 1;
+		setSampleIndex(nextIndex);
+		setRows(sampleHistory[nextIndex] ?? []);
+		setSampleNote(`Viewing sample ${nextIndex + 1} of ${sampleHistory.length}`);
 	};
 
 	const fallbackActive =
@@ -350,15 +382,33 @@ export const LocalEventStoreCard = ({
 									type="button"
 									variant="outline"
 									size="sm"
-									disabled={isLoading}
-									onClick={handleRefreshSample}
+									disabled={isLoading || !canViewPreviousSample}
+									onClick={handlePreviousSample}
 								>
-									Refresh sample
+									Previous
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={isLoading}
+									onClick={handleShuffleSample}
+								>
+									Shuffle
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={isLoading || !canViewNextSample}
+									onClick={handleNextSample}
+								>
+									Next
 								</Button>
 							</div>
 						</div>
-						<div className="max-w-full overflow-x-auto rounded-md border">
-							<table className="w-full text-xs">
+						<div className="w-full overflow-x-auto rounded-md border">
+							<table className="min-w-[760px] text-xs">
 								<thead className="bg-muted/40">
 									<tr>
 										{headers.map((header) => (
@@ -382,7 +432,10 @@ export const LocalEventStoreCard = ({
 										rows.map((row, rowIndex) => (
 											<tr key={`store-row-${rowIndex}`} className="border-t">
 												{headers.map((header) => (
-													<td key={`${header}-${rowIndex}`} className="px-2 py-2">
+													<td
+														key={`${header}-${rowIndex}`}
+														className="px-2 py-2 align-top whitespace-normal break-words"
+													>
 														{row[header as keyof typeof row]}
 													</td>
 												))}
@@ -413,8 +466,8 @@ export const LocalEventStoreCard = ({
 								<p className="mb-2 text-xs text-muted-foreground">
 									Showing {remotePreview.rows.length} of {remotePreview.totalRows} rows.
 								</p>
-								<div className="max-w-full overflow-x-auto rounded-md border">
-									<table className="w-full text-xs">
+								<div className="w-full overflow-x-auto rounded-md border">
+									<table className="min-w-[760px] text-xs">
 										<thead className="bg-muted/40">
 											<tr>
 												{remotePreview.columns.map((column) => (
@@ -433,7 +486,7 @@ export const LocalEventStoreCard = ({
 													{remotePreview.columns.map((column) => (
 														<td
 															key={`${column.key}-${rowIndex}`}
-															className="px-2 py-2"
+															className="px-2 py-2 align-top whitespace-normal break-words"
 														>
 															{row[column.key] ?? ""}
 														</td>

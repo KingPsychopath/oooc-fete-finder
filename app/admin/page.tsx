@@ -5,8 +5,6 @@ import {
 } from "@/features/auth/actions";
 import {
 	getCacheStatus,
-	getEventSheetEditorData,
-	getLiveSiteEventsSnapshot,
 	getLocalEventStorePreview,
 	getLocalEventStoreStatus,
 } from "@/features/data-management/actions";
@@ -30,8 +28,6 @@ export default async function AdminPage() {
 		tokenSessions,
 		localStoreStatus,
 		localStorePreview,
-		editorData,
-		liveSnapshot,
 		slidingBannerSettings,
 	] = await Promise.all([
 		getCacheStatus(),
@@ -39,8 +35,6 @@ export default async function AdminPage() {
 		getAdminTokenSessions(),
 		getLocalEventStoreStatus(),
 		getLocalEventStorePreview(undefined, 2, { random: true }),
-		getEventSheetEditorData(),
-		getLiveSiteEventsSnapshot(undefined, 500),
 		getAdminSlidingBannerSettings(),
 	]);
 
@@ -51,8 +45,6 @@ export default async function AdminPage() {
 		tokenSessions,
 		localStoreStatus,
 		localStorePreview,
-		editorData,
-		liveSnapshot,
 		slidingBannerSettings,
 	};
 

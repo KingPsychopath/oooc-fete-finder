@@ -27,8 +27,8 @@ export type AdminInitialData = {
 	tokenSessions: Awaited<ReturnType<typeof getAdminTokenSessions>>;
 	localStoreStatus: Awaited<ReturnType<typeof getLocalEventStoreStatus>>;
 	localStorePreview: Awaited<ReturnType<typeof getLocalEventStorePreview>>;
-	editorData: Awaited<ReturnType<typeof getEventSheetEditorData>>;
-	liveSnapshot: Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
+	editorData?: Awaited<ReturnType<typeof getEventSheetEditorData>>;
+	liveSnapshot?: Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
 	slidingBannerSettings: Awaited<
 		ReturnType<typeof getAdminSlidingBannerSettings>
 	>;
