@@ -167,6 +167,14 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 									Home
 								</Link>
 							)}
+							{!isFeatureEventPage && (
+								<Link
+									href={`${basePath || ""}/feature-event`}
+									className="text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
+								>
+									Promote
+								</Link>
+							)}
 							{EXTERNAL_NAV_LINKS.map((link) => (
 								<Link
 									key={link.href}
