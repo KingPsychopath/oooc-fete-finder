@@ -26,7 +26,7 @@ export default async function FeatureEventPage() {
 	const featuredEvents = await getFeaturedEvents();
 
 	return (
-		<div className="min-h-screen bg-background">
+		<div className="ooo-site-shell">
 			<Header />
 			<main className="ooo-feature-page container mx-auto px-4 py-10 max-w-3xl">
 				{/* Editorial header */}

@@ -8,8 +8,13 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useThemeToggle } from "@/hooks/useThemeToggle";
+import { cn } from "@/lib/utils";
 
-export const ThemeToggle = () => {
+type ThemeToggleProps = {
+	className?: string;
+};
+
+export const ThemeToggle = ({ className }: ThemeToggleProps) => {
 	const { toggleTheme, currentThemeIcon, nextThemeLabel, mounted } =
 		useThemeToggle();
 
@@ -21,7 +26,7 @@ export const ThemeToggle = () => {
 						variant="outline"
 						size="icon"
 						onClick={toggleTheme}
-						className="h-9 w-9"
+						className={cn("h-9 w-9", className)}
 						disabled={!mounted}
 					>
 						<span className="text-base">{currentThemeIcon}</span>

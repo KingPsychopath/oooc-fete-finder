@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
 	Tooltip,
 	TooltipContent,
@@ -22,10 +23,14 @@ import React, { useState, useEffect } from "react";
 
 interface QuickActionsDropdownProps {
 	onMusicSelect: () => void;
+	triggerClassName?: string;
+	menuClassName?: string;
 }
 
 const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 	onMusicSelect,
+	triggerClassName,
+	menuClassName,
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isIOS, setIsIOS] = useState(false);
@@ -85,7 +90,10 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 							variant="outline"
 							size="sm"
 							onClick={handleToggle}
-							className="gap-1 text-xs sm:text-sm hover:bg-accent hover:text-accent-foreground transition-colors p-1.5 sm:p-2 h-8 sm:h-9 flex-shrink-0"
+							className={cn(
+								"gap-1 text-xs sm:text-sm transition-colors p-1.5 sm:p-2 h-8 sm:h-9 flex-shrink-0",
+								triggerClassName,
+							)}
 							aria-label="Quick actions menu"
 							aria-expanded={isOpen}
 							aria-haspopup="true"
@@ -104,7 +112,12 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 
 			{/* Dropdown Menu */}
 			{isOpen && (
-				<div className="absolute right-0 top-full mt-2 w-64 bg-popover border rounded-md shadow-lg z-50 animate-in fade-in-0 zoom-in-95 duration-150">
+				<div
+					className={cn(
+						"absolute right-0 top-full mt-2 w-64 bg-popover border rounded-md shadow-lg z-50 animate-in fade-in-0 zoom-in-95 duration-150",
+						menuClassName,
+					)}
+				>
 					<div className="p-1">
 						{/* Music Option */}
 						<button

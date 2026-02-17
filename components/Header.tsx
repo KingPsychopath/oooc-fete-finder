@@ -39,8 +39,8 @@ const Header = () => {
 				<div
 					className={`mx-auto w-full max-w-[1400px] overflow-hidden rounded-2xl border transition-all duration-500 ${
 						isCompressed ?
-							"border-white/55 bg-[rgba(246,241,233,0.96)] shadow-[0_8px_32px_rgba(36,28,22,0.14)] backdrop-blur-xl"
-						:	"border-white/40 bg-[rgba(246,241,233,0.84)] shadow-[0_4px_18px_rgba(36,28,22,0.09)] backdrop-blur-lg"
+							"border-white/55 bg-[rgba(246,241,233,0.96)] shadow-[0_8px_32px_rgba(36,28,22,0.14)] backdrop-blur-xl dark:border-white/18 dark:bg-[rgba(25,20,16,0.88)] dark:shadow-[0_10px_34px_rgba(5,4,3,0.45)]"
+						:	"border-white/40 bg-[rgba(246,241,233,0.84)] shadow-[0_4px_18px_rgba(36,28,22,0.09)] backdrop-blur-lg dark:border-white/14 dark:bg-[rgba(25,20,16,0.76)] dark:shadow-[0_8px_26px_rgba(5,4,3,0.4)]"
 					}`}
 				>
 					<div
@@ -113,12 +113,16 @@ const Header = () => {
 						<div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
 							<div className="hidden items-center gap-2 sm:flex">
 								<Clock />
-								<ThemeToggle />
+								<ThemeToggle className="h-9 w-9 rounded-full border border-black/12 bg-white/62 hover:bg-white/78 dark:border-white/20 dark:bg-white/10 dark:hover:bg-white/18" />
 							</div>
 
-							<QuickActionsDropdown onMusicSelect={() => setIsMusicModalOpen(true)} />
+							<QuickActionsDropdown
+								onMusicSelect={() => setIsMusicModalOpen(true)}
+								triggerClassName="h-9 rounded-full border border-black/12 bg-white/62 px-3 text-[11px] tracking-[0.08em] text-foreground/80 hover:bg-white/78 dark:border-white/20 dark:bg-white/10 dark:text-white/90 dark:hover:bg-white/18"
+								menuClassName="rounded-xl border border-black/10 bg-[rgba(246,241,233,0.98)] shadow-[0_12px_40px_rgba(36,28,22,0.16)] dark:border-white/15 dark:bg-[rgba(25,20,16,0.97)] dark:shadow-[0_14px_42px_rgba(5,4,3,0.48)]"
+							/>
 							<div className="sm:hidden">
-								<ThemeToggle />
+								<ThemeToggle className="h-8 w-8 rounded-full border border-black/12 bg-white/62 hover:bg-white/78 dark:border-white/20 dark:bg-white/10 dark:hover:bg-white/18" />
 							</div>
 							{isAuthenticated && userEmail && (
 								<div className="hidden items-center gap-2 sm:flex">
@@ -132,7 +136,7 @@ const Header = () => {
 										variant="ghost"
 										size="sm"
 										onClick={logout}
-										className="h-7 w-7 p-0"
+										className="h-8 rounded-full border border-black/12 bg-white/55 px-2 text-foreground/75 hover:bg-white/78 hover:text-foreground dark:border-white/20 dark:bg-white/10 dark:text-white/85 dark:hover:bg-white/18"
 										title="Logout"
 									>
 										<LogOut className="h-3.5 w-3.5" />
@@ -161,7 +165,7 @@ const Header = () => {
 					"Tap essentials for playlist, food and toilets",
 				]}
 				speed={15}
-				className="mx-3 mt-2 rounded-xl border border-white/35 bg-[rgba(246,241,233,0.78)] sm:mx-4"
+				className="mx-3 mt-2 rounded-xl border border-white/35 bg-[rgba(246,241,233,0.78)] dark:border-white/14 dark:bg-[rgba(25,20,16,0.68)] sm:mx-4"
 			/>
 			<MusicPlatformModal
 				isOpen={isMusicModalOpen}
