@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { ChevronUp } from "lucide-react";
 
 // Configurable appearance threshold (percentage of page scrolled)
-const SCROLL_APPEARANCE_THRESHOLD = 10; // Show button after scrolling 10% of the page
+const SCROLL_APPEARANCE_THRESHOLD = 2; // Show button shortly after the user starts scrolling
 
 type ScrollToTopButtonProps = {
 	className?: string;
@@ -31,11 +31,11 @@ export const ScrollToTopButton = ({
 	return (
 		<Button
 			onClick={scrollToTop}
-				className={cn(
-					"ooo-scroll-crescent fixed bottom-[5.25rem] right-4 sm:bottom-4 sm:right-5 z-[60] size-[3.2rem] p-0 transition-all duration-500",
-					isVisible
-						? "translate-y-0 opacity-100 pointer-events-auto"
-						: "translate-y-4 opacity-0 pointer-events-none",
+			className={cn(
+				"fixed bottom-4 right-[7.5rem] lg:right-4 z-[80] size-10 rounded-full border border-border/80 bg-background/52 text-foreground/85 shadow-lg backdrop-blur-sm hover:bg-accent transition-all duration-500 ease-out",
+				isVisible
+					? "opacity-100 translate-y-0 pointer-events-auto"
+					: "opacity-0 translate-y-4 pointer-events-none",
 				className,
 			)}
 			style={{
@@ -44,10 +44,10 @@ export const ScrollToTopButton = ({
 					: "cubic-bezier(0.7, 0, 0.84, 0)", // Smooth ease-in for exit
 			}}
 			size="icon"
-			variant="ghost"
+			variant="outline"
 			aria-label="Scroll to top"
 		>
-			<ChevronUp className="relative z-[2] h-4 w-4 -translate-x-[0.16rem]" />
+			<ChevronUp className="h-4 w-4" />
 		</Button>
 	);
 };
