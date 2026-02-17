@@ -3,7 +3,7 @@
 import { createAdminSession } from "@/features/auth/actions";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { AuthForm } from "./components/AuthForm";
 
 export function AdminAuthClient() {
@@ -11,6 +11,7 @@ export function AdminAuthClient() {
 	const [adminKey, setAdminKey] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
+	const [isNavigating, startTransition] = useTransition();
 
 	const handleSubmit = async (event: FormEvent) => {
 		event.preventDefault();
@@ -24,7 +25,9 @@ export function AdminAuthClient() {
 				return;
 			}
 			setAdminKey("");
-			router.refresh();
+			startTransition(() => {
+				router.refresh();
+			});
 		} catch (submitError) {
 			setError(
 				submitError instanceof Error ?
@@ -39,7 +42,7 @@ export function AdminAuthClient() {
 	return (
 		<AuthForm
 			onSubmit={handleSubmit}
-			isLoading={isLoading}
+			isLoading={isLoading || isNavigating}
 			error={error}
 			adminKey={adminKey}
 			setAdminKey={setAdminKey}

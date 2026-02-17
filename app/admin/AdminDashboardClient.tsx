@@ -10,7 +10,7 @@ import { getRuntimeDataStatus } from "@/features/data-management/actions";
 import { revalidatePages } from "@/lib/cache/actions";
 import { env } from "@/lib/config/env";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AdminSessionStatus } from "./components/AdminSessionStatus";
 import { RuntimeDataStatusCard } from "./components/RuntimeDataStatusCard";
 import { EmailCollectionCard } from "./components/EmailCollectionCard";
@@ -36,24 +36,25 @@ export function AdminDashboardClient({
 	initialData,
 }: AdminDashboardClientProps) {
 	const router = useRouter();
+	const initialEmailsResult = initialData.emailsResult;
 	const [runtimeDataStatus, setRuntimeDataStatus] = useState<RuntimeDataStatus>(
 		initialData.runtimeDataStatus,
 	);
 	const [emails, setEmails] = useState<EmailRecord[]>(
-		initialData.emailsResult.success
-			? (initialData.emailsResult.emails ?? [])
+		initialEmailsResult?.success
+			? (initialEmailsResult.emails ?? [])
 			: [],
 	);
 	const [emailStore, setEmailStore] =
 		useState<UserCollectionStoreSummary | null>(
-			initialData.emailsResult.success
-				? (initialData.emailsResult.store ?? null)
+			initialEmailsResult?.success
+				? (initialEmailsResult.store ?? null)
 				: null,
 		);
 	const [emailAnalytics, setEmailAnalytics] =
 		useState<UserCollectionAnalytics | null>(
-			initialData.emailsResult.success
-				? (initialData.emailsResult.analytics ?? null)
+			initialEmailsResult?.success
+				? (initialEmailsResult.analytics ?? null)
 				: null,
 		);
 	const [refreshing, setRefreshing] = useState(false);
@@ -74,6 +75,13 @@ export function AdminDashboardClient({
 			setEmailAnalytics(result.analytics ?? null);
 		}
 	}, []);
+
+	useEffect(() => {
+		if (initialEmailsResult?.success) {
+			return;
+		}
+		void loadEmails();
+	}, [initialEmailsResult?.success, loadEmails]);
 
 	const handleLogout = useCallback(async () => {
 		await logoutAdminSession();

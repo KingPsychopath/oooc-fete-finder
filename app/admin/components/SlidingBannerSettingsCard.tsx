@@ -16,7 +16,7 @@ import {
 	getAdminSlidingBannerSettings,
 	updateAdminSlidingBannerSettings,
 } from "@/features/site-settings/actions";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type SlidingBannerSettingsPayload = Awaited<
 	ReturnType<typeof getAdminSlidingBannerSettings>
@@ -127,6 +127,44 @@ export const SlidingBannerSettingsCard = ({
 			setIsRefreshing(false);
 		}
 	}, [applySettings]);
+
+	useEffect(() => {
+		if (initialSettings?.success) {
+			return;
+		}
+
+		let active = true;
+		const loadInitialSettings = async () => {
+			setIsRefreshing(true);
+			setErrorMessage("");
+			try {
+				const result = await getAdminSlidingBannerSettings();
+				if (!result.success || !result.settings) {
+					throw new Error(result.error || "Failed to load banner settings");
+				}
+				if (!active) {
+					return;
+				}
+				applySettings(result.settings, result.store);
+			} catch (error) {
+				if (!active) {
+					return;
+				}
+				setErrorMessage(
+					error instanceof Error ? error.message : "Unknown load error",
+				);
+			} finally {
+				if (active) {
+					setIsRefreshing(false);
+				}
+			}
+		};
+
+		void loadInitialSettings();
+		return () => {
+			active = false;
+		};
+	}, [applySettings, initialSettings?.success]);
 
 	const handleSave = useCallback(async () => {
 		if (enabled && parsedMessages.length === 0) {

@@ -143,6 +143,13 @@ export const AdminSessionStatus = ({
 	}, []);
 
 	useEffect(() => {
+		if (initialTokenSessions?.success) {
+			return;
+		}
+		void loadStatus();
+	}, [initialTokenSessions?.success, loadStatus]);
+
+	useEffect(() => {
 		const interval = setInterval(() => {
 			void loadStatus();
 		}, 60000);

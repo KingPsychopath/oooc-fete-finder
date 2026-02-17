@@ -22,14 +22,14 @@ export type { RuntimeDataStatus } from "@/lib/cache/cache-types";
 /** Payload passed from server admin page to AdminDashboardClient for first-paint data */
 export type AdminInitialData = {
 	runtimeDataStatus: RuntimeDataStatus;
-	emailsResult: CollectedEmailsResponse;
+	emailsResult?: CollectedEmailsResponse;
 	sessionStatus: Awaited<ReturnType<typeof getAdminSessionStatus>>;
-	tokenSessions: Awaited<ReturnType<typeof getAdminTokenSessions>>;
-	localStoreStatus: Awaited<ReturnType<typeof getLocalEventStoreStatus>>;
-	localStorePreview: Awaited<ReturnType<typeof getLocalEventStorePreview>>;
+	tokenSessions?: Awaited<ReturnType<typeof getAdminTokenSessions>>;
+	localStoreStatus?: Awaited<ReturnType<typeof getLocalEventStoreStatus>>;
+	localStorePreview?: Awaited<ReturnType<typeof getLocalEventStorePreview>>;
 	editorData?: Awaited<ReturnType<typeof getEventSheetEditorData>>;
 	liveSnapshot?: Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
-	slidingBannerSettings: Awaited<
+	slidingBannerSettings?: Awaited<
 		ReturnType<typeof getAdminSlidingBannerSettings>
 	>;
 };

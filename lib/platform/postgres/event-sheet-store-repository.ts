@@ -197,53 +197,45 @@ export class EventSheetStoreRepository {
 		await this.sql`DELETE FROM app_event_store_rows`;
 		await this.sql`DELETE FROM app_event_store_columns`;
 
-		let order = 0;
-		for (const column of columns) {
+		const columnRows = columns.map((column, displayOrder) => ({
+			key: column.key,
+			label: column.label,
+			is_core: column.isCore,
+			is_required: column.isRequired,
+			display_order: displayOrder,
+		}));
+		if (columnRows.length > 0) {
 			await this.sql`
-				INSERT INTO app_event_store_columns (
-					key,
-					label,
-					is_core,
-					is_required,
-					display_order,
-					created_at,
-					updated_at
-				)
-				VALUES (
-					${column.key},
-					${column.label},
-					${column.isCore},
-					${column.isRequired},
-					${order},
-					NOW(),
-					NOW()
-				)
+				INSERT INTO app_event_store_columns ${this.sql(
+					columnRows,
+					"key",
+					"label",
+					"is_core",
+					"is_required",
+					"display_order",
+				)}
 			`;
-			order += 1;
 		}
 
-		let rowOrder = 0;
-		for (const row of rows) {
+		const rowRows = rows.map((row, displayOrder) => {
 			const normalizedRow = Object.fromEntries(
 				Object.entries(row).map(([key, value]) => [key, String(value ?? "")]),
 			);
+			return {
+				id: randomUUID(),
+				display_order: displayOrder,
+				row_data: this.sql.json(normalizedRow),
+			};
+		});
+		if (rowRows.length > 0) {
 			await this.sql`
-				INSERT INTO app_event_store_rows (
-					id,
-					display_order,
-					row_data,
-					created_at,
-					updated_at
-				)
-				VALUES (
-					${randomUUID()},
-					${rowOrder},
-					${this.sql.json(normalizedRow)},
-					NOW(),
-					NOW()
-				)
+				INSERT INTO app_event_store_rows ${this.sql(
+					rowRows,
+					"id",
+					"display_order",
+					"row_data",
+				)}
 			`;
-			rowOrder += 1;
 		}
 
 		await this.sql`
