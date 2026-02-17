@@ -10,10 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 // Note: Using process.env directly to avoid server-side env variable access on client
-import { LogOut, Music2, User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // Get base path from environment variable directly
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
@@ -21,24 +21,47 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
 const Header = () => {
 	const { isAuthenticated, userEmail, logout } = useAuth();
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
+	const [isCompressed, setIsCompressed] = useState(false);
+
+	useEffect(() => {
+		const onScroll = () => {
+			setIsCompressed(window.scrollY > 22);
+		};
+
+		onScroll();
+		window.addEventListener("scroll", onScroll, { passive: true });
+		return () => window.removeEventListener("scroll", onScroll);
+	}, []);
 
 	return (
 		<>
-			<header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-				<div className="container mx-auto px-4 py-3 sm:py-4 md:py-4">
-					<div className="relative flex items-center min-h-[60px] sm:min-h-[80px] md:min-h-[96px]">
-						{/* Left Section - Mobile: OOOC Logo Left, Desktop: Event Branding Left */}
-						<div className="flex items-center space-x-2 sm:space-x-3 flex-1">
-							{/* OOOC Logo - Left on mobile, hidden on desktop */}
+			<header className="sticky top-0 z-50 px-3 pt-2 sm:px-4 sm:pt-3">
+				<div
+					className={`mx-auto w-full max-w-[1400px] overflow-hidden rounded-2xl border transition-all duration-500 ${
+						isCompressed ?
+							"border-white/55 bg-[rgba(246,241,233,0.96)] shadow-[0_8px_32px_rgba(36,28,22,0.14)] backdrop-blur-xl"
+						:	"border-white/40 bg-[rgba(246,241,233,0.84)] shadow-[0_4px_18px_rgba(36,28,22,0.09)] backdrop-blur-lg"
+					}`}
+				>
+					<div
+						className={`mx-auto flex items-center gap-3 px-3 sm:px-5 transition-all duration-500 ${
+							isCompressed ?
+								"min-h-[60px] py-2 sm:min-h-[66px]"
+							:	"min-h-[72px] py-3 sm:min-h-[84px]"
+						}`}
+					>
+						<div className="flex min-w-0 flex-1 items-center gap-3">
 							<Link
 								href="https://outofofficecollective.co.uk"
 								target="_blank"
 								rel="noopener noreferrer"
-								className="relative h-10 w-10 sm:h-12 sm:w-12 sm:hidden flex-shrink-0"
+								className={`relative shrink-0 transition-all duration-500 ${
+									isCompressed ? "h-9 w-9 sm:h-10 sm:w-10" : "h-10 w-10 sm:h-12 sm:w-12"
+								}`}
 							>
 								<Image
 									src={`${basePath}/OOOCLogoDark.svg`}
-									alt="OOOC - Event Organizer"
+									alt="Out Of Office Collective"
 									fill
 									priority
 									sizes="(max-width: 640px) 40px, 48px"
@@ -46,68 +69,59 @@ const Header = () => {
 								/>
 							</Link>
 
-							{/* Music icon and text - Hidden on mobile, shown on desktop */}
-							<div className="hidden sm:flex items-center space-x-2 md:space-x-3">
-								<Music2 className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary flex-shrink-0" />
-								<div className="min-w-0">
-									<h1 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">
-										Fête Finder
-									</h1>
-									<p className="text-xs sm:text-sm text-muted-foreground leading-tight">
-										Paris 2025 • OOOC
-									</p>
-								</div>
+							<div className="min-w-0">
+								<p className="truncate text-[10px] uppercase tracking-[0.26em] text-foreground/55 sm:text-[11px]">
+									Out Of Office Collective
+								</p>
+								<h1 className="truncate text-lg leading-none [font-family:var(--ooo-font-display)] font-light text-foreground sm:text-2xl">
+									Fete Finder
+								</h1>
 							</div>
 						</div>
 
-						{/* Center Section - Absolutely centered regardless of left/right content */}
-						<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
-							{/* Fête Finder title - Centered on mobile, hidden on desktop */}
-							<div className="text-center sm:hidden px-2">
-								<h1 className="text-lg sm:text-xl font-bold leading-tight">
-									Fête Finder
-								</h1>
-								<p className="text-xs text-muted-foreground leading-tight">
-									Paris 2025 • OOOC
-								</p>
-							</div>
-
-							{/* OOOC Logo - Centered on desktop, hidden on mobile */}
+						<nav className="hidden items-center gap-5 lg:flex">
 							<Link
-								href="https://outofofficecollective.co.uk"
+								href={basePath || "/"}
+								className="text-sm tracking-wide text-foreground/85 underline-offset-4 transition-colors hover:text-foreground hover:underline"
+							>
+								Home
+							</Link>
+							<Link
+								href={`${basePath || ""}/feature-event`}
+								className="text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
+							>
+								Featured Event
+							</Link>
+							<Link
+								href="https://outofofficecollective.co.uk/faqs"
 								target="_blank"
 								rel="noopener noreferrer"
-								className="relative h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28 lg:h-32 lg:w-32 hidden sm:block flex-shrink-0"
+								className="text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
 							>
-								<Image
-									src={`${basePath}/OOOCLogoDark.svg`}
-									alt="OOOC - Event Organizer"
-									fill
-									priority
-									sizes="(max-width: 640px) 80px, (max-width: 768px) 96px, (max-width: 1024px) 112px, 128px"
-									className="object-contain transition-transform hover:scale-105 dark:invert"
-								/>
+								FAQs
 							</Link>
-						</div>
+							<Link
+								href="https://outofofficecollective.co.uk/contact"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
+							>
+								Contact
+							</Link>
+						</nav>
 
-						{/* Right Section - Controls */}
-						<div className="flex flex-col items-end space-y-2 flex-1">
-							{/* Top Row - Main Controls */}
-							<div className="flex items-center justify-end space-x-2 sm:space-x-3 w-full">
-								{/* Quick Actions Dropdown - Music & Food */}
-								<QuickActionsDropdown
-									onMusicSelect={() => setIsMusicModalOpen(true)}
-								/>
-
-								<div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
-									<Clock />
-									<ThemeToggle />
-								</div>
+						<div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
+							<div className="hidden items-center gap-2 sm:flex">
+								<Clock />
+								<ThemeToggle />
 							</div>
 
-							{/* Bottom Row - Authentication Status */}
+							<QuickActionsDropdown onMusicSelect={() => setIsMusicModalOpen(true)} />
+							<div className="sm:hidden">
+								<ThemeToggle />
+							</div>
 							{isAuthenticated && userEmail && (
-								<div className="hidden sm:flex items-center justify-end space-x-2 flex-shrink-0">
+								<div className="hidden items-center gap-2 sm:flex">
 									<Badge variant="secondary" className="gap-1 text-xs">
 										<User className="h-3 w-3" />
 										<span className="max-w-[80px] truncate">
@@ -118,7 +132,7 @@ const Header = () => {
 										variant="ghost"
 										size="sm"
 										onClick={logout}
-										className="h-7 w-7 p-0 flex-shrink-0"
+										className="h-7 w-7 p-0"
 										title="Logout"
 									>
 										<LogOut className="h-3.5 w-3.5" />
@@ -128,19 +142,26 @@ const Header = () => {
 						</div>
 					</div>
 
-					{/* Countdown Section with optimized spacing */}
-
-					<Countdown />
+					<div
+						className={`overflow-hidden border-t border-black/10 transition-all duration-500 ${
+							isCompressed ? "max-h-12" : "max-h-20"
+						}`}
+					>
+						<div className="px-3 pb-2 sm:px-5 sm:pb-3">
+							<Countdown />
+						</div>
+					</div>
 				</div>
 			</header>
 			<SlidingBanner
 				messages={[
-					"When I push it in",
-					"When I push it in",
-					"She say ooouuuuuuuu",
-					"Start relaxing your hair!",
+					"Curated by Out Of Office Collective",
+					"Paris summer rhythm, mapped live",
+					"Postgres-first event workflow",
+					"Tap essentials for playlist, food and toilets",
 				]}
 				speed={15}
+				className="mx-3 mt-2 rounded-xl border border-white/35 bg-[rgba(246,241,233,0.78)] sm:mx-4"
 			/>
 			<MusicPlatformModal
 				isOpen={isMusicModalOpen}
