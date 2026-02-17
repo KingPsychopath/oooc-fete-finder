@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-02-17T18:49:44.832Z",
+  "lastUpdated": "2026-02-17T18:55:11.958Z",
   "locations": {
     "139_rue_du_temple_3": {
       "id": "139_rue_du_temple_3",
@@ -601,6 +601,66 @@
       "confidence": 0.5,
       "source": "estimated",
       "lastUpdated": "2026-02-17T18:49:44.829Z"
+    },
+    "blüm_8": {
+      "id": "blüm_8",
+      "name": "BLÜM",
+      "arrondissement": 8,
+      "coordinates": {
+        "lat": 48.8736,
+        "lng": 2.3111
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:55:11.947Z"
+    },
+    "aquarium_de_paris_16": {
+      "id": "aquarium_de_paris_16",
+      "name": "Aquarium de Paris",
+      "arrondissement": 16,
+      "coordinates": {
+        "lat": 48.8555,
+        "lng": 2.269
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:55:11.951Z"
+    },
+    "punk_paradise_11": {
+      "id": "punk_paradise_11",
+      "name": "Punk Paradise",
+      "arrondissement": 11,
+      "coordinates": {
+        "lat": 48.8594,
+        "lng": 2.3765
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:55:11.952Z"
+    },
+    "cha-cha_club_1": {
+      "id": "cha-cha_club_1",
+      "name": "Cha-Cha Club",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8606,
+        "lng": 2.3376
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:55:11.954Z"
+    },
+    "la_machine_du_moulin_rouge_18": {
+      "id": "la_machine_du_moulin_rouge_18",
+      "name": "La Machine du Moulin Rouge",
+      "arrondissement": 18,
+      "coordinates": {
+        "lat": 48.8927,
+        "lng": 2.3436
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:55:11.956Z"
     }
   }
 }
