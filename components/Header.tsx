@@ -82,22 +82,22 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 	return (
 		<>
 			<header
-				className={`sticky top-0 z-50 px-3 transition-all duration-300 ease-out sm:px-4 ${
+				className={`sticky top-0 z-50 px-3 transition-[padding-top] duration-300 ease-out sm:px-4 ${
 					isCompressed ? "pt-1.5 sm:pt-2" : "pt-2 sm:pt-3"
 				}`}
 			>
 				<div
-					className={`mx-auto w-full max-w-[1400px] rounded-2xl border transition-all duration-300 ease-out ${
+					className={`mx-auto w-full max-w-[1400px] rounded-2xl border ${
 						isCompressed
 							? "border-border/75 bg-card/95 shadow-[0_10px_26px_rgba(20,16,12,0.22)] backdrop-blur-xl"
 							: "border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg"
 					}`}
 				>
 					<div
-						className={`mx-auto flex items-center gap-3 px-3 sm:px-5 transition-all duration-300 ease-out ${
+						className={`mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 transition-transform duration-300 ease-out will-change-transform sm:min-h-[84px] sm:px-5 ${
 							isCompressed
-								? "min-h-[52px] py-1.5 sm:min-h-[58px]"
-								: "min-h-[72px] py-3 sm:min-h-[84px]"
+								? "scale-[0.94] sm:scale-[0.96]"
+								: "scale-100"
 						}`}
 					>
 						<Link
@@ -106,10 +106,10 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							aria-label="Fete Finder home"
 						>
 							<div
-								className={`relative shrink-0 transition-all duration-300 ease-out ${
+								className={`relative h-10 w-10 shrink-0 transition-transform duration-300 ease-out will-change-transform sm:h-12 sm:w-12 ${
 									isCompressed
-										? "h-8 w-8 sm:h-9 sm:w-9"
-										: "h-10 w-10 sm:h-12 sm:w-12"
+										? "scale-90 sm:scale-92"
+										: "scale-100"
 								}`}
 							>
 								<Image

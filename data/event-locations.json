@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-02-17T18:46:19.130Z",
+  "lastUpdated": "2026-02-17T18:49:44.832Z",
   "locations": {
     "139_rue_du_temple_3": {
       "id": "139_rue_du_temple_3",
@@ -577,6 +577,30 @@
       "confidence": 0.5,
       "source": "estimated",
       "lastUpdated": "2026-02-17T18:46:19.120Z"
+    },
+    "club_haussmann_9": {
+      "id": "club_haussmann_9",
+      "name": "Club Haussmann",
+      "arrondissement": 9,
+      "coordinates": {
+        "lat": 48.8785,
+        "lng": 2.3373
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:49:44.827Z"
+    },
+    "le_tlm_19": {
+      "id": "le_tlm_19",
+      "name": "Le TLM",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.8799,
+        "lng": 2.3781
+      },
+      "confidence": 0.5,
+      "source": "estimated",
+      "lastUpdated": "2026-02-17T18:49:44.829Z"
     }
   }
 }
