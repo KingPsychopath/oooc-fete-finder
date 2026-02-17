@@ -7,7 +7,7 @@ export function FeaturedEventsHeader() {
 	return (
 		<div className="flex flex-col">
 			<CardTitle className="text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
-				Featured Events
+				Spotlight
 			</CardTitle>
 			{/* CTA Message positioned close to heading like an underline */}
 			<Link

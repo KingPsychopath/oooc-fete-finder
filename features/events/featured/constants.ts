@@ -11,7 +11,7 @@ export const FEATURED_EVENTS_CONFIG = {
 
 	// CTA message for event hosts
 	CTA_MESSAGE:
-		"Get noticed by thousands more yearners by featuring your event →",
+		"Get noticed by thousands more yearners by promoting your event →",
 
 	// Feature page route
 	FEATURE_PAGE_ROUTE: "/feature-event",
