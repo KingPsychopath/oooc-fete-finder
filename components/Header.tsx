@@ -22,10 +22,13 @@ const Header = () => {
 	const { isAuthenticated, userEmail, logout } = useAuth();
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
 	const [isCompressed, setIsCompressed] = useState(false);
+	const [isCollapsed, setIsCollapsed] = useState(false);
 
 	useEffect(() => {
 		const onScroll = () => {
-			setIsCompressed(window.scrollY > 22);
+			const y = window.scrollY;
+			setIsCompressed(y > 14);
+			setIsCollapsed(y > 44);
 		};
 
 		onScroll();
@@ -35,18 +38,22 @@ const Header = () => {
 
 	return (
 		<>
-			<header className="sticky top-0 z-50 px-3 pt-2 sm:px-4 sm:pt-3">
+			<header
+				className={`sticky top-0 z-50 px-3 transition-all duration-500 sm:px-4 ${
+					isCompressed ? "pt-1.5 sm:pt-2" : "pt-2 sm:pt-3"
+				}`}
+			>
 				<div
-					className={`mx-auto w-full max-w-[1400px] overflow-hidden rounded-2xl border transition-all duration-500 ${
+					className={`mx-auto w-full max-w-[1400px] rounded-2xl border transition-all duration-500 ${
 						isCompressed ?
-							"border-white/55 bg-[rgba(246,241,233,0.96)] shadow-[0_8px_32px_rgba(36,28,22,0.14)] backdrop-blur-xl dark:border-white/18 dark:bg-[rgba(25,20,16,0.88)] dark:shadow-[0_10px_34px_rgba(5,4,3,0.45)]"
-						:	"border-white/40 bg-[rgba(246,241,233,0.84)] shadow-[0_4px_18px_rgba(36,28,22,0.09)] backdrop-blur-lg dark:border-white/14 dark:bg-[rgba(25,20,16,0.76)] dark:shadow-[0_8px_26px_rgba(5,4,3,0.4)]"
+							"border-border/75 bg-card/95 shadow-[0_10px_26px_rgba(20,16,12,0.22)] backdrop-blur-xl"
+						:	"border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg"
 					}`}
 				>
 					<div
 						className={`mx-auto flex items-center gap-3 px-3 sm:px-5 transition-all duration-500 ${
 							isCompressed ?
-								"min-h-[60px] py-2 sm:min-h-[66px]"
+								"min-h-[52px] py-1.5 sm:min-h-[58px]"
 							:	"min-h-[72px] py-3 sm:min-h-[84px]"
 						}`}
 					>
@@ -56,7 +63,7 @@ const Header = () => {
 								target="_blank"
 								rel="noopener noreferrer"
 								className={`relative shrink-0 transition-all duration-500 ${
-									isCompressed ? "h-9 w-9 sm:h-10 sm:w-10" : "h-10 w-10 sm:h-12 sm:w-12"
+									isCompressed ? "h-8 w-8 sm:h-9 sm:w-9" : "h-10 w-10 sm:h-12 sm:w-12"
 								}`}
 							>
 								<Image
@@ -113,16 +120,16 @@ const Header = () => {
 						<div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
 							<div className="hidden items-center gap-2 sm:flex">
 								<Clock />
-								<ThemeToggle className="h-9 w-9 rounded-full border border-black/12 bg-white/62 hover:bg-white/78 dark:border-white/20 dark:bg-white/10 dark:hover:bg-white/18" />
+								<ThemeToggle className="h-9 w-9 rounded-full border border-border/80 bg-background/70 hover:bg-accent" />
 							</div>
 
 							<QuickActionsDropdown
 								onMusicSelect={() => setIsMusicModalOpen(true)}
-								triggerClassName="h-9 rounded-full border border-black/12 bg-white/62 px-3 text-[11px] tracking-[0.08em] text-foreground/80 hover:bg-white/78 dark:border-white/20 dark:bg-white/10 dark:text-white/90 dark:hover:bg-white/18"
-								menuClassName="rounded-xl border border-black/10 bg-[rgba(246,241,233,0.98)] shadow-[0_12px_40px_rgba(36,28,22,0.16)] dark:border-white/15 dark:bg-[rgba(25,20,16,0.97)] dark:shadow-[0_14px_42px_rgba(5,4,3,0.48)]"
+								triggerClassName="h-9 rounded-full border border-border/80 bg-background/70 px-3 text-[11px] tracking-[0.08em] text-foreground/85 hover:bg-accent"
+								menuClassName="z-[80] rounded-xl border border-border bg-popover/95 shadow-[0_12px_36px_rgba(16,12,9,0.28)]"
 							/>
 							<div className="sm:hidden">
-								<ThemeToggle className="h-8 w-8 rounded-full border border-black/12 bg-white/62 hover:bg-white/78 dark:border-white/20 dark:bg-white/10 dark:hover:bg-white/18" />
+								<ThemeToggle className="h-8 w-8 rounded-full border border-border/80 bg-background/70 hover:bg-accent" />
 							</div>
 							{isAuthenticated && userEmail && (
 								<div className="hidden items-center gap-2 sm:flex">
@@ -136,7 +143,7 @@ const Header = () => {
 										variant="ghost"
 										size="sm"
 										onClick={logout}
-										className="h-8 rounded-full border border-black/12 bg-white/55 px-2 text-foreground/75 hover:bg-white/78 hover:text-foreground dark:border-white/20 dark:bg-white/10 dark:text-white/85 dark:hover:bg-white/18"
+										className="h-8 rounded-full border border-border/80 bg-background/70 px-2 text-foreground/75 hover:bg-accent hover:text-foreground"
 										title="Logout"
 									>
 										<LogOut className="h-3.5 w-3.5" />
@@ -147,8 +154,10 @@ const Header = () => {
 					</div>
 
 					<div
-						className={`overflow-hidden border-t border-black/10 transition-all duration-500 ${
-							isCompressed ? "max-h-12" : "max-h-20"
+						className={`overflow-hidden border-t border-border/75 transition-all duration-500 ${
+							isCollapsed ? "max-h-0 border-transparent opacity-0" : "opacity-100"
+						} ${isCompressed && !isCollapsed ? "max-h-10" : ""} ${
+							!isCompressed && !isCollapsed ? "max-h-20" : ""
 						}`}
 					>
 						<div className="px-3 pb-2 sm:px-5 sm:pb-3">
