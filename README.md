@@ -52,9 +52,8 @@ Optional Google backup import/preview and geocoding:
 ```bash
 REMOTE_CSV_URL=
 GOOGLE_SHEET_ID=
-GOOGLE_SERVICE_ACCOUNT_KEY=
-GOOGLE_SERVICE_ACCOUNT_FILE=service-account.json
-GOOGLE_MAPS_API_KEY=   # optional; enable Geocoding API in Cloud Console for precise coords
+GOOGLE_SERVICE_ACCOUNT_KEY=   # preferred (use on Vercel); or GOOGLE_SERVICE_ACCOUNT_FILE for local
+GOOGLE_MAPS_API_KEY=          # optional; enable Geocoding API in Cloud Console for precise coords
 ```
 
 Cache defaults (TTL, memory, etc.) live in code; optional overrides: `CACHE_DURATION_MS`, `REMOTE_REFRESH_INTERVAL_MS`. See `docs/environment-variables.md`.

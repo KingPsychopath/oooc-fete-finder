@@ -8,6 +8,7 @@
  */
 
 import { env } from "@/lib/config/env";
+import { log } from "@/lib/platform/logger";
 
 /**
  * Service account credentials interface
@@ -94,8 +95,8 @@ async function loadServiceAccountCredentials(): Promise<ServiceAccountCredential
 	if (cachedCredentials) {
 		return cachedCredentials;
 	}
-	const serviceAccountKey = env.GOOGLE_SERVICE_ACCOUNT_KEY;
-	const serviceAccountFile = env.GOOGLE_SERVICE_ACCOUNT_FILE;
+	const serviceAccountKey = env.GOOGLE_SERVICE_ACCOUNT_KEY?.trim();
+	const serviceAccountFile = env.GOOGLE_SERVICE_ACCOUNT_FILE?.trim();
 
 	if (!serviceAccountKey && !serviceAccountFile) {
 		throw new Error("No service account credentials configured");
@@ -105,15 +106,10 @@ async function loadServiceAccountCredentials(): Promise<ServiceAccountCredential
 
 	try {
 		if (serviceAccountKey) {
-			console.log("🔑 Using service account from environment variable");
 			credentials = JSON.parse(serviceAccountKey);
 		} else if (serviceAccountFile) {
-			console.log(
-				`🔑 Reading service account from file: ${serviceAccountFile}`,
-			);
 			const fs = await import("fs/promises");
 			const path = await import("path");
-			// Look for service account in scripts directory if no absolute path is provided
 			const keyPath = path.isAbsolute(serviceAccountFile)
 				? serviceAccountFile
 				: path.resolve(process.cwd(), "scripts", serviceAccountFile);
@@ -127,19 +123,15 @@ async function loadServiceAccountCredentials(): Promise<ServiceAccountCredential
 			);
 		}
 
-		console.log(`✅ Service account loaded: ${credentials.client_email}`);
-
 		// Cache the credentials for future use
 		cachedCredentials = credentials;
 		return credentials;
 	} catch (error) {
-		console.error(
-			"❌ Failed to load service account credentials:",
-			error instanceof Error ? error.message : "Unknown error",
-		);
-		throw new Error(
-			`Service account configuration error: ${error instanceof Error ? error.message : "Unknown error"}`,
-		);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		log.error("google-sheets", "Failed to load service account credentials", {
+			error: message,
+		});
+		throw new Error(`Service account configuration error: ${message}`);
 	}
 }
 

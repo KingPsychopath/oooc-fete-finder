@@ -20,7 +20,7 @@ export const env = createEnv({
 		GOOGLE_MAPS_API_KEY: z.string().optional(),
 		GOOGLE_SHEET_ID: z.string().optional(),
 		GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
-		GOOGLE_SERVICE_ACCOUNT_FILE: z.string().default("service-account.json"),
+		GOOGLE_SERVICE_ACCOUNT_FILE: z.string().optional(),
 		REMOTE_CSV_URL: z.string().url().optional().or(z.literal("")),
 
 		LOCAL_CSV_LAST_UPDATED: z.string().optional(),

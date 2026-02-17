@@ -14,8 +14,8 @@ Schema lives in `lib/config/env.ts`. Cache defaults live in code (`lib/cache/cac
 | `REMOTE_CSV_URL` | No | - | CSV URL for admin backup preview/import |
 | `GOOGLE_MAPS_API_KEY` | No | - | Geocoding; if unset, arrondissement centre fallback |
 | `GOOGLE_SHEET_ID` | No | - | Backup sheet for admin import |
-| `GOOGLE_SERVICE_ACCOUNT_KEY` | No | - | Service account JSON string |
-| `GOOGLE_SERVICE_ACCOUNT_FILE` | No | `service-account.json` | Path to service account file |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | No | - | **Preferred.** Full service account JSON (use on Vercel/remote). |
+| `GOOGLE_SERVICE_ACCOUNT_FILE` | No | - | Optional: path to JSON key file (e.g. `scripts/service-account.json`) for local dev only. |
 | `LOCAL_CSV_LAST_UPDATED` | No | - | Metadata only (e.g. last CSV sync time) |
 | `DEFAULT_OG_IMAGE` | No | - | OG image URL override |
 
