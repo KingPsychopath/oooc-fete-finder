@@ -9,14 +9,16 @@ import {
 } from "@/components/ui/tooltip";
 import { useThemeToggle } from "@/hooks/useThemeToggle";
 import { cn } from "@/lib/utils";
+import { Lightbulb } from "lucide-react";
 
 type ThemeToggleProps = {
 	className?: string;
 };
 
 export const ThemeToggle = ({ className }: ThemeToggleProps) => {
-	const { toggleTheme, currentThemeIcon, nextThemeLabel, mounted } =
+	const { theme, toggleTheme, currentThemeIcon, nextThemeLabel, mounted } =
 		useThemeToggle();
+	const isLightTheme = theme === "light";
 
 	return (
 		<TooltipProvider>
@@ -29,7 +31,11 @@ export const ThemeToggle = ({ className }: ThemeToggleProps) => {
 						className={cn("h-9 w-9", className)}
 						disabled={!mounted}
 					>
-						<span className="text-base">{currentThemeIcon}</span>
+						<span className="inline-flex h-full w-full items-center justify-center text-base leading-none select-none">
+							{isLightTheme ?
+								<Lightbulb className="h-[1.05rem] w-[1.05rem]" />
+							:	currentThemeIcon}
+						</span>
 						<span className="sr-only">Toggle theme</span>
 					</Button>
 				</TooltipTrigger>
@@ -42,5 +48,3 @@ export const ThemeToggle = ({ className }: ThemeToggleProps) => {
 		</TooltipProvider>
 	);
 };
-
-// have to update

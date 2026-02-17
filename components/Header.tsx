@@ -5,13 +5,12 @@ import MusicPlatformModal from "@/components/MusicPlatformModal";
 import QuickActionsDropdown from "@/components/QuickActionsDropdown";
 import SlidingBanner from "@/components/SlidingBanner";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useOptionalAuth } from "@/features/auth/auth-context";
 import Countdown from "@/features/events/components/Countdown";
 import type { SlidingBannerPublicSettings } from "@/features/site-settings/types";
 // Note: Using process.env directly to avoid server-side env variable access on client
-import { LogOut, User } from "lucide-react";
+import { LogOut } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -196,7 +195,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							{isAdminAuthenticated && (
 								<Link
 									href={`${basePath || ""}/admin`}
-									className="inline-flex items-center rounded-full border border-border/80 bg-background/70 px-3 py-2 text-[11px] tracking-[0.08em] text-foreground/85 transition-colors hover:bg-accent lg:hidden"
+									className="inline-flex items-center rounded-full border border-border/80 bg-background/70 px-3 py-2 text-[11px] tracking-[0.08em] text-foreground/85 transition-colors hover:bg-accent"
 								>
 									Admin
 								</Link>
@@ -211,23 +210,16 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 								<ThemeToggle className="h-9 w-9 rounded-full border border-border/80 bg-background/70 hover:bg-accent" />
 							</div>
 							{isAuthenticated && userEmail && (
-								<div className="hidden items-center gap-2 sm:flex">
-									<Badge variant="secondary" className="gap-1 text-xs">
-										<User className="h-3 w-3" />
-										<span className="max-w-[80px] truncate">
-											{userEmail.split("@")[0]}
-										</span>
-									</Badge>
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={logout}
-										className="h-8 rounded-full border border-border/80 bg-background/70 px-2 text-foreground/75 hover:bg-accent hover:text-foreground"
-										title="Logout"
-									>
-										<LogOut className="h-3.5 w-3.5" />
-									</Button>
-								</div>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={logout}
+									className="hidden h-9 w-9 rounded-full border border-border/80 bg-background/70 p-0 text-foreground/75 hover:bg-accent hover:text-foreground sm:inline-flex"
+									title="Logout"
+									aria-label="Logout"
+								>
+									<LogOut className="h-3.5 w-3.5" />
+								</Button>
 							)}
 						</div>
 					</div>
