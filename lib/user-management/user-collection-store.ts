@@ -1,6 +1,10 @@
 import "server-only";
 
-import type { UserRecord } from "@/types/user";
+import type {
+	UserCollectionAnalytics,
+	UserCollectionSourceSummary,
+	UserRecord,
+} from "@/types/user";
 import { getKVStore, getKVStoreInfo } from "@/lib/platform/kv/kv-store-factory";
 
 const USERS_COLLECTION_KEY = "users:collection:v1";
@@ -106,6 +110,106 @@ const toSortedUserRecords = (
 		}));
 };
 
+const buildAnalytics = (
+	records: Record<string, StoredUserRecord>,
+): UserCollectionAnalytics => {
+	const values = Object.values(records);
+	if (values.length === 0) {
+		return {
+			totalUsers: 0,
+			totalSubmissions: 0,
+			consentedUsers: 0,
+			nonConsentedUsers: 0,
+			submissionsLast24Hours: 0,
+			submissionsLast7Days: 0,
+			uniqueSources: 0,
+			topSources: [],
+			firstCapturedAt: null,
+			lastCapturedAt: null,
+		};
+	}
+
+	const nowMs = Date.now();
+	const last24HoursMs = nowMs - 24 * 60 * 60 * 1000;
+	const last7DaysMs = nowMs - 7 * 24 * 60 * 60 * 1000;
+
+	let totalSubmissions = 0;
+	let consentedUsers = 0;
+	let submissionsLast24Hours = 0;
+	let submissionsLast7Days = 0;
+	let firstCapturedAt: string | null = null;
+	let lastCapturedAt: string | null = null;
+
+	const sourceCounts = new Map<string, UserCollectionSourceSummary>();
+
+	for (const record of values) {
+		totalSubmissions += record.submissions;
+		if (record.consent) {
+			consentedUsers += 1;
+		}
+
+		const capturedAtMs = new Date(record.timestamp).getTime();
+		if (Number.isFinite(capturedAtMs)) {
+			if (capturedAtMs >= last24HoursMs) {
+				submissionsLast24Hours += record.submissions;
+			}
+			if (capturedAtMs >= last7DaysMs) {
+				submissionsLast7Days += record.submissions;
+			}
+		}
+
+		if (
+			!firstCapturedAt ||
+			new Date(record.firstSeenAt).getTime() < new Date(firstCapturedAt).getTime()
+		) {
+			firstCapturedAt = record.firstSeenAt;
+		}
+		if (
+			!lastCapturedAt ||
+			new Date(record.timestamp).getTime() > new Date(lastCapturedAt).getTime()
+		) {
+			lastCapturedAt = record.timestamp;
+		}
+
+		const source = record.source.trim() || "unknown";
+		const existing = sourceCounts.get(source);
+		if (!existing) {
+			sourceCounts.set(source, {
+				source,
+				users: 1,
+				submissions: record.submissions,
+			});
+			continue;
+		}
+
+		sourceCounts.set(source, {
+			source,
+			users: existing.users + 1,
+			submissions: existing.submissions + record.submissions,
+		});
+	}
+
+	const topSources = Array.from(sourceCounts.values()).sort((left, right) => {
+		if (right.users !== left.users) {
+			return right.users - left.users;
+		}
+		return right.submissions - left.submissions;
+	});
+
+	return {
+		totalUsers: values.length,
+		totalSubmissions,
+		consentedUsers,
+		nonConsentedUsers: values.length - consentedUsers,
+		submissionsLast24Hours,
+		submissionsLast7Days,
+		uniqueSources: sourceCounts.size,
+		topSources,
+		firstCapturedAt,
+		lastCapturedAt,
+	};
+};
+
 export interface UserCollectionStoreStatus {
 	provider: "file" | "memory" | "postgres";
 	location: string;
@@ -168,6 +272,11 @@ export class UserCollectionStore {
 	static async listAll(): Promise<UserRecord[]> {
 		const payload = await this.readPayload();
 		return toSortedUserRecords(payload.records);
+	}
+
+	static async getAnalytics(): Promise<UserCollectionAnalytics> {
+		const payload = await this.readPayload();
+		return buildAnalytics(payload.records);
 	}
 
 	static async getStatus(): Promise<UserCollectionStoreStatus> {

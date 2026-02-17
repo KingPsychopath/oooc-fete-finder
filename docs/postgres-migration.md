@@ -65,6 +65,7 @@ Runtime will continue using:
 ## 5. Email Collection
 
 Email/user records are stored in Postgres KV (`app_kv_store`) and can be exported from `/admin` as CSV.
+Google Apps Script output is optional mirror-only behavior and can be removed later.
 
 ## 6. Recommended Cutover Order
 
@@ -77,3 +78,9 @@ Email/user records are stored in Postgres KV (`app_kv_store`) and can be exporte
 ## 7. Rollback
 
 If required, set `DATA_MODE=local` to force local CSV-only runtime.
+
+## 8. Google Mirror Sunset
+
+When you are ready to fully remove Google output, follow:
+
+- `/Users/owenamenze/workspace/github.com/personal/oooc-fete-finder/docs/google-output-deprecation.md`

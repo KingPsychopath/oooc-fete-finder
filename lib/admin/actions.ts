@@ -2,6 +2,7 @@
 
 import type { CollectedEmailsResponse, UserRecord } from "@/types/user";
 import { UserCollectionStore } from "@/lib/user-management/user-collection-store";
+import { env } from "@/lib/config/env";
 import {
 	clearAdminSessionCookie,
 	createAdminSessionWithCookie,
@@ -26,6 +27,36 @@ import {
 async function validateAdminAccess(keyOrToken?: string): Promise<boolean> {
 	return validateAdminAccessFromServerContext(keyOrToken ?? null);
 }
+
+const toCsvCell = (value: string): string => {
+	if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+		return `"${value.replaceAll('"', '""')}"`;
+	}
+	return value;
+};
+
+const buildCollectedUsersCsv = (users: UserRecord[]): string => {
+	const header = [
+		"First Name",
+		"Last Name",
+		"Email",
+		"Timestamp",
+		"Consent",
+		"Source",
+	];
+	const rows = users.map((user) => [
+		user.firstName,
+		user.lastName,
+		user.email,
+		user.timestamp,
+		String(user.consent),
+		user.source,
+	]);
+
+	return [header, ...rows]
+		.map((row) => row.map((cell) => toCsvCell(cell)).join(","))
+		.join("\n");
+};
 
 /**
  * Create admin session (used during login)
@@ -176,8 +207,12 @@ export async function getCollectedEmails(
 		return { success: false, error: "Unauthorized" };
 	}
 
-	const collectedUsers: UserRecord[] = await UserCollectionStore.listAll();
-	const storeStatus = await UserCollectionStore.getStatus();
+	const [collectedUsers, storeStatus, analytics] = await Promise.all([
+		UserCollectionStore.listAll(),
+		UserCollectionStore.getStatus(),
+		UserCollectionStore.getAnalytics(),
+	]);
+
 	console.log(
 		`Admin panel accessed - loaded ${collectedUsers.length} users from ${storeStatus.provider} provider`,
 	);
@@ -186,5 +221,34 @@ export async function getCollectedEmails(
 		success: true,
 		emails: collectedUsers,
 		count: collectedUsers.length,
+		store: storeStatus,
+		analytics,
+		mirror: {
+			enabled: env.GOOGLE_MIRROR_WRITES,
+			endpointConfigured: Boolean(env.GOOGLE_SHEETS_URL),
+		},
+	};
+}
+
+/**
+ * Export collected users CSV (server-generated and correctly escaped).
+ */
+export async function exportCollectedEmailsCsv(keyOrToken?: string): Promise<{
+	success: boolean;
+	error?: string;
+	filename?: string;
+	csv?: string;
+	count?: number;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized" };
+	}
+
+	const users = await UserCollectionStore.listAll();
+	return {
+		success: true,
+		filename: `fete-finder-users-${new Date().toISOString().split("T")[0]}.csv`,
+		csv: buildCollectedUsersCsv(users),
+		count: users.length,
 	};
 }

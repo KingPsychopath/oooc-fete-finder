@@ -11,6 +11,8 @@ Runtime source order (`DATA_MODE=remote`):
 
 Google Sheets is not used as the live runtime source. It is only used in admin for backup preview/import.
 
+Auth modal user submissions are stored in the managed user store (`app_kv_store`) first, with optional Google mirroring only when explicitly enabled.
+
 ## Postgres Schema (Events)
 
 Event sheet data is stored in normalized tables:
@@ -52,6 +54,8 @@ REMOTE_CSV_URL=
 GOOGLE_SHEET_ID=
 GOOGLE_SERVICE_ACCOUNT_KEY=
 GOOGLE_SERVICE_ACCOUNT_FILE=service-account.json
+GOOGLE_MIRROR_WRITES=false
+GOOGLE_SHEETS_URL=
 ```
 
 ## Development
@@ -86,3 +90,4 @@ Detailed migration steps are in:
 
 - `/Users/owenamenze/workspace/github.com/personal/oooc-fete-finder/docs/postgres-migration.md`
 - `/Users/owenamenze/workspace/github.com/personal/oooc-fete-finder/docs/environment-variables.md`
+- `/Users/owenamenze/workspace/github.com/personal/oooc-fete-finder/docs/google-output-deprecation.md`

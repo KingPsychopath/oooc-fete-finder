@@ -25,6 +25,9 @@ export const getPostgresClient = (): Sql | null => {
 		globalThis.__ooocFeteFinderPostgresClient = postgres(databaseUrl, {
 			prepare: false,
 			max: 1,
+			connect_timeout: 5,
+			idle_timeout: 20,
+			max_lifetime: 60 * 10,
 			onnotice: () => {},
 		});
 	}

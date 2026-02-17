@@ -103,6 +103,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	isExpanded,
 	onToggleExpanded,
 }) => {
+	const sectionClassName =
+		"space-y-3 rounded-xl border border-border/70 bg-background/58 p-3";
+	const sectionTitleClassName =
+		"text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground";
+	const denseToggleClassName =
+		"h-7 justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
+	const regularToggleClassName =
+		"h-8 justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
+
 	// Stable accordion state for desktop compact mode
 	const [openAccordionSections, setOpenAccordionSections] = useState<string[]>([
 		"days",
@@ -187,12 +196,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	// Decision logic for UI variations
 	const uiDecisions = useMemo(() => {
 		return {
-			// Use accordion on desktop when space is limited or many filters are active
-			useAccordion: activeFilterCount > 8,
+			// Keep a single consistent layout for easier scanning/reasoning.
+			useAccordion: false,
 			// Show active filters at top on mobile, bottom on desktop (unless many active)
-		activeFiltersAtTop: activeFilterCount <= 5,
-			// Use compact layout when many filters are active
-			useCompactLayout: activeFilterCount > 10,
+			activeFiltersAtTop: activeFilterCount <= 5,
 		};
 	}, [activeFilterCount]);
 
@@ -225,16 +232,30 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	// Active Filters Component (reusable)
 	const ActiveFiltersDisplay = () => (
 		<div
-			className={`transition-all duration-200 ease-in-out ${hasActiveFilters ? "pb-4 border-b opacity-100" : "h-0 overflow-hidden opacity-0"}`}
+			className={`transition-all duration-200 ease-in-out ${hasActiveFilters ? "rounded-xl border border-border/70 bg-background/52 p-3 opacity-100" : "h-0 overflow-hidden opacity-0"}`}
 		>
 			{hasActiveFilters && (
 				<>
-					<div className="text-xs font-medium text-muted-foreground mb-2">
-						Active Filters ({activeFilterCount}):
+					<div className="mb-2 flex items-center justify-between gap-2">
+						<div className="text-xs font-medium text-muted-foreground">
+							Active Filters ({activeFilterCount})
+						</div>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={onClearFilters}
+							className="h-7 rounded-full border border-border/70 px-3 text-xs text-foreground/80 hover:bg-accent"
+						>
+							Clear all
+						</Button>
 					</div>
-					<div className="flex flex-wrap gap-2 min-h-[28px]">
+					<div className="flex min-h-[28px] flex-wrap gap-2">
 						{selectedOOOCPicks && (
-							<Badge variant="secondary" className="text-xs">
+							<Badge
+								variant="secondary"
+								className="border border-border/70 bg-secondary/72 text-xs"
+							>
 								<Star className="h-3 w-3 mr-1 fill-yellow-400" />
 								OOOC Picks
 								<Button
@@ -248,7 +269,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</Badge>
 						)}
 						{selectedDate && (
-							<Badge variant="secondary" className="text-xs">
+							<Badge
+								variant="secondary"
+								className="border border-border/70 bg-secondary/72 text-xs"
+							>
 								<CalendarDays className="h-3 w-3 mr-1" />
 								{formatDateLabel(selectedDate)}
 								<Button
@@ -262,7 +286,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</Badge>
 						)}
 						{selectedDayNightPeriods.map((period) => (
-							<Badge key={period} variant="secondary" className="text-xs">
+							<Badge
+								key={period}
+								variant="secondary"
+								className="border border-border/70 bg-secondary/72 text-xs"
+							>
 								{DAY_NIGHT_PERIODS.find((p) => p.key === period)?.icon} {period}
 								<Button
 									variant="ghost"
@@ -275,7 +303,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</Badge>
 						))}
 						{selectedNationalities.map((nationality) => (
-							<Badge key={nationality} variant="secondary" className="text-xs">
+							<Badge
+								key={nationality}
+								variant="secondary"
+								className="border border-border/70 bg-secondary/72 text-xs"
+							>
 								{nationality}
 								<Button
 									variant="ghost"
@@ -288,7 +320,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</Badge>
 						))}
 						{selectedVenueTypes.map((venueType) => (
-							<Badge key={venueType} variant="secondary" className="text-xs">
+							<Badge
+								key={venueType}
+								variant="secondary"
+								className="border border-border/70 bg-secondary/72 text-xs"
+							>
 								{VENUE_TYPES.find((v) => v.key === venueType)?.icon}{" "}
 								{VENUE_TYPES.find((v) => v.key === venueType)?.label}
 								<Button
@@ -302,7 +338,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</Badge>
 						))}
 						{selectedIndoorPreference !== null && (
-							<Badge variant="secondary" className="text-xs">
+							<Badge
+								variant="secondary"
+								className="border border-border/70 bg-secondary/72 text-xs"
+							>
 								{selectedIndoorPreference ? "🏢 Indoor" : "🌤️ Outdoor"}
 								<Button
 									variant="ghost"
@@ -316,7 +355,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						)}
 						{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 							selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
-							<Badge variant="secondary" className="text-xs">
+							<Badge
+								variant="secondary"
+								className="border border-border/70 bg-secondary/72 text-xs"
+							>
 								💰 {formatPriceRange(selectedPriceRange)}
 								<Button
 									variant="ghost"
@@ -331,7 +373,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						{selectedAgeRange &&
 							(selectedAgeRange[0] !== AGE_RANGE_CONFIG.min ||
 								selectedAgeRange[1] !== AGE_RANGE_CONFIG.max) && (
-								<Badge variant="secondary" className="text-xs">
+								<Badge
+									variant="secondary"
+									className="border border-border/70 bg-secondary/72 text-xs"
+								>
 									👥 {formatAgeRange(selectedAgeRange)}
 									<Button
 										variant="ghost"
@@ -344,7 +389,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</Badge>
 							)}
 						{selectedArrondissements.map((arr) => (
-							<Badge key={arr} variant="secondary" className="text-xs">
+							<Badge
+								key={arr}
+								variant="secondary"
+								className="border border-border/70 bg-secondary/72 text-xs"
+							>
 								{arr === "unknown" ? "TBC" : `${arr}e`}
 								<Button
 									variant="ghost"
@@ -357,7 +406,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</Badge>
 						))}
 						{selectedGenres.slice(0, 4).map((genre) => (
-							<Badge key={genre} variant="secondary" className="text-xs">
+							<Badge
+								key={genre}
+								variant="secondary"
+								className="border border-border/70 bg-secondary/72 text-xs"
+							>
 								{MUSIC_GENRES.find((g) => g.key === genre)?.label}
 								<Button
 									variant="ghost"
@@ -381,15 +434,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	);
 
 	const DatePickerControl = ({ compact = false }: { compact?: boolean }) => (
-		<div className="space-y-2">
+		<div className={sectionClassName}>
 			<div className="flex items-center justify-between">
-				<h4 className="text-sm font-medium">Pick Date</h4>
+				<h4 className={sectionTitleClassName}>Pick Date</h4>
 				{selectedDate && (
 					<Button
 						type="button"
 						variant="ghost"
 						size="sm"
-						className="h-6 px-2 text-xs"
+						className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent"
 						onClick={() => onDateChange(null)}
 					>
 						Clear
@@ -402,7 +455,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 				min={dateBounds.min}
 				max={dateBounds.max}
 				onChange={(event) => onDateChange(event.target.value || null)}
-				className="h-8 text-xs"
+				className="h-8 border-border/75 bg-background/68 text-xs"
 				aria-label="Filter by event date"
 			/>
 			{availableEventDates.length > 0 && (
@@ -417,7 +470,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								onDateChange(pressed ? date : null)
 							}
 							size="sm"
-							className="h-7 justify-start text-xs"
+							className={denseToggleClassName}
 						>
 							{formatDateLabel(date)}
 						</Toggle>
@@ -436,7 +489,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					onClickAction={onOpen || onClose}
 					hasActiveFilters={hasActiveFilters}
 					activeFiltersCount={activeFilterCount}
-					className="fixed bottom-4 right-4 z-40 shadow-lg lg:hidden"
+					className="fixed right-4 bottom-4 z-40 rounded-full shadow-lg lg:hidden"
 					variant="outline"
 					size="sm"
 				/>
@@ -445,15 +498,21 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 				<div className="hidden lg:block">
 					<Card className="ooo-site-card overflow-hidden py-0">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/70 py-5 pb-4">
-							<CardTitle className="flex items-center text-base">
+							<CardTitle className="flex items-center text-[1.55rem] [font-family:var(--ooo-font-display)] font-light">
 								<Filter className="h-4 w-4 mr-2" />
 								Event Filters
 								{hasActiveFilters && (
-									<Badge variant="secondary" className="ml-2 text-xs">
+									<Badge
+										variant="secondary"
+										className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+									>
 										{activeFilterCount} active
 									</Badge>
 								)}
-								<Badge variant="outline" className="ml-2 text-xs">
+								<Badge
+									variant="outline"
+									className="ml-2 border-border/70 bg-background/52 text-xs"
+								>
 									{filteredEventsCount} result
 									{filteredEventsCount !== 1 ? "s" : ""}
 								</Badge>
@@ -464,7 +523,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										variant="outline"
 										size="sm"
 										onClick={onClearFilters}
-										className="text-xs h-7"
+										className="h-7 rounded-full border-border/70 bg-background/70 px-3 text-xs hover:bg-accent"
 									>
 										Clear all
 									</Button>
@@ -474,7 +533,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										variant="ghost"
 										size="sm"
 										onClick={onToggleExpanded}
-										className="text-muted-foreground hover:text-foreground w-[100px] justify-center flex-shrink-0"
+										className="w-[110px] shrink-0 justify-center rounded-full border border-border/70 bg-background/66 text-muted-foreground hover:bg-accent hover:text-foreground"
 									>
 										<ChevronDown
 											className={`h-4 w-4 mr-1 transition-transform transition-bouncy ${isExpanded ? "rotate-180" : "rotate-0"}`}
@@ -506,11 +565,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								>
 									{/* Days & Times Section */}
 									<AccordionItem value="days">
-										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
+										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors">
 											Date & Times
 											{(selectedDate !== null ||
 												selectedDayNightPeriods.length > 0) && (
-												<Badge variant="secondary" className="ml-2 text-xs">
+													<Badge
+														variant="secondary"
+														className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+													>
 													{(selectedDate ? 1 : 0) +
 														selectedDayNightPeriods.length}{" "}
 													active
@@ -520,9 +582,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<AccordionContent>
 											<div className="space-y-3">
 												{/* Day/Night Periods */}
-												<div className="p-1.5 bg-muted/20 rounded-md border overflow-hidden">
+												<div className={sectionClassName}>
 													<div className="flex items-center justify-between mb-1">
-														<h4 className="text-xs font-medium truncate">
+														<h4 className={sectionTitleClassName}>
 															Filter by Time
 														</h4>
 													</div>
@@ -535,7 +597,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																	onDayNightPeriodToggle(key)
 																}
 																size="sm"
-																className="text-xs h-6 px-2"
+																className={denseToggleClassName}
 															>
 																{icon} {label}
 															</Toggle>
@@ -550,17 +612,20 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 									{/* Location Section */}
 									<AccordionItem value="location">
-										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
+										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors">
 											Location
 											{selectedArrondissements.length > 0 && (
-												<Badge variant="secondary" className="ml-2 text-xs">
+													<Badge
+														variant="secondary"
+														className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+													>
 													{selectedArrondissements.length} active
 												</Badge>
 											)}
 										</AccordionTrigger>
 										<AccordionContent>
 											<div className="space-y-3">
-												<h3 className="font-medium text-sm mb-2">
+												<h3 className={sectionTitleClassName}>
 													Arrondissements
 												</h3>
 												<div className="grid grid-cols-5 gap-1 min-h-[5rem] content-start">
@@ -572,7 +637,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																onArrondissementToggle(arr)
 															}
 															size="sm"
-															className="h-6 text-xs shrink-0"
+															className={denseToggleClassName}
 														>
 															{arr === "unknown" ? "TBC" : `${arr}e`}
 														</Toggle>
@@ -584,11 +649,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 									{/* Music & Culture Section */}
 									<AccordionItem value="music">
-										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
+										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors">
 											Music & Culture
 											{(selectedGenres.length > 0 ||
 												selectedNationalities.length > 0) && (
-												<Badge variant="secondary" className="ml-2 text-xs">
+													<Badge
+														variant="secondary"
+														className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+													>
 													{selectedGenres.length + selectedNationalities.length}{" "}
 													active
 												</Badge>
@@ -598,17 +666,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											<div className="space-y-4">
 												{/* Music Genres */}
 												<div>
-													<h3 className="font-medium text-sm mb-2">
+													<h3 className={sectionTitleClassName}>
 														Music Genres
 													</h3>
 													<div className="relative contain-layout">
-														<div className="grid grid-cols-2 gap-1 max-h-36 min-h-[8rem] overflow-y-auto border rounded-md p-1.5 bg-muted/20">
+														<div className="grid min-h-[8rem] max-h-36 grid-cols-2 gap-1 overflow-y-auto rounded-md border border-border/70 bg-background/55 p-1.5">
 															{MUSIC_GENRES.map(({ key, label, color }) => (
 																<Toggle
 																	key={key}
 																	pressed={selectedGenres.includes(key)}
 																	onPressedChange={() => onGenreToggle(key)}
-																	className="justify-start w-full h-6 shrink-0"
+																	className={denseToggleClassName}
 																	size="sm"
 																>
 																	<div
@@ -622,22 +690,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														</div>
 														<div className="absolute top-1.5 left-1.5 right-1.5 h-4 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
 														<div className="absolute bottom-1.5 left-1.5 right-1.5 h-4 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
-														<div className="text-xs text-muted-foreground mt-1 text-center opacity-70 flex items-center justify-center gap-1">
-															<span>{MUSIC_GENRES.length} genres</span>
-															<span className="text-muted-foreground/50">
-																•
-															</span>
-															<span className="flex items-center gap-0.5">
-																<span className="animate-bounce">↓</span>
-																scroll
-															</span>
+														<div className="mt-1 text-center text-[11px] text-muted-foreground/88">
+															{MUSIC_GENRES.length} genres
 														</div>
 													</div>
 												</div>
 
 												{/* Nationality */}
 												<div>
-													<h3 className="font-semibold mb-3">
+													<h3 className={sectionTitleClassName}>
 														Nationality{" "}
 														{selectedNationalities.length > 1 && (
 															<span className="text-sm text-muted-foreground font-normal">
@@ -651,7 +712,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																key={key}
 																pressed={selectedNationalities.includes(key)}
 																onPressedChange={() => onNationalityToggle(key)}
-																className="justify-start w-full h-8"
+																className={regularToggleClassName}
 																size="sm"
 															>
 																<span className="mr-1.5 text-sm">{flag}</span>
@@ -666,7 +727,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 									{/* Preferences Section */}
 									<AccordionItem value="preferences">
-										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
+										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors">
 											Preferences
 											{(selectedVenueTypes.length > 0 ||
 												selectedIndoorPreference !== null ||
@@ -674,7 +735,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
 												selectedAgeRange !== null ||
 												selectedOOOCPicks) && (
-												<Badge variant="secondary" className="ml-2 text-xs">
+													<Badge
+														variant="secondary"
+														className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+													>
 													{
 														[
 															selectedVenueTypes.length > 0,
@@ -695,13 +759,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											<div className="space-y-4">
 												{/* OOOC Picks */}
 												<div>
-													<h3 className="font-medium text-sm mb-2">
+													<h3 className={sectionTitleClassName}>
 														OOOC Picks
 													</h3>
 													<Toggle
 														pressed={selectedOOOCPicks}
 														onPressedChange={onOOOCPicksToggle}
-														className="justify-start w-full h-7"
+														className={denseToggleClassName}
 														size="sm"
 													>
 														<Star className="h-3.5 w-3.5 mr-1.5 fill-yellow-400" />
@@ -713,14 +777,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Venue Type */}
 												<div>
-													<h3 className="font-semibold mb-3">Venue Type</h3>
+													<h3 className={sectionTitleClassName}>Venue Type</h3>
 													<div className="grid grid-cols-2 gap-1">
 														{VENUE_TYPES.map(({ key, label, icon }) => (
 															<Toggle
 																key={key}
 																pressed={selectedVenueTypes.includes(key)}
 																onPressedChange={() => onVenueTypeToggle(key)}
-																className="justify-start w-full h-8"
+																className={regularToggleClassName}
 																size="sm"
 															>
 																<span className="text-xs">
@@ -733,7 +797,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Price Range */}
 												<div>
-													<h3 className="font-medium text-sm mb-2">
+													<h3 className={sectionTitleClassName}>
 														Price Range
 													</h3>
 													<div className="space-y-1.5 px-1">
@@ -764,7 +828,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																	variant="ghost"
 																	size="sm"
 																	onClick={resetPriceRange}
-																	className="text-xs h-6 px-2"
+																	className="h-7 rounded-full border border-border/70 px-3 text-xs text-foreground/80 hover:bg-accent"
 																>
 																	Clear price filter
 																</Button>
@@ -775,7 +839,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Age Range */}
 												<div>
-													<h3 className="font-medium text-sm mb-2">
+													<h3 className={sectionTitleClassName}>
 														Age Range
 													</h3>
 													<div className="space-y-1.5 px-1">
@@ -808,7 +872,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																	variant="ghost"
 																	size="sm"
 																	onClick={resetAgeRange}
-																	className="text-xs h-6 px-2"
+																	className="h-7 rounded-full border border-border/70 px-3 text-xs text-foreground/80 hover:bg-accent"
 																>
 																	Clear age filter
 																</Button>
@@ -824,15 +888,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								{/* Active Filters - Bottom when many filters */}
 								{!uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
 
-								{/* Scroll indicator at the bottom */}
-								<div className="sticky bottom-0 left-0 right-0">
-									<div className="h-8 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none flex items-end justify-center pb-0.5 relative">
-										<div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent blur-sm" />
-										<div className="relative text-xs text-muted-foreground/70 flex items-center gap-1">
-											<span className="animate-bounce">↓</span>
-											scroll for more
-										</div>
-									</div>
+								<div className="mt-2 text-center text-[11px] text-muted-foreground/80">
+									Showing {filteredEventsCount} matching event
+									{filteredEventsCount !== 1 ? "s" : ""}.
 								</div>
 							</div>
 
@@ -855,15 +913,21 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			>
 				<Card className="ooo-site-card h-full border-0 py-0 lg:h-fit lg:border">
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/70 py-5 pb-4">
-						<CardTitle className="flex items-center">
+						<CardTitle className="flex items-center text-[1.45rem] [font-family:var(--ooo-font-display)] font-light">
 							<Filter className="h-5 w-5 mr-2" />
 							Filters
 							{hasActiveFilters && (
-								<Badge variant="secondary" className="ml-2 text-xs">
+								<Badge
+									variant="secondary"
+									className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+								>
 									{activeFilterCount} active
 								</Badge>
 							)}
-							<Badge variant="outline" className="ml-2 text-xs">
+							<Badge
+								variant="outline"
+								className="ml-2 border-border/70 bg-background/52 text-xs"
+							>
 								{filteredEventsCount} result
 								{filteredEventsCount !== 1 ? "s" : ""}
 							</Badge>
@@ -874,7 +938,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									variant="outline"
 									size="sm"
 									onClick={onClearFilters}
-									className="text-xs"
+									className="h-7 rounded-full border-border/70 bg-background/70 px-3 text-xs hover:bg-accent"
 								>
 									Clear all
 								</Button>
@@ -883,7 +947,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								variant="outline"
 								size="icon"
 								onClick={onClose}
-								className="h-8 w-8 lg:hidden"
+								className="h-8 w-8 rounded-full border-border/70 bg-background/70 hover:bg-accent lg:hidden"
 							>
 								<X className="h-4 w-4" />
 							</Button>
@@ -909,7 +973,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											Date & Times
 											{(selectedDate !== null ||
 												selectedDayNightPeriods.length > 0) && (
-												<Badge variant="secondary" className="ml-2 text-xs">
+												<Badge
+													variant="secondary"
+													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+												>
 													{(selectedDate ? 1 : 0) +
 														selectedDayNightPeriods.length}
 												</Badge>
@@ -953,9 +1020,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							// Expanded Layout (Mobile always, Desktop when space allows)
 							<div className="space-y-6 lg:space-y-4">
 								{/* Days & Times */}
-								<div>
+								<div className={sectionClassName}>
 									<div className="flex items-center mb-3">
-										<h3 className="font-semibold">Date & Times</h3>
+										<h3 className={sectionTitleClassName}>Date & Times</h3>
 										<TooltipProvider>
 											<Tooltip>
 												<TooltipTrigger asChild>
@@ -983,9 +1050,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 									<div className="space-y-2">
 										{/* Day/Night Periods */}
-										<div className="p-2 bg-muted/20 rounded-md border overflow-hidden">
+										<div className={sectionClassName}>
 											<div className="flex items-center justify-between mb-2">
-												<h4 className="text-sm font-medium truncate">
+												<h4 className={sectionTitleClassName}>
 													Filter by Time
 												</h4>
 											</div>
@@ -996,7 +1063,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														pressed={selectedDayNightPeriods.includes(key)}
 														onPressedChange={() => onDayNightPeriodToggle(key)}
 														size="sm"
-														className="text-xs h-8"
+														className={regularToggleClassName}
 													>
 														{icon} {label}
 													</Toggle>
@@ -1009,12 +1076,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</div>
 
 								{/* OOOC Picks */}
-								<div>
-									<h3 className="font-semibold mb-3">OOOC Picks</h3>
+								<div className={sectionClassName}>
+									<h3 className={sectionTitleClassName}>OOOC Picks</h3>
 									<Toggle
 										pressed={selectedOOOCPicks}
 										onPressedChange={onOOOCPicksToggle}
-										className="justify-start w-full h-8"
+										className={regularToggleClassName}
 										size="sm"
 									>
 										<Star className="h-4 w-4 mr-2 fill-yellow-400" />
@@ -1023,15 +1090,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</div>
 
 								{/* Venue Type */}
-								<div>
-									<h3 className="font-semibold mb-3">Venue Type</h3>
+								<div className={sectionClassName}>
+									<h3 className={sectionTitleClassName}>Venue Type</h3>
 									<div className="grid grid-cols-2 gap-1">
 										{VENUE_TYPES.map(({ key, label, icon }) => (
 											<Toggle
 												key={key}
 												pressed={selectedVenueTypes.includes(key)}
 												onPressedChange={() => onVenueTypeToggle(key)}
-												className="justify-start w-full h-8"
+												className={regularToggleClassName}
 												size="sm"
 											>
 												<span className="text-xs">
@@ -1043,8 +1110,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</div>
 
 								{/* Nationality */}
-								<div>
-									<h3 className="font-semibold mb-3">
+								<div className={sectionClassName}>
+									<h3 className={sectionTitleClassName}>
 										Nationality{" "}
 										{selectedNationalities.length > 1 && (
 											<span className="text-sm text-muted-foreground font-normal">
@@ -1058,7 +1125,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												key={key}
 												pressed={selectedNationalities.includes(key)}
 												onPressedChange={() => onNationalityToggle(key)}
-												className="justify-start w-full h-8"
+												className={regularToggleClassName}
 												size="sm"
 											>
 												<span className="mr-1.5 text-sm">{flag}</span>
@@ -1069,8 +1136,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</div>
 
 								{/* Price Range */}
-								<div>
-									<h3 className="font-semibold mb-3">Price Range</h3>
+								<div className={sectionClassName}>
+									<h3 className={sectionTitleClassName}>Price Range</h3>
 									<div className="space-y-2 px-1">
 										<Slider
 											value={selectedPriceRange}
@@ -1097,7 +1164,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													variant="ghost"
 													size="sm"
 													onClick={resetPriceRange}
-													className="text-xs h-6 px-2"
+													className="h-7 rounded-full border border-border/70 px-3 text-xs text-foreground/80 hover:bg-accent"
 												>
 													Clear price filter
 												</Button>
@@ -1107,8 +1174,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</div>
 
 								{/* Age Range */}
-								<div>
-									<h3 className="font-semibold mb-3">Age Range</h3>
+								<div className={sectionClassName}>
+									<h3 className={sectionTitleClassName}>Age Range</h3>
 									<div className="space-y-2 px-1">
 										<Slider
 											value={selectedAgeRange || AGE_RANGE_CONFIG.defaultRange}
@@ -1136,7 +1203,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													variant="ghost"
 													size="sm"
 													onClick={resetAgeRange}
-													className="text-xs h-6 px-2"
+													className="h-7 rounded-full border border-border/70 px-3 text-xs text-foreground/80 hover:bg-accent"
 												>
 													Clear age filter
 												</Button>
@@ -1146,16 +1213,16 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</div>
 
 								{/* Music Genres */}
-								<div>
-									<h3 className="font-semibold mb-3">Music Genres</h3>
+								<div className={sectionClassName}>
+									<h3 className={sectionTitleClassName}>Music Genres</h3>
 									<div className="relative contain-layout">
-										<div className="grid grid-cols-2 gap-1 max-h-48 min-h-[12rem] overflow-y-auto border rounded-md p-2 bg-muted/20">
+										<div className="grid grid-cols-2 gap-1 max-h-48 min-h-[12rem] overflow-y-auto rounded-md border border-border/70 bg-background/55 p-2">
 											{MUSIC_GENRES.map(({ key, label, color }) => (
 												<Toggle
 													key={key}
 													pressed={selectedGenres.includes(key)}
 													onPressedChange={() => onGenreToggle(key)}
-													className="justify-start w-full h-7 shrink-0"
+													className={denseToggleClassName}
 													size="sm"
 												>
 													<div
@@ -1167,15 +1234,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										</div>
 										<div className="absolute top-2 left-2 right-2 h-2 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
 										<div className="absolute bottom-2 left-2 right-2 h-2 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
-										<div className="text-xs text-muted-foreground mt-1 text-center opacity-70 h-4">
-											{MUSIC_GENRES.length} genres • scroll ↕
+										<div className="mt-1 h-4 text-center text-xs text-muted-foreground/88">
+											{MUSIC_GENRES.length} genres
 										</div>
 									</div>
 								</div>
 
 								{/* Arrondissements */}
-								<div>
-									<h3 className="font-semibold mb-3">Arrondissements</h3>
+								<div className={sectionClassName}>
+									<h3 className={sectionTitleClassName}>Arrondissements</h3>
 									<div className="grid grid-cols-4 lg:grid-cols-5 gap-1 min-h-[7rem] content-start">
 										{availableArrondissements.map((arr) => (
 											<Toggle
@@ -1183,7 +1250,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												pressed={selectedArrondissements.includes(arr)}
 												onPressedChange={() => onArrondissementToggle(arr)}
 												size="sm"
-												className="h-7 text-xs shrink-0"
+												className={denseToggleClassName}
 											>
 												{arr === "unknown" ? "TBC" : `${arr}e`}
 											</Toggle>
@@ -1196,6 +1263,25 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						{/* Active Filters - Bottom when many filters */}
 						{!uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
 					</CardContent>
+					<div className="flex items-center justify-between gap-2 border-t border-border/70 bg-background/76 px-4 py-3 lg:hidden">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={onClearFilters}
+							className="h-8 rounded-full border-border/75 bg-background/70 px-3 text-xs hover:bg-accent"
+						>
+							Clear filters
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							onClick={onClose}
+							className="h-8 rounded-full px-4 text-xs"
+						>
+							Done ({filteredEventsCount})
+						</Button>
+					</div>
 				</Card>
 			</div>
 		</div>

@@ -1,5 +1,10 @@
 // Import shared user types
-export type { UserRecord as EmailRecord } from "@/types/user";
+export type {
+	UserCollectionAnalytics,
+	UserCollectionMirrorStatus,
+	UserCollectionStoreSummary,
+	UserRecord as EmailRecord,
+} from "@/types/user";
 
 // Import centralized cache types instead of duplicating
 export type { CacheStatus } from "@/lib/cache-management/cache-types";

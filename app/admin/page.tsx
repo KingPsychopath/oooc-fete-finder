@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import {
 	createAdminSession,
+	exportCollectedEmailsCsv,
 	getAdminSessionStatus,
 	getCollectedEmails,
 	logoutAdminSession,
@@ -20,7 +21,13 @@ import { EmailCollectionCard } from "./components/EmailCollectionCard";
 import { EventSheetEditorCard } from "./components/EventSheetEditorCard";
 import { LiveEventsSnapshotCard } from "./components/LiveEventsSnapshotCard";
 import { LocalEventStoreCard } from "./components/LocalEventStoreCard";
-import type { CacheStatus, EmailRecord } from "./types";
+import type {
+	CacheStatus,
+	EmailRecord,
+	UserCollectionAnalytics,
+	UserCollectionMirrorStatus,
+	UserCollectionStoreSummary,
+} from "./types";
 
 const basePath = env.NEXT_PUBLIC_BASE_PATH;
 
@@ -31,6 +38,14 @@ export default function AdminPage() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [emails, setEmails] = useState<EmailRecord[]>([]);
+	const [emailStore, setEmailStore] = useState<UserCollectionStoreSummary | null>(
+		null,
+	);
+	const [emailAnalytics, setEmailAnalytics] =
+		useState<UserCollectionAnalytics | null>(null);
+	const [emailMirror, setEmailMirror] = useState<UserCollectionMirrorStatus | null>(
+		null,
+	);
 	const [cacheStatus, setCacheStatus] = useState<CacheStatus | null>(null);
 	const [refreshing, setRefreshing] = useState(false);
 	const [refreshMessage, setRefreshMessage] = useState("");
@@ -46,6 +61,9 @@ export default function AdminPage() {
 		const result = await getCollectedEmails(credential);
 		if (result.success) {
 			setEmails(result.emails || []);
+			setEmailStore(result.store || null);
+			setEmailAnalytics(result.analytics || null);
+			setEmailMirror(result.mirror || null);
 		}
 	}, []);
 
@@ -81,6 +99,9 @@ export default function AdminPage() {
 		setIsAuthenticated(false);
 		setAdminKey("");
 		setEmails([]);
+		setEmailStore(null);
+		setEmailAnalytics(null);
+		setEmailMirror(null);
 		setCacheStatus(null);
 		setError("");
 		setRefreshMessage("");
@@ -129,25 +150,18 @@ export default function AdminPage() {
 		}
 	};
 
-	const exportAsCSV = () => {
-		const csvRows = [
-			["First Name", "Last Name", "Email", "Timestamp", "Consent", "Source"],
-			...emails.map((user) => [
-				user.firstName,
-				user.lastName,
-				user.email,
-				user.timestamp,
-				user.consent.toString(),
-				user.source,
-			]),
-		];
-		const csvContent = csvRows.map((row) => row.join(",")).join("\n");
-		const blob = new Blob([csvContent], { type: "text/csv" });
+	const exportAsCSV = async () => {
+		const result = await exportCollectedEmailsCsv();
+		if (!result.success || !result.csv) {
+			return;
+		}
+
+		const blob = new Blob([result.csv], { type: "text/csv;charset=utf-8;" });
 		const url = URL.createObjectURL(blob);
 		const anchor = document.createElement("a");
 		anchor.href = url;
 		anchor.download =
-			`fete-finder-users-${new Date().toISOString().split("T")[0]}.csv`;
+			result.filename || `fete-finder-users-${new Date().toISOString().split("T")[0]}.csv`;
 		document.body.appendChild(anchor);
 		anchor.click();
 		document.body.removeChild(anchor);
@@ -272,8 +286,11 @@ export default function AdminPage() {
 
 						<EmailCollectionCard
 							emails={emails}
+							store={emailStore}
+							analytics={emailAnalytics}
+							mirror={emailMirror}
 							onCopyEmails={copyEmails}
-							onExportCSV={exportAsCSV}
+							onExportCSV={() => void exportAsCSV()}
 						/>
 					</div>
 				</div>

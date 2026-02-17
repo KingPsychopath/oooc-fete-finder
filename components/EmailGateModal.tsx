@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { GoogleAppsScript } from "@/lib/google/apps-script";
 import { Lock, Mail, User } from "lucide-react";
 import React, { useState } from "react";
 
@@ -23,6 +22,7 @@ const EmailGateModal = ({
 	onEmailSubmit,
 	onClose,
 }: EmailGateModalProps) => {
+	const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 	const [firstName, setFirstName] = useState("");
 	const [lastName, setLastName] = useState("");
 	const [email, setEmail] = useState("");
@@ -82,23 +82,40 @@ const EmailGateModal = ({
 		setError("");
 
 		try {
-			// Call server action with the new Google Apps Script integration
-			const result = await GoogleAppsScript.submitUserData({
-				firstName: firstName.trim(),
-				lastName: lastName.trim(),
-				email: email.trim(),
-				consent: true,
-				source: "fete-finder-auth",
-				timestamp: new Date().toISOString(),
+			const response = await fetch(`${basePath}/api/auth/verify`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					firstName: firstName.trim(),
+					lastName: lastName.trim(),
+					email: email.trim(),
+					consent: true,
+					source: "fete-finder-auth",
+				}),
+				signal: AbortSignal.timeout(12000),
 			});
+			const result = (await response.json()) as {
+				success: boolean;
+				error?: string;
+			};
 
 			if (result.success) {
 				onEmailSubmit(email);
 			} else {
 				setError(result.error || "Something went wrong. Please try again.");
 			}
-		} catch {
-			setError("Something went wrong. Please try again.");
+		} catch (submitError) {
+			if (
+				submitError instanceof Error &&
+				(submitError.name === "TimeoutError" ||
+					submitError.name === "AbortError")
+			) {
+				setError("Verification timed out. Please try again.");
+				return;
+			}
+			setError("Verification failed. Please try again.");
 		} finally {
 			setIsSubmitting(false);
 		}

@@ -7,21 +7,33 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import type { EmailRecord } from "../types";
+import type {
+	EmailRecord,
+	UserCollectionAnalytics,
+	UserCollectionMirrorStatus,
+	UserCollectionStoreSummary,
+} from "../types";
 
 type EmailCollectionCardProps = {
 	emails: EmailRecord[];
+	store: UserCollectionStoreSummary | null;
+	analytics: UserCollectionAnalytics | null;
+	mirror: UserCollectionMirrorStatus | null;
 	onCopyEmails: () => void;
 	onExportCSV: () => void;
 };
 
 export const EmailCollectionCard = ({
 	emails,
+	store,
+	analytics,
+	mirror,
 	onCopyEmails,
 	onExportCSV,
 }: EmailCollectionCardProps) => {
-	const consentedCount = emails.filter((entry) => entry.consent).length;
-	const notConsentedCount = emails.length - consentedCount;
+	const consentedCount = analytics?.consentedUsers ?? 0;
+	const notConsentedCount = analytics?.nonConsentedUsers ?? 0;
+	const topSources = analytics?.topSources.slice(0, 3) ?? [];
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
@@ -30,7 +42,8 @@ export const EmailCollectionCard = ({
 					<div>
 						<CardTitle>Collected Users</CardTitle>
 						<CardDescription>
-							Newsletter/community signups stored in Postgres and exportable to CSV.
+							Auth modal submissions are stored in your managed store first
+							(Postgres when available) and can be exported to CSV at any time.
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap gap-2">
@@ -42,12 +55,50 @@ export const EmailCollectionCard = ({
 						</Button>
 					</div>
 				</div>
-				<div className="grid gap-2 sm:grid-cols-3">
+				<div className="flex flex-wrap gap-2">
+					<Badge variant="secondary" className="capitalize">
+						Store: {store?.provider ?? "unknown"}
+					</Badge>
+					<Badge variant={mirror?.enabled ? "outline" : "default"}>
+						Google mirror: {mirror?.enabled ? "enabled" : "disabled"}
+					</Badge>
+				</div>
+				{mirror?.enabled && !mirror.endpointConfigured && (
+					<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+						Google mirroring is enabled but <code>GOOGLE_SHEETS_URL</code> is not
+						configured.
+					</div>
+				)}
+				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Total
+							Unique Users
 						</p>
 						<p className="mt-1 text-sm font-medium">{emails.length}</p>
+					</div>
+					<div className="rounded-md border bg-background/60 px-3 py-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Total Submissions
+						</p>
+						<p className="mt-1 text-sm font-medium">
+							{analytics?.totalSubmissions ?? emails.length}
+						</p>
+					</div>
+					<div className="rounded-md border bg-background/60 px-3 py-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Last 24h
+						</p>
+						<p className="mt-1 text-sm font-medium">
+							{analytics?.submissionsLast24Hours ?? 0}
+						</p>
+					</div>
+					<div className="rounded-md border bg-background/60 px-3 py-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Last 7d
+						</p>
+						<p className="mt-1 text-sm font-medium">
+							{analytics?.submissionsLast7Days ?? 0}
+						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -62,6 +113,66 @@ export const EmailCollectionCard = ({
 						<p className="mt-1 text-sm font-medium">{notConsentedCount}</p>
 					</div>
 				</div>
+				<div className="rounded-md border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+					<p className="break-all">
+						Store path: {store?.location || "Unavailable"}
+					</p>
+					<p className="mt-1">
+						Last updated:{" "}
+						{store?.lastUpdatedAt ?
+							new Date(store.lastUpdatedAt).toLocaleString()
+						: 	"Never"}
+					</p>
+				</div>
+				<div className="rounded-md border bg-background/60 px-3 py-2">
+					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+						Top Sources
+					</p>
+					{topSources.length === 0 ? (
+						<p className="mt-2 text-xs text-muted-foreground">
+							No sources captured yet.
+						</p>
+					) : (
+						<div className="mt-2 space-y-1.5">
+							{topSources.map((source) => (
+								<p
+									key={source.source}
+									className="flex flex-wrap items-center justify-between gap-2 text-xs"
+								>
+									<span className="font-medium text-foreground">
+										{source.source}
+									</span>
+									<span className="text-muted-foreground">
+										{source.users} users • {source.submissions} submissions
+									</span>
+								</p>
+							))}
+						</div>
+					)}
+				</div>
+				<details className="rounded-md border bg-background/60 px-3 py-2">
+					<summary className="cursor-pointer text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+						Google Mirror Deprecation Checklist
+					</summary>
+					<div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
+						<p>
+							1. Keep <code>GOOGLE_MIRROR_WRITES=false</code> once Postgres
+							stability is confirmed.
+						</p>
+						<p>
+							2. Remove <code>GOOGLE_SHEETS_URL</code> after you no longer need
+							mirror writes.
+						</p>
+						<p>
+							3. Remove legacy Apps Script actions/cards that are only for sheet
+							stats/cleanup.
+						</p>
+						<p>
+							4. Keep CSV export enabled here so editors retain the familiar
+							workflow.
+						</p>
+					</div>
+				</details>
 			</CardHeader>
 			<CardContent>
 				{emails.length === 0 ? (
