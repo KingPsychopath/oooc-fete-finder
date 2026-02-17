@@ -5,9 +5,15 @@
  * without creating circular dependencies between data and delivery layers.
  */
 
+import "server-only";
+
+import { unstable_cache } from "next/cache";
+import { DataManager } from "@/features/data-management/data-manager";
 import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
 import type { Event, MusicGenre } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
+
+const FEATURED_EVENTS_CACHE_REVALIDATE_SECONDS = 300;
 
 /**
  * Get all events from the runtime data manager
@@ -27,6 +33,25 @@ export async function getAllEvents(): Promise<Event[]> {
 		return [];
 	}
 }
+
+const getFeaturedEventsCachedData = unstable_cache(
+	async (): Promise<Event[]> => {
+		const result = await DataManager.getEventsData({ populateCoordinates: false });
+		if (!result.success) {
+			if (result.error) {
+				log.error("events", "Error loading featured events", {
+					error: result.error,
+				});
+			}
+			return [];
+		}
+		return result.data.filter((event) => event.isFeatured);
+	},
+	["featured-events:lightweight"],
+	{
+		revalidate: FEATURED_EVENTS_CACHE_REVALIDATE_SECONDS,
+	},
+);
 
 /**
  * Get events filtered by day
@@ -60,6 +85,18 @@ export async function getEventsCount(): Promise<number> {
 export async function getFeaturedEvents(): Promise<Event[]> {
 	const events = await getAllEvents();
 	return events.filter((event) => event.isFeatured);
+}
+
+/**
+ * Get featured events through a lightweight cached read for static content pages.
+ */
+export async function getFeaturedEventsCached(): Promise<Event[]> {
+	try {
+		return await getFeaturedEventsCachedData();
+	} catch (error) {
+		log.error("events", "Error in getFeaturedEventsCached", undefined, error);
+		return [];
+	}
 }
 
 /**

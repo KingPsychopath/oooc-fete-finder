@@ -3,13 +3,13 @@ import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getFeaturedEvents } from "@/features/events/events-service";
-import { FeatureCountdown } from "@/features/events/featured/components/FeatureCountdown";
 import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
-import { getPublicSlidingBannerSettingsCached } from "@/features/site-settings/queries";
 import { Calendar, CheckCircle, Euro, Star, Target } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
+import { FeatureEventHeader } from "./FeatureEventHeader";
+import { FeatureEventStatusSection } from "./FeatureEventStatusSection";
 
 export const metadata: Metadata = {
 	title: "Feature Your Event | OOOC Fete Finder",
@@ -22,16 +22,35 @@ export const metadata: Metadata = {
 	],
 };
 
-export default async function FeatureEventPage() {
-	const SHOW_SETUP_INSTRUCTIONS = false;
-	const [featuredEvents, bannerSettings] = await Promise.all([
-		getFeaturedEvents(),
-		getPublicSlidingBannerSettingsCached(),
-	]);
+export const revalidate = 300;
 
+function FeatureEventStatusFallback() {
+	return (
+		<Card className="mb-8 border border-border bg-card">
+			<CardHeader>
+				<CardTitle className="flex items-center gap-2">
+					Featured events status
+					<Badge variant="outline" className="ml-auto font-normal">
+						Loading...
+					</Badge>
+				</CardTitle>
+			</CardHeader>
+			<CardContent>
+				<div className="animate-pulse space-y-3">
+					<div className="h-16 rounded-lg border border-border bg-muted/40" />
+					<div className="h-16 rounded-lg border border-border bg-muted/40" />
+				</div>
+			</CardContent>
+		</Card>
+	);
+}
+
+export default function FeatureEventPage() {
 	return (
 		<div className="ooo-site-shell">
-			<Header bannerSettings={bannerSettings} />
+			<Suspense fallback={<Header />}>
+				<FeatureEventHeader />
+			</Suspense>
 			<main className="ooo-feature-page container mx-auto px-4 py-10 max-w-3xl">
 				{/* Editorial header */}
 				<header className="mb-12">
@@ -48,35 +67,9 @@ export default async function FeatureEventPage() {
 					/>
 				</header>
 
-				<FeatureCountdown featuredEvents={featuredEvents} variant="editorial" />
-
-				{SHOW_SETUP_INSTRUCTIONS && featuredEvents.length === 0 && (
-					<Card className="mb-10 ooo-admin-card-soft border">
-						<CardHeader>
-							<CardTitle className="ooo-feature-heading">
-								How to feature events
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-								<li>Use the &quot;Featured&quot; column in your sheet.</li>
-								<li>
-									<strong>Automatic expiration:</strong> Enter when to start
-									featuring (e.g. current time or future date in UK format
-									DD/MM/YYYY).
-								</li>
-								<li>
-									<strong>Permanent featuring:</strong> Enter any text (e.g.
-									Yes, premium).
-								</li>
-								<li>
-									Timestamp-based events expire after{" "}
-									{FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS} hours.
-								</li>
-							</ol>
-						</CardContent>
-					</Card>
-				)}
+				<Suspense fallback={<FeatureEventStatusFallback />}>
+					<FeatureEventStatusSection />
+				</Suspense>
 
 				<div className="grid md:grid-cols-2 gap-8 mb-10">
 					<Card className="border border-border bg-card ooo-admin-card-soft">
