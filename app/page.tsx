@@ -5,9 +5,8 @@ import { CacheManager } from "@/lib/cache/cache-manager";
 import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
 
-// Use ISR with a reasonable revalidation time (e.g., 1 hour)
-// This can be overridden with on-demand revalidation
-export const revalidate = 3600; // 1 hour in seconds
+// Keep ISR short to limit stale windows when data changes.
+export const revalidate = 300; // 5 minutes in seconds
 
 // Make the page component async to allow server-side data fetching
 export default async function Home() {

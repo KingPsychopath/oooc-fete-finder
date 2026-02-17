@@ -2,6 +2,22 @@ import { createEnv } from "@t3-oss/env-nextjs";
 import { clientLog } from "@/lib/platform/client-logger";
 import { z } from "zod";
 
+const isServerRuntime = typeof window === "undefined";
+const rawDataMode = process.env.DATA_MODE?.trim() ?? "";
+
+if (isServerRuntime && process.env.NODE_ENV === "production" && !rawDataMode) {
+	throw new Error(
+		"Missing required DATA_MODE in production. Set DATA_MODE to remote, local, or test.",
+	);
+}
+
+if (isServerRuntime && process.env.NODE_ENV !== "production" && !rawDataMode) {
+	clientLog.warn(
+		"env",
+		"DATA_MODE is not set; defaulting to remote for non-production runtime.",
+	);
+}
+
 export const env = createEnv({
 	/**
 	 * Server-side Environment Variables
@@ -23,6 +39,7 @@ export const env = createEnv({
 		GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
 		GOOGLE_SERVICE_ACCOUNT_FILE: z.string().optional(),
 		REMOTE_CSV_URL: z.string().url().optional().or(z.literal("")),
+		DEPLOY_REVALIDATE_SECRET: z.string().optional(),
 
 		LOCAL_CSV_LAST_UPDATED: z.string().optional(),
 
@@ -58,6 +75,7 @@ export const env = createEnv({
 		GOOGLE_SERVICE_ACCOUNT_KEY: process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
 		GOOGLE_SERVICE_ACCOUNT_FILE: process.env.GOOGLE_SERVICE_ACCOUNT_FILE,
 		REMOTE_CSV_URL: process.env.REMOTE_CSV_URL,
+		DEPLOY_REVALIDATE_SECRET: process.env.DEPLOY_REVALIDATE_SECRET,
 		LOCAL_CSV_LAST_UPDATED: process.env.LOCAL_CSV_LAST_UPDATED,
 		DEFAULT_OG_IMAGE: process.env.DEFAULT_OG_IMAGE,
 

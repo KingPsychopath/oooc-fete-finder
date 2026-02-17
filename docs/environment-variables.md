@@ -10,7 +10,7 @@ Schema lives in `lib/config/env.ts`. Cache defaults live in code (`lib/cache/cac
 | `ADMIN_KEY` | No | `""` | Admin auth key. If unset/empty, admin authentication is disabled. |
 | `AUTH_SECRET` | No | - | JWT/cookie signing |
 | `DATABASE_URL` | No | - | Postgres connection (app uses only this for DB) |
-| `DATA_MODE` | No | `remote` | `remote` \| `local` \| `test` |
+| `DATA_MODE` | Dev/Test: No, Prod: **Yes** | `remote` | `remote` \| `local` \| `test`; production throws at startup if missing |
 | `REMOTE_CSV_URL` | No | - | CSV URL for admin backup preview/import |
 | `GOOGLE_MAPS_API_KEY` | No | - | Geocoding; if unset, arrondissement centre fallback |
 | `GOOGLE_SHEET_ID` | No | - | Backup sheet for admin import |
@@ -19,6 +19,7 @@ Schema lives in `lib/config/env.ts`. Cache defaults live in code (`lib/cache/cac
 | `LOCAL_CSV_LAST_UPDATED` | No | - | Metadata only (e.g. last CSV sync time) |
 | `DEFAULT_OG_IMAGE` | No | - | OG image URL override |
 | `CRON_SECRET` | No | - | Secret for cron routes (e.g. cleanup admin sessions). Vercel cron sends `Authorization: Bearer <CRON_SECRET>`. |
+| `DEPLOY_REVALIDATE_SECRET` | No | - | Secret for `/api/revalidate/deploy` (post-deploy cache warm + homepage revalidation). |
 
 ## Optional cache overrides (read by `lib/cache/cache-defaults.ts`)
 

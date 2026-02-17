@@ -2,6 +2,7 @@
 
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { CacheManager } from "@/lib/cache/cache-manager";
+import { invalidateEventsCache } from "@/lib/cache/cache-policy";
 import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
 import type {
@@ -479,6 +480,8 @@ export async function saveEventSheetEditorRows(
 		const shouldRefreshCache = options?.refreshCache !== false;
 		if (shouldRefreshCache) {
 			await CacheManager.forceRefresh();
+		} else {
+			invalidateEventsCache(["/"]);
 		}
 
 		return {

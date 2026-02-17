@@ -46,6 +46,8 @@ DATABASE_URL=postgresql://...
 DATA_MODE=remote
 ```
 
+`DATA_MODE` is required in production deploys. The app now fails fast at startup if it is missing in production.
+
 `ADMIN_KEY` is optional for builds. If unset, admin login/admin APIs are disabled.
 
 Optional Google backup import/preview and geocoding:
@@ -95,10 +97,22 @@ pnpm exec tsc --noEmit
 - `GET /api/admin/data-store/status`
 - `GET /api/admin/postgres/kv`
 - `GET /api/admin/tokens/sessions`
+- `POST /api/revalidate/deploy` (or `GET`) with `Authorization: Bearer <DEPLOY_REVALIDATE_SECRET>` for post-deploy cache warm + homepage revalidation
 
 All admin endpoints require valid admin auth.
 
 **Cron (scheduled):** `GET /api/cron/cleanup-admin-sessions` — removes admin session records that expired more than 7 days ago. Secured with `CRON_SECRET` (Bearer token). Configured in `vercel.json` to run daily at 04:00 UTC.
+
+## Post-Deploy Revalidation Hook
+
+Set `DEPLOY_REVALIDATE_SECRET`, then call:
+
+```bash
+curl -X POST "https://<your-domain>/api/revalidate/deploy" \
+  -H "Authorization: Bearer $DEPLOY_REVALIDATE_SECRET"
+```
+
+This endpoint forces an events cache refresh and revalidates `/`, so preview/prod comes up with the right data immediately after deploy.
 
 ## Migration notes
 
