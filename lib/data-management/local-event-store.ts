@@ -2,8 +2,7 @@ import "server-only";
 
 import { createHash } from "crypto";
 import Papa from "papaparse";
-import type { CSVEventRow } from "./csv/parser";
-import { CSV_EVENT_COLUMNS, parseCSVContent } from "./csv/parser";
+import { CSV_EVENT_COLUMNS } from "./csv/parser";
 import {
 	csvToEditableSheet,
 	editableSheetToCsv,
@@ -75,8 +74,6 @@ const sanitizeCsv = (csvContent: string): string => {
 const buildChecksum = (csvContent: string): string => {
 	return createHash("sha256").update(csvContent).digest("hex").slice(0, 16);
 };
-
-const countRows = (rows: CSVEventRow[]): number => rows.length;
 
 const toEditableColumns = (
 	columns: Array<{
@@ -281,9 +278,14 @@ export class LocalEventStore {
 			throw new Error("CSV content cannot be empty");
 		}
 
-		const parsedRows = parseCSVContent(cleanedCsv);
+		const sheet = csvToEditableSheet(cleanedCsv);
+		const validation = validateEditableSheet(sheet.columns, sheet.rows);
+		if (!validation.valid) {
+			throw new Error(validation.error || "Invalid CSV content");
+		}
+
 		const record: EventStoreMetadata = {
-			rowCount: countRows(parsedRows),
+			rowCount: validation.rows.length,
 			updatedAt: new Date().toISOString(),
 			updatedBy: meta.updatedBy,
 			origin: meta.origin,
@@ -294,12 +296,6 @@ export class LocalEventStore {
 			await this.migrateLegacyKvToPostgresTablesIfNeeded();
 			const repository = getEventSheetStoreRepository();
 			if (repository) {
-				const sheet = csvToEditableSheet(cleanedCsv);
-				const validation = validateEditableSheet(sheet.columns, sheet.rows);
-				if (!validation.valid) {
-					throw new Error(validation.error || "Invalid CSV content");
-				}
-
 				const savedMeta = await repository.replaceSheet(
 					validation.columns.map((column, index) => ({
 						key: column.key,

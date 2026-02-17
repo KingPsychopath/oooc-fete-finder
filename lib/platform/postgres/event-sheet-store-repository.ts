@@ -43,12 +43,24 @@ const toIsoString = (value: Date | string): string =>
 	value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 
 const toStringRecord = (value: unknown): EventSheetRowRecord => {
-	if (!value || typeof value !== "object") {
+	let source: unknown = value;
+	for (let depth = 0; depth < 3 && typeof source === "string"; depth += 1) {
+		try {
+			source = JSON.parse(source);
+		} catch {
+			break;
+		}
+	}
+
+	if (!source || typeof source !== "object") {
 		return {};
 	}
 
 	return Object.fromEntries(
-		Object.entries(value).map(([key, raw]) => [key, raw == null ? "" : String(raw)]),
+		Object.entries(source).map(([key, raw]) => [
+			key,
+			raw == null ? "" : String(raw),
+		]),
 	);
 };
 
@@ -306,7 +318,7 @@ export class EventSheetStoreRepository {
 				VALUES (
 					${randomUUID()},
 					${rowOrder},
-					${JSON.stringify(normalizedRow)}::jsonb,
+					${this.sql.json(normalizedRow)},
 					NOW(),
 					NOW()
 				)

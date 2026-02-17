@@ -95,6 +95,18 @@ const safeParseJson = (value) => {
 	}
 };
 
+const toRowDataRecord = (value) => {
+	if (!value) return {};
+	let source = value;
+	for (let depth = 0; depth < 3 && typeof source === "string"; depth += 1) {
+		const parsed = safeParseJson(source);
+		if (parsed == null) break;
+		source = parsed;
+	}
+	if (!source || typeof source !== "object") return {};
+	return source;
+};
+
 const getRecord = async (key) => {
 	const rows = await sql`
 		SELECT key, value, updated_at
@@ -269,11 +281,9 @@ const cmdSample = async (count = 2) => {
 		console.log(columnsRows.map((column) => column.label).join(" | "));
 
 		for (const row of sample) {
+			const record = toRowDataRecord(row?.row_data);
 			const values = columnsRows.map((column) => {
-				const value =
-					row?.row_data && typeof row.row_data === "object" ?
-						row.row_data[column.key]
-					:	"";
+				const value = record[column.key];
 				return value == null ? "" : String(value);
 			});
 			console.log(values.join(" | "));

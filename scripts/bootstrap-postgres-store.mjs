@@ -305,7 +305,7 @@ const bootstrap = async () => {
 						VALUES (
 							${`bootstrap-${rowOrder}`},
 							${rowOrder},
-							${JSON.stringify(row)}::jsonb,
+							${tx.json(row)},
 							NOW(),
 							NOW()
 						)

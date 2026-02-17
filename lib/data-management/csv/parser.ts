@@ -276,9 +276,14 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 			}
 		}
 
-		const rawData = parseResult.data as RawCSVRow[];
-		const headers = Object.keys(rawData[0] || {});
+		const rawData = parseResult.data as Array<RawCSVRow | null | undefined>;
+		const headers = (parseResult.meta.fields || [])
+			.map((header) => String(header).trim())
+			.filter((header) => header.length > 0);
 		console.log("CSV Headers found:", headers);
+		if (headers.length === 0) {
+			throw new Error("CSV header row is missing or empty");
+		}
 
 		const columnMapping = createColumnMapping(headers);
 
@@ -294,47 +299,55 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 			);
 		}
 
-		return rawData.map((row: RawCSVRow, index: number) => {
-			const csvRow: CSVEventRow = {
-				oocPicks: (columnMapping.oocPicks && row[columnMapping.oocPicks]) || "",
-				nationality:
-					(columnMapping.nationality && row[columnMapping.nationality]) || "",
-				name:
-					(columnMapping.name && row[columnMapping.name]) ||
-					`Event ${index + 1}`,
-				date: (columnMapping.date && row[columnMapping.date]) || "",
-				startTime:
-					(columnMapping.startTime && row[columnMapping.startTime]) || "",
-				endTime: (columnMapping.endTime && row[columnMapping.endTime]) || "",
-				location: (columnMapping.location && row[columnMapping.location]) || "",
-				arrondissement:
-					(columnMapping.arrondissement && row[columnMapping.arrondissement]) ||
-					"",
-				genre: (columnMapping.genre && row[columnMapping.genre]) || "",
-				price: (columnMapping.price && row[columnMapping.price]) || "",
-				ticketLink:
-					(columnMapping.ticketLink && row[columnMapping.ticketLink]) || "",
-				age: (columnMapping.age && row[columnMapping.age]) || "",
-				indoorOutdoor:
-					(columnMapping.indoorOutdoor && row[columnMapping.indoorOutdoor]) ||
-					"",
-				// Handle missing notes column gracefully
-				notes: (columnMapping.notes && row[columnMapping.notes]) || "",
-				// Handle missing featured column gracefully
-				featured: (columnMapping.featured && row[columnMapping.featured]) || "",
-			};
+		const normalizedRows = rawData
+			.filter((row): row is RawCSVRow => Boolean(row && typeof row === "object"))
+			.map((row, index) => {
+				const csvRow: CSVEventRow = {
+					oocPicks:
+						(columnMapping.oocPicks && row[columnMapping.oocPicks]) || "",
+					nationality:
+						(columnMapping.nationality && row[columnMapping.nationality]) || "",
+					name: (columnMapping.name && row[columnMapping.name]) || "",
+					date: (columnMapping.date && row[columnMapping.date]) || "",
+					startTime:
+						(columnMapping.startTime && row[columnMapping.startTime]) || "",
+					endTime: (columnMapping.endTime && row[columnMapping.endTime]) || "",
+					location: (columnMapping.location && row[columnMapping.location]) || "",
+					arrondissement:
+						(columnMapping.arrondissement && row[columnMapping.arrondissement]) ||
+						"",
+					genre: (columnMapping.genre && row[columnMapping.genre]) || "",
+					price: (columnMapping.price && row[columnMapping.price]) || "",
+					ticketLink:
+						(columnMapping.ticketLink && row[columnMapping.ticketLink]) || "",
+					age: (columnMapping.age && row[columnMapping.age]) || "",
+					indoorOutdoor:
+						(columnMapping.indoorOutdoor &&
+							row[columnMapping.indoorOutdoor]) ||
+						"",
+					notes: (columnMapping.notes && row[columnMapping.notes]) || "",
+					featured:
+						(columnMapping.featured && row[columnMapping.featured]) || "",
+				};
 
-			// Log first few rows for debugging
-			if (index < 3) {
-				console.log(`CSV Row ${index + 1}:`, csvRow);
-				// Special debug for featured field
-				if (csvRow.featured) {
-					console.log(`📅 Row ${index + 1} featured: "${csvRow.featured}"`);
+				if (index < 3) {
+					console.log(`CSV Row ${index + 1}:`, csvRow);
+					if (csvRow.featured) {
+						console.log(`📅 Row ${index + 1} featured: "${csvRow.featured}"`);
+					}
 				}
-			}
 
-			return csvRow;
-		});
+				return csvRow;
+			})
+			.filter((row) =>
+				Object.values(row).some((value) => value.trim().length > 0),
+			);
+
+		if (normalizedRows.length === 0) {
+			throw new Error("CSV contains no non-empty data rows");
+		}
+
+		return normalizedRows;
 	} catch (error) {
 		console.error("Error parsing CSV content:", error);
 		throw new Error(

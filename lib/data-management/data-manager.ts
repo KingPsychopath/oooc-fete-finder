@@ -7,7 +7,7 @@
 import { env } from "@/lib/config/env";
 import { Event } from "@/types/events";
 import { fetchLocalCSV } from "./csv/fetcher";
-import { processCSVData } from "./data-processor";
+import { isValidEventsData, processCSVData } from "./data-processor";
 import { LocalEventStore } from "./local-event-store";
 
 export type ConfiguredDataMode = "remote" | "local" | "test";
@@ -36,7 +36,11 @@ export class DataManager {
 			populateCoordinates: false,
 		});
 
-		if (storeResult.count === 0 || storeResult.events.length === 0) {
+		if (
+			storeResult.count === 0 ||
+			storeResult.events.length === 0 ||
+			!isValidEventsData(storeResult.events)
+		) {
 			return null;
 		}
 
@@ -61,7 +65,11 @@ export class DataManager {
 				populateCoordinates: false,
 			});
 
-			if (localResult.count === 0 || localResult.events.length === 0) {
+			if (
+				localResult.count === 0 ||
+				localResult.events.length === 0 ||
+				!isValidEventsData(localResult.events)
+			) {
 				return null;
 			}
 

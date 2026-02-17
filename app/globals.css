@@ -15,9 +15,10 @@
 	font-family: "Swear Display";
 	src:
 		local("Swear Display Light"),
-		local("SwearDisplay Light"),
+		local("SwearDisplay-Light"),
 		local("Swear Display"),
-		url("/fonts/SwearDisplay-Light.woff2") format("woff2");
+		url("/fonts/swear_display_light.woff2") format("woff2"),
+		url("/fonts/swear_display_light.otf") format("opentype");
 	font-weight: 300;
 	font-style: normal;
 	font-display: swap;
@@ -27,9 +28,9 @@
 	font-family: "Degular";
 	src:
 		local("Degular Regular"),
-		local("Degular-Regular"),
 		local("Degular"),
-		url("/fonts/Degular-Regular.woff2") format("woff2");
+		url("/fonts/degular_regular.woff2") format("woff2"),
+		url("/fonts/degular_regular.otf") format("opentype");
 	font-weight: 400;
 	font-style: normal;
 	font-display: swap;
