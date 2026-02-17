@@ -18,40 +18,60 @@ import { useEffect, useState } from "react";
 // Get base path from environment variable directly
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
 
+const COMPRESS_THRESHOLD = 14;
+const COLLAPSE_THRESHOLD = 44;
+
 const Header = () => {
 	const { isAuthenticated, userEmail, logout } = useAuth();
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
-	const [isCompressed, setIsCompressed] = useState(false);
-	const [isCollapsed, setIsCollapsed] = useState(false);
+	const [scrollState, setScrollState] = useState({ compressed: false, collapsed: false });
 
 	useEffect(() => {
-		const onScroll = () => {
+		let rafId: number | null = null;
+		let lastY = -1;
+
+		const tick = () => {
+			rafId = null;
 			const y = window.scrollY;
-			setIsCompressed(y > 14);
-			setIsCollapsed(y > 44);
+			if (y === lastY) return;
+			lastY = y;
+			setScrollState({
+				compressed: y > COMPRESS_THRESHOLD,
+				collapsed: y > COLLAPSE_THRESHOLD,
+			});
 		};
 
-		onScroll();
+		const onScroll = () => {
+			if (rafId === null) rafId = requestAnimationFrame(tick);
+		};
+
+		tick();
 		window.addEventListener("scroll", onScroll, { passive: true });
-		return () => window.removeEventListener("scroll", onScroll);
+		return () => {
+			window.removeEventListener("scroll", onScroll);
+			if (rafId !== null) cancelAnimationFrame(rafId);
+		};
 	}, []);
+
+	const isCompressed = scrollState.compressed;
+	const isCollapsed = scrollState.collapsed;
 
 	return (
 		<>
 			<header
-				className={`sticky top-0 z-50 px-3 transition-all duration-500 sm:px-4 ${
+				className={`sticky top-0 z-50 px-3 transition-all duration-300 ease-out sm:px-4 ${
 					isCompressed ? "pt-1.5 sm:pt-2" : "pt-2 sm:pt-3"
 				}`}
 			>
 				<div
-					className={`mx-auto w-full max-w-[1400px] rounded-2xl border transition-all duration-500 ${
+					className={`mx-auto w-full max-w-[1400px] rounded-2xl border transition-all duration-300 ease-out ${
 						isCompressed ?
 							"border-border/75 bg-card/95 shadow-[0_10px_26px_rgba(20,16,12,0.22)] backdrop-blur-xl"
 						:	"border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg"
 					}`}
 				>
 					<div
-						className={`mx-auto flex items-center gap-3 px-3 sm:px-5 transition-all duration-500 ${
+						className={`mx-auto flex items-center gap-3 px-3 sm:px-5 transition-all duration-300 ease-out ${
 							isCompressed ?
 								"min-h-[52px] py-1.5 sm:min-h-[58px]"
 							:	"min-h-[72px] py-3 sm:min-h-[84px]"
@@ -63,7 +83,7 @@ const Header = () => {
 							aria-label="Fete Finder home"
 						>
 							<div
-								className={`relative shrink-0 transition-all duration-500 ${
+								className={`relative shrink-0 transition-all duration-300 ease-out ${
 									isCompressed ? "h-8 w-8 sm:h-9 sm:w-9" : "h-10 w-10 sm:h-12 sm:w-12"
 								}`}
 							>
@@ -148,7 +168,7 @@ const Header = () => {
 					</div>
 
 					<div
-						className={`overflow-hidden border-t border-border/75 transition-all duration-500 ${
+						className={`overflow-hidden border-t border-border/75 transition-all duration-300 ease-out ${
 							isCollapsed ? "max-h-0 border-transparent opacity-0" : "opacity-100"
 						} ${isCompressed && !isCollapsed ? "max-h-10" : ""} ${
 							!isCompressed && !isCollapsed ? "max-h-20" : ""
