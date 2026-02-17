@@ -24,11 +24,13 @@ import {
 	VENUE_TYPES,
 	formatDayWithDate,
 	formatPrice,
-	formatVenueTypeIcons,
 } from "@/features/events/types";
 import {
+	Building2,
+	Calendar,
 	CalendarPlus,
 	Clock,
+	Euro,
 	ExternalLink,
 	MapPin,
 	Music,
@@ -50,15 +52,17 @@ interface EventModalProps {
 
 const CATEGORY_COLORS: Record<string, string> = {
 	electronic:
-		"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+		"bg-purple-100 text-purple-800 dark:bg-purple-500/18 dark:text-purple-200 dark:border dark:border-purple-400/35",
 	"block-party":
-		"bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-	afterparty: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-	club: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
-	cruise: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+		"bg-green-100 text-green-800 dark:bg-green-500/18 dark:text-green-200 dark:border dark:border-green-400/35",
+	afterparty:
+		"bg-blue-100 text-blue-800 dark:bg-blue-500/18 dark:text-blue-200 dark:border dark:border-blue-400/35",
+	club: "bg-pink-100 text-pink-800 dark:bg-pink-500/18 dark:text-pink-200 dark:border dark:border-pink-400/35",
+	cruise: "bg-cyan-100 text-cyan-800 dark:bg-cyan-500/18 dark:text-cyan-200 dark:border dark:border-cyan-400/35",
 	outdoor:
-		"bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-	cultural: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+		"bg-emerald-100 text-emerald-800 dark:bg-emerald-500/18 dark:text-emerald-200 dark:border dark:border-emerald-400/35",
+	cultural:
+		"bg-amber-100 text-amber-800 dark:bg-amber-500/18 dark:text-amber-200 dark:border dark:border-amber-400/35",
 };
 
 const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
@@ -140,7 +144,10 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 
 	const getGenreColor = (genre: string) => {
 		const genreInfo = MUSIC_GENRES.find((g) => g.key === genre);
-		return genreInfo?.color || "bg-gray-100 text-gray-800";
+		return (
+			genreInfo?.color ||
+			"bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-gray-200 dark:border dark:border-white/15"
+		);
 	};
 
 	const handleShareError = (message: string) => {
@@ -186,10 +193,10 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 	const ageLabel = event.age || "All ages";
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]">
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-[4px]">
 			<Card
 				ref={modalRef}
-				className="max-h-[90vh] w-full max-w-[38rem] overflow-y-auto rounded-[26px] border border-border/70 bg-card/95 shadow-[0_36px_90px_-52px_rgba(16,12,8,0.82)]"
+				className="max-h-[90vh] w-full max-w-[38rem] overflow-y-auto rounded-[26px] border border-border/80 bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))]"
 			>
 				<CardHeader className="pb-3">
 					<div className="flex items-start justify-between gap-3">
@@ -208,7 +215,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							variant="outline"
 							size="icon"
 							onClick={onClose}
-							className="mt-0.5 h-11 w-11 shrink-0 self-start rounded-xl border-border/70 bg-background/70 hover:bg-accent"
+							className="mt-0.5 h-11 w-11 shrink-0 self-start rounded-xl border-border/70 bg-background/70 hover:bg-accent dark:bg-white/5 dark:hover:bg-white/10"
 						>
 							<X className="h-5 w-5" />
 						</Button>
@@ -249,33 +256,34 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 				</CardHeader>
 
 				<CardContent className="space-y-4 pt-0">
-					<div className="grid gap-2 rounded-xl border border-border/70 bg-background/55 p-3 sm:grid-cols-2">
-						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2">
-							<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-								Date
+					<div className="grid gap-2 rounded-xl border border-border/70 bg-background/55 p-3 dark:bg-white/[0.025] sm:grid-cols-2">
+						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2 dark:bg-white/[0.04]">
+							<p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+								<Calendar className="h-3.5 w-3.5" />
+								<span>Date</span>
 							</p>
 							<p className="mt-1 break-words text-sm font-medium">
 								{formatDayWithDate(event.day, event.date)}
 							</p>
 						</div>
-						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2">
-							<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-								Time
+						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2 dark:bg-white/[0.04]">
+							<p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+								<Clock className="h-3.5 w-3.5" />
+								<span>Time</span>
 							</p>
 							<p className="mt-1 text-sm font-medium">{timeRange}</p>
 						</div>
-						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2">
-							<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-								Venue Type
+						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2 dark:bg-white/[0.04]">
+							<p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+								<Building2 className="h-3.5 w-3.5" />
+								<span>Venue Type</span>
 							</p>
-							<p className="mt-1 text-sm font-medium">
-								<span className="mr-1.5">{formatVenueTypeIcons(event)}</span>
-								{venueTypeLabel}
-							</p>
+							<p className="mt-1 text-sm font-medium">{venueTypeLabel}</p>
 						</div>
-						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2">
-							<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-								Price
+						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2 dark:bg-white/[0.04]">
+							<p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+								<Euro className="h-3.5 w-3.5" />
+								<span>Price</span>
 							</p>
 							<p
 								className={`mt-1 text-sm font-medium ${
@@ -287,15 +295,12 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								{priceLabel}
 							</p>
 						</div>
-					</div>
-
-					<div className="rounded-xl border border-border/70 bg-background/55 p-3">
-						<div className="min-w-0">
-							<div className="flex items-center justify-between gap-2">
-								<div className="min-w-0 flex items-center gap-2">
-									<MapPin className="h-4.5 w-4.5 shrink-0 text-muted-foreground" />
-									<p className="truncate text-sm font-medium">{locationLabel}</p>
-								</div>
+						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2 dark:bg-white/[0.04]">
+							<div className="flex items-start justify-between gap-2">
+								<p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+									<MapPin className="h-3.5 w-3.5" />
+									<span>Location</span>
+								</p>
 								<TooltipProvider>
 									<Tooltip>
 										<TooltipTrigger asChild>
@@ -303,10 +308,10 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 												variant="outline"
 												size="sm"
 												onClick={() => setShowMapSettings(!showMapSettings)}
-												className="h-8 px-2 text-xs"
+												className="h-7 px-2 text-[11px]"
 											>
-												<Settings className="mr-1 h-3.5 w-3.5" />
-												Map settings
+												<Settings className="mr-1 h-3 w-3" />
+												Map
 											</Button>
 										</TooltipTrigger>
 										<TooltipContent>
@@ -315,31 +320,38 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 									</Tooltip>
 								</TooltipProvider>
 							</div>
-
+							<p className="mt-1 truncate text-sm font-medium">{locationLabel}</p>
 							{event.location && event.location !== "TBA" ? (
 								<button
 									onClick={() =>
 										handleOpenLocation(event.location!, event.arrondissement)
 									}
-									className="mt-2 ml-[1.625rem] min-h-[44px] break-words text-left text-sm text-muted-foreground transition-colors hover:text-primary hover:underline"
+									className="mt-2 inline-flex min-h-[36px] w-full items-center justify-between rounded-md border border-border/70 bg-background/80 px-2.5 text-left text-sm text-primary underline-offset-4 transition-colors hover:bg-accent hover:underline dark:bg-white/[0.03] dark:hover:bg-white/[0.08]"
 									title={`Open "${event.location}" in maps`}
 								>
-									{event.location}
+									<span className="truncate">{event.location}</span>
+									<span className="ml-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.1em] text-primary">
+										Open map
+										<ExternalLink className="h-3 w-3" />
+									</span>
 								</button>
 							) : (
-								<Badge variant="outline" className="mt-2 ml-[1.625rem]">
+								<Badge variant="outline" className="mt-2">
 									Location TBA
 								</Badge>
 							)}
+						</div>
 
-							<div className="mt-2 ml-[1.625rem] flex items-center gap-2 text-xs text-muted-foreground">
+						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2 dark:bg-white/[0.04]">
+							<p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
 								<User className="h-3.5 w-3.5" />
-								<span>{ageLabel}</span>
-							</div>
+								<span>Age</span>
+							</p>
+							<p className="mt-1 text-sm font-medium">{ageLabel}</p>
 						</div>
 
 						{showMapSettings && (
-							<div className="mt-3 border-t border-border/60 pt-3">
+							<div className="mt-1 border-t border-border/60 pt-3 sm:col-span-2">
 								<MapPreferenceSettings
 									compact={true}
 									showTitle={false}
@@ -350,7 +362,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 					</div>
 
 					{event.description && (
-						<div className="rounded-xl border border-border/70 bg-background/55 p-3">
+						<div className="rounded-xl border border-border/70 bg-background/55 p-3 dark:bg-white/[0.025]">
 							<h4 className="mb-1.5 text-sm font-medium">Notes</h4>
 							<p className="text-sm leading-relaxed text-muted-foreground">
 								{event.description}
@@ -416,7 +428,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 									variant="outline"
 									onClick={() => void handleShareToStory("landscape")}
 									disabled={isSharing}
-									className="h-11 border-border/70 bg-background/70 text-foreground hover:bg-accent"
+									className="h-11 border-border/70 bg-background/70 text-foreground hover:bg-accent dark:bg-white/[0.03] dark:hover:bg-white/[0.08]"
 									title="Generate social post (landscape)"
 								>
 									{isSharing ? "Generating..." : "Post"}
@@ -424,7 +436,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							</div>
 						</div>
 						{shareError && (
-							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-400/45 dark:bg-amber-500/12 dark:text-amber-200">
 								Unable to generate image right now. {shareError}
 							</div>
 						)}
@@ -451,7 +463,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 
 					</div>
 
-					<div className="rounded-xl border border-border/70 bg-muted/35 p-3 text-xs text-muted-foreground">
+					<div className="rounded-xl border border-border/70 bg-muted/35 p-3 text-xs text-muted-foreground dark:bg-white/[0.03]">
 						<p className="mb-1 font-medium">Event Information</p>
 						<p>
 							This information is preliminary. Please check the official event
