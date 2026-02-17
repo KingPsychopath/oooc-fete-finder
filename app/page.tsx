@@ -22,13 +22,37 @@ export default async function Home() {
 	return (
 		<div className="ooo-site-shell">
 			<Header />
-			<main className="container mx-auto px-4 py-8">
+			<main
+				id="main-content"
+				className="container mx-auto px-4 py-8"
+				tabIndex={-1}
+			>
 				{isLocalFallback && (
-					<div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-						Live Postgres data is currently unavailable. The app is serving local
-						CSV fallback data until the store is restored.
+					<div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+						<strong>Note:</strong> Live Postgres data is currently unavailable.
+						The app is serving local CSV fallback data until the store is
+						restored.
 					</div>
 				)}
+
+				{/* Editorial intro — design system: section label + display heading + divider */}
+				<section className="mb-8" aria-label="Introduction">
+					<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+						Paris · Fête de la Musique
+					</p>
+					<h2
+						className="mt-2 text-2xl font-light tracking-tight text-foreground sm:text-3xl"
+						style={{ fontFamily: "var(--ooo-font-display)" }}
+					>
+						Discover events across the city
+					</h2>
+					<p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+						Explore live music and cultural events by arrondissement. Use the
+						map and filters to find what’s on.
+					</p>
+					<div className="mt-6 border-t border-border" role="presentation" />
+				</section>
+
 				<EventsClient initialEvents={result.data} />
 			</main>
 		</div>

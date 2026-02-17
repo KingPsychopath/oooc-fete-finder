@@ -58,7 +58,9 @@ const Footer = () => {
 				<div className="flex flex-col items-center justify-center space-y-4 sm:flex-row sm:justify-between sm:space-y-0">
 					{/* Social Links */}
 					<div className="flex items-center space-x-4">
-						<span className="text-sm text-muted-foreground">Follow us:</span>
+						<span className="text-sm text-muted-foreground">
+							Follow us on socials for updates
+						</span>
 						{socialLinks.map((social) => {
 							const IconComponent = social.icon;
 							return (

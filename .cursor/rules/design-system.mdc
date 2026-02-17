@@ -5,47 +5,76 @@ alwaysApply: true
 
 # Out Of Office Design System
 
-The design language is **"luxury travel editorial"** — restrained, elegant, atmospheric, and premium. Interfaces should feel calm, intentional, and high-end.
+The design language is **"luxury travel editorial"** — elegant, atmospheric, and premium. Interfaces should feel intentional, high-end, and alive with colour where it serves the experience.
 
 ## Core Principles
 
 - **Atmosphere-first**: Full-bleed imagery, layered overlays, and disciplined spacing over dense UI chrome.
 - **Timeless typography**: Brand/logotype elements use Swear Display; all body/UI text uses Degular.
-- **Neutral sophistication**: Warm off-whites, soft charcoals, muted bronze accents. Avoid loud saturation.
+- **Elegant colour**: Use colour with confidence — rich, sophisticated palettes (deep teals, warm terracotta, olive, amber, editorial accents) that feel premium, not flat or washed out. Restraint is in *how* colour is used (hierarchy, contrast, purpose), not in draining saturation everywhere. Avoid only neon, candy, or chaotic saturation.
 - **Minimal motion**: Smooth fades, subtle reveal, and gentle transitions. No jumpy micro-interaction noise.
 - **Editorial hierarchy**: Clear visual rhythm from hero to detail sections, with generous whitespace.
+
+## Brand hierarchy & voice
+
+- **Parent brand**: "Out Of Office Collective" — use for lockups and attribution. Optional phonetic in key places: *[owt ov of-is kuh-lek-tiv]*.
+- **Product**: "Fête Finder" (or app name) in Swear Display; parent brand sits above as a small uppercase label.
+- **Voice**: Community-first, luxury travel, inclusive ("Join the collective", "Follow us", "Maintained by the OOOC Community"). Avoid corporate or cold tone. Use bold for key facts and CTAs; italic for tone or supporting copy; callout/code-style for notes or disclaimers (e.g. room rules, payment notes).
+
+## Accessibility
+
+- **Skip to Content**: Provide a "Skip to Content" (or "Skip to main content") link at the very top of the page for keyboard and screen-reader users. Visible on focus only is fine.
+- Keep focus order and heading hierarchy logical; use landmarks (nav, main, footer) and section headings (e.g. "Frequently Asked Questions", "General", "Trips") for wayfinding.
 
 ## Typography
 
 | Use | Font | Style |
 |---|---|---|
 | Logo / hero brand lockups | Swear Display | high contrast, elegant serif, moderate tracking |
+| Parent brand label (above product name) | Degular | small (10–11px), uppercase, wide tracking (0.2–0.26em), subtle opacity (e.g. foreground/55) |
+| Section / card titles (e.g. "Token Sessions") | Degular | 11px, uppercase, tracking 0.14em, muted-foreground |
 | Headings | Degular (display weights) | clean sans with tight but breathable tracking |
 | Body / labels / controls | Degular | medium regularity, highly legible |
+| Nav / text links | Degular | text-sm, tracking-wide, underline on hover, underline-offset-4 |
 | Meta / utility text | Degular | slightly increased letter spacing for clarity |
 
 ## Colour (CSS variables)
 
-All colors should be defined as CSS variables and used through tokens. Avoid hardcoded component-level hex values. Keep contrast accessible while preserving a refined muted palette.
+All colors should be defined as CSS variables and used through tokens. Avoid hardcoded component-level hex values. Prefer a refined but **rich** palette: warm neutrals and off-whites for bases, with clear, elegant accent colours (not greyed-out). Keep contrast accessible.
 
 ## Layout
 
 - Hero sections can be full viewport height with layered overlays.
 - Content sections should stay constrained and readable with clear vertical rhythm.
-- Navigation should feel light and integrated over imagery (not boxed/heavy).
+- Navigation should feel light and integrated (not boxed/heavy).
 - Use thin rules, restrained card treatments, and generous breathing room.
+- **Dividers**: Thin horizontal rules between sections (editorial break). Prefer border-t with border-border, or a minimal 1px rule.
+- **Glass surfaces** (optional): Header/footer or floating panels can use backdrop-blur, semi-opaque bg (e.g. bg-card/80), and soft shadow for depth without heavy chrome.
 
 ## Components
 
-- **Primary CTA**: Simple, premium button styling with subtle borders and clean hover states.
-- **Nav links**: Underline/opacity emphasis, not loud color shifts.
-- **Cards/panels**: Soft borders, low-contrast surfaces, minimal decorative clutter.
+- **Primary CTA**: Premium button styling with clear, elegant colour (or subtle borders) and refined hover states. E.g. "Join the collective today".
+- **Navigation**: Brand first, then main links (Home, Trips, Events, Reviews, FAQs, Contact). **"Join the collective"** as the persistent primary CTA in nav (and optionally repeated at bottom of long pages before footer). Nav links: text-sm, tracking-wide, underline on hover, underline-offset-4; external links (OOOC site, FAQs, Contact) open in new tab with rel noopener noreferrer.
+- **Breadcrumbs / hierarchy**: For multi-level content (e.g. Trips > Past Trips > Egypt), use a clear hierarchy: folder/section label, Back, then sub-items. Keeps wayfinding consistent with the main OOOC site.
+- **Status badges**: Use prominent status labels where relevant (e.g. **Sold out**, Upcoming, Limited). Style so they read at a glance; can re-use pill/badge treatment (dark or accent, uppercase, letter-spacing) for consistency.
+- **Cards/panels**: Soft borders, clean surfaces; accent colour used sparingly for emphasis is fine. Section title above content: 11px uppercase tracking-[0.14em] text-muted-foreground.
+- **Pills / premium badges** (e.g. OOOC Pick): Dark background (e.g. foreground or near-black), light text, uppercase, letter-spacing 0.06–0.08em, rounded-full (or high radius). Use for curated/highlight labels, not for every tag.
+- **FAQ pattern**: Section heading (e.g. "Frequently Asked Questions"), then category subheadings (e.g. "General", "Trips"). Each Q as a subheading (or accordion trigger); answer body with **bold** for key info (e.g. "**No! We are international!**", "**21–35** on trips"). Keeps FAQs scannable and on-brand (see [OOOC FAQs](https://www.outofofficecollective.co.uk/faqs)).
+- **Pricing / options**: When showing tiers (e.g. Shared vs Solo room): option name as heading, price per person, deposit, then instalment breakdown. Use numbered steps for "How to book" or payment instructions. Optional callout for disclaimers (e.g. "*Inclusive of all specified activities").
+- **Footer**: Border-t, optional glass (bg-card/78 backdrop-blur). Include: social row ("Follow us on socials for updates"), legal links (Privacy Policy, Terms of service), attribution ("Maintained by the OOOC Community"). Social icons with hover states; external link indicator where appropriate.
 - **Media blocks**: Respect imagery; overlays should improve readability without flattening the image.
 
 ## What NOT to do
 
-- No playful/neon palettes or loud gradients.
+- No neon, candy, or chaotic colour; no loud gradients that fight the editorial tone.
 - No dense dashboards with cramped spacing and heavy boxes.
 - No typography drift away from Swear Display (brand) + Degular (body/UI).
 - No aggressive animation, bouncing transitions, or novelty effects.
 - No inconsistent visual language between admin and front-end surfaces.
+- No treating "elegant" as "muted and boring" — colour is welcome when it’s refined and purposeful.
+
+## Reference
+
+Brand and voice align with **outofofficecollective.co.uk** (tagline, "Join the collective", phonetic, community language). Use the site as the source of truth for parent brand; this doc extends to product UIs (e.g. Fête Finder, dashboards) without requiring full-bleed imagery.
+
+**Page references:** [Egypt trip page](https://www.outofofficecollective.co.uk/egypt) (status badges, pricing, itinerary sections, booking steps, FAQ block); [FAQs](https://www.outofofficecollective.co.uk/faqs) (FAQ structure, General vs Trips sections, bold key answers, CTA placement).
