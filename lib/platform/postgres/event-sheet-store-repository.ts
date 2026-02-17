@@ -3,6 +3,10 @@ import "server-only";
 import { randomUUID } from "crypto";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
+import {
+	normalizeEventSheetRowData,
+	type NormalizedRowDataRecord,
+} from "./row-data-normalizer";
 
 export type EventStoreOrigin =
 	| "manual"
@@ -18,7 +22,7 @@ export interface EventSheetColumnRecord {
 	displayOrder: number;
 }
 
-export type EventSheetRowRecord = Record<string, string>;
+export type EventSheetRowRecord = NormalizedRowDataRecord;
 
 export interface EventSheetMetaRecord {
 	rowCount: number;
@@ -41,28 +45,6 @@ declare global {
 
 const toIsoString = (value: Date | string): string =>
 	value instanceof Date ? value.toISOString() : new Date(value).toISOString();
-
-const toStringRecord = (value: unknown): EventSheetRowRecord => {
-	let source: unknown = value;
-	for (let depth = 0; depth < 3 && typeof source === "string"; depth += 1) {
-		try {
-			source = JSON.parse(source);
-		} catch {
-			break;
-		}
-	}
-
-	if (!source || typeof source !== "object") {
-		return {};
-	}
-
-	return Object.fromEntries(
-		Object.entries(source).map(([key, raw]) => [
-			key,
-			raw == null ? "" : String(raw),
-		]),
-	);
-};
 
 const defaultMeta = (): EventSheetMetaRecord => ({
 	rowCount: 0,
@@ -249,7 +231,7 @@ export class EventSheetStoreRepository {
 			ORDER BY display_order ASC, id ASC
 		`;
 
-		return rows.map((row) => toStringRecord(row.row_data));
+		return rows.map((row) => normalizeEventSheetRowData(row.row_data));
 	}
 
 	async getSheet(): Promise<{
