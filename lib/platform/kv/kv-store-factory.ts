@@ -22,7 +22,7 @@ const createStore = async (): Promise<{
 	if (shouldPreferPostgres) {
 		try {
 			const postgresStore = new PostgresKVStore();
-			await postgresStore.list();
+			await postgresStore.get("__kv-init-check__");
 			return {
 				store: postgresStore,
 				info: {

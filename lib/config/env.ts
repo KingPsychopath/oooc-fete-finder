@@ -40,6 +40,7 @@ export const env = createEnv({
 		ADMIN_KEY: z.string().default(""),
 		AUTH_SECRET: z.string().optional(),
 		DATABASE_URL: z.string().optional(),
+		POSTGRES_POOL_MAX: z.string().optional(),
 		DATA_MODE: z.enum(["remote", "local", "test"]).default("remote"),
 
 		// Google configuration
@@ -76,6 +77,7 @@ export const env = createEnv({
 		ADMIN_KEY: process.env.ADMIN_KEY,
 		AUTH_SECRET: process.env.AUTH_SECRET,
 		DATABASE_URL: process.env.DATABASE_URL,
+		POSTGRES_POOL_MAX: process.env.POSTGRES_POOL_MAX,
 		DATA_MODE: process.env.DATA_MODE,
 
 		// Google configuration
