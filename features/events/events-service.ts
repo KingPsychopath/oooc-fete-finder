@@ -2,7 +2,7 @@
  * Events Service - Centralized event data access
  *
  * This service provides a clean interface for accessing event data
- * without creating circular dependencies between data and cache layers.
+ * without creating circular dependencies between data and delivery layers.
  */
 
 import { CacheManager } from "@/lib/cache/cache-manager";
@@ -10,7 +10,7 @@ import type { Event, MusicGenre } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
 
 /**
- * Get all events from the cache manager
+ * Get all events from the runtime data manager
  */
 export async function getAllEvents(): Promise<Event[]> {
 	try {

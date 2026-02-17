@@ -10,7 +10,7 @@ export const revalidate = 300; // 5 minutes in seconds
 
 // Make the page component async to allow server-side data fetching
 export default async function Home() {
-	// Fetch events using centralized cache manager
+	// Fetch events from live runtime source manager
 	const [result, bannerSettings] = await Promise.all([
 		CacheManager.getEvents(),
 		getPublicSlidingBannerSettingsCached(),

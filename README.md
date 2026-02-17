@@ -32,7 +32,7 @@ Other app state (auth/session/user collection) remains in:
    - `Upload CSV to Postgres`, or
    - `Import Google Backup`
 2. Edit in `Event Sheet Editor` (supports dynamic columns)
-3. `Publish to live cache`
+3. `Save and Revalidate Homepage`
 4. Verify live payload in `Live Site Snapshot`
 5. Export CSV anytime from `Data Store Controls`
 
@@ -59,7 +59,7 @@ GOOGLE_SERVICE_ACCOUNT_KEY=   # preferred (use on Vercel); or GOOGLE_SERVICE_ACC
 GOOGLE_MAPS_API_KEY=          # optional; enable Geocoding API in Cloud Console for precise coords
 ```
 
-Cache defaults (TTL, memory, etc.) live in code; optional overrides: `CACHE_DURATION_MS`, `REMOTE_REFRESH_INTERVAL_MS`. See `docs/environment-variables.md`.
+No runtime in-memory events cache is used. Live reads come from runtime source (`Postgres -> local fallback` in remote mode), with ISR + on-demand revalidation for delivery.
 
 ## Logging
 
@@ -72,7 +72,7 @@ One-line startup banner (data mode, DB, geocoding). Runtime logs use `lib/platfo
 - `docs/geocoding.md` — Geocoding API and arrondissement fallback
 - `docs/postgres-migration.md` — Postgres migration
 - `docs/google-integrations.md` — Google backup/import
-- `docs/architecture.md` — rendering/auth/cache contract (public static-first + server-authenticated admin)
+- `docs/architecture.md` — rendering/auth/revalidation contract (public static-first + server-authenticated admin)
 
 ## Development
 
@@ -97,7 +97,7 @@ pnpm exec tsc --noEmit
 - `GET /api/admin/data-store/status`
 - `GET /api/admin/postgres/kv`
 - `GET /api/admin/tokens/sessions`
-- `POST /api/revalidate/deploy` (or `GET`) with `Authorization: Bearer <DEPLOY_REVALIDATE_SECRET>` for post-deploy cache warm + homepage revalidation
+- `POST /api/revalidate/deploy` (or `GET`) with `Authorization: Bearer <DEPLOY_REVALIDATE_SECRET>` for post-deploy live reload + homepage revalidation
 
 All admin endpoints require valid admin auth.
 
@@ -112,7 +112,7 @@ curl -X POST "https://<your-domain>/api/revalidate/deploy" \
   -H "Authorization: Bearer $DEPLOY_REVALIDATE_SECRET"
 ```
 
-This endpoint forces an events cache refresh and revalidates `/`, so preview/prod comes up with the right data immediately after deploy.
+This endpoint forces a live events reload and revalidates `/`, so preview/prod comes up with the right data immediately after deploy.
 
 ## Migration notes
 

@@ -98,7 +98,7 @@ export function AdminDashboardClient({
 
 	const handleRefresh = useCallback(async () => {
 		setRefreshing(true);
-		setRefreshMessage("Refreshing cache and revalidating routes...");
+		setRefreshMessage("Revalidating homepage with latest runtime data...");
 		try {
 			const revalidateResult = await revalidatePages(undefined, "/");
 			if (!revalidateResult.success) {

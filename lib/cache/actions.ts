@@ -5,9 +5,9 @@ import { log } from "@/lib/platform/logger";
 import { CacheManager } from "./cache-manager";
 
 /**
- * Cache Management Server Actions
+ * Revalidation Server Actions
  *
- * Minimal server action surface for cache refresh/revalidation.
+ * Minimal server action surface for live data reload + route revalidation.
  */
 
 // Helper function to validate admin access (key or session token)
@@ -16,7 +16,7 @@ async function validateAdminAccess(keyOrToken?: string): Promise<boolean> {
 }
 
 /**
- * Revalidate pages and refresh cache - replaces the API route
+ * Revalidate pages and reload live data.
  */
 export async function revalidatePages(
 	keyOrToken?: string,
@@ -72,7 +72,7 @@ export async function revalidatePages(
 	});
 
 	try {
-		log.info("cache", "Admin access verified; starting full revalidation");
+		log.info("cache", "Admin access verified; starting live reload + revalidation");
 
 		// Use the centralized cache manager for full revalidation
 		const revalidationResult =

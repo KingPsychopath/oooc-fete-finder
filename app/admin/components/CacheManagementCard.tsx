@@ -16,16 +16,6 @@ type CacheManagementCardProps = {
 	onRefresh: () => void;
 };
 
-const formatDuration = (ms: number): string => {
-	const seconds = Math.floor(ms / 1000);
-	const minutes = Math.floor(seconds / 60);
-	const hours = Math.floor(minutes / 60);
-
-	if (hours > 0) return `${hours}h ${minutes % 60}m`;
-	if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
-	return `${seconds}s`;
-};
-
 const sourcePresentation = (
 	source: CacheStatus["dataSource"],
 ): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } => {
@@ -38,8 +28,6 @@ const sourcePresentation = (
 			return { label: "Test Dataset", variant: "outline" };
 		case "remote":
 			return { label: "Remote CSV", variant: "outline" };
-		case "cached":
-			return { label: "Cached", variant: "outline" };
 		default:
 			return { label: "Unknown", variant: "destructive" };
 	}
@@ -73,7 +61,7 @@ const getRefreshMessageTone = (message: string) => {
 		return "border-emerald-200 bg-emerald-50 text-emerald-800";
 	}
 
-	if (normalized.includes("fallback") || normalized.includes("cached")) {
+	if (normalized.includes("fallback")) {
 		return "border-amber-200 bg-amber-50 text-amber-800";
 	}
 
@@ -97,7 +85,7 @@ export const CacheManagementCard = ({
 			<CardHeader className="space-y-2">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<div>
-						<CardTitle>Events Data Management</CardTitle>
+						<CardTitle>Events Data Status</CardTitle>
 						<CardDescription>
 							Remote Mode serves Postgres first. If unavailable, the app serves local
 							CSV fallback until store data is restored.
@@ -117,7 +105,7 @@ export const CacheManagementCard = ({
 						</p>
 						<p className="mt-1 text-lg font-semibold">{cacheStatus.eventCount}</p>
 						<p className="mt-1 text-xs text-muted-foreground">
-							Currently being served on the site (may be fallback cache/source).
+							Current runtime payload count.
 						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
@@ -131,7 +119,7 @@ export const CacheManagementCard = ({
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Last Refresh
+							Last Runtime Check
 						</p>
 						<p className="mt-1 text-sm font-medium">
 							{cacheStatus.lastFetchTime ?
@@ -139,9 +127,7 @@ export const CacheManagementCard = ({
 							: 	"Never"}
 						</p>
 						<p className="mt-1 text-xs text-muted-foreground">
-							{cacheStatus.lastFetchTime
-								? `Next refresh in ${formatDuration(cacheStatus.nextRemoteCheck)}`
-								: "Next refresh on first request"}
+							Updated when the runtime source is read.
 						</p>
 					</div>
 				</div>
@@ -162,11 +148,8 @@ export const CacheManagementCard = ({
 
 				<div className="flex flex-wrap items-center gap-3">
 					<Button onClick={onRefresh} disabled={refreshing}>
-						{refreshing ? "Refreshing..." : "Refresh Live Cache"}
+						{refreshing ? "Revalidating..." : "Revalidate Homepage"}
 					</Button>
-					<span className="text-xs text-muted-foreground">
-						Cache age: {formatDuration(cacheStatus.cacheAge)}
-					</span>
 				</div>
 
 				{refreshMessage && (

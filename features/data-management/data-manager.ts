@@ -19,7 +19,6 @@ export interface DataManagerResult {
 	data: Event[];
 	count: number;
 	source: LiveDataSource;
-	cached: boolean;
 	error?: string;
 	warnings: string[];
 	lastUpdate?: string;
@@ -160,7 +159,6 @@ const runSourceChain = async (
 				data: result.events,
 				count: result.count,
 				source: result.source,
-				cached: false,
 				warnings: [...warnings, ...result.warnings],
 				lastUpdate: result.lastUpdate,
 			};
@@ -174,7 +172,6 @@ const runSourceChain = async (
 		data: [],
 		count: 0,
 		source: sources[sources.length - 1]?.id ?? "local",
-		cached: false,
 		error: warnings[0] ?? "No data source succeeded",
 		warnings,
 	};
@@ -187,7 +184,6 @@ const runTestMode = async (): Promise<DataManagerResult> => {
 		data: EVENTS_DATA,
 		count: EVENTS_DATA.length,
 		source: "test",
-		cached: false,
 		warnings: [],
 		lastUpdate: new Date().toISOString(),
 	};

@@ -37,7 +37,7 @@ Use the admin panel:
    - `Upload CSV to Postgres`, or
    - `Import Google Backup`.
 3. Edit in `Event Sheet Editor`.
-4. Click `Publish to live cache`.
+4. Click `Save and Revalidate Homepage`.
 
 Or run bootstrap:
 

@@ -5,7 +5,7 @@
 - **Platform logger**: `lib/platform/logger.ts` — scope + message + optional context; dev = human-readable, prod = JSON.
 - **Startup**: `instrumentation.ts` logs one line at server start: app name, data mode, DB and geocoding status.
 - **Geocoding**: Single warning when the Geocoding API is unavailable (e.g. not enabled in Cloud Console); then arrondissement centre fallback for all events. No per-address error spam.
-- **Cache**: Cache updates and errors go through the logger; periodic memory dumps and per-event “skipping coordinates” messages are disabled.
+- **Runtime data + revalidation**: Source read and revalidation errors go through the logger; periodic memory dumps and per-event “skipping coordinates” messages are disabled.
 
 ## Usage
 
@@ -22,6 +22,6 @@ log.error("scope", "Error", { err: message });
 - Repeated `Geocoding failed for "..."` per address
 - `Skipping coordinates for "..." (arr: unknown)`
 - `Memory Usage: X MB / Y MB` on every check
-- Cache tuning is in code; no need for many cache-related env vars.
+- No runtime in-memory events cache tuning env vars are required.
 
 See `docs/environment-variables.md` for env and `docs/geocoding.md` for geocoding behaviour.

@@ -54,7 +54,7 @@ const resolveRemoteSheetConfig = async (): Promise<{
 };
 
 /**
- * Get events data using the centralized cache manager
+ * Get live events data from configured runtime source.
  */
 export async function getEvents(
 	forceRefresh: boolean = false,
@@ -63,7 +63,8 @@ export async function getEvents(
 }
 
 /**
- * Snapshot of currently displayed site events (same cache path as homepage)
+ * Snapshot of currently displayed site events.
+ * `forceRefresh=true` runs a dry source read that does not mutate runtime state.
  */
 export async function getLiveSiteEventsSnapshot(
 	keyOrToken?: string,
@@ -74,7 +75,6 @@ export async function getLiveSiteEventsSnapshot(
 ): Promise<{
 	success: boolean;
 	source?: EventsResult["source"];
-	cached?: boolean;
 	totalCount?: number;
 	lastUpdate?: string;
 	rows?: Array<{
@@ -115,11 +115,7 @@ export async function getLiveSiteEventsSnapshot(
 							fresh.warnings.length > 0 ? fresh.warnings.join("; ") : undefined,
 					};
 				})()
-			: await (async () => {
-					const snapshot = CacheManager.getEventsSnapshot();
-					if (snapshot.success) return snapshot;
-					return CacheManager.getEvents(false);
-				})();
+			: await CacheManager.getEvents(false);
 		if (!result.success) {
 			return { success: false, error: result.error || "Failed to load events" };
 		}
@@ -139,7 +135,6 @@ export async function getLiveSiteEventsSnapshot(
 		return {
 			success: true,
 			source: result.source,
-			cached: result.cached,
 			totalCount: result.count,
 			lastUpdate: result.lastUpdate,
 			rows,
@@ -153,21 +148,21 @@ export async function getLiveSiteEventsSnapshot(
 }
 
 /**
- * Force refresh the events cache using the centralized cache manager with smart invalidation
+ * Force a live data reload and revalidate public routes.
  */
 export async function forceRefreshEvents(): Promise<{
 	success: boolean;
 	message: string;
 	data?: import("@/features/events/types").Event[];
 	count?: number;
-	source?: "remote" | "local" | "store" | "test" | "cached";
+	source?: "remote" | "local" | "store" | "test";
 	error?: string;
 }> {
 	return CacheManager.forceRefresh();
 }
 
 /**
- * Get cache and system status using the centralized cache manager
+ * Get live data/system status from source of truth.
  */
 export async function getCacheStatus(): Promise<CacheStatus> {
 	return CacheManager.getCacheStatus();
@@ -243,7 +238,7 @@ export async function saveLocalEventStoreCsv(
 		await CacheManager.forceRefresh();
 		return {
 			success: true,
-			message: "Managed store updated and cache refreshed",
+			message: "Managed store updated and homepage revalidated",
 			rowCount: result.rowCount,
 		};
 	} catch (error) {
@@ -272,7 +267,7 @@ export async function clearLocalEventStoreCsv(keyOrToken?: string): Promise<{
 		await CacheManager.forceRefresh();
 		return {
 			success: true,
-			message: "Managed store cleared and cache refreshed",
+			message: "Managed store cleared and homepage revalidated",
 		};
 	} catch (error) {
 		return {
@@ -443,14 +438,14 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 }
 
 /**
- * Persist table-editor rows to local event store and refresh cache
+ * Persist table-editor rows to local event store and revalidate homepage.
  */
 export async function saveEventSheetEditorRows(
 	keyOrToken: string | undefined,
 	columns: EditableSheetColumn[],
 	rows: EditableSheetRow[],
 	options?: {
-		refreshCache?: boolean;
+		revalidateHomepage?: boolean;
 	},
 ): Promise<{
 	success: boolean;
@@ -477,8 +472,8 @@ export async function saveEventSheetEditorRows(
 			updatedBy: "admin-sheet-editor",
 			origin: "manual",
 		});
-		const shouldRefreshCache = options?.refreshCache !== false;
-		if (shouldRefreshCache) {
+		const shouldRevalidateHomepage = options?.revalidateHomepage !== false;
+		if (shouldRevalidateHomepage) {
 			await CacheManager.forceRefresh();
 		} else {
 			invalidateEventsCache(["/"]);
@@ -487,8 +482,8 @@ export async function saveEventSheetEditorRows(
 		return {
 			success: true,
 			message:
-				shouldRefreshCache ?
-					"Saved event sheet to store and refreshed cache"
+				shouldRevalidateHomepage ?
+					"Saved event sheet to store and revalidated homepage"
 				:	"Saved event sheet to store",
 			rowCount: saved.rowCount,
 			updatedAt: saved.updatedAt,

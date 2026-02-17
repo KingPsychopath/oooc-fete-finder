@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 		}
 		if (cacheStatus.eventCount !== parsedEventCount) {
 			mismatches.push(
-				`Live cache event count (${cacheStatus.eventCount}) differs from parsed event count (${parsedEventCount}); cache may be stale or using a fallback source`,
+				`Live runtime event count (${cacheStatus.eventCount}) differs from parsed event count (${parsedEventCount}); runtime source may still be on fallback`,
 			);
 		}
 		if (eventStoreMeta.rowCount !== eventStoreCounts.rowCount) {
@@ -102,6 +102,7 @@ export async function GET(request: NextRequest) {
 				csvRawRows: csvRowCount,
 				parsedEvents: parsedEventCount,
 				liveCachedEvents: cacheStatus.eventCount,
+				liveEvents: cacheStatus.eventCount,
 			},
 			store: {
 				hasStoreData: storeStatus.hasStoreData,
@@ -123,6 +124,10 @@ export async function GET(request: NextRequest) {
 				lastFetchTime: cacheStatus.lastFetchTime,
 				cacheAgeMs: cacheStatus.cacheAge,
 				lastRemoteErrorMessage: cacheStatus.lastRemoteErrorMessage,
+			},
+			runtime: {
+				lastCheckTime: cacheStatus.lastFetchTime,
+				lastErrorMessage: cacheStatus.lastRemoteErrorMessage,
 			},
 		});
 	} catch (error) {

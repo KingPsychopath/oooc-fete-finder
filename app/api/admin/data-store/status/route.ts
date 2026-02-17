@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
 			store: storeStatus,
 			config: dataConfig,
 			cache: cacheStatus,
+			runtime: cacheStatus,
 			metrics: cacheMetrics,
 		});
 	} catch (error) {

@@ -364,7 +364,7 @@ export const LocalEventStoreCard = ({
 				<div className="rounded-md border bg-background/60 p-3 text-sm text-muted-foreground">
 					<p className="font-medium text-foreground">Workflow</p>
 					<p className="mt-1">1. Upload CSV or import from Google backup into store.</p>
-					<p>2. Edit in Event Sheet Editor and publish to live cache.</p>
+					<p>2. Edit in Event Sheet Editor and revalidate homepage.</p>
 					<p>3. Export CSV anytime for external workflows.</p>
 				</div>
 

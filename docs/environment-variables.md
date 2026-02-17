@@ -1,6 +1,6 @@
 # Environment Variables Reference
 
-Schema lives in `lib/config/env.ts`. Cache defaults live in code (`lib/cache/cache-defaults.ts`); only optional overrides are documented below.
+Schema lives in `lib/config/env.ts`.
 
 ## Server Variables (app actually reads these)
 
@@ -19,16 +19,7 @@ Schema lives in `lib/config/env.ts`. Cache defaults live in code (`lib/cache/cac
 | `LOCAL_CSV_LAST_UPDATED` | No | - | Metadata only (e.g. last CSV sync time) |
 | `DEFAULT_OG_IMAGE` | No | - | OG image URL override |
 | `CRON_SECRET` | No | - | Secret for cron routes (e.g. cleanup admin sessions). Vercel cron sends `Authorization: Bearer <CRON_SECRET>`. |
-| `DEPLOY_REVALIDATE_SECRET` | No | - | Secret for `/api/revalidate/deploy` (post-deploy cache warm + homepage revalidation). |
-
-## Optional cache overrides (read by `lib/cache/cache-defaults.ts`)
-
-All other cache behaviour (memory limits, thresholds, retries, logging) is fixed in code.
-
-| Variable | Default | Notes |
-| --- | --- | --- |
-| `CACHE_DURATION_MS` | `3600000` (1h) | In-memory cache TTL |
-| `REMOTE_REFRESH_INTERVAL_MS` | `1800000` (30m) | How often to re-check remote/store |
+| `DEPLOY_REVALIDATE_SECRET` | No | - | Secret for `/api/revalidate/deploy` (post-deploy live reload + homepage revalidation). |
 
 ## Client Variables
 
@@ -45,4 +36,4 @@ The app uses **only** `DATABASE_URL`. Variables like `PGHOST`, `PGUSER`, `POSTGR
 
 1. Set `DATA_MODE=remote` and `DATABASE_URL` (e.g. Neon pooler URL).
 2. Use Google vars only for admin backup preview/import and geocoding.
-3. Leave cache vars unset unless you need to tune TTL/refresh.
+3. No runtime in-memory events cache config is required.

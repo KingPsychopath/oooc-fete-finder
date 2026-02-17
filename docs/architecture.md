@@ -6,7 +6,7 @@ This file defines the rendering/auth/data contract for the app. Treat this as im
 
 1. Public routes are static-first.
 - Examples: `/`, `/feature-event`, content pages.
-- Prefer ISR/static rendering with server-cached data.
+- Prefer ISR/static rendering with runtime source reads (Postgres first in remote mode).
 - Do not add request-bound APIs (`cookies()`, `headers()`) in root layout or public route trees unless absolutely required.
 
 2. Admin routes are server-authenticated and dynamic.
@@ -31,10 +31,10 @@ This file defines the rendering/auth/data contract for the app. Treat this as im
 - No component-local `useEffect` fetches for auth or banner settings.
 - Header receives server-provided public settings (banner) and reads auth state from context.
 
-## Data + Cache Model
+## Data + Revalidation Model
 
-1. Public data should use cached server queries.
-- Use `unstable_cache` + tags + explicit revalidation for shared public settings and datasets.
+1. Public data should use source-of-truth reads.
+- Use Postgres-backed runtime reads for events and explicit revalidation for public surfaces.
 
 2. Admin mutations must revalidate.
 - After writes, call `revalidateTag`/`revalidatePath` for affected public surfaces.
@@ -47,7 +47,7 @@ This file defines the rendering/auth/data contract for the app. Treat this as im
 1. Default to server-rendered HTML for content and structure.
 2. Keep client islands focused on interactivity only.
 3. Do not let auth handling force full-app dynamic rendering.
-4. Treat map-heavy bundles as an optimization track (lazy-loading/splitting), separate from auth/cache contract.
+4. Treat map-heavy bundles as an optimization track (lazy-loading/splitting), separate from auth/revalidation contract.
 
 ## Decision Log
 

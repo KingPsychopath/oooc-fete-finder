@@ -1,6 +1,6 @@
 import type { Event } from "@/features/events/types";
 
-export type DataSource = "remote" | "local" | "store" | "test" | "cached";
+export type DataSource = "remote" | "local" | "store" | "test";
 
 export interface EventsResult {
 	success: boolean;

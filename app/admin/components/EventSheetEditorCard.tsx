@@ -205,7 +205,7 @@ export const EventSheetEditorCard = ({
 					undefined,
 					columnsRef.current,
 					rowsRef.current,
-					{ refreshCache: mode === "manual" },
+					{ revalidateHomepage: mode === "manual" },
 				);
 				if (!result.success) {
 					throw new Error(result.error || result.message);
@@ -217,8 +217,8 @@ export const EventSheetEditorCard = ({
 				setLastSavedAt(result.updatedAt || new Date().toISOString());
 				setStatusMessage(
 					mode === "auto"
-						? "Autosaved to Postgres (cache publish pending)"
-						: "Saved to Postgres and cache refreshed",
+						? "Autosaved to Postgres (homepage revalidation pending)"
+						: "Saved to Postgres and homepage revalidated",
 				);
 
 				if (onDataSaved && mode === "manual") {
@@ -575,7 +575,7 @@ export const EventSheetEditorCard = ({
 							onClick={handleManualSave}
 							disabled={isSaving || !hasUnsavedChanges}
 						>
-							Publish to live cache
+							Save and Revalidate Homepage
 						</Button>
 					</div>
 					<div className="flex items-end gap-2">

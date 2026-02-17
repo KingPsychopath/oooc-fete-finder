@@ -48,14 +48,14 @@ async function handleRevalidation(request: NextRequest): Promise<NextResponse> {
 	try {
 		const refreshed = await CacheManager.forceRefresh();
 		if (!refreshed.success) {
-			log.warn("cache", "Deploy revalidation completed with refresh errors", {
+			log.warn("cache", "Deploy revalidation completed with live data errors", {
 				error: refreshed.error,
 			});
 			return NextResponse.json(
 				{
 					success: false,
 					message: refreshed.message,
-					error: refreshed.error ?? "Cache refresh failed",
+					error: refreshed.error ?? "Live data reload failed",
 				},
 				{ status: 500 },
 			);

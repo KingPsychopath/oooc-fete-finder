@@ -9,9 +9,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getLiveSiteEventsSnapshot } from "@/features/data-management/actions";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type SnapshotState = Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
 
@@ -22,44 +21,37 @@ type LiveEventsSnapshotCardProps = {
 
 const DEFAULT_VISIBLE_ROWS = 5;
 
+const sourceDisplay = (source?: SnapshotState["source"]) => {
+	if (source === "store") return { label: "Postgres Store", variant: "default" as const };
+	if (source === "remote") return { label: "Remote CSV", variant: "secondary" as const };
+	if (source === "local") return { label: "Local CSV Fallback", variant: "outline" as const };
+	if (source === "test") return { label: "Test Dataset", variant: "outline" as const };
+	return { label: "Unknown", variant: "outline" as const };
+};
+
 export const LiveEventsSnapshotCard = ({
 	isAuthenticated,
 	initialSnapshot,
 }: LiveEventsSnapshotCardProps) => {
-	const initialMode: "cached" | "fresh" = initialSnapshot?.cached ? "cached" : "fresh";
-	const [responseMode, setResponseMode] = useState<"cached" | "fresh">(
-		initialMode,
-	);
 	const [snapshot, setSnapshot] = useState<SnapshotState | null>(
 		initialSnapshot ?? null,
 	);
-	const modeSnapshotsRef = useRef<Partial<Record<"cached" | "fresh", SnapshotState>>>(
-		initialSnapshot ? { [initialMode]: initialSnapshot } : {},
+	const [lastCheckMode, setLastCheckMode] = useState<"runtime" | "source">(
+		"runtime",
 	);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isExpanded, setIsExpanded] = useState(false);
 
 	const loadSnapshot = useCallback(
-		async (mode: "cached" | "fresh", forceNetwork = false) => {
+		async (mode: "runtime" | "source") => {
 			if (!isAuthenticated) return;
-
-			setResponseMode(mode);
-			const cachedModeSnapshot = modeSnapshotsRef.current[mode];
-			if (!forceNetwork && cachedModeSnapshot?.success) {
-				setSnapshot(cachedModeSnapshot);
-				return;
-			}
-
+			setLastCheckMode(mode);
 			setIsLoading(true);
 			try {
 				const result = await getLiveSiteEventsSnapshot(undefined, 500, {
-					forceRefresh: mode === "fresh",
+					forceRefresh: mode === "source",
 				});
 				setSnapshot(result);
-				modeSnapshotsRef.current = {
-					...modeSnapshotsRef.current,
-					[mode]: result,
-				};
 			} finally {
 				setIsLoading(false);
 			}
@@ -69,8 +61,8 @@ export const LiveEventsSnapshotCard = ({
 
 	useEffect(() => {
 		if (initialSnapshot != null) return;
-		void loadSnapshot("cached");
-	}, [loadSnapshot, initialSnapshot]);
+		void loadSnapshot("runtime");
+	}, [initialSnapshot, loadSnapshot]);
 
 	const rows = snapshot?.rows || [];
 	const visibleRows = useMemo(
@@ -78,20 +70,7 @@ export const LiveEventsSnapshotCard = ({
 		[isExpanded, rows],
 	);
 	const canExpand = rows.length > DEFAULT_VISIBLE_ROWS;
-
-	const sourceLabel = snapshot?.source || "unknown";
-	const sourceDisplayLabel =
-		sourceLabel === "store" ? "Postgres Store" :
-		sourceLabel === "remote" ? "Remote CSV" :
-		sourceLabel === "local" ? "Local File" :
-		sourceLabel === "test" ? "Test Dataset" :
-		sourceLabel === "cached" ? "Cached" :
-		"Unknown";
-	const sourceBadgeVariant =
-		sourceLabel === "store" ? "default" :
-		sourceLabel === "remote" ? "secondary" :
-		sourceLabel === "local" ? "outline" :
-		sourceLabel === "test" ? "outline" : "outline";
+	const source = sourceDisplay(snapshot?.source);
 
 	return (
 		<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
@@ -100,27 +79,11 @@ export const LiveEventsSnapshotCard = ({
 					<div>
 						<CardTitle>Live Site Snapshot</CardTitle>
 						<CardDescription>
-							Toggle between cached and forced-fresh site payload responses.
+							Direct payload view from current runtime source. Source check is a
+							dry run and does not mutate runtime state.
 						</CardDescription>
 					</div>
-					<div className="flex items-center gap-2">
-						<Badge variant={sourceBadgeVariant}>{sourceDisplayLabel}</Badge>
-						<ToggleGroup
-							type="single"
-							value={responseMode}
-							onValueChange={(value) => {
-								if (value === "cached" || value === "fresh") {
-									void loadSnapshot(value);
-								}
-							}}
-							disabled={isLoading}
-							variant="outline"
-							size="sm"
-						>
-							<ToggleGroupItem value="cached">Cached</ToggleGroupItem>
-							<ToggleGroupItem value="fresh">Fresh</ToggleGroupItem>
-						</ToggleGroup>
-					</div>
+					<Badge variant={source.variant}>{source.label}</Badge>
 				</div>
 				<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
 					<span>Total events: {snapshot?.totalCount ?? 0}</span>
@@ -130,14 +93,26 @@ export const LiveEventsSnapshotCard = ({
 							? new Date(snapshot.lastUpdate).toLocaleString()
 							: "Unknown"}
 					</span>
+					<span>Last check: {lastCheckMode === "source" ? "Source dry run" : "Runtime read"}</span>
 					<Button
 						type="button"
 						size="sm"
 						variant="outline"
 						disabled={isLoading}
-						onClick={() => void loadSnapshot(responseMode, true)}
+						onClick={() => void loadSnapshot("runtime")}
 					>
-						{isLoading ? "Refreshing..." : "Refresh snapshot"}
+						{isLoading && lastCheckMode === "runtime" ? "Refreshing..." : "Refresh snapshot"}
+					</Button>
+					<Button
+						type="button"
+						size="sm"
+						variant="outline"
+						disabled={isLoading}
+						onClick={() => void loadSnapshot("source")}
+					>
+						{isLoading && lastCheckMode === "source" ?
+							"Checking..."
+						:	"Dry-run source check"}
 					</Button>
 				</div>
 			</CardHeader>
@@ -152,7 +127,7 @@ export const LiveEventsSnapshotCard = ({
 					</div>
 				) : (
 					<>
-						{sourceLabel === "local" && (
+						{snapshot?.source === "local" && (
 							<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
 								Live site is currently serving local CSV fallback, not Postgres.
 							</div>
