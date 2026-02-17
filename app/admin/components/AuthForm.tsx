@@ -18,6 +18,15 @@ export const AuthForm = ({
 	adminKey,
 	setAdminKey,
 }: AuthFormProps) => {
+	const handlePasteAdminKey = async () => {
+		try {
+			const clipboardValue = await navigator.clipboard.readText();
+			if (clipboardValue) {
+				setAdminKey(clipboardValue.trim());
+			}
+		} catch {}
+	};
+
 	return (
 		<div className="ooo-admin-shell">
 			<div className="container mx-auto max-w-lg px-6 py-20">
@@ -34,14 +43,36 @@ export const AuthForm = ({
 
 					<form onSubmit={onSubmit} className="mt-8 space-y-4">
 						<div className="space-y-2">
-							<Label htmlFor="adminKey">Admin Key</Label>
+							<div className="flex items-center justify-between gap-2">
+								<Label htmlFor="adminKey">Admin Key</Label>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onClick={() => void handlePasteAdminKey()}
+									className="h-8 px-2 text-xs"
+								>
+									Paste key
+								</Button>
+							</div>
 							<Input
 								id="adminKey"
 								type="password"
 								value={adminKey}
 								onChange={(e) => setAdminKey(e.target.value)}
+								onPaste={(e) => {
+									const pasted = e.clipboardData.getData("text");
+									if (pasted) {
+										e.preventDefault();
+										setAdminKey(pasted.trim());
+									}
+								}}
 								placeholder="Enter admin key"
 								className="h-11"
+								autoComplete="current-password"
+								autoCapitalize="none"
+								autoCorrect="off"
+								spellCheck={false}
 							/>
 						</div>
 
