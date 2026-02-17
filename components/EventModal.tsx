@@ -64,6 +64,8 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 	const { mapPreference, setMapPreference, isLoaded } = useMapPreference();
 	const [showMapSelection, setShowMapSelection] = useState(false);
 	const [showMapSettings, setShowMapSettings] = useState(false);
+	const [isSharing, setIsSharing] = useState(false);
+	const [shareError, setShareError] = useState<string | null>(null);
 	const [pendingLocationData, setPendingLocationData] = useState<{
 		location: string;
 		arrondissement?: number | "unknown";
@@ -79,6 +81,8 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		if (!isOpen) {
 			setShowMapSelection(false);
 			setShowMapSettings(false);
+			setIsSharing(false);
+			setShareError(null);
 			setPendingLocationData(null);
 		}
 	}, [isOpen]);
@@ -130,6 +134,8 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 	const allLinks = event.links && event.links.length > 0 ? event.links : [event.link];
 	const primaryLink = allLinks[0];
 	const secondaryLinks = allLinks.slice(1);
+	const visibleGenres = event.genre?.slice(0, 4) || [];
+	const extraGenreCount = Math.max(0, (event.genre?.length || 0) - visibleGenres.length);
 
 	const getGenreColor = (genre: string) => {
 		const genreInfo = MUSIC_GENRES.find((g) => g.key === genre);
@@ -137,13 +143,23 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 	};
 
 	const handleShareError = (message: string) => {
-		alert(`Unable to generate shareable image: ${message}. Please try again.`);
+		setShareError(message || "Unable to generate share image.");
 	};
 
 	const shareImageGenerator = ShareableImageGenerator({
 		event,
 		onError: handleShareError,
 	});
+
+	const handleShareToStory = async () => {
+		setIsSharing(true);
+		setShareError(null);
+		try {
+			await shareImageGenerator.generateImage();
+		} finally {
+			setIsSharing(false);
+		}
+	};
 
 	const hasTime = Boolean(event.time && event.time !== "TBC");
 	const hasEndTime = Boolean(event.endTime && event.endTime !== "TBC");
@@ -191,13 +207,13 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							variant="outline"
 							size="icon"
 							onClick={onClose}
-							className="h-11 w-11 shrink-0 rounded-xl border-border/70 bg-background/70 hover:bg-accent"
+							className="mt-0.5 h-11 w-11 shrink-0 self-start rounded-xl border-border/70 bg-background/70 hover:bg-accent"
 						>
 							<X className="h-5 w-5" />
 						</Button>
 					</div>
 
-					<div className="mt-3 flex flex-wrap items-center gap-2">
+					<div className="mt-3 flex max-h-16 flex-wrap items-center gap-2 overflow-hidden sm:max-h-none">
 						{event.isOOOCPick && (
 							<Badge className="border-yellow-300 bg-yellow-400 text-black hover:bg-yellow-500">
 								<Star className="mr-1 h-3.5 w-3.5 fill-current" />
@@ -214,7 +230,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								{event.category}
 							</Badge>
 						)}
-						{event.genre?.map((genre) => (
+						{visibleGenres.map((genre) => (
 							<Badge
 								key={genre}
 								className={`${getGenreColor(genre)} border border-white/20 dark:bg-opacity-25`}
@@ -223,12 +239,17 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								{genre}
 							</Badge>
 						))}
+						{extraGenreCount > 0 && (
+							<Badge variant="outline" className="border-border/70">
+								+{extraGenreCount} more
+							</Badge>
+						)}
 					</div>
 				</CardHeader>
 
 				<CardContent className="space-y-4 pt-0">
 					<div className="grid gap-2 rounded-xl border border-border/70 bg-background/55 p-3 sm:grid-cols-2">
-						<div className="rounded-lg border border-border/70 bg-background/80 px-3 py-2">
+						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2">
 							<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
 								Date
 							</p>
@@ -236,13 +257,13 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								{formatDayWithDate(event.day, event.date)}
 							</p>
 						</div>
-						<div className="rounded-lg border border-border/70 bg-background/80 px-3 py-2">
+						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2">
 							<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
 								Time
 							</p>
 							<p className="mt-1 text-sm font-medium">{timeRange}</p>
 						</div>
-						<div className="rounded-lg border border-border/70 bg-background/80 px-3 py-2">
+						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2">
 							<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
 								Venue Type
 							</p>
@@ -251,7 +272,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								{venueTypeLabel}
 							</p>
 						</div>
-						<div className="rounded-lg border border-border/70 bg-background/80 px-3 py-2">
+						<div className="min-h-[84px] rounded-lg border border-border/70 bg-background/80 px-3 py-2">
 							<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
 								Price
 							</p>
@@ -381,14 +402,20 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 
 							<Button
 								variant="outline"
-								onClick={shareImageGenerator.generateImage}
+								onClick={() => void handleShareToStory()}
+								disabled={isSharing}
 								className="h-11 border-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600"
 								title="Share event to social media story"
 							>
 								<Share className="mr-2 h-4 w-4" />
-								Share to Story
+								{isSharing ? "Generating..." : "Share to Story"}
 							</Button>
 						</div>
+						{shareError && (
+							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+								Unable to generate image right now. {shareError}
+							</div>
+						)}
 
 						{secondaryLinks.length > 0 && (
 							<div className="space-y-1">
@@ -410,9 +437,6 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							</div>
 						)}
 
-						<Button variant="outline" onClick={onClose} className="h-11 w-full">
-							Close
-						</Button>
 					</div>
 
 					<div className="rounded-xl border border-border/70 bg-muted/35 p-3 text-xs text-muted-foreground">

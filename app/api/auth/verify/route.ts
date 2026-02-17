@@ -1,4 +1,9 @@
 import { env } from "@/lib/config/env";
+import {
+	USER_AUTH_COOKIE_NAME,
+	getUserAuthCookieOptions,
+	signUserSessionToken,
+} from "@/lib/auth/user-session-cookie";
 import { UserCollectionStore } from "@/lib/user-management/user-collection-store";
 import { NextResponse } from "next/server";
 
@@ -96,7 +101,7 @@ export async function POST(request: Request) {
 			}
 		}
 
-		return NextResponse.json({
+		const response = NextResponse.json({
 			success: true,
 			email,
 			storedIn: storeStatus.provider,
@@ -106,6 +111,12 @@ export async function POST(request: Request) {
 					: "User verified",
 			mirrorWarning,
 		});
+		response.cookies.set(
+			USER_AUTH_COOKIE_NAME,
+			signUserSessionToken(email),
+			getUserAuthCookieOptions(),
+		);
+		return response;
 	} catch (error) {
 		const message =
 			error instanceof Error ? error.message : "Unexpected verify error";

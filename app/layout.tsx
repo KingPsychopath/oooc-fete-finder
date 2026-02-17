@@ -5,12 +5,17 @@ import { OfflineIndicator } from "@/components/offline-indicator";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { AuthProvider } from "@/context/auth-context";
 import { VignetteAd } from "@/features/vignette-ad/components/vignette-ad";
+import {
+	USER_AUTH_COOKIE_NAME,
+	getUserSessionFromCookieHeader,
+} from "@/lib/auth/user-session-cookie";
 import { generateMainOGImage } from "@/lib/social/og-utils";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "next-themes";
 import { BodyClassHandler } from "@/components/body-class-handler";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
+import { cookies } from "next/headers";
 
 // Get base path from environment variable - use direct access for build-time
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -94,11 +99,16 @@ export const metadata: Metadata = {
 	},
 };
 
-export default function RootLayout({
+export default async function RootLayout({
 	children,
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
+	const cookieStore = await cookies();
+	const userSession = getUserSessionFromCookieHeader(
+		cookieStore.get(USER_AUTH_COOKIE_NAME)?.value,
+	);
+
 	return (
 		<html
 			lang="en"
@@ -166,7 +176,10 @@ export default function RootLayout({
 					enableSystem
 					disableTransitionOnChange
 				>
-					<AuthProvider>
+					<AuthProvider
+						initialIsAuthenticated={userSession.isAuthenticated}
+						initialUserEmail={userSession.email}
+					>
 						{children}
 						<Footer />
 						<VignetteAd />

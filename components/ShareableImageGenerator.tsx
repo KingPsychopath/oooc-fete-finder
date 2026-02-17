@@ -67,12 +67,12 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 	shareContainer.style.width = "400px";
 	shareContainer.style.height = "700px";
 	shareContainer.style.background =
-		"linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+		"linear-gradient(145deg, #f3e8d8 0%, #ead9c1 45%, #ddc6a5 100%)";
 	shareContainer.style.borderRadius = "24px";
 	shareContainer.style.padding = "24px";
 	shareContainer.style.fontFamily =
-		'"Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-	shareContainer.style.color = "#ffffff";
+		'"Degular", "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+	shareContainer.style.color = "#2f2418";
 	shareContainer.style.boxSizing = "border-box";
 	shareContainer.style.display = "flex";
 	shareContainer.style.flexDirection = "column";
@@ -85,29 +85,29 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 			<!-- Header with badges -->
 			<div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px;">
 				<div style="display: flex; flex-direction: column; gap: 8px;">
-					${event.isOOOCPick ? '<div style="background: #fbbf24; color: #000000; padding: 10px 20px; border-radius: 16px; font-size: 11px; font-weight: 700; display: inline-block; text-align: center; letter-spacing: 0.5px; white-space: nowrap;">⭐ OOOC PICK</div>' : ""}
+					${event.isOOOCPick ? '<div style="background: #f0be39; color: #2f2418; padding: 10px 16px; border-radius: 16px; font-size: 11px; font-weight: 700; display: inline-block; text-align: center; letter-spacing: 0.5px; white-space: nowrap;">OOOC PICK</div>' : ""}
 				</div>
-				<div style="background: rgba(255,255,255,0.25); color: #ffffff; padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+				<div style="background: rgba(60,43,27,0.08); color: #2f2418; padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
 					${event.arrondissement === "unknown" ? "TBC" : `${event.arrondissement}e`}
 				</div>
 			</div>
 			
 			<!-- Event Title -->
-			<h1 style="font-size: 26px; font-weight: 800; margin: 0 0 20px 0; line-height: 1.1; color: #ffffff; word-wrap: break-word; letter-spacing: -0.5px;">${event.name}</h1>
+			<h1 style="font-size: 30px; font-weight: 400; margin: 0 0 20px 0; line-height: 1.08; color: #2f2418; word-wrap: break-word; letter-spacing: -0.3px; font-family: 'Swear Display', 'Times New Roman', serif;">${event.name}</h1>
 			
 			<!-- Main Details Card -->
-			<div style="background: rgba(255,255,255,0.12); border-radius: 16px; padding: 20px; margin-bottom: 16px; backdrop-filter: blur(10px);">
+			<div style="background: rgba(255,255,255,0.42); border: 1px solid rgba(60,43,27,0.14); border-radius: 16px; padding: 20px; margin-bottom: 16px; backdrop-filter: blur(6px);">
 				<div style="display: flex; align-items: center; margin-bottom: 12px;">
-					<div style="margin-right: 10px; font-size: 16px;">📅</div>
-					<span style="font-size: 14px; color: #ffffff; font-weight: 500;">${formatDayWithDate(event.day, event.date)}</span>
+					<div style="margin-right: 10px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #6a543c; min-width: 56px;">Date</div>
+					<span style="font-size: 14px; color: #2f2418; font-weight: 500;">${formatDayWithDate(event.day, event.date)}</span>
 				</div>
 				
 				${
 					event.time && event.time !== "TBC"
 						? `
 					<div style="display: flex; align-items: center; margin-bottom: 12px;">
-						<div style="margin-right: 10px; font-size: 16px;">⏰</div>
-						<span style="font-size: 14px; font-family: 'JetBrains Mono', 'SF Mono', Monaco, monospace; color: #ffffff; font-weight: 500;">${event.time}${event.endTime && event.endTime !== "TBC" ? ` - ${event.endTime}` : ""}</span>
+						<div style="margin-right: 10px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #6a543c; min-width: 56px;">Time</div>
+						<span style="font-size: 14px; font-family: 'JetBrains Mono', 'SF Mono', Monaco, monospace; color: #2f2418; font-weight: 500;">${event.time}${event.endTime && event.endTime !== "TBC" ? ` - ${event.endTime}` : ""}</span>
 					</div>
 				`
 						: ""
@@ -117,24 +117,24 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 					event.location && event.location !== "TBA"
 						? `
 					<div style="display: flex; align-items: center; margin-bottom: 12px;">
-						<div style="margin-right: 10px; font-size: 16px;">📍</div>
-						<span style="font-size: 13px; color: #ffffff; word-wrap: break-word; line-height: 1.3; font-weight: 400;">${event.location}</span>
+						<div style="margin-right: 10px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #6a543c; min-width: 56px;">Place</div>
+						<span style="font-size: 13px; color: #3b2d1e; word-wrap: break-word; line-height: 1.3; font-weight: 400;">${event.location}</span>
 					</div>
 				`
 						: ""
 				}
 				
 				<div style="display: flex; align-items: center; margin-bottom: 12px;">
-					<div style="margin-right: 10px; font-size: 16px;">💰</div>
-					<span style="font-size: 16px; font-weight: 700; color: ${formatPrice(event.price) === "Free" ? "#10b981" : "#ffffff"};">${formatPrice(event.price)}</span>
+					<div style="margin-right: 10px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #6a543c; min-width: 56px;">Price</div>
+					<span style="font-size: 16px; font-weight: 700; color: ${formatPrice(event.price) === "Free" ? "#0f7a4b" : "#2f2418"};">${formatPrice(event.price)}</span>
 				</div>
 
 				${
 					event.age
 						? `
 					<div style="display: flex; align-items: center;">
-						<div style="margin-right: 10px; font-size: 16px;">👥</div>
-						<span style="font-size: 14px; color: #ffffff; font-weight: 500;">${formatAge(event.age)}</span>
+						<div style="margin-right: 10px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #6a543c; min-width: 56px;">Age</div>
+						<span style="font-size: 14px; color: #2f2418; font-weight: 500;">${formatAge(event.age)}</span>
 					</div>
 				`
 						: ""
@@ -143,7 +143,7 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 			
 			<!-- Event Type -->
 			<div style="margin-bottom: 16px;">
-				<div style="background: rgba(255,255,255,0.2); color: #ffffff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block;">
+				<div style="background: rgba(60,43,27,0.1); color: #2f2418; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block;">
 					${event.type}
 				</div>
 			</div>
@@ -156,8 +156,8 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 					${event.genre
 						.map(
 							(genre) => `
-						<div style="background: rgba(255,255,255,0.15); color: #ffffff; padding: 6px 12px; border-radius: 16px; font-size: 11px; white-space: nowrap; display: flex; align-items: center; gap: 4px; font-weight: 500;">
-							<span>🎵</span> ${MUSIC_GENRES.find((g) => g.key === genre)?.label || genre}
+						<div style="background: rgba(60,43,27,0.1); color: #2f2418; padding: 6px 12px; border-radius: 16px; font-size: 11px; white-space: nowrap; display: flex; align-items: center; gap: 4px; font-weight: 500;">
+							${MUSIC_GENRES.find((g) => g.key === genre)?.label || genre}
 						</div>
 					`,
 						)
@@ -176,7 +176,7 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 						.slice(0, 3)
 						.map(
 							(nationality) => `
-						<div style="background: rgba(255,255,255,0.15); color: #ffffff; padding: 6px 12px; border-radius: 16px; font-size: 11px; white-space: nowrap; font-weight: 500;">
+						<div style="background: rgba(60,43,27,0.1); color: #2f2418; padding: 6px 12px; border-radius: 16px; font-size: 11px; white-space: nowrap; font-weight: 500;">
 							${NATIONALITIES.find((n) => n.key === nationality)?.flag} ${NATIONALITIES.find((n) => n.key === nationality)?.shortCode || nationality}
 						</div>
 					`,
@@ -192,7 +192,7 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 				event.venueTypes && event.venueTypes.length > 0
 					? `
 				<div style="margin-bottom: 16px;">
-					<div style="background: rgba(255,255,255,0.15); color: #ffffff; padding: 6px 12px; border-radius: 16px; font-size: 11px; display: inline-block; white-space: nowrap; font-weight: 500;">
+					<div style="background: rgba(60,43,27,0.1); color: #2f2418; padding: 6px 12px; border-radius: 16px; font-size: 11px; display: inline-block; white-space: nowrap; font-weight: 500;">
 						${formatVenueTypeIcons(event)} ${event.venueTypes
 							.map((vt) => VENUE_TYPES.find((v) => v.key === vt)?.label)
 							.filter(Boolean)
@@ -203,8 +203,8 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 					: event.indoor !== undefined
 						? `
 				<div style="margin-bottom: 16px;">
-					<div style="background: rgba(255,255,255,0.15); color: #ffffff; padding: 6px 12px; border-radius: 16px; font-size: 11px; display: inline-block; white-space: nowrap; font-weight: 500;">
-						${event.indoor ? "🏢 Indoor" : "🌤️ Outdoor"}
+					<div style="background: rgba(60,43,27,0.1); color: #2f2418; padding: 6px 12px; border-radius: 16px; font-size: 11px; display: inline-block; white-space: nowrap; font-weight: 500;">
+						${event.indoor ? "Indoor" : "Outdoor"}
 					</div>
 				</div>
 			`
@@ -213,9 +213,9 @@ const generateShareableImage = async (event: Event): Promise<void> => {
 		</div>
 		
 		<!-- Footer Branding -->
-		<div style="text-align: center; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.25); margin-top: auto;">
-			<div style="font-size: 16px; font-weight: 700; margin-bottom: 4px; color: #ffffff; letter-spacing: 0.5px;">OOOC Fête Finder</div>
-			<div style="font-size: 12px; opacity: 0.9; color: #ffffff; font-weight: 400;">Discover the best events in Paris</div>
+		<div style="text-align: center; padding-top: 20px; border-top: 1px solid rgba(60,43,27,0.22); margin-top: auto;">
+			<div style="font-size: 16px; font-weight: 700; margin-bottom: 4px; color: #2f2418; letter-spacing: 0.5px;">OOOC Fête Finder</div>
+			<div style="font-size: 12px; opacity: 0.9; color: #3b2d1e; font-weight: 400;">Curated Paris events, updated live</div>
 		</div>
 	`;
 

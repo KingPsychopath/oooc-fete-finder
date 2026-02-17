@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Lock, Mail } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React from "react";
 
 type AuthGateProps = {
 	isAuthenticated: boolean;
@@ -15,61 +15,31 @@ const AuthGate = ({
 	children,
 	className = "",
 }: AuthGateProps) => {
-	const [hasMounted, setHasMounted] = useState(false);
-	const [showOverlay, setShowOverlay] = useState(false);
-
-	useEffect(() => {
-		// Small delay to prevent flash on initial load
-		const timer = setTimeout(() => {
-			setHasMounted(true);
-			// Additional delay for smooth fade-in
-			if (!isAuthenticated) {
-				setTimeout(() => {
-					setShowOverlay(true);
-				}, 50);
-			}
-		}, 100);
-
-		return () => clearTimeout(timer);
-	}, [isAuthenticated]);
-
-	// Show children immediately if authenticated or if we haven't mounted yet
-	if (isAuthenticated || !hasMounted) {
+	if (isAuthenticated) {
 		return <>{children}</>;
 	}
 
 	return (
 		<div className={`relative ${className}`}>
 			{children}
-			{/* Beautiful auth overlay with fade-in animation */}
-			<div
-				className={`absolute inset-0 z-30 flex items-center justify-center rounded-xl border border-border/70 bg-card/92 shadow-lg backdrop-blur-md transition-all duration-500 ease-out ${
-					showOverlay ? "opacity-100 scale-100" : "opacity-0 scale-95"
-				}`}
-			>
-				<div
-					className={`text-center space-y-3 md:space-y-4 p-3 md:p-8 max-w-xs md:max-w-md mx-auto transition-all duration-700 ease-out delay-200 ${
-						showOverlay
-							? "opacity-100 translate-y-0"
-							: "opacity-0 translate-y-4"
-					}`}
-				>
+			<div className="absolute inset-0 z-30 flex items-center justify-center rounded-xl border border-border/70 bg-card/92 shadow-lg backdrop-blur-md">
+				<div className="mx-auto max-w-xs space-y-4 p-4 text-center md:max-w-md md:p-8">
 					<div className="flex justify-center">
 						<div className="rounded-full border border-border/70 bg-background/72 p-3 shadow-sm">
 							<Lock className="h-5 w-5 text-primary" />
 						</div>
 					</div>
 					<div className="space-y-2">
-						<h3 className="font-semibold text-sm md:text-base text-foreground">
+						<h3 className="text-sm font-semibold text-foreground md:text-base">
 							Authentication Required
 						</h3>
-						<p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
+						<p className="text-xs leading-relaxed text-muted-foreground md:text-sm">
 							Provide your name and email to access filtering and search
 						</p>
 					</div>
 					<Button
 						onClick={onAuthRequired}
-						className="gap-2 w-full shadow-md hover:shadow-lg transition-all duration-200 text-sm md:text-base"
+						className="h-10 w-full gap-2 text-sm shadow-md transition-all duration-200 hover:shadow-lg md:text-base"
 						size="sm"
 					>
 						<Mail className="h-4 w-4" />
