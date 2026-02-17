@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getLiveSiteEventsSnapshot } from "@/features/data-management/actions";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type SnapshotState = Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
 
@@ -26,29 +26,46 @@ export const LiveEventsSnapshotCard = ({
 	isAuthenticated,
 	initialSnapshot,
 }: LiveEventsSnapshotCardProps) => {
+	const initialMode: "cached" | "fresh" = initialSnapshot?.cached ? "cached" : "fresh";
 	const [responseMode, setResponseMode] = useState<"cached" | "fresh">(
-		initialSnapshot?.cached ? "cached" : "fresh",
+		initialMode,
 	);
 	const [snapshot, setSnapshot] = useState<SnapshotState | null>(
 		initialSnapshot ?? null,
 	);
+	const modeSnapshotsRef = useRef<Partial<Record<"cached" | "fresh", SnapshotState>>>(
+		initialSnapshot ? { [initialMode]: initialSnapshot } : {},
+	);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isExpanded, setIsExpanded] = useState(false);
 
-	const loadSnapshot = useCallback(async (mode: "cached" | "fresh") => {
-		if (!isAuthenticated) return;
+	const loadSnapshot = useCallback(
+		async (mode: "cached" | "fresh", forceNetwork = false) => {
+			if (!isAuthenticated) return;
 
-		setIsLoading(true);
-		try {
-			const result = await getLiveSiteEventsSnapshot(undefined, 500, {
-				forceRefresh: mode === "fresh",
-			});
 			setResponseMode(mode);
-			setSnapshot(result);
-		} finally {
-			setIsLoading(false);
-		}
-	}, [isAuthenticated]);
+			const cachedModeSnapshot = modeSnapshotsRef.current[mode];
+			if (!forceNetwork && cachedModeSnapshot) {
+				setSnapshot(cachedModeSnapshot);
+				return;
+			}
+
+			setIsLoading(true);
+			try {
+				const result = await getLiveSiteEventsSnapshot(undefined, 500, {
+					forceRefresh: mode === "fresh",
+				});
+				setSnapshot(result);
+				modeSnapshotsRef.current = {
+					...modeSnapshotsRef.current,
+					[mode]: result,
+				};
+			} finally {
+				setIsLoading(false);
+			}
+		},
+		[isAuthenticated],
+	);
 
 	useEffect(() => {
 		if (initialSnapshot != null) return;
@@ -118,7 +135,7 @@ export const LiveEventsSnapshotCard = ({
 						size="sm"
 						variant="outline"
 						disabled={isLoading}
-						onClick={() => void loadSnapshot(responseMode)}
+						onClick={() => void loadSnapshot(responseMode, true)}
 					>
 						{isLoading ? "Refreshing..." : "Refresh snapshot"}
 					</Button>
