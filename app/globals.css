@@ -201,20 +201,6 @@
 	background: color-mix(in oklab, var(--card) 84%, rgba(13, 10, 8, 0.24));
 }
 
-/* Sliding Banner Animation */
-@keyframes slide-banner {
-	0% {
-		transform: translateX(100%);
-	}
-	100% {
-		transform: translateX(-100%);
-	}
-}
-
-.animate-slide-banner {
-	animation: slide-banner linear infinite;
-}
-
 /* Bouncy Transition for Interactive Elements */
 .transition-bouncy {
 	transition-duration: 500ms;

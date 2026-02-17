@@ -4,6 +4,7 @@ import React from "react";
 
 type AuthGateProps = {
 	isAuthenticated: boolean;
+	isAuthResolved: boolean;
 	onAuthRequired: () => void;
 	children: React.ReactNode;
 	className?: string;
@@ -11,10 +12,26 @@ type AuthGateProps = {
 
 const AuthGate = ({
 	isAuthenticated,
+	isAuthResolved,
 	onAuthRequired,
 	children,
 	className = "",
 }: AuthGateProps) => {
+	if (!isAuthResolved) {
+		return (
+			<div className={`relative ${className}`}>
+				{children}
+				<div className="absolute inset-0 z-30 flex items-center justify-center rounded-xl border border-border/70 bg-card/88 shadow-lg backdrop-blur-md">
+					<div className="mx-auto max-w-xs p-4 text-center md:max-w-md md:p-8">
+						<p className="text-xs font-medium tracking-[0.08em] text-muted-foreground md:text-sm">
+							Checking session...
+						</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	if (isAuthenticated) {
 		return <>{children}</>;
 	}

@@ -1,19 +1,19 @@
 "use client";
 
-import { AllEvents } from "@/features/events/components/AllEvents";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
+import { useAuth } from "@/features/auth/auth-context";
 import AuthGate from "@/features/auth/components/AuthGate";
 import EmailGateModal from "@/features/auth/components/EmailGateModal";
+import { AllEvents } from "@/features/events/components/AllEvents";
 import EventModal from "@/features/events/components/EventModal";
 import EventStats from "@/features/events/components/EventStats";
 import FilterPanel from "@/features/events/components/FilterPanel";
-import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import SearchBar from "@/features/events/components/SearchBar";
 import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
-import { useAuth } from "@/features/auth/auth-context";
-import { EventsMapCard } from "@/features/maps/components/events-map-card";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
-import { useMapRenderer } from "@/features/maps/hooks/use-map-renderer";
 import type { Event } from "@/features/events/types";
+import { EventsMapCard } from "@/features/maps/components/events-map-card";
+import { useMapRenderer } from "@/features/maps/hooks/use-map-renderer";
 import { useCallback, useRef, useState } from "react";
 
 interface EventsClientProps {
@@ -32,7 +32,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	const allEventsRef = useRef<HTMLDivElement>(null);
 
 	const { useMapLibre, setRenderer } = useMapRenderer();
-	const { isAuthenticated, authenticate } = useAuth();
+	const { isAuthenticated, isAuthResolved, authenticate } = useAuth();
 
 	const requireAuth = useCallback(() => {
 		if (!isAuthenticated) {
@@ -104,7 +104,10 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 	);
 
 	const scrollToAllEvents = useCallback(() => {
-		allEventsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+		allEventsRef.current?.scrollIntoView({
+			behavior: "smooth",
+			block: "start",
+		});
 	}, []);
 
 	return (
@@ -112,6 +115,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 			<div className="mb-8">
 				<AuthGate
 					isAuthenticated={isAuthenticated}
+					isAuthResolved={isAuthResolved}
 					onAuthRequired={() => setShowEmailGate(true)}
 					className="min-h-[120px] flex items-center"
 				>
@@ -147,6 +151,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 			<div className="mb-8">
 				<AuthGate
 					isAuthenticated={isAuthenticated}
+					isAuthResolved={isAuthResolved}
 					onAuthRequired={() => setShowEmailGate(true)}
 					className="min-h-[400px]"
 				>

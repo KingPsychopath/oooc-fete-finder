@@ -1,21 +1,16 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Footer from "@/components/Footer";
+import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { OfflineIndicator } from "@/components/offline-indicator";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { AuthProvider } from "@/features/auth/auth-context";
 import { CommunityInvite } from "@/features/social/components/CommunityInvite";
-import {
-	USER_AUTH_COOKIE_NAME,
-	getUserSessionFromCookieHeader,
-} from "@/features/auth/user-session-cookie";
 import { generateMainOGImage } from "@/lib/social/og-utils";
 import { Analytics } from "@vercel/analytics/next";
-import { ThemeColorSync } from "@/components/ThemeColorSync";
-import { ThemeProvider } from "next-themes";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
-import { cookies } from "next/headers";
+import { ThemeProvider } from "next-themes";
 
 // Get base path from environment variable - use direct access for build-time
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -99,16 +94,11 @@ export const metadata: Metadata = {
 	},
 };
 
-export default async function RootLayout({
+export default function RootLayout({
 	children,
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
-	const cookieStore = await cookies();
-	const userSession = getUserSessionFromCookieHeader(
-		cookieStore.get(USER_AUTH_COOKIE_NAME)?.value,
-	);
-
 	return (
 		<html
 			lang="en"
@@ -182,10 +172,7 @@ export default async function RootLayout({
 					disableTransitionOnChange
 				>
 					<ThemeColorSync />
-					<AuthProvider
-						initialIsAuthenticated={userSession.isAuthenticated}
-						initialUserEmail={userSession.email}
-					>
+					<AuthProvider>
 						{children}
 						<Footer />
 						<CommunityInvite />

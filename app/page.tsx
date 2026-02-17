@@ -1,5 +1,6 @@
-import { EventsClient } from "@/features/events/components/events-client";
 import Header from "@/components/Header";
+import { EventsClient } from "@/features/events/components/events-client";
+import { getPublicSlidingBannerSettingsCached } from "@/features/site-settings/queries";
 import { CacheManager } from "@/lib/cache/cache-manager";
 import { env } from "@/lib/config/env";
 
@@ -10,7 +11,10 @@ export const revalidate = 3600; // 1 hour in seconds
 // Make the page component async to allow server-side data fetching
 export default async function Home() {
 	// Fetch events using centralized cache manager
-	const result = await CacheManager.getEvents();
+	const [result, bannerSettings] = await Promise.all([
+		CacheManager.getEvents(),
+		getPublicSlidingBannerSettingsCached(),
+	]);
 	const isRemoteMode = env.DATA_MODE === "remote";
 	const isLocalFallback = isRemoteMode && result.source === "local";
 
@@ -21,7 +25,7 @@ export default async function Home() {
 
 	return (
 		<div className="ooo-site-shell">
-			<Header />
+			<Header bannerSettings={bannerSettings} />
 			<main
 				id="main-content"
 				className="container mx-auto px-4 py-8"

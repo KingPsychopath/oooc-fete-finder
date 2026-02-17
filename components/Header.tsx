@@ -1,7 +1,6 @@
 "use client";
 
 import { Clock } from "@/components/Clock";
-import Countdown from "@/features/events/components/Countdown";
 import MusicPlatformModal from "@/components/MusicPlatformModal";
 import QuickActionsDropdown from "@/components/QuickActionsDropdown";
 import SlidingBanner from "@/components/SlidingBanner";
@@ -9,6 +8,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
+import Countdown from "@/features/events/components/Countdown";
+import type { SlidingBannerPublicSettings } from "@/features/site-settings/types";
 // Note: Using process.env directly to avoid server-side env variable access on client
 import { LogOut, User } from "lucide-react";
 import Image from "next/image";
@@ -20,11 +21,33 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
 
 const COMPRESS_THRESHOLD = 14;
 const COLLAPSE_THRESHOLD = 44;
+const DEFAULT_BANNER_MESSAGES = [
+	"Curated by Out Of Office Collective",
+	"Paris summer rhythm, mapped live",
+	"Postgres-first event workflow",
+	"Tap essentials for playlist, food and toilets",
+];
 
-const Header = () => {
-	const { isAuthenticated, userEmail, logout } = useAuth();
+const DEFAULT_BANNER_SETTINGS: SlidingBannerPublicSettings = {
+	enabled: true,
+	messages: DEFAULT_BANNER_MESSAGES,
+	messageDurationMs: 4200,
+	desktopMessageCount: 2,
+	updatedAt: new Date(0).toISOString(),
+};
+
+type HeaderProps = {
+	bannerSettings?: SlidingBannerPublicSettings;
+};
+
+const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
+	const { isAuthenticated, isAdminAuthenticated, userEmail, logout } =
+		useAuth();
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
-	const [scrollState, setScrollState] = useState({ compressed: false, collapsed: false });
+	const [scrollState, setScrollState] = useState({
+		compressed: false,
+		collapsed: false,
+	});
 
 	useEffect(() => {
 		let rafId: number | null = null;
@@ -65,16 +88,16 @@ const Header = () => {
 			>
 				<div
 					className={`mx-auto w-full max-w-[1400px] rounded-2xl border transition-all duration-300 ease-out ${
-						isCompressed ?
-							"border-border/75 bg-card/95 shadow-[0_10px_26px_rgba(20,16,12,0.22)] backdrop-blur-xl"
-						:	"border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg"
+						isCompressed
+							? "border-border/75 bg-card/95 shadow-[0_10px_26px_rgba(20,16,12,0.22)] backdrop-blur-xl"
+							: "border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg"
 					}`}
 				>
 					<div
 						className={`mx-auto flex items-center gap-3 px-3 sm:px-5 transition-all duration-300 ease-out ${
-							isCompressed ?
-								"min-h-[52px] py-1.5 sm:min-h-[58px]"
-							:	"min-h-[72px] py-3 sm:min-h-[84px]"
+							isCompressed
+								? "min-h-[52px] py-1.5 sm:min-h-[58px]"
+								: "min-h-[72px] py-3 sm:min-h-[84px]"
 						}`}
 					>
 						<Link
@@ -84,7 +107,9 @@ const Header = () => {
 						>
 							<div
 								className={`relative shrink-0 transition-all duration-300 ease-out ${
-									isCompressed ? "h-8 w-8 sm:h-9 sm:w-9" : "h-10 w-10 sm:h-12 sm:w-12"
+									isCompressed
+										? "h-8 w-8 sm:h-9 sm:w-9"
+										: "h-10 w-10 sm:h-12 sm:w-12"
 								}`}
 							>
 								<Image
@@ -106,7 +131,18 @@ const Header = () => {
 							</div>
 						</Link>
 
-						<nav className="hidden items-center gap-5 lg:flex" aria-label="Main">
+						<nav
+							className="hidden items-center gap-5 lg:flex"
+							aria-label="Main"
+						>
+							{isAdminAuthenticated && (
+								<Link
+									href={`${basePath || ""}/admin`}
+									className="text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
+								>
+									Admin
+								</Link>
+							)}
 							<Link
 								href={`${basePath || ""}/feature-event`}
 								className="text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
@@ -136,6 +172,14 @@ const Header = () => {
 								<Clock />
 								<ThemeToggle className="h-9 w-9 rounded-full border border-border/80 bg-background/70 hover:bg-accent" />
 							</div>
+							{isAdminAuthenticated && (
+								<Link
+									href={`${basePath || ""}/admin`}
+									className="inline-flex items-center rounded-full border border-border/80 bg-background/70 px-3 py-2 text-[11px] tracking-[0.08em] text-foreground/85 transition-colors hover:bg-accent lg:hidden"
+								>
+									Admin
+								</Link>
+							)}
 
 							<QuickActionsDropdown
 								onMusicSelect={() => setIsMusicModalOpen(true)}
@@ -169,7 +213,9 @@ const Header = () => {
 
 					<div
 						className={`overflow-hidden border-t border-border/75 transition-all duration-300 ease-out ${
-							isCollapsed ? "max-h-0 border-transparent opacity-0" : "opacity-100"
+							isCollapsed
+								? "max-h-0 border-transparent opacity-0"
+								: "opacity-100"
 						} ${isCompressed && !isCollapsed ? "max-h-10" : ""} ${
 							!isCompressed && !isCollapsed ? "max-h-20" : ""
 						}`}
@@ -180,16 +226,14 @@ const Header = () => {
 					</div>
 				</div>
 			</header>
-			<SlidingBanner
-				messages={[
-					"Curated by Out Of Office Collective",
-					"Paris summer rhythm, mapped live",
-					"Postgres-first event workflow",
-					"Tap essentials for playlist, food and toilets",
-				]}
-				speed={15}
-				className="mx-3 mt-2 rounded-xl border border-white/35 bg-[rgba(246,241,233,0.78)] dark:border-white/14 dark:bg-[rgba(25,20,16,0.68)] sm:mx-4"
-			/>
+			{bannerSettings.enabled && bannerSettings.messages.length > 0 && (
+				<SlidingBanner
+					messages={bannerSettings.messages}
+					messageDurationMs={bannerSettings.messageDurationMs}
+					desktopMessageCount={bannerSettings.desktopMessageCount}
+					className="mx-3 mt-2 rounded-xl border border-white/35 bg-[rgba(246,241,233,0.78)] dark:border-white/14 dark:bg-[rgba(25,20,16,0.68)] sm:mx-4"
+				/>
+			)}
 			<MusicPlatformModal
 				isOpen={isMusicModalOpen}
 				onClose={() => setIsMusicModalOpen(false)}

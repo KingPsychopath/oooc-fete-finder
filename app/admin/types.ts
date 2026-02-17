@@ -1,4 +1,7 @@
-import type { getAdminSessionStatus, getAdminTokenSessions } from "@/features/auth/actions";
+import type {
+	getAdminSessionStatus,
+	getAdminTokenSessions,
+} from "@/features/auth/actions";
 import type { CollectedEmailsResponse } from "@/features/auth/types";
 import type {
 	getEventSheetEditorData,
@@ -6,6 +9,7 @@ import type {
 	getLocalEventStorePreview,
 	getLocalEventStoreStatus,
 } from "@/features/data-management/actions";
+import type { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
 import type { CacheStatus } from "@/lib/cache/cache-types";
 
 export type {
@@ -33,4 +37,7 @@ export type AdminInitialData = {
 	localStorePreview: Awaited<ReturnType<typeof getLocalEventStorePreview>>;
 	editorData: Awaited<ReturnType<typeof getEventSheetEditorData>>;
 	liveSnapshot: Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
+	slidingBannerSettings: Awaited<
+		ReturnType<typeof getAdminSlidingBannerSettings>
+	>;
 };

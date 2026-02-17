@@ -17,6 +17,7 @@ import { EmailCollectionCard } from "./components/EmailCollectionCard";
 import { EventSheetEditorCard } from "./components/EventSheetEditorCard";
 import { LiveEventsSnapshotCard } from "./components/LiveEventsSnapshotCard";
 import { LocalEventStoreCard } from "./components/LocalEventStoreCard";
+import { SlidingBannerSettingsCard } from "./components/SlidingBannerSettingsCard";
 import type {
 	CacheStatus,
 	EmailRecord,
@@ -39,16 +40,21 @@ export function AdminDashboardClient({
 		initialData.cacheStatus,
 	);
 	const [emails, setEmails] = useState<EmailRecord[]>(
-		initialData.emailsResult.success ? initialData.emailsResult.emails ?? [] : [],
+		initialData.emailsResult.success
+			? (initialData.emailsResult.emails ?? [])
+			: [],
 	);
-	const [emailStore, setEmailStore] = useState<UserCollectionStoreSummary | null>(
-		initialData.emailsResult.success ? initialData.emailsResult.store ?? null : null,
-	);
+	const [emailStore, setEmailStore] =
+		useState<UserCollectionStoreSummary | null>(
+			initialData.emailsResult.success
+				? (initialData.emailsResult.store ?? null)
+				: null,
+		);
 	const [emailAnalytics, setEmailAnalytics] =
 		useState<UserCollectionAnalytics | null>(
-			initialData.emailsResult.success ?
-				initialData.emailsResult.analytics ?? null
-			:	null,
+			initialData.emailsResult.success
+				? (initialData.emailsResult.analytics ?? null)
+				: null,
 		);
 	const [refreshing, setRefreshing] = useState(false);
 	const [refreshMessage, setRefreshMessage] = useState("");
@@ -203,6 +209,9 @@ export function AdminDashboardClient({
 							initialStatus={initialData.localStoreStatus}
 							initialPreview={initialData.localStorePreview}
 							onStoreUpdated={onDataSaved}
+						/>
+						<SlidingBannerSettingsCard
+							initialSettings={initialData.slidingBannerSettings}
 						/>
 						<EmailCollectionCard
 							emails={emails}

@@ -1,11 +1,12 @@
-import { FeatureCountdown } from "@/features/events/featured/components/FeatureCountdown";
-import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
 import { CopyEmailButton } from "@/components/CopyEmailButton";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFeaturedEvents } from "@/features/events/events-service";
+import { FeatureCountdown } from "@/features/events/featured/components/FeatureCountdown";
+import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
+import { getPublicSlidingBannerSettingsCached } from "@/features/site-settings/queries";
 import { Calendar, CheckCircle, Euro, Star, Target } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -23,11 +24,14 @@ export const metadata: Metadata = {
 
 export default async function FeatureEventPage() {
 	const SHOW_SETUP_INSTRUCTIONS = false;
-	const featuredEvents = await getFeaturedEvents();
+	const [featuredEvents, bannerSettings] = await Promise.all([
+		getFeaturedEvents(),
+		getPublicSlidingBannerSettingsCached(),
+	]);
 
 	return (
 		<div className="ooo-site-shell">
-			<Header />
+			<Header bannerSettings={bannerSettings} />
 			<main className="ooo-feature-page container mx-auto px-4 py-10 max-w-3xl">
 				{/* Editorial header */}
 				<header className="mb-12">
@@ -122,7 +126,9 @@ export default async function FeatureEventPage() {
 										1
 									</span>
 									<div>
-										<p className="font-medium text-foreground">Submit payment</p>
+										<p className="font-medium text-foreground">
+											Submit payment
+										</p>
 										<p className="text-muted-foreground mt-0.5">
 											Pay €{FEATURED_EVENTS_CONFIG.FEATURE_PRICE} via our secure
 											payment system.
@@ -228,7 +234,9 @@ export default async function FeatureEventPage() {
 								</Badge>
 							</div>
 							<div className="flex justify-between items-center">
-								<span className="text-muted-foreground">Featured at a time</span>
+								<span className="text-muted-foreground">
+									Featured at a time
+								</span>
 								<Badge variant="secondary" className="font-normal">
 									{FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS}
 								</Badge>

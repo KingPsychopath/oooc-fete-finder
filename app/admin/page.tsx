@@ -10,9 +10,10 @@ import {
 	getLocalEventStorePreview,
 	getLocalEventStoreStatus,
 } from "@/features/data-management/actions";
-import type { AdminInitialData } from "./types";
+import { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
 import { AdminAuthClient } from "./AdminAuthClient";
 import { AdminDashboardClient } from "./AdminDashboardClient";
+import type { AdminInitialData } from "./types";
 
 export default async function AdminPage() {
 	const sessionStatus = await getAdminSessionStatus();
@@ -31,6 +32,7 @@ export default async function AdminPage() {
 		localStorePreview,
 		editorData,
 		liveSnapshot,
+		slidingBannerSettings,
 	] = await Promise.all([
 		getCacheStatus(),
 		getCollectedEmails(),
@@ -39,6 +41,7 @@ export default async function AdminPage() {
 		getLocalEventStorePreview(undefined, 2, { random: true }),
 		getEventSheetEditorData(),
 		getLiveSiteEventsSnapshot(undefined, 500),
+		getAdminSlidingBannerSettings(),
 	]);
 
 	const initialData: AdminInitialData = {
@@ -50,6 +53,7 @@ export default async function AdminPage() {
 		localStorePreview,
 		editorData,
 		liveSnapshot,
+		slidingBannerSettings,
 	};
 
 	return <AdminDashboardClient initialData={initialData} />;
