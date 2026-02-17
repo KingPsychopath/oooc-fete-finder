@@ -1,12 +1,8 @@
-/**
- * Shared admin validation utilities
- * Used by both server actions and API routes
- */
-
-// Import session management for unified validation
-import { validateSessionToken } from "@/lib/admin/admin-session-store";
-
 import { env } from "@/lib/config/env";
+import {
+	secureCompare,
+	verifyAdminSessionToken,
+} from "@/lib/admin/admin-auth-token";
 
 /**
  * Get the expected admin key from centralized environment configuration
@@ -21,7 +17,7 @@ export const getExpectedAdminKey = (): string => {
 export const validateDirectAdminKey = (providedKey: string | null): boolean => {
 	if (!providedKey) return false;
 	const expectedKey = getExpectedAdminKey();
-	return providedKey === expectedKey && providedKey.length > 0;
+	return providedKey.length > 0 && secureCompare(providedKey, expectedKey);
 };
 
 /**
@@ -38,6 +34,6 @@ export const validateAdminKeyForApiRoute = (
 		return true;
 	}
 
-	// Try session token
-	return validateSessionToken(keyOrToken);
+	// Try signed admin session token
+	return verifyAdminSessionToken(keyOrToken);
 };

@@ -37,8 +37,8 @@ import { CacheStatus, DynamicSheetConfig, EmailRecord } from "./types";
 // Import session management
 import {
 	clearAdminSession,
-	createAdminSession as createClientSession,
 	getSessionToken,
+	storeAdminSession,
 } from "@/lib/admin/admin-session";
 
 // Get base path from environment variable
@@ -78,13 +78,17 @@ export default function AdminPage() {
 			const result = await getCollectedEmails(adminKey);
 
 			if (result.success) {
-				// Create client-side session token
-				const sessionToken = createClientSession();
+				const sessionResult = await createAdminSession(adminKey);
 
-				// Create server-side session
-				const sessionResult = await createAdminSession(adminKey, sessionToken);
-
-				if (sessionResult.success) {
+				if (
+					sessionResult.success &&
+					sessionResult.sessionToken &&
+					sessionResult.expiresAt
+				) {
+					storeAdminSession(
+						sessionResult.sessionToken,
+						sessionResult.expiresAt,
+					);
 					setIsAuthenticated(true);
 					setEmails(result.emails || []);
 					await loadCacheStatus();
@@ -96,7 +100,6 @@ export default function AdminPage() {
 				} else {
 					setError("Failed to create session");
 					console.error("❌ Session creation failed:", sessionResult.error);
-					// Clear the client session if server session failed
 					clearAdminSession();
 				}
 			} else {

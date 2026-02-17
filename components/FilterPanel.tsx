@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Toggle } from "@/components/ui/toggle";
 import {
@@ -24,8 +25,6 @@ import {
 	type AgeRange,
 	DAY_NIGHT_PERIODS,
 	type DayNightPeriod,
-	EVENT_DAYS,
-	type EventDay,
 	MUSIC_GENRES,
 	type MusicGenre,
 	NATIONALITIES,
@@ -37,12 +36,12 @@ import {
 	formatAgeRange,
 	formatPriceRange,
 } from "@/types/events";
-import { ChevronDown, Filter, Info, Star, X } from "lucide-react";
+import { CalendarDays, ChevronDown, Filter, Info, Star, X } from "lucide-react";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 
 type FilterPanelProps = {
-	selectedDays: EventDay[];
+	selectedDate: string | null;
 	selectedDayNightPeriods: DayNightPeriod[];
 	selectedArrondissements: ParisArrondissement[];
 	selectedGenres: MusicGenre[];
@@ -52,7 +51,7 @@ type FilterPanelProps = {
 	selectedPriceRange: [number, number];
 	selectedAgeRange: AgeRange | null;
 	selectedOOOCPicks: boolean;
-	onDayToggle: (day: EventDay) => void;
+	onDateChange: (date: string | null) => void;
 	onDayNightPeriodToggle: (period: DayNightPeriod) => void;
 	onArrondissementToggle: (arrondissement: ParisArrondissement) => void;
 	onGenreToggle: (genre: MusicGenre) => void;
@@ -64,7 +63,7 @@ type FilterPanelProps = {
 	onOOOCPicksToggle: (selected: boolean) => void;
 	onClearFilters: () => void;
 	availableArrondissements: ParisArrondissement[];
-	availableEventDays: EventDay[];
+	availableEventDates: string[];
 	filteredEventsCount: number;
 	isOpen: boolean;
 	onClose: () => void;
@@ -74,7 +73,7 @@ type FilterPanelProps = {
 };
 
 const FilterPanel: React.FC<FilterPanelProps> = ({
-	selectedDays,
+	selectedDate,
 	selectedDayNightPeriods,
 	selectedArrondissements,
 	selectedGenres,
@@ -84,7 +83,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	selectedPriceRange,
 	selectedAgeRange,
 	selectedOOOCPicks,
-	onDayToggle,
+	onDateChange,
 	onDayNightPeriodToggle,
 	onArrondissementToggle,
 	onGenreToggle,
@@ -96,7 +95,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onOOOCPicksToggle,
 	onClearFilters,
 	availableArrondissements,
-	availableEventDays,
+	availableEventDates,
 	filteredEventsCount,
 	isOpen,
 	onClose,
@@ -124,7 +123,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	// Memoize the hasActiveFilters calculation
 	const hasActiveFilters = useMemo(
 		() =>
-			selectedDays.length > 0 ||
+			selectedDate !== null ||
 			selectedDayNightPeriods.length > 0 ||
 			selectedArrondissements.length > 0 ||
 			selectedGenres.length > 0 ||
@@ -138,7 +137,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)) ||
 			selectedOOOCPicks,
 		[
-			selectedDays,
+			selectedDate,
 			selectedDayNightPeriods,
 			selectedArrondissements,
 			selectedGenres,
@@ -154,7 +153,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	// Memoize the active filter count
 	const activeFilterCount = useMemo(() => {
 		return (
-			selectedDays.length +
+			(selectedDate !== null ? 1 : 0) +
 			selectedDayNightPeriods.length +
 			selectedArrondissements.length +
 			selectedGenres.length +
@@ -173,7 +172,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			(selectedOOOCPicks ? 1 : 0)
 		);
 	}, [
-		selectedDays,
+		selectedDate,
 		selectedDayNightPeriods,
 		selectedArrondissements,
 		selectedGenres,
@@ -191,7 +190,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			// Use accordion on desktop when space is limited or many filters are active
 			useAccordion: activeFilterCount > 8,
 			// Show active filters at top on mobile, bottom on desktop (unless many active)
-			activeFiltersAtTop: activeFilterCount <= 5,
+		activeFiltersAtTop: activeFilterCount <= 5,
 			// Use compact layout when many filters are active
 			useCompactLayout: activeFilterCount > 10,
 		};
@@ -204,12 +203,24 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		}
 	});
 
-	// Filter EVENT_DAYS to only show days that are available in the events data
-	const filteredEventDays = useMemo(() => {
-		return EVENT_DAYS.filter(
-			(day) => availableEventDays.includes(day.key) || day.key === "tbc",
-		);
-	}, [availableEventDays]);
+	const formatDateLabel = useCallback((isoDate: string) => {
+		const parsed = new Date(`${isoDate}T12:00:00`);
+		if (Number.isNaN(parsed.getTime())) return isoDate;
+		return parsed.toLocaleDateString("en-GB", {
+			weekday: "short",
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+		});
+	}, []);
+
+	const dateBounds = useMemo(() => {
+		if (availableEventDates.length === 0) return { min: undefined, max: undefined };
+		return {
+			min: availableEventDates[0],
+			max: availableEventDates[availableEventDates.length - 1],
+		};
+	}, [availableEventDates]);
 
 	// Active Filters Component (reusable)
 	const ActiveFiltersDisplay = () => (
@@ -236,19 +247,20 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</Button>
 							</Badge>
 						)}
-						{selectedDays.map((day) => (
-							<Badge key={day} variant="secondary" className="text-xs">
-								{EVENT_DAYS.find((d) => d.key === day)?.label}
+						{selectedDate && (
+							<Badge variant="secondary" className="text-xs">
+								<CalendarDays className="h-3 w-3 mr-1" />
+								{formatDateLabel(selectedDate)}
 								<Button
 									variant="ghost"
 									size="sm"
 									className="h-auto p-0 ml-1 hover:bg-transparent"
-									onClick={() => onDayToggle(day)}
+									onClick={() => onDateChange(null)}
 								>
 									<X className="h-3 w-3" />
 								</Button>
 							</Badge>
-						))}
+						)}
 						{selectedDayNightPeriods.map((period) => (
 							<Badge key={period} variant="secondary" className="text-xs">
 								{DAY_NIGHT_PERIODS.find((p) => p.key === period)?.icon} {period}
@@ -368,6 +380,53 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		</div>
 	);
 
+	const DatePickerControl = ({ compact = false }: { compact?: boolean }) => (
+		<div className="space-y-2">
+			<div className="flex items-center justify-between">
+				<h4 className="text-sm font-medium">Pick Date</h4>
+				{selectedDate && (
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						className="h-6 px-2 text-xs"
+						onClick={() => onDateChange(null)}
+					>
+						Clear
+					</Button>
+				)}
+			</div>
+			<Input
+				type="date"
+				value={selectedDate ?? ""}
+				min={dateBounds.min}
+				max={dateBounds.max}
+				onChange={(event) => onDateChange(event.target.value || null)}
+				className="h-8 text-xs"
+				aria-label="Filter by event date"
+			/>
+			{availableEventDates.length > 0 && (
+				<div
+					className={`grid ${compact ? "grid-cols-2" : "grid-cols-3"} gap-1`}
+				>
+					{availableEventDates.map((date) => (
+						<Toggle
+							key={date}
+							pressed={selectedDate === date}
+							onPressedChange={(pressed) =>
+								onDateChange(pressed ? date : null)
+							}
+							size="sm"
+							className="h-7 justify-start text-xs"
+						>
+							{formatDateLabel(date)}
+						</Toggle>
+					))}
+				</div>
+			)}
+		</div>
+	);
+
 	// Mobile floating button when closed - only show on mobile
 	if (!isOpen) {
 		return (
@@ -448,11 +507,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									{/* Days & Times Section */}
 									<AccordionItem value="days">
 										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
-											Days & Times
-											{(selectedDays.length > 0 ||
+											Date & Times
+											{(selectedDate !== null ||
 												selectedDayNightPeriods.length > 0) && (
 												<Badge variant="secondary" className="ml-2 text-xs">
-													{selectedDays.length + selectedDayNightPeriods.length}{" "}
+													{(selectedDate ? 1 : 0) +
+														selectedDayNightPeriods.length}{" "}
 													active
 												</Badge>
 											)}
@@ -483,23 +543,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													</div>
 												</div>
 
-												{/* Days */}
-												<div className="grid grid-cols-2 gap-1">
-													{filteredEventDays.map(({ key, label, color }) => (
-														<Toggle
-															key={key}
-															pressed={selectedDays.includes(key)}
-															onPressedChange={() => onDayToggle(key)}
-															className="text-xs justify-start"
-															size="sm"
-														>
-															<div
-																className={`w-2 h-2 rounded-full ${color} mr-1.5`}
-															/>
-															<span className="text-xs">{label}</span>
-														</Toggle>
-													))}
-												</div>
+												<DatePickerControl compact />
 											</div>
 										</AccordionContent>
 									</AccordionItem>
@@ -862,11 +906,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								>
 									<AccordionItem value="days">
 										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
-											Days & Times
-											{(selectedDays.length > 0 ||
+											Date & Times
+											{(selectedDate !== null ||
 												selectedDayNightPeriods.length > 0) && (
 												<Badge variant="secondary" className="ml-2 text-xs">
-													{selectedDays.length + selectedDayNightPeriods.length}
+													{(selectedDate ? 1 : 0) +
+														selectedDayNightPeriods.length}
 												</Badge>
 											)}
 										</AccordionTrigger>
@@ -897,23 +942,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													</div>
 												</div>
 
-												{/* Days */}
-												<div className="grid grid-cols-2 gap-2">
-													{filteredEventDays.map(({ key, label, color }) => (
-														<Toggle
-															key={key}
-															pressed={selectedDays.includes(key)}
-															onPressedChange={() => onDayToggle(key)}
-															size="sm"
-															className={`text-xs justify-start`}
-														>
-															<div
-																className={`w-2 h-2 rounded-full ${color} mr-1.5`}
-															/>
-															{label}
-														</Toggle>
-													))}
-												</div>
+												<DatePickerControl compact />
 											</div>
 										</AccordionContent>
 									</AccordionItem>
@@ -926,7 +955,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								{/* Days & Times */}
 								<div>
 									<div className="flex items-center mb-3">
-										<h3 className="font-semibold">Days & Times</h3>
+										<h3 className="font-semibold">Date & Times</h3>
 										<TooltipProvider>
 											<Tooltip>
 												<TooltipTrigger asChild>
@@ -975,24 +1004,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											</div>
 										</div>
 
-										{/* Days */}
-										<div className="grid grid-cols-2 gap-2">
-											{filteredEventDays.map(({ key, label, color }) => (
-												<div key={key} className="space-y-1">
-													<Toggle
-														pressed={selectedDays.includes(key)}
-														onPressedChange={() => onDayToggle(key)}
-														className="justify-start w-full h-8"
-														size="sm"
-													>
-														<div
-															className={`w-2 h-2 rounded-full ${color} mr-1.5`}
-														/>
-														<span className="text-xs">{label}</span>
-													</Toggle>
-												</div>
-											))}
-										</div>
+										<DatePickerControl />
 									</div>
 								</div>
 

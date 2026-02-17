@@ -1,7 +1,6 @@
 "use server";
 
-import { validateSessionToken } from "@/lib/admin/admin-session-store";
-import { validateDirectAdminKey } from "@/lib/admin/admin-validation";
+import { validateAdminKeyForApiRoute } from "@/lib/admin/admin-validation";
 import { env } from "@/lib/config/env";
 
 /**
@@ -55,15 +54,7 @@ interface RecentEntriesResponse {
  * Validate admin access for Google Apps Script operations
  */
 function validateAdminAccess(keyOrToken?: string): boolean {
-	if (!keyOrToken) return false;
-
-	// Direct admin key check
-	if (validateDirectAdminKey(keyOrToken)) {
-		return true;
-	}
-
-	// Session token check
-	return validateSessionToken(keyOrToken);
+	return validateAdminKeyForApiRoute(keyOrToken ?? null);
 }
 
 /**

@@ -1,7 +1,6 @@
 "use server";
 
-import { validateSessionToken } from "@/lib/admin/admin-session-store";
-import { validateDirectAdminKey } from "@/lib/admin/admin-validation";
+import { validateAdminKeyForApiRoute } from "@/lib/admin/admin-validation";
 import { CacheInvalidationManager, CacheManager } from "./cache-manager";
 
 /**
@@ -13,15 +12,7 @@ import { CacheInvalidationManager, CacheManager } from "./cache-manager";
 
 // Helper function to validate admin access (key or session token)
 function validateAdminAccess(keyOrToken?: string): boolean {
-	if (!keyOrToken) return false;
-
-	// Direct admin key check
-	if (validateDirectAdminKey(keyOrToken)) {
-		return true;
-	}
-
-	// Session token check
-	return validateSessionToken(keyOrToken);
+	return validateAdminKeyForApiRoute(keyOrToken ?? null);
 }
 
 /**

@@ -1,8 +1,14 @@
 "use server";
 
 import type { CollectedEmailsResponse, UserRecord } from "@/types/user";
-import { adminSessions, validateSessionToken } from "./admin-session-store";
-import { validateDirectAdminKey } from "./admin-validation";
+import {
+	signAdminSessionToken,
+	verifyAdminSessionToken,
+} from "./admin-auth-token";
+import {
+	validateAdminKeyForApiRoute,
+	validateDirectAdminKey,
+} from "./admin-validation";
 
 /**
  * Admin Management Server Actions
@@ -17,14 +23,7 @@ const collectedUsers: UserRecord[] = [];
 // Helper function to validate admin access (key or session token)
 function validateAdminAccess(keyOrToken?: string): boolean {
 	if (!keyOrToken) return false;
-
-	// Direct admin key check
-	if (validateDirectAdminKey(keyOrToken)) {
-		return true;
-	}
-
-	// Session token check
-	return validateSessionToken(keyOrToken);
+	return validateAdminKeyForApiRoute(keyOrToken);
 }
 
 /**
@@ -32,27 +31,20 @@ function validateAdminAccess(keyOrToken?: string): boolean {
  */
 export async function createAdminSession(
 	adminKey: string,
-	sessionToken: string,
-): Promise<{ success: boolean; error?: string; expiresAt?: number }> {
+): Promise<{
+	success: boolean;
+	error?: string;
+	expiresAt?: number;
+	sessionToken?: string;
+}> {
 	"use server";
 
 	if (!validateDirectAdminKey(adminKey)) {
 		return { success: false, error: "Invalid admin key" };
 	}
 
-	const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-
-	adminSessions.set(sessionToken, {
-		adminKey,
-		expiresAt,
-		createdAt: Date.now(),
-	});
-
-	console.log(
-		`✅ Server session created for token: ${sessionToken.substring(0, 8)}...`,
-	);
-
-	return { success: true, expiresAt };
+	const { token, expiresAt } = signAdminSessionToken();
+	return { success: true, expiresAt, sessionToken: token };
 }
 
 /**
@@ -60,28 +52,20 @@ export async function createAdminSession(
  */
 export async function extendAdminSession(
 	sessionToken: string,
-): Promise<{ success: boolean; error?: string; expiresAt?: number }> {
+): Promise<{
+	success: boolean;
+	error?: string;
+	expiresAt?: number;
+	sessionToken?: string;
+}> {
 	"use server";
 
-	const session = adminSessions.get(sessionToken);
-
-	if (!session) {
-		return { success: false, error: "Session not found" };
+	if (!verifyAdminSessionToken(sessionToken)) {
+		return { success: false, error: "Session invalid" };
 	}
 
-	if (Date.now() >= session.expiresAt) {
-		adminSessions.delete(sessionToken);
-		return { success: false, error: "Session expired" };
-	}
-
-	const newExpiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-	session.expiresAt = newExpiresAt;
-
-	console.log(
-		`✅ Server session extended for token: ${sessionToken.substring(0, 8)}...`,
-	);
-
-	return { success: true, expiresAt: newExpiresAt };
+	const next = signAdminSessionToken();
+	return { success: true, expiresAt: next.expiresAt, sessionToken: next.token };
 }
 
 /**

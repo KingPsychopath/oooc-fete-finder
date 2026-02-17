@@ -6,6 +6,7 @@ import {
 	clearAdminSession,
 	getSessionInfo,
 	getSessionToken,
+	storeAdminSession,
 } from "@/lib/admin/admin-session";
 import { Clock, LogOut, RefreshCw, User } from "lucide-react";
 import React, { useState, useEffect } from "react";
@@ -36,7 +37,8 @@ export const AdminSessionStatus: React.FC<AdminSessionStatusProps> = ({
 			const sessionToken = getSessionToken();
 			if (sessionToken) {
 				const result = await extendAdminSession(sessionToken);
-				if (result.success) {
+				if (result.success && result.sessionToken && result.expiresAt) {
+					storeAdminSession(result.sessionToken, result.expiresAt);
 					setSessionInfo(getSessionInfo());
 				}
 			}

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Footer from "@/components/Footer";
 import { OfflineIndicator } from "@/components/offline-indicator";
@@ -10,16 +9,8 @@ import { generateMainOGImage } from "@/lib/social/og-utils";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "next-themes";
 import { BodyClassHandler } from "@/components/body-class-handler";
-
-const geistSans = Geist({
-	variable: "--font-geist-sans",
-	subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-	variable: "--font-geist-mono",
-	subsets: ["latin"],
-});
+import { GeistMono } from "geist/font/mono";
+import { GeistSans } from "geist/font/sans";
 
 // Get base path from environment variable - use direct access for build-time
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -111,7 +102,7 @@ export default function RootLayout({
 	return (
 		<html
 			lang="en"
-			className={`${geistSans.variable} ${geistMono.variable}`}
+			className={`${GeistSans.variable} ${GeistMono.variable}`}
 			suppressHydrationWarning
 		>
 			<head>

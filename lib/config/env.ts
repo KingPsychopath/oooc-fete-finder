@@ -12,6 +12,7 @@ export const env = createEnv({
 			.enum(["development", "production", "test"])
 			.default("development"),
 		ADMIN_KEY: z.string().min(1, "ADMIN_KEY is required"),
+		AUTH_SECRET: z.string().optional(),
 
 		// Google configuration
 		GOOGLE_SHEETS_API_KEY: z.string().optional(),
@@ -94,6 +95,7 @@ export const env = createEnv({
 		// Server
 		NODE_ENV: process.env.NODE_ENV,
 		ADMIN_KEY: process.env.ADMIN_KEY,
+		AUTH_SECRET: process.env.AUTH_SECRET,
 
 		// Google configuration
 		GOOGLE_SHEETS_API_KEY: process.env.GOOGLE_SHEETS_API_KEY,

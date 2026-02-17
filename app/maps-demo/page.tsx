@@ -10,7 +10,6 @@ import type {
 	AgeRange,
 	DayNightPeriod,
 	Event,
-	EventDay,
 	MusicGenre,
 	Nationality,
 	ParisArrondissement,
@@ -36,7 +35,7 @@ export default function MapsDemoPage() {
 
 	// Filter states
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
-	const [selectedDays, setSelectedDays] = useState<EventDay[]>([]);
+	const [selectedDate, setSelectedDate] = useState<string | null>(null);
 	const [selectedDayNightPeriods, setSelectedDayNightPeriods] = useState<
 		DayNightPeriod[]
 	>([]);
@@ -97,9 +96,9 @@ export default function MapsDemoPage() {
 		}) as ParisArrondissement[];
 	}, [events]);
 
-	const availableEventDays = useMemo(() => {
-		const days = new Set(events.map((event) => event.day));
-		return Array.from(days).filter((day): day is EventDay => day !== undefined);
+	const availableEventDates = useMemo(() => {
+		const dates = new Set(events.map((event) => event.date).filter(Boolean));
+		return Array.from(dates).sort((left, right) => left.localeCompare(right));
 	}, [events]);
 
 	// Filter events based on selected filters
@@ -108,9 +107,8 @@ export default function MapsDemoPage() {
 			// Filter by OOOC Picks
 			if (selectedOOOCPicks && event.isOOOCPick !== true) return false;
 
-			// Filter by selected days
-			if (selectedDays.length > 0 && !selectedDays.includes(event.day))
-				return false;
+			// Filter by selected date
+			if (selectedDate && event.date !== selectedDate) return false;
 
 			// Filter by day/night periods
 			if (selectedDayNightPeriods.length > 0) {
@@ -193,7 +191,7 @@ export default function MapsDemoPage() {
 		});
 	}, [
 		events,
-		selectedDays,
+		selectedDate,
 		selectedDayNightPeriods,
 		selectedArrondissements,
 		selectedGenres,
@@ -206,10 +204,8 @@ export default function MapsDemoPage() {
 	]);
 
 	// Filter handlers
-	const handleDayToggle = useCallback((day: EventDay) => {
-		setSelectedDays((prev) =>
-			prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
-		);
+	const handleDateChange = useCallback((date: string | null) => {
+		setSelectedDate(date);
 	}, []);
 
 	const handleDayNightPeriodToggle = useCallback((period: DayNightPeriod) => {
@@ -277,7 +273,7 @@ export default function MapsDemoPage() {
 	}, []);
 
 	const handleClearFilters = useCallback(() => {
-		setSelectedDays([]);
+		setSelectedDate(null);
 		setSelectedDayNightPeriods([]);
 		setSelectedArrondissements([]);
 		setSelectedGenres([]);
@@ -335,7 +331,7 @@ export default function MapsDemoPage() {
 	// Check if filters are active
 	const hasActiveFilters = useMemo(() => {
 		return (
-			selectedDays.length > 0 ||
+			selectedDate !== null ||
 			selectedDayNightPeriods.length > 0 ||
 			selectedArrondissements.length > 0 ||
 			selectedGenres.length > 0 ||
@@ -350,7 +346,7 @@ export default function MapsDemoPage() {
 			selectedOOOCPicks
 		);
 	}, [
-		selectedDays,
+		selectedDate,
 		selectedDayNightPeriods,
 		selectedArrondissements,
 		selectedGenres,
@@ -425,7 +421,7 @@ export default function MapsDemoPage() {
 				{/* Filter Panel */}
 				<div className="mb-8">
 					<FilterPanel
-						selectedDays={selectedDays}
+						selectedDate={selectedDate}
 						selectedDayNightPeriods={selectedDayNightPeriods}
 						selectedArrondissements={selectedArrondissements}
 						selectedGenres={selectedGenres}
@@ -435,7 +431,7 @@ export default function MapsDemoPage() {
 						selectedPriceRange={selectedPriceRange}
 						selectedAgeRange={selectedAgeRange}
 						selectedOOOCPicks={selectedOOOCPicks}
-						onDayToggle={handleDayToggle}
+						onDateChange={handleDateChange}
 						onDayNightPeriodToggle={handleDayNightPeriodToggle}
 						onArrondissementToggle={handleArrondissementToggle}
 						onGenreToggle={handleGenreToggle}
@@ -447,7 +443,7 @@ export default function MapsDemoPage() {
 						onOOOCPicksToggle={setSelectedOOOCPicks}
 						onClearFilters={handleClearFilters}
 						availableArrondissements={availableArrondissements}
-						availableEventDays={availableEventDays}
+						availableEventDates={availableEventDates}
 						filteredEventsCount={filteredEvents.length}
 						isOpen={isFilterOpen}
 						onClose={() => setIsFilterOpen(false)}
@@ -606,9 +602,6 @@ export default function MapsDemoPage() {
 						<ParisMapLibre
 							events={filteredEvents}
 							onEventClick={handleEventClick}
-							selectedDay={
-								selectedDays.length === 1 ? selectedDays[0] : undefined
-							}
 						/>
 					</div>
 				</div>

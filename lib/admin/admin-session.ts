@@ -1,9 +1,9 @@
 /**
- * Simple Admin Session Management (Client-side only)
- * Server-side validation happens in server actions
+ * Client-side admin session persistence.
+ *
+ * The server issues signed admin session tokens. This module stores the token +
+ * metadata in localStorage so existing API calls can keep using `x-admin-key`.
  */
-
-import { env } from "@/lib/config/env";
 
 const ADMIN_SESSION_KEY = "fete_finder_admin_session";
 
@@ -15,45 +15,28 @@ interface AdminSession {
 }
 
 /**
- * Generate a secure session token
+ * Persist a server-issued session locally.
  */
-const generateSessionToken = (): string => {
-	const array = new Uint8Array(32);
-	crypto.getRandomValues(array);
-	return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-		"",
-	);
-};
-
-/**
- * Get session duration from environment or use default
- */
-const getSessionDuration = (): number => {
-	const envHours = env.NEXT_PUBLIC_ADMIN_SESSION_HOURS;
-	return Math.max(1, Math.min(envHours, 168)); // Min 1 hour, max 1 week
-};
-
-/**
- * Create a new admin session (returns token for server validation)
- */
-export const createAdminSession = (): string => {
+export const storeAdminSession = (
+	sessionToken: string,
+	expiresAt: number,
+): string => {
 	const now = Date.now();
-	const sessionHours = getSessionDuration();
-	const expiresAt = now + sessionHours * 60 * 60 * 1000;
-	const sessionToken = generateSessionToken();
-
 	const session: AdminSession = {
 		sessionToken,
 		expiresAt,
 		createdAt: now,
-		version: "2.0",
+		version: "3.0",
 	};
 
 	localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
-	console.log(`✅ Admin session created, expires in ${sessionHours} hours`);
-
 	return sessionToken;
 };
+
+/**
+ * Backward-compatible alias used by older call sites.
+ */
+export const createAdminSession = storeAdminSession;
 
 /**
  * Get current session token (if valid locally)
@@ -64,16 +47,13 @@ export const getSessionToken = (): string | null => {
 		if (!stored) return null;
 
 		const session: AdminSession = JSON.parse(stored);
-
-		// Check local expiration
 		if (Date.now() > session.expiresAt) {
 			localStorage.removeItem(ADMIN_SESSION_KEY);
 			return null;
 		}
 
 		return session.sessionToken;
-	} catch (error) {
-		console.error("❌ Error reading session:", error);
+	} catch {
 		localStorage.removeItem(ADMIN_SESSION_KEY);
 		return null;
 	}
@@ -84,7 +64,6 @@ export const getSessionToken = (): string | null => {
  */
 export const clearAdminSession = (): void => {
 	localStorage.removeItem(ADMIN_SESSION_KEY);
-	console.log("🔓 Admin session cleared");
 };
 
 /**
@@ -114,7 +93,6 @@ export const getSessionInfo = (): {
 		const timeUntilExpiry = session.expiresAt - now;
 		const sessionAge = now - session.createdAt;
 
-		// Format time remaining
 		const formatTime = (ms: number): string => {
 			const hours = Math.floor(ms / (1000 * 60 * 60));
 			const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
@@ -126,10 +104,9 @@ export const getSessionInfo = (): {
 			expiresAt,
 			expiresIn: formatTime(timeUntilExpiry),
 			createdAt,
-			sessionAge: formatTime(sessionAge) + " ago",
+			sessionAge: `${formatTime(sessionAge)} ago`,
 		};
-	} catch (error) {
-		console.error("❌ Error getting session info:", error);
+	} catch {
 		return { isValid: false };
 	}
 };

@@ -149,6 +149,7 @@ module.exports = withPWA({
 	// Use direct env access for build-time configuration
 	basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
 	assetPrefix: process.env.NEXT_PUBLIC_BASE_PATH || "",
+	reactStrictMode: true,
 	trailingSlash: true,
 	// Explicitly use webpack for builds (required for next-pwa)
 	turbopack: {},
