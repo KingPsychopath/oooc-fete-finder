@@ -148,6 +148,7 @@ describe("/api/admin/postgres/kv route", () => {
 		const payload = (await response.json()) as {
 			success: boolean;
 			query: { prefix: string; limit: number; includeValues: boolean };
+			eventsStoreKv: { totalKeys: number; hasMeta: boolean };
 			records: Array<{ key: string; updatedAt: string }>;
 		};
 
@@ -157,6 +158,10 @@ describe("/api/admin/postgres/kv route", () => {
 			prefix: "events",
 			limit: 500,
 			includeValues: false,
+		});
+		expect(payload.eventsStoreKv).toMatchObject({
+			totalKeys: 1,
+			hasMeta: true,
 		});
 		expect(payload.records).toEqual([
 			{

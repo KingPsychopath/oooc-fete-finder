@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 		const [
 			records,
 			totalKeyCount,
-			legacyEventsStoreStats,
+			eventsStoreStats,
 			eventStoreCounts,
 			eventStoreMeta,
 		] = await Promise.all([
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
 				},
 				totalKeyCount,
 				returnedCount: records.length,
-				legacyEventsStoreKv: legacyEventsStoreStats,
+				eventsStoreKv: eventsStoreStats,
 				eventStoreTables: {
 					rowCount: eventStoreCounts.rowCount,
 					columnCount: eventStoreCounts.columnCount,

@@ -23,7 +23,6 @@ const DEFAULT_VISIBLE_ROWS = 5;
 
 const sourceDisplay = (source?: SnapshotState["source"]) => {
 	if (source === "store") return { label: "Postgres Store", variant: "default" as const };
-	if (source === "remote") return { label: "Remote CSV", variant: "secondary" as const };
 	if (source === "local") return { label: "Local CSV Fallback", variant: "outline" as const };
 	if (source === "test") return { label: "Test Dataset", variant: "outline" as const };
 	return { label: "Unknown", variant: "outline" as const };

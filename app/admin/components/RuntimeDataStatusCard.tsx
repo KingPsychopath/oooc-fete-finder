@@ -26,8 +26,6 @@ const sourcePresentation = (
 			return { label: "Local CSV Fallback", variant: "secondary" };
 		case "test":
 			return { label: "Test Dataset", variant: "outline" };
-		case "remote":
-			return { label: "Remote CSV", variant: "outline" };
 		default:
 			return { label: "Unknown", variant: "destructive" };
 	}

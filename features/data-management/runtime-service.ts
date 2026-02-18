@@ -6,7 +6,7 @@ import { applyFeaturedProjectionToEvents } from "@/features/events/featured/serv
 import { DataManager } from "./data-manager";
 import { isValidEventsData } from "./data-processor";
 
-export type DataSource = "remote" | "local" | "store" | "test";
+export type DataSource = "local" | "store" | "test";
 
 export interface EventsResult {
 	success: boolean;

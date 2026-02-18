@@ -12,7 +12,7 @@ import { LocalEventStore } from "./local-event-store";
 
 export type ConfiguredDataMode = "remote" | "local" | "test";
 
-type LiveDataSource = "remote" | "local" | "store" | "test";
+type LiveDataSource = "local" | "store" | "test";
 
 export interface DataManagerResult {
 	success: boolean;

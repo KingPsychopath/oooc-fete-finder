@@ -111,7 +111,6 @@ describe("/api/admin/data-store/status route", () => {
 		const response = await GET(request);
 		const payload = (await response.json()) as {
 			success: boolean;
-			modeModel: Record<string, string>;
 			store: { rowCount: number };
 			runtime: { eventCount: number };
 			metrics: { totalRequests: number };
@@ -119,7 +118,6 @@ describe("/api/admin/data-store/status route", () => {
 
 		expect(response.status).toBe(200);
 		expect(payload.success).toBe(true);
-		expect(payload.modeModel.remote).toContain("Primary source");
 		expect(payload.store.rowCount).toBe(81);
 		expect(payload.runtime.eventCount).toBe(81);
 		expect(payload.metrics.totalRequests).toBe(1);
