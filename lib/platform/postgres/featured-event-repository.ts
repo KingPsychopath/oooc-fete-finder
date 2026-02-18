@@ -27,6 +27,36 @@ declare global {
 		| undefined;
 }
 
+type FeaturedRepositorySqlClient = Sql;
+
+export interface FeaturedEventRepositorySession {
+	listEntries(options?: {
+		statuses?: FeaturedScheduleStatus[];
+	}): Promise<FeaturedScheduleEntry[]>;
+	createScheduledEntry(input: {
+		eventKey: string;
+		requestedStartAt: string;
+		durationHours: number;
+		createdBy: string;
+	}): Promise<FeaturedScheduleEntry>;
+	rescheduleEntry(input: {
+		id: string;
+		requestedStartAt: string;
+		durationHours: number;
+	}): Promise<boolean>;
+	cancelEntry(id: string): Promise<boolean>;
+	markCompletedEntries(nowIso: string): Promise<number>;
+	reviveZeroDurationCompletedEntries(): Promise<number>;
+	updateComputedWindows(
+		windows: Array<{
+			id: string;
+			effectiveStartAt: string;
+			effectiveEndAt: string;
+		}>,
+	): Promise<void>;
+	clearAllEntries(): Promise<number>;
+}
+
 const hasRequiredRepositoryMethods = (
 	repository: unknown,
 ): repository is FeaturedEventRepository => {
@@ -40,7 +70,8 @@ const hasRequiredRepositoryMethods = (
 		typeof candidate.markCompletedEntries === "function" &&
 		typeof candidate.updateComputedWindows === "function" &&
 		typeof candidate.reviveZeroDurationCompletedEntries === "function" &&
-		typeof candidate.clearAllEntries === "function"
+		typeof candidate.clearAllEntries === "function" &&
+		typeof candidate.withScheduleLock === "function"
 	);
 };
 
@@ -58,6 +89,204 @@ const toEntry = (row: FeatureScheduleRow): FeaturedScheduleEntry => ({
 	createdBy: row.created_by,
 	createdAt: toIsoString(row.created_at),
 	updatedAt: toIsoString(row.updated_at),
+});
+
+const SCHEDULE_LOCK_NAMESPACE = 9297;
+const SCHEDULE_LOCK_KEY = 1;
+
+const listEntriesWithClient = async (
+	sqlClient: FeaturedRepositorySqlClient,
+	options?: {
+		statuses?: FeaturedScheduleStatus[];
+	},
+): Promise<FeaturedScheduleEntry[]> => {
+	const statuses = options?.statuses?.length ? options.statuses : null;
+
+	const rows = await sqlClient<FeatureScheduleRow[]>`
+		SELECT
+			id,
+			event_key,
+			requested_start_at,
+			effective_start_at,
+			effective_end_at,
+			duration_hours,
+			status,
+			created_by,
+			created_at,
+			updated_at
+		FROM app_featured_event_schedule
+		${statuses ? sqlClient`WHERE status = ANY(${statuses})` : sqlClient``}
+		ORDER BY effective_start_at ASC, created_at ASC, event_key ASC, id ASC
+	`;
+
+	return rows.map(toEntry);
+};
+
+const createScheduledEntryWithClient = async (
+	sqlClient: FeaturedRepositorySqlClient,
+	input: {
+		eventKey: string;
+		requestedStartAt: string;
+		durationHours: number;
+		createdBy: string;
+	},
+): Promise<FeaturedScheduleEntry> => {
+	const nowIso = new Date().toISOString();
+	const id = randomUUID();
+
+	const rows = await sqlClient<FeatureScheduleRow[]>`
+		INSERT INTO app_featured_event_schedule (
+			id,
+			event_key,
+			requested_start_at,
+			effective_start_at,
+			effective_end_at,
+			duration_hours,
+			status,
+			created_by,
+			created_at,
+			updated_at
+		)
+		VALUES (
+			${id},
+			${input.eventKey},
+			${input.requestedStartAt},
+			${input.requestedStartAt},
+			${input.requestedStartAt},
+			${input.durationHours},
+			'scheduled',
+			${input.createdBy},
+			${nowIso},
+			${nowIso}
+		)
+		RETURNING
+			id,
+			event_key,
+			requested_start_at,
+			effective_start_at,
+			effective_end_at,
+			duration_hours,
+			status,
+			created_by,
+			created_at,
+			updated_at
+	`;
+
+	return toEntry(rows[0]);
+};
+
+const rescheduleEntryWithClient = async (
+	sqlClient: FeaturedRepositorySqlClient,
+	input: {
+		id: string;
+		requestedStartAt: string;
+		durationHours: number;
+	},
+): Promise<boolean> => {
+	const nowIso = new Date().toISOString();
+	const rows = await sqlClient<{ id: string }[]>`
+		UPDATE app_featured_event_schedule
+		SET
+			requested_start_at = ${input.requestedStartAt},
+			duration_hours = ${input.durationHours},
+			status = 'scheduled',
+			updated_at = ${nowIso}
+		WHERE id = ${input.id}
+		RETURNING id
+	`;
+	return rows.length > 0;
+};
+
+const cancelEntryWithClient = async (
+	sqlClient: FeaturedRepositorySqlClient,
+	id: string,
+): Promise<boolean> => {
+	const nowIso = new Date().toISOString();
+	const rows = await sqlClient<{ id: string }[]>`
+		UPDATE app_featured_event_schedule
+		SET status = 'cancelled', updated_at = ${nowIso}
+		WHERE id = ${id}
+		RETURNING id
+	`;
+	return rows.length > 0;
+};
+
+const markCompletedEntriesWithClient = async (
+	sqlClient: FeaturedRepositorySqlClient,
+	nowIso: string,
+): Promise<number> => {
+	const rows = await sqlClient<{ id: string }[]>`
+		UPDATE app_featured_event_schedule
+		SET status = 'completed', updated_at = ${nowIso}
+		WHERE status = 'scheduled'
+			AND effective_end_at < ${nowIso}
+		RETURNING id
+	`;
+	return rows.length;
+};
+
+const reviveZeroDurationCompletedEntriesWithClient = async (
+	sqlClient: FeaturedRepositorySqlClient,
+): Promise<number> => {
+	const nowIso = new Date().toISOString();
+	const rows = await sqlClient<{ id: string }[]>`
+		UPDATE app_featured_event_schedule
+		SET status = 'scheduled', updated_at = ${nowIso}
+		WHERE status = 'completed'
+			AND effective_end_at = effective_start_at
+		RETURNING id
+	`;
+	return rows.length;
+};
+
+const updateComputedWindowsWithClient = async (
+	sqlClient: FeaturedRepositorySqlClient,
+	windows: Array<{
+		id: string;
+		effectiveStartAt: string;
+		effectiveEndAt: string;
+	}>,
+): Promise<void> => {
+	if (windows.length === 0) return;
+
+	const nowIso = new Date().toISOString();
+	for (const window of windows) {
+		await sqlClient`
+			UPDATE app_featured_event_schedule
+			SET
+				effective_start_at = ${window.effectiveStartAt},
+				effective_end_at = ${window.effectiveEndAt},
+				updated_at = ${nowIso}
+			WHERE id = ${window.id}
+		`;
+	}
+};
+
+const clearAllEntriesWithClient = async (
+	sqlClient: FeaturedRepositorySqlClient,
+): Promise<number> => {
+	const rows = await sqlClient<{ id: string }[]>`
+		DELETE FROM app_featured_event_schedule
+		RETURNING id
+	`;
+	return rows.length;
+};
+
+const createRepositorySession = (
+	sqlClient: FeaturedRepositorySqlClient,
+): FeaturedEventRepositorySession => ({
+	listEntries: (options) => listEntriesWithClient(sqlClient, options),
+	createScheduledEntry: (input) =>
+		createScheduledEntryWithClient(sqlClient, input),
+	rescheduleEntry: (input) => rescheduleEntryWithClient(sqlClient, input),
+	cancelEntry: (id) => cancelEntryWithClient(sqlClient, id),
+	markCompletedEntries: (nowIso) =>
+		markCompletedEntriesWithClient(sqlClient, nowIso),
+	reviveZeroDurationCompletedEntries: () =>
+		reviveZeroDurationCompletedEntriesWithClient(sqlClient),
+	updateComputedWindows: (windows) =>
+		updateComputedWindowsWithClient(sqlClient, windows),
+	clearAllEntries: () => clearAllEntriesWithClient(sqlClient),
 });
 
 export class FeaturedEventRepository {
@@ -109,26 +338,7 @@ export class FeaturedEventRepository {
 		statuses?: FeaturedScheduleStatus[];
 	}): Promise<FeaturedScheduleEntry[]> {
 		await this.ready();
-		const statuses = options?.statuses?.length ? options.statuses : null;
-
-		const rows = await this.sql<FeatureScheduleRow[]>`
-			SELECT
-				id,
-				event_key,
-				requested_start_at,
-				effective_start_at,
-				effective_end_at,
-				duration_hours,
-				status,
-				created_by,
-				created_at,
-				updated_at
-			FROM app_featured_event_schedule
-			${statuses ? this.sql`WHERE status = ANY(${statuses})` : this.sql``}
-			ORDER BY effective_start_at ASC, created_at ASC, event_key ASC, id ASC
-		`;
-
-		return rows.map(toEntry);
+		return listEntriesWithClient(this.sql, options);
 	}
 
 	async createScheduledEntry(input: {
@@ -138,48 +348,7 @@ export class FeaturedEventRepository {
 		createdBy: string;
 	}): Promise<FeaturedScheduleEntry> {
 		await this.ready();
-		const nowIso = new Date().toISOString();
-		const id = randomUUID();
-
-		const rows = await this.sql<FeatureScheduleRow[]>`
-			INSERT INTO app_featured_event_schedule (
-				id,
-				event_key,
-				requested_start_at,
-				effective_start_at,
-				effective_end_at,
-				duration_hours,
-				status,
-				created_by,
-				created_at,
-				updated_at
-			)
-			VALUES (
-				${id},
-				${input.eventKey},
-				${input.requestedStartAt},
-				${input.requestedStartAt},
-				${input.requestedStartAt},
-				${input.durationHours},
-				'scheduled',
-				${input.createdBy},
-				${nowIso},
-				${nowIso}
-			)
-			RETURNING
-				id,
-				event_key,
-				requested_start_at,
-				effective_start_at,
-				effective_end_at,
-				duration_hours,
-				status,
-				created_by,
-				created_at,
-				updated_at
-		`;
-
-		return toEntry(rows[0]);
+		return createScheduledEntryWithClient(this.sql, input);
 	}
 
 	async rescheduleEntry(input: {
@@ -188,55 +357,22 @@ export class FeaturedEventRepository {
 		durationHours: number;
 	}): Promise<boolean> {
 		await this.ready();
-		const nowIso = new Date().toISOString();
-		const rows = await this.sql<{ id: string }[]>`
-			UPDATE app_featured_event_schedule
-			SET
-				requested_start_at = ${input.requestedStartAt},
-				duration_hours = ${input.durationHours},
-				status = 'scheduled',
-				updated_at = ${nowIso}
-			WHERE id = ${input.id}
-			RETURNING id
-		`;
-		return rows.length > 0;
+		return rescheduleEntryWithClient(this.sql, input);
 	}
 
 	async cancelEntry(id: string): Promise<boolean> {
 		await this.ready();
-		const nowIso = new Date().toISOString();
-		const rows = await this.sql<{ id: string }[]>`
-			UPDATE app_featured_event_schedule
-			SET status = 'cancelled', updated_at = ${nowIso}
-			WHERE id = ${id}
-			RETURNING id
-		`;
-		return rows.length > 0;
+		return cancelEntryWithClient(this.sql, id);
 	}
 
 	async markCompletedEntries(nowIso: string): Promise<number> {
 		await this.ready();
-		const rows = await this.sql<{ id: string }[]>`
-			UPDATE app_featured_event_schedule
-			SET status = 'completed', updated_at = ${nowIso}
-			WHERE status = 'scheduled'
-				AND effective_end_at < ${nowIso}
-			RETURNING id
-		`;
-		return rows.length;
+		return markCompletedEntriesWithClient(this.sql, nowIso);
 	}
 
 	async reviveZeroDurationCompletedEntries(): Promise<number> {
 		await this.ready();
-		const nowIso = new Date().toISOString();
-		const rows = await this.sql<{ id: string }[]>`
-			UPDATE app_featured_event_schedule
-			SET status = 'scheduled', updated_at = ${nowIso}
-			WHERE status = 'completed'
-				AND effective_end_at = effective_start_at
-			RETURNING id
-		`;
-		return rows.length;
+		return reviveZeroDurationCompletedEntriesWithClient(this.sql);
 	}
 
 	async updateComputedWindows(
@@ -247,28 +383,25 @@ export class FeaturedEventRepository {
 		}>,
 	): Promise<void> {
 		await this.ready();
-		if (windows.length === 0) return;
-
-		const nowIso = new Date().toISOString();
-		for (const window of windows) {
-			await this.sql`
-				UPDATE app_featured_event_schedule
-				SET
-					effective_start_at = ${window.effectiveStartAt},
-					effective_end_at = ${window.effectiveEndAt},
-					updated_at = ${nowIso}
-				WHERE id = ${window.id}
-			`;
-		}
+		await updateComputedWindowsWithClient(this.sql, windows);
 	}
 
 	async clearAllEntries(): Promise<number> {
 		await this.ready();
-		const rows = await this.sql<{ id: string }[]>`
-			DELETE FROM app_featured_event_schedule
-			RETURNING id
-		`;
-		return rows.length;
+		return clearAllEntriesWithClient(this.sql);
+	}
+
+	async withScheduleLock<T>(
+		operation: (session: FeaturedEventRepositorySession) => Promise<T>,
+	): Promise<T> {
+		await this.ready();
+		return this.sql.begin(async (transactionSql) => {
+			const lockedSql = transactionSql as unknown as Sql;
+			await lockedSql`
+				SELECT pg_advisory_xact_lock(${SCHEDULE_LOCK_NAMESPACE}, ${SCHEDULE_LOCK_KEY})
+			`;
+			return operation(createRepositorySession(lockedSql));
+		}) as Promise<T>;
 	}
 }
 

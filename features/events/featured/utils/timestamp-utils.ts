@@ -24,7 +24,12 @@ export function isValidTimestamp(timestamp?: string): boolean {
 export function isFeaturedEventExpired(
 	featuredAt?: string,
 	durationHours: number = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS,
+	featuredEndsAt?: string,
 ): boolean {
+	if (isValidTimestamp(featuredEndsAt)) {
+		return new Date() > new Date(featuredEndsAt as string);
+	}
+
 	if (!isValidTimestamp(featuredAt)) {
 		return false; // No valid timestamp means never expires
 	}
@@ -50,6 +55,11 @@ export function shouldDisplayFeaturedEvent(event: Event): boolean {
 		return false;
 	}
 
+	// Scheduler projection already marks active events; keep them visible.
+	if (isValidTimestamp(event.featuredEndsAt)) {
+		return new Date() <= new Date(event.featuredEndsAt as string);
+	}
+
 	// If no timestamp or invalid timestamp, display permanently
 	if (!isValidTimestamp(event.featuredAt)) {
 		return true;
@@ -68,7 +78,12 @@ export function shouldDisplayFeaturedEvent(event: Event): boolean {
 export function getFeaturedEventExpirationDate(
 	featuredAt?: string,
 	durationHours: number = FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS,
+	featuredEndsAt?: string,
 ): Date | null {
+	if (isValidTimestamp(featuredEndsAt)) {
+		return new Date(featuredEndsAt as string);
+	}
+
 	if (!isValidTimestamp(featuredAt)) {
 		return null;
 	}

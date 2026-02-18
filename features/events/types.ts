@@ -126,6 +126,7 @@ export type Event = {
 	isOOOCPick?: boolean; // 🌟 indicator from CSV
 	isFeatured?: boolean; // Manual override for featured events in preview section
 	featuredAt?: string; // ISO timestamp when event was featured (e.g., "2024-01-20T14:30:00Z")
+	featuredEndsAt?: string; // ISO timestamp when featured window ends (scheduler projection)
 	nationality?: Nationality[]; // GB/FR indicators from CSV - now supports multiple
 	// Legacy field for backwards compatibility
 	category?: EventCategory;

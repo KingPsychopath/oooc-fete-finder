@@ -60,8 +60,16 @@ function getEventStatus(event: Event): EventStatus {
 	}
 
 	// Timestamp-based events - using centralized utilities
-	const isExpired = isFeaturedEventExpired(event.featuredAt);
-	const endTime = getFeaturedEventExpirationDate(event.featuredAt);
+	const isExpired = isFeaturedEventExpired(
+		event.featuredAt,
+		FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS,
+		event.featuredEndsAt,
+	);
+	const endTime = getFeaturedEventExpirationDate(
+		event.featuredAt,
+		FEATURED_EVENTS_CONFIG.FEATURE_DURATION_HOURS,
+		event.featuredEndsAt,
+	);
 
 	if (isExpired) {
 		// Calculate time since expiration (runs fresh each render)
@@ -453,7 +461,8 @@ export function FeatureCountdown({
 										: "text-sm font-medium text-green-700 dark:text-green-300 mb-3 flex items-center gap-2"
 								}
 							>
-								{!isEditorial && "✨ "}Currently featured ({activeEvents.length})
+								{!isEditorial && "✨ "}Currently featured ({activeEvents.length}
+								)
 							</h5>
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 								{activeEvents.map((status) => (
@@ -476,7 +485,8 @@ export function FeatureCountdown({
 										: "text-sm font-medium text-gray-600 dark:text-gray-400 mb-3"
 								}
 							>
-								{!isEditorial && "⏰ "}Recently ended ({recentExpiredEvents.length})
+								{!isEditorial && "⏰ "}Recently ended (
+								{recentExpiredEvents.length})
 							</h5>
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 								{recentExpiredEvents.map((status) => (
@@ -500,7 +510,9 @@ export function FeatureCountdown({
 							{activeEvents.length > 0 && (
 								<span
 									className={
-										isEditorial ? "font-medium" : "text-green-600 dark:text-green-400 font-medium"
+										isEditorial
+											? "font-medium"
+											: "text-green-600 dark:text-green-400 font-medium"
 									}
 								>
 									{activeEvents.length} live

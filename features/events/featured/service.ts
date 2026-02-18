@@ -1,7 +1,10 @@
 import "server-only";
 
 import type { Event } from "@/features/events/types";
-import { getFeaturedEventRepository } from "@/lib/platform/postgres/featured-event-repository";
+import {
+	getFeaturedEventRepository,
+	type FeaturedEventRepositorySession,
+} from "@/lib/platform/postgres/featured-event-repository";
 import { FEATURED_EVENTS_CONFIG } from "./constants";
 import { formatDateTimeInParis, parseParisDateTimeInput } from "./paris-time";
 import { allocateFeaturedQueueWindows } from "./scheduler";
@@ -75,15 +78,18 @@ const getRepositoryOrThrow = () => {
 	return repository;
 };
 
-const reviveZeroDurationEntriesIfSupported = async (
-	repository: ReturnType<typeof getRepositoryOrThrow>,
+const recomputeFeaturedQueueWithSession = async (
+	session: FeaturedEventRepositorySession,
 ): Promise<void> => {
-	const candidate = repository as unknown as {
-		reviveZeroDurationCompletedEntries?: () => Promise<number>;
-	};
-	if (typeof candidate.reviveZeroDurationCompletedEntries === "function") {
-		await candidate.reviveZeroDurationCompletedEntries();
-	}
+	await session.reviveZeroDurationCompletedEntries();
+	const scheduledEntries = await session.listEntries({
+		statuses: ["scheduled"],
+	});
+	const windows = allocateFeaturedQueueWindows(
+		scheduledEntries,
+		FEATURED_SLOT_CONFIG,
+	);
+	await session.updateComputedWindows(windows);
 };
 
 const sanitizeDurationHours = (durationHours?: number): number => {
@@ -120,15 +126,9 @@ export const getFeatureSlotConfig = (): FeatureSlotConfig =>
 
 export const recomputeFeaturedQueue = async (): Promise<void> => {
 	const repository = getRepositoryOrThrow();
-	await reviveZeroDurationEntriesIfSupported(repository);
-	const scheduledEntries = await repository.listEntries({
-		statuses: ["scheduled"],
+	await repository.withScheduleLock(async (session) => {
+		await recomputeFeaturedQueueWithSession(session);
 	});
-	const windows = allocateFeaturedQueueWindows(
-		scheduledEntries,
-		FEATURED_SLOT_CONFIG,
-	);
-	await repository.updateComputedWindows(windows);
 };
 
 export const listFeaturedEntries = async (): Promise<
@@ -136,8 +136,10 @@ export const listFeaturedEntries = async (): Promise<
 > => {
 	const repository = getFeaturedEventRepository();
 	if (!repository) return [];
-	await repository.markCompletedEntries(new Date().toISOString());
-	return repository.listEntries();
+	return repository.withScheduleLock(async (session) => {
+		await session.markCompletedEntries(new Date().toISOString());
+		return session.listEntries();
+	});
 };
 
 export const scheduleFeaturedEntry = async (input: {
@@ -147,24 +149,28 @@ export const scheduleFeaturedEntry = async (input: {
 	createdBy?: string;
 }): Promise<FeaturedScheduleEntry> => {
 	const repository = getRepositoryOrThrow();
-	const created = await repository.createScheduledEntry({
-		eventKey: input.eventKey.trim(),
-		requestedStartAt: normalizeRequestedStartAt(input.requestedStartAt),
-		durationHours: sanitizeDurationHours(input.durationHours),
-		createdBy: input.createdBy?.trim() || "admin-panel",
+	return repository.withScheduleLock(async (session) => {
+		const created = await session.createScheduledEntry({
+			eventKey: input.eventKey.trim(),
+			requestedStartAt: normalizeRequestedStartAt(input.requestedStartAt),
+			durationHours: sanitizeDurationHours(input.durationHours),
+			createdBy: input.createdBy?.trim() || "admin-panel",
+		});
+		await recomputeFeaturedQueueWithSession(session);
+		const entries = await session.listEntries({ statuses: ["scheduled"] });
+		return entries.find((entry) => entry.id === created.id) ?? created;
 	});
-	await recomputeFeaturedQueue();
-	const entries = await repository.listEntries({ statuses: ["scheduled"] });
-	return entries.find((entry) => entry.id === created.id) ?? created;
 };
 
 export const cancelFeaturedEntry = async (id: string): Promise<boolean> => {
 	const repository = getRepositoryOrThrow();
-	const cancelled = await repository.cancelEntry(id);
-	if (cancelled) {
-		await recomputeFeaturedQueue();
-	}
-	return cancelled;
+	return repository.withScheduleLock(async (session) => {
+		const cancelled = await session.cancelEntry(id);
+		if (cancelled) {
+			await recomputeFeaturedQueueWithSession(session);
+		}
+		return cancelled;
+	});
 };
 
 export const rescheduleFeaturedEntry = async (input: {
@@ -173,20 +179,24 @@ export const rescheduleFeaturedEntry = async (input: {
 	durationHours?: number;
 }): Promise<boolean> => {
 	const repository = getRepositoryOrThrow();
-	const updated = await repository.rescheduleEntry({
-		id: input.id,
-		requestedStartAt: normalizeRequestedStartAt(input.requestedStartAt),
-		durationHours: sanitizeDurationHours(input.durationHours),
+	return repository.withScheduleLock(async (session) => {
+		const updated = await session.rescheduleEntry({
+			id: input.id,
+			requestedStartAt: normalizeRequestedStartAt(input.requestedStartAt),
+			durationHours: sanitizeDurationHours(input.durationHours),
+		});
+		if (updated) {
+			await recomputeFeaturedQueueWithSession(session);
+		}
+		return updated;
 	});
-	if (updated) {
-		await recomputeFeaturedQueue();
-	}
-	return updated;
 };
 
 export const clearFeaturedQueueHistory = async (): Promise<number> => {
 	const repository = getRepositoryOrThrow();
-	return repository.clearAllEntries();
+	return repository.withScheduleLock(async (session) => {
+		return session.clearAllEntries();
+	});
 };
 
 export const getFeaturedProjection = async (
@@ -273,6 +283,7 @@ export const applyFeaturedProjectionToEvents = async (
 			...event,
 			isFeatured: Boolean(active),
 			featuredAt: active?.effectiveStartAt,
+			featuredEndsAt: active?.effectiveEndAt,
 		};
 	});
 };
@@ -301,6 +312,7 @@ export const buildFeaturedStatusEvents = async (
 			...event,
 			isFeatured: true,
 			featuredAt: entry.effectiveStartAt,
+			featuredEndsAt: entry.effectiveEndAt,
 		});
 	}
 
