@@ -13,7 +13,6 @@ import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
 import type { Event } from "@/features/events/types";
 import { EventsMapCard } from "@/features/maps/components/events-map-card";
-import { useMapRenderer } from "@/features/maps/hooks/use-map-renderer";
 import { useCallback, useRef, useState } from "react";
 
 interface EventsClientProps {
@@ -22,16 +21,11 @@ interface EventsClientProps {
 
 export function EventsClient({ initialEvents }: EventsClientProps) {
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-	const [hoveredArrondissement, setHoveredArrondissement] = useState<
-		number | null
-	>(null);
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [isMapExpanded, setIsMapExpanded] = useState(false);
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 	const [showEmailGate, setShowEmailGate] = useState(false);
 	const allEventsRef = useRef<HTMLDivElement>(null);
-
-	const { useMapLibre, setRenderer } = useMapRenderer();
 	const { isAuthenticated, isAuthResolved, authenticate } = useAuth();
 
 	const requireAuth = useCallback(() => {
@@ -96,13 +90,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 		setIsFilterExpanded((previous) => !previous);
 	}, []);
 
-	const handleMapTypeChange = useCallback(
-		(nextUseMapLibre: boolean) => {
-			setRenderer(nextUseMapLibre ? "maplibre" : "classic");
-		},
-		[setRenderer],
-	);
-
 	const scrollToAllEvents = useCallback(() => {
 		allEventsRef.current?.scrollIntoView({
 			behavior: "smooth",
@@ -140,11 +127,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 					events={filteredEvents}
 					isExpanded={isMapExpanded}
 					onToggleExpanded={toggleMapExpansion}
-					useMapLibre={useMapLibre}
-					onMapTypeChange={handleMapTypeChange}
 					onEventClick={setSelectedEvent}
-					hoveredArrondissement={hoveredArrondissement}
-					onArrondissementHover={setHoveredArrondissement}
 				/>
 			</div>
 
