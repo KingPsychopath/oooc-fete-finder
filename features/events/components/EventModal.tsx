@@ -12,6 +12,7 @@ import {
 import { addToCalendar, isCalendarDateValid } from "@/features/events/calendar-utils";
 import { ShareableImageGenerator } from "@/features/events/components/ShareableImageGenerator";
 import type { ShareImageFormat } from "@/features/events/components/ShareableImageGenerator";
+import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import {
 	type Event,
 	MUSIC_GENRES,
@@ -126,6 +127,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 	}, [isOpen]);
 
 	if (!isOpen || !event) return null;
+	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
 	const canAddToCalendar = isCalendarDateValid(event.date);
 
 	const handleOpenLocation = async (
@@ -317,8 +319,18 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		>
 			<Card
 				ref={modalRef}
-				className="max-h-[94vh] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border border-border/80 bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))]"
+				className={`relative max-h-[94vh] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))] ${
+					isCurrentlyFeatured
+						? "border-amber-300/70 shadow-[0_38px_94px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(212,164,96,0.35)] dark:border-amber-500/45"
+						: "border-border/80"
+				}`}
 			>
+				{isCurrentlyFeatured && (
+					<div
+						className="pointer-events-none absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,rgba(212,164,96,0)_0%,rgba(212,164,96,0.9)_50%,rgba(212,164,96,0)_100%)]"
+						aria-hidden="true"
+					/>
+				)}
 				<CardHeader className="pb-2 sm:pb-3">
 					<div className="flex items-start justify-between gap-3">
 						<div className="min-w-0 flex-1">
@@ -419,14 +431,16 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							</Badge>
 						))}
 						{extraGenreCount > 0 && (
-							<button
-								type="button"
-								onClick={() => setShowAllGenres(true)}
-								className="inline-flex h-6 items-center rounded-full border border-border/70 px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-								aria-label={`Show ${extraGenreCount} more genres`}
-							>
-								+{extraGenreCount} more
-							</button>
+							<Badge asChild variant="outline" className="border-border/70">
+								<button
+									type="button"
+									onClick={() => setShowAllGenres(true)}
+									className="cursor-pointer hover:bg-accent hover:text-foreground"
+									aria-label={`Show ${extraGenreCount} more genres`}
+								>
+									+{extraGenreCount} more
+								</button>
+							</Badge>
 						)}
 					</div>
 				</CardHeader>
