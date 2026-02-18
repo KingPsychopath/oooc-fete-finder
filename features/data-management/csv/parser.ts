@@ -6,8 +6,8 @@
  * has been moved to lib/data-management/events/event-assembler.ts
  */
 
-import Papa from "papaparse";
 import { clientLog } from "@/lib/platform/client-logger";
+import Papa from "papaparse";
 
 export const CSV_EVENT_COLUMNS = [
 	"eventKey",
@@ -62,6 +62,7 @@ const COLUMN_MAPPINGS = {
 		"indoorOutdoor",
 	],
 	notes: ["Notes", "Description", "notes", "Details", "Info"],
+	verified: ["Verified", "verified", "Is Verified", "isVerified"],
 } as const;
 
 /**
@@ -124,6 +125,8 @@ export type CSVEventRow = {
 	indoorOutdoor: string;
 	/** Additional notes or description */
 	notes: string;
+	/** Optional explicit verification override */
+	verified?: string;
 };
 
 /**
@@ -165,7 +168,9 @@ const buildAliasLookup = (): Map<string, Array<keyof CSVEventRow>> => {
 		}
 	};
 
-	for (const field of Object.keys(COLUMN_MAPPINGS) as Array<keyof CSVEventRow>) {
+	for (const field of Object.keys(COLUMN_MAPPINGS) as Array<
+		keyof CSVEventRow
+	>) {
 		appendAlias(field, field);
 		for (const alias of COLUMN_MAPPINGS[field]) {
 			appendAlias(alias, field);
@@ -213,6 +218,7 @@ const createColumnMapping = (
 		age: null,
 		indoorOutdoor: null,
 		notes: null,
+		verified: null,
 	};
 	const ambiguousHeaders: Array<{ header: string; fields: string[] }> = [];
 	const duplicateFieldMatches: Array<{
@@ -270,7 +276,10 @@ const createColumnMapping = (
 	return mapping;
 };
 
-const RECOVERABLE_TRAILING_FIELDS = new Set<keyof CSVEventRow>(["notes"]);
+const RECOVERABLE_TRAILING_FIELDS = new Set<keyof CSVEventRow>([
+	"notes",
+	"verified",
+]);
 
 const isRecoverableTooFewFieldsError = (
 	error: StructuralParseError,
@@ -291,9 +300,7 @@ const isRecoverableTooFewFieldsError = (
 		return false;
 	}
 
-	const missingHeaders = headers.filter(
-		(header) => row[header] === undefined,
-	);
+	const missingHeaders = headers.filter((header) => row[header] === undefined);
 	if (missingHeaders.length === 0) {
 		return false;
 	}
@@ -402,7 +409,8 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 				const rowSummary = unrecoverableFieldMismatchErrors
 					.slice(0, 5)
 					.map((error) => {
-						const rowNumber = typeof error.row === "number" ? error.row + 1 : null;
+						const rowNumber =
+							typeof error.row === "number" ? error.row + 1 : null;
 						return rowNumber ? `row ${rowNumber}` : "unknown row";
 					})
 					.join(", ");
@@ -443,10 +451,13 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 		}
 
 		const normalizedRows = rawData
-			.filter((row): row is RawCSVRow => Boolean(row && typeof row === "object"))
+			.filter((row): row is RawCSVRow =>
+				Boolean(row && typeof row === "object"),
+			)
 			.map((row) => {
 				const csvRow: CSVEventRow = {
-					eventKey: (columnMapping.eventKey && row[columnMapping.eventKey]) || "",
+					eventKey:
+						(columnMapping.eventKey && row[columnMapping.eventKey]) || "",
 					oocPicks:
 						(columnMapping.oocPicks && row[columnMapping.oocPicks]) || "",
 					nationality:
@@ -456,9 +467,11 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 					startTime:
 						(columnMapping.startTime && row[columnMapping.startTime]) || "",
 					endTime: (columnMapping.endTime && row[columnMapping.endTime]) || "",
-					location: (columnMapping.location && row[columnMapping.location]) || "",
+					location:
+						(columnMapping.location && row[columnMapping.location]) || "",
 					arrondissement:
-						(columnMapping.arrondissement && row[columnMapping.arrondissement]) ||
+						(columnMapping.arrondissement &&
+							row[columnMapping.arrondissement]) ||
 						"",
 					genre: (columnMapping.genre && row[columnMapping.genre]) || "",
 					price: (columnMapping.price && row[columnMapping.price]) || "",
@@ -466,16 +479,17 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 						(columnMapping.ticketLink && row[columnMapping.ticketLink]) || "",
 					age: (columnMapping.age && row[columnMapping.age]) || "",
 					indoorOutdoor:
-						(columnMapping.indoorOutdoor &&
-							row[columnMapping.indoorOutdoor]) ||
+						(columnMapping.indoorOutdoor && row[columnMapping.indoorOutdoor]) ||
 						"",
 					notes: (columnMapping.notes && row[columnMapping.notes]) || "",
+					verified:
+						(columnMapping.verified && row[columnMapping.verified]) || "",
 				};
 
 				return csvRow;
 			})
 			.filter((row) =>
-				Object.values(row).some((value) => value.trim().length > 0),
+				Object.values(row).some((value) => (value || "").trim().length > 0),
 			);
 
 		if (normalizedRows.length === 0) {
@@ -484,7 +498,12 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 
 		return normalizedRows;
 	} catch (error) {
-		clientLog.error("csv-parser", "Error parsing CSV content", undefined, error);
+		clientLog.error(
+			"csv-parser",
+			"Error parsing CSV content",
+			undefined,
+			error,
+		);
 		throw new Error(
 			`Failed to parse CSV: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);

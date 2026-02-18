@@ -9,7 +9,10 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { addToCalendar, isCalendarDateValid } from "@/features/events/calendar-utils";
+import {
+	addToCalendar,
+	isCalendarDateValid,
+} from "@/features/events/calendar-utils";
 import { ShareableImageGenerator } from "@/features/events/components/ShareableImageGenerator";
 import type { ShareImageFormat } from "@/features/events/components/ShareableImageGenerator";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
@@ -85,7 +88,9 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		message: string;
 		tone: "success" | "error";
 	} | null>(null);
-	const shareStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const shareStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
 	const [pendingLocationData, setPendingLocationData] = useState<{
 		location: string;
 		arrondissement?: number | "unknown";
@@ -178,10 +183,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 	const secondaryLinks = allLinks.slice(1);
 	const allGenres = event.genre || [];
 	const visibleGenres = showAllGenres ? allGenres : allGenres.slice(0, 4);
-	const extraGenreCount = Math.max(
-		0,
-		allGenres.length - visibleGenres.length,
-	);
+	const extraGenreCount = Math.max(0, allGenres.length - visibleGenres.length);
 
 	const getGenreColor = (genre: string) => {
 		const genreInfo = MUSIC_GENRES.find((g) => g.key === genre);
@@ -233,25 +235,42 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 
 	const copyToClipboard = async (value: string): Promise<boolean> => {
 		if (typeof navigator === "undefined") return false;
-		if (navigator.clipboard?.writeText) {
-			await navigator.clipboard.writeText(value);
-			return true;
+
+		if (
+			typeof window !== "undefined" &&
+			window.isSecureContext &&
+			navigator.clipboard?.writeText
+		) {
+			try {
+				await navigator.clipboard.writeText(value);
+				return true;
+			} catch {
+				// Fall back for browsers/contexts that reject Clipboard API writes.
+			}
 		}
 
-		if (typeof document !== "undefined") {
-			const textarea = document.createElement("textarea");
-			textarea.value = value;
-			textarea.style.position = "fixed";
-			textarea.style.left = "-9999px";
-			document.body.appendChild(textarea);
-			textarea.focus();
-			textarea.select();
-			const copied = document.execCommand("copy");
+		if (typeof document === "undefined") {
+			return false;
+		}
+
+		const textarea = document.createElement("textarea");
+		textarea.value = value;
+		textarea.setAttribute("readonly", "");
+		textarea.style.position = "fixed";
+		textarea.style.opacity = "0";
+		textarea.style.left = "-9999px";
+		document.body.appendChild(textarea);
+		textarea.focus();
+		textarea.select();
+
+		let copied = false;
+		try {
+			copied = document.execCommand("copy");
+		} finally {
 			document.body.removeChild(textarea);
-			return copied;
 		}
 
-		return false;
+		return copied;
 	};
 
 	const handleShareEventLink = async () => {
@@ -259,7 +278,10 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		if (!shareUrl) return;
 
 		try {
-			if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+			if (
+				typeof navigator !== "undefined" &&
+				typeof navigator.share === "function"
+			) {
 				await navigator.share({
 					title: event.name,
 					text: `Check out ${event.name}`,
@@ -269,25 +291,25 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 				return;
 			}
 
-				const copied = await copyToClipboard(shareUrl);
-				if (copied) {
-					setTimedShareStatus("Link copied");
-				} else {
-					setTimedShareStatus("Unable to copy link", "error");
-				}
-			} catch (error) {
+			const copied = await copyToClipboard(shareUrl);
+			if (copied) {
+				setTimedShareStatus("Link copied");
+			} else {
+				setTimedShareStatus("Unable to copy link", "error");
+			}
+		} catch (error) {
 			const shareErrorName =
 				error instanceof DOMException ? error.name : "UnknownError";
 			if (shareErrorName === "AbortError") {
 				return;
-				}
-				const copied = await copyToClipboard(shareUrl);
-				setTimedShareStatus(
-					copied ? "Link copied" : "Unable to share link",
-					copied ? "success" : "error",
-				);
 			}
-		};
+			const copied = await copyToClipboard(shareUrl);
+			setTimedShareStatus(
+				copied ? "Link copied" : "Unable to share link",
+				copied ? "success" : "error",
+			);
+		}
+	};
 
 	const hasTime = Boolean(event.time && event.time !== "TBC");
 	const hasEndTime = Boolean(event.endTime && event.endTime !== "TBC");

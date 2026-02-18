@@ -5,15 +5,19 @@
  * This replaces the massive event-transformer.ts with a cleaner, more maintainable approach.
  */
 
-import type { Event, EventType, ParisArrondissement } from "@/features/events/types";
+import type {
+	Event,
+	EventType,
+	ParisArrondissement,
+} from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
 import type { CSVEventRow } from "../csv/parser";
 import { WarningSystem } from "../validation/date-warnings";
 import {
-	createDateNormalizationContext,
-	normalizeCsvDate,
 	type DateNormalizationContext,
 	type DateNormalizationWarning,
+	createDateNormalizationContext,
+	normalizeCsvDate,
 } from "./date-normalization";
 import {
 	buildEventSlug,
@@ -49,6 +53,25 @@ const determineEventType = (name: string, startTime: string): EventType => {
 		: "Day Party";
 };
 
+const parseVerificationOverride = (
+	value: string | undefined,
+): boolean | null => {
+	if (!value) return null;
+
+	const normalized = value.trim().toLowerCase();
+	if (!normalized) return null;
+
+	if (["true", "yes", "y", "1", "verified"].includes(normalized)) {
+		return true;
+	}
+
+	if (["false", "no", "n", "0", "unverified"].includes(normalized)) {
+		return false;
+	}
+
+	return null;
+};
+
 /**
  * Determine if an event should be considered "verified" based on data completeness
  */
@@ -61,6 +84,11 @@ const determineVerificationStatus = (
 		normalizedDate: string;
 	},
 ): boolean => {
+	const explicitVerification = parseVerificationOverride(csvRow.verified);
+	if (explicitVerification !== null) {
+		return explicitVerification;
+	}
+
 	// Core completeness criteria for verification
 	const hasValidLocation =
 		csvRow.location !== undefined &&
@@ -97,7 +125,10 @@ const determineVerificationStatus = (
 	// 3. At least two of: valid time, valid link, OR valid price
 	const coreDataComplete =
 		hasValidLocation && hasValidArrondissement && hasValidDate;
-	const hasEssentialDetails = hasValidTime || hasValidLink || hasValidPrice;
+	const detailCount = [hasValidTime, hasValidLink, hasValidPrice].filter(
+		Boolean,
+	).length;
+	const hasEssentialDetails = detailCount >= 2;
 
 	return coreDataComplete && hasEssentialDetails;
 };
@@ -126,13 +157,15 @@ const emitDateWarning = (
 		potentialFormats: {
 			us: {
 				date: warning.potentialFormats?.us ?? "",
-				description:
-					warning.potentialFormats?.us ? "US-style interpretation" : "",
+				description: warning.potentialFormats?.us
+					? "US-style interpretation"
+					: "",
 			},
 			uk: {
 				date: warning.potentialFormats?.uk ?? "",
-				description:
-					warning.potentialFormats?.uk ? "UK-style interpretation" : "",
+				description: warning.potentialFormats?.uk
+					? "UK-style interpretation"
+					: "",
 			},
 			iso: warning.potentialFormats?.iso ?? "",
 		},

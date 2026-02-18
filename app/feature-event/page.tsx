@@ -47,10 +47,9 @@ function FeatureEventStatusFallback() {
 				</div>
 			</CardHeader>
 			<CardContent>
-				<div className="animate-pulse space-y-3">
-					<div className="h-16 rounded-xl border border-border bg-muted/40" />
-					<div className="h-16 rounded-xl border border-border bg-muted/40" />
-				</div>
+				<p className="text-sm text-muted-foreground">
+					Checking current featured placements...
+				</p>
 			</CardContent>
 		</Card>
 	);

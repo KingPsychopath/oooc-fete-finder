@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
 import {
 	assembleEvent,
 	assembleEvents,
 } from "@/features/data-management/assembly/event-assembler";
 import type { CSVEventRow } from "@/features/data-management/csv/parser";
 import { WarningSystem } from "@/features/data-management/validation/date-warnings";
+import { describe, expect, it } from "vitest";
 
 const baseRow: CSVEventRow = {
 	eventKey: "",
@@ -55,11 +55,9 @@ describe("event assembler identity", () => {
 
 	it("derives day from explicit year dates", () => {
 		WarningSystem.clearDateFormatWarnings();
-		const event = assembleEvent(
-			{ ...baseRow, date: "2026-06-21" },
-			0,
-			{ referenceDate: new Date("2025-01-01T00:00:00.000Z") },
-		);
+		const event = assembleEvent({ ...baseRow, date: "2026-06-21" }, 0, {
+			referenceDate: new Date("2025-01-01T00:00:00.000Z"),
+		});
 
 		expect(event.date).toBe("2026-06-21");
 		expect(event.day).toBe("sunday");
@@ -67,15 +65,52 @@ describe("event assembler identity", () => {
 
 	it("keeps rows with invalid dates as tbc and empty date", () => {
 		WarningSystem.clearDateFormatWarnings();
-		const event = assembleEvent(
-			{ ...baseRow, date: "31/02/2026" },
-			0,
-			{ referenceDate: new Date("2025-01-01T00:00:00.000Z") },
-		);
+		const event = assembleEvent({ ...baseRow, date: "31/02/2026" }, 0, {
+			referenceDate: new Date("2025-01-01T00:00:00.000Z"),
+		});
 
 		expect(event.date).toBe("");
 		expect(event.day).toBe("tbc");
 		expect(WarningSystem.getDateFormatWarnings()).toHaveLength(1);
-		expect(WarningSystem.getDateFormatWarnings()[0].warningType).toBe("invalid");
+		expect(WarningSystem.getDateFormatWarnings()[0].warningType).toBe(
+			"invalid",
+		);
+	});
+
+	it("marks events unverified when only one essential detail is present", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				startTime: "18:00",
+				price: "",
+				ticketLink: "",
+			},
+			0,
+		);
+
+		expect(event.verified).toBe(false);
+	});
+
+	it("respects explicit verified override from CSV", () => {
+		const unverified = assembleEvent(
+			{
+				...baseRow,
+				verified: "false",
+			},
+			0,
+		);
+		const verified = assembleEvent(
+			{
+				...baseRow,
+				location: "",
+				arrondissement: "",
+				date: "",
+				verified: "true",
+			},
+			0,
+		);
+
+		expect(unverified.verified).toBe(false);
+		expect(verified.verified).toBe(true);
 	});
 });

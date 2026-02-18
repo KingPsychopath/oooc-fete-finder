@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { parseCSVContent } from "@/features/data-management/csv/parser";
+import { describe, expect, it } from "vitest";
 
 describe("parseCSVContent", () => {
 	it("parses canonical headers and ignores fully empty rows", () => {
@@ -30,6 +30,17 @@ describe("parseCSVContent", () => {
 		expect(rows[0].location).toBe("Canal");
 	});
 
+	it("parses optional verified column when present", () => {
+		const csv = [
+			"Name,Date,Location,Verified",
+			"Block Party,22 June,Canal,yes",
+		].join("\n");
+
+		const rows = parseCSVContent(csv);
+		expect(rows).toHaveLength(1);
+		expect(rows[0].verified).toBe("yes");
+	});
+
 	it("throws a clear error when essential headers are missing", () => {
 		const csv = ["Location,Genre", "Paris,Afro"].join("\n");
 
@@ -45,10 +56,9 @@ describe("parseCSVContent", () => {
 	});
 
 	it("throws when multiple headers map to the same field", () => {
-		const csv = [
-			"Name,Event Name,Date",
-			"Main name,Alt name,2026-06-21",
-		].join("\n");
+		const csv = ["Name,Event Name,Date", "Main name,Alt name,2026-06-21"].join(
+			"\n",
+		);
 
 		expect(() => parseCSVContent(csv)).toThrow(
 			"Duplicate CSV column mappings detected",
@@ -62,8 +72,6 @@ describe("parseCSVContent", () => {
 			"Broken row,2026-06-22",
 		].join("\n");
 
-		expect(() => parseCSVContent(csv)).toThrow(
-			"CSV row structure mismatch",
-		);
+		expect(() => parseCSVContent(csv)).toThrow("CSV row structure mismatch");
 	});
 });
