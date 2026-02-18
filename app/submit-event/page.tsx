@@ -33,16 +33,16 @@ export default async function SubmitEventPage() {
 						Share the essentials and we will review your event for inclusion in Fete
 						Finder. Accepted submissions are published by the admin team.
 					</p>
-					<p className="rounded-md border border-border/70 bg-background/70 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-						Already listed and want extra visibility?{" "}
+					<div className="border-t border-border" role="presentation" />
+					<p className="text-xs text-muted-foreground">
+						Already listed and want extra visibility? Why are you here.{" "}
 						<Link
 							href={`${basePath}/feature-event`}
-							className="font-medium text-foreground underline underline-offset-4"
+							className="text-foreground underline-offset-4 transition-colors hover:underline"
 						>
-							Promote your event in Spotlight →
+							Promote yours here.
 						</Link>
 					</p>
-					<div className="border-t border-border" role="presentation" />
 					<SubmitEventForm submissionsEnabled={settings.enabled} />
 				</section>
 			</main>
