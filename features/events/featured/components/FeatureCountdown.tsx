@@ -35,6 +35,8 @@ type FeatureCountdownProps = {
 	featuredEvents: Event[];
 	/** Use "editorial" on feature-event page for muted, emoji-free styling */
 	variant?: FeatureCountdownVariant;
+	/** Server-rendered timestamp to keep first client render hydration-safe */
+	initialNowIso?: string;
 };
 
 type EventStatus = {
@@ -42,14 +44,69 @@ type EventStatus = {
 	status: "active-manual" | "active-timed" | "expires-soon" | "expired";
 	message: string;
 	endTime?: Date | null;
-	hoursRemaining?: number;
+};
+
+const PARIS_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+	timeZone: FEATURED_EVENTS_CONFIG.TIMEZONE,
+	year: "numeric",
+	month: "2-digit",
+	day: "2-digit",
+});
+
+const PARIS_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+	timeZone: FEATURED_EVENTS_CONFIG.TIMEZONE,
+	hour: "2-digit",
+	minute: "2-digit",
+	hour12: false,
+});
+
+const parseInitialNow = (initialNowIso?: string): Date => {
+	if (!initialNowIso) return new Date();
+	const parsed = new Date(initialNowIso);
+	return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
+const formatRemainingMessage = (remainingMs: number): string => {
+	const clampedMs = Math.max(0, remainingMs);
+	const totalMinutes = Math.floor(clampedMs / (1000 * 60));
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+
+	if (hours <= 0) {
+		return `${minutes}m remaining`;
+	}
+	return `${hours}h ${minutes}m remaining`;
+};
+
+const formatEndedMessage = (elapsedMs: number): string => {
+	const clampedMs = Math.max(0, elapsedMs);
+	const totalMinutes = Math.floor(clampedMs / (1000 * 60));
+	const hours = Math.floor(totalMinutes / 60);
+	const days = Math.floor(hours / 24);
+	const minutes = totalMinutes % 60;
+	const remainingHours = hours % 24;
+
+	if (days > 0) {
+		return `Ended ${days}d ${remainingHours}h ago`;
+	}
+	if (hours > 0) {
+		return `Ended ${hours}h ${minutes}m ago`;
+	}
+	return `Ended ${minutes}m ago`;
+};
+
+const formatEndTimeInParis = (date: Date) => {
+	return {
+		dateLabel: PARIS_DATE_FORMATTER.format(date),
+		timeLabel: PARIS_TIME_FORMATTER.format(date),
+	};
 };
 
 /**
  * Calculate simple status without complex time formatting
  * This runs fresh on every render (SSR, client render, refresh)
  */
-function getEventStatus(event: Event): EventStatus {
+function getEventStatus(event: Event, now: Date): EventStatus {
 	// Manual featured events (no timestamp)
 	if (!isValidTimestamp(event.featuredAt)) {
 		return {
@@ -72,33 +129,25 @@ function getEventStatus(event: Event): EventStatus {
 	);
 
 	if (isExpired) {
-		// Calculate time since expiration (runs fresh each render)
-		const hoursAgo = endTime
-			? Math.floor((Date.now() - endTime.getTime()) / (1000 * 60 * 60))
-			: 0;
+		const elapsedMs = endTime ? now.getTime() - endTime.getTime() : 0;
 		return {
 			event,
 			status: "expired",
-			message:
-				hoursAgo < 24
-					? `Ended ${hoursAgo}h ago`
-					: `Ended ${Math.floor(hoursAgo / 24)}d ago`,
+			message: formatEndedMessage(elapsedMs),
 			endTime,
 		};
 	}
 
-	// Active with time remaining (calculated fresh each render)
-	const hoursRemaining = endTime
-		? Math.floor((endTime.getTime() - Date.now()) / (1000 * 60 * 60))
-		: 0;
-	const status = hoursRemaining <= 6 ? "expires-soon" : "active-timed";
+	// Active with time remaining
+	const remainingMs = endTime ? endTime.getTime() - now.getTime() : 0;
+	const status =
+		remainingMs <= 6 * 60 * 60 * 1000 ? "expires-soon" : "active-timed";
 
 	return {
 		event,
 		status,
-		message: `${hoursRemaining}h remaining`,
+		message: formatRemainingMessage(remainingMs),
 		endTime,
-		hoursRemaining,
 	};
 }
 
@@ -108,72 +157,15 @@ function getEventStatus(event: Event): EventStatus {
  */
 function SimpleEventCard({
 	eventStatus,
+	currentTime,
 	variant = "default",
 }: {
 	eventStatus: EventStatus;
+	currentTime: Date;
 	variant?: FeatureCountdownVariant;
 }) {
-	const { event, endTime } = eventStatus;
+	const { event, endTime, message, status: liveStatus } = eventStatus;
 	const isEditorial = variant === "editorial";
-
-	// Use state to handle hydration consistency
-	const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
-
-	// Update time after hydration to avoid mismatch
-	useEffect(() => {
-		setCurrentTime(new Date());
-
-		// Set up interval for live updates after hydration
-		const interval = setInterval(() => {
-			setCurrentTime(new Date());
-		}, 60000); // Update every minute
-
-		return () => clearInterval(interval);
-	}, []);
-
-	// Calculate live status and message based on current time
-	const getLiveStatus = () => {
-		// Manual featured events (no timestamp)
-		if (!isValidTimestamp(event.featuredAt)) {
-			return {
-				status: "active-manual",
-				message: "Currently featured",
-			};
-		}
-
-		// Check if expired using current time
-		const isExpired = endTime && currentTime > endTime;
-
-		if (isExpired) {
-			const hoursAgo = endTime
-				? Math.floor(
-						(currentTime.getTime() - endTime.getTime()) / (1000 * 60 * 60),
-					)
-				: 0;
-			return {
-				status: "expired",
-				message:
-					hoursAgo < 24
-						? `Ended ${hoursAgo}h ago`
-						: `Ended ${Math.floor(hoursAgo / 24)}d ago`,
-			};
-		}
-
-		// Active with time remaining
-		const hoursRemaining = endTime
-			? Math.floor(
-					(endTime.getTime() - currentTime.getTime()) / (1000 * 60 * 60),
-				)
-			: 0;
-		const liveStatus = hoursRemaining <= 6 ? "expires-soon" : "active-timed";
-
-		return {
-			status: liveStatus,
-			message: `${Math.max(0, hoursRemaining)}h remaining`,
-		};
-	};
-
-	const { status: liveStatus, message } = getLiveStatus();
 
 	const getStatusConfig = () => {
 		const editorial = {
@@ -338,18 +330,14 @@ function SimpleEventCard({
 				<div className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border break-words">
 					{isEditorial ? "Ended: " : "📅 Ended: "}
 					<span className="whitespace-nowrap">
-						{endTime.toLocaleDateString("en-GB", {
-							year: "numeric",
-							month: "2-digit",
-							day: "2-digit",
-						})}
+						{formatEndTimeInParis(endTime).dateLabel}
 					</span>{" "}
 					at{" "}
 					<span className="whitespace-nowrap">
-						{endTime.toLocaleTimeString("en-GB", {
-							hour: "2-digit",
-							minute: "2-digit",
-						})}
+						{formatEndTimeInParis(endTime).timeLabel}
+					</span>{" "}
+					<span className="whitespace-nowrap text-[11px]">
+						({FEATURED_EVENTS_CONFIG.TIMEZONE})
 					</span>
 				</div>
 			)}
@@ -360,9 +348,22 @@ function SimpleEventCard({
 export function FeatureCountdown({
 	featuredEvents,
 	variant = "default",
+	initialNowIso,
 }: FeatureCountdownProps) {
-	const eventStatuses = featuredEvents.map(getEventStatus);
+	const [currentTime, setCurrentTime] = useState<Date>(() =>
+		parseInitialNow(initialNowIso),
+	);
+	const eventStatuses = featuredEvents.map((event) =>
+		getEventStatus(event, currentTime),
+	);
 	const isEditorial = variant === "editorial";
+
+	useEffect(() => {
+		const interval = setInterval(() => {
+			setCurrentTime(new Date());
+		}, 60000);
+		return () => clearInterval(interval);
+	}, []);
 
 	const activeEvents = eventStatuses.filter(
 		(s) => s.status.startsWith("active") || s.status === "expires-soon",
@@ -371,7 +372,8 @@ export function FeatureCountdown({
 
 	const recentExpiredEvents = expiredEvents.filter((s) => {
 		if (!s.endTime) return false;
-		const hoursAgo = (Date.now() - s.endTime.getTime()) / (1000 * 60 * 60);
+		const hoursAgo =
+			(currentTime.getTime() - s.endTime.getTime()) / (1000 * 60 * 60);
 		return hoursAgo <= 48;
 	});
 
@@ -469,6 +471,7 @@ export function FeatureCountdown({
 									<SimpleEventCard
 										key={status.event.id}
 										eventStatus={status}
+										currentTime={currentTime}
 										variant={variant}
 									/>
 								))}
@@ -493,6 +496,7 @@ export function FeatureCountdown({
 									<SimpleEventCard
 										key={status.event.id}
 										eventStatus={status}
+										currentTime={currentTime}
 										variant={variant}
 									/>
 								))}
