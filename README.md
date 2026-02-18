@@ -13,6 +13,28 @@ Google Sheets is not used as the live runtime source. It is only used in admin f
 
 Auth modal user submissions are stored in the managed user store (`app_kv_store`) first, with optional Google mirroring only when explicitly enabled.
 
+## Runtime Data Flow (Current)
+
+There is no custom app cache layer for events. `lib/cache/*` has been removed.
+
+Server-side event reads flow as:
+
+1. `features/data-management/runtime-service.ts#getLiveEvents()`
+2. `DataManager.getEventsData()`
+3. Source chain in remote mode:
+   - managed Postgres event store (`store`)
+   - local CSV fallback (`data/events.csv`) if store is unavailable/invalid
+4. `processCSVData()`:
+   - event key hydration
+   - quality checks
+   - coordinate population (when enabled)
+5. Public delivery uses Next.js built-ins (ISR/revalidate APIs where configured).
+
+What did not become a data cache:
+
+- Logger dedupe map in `lib/platform/logger.ts` (`recentInfoLogs`) is only log suppression.
+- Runtime metrics counters in `features/data-management/runtime-service.ts` (`metrics`) are telemetry only.
+
 ## Postgres Schema (Events)
 
 Event sheet data is stored in normalized tables:
@@ -67,11 +89,11 @@ GOOGLE_SERVICE_ACCOUNT_KEY=   # preferred (use on Vercel); or GOOGLE_SERVICE_ACC
 GOOGLE_MAPS_API_KEY=          # optional; enable Geocoding API in Cloud Console for precise coords
 ```
 
-No runtime in-memory events cache is used. Live reads come from runtime source (`Postgres -> local fallback` in remote mode), with ISR + on-demand revalidation for delivery.
+No custom in-memory events cache is used. Live reads are pass-through source reads (`Postgres -> local fallback` in remote mode), with Next.js built-ins (ISR/on-demand revalidation) for delivery where configured.
 
-## Logging
+## Logging + Dedupe
 
-One-line startup banner (data mode, DB, geocoding). Runtime logs use `lib/platform/logger` (scope + message; no per-event or memory spam). See `docs/logging.md`.
+One-line startup banner (data mode, DB, geocoding). Runtime logs use `lib/platform/logger` (scope + message; no per-event or memory spam). In development, identical `info` logs are deduped briefly to reduce spam. This dedupe affects logs only, not data reads. See `docs/logging.md`.
 
 ## Abuse Protection
 

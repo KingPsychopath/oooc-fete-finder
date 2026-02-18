@@ -2,7 +2,7 @@ import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
 import { DataManager } from "@/features/data-management/data-manager";
 import { processCSVData } from "@/features/data-management/data-processor";
 import { LocalEventStore } from "@/features/data-management/local-event-store";
-import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
+import { getRuntimeDataStatusFromSource } from "@/features/data-management/runtime-service";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	getAppKVStoreRepository,
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 			LocalEventStore.getStatus(),
 			LocalEventStore.getCsv(),
 			DataManager.getDataConfigStatus(),
-			EventsRuntimeManager.getRuntimeDataStatus(),
+			getRuntimeDataStatusFromSource(),
 			eventRepository?.getCounts() ??
 				Promise.resolve({
 					rowCount: 0,

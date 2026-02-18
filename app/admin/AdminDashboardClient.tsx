@@ -6,8 +6,10 @@ import {
 	getCollectedEmails,
 	logoutAdminSession,
 } from "@/features/auth/actions";
-import { getRuntimeDataStatus } from "@/features/data-management/actions";
-import { revalidatePages } from "@/lib/cache/actions";
+import {
+	getRuntimeDataStatus,
+	revalidatePages,
+} from "@/features/data-management/actions";
 import { env } from "@/lib/config/env";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";

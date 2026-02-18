@@ -1,6 +1,6 @@
 import { EventsClient } from "@/features/events/components/events-client";
+import { getLiveEvents } from "@/features/data-management/runtime-service";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
-import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
 import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
 
@@ -11,7 +11,7 @@ interface HomeEventsSectionProps {
 export async function HomeEventsSection({
 	mapLoadStrategy,
 }: HomeEventsSectionProps) {
-	const result = await EventsRuntimeManager.getEvents();
+	const result = await getLiveEvents();
 	const isRemoteMode = env.DATA_MODE === "remote";
 	const isLocalFallback = isRemoteMode && result.source === "local";
 

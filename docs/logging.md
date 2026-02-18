@@ -6,6 +6,7 @@
 - **Startup**: `instrumentation.ts` logs one line at server start: app name, data mode, DB and geocoding status.
 - **Geocoding**: Single warning when the Geocoding API is unavailable (e.g. not enabled in Cloud Console); then arrondissement centre fallback for all events. No per-address error spam.
 - **Runtime data + revalidation**: Source read and revalidation errors go through the logger; periodic memory dumps and per-event “skipping coordinates” messages are disabled.
+- **Dev info dedupe**: In development only, identical `info` logs (`scope + message + context`) are suppressed for a short window (~1.2s) to reduce repeated pipeline log noise.
 
 ## Usage
 
@@ -23,5 +24,13 @@ log.error("scope", "Error", { err: message });
 - `Skipping coordinates for "..." (arr: unknown)`
 - `Memory Usage: X MB / Y MB` on every check
 - No runtime in-memory events cache tuning env vars are required.
+
+## Dedupe Contract
+
+- Dedupe applies only to `info` level in development.
+- `warn` and `error` logs are never deduped.
+- Dedupe does **not** cache, skip, or coalesce data reads; it only suppresses repeated log lines.
+- The dedupe map in `lib/platform/logger.ts` (`recentInfoLogs`) is not an application data cache.
+- Runtime metrics counters in `features/data-management/runtime-service.ts` (`metrics`) are telemetry only.
 
 See `docs/environment-variables.md` for env and `docs/geocoding.md` for geocoding behaviour.

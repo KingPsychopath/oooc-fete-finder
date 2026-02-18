@@ -21,16 +21,14 @@ const makeEvent = (id: string) => ({
 
 type Setup = {
 	getLiveSiteEventsSnapshot: typeof import("@/features/data-management/actions").getLiveSiteEventsSnapshot;
-	runtimeManagerGetEvents: ReturnType<typeof vi.fn>;
-	dataManagerGetEventsData: ReturnType<typeof vi.fn>;
+	getLiveEvents: ReturnType<typeof vi.fn>;
 	validateAdminAccess: ReturnType<typeof vi.fn>;
 };
 
 const loadActions = async (): Promise<Setup> => {
 	vi.resetModules();
 
-	const runtimeManagerGetEvents = vi.fn();
-	const dataManagerGetEventsData = vi.fn();
+	const getLiveEvents = vi.fn();
 	const validateAdminAccess = vi.fn().mockResolvedValue(true);
 
 	vi.doMock("@/lib/config/env", () => ({
@@ -53,21 +51,12 @@ const loadActions = async (): Promise<Setup> => {
 		validateAdminAccessFromServerContext: validateAdminAccess,
 	}));
 
-	vi.doMock("@/lib/cache/cache-manager", () => ({
-		EventsRuntimeManager: {
-			getEvents: runtimeManagerGetEvents,
-			forceRefresh: vi.fn(),
-			getRuntimeDataStatus: vi.fn(),
-			getRuntimeMetrics: vi.fn(),
-			fullRevalidation: vi.fn(),
-		},
-	}));
-
-	vi.doMock("@/features/data-management/data-manager", () => ({
-		DataManager: {
-			getEventsData: dataManagerGetEventsData,
-			getDataConfigStatus: vi.fn(),
-		},
+	vi.doMock("@/features/data-management/runtime-service", () => ({
+		getLiveEvents,
+		forceRefreshEventsData: vi.fn(),
+		fullEventsRevalidation: vi.fn(),
+		getRuntimeDataStatusFromSource: vi.fn(),
+		revalidateEventsPaths: vi.fn(),
 	}));
 
 	vi.doMock("@/features/data-management/local-event-store", () => ({
@@ -83,8 +72,7 @@ const loadActions = async (): Promise<Setup> => {
 	const actions = await import("@/features/data-management/actions");
 	return {
 		getLiveSiteEventsSnapshot: actions.getLiveSiteEventsSnapshot,
-		runtimeManagerGetEvents,
-		dataManagerGetEventsData,
+		getLiveEvents,
 		validateAdminAccess,
 	};
 };
@@ -95,13 +83,8 @@ describe("getLiveSiteEventsSnapshot", () => {
 	});
 
 	it("uses runtime site payload path when forceRefresh=false", async () => {
-		const {
-			getLiveSiteEventsSnapshot,
-			runtimeManagerGetEvents,
-			dataManagerGetEventsData,
-		} =
-			await loadActions();
-		runtimeManagerGetEvents.mockResolvedValue({
+		const { getLiveSiteEventsSnapshot, getLiveEvents } = await loadActions();
+		getLiveEvents.mockResolvedValue({
 			success: true,
 			data: [makeEvent("1")],
 			count: 1,
@@ -117,23 +100,16 @@ describe("getLiveSiteEventsSnapshot", () => {
 		expect(result.success).toBe(true);
 		expect(result.source).toBe("store");
 		expect(result.totalCount).toBe(1);
-		expect(runtimeManagerGetEvents).toHaveBeenCalledTimes(1);
-		expect(dataManagerGetEventsData).not.toHaveBeenCalled();
+		expect(getLiveEvents).toHaveBeenCalledTimes(1);
 	});
 
-	it("uses fresh preview path when forceRefresh=true without mutating live cache", async () => {
-		const {
-			getLiveSiteEventsSnapshot,
-			runtimeManagerGetEvents,
-			dataManagerGetEventsData,
-		} =
-			await loadActions();
-		dataManagerGetEventsData.mockResolvedValue({
+	it("uses live runtime service path when forceRefresh=true", async () => {
+		const { getLiveSiteEventsSnapshot, getLiveEvents } = await loadActions();
+		getLiveEvents.mockResolvedValue({
 			success: true,
 			data: [makeEvent("2")],
 			count: 1,
 			source: "store",
-			warnings: ["fresh preview"],
 			lastUpdate: "2026-02-17T01:00:00.000Z",
 		});
 
@@ -144,8 +120,7 @@ describe("getLiveSiteEventsSnapshot", () => {
 		expect(result.success).toBe(true);
 		expect(result.source).toBe("store");
 		expect(result.totalCount).toBe(1);
-		expect(dataManagerGetEventsData).toHaveBeenCalledTimes(1);
-		expect(runtimeManagerGetEvents).not.toHaveBeenCalled();
+		expect(getLiveEvents).toHaveBeenCalledTimes(1);
 	});
 
 	it("returns unauthorized when admin validation fails", async () => {

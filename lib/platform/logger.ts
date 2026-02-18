@@ -15,6 +15,33 @@ import "server-only";
 type LogLevel = "info" | "warn" | "error";
 
 const IS_DEV = process.env.NODE_ENV === "development";
+const DEV_INFO_DEDUPE_WINDOW_MS = 1200;
+const DEV_INFO_LOG_LIMIT = 500;
+const recentInfoLogs = new Map<string, number>();
+
+const shouldSkipDevInfoLog = (
+	scope: string,
+	message: string,
+	context?: Record<string, unknown>,
+): boolean => {
+	const now = Date.now();
+	const key = `${scope}|${message}|${JSON.stringify(context ?? {})}`;
+	const lastSeenAt = recentInfoLogs.get(key);
+	recentInfoLogs.set(key, now);
+
+	if (recentInfoLogs.size > DEV_INFO_LOG_LIMIT) {
+		for (const [entryKey, timestamp] of recentInfoLogs.entries()) {
+			if (now - timestamp > DEV_INFO_DEDUPE_WINDOW_MS) {
+				recentInfoLogs.delete(entryKey);
+			}
+		}
+	}
+
+	return (
+		typeof lastSeenAt === "number" &&
+		now - lastSeenAt <= DEV_INFO_DEDUPE_WINDOW_MS
+	);
+};
 
 function formatError(err: unknown): { message: string; stack?: string } {
 	if (err instanceof Error) {
@@ -43,6 +70,13 @@ function emit(
 	};
 
 	if (IS_DEV) {
+		if (
+			level === "info" &&
+			shouldSkipDevInfoLog(scope, message, context)
+		) {
+			return;
+		}
+
 		const prefix =
 			level === "error" ? "✗" : level === "warn" ? "⚠" : "·";
 		const tag = `[${scope}]`;

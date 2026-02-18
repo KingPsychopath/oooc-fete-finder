@@ -1,16 +1,20 @@
 "use server";
 
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
-import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
-import { invalidateEventsCache } from "@/lib/cache/cache-policy";
 import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
 import type {
-	RuntimeDataStatus,
 	EventsResult,
-} from "@/lib/cache/cache-manager";
+	RuntimeDataStatus,
+} from "./runtime-service";
+import {
+	forceRefreshEventsData,
+	fullEventsRevalidation,
+	getLiveEvents,
+	getRuntimeDataStatusFromSource,
+	revalidateEventsPaths,
+} from "./runtime-service";
 import { LocalEventStore } from "./local-event-store";
-import { DataManager } from "./data-manager";
 import { fetchRemoteCSV } from "./csv/fetcher";
 import {
 	csvToEditableSheet,
@@ -57,9 +61,9 @@ const resolveRemoteSheetConfig = async (): Promise<{
  * Get live events data from configured runtime source.
  */
 export async function getEvents(
-	forceRefresh: boolean = false,
+	_forceRefresh: boolean = false,
 ): Promise<EventsResult> {
-	return EventsRuntimeManager.getEvents(forceRefresh);
+	return getLiveEvents();
 }
 
 /**
@@ -94,28 +98,8 @@ export async function getLiveSiteEventsSnapshot(
 	}
 
 	try {
-		const forceRefresh = Boolean(options?.forceRefresh);
-		const result = forceRefresh
-			? await (async () => {
-					const fresh = await DataManager.getEventsData();
-					if (!fresh.success) {
-						return {
-							success: false as const,
-							error: fresh.error || "Failed to load fresh events",
-						};
-					}
-					return {
-						success: true as const,
-						data: fresh.data,
-						count: fresh.count,
-						cached: false,
-						source: fresh.source,
-						lastUpdate: fresh.lastUpdate,
-						error:
-							fresh.warnings.length > 0 ? fresh.warnings.join("; ") : undefined,
-					};
-				})()
-			: await EventsRuntimeManager.getEvents(false);
+		void options;
+		const result = await getLiveEvents();
 		if (!result.success) {
 			return { success: false, error: result.error || "Failed to load events" };
 		}
@@ -158,14 +142,77 @@ export async function forceRefreshEvents(): Promise<{
 	source?: "remote" | "local" | "store" | "test";
 	error?: string;
 }> {
-	return EventsRuntimeManager.forceRefresh();
+	return forceRefreshEventsData();
 }
 
 /**
  * Get live data/system status from source of truth.
  */
 export async function getRuntimeDataStatus(): Promise<RuntimeDataStatus> {
-	return EventsRuntimeManager.getRuntimeDataStatus();
+	return getRuntimeDataStatusFromSource();
+}
+
+/**
+ * Revalidate pages and reload live data.
+ */
+export async function revalidatePages(
+	keyOrToken?: string,
+	path: string = "/",
+): Promise<{
+	success: boolean;
+	message?: string;
+	cacheRefreshed?: boolean;
+	pageRevalidated?: boolean;
+	processingTimeMs?: number;
+	error?: string;
+}> {
+	const startTime = Date.now();
+	log.info("cache", "Revalidate server action called");
+
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized access" };
+	}
+
+	const normalizePath = (inputPath: string): string => {
+		if (!inputPath || typeof inputPath !== "string") {
+			return "/";
+		}
+
+		const normalizedPath = inputPath.startsWith("/")
+			? inputPath
+			: `/${inputPath}`;
+
+		if (
+			normalizedPath.includes("..") ||
+			!normalizedPath.match(/^\/[\w\-\/]*$/)
+		) {
+			log.warn("cache", "Invalid revalidate path provided; using root", {
+				inputPath,
+			});
+			return "/";
+		}
+
+		return normalizedPath;
+	};
+
+	const normalizedPath = normalizePath(path);
+
+	try {
+		const revalidationResult = await fullEventsRevalidation(normalizedPath);
+		const processingTime = Date.now() - startTime;
+		return {
+			...revalidationResult,
+			processingTimeMs: processingTime,
+		};
+	} catch (error) {
+		const processingTime = Date.now() - startTime;
+		log.error("cache", "Revalidation error", undefined, error);
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+			processingTimeMs: processingTime,
+		};
+	}
 }
 
 /**
@@ -235,7 +282,7 @@ export async function saveLocalEventStoreCsv(
 			updatedBy: "admin-panel",
 			origin: "manual",
 		});
-		await EventsRuntimeManager.forceRefresh();
+		await forceRefreshEventsData();
 		return {
 			success: true,
 			message: "Managed store updated and homepage revalidated",
@@ -264,7 +311,7 @@ export async function clearLocalEventStoreCsv(keyOrToken?: string): Promise<{
 
 	try {
 		await LocalEventStore.clearCsv();
-		await EventsRuntimeManager.forceRefresh();
+		await forceRefreshEventsData();
 		return {
 			success: true,
 			message: "Managed store cleared and homepage revalidated",
@@ -354,7 +401,7 @@ export async function importRemoteCsvToLocalEventStore(
 			updatedBy: "admin-google-import",
 			origin: "google-import",
 		});
-		await EventsRuntimeManager.forceRefresh();
+		await forceRefreshEventsData();
 
 		return {
 			success: true,
@@ -474,9 +521,9 @@ export async function saveEventSheetEditorRows(
 		});
 		const shouldRevalidateHomepage = options?.revalidateHomepage !== false;
 		if (shouldRevalidateHomepage) {
-			await EventsRuntimeManager.forceRefresh();
+			await forceRefreshEventsData();
 		} else {
-			invalidateEventsCache(["/"]);
+			revalidateEventsPaths(["/"]);
 		}
 
 		return {
@@ -524,7 +571,7 @@ export async function analyzeDateFormats(keyOrToken?: string): Promise<{
 
 	try {
 		// Force refresh to ensure we get fresh parsing warnings
-		const eventsResult = await EventsRuntimeManager.getEvents(true);
+		const eventsResult = await getLiveEvents();
 
 		if (!eventsResult.success || !eventsResult.data) {
 			return {

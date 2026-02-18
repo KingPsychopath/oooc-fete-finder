@@ -33,13 +33,20 @@ This file defines the rendering/auth/data contract for the app. Treat this as im
 
 ## Data + Revalidation Model
 
-1. Public data should use source-of-truth reads.
-- Use Postgres-backed runtime reads for events and explicit revalidation for public surfaces.
+1. Public runtime reads are direct source-of-truth reads.
+- Event runtime reads go through `features/data-management/runtime-service.ts`.
+- `getLiveEvents()` reads directly from `DataManager.getEventsData()` on each call.
+- The previous custom cache manager layer (`lib/cache/*`) has been removed.
 
 2. Admin mutations must revalidate.
-- After writes, call `revalidateTag`/`revalidatePath` for affected public surfaces.
+- After writes, use Next.js built-ins (`revalidateTag`/`revalidatePath`) for affected public surfaces.
 
-3. Avoid duplicate client fetches.
+3. Source chain contract (remote mode).
+- Primary: managed Postgres event store (`store`).
+- Fallback: local CSV (`data/events.csv`) when store is unavailable/invalid.
+- Google Sheets remains admin backup preview/import only (not live runtime source).
+
+4. Avoid duplicate client fetches.
 - If data can be provided by server props or centralized context, prefer that over per-component fetch-on-mount patterns.
 
 ## Performance Rules

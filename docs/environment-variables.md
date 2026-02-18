@@ -50,4 +50,5 @@ No extra env vars are required. It relies on:
 
 1. Set `DATA_MODE=remote` and `DATABASE_URL` (e.g. Neon pooler URL).
 2. Use Google vars only for admin backup preview/import and geocoding.
-3. No runtime in-memory events cache config is required.
+3. No custom runtime events cache env vars are required (event reads are direct source reads).
+4. Log dedupe is code-level (dev-only) and has no env toggle.

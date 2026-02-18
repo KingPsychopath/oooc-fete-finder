@@ -1,7 +1,10 @@
 import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
 import { DataManager } from "@/features/data-management/data-manager";
 import { LocalEventStore } from "@/features/data-management/local-event-store";
-import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
+import {
+	getRuntimeDataStatusFromSource,
+	getRuntimeMetrics,
+} from "@/features/data-management/runtime-service";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -30,8 +33,8 @@ export async function GET(request: NextRequest) {
 			await Promise.all([
 				LocalEventStore.getStatus(),
 				DataManager.getDataConfigStatus(),
-				EventsRuntimeManager.getRuntimeDataStatus(),
-				Promise.resolve(EventsRuntimeManager.getRuntimeMetrics()),
+				getRuntimeDataStatusFromSource(),
+				Promise.resolve(getRuntimeMetrics()),
 			]);
 
 		return NextResponse.json(

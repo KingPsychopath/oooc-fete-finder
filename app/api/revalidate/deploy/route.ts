@@ -1,4 +1,4 @@
-import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
+import { forceRefreshEventsData } from "@/features/data-management/runtime-service";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { log } from "@/lib/platform/logger";
 import { NextRequest, NextResponse } from "next/server";
@@ -46,7 +46,7 @@ async function handleRevalidation(request: NextRequest): Promise<NextResponse> {
 	}
 
 	try {
-		const refreshed = await EventsRuntimeManager.forceRefresh();
+		const refreshed = await forceRefreshEventsData();
 		if (!refreshed.success) {
 			log.warn("cache", "Deploy revalidation completed with live data errors", {
 				error: refreshed.error,

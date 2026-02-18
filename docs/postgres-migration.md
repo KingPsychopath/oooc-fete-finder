@@ -61,6 +61,7 @@ After verification, keep Google vars only if you still want backup preview/impor
 Runtime will continue using:
 - Postgres store first (`DATA_MODE=remote`)
 - Local CSV fallback if Postgres data is unavailable
+- No custom app cache layer for events (`lib/cache/*` removed); runtime reads are direct through `runtime-service` + `DataManager`
 
 ## 5. Email Collection
 

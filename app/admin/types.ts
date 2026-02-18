@@ -10,14 +10,14 @@ import type {
 	getLocalEventStoreStatus,
 } from "@/features/data-management/actions";
 import type { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
-import type { RuntimeDataStatus } from "@/lib/cache/cache-types";
+import type { RuntimeDataStatus } from "@/features/data-management/runtime-service";
 
 export type {
 	UserCollectionAnalytics,
 	UserCollectionStoreSummary,
 	UserRecord as EmailRecord,
 } from "@/features/auth/types";
-export type { RuntimeDataStatus } from "@/lib/cache/cache-types";
+export type { RuntimeDataStatus } from "@/features/data-management/runtime-service";
 
 /** Payload passed from server admin page to AdminDashboardClient for first-paint data */
 export type AdminInitialData = {

@@ -9,7 +9,7 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 import { DataManager } from "@/features/data-management/data-manager";
-import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
+import { getLiveEvents } from "@/features/data-management/runtime-service";
 import type { Event, MusicGenre } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
 
@@ -20,7 +20,7 @@ const FEATURED_EVENTS_CACHE_REVALIDATE_SECONDS = 300;
  */
 export async function getAllEvents(): Promise<Event[]> {
 	try {
-		const result = await EventsRuntimeManager.getEvents();
+		const result = await getLiveEvents();
 
 		if (result.error) {
 			log.error("events", "Error loading events", { error: result.error });
