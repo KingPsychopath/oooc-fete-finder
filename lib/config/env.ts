@@ -1,5 +1,5 @@
-import { createEnv } from "@t3-oss/env-nextjs";
 import { clientLog } from "@/lib/platform/client-logger";
+import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
 const isServerRuntime = typeof window === "undefined";
@@ -38,7 +38,10 @@ export const env = createEnv({
 			.enum(["development", "production", "test"])
 			.default("development"),
 		ADMIN_KEY: z.string().default(""),
-		AUTH_SECRET: z.string().optional(),
+		AUTH_SECRET: z
+			.string()
+			.trim()
+			.min(32, "AUTH_SECRET must be at least 32 characters long"),
 		DATABASE_URL: z.string().optional(),
 		POSTGRES_POOL_MAX: z.string().optional(),
 		DATA_MODE: z.enum(["remote", "local", "test"]).default("remote"),
@@ -179,7 +182,9 @@ export const logConfigStatus = (): void => {
 	clientLog.info("env", "Environment configuration status", {
 		environment: env.NODE_ENV,
 		hasAdminKey: Boolean(env.ADMIN_KEY),
-		dataStore: env.DATABASE_URL ? "Postgres configured" : "Fallback providers only",
+		dataStore: env.DATABASE_URL
+			? "Postgres configured"
+			: "Fallback providers only",
 		googleSheets: googleStatus.isConfigured() ? "configured" : "not-configured",
 		siteUrl: env.NEXT_PUBLIC_SITE_URL,
 	});

@@ -1,18 +1,15 @@
 import "server-only";
 
 import { createHash, randomUUID, timingSafeEqual } from "crypto";
+import { env, isAdminAuthEnabled } from "@/lib/config/env";
+import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
 import jwt from "jsonwebtoken";
 import { cookies, headers } from "next/headers";
 import type { NextRequest } from "next/server";
-import { env, isAdminAuthEnabled } from "@/lib/config/env";
-import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
-import { log } from "@/lib/platform/logger";
 
 const TOKEN_ISSUER = "oooc-fete-finder";
 const TOKEN_AUDIENCE = "admin-api";
 const TOKEN_TYPE = "admin";
-const MIN_SECRET_LENGTH = 32;
-
 const ADMIN_AUTH_COOKIE_NAME = "oooc-admin-auth";
 const ADMIN_AUTH_TTL_SECONDS = 60 * 60;
 
@@ -33,7 +30,11 @@ export type AdminTokenPayload = {
 	exp: number;
 };
 
-export type AdminSessionStatus = "active" | "expired" | "revoked" | "invalidated";
+export type AdminSessionStatus =
+	| "active"
+	| "expired"
+	| "revoked"
+	| "invalidated";
 
 export interface AdminTokenSessionRecord {
 	jti: string;
@@ -65,24 +66,15 @@ const parseJson = <T>(raw: string | null): T | null => {
 };
 
 const getAuthSecret = (): string => {
-	if (env.AUTH_SECRET && env.AUTH_SECRET.length >= MIN_SECRET_LENGTH) {
-		return env.AUTH_SECRET;
-	}
-
-	if (env.AUTH_SECRET && env.AUTH_SECRET.length > 0) {
-		log.warn(
-			"admin-auth",
-			"AUTH_SECRET is shorter than recommended; falling back to ADMIN_KEY",
-		);
-	}
-
-	return env.ADMIN_KEY;
+	return env.AUTH_SECRET;
 };
 
 const sessionKey = (jti: string): string => `${SESSION_KEY_PREFIX}${jti}`;
 const revokedKey = (jti: string): string => `${REVOKED_KEY_PREFIX}${jti}`;
 
-const parseTokenPayload = (decoded: jwt.JwtPayload): AdminTokenPayload | null => {
+const parseTokenPayload = (
+	decoded: jwt.JwtPayload,
+): AdminTokenPayload | null => {
 	if (decoded.type !== TOKEN_TYPE) {
 		return null;
 	}
@@ -146,7 +138,9 @@ const getRequestMetadataFromServerContext = async (): Promise<{
 	return { ip, ua };
 };
 
-const getRequestMetadata = (request: NextRequest): { ip: string; ua: string } => {
+const getRequestMetadata = (
+	request: NextRequest,
+): { ip: string; ua: string } => {
 	const ip =
 		request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
 		request.headers.get("x-real-ip") ||
@@ -355,7 +349,8 @@ export const verifyAdminSessionFromRequest = async (
 	request: NextRequest,
 	overrideCredential?: string | null,
 ): Promise<AdminTokenPayload | null> => {
-	const credential = overrideCredential?.trim() || extractCredentialFromRequest(request);
+	const credential =
+		overrideCredential?.trim() || extractCredentialFromRequest(request);
 	if (!credential) {
 		return null;
 	}
@@ -366,7 +361,8 @@ export const verifyAdminSessionFromRequest = async (
 export const verifyAdminSessionFromServerContext = async (
 	overrideCredential?: string | null,
 ): Promise<AdminTokenPayload | null> => {
-	const credential = overrideCredential?.trim() || (await extractCredentialFromServerContext());
+	const credential =
+		overrideCredential?.trim() || (await extractCredentialFromServerContext());
 	if (!credential) {
 		return null;
 	}
@@ -386,11 +382,14 @@ export const createAdminSessionWithCookie = async (): Promise<{
 	};
 };
 
-export const getCurrentAdminSession = async (): Promise<AdminTokenPayload | null> => {
-	return verifyAdminSessionFromServerContext();
-};
+export const getCurrentAdminSession =
+	async (): Promise<AdminTokenPayload | null> => {
+		return verifyAdminSessionFromServerContext();
+	};
 
-export const listAdminTokenSessions = async (): Promise<AdminTokenSessionRecord[]> => {
+export const listAdminTokenSessions = async (): Promise<
+	AdminTokenSessionRecord[]
+> => {
 	const kv = await getKVStore();
 	const keys = await kv.list(SESSION_KEY_PREFIX);
 	const nowSeconds = Math.floor(Date.now() / 1000);
@@ -466,7 +465,9 @@ export const cleanupExpiredAdminSessions = async (): Promise<number> => {
 	return deleted;
 };
 
-export const revokeAdminSessionByJti = async (jti: string): Promise<boolean> => {
+export const revokeAdminSessionByJti = async (
+	jti: string,
+): Promise<boolean> => {
 	const cleanJti = jti.trim();
 	if (!SAFE_JTI.test(cleanJti)) {
 		return false;
@@ -479,7 +480,10 @@ export const revokeAdminSessionByJti = async (jti: string): Promise<boolean> => 
 		return false;
 	}
 
-	await kv.set(revokedKey(cleanJti), String(Math.max(session.exp, Math.floor(Date.now() / 1000) + 60)));
+	await kv.set(
+		revokedKey(cleanJti),
+		String(Math.max(session.exp, Math.floor(Date.now() / 1000) + 60)),
+	);
 	return true;
 };
 

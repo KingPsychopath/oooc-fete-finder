@@ -1,42 +1,32 @@
 import "server-only";
 
-import jwt from "jsonwebtoken";
 import { env } from "@/lib/config/env";
-import { log } from "@/lib/platform/logger";
+import jwt from "jsonwebtoken";
 
 export const USER_AUTH_COOKIE_NAME = "oooc_user_session";
 const USER_AUTH_COOKIE_TTL_SECONDS = 60 * 60 * 24 * 30;
 const USER_AUTH_COOKIE_AUDIENCE = "oooc-fete-finder:user";
 const USER_AUTH_COOKIE_ISSUER = "oooc-fete-finder";
+const MIN_AUTH_SECRET_LENGTH = 32;
 
 type UserSessionPayload = {
 	email: string;
 	v: 1;
 } & jwt.JwtPayload;
 
-const RUNTIME_FALLBACK_USER_AUTH_SECRET = `user-session-fallback-${Math.random()
-	.toString(36)
-	.slice(2)}-${Date.now()}`;
-let warnedAboutFallbackSecret = false;
-
 const getUserAuthSecret = (): string => {
-	if (env.AUTH_SECRET?.trim()) {
-		return env.AUTH_SECRET.trim();
-	}
-
-	if (env.ADMIN_KEY.trim()) {
-		return env.ADMIN_KEY.trim();
-	}
-
-	if (!warnedAboutFallbackSecret) {
-		warnedAboutFallbackSecret = true;
-		log.warn(
-			"auth",
-			"AUTH_SECRET and ADMIN_KEY are both unset; using process-local fallback secret for user session cookies",
+	const authSecret = env.AUTH_SECRET?.trim();
+	if (!authSecret) {
+		throw new Error(
+			"AUTH_SECRET is required for user session cookie signing and verification",
 		);
 	}
-
-	return RUNTIME_FALLBACK_USER_AUTH_SECRET;
+	if (authSecret.length < MIN_AUTH_SECRET_LENGTH) {
+		throw new Error(
+			`AUTH_SECRET must be at least ${MIN_AUTH_SECRET_LENGTH} characters`,
+		);
+	}
+	return authSecret;
 };
 
 export const signUserSessionToken = (email: string): string => {

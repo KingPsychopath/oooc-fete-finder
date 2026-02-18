@@ -8,7 +8,7 @@ Schema lives in `lib/config/env.ts`.
 | --- | --- | --- | --- |
 | `NODE_ENV` | No | `development` | `development` \| `production` \| `test` |
 | `ADMIN_KEY` | No | `""` | Admin auth key. If unset/empty, admin authentication is disabled. |
-| `AUTH_SECRET` | No | - | JWT/cookie signing |
+| `AUTH_SECRET` | **Yes** | - | JWT/cookie signing secret (minimum 32 characters) |
 | `DATABASE_URL` | No | - | Postgres connection (app uses only this for DB) |
 | `DATA_MODE` | Dev/Test: No, Prod: **Yes** | `remote` | `remote` \| `local` \| `test`; production throws at startup if missing |
 | `REMOTE_CSV_URL` | No | - | CSV URL for admin backup preview/import |

@@ -41,7 +41,7 @@ Other app state (auth/session/user collection) remains in:
 Copy `.env.example` and set at least:
 
 ```bash
-AUTH_SECRET=change-me
+AUTH_SECRET=replace-with-a-random-32-plus-character-secret
 DATABASE_URL=postgresql://...
 DATA_MODE=remote
 ```

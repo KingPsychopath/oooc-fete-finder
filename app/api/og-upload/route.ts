@@ -4,13 +4,23 @@ import { log } from "@/lib/platform/logger";
 import { mkdir, writeFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 
+const NO_STORE_HEADERS = {
+	"Cache-Control":
+		"private, no-store, no-cache, max-age=0, must-revalidate, proxy-revalidate",
+	Pragma: "no-cache",
+	Expires: "0",
+} as const;
+
 export async function POST(request: NextRequest) {
 	try {
 		// Check for admin authentication
 		const adminKey = request.headers.get("x-admin-key");
 
 		if (!(await validateAdminKeyForApiRoute(request, adminKey))) {
-			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+			return NextResponse.json(
+				{ error: "Unauthorized" },
+				{ status: 401, headers: NO_STORE_HEADERS },
+			);
 		}
 
 		const data = await request.formData();
@@ -18,7 +28,10 @@ export async function POST(request: NextRequest) {
 		const imageType: string = data.get("type") as string;
 
 		if (!file) {
-			return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+			return NextResponse.json(
+				{ error: "No file uploaded" },
+				{ status: 400, headers: NO_STORE_HEADERS },
+			);
 		}
 
 		// Validate file type
@@ -28,7 +41,7 @@ export async function POST(request: NextRequest) {
 				{
 					error: "Invalid file type. Only PNG, JPEG, and WebP are allowed.",
 				},
-				{ status: 400 },
+				{ status: 400, headers: NO_STORE_HEADERS },
 			);
 		}
 
@@ -39,7 +52,7 @@ export async function POST(request: NextRequest) {
 				{
 					error: "File too large. Maximum size is 5MB.",
 				},
-				{ status: 400 },
+				{ status: 400, headers: NO_STORE_HEADERS },
 			);
 		}
 
@@ -66,46 +79,51 @@ export async function POST(request: NextRequest) {
 		// Return public URL
 		const publicUrl = `/og-images/${filename}`;
 
-		return NextResponse.json({
-			success: true,
-			url: publicUrl,
-			filename,
-			type: file.type,
-			size: file.size,
-		});
+		return NextResponse.json(
+			{
+				success: true,
+				url: publicUrl,
+				filename,
+				type: file.type,
+				size: file.size,
+			},
+			{ headers: NO_STORE_HEADERS },
+		);
 	} catch (error) {
 		log.error("og-upload", "Upload error", undefined, error);
 		return NextResponse.json(
 			{
 				error: "Failed to upload file",
 			},
-			{ status: 500 },
+			{ status: 500, headers: NO_STORE_HEADERS },
 		);
 	}
 }
 
 export async function GET(request: NextRequest) {
 	try {
-		// List uploaded images
-		const { searchParams } = new URL(request.url);
-		const adminKey = searchParams.get("adminKey");
-
-		if (!(await validateAdminKeyForApiRoute(request, adminKey))) {
-			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		if (!(await validateAdminKeyForApiRoute(request))) {
+			return NextResponse.json(
+				{ error: "Unauthorized" },
+				{ status: 401, headers: NO_STORE_HEADERS },
+			);
 		}
 
 		// Simple response for now - in production you'd scan the directory
-		return NextResponse.json({
-			images: [],
-			message: "Image listing not implemented yet",
-		});
+		return NextResponse.json(
+			{
+				images: [],
+				message: "Image listing not implemented yet",
+			},
+			{ headers: NO_STORE_HEADERS },
+		);
 	} catch (error) {
 		log.error("og-upload", "List images error", undefined, error);
 		return NextResponse.json(
 			{
 				error: "Failed to list images",
 			},
-			{ status: 500 },
+			{ status: 500, headers: NO_STORE_HEADERS },
 		);
 	}
 }

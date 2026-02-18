@@ -1,8 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
 import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
 import { log } from "@/lib/platform/logger";
+import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+const NO_STORE_HEADERS = {
+	"Cache-Control":
+		"private, no-store, no-cache, max-age=0, must-revalidate, proxy-revalidate",
+	Pragma: "no-cache",
+	Expires: "0",
+} as const;
 
 const readSecretToken = (request: NextRequest): string => {
 	const authorization = request.headers.get("authorization");
@@ -14,8 +20,7 @@ const readSecretToken = (request: NextRequest): string => {
 	if (headerToken && headerToken.trim().length > 0) {
 		return headerToken.trim();
 	}
-
-	return request.nextUrl.searchParams.get("secret")?.trim() ?? "";
+	return "";
 };
 
 async function handleRevalidation(request: NextRequest): Promise<NextResponse> {
@@ -30,7 +35,7 @@ async function handleRevalidation(request: NextRequest): Promise<NextResponse> {
 				success: false,
 				error: "DEPLOY_REVALIDATE_SECRET is not configured",
 			},
-			{ status: 503 },
+			{ status: 503, headers: NO_STORE_HEADERS },
 		);
 	}
 
@@ -41,7 +46,7 @@ async function handleRevalidation(request: NextRequest): Promise<NextResponse> {
 				success: false,
 				error: "Unauthorized",
 			},
-			{ status: 401 },
+			{ status: 401, headers: NO_STORE_HEADERS },
 		);
 	}
 
@@ -57,16 +62,19 @@ async function handleRevalidation(request: NextRequest): Promise<NextResponse> {
 					message: refreshed.message,
 					error: refreshed.error ?? "Live data reload failed",
 				},
-				{ status: 500 },
+				{ status: 500, headers: NO_STORE_HEADERS },
 			);
 		}
 
-		return NextResponse.json({
-			success: true,
-			message: refreshed.message,
-			count: refreshed.count,
-			source: refreshed.source,
-		});
+		return NextResponse.json(
+			{
+				success: true,
+				message: refreshed.message,
+				count: refreshed.count,
+				source: refreshed.source,
+			},
+			{ headers: NO_STORE_HEADERS },
+		);
 	} catch (error) {
 		log.error("cache", "Deploy revalidation route failed", undefined, error);
 		return NextResponse.json(
@@ -74,7 +82,7 @@ async function handleRevalidation(request: NextRequest): Promise<NextResponse> {
 				success: false,
 				error: error instanceof Error ? error.message : "Unknown error",
 			},
-			{ status: 500 },
+			{ status: 500, headers: NO_STORE_HEADERS },
 		);
 	}
 }
