@@ -178,8 +178,8 @@ const buildThemeText = (
 		title: "Fete Finder",
 		subtitle:
 			eventCount > 0
-				? `${eventCount} curated events across Paris arrondissements.`
-				: "Curated music events across Paris arrondissements.",
+				? `${eventCount} curated Paris picks by Out Of Office Collective.`
+				: "Curated Paris music picks by Out Of Office Collective.",
 	};
 };
 

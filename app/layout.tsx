@@ -21,11 +21,11 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 export const metadata: Metadata = {
 	title: {
-		default: "Fête Finder - Out Of Office Collective",
-		template: "%s | Fête Finder - OOOC",
+		default: "Fête Finder | Out Of Office Collective",
+		template: "%s | Fête Finder",
 	},
 	description:
-		"Interactive map of music events across Paris arrondissements for Fête de la Musique 2025. Discover live music performances, street concerts, and cultural events happening during the annual French music celebration.",
+		"Curated map of Paris music events by Out Of Office Collective. Discover live performances, save your picks, and plan your Fête Finder route.",
 	keywords: [
 		"Fête de la Musique",
 		"Paris music events",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 		"Out Of Office Collective",
 		"OOOC",
 		"interactive map",
-		"2025 events",
+		"curated event guide",
 	],
 	authors: [{ name: "Out Of Office Collective" }],
 	creator: "Out Of Office Collective",
@@ -48,10 +48,10 @@ export const metadata: Metadata = {
 		type: "website",
 		locale: "en_US",
 		url: siteUrl,
-		title: "Fête Finder - Interactive Paris Music Events Map",
+		title: "Fête Finder | Out Of Office Collective",
 		description:
-			"Discover live music events across all Paris arrondissements during Fête de la Musique 2025. Interactive map with real-time event updates from Out Of Office Collective.",
-		siteName: "Fête Finder - OOOC",
+			"Curated Paris music events, editorial picks, and live updates from Out Of Office Collective.",
+		siteName: "Fête Finder",
 		images: [
 			{
 				url: generateMainOGImage(),
@@ -64,11 +64,11 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "Fête Finder - Interactive Paris Music Events Map",
+		title: "Fête Finder | Out Of Office Collective",
 		description:
-			"Discover live music events across Paris arrondissements during Fête de la Musique 2025. Interactive map with real-time updates.",
-		site: "@OutOfOfficeCol", // Replace with your actual Twitter handle
-		creator: "@OutOfOfficeCol", // Replace with your actual Twitter handle
+			"Curated Paris music events, editorial picks, and live updates from Out Of Office Collective.",
+		site: "@OutOfOfficeCol",
+		creator: "@OutOfOfficeCol",
 		images: [
 			{
 				url: generateMainOGImage(),

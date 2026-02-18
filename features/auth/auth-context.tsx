@@ -1,5 +1,11 @@
 "use client";
 
+import {
+	type OfflineGraceState,
+	createOfflineGraceState,
+	isOfflineGraceActive,
+	parseOfflineGraceState,
+} from "@/features/auth/offline-grace";
 import { clientLog } from "@/lib/platform/client-logger";
 import React, {
 	createContext,
@@ -10,11 +16,6 @@ import React, {
 } from "react";
 
 type AuthMode = "signed-out" | "live" | "offline-grace";
-
-type OfflineGraceState = {
-	email: string;
-	expiresAt: number;
-};
 
 type AuthContextType = {
 	isAuthenticated: boolean;
@@ -36,7 +37,6 @@ type AuthProviderProps = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const OFFLINE_GRACE_STORAGE_KEY = "oooc_offline_auth_grace_v1";
-const OFFLINE_GRACE_WINDOW_MS = 72 * 60 * 60 * 1000;
 const AUTH_TIMING_LOG_ENABLED =
 	process.env.NODE_ENV === "development" ||
 	process.env.NEXT_PUBLIC_AUTH_TIMING_LOG === "1";
@@ -61,24 +61,8 @@ const isValidEmail = (email: string): boolean => {
 
 const readOfflineGraceState = (): OfflineGraceState | null => {
 	if (typeof window === "undefined") return null;
-	try {
-		const raw = window.localStorage.getItem(OFFLINE_GRACE_STORAGE_KEY);
-		if (!raw) return null;
-		const parsed = JSON.parse(raw) as Partial<OfflineGraceState>;
-		if (
-			typeof parsed.email !== "string" ||
-			typeof parsed.expiresAt !== "number" ||
-			parsed.email.trim().length === 0
-		) {
-			return null;
-		}
-		return {
-			email: parsed.email.trim().toLowerCase(),
-			expiresAt: parsed.expiresAt,
-		};
-	} catch {
-		return null;
-	}
+	const raw = window.localStorage.getItem(OFFLINE_GRACE_STORAGE_KEY);
+	return parseOfflineGraceState(raw);
 };
 
 const writeOfflineGraceState = (email: string, expiresAt: number): void => {
@@ -118,14 +102,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
 	const setLiveAuthenticatedState = useCallback(
 		(email: string, isAdmin: boolean) => {
-			const normalizedEmail = email.trim().toLowerCase();
-			const expiresAt = Date.now() + OFFLINE_GRACE_WINDOW_MS;
+			const graceState = createOfflineGraceState(email);
 			setIsAuthenticated(true);
 			setIsAdminAuthenticated(isAdmin);
-			setUserEmail(normalizedEmail);
+			setUserEmail(graceState.email);
 			setAuthMode("live");
-			setOfflineGraceExpiresAt(expiresAt);
-			writeOfflineGraceState(normalizedEmail, expiresAt);
+			setOfflineGraceExpiresAt(graceState.expiresAt);
+			writeOfflineGraceState(graceState.email, graceState.expiresAt);
 		},
 		[],
 	);
@@ -134,7 +117,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 		const graceState = readOfflineGraceState();
 		if (!graceState) return false;
 
-		if (graceState.expiresAt <= Date.now()) {
+		if (!isOfflineGraceActive(graceState)) {
 			clearOfflineGraceState();
 			return false;
 		}

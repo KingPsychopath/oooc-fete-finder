@@ -74,7 +74,7 @@ export const generateAdminOGImage = (
 export const generateMainOGImage = (eventCount?: number): string => {
 	return generateOGImageUrl({
 		title: "Fête Finder",
-		subtitle: "Interactive Paris Music Events Map",
+		subtitle: "Curated Paris music events by Out Of Office Collective",
 		theme: "default",
 		eventCount,
 	});
