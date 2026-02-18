@@ -2,23 +2,27 @@
 
 import { useEffect, useState } from "react";
 
+const TIME_FORMATTER = new Intl.DateTimeFormat("fr-FR", {
+	hour: "2-digit",
+	minute: "2-digit",
+	second: "2-digit",
+	timeZone: "Europe/Paris",
+});
+
+const DATE_FORMATTER = new Intl.DateTimeFormat("fr-FR", {
+	weekday: "long",
+	year: "numeric",
+	month: "long",
+	day: "numeric",
+	timeZone: "Europe/Paris",
+});
+
 const formatTime = (date: Date) => {
-	return date.toLocaleTimeString("fr-FR", {
-		hour: "2-digit",
-		minute: "2-digit",
-		second: "2-digit",
-		timeZone: "Europe/Paris",
-	});
+	return TIME_FORMATTER.format(date);
 };
 
 const formatDate = (date: Date) => {
-	return date.toLocaleDateString("fr-FR", {
-		weekday: "long",
-		year: "numeric",
-		month: "long",
-		day: "numeric",
-		timeZone: "Europe/Paris",
-	});
+	return DATE_FORMATTER.format(date);
 };
 
 export const Clock = () => {
@@ -27,11 +31,39 @@ export const Clock = () => {
 
 	useEffect(() => {
 		setMounted(true);
-		const timer = setInterval(() => {
-			setCurrentTime(new Date());
-		}, 1000);
+		let timer: ReturnType<typeof setInterval> | null = null;
 
-		return () => clearInterval(timer);
+		const updateTime = () => {
+			setCurrentTime(new Date());
+		};
+
+		const startTimer = () => {
+			if (timer) return;
+			updateTime();
+			timer = setInterval(updateTime, 1000);
+		};
+
+		const stopTimer = () => {
+			if (!timer) return;
+			clearInterval(timer);
+			timer = null;
+		};
+
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === "visible") {
+				startTimer();
+				return;
+			}
+			stopTimer();
+		};
+
+		startTimer();
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+
+		return () => {
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+			stopTimer();
+		};
 	}, []);
 
 	if (!mounted) return null;
