@@ -21,7 +21,6 @@ type AllEventsProps = {
 	activeFiltersCount: number;
 	isAuthenticated: boolean;
 	isAuthResolved: boolean;
-	submissionsEnabled: boolean;
 };
 
 export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
@@ -35,7 +34,6 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			activeFiltersCount,
 			isAuthenticated,
 			isAuthResolved,
-			submissionsEnabled,
 		},
 		ref,
 	) => {
@@ -63,25 +61,14 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 									{events.length} event{events.length !== 1 ? "s" : ""}
 								</Badge>
 							</div>
-							{submissionsEnabled ? (
-								<Link
-									href={`${basePath}/submit-event`}
-									className="mt-1 text-xs leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
-									style={{ textWrap: "balance" }}
-								>
-									Hosting something special? Put it on the map with the
-									collective and submit your event →
-								</Link>
-							) : (
-								<Link
-									href={`${basePath}/submit-event`}
-									className="mt-1 text-xs leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
-									style={{ textWrap: "balance" }}
-								>
-									Hosting something special? Put it on the map with the
-									collective and submit your event →
-								</Link>
-							)}
+							<Link
+								href={`${basePath}/submit-event`}
+								className="mt-1 text-xs leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
+								style={{ textWrap: "balance" }}
+							>
+								Hosting something special? Put it on the map with the
+								collective and submit your event →
+							</Link>
 						</div>
 						<FilterButton
 							onClickAction={onFilterClickAction}
