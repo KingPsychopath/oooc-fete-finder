@@ -89,8 +89,6 @@ export const env = createEnv({
 		CRON_SECRET: z.string().optional(),
 		DEPLOY_REVALIDATE_SECRET: z.string().optional(),
 
-		// OG Image default (optional)
-		DEFAULT_OG_IMAGE: z.string().optional(),
 	},
 
 	/**
@@ -123,7 +121,6 @@ export const env = createEnv({
 		REMOTE_CSV_URL: process.env.REMOTE_CSV_URL,
 		CRON_SECRET: process.env.CRON_SECRET,
 		DEPLOY_REVALIDATE_SECRET: process.env.DEPLOY_REVALIDATE_SECRET,
-		DEFAULT_OG_IMAGE: process.env.DEFAULT_OG_IMAGE,
 
 		// Client
 		NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH,

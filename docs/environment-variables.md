@@ -15,7 +15,6 @@ Schema lives in `lib/config/env.ts`.
 | `GOOGLE_MAPS_API_KEY` | No | - | Geocoding; if unset, arrondissement centre fallback |
 | `GOOGLE_SHEET_ID` | No | - | Backup sheet for admin import |
 | `GOOGLE_SERVICE_ACCOUNT_KEY` | No | - | Required for service-account sheet access. |
-| `DEFAULT_OG_IMAGE` | No | - | OG image URL override |
 | `CRON_SECRET` | No | - | Secret for cron routes (e.g. cleanup admin sessions). Vercel cron sends `Authorization: Bearer <CRON_SECRET>`. |
 | `DEPLOY_REVALIDATE_SECRET` | No | - | Secret for `/api/revalidate/deploy` (post-deploy live reload + homepage revalidation). |
 
