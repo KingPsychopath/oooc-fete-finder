@@ -89,6 +89,26 @@ export interface ReviewEventSubmissionInput {
 	reviewedBy?: string;
 }
 
+export interface EventSubmissionSettings {
+	version: 1;
+	enabled: boolean;
+	updatedAt: string;
+	updatedBy: string;
+}
+
+export interface EventSubmissionPublicSettings {
+	enabled: boolean;
+	updatedAt: string;
+}
+
+export interface EventSubmissionSettingsStatus {
+	provider: "file" | "memory" | "postgres";
+	location: string;
+	key: string;
+	updatedAt: string;
+	updatedBy: string;
+}
+
 export const EVENT_SUBMISSION_DECLINE_REASONS = [
 	"not_enough_information",
 	"duplicate_submission",

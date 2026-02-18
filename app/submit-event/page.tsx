@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { HomeHeader } from "@/app/HomeHeader";
 import { SubmitEventForm } from "@/features/events/submissions/SubmitEventForm";
+import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 
 export const metadata: Metadata = {
 	title: "Submit Event",
@@ -8,7 +9,9 @@ export const metadata: Metadata = {
 		"Submit your event to Out Of Office Collective with only the essential details. Our team reviews every submission before publishing.",
 };
 
-export default function SubmitEventPage() {
+export default async function SubmitEventPage() {
+	const settings = await EventSubmissionSettingsStore.getPublicSettings();
+
 	return (
 		<div className="ooo-site-shell">
 			<HomeHeader />
@@ -28,7 +31,7 @@ export default function SubmitEventPage() {
 						Finder. Accepted submissions are published by the admin team.
 					</p>
 					<div className="border-t border-border" role="presentation" />
-					<SubmitEventForm />
+					<SubmitEventForm submissionsEnabled={settings.enabled} />
 				</section>
 			</main>
 		</div>

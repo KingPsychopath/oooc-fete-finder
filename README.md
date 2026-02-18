@@ -142,6 +142,9 @@ Sensitive identifiers are HMAC-hashed with `AUTH_SECRET` in limiter keys/log con
 
 Submission spam heuristics (honeypot + minimum completion time) are persisted for moderation and return a generic success response.
 
+Submissions can be globally enabled/disabled from `/admin` -> `Event Submissions`.
+When disabled, the public endpoint returns `503` with `no-store` headers.
+
 ## Documentation
 
 - `docs/environment-variables.md` — env reference (app only uses `DATABASE_URL` for Postgres)

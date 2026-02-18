@@ -40,6 +40,15 @@ Additional spam heuristics:
 
 Spam-flagged payloads are stored as declined with `review_reason=spam_signal`, and the endpoint returns a generic success response.
 
+## Submission Kill Switch
+
+- Admin can enable/disable host submissions from `/admin` -> `Event Submissions`.
+- Setting is persisted in KV (`events:submissions:settings:v1`).
+- When disabled, `POST /api/event-submissions` returns:
+  - Status: `503`
+  - Body: `{ "success": false, "error": "Event submissions are temporarily closed." }`
+  - Headers: `Cache-Control: no-store` (and related no-cache headers)
+
 ## Privacy and Logging
 
 - Raw IP and email are not persisted in limiter storage.
@@ -48,8 +57,10 @@ Spam-flagged payloads are stored as declined with `review_reason=spam_signal`, a
 
 ## Failure Behavior
 
-- If Postgres limiter storage is unavailable, the endpoint fails open.
-- Requests continue (to reduce user lockout risk) and warnings are logged.
+- `POST /api/auth/verify`: if limiter storage is unavailable, requests fail open
+  (to reduce user lockout risk).
+- `POST /api/event-submissions`: if limiter storage is unavailable, requests fail
+  closed with `503` (safer for public write abuse resistance).
 - Vercel WAF remains the first-line shield.
 
 ## Data and Cleanup

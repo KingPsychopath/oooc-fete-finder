@@ -51,7 +51,11 @@ const isValidUrl = (value: string): boolean => {
 	}
 };
 
-export function SubmitEventForm() {
+export function SubmitEventForm({
+	submissionsEnabled = true,
+}: {
+	submissionsEnabled?: boolean;
+}) {
 	const [form, setForm] = useState<FormState>(EMPTY_FORM);
 	const [showOptional, setShowOptional] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,6 +65,7 @@ export function SubmitEventForm() {
 	const [formStartedAt, setFormStartedAt] = useState(() =>
 		new Date().toISOString(),
 	);
+	const isFormDisabled = !submissionsEnabled || isSubmitting;
 
 	const formPayload = useMemo(
 		() => ({
@@ -95,6 +100,11 @@ export function SubmitEventForm() {
 		event.preventDefault();
 		setErrorMessage("");
 		setSuccessMessage("");
+
+		if (!submissionsEnabled) {
+			setErrorMessage("Event submissions are currently closed.");
+			return;
+		}
 
 		const validationError = validate();
 		if (validationError) {
@@ -153,6 +163,11 @@ export function SubmitEventForm() {
 
 	return (
 		<div className="rounded-xl border border-border bg-card/70 p-4 shadow-sm sm:p-6">
+			{!submissionsEnabled && (
+				<div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+					Event submissions are currently closed. Please check back later.
+				</div>
+			)}
 			<form onSubmit={handleSubmit} className="space-y-4">
 				<div className="grid gap-4 md:grid-cols-2">
 					<div className="space-y-2 md:col-span-2">
@@ -163,6 +178,7 @@ export function SubmitEventForm() {
 							onChange={(event) => updateField("eventName", event.target.value)}
 							placeholder="Name of your event"
 							required
+							disabled={isFormDisabled}
 						/>
 					</div>
 					<div className="space-y-2">
@@ -173,6 +189,7 @@ export function SubmitEventForm() {
 							value={form.date}
 							onChange={(event) => updateField("date", event.target.value)}
 							required
+							disabled={isFormDisabled}
 						/>
 					</div>
 					<div className="space-y-2">
@@ -183,6 +200,7 @@ export function SubmitEventForm() {
 							value={form.startTime}
 							onChange={(event) => updateField("startTime", event.target.value)}
 							required
+							disabled={isFormDisabled}
 						/>
 					</div>
 					<div className="space-y-2 md:col-span-2">
@@ -193,6 +211,7 @@ export function SubmitEventForm() {
 							onChange={(event) => updateField("location", event.target.value)}
 							placeholder="Venue name or address"
 							required
+							disabled={isFormDisabled}
 						/>
 					</div>
 					<div className="space-y-2">
@@ -204,6 +223,7 @@ export function SubmitEventForm() {
 							onChange={(event) => updateField("hostEmail", event.target.value)}
 							placeholder="you@example.com"
 							required
+							disabled={isFormDisabled}
 						/>
 					</div>
 					<div className="space-y-2">
@@ -215,6 +235,7 @@ export function SubmitEventForm() {
 							onChange={(event) => updateField("proofLink", event.target.value)}
 							placeholder="Ticket, Instagram, or official event link"
 							required
+							disabled={isFormDisabled}
 						/>
 					</div>
 				</div>
@@ -224,6 +245,7 @@ export function SubmitEventForm() {
 						type="button"
 						onClick={() => setShowOptional((value) => !value)}
 						className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
+						disabled={isFormDisabled}
 					>
 						{showOptional ? "Hide optional details" : "Add optional details"}
 					</button>
@@ -236,6 +258,7 @@ export function SubmitEventForm() {
 									type="time"
 									value={form.endTime}
 									onChange={(event) => updateField("endTime", event.target.value)}
+									disabled={isFormDisabled}
 								/>
 							</div>
 							<div className="space-y-2">
@@ -245,6 +268,7 @@ export function SubmitEventForm() {
 									value={form.genre}
 									onChange={(event) => updateField("genre", event.target.value)}
 									placeholder="Afrobeats, Dancehall, House"
+									disabled={isFormDisabled}
 								/>
 							</div>
 							<div className="space-y-2">
@@ -254,6 +278,7 @@ export function SubmitEventForm() {
 									value={form.price}
 									onChange={(event) => updateField("price", event.target.value)}
 									placeholder="Free, EUR 15, etc."
+									disabled={isFormDisabled}
 								/>
 							</div>
 							<div className="space-y-2">
@@ -263,6 +288,7 @@ export function SubmitEventForm() {
 									value={form.age}
 									onChange={(event) => updateField("age", event.target.value)}
 									placeholder="18+, 21+, All ages"
+									disabled={isFormDisabled}
 								/>
 							</div>
 							<div className="space-y-2">
@@ -274,6 +300,7 @@ export function SubmitEventForm() {
 										updateField("indoorOutdoor", event.target.value)
 									}
 									className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+									disabled={isFormDisabled}
 								>
 									<option value="">Select</option>
 									<option value="Indoor">Indoor</option>
@@ -290,6 +317,7 @@ export function SubmitEventForm() {
 										updateField("arrondissement", event.target.value)
 									}
 									placeholder="1-20 or unknown"
+									disabled={isFormDisabled}
 								/>
 							</div>
 							<div className="space-y-2 md:col-span-2">
@@ -300,6 +328,7 @@ export function SubmitEventForm() {
 									onChange={(event) => updateField("notes", event.target.value)}
 									rows={4}
 									placeholder="Add context that helps us review your event"
+									disabled={isFormDisabled}
 								/>
 							</div>
 						</div>
@@ -314,6 +343,7 @@ export function SubmitEventForm() {
 						autoComplete="off"
 						value={form.honeypot}
 						onChange={(event) => updateField("honeypot", event.target.value)}
+						disabled={isFormDisabled}
 					/>
 				</div>
 
@@ -329,7 +359,7 @@ export function SubmitEventForm() {
 				)}
 
 				<div className="flex flex-wrap items-center gap-3">
-					<Button type="submit" disabled={isSubmitting}>
+					<Button type="submit" disabled={isFormDisabled}>
 						{isSubmitting ? "Submitting..." : "Submit Event"}
 					</Button>
 					{isSubmitted && (

@@ -5,6 +5,7 @@ import {
 	evaluateSubmissionSpamSignals,
 	parseEventSubmissionInput,
 } from "@/features/events/submissions/store";
+import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 import {
 	checkEventSubmitEmailIpLimit,
 	checkEventSubmitFingerprintLimit,
@@ -43,10 +44,49 @@ const acceptedResponse = (): NextResponse =>
 		{ headers: NO_STORE_HEADERS },
 	);
 
+const serviceUnavailableResponse = (): NextResponse =>
+	NextResponse.json(
+		{
+			success: false,
+			error: "Submission service unavailable",
+		},
+		{ status: 503, headers: NO_STORE_HEADERS },
+	);
+
 export async function POST(request: Request) {
+	const contentType = request.headers.get("content-type") || "";
+	if (!contentType.toLowerCase().includes("application/json")) {
+		return NextResponse.json(
+			{ success: false, error: "Unsupported media type" },
+			{ status: 415, headers: NO_STORE_HEADERS },
+		);
+	}
+
+	let submissionSettings;
+	try {
+		submissionSettings = await EventSubmissionSettingsStore.getPublicSettings();
+	} catch {
+		return serviceUnavailableResponse();
+	}
+	if (!submissionSettings.enabled) {
+		return NextResponse.json(
+			{
+				success: false,
+				error: "Event submissions are temporarily closed.",
+			},
+			{
+				status: 503,
+				headers: NO_STORE_HEADERS,
+			},
+		);
+	}
+
 	const clientIp = extractClientIpFromHeaders(request.headers);
 
 	const ipDecision = await checkEventSubmitIpLimit(clientIp);
+	if (ipDecision.reason === "limiter_unavailable") {
+		return serviceUnavailableResponse();
+	}
 	if (!ipDecision.allowed) {
 		return rateLimitedResponse(ipDecision.retryAfterSeconds ?? 1);
 	}
@@ -85,12 +125,18 @@ export async function POST(request: Request) {
 		normalizedInput.hostEmail,
 		clientIp,
 	);
+	if (emailIpDecision.reason === "limiter_unavailable") {
+		return serviceUnavailableResponse();
+	}
 	if (!emailIpDecision.allowed) {
 		return rateLimitedResponse(emailIpDecision.retryAfterSeconds ?? 1);
 	}
 
 	const fingerprint = buildEventSubmissionFingerprint(normalizedInput);
 	const fingerprintDecision = await checkEventSubmitFingerprintLimit(fingerprint);
+	if (fingerprintDecision.reason === "limiter_unavailable") {
+		return serviceUnavailableResponse();
+	}
 	if (!fingerprintDecision.allowed) {
 		return rateLimitedResponse(fingerprintDecision.retryAfterSeconds ?? 1);
 	}
@@ -106,10 +152,7 @@ export async function POST(request: Request) {
 			spamSignals,
 		});
 	} catch {
-		return NextResponse.json(
-			{ success: false, error: "Submission service unavailable" },
-			{ status: 503, headers: NO_STORE_HEADERS },
-		);
+		return serviceUnavailableResponse();
 	}
 
 	return acceptedResponse();

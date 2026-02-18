@@ -13,6 +13,7 @@ import {
 	acceptEventSubmission,
 	declineEventSubmission,
 	getEventSubmissionsDashboard,
+	updateEventSubmissionEnabled,
 } from "@/features/events/submissions/actions";
 import {
 	EVENT_SUBMISSION_DECLINE_REASONS,
@@ -127,6 +128,28 @@ export const EventSubmissionsCard = ({
 		[loadDashboard, onSubmissionReviewed],
 	);
 
+	const handleToggleSubmissions = useCallback(async () => {
+		const enabled = payload?.success ? payload.settings.enabled : true;
+		setIsMutating(true);
+		setStatusMessage("");
+		setErrorMessage("");
+		try {
+			const result = await updateEventSubmissionEnabled(!enabled);
+			if (!result.success) {
+				setErrorMessage(result.error || "Failed to update submission setting");
+				return;
+			}
+			setStatusMessage(result.message || "Submission setting updated");
+			await loadDashboard();
+			if (onSubmissionReviewed) {
+				await onSubmissionReviewed();
+			}
+		} finally {
+			setIsMutating(false);
+			setBusySubmissionId(null);
+		}
+	}, [loadDashboard, onSubmissionReviewed, payload]);
+
 	const handleAccept = useCallback(
 		async (submissionId: string) => {
 			await withMutation(submissionId, () => acceptEventSubmission(submissionId));
@@ -167,6 +190,8 @@ export const EventSubmissionsCard = ({
 	);
 
 	const metrics = payload?.success ? payload.metrics : null;
+	const submissionsEnabled = payload?.success ? payload.settings.enabled : true;
+	const settingsStatus = payload?.success ? payload.settingsStatus : null;
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
@@ -179,16 +204,41 @@ export const EventSubmissionsCard = ({
 							event sheet and revalidates homepage immediately.
 						</CardDescription>
 					</div>
-					<Button
-						type="button"
-						size="sm"
-						variant="outline"
-						onClick={() => void loadDashboard()}
-						disabled={isLoading || isMutating}
-					>
-						{isLoading ? "Refreshing..." : "Refresh"}
-					</Button>
+					<div className="flex flex-wrap items-center gap-2">
+						<Button
+							type="button"
+							size="sm"
+							variant={submissionsEnabled ? "default" : "destructive"}
+							onClick={() => void handleToggleSubmissions()}
+							disabled={isLoading || isMutating}
+						>
+							{submissionsEnabled ? "Submissions Open" : "Submissions Closed"}
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onClick={() => void loadDashboard()}
+							disabled={isLoading || isMutating}
+						>
+							{isLoading ? "Refreshing..." : "Refresh"}
+						</Button>
+					</div>
 				</div>
+				{settingsStatus && (
+					<div className="rounded-md border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+						<p className="break-all">Store path: {settingsStatus.location}</p>
+						<p className="mt-1">
+							Last updated: {new Date(settingsStatus.updatedAt).toLocaleString()} by{" "}
+							{settingsStatus.updatedBy}
+						</p>
+					</div>
+				)}
+				{!submissionsEnabled && (
+					<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+						Public submissions are currently disabled. The submit endpoint is blocked.
+					</div>
+				)}
 				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">

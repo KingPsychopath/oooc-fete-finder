@@ -10,14 +10,19 @@ import {
 	getEventSheetEditorData,
 	saveEventSheetEditorRows,
 } from "@/features/data-management/actions";
+import { revalidatePath } from "next/cache";
 import {
 	getEventSubmissionById,
 	getEventSubmissionSnapshot,
 	reviewEventSubmission,
 } from "./store";
+import { EventSubmissionSettingsStore } from "./settings-store";
 import type {
+	EventSubmissionPublicSettings,
 	EventSubmissionRecord,
+	EventSubmissionSettings,
 	EventSubmissionSnapshot,
+	EventSubmissionSettingsStatus,
 } from "./types";
 
 const assertAdmin = async (keyOrToken?: string): Promise<void> => {
@@ -81,6 +86,8 @@ export async function getEventSubmissionsDashboard(
 ): Promise<
 	| ({
 			success: true;
+			settings: EventSubmissionSettings;
+			settingsStatus: EventSubmissionSettingsStatus;
 		} & EventSubmissionSnapshot)
 	| {
 			success: false;
@@ -89,15 +96,76 @@ export async function getEventSubmissionsDashboard(
 > {
 	try {
 		await assertAdmin(keyOrToken);
-		const snapshot = await getEventSubmissionSnapshot(120);
+		const [snapshot, settings, settingsStatus] = await Promise.all([
+			getEventSubmissionSnapshot(120),
+			EventSubmissionSettingsStore.getSettings(),
+			EventSubmissionSettingsStore.getStatus(),
+		]);
 		return {
 			success: true,
 			...snapshot,
+			settings,
+			settingsStatus,
 		};
 	} catch (error) {
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : "Unknown submissions error",
+		};
+	}
+}
+
+export async function getPublicEventSubmissionSettings(): Promise<{
+	success: boolean;
+	settings: EventSubmissionPublicSettings;
+	error?: string;
+}> {
+	try {
+		const settings = await EventSubmissionSettingsStore.getPublicSettings();
+		return {
+			success: true,
+			settings,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			settings: { enabled: true, updatedAt: new Date(0).toISOString() },
+			error: error instanceof Error ? error.message : "Unknown settings error",
+		};
+	}
+}
+
+export async function updateEventSubmissionEnabled(
+	enabled: boolean,
+	keyOrToken?: string,
+): Promise<{
+	success: boolean;
+	settings?: EventSubmissionSettings;
+	settingsStatus?: EventSubmissionSettingsStatus;
+	message?: string;
+	error?: string;
+}> {
+	try {
+		await assertAdmin(keyOrToken);
+		const settings = await EventSubmissionSettingsStore.updateEnabled(
+			enabled,
+			"admin-panel",
+		);
+		const settingsStatus = await EventSubmissionSettingsStore.getStatus();
+		revalidatePath("/");
+		revalidatePath("/submit-event");
+		return {
+			success: true,
+			settings,
+			settingsStatus,
+			message: enabled
+				? "Event submissions are now open"
+				: "Event submissions are now closed",
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown update error",
 		};
 	}
 }

@@ -48,6 +48,11 @@ type Setup = {
 	reviewEventSubmission: ReturnType<typeof vi.fn>;
 	getEventSheetEditorData: ReturnType<typeof vi.fn>;
 	saveEventSheetEditorRows: ReturnType<typeof vi.fn>;
+	getSettings: ReturnType<typeof vi.fn>;
+	getStatus: ReturnType<typeof vi.fn>;
+	updateEnabled: ReturnType<typeof vi.fn>;
+	revalidatePath: ReturnType<typeof vi.fn>;
+	updateEventSubmissionEnabled: typeof import("@/features/events/submissions/actions").updateEventSubmissionEnabled;
 };
 
 const loadActions = async (): Promise<Setup> => {
@@ -94,6 +99,26 @@ const loadActions = async (): Promise<Setup> => {
 		rowCount: 2,
 		updatedAt: "2026-02-18T11:00:00.000Z",
 	});
+	const getSettings = vi.fn().mockResolvedValue({
+		version: 1,
+		enabled: true,
+		updatedAt: "2026-02-18T10:00:00.000Z",
+		updatedBy: "admin-panel",
+	});
+	const getStatus = vi.fn().mockResolvedValue({
+		provider: "postgres",
+		location: "Postgres table app_kv_store (DATABASE_URL)",
+		key: "events:submissions:settings:v1",
+		updatedAt: "2026-02-18T10:00:00.000Z",
+		updatedBy: "admin-panel",
+	});
+	const updateEnabled = vi.fn().mockResolvedValue({
+		version: 1,
+		enabled: false,
+		updatedAt: "2026-02-18T11:00:00.000Z",
+		updatedBy: "admin-panel",
+	});
+	const revalidatePath = vi.fn();
 
 	vi.doMock("@/features/auth/admin-validation", () => ({
 		validateAdminAccessFromServerContext: validateAdminAccess,
@@ -110,17 +135,37 @@ const loadActions = async (): Promise<Setup> => {
 		saveEventSheetEditorRows,
 	}));
 
+	vi.doMock("@/features/events/submissions/settings-store", () => ({
+		EventSubmissionSettingsStore: {
+			getSettings,
+			getStatus,
+			updateEnabled,
+			getPublicSettings: vi.fn().mockResolvedValue({
+				enabled: true,
+				updatedAt: "2026-02-18T10:00:00.000Z",
+			}),
+		},
+	}));
+	vi.doMock("next/cache", () => ({
+		revalidatePath,
+	}));
+
 	const actions = await import("@/features/events/submissions/actions");
 	return {
 		getEventSubmissionsDashboard: actions.getEventSubmissionsDashboard,
 		acceptEventSubmission: actions.acceptEventSubmission,
 		declineEventSubmission: actions.declineEventSubmission,
+		updateEventSubmissionEnabled: actions.updateEventSubmissionEnabled,
 		validateAdminAccess,
 		getEventSubmissionSnapshot,
 		getEventSubmissionById,
 		reviewEventSubmission,
 		getEventSheetEditorData,
 		saveEventSheetEditorRows,
+		getSettings,
+		getStatus,
+		updateEnabled,
+		revalidatePath,
 	};
 };
 
@@ -130,11 +175,18 @@ describe("event submission admin actions", () => {
 	});
 
 	it("lists submissions for authorized admins", async () => {
-		const { getEventSubmissionsDashboard, getEventSubmissionSnapshot } = await loadActions();
+		const {
+			getEventSubmissionsDashboard,
+			getEventSubmissionSnapshot,
+			getSettings,
+			getStatus,
+		} = await loadActions();
 		const result = await getEventSubmissionsDashboard();
 
 		expect(result.success).toBe(true);
 		expect(getEventSubmissionSnapshot).toHaveBeenCalledTimes(1);
+		expect(getSettings).toHaveBeenCalledTimes(1);
+		expect(getStatus).toHaveBeenCalledTimes(1);
 	});
 
 	it("declines a pending submission with reason", async () => {
@@ -198,5 +250,16 @@ describe("event submission admin actions", () => {
 
 		expect(listResult.success).toBe(false);
 		expect(acceptResult.success).toBe(false);
+	});
+
+	it("updates persisted submission enabled setting for admins", async () => {
+		const { updateEventSubmissionEnabled, updateEnabled, revalidatePath } =
+			await loadActions();
+		const result = await updateEventSubmissionEnabled(false);
+
+		expect(result.success).toBe(true);
+		expect(updateEnabled).toHaveBeenCalledWith(false, "admin-panel");
+		expect(revalidatePath).toHaveBeenCalledWith("/");
+		expect(revalidatePath).toHaveBeenCalledWith("/submit-event");
 	});
 });

@@ -22,11 +22,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 interface EventsClientProps {
 	initialEvents: Event[];
 	mapLoadStrategy: MapLoadStrategy;
+	submissionsEnabled: boolean;
 }
 
 export function EventsClient({
 	initialEvents,
 	mapLoadStrategy,
+	submissionsEnabled,
 }: EventsClientProps) {
 	const router = useRouter();
 	const pathname = usePathname();
@@ -350,6 +352,7 @@ export function EventsClient({
 				activeFiltersCount={activeFiltersCount}
 				isAuthenticated={isAuthenticated}
 				isAuthResolved={isAuthResolved}
+				submissionsEnabled={submissionsEnabled}
 			/>
 
 			<EventModal

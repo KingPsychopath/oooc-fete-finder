@@ -7,7 +7,10 @@ import { EventCard } from "@/features/events/components/EventCard";
 import { FilterButton } from "@/features/events/components/FilterButton";
 import type { Event } from "@/features/events/types";
 import { Lock } from "lucide-react";
+import Link from "next/link";
 import { forwardRef } from "react";
+
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 type AllEventsProps = {
 	events: Event[];
@@ -18,6 +21,7 @@ type AllEventsProps = {
 	activeFiltersCount: number;
 	isAuthenticated: boolean;
 	isAuthResolved: boolean;
+	submissionsEnabled: boolean;
 };
 
 export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
@@ -31,6 +35,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			activeFiltersCount,
 			isAuthenticated,
 			isAuthResolved,
+			submissionsEnabled,
 		},
 		ref,
 	) => {
@@ -64,6 +69,26 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 					</div>
 				</CardHeader>
 				<CardContent className="py-5">
+					<div className="mb-4 rounded-md border border-border/70 bg-background/70 px-3 py-2.5 text-xs text-muted-foreground">
+						<p className="text-[10px] uppercase tracking-[0.14em] text-foreground/80">
+							Host Note
+						</p>
+						{submissionsEnabled ? (
+							<p className="mt-1 leading-relaxed">
+								Running an event?{" "}
+								<Link
+									href={`${basePath}/submit-event`}
+									className="font-medium text-foreground underline underline-offset-4"
+								>
+									Share your event details for admin review.
+								</Link>
+							</p>
+						) : (
+							<p className="mt-1 leading-relaxed">
+								Event host submissions are currently closed.
+							</p>
+						)}
+					</div>
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 						{visibleEvents.map((event) => (
 							<EventCard key={event.id} event={event} onClick={onEventClick} />

@@ -64,7 +64,8 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 		basePath && basePath !== "/" && normalizedPathname.startsWith(basePath)
 			? normalizedPathname.slice(basePath.length) || "/"
 			: normalizedPathname;
-	const isFeatureEventPage =
+	const isHomePage = pathWithoutBasePath === "/";
+	const isPromotePage =
 		pathWithoutBasePath === "/feature-event" ||
 		pathWithoutBasePath.startsWith("/feature-event/") ||
 		pathWithoutBasePath === "/featured-event" ||
@@ -152,22 +153,22 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							className="hidden items-center gap-6 lg:flex lg:justify-self-center lg:gap-7"
 							aria-label="Main"
 						>
-							{isFeatureEventPage && (
-								<Link
-									href={basePath || "/"}
-									className="text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
-								>
-									Home
-								</Link>
-							)}
-							{!isFeatureEventPage && (
-								<Link
-									href={`${basePath || ""}/feature-event`}
-									className="text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
-								>
-									Promote
-								</Link>
-							)}
+							<Link
+								href={basePath || "/"}
+								className={`text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
+									isHomePage ? "text-foreground" : "text-foreground/75"
+								}`}
+							>
+								Home
+							</Link>
+							<Link
+								href={`${basePath || ""}/feature-event`}
+								className={`text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
+									isPromotePage ? "text-foreground" : "text-foreground/75"
+								}`}
+							>
+								Promote
+							</Link>
 							{EXTERNAL_NAV_LINKS.map((link) => (
 								<Link
 									key={link.href}
@@ -186,12 +187,6 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 								<Clock />
 								<ThemeToggle className="h-9 w-9 rounded-full border border-border/80 bg-background/70 hover:bg-accent" />
 							</div>
-							<Link
-								href={`${basePath || ""}/submit-event`}
-								className="inline-flex items-center rounded-full border border-border/80 bg-background/70 px-3 py-2 text-[11px] tracking-[0.08em] text-foreground/85 transition-colors hover:bg-accent"
-							>
-								Submit Event
-							</Link>
 							{isAdminAuthenticated && (
 								<Link
 									href={`${basePath || ""}/admin`}
