@@ -91,6 +91,7 @@ const loadActions = async (): Promise<Setup> => {
 	vi.doMock("@/features/data-management/csv/sheet-editor", () => ({
 		csvToEditableSheet,
 		editableSheetToCsv: vi.fn().mockReturnValue("name,date\nEvent,2026-06-21"),
+		stripLegacyFeaturedColumn: vi.fn((columns, rows) => ({ columns, rows })),
 		validateEditableSheet: vi.fn((columns, rows) => ({
 			valid: true,
 			columns,
@@ -210,7 +211,7 @@ describe("data-management coordinate warm-up", () => {
 		expect(result.error).toContain("Coordinate population failed");
 	});
 
-	it("allows sheet save when legacy Featured column is present", async () => {
+	it("rejects sheet save when legacy Featured column is present", async () => {
 		const { saveEventSheetEditorRows, localEventStoreSaveCsv, processCSVData } =
 			await loadActions();
 
@@ -229,8 +230,10 @@ describe("data-management coordinate warm-up", () => {
 			{ revalidateHomepage: false },
 		);
 
-		expect(result.success).toBe(true);
-		expect(localEventStoreSaveCsv).toHaveBeenCalledTimes(1);
+		expect(result.success).toBe(false);
+		expect(result.message).toContain("CSV schema validation failed");
+		expect(result.error).toContain("Featured");
+		expect(localEventStoreSaveCsv).not.toHaveBeenCalled();
 		expect(processCSVData).not.toHaveBeenCalled();
 	});
 

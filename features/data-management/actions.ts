@@ -24,6 +24,7 @@ import { parseCSVContent } from "./csv/parser";
 import {
 	csvToEditableSheet,
 	editableSheetToCsv,
+	stripLegacyFeaturedColumn,
 	type EditableSheetColumn,
 	type EditableSheetRow,
 	validateEditableSheet,
@@ -107,6 +108,11 @@ const getCsvRuntimeValidationError = (csvContent: string): string | null => {
 	} catch (error) {
 		return error instanceof Error ? error.message : "CSV validation failed";
 	}
+};
+
+const normalizeCsvForStorage = (csvContent: string): string => {
+	const sheet = csvToEditableSheet(csvContent);
+	return editableSheetToCsv(sheet.columns, sheet.rows);
 };
 
 const warmCoordinateCacheFromCsv = async (
@@ -551,6 +557,19 @@ export async function saveLocalEventStoreCsv(
 		return { success: false, message: "Unauthorized access" };
 	}
 
+	const schemaSheet = csvToEditableSheet(csvContent);
+	const schemaReport = analyzeCsvSchemaRows(schemaSheet.rows, {
+		eventKeyMode: "warn",
+	});
+	const importBlockedReason = buildSchemaBlockingMessage(schemaReport.issues);
+	if (importBlockedReason) {
+		return {
+			success: false,
+			message: "CSV schema validation failed",
+			error: importBlockedReason,
+		};
+	}
+
 	const runtimeValidationError = getCsvRuntimeValidationError(csvContent);
 	if (runtimeValidationError) {
 		return {
@@ -560,15 +579,16 @@ export async function saveLocalEventStoreCsv(
 		};
 	}
 
-		try {
-			const result = await LocalEventStore.saveCsv(csvContent, {
-				updatedBy: "admin-panel",
-				origin: "manual",
-			});
-			await warmCoordinateCacheFromCsv(csvContent, "save-local");
-			await forceRefreshEventsData();
-			return {
-				success: true,
+	try {
+		const normalizedCsv = normalizeCsvForStorage(csvContent);
+		const result = await LocalEventStore.saveCsv(normalizedCsv, {
+			updatedBy: "admin-panel",
+			origin: "manual",
+		});
+		await warmCoordinateCacheFromCsv(normalizedCsv, "save-local");
+		await forceRefreshEventsData();
+		return {
+			success: true,
 			message: "Managed store updated and homepage revalidated",
 			rowCount: result.rowCount,
 		};
@@ -793,14 +813,15 @@ export async function importRemoteCsvToLocalEventStore(
 				error: runtimeValidationError,
 			};
 		}
-			const saved = await LocalEventStore.saveCsv(remoteFetchResult.content, {
-				updatedBy: "admin-google-import",
-				origin: "google-import",
-			});
-			await warmCoordinateCacheFromCsv(remoteFetchResult.content, "import-remote");
-			await forceRefreshEventsData();
+		const normalizedCsv = normalizeCsvForStorage(remoteFetchResult.content);
+		const saved = await LocalEventStore.saveCsv(normalizedCsv, {
+			updatedBy: "admin-google-import",
+			origin: "google-import",
+		});
+		await warmCoordinateCacheFromCsv(normalizedCsv, "import-remote");
+		await forceRefreshEventsData();
 
-			return {
+		return {
 			success: true,
 			message: `Imported ${saved.rowCount} rows from remote source into managed store`,
 			rowCount: saved.rowCount,
@@ -865,11 +886,12 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 			LocalEventStore.getCsv(),
 		]);
 		const sheet = csvToEditableSheet(csv);
+		const sanitized = stripLegacyFeaturedColumn(sheet.columns, sheet.rows);
 
 		return {
 			success: true,
-			columns: sheet.columns,
-			rows: sheet.rows,
+			columns: sanitized.columns,
+			rows: sanitized.rows,
 			status,
 			sheetSource: "store",
 		};
@@ -908,6 +930,17 @@ export async function saveEventSheetEditorRows(
 			return {
 				success: false,
 				message: validation.error || "Invalid sheet payload",
+			};
+		}
+		const schemaReport = analyzeCsvSchemaRows(validation.rows, {
+			eventKeyMode: "warn",
+		});
+		const importBlockedReason = buildSchemaBlockingMessage(schemaReport.issues);
+		if (importBlockedReason) {
+			return {
+				success: false,
+				message: "CSV schema validation failed",
+				error: importBlockedReason,
 			};
 		}
 

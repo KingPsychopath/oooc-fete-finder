@@ -28,40 +28,80 @@ const toCsvValue = (value: string): string => {
 
 const CORE_COLUMN_LABELS: Record<(typeof CSV_EVENT_COLUMNS)[number], string> = {
 	eventKey: "Event Key",
-	oocPicks: "OOOC Picks",
-	nationality: "GB/FR",
-	name: "Name",
+	curated: "Curated",
+	hostCountry: "Host Country",
+	audienceCountry: "Audience Country",
+	title: "Title",
 	date: "Date",
 	startTime: "Start Time",
 	endTime: "End Time",
 	location: "Location",
-	arrondissement: "Arr.",
-	genre: "Genre",
+	districtArea: "District/Area",
+	categories: "Categories",
+	tags: "Tags",
 	price: "Price",
-	ticketLink: "Ticket Link",
-	age: "Age",
-	indoorOutdoor: "Indoor/Outdoor",
+	primaryUrl: "Primary URL",
+	ageGuidance: "Age Guidance",
+	setting: "Setting",
 	notes: "Notes",
 };
 
-const REQUIRED_CORE_COLUMNS = new Set<string>(["name", "date"]);
+const REQUIRED_CORE_COLUMNS = new Set<string>(["title", "date"]);
+const LEGACY_FEATURED_COLUMN_KEY = "featured";
+const LEGACY_CORE_KEY_MAP = new Map<string, string>([
+	["oocPicks", "curated"],
+	["nationality", "hostCountry"],
+	["name", "title"],
+	["arrondissement", "districtArea"],
+	["genre", "categories"],
+	["ticketLink", "primaryUrl"],
+	["age", "ageGuidance"],
+	["indoorOutdoor", "setting"],
+]);
 
 const CORE_COLUMN_SET = new Set<string>(CSV_EVENT_COLUMNS);
 
 const CORE_ALIAS_MAP = new Map<string, string>(
 	[
 		["event key", "eventKey"],
+		["eventkey", "eventKey"],
 		["event id", "eventKey"],
-		["ooc picks", "oocPicks"],
-		["oooc picks", "oocPicks"],
-		["gb/fr", "nationality"],
-		["host country", "nationality"],
+		["curated", "curated"],
+		["ooc picks", "curated"],
+		["oooc picks", "curated"],
+		["oocpicks", "curated"],
+		["host country", "hostCountry"],
+		["hostcountry", "hostCountry"],
+		["nationality", "hostCountry"],
+		["gb/fr", "hostCountry"],
+		["audience country", "audienceCountry"],
+		["audiencecountry", "audienceCountry"],
+		["title", "title"],
+		["name", "title"],
 		["start time", "startTime"],
 		["end time", "endTime"],
-		["arr", "arrondissement"],
-		["arr.", "arrondissement"],
-		["ticket link", "ticketLink"],
-		["indoor outdoor", "indoorOutdoor"],
+		["arr", "districtArea"],
+		["arr.", "districtArea"],
+		["arrondissement", "districtArea"],
+		["district area", "districtArea"],
+		["districtarea", "districtArea"],
+		["category", "categories"],
+		["categories", "categories"],
+		["genre", "categories"],
+		["primary url", "primaryUrl"],
+		["primaryurl", "primaryUrl"],
+		["url", "primaryUrl"],
+		["website", "primaryUrl"],
+		["link", "primaryUrl"],
+		["ticket link", "primaryUrl"],
+		["ticketlink", "primaryUrl"],
+		["age guidance", "ageGuidance"],
+		["ageguidance", "ageGuidance"],
+		["age", "ageGuidance"],
+		["setting", "setting"],
+		["venue type", "setting"],
+		["indoor outdoor", "setting"],
+		["indooroutdoor", "setting"],
 	]
 		.map(([left, right]) => [normalizeKey(left), right]),
 );
@@ -123,6 +163,75 @@ export const createCustomColumnKey = (
 	return `${base}_${index}`;
 };
 
+export const stripLegacyFeaturedColumn = (
+	columns: EditableSheetColumn[],
+	rows: EditableSheetRow[],
+): {
+	columns: EditableSheetColumn[];
+	rows: EditableSheetRow[];
+} => {
+	const hasLegacyFeatured = columns.some(
+		(column) => column.key === LEGACY_FEATURED_COLUMN_KEY,
+	);
+	if (!hasLegacyFeatured) {
+		return {
+			columns: columns.map((column) => ({ ...column })),
+			rows: rows.map((row) => ({ ...row })),
+		};
+	}
+
+	const nextColumns = columns
+		.filter((column) => column.key !== LEGACY_FEATURED_COLUMN_KEY)
+		.map((column) => ({ ...column }));
+	const nextRows = rows.map((row) => {
+		const nextRow = { ...row };
+		delete nextRow[LEGACY_FEATURED_COLUMN_KEY];
+		return nextRow;
+	});
+
+	return { columns: nextColumns, rows: nextRows };
+};
+
+const migrateLegacyCoreKeys = (
+	columns: EditableSheetColumn[],
+	rows: EditableSheetRow[],
+): {
+	columns: EditableSheetColumn[];
+	rows: EditableSheetRow[];
+} => {
+	const remapKey = (key: string): string => LEGACY_CORE_KEY_MAP.get(key) ?? key;
+	const seen = new Set<string>();
+
+	const nextColumns: EditableSheetColumn[] = [];
+	for (const column of columns) {
+		const key = remapKey(column.key);
+		if (seen.has(key)) continue;
+		seen.add(key);
+		nextColumns.push({
+			...column,
+			key,
+		});
+	}
+
+	const nextRows = rows.map((row) => {
+		const nextRow = { ...row };
+		for (const [legacyKey, migratedKey] of LEGACY_CORE_KEY_MAP) {
+			if (!(legacyKey in nextRow)) continue;
+			const legacyValue = String(nextRow[legacyKey] ?? "");
+			const migratedValue = String(nextRow[migratedKey] ?? "");
+			if (!migratedValue.trim() && legacyValue.trim()) {
+				nextRow[migratedKey] = legacyValue;
+			} else if (!(migratedKey in nextRow)) {
+				nextRow[migratedKey] = legacyValue;
+			}
+			delete nextRow[legacyKey];
+		}
+		return nextRow;
+	});
+
+	return { columns: nextColumns, rows: nextRows };
+};
+
 export const ensureCoreColumns = (
 	columns: EditableSheetColumn[],
 	rows: EditableSheetRow[],
@@ -130,8 +239,10 @@ export const ensureCoreColumns = (
 	columns: EditableSheetColumn[];
 	rows: EditableSheetRow[];
 } => {
-	const nextColumns = [...columns];
-	const nextRows = rows.map((row) => ({ ...row }));
+	const migrated = migrateLegacyCoreKeys(columns, rows);
+	const stripped = stripLegacyFeaturedColumn(migrated.columns, migrated.rows);
+	const nextColumns = [...stripped.columns];
+	const nextRows = stripped.rows.map((row) => ({ ...row }));
 	const existingKeys = new Set(nextColumns.map((column) => column.key));
 
 	for (const coreKey of CSV_EVENT_COLUMNS) {
@@ -268,7 +379,11 @@ export const editableSheetToCsv = (
 	columns: EditableSheetColumn[],
 	rows: EditableSheetRow[],
 ): string => {
-	const normalized = ensureCoreColumns(columns, rows);
+	const withoutLegacyFeatured = stripLegacyFeaturedColumn(columns, rows);
+	const normalized = ensureCoreColumns(
+		withoutLegacyFeatured.columns,
+		withoutLegacyFeatured.rows,
+	);
 	const csvColumns = normalized.columns;
 	const headerLine = csvColumns.map((column) => toCsvValue(column.label)).join(",");
 	const dataLines = normalized.rows.map((row) =>

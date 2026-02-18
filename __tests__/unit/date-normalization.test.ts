@@ -7,20 +7,23 @@ import type { CSVEventRow } from "@/features/data-management/csv/parser";
 
 const makeRow = (date: string): CSVEventRow => ({
 	eventKey: "",
-	oocPicks: "",
-	nationality: "",
-	name: "Sample Event",
+	curated: "",
+	hostCountry: "",
+	audienceCountry: "",
+	title: "Sample Event",
 	date,
 	startTime: "",
 	endTime: "",
 	location: "Paris",
-	arrondissement: "11",
-	genre: "",
+	districtArea: "11",
+	categories: "",
+	tags: "",
 	price: "",
-	ticketLink: "",
-	age: "",
-	indoorOutdoor: "",
+	primaryUrl: "",
+	ageGuidance: "",
+	setting: "",
 	notes: "",
+	featured: "",
 });
 
 describe("date normalization", () => {

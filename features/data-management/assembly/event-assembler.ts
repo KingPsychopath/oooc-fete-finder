@@ -37,11 +37,11 @@ import {
 } from "./field-transformers";
 
 const EVENT_KEY_FINGERPRINT_FIELDS: readonly (keyof CSVEventRow)[] = [
-	"name",
+	"title",
 	"date",
 	"startTime",
 	"location",
-	"arrondissement",
+	"districtArea",
 ];
 
 /**
@@ -151,7 +151,7 @@ const emitDateWarning = (
 ): void => {
 	WarningSystem.addDateFormatWarning({
 		originalValue: csvRow.date,
-		eventName: csvRow.name,
+		eventName: csvRow.title,
 		columnType: "date",
 		warningType: toWarningType(warning),
 		potentialFormats: {
@@ -208,20 +208,24 @@ export const assembleEvent = (
 	const endTime = DateTransformers.convertToTime(csvRow.endTime);
 
 	const arrondissement = LocationTransformers.convertToArrondissement(
-		csvRow.arrondissement,
+		csvRow.districtArea,
 		csvRow.location,
 	);
 
+	const nationalityInput = [csvRow.hostCountry, csvRow.audienceCountry]
+		.map((value) => value.trim())
+		.filter((value) => value.length > 0)
+		.join(" / ");
 	const nationality = NationalityTransformers.convertToNationality(
-		csvRow.nationality,
+		nationalityInput,
 	);
-	const genre = GenreTransformers.convertToMusicGenres(csvRow.genre);
+	const genre = GenreTransformers.convertToMusicGenres(csvRow.categories);
 	const venueTypes = VenueTransformers.convertToVenueTypes(
-		csvRow.indoorOutdoor,
+		csvRow.setting,
 	);
 
 	// Determine event type
-	const type = determineEventType(csvRow.name, time);
+	const type = determineEventType(csvRow.title, time);
 
 	// Featured state is managed through the dedicated scheduler service.
 	const isFeatured = false;
@@ -229,15 +233,15 @@ export const assembleEvent = (
 
 	// Process ticket links
 	const ticketLinks = BusinessLogicHelpers.processTicketLinks(
-		csvRow.ticketLink,
-		csvRow.name,
+		csvRow.primaryUrl,
+		csvRow.title,
 	);
-	const mainLink = ticketLinks[0] || csvRow.ticketLink || "";
+	const mainLink = ticketLinks[0] || csvRow.primaryUrl || "";
 
 	// Determine OOOC pick status
 	const isOOOCPick =
-		csvRow.oocPicks.includes("🌟") ||
-		csvRow.oocPicks.toLowerCase().includes("pick");
+		csvRow.curated.includes("🌟") ||
+		csvRow.curated.toLowerCase().includes("pick");
 
 	// Handle legacy indoor field (backwards compatibility)
 	const indoor = venueTypes.includes("indoor");
@@ -245,9 +249,9 @@ export const assembleEvent = (
 	// Assemble the complete event
 	const event: Event = {
 		eventKey,
-		slug: buildEventSlug(csvRow.name.trim()),
+		slug: buildEventSlug(csvRow.title.trim()),
 		id: eventKey,
-		name: csvRow.name.trim(),
+		name: csvRow.title.trim(),
 		day,
 		date,
 		time: time || undefined,
@@ -268,7 +272,7 @@ export const assembleEvent = (
 			normalizedDate: date,
 		}),
 		price: csvRow.price.trim() || undefined,
-		age: csvRow.age.trim() || undefined,
+		age: csvRow.ageGuidance.trim() || undefined,
 		isOOOCPick,
 		isFeatured,
 		featuredAt,

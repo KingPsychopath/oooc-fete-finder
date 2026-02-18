@@ -18,6 +18,7 @@
     "format": "biome format . --write",
     "bootstrap:postgres-store": "node scripts/bootstrap-postgres-store.mjs",
     "bootstrap:featured-schedule": "node scripts/seed-featured-schedule-from-legacy.mjs",
+    "csv:diagnose": "node scripts/csv-structure-diagnose.mjs --remote",
     "health:check": "node scripts/health-check.mjs",
     "db:cli": "node scripts/db-cli.mjs"
   },

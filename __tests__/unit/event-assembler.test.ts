@@ -8,20 +8,23 @@ import { describe, expect, it } from "vitest";
 
 const baseRow: CSVEventRow = {
 	eventKey: "",
-	oocPicks: "",
-	nationality: "🇫🇷",
-	name: "Sunset Party",
+	curated: "",
+	hostCountry: "🇫🇷",
+	audienceCountry: "",
+	title: "Sunset Party",
 	date: "21 June",
 	startTime: "18:00",
 	endTime: "23:00",
 	location: "Paris",
-	arrondissement: "11",
-	genre: "Afrobeats",
+	districtArea: "11",
+	categories: "Afrobeats",
+	tags: "",
 	price: "Free",
-	ticketLink: "https://example.com/event",
-	age: "18+",
-	indoorOutdoor: "Indoor",
+	primaryUrl: "https://example.com/event",
+	ageGuidance: "18+",
+	setting: "Indoor",
 	notes: "Bring ID",
+	featured: "",
 };
 
 describe("event assembler identity", () => {
@@ -29,7 +32,7 @@ describe("event assembler identity", () => {
 		const row: CSVEventRow = {
 			...baseRow,
 			eventKey: "evt_abcdef123456",
-			name: "IMERSIV Summer Party - Day 1",
+			title: "IMERSIV Summer Party - Day 1",
 		};
 		const event = assembleEvent(row, 0);
 
@@ -40,8 +43,8 @@ describe("event assembler identity", () => {
 
 	it("generates deterministic unique event keys when missing", () => {
 		const rows: CSVEventRow[] = [
-			{ ...baseRow, eventKey: "", name: "Duplicate Event" },
-			{ ...baseRow, eventKey: "", name: "Duplicate Event" },
+			{ ...baseRow, eventKey: "", title: "Duplicate Event" },
+			{ ...baseRow, eventKey: "", title: "Duplicate Event" },
 		];
 		const events = assembleEvents(rows);
 
@@ -83,7 +86,7 @@ describe("event assembler identity", () => {
 				...baseRow,
 				startTime: "18:00",
 				price: "",
-				ticketLink: "",
+				primaryUrl: "",
 			},
 			0,
 		);
@@ -103,7 +106,7 @@ describe("event assembler identity", () => {
 			{
 				...baseRow,
 				location: "",
-				arrondissement: "",
+				districtArea: "",
 				date: "",
 				verified: "true",
 			},
@@ -112,5 +115,18 @@ describe("event assembler identity", () => {
 
 		expect(unverified.verified).toBe(false);
 		expect(verified.verified).toBe(true);
+	});
+
+	it("unions host and audience country for nationality parsing", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				hostCountry: "FR",
+				audienceCountry: "CA",
+			},
+			0,
+		);
+
+		expect(event.nationality).toEqual(expect.arrayContaining(["FR", "CA"]));
 	});
 });

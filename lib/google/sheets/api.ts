@@ -203,9 +203,18 @@ function convertToCsv(values: unknown[][]): string {
 		throw new Error("No data returned from Google Sheets");
 	}
 
+	const headerWidth = Array.isArray(values[0]) ? values[0].length : 0;
+
 	return values
-		.map((row) =>
-			row
+		.map((row) => {
+			const normalizedRow = Array.isArray(row) ? [...row] : [];
+			// Sheets API omits trailing empty cells per row; pad to header width
+			// so every CSV row has a stable column count.
+			while (normalizedRow.length < headerWidth) {
+				normalizedRow.push("");
+			}
+
+			return normalizedRow
 				.map((cell) => {
 					// Handle null/undefined cells
 					if (cell === null || cell === undefined) {
@@ -226,8 +235,8 @@ function convertToCsv(values: unknown[][]): string {
 
 					return cellStr;
 				})
-				.join(","),
-		)
+				.join(",");
+		})
 		.join("\n");
 }
 

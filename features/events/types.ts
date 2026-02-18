@@ -140,20 +140,25 @@ export type Event = {
 
 // CSV data type matching the structure in ooc_list_tracker.csv
 export type CSVEventRow = {
-	oocPicks: string; // "🌟" or empty
-	nationality: string; // Country flags/codes/text (for example "🇬🇧", "🇫🇷", "GB/FR")
-	name: string;
+	eventKey: string;
+	curated: string; // "🌟" or empty
+	hostCountry: string; // Country flags/codes/text (for example "🇬🇧", "🇫🇷", "GB/FR")
+	audienceCountry: string; // Audience country flags/codes/text
+	title: string;
 	date: string;
 	startTime: string;
 	endTime: string;
 	location: string;
-	arrondissement: string; // New Arr column
-	genre: string; // Comma-separated genres
+	districtArea: string; // District/Area column
+	categories: string; // Comma-separated genres/categories
+	tags: string; // Comma-separated metadata tags
 	price: string;
-	ticketLink: string;
-	age: string;
-	indoorOutdoor: string; // New Indoor/Outdoor column
+	primaryUrl: string;
+	ageGuidance: string;
+	setting: string;
 	notes: string;
+	verified?: string;
+	featured?: string; // Legacy non-canonical featured indicator
 };
 
 export type Arrondissement = {

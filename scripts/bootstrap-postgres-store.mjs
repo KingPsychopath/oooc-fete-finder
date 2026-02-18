@@ -30,19 +30,22 @@ const sql = postgres(databaseUrl, {
 });
 
 const CORE_COLUMN_LABELS = {
-	oocPicks: "OOOC Picks",
-	nationality: "GB/FR",
-	name: "Name",
+	eventKey: "Event Key",
+	curated: "Curated",
+	hostCountry: "Host Country",
+	audienceCountry: "Audience Country",
+	title: "Title",
 	date: "Date",
 	startTime: "Start Time",
 	endTime: "End Time",
 	location: "Location",
-	arrondissement: "Arr.",
-	genre: "Genre",
+	districtArea: "District/Area",
+	categories: "Categories",
+	tags: "Tags",
 	price: "Price",
-	ticketLink: "Ticket Link",
-	age: "Age",
-	indoorOutdoor: "Indoor/Outdoor",
+	primaryUrl: "Primary URL",
+	ageGuidance: "Age Guidance",
+	setting: "Setting",
 	notes: "Notes",
 };
 
@@ -58,16 +61,45 @@ const normalizeKey = (value) =>
 
 const CORE_ALIAS_MAP = new Map(
 	[
-		["ooc picks", "oocPicks"],
-		["oooc picks", "oocPicks"],
-		["gb/fr", "nationality"],
-		["host country", "nationality"],
+		["event key", "eventKey"],
+		["eventkey", "eventKey"],
+		["event id", "eventKey"],
+		["curated", "curated"],
+		["ooc picks", "curated"],
+		["oooc picks", "curated"],
+		["oocpicks", "curated"],
+		["host country", "hostCountry"],
+		["hostcountry", "hostCountry"],
+		["gb/fr", "hostCountry"],
+		["nationality", "hostCountry"],
+		["audience country", "audienceCountry"],
+		["audiencecountry", "audienceCountry"],
+		["title", "title"],
+		["name", "title"],
 		["start time", "startTime"],
 		["end time", "endTime"],
-		["arr", "arrondissement"],
-		["arr.", "arrondissement"],
-		["ticket link", "ticketLink"],
-		["indoor outdoor", "indoorOutdoor"],
+		["arr", "districtArea"],
+		["arr.", "districtArea"],
+		["arrondissement", "districtArea"],
+		["district area", "districtArea"],
+		["districtarea", "districtArea"],
+		["category", "categories"],
+		["categories", "categories"],
+		["genre", "categories"],
+		["primary url", "primaryUrl"],
+		["primaryurl", "primaryUrl"],
+		["url", "primaryUrl"],
+		["website", "primaryUrl"],
+		["link", "primaryUrl"],
+		["ticket link", "primaryUrl"],
+		["ticketlink", "primaryUrl"],
+		["age guidance", "ageGuidance"],
+		["ageguidance", "ageGuidance"],
+		["age", "ageGuidance"],
+		["setting", "setting"],
+		["venue type", "setting"],
+		["indoor outdoor", "setting"],
+		["indooroutdoor", "setting"],
 	].map(([left, right]) => [normalizeKey(left), right]),
 );
 
@@ -122,7 +154,7 @@ const toSheet = (csvContent) => {
 			key,
 			label: coreKey ? CORE_COLUMN_LABELS[coreKey] : header,
 			is_core: Boolean(coreKey),
-			is_required: key === "name" || key === "date",
+			is_required: key === "title" || key === "date",
 		});
 	}
 
@@ -140,7 +172,7 @@ const toSheet = (csvContent) => {
 				key: coreKey,
 				label: CORE_COLUMN_LABELS[coreKey],
 				is_core: true,
-				is_required: coreKey === "name" || coreKey === "date",
+				is_required: coreKey === "title" || coreKey === "date",
 			});
 			for (const row of rows) {
 				row[coreKey] = "";

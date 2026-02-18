@@ -50,19 +50,21 @@ const mapSubmissionToSheetRow = (
 	const notes = buildSubmissionNotes(submission);
 
 	row.eventKey = "";
-	row.oocPicks = "";
-	row.nationality = "";
-	row.name = submission.payload.eventName;
+	row.curated = "";
+	row.hostCountry = "";
+	row.audienceCountry = "";
+	row.title = submission.payload.eventName;
 	row.date = submission.payload.date;
 	row.startTime = submission.payload.startTime;
 	row.endTime = submission.payload.endTime || "";
 	row.location = submission.payload.location;
-	row.arrondissement = submission.payload.arrondissement || "";
-	row.genre = submission.payload.genre || "";
+	row.districtArea = submission.payload.arrondissement || "";
+	row.categories = submission.payload.genre || "";
+	row.tags = "";
 	row.price = submission.payload.price || "";
-	row.ticketLink = submission.payload.proofLink;
-	row.age = submission.payload.age || "";
-	row.indoorOutdoor = submission.payload.indoorOutdoor || "";
+	row.primaryUrl = submission.payload.proofLink;
+	row.ageGuidance = submission.payload.age || "";
+	row.setting = submission.payload.indoorOutdoor || "";
 	row.notes = notes || "";
 
 	return row;

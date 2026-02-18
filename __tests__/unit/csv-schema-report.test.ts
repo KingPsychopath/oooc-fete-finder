@@ -2,6 +2,22 @@ import { describe, expect, it } from "vitest";
 import { analyzeCsvSchemaRows } from "@/features/data-management/validation/csv-schema-report";
 
 describe("analyzeCsvSchemaRows", () => {
+	it("flags legacy featured values as blocking", () => {
+		const report = analyzeCsvSchemaRows([
+			{
+				name: "Event",
+				date: "2026-06-21",
+				featured: "2026-06-01T00:00:00Z",
+			},
+		]);
+
+		expect(report.hasBlockingIssues).toBe(true);
+		expect(report.blockingCount).toBeGreaterThan(0);
+		expect(report.issues.some((issue) => issue.code === "featured_legacy_value")).toBe(
+			true,
+		);
+	});
+
 	it("blocks missing event keys when eventKeyMode is error", () => {
 		const report = analyzeCsvSchemaRows([
 			{
@@ -37,17 +53,25 @@ describe("analyzeCsvSchemaRows", () => {
 		);
 	});
 
-	it("warns on unsupported nationality tokens", () => {
+	it("warns on unsupported host and audience country tokens", () => {
 		const report = analyzeCsvSchemaRows([
 			{
 				name: "Event",
 				date: "2026-06-21",
 				nationality: "🇫🇷🇩🇪",
+				audienceCountry: "UK + DE",
 			},
 		]);
 
-		expect(report.issues.some((issue) => issue.code === "nationality_unsupported")).toBe(
+		const countryIssues = report.issues.filter(
+			(issue) => issue.code === "nationality_unsupported",
+		);
+		expect(countryIssues.length).toBe(2);
+		expect(countryIssues.some((issue) => issue.column === "Host Country")).toBe(
 			true,
 		);
+		expect(
+			countryIssues.some((issue) => issue.column === "Audience Country"),
+		).toBe(true);
 	});
 });

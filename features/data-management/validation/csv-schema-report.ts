@@ -10,6 +10,7 @@ export interface CsvSchemaIssue {
 		| "event_key_missing"
 		| "event_key_invalid"
 		| "event_key_duplicate"
+		| "featured_legacy_value"
 		| "ooc_picks_unexpected"
 		| "nationality_unsupported"
 		| "arrondissement_unexpected"
@@ -64,11 +65,27 @@ export const analyzeCsvSchemaRows = (
 		if (!hasAnyRowValue(row)) return;
 		const rowIndex = index + 1;
 		const rawEventKey = String(row.eventKey ?? "").trim();
-		const rawPicks = String(row.oocPicks ?? "").trim();
-		const rawNationality = String(row.nationality ?? "").trim();
-		const rawArrondissement = String(row.arrondissement ?? "").trim();
-		const rawVenue = String(row.indoorOutdoor ?? "").trim();
+		const rawFeatured = String(row.featured ?? "").trim();
+		const rawPicks = String(row.curated ?? row.oocPicks ?? "").trim();
+		const rawHostCountry = String(row.hostCountry ?? row.nationality ?? "").trim();
+		const rawAudienceCountry = String(row.audienceCountry ?? "").trim();
+		const rawArrondissement = String(
+			row.districtArea ?? row.arrondissement ?? "",
+		).trim();
+		const rawVenue = String(row.setting ?? row.indoorOutdoor ?? "").trim();
 		const rawDate = String(row.date ?? "").trim();
+
+		if (rawFeatured.length > 0) {
+			pushIssue(issues, {
+				severity: "error",
+				code: "featured_legacy_value",
+				column: "Featured",
+				rowIndex,
+				value: rawFeatured,
+				message:
+					'Legacy Featured values are not allowed. Use "Featured Events Manager".',
+			});
+		}
 
 		if (eventKeySeverity) {
 			if (!rawEventKey) {
@@ -115,22 +132,36 @@ export const analyzeCsvSchemaRows = (
 			pushIssue(issues, {
 				severity: "warning",
 				code: "ooc_picks_unexpected",
-				column: "OOOC Picks",
+				column: "Curated",
 				rowIndex,
 				value: rawPicks,
-				message: 'Unexpected OOOC Picks value. Use "🌟" or leave blank.',
+				message: 'Unexpected Curated value. Use "🌟" or leave blank.',
 			});
 		}
 
-		if (rawNationality) {
-			const parsed = parseSupportedNationalities(rawNationality);
+		if (rawHostCountry) {
+			const parsed = parseSupportedNationalities(rawHostCountry);
 			if (parsed.unsupportedTokens.length > 0) {
 				pushIssue(issues, {
 					severity: "warning",
 					code: "nationality_unsupported",
-					column: "GB/FR",
+					column: "Host Country",
 					rowIndex,
-					value: rawNationality,
+					value: rawHostCountry,
+					message: `Unsupported nationality tokens: ${parsed.unsupportedTokens.join(", ")}.`,
+				});
+			}
+		}
+
+		if (rawAudienceCountry) {
+			const parsed = parseSupportedNationalities(rawAudienceCountry);
+			if (parsed.unsupportedTokens.length > 0) {
+				pushIssue(issues, {
+					severity: "warning",
+					code: "nationality_unsupported",
+					column: "Audience Country",
+					rowIndex,
+					value: rawAudienceCountry,
 					message: `Unsupported nationality tokens: ${parsed.unsupportedTokens.join(", ")}.`,
 				});
 			}
@@ -144,11 +175,11 @@ export const analyzeCsvSchemaRows = (
 				pushIssue(issues, {
 					severity: "warning",
 					code: "arrondissement_unexpected",
-					column: "Arr.",
+					column: "District/Area",
 					rowIndex,
 					value: rawArrondissement,
 					message:
-						'Unexpected arrondissement value. Use 1-20, "-" or leave blank.',
+						'Unexpected district/area value. Use 1-20, "-" or leave blank.',
 				});
 			}
 		}
@@ -161,11 +192,11 @@ export const analyzeCsvSchemaRows = (
 				pushIssue(issues, {
 					severity: "warning",
 					code: "indoor_outdoor_unexpected",
-					column: "Indoor/Outdoor",
+					column: "Setting",
 					rowIndex,
 					value: rawVenue,
 					message:
-						'Unexpected venue type. Include "Indoor" and/or "Outdoor".',
+						'Unexpected setting value. Include "Indoor" and/or "Outdoor".',
 				});
 			}
 		}

@@ -679,15 +679,16 @@ export const EventSheetEditorCard = ({
 				</div>
 				<div className="text-xs text-muted-foreground">
 					When missing, Event Key is generated from canonical identity fields:
-					`Name`, `Date`, `Start Time`, `Location`, `Arr.`.
+					`Title`, `Date`, `Start Time`, `Location`, `District/Area`.
 				</div>
 				<div className="text-xs text-amber-700">
 					`Featured` column is legacy-only. Manage featured scheduling in
 					`Featured Events Manager`.
 				</div>
 				<div className="text-xs text-muted-foreground">
-					Nationality supports `FR`, `UK`, `CA`, `NL` (flags, ISO codes, or
-					common names). Unknown country tokens are flagged in schema preflight.
+					`Host Country` and `Audience Country` support `FR`, `UK`, `CA`, `NL`
+					(flags, ISO codes, or common names). Unknown tokens are flagged in
+					schema preflight.
 				</div>
 
 				<div className="text-xs text-muted-foreground">
