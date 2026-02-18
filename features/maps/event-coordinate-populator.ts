@@ -1,9 +1,10 @@
-import { log } from "@/lib/platform/logger";
 import type { Event, ParisArrondissement } from "@/features/events/types";
+import { log } from "@/lib/platform/logger";
 import {
 	type CoordinateResult,
 	CoordinateService,
 	type GeocodingError,
+	isCoordinateResolvableInput,
 	resetGeocodingRunState,
 } from "./coordinate-service";
 import { LocationStorage } from "./location-storage";
@@ -45,11 +46,13 @@ export class EventCoordinatePopulator {
 
 		resetGeocodingRunState();
 		const storedLocations = await LocationStorage.load();
-		const needingCoords = events.filter((e) => !e.coordinates);
+		const initialWithCoords = events.filter((e) => e.coordinates).length;
+		const initialWithoutCoords = events.length - initialWithCoords;
 
 		let storageHits = 0;
 		let apiCalls = 0;
 		let fallbacks = 0;
+		let invalidInputSkips = 0;
 
 		// 2. PROCESS ALL EVENTS IN MEMORY
 		const eventsWithCoords: Event[] = [];
@@ -68,6 +71,18 @@ export class EventCoordinatePopulator {
 				try {
 					// Skip if event already has coordinates
 					if (event.coordinates) {
+						processed++;
+						onProgress?.(processed, events.length, event);
+						return { ...event };
+					}
+
+					if (
+						!isCoordinateResolvableInput(
+							event.location || "",
+							event.arrondissement,
+						)
+					) {
+						invalidInputSkips++;
 						processed++;
 						onProgress?.(processed, events.length, event);
 						return { ...event };
@@ -142,12 +157,22 @@ export class EventCoordinatePopulator {
 		}
 
 		const coordCount = eventsWithCoords.filter((e) => e.coordinates).length;
+		const unresolved = eventsWithCoords.filter((e) => !e.coordinates).length;
+		const resolvedDuringRun = Math.max(0, coordCount - initialWithCoords);
+		const unresolvedAfterLookup = Math.max(0, unresolved - invalidInputSkips);
+
 		log.info("coordinates", "Coordinate population done", {
+			totalEvents: events.length,
 			withCoords: coordCount,
-			total: events.length,
+			withoutCoords: unresolved,
+			initialWithCoords,
+			initialWithoutCoords,
+			resolvedDuringRun,
 			fromCache: storageHits,
-			geocoded: apiCalls,
+			geocodedFresh: apiCalls,
 			arrondissementFallback: fallbacks,
+			skippedInvalidInput: invalidInputSkips,
+			unresolvedAfterLookup,
 		});
 
 		return eventsWithCoords;

@@ -106,17 +106,6 @@ const withPWA = require("next-pwa")({
 			},
 		},
 		{
-			urlPattern: /^https:\/\/.*\.(?:json)$/i,
-			handler: "StaleWhileRevalidate",
-			options: {
-				cacheName: "json-cache",
-				expiration: {
-					maxEntries: 32,
-					maxAgeSeconds: 24 * 60 * 60, // 24 hours
-				},
-			},
-		},
-		{
 			urlPattern: /\/api\/auth\/.*$/i,
 			handler: "NetworkOnly",
 			method: "GET",
@@ -147,6 +136,9 @@ const withPWA = require("next-pwa")({
 			method: "GET",
 			options: {
 				cacheName: "apis",
+				cacheableResponse: {
+					statuses: [200],
+				},
 				expiration: {
 					maxEntries: 16,
 					maxAgeSeconds: 24 * 60 * 60, // 24 hours
@@ -155,10 +147,11 @@ const withPWA = require("next-pwa")({
 			},
 		},
 		{
-			urlPattern: /.*/i,
+			urlPattern: ({ request }: { request: Request }) =>
+				request.mode === "navigate",
 			handler: "NetworkFirst",
 			options: {
-				cacheName: "others",
+				cacheName: "pages",
 				expiration: {
 					maxEntries: 32,
 					maxAgeSeconds: 24 * 60 * 60, // 24 hours

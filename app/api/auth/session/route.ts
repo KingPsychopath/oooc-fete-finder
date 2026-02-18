@@ -4,14 +4,8 @@ import {
 	getUserAuthCookieOptions,
 	getUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
+import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { NextRequest, NextResponse } from "next/server";
-
-const NO_STORE_HEADERS = {
-	"Cache-Control":
-		"private, no-store, no-cache, max-age=0, must-revalidate, proxy-revalidate",
-	Pragma: "no-cache",
-	Expires: "0",
-} as const;
 
 export async function GET(request: NextRequest) {
 	const [session, adminSession] = await Promise.all([

@@ -1,402 +1,445 @@
+import { createHash } from "crypto";
 import { env } from "@/lib/config/env";
+import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
 import { log } from "@/lib/platform/logger";
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
-// Rate limiting store (in production, use Redis or similar)
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 50; // requests per hour per IP
-const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour in ms
-
-// Allowed parameters to prevent injection
+const OG_CACHE_CONTROL =
+	"public, s-maxage=86400, stale-while-revalidate=604800";
+const RATE_LIMIT_KEY_PREFIX = "og-rate:";
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 120;
+const MAX_TEXT_LENGTH = 110;
 const ALLOWED_THEMES = ["default", "event", "admin", "custom"] as const;
-const MAX_TEXT_LENGTH = 100;
 
-const ogDebug = (...args: unknown[]) => {
-	log.info("og-image", "trace", { args });
-};
+type OGTheme = (typeof ALLOWED_THEMES)[number];
+type RateState = { count: number; resetAt: number };
 
-const ogError = (...args: unknown[]) => {
-	log.error("og-image", "trace", { args });
-};
-
-
-function rateLimit(ip: string): boolean {
-	const now = Date.now();
-	const entry = rateLimitStore.get(ip);
-
-	if (!entry || now > entry.resetTime) {
-		rateLimitStore.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-		return true;
+const THEMES: Record<
+	OGTheme,
+	{
+		label: string;
+		background: string;
+		accent: string;
+		card: string;
+		border: string;
+		ink: string;
+		muted: string;
 	}
+> = {
+	default: {
+		label: "City Guide",
+		background:
+			"linear-gradient(140deg, #f5efe6 0%, #efe3d2 45%, #e5d4bd 100%)",
+		accent: "#5a3727",
+		card: "rgba(255,255,255,0.82)",
+		border: "rgba(99,66,49,0.24)",
+		ink: "#28190f",
+		muted: "#6f5949",
+	},
+	event: {
+		label: "Event Focus",
+		background:
+			"linear-gradient(145deg, #f4ece2 0%, #eedec9 42%, #e8d0ae 100%)",
+		accent: "#4a2f22",
+		card: "rgba(255,255,255,0.84)",
+		border: "rgba(93,62,44,0.24)",
+		ink: "#23160e",
+		muted: "#695243",
+	},
+	admin: {
+		label: "Admin",
+		background:
+			"linear-gradient(145deg, #ece9e4 0%, #dfd9d1 42%, #d0c6bc 100%)",
+		accent: "#2f2822",
+		card: "rgba(255,255,255,0.88)",
+		border: "rgba(58,49,42,0.24)",
+		ink: "#191511",
+		muted: "#57504a",
+	},
+	custom: {
+		label: "Custom Share",
+		background:
+			"linear-gradient(145deg, #f5efe6 0%, #eadcc9 42%, #ddc5a5 100%)",
+		accent: "#4d2d1f",
+		card: "rgba(255,255,255,0.84)",
+		border: "rgba(95,63,45,0.24)",
+		ink: "#24170f",
+		muted: "#684f40",
+	},
+};
 
-	if (entry.count >= RATE_LIMIT) {
+const sanitizeText = (value: string, fallback: string): string => {
+	const cleaned = value.replace(/[<>]/g, "").trim();
+	if (!cleaned) return fallback;
+	return cleaned.length > MAX_TEXT_LENGTH
+		? `${cleaned.slice(0, MAX_TEXT_LENGTH - 1)}…`
+		: cleaned;
+};
+
+const getClientIp = (request: NextRequest): string => {
+	const forwardedFor = request.headers.get("x-forwarded-for");
+	if (forwardedFor?.trim()) {
+		return forwardedFor.split(",")[0]?.trim() || "unknown";
+	}
+	return request.headers.get("x-real-ip")?.trim() || "unknown";
+};
+
+const hashIp = (ip: string): string =>
+	createHash("sha256").update(ip).digest("hex").slice(0, 24);
+
+const parseRateState = (raw: string | null): RateState | null => {
+	if (!raw) return null;
+	try {
+		const parsed = JSON.parse(raw) as Partial<RateState>;
+		if (
+			typeof parsed.count !== "number" ||
+			typeof parsed.resetAt !== "number" ||
+			!Number.isFinite(parsed.count) ||
+			!Number.isFinite(parsed.resetAt)
+		) {
+			return null;
+		}
+		return {
+			count: Math.max(0, Math.floor(parsed.count)),
+			resetAt: parsed.resetAt,
+		};
+	} catch {
+		return null;
+	}
+};
+
+const isRateLimited = async (request: NextRequest): Promise<boolean> => {
+	const ip = getClientIp(request);
+	const now = Date.now();
+	const key = `${RATE_LIMIT_KEY_PREFIX}${hashIp(ip)}`;
+
+	try {
+		const kv = await getKVStore();
+		const current = parseRateState(await kv.get(key));
+
+		if (!current || now >= current.resetAt) {
+			await kv.set(
+				key,
+				JSON.stringify({
+					count: 1,
+					resetAt: now + RATE_LIMIT_WINDOW_MS,
+				}),
+			);
+			return false;
+		}
+
+		if (current.count >= RATE_LIMIT_MAX_REQUESTS) {
+			return true;
+		}
+
+		await kv.set(
+			key,
+			JSON.stringify({
+				count: current.count + 1,
+				resetAt: current.resetAt,
+			}),
+		);
+		return false;
+	} catch (error) {
+		log.warn("og-image", "Rate limiter unavailable; allowing request", {
+			error: error instanceof Error ? error.message : "unknown",
+		});
 		return false;
 	}
+};
 
-	entry.count++;
-	return true;
-}
+const buildThemeText = (
+	theme: OGTheme,
+	arrondissement: string,
+	eventCount: number,
+) => {
+	if (theme === "event" && arrondissement) {
+		return {
+			title: `Events in ${arrondissement}`,
+			subtitle:
+				eventCount > 0
+					? `${eventCount} live picks for your Paris route.`
+					: "Curated live music picks for your Paris route.",
+		};
+	}
 
-function sanitizeText(text: string): string {
-	return text
-		.replace(/[<>]/g, "") // Remove potential HTML
-		.substring(0, MAX_TEXT_LENGTH)
-		.trim();
-}
+	if (theme === "admin") {
+		return {
+			title: "Admin Dashboard",
+			subtitle: "Live data controls, publishing checks, and runtime status.",
+		};
+	}
+
+	return {
+		title: "Fete Finder",
+		subtitle:
+			eventCount > 0
+				? `${eventCount} curated events across Paris arrondissements.`
+				: "Curated music events across Paris arrondissements.",
+	};
+};
 
 export async function GET(request: NextRequest) {
 	try {
-		// Rate limiting
-		const forwarded = request.headers.get("x-forwarded-for");
-		const ip = forwarded ? forwarded.split(",")[0] : "unknown";
-		if (!rateLimit(ip)) {
-			return new Response("Rate limit exceeded", { status: 429 });
+		if (await isRateLimited(request)) {
+			return new Response("Rate limit exceeded", {
+				status: 429,
+				headers: {
+					"Cache-Control": "private, no-store",
+				},
+			});
 		}
 
 		const { searchParams } = new URL(request.url);
-
-		// Check for default static image first (if no specific customization requested)
-		const hasCustomParams =
-			searchParams.has("title") ||
-			searchParams.has("subtitle") ||
-			searchParams.has("theme") ||
-			searchParams.has("eventCount") ||
-			searchParams.has("arrondissement") ||
-			searchParams.has("localImage");
-
-		if (!hasCustomParams) {
-			// Try to serve static default image if it exists
-			const defaultImagePaths = [
-				"/og-image.png", // Standard location
-				"/og-images/default.png", // Our folder
-				env.DEFAULT_OG_IMAGE, // Environment override
-			].filter(Boolean);
-
-			for (const imagePath of defaultImagePaths) {
-				try {
-					const imageUrl = `${env.NEXT_PUBLIC_SITE_URL}${imagePath}`;
-					const imageResponse = await fetch(imageUrl, { method: "HEAD" });
-
-					if (imageResponse.ok) {
-						// Static image exists, redirect to it
-						ogDebug(`✅ Using static default image: ${imagePath}`);
-						return Response.redirect(imageUrl, 302);
-					}
-				} catch (error) {
-					// Log the specific path that failed, but continue gracefully
-					ogDebug(
-						`📝 Default image not found at ${imagePath} - continuing to dynamic generation`,
-					);
-					if (
-						error instanceof Error &&
-						error.message.includes("Unsupported image type")
-					) {
-						ogDebug(
-							`💡 Note: "Unsupported image type: unknown" means the image file doesn't exist at this path`,
-						);
-					}
-					// Continue to next path or dynamic generation
-				}
-			}
-
-			// No static default images found, proceeding with dynamic generation
-			ogDebug(
-				`🎨 No static default images found - generating dynamic OG:image`,
-			);
-		}
-
-		// Extract and sanitize parameters
-		const title = sanitizeText(searchParams.get("title") || "Fête Finder");
-		const subtitle = sanitizeText(
-			searchParams.get("subtitle") || "Interactive Paris Music Events Map",
-		);
 		const themeParam = searchParams.get("theme") || "default";
-		const theme = ALLOWED_THEMES.includes(
-			themeParam as (typeof ALLOWED_THEMES)[number],
-		)
-			? themeParam
+		const theme: OGTheme = ALLOWED_THEMES.includes(themeParam as OGTheme)
+			? (themeParam as OGTheme)
 			: "default";
 		const eventCount = Math.min(
-			parseInt(searchParams.get("eventCount") || "0") || 0,
+			Number.parseInt(searchParams.get("eventCount") || "0", 10) || 0,
 			9999,
 		);
 		const arrondissement = sanitizeText(
 			searchParams.get("arrondissement") || "",
+			"",
 		);
 		const localImageParam = searchParams.get("localImage");
-
-		// Validate and sanitize local image path
 		const localImage =
 			localImageParam && localImageParam.startsWith("/og-images/")
 				? localImageParam
 				: null;
 
-		// Check for default override image (put your default image as public/og-images/default.png)
-		const defaultImagePath = "/og-images/default.png";
-		const envDefaultImage = env.DEFAULT_OG_IMAGE; // Set DEFAULT_OG_IMAGE=/og-images/your-default.png
-		const useDefaultImage =
-			!localImage && !searchParams.has("title") && !searchParams.has("theme");
-		const finalImage =
-			localImage ||
-			(envDefaultImage && useDefaultImage
-				? envDefaultImage
-				: useDefaultImage
-					? defaultImagePath
-					: null);
+		const defaultText = buildThemeText(theme, arrondissement, eventCount);
+		const title = sanitizeText(
+			searchParams.get("title") || "",
+			defaultText.title,
+		);
+		const subtitle = sanitizeText(
+			searchParams.get("subtitle") || "",
+			defaultText.subtitle,
+		);
 
-		// Generate dynamic content based on parameters
-		let mainTitle = title;
-		let description = subtitle;
-		let emoji = "🎵";
-		let bgGradient = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
-
-		if (theme === "event" && arrondissement) {
-			mainTitle = `Events in ${arrondissement}`;
-			description = `Discover live music during Fête de la Musique 2025`;
-			emoji = "📍";
-			bgGradient = "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)";
-		} else if (theme === "admin") {
-			mainTitle = "Admin Dashboard";
-			description = "Event Management & Cache Control";
-			emoji = "⚙️";
-			bgGradient = "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)";
-		} else if (eventCount > 0) {
-			description = `${eventCount} live music events across Paris`;
-		}
-
-		// Determine background style
-		const backgroundStyle = finalImage
-			? {
-					backgroundImage: `url(${env.NEXT_PUBLIC_SITE_URL}${finalImage})`,
-					backgroundSize: "cover",
-					backgroundPosition: "center",
-					backgroundRepeat: "no-repeat",
-				}
-			: {
-					background: bgGradient,
-				};
-
-		// Log what we're generating
-		if (finalImage) {
-			ogDebug(`🖼️ Generating OG:image with background: ${finalImage}`);
-		} else {
-			ogDebug(`🎨 Generating dynamic OG:image with ${theme} theme`);
-		}
+		const palette = THEMES[theme];
+		const backgroundImage = localImage
+			? `${env.NEXT_PUBLIC_SITE_URL}${localImage}`
+			: null;
 
 		return new ImageResponse(
 			<div
 				style={{
-					height: "100%",
 					width: "100%",
+					height: "100%",
 					display: "flex",
-					flexDirection: "column",
-					alignItems: "center",
-					justifyContent: "center",
-					backgroundColor: "#ffffff",
-					...backgroundStyle,
-					fontFamily:
-						'"Inter", "Geist", -apple-system, BlinkMacSystemFont, sans-serif',
 					position: "relative",
+					background: backgroundImage ? "#20140f" : palette.background,
+					color: palette.ink,
+					fontFamily: '"Helvetica Neue", Arial, sans-serif',
 				}}
 			>
-				{/* Overlay for text readability when using local images */}
-				{finalImage && (
+				{backgroundImage ? (
 					<div
 						style={{
 							position: "absolute",
-							top: 0,
-							left: 0,
-							right: 0,
-							bottom: 0,
-							background: "rgba(0, 0, 0, 0.4)",
-						}}
-					/>
-				)}
-
-				{/* Subtle pattern overlay (only for gradient backgrounds) */}
-				{!finalImage && (
-					<div
-						style={{
-							position: "absolute",
-							top: 0,
-							left: 0,
-							right: 0,
-							bottom: 0,
-							backgroundImage: `radial-gradient(circle at 20% 80%, rgba(255,255,255,0.08) 1px, transparent 1px),
-                                 radial-gradient(circle at 80% 20%, rgba(255,255,255,0.08) 1px, transparent 1px),
-                                 radial-gradient(circle at 41% 20%, rgba(255,255,255,0.05) 1px, transparent 1px)`,
-							backgroundSize: "30px 30px, 40px 40px, 50px 50px",
-						}}
-					/>
-				)}
-
-				{/* Main content card */}
-				<div
-					style={{
-						display: "flex",
-						flexDirection: "column",
-						alignItems: "center",
-						justifyContent: "center",
-						padding: "60px 50px",
-						background: finalImage
-							? "rgba(255, 255, 255, 0.9)"
-							: "rgba(255, 255, 255, 0.95)",
-						borderRadius: "24px",
-						boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.2)",
-						backdropFilter: "blur(12px)",
-						maxWidth: "800px",
-						margin: "0 40px",
-						textAlign: "center",
-						border: "1px solid rgba(255, 255, 255, 0.2)",
-						position: "relative",
-						zIndex: 2,
-					}}
-				>
-					{/* Icon/Emoji (hide when using local image to avoid clutter) */}
-					{!finalImage && (
-						<div
-							style={{
-								fontSize: "64px",
-								marginBottom: "20px",
-								filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.1))",
-							}}
-						>
-							{emoji}
-						</div>
-					)}
-
-					{/* Main Title */}
-					<h1
-						style={{
-							fontSize: "56px",
-							fontWeight: "700",
-							margin: "0 0 12px 0",
-							color: finalImage ? "#1a1a1a" : "#1a1a1a",
-							lineHeight: "1.1",
-							letterSpacing: "-0.02em",
-						}}
-					>
-						{mainTitle}
-					</h1>
-
-					{/* Subtitle */}
-					<p
-						style={{
-							fontSize: "24px",
-							color: finalImage ? "#333" : "#525252",
-							margin: "0 0 24px 0",
-							fontWeight: "400",
-							lineHeight: "1.4",
-							maxWidth: "600px",
-						}}
-					>
-						{description}
-					</p>
-
-					{/* Event count badge */}
-					{eventCount > 0 && (
-						<div
-							style={{
-								display: "flex",
-								alignItems: "center",
-								padding: "8px 16px",
-								background: "rgba(102, 126, 234, 0.1)",
-								borderRadius: "20px",
-								fontSize: "16px",
-								color: "#667eea",
-								fontWeight: "600",
-								marginBottom: "16px",
-							}}
-						>
-							{eventCount} Events Available
-						</div>
-					)}
-
-					{/* Brand footer */}
-					<div
-						style={{
+							inset: 0,
 							display: "flex",
-							alignItems: "center",
-							gap: "8px",
-							fontSize: "18px",
-							color: finalImage ? "#666" : "#888",
-							fontWeight: "500",
-							marginTop: "8px",
+							backgroundImage: `url(${backgroundImage})`,
+							backgroundSize: "cover",
+							backgroundPosition: "center",
 						}}
-					>
-						<span>Out Of Office Collective</span>
-						<span style={{ color: "#ccc", fontSize: "14px" }}>•</span>
-						<span style={{ fontSize: "16px" }}>2025</span>
-					</div>
-				</div>
+					/>
+				) : null}
 
-				{/* Bottom brand stripe */}
 				<div
 					style={{
 						position: "absolute",
-						bottom: 0,
-						left: 0,
-						right: 0,
-						height: "4px",
-						background: "rgba(255, 255, 255, 0.8)",
-						zIndex: 1,
+						inset: 0,
+						display: "flex",
+						background: backgroundImage
+							? "linear-gradient(150deg, rgba(17,10,8,0.72), rgba(45,29,21,0.62))"
+							: "linear-gradient(160deg, rgba(255,255,255,0.22), rgba(255,255,255,0))",
 					}}
 				/>
+
+				<div
+					style={{
+						position: "absolute",
+						left: 46,
+						top: 42,
+						width: 220,
+						height: 220,
+						borderRadius: 999,
+						background:
+							"radial-gradient(circle, rgba(255,255,255,0.34), rgba(255,255,255,0))",
+					}}
+				/>
+
+				<div
+					style={{
+						position: "relative",
+						display: "flex",
+						width: "100%",
+						height: "100%",
+						padding: "48px 54px",
+						flexDirection: "column",
+						justifyContent: "space-between",
+					}}
+				>
+					<div
+						style={{
+							display: "flex",
+							justifyContent: "space-between",
+							alignItems: "flex-start",
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								flexDirection: "column",
+								gap: 10,
+							}}
+						>
+							<div
+								style={{
+									fontSize: 18,
+									letterSpacing: "0.22em",
+									textTransform: "uppercase",
+									color: backgroundImage ? "#f2e7d8" : palette.muted,
+									fontWeight: 500,
+								}}
+							>
+								Out Of Office Collective
+							</div>
+							<div
+								style={{
+									display: "flex",
+									alignItems: "center",
+									padding: "6px 14px",
+									borderRadius: 999,
+									fontSize: 15,
+									fontWeight: 600,
+									color: backgroundImage ? "#f9efe2" : palette.accent,
+									background: backgroundImage
+										? "rgba(255,255,255,0.14)"
+										: "rgba(255,255,255,0.46)",
+									border: `1px solid ${backgroundImage ? "rgba(255,255,255,0.26)" : palette.border}`,
+								}}
+							>
+								{palette.label}
+							</div>
+						</div>
+
+						{eventCount > 0 ? (
+							<div
+								style={{
+									display: "flex",
+									alignItems: "center",
+									padding: "10px 16px",
+									borderRadius: 999,
+									fontSize: 16,
+									fontWeight: 700,
+									color: backgroundImage ? "#fff6ea" : palette.accent,
+									background: backgroundImage
+										? "rgba(255,255,255,0.12)"
+										: "rgba(255,255,255,0.58)",
+									border: `1px solid ${backgroundImage ? "rgba(255,255,255,0.3)" : palette.border}`,
+								}}
+							>
+								{eventCount} events
+							</div>
+						) : null}
+					</div>
+
+					<div
+						style={{
+							display: "flex",
+							flexDirection: "column",
+							gap: 16,
+							maxWidth: 940,
+							padding: "30px 34px",
+							borderRadius: 30,
+							background: backgroundImage ? "rgba(17,10,8,0.55)" : palette.card,
+							border: `1px solid ${backgroundImage ? "rgba(255,255,255,0.2)" : palette.border}`,
+						}}
+					>
+						<div
+							style={{
+								fontFamily: "Georgia, Times New Roman, serif",
+								fontSize: 76,
+								lineHeight: 1.04,
+								letterSpacing: "-0.02em",
+								color: backgroundImage ? "#fff8ee" : palette.ink,
+								fontWeight: 500,
+							}}
+						>
+							{title}
+						</div>
+						<div
+							style={{
+								fontSize: 30,
+								lineHeight: 1.25,
+								color: backgroundImage ? "#e4d8c8" : palette.muted,
+								fontWeight: 500,
+								maxWidth: 820,
+							}}
+						>
+							{subtitle}
+						</div>
+					</div>
+
+					<div
+						style={{
+							display: "flex",
+							justifyContent: "space-between",
+							alignItems: "center",
+							color: backgroundImage ? "#ebddcb" : palette.muted,
+							fontSize: 18,
+							letterSpacing: "0.08em",
+							textTransform: "uppercase",
+							fontWeight: 600,
+						}}
+					>
+						<div>{arrondissement ? `${arrondissement} · Paris` : "Paris"}</div>
+						<div>fete-finder.ooo</div>
+					</div>
+				</div>
 			</div>,
 			{
 				width: 1200,
 				height: 630,
+				headers: {
+					"Cache-Control": OG_CACHE_CONTROL,
+				},
 			},
 		);
 	} catch (error) {
-		ogError("🚨 OG Image generation error:", error);
-
-		// Provide specific guidance for common errors
-		if (error instanceof Error) {
-			if (error.message.includes("Unsupported image type")) {
-				ogError(
-					"💡 Image Error: The specified image file could not be loaded. This usually means:",
-				);
-				ogError(
-					"   - The image file does not exist at the specified path",
-				);
-				ogError(
-					"   - The image format is not supported (use PNG, JPEG, or WebP)",
-				);
-				ogError("   - The image path is incorrect or inaccessible");
-				ogError("🔄 Falling back to simple text-based OG:image");
-			} else if (error.message.includes("fetch")) {
-				ogError("💡 Network Error: Could not fetch image from URL");
-				ogError("🔄 Falling back to simple text-based OG:image");
-			} else {
-				ogError("💡 General Error: OG:image generation failed");
-				ogError("🔄 Using fallback image");
-			}
-		}
-
-		// Return a simple fallback image
+		log.error("og-image", "Failed to generate OG image", undefined, error);
 		return new ImageResponse(
 			<div
 				style={{
-					height: "100%",
 					width: "100%",
+					height: "100%",
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-					backgroundColor: "#f3f4f6",
-					fontSize: "32px",
-					color: "#374151",
-					fontFamily: "Inter, sans-serif",
+					background:
+						"linear-gradient(140deg, #f5efe6 0%, #eedfcf 52%, #e2ccb0 100%)",
+					color: "#24170f",
+					fontFamily: "Georgia, serif",
+					fontSize: 58,
 				}}
 			>
-				Fête Finder - OOOC
+				Fete Finder
 			</div>,
 			{
 				width: 1200,
 				height: 630,
+				headers: {
+					"Cache-Control": OG_CACHE_CONTROL,
+				},
 			},
 		);
 	}

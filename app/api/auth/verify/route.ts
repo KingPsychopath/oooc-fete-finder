@@ -1,9 +1,10 @@
+import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import {
 	USER_AUTH_COOKIE_NAME,
 	getUserAuthCookieOptions,
 	signUserSessionToken,
 } from "@/features/auth/user-session-cookie";
-import { UserCollectionStore } from "@/features/auth/user-collection-store";
+import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { log } from "@/lib/platform/logger";
 import { NextResponse } from "next/server";
 
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
 	} catch {
 		return NextResponse.json(
 			{ success: false, error: "Invalid request payload" },
-			{ status: 400 },
+			{ status: 400, headers: NO_STORE_HEADERS },
 		);
 	}
 
@@ -39,25 +40,25 @@ export async function POST(request: Request) {
 	if (firstName.length < 2) {
 		return NextResponse.json(
 			{ success: false, error: "First name must be at least 2 characters" },
-			{ status: 400 },
+			{ status: 400, headers: NO_STORE_HEADERS },
 		);
 	}
 	if (lastName.length < 2) {
 		return NextResponse.json(
 			{ success: false, error: "Last name must be at least 2 characters" },
-			{ status: 400 },
+			{ status: 400, headers: NO_STORE_HEADERS },
 		);
 	}
 	if (!isValidEmail(email)) {
 		return NextResponse.json(
 			{ success: false, error: "Valid email address is required" },
-			{ status: 400 },
+			{ status: 400, headers: NO_STORE_HEADERS },
 		);
 	}
 	if (!consent) {
 		return NextResponse.json(
 			{ success: false, error: "Consent is required" },
-			{ status: 400 },
+			{ status: 400, headers: NO_STORE_HEADERS },
 		);
 	}
 
@@ -74,15 +75,17 @@ export async function POST(request: Request) {
 		const storeResult = await UserCollectionStore.addOrUpdate(user);
 		const storeStatus = await UserCollectionStore.getStatus();
 
-		const response = NextResponse.json({
-			success: true,
-			email,
-			storedIn: storeStatus.provider,
-			message:
-				storeResult.alreadyExisted
+		const response = NextResponse.json(
+			{
+				success: true,
+				email,
+				storedIn: storeStatus.provider,
+				message: storeResult.alreadyExisted
 					? "Existing user verified"
 					: "User verified",
-		});
+			},
+			{ headers: NO_STORE_HEADERS },
+		);
 		response.cookies.set(
 			USER_AUTH_COOKIE_NAME,
 			signUserSessionToken(email),
@@ -98,7 +101,7 @@ export async function POST(request: Request) {
 				success: false,
 				error: "Verification failed. Please try again.",
 			},
-			{ status: 500 },
+			{ status: 500, headers: NO_STORE_HEADERS },
 		);
 	}
 }

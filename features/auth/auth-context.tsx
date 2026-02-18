@@ -1,5 +1,6 @@
 "use client";
 
+import { clientLog } from "@/lib/platform/client-logger";
 import React, {
 	createContext,
 	useCallback,
@@ -36,6 +37,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const OFFLINE_GRACE_STORAGE_KEY = "oooc_offline_auth_grace_v1";
 const OFFLINE_GRACE_WINDOW_MS = 72 * 60 * 60 * 1000;
+const AUTH_TIMING_LOG_ENABLED =
+	process.env.NODE_ENV === "development" ||
+	process.env.NEXT_PUBLIC_AUTH_TIMING_LOG === "1";
 
 const defaultAuthContext: AuthContextType = {
 	isAuthenticated: false,
@@ -144,11 +148,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 	}, []);
 
 	const refreshSession = useCallback(async () => {
+		const startTimeMs =
+			typeof performance !== "undefined" ? performance.now() : Date.now();
+		let statusCode: number | null = null;
+		let outcome: "live" | "signed-out" | "offline-grace" | "error" = "error";
+
 		try {
 			const response = await fetch(`${basePath}/api/auth/session`, {
 				method: "GET",
 				cache: "no-store",
 			});
+			statusCode = response.status;
 			if (!response.ok) {
 				throw new Error(`Auth session request failed (${response.status})`);
 			}
@@ -167,11 +177,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 				payload.email.trim().length > 0;
 
 			if (hasLiveAuth) {
+				outcome = "live";
 				setLiveAuthenticatedState(
 					payload.email as string,
 					payload.success && payload.isAdminAuthenticated === true,
 				);
 			} else {
+				outcome = "signed-out";
 				clearOfflineGraceState();
 				setSignedOutState();
 			}
@@ -181,9 +193,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 				navigator.onLine === false &&
 				tryApplyOfflineGraceState();
 			if (!canUseOfflineGrace) {
+				outcome = "signed-out";
 				setSignedOutState();
+			} else {
+				outcome = "offline-grace";
 			}
 		} finally {
+			if (AUTH_TIMING_LOG_ENABLED) {
+				const endTimeMs =
+					typeof performance !== "undefined" ? performance.now() : Date.now();
+				clientLog.info("auth", "Session refresh timing", {
+					durationMs: Math.round(endTimeMs - startTimeMs),
+					statusCode,
+					outcome,
+					isOnline: typeof navigator !== "undefined" ? navigator.onLine : null,
+				});
+			}
 			setIsAuthResolved(true);
 		}
 	}, [setLiveAuthenticatedState, setSignedOutState, tryApplyOfflineGraceState]);

@@ -3,12 +3,12 @@
  * Handles CSV parsing and event data conversion
  */
 
-import { log } from "@/lib/platform/logger";
-import { GoogleCloudAPI } from "@/lib/google/api";
 import { Event } from "@/features/events/types";
-import { parseCSVContent } from "./csv/parser";
 import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
+import { GoogleCloudAPI } from "@/lib/google/api";
+import { log } from "@/lib/platform/logger";
 import { assembleEvent } from "./assembly/event-assembler";
+import { parseCSVContent } from "./csv/parser";
 import {
 	type DateFormatWarning,
 	WarningSystem,
@@ -113,9 +113,13 @@ export async function processCSVData(
 			} catch (localError) {
 				const localErrorMsg =
 					localError instanceof Error ? localError.message : "Unknown error";
-				log.warn("data", "Local CSV fallback failed, keeping remote empty state", {
-					error: localErrorMsg,
-				});
+				log.warn(
+					"data",
+					"Local CSV fallback failed, keeping remote empty state",
+					{
+						error: localErrorMsg,
+					},
+				);
 				errors.push(
 					`Remote returned 0 events, local CSV fallback failed: ${localErrorMsg}`,
 				);
@@ -126,7 +130,17 @@ export async function processCSVData(
 		if (qualityCheck.issues.length > 0) {
 			log.info("data", "Quality check", {
 				score: qualityCheck.qualityScore,
-				issues: qualityCheck.issues.length,
+				issueBuckets: qualityCheck.issues.length,
+				issueCounts: qualityCheck.issueCounts,
+				totalEvents: events.length,
+				details: qualityCheck.issues,
+			});
+		} else {
+			log.info("data", "Quality check", {
+				score: qualityCheck.qualityScore,
+				issueBuckets: 0,
+				issueCounts: qualityCheck.issueCounts,
+				totalEvents: events.length,
 			});
 		}
 
@@ -141,6 +155,7 @@ export async function processCSVData(
 		log.info("data", "Coordinate population", {
 			source,
 			enabled: shouldPopulateCoordinates,
+			defaultEnabledForSource: defaultPopulate,
 			geocodingConfigured: GoogleCloudAPI.supportsGeocoding(),
 		});
 

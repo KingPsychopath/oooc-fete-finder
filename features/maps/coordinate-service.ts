@@ -1,14 +1,14 @@
-import {
-	type GeocodingResult as GCPGeocodingResult,
-	GoogleCloudAPI,
-} from "@/lib/google/api";
-import { log } from "@/lib/platform/logger";
 import type {
 	Coordinates,
 	EventLocation,
 	ParisArrondissement,
 } from "@/features/events/types";
 import { PARIS_ARRONDISSEMENTS } from "@/features/events/types";
+import {
+	type GeocodingResult as GCPGeocodingResult,
+	GoogleCloudAPI,
+} from "@/lib/google/api";
+import { log } from "@/lib/platform/logger";
 
 /**
  * Enhanced geocoding error for data management
@@ -254,6 +254,28 @@ function generateLocationKey(
 	return `${cleanName}_${arrondissement}`;
 }
 
+export function isCoordinateResolvableInput(
+	locationName: string,
+	arrondissement: ParisArrondissement,
+): boolean {
+	const hasValidLocation =
+		locationName &&
+		locationName.trim() !== "" &&
+		locationName !== "TBA" &&
+		locationName !== "TBC" &&
+		locationName.toLowerCase() !== "location tbc" &&
+		locationName.toLowerCase() !== "location tba";
+
+	const hasValidArrondissement =
+		arrondissement &&
+		arrondissement !== "unknown" &&
+		typeof arrondissement === "number" &&
+		arrondissement >= 1 &&
+		arrondissement <= 20;
+
+	return Boolean(hasValidLocation && hasValidArrondissement);
+}
+
 /**
  * Result from coordinate lookup
  */
@@ -282,24 +304,7 @@ export class CoordinateService {
 	): Promise<CoordinateResult | null> {
 		const { forceRefresh = false, fallbackToArrondissement = true } = options;
 
-		// STRICT VALIDATION: Both arrondissement and location must be valid
-		// If either is missing/invalid, return null (no coordinates at all)
-		const hasValidLocation =
-			locationName &&
-			locationName.trim() !== "" &&
-			locationName !== "TBA" &&
-			locationName !== "TBC" &&
-			locationName.toLowerCase() !== "location tbc" &&
-			locationName.toLowerCase() !== "location tba";
-
-		const hasValidArrondissement =
-			arrondissement &&
-			arrondissement !== "unknown" &&
-			typeof arrondissement === "number" &&
-			arrondissement >= 1 &&
-			arrondissement <= 20;
-
-		if (!hasValidLocation || !hasValidArrondissement) {
+		if (!isCoordinateResolvableInput(locationName, arrondissement)) {
 			return null;
 		}
 

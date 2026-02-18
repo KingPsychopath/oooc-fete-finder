@@ -7,6 +7,13 @@
 
 import type { Event } from "@/features/events/types";
 
+export interface EventQualityIssueCounts {
+	missingLocation: number;
+	missingTime: number;
+	genericName: number;
+	missingDescription: number;
+}
+
 /**
  * Enhanced event quality checks
  * Analyzes events for completeness and quality issues
@@ -15,15 +22,23 @@ export function performEventQualityChecks(events: Event[]): {
 	qualityScore: number;
 	issues: string[];
 	recommendations: string[];
+	issueCounts: EventQualityIssueCounts;
 } {
 	const issues: string[] = [];
 	const recommendations: string[] = [];
+	const issueCounts: EventQualityIssueCounts = {
+		missingLocation: 0,
+		missingTime: 0,
+		genericName: 0,
+		missingDescription: 0,
+	};
 
 	// Check for missing locations
 	const eventsWithoutLocation = events.filter(
 		(event) => !event.location || event.location === "TBA",
 	);
 	if (eventsWithoutLocation.length > 0) {
+		issueCounts.missingLocation = eventsWithoutLocation.length;
 		issues.push(
 			`${eventsWithoutLocation.length} events missing location information`,
 		);
@@ -35,6 +50,7 @@ export function performEventQualityChecks(events: Event[]): {
 	// Check for missing times
 	const eventsWithoutTime = events.filter((event) => !event.time);
 	if (eventsWithoutTime.length > 0) {
+		issueCounts.missingTime = eventsWithoutTime.length;
 		issues.push(`${eventsWithoutTime.length} events missing start time`);
 		recommendations.push(
 			"Add specific start times to help users plan their attendance",
@@ -49,6 +65,7 @@ export function performEventQualityChecks(events: Event[]): {
 			event.name.toLowerCase() === "tbc",
 	);
 	if (genericEvents.length > 0) {
+		issueCounts.genericName = genericEvents.length;
 		issues.push(
 			`${genericEvents.length} events have generic/placeholder names`,
 		);
@@ -60,6 +77,7 @@ export function performEventQualityChecks(events: Event[]): {
 	// Check for missing descriptions
 	const eventsWithoutDescription = events.filter((event) => !event.description);
 	if (eventsWithoutDescription.length > 0) {
+		issueCounts.missingDescription = eventsWithoutDescription.length;
 		issues.push(
 			`${eventsWithoutDescription.length} events missing descriptions`,
 		);
@@ -77,5 +95,6 @@ export function performEventQualityChecks(events: Event[]): {
 		qualityScore,
 		issues,
 		recommendations,
+		issueCounts,
 	};
 }

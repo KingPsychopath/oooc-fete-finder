@@ -1,26 +1,36 @@
-import { NextRequest, NextResponse } from "next/server";
 import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
-import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
-import { processCSVData } from "@/features/data-management/data-processor";
 import { DataManager } from "@/features/data-management/data-manager";
+import { processCSVData } from "@/features/data-management/data-processor";
 import { LocalEventStore } from "@/features/data-management/local-event-store";
+import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
+import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	getAppKVStoreRepository,
 	getAppKVStoreTableName,
 } from "@/lib/platform/postgres/app-kv-store-repository";
 import { getEventSheetStoreRepository } from "@/lib/platform/postgres/event-sheet-store-repository";
 import { isPostgresConfigured } from "@/lib/platform/postgres/postgres-client";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
 	if (!(await validateAdminKeyForApiRoute(request))) {
-		return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+		return NextResponse.json(
+			{ success: false, error: "Unauthorized" },
+			{ status: 401, headers: NO_STORE_HEADERS },
+		);
 	}
 
 	try {
 		const kvRepository = getAppKVStoreRepository();
 		const eventRepository = getEventSheetStoreRepository();
-		const [storeStatus, csv, dataConfig, runtimeDataStatus, eventStoreCounts, eventStoreMeta] =
-			await Promise.all([
+		const [
+			storeStatus,
+			csv,
+			dataConfig,
+			runtimeDataStatus,
+			eventStoreCounts,
+			eventStoreMeta,
+		] = await Promise.all([
 			LocalEventStore.getStatus(),
 			LocalEventStore.getCsv(),
 			DataManager.getDataConfigStatus(),
@@ -40,9 +50,8 @@ export async function GET(request: NextRequest) {
 				}),
 		]);
 
-		const csvLineCount =
-			csv ?
-				csv
+		const csvLineCount = csv
+			? csv
 					.split("\n")
 					.map((line) => line.trim())
 					.filter((line) => line.length > 0).length
@@ -81,57 +90,60 @@ export async function GET(request: NextRequest) {
 			);
 		}
 
-		return NextResponse.json({
-			success: true,
-			timestamp: new Date().toISOString(),
-			connectivity: {
-				postgresConfigured: isPostgresConfigured(),
-				postgresTable: getAppKVStoreTableName(),
-				postgresReachable: Boolean(kvRepository),
-				eventStoreReachable: Boolean(eventRepository),
-				storeProvider: storeStatus.provider,
-				storeProviderLocation: storeStatus.providerLocation,
-			},
-			mode: {
-				configuredDataMode: dataConfig.dataSource,
-				liveDataSource: runtimeDataStatus.dataSource,
-				remoteConfigured: dataConfig.remoteConfigured,
-			},
-			counts: {
-				storeMetadataRows: storeStatus.rowCount,
-				csvRawRows: csvRowCount,
-				parsedEvents: parsedEventCount,
-				liveRuntimeEvents: runtimeDataStatus.eventCount,
-				liveEvents: runtimeDataStatus.eventCount,
-			},
-			store: {
-				hasStoreData: storeStatus.hasStoreData,
-				keyCount: storeStatus.keyCount,
-				updatedAt: storeStatus.updatedAt,
-				updatedBy: storeStatus.updatedBy,
-				origin: storeStatus.origin,
-				postgresEventTables: {
-					rowCount: eventStoreCounts.rowCount,
-					columnCount: eventStoreCounts.columnCount,
-					meta: eventStoreMeta,
+		return NextResponse.json(
+			{
+				success: true,
+				timestamp: new Date().toISOString(),
+				connectivity: {
+					postgresConfigured: isPostgresConfigured(),
+					postgresTable: getAppKVStoreTableName(),
+					postgresReachable: Boolean(kvRepository),
+					eventStoreReachable: Boolean(eventRepository),
+					storeProvider: storeStatus.provider,
+					storeProviderLocation: storeStatus.providerLocation,
+				},
+				mode: {
+					configuredDataMode: dataConfig.dataSource,
+					liveDataSource: runtimeDataStatus.dataSource,
+					remoteConfigured: dataConfig.remoteConfigured,
+				},
+				counts: {
+					storeMetadataRows: storeStatus.rowCount,
+					csvRawRows: csvRowCount,
+					parsedEvents: parsedEventCount,
+					liveRuntimeEvents: runtimeDataStatus.eventCount,
+					liveEvents: runtimeDataStatus.eventCount,
+				},
+				store: {
+					hasStoreData: storeStatus.hasStoreData,
+					keyCount: storeStatus.keyCount,
+					updatedAt: storeStatus.updatedAt,
+					updatedBy: storeStatus.updatedBy,
+					origin: storeStatus.origin,
+					postgresEventTables: {
+						rowCount: eventStoreCounts.rowCount,
+						columnCount: eventStoreCounts.columnCount,
+						meta: eventStoreMeta,
+					},
+				},
+				warnings: {
+					parsingWarnings,
+					countMismatches: mismatches,
+				},
+				runtime: {
+					lastCheckTime: runtimeDataStatus.lastFetchTime,
+					lastErrorMessage: runtimeDataStatus.lastRemoteErrorMessage,
 				},
 			},
-			warnings: {
-				parsingWarnings,
-				countMismatches: mismatches,
-			},
-			runtime: {
-				lastCheckTime: runtimeDataStatus.lastFetchTime,
-				lastErrorMessage: runtimeDataStatus.lastRemoteErrorMessage,
-			},
-		});
+			{ headers: NO_STORE_HEADERS },
+		);
 	} catch (error) {
 		return NextResponse.json(
 			{
 				success: false,
 				error: error instanceof Error ? error.message : "Unknown error",
 			},
-			{ status: 500 },
+			{ status: 500, headers: NO_STORE_HEADERS },
 		);
 	}
 }

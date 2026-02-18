@@ -1,15 +1,9 @@
 import path from "path";
 import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
+import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { log } from "@/lib/platform/logger";
 import { mkdir, writeFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
-
-const NO_STORE_HEADERS = {
-	"Cache-Control":
-		"private, no-store, no-cache, max-age=0, must-revalidate, proxy-revalidate",
-	Pragma: "no-cache",
-	Expires: "0",
-} as const;
 
 export async function POST(request: NextRequest) {
 	try {

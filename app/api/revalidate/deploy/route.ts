@@ -1,14 +1,9 @@
 import { EventsRuntimeManager } from "@/lib/cache/cache-manager";
+import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { log } from "@/lib/platform/logger";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-const NO_STORE_HEADERS = {
-	"Cache-Control":
-		"private, no-store, no-cache, max-age=0, must-revalidate, proxy-revalidate",
-	Pragma: "no-cache",
-	Expires: "0",
-} as const;
 
 const readSecretToken = (request: NextRequest): string => {
 	const authorization = request.headers.get("authorization");

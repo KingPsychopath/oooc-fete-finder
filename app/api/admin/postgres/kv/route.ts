@@ -1,12 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
 import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
+import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	getAppKVStoreRepository,
 	getAppKVStoreTableName,
 } from "@/lib/platform/postgres/app-kv-store-repository";
 import { getEventSheetStoreRepository } from "@/lib/platform/postgres/event-sheet-store-repository";
+import { NextRequest, NextResponse } from "next/server";
 
-const parseLimit = (value: string | null, fallback: number, max: number): number => {
+const parseLimit = (
+	value: string | null,
+	fallback: number,
+	max: number,
+): number => {
 	const parsed = Number.parseInt(value ?? "", 10);
 	if (Number.isNaN(parsed)) return fallback;
 	return Math.max(1, Math.min(parsed, max));
@@ -14,7 +19,10 @@ const parseLimit = (value: string | null, fallback: number, max: number): number
 
 export async function GET(request: NextRequest) {
 	if (!(await validateAdminKeyForApiRoute(request))) {
-		return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+		return NextResponse.json(
+			{ success: false, error: "Unauthorized" },
+			{ status: 401, headers: NO_STORE_HEADERS },
+		);
 	}
 
 	const repository = getAppKVStoreRepository();
@@ -24,7 +32,7 @@ export async function GET(request: NextRequest) {
 				success: false,
 				error: "Postgres is not configured (DATABASE_URL missing or invalid)",
 			},
-			{ status: 503 },
+			{ status: 503, headers: NO_STORE_HEADERS },
 		);
 	}
 
@@ -39,31 +47,41 @@ export async function GET(request: NextRequest) {
 		if (key) {
 			const record = await repository.getRecord(key);
 			if (!record) {
-				return NextResponse.json({
+				return NextResponse.json(
+					{
+						success: true,
+						table: getAppKVStoreTableName(),
+						key,
+						found: false,
+					},
+					{ headers: NO_STORE_HEADERS },
+				);
+			}
+
+			return NextResponse.json(
+				{
 					success: true,
 					table: getAppKVStoreTableName(),
 					key,
-					found: false,
-				});
-			}
-
-			return NextResponse.json({
-				success: true,
-				table: getAppKVStoreTableName(),
-				key,
-				found: true,
-				record:
-					includeValues ?
-						record
-					:	{
-							key: record.key,
-							updatedAt: record.updatedAt,
-						},
-			});
+					found: true,
+					record: includeValues
+						? record
+						: {
+								key: record.key,
+								updatedAt: record.updatedAt,
+							},
+				},
+				{ headers: NO_STORE_HEADERS },
+			);
 		}
 
-		const [records, totalKeyCount, legacyEventsStoreStats, eventStoreCounts, eventStoreMeta] =
-			await Promise.all([
+		const [
+			records,
+			totalKeyCount,
+			legacyEventsStoreStats,
+			eventStoreCounts,
+			eventStoreMeta,
+		] = await Promise.all([
 			repository.listRecords({ prefix, limit }),
 			repository.countKeys(prefix),
 			repository.getEventsStoreStats(),
@@ -82,37 +100,39 @@ export async function GET(request: NextRequest) {
 				}),
 		]);
 
-		return NextResponse.json({
-			success: true,
-			table: getAppKVStoreTableName(),
-			query: {
-				prefix,
-				limit,
-				includeValues,
+		return NextResponse.json(
+			{
+				success: true,
+				table: getAppKVStoreTableName(),
+				query: {
+					prefix,
+					limit,
+					includeValues,
+				},
+				totalKeyCount,
+				returnedCount: records.length,
+				legacyEventsStoreKv: legacyEventsStoreStats,
+				eventStoreTables: {
+					rowCount: eventStoreCounts.rowCount,
+					columnCount: eventStoreCounts.columnCount,
+					meta: eventStoreMeta,
+				},
+				records: includeValues
+					? records
+					: records.map((record) => ({
+							key: record.key,
+							updatedAt: record.updatedAt,
+						})),
 			},
-			totalKeyCount,
-			returnedCount: records.length,
-			legacyEventsStoreKv: legacyEventsStoreStats,
-			eventStoreTables: {
-				rowCount: eventStoreCounts.rowCount,
-				columnCount: eventStoreCounts.columnCount,
-				meta: eventStoreMeta,
-			},
-			records:
-				includeValues ?
-					records
-				:	records.map((record) => ({
-						key: record.key,
-						updatedAt: record.updatedAt,
-					})),
-		});
+			{ headers: NO_STORE_HEADERS },
+		);
 	} catch (error) {
 		return NextResponse.json(
 			{
 				success: false,
 				error: error instanceof Error ? error.message : "Unknown error",
 			},
-			{ status: 500 },
+			{ status: 500, headers: NO_STORE_HEADERS },
 		);
 	}
 }
