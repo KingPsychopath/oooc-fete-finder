@@ -38,6 +38,7 @@ Use the admin panel:
    - `Import Google Backup`.
 3. Edit in `Event Sheet Editor`.
 4. Click `Save and Revalidate Homepage`.
+5. Confirm `Event Key` values exist in export (first save/import backfills missing keys).
 
 Or run bootstrap:
 
@@ -73,6 +74,7 @@ Google Apps Script output is optional mirror-only behavior and can be removed la
 3. Keep `DATA_MODE=remote`
 4. Verify live source in admin is `Postgres Store`
 5. Keep Google only as backup preview/import (optional)
+6. Run one admin save/import cycle after deploy so legacy rows persist generated `Event Key` values.
 
 ## 7. Rollback
 

@@ -36,6 +36,14 @@ Other app state (auth/session/user collection) remains in:
 4. Verify live payload in `Live Site Snapshot`
 5. Export CSV anytime from `Data Store Controls`
 
+### Stable Share Links (`eventKey`)
+
+- Each event has a canonical immutable key: `Event Key` (`evt_...`).
+- Homepage event modal URLs use `/?event=<eventKey>&slug=<eventSlug>`.
+- `event` is canonical; `slug` is decorative.
+- In admin UI, `Event Key` is system-managed (read-only).
+- CSV import/export keeps `Event Key`; if missing on import, it is generated and persisted.
+
 ## Environment Setup
 
 Copy `.env.example` and set at least:
@@ -84,6 +92,7 @@ Sensitive identifiers are HMAC-hashed with `AUTH_SECRET` in limiter keys/log con
 - `docs/postgres-migration.md` — Postgres migration
 - `docs/google-integrations.md` — Google backup/import
 - `docs/architecture.md` — rendering/auth/revalidation contract (public static-first + server-authenticated admin)
+- `docs/event-identity.md` — stable event identity model, CSV/admin workflows, and share-link FAQ
 
 ## Development
 
