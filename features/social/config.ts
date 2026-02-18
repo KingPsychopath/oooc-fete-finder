@@ -17,9 +17,9 @@ export const COMMUNITY_INVITE_CONFIG: CommunityInviteConfig = {
 		EDGE_OFFSET: "20px",
 	},
 	CONTENT: {
-		TITLE: "Join Our Community",
+		TITLE: "Join the collective",
 		DESCRIPTION:
-			"Connect with music lovers and get real-time Paris event updates.",
-		CTA_TEXT: "Join WhatsApp Chat",
+			"Get real-time Paris updates and share your finds with the OOOC community.",
+		CTA_TEXT: "Open WhatsApp Group",
 	},
 } as const;
