@@ -10,8 +10,24 @@ type CountdownTime = {
 	seconds: number;
 };
 
-// Fête de la Musique 2025 - Saturday, June 21st, 2025
-const eventDate = new Date("2025-06-21T00:00:00+02:00"); // Paris timezone
+const getFeteDateForYear = (year: number): Date =>
+	new Date(`${year}-06-21T00:00:00+02:00`);
+
+const getNextFeteDate = (referenceDate: Date): Date => {
+	const candidate = getFeteDateForYear(referenceDate.getFullYear());
+	return referenceDate.getTime() <= candidate.getTime() ?
+			candidate
+		:	getFeteDateForYear(referenceDate.getFullYear() + 1);
+};
+
+const eventDate = getNextFeteDate(new Date());
+const eventDateLabel = new Intl.DateTimeFormat("en-GB", {
+	weekday: "long",
+	month: "long",
+	day: "numeric",
+	year: "numeric",
+	timeZone: "Europe/Paris",
+}).format(eventDate);
 
 const Countdown: React.FC = () => {
 	const [mounted, setMounted] = useState(false);
@@ -53,7 +69,7 @@ const Countdown: React.FC = () => {
 		if (countdown.minutes > 0) parts.push(`${countdown.minutes}m`);
 		if (countdown.seconds > 0) parts.push(`${countdown.seconds}s`);
 
-		return `⏰ ${parts.join(" ")} until Saturday, June 21st`;
+		return `⏰ ${parts.join(" ")} until ${eventDateLabel}`;
 	};
 
 	useEffect(() => {

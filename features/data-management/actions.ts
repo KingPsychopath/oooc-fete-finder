@@ -444,6 +444,8 @@ export async function previewRemoteCsvForAdmin(
 	rows?: EditableSheetRow[];
 	totalRows?: number;
 	fetchedAt?: string;
+	canImport?: boolean;
+	importBlockedReason?: string;
 	error?: string;
 }> {
 	if (!(await validateAdminAccess(keyOrToken))) {
@@ -452,12 +454,17 @@ export async function previewRemoteCsvForAdmin(
 
 		try {
 			const { remoteUrl, sheetId, range } = await resolveRemoteSheetConfig();
-			const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range, {
-				allowLocalFallback: false,
+		const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range, {
+			allowLocalFallback: false,
 		});
 		const sheet = csvToEditableSheet(remoteFetchResult.content);
 		const normalizedLimit = Math.max(1, Math.min(limit, 50));
 		const allRows = sheet.rows;
+		const featuredViolations = getLegacyFeaturedViolations(allRows);
+		const importBlockedReason =
+			featuredViolations.count > 0 ?
+				buildLegacyFeaturedErrorMessage(featuredViolations)
+			:	undefined;
 		let previewRows = allRows.slice(0, normalizedLimit);
 
 		if (options?.random && allRows.length > normalizedLimit) {
@@ -472,6 +479,8 @@ export async function previewRemoteCsvForAdmin(
 			rows: previewRows,
 			totalRows: sheet.rows.length,
 			fetchedAt: new Date(remoteFetchResult.timestamp).toISOString(),
+			canImport: !importBlockedReason,
+			importBlockedReason,
 		};
 	} catch (error) {
 		return {
@@ -673,7 +682,7 @@ export async function saveEventSheetEditorRows(
  */
 const DATE_COLUMNS_TO_CHECK = {
 	featured: false, // Featured scheduling is no longer read from CSV
-	date: false, // Check the Date column for ambiguous dates
+	date: true, // Check the Date column for ambiguous dates
 	startTime: false, // Check the Start Time column for time format issues
 	endTime: false, // Check the End Time column for time format issues
 } as const;

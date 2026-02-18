@@ -8,6 +8,13 @@
 import type { Event, EventType, ParisArrondissement } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
 import type { CSVEventRow } from "../csv/parser";
+import { WarningSystem } from "../validation/date-warnings";
+import {
+	createDateNormalizationContext,
+	normalizeCsvDate,
+	type DateNormalizationContext,
+	type DateNormalizationWarning,
+} from "./date-normalization";
 import {
 	buildEventSlug,
 	ensureUniqueEventKeys,
@@ -61,6 +68,7 @@ const determineVerificationStatus = (
 		arrondissement: ParisArrondissement;
 		time: string;
 		mainLink: string;
+		normalizedDate: string;
 	},
 ): boolean => {
 	// Core completeness criteria for verification
@@ -83,9 +91,9 @@ const determineVerificationStatus = (
 		assembledFields.mainLink.trim() !== "";
 
 	const hasValidDate =
-		csvRow.date !== undefined &&
-		csvRow.date.trim() !== "" &&
-		csvRow.date.toLowerCase() !== "tbc";
+		assembledFields.normalizedDate !== undefined &&
+		assembledFields.normalizedDate.trim() !== "" &&
+		assembledFields.normalizedDate.toLowerCase() !== "tbc";
 
 	const hasValidPrice =
 		csvRow.price !== undefined &&
@@ -104,11 +112,55 @@ const determineVerificationStatus = (
 	return coreDataComplete && hasEssentialDetails;
 };
 
+export interface EventAssemblyOptions {
+	dateNormalizationContext?: DateNormalizationContext;
+	referenceDate?: Date;
+}
+
+const toWarningType = (
+	warning: DateNormalizationWarning,
+): "ambiguous" | "invalid" | "unparseable" | "inferred_year" => {
+	return warning.type;
+};
+
+const emitDateWarning = (
+	warning: DateNormalizationWarning,
+	csvRow: CSVEventRow,
+	index: number,
+): void => {
+	WarningSystem.addDateFormatWarning({
+		originalValue: csvRow.date,
+		eventName: csvRow.name,
+		columnType: "date",
+		warningType: toWarningType(warning),
+		potentialFormats: {
+			us: {
+				date: warning.potentialFormats?.us ?? "",
+				description:
+					warning.potentialFormats?.us ? "US-style interpretation" : "",
+			},
+			uk: {
+				date: warning.potentialFormats?.uk ?? "",
+				description:
+					warning.potentialFormats?.uk ? "UK-style interpretation" : "",
+			},
+			iso: warning.potentialFormats?.iso ?? "",
+		},
+		detectedFormat: warning.detectedFormat,
+		recommendedAction: warning.recommendedAction,
+		rowIndex: index + 2,
+	});
+};
+
 /**
  * Main event assembly function
  * Converts a CSV row into a complete Event object
  */
-export const assembleEvent = (csvRow: CSVEventRow, index: number): Event => {
+export const assembleEvent = (
+	csvRow: CSVEventRow,
+	index: number,
+	options: EventAssemblyOptions = {},
+): Event => {
 	const eventKey =
 		normalizeEventKey(csvRow.eventKey) ??
 		generateEventKeyFromRow(csvRow, {
@@ -116,9 +168,19 @@ export const assembleEvent = (csvRow: CSVEventRow, index: number): Event => {
 			salt: index,
 		});
 
+	const dateContext =
+		options.dateNormalizationContext ??
+		createDateNormalizationContext([csvRow], {
+			referenceDate: options.referenceDate,
+		});
+	const normalizedDate = normalizeCsvDate(csvRow.date, dateContext);
+	if (normalizedDate.warning) {
+		emitDateWarning(normalizedDate.warning, csvRow, index);
+	}
+
 	// Transform individual fields using our focused transformers
-	const day = DateTransformers.convertToEventDay(csvRow.date);
-	const date = DateTransformers.convertToISODate(csvRow.date);
+	const day = normalizedDate.day;
+	const date = normalizedDate.isoDate;
 	const time = DateTransformers.convertToTime(csvRow.startTime);
 	const endTime = DateTransformers.convertToTime(csvRow.endTime);
 
@@ -180,6 +242,7 @@ export const assembleEvent = (csvRow: CSVEventRow, index: number): Event => {
 			arrondissement,
 			time,
 			mainLink,
+			normalizedDate: date,
 		}),
 		price: csvRow.price.trim() || undefined,
 		age: csvRow.age.trim() || undefined,
@@ -195,11 +258,24 @@ export const assembleEvent = (csvRow: CSVEventRow, index: number): Event => {
 /**
  * Batch processing function for multiple CSV rows
  */
-export const assembleEvents = (csvRows: CSVEventRow[]): Event[] => {
+export const assembleEvents = (
+	csvRows: CSVEventRow[],
+	options: EventAssemblyOptions = {},
+): Event[] => {
 	const withEventKeys = ensureUniqueEventKeys(csvRows, {
 		stableKeys: EVENT_KEY_FINGERPRINT_FIELDS,
 	});
-	return withEventKeys.rows.map((row, index) => assembleEvent(row, index));
+	const dateContext =
+		options.dateNormalizationContext ??
+		createDateNormalizationContext(withEventKeys.rows, {
+			referenceDate: options.referenceDate,
+		});
+	return withEventKeys.rows.map((row, index) =>
+		assembleEvent(row, index, {
+			...options,
+			dateNormalizationContext: dateContext,
+		}),
+	);
 };
 
 /**
@@ -208,9 +284,10 @@ export const assembleEvents = (csvRows: CSVEventRow[]): Event[] => {
 export const assembleEventSafely = (
 	csvRow: CSVEventRow,
 	index: number,
+	options: EventAssemblyOptions = {},
 ): Event | null => {
 	try {
-		return assembleEvent(csvRow, index);
+		return assembleEvent(csvRow, index, options);
 	} catch (error) {
 		log.error(
 			"event-assembler",
@@ -227,6 +304,7 @@ export const assembleEventSafely = (
  */
 export const assembleEventsSafely = (
 	csvRows: CSVEventRow[],
+	options: EventAssemblyOptions = {},
 ): {
 	events: Event[];
 	errors: { index: number; error: string; csvRow: CSVEventRow }[];
@@ -236,10 +314,18 @@ export const assembleEventsSafely = (
 	const withEventKeys = ensureUniqueEventKeys(csvRows, {
 		stableKeys: EVENT_KEY_FINGERPRINT_FIELDS,
 	});
+	const dateContext =
+		options.dateNormalizationContext ??
+		createDateNormalizationContext(withEventKeys.rows, {
+			referenceDate: options.referenceDate,
+		});
 
 	for (let i = 0; i < csvRows.length; i++) {
 		try {
-			const event = assembleEvent(withEventKeys.rows[i], i);
+			const event = assembleEvent(withEventKeys.rows[i], i, {
+				...options,
+				dateNormalizationContext: dateContext,
+			});
 			events.push(event);
 		} catch (error) {
 			errors.push({

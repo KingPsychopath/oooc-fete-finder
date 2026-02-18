@@ -12,6 +12,7 @@ import type {
 	ParisArrondissement,
 	VenueType,
 } from "@/features/events/types";
+import { createDateNormalizationContext, normalizeCsvDate } from "./date-normalization";
 
 /**
  * Date and Day Transformers
@@ -20,67 +21,9 @@ export const DateTransformers = {
 	/**
 	 * Convert date string to EventDay using actual date calculation
 	 */
-	convertToEventDay: (dateStr: string): EventDay => {
-		if (!dateStr) return "tbc";
-
-		const lowerDate = dateStr.toLowerCase().trim();
-
-		// Handle explicit day names first
-		const explicitDayMapping = {
-			monday: "monday" as const,
-			tuesday: "tuesday" as const,
-			wednesday: "wednesday" as const,
-			thursday: "thursday" as const,
-			friday: "friday" as const,
-			saturday: "saturday" as const,
-			sunday: "sunday" as const,
-			mon: "monday" as const,
-			tue: "tuesday" as const,
-			wed: "wednesday" as const,
-			thu: "thursday" as const,
-			fri: "friday" as const,
-			sat: "saturday" as const,
-			sun: "sunday" as const,
-		};
-
-		// Check for explicit day names in the string
-		for (const [key, value] of Object.entries(explicitDayMapping)) {
-			if (lowerDate.includes(key)) {
-				return value;
-			}
-		}
-
-		// Extract date numbers and calculate actual day of week
-		const dateMatch = dateStr.match(
-			/(\d{1,2})\s*june|june\s*(\d{1,2})|(\d{1,2})\/06|(\d{1,2})-06/i,
-		);
-		if (dateMatch) {
-			// Get the day number from whichever capture group matched
-			const dayNumber = parseInt(
-				dateMatch[1] || dateMatch[2] || dateMatch[3] || dateMatch[4],
-			);
-
-			if (dayNumber >= 1 && dayNumber <= 31) {
-				// Create a Date object for the date (assuming 2025 based on the event context)
-				const eventDate = new Date(2025, 5, dayNumber); // Month is 0-indexed, so 5 = June
-				const dayOfWeek = eventDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-
-				// Map JavaScript day of week to our EventDay type
-				const dayMapping = {
-					0: "sunday" as const, // Sunday
-					1: "monday" as const, // Monday
-					2: "tuesday" as const, // Tuesday
-					3: "wednesday" as const, // Wednesday
-					4: "thursday" as const, // Thursday
-					5: "friday" as const, // Friday
-					6: "saturday" as const, // Saturday
-				};
-
-				return dayMapping[dayOfWeek as keyof typeof dayMapping];
-			}
-		}
-
-		return "tbc";
+	convertToEventDay: (dateStr: string, referenceDate?: Date): EventDay => {
+		const context = createDateNormalizationContext([], { referenceDate });
+		return normalizeCsvDate(dateStr, context).day;
 	},
 
 	/**
@@ -136,54 +79,9 @@ export const DateTransformers = {
 	/**
 	 * Convert date string to ISO format
 	 */
-	convertToISODate: (dateStr: string): string => {
-		if (!dateStr) return "";
-
-		const cleaned = dateStr.trim();
-
-		// Handle various date formats and convert to ISO
-		// Check if the date string doesn't include a year and add current year (2025)
-		const currentYear = 2025; // Use 2025 for the fête events
-
-		// If the string looks like it's missing a year (e.g., "June 19", "19 June", "19/06")
-		const hasYear = /\b(19|20)\d{2}\b/.test(cleaned);
-
-		let dateToparse = cleaned;
-		if (!hasYear) {
-			// Try to detect common date patterns without years and add 2025
-			if (
-				/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}\b/i.test(
-					cleaned,
-				)
-			) {
-				// "June 19" -> "June 19 2025"
-				dateToparse = `${cleaned} ${currentYear}`;
-			} else if (
-				/\b\d{1,2}\s+(january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(
-					cleaned,
-				)
-			) {
-				// "19 June" -> "19 June 2025"
-				dateToparse = `${cleaned} ${currentYear}`;
-			} else if (/^\d{1,2}\/\d{1,2}$/.test(cleaned)) {
-				// "19/06" -> "19/06/2025"
-				dateToparse = `${cleaned}/${currentYear}`;
-			} else if (/^\d{1,2}-\d{1,2}$/.test(cleaned)) {
-				// "19-06" -> "19-06-2025"
-				dateToparse = `${cleaned}-${currentYear}`;
-			}
-		}
-
-		try {
-			const parsedDate = new Date(dateToparse);
-			if (!isNaN(parsedDate.getTime())) {
-				return parsedDate.toISOString().split("T")[0]; // Return YYYY-MM-DD format
-			}
-		} catch {
-			// If parsing fails, return original
-		}
-
-		return cleaned;
+	convertToISODate: (dateStr: string, referenceDate?: Date): string => {
+		const context = createDateNormalizationContext([], { referenceDate });
+		return normalizeCsvDate(dateStr, context).isoDate;
 	},
 };
 

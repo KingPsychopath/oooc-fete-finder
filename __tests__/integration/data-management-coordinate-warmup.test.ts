@@ -3,12 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 type Setup = {
 	saveLocalEventStoreCsv: typeof import("@/features/data-management/actions").saveLocalEventStoreCsv;
 	importRemoteCsvToLocalEventStore: typeof import("@/features/data-management/actions").importRemoteCsvToLocalEventStore;
+	previewRemoteCsvForAdmin: typeof import("@/features/data-management/actions").previewRemoteCsvForAdmin;
 	saveEventSheetEditorRows: typeof import("@/features/data-management/actions").saveEventSheetEditorRows;
 	localEventStoreSaveCsv: ReturnType<typeof vi.fn>;
 	forceRefreshEventsData: ReturnType<typeof vi.fn>;
 	revalidateEventsPaths: ReturnType<typeof vi.fn>;
 	processCSVData: ReturnType<typeof vi.fn>;
 	pruneStorageToEvents: ReturnType<typeof vi.fn>;
+	csvToEditableSheet: ReturnType<typeof vi.fn>;
+	fetchRemoteCSV: ReturnType<typeof vi.fn>;
 };
 
 const loadActions = async (): Promise<Setup> => {
@@ -23,6 +26,13 @@ const loadActions = async (): Promise<Setup> => {
 		message: "ok",
 	});
 	const revalidateEventsPaths = vi.fn();
+	const fetchRemoteCSV = vi.fn().mockResolvedValue({
+		content: "name,date\nEvent,2026-06-21",
+		timestamp: Date.now(),
+	});
+	const csvToEditableSheet = vi
+		.fn()
+		.mockReturnValue({ columns: [], rows: [] });
 	const processCSVData = vi.fn().mockResolvedValue({
 		events: [],
 		count: 2,
@@ -75,14 +85,11 @@ const loadActions = async (): Promise<Setup> => {
 	}));
 
 	vi.doMock("@/features/data-management/csv/fetcher", () => ({
-		fetchRemoteCSV: vi.fn().mockResolvedValue({
-			content: "name,date\nEvent,2026-06-21",
-			timestamp: Date.now(),
-		}),
+		fetchRemoteCSV,
 	}));
 
 	vi.doMock("@/features/data-management/csv/sheet-editor", () => ({
-		csvToEditableSheet: vi.fn(),
+		csvToEditableSheet,
 		editableSheetToCsv: vi.fn().mockReturnValue("name,date\nEvent,2026-06-21"),
 		validateEditableSheet: vi.fn((columns, rows) => ({
 			valid: true,
@@ -105,12 +112,15 @@ const loadActions = async (): Promise<Setup> => {
 	return {
 		saveLocalEventStoreCsv: actions.saveLocalEventStoreCsv,
 		importRemoteCsvToLocalEventStore: actions.importRemoteCsvToLocalEventStore,
+		previewRemoteCsvForAdmin: actions.previewRemoteCsvForAdmin,
 		saveEventSheetEditorRows: actions.saveEventSheetEditorRows,
 		localEventStoreSaveCsv,
 		forceRefreshEventsData,
 		revalidateEventsPaths,
 		processCSVData,
 		pruneStorageToEvents,
+		csvToEditableSheet,
+		fetchRemoteCSV,
 	};
 };
 
@@ -223,5 +233,42 @@ describe("data-management coordinate warm-up", () => {
 		expect(result.message).toContain("Featured selection moved to Featured Manager");
 		expect(localEventStoreSaveCsv).not.toHaveBeenCalled();
 		expect(processCSVData).not.toHaveBeenCalled();
+	});
+
+	it("rejects legacy Featured column values during remote import", async () => {
+		const {
+			importRemoteCsvToLocalEventStore,
+			localEventStoreSaveCsv,
+			processCSVData,
+			csvToEditableSheet,
+		} = await loadActions();
+		csvToEditableSheet.mockReturnValueOnce({
+			columns: [],
+			rows: [{ featured: "2025-06-10T00:07:39", name: "Event" }],
+		});
+
+		const result = await importRemoteCsvToLocalEventStore("token");
+
+		expect(result.success).toBe(false);
+		expect(result.message).toContain("Featured selection moved to Featured Manager");
+		expect(result.error).toContain("Found 1 row(s) with legacy Featured values");
+		expect(localEventStoreSaveCsv).not.toHaveBeenCalled();
+		expect(processCSVData).not.toHaveBeenCalled();
+	});
+
+	it("surfaces import blocking reason in Google preview", async () => {
+		const { previewRemoteCsvForAdmin, csvToEditableSheet } = await loadActions();
+		csvToEditableSheet.mockReturnValueOnce({
+			columns: [],
+			rows: [{ featured: "Yes", name: "Event" }],
+		});
+
+		const result = await previewRemoteCsvForAdmin("token", 5);
+
+		expect(result.success).toBe(true);
+		expect(result.canImport).toBe(false);
+		expect(result.importBlockedReason).toContain(
+			"Featured selection moved to Featured Manager",
+		);
 	});
 });

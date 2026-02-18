@@ -9,7 +9,12 @@ export type DateFormatWarning = {
 	originalValue: string;
 	eventName?: string;
 	columnType: "featured" | "date" | "startTime" | "endTime";
-	warningType: "ambiguous" | "future_featured" | "invalid" | "unparseable";
+	warningType:
+		| "ambiguous"
+		| "future_featured"
+		| "inferred_year"
+		| "invalid"
+		| "unparseable";
 	potentialFormats: {
 		us: { date: string; description: string };
 		uk: { date: string; description: string };
@@ -99,6 +104,7 @@ export const WarningSystem = {
 		const byType: Record<DateFormatWarning["warningType"], number> = {
 			ambiguous: 0,
 			future_featured: 0,
+			inferred_year: 0,
 			invalid: 0,
 			unparseable: 0,
 		};

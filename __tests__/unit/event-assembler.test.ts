@@ -4,6 +4,7 @@ import {
 	assembleEvents,
 } from "@/features/data-management/assembly/event-assembler";
 import type { CSVEventRow } from "@/features/data-management/csv/parser";
+import { WarningSystem } from "@/features/data-management/validation/date-warnings";
 
 const baseRow: CSVEventRow = {
 	eventKey: "",
@@ -52,5 +53,30 @@ describe("event assembler identity", () => {
 		expect(events[0].id).toBe(events[0].eventKey);
 		expect(events[1].id).toBe(events[1].eventKey);
 	});
-});
 
+	it("derives day from explicit year dates", () => {
+		WarningSystem.clearDateFormatWarnings();
+		const event = assembleEvent(
+			{ ...baseRow, date: "2026-06-21" },
+			0,
+			{ referenceDate: new Date("2025-01-01T00:00:00.000Z") },
+		);
+
+		expect(event.date).toBe("2026-06-21");
+		expect(event.day).toBe("sunday");
+	});
+
+	it("keeps rows with invalid dates as tbc and empty date", () => {
+		WarningSystem.clearDateFormatWarnings();
+		const event = assembleEvent(
+			{ ...baseRow, date: "31/02/2026" },
+			0,
+			{ referenceDate: new Date("2025-01-01T00:00:00.000Z") },
+		);
+
+		expect(event.date).toBe("");
+		expect(event.day).toBe("tbc");
+		expect(WarningSystem.getDateFormatWarnings()).toHaveLength(1);
+		expect(WarningSystem.getDateFormatWarnings()[0].warningType).toBe("invalid");
+	});
+});

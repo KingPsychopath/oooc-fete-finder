@@ -9,7 +9,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { addToCalendar } from "@/features/events/calendar-utils";
+import { addToCalendar, isCalendarDateValid } from "@/features/events/calendar-utils";
 import { ShareableImageGenerator } from "@/features/events/components/ShareableImageGenerator";
 import type { ShareImageFormat } from "@/features/events/components/ShareableImageGenerator";
 import {
@@ -124,6 +124,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 	}, [isOpen]);
 
 	if (!isOpen || !event) return null;
+	const canAddToCalendar = isCalendarDateValid(event.date);
 
 	const handleOpenLocation = async (
 		location: string,
@@ -576,15 +577,37 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 						)}
 
 						<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-							<Button
-								variant="outline"
-								onClick={() => addToCalendar(event)}
-								className="h-10 border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
-								title="Add event to your calendar"
-							>
-								<CalendarPlus className="mr-2 h-4 w-4" />
-								Add to Calendar
-							</Button>
+							{canAddToCalendar ? (
+								<Button
+									variant="outline"
+									onClick={() => addToCalendar(event)}
+									className="h-10 border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+									title="Add event to your calendar"
+								>
+									<CalendarPlus className="mr-2 h-4 w-4" />
+									Add to Calendar
+								</Button>
+							) : (
+								<TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<span className="inline-flex w-full">
+												<Button
+													variant="outline"
+													disabled
+													className="h-10 w-full border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300"
+												>
+													<CalendarPlus className="mr-2 h-4 w-4" />
+													Add to Calendar
+												</Button>
+											</span>
+										</TooltipTrigger>
+										<TooltipContent>
+											<p>Add an unambiguous date to enable calendar export.</p>
+										</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
+							)}
 
 							<div className="grid grid-cols-2 gap-2">
 								<Button

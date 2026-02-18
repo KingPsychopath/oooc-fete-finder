@@ -1,10 +1,23 @@
 import type { Event } from "@/features/events/types";
+import { parseISODateParts } from "@/features/events/date-utils";
 import { clientLog } from "@/lib/platform/client-logger";
+
+export const isCalendarDateValid = (isoDate: string): boolean =>
+	parseISODateParts(isoDate) !== null;
 
 /**
  * Generate an .ics file content for a calendar event
  */
 export function generateICSContent(event: Event): string {
+	const dateParts = parseISODateParts(event.date);
+	if (!dateParts) {
+		clientLog.warn("events.calendar", "Skipping ICS generation due to invalid date", {
+			eventKey: event.eventKey,
+			eventDate: event.date,
+		});
+		return "";
+	}
+
 	const now = new Date();
 	const timestamp = now
 		.toISOString()
@@ -12,7 +25,7 @@ export function generateICSContent(event: Event): string {
 		.replace(/\.\d{3}Z$/, "Z");
 
 	// Parse the event date and time
-	const eventDate = new Date(event.date);
+	const eventDate = new Date(dateParts.year, dateParts.month - 1, dateParts.day);
 
 	// Handle time parsing - assume Paris timezone (UTC+1/UTC+2)
 	let startDateTime: Date;
@@ -191,6 +204,7 @@ function createEventDescription(event: Event): string {
  */
 export function downloadICSFile(event: Event): void {
 	const icsContent = generateICSContent(event);
+	if (!icsContent) return;
 	const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
 	const fileName = `${event.name
 		.replace(/[^a-zA-Z0-9\s]/g, "")
@@ -217,6 +231,14 @@ export function downloadICSFile(event: Event): void {
  * and download .ics file on desktop
  */
 export function addToCalendar(event: Event): void {
+	if (!isCalendarDateValid(event.date)) {
+		clientLog.warn("events.calendar", "Cannot add event with invalid date", {
+			eventKey: event.eventKey,
+			eventDate: event.date,
+		});
+		return;
+	}
+
 	try {
 		// Check if we're on mobile
 		const isMobile =

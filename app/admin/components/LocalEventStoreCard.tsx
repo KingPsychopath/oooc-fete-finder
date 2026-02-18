@@ -41,6 +41,8 @@ type RemotePreviewState = {
 	rows: EditableSheetRow[];
 	totalRows: number;
 	fetchedAt: string;
+	canImport: boolean;
+	importBlockedReason?: string;
 };
 
 export const LocalEventStoreCard = ({
@@ -181,11 +183,17 @@ export const LocalEventStoreCard = ({
 				rows: result.rows,
 				totalRows: result.totalRows || result.rows.length,
 				fetchedAt: result.fetchedAt || new Date().toISOString(),
+				canImport: result.canImport ?? true,
+				importBlockedReason: result.importBlockedReason,
 			};
 			setRemotePreview(nextPreview);
 			setRemotePreviewHistory([nextPreview]);
 			setRemotePreviewIndex(0);
-			setMessage("Google backup preview refreshed");
+			if (nextPreview.importBlockedReason) {
+				setMessage("Google backup preview refreshed (import currently blocked)");
+			} else {
+				setMessage("Google backup preview refreshed");
+			}
 		});
 	};
 
@@ -201,6 +209,8 @@ export const LocalEventStoreCard = ({
 				rows: result.rows,
 				totalRows: result.totalRows || result.rows.length,
 				fetchedAt: result.fetchedAt || new Date().toISOString(),
+				canImport: result.canImport ?? true,
+				importBlockedReason: result.importBlockedReason,
 			};
 
 			setRemotePreviewHistory((current) => {
@@ -209,7 +219,11 @@ export const LocalEventStoreCard = ({
 				return nextHistory;
 			});
 			setRemotePreview(nextPreview);
-			setMessage("Google backup preview shuffled");
+			if (nextPreview.importBlockedReason) {
+				setMessage("Google backup preview shuffled (import currently blocked)");
+			} else {
+				setMessage("Google backup preview shuffled");
+			}
 		});
 	};
 
@@ -300,6 +314,7 @@ export const LocalEventStoreCard = ({
 	const canViewPreviousRemotePreview = remotePreviewIndex > 0;
 	const canViewNextRemotePreview =
 		remotePreviewIndex < remotePreviewHistory.length - 1;
+	const importBlockedByPreview = Boolean(remotePreview?.importBlockedReason);
 
 	const handlePreviousGooglePreview = () => {
 		if (!canViewPreviousRemotePreview) return;
@@ -381,7 +396,7 @@ export const LocalEventStoreCard = ({
 					<Button
 						type="button"
 						variant="outline"
-						disabled={isLoading}
+						disabled={isLoading || importBlockedByPreview}
 						onClick={handleImportGoogle}
 					>
 						Import Google Backup
@@ -541,6 +556,11 @@ export const LocalEventStoreCard = ({
 							</div>
 						) : (
 							<>
+								{remotePreview.importBlockedReason && (
+									<div className="mb-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+										Import blocked: {remotePreview.importBlockedReason}
+									</div>
+								)}
 								<p className="mb-2 text-xs text-muted-foreground">
 									Showing {remotePreview.rows.length} of {remotePreview.totalRows} rows.
 								</p>

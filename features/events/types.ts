@@ -107,7 +107,7 @@ export type Event = {
 	id: string;
 	name: string;
 	day: EventDay;
-	date: string; // ISO date string (YYYY-MM-DD)
+	date: string; // ISO date string (YYYY-MM-DD); can be empty when source date is invalid/unparseable
 	time?: string; // 24-hour format (HH:MM) or 'TBC'
 	endTime?: string; // 24-hour format (HH:MM) or 'TBC'
 	arrondissement: ParisArrondissement;
@@ -577,9 +577,17 @@ export const formatVenueTypeIcons = (event: Event): string => {
 // Utility function to format day with date number
 export const formatDayWithDate = (day: EventDay, isoDate: string): string => {
 	if (day === "tbc") return "TBC";
+	const trimmedDate = isoDate.trim();
+	const isoMatch = trimmedDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+	if (!isoMatch) {
+		return day.charAt(0).toUpperCase() + day.slice(1);
+	}
 
 	// Extract day number from ISO date (YYYY-MM-DD)
-	const dayNumber = parseInt(isoDate.split("-")[2], 10);
+	const dayNumber = Number.parseInt(isoMatch[3], 10);
+	if (!Number.isInteger(dayNumber)) {
+		return day.charAt(0).toUpperCase() + day.slice(1);
+	}
 
 	// Add ordinal suffix (st, nd, rd, th)
 	const getOrdinalSuffix = (num: number): string => {

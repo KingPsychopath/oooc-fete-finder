@@ -12,6 +12,7 @@ import {
 	isEventInDayNightPeriod,
 	isPriceInRange,
 } from "@/features/events/types";
+import { isStrictISODate } from "./date-utils";
 
 export type EventFilterState = {
 	selectedDate: string | null;
@@ -186,7 +187,7 @@ export const getAvailableEventDates = (events: Event[]): string[] => {
 	const dates = new Set(
 		events
 			.map((event) => event.date?.trim())
-			.filter((date): date is string => Boolean(date)),
+			.filter((date): date is string => Boolean(date && isStrictISODate(date))),
 	);
 	return Array.from(dates).sort((left, right) => left.localeCompare(right));
 };

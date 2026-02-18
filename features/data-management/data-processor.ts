@@ -8,6 +8,7 @@ import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-popul
 import { GoogleCloudAPI } from "@/lib/google/api";
 import { log } from "@/lib/platform/logger";
 import { assembleEvent } from "./assembly/event-assembler";
+import { createDateNormalizationContext } from "./assembly/date-normalization";
 import { ensureUniqueEventKeys } from "./assembly/event-key";
 import { parseCSVContent } from "./csv/parser";
 import {
@@ -51,6 +52,7 @@ export async function processCSVData(
 	enableLocalFallback: boolean = true,
 	options: {
 		populateCoordinates?: boolean; // Override coordinate population (defaults to true for remote, false for local)
+		referenceDate?: Date; // Deterministic date inference during tests/backfills
 		coordinateBatchSize?: number;
 		onCoordinateProgress?: (
 			processed: number,
@@ -68,8 +70,11 @@ export async function processCSVData(
 		// Parse CSV content
 		const csvRows = parseCSVContent(csvContent);
 		const keyedRows = ensureUniqueEventKeys(csvRows);
+		const dateContext = createDateNormalizationContext(keyedRows.rows, {
+			referenceDate: options.referenceDate,
+		});
 		let events: Event[] = keyedRows.rows.map((row, index) =>
-			assembleEvent(row, index),
+			assembleEvent(row, index, { dateNormalizationContext: dateContext }),
 		);
 		log.info("data", "Event key hydration", {
 			source,
@@ -95,8 +100,16 @@ export async function processCSVData(
 
 				const localCsvRows = parseCSVContent(localCsvContent);
 				const keyedLocalRows = ensureUniqueEventKeys(localCsvRows);
+				const localDateContext = createDateNormalizationContext(
+					keyedLocalRows.rows,
+					{
+						referenceDate: options.referenceDate,
+					},
+				);
 				const localEvents = keyedLocalRows.rows.map((row, index) =>
-					assembleEvent(row, index),
+					assembleEvent(row, index, {
+						dateNormalizationContext: localDateContext,
+					}),
 				);
 				log.info("data", "Event key hydration", {
 					source: "local-fallback",
@@ -160,22 +173,32 @@ export async function processCSVData(
 		// Determine if coordinate population should be enabled
 		// Default: true for remote (API available), false for local/store (avoid geocoding on every read)
 		const defaultPopulate = source === "remote";
-		const shouldPopulateCoordinates =
-			options.populateCoordinates !== undefined
-				? options.populateCoordinates
-				: defaultPopulate;
+			const shouldPopulateCoordinates =
+				options.populateCoordinates !== undefined
+					? options.populateCoordinates
+					: defaultPopulate;
+			let geocodingConfigured = false;
+			if (shouldPopulateCoordinates) {
+				try {
+					geocodingConfigured = GoogleCloudAPI.supportsGeocoding();
+				} catch (error) {
+					log.warn("data", "Unable to determine geocoding availability", {
+						error: error instanceof Error ? error.message : String(error),
+					});
+				}
+			}
 
 		log.info("data", "Coordinate population", {
 			source,
 			enabled: shouldPopulateCoordinates,
 			defaultEnabledForSource: defaultPopulate,
-			geocodingConfigured: GoogleCloudAPI.supportsGeocoding(),
+			geocodingConfigured,
 		});
 
 		let coordinatesPopulated = false;
 		let coordinatesCount = 0;
 
-		if (shouldPopulateCoordinates && GoogleCloudAPI.supportsGeocoding()) {
+		if (shouldPopulateCoordinates && geocodingConfigured) {
 			try {
 				const eventsWithCoords =
 					await EventCoordinatePopulator.populateCoordinates(events, {
@@ -196,10 +219,7 @@ export async function processCSVData(
 				});
 				errors.push(`Coordinate population failed: ${errorMessage}`);
 			}
-		} else if (
-			shouldPopulateCoordinates &&
-			!GoogleCloudAPI.supportsGeocoding()
-		) {
+		} else if (shouldPopulateCoordinates && !geocodingConfigured) {
 			log.warn(
 				"data",
 				"GOOGLE_MAPS_API_KEY not set — enable Geocoding API for address lookup",

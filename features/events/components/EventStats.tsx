@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { isoDatePartsToUTCDate, parseISODateParts } from "@/features/events/date-utils";
 import { type Event } from "@/features/events/types";
 import React, { useMemo } from "react";
 
@@ -28,35 +29,39 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 		// Get all dates and sort them
 		const dates = events
 			.map((event) => event.date)
-			.filter((date) => {
-				if (!date) return false; // Filter out empty/null dates
-				// Test if the date string can be parsed into a valid date
-				const testDate = new Date(date);
-				return !isNaN(testDate.getTime()); // Only keep valid dates
-			})
+			.filter((date): date is string => Boolean(date && parseISODateParts(date)))
 			.sort();
 
-		if (dates.length === 0) return "June 2025";
+		if (dates.length === 0) return "Dates TBD";
 
 		const earliestDate = dates[0];
 		const latestDate = dates[dates.length - 1];
 
-		// Parse dates (we know these are valid now)
-		const earliestDateObj = new Date(earliestDate);
-		const latestDateObj = new Date(latestDate);
+		const earliestParts = parseISODateParts(earliestDate);
+		const latestParts = parseISODateParts(latestDate);
+		if (!earliestParts || !latestParts) {
+			return "Dates TBD";
+		}
+
+		// Parse dates in UTC to avoid timezone shifting day boundaries.
+		const earliestDateObj = isoDatePartsToUTCDate(earliestParts);
+		const latestDateObj = isoDatePartsToUTCDate(latestParts);
 
 		// Format the date range
 		const formatDate = (date: Date) => {
-			const day = date.getDate();
-			const month = date.toLocaleDateString("en-US", { month: "long" });
-			const year = date.getFullYear();
+			const day = date.getUTCDate();
+			const month = date.toLocaleDateString("en-US", {
+				month: "long",
+				timeZone: "UTC",
+			});
+			const year = date.getUTCFullYear();
 			return { day, month, year };
 		};
 
 		const earliest = formatDate(earliestDateObj);
 		const latest = formatDate(latestDateObj);
 
-		// If same month and year, show "19-22 June 2025"
+		// If same month and year, show "19-22 June 2026"
 		if (earliest.month === latest.month && earliest.year === latest.year) {
 			if (earliest.day === latest.day) {
 				return `${earliest.day} ${earliest.month} ${earliest.year}`;
@@ -64,7 +69,7 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 			return `${earliest.day}-${latest.day} ${earliest.month} ${earliest.year}`;
 		}
 
-		// If same year but different months, show "June 19 - July 22, 2025"
+		// If same year but different months, show "June 19 - July 22, 2026"
 		if (earliest.year === latest.year) {
 			return `${earliest.month} ${earliest.day} - ${latest.month} ${latest.day}, ${earliest.year}`;
 		}
