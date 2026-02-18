@@ -269,7 +269,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	// Active Filters Component (reusable)
 	const ActiveFiltersDisplay = () => (
 		<div
-			className={`transition-all duration-200 ease-in-out ${hasActiveFilters ? "rounded-xl border border-border/70 bg-background/52 p-3 opacity-100" : "h-0 overflow-hidden opacity-0"}`}
+			className={`transition-opacity duration-200 ease-out ${hasActiveFilters ? "rounded-xl border border-border/70 bg-background/52 p-3 opacity-100" : "h-0 overflow-hidden opacity-0"}`}
 		>
 			{hasActiveFilters && (
 				<>
@@ -596,7 +596,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						</CardHeader>
 
 						<CardContent
-							className={`transition-all duration-300 ease-in-out overflow-hidden relative ${
+							className={`motion-safe:transition-[max-height] motion-safe:duration-250 motion-safe:ease-out overflow-hidden relative ${
 								isExpanded === undefined || isExpanded
 									? "max-h-[650px]"
 									: "max-h-24"

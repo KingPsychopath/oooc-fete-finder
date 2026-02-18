@@ -77,12 +77,12 @@ export function EventsMapCard({
 					</div>
 				</div>
 			</CardHeader>
-			<CardContent className="px-3 py-5 pt-3 sm:px-6">
-				<div
-					className={`relative transition-all duration-300 ease-in-out ${
-						isExpanded ? "h-[600px]" : "h-24 sm:h-32"
-					} overflow-hidden rounded-xl border border-border/65`}
-				>
+				<CardContent className="px-3 py-5 pt-3 sm:px-6">
+					<div
+						className={`relative contain-layout motion-safe:transition-[height] motion-safe:duration-200 motion-safe:ease-out ${
+							isExpanded ? "h-[600px]" : "h-24 sm:h-32"
+						} overflow-hidden rounded-xl border border-border/65`}
+					>
 					<div className="w-full h-full">
 						<ParisMapLibre
 							events={events}
