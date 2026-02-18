@@ -735,13 +735,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 												</span>
 											</div>
 										</div>
-										{event.isOOOCPick && (
-											<Star className="h-3.5 w-3.5 fill-current text-amber-500" />
-										)}
-									</div>
-								</button>
-							);
-						})}
+										</div>
+									</button>
+								);
+							})}
 					</div>
 				</div>
 			)}
