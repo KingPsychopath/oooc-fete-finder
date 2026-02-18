@@ -73,9 +73,14 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 									collective and submit your event →
 								</Link>
 							) : (
-								<p className="mt-1 text-xs leading-tight text-muted-foreground sm:text-sm">
-									Host submissions are currently paused.
-								</p>
+								<Link
+									href={`${basePath}/submit-event`}
+									className="mt-1 text-xs leading-tight text-muted-foreground transition-colors hover:text-foreground hover:underline sm:text-sm"
+									style={{ textWrap: "balance" }}
+								>
+									Hosting something special? Put it on the map with the
+									collective and submit your event →
+								</Link>
 							)}
 						</div>
 						<FilterButton
