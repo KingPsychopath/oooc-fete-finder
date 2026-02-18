@@ -28,10 +28,6 @@ import {
 	type EditableSheetRow,
 	validateEditableSheet,
 } from "./csv/sheet-editor";
-import {
-	type DateFormatWarning,
-	WarningSystem,
-} from "./validation/date-warnings";
 import { EventStoreBackupService } from "./event-store-backup-service";
 import type {
 	EventStoreBackupStatus,
@@ -234,20 +230,6 @@ export async function getLiveSiteEventsSnapshot(
 			error: error instanceof Error ? error.message : "Unknown error",
 		};
 	}
-}
-
-/**
- * Force a live data reload and revalidate public routes.
- */
-export async function forceRefreshEvents(): Promise<{
-	success: boolean;
-	message: string;
-	data?: import("@/features/events/types").Event[];
-	count?: number;
-	source?: "remote" | "local" | "store" | "test";
-	error?: string;
-}> {
-	return forceRefreshEventsData();
 }
 
 /**
@@ -964,90 +946,6 @@ export async function saveEventSheetEditorRows(
 			success: false,
 			message: "Failed to save event sheet",
 			error: error instanceof Error ? error.message : "Unknown error",
-		};
-	}
-}
-
-/**
- * Configuration for which columns to check for date format issues
- */
-const DATE_COLUMNS_TO_CHECK = {
-	date: true, // Check the Date column for ambiguous dates
-	startTime: false, // Check the Start Time column for time format issues
-	endTime: false, // Check the End Time column for time format issues
-} as const;
-
-/**
- * Analyze date formats from Google Sheets data
- */
-export async function analyzeDateFormats(keyOrToken?: string): Promise<{
-	success: boolean;
-	warnings?: DateFormatWarning[];
-	error?: string;
-}> {
-	"use server";
-
-	// Verify admin access first
-	if (!(await validateAdminAccess(keyOrToken))) {
-		return { success: false, error: "Unauthorized access" };
-	}
-
-	try {
-		// Force refresh to ensure we get fresh parsing warnings
-		const eventsResult = await getLiveEvents();
-
-		if (!eventsResult.success || !eventsResult.data) {
-			return {
-				success: false,
-				error: "Failed to load events data for analysis",
-			};
-		}
-
-		// Get real warnings captured during CSV parsing
-		const allWarnings = WarningSystem.getDateFormatWarnings();
-
-		// Filter warnings based on configured columns
-		const warnings = allWarnings.filter((warning: DateFormatWarning) => {
-			switch (warning.columnType) {
-				case "date":
-					return DATE_COLUMNS_TO_CHECK.date;
-				case "startTime":
-					return DATE_COLUMNS_TO_CHECK.startTime;
-				case "endTime":
-					return DATE_COLUMNS_TO_CHECK.endTime;
-				default:
-					return false;
-			}
-		});
-
-		log.info("data-validation", "Date format warnings found", {
-			count: warnings.length,
-		});
-		if (warnings.length > 0) {
-			log.info("data-validation", "Date warning summary follows");
-			warnings.forEach((warning: DateFormatWarning, index: number) => {
-				log.info("data-validation", "Date warning", {
-					index: index + 1,
-					type: warning.warningType,
-					value: warning.originalValue,
-					eventName: warning.eventName,
-					columnType: warning.columnType,
-				});
-			});
-		}
-
-		return {
-			success: true,
-			warnings,
-		};
-	} catch (error) {
-		log.error("data-validation", "Error analyzing date formats", undefined, error);
-		return {
-			success: false,
-			error:
-				error instanceof Error
-					? error.message
-					: "Unknown error analyzing date formats",
 		};
 	}
 }

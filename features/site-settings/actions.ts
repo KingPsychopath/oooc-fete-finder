@@ -2,10 +2,8 @@
 
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { invalidateSlidingBannerCache } from "./cache";
-import { getPublicSlidingBannerSettingsCached } from "./queries";
 import { SlidingBannerStore } from "./sliding-banner-store";
 import type {
-	SlidingBannerPublicSettings,
 	SlidingBannerSettings,
 	SlidingBannerStoreStatus,
 } from "./types";
@@ -17,33 +15,11 @@ interface SlidingBannerAdminResponse {
 	error?: string;
 }
 
-interface SlidingBannerPublicResponse {
-	success: boolean;
-	settings: SlidingBannerPublicSettings;
-	error?: string;
-}
-
 const normalizeMessagesInput = (messages: string[]): string[] => {
 	return messages
 		.map((message) => message.replace(/\s+/g, " ").trim())
 		.filter((message) => message.length > 0);
 };
-
-export async function getPublicSlidingBannerSettings(): Promise<SlidingBannerPublicResponse> {
-	try {
-		const settings = await getPublicSlidingBannerSettingsCached();
-		return {
-			success: true,
-			settings,
-		};
-	} catch (error) {
-		return {
-			success: false,
-			settings: SlidingBannerStore.getDefaultPublicSettings(),
-			error: error instanceof Error ? error.message : "Unknown error",
-		};
-	}
-}
 
 export async function getAdminSlidingBannerSettings(
 	keyOrToken?: string,

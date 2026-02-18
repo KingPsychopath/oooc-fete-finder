@@ -400,5 +400,3 @@ export const ShareableImageGenerator = ({
 
 	return { generateImage: handleGenerateImage };
 };
-
-export default ShareableImageGenerator;

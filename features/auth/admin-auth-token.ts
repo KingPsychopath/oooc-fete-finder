@@ -138,17 +138,6 @@ const getRequestMetadataFromServerContext = async (): Promise<{
 	return { ip, ua };
 };
 
-const getRequestMetadata = (
-	request: NextRequest,
-): { ip: string; ua: string } => {
-	const ip =
-		request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-		request.headers.get("x-real-ip") ||
-		"unknown";
-	const ua = request.headers.get("user-agent") || "unknown";
-	return { ip, ua };
-};
-
 const isRevoked = async (jti: string, nowSeconds: number): Promise<boolean> => {
 	const kv = await getKVStore();
 	const raw = await kv.get(revokedKey(jti));
@@ -229,10 +218,6 @@ const extractCredentialFromServerContext = async (): Promise<string> => {
 	const jar = await cookies();
 	return jar.get(ADMIN_AUTH_COOKIE_NAME)?.value?.trim() || "";
 };
-
-export const getAdminAuthCookieName = (): string => ADMIN_AUTH_COOKIE_NAME;
-
-export const getAdminAuthTtlSeconds = (): number => ADMIN_AUTH_TTL_SECONDS;
 
 export const setAdminSessionCookie = async (token: string): Promise<void> => {
 	const jar = await cookies();
@@ -515,51 +500,4 @@ export const revokeAllAdminSessions = async (): Promise<number> => {
 	const nextVersion = currentVersion + 1;
 	await setCurrentTokenVersion(nextVersion);
 	return nextVersion;
-};
-
-export const registerAdminSessionFromRequest = async (
-	request: NextRequest,
-): Promise<{
-	token: string;
-	expiresAt: number;
-	payload: AdminTokenPayload;
-}> => {
-	if (!isAdminAuthEnabled()) {
-		throw new Error("Admin authentication is disabled");
-	}
-
-	const tokenVersion = await getCurrentTokenVersion();
-	const jti = randomUUID();
-
-	const token = jwt.sign(
-		{
-			type: TOKEN_TYPE,
-			jti,
-			tv: tokenVersion,
-		},
-		getAuthSecret(),
-		{
-			algorithm: "HS256",
-			expiresIn: ADMIN_AUTH_TTL_SECONDS,
-			issuer: TOKEN_ISSUER,
-			audience: TOKEN_AUDIENCE,
-		},
-	);
-
-	const decoded = jwt.decode(token);
-	if (!decoded || typeof decoded !== "object") {
-		throw new Error("Failed to decode issued admin token");
-	}
-	const parsedPayload = parseTokenPayload(decoded as jwt.JwtPayload);
-	if (!parsedPayload) {
-		throw new Error("Issued admin token payload is invalid");
-	}
-
-	await registerSession(parsedPayload, getRequestMetadata(request));
-
-	return {
-		token,
-		expiresAt: parsedPayload.exp * 1000,
-		payload: parsedPayload,
-	};
 };

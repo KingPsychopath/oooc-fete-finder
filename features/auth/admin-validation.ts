@@ -6,10 +6,7 @@ import {
 	verifyAdminSessionFromServerContext,
 } from "@/features/auth/admin-auth-token";
 
-/**
- * Get the expected admin key from centralized environment configuration
- */
-export const getExpectedAdminKey = (): string => {
+const getExpectedAdminKey = (): string => {
 	return env.ADMIN_KEY.trim();
 };
 

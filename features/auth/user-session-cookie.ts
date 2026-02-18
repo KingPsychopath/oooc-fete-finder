@@ -45,7 +45,7 @@ export const signUserSessionToken = (email: string): string => {
 	);
 };
 
-export const verifyUserSessionToken = (
+const verifyUserSessionToken = (
 	token: string | undefined,
 ): UserSessionPayload | null => {
 	if (!token) return null;

@@ -18,7 +18,6 @@ import {
 } from "./store";
 import { EventSubmissionSettingsStore } from "./settings-store";
 import type {
-	EventSubmissionPublicSettings,
 	EventSubmissionRecord,
 	EventSubmissionSettings,
 	EventSubmissionSnapshot,
@@ -111,26 +110,6 @@ export async function getEventSubmissionsDashboard(
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : "Unknown submissions error",
-		};
-	}
-}
-
-export async function getPublicEventSubmissionSettings(): Promise<{
-	success: boolean;
-	settings: EventSubmissionPublicSettings;
-	error?: string;
-}> {
-	try {
-		const settings = await EventSubmissionSettingsStore.getPublicSettings();
-		return {
-			success: true,
-			settings,
-		};
-	} catch (error) {
-		return {
-			success: false,
-			settings: { enabled: true, updatedAt: new Date(0).toISOString() },
-			error: error instanceof Error ? error.message : "Unknown settings error",
 		};
 	}
 }

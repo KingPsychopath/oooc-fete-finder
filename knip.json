@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "exclude": [
+    "exports",
+    "nsExports",
+    "types",
+    "nsTypes",
+    "classMembers",
+    "enumMembers",
+    "duplicates"
+  ],
+  "ignoreDependencies": [
+    "webpack",
+    "sharp",
+    "@types/geojson"
+  ],
+  "ignoreExportsUsedInFile": true
+}

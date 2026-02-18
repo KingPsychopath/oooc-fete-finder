@@ -1,0 +1,35 @@
+---
+description: Dead-code hygiene workflow using knip + ts-prune
+alwaysApply: true
+---
+
+# Dead Code Hygiene
+
+Use this workflow when the user asks to clean up unused/legacy code, dependencies, or tooling.
+
+## Tools
+
+- Run `pnpm deadcode` (knip) for files/dependencies/exports.
+- Run `pnpm deadcode:exports` (ts-prune) for TS export-level confirmation.
+
+## Execution order
+
+1. Scan first, do not edit yet.
+2. Remove only **high-confidence** dead code:
+   - Files with zero references.
+   - Exports with zero references after `rg` verification.
+   - Dependencies used only by deleted files.
+3. Re-run scans and then run quality gates.
+
+## Guardrails
+
+- Verify each candidate with `rg` before deleting.
+- Do not remove framework-required exports (`default`, `metadata`, route handlers, Next config exports) unless explicitly confirmed.
+- Treat UI utility exports (variant helpers, component subparts) as potentially intentional API surface; only remove if truly unreferenced and not part of a shared pattern.
+- If a finding is intentional, prefer adding a targeted ignore in knip config over deleting useful code.
+
+## Done criteria
+
+- `pnpm deadcode` has no actionable findings (or findings are intentionally ignored).
+- `pnpm deadcode:exports` reviewed for false positives and actionable items cleaned.
+- `pnpm -s exec tsc --noEmit`, `pnpm test`, `pnpm lint`, and `pnpm build` all pass.
