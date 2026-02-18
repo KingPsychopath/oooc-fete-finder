@@ -68,6 +68,40 @@ const deriveQueueState = (
 	return "completed";
 };
 
+const buildProjectionFromEntries = (
+	entries: FeaturedScheduleEntry[],
+	now: Date,
+): FeaturedProjection => {
+	const nowMs = now.getTime();
+	const recentWindowMs =
+		FEATURED_SLOT_CONFIG.recentEndedWindowHours * 60 * 60 * 1000;
+
+	const active = entries.filter((entry) => {
+		if (entry.status !== "scheduled") return false;
+		const startMs = toTimestamp(entry.effectiveStartAt);
+		const endMs = toTimestamp(entry.effectiveEndAt);
+		return startMs <= nowMs && nowMs < endMs;
+	});
+
+	const upcoming = entries.filter((entry) => {
+		if (entry.status !== "scheduled") return false;
+		return toTimestamp(entry.effectiveStartAt) > nowMs;
+	});
+
+	const recentEnded = entries.filter((entry) => {
+		const endMs = toTimestamp(entry.effectiveEndAt);
+		if (endMs >= nowMs) return false;
+		return nowMs - endMs <= recentWindowMs;
+	});
+
+	return {
+		active: sortByEffectiveStart(active),
+		upcoming: sortByEffectiveStart(upcoming),
+		recentEnded: sortByEffectiveStart(recentEnded),
+		slotConfig: FEATURED_SLOT_CONFIG,
+	};
+};
+
 const getRepositoryOrThrow = () => {
 	const repository = getFeaturedEventRepository();
 	if (!repository) {
@@ -219,34 +253,7 @@ export const getFeaturedProjection = async (
 	now: Date = new Date(),
 ): Promise<FeaturedProjection> => {
 	const entries = await listFeaturedEntries();
-	const nowMs = now.getTime();
-	const recentWindowMs =
-		FEATURED_SLOT_CONFIG.recentEndedWindowHours * 60 * 60 * 1000;
-
-	const active = entries.filter((entry) => {
-		if (entry.status !== "scheduled") return false;
-		const startMs = toTimestamp(entry.effectiveStartAt);
-		const endMs = toTimestamp(entry.effectiveEndAt);
-		return startMs <= nowMs && nowMs < endMs;
-	});
-
-	const upcoming = entries.filter((entry) => {
-		if (entry.status !== "scheduled") return false;
-		return toTimestamp(entry.effectiveStartAt) > nowMs;
-	});
-
-	const recentEnded = entries.filter((entry) => {
-		const endMs = toTimestamp(entry.effectiveEndAt);
-		if (endMs >= nowMs) return false;
-		return nowMs - endMs <= recentWindowMs;
-	});
-
-	return {
-		active: sortByEffectiveStart(active),
-		upcoming: sortByEffectiveStart(upcoming),
-		recentEnded: sortByEffectiveStart(recentEnded),
-		slotConfig: FEATURED_SLOT_CONFIG,
-	};
+	return buildProjectionFromEntries(entries, now);
 };
 
 export const buildFeaturedQueueItems = async (
@@ -257,8 +264,9 @@ export const buildFeaturedQueueItems = async (
 	slotConfig: FeatureSlotConfig;
 }> => {
 	const entries = await listFeaturedEntries();
-	const projection = await getFeaturedProjection();
-	const nowMs = Date.now();
+	const now = new Date();
+	const projection = buildProjectionFromEntries(entries, now);
+	const nowMs = now.getTime();
 	const recentWindowMs =
 		FEATURED_SLOT_CONFIG.recentEndedWindowHours * 60 * 60 * 1000;
 	const eventNameByKey = new Map(

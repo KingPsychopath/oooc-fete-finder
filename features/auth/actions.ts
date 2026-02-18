@@ -140,6 +140,49 @@ export async function getAdminSessionStatus(): Promise<{
 }
 
 /**
+ * Return current session status and tracked token sessions in one read path.
+ */
+export async function getAdminSessionOverview(
+	keyOrToken?: string,
+): Promise<{
+	success: boolean;
+	sessionStatus: Awaited<ReturnType<typeof getAdminSessionStatus>>;
+	tokenSessions?: Awaited<ReturnType<typeof listAdminTokenSessions>>;
+	currentTokenVersion?: number;
+	error?: string;
+}> {
+	const sessionStatus = await getAdminSessionStatus();
+	if (!sessionStatus.success || !sessionStatus.isValid) {
+		return {
+			success: sessionStatus.success,
+			sessionStatus,
+			tokenSessions: [],
+			currentTokenVersion: 1,
+		};
+	}
+
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return {
+			success: false,
+			sessionStatus,
+			error: "Unauthorized",
+		};
+	}
+
+	const [tokenSessions, currentTokenVersion] = await Promise.all([
+		listAdminTokenSessions(),
+		getCurrentTokenVersion(),
+	]);
+
+	return {
+		success: true,
+		sessionStatus,
+		tokenSessions,
+		currentTokenVersion,
+	};
+}
+
+/**
  * List issued admin JWT sessions and their status.
  */
 export async function getAdminTokenSessions(keyOrToken?: string): Promise<{
@@ -215,23 +258,19 @@ export async function getCollectedEmails(
 		return { success: false, error: "Unauthorized" };
 	}
 
-	const [collectedUsers, storeStatus, analytics] = await Promise.all([
-		UserCollectionStore.listAll(),
-		UserCollectionStore.getStatus(),
-		UserCollectionStore.getAnalytics(),
-	]);
+	const snapshot = await UserCollectionStore.getAdminSnapshot();
 
 	log.info("admin-users", "Loaded collected users for admin panel", {
-		count: collectedUsers.length,
-		provider: storeStatus.provider,
+		count: snapshot.users.length,
+		provider: snapshot.status.provider,
 	});
 
 	return {
 		success: true,
-		emails: collectedUsers,
-		count: collectedUsers.length,
-		store: storeStatus,
-		analytics,
+		emails: snapshot.users,
+		count: snapshot.users.length,
+		store: snapshot.status,
+		analytics: snapshot.analytics,
 	};
 }
 

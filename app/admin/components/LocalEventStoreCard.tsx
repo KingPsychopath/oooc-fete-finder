@@ -32,6 +32,7 @@ type LocalEventStoreCardProps = {
 	initialStatus?: Awaited<ReturnType<typeof getLocalEventStoreStatus>>;
 	initialPreview?: Awaited<ReturnType<typeof getLocalEventStorePreview>>;
 	initialBackupStatus?: Awaited<ReturnType<typeof getEventStoreBackupStatus>>;
+	initialRecentBackups?: Awaited<ReturnType<typeof getEventStoreRecentBackups>>;
 	onStoreUpdated?: () => Promise<void> | void;
 };
 
@@ -71,8 +72,11 @@ export const LocalEventStoreCard = ({
 	initialStatus,
 	initialPreview,
 	initialBackupStatus,
+	initialRecentBackups,
 	onStoreUpdated,
 }: LocalEventStoreCardProps) => {
+	const initialRecentBackupsList =
+		initialRecentBackups?.success ? (initialRecentBackups.backups ?? []) : [];
 	const [status, setStatus] = useState<StatusState | undefined>(() =>
 		initialStatus?.success ? initialStatus.status : undefined,
 	);
@@ -97,8 +101,12 @@ export const LocalEventStoreCard = ({
 	const [backupReason, setBackupReason] = useState(
 		initialBackupStatus?.success ? (initialBackupStatus.reason ?? "") : "",
 	);
-	const [recentBackups, setRecentBackups] = useState<RecentBackupState[]>([]);
-	const [selectedBackupId, setSelectedBackupId] = useState("");
+	const [recentBackups, setRecentBackups] = useState<RecentBackupState[]>(
+		initialRecentBackupsList,
+	);
+	const [selectedBackupId, setSelectedBackupId] = useState(
+		initialRecentBackupsList[0]?.id ?? "",
+	);
 	const [showSnapshotPicker, setShowSnapshotPicker] = useState(false);
 	const [remotePreview, setRemotePreview] = useState<RemotePreviewState | null>(
 		null,
@@ -172,10 +180,16 @@ export const LocalEventStoreCard = ({
 		}
 
 		const shouldLoadStoreSample = !(initialStatus && initialPreview);
+		const shouldLoadBackupState = !(
+			initialBackupStatus?.success && initialRecentBackups?.success
+		);
 		const pendingLoads = [
-			loadBackupState(),
+			...(shouldLoadBackupState ? [loadBackupState()] : []),
 			...(shouldLoadStoreSample ? [loadStoreStatusAndPreview()] : []),
 		];
+		if (pendingLoads.length === 0) {
+			return;
+		}
 
 		Promise.all(pendingLoads).catch((loadError) => {
 			setError(
@@ -188,6 +202,8 @@ export const LocalEventStoreCard = ({
 		isAuthenticated,
 		initialStatus,
 		initialPreview,
+		initialBackupStatus?.success,
+		initialRecentBackups?.success,
 		loadBackupState,
 		loadStoreStatusAndPreview,
 	]);

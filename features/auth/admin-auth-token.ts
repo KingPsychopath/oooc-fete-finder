@@ -394,27 +394,45 @@ export const listAdminTokenSessions = async (): Promise<
 	const keys = await kv.list(SESSION_KEY_PREFIX);
 	const nowSeconds = Math.floor(Date.now() / 1000);
 	const currentVersion = await getCurrentTokenVersion();
-
-	const sessions: AdminTokenSessionRecord[] = [];
-
-	for (const key of keys) {
-		const raw = await kv.get(key);
-		const parsed = parseJson<{
-			jti: string;
-			tv: number;
-			iat: number;
-			exp: number;
-			ip?: string;
-			ua?: string;
-		}>(raw);
-		if (!parsed || !SAFE_JTI.test(parsed.jti)) {
-			continue;
+	const sessionRows = await Promise.all(
+		keys.map(async (key) => {
+			const raw = await kv.get(key);
+			const parsed = parseJson<{
+				jti: string;
+				tv: number;
+				iat: number;
+				exp: number;
+				ip?: string;
+				ua?: string;
+			}>(raw);
+			if (!parsed || !SAFE_JTI.test(parsed.jti)) {
+				return null;
+			}
+			return parsed;
+		}),
+	);
+	const parsedSessions = sessionRows.filter((row) => row !== null);
+	const revokedRows = await Promise.all(
+		parsedSessions.map(async (session) => {
+			return [session.jti, await kv.get(revokedKey(session.jti))] as const;
+		}),
+	);
+	const revokedByJti = new Map(revokedRows);
+	const staleRevokedKeys = new Set<string>();
+	const sessions: AdminTokenSessionRecord[] = parsedSessions.map((session) => {
+		const revokedRaw = revokedByJti.get(session.jti);
+		let revoked = false;
+		if (revokedRaw) {
+			const revokedUntil = Number.parseInt(revokedRaw, 10);
+			if (Number.isInteger(revokedUntil) && revokedUntil > nowSeconds) {
+				revoked = true;
+			} else {
+				staleRevokedKeys.add(revokedKey(session.jti));
+			}
 		}
 
-		const revoked = await isRevoked(parsed.jti, nowSeconds);
-		const isExpired = parsed.exp <= nowSeconds;
-		const isInvalidated = parsed.tv !== currentVersion;
-
+		const isExpired = session.exp <= nowSeconds;
+		const isInvalidated = session.tv !== currentVersion;
 		let status: AdminSessionStatus = "active";
 		if (isExpired) {
 			status = "expired";
@@ -424,15 +442,20 @@ export const listAdminTokenSessions = async (): Promise<
 			status = "invalidated";
 		}
 
-		sessions.push({
-			jti: parsed.jti,
-			tv: parsed.tv,
-			iat: parsed.iat,
-			exp: parsed.exp,
-			ip: parsed.ip || "unknown",
-			ua: parsed.ua || "unknown",
+		return {
+			jti: session.jti,
+			tv: session.tv,
+			iat: session.iat,
+			exp: session.exp,
+			ip: session.ip || "unknown",
+			ua: session.ua || "unknown",
 			status,
-		});
+		};
+	});
+	if (staleRevokedKeys.size > 0) {
+		await Promise.all(
+			Array.from(staleRevokedKeys).map(async (key) => kv.delete(key)),
+		);
 	}
 
 	sessions.sort((left, right) => right.iat - left.iat);

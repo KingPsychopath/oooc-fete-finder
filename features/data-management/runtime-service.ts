@@ -111,15 +111,18 @@ const toEventsResult = (
 	};
 };
 
-export async function getLiveEvents(): Promise<EventsResult> {
+export async function getLiveEvents(options?: {
+	includeFeaturedProjection?: boolean;
+}): Promise<EventsResult> {
 	const startedAt = Date.now();
+	const includeFeaturedProjection = options?.includeFeaturedProjection !== false;
 	try {
 		const result = await DataManager.getEventsData();
 		metrics.totalFetchMs += Date.now() - startedAt;
 		metrics.fetchCount += 1;
 
 		const normalized = toEventsResult(result);
-		if (normalized.success) {
+		if (normalized.success && includeFeaturedProjection) {
 			normalized.data = await applyFeaturedProjectionToEvents(normalized.data);
 		}
 		if (!normalized.success) {

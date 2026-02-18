@@ -70,7 +70,9 @@ export async function listFeaturedQueue(): Promise<{
 	try {
 		await assertAdmin();
 		await recomputeFeaturedQueue();
-		const eventsResult = await getLiveEvents();
+		const eventsResult = await getLiveEvents({
+			includeFeaturedProjection: false,
+		});
 		if (!eventsResult.success) {
 			return {
 				success: false,

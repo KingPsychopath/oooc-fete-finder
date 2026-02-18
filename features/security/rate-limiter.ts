@@ -8,13 +8,25 @@ const AUTH_VERIFY_IP_LIMIT = 60;
 const AUTH_VERIFY_IP_WINDOW_SECONDS = 60;
 const AUTH_VERIFY_EMAIL_IP_LIMIT = 6;
 const AUTH_VERIFY_EMAIL_IP_WINDOW_SECONDS = 15 * 60;
+const EVENT_SUBMIT_IP_LIMIT = 20;
+const EVENT_SUBMIT_IP_WINDOW_SECONDS = 10 * 60;
+const EVENT_SUBMIT_EMAIL_IP_LIMIT = 5;
+const EVENT_SUBMIT_EMAIL_IP_WINDOW_SECONDS = 60 * 60;
+const EVENT_SUBMIT_FINGERPRINT_LIMIT = 1;
+const EVENT_SUBMIT_FINGERPRINT_WINDOW_SECONDS = 24 * 60 * 60;
 const RATE_LIMIT_CLEANUP_GRACE_SECONDS = 24 * 60 * 60;
 
-export type RateLimitScope = "auth_verify_ip" | "auth_verify_email_ip";
+export type RateLimitScope =
+	| "auth_verify_ip"
+	| "auth_verify_email_ip"
+	| "event_submit_ip"
+	| "event_submit_email_ip"
+	| "event_submit_fingerprint";
 export type RateLimitReason =
 	| "ok"
 	| "ip_limit"
 	| "email_ip_limit"
+	| "fingerprint_limit"
 	| "limiter_unavailable";
 
 export interface RateLimitDecision {
@@ -82,6 +94,17 @@ const failOpenDecision = (
 	keyHash,
 });
 
+const rateLimitReasonByScope: Record<
+	RateLimitScope,
+	Extract<RateLimitReason, "ip_limit" | "email_ip_limit" | "fingerprint_limit">
+> = {
+	auth_verify_ip: "ip_limit",
+	auth_verify_email_ip: "email_ip_limit",
+	event_submit_ip: "ip_limit",
+	event_submit_email_ip: "email_ip_limit",
+	event_submit_fingerprint: "fingerprint_limit",
+};
+
 const evaluateConsumeResult = (params: {
 	scope: RateLimitScope;
 	keyHash: string;
@@ -96,9 +119,41 @@ const evaluateConsumeResult = (params: {
 	return blockDecision(
 		params.scope,
 		params.keyHash,
-		params.scope === "auth_verify_ip" ? "ip_limit" : "email_ip_limit",
+		rateLimitReasonByScope[params.scope],
 		params.retryAfterSeconds,
 	);
+};
+
+const consumeRateLimitWindow = async (params: {
+	scope: RateLimitScope;
+	keyParts: string[];
+	windowSeconds: number;
+	limit: number;
+}): Promise<RateLimitDecision> => {
+	const keyHash = buildRateLimitKeyHash([params.scope, ...params.keyParts]);
+	const repository = getRateLimitRepository();
+	if (!repository) {
+		return failOpenDecision(params.scope, keyHash);
+	}
+
+	try {
+		const consumed = await repository.consumeWindow({
+			scope: params.scope,
+			keyHash,
+			windowSeconds: params.windowSeconds,
+			limit: params.limit,
+		});
+
+		return evaluateConsumeResult({
+			scope: params.scope,
+			keyHash,
+			count: consumed.count,
+			limit: consumed.limit,
+			retryAfterSeconds: consumed.retryAfterSeconds,
+		});
+	} catch {
+		return failOpenDecision(params.scope, keyHash);
+	}
 };
 
 export const checkAuthVerifyIpLimit = async (
@@ -106,31 +161,12 @@ export const checkAuthVerifyIpLimit = async (
 ): Promise<RateLimitDecision> => {
 	const scope: RateLimitScope = "auth_verify_ip";
 	const normalizedIp = ip.trim() || "unknown";
-	const keyHash = buildRateLimitKeyHash([scope, normalizedIp]);
-
-	const repository = getRateLimitRepository();
-	if (!repository) {
-		return failOpenDecision(scope, keyHash);
-	}
-
-	try {
-		const consumed = await repository.consumeWindow({
-			scope,
-			keyHash,
-			windowSeconds: AUTH_VERIFY_IP_WINDOW_SECONDS,
-			limit: AUTH_VERIFY_IP_LIMIT,
-		});
-
-		return evaluateConsumeResult({
-			scope,
-			keyHash,
-			count: consumed.count,
-			limit: consumed.limit,
-			retryAfterSeconds: consumed.retryAfterSeconds,
-		});
-	} catch {
-		return failOpenDecision(scope, keyHash);
-	}
+	return consumeRateLimitWindow({
+		scope,
+		keyParts: [normalizedIp],
+		windowSeconds: AUTH_VERIFY_IP_WINDOW_SECONDS,
+		limit: AUTH_VERIFY_IP_LIMIT,
+	});
 };
 
 export const checkAuthVerifyEmailIpLimit = async (
@@ -140,31 +176,53 @@ export const checkAuthVerifyEmailIpLimit = async (
 	const scope: RateLimitScope = "auth_verify_email_ip";
 	const normalizedEmail = normalizeRateLimitEmail(email);
 	const normalizedIp = ip.trim() || "unknown";
-	const keyHash = buildRateLimitKeyHash([scope, normalizedEmail, normalizedIp]);
+	return consumeRateLimitWindow({
+		scope,
+		keyParts: [normalizedEmail, normalizedIp],
+		windowSeconds: AUTH_VERIFY_EMAIL_IP_WINDOW_SECONDS,
+		limit: AUTH_VERIFY_EMAIL_IP_LIMIT,
+	});
+};
 
-	const repository = getRateLimitRepository();
-	if (!repository) {
-		return failOpenDecision(scope, keyHash);
-	}
+export const checkEventSubmitIpLimit = async (
+	ip: string,
+): Promise<RateLimitDecision> => {
+	const scope: RateLimitScope = "event_submit_ip";
+	const normalizedIp = ip.trim() || "unknown";
+	return consumeRateLimitWindow({
+		scope,
+		keyParts: [normalizedIp],
+		windowSeconds: EVENT_SUBMIT_IP_WINDOW_SECONDS,
+		limit: EVENT_SUBMIT_IP_LIMIT,
+	});
+};
 
-	try {
-		const consumed = await repository.consumeWindow({
-			scope,
-			keyHash,
-			windowSeconds: AUTH_VERIFY_EMAIL_IP_WINDOW_SECONDS,
-			limit: AUTH_VERIFY_EMAIL_IP_LIMIT,
-		});
+export const checkEventSubmitEmailIpLimit = async (
+	email: string,
+	ip: string,
+): Promise<RateLimitDecision> => {
+	const scope: RateLimitScope = "event_submit_email_ip";
+	const normalizedEmail = normalizeRateLimitEmail(email);
+	const normalizedIp = ip.trim() || "unknown";
+	return consumeRateLimitWindow({
+		scope,
+		keyParts: [normalizedEmail, normalizedIp],
+		windowSeconds: EVENT_SUBMIT_EMAIL_IP_WINDOW_SECONDS,
+		limit: EVENT_SUBMIT_EMAIL_IP_LIMIT,
+	});
+};
 
-		return evaluateConsumeResult({
-			scope,
-			keyHash,
-			count: consumed.count,
-			limit: consumed.limit,
-			retryAfterSeconds: consumed.retryAfterSeconds,
-		});
-	} catch {
-		return failOpenDecision(scope, keyHash);
-	}
+export const checkEventSubmitFingerprintLimit = async (
+	fingerprint: string,
+): Promise<RateLimitDecision> => {
+	const scope: RateLimitScope = "event_submit_fingerprint";
+	const normalizedFingerprint = fingerprint.trim().toLowerCase() || "unknown";
+	return consumeRateLimitWindow({
+		scope,
+		keyParts: [normalizedFingerprint],
+		windowSeconds: EVENT_SUBMIT_FINGERPRINT_WINDOW_SECONDS,
+		limit: EVENT_SUBMIT_FINGERPRINT_LIMIT,
+	});
 };
 
 export const cleanupAuthVerifyRateLimits = async (

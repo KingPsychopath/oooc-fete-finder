@@ -8,6 +8,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import {
+	getAdminSessionOverview,
 	getAdminSessionStatus,
 	getAdminTokenSessions,
 	revokeAdminTokenSessionByJti,
@@ -127,18 +128,13 @@ export const AdminSessionStatus = ({
 	const [showExpired, setShowExpired] = useState(false);
 
 	const loadStatus = useCallback(async () => {
-		const [status, tokenSessions] = await Promise.all([
-			getAdminSessionStatus(),
-			getAdminTokenSessions(),
-		]);
-
-		if (status.success) {
-			setSessionInfo(sessionInfoFromStatus(status));
+		const overview = await getAdminSessionOverview();
+		if (overview.sessionStatus.success) {
+			setSessionInfo(sessionInfoFromStatus(overview.sessionStatus));
 		}
-
-		if (tokenSessions.success) {
-			setSessions(tokenSessions.sessions ?? []);
-			setCurrentTokenVersion(tokenSessions.currentTokenVersion ?? 1);
+		if (overview.success) {
+			setSessions(overview.tokenSessions ?? []);
+			setCurrentTokenVersion(overview.currentTokenVersion ?? 1);
 		}
 	}, []);
 

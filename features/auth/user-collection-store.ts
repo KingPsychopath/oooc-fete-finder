@@ -217,6 +217,12 @@ export interface UserCollectionStoreStatus {
 	lastUpdatedAt: string | null;
 }
 
+export interface UserCollectionAdminSnapshot {
+	users: UserRecord[];
+	analytics: UserCollectionAnalytics;
+	status: UserCollectionStoreStatus;
+}
+
 export class UserCollectionStore {
 	private static async readPayload(): Promise<UserCollectionPayload> {
 		const kv = await getKVStore();
@@ -277,6 +283,24 @@ export class UserCollectionStore {
 	static async getAnalytics(): Promise<UserCollectionAnalytics> {
 		const payload = await this.readPayload();
 		return buildAnalytics(payload.records);
+	}
+
+	static async getAdminSnapshot(): Promise<UserCollectionAdminSnapshot> {
+		const [payload, provider] = await Promise.all([
+			this.readPayload(),
+			getKVStoreInfo(),
+		]);
+
+		return {
+			users: toSortedUserRecords(payload.records),
+			analytics: buildAnalytics(payload.records),
+			status: {
+				provider: provider.provider,
+				location: provider.location,
+				totalUsers: Object.keys(payload.records).length,
+				lastUpdatedAt: payload.updatedAt || null,
+			},
+		};
 	}
 
 	static async getStatus(): Promise<UserCollectionStoreStatus> {

@@ -79,11 +79,15 @@ const stateRowClassName = (state: string): string => {
 };
 
 export const FeaturedEventsManagerCard = ({
+	initialPayload,
 	onScheduleUpdated,
 }: {
+	initialPayload?: FeaturedQueuePayload;
 	onScheduleUpdated?: () => Promise<void> | void;
 }) => {
-	const [payload, setPayload] = useState<FeaturedQueuePayload | null>(null);
+	const [payload, setPayload] = useState<FeaturedQueuePayload | null>(
+		initialPayload ?? null,
+	);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isMutating, setIsMutating] = useState(false);
 	const [statusMessage, setStatusMessage] = useState("");
@@ -113,8 +117,11 @@ export const FeaturedEventsManagerCard = ({
 	}, []);
 
 	useEffect(() => {
+		if (initialPayload?.success) {
+			return;
+		}
 		void loadQueue();
-	}, [loadQueue]);
+	}, [initialPayload?.success, loadQueue]);
 
 	const matchedEvents = useMemo(() => {
 		if (!payload?.events) return [];
