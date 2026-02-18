@@ -7,7 +7,6 @@ import { CSV_EVENT_COLUMNS } from "./csv/parser";
 import {
 	csvToEditableSheet,
 	editableSheetToCsv,
-	stripLegacyFeaturedColumn,
 	type EditableSheetColumn,
 	validateEditableSheet,
 } from "./csv/sheet-editor";
@@ -159,11 +158,7 @@ class PostgresEventStoreAdapter implements EventStoreAdapter {
 		if (sheet.rows.length === 0 || sheet.columns.length === 0) {
 			return null;
 		}
-		const sanitized = stripLegacyFeaturedColumn(
-			toEditableColumns(sheet.columns),
-			sheet.rows,
-		);
-		return editableSheetToCsv(sanitized.columns, sanitized.rows);
+		return editableSheetToCsv(toEditableColumns(sheet.columns), sheet.rows);
 	}
 
 	async saveCsv(csvContent: string, meta: SaveCsvMeta): Promise<EventStoreMetadata> {
@@ -178,13 +173,12 @@ class PostgresEventStoreAdapter implements EventStoreAdapter {
 			throw new Error(validation.error || "Invalid CSV content");
 		}
 		const keyedRows = ensureUniqueEventKeys(validation.rows);
-		const sanitized = stripLegacyFeaturedColumn(validation.columns, keyedRows.rows);
-		const normalizedCsv = editableSheetToCsv(sanitized.columns, sanitized.rows);
+		const normalizedCsv = editableSheetToCsv(validation.columns, keyedRows.rows);
 
 		const checksum = buildChecksum(normalizedCsv);
 		const savedMeta = await this.ensureRepository().replaceSheet(
-			toRepositoryColumns(sanitized.columns),
-			sanitized.rows,
+			toRepositoryColumns(validation.columns),
+			keyedRows.rows,
 			{
 				updatedBy: meta.updatedBy,
 				origin: meta.origin,
@@ -273,11 +267,7 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 		if (this.state.rows.length === 0) {
 			return null;
 		}
-		const sanitized = stripLegacyFeaturedColumn(
-			toEditableColumns(this.state.columns),
-			this.state.rows,
-		);
-		return editableSheetToCsv(sanitized.columns, sanitized.rows);
+		return editableSheetToCsv(toEditableColumns(this.state.columns), this.state.rows);
 	}
 
 	async saveCsv(csvContent: string, meta: SaveCsvMeta): Promise<EventStoreMetadata> {
@@ -292,14 +282,13 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 			throw new Error(validation.error || "Invalid CSV content");
 		}
 		const keyedRows = ensureUniqueEventKeys(validation.rows);
-		const sanitized = stripLegacyFeaturedColumn(validation.columns, keyedRows.rows);
-		const normalizedCsv = editableSheetToCsv(sanitized.columns, sanitized.rows);
+		const normalizedCsv = editableSheetToCsv(validation.columns, keyedRows.rows);
 
 		const now = new Date().toISOString();
-		this.state.columns = toRepositoryColumns(sanitized.columns);
-		this.state.rows = sanitized.rows;
+		this.state.columns = toRepositoryColumns(validation.columns);
+		this.state.rows = keyedRows.rows;
 		this.state.meta = {
-			rowCount: sanitized.rows.length,
+			rowCount: keyedRows.rows.length,
 			updatedAt: now,
 			updatedBy: meta.updatedBy,
 			origin: meta.origin,

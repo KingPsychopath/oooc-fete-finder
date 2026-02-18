@@ -242,3 +242,8 @@ export const reviewEventSubmission = async (
 	const repository = getRepositoryOrThrow();
 	return repository.reviewPendingSubmission(input);
 };
+
+export const clearAllEventSubmissions = async (): Promise<number> => {
+	const repository = getRepositoryOrThrow();
+	return repository.clearAllSubmissions();
+};

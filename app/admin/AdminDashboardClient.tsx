@@ -22,6 +22,7 @@ import { FeaturedEventsManagerCard } from "./components/FeaturedEventsManagerCar
 import { LiveEventsSnapshotCard } from "./components/LiveEventsSnapshotCard";
 import { LocalEventStoreCard } from "./components/LocalEventStoreCard";
 import { SlidingBannerSettingsCard } from "./components/SlidingBannerSettingsCard";
+import { SystemResetCard } from "./components/SystemResetCard";
 import type {
 	RuntimeDataStatus,
 	EmailRecord,
@@ -242,6 +243,7 @@ export function AdminDashboardClient({
 							onCopyEmails={copyEmails}
 							onExportCSV={() => void exportAsCSV()}
 						/>
+						<SystemResetCard onResetCompleted={handleStatusRefresh} />
 					</div>
 				</div>
 			</div>

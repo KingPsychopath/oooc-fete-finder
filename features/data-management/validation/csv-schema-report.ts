@@ -10,7 +10,6 @@ export interface CsvSchemaIssue {
 		| "event_key_missing"
 		| "event_key_invalid"
 		| "event_key_duplicate"
-		| "featured_legacy_value"
 		| "ooc_picks_unexpected"
 		| "nationality_unsupported"
 		| "arrondissement_unexpected"
@@ -65,24 +64,11 @@ export const analyzeCsvSchemaRows = (
 		if (!hasAnyRowValue(row)) return;
 		const rowIndex = index + 1;
 		const rawEventKey = String(row.eventKey ?? "").trim();
-		const rawFeatured = String(row.featured ?? "").trim();
 		const rawPicks = String(row.oocPicks ?? "").trim();
 		const rawNationality = String(row.nationality ?? "").trim();
 		const rawArrondissement = String(row.arrondissement ?? "").trim();
 		const rawVenue = String(row.indoorOutdoor ?? "").trim();
 		const rawDate = String(row.date ?? "").trim();
-
-		if (rawFeatured.length > 0) {
-			pushIssue(issues, {
-				severity: "error",
-				code: "featured_legacy_value",
-				column: "Featured",
-				rowIndex,
-				value: rawFeatured,
-				message:
-					'Legacy Featured values are not allowed. Use "Featured Events Manager".',
-			});
-		}
 
 		if (eventKeySeverity) {
 			if (!rawEventKey) {

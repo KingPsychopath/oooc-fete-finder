@@ -379,6 +379,19 @@ export class EventSubmissionRepository {
 		};
 	}
 
+	async clearAllSubmissions(): Promise<number> {
+		await this.ready();
+		const rows = await this.sql<{ count: number }[]>`
+			WITH deleted AS (
+				DELETE FROM app_event_submissions
+				RETURNING id
+			)
+			SELECT COUNT(*)::int AS count
+			FROM deleted
+		`;
+		return rows[0]?.count ?? 0;
+	}
+
 	getTableName(): string {
 		return TABLE_NAME;
 	}

@@ -199,4 +199,9 @@ export class SlidingBannerStore {
 			updatedBy: settings.updatedBy,
 		};
 	}
+
+	static async resetToDefault(): Promise<void> {
+		const kv = await getKVStore();
+		await kv.delete(SLIDING_BANNER_SETTINGS_KEY);
+	}
 }

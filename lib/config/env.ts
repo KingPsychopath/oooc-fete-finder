@@ -80,6 +80,7 @@ export const env = createEnv({
 		DATABASE_URL: z.string().optional(),
 		POSTGRES_POOL_MAX: z.string().optional(),
 		DATA_MODE: z.enum(["remote", "local", "test"]).default("remote"),
+		ADMIN_RESET_PASSCODE: z.string().optional(),
 
 		// Google configuration
 		GOOGLE_MAPS_API_KEY: z.string().optional(),
@@ -113,6 +114,7 @@ export const env = createEnv({
 		DATABASE_URL: process.env.DATABASE_URL,
 		POSTGRES_POOL_MAX: process.env.POSTGRES_POOL_MAX,
 		DATA_MODE: process.env.DATA_MODE,
+		ADMIN_RESET_PASSCODE: process.env.ADMIN_RESET_PASSCODE,
 
 		// Google configuration
 		GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,

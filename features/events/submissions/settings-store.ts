@@ -112,4 +112,9 @@ export class EventSubmissionSettingsStore {
 			updatedBy: settings.updatedBy,
 		};
 	}
+
+	static async resetToDefault(): Promise<void> {
+		const kv = await getKVStore();
+		await kv.delete(EVENT_SUBMISSION_SETTINGS_KEY);
+	}
 }

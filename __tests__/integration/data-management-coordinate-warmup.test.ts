@@ -210,7 +210,7 @@ describe("data-management coordinate warm-up", () => {
 		expect(result.error).toContain("Coordinate population failed");
 	});
 
-	it("rejects legacy Featured column values during sheet save", async () => {
+	it("allows sheet save when legacy Featured column is present", async () => {
 		const { saveEventSheetEditorRows, localEventStoreSaveCsv, processCSVData } =
 			await loadActions();
 
@@ -229,13 +229,12 @@ describe("data-management coordinate warm-up", () => {
 			{ revalidateHomepage: false },
 		);
 
-		expect(result.success).toBe(false);
-		expect(result.message).toContain("Featured selection moved to Featured Manager");
-		expect(localEventStoreSaveCsv).not.toHaveBeenCalled();
+		expect(result.success).toBe(true);
+		expect(localEventStoreSaveCsv).toHaveBeenCalledTimes(1);
 		expect(processCSVData).not.toHaveBeenCalled();
 	});
 
-	it("rejects legacy Featured column values during remote import", async () => {
+	it("allows remote import when schema has warnings only", async () => {
 		const {
 			importRemoteCsvToLocalEventStore,
 			localEventStoreSaveCsv,
@@ -244,31 +243,29 @@ describe("data-management coordinate warm-up", () => {
 		} = await loadActions();
 		csvToEditableSheet.mockReturnValueOnce({
 			columns: [],
-			rows: [{ featured: "2025-06-10T00:07:39", name: "Event" }],
+			rows: [{ name: "Event", eventKey: "", date: "21 June" }],
 		});
 
 		const result = await importRemoteCsvToLocalEventStore("token");
 
-		expect(result.success).toBe(false);
-		expect(result.message).toContain("Featured selection moved to Featured Manager");
-		expect(result.error).toContain("Found 1 row(s) with legacy Featured values");
-		expect(localEventStoreSaveCsv).not.toHaveBeenCalled();
-		expect(processCSVData).not.toHaveBeenCalled();
+		expect(result.success).toBe(true);
+		expect(localEventStoreSaveCsv).toHaveBeenCalledTimes(1);
+		expect(processCSVData).toHaveBeenCalledTimes(1);
 	});
 
-	it("surfaces import blocking reason in Google preview", async () => {
+	it("surfaces schema warnings in Google preview without blocking import", async () => {
 		const { previewRemoteCsvForAdmin, csvToEditableSheet } = await loadActions();
 		csvToEditableSheet.mockReturnValueOnce({
 			columns: [],
-			rows: [{ featured: "Yes", name: "Event" }],
+			rows: [{ name: "Event", eventKey: "", date: "21 June" }],
 		});
 
 		const result = await previewRemoteCsvForAdmin("token", 5);
 
 		expect(result.success).toBe(true);
-		expect(result.canImport).toBe(false);
-		expect(result.importBlockedReason).toContain(
-			"Featured selection moved to Featured Manager",
-		);
+		expect(result.canImport).toBe(true);
+		expect(result.importBlockedReason).toBeUndefined();
+		expect(result.schemaBlockingCount).toBe(0);
+		expect(result.schemaWarningCount).toBeGreaterThan(0);
 	});
 });

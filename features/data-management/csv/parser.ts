@@ -62,13 +62,18 @@ const COLUMN_MAPPINGS = {
 		"indoorOutdoor",
 	],
 	notes: ["Notes", "Description", "notes", "Details", "Info"],
-	featured: ["Featured", "featured", "Feature", "Promoted", "Premium"],
 } as const;
 
 /**
  * Raw CSV row data as parsed by PapaParse - contains all columns as string values
  */
 type RawCSVRow = Record<string, string>;
+
+type StructuralParseError = {
+	code: string;
+	row?: number;
+	message: string;
+};
 
 /**
  * Structured CSV event row type representing raw parsed CSV data.
@@ -119,8 +124,6 @@ export type CSVEventRow = {
 	indoorOutdoor: string;
 	/** Additional notes or description */
 	notes: string;
-	/** Featured event indicator */
-	featured: string;
 };
 
 /**
@@ -210,7 +213,6 @@ const createColumnMapping = (
 		age: null,
 		indoorOutdoor: null,
 		notes: null,
-		featured: null,
 	};
 	const ambiguousHeaders: Array<{ header: string; fields: string[] }> = [];
 	const duplicateFieldMatches: Array<{
@@ -268,6 +270,69 @@ const createColumnMapping = (
 	return mapping;
 };
 
+const RECOVERABLE_TRAILING_FIELDS = new Set<keyof CSVEventRow>(["notes"]);
+
+const isRecoverableTooFewFieldsError = (
+	error: StructuralParseError,
+	rows: Array<RawCSVRow | null | undefined>,
+	headers: string[],
+	columnMapping: Record<keyof CSVEventRow, string | null>,
+): boolean => {
+	if (error.code !== "TooFewFields" || typeof error.row !== "number") {
+		return false;
+	}
+
+	const row = rows[error.row];
+	if (!row || typeof row !== "object") {
+		return false;
+	}
+
+	if ("__parsed_extra" in row && Array.isArray(row.__parsed_extra)) {
+		return false;
+	}
+
+	const missingHeaders = headers.filter(
+		(header) => row[header] === undefined,
+	);
+	if (missingHeaders.length === 0) {
+		return false;
+	}
+
+	const missingIndices = missingHeaders
+		.map((header) => headers.indexOf(header))
+		.filter((index) => index >= 0)
+		.sort((left, right) => left - right);
+	if (missingIndices.length === 0) {
+		return false;
+	}
+
+	const firstMissing = missingIndices[0];
+	const lastMissing = missingIndices[missingIndices.length - 1];
+	const isContiguousTail =
+		lastMissing === headers.length - 1 &&
+		missingIndices.every((index, offset) => index === firstMissing + offset);
+	if (!isContiguousTail) {
+		return false;
+	}
+
+	const headerToField = new Map<string, keyof CSVEventRow>();
+	for (const field of Object.keys(columnMapping) as Array<keyof CSVEventRow>) {
+		const mappedHeader = columnMapping[field];
+		if (mappedHeader) {
+			headerToField.set(mappedHeader, field);
+		}
+	}
+
+	const missingFields = missingHeaders
+		.map((header) => headerToField.get(header))
+		.filter((field): field is keyof CSVEventRow => Boolean(field));
+	if (missingFields.length !== missingHeaders.length) {
+		return false;
+	}
+
+	return missingFields.every((field) => RECOVERABLE_TRAILING_FIELDS.has(field));
+};
+
 /**
  * Parses CSV content into structured CSVEventRow objects using PapaParse.
  *
@@ -306,13 +371,35 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 			skipEmptyLines: "greedy",
 		});
 
+		const rawData = parseResult.data as Array<RawCSVRow | null | undefined>;
+		const headers = (parseResult.meta.fields || [])
+			.map((header) => String(header).trim())
+			.filter((header) => header.length > 0);
+		if (headers.length === 0) {
+			throw new Error("CSV header row is missing or empty");
+		}
+
+		const columnMapping = createColumnMapping(headers);
+
 		if (parseResult.errors.length > 0) {
 			const fieldMismatchErrors = parseResult.errors.filter(
 				(error) =>
 					error.code === "TooFewFields" || error.code === "TooManyFields",
 			);
-			if (fieldMismatchErrors.length > 0) {
-				const rowSummary = fieldMismatchErrors
+			const unrecoverableFieldMismatchErrors = fieldMismatchErrors.filter(
+				(error) =>
+					!isRecoverableTooFewFieldsError(
+						error,
+						rawData,
+						headers,
+						columnMapping,
+					),
+			);
+			const recoveredCount =
+				fieldMismatchErrors.length - unrecoverableFieldMismatchErrors.length;
+
+			if (unrecoverableFieldMismatchErrors.length > 0) {
+				const rowSummary = unrecoverableFieldMismatchErrors
 					.slice(0, 5)
 					.map((error) => {
 						const rowNumber = typeof error.row === "number" ? error.row + 1 : null;
@@ -320,7 +407,15 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 					})
 					.join(", ");
 				throw new Error(
-					`CSV row structure mismatch in ${fieldMismatchErrors.length} row(s) (${rowSummary}). Ensure each row has the same number of columns as the header.`,
+					`CSV row structure mismatch in ${unrecoverableFieldMismatchErrors.length} row(s) (${rowSummary}). Ensure each row has the same number of columns as the header.`,
+				);
+			}
+
+			if (recoveredCount > 0) {
+				clientLog.warn(
+					"csv-parser",
+					"Recovered CSV rows with missing trailing optional columns",
+					{ recoveredCount },
 				);
 			}
 
@@ -334,16 +429,6 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 				});
 			}
 		}
-
-		const rawData = parseResult.data as Array<RawCSVRow | null | undefined>;
-		const headers = (parseResult.meta.fields || [])
-			.map((header) => String(header).trim())
-			.filter((header) => header.length > 0);
-		if (headers.length === 0) {
-			throw new Error("CSV header row is missing or empty");
-		}
-
-		const columnMapping = createColumnMapping(headers);
 
 		// Validate that we have at least the essential columns
 		const essentialColumns = ["name", "date"] as const;
@@ -385,8 +470,6 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 							row[columnMapping.indoorOutdoor]) ||
 						"",
 					notes: (columnMapping.notes && row[columnMapping.notes]) || "",
-					featured:
-						(columnMapping.featured && row[columnMapping.featured]) || "",
 				};
 
 				return csvRow;

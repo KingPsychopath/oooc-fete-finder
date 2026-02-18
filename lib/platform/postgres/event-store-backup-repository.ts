@@ -286,6 +286,19 @@ export class EventStoreBackupRepository {
 				: null,
 		};
 	}
+
+	async clearAllBackups(): Promise<number> {
+		await this.ready();
+		const rows = await this.sql<{ count: number }[]>`
+			WITH deleted AS (
+				DELETE FROM app_event_store_backups
+				RETURNING id
+			)
+			SELECT COUNT(*)::int AS count
+			FROM deleted
+		`;
+		return rows[0]?.count ?? 0;
+	}
 }
 
 const isValidBackupRepositoryInstance = (
@@ -300,7 +313,8 @@ const isValidBackupRepositoryInstance = (
 		typeof candidate.getBackupById === "function" &&
 		typeof candidate.listBackups === "function" &&
 		typeof candidate.pruneOldBackups === "function" &&
-		typeof candidate.getBackupStatus === "function"
+		typeof candidate.getBackupStatus === "function" &&
+		typeof candidate.clearAllBackups === "function"
 	);
 };
 

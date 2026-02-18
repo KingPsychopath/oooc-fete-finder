@@ -2,18 +2,18 @@ import { describe, expect, it } from "vitest";
 import { analyzeCsvSchemaRows } from "@/features/data-management/validation/csv-schema-report";
 
 describe("analyzeCsvSchemaRows", () => {
-	it("flags legacy featured values as blocking", () => {
+	it("blocks missing event keys when eventKeyMode is error", () => {
 		const report = analyzeCsvSchemaRows([
 			{
 				name: "Event",
 				date: "2026-06-21",
-				featured: "2026-06-01T00:00:00Z",
+				eventKey: "",
 			},
-		]);
+		], { eventKeyMode: "error" });
 
 		expect(report.hasBlockingIssues).toBe(true);
 		expect(report.blockingCount).toBeGreaterThan(0);
-		expect(report.issues.some((issue) => issue.code === "featured_legacy_value")).toBe(
+		expect(report.issues.some((issue) => issue.code === "event_key_missing")).toBe(
 			true,
 		);
 	});
@@ -24,7 +24,6 @@ describe("analyzeCsvSchemaRows", () => {
 				name: "Event",
 				date: "21 June",
 				eventKey: "",
-				featured: "",
 			},
 		]);
 
@@ -44,7 +43,6 @@ describe("analyzeCsvSchemaRows", () => {
 				name: "Event",
 				date: "2026-06-21",
 				nationality: "🇫🇷🇩🇪",
-				featured: "",
 			},
 		]);
 

@@ -8,13 +8,8 @@
 export type DateFormatWarning = {
 	originalValue: string;
 	eventName?: string;
-	columnType: "featured" | "date" | "startTime" | "endTime";
-	warningType:
-		| "ambiguous"
-		| "future_featured"
-		| "inferred_year"
-		| "invalid"
-		| "unparseable";
+	columnType: "date" | "startTime" | "endTime";
+	warningType: "ambiguous" | "inferred_year" | "invalid" | "unparseable";
 	potentialFormats: {
 		us: { date: string; description: string };
 		uk: { date: string; description: string };
@@ -103,14 +98,12 @@ export const WarningSystem = {
 	} => {
 		const byType: Record<DateFormatWarning["warningType"], number> = {
 			ambiguous: 0,
-			future_featured: 0,
 			inferred_year: 0,
 			invalid: 0,
 			unparseable: 0,
 		};
 
 		const byColumn: Record<DateFormatWarning["columnType"], number> = {
-			featured: 0,
 			date: 0,
 			startTime: 0,
 			endTime: 0,
@@ -144,29 +137,6 @@ export const WarningSystem = {
  * Helper functions for creating warnings
  */
 export const WarningHelpers = {
-	/**
-	 * Create a featured date warning
-	 */
-	createFeaturedDateWarning: (
-		originalValue: string,
-		eventName: string,
-		rowIndex: number,
-		warningType: DateFormatWarning["warningType"] = "ambiguous",
-	): DateFormatWarning => ({
-		originalValue,
-		eventName,
-		columnType: "featured",
-		warningType,
-		potentialFormats: {
-			us: { date: "", description: "MM/DD/YYYY format" },
-			uk: { date: "", description: "DD/MM/YYYY format" },
-			iso: "",
-		},
-		detectedFormat: "",
-		recommendedAction: "Verify date format and update CSV",
-		rowIndex,
-	}),
-
 	/**
 	 * Create a general date warning
 	 */

@@ -230,7 +230,6 @@ export class DataManager {
 		dataSource: ConfiguredDataMode;
 		remoteConfigured: boolean;
 		hasServiceAccount: boolean;
-		hasDynamicOverride: boolean;
 		hasLocalStoreData: boolean;
 		storeProvider: "file" | "memory" | "postgres";
 		storeProviderLocation: string;
@@ -247,7 +246,6 @@ export class DataManager {
 			dataSource: env.DATA_MODE as ConfiguredDataMode,
 			remoteConfigured,
 			hasServiceAccount,
-			hasDynamicOverride: false,
 			hasLocalStoreData: storeStatus.hasStoreData,
 			storeProvider: storeStatus.provider,
 			storeProviderLocation: storeStatus.providerLocation,

@@ -127,7 +127,6 @@ describe("runtime-service", () => {
 			dataSource: "remote",
 			remoteConfigured: true,
 			hasServiceAccount: false,
-			hasDynamicOverride: false,
 			hasLocalStoreData: true,
 			storeProvider: "postgres",
 			storeProviderLocation: "db",

@@ -36,18 +36,10 @@ export interface FullRevalidationResult {
 }
 
 export interface RuntimeDataStatus {
-	hasCachedData: boolean;
 	lastFetchTime: string | null;
-	lastRemoteFetchTime: string | null;
-	lastRemoteSuccessTime: string | null;
 	lastRemoteErrorMessage: string;
-	cacheAge: number;
-	nextRemoteCheck: number;
 	dataSource: DataSource;
 	eventCount: number;
-	memoryUsage: number;
-	memoryLimit: number;
-	memoryUtilization: number;
 	configuredDataSource: "remote" | "local" | "test";
 	remoteConfigured: boolean;
 	hasLocalStoreData: boolean;
@@ -59,12 +51,9 @@ export interface RuntimeDataStatus {
 }
 
 export interface RuntimeMetricsData {
-	cacheHits: number;
-	cacheMisses: number;
 	totalRequests: number;
 	lastReset: number;
 	errorCount: number;
-	hitRate: number;
 	averageFetchTimeMs: number;
 }
 
@@ -223,18 +212,10 @@ export async function getRuntimeDataStatusFromSource(): Promise<RuntimeDataStatu
 	const errorMessage = statusRead.success ? "" : (statusRead.error ?? "");
 
 	return {
-		hasCachedData: false,
 		lastFetchTime,
-		lastRemoteFetchTime: lastFetchTime,
-		lastRemoteSuccessTime: statusRead.success ? lastFetchTime : null,
 		lastRemoteErrorMessage: errorMessage,
-		cacheAge: 0,
-		nextRemoteCheck: 0,
 		dataSource: source,
 		eventCount,
-		memoryUsage: 0,
-		memoryLimit: 0,
-		memoryUtilization: 0,
 		configuredDataSource: configStatus.dataSource,
 		remoteConfigured: configStatus.remoteConfigured,
 		hasLocalStoreData: configStatus.hasLocalStoreData,
@@ -249,12 +230,9 @@ export async function getRuntimeDataStatusFromSource(): Promise<RuntimeDataStatu
 export function getRuntimeMetrics(): RuntimeMetricsData {
 	const totalRequests = metrics.fetchCount;
 	return {
-		cacheHits: 0,
-		cacheMisses: totalRequests,
 		totalRequests,
 		lastReset: metrics.lastReset,
 		errorCount: metrics.errors,
-		hitRate: 0,
 		averageFetchTimeMs:
 			metrics.fetchCount > 0
 				? Number((metrics.totalFetchMs / metrics.fetchCount).toFixed(1))

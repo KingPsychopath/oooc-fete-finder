@@ -314,4 +314,9 @@ export class UserCollectionStore {
 			lastUpdatedAt: payload.updatedAt || null,
 		};
 	}
+
+	static async clearAll(): Promise<void> {
+		const kv = await getKVStore();
+		await kv.delete(USERS_COLLECTION_KEY);
+	}
 }

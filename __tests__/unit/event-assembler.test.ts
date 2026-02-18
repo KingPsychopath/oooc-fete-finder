@@ -22,7 +22,6 @@ const baseRow: CSVEventRow = {
 	age: "18+",
 	indoorOutdoor: "Indoor",
 	notes: "Bring ID",
-	featured: "",
 };
 
 describe("event assembler identity", () => {

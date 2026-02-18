@@ -21,7 +21,6 @@ const makeRow = (date: string): CSVEventRow => ({
 	age: "",
 	indoorOutdoor: "",
 	notes: "",
-	featured: "",
 });
 
 describe("date normalization", () => {

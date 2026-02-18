@@ -66,18 +66,6 @@ export async function getFeaturedEvents(): Promise<Event[]> {
 	return events.filter((event) => event.isFeatured);
 }
 
-/**
- * Get featured events through a lightweight cached read for static content pages.
- */
-export async function getFeaturedEventsCached(): Promise<Event[]> {
-	try {
-		return await getFeaturedEvents();
-	} catch (error) {
-		log.error("events", "Error in getFeaturedEventsCached", undefined, error);
-		return [];
-	}
-}
-
 export async function getFeaturedStatusEvents(): Promise<Event[]> {
 	try {
 		const result = await DataManager.getEventsData({ populateCoordinates: false });

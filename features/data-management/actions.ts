@@ -1,8 +1,12 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
+import { secureCompare } from "@/features/auth/admin-auth-token";
+import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
+import { getEventStoreBackupRepository } from "@/lib/platform/postgres/event-store-backup-repository";
 import type {
 	EventsResult,
 	RuntimeDataStatus,
@@ -20,7 +24,6 @@ import { parseCSVContent } from "./csv/parser";
 import {
 	csvToEditableSheet,
 	editableSheetToCsv,
-	stripLegacyFeaturedColumn,
 	type EditableSheetColumn,
 	type EditableSheetRow,
 	validateEditableSheet,
@@ -41,6 +44,11 @@ import {
 import { processCSVData } from "./data-processor";
 import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
 import { DataManager } from "./data-manager";
+import { clearFeaturedQueueHistory as clearFeaturedQueueHistoryService } from "@/features/events/featured/service";
+import { clearAllEventSubmissions } from "@/features/events/submissions/store";
+import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
+import { invalidateSlidingBannerCache } from "@/features/site-settings/cache";
+import { SlidingBannerStore } from "@/features/site-settings/sliding-banner-store";
 
 /**
  * Data Management Server Actions
@@ -53,6 +61,15 @@ import { DataManager } from "./data-manager";
 async function validateAdminAccess(keyOrToken?: string): Promise<boolean> {
 	return validateAdminAccessFromServerContext(keyOrToken ?? null);
 }
+
+const validateFactoryResetPasscode = (providedPasscode: string): boolean => {
+	const expectedPasscode = env.ADMIN_RESET_PASSCODE?.trim() || "";
+	const candidate = providedPasscode.trim();
+	if (!expectedPasscode || !candidate) {
+		return false;
+	}
+	return secureCompare(candidate, expectedPasscode);
+};
 
 const resolveRemoteSheetConfig = async (): Promise<{
 	remoteUrl: string | null;
@@ -73,56 +90,6 @@ const resolveRemoteSheetConfig = async (): Promise<{
 
 const COORDINATE_WARMUP_RECOVERABLE_ERROR_FRAGMENT =
 	"GOOGLE_MAPS_API_KEY not set";
-
-const LEGACY_FEATURED_COLUMN_ERROR =
-	'Featured selection moved to Featured Manager. Clear values in the legacy "Featured" column and use Admin > Featured Events Manager.';
-
-const getLegacyFeaturedViolations = (
-	rows: EditableSheetRow[],
-): {
-	count: number;
-	sampleValues: string[];
-	sampleRows: number[];
-} => {
-	const sampleValues: string[] = [];
-	const sampleRows: number[] = [];
-	let count = 0;
-
-	rows.forEach((row, index) => {
-		const featuredValue = (row.featured || "").trim();
-		if (!featuredValue) return;
-		count += 1;
-		if (sampleValues.length < 3) {
-			sampleValues.push(featuredValue);
-			sampleRows.push(index + 1);
-		}
-	});
-
-	return {
-		count,
-		sampleValues,
-		sampleRows,
-	};
-};
-
-const buildLegacyFeaturedErrorMessage = (
-	violations: ReturnType<typeof getLegacyFeaturedViolations>,
-): string => {
-	if (violations.count === 0) return "";
-	const sampleSummary = violations.sampleValues
-		.map((value, index) => `row ${violations.sampleRows[index]}: "${value}"`)
-		.join(", ");
-
-	return `${LEGACY_FEATURED_COLUMN_ERROR} Found ${violations.count} row(s) with legacy Featured values (${sampleSummary}).`;
-};
-
-const getLegacyFeaturedErrorFromCsv = (csvContent: string): string | null => {
-	const sheet = csvToEditableSheet(csvContent);
-	const rows = Array.isArray(sheet?.rows) ? sheet.rows : [];
-	const violations = getLegacyFeaturedViolations(rows);
-	if (violations.count === 0) return null;
-	return buildLegacyFeaturedErrorMessage(violations);
-};
 
 const buildSchemaBlockingMessage = (issues: CsvSchemaIssue[]): string => {
 	const blocking = issues.filter((issue) => issue.severity === "error");
@@ -602,14 +569,6 @@ export async function saveLocalEventStoreCsv(
 		return { success: false, message: "Unauthorized access" };
 	}
 
-	const legacyFeaturedError = getLegacyFeaturedErrorFromCsv(csvContent);
-	if (legacyFeaturedError) {
-		return {
-			success: false,
-			message: LEGACY_FEATURED_COLUMN_ERROR,
-			error: legacyFeaturedError,
-		};
-	}
 	const runtimeValidationError = getCsvRuntimeValidationError(csvContent);
 	if (runtimeValidationError) {
 		return {
@@ -668,6 +627,83 @@ export async function clearLocalEventStoreCsv(keyOrToken?: string): Promise<{
 	}
 }
 
+export async function factoryResetApplicationState(
+	keyOrToken: string | undefined,
+	stepUpPasscode: string,
+): Promise<{
+	success: boolean;
+	message: string;
+	summary?: {
+		clearedFeaturedEntries: number;
+		clearedEventSubmissions: number;
+		clearedBackups: number;
+	};
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, message: "Unauthorized access" };
+	}
+
+	if (!(env.ADMIN_RESET_PASSCODE?.trim() || "")) {
+		return {
+			success: false,
+			message: "Factory reset passcode is not configured",
+			error:
+				"Set ADMIN_RESET_PASSCODE in your environment before using factory reset.",
+		};
+	}
+
+	if (!validateFactoryResetPasscode(stepUpPasscode)) {
+		return {
+			success: false,
+			message: "Invalid factory reset passcode",
+			error: "Step-up authentication failed.",
+		};
+	}
+
+	try {
+		await LocalEventStore.clearCsv();
+		const clearedFeaturedEntries = await clearFeaturedQueueHistoryService();
+		const clearedEventSubmissions = await clearAllEventSubmissions();
+		await UserCollectionStore.clearAll();
+		await EventCoordinatePopulator.clearStorage();
+		await EventSubmissionSettingsStore.resetToDefault();
+		await SlidingBannerStore.resetToDefault();
+
+		const backupRepository = getEventStoreBackupRepository();
+		const clearedBackups =
+			backupRepository ? await backupRepository.clearAllBackups() : 0;
+
+		await forceRefreshEventsData();
+		revalidateEventsPaths(["/", "/submit-event"]);
+		revalidatePath("/submit-event");
+		invalidateSlidingBannerCache();
+
+		log.warn("admin-reset", "Factory reset completed", {
+			clearedFeaturedEntries,
+			clearedEventSubmissions,
+			clearedBackups,
+		});
+
+		return {
+			success: true,
+			message:
+				"Factory reset complete. Store, featured queue, collected users, submissions, and caches were reset.",
+			summary: {
+				clearedFeaturedEntries,
+				clearedEventSubmissions,
+				clearedBackups,
+			},
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Factory reset failed",
+			error: error instanceof Error ? error.message : "Unknown reset error",
+		};
+	}
+}
+
 /**
  * Preview Google backup CSV without writing to Postgres store
  */
@@ -703,15 +739,8 @@ export async function previewRemoteCsvForAdmin(
 		const normalizedLimit = Math.max(1, Math.min(limit, 50));
 		const allRows = sheet.rows;
 		const schemaReport = analyzeCsvSchemaRows(allRows, { eventKeyMode: "warn" });
-		const featuredViolations = getLegacyFeaturedViolations(allRows);
-		const legacyFeaturedError =
-			featuredViolations.count > 0 ?
-				buildLegacyFeaturedErrorMessage(featuredViolations)
-			:	null;
 		const importBlockedReason =
-			legacyFeaturedError ||
-			buildSchemaBlockingMessage(schemaReport.issues) ||
-			undefined;
+			buildSchemaBlockingMessage(schemaReport.issues) || undefined;
 		let previewRows = allRows.slice(0, normalizedLimit);
 
 		if (options?.random && allRows.length > normalizedLimit) {
@@ -760,16 +789,6 @@ export async function importRemoteCsvToLocalEventStore(
 		const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range, {
 			allowLocalFallback: false,
 		});
-		const legacyFeaturedError = getLegacyFeaturedErrorFromCsv(
-			remoteFetchResult.content,
-		);
-		if (legacyFeaturedError) {
-			return {
-				success: false,
-				message: LEGACY_FEATURED_COLUMN_ERROR,
-				error: legacyFeaturedError,
-			};
-		}
 		const sheet = csvToEditableSheet(remoteFetchResult.content);
 		const schemaReport = analyzeCsvSchemaRows(sheet.rows, {
 			eventKeyMode: "warn",
@@ -864,12 +883,11 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 			LocalEventStore.getCsv(),
 		]);
 		const sheet = csvToEditableSheet(csv);
-		const sanitized = stripLegacyFeaturedColumn(sheet.columns, sheet.rows);
 
 		return {
 			success: true,
-			columns: sanitized.columns,
-			rows: sanitized.rows,
+			columns: sheet.columns,
+			rows: sheet.rows,
 			status,
 			sheetSource: "store",
 		};
@@ -908,14 +926,6 @@ export async function saveEventSheetEditorRows(
 			return {
 				success: false,
 				message: validation.error || "Invalid sheet payload",
-			};
-		}
-		const featuredViolations = getLegacyFeaturedViolations(validation.rows);
-		if (featuredViolations.count > 0) {
-			return {
-				success: false,
-				message: LEGACY_FEATURED_COLUMN_ERROR,
-				error: buildLegacyFeaturedErrorMessage(featuredViolations),
 			};
 		}
 
@@ -962,7 +972,6 @@ export async function saveEventSheetEditorRows(
  * Configuration for which columns to check for date format issues
  */
 const DATE_COLUMNS_TO_CHECK = {
-	featured: false, // Featured scheduling is no longer read from CSV
 	date: true, // Check the Date column for ambiguous dates
 	startTime: false, // Check the Start Time column for time format issues
 	endTime: false, // Check the End Time column for time format issues
@@ -1000,8 +1009,6 @@ export async function analyzeDateFormats(keyOrToken?: string): Promise<{
 		// Filter warnings based on configured columns
 		const warnings = allWarnings.filter((warning: DateFormatWarning) => {
 			switch (warning.columnType) {
-				case "featured":
-					return DATE_COLUMNS_TO_CHECK.featured;
 				case "date":
 					return DATE_COLUMNS_TO_CHECK.date;
 				case "startTime":

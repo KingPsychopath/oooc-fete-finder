@@ -44,8 +44,6 @@ const CORE_COLUMN_LABELS: Record<(typeof CSV_EVENT_COLUMNS)[number], string> = {
 	notes: "Notes",
 };
 
-const LEGACY_FEATURED_COLUMN_KEY = "featured";
-
 const REQUIRED_CORE_COLUMNS = new Set<string>(["name", "date"]);
 
 const CORE_COLUMN_SET = new Set<string>(CSV_EVENT_COLUMNS);
@@ -123,35 +121,6 @@ export const createCustomColumnKey = (
 		index += 1;
 	}
 	return `${base}_${index}`;
-};
-
-export const stripLegacyFeaturedColumn = (
-	columns: EditableSheetColumn[],
-	rows: EditableSheetRow[],
-): {
-	columns: EditableSheetColumn[];
-	rows: EditableSheetRow[];
-} => {
-	const hasLegacyFeatured = columns.some(
-		(column) => column.key === LEGACY_FEATURED_COLUMN_KEY,
-	);
-	if (!hasLegacyFeatured) {
-		return {
-			columns: columns.map((column) => ({ ...column })),
-			rows: rows.map((row) => ({ ...row })),
-		};
-	}
-
-	const nextColumns = columns
-		.filter((column) => column.key !== LEGACY_FEATURED_COLUMN_KEY)
-		.map((column) => ({ ...column }));
-	const nextRows = rows.map((row) => {
-		const nextRow = { ...row };
-		delete nextRow[LEGACY_FEATURED_COLUMN_KEY];
-		return nextRow;
-	});
-
-	return { columns: nextColumns, rows: nextRows };
 };
 
 export const ensureCoreColumns = (
@@ -299,11 +268,7 @@ export const editableSheetToCsv = (
 	columns: EditableSheetColumn[],
 	rows: EditableSheetRow[],
 ): string => {
-	const withoutLegacyFeatured = stripLegacyFeaturedColumn(columns, rows);
-	const normalized = ensureCoreColumns(
-		withoutLegacyFeatured.columns,
-		withoutLegacyFeatured.rows,
-	);
+	const normalized = ensureCoreColumns(columns, rows);
 	const csvColumns = normalized.columns;
 	const headerLine = csvColumns.map((column) => toCsvValue(column.label)).join(",");
 	const dataLines = normalized.rows.map((row) =>
