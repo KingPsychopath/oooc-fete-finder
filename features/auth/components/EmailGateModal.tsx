@@ -9,7 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Lock, Mail, User } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 type EmailGateModalProps = {
 	isOpen: boolean;
@@ -29,6 +29,23 @@ const EmailGateModal = ({
 	const [consent, setConsent] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState("");
+	const [isOffline, setIsOffline] = useState(false);
+
+	useEffect(() => {
+		if (typeof navigator === "undefined") return;
+		setIsOffline(navigator.onLine === false);
+
+		const handleOnline = () => setIsOffline(false);
+		const handleOffline = () => setIsOffline(true);
+
+		window.addEventListener("online", handleOnline);
+		window.addEventListener("offline", handleOffline);
+
+		return () => {
+			window.removeEventListener("online", handleOnline);
+			window.removeEventListener("offline", handleOffline);
+		};
+	}, []);
 
 	const validateEmail = (email: string) => {
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -78,6 +95,11 @@ const EmailGateModal = ({
 			return;
 		}
 
+		if (isOffline) {
+			setError("You are offline. Reconnect to verify your email.");
+			return;
+		}
+
 		setIsSubmitting(true);
 		setError("");
 
@@ -107,6 +129,10 @@ const EmailGateModal = ({
 				setError(result.error || "Something went wrong. Please try again.");
 			}
 		} catch (submitError) {
+			if (typeof navigator !== "undefined" && navigator.onLine === false) {
+				setError("You are offline. Reconnect to verify your email.");
+				return;
+			}
 			if (
 				submitError instanceof Error &&
 				(submitError.name === "TimeoutError" ||
@@ -234,12 +260,17 @@ const EmailGateModal = ({
 					</div>
 
 					{error && <p className="text-sm text-destructive">{error}</p>}
+					{isOffline && (
+						<p className="text-xs text-amber-700 dark:text-amber-300">
+							You are offline right now. Email verification needs a connection.
+						</p>
+					)}
 
 					<div className="flex flex-col gap-2">
 						<Button
 							type="submit"
 							className="w-full"
-							disabled={isSubmitting || !consent}
+							disabled={isSubmitting || !consent || isOffline}
 						>
 							{isSubmitting ? "Verifying..." : "Continue to Events"}
 						</Button>

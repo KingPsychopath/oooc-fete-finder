@@ -122,6 +122,26 @@ const withPWA = require("next-pwa")({
 			method: "GET",
 		},
 		{
+			urlPattern: /\/api\/admin\/.*$/i,
+			handler: "NetworkOnly",
+			method: "GET",
+		},
+		{
+			urlPattern: /\/api\/cron\/cleanup-admin-sessions\/?$/i,
+			handler: "NetworkOnly",
+			method: "GET",
+		},
+		{
+			urlPattern: /\/api\/revalidate\/deploy\/?$/i,
+			handler: "NetworkOnly",
+			method: "GET",
+		},
+		{
+			urlPattern: /\/api\/og-upload\/?$/i,
+			handler: "NetworkOnly",
+			method: "GET",
+		},
+		{
 			urlPattern: /\/api\/.*$/i,
 			handler: "NetworkFirst",
 			method: "GET",

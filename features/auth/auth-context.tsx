@@ -8,10 +8,20 @@ import React, {
 	useState,
 } from "react";
 
+type AuthMode = "signed-out" | "live" | "offline-grace";
+
+type OfflineGraceState = {
+	email: string;
+	expiresAt: number;
+};
+
 type AuthContextType = {
 	isAuthenticated: boolean;
 	isAdminAuthenticated: boolean;
 	isAuthResolved: boolean;
+	isOnline: boolean;
+	authMode: AuthMode;
+	offlineGraceExpiresAt: number | null;
 	userEmail: string | null;
 	refreshSession: () => Promise<void>;
 	authenticate: (email: string) => void;
@@ -24,11 +34,16 @@ type AuthProviderProps = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const OFFLINE_GRACE_STORAGE_KEY = "oooc_offline_auth_grace_v1";
+const OFFLINE_GRACE_WINDOW_MS = 72 * 60 * 60 * 1000;
 
 const defaultAuthContext: AuthContextType = {
 	isAuthenticated: false,
 	isAdminAuthenticated: false,
 	isAuthResolved: true,
+	isOnline: true,
+	authMode: "signed-out",
+	offlineGraceExpiresAt: null,
 	userEmail: null,
 	refreshSession: async () => {},
 	authenticate: () => {},
@@ -40,11 +55,93 @@ const isValidEmail = (email: string): boolean => {
 	return emailRegex.test(email);
 };
 
+const readOfflineGraceState = (): OfflineGraceState | null => {
+	if (typeof window === "undefined") return null;
+	try {
+		const raw = window.localStorage.getItem(OFFLINE_GRACE_STORAGE_KEY);
+		if (!raw) return null;
+		const parsed = JSON.parse(raw) as Partial<OfflineGraceState>;
+		if (
+			typeof parsed.email !== "string" ||
+			typeof parsed.expiresAt !== "number" ||
+			parsed.email.trim().length === 0
+		) {
+			return null;
+		}
+		return {
+			email: parsed.email.trim().toLowerCase(),
+			expiresAt: parsed.expiresAt,
+		};
+	} catch {
+		return null;
+	}
+};
+
+const writeOfflineGraceState = (email: string, expiresAt: number): void => {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(
+		OFFLINE_GRACE_STORAGE_KEY,
+		JSON.stringify({
+			email: email.trim().toLowerCase(),
+			expiresAt,
+		}),
+	);
+};
+
+const clearOfflineGraceState = (): void => {
+	if (typeof window === "undefined") return;
+	window.localStorage.removeItem(OFFLINE_GRACE_STORAGE_KEY);
+};
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 	const [userEmail, setUserEmail] = useState<string | null>(null);
 	const [isAuthResolved, setIsAuthResolved] = useState(false);
+	const [isOnline, setIsOnline] = useState(true);
+	const [authMode, setAuthMode] = useState<AuthMode>("signed-out");
+	const [offlineGraceExpiresAt, setOfflineGraceExpiresAt] = useState<
+		number | null
+	>(null);
+
+	const setSignedOutState = useCallback(() => {
+		setIsAuthenticated(false);
+		setIsAdminAuthenticated(false);
+		setUserEmail(null);
+		setAuthMode("signed-out");
+		setOfflineGraceExpiresAt(null);
+	}, []);
+
+	const setLiveAuthenticatedState = useCallback(
+		(email: string, isAdmin: boolean) => {
+			const normalizedEmail = email.trim().toLowerCase();
+			const expiresAt = Date.now() + OFFLINE_GRACE_WINDOW_MS;
+			setIsAuthenticated(true);
+			setIsAdminAuthenticated(isAdmin);
+			setUserEmail(normalizedEmail);
+			setAuthMode("live");
+			setOfflineGraceExpiresAt(expiresAt);
+			writeOfflineGraceState(normalizedEmail, expiresAt);
+		},
+		[],
+	);
+
+	const tryApplyOfflineGraceState = useCallback((): boolean => {
+		const graceState = readOfflineGraceState();
+		if (!graceState) return false;
+
+		if (graceState.expiresAt <= Date.now()) {
+			clearOfflineGraceState();
+			return false;
+		}
+
+		setIsAuthenticated(true);
+		setIsAdminAuthenticated(false);
+		setUserEmail(graceState.email);
+		setAuthMode("offline-grace");
+		setOfflineGraceExpiresAt(graceState.expiresAt);
+		return true;
+	}, []);
 
 	const refreshSession = useCallback(async () => {
 		try {
@@ -63,30 +160,65 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 				email: string | null;
 			};
 
-			setIsAuthenticated(payload.success && payload.isAuthenticated === true);
-			setIsAdminAuthenticated(
-				payload.success && payload.isAdminAuthenticated === true,
-			);
-			setUserEmail(payload.success ? payload.email : null);
+			const hasLiveAuth =
+				payload.success &&
+				payload.isAuthenticated === true &&
+				typeof payload.email === "string" &&
+				payload.email.trim().length > 0;
+
+			if (hasLiveAuth) {
+				setLiveAuthenticatedState(
+					payload.email as string,
+					payload.success && payload.isAdminAuthenticated === true,
+				);
+			} else {
+				clearOfflineGraceState();
+				setSignedOutState();
+			}
 		} catch {
-			setIsAuthenticated(false);
-			setIsAdminAuthenticated(false);
-			setUserEmail(null);
+			const canUseOfflineGrace =
+				typeof navigator !== "undefined" &&
+				navigator.onLine === false &&
+				tryApplyOfflineGraceState();
+			if (!canUseOfflineGrace) {
+				setSignedOutState();
+			}
 		} finally {
 			setIsAuthResolved(true);
 		}
-	}, []);
+	}, [setLiveAuthenticatedState, setSignedOutState, tryApplyOfflineGraceState]);
 
 	useEffect(() => {
 		void refreshSession();
+	}, [refreshSession]);
+
+	useEffect(() => {
+		if (typeof navigator === "undefined") return;
+		setIsOnline(navigator.onLine);
+
+		const handleOnline = () => {
+			setIsOnline(true);
+			void refreshSession();
+		};
+
+		const handleOffline = () => {
+			setIsOnline(false);
+		};
+
+		window.addEventListener("online", handleOnline);
+		window.addEventListener("offline", handleOffline);
+
+		return () => {
+			window.removeEventListener("online", handleOnline);
+			window.removeEventListener("offline", handleOffline);
+		};
 	}, [refreshSession]);
 
 	const authenticate = (email: string) => {
 		if (!isValidEmail(email)) {
 			return;
 		}
-		setUserEmail(email.toLowerCase().trim());
-		setIsAuthenticated(true);
+		setLiveAuthenticatedState(email, false);
 		setIsAuthResolved(true);
 	};
 
@@ -96,9 +228,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 				method: "DELETE",
 			});
 		} finally {
-			setUserEmail(null);
-			setIsAuthenticated(false);
-			setIsAdminAuthenticated(false);
+			clearOfflineGraceState();
+			setSignedOutState();
 			setIsAuthResolved(true);
 		}
 	};
@@ -109,6 +240,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 				isAuthenticated,
 				isAdminAuthenticated,
 				isAuthResolved,
+				isOnline,
+				authMode,
+				offlineGraceExpiresAt,
 				userEmail,
 				refreshSession,
 				authenticate,

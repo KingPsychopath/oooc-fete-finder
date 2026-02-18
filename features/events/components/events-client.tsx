@@ -14,7 +14,7 @@ import { useEventFilters } from "@/features/events/hooks/use-event-filters";
 import type { Event } from "@/features/events/types";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { EventsMapCard } from "@/features/maps/components/events-map-card";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 interface EventsClientProps {
 	initialEvents: Event[];
@@ -31,7 +31,28 @@ export function EventsClient({
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 	const [showEmailGate, setShowEmailGate] = useState(false);
 	const allEventsRef = useRef<HTMLDivElement>(null);
-	const { isAuthenticated, isAuthResolved, authenticate } = useAuth();
+	const {
+		isAuthenticated,
+		isAuthResolved,
+		isOnline,
+		authMode,
+		offlineGraceExpiresAt,
+		authenticate,
+	} = useAuth();
+
+	const offlineGraceExpiryLabel = useMemo(() => {
+		if (offlineGraceExpiresAt == null) return null;
+		try {
+			return new Intl.DateTimeFormat(undefined, {
+				month: "short",
+				day: "numeric",
+				hour: "numeric",
+				minute: "2-digit",
+			}).format(new Date(offlineGraceExpiresAt));
+		} catch {
+			return null;
+		}
+	}, [offlineGraceExpiresAt]);
 
 	const requireAuth = useCallback(() => {
 		if (!isAuthenticated) {
@@ -118,6 +139,30 @@ export function EventsClient({
 					/>
 				</AuthGate>
 			</div>
+
+			{authMode === "offline-grace" && (
+				<div className="mb-6 rounded-md border border-amber-300/70 bg-amber-50/85 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-200">
+					<p className="text-[11px] uppercase tracking-[0.14em] text-amber-800/85 dark:text-amber-200/85">
+						Offline Access
+					</p>
+					<p className="mt-1 leading-relaxed">
+						You are using temporary offline access for filters and search
+						{offlineGraceExpiryLabel ? ` until ${offlineGraceExpiryLabel}` : ""}
+						. Reconnect to refresh your session.
+					</p>
+				</div>
+			)}
+
+			{isAuthResolved && !isAuthenticated && !isOnline && (
+				<div className="mb-6 rounded-md border border-border/70 bg-background/75 px-4 py-3 text-sm text-muted-foreground">
+					<p className="text-[11px] uppercase tracking-[0.14em] text-foreground/75">
+						Offline & Signed Out
+					</p>
+					<p className="mt-1 leading-relaxed">
+						Reconnect to unlock filters and search.
+					</p>
+				</div>
+			)}
 
 			<FeaturedEvents
 				events={filteredEvents}
