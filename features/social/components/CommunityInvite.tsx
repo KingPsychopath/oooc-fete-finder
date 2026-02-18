@@ -2,7 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
+import { LAYERS } from "@/lib/ui/layers";
 import { MessageCircle, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { COMMUNITY_INVITE_CONFIG } from "../config";
@@ -18,6 +20,7 @@ export function CommunityInvite({
 	className = "",
 }: CommunityInviteProps = {}) {
 	const [isAnimating, setIsAnimating] = useState(false);
+	const hasActiveOverlay = useHasActiveBodyOverlay();
 	const { shouldShow, markChatClicked, markDismissed } =
 		useCommunityInviteStorage({
 			delayAfterChatClick,
@@ -29,7 +32,7 @@ export function CommunityInvite({
 		initiallyVisible: true,
 	});
 
-	const shouldBeVisible = isInScrollArea && shouldShow;
+	const shouldBeVisible = isInScrollArea && shouldShow && !hasActiveOverlay;
 
 	useEffect(() => {
 		if (shouldBeVisible) {
@@ -61,15 +64,13 @@ export function CommunityInvite({
 
 	if (!shouldShow) return null;
 
-	const { UI, CONTENT } = COMMUNITY_INVITE_CONFIG;
+	const { CONTENT } = COMMUNITY_INVITE_CONFIG;
 
 	return (
 		<div
-			className={`fixed pointer-events-none ${className}`}
+			className={`fixed bottom-24 right-5 pointer-events-none lg:bottom-5 ${className}`}
 			style={{
-				bottom: UI.EDGE_OFFSET,
-				right: UI.EDGE_OFFSET,
-				zIndex: UI.Z_INDEX,
+				zIndex: LAYERS.FLOATING_PROMPT,
 			}}
 			role="complementary"
 			aria-label="Community invitation"

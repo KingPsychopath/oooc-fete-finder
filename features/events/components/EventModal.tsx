@@ -1,7 +1,5 @@
 "use client";
 
-import { ShareableImageGenerator } from "@/features/events/components/ShareableImageGenerator";
-import type { ShareImageFormat } from "@/features/events/components/ShareableImageGenerator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,13 +9,9 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MapPreferenceSettings } from "@/features/maps/components/map-preference-settings";
-import { MapSelectionModal } from "@/features/maps/components/map-selection-modal";
-import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
-import type { MapProvider } from "@/features/maps/types";
-import { openLocationInMaps } from "@/features/maps/utils/map-launcher";
-import { useOutsideClick } from "@/hooks/useOutsideClick";
 import { addToCalendar } from "@/features/events/calendar-utils";
+import { ShareableImageGenerator } from "@/features/events/components/ShareableImageGenerator";
+import type { ShareImageFormat } from "@/features/events/components/ShareableImageGenerator";
 import {
 	type Event,
 	MUSIC_GENRES,
@@ -25,6 +19,17 @@ import {
 	formatDayWithDate,
 	formatPrice,
 } from "@/features/events/types";
+import { MapPreferenceSettings } from "@/features/maps/components/map-preference-settings";
+import { MapSelectionModal } from "@/features/maps/components/map-selection-modal";
+import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
+import type { MapProvider } from "@/features/maps/types";
+import { openLocationInMaps } from "@/features/maps/utils/map-launcher";
+import { useOutsideClick } from "@/hooks/useOutsideClick";
+import { LAYERS } from "@/lib/ui/layers";
+import {
+	OVERLAY_BODY_ATTRIBUTE,
+	setBodyOverlayAttribute,
+} from "@/lib/ui/overlay-state";
 import {
 	Building2,
 	Calendar,
@@ -58,7 +63,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 	afterparty:
 		"bg-blue-100 text-blue-800 dark:bg-blue-500/18 dark:text-blue-200 dark:border dark:border-blue-400/35",
 	club: "bg-pink-100 text-pink-800 dark:bg-pink-500/18 dark:text-pink-200 dark:border dark:border-pink-400/35",
-	cruise: "bg-cyan-100 text-cyan-800 dark:bg-cyan-500/18 dark:text-cyan-200 dark:border dark:border-cyan-400/35",
+	cruise:
+		"bg-cyan-100 text-cyan-800 dark:bg-cyan-500/18 dark:text-cyan-200 dark:border dark:border-cyan-400/35",
 	outdoor:
 		"bg-emerald-100 text-emerald-800 dark:bg-emerald-500/18 dark:text-emerald-200 dark:border dark:border-emerald-400/35",
 	cultural:
@@ -90,6 +96,14 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 			setShareError(null);
 			setPendingLocationData(null);
 		}
+	}, [isOpen]);
+
+	useEffect(() => {
+		setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.EVENT_MODAL, isOpen);
+
+		return () => {
+			setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.EVENT_MODAL, false);
+		};
 	}, [isOpen]);
 
 	if (!isOpen || !event) return null;
@@ -136,11 +150,15 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		}
 	};
 
-	const allLinks = event.links && event.links.length > 0 ? event.links : [event.link];
+	const allLinks =
+		event.links && event.links.length > 0 ? event.links : [event.link];
 	const primaryLink = allLinks[0];
 	const secondaryLinks = allLinks.slice(1);
 	const visibleGenres = event.genre?.slice(0, 4) || [];
-	const extraGenreCount = Math.max(0, (event.genre?.length || 0) - visibleGenres.length);
+	const extraGenreCount = Math.max(
+		0,
+		(event.genre?.length || 0) - visibleGenres.length,
+	);
 
 	const getGenreColor = (genre: string) => {
 		const genreInfo = MUSIC_GENRES.find((g) => g.key === genre);
@@ -171,29 +189,32 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 
 	const hasTime = Boolean(event.time && event.time !== "TBC");
 	const hasEndTime = Boolean(event.endTime && event.endTime !== "TBC");
-	const timeRange =
-		hasTime ?
-			hasEndTime ? `${event.time} - ${event.endTime}`
+	const timeRange = hasTime
+		? hasEndTime
+			? `${event.time} - ${event.endTime}`
 			: (event.time ?? "TBC")
 		: "TBC";
 	const venueTypeLabel =
-		event.venueTypes && event.venueTypes.length > 0 ?
-			event.venueTypes
-				.map((vt) => VENUE_TYPES.find((v) => v.key === vt)?.label)
-				.filter(Boolean)
-				.join(" & ")
-		: event.indoor ?
-			"Indoor"
-		: 	"Outdoor";
+		event.venueTypes && event.venueTypes.length > 0
+			? event.venueTypes
+					.map((vt) => VENUE_TYPES.find((v) => v.key === vt)?.label)
+					.filter(Boolean)
+					.join(" & ")
+			: event.indoor
+				? "Indoor"
+				: "Outdoor";
 	const locationLabel =
-		event.arrondissement === "unknown" ?
-			"Location TBC"
-		: 	`${event.arrondissement}e Arrondissement`;
+		event.arrondissement === "unknown"
+			? "Location TBC"
+			: `${event.arrondissement}e Arrondissement`;
 	const priceLabel = formatPrice(event.price);
 	const ageLabel = event.age || "All ages";
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-2 backdrop-blur-[4px] sm:p-4">
+		<div
+			className="fixed inset-0 flex items-center justify-center bg-black/70 p-2 backdrop-blur-[4px] sm:p-4"
+			style={{ zIndex: LAYERS.OVERLAY }}
+		>
 			<Card
 				ref={modalRef}
 				className="max-h-[94vh] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border border-border/80 bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))]"
@@ -273,7 +294,9 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								<Clock className="h-3.5 w-3.5" />
 								<span>Time</span>
 							</p>
-							<p className="mt-0.5 text-[13px] font-medium sm:text-sm">{timeRange}</p>
+							<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
+								{timeRange}
+							</p>
 						</div>
 						<div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
 							<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
@@ -282,9 +305,9 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							</p>
 							<p
 								className={`mt-0.5 text-[13px] font-medium sm:text-sm ${
-									priceLabel === "Free" ?
-										"text-green-600 dark:text-green-400"
-									:	"text-foreground"
+									priceLabel === "Free"
+										? "text-green-600 dark:text-green-400"
+										: "text-foreground"
 								}`}
 							>
 								{priceLabel}
@@ -295,14 +318,18 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								<User className="h-3.5 w-3.5" />
 								<span>Age</span>
 							</p>
-							<p className="mt-0.5 text-[13px] font-medium sm:text-sm">{ageLabel}</p>
+							<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
+								{ageLabel}
+							</p>
 						</div>
 						<div className="col-span-2 rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
 							<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
 								<Building2 className="h-3.5 w-3.5" />
 								<span>Venue Type</span>
 							</p>
-							<p className="mt-0.5 text-[13px] font-medium sm:text-sm">{venueTypeLabel}</p>
+							<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
+								{venueTypeLabel}
+							</p>
 						</div>
 						<div className="col-span-2 rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
 							<div className="flex items-start justify-between gap-2">
@@ -379,9 +406,9 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							}`}
 						/>
 						<span>
-							{event.verified ?
-								"Verified event"
-							: 	"Unverified - details may change"}
+							{event.verified
+								? "Verified event"
+								: "Unverified - details may change"}
 						</span>
 					</div>
 
@@ -462,7 +489,6 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								))}
 							</div>
 						)}
-
 					</div>
 
 					<div className="rounded-xl border border-border/70 bg-muted/35 p-2.5 text-[11px] text-muted-foreground dark:bg-white/[0.03] sm:p-3 sm:text-xs">

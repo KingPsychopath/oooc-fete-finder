@@ -1,6 +1,8 @@
 "use client";
 
+import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
+import { LAYERS } from "@/lib/ui/layers";
 import { Coffee } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -78,6 +80,7 @@ function isPromptAllowed(now = Date.now()): boolean {
 export function SupportCoffeePrompt() {
 	const [isDelayComplete, setIsDelayComplete] = useState(false);
 	const [isAllowed, setIsAllowed] = useState(false);
+	const hasActiveOverlay = useHasActiveBodyOverlay();
 	const { isVisible: isEngagedByScroll } = useScrollVisibility({
 		threshold: 8,
 		mode: "show-after",
@@ -112,12 +115,20 @@ export function SupportCoffeePrompt() {
 		setIsAllowed(false);
 	}, []);
 
-	if (!isAllowed || !isDelayComplete || !isEngagedByScroll) {
+	if (
+		!isAllowed ||
+		!isDelayComplete ||
+		!isEngagedByScroll ||
+		hasActiveOverlay
+	) {
 		return null;
 	}
 
 	return (
-		<div className="fixed bottom-5 left-5 z-40 max-w-[min(22rem,calc(100vw-2.5rem))]">
+		<div
+			className="fixed bottom-5 left-5 max-w-[min(22rem,calc(100vw-2.5rem))]"
+			style={{ zIndex: LAYERS.FLOATING_PROMPT }}
+		>
 			<div className="rounded-lg border border-border/65 bg-card/95 px-3.5 py-3 text-xs shadow-lg backdrop-blur-md">
 				<p className="text-muted-foreground">
 					Enjoying Fete Finder? If it helped, you can support updates with a

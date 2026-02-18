@@ -1,6 +1,5 @@
 "use client";
 
-import { FilterButton } from "@/features/events/components/FilterButton";
 import {
 	Accordion,
 	AccordionContent,
@@ -19,7 +18,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useOutsideClick } from "@/hooks/useOutsideClick";
+import { FilterButton } from "@/features/events/components/FilterButton";
 import {
 	AGE_RANGE_CONFIG,
 	type AgeRange,
@@ -36,14 +35,20 @@ import {
 	formatAgeRange,
 	formatPriceRange,
 } from "@/features/events/types";
+import { useOutsideClick } from "@/hooks/useOutsideClick";
+import { LAYERS } from "@/lib/ui/layers";
+import {
+	OVERLAY_BODY_ATTRIBUTE,
+	setBodyOverlayAttribute,
+} from "@/lib/ui/overlay-state";
 import {
 	Building2,
 	CalendarDays,
 	ChevronDown,
+	Euro,
 	Filter,
 	Info,
 	Moon,
-	Euro,
 	Star,
 	Sun,
 	Trees,
@@ -51,7 +56,7 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type FilterPanelProps = {
 	selectedDate: string | null;
@@ -223,6 +228,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			onClose();
 		}
 	});
+
+	useEffect(() => {
+		setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.FILTER_PANEL, isOpen);
+
+		return () => {
+			setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.FILTER_PANEL, false);
+		};
+	}, [isOpen]);
 
 	const formatDateLabel = useCallback((isoDate: string) => {
 		const parsed = new Date(`${isoDate}T12:00:00`);
@@ -961,7 +974,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	}
 
 	return (
-		<div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] lg:static lg:bg-transparent lg:z-auto">
+		<div
+			className="fixed inset-0 bg-black/45 backdrop-blur-[2px] lg:static lg:bg-transparent lg:z-auto"
+			style={{ zIndex: LAYERS.OVERLAY }}
+		>
 			<div
 				ref={panelRef}
 				className="absolute right-0 top-0 h-full w-full max-w-sm border-l border-border/70 bg-background/97 lg:static lg:max-w-none lg:border-l-0 lg:h-fit"

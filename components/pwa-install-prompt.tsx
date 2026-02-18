@@ -8,7 +8,16 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Download, HousePlus, Share2, Smartphone, Wifi, X, Zap } from "lucide-react";
+import { LAYERS } from "@/lib/ui/layers";
+import {
+	Download,
+	HousePlus,
+	Share2,
+	Smartphone,
+	Wifi,
+	X,
+	Zap,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -34,7 +43,9 @@ const readDismissalData = (): InstallDismissalData => {
 		const parsed = JSON.parse(raw) as Partial<InstallDismissalData>;
 		return {
 			count: Number.isFinite(parsed.count) ? Number(parsed.count) : 0,
-			timestamp: Number.isFinite(parsed.timestamp) ? Number(parsed.timestamp) : 0,
+			timestamp: Number.isFinite(parsed.timestamp)
+				? Number(parsed.timestamp)
+				: 0,
 		};
 	} catch {
 		return DEFAULT_DISMISSAL_DATA;
@@ -149,9 +160,10 @@ export function PWAInstallPrompt() {
 
 	return (
 		<div
-			className="pointer-events-none fixed inset-x-0 z-50 px-4 sm:px-6"
+			className="pointer-events-none fixed inset-x-0 px-4 sm:px-6"
 			style={{
 				bottom: "max(1rem, env(safe-area-inset-bottom))",
+				zIndex: LAYERS.FLOATING_PROMPT,
 			}}
 		>
 			<div className="pointer-events-auto mx-auto w-full max-w-md animate-in slide-in-from-bottom-4 fade-in duration-500">
@@ -220,7 +232,10 @@ export function PWAInstallPrompt() {
 												1
 											</span>
 											<span>
-												Tap <span className="font-medium text-foreground">Share</span>{" "}
+												Tap{" "}
+												<span className="font-medium text-foreground">
+													Share
+												</span>{" "}
 												<Share2 className="mb-0.5 ml-1 inline h-3 w-3" />
 											</span>
 										</li>

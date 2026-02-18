@@ -1,5 +1,6 @@
 "use client";
 
+import { LAYERS } from "@/lib/ui/layers";
 import { useEffect, useState } from "react";
 
 interface OfflineIndicatorProps {
@@ -45,7 +46,8 @@ export function OfflineIndicator({ className }: OfflineIndicatorProps) {
 
 	return (
 		<div
-			className={`fixed bottom-4 right-4 z-[9999] animate-in slide-in-from-bottom-2 duration-300 ${className || ""}`}
+			className={`fixed bottom-4 right-4 animate-in slide-in-from-bottom-2 duration-300 ${className || ""}`}
+			style={{ zIndex: LAYERS.SYSTEM_TOAST }}
 		>
 			{isOnline ? (
 				<div className="bg-green-500/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-medium shadow-lg flex items-center gap-1.5">

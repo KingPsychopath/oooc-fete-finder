@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
+import { LAYERS } from "@/lib/ui/layers";
 import { cn } from "@/lib/utils";
 import { ChevronUp } from "lucide-react";
 
@@ -32,13 +33,14 @@ export const ScrollToTopButton = ({
 		<Button
 			onClick={scrollToTop}
 			className={cn(
-				"fixed bottom-4 right-[7.5rem] lg:right-4 z-[80] size-10 rounded-full border border-border/80 bg-background/52 text-foreground/85 shadow-lg backdrop-blur-sm hover:bg-accent transition-all duration-500 ease-out",
+				"fixed bottom-4 right-[7.5rem] lg:right-4 size-10 rounded-full border border-border/80 bg-background/52 text-foreground/85 shadow-lg backdrop-blur-sm hover:bg-accent transition-all duration-500 ease-out",
 				isVisible
 					? "opacity-100 translate-y-0 pointer-events-auto"
 					: "opacity-0 translate-y-4 pointer-events-none",
 				className,
 			)}
 			style={{
+				zIndex: LAYERS.FLOATING_CONTROL,
 				transitionTimingFunction: isVisible
 					? "cubic-bezier(0.16, 1, 0.3, 1)" // Smooth ease-out for entry
 					: "cubic-bezier(0.7, 0, 0.84, 0)", // Smooth ease-in for exit

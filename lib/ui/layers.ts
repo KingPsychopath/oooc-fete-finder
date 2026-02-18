@@ -1,0 +1,6 @@
+export const LAYERS = {
+	FLOATING_CONTROL: 40,
+	FLOATING_PROMPT: 60,
+	OVERLAY: 90,
+	SYSTEM_TOAST: 100,
+} as const;
