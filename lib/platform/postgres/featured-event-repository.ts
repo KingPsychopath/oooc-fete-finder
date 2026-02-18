@@ -54,6 +54,8 @@ export interface FeaturedEventRepositorySession {
 			effectiveEndAt: string;
 		}>,
 	): Promise<void>;
+	clearScheduledEntries(): Promise<number>;
+	clearHistoryEntries(): Promise<number>;
 	clearAllEntries(): Promise<number>;
 }
 
@@ -70,6 +72,8 @@ const hasRequiredRepositoryMethods = (
 		typeof candidate.markCompletedEntries === "function" &&
 		typeof candidate.updateComputedWindows === "function" &&
 		typeof candidate.reviveZeroDurationCompletedEntries === "function" &&
+		typeof candidate.clearScheduledEntries === "function" &&
+		typeof candidate.clearHistoryEntries === "function" &&
 		typeof candidate.clearAllEntries === "function" &&
 		typeof candidate.withScheduleLock === "function"
 	);
@@ -272,6 +276,28 @@ const clearAllEntriesWithClient = async (
 	return rows.length;
 };
 
+const clearScheduledEntriesWithClient = async (
+	sqlClient: FeaturedRepositorySqlClient,
+): Promise<number> => {
+	const rows = await sqlClient<{ id: string }[]>`
+		DELETE FROM app_featured_event_schedule
+		WHERE status = 'scheduled'
+		RETURNING id
+	`;
+	return rows.length;
+};
+
+const clearHistoryEntriesWithClient = async (
+	sqlClient: FeaturedRepositorySqlClient,
+): Promise<number> => {
+	const rows = await sqlClient<{ id: string }[]>`
+		DELETE FROM app_featured_event_schedule
+		WHERE status IN ('completed', 'cancelled')
+		RETURNING id
+	`;
+	return rows.length;
+};
+
 const createRepositorySession = (
 	sqlClient: FeaturedRepositorySqlClient,
 ): FeaturedEventRepositorySession => ({
@@ -286,6 +312,8 @@ const createRepositorySession = (
 		reviveZeroDurationCompletedEntriesWithClient(sqlClient),
 	updateComputedWindows: (windows) =>
 		updateComputedWindowsWithClient(sqlClient, windows),
+	clearScheduledEntries: () => clearScheduledEntriesWithClient(sqlClient),
+	clearHistoryEntries: () => clearHistoryEntriesWithClient(sqlClient),
 	clearAllEntries: () => clearAllEntriesWithClient(sqlClient),
 });
 
@@ -389,6 +417,16 @@ export class FeaturedEventRepository {
 	async clearAllEntries(): Promise<number> {
 		await this.ready();
 		return clearAllEntriesWithClient(this.sql);
+	}
+
+	async clearScheduledEntries(): Promise<number> {
+		await this.ready();
+		return clearScheduledEntriesWithClient(this.sql);
+	}
+
+	async clearHistoryEntries(): Promise<number> {
+		await this.ready();
+		return clearHistoryEntriesWithClient(this.sql);
 	}
 
 	async withScheduleLock<T>(

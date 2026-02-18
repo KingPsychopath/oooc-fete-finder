@@ -9,6 +9,8 @@ import { toParisDateTimeLocalInput } from "./paris-time";
 import {
 	buildFeaturedQueueItems,
 	cancelFeaturedEntry,
+	clearFeaturedHistoryOnly as clearFeaturedHistoryOnlyService,
+	clearFeaturedQueueOnly as clearFeaturedQueueOnlyService,
 	clearFeaturedQueueHistory as clearFeaturedQueueHistoryService,
 	formatFeaturedDateTime,
 	getFeatureSlotConfig,
@@ -231,6 +233,52 @@ export async function clearFeaturedQueueHistory(): Promise<{
 			success: false,
 			message: "Failed to clear featured queue/history",
 			error: error instanceof Error ? error.message : "Unknown clear error",
+		};
+	}
+}
+
+export async function clearFeaturedQueue(): Promise<{
+	success: boolean;
+	message: string;
+	error?: string;
+}> {
+	try {
+		await assertAdmin();
+		const clearedCount = await clearFeaturedQueueOnlyService();
+		revalidateEventsPaths(["/", "/feature-event"]);
+		return {
+			success: true,
+			message: `Cleared ${clearedCount} scheduled queue entr${clearedCount === 1 ? "y" : "ies"}`,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Failed to clear featured queue",
+			error:
+				error instanceof Error ? error.message : "Unknown clear queue error",
+		};
+	}
+}
+
+export async function clearFeaturedHistory(): Promise<{
+	success: boolean;
+	message: string;
+	error?: string;
+}> {
+	try {
+		await assertAdmin();
+		const clearedCount = await clearFeaturedHistoryOnlyService();
+		revalidateEventsPaths(["/", "/feature-event"]);
+		return {
+			success: true,
+			message: `Cleared ${clearedCount} history entr${clearedCount === 1 ? "y" : "ies"}`,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Failed to clear featured history",
+			error:
+				error instanceof Error ? error.message : "Unknown clear history error",
 		};
 	}
 }

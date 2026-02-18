@@ -199,6 +199,22 @@ export const clearFeaturedQueueHistory = async (): Promise<number> => {
 	});
 };
 
+export const clearFeaturedQueueOnly = async (): Promise<number> => {
+	const repository = getRepositoryOrThrow();
+	return repository.withScheduleLock(async (session) => {
+		const clearedCount = await session.clearScheduledEntries();
+		await recomputeFeaturedQueueWithSession(session);
+		return clearedCount;
+	});
+};
+
+export const clearFeaturedHistoryOnly = async (): Promise<number> => {
+	const repository = getRepositoryOrThrow();
+	return repository.withScheduleLock(async (session) => {
+		return session.clearHistoryEntries();
+	});
+};
+
 export const getFeaturedProjection = async (
 	now: Date = new Date(),
 ): Promise<FeaturedProjection> => {

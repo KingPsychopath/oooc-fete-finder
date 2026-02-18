@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
 	cancelFeaturedSchedule,
-	clearFeaturedQueueHistory,
+	clearFeaturedHistory,
+	clearFeaturedQueue,
 	listFeaturedQueue,
 	rescheduleFeaturedEvent,
 	scheduleFeaturedEvent,
@@ -141,6 +142,26 @@ export const FeaturedEventsManagerCard = ({
 		[payload?.events, selectedEventKey],
 	);
 
+	const activeCount = payload?.activeCount ?? 0;
+	const maxConcurrent = payload?.slotConfig?.maxConcurrent ?? 3;
+	const queueRows = payload?.queue ?? [];
+	const scheduleTimezone = payload?.slotConfig?.timezone || "Europe/Paris";
+	const timezoneDisplayLabel = `${scheduleTimezone} (CET / GMT+1)`;
+	const upcomingCount = queueRows.filter(
+		(row) => row.state === "upcoming",
+	).length;
+	const recentEndedCount = queueRows.filter(
+		(row) => row.state === "recent-ended",
+	).length;
+	const scheduledCount = queueRows.filter(
+		(row) => row.status === "scheduled",
+	).length;
+	const historyCount = queueRows.filter(
+		(row) => row.status !== "scheduled",
+	).length;
+	const hasQueueRows = queueRows.length > 0;
+	const hasActiveSlots = activeCount > 0;
+
 	const withMutation = useCallback(
 		async (
 			task: () => Promise<{
@@ -207,29 +228,32 @@ export const FeaturedEventsManagerCard = ({
 		);
 	}, [durationHours, scheduleAt, selectedEventKey, withMutation]);
 
-	const handleClearQueueHistory = useCallback(async () => {
+	const handleClearQueue = useCallback(async () => {
+		if (hasActiveSlots) {
+			const firstConfirm = window.confirm(
+				"This will remove currently active featured slots. Continue?",
+			);
+			if (!firstConfirm) return;
+			const secondConfirm = window.confirm(
+				"Final confirmation: clear scheduled queue now?",
+			);
+			if (!secondConfirm) return;
+		} else {
+			const confirmed = window.confirm(
+				"Clear scheduled featured queue entries? Upcoming entries will be removed.",
+			);
+			if (!confirmed) return;
+		}
+		await withMutation(() => clearFeaturedQueue());
+	}, [hasActiveSlots, withMutation]);
+
+	const handleClearHistory = useCallback(async () => {
 		const confirmed = window.confirm(
-			"Clear all featured queue and history entries? This cannot be undone.",
+			"Clear featured history entries (completed/cancelled)? This cannot be undone.",
 		);
 		if (!confirmed) return;
-		await withMutation(() => clearFeaturedQueueHistory());
+		await withMutation(() => clearFeaturedHistory());
 	}, [withMutation]);
-
-	const activeCount = payload?.activeCount ?? 0;
-	const maxConcurrent = payload?.slotConfig?.maxConcurrent ?? 3;
-	const queueRows = payload?.queue ?? [];
-	const scheduleTimezone = payload?.slotConfig?.timezone || "Europe/Paris";
-	const timezoneDisplayLabel = `${scheduleTimezone} (CET / GMT+1)`;
-	const upcomingCount = queueRows.filter(
-		(row) => row.state === "upcoming",
-	).length;
-	const recentEndedCount = queueRows.filter(
-		(row) => row.state === "recent-ended",
-	).length;
-	const scheduledCount = queueRows.filter(
-		(row) => row.status === "scheduled",
-	).length;
-	const hasQueueRows = queueRows.length > 0;
 
 	return (
 		<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
@@ -258,32 +282,38 @@ export const FeaturedEventsManagerCard = ({
 						</Button>
 					</div>
 				</div>
-				<div className="grid gap-2 min-[420px]:grid-cols-2 xl:grid-cols-4">
+				<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
 					<div className="rounded-md border bg-background/60 px-2.5 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Active Slots
 						</p>
-						<p className="mt-0.5 text-base font-semibold">
+						<p className="mt-0.5 text-sm font-semibold tabular-nums">
 							{activeCount}/{maxConcurrent}
 						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 px-2.5 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Upcoming Queue
+							Upcoming
 						</p>
-						<p className="mt-0.5 text-base font-semibold">{upcomingCount}</p>
+						<p className="mt-0.5 text-sm font-semibold tabular-nums">
+							{upcomingCount}
+						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 px-2.5 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Recent Ended
 						</p>
-						<p className="mt-0.5 text-base font-semibold">{recentEndedCount}</p>
+						<p className="mt-0.5 text-sm font-semibold tabular-nums">
+							{recentEndedCount}
+						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 px-2.5 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Scheduled Total
+							Scheduled
 						</p>
-						<p className="mt-0.5 text-base font-semibold">{scheduledCount}</p>
+						<p className="mt-0.5 text-sm font-semibold tabular-nums">
+							{scheduledCount}
+						</p>
 					</div>
 				</div>
 			</CardHeader>
@@ -299,7 +329,7 @@ export const FeaturedEventsManagerCard = ({
 							above.
 						</p>
 					</div>
-					<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,280px)]">
+					<div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,280px)]">
 						<div className="space-y-2">
 							<Label htmlFor="featured-event-filter">Find event</Label>
 							<Input
@@ -366,45 +396,49 @@ export const FeaturedEventsManagerCard = ({
 								</p>
 							)}
 						</div>
-						<div className="space-y-3 rounded-md border bg-background/60 p-3">
-							<div className="space-y-2">
-								<Label htmlFor="featured-schedule-at">Schedule at</Label>
-								<Input
-									id="featured-schedule-at"
-									type="datetime-local"
-									value={scheduleAt}
-									onChange={(event) => setScheduleAt(event.target.value)}
-								/>
+						<div className="flex h-full flex-col rounded-md border bg-background/60 p-3">
+							<div className="space-y-3">
+								<div className="space-y-2">
+									<Label htmlFor="featured-schedule-at">Schedule at</Label>
+									<Input
+										id="featured-schedule-at"
+										type="datetime-local"
+										value={scheduleAt}
+										onChange={(event) => setScheduleAt(event.target.value)}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="featured-duration-hours">
+										Duration (hours)
+									</Label>
+									<Input
+										id="featured-duration-hours"
+										type="number"
+										min={1}
+										max={168}
+										value={durationHours}
+										onChange={(event) => setDurationHours(event.target.value)}
+									/>
+								</div>
 							</div>
-							<div className="space-y-2">
-								<Label htmlFor="featured-duration-hours">
-									Duration (hours)
-								</Label>
-								<Input
-									id="featured-duration-hours"
-									type="number"
-									min={1}
-									max={168}
-									value={durationHours}
-									onChange={(event) => setDurationHours(event.target.value)}
-								/>
-							</div>
-							<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-								<Button
-									type="button"
-									variant="outline"
-									onClick={() => void handleFeatureNow()}
-									disabled={isMutating || isLoading}
-								>
-									Feature now
-								</Button>
-								<Button
-									type="button"
-									onClick={() => void handleSchedule()}
-									disabled={isMutating || isLoading}
-								>
-									Schedule
-								</Button>
+							<div className="mt-auto pt-3">
+								<div className="grid grid-cols-2 gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => void handleFeatureNow()}
+										disabled={isMutating || isLoading}
+									>
+										Feature now
+									</Button>
+									<Button
+										type="button"
+										onClick={() => void handleSchedule()}
+										disabled={isMutating || isLoading}
+									>
+										Schedule
+									</Button>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -437,15 +471,24 @@ export const FeaturedEventsManagerCard = ({
 								type="button"
 								size="sm"
 								variant="destructive"
-								onClick={() => void handleClearQueueHistory()}
-								disabled={isMutating || isLoading || !hasQueueRows}
+								onClick={() => void handleClearQueue()}
+								disabled={isMutating || isLoading || scheduledCount === 0}
 							>
-								Clear queue/history
+								Clear Scheduled Queue
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant="destructive"
+								onClick={() => void handleClearHistory()}
+								disabled={isMutating || isLoading || historyCount === 0}
+							>
+								Clear History
 							</Button>
 						</div>
 					</div>
 					<div className="max-w-full overflow-auto rounded-md border">
-						<table className="min-w-[1080px] w-full text-xs">
+						<table className="min-w-[980px] w-full text-xs">
 							<thead className="bg-muted/40">
 								<tr>
 									<th className="px-3 py-2 text-left font-medium">Event</th>
@@ -473,36 +516,34 @@ export const FeaturedEventsManagerCard = ({
 											key={row.id}
 											className={`border-t align-top ${stateRowClassName(row.state)}`}
 										>
-											<td className="px-3 py-3">
+											<td className="px-2.5 py-2.5">
 												<div className="font-medium">{row.eventName}</div>
 												<div className="font-mono text-[11px] text-muted-foreground">
 													{row.eventKey}
 												</div>
 											</td>
-											<td className="px-3 py-3">
+											<td className="px-2.5 py-2.5">
 												<Badge variant={stateBadgeVariant(row.state)}>
 													{toStateLabel(row.state)}
 												</Badge>
 											</td>
-											<td className="px-3 py-3 font-mono text-[11px] tabular-nums">
+											<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums">
 												{row.queuePosition ? `#${row.queuePosition}` : "—"}
 											</td>
-											<td className="px-3 py-3 font-mono text-[11px] tabular-nums whitespace-nowrap">
+											<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums whitespace-nowrap">
 												{row.requestedStartAtParis}
 											</td>
-											<td className="px-3 py-3 font-mono text-[11px] tabular-nums whitespace-nowrap">
+											<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums whitespace-nowrap">
 												{row.effectiveStartAtParis}
 											</td>
-											<td className="px-3 py-3 font-mono text-[11px] tabular-nums whitespace-nowrap">
+											<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums whitespace-nowrap">
 												{row.effectiveEndAtParis}
 											</td>
-											<td className="px-3 py-3">
-												<div className="flex min-w-[220px] flex-col gap-2">
-													<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-														Reschedule
-													</p>
+											<td className="px-2.5 py-2.5">
+												<div className="flex min-w-[210px] flex-col gap-1.5">
 													<Input
 														type="datetime-local"
+														className="h-8 text-xs"
 														value={
 															rescheduleInputs[row.id] ??
 															row.requestedStartAtParisInput
@@ -515,11 +556,12 @@ export const FeaturedEventsManagerCard = ({
 														}
 														disabled={row.status !== "scheduled" || isMutating}
 													/>
-													<div className="flex gap-2">
+													<div className="flex gap-1.5">
 														<Button
 															type="button"
 															size="sm"
 															variant="outline"
+															className="h-8 px-2.5"
 															disabled={
 																row.status !== "scheduled" || isMutating
 															}
@@ -540,6 +582,7 @@ export const FeaturedEventsManagerCard = ({
 															type="button"
 															size="sm"
 															variant="destructive"
+															className="h-8 px-2.5"
 															disabled={
 																row.status !== "scheduled" || isMutating
 															}
