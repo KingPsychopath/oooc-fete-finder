@@ -175,7 +175,7 @@ All admin endpoints require valid admin auth.
 
 - `GET /api/cron/cleanup-admin-sessions` — removes admin session records that expired more than 7 days ago.
 - `GET /api/cron/cleanup-rate-limits` — removes stale auth verify limiter counters (24h grace).
-- `GET /api/cron/backup-event-store` — creates Postgres snapshots (event store + featured schedule) every 6 hours (retention: latest 30).
+- `GET /api/cron/backup-event-store` — creates Postgres snapshots (event store + featured schedule) daily at 04:20 UTC (retention: latest 30).
 
 All are secured with `CRON_SECRET` (Bearer token) and configured in `vercel.json`.
 

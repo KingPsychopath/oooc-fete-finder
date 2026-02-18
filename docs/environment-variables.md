@@ -45,7 +45,7 @@ No extra env vars are required. It relies on:
 
 Event + featured snapshot backup cron also uses:
 
-- `CRON_SECRET` for `/api/cron/backup-event-store` (every 6 hours, retains latest 30 snapshots)
+- `CRON_SECRET` for `/api/cron/backup-event-store` (daily at 04:20 UTC, retains latest 30 snapshots)
 
 ## Recommended setup (Postgres primary)
 

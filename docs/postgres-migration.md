@@ -84,7 +84,7 @@ Google Apps Script output is optional mirror-only behavior and can be removed la
 
 - Cron route: `GET /api/cron/backup-event-store`
 - Security: `Authorization: Bearer <CRON_SECRET>`
-- Default schedule (`vercel.json`): every 6 hours
+- Default schedule (`vercel.json`): daily at 04:20 UTC
 - Retention: latest 30 snapshots (older snapshots pruned automatically)
 
 ## 8. Rollback
