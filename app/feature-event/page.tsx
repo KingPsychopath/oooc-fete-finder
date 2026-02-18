@@ -80,7 +80,7 @@ export default function FeatureEventPage() {
 						No event yet? Why are you here.{" "}
 						<Link
 							href={`${basePath}/submit-event`}
-							className="text-foreground underline-offset-4 transition-colors hover:underline"
+							className="text-foreground underline underline-offset-4 transition-colors hover:text-foreground/80"
 						>
 							Submit yours here.
 						</Link>

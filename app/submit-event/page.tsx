@@ -38,7 +38,7 @@ export default async function SubmitEventPage() {
 						Already listed and want extra visibility? Why are you here.{" "}
 						<Link
 							href={`${basePath}/feature-event`}
-							className="text-foreground underline-offset-4 transition-colors hover:underline"
+							className="text-foreground underline underline-offset-4 transition-colors hover:text-foreground/80"
 						>
 							Promote yours here.
 						</Link>

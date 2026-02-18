@@ -66,7 +66,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							{submissionsEnabled ? (
 								<Link
 									href={`${basePath}/submit-event`}
-									className="mt-1 text-xs leading-tight text-muted-foreground transition-colors hover:text-foreground hover:underline sm:text-sm"
+									className="mt-1 text-xs leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
 									style={{ textWrap: "balance" }}
 								>
 									Hosting something special? Put it on the map with the
@@ -75,7 +75,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							) : (
 								<Link
 									href={`${basePath}/submit-event`}
-									className="mt-1 text-xs leading-tight text-muted-foreground transition-colors hover:text-foreground hover:underline sm:text-sm"
+									className="mt-1 text-xs leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
 									style={{ textWrap: "balance" }}
 								>
 									Hosting something special? Put it on the map with the
