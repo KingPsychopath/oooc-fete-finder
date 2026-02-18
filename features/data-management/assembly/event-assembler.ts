@@ -53,34 +53,6 @@ const determineEventType = (name: string, startTime: string): EventType => {
 };
 
 /**
- * Process featured column to extract featured status and timestamp
- */
-const processFeaturedColumn = (
-	featuredStr: string,
-	_eventName: string = "Unknown Event",
-	_rowIndex: number = 0,
-): { isFeatured: boolean; featuredAt?: string } => {
-	if (!featuredStr || featuredStr.trim() === "") {
-		return { isFeatured: false };
-	}
-
-	const cleaned = featuredStr.trim();
-
-	// Simple boolean check for now - can be expanded
-	const isFeatured =
-		cleaned.toLowerCase() === "true" ||
-		cleaned === "1" ||
-		cleaned.toLowerCase() === "yes" ||
-		cleaned.toLowerCase().includes("featured");
-
-	// If it looks like a timestamp, use it
-	const timestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[Z.]?/;
-	const featuredAt = timestampPattern.test(cleaned) ? cleaned : undefined;
-
-	return { isFeatured, featuredAt };
-};
-
-/**
  * Determine if an event should be considered "verified" based on data completeness
  */
 const determineVerificationStatus = (
@@ -166,12 +138,9 @@ export const assembleEvent = (csvRow: CSVEventRow, index: number): Event => {
 	// Determine event type
 	const type = determineEventType(csvRow.name, time);
 
-	// Process featured status
-	const { isFeatured, featuredAt } = processFeaturedColumn(
-		csvRow.featured,
-		csvRow.name,
-		index,
-	);
+	// Featured state is managed through the dedicated scheduler service.
+	const isFeatured = false;
+	const featuredAt = undefined;
 
 	// Process ticket links
 	const ticketLinks = BusinessLogicHelpers.processTicketLinks(

@@ -38,6 +38,7 @@ This file defines the rendering/auth/data contract for the app. Treat this as im
 - `getLiveEvents()` reads directly from `DataManager.getEventsData()` on each call.
 - The previous custom cache manager layer (`lib/cache/*`) has been removed.
 - Coordinate lookup persistence is KV-backed (`maps:locations:v1`) and warmed during admin writes.
+- Featured runtime overlay is projected from Postgres scheduler entries (`app_featured_event_schedule`) keyed by `eventKey`.
 
 2. Admin mutations must revalidate.
 - After writes, use Next.js built-ins (`revalidateTag`/`revalidatePath`) for affected public surfaces.
@@ -48,7 +49,12 @@ This file defines the rendering/auth/data contract for the app. Treat this as im
 - Google Sheets remains admin backup preview/import only (not live runtime source).
 - In Vercel preview/production runtime, KV provider is strict Postgres-only (no file/memory fallback).
 
-4. Avoid duplicate client fetches.
+4. Featured scheduling contract.
+- Canonical source: Postgres scheduler table (`app_featured_event_schedule`).
+- Admin control surface: dedicated Featured Events Manager in `/admin`.
+- Legacy sheet `Featured` values are non-canonical and rejected on save/import.
+
+5. Avoid duplicate client fetches.
 - If data can be provided by server props or centralized context, prefer that over per-component fetch-on-mount patterns.
 
 ## Performance Rules

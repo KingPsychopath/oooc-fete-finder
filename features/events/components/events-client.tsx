@@ -10,6 +10,7 @@ import EventStats from "@/features/events/components/EventStats";
 import FilterPanel from "@/features/events/components/FilterPanel";
 import SearchBar from "@/features/events/components/SearchBar";
 import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
+import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
 import type { Event } from "@/features/events/types";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
@@ -215,6 +216,30 @@ export function EventsClient({
 		});
 	}, []);
 
+	const spotlightEvents = useMemo(() => {
+		const alwaysFeatured = initialEvents.filter((event) =>
+			shouldDisplayFeaturedEvent(event),
+		);
+		const featuredKeys = new Set(alwaysFeatured.map((event) => event.eventKey));
+		const filteredRemainder = filteredEvents.filter(
+			(event) => !featuredKeys.has(event.eventKey),
+		);
+		return [...alwaysFeatured, ...filteredRemainder];
+	}, [filteredEvents, initialEvents]);
+
+	const allEventsOrdered = useMemo(() => {
+		const featuredMatches = filteredEvents.filter((event) =>
+			shouldDisplayFeaturedEvent(event),
+		);
+		const featuredEventKeys = new Set(
+			featuredMatches.map((event) => event.eventKey),
+		);
+		const regularMatches = filteredEvents.filter(
+			(event) => !featuredEventKeys.has(event.eventKey),
+		);
+		return [...featuredMatches, ...regularMatches];
+	}, [filteredEvents]);
+
 	return (
 		<>
 			<div className="mb-8">
@@ -257,7 +282,7 @@ export function EventsClient({
 			)}
 
 			<FeaturedEvents
-				events={filteredEvents}
+				events={spotlightEvents}
 				onEventClick={handleEventClick}
 				onScrollToAllEvents={scrollToAllEvents}
 			/>
@@ -317,7 +342,7 @@ export function EventsClient({
 
 			<AllEvents
 				ref={allEventsRef}
-				events={filteredEvents}
+				events={allEventsOrdered}
 				onEventClick={handleEventClick}
 				onFilterClickAction={toggleFilterPanel}
 				onAuthRequired={() => setShowEmailGate(true)}

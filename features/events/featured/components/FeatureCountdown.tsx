@@ -9,7 +9,6 @@
  * - Dynamic progress bars showing actual elapsed time
  * - Automatic status transitions (active → expires-soon → expired)
  * - Hydration-safe rendering with suppressHydrationWarning
- * - Future date detection and user warnings
  * - Uses centralized timestamp utilities (DRY)
  */
 
@@ -325,54 +324,6 @@ function SimpleEventCard({
 					/>
 				</div>
 			</div>
-
-			{/* Show future date correction warning */}
-			{(() => {
-				// Check if the featuredAt timestamp was originally a future date
-				// by comparing if the featuredAt is very close to currentTime (indicating auto-correction)
-				if (!event.featuredAt || !isValidTimestamp(event.featuredAt))
-					return null;
-
-				const featuredAtTime = new Date(event.featuredAt);
-				const timeDiff = Math.abs(
-					currentTime.getTime() - featuredAtTime.getTime(),
-				);
-
-				// If the featuredAt time is within 5 minutes of current time, it might be auto-corrected
-				// This is a heuristic - if featuring started very recently, it might have been a future date
-				const isLikelyAutoCorrected = timeDiff < 5 * 60 * 1000; // 5 minutes in milliseconds
-
-				return (
-					isLikelyAutoCorrected && (
-						<div
-							className={`text-xs mt-2 p-2 rounded border ${
-								isEditorial
-									? "bg-muted/50 border-border text-muted-foreground"
-									: "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"
-							}`}
-						>
-							<div className="flex items-start gap-1">
-								{!isEditorial && (
-									<span className="text-amber-600 dark:text-amber-400 flex-shrink-0">
-										⚠️
-									</span>
-								)}
-								<div>
-									<div className="font-medium">
-										Recent feature start detected
-									</div>
-									<div className="text-xs mt-0.5">
-										This event started featuring very recently. If you used a
-										future date in your spreadsheet, it was automatically
-										corrected to start immediately. Please verify your
-										"Featured" column timestamp.
-									</div>
-								</div>
-							</div>
-						</div>
-					)
-				);
-			})()}
 
 			{/* Show end time for expired events */}
 			{liveStatus === "expired" && endTime && (

@@ -15,6 +15,12 @@ export const FEATURED_EVENTS_CONFIG = {
 
 	// Feature page route
 	FEATURE_PAGE_ROUTE: "/feature-event",
+
+	// Canonical scheduling timezone for admin workflow
+	TIMEZONE: "Europe/Paris",
+
+	// Recently ended window for status surfaces
+	RECENT_ENDED_WINDOW_HOURS: 48,
 } as const;
 
 // Validation constants

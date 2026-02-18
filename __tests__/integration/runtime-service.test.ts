@@ -6,6 +6,7 @@ type Setup = {
 	getRuntimeDataStatusFromSource: typeof import("@/features/data-management/runtime-service").getRuntimeDataStatusFromSource;
 	dataManagerGetEventsData: ReturnType<typeof vi.fn>;
 	dataManagerGetDataConfigStatus: ReturnType<typeof vi.fn>;
+	applyFeaturedProjectionToEvents: ReturnType<typeof vi.fn>;
 	revalidatePath: ReturnType<typeof vi.fn>;
 	revalidateTag: ReturnType<typeof vi.fn>;
 };
@@ -19,6 +20,9 @@ const loadRuntimeService = async (): Promise<Setup> => {
 	const dataManagerGetEventsData = vi.fn();
 	const dataManagerGetDataConfigStatus = vi.fn();
 	const isValidEventsData = vi.fn(() => true);
+	const applyFeaturedProjectionToEvents = vi.fn((events) =>
+		Promise.resolve(events),
+	);
 	const revalidatePath = vi.fn();
 	const revalidateTag = vi.fn();
 
@@ -33,6 +37,10 @@ const loadRuntimeService = async (): Promise<Setup> => {
 		isValidEventsData,
 	}));
 
+	vi.doMock("@/features/events/featured/service", () => ({
+		applyFeaturedProjectionToEvents,
+	}));
+
 	vi.doMock("next/cache", () => ({
 		revalidatePath,
 		revalidateTag,
@@ -45,6 +53,7 @@ const loadRuntimeService = async (): Promise<Setup> => {
 		getRuntimeDataStatusFromSource: service.getRuntimeDataStatusFromSource,
 		dataManagerGetEventsData,
 		dataManagerGetDataConfigStatus,
+		applyFeaturedProjectionToEvents,
 		revalidatePath,
 		revalidateTag,
 	};
@@ -79,6 +88,23 @@ describe("runtime-service", () => {
 		await getLiveEvents();
 
 		expect(dataManagerGetEventsData).toHaveBeenCalledTimes(2);
+	});
+
+	it("applies featured projection overlay to runtime events", async () => {
+		const { getLiveEvents, dataManagerGetEventsData, applyFeaturedProjectionToEvents } =
+			await loadRuntimeService();
+		dataManagerGetEventsData.mockResolvedValue({
+			success: true,
+			data: [makeEvent("1")],
+			count: 1,
+			source: "store",
+			warnings: [],
+			lastUpdate: "2026-02-18T00:00:00.000Z",
+		});
+
+		await getLiveEvents();
+
+		expect(applyFeaturedProjectionToEvents).toHaveBeenCalledTimes(1);
 	});
 
 	it("returns failed events result when source read fails", async () => {

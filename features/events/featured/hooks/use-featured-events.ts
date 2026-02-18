@@ -88,7 +88,7 @@ export function useFeaturedEvents(
 		);
 
 		// Build featured events list starting with manually featured events
-		const featured = [...manuallyFeatured];
+		const featured = [...manuallyFeatured].slice(0, maxFeaturedEvents);
 
 		// Calculate remaining slots
 		const remainingSlots = maxFeaturedEvents - featured.length;

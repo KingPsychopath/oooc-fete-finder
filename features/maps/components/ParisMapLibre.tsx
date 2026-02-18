@@ -3,6 +3,7 @@
 import maplibregl from "maplibre-gl";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import type { Event } from "@/features/events/types";
 import { formatPrice, getDayNightPeriod } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
@@ -180,9 +181,20 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	// Get events in specific arrondissement
 	const getEventsInArrondissement = useCallback(
 		(arrondissement: number) => {
-			return filteredEvents.filter(
+			const arrondissementEvents = filteredEvents.filter(
 				(event) => event.arrondissement === arrondissement,
 			);
+			const featuredEvents = arrondissementEvents.filter((event) =>
+				shouldDisplayFeaturedEvent(event),
+			);
+			if (featuredEvents.length === 0) {
+				return arrondissementEvents;
+			}
+			const featuredEventIds = new Set(featuredEvents.map((event) => event.id));
+			const nonFeaturedEvents = arrondissementEvents.filter(
+				(event) => !featuredEventIds.has(event.id),
+			);
+			return [...featuredEvents, ...nonFeaturedEvents];
 		},
 		[filteredEvents],
 	);
@@ -200,8 +212,12 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		"w-full rounded-xl border p-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 	const regularEventButtonClassName =
 		"border-border/70 bg-background/65 hover:bg-accent/65";
+	const featuredEventButtonClassName =
+		"border-rose-300/80 bg-[linear-gradient(145deg,rgba(255,236,239,0.92),rgba(255,221,229,0.78))] hover:bg-[linear-gradient(145deg,rgba(255,236,239,0.97),rgba(255,221,229,0.86))] dark:border-rose-500/45 dark:bg-[linear-gradient(145deg,rgba(86,31,45,0.46),rgba(68,24,35,0.34))]";
 	const ooocEventButtonClassName =
 		"border-amber-300/75 bg-[linear-gradient(145deg,rgba(248,238,222,0.86),rgba(244,229,205,0.72))] dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.45),rgba(47,36,24,0.32))]";
+	const featuredOoocEventButtonClassName =
+		"border-[color:color-mix(in_oklab,#f59e0b_52%,#fb7185_48%)] bg-[linear-gradient(145deg,rgba(255,241,228,0.95),rgba(255,226,219,0.82))] dark:border-[color:color-mix(in_oklab,#f59e0b_48%,#fb7185_52%)] dark:bg-[linear-gradient(145deg,rgba(88,53,33,0.5),rgba(87,33,45,0.36))]";
 
 	// Update arrondissement colors based on event density
 	const updateArrondissementColors = useCallback(() => {
@@ -802,6 +818,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							<h3 className="text-[1.02rem] [font-family:var(--ooo-font-display)] font-light leading-tight">
 								{selectedArrondissement}e Arrondissement Events
 							</h3>
+							<p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/85">
+								Featured events appear first
+							</p>
 						</div>
 						<button
 							onClick={() => setSelectedArrondissement(null)}
@@ -814,25 +833,38 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						{getEventsInArrondissement(selectedArrondissement).map((event) => {
 							const dayNightPeriod = getDayNightPeriod(event.time ?? "");
 							const venueTypes = getEventVenueTypes(event);
+							const isFeatured = shouldDisplayFeaturedEvent(event);
+							const buttonClassName =
+								isFeatured && event.isOOOCPick
+									? featuredOoocEventButtonClassName
+									: isFeatured
+										? featuredEventButtonClassName
+										: event.isOOOCPick
+											? ooocEventButtonClassName
+											: regularEventButtonClassName;
 
 							return (
 								<button
 									key={event.id}
-									className={`${baseEventButtonClassName} ${
-										event.isOOOCPick
-											? ooocEventButtonClassName
-											: regularEventButtonClassName
-									}`}
+									className={`${baseEventButtonClassName} ${buttonClassName}`}
 									onClick={() => onEventClick(event)}
 								>
 									<div className="flex items-center justify-between">
 										<div className="flex-1">
-											<div className="flex items-center space-x-1">
+											<div className="flex items-center space-x-1.5">
 												<p className="text-sm font-medium text-foreground">
 													{event.name}
 												</p>
+												{isFeatured && (
+													<span className="rounded-full border border-rose-400/80 bg-rose-100/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-rose-700 dark:border-rose-400/65 dark:bg-rose-500/20 dark:text-rose-200">
+														Featured
+													</span>
+												)}
 												{event.isOOOCPick && (
-													<Star className="h-3 w-3 fill-current text-amber-500" />
+													<span className="inline-flex items-center gap-0.5 rounded-full border border-amber-400/70 bg-amber-100/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-amber-700 dark:border-amber-400/60 dark:bg-amber-500/20 dark:text-amber-200">
+														<Star className="h-2.5 w-2.5 fill-current" />
+														OOOC
+													</span>
 												)}
 											</div>
 											<p className="inline-flex items-center gap-1 text-xs text-muted-foreground">

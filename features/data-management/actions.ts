@@ -62,6 +62,56 @@ const resolveRemoteSheetConfig = async (): Promise<{
 const COORDINATE_WARMUP_RECOVERABLE_ERROR_FRAGMENT =
 	"GOOGLE_MAPS_API_KEY not set";
 
+const LEGACY_FEATURED_COLUMN_ERROR =
+	'Featured selection moved to Featured Manager. Clear values in the legacy "Featured" column and use Admin > Featured Events Manager.';
+
+const getLegacyFeaturedViolations = (
+	rows: EditableSheetRow[],
+): {
+	count: number;
+	sampleValues: string[];
+	sampleRows: number[];
+} => {
+	const sampleValues: string[] = [];
+	const sampleRows: number[] = [];
+	let count = 0;
+
+	rows.forEach((row, index) => {
+		const featuredValue = (row.featured || "").trim();
+		if (!featuredValue) return;
+		count += 1;
+		if (sampleValues.length < 3) {
+			sampleValues.push(featuredValue);
+			sampleRows.push(index + 1);
+		}
+	});
+
+	return {
+		count,
+		sampleValues,
+		sampleRows,
+	};
+};
+
+const buildLegacyFeaturedErrorMessage = (
+	violations: ReturnType<typeof getLegacyFeaturedViolations>,
+): string => {
+	if (violations.count === 0) return "";
+	const sampleSummary = violations.sampleValues
+		.map((value, index) => `row ${violations.sampleRows[index]}: "${value}"`)
+		.join(", ");
+
+	return `${LEGACY_FEATURED_COLUMN_ERROR} Found ${violations.count} row(s) with legacy Featured values (${sampleSummary}).`;
+};
+
+const getLegacyFeaturedErrorFromCsv = (csvContent: string): string | null => {
+	const sheet = csvToEditableSheet(csvContent);
+	const rows = Array.isArray(sheet?.rows) ? sheet.rows : [];
+	const violations = getLegacyFeaturedViolations(rows);
+	if (violations.count === 0) return null;
+	return buildLegacyFeaturedErrorMessage(violations);
+};
+
 const warmCoordinateCacheFromCsv = async (
 	csvContent: string,
 	context: "save-local" | "import-remote" | "save-sheet-editor",
@@ -321,6 +371,15 @@ export async function saveLocalEventStoreCsv(
 		return { success: false, message: "Unauthorized access" };
 	}
 
+	const legacyFeaturedError = getLegacyFeaturedErrorFromCsv(csvContent);
+	if (legacyFeaturedError) {
+		return {
+			success: false,
+			message: LEGACY_FEATURED_COLUMN_ERROR,
+			error: legacyFeaturedError,
+		};
+	}
+
 		try {
 			const result = await LocalEventStore.saveCsv(csvContent, {
 				updatedBy: "admin-panel",
@@ -442,6 +501,16 @@ export async function importRemoteCsvToLocalEventStore(
 		const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range, {
 			allowLocalFallback: false,
 		});
+		const legacyFeaturedError = getLegacyFeaturedErrorFromCsv(
+			remoteFetchResult.content,
+		);
+		if (legacyFeaturedError) {
+			return {
+				success: false,
+				message: LEGACY_FEATURED_COLUMN_ERROR,
+				error: legacyFeaturedError,
+			};
+		}
 			const saved = await LocalEventStore.saveCsv(remoteFetchResult.content, {
 				updatedBy: "admin-google-import",
 				origin: "google-import",
@@ -559,6 +628,14 @@ export async function saveEventSheetEditorRows(
 				message: validation.error || "Invalid sheet payload",
 			};
 		}
+		const featuredViolations = getLegacyFeaturedViolations(validation.rows);
+		if (featuredViolations.count > 0) {
+			return {
+				success: false,
+				message: LEGACY_FEATURED_COLUMN_ERROR,
+				error: buildLegacyFeaturedErrorMessage(featuredViolations),
+			};
+		}
 
 		const csvContent = editableSheetToCsv(validation.columns, validation.rows);
 			const saved = await LocalEventStore.saveCsv(csvContent, {
@@ -595,7 +672,7 @@ export async function saveEventSheetEditorRows(
  * Configuration for which columns to check for date format issues
  */
 const DATE_COLUMNS_TO_CHECK = {
-	featured: true, // Check the Featured column for timestamp issues
+	featured: false, // Featured scheduling is no longer read from CSV
 	date: false, // Check the Date column for ambiguous dates
 	startTime: false, // Check the Start Time column for time format issues
 	endTime: false, // Check the End Time column for time format issues

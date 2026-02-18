@@ -17,6 +17,7 @@ import { AdminSessionStatus } from "./components/AdminSessionStatus";
 import { RuntimeDataStatusCard } from "./components/RuntimeDataStatusCard";
 import { EmailCollectionCard } from "./components/EmailCollectionCard";
 import { EventSheetEditorCard } from "./components/EventSheetEditorCard";
+import { FeaturedEventsManagerCard } from "./components/FeaturedEventsManagerCard";
 import { LiveEventsSnapshotCard } from "./components/LiveEventsSnapshotCard";
 import { LocalEventStoreCard } from "./components/LocalEventStoreCard";
 import { SlidingBannerSettingsCard } from "./components/SlidingBannerSettingsCard";
@@ -201,6 +202,7 @@ export function AdminDashboardClient({
 							initialEditorData={initialData.editorData}
 							onDataSaved={onDataSaved}
 						/>
+						<FeaturedEventsManagerCard onScheduleUpdated={onDataSaved} />
 						<LiveEventsSnapshotCard
 							isAuthenticated
 							initialSnapshot={initialData.liveSnapshot}

@@ -11,6 +11,8 @@ Runtime source order (`DATA_MODE=remote`):
 
 Google Sheets is not used as the live runtime source. It is only used in admin for backup preview/import.
 
+Featured scheduling is Postgres-backed (`app_featured_event_schedule`) and managed from the dedicated admin Featured Events Manager (not from CSV free-text `Featured` values).
+
 Auth modal user submissions are stored in the managed user store (`app_kv_store`) first, with optional Google mirroring only when explicitly enabled.
 
 In Vercel preview/production, KV provider selection is strict Postgres-only (no file/memory fallback).
@@ -57,9 +59,19 @@ Other app state (auth/session/user collection) remains in:
    - `Upload CSV to Postgres`, or
    - `Import Google Backup`
 2. Edit in `Event Sheet Editor` (supports dynamic columns)
-3. `Save and Revalidate Homepage`
-4. Verify live payload in `Live Site Snapshot`
-5. Export CSV anytime from `Data Store Controls`
+3. Manage featuring in `Featured Events Manager` (queue + slots)
+4. `Save and Revalidate Homepage`
+5. Verify live payload in `Live Site Snapshot`
+6. Export CSV anytime from `Data Store Controls`
+
+### Featured Scheduling (Strict Cutover)
+
+- `Featured` CSV/sheet column is legacy and non-canonical.
+- Any non-empty legacy `Featured` values are rejected on save/import.
+- Use `/admin` -> `Featured Events Manager` for:
+1. `Feature now`
+2. Scheduled starts (Paris timezone)
+3. Cancel/reschedule queue entries
 
 ### Stable Share Links (`eventKey`)
 
@@ -140,6 +152,7 @@ pnpm dev
 
 ```bash
 pnpm bootstrap:postgres-store   # seed Postgres event store
+pnpm bootstrap:featured-schedule # migrate legacy Featured rows into scheduler queue
 pnpm health:check               # verify db + admin health endpoints
 pnpm db:cli                     # interactive db/status utility
 pnpm lint

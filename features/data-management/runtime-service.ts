@@ -2,6 +2,7 @@ import "server-only";
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import type { Event } from "@/features/events/types";
+import { applyFeaturedProjectionToEvents } from "@/features/events/featured/service";
 import { DataManager } from "./data-manager";
 import { isValidEventsData } from "./data-processor";
 
@@ -67,7 +68,7 @@ export interface RuntimeMetricsData {
 	averageFetchTimeMs: number;
 }
 
-const EVENTS_CACHE_TAGS = ["events", "events-data"] as const;
+const EVENTS_CACHE_TAGS = ["events", "events-data", "featured-events"] as const;
 const EVENTS_LAYOUT_PATHS = ["/", "/events", "/admin", "/feature-event"] as const;
 
 const metrics = {
@@ -118,6 +119,9 @@ export async function getLiveEvents(): Promise<EventsResult> {
 		metrics.fetchCount += 1;
 
 		const normalized = toEventsResult(result);
+		if (normalized.success) {
+			normalized.data = await applyFeaturedProjectionToEvents(normalized.data);
+		}
 		if (!normalized.success) {
 			metrics.errors += 1;
 		}

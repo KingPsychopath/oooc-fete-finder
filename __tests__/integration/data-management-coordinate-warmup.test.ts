@@ -84,11 +84,11 @@ const loadActions = async (): Promise<Setup> => {
 	vi.doMock("@/features/data-management/csv/sheet-editor", () => ({
 		csvToEditableSheet: vi.fn(),
 		editableSheetToCsv: vi.fn().mockReturnValue("name,date\nEvent,2026-06-21"),
-		validateEditableSheet: vi.fn().mockReturnValue({
+		validateEditableSheet: vi.fn((columns, rows) => ({
 			valid: true,
-			columns: [{ key: "name" }],
-			rows: [{ name: "Event" }],
-		}),
+			columns,
+			rows,
+		})),
 	}));
 
 	vi.doMock("@/features/data-management/data-processor", () => ({
@@ -198,5 +198,30 @@ describe("data-management coordinate warm-up", () => {
 		expect(localEventStoreSaveCsv).toHaveBeenCalledTimes(1);
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("Coordinate population failed");
+	});
+
+	it("rejects legacy Featured column values during sheet save", async () => {
+		const { saveEventSheetEditorRows, localEventStoreSaveCsv, processCSVData } =
+			await loadActions();
+
+		const result = await saveEventSheetEditorRows(
+			"token",
+			[
+				{ key: "name" },
+				{ key: "featured" },
+			] as never[],
+			[
+				{
+					name: "Event",
+					featured: "Yes",
+				},
+			] as never[],
+			{ revalidateHomepage: false },
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.message).toContain("Featured selection moved to Featured Manager");
+		expect(localEventStoreSaveCsv).not.toHaveBeenCalled();
+		expect(processCSVData).not.toHaveBeenCalled();
 	});
 });
