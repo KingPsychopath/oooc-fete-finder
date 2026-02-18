@@ -27,6 +27,41 @@ if (isServerRuntime && !rawDataMode) {
 	);
 }
 
+type EnvIssueSegment = PropertyKey | { key: PropertyKey };
+type EnvValidationIssue = {
+	message: string;
+	path?: readonly EnvIssueSegment[];
+};
+
+const formatEnvIssuePath = (path: EnvValidationIssue["path"]): string => {
+	if (!path || path.length === 0) {
+		return "unknown";
+	}
+
+	return path
+		.map((segment) =>
+			typeof segment === "object" && segment !== null && "key" in segment
+				? String(segment.key)
+				: String(segment),
+		)
+		.join(".");
+};
+
+const formatEnvValidationMessage = (
+	issues: readonly EnvValidationIssue[],
+): string => {
+	const details = issues
+		.map((issue) => `- ${formatEnvIssuePath(issue.path)}: ${issue.message}`)
+		.join("\n");
+
+	return [
+		"Invalid environment variables:",
+		details,
+		"",
+		"Set/fix these values in .env.local (development) or your deployment env settings, then restart the server.",
+	].join("\n");
+};
+
 export const env = createEnv({
 	/**
 	 * Server-side Environment Variables
@@ -51,7 +86,7 @@ export const env = createEnv({
 		GOOGLE_SHEET_ID: z.string().optional(),
 		GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
 		GOOGLE_SERVICE_ACCOUNT_FILE: z.string().optional(),
-		REMOTE_CSV_URL: z.string().url().optional().or(z.literal("")),
+		REMOTE_CSV_URL: z.string().url().optional(),
 		DEPLOY_REVALIDATE_SECRET: z.string().optional(),
 
 		LOCAL_CSV_LAST_UPDATED: z.string().optional(),
@@ -102,6 +137,12 @@ export const env = createEnv({
 	 * Skip validation during build time in some cases
 	 */
 	skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+	emptyStringAsUndefined: true,
+	onValidationError: (issues) => {
+		const message = formatEnvValidationMessage(issues);
+		console.error(message);
+		throw new Error(message);
+	},
 });
 
 // ========================================
