@@ -8,7 +8,7 @@ describe("processCSVData date normalization", () => {
 		);
 
 		const csv = [
-			"Name,Date,Location",
+			"Title,Date,Location",
 			"Explicit Year,2026-06-21,Paris",
 			"Yearless,21 June,Paris",
 			"Ambiguous,03/04/2026,Paris",

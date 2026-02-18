@@ -5,7 +5,7 @@ describe("analyzeCsvSchemaRows", () => {
 	it("flags legacy featured values as blocking", () => {
 		const report = analyzeCsvSchemaRows([
 			{
-				name: "Event",
+				title: "Event",
 				date: "2026-06-21",
 				featured: "2026-06-01T00:00:00Z",
 			},
@@ -21,7 +21,7 @@ describe("analyzeCsvSchemaRows", () => {
 	it("blocks missing event keys when eventKeyMode is error", () => {
 		const report = analyzeCsvSchemaRows([
 			{
-				name: "Event",
+				title: "Event",
 				date: "2026-06-21",
 				eventKey: "",
 			},
@@ -37,7 +37,7 @@ describe("analyzeCsvSchemaRows", () => {
 	it("warns on missing event keys without blocking import", () => {
 		const report = analyzeCsvSchemaRows([
 			{
-				name: "Event",
+				title: "Event",
 				date: "21 June",
 				eventKey: "",
 			},
@@ -56,9 +56,9 @@ describe("analyzeCsvSchemaRows", () => {
 	it("warns on unsupported host and audience country tokens", () => {
 		const report = analyzeCsvSchemaRows([
 			{
-				name: "Event",
+				title: "Event",
 				date: "2026-06-21",
-				nationality: "🇫🇷🇩🇪",
+				hostCountry: "🇫🇷🇩🇪",
 				audienceCountry: "UK + DE",
 			},
 		]);

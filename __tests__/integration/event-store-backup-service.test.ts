@@ -76,7 +76,7 @@ const loadService = async (): Promise<Setup> => {
 		),
 	};
 	const localEventStore = {
-		getCsv: vi.fn().mockResolvedValue("name,date\nEvent,2026-06-21"),
+		getCsv: vi.fn().mockResolvedValue("Title,Date\nEvent,2026-06-21"),
 		saveCsv: vi.fn().mockResolvedValue({
 			rowCount: 50,
 			updatedAt: "2026-02-18T12:00:00.000Z",
@@ -200,7 +200,7 @@ describe("EventStoreBackupService", () => {
 			featuredEntryCount: 1,
 			storeUpdatedAt: "2026-02-18T07:45:00.000Z",
 			storeChecksum: "latest123",
-			csvContent: "name,date\nRestored Event,2026-06-22",
+			csvContent: "Title,Date\nRestored Event,2026-06-22",
 			featuredEntriesJson: JSON.stringify([
 				sampleFeaturedEntry({
 					id: "f_target",

@@ -48,84 +48,20 @@ const CORE_COLUMN_LABELS: Record<(typeof CSV_EVENT_COLUMNS)[number], string> = {
 
 const REQUIRED_CORE_COLUMNS = new Set<string>(["title", "date"]);
 const LEGACY_FEATURED_COLUMN_KEY = "featured";
-const LEGACY_CORE_KEY_MAP = new Map<string, string>([
-	["oocPicks", "curated"],
-	["nationality", "hostCountry"],
-	["name", "title"],
-	["arrondissement", "districtArea"],
-	["genre", "categories"],
-	["ticketLink", "primaryUrl"],
-	["age", "ageGuidance"],
-	["indoorOutdoor", "setting"],
-]);
-
 const CORE_COLUMN_SET = new Set<string>(CSV_EVENT_COLUMNS);
 
-const CORE_ALIAS_MAP = new Map<string, string>(
-	[
-		["event key", "eventKey"],
-		["eventkey", "eventKey"],
-		["event id", "eventKey"],
-		["curated", "curated"],
-		["ooc picks", "curated"],
-		["oooc picks", "curated"],
-		["oocpicks", "curated"],
-		["host country", "hostCountry"],
-		["hostcountry", "hostCountry"],
-		["nationality", "hostCountry"],
-		["gb/fr", "hostCountry"],
-		["audience country", "audienceCountry"],
-		["audiencecountry", "audienceCountry"],
-		["title", "title"],
-		["name", "title"],
-		["start time", "startTime"],
-		["end time", "endTime"],
-		["arr", "districtArea"],
-		["arr.", "districtArea"],
-		["arrondissement", "districtArea"],
-		["district area", "districtArea"],
-		["districtarea", "districtArea"],
-		["category", "categories"],
-		["categories", "categories"],
-		["genre", "categories"],
-		["primary url", "primaryUrl"],
-		["primaryurl", "primaryUrl"],
-		["url", "primaryUrl"],
-		["website", "primaryUrl"],
-		["link", "primaryUrl"],
-		["ticket link", "primaryUrl"],
-		["ticketlink", "primaryUrl"],
-		["age guidance", "ageGuidance"],
-		["ageguidance", "ageGuidance"],
-		["age", "ageGuidance"],
-		["setting", "setting"],
-		["venue type", "setting"],
-		["indoor outdoor", "setting"],
-		["indooroutdoor", "setting"],
-	]
-		.map(([left, right]) => [normalizeKey(left), right]),
+const CORE_HEADER_LOOKUP = new Map<string, string>(
+	CSV_EVENT_COLUMNS.flatMap((key) => [
+		[normalizeKey(key), key],
+		[normalizeKey(CORE_COLUMN_LABELS[key]), key],
+	]),
 );
 
 const isCoreKey = (key: string): boolean => CORE_COLUMN_SET.has(key);
 
 const resolveCoreKeyFromHeader = (header: string): string | null => {
 	const normalized = normalizeKey(header);
-	if (CORE_COLUMN_SET.has(normalized)) {
-		return normalized;
-	}
-
-	const aliasHit = CORE_ALIAS_MAP.get(normalized);
-	if (aliasHit) {
-		return aliasHit;
-	}
-
-	for (const [coreKey, label] of Object.entries(CORE_COLUMN_LABELS)) {
-		if (normalizeKey(label) === normalized) {
-			return coreKey;
-		}
-	}
-
-	return null;
+	return CORE_HEADER_LOOKUP.get(normalized) ?? null;
 };
 
 const buildBlankRow = (columns: EditableSheetColumn[]): EditableSheetRow => {
@@ -192,46 +128,6 @@ export const stripLegacyFeaturedColumn = (
 	return { columns: nextColumns, rows: nextRows };
 };
 
-const migrateLegacyCoreKeys = (
-	columns: EditableSheetColumn[],
-	rows: EditableSheetRow[],
-): {
-	columns: EditableSheetColumn[];
-	rows: EditableSheetRow[];
-} => {
-	const remapKey = (key: string): string => LEGACY_CORE_KEY_MAP.get(key) ?? key;
-	const seen = new Set<string>();
-
-	const nextColumns: EditableSheetColumn[] = [];
-	for (const column of columns) {
-		const key = remapKey(column.key);
-		if (seen.has(key)) continue;
-		seen.add(key);
-		nextColumns.push({
-			...column,
-			key,
-		});
-	}
-
-	const nextRows = rows.map((row) => {
-		const nextRow = { ...row };
-		for (const [legacyKey, migratedKey] of LEGACY_CORE_KEY_MAP) {
-			if (!(legacyKey in nextRow)) continue;
-			const legacyValue = String(nextRow[legacyKey] ?? "");
-			const migratedValue = String(nextRow[migratedKey] ?? "");
-			if (!migratedValue.trim() && legacyValue.trim()) {
-				nextRow[migratedKey] = legacyValue;
-			} else if (!(migratedKey in nextRow)) {
-				nextRow[migratedKey] = legacyValue;
-			}
-			delete nextRow[legacyKey];
-		}
-		return nextRow;
-	});
-
-	return { columns: nextColumns, rows: nextRows };
-};
-
 export const ensureCoreColumns = (
 	columns: EditableSheetColumn[],
 	rows: EditableSheetRow[],
@@ -239,8 +135,7 @@ export const ensureCoreColumns = (
 	columns: EditableSheetColumn[];
 	rows: EditableSheetRow[];
 } => {
-	const migrated = migrateLegacyCoreKeys(columns, rows);
-	const stripped = stripLegacyFeaturedColumn(migrated.columns, migrated.rows);
+	const stripped = stripLegacyFeaturedColumn(columns, rows);
 	const nextColumns = [...stripped.columns];
 	const nextRows = stripped.rows.map((row) => ({ ...row }));
 	const existingKeys = new Set(nextColumns.map((column) => column.key));

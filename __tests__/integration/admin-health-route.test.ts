@@ -29,7 +29,7 @@ const loadRoute = async (): Promise<Setup> => {
 		provider: "postgres",
 		providerLocation: "postgres://example",
 	});
-	const getCsv = vi.fn().mockResolvedValue("Name,Date\nA,2026-01-01\nB,2026-01-02");
+	const getCsv = vi.fn().mockResolvedValue("Title,Date\nA,2026-01-01\nB,2026-01-02");
 	const getDataConfigStatus = vi.fn().mockResolvedValue({
 		dataSource: "remote",
 		remoteConfigured: true,

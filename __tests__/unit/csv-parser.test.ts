@@ -17,11 +17,8 @@ describe("parseCSVContent", () => {
 		expect(rows[0].categories).toBe("Afro");
 	});
 
-	it("supports legacy alias headers for essential fields", () => {
-		const csv = [
-			"Event Name,Event Date,Venue",
-			"Block Party,22 June,Canal",
-		].join("\n");
+	it("supports canonical internal key headers", () => {
+		const csv = ["title,date,location", "Block Party,22 June,Canal"].join("\n");
 
 		const rows = parseCSVContent(csv);
 		expect(rows).toHaveLength(1);
@@ -50,7 +47,7 @@ describe("parseCSVContent", () => {
 
 	it("parses optional verified column when present", () => {
 		const csv = [
-			"Name,Date,Location,Verified",
+			"Title,Date,Location,Verified",
 			"Block Party,22 June,Canal,yes",
 		].join("\n");
 
@@ -74,9 +71,7 @@ describe("parseCSVContent", () => {
 	});
 
 	it("throws when multiple headers map to the same field", () => {
-		const csv = ["Name,Event Name,Date", "Main name,Alt name,2026-06-21"].join(
-			"\n",
-		);
+		const csv = ["Title,title,Date", "Main name,Alt name,2026-06-21"].join("\n");
 
 		expect(() => parseCSVContent(csv)).toThrow(
 			"Duplicate CSV column mappings detected",
@@ -85,7 +80,7 @@ describe("parseCSVContent", () => {
 
 	it("throws on row structure mismatches", () => {
 		const csv = [
-			"Name,Date,Location",
+			"Title,Date,Location",
 			"Valid row,2026-06-21,Paris",
 			"Broken row,2026-06-22",
 		].join("\n");

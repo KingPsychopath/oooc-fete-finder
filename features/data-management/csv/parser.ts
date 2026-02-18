@@ -30,74 +30,24 @@ export const CSV_EVENT_COLUMNS = [
 ] as const;
 
 const COLUMN_MAPPINGS = {
-	eventKey: ["Event Key", "eventKey", "Event ID", "eventId", "ID"],
-	curated: [
-		"Curated",
-		"OOOC Picks",
-		"OOC Picks",
-		"oocPicks",
-		"picks",
-		"🌟",
-	],
-	hostCountry: [
-		"Host Country",
-		"GB/FR",
-		"Country",
-		"hostCountry",
-		"nationality",
-		"Host",
-		"Nationality",
-	],
-	audienceCountry: [
-		"Audience Country",
-		"Target Audience Country",
-		"audienceCountry",
-		"Audience",
-	],
-	title: ["Title", "Event Name", "Name", "name", "Event"],
-	date: ["Date", "Day", "date", "Event Date"],
-	startTime: ["Start Time", "Time", "startTime", "Start", "Event Time"],
-	endTime: ["End Time", "endTime", "End", "Finish Time"],
-	location: ["Location", "Venue", "location", "Place", "Address"],
-	districtArea: [
-		"District/Area",
-		"District Area",
-		"District",
-		"arrondissement",
-		"Arr",
-		"Arr.",
-		"Arrondissement",
-	],
-	categories: [
-		"Categories",
-		"Category",
-		"genre",
-		"Genre",
-		"Music Genre",
-		"Music",
-	],
-	tags: ["Tags", "Tag", "tags"],
-	price: ["Price", "Cost", "price", "Ticket Price", "Entry"],
-	primaryUrl: [
-		"Primary URL",
-		"URL",
-		"Website",
-		"ticketLink",
-		"Ticket Link",
-		"Link",
-	],
-	ageGuidance: ["Age Guidance", "age", "Age", "Age Limit", "Age Restriction"],
-	setting: [
-		"Setting",
-		"setting",
-		"indoorOutdoor",
-		"Indoor/Outdoor",
-		"Indoor Outdoor",
-		"Venue Type",
-	],
-	notes: ["Notes", "Description", "notes", "Details", "Info"],
-	featured: ["Featured", "featured", "Feature", "Promoted", "Premium"],
-	verified: ["Verified", "verified", "Is Verified", "isVerified"],
+	eventKey: ["Event Key", "eventKey"],
+	curated: ["Curated", "curated"],
+	hostCountry: ["Host Country", "hostCountry"],
+	audienceCountry: ["Audience Country", "audienceCountry"],
+	title: ["Title", "title"],
+	date: ["Date", "date"],
+	startTime: ["Start Time", "startTime"],
+	endTime: ["End Time", "endTime"],
+	location: ["Location", "location"],
+	districtArea: ["District/Area", "districtArea"],
+	categories: ["Categories", "categories"],
+	tags: ["Tags", "tags"],
+	price: ["Price", "price"],
+	primaryUrl: ["Primary URL", "primaryUrl"],
+	ageGuidance: ["Age Guidance", "ageGuidance"],
+	setting: ["Setting", "setting"],
+	notes: ["Notes", "notes"],
+	verified: ["Verified", "verified"],
 } as const;
 
 type RawCSVRow = Record<string, string>;
@@ -126,7 +76,6 @@ export type CSVEventRow = {
 	ageGuidance: string;
 	setting: string;
 	notes: string;
-	featured: string;
 	verified?: string;
 };
 
@@ -184,7 +133,6 @@ const createColumnMapping = (
 		ageGuidance: null,
 		setting: null,
 		notes: null,
-		featured: null,
 		verified: null,
 	};
 	const ambiguousHeaders: Array<{ header: string; fields: string[] }> = [];
@@ -245,7 +193,6 @@ const createColumnMapping = (
 
 const RECOVERABLE_TRAILING_FIELDS = new Set<keyof CSVEventRow>([
 	"notes",
-	"featured",
 	"verified",
 ]);
 
@@ -298,14 +245,11 @@ const isRecoverableTooFewFieldsError = (
 		}
 	}
 
-	const missingFields = missingHeaders
-		.map((header) => headerToField.get(header))
-		.filter((field): field is keyof CSVEventRow => Boolean(field));
-	if (missingFields.length !== missingHeaders.length) {
-		return false;
-	}
-
-	return missingFields.every((field) => RECOVERABLE_TRAILING_FIELDS.has(field));
+	return missingHeaders.every((header) => {
+		const field = headerToField.get(header);
+		if (!field) return true;
+		return RECOVERABLE_TRAILING_FIELDS.has(field);
+	});
 };
 
 export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
@@ -417,8 +361,6 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 						(columnMapping.ageGuidance && row[columnMapping.ageGuidance]) || "",
 					setting: (columnMapping.setting && row[columnMapping.setting]) || "",
 					notes: (columnMapping.notes && row[columnMapping.notes]) || "",
-					featured:
-						(columnMapping.featured && row[columnMapping.featured]) || "",
 					verified:
 						(columnMapping.verified && row[columnMapping.verified]) || "",
 				};

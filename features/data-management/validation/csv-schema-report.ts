@@ -66,13 +66,11 @@ export const analyzeCsvSchemaRows = (
 		const rowIndex = index + 1;
 		const rawEventKey = String(row.eventKey ?? "").trim();
 		const rawFeatured = String(row.featured ?? "").trim();
-		const rawPicks = String(row.curated ?? row.oocPicks ?? "").trim();
-		const rawHostCountry = String(row.hostCountry ?? row.nationality ?? "").trim();
+		const rawPicks = String(row.curated ?? "").trim();
+		const rawHostCountry = String(row.hostCountry ?? "").trim();
 		const rawAudienceCountry = String(row.audienceCountry ?? "").trim();
-		const rawArrondissement = String(
-			row.districtArea ?? row.arrondissement ?? "",
-		).trim();
-		const rawVenue = String(row.setting ?? row.indoorOutdoor ?? "").trim();
+		const rawArrondissement = String(row.districtArea ?? "").trim();
+		const rawVenue = String(row.setting ?? "").trim();
 		const rawDate = String(row.date ?? "").trim();
 
 		if (rawFeatured.length > 0) {

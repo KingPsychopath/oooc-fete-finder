@@ -27,7 +27,7 @@ const loadActions = async (): Promise<Setup> => {
 	});
 	const revalidateEventsPaths = vi.fn();
 	const fetchRemoteCSV = vi.fn().mockResolvedValue({
-		content: "name,date\nEvent,2026-06-21",
+		content: "Title,Date\nEvent,2026-06-21",
 		timestamp: Date.now(),
 	});
 	const csvToEditableSheet = vi
@@ -90,7 +90,7 @@ const loadActions = async (): Promise<Setup> => {
 
 	vi.doMock("@/features/data-management/csv/sheet-editor", () => ({
 		csvToEditableSheet,
-		editableSheetToCsv: vi.fn().mockReturnValue("name,date\nEvent,2026-06-21"),
+		editableSheetToCsv: vi.fn().mockReturnValue("Title,Date\nEvent,2026-06-21"),
 		stripLegacyFeaturedColumn: vi.fn((columns, rows) => ({ columns, rows })),
 		validateEditableSheet: vi.fn((columns, rows) => ({
 			valid: true,
@@ -139,11 +139,11 @@ describe("data-management coordinate warm-up", () => {
 		} =
 			await loadActions();
 
-		const result = await saveLocalEventStoreCsv("token", "name,date\nEvent,2026-06-21");
+		const result = await saveLocalEventStoreCsv("token", "Title,Date\nEvent,2026-06-21");
 
 		expect(result.success).toBe(true);
 		expect(processCSVData).toHaveBeenCalledWith(
-			"name,date\nEvent,2026-06-21",
+			"Title,Date\nEvent,2026-06-21",
 			"store",
 			false,
 			{
@@ -180,8 +180,8 @@ describe("data-management coordinate warm-up", () => {
 
 		const result = await saveEventSheetEditorRows(
 			"token",
-			[{ key: "name" }] as never[],
-			[{ name: "Event" }] as never[],
+			[{ key: "title" }] as never[],
+			[{ title: "Event" }] as never[],
 			{ revalidateHomepage: false },
 		);
 
@@ -204,7 +204,7 @@ describe("data-management coordinate warm-up", () => {
 			coordinatesCount: 0,
 		});
 
-		const result = await saveLocalEventStoreCsv("token", "name,date\nEvent,2026-06-21");
+		const result = await saveLocalEventStoreCsv("token", "Title,Date\nEvent,2026-06-21");
 
 		expect(localEventStoreSaveCsv).toHaveBeenCalledTimes(1);
 		expect(result.success).toBe(false);
@@ -218,12 +218,12 @@ describe("data-management coordinate warm-up", () => {
 		const result = await saveEventSheetEditorRows(
 			"token",
 			[
-				{ key: "name" },
+				{ key: "title" },
 				{ key: "featured" },
 			] as never[],
 			[
 				{
-					name: "Event",
+					title: "Event",
 					featured: "Yes",
 				},
 			] as never[],
@@ -246,7 +246,7 @@ describe("data-management coordinate warm-up", () => {
 		} = await loadActions();
 		csvToEditableSheet.mockReturnValueOnce({
 			columns: [],
-			rows: [{ name: "Event", eventKey: "", date: "21 June" }],
+			rows: [{ title: "Event", eventKey: "", date: "21 June" }],
 		});
 
 		const result = await importRemoteCsvToLocalEventStore("token");
@@ -260,7 +260,7 @@ describe("data-management coordinate warm-up", () => {
 		const { previewRemoteCsvForAdmin, csvToEditableSheet } = await loadActions();
 		csvToEditableSheet.mockReturnValueOnce({
 			columns: [],
-			rows: [{ name: "Event", eventKey: "", date: "21 June" }],
+			rows: [{ title: "Event", eventKey: "", date: "21 June" }],
 		});
 
 		const result = await previewRemoteCsvForAdmin("token", 5);

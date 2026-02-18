@@ -158,7 +158,6 @@ export type CSVEventRow = {
 	setting: string;
 	notes: string;
 	verified?: string;
-	featured?: string; // Legacy non-canonical featured indicator
 };
 
 export type Arrondissement = {

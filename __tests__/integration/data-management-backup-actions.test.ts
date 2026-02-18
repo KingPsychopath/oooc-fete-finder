@@ -88,7 +88,7 @@ const loadActions = async (): Promise<Setup> => {
 		},
 		restoredRowCount: 50,
 		restoredFeaturedCount: 2,
-		restoredCsv: "name,date\nEvent,2026-06-21",
+		restoredCsv: "Title,Date\nEvent,2026-06-21",
 	});
 
 	const processCSVData = vi.fn().mockResolvedValue({
@@ -259,7 +259,7 @@ describe("data-management backup actions", () => {
 		expect(result.rowCount).toBe(50);
 		expect(result.featuredEntryCount).toBe(2);
 		expect(processCSVData).toHaveBeenCalledWith(
-			"name,date\nEvent,2026-06-21",
+			"Title,Date\nEvent,2026-06-21",
 			"store",
 			false,
 			{
