@@ -215,6 +215,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			activeFiltersAtTop: activeFilterCount <= 5,
 		};
 	}, [activeFilterCount]);
+	const isDesktopContentExpanded = isExpanded === undefined || isExpanded;
 
 	// Use outside click hook for mobile
 	const panelRef = useOutsideClick<HTMLDivElement>(() => {
@@ -235,7 +236,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	}, []);
 
 	const dateBounds = useMemo(() => {
-		if (availableEventDates.length === 0) return { min: undefined, max: undefined };
+		if (availableEventDates.length === 0)
+			return { min: undefined, max: undefined };
 		return {
 			min: availableEventDates[0],
 			max: availableEventDates[availableEventDates.length - 1],
@@ -243,11 +245,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	}, [availableEventDates]);
 
 	const getDayNightLabel = useCallback((period: DayNightPeriod) => {
-		return DAY_NIGHT_PERIODS.find((item) => item.key === period)?.label ?? period;
+		return (
+			DAY_NIGHT_PERIODS.find((item) => item.key === period)?.label ?? period
+		);
 	}, []);
 
 	const getVenueTypeLabel = useCallback((venueType: VenueType) => {
-		return VENUE_TYPES.find((item) => item.key === venueType)?.label ?? venueType;
+		return (
+			VENUE_TYPES.find((item) => item.key === venueType)?.label ?? venueType
+		);
 	}, []);
 
 	const renderDayNightIcon = useCallback((period: DayNightPeriod) => {
@@ -385,9 +391,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								className="border border-border/70 bg-secondary/72 text-xs"
 							>
 								<span className="mr-1 inline-flex items-center text-muted-foreground">
-									{selectedIndoorPreference ?
-										renderVenueTypeIcon("indoor")
-									:	renderVenueTypeIcon("outdoor")}
+									{selectedIndoorPreference
+										? renderVenueTypeIcon("indoor")
+										: renderVenueTypeIcon("outdoor")}
 								</span>
 								{selectedIndoorPreference ? "Indoor" : "Outdoor"}
 								<Button
@@ -515,9 +521,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						<Toggle
 							key={date}
 							pressed={selectedDate === date}
-							onPressedChange={(pressed) =>
-								onDateChange(pressed ? date : null)
-							}
+							onPressedChange={(pressed) => onDateChange(pressed ? date : null)}
 							size="sm"
 							className={denseToggleClassName}
 						>
@@ -597,9 +601,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 						<CardContent
 							className={`motion-safe:transition-[max-height] motion-safe:duration-250 motion-safe:ease-out overflow-hidden relative ${
-								isExpanded === undefined || isExpanded
-									? "max-h-[650px]"
-									: "max-h-24"
+								isDesktopContentExpanded ? "max-h-[650px]" : "max-h-24"
 							} py-4`}
 						>
 							<div className="h-[calc(650px-4rem)] overflow-y-auto relative">
@@ -618,10 +620,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											Date & Times
 											{(selectedDate !== null ||
 												selectedDayNightPeriods.length > 0) && (
-													<Badge
-														variant="secondary"
-														className="ml-2 border border-border/70 bg-secondary/72 text-xs"
-													>
+												<Badge
+													variant="secondary"
+													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+												>
 													{(selectedDate ? 1 : 0) +
 														selectedDayNightPeriods.length}{" "}
 													active
@@ -669,10 +671,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors">
 											Location
 											{selectedArrondissements.length > 0 && (
-													<Badge
-														variant="secondary"
-														className="ml-2 border border-border/70 bg-secondary/72 text-xs"
-													>
+												<Badge
+													variant="secondary"
+													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+												>
 													{selectedArrondissements.length} active
 												</Badge>
 											)}
@@ -707,10 +709,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											Music & Culture
 											{(selectedGenres.length > 0 ||
 												selectedNationalities.length > 0) && (
-													<Badge
-														variant="secondary"
-														className="ml-2 border border-border/70 bg-secondary/72 text-xs"
-													>
+												<Badge
+													variant="secondary"
+													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+												>
 													{selectedGenres.length + selectedNationalities.length}{" "}
 													active
 												</Badge>
@@ -789,10 +791,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
 												selectedAgeRange !== null ||
 												selectedOOOCPicks) && (
-													<Badge
-														variant="secondary"
-														className="ml-2 border border-border/70 bg-secondary/72 text-xs"
-													>
+												<Badge
+													variant="secondary"
+													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+												>
 													{
 														[
 															selectedVenueTypes.length > 0,
@@ -813,9 +815,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											<div className="space-y-4">
 												{/* OOOC Picks */}
 												<div>
-													<h3 className={sectionTitleClassName}>
-														OOOC Picks
-													</h3>
+													<h3 className={sectionTitleClassName}>OOOC Picks</h3>
 													<Toggle
 														pressed={selectedOOOCPicks}
 														onPressedChange={onOOOCPicksToggle}
@@ -854,9 +854,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Price Range */}
 												<div>
-													<h3 className={sectionTitleClassName}>
-														Price Range
-													</h3>
+													<h3 className={sectionTitleClassName}>Price Range</h3>
 													<div className="space-y-1.5 px-1">
 														<Slider
 															value={selectedPriceRange}
@@ -896,9 +894,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Age Range */}
 												<div>
-													<h3 className={sectionTitleClassName}>
-														Age Range
-													</h3>
+													<h3 className={sectionTitleClassName}>Age Range</h3>
 													<div className="space-y-1.5 px-1">
 														<Slider
 															value={
@@ -950,10 +946,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									{filteredEventsCount !== 1 ? "s" : ""}.
 								</div>
 							</div>
-
-							{/* Gradient overlay when collapsed */}
-							{!(isExpanded === undefined || isExpanded) && (
-								<div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+							{!isDesktopContentExpanded && (
+								<div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-card via-card/92 to-transparent pb-2 pt-5">
+									<p className="text-[11px] tracking-[0.04em] text-muted-foreground/92">
+										Expand filters to refine the view
+									</p>
+								</div>
 							)}
 						</CardContent>
 					</Card>
@@ -1096,18 +1094,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														<Info className="h-4 w-4" />
 													</button>
 												</TooltipTrigger>
-													<TooltipContent>
-														<div className="text-sm space-y-1">
-															<p className="inline-flex items-center gap-1.5">
-																<strong>Day:</strong> 6:00 AM - 9:59 PM
-																<Sun className="h-3.5 w-3.5" />
-															</p>
-															<p className="inline-flex items-center gap-1.5">
-																<strong>Night:</strong> 10:00 PM - 5:59 AM
-																<Moon className="h-3.5 w-3.5" />
-															</p>
-														</div>
-													</TooltipContent>
+												<TooltipContent>
+													<div className="text-sm space-y-1">
+														<p className="inline-flex items-center gap-1.5">
+															<strong>Day:</strong> 6:00 AM - 9:59 PM
+															<Sun className="h-3.5 w-3.5" />
+														</p>
+														<p className="inline-flex items-center gap-1.5">
+															<strong>Night:</strong> 10:00 PM - 5:59 AM
+															<Moon className="h-3.5 w-3.5" />
+														</p>
+													</div>
+												</TooltipContent>
 											</Tooltip>
 										</TooltipProvider>
 									</div>

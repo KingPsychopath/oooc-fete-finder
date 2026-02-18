@@ -12,14 +12,19 @@ import SearchBar from "@/features/events/components/SearchBar";
 import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
 import type { Event } from "@/features/events/types";
+import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { EventsMapCard } from "@/features/maps/components/events-map-card";
 import { useCallback, useRef, useState } from "react";
 
 interface EventsClientProps {
 	initialEvents: Event[];
+	mapLoadStrategy?: MapLoadStrategy;
 }
 
-export function EventsClient({ initialEvents }: EventsClientProps) {
+export function EventsClient({
+	initialEvents,
+	mapLoadStrategy = "idle",
+}: EventsClientProps) {
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [isMapExpanded, setIsMapExpanded] = useState(false);
@@ -128,6 +133,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
 					isExpanded={isMapExpanded}
 					onToggleExpanded={toggleMapExpansion}
 					onEventClick={setSelectedEvent}
+					mapLoadStrategy={mapLoadStrategy}
 				/>
 			</div>
 
