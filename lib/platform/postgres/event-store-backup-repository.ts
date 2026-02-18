@@ -36,6 +36,7 @@ type BackupPayloadRow = BackupSummaryRow & {
 };
 
 export class EventStoreBackupRepository {
+	readonly repositoryVersion = 1;
 	private readonly sql: Sql;
 	private readonly ensureSchemaPromise: Promise<void>;
 
@@ -287,14 +288,31 @@ export class EventStoreBackupRepository {
 	}
 }
 
+const isValidBackupRepositoryInstance = (
+	value: unknown,
+): value is EventStoreBackupRepository => {
+	if (!value || typeof value !== "object") return false;
+	const candidate = value as Record<string, unknown>;
+	return (
+		candidate.repositoryVersion === 1 &&
+		typeof candidate.createBackup === "function" &&
+		typeof candidate.getLatestBackup === "function" &&
+		typeof candidate.getBackupById === "function" &&
+		typeof candidate.listBackups === "function" &&
+		typeof candidate.pruneOldBackups === "function" &&
+		typeof candidate.getBackupStatus === "function"
+	);
+};
+
 export const getEventStoreBackupRepository = (): EventStoreBackupRepository | null => {
 	const sql = getPostgresClient();
 	if (!sql) return null;
 
-	if (!globalThis.__ooocFeteFinderEventStoreBackupRepository) {
+	const cachedRepository = globalThis.__ooocFeteFinderEventStoreBackupRepository;
+	if (!isValidBackupRepositoryInstance(cachedRepository)) {
 		globalThis.__ooocFeteFinderEventStoreBackupRepository =
 			new EventStoreBackupRepository(sql);
 	}
 
-	return globalThis.__ooocFeteFinderEventStoreBackupRepository;
+	return globalThis.__ooocFeteFinderEventStoreBackupRepository ?? null;
 };

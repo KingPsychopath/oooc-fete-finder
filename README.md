@@ -59,8 +59,8 @@ Other app state (auth/session/user collection) remains in:
    - `Upload CSV to Postgres`, or
    - `Import Google Backup`
 2. Edit in `Event Sheet Editor` (supports dynamic columns)
-3. Create store snapshots from `Data Store Controls` (`Backup Now`)
-4. Restore `Latest Backup` when needed (with confirmation)
+3. Create snapshots (events + featured schedule) from `Data Store Controls` (`Backup Now`)
+4. Restore either `Latest Backup` or a selected recent snapshot (with confirmation)
 5. Manage featuring in `Featured Events Manager` (queue + slots)
 6. `Save and Revalidate Homepage`
 7. Verify live payload in `Live Site Snapshot`
@@ -175,7 +175,7 @@ All admin endpoints require valid admin auth.
 
 - `GET /api/cron/cleanup-admin-sessions` — removes admin session records that expired more than 7 days ago.
 - `GET /api/cron/cleanup-rate-limits` — removes stale auth verify limiter counters (24h grace).
-- `GET /api/cron/backup-event-store` — creates Postgres event-store backups every 6 hours (retention: latest 30).
+- `GET /api/cron/backup-event-store` — creates Postgres snapshots (event store + featured schedule) every 6 hours (retention: latest 30).
 
 All are secured with `CRON_SECRET` (Bearer token) and configured in `vercel.json`.
 

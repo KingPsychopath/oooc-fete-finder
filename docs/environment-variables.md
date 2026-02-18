@@ -15,7 +15,7 @@ Schema lives in `lib/config/env.ts`.
 | `GOOGLE_MAPS_API_KEY` | No | - | Geocoding; if unset, arrondissement centre fallback |
 | `GOOGLE_SHEET_ID` | No | - | Backup sheet for admin import |
 | `GOOGLE_SERVICE_ACCOUNT_KEY` | No | - | Required for service-account sheet access. |
-| `CRON_SECRET` | No | - | Secret for cron routes (cleanup admin sessions, cleanup rate limits, event store backup). Vercel cron sends `Authorization: Bearer <CRON_SECRET>`. |
+| `CRON_SECRET` | No | - | Secret for cron routes (cleanup admin sessions, cleanup rate limits, event + featured snapshot backup). Vercel cron sends `Authorization: Bearer <CRON_SECRET>`. |
 | `DEPLOY_REVALIDATE_SECRET` | No | - | Secret for `/api/revalidate/deploy` (post-deploy live reload + homepage revalidation). |
 
 ## Client Variables
@@ -43,9 +43,9 @@ No extra env vars are required. It relies on:
 - `AUTH_SECRET` for HMAC hashing of identifiers
 - `CRON_SECRET` for `/api/cron/cleanup-rate-limits`
 
-Event store backup cron also uses:
+Event + featured snapshot backup cron also uses:
 
-- `CRON_SECRET` for `/api/cron/backup-event-store`
+- `CRON_SECRET` for `/api/cron/backup-event-store` (every 6 hours, retains latest 30 snapshots)
 
 ## Recommended setup (Postgres primary)
 

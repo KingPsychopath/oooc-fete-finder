@@ -35,11 +35,11 @@ Use the admin panel:
 2. In `Data Store Controls`:
    - `Upload CSV to Postgres`, or
    - `Import Google Backup`.
-3. Create a safety snapshot with `Backup Now`.
+3. Create a safety snapshot with `Backup Now` (captures event store + featured schedule).
 4. Edit in `Event Sheet Editor`.
 5. Click `Save and Revalidate Homepage`.
 6. Confirm `Event Key` values exist in export (first save/import backfills missing keys).
-7. Optional rollback: use `Restore Latest Backup` in the same Data Store card.
+7. Optional rollback: use `Restore Latest Backup` or `Show snapshots` -> `Restore Selected Snapshot` in the same Data Store card.
 
 Or run bootstrap:
 
@@ -85,7 +85,7 @@ Google Apps Script output is optional mirror-only behavior and can be removed la
 - Cron route: `GET /api/cron/backup-event-store`
 - Security: `Authorization: Bearer <CRON_SECRET>`
 - Default schedule (`vercel.json`): every 6 hours
-- Retention: latest 30 snapshots (older backups pruned automatically)
+- Retention: latest 30 snapshots (older snapshots pruned automatically)
 
 ## 8. Rollback
 

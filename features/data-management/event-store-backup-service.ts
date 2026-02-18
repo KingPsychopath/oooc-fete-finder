@@ -186,12 +186,12 @@ export class EventStoreBackupService {
 			});
 			const prunedCount = await repository.pruneOldBackups(BACKUP_RETENTION_LIMIT);
 
-			return {
-				success: true,
-				message: `Backup created (${backup.rowCount} rows, ${backup.featuredEntryCount} featured entries)`,
-				backup,
-				prunedCount,
-			};
+				return {
+					success: true,
+					message: `Backup created (${backup.rowCount} rows, ${backup.featuredEntryCount ?? 0} featured entries)`,
+					backup,
+					prunedCount,
+				};
 		} catch (error) {
 			return {
 				success: false,

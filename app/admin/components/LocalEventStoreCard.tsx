@@ -113,13 +113,38 @@ export const LocalEventStoreCard = ({
 	const [sampleNote, setSampleNote] = useState("");
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-	const loadStatusAndPreview = useCallback(async () => {
-		const [statusResult, previewResult, backupStatusResult, recentBackupsResult] =
-			await Promise.all([
-			getLocalEventStoreStatus(),
-			getLocalEventStorePreview(undefined, 2, { random: true }),
+	const loadBackupState = useCallback(async () => {
+		const [backupStatusResult, recentBackupsResult] = await Promise.all([
 			getEventStoreBackupStatus(),
 			getEventStoreRecentBackups(undefined, 30),
+		]);
+
+		if (backupStatusResult.success) {
+			setBackupSupported(backupStatusResult.supported !== false);
+			setBackupReason(backupStatusResult.reason || "");
+			setBackupStatus(backupStatusResult.status || EMPTY_BACKUP_STATUS);
+		}
+
+		if (!recentBackupsResult.success) {
+			throw new Error(
+				recentBackupsResult.error || "Failed to load recent snapshots",
+			);
+		}
+
+		const backups = recentBackupsResult.backups ?? [];
+		setRecentBackups(backups);
+		setSelectedBackupId((current) => {
+			if (current && backups.some((backup) => backup.id === current)) {
+				return current;
+			}
+			return backups[0]?.id ?? "";
+		});
+	}, []);
+
+	const loadStoreStatusAndPreview = useCallback(async () => {
+		const [statusResult, previewResult] = await Promise.all([
+			getLocalEventStoreStatus(),
+			getLocalEventStorePreview(undefined, 2, { random: true }),
 		]);
 
 		if (statusResult.success) {
@@ -129,21 +154,6 @@ export const LocalEventStoreCard = ({
 		if (!previewResult.success) {
 			throw new Error(previewResult.error || "Failed to load store sample");
 		}
-		if (backupStatusResult.success) {
-			setBackupSupported(backupStatusResult.supported !== false);
-			setBackupReason(backupStatusResult.reason || "");
-			setBackupStatus(backupStatusResult.status || EMPTY_BACKUP_STATUS);
-		}
-		if (recentBackupsResult.success) {
-			const backups = recentBackupsResult.backups ?? [];
-			setRecentBackups(backups);
-			setSelectedBackupId((current) => {
-				if (current && backups.some((backup) => backup.id === current)) {
-					return current;
-				}
-				return backups[0]?.id ?? "";
-			});
-		}
 
 		setHeaders(previewResult.headers || []);
 		const nextRows = previewResult.rows || [];
@@ -152,14 +162,22 @@ export const LocalEventStoreCard = ({
 		setSampleIndex(0);
 	}, []);
 
+	const loadStatusAndPreview = useCallback(async () => {
+		await Promise.all([loadStoreStatusAndPreview(), loadBackupState()]);
+	}, [loadBackupState, loadStoreStatusAndPreview]);
+
 	useEffect(() => {
-		if (
-			!isAuthenticated ||
-			(initialStatus && initialPreview && initialBackupStatus)
-		) {
+		if (!isAuthenticated) {
 			return;
 		}
-		loadStatusAndPreview().catch((loadError) => {
+
+		const shouldLoadStoreSample = !(initialStatus && initialPreview);
+		const pendingLoads = [
+			loadBackupState(),
+			...(shouldLoadStoreSample ? [loadStoreStatusAndPreview()] : []),
+		];
+
+		Promise.all(pendingLoads).catch((loadError) => {
 			setError(
 				loadError instanceof Error ?
 					loadError.message
@@ -170,8 +188,8 @@ export const LocalEventStoreCard = ({
 		isAuthenticated,
 		initialStatus,
 		initialPreview,
-		initialBackupStatus,
-		loadStatusAndPreview,
+		loadBackupState,
+		loadStoreStatusAndPreview,
 	]);
 
 	if (!isAuthenticated) {
@@ -230,8 +248,22 @@ export const LocalEventStoreCard = ({
 				throw new Error(result.error || result.message);
 			}
 
+			if (result.backup) {
+				const createdBackup = result.backup;
+				setBackupStatus((current) => ({
+					backupCount: Math.max(current.backupCount + 1, 1),
+					latestBackup: createdBackup,
+				}));
+				setRecentBackups((current) => {
+					const deduped = current.filter((backup) => backup.id !== createdBackup.id);
+					return [createdBackup, ...deduped].slice(0, 30);
+				});
+				setSelectedBackupId((current) => current || createdBackup.id);
+				setShowSnapshotPicker(true);
+			}
+
 			setMessage(result.message);
-			await loadStatusAndPreview();
+			await loadBackupState();
 		});
 	};
 
@@ -243,7 +275,7 @@ export const LocalEventStoreCard = ({
 		}
 
 		const confirmed = window.confirm(
-			`Restore latest backup from ${new Date(latestBackup.createdAt).toLocaleString()}? This will overwrite current store data.`,
+			`Restore latest backup from ${new Date(latestBackup.createdAt).toLocaleString()}? This will overwrite current store data and featured schedule data.`,
 		);
 		if (!confirmed) return;
 
@@ -602,7 +634,7 @@ export const LocalEventStoreCard = ({
 						className="hidden"
 					/>
 				</div>
-				{backupSupported && recentBackups.length > 0 && (
+				{backupSupported && (
 					<div className="rounded-md border bg-background/60 p-3">
 						<div className="flex flex-wrap items-center justify-between gap-2">
 							<p className="text-xs text-muted-foreground">
@@ -612,12 +644,18 @@ export const LocalEventStoreCard = ({
 								type="button"
 								variant="ghost"
 								size="sm"
-								disabled={isLoading}
+								disabled={isLoading || recentBackups.length === 0}
 								onClick={() => setShowSnapshotPicker((current) => !current)}
 							>
 								{showSnapshotPicker ? "Hide snapshots" : "Show snapshots"}
 							</Button>
 						</div>
+						{recentBackups.length === 0 && (
+							<p className="mt-1 text-xs text-muted-foreground">
+								No snapshots yet. Click <span className="font-medium">Backup Now</span>{" "}
+								to create the first one.
+							</p>
+						)}
 						{showSnapshotPicker && (
 							<div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
 								<select
@@ -647,7 +685,7 @@ export const LocalEventStoreCard = ({
 				)}
 
 				<div className="grid gap-4 2xl:grid-cols-2">
-					<div className="rounded-md border bg-background/60 p-3">
+					<div className="min-w-0 overflow-hidden rounded-md border bg-background/60 p-3">
 						<div className="mb-2 flex items-center justify-between gap-3">
 							<p className="text-sm font-medium">Store Sample (2 rows)</p>
 							<div className="flex items-center gap-3">
@@ -683,7 +721,7 @@ export const LocalEventStoreCard = ({
 								</Button>
 							</div>
 						</div>
-						<div className="relative w-full overflow-x-auto overscroll-x-contain rounded-md border">
+						<div className="relative w-full max-w-full overflow-x-auto overscroll-x-contain rounded-md border">
 							<table className="w-max min-w-full text-xs">
 								<thead className="bg-muted/40">
 									<tr>
@@ -710,7 +748,7 @@ export const LocalEventStoreCard = ({
 												{headers.map((header) => (
 													<td
 														key={`${header}-${rowIndex}`}
-														className="px-2 py-2 align-top whitespace-normal break-words"
+														className="px-2 py-2 align-top whitespace-normal break-all"
 													>
 														{row[header as keyof typeof row]}
 													</td>
@@ -723,7 +761,7 @@ export const LocalEventStoreCard = ({
 						</div>
 					</div>
 
-						<div className="rounded-md border bg-background/60 p-3">
+						<div className="min-w-0 overflow-hidden rounded-md border bg-background/60 p-3">
 							<div className="mb-2 flex items-center justify-between gap-3">
 								<p className="text-sm font-medium">Google Backup Preview</p>
 								<div className="flex items-center gap-2">
@@ -790,7 +828,7 @@ export const LocalEventStoreCard = ({
 								<p className="mb-2 text-xs text-muted-foreground">
 									Showing {remotePreview.rows.length} of {remotePreview.totalRows} rows.
 								</p>
-									<div className="relative w-full overflow-x-auto overscroll-x-contain rounded-md border">
+									<div className="relative w-full max-w-full overflow-x-auto overscroll-x-contain rounded-md border">
 										<table className="w-max min-w-full text-xs">
 										<thead className="bg-muted/40">
 											<tr>
@@ -810,7 +848,7 @@ export const LocalEventStoreCard = ({
 													{remotePreview.columns.map((column) => (
 														<td
 															key={`${column.key}-${rowIndex}`}
-															className="px-2 py-2 align-top whitespace-normal break-words"
+															className="px-2 py-2 align-top whitespace-normal break-all"
 														>
 															{row[column.key] ?? ""}
 														</td>
