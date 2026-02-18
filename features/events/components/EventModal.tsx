@@ -31,9 +31,11 @@ import {
 	setBodyOverlayAttribute,
 } from "@/lib/ui/overlay-state";
 import {
+	AlertCircle,
 	Building2,
 	Calendar,
 	CalendarPlus,
+	Check,
 	Clock,
 	Euro,
 	ExternalLink,
@@ -78,7 +80,10 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 	const [showMapSettings, setShowMapSettings] = useState(false);
 	const [isSharing, setIsSharing] = useState(false);
 	const [shareError, setShareError] = useState<string | null>(null);
-	const [linkShareStatus, setLinkShareStatus] = useState<string | null>(null);
+	const [linkShareStatus, setLinkShareStatus] = useState<{
+		message: string;
+		tone: "success" | "error";
+	} | null>(null);
 	const shareStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const [pendingLocationData, setPendingLocationData] = useState<{
 		location: string;
@@ -199,8 +204,11 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		}
 	};
 
-	const setTimedShareStatus = (message: string) => {
-		setLinkShareStatus(message);
+	const setTimedShareStatus = (
+		message: string,
+		tone: "success" | "error" = "success",
+	) => {
+		setLinkShareStatus({ message, tone });
 		if (shareStatusTimeoutRef.current) {
 			clearTimeout(shareStatusTimeoutRef.current);
 		}
@@ -255,22 +263,25 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 				return;
 			}
 
-			const copied = await copyToClipboard(shareUrl);
-			if (copied) {
-				setTimedShareStatus("Link copied");
-			} else {
-				setTimedShareStatus("Unable to copy link");
-			}
-		} catch (error) {
+				const copied = await copyToClipboard(shareUrl);
+				if (copied) {
+					setTimedShareStatus("Link copied");
+				} else {
+					setTimedShareStatus("Unable to copy link", "error");
+				}
+			} catch (error) {
 			const shareErrorName =
 				error instanceof DOMException ? error.name : "UnknownError";
 			if (shareErrorName === "AbortError") {
 				return;
+				}
+				const copied = await copyToClipboard(shareUrl);
+				setTimedShareStatus(
+					copied ? "Link copied" : "Unable to share link",
+					copied ? "success" : "error",
+				);
 			}
-			const copied = await copyToClipboard(shareUrl);
-			setTimedShareStatus(copied ? "Link copied" : "Unable to share link");
-		}
-	};
+		};
 
 	const hasTime = Boolean(event.time && event.time !== "TBC");
 	const hasEndTime = Boolean(event.endTime && event.endTime !== "TBC");
@@ -319,7 +330,20 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								)}
 							</div>
 						</div>
-						<div className="mt-0.5 flex shrink-0 items-center gap-2 self-start">
+						<div className="relative mt-0.5 flex shrink-0 items-center gap-2 self-start">
+							{linkShareStatus && (
+								<span
+									className={`pointer-events-none absolute -bottom-5 right-0 whitespace-nowrap text-[10px] ${
+										linkShareStatus.tone === "error"
+											? "text-amber-700 dark:text-amber-300"
+											: "text-emerald-700 dark:text-emerald-300"
+									}`}
+									role="status"
+									aria-live="polite"
+								>
+									{linkShareStatus.message}
+								</span>
+							)}
 							<TooltipProvider>
 								<Tooltip>
 									<TooltipTrigger asChild>
@@ -327,14 +351,30 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 											variant="outline"
 											size="icon"
 											onClick={() => void handleShareEventLink()}
-											className="h-10 w-10 rounded-xl border-border/70 bg-background/70 hover:bg-accent dark:bg-white/5 dark:hover:bg-white/10"
+											className={`h-10 w-10 rounded-xl border-border/70 bg-background/70 transition-all duration-200 hover:bg-accent dark:bg-white/5 dark:hover:bg-white/10 ${
+												linkShareStatus?.tone === "success"
+													? "border-emerald-300/80 text-emerald-700 dark:border-emerald-400/45 dark:text-emerald-300"
+													: linkShareStatus?.tone === "error"
+														? "border-amber-300/80 text-amber-700 dark:border-amber-400/45 dark:text-amber-300"
+														: ""
+											}`}
 											aria-label="Share event link"
 										>
-											<Link2 className="h-4 w-4" />
+											{linkShareStatus?.tone === "success" ? (
+												<Check className="h-4 w-4" />
+											) : linkShareStatus?.tone === "error" ? (
+												<AlertCircle className="h-4 w-4" />
+											) : (
+												<Link2 className="h-4 w-4" />
+											)}
 										</Button>
 									</TooltipTrigger>
 									<TooltipContent>
-										<p>Share event link</p>
+										<p>
+											{linkShareStatus?.message
+												? linkShareStatus.message
+												: "Share event link"}
+										</p>
 									</TooltipContent>
 								</Tooltip>
 							</TooltipProvider>
@@ -348,16 +388,6 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							</Button>
 						</div>
 					</div>
-					{linkShareStatus && (
-						<p
-							className="mt-1 text-[11px] text-muted-foreground"
-							role="status"
-							aria-live="polite"
-						>
-							{linkShareStatus}
-						</p>
-					)}
-
 					<div className="mt-2 flex flex-wrap items-center gap-1.5">
 						{event.isOOOCPick && (
 							<Badge className="border-yellow-300 bg-yellow-400 text-black hover:bg-yellow-500">
