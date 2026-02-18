@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { ChevronUp } from "lucide-react";
 
 // Configurable appearance threshold (percentage of page scrolled)
-const SCROLL_APPEARANCE_THRESHOLD = 10; // Show button shortly after the user starts scrolling
+const SCROLL_APPEARANCE_THRESHOLD = 20; // Show after deeper scroll for less UI noise
 
 type ScrollToTopButtonProps = {
 	className?: string;
