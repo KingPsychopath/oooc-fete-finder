@@ -64,6 +64,19 @@ const stateBadgeVariant = (state: string) => {
 	}
 };
 
+const stateRowClassName = (state: string): string => {
+	switch (state) {
+		case "active":
+			return "bg-emerald-50/50";
+		case "upcoming":
+			return "bg-amber-50/35";
+		case "recent-ended":
+			return "bg-slate-50/40";
+		default:
+			return "";
+	}
+};
+
 export const FeaturedEventsManagerCard = ({
 	onScheduleUpdated,
 }: {
@@ -206,44 +219,88 @@ export const FeaturedEventsManagerCard = ({
 	const maxConcurrent = payload?.slotConfig?.maxConcurrent ?? 3;
 	const queueRows = payload?.queue ?? [];
 	const scheduleTimezone = payload?.slotConfig?.timezone || "Europe/Paris";
-	const formatCellWithTimezone = (value: string): string =>
-		value === "—" ? value : `${value} (${scheduleTimezone})`;
+	const timezoneDisplayLabel = `${scheduleTimezone} (CET / GMT+1)`;
+	const upcomingCount = queueRows.filter(
+		(row) => row.state === "upcoming",
+	).length;
+	const recentEndedCount = queueRows.filter(
+		(row) => row.state === "recent-ended",
+	).length;
+	const scheduledCount = queueRows.filter(
+		(row) => row.status === "scheduled",
+	).length;
+	const hasQueueRows = queueRows.length > 0;
 
 	return (
 		<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
-			<CardHeader className="space-y-3">
-				<CardTitle>Featured Events Manager</CardTitle>
-				<CardDescription>
-					Dedicated scheduler for featured slots. Legacy sheet `Featured` values
-					are no longer used.
-				</CardDescription>
-				<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-					<Badge variant="outline">
-						Slots: {activeCount}/{maxConcurrent} active
-					</Badge>
-					<Badge variant="outline">Timezone: {scheduleTimezone}</Badge>
-					<Button
-						type="button"
-						size="sm"
-						variant="outline"
-						onClick={() => void loadQueue()}
-						disabled={isLoading || isMutating}
-					>
-						{isLoading ? "Refreshing..." : "Refresh queue"}
-					</Button>
-				</div>
-			</CardHeader>
-			<CardContent className="space-y-5">
-				<section className="space-y-4 rounded-lg border border-border/60 bg-background/40 p-4">
+			<CardHeader className="space-y-4">
+				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div className="space-y-1">
-						<h3 className="text-sm font-semibold">Plan a featured slot</h3>
-						<p className="text-xs text-muted-foreground">
-							Select an event, then feature immediately or schedule in{" "}
-							{scheduleTimezone}.
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Featured Scheduling
+						</p>
+						<CardTitle>Featured Events Manager</CardTitle>
+						<CardDescription>
+							Dedicated scheduler for featured slots. Legacy sheet `Featured`
+							values are no longer used.
+						</CardDescription>
+					</div>
+					<div className="flex flex-wrap items-center gap-2">
+						<Badge variant="outline">Timezone: {timezoneDisplayLabel}</Badge>
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onClick={() => void loadQueue()}
+							disabled={isLoading || isMutating}
+						>
+							{isLoading ? "Refreshing..." : "Refresh queue"}
+						</Button>
+					</div>
+				</div>
+				<div className="grid gap-2 min-[420px]:grid-cols-2 xl:grid-cols-4">
+					<div className="rounded-md border bg-background/60 px-2.5 py-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Active Slots
+						</p>
+						<p className="mt-0.5 text-base font-semibold">
+							{activeCount}/{maxConcurrent}
 						</p>
 					</div>
-					<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-						<div className="space-y-2 xl:col-span-2">
+					<div className="rounded-md border bg-background/60 px-2.5 py-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Upcoming Queue
+						</p>
+						<p className="mt-0.5 text-base font-semibold">{upcomingCount}</p>
+					</div>
+					<div className="rounded-md border bg-background/60 px-2.5 py-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Recent Ended
+						</p>
+						<p className="mt-0.5 text-base font-semibold">{recentEndedCount}</p>
+					</div>
+					<div className="rounded-md border bg-background/60 px-2.5 py-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Scheduled Total
+						</p>
+						<p className="mt-0.5 text-base font-semibold">{scheduledCount}</p>
+					</div>
+				</div>
+			</CardHeader>
+			<CardContent className="space-y-6">
+				<section className="space-y-4 rounded-lg border border-border/60 bg-background/45 p-4">
+					<div className="space-y-1">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Create Schedule Entry
+						</p>
+						<h3 className="text-sm font-semibold">Plan a featured slot</h3>
+						<p className="text-xs text-muted-foreground">
+							Select an event, then feature now or schedule using the timezone
+							above.
+						</p>
+					</div>
+					<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,280px)]">
+						<div className="space-y-2">
 							<Label htmlFor="featured-event-filter">Find event</Label>
 							<Input
 								id="featured-event-filter"
@@ -257,20 +314,24 @@ export const FeaturedEventsManagerCard = ({
 										<button
 											key={event.eventKey}
 											type="button"
-											className={`flex w-full items-center justify-between rounded-md border px-2 py-2 text-left text-xs ${
+											className={`w-full rounded-md border px-3 py-2 text-left text-xs transition-colors ${
 												event.eventKey === selectedEventKey
 													? "border-foreground/40 bg-accent"
-													: "border-border bg-background hover:bg-accent/50"
+													: "border-border bg-background hover:bg-accent/60"
 											}`}
 											onClick={() => {
 												setSelectedEventKey(event.eventKey);
 												setEventQuery(event.name);
 											}}
 										>
-											<span className="truncate pr-2">{event.name}</span>
-											<span className="shrink-0 text-[10px] text-muted-foreground">
+											<p className="truncate font-medium">{event.name}</p>
+											<p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
 												{event.eventKey}
-											</span>
+											</p>
+											<p className="mt-1 text-[10px] text-muted-foreground">
+												{event.date}
+												{event.time ? ` at ${event.time}` : ""}
+											</p>
 										</button>
 									))
 								) : (
@@ -280,10 +341,11 @@ export const FeaturedEventsManagerCard = ({
 								)}
 							</div>
 							{selectedEvent ? (
-								<div className="flex items-center gap-2">
-									<Badge variant="outline" className="max-w-full truncate">
-										Selected: {selectedEvent.name}
-									</Badge>
+								<div className="flex flex-wrap items-center gap-2 rounded-md border bg-background/60 px-2.5 py-2">
+									<Badge variant="outline">Selected</Badge>
+									<p className="max-w-full truncate text-xs font-medium">
+										{selectedEvent.name}
+									</p>
 									<Button
 										type="button"
 										size="sm"
@@ -304,44 +366,46 @@ export const FeaturedEventsManagerCard = ({
 								</p>
 							)}
 						</div>
-						<div className="space-y-2">
-							<Label htmlFor="featured-schedule-at">
-								Schedule at ({scheduleTimezone})
-							</Label>
-							<Input
-								id="featured-schedule-at"
-								type="datetime-local"
-								value={scheduleAt}
-								onChange={(event) => setScheduleAt(event.target.value)}
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="featured-duration-hours">Duration (hours)</Label>
-							<Input
-								id="featured-duration-hours"
-								type="number"
-								min={1}
-								max={168}
-								value={durationHours}
-								onChange={(event) => setDurationHours(event.target.value)}
-							/>
-						</div>
-						<div className="flex flex-col justify-end gap-2">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => void handleFeatureNow()}
-								disabled={isMutating || isLoading}
-							>
-								Feature now
-							</Button>
-							<Button
-								type="button"
-								onClick={() => void handleSchedule()}
-								disabled={isMutating || isLoading}
-							>
-								Schedule
-							</Button>
+						<div className="space-y-3 rounded-md border bg-background/60 p-3">
+							<div className="space-y-2">
+								<Label htmlFor="featured-schedule-at">Schedule at</Label>
+								<Input
+									id="featured-schedule-at"
+									type="datetime-local"
+									value={scheduleAt}
+									onChange={(event) => setScheduleAt(event.target.value)}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="featured-duration-hours">
+									Duration (hours)
+								</Label>
+								<Input
+									id="featured-duration-hours"
+									type="number"
+									min={1}
+									max={168}
+									value={durationHours}
+									onChange={(event) => setDurationHours(event.target.value)}
+								/>
+							</div>
+							<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => void handleFeatureNow()}
+									disabled={isMutating || isLoading}
+								>
+									Feature now
+								</Button>
+								<Button
+									type="button"
+									onClick={() => void handleSchedule()}
+									disabled={isMutating || isLoading}
+								>
+									Schedule
+								</Button>
+							</div>
 						</div>
 					</div>
 				</section>
@@ -357,45 +421,44 @@ export const FeaturedEventsManagerCard = ({
 					</div>
 				)}
 
-				<section className="space-y-2">
-					<div className="flex items-center justify-between">
-						<h3 className="text-sm font-semibold">Queue and history</h3>
+				<section className="space-y-3">
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<div className="space-y-1">
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Schedule Timeline
+							</p>
+							<h3 className="text-sm font-semibold">Queue and history</h3>
+						</div>
 						<div className="flex items-center gap-2">
 							<p className="text-xs text-muted-foreground">
-								All timestamps shown in {scheduleTimezone}
+								All times use the timezone shown above.
 							</p>
 							<Button
 								type="button"
 								size="sm"
 								variant="destructive"
 								onClick={() => void handleClearQueueHistory()}
-								disabled={isMutating || isLoading || queueRows.length === 0}
+								disabled={isMutating || isLoading || !hasQueueRows}
 							>
 								Clear queue/history
 							</Button>
 						</div>
 					</div>
 					<div className="max-w-full overflow-auto rounded-md border">
-						<table className="w-full text-sm">
+						<table className="min-w-[1080px] w-full text-xs">
 							<thead className="bg-muted/40">
 								<tr>
-									<th className="px-2 py-2 text-left font-medium">Event</th>
-									<th className="px-2 py-2 text-left font-medium">State</th>
-									<th className="px-2 py-2 text-left font-medium">Queue</th>
-									<th className="px-2 py-2 text-left font-medium">
-										Requested ({scheduleTimezone})
-									</th>
-									<th className="px-2 py-2 text-left font-medium">
-										Effective ({scheduleTimezone})
-									</th>
-									<th className="px-2 py-2 text-left font-medium">
-										Ends ({scheduleTimezone})
-									</th>
-									<th className="px-2 py-2 text-left font-medium">Actions</th>
+									<th className="px-3 py-2 text-left font-medium">Event</th>
+									<th className="px-3 py-2 text-left font-medium">State</th>
+									<th className="px-3 py-2 text-left font-medium">Queue</th>
+									<th className="px-3 py-2 text-left font-medium">Requested</th>
+									<th className="px-3 py-2 text-left font-medium">Effective</th>
+									<th className="px-3 py-2 text-left font-medium">Ends</th>
+									<th className="px-3 py-2 text-left font-medium">Actions</th>
 								</tr>
 							</thead>
 							<tbody>
-								{queueRows.length === 0 ? (
+								{!hasQueueRows ? (
 									<tr>
 										<td
 											colSpan={7}
@@ -406,34 +469,37 @@ export const FeaturedEventsManagerCard = ({
 									</tr>
 								) : (
 									queueRows.map((row) => (
-										<tr key={row.id} className="border-t align-top">
-											<td className="px-2 py-3">
+										<tr
+											key={row.id}
+											className={`border-t align-top ${stateRowClassName(row.state)}`}
+										>
+											<td className="px-3 py-3">
 												<div className="font-medium">{row.eventName}</div>
 												<div className="font-mono text-[11px] text-muted-foreground">
 													{row.eventKey}
 												</div>
 											</td>
-											<td className="px-2 py-3">
+											<td className="px-3 py-3">
 												<Badge variant={stateBadgeVariant(row.state)}>
 													{toStateLabel(row.state)}
 												</Badge>
 											</td>
-											<td className="px-2 py-3 font-mono">
+											<td className="px-3 py-3 font-mono text-[11px] tabular-nums">
 												{row.queuePosition ? `#${row.queuePosition}` : "—"}
 											</td>
-											<td className="px-2 py-3">
-												{formatCellWithTimezone(row.requestedStartAtParis)}
+											<td className="px-3 py-3 font-mono text-[11px] tabular-nums whitespace-nowrap">
+												{row.requestedStartAtParis}
 											</td>
-											<td className="px-2 py-3">
-												{formatCellWithTimezone(row.effectiveStartAtParis)}
+											<td className="px-3 py-3 font-mono text-[11px] tabular-nums whitespace-nowrap">
+												{row.effectiveStartAtParis}
 											</td>
-											<td className="px-2 py-3">
-												{formatCellWithTimezone(row.effectiveEndAtParis)}
+											<td className="px-3 py-3 font-mono text-[11px] tabular-nums whitespace-nowrap">
+												{row.effectiveEndAtParis}
 											</td>
-											<td className="px-2 py-3">
+											<td className="px-3 py-3">
 												<div className="flex min-w-[220px] flex-col gap-2">
-													<p className="text-[11px] text-muted-foreground">
-														Reschedule ({scheduleTimezone})
+													<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+														Reschedule
 													</p>
 													<Input
 														type="datetime-local"
