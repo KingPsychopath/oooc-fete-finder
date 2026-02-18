@@ -183,8 +183,11 @@ export function EventsClient({
 				events={filteredEvents}
 				onEventClick={setSelectedEvent}
 				onFilterClickAction={toggleFilterPanel}
+				onAuthRequired={() => setShowEmailGate(true)}
 				hasActiveFilters={hasAnyActiveFilters}
 				activeFiltersCount={activeFiltersCount}
+				isAuthenticated={isAuthenticated}
+				isAuthResolved={isAuthResolved}
 			/>
 
 			<EventModal
