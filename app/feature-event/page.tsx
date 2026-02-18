@@ -23,6 +23,7 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 function FeatureEventStatusFallback() {
 	return (
@@ -75,6 +76,15 @@ export default function FeatureEventPage() {
 						className="mt-6 h-px w-full max-w-[4rem]"
 						style={{ backgroundColor: "var(--border)" }}
 					/>
+					<p className="mt-3 text-xs text-muted-foreground">
+						No event yet? Why are you here.{" "}
+						<Link
+							href={`${basePath}/submit-event`}
+							className="text-foreground underline-offset-4 transition-colors hover:underline"
+						>
+							Submit yours here.
+						</Link>
+					</p>
 				</header>
 
 				<Suspense fallback={<FeatureEventStatusFallback />}>

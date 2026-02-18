@@ -67,28 +67,23 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							className="lg:hidden"
 						/>
 					</div>
+					{submissionsEnabled ? (
+						<p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+							<Link
+								href={`${basePath}/submit-event`}
+								className="font-medium text-foreground underline-offset-4 transition-colors hover:underline"
+							>
+								Hosting something special? Put it on the map with the collective
+								and submit your event →
+							</Link>
+						</p>
+					) : (
+						<p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+							Host submissions are currently paused.
+						</p>
+					)}
 				</CardHeader>
 				<CardContent className="py-5">
-					<div className="mb-4 rounded-md border border-border/70 bg-background/70 px-3 py-2.5 text-xs text-muted-foreground">
-						<p className="text-[10px] uppercase tracking-[0.14em] text-foreground/80">
-							Host Note
-						</p>
-						{submissionsEnabled ? (
-							<p className="mt-1 leading-relaxed">
-								Running an event?{" "}
-								<Link
-									href={`${basePath}/submit-event`}
-									className="font-medium text-foreground underline underline-offset-4"
-								>
-									Share your event details for admin review.
-								</Link>
-							</p>
-						) : (
-							<p className="mt-1 leading-relaxed">
-								Event host submissions are currently closed.
-							</p>
-						)}
-					</div>
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 						{visibleEvents.map((event) => (
 							<EventCard key={event.id} event={event} onClick={onEventClick} />

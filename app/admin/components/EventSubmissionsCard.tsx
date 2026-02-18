@@ -205,15 +205,33 @@ export const EventSubmissionsCard = ({
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
-						<Button
+						<button
 							type="button"
-							size="sm"
-							variant={submissionsEnabled ? "default" : "destructive"}
+							role="switch"
+							aria-checked={submissionsEnabled}
+							aria-label="Toggle event submissions"
 							onClick={() => void handleToggleSubmissions()}
 							disabled={isLoading || isMutating}
+							className={`group inline-flex h-8 items-center gap-2 rounded-full border px-2.5 text-xs tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+								submissionsEnabled
+									? "border-emerald-300 bg-emerald-50 text-emerald-900"
+									: "border-rose-300 bg-rose-50 text-rose-900"
+							}`}
 						>
-							{submissionsEnabled ? "Submissions Open" : "Submissions Closed"}
-						</Button>
+							<span
+								className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${
+									submissionsEnabled ? "bg-emerald-500" : "bg-rose-400"
+								}`}
+								aria-hidden="true"
+							>
+								<span
+									className={`absolute h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
+										submissionsEnabled ? "translate-x-4" : "translate-x-0.5"
+									}`}
+								/>
+							</span>
+							<span>{submissionsEnabled ? "Open" : "Closed"}</span>
+						</button>
 						<Button
 							type="button"
 							size="sm"
