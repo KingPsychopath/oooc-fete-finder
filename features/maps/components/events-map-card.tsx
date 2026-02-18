@@ -138,11 +138,11 @@ export function EventsMapCard({
 			</CardHeader>
 			<CardContent className="px-3 py-5 pt-3 sm:px-6">
 				<div
-					className={`relative contain-layout motion-safe:transition-[height] motion-safe:duration-200 motion-safe:ease-out ${
-						isExpanded ? "h-[600px]" : "h-24 sm:h-32"
-					} overflow-hidden rounded-xl border border-border/65`}
+					className={`relative contain-layout overflow-hidden rounded-xl border border-border/65 motion-safe:transition-[max-height] motion-safe:duration-300 motion-safe:ease-out motion-safe:will-change-[max-height] ${
+						isExpanded ? "max-h-[600px]" : "max-h-24 sm:max-h-32"
+					}`}
 				>
-					<div className="w-full h-full">
+					<div className="h-[600px] w-full">
 						{shouldRenderMap ? (
 							<ParisMapLibre events={events} onEventClick={onEventClick} />
 						) : (
