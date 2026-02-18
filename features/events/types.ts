@@ -419,37 +419,89 @@ export const formatTimeWithPeriod = (time: string): string => {
 };
 
 // Utility functions for price handling
+const FREE_PRICE_PATTERNS = [
+	/\bfree\b/i,
+	/\bgratuit\b/i,
+	/\bgratis\b/i,
+	/\bno\s*fee\b/i,
+	/\bfree\s*entry\b/i,
+] as const;
+
+const normalizeNumericToken = (raw: string): string => {
+	const token = raw.replace(/\s+/g, "");
+	const hasComma = token.includes(",");
+	const hasDot = token.includes(".");
+
+	if (hasComma && hasDot) {
+		const lastComma = token.lastIndexOf(",");
+		const lastDot = token.lastIndexOf(".");
+		if (lastComma > lastDot) {
+			return token.replace(/\./g, "").replace(/,/g, ".");
+		}
+		return token.replace(/,/g, "");
+	}
+
+	if (hasComma) {
+		if (/,\d{1,2}$/.test(token)) {
+			return token.replace(/,/g, ".");
+		}
+		return token.replace(/,/g, "");
+	}
+
+	if (hasDot) {
+		if (/\.\d{1,2}$/.test(token)) {
+			return token;
+		}
+		return token.replace(/\./g, "");
+	}
+
+	return token;
+};
+
+const extractNumericCandidates = (cleanPrice: string): number[] => {
+	const matches = cleanPrice.match(/\d[\d\s.,]*/g) ?? [];
+	const parsed: number[] = [];
+
+	for (const match of matches) {
+		const normalized = normalizeNumericToken(match);
+		const value = Number.parseFloat(normalized);
+		if (Number.isFinite(value)) {
+			parsed.push(value);
+		}
+	}
+
+	return parsed;
+};
+
+const toEuroAmount = (amount: number, cleanPrice: string): number => {
+	if (
+		cleanPrice.includes("£") ||
+		cleanPrice.includes("gbp") ||
+		cleanPrice.includes("pound")
+	) {
+		return amount * 1.17;
+	}
+	return amount;
+};
+
 export const parsePrice = (priceStr?: string): number | null => {
 	if (!priceStr) return null;
 
 	const cleanPrice = priceStr.toLowerCase().trim();
 
 	// Handle free cases
-	if (
-		cleanPrice === "free" ||
-		cleanPrice === "0" ||
-		cleanPrice === "0€" ||
-		cleanPrice === "£0"
-	) {
+	if (FREE_PRICE_PATTERNS.some((pattern) => pattern.test(cleanPrice))) {
 		return 0;
 	}
+	if (cleanPrice === "0" || cleanPrice === "0€" || cleanPrice === "£0") return 0;
 
-	// Extract numbers from price string, handle both € and £
-	const priceMatch = cleanPrice.match(/(\d+(?:\.\d+)?)/);
-	if (!priceMatch) return null;
+	const candidates = extractNumericCandidates(cleanPrice);
+	if (candidates.length === 0) return null;
 
-	const numericPrice = parseFloat(priceMatch[1]);
+	// Use the minimum candidate so ranges like "€10-€15" filter from the entry price.
+	const numericPrice = Math.min(...candidates);
 
-	// Convert pounds to euros (approximate rate: 1 GBP = 1.17 EUR)
-	if (
-		cleanPrice.includes("£") ||
-		cleanPrice.includes("gbp") ||
-		cleanPrice.includes("pound")
-	) {
-		return numericPrice * 1.17;
-	}
-
-	return numericPrice;
+	return toEuroAmount(numericPrice, cleanPrice);
 };
 
 export const formatPrice = (priceStr?: string): string => {
