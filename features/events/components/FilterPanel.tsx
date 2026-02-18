@@ -36,7 +36,20 @@ import {
 	formatAgeRange,
 	formatPriceRange,
 } from "@/features/events/types";
-import { CalendarDays, ChevronDown, Filter, Info, Star, X } from "lucide-react";
+import {
+	Building2,
+	CalendarDays,
+	ChevronDown,
+	Filter,
+	Info,
+	Moon,
+	Euro,
+	Star,
+	Sun,
+	Trees,
+	Users,
+	X,
+} from "lucide-react";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 
@@ -229,6 +242,30 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		};
 	}, [availableEventDates]);
 
+	const getDayNightLabel = useCallback((period: DayNightPeriod) => {
+		return DAY_NIGHT_PERIODS.find((item) => item.key === period)?.label ?? period;
+	}, []);
+
+	const getVenueTypeLabel = useCallback((venueType: VenueType) => {
+		return VENUE_TYPES.find((item) => item.key === venueType)?.label ?? venueType;
+	}, []);
+
+	const renderDayNightIcon = useCallback((period: DayNightPeriod) => {
+		return period === "day" ? (
+			<Sun className="h-3.5 w-3.5" />
+		) : (
+			<Moon className="h-3.5 w-3.5" />
+		);
+	}, []);
+
+	const renderVenueTypeIcon = useCallback((venueType: VenueType) => {
+		return venueType === "indoor" ? (
+			<Building2 className="h-3.5 w-3.5" />
+		) : (
+			<Trees className="h-3.5 w-3.5" />
+		);
+	}, []);
+
 	// Active Filters Component (reusable)
 	const ActiveFiltersDisplay = () => (
 		<div
@@ -291,7 +328,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								variant="secondary"
 								className="border border-border/70 bg-secondary/72 text-xs"
 							>
-								{DAY_NIGHT_PERIODS.find((p) => p.key === period)?.icon} {period}
+								<span className="mr-1 inline-flex items-center text-muted-foreground">
+									{renderDayNightIcon(period)}
+								</span>
+								{getDayNightLabel(period)}
 								<Button
 									variant="ghost"
 									size="sm"
@@ -325,8 +365,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								variant="secondary"
 								className="border border-border/70 bg-secondary/72 text-xs"
 							>
-								{VENUE_TYPES.find((v) => v.key === venueType)?.icon}{" "}
-								{VENUE_TYPES.find((v) => v.key === venueType)?.label}
+								<span className="mr-1 inline-flex items-center text-muted-foreground">
+									{renderVenueTypeIcon(venueType)}
+								</span>
+								{getVenueTypeLabel(venueType)}
 								<Button
 									variant="ghost"
 									size="sm"
@@ -342,7 +384,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								variant="secondary"
 								className="border border-border/70 bg-secondary/72 text-xs"
 							>
-								{selectedIndoorPreference ? "🏢 Indoor" : "🌤️ Outdoor"}
+								<span className="mr-1 inline-flex items-center text-muted-foreground">
+									{selectedIndoorPreference ?
+										renderVenueTypeIcon("indoor")
+									:	renderVenueTypeIcon("outdoor")}
+								</span>
+								{selectedIndoorPreference ? "Indoor" : "Outdoor"}
 								<Button
 									variant="ghost"
 									size="sm"
@@ -359,7 +406,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								variant="secondary"
 								className="border border-border/70 bg-secondary/72 text-xs"
 							>
-								💰 {formatPriceRange(selectedPriceRange)}
+								<Euro className="mr-1 h-3 w-3" />
+								{formatPriceRange(selectedPriceRange)}
 								<Button
 									variant="ghost"
 									size="sm"
@@ -377,7 +425,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									variant="secondary"
 									className="border border-border/70 bg-secondary/72 text-xs"
 								>
-									👥 {formatAgeRange(selectedAgeRange)}
+									<Users className="mr-1 h-3 w-3" />
+									{formatAgeRange(selectedAgeRange)}
 									<Button
 										variant="ghost"
 										size="sm"
@@ -589,7 +638,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														</h4>
 													</div>
 													<div className="grid grid-cols-2 gap-1">
-														{DAY_NIGHT_PERIODS.map(({ key, label, icon }) => (
+														{DAY_NIGHT_PERIODS.map(({ key, label }) => (
 															<Toggle
 																key={key}
 																pressed={selectedDayNightPeriods.includes(key)}
@@ -599,7 +648,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																size="sm"
 																className={denseToggleClassName}
 															>
-																{icon} {label}
+																<span className="inline-flex items-center gap-1">
+																	<span className="text-muted-foreground">
+																		{renderDayNightIcon(key)}
+																	</span>
+																	<span>{label}</span>
+																</span>
 															</Toggle>
 														))}
 													</div>
@@ -779,7 +833,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												<div>
 													<h3 className={sectionTitleClassName}>Venue Type</h3>
 													<div className="grid grid-cols-2 gap-1">
-														{VENUE_TYPES.map(({ key, label, icon }) => (
+														{VENUE_TYPES.map(({ key, label }) => (
 															<Toggle
 																key={key}
 																pressed={selectedVenueTypes.includes(key)}
@@ -787,8 +841,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																className={regularToggleClassName}
 																size="sm"
 															>
-																<span className="text-xs">
-																	{icon} {label}
+																<span className="inline-flex items-center gap-1 text-xs">
+																	<span className="text-muted-foreground">
+																		{renderVenueTypeIcon(key)}
+																	</span>
+																	<span>{label}</span>
 																</span>
 															</Toggle>
 														))}
@@ -993,7 +1050,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														</h4>
 													</div>
 													<div className="grid grid-cols-2 gap-1">
-														{DAY_NIGHT_PERIODS.map(({ key, label, icon }) => (
+														{DAY_NIGHT_PERIODS.map(({ key, label }) => (
 															<Toggle
 																key={key}
 																pressed={selectedDayNightPeriods.includes(key)}
@@ -1003,7 +1060,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																size="sm"
 																className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
 															>
-																{icon} {label}
+																<span className="inline-flex items-center gap-1">
+																	<span className="text-muted-foreground">
+																		{renderDayNightIcon(key)}
+																	</span>
+																	<span>{label}</span>
+																</span>
 															</Toggle>
 														))}
 													</div>
@@ -1034,16 +1096,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														<Info className="h-4 w-4" />
 													</button>
 												</TooltipTrigger>
-												<TooltipContent>
-													<div className="text-sm space-y-1">
-														<p>
-															<strong>Day:</strong> 6:00 AM - 9:59 PM ☀️
-														</p>
-														<p>
-															<strong>Night:</strong> 10:00 PM - 5:59 AM 🌙
-														</p>
-													</div>
-												</TooltipContent>
+													<TooltipContent>
+														<div className="text-sm space-y-1">
+															<p className="inline-flex items-center gap-1.5">
+																<strong>Day:</strong> 6:00 AM - 9:59 PM
+																<Sun className="h-3.5 w-3.5" />
+															</p>
+															<p className="inline-flex items-center gap-1.5">
+																<strong>Night:</strong> 10:00 PM - 5:59 AM
+																<Moon className="h-3.5 w-3.5" />
+															</p>
+														</div>
+													</TooltipContent>
 											</Tooltip>
 										</TooltipProvider>
 									</div>
@@ -1057,7 +1121,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												</h4>
 											</div>
 											<div className="grid grid-cols-2 gap-2">
-												{DAY_NIGHT_PERIODS.map(({ key, label, icon }) => (
+												{DAY_NIGHT_PERIODS.map(({ key, label }) => (
 													<Toggle
 														key={key}
 														pressed={selectedDayNightPeriods.includes(key)}
@@ -1065,7 +1129,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														size="sm"
 														className={regularToggleClassName}
 													>
-														{icon} {label}
+														<span className="inline-flex items-center gap-1">
+															<span className="text-muted-foreground">
+																{renderDayNightIcon(key)}
+															</span>
+															<span>{label}</span>
+														</span>
 													</Toggle>
 												))}
 											</div>
@@ -1093,7 +1162,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								<div className={sectionClassName}>
 									<h3 className={sectionTitleClassName}>Venue Type</h3>
 									<div className="grid grid-cols-2 gap-1">
-										{VENUE_TYPES.map(({ key, label, icon }) => (
+										{VENUE_TYPES.map(({ key, label }) => (
 											<Toggle
 												key={key}
 												pressed={selectedVenueTypes.includes(key)}
@@ -1101,8 +1170,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												className={regularToggleClassName}
 												size="sm"
 											>
-												<span className="text-xs">
-													{icon} {label}
+												<span className="inline-flex items-center gap-1 text-xs">
+													<span className="text-muted-foreground">
+														{renderVenueTypeIcon(key)}
+													</span>
+													<span>{label}</span>
 												</span>
 											</Toggle>
 										))}

@@ -208,7 +208,9 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								<CardTitle className="break-words text-[clamp(1.25rem,3.5vw,1.9rem)] [font-family:var(--ooo-font-display)] font-light leading-tight">
 									{event.name}
 								</CardTitle>
-								{event.isOOOCPick && <span className="text-yellow-500">🌟</span>}
+								{event.isOOOCPick && (
+									<Star className="h-4 w-4 fill-current text-yellow-500" />
+								)}
 							</div>
 						</div>
 						<Button
