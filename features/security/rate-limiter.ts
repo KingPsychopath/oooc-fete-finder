@@ -73,7 +73,10 @@ const allowDecision = (
 const blockDecision = (
 	scope: RateLimitScope,
 	keyHash: string,
-	reason: Extract<RateLimitReason, "ip_limit" | "email_ip_limit">,
+	reason: Extract<
+		RateLimitReason,
+		"ip_limit" | "email_ip_limit" | "fingerprint_limit"
+	>,
 	retryAfterSeconds: number,
 ): RateLimitDecision => ({
 	allowed: false,

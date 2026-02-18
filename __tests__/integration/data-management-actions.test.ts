@@ -22,6 +22,7 @@ const makeEvent = (id: string) => ({
 type Setup = {
 	getLiveSiteEventsSnapshot: typeof import("@/features/data-management/actions").getLiveSiteEventsSnapshot;
 	getLiveEvents: ReturnType<typeof vi.fn>;
+	getEventsData: ReturnType<typeof vi.fn>;
 	validateAdminAccess: ReturnType<typeof vi.fn>;
 };
 
@@ -29,6 +30,7 @@ const loadActions = async (): Promise<Setup> => {
 	vi.resetModules();
 
 	const getLiveEvents = vi.fn();
+	const getEventsData = vi.fn();
 	const validateAdminAccess = vi.fn().mockResolvedValue(true);
 
 	vi.doMock("@/lib/config/env", () => ({
@@ -66,11 +68,17 @@ const loadActions = async (): Promise<Setup> => {
 			getPreview: vi.fn(),
 		},
 	}));
+	vi.doMock("@/features/data-management/data-manager", () => ({
+		DataManager: {
+			getEventsData,
+		},
+	}));
 
 	const actions = await import("@/features/data-management/actions");
 	return {
 		getLiveSiteEventsSnapshot: actions.getLiveSiteEventsSnapshot,
 		getLiveEvents,
+		getEventsData,
 		validateAdminAccess,
 	};
 };
@@ -101,9 +109,10 @@ describe("getLiveSiteEventsSnapshot", () => {
 		expect(getLiveEvents).toHaveBeenCalledTimes(1);
 	});
 
-	it("uses live runtime service path when forceRefresh=true", async () => {
-		const { getLiveSiteEventsSnapshot, getLiveEvents } = await loadActions();
-		getLiveEvents.mockResolvedValue({
+	it("uses source dry-run path when forceRefresh=true", async () => {
+		const { getLiveSiteEventsSnapshot, getLiveEvents, getEventsData } =
+			await loadActions();
+		getEventsData.mockResolvedValue({
 			success: true,
 			data: [makeEvent("2")],
 			count: 1,
@@ -118,7 +127,8 @@ describe("getLiveSiteEventsSnapshot", () => {
 		expect(result.success).toBe(true);
 		expect(result.source).toBe("store");
 		expect(result.totalCount).toBe(1);
-		expect(getLiveEvents).toHaveBeenCalledTimes(1);
+		expect(getEventsData).toHaveBeenCalledTimes(1);
+		expect(getLiveEvents).not.toHaveBeenCalled();
 	});
 
 	it("returns unauthorized when admin validation fails", async () => {

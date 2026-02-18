@@ -40,6 +40,7 @@ import {
 } from "./validation/csv-schema-report";
 import { processCSVData } from "./data-processor";
 import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
+import { DataManager } from "./data-manager";
 
 /**
  * Data Management Server Actions
@@ -229,14 +230,20 @@ export async function getLiveSiteEventsSnapshot(
 	}
 
 	try {
-		void options;
-		const result = await getLiveEvents();
-		if (!result.success) {
-			return { success: false, error: result.error || "Failed to load events" };
+		const sourceRead = options?.forceRefresh ?
+			await DataManager.getEventsData({
+				populateCoordinates: false,
+			})
+		:	await getLiveEvents();
+		if (!sourceRead.success) {
+			return {
+				success: false,
+				error: sourceRead.error || "Failed to load events",
+			};
 		}
 
 		const normalizedLimit = Math.max(5, Math.min(limit, 1000));
-		const rows = result.data.slice(0, normalizedLimit).map((event) => ({
+		const rows = sourceRead.data.slice(0, normalizedLimit).map((event) => ({
 			id: event.id,
 			name: event.name,
 			date: event.date || "",
@@ -249,9 +256,9 @@ export async function getLiveSiteEventsSnapshot(
 
 		return {
 			success: true,
-			source: result.source,
-			totalCount: result.count,
-			lastUpdate: result.lastUpdate,
+			source: sourceRead.source,
+			totalCount: sourceRead.count,
+			lastUpdate: sourceRead.lastUpdate,
 			rows,
 		};
 	} catch (error) {

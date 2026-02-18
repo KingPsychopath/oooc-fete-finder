@@ -119,7 +119,7 @@ export function AdminDashboardClient({
 				);
 				return;
 			}
-			await Promise.all([loadRuntimeDataStatus(), loadEmails()]);
+			await loadRuntimeDataStatus();
 			setRefreshMessage(
 				`Revalidated in ${revalidateResult.processingTimeMs ?? 0}ms`,
 			);
@@ -132,7 +132,7 @@ export function AdminDashboardClient({
 		} finally {
 			setRefreshing(false);
 		}
-	}, [loadRuntimeDataStatus, loadEmails]);
+	}, [loadRuntimeDataStatus]);
 
 	const exportAsCSV = useCallback(async () => {
 		const result = await exportCollectedEmailsCsv();
@@ -160,8 +160,8 @@ export function AdminDashboardClient({
 	}, [router]);
 
 	const onDataSaved = useCallback(async () => {
-		await Promise.all([loadRuntimeDataStatus(), loadEmails()]);
-	}, [loadRuntimeDataStatus, loadEmails]);
+		await loadRuntimeDataStatus();
+	}, [loadRuntimeDataStatus]);
 
 	return (
 		<div className="ooo-admin-shell overflow-x-hidden">

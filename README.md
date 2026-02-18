@@ -15,6 +15,8 @@ Featured scheduling is Postgres-backed (`app_featured_event_schedule`) and manag
 
 Auth modal user submissions are stored in the managed user store (`app_kv_store`) first, with optional Google mirroring only when explicitly enabled.
 
+Host event submissions are stored in Postgres (`app_event_submissions`) and reviewed in `/admin` before publishing.
+
 In Vercel preview/production, KV provider selection is strict Postgres-only (no file/memory fallback).
 
 ## Runtime Data Flow (Current)
@@ -52,6 +54,7 @@ Event sheet data is stored in normalized tables:
 Other app state (auth/session/user collection) remains in:
 
 - `app_kv_store`
+- `app_event_submissions`
 
 ## Admin Workflow (`/admin`)
 
@@ -130,6 +133,14 @@ Admin and other pages inherit the default OG style unless explicitly overridden.
 
 Blocked requests return `429` with `Retry-After` and `no-store` cache headers.
 Sensitive identifiers are HMAC-hashed with `AUTH_SECRET` in limiter keys/log context.
+
+`POST /api/event-submissions` is protected by in-app Postgres atomic rate limiting:
+
+- `20 / 10 minutes` per IP (`event_submit_ip`)
+- `5 / 60 minutes` per email+IP (`event_submit_email_ip`)
+- `1 / 24 hours` per normalized event fingerprint (`event_submit_fingerprint`)
+
+Submission spam heuristics (honeypot + minimum completion time) are persisted for moderation and return a generic success response.
 
 ## Documentation
 

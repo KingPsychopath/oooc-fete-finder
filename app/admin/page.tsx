@@ -1,13 +1,10 @@
 import {
-	getAdminTokenSessions,
+	getAdminSessionOverview,
 	getCollectedEmails,
-	getAdminSessionStatus,
 } from "@/features/auth/actions";
 import {
-	getEventSheetEditorData,
 	getEventStoreBackupStatus,
 	getEventStoreRecentBackups,
-	getLiveSiteEventsSnapshot,
 	getLocalEventStorePreview,
 	getLocalEventStoreStatus,
 	getRuntimeDataStatus,
@@ -20,37 +17,44 @@ import { AdminDashboardClient } from "./AdminDashboardClient";
 import type { AdminInitialData } from "./types";
 
 export default async function AdminPage() {
-	const sessionStatus = await getAdminSessionStatus();
+	const sessionOverview = await getAdminSessionOverview();
+	const sessionStatus = sessionOverview.sessionStatus;
 	const isAuthenticated =
 		sessionStatus.success && sessionStatus.isValid === true;
 
 	if (!isAuthenticated) {
 		return <AdminAuthClient />;
 	}
+	const tokenSessions =
+		sessionOverview.success ?
+			{
+				success: true,
+				sessions: sessionOverview.tokenSessions ?? [],
+				count: (sessionOverview.tokenSessions ?? []).length,
+				currentTokenVersion: sessionOverview.currentTokenVersion ?? 1,
+			}
+		:	{
+				success: false,
+				error: sessionOverview.error || "Unauthorized",
+			};
 
 	const [
 		runtimeDataStatus,
 		emailsResult,
-		tokenSessions,
 		localStoreStatus,
 		localStorePreview,
 		localBackupStatus,
 		localRecentBackups,
-		editorData,
-		liveSnapshot,
 		featuredQueue,
 		eventSubmissions,
 		slidingBannerSettings,
 	] = await Promise.all([
 		getRuntimeDataStatus(),
 		getCollectedEmails(),
-		getAdminTokenSessions(),
 		getLocalEventStoreStatus(),
 		getLocalEventStorePreview(undefined, 2, { random: true }),
 		getEventStoreBackupStatus(),
 		getEventStoreRecentBackups(undefined, 30),
-		getEventSheetEditorData(),
-		getLiveSiteEventsSnapshot(undefined, 500),
 		listFeaturedQueue(),
 		getEventSubmissionsDashboard(),
 		getAdminSlidingBannerSettings(),
@@ -65,8 +69,6 @@ export default async function AdminPage() {
 		localStorePreview,
 		localBackupStatus,
 		localRecentBackups,
-		editorData,
-		liveSnapshot,
 		featuredQueue,
 		eventSubmissions,
 		slidingBannerSettings,

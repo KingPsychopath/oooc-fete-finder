@@ -146,10 +146,42 @@ export const AdminSessionStatus = ({
 	}, [initialTokenSessions?.success, loadStatus]);
 
 	useEffect(() => {
-		const interval = setInterval(() => {
-			void loadStatus();
-		}, 60000);
-		return () => clearInterval(interval);
+		let intervalId: ReturnType<typeof setInterval> | null = null;
+
+		const stopPolling = () => {
+			if (intervalId) {
+				clearInterval(intervalId);
+				intervalId = null;
+			}
+		};
+
+		const startPolling = () => {
+			if (intervalId || document.visibilityState !== "visible") {
+				return;
+			}
+			intervalId = setInterval(() => {
+				void loadStatus();
+			}, 60000);
+		};
+
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === "visible") {
+				void loadStatus();
+				startPolling();
+				return;
+			}
+			stopPolling();
+		};
+
+		startPolling();
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+		window.addEventListener("focus", handleVisibilityChange);
+
+		return () => {
+			stopPolling();
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+			window.removeEventListener("focus", handleVisibilityChange);
+		};
 	}, [loadStatus]);
 
 	const handleRevokeSingle = async (jti: string) => {

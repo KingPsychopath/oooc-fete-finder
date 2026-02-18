@@ -7,7 +7,6 @@ import type {
 	EventSubmissionMetrics,
 	EventSubmissionPayload,
 	EventSubmissionRecord,
-	EventSubmissionReviewStatus,
 	EventSubmissionSpamSignals,
 	EventSubmissionStatus,
 	ReviewEventSubmissionInput,
@@ -15,6 +14,9 @@ import type {
 import { getPostgresClient } from "./postgres-client";
 
 const TABLE_NAME = "app_event_submissions";
+
+type JsonPrimitive = string | number | boolean | null;
+type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
 declare global {
 	var __ooocFeteFinderEventSubmissionRepository:
@@ -45,6 +47,13 @@ const toIsoString = (value: Date | string): string =>
 const toNullableIsoString = (value: Date | string | null): string | null => {
 	if (!value) return null;
 	return toIsoString(value);
+};
+
+const toJsonValue = (value: unknown): JsonValue => {
+	if (value == null) {
+		return null;
+	}
+	return JSON.parse(JSON.stringify(value)) as JsonValue;
 };
 
 const toPayload = (value: unknown): EventSubmissionPayload => {
@@ -202,12 +211,12 @@ export class EventSubmissionRepository {
 			VALUES (
 				${id},
 				${input.status},
-				${this.sql.json(input.payload)},
+				${this.sql.json(toJsonValue(input.payload))},
 				${input.hostEmail},
 				${input.sourceIpHash},
 				${input.emailIpHash},
 				${input.fingerprintHash},
-				${this.sql.json(input.spamSignals)},
+				${this.sql.json(toJsonValue(input.spamSignals))},
 				${input.reviewReason ?? null},
 				${input.acceptedEventKey ?? null},
 				${input.reviewedAt ?? null},

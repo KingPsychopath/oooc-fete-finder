@@ -186,6 +186,12 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 								<Clock />
 								<ThemeToggle className="h-9 w-9 rounded-full border border-border/80 bg-background/70 hover:bg-accent" />
 							</div>
+							<Link
+								href={`${basePath || ""}/submit-event`}
+								className="inline-flex items-center rounded-full border border-border/80 bg-background/70 px-3 py-2 text-[11px] tracking-[0.08em] text-foreground/85 transition-colors hover:bg-accent"
+							>
+								Submit Event
+							</Link>
 							{isAdminAuthenticated && (
 								<Link
 									href={`${basePath || ""}/admin`}

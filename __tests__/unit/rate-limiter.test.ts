@@ -119,6 +119,52 @@ describe("rate-limiter helpers", () => {
 		});
 	});
 
+	it("enforces event submit fingerprint cooldown limits", async () => {
+		const { repository, limiter } = await loadLimiter();
+		repository.consumeWindow.mockResolvedValue({
+			allowed: false,
+			count: 2,
+			limit: 1,
+			resetAt: "2026-06-22T00:00:00.000Z",
+			retryAfterSeconds: 1800,
+		});
+
+		const decision = await limiter.checkEventSubmitFingerprintLimit(
+			"same-event-fingerprint",
+		);
+
+		expect(decision).toMatchObject({
+			allowed: false,
+			reason: "fingerprint_limit",
+			retryAfterSeconds: 1800,
+			scope: "event_submit_fingerprint",
+		});
+	});
+
+	it("enforces event submit email+IP scope with normalized identifiers", async () => {
+		const { repository, limiter } = await loadLimiter();
+		repository.consumeWindow.mockResolvedValue({
+			allowed: true,
+			count: 1,
+			limit: 5,
+			resetAt: "2026-06-22T00:00:00.000Z",
+			retryAfterSeconds: 60,
+		});
+
+		await limiter.checkEventSubmitEmailIpLimit(
+			"Host@Example.com",
+			"203.0.113.99",
+		);
+
+		expect(repository.consumeWindow).toHaveBeenCalledWith(
+			expect.objectContaining({
+				scope: "event_submit_email_ip",
+				windowSeconds: 3600,
+				limit: 5,
+			}),
+		);
+	});
+
 	it("cleans up expired counters through repository", async () => {
 		const { repository, limiter } = await loadLimiter();
 		repository.cleanupExpired.mockResolvedValue(12);

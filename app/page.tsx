@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import { generateEventOGImage } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { HomeEventsSection } from "./HomeEventsSection";
 import { HomeHeader } from "./HomeHeader";
@@ -9,6 +10,7 @@ import { HomeHeader } from "./HomeHeader";
 export const revalidate = 300; // 5 minutes in seconds
 const homeMapLoadStrategy: "immediate" | "expand" | "idle" = "expand";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 type HomeMetadataProps = {
 	searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -154,6 +156,24 @@ export default function Home() {
 						map and filters to find what’s on.
 					</p>
 					<div className="mt-6 border-t border-border" role="presentation" />
+				</section>
+				<section className="mb-8 rounded-xl border border-border bg-card/70 px-4 py-5 sm:px-6">
+					<div className="flex flex-wrap items-center justify-between gap-3">
+						<div>
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Event Hosts
+							</p>
+							<p className="mt-1 text-sm text-foreground">
+								Running an event? Submit it for admin review.
+							</p>
+						</div>
+						<Link
+							href={`${basePath}/submit-event`}
+							className="inline-flex h-10 items-center rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+						>
+							Submit Your Event
+						</Link>
+					</div>
 				</section>
 
 				<Suspense fallback={<HomeEventsFallback />}>
