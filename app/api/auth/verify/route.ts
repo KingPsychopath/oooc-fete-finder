@@ -4,6 +4,12 @@ import {
 	getUserAuthCookieOptions,
 	signUserSessionToken,
 } from "@/features/auth/user-session-cookie";
+import {
+	type RateLimitDecision,
+	checkAuthVerifyEmailIpLimit,
+	checkAuthVerifyIpLimit,
+	extractClientIpFromHeaders,
+} from "@/features/security/rate-limiter";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { log } from "@/lib/platform/logger";
 import { NextResponse } from "next/server";
@@ -21,7 +27,41 @@ const isValidEmail = (email: string): boolean => {
 	return emailRegex.test(email);
 };
 
+const withRetryAfterHeaders = (retryAfterSeconds: number): HeadersInit => ({
+	...NO_STORE_HEADERS,
+	"Retry-After": String(Math.max(1, Math.floor(retryAfterSeconds))),
+});
+
+const rateLimitedResponse = (retryAfterSeconds: number): NextResponse =>
+	NextResponse.json(
+		{
+			success: false,
+			error: "Too many attempts. Please try again shortly.",
+		},
+		{
+			status: 429,
+			headers: withRetryAfterHeaders(retryAfterSeconds),
+		},
+	);
+
+const logLimiterUnavailable = (decision: RateLimitDecision): void => {
+	if (decision.reason !== "limiter_unavailable") return;
+
+	log.warn("auth-verify", "Rate limiter unavailable; allowing request", {
+		reason: decision.reason,
+		scope: decision.scope,
+		keyHash: decision.keyHash,
+	});
+};
+
 export async function POST(request: Request) {
+	const clientIp = extractClientIpFromHeaders(request.headers);
+	const ipDecision = await checkAuthVerifyIpLimit(clientIp);
+	logLimiterUnavailable(ipDecision);
+	if (!ipDecision.allowed) {
+		return rateLimitedResponse(ipDecision.retryAfterSeconds ?? 1);
+	}
+
 	let body: VerifyBody;
 	try {
 		body = (await request.json()) as VerifyBody;
@@ -55,6 +95,13 @@ export async function POST(request: Request) {
 			{ status: 400, headers: NO_STORE_HEADERS },
 		);
 	}
+
+	const emailIpDecision = await checkAuthVerifyEmailIpLimit(email, clientIp);
+	logLimiterUnavailable(emailIpDecision);
+	if (!emailIpDecision.allowed) {
+		return rateLimitedResponse(emailIpDecision.retryAfterSeconds ?? 1);
+	}
+
 	if (!consent) {
 		return NextResponse.json(
 			{ success: false, error: "Consent is required" },

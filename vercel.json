@@ -4,7 +4,8 @@
     "app/api/og-upload/route.ts": { "maxDuration": 30 }
   },
   "crons": [
-    { "path": "/api/cron/cleanup-admin-sessions", "schedule": "0 4 * * *" }
+    { "path": "/api/cron/cleanup-admin-sessions", "schedule": "0 4 * * *" },
+    { "path": "/api/cron/cleanup-rate-limits", "schedule": "10 4 * * *" }
   ],
   "headers": [
     {

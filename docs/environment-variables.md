@@ -32,6 +32,20 @@ Schema lives in `lib/config/env.ts`.
 
 The app uses **only** `DATABASE_URL`. Variables like `PGHOST`, `PGUSER`, `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, etc. are often set by Vercel/Neon for convenience; the app does not read them. You only need `DATABASE_URL` for the app to use Postgres.
 
+## Auth Verify Rate Limiting
+
+`POST /api/auth/verify` uses fixed in-app limits backed by Postgres:
+
+- IP limit: `60 requests / 60 seconds`
+- Email+IP limit: `6 requests / 15 minutes`
+- Failure mode: fail-open if limiter storage is unavailable (warning logged)
+
+No extra env vars are required. It relies on:
+
+- `DATABASE_URL` for shared rate-limit counters
+- `AUTH_SECRET` for HMAC hashing of identifiers
+- `CRON_SECRET` for `/api/cron/cleanup-rate-limits`
+
 ## Recommended setup (Postgres primary)
 
 1. Set `DATA_MODE=remote` and `DATABASE_URL` (e.g. Neon pooler URL).
