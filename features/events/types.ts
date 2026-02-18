@@ -13,8 +13,14 @@ export type DayNightPeriod = "day" | "night";
 
 export type EventType = "After Party" | "Day Party";
 
-// Host country type for GB/FR column
-export type Nationality = "UK" | "FR" | "CA";
+// Host country codes supported by ingestion/filtering
+export const SUPPORTED_NATIONALITY_CODES = [
+	"UK",
+	"FR",
+	"CA",
+	"NL",
+] as const;
+export type Nationality = (typeof SUPPORTED_NATIONALITY_CODES)[number];
 
 // Venue type for Indoor/Outdoor column
 export type VenueType = "indoor" | "outdoor";
@@ -135,7 +141,7 @@ export type Event = {
 // CSV data type matching the structure in ooc_list_tracker.csv
 export type CSVEventRow = {
 	oocPicks: string; // "🌟" or empty
-	nationality: string; // "🇬🇧" or "🇫🇷"
+	nationality: string; // Country flags/codes/text (for example "🇬🇧", "🇫🇷", "GB/FR")
 	name: string;
 	date: string;
 	startTime: string;
@@ -249,6 +255,7 @@ export const EVENT_TYPES = [
 export const NATIONALITIES = [
 	{ key: "CA" as const, label: "Canada", flag: "🇨🇦", shortCode: "CA" },
 	{ key: "FR" as const, label: "France", flag: "🇫🇷", shortCode: "FR" },
+	{ key: "NL" as const, label: "Netherlands", flag: "🇳🇱", shortCode: "NL" },
 	{ key: "UK" as const, label: "United Kingdom", flag: "🇬🇧", shortCode: "GB" },
 ] as const;
 

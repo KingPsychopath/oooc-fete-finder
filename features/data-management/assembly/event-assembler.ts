@@ -33,21 +33,11 @@ import {
 } from "./field-transformers";
 
 const EVENT_KEY_FINGERPRINT_FIELDS: readonly (keyof CSVEventRow)[] = [
-	"oocPicks",
-	"nationality",
 	"name",
 	"date",
 	"startTime",
-	"endTime",
 	"location",
 	"arrondissement",
-	"genre",
-	"price",
-	"ticketLink",
-	"age",
-	"indoorOutdoor",
-	"notes",
-	"featured",
 ];
 
 /**

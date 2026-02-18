@@ -52,7 +52,7 @@ const COLUMN_MAPPINGS = {
 		"arrondissement",
 		"District",
 	],
-	genre: ["Genre", "Music Genre", "genre", "Type", "Music"],
+	genre: ["Genre", "Music Genre", "genre", "Music"],
 	price: ["Price", "Cost", "price", "Ticket Price", "Entry"],
 	ticketLink: ["Ticket Link", "Link", "ticketLink", "URL", "Website"],
 	age: ["Age", "Age Limit", "age", "Age Restriction"],
@@ -61,7 +61,6 @@ const COLUMN_MAPPINGS = {
 		"Indoor Outdoor",
 		"Venue Type",
 		"indoorOutdoor",
-		"Type",
 	],
 	notes: ["Notes", "Description", "notes", "Details", "Info"],
 	featured: ["Featured", "featured", "Feature", "Promoted", "Premium"],
@@ -128,10 +127,10 @@ export type CSVEventRow = {
 /**
  * Finds the correct column name from a list of possible header variations.
  *
- * This function performs intelligent column matching by trying:
- * 1. Exact matches first
- * 2. Case-insensitive matches
- * 3. Partial/substring matches
+ * This function performs deterministic alias matching:
+ * 1. Normalize headers (case/spacing/punctuation agnostic)
+ * 2. Match against known aliases only
+ * 3. Fail fast on ambiguous/duplicate mappings
  *
  * @param headers - Array of actual CSV column headers
  * @param possibleNames - Array of possible column name variations to match against
@@ -144,36 +143,37 @@ export type CSVEventRow = {
  * // Returns "Event Name"
  * ```
  */
-const findColumnName = (
-	headers: string[],
-	possibleNames: readonly string[],
-): string | null => {
-	// Try exact matches first
-	for (const possibleName of possibleNames) {
-		const exactMatch = headers.find((header) => header.trim() === possibleName);
-		if (exactMatch) return exactMatch;
-	}
-
-	// Try case-insensitive matches
-	for (const possibleName of possibleNames) {
-		const caseInsensitiveMatch = headers.find(
-			(header) => header.trim().toLowerCase() === possibleName.toLowerCase(),
-		);
-		if (caseInsensitiveMatch) return caseInsensitiveMatch;
-	}
-
-	// Try partial matches
-	for (const possibleName of possibleNames) {
-		const partialMatch = headers.find(
-			(header) =>
-				header.trim().toLowerCase().includes(possibleName.toLowerCase()) ||
-				possibleName.toLowerCase().includes(header.trim().toLowerCase()),
-		);
-		if (partialMatch) return partialMatch;
-	}
-
-	return null;
+const normalizeHeaderKey = (value: string): string => {
+	return value
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
 };
+
+const buildAliasLookup = (): Map<string, Array<keyof CSVEventRow>> => {
+	const lookup = new Map<string, Array<keyof CSVEventRow>>();
+	const appendAlias = (alias: string, field: keyof CSVEventRow): void => {
+		const normalized = normalizeHeaderKey(alias);
+		if (!normalized) return;
+		const existing = lookup.get(normalized) ?? [];
+		if (!existing.includes(field)) {
+			lookup.set(normalized, [...existing, field]);
+		}
+	};
+
+	for (const field of Object.keys(COLUMN_MAPPINGS) as Array<keyof CSVEventRow>) {
+		appendAlias(field, field);
+		for (const alias of COLUMN_MAPPINGS[field]) {
+			appendAlias(alias, field);
+		}
+	}
+
+	return lookup;
+};
+
+const HEADER_ALIAS_LOOKUP = buildAliasLookup();
 
 /**
  * Creates a mapping between standardized field names and actual CSV column headers.
@@ -196,23 +196,75 @@ const createColumnMapping = (
 	headers: string[],
 ): Record<keyof CSVEventRow, string | null> => {
 	const mapping: Record<keyof CSVEventRow, string | null> = {
-		eventKey: findColumnName(headers, COLUMN_MAPPINGS.eventKey),
-		oocPicks: findColumnName(headers, COLUMN_MAPPINGS.oocPicks),
-		nationality: findColumnName(headers, COLUMN_MAPPINGS.nationality),
-		name: findColumnName(headers, COLUMN_MAPPINGS.name),
-		date: findColumnName(headers, COLUMN_MAPPINGS.date),
-		startTime: findColumnName(headers, COLUMN_MAPPINGS.startTime),
-		endTime: findColumnName(headers, COLUMN_MAPPINGS.endTime),
-		location: findColumnName(headers, COLUMN_MAPPINGS.location),
-		arrondissement: findColumnName(headers, COLUMN_MAPPINGS.arrondissement),
-		genre: findColumnName(headers, COLUMN_MAPPINGS.genre),
-		price: findColumnName(headers, COLUMN_MAPPINGS.price),
-		ticketLink: findColumnName(headers, COLUMN_MAPPINGS.ticketLink),
-		age: findColumnName(headers, COLUMN_MAPPINGS.age),
-		indoorOutdoor: findColumnName(headers, COLUMN_MAPPINGS.indoorOutdoor),
-		notes: findColumnName(headers, COLUMN_MAPPINGS.notes),
-		featured: findColumnName(headers, COLUMN_MAPPINGS.featured),
+		eventKey: null,
+		oocPicks: null,
+		nationality: null,
+		name: null,
+		date: null,
+		startTime: null,
+		endTime: null,
+		location: null,
+		arrondissement: null,
+		genre: null,
+		price: null,
+		ticketLink: null,
+		age: null,
+		indoorOutdoor: null,
+		notes: null,
+		featured: null,
 	};
+	const ambiguousHeaders: Array<{ header: string; fields: string[] }> = [];
+	const duplicateFieldMatches: Array<{
+		field: keyof CSVEventRow;
+		headers: string[];
+	}> = [];
+
+	for (const header of headers) {
+		const normalized = normalizeHeaderKey(header);
+		if (!normalized) continue;
+		const matches = HEADER_ALIAS_LOOKUP.get(normalized) ?? [];
+		if (matches.length === 0) continue;
+		if (matches.length > 1) {
+			ambiguousHeaders.push({
+				header,
+				fields: matches.map((field) => field.toString()),
+			});
+			continue;
+		}
+
+		const field = matches[0];
+		if (mapping[field] && mapping[field] !== header) {
+			duplicateFieldMatches.push({
+				field,
+				headers: [mapping[field] as string, header],
+			});
+			continue;
+		}
+		mapping[field] = header;
+	}
+
+	if (ambiguousHeaders.length > 0) {
+		const summary = ambiguousHeaders
+			.slice(0, 3)
+			.map((entry) => `"${entry.header}" -> ${entry.fields.join("/")}`)
+			.join("; ");
+		throw new Error(
+			`Ambiguous CSV headers detected. Rename conflicting columns: ${summary}`,
+		);
+	}
+
+	if (duplicateFieldMatches.length > 0) {
+		const summary = duplicateFieldMatches
+			.slice(0, 3)
+			.map(
+				(entry) =>
+					`field "${entry.field}" matched by ${entry.headers
+						.map((value) => `"${value}"`)
+						.join(" and ")}`,
+			)
+			.join("; ");
+		throw new Error(`Duplicate CSV column mappings detected: ${summary}`);
+	}
 
 	return mapping;
 };
@@ -227,7 +279,7 @@ const createColumnMapping = (
  * using the event-assembler module.
  *
  * Features:
- * - Intelligent column header matching with multiple naming variations
+ * - Deterministic column header matching with strict aliasing
  * - Graceful handling of missing optional columns
  * - Validation of essential columns (name, date)
  * - Detailed logging for debugging and monitoring
@@ -256,18 +308,32 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 		});
 
 		if (parseResult.errors.length > 0) {
-			// Filter out field mismatch errors for missing columns (they're not critical)
+			const fieldMismatchErrors = parseResult.errors.filter(
+				(error) =>
+					error.code === "TooFewFields" || error.code === "TooManyFields",
+			);
+			if (fieldMismatchErrors.length > 0) {
+				const rowSummary = fieldMismatchErrors
+					.slice(0, 5)
+					.map((error) => {
+						const rowNumber = typeof error.row === "number" ? error.row + 1 : null;
+						return rowNumber ? `row ${rowNumber}` : "unknown row";
+					})
+					.join(", ");
+				throw new Error(
+					`CSV row structure mismatch in ${fieldMismatchErrors.length} row(s) (${rowSummary}). Ensure each row has the same number of columns as the header.`,
+				);
+			}
+
 			const criticalErrors = parseResult.errors.filter(
 				(error) =>
 					error.code !== "TooFewFields" && error.code !== "TooManyFields",
 			);
-
 			if (criticalErrors.length > 0) {
 				clientLog.warn("csv-parser", "Critical CSV parsing errors", {
 					criticalErrors,
 				});
 			}
-
 		}
 
 		const rawData = parseResult.data as Array<RawCSVRow | null | undefined>;

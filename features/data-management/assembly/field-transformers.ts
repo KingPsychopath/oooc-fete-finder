@@ -12,6 +12,7 @@ import type {
 	ParisArrondissement,
 	VenueType,
 } from "@/features/events/types";
+import { parseSupportedNationalities } from "@/features/events/nationality-utils";
 import { createDateNormalizationContext, normalizeCsvDate } from "./date-normalization";
 
 /**
@@ -265,60 +266,8 @@ export const NationalityTransformers = {
 	 * Convert host country flag/text to Nationality type array
 	 */
 	convertToNationality: (nationalityStr: string): Nationality[] | undefined => {
-		if (!nationalityStr) return undefined;
-
-		const cleaned = nationalityStr.trim().toLowerCase();
-		const nationalities: Nationality[] = [];
-
-		// Define country mappings for easy expansion
-		const countryMappings = {
-			UK: {
-				indicators: ["🇬🇧", "gb", "uk", "united kingdom", "britain", "british"],
-				key: "UK" as const,
-			},
-			FR: {
-				indicators: ["🇫🇷", "fr", "france", "french"],
-				key: "FR" as const,
-			},
-			CA: {
-				indicators: ["🇨🇦", "ca", "canada", "canadian"],
-				key: "CA" as const,
-			},
-		};
-
-		// Check for each country's indicators
-		for (const [, { indicators, key }] of Object.entries(countryMappings)) {
-			if (indicators.some((indicator) => cleaned.includes(indicator))) {
-				if (!nationalities.includes(key)) {
-					nationalities.push(key);
-				}
-			}
-		}
-
-		// Handle combined formats like "GB/FR", "UK/CA", etc.
-		if (
-			cleaned.includes("/") ||
-			cleaned.includes("&") ||
-			cleaned.includes("+")
-		) {
-			const parts = cleaned.split(/[\/&+]/).map((part) => part.trim());
-			for (const part of parts) {
-				// Check each part against all country mappings
-				for (const [, { indicators, key }] of Object.entries(countryMappings)) {
-					if (
-						indicators.some(
-							(indicator) => part === indicator || part.includes(indicator),
-						)
-					) {
-						if (!nationalities.includes(key)) {
-							nationalities.push(key);
-						}
-					}
-				}
-			}
-		}
-
-		return nationalities.length > 0 ? nationalities : undefined;
+		const parsed = parseSupportedNationalities(nationalityStr);
+		return parsed.codes.length > 0 ? parsed.codes : undefined;
 	},
 };
 

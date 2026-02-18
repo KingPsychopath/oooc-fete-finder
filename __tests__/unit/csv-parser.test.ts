@@ -43,4 +43,27 @@ describe("parseCSVContent", () => {
 			"CSV header row is missing or empty",
 		);
 	});
+
+	it("throws when multiple headers map to the same field", () => {
+		const csv = [
+			"Name,Event Name,Date",
+			"Main name,Alt name,2026-06-21",
+		].join("\n");
+
+		expect(() => parseCSVContent(csv)).toThrow(
+			"Duplicate CSV column mappings detected",
+		);
+	});
+
+	it("throws on row structure mismatches", () => {
+		const csv = [
+			"Name,Date,Location",
+			"Valid row,2026-06-21,Paris",
+			"Broken row,2026-06-22",
+		].join("\n");
+
+		expect(() => parseCSVContent(csv)).toThrow(
+			"CSV row structure mismatch",
+		);
+	});
 });

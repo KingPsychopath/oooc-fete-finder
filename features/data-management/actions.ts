@@ -16,6 +16,7 @@ import {
 } from "./runtime-service";
 import { LocalEventStore } from "./local-event-store";
 import { fetchRemoteCSV } from "./csv/fetcher";
+import { parseCSVContent } from "./csv/parser";
 import {
 	csvToEditableSheet,
 	editableSheetToCsv,
@@ -27,6 +28,10 @@ import {
 	type DateFormatWarning,
 	WarningSystem,
 } from "./validation/date-warnings";
+import {
+	analyzeCsvSchemaRows,
+	type CsvSchemaIssue,
+} from "./validation/csv-schema-report";
 import { processCSVData } from "./data-processor";
 import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
 
@@ -110,6 +115,28 @@ const getLegacyFeaturedErrorFromCsv = (csvContent: string): string | null => {
 	const violations = getLegacyFeaturedViolations(rows);
 	if (violations.count === 0) return null;
 	return buildLegacyFeaturedErrorMessage(violations);
+};
+
+const buildSchemaBlockingMessage = (issues: CsvSchemaIssue[]): string => {
+	const blocking = issues.filter((issue) => issue.severity === "error");
+	if (blocking.length === 0) return "";
+	const summary = blocking
+		.slice(0, 3)
+		.map(
+			(issue) =>
+				`${issue.column} row ${issue.rowIndex}: ${issue.message} (${issue.value || "empty"})`,
+		)
+		.join("; ");
+	return `Import blocked by schema validation (${blocking.length} issue(s)): ${summary}`;
+};
+
+const getCsvRuntimeValidationError = (csvContent: string): string | null => {
+	try {
+		parseCSVContent(csvContent);
+		return null;
+	} catch (error) {
+		return error instanceof Error ? error.message : "CSV validation failed";
+	}
 };
 
 const warmCoordinateCacheFromCsv = async (
@@ -379,6 +406,14 @@ export async function saveLocalEventStoreCsv(
 			error: legacyFeaturedError,
 		};
 	}
+	const runtimeValidationError = getCsvRuntimeValidationError(csvContent);
+	if (runtimeValidationError) {
+		return {
+			success: false,
+			message: "CSV structure validation failed",
+			error: runtimeValidationError,
+		};
+	}
 
 		try {
 			const result = await LocalEventStore.saveCsv(csvContent, {
@@ -446,6 +481,9 @@ export async function previewRemoteCsvForAdmin(
 	fetchedAt?: string;
 	canImport?: boolean;
 	importBlockedReason?: string;
+	schemaIssues?: CsvSchemaIssue[];
+	schemaBlockingCount?: number;
+	schemaWarningCount?: number;
 	error?: string;
 }> {
 	if (!(await validateAdminAccess(keyOrToken))) {
@@ -460,11 +498,16 @@ export async function previewRemoteCsvForAdmin(
 		const sheet = csvToEditableSheet(remoteFetchResult.content);
 		const normalizedLimit = Math.max(1, Math.min(limit, 50));
 		const allRows = sheet.rows;
+		const schemaReport = analyzeCsvSchemaRows(allRows, { eventKeyMode: "warn" });
 		const featuredViolations = getLegacyFeaturedViolations(allRows);
-		const importBlockedReason =
+		const legacyFeaturedError =
 			featuredViolations.count > 0 ?
 				buildLegacyFeaturedErrorMessage(featuredViolations)
-			:	undefined;
+			:	null;
+		const importBlockedReason =
+			legacyFeaturedError ||
+			buildSchemaBlockingMessage(schemaReport.issues) ||
+			undefined;
 		let previewRows = allRows.slice(0, normalizedLimit);
 
 		if (options?.random && allRows.length > normalizedLimit) {
@@ -481,6 +524,9 @@ export async function previewRemoteCsvForAdmin(
 			fetchedAt: new Date(remoteFetchResult.timestamp).toISOString(),
 			canImport: !importBlockedReason,
 			importBlockedReason,
+			schemaIssues: schemaReport.issues.slice(0, 50),
+			schemaBlockingCount: schemaReport.blockingCount,
+			schemaWarningCount: schemaReport.warningCount,
 		};
 	} catch (error) {
 		return {
@@ -518,6 +564,28 @@ export async function importRemoteCsvToLocalEventStore(
 				success: false,
 				message: LEGACY_FEATURED_COLUMN_ERROR,
 				error: legacyFeaturedError,
+			};
+		}
+		const sheet = csvToEditableSheet(remoteFetchResult.content);
+		const schemaReport = analyzeCsvSchemaRows(sheet.rows, {
+			eventKeyMode: "warn",
+		});
+		const importBlockedReason = buildSchemaBlockingMessage(schemaReport.issues);
+		if (importBlockedReason) {
+			return {
+				success: false,
+				message: "Import blocked by schema validation",
+				error: importBlockedReason,
+			};
+		}
+		const runtimeValidationError = getCsvRuntimeValidationError(
+			remoteFetchResult.content,
+		);
+		if (runtimeValidationError) {
+			return {
+				success: false,
+				message: "CSV structure validation failed",
+				error: runtimeValidationError,
 			};
 		}
 			const saved = await LocalEventStore.saveCsv(remoteFetchResult.content, {
@@ -647,6 +715,14 @@ export async function saveEventSheetEditorRows(
 		}
 
 		const csvContent = editableSheetToCsv(validation.columns, validation.rows);
+		const runtimeValidationError = getCsvRuntimeValidationError(csvContent);
+		if (runtimeValidationError) {
+			return {
+				success: false,
+				message: "CSV structure validation failed",
+				error: runtimeValidationError,
+			};
+		}
 			const saved = await LocalEventStore.saveCsv(csvContent, {
 				updatedBy: "admin-sheet-editor",
 				origin: "manual",

@@ -17,6 +17,7 @@ import {
 	previewRemoteCsvForAdmin,
 	saveLocalEventStoreCsv,
 } from "@/features/data-management/actions";
+import type { CsvSchemaIssue } from "@/features/data-management/validation/csv-schema-report";
 import type { EditableSheetColumn, EditableSheetRow } from "@/features/data-management/csv/sheet-editor";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import type { RuntimeDataStatus } from "../types";
@@ -43,6 +44,9 @@ type RemotePreviewState = {
 	fetchedAt: string;
 	canImport: boolean;
 	importBlockedReason?: string;
+	schemaIssues: CsvSchemaIssue[];
+	schemaBlockingCount: number;
+	schemaWarningCount: number;
 };
 
 export const LocalEventStoreCard = ({
@@ -185,6 +189,9 @@ export const LocalEventStoreCard = ({
 				fetchedAt: result.fetchedAt || new Date().toISOString(),
 				canImport: result.canImport ?? true,
 				importBlockedReason: result.importBlockedReason,
+				schemaIssues: result.schemaIssues ?? [],
+				schemaBlockingCount: result.schemaBlockingCount ?? 0,
+				schemaWarningCount: result.schemaWarningCount ?? 0,
 			};
 			setRemotePreview(nextPreview);
 			setRemotePreviewHistory([nextPreview]);
@@ -211,6 +218,9 @@ export const LocalEventStoreCard = ({
 				fetchedAt: result.fetchedAt || new Date().toISOString(),
 				canImport: result.canImport ?? true,
 				importBlockedReason: result.importBlockedReason,
+				schemaIssues: result.schemaIssues ?? [],
+				schemaBlockingCount: result.schemaBlockingCount ?? 0,
+				schemaWarningCount: result.schemaWarningCount ?? 0,
 			};
 
 			setRemotePreviewHistory((current) => {
@@ -559,6 +569,20 @@ export const LocalEventStoreCard = ({
 								{remotePreview.importBlockedReason && (
 									<div className="mb-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
 										Import blocked: {remotePreview.importBlockedReason}
+									</div>
+								)}
+								{remotePreview.schemaIssues.length > 0 && (
+									<div className="mb-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800">
+										<p className="font-medium">
+											Schema preflight: {remotePreview.schemaBlockingCount} blocking,{" "}
+											{remotePreview.schemaWarningCount} warning issue(s)
+										</p>
+										{remotePreview.schemaIssues.slice(0, 6).map((issue) => (
+											<p key={`${issue.code}-${issue.rowIndex}-${issue.column}`}>
+												[{issue.severity}] {issue.column} row {issue.rowIndex}:{" "}
+												{issue.message}
+											</p>
+										))}
 									</div>
 								)}
 								<p className="mb-2 text-xs text-muted-foreground">

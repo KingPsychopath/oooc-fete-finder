@@ -677,6 +677,10 @@ export const EventSheetEditorCard = ({
 				<div className="text-xs text-muted-foreground">
 					`Event Key` is system-managed for stable share links and is read-only.
 				</div>
+				<div className="text-xs text-muted-foreground">
+					When missing, Event Key is generated from canonical identity fields:
+					`Name`, `Date`, `Start Time`, `Location`, `Arr.`.
+				</div>
 				<div className="text-xs text-amber-700">
 					`Featured` column is legacy-only. Manage featured scheduling in
 					`Featured Events Manager`.
