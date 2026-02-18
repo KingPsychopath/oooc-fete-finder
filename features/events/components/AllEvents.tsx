@@ -104,7 +104,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 										</p>
 										<div className="mx-auto mt-2 h-px w-16 bg-border/70" />
 										<h3 className="mt-4 text-[clamp(1.45rem,4vw,2rem)] leading-none [font-family:var(--ooo-font-display)] font-light tracking-[0.02em] text-foreground">
-											The rest of tonight awaits
+											Free Your Vibe
 										</h3>
 										<p className="mt-3 text-sm leading-relaxed text-muted-foreground">
 											Unlock {lockedEvents.length} more curated event
