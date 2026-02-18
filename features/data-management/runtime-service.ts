@@ -48,7 +48,6 @@ export interface RuntimeDataStatus {
 	memoryLimit: number;
 	memoryUtilization: number;
 	configuredDataSource: "remote" | "local" | "test";
-	localCsvLastUpdated: string;
 	remoteConfigured: boolean;
 	hasLocalStoreData: boolean;
 	storeProvider: "file" | "memory" | "postgres";
@@ -230,7 +229,6 @@ export async function getRuntimeDataStatusFromSource(): Promise<RuntimeDataStatu
 		memoryLimit: 0,
 		memoryUtilization: 0,
 		configuredDataSource: configStatus.dataSource,
-		localCsvLastUpdated: configStatus.localCsvLastUpdated,
 		remoteConfigured: configStatus.remoteConfigured,
 		hasLocalStoreData: configStatus.hasLocalStoreData,
 		storeProvider: configStatus.storeProvider,

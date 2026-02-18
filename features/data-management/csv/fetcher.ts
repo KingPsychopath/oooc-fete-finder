@@ -5,7 +5,6 @@
  * Google Sheets functionality has been moved to @/lib/google/sheets/api.ts
  */
 
-import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
 
 /**
@@ -172,9 +171,7 @@ export async function fetchRemoteCSV(
 	try {
 		log.info("data-fetch", "Falling back to local CSV");
 		const content = await fetchLocalCSV();
-		log.info("data-fetch", "Using local CSV fallback", {
-			lastUpdated: env.LOCAL_CSV_LAST_UPDATED || "unknown",
-		});
+		log.info("data-fetch", "Using local CSV fallback");
 		return {
 			content,
 			source: "local",

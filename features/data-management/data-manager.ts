@@ -229,7 +229,6 @@ export class DataManager {
 	static async getDataConfigStatus(): Promise<{
 		dataSource: ConfiguredDataMode;
 		remoteConfigured: boolean;
-		localCsvLastUpdated: string;
 		hasServiceAccount: boolean;
 		hasDynamicOverride: boolean;
 		hasLocalStoreData: boolean;
@@ -247,7 +246,6 @@ export class DataManager {
 		return {
 			dataSource: env.DATA_MODE as ConfiguredDataMode,
 			remoteConfigured,
-			localCsvLastUpdated: env.LOCAL_CSV_LAST_UPDATED || "unknown",
 			hasServiceAccount,
 			hasDynamicOverride: false,
 			hasLocalStoreData: storeStatus.hasStoreData,

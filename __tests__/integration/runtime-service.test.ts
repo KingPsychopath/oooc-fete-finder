@@ -100,7 +100,6 @@ describe("runtime-service", () => {
 		dataManagerGetDataConfigStatus.mockResolvedValue({
 			dataSource: "remote",
 			remoteConfigured: true,
-			localCsvLastUpdated: "2026-02-18",
 			hasServiceAccount: false,
 			hasDynamicOverride: false,
 			hasLocalStoreData: true,

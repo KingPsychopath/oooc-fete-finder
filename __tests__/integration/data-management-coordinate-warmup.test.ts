@@ -47,7 +47,6 @@ const loadActions = async (): Promise<Setup> => {
 			ADMIN_KEY: "test",
 			DATA_MODE: "remote",
 			DATABASE_URL: "postgres://test",
-			LOCAL_CSV_LAST_UPDATED: "2026-02-18",
 			GOOGLE_SERVICE_ACCOUNT_KEY: "",
 			REMOTE_CSV_URL: "",
 			GOOGLE_SHEET_ID: "",
