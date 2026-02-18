@@ -2,6 +2,28 @@
 
 This doc explains how stable event links work for both admin editors and CSV upload workflows.
 
+## 5-minute masterclass
+
+### Problem this solves
+
+Before this change, runtime event IDs could change when row order changed. That made shared modal links brittle.
+
+### Core idea
+
+We now separate:
+
+1. **Identity** (`eventKey`) from
+2. **Editable event content** (name/date/time/etc.) from
+3. **Pretty URL text** (`slug`)
+
+Only identity is used to resolve links.
+
+### Practical result
+
+1. Share links are stable.
+2. Event details can be edited without breaking links.
+3. CSV/admin workflows stay simple because missing keys are generated automatically.
+
 ## Mental model
 
 Think of each event as having:
@@ -24,6 +46,29 @@ Example:
 - `/?event=evt_ab12cd34ef56&slug=imersiv-summer-party-day-1`
 
 If `slug` is wrong/tampered, the app still resolves by `event` and rewrites slug to canonical.
+
+## Integration map
+
+### Data input and persistence
+
+1. CSV parser accepts `Event Key` aliases and maps to `eventKey`.
+2. Store-save pipeline ensures missing/invalid keys are generated and persisted.
+3. Exports include `Event Key` so import/export cycles preserve identity.
+
+### Runtime event assembly
+
+1. Event assembly sets:
+   - `event.eventKey` (canonical)
+   - `event.slug` (decorative)
+   - `event.id = event.eventKey` (backward compatibility)
+
+### UI and routing
+
+1. Event modal opens from URL params:
+   - `event` canonical lookup
+   - `slug` optional/cosmetic
+2. Invalid URL keys are cleaned safely.
+3. Admin editor shows `Event Key` as read-only system field.
 
 ## CSV + Admin workflow (non-technical)
 
