@@ -86,6 +86,7 @@ export const env = createEnv({
 			GOOGLE_SHEET_ID: z.string().optional(),
 			GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
 			REMOTE_CSV_URL: z.string().url().optional(),
+			CRON_SECRET: z.string().optional(),
 			DEPLOY_REVALIDATE_SECRET: z.string().optional(),
 
 		LOCAL_CSV_LAST_UPDATED: z.string().optional(),
@@ -122,6 +123,7 @@ export const env = createEnv({
 			GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID,
 			GOOGLE_SERVICE_ACCOUNT_KEY: process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
 			REMOTE_CSV_URL: process.env.REMOTE_CSV_URL,
+			CRON_SECRET: process.env.CRON_SECRET,
 			DEPLOY_REVALIDATE_SECRET: process.env.DEPLOY_REVALIDATE_SECRET,
 		LOCAL_CSV_LAST_UPDATED: process.env.LOCAL_CSV_LAST_UPDATED,
 		DEFAULT_OG_IMAGE: process.env.DEFAULT_OG_IMAGE,

@@ -56,3 +56,10 @@ No extra env vars are required. It relies on:
 
 1. KV storage is strict Postgres-only (`DATABASE_URL` must be healthy).
 2. `GOOGLE_SERVICE_ACCOUNT_KEY` must be used for service account sheet access.
+
+## Secret generation
+
+- `AUTH_SECRET`: `openssl rand -base64 48`
+- `ADMIN_KEY`: `openssl rand -hex 24`
+- `CRON_SECRET`: `openssl rand -base64 48`
+- `DEPLOY_REVALIDATE_SECRET`: `openssl rand -base64 48`
