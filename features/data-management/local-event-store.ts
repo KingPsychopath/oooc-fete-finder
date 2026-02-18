@@ -10,6 +10,7 @@ import {
 	type EditableSheetColumn,
 	validateEditableSheet,
 } from "./csv/sheet-editor";
+import { ensureUniqueEventKeys } from "./assembly/event-key";
 import {
 	getEventSheetStoreRepository,
 	type EventStoreOrigin,
@@ -171,11 +172,13 @@ class PostgresEventStoreAdapter implements EventStoreAdapter {
 		if (!validation.valid) {
 			throw new Error(validation.error || "Invalid CSV content");
 		}
+		const keyedRows = ensureUniqueEventKeys(validation.rows);
+		const normalizedCsv = editableSheetToCsv(validation.columns, keyedRows.rows);
 
-		const checksum = buildChecksum(cleanedCsv);
+		const checksum = buildChecksum(normalizedCsv);
 		const savedMeta = await this.ensureRepository().replaceSheet(
 			toRepositoryColumns(validation.columns),
-			validation.rows,
+			keyedRows.rows,
 			{
 				updatedBy: meta.updatedBy,
 				origin: meta.origin,
@@ -278,16 +281,18 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 		if (!validation.valid) {
 			throw new Error(validation.error || "Invalid CSV content");
 		}
+		const keyedRows = ensureUniqueEventKeys(validation.rows);
+		const normalizedCsv = editableSheetToCsv(validation.columns, keyedRows.rows);
 
 		const now = new Date().toISOString();
 		this.state.columns = toRepositoryColumns(validation.columns);
-		this.state.rows = validation.rows;
+		this.state.rows = keyedRows.rows;
 		this.state.meta = {
-			rowCount: validation.rows.length,
+			rowCount: keyedRows.rows.length,
 			updatedAt: now,
 			updatedBy: meta.updatedBy,
 			origin: meta.origin,
-			checksum: buildChecksum(cleanedCsv),
+			checksum: buildChecksum(normalizedCsv),
 		};
 		return this.state.meta;
 	}

@@ -8,6 +8,7 @@ import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-popul
 import { GoogleCloudAPI } from "@/lib/google/api";
 import { log } from "@/lib/platform/logger";
 import { assembleEvent } from "./assembly/event-assembler";
+import { ensureUniqueEventKeys } from "./assembly/event-key";
 import { parseCSVContent } from "./csv/parser";
 import {
 	type DateFormatWarning,
@@ -66,9 +67,15 @@ export async function processCSVData(
 	try {
 		// Parse CSV content
 		const csvRows = parseCSVContent(csvContent);
-		let events: Event[] = csvRows.map((row, index) =>
+		const keyedRows = ensureUniqueEventKeys(csvRows);
+		let events: Event[] = keyedRows.rows.map((row, index) =>
 			assembleEvent(row, index),
 		);
+		log.info("data", "Event key hydration", {
+			source,
+			missingEventKeyCount: keyedRows.missingEventKeyCount,
+			generatedEventKeyCount: keyedRows.generatedEventKeyCount,
+		});
 
 		const transformationWarnings = WarningSystem.getDateFormatWarnings();
 
@@ -87,9 +94,15 @@ export async function processCSVData(
 				WarningSystem.clearDateFormatWarnings();
 
 				const localCsvRows = parseCSVContent(localCsvContent);
-				const localEvents = localCsvRows.map((row, index) =>
+				const keyedLocalRows = ensureUniqueEventKeys(localCsvRows);
+				const localEvents = keyedLocalRows.rows.map((row, index) =>
 					assembleEvent(row, index),
 				);
+				log.info("data", "Event key hydration", {
+					source: "local-fallback",
+					missingEventKeyCount: keyedLocalRows.missingEventKeyCount,
+					generatedEventKeyCount: keyedLocalRows.generatedEventKeyCount,
+				});
 
 				if (localEvents.length > 0) {
 					events = localEvents;

@@ -5,6 +5,16 @@ This app enforces layered protection for `POST /api/auth/verify`:
 1. Vercel WAF edge rule (outer shield).
 2. In-app Postgres atomic counters (business enforcement).
 
+## Deployment Status
+
+Implemented and active as of February 18, 2026:
+
+- Vercel WAF custom rule for `POST /api/auth/verify` is enabled.
+- In-app Postgres atomic limiter is enabled in the route.
+
+This means abusive traffic can be stopped at the edge first, and any traffic
+that reaches the route is still enforced by app-level business limits.
+
 ## In-app Limits
 
 - IP scope (`auth_verify_ip`): `60 requests / 60 seconds`

@@ -102,6 +102,8 @@ export type EventCategory =
 	| "cultural";
 
 export type Event = {
+	eventKey: string;
+	slug: string;
 	id: string;
 	name: string;
 	day: EventDay;

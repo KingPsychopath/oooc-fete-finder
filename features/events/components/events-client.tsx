@@ -14,7 +14,9 @@ import { useEventFilters } from "@/features/events/hooks/use-event-filters";
 import type { Event } from "@/features/events/types";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { EventsMapCard } from "@/features/maps/components/events-map-card";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { clientLog } from "@/lib/platform/client-logger";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface EventsClientProps {
 	initialEvents: Event[];
@@ -25,11 +27,15 @@ export function EventsClient({
 	initialEvents,
 	mapLoadStrategy,
 }: EventsClientProps) {
+	const router = useRouter();
+	const pathname = usePathname();
+	const searchParams = useSearchParams();
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [isMapExpanded, setIsMapExpanded] = useState(false);
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 	const [showEmailGate, setShowEmailGate] = useState(false);
+	const invalidEventParamCountRef = useRef(0);
 	const allEventsRef = useRef<HTMLDivElement>(null);
 	const {
 		isAuthenticated,
@@ -95,6 +101,75 @@ export function EventsClient({
 		requireAuth,
 	});
 
+	const eventsByEventKey = useMemo(() => {
+		return new Map(
+			initialEvents.map((event) => [event.eventKey.toLowerCase(), event]),
+		);
+	}, [initialEvents]);
+
+	const createUrlForEventState = useCallback(
+		(event: Event | null) => {
+			const params = new URLSearchParams(searchParams.toString());
+			if (!event) {
+				params.delete("event");
+				params.delete("slug");
+			} else {
+				params.set("event", event.eventKey);
+				params.set("slug", event.slug);
+			}
+			const query = params.toString();
+			return query ? `${pathname}?${query}` : pathname;
+		},
+		[pathname, searchParams],
+	);
+
+	const getCurrentUrl = useCallback(() => {
+		const current = searchParams.toString();
+		return current ? `${pathname}?${current}` : pathname;
+	}, [pathname, searchParams]);
+
+	useEffect(() => {
+		const eventParam = searchParams.get("event");
+		if (!eventParam) {
+			setSelectedEvent((current) => (current ? null : current));
+			return;
+		}
+
+		const normalizedEventKey = eventParam.trim().toLowerCase();
+		const resolvedEvent = eventsByEventKey.get(normalizedEventKey);
+		if (!resolvedEvent) {
+			invalidEventParamCountRef.current += 1;
+			clientLog.warn("events-url", "Unknown event key in URL; clearing", {
+				eventParam,
+				invalidEventParamCount: invalidEventParamCountRef.current,
+			});
+			setSelectedEvent((current) => (current ? null : current));
+			const nextUrl = createUrlForEventState(null);
+			if (nextUrl !== getCurrentUrl()) {
+				router.replace(nextUrl, { scroll: false });
+			}
+			return;
+		}
+
+		setSelectedEvent((current) =>
+			current?.eventKey === resolvedEvent.eventKey ? current : resolvedEvent,
+		);
+
+		const slugParam = searchParams.get("slug");
+		if (slugParam !== resolvedEvent.slug) {
+			const canonicalUrl = createUrlForEventState(resolvedEvent);
+			if (canonicalUrl !== getCurrentUrl()) {
+				router.replace(canonicalUrl, { scroll: false });
+			}
+		}
+	}, [
+		createUrlForEventState,
+		eventsByEventKey,
+		getCurrentUrl,
+		router,
+		searchParams,
+	]);
+
 	const handleEmailSubmit = useCallback(
 		(email: string) => {
 			authenticate(email);
@@ -115,6 +190,23 @@ export function EventsClient({
 	const toggleFilterExpansion = useCallback(() => {
 		setIsFilterExpanded((previous) => !previous);
 	}, []);
+
+	const handleEventClick = useCallback(
+		(event: Event) => {
+			const nextUrl = createUrlForEventState(event);
+			if (nextUrl !== getCurrentUrl()) {
+				router.push(nextUrl, { scroll: false });
+			}
+		},
+		[createUrlForEventState, getCurrentUrl, router],
+	);
+
+	const handleEventClose = useCallback(() => {
+		const nextUrl = createUrlForEventState(null);
+		if (nextUrl !== getCurrentUrl()) {
+			router.replace(nextUrl, { scroll: false });
+		}
+	}, [createUrlForEventState, getCurrentUrl, router]);
 
 	const scrollToAllEvents = useCallback(() => {
 		allEventsRef.current?.scrollIntoView({
@@ -166,7 +258,7 @@ export function EventsClient({
 
 			<FeaturedEvents
 				events={filteredEvents}
-				onEventClick={setSelectedEvent}
+				onEventClick={handleEventClick}
 				onScrollToAllEvents={scrollToAllEvents}
 			/>
 
@@ -177,7 +269,7 @@ export function EventsClient({
 					events={filteredEvents}
 					isExpanded={isMapExpanded}
 					onToggleExpanded={toggleMapExpansion}
-					onEventClick={setSelectedEvent}
+					onEventClick={handleEventClick}
 					mapLoadStrategy={mapLoadStrategy}
 				/>
 			</div>
@@ -226,7 +318,7 @@ export function EventsClient({
 			<AllEvents
 				ref={allEventsRef}
 				events={filteredEvents}
-				onEventClick={setSelectedEvent}
+				onEventClick={handleEventClick}
 				onFilterClickAction={toggleFilterPanel}
 				onAuthRequired={() => setShowEmailGate(true)}
 				hasActiveFilters={hasAnyActiveFilters}
@@ -238,7 +330,7 @@ export function EventsClient({
 			<EventModal
 				event={selectedEvent}
 				isOpen={selectedEvent !== null}
-				onClose={() => setSelectedEvent(null)}
+				onClose={handleEventClose}
 			/>
 
 			<EmailGateModal

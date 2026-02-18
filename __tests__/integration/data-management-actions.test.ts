@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const makeEvent = (id: string) => ({
-	id,
+	id: `evt_${id}`,
+	eventKey: `evt_${id}`,
+	slug: `event-${id}`,
 	name: `Event ${id}`,
 	day: "friday" as const,
 	date: "2025-06-21",

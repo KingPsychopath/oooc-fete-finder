@@ -1,7 +1,31 @@
 import type { Event } from "@/features/events/types";
 
+type LegacyEvent = Omit<Event, "eventKey" | "slug">;
+
+const toStableTestKey = (legacyId: string, index: number): string => {
+	const cleaned = legacyId.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8);
+	const seed = `${legacyId}|${index}`;
+	let hash = 0;
+	for (let i = 0; i < seed.length; i += 1) {
+		hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+	}
+	const hashChunk = hash.toString(16).padStart(8, "0").slice(0, 8);
+	const prefix = (cleaned + "00000000").slice(0, 8);
+	return `evt_${prefix}${hashChunk}`;
+};
+
+const toSlug = (name: string): string => {
+	const normalized = name
+		.normalize("NFKD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+	return normalized.slice(0, 80) || "event";
+};
+
 // Static Event data for testing
-export const EVENTS_DATA: Event[] = [
+const RAW_EVENTS_DATA: LegacyEvent[] = [
 	// Friday Events
 	{
 		id: "ovmbr-friday",
@@ -595,3 +619,13 @@ export const EVENTS_DATA: Event[] = [
 		category: "cultural",
 	},
 ];
+
+export const EVENTS_DATA: Event[] = RAW_EVENTS_DATA.map((event, index) => {
+	const eventKey = toStableTestKey(event.id, index);
+	return {
+		...event,
+		id: eventKey,
+		eventKey,
+		slug: toSlug(event.name),
+	};
+});

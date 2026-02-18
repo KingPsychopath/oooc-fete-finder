@@ -10,6 +10,7 @@ import Papa from "papaparse";
 import { clientLog } from "@/lib/platform/client-logger";
 
 export const CSV_EVENT_COLUMNS = [
+	"eventKey",
 	"oocPicks",
 	"nationality",
 	"name",
@@ -29,6 +30,7 @@ export const CSV_EVENT_COLUMNS = [
 
 // Define the expected CSV column headers and their possible variations
 const COLUMN_MAPPINGS = {
+	eventKey: ["Event Key", "eventKey", "Event ID", "eventId", "ID"],
 	oocPicks: ["OOOC Picks", "OOC Picks", "oocPicks", "picks", "🌟"],
 	nationality: [
 		"GB/FR",
@@ -89,6 +91,8 @@ type RawCSVRow = Record<string, string>;
  * ```
  */
 export type CSVEventRow = {
+	/** Immutable canonical event identifier used for deep links */
+	eventKey: string;
 	/** OOOC picks indicator - special events curated by the platform */
 	oocPicks: string;
 	/** Event nationality/host country (e.g., "GB", "FR") */
@@ -192,6 +196,7 @@ const createColumnMapping = (
 	headers: string[],
 ): Record<keyof CSVEventRow, string | null> => {
 	const mapping: Record<keyof CSVEventRow, string | null> = {
+		eventKey: findColumnName(headers, COLUMN_MAPPINGS.eventKey),
 		oocPicks: findColumnName(headers, COLUMN_MAPPINGS.oocPicks),
 		nationality: findColumnName(headers, COLUMN_MAPPINGS.nationality),
 		name: findColumnName(headers, COLUMN_MAPPINGS.name),
@@ -289,8 +294,9 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 
 		const normalizedRows = rawData
 			.filter((row): row is RawCSVRow => Boolean(row && typeof row === "object"))
-			.map((row, index) => {
+			.map((row) => {
 				const csvRow: CSVEventRow = {
+					eventKey: (columnMapping.eventKey && row[columnMapping.eventKey]) || "",
 					oocPicks:
 						(columnMapping.oocPicks && row[columnMapping.oocPicks]) || "",
 					nationality:

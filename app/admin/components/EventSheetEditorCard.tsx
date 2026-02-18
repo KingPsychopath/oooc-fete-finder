@@ -44,6 +44,7 @@ const HISTORY_LIMIT = 120;
 const ROW_NUMBER_COLUMN_WIDTH = 56;
 const DATA_COLUMN_WIDTH = 170;
 const MAX_FROZEN_COLUMNS = 4;
+const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
 
 const cellRefKey = (rowIndex: number, columnKey: string) =>
 	`${rowIndex}:${columnKey}`;
@@ -672,6 +673,10 @@ export const EventSheetEditorCard = ({
 				)}
 
 				<div className="text-xs text-muted-foreground">
+					`Event Key` is system-managed for stable share links and is read-only.
+				</div>
+
+				<div className="text-xs text-muted-foreground">
 					Showing {visibleRowIndexes.length} of {filteredRowIndexes.length} filtered
 					rows ({rows.length} total).
 				</div>
@@ -740,7 +745,12 @@ export const EventSheetEditorCard = ({
 													<Badge variant="secondary" className="text-[10px]">
 														Required
 													</Badge>
-													)}
+												)}
+												{SYSTEM_MANAGED_COLUMN_KEYS.has(column.key) && (
+													<Badge variant="outline" className="text-[10px]">
+														System
+													</Badge>
+												)}
 												</div>
 												<div className="flex items-center gap-1">
 													<Button
@@ -814,6 +824,7 @@ export const EventSheetEditorCard = ({
 																node;
 														}}
 														value={row[column.key] ?? ""}
+														readOnly={SYSTEM_MANAGED_COLUMN_KEYS.has(column.key)}
 														onChange={(event) =>
 															handleCellChange(
 																rowIndex,
@@ -849,7 +860,11 @@ export const EventSheetEditorCard = ({
 																focusCell(rowIndex, column.key, 0, -1);
 															}
 														}}
-														className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+														className={`h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30 ${
+															SYSTEM_MANAGED_COLUMN_KEYS.has(column.key)
+																? "cursor-not-allowed bg-muted/25 text-muted-foreground"
+																: ""
+														}`}
 													/>
 												</td>
 											))}

@@ -8,6 +8,12 @@
 import type { Event, EventType, ParisArrondissement } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
 import type { CSVEventRow } from "../csv/parser";
+import {
+	buildEventSlug,
+	ensureUniqueEventKeys,
+	generateEventKeyFromRow,
+	normalizeEventKey,
+} from "./event-key";
 
 // Import our focused transformers
 import {
@@ -19,20 +25,23 @@ import {
 	VenueTransformers,
 } from "./field-transformers";
 
-/**
- * Generate a unique event ID from CSV row data
- */
-const generateEventId = (csvRow: CSVEventRow, index: number): string => {
-	const nameSlug = csvRow.name
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "")
-		.substring(0, 30);
-
-	const dateSlug = csvRow.date.replace(/[^0-9]/g, "").substring(0, 8);
-
-	return `${nameSlug}-${dateSlug}-${index}`;
-};
+const EVENT_KEY_FINGERPRINT_FIELDS: readonly (keyof CSVEventRow)[] = [
+	"oocPicks",
+	"nationality",
+	"name",
+	"date",
+	"startTime",
+	"endTime",
+	"location",
+	"arrondissement",
+	"genre",
+	"price",
+	"ticketLink",
+	"age",
+	"indoorOutdoor",
+	"notes",
+	"featured",
+];
 
 /**
  * Determine event type based on name and time
@@ -128,8 +137,12 @@ const determineVerificationStatus = (
  * Converts a CSV row into a complete Event object
  */
 export const assembleEvent = (csvRow: CSVEventRow, index: number): Event => {
-	// Generate unique ID
-	const id = generateEventId(csvRow, index);
+	const eventKey =
+		normalizeEventKey(csvRow.eventKey) ??
+		generateEventKeyFromRow(csvRow, {
+			stableKeys: EVENT_KEY_FINGERPRINT_FIELDS,
+			salt: index,
+		});
 
 	// Transform individual fields using our focused transformers
 	const day = DateTransformers.convertToEventDay(csvRow.date);
@@ -177,7 +190,9 @@ export const assembleEvent = (csvRow: CSVEventRow, index: number): Event => {
 
 	// Assemble the complete event
 	const event: Event = {
-		id,
+		eventKey,
+		slug: buildEventSlug(csvRow.name.trim()),
+		id: eventKey,
 		name: csvRow.name.trim(),
 		day,
 		date,
@@ -212,7 +227,10 @@ export const assembleEvent = (csvRow: CSVEventRow, index: number): Event => {
  * Batch processing function for multiple CSV rows
  */
 export const assembleEvents = (csvRows: CSVEventRow[]): Event[] => {
-	return csvRows.map((row, index) => assembleEvent(row, index));
+	const withEventKeys = ensureUniqueEventKeys(csvRows, {
+		stableKeys: EVENT_KEY_FINGERPRINT_FIELDS,
+	});
+	return withEventKeys.rows.map((row, index) => assembleEvent(row, index));
 };
 
 /**
@@ -246,10 +264,13 @@ export const assembleEventsSafely = (
 } => {
 	const events: Event[] = [];
 	const errors: { index: number; error: string; csvRow: CSVEventRow }[] = [];
+	const withEventKeys = ensureUniqueEventKeys(csvRows, {
+		stableKeys: EVENT_KEY_FINGERPRINT_FIELDS,
+	});
 
 	for (let i = 0; i < csvRows.length; i++) {
 		try {
-			const event = assembleEvent(csvRows[i], i);
+			const event = assembleEvent(withEventKeys.rows[i], i);
 			events.push(event);
 		} catch (error) {
 			errors.push({

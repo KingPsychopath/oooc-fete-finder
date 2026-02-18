@@ -27,6 +27,7 @@ const toCsvValue = (value: string): string => {
 };
 
 const CORE_COLUMN_LABELS: Record<(typeof CSV_EVENT_COLUMNS)[number], string> = {
+	eventKey: "Event Key",
 	oocPicks: "OOOC Picks",
 	nationality: "GB/FR",
 	name: "Name",
@@ -50,6 +51,8 @@ const CORE_COLUMN_SET = new Set<string>(CSV_EVENT_COLUMNS);
 
 const CORE_ALIAS_MAP = new Map<string, string>(
 	[
+		["event key", "eventKey"],
+		["event id", "eventKey"],
 		["ooc picks", "oocPicks"],
 		["oooc picks", "oocPicks"],
 		["gb/fr", "nationality"],

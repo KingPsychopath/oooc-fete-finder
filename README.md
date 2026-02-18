@@ -65,10 +65,21 @@ No runtime in-memory events cache is used. Live reads come from runtime source (
 
 One-line startup banner (data mode, DB, geocoding). Runtime logs use `lib/platform/logger` (scope + message; no per-event or memory spam). See `docs/logging.md`.
 
+## Abuse Protection
+
+`POST /api/auth/verify` is protected by two layers:
+
+1. Vercel WAF edge rule (first-pass filtering before serverless execution).
+2. In-app Postgres atomic rate limiting (`60/min` per IP and `6/15min` per email+IP).
+
+Blocked requests return `429` with `Retry-After` and `no-store` cache headers.
+Sensitive identifiers are HMAC-hashed with `AUTH_SECRET` in limiter keys/log context.
+
 ## Documentation
 
 - `docs/environment-variables.md` — env reference (app only uses `DATABASE_URL` for Postgres)
 - `docs/logging.md` — logging and startup
+- `docs/security-rate-limiting.md` — auth verify abuse controls and runbook
 - `docs/geocoding.md` — Geocoding API and arrondissement fallback
 - `docs/postgres-migration.md` — Postgres migration
 - `docs/google-integrations.md` — Google backup/import
@@ -101,7 +112,12 @@ pnpm exec tsc --noEmit
 
 All admin endpoints require valid admin auth.
 
-**Cron (scheduled):** `GET /api/cron/cleanup-admin-sessions` — removes admin session records that expired more than 7 days ago. Secured with `CRON_SECRET` (Bearer token). Configured in `vercel.json` to run daily at 04:00 UTC.
+**Cron (scheduled):**
+
+- `GET /api/cron/cleanup-admin-sessions` — removes admin session records that expired more than 7 days ago.
+- `GET /api/cron/cleanup-rate-limits` — removes stale auth verify limiter counters (24h grace).
+
+Both are secured with `CRON_SECRET` (Bearer token) and configured in `vercel.json`.
 
 ## Post-Deploy Revalidation Hook
 
