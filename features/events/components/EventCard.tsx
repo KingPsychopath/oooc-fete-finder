@@ -9,10 +9,21 @@ import {
 	formatAge,
 	formatDayWithDate,
 	formatPrice,
-	formatVenueTypeIcons,
 	getDayNightPeriod,
 } from "@/features/events/types";
-import { Clock, Euro, MapPin, Star, Users } from "lucide-react";
+import {
+	Building2,
+	Clock,
+	Crown,
+	Euro,
+	MapPin,
+	Moon,
+	Sparkles,
+	Star,
+	Sun,
+	Trees,
+	Users,
+} from "lucide-react";
 
 type EventCardProps = {
 	event: Event;
@@ -39,6 +50,12 @@ export function EventCard({ event, onClick }: EventCardProps) {
 
 	// Check if event should display as featured (with expiration logic)
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
+	const hasOOOCPick = event.isOOOCPick === true;
+	const dayNightPeriod = getDayNightPeriod(event.time ?? "");
+	const venueTypes =
+		event.venueTypes && event.venueTypes.length > 0 ?
+			[...new Set(event.venueTypes)]
+		:	[event.indoor ? "indoor" : "outdoor"];
 
 	const cardClasses = `group relative cursor-pointer rounded-xl border p-4 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-lg ${
 		isCurrentlyFeatured
@@ -53,9 +70,9 @@ export function EventCard({ event, onClick }: EventCardProps) {
 			{/* Priority Badge System - Featured takes precedence over OOOC Pick */}
 			{isCurrentlyFeatured ? (
 				<div className="absolute -top-2.5 -right-2.5 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-amber-200 bg-[linear-gradient(145deg,rgba(212,164,96,0.95),rgba(178,131,70,0.95))] text-sm shadow-lg dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(184,140,79,0.85),rgba(141,100,49,0.88))]">
-					<span className="text-sm">✨</span>
+					<Sparkles className="h-4 w-4" />
 				</div>
-			) : event.isOOOCPick === true ? (
+			) : hasOOOCPick ? (
 				<div className="absolute -top-2.5 -right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-amber-200/90 bg-[linear-gradient(145deg,rgba(242,219,176,0.95),rgba(221,196,148,0.95))] text-black shadow-md dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(166,131,79,0.88),rgba(126,96,59,0.86))] dark:text-amber-100">
 					<Star className="h-4 w-4 fill-current" />
 				</div>
@@ -71,11 +88,13 @@ export function EventCard({ event, onClick }: EventCardProps) {
 								: ""
 						}`}
 					>
-						{isCurrentlyFeatured && <span className="mr-1">👑</span>}
+						{isCurrentlyFeatured && (
+							<Crown className="mr-1 mb-0.5 inline h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
+						)}
 						{event.name}
 						{/* Show OOOC star in title only when it doesn't have featured badge (since featured takes precedence in corner) */}
-						{event.isOOOCPick === true && !isCurrentlyFeatured && (
-							<span className="ml-1 text-yellow-500 text-sm">🌟</span>
+						{hasOOOCPick && !isCurrentlyFeatured && (
+							<Star className="ml-1 mb-0.5 inline h-3.5 w-3.5 fill-current text-amber-500" />
 						)}
 					</h3>
 				</div>
@@ -84,12 +103,15 @@ export function EventCard({ event, onClick }: EventCardProps) {
 					{isCurrentlyFeatured && (
 						<Badge
 							className={`border-0 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] ${
-								event.isOOOCPick === true
+								hasOOOCPick
 									? "bg-[linear-gradient(145deg,rgba(190,145,82,0.96),rgba(154,112,58,0.96))] text-amber-50"
 									: "bg-[linear-gradient(145deg,rgba(204,159,93,0.96),rgba(167,122,67,0.96))] text-amber-50"
 							}`}
 						>
-							FEATURED{event.isOOOCPick === true ? " ⭐" : ""}
+							<span className="inline-flex items-center gap-1">
+								FEATURED
+								{hasOOOCPick && <Star className="h-3 w-3 fill-current" />}
+							</span>
 						</Badge>
 					)}
 					<Badge variant="outline" className="text-xs">
@@ -109,9 +131,14 @@ export function EventCard({ event, onClick }: EventCardProps) {
 						{event.endTime && event.time !== "TBC" && <> - {event.endTime}</>} •{" "}
 						{formatDayWithDate(event.day, event.date)}
 					</span>
-					{event.time && getDayNightPeriod(event.time) && (
-						<span className="flex-shrink-0">
-							{getDayNightPeriod(event.time) === "day" ? "☀️" : "🌙"}
+					{event.time && dayNightPeriod && (
+						<span
+							className="inline-flex flex-shrink-0 items-center text-muted-foreground"
+							title={dayNightPeriod === "day" ? "Daytime event" : "Nighttime event"}
+						>
+							{dayNightPeriod === "day" ?
+								<Sun className="h-3.5 w-3.5" />
+							:	<Moon className="h-3.5 w-3.5" />}
 						</span>
 					)}
 				</div>
@@ -119,7 +146,18 @@ export function EventCard({ event, onClick }: EventCardProps) {
 					<div className="flex items-center space-x-1">
 						<MapPin className="h-3 w-3 flex-shrink-0" />
 						<span className="truncate flex-1 min-w-0">{event.location}</span>
-						<span className="flex-shrink-0">{formatVenueTypeIcons(event)}</span>
+						<span className="inline-flex flex-shrink-0 items-center gap-1 text-muted-foreground">
+							{venueTypes.includes("indoor") && (
+								<span title="Indoor event">
+									<Building2 className="h-3.5 w-3.5" />
+								</span>
+							)}
+							{venueTypes.includes("outdoor") && (
+								<span title="Outdoor event">
+									<Trees className="h-3.5 w-3.5" />
+								</span>
+							)}
+						</span>
 					</div>
 				)}
 				{/* Price Display */}
