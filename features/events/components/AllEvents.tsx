@@ -71,32 +71,9 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 					</div>
 
 					{lockedEvents.length > 0 && (
-						<div className="mt-6 space-y-4">
-							<div className="rounded-xl border border-border/70 bg-background/58 p-4">
-								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-									<div className="space-y-1">
-										<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-											Member Access
-										</p>
-										<p className="text-sm leading-relaxed text-muted-foreground">
-											Unlock {lockedEvents.length} more event
-											{lockedEvents.length !== 1 ? "s" : ""} to browse the full
-											curated list.
-										</p>
-									</div>
-									<Button
-										onClick={onAuthRequired}
-										className="h-9 rounded-full"
-										size="sm"
-									>
-										<Lock className="mr-1.5 h-3.5 w-3.5" />
-										Continue with email
-									</Button>
-								</div>
-							</div>
-
+						<div className="mt-6">
 							<div
-								className="relative cursor-pointer"
+								className="relative cursor-pointer overflow-hidden rounded-[22px] border border-border/60"
 								onClick={onAuthRequired}
 								onKeyDown={(event) => {
 									if (event.key === "Enter" || event.key === " ") {
@@ -112,14 +89,38 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 									{lockedEvents.map((event) => (
 										<div
 											key={event.id}
-											className="pointer-events-none select-none opacity-78 blur-[2.5px]"
+											className="pointer-events-none select-none opacity-60 blur-[4px] saturate-[0.9]"
 											aria-hidden="true"
 										>
 											<EventCard event={event} onClick={onEventClick} />
 										</div>
 									))}
 								</div>
-								<div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-b from-background/10 via-background/20 to-background/55" />
+								<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(248,243,235,0.08)_0%,rgba(248,243,235,0)_46%),linear-gradient(to_bottom,rgba(20,16,13,0.08)_0%,rgba(20,16,13,0.44)_48%,rgba(20,16,13,0.7)_100%)]" />
+								<div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
+									<div className="pointer-events-auto w-full max-w-lg rounded-[24px] border p-6 text-center backdrop-blur-[10px] [border-color:color-mix(in_oklab,var(--border)_80%,rgba(255,255,255,0.16))] [background:linear-gradient(145deg,rgba(255,255,255,0.45)_10%,rgba(255,255,255,0)_68%),color-mix(in_oklab,var(--card)_88%,rgba(24,18,14,0.12))] [box-shadow:0_28px_58px_-36px_rgba(8,6,4,0.8),0_1px_0_rgba(255,255,255,0.36)_inset] dark:[border-color:color-mix(in_oklab,var(--border)_80%,rgba(255,255,255,0.2))] dark:[background:linear-gradient(145deg,rgba(255,255,255,0.14)_10%,rgba(255,255,255,0)_68%),color-mix(in_oklab,var(--card)_90%,rgba(13,10,8,0.5))]">
+										<p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground/85">
+											Out Of Office Collective
+										</p>
+										<div className="mx-auto mt-2 h-px w-16 bg-border/70" />
+										<h3 className="mt-4 text-[clamp(1.45rem,4vw,2rem)] leading-none [font-family:var(--ooo-font-display)] font-light tracking-[0.02em] text-foreground">
+											The rest of tonight awaits
+										</h3>
+										<p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+											Unlock {lockedEvents.length} more curated event
+											{lockedEvents.length !== 1 ? "s" : ""} with quick email
+											access.
+										</p>
+										<Button
+											onClick={onAuthRequired}
+											className="mt-5 h-9 rounded-full border border-border/70 bg-primary text-primary-foreground hover:bg-primary/90"
+											size="sm"
+										>
+											<Lock className="mr-1.5 h-3.5 w-3.5" />
+											Continue with email
+										</Button>
+									</div>
+								</div>
 							</div>
 						</div>
 					)}
