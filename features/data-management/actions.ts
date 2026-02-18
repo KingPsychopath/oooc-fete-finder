@@ -28,6 +28,8 @@ import {
 	type DateFormatWarning,
 	WarningSystem,
 } from "./validation/date-warnings";
+import { EventStoreBackupService } from "./event-store-backup-service";
+import type { EventStoreBackupStatus } from "./event-store-backup-types";
 import {
 	analyzeCsvSchemaRows,
 	type CsvSchemaIssue,
@@ -141,7 +143,11 @@ const getCsvRuntimeValidationError = (csvContent: string): string | null => {
 
 const warmCoordinateCacheFromCsv = async (
 	csvContent: string,
-	context: "save-local" | "import-remote" | "save-sheet-editor",
+	context:
+		| "save-local"
+		| "import-remote"
+		| "save-sheet-editor"
+		| "restore-backup",
 ): Promise<void> => {
 	const processed = await processCSVData(csvContent, "store", false, {
 		populateCoordinates: true,
@@ -354,6 +360,148 @@ export async function getLocalEventStoreStatus(keyOrToken?: string): Promise<{
 	} catch (error) {
 		return {
 			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+/**
+ * Get event store backup status
+ */
+export async function getEventStoreBackupStatus(
+	keyOrToken?: string,
+): Promise<{
+	success: boolean;
+	supported?: boolean;
+	reason?: string;
+	status?: EventStoreBackupStatus;
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized access" };
+	}
+
+	try {
+		const backupStatus = await EventStoreBackupService.getBackupStatus();
+		if (!backupStatus.supported) {
+			return {
+				success: true,
+				supported: false,
+				reason: backupStatus.reason,
+				status: {
+					backupCount: 0,
+					latestBackup: null,
+				},
+			};
+		}
+
+		return {
+			success: true,
+			supported: true,
+			status: backupStatus.status,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+/**
+ * Create manual event store backup
+ */
+export async function createEventStoreBackup(
+	keyOrToken?: string,
+): Promise<{
+	success: boolean;
+	message: string;
+	backup?: EventStoreBackupStatus["latestBackup"];
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, message: "Unauthorized access" };
+	}
+
+	try {
+		const result = await EventStoreBackupService.createBackup({
+			createdBy: "admin-panel",
+			trigger: "manual",
+		});
+
+		if (!result.success) {
+			return {
+				success: false,
+				message: result.message,
+				error: result.error,
+			};
+		}
+
+		const pruneSuffix =
+			result.prunedCount && result.prunedCount > 0 ?
+				` (pruned ${result.prunedCount} old backups)`
+			:	"";
+
+		return {
+			success: true,
+			message: `${result.message}${pruneSuffix}`,
+			backup: result.backup,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Failed to create event store backup",
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+/**
+ * Restore the latest event store backup, then warm coordinates and revalidate homepage.
+ */
+export async function restoreLatestEventStoreBackup(
+	keyOrToken?: string,
+): Promise<{
+	success: boolean;
+	message: string;
+	restoredFrom?: EventStoreBackupStatus["latestBackup"];
+	preRestoreBackup?: EventStoreBackupStatus["latestBackup"];
+	rowCount?: number;
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, message: "Unauthorized access" };
+	}
+
+	try {
+		const result = await EventStoreBackupService.restoreLatestBackup({
+			createdBy: "admin-panel-restore",
+		});
+
+		if (!result.success) {
+			return {
+				success: false,
+				message: result.message,
+				error: result.error,
+			};
+		}
+
+		if (result.restoredCsv) {
+			await warmCoordinateCacheFromCsv(result.restoredCsv, "restore-backup");
+		}
+		await forceRefreshEventsData();
+
+		return {
+			success: true,
+			message: "Latest backup restored and homepage revalidated",
+			restoredFrom: result.restoredFrom,
+			preRestoreBackup: result.preRestoreBackup,
+			rowCount: result.restoredRowCount,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Failed to restore latest event store backup",
 			error: error instanceof Error ? error.message : "Unknown error",
 		};
 	}

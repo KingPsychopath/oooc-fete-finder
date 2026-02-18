@@ -35,9 +35,11 @@ Use the admin panel:
 2. In `Data Store Controls`:
    - `Upload CSV to Postgres`, or
    - `Import Google Backup`.
-3. Edit in `Event Sheet Editor`.
-4. Click `Save and Revalidate Homepage`.
-5. Confirm `Event Key` values exist in export (first save/import backfills missing keys).
+3. Create a safety snapshot with `Backup Now`.
+4. Edit in `Event Sheet Editor`.
+5. Click `Save and Revalidate Homepage`.
+6. Confirm `Event Key` values exist in export (first save/import backfills missing keys).
+7. Optional rollback: use `Restore Latest Backup` in the same Data Store card.
 
 Or run bootstrap:
 
@@ -78,11 +80,18 @@ Google Apps Script output is optional mirror-only behavior and can be removed la
 6. Run one admin save/import cycle after deploy so legacy rows persist generated `Event Key` values.
 7. In Vercel preview/production, ensure KV init is healthy (no file/memory fallback exists in strict mode).
 
-## 7. Rollback
+## 7. Scheduled Event Store Backups
+
+- Cron route: `GET /api/cron/backup-event-store`
+- Security: `Authorization: Bearer <CRON_SECRET>`
+- Default schedule (`vercel.json`): every 6 hours
+- Retention: latest 30 snapshots (older backups pruned automatically)
+
+## 8. Rollback
 
 If required, set `DATA_MODE=local` to force local CSV-only runtime.
 
-## 8. Google Mirror Sunset
+## 9. Google Mirror Sunset
 
 When you are ready to fully remove Google output, follow:
 

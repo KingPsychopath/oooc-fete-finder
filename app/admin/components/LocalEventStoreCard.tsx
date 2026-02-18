@@ -9,12 +9,15 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import {
+	createEventStoreBackup,
 	clearLocalEventStoreCsv,
+	getEventStoreBackupStatus,
 	getLocalEventStoreCsv,
 	getLocalEventStorePreview,
 	getLocalEventStoreStatus,
 	importRemoteCsvToLocalEventStore,
 	previewRemoteCsvForAdmin,
+	restoreLatestEventStoreBackup,
 	saveLocalEventStoreCsv,
 } from "@/features/data-management/actions";
 import type { CsvSchemaIssue } from "@/features/data-management/validation/csv-schema-report";
@@ -27,6 +30,7 @@ type LocalEventStoreCardProps = {
 	runtimeDataStatus?: RuntimeDataStatus;
 	initialStatus?: Awaited<ReturnType<typeof getLocalEventStoreStatus>>;
 	initialPreview?: Awaited<ReturnType<typeof getLocalEventStorePreview>>;
+	initialBackupStatus?: Awaited<ReturnType<typeof getEventStoreBackupStatus>>;
 	onStoreUpdated?: () => Promise<void> | void;
 };
 
@@ -35,6 +39,9 @@ type StatusState = NonNullable<
 >;
 type PreviewRows = NonNullable<
 	Awaited<ReturnType<typeof getLocalEventStorePreview>>["rows"]
+>;
+type BackupStatusState = NonNullable<
+	Awaited<ReturnType<typeof getEventStoreBackupStatus>>["status"]
 >;
 
 type RemotePreviewState = {
@@ -49,11 +56,17 @@ type RemotePreviewState = {
 	schemaWarningCount: number;
 };
 
+const EMPTY_BACKUP_STATUS: BackupStatusState = {
+	backupCount: 0,
+	latestBackup: null,
+};
+
 export const LocalEventStoreCard = ({
 	isAuthenticated,
 	runtimeDataStatus,
 	initialStatus,
 	initialPreview,
+	initialBackupStatus,
 	onStoreUpdated,
 }: LocalEventStoreCardProps) => {
 	const [status, setStatus] = useState<StatusState | undefined>(() =>
@@ -69,6 +82,17 @@ export const LocalEventStoreCard = ({
 		initialPreview?.success && initialPreview.rows ? [initialPreview.rows] : [],
 	);
 	const [sampleIndex, setSampleIndex] = useState(0);
+	const [backupStatus, setBackupStatus] = useState<BackupStatusState>(() =>
+		initialBackupStatus?.success ?
+			(initialBackupStatus.status ?? EMPTY_BACKUP_STATUS)
+		:	EMPTY_BACKUP_STATUS,
+	);
+	const [backupSupported, setBackupSupported] = useState(
+		initialBackupStatus?.success ? initialBackupStatus.supported !== false : true,
+	);
+	const [backupReason, setBackupReason] = useState(
+		initialBackupStatus?.success ? (initialBackupStatus.reason ?? "") : "",
+	);
 	const [remotePreview, setRemotePreview] = useState<RemotePreviewState | null>(
 		null,
 	);
@@ -83,9 +107,10 @@ export const LocalEventStoreCard = ({
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 
 	const loadStatusAndPreview = useCallback(async () => {
-		const [statusResult, previewResult] = await Promise.all([
+		const [statusResult, previewResult, backupStatusResult] = await Promise.all([
 			getLocalEventStoreStatus(),
 			getLocalEventStorePreview(undefined, 2, { random: true }),
+			getEventStoreBackupStatus(),
 		]);
 
 		if (statusResult.success) {
@@ -94,6 +119,11 @@ export const LocalEventStoreCard = ({
 
 		if (!previewResult.success) {
 			throw new Error(previewResult.error || "Failed to load store sample");
+		}
+		if (backupStatusResult.success) {
+			setBackupSupported(backupStatusResult.supported !== false);
+			setBackupReason(backupStatusResult.reason || "");
+			setBackupStatus(backupStatusResult.status || EMPTY_BACKUP_STATUS);
 		}
 
 		setHeaders(previewResult.headers || []);
@@ -104,7 +134,12 @@ export const LocalEventStoreCard = ({
 	}, []);
 
 	useEffect(() => {
-		if (!isAuthenticated || (initialStatus && initialPreview)) return;
+		if (
+			!isAuthenticated ||
+			(initialStatus && initialPreview && initialBackupStatus)
+		) {
+			return;
+		}
 		loadStatusAndPreview().catch((loadError) => {
 			setError(
 				loadError instanceof Error ?
@@ -112,7 +147,13 @@ export const LocalEventStoreCard = ({
 				:	"Failed to load store status",
 			);
 		});
-	}, [isAuthenticated, initialStatus, initialPreview, loadStatusAndPreview]);
+	}, [
+		isAuthenticated,
+		initialStatus,
+		initialPreview,
+		initialBackupStatus,
+		loadStatusAndPreview,
+	]);
 
 	if (!isAuthenticated) {
 		return null;
@@ -159,6 +200,41 @@ export const LocalEventStoreCard = ({
 			}
 
 			setMessage(`Uploaded ${file.name} to store (${result.rowCount ?? 0} rows)`);
+			await loadStatusAndPreview();
+		});
+	};
+
+	const handleBackupNow = async () => {
+		await withTask(async () => {
+			const result = await createEventStoreBackup();
+			if (!result.success) {
+				throw new Error(result.error || result.message);
+			}
+
+			setMessage(result.message);
+			await loadStatusAndPreview();
+		});
+	};
+
+	const handleRestoreLatestBackup = async () => {
+		const latestBackup = backupStatus.latestBackup;
+		if (!latestBackup) {
+			setError("No backup is available to restore.");
+			return;
+		}
+
+		const confirmed = window.confirm(
+			`Restore latest backup from ${new Date(latestBackup.createdAt).toLocaleString()}? This will overwrite current store data.`,
+		);
+		if (!confirmed) return;
+
+		await withTask(async () => {
+			const result = await restoreLatestEventStoreBackup();
+			if (!result.success) {
+				throw new Error(result.error || result.message);
+			}
+
+			setMessage(result.message);
 			await loadStatusAndPreview();
 		});
 	};
@@ -343,6 +419,8 @@ export const LocalEventStoreCard = ({
 	const fallbackActive =
 		runtimeDataStatus?.configuredDataSource === "remote" &&
 		runtimeDataStatus.dataSource !== "store";
+	const latestBackup = backupStatus.latestBackup;
+	const restoreDisabled = isLoading || !backupSupported || !latestBackup;
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
@@ -353,7 +431,7 @@ export const LocalEventStoreCard = ({
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-5">
-				<div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+				<div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Store Rows (CSV)
@@ -384,18 +462,34 @@ export const LocalEventStoreCard = ({
 							{status?.providerLocation || "Unavailable"}
 						</p>
 					</div>
+					<div className="rounded-md border bg-background/60 p-3">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Last Backup
+						</p>
+						<p className="mt-1 text-sm leading-snug">
+							{latestBackup?.createdAt ?
+								new Date(latestBackup.createdAt).toLocaleString()
+							:	"Never"}
+						</p>
+					</div>
 				</div>
 
 				<div className="rounded-md border bg-background/60 p-3 text-sm text-muted-foreground">
 					<p className="font-medium text-foreground">Workflow</p>
 					<p className="mt-1">1. Upload CSV or import from Google backup into store.</p>
 					<p>2. Edit in Event Sheet Editor and revalidate homepage.</p>
-					<p>3. Export CSV anytime for external workflows.</p>
+					<p>3. Backup now periodically or restore latest backup when needed.</p>
+					<p>4. Export CSV anytime for external workflows.</p>
 				</div>
 
 				{fallbackActive && (
 					<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
 						Live site is currently serving local CSV fallback, not store-backed data.
+					</div>
+				)}
+				{!backupSupported && (
+					<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+						Backups unavailable: {backupReason || "Postgres-backed store is required."}
 					</div>
 				)}
 
@@ -418,6 +512,22 @@ export const LocalEventStoreCard = ({
 						onClick={handlePreviewGoogle}
 					>
 						Preview Google Backup
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						disabled={isLoading || !backupSupported}
+						onClick={handleBackupNow}
+					>
+						Backup Now
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						disabled={restoreDisabled}
+						onClick={handleRestoreLatestBackup}
+					>
+						Restore Latest Backup
 					</Button>
 					<Button
 						type="button"

@@ -61,9 +61,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 	});
 	const normalizedPathname = (pathname || "/").replace(/\/+$/, "") || "/";
 	const pathWithoutBasePath =
-		basePath &&
-		basePath !== "/" &&
-		normalizedPathname.startsWith(basePath)
+		basePath && basePath !== "/" && normalizedPathname.startsWith(basePath)
 			? normalizedPathname.slice(basePath.length) || "/"
 			: normalizedPathname;
 	const isFeatureEventPage =
@@ -118,9 +116,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 				>
 					<div
 						className={`mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 transition-transform duration-300 ease-out will-change-transform sm:min-h-[84px] sm:px-5 lg:grid lg:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] lg:gap-6 ${
-							isCompressed
-								? "scale-[0.94] sm:scale-[0.96]"
-								: "scale-100"
+							isCompressed ? "scale-[0.94] sm:scale-[0.96]" : "scale-100"
 						}`}
 					>
 						<Link
@@ -130,9 +126,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 						>
 							<div
 								className={`relative h-10 w-10 shrink-0 transition-transform duration-300 ease-out will-change-transform sm:h-12 sm:w-12 ${
-									isCompressed
-										? "scale-90 sm:scale-92"
-										: "scale-100"
+									isCompressed ? "scale-90 sm:scale-92" : "scale-100"
 								}`}
 							>
 								<Image
@@ -235,7 +229,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 						}`}
 					>
 						<div className="px-3 pt-2 pb-2 sm:px-5 sm:pt-2.5 sm:pb-3">
-							<Countdown />
+							<Countdown isActive={!isCollapsed} />
 						</div>
 					</div>
 				</div>

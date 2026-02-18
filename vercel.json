@@ -4,7 +4,8 @@
   },
   "crons": [
     { "path": "/api/cron/cleanup-admin-sessions", "schedule": "0 4 * * *" },
-    { "path": "/api/cron/cleanup-rate-limits", "schedule": "10 4 * * *" }
+    { "path": "/api/cron/cleanup-rate-limits", "schedule": "10 4 * * *" },
+    { "path": "/api/cron/backup-event-store", "schedule": "20 */6 * * *" }
   ],
   "headers": [
     {
