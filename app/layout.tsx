@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Footer from "@/components/Footer";
+import { SupportCoffeePrompt } from "@/components/SupportCoffeePrompt";
 import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { OfflineIndicator } from "@/components/offline-indicator";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
@@ -175,6 +176,7 @@ export default function RootLayout({
 					<AuthProvider>
 						{children}
 						<Footer />
+						<SupportCoffeePrompt />
 						<CommunityInvite />
 						<OfflineIndicator />
 						<PWAInstallPrompt />

@@ -117,30 +117,32 @@ export function SupportCoffeePrompt() {
 	}
 
 	return (
-		<div className="mt-2 max-w-sm rounded-lg border border-border/60 bg-card/60 px-3 py-2 text-xs">
-			<p className="text-muted-foreground">
-				Enjoying Fete Finder? If it helped, you can support updates with a
-				coffee.
-			</p>
-			<div className="mt-2 flex items-center gap-3">
-				<Link
-					href="https://coff.ee/milkandhenny"
-					target="_blank"
-					rel="noopener noreferrer"
-					onClick={handleSupportClick}
-					className="inline-flex items-center gap-1 rounded-sm font-medium text-foreground underline-offset-4 transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-					title="Support future updates"
-				>
-					<Coffee className="h-3 w-3" />
-					<span>Buy a coffee</span>
-				</Link>
-				<button
-					type="button"
-					onClick={handleDismiss}
-					className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
-				>
-					Maybe later
-				</button>
+		<div className="fixed bottom-5 left-5 z-40 max-w-[min(22rem,calc(100vw-2.5rem))]">
+			<div className="rounded-lg border border-border/65 bg-card/95 px-3.5 py-3 text-xs shadow-lg backdrop-blur-md">
+				<p className="text-muted-foreground">
+					Enjoying Fete Finder? If it helped, you can support updates with a
+					coffee.
+				</p>
+				<div className="mt-2 flex items-center gap-3">
+					<Link
+						href="https://coff.ee/milkandhenny"
+						target="_blank"
+						rel="noopener noreferrer"
+						onClick={handleSupportClick}
+						className="inline-flex items-center gap-1 rounded-sm font-medium text-foreground underline-offset-4 transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+						title="Support future updates"
+					>
+						<Coffee className="h-3 w-3" />
+						<span>Buy a coffee</span>
+					</Link>
+					<button
+						type="button"
+						onClick={handleDismiss}
+						className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+					>
+						Maybe later
+					</button>
+				</div>
 			</div>
 		</div>
 	);
