@@ -4,9 +4,20 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Event } from "@/features/events/types";
-import { formatPrice } from "@/features/events/types";
+import { formatPrice, getDayNightPeriod } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
-import { Euro, Star } from "lucide-react";
+import {
+	Building2,
+	CalendarDays,
+	Euro,
+	MapPin,
+	MapPinned,
+	Moon,
+	Star,
+	Sun,
+	Trees,
+	X,
+} from "lucide-react";
 
 // Paris Arrondissements GeoJSON Types - Updated for v2 JSON structure
 /**
@@ -133,6 +144,19 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		},
 		[filteredEvents],
 	);
+
+	const getEventVenueTypes = useCallback((event: Event): ("indoor" | "outdoor")[] => {
+		if (event.venueTypes && event.venueTypes.length > 0) {
+			return [...new Set(event.venueTypes)];
+		}
+		return [event.indoor ? "indoor" : "outdoor"];
+	}, []);
+	const baseEventButtonClassName =
+		"w-full rounded-xl border p-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+	const regularEventButtonClassName =
+		"border-border/70 bg-background/65 hover:bg-accent/65";
+	const ooocEventButtonClassName =
+		"border-amber-300/75 bg-[linear-gradient(145deg,rgba(248,238,222,0.86),rgba(244,229,205,0.72))] dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.45),rgba(47,36,24,0.32))]";
 
 	// Update arrondissement colors based on event density
 	const updateArrondissementColors = useCallback(() => {
@@ -567,8 +591,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							</div>
 							<div className="flex items-center space-x-2">
 								<div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-								<span className="text-xs text-gray-700 dark:text-gray-300">
-									OOOC Pick 🌟
+								<span className="inline-flex items-center gap-1 text-xs text-gray-700 dark:text-gray-300">
+									OOOC Pick
+									<Star className="h-3 w-3 fill-current text-yellow-500" />
 								</span>
 							</div>
 						</div>
@@ -578,18 +603,18 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					<div className="pt-3 border-t border-gray-200 dark:border-gray-600">
 						<div className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
 							<div className="flex items-center space-x-2">
-								<span className="text-gray-400">🗺️</span>
+								<MapPinned className="h-3.5 w-3.5 text-gray-400" />
 								<span>Click districts to explore events</span>
 							</div>
 							{showCoordinates && (
 								<div className="flex items-center space-x-2">
-									<span className="text-gray-400">📍</span>
+									<MapPin className="h-3.5 w-3.5 text-gray-400" />
 									<span>Click markers for event details</span>
 								</div>
 							)}
 							{selectedDay && (
 								<div className="flex items-center space-x-2 pt-2 mt-2 border-t border-gray-200 dark:border-gray-600">
-									<span className="text-blue-500">📅</span>
+									<CalendarDays className="h-3.5 w-3.5 text-blue-500" />
 									<span className="text-blue-600 dark:text-blue-400 font-medium">
 										Filtered by {selectedDay}
 									</span>
@@ -637,59 +662,86 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 			{/* Selected arrondissement events */}
 			{selectedArrondissement && (
-				<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 w-80 max-w-[calc(100vw-2rem)]">
-					<div className="flex items-center justify-between mb-2">
-						<h3 className="font-semibold">
+				<div className="ooo-site-card absolute bottom-4 left-1/2 w-80 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-2xl border border-border/75 p-3.5">
+					<div className="mb-2 flex items-center justify-between">
+						<div>
+							<p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+								Paris Map
+							</p>
+							<h3 className="text-[1.02rem] [font-family:var(--ooo-font-display)] font-light leading-tight">
 							{selectedArrondissement}e Arrondissement Events
-						</h3>
+							</h3>
+						</div>
 						<button
 							onClick={() => setSelectedArrondissement(null)}
-							className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+							className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/68 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 						>
-							✕
+							<X className="h-4 w-4" />
 						</button>
 					</div>
-					<div className="space-y-2 max-h-40 overflow-y-auto">
-						{getEventsInArrondissement(selectedArrondissement).map((event) => (
-							<button
-								key={event.id}
-								className={`w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary relative ${
-									event.isOOOCPick
-										? "bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-950 dark:to-amber-950 border border-yellow-200 dark:border-yellow-800"
-										: "bg-gray-50 dark:bg-gray-700"
-								}`}
-								onClick={() => onEventClick(event)}
-							>
-								<div className="flex items-center justify-between">
-									<div className="flex-1">
-										<div className="flex items-center space-x-1">
-											<p className="font-medium text-sm">{event.name}</p>
-											{event.isOOOCPick && (
-												<Star className="h-3 w-3 text-yellow-500 fill-current" />
-											)}
+					<div className="max-h-44 space-y-2 overflow-y-auto pr-0.5">
+						{getEventsInArrondissement(selectedArrondissement).map((event) => {
+							const dayNightPeriod = getDayNightPeriod(event.time ?? "");
+							const venueTypes = getEventVenueTypes(event);
+
+							return (
+								<button
+									key={event.id}
+									className={`${baseEventButtonClassName} ${
+										event.isOOOCPick
+											? ooocEventButtonClassName
+											: regularEventButtonClassName
+									}`}
+									onClick={() => onEventClick(event)}
+								>
+									<div className="flex items-center justify-between">
+										<div className="flex-1">
+											<div className="flex items-center space-x-1">
+												<p className="text-sm font-medium text-foreground">
+													{event.name}
+												</p>
+												{event.isOOOCPick && (
+													<Star className="h-3 w-3 fill-current text-amber-500" />
+												)}
+											</div>
+											<p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+												<span>
+													{event.time} • {event.day}
+												</span>
+												{dayNightPeriod === "day" ?
+													<Sun className="h-3 w-3" />
+												: dayNightPeriod === "night" ?
+													<Moon className="h-3 w-3" />
+												:	null}
+											</p>
+											<div className="mt-1 flex items-center space-x-1">
+												<span className="inline-flex items-center gap-0.5 text-muted-foreground">
+													{venueTypes.includes("indoor") && (
+														<Building2 className="h-3 w-3" />
+													)}
+													{venueTypes.includes("outdoor") && (
+														<Trees className="h-3 w-3" />
+													)}
+												</span>
+												<Euro className="h-3 w-3 text-muted-foreground" />
+												<span
+													className={`text-xs ${
+														formatPrice(event.price) === "Free"
+															? "font-medium text-green-600 dark:text-green-400"
+															: "text-muted-foreground"
+													}`}
+												>
+													{formatPrice(event.price)}
+												</span>
+											</div>
 										</div>
-										<p className="text-xs text-gray-600 dark:text-gray-400">
-											{event.time} • {event.day}
-										</p>
-										<div className="flex items-center space-x-1 mt-1">
-											<Euro className="h-3 w-3 text-gray-400" />
-											<span
-												className={`text-xs ${
-													formatPrice(event.price) === "Free"
-														? "text-green-600 dark:text-green-400 font-medium"
-														: "text-gray-500 dark:text-gray-400"
-												}`}
-											>
-												{formatPrice(event.price)}
-											</span>
-										</div>
+										{event.isOOOCPick && (
+											<Star className="h-3.5 w-3.5 fill-current text-amber-500" />
+										)}
 									</div>
-									{event.isOOOCPick && (
-										<span className="text-yellow-500 text-xs">🌟</span>
-									)}
-								</div>
-							</button>
-						))}
+								</button>
+							);
+						})}
 					</div>
 				</div>
 			)}

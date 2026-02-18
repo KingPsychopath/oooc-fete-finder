@@ -8,8 +8,8 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { Event } from "@/features/events/types";
-import { formatPrice } from "@/features/events/types";
-import { Euro, Star } from "lucide-react";
+import { formatPrice, getDayNightPeriod } from "@/features/events/types";
+import { Building2, Euro, Moon, Star, Sun, Trees, X } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 
@@ -133,6 +133,19 @@ const ParisMap: React.FC<ParisMapProps> = ({
 			handleUnknownClick();
 		}
 	};
+
+	const getEventVenueTypes = (event: Event): ("indoor" | "outdoor")[] => {
+		if (event.venueTypes && event.venueTypes.length > 0) {
+			return [...new Set(event.venueTypes)];
+		}
+		return [event.indoor ? "indoor" : "outdoor"];
+	};
+	const baseEventButtonClassName =
+		"w-full rounded-xl border p-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+	const regularEventButtonClassName =
+		"border-border/70 bg-background/65 hover:bg-accent/65";
+	const ooocEventButtonClassName =
+		"border-amber-300/75 bg-[linear-gradient(145deg,rgba(248,238,222,0.86),rgba(244,229,205,0.72))] dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.45),rgba(47,36,24,0.32))]";
 
 	return (
 		<div className="relative w-full h-[600px] bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 rounded-lg overflow-hidden">
@@ -523,72 +536,98 @@ const ParisMap: React.FC<ParisMapProps> = ({
 					</g>
 				</svg>
 
-				{/* Event list for selected arrondissement */}
-				{selectedArrondissement && (
-					<div className="absolute bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 max-w-sm">
-						<div className="flex items-center justify-between mb-2">
-							<h3 className="font-semibold">
-								{selectedArrondissement === -1
-									? "Unknown Location Events"
-									: `${selectedArrondissement}e Arrondissement Events`}
-							</h3>
-							<button
-								onClick={() => setSelectedArrondissement(null)}
-								className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-								aria-label="Close event list"
-							>
-								✕
-							</button>
-						</div>
-						<div className="space-y-2 max-h-40 overflow-y-auto">
-							{(selectedArrondissement === -1
-								? getUnknownEvents()
-								: getEventsInArrondissement(selectedArrondissement)
-							).map((event) => (
+					{/* Event list for selected arrondissement */}
+					{selectedArrondissement && (
+						<div className="ooo-site-card absolute right-4 bottom-4 w-full max-w-sm rounded-2xl border border-border/75 p-3.5">
+							<div className="mb-2 flex items-center justify-between">
+								<div>
+									<p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+										Paris Map
+									</p>
+									<h3 className="text-[1.02rem] [font-family:var(--ooo-font-display)] font-light leading-tight">
+									{selectedArrondissement === -1
+										? "Unknown Location Events"
+										: `${selectedArrondissement}e Arrondissement Events`}
+									</h3>
+								</div>
 								<button
-									key={event.id}
-									className={`w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary relative ${
-										event.isOOOCPick
-											? "bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-950 dark:to-amber-950 border border-yellow-200 dark:border-yellow-800"
-											: "bg-gray-50 dark:bg-gray-700"
-									}`}
-									onClick={() => onEventClick(event)}
-									aria-label={`Event: ${event.name}, ${event.time}, ${event.day}`}
+									onClick={() => setSelectedArrondissement(null)}
+									className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/68 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+									aria-label="Close event list"
 								>
-									<div className="flex items-center justify-between">
-										<div className="flex-1">
-											<div className="flex items-center space-x-1">
-												<p className="font-medium text-sm">{event.name}</p>
+									<X className="h-4 w-4" />
+								</button>
+							</div>
+							<div className="max-h-44 space-y-2 overflow-y-auto pr-0.5">
+								{(selectedArrondissement === -1
+									? getUnknownEvents()
+									: getEventsInArrondissement(selectedArrondissement)
+								).map((event) => {
+									const dayNightPeriod = getDayNightPeriod(event.time ?? "");
+									const venueTypes = getEventVenueTypes(event);
+
+									return (
+										<button
+											key={event.id}
+											className={`${baseEventButtonClassName} ${
+												event.isOOOCPick
+													? ooocEventButtonClassName
+													: regularEventButtonClassName
+											}`}
+											onClick={() => onEventClick(event)}
+											aria-label={`Event: ${event.name}, ${event.time}, ${event.day}`}
+										>
+											<div className="flex items-center justify-between">
+												<div className="flex-1">
+													<div className="flex items-center space-x-1">
+														<p className="text-sm font-medium text-foreground">
+															{event.name}
+														</p>
+														{event.isOOOCPick && (
+															<Star className="h-3 w-3 fill-current text-amber-500" />
+														)}
+													</div>
+													<p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+														<span>
+															{event.time} • {event.day}
+														</span>
+														{dayNightPeriod === "day" ?
+															<Sun className="h-3 w-3" />
+														: dayNightPeriod === "night" ?
+															<Moon className="h-3 w-3" />
+														:	null}
+													</p>
+													<div className="mt-1 flex items-center space-x-1">
+														<span className="inline-flex items-center gap-0.5 text-muted-foreground">
+															{venueTypes.includes("indoor") && (
+																<Building2 className="h-3 w-3" />
+															)}
+															{venueTypes.includes("outdoor") && (
+																<Trees className="h-3 w-3" />
+															)}
+														</span>
+														<Euro className="h-3 w-3 text-muted-foreground" />
+														<span
+															className={`text-xs ${
+																formatPrice(event.price) === "Free"
+																	? "font-medium text-green-600 dark:text-green-400"
+																	: "text-muted-foreground"
+															}`}
+														>
+															{formatPrice(event.price)}
+														</span>
+													</div>
+												</div>
 												{event.isOOOCPick && (
-													<Star className="h-3 w-3 text-yellow-500 fill-current" />
+													<Star className="h-3.5 w-3.5 fill-current text-amber-500" />
 												)}
 											</div>
-											<p className="text-xs text-gray-600 dark:text-gray-400">
-												{event.time} • {event.day}
-											</p>
-											{/* Price display */}
-											<div className="flex items-center space-x-1 mt-1">
-												<Euro className="h-3 w-3 text-gray-400" />
-												<span
-													className={`text-xs ${
-														formatPrice(event.price) === "Free"
-															? "text-green-600 dark:text-green-400 font-medium"
-															: "text-gray-500 dark:text-gray-400"
-													}`}
-												>
-													{formatPrice(event.price)}
-												</span>
-											</div>
-										</div>
-										{event.isOOOCPick && (
-											<span className="text-yellow-500 text-xs">🌟</span>
-										)}
-									</div>
-								</button>
-							))}
+										</button>
+									);
+								})}
+							</div>
 						</div>
-					</div>
-				)}
+					)}
 			</TooltipProvider>
 		</div>
 	);
