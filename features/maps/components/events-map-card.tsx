@@ -1,10 +1,11 @@
 "use client";
 
-import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
+import { useOnlineStatus } from "@/components/offline-indicator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Event } from "@/features/events/types";
+import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
 import { ChevronDown, LocateFixed, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -25,6 +26,7 @@ export function EventsMapCard({
 	onEventClick,
 	mapLoadStrategy = "idle",
 }: EventsMapCardProps) {
+	const isOnline = useOnlineStatus();
 	const [hasMountedMap, setHasMountedMap] = useState(false);
 
 	useEffect(() => {
@@ -101,6 +103,14 @@ export function EventsMapCard({
 								>
 									MapLibre
 								</Badge>
+								{!isOnline && (
+									<Badge
+										variant="outline"
+										className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs"
+									>
+										Offline: tiles unavailable
+									</Badge>
+								)}
 							</div>
 						</CardTitle>
 						<Button

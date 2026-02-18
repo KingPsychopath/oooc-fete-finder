@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
 import maplibregl from "maplibre-gl";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Event } from "@/features/events/types";
 import { formatPrice, getDayNightPeriod } from "@/features/events/types";
@@ -126,6 +126,24 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		number | null
 	>(null);
 	const [showCoordinates, setShowCoordinates] = useState(false);
+	const [isOffline, setIsOffline] = useState(false);
+
+	useEffect(() => {
+		if (typeof navigator === "undefined") return;
+
+		setIsOffline(!navigator.onLine);
+
+		const handleOnline = () => setIsOffline(false);
+		const handleOffline = () => setIsOffline(true);
+
+		window.addEventListener("online", handleOnline);
+		window.addEventListener("offline", handleOffline);
+
+		return () => {
+			window.removeEventListener("online", handleOnline);
+			window.removeEventListener("offline", handleOffline);
+		};
+	}, []);
 
 	// Filter events based on selected day
 	const filteredEvents = React.useMemo(() => {
@@ -169,12 +187,15 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		[filteredEvents],
 	);
 
-	const getEventVenueTypes = useCallback((event: Event): ("indoor" | "outdoor")[] => {
-		if (event.venueTypes && event.venueTypes.length > 0) {
-			return [...new Set(event.venueTypes)];
-		}
-		return [event.indoor ? "indoor" : "outdoor"];
-	}, []);
+	const getEventVenueTypes = useCallback(
+		(event: Event): ("indoor" | "outdoor")[] => {
+			if (event.venueTypes && event.venueTypes.length > 0) {
+				return [...new Set(event.venueTypes)];
+			}
+			return [event.indoor ? "indoor" : "outdoor"];
+		},
+		[],
+	);
 	const baseEventButtonClassName =
 		"w-full rounded-xl border p-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 	const regularEventButtonClassName =
@@ -203,10 +224,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 		// Add selected arrondissement (always blue)
 		if (selectedArr) {
-			colorExpression.push(
-				["==", ["get", "c_ar"], selectedArr],
-				"#1d4ed8",
-			);
+			colorExpression.push(["==", ["get", "c_ar"], selectedArr], "#1d4ed8");
 		}
 
 		// Add colors for each arrondissement based on event count
@@ -322,7 +340,12 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					setIsLoading(false);
 				});
 			} catch (error) {
-				clientLog.error("maps.maplibre", "Failed to initialize map", undefined, error);
+				clientLog.error(
+					"maps.maplibre",
+					"Failed to initialize map",
+					undefined,
+					error,
+				);
 				setLoadError(
 					error instanceof Error ? error.message : "Failed to load map",
 				);
@@ -384,7 +407,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				// Check if source already exists
 				let hasBoundariesSource = false;
 				try {
-					hasBoundariesSource = Boolean(currentMap.getSource("admin-boundaries"));
+					hasBoundariesSource = Boolean(
+						currentMap.getSource("admin-boundaries"),
+					);
 				} catch {
 					return;
 				}
@@ -443,19 +468,40 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						currentMap.off("click", "admin-fill", handleAdminFillClick);
 					} catch {}
 					try {
-						currentMap.off("mouseenter", "admin-fill", handleAdminFillMouseEnter);
+						currentMap.off(
+							"mouseenter",
+							"admin-fill",
+							handleAdminFillMouseEnter,
+						);
 					} catch {}
 					try {
-						currentMap.off("mouseleave", "admin-fill", handleAdminFillMouseLeave);
+						currentMap.off(
+							"mouseleave",
+							"admin-fill",
+							handleAdminFillMouseLeave,
+						);
 					} catch {}
 					try {
 						currentMap.on("click", "admin-fill", handleAdminFillClick);
-						currentMap.on("mouseenter", "admin-fill", handleAdminFillMouseEnter);
-						currentMap.on("mouseleave", "admin-fill", handleAdminFillMouseLeave);
+						currentMap.on(
+							"mouseenter",
+							"admin-fill",
+							handleAdminFillMouseEnter,
+						);
+						currentMap.on(
+							"mouseleave",
+							"admin-fill",
+							handleAdminFillMouseLeave,
+						);
 					} catch {}
 				}
 			} catch (error) {
-				clientLog.error("maps.maplibre", "Failed to load boundaries", undefined, error);
+				clientLog.error(
+					"maps.maplibre",
+					"Failed to load boundaries",
+					undefined,
+					error,
+				);
 			}
 		};
 
@@ -569,16 +615,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		});
 
 		currentMap.on("click", "event-markers", handleEventMarkersClick);
-		currentMap.on(
-			"mouseenter",
-			"event-markers",
-			handleEventMarkersMouseEnter,
-		);
-		currentMap.on(
-			"mouseleave",
-			"event-markers",
-			handleEventMarkersMouseLeave,
-		);
+		currentMap.on("mouseenter", "event-markers", handleEventMarkersMouseEnter);
+		currentMap.on("mouseleave", "event-markers", handleEventMarkersMouseLeave);
 		return () => {
 			teardownEventMarkers();
 		};
@@ -600,12 +638,18 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						⚠️ Map Load Error
 					</div>
 					<p className="text-sm text-red-600 dark:text-red-400">{loadError}</p>
-					<button
-						onClick={() => window.location.reload()}
-						className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700"
-					>
-						Retry
-					</button>
+					{isOffline ? (
+						<p className="mt-2 text-xs text-red-700/80 dark:text-red-300/80">
+							You are offline. The events list is still available below.
+						</p>
+					) : (
+						<button
+							onClick={() => window.location.reload()}
+							className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700"
+						>
+							Retry
+						</button>
+					)}
 				</div>
 			</div>
 		);
@@ -756,7 +800,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 								Paris Map
 							</p>
 							<h3 className="text-[1.02rem] [font-family:var(--ooo-font-display)] font-light leading-tight">
-							{selectedArrondissement}e Arrondissement Events
+								{selectedArrondissement}e Arrondissement Events
 							</h3>
 						</div>
 						<button
@@ -795,11 +839,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 												<span>
 													{event.time} • {event.day}
 												</span>
-												{dayNightPeriod === "day" ?
+												{dayNightPeriod === "day" ? (
 													<Sun className="h-3 w-3" />
-												: dayNightPeriod === "night" ?
+												) : dayNightPeriod === "night" ? (
 													<Moon className="h-3 w-3" />
-												:	null}
+												) : null}
 											</p>
 											<div className="mt-1 flex items-center space-x-1">
 												<span className="inline-flex items-center gap-0.5 text-muted-foreground">
@@ -822,10 +866,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 												</span>
 											</div>
 										</div>
-										</div>
-									</button>
-								);
-							})}
+									</div>
+								</button>
+							);
+						})}
 					</div>
 				</div>
 			)}

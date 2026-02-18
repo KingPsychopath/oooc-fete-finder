@@ -117,6 +117,11 @@ const withPWA = require("next-pwa")({
 			},
 		},
 		{
+			urlPattern: /\/api\/auth\/.*$/i,
+			handler: "NetworkOnly",
+			method: "GET",
+		},
+		{
 			urlPattern: /\/api\/.*$/i,
 			handler: "NetworkFirst",
 			method: "GET",
