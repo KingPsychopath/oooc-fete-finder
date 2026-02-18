@@ -54,12 +54,30 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			<Card ref={ref} className="ooo-site-card mt-6 py-0">
 				<CardHeader className="border-b border-border/70 py-5">
 					<div className="flex items-center justify-between">
-						<CardTitle className="flex items-center text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
-							All Events
-							<Badge variant="outline" className="ml-2 text-xs">
-								{events.length} event{events.length !== 1 ? "s" : ""}
-							</Badge>
-						</CardTitle>
+						<div className="flex flex-col">
+							<div className="flex items-center">
+								<CardTitle className="text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
+									All Events
+								</CardTitle>
+								<Badge variant="outline" className="ml-2 text-xs">
+									{events.length} event{events.length !== 1 ? "s" : ""}
+								</Badge>
+							</div>
+							{submissionsEnabled ? (
+								<Link
+									href={`${basePath}/submit-event`}
+									className="mt-1 text-xs leading-tight text-muted-foreground transition-colors hover:text-foreground hover:underline sm:text-sm"
+									style={{ textWrap: "balance" }}
+								>
+									Hosting something special? Put it on the map with the
+									collective and submit your event →
+								</Link>
+							) : (
+								<p className="mt-1 text-xs leading-tight text-muted-foreground sm:text-sm">
+									Host submissions are currently paused.
+								</p>
+							)}
+						</div>
 						<FilterButton
 							onClickAction={onFilterClickAction}
 							hasActiveFilters={hasActiveFilters}
@@ -67,21 +85,6 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							className="lg:hidden"
 						/>
 					</div>
-					{submissionsEnabled ? (
-						<p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-							<Link
-								href={`${basePath}/submit-event`}
-								className="font-medium text-foreground underline-offset-4 transition-colors hover:underline"
-							>
-								Hosting something special? Put it on the map with the collective
-								and submit your event →
-							</Link>
-						</p>
-					) : (
-						<p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-							Host submissions are currently paused.
-						</p>
-					)}
 				</CardHeader>
 				<CardContent className="py-5">
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
