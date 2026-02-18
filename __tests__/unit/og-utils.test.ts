@@ -15,12 +15,12 @@ describe("og-utils", () => {
 		vi.clearAllMocks();
 	});
 
-	it("builds branded main OG route URL with default theme params", async () => {
+	it("builds branded main OG route URL with default variant params", async () => {
 		const { generateMainOGImage } = await loadOgUtils();
 		const url = generateMainOGImage(81);
 
 		expect(url).toContain("/api/og?");
-		expect(url).toContain("theme=default");
+		expect(url).toContain("variant=default");
 		expect(url).toContain("eventCount=81");
 		expect(url).toContain("title=F%C3%AAte+Finder");
 	});
@@ -30,19 +30,19 @@ describe("og-utils", () => {
 		const metadata = generateOGMetadata({
 			title: "Fete Finder",
 			description: "Curated Paris music events",
-			ogImageUrl: "/api/og?theme=default",
+			ogImageUrl: "/api/og?variant=default",
 		});
 
 		expect(metadata.openGraph.url).toBe("https://fete-finder.ooo");
 		expect(metadata.openGraph.images[0]).toMatchObject({
-			url: "/api/og?theme=default",
+			url: "/api/og?variant=default",
 			width: 1200,
 			height: 630,
 			type: "image/png",
 		});
 		expect(metadata.twitter.card).toBe("summary_large_image");
 		expect(metadata.twitter.images[0]).toMatchObject({
-			url: "/api/og?theme=default",
+			url: "/api/og?variant=default",
 		});
 	});
 });

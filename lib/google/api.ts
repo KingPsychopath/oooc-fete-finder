@@ -48,9 +48,7 @@ export const GoogleCloudAPI = {
 	// Configuration check
 	isConfigured: () => {
 		const { env } = require("@/lib/config/env");
-		return Boolean(
-			env.GOOGLE_SERVICE_ACCOUNT_KEY || env.GOOGLE_SERVICE_ACCOUNT_FILE,
-		);
+		return Boolean(env.GOOGLE_SERVICE_ACCOUNT_KEY);
 	},
 
 	// Geocoding support check (Maps Geocoding API requires an API key)

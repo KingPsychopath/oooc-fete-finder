@@ -37,6 +37,7 @@ This file defines the rendering/auth/data contract for the app. Treat this as im
 - Event runtime reads go through `features/data-management/runtime-service.ts`.
 - `getLiveEvents()` reads directly from `DataManager.getEventsData()` on each call.
 - The previous custom cache manager layer (`lib/cache/*`) has been removed.
+- Coordinate lookup persistence is KV-backed (`maps:locations:v1`) and warmed during admin writes.
 
 2. Admin mutations must revalidate.
 - After writes, use Next.js built-ins (`revalidateTag`/`revalidatePath`) for affected public surfaces.
@@ -45,6 +46,7 @@ This file defines the rendering/auth/data contract for the app. Treat this as im
 - Primary: managed Postgres event store (`store`).
 - Fallback: local CSV (`data/events.csv`) when store is unavailable/invalid.
 - Google Sheets remains admin backup preview/import only (not live runtime source).
+- In Vercel preview/production runtime, KV provider is strict Postgres-only (no file/memory fallback).
 
 4. Avoid duplicate client fetches.
 - If data can be provided by server props or centralized context, prefer that over per-component fetch-on-mount patterns.

@@ -25,7 +25,6 @@ ADMIN_KEY=your-admin-key
 REMOTE_CSV_URL=
 GOOGLE_SHEET_ID=
 GOOGLE_SERVICE_ACCOUNT_KEY=
-GOOGLE_SERVICE_ACCOUNT_FILE=service-account.json
 ```
 
 ## 3. Seed Postgres Event Store
@@ -62,6 +61,7 @@ Runtime will continue using:
 - Postgres store first (`DATA_MODE=remote`)
 - Local CSV fallback if Postgres data is unavailable
 - No custom app cache layer for events (`lib/cache/*` removed); runtime reads are direct through `runtime-service` + `DataManager`
+- Coordinate lookup storage is KV-backed and warmed on admin saves/imports
 
 ## 5. Email Collection
 
@@ -76,6 +76,7 @@ Google Apps Script output is optional mirror-only behavior and can be removed la
 4. Verify live source in admin is `Postgres Store`
 5. Keep Google only as backup preview/import (optional)
 6. Run one admin save/import cycle after deploy so legacy rows persist generated `Event Key` values.
+7. In Vercel preview/production, ensure KV init is healthy (no file/memory fallback exists in strict mode).
 
 ## 7. Rollback
 

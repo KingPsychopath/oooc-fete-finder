@@ -1,46 +1,39 @@
-import fs from "fs";
-import path from "path";
 import type { EventLocation } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
+import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
 
 /**
  * Location storage configuration
  */
 const STORAGE_CONFIG = {
-	filePath: "data/event-locations.json",
+	storageKey: "maps:locations:v1",
 	version: "1.0.0",
 } as const;
 
 /**
- * Storage file data structure
+ * Storage payload data structure
  */
-type StorageFileData = {
+type StoragePayloadData = {
 	version: string;
 	lastUpdated: string;
 	locations: Record<string, EventLocation>;
 };
 
 /**
- * Location Storage - Handles persistent file operations only
+ * Location Storage - Handles persistent KV operations only
  */
 export class LocationStorage {
 	/**
-	 * Load all stored locations from disk
+	 * Load all stored locations from KV
 	 */
 	static async load(): Promise<Map<string, EventLocation>> {
 		try {
-			const filePath = path.join(process.cwd(), STORAGE_CONFIG.filePath);
-
-			// Check if file exists
-			try {
-				await fs.promises.access(filePath);
-			} catch {
-				// File doesn't exist, return empty map
+			const store = await getKVStore();
+			const content = await store.get(STORAGE_CONFIG.storageKey);
+			if (!content) {
 				return new Map();
 			}
-
-			const content = await fs.promises.readFile(filePath, "utf-8");
-			const data: StorageFileData = JSON.parse(content);
+			const data = JSON.parse(content) as Partial<StoragePayloadData>;
 
 			// Version check
 			if (data.version !== STORAGE_CONFIG.version) {
@@ -51,10 +44,14 @@ export class LocationStorage {
 				return new Map();
 			}
 
+			if (!data.locations || typeof data.locations !== "object") {
+				return new Map();
+			}
+
 			// Convert to Map
 			const locationMap = new Map<string, EventLocation>();
 			Object.entries(data.locations).forEach(([key, location]) => {
-				locationMap.set(key, location);
+				locationMap.set(key, location as EventLocation);
 			});
 
 			return locationMap;
@@ -67,53 +64,20 @@ export class LocationStorage {
 	}
 
 	/**
-	 * Save all locations to disk
+	 * Save all locations to KV
 	 */
 	static async save(locations: Map<string, EventLocation>): Promise<void> {
 		try {
-			const filePath = path.join(process.cwd(), STORAGE_CONFIG.filePath);
-			const dir = path.dirname(filePath);
-
-			// Ensure directory exists
-			await fs.promises.mkdir(dir, { recursive: true });
-
-			const data: StorageFileData = {
+			const store = await getKVStore();
+			const data: StoragePayloadData = {
 				version: STORAGE_CONFIG.version,
 				lastUpdated: new Date().toISOString(),
 				locations: Object.fromEntries(locations.entries()),
 			};
-
-			// Atomic write operation
-			const tempPath = `${filePath}.tmp`;
-			await fs.promises.writeFile(
-				tempPath,
-				JSON.stringify(data, null, 2),
-				"utf-8",
-			);
-			await fs.promises.rename(tempPath, filePath);
-		} catch {
-			// Fallback to direct write
-			try {
-				const filePath = path.join(process.cwd(), STORAGE_CONFIG.filePath);
-				const data: StorageFileData = {
-					version: STORAGE_CONFIG.version,
-					lastUpdated: new Date().toISOString(),
-					locations: Object.fromEntries(locations.entries()),
-				};
-				await fs.promises.writeFile(
-					filePath,
-					JSON.stringify(data, null, 2),
-					"utf-8",
-				);
-			} catch (fallbackError) {
-				log.error(
-					"maps.storage",
-					"Failed to save location storage",
-					undefined,
-					fallbackError,
-				);
-				throw fallbackError;
-			}
+			await store.set(STORAGE_CONFIG.storageKey, JSON.stringify(data));
+		} catch (error) {
+			log.error("maps.storage", "Failed to save location storage", undefined, error);
+			throw error;
 		}
 	}
 
@@ -121,6 +85,7 @@ export class LocationStorage {
 	 * Clear all stored locations
 	 */
 	static async clear(): Promise<void> {
-		await this.save(new Map());
+		const store = await getKVStore();
+		await store.delete(STORAGE_CONFIG.storageKey);
 	}
 }

@@ -125,14 +125,9 @@ const withPWA = require("next-pwa")({
 			handler: "NetworkOnly",
 			method: "GET",
 		},
-		{
-			urlPattern: /\/api\/og-upload\/?$/i,
-			handler: "NetworkOnly",
-			method: "GET",
-		},
-		{
-			urlPattern: /\/api\/.*$/i,
-			handler: "NetworkFirst",
+			{
+				urlPattern: /\/api\/.*$/i,
+				handler: "NetworkFirst",
 			method: "GET",
 			options: {
 				cacheName: "apis",

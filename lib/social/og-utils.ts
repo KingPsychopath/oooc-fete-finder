@@ -5,14 +5,28 @@
 
 import { env } from "@/lib/config/env";
 
-type OGImageTheme = "default" | "event" | "admin";
+type OGImageVariant = "default" | "event-modal";
+type LegacyTheme = "default" | "event" | "admin" | "custom";
 
 type OGImageParams = {
 	title?: string;
 	subtitle?: string;
-	theme?: OGImageTheme;
+	variant?: OGImageVariant;
+	theme?: LegacyTheme;
 	eventCount?: number;
 	arrondissement?: string;
+};
+
+const resolveVariant = (params: OGImageParams): OGImageVariant => {
+	if (params.variant) {
+		return params.variant;
+	}
+
+	if (params.theme === "event") {
+		return "event-modal";
+	}
+
+	return "default";
 };
 
 /**
@@ -20,10 +34,12 @@ type OGImageParams = {
  */
 export const generateOGImageUrl = (params: OGImageParams = {}): string => {
 	const searchParams = new URLSearchParams();
+	const variant = resolveVariant(params);
+
+	searchParams.set("variant", variant);
 
 	if (params.title) searchParams.set("title", params.title);
 	if (params.subtitle) searchParams.set("subtitle", params.subtitle);
-	if (params.theme) searchParams.set("theme", params.theme);
 	if (params.eventCount)
 		searchParams.set("eventCount", params.eventCount.toString());
 	if (params.arrondissement)
@@ -46,7 +62,7 @@ export const generateEventOGImage = (params: {
 		subtitle: params.arrondissement
 			? `Discover events in ${params.arrondissement} during Fête de la Musique 2025`
 			: "Interactive Paris Music Events Map",
-		theme: "event",
+		variant: "event-modal",
 		eventCount: params.eventCount,
 		arrondissement: params.arrondissement,
 	});
@@ -61,10 +77,9 @@ export const generateAdminOGImage = (
 		subtitle?: string;
 	} = {},
 ): string => {
+	void params;
 	return generateOGImageUrl({
-		title: params.title || "Admin Dashboard",
-		subtitle: params.subtitle || "Event Management & Cache Control",
-		theme: "admin",
+		variant: "default",
 	});
 };
 
@@ -75,7 +90,7 @@ export const generateMainOGImage = (eventCount?: number): string => {
 	return generateOGImageUrl({
 		title: "Fête Finder",
 		subtitle: "Curated Paris music events by Out Of Office Collective",
-		theme: "default",
+		variant: "default",
 		eventCount,
 	});
 };
@@ -140,6 +155,6 @@ export const OG_PRESETS = {
 	admin: () => generateAdminOGImage(),
 	event: (arrondissement?: string, eventCount?: number) =>
 		generateEventOGImage({ arrondissement, eventCount }),
-	custom: (title: string, subtitle: string, theme: OGImageTheme = "default") =>
-		generateOGImageUrl({ title, subtitle, theme }),
+	custom: (title: string, subtitle: string) =>
+		generateOGImageUrl({ title, subtitle, variant: "default" }),
 } as const;

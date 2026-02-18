@@ -27,6 +27,8 @@ import {
 	type DateFormatWarning,
 	WarningSystem,
 } from "./validation/date-warnings";
+import { processCSVData } from "./data-processor";
+import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
 
 /**
  * Data Management Server Actions
@@ -55,6 +57,48 @@ const resolveRemoteSheetConfig = async (): Promise<{
 	}
 
 	return { remoteUrl, sheetId, range };
+};
+
+const COORDINATE_WARMUP_RECOVERABLE_ERROR_FRAGMENT =
+	"GOOGLE_MAPS_API_KEY not set";
+
+const warmCoordinateCacheFromCsv = async (
+	csvContent: string,
+	context: "save-local" | "import-remote" | "save-sheet-editor",
+): Promise<void> => {
+	const processed = await processCSVData(csvContent, "store", false, {
+		populateCoordinates: true,
+	});
+	const blockingErrors = processed.errors.filter(
+		(error) => !error.includes(COORDINATE_WARMUP_RECOVERABLE_ERROR_FRAGMENT),
+	);
+	if (blockingErrors.length > 0) {
+		throw new Error(blockingErrors.join("; "));
+	}
+
+	const pruneResult = await EventCoordinatePopulator.pruneStorageToEvents(
+		processed.events,
+	);
+
+	log.info("coordinates", "Coordinate cache warm-up completed", {
+		context,
+		totalEvents: processed.count,
+		coordinatesPopulated: processed.coordinatesPopulated ?? false,
+		coordinatesCount: processed.coordinatesCount ?? 0,
+		prunedKeys: pruneResult.removedCount,
+		storageEntries: pruneResult.afterCount,
+	});
+
+	if (
+		processed.errors.some((error) =>
+			error.includes(COORDINATE_WARMUP_RECOVERABLE_ERROR_FRAGMENT),
+		)
+	) {
+		log.warn("coordinates", "Coordinate cache warm-up skipped geocoding", {
+			context,
+			reason: "GOOGLE_MAPS_API_KEY not set",
+		});
+	}
 };
 
 /**
@@ -277,14 +321,15 @@ export async function saveLocalEventStoreCsv(
 		return { success: false, message: "Unauthorized access" };
 	}
 
-	try {
-		const result = await LocalEventStore.saveCsv(csvContent, {
-			updatedBy: "admin-panel",
-			origin: "manual",
-		});
-		await forceRefreshEventsData();
-		return {
-			success: true,
+		try {
+			const result = await LocalEventStore.saveCsv(csvContent, {
+				updatedBy: "admin-panel",
+				origin: "manual",
+			});
+			await warmCoordinateCacheFromCsv(csvContent, "save-local");
+			await forceRefreshEventsData();
+			return {
+				success: true,
 			message: "Managed store updated and homepage revalidated",
 			rowCount: result.rowCount,
 		};
@@ -346,10 +391,10 @@ export async function previewRemoteCsvForAdmin(
 		return { success: false, error: "Unauthorized access" };
 	}
 
-	try {
-		const { remoteUrl, sheetId, range } = await resolveRemoteSheetConfig();
-		const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range, {
-			allowLocalFallback: false,
+		try {
+			const { remoteUrl, sheetId, range } = await resolveRemoteSheetConfig();
+			const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range, {
+				allowLocalFallback: false,
 		});
 		const sheet = csvToEditableSheet(remoteFetchResult.content);
 		const normalizedLimit = Math.max(1, Math.min(limit, 50));
@@ -397,13 +442,14 @@ export async function importRemoteCsvToLocalEventStore(
 		const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range, {
 			allowLocalFallback: false,
 		});
-		const saved = await LocalEventStore.saveCsv(remoteFetchResult.content, {
-			updatedBy: "admin-google-import",
-			origin: "google-import",
-		});
-		await forceRefreshEventsData();
+			const saved = await LocalEventStore.saveCsv(remoteFetchResult.content, {
+				updatedBy: "admin-google-import",
+				origin: "google-import",
+			});
+			await warmCoordinateCacheFromCsv(remoteFetchResult.content, "import-remote");
+			await forceRefreshEventsData();
 
-		return {
+			return {
 			success: true,
 			message: `Imported ${saved.rowCount} rows from remote source into managed store`,
 			rowCount: saved.rowCount,
@@ -515,16 +561,17 @@ export async function saveEventSheetEditorRows(
 		}
 
 		const csvContent = editableSheetToCsv(validation.columns, validation.rows);
-		const saved = await LocalEventStore.saveCsv(csvContent, {
-			updatedBy: "admin-sheet-editor",
-			origin: "manual",
-		});
-		const shouldRevalidateHomepage = options?.revalidateHomepage !== false;
-		if (shouldRevalidateHomepage) {
-			await forceRefreshEventsData();
-		} else {
-			revalidateEventsPaths(["/"]);
-		}
+			const saved = await LocalEventStore.saveCsv(csvContent, {
+				updatedBy: "admin-sheet-editor",
+				origin: "manual",
+			});
+			const shouldRevalidateHomepage = options?.revalidateHomepage !== false;
+			if (shouldRevalidateHomepage) {
+				await warmCoordinateCacheFromCsv(csvContent, "save-sheet-editor");
+				await forceRefreshEventsData();
+			} else {
+				revalidateEventsPaths(["/"]);
+			}
 
 		return {
 			success: true,

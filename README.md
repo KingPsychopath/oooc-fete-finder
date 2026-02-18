@@ -13,6 +13,8 @@ Google Sheets is not used as the live runtime source. It is only used in admin f
 
 Auth modal user submissions are stored in the managed user store (`app_kv_store`) first, with optional Google mirroring only when explicitly enabled.
 
+In Vercel preview/production, KV provider selection is strict Postgres-only (no file/memory fallback).
+
 ## Runtime Data Flow (Current)
 
 There is no custom app cache layer for events. `lib/cache/*` has been removed.
@@ -28,12 +30,13 @@ Server-side event reads flow as:
    - event key hydration
    - quality checks
    - coordinate population (when enabled)
-5. Public delivery uses Next.js built-ins (ISR/revalidate APIs where configured).
+5. Coordinate storage is durable KV-backed (`maps:locations:v1`) and prewarmed on admin writes (`save/import/sheet save + revalidate`) to reduce live geocoding churn. Warm-up also prunes stale keys and auto-upgrades `estimated` entries when geocoding is available.
+6. Public delivery uses Next.js built-ins (ISR/revalidate APIs where configured).
 
 What did not become a data cache:
 
-- Logger dedupe map in `lib/platform/logger.ts` (`recentInfoLogs`) is only log suppression.
-- Runtime metrics counters in `features/data-management/runtime-service.ts` (`metrics`) are telemetry only.
+- Logger dedupe map in `logger.ts` (line 20) is only log suppression.
+- Runtime metrics counters in `runtime-service.ts` (line 74) are telemetry only.
 
 ## Postgres Schema (Events)
 
@@ -85,7 +88,7 @@ Optional Google backup import/preview and geocoding:
 ```bash
 REMOTE_CSV_URL=
 GOOGLE_SHEET_ID=
-GOOGLE_SERVICE_ACCOUNT_KEY=   # preferred (use on Vercel); or GOOGLE_SERVICE_ACCOUNT_FILE for local
+GOOGLE_SERVICE_ACCOUNT_KEY=   # required for service-account sheet access
 GOOGLE_MAPS_API_KEY=          # optional; enable Geocoding API in Cloud Console for precise coords
 ```
 
@@ -94,6 +97,15 @@ No custom in-memory events cache is used. Live reads are pass-through source rea
 ## Logging + Dedupe
 
 One-line startup banner (data mode, DB, geocoding). Runtime logs use `lib/platform/logger` (scope + message; no per-event or memory spam). In development, identical `info` logs are deduped briefly to reduce spam. This dedupe affects logs only, not data reads. See `docs/logging.md`.
+
+## OG Images
+
+Sharing now uses two standardized OG image variants:
+
+1. `default` (site-wide)
+2. `event-modal` (when sharing links with `?event=...`)
+
+Admin and other pages inherit the default OG style unless explicitly overridden.
 
 ## Abuse Protection
 
@@ -108,6 +120,7 @@ Sensitive identifiers are HMAC-hashed with `AUTH_SECRET` in limiter keys/log con
 ## Documentation
 
 - `docs/environment-variables.md` — env reference (app only uses `DATABASE_URL` for Postgres)
+- `docs/serverless-hardening.md` — Vercel production/preview runtime rules and troubleshooting
 - `docs/logging.md` — logging and startup
 - `docs/security-rate-limiting.md` — auth verify abuse controls and runbook
 - `docs/geocoding.md` — Geocoding API and arrondissement fallback

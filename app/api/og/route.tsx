@@ -1,5 +1,4 @@
 import { createHash } from "crypto";
-import { env } from "@/lib/config/env";
 import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
 import { log } from "@/lib/platform/logger";
 import { ImageResponse } from "next/og";
@@ -13,13 +12,13 @@ const RATE_LIMIT_KEY_PREFIX = "og-rate:";
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 120;
 const MAX_TEXT_LENGTH = 110;
-const ALLOWED_THEMES = ["default", "event", "admin", "custom"] as const;
+const ALLOWED_VARIANTS = ["default", "event-modal"] as const;
 
-type OGTheme = (typeof ALLOWED_THEMES)[number];
+type OGVariant = (typeof ALLOWED_VARIANTS)[number];
 type RateState = { count: number; resetAt: number };
 
 const THEMES: Record<
-	OGTheme,
+	OGVariant,
 	{
 		label: string;
 		background: string;
@@ -40,7 +39,7 @@ const THEMES: Record<
 		ink: "#28190f",
 		muted: "#6f5949",
 	},
-	event: {
+	"event-modal": {
 		label: "Event Focus",
 		background:
 			"linear-gradient(145deg, #f4ece2 0%, #eedec9 42%, #e8d0ae 100%)",
@@ -49,26 +48,6 @@ const THEMES: Record<
 		border: "rgba(93,62,44,0.24)",
 		ink: "#23160e",
 		muted: "#695243",
-	},
-	admin: {
-		label: "Admin",
-		background:
-			"linear-gradient(145deg, #ece9e4 0%, #dfd9d1 42%, #d0c6bc 100%)",
-		accent: "#2f2822",
-		card: "rgba(255,255,255,0.88)",
-		border: "rgba(58,49,42,0.24)",
-		ink: "#191511",
-		muted: "#57504a",
-	},
-	custom: {
-		label: "Custom Share",
-		background:
-			"linear-gradient(145deg, #f5efe6 0%, #eadcc9 42%, #ddc5a5 100%)",
-		accent: "#4d2d1f",
-		card: "rgba(255,255,255,0.84)",
-		border: "rgba(95,63,45,0.24)",
-		ink: "#24170f",
-		muted: "#684f40",
 	},
 };
 
@@ -153,24 +132,17 @@ const isRateLimited = async (request: NextRequest): Promise<boolean> => {
 };
 
 const buildThemeText = (
-	theme: OGTheme,
+	variant: OGVariant,
 	arrondissement: string,
 	eventCount: number,
 ) => {
-	if (theme === "event" && arrondissement) {
+	if (variant === "event-modal" && arrondissement) {
 		return {
 			title: `Events in ${arrondissement}`,
 			subtitle:
 				eventCount > 0
 					? `${eventCount} live picks for your Paris route.`
 					: "Curated live music picks for your Paris route.",
-		};
-	}
-
-	if (theme === "admin") {
-		return {
-			title: "Admin Dashboard",
-			subtitle: "Live data controls, publishing checks, and runtime status.",
 		};
 	}
 
@@ -194,75 +166,57 @@ export async function GET(request: NextRequest) {
 			});
 		}
 
-		const { searchParams } = new URL(request.url);
-		const themeParam = searchParams.get("theme") || "default";
-		const theme: OGTheme = ALLOWED_THEMES.includes(themeParam as OGTheme)
-			? (themeParam as OGTheme)
-			: "default";
-		const eventCount = Math.min(
-			Number.parseInt(searchParams.get("eventCount") || "0", 10) || 0,
-			9999,
+			const { searchParams } = new URL(request.url);
+			const variantParam = searchParams.get("variant") || "";
+			const legacyThemeParam = searchParams.get("theme") || "";
+			const rawVariant =
+				variantParam ||
+				(legacyThemeParam === "event" ? "event-modal" : "default");
+			const variant: OGVariant = ALLOWED_VARIANTS.includes(rawVariant as OGVariant)
+				? (rawVariant as OGVariant)
+				: "default";
+			const eventCount = Math.min(
+				Number.parseInt(searchParams.get("eventCount") || "0", 10) || 0,
+				9999,
 		);
-		const arrondissement = sanitizeText(
-			searchParams.get("arrondissement") || "",
-			"",
-		);
-		const localImageParam = searchParams.get("localImage");
-		const localImage =
-			localImageParam && localImageParam.startsWith("/og-images/")
-				? localImageParam
-				: null;
+			const arrondissement = sanitizeText(
+				searchParams.get("arrondissement") || "",
+				"",
+			);
 
-		const defaultText = buildThemeText(theme, arrondissement, eventCount);
-		const title = sanitizeText(
-			searchParams.get("title") || "",
-			defaultText.title,
+			const defaultText = buildThemeText(variant, arrondissement, eventCount);
+			const title = sanitizeText(
+				searchParams.get("title") || "",
+				defaultText.title,
 		);
 		const subtitle = sanitizeText(
 			searchParams.get("subtitle") || "",
-			defaultText.subtitle,
-		);
+				defaultText.subtitle,
+			);
 
-		const palette = THEMES[theme];
-		const backgroundImage = localImage
-			? `${env.NEXT_PUBLIC_SITE_URL}${localImage}`
-			: null;
+			const palette = THEMES[variant];
 
-		return new ImageResponse(
-			<div
+			return new ImageResponse(
+				<div
 				style={{
-					width: "100%",
-					height: "100%",
-					display: "flex",
-					position: "relative",
-					background: backgroundImage ? "#20140f" : palette.background,
-					color: palette.ink,
-					fontFamily: '"Helvetica Neue", Arial, sans-serif',
-				}}
-			>
-				{backgroundImage ? (
+						width: "100%",
+						height: "100%",
+						display: "flex",
+						position: "relative",
+						background: palette.background,
+						color: palette.ink,
+						fontFamily: '"Helvetica Neue", Arial, sans-serif',
+					}}
+				>
 					<div
 						style={{
 							position: "absolute",
 							inset: 0,
 							display: "flex",
-							backgroundImage: `url(${backgroundImage})`,
-							backgroundSize: "cover",
-							backgroundPosition: "center",
+							background:
+								"linear-gradient(160deg, rgba(255,255,255,0.22), rgba(255,255,255,0))",
 						}}
 					/>
-				) : null}
-
-				<div
-					style={{
-						position: "absolute",
-						inset: 0,
-						display: "flex",
-						background: backgroundImage
-							? "linear-gradient(150deg, rgba(17,10,8,0.72), rgba(45,29,21,0.62))"
-							: "linear-gradient(160deg, rgba(255,255,255,0.22), rgba(255,255,255,0))",
-					}}
-				/>
 
 				<div
 					style={{
@@ -303,51 +257,47 @@ export async function GET(request: NextRequest) {
 							}}
 						>
 							<div
-								style={{
-									fontSize: 18,
-									letterSpacing: "0.22em",
-									textTransform: "uppercase",
-									color: backgroundImage ? "#f2e7d8" : palette.muted,
-									fontWeight: 500,
-								}}
-							>
+									style={{
+										fontSize: 18,
+										letterSpacing: "0.22em",
+										textTransform: "uppercase",
+										color: palette.muted,
+										fontWeight: 500,
+									}}
+								>
 								Out Of Office Collective
 							</div>
 							<div
-								style={{
-									display: "flex",
-									alignItems: "center",
+									style={{
+										display: "flex",
+										alignItems: "center",
 									padding: "6px 14px",
-									borderRadius: 999,
-									fontSize: 15,
-									fontWeight: 600,
-									color: backgroundImage ? "#f9efe2" : palette.accent,
-									background: backgroundImage
-										? "rgba(255,255,255,0.14)"
-										: "rgba(255,255,255,0.46)",
-									border: `1px solid ${backgroundImage ? "rgba(255,255,255,0.26)" : palette.border}`,
-								}}
-							>
+										borderRadius: 999,
+										fontSize: 15,
+										fontWeight: 600,
+										color: palette.accent,
+										background: "rgba(255,255,255,0.46)",
+										border: `1px solid ${palette.border}`,
+									}}
+								>
 								{palette.label}
 							</div>
 						</div>
 
 						{eventCount > 0 ? (
 							<div
-								style={{
-									display: "flex",
-									alignItems: "center",
+									style={{
+										display: "flex",
+										alignItems: "center",
 									padding: "10px 16px",
-									borderRadius: 999,
-									fontSize: 16,
-									fontWeight: 700,
-									color: backgroundImage ? "#fff6ea" : palette.accent,
-									background: backgroundImage
-										? "rgba(255,255,255,0.12)"
-										: "rgba(255,255,255,0.58)",
-									border: `1px solid ${backgroundImage ? "rgba(255,255,255,0.3)" : palette.border}`,
-								}}
-							>
+										borderRadius: 999,
+										fontSize: 16,
+										fontWeight: 700,
+										color: palette.accent,
+										background: "rgba(255,255,255,0.58)",
+										border: `1px solid ${palette.border}`,
+									}}
+								>
 								{eventCount} events
 							</div>
 						) : null}
@@ -358,33 +308,33 @@ export async function GET(request: NextRequest) {
 							display: "flex",
 							flexDirection: "column",
 							gap: 16,
-							maxWidth: 940,
-							padding: "30px 34px",
-							borderRadius: 30,
-							background: backgroundImage ? "rgba(17,10,8,0.55)" : palette.card,
-							border: `1px solid ${backgroundImage ? "rgba(255,255,255,0.2)" : palette.border}`,
-						}}
-					>
+								maxWidth: 940,
+								padding: "30px 34px",
+								borderRadius: 30,
+								background: palette.card,
+								border: `1px solid ${palette.border}`,
+							}}
+						>
 						<div
 							style={{
 								fontFamily: "Georgia, Times New Roman, serif",
-								fontSize: 76,
-								lineHeight: 1.04,
-								letterSpacing: "-0.02em",
-								color: backgroundImage ? "#fff8ee" : palette.ink,
-								fontWeight: 500,
-							}}
-						>
+									fontSize: 76,
+									lineHeight: 1.04,
+									letterSpacing: "-0.02em",
+									color: palette.ink,
+									fontWeight: 500,
+								}}
+							>
 							{title}
 						</div>
 						<div
 							style={{
-								fontSize: 30,
-								lineHeight: 1.25,
-								color: backgroundImage ? "#e4d8c8" : palette.muted,
-								fontWeight: 500,
-								maxWidth: 820,
-							}}
+									fontSize: 30,
+									lineHeight: 1.25,
+									color: palette.muted,
+									fontWeight: 500,
+									maxWidth: 820,
+								}}
 						>
 							{subtitle}
 						</div>
@@ -392,11 +342,11 @@ export async function GET(request: NextRequest) {
 
 					<div
 						style={{
-							display: "flex",
-							justifyContent: "space-between",
-							alignItems: "center",
-							color: backgroundImage ? "#ebddcb" : palette.muted,
-							fontSize: 18,
+								display: "flex",
+								justifyContent: "space-between",
+								alignItems: "center",
+								color: palette.muted,
+								fontSize: 18,
 							letterSpacing: "0.08em",
 							textTransform: "uppercase",
 							fontWeight: 600,

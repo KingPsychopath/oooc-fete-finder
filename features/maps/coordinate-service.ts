@@ -246,7 +246,7 @@ export function resetGeocodingRunState(): void {
 /**
  * Generate a storage key for location lookup
  */
-function generateLocationKey(
+export function generateLocationStorageKey(
 	locationName: string,
 	arrondissement: ParisArrondissement,
 ): string {
@@ -308,11 +308,52 @@ export class CoordinateService {
 			return null;
 		}
 
-		const storageKey = generateLocationKey(locationName, arrondissement);
+		const storageKey = generateLocationStorageKey(locationName, arrondissement);
 
 		// Check stored locations first (unless forcing refresh)
 		if (!forceRefresh && storedLocations.has(storageKey)) {
 			const stored = storedLocations.get(storageKey)!;
+			if (
+				stored.source !== "estimated" ||
+				!GoogleCloudAPI.supportsGeocoding() ||
+				geocodingUnavailable
+			) {
+				return {
+					coordinates: stored.coordinates,
+					source: stored.source,
+					confidence: stored.confidence || 0.5,
+					wasInStorage: true,
+				};
+			}
+
+			try {
+				const upgradeResult = await geocodeLocation({
+					locationName,
+					arrondissement,
+				});
+				const upgradedLocation: EventLocation = {
+					id: storageKey,
+					name: locationName,
+					arrondissement,
+					coordinates: upgradeResult.coordinates,
+					confidence: upgradeResult.confidence,
+					source: "geocoded",
+					lastUpdated: new Date().toISOString(),
+				};
+				storedLocations.set(storageKey, upgradedLocation);
+				return {
+					coordinates: upgradeResult.coordinates,
+					source: "geocoded",
+					confidence: upgradeResult.confidence,
+					wasInStorage: false,
+				};
+			} catch (error) {
+				const geocodingError = error as GeocodingError;
+				if (isFatalGeocodingError(geocodingError.message)) {
+					markGeocodingUnavailableAndWarnOnce(geocodingError.message);
+				}
+			}
+
 			return {
 				coordinates: stored.coordinates,
 				source: stored.source,
@@ -432,7 +473,7 @@ export class CoordinateService {
 		storedLocations: Map<string, EventLocation>,
 		confidence: number = 1.0,
 	): void {
-		const storageKey = generateLocationKey(locationName, arrondissement);
+		const storageKey = generateLocationStorageKey(locationName, arrondissement);
 
 		const eventLocation: EventLocation = {
 			id: storageKey,

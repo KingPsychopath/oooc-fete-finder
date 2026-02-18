@@ -239,9 +239,7 @@ export class DataManager {
 		storeUpdatedAt: string | null;
 		storeKeyCount: number;
 	}> {
-		const hasServiceAccount = Boolean(
-			env.GOOGLE_SERVICE_ACCOUNT_KEY || env.GOOGLE_SERVICE_ACCOUNT_FILE,
-		);
+		const hasServiceAccount = Boolean(env.GOOGLE_SERVICE_ACCOUNT_KEY);
 		const storeStatus = await LocalEventStore.getStatus();
 
 		const remoteConfigured = Boolean(env.DATABASE_URL || storeStatus.hasStoreData);

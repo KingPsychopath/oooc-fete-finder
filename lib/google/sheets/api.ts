@@ -90,32 +90,21 @@ let cachedCredentials: ServiceAccountCredentials | null = null;
 /**
  * Load service account credentials from environment
  */
-async function loadServiceAccountCredentials(): Promise<ServiceAccountCredentials> {
+export async function loadServiceAccountCredentials(): Promise<ServiceAccountCredentials> {
 	// Return cached credentials if available
 	if (cachedCredentials) {
 		return cachedCredentials;
 	}
-	const serviceAccountKey = env.GOOGLE_SERVICE_ACCOUNT_KEY?.trim();
-	const serviceAccountFile = env.GOOGLE_SERVICE_ACCOUNT_FILE?.trim();
 
-	if (!serviceAccountKey && !serviceAccountFile) {
-		throw new Error("No service account credentials configured");
+	const serviceAccountKey = env.GOOGLE_SERVICE_ACCOUNT_KEY?.trim();
+	if (!serviceAccountKey) {
+		throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY is required for service account access.");
 	}
 
 	let credentials: ServiceAccountCredentials | null = null;
 
 	try {
-		if (serviceAccountKey) {
-			credentials = JSON.parse(serviceAccountKey);
-		} else if (serviceAccountFile) {
-			const fs = await import("fs/promises");
-			const path = await import("path");
-			const keyPath = path.isAbsolute(serviceAccountFile)
-				? serviceAccountFile
-				: path.resolve(process.cwd(), "scripts", serviceAccountFile);
-			const keyContent = await fs.readFile(keyPath, "utf-8");
-			credentials = JSON.parse(keyContent);
-		}
+		credentials = JSON.parse(serviceAccountKey);
 
 		if (!credentials?.client_email || !credentials?.private_key) {
 			throw new Error(

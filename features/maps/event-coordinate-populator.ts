@@ -3,6 +3,7 @@ import { log } from "@/lib/platform/logger";
 import {
 	type CoordinateResult,
 	CoordinateService,
+	generateLocationStorageKey,
 	type GeocodingError,
 	isCoordinateResolvableInput,
 	resetGeocodingRunState,
@@ -29,6 +30,43 @@ export type PopulateCoordinatesOptions = {
  * 3. Save storage ONCE at end
  */
 export class EventCoordinatePopulator {
+	static async pruneStorageToEvents(events: Event[]): Promise<{
+		beforeCount: number;
+		afterCount: number;
+		removedCount: number;
+	}> {
+		const storedLocations = await LocationStorage.load();
+		const beforeCount = storedLocations.size;
+		if (beforeCount === 0) {
+			return { beforeCount: 0, afterCount: 0, removedCount: 0 };
+		}
+
+		const activeKeys = new Set<string>();
+		for (const event of events) {
+			const location = event.location || "";
+			if (!isCoordinateResolvableInput(location, event.arrondissement)) {
+				continue;
+			}
+			activeKeys.add(
+				generateLocationStorageKey(location, event.arrondissement),
+			);
+		}
+
+		for (const key of Array.from(storedLocations.keys())) {
+			if (!activeKeys.has(key)) {
+				storedLocations.delete(key);
+			}
+		}
+
+		const afterCount = storedLocations.size;
+		const removedCount = Math.max(0, beforeCount - afterCount);
+		if (removedCount > 0) {
+			await LocationStorage.save(storedLocations);
+		}
+
+		return { beforeCount, afterCount, removedCount };
+	}
+
 	/**
 	 * Populate coordinates for multiple events efficiently
 	 */

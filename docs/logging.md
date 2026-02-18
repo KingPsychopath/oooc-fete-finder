@@ -30,7 +30,7 @@ log.error("scope", "Error", { err: message });
 - Dedupe applies only to `info` level in development.
 - `warn` and `error` logs are never deduped.
 - Dedupe does **not** cache, skip, or coalesce data reads; it only suppresses repeated log lines.
-- The dedupe map in `lib/platform/logger.ts` (`recentInfoLogs`) is not an application data cache.
-- Runtime metrics counters in `features/data-management/runtime-service.ts` (`metrics`) are telemetry only.
+- Logger dedupe map in `logger.ts` (line 20) is only log suppression.
+- Runtime metrics counters in `runtime-service.ts` (line 74) are telemetry only.
 
 See `docs/environment-variables.md` for env and `docs/geocoding.md` for geocoding behaviour.

@@ -14,8 +14,7 @@ Schema lives in `lib/config/env.ts`.
 | `REMOTE_CSV_URL` | No | - | CSV URL for admin backup preview/import |
 | `GOOGLE_MAPS_API_KEY` | No | - | Geocoding; if unset, arrondissement centre fallback |
 | `GOOGLE_SHEET_ID` | No | - | Backup sheet for admin import |
-| `GOOGLE_SERVICE_ACCOUNT_KEY` | No | - | **Preferred.** Full service account JSON (use on Vercel/remote). |
-| `GOOGLE_SERVICE_ACCOUNT_FILE` | No | - | Optional: path to JSON key file (e.g. `scripts/service-account.json`) for local dev only. |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | No | - | Required for service-account sheet access. |
 | `LOCAL_CSV_LAST_UPDATED` | No | - | Metadata only (e.g. last CSV sync time) |
 | `DEFAULT_OG_IMAGE` | No | - | OG image URL override |
 | `CRON_SECRET` | No | - | Secret for cron routes (e.g. cleanup admin sessions). Vercel cron sends `Authorization: Bearer <CRON_SECRET>`. |
@@ -52,3 +51,8 @@ No extra env vars are required. It relies on:
 2. Use Google vars only for admin backup preview/import and geocoding.
 3. No custom runtime events cache env vars are required (event reads are direct source reads).
 4. Log dedupe is code-level (dev-only) and has no env toggle.
+
+## Serverless strictness (Vercel preview/production)
+
+1. KV storage is strict Postgres-only (`DATABASE_URL` must be healthy).
+2. `GOOGLE_SERVICE_ACCOUNT_KEY` must be used for service account sheet access.

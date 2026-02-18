@@ -82,12 +82,11 @@ export const env = createEnv({
 		DATA_MODE: z.enum(["remote", "local", "test"]).default("remote"),
 
 		// Google configuration
-		GOOGLE_MAPS_API_KEY: z.string().optional(),
-		GOOGLE_SHEET_ID: z.string().optional(),
-		GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
-		GOOGLE_SERVICE_ACCOUNT_FILE: z.string().optional(),
-		REMOTE_CSV_URL: z.string().url().optional(),
-		DEPLOY_REVALIDATE_SECRET: z.string().optional(),
+			GOOGLE_MAPS_API_KEY: z.string().optional(),
+			GOOGLE_SHEET_ID: z.string().optional(),
+			GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
+			REMOTE_CSV_URL: z.string().url().optional(),
+			DEPLOY_REVALIDATE_SECRET: z.string().optional(),
 
 		LOCAL_CSV_LAST_UPDATED: z.string().optional(),
 
@@ -119,12 +118,11 @@ export const env = createEnv({
 		DATA_MODE: process.env.DATA_MODE,
 
 		// Google configuration
-		GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
-		GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID,
-		GOOGLE_SERVICE_ACCOUNT_KEY: process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
-		GOOGLE_SERVICE_ACCOUNT_FILE: process.env.GOOGLE_SERVICE_ACCOUNT_FILE,
-		REMOTE_CSV_URL: process.env.REMOTE_CSV_URL,
-		DEPLOY_REVALIDATE_SECRET: process.env.DEPLOY_REVALIDATE_SECRET,
+			GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
+			GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID,
+			GOOGLE_SERVICE_ACCOUNT_KEY: process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
+			REMOTE_CSV_URL: process.env.REMOTE_CSV_URL,
+			DEPLOY_REVALIDATE_SECRET: process.env.DEPLOY_REVALIDATE_SECRET,
 		LOCAL_CSV_LAST_UPDATED: process.env.LOCAL_CSV_LAST_UPDATED,
 		DEFAULT_OG_IMAGE: process.env.DEFAULT_OG_IMAGE,
 
@@ -178,10 +176,7 @@ export const isAdminAuthEnabled = () => env.ADMIN_KEY.trim().length > 0;
  * Get Google Sheets configuration status
  */
 export const getGoogleSheetsStatus = () => ({
-	hasServiceAccount: !!(
-		(env.GOOGLE_SERVICE_ACCOUNT_KEY || env.GOOGLE_SERVICE_ACCOUNT_FILE) &&
-		env.GOOGLE_SHEET_ID
-	),
+	hasServiceAccount: !!(env.GOOGLE_SERVICE_ACCOUNT_KEY && env.GOOGLE_SHEET_ID),
 	hasRemoteUrl: !!(
 		env.REMOTE_CSV_URL && env.REMOTE_CSV_URL.startsWith("https://")
 	),
