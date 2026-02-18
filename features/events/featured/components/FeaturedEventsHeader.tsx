@@ -12,7 +12,7 @@ export function FeaturedEventsHeader() {
 			{/* CTA Message positioned close to heading like an underline */}
 			<Link
 				href={FEATURED_EVENTS_CONFIG.FEATURE_PAGE_ROUTE}
-				className="mt-1 text-xs leading-tight text-muted-foreground transition-colors hover:text-foreground hover:underline sm:text-sm"
+				className="mt-1 text-xs leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
 				style={{ textWrap: "balance" }}
 			>
 				{FEATURED_EVENTS_CONFIG.CTA_MESSAGE}

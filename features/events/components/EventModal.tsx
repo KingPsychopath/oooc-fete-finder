@@ -89,6 +89,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		location: string;
 		arrondissement?: number | "unknown";
 	} | null>(null);
+	const [showAllGenres, setShowAllGenres] = useState(false);
 
 	const modalRef = useOutsideClick<HTMLDivElement>(() => {
 		if (isOpen && !showMapSelection && !showMapSettings) {
@@ -104,6 +105,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 			setShareError(null);
 			setLinkShareStatus(null);
 			setPendingLocationData(null);
+			setShowAllGenres(false);
 		}
 	}, [isOpen]);
 
@@ -172,10 +174,11 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		event.links && event.links.length > 0 ? event.links : [event.link];
 	const primaryLink = allLinks[0];
 	const secondaryLinks = allLinks.slice(1);
-	const visibleGenres = event.genre?.slice(0, 4) || [];
+	const allGenres = event.genre || [];
+	const visibleGenres = showAllGenres ? allGenres : allGenres.slice(0, 4);
 	const extraGenreCount = Math.max(
 		0,
-		(event.genre?.length || 0) - visibleGenres.length,
+		allGenres.length - visibleGenres.length,
 	);
 
 	const getGenreColor = (genre: string) => {
@@ -416,9 +419,14 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							</Badge>
 						))}
 						{extraGenreCount > 0 && (
-							<Badge variant="outline" className="border-border/70">
+							<button
+								type="button"
+								onClick={() => setShowAllGenres(true)}
+								className="inline-flex h-6 items-center rounded-full border border-border/70 px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+								aria-label={`Show ${extraGenreCount} more genres`}
+							>
 								+{extraGenreCount} more
-							</Badge>
+							</button>
 						)}
 					</div>
 				</CardHeader>
