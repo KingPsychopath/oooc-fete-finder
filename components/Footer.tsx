@@ -3,8 +3,9 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Coffee, ExternalLink, Globe } from "lucide-react";
+import { ExternalLink, Globe } from "lucide-react";
 import Link from "next/link";
+import { SupportCoffeePrompt } from "./SupportCoffeePrompt";
 
 // Custom Instagram icon component matching Instagram's brand symbol
 const InstagramIcon = ({ className }: { className?: string }) => (
@@ -94,17 +95,6 @@ const Footer = () => {
 									Milkandhenny
 								</Link>
 							</div>
-							<span className="hidden sm:inline">•</span>
-							<Link
-								href="https://coff.ee/milkandhenny"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="inline-flex items-center space-x-1 font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
-								title="Buy me a drink if this was helpful"
-							>
-								<Coffee className="h-3 w-3" />
-								<span>Buy me a coffee</span>
-							</Link>
 						</div>
 						<Tooltip>
 							<TooltipTrigger asChild>
@@ -116,6 +106,7 @@ const Footer = () => {
 								<p>With special thanks to Mel</p>
 							</TooltipContent>
 						</Tooltip>
+						<SupportCoffeePrompt />
 					</div>
 				</div>
 			</div>

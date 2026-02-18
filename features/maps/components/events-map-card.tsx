@@ -155,7 +155,14 @@ export function EventsMapCard({
 						)}
 					</div>
 					{!isExpanded && (
-						<div className="absolute inset-x-0 bottom-0 h-6 sm:h-8 bg-gradient-to-t from-card to-transparent pointer-events-none rounded-b-md" />
+						<>
+							<div className="pointer-events-none absolute inset-x-0 bottom-3 z-[1] flex justify-center px-3">
+								<p className="text-[11px] tracking-[0.04em] text-muted-foreground/92">
+									Expand to explore the live map by arrondissement
+								</p>
+							</div>
+							<div className="absolute inset-x-0 bottom-0 h-10 sm:h-12 bg-gradient-to-t from-card via-card/70 to-transparent pointer-events-none rounded-b-md" />
+						</>
 					)}
 				</div>
 			</CardContent>

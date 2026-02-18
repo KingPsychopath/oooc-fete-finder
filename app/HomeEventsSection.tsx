@@ -5,12 +5,12 @@ import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
 
 interface HomeEventsSectionProps {
-	mapLoadStrategy?: MapLoadStrategy;
+	mapLoadStrategy: MapLoadStrategy;
 }
 
 export async function HomeEventsSection({
-	mapLoadStrategy = "idle",
-}: HomeEventsSectionProps = {}) {
+	mapLoadStrategy,
+}: HomeEventsSectionProps) {
 	const result = await EventsRuntimeManager.getEvents();
 	const isRemoteMode = env.DATA_MODE === "remote";
 	const isLocalFallback = isRemoteMode && result.source === "local";

@@ -5,7 +5,7 @@ import { HomeHeader } from "./HomeHeader";
 
 // Keep ISR short to limit stale windows when data changes.
 export const revalidate = 300; // 5 minutes in seconds
-const homeMapLoadStrategy: "immediate" | "expand" | "idle" = "idle";
+const homeMapLoadStrategy: "immediate" | "expand" | "idle" = "expand";
 
 function HomeEventsFallback() {
 	return (

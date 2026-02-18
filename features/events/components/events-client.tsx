@@ -18,12 +18,12 @@ import { useCallback, useRef, useState } from "react";
 
 interface EventsClientProps {
 	initialEvents: Event[];
-	mapLoadStrategy?: MapLoadStrategy;
+	mapLoadStrategy: MapLoadStrategy;
 }
 
 export function EventsClient({
 	initialEvents,
-	mapLoadStrategy = "idle",
+	mapLoadStrategy,
 }: EventsClientProps) {
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
