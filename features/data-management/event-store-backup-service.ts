@@ -5,6 +5,8 @@ import {
 	getEventSheetStoreRepository,
 } from "@/lib/platform/postgres/event-sheet-store-repository";
 import { getEventStoreBackupRepository } from "@/lib/platform/postgres/event-store-backup-repository";
+import { getFeaturedEventRepository } from "@/lib/platform/postgres/featured-event-repository";
+import type { FeaturedScheduleEntry } from "@/features/events/featured/types";
 import { LocalEventStore } from "./local-event-store";
 import type {
 	EventStoreBackupStatus,
@@ -14,13 +16,65 @@ import type {
 
 const BACKUP_RETENTION_LIMIT = 30;
 const UNSUPPORTED_REASON =
-	"Event store backups require a configured Postgres DATABASE_URL.";
+	"Event/featured backups require a configured Postgres DATABASE_URL.";
 
 const normalizeCsv = (csvContent: string): string =>
 	csvContent.replace(/\r\n/g, "\n").trim();
 
 const buildChecksum = (csvContent: string): string =>
 	createHash("sha256").update(csvContent).digest("hex").slice(0, 16);
+
+const isFeaturedStatus = (
+	value: unknown,
+): value is FeaturedScheduleEntry["status"] => {
+	return value === "scheduled" || value === "cancelled" || value === "completed";
+};
+
+const parseFeaturedEntriesJson = (value: string): FeaturedScheduleEntry[] => {
+	try {
+		const parsed = JSON.parse(value) as unknown;
+		if (!Array.isArray(parsed)) return [];
+
+		return parsed
+			.map((entry): FeaturedScheduleEntry | null => {
+				if (!entry || typeof entry !== "object") return null;
+				const candidate = entry as Record<string, unknown>;
+				if (
+					typeof candidate.id !== "string" ||
+					typeof candidate.eventKey !== "string" ||
+					typeof candidate.requestedStartAt !== "string" ||
+					typeof candidate.effectiveStartAt !== "string" ||
+					typeof candidate.effectiveEndAt !== "string" ||
+					typeof candidate.durationHours !== "number" ||
+					!isFeaturedStatus(candidate.status) ||
+					typeof candidate.createdBy !== "string" ||
+					typeof candidate.createdAt !== "string" ||
+					typeof candidate.updatedAt !== "string"
+				) {
+					return null;
+				}
+
+				return {
+					id: candidate.id,
+					eventKey: candidate.eventKey,
+					requestedStartAt: candidate.requestedStartAt,
+					effectiveStartAt: candidate.effectiveStartAt,
+					effectiveEndAt: candidate.effectiveEndAt,
+					durationHours: candidate.durationHours,
+					status: candidate.status,
+					createdBy: candidate.createdBy,
+					createdAt: candidate.createdAt,
+					updatedAt: candidate.updatedAt,
+				};
+			})
+			.filter((entry): entry is FeaturedScheduleEntry => Boolean(entry));
+	} catch {
+		return [];
+	}
+};
+
+const stringifyFeaturedEntries = (entries: FeaturedScheduleEntry[]): string =>
+	JSON.stringify(entries);
 
 type BackupResult = {
 	success: boolean;
@@ -38,6 +92,7 @@ type RestoreResult = {
 	restoredFrom?: EventStoreBackupSummary;
 	preRestoreBackup?: EventStoreBackupSummary;
 	restoredRowCount?: number;
+	restoredFeaturedCount?: number;
 	restoredCsv?: string;
 	unsupported?: boolean;
 	error?: string;
@@ -68,13 +123,32 @@ export class EventStoreBackupService {
 		};
 	}
 
+	static async listRecentBackups(limit = 10): Promise<
+		| { supported: true; backups: EventStoreBackupSummary[] }
+		| { supported: false; reason: string }
+	> {
+		const repository = getEventStoreBackupRepository();
+		if (!repository) {
+			return {
+				supported: false,
+				reason: UNSUPPORTED_REASON,
+			};
+		}
+
+		return {
+			supported: true,
+			backups: await repository.listBackups(limit),
+		};
+	}
+
 	static async createBackup(input: {
 		createdBy: string;
 		trigger: EventStoreBackupTrigger;
 	}): Promise<BackupResult> {
 		const repository = getEventStoreBackupRepository();
 		const eventStoreRepository = getEventSheetStoreRepository();
-		if (!repository || !eventStoreRepository) {
+		const featuredRepository = getFeaturedEventRepository();
+		if (!repository || !eventStoreRepository || !featuredRepository) {
 			return {
 				success: false,
 				message: UNSUPPORTED_REASON,
@@ -83,30 +157,38 @@ export class EventStoreBackupService {
 		}
 
 		try {
-			const csv = await LocalEventStore.getCsv();
-			const normalizedCsv = normalizeCsv(csv || "");
-			if (!normalizedCsv) {
+			const [csvRaw, featuredEntries, storeMeta] = await Promise.all([
+				LocalEventStore.getCsv(),
+				featuredRepository.withScheduleLock((session) => session.listEntries()),
+				eventStoreRepository.getMeta(),
+			]);
+			const normalizedCsv = normalizeCsv(csvRaw || "");
+			if (!normalizedCsv && featuredEntries.length === 0) {
 				return {
 					success: false,
-					message: "Managed store has no rows to back up yet.",
+					message: "Managed store and featured schedule are both empty; nothing to back up.",
 					noData: true,
 				};
 			}
 
-			const storeMeta = await eventStoreRepository.getMeta();
 			const backup = await repository.createBackup({
 				createdBy: input.createdBy,
 				trigger: input.trigger,
-				rowCount: storeMeta.rowCount,
-				storeUpdatedAt: storeMeta.updatedAt,
-				storeChecksum: storeMeta.checksum || buildChecksum(normalizedCsv),
+				rowCount: normalizedCsv ? storeMeta.rowCount : 0,
+				featuredEntryCount: featuredEntries.length,
+				storeUpdatedAt: normalizedCsv ? storeMeta.updatedAt : null,
+				storeChecksum:
+					normalizedCsv ?
+						(storeMeta.checksum || buildChecksum(normalizedCsv))
+					: "",
 				csvContent: normalizedCsv,
+				featuredEntriesJson: stringifyFeaturedEntries(featuredEntries),
 			});
 			const prunedCount = await repository.pruneOldBackups(BACKUP_RETENTION_LIMIT);
 
 			return {
 				success: true,
-				message: `Backup created (${backup.rowCount} rows)`,
+				message: `Backup created (${backup.rowCount} rows, ${backup.featuredEntryCount} featured entries)`,
 				backup,
 				prunedCount,
 			};
@@ -119,12 +201,14 @@ export class EventStoreBackupService {
 		}
 	}
 
-	static async restoreLatestBackup(input: {
+	static async restoreBackup(input: {
 		createdBy: string;
+		backupId?: string;
 	}): Promise<RestoreResult> {
 		const repository = getEventStoreBackupRepository();
 		const eventStoreRepository = getEventSheetStoreRepository();
-		if (!repository || !eventStoreRepository) {
+		const featuredRepository = getFeaturedEventRepository();
+		if (!repository || !eventStoreRepository || !featuredRepository) {
 			return {
 				success: false,
 				message: UNSUPPORTED_REASON,
@@ -133,57 +217,92 @@ export class EventStoreBackupService {
 		}
 
 		try {
-			const latest = await repository.getLatestBackup();
-			if (!latest) {
+			const targetBackup =
+				input.backupId ?
+					await repository.getBackupById(input.backupId)
+				: 	await repository.getLatestBackup();
+			if (!targetBackup) {
 				return {
 					success: false,
-					message: "No event store backup exists yet.",
+					message: "No matching event store backup exists.",
 				};
 			}
 
-			const currentCsv = normalizeCsv((await LocalEventStore.getCsv()) || "");
+			const [currentCsvRaw, currentFeaturedEntries, currentMeta] = await Promise.all([
+				LocalEventStore.getCsv(),
+				featuredRepository.withScheduleLock((session) => session.listEntries()),
+				eventStoreRepository.getMeta(),
+			]);
+			const currentCsv = normalizeCsv(currentCsvRaw || "");
 			let preRestoreBackup: EventStoreBackupSummary | undefined;
-			if (currentCsv) {
-				const currentMeta = await eventStoreRepository.getMeta();
+			if (currentCsv || currentFeaturedEntries.length > 0) {
 				preRestoreBackup = await repository.createBackup({
 					createdBy: input.createdBy,
 					trigger: "pre-restore",
-					rowCount: currentMeta.rowCount,
-					storeUpdatedAt: currentMeta.updatedAt,
-					storeChecksum: currentMeta.checksum || buildChecksum(currentCsv),
+					rowCount: currentCsv ? currentMeta.rowCount : 0,
+					featuredEntryCount: currentFeaturedEntries.length,
+					storeUpdatedAt: currentCsv ? currentMeta.updatedAt : null,
+					storeChecksum:
+						currentCsv ?
+							(currentMeta.checksum || buildChecksum(currentCsv))
+						: "",
 					csvContent: currentCsv,
+					featuredEntriesJson: stringifyFeaturedEntries(currentFeaturedEntries),
 				});
 				await repository.pruneOldBackups(BACKUP_RETENTION_LIMIT);
 			}
 
-			const restoredCsv = normalizeCsv(latest.csvContent);
-			const restoredMeta = await LocalEventStore.saveCsv(restoredCsv, {
-				updatedBy: input.createdBy,
-				origin: "manual",
+			const restoredCsv = normalizeCsv(targetBackup.csvContent || "");
+			const restoredRowCount =
+				restoredCsv ?
+					(await LocalEventStore.saveCsv(restoredCsv, {
+						updatedBy: input.createdBy,
+						origin: "manual",
+					})).rowCount
+				: 	(await LocalEventStore.clearCsv(), 0);
+
+			const restoredFeaturedEntries = parseFeaturedEntriesJson(
+				targetBackup.featuredEntriesJson,
+			);
+			await featuredRepository.withScheduleLock(async (session) => {
+				await session.replaceAllEntries(restoredFeaturedEntries);
 			});
 
 			return {
 				success: true,
-				message: `Restored latest backup from ${new Date(latest.createdAt).toLocaleString()}`,
+				message:
+					input.backupId ?
+						`Restored snapshot ${targetBackup.id}`
+					: 	`Restored latest backup from ${new Date(targetBackup.createdAt).toLocaleString()}`,
 				restoredFrom: {
-					id: latest.id,
-					createdAt: latest.createdAt,
-					createdBy: latest.createdBy,
-					trigger: latest.trigger,
-					rowCount: latest.rowCount,
-					storeUpdatedAt: latest.storeUpdatedAt,
-					storeChecksum: latest.storeChecksum,
+					id: targetBackup.id,
+					createdAt: targetBackup.createdAt,
+					createdBy: targetBackup.createdBy,
+					trigger: targetBackup.trigger,
+					rowCount: targetBackup.rowCount,
+					featuredEntryCount: targetBackup.featuredEntryCount,
+					storeUpdatedAt: targetBackup.storeUpdatedAt,
+					storeChecksum: targetBackup.storeChecksum,
 				},
 				preRestoreBackup,
-				restoredRowCount: restoredMeta.rowCount,
+				restoredRowCount,
+				restoredFeaturedCount: restoredFeaturedEntries.length,
 				restoredCsv,
 			};
 		} catch (error) {
 			return {
 				success: false,
-				message: "Failed to restore latest event store backup",
+				message: "Failed to restore event/featured backup",
 				error: error instanceof Error ? error.message : "Unknown error",
 			};
 		}
+	}
+
+	static async restoreLatestBackup(input: {
+		createdBy: string;
+	}): Promise<RestoreResult> {
+		return this.restoreBackup({
+			createdBy: input.createdBy,
+		});
 	}
 }

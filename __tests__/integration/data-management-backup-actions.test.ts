@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type Setup = {
 	getEventStoreBackupStatus: typeof import("@/features/data-management/actions").getEventStoreBackupStatus;
+	getEventStoreRecentBackups: typeof import("@/features/data-management/actions").getEventStoreRecentBackups;
 	createEventStoreBackup: typeof import("@/features/data-management/actions").createEventStoreBackup;
 	restoreLatestEventStoreBackup: typeof import("@/features/data-management/actions").restoreLatestEventStoreBackup;
 	backupGetStatus: ReturnType<typeof vi.fn>;
+	backupListRecent: ReturnType<typeof vi.fn>;
 	backupCreate: ReturnType<typeof vi.fn>;
 	backupRestore: ReturnType<typeof vi.fn>;
 	processCSVData: ReturnType<typeof vi.fn>;
@@ -25,20 +27,37 @@ const loadActions = async (): Promise<Setup> => {
 				createdBy: "admin-panel",
 				trigger: "manual",
 				rowCount: 50,
+				featuredEntryCount: 2,
 				storeUpdatedAt: "2026-02-18T09:00:00.000Z",
 				storeChecksum: "abc123",
 			},
 		},
 	});
+	const backupListRecent = vi.fn().mockResolvedValue({
+		supported: true,
+		backups: [
+			{
+				id: "bkp_1",
+				createdAt: "2026-02-18T10:00:00.000Z",
+				createdBy: "admin-panel",
+				trigger: "manual",
+				rowCount: 50,
+				featuredEntryCount: 2,
+				storeUpdatedAt: "2026-02-18T09:00:00.000Z",
+				storeChecksum: "abc123",
+			},
+		],
+	});
 	const backupCreate = vi.fn().mockResolvedValue({
 		success: true,
-		message: "Backup created (50 rows)",
+		message: "Backup created (50 rows, 2 featured entries)",
 		backup: {
 			id: "bkp_2",
 			createdAt: "2026-02-18T11:00:00.000Z",
 			createdBy: "admin-panel",
 			trigger: "manual",
 			rowCount: 50,
+			featuredEntryCount: 2,
 			storeUpdatedAt: "2026-02-18T10:00:00.000Z",
 			storeChecksum: "def456",
 		},
@@ -46,13 +65,14 @@ const loadActions = async (): Promise<Setup> => {
 	});
 	const backupRestore = vi.fn().mockResolvedValue({
 		success: true,
-		message: "Restored latest backup",
+		message: "Restored snapshot bkp_1",
 		restoredFrom: {
 			id: "bkp_1",
 			createdAt: "2026-02-18T10:00:00.000Z",
 			createdBy: "admin-panel",
 			trigger: "manual",
 			rowCount: 50,
+			featuredEntryCount: 2,
 			storeUpdatedAt: "2026-02-18T09:00:00.000Z",
 			storeChecksum: "abc123",
 		},
@@ -62,10 +82,12 @@ const loadActions = async (): Promise<Setup> => {
 			createdBy: "admin-panel-restore",
 			trigger: "pre-restore",
 			rowCount: 51,
+			featuredEntryCount: 1,
 			storeUpdatedAt: "2026-02-18T09:58:00.000Z",
 			storeChecksum: "ghi789",
 		},
 		restoredRowCount: 50,
+		restoredFeaturedCount: 2,
 		restoredCsv: "name,date\nEvent,2026-06-21",
 	});
 
@@ -127,8 +149,9 @@ const loadActions = async (): Promise<Setup> => {
 	vi.doMock("@/features/data-management/event-store-backup-service", () => ({
 		EventStoreBackupService: {
 			getBackupStatus: backupGetStatus,
+			listRecentBackups: backupListRecent,
 			createBackup: backupCreate,
-			restoreLatestBackup: backupRestore,
+			restoreBackup: backupRestore,
 		},
 	}));
 
@@ -145,9 +168,11 @@ const loadActions = async (): Promise<Setup> => {
 	const actions = await import("@/features/data-management/actions");
 	return {
 		getEventStoreBackupStatus: actions.getEventStoreBackupStatus,
+		getEventStoreRecentBackups: actions.getEventStoreRecentBackups,
 		createEventStoreBackup: actions.createEventStoreBackup,
 		restoreLatestEventStoreBackup: actions.restoreLatestEventStoreBackup,
 		backupGetStatus,
+		backupListRecent,
 		backupCreate,
 		backupRestore,
 		processCSVData,
@@ -170,6 +195,15 @@ describe("data-management backup actions", () => {
 		expect(result.status?.latestBackup?.id).toBe("bkp_1");
 	});
 
+	it("lists recent backups for snapshot picker", async () => {
+		const { getEventStoreRecentBackups, backupListRecent } = await loadActions();
+		const result = await getEventStoreRecentBackups("token", 20);
+
+		expect(result.success).toBe(true);
+		expect(result.backups?.length).toBe(1);
+		expect(backupListRecent).toHaveBeenCalledWith(20);
+	});
+
 	it("creates manual backup from admin action", async () => {
 		const { createEventStoreBackup, backupCreate } = await loadActions();
 		const result = await createEventStoreBackup("token");
@@ -182,34 +216,35 @@ describe("data-management backup actions", () => {
 		});
 	});
 
-	it("fails gracefully when manual backup has no store data", async () => {
+	it("fails gracefully when manual backup has no snapshot data", async () => {
 		const { createEventStoreBackup, backupCreate } = await loadActions();
 		backupCreate.mockResolvedValueOnce({
 			success: false,
-			message: "Managed store has no rows to back up yet.",
+			message:
+				"Managed store and featured schedule are both empty; nothing to back up.",
 			noData: true,
 		});
 
 		const result = await createEventStoreBackup("token");
 
 		expect(result.success).toBe(false);
-		expect(result.message).toContain("no rows to back up");
+		expect(result.message).toContain("nothing to back up");
 	});
 
 	it("fails restore with clear message when no backup exists", async () => {
 		const { restoreLatestEventStoreBackup, backupRestore } = await loadActions();
 		backupRestore.mockResolvedValueOnce({
 			success: false,
-			message: "No event store backup exists yet.",
+			message: "No matching event store backup exists.",
 		});
 
-		const result = await restoreLatestEventStoreBackup("token");
+		const result = await restoreLatestEventStoreBackup("token", "missing-id");
 
 		expect(result.success).toBe(false);
-		expect(result.message).toContain("No event store backup exists yet");
+		expect(result.message).toContain("No matching event store backup exists");
 	});
 
-	it("restores latest backup, warms coordinates, and revalidates homepage", async () => {
+	it("restores selected snapshot, warms coordinates, and revalidates homepage", async () => {
 		const {
 			restoreLatestEventStoreBackup,
 			processCSVData,
@@ -218,10 +253,11 @@ describe("data-management backup actions", () => {
 			backupRestore,
 		} = await loadActions();
 
-		const result = await restoreLatestEventStoreBackup("token");
+		const result = await restoreLatestEventStoreBackup("token", "bkp_1");
 
 		expect(result.success).toBe(true);
 		expect(result.rowCount).toBe(50);
+		expect(result.featuredEntryCount).toBe(2);
 		expect(processCSVData).toHaveBeenCalledWith(
 			"name,date\nEvent,2026-06-21",
 			"store",
@@ -234,6 +270,7 @@ describe("data-management backup actions", () => {
 		expect(forceRefreshEventsData).toHaveBeenCalledTimes(1);
 		expect(backupRestore).toHaveBeenCalledWith({
 			createdBy: "admin-panel-restore",
+			backupId: "bkp_1",
 		});
 	});
 });

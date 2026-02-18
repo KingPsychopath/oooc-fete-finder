@@ -57,6 +57,7 @@ export interface FeaturedEventRepositorySession {
 	clearScheduledEntries(): Promise<number>;
 	clearHistoryEntries(): Promise<number>;
 	clearAllEntries(): Promise<number>;
+	replaceAllEntries(entries: FeaturedScheduleEntry[]): Promise<void>;
 }
 
 const hasRequiredRepositoryMethods = (
@@ -75,6 +76,7 @@ const hasRequiredRepositoryMethods = (
 		typeof candidate.clearScheduledEntries === "function" &&
 		typeof candidate.clearHistoryEntries === "function" &&
 		typeof candidate.clearAllEntries === "function" &&
+		typeof candidate.replaceAllEntries === "function" &&
 		typeof candidate.withScheduleLock === "function"
 	);
 };
@@ -298,6 +300,43 @@ const clearHistoryEntriesWithClient = async (
 	return rows.length;
 };
 
+const replaceAllEntriesWithClient = async (
+	sqlClient: FeaturedRepositorySqlClient,
+	entries: FeaturedScheduleEntry[],
+): Promise<void> => {
+	await sqlClient`DELETE FROM app_featured_event_schedule`;
+	if (entries.length === 0) return;
+
+	const rows = entries.map((entry) => ({
+		id: entry.id,
+		event_key: entry.eventKey,
+		requested_start_at: entry.requestedStartAt,
+		effective_start_at: entry.effectiveStartAt,
+		effective_end_at: entry.effectiveEndAt,
+		duration_hours: entry.durationHours,
+		status: entry.status,
+		created_by: entry.createdBy,
+		created_at: entry.createdAt,
+		updated_at: entry.updatedAt,
+	}));
+
+	await sqlClient`
+		INSERT INTO app_featured_event_schedule ${sqlClient(
+			rows,
+			"id",
+			"event_key",
+			"requested_start_at",
+			"effective_start_at",
+			"effective_end_at",
+			"duration_hours",
+			"status",
+			"created_by",
+			"created_at",
+			"updated_at",
+		)}
+	`;
+};
+
 const createRepositorySession = (
 	sqlClient: FeaturedRepositorySqlClient,
 ): FeaturedEventRepositorySession => ({
@@ -315,6 +354,7 @@ const createRepositorySession = (
 	clearScheduledEntries: () => clearScheduledEntriesWithClient(sqlClient),
 	clearHistoryEntries: () => clearHistoryEntriesWithClient(sqlClient),
 	clearAllEntries: () => clearAllEntriesWithClient(sqlClient),
+	replaceAllEntries: (entries) => replaceAllEntriesWithClient(sqlClient, entries),
 });
 
 export class FeaturedEventRepository {
@@ -427,6 +467,13 @@ export class FeaturedEventRepository {
 	async clearHistoryEntries(): Promise<number> {
 		await this.ready();
 		return clearHistoryEntriesWithClient(this.sql);
+	}
+
+	async replaceAllEntries(entries: FeaturedScheduleEntry[]): Promise<void> {
+		await this.ready();
+		await this.withScheduleLock(async (session) => {
+			await session.replaceAllEntries(entries);
+		});
 	}
 
 	async withScheduleLock<T>(

@@ -6,6 +6,7 @@ export interface EventStoreBackupSummary {
 	createdBy: string;
 	trigger: EventStoreBackupTrigger;
 	rowCount: number;
+	featuredEntryCount: number;
 	storeUpdatedAt: string | null;
 	storeChecksum: string;
 }

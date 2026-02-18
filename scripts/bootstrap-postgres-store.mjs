@@ -44,7 +44,6 @@ const CORE_COLUMN_LABELS = {
 	age: "Age",
 	indoorOutdoor: "Indoor/Outdoor",
 	notes: "Notes",
-	featured: "Featured",
 };
 
 const CORE_COLUMN_KEYS = Object.keys(CORE_COLUMN_LABELS);

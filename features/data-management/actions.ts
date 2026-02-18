@@ -20,6 +20,7 @@ import { parseCSVContent } from "./csv/parser";
 import {
 	csvToEditableSheet,
 	editableSheetToCsv,
+	stripLegacyFeaturedColumn,
 	type EditableSheetColumn,
 	type EditableSheetRow,
 	validateEditableSheet,
@@ -29,7 +30,10 @@ import {
 	WarningSystem,
 } from "./validation/date-warnings";
 import { EventStoreBackupService } from "./event-store-backup-service";
-import type { EventStoreBackupStatus } from "./event-store-backup-types";
+import type {
+	EventStoreBackupStatus,
+	EventStoreBackupSummary,
+} from "./event-store-backup-types";
 import {
 	analyzeCsvSchemaRows,
 	type CsvSchemaIssue,
@@ -457,16 +461,59 @@ export async function createEventStoreBackup(
 }
 
 /**
- * Restore the latest event store backup, then warm coordinates and revalidate homepage.
+ * List recent event/featured snapshots for admin restore picker.
+ */
+export async function getEventStoreRecentBackups(
+	keyOrToken?: string,
+	limit = 10,
+): Promise<{
+	success: boolean;
+	supported?: boolean;
+	reason?: string;
+	backups?: EventStoreBackupSummary[];
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized access" };
+	}
+
+	try {
+		const result = await EventStoreBackupService.listRecentBackups(limit);
+		if (!result.supported) {
+			return {
+				success: true,
+				supported: false,
+				reason: result.reason,
+				backups: [],
+			};
+		}
+
+		return {
+			success: true,
+			supported: true,
+			backups: result.backups,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+/**
+ * Restore a snapshot (latest by default), then warm coordinates and revalidate homepage.
  */
 export async function restoreLatestEventStoreBackup(
 	keyOrToken?: string,
+	backupId?: string,
 ): Promise<{
 	success: boolean;
 	message: string;
 	restoredFrom?: EventStoreBackupStatus["latestBackup"];
 	preRestoreBackup?: EventStoreBackupStatus["latestBackup"];
 	rowCount?: number;
+	featuredEntryCount?: number;
 	error?: string;
 }> {
 	if (!(await validateAdminAccess(keyOrToken))) {
@@ -474,8 +521,9 @@ export async function restoreLatestEventStoreBackup(
 	}
 
 	try {
-		const result = await EventStoreBackupService.restoreLatestBackup({
+		const result = await EventStoreBackupService.restoreBackup({
 			createdBy: "admin-panel-restore",
+			backupId: backupId?.trim() || undefined,
 		});
 
 		if (!result.success) {
@@ -493,10 +541,11 @@ export async function restoreLatestEventStoreBackup(
 
 		return {
 			success: true,
-			message: "Latest backup restored and homepage revalidated",
+			message: "Snapshot restored and homepage revalidated",
 			restoredFrom: result.restoredFrom,
 			preRestoreBackup: result.preRestoreBackup,
 			rowCount: result.restoredRowCount,
+			featuredEntryCount: result.restoredFeaturedCount,
 		};
 	} catch (error) {
 		return {
@@ -808,11 +857,12 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 			LocalEventStore.getCsv(),
 		]);
 		const sheet = csvToEditableSheet(csv);
+		const sanitized = stripLegacyFeaturedColumn(sheet.columns, sheet.rows);
 
 		return {
 			success: true,
-			columns: sheet.columns,
-			rows: sheet.rows,
+			columns: sanitized.columns,
+			rows: sanitized.rows,
 			status,
 			sheetSource: "store",
 		};

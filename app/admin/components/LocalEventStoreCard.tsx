@@ -11,6 +11,7 @@ import {
 import {
 	createEventStoreBackup,
 	clearLocalEventStoreCsv,
+	getEventStoreRecentBackups,
 	getEventStoreBackupStatus,
 	getLocalEventStoreCsv,
 	getLocalEventStorePreview,
@@ -43,6 +44,9 @@ type PreviewRows = NonNullable<
 type BackupStatusState = NonNullable<
 	Awaited<ReturnType<typeof getEventStoreBackupStatus>>["status"]
 >;
+type RecentBackupState = NonNullable<
+	Awaited<ReturnType<typeof getEventStoreRecentBackups>>["backups"]
+>[number];
 
 type RemotePreviewState = {
 	columns: EditableSheetColumn[];
@@ -93,6 +97,9 @@ export const LocalEventStoreCard = ({
 	const [backupReason, setBackupReason] = useState(
 		initialBackupStatus?.success ? (initialBackupStatus.reason ?? "") : "",
 	);
+	const [recentBackups, setRecentBackups] = useState<RecentBackupState[]>([]);
+	const [selectedBackupId, setSelectedBackupId] = useState("");
+	const [showSnapshotPicker, setShowSnapshotPicker] = useState(false);
 	const [remotePreview, setRemotePreview] = useState<RemotePreviewState | null>(
 		null,
 	);
@@ -107,10 +114,12 @@ export const LocalEventStoreCard = ({
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 
 	const loadStatusAndPreview = useCallback(async () => {
-		const [statusResult, previewResult, backupStatusResult] = await Promise.all([
+		const [statusResult, previewResult, backupStatusResult, recentBackupsResult] =
+			await Promise.all([
 			getLocalEventStoreStatus(),
 			getLocalEventStorePreview(undefined, 2, { random: true }),
 			getEventStoreBackupStatus(),
+			getEventStoreRecentBackups(undefined, 30),
 		]);
 
 		if (statusResult.success) {
@@ -124,6 +133,16 @@ export const LocalEventStoreCard = ({
 			setBackupSupported(backupStatusResult.supported !== false);
 			setBackupReason(backupStatusResult.reason || "");
 			setBackupStatus(backupStatusResult.status || EMPTY_BACKUP_STATUS);
+		}
+		if (recentBackupsResult.success) {
+			const backups = recentBackupsResult.backups ?? [];
+			setRecentBackups(backups);
+			setSelectedBackupId((current) => {
+				if (current && backups.some((backup) => backup.id === current)) {
+					return current;
+				}
+				return backups[0]?.id ?? "";
+			});
 		}
 
 		setHeaders(previewResult.headers || []);
@@ -229,7 +248,35 @@ export const LocalEventStoreCard = ({
 		if (!confirmed) return;
 
 		await withTask(async () => {
-			const result = await restoreLatestEventStoreBackup();
+			const result = await restoreLatestEventStoreBackup(undefined, latestBackup.id);
+			if (!result.success) {
+				throw new Error(result.error || result.message);
+			}
+
+			setMessage(result.message);
+			await loadStatusAndPreview();
+		});
+	};
+
+	const handleRestoreSelectedSnapshot = async () => {
+		const selectedBackup = recentBackups.find(
+			(backup) => backup.id === selectedBackupId,
+		);
+		if (!selectedBackup) {
+			setError("Pick a snapshot to restore first.");
+			return;
+		}
+
+		const confirmed = window.confirm(
+			`Restore snapshot from ${new Date(selectedBackup.createdAt).toLocaleString()} (${selectedBackup.trigger}, ${selectedBackup.rowCount} rows)? This overwrites current store and featured schedule data.`,
+		);
+		if (!confirmed) return;
+
+		await withTask(async () => {
+			const result = await restoreLatestEventStoreBackup(
+				undefined,
+				selectedBackup.id,
+			);
 			if (!result.success) {
 				throw new Error(result.error || result.message);
 			}
@@ -421,6 +468,8 @@ export const LocalEventStoreCard = ({
 		runtimeDataStatus.dataSource !== "store";
 	const latestBackup = backupStatus.latestBackup;
 	const restoreDisabled = isLoading || !backupSupported || !latestBackup;
+	const selectedRestoreDisabled =
+		isLoading || !backupSupported || !selectedBackupId || recentBackups.length === 0;
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
@@ -553,6 +602,49 @@ export const LocalEventStoreCard = ({
 						className="hidden"
 					/>
 				</div>
+				{backupSupported && recentBackups.length > 0 && (
+					<div className="rounded-md border bg-background/60 p-3">
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<p className="text-xs text-muted-foreground">
+								Recent snapshots: {recentBackups.length}
+							</p>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								disabled={isLoading}
+								onClick={() => setShowSnapshotPicker((current) => !current)}
+							>
+								{showSnapshotPicker ? "Hide snapshots" : "Show snapshots"}
+							</Button>
+						</div>
+						{showSnapshotPicker && (
+							<div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+								<select
+									value={selectedBackupId}
+									onChange={(event) => setSelectedBackupId(event.target.value)}
+									className="h-9 w-full rounded-md border bg-background px-2 text-xs sm:max-w-xl"
+								>
+									{recentBackups.map((backup) => (
+										<option key={backup.id} value={backup.id}>
+											{new Date(backup.createdAt).toLocaleString()} |{" "}
+											{backup.trigger} | {backup.rowCount} rows
+										</option>
+									))}
+								</select>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={selectedRestoreDisabled}
+									onClick={handleRestoreSelectedSnapshot}
+								>
+									Restore Selected Snapshot
+								</Button>
+							</div>
+						)}
+					</div>
+				)}
 
 				<div className="grid gap-4 2xl:grid-cols-2">
 					<div className="rounded-md border bg-background/60 p-3">

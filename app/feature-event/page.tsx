@@ -26,19 +26,29 @@ export const dynamic = "force-dynamic";
 
 function FeatureEventStatusFallback() {
 	return (
-		<Card className="mb-8 border border-border bg-card">
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
-					Featured events status
-					<Badge variant="outline" className="ml-auto font-normal">
-						Loading...
+		<Card className="mb-8 border border-border bg-card ooo-admin-card-soft">
+			<CardHeader className="space-y-4">
+				<div className="flex flex-wrap items-start justify-between gap-3">
+					<div className="space-y-1">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Feature Placement
+						</p>
+						<CardTitle className="ooo-feature-heading">
+							Featured events status
+						</CardTitle>
+					</div>
+					<Badge
+						variant="outline"
+						className="rounded-full border-foreground/20 bg-foreground px-3 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-background"
+					>
+						Loading
 					</Badge>
-				</CardTitle>
+				</div>
 			</CardHeader>
 			<CardContent>
 				<div className="animate-pulse space-y-3">
-					<div className="h-16 rounded-lg border border-border bg-muted/40" />
-					<div className="h-16 rounded-lg border border-border bg-muted/40" />
+					<div className="h-16 rounded-xl border border-border bg-muted/40" />
+					<div className="h-16 rounded-xl border border-border bg-muted/40" />
 				</div>
 			</CardContent>
 		</Card>

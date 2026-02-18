@@ -169,10 +169,10 @@ function SimpleEventCard({
 
 	const getStatusConfig = () => {
 		const editorial = {
-			bgColor: "bg-muted/50",
-			borderColor: "border-border",
+			bgColor: "bg-background/70",
+			borderColor: "border-border/70",
 			textColor: "text-muted-foreground",
-			progressColor: "bg-foreground/25",
+			progressColor: "bg-foreground/30",
 		};
 		switch (liveStatus) {
 			case "active-manual":
@@ -233,6 +233,12 @@ function SimpleEventCard({
 	};
 
 	const config = getStatusConfig();
+	const editorialBadgeLabel =
+		liveStatus === "expired"
+			? "Ended"
+			: liveStatus === "expires-soon"
+				? "Ending soon"
+				: "Live";
 
 	const getProgressPercentage = () => {
 		if (liveStatus === "expired") return 100;
@@ -278,7 +284,7 @@ function SimpleEventCard({
 
 	return (
 		<div
-			className={`border rounded-lg p-4 transition-all duration-300 w-full min-w-0 ${config.bgColor} ${config.borderColor} ${!isEditorial ? "hover:shadow-md" : ""}`}
+			className={`border p-4 transition-all duration-300 w-full min-w-0 ${isEditorial ? "rounded-xl" : "rounded-lg"} ${config.bgColor} ${config.borderColor} ${!isEditorial ? "hover:shadow-md" : ""}`}
 		>
 			<div className="flex items-start justify-between mb-3 gap-2">
 				<div className="flex-1 min-w-0">
@@ -291,17 +297,29 @@ function SimpleEventCard({
 						<span className={`${config.textColor} truncate`}>{message}</span>
 					</div>
 				</div>
-				<Badge
-					variant={liveStatus === "expired" ? "outline" : "secondary"}
-					className={`flex items-center gap-1 text-xs flex-shrink-0 font-normal ${
-						liveStatus === "expired" ? "opacity-60" : ""
-					}`}
-				>
-					<Star className="h-3 w-3" />
-					<span className="hidden sm:inline">Featured</span>
-					{!isEditorial && <span className="sm:hidden">⭐</span>}
-					{isEditorial && <span className="sm:hidden">Featured</span>}
-				</Badge>
+				{isEditorial ? (
+					<Badge
+						variant="outline"
+						className={`rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.08em] ${
+							liveStatus === "expired"
+								? "border-border/70 bg-background/65 text-muted-foreground"
+								: "border-foreground/20 bg-foreground text-background"
+						}`}
+					>
+						{editorialBadgeLabel}
+					</Badge>
+				) : (
+					<Badge
+						variant={liveStatus === "expired" ? "outline" : "secondary"}
+						className={`flex items-center gap-1 text-xs flex-shrink-0 font-normal ${
+							liveStatus === "expired" ? "opacity-60" : ""
+						}`}
+					>
+						<Star className="h-3 w-3" />
+						<span className="hidden sm:inline">Featured</span>
+						<span className="sm:hidden">⭐</span>
+					</Badge>
+				)}
 			</div>
 
 			{/* Progress Bar */}
@@ -316,7 +334,11 @@ function SimpleEventCard({
 							: `${Math.round(progressPercentage)}%`}
 					</span>
 				</div>
-				<div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+				<div
+					className={`w-full rounded-full h-2.5 overflow-hidden ${
+						isEditorial ? "bg-muted/60" : "bg-gray-200 dark:bg-gray-700"
+					}`}
+				>
 					<div
 						className={`h-2.5 rounded-full transition-all duration-500 ease-out ${config.progressColor}`}
 						style={{ width: `${progressPercentage}%` }}
@@ -383,17 +405,26 @@ export function FeatureCountdown({
 
 	if (featuredEvents.length === 0) {
 		const cardClass = isEditorial
-			? "mb-8 border border-border bg-card"
+			? "mb-8 border border-border bg-card ooo-admin-card-soft"
 			: "mb-8 border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800";
 		return (
 			<Card className={cardClass}>
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						{!isEditorial && (
+				<CardHeader className={isEditorial ? "space-y-4" : ""}>
+					{isEditorial ? (
+						<div className="space-y-1">
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Feature Placement
+							</p>
+							<CardTitle className="ooo-feature-heading">
+								Featured events status
+							</CardTitle>
+						</div>
+					) : (
+						<CardTitle className="flex items-center gap-2">
 							<AlertCircle className="h-5 w-5 text-yellow-600" />
-						)}
-						No featured events
-					</CardTitle>
+							No featured events
+						</CardTitle>
+					)}
 				</CardHeader>
 				<CardContent>
 					<p
@@ -403,7 +434,9 @@ export function FeatureCountdown({
 								: "text-lg font-semibold text-yellow-700 dark:text-yellow-300"
 						}
 					>
-						No events currently featured
+						{isEditorial
+							? "No events are currently featured."
+							: "No events currently featured"}
 					</p>
 					<p className="text-sm text-muted-foreground mt-1">
 						Events can be featured for{" "}
@@ -415,19 +448,38 @@ export function FeatureCountdown({
 	}
 
 	const statusCardClass = isEditorial
-		? "mb-8 border border-border bg-card"
+		? "mb-8 border border-border bg-card ooo-admin-card-soft"
 		: "mb-8 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800";
 
 	return (
 		<Card className={statusCardClass}>
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
-					{!isEditorial && <Clock className="h-5 w-5 text-blue-600" />}
-					Featured events status
-					<Badge variant="outline" className="ml-auto font-normal">
-						{activeEvents.length} active · {recentExpiredEvents.length} recent
-					</Badge>
-				</CardTitle>
+			<CardHeader className={isEditorial ? "space-y-4" : ""}>
+				{isEditorial ? (
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div className="space-y-1">
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Feature Placement
+							</p>
+							<CardTitle className="ooo-feature-heading">
+								Featured events status
+							</CardTitle>
+						</div>
+						<Badge
+							variant="outline"
+							className="rounded-full border-foreground/20 bg-foreground px-3 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-background"
+						>
+							{activeEvents.length} live · {recentExpiredEvents.length} recent
+						</Badge>
+					</div>
+				) : (
+					<CardTitle className="flex items-center gap-2">
+						<Clock className="h-5 w-5 text-blue-600" />
+						Featured events status
+						<Badge variant="outline" className="ml-auto font-normal">
+							{activeEvents.length} active · {recentExpiredEvents.length} recent
+						</Badge>
+					</CardTitle>
+				)}
 			</CardHeader>
 			<CardContent>
 				<div className="space-y-4">
@@ -435,7 +487,7 @@ export function FeatureCountdown({
 						<div
 							className={
 								isEditorial
-									? "text-center py-4 bg-muted/30 rounded-lg border border-border text-sm text-muted-foreground"
+									? "rounded-xl border border-border/70 bg-background/60 px-4 py-4 text-center text-sm text-muted-foreground"
 									: "text-center py-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800"
 							}
 						>
@@ -459,12 +511,13 @@ export function FeatureCountdown({
 							<h5
 								className={
 									isEditorial
-										? "text-sm font-medium text-foreground mb-3"
+										? "mb-3 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
 										: "text-sm font-medium text-green-700 dark:text-green-300 mb-3 flex items-center gap-2"
 								}
 							>
-								{!isEditorial && "✨ "}Currently featured ({activeEvents.length}
-								)
+								{isEditorial
+									? `Currently featured (${activeEvents.length})`
+									: `✨ Currently featured (${activeEvents.length})`}
 							</h5>
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 								{activeEvents.map((status) => (
@@ -484,12 +537,13 @@ export function FeatureCountdown({
 							<h5
 								className={
 									isEditorial
-										? "text-sm font-medium text-muted-foreground mb-3"
+										? "mb-3 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
 										: "text-sm font-medium text-gray-600 dark:text-gray-400 mb-3"
 								}
 							>
-								{!isEditorial && "⏰ "}Recently ended (
-								{recentExpiredEvents.length})
+								{isEditorial
+									? `Recently ended (${recentExpiredEvents.length})`
+									: `⏰ Recently ended (${recentExpiredEvents.length})`}
 							</h5>
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 								{recentExpiredEvents.map((status) => (

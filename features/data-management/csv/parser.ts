@@ -25,7 +25,6 @@ export const CSV_EVENT_COLUMNS = [
 	"age",
 	"indoorOutdoor",
 	"notes",
-	"featured",
 ] as const;
 
 // Define the expected CSV column headers and their possible variations
