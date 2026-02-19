@@ -94,24 +94,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
 	const setSignedOutState = useCallback(() => {
 		setIsAuthenticated(false);
-		setIsAdminAuthenticated(false);
 		setUserEmail(null);
 		setAuthMode("signed-out");
 		setOfflineGraceExpiresAt(null);
 	}, []);
 
-	const setLiveAuthenticatedState = useCallback(
-		(email: string, isAdmin: boolean) => {
-			const graceState = createOfflineGraceState(email);
-			setIsAuthenticated(true);
-			setIsAdminAuthenticated(isAdmin);
-			setUserEmail(graceState.email);
-			setAuthMode("live");
-			setOfflineGraceExpiresAt(graceState.expiresAt);
-			writeOfflineGraceState(graceState.email, graceState.expiresAt);
-		},
-		[],
-	);
+	const setLiveAuthenticatedState = useCallback((email: string) => {
+		const graceState = createOfflineGraceState(email);
+		setIsAuthenticated(true);
+		setUserEmail(graceState.email);
+		setAuthMode("live");
+		setOfflineGraceExpiresAt(graceState.expiresAt);
+		writeOfflineGraceState(graceState.email, graceState.expiresAt);
+	}, []);
 
 	const tryApplyOfflineGraceState = useCallback((): boolean => {
 		const graceState = readOfflineGraceState();
@@ -123,7 +118,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 		}
 
 		setIsAuthenticated(true);
-		setIsAdminAuthenticated(false);
 		setUserEmail(graceState.email);
 		setAuthMode("offline-grace");
 		setOfflineGraceExpiresAt(graceState.expiresAt);
@@ -158,19 +152,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 				payload.isAuthenticated === true &&
 				typeof payload.email === "string" &&
 				payload.email.trim().length > 0;
+			const hasAdminAuth =
+				payload.success && payload.isAdminAuthenticated === true;
+			setIsAdminAuthenticated(hasAdminAuth);
 
 			if (hasLiveAuth) {
 				outcome = "live";
-				setLiveAuthenticatedState(
-					payload.email as string,
-					payload.success && payload.isAdminAuthenticated === true,
-				);
+				setLiveAuthenticatedState(payload.email as string);
 			} else {
 				outcome = "signed-out";
 				clearOfflineGraceState();
 				setSignedOutState();
 			}
 		} catch {
+			// If we cannot verify the admin session, hide admin-only UI until
+			// connectivity/session checks recover.
+			setIsAdminAuthenticated(false);
 			const canUseOfflineGrace =
 				typeof navigator !== "undefined" &&
 				navigator.onLine === false &&
@@ -226,7 +223,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 		if (!isValidEmail(email)) {
 			return;
 		}
-		setLiveAuthenticatedState(email, false);
+		setLiveAuthenticatedState(email);
 		setIsAuthResolved(true);
 	};
 
