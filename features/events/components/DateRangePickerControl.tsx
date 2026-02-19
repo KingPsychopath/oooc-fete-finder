@@ -46,12 +46,15 @@ function DateRangePickerControl({
 	const hasSelectedDateRange =
 		selectedDateRange.from !== null || selectedDateRange.to !== null;
 
-	const toLocalDate = useCallback((isoDate: string | null): Date | undefined => {
-		if (!isoDate) return undefined;
-		const [year, month, day] = isoDate.split("-").map(Number);
-		if (!year || !month || !day) return undefined;
-		return new Date(year, month - 1, day);
-	}, []);
+	const toLocalDate = useCallback(
+		(isoDate: string | null): Date | undefined => {
+			if (!isoDate) return undefined;
+			const [year, month, day] = isoDate.split("-").map(Number);
+			if (!year || !month || !day) return undefined;
+			return new Date(year, month - 1, day);
+		},
+		[],
+	);
 
 	const toISODate = useCallback((date: Date | undefined): string | null => {
 		if (!date) return null;
@@ -146,35 +149,39 @@ function DateRangePickerControl({
 				)}
 			</div>
 			{mobileNative ? (
-				<div className="grid grid-cols-2 gap-2">
-					<Input
-						type="date"
-						value={selectedDateRange.from ?? ""}
-						min={dateBounds.min}
-						max={selectedDateRange.to ?? dateBounds.max}
-						onChange={(event) =>
-							onDateRangeChange({
-								from: event.target.value || null,
-								to: selectedDateRange.to,
-							})
-						}
-						className="h-8 border-border/75 bg-background/68 text-xs"
-						aria-label="Filter events from date"
-					/>
-					<Input
-						type="date"
-						value={selectedDateRange.to ?? ""}
-						min={selectedDateRange.from ?? dateBounds.min}
-						max={dateBounds.max}
-						onChange={(event) =>
-							onDateRangeChange({
-								from: selectedDateRange.from,
-								to: event.target.value || null,
-							})
-						}
-						className="h-8 border-border/75 bg-background/68 text-xs"
-						aria-label="Filter events to date"
-					/>
+				<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+					<div className="min-w-0">
+						<Input
+							type="date"
+							value={selectedDateRange.from ?? ""}
+							min={dateBounds.min}
+							max={selectedDateRange.to ?? dateBounds.max}
+							onChange={(event) =>
+								onDateRangeChange({
+									from: event.target.value || null,
+									to: selectedDateRange.to,
+								})
+							}
+							className="h-8 w-full min-w-0 border-border/75 bg-background/68 text-xs"
+							aria-label="Filter events from date"
+						/>
+					</div>
+					<div className="min-w-0">
+						<Input
+							type="date"
+							value={selectedDateRange.to ?? ""}
+							min={selectedDateRange.from ?? dateBounds.min}
+							max={dateBounds.max}
+							onChange={(event) =>
+								onDateRangeChange({
+									from: selectedDateRange.from,
+									to: event.target.value || null,
+								})
+							}
+							className="h-8 w-full min-w-0 border-border/75 bg-background/68 text-xs"
+							aria-label="Filter events to date"
+						/>
+					</div>
 				</div>
 			) : (
 				<Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
@@ -185,7 +192,10 @@ function DateRangePickerControl({
 								className="h-8 w-full justify-start px-2.5 font-normal text-xs"
 								aria-label="Open date range picker"
 							>
-								<CalendarDays data-icon="inline-start" className="h-3.5 w-3.5" />
+								<CalendarDays
+									data-icon="inline-start"
+									className="h-3.5 w-3.5"
+								/>
 								{hasSelectedDateRange ? (
 									formatDateRangeLabel(selectedDateRange)
 								) : (
@@ -224,11 +234,15 @@ function DateRangePickerControl({
 				</Popover>
 			)}
 			{quickSelectEventDates.length > 0 && (
-				<div className={`grid ${compact ? "grid-cols-2" : "grid-cols-2"} gap-1`}>
+				<div
+					className={`grid ${compact ? "grid-cols-2" : "grid-cols-2"} gap-1`}
+				>
 					{quickSelectEventDates.slice(0, 4).map((date) => (
 						<Toggle
 							key={date}
-							pressed={selectedDateRange.from === date && selectedDateRange.to === date}
+							pressed={
+								selectedDateRange.from === date && selectedDateRange.to === date
+							}
 							onPressedChange={(pressed) =>
 								onDateRangeChange(
 									pressed
