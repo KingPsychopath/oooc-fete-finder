@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useMemo, useState } from "react";
+import { normalizeProofLink } from "@/features/events/submissions/proof-link";
+import { useState } from "react";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -42,15 +43,6 @@ const EMPTY_FORM: FormState = {
 	honeypot: "",
 };
 
-const isValidUrl = (value: string): boolean => {
-	try {
-		const url = new URL(value);
-		return url.protocol === "https:" || url.protocol === "http:";
-	} catch {
-		return false;
-	}
-};
-
 export function SubmitEventForm({
 	submissionsEnabled = true,
 }: {
@@ -67,19 +59,18 @@ export function SubmitEventForm({
 	);
 	const isFormDisabled = !submissionsEnabled || isSubmitting;
 
-	const formPayload = useMemo(
-		() => ({
-			...form,
-			formStartedAt,
-		}),
-		[form, formStartedAt],
-	);
-
 	const updateField = (field: keyof FormState, value: string) => {
 		setForm((current) => ({
 			...current,
 			[field]: value,
 		}));
+	};
+
+	const normalizeProofLinkField = () => {
+		const normalized = normalizeProofLink(form.proofLink);
+		if (normalized) {
+			updateField("proofLink", normalized);
+		}
 	};
 
 	const validate = (): string | null => {
@@ -90,7 +81,7 @@ export function SubmitEventForm({
 		if (!form.hostEmail.trim()) return "Host email is required.";
 		if (!form.proofLink.trim()) return "Proof link is required.";
 		if (!form.hostEmail.includes("@")) return "Enter a valid email address.";
-		if (!isValidUrl(form.proofLink.trim())) {
+		if (!normalizeProofLink(form.proofLink)) {
 			return "Proof link must be a valid URL.";
 		}
 		return null;
@@ -111,6 +102,11 @@ export function SubmitEventForm({
 			setErrorMessage(validationError);
 			return;
 		}
+		const normalizedProofLink = normalizeProofLink(form.proofLink);
+		if (!normalizedProofLink) {
+			setErrorMessage("Proof link must be a valid URL.");
+			return;
+		}
 
 		setIsSubmitting(true);
 		try {
@@ -119,7 +115,11 @@ export function SubmitEventForm({
 				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify(formPayload),
+				body: JSON.stringify({
+					...form,
+					proofLink: normalizedProofLink,
+					formStartedAt,
+				}),
 				signal: AbortSignal.timeout(12000),
 			});
 			const payload = (await response.json()) as {
@@ -230,10 +230,14 @@ export function SubmitEventForm({
 						<Label htmlFor="proofLink">Proof Link</Label>
 						<Input
 							id="proofLink"
-							type="url"
+							type="text"
 							value={form.proofLink}
 							onChange={(event) => updateField("proofLink", event.target.value)}
-							placeholder="Ticket, Instagram, or official event link"
+							onBlur={normalizeProofLinkField}
+							placeholder="Ticket, Instagram, or official event link (https:// optional)"
+							autoCapitalize="off"
+							autoCorrect="off"
+							spellCheck={false}
 							required
 							disabled={isFormDisabled}
 						/>

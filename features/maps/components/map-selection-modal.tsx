@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useOutsideClick } from "@/hooks/useOutsideClick";
 import { MapPin, Settings, X } from "lucide-react";
 import React from "react";
 import { MAP_OPTIONS } from "../constants/map-options";
@@ -27,12 +26,6 @@ export const MapSelectionModal: React.FC<MapSelectionModalProps> = ({
 	showRememberOption = true,
 	onRememberPreference,
 }) => {
-	const modalRef = useOutsideClick<HTMLDivElement>(() => {
-		if (isOpen) {
-			onClose();
-		}
-	});
-
 	if (!isOpen) return null;
 
 	const handleSelect = (provider: MapProvider, remember: boolean = false) => {
@@ -46,13 +39,12 @@ export const MapSelectionModal: React.FC<MapSelectionModalProps> = ({
 	return (
 		<div
 			className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4"
-			onClick={(e) => e.stopPropagation()}
+			onPointerDown={(pointerEvent) => {
+				if (pointerEvent.target !== pointerEvent.currentTarget) return;
+				onClose();
+			}}
 		>
-			<Card
-				ref={modalRef}
-				className="w-full max-w-md animate-in fade-in-0 zoom-in-95 duration-200"
-				onClick={(e) => e.stopPropagation()}
-			>
+			<Card className="w-full max-w-md animate-in fade-in-0 zoom-in-95 duration-200">
 				<CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
 					<div className="flex-1">
 						<CardTitle className="text-lg flex items-center gap-2">

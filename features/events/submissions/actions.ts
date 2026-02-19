@@ -35,11 +35,7 @@ const buildSubmissionNotes = (
 	submission: EventSubmissionRecord,
 ): string | undefined => {
 	const notes = submission.payload.notes?.trim() || "";
-	const provenance = `Submitted via host form (email: ${submission.payload.hostEmail}, submittedAt: ${submission.payload.submittedAt})`;
-	if (!notes) {
-		return provenance;
-	}
-	return `${notes}\n\n${provenance}`;
+	return notes || undefined;
 };
 
 const mapSubmissionToSheetRow = (

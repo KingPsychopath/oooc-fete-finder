@@ -10,6 +10,7 @@ import type {
 	ReviewEventSubmissionInput,
 } from "@/features/events/submissions/types";
 import { getEventSubmissionRepository } from "@/lib/platform/postgres/event-submission-repository";
+import { normalizeProofLink } from "./proof-link";
 
 const MIN_FORM_COMPLETION_SECONDS = 4;
 
@@ -22,16 +23,18 @@ const eventSubmissionInputSchema = z.object({
 	proofLink: z
 		.string()
 		.trim()
-		.url()
 		.max(2000)
-		.refine((value) => {
-			try {
-				const url = new URL(value);
-				return url.protocol === "https:" || url.protocol === "http:";
-			} catch {
-				return false;
+		.transform((value, context) => {
+			const normalized = normalizeProofLink(value);
+			if (!normalized) {
+				context.addIssue({
+					code: "custom",
+					message: "Proof link must be an HTTP(S) URL",
+				});
+				return z.NEVER;
 			}
-		}, "Proof link must be an HTTP(S) URL"),
+			return normalized;
+		}),
 	endTime: z.string().trim().max(40).optional().default(""),
 	genre: z.string().trim().max(120).optional().default(""),
 	price: z.string().trim().max(80).optional().default(""),
@@ -91,7 +94,7 @@ export const parseEventSubmissionInput = (
 		startTime: normalizeWhitespace(parsed.startTime),
 		location: normalizeWhitespace(parsed.location),
 		hostEmail: parsed.hostEmail.trim().toLowerCase(),
-		proofLink: parsed.proofLink.trim(),
+		proofLink: parsed.proofLink,
 		endTime: toOptionalField(parsed.endTime),
 		genre: toOptionalField(parsed.genre),
 		price: toOptionalField(parsed.price),

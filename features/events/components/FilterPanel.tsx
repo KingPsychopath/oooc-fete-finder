@@ -36,7 +36,6 @@ import {
 	formatPriceRange,
 } from "@/features/events/types";
 import type { DateRangeFilter } from "@/features/events/filtering";
-import { useOutsideClick } from "@/hooks/useOutsideClick";
 import { LAYERS } from "@/lib/ui/layers";
 import {
 	OVERLAY_BODY_ATTRIBUTE,
@@ -225,13 +224,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		};
 	}, [activeFilterCount]);
 	const isDesktopContentExpanded = isExpanded === undefined || isExpanded;
-
-	// Use outside click hook for mobile
-	const panelRef = useOutsideClick<HTMLDivElement>(() => {
-		if (isOpen) {
-			onClose();
-		}
-	});
 
 	useEffect(() => {
 		setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.FILTER_PANEL, isOpen);
@@ -961,9 +953,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		<div
 			className="fixed inset-0 bg-black/45 backdrop-blur-[2px] lg:static lg:bg-transparent lg:z-auto"
 			style={{ zIndex: LAYERS.OVERLAY }}
+			onPointerDown={(pointerEvent) => {
+				if (pointerEvent.target !== pointerEvent.currentTarget) return;
+				onClose();
+			}}
 		>
 			<div
-				ref={panelRef}
 				className="absolute right-0 top-0 h-full w-full max-w-sm border-l border-border/70 bg-background/97 lg:static lg:max-w-none lg:border-l-0 lg:h-fit"
 			>
 				<Card className="ooo-site-card h-full border-0 py-0 lg:h-fit lg:border">

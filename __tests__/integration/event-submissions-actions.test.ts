@@ -250,10 +250,17 @@ describe("event submission admin actions", () => {
 					startTime: "18:00",
 					location: "Paris",
 					primaryUrl: "https://example.com/event",
+					notes: "Bring friends",
 				}),
 			]),
 			expect.objectContaining({ revalidateHomepage: true }),
 		);
+		const savedRows = saveEventSheetEditorRows.mock.calls[0]?.[2] as Array<{
+			notes?: string;
+		}>;
+		const acceptedRow = savedRows[savedRows.length - 1];
+		expect(acceptedRow?.notes).not.toContain("Submitted via host form");
+		expect(acceptedRow?.notes).not.toContain("host@example.com");
 		expect(reviewEventSubmission).toHaveBeenCalledWith(
 			expect.objectContaining({
 				id: "submission_1",
