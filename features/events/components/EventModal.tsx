@@ -28,7 +28,6 @@ import { MapSelectionModal } from "@/features/maps/components/map-selection-moda
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
 import type { MapProvider } from "@/features/maps/types";
 import { openLocationInMaps } from "@/features/maps/utils/map-launcher";
-import { useOutsideClick } from "@/hooks/useOutsideClick";
 import { LAYERS } from "@/lib/ui/layers";
 import {
 	OVERLAY_BODY_ATTRIBUTE,
@@ -96,12 +95,6 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		arrondissement?: number | "unknown";
 	} | null>(null);
 	const [showAllGenres, setShowAllGenres] = useState(false);
-
-	const modalRef = useOutsideClick<HTMLDivElement>(() => {
-		if (isOpen && !showMapSelection && !showMapSettings) {
-			onClose();
-		}
-	});
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -338,9 +331,13 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		<div
 			className="fixed inset-0 flex items-center justify-center bg-black/70 p-2 backdrop-blur-[4px] sm:p-4"
 			style={{ zIndex: LAYERS.OVERLAY }}
+			onPointerDown={(pointerEvent) => {
+				if (pointerEvent.target !== pointerEvent.currentTarget) return;
+				if (showMapSelection) return;
+				onClose();
+			}}
 		>
 			<Card
-				ref={modalRef}
 				className={`relative max-h-[94vh] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))] ${
 					isCurrentlyFeatured
 						? "border-amber-300/70 shadow-[0_38px_94px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(212,164,96,0.35)] dark:border-amber-500/45"
