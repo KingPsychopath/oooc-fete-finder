@@ -14,18 +14,18 @@ import { env } from "@/lib/config/env";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AdminSessionStatus } from "./components/AdminSessionStatus";
-import { RuntimeDataStatusCard } from "./components/RuntimeDataStatusCard";
 import { EmailCollectionCard } from "./components/EmailCollectionCard";
 import { EventSheetEditorCard } from "./components/EventSheetEditorCard";
 import { EventSubmissionsCard } from "./components/EventSubmissionsCard";
 import { FeaturedEventsManagerCard } from "./components/FeaturedEventsManagerCard";
 import { LiveEventsSnapshotCard } from "./components/LiveEventsSnapshotCard";
 import { LocalEventStoreCard } from "./components/LocalEventStoreCard";
+import { RuntimeDataStatusCard } from "./components/RuntimeDataStatusCard";
 import { SlidingBannerSettingsCard } from "./components/SlidingBannerSettingsCard";
 import { SystemResetCard } from "./components/SystemResetCard";
 import type {
-	RuntimeDataStatus,
 	EmailRecord,
+	RuntimeDataStatus,
 	UserCollectionAnalytics,
 	UserCollectionStoreSummary,
 } from "./types";
@@ -37,24 +37,35 @@ type AdminDashboardClientProps = {
 	initialData: AdminInitialData;
 };
 
+const FALLBACK_RUNTIME_DATA_STATUS: RuntimeDataStatus = {
+	lastFetchTime: null,
+	lastRemoteErrorMessage: "",
+	dataSource: "store",
+	eventCount: 0,
+	configuredDataSource: "remote",
+	remoteConfigured: false,
+	hasLocalStoreData: false,
+	storeProvider: "memory",
+	storeProviderLocation: "Loading...",
+	storeRowCount: 0,
+	storeUpdatedAt: null,
+	storeKeyCount: 0,
+};
+
 export function AdminDashboardClient({
 	initialData,
 }: AdminDashboardClientProps) {
 	const router = useRouter();
 	const initialEmailsResult = initialData.emailsResult;
 	const [runtimeDataStatus, setRuntimeDataStatus] = useState<RuntimeDataStatus>(
-		initialData.runtimeDataStatus,
+		initialData.runtimeDataStatus ?? FALLBACK_RUNTIME_DATA_STATUS,
 	);
 	const [emails, setEmails] = useState<EmailRecord[]>(
-		initialEmailsResult?.success
-			? (initialEmailsResult.emails ?? [])
-			: [],
+		initialEmailsResult?.success ? (initialEmailsResult.emails ?? []) : [],
 	);
 	const [emailStore, setEmailStore] =
 		useState<UserCollectionStoreSummary | null>(
-			initialEmailsResult?.success
-				? (initialEmailsResult.store ?? null)
-				: null,
+			initialEmailsResult?.success ? (initialEmailsResult.store ?? null) : null,
 		);
 	const [emailAnalytics, setEmailAnalytics] =
 		useState<UserCollectionAnalytics | null>(
@@ -87,6 +98,19 @@ export function AdminDashboardClient({
 		}
 		void loadEmails();
 	}, [initialEmailsResult?.success, loadEmails]);
+
+	useEffect(() => {
+		if (initialData.runtimeDataStatus) {
+			return;
+		}
+		void loadRuntimeDataStatus().catch((error) => {
+			setRefreshMessage(
+				`Failed to load runtime status: ${
+					error instanceof Error ? error.message : "Unknown error"
+				}`,
+			);
+		});
+	}, [initialData.runtimeDataStatus, loadRuntimeDataStatus]);
 
 	const handleLogout = useCallback(async () => {
 		await logoutAdminSession();

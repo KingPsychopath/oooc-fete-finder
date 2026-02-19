@@ -11,10 +11,10 @@ import type {
 	getLocalEventStorePreview,
 	getLocalEventStoreStatus,
 } from "@/features/data-management/actions";
+import type { RuntimeDataStatus } from "@/features/data-management/runtime-service";
 import type { listFeaturedQueue } from "@/features/events/featured/actions";
 import type { getEventSubmissionsDashboard } from "@/features/events/submissions/actions";
 import type { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
-import type { RuntimeDataStatus } from "@/features/data-management/runtime-service";
 
 export type {
 	UserCollectionAnalytics,
@@ -25,7 +25,7 @@ export type { RuntimeDataStatus } from "@/features/data-management/runtime-servi
 
 /** Payload passed from server admin page to AdminDashboardClient for first-paint data */
 export type AdminInitialData = {
-	runtimeDataStatus: RuntimeDataStatus;
+	runtimeDataStatus?: RuntimeDataStatus;
 	emailsResult?: CollectedEmailsResponse;
 	sessionStatus: Awaited<ReturnType<typeof getAdminSessionStatus>>;
 	tokenSessions?: Awaited<ReturnType<typeof getAdminTokenSessions>>;

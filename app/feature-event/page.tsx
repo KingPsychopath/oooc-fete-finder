@@ -1,5 +1,4 @@
 import { CopyEmailButton } from "@/components/CopyEmailButton";
-import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +6,6 @@ import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
 import { Calendar, CheckCircle, Euro, Star, Target } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
 import { FeatureEventHeader } from "./FeatureEventHeader";
 import { FeatureEventStatusSection } from "./FeatureEventStatusSection";
 
@@ -25,42 +23,10 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
-function FeatureEventStatusFallback() {
-	return (
-		<Card className="mb-8 border border-border bg-card ooo-admin-card-soft">
-			<CardHeader className="space-y-4">
-				<div className="flex flex-wrap items-start justify-between gap-3">
-					<div className="space-y-1">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Feature Placement
-						</p>
-						<CardTitle className="ooo-feature-heading">
-							Featured events status
-						</CardTitle>
-					</div>
-					<Badge
-						variant="outline"
-						className="rounded-full border-foreground/20 bg-foreground px-3 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-background"
-					>
-						Loading
-					</Badge>
-				</div>
-			</CardHeader>
-			<CardContent>
-				<p className="text-sm text-muted-foreground">
-					Checking current featured placements...
-				</p>
-			</CardContent>
-		</Card>
-	);
-}
-
 export default function FeatureEventPage() {
 	return (
 		<div className="ooo-site-shell">
-			<Suspense fallback={<Header />}>
-				<FeatureEventHeader />
-			</Suspense>
+			<FeatureEventHeader />
 			<main className="ooo-feature-page container mx-auto px-4 py-10 max-w-3xl">
 				{/* Editorial header */}
 				<header className="mb-12">
@@ -86,9 +52,7 @@ export default function FeatureEventPage() {
 					</p>
 				</header>
 
-				<Suspense fallback={<FeatureEventStatusFallback />}>
-					<FeatureEventStatusSection />
-				</Suspense>
+				<FeatureEventStatusSection />
 
 				<div className="grid md:grid-cols-2 gap-8 mb-10">
 					<Card className="border border-border bg-card ooo-admin-card-soft">

@@ -130,6 +130,29 @@ export function EventsClient({
 		return current ? `${pathname}?${current}` : pathname;
 	}, [pathname, searchParams]);
 
+	const updateUrlWithoutNavigation = useCallback(
+		(nextUrl: string, mode: "push" | "replace") => {
+			if (nextUrl === getCurrentUrl()) return;
+
+			if (typeof window !== "undefined") {
+				const historyState = window.history.state;
+				if (mode === "push") {
+					window.history.pushState(historyState, "", nextUrl);
+					return;
+				}
+				window.history.replaceState(historyState, "", nextUrl);
+				return;
+			}
+
+			if (mode === "push") {
+				router.push(nextUrl, { scroll: false });
+				return;
+			}
+			router.replace(nextUrl, { scroll: false });
+		},
+		[getCurrentUrl, router],
+	);
+
 	useEffect(() => {
 		const eventParam = searchParams.get("event");
 		if (!eventParam) {
@@ -146,10 +169,7 @@ export function EventsClient({
 				invalidEventParamCount: invalidEventParamCountRef.current,
 			});
 			setSelectedEvent((current) => (current ? null : current));
-			const nextUrl = createUrlForEventState(null);
-			if (nextUrl !== getCurrentUrl()) {
-				router.replace(nextUrl, { scroll: false });
-			}
+			updateUrlWithoutNavigation(createUrlForEventState(null), "replace");
 			return;
 		}
 
@@ -159,17 +179,16 @@ export function EventsClient({
 
 		const slugParam = searchParams.get("slug");
 		if (slugParam !== resolvedEvent.slug) {
-			const canonicalUrl = createUrlForEventState(resolvedEvent);
-			if (canonicalUrl !== getCurrentUrl()) {
-				router.replace(canonicalUrl, { scroll: false });
-			}
+			updateUrlWithoutNavigation(
+				createUrlForEventState(resolvedEvent),
+				"replace",
+			);
 		}
 	}, [
 		createUrlForEventState,
 		eventsByEventKey,
-		getCurrentUrl,
-		router,
 		searchParams,
+		updateUrlWithoutNavigation,
 	]);
 
 	const handleEmailSubmit = useCallback(
@@ -195,20 +214,18 @@ export function EventsClient({
 
 	const handleEventClick = useCallback(
 		(event: Event) => {
-			const nextUrl = createUrlForEventState(event);
-			if (nextUrl !== getCurrentUrl()) {
-				router.push(nextUrl, { scroll: false });
-			}
+			setSelectedEvent((current) =>
+				current?.eventKey === event.eventKey ? current : event,
+			);
+			updateUrlWithoutNavigation(createUrlForEventState(event), "push");
 		},
-		[createUrlForEventState, getCurrentUrl, router],
+		[createUrlForEventState, updateUrlWithoutNavigation],
 	);
 
 	const handleEventClose = useCallback(() => {
-		const nextUrl = createUrlForEventState(null);
-		if (nextUrl !== getCurrentUrl()) {
-			router.replace(nextUrl, { scroll: false });
-		}
-	}, [createUrlForEventState, getCurrentUrl, router]);
+		setSelectedEvent((current) => (current ? null : current));
+		updateUrlWithoutNavigation(createUrlForEventState(null), "replace");
+	}, [createUrlForEventState, updateUrlWithoutNavigation]);
 
 	const scrollToAllEvents = useCallback(() => {
 		allEventsRef.current?.scrollIntoView({
@@ -307,8 +324,8 @@ export function EventsClient({
 					onAuthRequired={() => setShowEmailGate(true)}
 					className="min-h-[400px]"
 				>
-						<FilterPanel
-							selectedDateRange={selectedDateRange}
+					<FilterPanel
+						selectedDateRange={selectedDateRange}
 						selectedDayNightPeriods={selectedDayNightPeriods}
 						selectedArrondissements={selectedArrondissements}
 						selectedGenres={selectedGenres}
@@ -318,7 +335,7 @@ export function EventsClient({
 						selectedPriceRange={selectedPriceRange}
 						selectedAgeRange={selectedAgeRange}
 						selectedOOOCPicks={selectedOOOCPicks}
-							onDateRangeChange={onDateRangeChange}
+						onDateRangeChange={onDateRangeChange}
 						onDayNightPeriodToggle={onDayNightPeriodToggle}
 						onArrondissementToggle={onArrondissementToggle}
 						onGenreToggle={onGenreToggle}
@@ -329,10 +346,10 @@ export function EventsClient({
 						onAgeRangeChange={onAgeRangeChange}
 						onOOOCPicksToggle={onOOOCPicksToggle}
 						onClearFilters={onClearFilters}
-							availableArrondissements={availableArrondissements}
-							availableEventDates={availableEventDates}
-							quickSelectEventDates={quickSelectEventDates}
-							filteredEventsCount={filteredEvents.length}
+						availableArrondissements={availableArrondissements}
+						availableEventDates={availableEventDates}
+						quickSelectEventDates={quickSelectEventDates}
+						filteredEventsCount={filteredEvents.length}
 						isOpen={isFilterOpen}
 						onClose={() => setIsFilterOpen(false)}
 						onOpen={() => setIsFilterOpen(true)}
