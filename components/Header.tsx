@@ -190,6 +190,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							{isAdminAuthenticated && (
 								<Link
 									href={`${basePath || ""}/admin`}
+									prefetch={false}
 									className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/70 px-3 py-2 text-[11px] tracking-[0.08em] text-foreground/85 transition-colors hover:bg-accent"
 								>
 									<ShieldCheck className="h-3.5 w-3.5" />

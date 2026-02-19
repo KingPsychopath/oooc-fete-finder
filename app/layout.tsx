@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Footer from "@/components/Footer";
+import { DevServiceWorkerReset } from "@/components/DevServiceWorkerReset";
 import { SupportCoffeePrompt } from "@/components/SupportCoffeePrompt";
 import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { OfflineIndicator } from "@/components/offline-indicator";
@@ -172,6 +173,7 @@ export default function RootLayout({
 					enableSystem
 					disableTransitionOnChange
 				>
+					<DevServiceWorkerReset />
 					<ThemeColorSync />
 					<AuthProvider>
 						{children}

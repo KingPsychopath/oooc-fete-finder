@@ -106,18 +106,19 @@ const Footer = () => {
 								<span>Buy me a coffee</span>
 							</Link>
 						</div>
-						<Tooltip>
-							<TooltipTrigger
-								render={
-									<span className="text-xs text-muted-foreground/70">
-										Maintained by the OOOC Community
-									</span>
-								}
-							/>
-							<TooltipContent>
-								<p>With special thanks to Mel</p>
-							</TooltipContent>
-						</Tooltip>
+							<Tooltip>
+								<TooltipTrigger
+									id="footer-community-tooltip-trigger"
+									render={
+										<span className="text-xs text-muted-foreground/70" />
+									}
+								>
+									Maintained by the OOOC Community
+								</TooltipTrigger>
+								<TooltipContent id="footer-community-tooltip-content">
+									<p>With special thanks to Mel</p>
+								</TooltipContent>
+							</Tooltip>
 					</div>
 				</div>
 			</div>
