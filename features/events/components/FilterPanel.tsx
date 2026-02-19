@@ -622,9 +622,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								{uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
 
 								<Accordion
-									type="multiple"
+									multiple
 									value={openAccordionSections}
-									onValueChange={setOpenAccordionSections}
+									onValueChange={(value) =>
+										setOpenAccordionSections(value.filter(Boolean) as string[])
+									}
 									className="w-full space-y-2"
 								>
 									{/* Days & Times Section */}
@@ -1034,9 +1036,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							// Accordion Layout for Desktop when space is needed
 							<div className="hidden lg:block">
 								<Accordion
-									type="multiple"
+									multiple
 									value={openAccordionSections}
-									onValueChange={setOpenAccordionSections}
+									onValueChange={(value) =>
+										setOpenAccordionSections(value.filter(Boolean) as string[])
+									}
 									className="w-full"
 								>
 									<AccordionItem value="days">
@@ -1101,14 +1105,16 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<h3 className={sectionTitleClassName}>Date & Times</h3>
 										<TooltipProvider>
 											<Tooltip>
-												<TooltipTrigger asChild>
-													<button
-														className="h-4 w-4 ml-2 text-muted-foreground cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
-														type="button"
-														aria-label="Show day and night time definitions"
-													>
-														<Info className="h-4 w-4" />
-													</button>
+												<TooltipTrigger
+													render={
+														<button
+															className="h-4 w-4 ml-2 text-muted-foreground cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+															type="button"
+															aria-label="Show day and night time definitions"
+														/>
+													}
+												>
+													<Info className="h-4 w-4" />
 												</TooltipTrigger>
 												<TooltipContent>
 													<div className="text-sm space-y-1">

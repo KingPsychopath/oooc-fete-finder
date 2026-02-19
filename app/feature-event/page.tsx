@@ -272,14 +272,15 @@ export default function FeatureEventPage() {
 				{/* CTA */}
 				<footer className="text-center pt-4 pb-8">
 					<Button
-						asChild
 						size="lg"
 						variant="default"
 						className="border border-border bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm font-medium"
+						nativeButton={false}
+						render={
+							<a href="mailto:hello@outofofficecollective.co.uk?subject=Fete%20Finder:%20Feature%20My%20Event%20Inquiry%20[YOUR_EVENT_NAME_HERE]" />
+						}
 					>
-						<a href="mailto:hello@outofofficecollective.co.uk?subject=Fete%20Finder:%20Feature%20My%20Event%20Inquiry%20[YOUR_EVENT_NAME_HERE]">
-							Feature my event — €{FEATURED_EVENTS_CONFIG.FEATURE_PRICE}
-						</a>
+						Feature my event — €{FEATURED_EVENTS_CONFIG.FEATURE_PRICE}
 					</Button>
 					<p className="text-sm text-muted-foreground mt-5">
 						Or email us at hello@outofofficecollective.co.uk

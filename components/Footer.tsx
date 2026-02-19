@@ -107,11 +107,13 @@ const Footer = () => {
 							</Link>
 						</div>
 						<Tooltip>
-							<TooltipTrigger asChild>
-								<span className="text-xs text-muted-foreground/70 cursor-help">
-									Maintained by the OOOC Community
-								</span>
-							</TooltipTrigger>
+							<TooltipTrigger
+								render={
+									<span className="text-xs text-muted-foreground/70">
+										Maintained by the OOOC Community
+									</span>
+								}
+							/>
 							<TooltipContent>
 								<p>With special thanks to Mel</p>
 							</TooltipContent>

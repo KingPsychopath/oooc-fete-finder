@@ -59,7 +59,9 @@ export const MapPreferenceSettings: React.FC<MapPreferenceSettingsProps> = ({
 				)}
 				<Select
 					value={mapPreference}
-					onValueChange={(value: MapProvider) => setMapPreference(value)}
+					onValueChange={(value) => {
+						if (value) setMapPreference(value as MapProvider);
+					}}
 				>
 					<SelectTrigger className="w-full">
 						<SelectValue>
@@ -106,7 +108,9 @@ export const MapPreferenceSettings: React.FC<MapPreferenceSettingsProps> = ({
 
 				<Select
 					value={mapPreference}
-					onValueChange={(value: MapProvider) => setMapPreference(value)}
+					onValueChange={(value) => {
+						if (value) setMapPreference(value as MapProvider);
+					}}
 				>
 					<SelectTrigger>
 						<SelectValue>

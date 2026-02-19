@@ -85,24 +85,26 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 		<div className="relative" ref={dropdownRef}>
 			<TooltipProvider>
 				<Tooltip>
-					<TooltipTrigger asChild>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={handleToggle}
-							className={cn(
-								"gap-1 text-xs sm:text-sm transition-colors p-1.5 sm:p-2 h-8 sm:h-9 flex-shrink-0",
-								triggerClassName,
-							)}
-							aria-label="Quick actions menu"
-							aria-expanded={isOpen}
-							aria-haspopup="true"
-						>
-							<Zap className="h-3 w-3 sm:h-4 sm:w-4" />
-							<ChevronDown
-								className={`h-3 w-3 sm:h-4 sm:w-4 transition-transform transition-bouncy ${isOpen ? "rotate-180" : "rotate-0"}`}
+					<TooltipTrigger
+						render={
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleToggle}
+								className={cn(
+									"gap-1 text-xs sm:text-sm transition-colors p-1.5 sm:p-2 h-8 sm:h-9 flex-shrink-0",
+									triggerClassName,
+								)}
+								aria-label="Quick actions menu"
+								aria-expanded={isOpen}
+								aria-haspopup="true"
 							/>
-						</Button>
+						}
+					>
+						<Zap className="h-3 w-3 sm:h-4 sm:w-4" />
+						<ChevronDown
+							className={`h-3 w-3 sm:h-4 sm:w-4 transition-transform transition-bouncy ${isOpen ? "rotate-180" : "rotate-0"}`}
+						/>
 					</TooltipTrigger>
 					<TooltipContent>
 						<p>Paris Essentials & Shortcuts</p>

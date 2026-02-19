@@ -15,22 +15,24 @@ export default function NotFound() {
 			description="We couldn't find that route. It may have moved or no longer exists."
 			actions={
 				<div className="flex flex-col justify-center gap-3 sm:flex-row">
-					<Button asChild size="lg" className="flex items-center gap-2">
-						<Link href="/">
+					<Button
+						size="lg"
+						className="flex items-center gap-2"
+						nativeButton={false}
+						render={<Link href="/" />}
+					>
 							<Home className="h-4 w-4" />
 							Go Home
-						</Link>
 					</Button>
 					<Button
-						asChild
 						variant="outline"
 						size="lg"
 						className="flex items-center gap-2"
+						nativeButton={false}
+						render={<Link href="/" />}
 					>
-						<Link href="/">
 							<Search className="h-4 w-4" />
 							Find Events
-						</Link>
 					</Button>
 				</div>
 			}

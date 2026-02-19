@@ -384,28 +384,30 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							)}
 							<TooltipProvider>
 								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											variant="outline"
-											size="icon"
-											onClick={() => void handleShareEventLink()}
-											className={`h-10 w-10 rounded-xl border-border/70 bg-background/70 transition-all duration-200 hover:bg-accent dark:bg-white/5 dark:hover:bg-white/10 ${
-												linkShareStatus?.tone === "success"
-													? "border-emerald-300/80 text-emerald-700 dark:border-emerald-400/45 dark:text-emerald-300"
-													: linkShareStatus?.tone === "error"
-														? "border-amber-300/80 text-amber-700 dark:border-amber-400/45 dark:text-amber-300"
-														: ""
-											}`}
-											aria-label="Share event link"
-										>
-											{linkShareStatus?.tone === "success" ? (
-												<Check className="h-4 w-4" />
-											) : linkShareStatus?.tone === "error" ? (
-												<AlertCircle className="h-4 w-4" />
-											) : (
-												<Link2 className="h-4 w-4" />
-											)}
-										</Button>
+									<TooltipTrigger
+										render={
+											<Button
+												variant="outline"
+												size="icon"
+												onClick={() => void handleShareEventLink()}
+												className={`h-10 w-10 rounded-xl border-border/70 bg-background/70 transition-all duration-200 hover:bg-accent dark:bg-white/5 dark:hover:bg-white/10 ${
+													linkShareStatus?.tone === "success"
+														? "border-emerald-300/80 text-emerald-700 dark:border-emerald-400/45 dark:text-emerald-300"
+														: linkShareStatus?.tone === "error"
+															? "border-amber-300/80 text-amber-700 dark:border-amber-400/45 dark:text-amber-300"
+															: ""
+												}`}
+												aria-label="Share event link"
+											/>
+										}
+									>
+										{linkShareStatus?.tone === "success" ? (
+											<Check className="h-4 w-4" />
+										) : linkShareStatus?.tone === "error" ? (
+											<AlertCircle className="h-4 w-4" />
+										) : (
+											<Link2 className="h-4 w-4" />
+										)}
 									</TooltipTrigger>
 									<TooltipContent>
 										<p>
@@ -453,15 +455,19 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							</Badge>
 						))}
 						{extraGenreCount > 0 && (
-							<Badge asChild variant="outline" className="border-border/70">
-								<button
-									type="button"
-									onClick={() => setShowAllGenres(true)}
-									className="cursor-pointer hover:bg-accent hover:text-foreground"
-									aria-label={`Show ${extraGenreCount} more genres`}
-								>
-									+{extraGenreCount} more
-								</button>
+							<Badge
+								render={
+									<button
+										type="button"
+										onClick={() => setShowAllGenres(true)}
+										className="cursor-pointer hover:bg-accent hover:text-foreground"
+										aria-label={`Show ${extraGenreCount} more genres`}
+									/>
+								}
+								variant="outline"
+								className="border-border/70"
+							>
+								+{extraGenreCount} more
 							</Badge>
 						)}
 					</div>
@@ -528,16 +534,18 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								</p>
 								<TooltipProvider>
 									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => setShowMapSettings(!showMapSettings)}
-												className="h-6.5 px-2 text-[10px]"
-											>
-												<Settings className="mr-1 h-3 w-3" />
-												Map
-											</Button>
+										<TooltipTrigger
+											render={
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => setShowMapSettings(!showMapSettings)}
+													className="h-6.5 px-2 text-[10px]"
+												/>
+											}
+										>
+											<Settings className="mr-1 h-3 w-3" />
+											Map
 										</TooltipTrigger>
 										<TooltipContent>
 											<p>Map preferences</p>
@@ -634,17 +642,19 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							) : (
 								<TooltipProvider>
 									<Tooltip>
-										<TooltipTrigger asChild>
-											<span className="inline-flex w-full">
-												<Button
-													variant="outline"
-													disabled
-													className="h-10 w-full border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300"
-												>
-													<CalendarPlus className="mr-2 h-4 w-4" />
-													Add to Calendar
-												</Button>
-											</span>
+										<TooltipTrigger
+											render={
+												<span className="inline-flex w-full" />
+											}
+										>
+											<Button
+												variant="outline"
+												disabled
+												className="h-10 w-full border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300"
+											>
+												<CalendarPlus className="mr-2 h-4 w-4" />
+												Add to Calendar
+											</Button>
 										</TooltipTrigger>
 										<TooltipContent>
 											<p>Add an unambiguous date to enable calendar export.</p>

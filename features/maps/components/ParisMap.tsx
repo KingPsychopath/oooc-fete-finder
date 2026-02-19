@@ -226,7 +226,7 @@ const ParisMap: React.FC<ParisMapProps> = ({
 
 						return (
 							<Tooltip key={arrondissement}>
-								<TooltipTrigger asChild>
+							<TooltipTrigger render={<g />}>
 									<g>
 										<rect
 											x={pos.x}
@@ -343,7 +343,7 @@ const ParisMap: React.FC<ParisMapProps> = ({
 
 						return (
 							<Tooltip key="unknown">
-								<TooltipTrigger asChild>
+							<TooltipTrigger render={<g />}>
 									<g>
 										<ellipse
 											cx={420}
