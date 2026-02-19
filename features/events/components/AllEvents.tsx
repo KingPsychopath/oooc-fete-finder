@@ -51,7 +51,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		return (
 			<Card ref={ref} className="ooo-site-card mt-6 py-0">
 				<CardHeader className="border-b border-border/70 py-5">
-					<div className="flex items-center justify-between">
+					<div className="flex items-start justify-between">
 						<div className="flex flex-col">
 							<div className="flex items-center">
 								<CardTitle className="text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
@@ -74,7 +74,8 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							onClickAction={onFilterClickAction}
 							hasActiveFilters={hasActiveFilters}
 							activeFiltersCount={activeFiltersCount}
-							className="lg:hidden"
+							className="self-start rounded-full lg:hidden"
+							size="sm"
 						/>
 					</div>
 				</CardHeader>

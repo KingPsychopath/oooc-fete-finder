@@ -117,10 +117,10 @@ export function EventsMapCard({
 							variant="ghost"
 							size="sm"
 							onClick={onToggleExpanded}
-							className="ml-2 shrink-0 rounded-full border border-border/70 bg-background/65 text-muted-foreground hover:bg-accent hover:text-foreground"
+							className="ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-background/65 p-0 text-muted-foreground hover:bg-accent hover:text-foreground sm:h-9 sm:w-auto sm:px-3"
 						>
 							<ChevronDown
-								className={`h-4 w-4 mr-1 transition-transform transition-bouncy ${isExpanded ? "rotate-180" : "rotate-0"}`}
+								className={`h-3.5 w-3.5 transition-transform transition-bouncy sm:h-4 sm:w-4 sm:mr-1 ${isExpanded ? "rotate-180" : "rotate-0"}`}
 							/>
 							<span className="text-sm hidden sm:inline">
 								{isExpanded ? "Collapse" : "Expand"}
