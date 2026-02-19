@@ -1,10 +1,13 @@
 "use client";
 
 import { createAdminSession } from "@/features/auth/actions";
+import { env } from "@/lib/config/env";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState, useTransition } from "react";
 import { AuthForm } from "./components/AuthForm";
+
+const basePath = env.NEXT_PUBLIC_BASE_PATH;
 
 export function AdminAuthClient() {
 	const router = useRouter();
@@ -26,13 +29,13 @@ export function AdminAuthClient() {
 			}
 			setAdminKey("");
 			startTransition(() => {
-				router.refresh();
+				router.replace(`${basePath}/admin`);
 			});
 		} catch (submitError) {
 			setError(
-				submitError instanceof Error ?
-					submitError.message
-				:	"Something went wrong",
+				submitError instanceof Error
+					? submitError.message
+					: "Something went wrong",
 			);
 		} finally {
 			setIsLoading(false);
