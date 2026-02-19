@@ -24,6 +24,8 @@ interface EventsClientProps {
 	mapLoadStrategy: MapLoadStrategy;
 }
 
+const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
+
 export function EventsClient({
 	initialEvents,
 	mapLoadStrategy,
@@ -146,16 +148,31 @@ export function EventsClient({
 	}, [pathname, searchParams]);
 
 	const updateUrlWithoutNavigation = useCallback(
-		(nextUrl: string, mode: "push" | "replace") => {
+		(
+			nextUrl: string,
+			mode: "push" | "replace",
+			options?: { markModalEntry?: boolean },
+		) => {
 			if (nextUrl === getCurrentUrl()) return;
 
 			if (typeof window !== "undefined") {
-				const historyState = window.history.state;
+				const currentState =
+					window.history.state &&
+					typeof window.history.state === "object" &&
+					!Array.isArray(window.history.state)
+						? (window.history.state as Record<string, unknown>)
+						: {};
 				if (mode === "push") {
-					window.history.pushState(historyState, "", nextUrl);
+					const nextState = options?.markModalEntry
+						? {
+								...currentState,
+								[EVENT_MODAL_HISTORY_FLAG]: true,
+							}
+						: currentState;
+					window.history.pushState(nextState, "", nextUrl);
 					return;
 				}
-				window.history.replaceState(historyState, "", nextUrl);
+				window.history.replaceState(currentState, "", nextUrl);
 				return;
 			}
 
@@ -232,13 +249,30 @@ export function EventsClient({
 			setSelectedEvent((current) =>
 				current?.eventKey === event.eventKey ? current : event,
 			);
-			updateUrlWithoutNavigation(createUrlForEventState(event), "push");
+			updateUrlWithoutNavigation(createUrlForEventState(event), "push", {
+				markModalEntry: true,
+			});
 		},
 		[createUrlForEventState, updateUrlWithoutNavigation],
 	);
 
 	const handleEventClose = useCallback(() => {
 		setSelectedEvent((current) => (current ? null : current));
+		if (typeof window !== "undefined") {
+			const currentState =
+				window.history.state &&
+				typeof window.history.state === "object" &&
+				!Array.isArray(window.history.state)
+					? (window.history.state as Record<string, unknown>)
+					: {};
+			const hasEventParam = new URLSearchParams(window.location.search).has(
+				"event",
+			);
+			if (hasEventParam && currentState[EVENT_MODAL_HISTORY_FLAG] === true) {
+				window.history.back();
+				return;
+			}
+		}
 		updateUrlWithoutNavigation(createUrlForEventState(null), "replace");
 	}, [createUrlForEventState, updateUrlWithoutNavigation]);
 
