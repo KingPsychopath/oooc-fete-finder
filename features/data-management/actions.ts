@@ -1,16 +1,43 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import {
+	revokeAllAdminSessions,
+	secureCompare,
+} from "@/features/auth/admin-auth-token";
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
-import { secureCompare } from "@/features/auth/admin-auth-token";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
+import { clearFeaturedQueueHistory as clearFeaturedQueueHistoryService } from "@/features/events/featured/service";
+import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
+import { clearAllEventSubmissions } from "@/features/events/submissions/store";
+import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
+import { invalidateSlidingBannerCache } from "@/features/site-settings/cache";
+import { SlidingBannerStore } from "@/features/site-settings/sliding-banner-store";
 import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
+import { getActionMetricsRepository } from "@/lib/platform/postgres/action-metrics-repository";
+import { getAdminSessionRepository } from "@/lib/platform/postgres/admin-session-repository";
 import { getEventStoreBackupRepository } from "@/lib/platform/postgres/event-store-backup-repository";
+import { getRateLimitRepository } from "@/lib/platform/postgres/rate-limit-repository";
+import { revalidatePath } from "next/cache";
+import { fetchRemoteCSV } from "./csv/fetcher";
+import { parseCSVContent } from "./csv/parser";
+import {
+	type EditableSheetColumn,
+	type EditableSheetRow,
+	csvToEditableSheet,
+	editableSheetToCsv,
+	stripLegacyFeaturedColumn,
+	validateEditableSheet,
+} from "./csv/sheet-editor";
+import { DataManager } from "./data-manager";
+import { processCSVData } from "./data-processor";
+import { EventStoreBackupService } from "./event-store-backup-service";
 import type {
-	EventsResult,
-	RuntimeDataStatus,
-} from "./runtime-service";
+	EventStoreBackupStatus,
+	EventStoreBackupSummary,
+} from "./event-store-backup-types";
+import { LocalEventStore } from "./local-event-store";
+import type { EventsResult, RuntimeDataStatus } from "./runtime-service";
 import {
 	forceRefreshEventsData,
 	fullEventsRevalidation,
@@ -18,34 +45,10 @@ import {
 	getRuntimeDataStatusFromSource,
 	revalidateEventsPaths,
 } from "./runtime-service";
-import { LocalEventStore } from "./local-event-store";
-import { fetchRemoteCSV } from "./csv/fetcher";
-import { parseCSVContent } from "./csv/parser";
 import {
-	csvToEditableSheet,
-	editableSheetToCsv,
-	stripLegacyFeaturedColumn,
-	type EditableSheetColumn,
-	type EditableSheetRow,
-	validateEditableSheet,
-} from "./csv/sheet-editor";
-import { EventStoreBackupService } from "./event-store-backup-service";
-import type {
-	EventStoreBackupStatus,
-	EventStoreBackupSummary,
-} from "./event-store-backup-types";
-import {
-	analyzeCsvSchemaRows,
 	type CsvSchemaIssue,
+	analyzeCsvSchemaRows,
 } from "./validation/csv-schema-report";
-import { processCSVData } from "./data-processor";
-import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
-import { DataManager } from "./data-manager";
-import { clearFeaturedQueueHistory as clearFeaturedQueueHistoryService } from "@/features/events/featured/service";
-import { clearAllEventSubmissions } from "@/features/events/submissions/store";
-import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
-import { invalidateSlidingBannerCache } from "@/features/site-settings/cache";
-import { SlidingBannerStore } from "@/features/site-settings/sliding-banner-store";
 
 /**
  * Data Management Server Actions
@@ -199,11 +202,11 @@ export async function getLiveSiteEventsSnapshot(
 	}
 
 	try {
-		const sourceRead = options?.forceRefresh ?
-			await DataManager.getEventsData({
-				populateCoordinates: false,
-			})
-		:	await getLiveEvents();
+		const sourceRead = options?.forceRefresh
+			? await DataManager.getEventsData({
+					populateCoordinates: false,
+				})
+			: await getLiveEvents();
 		if (!sourceRead.success) {
 			return {
 				success: false,
@@ -334,9 +337,7 @@ export async function getLocalEventStoreStatus(keyOrToken?: string): Promise<{
 /**
  * Get event store backup status
  */
-export async function getEventStoreBackupStatus(
-	keyOrToken?: string,
-): Promise<{
+export async function getEventStoreBackupStatus(keyOrToken?: string): Promise<{
 	success: boolean;
 	supported?: boolean;
 	reason?: string;
@@ -377,9 +378,7 @@ export async function getEventStoreBackupStatus(
 /**
  * Create manual event store backup
  */
-export async function createEventStoreBackup(
-	keyOrToken?: string,
-): Promise<{
+export async function createEventStoreBackup(keyOrToken?: string): Promise<{
 	success: boolean;
 	message: string;
 	backup?: EventStoreBackupStatus["latestBackup"];
@@ -404,9 +403,9 @@ export async function createEventStoreBackup(
 		}
 
 		const pruneSuffix =
-			result.prunedCount && result.prunedCount > 0 ?
-				` (pruned ${result.prunedCount} old backups)`
-			:	"";
+			result.prunedCount && result.prunedCount > 0
+				? ` (pruned ${result.prunedCount} old backups)`
+				: "";
 
 		return {
 			success: true,
@@ -632,13 +631,19 @@ export async function clearLocalEventStoreCsv(keyOrToken?: string): Promise<{
 export async function factoryResetApplicationState(
 	keyOrToken: string | undefined,
 	stepUpPasscode: string,
+	mode: "standard" | "hard" = "standard",
 ): Promise<{
 	success: boolean;
 	message: string;
 	summary?: {
+		mode: "standard" | "hard";
 		clearedFeaturedEntries: number;
 		clearedEventSubmissions: number;
 		clearedBackups: number;
+		nextAdminTokenVersion?: number;
+		clearedAdminSessions?: number;
+		clearedActionMetrics?: number;
+		clearedRateLimitCounters?: number;
 	};
 	error?: string;
 }> {
@@ -673,8 +678,35 @@ export async function factoryResetApplicationState(
 		await SlidingBannerStore.resetToDefault();
 
 		const backupRepository = getEventStoreBackupRepository();
-		const clearedBackups =
-			backupRepository ? await backupRepository.clearAllBackups() : 0;
+		const clearedBackups = backupRepository
+			? await backupRepository.clearAllBackups()
+			: 0;
+
+		let nextAdminTokenVersion: number | undefined;
+		let clearedAdminSessions: number | undefined;
+		let clearedActionMetrics: number | undefined;
+		let clearedRateLimitCounters: number | undefined;
+		if (mode === "hard") {
+			nextAdminTokenVersion = await revokeAllAdminSessions();
+			const [clearedSessionsCount, clearedMetricsCount, clearedRateLimitCount] =
+				await Promise.all([
+					(async () => {
+						const repository = getAdminSessionRepository();
+						return repository ? repository.clearAllSessions() : 0;
+					})(),
+					(async () => {
+						const repository = getActionMetricsRepository();
+						return repository ? repository.clearAllMetrics() : 0;
+					})(),
+					(async () => {
+						const repository = getRateLimitRepository();
+						return repository ? repository.clearAllCounters() : 0;
+					})(),
+				]);
+			clearedAdminSessions = clearedSessionsCount;
+			clearedActionMetrics = clearedMetricsCount;
+			clearedRateLimitCounters = clearedRateLimitCount;
+		}
 
 		await forceRefreshEventsData();
 		revalidateEventsPaths(["/", "/submit-event"]);
@@ -685,16 +717,28 @@ export async function factoryResetApplicationState(
 			clearedFeaturedEntries,
 			clearedEventSubmissions,
 			clearedBackups,
+			mode,
+			nextAdminTokenVersion,
+			clearedAdminSessions,
+			clearedActionMetrics,
+			clearedRateLimitCounters,
 		});
 
 		return {
 			success: true,
 			message:
-				"Factory reset complete. Store, featured queue, collected users, submissions, and caches were reset.",
+				mode === "hard"
+					? "Hard reset complete. Runtime/admin data, sessions, metrics, and rate limits were reset."
+					: "Factory reset complete. Store, featured queue, collected users, submissions, and caches were reset.",
 			summary: {
+				mode,
 				clearedFeaturedEntries,
 				clearedEventSubmissions,
 				clearedBackups,
+				nextAdminTokenVersion,
+				clearedAdminSessions,
+				clearedActionMetrics,
+				clearedRateLimitCounters,
 			},
 		};
 	} catch (error) {
@@ -732,15 +776,17 @@ export async function previewRemoteCsvForAdmin(
 		return { success: false, error: "Unauthorized access" };
 	}
 
-		try {
-			const { remoteUrl, sheetId, range } = await resolveRemoteSheetConfig();
+	try {
+		const { remoteUrl, sheetId, range } = await resolveRemoteSheetConfig();
 		const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range, {
 			allowLocalFallback: false,
 		});
 		const sheet = csvToEditableSheet(remoteFetchResult.content);
 		const normalizedLimit = Math.max(1, Math.min(limit, 50));
 		const allRows = sheet.rows;
-		const schemaReport = analyzeCsvSchemaRows(allRows, { eventKeyMode: "warn" });
+		const schemaReport = analyzeCsvSchemaRows(allRows, {
+			eventKeyMode: "warn",
+		});
 		const importBlockedReason =
 			buildSchemaBlockingMessage(schemaReport.issues) || undefined;
 		let previewRows = allRows.slice(0, normalizedLimit);
@@ -953,24 +999,23 @@ export async function saveEventSheetEditorRows(
 				error: runtimeValidationError,
 			};
 		}
-			const saved = await LocalEventStore.saveCsv(csvContent, {
-				updatedBy: "admin-sheet-editor",
-				origin: "manual",
-			});
-			const shouldRevalidateHomepage = options?.revalidateHomepage !== false;
-			if (shouldRevalidateHomepage) {
-				await warmCoordinateCacheFromCsv(csvContent, "save-sheet-editor");
-				await forceRefreshEventsData();
-			} else {
-				revalidateEventsPaths(["/"]);
-			}
+		const saved = await LocalEventStore.saveCsv(csvContent, {
+			updatedBy: "admin-sheet-editor",
+			origin: "manual",
+		});
+		const shouldRevalidateHomepage = options?.revalidateHomepage !== false;
+		if (shouldRevalidateHomepage) {
+			await warmCoordinateCacheFromCsv(csvContent, "save-sheet-editor");
+			await forceRefreshEventsData();
+		} else {
+			revalidateEventsPaths(["/"]);
+		}
 
 		return {
 			success: true,
-			message:
-				shouldRevalidateHomepage ?
-					"Saved event sheet to store and revalidated homepage"
-				:	"Saved event sheet to store",
+			message: shouldRevalidateHomepage
+				? "Saved event sheet to store and revalidated homepage"
+				: "Saved event sheet to store",
 			rowCount: saved.rowCount,
 			updatedAt: saved.updatedAt,
 		};

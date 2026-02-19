@@ -1,6 +1,9 @@
 "use server";
 
-import type { CollectedEmailsResponse, UserRecord } from "@/features/auth/types";
+import type {
+	CollectedEmailsResponse,
+	UserRecord,
+} from "@/features/auth/types";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { isAdminAuthEnabled } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
@@ -62,9 +65,7 @@ const buildCollectedUsersCsv = (users: UserRecord[]): string => {
 /**
  * Create admin session (used during login)
  */
-export async function createAdminSession(
-	adminKey: string,
-): Promise<{
+export async function createAdminSession(adminKey: string): Promise<{
 	success: boolean;
 	error?: string;
 	expiresAt?: number;
@@ -77,7 +78,8 @@ export async function createAdminSession(
 		};
 	}
 
-	if (!validateDirectAdminKey(adminKey)) {
+	const normalizedAdminKey = adminKey.trim();
+	if (!validateDirectAdminKey(normalizedAdminKey)) {
 		return { success: false, error: "Invalid admin key" };
 	}
 
@@ -142,9 +144,7 @@ export async function getAdminSessionStatus(): Promise<{
 /**
  * Return current session status and tracked token sessions in one read path.
  */
-export async function getAdminSessionOverview(
-	keyOrToken?: string,
-): Promise<{
+export async function getAdminSessionOverview(keyOrToken?: string): Promise<{
 	success: boolean;
 	sessionStatus: Awaited<ReturnType<typeof getAdminSessionStatus>>;
 	tokenSessions?: Awaited<ReturnType<typeof listAdminTokenSessions>>;

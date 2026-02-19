@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -12,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { factoryResetApplicationState } from "@/features/data-management/actions";
+import { useCallback, useState } from "react";
 
 const CONFIRMATION_PHRASE = "RESET EVERYTHING";
 
@@ -22,6 +22,7 @@ interface SystemResetCardProps {
 export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 	const [stepUpPasscode, setStepUpPasscode] = useState("");
 	const [confirmationText, setConfirmationText] = useState("");
+	const [hardResetEnabled, setHardResetEnabled] = useState(false);
 	const [isResetting, setIsResetting] = useState(false);
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState("");
@@ -34,7 +35,9 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 		}
 
 		const confirmed = window.confirm(
-			"This will clear event store, featured queue/history, collected users, submissions, and related caches. Continue?",
+			hardResetEnabled
+				? "This will clear runtime/admin data and also revoke admin sessions, clear metrics, and clear rate-limit counters. Continue?"
+				: "This will clear event store, featured queue/history, collected users, submissions, and related caches. Continue?",
 		);
 		if (!confirmed) {
 			return;
@@ -54,6 +57,7 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 			const result = await factoryResetApplicationState(
 				undefined,
 				stepUpPasscode,
+				hardResetEnabled ? "hard" : "standard",
 			);
 			if (!result.success) {
 				throw new Error(result.error || result.message);
@@ -62,11 +66,12 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 			const summary = result.summary;
 			setMessage(
 				summary
-					? `${result.message} Cleared ${summary.clearedFeaturedEntries} featured entries, ${summary.clearedEventSubmissions} submissions, ${summary.clearedBackups} backups.`
+					? `${result.message} Cleared ${summary.clearedFeaturedEntries} featured entries, ${summary.clearedEventSubmissions} submissions, ${summary.clearedBackups} backups${summary.mode === "hard" ? `, ${summary.clearedAdminSessions ?? 0} admin sessions, ${summary.clearedActionMetrics ?? 0} action metrics, and ${summary.clearedRateLimitCounters ?? 0} rate-limit counters` : ""}.`
 					: result.message,
 			);
 			setStepUpPasscode("");
 			setConfirmationText("");
+			setHardResetEnabled(false);
 			if (onResetCompleted) {
 				await onResetCompleted();
 			}
@@ -79,7 +84,7 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 		} finally {
 			setIsResetting(false);
 		}
-	}, [confirmationText, onResetCompleted, stepUpPasscode]);
+	}, [confirmationText, hardResetEnabled, onResetCompleted, stepUpPasscode]);
 
 	const canSubmit =
 		!isResetting &&
@@ -97,7 +102,9 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 			<CardContent className="space-y-4">
 				<div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
 					Use this only when preparing a clean start. This clears managed store,
-					featured schedule, collected users, submissions, and cache state.
+					featured schedule, collected users, submissions, and cache state. Hard
+					reset additionally revokes all admin sessions and clears metrics +
+					rate-limit counters.
 				</div>
 
 				<div className="space-y-2">
@@ -124,6 +131,26 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 						autoComplete="off"
 					/>
 				</div>
+
+				<label
+					htmlFor="admin-hard-reset"
+					className="flex items-start gap-3 rounded-md border border-red-200 bg-red-50/70 p-3 text-sm text-red-800"
+				>
+					<Input
+						id="admin-hard-reset"
+						type="checkbox"
+						checked={hardResetEnabled}
+						onChange={(event) => setHardResetEnabled(event.target.checked)}
+						className="mt-0.5 h-4 w-4"
+					/>
+					<span>
+						Enable hard reset
+						<span className="mt-1 block text-xs text-red-700">
+							Revokes all admin sessions and wipes action metrics + rate-limit
+							counters.
+						</span>
+					</span>
+				</label>
 
 				<Button
 					type="button"

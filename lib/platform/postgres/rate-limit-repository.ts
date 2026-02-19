@@ -141,6 +141,20 @@ export class RateLimitRepository {
 
 		return rows[0]?.count ?? 0;
 	}
+
+	async clearAllCounters(): Promise<number> {
+		await this.ready();
+		const rows = await this.sql<{ count: number }[]>`
+			WITH deleted AS (
+				DELETE FROM app_rate_limit_counters
+				RETURNING 1
+			)
+			SELECT COUNT(*)::int AS count
+			FROM deleted
+		`;
+
+		return rows[0]?.count ?? 0;
+	}
 }
 
 export const getRateLimitRepository = (): RateLimitRepository | null => {

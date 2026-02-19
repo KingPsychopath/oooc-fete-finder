@@ -3,6 +3,8 @@ import "server-only";
 import { createHash, randomUUID, timingSafeEqual } from "crypto";
 import { env, isAdminAuthEnabled } from "@/lib/config/env";
 import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
+import { log } from "@/lib/platform/logger";
+import { getAdminSessionRepository } from "@/lib/platform/postgres/admin-session-repository";
 import jwt from "jsonwebtoken";
 import { cookies, headers } from "next/headers";
 import type { NextRequest } from "next/server";
@@ -108,6 +110,17 @@ const parseTokenPayload = (
 };
 
 export const getCurrentTokenVersion = async (): Promise<number> => {
+	const repo = getAdminSessionRepository();
+	if (repo) {
+		try {
+			return await repo.getTokenVersion();
+		} catch (error) {
+			log.warn("auth", "Falling back to KV token version read", {
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
+		}
+	}
+
 	const kv = await getKVStore();
 	const raw = await kv.get(TOKEN_VERSION_KEY);
 	const parsed = Number.parseInt(raw ?? "", 10);
@@ -120,6 +133,18 @@ export const getCurrentTokenVersion = async (): Promise<number> => {
 };
 
 const setCurrentTokenVersion = async (nextVersion: number): Promise<void> => {
+	const repo = getAdminSessionRepository();
+	if (repo) {
+		try {
+			await repo.setTokenVersion(nextVersion);
+			return;
+		} catch (error) {
+			log.warn("auth", "Falling back to KV token version write", {
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
+		}
+	}
+
 	const kv = await getKVStore();
 	await kv.set(TOKEN_VERSION_KEY, String(nextVersion));
 };
@@ -139,6 +164,33 @@ const getRequestMetadataFromServerContext = async (): Promise<{
 };
 
 const isRevoked = async (jti: string, nowSeconds: number): Promise<boolean> => {
+	const repo = getAdminSessionRepository();
+	if (repo) {
+		try {
+			const session = await repo.getSessionByJti(jti);
+			if (!session) {
+				return true;
+			}
+
+			if (session.exp <= nowSeconds) {
+				return true;
+			}
+
+			if (!session.revoked_until) {
+				return false;
+			}
+
+			const revokedUntilSeconds = Math.floor(
+				new Date(session.revoked_until).getTime() / 1000,
+			);
+			return revokedUntilSeconds > nowSeconds;
+		} catch (error) {
+			log.warn("auth", "Falling back to KV revoke check", {
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
+		}
+	}
+
 	const kv = await getKVStore();
 	const raw = await kv.get(revokedKey(jti));
 	if (!raw) {
@@ -166,6 +218,25 @@ const registerSession = async (
 		ua: string;
 	},
 ): Promise<void> => {
+	const repo = getAdminSessionRepository();
+	if (repo) {
+		try {
+			await repo.createSession({
+				jti: payload.jti,
+				tv: payload.tv,
+				iat: payload.iat,
+				exp: payload.exp,
+				ip: meta.ip,
+				ua: meta.ua,
+			});
+			return;
+		} catch (error) {
+			log.warn("auth", "Falling back to KV session registration", {
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
+		}
+	}
+
 	const kv = await getKVStore();
 	await kv.set(
 		sessionKey(payload.jti),
@@ -291,6 +362,51 @@ export const signAdminSessionToken = async (): Promise<{
 	};
 };
 
+const verifyAgainstRepository = async (
+	payload: AdminTokenPayload,
+	nowSeconds: number,
+): Promise<boolean | null> => {
+	const repo = getAdminSessionRepository();
+	if (!repo) {
+		return null;
+	}
+
+	try {
+		const [session, currentVersion] = await Promise.all([
+			repo.getSessionByJti(payload.jti),
+			repo.getTokenVersion(),
+		]);
+
+		if (!session) {
+			return false;
+		}
+
+		if (session.exp <= nowSeconds || payload.exp <= nowSeconds) {
+			return false;
+		}
+
+		if (session.tv !== payload.tv || session.iat !== payload.iat) {
+			return false;
+		}
+
+		if (session.revoked_until) {
+			const revokedUntilSeconds = Math.floor(
+				new Date(session.revoked_until).getTime() / 1000,
+			);
+			if (revokedUntilSeconds > nowSeconds) {
+				return false;
+			}
+		}
+
+		return payload.tv === currentVersion;
+	} catch (error) {
+		log.warn("auth", "Falling back to KV token verification", {
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
+		return null;
+	}
+};
+
 export const verifyAdminSessionToken = async (
 	token: string,
 ): Promise<AdminTokenPayload | null> => {
@@ -313,6 +429,18 @@ export const verifyAdminSessionToken = async (
 		const nowSeconds = Math.floor(Date.now() / 1000);
 		if (payload.exp <= nowSeconds) {
 			return null;
+		}
+
+		const repositoryValidation = await verifyAgainstRepository(
+			payload,
+			nowSeconds,
+		);
+		if (repositoryValidation === false) {
+			return null;
+		}
+
+		if (repositoryValidation === true) {
+			return payload;
 		}
 
 		if (await isRevoked(payload.jti, nowSeconds)) {
@@ -372,7 +500,7 @@ export const getCurrentAdminSession =
 		return verifyAdminSessionFromServerContext();
 	};
 
-export const listAdminTokenSessions = async (): Promise<
+const listAdminTokenSessionsFromKv = async (): Promise<
 	AdminTokenSessionRecord[]
 > => {
 	const kv = await getKVStore();
@@ -447,11 +575,66 @@ export const listAdminTokenSessions = async (): Promise<
 	return sessions;
 };
 
+export const listAdminTokenSessions = async (): Promise<
+	AdminTokenSessionRecord[]
+> => {
+	const repo = getAdminSessionRepository();
+	if (!repo) {
+		return listAdminTokenSessionsFromKv();
+	}
+
+	try {
+		const currentVersion = await repo.getTokenVersion();
+		const sessions: AdminTokenSessionRecord[] = [];
+		let cursor: string | null = null;
+		let pageCount = 0;
+
+		while (pageCount < 100) {
+			const page = await repo.listSessionsPaginated({
+				limit: 100,
+				cursor,
+				currentVersion,
+			});
+			sessions.push(...page.items);
+			if (!page.hasMore || !page.nextCursor) {
+				break;
+			}
+			cursor = page.nextCursor;
+			pageCount += 1;
+		}
+
+		if (pageCount >= 100) {
+			log.warn("auth", "Stopped session pagination early at safety limit", {
+				pageCount,
+				count: sessions.length,
+			});
+		}
+
+		return sessions;
+	} catch (error) {
+		log.warn("auth", "Falling back to KV session listing", {
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
+		return listAdminTokenSessionsFromKv();
+	}
+};
+
 /**
  * Delete expired admin session records that are past the grace window (exp + SESSION_CLEANUP_GRACE_SECONDS).
  * Intended to be called by a cron job (e.g. daily). Returns the number of records deleted.
  */
 export const cleanupExpiredAdminSessions = async (): Promise<number> => {
+	const repo = getAdminSessionRepository();
+	if (repo) {
+		try {
+			return await repo.cleanupExpired(SESSION_CLEANUP_GRACE_SECONDS);
+		} catch (error) {
+			log.warn("auth", "Falling back to KV session cleanup", {
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
+		}
+	}
+
 	const kv = await getKVStore();
 	const keys = await kv.list(SESSION_KEY_PREFIX);
 	const nowSeconds = Math.floor(Date.now() / 1000);
@@ -479,6 +662,17 @@ export const revokeAdminSessionByJti = async (
 	const cleanJti = jti.trim();
 	if (!SAFE_JTI.test(cleanJti)) {
 		return false;
+	}
+
+	const repo = getAdminSessionRepository();
+	if (repo) {
+		try {
+			return await repo.revokeSessionByJti(cleanJti);
+		} catch (error) {
+			log.warn("auth", "Falling back to KV session revoke", {
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
+		}
 	}
 
 	const kv = await getKVStore();

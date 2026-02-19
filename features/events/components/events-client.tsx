@@ -109,9 +109,22 @@ export function EventsClient({
 		);
 	}, [initialEvents]);
 
+	const buildUrlFromParams = useCallback(
+		(params: URLSearchParams) => {
+			const basePath =
+				typeof window !== "undefined" ? window.location.pathname : pathname;
+			const query = params.toString();
+			return query ? `${basePath}?${query}` : basePath;
+		},
+		[pathname],
+	);
+
 	const createUrlForEventState = useCallback(
 		(event: Event | null) => {
-			const params = new URLSearchParams(searchParams.toString());
+			const params =
+				typeof window !== "undefined"
+					? new URLSearchParams(window.location.search)
+					: new URLSearchParams(searchParams.toString());
 			if (!event) {
 				params.delete("event");
 				params.delete("slug");
@@ -119,13 +132,15 @@ export function EventsClient({
 				params.set("event", event.eventKey);
 				params.set("slug", event.slug);
 			}
-			const query = params.toString();
-			return query ? `${pathname}?${query}` : pathname;
+			return buildUrlFromParams(params);
 		},
-		[pathname, searchParams],
+		[buildUrlFromParams, searchParams],
 	);
 
 	const getCurrentUrl = useCallback(() => {
+		if (typeof window !== "undefined") {
+			return `${window.location.pathname}${window.location.search}`;
+		}
 		const current = searchParams.toString();
 		return current ? `${pathname}?${current}` : pathname;
 	}, [pathname, searchParams]);

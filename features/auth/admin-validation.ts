@@ -1,10 +1,10 @@
-import type { NextRequest } from "next/server";
-import { env, isAdminAuthEnabled } from "@/lib/config/env";
 import {
 	secureCompare,
 	verifyAdminSessionFromRequest,
 	verifyAdminSessionFromServerContext,
 } from "@/features/auth/admin-auth-token";
+import { env, isAdminAuthEnabled } from "@/lib/config/env";
+import type { NextRequest } from "next/server";
 
 const getExpectedAdminKey = (): string => {
 	return env.ADMIN_KEY.trim();
@@ -18,7 +18,8 @@ export const validateDirectAdminKey = (providedKey: string | null): boolean => {
 	if (!isAdminAuthEnabled()) return false;
 	const expectedKey = getExpectedAdminKey();
 	if (!expectedKey) return false;
-	return providedKey.length > 0 && secureCompare(providedKey, expectedKey);
+	const candidate = providedKey.trim();
+	return candidate.length > 0 && secureCompare(candidate, expectedKey);
 };
 
 /**
@@ -31,7 +32,8 @@ export const validateAdminKeyForApiRoute = async (
 ): Promise<boolean> => {
 	if (!isAdminAuthEnabled()) return false;
 
-	const candidate = overrideCredential?.trim() || request.headers.get("x-admin-key");
+	const candidate =
+		overrideCredential?.trim() || request.headers.get("x-admin-key");
 	if (validateDirectAdminKey(candidate)) {
 		return true;
 	}
@@ -54,6 +56,8 @@ export const validateAdminAccessFromServerContext = async (
 		return true;
 	}
 
-	const payload = await verifyAdminSessionFromServerContext(candidate || undefined);
+	const payload = await verifyAdminSessionFromServerContext(
+		candidate || undefined,
+	);
 	return Boolean(payload);
 };

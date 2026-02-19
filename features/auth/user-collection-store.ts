@@ -2,86 +2,38 @@ import "server-only";
 
 import type {
 	UserCollectionAnalytics,
-	UserCollectionSourceSummary,
 	UserRecord,
 } from "@/features/auth/types";
-import { getKVStore, getKVStoreInfo } from "@/lib/platform/kv/kv-store-factory";
+import {
+	getUserCollectionRepository,
+	type UserCollectionStoreSnapshot,
+} from "@/lib/platform/postgres/user-collection-repository";
 
-const USERS_COLLECTION_KEY = "users:collection:v1";
-const MAX_USERS = 10000;
+const MAX_USERS = 10_000;
 
-interface StoredUserRecord extends UserRecord {
+type StoredUserRecord = UserRecord & {
 	submissions: number;
 	firstSeenAt: string;
-}
-
-interface UserCollectionPayload {
-	version: 1;
-	updatedAt: string;
-	records: Record<string, StoredUserRecord>;
-}
-
-const EMPTY_PAYLOAD: UserCollectionPayload = {
-	version: 1,
-	updatedAt: new Date(0).toISOString(),
-	records: {},
 };
 
-const parsePayload = (raw: string | null): UserCollectionPayload => {
-	if (!raw) return EMPTY_PAYLOAD;
-	try {
-		const parsed = JSON.parse(raw) as Partial<UserCollectionPayload>;
-		if (!parsed || typeof parsed !== "object" || !parsed.records) {
-			return EMPTY_PAYLOAD;
-		}
+declare global {
+	var __ooocFeteFinderUserCollectionMemoryStore:
+		| Record<string, StoredUserRecord>
+		| undefined;
+}
 
-		const normalizedRecords = Object.fromEntries(
-			Object.entries(parsed.records).flatMap(([email, value]) => {
-				if (!value || typeof value !== "object") return [];
-				const record = value as Partial<StoredUserRecord>;
-				if (
-					typeof record.firstName !== "string" ||
-					typeof record.lastName !== "string" ||
-					typeof record.email !== "string" ||
-					typeof record.timestamp !== "string" ||
-					typeof record.source !== "string"
-				) {
-					return [];
-				}
-				return [
-					[
-						email,
-						{
-							firstName: record.firstName,
-							lastName: record.lastName,
-							email: record.email,
-							timestamp: record.timestamp,
-							consent: Boolean(record.consent),
-							source: record.source,
-							submissions:
-								typeof record.submissions === "number" ? record.submissions : 1,
-							firstSeenAt:
-								typeof record.firstSeenAt === "string"
-									? record.firstSeenAt
-									: record.timestamp,
-						} satisfies StoredUserRecord,
-					],
-				];
-			}),
-		);
-
-		return {
-			version: 1,
-			updatedAt:
-				typeof parsed.updatedAt === "string"
-					? parsed.updatedAt
-					: new Date().toISOString(),
-			records: normalizedRecords,
-		};
-	} catch {
-		return EMPTY_PAYLOAD;
-	}
-};
+const emptyAnalytics = (): UserCollectionAnalytics => ({
+	totalUsers: 0,
+	totalSubmissions: 0,
+	consentedUsers: 0,
+	nonConsentedUsers: 0,
+	submissionsLast24Hours: 0,
+	submissionsLast7Days: 0,
+	uniqueSources: 0,
+	topSources: [],
+	firstCapturedAt: null,
+	lastCapturedAt: null,
+});
 
 const normalizeUserRecord = (user: UserRecord): UserRecord => ({
 	firstName: user.firstName.trim(),
@@ -110,103 +62,78 @@ const toSortedUserRecords = (
 		}));
 };
 
-const buildAnalytics = (
-	records: Record<string, StoredUserRecord>,
-): UserCollectionAnalytics => {
+const getMemoryStore = (): Record<string, StoredUserRecord> => {
+	if (!globalThis.__ooocFeteFinderUserCollectionMemoryStore) {
+		globalThis.__ooocFeteFinderUserCollectionMemoryStore = {};
+	}
+	return globalThis.__ooocFeteFinderUserCollectionMemoryStore;
+};
+
+const getMemorySnapshot = (): UserCollectionStoreSnapshot => {
+	const records = getMemoryStore();
+	const users = toSortedUserRecords(records);
 	const values = Object.values(records);
 	if (values.length === 0) {
 		return {
+			users,
+			analytics: emptyAnalytics(),
 			totalUsers: 0,
-			totalSubmissions: 0,
-			consentedUsers: 0,
-			nonConsentedUsers: 0,
-			submissionsLast24Hours: 0,
-			submissionsLast7Days: 0,
-			uniqueSources: 0,
-			topSources: [],
-			firstCapturedAt: null,
-			lastCapturedAt: null,
+			lastUpdatedAt: null,
 		};
 	}
 
-	const nowMs = Date.now();
-	const last24HoursMs = nowMs - 24 * 60 * 60 * 1000;
-	const last7DaysMs = nowMs - 7 * 24 * 60 * 60 * 1000;
-
-	let totalSubmissions = 0;
-	let consentedUsers = 0;
-	let submissionsLast24Hours = 0;
-	let submissionsLast7Days = 0;
-	let firstCapturedAt: string | null = null;
-	let lastCapturedAt: string | null = null;
-
-	const sourceCounts = new Map<string, UserCollectionSourceSummary>();
-
+	const totalSubmissions = values.reduce(
+		(acc, record) => acc + record.submissions,
+		0,
+	);
+	const consentedUsers = values.filter((record) => record.consent).length;
+	const sources = new Map<string, { source: string; users: number; submissions: number }>();
 	for (const record of values) {
-		totalSubmissions += record.submissions;
-		if (record.consent) {
-			consentedUsers += 1;
-		}
-
-		const capturedAtMs = new Date(record.timestamp).getTime();
-		if (Number.isFinite(capturedAtMs)) {
-			if (capturedAtMs >= last24HoursMs) {
-				submissionsLast24Hours += record.submissions;
-			}
-			if (capturedAtMs >= last7DaysMs) {
-				submissionsLast7Days += record.submissions;
-			}
-		}
-
-		if (
-			!firstCapturedAt ||
-			new Date(record.firstSeenAt).getTime() < new Date(firstCapturedAt).getTime()
-		) {
-			firstCapturedAt = record.firstSeenAt;
-		}
-		if (
-			!lastCapturedAt ||
-			new Date(record.timestamp).getTime() > new Date(lastCapturedAt).getTime()
-		) {
-			lastCapturedAt = record.timestamp;
-		}
-
-		const source = record.source.trim() || "unknown";
-		const existing = sourceCounts.get(source);
+		const existing = sources.get(record.source);
 		if (!existing) {
-			sourceCounts.set(source, {
-				source,
+			sources.set(record.source, {
+				source: record.source,
 				users: 1,
 				submissions: record.submissions,
 			});
-			continue;
+		} else {
+			sources.set(record.source, {
+				source: record.source,
+				users: existing.users + 1,
+				submissions: existing.submissions + record.submissions,
+			});
 		}
-
-		sourceCounts.set(source, {
-			source,
-			users: existing.users + 1,
-			submissions: existing.submissions + record.submissions,
-		});
 	}
 
-	const topSources = Array.from(sourceCounts.values()).sort((left, right) => {
-		if (right.users !== left.users) {
-			return right.users - left.users;
-		}
-		return right.submissions - left.submissions;
-	});
+	const lastUpdatedAt =
+		values
+			.map((record) => record.timestamp)
+			.sort((left, right) => (left > right ? -1 : 1))[0] ?? null;
 
 	return {
+		users,
+		analytics: {
+			totalUsers: values.length,
+			totalSubmissions,
+			consentedUsers,
+			nonConsentedUsers: values.length - consentedUsers,
+			submissionsLast24Hours: 0,
+			submissionsLast7Days: 0,
+			uniqueSources: sources.size,
+			topSources: Array.from(sources.values()).sort((left, right) => {
+				if (right.users !== left.users) {
+					return right.users - left.users;
+				}
+				return right.submissions - left.submissions;
+			}),
+			firstCapturedAt:
+				values
+					.map((record) => record.firstSeenAt)
+					.sort((left, right) => (left > right ? 1 : -1))[0] ?? null,
+			lastCapturedAt: lastUpdatedAt,
+		},
 		totalUsers: values.length,
-		totalSubmissions,
-		consentedUsers,
-		nonConsentedUsers: values.length - consentedUsers,
-		submissionsLast24Hours,
-		submissionsLast7Days,
-		uniqueSources: sourceCounts.size,
-		topSources,
-		firstCapturedAt,
-		lastCapturedAt,
+		lastUpdatedAt,
 	};
 };
 
@@ -224,50 +151,35 @@ export interface UserCollectionAdminSnapshot {
 }
 
 export class UserCollectionStore {
-	private static async readPayload(): Promise<UserCollectionPayload> {
-		const kv = await getKVStore();
-		const raw = await kv.get(USERS_COLLECTION_KEY);
-		return parsePayload(raw);
-	}
-
-	private static async writePayload(payload: UserCollectionPayload): Promise<void> {
-		const kv = await getKVStore();
-		await kv.set(USERS_COLLECTION_KEY, JSON.stringify(payload));
-	}
-
 	static async addOrUpdate(user: UserRecord): Promise<{
-	record: UserRecord;
-	alreadyExisted: boolean;
-}> {
+		record: UserRecord;
+		alreadyExisted: boolean;
+	}> {
 		const normalized = normalizeUserRecord(user);
-		const payload = await this.readPayload();
-		const existing = payload.records[normalized.email];
+		const repository = getUserCollectionRepository();
+		if (repository) {
+			return repository.addOrUpdate(normalized);
+		}
 
-		payload.records[normalized.email] = {
+		const store = getMemoryStore();
+		const existing = store[normalized.email];
+		store[normalized.email] = {
 			...normalized,
 			submissions: (existing?.submissions ?? 0) + 1,
 			firstSeenAt: existing?.firstSeenAt ?? normalized.timestamp,
 		};
 
-		const keys = Object.keys(payload.records);
+		const keys = Object.keys(store);
 		if (keys.length > MAX_USERS) {
-			const sortedByRecent = keys.sort((left, right) => {
-				return (
-					new Date(payload.records[right].timestamp).getTime() -
-					new Date(payload.records[left].timestamp).getTime()
-				);
-			});
-
-			const keptKeys = new Set(sortedByRecent.slice(0, MAX_USERS));
-			for (const key of keys) {
-				if (!keptKeys.has(key)) {
-					delete payload.records[key];
-				}
-			}
+			keys
+				.sort((left, right) =>
+					store[right].timestamp.localeCompare(store[left].timestamp),
+				)
+				.slice(MAX_USERS)
+				.forEach((key) => {
+					delete store[key];
+				});
 		}
-
-		payload.updatedAt = new Date().toISOString();
-		await this.writePayload(payload);
 
 		return {
 			record: normalized,
@@ -276,47 +188,62 @@ export class UserCollectionStore {
 	}
 
 	static async listAll(): Promise<UserRecord[]> {
-		const payload = await this.readPayload();
-		return toSortedUserRecords(payload.records);
+		const repository = getUserCollectionRepository();
+		if (repository) {
+			return repository.listAll(MAX_USERS);
+		}
+		return getMemorySnapshot().users;
 	}
 
 	static async getAnalytics(): Promise<UserCollectionAnalytics> {
-		const payload = await this.readPayload();
-		return buildAnalytics(payload.records);
+		const repository = getUserCollectionRepository();
+		if (repository) {
+			return repository.getAnalytics();
+		}
+		return getMemorySnapshot().analytics;
 	}
 
 	static async getAdminSnapshot(): Promise<UserCollectionAdminSnapshot> {
-		const [payload, provider] = await Promise.all([
-			this.readPayload(),
-			getKVStoreInfo(),
-		]);
+		const repository = getUserCollectionRepository();
+		if (repository) {
+			const snapshot = await repository.getSnapshot();
+			return {
+				users: snapshot.users,
+				analytics: snapshot.analytics,
+				status: {
+					provider: "postgres",
+					location: "Postgres tables app_user_collection_events + app_user_collection_rollup",
+					totalUsers: snapshot.totalUsers,
+					lastUpdatedAt: snapshot.lastUpdatedAt,
+				},
+			};
+		}
 
+		const snapshot = getMemorySnapshot();
 		return {
-			users: toSortedUserRecords(payload.records),
-			analytics: buildAnalytics(payload.records),
+			users: snapshot.users,
+			analytics: snapshot.analytics,
 			status: {
-				provider: provider.provider,
-				location: provider.location,
-				totalUsers: Object.keys(payload.records).length,
-				lastUpdatedAt: payload.updatedAt || null,
+				provider: "memory",
+				location: "in-memory fallback",
+				totalUsers: snapshot.totalUsers,
+				lastUpdatedAt: snapshot.lastUpdatedAt,
 			},
 		};
 	}
 
 	static async getStatus(): Promise<UserCollectionStoreStatus> {
-		const payload = await this.readPayload();
-		const provider = await getKVStoreInfo();
-
-		return {
-			provider: provider.provider,
-			location: provider.location,
-			totalUsers: Object.keys(payload.records).length,
-			lastUpdatedAt: payload.updatedAt || null,
-		};
+		const snapshot = await this.getAdminSnapshot();
+		return snapshot.status;
 	}
 
 	static async clearAll(): Promise<void> {
-		const kv = await getKVStore();
-		await kv.delete(USERS_COLLECTION_KEY);
+		const repository = getUserCollectionRepository();
+		if (repository) {
+			await repository.clearAll();
+			return;
+		}
+
+		globalThis.__ooocFeteFinderUserCollectionMemoryStore = {};
 	}
 }
