@@ -70,7 +70,7 @@ export function EventsClient({
 	}, [isAuthenticated]);
 
 	const {
-		selectedDate,
+		selectedDateRange,
 		selectedDayNightPeriods,
 		selectedArrondissements,
 		selectedGenres,
@@ -82,10 +82,11 @@ export function EventsClient({
 		selectedOOOCPicks,
 		availableArrondissements,
 		availableEventDates,
+		quickSelectEventDates,
 		filteredEvents,
 		hasAnyActiveFilters,
 		activeFiltersCount,
-		onDateChange,
+		onDateRangeChange,
 		onDayNightPeriodToggle,
 		onArrondissementToggle,
 		onGenreToggle,
@@ -306,8 +307,8 @@ export function EventsClient({
 					onAuthRequired={() => setShowEmailGate(true)}
 					className="min-h-[400px]"
 				>
-					<FilterPanel
-						selectedDate={selectedDate}
+						<FilterPanel
+							selectedDateRange={selectedDateRange}
 						selectedDayNightPeriods={selectedDayNightPeriods}
 						selectedArrondissements={selectedArrondissements}
 						selectedGenres={selectedGenres}
@@ -317,7 +318,7 @@ export function EventsClient({
 						selectedPriceRange={selectedPriceRange}
 						selectedAgeRange={selectedAgeRange}
 						selectedOOOCPicks={selectedOOOCPicks}
-						onDateChange={onDateChange}
+							onDateRangeChange={onDateRangeChange}
 						onDayNightPeriodToggle={onDayNightPeriodToggle}
 						onArrondissementToggle={onArrondissementToggle}
 						onGenreToggle={onGenreToggle}
@@ -328,9 +329,10 @@ export function EventsClient({
 						onAgeRangeChange={onAgeRangeChange}
 						onOOOCPicksToggle={onOOOCPicksToggle}
 						onClearFilters={onClearFilters}
-						availableArrondissements={availableArrondissements}
-						availableEventDates={availableEventDates}
-						filteredEventsCount={filteredEvents.length}
+							availableArrondissements={availableArrondissements}
+							availableEventDates={availableEventDates}
+							quickSelectEventDates={quickSelectEventDates}
+							filteredEventsCount={filteredEvents.length}
 						isOpen={isFilterOpen}
 						onClose={() => setIsFilterOpen(false)}
 						onOpen={() => setIsFilterOpen(true)}

@@ -14,8 +14,13 @@ import {
 } from "@/features/events/types";
 import { isStrictISODate } from "./date-utils";
 
+export type DateRangeFilter = {
+	from: string | null;
+	to: string | null;
+};
+
 export type EventFilterState = {
-	selectedDate: string | null;
+	selectedDateRange: DateRangeFilter;
 	selectedDayNightPeriods: DayNightPeriod[];
 	selectedArrondissements: ParisArrondissement[];
 	selectedGenres: MusicGenre[];
@@ -29,7 +34,10 @@ export type EventFilterState = {
 };
 
 export const DEFAULT_EVENT_FILTER_STATE: EventFilterState = {
-	selectedDate: null,
+	selectedDateRange: {
+		from: null,
+		to: null,
+	},
 	selectedDayNightPeriods: [],
 	selectedArrondissements: [],
 	selectedGenres: [],
@@ -112,8 +120,11 @@ export const filterEvents = (
 	return events.filter((event) => {
 		if (filters.selectedOOOCPicks && event.isOOOCPick !== true) return false;
 
-		if (filters.selectedDate && event.date !== filters.selectedDate) {
-			return false;
+		const { from: selectedDateFrom, to: selectedDateTo } = filters.selectedDateRange;
+		if (selectedDateFrom || selectedDateTo) {
+			if (!isStrictISODate(event.date)) return false;
+			if (selectedDateFrom && event.date < selectedDateFrom) return false;
+			if (selectedDateTo && event.date > selectedDateTo) return false;
 		}
 
 		if (filters.selectedDayNightPeriods.length > 0) {
@@ -192,6 +203,26 @@ export const getAvailableEventDates = (events: Event[]): string[] => {
 	return Array.from(dates).sort((left, right) => left.localeCompare(right));
 };
 
+export const getTopEventDatesByCount = (
+	events: Event[],
+	limit = 4,
+): string[] => {
+	const countsByDate = new Map<string, number>();
+	for (const event of events) {
+		const date = event.date?.trim();
+		if (!date || !isStrictISODate(date)) continue;
+		countsByDate.set(date, (countsByDate.get(date) ?? 0) + 1);
+	}
+
+	return Array.from(countsByDate.entries())
+		.sort((left, right) => {
+			if (right[1] !== left[1]) return right[1] - left[1];
+			return left[0].localeCompare(right[0]);
+		})
+		.slice(0, limit)
+		.map(([date]) => date);
+};
+
 const hasCustomPriceRange = (range: [number, number]): boolean => {
 	return range[0] !== PRICE_RANGE_CONFIG.min || range[1] !== PRICE_RANGE_CONFIG.max;
 };
@@ -201,9 +232,13 @@ const hasCustomAgeRange = (range: AgeRange | null): boolean => {
 	return range[0] !== AGE_RANGE_CONFIG.min || range[1] !== AGE_RANGE_CONFIG.max;
 };
 
+const hasSelectedDateRange = (range: DateRangeFilter): boolean => {
+	return range.from !== null || range.to !== null;
+};
+
 export const hasActiveFilters = (filters: EventFilterState): boolean => {
 	return (
-		filters.selectedDate !== null ||
+		hasSelectedDateRange(filters.selectedDateRange) ||
 		filters.selectedDayNightPeriods.length > 0 ||
 		filters.selectedArrondissements.length > 0 ||
 		filters.selectedGenres.length > 0 ||
@@ -219,7 +254,7 @@ export const hasActiveFilters = (filters: EventFilterState): boolean => {
 
 export const getActiveFiltersCount = (filters: EventFilterState): number => {
 	return (
-		(filters.selectedDate !== null ? 1 : 0) +
+		(hasSelectedDateRange(filters.selectedDateRange) ? 1 : 0) +
 		filters.selectedDayNightPeriods.length +
 		filters.selectedArrondissements.length +
 		filters.selectedGenres.length +

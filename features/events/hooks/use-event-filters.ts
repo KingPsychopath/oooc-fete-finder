@@ -14,10 +14,12 @@ import {
 import { useCallback, useMemo, useState } from "react";
 import {
 	DEFAULT_EVENT_FILTER_STATE,
+	type DateRangeFilter,
 	filterEvents,
 	getActiveFiltersCount,
 	getAvailableArrondissements,
 	getAvailableEventDates,
+	getTopEventDatesByCount,
 	hasActiveFilters,
 } from "../filtering";
 
@@ -32,12 +34,21 @@ const toggleArrayValue = <T,>(values: T[], value: T): T[] => {
 		: [...values, value];
 };
 
+const normalizeDateRange = (range: DateRangeFilter): DateRangeFilter => {
+	const from = range.from && range.from.trim().length > 0 ? range.from : null;
+	const to = range.to && range.to.trim().length > 0 ? range.to : null;
+	if (from && to && from > to) {
+		return { from: to, to: from };
+	}
+	return { from, to };
+};
+
 export const useEventFilters = ({
 	events,
 	requireAuth,
 }: UseEventFiltersArgs) => {
-	const [selectedDate, setSelectedDate] = useState<string | null>(
-		DEFAULT_EVENT_FILTER_STATE.selectedDate,
+	const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
+		DEFAULT_EVENT_FILTER_STATE.selectedDateRange,
 	);
 	const [selectedDayNightPeriods, setSelectedDayNightPeriods] = useState<
 		DayNightPeriod[]
@@ -75,14 +86,18 @@ export const useEventFilters = ({
 		[events],
 	);
 	const availableEventDates = useMemo(() => getAvailableEventDates(events), [events]);
+	const quickSelectEventDates = useMemo(
+		() => getTopEventDatesByCount(events, 4),
+		[events],
+	);
 
 	const filteredEvents = useMemo(
-		() =>
-			filterEvents(events, {
-				selectedDate,
-				selectedDayNightPeriods,
-				selectedArrondissements,
-				selectedGenres,
+			() =>
+				filterEvents(events, {
+					selectedDateRange,
+					selectedDayNightPeriods,
+					selectedArrondissements,
+					selectedGenres,
 				selectedNationalities,
 				selectedVenueTypes,
 				selectedIndoorPreference,
@@ -91,11 +106,11 @@ export const useEventFilters = ({
 				selectedOOOCPicks,
 				searchQuery,
 			}),
-		[
-			events,
-			selectedDate,
-			selectedDayNightPeriods,
-			selectedArrondissements,
+			[
+				events,
+				selectedDateRange,
+				selectedDayNightPeriods,
+				selectedArrondissements,
 			selectedGenres,
 			selectedNationalities,
 			selectedVenueTypes,
@@ -108,10 +123,10 @@ export const useEventFilters = ({
 	);
 
 	const activeFiltersCount = useMemo(
-		() =>
-			getActiveFiltersCount({
-				selectedDate,
-				selectedDayNightPeriods,
+			() =>
+				getActiveFiltersCount({
+					selectedDateRange,
+					selectedDayNightPeriods,
 				selectedArrondissements,
 				selectedGenres,
 				selectedNationalities,
@@ -122,9 +137,9 @@ export const useEventFilters = ({
 				selectedOOOCPicks,
 				searchQuery,
 			}),
-		[
-			selectedDate,
-			selectedDayNightPeriods,
+			[
+				selectedDateRange,
+				selectedDayNightPeriods,
 			selectedArrondissements,
 			selectedGenres,
 			selectedNationalities,
@@ -138,10 +153,10 @@ export const useEventFilters = ({
 	);
 
 	const hasAnyActiveFilters = useMemo(
-		() =>
-			hasActiveFilters({
-				selectedDate,
-				selectedDayNightPeriods,
+			() =>
+				hasActiveFilters({
+					selectedDateRange,
+					selectedDayNightPeriods,
 				selectedArrondissements,
 				selectedGenres,
 				selectedNationalities,
@@ -152,9 +167,9 @@ export const useEventFilters = ({
 				selectedOOOCPicks,
 				searchQuery,
 			}),
-		[
-			selectedDate,
-			selectedDayNightPeriods,
+			[
+				selectedDateRange,
+				selectedDayNightPeriods,
 			selectedArrondissements,
 			selectedGenres,
 			selectedNationalities,
@@ -167,10 +182,10 @@ export const useEventFilters = ({
 		],
 	);
 
-	const onDateChange = useCallback(
-		(date: string | null) => {
+	const onDateRangeChange = useCallback(
+		(dateRange: DateRangeFilter) => {
 			if (!requireAuth()) return;
-			setSelectedDate(date && date.trim().length > 0 ? date : null);
+			setSelectedDateRange(normalizeDateRange(dateRange));
 		},
 		[requireAuth],
 	);
@@ -267,7 +282,10 @@ export const useEventFilters = ({
 
 	const onClearFilters = useCallback(() => {
 		if (!requireAuth()) return;
-		setSelectedDate(null);
+		setSelectedDateRange({
+			from: null,
+			to: null,
+		});
 		setSelectedDayNightPeriods([]);
 		setSelectedArrondissements([]);
 		setSelectedGenres([]);
@@ -281,7 +299,7 @@ export const useEventFilters = ({
 	}, [requireAuth]);
 
 	return {
-		selectedDate,
+		selectedDateRange,
 		selectedDayNightPeriods,
 		selectedArrondissements,
 		selectedGenres,
@@ -294,10 +312,11 @@ export const useEventFilters = ({
 		searchQuery,
 		availableArrondissements,
 		availableEventDates,
+		quickSelectEventDates,
 		filteredEvents,
 		hasAnyActiveFilters,
 		activeFiltersCount,
-		onDateChange,
+		onDateRangeChange,
 		onDayNightPeriodToggle,
 		onArrondissementToggle,
 		onGenreToggle,
