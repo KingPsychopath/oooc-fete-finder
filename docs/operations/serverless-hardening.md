@@ -1,52 +1,36 @@
 # Serverless Hardening (Vercel)
 
-This runbook documents the production/preview runtime rules for this app.
+This runbook defines production and preview runtime rules.
 
-## Runtime Policy (Preview + Production)
+## Runtime Policy
 
-1. KV provider is **strict Postgres-only**.
-2. No fallback to file/memory KV in deployed serverless runtimes.
-3. Google service account credentials are **env-only**:
-   - Required: `GOOGLE_SERVICE_ACCOUNT_KEY`
-4. Runtime disk persistence is not used for OG uploads or coordinate storage.
+1. KV/runtime store in deployed serverless environments is Postgres-backed
+2. `DATABASE_URL` must be healthy
+3. Cron routes and deploy revalidation routes must be token-protected
+4. Runtime disk persistence is not relied on for event or coordinate storage
 
-## Data Flow (Events + Coordinates)
+## Event + Revalidation Flow
 
-1. Live reads remain pass-through (`runtime-service` -> `DataManager`).
-2. Coordinate lookup storage is now KV-backed (`maps:locations:v1`), which is durable in production when Postgres KV is healthy.
-3. Admin write actions warm coordinates once after write:
-   - `saveLocalEventStoreCsv`
-   - `importRemoteCsvToLocalEventStore`
-   - `saveEventSheetEditorRows` (when homepage revalidation is enabled)
-4. Warm-up failure is surfaced, but saved event-store data is still persisted.
-5. Warm-up prunes location-cache keys not present in the latest dataset.
-6. Stored `estimated` entries are auto-upgraded to `geocoded` when geocoding recovers.
+1. Live reads: `runtime-service` -> `DataManager`
+2. Homepage publish uses save + revalidate path/tag behavior
+3. Deploy hook endpoint: `POST/GET /api/revalidate/deploy`
+4. Deploy hook requires `DEPLOY_REVALIDATE_SECRET`
 
-## OG Image Strategy
+## Cron Endpoints
 
-1. Standardized OG variants:
-   - `default` (site-wide default image)
-   - `event-modal` (share links that include `?event=...`)
-2. No runtime OG asset upload endpoint is used; OG images are generated dynamically.
+Configured in `vercel.json`:
 
-## Troubleshooting
+- `GET /api/cron/cleanup-admin-sessions` at `0 4 * * *`
+- `GET /api/cron/cleanup-rate-limits` at `10 4 * * *`
+- `GET /api/cron/backup-event-store` at `20 4 * * *`
 
-### KV strict-mode init failure
+All require: `Authorization: Bearer <CRON_SECRET>`
 
-Symptoms:
-- Startup/runtime errors from `kv-store-factory` in preview/production
+## Failure Checks
 
-Verify:
-1. `DATABASE_URL` is set in Vercel `Preview` and `Production` envs.
-2. Postgres integration is reachable from the deployment.
-3. Runtime is Node.js (not Edge) for KV-dependent routes/actions.
+If runtime errors appear in preview/prod:
 
-### Coordinate warm-up failure/retry
-
-Symptoms:
-- Admin save/import returns failure after write with warm-up error
-
-Verify:
-1. `GOOGLE_MAPS_API_KEY` is present if geocoding is expected.
-2. Geocoding API is enabled in Google Cloud Console.
-3. Retry by running the same admin write action again after fixing configuration.
+1. Confirm `DATABASE_URL` exists in Preview and Production envs
+2. Confirm `DATA_MODE` is explicitly set (`remote`, `local`, or `test`)
+3. Confirm `CRON_SECRET` and `DEPLOY_REVALIDATE_SECRET` are set where needed
+4. Verify route handlers are running in Node runtime where expected

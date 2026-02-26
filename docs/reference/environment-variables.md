@@ -1,67 +1,40 @@
-# Environment Variables Reference
+# Environment Variables
 
-Schema lives in `lib/config/env.ts`.
+Validation schema: `lib/config/env.ts`
 
-## Server Variables (app actually reads these)
+## Server Variables
 
 | Variable | Required | Default | Notes |
 | --- | --- | --- | --- |
-| `NODE_ENV` | No | `development` | `development` \| `production` \| `test` |
-| `ADMIN_KEY` | No | `""` | Admin auth key. If unset/empty, admin authentication is disabled. |
-| `AUTH_SECRET` | **Yes** | - | JWT/cookie signing secret (minimum 32 characters) |
-| `DATABASE_URL` | No | - | Postgres connection (app uses only this for DB) |
-| `DATA_MODE` | Dev/Test: No, Prod: **Yes** | `remote` | `remote` \| `local` \| `test`; production throws at startup if missing |
-| `REMOTE_CSV_URL` | No | - | CSV URL for admin backup preview/import |
-| `GOOGLE_MAPS_API_KEY` | No | - | Geocoding; if unset, arrondissement centre fallback |
-| `GOOGLE_SHEET_ID` | No | - | Backup sheet for admin import |
-| `GOOGLE_SERVICE_ACCOUNT_KEY` | No | - | Required for service-account sheet access. |
-| `CRON_SECRET` | No | - | Secret for cron routes (cleanup admin sessions, cleanup rate limits, event + featured snapshot backup). Vercel cron sends `Authorization: Bearer <CRON_SECRET>`. |
-| `DEPLOY_REVALIDATE_SECRET` | No | - | Secret for `/api/revalidate/deploy` (post-deploy live reload + homepage revalidation). |
+| `NODE_ENV` | No | `development` | `development`, `production`, or `test` |
+| `AUTH_SECRET` | Yes | - | Minimum 32 chars; used for JWT/cookies and hashed security keys |
+| `ADMIN_KEY` | No | `""` | If empty, admin auth is disabled |
+| `ADMIN_RESET_PASSCODE` | No | - | Optional admin reset passcode |
+| `DATABASE_URL` | No | - | Postgres connection string |
+| `POSTGRES_POOL_MAX` | No | - | Optional pool tuning |
+| `DATA_MODE` | Prod on Vercel: Yes | `remote` | `remote`, `local`, or `test` |
+| `REMOTE_CSV_URL` | No | - | Optional backup CSV source for admin import/preview |
+| `GOOGLE_SHEET_ID` | No | - | Optional Google Sheet backup source |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | No | - | Required for service-account sheet access |
+| `GOOGLE_MAPS_API_KEY` | No | - | Enables address geocoding |
+| `CRON_SECRET` | No | - | Protects cron endpoints |
+| `DEPLOY_REVALIDATE_SECRET` | No | - | Protects deploy revalidation endpoint |
 
 ## Client Variables
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `NEXT_PUBLIC_BASE_PATH` | `` | Subpath deployment |
-| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Canonical origin |
+| `NEXT_PUBLIC_BASE_PATH` | `""` | Optional subpath deploy |
+| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Canonical site origin |
 
-## Postgres
+## Production Notes
 
-The app uses **only** `DATABASE_URL`. Variables like `PGHOST`, `PGUSER`, `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, etc. are often set by Vercel/Neon for convenience; the app does not read them. You only need `DATABASE_URL` for the app to use Postgres.
+- In Vercel `preview`/`production`, missing `DATA_MODE` triggers startup failure
+- For Postgres-backed runtime behavior, set `DATABASE_URL` and `DATA_MODE=remote`
 
-## Auth Verify Rate Limiting
+## Secret Generation
 
-`POST /api/auth/verify` uses fixed in-app limits backed by Postgres:
-
-- IP limit: `60 requests / 60 seconds`
-- Email+IP limit: `6 requests / 15 minutes`
-- Failure mode: fail-open if limiter storage is unavailable (warning logged)
-
-No extra env vars are required. It relies on:
-
-- `DATABASE_URL` for shared rate-limit counters
-- `AUTH_SECRET` for HMAC hashing of identifiers
-- `CRON_SECRET` for `/api/cron/cleanup-rate-limits`
-
-Event + featured snapshot backup cron also uses:
-
-- `CRON_SECRET` for `/api/cron/backup-event-store` (daily at 04:20 UTC, retains latest 30 snapshots)
-
-## Recommended setup (Postgres primary)
-
-1. Set `DATA_MODE=remote` and `DATABASE_URL` (e.g. Neon pooler URL).
-2. Use Google vars only for admin backup preview/import and geocoding.
-3. No custom runtime events cache env vars are required (event reads are direct source reads).
-4. Log dedupe is code-level (dev-only) and has no env toggle.
-
-## Serverless strictness (Vercel preview/production)
-
-1. KV storage is strict Postgres-only (`DATABASE_URL` must be healthy).
-2. `GOOGLE_SERVICE_ACCOUNT_KEY` must be used for service account sheet access.
-
-## Secret generation
-
-- `AUTH_SECRET`: `openssl rand -base64 48`
-- `ADMIN_KEY`: `openssl rand -hex 24`
-- `CRON_SECRET`: `openssl rand -base64 48`
-- `DEPLOY_REVALIDATE_SECRET`: `openssl rand -base64 48`
+```bash
+openssl rand -base64 48  # AUTH_SECRET / CRON_SECRET / DEPLOY_REVALIDATE_SECRET
+openssl rand -hex 24     # ADMIN_KEY
+```

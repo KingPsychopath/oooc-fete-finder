@@ -113,7 +113,7 @@ No custom in-memory events cache is used. Live reads are pass-through source rea
 
 ## Logging + Dedupe
 
-One-line startup banner (data mode, DB, geocoding). Runtime logs use `lib/platform/logger` (scope + message; no per-event or memory spam). In development, identical `info` logs are deduped briefly to reduce spam. This dedupe affects logs only, not data reads. See `docs/logging.md`.
+One-line startup banner (data mode, DB, geocoding). Runtime logs use `lib/platform/logger` (scope + message; no per-event or memory spam). In development, identical `info` logs are deduped briefly to reduce spam. This dedupe affects logs only, not data reads. See `docs/operations/logging-and-observability.md`.
 
 ## OG Images
 
@@ -147,15 +147,18 @@ When disabled, the public endpoint returns `503` with `no-store` headers.
 
 ## Documentation
 
-- `docs/environment-variables.md` — env reference (app only uses `DATABASE_URL` for Postgres)
-- `docs/serverless-hardening.md` — Vercel production/preview runtime rules and troubleshooting
-- `docs/logging.md` — logging and startup
-- `docs/security-rate-limiting.md` — auth verify abuse controls and runbook
-- `docs/geocoding.md` — Geocoding API and arrondissement fallback
-- `docs/postgres-migration.md` — Postgres migration
-- `docs/google-integrations.md` — Google backup/import
-- `docs/architecture.md` — rendering/auth/revalidation contract (public static-first + server-authenticated admin)
-- `docs/event-identity.md` — stable event identity model, CSV/admin workflows, and share-link FAQ
+- `docs/README.md` — guided docs entry point
+- `docs/architecture/overview.md` — rendering/auth/data contract and code map
+- `docs/architecture/event-identity.md` — stable identity and share-link model
+- `docs/operations/admin-workflow.md` — day-to-day admin publish flow
+- `docs/operations/serverless-hardening.md` — preview/production runtime guardrails
+- `docs/operations/logging-and-observability.md` — logging and troubleshooting
+- `docs/operations/postgres-migration.md` — migration/cutover runbook
+- `docs/security/rate-limiting.md` — abuse controls and limits
+- `docs/integrations/google.md` — Google integration scope
+- `docs/integrations/geocoding.md` — geocoding behavior and fallback
+- `docs/reference/environment-variables.md` — env var reference
+- `docs/reference/api-endpoints.md` — endpoint inventory
 
 ## Development
 
@@ -206,9 +209,9 @@ This endpoint forces a live events reload and revalidates `/`, so preview/prod c
 
 ## Migration notes
 
-- `docs/postgres-migration.md` — Postgres migration
-- `docs/environment-variables.md` — env reference
-- `docs/google-integrations.md` — Google backup/import
+- `docs/operations/postgres-migration.md` — Postgres migration
+- `docs/reference/environment-variables.md` — env reference
+- `docs/integrations/google.md` — Google backup/import
 
 ## Future Architecture Option
 

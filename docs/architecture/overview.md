@@ -1,73 +1,68 @@
-# Architecture Contract
+# Architecture Overview
 
-This file defines the rendering/auth/data contract for the app. Treat this as implementation guardrails.
+This app is a Next.js App Router project for discovering Fete events, with a server-authenticated admin surface and a Postgres-backed data/store layer.
 
-## Rendering Model
+## System At A Glance
 
-1. Public routes are static-first.
-- Examples: `/`, `/feature-event`, content pages.
-- Prefer ISR/static rendering with runtime source reads (Postgres first in remote mode).
-- Do not add request-bound APIs (`cookies()`, `headers()`) in root layout or public route trees unless absolutely required.
+- Public pages are static-first and optimized for fast delivery
+- Admin pages and admin APIs are server-authenticated
+- Runtime event reads use a source chain controlled by `DATA_MODE`
+- Featured events are managed by a dedicated Postgres scheduler
 
-2. Admin routes are server-authenticated and dynamic.
-- Examples: `/admin` and admin API routes.
-- Validate admin session/JWT on the server before rendering protected data or handling mutations.
+## Rendering Contract
 
-3. Root layout must remain static.
-- `app/layout.tsx` is shared infrastructure and should not read auth cookies.
-- Keep global shell cacheable.
+1. Public routes are static-first (`/`, `/feature-event`, etc.)
+2. Admin routes (`/admin`) are dynamic and authenticated
+3. `app/layout.tsx` stays cache-friendly and should not depend on request cookies
 
-## Auth Model
+## Auth Contract
 
-1. User auth (`oooc_user_session`) for public UX is centralized in `AuthProvider`.
-- Bootstrap once via `/api/auth/session`.
-- Components should consume auth context, not run their own session fetch effects.
+- Public user session: `oooc_user_session`, managed through auth context
+- Admin session: server-validated and required for admin routes/actions/APIs
+- Header/UI auth hints should come from centralized session state, not repeated component-level fetches
 
-2. Admin auth (`oooc-admin-auth`) is authoritative on server boundaries.
-- Required for admin pages, admin actions, and admin APIs.
-- Client may read admin auth state from centralized session bootstrap for UI hints only (e.g. nav link).
+## Data Contract
 
-3. Header contract.
-- No component-local `useEffect` fetches for auth or banner settings.
-- Header receives server-provided public settings (banner) and reads auth state from context.
+Runtime event reads flow through:
 
-## Data + Revalidation Model
+1. `features/data-management/runtime-service.ts#getLiveEvents()`
+2. `features/data-management/data-manager.ts#getEventsData()`
+3. Source order based on mode:
+- `DATA_MODE=remote`: managed store first, then local CSV fallback
+- `DATA_MODE=local`: local CSV only
+- `DATA_MODE=test`: test fixture data
 
-1. Public runtime reads are direct source-of-truth reads.
-- Event runtime reads go through `features/data-management/runtime-service.ts`.
-- `getLiveEvents()` reads directly from `DataManager.getEventsData()` on each call.
-- The previous custom cache manager layer (`lib/cache/*`) has been removed.
-- Coordinate lookup persistence is KV-backed (`maps:locations:v1`) and warmed during admin writes.
-- Featured runtime overlay is projected from Postgres scheduler entries (`app_featured_event_schedule`) keyed by `eventKey`.
+Notes:
 
-2. Admin mutations must revalidate.
-- After writes, use Next.js built-ins (`revalidateTag`/`revalidatePath`) for affected public surfaces.
+- There is no custom runtime app cache layer for events
+- Featured projection is applied after base event load
+- Coordinate storage is KV-backed and warmed during admin writes
 
-3. Source chain contract (remote mode).
-- Primary: managed Postgres event store (`store`).
-- Fallback: local CSV (`data/events.csv`) when store is unavailable/invalid.
-- Google Sheets remains admin backup preview/import only (not live runtime source).
-- In Vercel preview/production runtime, KV provider is strict Postgres-only (no file/memory fallback).
+## Canonical Stores
 
-4. Featured scheduling contract.
-- Canonical source: Postgres scheduler table (`app_featured_event_schedule`).
-- Admin control surface: dedicated Featured Events Manager in `/admin`.
-- Legacy sheet `Featured` values are non-canonical and rejected on save/import.
+- Event store tables:
+- `app_event_store_columns`
+- `app_event_store_rows`
+- `app_event_store_meta`
+- `app_event_store_settings`
+- Featured schedule table:
+- `app_featured_event_schedule`
+- KV/app state tables:
+- `app_kv_store`
+- `app_event_submissions`
+- `app_rate_limit_counters`
 
-5. Avoid duplicate client fetches.
-- If data can be provided by server props or centralized context, prefer that over per-component fetch-on-mount patterns.
+## Code Map
 
-## Performance Rules
+- `app/` routes and route handlers
+- `features/data-management/` runtime data orchestration + admin write actions
+- `features/events/` event domain logic and UI
+- `features/events/featured/` scheduler actions and projection logic
+- `features/security/` rate limiting and anti-abuse primitives
+- `lib/platform/` logging, KV providers, Postgres adapters
 
-1. Default to server-rendered HTML for content and structure.
-2. Keep client islands focused on interactivity only.
-3. Do not let auth handling force full-app dynamic rendering.
-4. Treat map-heavy bundles as an optimization track (lazy-loading/splitting), separate from auth/revalidation contract.
+## Related Docs
 
-## Decision Log
-
-Current chosen architecture:
-- Static-first public shell + centralized client auth bootstrap + server-authenticated admin boundaries.
-
-Future option (only if product requires exact auth-correct first paint):
-- Introduce a dynamic auth island/partial prerendering boundary for auth-specific UI while preserving static shell for the rest.
+- [Event Identity](./event-identity.md)
+- [Serverless Hardening](../operations/serverless-hardening.md)
+- [Environment Variables](../reference/environment-variables.md)

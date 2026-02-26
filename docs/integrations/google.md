@@ -1,10 +1,30 @@
-# Google integrations (current)
+# Google Integrations
 
-The app uses Google for **two things only**:
+Google is used for two optional integration paths.
 
-1. **Geocoding** — Address → coordinates for the map. Requires `GOOGLE_MAPS_API_KEY` (Maps Geocoding API). No service account.
-2. **Admin sheet import/preview** — In the admin **Data Store** card, "Import Google Backup" and "Preview Google Backup" read event data from a Google Sheet (or a CSV URL). Requires either:
-   - `REMOTE_CSV_URL` (public or signed CSV URL), or
-   - `GOOGLE_SHEET_ID` + service account via **`GOOGLE_SERVICE_ACCOUNT_KEY`**.
+## 1) Geocoding
 
-User collection (auth modal) is **not** sent to Google; it is stored only in the app store (Postgres/file/memory). Apps Script and `GOOGLE_SHEETS_URL` have been removed; you can delete that script from your Google account.
+Purpose:
+
+- Convert event address text to map coordinates
+
+Requires:
+
+- `GOOGLE_MAPS_API_KEY`
+- Geocoding API enabled in Google Cloud project
+
+## 2) Admin Backup Import/Preview
+
+Purpose:
+
+- Let admin preview/import backup event data from Google Sheet or remote CSV source
+
+Requires one of:
+
+- `REMOTE_CSV_URL`, or
+- `GOOGLE_SHEET_ID` + `GOOGLE_SERVICE_ACCOUNT_KEY`
+
+## Not Used
+
+- Google is not the live runtime event source
+- User auth collection is not stored in Google as primary app behavior
