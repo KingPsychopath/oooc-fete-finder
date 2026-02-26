@@ -308,6 +308,10 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 			onPointerDown={(pointerEvent) => {
 				if (pointerEvent.target !== pointerEvent.currentTarget) return;
 				if (showMapSelection) return;
+				// Consume the backdrop tap so it doesn't trigger a card click behind
+				// the modal on the same gesture after unmount.
+				pointerEvent.preventDefault();
+				pointerEvent.stopPropagation();
 				onClose();
 			}}
 		>
