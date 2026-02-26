@@ -518,7 +518,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					onClickAction={onOpen || onClose}
 					hasActiveFilters={hasActiveFilters}
 					activeFiltersCount={activeFilterCount}
-					className="fixed right-4 bottom-4 z-40 rounded-full shadow-lg lg:hidden"
+					className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-40 min-w-[8.25rem] rounded-full px-4 shadow-lg lg:hidden"
 					variant="outline"
 					size="sm"
 				/>

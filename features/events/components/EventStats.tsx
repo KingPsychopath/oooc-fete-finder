@@ -1,7 +1,11 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { isoDatePartsToUTCDate, parseISODateParts } from "@/features/events/date-utils";
+import {
+	getEventStatsDateRange,
+	getEventStatsUniqueDays,
+} from "@/features/events/event-stats-utils";
 import { type Event } from "@/features/events/types";
-import React, { useMemo } from "react";
+import { clientLog } from "@/lib/platform/client-logger";
+import React, { useEffect, useMemo } from "react";
 
 interface EventStatsProps {
 	events: Event[];
@@ -22,69 +26,44 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 		return arrondissements.size;
 	}, [filteredEvents]);
 
-	// Calculate dynamic date range from events data
-	const dateRange = useMemo(() => {
-		if (events.length === 0) return "No events";
-
-		// Get all dates and sort them
-		const dates = events
-			.map((event) => event.date)
-			.filter((date): date is string => Boolean(date && parseISODateParts(date)))
-			.sort();
-
-		if (dates.length === 0) return "Dates TBD";
-
-		const earliestDate = dates[0];
-		const latestDate = dates[dates.length - 1];
-
-		const earliestParts = parseISODateParts(earliestDate);
-		const latestParts = parseISODateParts(latestDate);
-		if (!earliestParts || !latestParts) {
-			return "Dates TBD";
-		}
-
-		// Parse dates in UTC to avoid timezone shifting day boundaries.
-		const earliestDateObj = isoDatePartsToUTCDate(earliestParts);
-		const latestDateObj = isoDatePartsToUTCDate(latestParts);
-
-		// Format the date range
-		const formatDate = (date: Date) => {
-			const day = date.getUTCDate();
-			const month = date.toLocaleDateString("en-US", {
-				month: "long",
-				timeZone: "UTC",
-			});
-			const year = date.getUTCFullYear();
-			return { day, month, year };
-		};
-
-		const earliest = formatDate(earliestDateObj);
-		const latest = formatDate(latestDateObj);
-
-		// If same month and year, show "19-22 June 2026"
-		if (earliest.month === latest.month && earliest.year === latest.year) {
-			if (earliest.day === latest.day) {
-				return `${earliest.day} ${earliest.month} ${earliest.year}`;
-			}
-			return `${earliest.day}-${latest.day} ${earliest.month} ${earliest.year}`;
-		}
-
-		// If same year but different months, show "June 19 - July 22, 2026"
-		if (earliest.year === latest.year) {
-			return `${earliest.month} ${earliest.day} - ${latest.month} ${latest.day}, ${earliest.year}`;
-		}
-
-		// Different years, show full range
-		return `${earliest.month} ${earliest.day}, ${earliest.year} - ${latest.month} ${latest.day}, ${latest.year}`;
-	}, [events]);
+	// Calculate dynamic date range from filtered events data
+	const dateRangeStats = useMemo(
+		() => getEventStatsDateRange(filteredEvents),
+		[filteredEvents],
+	);
 
 	// Calculate unique days from events
-	const uniqueDays = useMemo(() => {
-		const days = new Set(
-			events.map((event) => event.day).filter((day) => day !== "tbc"),
-		);
-		return days.size;
-	}, [events]);
+	const uniqueDays = useMemo(
+		() => getEventStatsUniqueDays(filteredEvents),
+		[filteredEvents],
+	);
+
+	useEffect(() => {
+		if (dateRangeStats.suppressedOutlierYears?.length) {
+			clientLog.warn(
+				"events.stats",
+				"Suppressed likely outlier years in date span summary",
+				{
+					filteredEventsCount: filteredEvents.length,
+					suppressedOutlierYears: dateRangeStats.suppressedOutlierYears,
+				},
+			);
+		}
+
+		if (
+			dateRangeStats.earliestDate &&
+			dateRangeStats.latestDate &&
+			dateRangeStats.spanDays !== null &&
+			dateRangeStats.spanDays > 365
+		) {
+			clientLog.warn("events.stats", "Unexpectedly wide filtered date span", {
+				filteredEventsCount: filteredEvents.length,
+				earliestDate: dateRangeStats.earliestDate,
+				latestDate: dateRangeStats.latestDate,
+				spanDays: dateRangeStats.spanDays,
+			});
+		}
+	}, [dateRangeStats, filteredEvents.length]);
 
 	return (
 		<div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -130,7 +109,7 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 						{uniqueDays > 0 ? uniqueDays : "—"}
 					</div>
 					<div className="mt-1 text-sm text-muted-foreground">
-						{uniqueDays === 1 ? "Day" : "Days"} • {dateRange}
+						{uniqueDays === 1 ? "Day" : "Days"} • {dateRangeStats.label}
 					</div>
 				</CardContent>
 			</Card>

@@ -11,10 +11,12 @@ const SCROLL_APPEARANCE_THRESHOLD = 20; // Show after deeper scroll for less UI 
 
 type ScrollToTopButtonProps = {
 	className?: string;
+	mobileDock?: "default" | "stacked-with-filter";
 };
 
 export const ScrollToTopButton = ({
 	className = "",
+	mobileDock = "default",
 }: ScrollToTopButtonProps) => {
 	const { isVisible } = useScrollVisibility({
 		threshold: SCROLL_APPEARANCE_THRESHOLD,
@@ -33,7 +35,10 @@ export const ScrollToTopButton = ({
 		<Button
 			onClick={scrollToTop}
 			className={cn(
-				"fixed bottom-4 right-[7.5rem] lg:right-4 size-10 rounded-full border border-border/80 bg-background/52 text-foreground/85 shadow-lg backdrop-blur-sm hover:bg-accent transition-all duration-500 ease-out",
+				"fixed size-10 rounded-full border border-border/80 bg-background/52 text-foreground/85 shadow-lg backdrop-blur-sm hover:bg-accent transition-all duration-500 ease-out",
+				mobileDock === "stacked-with-filter"
+					? "right-4 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] lg:right-4 lg:bottom-4"
+					: "bottom-4 right-[7.5rem] lg:right-4",
 				isVisible
 					? "opacity-100 translate-y-0 pointer-events-auto"
 					: "opacity-0 translate-y-4 pointer-events-none",

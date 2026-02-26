@@ -1,0 +1,15 @@
+export const DEFAULT_SEARCH_EXAMPLES = [
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
+	"Sunday",
+	"19",
+	"Free",
+	"Amapiano",
+	"Day Party",
+	"After Party",
+	"Sixtion",
+] as const;

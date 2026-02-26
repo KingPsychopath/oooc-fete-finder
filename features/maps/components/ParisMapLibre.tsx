@@ -7,6 +7,7 @@ import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/tim
 import type { Event } from "@/features/events/types";
 import { formatPrice, getDayNightPeriod } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
+import { cn } from "@/lib/utils";
 import {
 	Building2,
 	CalendarDays,
@@ -208,6 +209,25 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		},
 		[],
 	);
+
+	const selectedArrondissementEvents = React.useMemo(() => {
+		if (!selectedArrondissement) return [];
+		return getEventsInArrondissement(selectedArrondissement);
+	}, [getEventsInArrondissement, selectedArrondissement]);
+
+	const selectedArrondissementSummary = React.useMemo(() => {
+		const featuredCount = selectedArrondissementEvents.filter((event) =>
+			shouldDisplayFeaturedEvent(event),
+		).length;
+		const ooocCount = selectedArrondissementEvents.filter(
+			(event) => event.isOOOCPick,
+		).length;
+		return {
+			total: selectedArrondissementEvents.length,
+			featuredCount,
+			ooocCount,
+		};
+	}, [selectedArrondissementEvents]);
 	const baseEventButtonClassName =
 		"w-full rounded-xl border p-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 	const regularEventButtonClassName =
@@ -648,31 +668,36 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	// Error state
 	if (loadError) {
 		return (
-			<div className="relative w-full h-[600px] bg-red-50 dark:bg-red-900/20 rounded-lg overflow-hidden flex items-center justify-center">
-				<div className="text-center p-6">
-					<div className="text-red-600 dark:text-red-400 mb-2">
-						⚠️ Map Load Error
-					</div>
-					<p className="text-sm text-red-600 dark:text-red-400">{loadError}</p>
-					{isOffline ? (
-						<p className="mt-2 text-xs text-red-700/80 dark:text-red-300/80">
-							You are offline. The events list is still available below.
+			<div className="relative h-[600px] w-full overflow-hidden rounded-xl border border-border/70 bg-[linear-gradient(160deg,rgba(248,242,236,0.95),rgba(242,232,223,0.82))] dark:bg-[linear-gradient(160deg,rgba(26,20,18,0.95),rgba(20,16,14,0.88))]">
+				<div className="flex h-full items-center justify-center p-4">
+					<div className="ooo-site-card w-full max-w-md rounded-2xl border border-border/75 p-6 text-center">
+						<div className="mb-2 text-red-600 dark:text-red-400">
+							⚠️ Map Load Error
+						</div>
+						<p className="text-sm text-red-700 dark:text-red-300">
+							{loadError}
 						</p>
-					) : (
-						<button
-							onClick={() => window.location.reload()}
-							className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700"
-						>
-							Retry
-						</button>
-					)}
+						{isOffline ? (
+							<p className="mt-2 text-xs text-red-700/80 dark:text-red-300/80">
+								You are offline. The events list is still available below.
+							</p>
+						) : (
+							<button
+								onClick={() => window.location.reload()}
+								className="mt-4 inline-flex h-8 items-center justify-center rounded-full border border-red-600/30 bg-red-600 px-4 text-sm text-white transition-colors hover:bg-red-700"
+								type="button"
+							>
+								Retry
+							</button>
+						)}
+					</div>
 				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="relative w-full h-[600px] bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 rounded-lg overflow-hidden">
+		<div className="relative h-[600px] w-full overflow-hidden rounded-xl border border-border/70 bg-[radial-gradient(circle_at_22%_18%,rgba(255,255,255,0.68),rgba(255,255,255,0)_45%),linear-gradient(155deg,rgba(240,233,223,0.86),rgba(227,220,210,0.68))] dark:bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.06),rgba(255,255,255,0)_42%),linear-gradient(155deg,rgba(21,18,16,0.94),rgba(28,23,20,0.9))]">
 			{/* Map container */}
 			<div
 				ref={mapContainer}
@@ -682,13 +707,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 			{/* Loading overlay */}
 			{isLoading && (
-				<div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center rounded-lg">
-					<div className="text-center">
-						<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-						<p className="mt-2 text-sm text-gray-600">
+				<div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/62 backdrop-blur-[3px]">
+					<div className="ooo-site-card rounded-2xl border border-border/75 px-5 py-4 text-center">
+						<div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-foreground/70"></div>
+						<p className="mt-2 text-sm text-foreground/85">
 							Loading enhanced map...
 						</p>
-						<p className="mt-1 text-xs text-gray-500">
+						<p className="mt-1 text-xs text-muted-foreground">
 							Initializing MapLibre & boundaries
 						</p>
 					</div>
@@ -697,30 +722,35 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 			{/* Enhanced Legend */}
 			{mapLoaded && (
-				<div className="absolute top-4 left-4 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg p-4 max-w-xs border border-gray-200 dark:border-gray-700">
+				<div
+					className={cn(
+						"ooo-site-card absolute top-3 left-3 z-[2] max-w-xs rounded-2xl border border-border/75 p-4 shadow-[0_16px_36px_-28px_rgba(16,12,9,0.55)] backdrop-blur-md sm:top-4 sm:left-4",
+						selectedArrondissement ? "hidden md:block" : "block",
+					)}
+				>
 					{/* Header */}
 					<div className="flex items-center space-x-2 mb-3">
 						<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-						<h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+						<h3 className="text-sm font-semibold text-foreground">
 							{filteredEvents.length} events showing
 						</h3>
 					</div>
 
 					{/* Coordinates Toggle */}
-					<div className="mb-3 pb-3 border-b border-gray-200 dark:border-gray-600">
+					<div className="mb-3 border-b border-border/65 pb-3">
 						<label className="flex items-center space-x-2 cursor-not-allowed">
 							<input
 								type="checkbox"
 								checked={showCoordinates}
 								onChange={(e) => setShowCoordinates(e.target.checked)}
 								disabled={true}
-								className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+								className="h-4 w-4 rounded border-border/70 bg-background/70 text-blue-600 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
 							/>
 							<div className="flex flex-col">
-								<span className="text-sm text-gray-700 dark:text-gray-300">
+								<span className="text-sm text-foreground/88">
 									Show Event Pins
 								</span>
-								<span className="text-xs text-gray-400 dark:text-gray-500">
+								<span className="text-xs text-muted-foreground">
 									Coming soon
 								</span>
 							</div>
@@ -732,13 +762,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						<div className="space-y-2 mb-3">
 							<div className="flex items-center space-x-2">
 								<div className="w-3 h-3 rounded-full bg-blue-500"></div>
-								<span className="text-xs text-gray-700 dark:text-gray-300">
+								<span className="text-xs text-foreground/82">
 									Regular Event
 								</span>
 							</div>
 							<div className="flex items-center space-x-2">
 								<div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-								<span className="inline-flex items-center gap-1 text-xs text-gray-700 dark:text-gray-300">
+								<span className="inline-flex items-center gap-1 text-xs text-foreground/82">
 									OOOC Pick
 									<Star className="h-3 w-3 fill-current text-yellow-500" />
 								</span>
@@ -747,22 +777,22 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					)}
 
 					{/* Interactive Guide */}
-					<div className="pt-3 border-t border-gray-200 dark:border-gray-600">
-						<div className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
+					<div className="border-t border-border/65 pt-3">
+						<div className="space-y-2 text-xs text-muted-foreground">
 							<div className="flex items-center space-x-2">
-								<MapPinned className="h-3.5 w-3.5 text-gray-400" />
+								<MapPinned className="h-3.5 w-3.5 text-muted-foreground" />
 								<span>Click districts to explore events</span>
 							</div>
 							{showCoordinates && (
 								<div className="flex items-center space-x-2">
-									<MapPin className="h-3.5 w-3.5 text-gray-400" />
+									<MapPin className="h-3.5 w-3.5 text-muted-foreground" />
 									<span>Click markers for event details</span>
 								</div>
 							)}
 							{selectedDay && (
-								<div className="flex items-center space-x-2 pt-2 mt-2 border-t border-gray-200 dark:border-gray-600">
+								<div className="mt-2 flex items-center space-x-2 border-t border-border/65 pt-2">
 									<CalendarDays className="h-3.5 w-3.5 text-blue-500" />
-									<span className="text-blue-600 dark:text-blue-400 font-medium">
+									<span className="font-medium text-blue-600 dark:text-blue-400">
 										Filtered by {selectedDay}
 									</span>
 								</div>
@@ -774,33 +804,36 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 			{/* Color Legend */}
 			{mapLoaded && (
-				<div className="absolute bottom-4 left-4 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg p-3 border border-gray-200 dark:border-gray-700">
-					<h4 className="font-medium text-xs text-gray-900 dark:text-gray-100 mb-2">
+				<div
+					className={cn(
+						"ooo-site-card absolute bottom-3 left-3 z-[2] rounded-xl border border-border/75 p-3 shadow-[0_16px_36px_-28px_rgba(16,12,9,0.55)] backdrop-blur-md sm:bottom-4 sm:left-4",
+						selectedArrondissement ? "hidden sm:block" : "block",
+					)}
+				>
+					<h4 className="mb-2 text-xs font-medium text-foreground">
 						District Colors
 					</h4>
 					<div className="space-y-1">
 						<div className="flex items-center space-x-2">
 							<div className="w-3 h-2 rounded-sm bg-gray-300"></div>
-							<span className="text-xs text-gray-600 dark:text-gray-400">
-								0 events
-							</span>
+							<span className="text-xs text-muted-foreground">0 events</span>
 						</div>
 						<div className="flex items-center space-x-2">
 							<div className="w-3 h-2 rounded-sm bg-green-600"></div>
-							<span className="text-xs text-gray-600 dark:text-gray-400">
-								1 event
-							</span>
+							<span className="text-xs text-muted-foreground">1 event</span>
 						</div>
 						<div className="flex items-center space-x-2">
 							<div className="w-3 h-2 rounded-sm bg-orange-600"></div>
-							<span className="text-xs text-gray-600 dark:text-gray-400">
-								2-4 events
-							</span>
+							<span className="text-xs text-muted-foreground">2-4 events</span>
 						</div>
 						<div className="flex items-center space-x-2">
 							<div className="w-3 h-2 rounded-sm bg-red-600"></div>
-							<span className="text-xs text-gray-600 dark:text-gray-400">
-								5+ events
+							<span className="text-xs text-muted-foreground">5+ events</span>
+						</div>
+						<div className="mt-1 flex items-center space-x-2">
+							<div className="h-2 w-3 rounded-sm bg-blue-700"></div>
+							<span className="text-xs text-muted-foreground">
+								Selected district
 							</span>
 						</div>
 					</div>
@@ -809,99 +842,124 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 			{/* Selected arrondissement events */}
 			{selectedArrondissement && (
-				<div className="ooo-site-card absolute bottom-4 left-1/2 w-80 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-2xl border border-border/75 p-3.5">
-					<div className="mb-2 flex items-center justify-between">
-						<div>
-							<p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-								Paris Map
-							</p>
-							<h3 className="text-[1.02rem] [font-family:var(--ooo-font-display)] font-light leading-tight">
-								{selectedArrondissement}e Arrondissement Events
-							</h3>
-							<p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/85">
-								Featured events appear first
-							</p>
+				<div className="absolute inset-x-2 bottom-2 z-[3] md:top-3 md:right-3 md:bottom-3 md:left-auto md:w-[25.5rem] md:max-w-[calc(100%-1.5rem)]">
+					<div className="ooo-site-card flex max-h-[min(62svh,26rem)] flex-col rounded-2xl border border-border/80 p-3.5 shadow-[0_24px_44px_-32px_rgba(16,12,9,0.6)] backdrop-blur-xl md:h-full md:max-h-none">
+						<div className="mb-2 flex items-start justify-between gap-3">
+							<div>
+								<p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+									Paris Map
+								</p>
+								<h3 className="text-[1.02rem] [font-family:var(--ooo-font-display)] font-light leading-tight">
+									{selectedArrondissement}e Arrondissement Events
+								</h3>
+								<p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/85">
+									Featured events appear first
+								</p>
+								<div className="mt-2 flex flex-wrap gap-1.5">
+									<span className="rounded-full border border-border/70 bg-background/58 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-foreground/80">
+										{selectedArrondissementSummary.total} events
+									</span>
+									{selectedArrondissementSummary.featuredCount > 0 && (
+										<span className="rounded-full border border-rose-400/55 bg-rose-100/75 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-rose-700 dark:border-rose-400/40 dark:bg-rose-500/12 dark:text-rose-200">
+											{selectedArrondissementSummary.featuredCount} featured
+										</span>
+									)}
+									{selectedArrondissementSummary.ooocCount > 0 && (
+										<span className="rounded-full border border-amber-400/55 bg-amber-100/75 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-amber-700 dark:border-amber-400/40 dark:bg-amber-500/12 dark:text-amber-200">
+											{selectedArrondissementSummary.ooocCount} OOOC picks
+										</span>
+									)}
+								</div>
+							</div>
+							<button
+								type="button"
+								onClick={() => setSelectedArrondissement(null)}
+								className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/68 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+							>
+								<X className="h-4 w-4" />
+							</button>
 						</div>
-						<button
-							onClick={() => setSelectedArrondissement(null)}
-							className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/68 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-						>
-							<X className="h-4 w-4" />
-						</button>
-					</div>
-					<div className="max-h-44 space-y-2 overflow-y-auto pr-0.5">
-						{getEventsInArrondissement(selectedArrondissement).map((event) => {
-							const dayNightPeriod = getDayNightPeriod(event.time ?? "");
-							const venueTypes = getEventVenueTypes(event);
-							const isFeatured = shouldDisplayFeaturedEvent(event);
-							const buttonClassName =
-								isFeatured && event.isOOOCPick
-									? featuredOoocEventButtonClassName
-									: isFeatured
-										? featuredEventButtonClassName
-										: event.isOOOCPick
-											? ooocEventButtonClassName
-											: regularEventButtonClassName;
+						<div className="mb-2 h-px bg-border/70" />
+						<div className="space-y-2 overflow-y-auto pr-1 md:flex-1 md:min-h-0">
+							{selectedArrondissementEvents.map((event) => {
+								const dayNightPeriod = getDayNightPeriod(event.time ?? "");
+								const venueTypes = getEventVenueTypes(event);
+								const isFeatured = shouldDisplayFeaturedEvent(event);
+								const buttonClassName =
+									isFeatured && event.isOOOCPick
+										? featuredOoocEventButtonClassName
+										: isFeatured
+											? featuredEventButtonClassName
+											: event.isOOOCPick
+												? ooocEventButtonClassName
+												: regularEventButtonClassName;
 
-							return (
-								<button
-									key={event.id}
-									className={`${baseEventButtonClassName} ${buttonClassName}`}
-									onClick={() => onEventClick(event)}
-								>
-									<div className="flex items-center justify-between">
-										<div className="flex-1">
-											<div className="flex items-center space-x-1.5">
-												<p className="text-sm font-medium text-foreground">
-													{event.name}
+								return (
+									<button
+										key={event.id}
+										className={`${baseEventButtonClassName} ${buttonClassName}`}
+										onClick={() => onEventClick(event)}
+									>
+										<div className="flex items-center justify-between">
+											<div className="min-w-0 flex-1">
+												<div className="flex flex-wrap items-center gap-1.5">
+													<p className="text-sm font-medium text-foreground">
+														{event.name}
+													</p>
+													{isFeatured && (
+														<span className="rounded-full border border-rose-400/80 bg-rose-100/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-rose-700 dark:border-rose-400/65 dark:bg-rose-500/20 dark:text-rose-200">
+															Featured
+														</span>
+													)}
+													{event.isOOOCPick && (
+														<span className="inline-flex items-center gap-0.5 rounded-full border border-amber-400/70 bg-amber-100/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-amber-700 dark:border-amber-400/60 dark:bg-amber-500/20 dark:text-amber-200">
+															<Star className="h-2.5 w-2.5 fill-current" />
+															OOOC
+														</span>
+													)}
+												</div>
+												<p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+													<span>
+														{event.time} • {event.day}
+													</span>
+													{dayNightPeriod === "day" ? (
+														<Sun className="h-3 w-3" />
+													) : dayNightPeriod === "night" ? (
+														<Moon className="h-3 w-3" />
+													) : null}
 												</p>
-												{isFeatured && (
-													<span className="rounded-full border border-rose-400/80 bg-rose-100/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-rose-700 dark:border-rose-400/65 dark:bg-rose-500/20 dark:text-rose-200">
-														Featured
+												<div className="mt-1 flex items-center space-x-1">
+													<span className="inline-flex items-center gap-0.5 text-muted-foreground">
+														{venueTypes.includes("indoor") && (
+															<Building2 className="h-3 w-3" />
+														)}
+														{venueTypes.includes("outdoor") && (
+															<Trees className="h-3 w-3" />
+														)}
 													</span>
-												)}
-												{event.isOOOCPick && (
-													<span className="inline-flex items-center gap-0.5 rounded-full border border-amber-400/70 bg-amber-100/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-amber-700 dark:border-amber-400/60 dark:bg-amber-500/20 dark:text-amber-200">
-														<Star className="h-2.5 w-2.5 fill-current" />
-														OOOC
+													<Euro className="h-3 w-3 text-muted-foreground" />
+													<span
+														className={`text-xs ${
+															formatPrice(event.price) === "Free"
+																? "font-medium text-green-600 dark:text-green-400"
+																: "text-muted-foreground"
+														}`}
+													>
+														{formatPrice(event.price)}
 													</span>
-												)}
-											</div>
-											<p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-												<span>
-													{event.time} • {event.day}
-												</span>
-												{dayNightPeriod === "day" ? (
-													<Sun className="h-3 w-3" />
-												) : dayNightPeriod === "night" ? (
-													<Moon className="h-3 w-3" />
-												) : null}
-											</p>
-											<div className="mt-1 flex items-center space-x-1">
-												<span className="inline-flex items-center gap-0.5 text-muted-foreground">
-													{venueTypes.includes("indoor") && (
-														<Building2 className="h-3 w-3" />
-													)}
-													{venueTypes.includes("outdoor") && (
-														<Trees className="h-3 w-3" />
-													)}
-												</span>
-												<Euro className="h-3 w-3 text-muted-foreground" />
-												<span
-													className={`text-xs ${
-														formatPrice(event.price) === "Free"
-															? "font-medium text-green-600 dark:text-green-400"
-															: "text-muted-foreground"
-													}`}
-												>
-													{formatPrice(event.price)}
-												</span>
+												</div>
 											</div>
 										</div>
-									</div>
-								</button>
-							);
-						})}
+									</button>
+								);
+							})}
+							{selectedArrondissementEvents.length === 0 && (
+								<div className="rounded-xl border border-border/70 bg-background/55 p-3 text-sm text-muted-foreground">
+									No events are currently available in this district for the
+									applied filters.
+								</div>
+							)}
+						</div>
 					</div>
 				</div>
 			)}

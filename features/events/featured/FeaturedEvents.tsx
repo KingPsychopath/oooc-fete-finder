@@ -1,7 +1,8 @@
 "use client";
-import { EventCard } from "@/features/events/components/EventCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { EventCard } from "@/features/events/components/EventCard";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ChevronDown } from "lucide-react";
 import { FeaturedEventsHeader } from "./components/FeaturedEventsHeader";
 import { FEATURED_EVENTS_CONFIG } from "./constants";
@@ -19,9 +20,15 @@ export function FeaturedEvents({
 	onScrollToAllEvents,
 	maxFeaturedEvents = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS,
 }: FeaturedEventsProps) {
+	const isTabletTwoColumnRange = useMediaQuery(
+		"(min-width: 768px) and (max-width: 1023px)",
+	);
+	const responsiveMaxFeaturedEvents = isTabletTwoColumnRange
+		? 4
+		: maxFeaturedEvents;
 	const { featuredEvents, totalEventsCount, hasMoreEvents } = useFeaturedEvents(
 		events,
-		maxFeaturedEvents,
+		responsiveMaxFeaturedEvents,
 	);
 
 	return (

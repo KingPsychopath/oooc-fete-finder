@@ -13,8 +13,6 @@ import {
 	addToCalendar,
 	isCalendarDateValid,
 } from "@/features/events/calendar-utils";
-import { ShareableImageGenerator } from "@/features/events/components/ShareableImageGenerator";
-import type { ShareImageFormat } from "@/features/events/components/ShareableImageGenerator";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import {
 	type Event,
@@ -46,7 +44,6 @@ import {
 	MapPin,
 	Music,
 	Settings,
-	Share,
 	Star,
 	Tag,
 	User,
@@ -81,8 +78,6 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 	const { mapPreference, setMapPreference, isLoaded } = useMapPreference();
 	const [showMapSelection, setShowMapSelection] = useState(false);
 	const [showMapSettings, setShowMapSettings] = useState(false);
-	const [isSharing, setIsSharing] = useState(false);
-	const [shareError, setShareError] = useState<string | null>(null);
 	const [linkShareStatus, setLinkShareStatus] = useState<{
 		message: string;
 		tone: "success" | "error";
@@ -100,8 +95,6 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 		if (!isOpen) {
 			setShowMapSelection(false);
 			setShowMapSettings(false);
-			setIsSharing(false);
-			setShareError(null);
 			setLinkShareStatus(null);
 			setPendingLocationData(null);
 			setShowAllGenres(false);
@@ -184,25 +177,6 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 			genreInfo?.color ||
 			"bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-gray-200 dark:border dark:border-white/15"
 		);
-	};
-
-	const handleShareError = (message: string) => {
-		setShareError(message || "Unable to generate share image.");
-	};
-
-	const shareImageGenerator = ShareableImageGenerator({
-		event,
-		onError: handleShareError,
-	});
-
-	const handleShareToStory = async (format: ShareImageFormat) => {
-		setIsSharing(true);
-		setShareError(null);
-		try {
-			await shareImageGenerator.generateImage(format);
-		} finally {
-			setIsSharing(false);
-		}
 	};
 
 	const setTimedShareStatus = (
@@ -607,30 +581,32 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 					</div>
 
 					<div className="space-y-1.5 border-t border-border/70 pt-3">
-						{primaryLink && primaryLink !== "#" ? (
-							<Button
-								onClick={() =>
-									window.open(primaryLink, "_blank", "noopener,noreferrer")
-								}
-								className="h-10 w-full"
-								title={primaryLink}
-							>
-								<ExternalLink className="mr-2 h-4 w-4" />
-								{getLinkButtonText(primaryLink)}
-							</Button>
-						) : (
-							<Button disabled className="h-10 w-full">
-								<Clock className="mr-2 h-4 w-4" />
-								Link Coming Soon
-							</Button>
-						)}
+						<div className="grid grid-cols-2 gap-2">
+							{primaryLink && primaryLink !== "#" ? (
+								<Button
+									onClick={() =>
+										window.open(primaryLink, "_blank", "noopener,noreferrer")
+									}
+									className="h-10 w-full min-w-0"
+									title={primaryLink}
+								>
+									<ExternalLink className="mr-2 h-4 w-4" />
+									<span className="truncate">
+										{getLinkButtonText(primaryLink)}
+									</span>
+								</Button>
+							) : (
+								<Button disabled className="h-10 w-full min-w-0">
+									<Clock className="mr-2 h-4 w-4" />
+									<span className="truncate">Link Coming Soon</span>
+								</Button>
+							)}
 
-						<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 							{canAddToCalendar ? (
 								<Button
 									variant="outline"
 									onClick={() => addToCalendar(event)}
-									className="h-10 border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+									className="h-10 w-full border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 									title="Add event to your calendar"
 								>
 									<CalendarPlus className="mr-2 h-4 w-4" />
@@ -640,9 +616,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								<TooltipProvider>
 									<Tooltip>
 										<TooltipTrigger
-											render={
-												<span className="inline-flex w-full" />
-											}
+											render={<span className="inline-flex w-full" />}
 										>
 											<Button
 												variant="outline"
@@ -659,34 +633,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 									</Tooltip>
 								</TooltipProvider>
 							)}
-
-							<div className="grid grid-cols-2 gap-2">
-								<Button
-									variant="outline"
-									onClick={() => void handleShareToStory("portrait")}
-									disabled={isSharing}
-									className="h-10 border-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600"
-									title="Generate Instagram story (portrait)"
-								>
-									<Share className="mr-2 h-4 w-4" />
-									{isSharing ? "Generating..." : "Story"}
-								</Button>
-								<Button
-									variant="outline"
-									onClick={() => void handleShareToStory("landscape")}
-									disabled={isSharing}
-									className="h-10 border-border/70 bg-background/70 text-foreground hover:bg-accent dark:bg-white/[0.03] dark:hover:bg-white/[0.08]"
-									title="Generate social post (landscape)"
-								>
-									{isSharing ? "Generating..." : "Post"}
-								</Button>
-							</div>
 						</div>
-						{shareError && (
-							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-400/45 dark:bg-amber-500/12 dark:text-amber-200">
-								Unable to generate image right now. {shareError}
-							</div>
-						)}
 
 						{secondaryLinks.length > 0 && (
 							<div className="space-y-1">

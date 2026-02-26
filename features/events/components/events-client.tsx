@@ -320,6 +320,9 @@ export function EventsClient({
 						onSearch={onSearchQueryChange}
 						placeholder="Search events, locations, genres, types..."
 						className="max-w-md mx-auto"
+						resultsCount={filteredEvents.length}
+						showResultsCount
+						resultsCountLabelMode={hasAnyActiveFilters ? "found" : "available"}
 					/>
 				</AuthGate>
 			</div>
@@ -432,7 +435,7 @@ export function EventsClient({
 				onEmailSubmit={handleEmailSubmit}
 			/>
 
-			<ScrollToTopButton />
+			<ScrollToTopButton mobileDock="stacked-with-filter" />
 		</>
 	);
 }

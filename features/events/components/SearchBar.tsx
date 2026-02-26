@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { DEFAULT_SEARCH_EXAMPLES } from "@/features/events/search-defaults";
 import type { Event } from "@/features/events/types";
 import { Search, X } from "lucide-react";
 import type React from "react";
@@ -12,6 +13,9 @@ type SearchBarProps = {
 	className?: string;
 	exampleSearches?: string[];
 	events?: Event[];
+	resultsCount?: number;
+	showResultsCount?: boolean;
+	resultsCountLabelMode?: "found" | "available";
 };
 
 type SearchResult = {
@@ -211,18 +215,11 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	onSearch,
 	placeholder = "Search events...",
 	className = "",
-	exampleSearches = [
-		"Sixtion",
-		"Amapiano",
-		"Day Party",
-		"After Party",
-		"19",
-		"Free",
-		"Friday",
-		"Saturday",
-		"Sunday",
-	],
+	exampleSearches = [...DEFAULT_SEARCH_EXAMPLES],
 	events = [],
+	resultsCount,
+	showResultsCount = false,
+	resultsCountLabelMode = "found",
 }) => {
 	const [query, setQuery] = useState("");
 
@@ -244,7 +241,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	};
 
 	return (
-		<div className={`relative rounded-xl border p-3 ooo-site-card-soft ${className}`}>
+		<div
+			className={`relative rounded-xl border p-3 ooo-site-card-soft ${className}`}
+		>
 			{/* Search Input */}
 			<div className="relative">
 				<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -269,8 +268,21 @@ const SearchBar: React.FC<SearchBarProps> = ({
 				)}
 			</div>
 
+			{showResultsCount && typeof resultsCount === "number" && (
+				<div className="mt-2 px-1">
+					<p className="text-[11px] tracking-[0.04em] text-muted-foreground">
+						<span className="font-medium text-foreground/80">
+							{resultsCount.toLocaleString()}
+						</span>{" "}
+						event{resultsCount !== 1 ? "s" : ""} {resultsCountLabelMode}
+					</p>
+				</div>
+			)}
+
 			{/* Example Search Chips */}
-			<div className="mt-3 flex flex-wrap gap-1.5">
+			<div
+				className={`${showResultsCount ? "mt-2" : "mt-3"} flex flex-wrap gap-1.5`}
+			>
 				{exampleSearches.map((example) => (
 					<Button
 						key={example}
