@@ -39,17 +39,6 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 	);
 
 	useEffect(() => {
-		if (dateRangeStats.suppressedOutlierYears?.length) {
-			clientLog.warn(
-				"events.stats",
-				"Suppressed likely outlier years in date span summary",
-				{
-					filteredEventsCount: filteredEvents.length,
-					suppressedOutlierYears: dateRangeStats.suppressedOutlierYears,
-				},
-			);
-		}
-
 		if (
 			dateRangeStats.earliestDate &&
 			dateRangeStats.latestDate &&

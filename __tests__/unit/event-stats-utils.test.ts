@@ -5,7 +5,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 describe("event stats utils", () => {
-	it("suppresses obvious stray-year outliers in the summary range", () => {
+	it("shows the full explicit range even when there is a far-year date", () => {
 		const result = getEventStatsDateRange([
 			{ date: "1990-02-25", day: "sunday" },
 			{ date: "not-a-date", day: "friday" },
@@ -15,11 +15,10 @@ describe("event stats utils", () => {
 			{ date: "2026-02-25", day: "wednesday" },
 		]);
 
-		expect(result.label).toBe("21-25 February 2026");
-		expect(result.earliestDate).toBe("2026-02-21");
+		expect(result.label).toBe("February 25, 1990 - February 25, 2026");
+		expect(result.earliestDate).toBe("1990-02-25");
 		expect(result.latestDate).toBe("2026-02-25");
-		expect(result.spanDays).toBe(4);
-		expect(result.suppressedOutlierYears).toEqual([1990]);
+		expect(result.spanDays).toBeGreaterThan(365);
 	});
 
 	it("returns Dates TBD when there are no valid ISO dates", () => {

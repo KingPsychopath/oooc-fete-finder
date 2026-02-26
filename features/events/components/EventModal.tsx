@@ -587,7 +587,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 									onClick={() =>
 										window.open(primaryLink, "_blank", "noopener,noreferrer")
 									}
-									className="h-10 w-full min-w-0"
+									className="group h-10 w-full min-w-0 transition-all duration-200 hover:shadow-[0_10px_24px_-18px_rgba(16,12,9,0.65)]"
 									title={primaryLink}
 								>
 									<ExternalLink className="mr-2 h-4 w-4" />
@@ -606,7 +606,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 								<Button
 									variant="outline"
 									onClick={() => addToCalendar(event)}
-									className="h-10 w-full border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+									className="group h-10 w-full border-blue-200 bg-blue-50 text-blue-700 transition-all duration-200 hover:border-blue-300 hover:bg-blue-100 hover:shadow-[0_10px_24px_-18px_rgba(20,73,163,0.6)] dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 									title="Add event to your calendar"
 								>
 									<CalendarPlus className="mr-2 h-4 w-4" />

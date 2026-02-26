@@ -20,9 +20,9 @@ export function FeaturedEvents({
 	onScrollToAllEvents,
 	maxFeaturedEvents = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS,
 }: FeaturedEventsProps) {
-	const isTabletTwoColumnRange = useMediaQuery(
-		"(min-width: 768px) and (max-width: 1023px)",
-	);
+	const isAtLeastTablet = useMediaQuery("(min-width: 768px)");
+	const isDesktopUp = useMediaQuery("(min-width: 1024px)");
+	const isTabletTwoColumnRange = isAtLeastTablet && !isDesktopUp;
 	const responsiveMaxFeaturedEvents = isTabletTwoColumnRange
 		? 4
 		: maxFeaturedEvents;
