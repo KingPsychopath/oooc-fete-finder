@@ -40,7 +40,11 @@ export function FeaturedEvents({
 				{/* Responsive grid: 1 col on mobile, 2 cols on tablet, 3 cols on desktop */}
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 					{featuredEvents.map((event) => (
-						<EventCard key={event.id} event={event} onClick={onEventClick} />
+						<EventCard
+							key={event.eventKey || event.id}
+							event={event}
+							onClick={onEventClick}
+						/>
 					))}
 				</div>
 

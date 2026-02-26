@@ -111,6 +111,31 @@ export function useFeaturedEvents(
 
 		// Safety check: filter out any undefined events
 		const safeFeatured = featured.filter((event) => event != null);
+		const seenEventKeys = new Set<string>();
+		const dedupedFeatured = safeFeatured.filter((event) => {
+			if (!event.eventKey) return true;
+			if (seenEventKeys.has(event.eventKey)) return false;
+			seenEventKeys.add(event.eventKey);
+			return true;
+		});
+
+		if (dedupedFeatured.length < maxFeaturedEvents) {
+			const fillCandidates = deterministicShuffle(events).filter(
+				(event) =>
+					Boolean(event) &&
+					Boolean(event.eventKey) &&
+					!seenEventKeys.has(event.eventKey),
+			);
+			for (const candidate of fillCandidates) {
+				dedupedFeatured.push(candidate);
+				if (candidate.eventKey) {
+					seenEventKeys.add(candidate.eventKey);
+				}
+				if (dedupedFeatured.length >= maxFeaturedEvents) {
+					break;
+				}
+			}
+		}
 
 		// Debug logging if we have issues
 		if (safeFeatured.length !== featured.length) {
@@ -120,7 +145,7 @@ export function useFeaturedEvents(
 		}
 
 		return {
-			featuredEvents: safeFeatured,
+			featuredEvents: dedupedFeatured,
 			totalEventsCount: events.length,
 			hasMoreEvents: events.length > maxFeaturedEvents,
 		};
