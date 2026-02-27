@@ -58,16 +58,20 @@ Other app state (auth/session/user collection) remains in:
 
 ## Admin Workflow (`/admin`)
 
-1. Load data into Postgres:
-   - `Upload CSV to Postgres`, or
-   - `Import Google Backup`
-2. Edit in `Event Sheet Editor` (supports dynamic columns)
-3. Create snapshots (events + featured schedule) from `Data Store Controls` (`Backup Now`)
-4. Restore either `Latest Backup` or a selected recent snapshot (with confirmation)
-5. Manage featuring in `Featured Events Manager` (queue + slots)
-6. `Save and Revalidate Homepage`
-7. Verify live payload in `Live Site Snapshot`
-8. Export CSV anytime from `Data Store Controls`
+Admin is now split into focused areas:
+
+1. `/admin` - overview and launchpad
+2. `/admin/operations` - runtime health, store controls, sessions, recovery
+3. `/admin/content` - event sheet editor, submissions moderation, sliding banner
+4. `/admin/placements` - paid orders queue + spotlight/promoted schedulers
+5. `/admin/insights` - engagement analytics + collected users
+
+Standard publish loop:
+
+1. Edit content in `/admin/content`
+2. Manage spotlight/promoted placements in `/admin/placements` when needed
+3. Backup + revalidate in `/admin/operations`
+4. Validate tracking outcomes in `/admin/insights`
 
 ### Featured Scheduling (Strict Cutover)
 
@@ -145,10 +149,19 @@ Submission spam heuristics (honeypot + minimum completion time) are persisted fo
 Submissions can be globally enabled/disabled from `/admin` -> `Event Submissions`.
 When disabled, the public endpoint returns `503` with `no-store` headers.
 
+Tracking and preference endpoints are also rate-limited:
+
+- `POST /api/track`
+- `POST /api/track/discovery`
+- `POST /api/user/preference`
+
+Saved-event social proof (`"X people saved this"`) is powered by tracked `calendar_sync` interactions, projected back into event payloads as `calendarSyncCount`.
+
 ## Documentation
 
 - `docs/README.md` — guided docs entry point
 - `docs/architecture/overview.md` — rendering/auth/data contract and code map
+- `docs/architecture/engagement-tracking.md` — tracking model and "saved this" semantics
 - `docs/architecture/event-identity.md` — stable identity and share-link model
 - `docs/operations/admin-workflow.md` — day-to-day admin publish flow
 - `docs/operations/serverless-hardening.md` — preview/production runtime guardrails

@@ -78,6 +78,9 @@ export async function POST(request: Request) {
 
 	const clientIp = extractClientIpFromHeaders(request.headers);
 	const ipDecision = await checkTrackDiscoveryIpLimit(clientIp);
+	if (ipDecision.reason === "limiter_unavailable") {
+		return accepted();
+	}
 	if (!ipDecision.allowed) {
 		return accepted();
 	}
@@ -105,6 +108,9 @@ export async function POST(request: Request) {
 			const sessionDecision = await checkTrackDiscoverySessionLimit(
 				body.sessionId,
 			);
+			if (sessionDecision.reason === "limiter_unavailable") {
+				return accepted();
+			}
 			if (!sessionDecision.allowed) {
 				return accepted();
 			}

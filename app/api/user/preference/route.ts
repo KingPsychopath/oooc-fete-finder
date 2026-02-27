@@ -65,6 +65,9 @@ export async function POST(request: Request) {
 
 	const clientIp = extractClientIpFromHeaders(request.headers);
 	const ipDecision = await checkUserPreferenceIpLimit(clientIp);
+	if (ipDecision.reason === "limiter_unavailable") {
+		return accepted();
+	}
 	if (!ipDecision.allowed) {
 		return accepted();
 	}

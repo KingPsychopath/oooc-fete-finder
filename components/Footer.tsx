@@ -81,6 +81,18 @@ const Footer = () => {
 						</div>
 						<div className="flex items-center gap-3 text-xs">
 							<Link
+								href="/submit-event"
+								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+							>
+								Submit your event
+							</Link>
+							<Link
+								href="/feature-event"
+								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+							>
+								Promote
+							</Link>
+							<Link
 								href="/privacy"
 								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
 							>
