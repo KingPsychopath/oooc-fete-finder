@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import {
 	fulfillPartnerActivation,
+	generatePartnerStatsTestLink,
 	getPartnerActivationDashboard,
 	updatePartnerActivationStatus,
 } from "@/features/partners/activation-actions";
@@ -22,6 +23,13 @@ type DashboardPayload = Awaited<
 >;
 
 type FulfillmentInput = {
+	eventKey: string;
+	tier: "spotlight" | "promoted";
+	scheduleAt: string;
+	durationHours: string;
+};
+
+type TestLinkInput = {
 	eventKey: string;
 	tier: "spotlight" | "promoted";
 	scheduleAt: string;
@@ -55,6 +63,7 @@ const toPartnerStatsPath = (id: string, token: string): string =>
 	`${basePath}/partner-stats/${id}?token=${token}`;
 
 const toPartnerStatsAbsoluteUrl = (path: string): string => {
+	if (/^https?:\/\//i.test(path)) return path;
 	if (typeof window === "undefined") return path;
 	return `${window.location.origin}${path}`;
 };
@@ -77,6 +86,13 @@ export const PartnerActivationQueueCard = ({
 	const [fulfillmentInputs, setFulfillmentInputs] = useState<
 		Record<string, FulfillmentInput>
 	>({});
+	const [testLinkInput, setTestLinkInput] = useState<TestLinkInput>({
+		eventKey: "",
+		tier: "spotlight",
+		scheduleAt: defaultScheduleAt(),
+		durationHours: "48",
+	});
+	const [generatedTestLink, setGeneratedTestLink] = useState<string | null>(null);
 
 	const loadDashboard = useCallback(async () => {
 		setIsLoading(true);
@@ -203,6 +219,34 @@ export const PartnerActivationQueueCard = ({
 			});
 	}, []);
 
+	const handleGenerateTestLink = useCallback(async () => {
+		if (!testLinkInput.eventKey.trim()) {
+			setErrorMessage("Select an event key to generate a test stats link.");
+			return;
+		}
+		setIsMutating(true);
+		setStatusMessage("");
+		setErrorMessage("");
+		setGeneratedTestLink(null);
+		try {
+			const result = await generatePartnerStatsTestLink({
+				eventKey: testLinkInput.eventKey.trim(),
+				tier: testLinkInput.tier,
+				requestedStartAt: testLinkInput.scheduleAt,
+				durationHours: Number.parseInt(testLinkInput.durationHours, 10),
+			});
+			if (!result.success) {
+				setErrorMessage(result.error || result.message);
+				return;
+			}
+			setGeneratedTestLink(result.statsPath);
+			setStatusMessage(result.message);
+			await loadDashboard();
+		} finally {
+			setIsMutating(false);
+		}
+	}, [loadDashboard, testLinkInput]);
+
 	const items = useMemo(() => {
 		if (!payload?.success) return [];
 		return payload.items.filter((item) => item.status === activeStatus);
@@ -276,6 +320,114 @@ export const PartnerActivationQueueCard = ({
 							</Button>
 						),
 					)}
+				</div>
+
+				<div className="rounded-md border bg-background/60 p-3">
+					<p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+						Generate Test Stats Link
+					</p>
+					<p className="mt-1 text-xs text-muted-foreground">
+						Create a token-protected partner stats page for any event without a
+						Stripe payment.
+					</p>
+					<div className="mt-3 grid gap-2 md:grid-cols-4">
+						<div className="space-y-1 md:col-span-2">
+							<label className="text-xs text-muted-foreground">Event key</label>
+							<input
+								list="partner-activation-event-keys"
+								className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+								value={testLinkInput.eventKey}
+								onChange={(event) =>
+									setTestLinkInput((current) => ({
+										...current,
+										eventKey: event.target.value,
+									}))
+								}
+							/>
+						</div>
+						<div className="space-y-1">
+							<label className="text-xs text-muted-foreground">Tier</label>
+							<select
+								className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+								value={testLinkInput.tier}
+								onChange={(event) =>
+									setTestLinkInput((current) => ({
+										...current,
+										tier: event.target.value as "spotlight" | "promoted",
+									}))
+								}
+							>
+								<option value="spotlight">Spotlight</option>
+								<option value="promoted">Promoted</option>
+							</select>
+						</div>
+						<div className="space-y-1">
+							<label className="text-xs text-muted-foreground">
+								Duration (h)
+							</label>
+							<input
+								type="number"
+								min={1}
+								max={168}
+								className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+								value={testLinkInput.durationHours}
+								onChange={(event) =>
+									setTestLinkInput((current) => ({
+										...current,
+										durationHours: event.target.value,
+									}))
+								}
+							/>
+						</div>
+						<div className="space-y-1 md:col-span-2">
+							<label className="text-xs text-muted-foreground">Start</label>
+							<input
+								type="datetime-local"
+								className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+								value={testLinkInput.scheduleAt}
+								onChange={(event) =>
+									setTestLinkInput((current) => ({
+										...current,
+										scheduleAt: event.target.value,
+									}))
+								}
+							/>
+						</div>
+						<div className="flex items-end md:col-span-2">
+							<Button
+								size="sm"
+								disabled={isMutating}
+								onClick={() => void handleGenerateTestLink()}
+							>
+								Generate link
+							</Button>
+						</div>
+					</div>
+					{generatedTestLink ? (
+						<div className="mt-3 flex flex-wrap gap-2">
+							<Button
+								size="sm"
+								variant="outline"
+								nativeButton={false}
+								render={
+									<a
+										href={generatedTestLink}
+										target="_blank"
+										rel="noreferrer"
+									/>
+								}
+							>
+								Open generated stats page
+							</Button>
+							<Button
+								size="sm"
+								variant="outline"
+								onClick={() => handleCopyStatsLink(generatedTestLink)}
+							>
+								Copy generated link
+							</Button>
+						</div>
+					) : null}
 				</div>
 
 				{statusMessage && (

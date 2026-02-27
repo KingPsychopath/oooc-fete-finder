@@ -273,3 +273,116 @@ export async function updatePartnerActivationStatus(input: {
 		};
 	}
 }
+
+export async function generatePartnerStatsTestLink(input: {
+	eventKey: string;
+	tier: "spotlight" | "promoted";
+	requestedStartAt?: string;
+	durationHours?: number;
+}): Promise<
+	| { success: true; statsPath: string; activationId: string; message: string }
+	| { success: false; message: string; error: string }
+> {
+	try {
+		await assertAdmin();
+		const repository = getPartnerActivationRepository();
+		if (!repository) {
+			return {
+				success: false,
+				message: "Postgres not configured",
+				error: "Postgres not configured",
+			};
+		}
+		const trimmedEventKey = input.eventKey.trim();
+		if (!trimmedEventKey) {
+			return {
+				success: false,
+				message: "Event key is required",
+				error: "Event key is required",
+			};
+		}
+
+		const startDate =
+			input.requestedStartAt && input.requestedStartAt.trim().length > 0
+				? new Date(input.requestedStartAt)
+				: new Date();
+		const safeStartDate = Number.isFinite(startDate.getTime())
+			? startDate
+			: new Date();
+		const parsedDuration =
+			typeof input.durationHours === "number"
+				? Math.floor(input.durationHours)
+				: 48;
+		const safeDuration = Number.isFinite(parsedDuration) ? parsedDuration : 48;
+		const durationHours = Math.max(1, Math.min(168, safeDuration));
+		const endDate = new Date(
+			safeStartDate.getTime() + durationHours * 60 * 60 * 1000,
+		);
+
+		const seedResult = await repository.enqueueFromStripe({
+			sourceEventId: `manual-test-${randomUUID()}`,
+			packageKey:
+				input.tier === "promoted" ?
+					"manual-test-promoted"
+				:	"manual-test-spotlight",
+			customerEmail: "internal-test@outofofficecollective.co.uk",
+			customerName: "Internal Test",
+			eventName: trimmedEventKey,
+			notes: "Manual partner stats test link",
+			metadata: {
+				createdBy: "admin-manual-test",
+			},
+			rawPayload: {
+				type: "manual.test",
+				eventKey: trimmedEventKey,
+			},
+		});
+
+		if (!seedResult.record) {
+			return {
+				success: false,
+				message: "Failed to create test activation record",
+				error: "Failed to create test activation record",
+			};
+		}
+
+		const partnerStatsToken = randomUUID().replace(/-/g, "");
+		const updated = await repository.markFulfilled({
+			id: seedResult.record.id,
+			eventKey: trimmedEventKey,
+			tier: input.tier,
+			startAt: safeStartDate.toISOString(),
+			endAt: endDate.toISOString(),
+			partnerStatsToken,
+			notes: `Manual test stats link (${trimmedEventKey})`,
+		});
+
+		if (!updated?.partnerStatsToken) {
+			return {
+				success: false,
+				message: "Failed to finalize test stats link",
+				error: "Failed to finalize test stats link",
+			};
+		}
+
+		const statsPath =
+			env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "") +
+			`${env.NEXT_PUBLIC_BASE_PATH}/partner-stats/${updated.id}?token=${updated.partnerStatsToken}`;
+
+		return {
+			success: true,
+			statsPath,
+			activationId: updated.id,
+			message: "Test partner stats link generated",
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Failed to generate test stats link",
+			error:
+				error instanceof Error
+					? error.message
+					: "Unknown test stats generation error",
+		};
+	}
+}

@@ -237,10 +237,25 @@ export default async function FeatureEventPage() {
 							<h2 className="mt-1 text-2xl font-light text-foreground">
 								Choose a package and pay in one click
 							</h2>
+							<p className="mt-1 text-xs text-muted-foreground">
+								Spotlight Standard and Spotlight Takeover share the same 3-slot
+								Spotlight inventory.
+							</p>
 						</div>
-						<Badge className="rounded-full border border-amber-700/20 bg-amber-500/15 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-amber-900 dark:text-amber-100">
-							Prices increase June 15 to June 20
-						</Badge>
+						<div className="flex flex-wrap items-center justify-end gap-2">
+							<Badge className="rounded-full border border-amber-700/20 bg-amber-500/15 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-amber-900 dark:text-amber-100">
+								Prices increase June 15 to June 20
+							</Badge>
+							<Badge
+								className={`rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.08em] ${
+									spotlightSlotsLeft <= 1
+										? "bg-rose-600 text-rose-50"
+										: "bg-emerald-700 text-emerald-50"
+								}`}
+							>
+								{spotlightSlotsLeft}/{spotlightSlotsTotal} spotlight slots left
+							</Badge>
+						</div>
 					</div>
 					<div className="grid gap-4 md:grid-cols-3">
 						{packages.map((pkg) => (
@@ -269,17 +284,6 @@ export default async function FeatureEventPage() {
 											className="w-fit rounded-full text-[10px] uppercase tracking-[0.08em]"
 										>
 											{pkg.badge}
-										</Badge>
-									) : null}
-									{pkg.tier === "spotlight" ? (
-										<Badge
-											className={`w-fit rounded-full px-2.5 py-1 text-[10px] uppercase tracking-[0.08em] ${
-												spotlightSlotsLeft <= 1
-													? "bg-rose-600 text-rose-50"
-													: "bg-emerald-700 text-emerald-50"
-											}`}
-										>
-											{spotlightSlotsLeft}/{spotlightSlotsTotal} slots left
 										</Badge>
 									) : null}
 								</CardHeader>
