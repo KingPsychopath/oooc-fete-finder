@@ -15,6 +15,11 @@ type OGImageParams = {
 	theme?: LegacyTheme;
 	eventCount?: number;
 	arrondissement?: string;
+	venue?: string;
+	time?: string;
+	date?: string;
+	price?: string;
+	genres?: string[];
 };
 
 const resolveVariant = (params: OGImageParams): OGImageVariant => {
@@ -44,6 +49,12 @@ export const generateOGImageUrl = (params: OGImageParams = {}): string => {
 		searchParams.set("eventCount", params.eventCount.toString());
 	if (params.arrondissement)
 		searchParams.set("arrondissement", params.arrondissement);
+	if (params.venue) searchParams.set("venue", params.venue);
+	if (params.time) searchParams.set("time", params.time);
+	if (params.date) searchParams.set("date", params.date);
+	if (params.price) searchParams.set("price", params.price);
+	if (params.genres && params.genres.length > 0)
+		searchParams.set("genres", params.genres.join(","));
 
 	const query = searchParams.toString();
 	return `/api/og${query ? `?${query}` : ""}`;
@@ -56,6 +67,11 @@ export const generateEventOGImage = (params: {
 	eventName?: string;
 	arrondissement?: string;
 	eventCount?: number;
+	venue?: string;
+	time?: string;
+	date?: string;
+	price?: string;
+	genres?: string[];
 }): string => {
 	return generateOGImageUrl({
 		title: params.eventName || "Live Music Events",
@@ -65,6 +81,11 @@ export const generateEventOGImage = (params: {
 		variant: "event-modal",
 		eventCount: params.eventCount,
 		arrondissement: params.arrondissement,
+		venue: params.venue,
+		time: params.time,
+		date: params.date,
+		price: params.price,
+		genres: params.genres,
 	});
 };
 

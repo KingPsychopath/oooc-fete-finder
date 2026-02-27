@@ -15,6 +15,7 @@ const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 120;
 const MAX_TEXT_LENGTH = 110;
 const MAX_EVENT_COUNT = 9999;
+const MAX_CHIPS = 3;
 const ALLOWED_VARIANTS = ["default", "event-modal"] as const;
 
 type OGVariant = (typeof ALLOWED_VARIANTS)[number];
@@ -256,6 +257,16 @@ const parseEventCount = (searchParams: URLSearchParams): number => {
 	return Math.min(Math.max(rawEventCount, 0), MAX_EVENT_COUNT);
 };
 
+const parseGenres = (searchParams: URLSearchParams): string[] => {
+	const raw = searchParams.get("genres") || "";
+	if (!raw.trim()) return [];
+	return raw
+		.split(",")
+		.map((value) => sanitizeText(value, ""))
+		.filter(Boolean)
+		.slice(0, MAX_CHIPS);
+};
+
 export async function GET(request: NextRequest) {
 	try {
 		if (await isRateLimited(request)) {
@@ -271,6 +282,11 @@ export async function GET(request: NextRequest) {
 		const variant = parseVariant(searchParams);
 		const eventCount = parseEventCount(searchParams);
 		const arrondissement = sanitizeText(searchParams.get("arrondissement") || "", "");
+		const date = sanitizeText(searchParams.get("date") || "", "");
+		const time = sanitizeText(searchParams.get("time") || "", "");
+		const price = sanitizeText(searchParams.get("price") || "", "");
+		const venue = sanitizeText(searchParams.get("venue") || "", "");
+		const genres = parseGenres(searchParams);
 		const defaultText = buildThemeText(variant, arrondissement, eventCount);
 		const title = sanitizeText(searchParams.get("title") || "", defaultText.title);
 		const subtitle = sanitizeText(
@@ -450,6 +466,103 @@ export async function GET(request: NextRequest) {
 						>
 							{subtitle}
 						</div>
+						{date || time || price || venue || genres.length > 0 ? (
+							<div
+								style={{
+									display: "flex",
+									flexWrap: "wrap",
+									gap: 10,
+									marginTop: 8,
+								}}
+							>
+								{date ? (
+									<div
+										style={{
+											display: "flex",
+											alignItems: "center",
+											padding: "6px 12px",
+											borderRadius: 999,
+											fontSize: 18,
+											fontWeight: 600,
+											color: palette.badgeText,
+											background: palette.badge,
+											border: `1px solid ${palette.border}`,
+										}}
+									>
+										{date}
+									</div>
+								) : null}
+								{time ? (
+									<div
+										style={{
+											display: "flex",
+											alignItems: "center",
+											padding: "6px 12px",
+											borderRadius: 999,
+											fontSize: 18,
+											fontWeight: 600,
+											color: palette.badgeText,
+											background: palette.badge,
+											border: `1px solid ${palette.border}`,
+										}}
+									>
+										{time}
+									</div>
+								) : null}
+								{price ? (
+									<div
+										style={{
+											display: "flex",
+											alignItems: "center",
+											padding: "6px 12px",
+											borderRadius: 999,
+											fontSize: 18,
+											fontWeight: 600,
+											color: palette.badgeText,
+											background: palette.badge,
+											border: `1px solid ${palette.border}`,
+										}}
+									>
+										{price}
+									</div>
+								) : null}
+								{venue ? (
+									<div
+										style={{
+											display: "flex",
+											alignItems: "center",
+											padding: "6px 12px",
+											borderRadius: 999,
+											fontSize: 18,
+											fontWeight: 600,
+											color: palette.badgeText,
+											background: palette.badge,
+											border: `1px solid ${palette.border}`,
+										}}
+									>
+										{venue}
+									</div>
+								) : null}
+								{genres.map((genre) => (
+									<div
+										key={genre}
+										style={{
+											display: "flex",
+											alignItems: "center",
+											padding: "6px 12px",
+											borderRadius: 999,
+											fontSize: 18,
+											fontWeight: 600,
+											color: palette.badgeText,
+											background: palette.badge,
+											border: `1px solid ${palette.border}`,
+										}}
+									>
+										{genre}
+									</div>
+								))}
+							</div>
+						) : null}
 					</div>
 
 					<div
