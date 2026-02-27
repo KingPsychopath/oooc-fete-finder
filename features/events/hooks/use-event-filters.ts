@@ -54,7 +54,13 @@ export const useEventFilters = ({
 	const searchTrackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
 	);
+	const priceTrackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
+	const ageTrackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const lastTrackedSearchRef = useRef("");
+	const lastTrackedPriceRef = useRef("");
+	const lastTrackedAgeRef = useRef("");
 	const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
 		DEFAULT_EVENT_FILTER_STATE.selectedDateRange,
 	);
@@ -93,6 +99,12 @@ export const useEventFilters = ({
 		return () => {
 			if (searchTrackTimeoutRef.current) {
 				clearTimeout(searchTrackTimeoutRef.current);
+			}
+			if (priceTrackTimeoutRef.current) {
+				clearTimeout(priceTrackTimeoutRef.current);
+			}
+			if (ageTrackTimeoutRef.current) {
+				clearTimeout(ageTrackTimeoutRef.current);
 			}
 		};
 	}, []);
@@ -301,6 +313,27 @@ export const useEventFilters = ({
 		(range: [number, number]) => {
 			if (!requireAuth()) return;
 			setSelectedPriceRange(range);
+			const isDefaultRange =
+				range[0] === PRICE_RANGE_CONFIG.min &&
+				range[1] === PRICE_RANGE_CONFIG.max;
+			if (isDefaultRange) {
+				return;
+			}
+			const value = `${range[0]}:${range[1]}`;
+			if (priceTrackTimeoutRef.current) {
+				clearTimeout(priceTrackTimeoutRef.current);
+			}
+			priceTrackTimeoutRef.current = setTimeout(() => {
+				if (lastTrackedPriceRef.current === value) {
+					return;
+				}
+				lastTrackedPriceRef.current = value;
+				trackDiscoveryAnalytics({
+					actionType: "filter_apply",
+					filterGroup: "price_range",
+					filterValue: value,
+				});
+			}, 450);
 		},
 		[requireAuth],
 	);
@@ -317,6 +350,24 @@ export const useEventFilters = ({
 				return;
 			}
 			setSelectedAgeRange(range);
+			if (!range) {
+				return;
+			}
+			const value = `${range[0]}:${range[1]}`;
+			if (ageTrackTimeoutRef.current) {
+				clearTimeout(ageTrackTimeoutRef.current);
+			}
+			ageTrackTimeoutRef.current = setTimeout(() => {
+				if (lastTrackedAgeRef.current === value) {
+					return;
+				}
+				lastTrackedAgeRef.current = value;
+				trackDiscoveryAnalytics({
+					actionType: "filter_apply",
+					filterGroup: "age_range",
+					filterValue: value,
+				});
+			}, 450);
 		},
 		[requireAuth],
 	);

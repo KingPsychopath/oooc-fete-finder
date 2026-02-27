@@ -4,6 +4,7 @@ import {
 } from "@/features/auth/user-session-cookie";
 import {
 	checkTrackDiscoveryIpLimit,
+	checkTrackDiscoverySessionLimit,
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
@@ -20,6 +21,19 @@ const discoveryTrackSchema = z.object({
 	searchQuery: z.string().trim().max(280).optional(),
 	path: z.string().trim().max(280).optional(),
 });
+
+const KNOWN_FILTER_GROUPS = new Set([
+	"date_range",
+	"day_night",
+	"arrondissement",
+	"genre",
+	"nationality",
+	"venue_type",
+	"venue_setting",
+	"oooc_pick",
+	"price_range",
+	"age_range",
+]);
 
 export const runtime = "nodejs";
 
@@ -72,15 +86,37 @@ export async function POST(request: Request) {
 	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
 	const userSession = getUserSessionFromCookieHeader(userCookie);
 	const body = parsed.data;
+	if (body.actionType === "filter_apply") {
+		const filterGroup = (body.filterGroup ?? "").trim().toLowerCase();
+		const filterValue = (body.filterValue ?? "").trim().toLowerCase();
+		if (!KNOWN_FILTER_GROUPS.has(filterGroup) || filterValue.length === 0) {
+			return accepted();
+		}
+	}
+	if (body.actionType === "search") {
+		const searchQuery = (body.searchQuery ?? "").trim().toLowerCase();
+		if (searchQuery.length < 2) {
+			return accepted();
+		}
+	}
 
 	try {
+		if (body.sessionId) {
+			const sessionDecision = await checkTrackDiscoverySessionLimit(
+				body.sessionId,
+			);
+			if (!sessionDecision.allowed) {
+				return accepted();
+			}
+		}
+
 		await repository.recordAction({
 			actionType: body.actionType,
 			sessionId: body.sessionId ?? null,
 			userEmail: userSession.email,
-			filterGroup: body.filterGroup ?? null,
-			filterValue: body.filterValue ?? null,
-			searchQuery: body.searchQuery ?? null,
+			filterGroup: body.filterGroup?.trim().toLowerCase() ?? null,
+			filterValue: body.filterValue?.trim().toLowerCase() ?? null,
+			searchQuery: body.searchQuery?.trim().toLowerCase() ?? null,
 			path: body.path ?? null,
 			isAuthenticated: userSession.isAuthenticated,
 		});

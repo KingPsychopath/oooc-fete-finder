@@ -19,6 +19,9 @@ type EventEngagementSummaryRow = {
 	outboundClickCount: number;
 	calendarSyncCount: number;
 	uniqueSessionCount: number;
+	uniqueViewSessionCount: number;
+	uniqueOutboundSessionCount: number;
+	uniqueCalendarSessionCount: number;
 };
 
 type EventEngagementDailyRow = {
@@ -130,7 +133,10 @@ export class EventEngagementRepository {
 				COUNT(*) FILTER (WHERE action_type = 'click')::int AS "clickCount",
 				COUNT(*) FILTER (WHERE action_type = 'outbound_click')::int AS "outboundClickCount",
 				COUNT(*) FILTER (WHERE action_type = 'calendar_sync')::int AS "calendarSyncCount",
-				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount"
+				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'click')::int AS "uniqueViewSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'outbound_click')::int AS "uniqueOutboundSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'calendar_sync')::int AS "uniqueCalendarSessionCount"
 			FROM app_event_engagement_stats
 			WHERE recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
@@ -149,6 +155,9 @@ export class EventEngagementRepository {
 		outboundClickCount: number;
 		calendarSyncCount: number;
 		uniqueSessionCount: number;
+		uniqueViewSessionCount: number;
+		uniqueOutboundSessionCount: number;
+		uniqueCalendarSessionCount: number;
 	}> {
 		await this.ready();
 		const rows = await this.sql<
@@ -157,13 +166,19 @@ export class EventEngagementRepository {
 				outboundClickCount: number;
 				calendarSyncCount: number;
 				uniqueSessionCount: number;
+				uniqueViewSessionCount: number;
+				uniqueOutboundSessionCount: number;
+				uniqueCalendarSessionCount: number;
 			}>
 		>`
 			SELECT
 				COUNT(*) FILTER (WHERE action_type = 'click')::int AS "clickCount",
 				COUNT(*) FILTER (WHERE action_type = 'outbound_click')::int AS "outboundClickCount",
 				COUNT(*) FILTER (WHERE action_type = 'calendar_sync')::int AS "calendarSyncCount",
-				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount"
+				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'click')::int AS "uniqueViewSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'outbound_click')::int AS "uniqueOutboundSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'calendar_sync')::int AS "uniqueCalendarSessionCount"
 			FROM app_event_engagement_stats
 			WHERE recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
@@ -175,6 +190,9 @@ export class EventEngagementRepository {
 				outboundClickCount: 0,
 				calendarSyncCount: 0,
 				uniqueSessionCount: 0,
+				uniqueViewSessionCount: 0,
+				uniqueOutboundSessionCount: 0,
+				uniqueCalendarSessionCount: 0,
 			}
 		);
 	}
@@ -191,7 +209,10 @@ export class EventEngagementRepository {
 				COUNT(*) FILTER (WHERE action_type = 'click')::int AS "clickCount",
 				COUNT(*) FILTER (WHERE action_type = 'outbound_click')::int AS "outboundClickCount",
 				COUNT(*) FILTER (WHERE action_type = 'calendar_sync')::int AS "calendarSyncCount",
-				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount"
+				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'click')::int AS "uniqueViewSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'outbound_click')::int AS "uniqueOutboundSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'calendar_sync')::int AS "uniqueCalendarSessionCount"
 			FROM app_event_engagement_stats
 			WHERE event_key = ${input.eventKey}
 				AND recorded_at >= ${input.startAt}
@@ -204,6 +225,9 @@ export class EventEngagementRepository {
 				outboundClickCount: 0,
 				calendarSyncCount: 0,
 				uniqueSessionCount: 0,
+				uniqueViewSessionCount: 0,
+				uniqueOutboundSessionCount: 0,
+				uniqueCalendarSessionCount: 0,
 			}
 		);
 	}

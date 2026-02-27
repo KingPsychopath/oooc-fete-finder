@@ -41,8 +41,13 @@ export async function getPartnerStatsSnapshot(input: {
 					outboundClickCount: number;
 					calendarSyncCount: number;
 					uniqueSessionCount: number;
-					outboundRate: number;
-					calendarRate: number;
+					uniqueViewSessionCount: number;
+					uniqueOutboundSessionCount: number;
+					uniqueCalendarSessionCount: number;
+					outboundSessionRate: number;
+					calendarSessionRate: number;
+					outboundInteractionRate: number;
+					calendarInteractionRate: number;
 				};
 				createdAt: string;
 				updatedAt: string;
@@ -139,8 +144,25 @@ export async function getPartnerStatsSnapshot(input: {
 				outboundClickCount: summary.outboundClickCount,
 				calendarSyncCount: summary.calendarSyncCount,
 				uniqueSessionCount: summary.uniqueSessionCount,
-				outboundRate: toPercent(summary.outboundClickCount, summary.clickCount),
-				calendarRate: toPercent(summary.calendarSyncCount, summary.clickCount),
+				uniqueViewSessionCount: summary.uniqueViewSessionCount,
+				uniqueOutboundSessionCount: summary.uniqueOutboundSessionCount,
+				uniqueCalendarSessionCount: summary.uniqueCalendarSessionCount,
+				outboundSessionRate: toPercent(
+					summary.uniqueOutboundSessionCount,
+					summary.uniqueViewSessionCount,
+				),
+				calendarSessionRate: toPercent(
+					summary.uniqueCalendarSessionCount,
+					summary.uniqueViewSessionCount,
+				),
+				outboundInteractionRate: toPercent(
+					summary.outboundClickCount,
+					summary.clickCount,
+				),
+				calendarInteractionRate: toPercent(
+					summary.calendarSyncCount,
+					summary.clickCount,
+				),
 			},
 			createdAt: activation.createdAt,
 			updatedAt: activation.updatedAt,

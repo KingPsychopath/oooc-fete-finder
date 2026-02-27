@@ -20,6 +20,8 @@ const TRACK_EVENT_SESSION_LIMIT = 200;
 const TRACK_EVENT_SESSION_WINDOW_SECONDS = 60;
 const TRACK_DISCOVERY_IP_LIMIT = 180;
 const TRACK_DISCOVERY_IP_WINDOW_SECONDS = 60;
+const TRACK_DISCOVERY_SESSION_LIMIT = 150;
+const TRACK_DISCOVERY_SESSION_WINDOW_SECONDS = 60;
 const USER_PREFERENCE_IP_LIMIT = 120;
 const USER_PREFERENCE_IP_WINDOW_SECONDS = 60;
 const RATE_LIMIT_CLEANUP_GRACE_SECONDS = 24 * 60 * 60;
@@ -33,6 +35,7 @@ export type RateLimitScope =
 	| "track_event_ip"
 	| "track_event_session"
 	| "track_discovery_ip"
+	| "track_discovery_session"
 	| "user_preference_ip";
 export type RateLimitReason =
 	| "ok"
@@ -125,6 +128,7 @@ const rateLimitReasonByScope: Record<
 	track_event_ip: "ip_limit",
 	track_event_session: "session_limit",
 	track_discovery_ip: "ip_limit",
+	track_discovery_session: "session_limit",
 	user_preference_ip: "ip_limit",
 };
 
@@ -284,6 +288,19 @@ export const checkTrackDiscoveryIpLimit = async (
 		keyParts: [normalizedIp],
 		windowSeconds: TRACK_DISCOVERY_IP_WINDOW_SECONDS,
 		limit: TRACK_DISCOVERY_IP_LIMIT,
+	});
+};
+
+export const checkTrackDiscoverySessionLimit = async (
+	sessionId: string,
+): Promise<RateLimitDecision> => {
+	const scope: RateLimitScope = "track_discovery_session";
+	const normalizedSession = sessionId.trim() || "unknown";
+	return consumeRateLimitWindow({
+		scope,
+		keyParts: [normalizedSession],
+		windowSeconds: TRACK_DISCOVERY_SESSION_WINDOW_SECONDS,
+		limit: TRACK_DISCOVERY_SESSION_LIMIT,
 	});
 };
 

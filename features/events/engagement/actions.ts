@@ -1,6 +1,7 @@
 "use server";
 
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
+import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { MUSIC_GENRES, type MusicGenre } from "@/features/events/types";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
@@ -34,6 +35,37 @@ const buildWindow = (
 	return { safeWindowDays, startAt, endAt };
 };
 
+const DISCOVERY_FILTER_GROUPS = [
+	"date_range",
+	"day_night",
+	"arrondissement",
+	"genre",
+	"nationality",
+	"venue_type",
+	"venue_setting",
+	"oooc_pick",
+	"price_range",
+	"age_range",
+] as const;
+
+type DiscoveryFilterGroup = (typeof DISCOVERY_FILTER_GROUPS)[number];
+
+const knownDiscoveryFilterGroups = new Set<string>(DISCOVERY_FILTER_GROUPS);
+
+const escapeCsvCell = (value: string | number): string => {
+	const text = String(value ?? "");
+	if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+		return `"${text.replace(/"/g, '""')}"`;
+	}
+	return text;
+};
+
+type SegmentCriterion = {
+	key: string;
+	label: string;
+	matches: Map<string, { hitCount: number; lastSeenAt: string }>;
+};
+
 export async function getEventEngagementDashboard(windowDays = 30): Promise<
 	| {
 			success: true;
@@ -47,8 +79,13 @@ export async function getEventEngagementDashboard(windowDays = 30): Promise<
 				outboundClickCount: number;
 				calendarSyncCount: number;
 				uniqueSessionCount: number;
-				outboundRate: number;
-				calendarRate: number;
+				uniqueViewSessionCount: number;
+				uniqueOutboundSessionCount: number;
+				uniqueCalendarSessionCount: number;
+				outboundSessionRate: number;
+				calendarSessionRate: number;
+				outboundInteractionRate: number;
+				calendarInteractionRate: number;
 			};
 			dailySeries: Array<{
 				day: string;
@@ -63,8 +100,13 @@ export async function getEventEngagementDashboard(windowDays = 30): Promise<
 				outboundClickCount: number;
 				calendarSyncCount: number;
 				uniqueSessionCount: number;
-				outboundRate: number;
-				calendarRate: number;
+				uniqueViewSessionCount: number;
+				uniqueOutboundSessionCount: number;
+				uniqueCalendarSessionCount: number;
+				outboundSessionRate: number;
+				calendarSessionRate: number;
+				outboundInteractionRate: number;
+				calendarInteractionRate: number;
 			}>;
 			discovery: {
 				searchCount: number;
@@ -157,8 +199,25 @@ export async function getEventEngagementDashboard(windowDays = 30): Promise<
 				outboundClickCount: summary.outboundClickCount,
 				calendarSyncCount: summary.calendarSyncCount,
 				uniqueSessionCount: summary.uniqueSessionCount,
-				outboundRate: toPercent(summary.outboundClickCount, summary.clickCount),
-				calendarRate: toPercent(summary.calendarSyncCount, summary.clickCount),
+				uniqueViewSessionCount: summary.uniqueViewSessionCount,
+				uniqueOutboundSessionCount: summary.uniqueOutboundSessionCount,
+				uniqueCalendarSessionCount: summary.uniqueCalendarSessionCount,
+				outboundSessionRate: toPercent(
+					summary.uniqueOutboundSessionCount,
+					summary.uniqueViewSessionCount,
+				),
+				calendarSessionRate: toPercent(
+					summary.uniqueCalendarSessionCount,
+					summary.uniqueViewSessionCount,
+				),
+				outboundInteractionRate: toPercent(
+					summary.outboundClickCount,
+					summary.clickCount,
+				),
+				calendarInteractionRate: toPercent(
+					summary.calendarSyncCount,
+					summary.clickCount,
+				),
 			},
 			dailySeries,
 			rows: topRows.map((row) => ({
@@ -168,8 +227,25 @@ export async function getEventEngagementDashboard(windowDays = 30): Promise<
 				outboundClickCount: row.outboundClickCount,
 				calendarSyncCount: row.calendarSyncCount,
 				uniqueSessionCount: row.uniqueSessionCount,
-				outboundRate: toPercent(row.outboundClickCount, row.clickCount),
-				calendarRate: toPercent(row.calendarSyncCount, row.clickCount),
+				uniqueViewSessionCount: row.uniqueViewSessionCount,
+				uniqueOutboundSessionCount: row.uniqueOutboundSessionCount,
+				uniqueCalendarSessionCount: row.uniqueCalendarSessionCount,
+				outboundSessionRate: toPercent(
+					row.uniqueOutboundSessionCount,
+					row.uniqueViewSessionCount,
+				),
+				calendarSessionRate: toPercent(
+					row.uniqueCalendarSessionCount,
+					row.uniqueViewSessionCount,
+				),
+				outboundInteractionRate: toPercent(
+					row.outboundClickCount,
+					row.clickCount,
+				),
+				calendarInteractionRate: toPercent(
+					row.calendarSyncCount,
+					row.clickCount,
+				),
 			})),
 			discovery: {
 				searchCount: discoverySummary.searchCount,
@@ -197,64 +273,251 @@ export async function getEventEngagementDashboard(windowDays = 30): Promise<
 	}
 }
 
-export async function exportGenreSegmentCsv(input: {
-	genre: MusicGenre;
-	minScore?: number;
+export async function exportAudienceSegmentCsv(input: {
+	windowDays?: number;
+	minHitsPerRule?: number;
+	limit?: number;
+	ruleOperator?: "all" | "any";
+	filterRules?: Array<{
+		filterGroup: DiscoveryFilterGroup;
+		filterValue: string;
+	}>;
+	searchContains?: string;
+	genreRules?: Array<{
+		genre: MusicGenre;
+		minScore?: number;
+	}>;
 }): Promise<
 	| { success: true; csv: string; filename: string; count: number }
 	| { success: false; error: string }
 > {
 	try {
 		await assertAdmin();
-		const repository = getUserGenrePreferenceRepository();
-		if (!repository) {
-			return { success: false, error: "Postgres not configured" };
-		}
-
-		const knownGenre = MUSIC_GENRES.some((genre) => genre.key === input.genre);
-		if (!knownGenre) {
-			return { success: false, error: "Unknown genre segment" };
-		}
-
-		const minScore = Math.max(
+		const discoveryRepository = getDiscoveryAnalyticsRepository();
+		const preferenceRepository = getUserGenrePreferenceRepository();
+		const { startAt, endAt } = buildWindow(input.windowDays ?? 30);
+		const minHitsPerRule = Math.max(
 			1,
-			Math.min(100, Math.floor(input.minScore ?? 2)),
+			Math.min(30, Math.floor(input.minHitsPerRule ?? 1)),
 		);
-		const rows = await repository.listSegmentByGenre({
-			genre: input.genre,
-			minScore,
-			limit: 5000,
-		});
+		const safeLimit = Math.max(
+			1,
+			Math.min(10_000, Math.floor(input.limit ?? 5000)),
+		);
+		const ruleOperator = input.ruleOperator === "any" ? "any" : "all";
+		const filterRules = (input.filterRules ?? [])
+			.map((rule) => ({
+				filterGroup: rule.filterGroup,
+				filterValue: rule.filterValue.trim().toLowerCase(),
+			}))
+			.filter(
+				(rule) =>
+					knownDiscoveryFilterGroups.has(rule.filterGroup) &&
+					rule.filterValue.length > 0,
+			);
+		const genreRules = (input.genreRules ?? []).filter((rule) =>
+			MUSIC_GENRES.some((genre) => genre.key === rule.genre),
+		);
+		const searchContains = (input.searchContains ?? "").trim().toLowerCase();
+
+		const requiresDiscovery =
+			filterRules.length > 0 || searchContains.length > 0;
+		const requiresPreference = genreRules.length > 0;
+
+		if (!requiresDiscovery && !requiresPreference) {
+			return { success: false, error: "Add at least one audience rule" };
+		}
+		if (requiresDiscovery && !discoveryRepository) {
+			return {
+				success: false,
+				error: "Discovery tracking database unavailable",
+			};
+		}
+		if (requiresPreference && !preferenceRepository) {
+			return {
+				success: false,
+				error: "Genre preference database unavailable",
+			};
+		}
+
+		const criteria: SegmentCriterion[] = [];
+
+		if (discoveryRepository) {
+			for (const rule of filterRules) {
+				const rows = await discoveryRepository.listUserFilterMatches({
+					startAt,
+					endAt,
+					filterGroup: rule.filterGroup,
+					filterValue: rule.filterValue,
+					minHits: minHitsPerRule,
+					limit: safeLimit,
+				});
+				criteria.push({
+					key: `${rule.filterGroup}:${rule.filterValue}`,
+					label: `${rule.filterGroup}=${rule.filterValue}`,
+					matches: new Map(
+						rows.map((row) => [
+							row.email,
+							{
+								hitCount: row.hitCount,
+								lastSeenAt: row.lastSeenAt,
+							},
+						]),
+					),
+				});
+			}
+
+			if (searchContains.length > 0) {
+				const rows = await discoveryRepository.listUserSearchMatches({
+					startAt,
+					endAt,
+					searchContains,
+					minHits: minHitsPerRule,
+					limit: safeLimit,
+				});
+				criteria.push({
+					key: `search:${searchContains}`,
+					label: `search~${searchContains}`,
+					matches: new Map(
+						rows.map((row) => [
+							row.email,
+							{
+								hitCount: row.hitCount,
+								lastSeenAt: row.lastSeenAt,
+							},
+						]),
+					),
+				});
+			}
+		}
+
+		if (preferenceRepository) {
+			for (const rule of genreRules) {
+				const minScore = Math.max(
+					1,
+					Math.min(100, Math.floor(rule.minScore ?? 2)),
+				);
+				const rows = await preferenceRepository.listSegmentByGenre({
+					genre: rule.genre,
+					minScore,
+					limit: safeLimit,
+				});
+				criteria.push({
+					key: `pref:${rule.genre}:${minScore}`,
+					label: `genre_pref=${rule.genre} (score>=${minScore})`,
+					matches: new Map(
+						rows.map((row) => [
+							row.email,
+							{
+								hitCount: row.score,
+								lastSeenAt: row.lastSeenAt,
+							},
+						]),
+					),
+				});
+			}
+		}
+
+		if (criteria.length === 0) {
+			return {
+				success: false,
+				error: "No users match the selected audience rules",
+			};
+		}
+
+		const firstCriterion = criteria[0];
+		let matchedEmails = new Set<string>(
+			firstCriterion ? [...firstCriterion.matches.keys()] : [],
+		);
+		if (ruleOperator === "all") {
+			for (const criterion of criteria.slice(1)) {
+				matchedEmails = new Set(
+					[...matchedEmails].filter((email) => criterion.matches.has(email)),
+				);
+			}
+		} else {
+			for (const criterion of criteria.slice(1)) {
+				for (const email of criterion.matches.keys()) {
+					matchedEmails.add(email);
+				}
+			}
+		}
+
+		const users = await UserCollectionStore.listAll();
+		const userByEmail = new Map(
+			users.map((user) => [user.email.toLowerCase(), user]),
+		);
+		const sortedRows = [...matchedEmails]
+			.map((email) => {
+				const matchedRules = criteria.map((criterion) => {
+					const value = criterion.matches.get(email);
+					return {
+						label: criterion.label,
+						hitCount: value?.hitCount ?? 0,
+						lastSeenAt: value?.lastSeenAt ?? "",
+					};
+				});
+				const totalHits = matchedRules.reduce(
+					(total, rule) => total + rule.hitCount,
+					0,
+				);
+				const lastMatchedAt = matchedRules
+					.map((rule) => rule.lastSeenAt)
+					.filter((value) => value.length > 0)
+					.sort((left, right) => (left > right ? -1 : 1))[0];
+				const user = userByEmail.get(email.toLowerCase());
+				return {
+					email,
+					firstName: user?.firstName ?? "",
+					lastName: user?.lastName ?? "",
+					source: user?.source ?? "",
+					lastSeenAt: user?.timestamp ?? lastMatchedAt ?? "",
+					totalHits,
+					matchedRules,
+				};
+			})
+			.sort((left, right) => {
+				if (right.totalHits !== left.totalHits) {
+					return right.totalHits - left.totalHits;
+				}
+				return left.email.localeCompare(right.email);
+			})
+			.slice(0, safeLimit);
 
 		const header = [
 			"first_name",
 			"last_name",
 			"email",
-			"genre",
-			"score",
+			"source",
 			"last_seen_at",
+			"matched_rules",
+			"total_rule_hits",
+			"rule_hit_breakdown",
+			"match_operator",
+			"window_start_at",
+			"window_end_at",
 		];
-		const escapeCell = (value: string | number): string => {
-			const text = String(value ?? "");
-			if (text.includes(",") || text.includes('"') || text.includes("\n")) {
-				return `"${text.replace(/"/g, '""')}"`;
-			}
-			return text;
-		};
-		const lines = rows.map((row) =>
+		const lines = sortedRows.map((row) =>
 			[
-				row.firstName,
-				row.lastName,
+				row.firstName.trim(),
+				row.lastName.trim(),
 				row.email,
-				input.genre,
-				row.score,
+				row.source,
 				row.lastSeenAt,
+				row.matchedRules.length,
+				row.totalHits,
+				row.matchedRules
+					.map((rule) => `${rule.label}(${rule.hitCount})`)
+					.join(" | "),
+				ruleOperator,
+				startAt,
+				endAt,
 			]
-				.map(escapeCell)
+				.map(escapeCsvCell)
 				.join(","),
 		);
 		const csv = [header.join(","), ...lines].join("\n");
-		const filename = `oooc-genre-segment-${input.genre}-${new Date()
+		const filename = `oooc-audience-segment-${new Date()
 			.toISOString()
 			.slice(0, 10)}.csv`;
 
@@ -262,13 +525,32 @@ export async function exportGenreSegmentCsv(input: {
 			success: true,
 			csv,
 			filename,
-			count: rows.length,
+			count: sortedRows.length,
 		};
 	} catch (error) {
 		return {
 			success: false,
 			error:
-				error instanceof Error ? error.message : "Unknown genre export error",
+				error instanceof Error
+					? error.message
+					: "Unknown audience export error",
 		};
 	}
+}
+
+export async function exportGenreSegmentCsv(input: {
+	genre: MusicGenre;
+	minScore?: number;
+}): Promise<
+	| { success: true; csv: string; filename: string; count: number }
+	| { success: false; error: string }
+> {
+	return exportAudienceSegmentCsv({
+		genreRules: [
+			{
+				genre: input.genre,
+				minScore: input.minScore,
+			},
+		],
+	});
 }

@@ -22,4 +22,7 @@ export interface EventEngagementSummary {
 	outboundClickCount: number;
 	calendarSyncCount: number;
 	uniqueSessionCount: number;
+	uniqueViewSessionCount: number;
+	uniqueOutboundSessionCount: number;
+	uniqueCalendarSessionCount: number;
 }

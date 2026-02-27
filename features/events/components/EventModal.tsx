@@ -41,6 +41,7 @@ import {
 	Clock,
 	Euro,
 	ExternalLink,
+	Flame,
 	Link2,
 	MapPin,
 	Music,
@@ -127,6 +128,8 @@ const EventModal: React.FC<EventModalProps> = ({
 	if (!isOpen || !event) return null;
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
 	const canAddToCalendar = isCalendarDateValid(event.date);
+	const calendarSyncCount = event.calendarSyncCount ?? 0;
+	const savedLabel = calendarSyncCount === 1 ? "person" : "people";
 
 	const handleOpenLocation = async (
 		location: string,
@@ -435,6 +438,12 @@ const EventModal: React.FC<EventModalProps> = ({
 						</div>
 					</div>
 					<div className="mt-2 flex flex-wrap items-center gap-1.5">
+						{calendarSyncCount > 0 && (
+							<Badge className="border-amber-300/70 bg-amber-500/15 text-amber-900 hover:bg-amber-500/20 dark:border-amber-400/45 dark:text-amber-200">
+								<Flame className="mr-1 h-3.5 w-3.5" />
+								{calendarSyncCount} {savedLabel} saved this
+							</Badge>
+						)}
 						{event.isOOOCPick && (
 							<Badge className="border-yellow-300 bg-yellow-400 text-black hover:bg-yellow-500">
 								<Star className="mr-1 h-3.5 w-3.5 fill-current" />

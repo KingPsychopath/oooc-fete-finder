@@ -23,6 +23,12 @@ export interface DiscoveryAnalyticsRecordInput {
 	recordedAt?: string;
 }
 
+type DiscoveryUserMatchRow = {
+	email: string;
+	hitCount: number;
+	lastSeenAt: Date | string;
+};
+
 const cleanString = (
 	value: string | null | undefined,
 	maxLength: number,
@@ -201,6 +207,97 @@ export class DiscoveryAnalyticsRepository {
 			LIMIT ${safeLimit}
 		`;
 		return rows;
+	}
+
+	async listUserFilterMatches(input: {
+		startAt: string;
+		endAt: string;
+		filterGroup: string;
+		filterValue: string;
+		minHits: number;
+		limit: number;
+	}): Promise<Array<{ email: string; hitCount: number; lastSeenAt: string }>> {
+		await this.ready();
+		const filterGroup = cleanString(input.filterGroup, 80);
+		const filterValue = cleanString(input.filterValue, 120);
+		if (!filterGroup || !filterValue) {
+			return [];
+		}
+
+		const safeLimit = Math.max(1, Math.min(input.limit, 20_000));
+		const safeMinHits = Math.max(1, Math.min(input.minHits, 200));
+
+		const rows = await this.sql<DiscoveryUserMatchRow[]>`
+			SELECT
+				user_email AS email,
+				COUNT(*)::int AS "hitCount",
+				MAX(recorded_at) AS "lastSeenAt"
+			FROM app_discovery_analytics_stats
+			WHERE action_type = 'filter_apply'
+				AND user_email IS NOT NULL
+				AND filter_group = ${filterGroup}
+				AND filter_value = ${filterValue}
+				AND recorded_at >= ${input.startAt}
+				AND recorded_at < ${input.endAt}
+			GROUP BY user_email
+			HAVING COUNT(*) >= ${safeMinHits}
+			ORDER BY "hitCount" DESC, MAX(recorded_at) DESC
+			LIMIT ${safeLimit}
+		`;
+
+		return rows.map((row) => ({
+			email: row.email,
+			hitCount: row.hitCount,
+			lastSeenAt:
+				row.lastSeenAt instanceof Date
+					? row.lastSeenAt.toISOString()
+					: new Date(row.lastSeenAt).toISOString(),
+		}));
+	}
+
+	async listUserSearchMatches(input: {
+		startAt: string;
+		endAt: string;
+		searchContains: string;
+		minHits: number;
+		limit: number;
+	}): Promise<Array<{ email: string; hitCount: number; lastSeenAt: string }>> {
+		await this.ready();
+		const searchContains = cleanString(input.searchContains, 160);
+		if (!searchContains) {
+			return [];
+		}
+
+		const safeLimit = Math.max(1, Math.min(input.limit, 20_000));
+		const safeMinHits = Math.max(1, Math.min(input.minHits, 200));
+		const searchLike = `%${searchContains.toLowerCase()}%`;
+
+		const rows = await this.sql<DiscoveryUserMatchRow[]>`
+			SELECT
+				user_email AS email,
+				COUNT(*)::int AS "hitCount",
+				MAX(recorded_at) AS "lastSeenAt"
+			FROM app_discovery_analytics_stats
+			WHERE action_type = 'search'
+				AND user_email IS NOT NULL
+				AND search_query IS NOT NULL
+				AND LOWER(search_query) LIKE ${searchLike}
+				AND recorded_at >= ${input.startAt}
+				AND recorded_at < ${input.endAt}
+			GROUP BY user_email
+			HAVING COUNT(*) >= ${safeMinHits}
+			ORDER BY "hitCount" DESC, MAX(recorded_at) DESC
+			LIMIT ${safeLimit}
+		`;
+
+		return rows.map((row) => ({
+			email: row.email,
+			hitCount: row.hitCount,
+			lastSeenAt:
+				row.lastSeenAt instanceof Date
+					? row.lastSeenAt.toISOString()
+					: new Date(row.lastSeenAt).toISOString(),
+		}));
 	}
 }
 

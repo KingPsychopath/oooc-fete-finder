@@ -47,8 +47,13 @@ export async function GET(
 			"outbound_clicks",
 			"calendar_syncs",
 			"unique_sessions",
-			"outbound_rate",
-			"calendar_rate",
+			"unique_view_sessions",
+			"unique_outbound_sessions",
+			"unique_calendar_sessions",
+			"outbound_session_rate",
+			"calendar_session_rate",
+			"outbound_interaction_rate",
+			"calendar_interaction_rate",
 		];
 		const row = [
 			data.activationId,
@@ -61,8 +66,13 @@ export async function GET(
 			String(data.metrics.outboundClickCount),
 			String(data.metrics.calendarSyncCount),
 			String(data.metrics.uniqueSessionCount),
-			String(data.metrics.outboundRate),
-			String(data.metrics.calendarRate),
+			String(data.metrics.uniqueViewSessionCount),
+			String(data.metrics.uniqueOutboundSessionCount),
+			String(data.metrics.uniqueCalendarSessionCount),
+			String(data.metrics.outboundSessionRate),
+			String(data.metrics.calendarSessionRate),
+			String(data.metrics.outboundInteractionRate),
+			String(data.metrics.calendarInteractionRate),
 		];
 		const csv = `${header.join(",")}\n${row
 			.map((value) =>

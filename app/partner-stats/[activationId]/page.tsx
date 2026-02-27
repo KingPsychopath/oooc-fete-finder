@@ -171,23 +171,36 @@ export default async function PartnerStatsPage({
 					<Card className="border-border/80 bg-card">
 						<CardHeader className="pb-2">
 							<CardTitle className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-								Outbound Rate
+								Outbound CVR
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="pt-0 text-2xl font-medium tabular-nums">
-							{formatPercent(data.metrics.outboundRate)}
+							{formatPercent(data.metrics.outboundSessionRate)}
 						</CardContent>
 					</Card>
 					<Card className="border-border/80 bg-card">
 						<CardHeader className="pb-2">
 							<CardTitle className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-								Calendar Rate
+								Calendar CVR
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="pt-0 text-2xl font-medium tabular-nums">
-							{formatPercent(data.metrics.calendarRate)}
+							{formatPercent(data.metrics.calendarSessionRate)}
 						</CardContent>
 					</Card>
+				</section>
+
+				<section className="mt-4 rounded-xl border border-border/80 bg-card/90 p-4 text-sm text-muted-foreground">
+					<p>
+						Interaction rate (click-based): Outbound{" "}
+						<span className="font-medium text-foreground">
+							{formatPercent(data.metrics.outboundInteractionRate)}
+						</span>{" "}
+						• Calendar{" "}
+						<span className="font-medium text-foreground">
+							{formatPercent(data.metrics.calendarInteractionRate)}
+						</span>
+					</p>
 				</section>
 
 				<section className="mt-6 rounded-xl border border-border/80 bg-card/90 p-4 text-sm text-muted-foreground">
