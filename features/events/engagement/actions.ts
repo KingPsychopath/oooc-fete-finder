@@ -3,7 +3,10 @@
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
-import { clusterTopSearchQueries } from "@/features/events/engagement/search-query-clustering";
+import {
+	type SearchClusterMode,
+	clusterTopSearchQueries,
+} from "@/features/events/engagement/search-query-clustering";
 import { MUSIC_GENRES, type MusicGenre } from "@/features/events/types";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
@@ -67,7 +70,10 @@ type SegmentCriterion = {
 	matches: Map<string, { hitCount: number; lastSeenAt: string }>;
 };
 
-export async function getEventEngagementDashboard(windowDays = 30): Promise<
+export async function getEventEngagementDashboard(
+	windowDays = 30,
+	searchClusterMode: SearchClusterMode = "conservative",
+): Promise<
 	| {
 			success: true;
 			windowDays: number;
@@ -110,6 +116,7 @@ export async function getEventEngagementDashboard(windowDays = 30): Promise<
 				calendarInteractionRate: number;
 			}>;
 			discovery: {
+				searchClusterMode: SearchClusterMode;
 				searchCount: number;
 				filterApplyCount: number;
 				filterClearCount: number;
@@ -196,7 +203,11 @@ export async function getEventEngagementDashboard(windowDays = 30): Promise<
 			MUSIC_GENRES.map((genre) => [genre.key, genre.label]),
 		);
 
-		const topSearches = clusterTopSearchQueries(topSearchesRaw, 20);
+		const topSearches = clusterTopSearchQueries(
+			topSearchesRaw,
+			20,
+			searchClusterMode,
+		);
 
 		return {
 			success: true,
@@ -256,6 +267,7 @@ export async function getEventEngagementDashboard(windowDays = 30): Promise<
 				),
 			})),
 			discovery: {
+				searchClusterMode,
 				searchCount: discoverySummary.searchCount,
 				filterApplyCount: discoverySummary.filterApplyCount,
 				filterClearCount: discoverySummary.filterClearCount,

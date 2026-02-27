@@ -57,6 +57,7 @@ type SegmentGenreRule = {
 const WINDOW_OPTIONS = [7, 30, 90] as const;
 const EXPORT_WINDOW_OPTIONS = [7, 14, 30, 60, 90] as const;
 const TABLE_ROW_LIMIT_OPTIONS = [25, 50, 100, 250] as const;
+const SEARCH_CLUSTER_MODE_OPTIONS = ["conservative", "aggressive"] as const;
 
 const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 	{
@@ -160,6 +161,13 @@ export const EventEngagementStatsCard = ({
 	const [segmentMessage, setSegmentMessage] = useState("");
 	const [eventSearchTerm, setEventSearchTerm] = useState("");
 	const [tableRowLimit, setTableRowLimit] = useState<number>(50);
+	const [searchClusterMode, setSearchClusterMode] = useState<
+		"conservative" | "aggressive"
+	>(
+		initialPayload && initialPayload.success
+			? initialPayload.discovery.searchClusterMode
+			: "conservative",
+	);
 
 	const [ruleGroup, setRuleGroup] = useState<DiscoveryFilterGroup>("genre");
 	const [ruleValue, setRuleValue] = useState("");
@@ -179,28 +187,31 @@ export const EventEngagementStatsCard = ({
 	const [segmentMinHits, setSegmentMinHits] = useState("1");
 	const [segmentLimit, setSegmentLimit] = useState("5000");
 
-	const loadStats = useCallback(async (days: number) => {
-		setIsLoading(true);
-		setErrorMessage("");
-		try {
-			const result = await getEventEngagementDashboard(days);
-			setPayload(result);
-			if (!result.success) {
-				setErrorMessage(
-					result.error || "Failed to load event engagement stats",
-				);
+	const loadStats = useCallback(
+		async (days: number, clusterMode: "conservative" | "aggressive") => {
+			setIsLoading(true);
+			setErrorMessage("");
+			try {
+				const result = await getEventEngagementDashboard(days, clusterMode);
+				setPayload(result);
+				if (!result.success) {
+					setErrorMessage(
+						result.error || "Failed to load event engagement stats",
+					);
+				}
+			} finally {
+				setIsLoading(false);
 			}
-		} finally {
-			setIsLoading(false);
-		}
-	}, []);
+		},
+		[],
+	);
 
 	useEffect(() => {
 		if (initialPayload?.success) {
 			return;
 		}
-		void loadStats(windowDays);
-	}, [initialPayload?.success, loadStats, windowDays]);
+		void loadStats(windowDays, searchClusterMode);
+	}, [initialPayload?.success, loadStats, searchClusterMode, windowDays]);
 
 	const filteredRows = useMemo(() => {
 		if (!payload?.success) return [];
@@ -238,6 +249,7 @@ export const EventEngagementStatsCard = ({
 	const discovery = payload?.success
 		? payload.discovery
 		: {
+				searchClusterMode,
 				searchCount: 0,
 				filterApplyCount: 0,
 				filterClearCount: 0,
@@ -527,7 +539,7 @@ export const EventEngagementStatsCard = ({
 								variant={windowDays === days ? "default" : "outline"}
 								onClick={() => {
 									setWindowDays(days);
-									void loadStats(days);
+									void loadStats(days, searchClusterMode);
 								}}
 								disabled={isLoading}
 							>
@@ -538,11 +550,30 @@ export const EventEngagementStatsCard = ({
 							type="button"
 							size="sm"
 							variant="outline"
-							onClick={() => void loadStats(windowDays)}
+							onClick={() => void loadStats(windowDays, searchClusterMode)}
 							disabled={isLoading}
 						>
 							{isLoading ? "Refreshing..." : "Refresh"}
 						</Button>
+						<div className="inline-flex items-center rounded-md border p-0.5">
+							{SEARCH_CLUSTER_MODE_OPTIONS.map((mode) => (
+								<Button
+									key={mode}
+									type="button"
+									size="sm"
+									variant={searchClusterMode === mode ? "default" : "ghost"}
+									onClick={() => {
+										setSearchClusterMode(mode);
+										void loadStats(windowDays, mode);
+									}}
+									disabled={isLoading}
+								>
+									{mode === "conservative"
+										? "Cluster: Conservative"
+										: "Aggressive"}
+								</Button>
+							))}
+						</div>
 					</div>
 				</div>
 
@@ -1056,7 +1087,8 @@ export const EventEngagementStatsCard = ({
 							Top Search Queries (Clustered)
 						</p>
 						<p className="text-xs text-muted-foreground">
-							Typos and near-duplicates are grouped into one query cluster.
+							Typos and near-duplicates are grouped into one query cluster (
+							{discovery.searchClusterMode} mode).
 						</p>
 						<div className="space-y-1 text-xs">
 							{payload?.success && payload.discovery.topSearches.length > 0 ? (

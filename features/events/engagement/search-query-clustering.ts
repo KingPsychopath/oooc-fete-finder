@@ -10,6 +10,8 @@ export type ClusteredSearchQuery = {
 	variants: Array<{ query: string; count: number }>;
 };
 
+export type SearchClusterMode = "conservative" | "aggressive";
+
 type QueryVariant = {
 	query: string;
 	count: number;
@@ -98,6 +100,7 @@ const jaccardSimilarity = (left: Set<string>, right: Set<string>): number => {
 const areVariantsSimilar = (
 	left: QueryVariant,
 	right: QueryVariant,
+	mode: SearchClusterMode,
 ): boolean => {
 	if (left.normalized === right.normalized) return true;
 	if (left.compact === right.compact) return true;
@@ -108,16 +111,29 @@ const areVariantsSimilar = (
 	const distanceRatio = maxLength === 0 ? 0 : distance / maxLength;
 
 	if (minLength <= 6 && distance <= 1) return true;
-	if (minLength > 6 && distance <= 2 && distanceRatio <= 0.22) return true;
+	if (mode === "conservative") {
+		if (minLength > 6 && distance <= 1 && distanceRatio <= 0.14) return true;
+	} else if (minLength > 6 && distance <= 2 && distanceRatio <= 0.22) {
+		return true;
+	}
 
 	const tokenSimilarity = jaccardSimilarity(left.tokenSet, right.tokenSet);
-	if (tokenSimilarity >= 0.8) return true;
+	if (mode === "conservative") {
+		if (tokenSimilarity >= 0.9) return true;
+	} else if (tokenSimilarity >= 0.8) {
+		return true;
+	}
 
-	if (
-		minLength >= 5 &&
-		(left.compact.includes(right.compact) ||
-			right.compact.includes(left.compact))
-	) {
+	if (mode === "aggressive" && minLength >= 5) {
+		if (
+			left.compact.includes(right.compact) ||
+			right.compact.includes(left.compact)
+		) {
+			return true;
+		}
+	}
+
+	if (mode === "conservative" && minLength >= 6 && distance <= 1) {
 		return true;
 	}
 
@@ -127,6 +143,7 @@ const areVariantsSimilar = (
 export const clusterTopSearchQueries = (
 	rows: SearchQueryCount[],
 	limit: number,
+	mode: SearchClusterMode = "conservative",
 ): ClusteredSearchQuery[] => {
 	const safeLimit = Math.max(1, Math.min(limit, 100));
 	const variants = rows
@@ -142,7 +159,7 @@ export const clusterTopSearchQueries = (
 
 	for (const variant of variants) {
 		const cluster = clusters.find((candidate) =>
-			areVariantsSimilar(variant, candidate.rep),
+			areVariantsSimilar(variant, candidate.rep, mode),
 		);
 		if (!cluster) {
 			clusters.push({
