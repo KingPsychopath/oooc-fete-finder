@@ -5,9 +5,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Event } from "@/features/events/types";
-import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
 import { ChevronDown, LocateFixed, MapPin } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+
+const ParisMapLibre = dynamic(
+	() => import("@/features/maps/components/ParisMapLibre"),
+	{
+		ssr: false,
+		loading: () => (
+			<div className="flex h-full items-center justify-center bg-background/50 px-4 text-center">
+				<p className="text-xs text-muted-foreground sm:text-sm">
+					Loading interactive map…
+				</p>
+			</div>
+		),
+	},
+);
 
 export type MapLoadStrategy = "immediate" | "expand" | "idle";
 

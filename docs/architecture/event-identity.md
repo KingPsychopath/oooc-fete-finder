@@ -14,14 +14,19 @@ Only `eventKey` is canonical for lookup.
 
 ## URL Contract
 
-Deep links use:
+Public share links use:
+
+- `/event/<eventKey>/<slug>/`
+
+This route sets share metadata and then redirects into homepage modal state using:
 
 - `event`: canonical identity key
 - `slug`: optional display text
 
 Example:
 
-- `/?event=evt_ab12cd34ef56&slug=example-event-name`
+- `/event/evt_ab12cd34ef56/example-event-name/`
+- Redirect target: `/?event=evt_ab12cd34ef56&slug=example-event-name`
 
 If `slug` is wrong, the app still resolves by `event`.
 

@@ -85,8 +85,9 @@ Standard publish loop:
 ### Stable Share Links (`eventKey`)
 
 - Each event has a canonical immutable key: `Event Key` (`evt_...`).
-- Homepage event modal URLs use `/?event=<eventKey>&slug=<eventSlug>`.
-- `event` is canonical; `slug` is decorative.
+- Public share links use `/event/<eventKey>/<eventSlug>/`.
+- The share route redirects to homepage modal state using `/?event=<eventKey>&slug=<eventSlug>`.
+- `event` / `eventKey` is canonical; `slug` is decorative.
 - In admin UI, `Event Key` is system-managed (read-only).
 - CSV import/export keeps `Event Key`; if missing on import, it is generated and persisted.
 
@@ -124,7 +125,7 @@ One-line startup banner (data mode, DB, geocoding). Runtime logs use `lib/platfo
 Sharing now uses two standardized OG image variants:
 
 1. `default` (site-wide)
-2. `event-modal` (when sharing links with `?event=...`)
+2. `event-modal` (when sharing links with `/event/<eventKey>/<eventSlug>/`)
 
 Admin and other pages inherit the default OG style unless explicitly overridden.
 

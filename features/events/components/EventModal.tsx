@@ -61,6 +61,8 @@ interface EventModalProps {
 	isAuthenticated?: boolean;
 }
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 const CATEGORY_COLORS: Record<string, string> = {
 	electronic:
 		"bg-purple-100 text-purple-800 dark:bg-purple-500/18 dark:text-purple-200 dark:border dark:border-purple-400/35",
@@ -204,10 +206,14 @@ const EventModal: React.FC<EventModalProps> = ({
 
 	const buildCanonicalEventUrl = (): string => {
 		if (typeof window === "undefined") return "";
-		const url = new URL(window.location.origin + window.location.pathname);
-		url.searchParams.set("event", event.eventKey);
-		url.searchParams.set("slug", event.slug);
-		return url.toString();
+		const normalizedBasePath =
+			basePath && basePath !== "/" && basePath.endsWith("/")
+				? basePath.slice(0, -1)
+				: basePath;
+		const encodedEventKey = encodeURIComponent(event.eventKey);
+		const encodedSlug = event.slug ? `/${encodeURIComponent(event.slug)}` : "";
+		const eventPath = `${normalizedBasePath}/event/${encodedEventKey}${encodedSlug}/`;
+		return new URL(eventPath, window.location.origin).toString();
 	};
 
 	const copyToClipboard = async (value: string): Promise<boolean> => {

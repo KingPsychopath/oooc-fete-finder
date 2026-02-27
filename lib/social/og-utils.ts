@@ -60,7 +60,7 @@ export const generateEventOGImage = (params: {
 	return generateOGImageUrl({
 		title: params.eventName || "Live Music Events",
 		subtitle: params.arrondissement
-			? `Discover events in ${params.arrondissement} during Fête de la Musique 2025`
+			? `Discover events in ${params.arrondissement} during Fête de la Musique`
 			: "Interactive Paris Music Events Map",
 		variant: "event-modal",
 		eventCount: params.eventCount,

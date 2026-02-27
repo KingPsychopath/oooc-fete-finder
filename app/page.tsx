@@ -1,6 +1,4 @@
 import Header from "@/components/Header";
-import { generateEventOGImage } from "@/lib/social/og-utils";
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { HomeEventsSection } from "./HomeEventsSection";
 import { HomeHeader } from "./HomeHeader";
@@ -8,80 +6,6 @@ import { HomeHeader } from "./HomeHeader";
 // Keep ISR short to limit stale windows when data changes.
 export const revalidate = 300; // 5 minutes in seconds
 const homeMapLoadStrategy: "immediate" | "expand" | "idle" = "expand";
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
-type HomeMetadataProps = {
-	searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
-
-const firstString = (value: string | string[] | undefined): string | null => {
-	if (typeof value === "string") {
-		return value;
-	}
-	if (Array.isArray(value) && value.length > 0) {
-		return value[0] ?? null;
-	}
-	return null;
-};
-
-const toDisplayTitle = (value: string): string => {
-	const normalized = value.replace(/[-_]+/g, " ").trim();
-	if (!normalized) return "Event";
-	return normalized
-		.split(/\s+/)
-		.map((segment) => segment[0]?.toUpperCase() + segment.slice(1))
-		.join(" ");
-};
-
-export async function generateMetadata({
-	searchParams,
-}: HomeMetadataProps): Promise<Metadata> {
-	const resolvedSearchParams = await searchParams;
-	const eventId = firstString(resolvedSearchParams.event);
-	if (!eventId) {
-		return {};
-	}
-
-	const slug = firstString(resolvedSearchParams.slug);
-	const eventTitle = toDisplayTitle(slug ?? "");
-	const shareTitle = `${eventTitle} | Fête Finder`;
-	const shareDescription =
-		"Event details from Fête Finder by Out Of Office Collective. View location, time, and nearby picks.";
-	const ogImageUrl = generateEventOGImage({
-		eventName: eventTitle,
-	});
-	const eventUrl = new URL("/", siteUrl);
-	eventUrl.searchParams.set("event", eventId);
-	if (slug) {
-		eventUrl.searchParams.set("slug", slug);
-	}
-
-	return {
-		title: shareTitle,
-		description: shareDescription,
-		openGraph: {
-			type: "website",
-			url: eventUrl.toString(),
-			title: shareTitle,
-			description: shareDescription,
-			images: [
-				{
-					url: ogImageUrl,
-					width: 1200,
-					height: 630,
-					alt: shareTitle,
-					type: "image/png",
-				},
-			],
-		},
-		twitter: {
-			card: "summary_large_image",
-			title: shareTitle,
-			description: shareDescription,
-			images: [{ url: ogImageUrl, alt: shareTitle }],
-		},
-	};
-}
 
 function HomeEventsFallback() {
 	return (

@@ -58,7 +58,7 @@ export const metadata: Metadata = {
 				url: generateMainOGImage(),
 				width: 1200,
 				height: 630,
-				alt: "Fête Finder - Interactive map showing music events across Paris for Fête de la Musique 2025",
+				alt: "Fête Finder - Curated music events across Paris for Fête de la Musique",
 				type: "image/png",
 			},
 		],
@@ -73,7 +73,7 @@ export const metadata: Metadata = {
 		images: [
 			{
 				url: generateMainOGImage(),
-				alt: "Fête Finder - Interactive map showing music events across Paris for Fête de la Musique 2025",
+				alt: "Fête Finder - Curated music events across Paris for Fête de la Musique",
 			},
 		],
 	},
