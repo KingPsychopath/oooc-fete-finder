@@ -81,6 +81,12 @@ const Footer = () => {
 						</div>
 						<div className="flex items-center gap-3 text-xs">
 							<Link
+								href="/privacy"
+								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+							>
+								Privacy Policy
+							</Link>
+							<Link
 								href="https://outofofficecollective.co.uk/contact"
 								target="_blank"
 								rel="noopener noreferrer"

@@ -1,8 +1,15 @@
 "use client"
 
+import * as React from "react"
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 
 import { cn } from "@/lib/utils"
+
+const TooltipMobileContext = React.createContext<{
+  isTouchDevice: boolean
+  isOpen: boolean
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>
+} | null>(null)
 
 function TooltipProvider({
   delay = 0,
@@ -17,12 +24,60 @@ function TooltipProvider({
   )
 }
 
-function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+function Tooltip({ open, onOpenChange, defaultOpen, ...props }: TooltipPrimitive.Root.Props) {
+  const [isTouchDevice, setIsTouchDevice] = React.useState(false)
+  const [mobileOpen, setMobileOpen] = React.useState(defaultOpen ?? false)
+
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia("(hover: none), (pointer: coarse)")
+    const updateTouchMode = () => setIsTouchDevice(mediaQuery.matches)
+
+    updateTouchMode()
+    mediaQuery.addEventListener("change", updateTouchMode)
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateTouchMode)
+    }
+  }, [])
+
+  const isControlled = open !== undefined
+  const activeOpen = isControlled ? open : mobileOpen
+
+  return (
+    <TooltipMobileContext.Provider
+      value={{ isTouchDevice, isOpen: activeOpen, setOpen: setMobileOpen }}
+    >
+      <TooltipPrimitive.Root
+        data-slot="tooltip"
+        {...props}
+        defaultOpen={defaultOpen}
+        open={isTouchDevice ? activeOpen : open}
+        onOpenChange={(nextOpen, eventDetails) => {
+          if (isTouchDevice && !isControlled) {
+            setMobileOpen(nextOpen)
+          }
+          onOpenChange?.(nextOpen, eventDetails)
+        }}
+      />
+    </TooltipMobileContext.Provider>
+  )
 }
 
-function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+function TooltipTrigger({ onClick, ...props }: TooltipPrimitive.Trigger.Props) {
+  const mobileContext = React.useContext(TooltipMobileContext)
+
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      {...props}
+      onClick={(event) => {
+        if (mobileContext?.isTouchDevice) {
+          mobileContext.setOpen((current) => !current)
+        }
+        onClick?.(event)
+      }}
+    />
+  )
 }
 
 function TooltipContent({
