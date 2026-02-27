@@ -19,6 +19,7 @@ export interface EventEngagementRecordInput {
 export interface EventEngagementSummary {
 	eventKey: string;
 	clickCount: number;
+	dedupedViewCount: number;
 	outboundClickCount: number;
 	calendarSyncCount: number;
 	uniqueSessionCount: number;

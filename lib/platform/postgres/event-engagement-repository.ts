@@ -16,6 +16,7 @@ declare global {
 type EventEngagementSummaryRow = {
 	eventKey: string;
 	clickCount: number;
+	dedupedViewCount: number;
 	outboundClickCount: number;
 	calendarSyncCount: number;
 	uniqueSessionCount: number;
@@ -23,6 +24,8 @@ type EventEngagementSummaryRow = {
 	uniqueOutboundSessionCount: number;
 	uniqueCalendarSessionCount: number;
 };
+
+const EVENT_VIEW_DEDUPE_WINDOW_SECONDS = 10 * 60;
 
 type EventEngagementDailyRow = {
 	day: string;
@@ -128,18 +131,47 @@ export class EventEngagementRepository {
 		await this.ready();
 		const safeLimit = Math.max(1, Math.min(input.limit, 100));
 		const rows = await this.sql<EventEngagementSummaryRow[]>`
+			WITH filtered AS (
+				SELECT
+					event_key,
+					action_type,
+					session_id,
+					recorded_at
+				FROM app_event_engagement_stats
+				WHERE recorded_at >= ${input.startAt}
+					AND recorded_at < ${input.endAt}
+			),
+			annotated AS (
+				SELECT
+					event_key,
+					action_type,
+					session_id,
+					recorded_at,
+					LAG(recorded_at) OVER (
+						PARTITION BY event_key, session_id, action_type
+						ORDER BY recorded_at ASC
+					) AS previous_recorded_at
+				FROM filtered
+			)
 			SELECT
 				event_key AS "eventKey",
 				COUNT(*) FILTER (WHERE action_type = 'click')::int AS "clickCount",
+				COALESCE(SUM(
+					CASE
+						WHEN action_type <> 'click' THEN 0
+						WHEN session_id IS NULL THEN 1
+						WHEN previous_recorded_at IS NULL THEN 1
+						WHEN EXTRACT(EPOCH FROM (recorded_at - previous_recorded_at)) >= ${EVENT_VIEW_DEDUPE_WINDOW_SECONDS} THEN 1
+						ELSE 0
+					END
+				), 0)::int AS "dedupedViewCount",
 				COUNT(*) FILTER (WHERE action_type = 'outbound_click')::int AS "outboundClickCount",
 				COUNT(*) FILTER (WHERE action_type = 'calendar_sync')::int AS "calendarSyncCount",
 				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'click')::int AS "uniqueViewSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'outbound_click')::int AS "uniqueOutboundSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'calendar_sync')::int AS "uniqueCalendarSessionCount"
-			FROM app_event_engagement_stats
-			WHERE recorded_at >= ${input.startAt}
-				AND recorded_at < ${input.endAt}
+			FROM annotated
 			GROUP BY event_key
 			ORDER BY "clickCount" DESC, "outboundClickCount" DESC, "calendarSyncCount" DESC
 			LIMIT ${safeLimit}
@@ -152,6 +184,7 @@ export class EventEngagementRepository {
 		endAt: string;
 	}): Promise<{
 		clickCount: number;
+		dedupedViewCount: number;
 		outboundClickCount: number;
 		calendarSyncCount: number;
 		uniqueSessionCount: number;
@@ -163,6 +196,7 @@ export class EventEngagementRepository {
 		const rows = await this.sql<
 			Array<{
 				clickCount: number;
+				dedupedViewCount: number;
 				outboundClickCount: number;
 				calendarSyncCount: number;
 				uniqueSessionCount: number;
@@ -171,22 +205,52 @@ export class EventEngagementRepository {
 				uniqueCalendarSessionCount: number;
 			}>
 		>`
+			WITH filtered AS (
+				SELECT
+					event_key,
+					action_type,
+					session_id,
+					recorded_at
+				FROM app_event_engagement_stats
+				WHERE recorded_at >= ${input.startAt}
+					AND recorded_at < ${input.endAt}
+			),
+			annotated AS (
+				SELECT
+					event_key,
+					action_type,
+					session_id,
+					recorded_at,
+					LAG(recorded_at) OVER (
+						PARTITION BY event_key, session_id, action_type
+						ORDER BY recorded_at ASC
+					) AS previous_recorded_at
+				FROM filtered
+			)
 			SELECT
 				COUNT(*) FILTER (WHERE action_type = 'click')::int AS "clickCount",
+				COALESCE(SUM(
+					CASE
+						WHEN action_type <> 'click' THEN 0
+						WHEN session_id IS NULL THEN 1
+						WHEN previous_recorded_at IS NULL THEN 1
+						WHEN EXTRACT(EPOCH FROM (recorded_at - previous_recorded_at)) >= ${EVENT_VIEW_DEDUPE_WINDOW_SECONDS} THEN 1
+						ELSE 0
+					END
+				), 0)::int AS "dedupedViewCount",
 				COUNT(*) FILTER (WHERE action_type = 'outbound_click')::int AS "outboundClickCount",
 				COUNT(*) FILTER (WHERE action_type = 'calendar_sync')::int AS "calendarSyncCount",
 				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'click')::int AS "uniqueViewSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'outbound_click')::int AS "uniqueOutboundSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'calendar_sync')::int AS "uniqueCalendarSessionCount"
-			FROM app_event_engagement_stats
-			WHERE recorded_at >= ${input.startAt}
-				AND recorded_at < ${input.endAt}
+			FROM annotated
 		`;
 
 		return (
 			rows[0] ?? {
 				clickCount: 0,
+				dedupedViewCount: 0,
 				outboundClickCount: 0,
 				calendarSyncCount: 0,
 				uniqueSessionCount: 0,
@@ -204,24 +268,54 @@ export class EventEngagementRepository {
 	}): Promise<EventEngagementSummary> {
 		await this.ready();
 		const rows = await this.sql<EventEngagementSummaryRow[]>`
+			WITH filtered AS (
+				SELECT
+					event_key,
+					action_type,
+					session_id,
+					recorded_at
+				FROM app_event_engagement_stats
+				WHERE event_key = ${input.eventKey}
+					AND recorded_at >= ${input.startAt}
+					AND recorded_at < ${input.endAt}
+			),
+			annotated AS (
+				SELECT
+					event_key,
+					action_type,
+					session_id,
+					recorded_at,
+					LAG(recorded_at) OVER (
+						PARTITION BY event_key, session_id, action_type
+						ORDER BY recorded_at ASC
+					) AS previous_recorded_at
+				FROM filtered
+			)
 			SELECT
 				${input.eventKey}::text AS "eventKey",
 				COUNT(*) FILTER (WHERE action_type = 'click')::int AS "clickCount",
+				COALESCE(SUM(
+					CASE
+						WHEN action_type <> 'click' THEN 0
+						WHEN session_id IS NULL THEN 1
+						WHEN previous_recorded_at IS NULL THEN 1
+						WHEN EXTRACT(EPOCH FROM (recorded_at - previous_recorded_at)) >= ${EVENT_VIEW_DEDUPE_WINDOW_SECONDS} THEN 1
+						ELSE 0
+					END
+				), 0)::int AS "dedupedViewCount",
 				COUNT(*) FILTER (WHERE action_type = 'outbound_click')::int AS "outboundClickCount",
 				COUNT(*) FILTER (WHERE action_type = 'calendar_sync')::int AS "calendarSyncCount",
 				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'click')::int AS "uniqueViewSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'outbound_click')::int AS "uniqueOutboundSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'calendar_sync')::int AS "uniqueCalendarSessionCount"
-			FROM app_event_engagement_stats
-			WHERE event_key = ${input.eventKey}
-				AND recorded_at >= ${input.startAt}
-				AND recorded_at < ${input.endAt}
+			FROM annotated
 		`;
 		return (
 			rows[0] ?? {
 				eventKey: input.eventKey,
 				clickCount: 0,
+				dedupedViewCount: 0,
 				outboundClickCount: 0,
 				calendarSyncCount: 0,
 				uniqueSessionCount: 0,

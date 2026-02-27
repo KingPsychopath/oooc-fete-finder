@@ -83,6 +83,7 @@ export async function getEventEngagementDashboard(
 			};
 			summary: {
 				clickCount: number;
+				dedupedViewCount: number;
 				outboundClickCount: number;
 				calendarSyncCount: number;
 				uniqueSessionCount: number;
@@ -104,6 +105,7 @@ export async function getEventEngagementDashboard(
 				eventKey: string;
 				eventName: string;
 				clickCount: number;
+				dedupedViewCount: number;
 				outboundClickCount: number;
 				calendarSyncCount: number;
 				uniqueSessionCount: number;
@@ -215,6 +217,7 @@ export async function getEventEngagementDashboard(
 			range: { startAt, endAt },
 			summary: {
 				clickCount: summary.clickCount,
+				dedupedViewCount: summary.dedupedViewCount,
 				outboundClickCount: summary.outboundClickCount,
 				calendarSyncCount: summary.calendarSyncCount,
 				uniqueSessionCount: summary.uniqueSessionCount,
@@ -243,6 +246,7 @@ export async function getEventEngagementDashboard(
 				eventKey: row.eventKey,
 				eventName: eventNameByKey.get(row.eventKey) || row.eventKey,
 				clickCount: row.clickCount,
+				dedupedViewCount: row.dedupedViewCount,
 				outboundClickCount: row.outboundClickCount,
 				calendarSyncCount: row.calendarSyncCount,
 				uniqueSessionCount: row.uniqueSessionCount,

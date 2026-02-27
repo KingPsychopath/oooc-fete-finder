@@ -69,6 +69,11 @@ const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 		description: "Total event detail opens.",
 	},
 	{
+		label: "Deduped Views",
+		description:
+			"View opens after per-session dedupe (max 1 view per event every 10 minutes).",
+	},
+	{
 		label: "Outbound",
 		description: "Total clicks on ticket/external partner links.",
 	},
@@ -238,6 +243,7 @@ export const EventEngagementStatsCard = ({
 		? payload.summary
 		: {
 				clickCount: 0,
+				dedupedViewCount: 0,
 				outboundClickCount: 0,
 				calendarSyncCount: 0,
 				uniqueSessionCount: 0,
@@ -581,13 +587,21 @@ export const EventEngagementStatsCard = ({
 					</div>
 				</div>
 
-				<div className="grid grid-cols-2 gap-2 lg:grid-cols-6">
+				<div className="grid grid-cols-2 gap-2 lg:grid-cols-7">
 					<div className="rounded-md border bg-background/60 px-2.5 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Views
 						</p>
 						<p className="mt-0.5 text-sm font-semibold tabular-nums">
 							{summary.clickCount}
+						</p>
+					</div>
+					<div className="rounded-md border bg-background/60 px-2.5 py-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Deduped Views
+						</p>
+						<p className="mt-0.5 text-sm font-semibold tabular-nums">
+							{summary.dedupedViewCount}
 						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 px-2.5 py-2">
@@ -1265,12 +1279,18 @@ export const EventEngagementStatsCard = ({
 									<th
 										className="px-3 py-2 text-left font-medium"
 										title="Total event detail opens."
-									>
-										Views
-									</th>
-									<th
-										className="px-3 py-2 text-left font-medium"
-										title="Total clicks on ticket/external partner links."
+										>
+											Views
+										</th>
+										<th
+											className="px-3 py-2 text-left font-medium"
+											title="View opens after per-session dedupe (max 1 view per event every 10 minutes)."
+										>
+											Deduped Views
+										</th>
+										<th
+											className="px-3 py-2 text-left font-medium"
+											title="Total clicks on ticket/external partner links."
 									>
 										Outbound
 									</th>
@@ -1332,12 +1352,12 @@ export const EventEngagementStatsCard = ({
 							</thead>
 							<tbody>
 								{rows.length === 0 ? (
-									<tr>
-										<td
-											colSpan={13}
-											className="px-3 py-6 text-center text-muted-foreground"
-										>
-											No tracked engagement events in this window.
+										<tr>
+											<td
+												colSpan={14}
+												className="px-3 py-6 text-center text-muted-foreground"
+											>
+												No tracked engagement events in this window.
 										</td>
 									</tr>
 								) : (
@@ -1357,6 +1377,9 @@ export const EventEngagementStatsCard = ({
 											</td>
 											<td className="px-3 py-2.5 tabular-nums">
 												{row.clickCount}
+											</td>
+											<td className="px-3 py-2.5 tabular-nums">
+												{row.dedupedViewCount}
 											</td>
 											<td className="px-3 py-2.5 tabular-nums">
 												{row.outboundClickCount}
