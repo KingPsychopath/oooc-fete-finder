@@ -14,10 +14,34 @@ const RATE_LIMIT_KEY_PREFIX = "og-rate:";
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 120;
 const MAX_TEXT_LENGTH = 110;
+const MAX_EVENT_COUNT = 9999;
 const ALLOWED_VARIANTS = ["default", "event-modal"] as const;
 
 type OGVariant = (typeof ALLOWED_VARIANTS)[number];
 type RateState = { count: number; resetAt: number };
+
+type OGTheme = {
+	label: string;
+	background: string;
+	accent: string;
+	accentSoft: string;
+	card: string;
+	border: string;
+	shadow: string;
+	ink: string;
+	muted: string;
+	badge: string;
+	badgeText: string;
+	ambientA: string;
+	ambientB: string;
+};
+
+type OGFont = {
+	name: string;
+	data: Buffer;
+	weight: 400;
+	style: "normal";
+};
 
 const loadFontBuffer = (filePath: string): Buffer | null => {
 	try {
@@ -27,63 +51,87 @@ const loadFontBuffer = (filePath: string): Buffer | null => {
 	}
 };
 
-const degularFont = loadFontBuffer(
-	join(process.cwd(), "public/fonts/degular_regular.woff2"),
-);
-const swearDisplayFont = loadFontBuffer(
-	join(process.cwd(), "public/fonts/swear_display_light.woff2"),
-);
-
-const ogFonts = [
-	degularFont
-		? {
-				name: "Degular",
-				data: degularFont,
-				weight: 400 as const,
-				style: "normal" as const,
-			}
-		: null,
-	swearDisplayFont
-		? {
-				name: "Swear Display",
-				data: swearDisplayFont,
-				weight: 400 as const,
-				style: "normal" as const,
-			}
-		: null,
-].filter((font): font is NonNullable<typeof font> => font !== null);
-
-const THEMES: Record<
-	OGVariant,
+const fontCandidates: Array<{
+	name: string;
+	paths: string[];
+}> = [
 	{
-		label: string;
-		background: string;
-		accent: string;
-		card: string;
-		border: string;
-		ink: string;
-		muted: string;
-	}
-> = {
+		name: "Degular",
+		paths: [
+			"public/fonts/degular_regular.ttf",
+			"public/fonts/degular_regular.otf",
+			"public/fonts/degular_regular.woff",
+			"node_modules/geist/dist/fonts/geist-sans/Geist-Regular.ttf",
+			"node_modules/next/dist/compiled/@vercel/og/noto-sans-v27-latin-regular.ttf",
+		],
+	},
+	{
+		name: "Swear Display",
+		paths: [
+			"public/fonts/swear_display_light.ttf",
+			"public/fonts/swear_display_light.otf",
+			"public/fonts/swear_display_light.woff",
+		],
+	},
+];
+
+const ogFonts: OGFont[] = fontCandidates
+	.map((candidate) => {
+		for (const relativePath of candidate.paths) {
+			const loaded = loadFontBuffer(join(process.cwd(), relativePath));
+			if (!loaded) continue;
+			return {
+				name: candidate.name,
+				data: loaded,
+				weight: 400 as const,
+				style: "normal" as const,
+			};
+		}
+		return null;
+	})
+	.filter((font): font is OGFont => font !== null);
+
+const hasDisplayFont = ogFonts.some((font) => font.name === "Swear Display");
+const ogTitleFontFamily = hasDisplayFont
+	? '"Swear Display", Georgia, "Times New Roman", serif'
+	: '"Degular", "Helvetica Neue", Arial, sans-serif';
+
+const THEMES: Record<OGVariant, OGTheme> = {
 	default: {
 		label: "City Guide",
 		background:
-			"linear-gradient(140deg, #f5efe6 0%, #efe3d2 45%, #e5d4bd 100%)",
-		accent: "#5a3727",
-		card: "rgba(255,255,255,0.82)",
-		border: "rgba(99,66,49,0.24)",
-		ink: "#28190f",
-		muted: "#6f5949",
+			"linear-gradient(145deg, #f8f1e8 0%, #f0e2d0 46%, #e5cfb4 100%)",
+		accent: "#5f3223",
+		accentSoft: "rgba(95,50,35,0.12)",
+		card: "rgba(255,255,255,0.86)",
+		border: "rgba(107,66,45,0.26)",
+		shadow: "0 24px 70px -42px rgba(62, 32, 18, 0.55)",
+		ink: "#26170f",
+		muted: "#705746",
+		badge: "rgba(255,255,255,0.62)",
+		badgeText: "#4f2d1f",
+		ambientA:
+			"radial-gradient(circle at 20% 14%, rgba(182, 102, 63, 0.28), transparent 44%)",
+		ambientB:
+			"radial-gradient(circle at 84% 82%, rgba(82, 118, 93, 0.2), transparent 46%)",
 	},
 	"event-modal": {
 		label: "Event Focus",
 		background:
-			"linear-gradient(145deg, #f4ece2 0%, #eedec9 42%, #e8d0ae 100%)",
-		accent: "#4a2f22",
-		card: "rgba(255,255,255,0.84)",
-		border: "rgba(93,62,44,0.24)",
-		ink: "#23160e",
-		muted: "#695243",
+			"linear-gradient(148deg, #f7efe4 0%, #ecddca 44%, #e1c7a7 100%)",
+		accent: "#21545a",
+		accentSoft: "rgba(33,84,90,0.14)",
+		card: "rgba(255,255,255,0.86)",
+		border: "rgba(43,84,80,0.25)",
+		shadow: "0 24px 70px -42px rgba(18, 54, 58, 0.5)",
+		ink: "#1e1b16",
+		muted: "#556058",
+		badge: "rgba(255,255,255,0.6)",
+		badgeText: "#1f4f55",
+		ambientA:
+			"radial-gradient(circle at 14% 12%, rgba(30, 98, 104, 0.28), transparent 44%)",
+		ambientB:
+			"radial-gradient(circle at 84% 86%, rgba(174, 108, 71, 0.24), transparent 48%)",
 	},
 };
 
@@ -191,6 +239,23 @@ const buildThemeText = (
 	};
 };
 
+const parseVariant = (searchParams: URLSearchParams): OGVariant => {
+	const variantParam = searchParams.get("variant") || "";
+	const legacyThemeParam = searchParams.get("theme") || "";
+	const rawVariant =
+		variantParam || (legacyThemeParam === "event" ? "event-modal" : "default");
+
+	return ALLOWED_VARIANTS.includes(rawVariant as OGVariant)
+		? (rawVariant as OGVariant)
+		: "default";
+};
+
+const parseEventCount = (searchParams: URLSearchParams): number => {
+	const rawEventCount = Number.parseInt(searchParams.get("eventCount") || "0", 10);
+	if (!Number.isFinite(rawEventCount)) return 0;
+	return Math.min(Math.max(rawEventCount, 0), MAX_EVENT_COUNT);
+};
+
 export async function GET(request: NextRequest) {
 	try {
 		if (await isRateLimited(request)) {
@@ -202,68 +267,78 @@ export async function GET(request: NextRequest) {
 			});
 		}
 
-			const { searchParams } = new URL(request.url);
-			const variantParam = searchParams.get("variant") || "";
-			const legacyThemeParam = searchParams.get("theme") || "";
-			const rawVariant =
-				variantParam ||
-				(legacyThemeParam === "event" ? "event-modal" : "default");
-			const variant: OGVariant = ALLOWED_VARIANTS.includes(rawVariant as OGVariant)
-				? (rawVariant as OGVariant)
-				: "default";
-			const eventCount = Math.min(
-				Number.parseInt(searchParams.get("eventCount") || "0", 10) || 0,
-				9999,
-		);
-			const arrondissement = sanitizeText(
-				searchParams.get("arrondissement") || "",
-				"",
-			);
-
-			const defaultText = buildThemeText(variant, arrondissement, eventCount);
-			const title = sanitizeText(
-				searchParams.get("title") || "",
-				defaultText.title,
-		);
+		const { searchParams } = new URL(request.url);
+		const variant = parseVariant(searchParams);
+		const eventCount = parseEventCount(searchParams);
+		const arrondissement = sanitizeText(searchParams.get("arrondissement") || "", "");
+		const defaultText = buildThemeText(variant, arrondissement, eventCount);
+		const title = sanitizeText(searchParams.get("title") || "", defaultText.title);
 		const subtitle = sanitizeText(
 			searchParams.get("subtitle") || "",
-				defaultText.subtitle,
-			);
+			defaultText.subtitle,
+		);
+		const palette = THEMES[variant];
 
-			const palette = THEMES[variant];
-
-			return new ImageResponse(
-				<div
+		return new ImageResponse(
+			<div
 				style={{
-						width: "100%",
-						height: "100%",
+					width: "100%",
+					height: "100%",
+					display: "flex",
+					position: "relative",
+					background: palette.background,
+					color: palette.ink,
+					fontFamily: '"Degular", "Helvetica Neue", Arial, sans-serif',
+				}}
+			>
+				<div
+					style={{
+						position: "absolute",
+						inset: 0,
 						display: "flex",
-						position: "relative",
-						background: palette.background,
-						color: palette.ink,
-						fontFamily: '"Degular", "Helvetica Neue", Arial, sans-serif',
+						background: palette.ambientA,
 					}}
-				>
-					<div
-						style={{
-							position: "absolute",
-							inset: 0,
-							display: "flex",
-							background:
-								"linear-gradient(160deg, rgba(255,255,255,0.22), rgba(255,255,255,0))",
-						}}
-					/>
+				/>
+				<div
+					style={{
+						position: "absolute",
+						inset: 0,
+						display: "flex",
+						background: palette.ambientB,
+					}}
+				/>
+				<div
+					style={{
+						position: "absolute",
+						inset: 0,
+						display: "flex",
+						background:
+							"linear-gradient(165deg, rgba(255,255,255,0.22), rgba(255,255,255,0))",
+					}}
+				/>
 
 				<div
 					style={{
 						position: "absolute",
-						left: 46,
+						left: 44,
 						top: 42,
-						width: 220,
-						height: 220,
+						width: 250,
+						height: 250,
 						borderRadius: 999,
 						background:
-							"radial-gradient(circle, rgba(255,255,255,0.34), rgba(255,255,255,0))",
+							"radial-gradient(circle, rgba(255,255,255,0.3), rgba(255,255,255,0))",
+					}}
+				/>
+				<div
+					style={{
+						position: "absolute",
+						right: 58,
+						top: 56,
+						width: 170,
+						height: 8,
+						borderRadius: 999,
+						background: palette.accentSoft,
+						border: `1px solid ${palette.border}`,
 					}}
 				/>
 
@@ -289,52 +364,52 @@ export async function GET(request: NextRequest) {
 							style={{
 								display: "flex",
 								flexDirection: "column",
-								gap: 10,
+								gap: 11,
 							}}
 						>
 							<div
-									style={{
-										fontSize: 18,
-										letterSpacing: "0.22em",
-										textTransform: "uppercase",
-										color: palette.muted,
-										fontWeight: 500,
-									}}
-								>
+								style={{
+									fontSize: 16,
+									letterSpacing: "0.24em",
+									textTransform: "uppercase",
+									color: palette.muted,
+									fontWeight: 500,
+								}}
+							>
 								Out Of Office Collective
 							</div>
 							<div
-									style={{
-										display: "flex",
-										alignItems: "center",
+								style={{
+									display: "flex",
+									alignItems: "center",
 									padding: "6px 14px",
-										borderRadius: 999,
-										fontSize: 15,
-										fontWeight: 600,
-										color: palette.accent,
-										background: "rgba(255,255,255,0.46)",
-										border: `1px solid ${palette.border}`,
-									}}
-								>
+									borderRadius: 999,
+									fontSize: 15,
+									fontWeight: 600,
+									color: palette.accent,
+									background: "rgba(255,255,255,0.48)",
+									border: `1px solid ${palette.border}`,
+								}}
+							>
 								{palette.label}
 							</div>
 						</div>
 
 						{eventCount > 0 ? (
 							<div
-									style={{
-										display: "flex",
-										alignItems: "center",
+								style={{
+									display: "flex",
+									alignItems: "center",
 									padding: "10px 16px",
-										borderRadius: 999,
-										fontSize: 16,
-										fontWeight: 700,
-										color: palette.accent,
-										background: "rgba(255,255,255,0.58)",
-										border: `1px solid ${palette.border}`,
-									}}
-								>
-								{eventCount} events
+									borderRadius: 999,
+									fontSize: 16,
+									fontWeight: 700,
+									color: palette.badgeText,
+									background: palette.badge,
+									border: `1px solid ${palette.border}`,
+								}}
+							>
+								{eventCount} events live
 							</div>
 						) : null}
 					</div>
@@ -344,34 +419,34 @@ export async function GET(request: NextRequest) {
 							display: "flex",
 							flexDirection: "column",
 							gap: 16,
-								maxWidth: 940,
-								padding: "30px 34px",
-								borderRadius: 30,
-								background: palette.card,
-								border: `1px solid ${palette.border}`,
+							maxWidth: 944,
+							padding: "30px 34px",
+							borderRadius: 30,
+							background: palette.card,
+							border: `1px solid ${palette.border}`,
+							boxShadow: palette.shadow,
+						}}
+					>
+						<div
+							style={{
+								fontFamily: ogTitleFontFamily,
+								fontSize: 77,
+								lineHeight: 1.03,
+								letterSpacing: "-0.02em",
+								color: palette.ink,
+								fontWeight: 500,
 							}}
 						>
-							<div
-								style={{
-									fontFamily:
-										'"Swear Display", Georgia, "Times New Roman", serif',
-										fontSize: 76,
-										lineHeight: 1.04,
-										letterSpacing: "-0.02em",
-									color: palette.ink,
-									fontWeight: 500,
-								}}
-							>
 							{title}
 						</div>
 						<div
 							style={{
-									fontSize: 30,
-									lineHeight: 1.25,
-									color: palette.muted,
-									fontWeight: 500,
-									maxWidth: 820,
-								}}
+								fontSize: 30,
+								lineHeight: 1.26,
+								color: palette.muted,
+								fontWeight: 500,
+								maxWidth: 820,
+							}}
 						>
 							{subtitle}
 						</div>
@@ -379,12 +454,12 @@ export async function GET(request: NextRequest) {
 
 					<div
 						style={{
-								display: "flex",
-								justifyContent: "space-between",
-								alignItems: "center",
-								color: palette.muted,
-								fontSize: 18,
-							letterSpacing: "0.08em",
+							display: "flex",
+							justifyContent: "space-between",
+							alignItems: "center",
+							color: palette.muted,
+							fontSize: 17,
+							letterSpacing: "0.1em",
 							textTransform: "uppercase",
 							fontWeight: 600,
 						}}
@@ -394,42 +469,42 @@ export async function GET(request: NextRequest) {
 					</div>
 				</div>
 			</div>,
-				{
-					width: 1200,
-					height: 630,
-					fonts: ogFonts,
-					headers: {
-						"Cache-Control": OG_CACHE_CONTROL,
-					},
+			{
+				width: 1200,
+				height: 630,
+				fonts: ogFonts,
+				headers: {
+					"Cache-Control": OG_CACHE_CONTROL,
+				},
 			},
 		);
 	} catch (error) {
 		log.error("og-image", "Failed to generate OG image", undefined, error);
 		return new ImageResponse(
 			<div
-					style={{
-						width: "100%",
-						height: "100%",
+				style={{
+					width: "100%",
+					height: "100%",
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-						background:
-							"linear-gradient(140deg, #f5efe6 0%, #eedfcf 52%, #e2ccb0 100%)",
-						color: "#24170f",
-						fontFamily:
-							'"Swear Display", Georgia, "Times New Roman", serif',
-						fontSize: 58,
-					}}
-				>
+					background:
+						"linear-gradient(145deg, #f8f1e8 0%, #eedfcb 50%, #e4ccb1 100%)",
+					color: "#26170f",
+					fontFamily: ogTitleFontFamily,
+					fontSize: 58,
+					letterSpacing: "-0.01em",
+				}}
+			>
 				Fête Finder
 			</div>,
-				{
-					width: 1200,
-					height: 630,
-					fonts: ogFonts,
-					headers: {
-						"Cache-Control": OG_CACHE_CONTROL,
-					},
+			{
+				width: 1200,
+				height: 630,
+				fonts: ogFonts,
+				headers: {
+					"Cache-Control": OG_CACHE_CONTROL,
+				},
 			},
 		);
 	}
