@@ -21,6 +21,7 @@ import { FeaturedEventsManagerCard } from "./components/FeaturedEventsManagerCar
 import { LiveEventsSnapshotCard } from "./components/LiveEventsSnapshotCard";
 import { LocalEventStoreCard } from "./components/LocalEventStoreCard";
 import { PartnerActivationQueueCard } from "./components/PartnerActivationQueueCard";
+import { PromotedEventsManagerCard } from "./components/PromotedEventsManagerCard";
 import { RuntimeDataStatusCard } from "./components/RuntimeDataStatusCard";
 import { SlidingBannerSettingsCard } from "./components/SlidingBannerSettingsCard";
 import { SystemResetCard } from "./components/SystemResetCard";
@@ -231,6 +232,10 @@ export function AdminDashboardClient({
 						/>
 						<FeaturedEventsManagerCard
 							initialPayload={initialData.featuredQueue}
+							onScheduleUpdated={onDataSaved}
+						/>
+						<PromotedEventsManagerCard
+							initialPayload={initialData.promotedQueue}
 							onScheduleUpdated={onDataSaved}
 						/>
 						<LiveEventsSnapshotCard

@@ -188,14 +188,18 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			const featuredEvents = arrondissementEvents.filter((event) =>
 				shouldDisplayFeaturedEvent(event),
 			);
-			if (featuredEvents.length === 0) {
+			const featuredEventIds = new Set(featuredEvents.map((event) => event.id));
+			const promotedEvents = arrondissementEvents.filter(
+				(event) => !featuredEventIds.has(event.id) && event.isPromoted === true,
+			);
+			if (featuredEvents.length === 0 && promotedEvents.length === 0) {
 				return arrondissementEvents;
 			}
-			const featuredEventIds = new Set(featuredEvents.map((event) => event.id));
-			const nonFeaturedEvents = arrondissementEvents.filter(
-				(event) => !featuredEventIds.has(event.id),
-			);
-			return [...featuredEvents, ...nonFeaturedEvents];
+			const promotedEventIds = new Set(promotedEvents.map((event) => event.id));
+			const regularEvents = arrondissementEvents
+				.filter((event) => !featuredEventIds.has(event.id))
+				.filter((event) => !promotedEventIds.has(event.id));
+			return [...featuredEvents, ...promotedEvents, ...regularEvents];
 		},
 		[filteredEvents],
 	);
@@ -219,12 +223,17 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		const featuredCount = selectedArrondissementEvents.filter((event) =>
 			shouldDisplayFeaturedEvent(event),
 		).length;
+		const promotedCount = selectedArrondissementEvents.filter(
+			(event) =>
+				!shouldDisplayFeaturedEvent(event) && event.isPromoted === true,
+		).length;
 		const ooocCount = selectedArrondissementEvents.filter(
 			(event) => event.isOOOCPick,
 		).length;
 		return {
 			total: selectedArrondissementEvents.length,
 			featuredCount,
+			promotedCount,
 			ooocCount,
 		};
 	}, [selectedArrondissementEvents]);
@@ -234,6 +243,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		"border-border/70 bg-background/65 hover:bg-accent/65";
 	const featuredEventButtonClassName =
 		"border-rose-300/80 bg-[linear-gradient(145deg,rgba(255,236,239,0.92),rgba(255,221,229,0.78))] hover:bg-[linear-gradient(145deg,rgba(255,236,239,0.97),rgba(255,221,229,0.86))] dark:border-rose-500/45 dark:bg-[linear-gradient(145deg,rgba(86,31,45,0.46),rgba(68,24,35,0.34))]";
+	const promotedEventButtonClassName =
+		"border-amber-500/45 bg-[linear-gradient(145deg,rgba(250,241,223,0.8),rgba(245,236,222,0.7))] hover:bg-[linear-gradient(145deg,rgba(252,243,227,0.9),rgba(247,238,224,0.82))] dark:border-amber-600/45 dark:bg-[linear-gradient(145deg,rgba(80,60,36,0.4),rgba(58,43,27,0.32))]";
 	const ooocEventButtonClassName =
 		"border-amber-300/75 bg-[linear-gradient(145deg,rgba(248,238,222,0.86),rgba(244,229,205,0.72))] dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.45),rgba(47,36,24,0.32))]";
 	const featuredOoocEventButtonClassName =
@@ -853,7 +864,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 									{selectedArrondissement}e Arrondissement Events
 								</h3>
 								<p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/85">
-									Featured events appear first
+									Featured first, then promoted
 								</p>
 								<div className="mt-2 flex flex-wrap gap-1.5">
 									<span className="rounded-full border border-border/70 bg-background/58 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-foreground/80">
@@ -862,6 +873,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 									{selectedArrondissementSummary.featuredCount > 0 && (
 										<span className="rounded-full border border-rose-400/55 bg-rose-100/75 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-rose-700 dark:border-rose-400/40 dark:bg-rose-500/12 dark:text-rose-200">
 											{selectedArrondissementSummary.featuredCount} featured
+										</span>
+									)}
+									{selectedArrondissementSummary.promotedCount > 0 && (
+										<span className="rounded-full border border-amber-500/55 bg-amber-100/75 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-amber-700 dark:border-amber-400/45 dark:bg-amber-500/12 dark:text-amber-200">
+											{selectedArrondissementSummary.promotedCount} promoted
 										</span>
 									)}
 									{selectedArrondissementSummary.ooocCount > 0 && (
@@ -885,14 +901,17 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 								const dayNightPeriod = getDayNightPeriod(event.time ?? "");
 								const venueTypes = getEventVenueTypes(event);
 								const isFeatured = shouldDisplayFeaturedEvent(event);
+								const isPromoted = !isFeatured && event.isPromoted === true;
 								const buttonClassName =
 									isFeatured && event.isOOOCPick
 										? featuredOoocEventButtonClassName
 										: isFeatured
 											? featuredEventButtonClassName
-											: event.isOOOCPick
-												? ooocEventButtonClassName
-												: regularEventButtonClassName;
+											: isPromoted
+												? promotedEventButtonClassName
+												: event.isOOOCPick
+													? ooocEventButtonClassName
+													: regularEventButtonClassName;
 
 								return (
 									<button
@@ -909,6 +928,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 													{isFeatured && (
 														<span className="rounded-full border border-rose-400/80 bg-rose-100/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-rose-700 dark:border-rose-400/65 dark:bg-rose-500/20 dark:text-rose-200">
 															Featured
+														</span>
+													)}
+													{isPromoted && (
+														<span className="rounded-full border border-amber-500/80 bg-amber-100/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-amber-800 dark:border-amber-500/60 dark:bg-amber-500/20 dark:text-amber-200">
+															Promoted
 														</span>
 													)}
 													{event.isOOOCPick && (

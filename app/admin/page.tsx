@@ -8,6 +8,7 @@ import {
 	getRuntimeDataStatus,
 } from "@/features/data-management/actions";
 import { listFeaturedQueue } from "@/features/events/featured/actions";
+import { listPromotedQueue } from "@/features/events/promoted/actions";
 import { getEventSubmissionsDashboard } from "@/features/events/submissions/actions";
 import { getPartnerActivationDashboard } from "@/features/partners/activation-actions";
 import { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
@@ -37,6 +38,7 @@ export default async function AdminPage() {
 		localBackupStatus,
 		localRecentBackups,
 		featuredQueue,
+		promotedQueue,
 		partnerActivations,
 		eventSubmissions,
 		slidingBannerSettings,
@@ -48,6 +50,7 @@ export default async function AdminPage() {
 		getEventStoreBackupStatus(),
 		getEventStoreRecentBackups(undefined, 30),
 		listFeaturedQueue(),
+		listPromotedQueue(),
 		getPartnerActivationDashboard(),
 		getEventSubmissionsDashboard(),
 		getAdminSlidingBannerSettings(),
@@ -79,6 +82,8 @@ export default async function AdminPage() {
 				: undefined,
 		featuredQueue:
 			featuredQueue.status === "fulfilled" ? featuredQueue.value : undefined,
+		promotedQueue:
+			promotedQueue.status === "fulfilled" ? promotedQueue.value : undefined,
 		partnerActivations:
 			partnerActivations.status === "fulfilled"
 				? partnerActivations.value

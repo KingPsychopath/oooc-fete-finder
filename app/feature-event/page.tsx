@@ -14,6 +14,7 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FeatureEventHeader } from "./FeatureEventHeader";
+import { FeatureEventStatusSection } from "./FeatureEventStatusSection";
 
 type Package = {
 	name: string;
@@ -21,6 +22,7 @@ type Package = {
 	description: string;
 	includes: string[];
 	badge?: string;
+	tier: "spotlight" | "promoted";
 	stripeUrl: string | undefined;
 };
 
@@ -61,6 +63,7 @@ const packages: Package[] = [
 			"Featured map treatment",
 		],
 		badge: "Only 3 Spotlight slots visible at once",
+		tier: "spotlight",
 		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_SPOTLIGHT_STANDARD,
 	},
 	{
@@ -74,6 +77,7 @@ const packages: Package[] = [
 			"Ideal for final-week urgency",
 		],
 		badge: "Reserve now for peak week",
+		tier: "spotlight",
 		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_SPOTLIGHT_TAKEOVER,
 	},
 	{
@@ -85,6 +89,7 @@ const packages: Package[] = [
 			"Visual highlight in map event list",
 			"Promoted label in list results",
 		],
+		tier: "promoted",
 		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_PROMOTED,
 	},
 ];
@@ -198,6 +203,10 @@ export default function FeatureEventPage() {
 					</p>
 				</section>
 
+				<section className="mt-6">
+					<FeatureEventStatusSection />
+				</section>
+
 				<section className="mt-8" aria-label="Partnership packages">
 					<div className="mb-4 flex items-center justify-between gap-3">
 						<div>
@@ -214,7 +223,14 @@ export default function FeatureEventPage() {
 					</div>
 					<div className="grid gap-4 md:grid-cols-3">
 						{packages.map((pkg) => (
-							<Card key={pkg.name} className="border border-border/80 bg-card">
+							<Card
+								key={pkg.name}
+								className={
+									pkg.tier === "spotlight"
+										? "border border-amber-700/30 bg-amber-50/30"
+										: "border border-border/80 bg-card"
+								}
+							>
 								<CardHeader className="space-y-2">
 									<CardTitle className="flex items-center gap-2 text-lg font-medium">
 										<Star className="h-4 w-4 text-muted-foreground" />
@@ -247,7 +263,11 @@ export default function FeatureEventPage() {
 									<StripeOrContactButton
 										url={pkg.stripeUrl}
 										label={`Pay for ${pkg.name}`}
-										className="mt-6 w-full rounded-full border border-border bg-primary text-primary-foreground hover:bg-primary/90"
+										className={
+											pkg.tier === "spotlight"
+												? "mt-6 w-full rounded-full border border-amber-900/15 bg-amber-900/85 text-amber-50 hover:bg-amber-900"
+												: "mt-6 w-full rounded-full border border-border bg-primary text-primary-foreground hover:bg-primary/90"
+										}
 									/>
 								</CardContent>
 							</Card>

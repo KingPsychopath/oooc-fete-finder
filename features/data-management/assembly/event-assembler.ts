@@ -216,13 +216,10 @@ export const assembleEvent = (
 		.map((value) => value.trim())
 		.filter((value) => value.length > 0)
 		.join(" / ");
-	const nationality = NationalityTransformers.convertToNationality(
-		nationalityInput,
-	);
+	const nationality =
+		NationalityTransformers.convertToNationality(nationalityInput);
 	const genre = GenreTransformers.convertToMusicGenres(csvRow.categories);
-	const venueTypes = VenueTransformers.convertToVenueTypes(
-		csvRow.setting,
-	);
+	const venueTypes = VenueTransformers.convertToVenueTypes(csvRow.setting);
 
 	// Determine event type
 	const type = determineEventType(csvRow.title, time);
@@ -230,6 +227,9 @@ export const assembleEvent = (
 	// Featured state is managed through the dedicated scheduler service.
 	const isFeatured = false;
 	const featuredAt = undefined;
+	const isPromoted = false;
+	const promotedAt = undefined;
+	const promotedEndsAt = undefined;
 
 	// Process ticket links
 	const ticketLinks = BusinessLogicHelpers.processTicketLinks(
@@ -276,6 +276,9 @@ export const assembleEvent = (
 		isOOOCPick,
 		isFeatured,
 		featuredAt,
+		isPromoted,
+		promotedAt,
+		promotedEndsAt,
 		nationality,
 	};
 

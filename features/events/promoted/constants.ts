@@ -1,0 +1,5 @@
+export const PROMOTED_EVENTS_CONFIG = {
+	DEFAULT_DURATION_HOURS: 48,
+	TIMEZONE: "Europe/Paris",
+	RECENT_ENDED_WINDOW_HOURS: 48,
+} as const;

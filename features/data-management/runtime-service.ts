@@ -1,8 +1,9 @@
 import "server-only";
 
-import { revalidatePath, revalidateTag } from "next/cache";
-import type { Event } from "@/features/events/types";
 import { applyFeaturedProjectionToEvents } from "@/features/events/featured/service";
+import { applyPromotedProjectionToEvents } from "@/features/events/promoted/service";
+import type { Event } from "@/features/events/types";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { DataManager } from "./data-manager";
 import { isValidEventsData } from "./data-processor";
 
@@ -57,8 +58,18 @@ export interface RuntimeMetricsData {
 	averageFetchTimeMs: number;
 }
 
-const EVENTS_CACHE_TAGS = ["events", "events-data", "featured-events"] as const;
-const EVENTS_LAYOUT_PATHS = ["/", "/events", "/admin", "/feature-event"] as const;
+const EVENTS_CACHE_TAGS = [
+	"events",
+	"events-data",
+	"featured-events",
+	"promoted-events",
+] as const;
+const EVENTS_LAYOUT_PATHS = [
+	"/",
+	"/events",
+	"/admin",
+	"/feature-event",
+] as const;
 
 const metrics = {
 	errors: 0,
@@ -104,7 +115,8 @@ export async function getLiveEvents(options?: {
 	includeFeaturedProjection?: boolean;
 }): Promise<EventsResult> {
 	const startedAt = Date.now();
-	const includeFeaturedProjection = options?.includeFeaturedProjection !== false;
+	const includeFeaturedProjection =
+		options?.includeFeaturedProjection !== false;
 	try {
 		const result = await DataManager.getEventsData();
 		metrics.totalFetchMs += Date.now() - startedAt;
@@ -113,6 +125,7 @@ export async function getLiveEvents(options?: {
 		const normalized = toEventsResult(result);
 		if (normalized.success && includeFeaturedProjection) {
 			normalized.data = await applyFeaturedProjectionToEvents(normalized.data);
+			normalized.data = await applyPromotedProjectionToEvents(normalized.data);
 		}
 		if (!normalized.success) {
 			metrics.errors += 1;
@@ -128,12 +141,15 @@ export async function getLiveEvents(options?: {
 			count: 0,
 			cached: false,
 			source: "store",
-			error: error instanceof Error ? error.message : "Unknown events fetch error",
+			error:
+				error instanceof Error ? error.message : "Unknown events fetch error",
 		};
 	}
 }
 
-export const revalidateEventsPaths = (paths: readonly string[] = ["/"]): void => {
+export const revalidateEventsPaths = (
+	paths: readonly string[] = ["/"],
+): void => {
 	for (const path of paths) {
 		revalidatePath(path, "page");
 	}
@@ -177,10 +193,9 @@ export async function fullEventsRevalidation(
 		revalidateEventsPaths([path]);
 		return {
 			success: refreshResult.success,
-			message:
-				refreshResult.success
-					? "Live data loaded and pages revalidated"
-					: "Revalidation completed with live data errors",
+			message: refreshResult.success
+				? "Live data loaded and pages revalidated"
+				: "Revalidation completed with live data errors",
 			cacheRefreshed: refreshResult.success,
 			pageRevalidated: true,
 			error: refreshResult.error,

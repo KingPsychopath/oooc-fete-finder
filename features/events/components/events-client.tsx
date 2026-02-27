@@ -301,10 +301,17 @@ export function EventsClient({
 		const featuredEventKeys = new Set(
 			featuredMatches.map((event) => event.eventKey),
 		);
-		const regularMatches = filteredEvents.filter(
-			(event) => !featuredEventKeys.has(event.eventKey),
+		const promotedMatches = filteredEvents.filter(
+			(event) =>
+				!featuredEventKeys.has(event.eventKey) && event.isPromoted === true,
 		);
-		return [...featuredMatches, ...regularMatches];
+		const promotedEventKeys = new Set(
+			promotedMatches.map((event) => event.eventKey),
+		);
+		const regularMatches = filteredEvents
+			.filter((event) => !featuredEventKeys.has(event.eventKey))
+			.filter((event) => !promotedEventKeys.has(event.eventKey));
+		return [...featuredMatches, ...promotedMatches, ...regularMatches];
 	}, [filteredEvents]);
 
 	return (

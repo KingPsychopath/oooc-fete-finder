@@ -13,6 +13,7 @@ import type {
 } from "@/features/data-management/actions";
 import type { RuntimeDataStatus } from "@/features/data-management/runtime-service";
 import type { listFeaturedQueue } from "@/features/events/featured/actions";
+import type { listPromotedQueue } from "@/features/events/promoted/actions";
 import type { getEventSubmissionsDashboard } from "@/features/events/submissions/actions";
 import type { getPartnerActivationDashboard } from "@/features/partners/activation-actions";
 import type { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
@@ -37,6 +38,7 @@ export type AdminInitialData = {
 	editorData?: Awaited<ReturnType<typeof getEventSheetEditorData>>;
 	liveSnapshot?: Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
 	featuredQueue?: Awaited<ReturnType<typeof listFeaturedQueue>>;
+	promotedQueue?: Awaited<ReturnType<typeof listPromotedQueue>>;
 	partnerActivations?: Awaited<
 		ReturnType<typeof getPartnerActivationDashboard>
 	>;

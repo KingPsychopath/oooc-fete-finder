@@ -1,7 +1,6 @@
 "use client";
-import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import { Badge } from "@/components/ui/badge";
-import { clientLog } from "@/lib/platform/client-logger";
+import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import {
 	type Event,
 	MUSIC_GENRES,
@@ -11,12 +10,14 @@ import {
 	formatPrice,
 	getDayNightPeriod,
 } from "@/features/events/types";
+import { clientLog } from "@/lib/platform/client-logger";
 import {
 	Building2,
 	Clock,
 	Crown,
 	Euro,
 	MapPin,
+	Megaphone,
 	Moon,
 	Sparkles,
 	Star,
@@ -50,19 +51,22 @@ export function EventCard({ event, onClick }: EventCardProps) {
 
 	// Check if event should display as featured (with expiration logic)
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
+	const isCurrentlyPromoted = event.isPromoted === true;
 	const hasOOOCPick = event.isOOOCPick === true;
 	const dayNightPeriod = getDayNightPeriod(event.time ?? "");
 	const venueTypes =
-		event.venueTypes && event.venueTypes.length > 0 ?
-			[...new Set(event.venueTypes)]
-		:	[event.indoor ? "indoor" : "outdoor"];
+		event.venueTypes && event.venueTypes.length > 0
+			? [...new Set(event.venueTypes)]
+			: [event.indoor ? "indoor" : "outdoor"];
 
 	const cardClasses = `group relative cursor-pointer rounded-xl border p-4 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-lg ${
 		isCurrentlyFeatured
 			? "border-amber-300/75 bg-[linear-gradient(145deg,rgba(248,238,222,0.86),rgba(244,229,205,0.72))] dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.45),rgba(47,36,24,0.32))]"
 			: event.isOOOCPick === true
 				? "border-border/90 bg-[linear-gradient(145deg,rgba(247,241,231,0.82),rgba(242,235,224,0.68))] dark:bg-[linear-gradient(145deg,rgba(52,41,31,0.36),rgba(42,33,26,0.28))]"
-				: "border-border/85 bg-card/72 hover:bg-card/88"
+				: isCurrentlyPromoted
+					? "border-amber-500/45 bg-[linear-gradient(145deg,rgba(250,241,223,0.62),rgba(245,236,222,0.55))] dark:border-amber-600/45 dark:bg-[linear-gradient(145deg,rgba(80,60,36,0.34),rgba(58,43,27,0.28))]"
+					: "border-border/85 bg-card/72 hover:bg-card/88"
 	}`;
 
 	return (
@@ -83,9 +87,7 @@ export function EventCard({ event, onClick }: EventCardProps) {
 				<div className="flex items-center space-x-2 min-w-0 flex-1">
 					<h3
 						className={`min-w-0 flex-1 truncate text-sm leading-tight font-medium ${
-							isCurrentlyFeatured
-								? "text-foreground font-semibold"
-								: ""
+							isCurrentlyFeatured ? "text-foreground font-semibold" : ""
 						}`}
 					>
 						{isCurrentlyFeatured && (
@@ -114,6 +116,14 @@ export function EventCard({ event, onClick }: EventCardProps) {
 							</span>
 						</Badge>
 					)}
+					{!isCurrentlyFeatured && isCurrentlyPromoted && (
+						<Badge className="border-0 bg-[linear-gradient(145deg,rgba(160,111,58,0.94),rgba(127,84,40,0.95))] px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-50">
+							<span className="inline-flex items-center gap-1">
+								<Megaphone className="h-3 w-3" />
+								Promoted
+							</span>
+						</Badge>
+					)}
 					<Badge variant="outline" className="text-xs">
 						{event.arrondissement === "unknown"
 							? "TBC"
@@ -134,11 +144,15 @@ export function EventCard({ event, onClick }: EventCardProps) {
 					{event.time && dayNightPeriod && (
 						<span
 							className="inline-flex flex-shrink-0 items-center text-muted-foreground"
-							title={dayNightPeriod === "day" ? "Daytime event" : "Nighttime event"}
+							title={
+								dayNightPeriod === "day" ? "Daytime event" : "Nighttime event"
+							}
 						>
-							{dayNightPeriod === "day" ?
+							{dayNightPeriod === "day" ? (
 								<Sun className="h-3.5 w-3.5" />
-							:	<Moon className="h-3.5 w-3.5" />}
+							) : (
+								<Moon className="h-3.5 w-3.5" />
+							)}
 						</span>
 					)}
 				</div>
@@ -186,18 +200,29 @@ export function EventCard({ event, onClick }: EventCardProps) {
 
 			{/* Badges */}
 			<div className="flex flex-wrap gap-1 mt-2">
-				<Badge variant="secondary" className="border border-border/70 bg-secondary/72 text-xs">
+				<Badge
+					variant="secondary"
+					className="border border-border/70 bg-secondary/72 text-xs"
+				>
 					{event.type}
 				</Badge>
 				{event.nationality &&
 					event.nationality.map((nationality) => (
-						<Badge key={nationality} variant="outline" className="border-border/75 bg-background/50 text-xs">
+						<Badge
+							key={nationality}
+							variant="outline"
+							className="border-border/75 bg-background/50 text-xs"
+						>
 							{NATIONALITIES.find((n) => n.key === nationality)?.flag}{" "}
 							{NATIONALITIES.find((n) => n.key === nationality)?.shortCode}
 						</Badge>
 					))}
 				{event.genre.slice(0, 2).map((genre) => (
-					<Badge key={genre} variant="outline" className="border-border/75 bg-background/50 text-xs">
+					<Badge
+						key={genre}
+						variant="outline"
+						className="border-border/75 bg-background/50 text-xs"
+					>
 						{MUSIC_GENRES.find((g) => g.key === genre)?.label || genre}
 					</Badge>
 				))}
