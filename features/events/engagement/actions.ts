@@ -3,6 +3,7 @@
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
+import { clusterTopSearchQueries } from "@/features/events/engagement/search-query-clustering";
 import { MUSIC_GENRES, type MusicGenre } from "@/features/events/types";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
@@ -113,7 +114,12 @@ export async function getEventEngagementDashboard(windowDays = 30): Promise<
 				filterApplyCount: number;
 				filterClearCount: number;
 				uniqueSessionCount: number;
-				topSearches: Array<{ query: string; count: number }>;
+				topSearches: Array<{
+					query: string;
+					count: number;
+					variantCount: number;
+					variants: Array<{ query: string; count: number }>;
+				}>;
 				topFilters: Array<{
 					filterGroup: string;
 					filterValue: string;
@@ -149,7 +155,7 @@ export async function getEventEngagementDashboard(windowDays = 30): Promise<
 			topRows,
 			eventsResult,
 			discoverySummary,
-			topSearches,
+			topSearchesRaw,
 			topFilters,
 			topGenresRaw,
 		] = await Promise.all([
@@ -169,7 +175,7 @@ export async function getEventEngagementDashboard(windowDays = 30): Promise<
 						uniqueSessionCount: 0,
 					}),
 			discoveryRepository
-				? discoveryRepository.listTopSearches({ startAt, endAt, limit: 20 })
+				? discoveryRepository.listTopSearches({ startAt, endAt, limit: 250 })
 				: Promise.resolve([]),
 			discoveryRepository
 				? discoveryRepository.listTopFilters({ startAt, endAt, limit: 30 })
@@ -189,6 +195,8 @@ export async function getEventEngagementDashboard(windowDays = 30): Promise<
 		const genreLabelByKey = new Map(
 			MUSIC_GENRES.map((genre) => [genre.key, genre.label]),
 		);
+
+		const topSearches = clusterTopSearchQueries(topSearchesRaw, 20);
 
 		return {
 			success: true,

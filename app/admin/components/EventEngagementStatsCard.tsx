@@ -843,8 +843,19 @@ export const EventEngagementStatsCard = ({
 												type="button"
 												onClick={() => setSearchRule(row.query)}
 												className="rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent"
+												title={
+													row.variantCount > 1
+														? `Clustered from: ${row.variants
+																.slice(0, 5)
+																.map((variant) => variant.query)
+																.join(", ")}`
+														: undefined
+												}
 											>
 												+ search:{row.query}
+												{row.variantCount > 1
+													? ` (${row.variantCount} variants)`
+													: ""}
 											</button>
 										))
 									: null}
@@ -1042,7 +1053,10 @@ export const EventEngagementStatsCard = ({
 				<section className="grid gap-4 xl:grid-cols-2">
 					<div className="space-y-2 rounded-md border bg-background/55 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Top Search Queries
+							Top Search Queries (Clustered)
+						</p>
+						<p className="text-xs text-muted-foreground">
+							Typos and near-duplicates are grouped into one query cluster.
 						</p>
 						<div className="space-y-1 text-xs">
 							{payload?.success && payload.discovery.topSearches.length > 0 ? (
@@ -1051,7 +1065,19 @@ export const EventEngagementStatsCard = ({
 										key={row.query}
 										className="flex items-center justify-between rounded border bg-background/70 px-2 py-1"
 									>
-										<span className="truncate">{row.query}</span>
+										<div className="min-w-0">
+											<p className="truncate">{row.query}</p>
+											{row.variantCount > 1 ? (
+												<p className="truncate text-[11px] text-muted-foreground">
+													from:{" "}
+													{row.variants
+														.slice(0, 3)
+														.map((variant) => variant.query)
+														.join(", ")}
+													{row.variantCount > 3 ? "..." : ""}
+												</p>
+											) : null}
+										</div>
 										<span className="tabular-nums">{row.count}</span>
 									</div>
 								))
