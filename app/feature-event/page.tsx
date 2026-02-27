@@ -19,7 +19,8 @@ import {
 	generateOGImageUrl,
 	generateOGMetadata,
 } from "@/lib/social/og-utils";
-import { FeatureEventHeader } from "./FeatureEventHeader";
+import { unstable_cache as cache } from "next/cache";
+import { Suspense } from "react";
 import { FeatureEventStatusSection } from "./FeatureEventStatusSection";
 
 type Package = {
@@ -59,8 +60,6 @@ export const metadata: Metadata = {
 		"event sponsorship",
 	],
 };
-
-export const dynamic = "force-dynamic";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const contactEmail = "hello@outofofficecollective.co.uk";
@@ -155,8 +154,14 @@ function StripeOrContactButton({
 	);
 }
 
-export default async function FeatureEventPage() {
-	const featuredProjection = await getFeaturedProjection().catch(() => null);
+const getFeaturedProjectionCached = cache(
+	async () => getFeaturedProjection().catch(() => null),
+	["feature-event-projection"],
+	{ revalidate: 60 },
+);
+
+async function SpotlightAvailabilityBadge() {
+	const featuredProjection = await getFeaturedProjectionCached();
 	const spotlightSlotsTotal = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS;
 	const spotlightActiveCount = featuredProjection?.active.length ?? 0;
 	const spotlightSlotsLeft = Math.max(
@@ -165,8 +170,39 @@ export default async function FeatureEventPage() {
 	);
 
 	return (
-		<div className="ooo-site-shell">
-			<FeatureEventHeader />
+		<Badge
+			className={`rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.08em] ${
+				spotlightSlotsLeft <= 1
+					? "bg-rose-600 text-rose-50"
+					: "bg-emerald-700 text-emerald-50"
+			}`}
+		>
+			{spotlightSlotsLeft}/{spotlightSlotsTotal} spotlight slots left
+		</Badge>
+	);
+}
+
+function SpotlightAvailabilityBadgeFallback() {
+	return (
+		<Badge className="rounded-full bg-muted px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+			Checking spotlight slots
+		</Badge>
+	);
+}
+
+function FeatureEventStatusSectionFallback() {
+	return (
+		<div className="rounded-2xl border border-border/80 bg-card p-6" aria-hidden="true">
+			<div className="h-3 w-36 animate-pulse rounded bg-muted/60" />
+			<div className="mt-3 h-8 w-full max-w-sm animate-pulse rounded bg-muted/55" />
+			<div className="mt-4 h-4 w-full max-w-xl animate-pulse rounded bg-muted/50" />
+		</div>
+	);
+}
+
+export default async function FeatureEventPage() {
+	return (
+		<>
 			<main className="container mx-auto max-w-6xl px-4 py-10 pb-28 sm:pb-12">
 				<section className="rounded-2xl border border-border/80 bg-card/85 p-6 shadow-[0_8px_22px_rgba(18,14,10,0.14)] sm:p-8">
 					<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -237,7 +273,9 @@ export default async function FeatureEventPage() {
 				</section>
 
 				<section className="mt-6">
-					<FeatureEventStatusSection />
+					<Suspense fallback={<FeatureEventStatusSectionFallback />}>
+						<FeatureEventStatusSection />
+					</Suspense>
 				</section>
 
 				<section className="mt-8" aria-label="Partnership packages">
@@ -258,15 +296,9 @@ export default async function FeatureEventPage() {
 							<Badge className="rounded-full border border-amber-700/20 bg-amber-500/15 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-amber-900 dark:text-amber-100">
 								Prices increase June 15 to June 20
 							</Badge>
-							<Badge
-								className={`rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.08em] ${
-									spotlightSlotsLeft <= 1
-										? "bg-rose-600 text-rose-50"
-										: "bg-emerald-700 text-emerald-50"
-								}`}
-							>
-								{spotlightSlotsLeft}/{spotlightSlotsTotal} spotlight slots left
-							</Badge>
+							<Suspense fallback={<SpotlightAvailabilityBadgeFallback />}>
+								<SpotlightAvailabilityBadge />
+							</Suspense>
 						</div>
 					</div>
 					<div className="grid gap-4 md:grid-cols-3">
@@ -529,6 +561,6 @@ export default async function FeatureEventPage() {
 					className="h-11 w-full rounded-full border border-border bg-foreground text-background hover:bg-foreground/90"
 				/>
 			</div>
-		</div>
+		</>
 	);
 }

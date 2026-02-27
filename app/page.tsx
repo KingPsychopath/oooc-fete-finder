@@ -1,5 +1,7 @@
 import { HomeEventsSection } from "./HomeEventsSection";
+import { HomeEventsSectionLoading } from "./HomeEventsSectionLoading";
 import { HomeHeader } from "./HomeHeader";
+import { Suspense } from "react";
 
 // Keep ISR short to limit stale windows when data changes.
 export const revalidate = 300; // 5 minutes in seconds
@@ -32,7 +34,9 @@ export default function Home() {
 					<div className="mt-6 border-t border-border" role="presentation" />
 				</section>
 
-				<HomeEventsSection mapLoadStrategy={homeMapLoadStrategy} />
+				<Suspense fallback={<HomeEventsSectionLoading />}>
+					<HomeEventsSection mapLoadStrategy={homeMapLoadStrategy} />
+				</Suspense>
 			</main>
 		</div>
 	);

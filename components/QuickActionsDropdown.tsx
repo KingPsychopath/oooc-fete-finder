@@ -86,6 +86,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 			<TooltipProvider>
 				<Tooltip>
 					<TooltipTrigger
+						id="header-quick-actions-trigger"
 						render={
 							<Button
 								variant="outline"

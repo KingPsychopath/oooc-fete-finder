@@ -66,7 +66,22 @@ export const Clock = () => {
 		};
 	}, []);
 
-	if (!mounted) return null;
+	if (!mounted) {
+		return (
+			<>
+				<div className="text-center hidden md:block" aria-hidden="true">
+					<div className="invisible text-lg font-mono font-bold">00:00:00</div>
+					<div className="invisible text-xs text-muted-foreground">
+						Wednesday 21 June 2026
+					</div>
+				</div>
+
+				<div className="text-center md:hidden sm:block hidden" aria-hidden="true">
+					<div className="invisible text-sm font-mono font-bold">00:00:00</div>
+				</div>
+			</>
+		);
+	}
 
 	return (
 		<>

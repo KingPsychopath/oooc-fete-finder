@@ -13,9 +13,10 @@ import { Lightbulb } from "lucide-react";
 
 type ThemeToggleProps = {
 	className?: string;
+	triggerId?: string;
 };
 
-export const ThemeToggle = ({ className }: ThemeToggleProps) => {
+export const ThemeToggle = ({ className, triggerId }: ThemeToggleProps) => {
 	const { theme, toggleTheme, currentThemeIcon, nextThemeLabel, mounted } =
 		useThemeToggle();
 	const isLightTheme = mounted && theme === "light";
@@ -24,6 +25,7 @@ export const ThemeToggle = ({ className }: ThemeToggleProps) => {
 			<TooltipProvider>
 				<Tooltip>
 					<TooltipTrigger
+						id={triggerId}
 						render={
 							<Button
 								variant="outline"

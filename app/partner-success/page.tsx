@@ -5,7 +5,6 @@ import {
 } from "@/lib/social/og-utils";
 import { CheckCircle2 } from "lucide-react";
 import type { Metadata } from "next";
-import { FeatureEventHeader } from "../feature-event/FeatureEventHeader";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -23,10 +22,8 @@ export const metadata: Metadata = generateOGMetadata({
 
 export default function PartnerSuccessPage() {
 	return (
-		<div className="ooo-site-shell">
-			<FeatureEventHeader />
-			<main className="container mx-auto max-w-3xl px-4 py-12">
-				<section className="rounded-2xl border border-border/80 bg-card/90 p-8 text-center">
+		<main className="container mx-auto max-w-3xl px-4 py-12">
+			<section className="rounded-2xl border border-border/80 bg-card/90 p-8 text-center">
 					<div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-300 bg-emerald-50">
 						<CheckCircle2 className="h-6 w-6 text-emerald-700" />
 					</div>
@@ -60,8 +57,7 @@ export default function PartnerSuccessPage() {
 							Back to partner page
 						</Button>
 					</div>
-				</section>
-			</main>
-		</div>
+			</section>
+		</main>
 	);
 }

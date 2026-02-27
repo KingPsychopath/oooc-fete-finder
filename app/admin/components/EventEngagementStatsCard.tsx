@@ -56,7 +56,7 @@ type SegmentGenreRule = {
 
 const WINDOW_OPTIONS = [7, 30, 90] as const;
 const EXPORT_WINDOW_OPTIONS = [7, 14, 30, 60, 90] as const;
-const TABLE_ROW_LIMIT_OPTIONS = [25, 50, 100, 250] as const;
+const TABLE_ROW_LIMIT_OPTIONS = [10, 25, 50, 100] as const;
 const SEARCH_CLUSTER_MODE_OPTIONS = ["conservative", "aggressive"] as const;
 
 const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
@@ -160,7 +160,10 @@ export const EventEngagementStatsCard = ({
 	const [errorMessage, setErrorMessage] = useState("");
 	const [segmentMessage, setSegmentMessage] = useState("");
 	const [eventSearchTerm, setEventSearchTerm] = useState("");
-	const [tableRowLimit, setTableRowLimit] = useState<number>(50);
+	const [tableRowLimit, setTableRowLimit] = useState<number>(25);
+	const [isPerformanceTableExpanded, setIsPerformanceTableExpanded] =
+		useState(false);
+	const [isEventColumnFrozen, setIsEventColumnFrozen] = useState(true);
 	const [searchClusterMode, setSearchClusterMode] = useState<
 		"conservative" | "aggressive"
 	>(
@@ -229,6 +232,7 @@ export const EventEngagementStatsCard = ({
 		() => filteredRows.slice(0, tableRowLimit),
 		[filteredRows, tableRowLimit],
 	);
+	const shouldClampPerformanceTable = rows.length > 8;
 
 	const summary = payload?.success
 		? payload.summary
@@ -1196,6 +1200,26 @@ export const EventEngagementStatsCard = ({
 										</option>
 									))}
 								</select>
+								{shouldClampPerformanceTable ? (
+									<Button
+										type="button"
+										size="sm"
+										variant="outline"
+										onClick={() =>
+											setIsPerformanceTableExpanded((current) => !current)
+										}
+									>
+										{isPerformanceTableExpanded ? "Collapse" : "Expand"}
+									</Button>
+								) : null}
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									onClick={() => setIsEventColumnFrozen((current) => !current)}
+								>
+									{isEventColumnFrozen ? "Unfreeze Column" : "Freeze Column"}
+								</Button>
 								<input
 									type="text"
 									placeholder="Search event name or key"
@@ -1213,11 +1237,25 @@ export const EventEngagementStatsCard = ({
 							.
 						</p>
 					</div>
-					<div className="max-w-full overflow-auto rounded-md border">
+					<div
+						className={`max-w-full overflow-auto rounded-md border ${
+							shouldClampPerformanceTable && !isPerformanceTableExpanded
+								? "max-h-[32rem]"
+								: ""
+						}`}
+					>
 						<table className="min-w-[1280px] w-full text-xs">
-							<thead className="bg-muted/40">
+							<thead className="sticky top-0 z-10 bg-muted/85 backdrop-blur">
 								<tr>
-									<th className="px-3 py-2 text-left font-medium">Event</th>
+									<th
+										className={`px-3 py-2 text-left font-medium ${
+											isEventColumnFrozen
+												? "sticky left-0 z-20 border-r bg-muted/95"
+												: ""
+										}`}
+									>
+										Event
+									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
 										title="Stable internal ID used for event URLs and tracking joins."
@@ -1305,7 +1343,13 @@ export const EventEngagementStatsCard = ({
 								) : (
 									rows.map((row) => (
 										<tr key={row.eventKey} className="border-t">
-											<td className="px-3 py-2.5 font-medium">
+											<td
+												className={`px-3 py-2.5 font-medium ${
+													isEventColumnFrozen
+														? "sticky left-0 z-10 border-r bg-background"
+														: ""
+												}`}
+											>
 												{row.eventName}
 											</td>
 											<td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">

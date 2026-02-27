@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { HomeHeader } from "@/app/HomeHeader";
-import { SubmitEventForm } from "@/features/events/submissions/SubmitEventForm";
-import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 import {
 	generateOGImageUrl,
 	generateOGMetadata,
 } from "@/lib/social/og-utils";
 import Link from "next/link";
+import { Suspense } from "react";
+import { SubmitEventFormSection } from "./SubmitEventFormSection";
+import { SubmitEventFormSectionLoading } from "./SubmitEventFormSectionLoading";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -23,14 +23,10 @@ export const metadata: Metadata = generateOGMetadata({
 	url: `${siteUrl}${basePath || ""}/submit-event`,
 });
 
-export default async function SubmitEventPage() {
-	const settings = await EventSubmissionSettingsStore.getPublicSettings();
-
+export default function SubmitEventPage() {
 	return (
-		<div className="ooo-site-shell">
-			<HomeHeader />
-			<main id="main-content" className="container mx-auto px-4 py-8" tabIndex={-1}>
-				<section className="mx-auto max-w-3xl space-y-4">
+		<main id="main-content" className="container mx-auto px-4 py-8" tabIndex={-1}>
+			<section className="mx-auto max-w-3xl space-y-4">
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						Host Submission
 					</p>
@@ -54,9 +50,10 @@ export default async function SubmitEventPage() {
 							Promote yours here.
 						</Link>
 					</p>
-					<SubmitEventForm submissionsEnabled={settings.enabled} />
-				</section>
-			</main>
-		</div>
+				<Suspense fallback={<SubmitEventFormSectionLoading />}>
+					<SubmitEventFormSection />
+				</Suspense>
+			</section>
+		</main>
 	);
 }

@@ -8,7 +8,6 @@ import {
 import { ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FeatureEventHeader } from "../../feature-event/FeatureEventHeader";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -43,65 +42,57 @@ export default async function PartnerStatsPage({
 
 	if (!token || token.trim().length === 0) {
 		return (
-			<div className="ooo-site-shell">
-				<FeatureEventHeader />
-				<main className="container mx-auto max-w-3xl px-4 py-12">
-					<section className="rounded-2xl border border-border/80 bg-card/90 p-8">
-						<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-							Partner Stats
-						</p>
-						<h1
-							className="mt-2 text-3xl font-light tracking-tight sm:text-4xl"
-							style={{ fontFamily: "var(--ooo-font-display)" }}
-						>
-							Token required
-						</h1>
-						<p className="mt-3 text-sm text-muted-foreground sm:text-base">
-							This stats page requires a valid partner token.
-						</p>
-					</section>
-				</main>
-			</div>
+			<main className="container mx-auto max-w-3xl px-4 py-12">
+				<section className="rounded-2xl border border-border/80 bg-card/90 p-8">
+					<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+						Partner Stats
+					</p>
+					<h1
+						className="mt-2 text-3xl font-light tracking-tight sm:text-4xl"
+						style={{ fontFamily: "var(--ooo-font-display)" }}
+					>
+						Token required
+					</h1>
+					<p className="mt-3 text-sm text-muted-foreground sm:text-base">
+						This stats page requires a valid partner token.
+					</p>
+				</section>
+			</main>
 		);
 	}
 
 	const result = await getPartnerStatsSnapshot({ activationId, token });
 	if (!result.success) {
 		return (
-			<div className="ooo-site-shell">
-				<FeatureEventHeader />
-				<main className="container mx-auto max-w-3xl px-4 py-12">
-					<section className="rounded-2xl border border-border/80 bg-card/90 p-8">
-						<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-							Partner Stats
-						</p>
-						<h1
-							className="mt-2 text-3xl font-light tracking-tight sm:text-4xl"
-							style={{ fontFamily: "var(--ooo-font-display)" }}
-						>
-							Stats unavailable
-						</h1>
-						<p className="mt-3 text-sm text-muted-foreground sm:text-base">
-							{result.error}
-						</p>
-						<Link
-							href={`${basePath}/feature-event`}
-							className="mt-5 inline-block text-sm text-foreground underline underline-offset-4"
-						>
-							Back to partner page
-						</Link>
-					</section>
-				</main>
-			</div>
+			<main className="container mx-auto max-w-3xl px-4 py-12">
+				<section className="rounded-2xl border border-border/80 bg-card/90 p-8">
+					<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+						Partner Stats
+					</p>
+					<h1
+						className="mt-2 text-3xl font-light tracking-tight sm:text-4xl"
+						style={{ fontFamily: "var(--ooo-font-display)" }}
+					>
+						Stats unavailable
+					</h1>
+					<p className="mt-3 text-sm text-muted-foreground sm:text-base">
+						{result.error}
+					</p>
+					<Link
+						href={`${basePath}/feature-event`}
+						className="mt-5 inline-block text-sm text-foreground underline underline-offset-4"
+					>
+						Back to partner page
+					</Link>
+				</section>
+			</main>
 		);
 	}
 
 	const { data } = result;
 
 	return (
-		<div className="ooo-site-shell">
-			<FeatureEventHeader />
-			<main className="container mx-auto max-w-5xl px-4 py-10 pb-16">
+		<main className="container mx-auto max-w-5xl px-4 py-10 pb-16">
 				<section className="rounded-2xl border border-border/80 bg-card/90 p-6 sm:p-8">
 					<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
 						OOOC Partner ROI
@@ -220,7 +211,6 @@ export default async function PartnerStatsPage({
 						engagement actions captured on OOOC Fete Finder.
 					</p>
 				</section>
-			</main>
-		</div>
+		</main>
 	);
 }

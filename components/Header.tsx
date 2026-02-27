@@ -192,7 +192,10 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 						<div className="ml-auto flex shrink-0 items-center justify-end gap-2.5 sm:gap-3 lg:ml-0 lg:justify-self-end lg:justify-end">
 							<div className="hidden items-center gap-2 sm:flex">
 								<Clock />
-								<ThemeToggle className="h-9 w-9 rounded-full border border-border/80 bg-background/70 hover:bg-accent" />
+								<ThemeToggle
+									triggerId="header-theme-toggle-desktop"
+									className="h-9 w-9 rounded-full border border-border/80 bg-background/70 hover:bg-accent"
+								/>
 							</div>
 							{isAdminAuthenticated && (
 								<Link
@@ -211,7 +214,10 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 								menuClassName="z-[80] rounded-xl border border-border bg-popover/95 shadow-[0_12px_36px_rgba(16,12,9,0.28)]"
 							/>
 							<div className="sm:hidden">
-								<ThemeToggle className="h-9 w-9 rounded-full border border-border/80 bg-background/70 hover:bg-accent" />
+								<ThemeToggle
+									triggerId="header-theme-toggle-mobile"
+									className="h-9 w-9 rounded-full border border-border/80 bg-background/70 hover:bg-accent"
+								/>
 							</div>
 							{isAuthenticated && userEmail && (
 								<Button
