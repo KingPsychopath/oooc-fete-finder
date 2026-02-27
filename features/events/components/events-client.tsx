@@ -9,6 +9,7 @@ import EventModal from "@/features/events/components/EventModal";
 import EventStats from "@/features/events/components/EventStats";
 import FilterPanel from "@/features/events/components/FilterPanel";
 import SearchBar from "@/features/events/components/SearchBar";
+import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
 import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
@@ -246,6 +247,12 @@ export function EventsClient({
 
 	const handleEventClick = useCallback(
 		(event: Event) => {
+			trackEventEngagement({
+				eventKey: event.eventKey,
+				actionType: "click",
+				source: "event_open",
+				isAuthenticated,
+			});
 			setSelectedEvent((current) =>
 				current?.eventKey === event.eventKey ? current : event,
 			);
@@ -253,7 +260,7 @@ export function EventsClient({
 				markModalEntry: true,
 			});
 		},
-		[createUrlForEventState, updateUrlWithoutNavigation],
+		[createUrlForEventState, isAuthenticated, updateUrlWithoutNavigation],
 	);
 
 	const handleEventClose = useCallback(() => {
@@ -434,6 +441,7 @@ export function EventsClient({
 				event={selectedEvent}
 				isOpen={selectedEvent !== null}
 				onClose={handleEventClose}
+				isAuthenticated={isAuthenticated}
 			/>
 
 			<EmailGateModal

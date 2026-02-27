@@ -12,6 +12,7 @@ import type {
 	getLocalEventStoreStatus,
 } from "@/features/data-management/actions";
 import type { RuntimeDataStatus } from "@/features/data-management/runtime-service";
+import type { getEventEngagementDashboard } from "@/features/events/engagement/actions";
 import type { listFeaturedQueue } from "@/features/events/featured/actions";
 import type { listPromotedQueue } from "@/features/events/promoted/actions";
 import type { getEventSubmissionsDashboard } from "@/features/events/submissions/actions";
@@ -39,6 +40,9 @@ export type AdminInitialData = {
 	liveSnapshot?: Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
 	featuredQueue?: Awaited<ReturnType<typeof listFeaturedQueue>>;
 	promotedQueue?: Awaited<ReturnType<typeof listPromotedQueue>>;
+	eventEngagementDashboard?: Awaited<
+		ReturnType<typeof getEventEngagementDashboard>
+	>;
 	partnerActivations?: Awaited<
 		ReturnType<typeof getPartnerActivationDashboard>
 	>;

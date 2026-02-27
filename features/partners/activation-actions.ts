@@ -1,9 +1,11 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { scheduleFeaturedEvent } from "@/features/events/featured/actions";
 import { schedulePromotedEvent } from "@/features/events/promoted/actions";
+import { env } from "@/lib/config/env";
 import {
 	type PartnerActivationStatus,
 	getPartnerActivationRepository,
@@ -87,7 +89,7 @@ export async function fulfillPartnerActivation(input: {
 	requestedStartAt?: string;
 	durationHours?: number;
 }): Promise<
-	| { success: true; message: string }
+	| { success: true; message: string; statsPath: string | null }
 	| { success: false; message: string; error: string }
 > {
 	try {
@@ -126,9 +128,29 @@ export async function fulfillPartnerActivation(input: {
 				error: scheduleResult.error || scheduleResult.message,
 			};
 		}
-		const updated = await repository.updateStatus({
+		const startDate =
+			input.requestedStartAt && input.requestedStartAt.trim().length > 0
+				? new Date(input.requestedStartAt)
+				: new Date();
+		const safeStartDate = Number.isFinite(startDate.getTime())
+			? startDate
+			: new Date();
+		const durationHours = Math.max(
+			1,
+			Math.min(168, Math.floor(input.durationHours ?? 48)),
+		);
+		const endDate = new Date(
+			safeStartDate.getTime() + durationHours * 60 * 60 * 1000,
+		);
+		const partnerStatsToken = randomUUID().replace(/-/g, "");
+
+		const updated = await repository.markFulfilled({
 			id: input.activationId,
-			status: "activated",
+			eventKey: input.eventKey,
+			tier: input.tier,
+			startAt: safeStartDate.toISOString(),
+			endAt: endDate.toISOString(),
+			partnerStatsToken,
 			notes: `Activated as ${input.tier} (${input.eventKey})`,
 		});
 		if (!updated) {
@@ -138,9 +160,15 @@ export async function fulfillPartnerActivation(input: {
 				error: "Activation queue item not found",
 			};
 		}
+
+		const siteUrl =
+			env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "") +
+			`${env.NEXT_PUBLIC_BASE_PATH}/partner-stats/${updated.id}?token=${updated.partnerStatsToken}`;
+
 		return {
 			success: true,
 			message: `Activated ${input.tier} for ${input.eventKey}`,
+			statsPath: siteUrl,
 		};
 	} catch (error) {
 		return {

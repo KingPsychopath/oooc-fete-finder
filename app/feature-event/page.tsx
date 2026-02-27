@@ -199,6 +199,10 @@ export default function FeatureEventPage() {
 							Get media kit
 						</Button>
 					</div>
+					<p className="mt-3 text-xs text-muted-foreground">
+						After payment, your order enters our activation queue and is
+						reviewed by the OOOC team before going live.
+					</p>
 					<p className="mt-4 text-xs text-muted-foreground">
 						No event yet? Why are you here.{"  "}
 						<Link
@@ -372,8 +376,9 @@ export default function FeatureEventPage() {
 											We activate your placement
 										</p>
 										<p className="mt-0.5 text-muted-foreground">
-											Your event goes live in the booked tier and gets
-											post-event ROI reporting.
+											After payment, your order is reviewed, scheduled, and
+											activated in the booked tier with post-event ROI
+											reporting.
 										</p>
 									</div>
 								</li>
@@ -406,7 +411,8 @@ export default function FeatureEventPage() {
 									Can I reserve now and run later?
 								</p>
 								<p className="mt-1 text-muted-foreground">
-									Yes. After payment, we agree your exact activation window.
+									Yes. After payment, your order enters the activation queue,
+									then we confirm your exact go-live window before publishing.
 								</p>
 							</div>
 							<div>

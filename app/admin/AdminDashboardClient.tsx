@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AdminSessionStatus } from "./components/AdminSessionStatus";
 import { EmailCollectionCard } from "./components/EmailCollectionCard";
+import { EventEngagementStatsCard } from "./components/EventEngagementStatsCard";
 import { EventSheetEditorCard } from "./components/EventSheetEditorCard";
 import { EventSubmissionsCard } from "./components/EventSubmissionsCard";
 import { FeaturedEventsManagerCard } from "./components/FeaturedEventsManagerCard";
@@ -236,6 +237,9 @@ export function AdminDashboardClient({
 							initialPayload={initialData.featuredQueue}
 							initialPromotedPayload={initialData.promotedQueue}
 							onScheduleUpdated={onDataSaved}
+						/>
+						<EventEngagementStatsCard
+							initialPayload={initialData.eventEngagementDashboard}
 						/>
 						<LiveEventsSnapshotCard
 							isAuthenticated

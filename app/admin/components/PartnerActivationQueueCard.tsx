@@ -35,6 +35,8 @@ const STATUS_LABEL: Record<PartnerActivationStatus, string> = {
 	dismissed: "Dismissed",
 };
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 const inferTierFromPackageKey = (
 	packageKey: string | null,
 ): "spotlight" | "promoted" => {
@@ -47,6 +49,14 @@ const defaultScheduleAt = (): string => {
 	const now = new Date();
 	now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
 	return now.toISOString().slice(0, 16);
+};
+
+const toPartnerStatsPath = (id: string, token: string): string =>
+	`${basePath}/partner-stats/${id}?token=${token}`;
+
+const toPartnerStatsAbsoluteUrl = (path: string): string => {
+	if (typeof window === "undefined") return path;
+	return `${window.location.origin}${path}`;
 };
 
 export const PartnerActivationQueueCard = ({
@@ -83,12 +93,11 @@ export const PartnerActivationQueueCard = ({
 				for (const item of result.items) {
 					if (!next[item.id]) {
 						next[item.id] = {
-							eventKey: "",
-							tier: inferTierFromPackageKey(item.packageKey),
+							eventKey: item.fulfilledEventKey ?? "",
+							tier:
+								item.fulfilledTier ?? inferTierFromPackageKey(item.packageKey),
 							scheduleAt: defaultScheduleAt(),
-							durationHours: item.packageKey?.includes("takeover")
-								? "48"
-								: "48",
+							durationHours: "48",
 						};
 					}
 				}
@@ -106,8 +115,9 @@ export const PartnerActivationQueueCard = ({
 				for (const item of initialPayload.items) {
 					if (!next[item.id]) {
 						next[item.id] = {
-							eventKey: "",
-							tier: inferTierFromPackageKey(item.packageKey),
+							eventKey: item.fulfilledEventKey ?? "",
+							tier:
+								item.fulfilledTier ?? inferTierFromPackageKey(item.packageKey),
 							scheduleAt: defaultScheduleAt(),
 							durationHours: "48",
 						};
@@ -167,7 +177,11 @@ export const PartnerActivationQueueCard = ({
 					setErrorMessage(result.error || result.message);
 					return;
 				}
-				setStatusMessage(result.message);
+				setStatusMessage(
+					result.statsPath
+						? `${result.message}. Partner stats link generated.`
+						: result.message,
+				);
 				await loadDashboard();
 			} finally {
 				setIsMutating(false);
@@ -176,6 +190,18 @@ export const PartnerActivationQueueCard = ({
 		},
 		[fulfillmentInputs, loadDashboard],
 	);
+
+	const handleCopyStatsLink = useCallback((path: string) => {
+		const absoluteUrl = toPartnerStatsAbsoluteUrl(path);
+		void navigator.clipboard
+			.writeText(absoluteUrl)
+			.then(() => {
+				setStatusMessage("Partner stats link copied");
+			})
+			.catch(() => {
+				setErrorMessage("Could not copy partner stats link");
+			});
+	}, []);
 
 	const items = useMemo(() => {
 		if (!payload?.success) return [];
@@ -273,11 +299,18 @@ export const PartnerActivationQueueCard = ({
 					<div className="space-y-3">
 						{items.map((item) => {
 							const input = fulfillmentInputs[item.id] ?? {
-								eventKey: "",
-								tier: inferTierFromPackageKey(item.packageKey),
+								eventKey: item.fulfilledEventKey ?? "",
+								tier:
+									item.fulfilledTier ??
+									inferTierFromPackageKey(item.packageKey),
 								scheduleAt: defaultScheduleAt(),
 								durationHours: "48",
 							};
+							const statsPath =
+								item.partnerStatsToken && item.status === "activated"
+									? toPartnerStatsPath(item.id, item.partnerStatsToken)
+									: null;
+
 							return (
 								<div
 									key={item.id}
@@ -304,6 +337,12 @@ export const PartnerActivationQueueCard = ({
 												: "n/a"}
 										</p>
 										<p>Created: {new Date(item.createdAt).toLocaleString()}</p>
+										{item.fulfilledEventKey ? (
+											<p>
+												Fulfilled: {item.fulfilledEventKey} •{" "}
+												{item.fulfilledTier || "unknown tier"}
+											</p>
+										) : null}
 									</div>
 
 									<div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -415,6 +454,31 @@ export const PartnerActivationQueueCard = ({
 										>
 											Dismiss
 										</Button>
+										{statsPath ? (
+											<>
+												<Button
+													size="sm"
+													variant="outline"
+													nativeButton={false}
+													render={
+														<a
+															href={statsPath}
+															target="_blank"
+															rel="noreferrer"
+														/>
+													}
+												>
+													Open partner stats
+												</Button>
+												<Button
+													size="sm"
+													variant="outline"
+													onClick={() => handleCopyStatsLink(statsPath)}
+												>
+													Copy stats link
+												</Button>
+											</>
+										) : null}
 									</div>
 								</div>
 							);

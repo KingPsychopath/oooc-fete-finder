@@ -10,6 +10,8 @@ export type PartnerActivationStatus =
 	| "activated"
 	| "dismissed";
 
+export type PartnerPlacementTier = "spotlight" | "promoted";
+
 export type PartnerActivationRecord = {
 	id: string;
 	source: "stripe";
@@ -27,6 +29,11 @@ export type PartnerActivationRecord = {
 	notes: string | null;
 	metadata: Record<string, unknown>;
 	rawPayload: Record<string, unknown>;
+	fulfilledEventKey: string | null;
+	fulfilledTier: PartnerPlacementTier | null;
+	fulfilledStartAt: string | null;
+	fulfilledEndAt: string | null;
+	partnerStatsToken: string | null;
 	createdAt: string;
 	updatedAt: string;
 	activatedAt: string | null;
@@ -49,6 +56,11 @@ type PartnerActivationRow = {
 	notes: string | null;
 	metadata: unknown;
 	raw_payload: unknown;
+	fulfilled_event_key: string | null;
+	fulfilled_tier: PartnerPlacementTier | null;
+	fulfilled_start_at: Date | string | null;
+	fulfilled_end_at: Date | string | null;
+	partner_stats_token: string | null;
 	created_at: Date | string;
 	updated_at: Date | string;
 	activated_at: Date | string | null;
@@ -95,6 +107,11 @@ const toRecord = (row: PartnerActivationRow): PartnerActivationRecord => ({
 	notes: row.notes,
 	metadata: toJsonObject(row.metadata),
 	rawPayload: toJsonObject(row.raw_payload),
+	fulfilledEventKey: row.fulfilled_event_key,
+	fulfilledTier: row.fulfilled_tier,
+	fulfilledStartAt: toNullableIsoString(row.fulfilled_start_at),
+	fulfilledEndAt: toNullableIsoString(row.fulfilled_end_at),
+	partnerStatsToken: row.partner_stats_token,
 	createdAt: toIsoString(row.created_at),
 	updatedAt: toIsoString(row.updated_at),
 	activatedAt: toNullableIsoString(row.activated_at),
@@ -140,6 +157,11 @@ export class PartnerActivationRepository {
 				notes TEXT,
 				metadata JSONB NOT NULL,
 				raw_payload JSONB NOT NULL,
+				fulfilled_event_key TEXT,
+				fulfilled_tier TEXT CHECK (fulfilled_tier IN ('spotlight', 'promoted')),
+				fulfilled_start_at TIMESTAMPTZ,
+				fulfilled_end_at TIMESTAMPTZ,
+				partner_stats_token TEXT,
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				activated_at TIMESTAMPTZ
@@ -147,8 +169,38 @@ export class PartnerActivationRepository {
 		`;
 
 		await this.sql`
+			ALTER TABLE app_partner_activation_queue
+			ADD COLUMN IF NOT EXISTS fulfilled_event_key TEXT
+		`;
+		await this.sql`
+			ALTER TABLE app_partner_activation_queue
+			ADD COLUMN IF NOT EXISTS fulfilled_tier TEXT
+		`;
+		await this.sql`
+			ALTER TABLE app_partner_activation_queue
+			ADD COLUMN IF NOT EXISTS fulfilled_start_at TIMESTAMPTZ
+		`;
+		await this.sql`
+			ALTER TABLE app_partner_activation_queue
+			ADD COLUMN IF NOT EXISTS fulfilled_end_at TIMESTAMPTZ
+		`;
+		await this.sql`
+			ALTER TABLE app_partner_activation_queue
+			ADD COLUMN IF NOT EXISTS partner_stats_token TEXT
+		`;
+
+		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_app_partner_activation_queue_status_created
 			ON app_partner_activation_queue (status, created_at DESC)
+		`;
+		await this.sql`
+			CREATE INDEX IF NOT EXISTS idx_app_partner_activation_queue_fulfilled_event_key
+			ON app_partner_activation_queue (fulfilled_event_key)
+		`;
+		await this.sql`
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_app_partner_activation_queue_partner_stats_token
+			ON app_partner_activation_queue (partner_stats_token)
+			WHERE partner_stats_token IS NOT NULL
 		`;
 	}
 
@@ -233,6 +285,11 @@ export class PartnerActivationRepository {
 				notes,
 				metadata,
 				raw_payload,
+				fulfilled_event_key,
+				fulfilled_tier,
+				fulfilled_start_at,
+				fulfilled_end_at,
+				partner_stats_token,
 				created_at,
 				updated_at,
 				activated_at
@@ -266,6 +323,11 @@ export class PartnerActivationRepository {
 				notes,
 				metadata,
 				raw_payload,
+				fulfilled_event_key,
+				fulfilled_tier,
+				fulfilled_start_at,
+				fulfilled_end_at,
+				partner_stats_token,
 				created_at,
 				updated_at,
 				activated_at
@@ -274,6 +336,42 @@ export class PartnerActivationRepository {
 			LIMIT ${safeLimit}
 		`;
 		return rows.map(toRecord);
+	}
+
+	async findById(id: string): Promise<PartnerActivationRecord | null> {
+		await this.ready();
+		const rows = await this.sql<PartnerActivationRow[]>`
+			SELECT
+				id,
+				source,
+				source_event_id,
+				status,
+				package_key,
+				payment_link_id,
+				stripe_session_id,
+				customer_email,
+				customer_name,
+				event_name,
+				event_url,
+				amount_total_cents,
+				currency,
+				notes,
+				metadata,
+				raw_payload,
+				fulfilled_event_key,
+				fulfilled_tier,
+				fulfilled_start_at,
+				fulfilled_end_at,
+				partner_stats_token,
+				created_at,
+				updated_at,
+				activated_at
+			FROM app_partner_activation_queue
+			WHERE id = ${id}
+			LIMIT 1
+		`;
+		const row = rows[0];
+		return row ? toRecord(row) : null;
 	}
 
 	async updateStatus(input: {
@@ -315,6 +413,66 @@ export class PartnerActivationRepository {
 				notes,
 				metadata,
 				raw_payload,
+				fulfilled_event_key,
+				fulfilled_tier,
+				fulfilled_start_at,
+				fulfilled_end_at,
+				partner_stats_token,
+				created_at,
+				updated_at,
+				activated_at
+		`;
+		const row = rows[0];
+		return row ? toRecord(row) : null;
+	}
+
+	async markFulfilled(input: {
+		id: string;
+		eventKey: string;
+		tier: PartnerPlacementTier;
+		startAt: string;
+		endAt: string;
+		notes?: string | null;
+		partnerStatsToken: string;
+	}): Promise<PartnerActivationRecord | null> {
+		await this.ready();
+		const nowIso = new Date().toISOString();
+		const nextNotes = input.notes?.trim() || null;
+		const rows = await this.sql<PartnerActivationRow[]>`
+			UPDATE app_partner_activation_queue
+			SET
+				status = 'activated',
+				notes = COALESCE(${nextNotes}, notes),
+				fulfilled_event_key = ${input.eventKey},
+				fulfilled_tier = ${input.tier},
+				fulfilled_start_at = ${input.startAt},
+				fulfilled_end_at = ${input.endAt},
+				partner_stats_token = COALESCE(partner_stats_token, ${input.partnerStatsToken}),
+				activated_at = COALESCE(activated_at, ${nowIso}),
+				updated_at = ${nowIso}
+			WHERE id = ${input.id}
+			RETURNING
+				id,
+				source,
+				source_event_id,
+				status,
+				package_key,
+				payment_link_id,
+				stripe_session_id,
+				customer_email,
+				customer_name,
+				event_name,
+				event_url,
+				amount_total_cents,
+				currency,
+				notes,
+				metadata,
+				raw_payload,
+				fulfilled_event_key,
+				fulfilled_tier,
+				fulfilled_start_at,
+				fulfilled_end_at,
+				partner_stats_token,
 				created_at,
 				updated_at,
 				activated_at

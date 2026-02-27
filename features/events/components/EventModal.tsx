@@ -13,6 +13,7 @@ import {
 	addToCalendar,
 	isCalendarDateValid,
 } from "@/features/events/calendar-utils";
+import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import {
 	type Event,
@@ -56,6 +57,7 @@ interface EventModalProps {
 	event: Event | null;
 	isOpen: boolean;
 	onClose: () => void;
+	isAuthenticated?: boolean;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -74,7 +76,12 @@ const CATEGORY_COLORS: Record<string, string> = {
 		"bg-amber-100 text-amber-800 dark:bg-amber-500/18 dark:text-amber-200 dark:border dark:border-amber-400/35",
 };
 
-const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
+const EventModal: React.FC<EventModalProps> = ({
+	event,
+	isOpen,
+	onClose,
+	isAuthenticated = false,
+}) => {
 	const { mapPreference, setMapPreference, isLoaded } = useMapPreference();
 	const [showMapSelection, setShowMapSelection] = useState(false);
 	const [showMapSettings, setShowMapSettings] = useState(false);
@@ -300,6 +307,26 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 			: `${event.arrondissement}e Arrondissement`;
 	const priceLabel = formatPrice(event.price);
 	const ageLabel = event.age || "All ages";
+
+	const openExternalLink = (url: string, source: string) => {
+		trackEventEngagement({
+			eventKey: event.eventKey,
+			actionType: "outbound_click",
+			source,
+			isAuthenticated,
+		});
+		window.open(url, "_blank", "noopener,noreferrer");
+	};
+
+	const handleCalendarSync = () => {
+		trackEventEngagement({
+			eventKey: event.eventKey,
+			actionType: "calendar_sync",
+			source: "modal_calendar_sync",
+			isAuthenticated,
+		});
+		addToCalendar(event);
+	};
 
 	return (
 		<div
@@ -593,7 +620,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							{primaryLink && primaryLink !== "#" ? (
 								<Button
 									onClick={() =>
-										window.open(primaryLink, "_blank", "noopener,noreferrer")
+										openExternalLink(primaryLink, "modal_primary_link")
 									}
 									className="group h-10 w-full min-w-0 transition-all duration-200 hover:shadow-[0_10px_24px_-18px_rgba(16,12,9,0.65)]"
 									title={primaryLink}
@@ -613,7 +640,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 							{canAddToCalendar ? (
 								<Button
 									variant="outline"
-									onClick={() => addToCalendar(event)}
+									onClick={handleCalendarSync}
 									className="group h-10 w-full border-blue-200 bg-blue-50 text-blue-700 transition-all duration-200 hover:border-blue-300 hover:bg-blue-100 hover:shadow-[0_10px_24px_-18px_rgba(20,73,163,0.6)] dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 									title="Add event to your calendar"
 								>
@@ -651,7 +678,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
 										variant="outline"
 										size="sm"
 										onClick={() =>
-											window.open(link, "_blank", "noopener,noreferrer")
+											openExternalLink(link, "modal_secondary_link")
 										}
 										className="w-full"
 										title={link}
