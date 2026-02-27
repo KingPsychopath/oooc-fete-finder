@@ -16,6 +16,21 @@ This app is a Next.js App Router project for Fete event discovery, with a server
 2. Admin routes are dynamic and authenticated (`/admin/*`)
 3. `app/layout.tsx` stays cache-friendly and should not depend on request cookies
 
+### Current Route Cache Rules
+
+- `/`: ISR, `revalidate = 300`
+- `/feature-event`: static-first with short cached featured reads (`revalidate = 60`)
+- `/submit-event`: static-first (`revalidate = 300`)
+- `/partner-success`: static-first (`revalidate = 300`)
+- `/privacy`: `force-static`
+- `/event/[eventKey]/[[...slug]]`: dynamic
+- `/partner-stats/[activationId]`: `force-dynamic`
+- `/admin/*`: `force-dynamic` + `noStore()`
+
+### Staleness Semantics
+
+For ISR routes, "stale" means users may receive the last cached render until background regeneration completes successfully.
+
 ## Admin Console Contract
 
 Admin is split into focused surfaces:

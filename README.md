@@ -42,6 +42,34 @@ What did not become a data cache:
 - Logger dedupe map in `logger.ts` (line 20) is only log suppression.
 - Runtime metrics counters in `runtime-service.ts` (line 74) are telemetry only.
 
+## Cache + Revalidation Policy
+
+### What "stale" means
+
+In this app, "stale" means the user is seeing the last cached HTML/RSC payload for a route, not the newest backend state.
+
+If a route has `revalidate: N`, then:
+
+1. Cached output can be reused for up to `N` seconds.
+2. After that window, the next request may still receive the previous cached payload while Next.js regenerates in the background.
+3. Once regeneration succeeds, later requests receive the new payload.
+4. If regeneration fails, the previous cached payload can continue to be served until a later successful regeneration.
+
+### Route behavior (current)
+
+- `/`: ISR, `revalidate = 300` (5 minutes)
+- `/feature-event`: static with short ISR windows from cached server reads (`revalidate = 60` on featured projection/status lookups)
+- `/submit-event`: static-first, route revalidate window is 5 minutes
+- `/partner-success`: static-first, route revalidate window is 5 minutes
+- `/privacy`: `force-static` (build-time static output)
+- `/event/[eventKey]/[[...slug]]`: dynamic route render
+- `/partner-stats/[activationId]`: `force-dynamic` (always request-time render)
+- `/admin/*`: `force-dynamic` + `noStore()` (always request-time render)
+
+### Shared cached data
+
+- Sliding banner settings use `unstable_cache` with `revalidate = 300` and tag/path invalidation helpers in `features/site-settings/cache.ts`.
+
 ## Postgres Schema (Events)
 
 Event sheet data is stored in normalized tables:
