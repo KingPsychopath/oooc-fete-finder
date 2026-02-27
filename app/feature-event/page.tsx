@@ -28,6 +28,7 @@ type AddOn = {
 	name: string;
 	priceLabel: string;
 	description: string;
+	reachHint?: string;
 	stripeUrl: string | undefined;
 };
 
@@ -65,13 +66,14 @@ const packages: Package[] = [
 	{
 		name: "Spotlight Takeover",
 		priceLabel: "EUR 150",
-		description: "Premium placement for June 15 to June 20 demand surge.",
+		description:
+			"Reserve now for premium placement from June 15 to June 20, 2026.",
 		includes: [
 			"All Spotlight Standard benefits",
-			"Priority activation window",
+			"Priority activation window (June 15-20, 2026)",
 			"Ideal for final-week urgency",
 		],
-		badge: "Peak week pricing",
+		badge: "Reserve now for peak week",
 		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_SPOTLIGHT_TAKEOVER,
 	},
 	{
@@ -80,7 +82,7 @@ const packages: Package[] = [
 		description: "Mid-tier visibility without full Spotlight placement.",
 		includes: [
 			"Promoted badge on event card",
-			"Highlighted map pin",
+			"Visual highlight in map event list",
 			"Promoted label in list results",
 		],
 		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_PROMOTED,
@@ -92,12 +94,14 @@ const addOns: AddOn[] = [
 		name: "WhatsApp Announcement Add-on",
 		priceLabel: "+ EUR 50",
 		description: "Admin channel mention to high-intent community members.",
+		reachHint: "Typically reaches 1,000-2,000 community members.",
 		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_ADDON_WHATSAPP,
 	},
 	{
 		name: "Newsletter Inclusion Add-on",
 		priceLabel: "+ EUR 75",
-		description: "Editorial-style feature inside OOOC newsletter.",
+		description: "Editorial-style feature inside OOOC email newsletter.",
+		reachHint: "Sent to 2,000+ registered subscribers and growing weekly.",
 		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_ADDON_NEWSLETTER,
 	},
 ];
@@ -160,7 +164,9 @@ export default function FeatureEventPage() {
 							<p className="mt-1 text-lg font-medium text-foreground">2,000+</p>
 						</div>
 						<div className="rounded-xl border border-border/70 bg-background/70 p-3">
-							<p className="text-muted-foreground">WhatsApp community members</p>
+							<p className="text-muted-foreground">
+								WhatsApp community members
+							</p>
 							<p className="mt-1 text-lg font-medium text-foreground">
 								1,000-2,000
 							</p>
@@ -208,10 +214,7 @@ export default function FeatureEventPage() {
 					</div>
 					<div className="grid gap-4 md:grid-cols-3">
 						{packages.map((pkg) => (
-							<Card
-								key={pkg.name}
-								className="flex h-full flex-col border border-border/80 bg-card"
-							>
+							<Card key={pkg.name} className="border border-border/80 bg-card">
 								<CardHeader className="space-y-2">
 									<CardTitle className="flex items-center gap-2 text-lg font-medium">
 										<Star className="h-4 w-4 text-muted-foreground" />
@@ -232,7 +235,7 @@ export default function FeatureEventPage() {
 										</Badge>
 									) : null}
 								</CardHeader>
-								<CardContent className="flex flex-1 flex-col">
+								<CardContent>
 									<ul className="space-y-2 text-sm text-muted-foreground">
 										{pkg.includes.map((line) => (
 											<li key={line} className="flex items-start gap-2">
@@ -244,7 +247,7 @@ export default function FeatureEventPage() {
 									<StripeOrContactButton
 										url={pkg.stripeUrl}
 										label={`Pay for ${pkg.name}`}
-										className="mt-5 mt-auto w-full rounded-full border border-border bg-primary text-primary-foreground hover:bg-primary/90"
+										className="mt-6 w-full rounded-full border border-border bg-primary text-primary-foreground hover:bg-primary/90"
 									/>
 								</CardContent>
 							</Card>
@@ -277,6 +280,11 @@ export default function FeatureEventPage() {
 											<p className="mt-1 text-sm text-muted-foreground">
 												{addOn.description}
 											</p>
+											{addOn.reachHint ? (
+												<p className="mt-1 text-xs text-muted-foreground/90">
+													{addOn.reachHint}
+												</p>
+											) : null}
 										</div>
 										<Badge variant="outline" className="rounded-full">
 											{addOn.priceLabel}
@@ -412,8 +420,8 @@ export default function FeatureEventPage() {
 						Close and collect payment in one message
 					</h2>
 					<p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">
-						Send this page link to venues and promoters. They can pick a
-						package, pay instantly, and get activated.
+						Choose your package, pay in minutes, and we activate your campaign
+						fast with confirmation by email.
 					</p>
 					<div className="mt-5 flex flex-wrap items-center justify-center gap-3">
 						<StripeOrContactButton

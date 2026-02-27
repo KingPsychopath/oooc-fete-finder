@@ -20,6 +20,7 @@ import { EventSubmissionsCard } from "./components/EventSubmissionsCard";
 import { FeaturedEventsManagerCard } from "./components/FeaturedEventsManagerCard";
 import { LiveEventsSnapshotCard } from "./components/LiveEventsSnapshotCard";
 import { LocalEventStoreCard } from "./components/LocalEventStoreCard";
+import { PartnerActivationQueueCard } from "./components/PartnerActivationQueueCard";
 import { RuntimeDataStatusCard } from "./components/RuntimeDataStatusCard";
 import { SlidingBannerSettingsCard } from "./components/SlidingBannerSettingsCard";
 import { SystemResetCard } from "./components/SystemResetCard";
@@ -259,6 +260,9 @@ export function AdminDashboardClient({
 						<EventSubmissionsCard
 							initialPayload={initialData.eventSubmissions}
 							onSubmissionReviewed={onDataSaved}
+						/>
+						<PartnerActivationQueueCard
+							initialPayload={initialData.partnerActivations}
 						/>
 						<EmailCollectionCard
 							emails={emails}

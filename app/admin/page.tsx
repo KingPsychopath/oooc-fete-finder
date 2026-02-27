@@ -9,6 +9,7 @@ import {
 } from "@/features/data-management/actions";
 import { listFeaturedQueue } from "@/features/events/featured/actions";
 import { getEventSubmissionsDashboard } from "@/features/events/submissions/actions";
+import { getPartnerActivationDashboard } from "@/features/partners/activation-actions";
 import { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
 import { unstable_noStore as noStore } from "next/cache";
 import { AdminAuthClient } from "./AdminAuthClient";
@@ -36,6 +37,7 @@ export default async function AdminPage() {
 		localBackupStatus,
 		localRecentBackups,
 		featuredQueue,
+		partnerActivations,
 		eventSubmissions,
 		slidingBannerSettings,
 	] = await Promise.allSettled([
@@ -46,6 +48,7 @@ export default async function AdminPage() {
 		getEventStoreBackupStatus(),
 		getEventStoreRecentBackups(undefined, 30),
 		listFeaturedQueue(),
+		getPartnerActivationDashboard(),
 		getEventSubmissionsDashboard(),
 		getAdminSlidingBannerSettings(),
 	]);
@@ -76,6 +79,10 @@ export default async function AdminPage() {
 				: undefined,
 		featuredQueue:
 			featuredQueue.status === "fulfilled" ? featuredQueue.value : undefined,
+		partnerActivations:
+			partnerActivations.status === "fulfilled"
+				? partnerActivations.value
+				: undefined,
 		eventSubmissions:
 			eventSubmissions.status === "fulfilled"
 				? eventSubmissions.value
