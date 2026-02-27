@@ -51,6 +51,7 @@ export const dynamic = "force-dynamic";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const contactEmail = "hello@outofofficecollective.co.uk";
 const fallbackContactHref = `mailto:${contactEmail}?subject=OOOC%20Fete%202026%20-%20Partnership%20Inquiry`;
+const mediaKitHref = `${basePath}/media-kit/OOOC-Fete-2026-Media-Kit.pdf`;
 
 const packages: Package[] = [
 	{
@@ -187,7 +188,13 @@ export default function FeatureEventPage() {
 							nativeButton={false}
 							variant="outline"
 							className="rounded-full"
-							render={<a href={fallbackContactHref} />}
+							render={
+								<a
+									href={mediaKitHref}
+									target="_blank"
+									rel="noopener noreferrer"
+								/>
+							}
 						>
 							Get media kit
 						</Button>

@@ -19,9 +19,33 @@ import {
 	rescheduleFeaturedEvent,
 	scheduleFeaturedEvent,
 } from "@/features/events/featured/actions";
+import {
+	cancelPromotedSchedule,
+	clearPromotedHistory,
+	clearPromotedQueue,
+	listPromotedQueue,
+	reschedulePromotedEvent,
+	schedulePromotedEvent,
+} from "@/features/events/promoted/actions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type FeaturedQueuePayload = Awaited<ReturnType<typeof listFeaturedQueue>>;
+type PromotedQueuePayload = Awaited<ReturnType<typeof listPromotedQueue>>;
+type PlacementMode = "spotlight" | "promoted";
+
+type QueueRow = {
+	id: string;
+	eventKey: string;
+	eventName: string;
+	requestedStartAtParisInput: string;
+	effectiveStartAtParis: string;
+	effectiveEndAtParis: string;
+	durationHours: number;
+	status: "scheduled" | "cancelled" | "completed";
+	state: "active" | "upcoming" | "recent-ended" | "completed" | "cancelled";
+	requestedStartAtParis?: string;
+	queuePosition?: number | null;
+};
 
 const getDateTimeInputForTimezone = (
 	timeZone: string,
@@ -78,16 +102,26 @@ const stateRowClassName = (state: string): string => {
 	}
 };
 
+const MODE_LABEL: Record<PlacementMode, string> = {
+	spotlight: "Spotlight",
+	promoted: "Promoted",
+};
+
 export const FeaturedEventsManagerCard = ({
 	initialPayload,
+	initialPromotedPayload,
 	onScheduleUpdated,
 }: {
 	initialPayload?: FeaturedQueuePayload;
+	initialPromotedPayload?: PromotedQueuePayload;
 	onScheduleUpdated?: () => Promise<void> | void;
 }) => {
-	const [payload, setPayload] = useState<FeaturedQueuePayload | null>(
-		initialPayload ?? null,
-	);
+	const [placementMode, setPlacementMode] =
+		useState<PlacementMode>("spotlight");
+	const [featuredPayload, setFeaturedPayload] =
+		useState<FeaturedQueuePayload | null>(initialPayload ?? null);
+	const [promotedPayload, setPromotedPayload] =
+		useState<PromotedQueuePayload | null>(initialPromotedPayload ?? null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isMutating, setIsMutating] = useState(false);
 	const [statusMessage, setStatusMessage] = useState("");
@@ -102,14 +136,22 @@ export const FeaturedEventsManagerCard = ({
 		Record<string, string>
 	>({});
 
-	const loadQueue = useCallback(async () => {
+	const loadQueue = useCallback(async (mode: PlacementMode) => {
 		setIsLoading(true);
 		setErrorMessage("");
 		try {
-			const result = await listFeaturedQueue();
-			setPayload(result);
+			if (mode === "spotlight") {
+				const result = await listFeaturedQueue();
+				setFeaturedPayload(result);
+				if (!result.success) {
+					setErrorMessage(result.error || "Failed to load Spotlight queue");
+				}
+				return;
+			}
+			const result = await listPromotedQueue();
+			setPromotedPayload(result);
 			if (!result.success) {
-				setErrorMessage(result.error || "Failed to load featured queue");
+				setErrorMessage(result.error || "Failed to load promoted queue");
 			}
 		} finally {
 			setIsLoading(false);
@@ -120,16 +162,29 @@ export const FeaturedEventsManagerCard = ({
 		if (initialPayload?.success) {
 			return;
 		}
-		void loadQueue();
+		void loadQueue("spotlight");
 	}, [initialPayload?.success, loadQueue]);
 
+	useEffect(() => {
+		if (initialPromotedPayload?.success) {
+			return;
+		}
+		void loadQueue("promoted");
+	}, [initialPromotedPayload?.success, loadQueue]);
+
+	const currentPayload = useMemo(
+		() => (placementMode === "spotlight" ? featuredPayload : promotedPayload),
+		[featuredPayload, placementMode, promotedPayload],
+	);
+
+	const events = currentPayload?.events ?? [];
+	const queueRows = (currentPayload?.queue ?? []) as QueueRow[];
 	const matchedEvents = useMemo(() => {
-		if (!payload?.events) return [];
 		const needle = eventQuery.trim().toLowerCase();
 		if (!needle) {
-			return payload.events.slice(0, 10);
+			return events.slice(0, 10);
 		}
-		return payload.events
+		return events
 			.filter((event) => {
 				return (
 					event.name.toLowerCase().includes(needle) ||
@@ -137,23 +192,26 @@ export const FeaturedEventsManagerCard = ({
 				);
 			})
 			.slice(0, 50);
-	}, [eventQuery, payload?.events]);
-
+	}, [eventQuery, events]);
 	const suggestedEvents = useMemo(
 		() => matchedEvents.slice(0, 2),
 		[matchedEvents],
 	);
-
 	const selectedEvent = useMemo(
-		() => payload?.events?.find((event) => event.eventKey === selectedEventKey),
-		[payload?.events, selectedEventKey],
+		() => events.find((event) => event.eventKey === selectedEventKey),
+		[events, selectedEventKey],
 	);
 
-	const activeCount = payload?.activeCount ?? 0;
-	const maxConcurrent = payload?.slotConfig?.maxConcurrent ?? 3;
-	const queueRows = payload?.queue ?? [];
-	const scheduleTimezone = payload?.slotConfig?.timezone || "Europe/Paris";
+	const scheduleTimezone =
+		currentPayload?.slotConfig?.timezone || "Europe/Paris";
 	const timezoneDisplayLabel = `${scheduleTimezone} (CET / GMT+1)`;
+	const activeCount = currentPayload?.activeCount ?? 0;
+	const spotlightMaxConcurrent =
+		featuredPayload?.slotConfig?.maxConcurrent ?? 3;
+	const maxConcurrentDisplay =
+		placementMode === "spotlight"
+			? `${activeCount}/${spotlightMaxConcurrent}`
+			: `${activeCount}`;
 	const upcomingCount = queueRows.filter(
 		(row) => row.state === "upcoming",
 	).length;
@@ -186,36 +244,37 @@ export const FeaturedEventsManagerCard = ({
 					throw new Error(result.error || result.message);
 				}
 				setStatusMessage(result.message);
-				await loadQueue();
+				await loadQueue(placementMode);
 				if (onScheduleUpdated) {
 					await onScheduleUpdated();
 				}
 			} catch (error) {
 				setErrorMessage(
-					error instanceof Error
-						? error.message
-						: "Unknown featured mutation error",
+					error instanceof Error ? error.message : "Unknown mutation error",
 				);
 			} finally {
 				setIsMutating(false);
 			}
 		},
-		[loadQueue, onScheduleUpdated],
+		[loadQueue, onScheduleUpdated, placementMode],
 	);
 
-	const handleFeatureNow = useCallback(async () => {
+	const handleScheduleNow = useCallback(async () => {
 		if (!selectedEventKey) {
 			setErrorMessage("Select an event first");
 			return;
 		}
+		const parsedDuration = Number.parseInt(durationHours, 10);
+		if (placementMode === "spotlight") {
+			await withMutation(() =>
+				scheduleFeaturedEvent(selectedEventKey, "", parsedDuration),
+			);
+			return;
+		}
 		await withMutation(() =>
-			scheduleFeaturedEvent(
-				selectedEventKey,
-				"",
-				Number.parseInt(durationHours, 10),
-			),
+			schedulePromotedEvent(selectedEventKey, "", parsedDuration),
 		);
-	}, [durationHours, selectedEventKey, withMutation]);
+	}, [durationHours, placementMode, selectedEventKey, withMutation]);
 
 	const handleSchedule = useCallback(async () => {
 		if (!selectedEventKey) {
@@ -226,41 +285,65 @@ export const FeaturedEventsManagerCard = ({
 			setErrorMessage("Select a Paris schedule time");
 			return;
 		}
+		const parsedDuration = Number.parseInt(durationHours, 10);
+		if (placementMode === "spotlight") {
+			await withMutation(() =>
+				scheduleFeaturedEvent(selectedEventKey, scheduleAt, parsedDuration),
+			);
+			return;
+		}
 		await withMutation(() =>
-			scheduleFeaturedEvent(
-				selectedEventKey,
-				scheduleAt,
-				Number.parseInt(durationHours, 10),
-			),
+			schedulePromotedEvent(selectedEventKey, scheduleAt, parsedDuration),
 		);
-	}, [durationHours, scheduleAt, selectedEventKey, withMutation]);
+	}, [
+		durationHours,
+		placementMode,
+		scheduleAt,
+		selectedEventKey,
+		withMutation,
+	]);
 
 	const handleClearQueue = useCallback(async () => {
 		if (hasActiveSlots) {
 			const firstConfirm = window.confirm(
-				"This will remove currently active featured slots. Continue?",
+				`This will remove currently active ${MODE_LABEL[placementMode].toLowerCase()} slots. Continue?`,
 			);
 			if (!firstConfirm) return;
 			const secondConfirm = window.confirm(
-				"Final confirmation: clear scheduled queue now?",
+				`Final confirmation: clear scheduled ${MODE_LABEL[placementMode].toLowerCase()} queue now?`,
 			);
 			if (!secondConfirm) return;
 		} else {
 			const confirmed = window.confirm(
-				"Clear scheduled featured queue entries? Upcoming entries will be removed.",
+				`Clear scheduled ${MODE_LABEL[placementMode].toLowerCase()} queue entries? Upcoming entries will be removed.`,
 			);
 			if (!confirmed) return;
 		}
-		await withMutation(() => clearFeaturedQueue());
-	}, [hasActiveSlots, withMutation]);
+		if (placementMode === "spotlight") {
+			await withMutation(() => clearFeaturedQueue());
+			return;
+		}
+		await withMutation(() => clearPromotedQueue());
+	}, [hasActiveSlots, placementMode, withMutation]);
 
 	const handleClearHistory = useCallback(async () => {
 		const confirmed = window.confirm(
-			"Clear featured history entries (completed/cancelled)? This cannot be undone.",
+			`Clear ${MODE_LABEL[placementMode].toLowerCase()} history entries (completed/cancelled)? This cannot be undone.`,
 		);
 		if (!confirmed) return;
-		await withMutation(() => clearFeaturedHistory());
-	}, [withMutation]);
+		if (placementMode === "spotlight") {
+			await withMutation(() => clearFeaturedHistory());
+			return;
+		}
+		await withMutation(() => clearPromotedHistory());
+	}, [placementMode, withMutation]);
+
+	const scheduleActionLabel =
+		placementMode === "spotlight" ? "Feature now" : "Promote now";
+	const scheduleHeadingLabel =
+		placementMode === "spotlight"
+			? "Plan a Spotlight slot"
+			: "Plan a promoted listing";
 
 	return (
 		<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
@@ -268,21 +351,43 @@ export const FeaturedEventsManagerCard = ({
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div className="space-y-1">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Featured Scheduling
+							Placement Scheduling
 						</p>
 						<CardTitle>Featured Events Manager</CardTitle>
 						<CardDescription>
-							Manual controls for Spotlight windows. Paid order fulfillment
-							happens in Paid Orders Inbox.
+							Use one control surface for Spotlight and Promoted placements.
+							Paid order fulfillment happens in Paid Orders Inbox.
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
+						<div className="inline-flex rounded-md border border-border/70 bg-background/70 p-1">
+							<Button
+								type="button"
+								size="sm"
+								variant={placementMode === "spotlight" ? "default" : "ghost"}
+								className="h-8 px-3"
+								onClick={() => setPlacementMode("spotlight")}
+								disabled={isMutating}
+							>
+								Spotlight
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant={placementMode === "promoted" ? "default" : "ghost"}
+								className="h-8 px-3"
+								onClick={() => setPlacementMode("promoted")}
+								disabled={isMutating}
+							>
+								Promoted
+							</Button>
+						</div>
 						<Badge variant="outline">Timezone: {timezoneDisplayLabel}</Badge>
 						<Button
 							type="button"
 							size="sm"
 							variant="outline"
-							onClick={() => void loadQueue()}
+							onClick={() => void loadQueue(placementMode)}
 							disabled={isLoading || isMutating}
 						>
 							{isLoading ? "Refreshing..." : "Refresh queue"}
@@ -295,7 +400,7 @@ export const FeaturedEventsManagerCard = ({
 							Active Slots
 						</p>
 						<p className="mt-0.5 text-sm font-semibold tabular-nums">
-							{activeCount}/{maxConcurrent}
+							{maxConcurrentDisplay}
 						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 px-2.5 py-2">
@@ -330,17 +435,17 @@ export const FeaturedEventsManagerCard = ({
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Create Schedule Entry
 						</p>
-						<h3 className="text-sm font-semibold">Plan a featured slot</h3>
+						<h3 className="text-sm font-semibold">{scheduleHeadingLabel}</h3>
 						<p className="text-xs text-muted-foreground">
-							Select an event, then feature now or schedule using the timezone
+							Select an event, then activate now or schedule using the timezone
 							above.
 						</p>
 					</div>
 					<div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,280px)]">
 						<div className="space-y-2">
-							<Label htmlFor="featured-event-filter">Find event</Label>
+							<Label htmlFor="placement-event-filter">Find event</Label>
 							<Input
-								id="featured-event-filter"
+								id="placement-event-filter"
 								placeholder="Search by event name or key"
 								value={eventQuery}
 								onChange={(event) => setEventQuery(event.target.value)}
@@ -398,28 +503,28 @@ export const FeaturedEventsManagerCard = ({
 								</div>
 							) : (
 								<p className="text-[11px] text-muted-foreground">
-									Pick one of the 2 suggestions above to set the featured
-									target.
+									Pick one of the 2 suggestions above to set the{" "}
+									{MODE_LABEL[placementMode].toLowerCase()} target.
 								</p>
 							)}
 						</div>
 						<div className="flex h-full flex-col rounded-md border bg-background/60 p-3">
 							<div className="space-y-3">
 								<div className="space-y-2">
-									<Label htmlFor="featured-schedule-at">Schedule at</Label>
+									<Label htmlFor="placement-schedule-at">Schedule at</Label>
 									<Input
-										id="featured-schedule-at"
+										id="placement-schedule-at"
 										type="datetime-local"
 										value={scheduleAt}
 										onChange={(event) => setScheduleAt(event.target.value)}
 									/>
 								</div>
 								<div className="space-y-2">
-									<Label htmlFor="featured-duration-hours">
+									<Label htmlFor="placement-duration-hours">
 										Duration (hours)
 									</Label>
 									<Input
-										id="featured-duration-hours"
+										id="placement-duration-hours"
 										type="number"
 										min={1}
 										max={168}
@@ -433,10 +538,10 @@ export const FeaturedEventsManagerCard = ({
 									<Button
 										type="button"
 										variant="outline"
-										onClick={() => void handleFeatureNow()}
+										onClick={() => void handleScheduleNow()}
 										disabled={isMutating || isLoading}
 									>
-										Feature now
+										{scheduleActionLabel}
 									</Button>
 									<Button
 										type="button"
@@ -451,16 +556,16 @@ export const FeaturedEventsManagerCard = ({
 					</div>
 				</section>
 
-				{statusMessage && (
+				{statusMessage ? (
 					<div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
 						{statusMessage}
 					</div>
-				)}
-				{errorMessage && (
+				) : null}
+				{errorMessage ? (
 					<div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
 						{errorMessage}
 					</div>
-				)}
+				) : null}
 
 				<section className="space-y-3">
 					<div className="flex flex-wrap items-center justify-between gap-2">
@@ -468,7 +573,9 @@ export const FeaturedEventsManagerCard = ({
 							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 								Schedule Timeline
 							</p>
-							<h3 className="text-sm font-semibold">Queue and history</h3>
+							<h3 className="text-sm font-semibold">
+								Queue and history ({MODE_LABEL[placementMode]})
+							</h3>
 						</div>
 						<div className="flex items-center gap-2">
 							<p className="text-xs text-muted-foreground">
@@ -514,7 +621,8 @@ export const FeaturedEventsManagerCard = ({
 											colSpan={7}
 											className="px-3 py-5 text-center text-muted-foreground"
 										>
-											No featured schedule entries yet.
+											No {MODE_LABEL[placementMode].toLowerCase()} schedule
+											entries yet.
 										</td>
 									</tr>
 								) : (
@@ -535,10 +643,12 @@ export const FeaturedEventsManagerCard = ({
 												</Badge>
 											</td>
 											<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums">
-												{row.queuePosition ? `#${row.queuePosition}` : "—"}
+												{placementMode === "spotlight" && row.queuePosition
+													? `#${row.queuePosition}`
+													: "—"}
 											</td>
 											<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums whitespace-nowrap">
-												{row.requestedStartAtParis}
+												{row.requestedStartAtParis || "—"}
 											</td>
 											<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums whitespace-nowrap">
 												{row.effectiveStartAtParis}
@@ -573,14 +683,22 @@ export const FeaturedEventsManagerCard = ({
 																row.status !== "scheduled" || isMutating
 															}
 															onClick={() =>
-																void withMutation(() =>
-																	rescheduleFeaturedEvent(
-																		row.id,
+																void withMutation(() => {
+																	const nextStart =
 																		rescheduleInputs[row.id] ??
-																			row.requestedStartAtParisInput,
-																		row.durationHours,
-																	),
-																)
+																		row.requestedStartAtParisInput;
+																	return placementMode === "spotlight"
+																		? rescheduleFeaturedEvent(
+																				row.id,
+																				nextStart,
+																				row.durationHours,
+																			)
+																		: reschedulePromotedEvent(
+																				row.id,
+																				nextStart,
+																				row.durationHours,
+																			);
+																})
 															}
 														>
 															Reschedule
@@ -595,7 +713,9 @@ export const FeaturedEventsManagerCard = ({
 															}
 															onClick={() =>
 																void withMutation(() =>
-																	cancelFeaturedSchedule(row.id),
+																	placementMode === "spotlight"
+																		? cancelFeaturedSchedule(row.id)
+																		: cancelPromotedSchedule(row.id),
 																)
 															}
 														>
