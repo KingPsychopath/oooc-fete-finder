@@ -23,17 +23,23 @@ export default function PrivacyPolicy() {
 					<CardHeader>
 						<CardTitle className="text-2xl">Privacy Policy</CardTitle>
 						<p className="text-sm text-muted-foreground">
-							Last updated: 10 June 2025
+							Last updated: 27 February 2026
 						</p>
 					</CardHeader>
 					<CardContent className="prose prose-sm max-w-none space-y-6">
 						<section>
 							<h3 className="text-lg font-semibold mb-3">What We Collect</h3>
-							<p className="text-muted-foreground">
-								We collect your email address when you choose to access our
-								filtering and search features. This is the only personal
-								information we collect.
-							</p>
+							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
+								<li>Name and email when you register</li>
+								<li>
+									First-party product activity (for example: event opens,
+									outbound clicks, calendar saves, and genre preference signals)
+								</li>
+								<li>
+									Technical security logs and rate-limiting data to protect the
+									service
+								</li>
+							</ul>
 						</section>
 
 						<section>
@@ -41,22 +47,21 @@ export default function PrivacyPolicy() {
 								How We Use Your Data
 							</h3>
 							<p className="text-muted-foreground mb-2">
-								<strong>Legal basis:</strong> Consent (you can withdraw this anytime by unsubscribing or contacting us)
+								<strong>Legal basis:</strong> Consent and legitimate interest
+								(you can withdraw consent for marketing at any time).
 							</p>
 							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
 								<li>To provide personalized event recommendations</li>
-								<li>
-									To add your email to our mailing list for event updates and
-									notifications about future OOOC events,
-								</li>
-								<li>
-									To send you updates about future Fête de la Musique events
-								</li>
+								<li>To send event updates and OOOC community communications</li>
 								<li>To improve our service and user experience</li>
-								<li>To build our community of music event enthusiasts</li>
+								<li>
+									To provide anonymized, aggregated performance reporting to
+									venue and promoter partners
+								</li>
 							</ul>
 							<p className="text-sm text-muted-foreground mt-3">
-								<strong>Unsubscribe:</strong> You can unsubscribe from emails at any time using the unsubscribe link in any email we send you, or by contacting us directly.
+								<strong>Unsubscribe:</strong> You can unsubscribe at any time
+								via the unsubscribe link in emails, or by contacting us.
 							</p>
 						</section>
 
@@ -64,11 +69,20 @@ export default function PrivacyPolicy() {
 							<h3 className="text-lg font-semibold mb-3">
 								Data Storage & Security
 							</h3>
-							<p className="text-muted-foreground">
-								Your email is stored securely and will be kept for up to 2 years
-								after collection. We use industry-standard security measures to
-								protect your information.
-							</p>
+							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
+								<li>
+									Your account and event engagement records are stored on our
+									first-party infrastructure.
+								</li>
+								<li>
+									We use access controls, token-protected partner reporting pages,
+									and security monitoring.
+								</li>
+								<li>
+									We retain data only as long as needed for service delivery,
+									reporting, legal, and security obligations.
+								</li>
+							</ul>
 						</section>
 
 						<section>
@@ -87,31 +101,45 @@ export default function PrivacyPolicy() {
 
 						<section>
 							<h3 className="text-lg font-semibold mb-3">Data Sharing</h3>
-							<p className="text-muted-foreground">
-								We do not sell, trade, or share your email address with third
-								parties. Your information stays with us and is used solely for
-								the purposes described above.
-							</p>
+							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
+								<li>We do not sell your personal data.</li>
+								<li>
+									We do not share partner-facing email lists or personally
+									identifiable contact exports with venues or promoters.
+								</li>
+								<li>
+									Partners only receive aggregated campaign performance metrics.
+								</li>
+							</ul>
 						</section>
 
 						<section>
-							<h3 className="text-lg font-semibold mb-3">Cookies</h3>
-							<p className="text-muted-foreground">
-								We store your email locally in your browser to remember your
-								authentication status. This data remains on your device and can
-								be cleared by logging out or clearing your browser data.
-							</p>
+							<h3 className="text-lg font-semibold mb-3">
+								Cookies & Tracking
+							</h3>
+							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
+								<li>
+									We use first-party session cookies to keep you signed in and
+									enable gated features.
+								</li>
+								<li>
+									We use first-party event interaction tracking to improve search,
+									discovery, and partner reporting.
+								</li>
+								<li>
+									We do not rely on third-party ad trackers for core analytics.
+								</li>
+							</ul>
 						</section>
 
 						<section>
 							<h3 className="text-lg font-semibold mb-3">Contact Us</h3>
 							<p className="text-muted-foreground">
 								If you have any questions about this privacy policy or want to
-								exercise your rights, please contact us at hello@outofofficecollective.co.uk
+								exercise your rights, please contact us at
+								{" "}
+								hello@outofofficecollective.co.uk
 								<CopyEmailButton email="hello@outofofficecollective.co.uk" />
-							</p>
-							<p className="text-sm text-muted-foreground mt-2">
-								You can also reach us through our main website or social media channels.
 							</p>
 						</section>
 
@@ -127,9 +155,10 @@ export default function PrivacyPolicy() {
 
 						<div className="bg-muted/50 p-4 rounded-lg mt-8">
 							<p className="text-sm text-muted-foreground">
-								<strong>Simple Summary:</strong> We only collect your email to
-								send you event updates. We keep it secure, don't share it, and
-								you can ask us to delete it anytime.
+								<strong>Simple Summary:</strong> We collect only what we need to
+								run the platform, improve event discovery, and report campaign
+								performance in aggregate. You can request access, correction, or
+								deletion of your data at any time.
 							</p>
 						</div>
 					</CardContent>

@@ -249,7 +249,7 @@ export const AdminSessionStatus = ({
 					<div>
 						<CardTitle className="flex items-center gap-2">
 							<ShieldCheck className="h-5 w-5" />
-							Admin Session
+							Admin Session & Tokens
 						</CardTitle>
 						<CardDescription>
 							JWT cookie-auth with server-side session registry and revoke controls.

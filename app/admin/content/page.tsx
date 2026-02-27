@@ -20,7 +20,7 @@ export default async function AdminContentPage() {
 
 	return (
 		<div className="space-y-6">
-			<section id="event-sheet-editor" className="scroll-mt-24">
+			<section id="event-sheet-editor" className="scroll-mt-44">
 				<EventSheetEditorCard
 					isAuthenticated
 					initialEditorData={
@@ -29,7 +29,7 @@ export default async function AdminContentPage() {
 				/>
 			</section>
 
-			<section id="event-submissions" className="scroll-mt-24">
+			<section id="event-submissions" className="scroll-mt-44">
 				<EventSubmissionsCard
 					initialPayload={
 						eventSubmissions.status === "fulfilled"
@@ -39,7 +39,7 @@ export default async function AdminContentPage() {
 				/>
 			</section>
 
-			<section id="sliding-banner" className="scroll-mt-24">
+			<section id="sliding-banner" className="scroll-mt-44">
 				<SlidingBannerSettingsCard
 					initialSettings={
 						slidingBannerSettings.status === "fulfilled"

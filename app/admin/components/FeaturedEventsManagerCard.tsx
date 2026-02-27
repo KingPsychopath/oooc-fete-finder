@@ -353,10 +353,10 @@ export const FeaturedEventsManagerCard = ({
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Placement Scheduling
 						</p>
-						<CardTitle>Featured Events Manager</CardTitle>
+						<CardTitle>Spotlight & Promoted Scheduler</CardTitle>
 						<CardDescription>
 							Use one control surface for Spotlight and Promoted placements.
-							Paid order fulfillment happens in Paid Orders Inbox.
+							Paid order fulfillment happens in Paid Orders Queue.
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">

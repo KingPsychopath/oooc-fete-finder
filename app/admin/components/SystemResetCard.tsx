@@ -92,9 +92,9 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 		confirmationText.trim().length > 0;
 
 	return (
-		<Card className="ooo-admin-card min-w-0 overflow-hidden border-red-200/80">
-			<CardHeader className="space-y-2">
-				<CardTitle>Factory Reset</CardTitle>
+			<Card className="ooo-admin-card min-w-0 overflow-hidden border-red-200/80">
+				<CardHeader className="space-y-2">
+					<CardTitle>Factory Reset (Danger Zone)</CardTitle>
 				<CardDescription>
 					Danger zone. Resets runtime/admin data to a fresh app state.
 				</CardDescription>
@@ -158,7 +158,7 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 					disabled={!canSubmit}
 					onClick={handleFactoryReset}
 				>
-					{isResetting ? "Resetting..." : "Run Factory Reset"}
+					{isResetting ? "Resetting..." : "Run Factory Reset Now"}
 				</Button>
 
 				{message && (

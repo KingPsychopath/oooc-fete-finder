@@ -107,7 +107,7 @@ export function OperationsDashboardClient({
 
 	return (
 		<div className="space-y-6">
-			<section id="events-data-status" className="scroll-mt-24">
+			<section id="events-data-status" className="scroll-mt-44">
 				<RuntimeDataStatusCard
 					runtimeDataStatus={runtimeDataStatus}
 					refreshing={refreshing}
@@ -116,14 +116,14 @@ export function OperationsDashboardClient({
 				/>
 			</section>
 
-			<section id="live-site-snapshot" className="scroll-mt-24">
+			<section id="live-site-snapshot" className="scroll-mt-44">
 				<LiveEventsSnapshotCard
 					isAuthenticated
 					initialSnapshot={initialData.liveSnapshot}
 				/>
 			</section>
 
-			<section id="data-store-controls" className="scroll-mt-24">
+			<section id="data-store-controls" className="scroll-mt-44">
 				<LocalEventStoreCard
 					isAuthenticated
 					runtimeDataStatus={runtimeDataStatus}
@@ -135,7 +135,7 @@ export function OperationsDashboardClient({
 				/>
 			</section>
 
-			<section id="admin-session" className="scroll-mt-24">
+			<section id="admin-session" className="scroll-mt-44">
 				<AdminSessionStatus
 					initialSessionStatus={initialData.sessionStatus}
 					initialTokenSessions={initialData.tokenSessions}
@@ -143,7 +143,7 @@ export function OperationsDashboardClient({
 				/>
 			</section>
 
-			<section id="factory-reset" className="scroll-mt-24">
+			<section id="factory-reset" className="scroll-mt-44">
 				<SystemResetCard
 					onResetCompleted={
 						statusRefreshing ? undefined : handleStatusRefresh

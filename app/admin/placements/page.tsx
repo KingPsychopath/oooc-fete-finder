@@ -19,7 +19,7 @@ export default async function AdminPlacementsPage() {
 
 	return (
 		<div className="space-y-6">
-			<section id="paid-orders-inbox" className="scroll-mt-24">
+			<section id="paid-orders-inbox" className="scroll-mt-44">
 				<PartnerActivationQueueCard
 					initialPayload={
 						partnerActivations.status === "fulfilled"
@@ -29,7 +29,7 @@ export default async function AdminPlacementsPage() {
 				/>
 			</section>
 
-			<section id="featured-events-manager" className="scroll-mt-24">
+			<section id="featured-events-manager" className="scroll-mt-44">
 				<FeaturedEventsManagerCard
 					initialPayload={
 						featuredQueue.status === "fulfilled"

@@ -522,7 +522,7 @@ export const LocalEventStoreCard = ({
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
 			<CardHeader className="space-y-2">
-				<CardTitle>Data Store Controls</CardTitle>
+				<CardTitle>Event Store Controls</CardTitle>
 				<CardDescription>
 					Manage the live event store and import CSV backups when needed.
 				</CardDescription>

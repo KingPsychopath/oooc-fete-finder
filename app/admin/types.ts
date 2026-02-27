@@ -26,10 +26,6 @@ export type {
 } from "@/features/auth/types";
 export type { RuntimeDataStatus } from "@/features/data-management/runtime-service";
 
-export type AdminHubInitialData = {
-	runtimeDataStatus?: RuntimeDataStatus;
-};
-
 export type AdminOperationsInitialData = {
 	runtimeDataStatus?: RuntimeDataStatus;
 	sessionStatus?: Awaited<ReturnType<typeof getAdminSessionStatus>>;

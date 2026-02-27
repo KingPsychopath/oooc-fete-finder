@@ -72,15 +72,15 @@ export function InsightsDashboardClient({
 		navigator.clipboard.writeText(emailList);
 	}, [emails]);
 
-		return (
+	return (
 		<div className="space-y-6">
-			<section id="event-engagement-stats" className="scroll-mt-24">
+			<section id="event-engagement-stats" className="scroll-mt-44">
 				<EventEngagementStatsCard
 					initialPayload={initialData.eventEngagementDashboard}
 				/>
 			</section>
 
-			<section id="collected-users" className="scroll-mt-24">
+			<section id="collected-users" className="scroll-mt-44">
 				<EmailCollectionCard
 					emails={emails}
 					store={emailStore}

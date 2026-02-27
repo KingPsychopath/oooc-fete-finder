@@ -46,15 +46,14 @@ export default async function AdminPage() {
 				<CardHeader className="space-y-3">
 					<div className="flex flex-wrap items-start justify-between gap-3">
 						<div>
-							<CardTitle>Admin Hub</CardTitle>
+							<CardTitle>Admin Overview</CardTitle>
 							<CardDescription>
-								Use this page as a launchpad. Open one focused module at a
-									time instead of scrolling through every tool in one screen.
-									Each area groups related tasks.
-								</CardDescription>
-							</div>
+								Use this page as a launchpad. Open one focused area at a time
+								instead of scrolling through every tool in one screen.
+							</CardDescription>
+						</div>
 						<Link href={withAdminBasePath("/admin/operations")}>
-							<Button size="sm">Open Operations</Button>
+							<Button size="sm">Open System Operations</Button>
 						</Link>
 					</div>
 				</CardHeader>

@@ -83,7 +83,7 @@ export const RuntimeDataStatusCard = ({
 			<CardHeader className="space-y-2">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<div>
-						<CardTitle>Events Data Status</CardTitle>
+						<CardTitle>Runtime Data Status</CardTitle>
 						<CardDescription>
 							Remote Mode serves Postgres first. If unavailable, the app serves local
 							CSV fallback until store data is restored.

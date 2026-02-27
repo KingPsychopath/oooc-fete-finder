@@ -52,21 +52,21 @@ export const stripAdminBasePath = (pathname: string): string => {
 export const ADMIN_ROUTES: AdminRouteConfig[] = [
 	{
 		key: "hub",
-		label: "Overview",
-		description: "Admin hub, status badges, and quick jumps into each module.",
+		label: "Admin Overview",
+		description: "Entry point with status badges and quick links to each admin area.",
 		path: "/admin",
 		sections: [],
 	},
 	{
 		key: "operations",
-		label: "Operations",
+		label: "System Operations",
 		description:
 			"Runtime health, store controls, session controls, and recovery tools.",
 		path: "/admin/operations",
 		sections: [
 			{
 				id: "events-data-status",
-				label: "Events Data Status",
+				label: "Runtime Data Status",
 				description: "Live runtime source and revalidation controls.",
 				path: "/admin/operations#events-data-status",
 				moduleKey: "operations",
@@ -74,7 +74,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 			},
 			{
 				id: "live-site-snapshot",
-				label: "Live Site Snapshot",
+				label: "Live Runtime Snapshot",
 				description: "Inspect runtime payload and source checks.",
 				path: "/admin/operations#live-site-snapshot",
 				moduleKey: "operations",
@@ -82,7 +82,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 			},
 			{
 				id: "data-store-controls",
-				label: "Data Store Controls",
+				label: "Event Store Controls",
 				description: "Import, backups, restore, and CSV controls.",
 				path: "/admin/operations#data-store-controls",
 				moduleKey: "operations",
@@ -90,7 +90,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 			},
 			{
 				id: "admin-session",
-				label: "Admin Session",
+				label: "Admin Session & Tokens",
 				description: "Session status and token revocation tools.",
 				path: "/admin/operations#admin-session",
 				moduleKey: "operations",
@@ -98,7 +98,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 			},
 			{
 				id: "factory-reset",
-				label: "Factory Reset",
+				label: "Factory Reset (Danger Zone)",
 				description: "Danger zone reset controls.",
 				path: "/admin/operations#factory-reset",
 				moduleKey: "operations",
@@ -108,7 +108,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 	},
 	{
 		key: "content",
-		label: "Content",
+		label: "Content & Submissions",
 		description:
 			"Event sheet editing, submission moderation, and sliding banner settings.",
 		path: "/admin/content",
@@ -131,7 +131,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 			},
 			{
 				id: "sliding-banner",
-				label: "Sliding Banner",
+				label: "Homepage Sliding Banner",
 				description: "Configure rotating homepage banner messages.",
 				path: "/admin/content#sliding-banner",
 				moduleKey: "content",
@@ -141,14 +141,14 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 	},
 	{
 		key: "placements",
-		label: "Placements",
+		label: "Paid Placements",
 		description:
 			"Paid order fulfillment and Spotlight/Promoted placement scheduling.",
 		path: "/admin/placements",
 		sections: [
 			{
 				id: "paid-orders-inbox",
-				label: "Paid Orders Inbox",
+				label: "Paid Orders Queue",
 				description: "Fulfill paid placement requests.",
 				path: "/admin/placements#paid-orders-inbox",
 				moduleKey: "placements",
@@ -156,7 +156,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 			},
 			{
 				id: "featured-events-manager",
-				label: "Featured Events Manager",
+				label: "Spotlight & Promoted Scheduler",
 				description: "Schedule and manage Spotlight and Promoted queues.",
 				path: "/admin/placements#featured-events-manager",
 				moduleKey: "placements",
@@ -166,7 +166,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 	},
 	{
 		key: "insights",
-		label: "Insights",
+		label: "Analytics & Audience",
 		description:
 			"Engagement analytics and collected user export.",
 		path: "/admin/insights",
@@ -181,7 +181,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 			},
 			{
 				id: "collected-users",
-				label: "Collected Users",
+				label: "Collected User Emails",
 				description: "Export and inspect collected user records.",
 				path: "/admin/insights#collected-users",
 				moduleKey: "insights",

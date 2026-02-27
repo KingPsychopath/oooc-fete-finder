@@ -36,7 +36,7 @@ export const EmailCollectionCard = ({
 			<CardHeader className="space-y-3">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div>
-						<CardTitle>Collected Users</CardTitle>
+						<CardTitle>Collected User Emails</CardTitle>
 						<CardDescription>
 							Auth modal submissions are stored in your managed user store and
 							can be exported to CSV at any time.

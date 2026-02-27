@@ -76,7 +76,7 @@ export const LiveEventsSnapshotCard = ({
 			<CardHeader className="space-y-3">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<div>
-						<CardTitle>Live Site Snapshot</CardTitle>
+						<CardTitle>Live Runtime Snapshot</CardTitle>
 						<CardDescription>
 							Direct payload view from current runtime source. Source check is a
 							dry run and does not mutate runtime state.

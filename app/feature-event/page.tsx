@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
+import { getFeaturedProjection } from "@/features/events/featured/service";
 import { FeatureEventHeader } from "./FeatureEventHeader";
 import { FeatureEventStatusSection } from "./FeatureEventStatusSection";
 
@@ -141,7 +143,15 @@ function StripeOrContactButton({
 	);
 }
 
-export default function FeatureEventPage() {
+export default async function FeatureEventPage() {
+	const featuredProjection = await getFeaturedProjection().catch(() => null);
+	const spotlightSlotsTotal = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS;
+	const spotlightActiveCount = featuredProjection?.active.length ?? 0;
+	const spotlightSlotsLeft = Math.max(
+		0,
+		spotlightSlotsTotal - spotlightActiveCount,
+	);
+
 	return (
 		<div className="ooo-site-shell">
 			<FeatureEventHeader />
@@ -259,6 +269,17 @@ export default function FeatureEventPage() {
 											className="w-fit rounded-full text-[10px] uppercase tracking-[0.08em]"
 										>
 											{pkg.badge}
+										</Badge>
+									) : null}
+									{pkg.tier === "spotlight" ? (
+										<Badge
+											className={`w-fit rounded-full px-2.5 py-1 text-[10px] uppercase tracking-[0.08em] ${
+												spotlightSlotsLeft <= 1
+													? "bg-rose-600 text-rose-50"
+													: "bg-emerald-700 text-emerald-50"
+											}`}
+										>
+											{spotlightSlotsLeft}/{spotlightSlotsTotal} slots left
 										</Badge>
 									) : null}
 								</CardHeader>

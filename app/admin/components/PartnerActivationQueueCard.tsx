@@ -218,7 +218,7 @@ export const PartnerActivationQueueCard = ({
 			<CardHeader className="space-y-3">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div>
-						<CardTitle>Paid Orders Inbox</CardTitle>
+						<CardTitle>Paid Orders Queue</CardTitle>
 						<CardDescription>
 							Paid Stripe orders land here first. Choose Spotlight or Promoted,
 							match to an event, then fulfill in one step.
