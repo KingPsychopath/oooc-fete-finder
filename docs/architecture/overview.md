@@ -30,6 +30,7 @@ This app is a Next.js App Router project for Fete event discovery, with a server
 ### Staleness Semantics
 
 For ISR routes, "stale" means users may receive the last cached render until background regeneration completes successfully.
+If regeneration produces identical output, users effectively continue receiving the same payload/content.
 
 ## Admin Console Contract
 

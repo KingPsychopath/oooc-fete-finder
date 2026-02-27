@@ -55,6 +55,8 @@ If a route has `revalidate: N`, then:
 3. Once regeneration succeeds, later requests receive the new payload.
 4. If regeneration fails, the previous cached payload can continue to be served until a later successful regeneration.
 
+If regenerated output is unchanged, users effectively receive the same page payload/content as before. Revalidation still performs server work, but it does not imply a full "new site download" for end users.
+
 ### Route behavior (current)
 
 - `/`: ISR, `revalidate = 300` (5 minutes)
