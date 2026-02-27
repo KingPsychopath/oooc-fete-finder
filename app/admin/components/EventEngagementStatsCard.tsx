@@ -50,6 +50,7 @@ type SegmentGenreRule = {
 };
 
 const WINDOW_OPTIONS = [7, 30, 90] as const;
+const EXPORT_WINDOW_OPTIONS = [7, 14, 30, 60, 90] as const;
 
 const FILTER_GROUP_OPTIONS: Array<{
 	value: DiscoveryFilterGroup;
@@ -111,7 +112,11 @@ export const EventEngagementStatsCard = ({
 	const [genreRuleMinScore, setGenreRuleMinScore] = useState("2");
 	const [genreRules, setGenreRules] = useState<SegmentGenreRule[]>([]);
 
-	const [searchContains, setSearchContains] = useState("");
+	const [segmentWindowDays, setSegmentWindowDays] = useState<number>(
+		initialPayload && initialPayload.success ? initialPayload.windowDays : 30,
+	);
+	const [searchInput, setSearchInput] = useState("");
+	const [searchRule, setSearchRule] = useState("");
 	const [segmentMinHits, setSegmentMinHits] = useState("1");
 	const [segmentLimit, setSegmentLimit] = useState("5000");
 
@@ -248,6 +253,22 @@ export const EventEngagementStatsCard = ({
 		setGenreRules((current) => current.filter((rule) => rule.genre !== genre));
 	}, []);
 
+	const addSearchRule = useCallback(() => {
+		const normalized = searchInput.trim().toLowerCase();
+		if (normalized.length < 2) {
+			setErrorMessage("Search rule should be at least 2 characters");
+			return;
+		}
+		setErrorMessage("");
+		setSearchRule(normalized);
+		setSearchInput("");
+	}, [searchInput]);
+
+	const clearSearchRule = useCallback(() => {
+		setSearchRule("");
+		setSearchInput("");
+	}, []);
+
 	const handleExportSegmentCsv = useCallback(async () => {
 		setIsExporting(true);
 		setErrorMessage("");
@@ -256,12 +277,12 @@ export const EventEngagementStatsCard = ({
 			const minHits = Number.parseInt(segmentMinHits, 10);
 			const limit = Number.parseInt(segmentLimit, 10);
 			const result = await exportAudienceSegmentCsv({
-				windowDays,
+				windowDays: segmentWindowDays,
 				minHitsPerRule: Number.isFinite(minHits) ? minHits : 1,
 				limit: Number.isFinite(limit) ? limit : 5000,
 				ruleOperator,
 				filterRules,
-				searchContains,
+				searchContains: searchRule,
 				genreRules,
 			});
 			if (!result.success) {
@@ -285,10 +306,10 @@ export const EventEngagementStatsCard = ({
 		filterRules,
 		genreRules,
 		ruleOperator,
-		searchContains,
+		searchRule,
+		segmentWindowDays,
 		segmentLimit,
 		segmentMinHits,
-		windowDays,
 	]);
 
 	return (
@@ -481,8 +502,28 @@ export const EventEngagementStatsCard = ({
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Segmented CSV Export
 						</p>
+						<p className="text-xs text-muted-foreground">
+							Build a partner audience by combining behavior rules, then export
+							one clean CSV.
+						</p>
+						<div className="space-y-1">
+							<p className="text-xs font-medium text-foreground">Date window</p>
+							<div className="flex flex-wrap items-center gap-1.5">
+								{EXPORT_WINDOW_OPTIONS.map((days) => (
+									<Button
+										key={days}
+										type="button"
+										size="sm"
+										variant={segmentWindowDays === days ? "default" : "outline"}
+										onClick={() => setSegmentWindowDays(days)}
+									>
+										{days}d
+									</Button>
+								))}
+							</div>
+						</div>
 						<div className="flex flex-wrap items-center gap-2">
-							<p className="text-xs text-muted-foreground">Rule mode</p>
+							<p className="text-xs font-medium text-foreground">Rule mode</p>
 							<Button
 								type="button"
 								size="sm"
@@ -521,59 +562,98 @@ export const EventEngagementStatsCard = ({
 								</Tooltip>
 							</TooltipProvider>
 						</div>
-						<div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-							<select
-								className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-								value={ruleGroup}
-								onChange={(event) =>
-									setRuleGroup(event.target.value as DiscoveryFilterGroup)
-								}
-							>
-								{FILTER_GROUP_OPTIONS.map((option) => (
-									<option key={option.value} value={option.value}>
-										{option.label}
-									</option>
-								))}
-							</select>
-							<input
-								type="text"
-								className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-								value={ruleValue}
-								onChange={(event) => setRuleValue(event.target.value)}
-								placeholder={FILTER_VALUE_PLACEHOLDER[ruleGroup]}
-							/>
-							<Button type="button" size="sm" onClick={addFilterRule}>
-								Add Rule
-							</Button>
+						<div className="space-y-1">
+							<p className="text-xs font-medium text-foreground">
+								Add filter rule
+							</p>
+							<div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+								<select
+									className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+									value={ruleGroup}
+									onChange={(event) =>
+										setRuleGroup(event.target.value as DiscoveryFilterGroup)
+									}
+								>
+									{FILTER_GROUP_OPTIONS.map((option) => (
+										<option key={option.value} value={option.value}>
+											{option.label}
+										</option>
+									))}
+								</select>
+								<input
+									type="text"
+									className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+									value={ruleValue}
+									onChange={(event) => setRuleValue(event.target.value)}
+									placeholder={FILTER_VALUE_PLACEHOLDER[ruleGroup]}
+								/>
+								<Button type="button" size="sm" onClick={addFilterRule}>
+									Add Rule
+								</Button>
+							</div>
 						</div>
-						<div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
-							<input
-								type="text"
-								className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-								value={searchContains}
-								onChange={(event) => setSearchContains(event.target.value)}
-								placeholder="Search contains (optional)"
-							/>
-							<input
-								type="number"
-								min={1}
-								max={30}
-								className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-								value={segmentMinHits}
-								onChange={(event) => setSegmentMinHits(event.target.value)}
-								placeholder="Min hits"
-							/>
-							<input
-								type="number"
-								min={1}
-								max={10000}
-								className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-								value={segmentLimit}
-								onChange={(event) => setSegmentLimit(event.target.value)}
-								placeholder="Limit"
-							/>
+						<div className="space-y-1">
+							<p className="text-xs font-medium text-foreground">
+								Add search rule (optional)
+							</p>
+							<div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+								<input
+									type="text"
+									className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+									value={searchInput}
+									onChange={(event) => setSearchInput(event.target.value)}
+									placeholder="e.g. techno, rooftop, 11e"
+								/>
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									onClick={addSearchRule}
+								>
+									Add Search Rule
+								</Button>
+							</div>
+							<div className="flex flex-wrap gap-1.5">
+								{payload?.success
+									? payload.discovery.topSearches.slice(0, 6).map((row) => (
+											<button
+												key={row.query}
+												type="button"
+												onClick={() => setSearchRule(row.query)}
+												className="rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent"
+											>
+												+ search:{row.query}
+											</button>
+										))
+									: null}
+							</div>
 						</div>
-
+						<div className="grid gap-2 sm:grid-cols-2">
+							<div className="space-y-1">
+								<p className="text-xs font-medium text-foreground">
+									Min hits per rule
+								</p>
+								<input
+									type="number"
+									min={1}
+									max={30}
+									className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs"
+									value={segmentMinHits}
+									onChange={(event) => setSegmentMinHits(event.target.value)}
+								/>
+							</div>
+							<div className="space-y-1">
+								<p className="text-xs font-medium text-foreground">Max rows</p>
+								<input
+									type="number"
+									min={1}
+									max={10000}
+									className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs"
+									value={segmentLimit}
+									onChange={(event) => setSegmentLimit(event.target.value)}
+								/>
+							</div>
+						</div>
 						<div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
 							<select
 								className="h-9 rounded-md border border-border bg-background px-2 text-xs"
@@ -606,7 +686,6 @@ export const EventEngagementStatsCard = ({
 								Add Genre Rule
 							</Button>
 						</div>
-
 						<div className="flex flex-wrap gap-1.5">
 							{filterRules.length > 0 ? (
 								filterRules.map((rule) => (
@@ -632,6 +711,24 @@ export const EventEngagementStatsCard = ({
 							)}
 						</div>
 						<div className="flex flex-wrap gap-1.5">
+							{searchRule ? (
+								<Badge variant="outline" className="gap-1">
+									search contains: {searchRule}
+									<button
+										type="button"
+										onClick={clearSearchRule}
+										className="ml-1 text-[10px]"
+									>
+										x
+									</button>
+								</Badge>
+							) : (
+								<p className="text-xs text-muted-foreground">
+									No search rule added.
+								</p>
+							)}
+						</div>
+						<div className="flex flex-wrap gap-1.5">
 							{genreRules.length > 0
 								? genreRules.map((rule) => (
 										<Badge key={rule.genre} variant="outline" className="gap-1">
@@ -648,13 +745,17 @@ export const EventEngagementStatsCard = ({
 									))
 								: null}
 						</div>
-
 						<div className="flex flex-wrap gap-2">
 							<Button
 								type="button"
 								size="sm"
 								onClick={() => void handleExportSegmentCsv()}
-								disabled={isExporting}
+								disabled={
+									isExporting ||
+									(filterRules.length === 0 &&
+										genreRules.length === 0 &&
+										!searchRule)
+								}
 							>
 								{isExporting ? "Exporting..." : "Export Custom Segment CSV"}
 							</Button>
@@ -664,7 +765,11 @@ export const EventEngagementStatsCard = ({
 								? "AND mode: users must match every selected rule."
 								: "OR mode: users can match any selected rule."}
 						</p>
-
+						<p className="text-xs text-muted-foreground">
+							Date filtering uses the selected export window above. Use filter
+							rules for genre, arrondissement, day/night, price, age, and other
+							behavior dimensions.
+						</p>
 						<div className="flex flex-wrap gap-2">
 							{payload?.success && payload.topGenres.length > 0 ? (
 								payload.topGenres.map((genre) => (
@@ -678,7 +783,6 @@ export const EventEngagementStatsCard = ({
 								</p>
 							)}
 						</div>
-
 						{payload?.success && payload.discovery.topFilters.length > 0 ? (
 							<div className="space-y-1">
 								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
