@@ -14,12 +14,7 @@ export type DayNightPeriod = "day" | "night";
 export type EventType = "After Party" | "Day Party";
 
 // Host country codes supported by ingestion/filtering
-export const SUPPORTED_NATIONALITY_CODES = [
-	"UK",
-	"FR",
-	"CA",
-	"NL",
-] as const;
+export const SUPPORTED_NATIONALITY_CODES = ["UK", "FR", "CA", "NL"] as const;
 export type Nationality = (typeof SUPPORTED_NATIONALITY_CODES)[number];
 
 // Venue type for Indoor/Outdoor column
@@ -136,6 +131,7 @@ export type Event = {
 	isPromoted?: boolean; // Indicates promoted listing projection is active
 	promotedAt?: string; // ISO timestamp when promoted window starts
 	promotedEndsAt?: string; // ISO timestamp when promoted window ends
+	calendarSyncCount?: number; // Social proof count from tracked calendar sync actions
 	nationality?: Nationality[]; // GB/FR indicators from CSV - now supports multiple
 	// Legacy field for backwards compatibility
 	category?: EventCategory;
@@ -499,7 +495,8 @@ export const parsePrice = (priceStr?: string): number | null => {
 	if (FREE_PRICE_PATTERNS.some((pattern) => pattern.test(cleanPrice))) {
 		return 0;
 	}
-	if (cleanPrice === "0" || cleanPrice === "0€" || cleanPrice === "£0") return 0;
+	if (cleanPrice === "0" || cleanPrice === "0€" || cleanPrice === "£0")
+		return 0;
 
 	const candidates = extractNumericCandidates(cleanPrice);
 	if (candidates.length === 0) return null;

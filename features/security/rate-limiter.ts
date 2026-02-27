@@ -14,6 +14,14 @@ const EVENT_SUBMIT_EMAIL_IP_LIMIT = 5;
 const EVENT_SUBMIT_EMAIL_IP_WINDOW_SECONDS = 60 * 60;
 const EVENT_SUBMIT_FINGERPRINT_LIMIT = 1;
 const EVENT_SUBMIT_FINGERPRINT_WINDOW_SECONDS = 24 * 60 * 60;
+const TRACK_EVENT_IP_LIMIT = 240;
+const TRACK_EVENT_IP_WINDOW_SECONDS = 60;
+const TRACK_EVENT_SESSION_LIMIT = 200;
+const TRACK_EVENT_SESSION_WINDOW_SECONDS = 60;
+const TRACK_DISCOVERY_IP_LIMIT = 180;
+const TRACK_DISCOVERY_IP_WINDOW_SECONDS = 60;
+const USER_PREFERENCE_IP_LIMIT = 120;
+const USER_PREFERENCE_IP_WINDOW_SECONDS = 60;
 const RATE_LIMIT_CLEANUP_GRACE_SECONDS = 24 * 60 * 60;
 
 export type RateLimitScope =
@@ -21,12 +29,17 @@ export type RateLimitScope =
 	| "auth_verify_email_ip"
 	| "event_submit_ip"
 	| "event_submit_email_ip"
-	| "event_submit_fingerprint";
+	| "event_submit_fingerprint"
+	| "track_event_ip"
+	| "track_event_session"
+	| "track_discovery_ip"
+	| "user_preference_ip";
 export type RateLimitReason =
 	| "ok"
 	| "ip_limit"
 	| "email_ip_limit"
 	| "fingerprint_limit"
+	| "session_limit"
 	| "limiter_unavailable";
 
 export interface RateLimitDecision {
@@ -75,7 +88,7 @@ const blockDecision = (
 	keyHash: string,
 	reason: Extract<
 		RateLimitReason,
-		"ip_limit" | "email_ip_limit" | "fingerprint_limit"
+		"ip_limit" | "email_ip_limit" | "fingerprint_limit" | "session_limit"
 	>,
 	retryAfterSeconds: number,
 ): RateLimitDecision => ({
@@ -99,13 +112,20 @@ const failOpenDecision = (
 
 const rateLimitReasonByScope: Record<
 	RateLimitScope,
-	Extract<RateLimitReason, "ip_limit" | "email_ip_limit" | "fingerprint_limit">
+	Extract<
+		RateLimitReason,
+		"ip_limit" | "email_ip_limit" | "fingerprint_limit" | "session_limit"
+	>
 > = {
 	auth_verify_ip: "ip_limit",
 	auth_verify_email_ip: "email_ip_limit",
 	event_submit_ip: "ip_limit",
 	event_submit_email_ip: "email_ip_limit",
 	event_submit_fingerprint: "fingerprint_limit",
+	track_event_ip: "ip_limit",
+	track_event_session: "session_limit",
+	track_discovery_ip: "ip_limit",
+	user_preference_ip: "ip_limit",
 };
 
 const evaluateConsumeResult = (params: {
@@ -225,6 +245,58 @@ export const checkEventSubmitFingerprintLimit = async (
 		keyParts: [normalizedFingerprint],
 		windowSeconds: EVENT_SUBMIT_FINGERPRINT_WINDOW_SECONDS,
 		limit: EVENT_SUBMIT_FINGERPRINT_LIMIT,
+	});
+};
+
+export const checkTrackEventIpLimit = async (
+	ip: string,
+): Promise<RateLimitDecision> => {
+	const scope: RateLimitScope = "track_event_ip";
+	const normalizedIp = ip.trim() || "unknown";
+	return consumeRateLimitWindow({
+		scope,
+		keyParts: [normalizedIp],
+		windowSeconds: TRACK_EVENT_IP_WINDOW_SECONDS,
+		limit: TRACK_EVENT_IP_LIMIT,
+	});
+};
+
+export const checkTrackEventSessionLimit = async (
+	sessionId: string,
+): Promise<RateLimitDecision> => {
+	const scope: RateLimitScope = "track_event_session";
+	const normalizedSession = sessionId.trim() || "unknown";
+	return consumeRateLimitWindow({
+		scope,
+		keyParts: [normalizedSession],
+		windowSeconds: TRACK_EVENT_SESSION_WINDOW_SECONDS,
+		limit: TRACK_EVENT_SESSION_LIMIT,
+	});
+};
+
+export const checkTrackDiscoveryIpLimit = async (
+	ip: string,
+): Promise<RateLimitDecision> => {
+	const scope: RateLimitScope = "track_discovery_ip";
+	const normalizedIp = ip.trim() || "unknown";
+	return consumeRateLimitWindow({
+		scope,
+		keyParts: [normalizedIp],
+		windowSeconds: TRACK_DISCOVERY_IP_WINDOW_SECONDS,
+		limit: TRACK_DISCOVERY_IP_LIMIT,
+	});
+};
+
+export const checkUserPreferenceIpLimit = async (
+	ip: string,
+): Promise<RateLimitDecision> => {
+	const scope: RateLimitScope = "user_preference_ip";
+	const normalizedIp = ip.trim() || "unknown";
+	return consumeRateLimitWindow({
+		scope,
+		keyParts: [normalizedIp],
+		windowSeconds: USER_PREFERENCE_IP_WINDOW_SECONDS,
+		limit: USER_PREFERENCE_IP_LIMIT,
 	});
 };
 

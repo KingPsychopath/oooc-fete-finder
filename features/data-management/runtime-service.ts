@@ -3,6 +3,7 @@ import "server-only";
 import { applyFeaturedProjectionToEvents } from "@/features/events/featured/service";
 import { applyPromotedProjectionToEvents } from "@/features/events/promoted/service";
 import type { Event } from "@/features/events/types";
+import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { DataManager } from "./data-manager";
 import { isValidEventsData } from "./data-processor";
@@ -113,10 +114,13 @@ const toEventsResult = (
 
 export async function getLiveEvents(options?: {
 	includeFeaturedProjection?: boolean;
+	includeEngagementProjection?: boolean;
 }): Promise<EventsResult> {
 	const startedAt = Date.now();
 	const includeFeaturedProjection =
 		options?.includeFeaturedProjection !== false;
+	const includeEngagementProjection =
+		options?.includeEngagementProjection !== false;
 	try {
 		const result = await DataManager.getEventsData();
 		metrics.totalFetchMs += Date.now() - startedAt;
@@ -126,6 +130,18 @@ export async function getLiveEvents(options?: {
 		if (normalized.success && includeFeaturedProjection) {
 			normalized.data = await applyFeaturedProjectionToEvents(normalized.data);
 			normalized.data = await applyPromotedProjectionToEvents(normalized.data);
+		}
+		if (normalized.success && includeEngagementProjection) {
+			const repository = getEventEngagementRepository();
+			if (repository) {
+				const calendarSyncCounts = await repository.getCalendarSyncCounts(
+					normalized.data.map((event) => event.eventKey),
+				);
+				normalized.data = normalized.data.map((event) => ({
+					...event,
+					calendarSyncCount: calendarSyncCounts.get(event.eventKey) ?? 0,
+				}));
+			}
 		}
 		if (!normalized.success) {
 			metrics.errors += 1;

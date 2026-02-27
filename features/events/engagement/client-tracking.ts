@@ -1,6 +1,7 @@
 import type { EventEngagementAction } from "@/features/events/engagement/types";
 
 const SESSION_STORAGE_KEY = "oooc:event-engagement-session";
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const createSessionId = (): string => {
 	if (
@@ -52,19 +53,56 @@ export const trackEventEngagement = (input: {
 			typeof navigator.sendBeacon === "function"
 		) {
 			const blob = new Blob([payload], { type: "application/json" });
-			const sent = navigator.sendBeacon("/api/track", blob);
+			const sent = navigator.sendBeacon(`${basePath}/api/track`, blob);
 			if (sent) return;
 		}
 	} catch {
 		// Fall through to fetch fallback.
 	}
 
-	void fetch("/api/track", {
+	void fetch(`${basePath}/api/track`, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
 		},
 		body: payload,
+		keepalive: true,
+	}).catch(() => undefined);
+};
+
+export const trackDiscoveryAnalytics = (input: {
+	actionType: "search" | "filter_apply" | "filter_clear";
+	filterGroup?: string;
+	filterValue?: string;
+	searchQuery?: string;
+}) => {
+	if (typeof window === "undefined") return;
+	const payload = JSON.stringify({
+		actionType: input.actionType,
+		sessionId: getOrCreateSessionId(),
+		filterGroup: input.filterGroup,
+		filterValue: input.filterValue,
+		searchQuery: input.searchQuery,
+		path: window.location.pathname,
+	});
+	void fetch(`${basePath}/api/track/discovery`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: payload,
+		keepalive: true,
+	}).catch(() => undefined);
+};
+
+export const trackGenrePreference = (genre: string) => {
+	if (typeof window === "undefined") return;
+	void fetch(`${basePath}/api/user/preference`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ genre, incrementBy: 1 }),
 		keepalive: true,
 	}).catch(() => undefined);
 };

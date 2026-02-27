@@ -69,6 +69,7 @@ export async function listPromotedQueue(): Promise<{
 		await assertAdmin();
 		const eventsResult = await getLiveEvents({
 			includeFeaturedProjection: false,
+			includeEngagementProjection: false,
 		});
 		if (!eventsResult.success) {
 			return {

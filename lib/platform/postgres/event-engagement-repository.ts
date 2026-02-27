@@ -21,6 +21,13 @@ type EventEngagementSummaryRow = {
 	uniqueSessionCount: number;
 };
 
+type EventEngagementDailyRow = {
+	day: string;
+	clickCount: number;
+	outboundClickCount: number;
+	calendarSyncCount: number;
+};
+
 const cleanString = (
 	value: string | null | undefined,
 	maxLength: number,
@@ -199,6 +206,50 @@ export class EventEngagementRepository {
 				uniqueSessionCount: 0,
 			}
 		);
+	}
+
+	async listDailySeries(input: {
+		startAt: string;
+		endAt: string;
+	}): Promise<EventEngagementDailyRow[]> {
+		await this.ready();
+		const rows = await this.sql<EventEngagementDailyRow[]>`
+			SELECT
+				TO_CHAR(DATE_TRUNC('day', recorded_at), 'YYYY-MM-DD') AS day,
+				COUNT(*) FILTER (WHERE action_type = 'click')::int AS "clickCount",
+				COUNT(*) FILTER (WHERE action_type = 'outbound_click')::int AS "outboundClickCount",
+				COUNT(*) FILTER (WHERE action_type = 'calendar_sync')::int AS "calendarSyncCount"
+			FROM app_event_engagement_stats
+			WHERE recorded_at >= ${input.startAt}
+				AND recorded_at < ${input.endAt}
+			GROUP BY 1
+			ORDER BY 1 ASC
+		`;
+		return rows;
+	}
+
+	async getCalendarSyncCounts(
+		eventKeys: string[],
+	): Promise<Map<string, number>> {
+		await this.ready();
+		const normalizedEventKeys = [...new Set(eventKeys.map((key) => key.trim()))]
+			.filter((key) => key.length > 0)
+			.slice(0, 2000);
+		if (normalizedEventKeys.length === 0) {
+			return new Map<string, number>();
+		}
+
+		const rows = await this.sql<Array<{ eventKey: string; count: number }>>`
+			SELECT
+				event_key AS "eventKey",
+				COUNT(*)::int AS count
+			FROM app_event_engagement_stats
+			WHERE action_type = 'calendar_sync'
+				AND event_key = ANY(${normalizedEventKeys})
+			GROUP BY event_key
+		`;
+
+		return new Map(rows.map((row) => [row.eventKey, row.count]));
 	}
 }
 

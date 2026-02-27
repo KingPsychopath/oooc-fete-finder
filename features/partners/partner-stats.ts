@@ -107,7 +107,10 @@ export async function getPartnerStatsSnapshot(input: {
 			startAt: rangeStartAt,
 			endAt: rangeEndAt,
 		}),
-		getLiveEvents({ includeFeaturedProjection: false }),
+		getLiveEvents({
+			includeFeaturedProjection: false,
+			includeEngagementProjection: false,
+		}),
 	]);
 
 	const eventNameByKey = new Map<string, string>();

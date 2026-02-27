@@ -10,8 +10,8 @@ import {
 	buildFeaturedQueueItems,
 	cancelFeaturedEntry,
 	clearFeaturedHistoryOnly as clearFeaturedHistoryOnlyService,
-	clearFeaturedQueueOnly as clearFeaturedQueueOnlyService,
 	clearFeaturedQueueHistory as clearFeaturedQueueHistoryService,
+	clearFeaturedQueueOnly as clearFeaturedQueueOnlyService,
 	formatFeaturedDateTime,
 	getFeatureSlotConfig,
 	recomputeFeaturedQueue,
@@ -72,6 +72,7 @@ export async function listFeaturedQueue(): Promise<{
 		await recomputeFeaturedQueue();
 		const eventsResult = await getLiveEvents({
 			includeFeaturedProjection: false,
+			includeEngagementProjection: false,
 		});
 		if (!eventsResult.success) {
 			return {

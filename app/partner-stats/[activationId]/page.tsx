@@ -117,6 +117,14 @@ export default async function PartnerStatsPage({
 						Window: {new Date(data.range.startAt).toLocaleString()} -{" "}
 						{new Date(data.range.endAt).toLocaleString()}
 					</p>
+					<div className="mt-3">
+						<Link
+							href={`${basePath}/api/partner-stats/${data.activationId}?token=${token}&format=csv`}
+							className="inline-flex items-center rounded-full border border-border px-3 py-1.5 text-xs text-foreground hover:bg-accent"
+						>
+							Download CSV
+						</Link>
+					</div>
 				</section>
 
 				<section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">

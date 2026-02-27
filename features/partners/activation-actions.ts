@@ -3,8 +3,14 @@
 import { randomUUID } from "crypto";
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
-import { scheduleFeaturedEvent } from "@/features/events/featured/actions";
-import { schedulePromotedEvent } from "@/features/events/promoted/actions";
+import {
+	listFeaturedQueue,
+	scheduleFeaturedEvent,
+} from "@/features/events/featured/actions";
+import {
+	listPromotedQueue,
+	schedulePromotedEvent,
+} from "@/features/events/promoted/actions";
 import { env } from "@/lib/config/env";
 import {
 	type PartnerActivationStatus,
@@ -59,6 +65,7 @@ export async function getPartnerActivationDashboard(): Promise<
 		]);
 		const eventsResult = await getLiveEvents({
 			includeFeaturedProjection: false,
+			includeEngagementProjection: false,
 		});
 		const events = eventsResult.success
 			? [...eventsResult.data]
@@ -141,17 +148,57 @@ export async function fulfillPartnerActivation(input: {
 				: 48;
 		const safeDuration = Number.isFinite(parsedDuration) ? parsedDuration : 48;
 		const durationHours = Math.max(1, Math.min(168, safeDuration));
-		const endDate = new Date(
+		const expectedEndDate = new Date(
 			safeStartDate.getTime() + durationHours * 60 * 60 * 1000,
 		);
+
+		let effectiveStartAt = safeStartDate.toISOString();
+		let effectiveEndAt = expectedEndDate.toISOString();
+		if (input.tier === "spotlight") {
+			const queue = await listFeaturedQueue();
+			if (queue.success) {
+				const match = queue.queue
+					?.filter(
+						(row) =>
+							row.eventKey === input.eventKey && row.status === "scheduled",
+					)
+					.sort(
+						(left, right) =>
+							new Date(right.requestedStartAt).getTime() -
+							new Date(left.requestedStartAt).getTime(),
+					)[0];
+				if (match) {
+					effectiveStartAt = match.effectiveStartAt;
+					effectiveEndAt = match.effectiveEndAt;
+				}
+			}
+		} else {
+			const queue = await listPromotedQueue();
+			if (queue.success) {
+				const match = queue.queue
+					?.filter(
+						(row) =>
+							row.eventKey === input.eventKey && row.status === "scheduled",
+					)
+					.sort(
+						(left, right) =>
+							new Date(right.requestedStartAt).getTime() -
+							new Date(left.requestedStartAt).getTime(),
+					)[0];
+				if (match) {
+					effectiveStartAt = match.effectiveStartAt;
+					effectiveEndAt = match.effectiveEndAt;
+				}
+			}
+		}
 		const partnerStatsToken = randomUUID().replace(/-/g, "");
 
 		const updated = await repository.markFulfilled({
 			id: input.activationId,
 			eventKey: input.eventKey,
 			tier: input.tier,
-			startAt: safeStartDate.toISOString(),
-			endAt: endDate.toISOString(),
+			startAt: effectiveStartAt,
+			endAt: effectiveEndAt,
 			partnerStatsToken,
 			notes: `Activated as ${input.tier} (${input.eventKey})`,
 		});

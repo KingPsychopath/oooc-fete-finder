@@ -16,6 +16,7 @@ import {
 	Clock,
 	Crown,
 	Euro,
+	Flame,
 	MapPin,
 	Megaphone,
 	Moon,
@@ -54,6 +55,7 @@ export function EventCard({ event, onClick }: EventCardProps) {
 	const isCurrentlyPromoted = event.isPromoted === true;
 	const hasOOOCPick = event.isOOOCPick === true;
 	const dayNightPeriod = getDayNightPeriod(event.time ?? "");
+	const calendarSyncCount = event.calendarSyncCount ?? 0;
 	const venueTypes =
 		event.venueTypes && event.venueTypes.length > 0
 			? [...new Set(event.venueTypes)]
@@ -227,6 +229,12 @@ export function EventCard({ event, onClick }: EventCardProps) {
 					</Badge>
 				))}
 			</div>
+			{calendarSyncCount > 0 && (
+				<div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-200">
+					<Flame className="h-3 w-3" />
+					{calendarSyncCount} people saved this
+				</div>
+			)}
 		</div>
 	);
 }

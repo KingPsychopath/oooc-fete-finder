@@ -1,5 +1,5 @@
-import type { Event } from "@/features/events/types";
 import { parseISODateParts } from "@/features/events/date-utils";
+import type { Event } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
 
 export const isCalendarDateValid = (isoDate: string): boolean =>
@@ -11,10 +11,14 @@ export const isCalendarDateValid = (isoDate: string): boolean =>
 export function generateICSContent(event: Event): string {
 	const dateParts = parseISODateParts(event.date);
 	if (!dateParts) {
-		clientLog.warn("events.calendar", "Skipping ICS generation due to invalid date", {
-			eventKey: event.eventKey,
-			eventDate: event.date,
-		});
+		clientLog.warn(
+			"events.calendar",
+			"Skipping ICS generation due to invalid date",
+			{
+				eventKey: event.eventKey,
+				eventDate: event.date,
+			},
+		);
 		return "";
 	}
 
@@ -25,7 +29,11 @@ export function generateICSContent(event: Event): string {
 		.replace(/\.\d{3}Z$/, "Z");
 
 	// Parse the event date and time
-	const eventDate = new Date(dateParts.year, dateParts.month - 1, dateParts.day);
+	const eventDate = new Date(
+		dateParts.year,
+		dateParts.month - 1,
+		dateParts.day,
+	);
 
 	// Handle time parsing - assume Paris timezone (UTC+1/UTC+2)
 	let startDateTime: Date;
@@ -183,7 +191,7 @@ function createEventDescription(event: Event): string {
 	const primaryLink =
 		event.links && event.links.length > 0 ? event.links[0] : event.link;
 	if (primaryLink && primaryLink !== "#") {
-		parts.push(`Event Details: ${primaryLink}`);
+		parts.push(`Get your ticket and skip the queue: ${primaryLink}`);
 	}
 
 	parts.push(""); // Empty line
