@@ -42,7 +42,7 @@ const buildHomeEventPath = (eventKey: string, slug: string): string => {
 		params.set("slug", slug);
 	}
 	const normalizedBasePath = normalizeBasePath(basePath);
-	const homePath = normalizedBasePath ? `${normalizedBasePath}/` : "/";
+	const homePath = normalizedBasePath || "/";
 	return `${homePath}?${params.toString()}`;
 };
 
@@ -50,7 +50,7 @@ const buildEventSharePath = (eventKey: string, slug: string): string => {
 	const encodedKey = encodeURIComponent(eventKey);
 	const encodedSlug = slug ? `/${encodeURIComponent(slug)}` : "";
 	const normalizedBasePath = normalizeBasePath(basePath);
-	return `${normalizedBasePath}/event/${encodedKey}${encodedSlug}/`;
+	return `${normalizedBasePath}/event/${encodedKey}${encodedSlug}`;
 };
 
 export async function generateMetadata({

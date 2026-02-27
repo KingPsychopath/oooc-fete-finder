@@ -46,7 +46,7 @@ export const generateOGImageUrl = (params: OGImageParams = {}): string => {
 		searchParams.set("arrondissement", params.arrondissement);
 
 	const query = searchParams.toString();
-	return `/api/og/${query ? `?${query}` : ""}`;
+	return `/api/og${query ? `?${query}` : ""}`;
 };
 
 /**

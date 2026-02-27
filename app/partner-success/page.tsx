@@ -18,7 +18,7 @@ export const metadata: Metadata = generateOGMetadata({
 		subtitle: "Your OOOC placement is now in the activation queue",
 		variant: "default",
 	}),
-	url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${basePath || ""}/partner-success/`,
+	url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${basePath || ""}/partner-success`,
 });
 
 export default function PartnerSuccessPage() {

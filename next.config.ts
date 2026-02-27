@@ -163,7 +163,7 @@ module.exports = withPWA({
 	basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
 	assetPrefix: process.env.NEXT_PUBLIC_BASE_PATH || "",
 	reactStrictMode: true,
-	trailingSlash: true,
+	trailingSlash: false,
 	// Explicitly use webpack for builds (required for next-pwa)
 	turbopack: {},
 });

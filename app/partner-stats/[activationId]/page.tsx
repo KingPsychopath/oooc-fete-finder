@@ -23,7 +23,7 @@ export const metadata: Metadata = generateOGMetadata({
 		subtitle: "Private campaign performance metrics",
 		variant: "default",
 	}),
-	url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${basePath || ""}/partner-stats/`,
+	url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${basePath || ""}/partner-stats`,
 	noIndex: true,
 });
 

@@ -20,7 +20,7 @@ export const metadata: Metadata = generateOGMetadata({
 		subtitle: "Share your event with Out Of Office Collective",
 		variant: "default",
 	}),
-	url: `${siteUrl}${basePath || ""}/submit-event/`,
+	url: `${siteUrl}${basePath || ""}/submit-event`,
 });
 
 export default async function SubmitEventPage() {

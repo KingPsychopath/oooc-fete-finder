@@ -50,7 +50,7 @@ export const metadata: Metadata = {
 			subtitle: "Spotlight and promoted placements in Fete Finder",
 			variant: "default",
 		}),
-		url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${process.env.NEXT_PUBLIC_BASE_PATH || ""}/feature-event/`,
+		url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${process.env.NEXT_PUBLIC_BASE_PATH || ""}/feature-event`,
 	}),
 	keywords: [
 		"fete de la musique",
@@ -512,10 +512,10 @@ export default async function FeatureEventPage() {
 						{contactEmail}
 						<CopyEmailButton email={contactEmail} />
 					</p>
-					<Link
-						href={`${basePath}/`}
-						className="mt-5 inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-					>
+						<Link
+							href={basePath || "/"}
+							className="mt-5 inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+						>
 						<TrendingUp className="h-4 w-4" />
 						Back to events
 					</Link>
