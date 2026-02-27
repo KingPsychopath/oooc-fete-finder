@@ -6,7 +6,7 @@ import {
 	generateMainOGImage,
 	generateOGMetadata,
 } from "@/lib/social/og-utils";
-import { unstable_noStore as noStore } from "next/cache";
+import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
 import { AdminAuthClient } from "./AdminAuthClient";
 import { AdminShell } from "./components/AdminShell";
@@ -24,21 +24,17 @@ export const metadata: Metadata = generateOGMetadata({
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminLayout({
-	children,
-}: Readonly<{
-	children: React.ReactNode;
-}>) {
-	noStore();
+const resolveNotificationCacheSeconds = (): number => {
+	const rawValue = process.env.ADMIN_NOTIFICATION_CACHE_SECONDS;
+	if (!rawValue) return 15;
+	const parsed = Number(rawValue);
+	if (!Number.isFinite(parsed)) return 15;
+	return Math.max(0, Math.min(60, Math.floor(parsed)));
+};
 
-	const sessionStatus = await getAdminSessionStatus();
-	const isAuthenticated =
-		sessionStatus.success && sessionStatus.isValid === true;
+const ADMIN_NOTIFICATION_CACHE_SECONDS = resolveNotificationCacheSeconds();
 
-	if (!isAuthenticated) {
-		return <AdminAuthClient />;
-	}
-
+const computeNotificationCounts = async () => {
 	const [eventSubmissionsResult, placementsResult] = await Promise.allSettled([
 		getEventSubmissionsDashboard(),
 		getPartnerActivationDashboard(),
@@ -99,17 +95,50 @@ export default async function AdminLayout({
 			)
 		:	null;
 
+	return {
+		pendingSubmissions,
+		pendingPlacements,
+		oldestPendingSubmissionAt,
+		oldestPendingPlacementAt,
+		newestPendingSubmissionAt,
+		newestPendingPlacementAt,
+		lastUpdatedAt: new Date().toISOString(),
+	};
+};
+
+const getCachedNotificationCounts =
+	ADMIN_NOTIFICATION_CACHE_SECONDS > 0 ?
+		unstable_cache(
+			async () => computeNotificationCounts(),
+			["admin-layout-notification-counts"],
+			{ revalidate: ADMIN_NOTIFICATION_CACHE_SECONDS },
+		)
+	:	null;
+
+const getAdminNotificationCounts = async () => {
+	if (getCachedNotificationCounts) {
+		return getCachedNotificationCounts();
+	}
+	return computeNotificationCounts();
+};
+
+export default async function AdminLayout({
+	children,
+}: Readonly<{
+	children: React.ReactNode;
+}>) {
+	const sessionStatus = await getAdminSessionStatus();
+	const isAuthenticated =
+		sessionStatus.success && sessionStatus.isValid === true;
+
+	if (!isAuthenticated) {
+		return <AdminAuthClient />;
+	}
+	const notificationCounts = await getAdminNotificationCounts();
+
 	return (
 		<AdminShell
-			notificationCounts={{
-				pendingSubmissions,
-				pendingPlacements,
-				oldestPendingSubmissionAt,
-				oldestPendingPlacementAt,
-				newestPendingSubmissionAt,
-				newestPendingPlacementAt,
-				lastUpdatedAt: new Date().toISOString(),
-			}}
+			notificationCounts={notificationCounts}
 		>
 			{children}
 		</AdminShell>
