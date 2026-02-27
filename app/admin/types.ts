@@ -26,28 +26,40 @@ export type {
 } from "@/features/auth/types";
 export type { RuntimeDataStatus } from "@/features/data-management/runtime-service";
 
-/** Payload passed from server admin page to AdminDashboardClient for first-paint data */
-export type AdminInitialData = {
+export type AdminHubInitialData = {
 	runtimeDataStatus?: RuntimeDataStatus;
-	emailsResult?: CollectedEmailsResponse;
-	sessionStatus: Awaited<ReturnType<typeof getAdminSessionStatus>>;
+};
+
+export type AdminOperationsInitialData = {
+	runtimeDataStatus?: RuntimeDataStatus;
+	sessionStatus?: Awaited<ReturnType<typeof getAdminSessionStatus>>;
 	tokenSessions?: Awaited<ReturnType<typeof getAdminTokenSessions>>;
+	liveSnapshot?: Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
 	localStoreStatus?: Awaited<ReturnType<typeof getLocalEventStoreStatus>>;
 	localStorePreview?: Awaited<ReturnType<typeof getLocalEventStorePreview>>;
 	localBackupStatus?: Awaited<ReturnType<typeof getEventStoreBackupStatus>>;
 	localRecentBackups?: Awaited<ReturnType<typeof getEventStoreRecentBackups>>;
+};
+
+export type AdminContentInitialData = {
 	editorData?: Awaited<ReturnType<typeof getEventSheetEditorData>>;
-	liveSnapshot?: Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
-	featuredQueue?: Awaited<ReturnType<typeof listFeaturedQueue>>;
-	promotedQueue?: Awaited<ReturnType<typeof listPromotedQueue>>;
-	eventEngagementDashboard?: Awaited<
-		ReturnType<typeof getEventEngagementDashboard>
-	>;
-	partnerActivations?: Awaited<
-		ReturnType<typeof getPartnerActivationDashboard>
-	>;
 	eventSubmissions?: Awaited<ReturnType<typeof getEventSubmissionsDashboard>>;
 	slidingBannerSettings?: Awaited<
 		ReturnType<typeof getAdminSlidingBannerSettings>
 	>;
+};
+
+export type AdminPlacementsInitialData = {
+	partnerActivations?: Awaited<
+		ReturnType<typeof getPartnerActivationDashboard>
+	>;
+	featuredQueue?: Awaited<ReturnType<typeof listFeaturedQueue>>;
+	promotedQueue?: Awaited<ReturnType<typeof listPromotedQueue>>;
+};
+
+export type AdminInsightsInitialData = {
+	eventEngagementDashboard?: Awaited<
+		ReturnType<typeof getEventEngagementDashboard>
+	>;
+	emailsResult?: CollectedEmailsResponse;
 };

@@ -57,26 +57,46 @@ const Footer = () => {
 			<div className="container mx-auto px-4 py-6">
 				<div className="flex flex-col items-center justify-center space-y-4 sm:flex-row sm:justify-between sm:space-y-0">
 					{/* Social Links */}
-					<div className="flex items-center space-x-4">
-						<span className="text-sm text-muted-foreground">
-							Follow us on socials for updates
-						</span>
-						{socialLinks.map((social) => {
-							const IconComponent = social.icon;
-							return (
-								<Link
-									key={social.name}
-									href={social.url}
-									target="_blank"
-									rel="noopener noreferrer"
-									aria-label={social.ariaLabel}
-									className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-								>
-									<IconComponent className="h-4 w-4" />
-									<ExternalLink className="ml-1 h-3 w-3" />
-								</Link>
-							);
-						})}
+					<div className="flex flex-col items-center gap-2 sm:items-start">
+						<div className="flex items-center space-x-4">
+							<span className="text-sm text-muted-foreground">
+								Follow us on socials for updates
+							</span>
+							{socialLinks.map((social) => {
+								const IconComponent = social.icon;
+								return (
+									<Link
+										key={social.name}
+										href={social.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										aria-label={social.ariaLabel}
+										className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+									>
+										<IconComponent className="h-4 w-4" />
+										<ExternalLink className="ml-1 h-3 w-3" />
+									</Link>
+								);
+							})}
+						</div>
+						<div className="flex items-center gap-3 text-xs">
+							<Link
+								href="https://outofofficecollective.co.uk/contact"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+							>
+								Contact us
+							</Link>
+							<Link
+								href="https://outofofficecollective.co.uk/faqs"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+							>
+								FAQ&apos;s
+							</Link>
+						</div>
 					</div>
 
 					{/* Version and Attribution */}

@@ -323,8 +323,8 @@ export default function FeatureEventPage() {
 									</div>
 									<StripeOrContactButton
 										url={addOn.stripeUrl}
-										label={`Pay ${addOn.priceLabel}`}
-										className="mt-4 rounded-full border border-border bg-background hover:bg-accent"
+										label="Book add-on"
+										className="mt-4 rounded-full border border-amber-900/20 bg-amber-900/90 text-amber-50 hover:bg-amber-900 dark:border-amber-300/25 dark:bg-amber-500/20 dark:text-amber-100 dark:hover:bg-amber-500/28"
 									/>
 								</div>
 							))}

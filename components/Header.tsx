@@ -32,10 +32,6 @@ const EXTERNAL_NAV_LINKS = [
 		label: "FAQs",
 		href: "https://outofofficecollective.co.uk/faqs",
 	},
-	{
-		label: "Contact",
-		href: "https://outofofficecollective.co.uk/contact",
-	},
 ] as const;
 
 const DEFAULT_BANNER_SETTINGS: SlidingBannerPublicSettings = {
@@ -70,6 +66,9 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 		pathWithoutBasePath.startsWith("/feature-event/") ||
 		pathWithoutBasePath === "/featured-event" ||
 		pathWithoutBasePath.startsWith("/featured-event/");
+	const isSubmitPage =
+		pathWithoutBasePath === "/submit-event" ||
+		pathWithoutBasePath.startsWith("/submit-event/");
 
 	useEffect(() => {
 		let rafId: number | null = null;
@@ -160,6 +159,14 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 								}`}
 							>
 								Home
+							</Link>
+							<Link
+								href={`${basePath || ""}/submit-event`}
+								className={`text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
+									isSubmitPage ? "text-foreground" : "text-foreground/75"
+								}`}
+							>
+								Submit Event
 							</Link>
 							<Link
 								href={`${basePath || ""}/feature-event`}
