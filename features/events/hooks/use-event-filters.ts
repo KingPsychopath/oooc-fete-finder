@@ -17,8 +17,15 @@ import {
 } from "@/features/events/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+	parseEventFilterStateFromSearchParams,
+	readStoredEventFilterState,
+	serializeEventFilterStateToSearchParams,
+	writeStoredEventFilterState,
+} from "../filter-state-persistence";
+import {
 	DEFAULT_EVENT_FILTER_STATE,
 	type DateRangeFilter,
+	type EventFilterState,
 	filterEvents,
 	getActiveFiltersCount,
 	getAvailableArrondissements,
@@ -30,6 +37,7 @@ import {
 type UseEventFiltersArgs = {
 	events: Event[];
 	requireAuth: () => boolean;
+	isFilterAccessAllowed: boolean;
 };
 
 const toggleArrayValue = <T>(values: T[], value: T): T[] => {
@@ -50,6 +58,7 @@ const normalizeDateRange = (range: DateRangeFilter): DateRangeFilter => {
 export const useEventFilters = ({
 	events,
 	requireAuth,
+	isFilterAccessAllowed,
 }: UseEventFiltersArgs) => {
 	const searchTrackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
@@ -61,6 +70,8 @@ export const useEventFilters = ({
 	const lastTrackedSearchRef = useRef("");
 	const lastTrackedPriceRef = useRef("");
 	const lastTrackedAgeRef = useRef("");
+	const pendingInitialFilterStateRef = useRef<EventFilterState | null>(null);
+	const hasHydratedInitialStateRef = useRef(false);
 	const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
 		DEFAULT_EVENT_FILTER_STATE.selectedDateRange,
 	);
@@ -95,6 +106,20 @@ export const useEventFilters = ({
 		DEFAULT_EVENT_FILTER_STATE.searchQuery,
 	);
 
+	const applyStateSnapshot = useCallback((state: EventFilterState) => {
+		setSelectedDateRange(state.selectedDateRange);
+		setSelectedDayNightPeriods(state.selectedDayNightPeriods);
+		setSelectedArrondissements(state.selectedArrondissements);
+		setSelectedGenres(state.selectedGenres);
+		setSelectedNationalities(state.selectedNationalities);
+		setSelectedVenueTypes(state.selectedVenueTypes);
+		setSelectedIndoorPreference(state.selectedIndoorPreference);
+		setSelectedPriceRange(state.selectedPriceRange);
+		setSelectedAgeRange(state.selectedAgeRange);
+		setSelectedOOOCPicks(state.selectedOOOCPicks);
+		setSearchQuery(state.searchQuery);
+	}, []);
+
 	useEffect(() => {
 		return () => {
 			if (searchTrackTimeoutRef.current) {
@@ -108,6 +133,73 @@ export const useEventFilters = ({
 			}
 		};
 	}, []);
+
+	useEffect(() => {
+		if (!hasHydratedInitialStateRef.current) {
+			hasHydratedInitialStateRef.current = true;
+			if (typeof window !== "undefined") {
+				const fromUrl = parseEventFilterStateFromSearchParams(
+					new URLSearchParams(window.location.search),
+				);
+				const fromStorage = readStoredEventFilterState();
+				pendingInitialFilterStateRef.current = fromUrl ?? fromStorage;
+			}
+		}
+		if (!isFilterAccessAllowed) return;
+		if (!pendingInitialFilterStateRef.current) return;
+		applyStateSnapshot(pendingInitialFilterStateRef.current);
+		pendingInitialFilterStateRef.current = null;
+	}, [applyStateSnapshot, isFilterAccessAllowed]);
+
+	useEffect(() => {
+		if (!isFilterAccessAllowed) return;
+		if (typeof window === "undefined") return;
+		const stateSnapshot: EventFilterState = {
+			selectedDateRange,
+			selectedDayNightPeriods,
+			selectedArrondissements,
+			selectedGenres,
+			selectedNationalities,
+			selectedVenueTypes,
+			selectedIndoorPreference,
+			selectedPriceRange,
+			selectedAgeRange,
+			selectedOOOCPicks,
+			searchQuery,
+		};
+		writeStoredEventFilterState(stateSnapshot);
+		const currentParams = new URLSearchParams(window.location.search);
+		const nextParams = serializeEventFilterStateToSearchParams(
+			currentParams,
+			stateSnapshot,
+		);
+		const nextQuery = nextParams.toString();
+		const currentQuery = currentParams.toString();
+		if (nextQuery === currentQuery) return;
+		const currentState =
+			window.history.state &&
+			typeof window.history.state === "object" &&
+			!Array.isArray(window.history.state)
+				? (window.history.state as Record<string, unknown>)
+				: {};
+		const nextUrl = nextQuery
+			? `${window.location.pathname}?${nextQuery}`
+			: window.location.pathname;
+		window.history.replaceState(currentState, "", nextUrl);
+	}, [
+		isFilterAccessAllowed,
+		searchQuery,
+		selectedAgeRange,
+		selectedArrondissements,
+		selectedDateRange,
+		selectedDayNightPeriods,
+		selectedGenres,
+		selectedIndoorPreference,
+		selectedNationalities,
+		selectedOOOCPicks,
+		selectedPriceRange,
+		selectedVenueTypes,
+	]);
 
 	const availableArrondissements = useMemo(
 		() => getAvailableArrondissements(events),

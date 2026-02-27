@@ -19,6 +19,11 @@ import {
 	exportAudienceSegmentCsv,
 	getEventEngagementDashboard,
 } from "@/features/events/engagement/actions";
+import {
+	parseEventFilterStateFromSearchParams,
+	readStoredEventFilterState,
+} from "@/features/events/filter-state-persistence";
+import { PRICE_RANGE_CONFIG } from "@/features/events/types";
 import { MUSIC_GENRES, type MusicGenre } from "@/features/events/types";
 import { CircleHelp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -51,6 +56,58 @@ type SegmentGenreRule = {
 
 const WINDOW_OPTIONS = [7, 30, 90] as const;
 const EXPORT_WINDOW_OPTIONS = [7, 14, 30, 60, 90] as const;
+const TABLE_ROW_LIMIT_OPTIONS = [25, 50, 100, 250] as const;
+
+const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
+	{
+		label: "Event Key",
+		description: "Stable internal ID used for event URLs and tracking joins.",
+	},
+	{
+		label: "Views",
+		description: "Total event detail opens.",
+	},
+	{
+		label: "Outbound",
+		description: "Total clicks on ticket/external partner links.",
+	},
+	{
+		label: "Calendar",
+		description: "Total calendar sync clicks.",
+	},
+	{
+		label: "Unique Sessions",
+		description: "Distinct sessions with any engagement for this event.",
+	},
+	{
+		label: "View Sessions",
+		description: "Distinct sessions that opened the event.",
+	},
+	{
+		label: "Outbound Sessions",
+		description: "Distinct sessions with at least one outbound click.",
+	},
+	{
+		label: "Calendar Sessions",
+		description: "Distinct sessions with at least one calendar sync.",
+	},
+	{
+		label: "Outbound CVR",
+		description: "Outbound Sessions divided by View Sessions.",
+	},
+	{
+		label: "Calendar CVR",
+		description: "Calendar Sessions divided by View Sessions.",
+	},
+	{
+		label: "Outbound Interaction",
+		description: "Outbound clicks divided by total views.",
+	},
+	{
+		label: "Calendar Interaction",
+		description: "Calendar syncs divided by total views.",
+	},
+];
 
 const FILTER_GROUP_OPTIONS: Array<{
 	value: DiscoveryFilterGroup;
@@ -102,6 +159,7 @@ export const EventEngagementStatsCard = ({
 	const [errorMessage, setErrorMessage] = useState("");
 	const [segmentMessage, setSegmentMessage] = useState("");
 	const [eventSearchTerm, setEventSearchTerm] = useState("");
+	const [tableRowLimit, setTableRowLimit] = useState<number>(50);
 
 	const [ruleGroup, setRuleGroup] = useState<DiscoveryFilterGroup>("genre");
 	const [ruleValue, setRuleValue] = useState("");
@@ -117,6 +175,7 @@ export const EventEngagementStatsCard = ({
 	);
 	const [searchInput, setSearchInput] = useState("");
 	const [searchRule, setSearchRule] = useState("");
+	const [filterUrlInput, setFilterUrlInput] = useState("");
 	const [segmentMinHits, setSegmentMinHits] = useState("1");
 	const [segmentLimit, setSegmentLimit] = useState("5000");
 
@@ -143,7 +202,7 @@ export const EventEngagementStatsCard = ({
 		void loadStats(windowDays);
 	}, [initialPayload?.success, loadStats, windowDays]);
 
-	const rows = useMemo(() => {
+	const filteredRows = useMemo(() => {
 		if (!payload?.success) return [];
 		const needle = eventSearchTerm.trim().toLowerCase();
 		if (!needle) return payload.rows;
@@ -154,6 +213,11 @@ export const EventEngagementStatsCard = ({
 			);
 		});
 	}, [payload, eventSearchTerm]);
+
+	const rows = useMemo(
+		() => filteredRows.slice(0, tableRowLimit),
+		[filteredRows, tableRowLimit],
+	);
 
 	const summary = payload?.success
 		? payload.summary
@@ -182,7 +246,7 @@ export const EventEngagementStatsCard = ({
 				topFilters: [],
 			};
 
-	const chartRows = useMemo(() => rows.slice(0, 8), [rows]);
+	const chartRows = useMemo(() => filteredRows.slice(0, 8), [filteredRows]);
 	const maxChartClicks = Math.max(1, ...chartRows.map((row) => row.clickCount));
 
 	const addFilterRule = useCallback(() => {
@@ -268,6 +332,134 @@ export const EventEngagementStatsCard = ({
 		setSearchRule("");
 		setSearchInput("");
 	}, []);
+
+	const applyFilterStateToSegmentBuilder = useCallback(
+		(filterState: {
+			selectedDateRange: { from: string | null; to: string | null };
+			selectedDayNightPeriods: Array<"day" | "night">;
+			selectedArrondissements: Array<number | "unknown">;
+			selectedGenres: MusicGenre[];
+			selectedNationalities: string[];
+			selectedVenueTypes: Array<"indoor" | "outdoor">;
+			selectedIndoorPreference: boolean | null;
+			selectedPriceRange: [number, number];
+			selectedAgeRange: [number, number] | null;
+			selectedOOOCPicks: boolean;
+			searchQuery: string;
+		}) => {
+			const importedRules: SegmentFilterRule[] = [];
+			if (
+				filterState.selectedDateRange.from != null ||
+				filterState.selectedDateRange.to != null
+			) {
+				importedRules.push({
+					filterGroup: "date_range",
+					filterValue: `${filterState.selectedDateRange.from ?? "any"}:${filterState.selectedDateRange.to ?? "any"}`,
+				});
+			}
+			for (const period of filterState.selectedDayNightPeriods) {
+				importedRules.push({
+					filterGroup: "day_night",
+					filterValue: period,
+				});
+			}
+			for (const arrondissement of filterState.selectedArrondissements) {
+				importedRules.push({
+					filterGroup: "arrondissement",
+					filterValue: String(arrondissement),
+				});
+			}
+			for (const genre of filterState.selectedGenres) {
+				importedRules.push({
+					filterGroup: "genre",
+					filterValue: genre,
+				});
+			}
+			for (const nationality of filterState.selectedNationalities) {
+				importedRules.push({
+					filterGroup: "nationality",
+					filterValue: nationality.toLowerCase(),
+				});
+			}
+			for (const venueType of filterState.selectedVenueTypes) {
+				importedRules.push({
+					filterGroup: "venue_type",
+					filterValue: venueType,
+				});
+			}
+			if (filterState.selectedIndoorPreference != null) {
+				importedRules.push({
+					filterGroup: "venue_setting",
+					filterValue: filterState.selectedIndoorPreference
+						? "indoor"
+						: "outdoor",
+				});
+			}
+			const isDefaultPriceRange =
+				filterState.selectedPriceRange[0] === PRICE_RANGE_CONFIG.min &&
+				filterState.selectedPriceRange[1] === PRICE_RANGE_CONFIG.max;
+			if (!isDefaultPriceRange) {
+				importedRules.push({
+					filterGroup: "price_range",
+					filterValue: `${filterState.selectedPriceRange[0]}:${filterState.selectedPriceRange[1]}`,
+				});
+			}
+			if (filterState.selectedAgeRange) {
+				importedRules.push({
+					filterGroup: "age_range",
+					filterValue: `${filterState.selectedAgeRange[0]}:${filterState.selectedAgeRange[1]}`,
+				});
+			}
+			if (filterState.selectedOOOCPicks) {
+				importedRules.push({
+					filterGroup: "oooc_pick",
+					filterValue: "yes",
+				});
+			}
+
+			setFilterRules(importedRules);
+			setSearchRule(filterState.searchQuery.trim().toLowerCase());
+			setErrorMessage("");
+			setSegmentMessage(
+				`Loaded ${importedRules.length} filter rule${importedRules.length === 1 ? "" : "s"} from app filters`,
+			);
+		},
+		[],
+	);
+
+	const loadSegmentRulesFromUrl = useCallback(() => {
+		const raw = filterUrlInput.trim();
+		if (!raw) {
+			setErrorMessage("Paste an app URL first");
+			return;
+		}
+		let params: URLSearchParams;
+		try {
+			if (raw.startsWith("?")) {
+				params = new URLSearchParams(raw);
+			} else {
+				params = new URL(raw).searchParams;
+			}
+		} catch {
+			setErrorMessage("Invalid URL format");
+			return;
+		}
+		const parsed = parseEventFilterStateFromSearchParams(params);
+		if (!parsed) {
+			setErrorMessage("No active filters found in this URL");
+			return;
+		}
+		applyFilterStateToSegmentBuilder(parsed);
+	}, [applyFilterStateToSegmentBuilder, filterUrlInput]);
+
+	const loadSegmentRulesFromSavedFilters = useCallback(() => {
+		const parsed = readStoredEventFilterState();
+		if (!parsed) {
+			setErrorMessage("No saved app filters found in this browser");
+			return;
+		}
+		applyFilterStateToSegmentBuilder(parsed);
+	}, [applyFilterStateToSegmentBuilder]);
 
 	const handleExportSegmentCsv = useCallback(async () => {
 		setIsExporting(true);
@@ -594,6 +786,36 @@ export const EventEngagementStatsCard = ({
 						</div>
 						<div className="space-y-1">
 							<p className="text-xs font-medium text-foreground">
+								Load from app filters
+							</p>
+							<div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+								<input
+									type="text"
+									className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+									value={filterUrlInput}
+									onChange={(event) => setFilterUrlInput(event.target.value)}
+									placeholder="Paste events page URL with filters"
+								/>
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									onClick={loadSegmentRulesFromUrl}
+								>
+									Load From URL
+								</Button>
+							</div>
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								onClick={loadSegmentRulesFromSavedFilters}
+							>
+								Load Saved Filters (Same Browser)
+							</Button>
+						</div>
+						<div className="space-y-1">
+							<p className="text-xs font-medium text-foreground">
 								Add search rule (optional)
 							</p>
 							<div className="grid gap-2 sm:grid-cols-[1fr_auto]">
@@ -863,49 +1085,151 @@ export const EventEngagementStatsCard = ({
 				</section>
 
 				<section>
-					<div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Event Performance Table
+					<div className="mb-2 space-y-2">
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<div className="flex items-center gap-2">
+								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+									Event Performance Table
+								</p>
+								<TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger
+											render={
+												<button
+													type="button"
+													className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-accent"
+													aria-label="Column definitions"
+												/>
+											}
+										>
+											<CircleHelp className="h-3.5 w-3.5" />
+										</TooltipTrigger>
+										<TooltipContent>
+											<div className="max-w-[320px] space-y-1.5 text-xs">
+												{METRIC_COLUMN_HELP.map((item) => (
+													<p key={item.label}>
+														<span className="font-semibold">{item.label}:</span>{" "}
+														{item.description}
+													</p>
+												))}
+											</div>
+										</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
+							</div>
+							<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+								<label
+									htmlFor="event-table-row-limit"
+									className="text-xs text-muted-foreground"
+								>
+									Rows
+								</label>
+								<select
+									id="event-table-row-limit"
+									className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+									value={tableRowLimit}
+									onChange={(event) =>
+										setTableRowLimit(Number.parseInt(event.target.value, 10))
+									}
+								>
+									{TABLE_ROW_LIMIT_OPTIONS.map((limit) => (
+										<option key={limit} value={limit}>
+											{limit}
+										</option>
+									))}
+								</select>
+								<input
+									type="text"
+									placeholder="Search event name or key"
+									value={eventSearchTerm}
+									onChange={(event) => setEventSearchTerm(event.target.value)}
+									className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs sm:w-[280px]"
+								/>
+							</div>
+						</div>
+						<p className="text-xs text-muted-foreground">
+							Showing {rows.length} of {filteredRows.length} matching events
+							{payload?.success
+								? ` (${payload.rows.length} tracked total)`
+								: ""}
+							.
 						</p>
-						<input
-							type="text"
-							placeholder="Search event name or key"
-							value={eventSearchTerm}
-							onChange={(event) => setEventSearchTerm(event.target.value)}
-							className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs sm:max-w-[280px]"
-						/>
 					</div>
 					<div className="max-w-full overflow-auto rounded-md border">
 						<table className="min-w-[1280px] w-full text-xs">
 							<thead className="bg-muted/40">
 								<tr>
 									<th className="px-3 py-2 text-left font-medium">Event</th>
-									<th className="px-3 py-2 text-left font-medium">Event Key</th>
-									<th className="px-3 py-2 text-left font-medium">Views</th>
-									<th className="px-3 py-2 text-left font-medium">Outbound</th>
-									<th className="px-3 py-2 text-left font-medium">Calendar</th>
-									<th className="px-3 py-2 text-left font-medium">
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Stable internal ID used for event URLs and tracking joins."
+									>
+										Event Key
+									</th>
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Total event detail opens."
+									>
+										Views
+									</th>
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Total clicks on ticket/external partner links."
+									>
+										Outbound
+									</th>
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Total calendar sync clicks."
+									>
+										Calendar
+									</th>
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Distinct sessions with any engagement for this event."
+									>
 										Unique Sessions
 									</th>
-									<th className="px-3 py-2 text-left font-medium">
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Distinct sessions that opened the event."
+									>
 										View Sessions
 									</th>
-									<th className="px-3 py-2 text-left font-medium">
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Distinct sessions with at least one outbound click."
+									>
 										Outbound Sessions
 									</th>
-									<th className="px-3 py-2 text-left font-medium">
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Distinct sessions with at least one calendar sync."
+									>
 										Calendar Sessions
 									</th>
-									<th className="px-3 py-2 text-left font-medium">
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Outbound Sessions divided by View Sessions."
+									>
 										Outbound CVR
 									</th>
-									<th className="px-3 py-2 text-left font-medium">
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Calendar Sessions divided by View Sessions."
+									>
 										Calendar CVR
 									</th>
-									<th className="px-3 py-2 text-left font-medium">
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Outbound clicks divided by total views."
+									>
 										Outbound Interaction
 									</th>
-									<th className="px-3 py-2 text-left font-medium">
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Calendar syncs divided by total views."
+									>
 										Calendar Interaction
 									</th>
 								</tr>

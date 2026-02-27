@@ -30,15 +30,20 @@ import {
 type EventCardProps = {
 	event: Event;
 	onClick: (event: Event) => void;
+	showSocialProof?: boolean;
 };
 
-const CARD_SOCIAL_PROOF_MIN_SAVES = 3;
+export const CARD_SOCIAL_PROOF_MIN_SAVES = 3;
 
 /**
  * Reusable EventCard component used across Featured Events and All Events
  * Implements the improved visual hierarchy with priority badge system
  */
-export function EventCard({ event, onClick }: EventCardProps) {
+export function EventCard({
+	event,
+	onClick,
+	showSocialProof = true,
+}: EventCardProps) {
 	const handleClick = () => {
 		if (!event || !onClick) {
 			clientLog.warn("event-card", "Missing event or onClick handler");
@@ -232,7 +237,7 @@ export function EventCard({ event, onClick }: EventCardProps) {
 					</Badge>
 				))}
 			</div>
-			{calendarSyncCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
+			{showSocialProof && calendarSyncCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
 				<div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-200">
 					<Flame className="h-3 w-3" />
 					{calendarSyncCount} {savedLabel} saved this

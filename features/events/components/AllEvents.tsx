@@ -15,6 +15,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 type AllEventsProps = {
 	events: Event[];
 	onEventClick: (event: Event) => void;
+	socialProofEventKeys: Set<string>;
 	onFilterClickAction: () => void;
 	onAuthRequired: () => void;
 	hasActiveFilters: boolean;
@@ -28,6 +29,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		{
 			events,
 			onEventClick,
+			socialProofEventKeys,
 			onFilterClickAction,
 			onAuthRequired,
 			hasActiveFilters,
@@ -66,8 +68,8 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								className="mt-1 text-xs leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
 								style={{ textWrap: "balance" }}
 							>
-								Hosting something special? Put it on the map with the
-								collective and submit your event →
+								Hosting something special? Put it on the map with the collective
+								and submit your event →
 							</Link>
 						</div>
 						<FilterButton
@@ -82,7 +84,12 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 				<CardContent className="py-5">
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 						{visibleEvents.map((event) => (
-							<EventCard key={event.id} event={event} onClick={onEventClick} />
+							<EventCard
+								key={event.id}
+								event={event}
+								onClick={onEventClick}
+								showSocialProof={socialProofEventKeys.has(event.eventKey)}
+							/>
 						))}
 					</div>
 
@@ -108,7 +115,13 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 											className="pointer-events-none select-none opacity-60 blur-[4px] saturate-[0.9]"
 											aria-hidden="true"
 										>
-											<EventCard event={event} onClick={onEventClick} />
+											<EventCard
+												event={event}
+												onClick={onEventClick}
+												showSocialProof={socialProofEventKeys.has(
+													event.eventKey,
+												)}
+											/>
 										</div>
 									))}
 								</div>

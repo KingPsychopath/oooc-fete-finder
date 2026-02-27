@@ -5,6 +5,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import AuthGate from "@/features/auth/components/AuthGate";
 import EmailGateModal from "@/features/auth/components/EmailGateModal";
 import { AllEvents } from "@/features/events/components/AllEvents";
+import { CARD_SOCIAL_PROOF_MIN_SAVES } from "@/features/events/components/EventCard";
 import EventModal from "@/features/events/components/EventModal";
 import EventStats from "@/features/events/components/EventStats";
 import FilterPanel from "@/features/events/components/FilterPanel";
@@ -26,6 +27,7 @@ interface EventsClientProps {
 }
 
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
+const CARD_SOCIAL_PROOF_MAX_VISIBLE = 8;
 
 export function EventsClient({
 	initialEvents,
@@ -104,6 +106,7 @@ export function EventsClient({
 	} = useEventFilters({
 		events: initialEvents,
 		requireAuth,
+		isFilterAccessAllowed: isAuthenticated || authMode === "offline-grace",
 	});
 
 	const eventsByEventKey = useMemo(() => {
@@ -321,6 +324,27 @@ export function EventsClient({
 		return [...featuredMatches, ...promotedMatches, ...regularMatches];
 	}, [filteredEvents]);
 
+	const socialProofEventKeys = useMemo(() => {
+		const eligibleEvents = filteredEvents
+			.filter(
+				(event) =>
+					(event.calendarSyncCount ?? 0) >= CARD_SOCIAL_PROOF_MIN_SAVES,
+			)
+			.sort((left, right) => {
+				const syncDelta =
+					(right.calendarSyncCount ?? 0) - (left.calendarSyncCount ?? 0);
+				if (syncDelta !== 0) return syncDelta;
+				const nameOrder = left.name.localeCompare(right.name);
+				if (nameOrder !== 0) return nameOrder;
+				return left.eventKey.localeCompare(right.eventKey);
+			});
+		return new Set(
+			eligibleEvents
+				.slice(0, CARD_SOCIAL_PROOF_MAX_VISIBLE)
+				.map((event) => event.eventKey),
+		);
+	}, [filteredEvents]);
+
 	return (
 		<>
 			<div className="mb-8">
@@ -369,6 +393,7 @@ export function EventsClient({
 				events={spotlightEvents}
 				onEventClick={handleEventClick}
 				onScrollToAllEvents={scrollToAllEvents}
+				socialProofEventKeys={socialProofEventKeys}
 			/>
 
 			<EventStats events={initialEvents} filteredEvents={filteredEvents} />
@@ -429,6 +454,7 @@ export function EventsClient({
 				ref={allEventsRef}
 				events={allEventsOrdered}
 				onEventClick={handleEventClick}
+				socialProofEventKeys={socialProofEventKeys}
 				onFilterClickAction={toggleFilterPanel}
 				onAuthRequired={() => setShowEmailGate(true)}
 				hasActiveFilters={hasAnyActiveFilters}

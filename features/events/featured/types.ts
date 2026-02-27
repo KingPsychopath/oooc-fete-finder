@@ -4,6 +4,7 @@ export type FeaturedEventsProps = {
 	events: Event[];
 	onEventClick: (event: Event) => void;
 	onScrollToAllEvents: () => void;
+	socialProofEventKeys: Set<string>;
 	maxFeaturedEvents?: number;
 };
 
@@ -11,6 +12,7 @@ export type SafeFeaturedEventsProps = {
 	events: NonNullable<Event>[];
 	onEventClick: (event: NonNullable<Event>) => void;
 	onScrollToAllEvents: () => void;
+	socialProofEventKeys: Set<string>;
 	maxFeaturedEvents?: number;
 };
 
@@ -25,10 +27,7 @@ export type FeatureTimeRemaining = {
 	isExpired: boolean;
 };
 
-export type FeaturedScheduleStatus =
-	| "scheduled"
-	| "cancelled"
-	| "completed";
+export type FeaturedScheduleStatus = "scheduled" | "cancelled" | "completed";
 
 export interface FeatureSlotConfig {
 	maxConcurrent: number;

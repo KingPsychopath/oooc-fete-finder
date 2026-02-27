@@ -18,6 +18,7 @@ export function FeaturedEvents({
 	events,
 	onEventClick,
 	onScrollToAllEvents,
+	socialProofEventKeys,
 	maxFeaturedEvents = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS,
 }: FeaturedEventsProps) {
 	const isAtLeastTablet = useMediaQuery("(min-width: 768px)");
@@ -44,6 +45,7 @@ export function FeaturedEvents({
 							key={event.eventKey || event.id}
 							event={event}
 							onClick={onEventClick}
+							showSocialProof={socialProofEventKeys.has(event.eventKey)}
 						/>
 					))}
 				</div>
