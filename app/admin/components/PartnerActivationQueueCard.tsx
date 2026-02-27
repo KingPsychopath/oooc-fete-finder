@@ -192,10 +192,10 @@ export const PartnerActivationQueueCard = ({
 			<CardHeader className="space-y-3">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div>
-						<CardTitle>Partner Activation Queue</CardTitle>
+						<CardTitle>Paid Orders Inbox</CardTitle>
 						<CardDescription>
-							Paid Stripe orders land here for fulfillment. Activate each order
-							as either Spotlight or Promoted.
+							Paid Stripe orders land here first. Choose Spotlight or Promoted,
+							match to an event, then fulfill in one step.
 						</CardDescription>
 					</div>
 					<Button
@@ -397,7 +397,7 @@ export const PartnerActivationQueueCard = ({
 											disabled={isMutating && busyId === item.id}
 											onClick={() => void handleFulfill(item.id)}
 										>
-											Fulfill & activate
+											Fulfill as selected tier
 										</Button>
 										<Button
 											size="sm"

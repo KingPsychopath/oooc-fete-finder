@@ -223,8 +223,8 @@ export const PromotedEventsManagerCard = ({
 						</p>
 						<CardTitle>Promoted Listings Manager</CardTitle>
 						<CardDescription>
-							Manage promoted listing windows separately from Spotlight featured
-							slots.
+							Manual controls for promoted windows. Paid order fulfillment
+							happens in Paid Orders Inbox.
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">

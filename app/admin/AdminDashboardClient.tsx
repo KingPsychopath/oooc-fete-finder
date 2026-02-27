@@ -230,6 +230,9 @@ export function AdminDashboardClient({
 							initialEditorData={initialData.editorData}
 							onDataSaved={onDataSaved}
 						/>
+						<PartnerActivationQueueCard
+							initialPayload={initialData.partnerActivations}
+						/>
 						<FeaturedEventsManagerCard
 							initialPayload={initialData.featuredQueue}
 							onScheduleUpdated={onDataSaved}
@@ -265,9 +268,6 @@ export function AdminDashboardClient({
 						<EventSubmissionsCard
 							initialPayload={initialData.eventSubmissions}
 							onSubmissionReviewed={onDataSaved}
-						/>
-						<PartnerActivationQueueCard
-							initialPayload={initialData.partnerActivations}
 						/>
 						<EmailCollectionCard
 							emails={emails}

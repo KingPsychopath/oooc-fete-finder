@@ -272,8 +272,8 @@ export const FeaturedEventsManagerCard = ({
 						</p>
 						<CardTitle>Featured Events Manager</CardTitle>
 						<CardDescription>
-							Dedicated scheduler for featured slots. Legacy sheet `Featured`
-							values are no longer used.
+							Manual controls for Spotlight windows. Paid order fulfillment
+							happens in Paid Orders Inbox.
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
