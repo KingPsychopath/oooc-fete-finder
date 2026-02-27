@@ -260,11 +260,14 @@ const EventModal: React.FC<EventModalProps> = ({
 		const shareUrl = buildCanonicalEventUrl();
 		if (!shareUrl) return;
 
+		const canUseNativeShare =
+			typeof navigator !== "undefined" &&
+			typeof navigator.share === "function" &&
+			typeof window !== "undefined" &&
+			window.matchMedia("(pointer: coarse)").matches;
+
 		try {
-			if (
-				typeof navigator !== "undefined" &&
-				typeof navigator.share === "function"
-			) {
+			if (canUseNativeShare) {
 				await navigator.share({
 					title: event.name,
 					text: `Check out ${event.name}`,
@@ -280,12 +283,7 @@ const EventModal: React.FC<EventModalProps> = ({
 			} else {
 				setTimedShareStatus("Unable to copy link", "error");
 			}
-		} catch (error) {
-			const shareErrorName =
-				error instanceof DOMException ? error.name : "UnknownError";
-			if (shareErrorName === "AbortError") {
-				return;
-			}
+		} catch {
 			const copied = await copyToClipboard(shareUrl);
 			setTimedShareStatus(
 				copied ? "Link copied" : "Unable to share link",
