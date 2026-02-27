@@ -15,6 +15,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
 import { getFeaturedProjection } from "@/features/events/featured/service";
+import {
+	generateOGImageUrl,
+	generateOGMetadata,
+} from "@/lib/social/og-utils";
 import { FeatureEventHeader } from "./FeatureEventHeader";
 import { FeatureEventStatusSection } from "./FeatureEventStatusSection";
 
@@ -37,9 +41,17 @@ type AddOn = {
 };
 
 export const metadata: Metadata = {
-	title: "Partner With OOOC | Fete Finder",
-	description:
-		"Book Spotlight and Promoted placements for Fete de la Musique 2026 in minutes via Stripe Payment Links.",
+	...generateOGMetadata({
+		title: "Partner With OOOC | Fete Finder",
+		description:
+			"Book Spotlight and Promoted placements for Fete de la Musique 2026 in minutes via Stripe Payment Links.",
+		ogImageUrl: generateOGImageUrl({
+			title: "Partner With OOOC",
+			subtitle: "Spotlight and promoted placements in Fete Finder",
+			variant: "default",
+		}),
+		url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${process.env.NEXT_PUBLIC_BASE_PATH || ""}/feature-event/`,
+	}),
 	keywords: [
 		"fete de la musique",
 		"paris event promotion",

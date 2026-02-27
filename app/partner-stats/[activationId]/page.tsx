@@ -1,6 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPartnerStatsSnapshot } from "@/features/partners/partner-stats";
+import {
+	generateOGImageUrl,
+	generateOGMetadata,
+} from "@/lib/social/og-utils";
 import { ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -10,15 +14,18 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = generateOGMetadata({
 	title: "Partner ROI Stats | OOOC Fete Finder",
 	description:
 		"Private partner performance metrics for OOOC campaign placements.",
-	robots: {
-		index: false,
-		follow: false,
-	},
-};
+	ogImageUrl: generateOGImageUrl({
+		title: "Partner ROI Stats",
+		subtitle: "Private campaign performance metrics",
+		variant: "default",
+	}),
+	url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${basePath || ""}/partner-stats/`,
+	noIndex: true,
+});
 
 export const dynamic = "force-dynamic";
 

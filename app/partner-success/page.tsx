@@ -1,15 +1,25 @@
 import { Button } from "@/components/ui/button";
+import {
+	generateOGImageUrl,
+	generateOGMetadata,
+} from "@/lib/social/og-utils";
 import { CheckCircle2 } from "lucide-react";
 import type { Metadata } from "next";
 import { FeatureEventHeader } from "../feature-event/FeatureEventHeader";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = generateOGMetadata({
 	title: "Payment Received | OOOC Fete Finder",
 	description:
 		"Your payment was received. The OOOC team will activate your placement shortly.",
-};
+	ogImageUrl: generateOGImageUrl({
+		title: "Payment Received",
+		subtitle: "Your OOOC placement is now in the activation queue",
+		variant: "default",
+	}),
+	url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${basePath || ""}/partner-success/`,
+});
 
 export default function PartnerSuccessPage() {
 	return (
