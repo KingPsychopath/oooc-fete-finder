@@ -135,10 +135,12 @@ export async function fulfillPartnerActivation(input: {
 		const safeStartDate = Number.isFinite(startDate.getTime())
 			? startDate
 			: new Date();
-		const durationHours = Math.max(
-			1,
-			Math.min(168, Math.floor(input.durationHours ?? 48)),
-		);
+		const parsedDuration =
+			typeof input.durationHours === "number"
+				? Math.floor(input.durationHours)
+				: 48;
+		const safeDuration = Number.isFinite(parsedDuration) ? parsedDuration : 48;
+		const durationHours = Math.max(1, Math.min(168, safeDuration));
 		const endDate = new Date(
 			safeStartDate.getTime() + durationHours * 60 * 60 * 1000,
 		);
