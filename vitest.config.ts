@@ -5,6 +5,7 @@ export default defineConfig({
 	test: {
 		environment: "node",
 		globals: true,
+		setupFiles: ["test/setup-env.ts"],
 		include: ["__tests__/unit/**/*.test.ts", "__tests__/integration/**/*.test.ts"],
 		exclude: ["node_modules", ".next", "dist"],
 		coverage: {

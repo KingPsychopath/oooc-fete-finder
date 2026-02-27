@@ -1,40 +1,161 @@
+import type {
+	UserCollectionAnalytics,
+	UserRecord,
+} from "@/features/auth/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type MockKVStore = {
-	get: ReturnType<typeof vi.fn>;
-	set: ReturnType<typeof vi.fn>;
-	delete: ReturnType<typeof vi.fn>;
-	list: ReturnType<typeof vi.fn>;
+type StoredUser = UserRecord & {
+	submissions: number;
+	firstSeenAt: string;
+};
+
+const normalize = (input: UserRecord): UserRecord => ({
+	firstName: input.firstName.trim(),
+	lastName: input.lastName.trim(),
+	email: input.email.trim().toLowerCase(),
+	consent: Boolean(input.consent),
+	source: input.source.trim() || "fete-finder-auth",
+	timestamp: input.timestamp || new Date().toISOString(),
+});
+
+const toSortedUsers = (store: Map<string, StoredUser>): UserRecord[] =>
+	Array.from(store.values())
+		.sort((left, right) => right.timestamp.localeCompare(left.timestamp))
+		.map((record) => ({
+			firstName: record.firstName,
+			lastName: record.lastName,
+			email: record.email,
+			consent: record.consent,
+			source: record.source,
+			timestamp: record.timestamp,
+		}));
+
+const buildAnalytics = (
+	store: Map<string, StoredUser>,
+	nowMs = Date.now(),
+): UserCollectionAnalytics => {
+	const values = Array.from(store.values());
+	if (values.length === 0) {
+		return {
+			totalUsers: 0,
+			totalSubmissions: 0,
+			consentedUsers: 0,
+			nonConsentedUsers: 0,
+			submissionsLast24Hours: 0,
+			submissionsLast7Days: 0,
+			uniqueSources: 0,
+			topSources: [],
+			firstCapturedAt: null,
+			lastCapturedAt: null,
+		};
+	}
+
+	const totalSubmissions = values.reduce(
+		(total, record) => total + record.submissions,
+		0,
+	);
+	const consentedUsers = values.filter((record) => record.consent).length;
+	const sourceTotals = new Map<string, { source: string; users: number; submissions: number }>();
+	let submissionsLast24Hours = 0;
+	let submissionsLast7Days = 0;
+
+	for (const record of values) {
+		const sourceEntry = sourceTotals.get(record.source);
+		if (!sourceEntry) {
+			sourceTotals.set(record.source, {
+				source: record.source,
+				users: 1,
+				submissions: record.submissions,
+			});
+		} else {
+			sourceTotals.set(record.source, {
+				source: record.source,
+				users: sourceEntry.users + 1,
+				submissions: sourceEntry.submissions + record.submissions,
+			});
+		}
+
+		const recordMs = new Date(record.timestamp).getTime();
+		if (!Number.isFinite(recordMs)) continue;
+		const ageMs = nowMs - recordMs;
+		if (ageMs <= 24 * 60 * 60 * 1000) {
+			submissionsLast24Hours += record.submissions;
+		}
+		if (ageMs <= 7 * 24 * 60 * 60 * 1000) {
+			submissionsLast7Days += record.submissions;
+		}
+	}
+
+	const firstCapturedAt =
+		values
+			.map((record) => record.firstSeenAt)
+			.sort((left, right) => left.localeCompare(right))[0] ?? null;
+	const lastCapturedAt =
+		values
+			.map((record) => record.timestamp)
+			.sort((left, right) => right.localeCompare(left))[0] ?? null;
+
+	return {
+		totalUsers: values.length,
+		totalSubmissions,
+		consentedUsers,
+		nonConsentedUsers: values.length - consentedUsers,
+		submissionsLast24Hours,
+		submissionsLast7Days,
+		uniqueSources: sourceTotals.size,
+		topSources: Array.from(sourceTotals.values()).sort((left, right) => {
+			if (right.users !== left.users) return right.users - left.users;
+			return right.submissions - left.submissions;
+		}),
+		firstCapturedAt,
+		lastCapturedAt,
+	};
 };
 
 const loadStore = async () => {
 	vi.resetModules();
 
-	const backing = new Map<string, string>();
-	const kv: MockKVStore = {
-		get: vi.fn(async (key: string) => backing.get(key) ?? null),
-		set: vi.fn(async (key: string, value: string) => {
-			backing.set(key, value);
+	const backing = new Map<string, StoredUser>();
+	const repository = {
+		addOrUpdate: vi.fn(async (input: UserRecord) => {
+			const normalized = normalize(input);
+			const existing = backing.get(normalized.email);
+			backing.set(normalized.email, {
+				...normalized,
+				submissions: (existing?.submissions ?? 0) + 1,
+				firstSeenAt: existing?.firstSeenAt ?? normalized.timestamp,
+			});
+			return {
+				record: normalized,
+				alreadyExisted: Boolean(existing),
+			};
 		}),
-		delete: vi.fn(async (key: string) => {
-			backing.delete(key);
+		listAll: vi.fn(async () => toSortedUsers(backing)),
+		getAnalytics: vi.fn(async () => buildAnalytics(backing)),
+		getSnapshot: vi.fn(async () => {
+			const users = toSortedUsers(backing);
+			const analytics = buildAnalytics(backing);
+			return {
+				users,
+				analytics,
+				totalUsers: analytics.totalUsers,
+				lastUpdatedAt: analytics.lastCapturedAt,
+			};
 		}),
-		list: vi.fn(async () => Array.from(backing.keys())),
+		clearAll: vi.fn(async () => {
+			backing.clear();
+		}),
 	};
 
-	vi.doMock("@/lib/platform/kv/kv-store-factory", () => ({
-		getKVStore: async () => kv,
-		getKVStoreInfo: async () => ({
-			provider: "postgres" as const,
-			location: "Postgres table app_kv_store (DATABASE_URL)",
-		}),
+	vi.doMock("@/lib/platform/postgres/user-collection-repository", () => ({
+		getUserCollectionRepository: () => repository,
 	}));
 
 	const { UserCollectionStore } = await import(
 		"@/features/auth/user-collection-store"
 	);
 
-	return { UserCollectionStore, kv };
+	return { UserCollectionStore, repository };
 };
 
 describe("UserCollectionStore", () => {

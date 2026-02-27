@@ -23,6 +23,9 @@ const loadRuntimeService = async (): Promise<Setup> => {
 	const applyFeaturedProjectionToEvents = vi.fn((events) =>
 		Promise.resolve(events),
 	);
+	const applyPromotedProjectionToEvents = vi.fn((events) =>
+		Promise.resolve(events),
+	);
 	const revalidatePath = vi.fn();
 	const revalidateTag = vi.fn();
 
@@ -39,6 +42,14 @@ const loadRuntimeService = async (): Promise<Setup> => {
 
 	vi.doMock("@/features/events/featured/service", () => ({
 		applyFeaturedProjectionToEvents,
+	}));
+
+	vi.doMock("@/features/events/promoted/service", () => ({
+		applyPromotedProjectionToEvents,
+	}));
+
+	vi.doMock("@/lib/platform/postgres/event-engagement-repository", () => ({
+		getEventEngagementRepository: () => null,
 	}));
 
 	vi.doMock("next/cache", () => ({
