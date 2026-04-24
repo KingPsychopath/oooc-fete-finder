@@ -140,4 +140,16 @@ describe("event assembler identity", () => {
 
 		expect(event.genre).toEqual(["francophone", "shatta"]);
 	});
+
+	it("maps aliases and standalone tags for afrohouse, slow jams, and 3-step", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				categories: "Afrohouse, Slow Jams, 3step",
+			},
+			0,
+		);
+
+		expect(event.genre).toEqual(["afro house", "slow jams", "3-step"]);
+	});
 });

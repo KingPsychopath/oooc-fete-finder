@@ -317,12 +317,17 @@ export const GenreTransformers = {
 			rnb: "r&b",
 			soul: "r&b",
 			funk: "funk",
+			"slow jams": "slow jams",
+			slowjams: "slow jams",
 
 			// Afrobeats and related
 			afrobeats: "afrobeats",
 			afro: "afro",
 			"afro house": "afro house",
+			afrohouse: "afro house",
 			amapiano: "amapiano",
+			"3-step": "3-step",
+			"3step": "3-step",
 
 			// Caribbean
 			soca: "soca",

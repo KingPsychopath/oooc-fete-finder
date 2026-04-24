@@ -53,6 +53,8 @@ export type MusicGenre =
 	| "house"
 	| "disco"
 	| "afro house"
+	| "slow jams"
+	| "3-step"
 	| "electro"
 	| "funk"
 	| "rap"
@@ -233,6 +235,8 @@ export const MUSIC_GENRES = [
 	{ key: "house" as const, label: "House", color: "bg-blue-600" },
 	{ key: "disco" as const, label: "Disco", color: "bg-violet-500" },
 	{ key: "afro house" as const, label: "Afro House", color: "bg-orange-600" },
+	{ key: "slow jams" as const, label: "Slow Jams", color: "bg-rose-600" },
+	{ key: "3-step" as const, label: "3-Step", color: "bg-cyan-600" },
 	{ key: "electro" as const, label: "Electro", color: "bg-cyan-500" },
 	{ key: "funk" as const, label: "Funk", color: "bg-fuchsia-500" },
 	{ key: "rap" as const, label: "Rap", color: "bg-gray-600" },
