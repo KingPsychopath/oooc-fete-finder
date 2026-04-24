@@ -397,7 +397,12 @@ export function EventsClient({
 				socialProofEventKeys={socialProofEventKeys}
 			/>
 
-			<EventStats events={initialEvents} filteredEvents={filteredEvents} />
+			<EventStats
+				events={initialEvents}
+				filteredEvents={filteredEvents}
+				isAuthenticated={isAuthenticated}
+				isAuthResolved={isAuthResolved}
+			/>
 
 			<div className="mb-8 relative z-10">
 				<EventsMapCard

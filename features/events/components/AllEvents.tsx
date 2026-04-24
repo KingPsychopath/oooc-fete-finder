@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EventCard } from "@/features/events/components/EventCard";
 import { FilterButton } from "@/features/events/components/FilterButton";
+import { getVisibleEventCount } from "@/features/events/event-visibility";
 import type { Event } from "@/features/events/types";
 import { Lock } from "lucide-react";
 import Link from "next/link";
@@ -42,9 +43,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		const safeEvents = events.filter((event) => event != null);
 		const shouldBlurHalf =
 			isAuthResolved && !isAuthenticated && safeEvents.length > 2;
-		const visibleEventsCount = shouldBlurHalf
-			? Math.ceil(safeEvents.length / 2)
-			: safeEvents.length;
+		const visibleEventsCount = getVisibleEventCount(safeEvents.length, {
+			isAuthenticated,
+			isAuthResolved,
+		});
 		const visibleEvents = safeEvents.slice(0, visibleEventsCount);
 		const lockedEvents = shouldBlurHalf
 			? safeEvents.slice(visibleEventsCount)
