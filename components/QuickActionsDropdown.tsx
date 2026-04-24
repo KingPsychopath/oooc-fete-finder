@@ -13,6 +13,7 @@ import {
 	ChevronDown,
 	ExternalLink,
 	MapPin,
+	MessageCircle,
 	Music2,
 	Utensils,
 	Zap,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
+import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
 
 interface QuickActionsDropdownProps {
 	onMusicSelect: () => void;
@@ -158,6 +160,29 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 								<div className="font-medium">Food Guide</div>
 								<div className="text-xs text-muted-foreground line-clamp-2">
 									Paris restaurants by Mel
+								</div>
+							</div>
+							<ExternalLink className="h-3 w-3 opacity-50 flex-shrink-0" />
+						</Link>
+
+						{/* Divider */}
+						<div className="my-1 h-px bg-border" />
+
+						{/* WhatsApp Community Option */}
+						<Link
+							href={COMMUNITY_INVITE_CONFIG.WHATSAPP_URL}
+							target="_blank"
+							rel="noopener noreferrer"
+							onClick={() => setIsOpen(false)}
+							className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors"
+						>
+							<div className="w-10 flex items-center justify-center gap-1">
+								<MessageCircle className="h-4 w-4 text-green-600" />
+							</div>
+							<div className="flex-1 min-w-0">
+								<div className="font-medium">WhatsApp Community</div>
+								<div className="text-xs text-muted-foreground line-clamp-2">
+									Real-time updates from the OOOC group
 								</div>
 							</div>
 							<ExternalLink className="h-3 w-3 opacity-50 flex-shrink-0" />
