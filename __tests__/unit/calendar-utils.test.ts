@@ -3,7 +3,7 @@ import {
 	generateICSContent,
 	isCalendarDateValid,
 } from "@/features/events/calendar-utils";
-import type { Event } from "@/features/events/types";
+import { getEventTypeForDate, type Event } from "@/features/events/types";
 
 const makeEvent = (date: string): Event => ({
 	eventKey: "evt_calendar0001",
@@ -17,7 +17,7 @@ const makeEvent = (date: string): Event => ({
 	arrondissement: 11,
 	location: "Paris",
 	link: "https://example.com",
-	type: "Day Party",
+	type: getEventTypeForDate(date),
 	genre: ["afrobeats"],
 	venueTypes: ["indoor"],
 	indoor: true,

@@ -461,47 +461,6 @@ export const VenueTransformers = {
  */
 export const BusinessLogicHelpers = {
 	/**
-	 * Detect if event is likely an after party
-	 */
-	isAfterParty: (name: string, startTime: string): boolean => {
-		const lowerName = name.toLowerCase();
-		const afterPartyIndicators = [
-			"after party",
-			"afterparty",
-			"after-party",
-			"after show",
-			"aftershow",
-			"after-show",
-			"late night",
-			"latenight",
-			"late-night",
-			"night session",
-			"nightsession",
-		];
-
-		// Check name for after party indicators
-		if (
-			afterPartyIndicators.some((indicator) => lowerName.includes(indicator))
-		) {
-			return true;
-		}
-
-		// Check start time - events starting after 23:00 are likely after parties
-		if (startTime) {
-			const timeMatch = startTime.match(/^(\d{1,2}):?(\d{2})?/);
-			if (timeMatch) {
-				const hours = parseInt(timeMatch[1]);
-				if (hours >= 23 || hours <= 3) {
-					// 23:00-03:59
-					return true;
-				}
-			}
-		}
-
-		return false;
-	},
-
-	/**
 	 * Process ticket links from field
 	 */
 	processTicketLinks: (linkField: string, _eventName: string): string[] => {

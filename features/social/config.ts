@@ -1,7 +1,10 @@
 import type { CommunityInviteConfig } from "./types";
 
+const DEFAULT_WHATSAPP_URL = "https://chat.whatsapp.com/DcwqLpx0oHl093E3uApKQj";
+
 export const COMMUNITY_INVITE_CONFIG: CommunityInviteConfig = {
-	WHATSAPP_URL: "https://chat.whatsapp.com/DcwqLpx0oHl093E3uApKQj",
+	WHATSAPP_URL:
+		process.env.NEXT_PUBLIC_WHATSAPP_URL?.trim() || DEFAULT_WHATSAPP_URL,
 	COOKIE_NAME: "oooc_community_invite",
 	DELAYS: {
 		AFTER_CHAT_CLICK: 4 * 24 * 60 * 60 * 1000, // 4 days

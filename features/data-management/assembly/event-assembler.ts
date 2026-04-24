@@ -5,10 +5,10 @@
  * This replaces the massive event-transformer.ts with a cleaner, more maintainable approach.
  */
 
-import type {
-	Event,
-	EventType,
-	ParisArrondissement,
+import {
+	getEventTypeForDate,
+	type Event,
+	type ParisArrondissement,
 } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
 import type { CSVEventRow } from "../csv/parser";
@@ -43,15 +43,6 @@ const EVENT_KEY_FINGERPRINT_FIELDS: readonly (keyof CSVEventRow)[] = [
 	"location",
 	"districtArea",
 ];
-
-/**
- * Determine event type based on name and time
- */
-const determineEventType = (name: string, startTime: string): EventType => {
-	return BusinessLogicHelpers.isAfterParty(name, startTime)
-		? "After Party"
-		: "Day Party";
-};
 
 const parseVerificationOverride = (
 	value: string | undefined,
@@ -221,8 +212,8 @@ export const assembleEvent = (
 	const genre = GenreTransformers.convertToMusicGenres(csvRow.categories);
 	const venueTypes = VenueTransformers.convertToVenueTypes(csvRow.setting);
 
-	// Determine event type
-	const type = determineEventType(csvRow.title, time);
+	// Determine the event's festival phase from its date.
+	const type = getEventTypeForDate(date);
 
 	// Featured state is managed through the dedicated scheduler service.
 	const isFeatured = false;

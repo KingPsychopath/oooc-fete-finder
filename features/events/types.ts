@@ -11,7 +11,7 @@ export type EventDay =
 
 export type DayNightPeriod = "day" | "night";
 
-export type EventType = "After Party" | "Day Party";
+export type EventType = "Pre-Fete" | "Fete" | "Post-Fete";
 
 // Host country codes supported by ingestion/filtering
 export const SUPPORTED_NATIONALITY_CODES = ["UK", "FR", "CA", "NL"] as const;
@@ -117,7 +117,7 @@ export type Event = {
 	link: string;
 	links?: string[]; // All ticket links, if multiple
 	description?: string;
-	type: EventType;
+	type: EventType; // Festival phase label derived from date
 	genre: MusicGenre[];
 	venueTypes: VenueType[]; // New field for venue types
 	indoor: boolean; // Deprecated: kept for backwards compatibility
@@ -250,8 +250,9 @@ export const MUSIC_GENRES = [
 ] as const;
 
 export const EVENT_TYPES = [
-	{ key: "After Party" as const, label: "After Party", icon: "🌃" },
-	{ key: "Day Party" as const, label: "Day Party", icon: "☀️" },
+	{ key: "Pre-Fete" as const, label: "Pre-Fete", icon: "⬅️" },
+	{ key: "Fete" as const, label: "Fete", icon: "🎶" },
+	{ key: "Post-Fete" as const, label: "Post-Fete", icon: "➡️" },
 ] as const;
 
 export const NATIONALITIES = [
@@ -402,6 +403,30 @@ export const getDayNightPeriod = (time: string): DayNightPeriod | null => {
 		return "night";
 	}
 };
+
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export const getEventTypeForDate = (date: string): EventType => {
+	if (!ISO_DATE_PATTERN.test(date)) {
+		return "Fete";
+	}
+
+	const [year] = date.split("-");
+	const feteDate = `${year}-06-21`;
+
+	if (date < feteDate) {
+		return "Pre-Fete";
+	}
+
+	if (date > feteDate) {
+		return "Post-Fete";
+	}
+
+	return "Fete";
+};
+
+export const getVisibleEventTypeLabel = (type: EventType): string | null =>
+	type === "Fete" ? null : type;
 
 export const isEventInDayNightPeriod = (
 	event: Event,

@@ -16,7 +16,7 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
 	time: "18:00",
 	arrondissement: 1,
 	link: "https://example.com",
-	type: "Day Party",
+	type: "Fete",
 	genre: ["house"],
 	venueTypes: ["indoor"],
 	indoor: true,

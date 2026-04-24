@@ -357,7 +357,7 @@ export function EventsClient({
 				>
 					<SearchBar
 						onSearch={onSearchQueryChange}
-						placeholder="Search events, locations, genres, types..."
+						placeholder="Search events, locations, genres, phases..."
 						className="max-w-md mx-auto"
 						resultsCount={filteredEvents.length}
 						showResultsCount

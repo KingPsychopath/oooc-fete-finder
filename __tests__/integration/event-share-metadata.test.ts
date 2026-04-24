@@ -44,7 +44,7 @@ describe("/event/[eventKey]/[[...slug]] metadata", () => {
 					arrondissement: 10,
 					location: "18 Av. Richerand",
 					link: "https://example.com/event",
-					type: "Day Party",
+					type: "Fete",
 					genre: ["afrobeats", "amapiano", "dancehall", "rap"],
 					venueTypes: ["outdoor"],
 					indoor: false,

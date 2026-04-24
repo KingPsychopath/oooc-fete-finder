@@ -12,7 +12,7 @@ const makeEvent = (id: string) => ({
 	arrondissement: 11 as const,
 	location: "Paris",
 	link: "https://example.com",
-	type: "Day Party" as const,
+	type: "Fete" as const,
 	genre: ["afrobeats" as const],
 	venueTypes: ["indoor" as const],
 	indoor: true,

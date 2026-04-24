@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getAvailableEventDates } from "@/features/events/filtering";
-import type { Event } from "@/features/events/types";
+import { getEventTypeForDate, type Event } from "@/features/events/types";
 
 const makeEvent = (date: string, index: number): Event => ({
 	eventKey: `evt_test${index.toString().padStart(8, "0")}`,
@@ -11,7 +11,7 @@ const makeEvent = (date: string, index: number): Event => ({
 	date,
 	arrondissement: 11,
 	link: "https://example.com",
-	type: "Day Party",
+	type: getEventTypeForDate(date),
 	genre: ["afrobeats"],
 	venueTypes: ["indoor"],
 	indoor: true,

@@ -9,6 +9,7 @@ import {
 	formatDayWithDate,
 	formatPrice,
 	getDayNightPeriod,
+	getVisibleEventTypeLabel,
 } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
 import {
@@ -62,8 +63,13 @@ export function EventCard({
 	const isCurrentlyPromoted = event.isPromoted === true;
 	const hasOOOCPick = event.isOOOCPick === true;
 	const dayNightPeriod = getDayNightPeriod(event.time ?? "");
+	const visibleEventType = getVisibleEventTypeLabel(event.type);
 	const calendarSyncCount = event.calendarSyncCount ?? 0;
 	const savedLabel = calendarSyncCount === 1 ? "person" : "people";
+	const visibleGenres = event.genre.slice(0, 2);
+	const hasMetadataBadges = Boolean(
+		visibleEventType || event.nationality?.length || visibleGenres.length,
+	);
 	const venueTypes =
 		event.venueTypes && event.venueTypes.length > 0
 			? [...new Set(event.venueTypes)]
@@ -209,34 +215,38 @@ export function EventCard({
 			</div>
 
 			{/* Badges */}
-			<div className="flex flex-wrap gap-1 mt-2">
-				<Badge
-					variant="secondary"
-					className="border border-border/70 bg-secondary/72 text-xs"
-				>
-					{event.type}
-				</Badge>
-				{event.nationality &&
-					event.nationality.map((nationality) => (
+			{hasMetadataBadges && (
+				<div className="flex flex-wrap gap-1 mt-2">
+					{visibleEventType && (
 						<Badge
-							key={nationality}
+							variant="secondary"
+							className="border border-border/70 bg-secondary/72 text-xs"
+						>
+							{visibleEventType}
+						</Badge>
+					)}
+					{event.nationality &&
+						event.nationality.map((nationality) => (
+							<Badge
+								key={nationality}
+								variant="outline"
+								className="border-border/75 bg-background/50 text-xs"
+							>
+								{NATIONALITIES.find((n) => n.key === nationality)?.flag}{" "}
+								{NATIONALITIES.find((n) => n.key === nationality)?.shortCode}
+							</Badge>
+						))}
+					{visibleGenres.map((genre) => (
+						<Badge
+							key={genre}
 							variant="outline"
 							className="border-border/75 bg-background/50 text-xs"
 						>
-							{NATIONALITIES.find((n) => n.key === nationality)?.flag}{" "}
-							{NATIONALITIES.find((n) => n.key === nationality)?.shortCode}
+							{MUSIC_GENRES.find((g) => g.key === genre)?.label || genre}
 						</Badge>
 					))}
-				{event.genre.slice(0, 2).map((genre) => (
-					<Badge
-						key={genre}
-						variant="outline"
-						className="border-border/75 bg-background/50 text-xs"
-					>
-						{MUSIC_GENRES.find((g) => g.key === genre)?.label || genre}
-					</Badge>
-				))}
-			</div>
+				</div>
+			)}
 			{showSocialProof && calendarSyncCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
 				<div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-200">
 					<Flame className="h-3 w-3" />

@@ -9,7 +9,7 @@ export const DEFAULT_SEARCH_EXAMPLES = [
 	"19",
 	"Free",
 	"Amapiano",
-	"Day Party",
-	"After Party",
+	"Pre-Fete",
+	"Post-Fete",
 	"Sixtion",
 ] as const;

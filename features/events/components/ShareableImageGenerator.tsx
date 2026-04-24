@@ -9,6 +9,7 @@ import {
 	formatAge,
 	formatDayWithDate,
 	formatPrice,
+	getVisibleEventTypeLabel,
 	formatVenueTypeIcons,
 } from "@/features/events/types";
 
@@ -107,6 +108,7 @@ const buildBaseMeta = (event: Event) => {
 		: 	"Outdoor",
 	);
 	const ageLabel = escapeHtml(event.age ? formatAge(event.age) : "All ages");
+	const eventTypeLabel = getVisibleEventTypeLabel(event.type);
 	const genres = (event.genre || []).slice(0, 4).map((genre) => {
 		const label = escapeHtml(MUSIC_GENRES.find((g) => g.key === genre)?.label || genre);
 		const colors = resolveGenreChipColors(genre);
@@ -130,6 +132,7 @@ const buildBaseMeta = (event: Event) => {
 		arrondissementLabel,
 		venueLabel,
 		ageLabel,
+		eventTypeLabel: eventTypeLabel ? escapeHtml(eventTypeLabel) : null,
 		genres,
 		genreOverflow,
 		nationalityBadges,
@@ -185,7 +188,7 @@ const buildPortraitTemplate = (event: Event): string => {
 					<div style="border-radius:15px;border:1px solid #DDD9D1;background:#FAF9F7;padding:14px;">
 						<p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#57534c;">Location</p>
 						<p style="margin:8px 0 0 0;font-size:34px;font-weight:500;color:#161616;line-height:1.16;">${meta.locationLabel}</p>
-						<p style="margin:7px 0 0 0;font-size:21px;color:#57534c;">Age: ${meta.ageLabel} · ${escapeHtml(event.type)}</p>
+						<p style="margin:7px 0 0 0;font-size:21px;color:#57534c;">Age: ${meta.ageLabel}${meta.eventTypeLabel ? ` · ${meta.eventTypeLabel}` : ""}</p>
 					</div>
 					${
 						meta.nationalityBadges.length > 0 ?
