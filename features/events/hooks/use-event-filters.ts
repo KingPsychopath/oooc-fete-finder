@@ -23,13 +23,13 @@ import {
 	writeStoredEventFilterState,
 } from "../filter-state-persistence";
 import {
-	DEFAULT_EVENT_FILTER_STATE,
 	type DateRangeFilter,
 	type EventFilterState,
 	filterEvents,
 	getActiveFiltersCount,
 	getAvailableArrondissements,
 	getAvailableEventDates,
+	getDefaultEventFilterState,
 	getTopEventDatesByCount,
 	hasActiveFilters,
 } from "../filtering";
@@ -60,6 +60,7 @@ export const useEventFilters = ({
 	requireAuth,
 	isFilterAccessAllowed,
 }: UseEventFiltersArgs) => {
+	const defaultFilterState = useMemo(() => getDefaultEventFilterState(events), [events]);
 	const searchTrackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
 	);
@@ -73,37 +74,37 @@ export const useEventFilters = ({
 	const pendingInitialFilterStateRef = useRef<EventFilterState | null>(null);
 	const hasHydratedInitialStateRef = useRef(false);
 	const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
-		DEFAULT_EVENT_FILTER_STATE.selectedDateRange,
+		defaultFilterState.selectedDateRange,
 	);
 	const [selectedDayNightPeriods, setSelectedDayNightPeriods] = useState<
 		DayNightPeriod[]
-	>(DEFAULT_EVENT_FILTER_STATE.selectedDayNightPeriods);
+	>(defaultFilterState.selectedDayNightPeriods);
 	const [selectedArrondissements, setSelectedArrondissements] = useState<
 		ParisArrondissement[]
-	>(DEFAULT_EVENT_FILTER_STATE.selectedArrondissements);
+	>(defaultFilterState.selectedArrondissements);
 	const [selectedGenres, setSelectedGenres] = useState<MusicGenre[]>(
-		DEFAULT_EVENT_FILTER_STATE.selectedGenres,
+		defaultFilterState.selectedGenres,
 	);
 	const [selectedNationalities, setSelectedNationalities] = useState<
 		Nationality[]
-	>(DEFAULT_EVENT_FILTER_STATE.selectedNationalities);
+	>(defaultFilterState.selectedNationalities);
 	const [selectedVenueTypes, setSelectedVenueTypes] = useState<VenueType[]>(
-		DEFAULT_EVENT_FILTER_STATE.selectedVenueTypes,
+		defaultFilterState.selectedVenueTypes,
 	);
 	const [selectedIndoorPreference, setSelectedIndoorPreference] = useState<
 		boolean | null
-	>(DEFAULT_EVENT_FILTER_STATE.selectedIndoorPreference);
+	>(defaultFilterState.selectedIndoorPreference);
 	const [selectedPriceRange, setSelectedPriceRange] = useState<
 		[number, number]
-	>(DEFAULT_EVENT_FILTER_STATE.selectedPriceRange);
+	>(defaultFilterState.selectedPriceRange);
 	const [selectedAgeRange, setSelectedAgeRange] = useState<AgeRange | null>(
-		DEFAULT_EVENT_FILTER_STATE.selectedAgeRange,
+		defaultFilterState.selectedAgeRange,
 	);
 	const [selectedOOOCPicks, setSelectedOOOCPicks] = useState(
-		DEFAULT_EVENT_FILTER_STATE.selectedOOOCPicks,
+		defaultFilterState.selectedOOOCPicks,
 	);
 	const [searchQuery, setSearchQuery] = useState(
-		DEFAULT_EVENT_FILTER_STATE.searchQuery,
+		defaultFilterState.searchQuery,
 	);
 
 	const applyStateSnapshot = useCallback((state: EventFilterState) => {
@@ -167,11 +168,22 @@ export const useEventFilters = ({
 			selectedOOOCPicks,
 			searchQuery,
 		};
-		writeStoredEventFilterState(stateSnapshot);
+		if (
+			hasActiveFilters(stateSnapshot, {
+				defaultDateRange: defaultFilterState.selectedDateRange,
+			})
+		) {
+			writeStoredEventFilterState(stateSnapshot);
+		} else {
+			writeStoredEventFilterState(null);
+		}
 		const currentParams = new URLSearchParams(window.location.search);
 		const nextParams = serializeEventFilterStateToSearchParams(
 			currentParams,
 			stateSnapshot,
+			{
+				defaultDateRange: defaultFilterState.selectedDateRange,
+			},
 		);
 		const nextQuery = nextParams.toString();
 		const currentQuery = currentParams.toString();
@@ -199,6 +211,7 @@ export const useEventFilters = ({
 		selectedOOOCPicks,
 		selectedPriceRange,
 		selectedVenueTypes,
+		defaultFilterState.selectedDateRange,
 	]);
 
 	const availableArrondissements = useMemo(
@@ -259,6 +272,8 @@ export const useEventFilters = ({
 				selectedAgeRange,
 				selectedOOOCPicks,
 				searchQuery,
+			}, {
+				defaultDateRange: defaultFilterState.selectedDateRange,
 			}),
 		[
 			selectedDateRange,
@@ -272,6 +287,7 @@ export const useEventFilters = ({
 			selectedAgeRange,
 			selectedOOOCPicks,
 			searchQuery,
+			defaultFilterState.selectedDateRange,
 		],
 	);
 
@@ -289,6 +305,8 @@ export const useEventFilters = ({
 				selectedAgeRange,
 				selectedOOOCPicks,
 				searchQuery,
+			}, {
+				defaultDateRange: defaultFilterState.selectedDateRange,
 			}),
 		[
 			selectedDateRange,
@@ -302,6 +320,7 @@ export const useEventFilters = ({
 			selectedAgeRange,
 			selectedOOOCPicks,
 			searchQuery,
+			defaultFilterState.selectedDateRange,
 		],
 	);
 
@@ -504,28 +523,16 @@ export const useEventFilters = ({
 
 	const onClearFilters = useCallback(() => {
 		if (!requireAuth()) return;
-		setSelectedDateRange({
-			from: null,
-			to: null,
-		});
-		setSelectedDayNightPeriods([]);
-		setSelectedArrondissements([]);
-		setSelectedGenres([]);
-		setSelectedNationalities([]);
-		setSelectedVenueTypes([]);
-		setSelectedIndoorPreference(null);
-		setSelectedPriceRange(PRICE_RANGE_CONFIG.defaultRange);
-		setSelectedAgeRange(null);
-		setSelectedOOOCPicks(false);
-		setSearchQuery("");
+		applyStateSnapshot(defaultFilterState);
 		trackDiscoveryAnalytics({
 			actionType: "filter_clear",
 			filterGroup: "all",
 			filterValue: "reset",
 		});
-	}, [requireAuth]);
+	}, [applyStateSnapshot, defaultFilterState, requireAuth]);
 
 	return {
+		defaultDateRange: defaultFilterState.selectedDateRange,
 		selectedDateRange,
 		selectedDayNightPeriods,
 		selectedArrondissements,

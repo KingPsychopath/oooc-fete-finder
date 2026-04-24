@@ -35,7 +35,12 @@ import {
 	formatAgeRange,
 	formatPriceRange,
 } from "@/features/events/types";
-import type { DateRangeFilter } from "@/features/events/filtering";
+import {
+	areDateRangesEqual,
+	type DateRangeFilter,
+	getActiveFiltersCount,
+	hasActiveFilters as hasActiveEventFilters,
+} from "@/features/events/filtering";
 import { LAYERS } from "@/lib/ui/layers";
 import {
 	OVERLAY_BODY_ATTRIBUTE,
@@ -60,6 +65,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 type FilterPanelProps = {
 	selectedDateRange: DateRangeFilter;
+	defaultDateRange: DateRangeFilter;
 	selectedDayNightPeriods: DayNightPeriod[];
 	selectedArrondissements: ParisArrondissement[];
 	selectedGenres: MusicGenre[];
@@ -93,6 +99,7 @@ type FilterPanelProps = {
 
 const FilterPanel: React.FC<FilterPanelProps> = ({
 	selectedDateRange,
+	defaultDateRange,
 	selectedDayNightPeriods,
 	selectedArrondissements,
 	selectedGenres,
@@ -152,23 +159,28 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	// Memoize the hasActiveFilters calculation
 	const hasActiveFilters = useMemo(
 		() =>
-			selectedDateRange.from !== null ||
-			selectedDateRange.to !== null ||
-			selectedDayNightPeriods.length > 0 ||
-			selectedArrondissements.length > 0 ||
-			selectedGenres.length > 0 ||
-			selectedNationalities.length > 0 ||
-			selectedVenueTypes.length > 0 ||
-			selectedIndoorPreference !== null ||
-			selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
-			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
-			(selectedAgeRange !== null &&
-				(selectedAgeRange[0] !== AGE_RANGE_CONFIG.min ||
-					selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)) ||
-			selectedOOOCPicks,
-			[
-				selectedDateRange,
-				selectedDayNightPeriods,
+			hasActiveEventFilters(
+				{
+					selectedDateRange,
+					selectedDayNightPeriods,
+					selectedArrondissements,
+					selectedGenres,
+					selectedNationalities,
+					selectedVenueTypes,
+					selectedIndoorPreference,
+					selectedPriceRange,
+					selectedAgeRange,
+					selectedOOOCPicks,
+					searchQuery: "",
+				},
+				{
+					defaultDateRange,
+				},
+			),
+		[
+			defaultDateRange,
+			selectedDateRange,
+			selectedDayNightPeriods,
 			selectedArrondissements,
 			selectedGenres,
 			selectedNationalities,
@@ -181,38 +193,40 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	);
 
 	// Memoize the active filter count
-	const activeFilterCount = useMemo(() => {
-		return (
-			(selectedDateRange.from !== null || selectedDateRange.to !== null ? 1 : 0) +
-				selectedDayNightPeriods.length +
-			selectedArrondissements.length +
-			selectedGenres.length +
-			selectedNationalities.length +
-			selectedVenueTypes.length +
-			(selectedIndoorPreference !== null ? 1 : 0) +
-			(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
-			selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max
-				? 1
-				: 0) +
-			(selectedAgeRange !== null &&
-			(selectedAgeRange[0] !== AGE_RANGE_CONFIG.min ||
-				selectedAgeRange[1] !== AGE_RANGE_CONFIG.max)
-				? 1
-				: 0) +
-			(selectedOOOCPicks ? 1 : 0)
-		);
-	}, [
-		selectedDateRange,
-		selectedDayNightPeriods,
-		selectedArrondissements,
-		selectedGenres,
-		selectedNationalities,
-		selectedVenueTypes,
-		selectedIndoorPreference,
-		selectedPriceRange,
-		selectedAgeRange,
-		selectedOOOCPicks,
-	]);
+	const activeFilterCount = useMemo(
+		() =>
+			getActiveFiltersCount(
+				{
+					selectedDateRange,
+					selectedDayNightPeriods,
+					selectedArrondissements,
+					selectedGenres,
+					selectedNationalities,
+					selectedVenueTypes,
+					selectedIndoorPreference,
+					selectedPriceRange,
+					selectedAgeRange,
+					selectedOOOCPicks,
+					searchQuery: "",
+				},
+				{
+					defaultDateRange,
+				},
+			),
+		[
+			defaultDateRange,
+			selectedDateRange,
+			selectedDayNightPeriods,
+			selectedArrondissements,
+			selectedGenres,
+			selectedNationalities,
+			selectedVenueTypes,
+			selectedIndoorPreference,
+			selectedPriceRange,
+			selectedAgeRange,
+			selectedOOOCPicks,
+		],
+	);
 
 	// Decision logic for UI variations
 	const uiDecisions = useMemo(() => {
@@ -257,8 +271,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		[formatDateLabel],
 	);
 
-	const hasSelectedDateRange =
-		selectedDateRange.from !== null || selectedDateRange.to !== null;
+	const hasSelectedDateRange = !areDateRangesEqual(
+		selectedDateRange,
+		defaultDateRange,
+	);
+	const isUsingDefaultDateRange =
+		!hasSelectedDateRange &&
+		(defaultDateRange.from !== null || defaultDateRange.to !== null);
 
 	const getDayNightLabel = useCallback((period: DayNightPeriod) => {
 		return (
@@ -287,6 +306,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			<Trees className="h-3.5 w-3.5" />
 		);
 	}, []);
+
+	const DefaultDateRangeHint = () => {
+		if (!isUsingDefaultDateRange) return null;
+
+		return (
+			<div className="rounded-lg border border-border/70 bg-muted/35 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+				Showing this year&apos;s events by default. Older showcase events are
+				still available if you widen the date range.
+			</div>
+		);
+	};
 
 	// Active Filters Component (reusable)
 	const ActiveFiltersDisplay = () => (
@@ -609,9 +639,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											)}
 										</AccordionTrigger>
 										<AccordionContent>
-											<div className="space-y-3">
-												{/* Day/Night Periods */}
-												<div className={sectionClassName}>
+										<div className="space-y-3">
+											<DefaultDateRangeHint />
+											{/* Day/Night Periods */}
+											<div className={sectionClassName}>
 													<div className="flex items-center justify-between mb-1">
 														<h4 className={sectionTitleClassName}>
 															Filter by Time
@@ -1037,6 +1068,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<AccordionContent>
 											{/* Compact Days Section for Accordion */}
 											<div className="space-y-3">
+												<DefaultDateRangeHint />
 												{/* Day/Night Periods */}
 												<div className="p-1.5 bg-muted/20 rounded-md border overflow-hidden">
 													<div className="flex items-center justify-between mb-1">
@@ -1121,6 +1153,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</div>
 
 									<div className="space-y-2">
+										<DefaultDateRangeHint />
 										{/* Day/Night Periods */}
 										<div className={sectionClassName}>
 											<div className="flex items-center justify-between mb-2">

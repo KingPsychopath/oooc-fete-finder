@@ -50,6 +50,39 @@ export const DEFAULT_EVENT_FILTER_STATE: EventFilterState = {
 	searchQuery: "",
 };
 
+const PARIS_YEAR_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+	timeZone: "Europe/Paris",
+	year: "numeric",
+});
+
+export const areDateRangesEqual = (
+	left: DateRangeFilter,
+	right: DateRangeFilter,
+): boolean => left.from === right.from && left.to === right.to;
+
+export const getDefaultDateRangeForEvents = (
+	events: Event[],
+	referenceDate = new Date(),
+): DateRangeFilter => {
+	const currentYear = PARIS_YEAR_FORMATTER.format(referenceDate);
+	const from = `${currentYear}-01-01`;
+	const to = `${currentYear}-12-31`;
+	const hasCurrentYearEvents = events.some((event) => {
+		if (!isStrictISODate(event.date)) return false;
+		return event.date >= from && event.date <= to;
+	});
+
+	return hasCurrentYearEvents ? { from, to } : DEFAULT_EVENT_FILTER_STATE.selectedDateRange;
+};
+
+export const getDefaultEventFilterState = (
+	events: Event[],
+	referenceDate = new Date(),
+): EventFilterState => ({
+	...DEFAULT_EVENT_FILTER_STATE,
+	selectedDateRange: getDefaultDateRangeForEvents(events, referenceDate),
+});
+
 const matchesSearchQuery = (event: Event, rawQuery: string): boolean => {
 	const query = rawQuery.toLowerCase();
 
@@ -236,9 +269,21 @@ const hasSelectedDateRange = (range: DateRangeFilter): boolean => {
 	return range.from !== null || range.to !== null;
 };
 
-export const hasActiveFilters = (filters: EventFilterState): boolean => {
+const hasCustomSelectedDateRange = (
+	range: DateRangeFilter,
+	defaultDateRange: DateRangeFilter,
+): boolean => hasSelectedDateRange(range) && !areDateRangesEqual(range, defaultDateRange);
+
+export const hasActiveFilters = (
+	filters: EventFilterState,
+	options?: {
+		defaultDateRange?: DateRangeFilter;
+	},
+): boolean => {
+	const defaultDateRange =
+		options?.defaultDateRange ?? DEFAULT_EVENT_FILTER_STATE.selectedDateRange;
 	return (
-		hasSelectedDateRange(filters.selectedDateRange) ||
+		hasCustomSelectedDateRange(filters.selectedDateRange, defaultDateRange) ||
 		filters.selectedDayNightPeriods.length > 0 ||
 		filters.selectedArrondissements.length > 0 ||
 		filters.selectedGenres.length > 0 ||
@@ -252,9 +297,18 @@ export const hasActiveFilters = (filters: EventFilterState): boolean => {
 	);
 };
 
-export const getActiveFiltersCount = (filters: EventFilterState): number => {
+export const getActiveFiltersCount = (
+	filters: EventFilterState,
+	options?: {
+		defaultDateRange?: DateRangeFilter;
+	},
+): number => {
+	const defaultDateRange =
+		options?.defaultDateRange ?? DEFAULT_EVENT_FILTER_STATE.selectedDateRange;
 	return (
-		(hasSelectedDateRange(filters.selectedDateRange) ? 1 : 0) +
+		(hasCustomSelectedDateRange(filters.selectedDateRange, defaultDateRange)
+			? 1
+			: 0) +
 		filters.selectedDayNightPeriods.length +
 		filters.selectedArrondissements.length +
 		filters.selectedGenres.length +

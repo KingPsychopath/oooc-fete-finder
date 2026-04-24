@@ -150,6 +150,9 @@ export const parseEventFilterStateFromSearchParams = (
 export const serializeEventFilterStateToSearchParams = (
 	params: URLSearchParams,
 	state: EventFilterState,
+	options?: {
+		defaultDateRange?: EventFilterState["selectedDateRange"];
+	},
 ): URLSearchParams => {
 	const next = new URLSearchParams(params.toString());
 	for (const key of FILTER_PARAM_KEYS) {
@@ -159,9 +162,16 @@ export const serializeEventFilterStateToSearchParams = (
 	const query = state.searchQuery.trim();
 	if (query.length > 0) next.set("q", query);
 
-	if (state.selectedDateRange.from)
+	const defaultDateRange =
+		options?.defaultDateRange ?? DEFAULT_EVENT_FILTER_STATE.selectedDateRange;
+	const hasCustomDateRange =
+		state.selectedDateRange.from !== defaultDateRange.from ||
+		state.selectedDateRange.to !== defaultDateRange.to;
+
+	if (hasCustomDateRange && state.selectedDateRange.from)
 		next.set("df", state.selectedDateRange.from);
-	if (state.selectedDateRange.to) next.set("dt", state.selectedDateRange.to);
+	if (hasCustomDateRange && state.selectedDateRange.to)
+		next.set("dt", state.selectedDateRange.to);
 
 	if (state.selectedDayNightPeriods.length > 0) {
 		next.set("dn", state.selectedDayNightPeriods.join(","));
@@ -207,9 +217,15 @@ export const serializeEventFilterStateToSearchParams = (
 	return next;
 };
 
-export const writeStoredEventFilterState = (state: EventFilterState): void => {
+export const writeStoredEventFilterState = (
+	state: EventFilterState | null,
+): void => {
 	if (typeof window === "undefined") return;
 	try {
+		if (state == null) {
+			window.localStorage.removeItem(EVENT_FILTER_STORAGE_KEY);
+			return;
+		}
 		const serialized = JSON.stringify(state);
 		window.localStorage.setItem(EVENT_FILTER_STORAGE_KEY, serialized);
 	} catch {

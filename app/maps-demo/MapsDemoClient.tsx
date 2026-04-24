@@ -21,7 +21,11 @@ import {
 	isEventInDayNightPeriod,
 	isPriceInRange,
 } from "@/features/events/types";
-import type { DateRangeFilter } from "@/features/events/filtering";
+import {
+	areDateRangesEqual,
+	getDefaultDateRangeForEvents,
+	type DateRangeFilter,
+} from "@/features/events/filtering";
 import React, { useState, useMemo, useCallback } from "react";
 
 type MapsDemoClientProps = {
@@ -33,16 +37,18 @@ export function MapsDemoClient({
 	initialEvents,
 	initialError,
 }: MapsDemoClientProps) {
+	const defaultDateRange = useMemo(
+		() => getDefaultDateRangeForEvents(initialEvents),
+		[initialEvents],
+	);
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 	const [hoveredArrondissement, setHoveredArrondissement] = useState<
 		number | null
 	>(null);
 
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
-	const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>({
-		from: null,
-		to: null,
-	});
+	const [selectedDateRange, setSelectedDateRange] =
+		useState<DateRangeFilter>(defaultDateRange);
 	const [selectedDayNightPeriods, setSelectedDayNightPeriods] = useState<
 		DayNightPeriod[]
 	>([]);
@@ -246,10 +252,7 @@ export function MapsDemoClient({
 		}
 	}, []);
 	const handleClearFilters = useCallback(() => {
-		setSelectedDateRange({
-			from: null,
-			to: null,
-		});
+		setSelectedDateRange(defaultDateRange);
 		setSelectedDayNightPeriods([]);
 		setSelectedArrondissements([]);
 		setSelectedGenres([]);
@@ -259,7 +262,7 @@ export function MapsDemoClient({
 		setSelectedPriceRange(PRICE_RANGE_CONFIG.defaultRange);
 		setSelectedAgeRange(null);
 		setSelectedOOOCPicks(false);
-	}, []);
+	}, [defaultDateRange]);
 
 	const handleEventClick = useCallback((event: Event) => {
 		setSelectedEvent(event);
@@ -304,8 +307,7 @@ export function MapsDemoClient({
 
 	const hasActiveFilters = useMemo(() => {
 		return (
-			selectedDateRange.from !== null ||
-			selectedDateRange.to !== null ||
+			!areDateRangesEqual(selectedDateRange, defaultDateRange) ||
 			selectedDayNightPeriods.length > 0 ||
 			selectedArrondissements.length > 0 ||
 			selectedGenres.length > 0 ||
@@ -320,6 +322,7 @@ export function MapsDemoClient({
 			selectedOOOCPicks
 		);
 	}, [
+		defaultDateRange,
 		selectedDateRange,
 		selectedDayNightPeriods,
 		selectedArrondissements,
@@ -375,6 +378,7 @@ export function MapsDemoClient({
 					<div className="mb-8">
 						<FilterPanel
 							selectedDateRange={selectedDateRange}
+							defaultDateRange={defaultDateRange}
 							selectedDayNightPeriods={selectedDayNightPeriods}
 						selectedArrondissements={selectedArrondissements}
 						selectedGenres={selectedGenres}

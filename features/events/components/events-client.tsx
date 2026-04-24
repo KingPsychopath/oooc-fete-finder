@@ -75,6 +75,7 @@ export function EventsClient({
 	}, [isAuthenticated]);
 
 	const {
+		defaultDateRange,
 		selectedDateRange,
 		selectedDayNightPeriods,
 		selectedArrondissements,
@@ -417,6 +418,7 @@ export function EventsClient({
 				>
 					<FilterPanel
 						selectedDateRange={selectedDateRange}
+						defaultDateRange={defaultDateRange}
 						selectedDayNightPeriods={selectedDayNightPeriods}
 						selectedArrondissements={selectedArrondissements}
 						selectedGenres={selectedGenres}
