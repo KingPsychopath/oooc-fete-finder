@@ -11,9 +11,9 @@ type Setup = {
 	fetchLocalCSV: ReturnType<typeof vi.fn>;
 };
 
-const loadDataManager = async (mode: "remote" | "local" | "test" = "remote"): Promise<
-	Setup
-> => {
+const loadDataManager = async (
+	mode: "remote" | "local" | "test" = "remote",
+): Promise<Setup> => {
 	vi.resetModules();
 
 	const localEventStore = {
@@ -37,9 +37,6 @@ const loadDataManager = async (mode: "remote" | "local" | "test" = "remote"): Pr
 		env: {
 			DATA_MODE: mode,
 			DATABASE_URL: "postgres://test",
-			GOOGLE_SERVICE_ACCOUNT_KEY: "",
-			REMOTE_CSV_URL: "",
-			GOOGLE_SHEET_ID: "",
 		},
 	}));
 
@@ -56,7 +53,9 @@ const loadDataManager = async (mode: "remote" | "local" | "test" = "remote"): Pr
 		fetchLocalCSV,
 	}));
 
-	const { DataManager } = await import("@/features/data-management/data-manager");
+	const { DataManager } = await import(
+		"@/features/data-management/data-manager"
+	);
 
 	return {
 		DataManager,

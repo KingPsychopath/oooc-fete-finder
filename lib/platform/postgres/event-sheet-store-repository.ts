@@ -8,11 +8,7 @@ import {
 	type NormalizedRowDataRecord,
 } from "./row-data-normalizer";
 
-export type EventStoreOrigin =
-	| "manual"
-	| "google-import"
-	| "google-sync"
-	| "local-file-import";
+export type EventStoreOrigin = "manual" | "local-file-import";
 
 export interface EventSheetColumnRecord {
 	key: string;
@@ -96,7 +92,6 @@ export class EventSheetStoreRepository {
 				checksum TEXT NOT NULL DEFAULT ''
 			)
 		`;
-
 	}
 
 	private async ready(): Promise<void> {
@@ -318,14 +313,15 @@ export class EventSheetStoreRepository {
 	}
 }
 
-export const getEventSheetStoreRepository = (): EventSheetStoreRepository | null => {
-	const sql = getPostgresClient();
-	if (!sql) return null;
+export const getEventSheetStoreRepository =
+	(): EventSheetStoreRepository | null => {
+		const sql = getPostgresClient();
+		if (!sql) return null;
 
-	if (!globalThis.__ooocFeteFinderEventSheetStoreRepository) {
-		globalThis.__ooocFeteFinderEventSheetStoreRepository =
-			new EventSheetStoreRepository(sql);
-	}
+		if (!globalThis.__ooocFeteFinderEventSheetStoreRepository) {
+			globalThis.__ooocFeteFinderEventSheetStoreRepository =
+				new EventSheetStoreRepository(sql);
+		}
 
-	return globalThis.__ooocFeteFinderEventSheetStoreRepository;
-};
+		return globalThis.__ooocFeteFinderEventSheetStoreRepository;
+	};

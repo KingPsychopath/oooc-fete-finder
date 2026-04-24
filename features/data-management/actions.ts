@@ -19,7 +19,6 @@ import { getAdminSessionRepository } from "@/lib/platform/postgres/admin-session
 import { getEventStoreBackupRepository } from "@/lib/platform/postgres/event-store-backup-repository";
 import { getRateLimitRepository } from "@/lib/platform/postgres/rate-limit-repository";
 import { revalidatePath } from "next/cache";
-import { fetchRemoteCSV } from "./csv/fetcher";
 import { parseCSVContent } from "./csv/parser";
 import {
 	type EditableSheetColumn,
@@ -54,7 +53,7 @@ import {
  * Data Management Server Actions
  *
  * Server actions specifically related to data management, CSV processing,
- * and Google Sheets operations. Colocated with data management modules.
+ * and store operations. Colocated with data management modules.
  */
 
 // Helper function to validate admin access (key or session token)
@@ -69,23 +68,6 @@ const validateFactoryResetPasscode = (providedPasscode: string): boolean => {
 		return false;
 	}
 	return secureCompare(candidate, expectedPasscode);
-};
-
-const resolveRemoteSheetConfig = async (): Promise<{
-	remoteUrl: string | null;
-	sheetId: string | null;
-	range: string;
-}> => {
-	const remoteUrl = env.REMOTE_CSV_URL || null;
-	let sheetId = env.GOOGLE_SHEET_ID || null;
-	const range = "A:Z";
-
-	if (!sheetId && remoteUrl) {
-		const { GoogleCloudAPI } = await import("@/lib/google/api");
-		sheetId = GoogleCloudAPI.extractSheetId(remoteUrl);
-	}
-
-	return { remoteUrl, sheetId, range };
 };
 
 const COORDINATE_WARMUP_RECOVERABLE_ERROR_FRAGMENT =
@@ -746,137 +728,6 @@ export async function factoryResetApplicationState(
 			success: false,
 			message: "Factory reset failed",
 			error: error instanceof Error ? error.message : "Unknown reset error",
-		};
-	}
-}
-
-/**
- * Preview Google backup CSV without writing to Postgres store
- */
-export async function previewRemoteCsvForAdmin(
-	keyOrToken?: string,
-	limit = 5,
-	options?: {
-		random?: boolean;
-	},
-): Promise<{
-	success: boolean;
-	columns?: EditableSheetColumn[];
-	rows?: EditableSheetRow[];
-	totalRows?: number;
-	fetchedAt?: string;
-	canImport?: boolean;
-	importBlockedReason?: string;
-	schemaIssues?: CsvSchemaIssue[];
-	schemaBlockingCount?: number;
-	schemaWarningCount?: number;
-	error?: string;
-}> {
-	if (!(await validateAdminAccess(keyOrToken))) {
-		return { success: false, error: "Unauthorized access" };
-	}
-
-	try {
-		const { remoteUrl, sheetId, range } = await resolveRemoteSheetConfig();
-		const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range, {
-			allowLocalFallback: false,
-		});
-		const sheet = csvToEditableSheet(remoteFetchResult.content);
-		const normalizedLimit = Math.max(1, Math.min(limit, 50));
-		const allRows = sheet.rows;
-		const schemaReport = analyzeCsvSchemaRows(allRows, {
-			eventKeyMode: "warn",
-		});
-		const importBlockedReason =
-			buildSchemaBlockingMessage(schemaReport.issues) || undefined;
-		let previewRows = allRows.slice(0, normalizedLimit);
-
-		if (options?.random && allRows.length > normalizedLimit) {
-			const maxStart = Math.max(0, allRows.length - normalizedLimit);
-			const start = Math.floor(Math.random() * (maxStart + 1));
-			previewRows = allRows.slice(start, start + normalizedLimit);
-		}
-
-		return {
-			success: true,
-			columns: sheet.columns,
-			rows: previewRows,
-			totalRows: sheet.rows.length,
-			fetchedAt: new Date(remoteFetchResult.timestamp).toISOString(),
-			canImport: !importBlockedReason,
-			importBlockedReason,
-			schemaIssues: schemaReport.issues.slice(0, 50),
-			schemaBlockingCount: schemaReport.blockingCount,
-			schemaWarningCount: schemaReport.warningCount,
-		};
-	} catch (error) {
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : "Unknown error",
-		};
-	}
-}
-
-/**
- * Import CSV from remote Google source into local event store
- */
-export async function importRemoteCsvToLocalEventStore(
-	keyOrToken?: string,
-): Promise<{
-	success: boolean;
-	message: string;
-	rowCount?: number;
-	error?: string;
-}> {
-	if (!(await validateAdminAccess(keyOrToken))) {
-		return { success: false, message: "Unauthorized access" };
-	}
-
-	try {
-		const { remoteUrl, sheetId, range } = await resolveRemoteSheetConfig();
-		const remoteFetchResult = await fetchRemoteCSV(remoteUrl, sheetId, range, {
-			allowLocalFallback: false,
-		});
-		const sheet = csvToEditableSheet(remoteFetchResult.content);
-		const schemaReport = analyzeCsvSchemaRows(sheet.rows, {
-			eventKeyMode: "warn",
-		});
-		const importBlockedReason = buildSchemaBlockingMessage(schemaReport.issues);
-		if (importBlockedReason) {
-			return {
-				success: false,
-				message: "Import blocked by schema validation",
-				error: importBlockedReason,
-			};
-		}
-		const runtimeValidationError = getCsvRuntimeValidationError(
-			remoteFetchResult.content,
-		);
-		if (runtimeValidationError) {
-			return {
-				success: false,
-				message: "CSV structure validation failed",
-				error: runtimeValidationError,
-			};
-		}
-		const normalizedCsv = normalizeCsvForStorage(remoteFetchResult.content);
-		const saved = await LocalEventStore.saveCsv(normalizedCsv, {
-			updatedBy: "admin-google-import",
-			origin: "google-import",
-		});
-		await warmCoordinateCacheFromCsv(normalizedCsv, "import-remote");
-		await forceRefreshEventsData();
-
-		return {
-			success: true,
-			message: `Imported ${saved.rowCount} rows from remote source into managed store`,
-			rowCount: saved.rowCount,
-		};
-	} catch (error) {
-		return {
-			success: false,
-			message: "Failed to import remote CSV into managed store",
-			error: error instanceof Error ? error.message : "Unknown error",
 		};
 	}
 }

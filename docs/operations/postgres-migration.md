@@ -6,7 +6,6 @@ Use this for first-time setup, cutover, or restore.
 
 - Primary runtime source: managed Postgres event store
 - Fallback source: local CSV (`data/events.csv`) in remote mode if store read fails
-- Google Sheets: admin backup preview/import only
 
 ## Required Env
 
@@ -15,17 +14,11 @@ Use this for first-time setup, cutover, or restore.
 - `DATA_MODE=remote`
 - `ADMIN_KEY` (if admin auth is enabled)
 
-Optional:
-
-- `GOOGLE_SHEET_ID`
-- `GOOGLE_SERVICE_ACCOUNT_KEY`
-- `REMOTE_CSV_URL`
-
 ## Cutover Steps
 
 1. Create/connect Postgres and set `DATABASE_URL`
 2. Open `/admin`
-3. Load data with `Upload CSV to Postgres` or `Import Google Backup`
+3. Load data with `Upload CSV to Store`
 4. Run `Backup Now`
 5. Review and save in `Event Sheet Editor`
 6. `Save and Revalidate Homepage`

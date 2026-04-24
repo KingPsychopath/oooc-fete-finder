@@ -27,7 +27,6 @@ const loadRoute = async (): Promise<Setup> => {
 	const getDataConfigStatus = vi.fn().mockResolvedValue({
 		dataSource: "remote",
 		remoteConfigured: true,
-		hasServiceAccount: true,
 		hasLocalStoreData: true,
 		storeProvider: "postgres",
 		storeProviderLocation: "postgres://example",
@@ -89,7 +88,10 @@ describe("/api/admin/data-store/status route", () => {
 		const response = await GET(
 			new NextRequest("https://example.com/api/admin/data-store/status"),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(401);
 		expect(payload).toEqual({ success: false, error: "Unauthorized" });
@@ -135,7 +137,10 @@ describe("/api/admin/data-store/status route", () => {
 		const response = await GET(
 			new NextRequest("https://example.com/api/admin/data-store/status"),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(500);
 		expect(payload.success).toBe(false);

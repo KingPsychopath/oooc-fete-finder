@@ -57,7 +57,10 @@ const isSourceAttemptSuccess = (
 	result: SourceAttemptResult,
 ): result is SourceAttemptSuccess => result.success;
 
-const toFailure = (reason: string, warnings: string[] = []): SourceAttemptFailure => ({
+const toFailure = (
+	reason: string,
+	warnings: string[] = [],
+): SourceAttemptFailure => ({
 	success: false,
 	reason,
 	warnings,
@@ -198,7 +201,9 @@ const runTestMode = async (): Promise<DataManagerResult> => {
 };
 
 export class DataManager {
-	static async getEventsData(options?: DataReadOptions): Promise<DataManagerResult> {
+	static async getEventsData(
+		options?: DataReadOptions,
+	): Promise<DataManagerResult> {
 		const configuredMode = env.DATA_MODE as ConfiguredDataMode;
 
 		if (configuredMode === "test") {
@@ -212,7 +217,11 @@ export class DataManager {
 		// Remote mode pipeline:
 		// 1) managed store
 		// 2) local CSV stale-safe fallback
-		const result = await runSourceChain([loadFromStore, loadFromLocal], [], options);
+		const result = await runSourceChain(
+			[loadFromStore, loadFromLocal],
+			[],
+			options,
+		);
 		if (result.success && result.source === "local") {
 			return {
 				...result,
@@ -229,7 +238,6 @@ export class DataManager {
 	static async getDataConfigStatus(): Promise<{
 		dataSource: ConfiguredDataMode;
 		remoteConfigured: boolean;
-		hasServiceAccount: boolean;
 		hasLocalStoreData: boolean;
 		storeProvider: "file" | "memory" | "postgres";
 		storeProviderLocation: string;
@@ -237,15 +245,15 @@ export class DataManager {
 		storeUpdatedAt: string | null;
 		storeKeyCount: number;
 	}> {
-		const hasServiceAccount = Boolean(env.GOOGLE_SERVICE_ACCOUNT_KEY);
 		const storeStatus = await LocalEventStore.getStatus();
 
-		const remoteConfigured = Boolean(env.DATABASE_URL || storeStatus.hasStoreData);
+		const remoteConfigured = Boolean(
+			env.DATABASE_URL || storeStatus.hasStoreData,
+		);
 
 		return {
 			dataSource: env.DATA_MODE as ConfiguredDataMode,
 			remoteConfigured,
-			hasServiceAccount,
 			hasLocalStoreData: storeStatus.hasStoreData,
 			storeProvider: storeStatus.provider,
 			storeProviderLocation: storeStatus.providerLocation,

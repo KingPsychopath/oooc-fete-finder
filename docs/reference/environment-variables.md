@@ -14,9 +14,6 @@ Validation schema: `lib/config/env.ts`
 | `DATABASE_URL` | No | - | Postgres connection string |
 | `POSTGRES_POOL_MAX` | No | - | Optional pool tuning |
 | `DATA_MODE` | Prod on Vercel: Yes | `remote` | `remote`, `local`, or `test` |
-| `REMOTE_CSV_URL` | No | - | Optional backup CSV source for admin import/preview |
-| `GOOGLE_SHEET_ID` | No | - | Optional Google Sheet backup source |
-| `GOOGLE_SERVICE_ACCOUNT_KEY` | No | - | Required for service-account sheet access |
 | `GOOGLE_MAPS_API_KEY` | No | - | Enables address geocoding |
 | `CRON_SECRET` | No | - | Protects cron endpoints |
 | `DEPLOY_REVALIDATE_SECRET` | No | - | Protects deploy revalidation endpoint |

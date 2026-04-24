@@ -12,7 +12,7 @@ type Setup = {
 };
 
 const makeEvent = (id: string) =>
-	({ id: `evt_${id}` } as unknown as import("@/features/events/types").Event);
+	({ id: `evt_${id}` }) as unknown as import("@/features/events/types").Event;
 
 const loadRuntimeService = async (): Promise<Setup> => {
 	vi.resetModules();
@@ -76,7 +76,8 @@ describe("runtime-service", () => {
 	});
 
 	it("reads directly from DataManager on each getLiveEvents call", async () => {
-		const { getLiveEvents, dataManagerGetEventsData } = await loadRuntimeService();
+		const { getLiveEvents, dataManagerGetEventsData } =
+			await loadRuntimeService();
 		dataManagerGetEventsData
 			.mockResolvedValueOnce({
 				success: true,
@@ -102,8 +103,11 @@ describe("runtime-service", () => {
 	});
 
 	it("applies featured projection overlay to runtime events", async () => {
-		const { getLiveEvents, dataManagerGetEventsData, applyFeaturedProjectionToEvents } =
-			await loadRuntimeService();
+		const {
+			getLiveEvents,
+			dataManagerGetEventsData,
+			applyFeaturedProjectionToEvents,
+		} = await loadRuntimeService();
 		dataManagerGetEventsData.mockResolvedValue({
 			success: true,
 			data: [makeEvent("1")],
@@ -119,7 +123,8 @@ describe("runtime-service", () => {
 	});
 
 	it("returns failed events result when source read fails", async () => {
-		const { getLiveEvents, dataManagerGetEventsData } = await loadRuntimeService();
+		const { getLiveEvents, dataManagerGetEventsData } =
+			await loadRuntimeService();
 		dataManagerGetEventsData.mockRejectedValue(new Error("store unavailable"));
 
 		const result = await getLiveEvents();
@@ -137,7 +142,6 @@ describe("runtime-service", () => {
 		dataManagerGetDataConfigStatus.mockResolvedValue({
 			dataSource: "remote",
 			remoteConfigured: true,
-			hasServiceAccount: false,
 			hasLocalStoreData: true,
 			storeProvider: "postgres",
 			storeProviderLocation: "db",

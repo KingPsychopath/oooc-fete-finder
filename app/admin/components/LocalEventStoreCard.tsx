@@ -16,14 +16,16 @@ import {
 	getLocalEventStoreCsv,
 	getLocalEventStorePreview,
 	getLocalEventStoreStatus,
-	importRemoteCsvToLocalEventStore,
-	previewRemoteCsvForAdmin,
 	restoreLatestEventStoreBackup,
 	saveLocalEventStoreCsv,
 } from "@/features/data-management/actions";
-import type { CsvSchemaIssue } from "@/features/data-management/validation/csv-schema-report";
-import type { EditableSheetColumn, EditableSheetRow } from "@/features/data-management/csv/sheet-editor";
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import {
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	type ChangeEvent,
+} from "react";
 import type { RuntimeDataStatus } from "../types";
 
 type LocalEventStoreCardProps = {
@@ -49,18 +51,6 @@ type RecentBackupState = NonNullable<
 	Awaited<ReturnType<typeof getEventStoreRecentBackups>>["backups"]
 >[number];
 
-type RemotePreviewState = {
-	columns: EditableSheetColumn[];
-	rows: EditableSheetRow[];
-	totalRows: number;
-	fetchedAt: string;
-	canImport: boolean;
-	importBlockedReason?: string;
-	schemaIssues: CsvSchemaIssue[];
-	schemaBlockingCount: number;
-	schemaWarningCount: number;
-};
-
 const EMPTY_BACKUP_STATUS: BackupStatusState = {
 	backupCount: 0,
 	latestBackup: null,
@@ -75,28 +65,31 @@ export const LocalEventStoreCard = ({
 	initialRecentBackups,
 	onStoreUpdated,
 }: LocalEventStoreCardProps) => {
-	const initialRecentBackupsList =
-		initialRecentBackups?.success ? (initialRecentBackups.backups ?? []) : [];
+	const initialRecentBackupsList = initialRecentBackups?.success
+		? (initialRecentBackups.backups ?? [])
+		: [];
 	const [status, setStatus] = useState<StatusState | undefined>(() =>
 		initialStatus?.success ? initialStatus.status : undefined,
 	);
 	const [headers, setHeaders] = useState<readonly string[]>(() =>
-		initialPreview?.success ? initialPreview.headers ?? [] : [],
+		initialPreview?.success ? (initialPreview.headers ?? []) : [],
 	);
 	const [rows, setRows] = useState<PreviewRows>(() =>
-		initialPreview?.success ? initialPreview.rows ?? [] : [],
+		initialPreview?.success ? (initialPreview.rows ?? []) : [],
 	);
 	const [sampleHistory, setSampleHistory] = useState<PreviewRows[]>(() =>
 		initialPreview?.success && initialPreview.rows ? [initialPreview.rows] : [],
 	);
 	const [sampleIndex, setSampleIndex] = useState(0);
 	const [backupStatus, setBackupStatus] = useState<BackupStatusState>(() =>
-		initialBackupStatus?.success ?
-			(initialBackupStatus.status ?? EMPTY_BACKUP_STATUS)
-		:	EMPTY_BACKUP_STATUS,
+		initialBackupStatus?.success
+			? (initialBackupStatus.status ?? EMPTY_BACKUP_STATUS)
+			: EMPTY_BACKUP_STATUS,
 	);
 	const [backupSupported, setBackupSupported] = useState(
-		initialBackupStatus?.success ? initialBackupStatus.supported !== false : true,
+		initialBackupStatus?.success
+			? initialBackupStatus.supported !== false
+			: true,
 	);
 	const [backupReason, setBackupReason] = useState(
 		initialBackupStatus?.success ? (initialBackupStatus.reason ?? "") : "",
@@ -108,13 +101,6 @@ export const LocalEventStoreCard = ({
 		initialRecentBackupsList[0]?.id ?? "",
 	);
 	const [showSnapshotPicker, setShowSnapshotPicker] = useState(false);
-	const [remotePreview, setRemotePreview] = useState<RemotePreviewState | null>(
-		null,
-	);
-	const [remotePreviewHistory, setRemotePreviewHistory] = useState<
-		RemotePreviewState[]
-	>([]);
-	const [remotePreviewIndex, setRemotePreviewIndex] = useState(0);
 	const [isLoading, setIsLoading] = useState(false);
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState("");
@@ -193,9 +179,9 @@ export const LocalEventStoreCard = ({
 
 		Promise.all(pendingLoads).catch((loadError) => {
 			setError(
-				loadError instanceof Error ?
-					loadError.message
-				:	"Failed to load store status",
+				loadError instanceof Error
+					? loadError.message
+					: "Failed to load store status",
 			);
 		});
 	}, [
@@ -223,7 +209,9 @@ export const LocalEventStoreCard = ({
 			}
 		} catch (taskError) {
 			setError(
-				taskError instanceof Error ? taskError.message : "Unknown error occurred",
+				taskError instanceof Error
+					? taskError.message
+					: "Unknown error occurred",
 			);
 		} finally {
 			setIsLoading(false);
@@ -252,7 +240,9 @@ export const LocalEventStoreCard = ({
 				throw new Error(result.error || result.message);
 			}
 
-			setMessage(`Uploaded ${file.name} to store (${result.rowCount ?? 0} rows)`);
+			setMessage(
+				`Uploaded ${file.name} to store (${result.rowCount ?? 0} rows)`,
+			);
 			await loadStatusAndPreview();
 		});
 	};
@@ -271,7 +261,9 @@ export const LocalEventStoreCard = ({
 					latestBackup: createdBackup,
 				}));
 				setRecentBackups((current) => {
-					const deduped = current.filter((backup) => backup.id !== createdBackup.id);
+					const deduped = current.filter(
+						(backup) => backup.id !== createdBackup.id,
+					);
 					return [createdBackup, ...deduped].slice(0, 30);
 				});
 				setSelectedBackupId((current) => current || createdBackup.id);
@@ -296,7 +288,10 @@ export const LocalEventStoreCard = ({
 		if (!confirmed) return;
 
 		await withTask(async () => {
-			const result = await restoreLatestEventStoreBackup(undefined, latestBackup.id);
+			const result = await restoreLatestEventStoreBackup(
+				undefined,
+				latestBackup.id,
+			);
 			if (!result.success) {
 				throw new Error(result.error || result.message);
 			}
@@ -334,80 +329,6 @@ export const LocalEventStoreCard = ({
 		});
 	};
 
-	const handleImportGoogle = async () => {
-		await withTask(async () => {
-			const result = await importRemoteCsvToLocalEventStore();
-			if (!result.success) {
-				throw new Error(result.error || result.message);
-			}
-
-			setMessage(result.message);
-			await loadStatusAndPreview();
-		});
-	};
-
-	const handlePreviewGoogle = async () => {
-		await withTask(async () => {
-			const result = await previewRemoteCsvForAdmin(undefined, 5);
-			if (!result.success || !result.columns || !result.rows) {
-				throw new Error(result.error || "Failed to preview Google backup source");
-			}
-
-			const nextPreview = {
-				columns: result.columns,
-				rows: result.rows,
-				totalRows: result.totalRows || result.rows.length,
-				fetchedAt: result.fetchedAt || new Date().toISOString(),
-				canImport: result.canImport ?? true,
-				importBlockedReason: result.importBlockedReason,
-				schemaIssues: result.schemaIssues ?? [],
-				schemaBlockingCount: result.schemaBlockingCount ?? 0,
-				schemaWarningCount: result.schemaWarningCount ?? 0,
-			};
-			setRemotePreview(nextPreview);
-			setRemotePreviewHistory([nextPreview]);
-			setRemotePreviewIndex(0);
-			if (nextPreview.importBlockedReason) {
-				setMessage("Google backup preview refreshed (import currently blocked)");
-			} else {
-				setMessage("Google backup preview refreshed");
-			}
-		});
-	};
-
-	const handleShuffleGooglePreview = async () => {
-		await withTask(async () => {
-			const result = await previewRemoteCsvForAdmin(undefined, 5, { random: true });
-			if (!result.success || !result.columns || !result.rows) {
-				throw new Error(result.error || "Failed to shuffle Google backup preview");
-			}
-
-			const nextPreview = {
-				columns: result.columns,
-				rows: result.rows,
-				totalRows: result.totalRows || result.rows.length,
-				fetchedAt: result.fetchedAt || new Date().toISOString(),
-				canImport: result.canImport ?? true,
-				importBlockedReason: result.importBlockedReason,
-				schemaIssues: result.schemaIssues ?? [],
-				schemaBlockingCount: result.schemaBlockingCount ?? 0,
-				schemaWarningCount: result.schemaWarningCount ?? 0,
-			};
-
-			setRemotePreviewHistory((current) => {
-				const nextHistory = [...current, nextPreview];
-				setRemotePreviewIndex(nextHistory.length - 1);
-				return nextHistory;
-			});
-			setRemotePreview(nextPreview);
-			if (nextPreview.importBlockedReason) {
-				setMessage("Google backup preview shuffled (import currently blocked)");
-			} else {
-				setMessage("Google backup preview shuffled");
-			}
-		});
-	};
-
 	const handleExportCsv = async () => {
 		await withTask(async () => {
 			const result = await getLocalEventStoreCsv();
@@ -424,8 +345,7 @@ export const LocalEventStoreCard = ({
 			const url = URL.createObjectURL(blob);
 			const anchor = document.createElement("a");
 			anchor.href = url;
-			anchor.download =
-				`oooc-events-store-${new Date().toISOString().split("T")[0]}.csv`;
+			anchor.download = `oooc-events-store-${new Date().toISOString().split("T")[0]}.csv`;
 			document.body.appendChild(anchor);
 			anchor.click();
 			document.body.removeChild(anchor);
@@ -436,9 +356,7 @@ export const LocalEventStoreCard = ({
 
 	const handleClearStore = async () => {
 		if (
-			!window.confirm(
-				"Clear all event data from store? This cannot be undone.",
-			)
+			!window.confirm("Clear all event data from store? This cannot be undone.")
 		) {
 			return;
 		}
@@ -456,7 +374,9 @@ export const LocalEventStoreCard = ({
 
 	const handleShuffleSample = async () => {
 		await withTask(async () => {
-			const result = await getLocalEventStorePreview(undefined, 2, { random: true });
+			const result = await getLocalEventStorePreview(undefined, 2, {
+				random: true,
+			});
 			if (!result.success) {
 				throw new Error(result.error || "Failed to shuffle sample");
 			}
@@ -492,32 +412,16 @@ export const LocalEventStoreCard = ({
 		setSampleNote(`Viewing sample ${nextIndex + 1} of ${sampleHistory.length}`);
 	};
 
-	const canViewPreviousRemotePreview = remotePreviewIndex > 0;
-	const canViewNextRemotePreview =
-		remotePreviewIndex < remotePreviewHistory.length - 1;
-	const importBlockedByPreview = Boolean(remotePreview?.importBlockedReason);
-
-	const handlePreviousGooglePreview = () => {
-		if (!canViewPreviousRemotePreview) return;
-		const nextIndex = remotePreviewIndex - 1;
-		setRemotePreviewIndex(nextIndex);
-		setRemotePreview(remotePreviewHistory[nextIndex] || null);
-	};
-
-	const handleNextGooglePreview = () => {
-		if (!canViewNextRemotePreview) return;
-		const nextIndex = remotePreviewIndex + 1;
-		setRemotePreviewIndex(nextIndex);
-		setRemotePreview(remotePreviewHistory[nextIndex] || null);
-	};
-
 	const fallbackActive =
 		runtimeDataStatus?.configuredDataSource === "remote" &&
 		runtimeDataStatus.dataSource !== "store";
 	const latestBackup = backupStatus.latestBackup;
 	const restoreDisabled = isLoading || !backupSupported || !latestBackup;
 	const selectedRestoreDisabled =
-		isLoading || !backupSupported || !selectedBackupId || recentBackups.length === 0;
+		isLoading ||
+		!backupSupported ||
+		!selectedBackupId ||
+		recentBackups.length === 0;
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
@@ -533,7 +437,9 @@ export const LocalEventStoreCard = ({
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Store Rows (CSV)
 						</p>
-						<p className="mt-1 text-base font-semibold">{status?.rowCount ?? 0}</p>
+						<p className="mt-1 text-base font-semibold">
+							{status?.rowCount ?? 0}
+						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -548,7 +454,9 @@ export const LocalEventStoreCard = ({
 							Updated
 						</p>
 						<p className="mt-1 text-sm leading-snug">
-							{status?.updatedAt ? new Date(status.updatedAt).toLocaleString() : "Never"}
+							{status?.updatedAt
+								? new Date(status.updatedAt).toLocaleString()
+								: "Never"}
 						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
@@ -564,51 +472,43 @@ export const LocalEventStoreCard = ({
 							Last Backup
 						</p>
 						<p className="mt-1 text-sm leading-snug">
-							{latestBackup?.createdAt ?
-								new Date(latestBackup.createdAt).toLocaleString()
-							:	"Never"}
+							{latestBackup?.createdAt
+								? new Date(latestBackup.createdAt).toLocaleString()
+								: "Never"}
 						</p>
 					</div>
 				</div>
 
 				<div className="rounded-md border bg-background/60 p-3 text-sm text-muted-foreground">
 					<p className="font-medium text-foreground">Workflow</p>
-					<p className="mt-1">1. Upload CSV or import from Google backup into store.</p>
+					<p className="mt-1">1. Upload CSV into store.</p>
 					<p>2. Edit in Event Sheet Editor and revalidate homepage.</p>
-					<p>3. Backup now periodically or restore latest backup when needed.</p>
+					<p>
+						3. Backup now periodically or restore latest backup when needed.
+					</p>
 					<p>4. Export CSV anytime for external workflows.</p>
 				</div>
 
 				{fallbackActive && (
 					<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-						Live site is currently serving local CSV fallback, not store-backed data.
+						Live site is currently serving local CSV fallback, not store-backed
+						data.
 					</div>
 				)}
 				{!backupSupported && (
 					<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-						Backups unavailable: {backupReason || "Postgres-backed store is required."}
+						Backups unavailable:{" "}
+						{backupReason || "Postgres-backed store is required."}
 					</div>
 				)}
 
 				<div className="flex flex-wrap gap-2">
-					<Button type="button" disabled={isLoading} onClick={handleSelectCsvUpload}>
-						Upload CSV to Store
-					</Button>
 					<Button
 						type="button"
-						variant="outline"
-						disabled={isLoading || importBlockedByPreview}
-						onClick={handleImportGoogle}
-					>
-						Import Google Backup
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
 						disabled={isLoading}
-						onClick={handlePreviewGoogle}
+						onClick={handleSelectCsvUpload}
 					>
-						Preview Google Backup
+						Upload CSV to Store
 					</Button>
 					<Button
 						type="button"
@@ -668,8 +568,9 @@ export const LocalEventStoreCard = ({
 						</div>
 						{recentBackups.length === 0 && (
 							<p className="mt-1 text-xs text-muted-foreground">
-								No snapshots yet. Click <span className="font-medium">Backup Now</span>{" "}
-								to create the first one.
+								No snapshots yet. Click{" "}
+								<span className="font-medium">Backup Now</span> to create the
+								first one.
 							</p>
 						)}
 						{showSnapshotPicker && (
@@ -706,7 +607,9 @@ export const LocalEventStoreCard = ({
 							<p className="text-sm font-medium">Store Sample (2 rows)</p>
 							<div className="flex items-center gap-3">
 								{sampleNote && (
-									<span className="text-xs text-muted-foreground">{sampleNote}</span>
+									<span className="text-xs text-muted-foreground">
+										{sampleNote}
+									</span>
 								)}
 								<Button
 									type="button"
@@ -742,7 +645,10 @@ export const LocalEventStoreCard = ({
 								<thead className="bg-muted/40">
 									<tr>
 										{headers.map((header) => (
-											<th key={header} className="px-2 py-2 text-left font-medium">
+											<th
+												key={header}
+												className="px-2 py-2 text-left font-medium"
+											>
 												{header}
 											</th>
 										))}
@@ -775,107 +681,6 @@ export const LocalEventStoreCard = ({
 								</tbody>
 							</table>
 						</div>
-					</div>
-
-						<div className="min-w-0 overflow-hidden rounded-md border bg-background/60 p-3">
-							<div className="mb-2 flex items-center justify-between gap-3">
-								<p className="text-sm font-medium">Google Backup Preview</p>
-								<div className="flex items-center gap-2">
-									{remotePreview?.fetchedAt && (
-										<span className="text-xs text-muted-foreground">
-											{new Date(remotePreview.fetchedAt).toLocaleTimeString()}
-										</span>
-									)}
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										disabled={isLoading || !canViewPreviousRemotePreview}
-										onClick={handlePreviousGooglePreview}
-									>
-										Previous
-									</Button>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										disabled={isLoading}
-										onClick={handleShuffleGooglePreview}
-									>
-										Shuffle
-									</Button>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										disabled={isLoading || !canViewNextRemotePreview}
-										onClick={handleNextGooglePreview}
-									>
-										Next
-									</Button>
-								</div>
-							</div>
-						{!remotePreview ? (
-							<div className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">
-								Run "Preview Google Backup" to compare the backup source without
-								changing the live store.
-							</div>
-						) : (
-							<>
-								{remotePreview.importBlockedReason && (
-									<div className="mb-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-										Import blocked: {remotePreview.importBlockedReason}
-									</div>
-								)}
-								{remotePreview.schemaIssues.length > 0 && (
-									<div className="mb-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800">
-										<p className="font-medium">
-											Schema preflight: {remotePreview.schemaBlockingCount} blocking,{" "}
-											{remotePreview.schemaWarningCount} warning issue(s)
-										</p>
-										{remotePreview.schemaIssues.slice(0, 6).map((issue) => (
-											<p key={`${issue.code}-${issue.rowIndex}-${issue.column}`}>
-												[{issue.severity}] {issue.column} row {issue.rowIndex}:{" "}
-												{issue.message}
-											</p>
-										))}
-									</div>
-								)}
-								<p className="mb-2 text-xs text-muted-foreground">
-									Showing {remotePreview.rows.length} of {remotePreview.totalRows} rows.
-								</p>
-									<div className="relative w-full max-w-full overflow-x-auto overscroll-x-contain rounded-md border">
-										<table className="w-max min-w-full text-xs">
-										<thead className="bg-muted/40">
-											<tr>
-												{remotePreview.columns.map((column) => (
-													<th
-														key={column.key}
-														className="px-2 py-2 text-left font-medium"
-													>
-														{column.label}
-													</th>
-												))}
-											</tr>
-										</thead>
-										<tbody>
-											{remotePreview.rows.map((row, rowIndex) => (
-												<tr key={`remote-row-${rowIndex}`} className="border-t">
-													{remotePreview.columns.map((column) => (
-														<td
-															key={`${column.key}-${rowIndex}`}
-															className="px-2 py-2 align-top whitespace-normal break-all"
-														>
-															{row[column.key] ?? ""}
-														</td>
-													))}
-												</tr>
-											))}
-										</tbody>
-									</table>
-								</div>
-							</>
-						)}
 					</div>
 				</div>
 

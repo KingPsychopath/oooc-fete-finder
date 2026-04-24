@@ -9,7 +9,7 @@ Runtime source order (`DATA_MODE=remote`):
 1. Postgres event store (primary)
 2. Local CSV fallback (`data/events.csv`) if Postgres data is unavailable
 
-Google Sheets is not used as the live runtime source. It is only used in admin for backup preview/import.
+Google Sheets is not used in the runtime or admin data workflow.
 
 Featured scheduling is Postgres-backed (`app_featured_event_schedule`) and managed from the dedicated admin Featured Events Manager (not from CSV free-text `Featured` values).
 
@@ -135,12 +135,9 @@ DATA_MODE=remote
 
 `ADMIN_KEY` is optional for builds. If unset, admin login/admin APIs are disabled.
 
-Optional Google backup import/preview and geocoding:
+Optional geocoding:
 
 ```bash
-REMOTE_CSV_URL=
-GOOGLE_SHEET_ID=
-GOOGLE_SERVICE_ACCOUNT_KEY=   # required for service-account sheet access
 GOOGLE_MAPS_API_KEY=          # optional; enable Geocoding API in Cloud Console for precise coords
 ```
 
@@ -255,7 +252,7 @@ This endpoint forces a live events reload and revalidates `/`, so preview/prod c
 
 - `docs/operations/postgres-migration.md` — Postgres migration
 - `docs/reference/environment-variables.md` — env reference
-- `docs/integrations/google.md` — Google backup/import
+- `docs/integrations/google.md` — Google geocoding
 
 ## Future Architecture Option
 

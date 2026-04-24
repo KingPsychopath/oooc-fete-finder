@@ -13,7 +13,7 @@ const TOKEN_ISSUER = "oooc-fete-finder";
 const TOKEN_AUDIENCE = "admin-api";
 const TOKEN_TYPE = "admin";
 const ADMIN_AUTH_COOKIE_NAME = "oooc-admin-auth";
-const ADMIN_AUTH_TTL_SECONDS = 60 * 60;
+const ADMIN_AUTH_TTL_SECONDS = 6 * 60 * 60;
 
 const TOKEN_VERSION_KEY = "admin-auth:token-version";
 const SESSION_KEY_PREFIX = "admin-auth:session:";

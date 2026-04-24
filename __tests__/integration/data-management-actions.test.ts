@@ -38,9 +38,6 @@ const loadActions = async (): Promise<Setup> => {
 			ADMIN_KEY: "test",
 			DATA_MODE: "remote",
 			DATABASE_URL: "postgres://test",
-			GOOGLE_SERVICE_ACCOUNT_KEY: "",
-			REMOTE_CSV_URL: "",
-			GOOGLE_SHEET_ID: "",
 			NODE_ENV: "test",
 			NEXT_PUBLIC_BASE_PATH: "",
 			NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
@@ -132,7 +129,8 @@ describe("getLiveSiteEventsSnapshot", () => {
 	});
 
 	it("returns unauthorized when admin validation fails", async () => {
-		const { getLiveSiteEventsSnapshot, validateAdminAccess } = await loadActions();
+		const { getLiveSiteEventsSnapshot, validateAdminAccess } =
+			await loadActions();
 		validateAdminAccess.mockResolvedValue(false);
 
 		const result = await getLiveSiteEventsSnapshot("bad-token", 50, {

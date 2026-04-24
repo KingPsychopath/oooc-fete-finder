@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type Setup = {
 	saveLocalEventStoreCsv: typeof import("@/features/data-management/actions").saveLocalEventStoreCsv;
-	importRemoteCsvToLocalEventStore: typeof import("@/features/data-management/actions").importRemoteCsvToLocalEventStore;
-	previewRemoteCsvForAdmin: typeof import("@/features/data-management/actions").previewRemoteCsvForAdmin;
 	saveEventSheetEditorRows: typeof import("@/features/data-management/actions").saveEventSheetEditorRows;
 	localEventStoreSaveCsv: ReturnType<typeof vi.fn>;
 	forceRefreshEventsData: ReturnType<typeof vi.fn>;
@@ -11,7 +9,6 @@ type Setup = {
 	processCSVData: ReturnType<typeof vi.fn>;
 	pruneStorageToEvents: ReturnType<typeof vi.fn>;
 	csvToEditableSheet: ReturnType<typeof vi.fn>;
-	fetchRemoteCSV: ReturnType<typeof vi.fn>;
 };
 
 const loadActions = async (): Promise<Setup> => {
@@ -26,13 +23,7 @@ const loadActions = async (): Promise<Setup> => {
 		message: "ok",
 	});
 	const revalidateEventsPaths = vi.fn();
-	const fetchRemoteCSV = vi.fn().mockResolvedValue({
-		content: "Title,Date\nEvent,2026-06-21",
-		timestamp: Date.now(),
-	});
-	const csvToEditableSheet = vi
-		.fn()
-		.mockReturnValue({ columns: [], rows: [] });
+	const csvToEditableSheet = vi.fn().mockReturnValue({ columns: [], rows: [] });
 	const processCSVData = vi.fn().mockResolvedValue({
 		events: [],
 		count: 2,
@@ -57,9 +48,6 @@ const loadActions = async (): Promise<Setup> => {
 			ADMIN_KEY: "test",
 			DATA_MODE: "remote",
 			DATABASE_URL: "postgres://test",
-			GOOGLE_SERVICE_ACCOUNT_KEY: "",
-			REMOTE_CSV_URL: "",
-			GOOGLE_SHEET_ID: "",
 			NODE_ENV: "test",
 			NEXT_PUBLIC_BASE_PATH: "",
 			NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
@@ -82,10 +70,6 @@ const loadActions = async (): Promise<Setup> => {
 			clearCsv: vi.fn(),
 			getPreview: vi.fn(),
 		},
-	}));
-
-	vi.doMock("@/features/data-management/csv/fetcher", () => ({
-		fetchRemoteCSV,
 	}));
 
 	vi.doMock("@/features/data-management/csv/sheet-editor", () => ({
@@ -112,8 +96,6 @@ const loadActions = async (): Promise<Setup> => {
 	const actions = await import("@/features/data-management/actions");
 	return {
 		saveLocalEventStoreCsv: actions.saveLocalEventStoreCsv,
-		importRemoteCsvToLocalEventStore: actions.importRemoteCsvToLocalEventStore,
-		previewRemoteCsvForAdmin: actions.previewRemoteCsvForAdmin,
 		saveEventSheetEditorRows: actions.saveEventSheetEditorRows,
 		localEventStoreSaveCsv,
 		forceRefreshEventsData,
@@ -121,7 +103,6 @@ const loadActions = async (): Promise<Setup> => {
 		processCSVData,
 		pruneStorageToEvents,
 		csvToEditableSheet,
-		fetchRemoteCSV,
 	};
 };
 
@@ -136,10 +117,12 @@ describe("data-management coordinate warm-up", () => {
 			processCSVData,
 			forceRefreshEventsData,
 			pruneStorageToEvents,
-		} =
-			await loadActions();
+		} = await loadActions();
 
-		const result = await saveLocalEventStoreCsv("token", "Title,Date\nEvent,2026-06-21");
+		const result = await saveLocalEventStoreCsv(
+			"token",
+			"Title,Date\nEvent,2026-06-21",
+		);
 
 		expect(result.success).toBe(true);
 		expect(processCSVData).toHaveBeenCalledWith(
@@ -150,22 +133,6 @@ describe("data-management coordinate warm-up", () => {
 				populateCoordinates: true,
 			},
 		);
-		expect(pruneStorageToEvents).toHaveBeenCalledTimes(1);
-		expect(forceRefreshEventsData).toHaveBeenCalledTimes(1);
-	});
-
-	it("warms coordinates after remote import before refresh", async () => {
-		const {
-			importRemoteCsvToLocalEventStore,
-			processCSVData,
-			forceRefreshEventsData,
-			pruneStorageToEvents,
-		} = await loadActions();
-
-		const result = await importRemoteCsvToLocalEventStore("token");
-
-		expect(result.success).toBe(true);
-		expect(processCSVData).toHaveBeenCalledTimes(1);
 		expect(pruneStorageToEvents).toHaveBeenCalledTimes(1);
 		expect(forceRefreshEventsData).toHaveBeenCalledTimes(1);
 	});
@@ -204,7 +171,10 @@ describe("data-management coordinate warm-up", () => {
 			coordinatesCount: 0,
 		});
 
-		const result = await saveLocalEventStoreCsv("token", "Title,Date\nEvent,2026-06-21");
+		const result = await saveLocalEventStoreCsv(
+			"token",
+			"Title,Date\nEvent,2026-06-21",
+		);
 
 		expect(localEventStoreSaveCsv).toHaveBeenCalledTimes(1);
 		expect(result.success).toBe(false);
@@ -217,10 +187,7 @@ describe("data-management coordinate warm-up", () => {
 
 		const result = await saveEventSheetEditorRows(
 			"token",
-			[
-				{ key: "title" },
-				{ key: "featured" },
-			] as never[],
+			[{ key: "title" }, { key: "featured" }] as never[],
 			[
 				{
 					title: "Event",
@@ -235,40 +202,5 @@ describe("data-management coordinate warm-up", () => {
 		expect(result.error).toContain("Featured");
 		expect(localEventStoreSaveCsv).not.toHaveBeenCalled();
 		expect(processCSVData).not.toHaveBeenCalled();
-	});
-
-	it("allows remote import when schema has warnings only", async () => {
-		const {
-			importRemoteCsvToLocalEventStore,
-			localEventStoreSaveCsv,
-			processCSVData,
-			csvToEditableSheet,
-		} = await loadActions();
-		csvToEditableSheet.mockReturnValueOnce({
-			columns: [],
-			rows: [{ title: "Event", eventKey: "", date: "21 June" }],
-		});
-
-		const result = await importRemoteCsvToLocalEventStore("token");
-
-		expect(result.success).toBe(true);
-		expect(localEventStoreSaveCsv).toHaveBeenCalledTimes(1);
-		expect(processCSVData).toHaveBeenCalledTimes(1);
-	});
-
-	it("surfaces schema warnings in Google preview without blocking import", async () => {
-		const { previewRemoteCsvForAdmin, csvToEditableSheet } = await loadActions();
-		csvToEditableSheet.mockReturnValueOnce({
-			columns: [],
-			rows: [{ title: "Event", eventKey: "", date: "21 June" }],
-		});
-
-		const result = await previewRemoteCsvForAdmin("token", 5);
-
-		expect(result.success).toBe(true);
-		expect(result.canImport).toBe(true);
-		expect(result.importBlockedReason).toBeUndefined();
-		expect(result.schemaBlockingCount).toBe(0);
-		expect(result.schemaWarningCount).toBeGreaterThan(0);
 	});
 });

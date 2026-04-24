@@ -173,7 +173,7 @@ export function MapsDemoClient({
 		});
 	}, [
 		initialEvents,
-			selectedDateRange,
+		selectedDateRange,
 		selectedDayNightPeriods,
 		selectedArrondissements,
 		selectedGenres,
@@ -187,8 +187,11 @@ export function MapsDemoClient({
 
 	const handleDateRangeChange = useCallback((dateRange: DateRangeFilter) => {
 		const from =
-			dateRange.from && dateRange.from.trim().length > 0 ? dateRange.from : null;
-		const to = dateRange.to && dateRange.to.trim().length > 0 ? dateRange.to : null;
+			dateRange.from && dateRange.from.trim().length > 0
+				? dateRange.from
+				: null;
+		const to =
+			dateRange.to && dateRange.to.trim().length > 0 ? dateRange.to : null;
 		if (from && to && from > to) {
 			setSelectedDateRange({ from: to, to: from });
 			return;
@@ -375,11 +378,11 @@ export function MapsDemoClient({
 					</p>
 				</div>
 
-					<div className="mb-8">
-						<FilterPanel
-							selectedDateRange={selectedDateRange}
-							defaultDateRange={defaultDateRange}
-							selectedDayNightPeriods={selectedDayNightPeriods}
+				<div className="mb-8">
+					<FilterPanel
+						selectedDateRange={selectedDateRange}
+						defaultDateRange={defaultDateRange}
+						selectedDayNightPeriods={selectedDayNightPeriods}
 						selectedArrondissements={selectedArrondissements}
 						selectedGenres={selectedGenres}
 						selectedNationalities={selectedNationalities}
@@ -388,7 +391,7 @@ export function MapsDemoClient({
 						selectedPriceRange={selectedPriceRange}
 						selectedAgeRange={selectedAgeRange}
 						selectedOOOCPicks={selectedOOOCPicks}
-							onDateRangeChange={handleDateRangeChange}
+						onDateRangeChange={handleDateRangeChange}
 						onDayNightPeriodToggle={handleDayNightPeriodToggle}
 						onArrondissementToggle={handleArrondissementToggle}
 						onGenreToggle={handleGenreToggle}
@@ -399,10 +402,10 @@ export function MapsDemoClient({
 						onAgeRangeChange={handleAgeRangeChange}
 						onOOOCPicksToggle={setSelectedOOOCPicks}
 						onClearFilters={handleClearFilters}
-							availableArrondissements={availableArrondissements}
-							availableEventDates={availableEventDates}
-							quickSelectEventDates={quickSelectEventDates}
-							filteredEventsCount={filteredEvents.length}
+						availableArrondissements={availableArrondissements}
+						availableEventDates={availableEventDates}
+						quickSelectEventDates={quickSelectEventDates}
+						filteredEventsCount={filteredEvents.length}
 						isOpen={isFilterOpen}
 						onClose={() => setIsFilterOpen(false)}
 						onOpen={() => setIsFilterOpen(true)}
@@ -451,8 +454,8 @@ export function MapsDemoClient({
 						{hasActiveFilters
 							? `Showing ${eventStats.totalEvents} filtered events (${eventStats.totalEventsWithCoords} with coordinates) across ${eventStats.arrondissementsWithEvents} arrondissements.`
 							: `Showing ${eventStats.totalEvents} live events with geocoded coordinates across ${eventStats.arrondissementsWithEvents} arrondissements.`}
-						Data fetched from Google Sheets and geocoded using the optimized
-						Google Maps API integration.
+						Data fetched from the managed event store and geocoded using the
+						optimized Google Maps API integration.
 					</p>
 				</div>
 
@@ -511,14 +514,18 @@ export function MapsDemoClient({
 								className="w-4 h-4 rounded"
 								style={{ backgroundColor: "#ea580c" }}
 							/>
-							<span className="text-gray-700 dark:text-gray-300">2-4 events</span>
+							<span className="text-gray-700 dark:text-gray-300">
+								2-4 events
+							</span>
 						</div>
 						<div className="flex items-center space-x-2">
 							<div
 								className="w-4 h-4 rounded"
 								style={{ backgroundColor: "#dc2626" }}
 							/>
-							<span className="text-gray-700 dark:text-gray-300">5+ events</span>
+							<span className="text-gray-700 dark:text-gray-300">
+								5+ events
+							</span>
 						</div>
 					</div>
 				</div>
@@ -594,8 +601,8 @@ export function MapsDemoClient({
 								Data Management
 							</h4>
 							<ul className="space-y-1 text-gray-600 dark:text-gray-300">
-								<li>• Google Sheets integration</li>
-								<li>• Service account auth</li>
+								<li>• Store-backed CSV workflow</li>
+								<li>• Admin upload/export controls</li>
 								<li>• Batch processing</li>
 								<li>• Smart caching</li>
 							</ul>

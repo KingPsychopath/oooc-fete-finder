@@ -84,9 +84,6 @@ export const env = createEnv({
 
 		// Google configuration
 		GOOGLE_MAPS_API_KEY: z.string().optional(),
-		GOOGLE_SHEET_ID: z.string().optional(),
-		GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
-		REMOTE_CSV_URL: z.string().url().optional(),
 		CRON_SECRET: z.string().optional(),
 		DEPLOY_REVALIDATE_SECRET: z.string().optional(),
 		STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -124,9 +121,6 @@ export const env = createEnv({
 
 		// Google configuration
 		GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
-		GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID,
-		GOOGLE_SERVICE_ACCOUNT_KEY: process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
-		REMOTE_CSV_URL: process.env.REMOTE_CSV_URL,
 		CRON_SECRET: process.env.CRON_SECRET,
 		DEPLOY_REVALIDATE_SECRET: process.env.DEPLOY_REVALIDATE_SECRET,
 		STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,

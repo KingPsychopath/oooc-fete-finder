@@ -1,8 +1,8 @@
 # Google Integrations
 
-Google is used for two optional integration paths.
+Google is used for one optional integration path.
 
-## 1) Geocoding
+## Geocoding
 
 Purpose:
 
@@ -12,17 +12,6 @@ Requires:
 
 - `GOOGLE_MAPS_API_KEY`
 - Geocoding API enabled in Google Cloud project
-
-## 2) Admin Backup Import/Preview
-
-Purpose:
-
-- Let admin preview/import backup event data from Google Sheet or remote CSV source
-
-Requires one of:
-
-- `REMOTE_CSV_URL`, or
-- `GOOGLE_SHEET_ID` + `GOOGLE_SERVICE_ACCOUNT_KEY`
 
 ## Not Used
 

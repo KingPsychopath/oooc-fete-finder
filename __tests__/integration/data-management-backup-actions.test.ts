@@ -119,9 +119,6 @@ const loadActions = async (): Promise<Setup> => {
 			ADMIN_KEY: "test",
 			DATA_MODE: "remote",
 			DATABASE_URL: "postgres://test",
-			GOOGLE_SERVICE_ACCOUNT_KEY: "",
-			REMOTE_CSV_URL: "",
-			GOOGLE_SHEET_ID: "",
 			NODE_ENV: "test",
 			NEXT_PUBLIC_BASE_PATH: "",
 			NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
@@ -196,7 +193,8 @@ describe("data-management backup actions", () => {
 	});
 
 	it("lists recent backups for snapshot picker", async () => {
-		const { getEventStoreRecentBackups, backupListRecent } = await loadActions();
+		const { getEventStoreRecentBackups, backupListRecent } =
+			await loadActions();
 		const result = await getEventStoreRecentBackups("token", 20);
 
 		expect(result.success).toBe(true);
@@ -232,7 +230,8 @@ describe("data-management backup actions", () => {
 	});
 
 	it("fails restore with clear message when no backup exists", async () => {
-		const { restoreLatestEventStoreBackup, backupRestore } = await loadActions();
+		const { restoreLatestEventStoreBackup, backupRestore } =
+			await loadActions();
 		backupRestore.mockResolvedValueOnce({
 			success: false,
 			message: "No matching event store backup exists.",
