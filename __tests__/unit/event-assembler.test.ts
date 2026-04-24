@@ -128,4 +128,16 @@ describe("event assembler identity", () => {
 
 		expect(event.nationality).toEqual(expect.arrayContaining(["FR", "CA"]));
 	});
+
+	it("maps francophone categories into the canonical genre list", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				categories: "Francophone, Shatta",
+			},
+			0,
+		);
+
+		expect(event.genre).toEqual(["francophone", "shatta"]);
+	});
 });

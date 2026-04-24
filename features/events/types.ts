@@ -40,6 +40,7 @@ export type EventLocation = {
 export type MusicGenre =
 	| "amapiano"
 	| "afrobeats"
+	| "francophone"
 	| "soca"
 	| "pop"
 	| "bashment"
@@ -215,6 +216,11 @@ export const DAY_NIGHT_PERIODS = [
 export const MUSIC_GENRES = [
 	{ key: "amapiano" as const, label: "Amapiano", color: "bg-emerald-500" },
 	{ key: "afrobeats" as const, label: "Afrobeats", color: "bg-orange-500" },
+	{
+		key: "francophone" as const,
+		label: "Francophone",
+		color: "bg-amber-600",
+	},
 	{ key: "soca" as const, label: "Soca", color: "bg-yellow-500" },
 	{ key: "pop" as const, label: "Pop", color: "bg-pink-500" },
 	{ key: "bashment" as const, label: "Bashment", color: "bg-red-500" },

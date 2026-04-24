@@ -305,6 +305,12 @@ export const GenreTransformers = {
 			pop: "pop",
 			mainstream: "pop",
 			commercial: "pop",
+			francophone: "francophone",
+			"francophone party": "francophone",
+			"urban fr": "urban fr",
+			"français": "francophone",
+			francais: "francophone",
+			french: "francophone",
 
 			// R&B and Funk
 			"r&b": "r&b",
@@ -337,7 +343,6 @@ export const GenreTransformers = {
 			"baile funk": "baile funk",
 			shatta: "shatta",
 			"coupé-décalé": "coupé-décalé",
-			"urban fr": "urban fr",
 			gqom: "gqom",
 			alternative: "alternative",
 			alt: "alternative",
