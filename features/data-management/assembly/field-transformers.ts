@@ -12,6 +12,11 @@ import type {
 	ParisArrondissement,
 	VenueType,
 } from "@/features/events/types";
+import {
+	GENRE_ALIAS_ENTRIES,
+	normalizeGenreInputText,
+	resolveMusicGenre,
+} from "@/features/events/genre-normalization";
 import { parseSupportedNationalities } from "@/features/events/nationality-utils";
 import { createDateNormalizationContext, normalizeCsvDate } from "./date-normalization";
 
@@ -281,97 +286,23 @@ export const GenreTransformers = {
 	convertToMusicGenres: (genreStr: string): MusicGenre[] => {
 		if (!genreStr || genreStr.trim() === "") return [];
 
-		const cleaned = genreStr.toLowerCase().trim();
+		const normalized = normalizeGenreInputText(genreStr);
 		const genres: MusicGenre[] = [];
 
-		// Genre mapping with variations and aliases
-		const genreMappings: Record<string, MusicGenre> = {
-			// Electronic/Electro
-			electronic: "electro",
-			electro: "electro",
-			edm: "electro",
-			techno: "house", // Map to house as it's closer
-			house: "house",
-			trance: "electro",
-			dubstep: "electro",
-
-			// Hip Hop & Rap
-			"hip hop": "hip hop",
-			hiphop: "hip hop",
-			"hip-hop": "hip hop",
-			rap: "rap",
-
-			// Pop
-			pop: "pop",
-			mainstream: "pop",
-			commercial: "pop",
-			francophone: "francophone",
-			"francophone party": "francophone",
-			"urban fr": "urban fr",
-			"français": "francophone",
-			francais: "francophone",
-			french: "francophone",
-
-			// R&B and Funk
-			"r&b": "r&b",
-			rnb: "r&b",
-			soul: "r&b",
-			funk: "funk",
-			"slow jams": "slow jams",
-			slowjams: "slow jams",
-
-			// Afrobeats and related
-			afrobeats: "afrobeats",
-			afro: "afro",
-			"afro house": "afro house",
-			afrohouse: "afro house",
-			amapiano: "amapiano",
-			"3-step": "3-step",
-			"3step": "3-step",
-
-			// Caribbean
-			soca: "soca",
-			bashment: "bashment",
-			dancehall: "dancehall",
-			reggaeton: "reggaeton",
-			bouyon: "bouyon",
-			zouk: "zouk",
-			kompa: "kompa",
-
-			// UK genres
-			"uk drill": "uk drill",
-			"uk garage": "uk garage",
-
-			// Other genres
-			disco: "disco",
-			trap: "trap",
-			"baile funk": "baile funk",
-			shatta: "shatta",
-			"coupé-décalé": "coupé-décalé",
-			gqom: "gqom",
-			alternative: "alternative",
-			alt: "alternative",
-			indie: "alternative",
-			"alternative rock": "alternative",
-			dance: "dance",
-			"dance music": "dance",
-			"dance/electronic": "dance",
-		};
-
 		// Split by common separators and check each part
-		const parts = cleaned.split(/[,\/&+]/).map((part) => part.trim());
+		const parts = normalized.split(/[,\/&+]/).map((part) => part.trim());
 
 		for (const part of parts) {
-			// Direct mapping check
-			if (genreMappings[part]) {
-				if (!genres.includes(genreMappings[part])) {
-					genres.push(genreMappings[part]);
+			const resolved = resolveMusicGenre(part);
+			if (resolved) {
+				if (!genres.includes(resolved)) {
+					genres.push(resolved);
 				}
 				continue;
 			}
 
 			// Partial matching for complex descriptions
-			for (const [keyword, genre] of Object.entries(genreMappings)) {
+			for (const [keyword, genre] of GENRE_ALIAS_ENTRIES) {
 				if (part.includes(keyword)) {
 					if (!genres.includes(genre)) {
 						genres.push(genre);
@@ -382,6 +313,19 @@ export const GenreTransformers = {
 		}
 
 		return genres.length > 0 ? genres : ["other"]; // Use "other" as fallback for unknown genres
+	},
+};
+
+export const MetadataTransformers = {
+	parseTags: (tagsStr: string): string[] | undefined => {
+		if (!tagsStr || tagsStr.trim() === "") return undefined;
+
+		const tags = tagsStr
+			.split(",")
+			.map((tag) => tag.trim())
+			.filter((tag) => tag.length > 0);
+
+		return tags.length > 0 ? Array.from(new Set(tags)) : undefined;
 	},
 };
 

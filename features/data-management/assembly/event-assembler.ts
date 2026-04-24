@@ -32,6 +32,7 @@ import {
 	DateTransformers,
 	GenreTransformers,
 	LocationTransformers,
+	MetadataTransformers,
 	NationalityTransformers,
 	VenueTransformers,
 } from "./field-transformers";
@@ -210,6 +211,7 @@ export const assembleEvent = (
 	const nationality =
 		NationalityTransformers.convertToNationality(nationalityInput);
 	const genre = GenreTransformers.convertToMusicGenres(csvRow.categories);
+	const tags = MetadataTransformers.parseTags(csvRow.tags);
 	const venueTypes = VenueTransformers.convertToVenueTypes(csvRow.setting);
 
 	// Determine the event's festival phase from its date.
@@ -254,6 +256,7 @@ export const assembleEvent = (
 		description: csvRow.notes.trim() || undefined,
 		type,
 		genre,
+		tags,
 		venueTypes,
 		indoor, // Legacy field
 		verified: determineVerificationStatus(csvRow, {

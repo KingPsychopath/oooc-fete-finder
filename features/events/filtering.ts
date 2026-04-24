@@ -12,6 +12,10 @@ import {
 	isEventInDayNightPeriod,
 	isPriceInRange,
 } from "@/features/events/types";
+import {
+	getSearchableGenreText,
+	normalizeSearchText,
+} from "@/features/events/genre-normalization";
 import { isStrictISODate } from "./date-utils";
 
 export type DateRangeFilter = {
@@ -84,18 +88,24 @@ export const getDefaultEventFilterState = (
 });
 
 const matchesSearchQuery = (event: Event, rawQuery: string): boolean => {
-	const query = rawQuery.toLowerCase();
+	const query = normalizeSearchText(rawQuery);
+	if (query.length === 0) return true;
 
-	const matchesName = event.name.toLowerCase().includes(query);
-	const matchesLocation = event.location?.toLowerCase().includes(query);
-	const matchesDescription = event.description?.toLowerCase().includes(query);
-	const matchesDate = event.date.toLowerCase().includes(query);
-	const matchesArrondissement = event.arrondissement.toString().includes(query);
-	const matchesDay = event.day.toLowerCase().includes(query);
-	const matchesGenre = event.genre.some((genre) =>
-		genre.toLowerCase().includes(query),
+	const matchesName = normalizeSearchText(event.name).includes(query);
+	const matchesLocation = normalizeSearchText(event.location ?? "").includes(query);
+	const matchesDescription = normalizeSearchText(event.description ?? "").includes(
+		query,
 	);
-	const matchesType = event.type.toLowerCase().includes(query);
+	const matchesDate = normalizeSearchText(event.date).includes(query);
+	const matchesArrondissement = event.arrondissement.toString().includes(query);
+	const matchesDay = normalizeSearchText(event.day).includes(query);
+	const matchesGenre = event.genre.some((genre) =>
+		getSearchableGenreText(genre).includes(query),
+	);
+	const matchesTags = (event.tags ?? []).some((tag) =>
+		normalizeSearchText(tag).includes(query),
+	);
+	const matchesType = normalizeSearchText(event.type).includes(query);
 
 	return (
 		matchesName ||
@@ -105,6 +115,7 @@ const matchesSearchQuery = (event: Event, rawQuery: string): boolean => {
 		matchesArrondissement ||
 		matchesDay ||
 		matchesGenre ||
+		matchesTags ||
 		matchesType
 	);
 };

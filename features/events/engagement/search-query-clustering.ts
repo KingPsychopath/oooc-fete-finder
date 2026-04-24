@@ -1,3 +1,9 @@
+import {
+	getSearchableGenreText,
+	normalizeSearchText,
+	resolveMusicGenre,
+} from "@/features/events/genre-normalization";
+
 type SearchQueryCount = {
 	query: string;
 	count: number;
@@ -21,27 +27,11 @@ type QueryVariant = {
 	tokenSet: Set<string>;
 };
 
-const QUERY_SYNONYMS = new Map<string, string>([
-	["afrohouse", "afro house"],
-	["afro-house", "afro house"],
-	["rnb", "r&b"],
-	["r and b", "r&b"],
-	["hiphop", "hip hop"],
-	["ukg", "uk garage"],
-	["afo house", "afro house"],
-]);
-
-const stripDiacritics = (value: string): string =>
-	value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
-
 const normalizeQuery = (raw: string): string => {
-	const base = stripDiacritics(raw.toLowerCase())
-		.replace(/[^\p{L}\p{N}&]+/gu, " ")
-		.replace(/\s+/g, " ")
-		.trim();
+	const base = normalizeSearchText(raw);
 	if (base.length === 0) return "";
-	const mapped = QUERY_SYNONYMS.get(base);
-	return mapped ?? base;
+	const genre = resolveMusicGenre(base);
+	return genre ? getSearchableGenreText(genre) : base;
 };
 
 const toVariant = (input: SearchQueryCount): QueryVariant | null => {

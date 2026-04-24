@@ -70,6 +70,11 @@ export type MusicGenre =
 	| "gqom"
 	| "alternative"
 	| "dance"
+	| "bachata"
+	| "batida"
+	| "edits"
+	| "reggae"
+	| "salsa"
 	| "other";
 
 export type ParisArrondissement =
@@ -122,6 +127,7 @@ export type Event = {
 	description?: string;
 	type: EventType; // Festival phase label derived from date
 	genre: MusicGenre[];
+	tags?: string[]; // Metadata tags parsed from the CSV Tags column
 	venueTypes: VenueType[]; // New field for venue types
 	indoor: boolean; // Deprecated: kept for backwards compatibility
 	verified: boolean;
@@ -256,6 +262,11 @@ export const MUSIC_GENRES = [
 	{ key: "gqom" as const, label: "Gqom", color: "bg-purple-400" },
 	{ key: "alternative" as const, label: "Alternative", color: "bg-stone-500" },
 	{ key: "dance" as const, label: "Dance", color: "bg-sky-500" },
+	{ key: "bachata" as const, label: "Bachata", color: "bg-pink-400" },
+	{ key: "batida" as const, label: "Batida", color: "bg-teal-600" },
+	{ key: "edits" as const, label: "Edits", color: "bg-slate-500" },
+	{ key: "reggae" as const, label: "Reggae", color: "bg-lime-600" },
+	{ key: "salsa" as const, label: "Salsa", color: "bg-red-400" },
 	{ key: "other" as const, label: "Other", color: "bg-gray-500" },
 ] as const;
 

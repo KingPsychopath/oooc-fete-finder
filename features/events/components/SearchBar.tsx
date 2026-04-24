@@ -1,6 +1,10 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import {
+	getSearchableGenreText,
+	normalizeSearchText,
+} from "@/features/events/genre-normalization";
 import { DEFAULT_SEARCH_EXAMPLES } from "@/features/events/search-defaults";
 import type { Event } from "@/features/events/types";
 import { Search, X } from "lucide-react";
@@ -74,7 +78,7 @@ const matchesArrondissement = (
  */
 const getMatchScore = (targetText: string, searchTerms: string[]): number => {
 	if (!targetText) return 0;
-	const target = targetText.toLowerCase();
+	const target = normalizeSearchText(targetText);
 	let score = 0;
 
 	searchTerms.forEach((term) => {
@@ -103,9 +107,9 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 	if (!query.trim() || !events || events.length === 0) return [];
 
 	// Split query into individual search terms and clean them
-	const searchTerms = query
-		.toLowerCase()
-		.split(/\s+/)
+	const searchTerms = (
+		query.trim() ? normalizeSearchText(query).split(/\s+/) : []
+	)
 		.filter((term) => term.length > 0)
 		.map((term) => term.trim());
 
@@ -145,7 +149,7 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 		if (event.genre && Array.isArray(event.genre)) {
 			let genreScore = 0;
 			const hasGenreMatch = event.genre.some((genre) => {
-				const score = getMatchScore(genre, searchTerms);
+				const score = getMatchScore(getSearchableGenreText(genre), searchTerms);
 				genreScore = Math.max(genreScore, score);
 				return score > 0;
 			});
@@ -156,7 +160,22 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			}
 		}
 
-		// PRIORITY 5: Event Type (Score: 30 + match quality)
+		// PRIORITY 5: Metadata tags (Score: 35 + match quality)
+		if (event.tags && Array.isArray(event.tags)) {
+			let tagScore = 0;
+			const hasTagMatch = event.tags.some((tag) => {
+				const score = getMatchScore(tag, searchTerms);
+				tagScore = Math.max(tagScore, score);
+				return score > 0;
+			});
+
+			if (hasTagMatch) {
+				totalScore += 35 + tagScore;
+				matchedFields.push("tags");
+			}
+		}
+
+		// PRIORITY 6: Event Type (Score: 30 + match quality)
 		if (event.type) {
 			const typeScore = getMatchScore(event.type, searchTerms);
 			if (typeScore > 0) {
@@ -165,7 +184,7 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			}
 		}
 
-		// PRIORITY 6: Description (Score: 20 + match quality)
+		// PRIORITY 7: Description (Score: 20 + match quality)
 		if (event.description) {
 			const descScore = getMatchScore(event.description, searchTerms);
 			if (descScore > 0) {
@@ -174,7 +193,7 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			}
 		}
 
-		// PRIORITY 7: Time (Score: 15 + match quality)
+		// PRIORITY 8: Time (Score: 15 + match quality)
 		if (event.time) {
 			const timeScore = getMatchScore(event.time, searchTerms);
 			if (timeScore > 0) {
@@ -183,7 +202,7 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			}
 		}
 
-		// PRIORITY 8: Day (Score: 10 + match quality)
+		// PRIORITY 9: Day (Score: 10 + match quality)
 		if (event.day) {
 			const dayScore = getMatchScore(event.day, searchTerms);
 			if (dayScore > 0) {

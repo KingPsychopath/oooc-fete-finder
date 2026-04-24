@@ -2,6 +2,7 @@ import {
 	USER_AUTH_COOKIE_NAME,
 	getUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
+import { resolveMusicGenre } from "@/features/events/genre-normalization";
 import { MUSIC_GENRES, type MusicGenre } from "@/features/events/types";
 import {
 	checkUserPreferenceIpLimit,
@@ -72,7 +73,10 @@ export async function POST(request: Request) {
 		return accepted();
 	}
 
-	const genre = parsed.data.genre.toLowerCase() as MusicGenre;
+	const genre = resolveMusicGenre(parsed.data.genre);
+	if (!genre) {
+		return accepted();
+	}
 	if (!allowedGenres.has(genre)) {
 		return accepted();
 	}

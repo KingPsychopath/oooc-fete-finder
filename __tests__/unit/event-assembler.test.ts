@@ -152,4 +152,54 @@ describe("event assembler identity", () => {
 
 		expect(event.genre).toEqual(["afro house", "slow jams", "3-step"]);
 	});
+
+	it("maps both rnb and r&b into the canonical r&b genre", () => {
+		const fromAlias = assembleEvent(
+			{
+				...baseRow,
+				categories: "RNB",
+			},
+			0,
+		);
+		const fromAmpersand = assembleEvent(
+			{
+				...baseRow,
+				categories: "R&B",
+			},
+			0,
+		);
+
+		expect(fromAlias.genre).toEqual(["r&b"]);
+		expect(fromAmpersand.genre).toEqual(["r&b"]);
+	});
+
+	it("preserves CSV-only live genres instead of collapsing them into other", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				categories: "Bachata, Batida, Edits, Reggae, Salsa",
+			},
+			0,
+		);
+
+		expect(event.genre).toEqual([
+			"bachata",
+			"batida",
+			"edits",
+			"reggae",
+			"salsa",
+		]);
+	});
+
+	it("preserves metadata tags from the csv row", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				tags: "roof, free, roof",
+			},
+			0,
+		);
+
+		expect(event.tags).toEqual(["roof", "free"]);
+	});
 });
