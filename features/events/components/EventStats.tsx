@@ -3,7 +3,6 @@ import {
 	getEventStatsDateRange,
 	getEventStatsUniqueDays,
 } from "@/features/events/event-stats-utils";
-import { getVisibleEventCount } from "@/features/events/event-visibility";
 import { type Event } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
 import React, { useEffect, useMemo } from "react";
@@ -11,25 +10,9 @@ import React, { useEffect, useMemo } from "react";
 interface EventStatsProps {
 	events: Event[];
 	filteredEvents: Event[];
-	isAuthenticated: boolean;
-	isAuthResolved: boolean;
 }
 
-const EventStats: React.FC<EventStatsProps> = ({
-	events,
-	filteredEvents,
-	isAuthenticated,
-	isAuthResolved,
-}) => {
-	const visibleFilteredEventsCount = useMemo(
-		() =>
-			getVisibleEventCount(filteredEvents.length, {
-				isAuthenticated,
-				isAuthResolved,
-			}),
-		[filteredEvents.length, isAuthenticated, isAuthResolved],
-	);
-
+const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 	// Infer if filters are active by comparing array lengths
 	const hasActiveFilters = filteredEvents.length !== events.length;
 
@@ -80,10 +63,10 @@ const EventStats: React.FC<EventStatsProps> = ({
 						Events
 					</div>
 					<div className="mt-1 text-3xl [font-family:var(--ooo-font-display)] font-light text-foreground">
-						{visibleFilteredEventsCount.toLocaleString()}
+						{filteredEvents.length.toLocaleString()}
 					</div>
 					<div className="mt-1 text-sm text-muted-foreground">
-						Event{visibleFilteredEventsCount !== 1 ? "s" : ""}{" "}
+						Event{filteredEvents.length !== 1 ? "s" : ""}{" "}
 						{hasActiveFilters ? "filtered" : "total"}
 					</div>
 				</CardContent>
