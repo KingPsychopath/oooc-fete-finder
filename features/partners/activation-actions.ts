@@ -12,6 +12,7 @@ import {
 	schedulePromotedEvent,
 } from "@/features/events/promoted/actions";
 import { env } from "@/lib/config/env";
+import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import {
 	type PartnerActivationStatus,
 	getPartnerActivationRepository,
@@ -22,6 +23,43 @@ const assertAdmin = async () => {
 	if (!authorized) {
 		throw new Error("Unauthorized access");
 	}
+};
+
+const toPercent = (numerator: number, denominator: number): number => {
+	if (denominator <= 0) return 0;
+	return Math.round((numerator / denominator) * 1000) / 10;
+};
+
+const buildReportWindow = (input: {
+	requestedStartAt?: string;
+	durationHours?: number;
+}): {
+	startAt: string;
+	endAt: string;
+	durationHours: number;
+} => {
+	const startDate =
+		input.requestedStartAt && input.requestedStartAt.trim().length > 0
+			? new Date(input.requestedStartAt)
+			: new Date();
+	const safeStartDate = Number.isFinite(startDate.getTime())
+		? startDate
+		: new Date();
+	const parsedDuration =
+		typeof input.durationHours === "number"
+			? Math.floor(input.durationHours)
+			: 48;
+	const safeDuration = Number.isFinite(parsedDuration) ? parsedDuration : 48;
+	const durationHours = Math.max(1, Math.min(168, safeDuration));
+	const endDate = new Date(
+		safeStartDate.getTime() + durationHours * 60 * 60 * 1000,
+	);
+
+	return {
+		startAt: safeStartDate.toISOString(),
+		endAt: endDate.toISOString(),
+		durationHours,
+	};
 };
 
 export async function getPartnerActivationDashboard(): Promise<
@@ -135,25 +173,13 @@ export async function fulfillPartnerActivation(input: {
 				error: scheduleResult.error || scheduleResult.message,
 			};
 		}
-		const startDate =
-			input.requestedStartAt && input.requestedStartAt.trim().length > 0
-				? new Date(input.requestedStartAt)
-				: new Date();
-		const safeStartDate = Number.isFinite(startDate.getTime())
-			? startDate
-			: new Date();
-		const parsedDuration =
-			typeof input.durationHours === "number"
-				? Math.floor(input.durationHours)
-				: 48;
-		const safeDuration = Number.isFinite(parsedDuration) ? parsedDuration : 48;
-		const durationHours = Math.max(1, Math.min(168, safeDuration));
-		const expectedEndDate = new Date(
-			safeStartDate.getTime() + durationHours * 60 * 60 * 1000,
-		);
+		const reportWindow = buildReportWindow({
+			requestedStartAt: input.requestedStartAt,
+			durationHours: input.durationHours,
+		});
 
-		let effectiveStartAt = safeStartDate.toISOString();
-		let effectiveEndAt = expectedEndDate.toISOString();
+		let effectiveStartAt = reportWindow.startAt;
+		let effectiveEndAt = reportWindow.endAt;
 		if (input.tier === "spotlight") {
 			const queue = await listFeaturedQueue();
 			if (queue.success) {
@@ -302,29 +328,17 @@ export async function generatePartnerStatsTestLink(input: {
 			};
 		}
 
-		const startDate =
-			input.requestedStartAt && input.requestedStartAt.trim().length > 0
-				? new Date(input.requestedStartAt)
-				: new Date();
-		const safeStartDate = Number.isFinite(startDate.getTime())
-			? startDate
-			: new Date();
-		const parsedDuration =
-			typeof input.durationHours === "number"
-				? Math.floor(input.durationHours)
-				: 48;
-		const safeDuration = Number.isFinite(parsedDuration) ? parsedDuration : 48;
-		const durationHours = Math.max(1, Math.min(168, safeDuration));
-		const endDate = new Date(
-			safeStartDate.getTime() + durationHours * 60 * 60 * 1000,
-		);
+		const reportWindow = buildReportWindow({
+			requestedStartAt: input.requestedStartAt,
+			durationHours: input.durationHours,
+		});
 
 		const seedResult = await repository.enqueueFromStripe({
 			sourceEventId: `manual-test-${randomUUID()}`,
 			packageKey:
-				input.tier === "promoted" ?
-					"manual-test-promoted"
-				:	"manual-test-spotlight",
+				input.tier === "promoted"
+					? "manual-test-promoted"
+					: "manual-test-spotlight",
 			customerEmail: "internal-test@outofofficecollective.co.uk",
 			customerName: "Internal Test",
 			eventName: trimmedEventKey,
@@ -351,8 +365,8 @@ export async function generatePartnerStatsTestLink(input: {
 			id: seedResult.record.id,
 			eventKey: trimmedEventKey,
 			tier: input.tier,
-			startAt: safeStartDate.toISOString(),
-			endAt: endDate.toISOString(),
+			startAt: reportWindow.startAt,
+			endAt: reportWindow.endAt,
 			partnerStatsToken,
 			notes: `Manual test stats link (${trimmedEventKey})`,
 		});
@@ -383,6 +397,89 @@ export async function generatePartnerStatsTestLink(input: {
 				error instanceof Error
 					? error.message
 					: "Unknown test stats generation error",
+		};
+	}
+}
+
+export async function previewPartnerStatsReport(input: {
+	eventKey: string;
+	requestedStartAt?: string;
+	durationHours?: number;
+}): Promise<
+	| {
+			success: true;
+			range: {
+				startAt: string;
+				endAt: string;
+			};
+			metrics: {
+				clickCount: number;
+				outboundClickCount: number;
+				calendarSyncCount: number;
+				uniqueSessionCount: number;
+				outboundSessionRate: number;
+				calendarSessionRate: number;
+			};
+	  }
+	| { success: false; message: string; error: string }
+> {
+	try {
+		await assertAdmin();
+		const trimmedEventKey = input.eventKey.trim();
+		if (!trimmedEventKey) {
+			return {
+				success: false,
+				message: "Event key is required",
+				error: "Event key is required",
+			};
+		}
+		const repository = getEventEngagementRepository();
+		if (!repository) {
+			return {
+				success: false,
+				message: "Postgres not configured",
+				error: "Postgres not configured",
+			};
+		}
+		const reportWindow = buildReportWindow({
+			requestedStartAt: input.requestedStartAt,
+			durationHours: input.durationHours,
+		});
+		const summary = await repository.summarizeEventWindow({
+			eventKey: trimmedEventKey,
+			startAt: reportWindow.startAt,
+			endAt: reportWindow.endAt,
+		});
+
+		return {
+			success: true,
+			range: {
+				startAt: reportWindow.startAt,
+				endAt: reportWindow.endAt,
+			},
+			metrics: {
+				clickCount: summary.clickCount,
+				outboundClickCount: summary.outboundClickCount,
+				calendarSyncCount: summary.calendarSyncCount,
+				uniqueSessionCount: summary.uniqueSessionCount,
+				outboundSessionRate: toPercent(
+					summary.uniqueOutboundSessionCount,
+					summary.uniqueViewSessionCount,
+				),
+				calendarSessionRate: toPercent(
+					summary.uniqueCalendarSessionCount,
+					summary.uniqueViewSessionCount,
+				),
+			},
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Failed to preview partner stats",
+			error:
+				error instanceof Error
+					? error.message
+					: "Unknown partner stats preview error",
 		};
 	}
 }

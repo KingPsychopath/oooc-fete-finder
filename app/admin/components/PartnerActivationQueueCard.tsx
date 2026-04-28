@@ -13,6 +13,7 @@ import {
 	fulfillPartnerActivation,
 	generatePartnerStatsTestLink,
 	getPartnerActivationDashboard,
+	previewPartnerStatsReport,
 	updatePartnerActivationStatus,
 } from "@/features/partners/activation-actions";
 import type { PartnerActivationStatus } from "@/lib/platform/postgres/partner-activation-repository";
@@ -37,11 +38,24 @@ type TestLinkInput = {
 };
 
 const STATUS_LABEL: Record<PartnerActivationStatus, string> = {
-	pending: "Pending",
-	processing: "Processing",
-	activated: "Activated",
+	pending: "Needs Fulfillment",
+	processing: "In Progress",
+	activated: "Fulfilled / Reports",
 	dismissed: "Dismissed",
 };
+
+const STATUS_SUMMARY_LABEL: Record<PartnerActivationStatus, string> = {
+	pending: "Needs Fulfillment",
+	processing: "In Progress",
+	activated: "Fulfilled",
+	dismissed: "Dismissed",
+};
+
+const WINDOW_PRESETS = [
+	{ key: "last-48h", label: "Last 48h", hours: 48 },
+	{ key: "last-7d", label: "Last 7d", hours: 168 },
+	{ key: "from-now", label: "From Now", hours: 48 },
+] as const;
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -58,6 +72,34 @@ const defaultScheduleAt = (): string => {
 	now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
 	return now.toISOString().slice(0, 16);
 };
+
+const toDateTimeLocalInput = (date: Date): string => {
+	const localDate = new Date(date);
+	localDate.setMinutes(localDate.getMinutes() - localDate.getTimezoneOffset());
+	return localDate.toISOString().slice(0, 16);
+};
+
+const getWindowEnd = (input: TestLinkInput): Date | null => {
+	const startDate = new Date(input.scheduleAt);
+	const durationHours = Number.parseInt(input.durationHours, 10);
+	if (
+		!Number.isFinite(startDate.getTime()) ||
+		!Number.isFinite(durationHours)
+	) {
+		return null;
+	}
+	return new Date(startDate.getTime() + durationHours * 60 * 60 * 1000);
+};
+
+const formatReportDateTime = (value: Date | string): string =>
+	new Date(value).toLocaleString(undefined, {
+		month: "short",
+		day: "numeric",
+		hour: "numeric",
+		minute: "2-digit",
+	});
+
+const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
 const toPartnerStatsPath = (id: string, token: string): string =>
 	`${basePath}/partner-stats/${id}?token=${token}`;
@@ -92,7 +134,12 @@ export const PartnerActivationQueueCard = ({
 		scheduleAt: defaultScheduleAt(),
 		durationHours: "48",
 	});
-	const [generatedTestLink, setGeneratedTestLink] = useState<string | null>(null);
+	const [generatedTestLink, setGeneratedTestLink] = useState<string | null>(
+		null,
+	);
+	const [previewPayload, setPreviewPayload] = useState<Awaited<
+		ReturnType<typeof previewPartnerStatsReport>
+	> | null>(null);
 
 	const loadDashboard = useCallback(async () => {
 		setIsLoading(true);
@@ -219,9 +266,15 @@ export const PartnerActivationQueueCard = ({
 			});
 	}, []);
 
+	const updateTestLinkInput = useCallback((nextInput: TestLinkInput) => {
+		setPreviewPayload(null);
+		setGeneratedTestLink(null);
+		setTestLinkInput(nextInput);
+	}, []);
+
 	const handleGenerateTestLink = useCallback(async () => {
 		if (!testLinkInput.eventKey.trim()) {
-			setErrorMessage("Select an event key to generate a test stats link.");
+			setErrorMessage("Select an event key to create a manual stats report.");
 			return;
 		}
 		setIsMutating(true);
@@ -240,12 +293,58 @@ export const PartnerActivationQueueCard = ({
 				return;
 			}
 			setGeneratedTestLink(result.statsPath);
-			setStatusMessage(result.message);
+			setStatusMessage(
+				"Manual partner stats report created. The link uses the selected event and report window.",
+			);
 			await loadDashboard();
 		} finally {
 			setIsMutating(false);
 		}
 	}, [loadDashboard, testLinkInput]);
+
+	const handlePreviewReport = useCallback(async () => {
+		if (!testLinkInput.eventKey.trim()) {
+			setErrorMessage("Select an event key before previewing stats.");
+			return;
+		}
+		setIsMutating(true);
+		setStatusMessage("");
+		setErrorMessage("");
+		setPreviewPayload(null);
+		try {
+			const result = await previewPartnerStatsReport({
+				eventKey: testLinkInput.eventKey.trim(),
+				requestedStartAt: testLinkInput.scheduleAt,
+				durationHours: Number.parseInt(testLinkInput.durationHours, 10),
+			});
+			setPreviewPayload(result);
+			if (!result.success) {
+				setErrorMessage(result.error || result.message);
+				return;
+			}
+			setStatusMessage("Report window preview updated");
+		} finally {
+			setIsMutating(false);
+		}
+	}, [testLinkInput]);
+
+	const handleApplyWindowPreset = useCallback(
+		(preset: (typeof WINDOW_PRESETS)[number]) => {
+			const now = new Date();
+			const startDate =
+				preset.key === "from-now"
+					? now
+					: new Date(now.getTime() - preset.hours * 60 * 60 * 1000);
+			setPreviewPayload(null);
+			setGeneratedTestLink(null);
+			setTestLinkInput((current) => ({
+				...current,
+				scheduleAt: toDateTimeLocalInput(startDate),
+				durationHours: String(preset.hours),
+			}));
+		},
+		[],
+	);
 
 	const items = useMemo(() => {
 		if (!payload?.success) return [];
@@ -256,16 +355,20 @@ export const PartnerActivationQueueCard = ({
 		? payload.metrics
 		: { total: 0, pending: 0, processing: 0, activated: 0, dismissed: 0 };
 	const events = payload?.success ? payload.events : [];
+	const reportEndDate = getWindowEnd(testLinkInput);
+	const selectedManualReportEvent = events.find(
+		(event) => event.eventKey === testLinkInput.eventKey,
+	);
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
 			<CardHeader className="space-y-3">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div>
-						<CardTitle>Paid Orders Queue</CardTitle>
+						<CardTitle>Paid Placements</CardTitle>
 						<CardDescription>
-							Paid Stripe orders land here first. Choose Spotlight or Promoted,
-							match to an event, then fulfill in one step.
+							Fulfill Stripe orders, schedule Spotlight or Promoted placement,
+							and create private partner stats reports for selected windows.
 						</CardDescription>
 					</div>
 					<Button
@@ -282,19 +385,19 @@ export const PartnerActivationQueueCard = ({
 				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Pending
+							Needs Fulfillment
 						</p>
 						<p className="mt-1 text-sm font-medium">{metrics.pending}</p>
 					</div>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Processing
+							In Progress
 						</p>
 						<p className="mt-1 text-sm font-medium">{metrics.processing}</p>
 					</div>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Activated
+							Fulfilled
 						</p>
 						<p className="mt-1 text-sm font-medium">{metrics.activated}</p>
 					</div>
@@ -323,13 +426,20 @@ export const PartnerActivationQueueCard = ({
 				</div>
 
 				<div className="rounded-md border bg-background/60 p-3">
-					<p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-						Generate Test Stats Link
-					</p>
-					<p className="mt-1 text-xs text-muted-foreground">
-						Create a token-protected partner stats page for any event without a
-						Stripe payment.
-					</p>
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+								Manual Partner Stats Report
+							</p>
+							<p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+								Create a private stats link for an event and campaign window.
+								Metrics only include activity inside the selected window; this
+								does not schedule a placement or use Stripe. Created reports
+								appear under Fulfilled / Reports.
+							</p>
+						</div>
+						<Badge variant="outline">Windowed Report</Badge>
+					</div>
 					<div className="mt-3 grid gap-2 md:grid-cols-4">
 						<div className="space-y-1 md:col-span-2">
 							<label className="text-xs text-muted-foreground">Event key</label>
@@ -338,12 +448,17 @@ export const PartnerActivationQueueCard = ({
 								className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
 								value={testLinkInput.eventKey}
 								onChange={(event) =>
-									setTestLinkInput((current) => ({
-										...current,
+									updateTestLinkInput({
+										...testLinkInput,
 										eventKey: event.target.value,
-									}))
+									})
 								}
 							/>
+							{selectedManualReportEvent ? (
+								<p className="text-[11px] text-muted-foreground">
+									{selectedManualReportEvent.name}
+								</p>
+							) : null}
 						</div>
 						<div className="space-y-1">
 							<label className="text-xs text-muted-foreground">Tier</label>
@@ -351,10 +466,10 @@ export const PartnerActivationQueueCard = ({
 								className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
 								value={testLinkInput.tier}
 								onChange={(event) =>
-									setTestLinkInput((current) => ({
-										...current,
+									updateTestLinkInput({
+										...testLinkInput,
 										tier: event.target.value as "spotlight" | "promoted",
-									}))
+									})
 								}
 							>
 								<option value="spotlight">Spotlight</option>
@@ -372,12 +487,30 @@ export const PartnerActivationQueueCard = ({
 								className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
 								value={testLinkInput.durationHours}
 								onChange={(event) =>
-									setTestLinkInput((current) => ({
-										...current,
+									updateTestLinkInput({
+										...testLinkInput,
 										durationHours: event.target.value,
-									}))
+									})
 								}
 							/>
+						</div>
+						<div className="space-y-1 md:col-span-4">
+							<label className="text-xs text-muted-foreground">
+								Window presets
+							</label>
+							<div className="flex flex-wrap gap-1.5">
+								{WINDOW_PRESETS.map((preset) => (
+									<Button
+										key={preset.key}
+										type="button"
+										size="sm"
+										variant="outline"
+										onClick={() => handleApplyWindowPreset(preset)}
+									>
+										{preset.label}
+									</Button>
+								))}
+							</div>
 						</div>
 						<div className="space-y-1 md:col-span-2">
 							<label className="text-xs text-muted-foreground">Start</label>
@@ -386,23 +519,103 @@ export const PartnerActivationQueueCard = ({
 								className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
 								value={testLinkInput.scheduleAt}
 								onChange={(event) =>
-									setTestLinkInput((current) => ({
-										...current,
+									updateTestLinkInput({
+										...testLinkInput,
 										scheduleAt: event.target.value,
-									}))
+									})
 								}
 							/>
 						</div>
-						<div className="flex items-end md:col-span-2">
+						<div className="flex flex-wrap items-end gap-2 md:col-span-2">
+							<Button
+								size="sm"
+								disabled={isMutating}
+								variant="outline"
+								onClick={() => void handlePreviewReport()}
+							>
+								Preview stats
+							</Button>
 							<Button
 								size="sm"
 								disabled={isMutating}
 								onClick={() => void handleGenerateTestLink()}
 							>
-								Generate link
+								Create private report
 							</Button>
 						</div>
 					</div>
+					<div className="mt-3 rounded-md border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+						<p>
+							Report window:{" "}
+							<span className="font-medium text-foreground">
+								{testLinkInput.scheduleAt
+									? formatReportDateTime(new Date(testLinkInput.scheduleAt))
+									: "Choose a start time"}
+							</span>
+							{" - "}
+							<span className="font-medium text-foreground">
+								{reportEndDate
+									? formatReportDateTime(reportEndDate)
+									: "Choose a valid duration"}
+							</span>
+						</p>
+						<p className="mt-1">
+							Use a past start time to include existing promo activity, or "From
+							Now" for a new campaign that has not gathered stats yet.
+						</p>
+					</div>
+					{previewPayload?.success ? (
+						<div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+							<div className="rounded-md border bg-background/70 px-3 py-2">
+								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+									Views
+								</p>
+								<p className="mt-1 text-sm font-medium">
+									{previewPayload.metrics.clickCount}
+								</p>
+							</div>
+							<div className="rounded-md border bg-background/70 px-3 py-2">
+								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+									Outbound
+								</p>
+								<p className="mt-1 text-sm font-medium">
+									{previewPayload.metrics.outboundClickCount}
+								</p>
+							</div>
+							<div className="rounded-md border bg-background/70 px-3 py-2">
+								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+									Calendar
+								</p>
+								<p className="mt-1 text-sm font-medium">
+									{previewPayload.metrics.calendarSyncCount}
+								</p>
+							</div>
+							<div className="rounded-md border bg-background/70 px-3 py-2">
+								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+									Sessions
+								</p>
+								<p className="mt-1 text-sm font-medium">
+									{previewPayload.metrics.uniqueSessionCount}
+								</p>
+							</div>
+							<div className="rounded-md border bg-background/70 px-3 py-2">
+								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+									Outbound CVR
+								</p>
+								<p className="mt-1 text-sm font-medium">
+									{formatPercent(previewPayload.metrics.outboundSessionRate)}
+								</p>
+							</div>
+							<div className="rounded-md border bg-background/70 px-3 py-2">
+								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+									Calendar CVR
+								</p>
+								<p className="mt-1 text-sm font-medium">
+									{formatPercent(previewPayload.metrics.calendarSessionRate)}
+								</p>
+							</div>
+						</div>
+					) : null}
 					{generatedTestLink ? (
 						<div className="mt-3 flex flex-wrap gap-2">
 							<Button
@@ -417,14 +630,14 @@ export const PartnerActivationQueueCard = ({
 									/>
 								}
 							>
-								Open generated stats page
+								Open private report
 							</Button>
 							<Button
 								size="sm"
 								variant="outline"
 								onClick={() => handleCopyStatsLink(generatedTestLink)}
 							>
-								Copy generated link
+								Copy private report link
 							</Button>
 						</div>
 					) : null}
@@ -445,7 +658,8 @@ export const PartnerActivationQueueCard = ({
 			<CardContent>
 				{items.length === 0 ? (
 					<div className="rounded-md border bg-background/60 px-3 py-8 text-center text-sm text-muted-foreground">
-						No {STATUS_LABEL[activeStatus].toLowerCase()} activation items.
+						No {STATUS_SUMMARY_LABEL[activeStatus].toLowerCase()} activation
+						items.
 					</div>
 				) : (
 					<div className="space-y-3">
@@ -596,7 +810,7 @@ export const PartnerActivationQueueCard = ({
 											disabled={isMutating && busyId === item.id}
 											onClick={() => void withMutation(item.id, "processing")}
 										>
-											Mark processing
+											Mark in progress
 										</Button>
 										<Button
 											size="sm"
