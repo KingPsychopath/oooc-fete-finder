@@ -16,21 +16,23 @@ export function DevServiceWorkerReset() {
 		if (!isDevelopment && !isLocalHost) return;
 
 		void (async () => {
-				try {
-					const registrations = await navigator.serviceWorker.getRegistrations();
-					await Promise.all(registrations.map((registration) => registration.unregister()));
-				} catch {
-					// Ignore cleanup failures during local cache reset.
-				}
+			try {
+				const registrations = await navigator.serviceWorker.getRegistrations();
+				await Promise.all(
+					registrations.map((registration) => registration.unregister()),
+				);
+			} catch {
+				// Ignore cleanup failures during local cache reset.
+			}
 
 			if (!("caches" in window)) return;
 
-				try {
-					const cacheKeys = await caches.keys();
-					await Promise.all(cacheKeys.map((key) => caches.delete(key)));
-				} catch {
-					// Ignore cache cleanup failures during local cache reset.
-				}
+			try {
+				const cacheKeys = await caches.keys();
+				await Promise.all(cacheKeys.map((key) => caches.delete(key)));
+			} catch {
+				// Ignore cache cleanup failures during local cache reset.
+			}
 		})();
 	}, []);
 

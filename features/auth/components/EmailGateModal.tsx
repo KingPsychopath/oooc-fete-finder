@@ -13,7 +13,7 @@ import React, { useEffect, useState } from "react";
 
 type EmailGateModalProps = {
 	isOpen: boolean;
-	onEmailSubmit: (email: string) => void;
+	onEmailSubmit: (email: string) => Promise<boolean>;
 	onClose?: () => void;
 };
 
@@ -124,7 +124,12 @@ const EmailGateModal = ({
 			};
 
 			if (result.success) {
-				onEmailSubmit(email);
+				const hasConfirmedSession = await onEmailSubmit(email);
+				if (!hasConfirmedSession) {
+					setError(
+						"We verified your details, but your browser did not keep the login session. Please try again.",
+					);
+				}
 			} else {
 				setError(result.error || "Something went wrong. Please try again.");
 			}

@@ -49,7 +49,7 @@ export function EventsClient({
 		isOnline,
 		authMode,
 		offlineGraceExpiresAt,
-		authenticate,
+		refreshSession,
 	} = useAuth();
 
 	const offlineGraceExpiryLabel = useMemo(() => {
@@ -228,13 +228,12 @@ export function EventsClient({
 		updateUrlWithoutNavigation,
 	]);
 
-	const handleEmailSubmit = useCallback(
-		(email: string) => {
-			authenticate(email);
-			setShowEmailGate(false);
-		},
-		[authenticate],
-	);
+	const handleEmailSubmit = useCallback(async () => {
+		const hasConfirmedSession = await refreshSession();
+		if (!hasConfirmedSession) return false;
+		setShowEmailGate(false);
+		return true;
+	}, [refreshSession]);
 
 	const toggleFilterPanel = useCallback(() => {
 		if (!requireAuth()) return;

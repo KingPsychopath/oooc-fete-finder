@@ -25,8 +25,7 @@ type AuthContextType = {
 	authMode: AuthMode;
 	offlineGraceExpiresAt: number | null;
 	userEmail: string | null;
-	refreshSession: () => Promise<void>;
-	authenticate: (email: string) => void;
+	refreshSession: () => Promise<boolean>;
 	logout: () => Promise<void>;
 };
 
@@ -49,14 +48,8 @@ const defaultAuthContext: AuthContextType = {
 	authMode: "signed-out",
 	offlineGraceExpiresAt: null,
 	userEmail: null,
-	refreshSession: async () => {},
-	authenticate: () => {},
+	refreshSession: async () => false,
 	logout: async () => {},
-};
-
-const isValidEmail = (email: string): boolean => {
-	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-	return emailRegex.test(email);
 };
 
 const readOfflineGraceState = (): OfflineGraceState | null => {
@@ -159,24 +152,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 			if (hasLiveAuth) {
 				outcome = "live";
 				setLiveAuthenticatedState(payload.email as string);
+				return true;
 			} else {
 				outcome = "signed-out";
 				clearOfflineGraceState();
 				setSignedOutState();
+				return false;
 			}
 		} catch {
 			// If we cannot verify the admin session, hide admin-only UI until
-			// connectivity/session checks recover.
+			// connectivity/session checks recover. Keep the current user auth state
+			// on transient online failures so one flaky session check does not sign
+			// people out.
 			setIsAdminAuthenticated(false);
 			const canUseOfflineGrace =
 				typeof navigator !== "undefined" &&
 				navigator.onLine === false &&
 				tryApplyOfflineGraceState();
 			if (!canUseOfflineGrace) {
-				outcome = "signed-out";
-				setSignedOutState();
+				outcome = "error";
+				return false;
 			} else {
 				outcome = "offline-grace";
+				return true;
 			}
 		} finally {
 			if (AUTH_TIMING_LOG_ENABLED) {
@@ -219,14 +217,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 		};
 	}, [refreshSession]);
 
-	const authenticate = (email: string) => {
-		if (!isValidEmail(email)) {
-			return;
-		}
-		setLiveAuthenticatedState(email);
-		setIsAuthResolved(true);
-	};
-
 	const logout = async () => {
 		try {
 			await fetch(`${basePath}/api/auth/session`, {
@@ -250,7 +240,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 				offlineGraceExpiresAt,
 				userEmail,
 				refreshSession,
-				authenticate,
 				logout,
 			}}
 		>
