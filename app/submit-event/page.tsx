@@ -42,9 +42,9 @@ export default function SubmitEventPage() {
 					Fete Finder. Accepted submissions are published by the admin team.
 				</p>
 				<p className="text-sm leading-relaxed text-muted-foreground">
-					Submitting several dates or related events? Send one event row at a
-					time, then reuse details for the next submission and change only what
-					is different.
+					Submitting several dates or related events? Send one event at a time,
+					then reuse details for the next submission and change only what is
+					different.
 				</p>
 				<div className="border-t border-border" role="presentation" />
 				<p className="text-xs text-muted-foreground">

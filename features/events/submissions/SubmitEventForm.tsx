@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { normalizeProofLink } from "@/features/events/submissions/proof-link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const DRAFT_STORAGE_KEY = "oooc:fete-finder:submit-event:draft:v1";
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
 
 type FormState = {
 	eventName: string;
@@ -55,6 +57,96 @@ const buildReusableForm = (previous: FormState): FormState => ({
 	arrondissement: previous.arrondissement,
 });
 
+const hasDraftContent = (form: FormState): boolean =>
+	Object.entries(form).some(
+		([field, value]) => field !== "honeypot" && value.trim().length > 0,
+	);
+
+const shouldShowOptionalDetails = (form: FormState): boolean =>
+	Boolean(
+		form.endTime ||
+			form.genre ||
+			form.price ||
+			form.age ||
+			form.indoorOutdoor ||
+			form.notes ||
+			form.arrondissement,
+	);
+
+const toStoredDraft = (form: FormState): FormState => ({
+	...form,
+	honeypot: "",
+});
+
+const toRestoredDraft = (candidate: unknown): FormState | null => {
+	if (!candidate || typeof candidate !== "object") return null;
+	const draft = candidate as Record<string, unknown>;
+	return {
+		eventName: typeof draft.eventName === "string" ? draft.eventName : "",
+		date: typeof draft.date === "string" ? draft.date : "",
+		startTime: typeof draft.startTime === "string" ? draft.startTime : "",
+		location: typeof draft.location === "string" ? draft.location : "",
+		hostEmail: typeof draft.hostEmail === "string" ? draft.hostEmail : "",
+		proofLink: typeof draft.proofLink === "string" ? draft.proofLink : "",
+		endTime: typeof draft.endTime === "string" ? draft.endTime : "",
+		genre: typeof draft.genre === "string" ? draft.genre : "",
+		price: typeof draft.price === "string" ? draft.price : "",
+		age: typeof draft.age === "string" ? draft.age : "",
+		indoorOutdoor:
+			typeof draft.indoorOutdoor === "string" ? draft.indoorOutdoor : "",
+		notes: typeof draft.notes === "string" ? draft.notes : "",
+		arrondissement:
+			typeof draft.arrondissement === "string" ? draft.arrondissement : "",
+		honeypot: "",
+	};
+};
+
+const readStoredDraft = (): FormState | null => {
+	try {
+		const rawDraft = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+		if (!rawDraft) return null;
+		const parsed = JSON.parse(rawDraft) as {
+			savedAt?: unknown;
+			form?: Partial<FormState>;
+		};
+		if (typeof parsed.savedAt !== "number") return null;
+		if (Date.now() - parsed.savedAt > DRAFT_TTL_MS) {
+			window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+			return null;
+		}
+		return toRestoredDraft(parsed.form);
+	} catch {
+		window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+		return null;
+	}
+};
+
+const saveDraft = (form: FormState) => {
+	try {
+		if (!hasDraftContent(form)) {
+			window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+			return;
+		}
+		window.localStorage.setItem(
+			DRAFT_STORAGE_KEY,
+			JSON.stringify({
+				savedAt: Date.now(),
+				form: toStoredDraft(form),
+			}),
+		);
+	} catch {
+		// Losing autosave should never block a real event submission.
+	}
+};
+
+const clearDraft = () => {
+	try {
+		window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+	} catch {
+		// Ignore storage failures; the in-page form state is still authoritative.
+	}
+};
+
 export function SubmitEventForm({
 	submissionsEnabled = true,
 }: {
@@ -68,12 +160,29 @@ export function SubmitEventForm({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isSubmitted, setIsSubmitted] = useState(false);
 	const [isReusingPrevious, setIsReusingPrevious] = useState(false);
+	const [isDraftReady, setIsDraftReady] = useState(false);
+	const [wasDraftRestored, setWasDraftRestored] = useState(false);
 	const [errorMessage, setErrorMessage] = useState("");
 	const [successMessage, setSuccessMessage] = useState("");
 	const [formStartedAt, setFormStartedAt] = useState(() =>
 		new Date().toISOString(),
 	);
 	const isFormDisabled = !submissionsEnabled || isSubmitting;
+
+	useEffect(() => {
+		const storedDraft = readStoredDraft();
+		if (storedDraft && hasDraftContent(storedDraft)) {
+			setForm(storedDraft);
+			setShowOptional(shouldShowOptionalDetails(storedDraft));
+			setWasDraftRestored(true);
+		}
+		setIsDraftReady(true);
+	}, []);
+
+	useEffect(() => {
+		if (!isDraftReady || isSubmitted) return;
+		saveDraft(form);
+	}, [form, isDraftReady, isSubmitted]);
 
 	const updateField = (field: keyof FormState, value: string) => {
 		setForm((current) => ({
@@ -161,12 +270,13 @@ export function SubmitEventForm({
 
 			setSuccessMessage(
 				payload.message ||
-					"Thanks, your event submission has been received for review.",
+					"Your event was sent for review. Add another with reused details, or start fresh.",
 			);
 			setIsSubmitted(true);
 			setIsReusingPrevious(false);
 			setLastSubmittedForm(submittedForm);
 			setForm(EMPTY_FORM);
+			clearDraft();
 			setFormStartedAt(new Date().toISOString());
 		} catch (error) {
 			if (
@@ -182,9 +292,9 @@ export function SubmitEventForm({
 		}
 	};
 
-	const focusNextEventStart = () => {
+	const focusField = (fieldId: string) => {
 		window.requestAnimationFrame(() => {
-			document.getElementById("eventName")?.focus();
+			document.getElementById(fieldId)?.focus();
 		});
 	};
 
@@ -202,10 +312,11 @@ export function SubmitEventForm({
 		);
 		setIsSubmitted(false);
 		setIsReusingPrevious(true);
+		setWasDraftRestored(false);
 		setErrorMessage("");
 		setSuccessMessage("");
 		setFormStartedAt(new Date().toISOString());
-		focusNextEventStart();
+		focusField("date");
 	};
 
 	const handleStartFresh = () => {
@@ -213,10 +324,12 @@ export function SubmitEventForm({
 		setShowOptional(false);
 		setIsSubmitted(false);
 		setIsReusingPrevious(false);
+		setWasDraftRestored(false);
 		setErrorMessage("");
 		setSuccessMessage("");
+		clearDraft();
 		setFormStartedAt(new Date().toISOString());
-		focusNextEventStart();
+		focusField("eventName");
 	};
 
 	return (
@@ -227,11 +340,16 @@ export function SubmitEventForm({
 				</div>
 			)}
 			<form onSubmit={handleSubmit} className="space-y-4">
+				{wasDraftRestored && !isSubmitted && (
+					<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+						We restored your unsent draft from this browser.
+					</div>
+				)}
 				{isReusingPrevious && (
 					<div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
 						Reusing details from your last submission. Update the event name,
-						venue, genre, or price if they changed; date, time, link, and notes
-						start blank for each new event row.
+						venue, genre, or price if they changed. Add a new date, time, and
+						link for this event.
 					</div>
 				)}
 				<div className="grid gap-4 md:grid-cols-2">
@@ -469,17 +587,13 @@ export function SubmitEventForm({
 					</div>
 				)}
 
-				<div className="flex flex-wrap items-center gap-3">
-					<Button type="submit" disabled={isFormDisabled}>
-						{isSubmitting ? "Submitting..." : "Submit Event"}
-					</Button>
-					{isSubmitted && (
-						<p className="text-xs text-muted-foreground">
-							We will review your submission and may contact you for
-							confirmation.
-						</p>
-					)}
-				</div>
+				{!isSubmitted && (
+					<div className="flex flex-wrap items-center gap-3">
+						<Button type="submit" disabled={isFormDisabled}>
+							{isSubmitting ? "Submitting..." : "Submit Event"}
+						</Button>
+					</div>
+				)}
 			</form>
 		</div>
 	);
