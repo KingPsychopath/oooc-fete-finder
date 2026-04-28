@@ -277,15 +277,17 @@ export function AdminShell({
 													: "border-transparent hover:border-border/70 hover:bg-muted/40",
 											)}
 										>
-											<p>{route.label}</p>
-											{routeAlertCount > 0 && (
-												<Badge
-													variant="destructive"
-													className="mt-1 h-5 rounded-full px-1.5 text-[10px]"
-												>
-													{routeAlertCount} pending
-												</Badge>
-											)}
+											<div className="flex items-start justify-between gap-2">
+												<span className="min-w-0">{route.label}</span>
+												{routeAlertCount > 0 && (
+													<Badge
+														variant="destructive"
+														className="h-5 shrink-0 rounded-full px-1.5 text-[10px]"
+													>
+														{routeAlertCount} pending
+													</Badge>
+												)}
+											</div>
 											<p className="mt-0.5 text-xs text-muted-foreground">
 												{route.path.replace("/admin", "") || "/"}
 											</p>
