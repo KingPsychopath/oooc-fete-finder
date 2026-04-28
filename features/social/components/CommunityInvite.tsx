@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useFloatingPromptSlot } from "@/hooks/useFloatingPromptSlot";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { LAYERS } from "@/lib/ui/layers";
@@ -10,6 +11,8 @@ import { useCallback, useEffect, useState } from "react";
 import { COMMUNITY_INVITE_CONFIG } from "../config";
 import { useCommunityInviteStorage } from "../hooks/use-community-invite-storage";
 import type { CommunityInviteProps } from "../types";
+
+const PROMPT_PRIORITY = 20;
 
 export function CommunityInvite({
 	whatsappUrl = COMMUNITY_INVITE_CONFIG.WHATSAPP_URL,
@@ -32,7 +35,13 @@ export function CommunityInvite({
 		initiallyVisible: true,
 	});
 
-	const shouldBeVisible = isInScrollArea && shouldShow && !hasActiveOverlay;
+	const isRequestingSlot = isInScrollArea && shouldShow && !hasActiveOverlay;
+	const hasPromptSlot = useFloatingPromptSlot(
+		"community-invite",
+		isRequestingSlot,
+		PROMPT_PRIORITY,
+	);
+	const shouldBeVisible = isRequestingSlot && hasPromptSlot;
 
 	useEffect(() => {
 		if (shouldBeVisible) {

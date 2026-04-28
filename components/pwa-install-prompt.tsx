@@ -8,6 +8,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { useFloatingPromptSlot } from "@/hooks/useFloatingPromptSlot";
+import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
+import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { LAYERS } from "@/lib/ui/layers";
 import {
 	Download,
@@ -35,18 +38,32 @@ const DEFAULT_DISMISSAL_DATA: InstallDismissalData = {
 	count: 0,
 	timestamp: 0,
 };
+const INITIAL_DELAY_MS = 30_000;
+const SCROLL_ENGAGEMENT_THRESHOLD = 8;
+const DISMISSAL_COUNT_RESET_MS = 30 * 24 * 60 * 60 * 1000;
+const PROMPT_PRIORITY = 30;
 
-const readDismissalData = (): InstallDismissalData => {
+const readDismissalData = (now = Date.now()): InstallDismissalData => {
 	try {
 		const raw = localStorage.getItem(DISMISSAL_STORAGE_KEY);
 		if (!raw) return DEFAULT_DISMISSAL_DATA;
 		const parsed = JSON.parse(raw) as Partial<InstallDismissalData>;
-		return {
+		const data = {
 			count: Number.isFinite(parsed.count) ? Number(parsed.count) : 0,
 			timestamp: Number.isFinite(parsed.timestamp)
 				? Number(parsed.timestamp)
 				: 0,
 		};
+
+		if (
+			data.count > 0 &&
+			data.timestamp > 0 &&
+			now - data.timestamp >= DISMISSAL_COUNT_RESET_MS
+		) {
+			return DEFAULT_DISMISSAL_DATA;
+		}
+
+		return data;
 	} catch {
 		return DEFAULT_DISMISSAL_DATA;
 	}
@@ -56,11 +73,44 @@ const writeDismissalData = (data: InstallDismissalData) => {
 	localStorage.setItem(DISMISSAL_STORAGE_KEY, JSON.stringify(data));
 };
 
+const recordDismissal = () => {
+	const currentData = readDismissalData();
+	writeDismissalData({
+		count: currentData.count + 1,
+		timestamp: Date.now(),
+	});
+};
+
 export function PWAInstallPrompt() {
 	const [deferredPrompt, setDeferredPrompt] =
 		useState<BeforeInstallPromptEvent | null>(null);
-	const [isVisible, setIsVisible] = useState(false);
+	const [isPromptEligible, setIsPromptEligible] = useState(false);
+	const [isDelayComplete, setIsDelayComplete] = useState(false);
 	const [isIOS, setIsIOS] = useState(false);
+	const hasActiveOverlay = useHasActiveBodyOverlay();
+	const { isVisible: isEngagedByScroll } = useScrollVisibility({
+		threshold: SCROLL_ENGAGEMENT_THRESHOLD,
+		mode: "show-after",
+		initiallyVisible: false,
+	});
+	const isRequestingSlot =
+		isPromptEligible &&
+		isDelayComplete &&
+		isEngagedByScroll &&
+		!hasActiveOverlay;
+	const hasPromptSlot = useFloatingPromptSlot(
+		"pwa-install",
+		isRequestingSlot,
+		PROMPT_PRIORITY,
+	);
+
+	useEffect(() => {
+		const timer = window.setTimeout(() => {
+			setIsDelayComplete(true);
+		}, INITIAL_DELAY_MS);
+
+		return () => window.clearTimeout(timer);
+	}, []);
 
 	useEffect(() => {
 		// Check if already installed
@@ -101,9 +151,9 @@ export function PWAInstallPrompt() {
 			/iPad|iPhone|iPod/.test(navigator.userAgent) && !("MSStream" in window);
 		setIsIOS(detectIOS);
 
-		// For iOS, show instructions immediately
+		// iOS has no beforeinstallprompt event, so it becomes eligible here.
 		if (detectIOS) {
-			setIsVisible(true);
+			setIsPromptEligible(true);
 			return;
 		}
 
@@ -112,7 +162,7 @@ export function PWAInstallPrompt() {
 			e.preventDefault();
 			const event = e as BeforeInstallPromptEvent;
 			setDeferredPrompt(event);
-			setIsVisible(true);
+			setIsPromptEligible(true);
 		};
 
 		window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -133,7 +183,10 @@ export function PWAInstallPrompt() {
 			const choiceResult = await deferredPrompt.userChoice;
 
 			if (choiceResult.outcome === "accepted") {
-				setIsVisible(false);
+				setIsPromptEligible(false);
+			} else {
+				recordDismissal();
+				setIsPromptEligible(false);
 			}
 		} catch (error) {
 			console.warn("Install prompt failed:", error);
@@ -143,18 +196,11 @@ export function PWAInstallPrompt() {
 	};
 
 	const handleDismiss = () => {
-		setIsVisible(false);
-
-		// Update dismissal count and timestamp
-		const currentData = readDismissalData();
-		const newData: InstallDismissalData = {
-			count: currentData.count + 1,
-			timestamp: Date.now(),
-		};
-		writeDismissalData(newData);
+		setIsPromptEligible(false);
+		recordDismissal();
 	};
 
-	if (!isVisible) {
+	if (!isRequestingSlot || !hasPromptSlot) {
 		return null;
 	}
 

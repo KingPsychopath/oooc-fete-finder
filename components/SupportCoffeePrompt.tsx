@@ -1,5 +1,6 @@
 "use client";
 
+import { useFloatingPromptSlot } from "@/hooks/useFloatingPromptSlot";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { LAYERS } from "@/lib/ui/layers";
@@ -9,13 +10,19 @@ import { useCallback, useEffect, useState } from "react";
 
 interface CoffeePromptState {
 	dismissedAt?: number;
+	dismissCount?: number;
 	supportedAt?: number;
 }
 
 const STORAGE_KEY = "oooc_coffee_prompt_state";
 const INITIAL_DELAY_MS = 75_000;
-const REAPPEAR_AFTER_DISMISS_MS = 5 * 24 * 60 * 60 * 1000;
 const REAPPEAR_AFTER_SUPPORT_MS = 120 * 24 * 60 * 60 * 1000;
+const DISMISSAL_BACKOFF_MS = [
+	5 * 24 * 60 * 60 * 1000,
+	14 * 24 * 60 * 60 * 1000,
+	45 * 24 * 60 * 60 * 1000,
+] as const;
+const PROMPT_PRIORITY = 10;
 
 function isCoffeePromptState(value: unknown): value is CoffeePromptState {
 	if (typeof value !== "object" || value === null) {
@@ -25,10 +32,12 @@ function isCoffeePromptState(value: unknown): value is CoffeePromptState {
 	const parsed = value as Record<string, unknown>;
 	const hasValidDismissedAt =
 		!("dismissedAt" in parsed) || typeof parsed.dismissedAt === "number";
+	const hasValidDismissCount =
+		!("dismissCount" in parsed) || typeof parsed.dismissCount === "number";
 	const hasValidSupportedAt =
 		!("supportedAt" in parsed) || typeof parsed.supportedAt === "number";
 
-	return hasValidDismissedAt && hasValidSupportedAt;
+	return hasValidDismissedAt && hasValidDismissCount && hasValidSupportedAt;
 }
 
 function readPromptState(): CoffeePromptState {
@@ -58,7 +67,7 @@ function savePromptState(state: CoffeePromptState): void {
 }
 
 function isPromptAllowed(now = Date.now()): boolean {
-	const { dismissedAt, supportedAt } = readPromptState();
+	const { dismissedAt, dismissCount, supportedAt } = readPromptState();
 
 	if (
 		typeof supportedAt === "number" &&
@@ -67,11 +76,17 @@ function isPromptAllowed(now = Date.now()): boolean {
 		return false;
 	}
 
-	if (
-		typeof dismissedAt === "number" &&
-		now - dismissedAt < REAPPEAR_AFTER_DISMISS_MS
-	) {
-		return false;
+	if (typeof dismissedAt === "number") {
+		const normalizedDismissCount = Math.max(1, Math.floor(dismissCount ?? 1));
+		const backoffIndex = Math.min(
+			normalizedDismissCount - 1,
+			DISMISSAL_BACKOFF_MS.length - 1,
+		);
+		const backoffMs = DISMISSAL_BACKOFF_MS[backoffIndex];
+
+		if (now - dismissedAt < backoffMs) {
+			return false;
+		}
 	}
 
 	return true;
@@ -86,6 +101,13 @@ export function SupportCoffeePrompt() {
 		mode: "show-after",
 		initiallyVisible: false,
 	});
+	const isRequestingSlot =
+		isAllowed && isDelayComplete && isEngagedByScroll && !hasActiveOverlay;
+	const hasPromptSlot = useFloatingPromptSlot(
+		"support-coffee",
+		isRequestingSlot,
+		PROMPT_PRIORITY,
+	);
 
 	useEffect(() => {
 		setIsAllowed(isPromptAllowed());
@@ -99,9 +121,13 @@ export function SupportCoffeePrompt() {
 
 	const handleDismiss = useCallback(() => {
 		const currentState = readPromptState();
+		const previousDismissCount =
+			currentState.dismissCount ??
+			(typeof currentState.dismissedAt === "number" ? 1 : 0);
 		savePromptState({
 			...currentState,
 			dismissedAt: Date.now(),
+			dismissCount: previousDismissCount + 1,
 		});
 		setIsAllowed(false);
 	}, []);
@@ -119,7 +145,8 @@ export function SupportCoffeePrompt() {
 		!isAllowed ||
 		!isDelayComplete ||
 		!isEngagedByScroll ||
-		hasActiveOverlay
+		hasActiveOverlay ||
+		!hasPromptSlot
 	) {
 		return null;
 	}

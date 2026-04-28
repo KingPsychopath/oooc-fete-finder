@@ -9,7 +9,7 @@ export const COMMUNITY_INVITE_CONFIG: CommunityInviteConfig = {
 	DELAYS: {
 		AFTER_CHAT_CLICK: 4 * 24 * 60 * 60 * 1000, // 4 days
 		AFTER_DISMISS: 2 * 24 * 60 * 60 * 1000, // 2 days
-		INITIAL_DELAY: 1000, // 1 second
+		INITIAL_DELAY: 6_000, // 6 seconds
 	},
 	SCROLL: {
 		HIDE_THRESHOLD_PERCENTAGE: 20,
