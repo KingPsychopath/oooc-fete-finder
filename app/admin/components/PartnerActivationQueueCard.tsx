@@ -57,6 +57,8 @@ const WINDOW_PRESETS = [
 	{ key: "from-now", label: "From Now", hours: 48 },
 ] as const;
 
+const LIST_LIMIT_OPTIONS = [5, 10, 20, 50] as const;
+
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const inferTierFromPackageKey = (
@@ -125,6 +127,10 @@ export const PartnerActivationQueueCard = ({
 	const [busyId, setBusyId] = useState<string | null>(null);
 	const [statusMessage, setStatusMessage] = useState("");
 	const [errorMessage, setErrorMessage] = useState("");
+	const [activationSearchTerm, setActivationSearchTerm] = useState("");
+	const [activationVisibleLimit, setActivationVisibleLimit] = useState<number>(
+		LIST_LIMIT_OPTIONS[1],
+	);
 	const [fulfillmentInputs, setFulfillmentInputs] = useState<
 		Record<string, FulfillmentInput>
 	>({});
@@ -359,7 +365,7 @@ export const PartnerActivationQueueCard = ({
 		[],
 	);
 
-	const items = useMemo(() => {
+	const statusItems = useMemo(() => {
 		if (!payload?.success) return [];
 		return payload.items.filter((item) => item.status === activeStatus);
 	}, [activeStatus, payload]);
@@ -375,6 +381,30 @@ export const PartnerActivationQueueCard = ({
 	const reportEndDate = getWindowEnd(testLinkInput);
 	const selectedManualReportEvent = events.find(
 		(event) => event.eventKey === testLinkInput.eventKey,
+	);
+	const filteredItems = useMemo(() => {
+		const needle = activationSearchTerm.trim().toLowerCase();
+		if (!needle) return statusItems;
+		return statusItems.filter((item) => {
+			const fulfilledEventName = item.fulfilledEventKey
+				? eventNameByKey.get(item.fulfilledEventKey)
+				: null;
+			return [
+				fulfilledEventName,
+				item.eventName,
+				item.fulfilledEventKey,
+				item.customerEmail,
+				item.customerName,
+				item.packageKey,
+				item.notes,
+			]
+				.filter((value): value is string => typeof value === "string")
+				.some((value) => value.toLowerCase().includes(needle));
+		});
+	}, [activationSearchTerm, eventNameByKey, statusItems]);
+	const visibleItems = useMemo(
+		() => filteredItems.slice(0, activationVisibleLimit),
+		[activationVisibleLimit, filteredItems],
 	);
 
 	return (
@@ -672,15 +702,62 @@ export const PartnerActivationQueueCard = ({
 				)}
 			</CardHeader>
 
-			<CardContent>
-				{items.length === 0 ? (
+			<CardContent className="space-y-3">
+				<div className="flex flex-wrap items-end justify-between gap-2">
+					<div className="min-w-[220px] flex-1 space-y-1">
+						<label
+							htmlFor="partner-activation-search"
+							className="text-xs text-muted-foreground"
+						>
+							Search current tab
+						</label>
+						<input
+							id="partner-activation-search"
+							type="text"
+							className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+							value={activationSearchTerm}
+							onChange={(event) => setActivationSearchTerm(event.target.value)}
+							placeholder="Event, key, email, package"
+						/>
+					</div>
+					<div className="flex items-center gap-2">
+						<label
+							htmlFor="partner-activation-limit"
+							className="text-xs text-muted-foreground"
+						>
+							Show
+						</label>
+						<select
+							id="partner-activation-limit"
+							className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+							value={activationVisibleLimit}
+							onChange={(event) =>
+								setActivationVisibleLimit(
+									Number.parseInt(event.target.value, 10),
+								)
+							}
+						>
+							{LIST_LIMIT_OPTIONS.map((limit) => (
+								<option key={limit} value={limit}>
+									{limit}
+								</option>
+							))}
+						</select>
+					</div>
+				</div>
+				<p className="text-xs text-muted-foreground">
+					Showing {Math.min(visibleItems.length, filteredItems.length)} of{" "}
+					{filteredItems.length} matching items in{" "}
+					{STATUS_LABEL[activeStatus].toLowerCase()}.
+				</p>
+				{filteredItems.length === 0 ? (
 					<div className="rounded-md border bg-background/60 px-3 py-8 text-center text-sm text-muted-foreground">
 						No {STATUS_SUMMARY_LABEL[activeStatus].toLowerCase()} activation
-						items.
+						items match this view.
 					</div>
 				) : (
-					<div className="space-y-3">
-						{items.map((item) => {
+					<div className="max-h-[52rem] space-y-3 overflow-y-auto pr-1">
+						{visibleItems.map((item) => {
 							const input = fulfillmentInputs[item.id] ?? {
 								eventKey: item.fulfilledEventKey ?? "",
 								tier:
@@ -917,6 +994,22 @@ export const PartnerActivationQueueCard = ({
 						})}
 					</div>
 				)}
+				{filteredItems.length > visibleItems.length ? (
+					<div className="flex justify-center">
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onClick={() =>
+								setActivationVisibleLimit((current) =>
+									Math.min(current + 10, filteredItems.length),
+								)
+							}
+						>
+							Show 10 more
+						</Button>
+					</div>
+				) : null}
 				<datalist id="partner-activation-event-keys">
 					{events.map((event) => (
 						<option key={event.eventKey} value={event.eventKey}>

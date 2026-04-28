@@ -53,6 +53,10 @@ type QueueRow = {
 	queuePosition?: number | null;
 };
 
+type TimelineStateFilter = "all" | QueueRow["state"];
+
+const TIMELINE_LIMIT_OPTIONS = [10, 20, 50, 100] as const;
+
 const getDateTimeInputForTimezone = (
 	timeZone: string,
 	value?: Date,
@@ -136,6 +140,12 @@ export const FeaturedEventsManagerCard = ({
 		Record<string, { activationId: string; statsPath: string }>
 	>({});
 	const [eventQuery, setEventQuery] = useState("");
+	const [timelineSearchTerm, setTimelineSearchTerm] = useState("");
+	const [timelineStateFilter, setTimelineStateFilter] =
+		useState<TimelineStateFilter>("all");
+	const [timelineVisibleLimit, setTimelineVisibleLimit] = useState<number>(
+		TIMELINE_LIMIT_OPTIONS[1],
+	);
 	const [selectedEventKey, setSelectedEventKey] = useState("");
 	const [scheduleAt, setScheduleAt] = useState(
 		getDateTimeInputForTimezone("Europe/Paris"),
@@ -238,6 +248,23 @@ export const FeaturedEventsManagerCard = ({
 	).length;
 	const hasQueueRows = queueRows.length > 0;
 	const hasActiveSlots = activeCount > 0;
+	const filteredTimelineRows = useMemo(() => {
+		const needle = timelineSearchTerm.trim().toLowerCase();
+		return queueRows.filter((row) => {
+			const matchesState =
+				timelineStateFilter === "all" || row.state === timelineStateFilter;
+			if (!matchesState) return false;
+			if (!needle) return true;
+			return [row.eventName, row.eventKey, row.state].some((value) =>
+				value.toLowerCase().includes(needle),
+			);
+		});
+	}, [queueRows, timelineSearchTerm, timelineStateFilter]);
+	const visibleTimelineRows = useMemo(
+		() => filteredTimelineRows.slice(0, timelineVisibleLimit),
+		[filteredTimelineRows, timelineVisibleLimit],
+	);
+	const hasVisibleTimelineRows = visibleTimelineRows.length > 0;
 
 	useEffect(() => {
 		if (!hasQueueRows) {
@@ -675,7 +702,75 @@ export const FeaturedEventsManagerCard = ({
 							</Button>
 						</div>
 					</div>
-					<div className="max-w-full overflow-auto rounded-md border">
+					<div className="flex flex-wrap items-end justify-between gap-2">
+						<div className="min-w-[220px] flex-1 space-y-1">
+							<label
+								htmlFor="placement-timeline-search"
+								className="text-xs text-muted-foreground"
+							>
+								Search timeline
+							</label>
+							<Input
+								id="placement-timeline-search"
+								className="h-8 text-xs"
+								value={timelineSearchTerm}
+								onChange={(event) => setTimelineSearchTerm(event.target.value)}
+								placeholder="Event name or key"
+							/>
+						</div>
+						<div className="flex flex-wrap items-center gap-2">
+							<label
+								htmlFor="placement-timeline-state"
+								className="text-xs text-muted-foreground"
+							>
+								State
+							</label>
+							<select
+								id="placement-timeline-state"
+								className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+								value={timelineStateFilter}
+								onChange={(event) =>
+									setTimelineStateFilter(
+										event.target.value as TimelineStateFilter,
+									)
+								}
+							>
+								<option value="all">All</option>
+								<option value="active">Active</option>
+								<option value="upcoming">Upcoming</option>
+								<option value="recent-ended">Recent ended</option>
+								<option value="completed">Completed</option>
+								<option value="cancelled">Cancelled</option>
+							</select>
+							<label
+								htmlFor="placement-timeline-limit"
+								className="text-xs text-muted-foreground"
+							>
+								Show
+							</label>
+							<select
+								id="placement-timeline-limit"
+								className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+								value={timelineVisibleLimit}
+								onChange={(event) =>
+									setTimelineVisibleLimit(
+										Number.parseInt(event.target.value, 10),
+									)
+								}
+							>
+								{TIMELINE_LIMIT_OPTIONS.map((limit) => (
+									<option key={limit} value={limit}>
+										{limit}
+									</option>
+								))}
+							</select>
+						</div>
+					</div>
+					<p className="text-xs text-muted-foreground">
+						Showing {visibleTimelineRows.length} of{" "}
+						{filteredTimelineRows.length} matching schedule entries.
+					</p>
+					<div className="max-h-[42rem] max-w-full overflow-auto rounded-md border">
 						<table className="min-w-[980px] w-full text-xs">
 							<thead className="bg-muted/40">
 								<tr>
@@ -689,18 +784,18 @@ export const FeaturedEventsManagerCard = ({
 								</tr>
 							</thead>
 							<tbody>
-								{!hasQueueRows ? (
+								{!hasVisibleTimelineRows ? (
 									<tr>
 										<td
 											colSpan={7}
 											className="px-3 py-5 text-center text-muted-foreground"
 										>
 											No {MODE_LABEL[placementMode].toLowerCase()} schedule
-											entries yet.
+											entries match this view.
 										</td>
 									</tr>
 								) : (
-									queueRows.map((row) => (
+									visibleTimelineRows.map((row) => (
 										<tr
 											key={row.id}
 											className={`border-t align-top ${stateRowClassName(row.state)}`}
@@ -837,6 +932,22 @@ export const FeaturedEventsManagerCard = ({
 							</tbody>
 						</table>
 					</div>
+					{filteredTimelineRows.length > visibleTimelineRows.length ? (
+						<div className="flex justify-center">
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								onClick={() =>
+									setTimelineVisibleLimit((current) =>
+										Math.min(current + 20, filteredTimelineRows.length),
+									)
+								}
+							>
+								Show 20 more
+							</Button>
+						</div>
+					) : null}
 				</section>
 			</CardContent>
 		</Card>
