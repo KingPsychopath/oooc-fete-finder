@@ -59,6 +59,76 @@ const EXPORT_WINDOW_OPTIONS = [7, 14, 30, 60, 90] as const;
 const TABLE_ROW_LIMIT_OPTIONS = [10, 25, 50, 100] as const;
 const SEARCH_CLUSTER_MODE_OPTIONS = ["conservative", "aggressive"] as const;
 
+const SUMMARY_METRICS = [
+	{
+		key: "clickCount",
+		label: "Event Opens",
+		description: "Total event detail opens in the selected window.",
+	},
+	{
+		key: "dedupedViewCount",
+		label: "Unique Opens",
+		description:
+			"Event opens after per-session dedupe, capped at one open per event every 10 minutes.",
+	},
+	{
+		key: "outboundClickCount",
+		label: "Partner Link Clicks",
+		description: "Clicks on ticket, venue, or external partner links.",
+	},
+	{
+		key: "calendarSyncCount",
+		label: "Calendar Adds",
+		description: "Clicks to add or sync an event to a calendar.",
+	},
+] as const;
+
+const DISCOVERY_SUMMARY_METRICS = [
+	{
+		key: "searchCount",
+		label: "Searches",
+		description: "Search queries entered by users in discovery.",
+	},
+	{
+		key: "filterApplyCount",
+		label: "Filter Uses",
+		description:
+			"User-applied filter changes. The default current-year date range is not counted on page load.",
+	},
+	{
+		key: "uniqueSessionCount",
+		label: "Discovery Sessions",
+		description: "Distinct browser sessions with search or filter activity.",
+	},
+] as const;
+
+const RATE_SUMMARY_METRICS = [
+	{
+		key: "outboundSessionRate",
+		label: "Outbound Session Rate",
+		description: "Sessions with a partner link click divided by sessions with an event open.",
+		format: (value: number) => `${value.toFixed(1)}%`,
+	},
+	{
+		key: "calendarSessionRate",
+		label: "Calendar Session Rate",
+		description: "Sessions with a calendar add divided by sessions with an event open.",
+		format: (value: number) => `${value.toFixed(1)}%`,
+	},
+	{
+		key: "outboundInteractionRate",
+		label: "Outbound Clicks / Open",
+		description: "Partner link clicks divided by total event opens.",
+		format: (value: number) => `${value.toFixed(1)}%`,
+	},
+	{
+		key: "calendarInteractionRate",
+		label: "Calendar Adds / Open",
+		description: "Calendar adds divided by total event opens.",
+		format: (value: number) => `${value.toFixed(1)}%`,
+	},
+] as const;
+
 const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 	{
 		label: "Event Key",
@@ -148,6 +218,43 @@ const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
 const normalizeRuleKey = (rule: SegmentFilterRule): string =>
 	`${rule.filterGroup}:${rule.filterValue.trim().toLowerCase()}`;
+
+const SummaryMetric = ({
+	label,
+	value,
+	description,
+}: {
+	label: string;
+	value: string | number;
+	description: string;
+}) => (
+	<div className="rounded-md border bg-background/60 px-2.5 py-2">
+		<div className="flex items-start justify-between gap-2">
+			<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+				{label}
+			</p>
+			<TooltipProvider>
+				<Tooltip>
+					<TooltipTrigger
+						render={
+							<button
+								type="button"
+								className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+								aria-label={`${label} help`}
+							/>
+						}
+					>
+						<CircleHelp className="h-3.5 w-3.5" />
+					</TooltipTrigger>
+					<TooltipContent>
+						<p className="max-w-[240px] text-xs">{description}</p>
+					</TooltipContent>
+				</Tooltip>
+			</TooltipProvider>
+		</div>
+		<p className="mt-0.5 text-sm font-semibold tabular-nums">{value}</p>
+	</div>
+);
 
 export const EventEngagementStatsCard = ({
 	initialPayload,
@@ -588,96 +695,32 @@ export const EventEngagementStatsCard = ({
 				</div>
 
 				<div className="grid grid-cols-2 gap-2 lg:grid-cols-7">
-					<div className="rounded-md border bg-background/60 px-2.5 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Views
-						</p>
-						<p className="mt-0.5 text-sm font-semibold tabular-nums">
-							{summary.clickCount}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-2.5 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Deduped Views
-						</p>
-						<p className="mt-0.5 text-sm font-semibold tabular-nums">
-							{summary.dedupedViewCount}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-2.5 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Outbound
-						</p>
-						<p className="mt-0.5 text-sm font-semibold tabular-nums">
-							{summary.outboundClickCount}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-2.5 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Calendar
-						</p>
-						<p className="mt-0.5 text-sm font-semibold tabular-nums">
-							{summary.calendarSyncCount}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-2.5 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Searches
-						</p>
-						<p className="mt-0.5 text-sm font-semibold tabular-nums">
-							{discovery.searchCount}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-2.5 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Filter Applies
-						</p>
-						<p className="mt-0.5 text-sm font-semibold tabular-nums">
-							{discovery.filterApplyCount}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-2.5 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Unique Discovery Sessions
-						</p>
-						<p className="mt-0.5 text-sm font-semibold tabular-nums">
-							{discovery.uniqueSessionCount}
-						</p>
-					</div>
+					{SUMMARY_METRICS.map((metric) => (
+						<SummaryMetric
+							key={metric.key}
+							label={metric.label}
+							value={summary[metric.key]}
+							description={metric.description}
+						/>
+					))}
+					{DISCOVERY_SUMMARY_METRICS.map((metric) => (
+						<SummaryMetric
+							key={metric.key}
+							label={metric.label}
+							value={discovery[metric.key]}
+							description={metric.description}
+						/>
+					))}
 				</div>
 				<div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-					<div className="rounded-md border bg-background/60 px-2.5 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Outbound CVR
-						</p>
-						<p className="mt-0.5 text-sm font-semibold tabular-nums">
-							{formatPercent(summary.outboundSessionRate)}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-2.5 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Calendar CVR
-						</p>
-						<p className="mt-0.5 text-sm font-semibold tabular-nums">
-							{formatPercent(summary.calendarSessionRate)}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-2.5 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Outbound Interaction
-						</p>
-						<p className="mt-0.5 text-sm font-semibold tabular-nums">
-							{formatPercent(summary.outboundInteractionRate)}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-2.5 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Calendar Interaction
-						</p>
-						<p className="mt-0.5 text-sm font-semibold tabular-nums">
-							{formatPercent(summary.calendarInteractionRate)}
-						</p>
-					</div>
+					{RATE_SUMMARY_METRICS.map((metric) => (
+						<SummaryMetric
+							key={metric.key}
+							label={metric.label}
+							value={metric.format(summary[metric.key])}
+							description={metric.description}
+						/>
+					))}
 				</div>
 
 				{payload?.success ? (

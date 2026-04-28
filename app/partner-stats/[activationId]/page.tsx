@@ -1,5 +1,11 @@
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { getPartnerStatsSnapshot } from "@/features/partners/partner-stats";
 import {
 	generateOGImageUrl,
@@ -14,11 +20,11 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
 export const metadata: Metadata = generateOGMetadata({
-	title: "Partner ROI Stats | OOOC Fete Finder",
+	title: "Partner Performance Report | OOOC Fete Finder",
 	description:
 		"Private partner performance metrics for OOOC campaign placements.",
 	ogImageUrl: generateOGImageUrl({
-		title: "Partner ROI Stats",
+		title: "Partner Performance Report",
 		subtitle: "Private campaign performance metrics",
 		variant: "default",
 	}),
@@ -27,6 +33,30 @@ export const metadata: Metadata = generateOGMetadata({
 });
 
 export const dynamic = "force-dynamic";
+
+const PartnerMetricCard = ({
+	label,
+	value,
+	description,
+}: {
+	label: string;
+	value: string | number;
+	description: string;
+}) => (
+	<Card className="border-border/80 bg-card">
+		<CardHeader className="pb-2">
+			<CardTitle className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+				{label}
+			</CardTitle>
+			<CardDescription className="text-[11px] leading-snug">
+				{description}
+			</CardDescription>
+		</CardHeader>
+		<CardContent className="pt-0 text-2xl font-medium tabular-nums">
+			{value}
+		</CardContent>
+	</Card>
+);
 
 export default async function PartnerStatsPage({
 	params,
@@ -95,7 +125,7 @@ export default async function PartnerStatsPage({
 		<main className="container mx-auto max-w-5xl px-4 py-10 pb-16">
 				<section className="rounded-2xl border border-border/80 bg-card/90 p-6 sm:p-8">
 					<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-						OOOC Partner ROI
+						OOOC Partner Performance
 					</p>
 					<div className="mt-2 flex flex-wrap items-center gap-2">
 						<h1
@@ -126,75 +156,45 @@ export default async function PartnerStatsPage({
 				</section>
 
 				<section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-					<Card className="border-border/80 bg-card">
-						<CardHeader className="pb-2">
-							<CardTitle className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-								Views
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pt-0 text-2xl font-medium tabular-nums">
-							{data.metrics.clickCount}
-						</CardContent>
-					</Card>
-					<Card className="border-border/80 bg-card">
-						<CardHeader className="pb-2">
-							<CardTitle className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-								Outbound
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pt-0 text-2xl font-medium tabular-nums">
-							{data.metrics.outboundClickCount}
-						</CardContent>
-					</Card>
-					<Card className="border-border/80 bg-card">
-						<CardHeader className="pb-2">
-							<CardTitle className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-								Calendar
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pt-0 text-2xl font-medium tabular-nums">
-							{data.metrics.calendarSyncCount}
-						</CardContent>
-					</Card>
-					<Card className="border-border/80 bg-card">
-						<CardHeader className="pb-2">
-							<CardTitle className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-								Unique Sessions
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pt-0 text-2xl font-medium tabular-nums">
-							{data.metrics.uniqueSessionCount}
-						</CardContent>
-					</Card>
-					<Card className="border-border/80 bg-card">
-						<CardHeader className="pb-2">
-							<CardTitle className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-								Outbound CVR
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pt-0 text-2xl font-medium tabular-nums">
-							{formatPercent(data.metrics.outboundSessionRate)}
-						</CardContent>
-					</Card>
-					<Card className="border-border/80 bg-card">
-						<CardHeader className="pb-2">
-							<CardTitle className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-								Calendar CVR
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pt-0 text-2xl font-medium tabular-nums">
-							{formatPercent(data.metrics.calendarSessionRate)}
-						</CardContent>
-					</Card>
+					<PartnerMetricCard
+						label="Event Opens"
+						value={data.metrics.clickCount}
+						description="Times this event page was opened."
+					/>
+					<PartnerMetricCard
+						label="Partner Link Clicks"
+						value={data.metrics.outboundClickCount}
+						description="Clicks through to ticket, venue, or partner links."
+					/>
+					<PartnerMetricCard
+						label="Calendar Adds"
+						value={data.metrics.calendarSyncCount}
+						description="Clicks to save the event to a calendar."
+					/>
+					<PartnerMetricCard
+						label="Engaged Sessions"
+						value={data.metrics.uniqueSessionCount}
+						description="Distinct browser sessions with any tracked engagement."
+					/>
+					<PartnerMetricCard
+						label="Link Click Rate"
+						value={formatPercent(data.metrics.outboundSessionRate)}
+						description="Sessions with a partner link click after opening the event."
+					/>
+					<PartnerMetricCard
+						label="Calendar Add Rate"
+						value={formatPercent(data.metrics.calendarSessionRate)}
+						description="Sessions with a calendar add after opening the event."
+					/>
 				</section>
 
 				<section className="mt-4 rounded-xl border border-border/80 bg-card/90 p-4 text-sm text-muted-foreground">
 					<p>
-						Interaction rate (click-based): Outbound{" "}
+						Click depth: partner links per open{" "}
 						<span className="font-medium text-foreground">
 							{formatPercent(data.metrics.outboundInteractionRate)}
 						</span>{" "}
-						• Calendar{" "}
+						; calendar adds per open{" "}
 						<span className="font-medium text-foreground">
 							{formatPercent(data.metrics.calendarInteractionRate)}
 						</span>
