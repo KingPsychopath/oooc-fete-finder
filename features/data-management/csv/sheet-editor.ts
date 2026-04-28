@@ -1,4 +1,8 @@
 import Papa from "papaparse";
+import {
+	createDateNormalizationContext,
+	normalizeCsvDate,
+} from "../assembly/date-normalization";
 import { CSV_EVENT_COLUMNS } from "./parser";
 
 export interface EditableSheetColumn {
@@ -68,6 +72,20 @@ const buildBlankRow = (columns: EditableSheetColumn[]): EditableSheetRow => {
 	return Object.fromEntries(columns.map((column) => [column.key, ""]));
 };
 
+const toUTCDateOnlyTime = (date: Date): number =>
+	Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+
+const toSortableDateTime = (
+	row: EditableSheetRow,
+	context: ReturnType<typeof createDateNormalizationContext>,
+): number | null => {
+	const normalized = normalizeCsvDate(row.date ?? "", context);
+	if (!normalized.isoDate) return null;
+
+	const time = Date.parse(`${normalized.isoDate}T00:00:00.000Z`);
+	return Number.isNaN(time) ? null : time;
+};
+
 const buildCoreColumns = (): EditableSheetColumn[] => {
 	return CSV_EVENT_COLUMNS.map((key) => ({
 		key,
@@ -88,7 +106,9 @@ export const createCustomColumnKey = (
 	existingColumns: EditableSheetColumn[],
 ): string => {
 	const preferredBase = normalizeKey(label) || "custom_column";
-	const base = isCoreKey(preferredBase) ? `custom_${preferredBase}` : preferredBase;
+	const base = isCoreKey(preferredBase)
+		? `custom_${preferredBase}`
+		: preferredBase;
 	const existing = new Set(existingColumns.map((column) => column.key));
 	if (!existing.has(base)) return base;
 
@@ -126,6 +146,45 @@ export const stripLegacyFeaturedColumn = (
 	});
 
 	return { columns: nextColumns, rows: nextRows };
+};
+
+export const sortEditableSheetRowsByDefaultDate = (
+	rows: EditableSheetRow[],
+	options: {
+		referenceDate?: Date;
+	} = {},
+): EditableSheetRow[] => {
+	const referenceDate = options.referenceDate ?? new Date();
+	const today = toUTCDateOnlyTime(referenceDate);
+	const context = createDateNormalizationContext(
+		rows.map((row) => ({ date: row.date ?? "" })),
+		{ referenceDate },
+	);
+
+	return rows
+		.map((row, index) => ({
+			row: { ...row },
+			index,
+			dateTime: toSortableDateTime(row, context),
+		}))
+		.sort((left, right) => {
+			if (left.dateTime === null && right.dateTime === null) {
+				return left.index - right.index;
+			}
+			if (left.dateTime === null) return 1;
+			if (right.dateTime === null) return -1;
+
+			const leftIsPast = left.dateTime < today;
+			const rightIsPast = right.dateTime < today;
+			if (leftIsPast !== rightIsPast) {
+				return leftIsPast ? 1 : -1;
+			}
+
+			const direction = leftIsPast ? -1 : 1;
+			const dateComparison = (left.dateTime - right.dateTime) * direction;
+			return dateComparison || left.index - right.index;
+		})
+		.map((item) => item.row);
 };
 
 export const ensureCoreColumns = (
@@ -265,8 +324,10 @@ export const csvToEditableSheet = (
 	const normalized = ensureCoreColumns(columns, rows);
 	return {
 		columns: normalized.columns,
-		rows: normalized.rows.length > 0 ?
-			normalized.rows : [buildBlankRow(normalized.columns)],
+		rows:
+			normalized.rows.length > 0
+				? normalized.rows
+				: [buildBlankRow(normalized.columns)],
 	};
 };
 
@@ -280,7 +341,9 @@ export const editableSheetToCsv = (
 		withoutLegacyFeatured.rows,
 	);
 	const csvColumns = normalized.columns;
-	const headerLine = csvColumns.map((column) => toCsvValue(column.label)).join(",");
+	const headerLine = csvColumns
+		.map((column) => toCsvValue(column.label))
+		.join(",");
 	const dataLines = normalized.rows.map((row) =>
 		csvColumns.map((column) => toCsvValue(row[column.key] ?? "")).join(","),
 	);

@@ -25,6 +25,7 @@ import {
 	type EditableSheetRow,
 	csvToEditableSheet,
 	editableSheetToCsv,
+	sortEditableSheetRowsByDefaultDate,
 	stripLegacyFeaturedColumn,
 	validateEditableSheet,
 } from "./csv/sheet-editor";
@@ -786,11 +787,12 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 		]);
 		const sheet = csvToEditableSheet(csv);
 		const sanitized = stripLegacyFeaturedColumn(sheet.columns, sheet.rows);
+		const sortedRows = sortEditableSheetRowsByDefaultDate(sanitized.rows);
 
 		return {
 			success: true,
 			columns: sanitized.columns,
-			rows: sanitized.rows,
+			rows: sortedRows,
 			status,
 			sheetSource: "store",
 		};

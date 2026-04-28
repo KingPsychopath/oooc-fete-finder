@@ -1,5 +1,8 @@
 import type { EventDay } from "@/features/events/types";
-import type { CSVEventRow } from "../csv/parser";
+
+type DateLikeRow = {
+	date: string;
+};
 
 const DAY_MAPPING: Record<number, EventDay> = {
 	0: "sunday",
@@ -113,7 +116,11 @@ const isValidCalendarDate = (
 	month: number,
 	day: number,
 ): boolean => {
-	if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+	if (
+		!Number.isInteger(year) ||
+		!Number.isInteger(month) ||
+		!Number.isInteger(day)
+	) {
 		return false;
 	}
 	if (!isValidYear(year) || month < 1 || month > 12 || day < 1 || day > 31) {
@@ -183,9 +190,9 @@ const parseNumericDate = (
 
 	if (dayFirstValid && monthFirstValid && left !== right) {
 		const detectedFormat =
-			yearPart === undefined ?
-				`numeric-${separator}-without-year`
-			:	`numeric-${separator}-with-year`;
+			yearPart === undefined
+				? `numeric-${separator}-without-year`
+				: `numeric-${separator}-with-year`;
 		const usIso = buildISODate(candidateYear, left, right);
 		const ukIso = buildISODate(candidateYear, right, left);
 		return {
@@ -208,9 +215,9 @@ const parseNumericDate = (
 			month: right,
 			year: explicitYear,
 			detectedFormat:
-				yearPart === undefined ?
-					`numeric-${separator}-day-first-without-year`
-				:	`numeric-${separator}-day-first`,
+				yearPart === undefined
+					? `numeric-${separator}-day-first-without-year`
+					: `numeric-${separator}-day-first`,
 		};
 	}
 
@@ -221,9 +228,9 @@ const parseNumericDate = (
 			month: left,
 			year: explicitYear,
 			detectedFormat:
-				yearPart === undefined ?
-					`numeric-${separator}-month-first-without-year`
-				:	`numeric-${separator}-month-first`,
+				yearPart === undefined
+					? `numeric-${separator}-month-first-without-year`
+					: `numeric-${separator}-month-first`,
 		};
 	}
 
@@ -251,7 +258,9 @@ const parseDate = (rawDate: string, contextYear: number): DateParseResult => {
 		};
 	}
 
-	const yearFirstSlashMatch = normalized.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+	const yearFirstSlashMatch = normalized.match(
+		/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/,
+	);
 	if (yearFirstSlashMatch) {
 		return {
 			status: "success",
@@ -275,8 +284,9 @@ const parseDate = (rawDate: string, contextYear: number): DateParseResult => {
 				message: "Month name was not recognized.",
 			};
 		}
-		const year =
-			dayMonthWordMatch[3] ? Number.parseInt(dayMonthWordMatch[3], 10) : null;
+		const year = dayMonthWordMatch[3]
+			? Number.parseInt(dayMonthWordMatch[3], 10)
+			: null;
 		return {
 			status: "success",
 			day,
@@ -300,10 +310,9 @@ const parseDate = (rawDate: string, contextYear: number): DateParseResult => {
 			};
 		}
 		const day = Number.parseInt(monthDayWordMatch[2], 10);
-		const year =
-			monthDayWordMatch[3] ?
-				Number.parseInt(monthDayWordMatch[3], 10)
-			:	null;
+		const year = monthDayWordMatch[3]
+			? Number.parseInt(monthDayWordMatch[3], 10)
+			: null;
 		return {
 			status: "success",
 			day,
@@ -384,7 +393,7 @@ const selectInferredYear = (
 };
 
 export const createDateNormalizationContext = (
-	rows: CSVEventRow[],
+	rows: DateLikeRow[],
 	options: NormalizeDateOptions = {},
 ): DateNormalizationContext => {
 	const referenceDate = options.referenceDate ?? new Date();

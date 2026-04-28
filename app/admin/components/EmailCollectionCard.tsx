@@ -15,12 +15,13 @@ import {
 	CheckSquare,
 	Copy,
 	Download,
+	FileUp,
 	RefreshCw,
 	Search,
 	Trash2,
 	Upload,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { type ChangeEvent, useMemo, useRef, useState } from "react";
 import type {
 	EmailRecord,
 	UserCollectionAnalytics,
@@ -123,6 +124,7 @@ export const EmailCollectionCard = ({
 	const [importText, setImportText] = useState("");
 	const [statusMessage, setStatusMessage] = useState("");
 	const [isBusy, setIsBusy] = useState(false);
+	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const consentedCount = analytics?.consentedUsers ?? 0;
 	const notConsentedCount = analytics?.nonConsentedUsers ?? 0;
 	const likelyTestCount = emails.filter((user) =>
@@ -161,6 +163,14 @@ export const EmailCollectionCard = ({
 	).length;
 	const allVisibleSelected =
 		filteredEmails.length > 0 && visibleSelectedCount === filteredEmails.length;
+	const selectedEmailSet = useMemo(
+		() => new Set(selectedEmails),
+		[selectedEmails],
+	);
+	const selectedRecords = useMemo(
+		() => emails.filter((user) => selectedEmailSet.has(user.email)),
+		[emails, selectedEmailSet],
+	);
 
 	const handleToggleEmail = (email: string) => {
 		setSelectedEmails((current) =>
@@ -170,7 +180,7 @@ export const EmailCollectionCard = ({
 		);
 	};
 
-	const handleToggleVisible = () => {
+	const handleToggleFiltered = () => {
 		setSelectedEmails((current) => {
 			if (allVisibleSelected) {
 				return current.filter((email) => !visibleEmailSet.has(email));
@@ -179,6 +189,12 @@ export const EmailCollectionCard = ({
 				new Set([...current, ...filteredEmails.map((user) => user.email)]),
 			);
 		});
+	};
+
+	const handleCopyRecords = (records: EmailRecord[], label: string) => {
+		if (records.length === 0) return;
+		onCopyEmails(records);
+		setStatusMessage(`Copied ${records.length} ${label} email(s).`);
 	};
 
 	const handleDeleteSelected = async () => {
@@ -201,17 +217,17 @@ export const EmailCollectionCard = ({
 		setIsBusy(false);
 	};
 
-	const handleImport = async () => {
-		if (!importText.trim()) return;
+	const handleImport = async (rawInput: string, sourceLabel: string) => {
+		if (!rawInput.trim()) return;
 
 		setIsBusy(true);
-		setStatusMessage("Importing email records...");
-		const result = await onImportEmails(importText);
+		setStatusMessage(`Importing ${sourceLabel} email records...`);
+		const result = await onImportEmails(rawInput);
 		if (result.success) {
 			setStatusMessage(
-				`Imported ${result.importedCount ?? 0}, updated ${
+				`Appended ${result.importedCount ?? 0}, updated ${
 					result.updatedCount ?? 0
-				}, skipped ${result.skippedCount ?? 0}.`,
+				}, skipped ${result.skippedCount ?? 0} from ${sourceLabel}.`,
 			);
 			setImportText("");
 			await onRefresh();
@@ -219,6 +235,25 @@ export const EmailCollectionCard = ({
 			setStatusMessage(result.error || "Import failed.");
 		}
 		setIsBusy(false);
+	};
+
+	const handleCsvFileSelected = async (
+		event: ChangeEvent<HTMLInputElement>,
+	) => {
+		const file = event.target.files?.[0];
+		event.target.value = "";
+		if (!file) return;
+
+		try {
+			const text = await file.text();
+			await handleImport(text, file.name);
+		} catch (error) {
+			setStatusMessage(
+				`Failed to read CSV file: ${
+					error instanceof Error ? error.message : "Unknown error"
+				}`,
+			);
+		}
 	};
 
 	return (
@@ -241,15 +276,6 @@ export const EmailCollectionCard = ({
 						>
 							<RefreshCw className="size-4" />
 							Refresh
-						</Button>
-						<Button
-							onClick={() => onCopyEmails(filteredEmails)}
-							variant="outline"
-							size="sm"
-							disabled={filteredEmails.length === 0}
-						>
-							<Copy className="size-4" />
-							Copy Visible
 						</Button>
 						<Button onClick={onExportCSV} size="sm">
 							<Download className="size-4" />
@@ -374,11 +400,31 @@ export const EmailCollectionCard = ({
 							type="button"
 							variant="outline"
 							size="sm"
-							onClick={handleToggleVisible}
+							onClick={handleToggleFiltered}
 							disabled={filteredEmails.length === 0}
 						>
 							<CheckSquare className="size-4" />
-							{allVisibleSelected ? "Clear Visible" : "Select Visible"}
+							{allVisibleSelected ? "Clear Filtered" : "Select Filtered"}
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => handleCopyRecords(selectedRecords, "selected")}
+							disabled={selectedRecords.length === 0}
+						>
+							<Copy className="size-4" />
+							Copy Selected
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => handleCopyRecords(filteredEmails, "filtered")}
+							disabled={filteredEmails.length === 0}
+						>
+							<Copy className="size-4" />
+							Copy Filtered
 						</Button>
 						<Button
 							type="button"
@@ -393,22 +439,50 @@ export const EmailCollectionCard = ({
 					</div>
 				</div>
 
-				<div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]">
-					<Textarea
-						value={importText}
-						onChange={(event) => setImportText(event.target.value)}
-						placeholder="Paste CSV with an Email column, or one email per line"
-						className="min-h-20"
+				<div className="rounded-md border bg-background/60 p-3">
+					<div className="flex flex-wrap items-start justify-between gap-2">
+						<div>
+							<p className="text-sm font-medium">Append or update emails</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								Imports never wipe the list. New emails are added; matching
+								emails are updated by email address.
+							</p>
+						</div>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => fileInputRef.current?.click()}
+							disabled={isBusy}
+						>
+							<FileUp className="size-4" />
+							Upload CSV
+						</Button>
+					</div>
+					<div className="mt-3 grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]">
+						<Textarea
+							value={importText}
+							onChange={(event) => setImportText(event.target.value)}
+							placeholder="Paste CSV with an Email column, or one email per line"
+							className="min-h-20"
+						/>
+						<Button
+							type="button"
+							onClick={() => void handleImport(importText, "pasted")}
+							disabled={isBusy || !importText.trim()}
+							className="self-start"
+						>
+							<Upload className="size-4" />
+							Import Paste
+						</Button>
+					</div>
+					<input
+						ref={fileInputRef}
+						type="file"
+						accept=".csv,text/csv"
+						onChange={(event) => void handleCsvFileSelected(event)}
+						className="hidden"
 					/>
-					<Button
-						type="button"
-						onClick={() => void handleImport()}
-						disabled={isBusy || !importText.trim()}
-						className="self-start"
-					>
-						<Upload className="size-4" />
-						Import
-					</Button>
 				</div>
 
 				{statusMessage && (
