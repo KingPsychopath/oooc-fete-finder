@@ -44,7 +44,7 @@ const PartnerMetricCard = ({
 	description: string;
 }) => (
 	<Card className="flex min-h-[188px] flex-col border-border/80 bg-card">
-		<CardHeader className="flex-1 pb-3">
+		<CardHeader className="pb-0">
 			<CardTitle className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
 				{label}
 			</CardTitle>
