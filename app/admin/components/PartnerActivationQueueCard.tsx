@@ -37,6 +37,8 @@ type TestLinkInput = {
 	durationHours: string;
 };
 
+type FulfilledReportFilter = "all" | "paid" | "manual" | "scheduler";
+
 const STATUS_LABEL: Record<PartnerActivationStatus, string> = {
 	pending: "Needs Fulfillment",
 	processing: "In Progress",
@@ -58,6 +60,16 @@ const WINDOW_PRESETS = [
 ] as const;
 
 const LIST_LIMIT_OPTIONS = [5, 10, 20, 50] as const;
+
+const FULFILLED_REPORT_FILTERS: Array<{
+	value: FulfilledReportFilter;
+	label: string;
+}> = [
+	{ value: "all", label: "All" },
+	{ value: "paid", label: "Paid Orders" },
+	{ value: "manual", label: "Manual Reports" },
+	{ value: "scheduler", label: "Scheduler Reports" },
+];
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -103,6 +115,22 @@ const formatReportDateTime = (value: Date | string): string =>
 
 const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
+const formatDuration = (startAt: string, endAt: string): string | null => {
+	const start = new Date(startAt);
+	const end = new Date(endAt);
+	if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+		return null;
+	}
+	const durationHours = Math.max(
+		0,
+		Math.round((end.getTime() - start.getTime()) / (60 * 60 * 1000)),
+	);
+	if (durationHours < 24) return `${durationHours}h`;
+	const durationDays = durationHours / 24;
+	if (Number.isInteger(durationDays)) return `${durationDays}d`;
+	return `${durationHours}h`;
+};
+
 const toPartnerStatsPath = (id: string, token: string): string =>
 	`${basePath}/partner-stats/${id}?token=${token}`;
 
@@ -128,6 +156,8 @@ export const PartnerActivationQueueCard = ({
 	const [statusMessage, setStatusMessage] = useState("");
 	const [errorMessage, setErrorMessage] = useState("");
 	const [activationSearchTerm, setActivationSearchTerm] = useState("");
+	const [fulfilledReportFilter, setFulfilledReportFilter] =
+		useState<FulfilledReportFilter>("all");
 	const [activationVisibleLimit, setActivationVisibleLimit] = useState<number>(
 		LIST_LIMIT_OPTIONS[1],
 	);
@@ -382,10 +412,23 @@ export const PartnerActivationQueueCard = ({
 	const selectedManualReportEvent = events.find(
 		(event) => event.eventKey === testLinkInput.eventKey,
 	);
+	const reportFilteredItems = useMemo(() => {
+		if (activeStatus !== "activated" || fulfilledReportFilter === "all") {
+			return statusItems;
+		}
+		return statusItems.filter((item) => {
+			const packageKey = item.packageKey ?? "";
+			const isManualReport = packageKey.startsWith("manual-test-");
+			const isSchedulerReport = packageKey.startsWith("scheduler-report-");
+			if (fulfilledReportFilter === "manual") return isManualReport;
+			if (fulfilledReportFilter === "scheduler") return isSchedulerReport;
+			return !isManualReport && !isSchedulerReport;
+		});
+	}, [activeStatus, fulfilledReportFilter, statusItems]);
 	const filteredItems = useMemo(() => {
 		const needle = activationSearchTerm.trim().toLowerCase();
-		if (!needle) return statusItems;
-		return statusItems.filter((item) => {
+		if (!needle) return reportFilteredItems;
+		return reportFilteredItems.filter((item) => {
 			const fulfilledEventName = item.fulfilledEventKey
 				? eventNameByKey.get(item.fulfilledEventKey)
 				: null;
@@ -401,7 +444,7 @@ export const PartnerActivationQueueCard = ({
 				.filter((value): value is string => typeof value === "string")
 				.some((value) => value.toLowerCase().includes(needle));
 		});
-	}, [activationSearchTerm, eventNameByKey, statusItems]);
+	}, [activationSearchTerm, eventNameByKey, reportFilteredItems]);
 	const visibleItems = useMemo(
 		() => filteredItems.slice(0, activationVisibleLimit),
 		[activationVisibleLimit, filteredItems],
@@ -721,6 +764,32 @@ export const PartnerActivationQueueCard = ({
 						/>
 					</div>
 					<div className="flex items-center gap-2">
+						{activeStatus === "activated" ? (
+							<>
+								<label
+									htmlFor="partner-activation-report-filter"
+									className="text-xs text-muted-foreground"
+								>
+									Type
+								</label>
+								<select
+									id="partner-activation-report-filter"
+									className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+									value={fulfilledReportFilter}
+									onChange={(event) =>
+										setFulfilledReportFilter(
+											event.target.value as FulfilledReportFilter,
+										)
+									}
+								>
+									{FULFILLED_REPORT_FILTERS.map((option) => (
+										<option key={option.value} value={option.value}>
+											{option.label}
+										</option>
+									))}
+								</select>
+							</>
+						) : null}
 						<label
 							htmlFor="partner-activation-limit"
 							className="text-xs text-muted-foreground"
@@ -777,6 +846,8 @@ export const PartnerActivationQueueCard = ({
 								fulfilledEventName ||
 								item.eventName ||
 								"Event name not provided";
+							const isSchedulerReport =
+								item.packageKey?.startsWith("scheduler-report-") === true;
 							const isManualReport =
 								item.packageKey?.startsWith("manual-test-") === true;
 							const canFulfill =
@@ -785,6 +856,10 @@ export const PartnerActivationQueueCard = ({
 							const canReopen = item.status === "activated";
 							const canDismiss = item.status !== "dismissed";
 							const canRestore = item.status === "dismissed";
+							const reportDuration =
+								item.fulfilledStartAt && item.fulfilledEndAt
+									? formatDuration(item.fulfilledStartAt, item.fulfilledEndAt)
+									: null;
 
 							return (
 								<div
@@ -800,6 +875,9 @@ export const PartnerActivationQueueCard = ({
 												<span>{item.packageKey || "unmapped-package"}</span>
 												{isManualReport ? (
 													<Badge variant="outline">Manual Report</Badge>
+												) : null}
+												{isSchedulerReport ? (
+													<Badge variant="outline">Scheduler Report</Badge>
 												) : null}
 											</div>
 										</div>
@@ -822,6 +900,21 @@ export const PartnerActivationQueueCard = ({
 													{item.fulfilledEventKey}
 												</span>{" "}
 												• {item.fulfilledTier || "unknown tier"}
+											</p>
+										) : null}
+										{item.fulfilledStartAt && item.fulfilledEndAt ? (
+											<p>
+												Report window:{" "}
+												<span className="font-medium text-foreground">
+													{formatReportDateTime(item.fulfilledStartAt)} -{" "}
+													{formatReportDateTime(item.fulfilledEndAt)}
+												</span>
+												{reportDuration ? ` (${reportDuration})` : ""}
+											</p>
+										) : null}
+										{item.activatedAt ? (
+											<p>
+												Activated: {new Date(item.activatedAt).toLocaleString()}
 											</p>
 										) : null}
 									</div>
