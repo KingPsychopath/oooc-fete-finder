@@ -34,6 +34,7 @@ export type PartnerActivationRecord = {
 	fulfilledStartAt: string | null;
 	fulfilledEndAt: string | null;
 	partnerStatsToken: string | null;
+	partnerStatsRevokedAt: string | null;
 	createdAt: string;
 	updatedAt: string;
 	activatedAt: string | null;
@@ -61,6 +62,7 @@ type PartnerActivationRow = {
 	fulfilled_start_at: Date | string | null;
 	fulfilled_end_at: Date | string | null;
 	partner_stats_token: string | null;
+	partner_stats_revoked_at: Date | string | null;
 	created_at: Date | string;
 	updated_at: Date | string;
 	activated_at: Date | string | null;
@@ -112,6 +114,7 @@ const toRecord = (row: PartnerActivationRow): PartnerActivationRecord => ({
 	fulfilledStartAt: toNullableIsoString(row.fulfilled_start_at),
 	fulfilledEndAt: toNullableIsoString(row.fulfilled_end_at),
 	partnerStatsToken: row.partner_stats_token,
+	partnerStatsRevokedAt: toNullableIsoString(row.partner_stats_revoked_at),
 	createdAt: toIsoString(row.created_at),
 	updatedAt: toIsoString(row.updated_at),
 	activatedAt: toNullableIsoString(row.activated_at),
@@ -162,6 +165,7 @@ export class PartnerActivationRepository {
 				fulfilled_start_at TIMESTAMPTZ,
 				fulfilled_end_at TIMESTAMPTZ,
 				partner_stats_token TEXT,
+				partner_stats_revoked_at TIMESTAMPTZ,
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				activated_at TIMESTAMPTZ
@@ -187,6 +191,10 @@ export class PartnerActivationRepository {
 		await this.sql`
 			ALTER TABLE app_partner_activation_queue
 			ADD COLUMN IF NOT EXISTS partner_stats_token TEXT
+		`;
+		await this.sql`
+			ALTER TABLE app_partner_activation_queue
+			ADD COLUMN IF NOT EXISTS partner_stats_revoked_at TIMESTAMPTZ
 		`;
 
 		await this.sql`
@@ -290,6 +298,7 @@ export class PartnerActivationRepository {
 				fulfilled_start_at,
 				fulfilled_end_at,
 				partner_stats_token,
+				partner_stats_revoked_at,
 				created_at,
 				updated_at,
 				activated_at
@@ -328,6 +337,7 @@ export class PartnerActivationRepository {
 				fulfilled_start_at,
 				fulfilled_end_at,
 				partner_stats_token,
+				partner_stats_revoked_at,
 				created_at,
 				updated_at,
 				activated_at
@@ -363,6 +373,7 @@ export class PartnerActivationRepository {
 				fulfilled_start_at,
 				fulfilled_end_at,
 				partner_stats_token,
+				partner_stats_revoked_at,
 				created_at,
 				updated_at,
 				activated_at
@@ -404,12 +415,14 @@ export class PartnerActivationRepository {
 				fulfilled_start_at,
 				fulfilled_end_at,
 				partner_stats_token,
+				partner_stats_revoked_at,
 				created_at,
 				updated_at,
 				activated_at
 			FROM app_partner_activation_queue
 			WHERE status = 'activated'
 				AND partner_stats_token IS NOT NULL
+				AND partner_stats_revoked_at IS NULL
 				AND fulfilled_event_key = ${input.eventKey}
 				AND fulfilled_tier = ${input.tier}
 				AND fulfilled_start_at = ${input.startAt}
@@ -453,12 +466,14 @@ export class PartnerActivationRepository {
 				fulfilled_start_at,
 				fulfilled_end_at,
 				partner_stats_token,
+				partner_stats_revoked_at,
 				created_at,
 				updated_at,
 				activated_at
 			FROM app_partner_activation_queue
 			WHERE status = 'activated'
 				AND partner_stats_token IS NOT NULL
+				AND partner_stats_revoked_at IS NULL
 				AND fulfilled_event_key = ANY(${normalizedEventKeys})
 			ORDER BY created_at DESC
 			LIMIT 1000
@@ -510,6 +525,7 @@ export class PartnerActivationRepository {
 				fulfilled_start_at,
 				fulfilled_end_at,
 				partner_stats_token,
+				partner_stats_revoked_at,
 				created_at,
 				updated_at,
 				activated_at
@@ -540,6 +556,7 @@ export class PartnerActivationRepository {
 				fulfilled_start_at = ${input.startAt},
 				fulfilled_end_at = ${input.endAt},
 				partner_stats_token = COALESCE(partner_stats_token, ${input.partnerStatsToken}),
+				partner_stats_revoked_at = NULL,
 				activated_at = COALESCE(activated_at, ${nowIso}),
 				updated_at = ${nowIso}
 			WHERE id = ${input.id}
@@ -565,12 +582,126 @@ export class PartnerActivationRepository {
 				fulfilled_start_at,
 				fulfilled_end_at,
 				partner_stats_token,
+				partner_stats_revoked_at,
 				created_at,
 				updated_at,
 				activated_at
 		`;
 		const row = rows[0];
 		return row ? toRecord(row) : null;
+	}
+
+	async revokePartnerStats(input: {
+		id: string;
+		notes?: string | null;
+	}): Promise<PartnerActivationRecord | null> {
+		await this.ready();
+		const nowIso = new Date().toISOString();
+		const nextNotes = input.notes?.trim() || null;
+		const rows = await this.sql<PartnerActivationRow[]>`
+			UPDATE app_partner_activation_queue
+			SET
+				partner_stats_revoked_at = COALESCE(partner_stats_revoked_at, ${nowIso}),
+				notes = COALESCE(${nextNotes}, notes),
+				updated_at = ${nowIso}
+			WHERE id = ${input.id}
+			RETURNING
+				id,
+				source,
+				source_event_id,
+				status,
+				package_key,
+				payment_link_id,
+				stripe_session_id,
+				customer_email,
+				customer_name,
+				event_name,
+				event_url,
+				amount_total_cents,
+				currency,
+				notes,
+				metadata,
+				raw_payload,
+				fulfilled_event_key,
+				fulfilled_tier,
+				fulfilled_start_at,
+				fulfilled_end_at,
+				partner_stats_token,
+				partner_stats_revoked_at,
+				created_at,
+				updated_at,
+				activated_at
+		`;
+		const row = rows[0];
+		return row ? toRecord(row) : null;
+	}
+
+	async regeneratePartnerStatsToken(input: {
+		id: string;
+		partnerStatsToken: string;
+		notes?: string | null;
+	}): Promise<PartnerActivationRecord | null> {
+		await this.ready();
+		const nowIso = new Date().toISOString();
+		const nextNotes = input.notes?.trim() || null;
+		const rows = await this.sql<PartnerActivationRow[]>`
+			UPDATE app_partner_activation_queue
+			SET
+				partner_stats_token = ${input.partnerStatsToken},
+				partner_stats_revoked_at = NULL,
+				notes = COALESCE(${nextNotes}, notes),
+				updated_at = ${nowIso}
+			WHERE id = ${input.id}
+			RETURNING
+				id,
+				source,
+				source_event_id,
+				status,
+				package_key,
+				payment_link_id,
+				stripe_session_id,
+				customer_email,
+				customer_name,
+				event_name,
+				event_url,
+				amount_total_cents,
+				currency,
+				notes,
+				metadata,
+				raw_payload,
+				fulfilled_event_key,
+				fulfilled_tier,
+				fulfilled_start_at,
+				fulfilled_end_at,
+				partner_stats_token,
+				partner_stats_revoked_at,
+				created_at,
+				updated_at,
+				activated_at
+		`;
+		const row = rows[0];
+		return row ? toRecord(row) : null;
+	}
+
+	async cleanupDismissedInternalReports(input?: {
+		olderThanDays?: number;
+	}): Promise<number> {
+		await this.ready();
+		const olderThanDays = Math.max(1, input?.olderThanDays ?? 90);
+		const rows = await this.sql<Array<{ deleted_count: number }>>`
+			WITH deleted AS (
+				DELETE FROM app_partner_activation_queue
+				WHERE status = 'dismissed'
+					AND (
+						package_key LIKE 'manual-test-%'
+						OR package_key LIKE 'scheduler-report-%'
+					)
+					AND updated_at < NOW() - (${olderThanDays}::int * INTERVAL '1 day')
+				RETURNING id
+			)
+			SELECT COUNT(*)::int AS deleted_count FROM deleted
+		`;
+		return rows[0]?.deleted_count ?? 0;
 	}
 
 	async metrics(): Promise<{

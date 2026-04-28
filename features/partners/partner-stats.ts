@@ -56,7 +56,12 @@ export async function getPartnerStatsSnapshot(input: {
 	| {
 			success: false;
 			error: string;
-			code: "invalid_token" | "not_found" | "not_ready" | "service_unavailable";
+			code:
+				| "invalid_token"
+				| "not_found"
+				| "not_ready"
+				| "revoked"
+				| "service_unavailable";
 	  }
 > {
 	const activationRepository = getPartnerActivationRepository();
@@ -86,6 +91,14 @@ export async function getPartnerStatsSnapshot(input: {
 			success: false,
 			error: "Invalid partner stats token",
 			code: "invalid_token",
+		};
+	}
+
+	if (activation.partnerStatsRevokedAt) {
+		return {
+			success: false,
+			error: "Partner stats link has been revoked",
+			code: "revoked",
 		};
 	}
 

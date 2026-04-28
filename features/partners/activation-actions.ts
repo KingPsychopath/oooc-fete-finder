@@ -71,7 +71,7 @@ const toIsoTimestamp = (value: string): string | null => {
 };
 
 const toReportPath = (record: PartnerActivationRecord): string | null => {
-	if (!record.partnerStatsToken) return null;
+	if (!record.partnerStatsToken || record.partnerStatsRevokedAt) return null;
 	return (
 		env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "") +
 		`${env.NEXT_PUBLIC_BASE_PATH}/partner-stats/${record.id}?token=${record.partnerStatsToken}`
@@ -319,6 +319,114 @@ export async function updatePartnerActivationStatus(input: {
 				error instanceof Error
 					? error.message
 					: "Unknown activation update error",
+		};
+	}
+}
+
+export async function revokePartnerStatsLink(input: {
+	activationId: string;
+}): Promise<
+	| { success: true; message: string }
+	| { success: false; message: string; error: string }
+> {
+	try {
+		await assertAdmin();
+		const repository = getPartnerActivationRepository();
+		if (!repository) {
+			return {
+				success: false,
+				message: "Postgres not configured",
+				error: "Postgres not configured",
+			};
+		}
+		const updated = await repository.revokePartnerStats({
+			id: input.activationId,
+			notes: "Partner stats link revoked",
+		});
+		if (!updated) {
+			return {
+				success: false,
+				message: "Activation queue item not found",
+				error: "Activation queue item not found",
+			};
+		}
+		if (!updated.partnerStatsToken) {
+			return {
+				success: false,
+				message: "This item does not have a partner stats link to revoke",
+				error: "This item does not have a partner stats link to revoke",
+			};
+		}
+		return {
+			success: true,
+			message: "Partner stats link revoked",
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Failed to revoke partner stats link",
+			error: error instanceof Error ? error.message : "Unknown revoke error",
+		};
+	}
+}
+
+export async function regeneratePartnerStatsLink(input: {
+	activationId: string;
+}): Promise<
+	| { success: true; statsPath: string; message: string }
+	| { success: false; message: string; error: string }
+> {
+	try {
+		await assertAdmin();
+		const repository = getPartnerActivationRepository();
+		if (!repository) {
+			return {
+				success: false,
+				message: "Postgres not configured",
+				error: "Postgres not configured",
+			};
+		}
+		const current = await repository.findById(input.activationId);
+		if (!current) {
+			return {
+				success: false,
+				message: "Activation queue item not found",
+				error: "Activation queue item not found",
+			};
+		}
+		if (!current.fulfilledEventKey || !current.fulfilledTier) {
+			return {
+				success: false,
+				message: "Only fulfilled reports can have partner stats links",
+				error: "Only fulfilled reports can have partner stats links",
+			};
+		}
+		const updated = await repository.regeneratePartnerStatsToken({
+			id: input.activationId,
+			partnerStatsToken: randomUUID().replace(/-/g, ""),
+			notes: "Partner stats link regenerated",
+		});
+		const statsPath = updated ? toReportPath(updated) : null;
+		if (!updated || !statsPath) {
+			return {
+				success: false,
+				message: "Failed to regenerate partner stats link",
+				error: "Failed to regenerate partner stats link",
+			};
+		}
+		return {
+			success: true,
+			statsPath,
+			message: "Partner stats link regenerated",
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Failed to regenerate partner stats link",
+			error:
+				error instanceof Error
+					? error.message
+					: "Unknown partner stats regeneration error",
 		};
 	}
 }

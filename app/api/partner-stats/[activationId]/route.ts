@@ -23,7 +23,7 @@ export async function GET(
 	const result = await getPartnerStatsSnapshot({ activationId, token });
 	if (!result.success) {
 		const status =
-			result.code === "invalid_token"
+			result.code === "invalid_token" || result.code === "revoked"
 				? 403
 				: result.code === "not_found"
 					? 404

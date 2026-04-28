@@ -14,6 +14,8 @@ import {
 	generatePartnerStatsTestLink,
 	getPartnerActivationDashboard,
 	previewPartnerStatsReport,
+	regeneratePartnerStatsLink,
+	revokePartnerStatsLink,
 	updatePartnerActivationStatus,
 } from "@/features/partners/activation-actions";
 import type { PartnerActivationStatus } from "@/lib/platform/postgres/partner-activation-repository";
@@ -314,6 +316,58 @@ export const PartnerActivationQueueCard = ({
 				setErrorMessage("Could not copy partner stats link");
 			});
 	}, []);
+
+	const handleRevokeStatsLink = useCallback(
+		async (id: string) => {
+			const confirmed = window.confirm(
+				"Revoke this partner stats link? Existing URLs for this report will stop working until a new link is generated.",
+			);
+			if (!confirmed) return;
+			setIsMutating(true);
+			setBusyId(id);
+			setStatusMessage("");
+			setErrorMessage("");
+			try {
+				const result = await revokePartnerStatsLink({ activationId: id });
+				if (!result.success) {
+					setErrorMessage(result.error || result.message);
+					return;
+				}
+				setStatusMessage(result.message);
+				await loadDashboard();
+			} finally {
+				setIsMutating(false);
+				setBusyId(null);
+			}
+		},
+		[loadDashboard],
+	);
+
+	const handleRegenerateStatsLink = useCallback(
+		async (id: string) => {
+			const confirmed = window.confirm(
+				"Generate a new partner stats link? Any previously revoked URL remains unusable, and the new URL can be copied from this row.",
+			);
+			if (!confirmed) return;
+			setIsMutating(true);
+			setBusyId(id);
+			setStatusMessage("");
+			setErrorMessage("");
+			try {
+				const result = await regeneratePartnerStatsLink({ activationId: id });
+				if (!result.success) {
+					setErrorMessage(result.error || result.message);
+					return;
+				}
+				setStatusMessage(result.message);
+				await loadDashboard();
+			} finally {
+				setIsMutating(false);
+				setBusyId(null);
+			}
+		},
+		[loadDashboard],
+	);
 
 	const updateTestLinkInput = useCallback((nextInput: TestLinkInput) => {
 		setPreviewPayload(null);
@@ -835,10 +889,10 @@ export const PartnerActivationQueueCard = ({
 								scheduleAt: defaultScheduleAt(),
 								durationHours: "48",
 							};
-							const statsPath =
-								item.partnerStatsToken && item.status === "activated"
-									? toPartnerStatsPath(item.id, item.partnerStatsToken)
-									: null;
+							const isStatsLinkRevoked = Boolean(item.partnerStatsRevokedAt);
+							const statsPath = item.partnerStatsToken
+								? toPartnerStatsPath(item.id, item.partnerStatsToken)
+								: null;
 							const fulfilledEventName = item.fulfilledEventKey
 								? eventNameByKey.get(item.fulfilledEventKey)
 								: null;
@@ -879,6 +933,9 @@ export const PartnerActivationQueueCard = ({
 												{isSchedulerReport ? (
 													<Badge variant="outline">Scheduler Report</Badge>
 												) : null}
+												{isStatsLinkRevoked ? (
+													<Badge variant="outline">Link Revoked</Badge>
+												) : null}
 											</div>
 										</div>
 										<Badge variant="outline">{STATUS_LABEL[item.status]}</Badge>
@@ -915,6 +972,12 @@ export const PartnerActivationQueueCard = ({
 										{item.activatedAt ? (
 											<p>
 												Activated: {new Date(item.activatedAt).toLocaleString()}
+											</p>
+										) : null}
+										{item.partnerStatsRevokedAt ? (
+											<p>
+												Partner link revoked:{" "}
+												{new Date(item.partnerStatsRevokedAt).toLocaleString()}
 											</p>
 										) : null}
 									</div>
@@ -1056,7 +1119,7 @@ export const PartnerActivationQueueCard = ({
 												Restore to needs fulfillment
 											</Button>
 										) : null}
-										{statsPath ? (
+										{statsPath && !isStatsLinkRevoked ? (
 											<>
 												<Button
 													size="sm"
@@ -1079,7 +1142,25 @@ export const PartnerActivationQueueCard = ({
 												>
 													Copy stats link
 												</Button>
+												<Button
+													size="sm"
+													variant="outline"
+													disabled={isMutating && busyId === item.id}
+													onClick={() => void handleRevokeStatsLink(item.id)}
+												>
+													Revoke link
+												</Button>
 											</>
+										) : null}
+										{statsPath && isStatsLinkRevoked ? (
+											<Button
+												size="sm"
+												variant="outline"
+												disabled={isMutating && busyId === item.id}
+												onClick={() => void handleRegenerateStatsLink(item.id)}
+											>
+												Regenerate partner link
+											</Button>
 										) : null}
 									</div>
 								</div>
