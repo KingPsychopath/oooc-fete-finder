@@ -43,8 +43,8 @@ const PartnerMetricCard = ({
 	value: string | number;
 	description: string;
 }) => (
-	<Card className="border-border/80 bg-card">
-		<CardHeader className="pb-2">
+	<Card className="flex min-h-[188px] flex-col border-border/80 bg-card">
+		<CardHeader className="flex-1 pb-3">
 			<CardTitle className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
 				{label}
 			</CardTitle>
@@ -52,7 +52,7 @@ const PartnerMetricCard = ({
 				{description}
 			</CardDescription>
 		</CardHeader>
-		<CardContent className="pt-0 text-2xl font-medium tabular-nums">
+		<CardContent className="mt-auto pt-0 text-2xl font-medium tabular-nums">
 			{value}
 		</CardContent>
 	</Card>
@@ -177,27 +177,30 @@ export default async function PartnerStatsPage({
 						description="Distinct browser sessions with any tracked engagement."
 					/>
 					<PartnerMetricCard
-						label="Link Click Session Index"
-						value={formatPercent(data.metrics.outboundSessionRate)}
-						description="Partner-link sessions divided by event-open sessions."
+						label="Partner Links / Open"
+						value={formatPercent(data.metrics.outboundInteractionRate)}
+						description="Partner link clicks divided by event opens."
 					/>
 					<PartnerMetricCard
-						label="Calendar Add Session Index"
-						value={formatPercent(data.metrics.calendarSessionRate)}
-						description="Calendar-add sessions divided by event-open sessions."
+						label="Calendar Adds / Open"
+						value={formatPercent(data.metrics.calendarInteractionRate)}
+						description="Calendar add clicks divided by event opens."
 					/>
 				</section>
 
 				<section className="mt-4 rounded-xl border border-border/80 bg-card/90 p-4 text-sm text-muted-foreground">
 					<p>
-						Click depth: partner links per open{" "}
+						Session context:{" "}
 						<span className="font-medium text-foreground">
-							{formatPercent(data.metrics.outboundInteractionRate)}
+							{formatPercent(data.metrics.outboundSessionRate)}
 						</span>{" "}
-						; calendar adds per open{" "}
+						partner-link sessions per event-open session;{" "}
 						<span className="font-medium text-foreground">
-							{formatPercent(data.metrics.calendarInteractionRate)}
-						</span>
+							{formatPercent(data.metrics.calendarSessionRate)}
+						</span>{" "}
+						calendar-add sessions per event-open session. These can exceed 100%
+						when an action is tracked without a matching event-open record in
+						the same report window.
 					</p>
 				</section>
 
