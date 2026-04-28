@@ -20,6 +20,7 @@ type SearchBarProps = {
 	resultsCount?: number;
 	showResultsCount?: boolean;
 	resultsCountLabelMode?: "found" | "available";
+	value?: string;
 };
 
 type SearchResult = {
@@ -239,14 +240,16 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	resultsCount,
 	showResultsCount = false,
 	resultsCountLabelMode = "found",
+	value,
 }) => {
-	const [query, setQuery] = useState("");
+	const [internalQuery, setInternalQuery] = useState("");
+	const query = value ?? internalQuery;
 
 	/**
 	 * Handles search input with real-time fuzzy matching
 	 */
 	const handleSearch = (value: string) => {
-		setQuery(value);
+		setInternalQuery(value);
 		const results = searchEvents(events, value);
 		onSearch(value, results);
 	};
@@ -255,7 +258,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	 * Clears the search input and results
 	 */
 	const clearSearch = () => {
-		setQuery("");
+		setInternalQuery("");
 		onSearch("");
 	};
 

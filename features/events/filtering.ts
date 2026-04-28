@@ -318,6 +318,7 @@ export const hasActiveFilters = (
 ): boolean => {
 	const defaultDateRange =
 		options?.defaultDateRange ?? DEFAULT_EVENT_FILTER_STATE.selectedDateRange;
+	const hasSearchQuery = filters.searchQuery.trim().length > 0;
 	return (
 		hasCustomSelectedDateRange(filters.selectedDateRange, defaultDateRange) ||
 		filters.selectedDayNightPeriods.length > 0 ||
@@ -329,7 +330,7 @@ export const hasActiveFilters = (
 		hasCustomPriceRange(filters.selectedPriceRange) ||
 		hasCustomAgeRange(filters.selectedAgeRange) ||
 		filters.selectedOOOCPicks ||
-		filters.searchQuery.length > 0
+		hasSearchQuery
 	);
 };
 
@@ -341,6 +342,7 @@ export const getActiveFiltersCount = (
 ): number => {
 	const defaultDateRange =
 		options?.defaultDateRange ?? DEFAULT_EVENT_FILTER_STATE.selectedDateRange;
+	const hasSearchQuery = filters.searchQuery.trim().length > 0;
 	return (
 		(hasCustomSelectedDateRange(filters.selectedDateRange, defaultDateRange)
 			? 1
@@ -354,6 +356,6 @@ export const getActiveFiltersCount = (
 		(hasCustomAgeRange(filters.selectedAgeRange) ? 1 : 0) +
 		(filters.selectedIndoorPreference !== null ? 1 : 0) +
 		(filters.selectedOOOCPicks ? 1 : 0) +
-		(filters.searchQuery.length > 0 ? 1 : 0)
+		(hasSearchQuery ? 1 : 0)
 	);
 };

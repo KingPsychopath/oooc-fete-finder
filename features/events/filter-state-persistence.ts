@@ -147,6 +147,23 @@ export const parseEventFilterStateFromSearchParams = (
 	return nextState;
 };
 
+export const resolveInitialEventFilterStateFromSearchParams = (
+	params: URLSearchParams,
+	options: {
+		defaultDateRange: EventFilterState["selectedDateRange"];
+	},
+): EventFilterState | null => {
+	const parsed = parseEventFilterStateFromSearchParams(params);
+	if (!parsed) return null;
+	if (parsed.selectedDateRange.from || parsed.selectedDateRange.to) {
+		return parsed;
+	}
+	return {
+		...parsed,
+		selectedDateRange: options.defaultDateRange,
+	};
+};
+
 export const serializeEventFilterStateToSearchParams = (
 	params: URLSearchParams,
 	state: EventFilterState,

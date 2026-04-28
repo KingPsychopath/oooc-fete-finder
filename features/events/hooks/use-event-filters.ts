@@ -17,8 +17,7 @@ import {
 } from "@/features/events/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-	parseEventFilterStateFromSearchParams,
-	readStoredEventFilterState,
+	resolveInitialEventFilterStateFromSearchParams,
 	serializeEventFilterStateToSearchParams,
 	writeStoredEventFilterState,
 } from "../filter-state-persistence";
@@ -106,6 +105,8 @@ export const useEventFilters = ({
 	const [searchQuery, setSearchQuery] = useState(
 		defaultFilterState.searchQuery,
 	);
+	const [isInitialFilterStateReady, setIsInitialFilterStateReady] =
+		useState(false);
 
 	const applyStateSnapshot = useCallback((state: EventFilterState) => {
 		setSelectedDateRange(state.selectedDateRange);
@@ -139,21 +140,28 @@ export const useEventFilters = ({
 		if (!hasHydratedInitialStateRef.current) {
 			hasHydratedInitialStateRef.current = true;
 			if (typeof window !== "undefined") {
-				const fromUrl = parseEventFilterStateFromSearchParams(
-					new URLSearchParams(window.location.search),
-				);
-				const fromStorage = readStoredEventFilterState();
-				pendingInitialFilterStateRef.current = fromUrl ?? fromStorage;
+				pendingInitialFilterStateRef.current =
+					resolveInitialEventFilterStateFromSearchParams(
+						new URLSearchParams(window.location.search),
+						{ defaultDateRange: defaultFilterState.selectedDateRange },
+					);
 			}
 		}
 		if (!isFilterAccessAllowed) return;
-		if (!pendingInitialFilterStateRef.current) return;
-		applyStateSnapshot(pendingInitialFilterStateRef.current);
+		if (pendingInitialFilterStateRef.current) {
+			applyStateSnapshot(pendingInitialFilterStateRef.current);
+		}
 		pendingInitialFilterStateRef.current = null;
-	}, [applyStateSnapshot, isFilterAccessAllowed]);
+		setIsInitialFilterStateReady(true);
+	}, [
+		applyStateSnapshot,
+		defaultFilterState.selectedDateRange,
+		isFilterAccessAllowed,
+	]);
 
 	useEffect(() => {
 		if (!isFilterAccessAllowed) return;
+		if (!isInitialFilterStateReady) return;
 		if (typeof window === "undefined") return;
 		const stateSnapshot: EventFilterState = {
 			selectedDateRange,
@@ -212,6 +220,7 @@ export const useEventFilters = ({
 		selectedPriceRange,
 		selectedVenueTypes,
 		defaultFilterState.selectedDateRange,
+		isInitialFilterStateReady,
 	]);
 
 	const availableArrondissements = useMemo(

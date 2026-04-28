@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { serializeEventFilterStateToSearchParams } from "@/features/events/filter-state-persistence";
+import {
+	resolveInitialEventFilterStateFromSearchParams,
+	serializeEventFilterStateToSearchParams,
+} from "@/features/events/filter-state-persistence";
 import {
 	DEFAULT_EVENT_FILTER_STATE,
 	getActiveFiltersCount,
@@ -93,5 +96,69 @@ describe("event filter defaults", () => {
 		);
 
 		expect(params.toString()).toBe("event=abc123");
+	});
+
+	it("keeps the default year range for search-only URL filters", () => {
+		const defaultDateRange = {
+			from: "2026-01-01",
+			to: "2026-12-31",
+		};
+
+		const state = resolveInitialEventFilterStateFromSearchParams(
+			new URLSearchParams("q=Pre-Fete"),
+			{ defaultDateRange },
+		);
+
+		expect(state).toMatchObject({
+			searchQuery: "Pre-Fete",
+			selectedDateRange: defaultDateRange,
+		});
+	});
+
+	it("keeps explicit valid URL date filters over the default year range", () => {
+		const defaultDateRange = {
+			from: "2026-01-01",
+			to: "2026-12-31",
+		};
+
+		const state = resolveInitialEventFilterStateFromSearchParams(
+			new URLSearchParams("q=Pre-Fete&df=2025-01-01&dt=2025-12-31"),
+			{ defaultDateRange },
+		);
+
+		expect(state).toMatchObject({
+			searchQuery: "Pre-Fete",
+			selectedDateRange: {
+				from: "2025-01-01",
+				to: "2025-12-31",
+			},
+		});
+	});
+
+	it("falls back to the default year range for invalid URL date filters", () => {
+		const defaultDateRange = {
+			from: "2026-01-01",
+			to: "2026-12-31",
+		};
+
+		const state = resolveInitialEventFilterStateFromSearchParams(
+			new URLSearchParams("q=Pre-Fete&df=not-a-date"),
+			{ defaultDateRange },
+		);
+
+		expect(state).toMatchObject({
+			searchQuery: "Pre-Fete",
+			selectedDateRange: defaultDateRange,
+		});
+	});
+
+	it("does not count whitespace-only search as an active filter", () => {
+		const state = {
+			...DEFAULT_EVENT_FILTER_STATE,
+			searchQuery: "   ",
+		};
+
+		expect(hasActiveFilters(state)).toBe(false);
+		expect(getActiveFiltersCount(state)).toBe(0);
 	});
 });

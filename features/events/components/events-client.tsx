@@ -86,6 +86,7 @@ export function EventsClient({
 		selectedPriceRange,
 		selectedAgeRange,
 		selectedOOOCPicks,
+		searchQuery,
 		availableArrondissements,
 		availableEventDates,
 		quickSelectEventDates,
@@ -358,6 +359,7 @@ export function EventsClient({
 						onSearch={onSearchQueryChange}
 						placeholder="Search events, locations, genres, phases..."
 						className="max-w-md mx-auto"
+						value={searchQuery}
 						resultsCount={filteredEvents.length}
 						showResultsCount
 						resultsCountLabelMode={hasAnyActiveFilters ? "found" : "available"}
