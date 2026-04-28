@@ -2,6 +2,9 @@ import { CopyEmailButton } from "@/components/CopyEmailButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
+import { getFeaturedProjection } from "@/features/events/featured/service";
+import { generateOGImageUrl, generateOGMetadata } from "@/lib/social/og-utils";
 import {
 	ArrowRight,
 	CheckCircle,
@@ -12,14 +15,8 @@ import {
 	TrendingUp,
 } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
-import { getFeaturedProjection } from "@/features/events/featured/service";
-import {
-	generateOGImageUrl,
-	generateOGMetadata,
-} from "@/lib/social/og-utils";
 import { unstable_cache as cache } from "next/cache";
+import Link from "next/link";
 import { Suspense } from "react";
 import { FeatureEventStatusSection } from "./FeatureEventStatusSection";
 
@@ -65,6 +62,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const contactEmail = "hello@outofofficecollective.co.uk";
 const fallbackContactHref = `mailto:${contactEmail}?subject=OOOC%20Fete%202026%20-%20Partnership%20Inquiry`;
 const mediaKitHref = `${basePath}/media-kit/OOOC-Fete-2026-Media-Kit.pdf`;
+const ooocPressKitHref = `${basePath}/media-kit/OOOC-Press-Kit.pdf`;
 
 const packages: Package[] = [
 	{
@@ -113,14 +111,14 @@ const addOns: AddOn[] = [
 		name: "WhatsApp Announcement Add-on",
 		priceLabel: "+ EUR 50",
 		description: "Admin channel mention to high-intent community members.",
-		reachHint: "Typically reaches 1,000-2,000 community members.",
+		reachHint: "Typically reaches 2,000+ community members.",
 		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_ADDON_WHATSAPP,
 	},
 	{
 		name: "Newsletter Inclusion Add-on",
 		priceLabel: "+ EUR 75",
 		description: "Editorial-style feature inside OOOC email newsletter.",
-		reachHint: "Sent to 2,000+ registered subscribers and growing weekly.",
+		reachHint: "Sent to 16,000 people.",
 		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_ADDON_NEWSLETTER,
 	},
 ];
@@ -192,7 +190,10 @@ function SpotlightAvailabilityBadgeFallback() {
 
 function FeatureEventStatusSectionFallback() {
 	return (
-		<div className="rounded-2xl border border-border/80 bg-card p-6" aria-hidden="true">
+		<div
+			className="rounded-2xl border border-border/80 bg-card p-6"
+			aria-hidden="true"
+		>
 			<div className="h-3 w-36 animate-pulse rounded bg-muted/60" />
 			<div className="mt-3 h-8 w-full max-w-sm animate-pulse rounded bg-muted/55" />
 			<div className="mt-4 h-4 w-full max-w-xl animate-pulse rounded bg-muted/50" />
@@ -221,19 +222,17 @@ export default async function FeatureEventPage() {
 					<div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
 						<div className="rounded-xl border border-border/70 bg-background/70 p-3">
 							<p className="text-muted-foreground">Peak views</p>
-							<p className="mt-1 text-lg font-medium text-foreground">30,000</p>
+							<p className="mt-1 text-lg font-medium text-foreground">50,000</p>
 						</div>
 						<div className="rounded-xl border border-border/70 bg-background/70 p-3">
 							<p className="text-muted-foreground">Registered users</p>
-							<p className="mt-1 text-lg font-medium text-foreground">2,000+</p>
+							<p className="mt-1 text-lg font-medium text-foreground">3,000+</p>
 						</div>
 						<div className="rounded-xl border border-border/70 bg-background/70 p-3">
 							<p className="text-muted-foreground">
 								WhatsApp community members
 							</p>
-							<p className="mt-1 text-lg font-medium text-foreground">
-								1,000-2,000
-							</p>
+							<p className="mt-1 text-lg font-medium text-foreground">2,000+</p>
 						</div>
 					</div>
 					<div className="mt-6 flex flex-wrap items-center gap-3">
@@ -254,7 +253,21 @@ export default async function FeatureEventPage() {
 								/>
 							}
 						>
-							Get media kit
+							Get Fete media kit
+						</Button>
+						<Button
+							nativeButton={false}
+							variant="outline"
+							className="rounded-full"
+							render={
+								<a
+									href={ooocPressKitHref}
+									target="_blank"
+									rel="noopener noreferrer"
+								/>
+							}
+						>
+							Get OOOC press kit
 						</Button>
 					</div>
 					<p className="mt-3 text-xs text-muted-foreground">
@@ -544,10 +557,10 @@ export default async function FeatureEventPage() {
 						{contactEmail}
 						<CopyEmailButton email={contactEmail} />
 					</p>
-						<Link
-							href={basePath || "/"}
-							className="mt-5 inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-						>
+					<Link
+						href={basePath || "/"}
+						className="mt-5 inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+					>
 						<TrendingUp className="h-4 w-4" />
 						Back to events
 					</Link>
