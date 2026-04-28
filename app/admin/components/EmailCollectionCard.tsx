@@ -306,12 +306,6 @@ export const EmailCollectionCard = ({
 					</div>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Event Backups
-						</p>
-						<p className="mt-1 text-sm font-medium">Emails included</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-3 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Last 24h
 						</p>
 						<p className="mt-1 text-sm font-medium">
