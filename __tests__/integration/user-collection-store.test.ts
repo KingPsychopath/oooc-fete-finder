@@ -55,7 +55,10 @@ const buildAnalytics = (
 		0,
 	);
 	const consentedUsers = values.filter((record) => record.consent).length;
-	const sourceTotals = new Map<string, { source: string; users: number; submissions: number }>();
+	const sourceTotals = new Map<
+		string,
+		{ source: string; users: number; submissions: number }
+	>();
 	let submissionsLast24Hours = 0;
 	let submissionsLast7Days = 0;
 
@@ -144,6 +147,15 @@ const loadStore = async () => {
 		}),
 		clearAll: vi.fn(async () => {
 			backing.clear();
+		}),
+		deleteByEmails: vi.fn(async (emails: string[]) => {
+			let deletedCount = 0;
+			for (const email of emails) {
+				if (backing.delete(email.trim().toLowerCase())) {
+					deletedCount += 1;
+				}
+			}
+			return deletedCount;
 		}),
 	};
 
@@ -242,5 +254,40 @@ describe("UserCollectionStore", () => {
 		expect(analytics.uniqueSources).toBe(2);
 		expect(analytics.firstCapturedAt).not.toBeNull();
 		expect(analytics.lastCapturedAt).not.toBeNull();
+	});
+
+	it("deletes selected emails and leaves other records intact", async () => {
+		const { UserCollectionStore, repository } = await loadStore();
+
+		await UserCollectionStore.addOrUpdate({
+			firstName: "Real",
+			lastName: "User",
+			email: "real@example.com",
+			consent: true,
+			source: "fete-finder-auth",
+			timestamp: "2026-02-17T10:00:00.000Z",
+		});
+		await UserCollectionStore.addOrUpdate({
+			firstName: "Test",
+			lastName: "User",
+			email: "test@example.com",
+			consent: false,
+			source: "admin-import",
+			timestamp: "2026-02-17T11:00:00.000Z",
+		});
+
+		const deletedCount = await UserCollectionStore.deleteByEmails([
+			" TEST@example.com ",
+			"missing@example.com",
+		]);
+		const list = await UserCollectionStore.listAll();
+
+		expect(deletedCount).toBe(1);
+		expect(repository.deleteByEmails).toHaveBeenCalledWith([
+			"test@example.com",
+			"missing@example.com",
+		]);
+		expect(list).toHaveLength(1);
+		expect(list[0]?.email).toBe("real@example.com");
 	});
 });

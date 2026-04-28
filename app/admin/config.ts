@@ -53,7 +53,8 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 	{
 		key: "hub",
 		label: "Admin Overview",
-		description: "Entry point with status badges and quick links to each admin area.",
+		description:
+			"Entry point with status badges and quick links to each admin area.",
 		path: "/admin",
 		sections: [],
 	},
@@ -167,8 +168,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 	{
 		key: "insights",
 		label: "Analytics & Audience",
-		description:
-			"Engagement analytics and collected user export.",
+		description: "Engagement analytics and collected user export.",
 		path: "/admin/insights",
 		sections: [
 			{
@@ -182,10 +182,10 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 			{
 				id: "collected-users",
 				label: "Collected User Emails",
-				description: "Export and inspect collected user records.",
+				description: "Manage, import, export, and tidy collected user records.",
 				path: "/admin/insights#collected-users",
 				moduleKey: "insights",
-				keywords: ["users", "emails", "export", "csv"],
+				keywords: ["users", "emails", "export", "import", "csv"],
 			},
 		],
 	},
@@ -219,7 +219,11 @@ const toRouteCommand = (route: AdminRouteConfig): AdminCommandItem => ({
 	hint: route.description,
 	path: route.path,
 	moduleKey: route.key,
-	keywords: [route.key, route.label, ...route.description.toLowerCase().split(" ")],
+	keywords: [
+		route.key,
+		route.label,
+		...route.description.toLowerCase().split(" "),
+	],
 });
 
 const toSectionCommand = (section: AdminSectionConfig): AdminCommandItem => ({

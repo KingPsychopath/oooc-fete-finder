@@ -457,6 +457,7 @@ export async function restoreLatestEventStoreBackup(
 	preRestoreBackup?: EventStoreBackupStatus["latestBackup"];
 	rowCount?: number;
 	featuredEntryCount?: number;
+	userCollectionCount?: number | null;
 	error?: string;
 }> {
 	if (!(await validateAdminAccess(keyOrToken))) {
@@ -489,6 +490,7 @@ export async function restoreLatestEventStoreBackup(
 			preRestoreBackup: result.preRestoreBackup,
 			rowCount: result.restoredRowCount,
 			featuredEntryCount: result.restoredFeaturedCount,
+			userCollectionCount: result.restoredUserCollectionCount,
 		};
 	} catch (error) {
 		return {

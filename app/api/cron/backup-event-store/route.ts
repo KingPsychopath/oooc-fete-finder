@@ -3,7 +3,7 @@ import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Cron endpoint: create periodic backups of event store CSV payload.
+ * Cron endpoint: create periodic operational backups.
  * Secure with CRON_SECRET (Vercel sends Authorization: Bearer <CRON_SECRET>).
  */
 export async function GET(request: NextRequest) {

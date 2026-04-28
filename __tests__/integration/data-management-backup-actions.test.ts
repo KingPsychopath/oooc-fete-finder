@@ -1,10 +1,16 @@
+import type {
+	createEventStoreBackup as createEventStoreBackupType,
+	getEventStoreBackupStatus as getEventStoreBackupStatusType,
+	getEventStoreRecentBackups as getEventStoreRecentBackupsType,
+	restoreLatestEventStoreBackup as restoreLatestEventStoreBackupType,
+} from "@/features/data-management/actions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type Setup = {
-	getEventStoreBackupStatus: typeof import("@/features/data-management/actions").getEventStoreBackupStatus;
-	getEventStoreRecentBackups: typeof import("@/features/data-management/actions").getEventStoreRecentBackups;
-	createEventStoreBackup: typeof import("@/features/data-management/actions").createEventStoreBackup;
-	restoreLatestEventStoreBackup: typeof import("@/features/data-management/actions").restoreLatestEventStoreBackup;
+	getEventStoreBackupStatus: typeof getEventStoreBackupStatusType;
+	getEventStoreRecentBackups: typeof getEventStoreRecentBackupsType;
+	createEventStoreBackup: typeof createEventStoreBackupType;
+	restoreLatestEventStoreBackup: typeof restoreLatestEventStoreBackupType;
 	backupGetStatus: ReturnType<typeof vi.fn>;
 	backupListRecent: ReturnType<typeof vi.fn>;
 	backupCreate: ReturnType<typeof vi.fn>;
@@ -28,6 +34,7 @@ const loadActions = async (): Promise<Setup> => {
 				trigger: "manual",
 				rowCount: 50,
 				featuredEntryCount: 2,
+				userCollectionCount: 4,
 				storeUpdatedAt: "2026-02-18T09:00:00.000Z",
 				storeChecksum: "abc123",
 			},
@@ -43,6 +50,7 @@ const loadActions = async (): Promise<Setup> => {
 				trigger: "manual",
 				rowCount: 50,
 				featuredEntryCount: 2,
+				userCollectionCount: 4,
 				storeUpdatedAt: "2026-02-18T09:00:00.000Z",
 				storeChecksum: "abc123",
 			},
@@ -58,6 +66,7 @@ const loadActions = async (): Promise<Setup> => {
 			trigger: "manual",
 			rowCount: 50,
 			featuredEntryCount: 2,
+			userCollectionCount: 4,
 			storeUpdatedAt: "2026-02-18T10:00:00.000Z",
 			storeChecksum: "def456",
 		},
@@ -73,6 +82,7 @@ const loadActions = async (): Promise<Setup> => {
 			trigger: "manual",
 			rowCount: 50,
 			featuredEntryCount: 2,
+			userCollectionCount: 4,
 			storeUpdatedAt: "2026-02-18T09:00:00.000Z",
 			storeChecksum: "abc123",
 		},
@@ -83,11 +93,13 @@ const loadActions = async (): Promise<Setup> => {
 			trigger: "pre-restore",
 			rowCount: 51,
 			featuredEntryCount: 1,
+			userCollectionCount: 3,
 			storeUpdatedAt: "2026-02-18T09:58:00.000Z",
 			storeChecksum: "ghi789",
 		},
 		restoredRowCount: 50,
 		restoredFeaturedCount: 2,
+		restoredUserCollectionCount: 4,
 		restoredCsv: "Title,Date\nEvent,2026-06-21",
 	});
 
@@ -257,6 +269,7 @@ describe("data-management backup actions", () => {
 		expect(result.success).toBe(true);
 		expect(result.rowCount).toBe(50);
 		expect(result.featuredEntryCount).toBe(2);
+		expect(result.userCollectionCount).toBe(4);
 		expect(processCSVData).toHaveBeenCalledWith(
 			"Title,Date\nEvent,2026-06-21",
 			"store",

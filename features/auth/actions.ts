@@ -7,6 +7,7 @@ import type {
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { isAdminAuthEnabled } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
+import Papa from "papaparse";
 import {
 	clearAdminSessionCookie,
 	createAdminSessionWithCookie,
@@ -60,6 +61,115 @@ const buildCollectedUsersCsv = (users: UserRecord[]): string => {
 	return [header, ...rows]
 		.map((row) => row.map((cell) => toCsvCell(cell)).join(","))
 		.join("\n");
+};
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizeHeader = (value: string): string =>
+	value
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+
+const getHeaderValue = (
+	row: Record<string, unknown>,
+	aliases: string[],
+): string => {
+	const aliasSet = new Set(aliases.map(normalizeHeader));
+	for (const [key, value] of Object.entries(row)) {
+		if (!aliasSet.has(normalizeHeader(key))) continue;
+		return typeof value === "string" ? value.trim() : "";
+	}
+	return "";
+};
+
+const parseConsent = (value: string): boolean => {
+	const normalized = value.trim().toLowerCase();
+	return ["true", "yes", "y", "1", "consented", "opted in", "opt-in"].includes(
+		normalized,
+	);
+};
+
+const parseTimestamp = (value: string): string => {
+	if (!value.trim()) return new Date().toISOString();
+	const parsed = new Date(value);
+	return Number.isNaN(parsed.getTime())
+		? new Date().toISOString()
+		: parsed.toISOString();
+};
+
+const rowToUserRecord = (
+	row: Record<string, unknown>,
+	fallbackSource: string,
+): UserRecord | null => {
+	const email = getHeaderValue(row, ["email", "email address", "e-mail"]);
+	if (!EMAIL_PATTERN.test(email.trim().toLowerCase())) return null;
+
+	return {
+		firstName: getHeaderValue(row, ["first name", "firstname", "first"]) || "",
+		lastName:
+			getHeaderValue(row, ["last name", "lastname", "surname", "last"]) || "",
+		email,
+		timestamp: parseTimestamp(
+			getHeaderValue(row, ["timestamp", "submitted at", "last seen", "date"]),
+		),
+		consent: parseConsent(
+			getHeaderValue(row, ["consent", "marketing consent", "opt in", "opt-in"]),
+		),
+		source: getHeaderValue(row, ["source"]) || fallbackSource,
+	};
+};
+
+const parseImportedUsers = (
+	rawInput: string,
+): { users: UserRecord[]; skippedCount: number } => {
+	const input = rawInput.trim();
+	if (!input) return { users: [], skippedCount: 0 };
+
+	const fallbackSource = "admin-import";
+	const parsedWithHeaders = Papa.parse<Record<string, unknown>>(input, {
+		header: true,
+		skipEmptyLines: true,
+	});
+	const fields = parsedWithHeaders.meta.fields ?? [];
+	if (fields.some((field) => normalizeHeader(field).includes("email"))) {
+		const users = parsedWithHeaders.data
+			.map((row) => rowToUserRecord(row, fallbackSource))
+			.filter((user): user is UserRecord => Boolean(user));
+		return {
+			users,
+			skippedCount: parsedWithHeaders.data.length - users.length,
+		};
+	}
+
+	const parsedRows = Papa.parse<string[]>(input, {
+		skipEmptyLines: true,
+	});
+	const users: UserRecord[] = [];
+	let skippedCount = 0;
+	for (const row of parsedRows.data) {
+		const cells = row.map((cell) => String(cell ?? "").trim());
+		const emailIndex = cells.findIndex((cell) =>
+			EMAIL_PATTERN.test(cell.toLowerCase()),
+		);
+		if (emailIndex < 0) {
+			skippedCount += 1;
+			continue;
+		}
+
+		users.push({
+			firstName: cells[emailIndex + 1] ?? "",
+			lastName: cells[emailIndex + 2] ?? "",
+			email: cells[emailIndex],
+			timestamp: new Date().toISOString(),
+			consent: false,
+			source: fallbackSource,
+		});
+	}
+
+	return { users, skippedCount };
 };
 
 /**
@@ -294,5 +404,78 @@ export async function exportCollectedEmailsCsv(keyOrToken?: string): Promise<{
 		filename: `fete-finder-users-${new Date().toISOString().split("T")[0]}.csv`,
 		csv: buildCollectedUsersCsv(users),
 		count: users.length,
+	};
+}
+
+/**
+ * Import collected users from CSV or a pasted email list.
+ */
+export async function importCollectedEmails(
+	rawInput: string,
+	keyOrToken?: string,
+): Promise<{
+	success: boolean;
+	error?: string;
+	importedCount?: number;
+	updatedCount?: number;
+	skippedCount?: number;
+	totalCount?: number;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized" };
+	}
+
+	const { users, skippedCount } = parseImportedUsers(rawInput);
+	if (users.length === 0) {
+		return {
+			success: false,
+			error: "No valid email records found to import.",
+			skippedCount,
+		};
+	}
+
+	let importedCount = 0;
+	let updatedCount = 0;
+	for (const user of users) {
+		const result = await UserCollectionStore.addOrUpdate(user);
+		if (result.alreadyExisted) {
+			updatedCount += 1;
+		} else {
+			importedCount += 1;
+		}
+	}
+
+	const status = await UserCollectionStore.getStatus();
+	return {
+		success: true,
+		importedCount,
+		updatedCount,
+		skippedCount,
+		totalCount: status.totalUsers,
+	};
+}
+
+/**
+ * Delete selected collected users by email.
+ */
+export async function deleteCollectedEmails(
+	emails: string[],
+	keyOrToken?: string,
+): Promise<{
+	success: boolean;
+	error?: string;
+	deletedCount?: number;
+	totalCount?: number;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized" };
+	}
+
+	const deletedCount = await UserCollectionStore.deleteByEmails(emails);
+	const status = await UserCollectionStore.getStatus();
+	return {
+		success: true,
+		deletedCount,
+		totalCount: status.totalUsers,
 	};
 }

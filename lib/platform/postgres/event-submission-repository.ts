@@ -1,7 +1,6 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import type { Sql } from "postgres";
 import type {
 	CreateEventSubmissionInput,
 	EventSubmissionMetrics,
@@ -11,6 +10,7 @@ import type {
 	EventSubmissionStatus,
 	ReviewEventSubmissionInput,
 } from "@/features/events/submissions/types";
+import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
 
 const TABLE_NAME = "app_event_submissions";
@@ -87,10 +87,14 @@ const toPayload = (value: unknown): EventSubmissionPayload => {
 		price: typeof record.price === "string" ? record.price : undefined,
 		age: typeof record.age === "string" ? record.age : undefined,
 		indoorOutdoor:
-			typeof record.indoorOutdoor === "string" ? record.indoorOutdoor : undefined,
+			typeof record.indoorOutdoor === "string"
+				? record.indoorOutdoor
+				: undefined,
 		notes: typeof record.notes === "string" ? record.notes : undefined,
 		arrondissement:
-			typeof record.arrondissement === "string" ? record.arrondissement : undefined,
+			typeof record.arrondissement === "string"
+				? record.arrondissement
+				: undefined,
 	};
 };
 
@@ -114,7 +118,9 @@ const toSpamSignals = (value: unknown): EventSubmissionSpamSignals => {
 				? record.completionSeconds
 				: null,
 		reasons: Array.isArray(record.reasons)
-			? record.reasons.filter((reason): reason is string => typeof reason === "string")
+			? record.reasons.filter(
+					(reason): reason is string => typeof reason === "string",
+				)
 			: [],
 	};
 };
@@ -279,6 +285,32 @@ export class EventSubmissionRepository {
 		return rows.map(toRecord);
 	}
 
+	async listAllSubmissions(limit = 2000): Promise<EventSubmissionRecord[]> {
+		await this.ready();
+		const safeLimit = Math.max(1, Math.min(limit, 10_000));
+		const rows = await this.sql<EventSubmissionRow[]>`
+			SELECT
+				id,
+				status,
+				payload,
+				host_email,
+				source_ip_hash,
+				email_ip_hash,
+				fingerprint_hash,
+				spam_signals,
+				review_reason,
+				accepted_event_key,
+				reviewed_at,
+				reviewed_by,
+				created_at,
+				updated_at
+			FROM app_event_submissions
+			ORDER BY created_at DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows.map(toRecord);
+	}
+
 	async getSubmissionById(id: string): Promise<EventSubmissionRecord | null> {
 		await this.ready();
 		const rows = await this.sql<EventSubmissionRow[]>`
@@ -421,21 +453,65 @@ export class EventSubmissionRepository {
 		return rows[0]?.count ?? 0;
 	}
 
+	async replaceAllSubmissions(records: EventSubmissionRecord[]): Promise<void> {
+		await this.ready();
+		await this.sql`DELETE FROM app_event_submissions`;
+		if (records.length === 0) return;
+
+		const rows = records.map((record) => ({
+			id: record.id,
+			status: record.status,
+			payload: toJsonValue(record.payload),
+			host_email: record.hostEmail,
+			source_ip_hash: record.sourceIpHash,
+			email_ip_hash: record.emailIpHash,
+			fingerprint_hash: record.fingerprintHash,
+			spam_signals: toJsonValue(record.spamSignals),
+			review_reason: record.reviewReason,
+			accepted_event_key: record.acceptedEventKey,
+			reviewed_at: record.reviewedAt,
+			reviewed_by: record.reviewedBy,
+			created_at: record.createdAt,
+			updated_at: record.updatedAt,
+		}));
+
+		await this.sql`
+			INSERT INTO app_event_submissions ${this.sql(
+				rows,
+				"id",
+				"status",
+				"payload",
+				"host_email",
+				"source_ip_hash",
+				"email_ip_hash",
+				"fingerprint_hash",
+				"spam_signals",
+				"review_reason",
+				"accepted_event_key",
+				"reviewed_at",
+				"reviewed_by",
+				"created_at",
+				"updated_at",
+			)}
+		`;
+	}
+
 	getTableName(): string {
 		return TABLE_NAME;
 	}
 }
 
-export const getEventSubmissionRepository = (): EventSubmissionRepository | null => {
-	const sql = getPostgresClient();
-	if (!sql) return null;
+export const getEventSubmissionRepository =
+	(): EventSubmissionRepository | null => {
+		const sql = getPostgresClient();
+		if (!sql) return null;
 
-	if (!globalThis.__ooocFeteFinderEventSubmissionRepository) {
-		globalThis.__ooocFeteFinderEventSubmissionRepository =
-			new EventSubmissionRepository(sql);
-	}
+		if (!globalThis.__ooocFeteFinderEventSubmissionRepository) {
+			globalThis.__ooocFeteFinderEventSubmissionRepository =
+				new EventSubmissionRepository(sql);
+		}
 
-	return globalThis.__ooocFeteFinderEventSubmissionRepository;
-};
+		return globalThis.__ooocFeteFinderEventSubmissionRepository;
+	};
 
 export const getEventSubmissionTableName = (): string => TABLE_NAME;

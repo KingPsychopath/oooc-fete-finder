@@ -41,5 +41,6 @@
 - `GET /api/cron/cleanup-admin-sessions`
 - `GET /api/cron/cleanup-rate-limits`
 - `GET /api/cron/backup-event-store`
+- `GET /api/cron/cleanup-dismissed-partner-reports`
 
 All cron routes require `Authorization: Bearer <CRON_SECRET>`.

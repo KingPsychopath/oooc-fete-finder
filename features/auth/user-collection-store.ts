@@ -5,8 +5,8 @@ import type {
 	UserRecord,
 } from "@/features/auth/types";
 import {
-	getUserCollectionRepository,
 	type UserCollectionStoreSnapshot,
+	getUserCollectionRepository,
 } from "@/lib/platform/postgres/user-collection-repository";
 
 const MAX_USERS = 10_000;
@@ -50,7 +50,8 @@ const toSortedUserRecords = (
 	return Object.values(records)
 		.sort(
 			(left, right) =>
-				new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime(),
+				new Date(right.timestamp).getTime() -
+				new Date(left.timestamp).getTime(),
 		)
 		.map((record) => ({
 			firstName: record.firstName,
@@ -87,7 +88,10 @@ const getMemorySnapshot = (): UserCollectionStoreSnapshot => {
 		0,
 	);
 	const consentedUsers = values.filter((record) => record.consent).length;
-	const sources = new Map<string, { source: string; users: number; submissions: number }>();
+	const sources = new Map<
+		string,
+		{ source: string; users: number; submissions: number }
+	>();
 	for (const record of values) {
 		const existing = sources.get(record.source);
 		if (!existing) {
@@ -212,7 +216,8 @@ export class UserCollectionStore {
 				analytics: snapshot.analytics,
 				status: {
 					provider: "postgres",
-					location: "Postgres tables app_user_collection_events + app_user_collection_rollup",
+					location:
+						"Postgres tables app_user_collection_events + app_user_collection_rollup",
 					totalUsers: snapshot.totalUsers,
 					lastUpdatedAt: snapshot.lastUpdatedAt,
 				},
@@ -245,5 +250,31 @@ export class UserCollectionStore {
 		}
 
 		globalThis.__ooocFeteFinderUserCollectionMemoryStore = {};
+	}
+
+	static async deleteByEmails(emails: string[]): Promise<number> {
+		const normalizedEmails = Array.from(
+			new Set(
+				emails
+					.map((email) => email.trim().toLowerCase())
+					.filter((email) => email.length > 0),
+			),
+		);
+		if (normalizedEmails.length === 0) return 0;
+
+		const repository = getUserCollectionRepository();
+		if (repository) {
+			return repository.deleteByEmails(normalizedEmails);
+		}
+
+		const store = getMemoryStore();
+		let deletedCount = 0;
+		for (const email of normalizedEmails) {
+			if (store[email]) {
+				delete store[email];
+				deletedCount += 1;
+			}
+		}
+		return deletedCount;
 	}
 }

@@ -35,7 +35,8 @@ DATABASE_URL=... pnpm bootstrap:postgres-store
 - Manual: `Backup Now` in admin
 - Scheduled: `GET /api/cron/backup-event-store`
 - Default schedule: daily at 04:20 UTC
-- Retention: latest 30 snapshots
+- Contents: events, placements, paid orders, submissions, settings, and collected emails
+- Retention: newest 30 snapshots; older snapshots are pruned after successful backup/pre-restore snapshot creation
 
 ## Rollback
 

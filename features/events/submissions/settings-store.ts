@@ -38,7 +38,10 @@ const normalizeSettings = (
 			typeof candidate?.enabled === "boolean"
 				? candidate.enabled
 				: DEFAULT_SETTINGS.enabled,
-		updatedAt: normalizeTimestamp(candidate?.updatedAt, DEFAULT_SETTINGS.updatedAt),
+		updatedAt: normalizeTimestamp(
+			candidate?.updatedAt,
+			DEFAULT_SETTINGS.updatedAt,
+		),
 		updatedBy: normalizeActor(candidate?.updatedBy, DEFAULT_SETTINGS.updatedBy),
 	};
 };
@@ -70,7 +73,9 @@ export class EventSubmissionSettingsStore {
 		return parseStoredSettings(raw);
 	}
 
-	private static async writeSettings(settings: EventSubmissionSettings): Promise<void> {
+	private static async writeSettings(
+		settings: EventSubmissionSettings,
+	): Promise<void> {
 		const kv = await getKVStore();
 		await kv.set(EVENT_SUBMISSION_SETTINGS_KEY, JSON.stringify(settings));
 	}
@@ -116,5 +121,11 @@ export class EventSubmissionSettingsStore {
 	static async resetToDefault(): Promise<void> {
 		const kv = await getKVStore();
 		await kv.delete(EVENT_SUBMISSION_SETTINGS_KEY);
+	}
+
+	static async replaceSettings(
+		settings: EventSubmissionSettings,
+	): Promise<void> {
+		await this.writeSettings(normalizeSettings(settings));
 	}
 }

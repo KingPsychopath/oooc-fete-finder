@@ -348,6 +348,43 @@ export class PartnerActivationRepository {
 		return rows.map(toRecord);
 	}
 
+	async listAll(limit = 5000): Promise<PartnerActivationRecord[]> {
+		await this.ready();
+		const safeLimit = Math.max(1, Math.min(limit, 20_000));
+		const rows = await this.sql<PartnerActivationRow[]>`
+			SELECT
+				id,
+				source,
+				source_event_id,
+				status,
+				package_key,
+				payment_link_id,
+				stripe_session_id,
+				customer_email,
+				customer_name,
+				event_name,
+				event_url,
+				amount_total_cents,
+				currency,
+				notes,
+				metadata,
+				raw_payload,
+				fulfilled_event_key,
+				fulfilled_tier,
+				fulfilled_start_at,
+				fulfilled_end_at,
+				partner_stats_token,
+				partner_stats_revoked_at,
+				created_at,
+				updated_at,
+				activated_at
+			FROM app_partner_activation_queue
+			ORDER BY created_at DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows.map(toRecord);
+	}
+
 	async findById(id: string): Promise<PartnerActivationRecord | null> {
 		await this.ready();
 		const rows = await this.sql<PartnerActivationRow[]>`
@@ -763,6 +800,71 @@ export class PartnerActivationRepository {
 			oldestCreatedAt: toNullableIsoString(row?.oldest_created_at ?? null),
 			newestCreatedAt: toNullableIsoString(row?.newest_created_at ?? null),
 		};
+	}
+
+	async replaceAll(records: PartnerActivationRecord[]): Promise<void> {
+		await this.ready();
+		await this.sql`DELETE FROM app_partner_activation_queue`;
+		if (records.length === 0) return;
+
+		const rows = records.map((record) => ({
+			id: record.id,
+			source: record.source,
+			source_event_id: record.sourceEventId,
+			status: record.status,
+			package_key: record.packageKey,
+			payment_link_id: record.paymentLinkId,
+			stripe_session_id: record.stripeSessionId,
+			customer_email: record.customerEmail,
+			customer_name: record.customerName,
+			event_name: record.eventName,
+			event_url: record.eventUrl,
+			amount_total_cents: record.amountTotalCents,
+			currency: record.currency,
+			notes: record.notes,
+			metadata: toJsonValue(toJsonObjectForSql(record.metadata)),
+			raw_payload: toJsonValue(toJsonObjectForSql(record.rawPayload)),
+			fulfilled_event_key: record.fulfilledEventKey,
+			fulfilled_tier: record.fulfilledTier,
+			fulfilled_start_at: record.fulfilledStartAt,
+			fulfilled_end_at: record.fulfilledEndAt,
+			partner_stats_token: record.partnerStatsToken,
+			partner_stats_revoked_at: record.partnerStatsRevokedAt,
+			created_at: record.createdAt,
+			updated_at: record.updatedAt,
+			activated_at: record.activatedAt,
+		}));
+
+		await this.sql`
+			INSERT INTO app_partner_activation_queue ${this.sql(
+				rows,
+				"id",
+				"source",
+				"source_event_id",
+				"status",
+				"package_key",
+				"payment_link_id",
+				"stripe_session_id",
+				"customer_email",
+				"customer_name",
+				"event_name",
+				"event_url",
+				"amount_total_cents",
+				"currency",
+				"notes",
+				"metadata",
+				"raw_payload",
+				"fulfilled_event_key",
+				"fulfilled_tier",
+				"fulfilled_start_at",
+				"fulfilled_end_at",
+				"partner_stats_token",
+				"partner_stats_revoked_at",
+				"created_at",
+				"updated_at",
+				"activated_at",
+			)}
+		`;
 	}
 }
 

@@ -204,4 +204,8 @@ export class SlidingBannerStore {
 		const kv = await getKVStore();
 		await kv.delete(SLIDING_BANNER_SETTINGS_KEY);
 	}
+
+	static async replaceSettings(settings: SlidingBannerSettings): Promise<void> {
+		await this.writeSettings(normalizeSettings(settings, FALLBACK_SETTINGS));
+	}
 }

@@ -1,11 +1,11 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import type { Sql } from "postgres";
 import type {
 	EventStoreBackupStatus,
 	EventStoreBackupSummary,
 } from "@/features/data-management/event-store-backup-types";
+import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
 
 declare global {
@@ -16,7 +16,9 @@ declare global {
 
 const toIsoString = (value: Date | string | null): string | null => {
 	if (!value) return null;
-	return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+	return value instanceof Date
+		? value.toISOString()
+		: new Date(value).toISOString();
 };
 
 type BackupSummaryRow = {
@@ -26,6 +28,7 @@ type BackupSummaryRow = {
 	trigger: "cron" | "manual" | "pre-restore";
 	row_count: number;
 	featured_entry_count: number;
+	user_collection_count: number | null;
 	store_updated_at: Date | string | null;
 	store_checksum: string;
 };
@@ -33,6 +36,8 @@ type BackupSummaryRow = {
 type BackupPayloadRow = BackupSummaryRow & {
 	csv_content: string;
 	featured_entries_json: string;
+	user_collection_json: string | null;
+	operational_state_json: string | null;
 };
 
 export class EventStoreBackupRepository {
@@ -54,10 +59,13 @@ export class EventStoreBackupRepository {
 				trigger TEXT NOT NULL CHECK (trigger IN ('cron', 'manual', 'pre-restore')),
 				row_count INTEGER NOT NULL,
 				featured_entry_count INTEGER NOT NULL DEFAULT 0,
+				user_collection_count INTEGER NULL,
 				store_updated_at TIMESTAMPTZ NULL,
 				store_checksum TEXT NOT NULL,
 				csv_content TEXT NOT NULL,
-				featured_entries_json TEXT NOT NULL DEFAULT '[]'
+				featured_entries_json TEXT NOT NULL DEFAULT '[]',
+				user_collection_json TEXT NULL,
+				operational_state_json TEXT NULL
 			)
 		`;
 
@@ -69,6 +77,21 @@ export class EventStoreBackupRepository {
 		await this.sql`
 			ALTER TABLE app_event_store_backups
 			ADD COLUMN IF NOT EXISTS featured_entries_json TEXT NOT NULL DEFAULT '[]'
+		`;
+
+		await this.sql`
+			ALTER TABLE app_event_store_backups
+			ADD COLUMN IF NOT EXISTS user_collection_count INTEGER NULL
+		`;
+
+		await this.sql`
+			ALTER TABLE app_event_store_backups
+			ADD COLUMN IF NOT EXISTS user_collection_json TEXT NULL
+		`;
+
+		await this.sql`
+			ALTER TABLE app_event_store_backups
+			ADD COLUMN IF NOT EXISTS operational_state_json TEXT NULL
 		`;
 
 		await this.sql`
@@ -89,6 +112,10 @@ export class EventStoreBackupRepository {
 			trigger: row.trigger,
 			rowCount: row.row_count,
 			featuredEntryCount: Math.max(0, row.featured_entry_count || 0),
+			userCollectionCount:
+				row.user_collection_count === null
+					? null
+					: Math.max(0, row.user_collection_count || 0),
 			storeUpdatedAt: toIsoString(row.store_updated_at),
 			storeChecksum: row.store_checksum,
 		};
@@ -99,10 +126,13 @@ export class EventStoreBackupRepository {
 		trigger: "cron" | "manual" | "pre-restore";
 		rowCount: number;
 		featuredEntryCount: number;
+		userCollectionCount: number | null;
 		storeUpdatedAt: string | null;
 		storeChecksum: string;
 		csvContent: string;
 		featuredEntriesJson: string;
+		userCollectionJson: string | null;
+		operationalStateJson: string | null;
 	}): Promise<EventStoreBackupSummary> {
 		await this.ready();
 
@@ -114,10 +144,13 @@ export class EventStoreBackupRepository {
 				trigger,
 				row_count,
 				featured_entry_count,
+				user_collection_count,
 				store_updated_at,
 				store_checksum,
 				csv_content,
-				featured_entries_json
+				featured_entries_json,
+				user_collection_json,
+				operational_state_json
 			)
 			VALUES (
 				${id},
@@ -125,10 +158,13 @@ export class EventStoreBackupRepository {
 				${input.trigger},
 				${Math.max(0, input.rowCount)},
 				${Math.max(0, input.featuredEntryCount)},
+				${input.userCollectionCount === null ? null : Math.max(0, input.userCollectionCount)},
 				${input.storeUpdatedAt},
 				${input.storeChecksum},
 				${input.csvContent},
-				${input.featuredEntriesJson}
+				${input.featuredEntriesJson},
+				${input.userCollectionJson},
+				${input.operationalStateJson}
 			)
 			RETURNING
 				id,
@@ -137,6 +173,7 @@ export class EventStoreBackupRepository {
 				trigger,
 				row_count,
 				featured_entry_count,
+				user_collection_count,
 				store_updated_at,
 				store_checksum
 		`;
@@ -150,10 +187,13 @@ export class EventStoreBackupRepository {
 	}
 
 	async getLatestBackup(): Promise<
-		(EventStoreBackupSummary & {
-			csvContent: string;
-			featuredEntriesJson: string;
-		}) | null
+		| (EventStoreBackupSummary & {
+				csvContent: string;
+				featuredEntriesJson: string;
+				userCollectionJson: string | null;
+				operationalStateJson: string | null;
+		  })
+		| null
 	> {
 		await this.ready();
 		const rows = await this.sql<BackupPayloadRow[]>`
@@ -164,10 +204,13 @@ export class EventStoreBackupRepository {
 				trigger,
 				row_count,
 				featured_entry_count,
+				user_collection_count,
 				store_updated_at,
 				store_checksum,
 				csv_content,
-				featured_entries_json
+				featured_entries_json,
+				user_collection_json,
+				operational_state_json
 			FROM app_event_store_backups
 			ORDER BY created_at DESC, id DESC
 			LIMIT 1
@@ -180,14 +223,19 @@ export class EventStoreBackupRepository {
 			...this.mapBackup(record),
 			csvContent: record.csv_content,
 			featuredEntriesJson: record.featured_entries_json,
+			userCollectionJson: record.user_collection_json,
+			operationalStateJson: record.operational_state_json,
 		};
 	}
 
 	async getBackupById(id: string): Promise<
-		(EventStoreBackupSummary & {
-			csvContent: string;
-			featuredEntriesJson: string;
-		}) | null
+		| (EventStoreBackupSummary & {
+				csvContent: string;
+				featuredEntriesJson: string;
+				userCollectionJson: string | null;
+				operationalStateJson: string | null;
+		  })
+		| null
 	> {
 		await this.ready();
 		const rows = await this.sql<BackupPayloadRow[]>`
@@ -198,10 +246,13 @@ export class EventStoreBackupRepository {
 				trigger,
 				row_count,
 				featured_entry_count,
+				user_collection_count,
 				store_updated_at,
 				store_checksum,
 				csv_content,
-				featured_entries_json
+				featured_entries_json,
+				user_collection_json,
+				operational_state_json
 			FROM app_event_store_backups
 			WHERE id = ${id}
 			LIMIT 1
@@ -214,6 +265,8 @@ export class EventStoreBackupRepository {
 			...this.mapBackup(record),
 			csvContent: record.csv_content,
 			featuredEntriesJson: record.featured_entries_json,
+			userCollectionJson: record.user_collection_json,
+			operationalStateJson: record.operational_state_json,
 		};
 	}
 
@@ -228,6 +281,7 @@ export class EventStoreBackupRepository {
 				trigger,
 				row_count,
 				featured_entry_count,
+				user_collection_count,
 				store_updated_at,
 				store_checksum
 			FROM app_event_store_backups
@@ -271,15 +325,15 @@ export class EventStoreBackupRepository {
 
 		return {
 			backupCount: countRows[0]?.count ?? 0,
-			latestBackup:
-				latest ?
-					{
+			latestBackup: latest
+				? {
 						id: latest.id,
 						createdAt: latest.createdAt,
 						createdBy: latest.createdBy,
 						trigger: latest.trigger,
 						rowCount: latest.rowCount,
 						featuredEntryCount: latest.featuredEntryCount,
+						userCollectionCount: latest.userCollectionCount,
 						storeUpdatedAt: latest.storeUpdatedAt,
 						storeChecksum: latest.storeChecksum,
 					}
@@ -318,15 +372,17 @@ const isValidBackupRepositoryInstance = (
 	);
 };
 
-export const getEventStoreBackupRepository = (): EventStoreBackupRepository | null => {
-	const sql = getPostgresClient();
-	if (!sql) return null;
+export const getEventStoreBackupRepository =
+	(): EventStoreBackupRepository | null => {
+		const sql = getPostgresClient();
+		if (!sql) return null;
 
-	const cachedRepository = globalThis.__ooocFeteFinderEventStoreBackupRepository;
-	if (!isValidBackupRepositoryInstance(cachedRepository)) {
-		globalThis.__ooocFeteFinderEventStoreBackupRepository =
-			new EventStoreBackupRepository(sql);
-	}
+		const cachedRepository =
+			globalThis.__ooocFeteFinderEventStoreBackupRepository;
+		if (!isValidBackupRepositoryInstance(cachedRepository)) {
+			globalThis.__ooocFeteFinderEventStoreBackupRepository =
+				new EventStoreBackupRepository(sql);
+		}
 
-	return globalThis.__ooocFeteFinderEventStoreBackupRepository ?? null;
-};
+		return globalThis.__ooocFeteFinderEventStoreBackupRepository ?? null;
+	};

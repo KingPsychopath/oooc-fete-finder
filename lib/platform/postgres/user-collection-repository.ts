@@ -316,6 +316,30 @@ export class UserCollectionRepository {
 		await this.sql`DELETE FROM app_user_collection_events`;
 		await this.sql`DELETE FROM app_user_collection_rollup`;
 	}
+
+	async deleteByEmails(emails: string[]): Promise<number> {
+		await this.ready();
+		const normalizedEmails = Array.from(
+			new Set(
+				emails
+					.map((email) => email.trim().toLowerCase())
+					.filter((email) => email.length > 0),
+			),
+		);
+		if (normalizedEmails.length === 0) return 0;
+
+		const deletedRows = await this.sql<{ email: string }[]>`
+			DELETE FROM app_user_collection_rollup
+			WHERE email = ANY(${normalizedEmails})
+			RETURNING email
+		`;
+		await this.sql`
+			DELETE FROM app_user_collection_events
+			WHERE email = ANY(${normalizedEmails})
+		`;
+
+		return deletedRows.length;
+	}
 }
 
 export const getUserCollectionRepository =

@@ -1,6 +1,5 @@
 import "server-only";
 
-import { z } from "zod";
 import type {
 	CreateEventSubmissionInput,
 	EventSubmissionPayload,
@@ -10,6 +9,7 @@ import type {
 	ReviewEventSubmissionInput,
 } from "@/features/events/submissions/types";
 import { getEventSubmissionRepository } from "@/lib/platform/postgres/event-submission-repository";
+import { z } from "zod";
 import { normalizeProofLink } from "./proof-link";
 
 const MIN_FORM_COMPLETION_SECONDS = 4;
@@ -142,7 +142,10 @@ export const evaluateSubmissionSpamSignals = (
 	input: Pick<NormalizedEventSubmissionInput, "honeypot" | "formStartedAt">,
 	nowMs = Date.now(),
 ): EventSubmissionSpamSignals => {
-	const completionSeconds = computeCompletionSeconds(input.formStartedAt, nowMs);
+	const completionSeconds = computeCompletionSeconds(
+		input.formStartedAt,
+		nowMs,
+	);
 	const honeypotFilled = input.honeypot.trim().length > 0;
 	const completedTooFast =
 		typeof completionSeconds === "number" &&
@@ -249,4 +252,19 @@ export const reviewEventSubmission = async (
 export const clearAllEventSubmissions = async (): Promise<number> => {
 	const repository = getRepositoryOrThrow();
 	return repository.clearAllSubmissions();
+};
+
+export const listAllEventSubmissions = async (): Promise<
+	EventSubmissionRecord[]
+> => {
+	const repository = getEventSubmissionRepository();
+	if (!repository) return [];
+	return repository.listAllSubmissions();
+};
+
+export const replaceAllEventSubmissions = async (
+	records: EventSubmissionRecord[],
+): Promise<void> => {
+	const repository = getRepositoryOrThrow();
+	await repository.replaceAllSubmissions(records);
 };

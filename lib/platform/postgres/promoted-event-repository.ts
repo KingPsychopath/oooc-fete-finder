@@ -56,6 +56,7 @@ export interface PromotedEventRepositorySession {
 	clearScheduledEntries(): Promise<number>;
 	clearHistoryEntries(): Promise<number>;
 	clearAllEntries(): Promise<number>;
+	replaceAllEntries(entries: PromotedScheduleEntry[]): Promise<void>;
 }
 
 const toIsoString = (value: Date | string): string =>
@@ -258,6 +259,43 @@ const clearAllEntriesWithClient = async (
 	return rows.length;
 };
 
+const replaceAllEntriesWithClient = async (
+	sqlClient: PromotedRepositorySqlClient,
+	entries: PromotedScheduleEntry[],
+): Promise<void> => {
+	await sqlClient`DELETE FROM app_promoted_event_schedule`;
+	if (entries.length === 0) return;
+
+	const rows = entries.map((entry) => ({
+		id: entry.id,
+		event_key: entry.eventKey,
+		requested_start_at: entry.requestedStartAt,
+		effective_start_at: entry.effectiveStartAt,
+		effective_end_at: entry.effectiveEndAt,
+		duration_hours: entry.durationHours,
+		status: entry.status,
+		created_by: entry.createdBy,
+		created_at: entry.createdAt,
+		updated_at: entry.updatedAt,
+	}));
+
+	await sqlClient`
+		INSERT INTO app_promoted_event_schedule ${sqlClient(
+			rows,
+			"id",
+			"event_key",
+			"requested_start_at",
+			"effective_start_at",
+			"effective_end_at",
+			"duration_hours",
+			"status",
+			"created_by",
+			"created_at",
+			"updated_at",
+		)}
+	`;
+};
+
 const buildSession = (
 	sqlClient: PromotedRepositorySqlClient,
 ): PromotedEventRepositorySession => ({
@@ -273,6 +311,8 @@ const buildSession = (
 	clearScheduledEntries: () => clearScheduledEntriesWithClient(sqlClient),
 	clearHistoryEntries: () => clearHistoryEntriesWithClient(sqlClient),
 	clearAllEntries: () => clearAllEntriesWithClient(sqlClient),
+	replaceAllEntries: (entries) =>
+		replaceAllEntriesWithClient(sqlClient, entries),
 });
 
 export class PromotedEventRepository {
@@ -328,6 +368,13 @@ export class PromotedEventRepository {
 			`;
 			return operation(buildSession(lockedSql));
 		}) as Promise<T>;
+	}
+
+	async replaceAllEntries(entries: PromotedScheduleEntry[]): Promise<void> {
+		await this.ready();
+		await this.withScheduleLock(async (session) => {
+			await session.replaceAllEntries(entries);
+		});
 	}
 }
 

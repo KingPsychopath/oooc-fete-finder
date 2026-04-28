@@ -9,10 +9,10 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import {
-	createEventStoreBackup,
 	clearLocalEventStoreCsv,
-	getEventStoreRecentBackups,
+	createEventStoreBackup,
 	getEventStoreBackupStatus,
+	getEventStoreRecentBackups,
 	getLocalEventStoreCsv,
 	getLocalEventStorePreview,
 	getLocalEventStoreStatus,
@@ -20,11 +20,11 @@ import {
 	saveLocalEventStoreCsv,
 } from "@/features/data-management/actions";
 import {
+	type ChangeEvent,
 	useCallback,
 	useEffect,
 	useRef,
 	useState,
-	type ChangeEvent,
 } from "react";
 import type { RuntimeDataStatus } from "../types";
 
@@ -283,7 +283,7 @@ export const LocalEventStoreCard = ({
 		}
 
 		const confirmed = window.confirm(
-			`Restore latest backup from ${new Date(latestBackup.createdAt).toLocaleString()}? This will overwrite current store data and featured schedule data.`,
+			`Restore latest backup from ${new Date(latestBackup.createdAt).toLocaleString()}? This will overwrite current store data, featured schedule data, and collected emails when the snapshot includes them.`,
 		);
 		if (!confirmed) return;
 
@@ -311,7 +311,7 @@ export const LocalEventStoreCard = ({
 		}
 
 		const confirmed = window.confirm(
-			`Restore snapshot from ${new Date(selectedBackup.createdAt).toLocaleString()} (${selectedBackup.trigger}, ${selectedBackup.rowCount} rows)? This overwrites current store and featured schedule data.`,
+			`Restore snapshot from ${new Date(selectedBackup.createdAt).toLocaleString()} (${selectedBackup.trigger}, ${selectedBackup.rowCount} rows, ${selectedBackup.userCollectionCount ?? "legacy"} emails)? This overwrites current store, featured schedule data, and collected emails when the snapshot includes them.`,
 		);
 		if (!confirmed) return;
 
@@ -484,9 +484,21 @@ export const LocalEventStoreCard = ({
 					<p className="mt-1">1. Upload CSV into store.</p>
 					<p>2. Edit in Event Sheet Editor and revalidate homepage.</p>
 					<p>
-						3. Backup now periodically or restore latest backup when needed.
+						3. Backup now periodically; snapshots include events, placements,
+						paid orders, submissions, settings, and collected emails.
 					</p>
 					<p>4. Export CSV anytime for external workflows.</p>
+				</div>
+				<div className="rounded-md border bg-background/60 p-3 text-sm text-muted-foreground">
+					<p className="font-medium text-foreground">Backup Schedule</p>
+					<p className="mt-1">
+						Cron creates one snapshot daily at 04:20 UTC. Manual restores create
+						a pre-restore snapshot first.
+					</p>
+					<p>
+						Retention keeps the newest 30 snapshots by created time and removes
+						older ones after each successful backup/pre-restore snapshot.
+					</p>
 				</div>
 
 				{fallbackActive && (
@@ -583,7 +595,8 @@ export const LocalEventStoreCard = ({
 									{recentBackups.map((backup) => (
 										<option key={backup.id} value={backup.id}>
 											{new Date(backup.createdAt).toLocaleString()} |{" "}
-											{backup.trigger} | {backup.rowCount} rows
+											{backup.trigger} | {backup.rowCount} rows |{" "}
+											{backup.userCollectionCount ?? "legacy"} emails
 										</option>
 									))}
 								</select>

@@ -1,8 +1,10 @@
 "use client";
 
 import {
+	deleteCollectedEmails,
 	exportCollectedEmailsCsv,
 	getCollectedEmails,
+	importCollectedEmails,
 } from "@/features/auth/actions";
 import { useCallback, useEffect, useState } from "react";
 import { EmailCollectionCard } from "../components/EmailCollectionCard";
@@ -25,9 +27,10 @@ export function InsightsDashboardClient({
 	const [emails, setEmails] = useState<EmailRecord[]>(
 		initialEmailsResult?.success ? (initialEmailsResult.emails ?? []) : [],
 	);
-	const [emailStore, setEmailStore] = useState<UserCollectionStoreSummary | null>(
-		initialEmailsResult?.success ? (initialEmailsResult.store ?? null) : null,
-	);
+	const [emailStore, setEmailStore] =
+		useState<UserCollectionStoreSummary | null>(
+			initialEmailsResult?.success ? (initialEmailsResult.store ?? null) : null,
+		);
 	const [emailAnalytics, setEmailAnalytics] =
 		useState<UserCollectionAnalytics | null>(
 			initialEmailsResult?.success
@@ -67,10 +70,10 @@ export function InsightsDashboardClient({
 		URL.revokeObjectURL(url);
 	}, []);
 
-	const copyEmails = useCallback(() => {
-		const emailList = emails.map((entry) => entry.email).join("\n");
+	const copyVisibleEmails = useCallback((visibleEmails: EmailRecord[]) => {
+		const emailList = visibleEmails.map((entry) => entry.email).join("\n");
 		navigator.clipboard.writeText(emailList);
-	}, [emails]);
+	}, []);
 
 	return (
 		<div className="space-y-6">
@@ -85,8 +88,11 @@ export function InsightsDashboardClient({
 					emails={emails}
 					store={emailStore}
 					analytics={emailAnalytics}
-					onCopyEmails={copyEmails}
+					onCopyEmails={copyVisibleEmails}
 					onExportCSV={() => void exportAsCSV()}
+					onRefresh={loadEmails}
+					onDeleteEmails={deleteCollectedEmails}
+					onImportEmails={importCollectedEmails}
 				/>
 			</section>
 		</div>
