@@ -64,13 +64,32 @@ export const areDateRangesEqual = (
 	right: DateRangeFilter,
 ): boolean => left.from === right.from && left.to === right.to;
 
+export const getCurrentParisYearDateRange = (
+	referenceDate = new Date(),
+): DateRangeFilter => {
+	const currentYear = PARIS_YEAR_FORMATTER.format(referenceDate);
+	return {
+		from: `${currentYear}-01-01`,
+		to: `${currentYear}-12-31`,
+	};
+};
+
+export const getEventCountForDateRange = (
+	events: Event[],
+	range: DateRangeFilter,
+): number =>
+	events.filter((event) => {
+		if (!isStrictISODate(event.date)) return false;
+		if (range.from && event.date < range.from) return false;
+		if (range.to && event.date > range.to) return false;
+		return true;
+	}).length;
+
 export const getDefaultDateRangeForEvents = (
 	events: Event[],
 	referenceDate = new Date(),
 ): DateRangeFilter => {
-	const currentYear = PARIS_YEAR_FORMATTER.format(referenceDate);
-	const from = `${currentYear}-01-01`;
-	const to = `${currentYear}-12-31`;
+	const { from, to } = getCurrentParisYearDateRange(referenceDate);
 	const hasCurrentYearEvents = events.some((event) => {
 		if (!isStrictISODate(event.date)) return false;
 		return event.date >= from && event.date <= to;

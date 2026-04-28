@@ -99,11 +99,13 @@ export const RuntimeDataStatusCard = ({
 				<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Live Events
+							This Year&apos;s Events
 						</p>
-						<p className="mt-1 text-lg font-semibold">{runtimeDataStatus.eventCount}</p>
+						<p className="mt-1 text-lg font-semibold">
+							{runtimeDataStatus.currentYearEventCount}
+						</p>
 						<p className="mt-1 text-xs text-muted-foreground">
-							Current runtime payload count.
+							Default public date range count.
 						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">

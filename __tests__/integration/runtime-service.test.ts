@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Setup = {
 	getLiveEvents: typeof import("@/features/data-management/runtime-service").getLiveEvents;
@@ -11,8 +11,11 @@ type Setup = {
 	revalidateTag: ReturnType<typeof vi.fn>;
 };
 
-const makeEvent = (id: string) =>
-	({ id: `evt_${id}` }) as unknown as import("@/features/events/types").Event;
+const makeEvent = (id: string, date = "2026-06-21") =>
+	({
+		id: `evt_${id}`,
+		date,
+	}) as unknown as import("@/features/events/types").Event;
 
 const loadRuntimeService = async (): Promise<Setup> => {
 	vi.resetModules();
@@ -75,6 +78,10 @@ describe("runtime-service", () => {
 		vi.clearAllMocks();
 	});
 
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
 	it("reads directly from DataManager on each getLiveEvents call", async () => {
 		const { getLiveEvents, dataManagerGetEventsData } =
 			await loadRuntimeService();
@@ -134,6 +141,8 @@ describe("runtime-service", () => {
 	});
 
 	it("returns runtime status from direct source reads", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-04-24T10:00:00.000Z"));
 		const {
 			getRuntimeDataStatusFromSource,
 			dataManagerGetDataConfigStatus,
@@ -151,7 +160,7 @@ describe("runtime-service", () => {
 		});
 		dataManagerGetEventsData.mockResolvedValue({
 			success: true,
-			data: [makeEvent("1")],
+			data: [makeEvent("1", "2026-06-21"), makeEvent("2", "2025-06-21")],
 			count: 81,
 			source: "store",
 			warnings: [],
@@ -163,6 +172,7 @@ describe("runtime-service", () => {
 		expect(status.dataSource).toBe("store");
 		expect(status.configuredDataSource).toBe("remote");
 		expect(status.eventCount).toBe(81);
+		expect(status.currentYearEventCount).toBe(1);
 		expect(dataManagerGetEventsData).toHaveBeenCalledWith({
 			populateCoordinates: false,
 		});

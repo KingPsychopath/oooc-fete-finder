@@ -37,6 +37,7 @@ const loadRoute = async (): Promise<Setup> => {
 	const getRuntimeDataStatusFromSource = vi.fn().mockResolvedValue({
 		dataSource: "local",
 		eventCount: 4,
+		currentYearEventCount: 2,
 		lastFetchTime: "2026-02-18T00:00:00.000Z",
 		lastRemoteErrorMessage: "fallback active",
 	});
@@ -138,6 +139,7 @@ describe("/api/admin/health route", () => {
 				csvRawRows: number;
 				parsedEvents: number;
 				liveRuntimeEvents: number;
+				currentYearEvents: number;
 			};
 			warnings: {
 				parsingWarnings: string[];
@@ -150,6 +152,7 @@ describe("/api/admin/health route", () => {
 		expect(payload.counts.csvRawRows).toBe(2);
 		expect(payload.counts.parsedEvents).toBe(1);
 		expect(payload.counts.liveRuntimeEvents).toBe(4);
+		expect(payload.counts.currentYearEvents).toBe(2);
 		expect(payload.warnings.parsingWarnings).toEqual(["missing column"]);
 		expect(payload.warnings.countMismatches).toHaveLength(4);
 		expect(response.headers.get("cache-control")).toContain("no-store");

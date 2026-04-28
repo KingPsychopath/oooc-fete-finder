@@ -443,10 +443,10 @@ export const LocalEventStoreCard = ({
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Live Events
+							This Year&apos;s Events
 						</p>
 						<p className="mt-1 text-base font-semibold">
-							{runtimeDataStatus?.eventCount ?? 0}
+							{runtimeDataStatus?.currentYearEventCount ?? 0}
 						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">

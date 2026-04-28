@@ -113,6 +113,7 @@ export async function GET(request: NextRequest) {
 					parsedEvents: parsedEventCount,
 					liveRuntimeEvents: runtimeDataStatus.eventCount,
 					liveEvents: runtimeDataStatus.eventCount,
+					currentYearEvents: runtimeDataStatus.currentYearEventCount,
 				},
 				store: {
 					hasStoreData: storeStatus.hasStoreData,

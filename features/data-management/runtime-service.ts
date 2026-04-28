@@ -1,6 +1,10 @@
 import "server-only";
 
 import { applyFeaturedProjectionToEvents } from "@/features/events/featured/service";
+import {
+	getCurrentParisYearDateRange,
+	getEventCountForDateRange,
+} from "@/features/events/filtering";
 import { applyPromotedProjectionToEvents } from "@/features/events/promoted/service";
 import type { Event } from "@/features/events/types";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
@@ -42,6 +46,7 @@ export interface RuntimeDataStatus {
 	lastRemoteErrorMessage: string;
 	dataSource: DataSource;
 	eventCount: number;
+	currentYearEventCount: number;
 	configuredDataSource: "remote" | "local" | "test";
 	remoteConfigured: boolean;
 	hasLocalStoreData: boolean;
@@ -237,6 +242,11 @@ export async function getRuntimeDataStatusFromSource(): Promise<RuntimeDataStatu
 		? statusRead.source
 		: normalizeFailureSource(configStatus.dataSource);
 	const eventCount = statusRead.success ? statusRead.count : 0;
+	const currentYearDateRange = getCurrentParisYearDateRange();
+	const currentYearEventCount =
+		statusRead.success ?
+			getEventCountForDateRange(statusRead.data, currentYearDateRange)
+		:	0;
 	const lastFetchTime = statusRead.success
 		? (statusRead.lastUpdate ?? new Date().toISOString())
 		: null;
@@ -247,6 +257,7 @@ export async function getRuntimeDataStatusFromSource(): Promise<RuntimeDataStatu
 		lastRemoteErrorMessage: errorMessage,
 		dataSource: source,
 		eventCount,
+		currentYearEventCount,
 		configuredDataSource: configStatus.dataSource,
 		remoteConfigured: configStatus.remoteConfigured,
 		hasLocalStoreData: configStatus.hasLocalStoreData,

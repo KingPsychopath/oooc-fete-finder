@@ -215,6 +215,19 @@ export const PartnerActivationQueueCard = ({
 		[loadDashboard],
 	);
 
+	const handleDismiss = useCallback(
+		async (item: { id: string; status: PartnerActivationStatus }) => {
+			if (item.status === "activated") {
+				const confirmed = window.confirm(
+					"Dismiss this fulfilled/report item? Its partner stats link will no longer appear in the Fulfilled / Reports tab.",
+				);
+				if (!confirmed) return;
+			}
+			await withMutation(item.id, "dismissed");
+		},
+		[withMutation],
+	);
+
 	const handleFulfill = useCallback(
 		async (id: string) => {
 			const input = fulfillmentInputs[id];
@@ -689,6 +702,12 @@ export const PartnerActivationQueueCard = ({
 								"Event name not provided";
 							const isManualReport =
 								item.packageKey?.startsWith("manual-test-") === true;
+							const canFulfill =
+								item.status === "pending" || item.status === "processing";
+							const canMarkInProgress = item.status === "pending";
+							const canReopen = item.status === "activated";
+							const canDismiss = item.status !== "dismissed";
+							const canRestore = item.status === "dismissed";
 
 							return (
 								<div
@@ -730,115 +749,143 @@ export const PartnerActivationQueueCard = ({
 										) : null}
 									</div>
 
-									<div className="mt-3 grid gap-2 md:grid-cols-2">
-										<div className="space-y-1">
-											<label className="text-xs text-muted-foreground">
-												Event key
-											</label>
-											<input
-												list="partner-activation-event-keys"
-												className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
-												value={input.eventKey}
-												onChange={(event) =>
-													setFulfillmentInputs((current) => ({
-														...current,
-														[item.id]: {
-															...input,
-															eventKey: event.target.value,
-														},
-													}))
-												}
-											/>
+									{canFulfill ? (
+										<div className="mt-3 grid gap-2 md:grid-cols-2">
+											<div className="space-y-1">
+												<label className="text-xs text-muted-foreground">
+													Event key
+												</label>
+												<input
+													list="partner-activation-event-keys"
+													className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+													value={input.eventKey}
+													onChange={(event) =>
+														setFulfillmentInputs((current) => ({
+															...current,
+															[item.id]: {
+																...input,
+																eventKey: event.target.value,
+															},
+														}))
+													}
+												/>
+											</div>
+											<div className="space-y-1">
+												<label className="text-xs text-muted-foreground">
+													Tier
+												</label>
+												<select
+													className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+													value={input.tier}
+													onChange={(event) =>
+														setFulfillmentInputs((current) => ({
+															...current,
+															[item.id]: {
+																...input,
+																tier: event.target.value as
+																	| "spotlight"
+																	| "promoted",
+															},
+														}))
+													}
+												>
+													<option value="spotlight">Spotlight</option>
+													<option value="promoted">Promoted</option>
+												</select>
+											</div>
+											<div className="space-y-1">
+												<label className="text-xs text-muted-foreground">
+													Start
+												</label>
+												<input
+													type="datetime-local"
+													className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+													value={input.scheduleAt}
+													onChange={(event) =>
+														setFulfillmentInputs((current) => ({
+															...current,
+															[item.id]: {
+																...input,
+																scheduleAt: event.target.value,
+															},
+														}))
+													}
+												/>
+											</div>
+											<div className="space-y-1">
+												<label className="text-xs text-muted-foreground">
+													Duration (h)
+												</label>
+												<input
+													type="number"
+													min={1}
+													max={168}
+													className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+													value={input.durationHours}
+													onChange={(event) =>
+														setFulfillmentInputs((current) => ({
+															...current,
+															[item.id]: {
+																...input,
+																durationHours: event.target.value,
+															},
+														}))
+													}
+												/>
+											</div>
 										</div>
-										<div className="space-y-1">
-											<label className="text-xs text-muted-foreground">
-												Tier
-											</label>
-											<select
-												className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
-												value={input.tier}
-												onChange={(event) =>
-													setFulfillmentInputs((current) => ({
-														...current,
-														[item.id]: {
-															...input,
-															tier: event.target.value as
-																| "spotlight"
-																| "promoted",
-														},
-													}))
-												}
-											>
-												<option value="spotlight">Spotlight</option>
-												<option value="promoted">Promoted</option>
-											</select>
-										</div>
-										<div className="space-y-1">
-											<label className="text-xs text-muted-foreground">
-												Start
-											</label>
-											<input
-												type="datetime-local"
-												className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
-												value={input.scheduleAt}
-												onChange={(event) =>
-													setFulfillmentInputs((current) => ({
-														...current,
-														[item.id]: {
-															...input,
-															scheduleAt: event.target.value,
-														},
-													}))
-												}
-											/>
-										</div>
-										<div className="space-y-1">
-											<label className="text-xs text-muted-foreground">
-												Duration (h)
-											</label>
-											<input
-												type="number"
-												min={1}
-												max={168}
-												className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
-												value={input.durationHours}
-												onChange={(event) =>
-													setFulfillmentInputs((current) => ({
-														...current,
-														[item.id]: {
-															...input,
-															durationHours: event.target.value,
-														},
-													}))
-												}
-											/>
-										</div>
-									</div>
+									) : null}
 
 									<div className="mt-3 flex flex-wrap gap-2">
-										<Button
-											size="sm"
-											disabled={isMutating && busyId === item.id}
-											onClick={() => void handleFulfill(item.id)}
-										>
-											Fulfill as selected tier
-										</Button>
-										<Button
-											size="sm"
-											variant="outline"
-											disabled={isMutating && busyId === item.id}
-											onClick={() => void withMutation(item.id, "processing")}
-										>
-											Mark in progress
-										</Button>
-										<Button
-											size="sm"
-											variant="outline"
-											disabled={isMutating && busyId === item.id}
-											onClick={() => void withMutation(item.id, "dismissed")}
-										>
-											Dismiss
-										</Button>
+										{canFulfill ? (
+											<Button
+												size="sm"
+												disabled={isMutating && busyId === item.id}
+												onClick={() => void handleFulfill(item.id)}
+											>
+												Fulfill as selected tier
+											</Button>
+										) : null}
+										{canMarkInProgress ? (
+											<Button
+												size="sm"
+												variant="outline"
+												disabled={isMutating && busyId === item.id}
+												onClick={() => void withMutation(item.id, "processing")}
+											>
+												Mark in progress
+											</Button>
+										) : null}
+										{canDismiss ? (
+											<Button
+												size="sm"
+												variant="outline"
+												disabled={isMutating && busyId === item.id}
+												onClick={() => void handleDismiss(item)}
+											>
+												Dismiss
+											</Button>
+										) : null}
+										{canReopen ? (
+											<Button
+												size="sm"
+												variant="outline"
+												disabled={isMutating && busyId === item.id}
+												onClick={() => void withMutation(item.id, "processing")}
+											>
+												Reopen as in progress
+											</Button>
+										) : null}
+										{canRestore ? (
+											<Button
+												size="sm"
+												variant="outline"
+												disabled={isMutating && busyId === item.id}
+												onClick={() => void withMutation(item.id, "pending")}
+											>
+												Restore to needs fulfillment
+											</Button>
+										) : null}
 										{statsPath ? (
 											<>
 												<Button

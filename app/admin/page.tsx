@@ -69,10 +69,10 @@ export default async function AdminPage() {
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Live Event Count
+							This Year&apos;s Events
 						</p>
 						<p className="mt-1 text-sm font-medium">
-							{runtimeDataStatus?.eventCount ?? 0}
+							{runtimeDataStatus?.currentYearEventCount ?? 0}
 						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">

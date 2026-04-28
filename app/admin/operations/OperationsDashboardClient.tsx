@@ -22,6 +22,7 @@ const FALLBACK_RUNTIME_DATA_STATUS: RuntimeDataStatus = {
 	lastRemoteErrorMessage: "",
 	dataSource: "store",
 	eventCount: 0,
+	currentYearEventCount: 0,
 	configuredDataSource: "remote",
 	remoteConfigured: false,
 	hasLocalStoreData: false,
