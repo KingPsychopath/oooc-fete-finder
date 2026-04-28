@@ -27,7 +27,10 @@ import {
 	reschedulePromotedEvent,
 	schedulePromotedEvent,
 } from "@/features/events/promoted/actions";
-import { generatePartnerStatsTestLink } from "@/features/partners/activation-actions";
+import {
+	getOrCreatePartnerReportForPlacement,
+	listPartnerReportsForPlacements,
+} from "@/features/partners/activation-actions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type FeaturedQueuePayload = Awaited<ReturnType<typeof listFeaturedQueue>>;
@@ -130,7 +133,7 @@ export const FeaturedEventsManagerCard = ({
 	const [statusMessage, setStatusMessage] = useState("");
 	const [errorMessage, setErrorMessage] = useState("");
 	const [partnerReportLinks, setPartnerReportLinks] = useState<
-		Record<string, string>
+		Record<string, { activationId: string; statsPath: string }>
 	>({});
 	const [eventQuery, setEventQuery] = useState("");
 	const [selectedEventKey, setSelectedEventKey] = useState("");
@@ -184,7 +187,10 @@ export const FeaturedEventsManagerCard = ({
 	);
 
 	const events = currentPayload?.events ?? [];
-	const queueRows = (currentPayload?.queue ?? []) as QueueRow[];
+	const queueRows = useMemo(
+		() => (currentPayload?.queue ?? []) as QueueRow[],
+		[currentPayload?.queue],
+	);
 	const matchedEvents = useMemo(() => {
 		const needle = eventQuery.trim().toLowerCase();
 		if (!needle) {
@@ -232,6 +238,31 @@ export const FeaturedEventsManagerCard = ({
 	).length;
 	const hasQueueRows = queueRows.length > 0;
 	const hasActiveSlots = activeCount > 0;
+
+	useEffect(() => {
+		if (!hasQueueRows) {
+			setPartnerReportLinks({});
+			return;
+		}
+		let isCancelled = false;
+		const loadReports = async () => {
+			const result = await listPartnerReportsForPlacements({
+				placements: queueRows.map((row) => ({
+					placementId: row.id,
+					eventKey: row.eventKey,
+					tier: placementMode,
+					startAt: row.effectiveStartAt,
+					endAt: row.effectiveEndAt,
+				})),
+			});
+			if (isCancelled || !result.success) return;
+			setPartnerReportLinks(result.reports);
+		};
+		void loadReports();
+		return () => {
+			isCancelled = true;
+		};
+	}, [hasQueueRows, placementMode, queueRows]);
 
 	const withMutation = useCallback(
 		async (
@@ -350,11 +381,13 @@ export const FeaturedEventsManagerCard = ({
 			setStatusMessage("");
 			setErrorMessage("");
 			try {
-				const result = await generatePartnerStatsTestLink({
+				const result = await getOrCreatePartnerReportForPlacement({
+					placementId: row.id,
 					eventKey: row.eventKey,
+					eventName: row.eventName,
 					tier: placementMode,
-					requestedStartAt: row.effectiveStartAt,
-					durationHours: row.durationHours,
+					startAt: row.effectiveStartAt,
+					endAt: row.effectiveEndAt,
 				});
 				if (!result.success) {
 					setErrorMessage(result.error || result.message);
@@ -362,10 +395,15 @@ export const FeaturedEventsManagerCard = ({
 				}
 				setPartnerReportLinks((current) => ({
 					...current,
-					[row.id]: result.statsPath,
+					[row.id]: {
+						activationId: result.activationId,
+						statsPath: result.statsPath,
+					},
 				}));
 				setStatusMessage(
-					`Partner report created for ${row.eventName}. It also appears under Fulfilled / Reports.`,
+					result.existing
+						? `Existing partner report found for ${row.eventName}.`
+						: `Partner report created for ${row.eventName}. It also appears under Fulfilled / Reports.`,
 				);
 			} finally {
 				setIsMutating(false);
@@ -759,18 +797,6 @@ export const FeaturedEventsManagerCard = ({
 														</Button>
 													</div>
 													<div className="flex flex-wrap gap-1.5">
-														<Button
-															type="button"
-															size="sm"
-															variant="outline"
-															className="h-8 px-2.5"
-															disabled={isMutating}
-															onClick={() =>
-																void handleCreatePartnerReport(row)
-															}
-														>
-															Create Report
-														</Button>
 														{partnerReportLinks[row.id] ? (
 															<Button
 																type="button"
@@ -780,7 +806,7 @@ export const FeaturedEventsManagerCard = ({
 																nativeButton={false}
 																render={
 																	<a
-																		href={partnerReportLinks[row.id]}
+																		href={partnerReportLinks[row.id]?.statsPath}
 																		target="_blank"
 																		rel="noreferrer"
 																	/>
@@ -788,7 +814,20 @@ export const FeaturedEventsManagerCard = ({
 															>
 																Open Report
 															</Button>
-														) : null}
+														) : (
+															<Button
+																type="button"
+																size="sm"
+																variant="outline"
+																className="h-8 px-2.5"
+																disabled={isMutating}
+																onClick={() =>
+																	void handleCreatePartnerReport(row)
+																}
+															>
+																Create Report
+															</Button>
+														)}
 													</div>
 												</div>
 											</td>

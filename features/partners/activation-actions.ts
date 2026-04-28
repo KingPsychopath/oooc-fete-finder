@@ -14,7 +14,9 @@ import {
 import { env } from "@/lib/config/env";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import {
+	type PartnerActivationRecord,
 	type PartnerActivationStatus,
+	type PartnerPlacementTier,
 	getPartnerActivationRepository,
 } from "@/lib/platform/postgres/partner-activation-repository";
 
@@ -61,6 +63,27 @@ const buildReportWindow = (input: {
 		durationHours,
 	};
 };
+
+const toIsoTimestamp = (value: string): string | null => {
+	const parsed = new Date(value);
+	if (!Number.isFinite(parsed.getTime())) return null;
+	return parsed.toISOString();
+};
+
+const toReportPath = (record: PartnerActivationRecord): string | null => {
+	if (!record.partnerStatsToken) return null;
+	return (
+		env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "") +
+		`${env.NEXT_PUBLIC_BASE_PATH}/partner-stats/${record.id}?token=${record.partnerStatsToken}`
+	);
+};
+
+const toPlacementReportKey = (input: {
+	eventKey: string;
+	tier: PartnerPlacementTier;
+	startAt: string;
+	endAt: string;
+}): string => `${input.eventKey}|${input.tier}|${input.startAt}|${input.endAt}`;
 
 export async function getPartnerActivationDashboard(): Promise<
 	| {
@@ -397,6 +420,232 @@ export async function generatePartnerStatsTestLink(input: {
 				error instanceof Error
 					? error.message
 					: "Unknown test stats generation error",
+		};
+	}
+}
+
+export async function getOrCreatePartnerReportForPlacement(input: {
+	placementId: string;
+	eventKey: string;
+	eventName?: string;
+	tier: PartnerPlacementTier;
+	startAt: string;
+	endAt: string;
+}): Promise<
+	| {
+			success: true;
+			statsPath: string;
+			activationId: string;
+			existing: boolean;
+			message: string;
+	  }
+	| { success: false; message: string; error: string }
+> {
+	try {
+		await assertAdmin();
+		const repository = getPartnerActivationRepository();
+		if (!repository) {
+			return {
+				success: false,
+				message: "Postgres not configured",
+				error: "Postgres not configured",
+			};
+		}
+		const eventKey = input.eventKey.trim();
+		if (!eventKey) {
+			return {
+				success: false,
+				message: "Event key is required",
+				error: "Event key is required",
+			};
+		}
+		const startAt = toIsoTimestamp(input.startAt);
+		const endAt = toIsoTimestamp(input.endAt);
+		if (!startAt || !endAt || new Date(endAt) <= new Date(startAt)) {
+			return {
+				success: false,
+				message: "Valid placement window is required",
+				error: "Valid placement window is required",
+			};
+		}
+
+		const existing = await repository.findActivatedReportByWindow({
+			eventKey,
+			tier: input.tier,
+			startAt,
+			endAt,
+		});
+		const existingPath = existing ? toReportPath(existing) : null;
+		if (existing && existingPath) {
+			return {
+				success: true,
+				statsPath: existingPath,
+				activationId: existing.id,
+				existing: true,
+				message: "Existing partner report found",
+			};
+		}
+
+		const seedResult = await repository.enqueueFromStripe({
+			sourceEventId: `scheduler-report-${input.placementId}-${randomUUID()}`,
+			packageKey:
+				input.tier === "promoted"
+					? "scheduler-report-promoted"
+					: "scheduler-report-spotlight",
+			customerEmail: "internal-test@outofofficecollective.co.uk",
+			customerName: "Internal Scheduler Report",
+			eventName: input.eventName?.trim() || eventKey,
+			notes: "Scheduler-created partner stats report",
+			metadata: {
+				createdBy: "admin-scheduler",
+				placementId: input.placementId,
+				placementTier: input.tier,
+				reportStartAt: startAt,
+				reportEndAt: endAt,
+			},
+			rawPayload: {
+				type: "scheduler.report",
+				eventKey,
+				placementId: input.placementId,
+			},
+		});
+		if (!seedResult.record) {
+			return {
+				success: false,
+				message: "Failed to create scheduler report record",
+				error: "Failed to create scheduler report record",
+			};
+		}
+
+		const updated = await repository.markFulfilled({
+			id: seedResult.record.id,
+			eventKey,
+			tier: input.tier,
+			startAt,
+			endAt,
+			partnerStatsToken: randomUUID().replace(/-/g, ""),
+			notes: `Scheduler report (${eventKey})`,
+		});
+		const statsPath = updated ? toReportPath(updated) : null;
+		if (!updated || !statsPath) {
+			return {
+				success: false,
+				message: "Failed to finalize scheduler report",
+				error: "Failed to finalize scheduler report",
+			};
+		}
+
+		return {
+			success: true,
+			statsPath,
+			activationId: updated.id,
+			existing: false,
+			message: "Partner report created",
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Failed to create partner report",
+			error:
+				error instanceof Error ? error.message : "Unknown partner report error",
+		};
+	}
+}
+
+export async function listPartnerReportsForPlacements(input: {
+	placements: Array<{
+		placementId: string;
+		eventKey: string;
+		tier: PartnerPlacementTier;
+		startAt: string;
+		endAt: string;
+	}>;
+}): Promise<
+	| {
+			success: true;
+			reports: Record<
+				string,
+				{
+					activationId: string;
+					statsPath: string;
+				}
+			>;
+	  }
+	| { success: false; error: string }
+> {
+	try {
+		await assertAdmin();
+		const repository = getPartnerActivationRepository();
+		if (!repository) {
+			return { success: false, error: "Postgres not configured" };
+		}
+
+		const normalizedPlacements = input.placements
+			.map((placement) => {
+				const startAt = toIsoTimestamp(placement.startAt);
+				const endAt = toIsoTimestamp(placement.endAt);
+				if (!startAt || !endAt) return null;
+				return {
+					...placement,
+					eventKey: placement.eventKey.trim(),
+					startAt,
+					endAt,
+				};
+			})
+			.filter((placement) => placement != null);
+
+		const records = await repository.listActivatedReportsForEventKeys(
+			normalizedPlacements.map((placement) => placement.eventKey),
+		);
+		const recordByWindow = new Map<string, PartnerActivationRecord>();
+		for (const record of records) {
+			if (
+				!record.fulfilledEventKey ||
+				!record.fulfilledTier ||
+				!record.fulfilledStartAt ||
+				!record.fulfilledEndAt
+			) {
+				continue;
+			}
+			const key = toPlacementReportKey({
+				eventKey: record.fulfilledEventKey,
+				tier: record.fulfilledTier,
+				startAt: record.fulfilledStartAt,
+				endAt: record.fulfilledEndAt,
+			});
+			if (!recordByWindow.has(key)) {
+				recordByWindow.set(key, record);
+			}
+		}
+
+		const reports: Record<string, { activationId: string; statsPath: string }> =
+			{};
+		for (const placement of normalizedPlacements) {
+			const record = recordByWindow.get(
+				toPlacementReportKey({
+					eventKey: placement.eventKey,
+					tier: placement.tier,
+					startAt: placement.startAt,
+					endAt: placement.endAt,
+				}),
+			);
+			const statsPath = record ? toReportPath(record) : null;
+			if (record && statsPath) {
+				reports[placement.placementId] = {
+					activationId: record.id,
+					statsPath,
+				};
+			}
+		}
+
+		return { success: true, reports };
+	} catch (error) {
+		return {
+			success: false,
+			error:
+				error instanceof Error
+					? error.message
+					: "Unknown partner report lookup error",
 		};
 	}
 }

@@ -374,6 +374,98 @@ export class PartnerActivationRepository {
 		return row ? toRecord(row) : null;
 	}
 
+	async findActivatedReportByWindow(input: {
+		eventKey: string;
+		tier: PartnerPlacementTier;
+		startAt: string;
+		endAt: string;
+	}): Promise<PartnerActivationRecord | null> {
+		await this.ready();
+		const rows = await this.sql<PartnerActivationRow[]>`
+			SELECT
+				id,
+				source,
+				source_event_id,
+				status,
+				package_key,
+				payment_link_id,
+				stripe_session_id,
+				customer_email,
+				customer_name,
+				event_name,
+				event_url,
+				amount_total_cents,
+				currency,
+				notes,
+				metadata,
+				raw_payload,
+				fulfilled_event_key,
+				fulfilled_tier,
+				fulfilled_start_at,
+				fulfilled_end_at,
+				partner_stats_token,
+				created_at,
+				updated_at,
+				activated_at
+			FROM app_partner_activation_queue
+			WHERE status = 'activated'
+				AND partner_stats_token IS NOT NULL
+				AND fulfilled_event_key = ${input.eventKey}
+				AND fulfilled_tier = ${input.tier}
+				AND fulfilled_start_at = ${input.startAt}
+				AND fulfilled_end_at = ${input.endAt}
+			ORDER BY created_at DESC
+			LIMIT 1
+		`;
+		const row = rows[0];
+		return row ? toRecord(row) : null;
+	}
+
+	async listActivatedReportsForEventKeys(
+		eventKeys: string[],
+	): Promise<PartnerActivationRecord[]> {
+		await this.ready();
+		const normalizedEventKeys = [...new Set(eventKeys.map((key) => key.trim()))]
+			.filter((key) => key.length > 0)
+			.slice(0, 500);
+		if (normalizedEventKeys.length === 0) return [];
+
+		const rows = await this.sql<PartnerActivationRow[]>`
+			SELECT
+				id,
+				source,
+				source_event_id,
+				status,
+				package_key,
+				payment_link_id,
+				stripe_session_id,
+				customer_email,
+				customer_name,
+				event_name,
+				event_url,
+				amount_total_cents,
+				currency,
+				notes,
+				metadata,
+				raw_payload,
+				fulfilled_event_key,
+				fulfilled_tier,
+				fulfilled_start_at,
+				fulfilled_end_at,
+				partner_stats_token,
+				created_at,
+				updated_at,
+				activated_at
+			FROM app_partner_activation_queue
+			WHERE status = 'activated'
+				AND partner_stats_token IS NOT NULL
+				AND fulfilled_event_key = ANY(${normalizedEventKeys})
+			ORDER BY created_at DESC
+			LIMIT 1000
+		`;
+		return rows.map(toRecord);
+	}
+
 	async updateStatus(input: {
 		id: string;
 		status: PartnerActivationStatus;
