@@ -332,6 +332,16 @@ export function SubmitEventForm({
 		focusField("eventName");
 	};
 
+	const handleClearForm = () => {
+		if (
+			hasDraftContent(form) &&
+			!window.confirm("Clear this draft and start again?")
+		) {
+			return;
+		}
+		handleStartFresh();
+	};
+
 	return (
 		<div className="rounded-xl border border-border bg-card/70 p-4 shadow-sm sm:p-6">
 			{!submissionsEnabled && (
@@ -591,6 +601,14 @@ export function SubmitEventForm({
 					<div className="flex flex-wrap items-center gap-3">
 						<Button type="submit" disabled={isFormDisabled}>
 							{isSubmitting ? "Submitting..." : "Submit Event"}
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={handleClearForm}
+							disabled={isFormDisabled || !hasDraftContent(form)}
+						>
+							Clear form
 						</Button>
 					</div>
 				)}
