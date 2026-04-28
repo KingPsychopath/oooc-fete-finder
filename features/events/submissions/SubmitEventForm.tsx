@@ -43,15 +43,31 @@ const EMPTY_FORM: FormState = {
 	honeypot: "",
 };
 
+const buildReusableForm = (previous: FormState): FormState => ({
+	...EMPTY_FORM,
+	eventName: previous.eventName,
+	location: previous.location,
+	hostEmail: previous.hostEmail,
+	genre: previous.genre,
+	price: previous.price,
+	age: previous.age,
+	indoorOutdoor: previous.indoorOutdoor,
+	arrondissement: previous.arrondissement,
+});
+
 export function SubmitEventForm({
 	submissionsEnabled = true,
 }: {
 	submissionsEnabled?: boolean;
 }) {
 	const [form, setForm] = useState<FormState>(EMPTY_FORM);
+	const [lastSubmittedForm, setLastSubmittedForm] = useState<FormState | null>(
+		null,
+	);
 	const [showOptional, setShowOptional] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isSubmitted, setIsSubmitted] = useState(false);
+	const [isReusingPrevious, setIsReusingPrevious] = useState(false);
 	const [errorMessage, setErrorMessage] = useState("");
 	const [successMessage, setSuccessMessage] = useState("");
 	const [formStartedAt, setFormStartedAt] = useState(() =>
@@ -107,6 +123,10 @@ export function SubmitEventForm({
 			setErrorMessage("Proof link must be a valid URL.");
 			return;
 		}
+		const submittedForm = {
+			...form,
+			proofLink: normalizedProofLink,
+		};
 
 		setIsSubmitting(true);
 		try {
@@ -116,8 +136,7 @@ export function SubmitEventForm({
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					...form,
-					proofLink: normalizedProofLink,
+					...submittedForm,
 					formStartedAt,
 				}),
 				signal: AbortSignal.timeout(12000),
@@ -145,6 +164,8 @@ export function SubmitEventForm({
 					"Thanks, your event submission has been received for review.",
 			);
 			setIsSubmitted(true);
+			setIsReusingPrevious(false);
+			setLastSubmittedForm(submittedForm);
 			setForm(EMPTY_FORM);
 			setFormStartedAt(new Date().toISOString());
 		} catch (error) {
@@ -161,6 +182,43 @@ export function SubmitEventForm({
 		}
 	};
 
+	const focusNextEventStart = () => {
+		window.requestAnimationFrame(() => {
+			document.getElementById("eventName")?.focus();
+		});
+	};
+
+	const handleSubmitAnother = () => {
+		if (!lastSubmittedForm) return;
+		setForm(buildReusableForm(lastSubmittedForm));
+		setShowOptional(
+			Boolean(
+				lastSubmittedForm.genre ||
+					lastSubmittedForm.price ||
+					lastSubmittedForm.age ||
+					lastSubmittedForm.indoorOutdoor ||
+					lastSubmittedForm.arrondissement,
+			),
+		);
+		setIsSubmitted(false);
+		setIsReusingPrevious(true);
+		setErrorMessage("");
+		setSuccessMessage("");
+		setFormStartedAt(new Date().toISOString());
+		focusNextEventStart();
+	};
+
+	const handleStartFresh = () => {
+		setForm(EMPTY_FORM);
+		setShowOptional(false);
+		setIsSubmitted(false);
+		setIsReusingPrevious(false);
+		setErrorMessage("");
+		setSuccessMessage("");
+		setFormStartedAt(new Date().toISOString());
+		focusNextEventStart();
+	};
+
 	return (
 		<div className="rounded-xl border border-border bg-card/70 p-4 shadow-sm sm:p-6">
 			{!submissionsEnabled && (
@@ -169,14 +227,22 @@ export function SubmitEventForm({
 				</div>
 			)}
 			<form onSubmit={handleSubmit} className="space-y-4">
+				{isReusingPrevious && (
+					<div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+						Reusing details from your last submission. Update the event name,
+						venue, genre, or price if they changed; date, time, link, and notes
+						start blank for each new event row.
+					</div>
+				)}
 				<div className="grid gap-4 md:grid-cols-2">
 					<div className="space-y-2 md:col-span-2">
 						<Label htmlFor="eventName">Event Name</Label>
 						<Input
 							id="eventName"
+							list="previous-event-names"
 							value={form.eventName}
 							onChange={(event) => updateField("eventName", event.target.value)}
-							placeholder="Name of your event"
+							placeholder="FDLM: Day Party, FDLM: After Party"
 							required
 							disabled={isFormDisabled}
 						/>
@@ -207,6 +273,7 @@ export function SubmitEventForm({
 						<Label htmlFor="location">Location</Label>
 						<Input
 							id="location"
+							list="previous-locations"
 							value={form.location}
 							onChange={(event) => updateField("location", event.target.value)}
 							placeholder="Venue name or address"
@@ -261,7 +328,9 @@ export function SubmitEventForm({
 									id="endTime"
 									type="time"
 									value={form.endTime}
-									onChange={(event) => updateField("endTime", event.target.value)}
+									onChange={(event) =>
+										updateField("endTime", event.target.value)
+									}
 									disabled={isFormDisabled}
 								/>
 							</div>
@@ -269,6 +338,7 @@ export function SubmitEventForm({
 								<Label htmlFor="genre">Genre</Label>
 								<Input
 									id="genre"
+									list="previous-genres"
 									value={form.genre}
 									onChange={(event) => updateField("genre", event.target.value)}
 									placeholder="Afrobeats, Dancehall, House"
@@ -339,6 +409,22 @@ export function SubmitEventForm({
 					)}
 				</div>
 
+				<datalist id="previous-event-names">
+					{lastSubmittedForm?.eventName && (
+						<option value={lastSubmittedForm.eventName} />
+					)}
+				</datalist>
+				<datalist id="previous-locations">
+					{lastSubmittedForm?.location && (
+						<option value={lastSubmittedForm.location} />
+					)}
+				</datalist>
+				<datalist id="previous-genres">
+					{lastSubmittedForm?.genre && (
+						<option value={lastSubmittedForm.genre} />
+					)}
+				</datalist>
+
 				<div className="sr-only" aria-hidden="true">
 					<label htmlFor="website">Website</label>
 					<input
@@ -352,8 +438,29 @@ export function SubmitEventForm({
 				</div>
 
 				{successMessage && (
-					<div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-						{successMessage}
+					<div className="space-y-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
+						<p>{successMessage}</p>
+						{lastSubmittedForm && (
+							<div className="flex flex-wrap gap-2">
+								<Button
+									type="button"
+									size="sm"
+									onClick={handleSubmitAnother}
+									disabled={isFormDisabled}
+								>
+									Submit another date/event
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									onClick={handleStartFresh}
+									disabled={isFormDisabled}
+								>
+									Start fresh
+								</Button>
+							</div>
+						)}
 					</div>
 				)}
 				{errorMessage && (
@@ -368,7 +475,8 @@ export function SubmitEventForm({
 					</Button>
 					{isSubmitted && (
 						<p className="text-xs text-muted-foreground">
-							We will review your submission and may contact you for confirmation.
+							We will review your submission and may contact you for
+							confirmation.
 						</p>
 					)}
 				</div>

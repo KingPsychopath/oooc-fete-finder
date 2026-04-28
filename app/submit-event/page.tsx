@@ -1,8 +1,5 @@
+import { generateOGImageUrl, generateOGMetadata } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
-import {
-	generateOGImageUrl,
-	generateOGMetadata,
-} from "@/lib/social/og-utils";
 import Link from "next/link";
 import { Suspense } from "react";
 import { SubmitEventFormSection } from "./SubmitEventFormSection";
@@ -25,31 +22,40 @@ export const metadata: Metadata = generateOGMetadata({
 
 export default function SubmitEventPage() {
 	return (
-		<main id="main-content" className="container mx-auto px-4 py-8" tabIndex={-1}>
+		<main
+			id="main-content"
+			className="container mx-auto px-4 py-8"
+			tabIndex={-1}
+		>
 			<section className="mx-auto max-w-3xl space-y-4">
-					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-						Host Submission
-					</p>
-					<h1
-						className="text-3xl font-light tracking-tight text-foreground sm:text-4xl"
-						style={{ fontFamily: "var(--ooo-font-display)" }}
+				<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+					Host Submission
+				</p>
+				<h1
+					className="text-3xl font-light tracking-tight text-foreground sm:text-4xl"
+					style={{ fontFamily: "var(--ooo-font-display)" }}
+				>
+					Submit Your Event
+				</h1>
+				<p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
+					Share the essentials and we will review your event for inclusion in
+					Fete Finder. Accepted submissions are published by the admin team.
+				</p>
+				<p className="text-sm leading-relaxed text-muted-foreground">
+					Submitting several dates or related events? Send one event row at a
+					time, then reuse details for the next submission and change only what
+					is different.
+				</p>
+				<div className="border-t border-border" role="presentation" />
+				<p className="text-xs text-muted-foreground">
+					Already listed and want extra visibility? Why are you here.{" "}
+					<Link
+						href={`${basePath}/feature-event`}
+						className="text-foreground underline underline-offset-4 transition-colors hover:text-foreground/80"
 					>
-						Submit Your Event
-					</h1>
-					<p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
-						Share the essentials and we will review your event for inclusion in Fete
-						Finder. Accepted submissions are published by the admin team.
-					</p>
-					<div className="border-t border-border" role="presentation" />
-					<p className="text-xs text-muted-foreground">
-						Already listed and want extra visibility? Why are you here.{" "}
-						<Link
-							href={`${basePath}/feature-event`}
-							className="text-foreground underline underline-offset-4 transition-colors hover:text-foreground/80"
-						>
-							Promote yours here.
-						</Link>
-					</p>
+						Promote yours here.
+					</Link>
+				</p>
 				<Suspense fallback={<SubmitEventFormSectionLoading />}>
 					<SubmitEventFormSection />
 				</Suspense>
