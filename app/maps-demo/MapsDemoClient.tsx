@@ -24,6 +24,7 @@ import {
 import {
 	areDateRangesEqual,
 	getDefaultDateRangeForEvents,
+	getTopEventDatesByCount,
 	type DateRangeFilter,
 } from "@/features/events/filtering";
 import React, { useState, useMemo, useCallback } from "react";
@@ -90,20 +91,8 @@ export function MapsDemoClient({
 	}, [initialEvents]);
 
 	const quickSelectEventDates = useMemo(() => {
-		const countsByDate = new Map<string, number>();
-		for (const event of initialEvents) {
-			const date = event.date?.trim();
-			if (!date) continue;
-			countsByDate.set(date, (countsByDate.get(date) ?? 0) + 1);
-		}
-		return Array.from(countsByDate.entries())
-			.sort((left, right) => {
-				if (right[1] !== left[1]) return right[1] - left[1];
-				return left[0].localeCompare(right[0]);
-			})
-			.slice(0, 4)
-			.map(([date]) => date);
-	}, [initialEvents]);
+		return getTopEventDatesByCount(initialEvents, 4, defaultDateRange);
+	}, [defaultDateRange, initialEvents]);
 
 	const filteredEvents = useMemo(() => {
 		return initialEvents.filter((event) => {

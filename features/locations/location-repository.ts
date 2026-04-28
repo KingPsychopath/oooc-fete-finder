@@ -1,9 +1,7 @@
 import type { EventLocation } from "@/features/events/types";
 import { LocationStorage } from "@/features/maps/location-storage";
-import type {
-	LocationResolution,
-	StoredLocationResolution,
-} from "./types";
+import { generateLocationStorageKey } from "./location-utils";
+import type { LocationResolution, StoredLocationResolution } from "./types";
 
 const toStoredLocationResolution = (
 	location: EventLocation,
@@ -17,8 +15,7 @@ const toStoredLocationResolution = (
 			? "estimated_arrondissement"
 			: location.source,
 	precision:
-		location.precision ??
-		(location.source === "estimated" ? "area" : "venue"),
+		location.precision ?? (location.source === "estimated" ? "area" : "venue"),
 	confidence: location.confidence ?? (location.source === "manual" ? 1 : 0.5),
 	formattedAddress: location.formattedAddress,
 	provider: location.provider,
@@ -57,8 +54,16 @@ export class LocationRepository {
 	static async load(): Promise<Map<string, StoredLocationResolution>> {
 		const stored = await LocationStorage.load();
 		const resolutions = new Map<string, StoredLocationResolution>();
-		for (const [key, location] of stored.entries()) {
-			resolutions.set(key, toStoredLocationResolution(location));
+		for (const location of stored.values()) {
+			const storedResolution = toStoredLocationResolution(location);
+			const normalizedKey = generateLocationStorageKey(
+				storedResolution.name,
+				storedResolution.arrondissement,
+			);
+			resolutions.set(normalizedKey, {
+				...storedResolution,
+				id: normalizedKey,
+			});
 		}
 		return resolutions;
 	}

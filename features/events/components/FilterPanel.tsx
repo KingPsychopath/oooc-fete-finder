@@ -278,6 +278,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	const isUsingDefaultDateRange =
 		!hasSelectedDateRange &&
 		(defaultDateRange.from !== null || defaultDateRange.to !== null);
+	const resetDateRangeToDefault = useCallback(() => {
+		onDateRangeChange(defaultDateRange);
+	}, [defaultDateRange, onDateRangeChange]);
 
 	const getDayNightLabel = useCallback((period: DayNightPeriod) => {
 		return (
@@ -357,7 +360,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</Button>
 							</Badge>
 						)}
-						{(selectedDateRange.from || selectedDateRange.to) && (
+						{hasSelectedDateRange && (
 							<Badge
 								variant="secondary"
 								className="border border-border/70 bg-secondary/72 text-xs"
@@ -368,12 +371,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									variant="ghost"
 									size="sm"
 									className="h-auto p-0 ml-1 hover:bg-transparent"
-									onClick={() =>
-										onDateRangeChange({
-											from: null,
-											to: null,
-										})
-									}
+									onClick={resetDateRangeToDefault}
 								>
 									<X className="h-3 w-3" />
 								</Button>
@@ -673,6 +671,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												<DateRangePickerControl
 													compact
 													selectedDateRange={selectedDateRange}
+													defaultDateRange={defaultDateRange}
 													onDateRangeChange={onDateRangeChange}
 													availableEventDates={availableEventDates}
 													quickSelectEventDates={quickSelectEventDates}
@@ -1101,6 +1100,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												<DateRangePickerControl
 													compact
 													selectedDateRange={selectedDateRange}
+													defaultDateRange={defaultDateRange}
 													onDateRangeChange={onDateRangeChange}
 													availableEventDates={availableEventDates}
 													quickSelectEventDates={quickSelectEventDates}
@@ -1184,6 +1184,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											<DateRangePickerControl
 												mobileNative
 												selectedDateRange={selectedDateRange}
+												defaultDateRange={defaultDateRange}
 												onDateRangeChange={onDateRangeChange}
 												availableEventDates={availableEventDates}
 												quickSelectEventDates={quickSelectEventDates}

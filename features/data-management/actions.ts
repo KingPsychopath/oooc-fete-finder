@@ -9,6 +9,15 @@ import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { clearFeaturedQueueHistory as clearFeaturedQueueHistoryService } from "@/features/events/featured/service";
 import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 import { clearAllEventSubmissions } from "@/features/events/submissions/store";
+import type { ParisArrondissement } from "@/features/events/types";
+import { LocationRepository } from "@/features/locations/location-repository";
+import { LocationResolver } from "@/features/locations/location-resolver";
+import {
+	generateLocationStorageKey,
+	isCoordinateResolvableInput,
+} from "@/features/locations/location-utils";
+import { createGoogleGeocodingProvider } from "@/features/locations/providers/google-geocoding-provider";
+import type { StoredLocationResolution } from "@/features/locations/types";
 import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
 import { invalidateSlidingBannerCache } from "@/features/site-settings/cache";
 import { SlidingBannerStore } from "@/features/site-settings/sliding-banner-store";
@@ -74,6 +83,30 @@ const validateFactoryResetPasscode = (providedPasscode: string): boolean => {
 const COORDINATE_WARMUP_RECOVERABLE_ERROR_FRAGMENT =
 	"no geocoding provider is configured";
 
+const PARIS_COORDINATE_BOUNDS = {
+	north: 48.92,
+	south: 48.8,
+	east: 2.48,
+	west: 2.22,
+} as const;
+
+export interface EventLocationReviewItem {
+	id: string;
+	locationName: string;
+	arrondissement: ParisArrondissement;
+	eventCount: number;
+	sampleEventNames: string[];
+	isResolvable: boolean;
+	resolution: StoredLocationResolution | null;
+}
+
+export interface EventLocationReviewPayload {
+	success: boolean;
+	providerConfigured: boolean;
+	items?: EventLocationReviewItem[];
+	error?: string;
+}
+
 const buildSchemaBlockingMessage = (issues: CsvSchemaIssue[]): string => {
 	const blocking = issues.filter((issue) => issue.severity === "error");
 	if (blocking.length === 0) return "";
@@ -100,6 +133,24 @@ const normalizeCsvForStorage = (csvContent: string): string => {
 	const sheet = csvToEditableSheet(csvContent);
 	return editableSheetToCsv(sheet.columns, sheet.rows);
 };
+
+const isParisArrondissement = (
+	value: number | "unknown",
+): value is ParisArrondissement =>
+	value === "unknown" || (Number.isInteger(value) && value >= 1 && value <= 20);
+
+const parseArrondissementInput = (
+	value: number | "unknown",
+): ParisArrondissement | null => {
+	if (value === "unknown") return "unknown";
+	return isParisArrondissement(value) ? value : null;
+};
+
+const isWithinParisBounds = (lat: number, lng: number): boolean =>
+	lat >= PARIS_COORDINATE_BOUNDS.south &&
+	lat <= PARIS_COORDINATE_BOUNDS.north &&
+	lng >= PARIS_COORDINATE_BOUNDS.west &&
+	lng <= PARIS_COORDINATE_BOUNDS.east;
 
 const warmCoordinateCacheFromCsv = async (
 	csvContent: string,
@@ -878,6 +929,259 @@ export async function saveEventSheetEditorRows(
 		return {
 			success: false,
 			message: "Failed to save event sheet",
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+export async function getEventLocationReviewData(
+	keyOrToken?: string,
+): Promise<EventLocationReviewPayload> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return {
+			success: false,
+			providerConfigured: false,
+			error: "Unauthorized access",
+		};
+	}
+
+	try {
+		const [csv, storedLocations] = await Promise.all([
+			LocalEventStore.getCsv(),
+			LocationRepository.load(),
+		]);
+		const processed = await processCSVData(csv ?? "", "store", false, {
+			populateCoordinates: false,
+		});
+		const itemsByKey = new Map<
+			EventLocationReviewItem["id"],
+			EventLocationReviewItem
+		>();
+
+		for (const event of processed.events) {
+			const locationName = event.location?.trim() || "";
+			const arrondissement = event.arrondissement;
+			const isResolvable = isCoordinateResolvableInput(
+				locationName,
+				arrondissement,
+			);
+			const id = isResolvable
+				? generateLocationStorageKey(locationName, arrondissement)
+				: `${locationName.toLowerCase()}_${String(arrondissement)}`;
+			const existing = itemsByKey.get(id);
+			if (existing) {
+				existing.eventCount += 1;
+				if (
+					existing.sampleEventNames.length < 3 &&
+					!existing.sampleEventNames.includes(event.name)
+				) {
+					existing.sampleEventNames.push(event.name);
+				}
+				continue;
+			}
+
+			itemsByKey.set(id, {
+				id,
+				locationName,
+				arrondissement,
+				eventCount: 1,
+				sampleEventNames: [event.name].filter(Boolean).slice(0, 3),
+				isResolvable,
+				resolution: isResolvable ? (storedLocations.get(id) ?? null) : null,
+			});
+		}
+
+		const providerConfigured = createGoogleGeocodingProvider().isConfigured();
+		const items = Array.from(itemsByKey.values()).sort((left, right) => {
+			const leftHasTrusted =
+				left.resolution?.source === "manual" ||
+				left.resolution?.source === "geocoded";
+			const rightHasTrusted =
+				right.resolution?.source === "manual" ||
+				right.resolution?.source === "geocoded";
+			if (leftHasTrusted !== rightHasTrusted) return leftHasTrusted ? 1 : -1;
+			if (left.isResolvable !== right.isResolvable) {
+				return left.isResolvable ? -1 : 1;
+			}
+			return left.locationName.localeCompare(right.locationName);
+		});
+
+		return {
+			success: true,
+			providerConfigured,
+			items,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			providerConfigured: false,
+			error:
+				error instanceof Error
+					? error.message
+					: "Failed to load location review data",
+		};
+	}
+}
+
+export async function resolveEventLocation(
+	keyOrToken: string | undefined,
+	locationName: string,
+	arrondissementInput: number | "unknown",
+	options?: { forceRefresh?: boolean },
+): Promise<{
+	success: boolean;
+	message: string;
+	resolution?: StoredLocationResolution;
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, message: "Unauthorized access" };
+	}
+
+	const arrondissement = parseArrondissementInput(arrondissementInput);
+	if (!arrondissement) {
+		return { success: false, message: "Invalid arrondissement" };
+	}
+	const name = locationName.trim();
+	if (!isCoordinateResolvableInput(name, arrondissement)) {
+		return {
+			success: false,
+			message:
+				"Location needs a venue/address and arrondissement before resolving",
+		};
+	}
+
+	const provider = createGoogleGeocodingProvider();
+	if (!provider.isConfigured()) {
+		return {
+			success: false,
+			message: "No geocoding provider configured",
+			error:
+				"Set GOOGLE_MAPS_API_KEY and enable the Geocoding API, or enter manual coordinates.",
+		};
+	}
+
+	try {
+		const storedLocations = await LocationRepository.load();
+		const resolver = new LocationResolver(provider);
+		const resolution = await resolver.resolve(
+			{ locationName: name, arrondissement },
+			storedLocations,
+			{
+				allowProviderLookup: true,
+				allowArrondissementFallback: false,
+				forceRefresh: options?.forceRefresh ?? true,
+			},
+		);
+
+		if (!resolution.coordinates || resolution.source !== "geocoded") {
+			return {
+				success: false,
+				message: "Provider did not return usable coordinates",
+			};
+		}
+
+		await LocationRepository.save(storedLocations);
+		revalidateEventsPaths(["/"]);
+
+		const storageKey = generateLocationStorageKey(name, arrondissement);
+		return {
+			success: true,
+			message: "Location resolved and saved",
+			resolution: storedLocations.get(storageKey),
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Failed to resolve location",
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+export async function saveManualEventLocation(
+	keyOrToken: string | undefined,
+	locationName: string,
+	arrondissementInput: number | "unknown",
+	coordinates: { lat: number; lng: number },
+): Promise<{ success: boolean; message: string; error?: string }> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, message: "Unauthorized access" };
+	}
+
+	const arrondissement = parseArrondissementInput(arrondissementInput);
+	if (!arrondissement) {
+		return { success: false, message: "Invalid arrondissement" };
+	}
+	const name = locationName.trim();
+	const lat = Number(coordinates.lat);
+	const lng = Number(coordinates.lng);
+	if (!isCoordinateResolvableInput(name, arrondissement)) {
+		return {
+			success: false,
+			message:
+				"Location needs a venue/address and arrondissement before saving",
+		};
+	}
+	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+		return { success: false, message: "Latitude and longitude are required" };
+	}
+	if (!isWithinParisBounds(lat, lng)) {
+		return {
+			success: false,
+			message: "Coordinates must be within Paris bounds",
+		};
+	}
+
+	try {
+		await EventCoordinatePopulator.setManualLocation(name, arrondissement, {
+			lat,
+			lng,
+		});
+		revalidateEventsPaths(["/"]);
+		return {
+			success: true,
+			message: "Manual coordinates saved",
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Failed to save manual coordinates",
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+export async function clearEventLocationResolution(
+	keyOrToken: string | undefined,
+	locationName: string,
+	arrondissementInput: number | "unknown",
+): Promise<{ success: boolean; message: string; error?: string }> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, message: "Unauthorized access" };
+	}
+
+	const arrondissement = parseArrondissementInput(arrondissementInput);
+	if (!arrondissement) {
+		return { success: false, message: "Invalid arrondissement" };
+	}
+
+	try {
+		const removed = await EventCoordinatePopulator.removeStoredLocation(
+			locationName.trim(),
+			arrondissement,
+		);
+		revalidateEventsPaths(["/"]);
+		return {
+			success: true,
+			message: removed
+				? "Stored coordinates removed; map links will use text search"
+				: "No stored coordinates existed for this location",
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: "Failed to clear stored location",
 			error: error instanceof Error ? error.message : "Unknown error",
 		};
 	}

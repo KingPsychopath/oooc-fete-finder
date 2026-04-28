@@ -275,11 +275,14 @@ export const getAvailableEventDates = (events: Event[]): string[] => {
 export const getTopEventDatesByCount = (
 	events: Event[],
 	limit = 4,
+	dateRange: DateRangeFilter = DEFAULT_EVENT_FILTER_STATE.selectedDateRange,
 ): string[] => {
 	const countsByDate = new Map<string, number>();
 	for (const event of events) {
 		const date = event.date?.trim();
 		if (!date || !isStrictISODate(date)) continue;
+		if (dateRange.from && date < dateRange.from) continue;
+		if (dateRange.to && date > dateRange.to) continue;
 		countsByDate.set(date, (countsByDate.get(date) ?? 0) + 1);
 	}
 

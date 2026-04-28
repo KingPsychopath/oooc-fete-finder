@@ -9,7 +9,10 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import { Toggle } from "@/components/ui/toggle";
-import type { DateRangeFilter } from "@/features/events/filtering";
+import {
+	areDateRangesEqual,
+	type DateRangeFilter,
+} from "@/features/events/filtering";
 import { CalendarDays } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
@@ -18,6 +21,7 @@ type DateRangePickerControlProps = {
 	compact?: boolean;
 	mobileNative?: boolean;
 	selectedDateRange: DateRangeFilter;
+	defaultDateRange: DateRangeFilter;
 	onDateRangeChange: (dateRange: DateRangeFilter) => void;
 	availableEventDates: string[];
 	quickSelectEventDates: string[];
@@ -32,6 +36,7 @@ function DateRangePickerControl({
 	compact = false,
 	mobileNative = false,
 	selectedDateRange,
+	defaultDateRange,
 	onDateRangeChange,
 	availableEventDates,
 	quickSelectEventDates,
@@ -45,6 +50,10 @@ function DateRangePickerControl({
 
 	const hasSelectedDateRange =
 		selectedDateRange.from !== null || selectedDateRange.to !== null;
+	const hasDefaultDateRange =
+		defaultDateRange.from !== null || defaultDateRange.to !== null;
+	const hasCustomDateRange =
+		hasSelectedDateRange && !areDateRangesEqual(selectedDateRange, defaultDateRange);
 
 	const toLocalDate = useCallback(
 		(isoDate: string | null): Date | undefined => {
@@ -131,21 +140,46 @@ function DateRangePickerControl({
 		<div className={sectionClassName}>
 			<div className="flex items-center justify-between">
 				<h4 className={sectionTitleClassName}>Pick Date Range</h4>
-				{hasSelectedDateRange && (
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent"
-						onClick={() =>
-							onDateRangeChange({
-								from: null,
-								to: null,
-							})
-						}
-					>
-						Clear
-					</Button>
+				{hasSelectedDateRange ? (
+					<div className="flex items-center gap-1">
+						{hasCustomDateRange && hasDefaultDateRange && (
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent"
+								onClick={() => onDateRangeChange(defaultDateRange)}
+							>
+								This year
+							</Button>
+						)}
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent"
+							onClick={() =>
+								onDateRangeChange({
+									from: null,
+									to: null,
+								})
+							}
+						>
+							All dates
+						</Button>
+					</div>
+				) : (
+					hasDefaultDateRange && (
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent"
+							onClick={() => onDateRangeChange(defaultDateRange)}
+						>
+							This year
+						</Button>
+					)
 				)}
 			</div>
 			{mobileNative ? (
@@ -251,8 +285,8 @@ function DateRangePickerControl({
 												to: date,
 											}
 										: {
-												from: null,
-												to: null,
+												from: defaultDateRange.from,
+												to: defaultDateRange.to,
 											},
 								)
 							}

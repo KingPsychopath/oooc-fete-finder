@@ -9,6 +9,7 @@ import {
 	getCurrentParisYearDateRange,
 	getDefaultDateRangeForEvents,
 	getEventCountForDateRange,
+	getTopEventDatesByCount,
 	hasActiveFilters,
 } from "@/features/events/filtering";
 import { getEventTypeForDate, type Event } from "@/features/events/types";
@@ -62,6 +63,24 @@ describe("event filter defaults", () => {
 				currentYearDateRange,
 			),
 		).toBe(2);
+	});
+
+	it("limits quick-select dates to the default current-year range", () => {
+		const events = [
+			makeEvent("2025-06-20", 1),
+			makeEvent("2025-06-20", 2),
+			makeEvent("2025-06-20", 3),
+			makeEvent("2026-06-21", 4),
+			makeEvent("2026-06-22", 5),
+		];
+		const defaultDateRange = getDefaultDateRangeForEvents(
+			events,
+			new Date("2026-04-24T10:00:00.000Z"),
+		);
+
+		expect(
+			getTopEventDatesByCount(events, 4, defaultDateRange),
+		).toEqual(["2026-06-21", "2026-06-22"]);
 	});
 
 	it("falls back to an unfiltered date range when no current-year events exist", () => {

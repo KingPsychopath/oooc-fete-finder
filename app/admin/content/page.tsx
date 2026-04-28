@@ -1,9 +1,13 @@
-import { getEventSheetEditorData } from "@/features/data-management/actions";
+import {
+	getEventLocationReviewData,
+	getEventSheetEditorData,
+} from "@/features/data-management/actions";
 import { getEventSubmissionsDashboard } from "@/features/events/submissions/actions";
 import { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
 import { unstable_noStore as noStore } from "next/cache";
 import { EventSheetEditorCard } from "../components/EventSheetEditorCard";
 import { EventSubmissionsCard } from "../components/EventSubmissionsCard";
+import { LocationReviewCard } from "../components/LocationReviewCard";
 import { SlidingBannerSettingsCard } from "../components/SlidingBannerSettingsCard";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +15,11 @@ export const dynamic = "force-dynamic";
 export default async function AdminContentPage() {
 	noStore();
 
-	const [editorData, eventSubmissions, slidingBannerSettings] =
+	const [editorData, eventSubmissions, locationReview, slidingBannerSettings] =
 		await Promise.allSettled([
 			getEventSheetEditorData(),
 			getEventSubmissionsDashboard(),
+			getEventLocationReviewData(),
 			getAdminSlidingBannerSettings(),
 		]);
 
@@ -34,6 +39,16 @@ export default async function AdminContentPage() {
 					initialPayload={
 						eventSubmissions.status === "fulfilled"
 							? eventSubmissions.value
+							: undefined
+					}
+				/>
+			</section>
+
+			<section id="location-review" className="scroll-mt-44">
+				<LocationReviewCard
+					initialPayload={
+						locationReview.status === "fulfilled"
+							? locationReview.value
 							: undefined
 					}
 				/>

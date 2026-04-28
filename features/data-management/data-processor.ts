@@ -224,6 +224,11 @@ export async function processCSVData(
 				"data",
 				"Coordinate population skipped because no geocoding provider is configured",
 			);
+			events = await EventCoordinatePopulator.hydrateStoredCoordinates(events);
+			coordinatesCount = events.filter((e) => e.coordinates).length;
+		} else {
+			events = await EventCoordinatePopulator.hydrateStoredCoordinates(events);
+			coordinatesCount = events.filter((e) => e.coordinates).length;
 		}
 
 		return {

@@ -131,6 +131,14 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 				keywords: ["submissions", "moderation", "review"],
 			},
 			{
+				id: "location-review",
+				label: "Location Review",
+				description: "Review venue coordinates for nearby matching and maps.",
+				path: "/admin/content#location-review",
+				moduleKey: "content",
+				keywords: ["location", "coordinates", "geocoding", "maps"],
+			},
+			{
 				id: "sliding-banner",
 				label: "Homepage Sliding Banner",
 				description: "Configure rotating homepage banner messages.",

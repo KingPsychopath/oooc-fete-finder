@@ -5,6 +5,10 @@ import {
 	generateLocationStorageKey,
 	isCoordinateResolvableInput,
 } from "@/features/locations/location-utils";
+import type {
+	LocationResolution,
+	StoredLocationResolution,
+} from "@/features/locations/types";
 import { log } from "@/lib/platform/logger";
 import {
 	CoordinateService,
@@ -33,6 +37,51 @@ export type PopulateCoordinatesOptions = {
  * 3. Save storage ONCE at end
  */
 export class EventCoordinatePopulator {
+	static async hydrateStoredCoordinates(events: Event[]): Promise<Event[]> {
+		const storedLocations = await LocationRepository.load();
+		if (storedLocations.size === 0) {
+			return events.map((event) => ({ ...event }));
+		}
+
+		return events.map((event) => {
+			if (event.coordinates) {
+				return { ...event };
+			}
+			if (
+				!isCoordinateResolvableInput(event.location || "", event.arrondissement)
+			) {
+				return { ...event };
+			}
+
+			const storageKey = generateLocationStorageKey(
+				event.location || "",
+				event.arrondissement,
+			);
+			const stored = storedLocations.get(storageKey);
+			if (!stored?.coordinates) {
+				return { ...event };
+			}
+
+			const resolution: LocationResolution = {
+				coordinates: stored.coordinates,
+				source: stored.source,
+				precision: stored.precision,
+				confidence: stored.confidence,
+				formattedAddress: stored.formattedAddress,
+				provider: stored.provider,
+				providerPlaceId: stored.providerPlaceId,
+				query: stored.query,
+				lastResolvedAt: stored.lastResolvedAt,
+			};
+
+			return {
+				...event,
+				coordinates: stored.coordinates,
+				locationResolution: resolution,
+			};
+		});
+	}
+
 	static async pruneStorageToEvents(events: Event[]): Promise<{
 		beforeCount: number;
 		afterCount: number;
@@ -255,6 +304,13 @@ export class EventCoordinatePopulator {
 		return Array.from(storedLocations.values());
 	}
 
+	static async getStoredLocationResolutions(): Promise<
+		StoredLocationResolution[]
+	> {
+		const storedLocations = await LocationRepository.load();
+		return Array.from(storedLocations.values());
+	}
+
 	/**
 	 * Set manual location coordinates
 	 */
@@ -280,5 +336,22 @@ export class EventCoordinatePopulator {
 			lat: coordinates.lat,
 			lng: coordinates.lng,
 		});
+	}
+
+	static async removeStoredLocation(
+		locationName: string,
+		arrondissement: ParisArrondissement,
+	): Promise<boolean> {
+		const storedLocations = await LocationRepository.load();
+		const storageKey = generateLocationStorageKey(locationName, arrondissement);
+		const removed = storedLocations.delete(storageKey);
+		if (removed) {
+			await LocationRepository.save(storedLocations);
+			log.info("coordinates", "Stored location removed", {
+				location: locationName,
+				arrondissement,
+			});
+		}
+		return removed;
 	}
 }

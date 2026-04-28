@@ -232,8 +232,8 @@ export const useEventFilters = ({
 		[events],
 	);
 	const quickSelectEventDates = useMemo(
-		() => getTopEventDatesByCount(events, 4),
-		[events],
+		() => getTopEventDatesByCount(events, 4, defaultFilterState.selectedDateRange),
+		[events, defaultFilterState.selectedDateRange],
 	);
 
 	const filteredEvents = useMemo(

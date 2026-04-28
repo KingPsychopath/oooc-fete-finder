@@ -1,7 +1,4 @@
-import type {
-	Coordinates,
-	ParisArrondissement,
-} from "@/features/events/types";
+import type { Coordinates, ParisArrondissement } from "@/features/events/types";
 import { PARIS_ARRONDISSEMENTS } from "@/features/events/types";
 
 const PARIS_CENTER: Coordinates = { lat: 48.8566, lng: 2.3522 };
@@ -10,7 +7,15 @@ export function generateLocationStorageKey(
 	locationName: string,
 	arrondissement: ParisArrondissement,
 ): string {
-	const cleanName = locationName.toLowerCase().trim().replace(/\s+/g, "_");
+	const cleanName =
+		locationName
+			.normalize("NFKD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.toLowerCase()
+			.trim()
+			.replace(/&/g, " and ")
+			.replace(/[^a-z0-9]+/g, "_")
+			.replace(/^_+|_+$/g, "") || "unknown_location";
 	return `${cleanName}_${arrondissement}`;
 }
 
