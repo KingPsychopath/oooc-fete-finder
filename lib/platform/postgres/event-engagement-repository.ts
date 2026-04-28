@@ -360,7 +360,10 @@ export class EventEngagementRepository {
 		const rows = await this.sql<Array<{ eventKey: string; count: number }>>`
 			SELECT
 				event_key AS "eventKey",
-				COUNT(*)::int AS count
+				(
+					COUNT(DISTINCT session_id)
+					+ COUNT(*) FILTER (WHERE session_id IS NULL)
+				)::int AS count
 			FROM app_event_engagement_stats
 			WHERE action_type = 'calendar_sync'
 				AND event_key = ANY(${normalizedEventKeys})

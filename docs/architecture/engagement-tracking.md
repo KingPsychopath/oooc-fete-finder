@@ -8,13 +8,14 @@ In this app, "saved" maps to `calendar_sync` actions.
 
 - A user clicks `Add to Calendar` in the event modal
 - Client tracking sends `actionType=calendar_sync` to `POST /api/track`
-- The event engagement store increments counts for that event
+- The event engagement store records the interaction for that event
 - Runtime event payloads project `calendarSyncCount` back onto each event
 - UI surfaces social proof like `"X people saved this"`
 
 Important:
 
 - This is a count of calendar sync interactions, not a persistent "saved list" feature
+- Public social-proof counts are deduped by browser session where possible, so repeated calendar clicks from the same session do not inflate the visible number
 - Counts are aggregate; public UI does not expose individual identities
 
 ## Tracked Event Actions
@@ -78,5 +79,5 @@ Partner campaign snapshots derive from tracked engagement actions:
 `getLiveEvents()` can project engagement counts by default:
 
 - `includeEngagementProjection` defaults to `true`
-- Projection reads calendar sync counts and sets `event.calendarSyncCount`
+- Projection reads session-deduped calendar sync counts and sets `event.calendarSyncCount`
 - Analytics and admin workflows can disable this projection when raw reads are needed
