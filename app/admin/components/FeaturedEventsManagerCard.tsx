@@ -27,6 +27,7 @@ import {
 	reschedulePromotedEvent,
 	schedulePromotedEvent,
 } from "@/features/events/promoted/actions";
+import { generatePartnerStatsTestLink } from "@/features/partners/activation-actions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type FeaturedQueuePayload = Awaited<ReturnType<typeof listFeaturedQueue>>;
@@ -38,7 +39,9 @@ type QueueRow = {
 	eventKey: string;
 	eventName: string;
 	requestedStartAtParisInput: string;
+	effectiveStartAt: string;
 	effectiveStartAtParis: string;
+	effectiveEndAt: string;
 	effectiveEndAtParis: string;
 	durationHours: number;
 	status: "scheduled" | "cancelled" | "completed";
@@ -126,6 +129,9 @@ export const FeaturedEventsManagerCard = ({
 	const [isMutating, setIsMutating] = useState(false);
 	const [statusMessage, setStatusMessage] = useState("");
 	const [errorMessage, setErrorMessage] = useState("");
+	const [partnerReportLinks, setPartnerReportLinks] = useState<
+		Record<string, string>
+	>({});
 	const [eventQuery, setEventQuery] = useState("");
 	const [selectedEventKey, setSelectedEventKey] = useState("");
 	const [scheduleAt, setScheduleAt] = useState(
@@ -337,6 +343,36 @@ export const FeaturedEventsManagerCard = ({
 		}
 		await withMutation(() => clearPromotedHistory());
 	}, [placementMode, withMutation]);
+
+	const handleCreatePartnerReport = useCallback(
+		async (row: QueueRow) => {
+			setIsMutating(true);
+			setStatusMessage("");
+			setErrorMessage("");
+			try {
+				const result = await generatePartnerStatsTestLink({
+					eventKey: row.eventKey,
+					tier: placementMode,
+					requestedStartAt: row.effectiveStartAt,
+					durationHours: row.durationHours,
+				});
+				if (!result.success) {
+					setErrorMessage(result.error || result.message);
+					return;
+				}
+				setPartnerReportLinks((current) => ({
+					...current,
+					[row.id]: result.statsPath,
+				}));
+				setStatusMessage(
+					`Partner report created for ${row.eventName}. It also appears under Fulfilled / Reports.`,
+				);
+			} finally {
+				setIsMutating(false);
+			}
+		},
+		[placementMode],
+	);
 
 	const scheduleActionLabel =
 		placementMode === "spotlight" ? "Feature now" : "Promote now";
@@ -721,6 +757,38 @@ export const FeaturedEventsManagerCard = ({
 														>
 															Cancel
 														</Button>
+													</div>
+													<div className="flex flex-wrap gap-1.5">
+														<Button
+															type="button"
+															size="sm"
+															variant="outline"
+															className="h-8 px-2.5"
+															disabled={isMutating}
+															onClick={() =>
+																void handleCreatePartnerReport(row)
+															}
+														>
+															Create Report
+														</Button>
+														{partnerReportLinks[row.id] ? (
+															<Button
+																type="button"
+																size="sm"
+																variant="outline"
+																className="h-8 px-2.5"
+																nativeButton={false}
+																render={
+																	<a
+																		href={partnerReportLinks[row.id]}
+																		target="_blank"
+																		rel="noreferrer"
+																	/>
+																}
+															>
+																Open Report
+															</Button>
+														) : null}
 													</div>
 												</div>
 											</td>

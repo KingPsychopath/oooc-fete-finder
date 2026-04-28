@@ -355,6 +355,10 @@ export const PartnerActivationQueueCard = ({
 		? payload.metrics
 		: { total: 0, pending: 0, processing: 0, activated: 0, dismissed: 0 };
 	const events = payload?.success ? payload.events : [];
+	const eventNameByKey = useMemo(
+		() => new Map(events.map((event) => [event.eventKey, event.name])),
+		[events],
+	);
 	const reportEndDate = getWindowEnd(testLinkInput);
 	const selectedManualReportEvent = events.find(
 		(event) => event.eventKey === testLinkInput.eventKey,
@@ -676,6 +680,15 @@ export const PartnerActivationQueueCard = ({
 								item.partnerStatsToken && item.status === "activated"
 									? toPartnerStatsPath(item.id, item.partnerStatsToken)
 									: null;
+							const fulfilledEventName = item.fulfilledEventKey
+								? eventNameByKey.get(item.fulfilledEventKey)
+								: null;
+							const displayEventName =
+								fulfilledEventName ||
+								item.eventName ||
+								"Event name not provided";
+							const isManualReport =
+								item.packageKey?.startsWith("manual-test-") === true;
 
 							return (
 								<div
@@ -684,13 +697,15 @@ export const PartnerActivationQueueCard = ({
 								>
 									<div className="flex flex-wrap items-start justify-between gap-2">
 										<div>
-											<p className="text-sm font-medium">
-												{item.eventName || "Event name not provided"}
-											</p>
-											<p className="text-xs text-muted-foreground">
-												{item.customerEmail || "No customer email"} •{" "}
-												{item.packageKey || "unmapped-package"}
-											</p>
+											<p className="text-sm font-medium">{displayEventName}</p>
+											<div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+												<span>{item.customerEmail || "No customer email"}</span>
+												<span aria-hidden="true">•</span>
+												<span>{item.packageKey || "unmapped-package"}</span>
+												{isManualReport ? (
+													<Badge variant="outline">Manual Report</Badge>
+												) : null}
+											</div>
 										</div>
 										<Badge variant="outline">{STATUS_LABEL[item.status]}</Badge>
 									</div>
@@ -705,8 +720,12 @@ export const PartnerActivationQueueCard = ({
 										<p>Created: {new Date(item.createdAt).toLocaleString()}</p>
 										{item.fulfilledEventKey ? (
 											<p>
-												Fulfilled: {item.fulfilledEventKey} •{" "}
-												{item.fulfilledTier || "unknown tier"}
+												Fulfilled:{" "}
+												{fulfilledEventName ? `${fulfilledEventName} • ` : ""}
+												<span className="font-mono">
+													{item.fulfilledEventKey}
+												</span>{" "}
+												• {item.fulfilledTier || "unknown tier"}
 											</p>
 										) : null}
 									</div>
