@@ -644,145 +644,171 @@ export const EventSheetEditorCard = ({
 					)}
 				</div>
 
-				<div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_220px_auto]">
-					<div className="space-y-2">
-						<Label htmlFor="sheet-search">Search rows</Label>
-						<Input
-							id="sheet-search"
-							value={query}
-							onChange={(event) => setQuery(event.target.value)}
-							placeholder="Search events, dates, genres..."
-						/>
-					</div>
-					<div className="space-y-2">
-						<Label htmlFor="sheet-sort">Sort rows</Label>
-						<select
-							id="sheet-sort"
-							value={sortMode}
-							onChange={(event) =>
-								setSortMode(event.target.value as SheetSortMode)
-							}
-							className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-						>
-							<option value="smart-date">Upcoming first</option>
-							<option value="date-asc">Date ascending</option>
-							<option value="date-desc">Date descending</option>
-							<option value="sheet-order">Sheet order</option>
-						</select>
-					</div>
-					<div className="flex flex-wrap items-end gap-2">
-						<Button
-							onClick={handleManualSave}
-							disabled={isSaving || !hasUnsavedChanges}
-						>
-							Save and Revalidate Homepage
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={handleUndo}
-							disabled={!canUndo || isSaving}
-						>
-							Undo
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={handleRedo}
-							disabled={!canRedo || isSaving}
-						>
-							Redo
-						</Button>
-					</div>
-				</div>
-
-				<div className="flex flex-wrap items-end gap-3 border-t pt-3">
-					<div className="space-y-2">
-						<Label htmlFor="new-column-label">New column label</Label>
-						<div className="flex flex-wrap gap-2">
+				<div className="space-y-3 rounded-md border bg-background/55 p-3">
+					<div className="grid items-end gap-3 xl:grid-cols-[minmax(280px,1fr)_220px_auto]">
+						<div className="space-y-2">
+							<Label htmlFor="sheet-search">Search rows</Label>
 							<Input
-								id="new-column-label"
-								value={newColumnLabel}
-								onChange={(event) => setNewColumnLabel(event.target.value)}
-								placeholder="e.g. Promoter"
-								className="w-[min(100%,260px)]"
+								id="sheet-search"
+								value={query}
+								onChange={(event) => setQuery(event.target.value)}
+								placeholder="Search events, dates, genres..."
 							/>
-							<Button
-								onClick={handleAddColumn}
-								variant="outline"
-								disabled={isSaving || isLoading}
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="sheet-sort">Sort rows</Label>
+							<select
+								id="sheet-sort"
+								value={sortMode}
+								onChange={(event) =>
+									setSortMode(event.target.value as SheetSortMode)
+								}
+								className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
 							>
-								Add column
+								<option value="smart-date">Upcoming first</option>
+								<option value="date-asc">Date ascending</option>
+								<option value="date-desc">Date descending</option>
+								<option value="sheet-order">Sheet order</option>
+							</select>
+						</div>
+						<div className="flex flex-wrap items-center justify-start gap-2 xl:justify-end">
+							<Button
+								onClick={handleManualSave}
+								disabled={isSaving || !hasUnsavedChanges}
+								className="h-10"
+							>
+								Save and Revalidate Homepage
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={handleUndo}
+								disabled={!canUndo || isSaving}
+								className="h-10"
+							>
+								Undo
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={handleRedo}
+								disabled={!canRedo || isSaving}
+								className="h-10"
+							>
+								Redo
 							</Button>
 						</div>
 					</div>
-					<div className="flex flex-wrap gap-2">
-						<Button onClick={handleAddRow} variant="outline" size="sm">
-							Add row at top
-						</Button>
-						<Button
-							onClick={() => void loadEditorData()}
-							disabled={isSaving}
-							variant="outline"
-							size="sm"
-						>
-							Reload
-						</Button>
-						<Button
-							onClick={() => setDisplayLimit((current) => current + 50)}
-							disabled={!canShowMoreRows}
-							variant="outline"
-							size="sm"
-						>
-							Show 50 more rows
-						</Button>
-					</div>
-					<div className="flex items-center gap-2 rounded-md border px-2 py-1 text-xs">
-						<span className="text-muted-foreground">Frozen columns</span>
-						<Button
-							type="button"
-							size="sm"
-							variant="ghost"
-							className="h-7 px-2"
-							onClick={() =>
-								setPinnedColumnsCount((current) => Math.max(0, current - 1))
-							}
-							disabled={safePinnedCount <= 0}
-						>
-							-
-						</Button>
-						<span className="min-w-5 text-center font-medium">
-							{safePinnedCount}
-						</span>
-						<Button
-							type="button"
-							size="sm"
-							variant="ghost"
-							className="h-7 px-2"
-							onClick={() =>
-								setPinnedColumnsCount((current) =>
-									Math.min(columns.length, MAX_FROZEN_COLUMNS, current + 1),
-								)
-							}
-							disabled={
-								safePinnedCount >= columns.length ||
-								safePinnedCount >= MAX_FROZEN_COLUMNS
-							}
-						>
-							+
-						</Button>
-						<Button
-							type="button"
-							size="sm"
-							variant="ghost"
-							className="h-7 px-2"
-							onClick={() => setPinnedColumnsCount(0)}
-							disabled={safePinnedCount === 0}
-						>
-							Unfreeze
-						</Button>
+
+					<div className="flex flex-wrap items-end gap-4 border-t pt-3">
+						<div className="space-y-2">
+							<Label>Sheet actions</Label>
+							<div className="flex flex-wrap gap-2">
+								<Button
+									onClick={handleAddRow}
+									variant="outline"
+									size="sm"
+									className="h-9"
+								>
+									Add row at top
+								</Button>
+								<Button
+									onClick={() => void loadEditorData()}
+									disabled={isSaving}
+									variant="outline"
+									size="sm"
+									className="h-9"
+								>
+									Reload
+								</Button>
+								<Button
+									onClick={() => setDisplayLimit((current) => current + 50)}
+									disabled={!canShowMoreRows}
+									variant="outline"
+									size="sm"
+									className="h-9"
+								>
+									Show 50 more rows
+								</Button>
+							</div>
+						</div>
+
+						<div className="hidden h-9 w-px bg-border lg:block" />
+
+						<div className="space-y-2">
+							<Label htmlFor="new-column-label">New column</Label>
+							<div className="flex flex-wrap gap-2">
+								<Input
+									id="new-column-label"
+									value={newColumnLabel}
+									onChange={(event) => setNewColumnLabel(event.target.value)}
+									placeholder="e.g. Promoter"
+									className="h-9 w-[min(100%,260px)]"
+								/>
+								<Button
+									onClick={handleAddColumn}
+									variant="outline"
+									size="sm"
+									disabled={isSaving || isLoading}
+									className="h-9"
+								>
+									Add column
+								</Button>
+							</div>
+						</div>
+
+						<div className="ml-0 space-y-2 xl:ml-auto">
+							<Label>View options</Label>
+							<div className="flex h-9 items-center overflow-hidden rounded-md border bg-background text-sm">
+								<span className="border-r px-3 text-muted-foreground">
+									Frozen columns
+								</span>
+								<Button
+									type="button"
+									size="sm"
+									variant="ghost"
+									className="h-9 rounded-none px-3"
+									onClick={() =>
+										setPinnedColumnsCount((current) => Math.max(0, current - 1))
+									}
+									disabled={safePinnedCount <= 0}
+									aria-label="Decrease frozen columns"
+								>
+									-
+								</Button>
+								<span className="min-w-8 px-2 text-center font-medium">
+									{safePinnedCount}
+								</span>
+								<Button
+									type="button"
+									size="sm"
+									variant="ghost"
+									className="h-9 rounded-none px-3"
+									onClick={() =>
+										setPinnedColumnsCount((current) =>
+											Math.min(columns.length, MAX_FROZEN_COLUMNS, current + 1),
+										)
+									}
+									disabled={
+										safePinnedCount >= columns.length ||
+										safePinnedCount >= MAX_FROZEN_COLUMNS
+									}
+									aria-label="Increase frozen columns"
+								>
+									+
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									variant="ghost"
+									className="h-9 rounded-none border-l px-3"
+									onClick={() => setPinnedColumnsCount(0)}
+									disabled={safePinnedCount === 0}
+								>
+									Unfreeze
+								</Button>
+							</div>
+						</div>
 					</div>
 				</div>
 
