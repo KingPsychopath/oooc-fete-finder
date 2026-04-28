@@ -177,14 +177,14 @@ export default async function PartnerStatsPage({
 						description="Distinct browser sessions with any tracked engagement."
 					/>
 					<PartnerMetricCard
-						label="Link Click Rate"
+						label="Link Click Session Index"
 						value={formatPercent(data.metrics.outboundSessionRate)}
-						description="Sessions with a partner link click after opening the event."
+						description="Partner-link sessions divided by event-open sessions."
 					/>
 					<PartnerMetricCard
-						label="Calendar Add Rate"
+						label="Calendar Add Session Index"
 						value={formatPercent(data.metrics.calendarSessionRate)}
-						description="Sessions with a calendar add after opening the event."
+						description="Calendar-add sessions divided by event-open sessions."
 					/>
 				</section>
 

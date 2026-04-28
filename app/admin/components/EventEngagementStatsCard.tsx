@@ -105,14 +105,16 @@ const DISCOVERY_SUMMARY_METRICS = [
 const RATE_SUMMARY_METRICS = [
 	{
 		key: "outboundSessionRate",
-		label: "Outbound Session Rate",
-		description: "Sessions with a partner link click divided by sessions with an event open.",
+		label: "Outbound Session Index",
+		description:
+			"Partner-link sessions divided by event-open sessions. This can exceed 100% if a link click is tracked without an event-open record in the same window.",
 		format: (value: number) => `${value.toFixed(1)}%`,
 	},
 	{
 		key: "calendarSessionRate",
-		label: "Calendar Session Rate",
-		description: "Sessions with a calendar add divided by sessions with an event open.",
+		label: "Calendar Session Index",
+		description:
+			"Calendar-add sessions divided by event-open sessions. This can exceed 100% if a calendar action is tracked without an event-open record in the same window.",
 		format: (value: number) => `${value.toFixed(1)}%`,
 	},
 	{
