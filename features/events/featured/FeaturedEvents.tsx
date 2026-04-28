@@ -31,6 +31,7 @@ export function FeaturedEvents({
 		events,
 		responsiveMaxFeaturedEvents,
 	);
+	const browseAllLabel = `Browse All ${totalEventsCount} Event${totalEventsCount !== 1 ? "s" : ""}`;
 
 	return (
 		<Card className="ooo-site-card mb-6 py-0">
@@ -58,7 +59,7 @@ export function FeaturedEvents({
 							onClick={onScrollToAllEvents}
 							className="w-full border-border/80 bg-background/65 text-foreground/85 hover:bg-accent sm:w-auto"
 						>
-							Browse All {totalEventsCount} Events
+							{browseAllLabel}
 							<ChevronDown className="h-4 w-4 ml-1" />
 						</Button>
 					</div>

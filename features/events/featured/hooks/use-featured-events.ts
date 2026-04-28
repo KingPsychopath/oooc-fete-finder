@@ -28,16 +28,18 @@ export function useFeaturedEvents(
 			};
 		}
 
-		if (
+		const resolvedMaxFeaturedEvents =
 			maxFeaturedEvents < FEATURED_EVENTS_LIMITS.MIN_FEATURED_EVENTS ||
 			maxFeaturedEvents > FEATURED_EVENTS_LIMITS.MAX_FEATURED_EVENTS_LIMIT
-		) {
+				? FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS
+				: maxFeaturedEvents;
+
+		if (resolvedMaxFeaturedEvents !== maxFeaturedEvents) {
 			clientLog.warn("events.featured", "maxFeaturedEvents out of bounds; using default", {
 				requested: maxFeaturedEvents,
 				min: FEATURED_EVENTS_LIMITS.MIN_FEATURED_EVENTS,
 				max: FEATURED_EVENTS_LIMITS.MAX_FEATURED_EVENTS_LIMIT,
 			});
-			maxFeaturedEvents = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS;
 		}
 
 		// Handle empty events array
@@ -68,30 +70,28 @@ export function useFeaturedEvents(
 			return shuffled;
 		};
 
-		// Filter events by type and check expiration for featured events
-		const manuallyFeatured = events.filter(
-			(event) => event != null && shouldDisplayFeaturedEvent(event),
-		);
+		const manuallyFeatured: Event[] = [];
+		const oooPicksEvents: Event[] = [];
+		const regularEvents: Event[] = [];
 
-		const oooPicksEvents = events.filter(
-			(event) =>
-				event != null &&
-				event.isOOOCPick === true &&
-				!shouldDisplayFeaturedEvent(event),
-		);
-
-		const regularEvents = events.filter(
-			(event) =>
-				event != null &&
-				event.isOOOCPick !== true &&
-				!shouldDisplayFeaturedEvent(event),
-		);
+		for (const event of events) {
+			if (!event) continue;
+			if (shouldDisplayFeaturedEvent(event)) {
+				manuallyFeatured.push(event);
+				continue;
+			}
+			if (event.isOOOCPick === true) {
+				oooPicksEvents.push(event);
+				continue;
+			}
+			regularEvents.push(event);
+		}
 
 		// Build featured events list starting with manually featured events
-		const featured = [...manuallyFeatured].slice(0, maxFeaturedEvents);
+		const featured = [...manuallyFeatured].slice(0, resolvedMaxFeaturedEvents);
 
 		// Calculate remaining slots
-		const remainingSlots = maxFeaturedEvents - featured.length;
+		const remainingSlots = resolvedMaxFeaturedEvents - featured.length;
 
 		if (remainingSlots > 0) {
 			// Use deterministic shuffle for OOOC picks that aren't manually featured
@@ -102,8 +102,8 @@ export function useFeaturedEvents(
 			featured.push(...availableOOOCPicks);
 
 			// If still need more events, add regular events
-			if (featured.length < maxFeaturedEvents) {
-				const stillRemainingSlots = maxFeaturedEvents - featured.length;
+			if (featured.length < resolvedMaxFeaturedEvents) {
+				const stillRemainingSlots = resolvedMaxFeaturedEvents - featured.length;
 				const shuffledRegularEvents = deterministicShuffle(regularEvents);
 				featured.push(...shuffledRegularEvents.slice(0, stillRemainingSlots));
 			}
@@ -119,7 +119,7 @@ export function useFeaturedEvents(
 			return true;
 		});
 
-		if (dedupedFeatured.length < maxFeaturedEvents) {
+		if (dedupedFeatured.length < resolvedMaxFeaturedEvents) {
 			const fillCandidates = deterministicShuffle(events).filter(
 				(event) =>
 					Boolean(event) &&
@@ -131,7 +131,7 @@ export function useFeaturedEvents(
 				if (candidate.eventKey) {
 					seenEventKeys.add(candidate.eventKey);
 				}
-				if (dedupedFeatured.length >= maxFeaturedEvents) {
+				if (dedupedFeatured.length >= resolvedMaxFeaturedEvents) {
 					break;
 				}
 			}
@@ -147,7 +147,7 @@ export function useFeaturedEvents(
 		return {
 			featuredEvents: dedupedFeatured,
 			totalEventsCount: events.length,
-			hasMoreEvents: events.length > maxFeaturedEvents,
+			hasMoreEvents: events.length > resolvedMaxFeaturedEvents,
 		};
 	}, [events, maxFeaturedEvents]);
 

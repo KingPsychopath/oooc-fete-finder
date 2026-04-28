@@ -8,13 +8,17 @@ import { clientLog } from "@/lib/platform/client-logger";
 import React, { useEffect, useMemo } from "react";
 
 interface EventStatsProps {
-	events: Event[];
 	filteredEvents: Event[];
+	hasActiveFilters: boolean;
 }
 
-const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
-	// Infer if filters are active by comparing array lengths
-	const hasActiveFilters = filteredEvents.length !== events.length;
+const EventStats: React.FC<EventStatsProps> = ({
+	filteredEvents,
+	hasActiveFilters,
+}) => {
+	const eventCount = filteredEvents.length;
+	const eventCountLabel = hasActiveFilters ? "filtered" : "in view";
+	const coverageLabel = hasActiveFilters ? "with matching events" : "in view";
 
 	// Calculate filtered arrondissements count (excluding unknown)
 	const filteredArrondissementsCount = useMemo(() => {
@@ -63,11 +67,10 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 						Events
 					</div>
 					<div className="mt-1 text-3xl [font-family:var(--ooo-font-display)] font-light text-foreground">
-						{filteredEvents.length.toLocaleString()}
+						{eventCount.toLocaleString()}
 					</div>
 					<div className="mt-1 text-sm text-muted-foreground">
-						Event{filteredEvents.length !== 1 ? "s" : ""}{" "}
-						{hasActiveFilters ? "filtered" : "total"}
+						Event{eventCount !== 1 ? "s" : ""} {eventCountLabel}
 					</div>
 				</CardContent>
 			</Card>
@@ -83,7 +86,7 @@ const EventStats: React.FC<EventStatsProps> = ({ events, filteredEvents }) => {
 					</div>
 					<div className="mt-1 text-sm text-muted-foreground">
 						Arrondissement{filteredArrondissementsCount !== 1 ? "s" : ""}{" "}
-						{hasActiveFilters ? "with events" : "total"}
+						{coverageLabel}
 					</div>
 				</CardContent>
 			</Card>

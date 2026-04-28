@@ -294,34 +294,23 @@ export function EventsClient({
 		});
 	}, []);
 
-	const spotlightEvents = useMemo(() => {
-		const alwaysFeatured = initialEvents.filter((event) =>
-			shouldDisplayFeaturedEvent(event),
-		);
-		const featuredKeys = new Set(alwaysFeatured.map((event) => event.eventKey));
-		const filteredRemainder = filteredEvents.filter(
-			(event) => !featuredKeys.has(event.eventKey),
-		);
-		return [...alwaysFeatured, ...filteredRemainder];
-	}, [filteredEvents, initialEvents]);
-
 	const allEventsOrdered = useMemo(() => {
-		const featuredMatches = filteredEvents.filter((event) =>
-			shouldDisplayFeaturedEvent(event),
-		);
-		const featuredEventKeys = new Set(
-			featuredMatches.map((event) => event.eventKey),
-		);
-		const promotedMatches = filteredEvents.filter(
-			(event) =>
-				!featuredEventKeys.has(event.eventKey) && event.isPromoted === true,
-		);
-		const promotedEventKeys = new Set(
-			promotedMatches.map((event) => event.eventKey),
-		);
-		const regularMatches = filteredEvents
-			.filter((event) => !featuredEventKeys.has(event.eventKey))
-			.filter((event) => !promotedEventKeys.has(event.eventKey));
+		const featuredMatches: Event[] = [];
+		const promotedMatches: Event[] = [];
+		const regularMatches: Event[] = [];
+
+		for (const event of filteredEvents) {
+			if (shouldDisplayFeaturedEvent(event)) {
+				featuredMatches.push(event);
+				continue;
+			}
+			if (event.isPromoted === true) {
+				promotedMatches.push(event);
+				continue;
+			}
+			regularMatches.push(event);
+		}
+
 		return [...featuredMatches, ...promotedMatches, ...regularMatches];
 	}, [filteredEvents]);
 
@@ -392,13 +381,16 @@ export function EventsClient({
 			)}
 
 			<FeaturedEvents
-				events={spotlightEvents}
+				events={allEventsOrdered}
 				onEventClick={handleEventClick}
 				onScrollToAllEvents={scrollToAllEvents}
 				socialProofEventKeys={socialProofEventKeys}
 			/>
 
-			<EventStats events={initialEvents} filteredEvents={filteredEvents} />
+			<EventStats
+				filteredEvents={filteredEvents}
+				hasActiveFilters={hasAnyActiveFilters}
+			/>
 
 			<div className="mb-8 relative z-10">
 				<EventsMapCard
