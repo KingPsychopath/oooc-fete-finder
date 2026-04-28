@@ -138,8 +138,12 @@ DATA_MODE=remote
 Optional geocoding:
 
 ```bash
-GOOGLE_MAPS_API_KEY=          # optional; enable Geocoding API in Cloud Console for precise coords
+GOOGLE_MAPS_API_KEY=          # optional; enables trusted provider coordinates for location resolution
 ```
+
+Geocoding is an optional enrichment path. Homepage event reads do not require
+or perform provider lookups; admin warmup/on-demand location resolution can use
+the provider when configured, while map links fall back to venue text search.
 
 No custom in-memory events cache is used. Live reads are pass-through source reads (`Postgres -> local fallback` in remote mode), with Next.js built-ins (ISR/on-demand revalidation) for delivery where configured.
 

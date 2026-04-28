@@ -1,27 +1,10 @@
+import {
+	buildLocationSearchQuery,
+	buildMapLink,
+} from "@/features/locations/map-link-builder";
+import type { LocationResolution } from "@/features/locations/types";
+import type { ParisArrondissement } from "@/features/events/types";
 import type { MapProvider } from "../types";
-
-/**
- * Gets ordinal suffix for numbers (1st, 2nd, 3rd, etc.)
- */
-const getOrdinal = (num: number): string => {
-	const lastDigit = num % 10;
-	const lastTwoDigits = num % 100;
-
-	if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
-		return `${num}th`;
-	}
-
-	switch (lastDigit) {
-		case 1:
-			return `${num}st`;
-		case 2:
-			return `${num}nd`;
-		case 3:
-			return `${num}rd`;
-		default:
-			return `${num}th`;
-	}
-};
 
 /**
  * Parses location input to determine if it's a URL or plain text
@@ -73,39 +56,57 @@ const parseLocationInput = (
 /**
  * Opens location in Google Maps
  */
-const openInGoogleMaps = (searchQuery: string): void => {
-	const query = encodeURIComponent(searchQuery);
+const openInGoogleMaps = (
+	locationInput: string,
+	arrondissement?: ParisArrondissement,
+	resolution?: LocationResolution | null,
+): void => {
 	const isAndroid = /Android/.test(navigator.userAgent);
+	const provider = isAndroid ? "geo" : "google";
+	const url = buildMapLink({
+		locationInput,
+		arrondissement,
+		resolution,
+		provider,
+	});
 
 	if (isAndroid) {
 		// Try native Google Maps app first on Android
 		try {
-			window.open(`geo:0,0?q=${query}`, "_blank", "noopener,noreferrer");
+			window.open(url, "_blank", "noopener,noreferrer");
 		} catch {
 			// Fallback to web version
 			window.open(
-				`https://www.google.com/maps/search/?api=1&query=${query}`,
+				buildMapLink({
+					locationInput,
+					arrondissement,
+					resolution,
+					provider: "google",
+				}),
 				"_blank",
 				"noopener,noreferrer",
 			);
 		}
 	} else {
 		// Use web version for all other platforms
-		window.open(
-			`https://www.google.com/maps/search/?api=1&query=${query}`,
-			"_blank",
-			"noopener,noreferrer",
-		);
+		window.open(url, "_blank", "noopener,noreferrer");
 	}
 };
 
 /**
  * Opens location in Apple Maps (iOS/Mac only)
  */
-const openInAppleMaps = (searchQuery: string): Promise<boolean> => {
-	const query = encodeURIComponent(searchQuery);
-	const appleMapsUrl = `maps://?q=${query}`;
-
+const openInAppleMaps = (
+	locationInput: string,
+	arrondissement?: ParisArrondissement,
+	resolution?: LocationResolution | null,
+): Promise<boolean> => {
+	const appleMapsUrl = buildMapLink({
+		locationInput,
+		arrondissement,
+		resolution,
+		provider: "apple",
+	});
 	return new Promise((resolve) => {
 		let appleMapsOpened = false;
 
@@ -144,17 +145,25 @@ const openInAppleMaps = (searchQuery: string): Promise<boolean> => {
 /**
  * Opens location using system default (platform-based detection)
  */
-const openWithSystemDefault = async (searchQuery: string): Promise<void> => {
+const openWithSystemDefault = async (
+	locationInput: string,
+	arrondissement?: ParisArrondissement,
+	resolution?: LocationResolution | null,
+): Promise<void> => {
 	const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 	const isMac = /Macintosh|Mac OS X/.test(navigator.userAgent);
 
 	if (isIOS || isMac) {
-		const appleMapsOpened = await openInAppleMaps(searchQuery);
+		const appleMapsOpened = await openInAppleMaps(
+			locationInput,
+			arrondissement,
+			resolution,
+		);
 		if (!appleMapsOpened) {
-			openInGoogleMaps(searchQuery);
+			openInGoogleMaps(locationInput, arrondissement, resolution);
 		}
 	} else {
-		openInGoogleMaps(searchQuery);
+		openInGoogleMaps(locationInput, arrondissement, resolution);
 	}
 };
 
@@ -169,9 +178,10 @@ const openWithSystemDefault = async (searchQuery: string): Promise<void> => {
  */
 export const openLocationInMaps = async (
 	locationInput: string,
-	arrondissement?: number | "unknown",
+	arrondissement?: ParisArrondissement,
 	preference: MapProvider = "system",
 	onAskForPreference?: () => Promise<MapProvider>,
+	resolution?: LocationResolution | null,
 ): Promise<void> => {
 	const { isUrl, value } = parseLocationInput(locationInput);
 
@@ -183,16 +193,7 @@ export const openLocationInMaps = async (
 		return;
 	}
 
-	// Build search query with arrondissement context for better accuracy
-	let searchQuery = value;
-	if (
-		arrondissement &&
-		arrondissement !== "unknown" &&
-		typeof arrondissement === "number"
-	) {
-		const ordinalArrondissement = getOrdinal(arrondissement);
-		searchQuery = `${value} ${ordinalArrondissement} arrondissement`;
-	}
+	const searchQuery = buildLocationSearchQuery(value, arrondissement);
 
 	// Handle preference
 	let actualPreference = preference;
@@ -203,18 +204,18 @@ export const openLocationInMaps = async (
 	// Open based on preference
 	switch (actualPreference) {
 		case "google":
-			openInGoogleMaps(searchQuery);
+			openInGoogleMaps(searchQuery, undefined, resolution);
 			break;
 		case "apple":
-			const success = await openInAppleMaps(searchQuery);
+			const success = await openInAppleMaps(searchQuery, undefined, resolution);
 			if (!success) {
 				// Apple Maps failed, fallback to Google Maps
-				openInGoogleMaps(searchQuery);
+				openInGoogleMaps(searchQuery, undefined, resolution);
 			}
 			break;
 		case "system":
 		default:
-			await openWithSystemDefault(searchQuery);
+			await openWithSystemDefault(searchQuery, undefined, resolution);
 			break;
 	}
 };

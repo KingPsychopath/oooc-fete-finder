@@ -19,6 +19,7 @@ import { CARD_SOCIAL_PROOF_MIN_SAVES } from "@/features/events/social-proof";
 import {
 	type Event,
 	MUSIC_GENRES,
+	type ParisArrondissement,
 	VENUE_TYPES,
 	formatDayWithDate,
 	formatPrice,
@@ -28,6 +29,7 @@ import { MapSelectionModal } from "@/features/maps/components/map-selection-moda
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
 import type { MapProvider } from "@/features/maps/types";
 import { openLocationInMaps } from "@/features/maps/utils/map-launcher";
+import type { LocationResolution } from "@/features/locations/types";
 import { LAYERS } from "@/lib/ui/layers";
 import {
 	OVERLAY_BODY_ATTRIBUTE,
@@ -98,7 +100,8 @@ const EventModal: React.FC<EventModalProps> = ({
 	);
 	const [pendingLocationData, setPendingLocationData] = useState<{
 		location: string;
-		arrondissement?: number | "unknown";
+		arrondissement?: ParisArrondissement;
+		resolution?: LocationResolution | null;
 	} | null>(null);
 	const [showAllGenres, setShowAllGenres] = useState(false);
 
@@ -136,15 +139,22 @@ const EventModal: React.FC<EventModalProps> = ({
 
 	const handleOpenLocation = async (
 		location: string,
-		arrondissement?: number | "unknown",
+		arrondissement?: ParisArrondissement,
+		resolution?: LocationResolution | null,
 	) => {
 		if (!isLoaded) return;
 
 		if (mapPreference === "ask") {
-			setPendingLocationData({ location, arrondissement });
+			setPendingLocationData({ location, arrondissement, resolution });
 			setShowMapSelection(true);
 		} else {
-			await openLocationInMaps(location, arrondissement, mapPreference);
+			await openLocationInMaps(
+				location,
+				arrondissement,
+				mapPreference,
+				undefined,
+				resolution,
+			);
 		}
 	};
 
@@ -154,6 +164,8 @@ const EventModal: React.FC<EventModalProps> = ({
 				pendingLocationData.location,
 				pendingLocationData.arrondissement,
 				selectedProvider,
+				undefined,
+				pendingLocationData.resolution,
 			);
 			setPendingLocationData(null);
 		}
@@ -576,7 +588,11 @@ const EventModal: React.FC<EventModalProps> = ({
 							{event.location && event.location !== "TBA" ? (
 								<button
 									onClick={() =>
-										handleOpenLocation(event.location!, event.arrondissement)
+										handleOpenLocation(
+											event.location!,
+											event.arrondissement,
+											event.locationResolution,
+										)
 									}
 									className="mt-1.5 inline-flex min-h-[32px] w-full items-center justify-between rounded-md border border-border/70 bg-background/80 px-2.5 text-left text-sm text-primary underline-offset-4 transition-colors hover:bg-accent hover:underline dark:bg-white/[0.03] dark:hover:bg-white/[0.08]"
 									title={`Open "${event.location}" in maps`}

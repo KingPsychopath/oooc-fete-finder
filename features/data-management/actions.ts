@@ -72,7 +72,7 @@ const validateFactoryResetPasscode = (providedPasscode: string): boolean => {
 };
 
 const COORDINATE_WARMUP_RECOVERABLE_ERROR_FRAGMENT =
-	"GOOGLE_MAPS_API_KEY not set";
+	"no geocoding provider is configured";
 
 const buildSchemaBlockingMessage = (issues: CsvSchemaIssue[]): string => {
 	const blocking = issues.filter((issue) => issue.severity === "error");
@@ -139,7 +139,7 @@ const warmCoordinateCacheFromCsv = async (
 	) {
 		log.warn("coordinates", "Coordinate cache warm-up skipped geocoding", {
 			context,
-			reason: "GOOGLE_MAPS_API_KEY not set",
+			reason: "No geocoding provider is configured",
 		});
 	}
 };

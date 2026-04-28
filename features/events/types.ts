@@ -1,4 +1,6 @@
 // Strict type definitions for enhanced event categorization
+import type { LocationResolution } from "@/features/locations/types";
+
 export type EventDay =
 	| "monday"
 	| "tuesday"
@@ -32,7 +34,12 @@ export type EventLocation = {
 	arrondissement: ParisArrondissement;
 	coordinates: Coordinates;
 	confidence?: number; // Geocoding confidence score 0-1
-	source: "manual" | "geocoded" | "estimated";
+	source: "manual" | "geocoded" | "estimated" | "estimated_arrondissement";
+	precision?: LocationResolution["precision"];
+	formattedAddress?: string;
+	provider?: string;
+	providerPlaceId?: string;
+	query?: string;
 	lastUpdated: string; // ISO timestamp
 };
 
@@ -122,6 +129,7 @@ export type Event = {
 	arrondissement: ParisArrondissement;
 	location?: string;
 	coordinates?: Coordinates; // Event-specific coordinates from geocoding or manual entry
+	locationResolution?: LocationResolution; // Optional trusted/approximate location enrichment
 	link: string;
 	links?: string[]; // All ticket links, if multiple
 	description?: string;

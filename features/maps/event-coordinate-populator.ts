@@ -1,11 +1,14 @@
 import type { Event, ParisArrondissement } from "@/features/events/types";
+import { LocationRepository } from "@/features/locations/location-repository";
+import { LocationResolver } from "@/features/locations/location-resolver";
+import {
+	generateLocationStorageKey,
+	isCoordinateResolvableInput,
+} from "@/features/locations/location-utils";
 import { log } from "@/lib/platform/logger";
 import {
-	type CoordinateResult,
 	CoordinateService,
-	generateLocationStorageKey,
 	type GeocodingError,
-	isCoordinateResolvableInput,
 	resetGeocodingRunState,
 } from "./coordinate-service";
 import { LocationStorage } from "./location-storage";
@@ -83,7 +86,8 @@ export class EventCoordinatePopulator {
 		} = options;
 
 		resetGeocodingRunState();
-		const storedLocations = await LocationStorage.load();
+		const storedLocations = await LocationRepository.load();
+		const resolver = new LocationResolver();
 		const initialWithCoords = events.filter((e) => e.coordinates).length;
 		const initialWithoutCoords = events.length - initialWithCoords;
 
@@ -127,21 +131,31 @@ export class EventCoordinatePopulator {
 					}
 
 					// Get coordinates using the coordinate service
-					const result: CoordinateResult | null =
-						await CoordinateService.getCoordinates(
-							event.location || "",
-							event.arrondissement,
-							storedLocations,
-							{ fallbackToArrondissement, forceRefresh },
-						);
+					const storageKey = generateLocationStorageKey(
+						event.location || "",
+						event.arrondissement,
+					);
+					const hadStoredLocation = storedLocations.has(storageKey);
+					const result = await resolver.resolve(
+						{
+							locationName: event.location || "",
+							arrondissement: event.arrondissement,
+						},
+						storedLocations,
+						{
+							allowProviderLookup: true,
+							allowArrondissementFallback: fallbackToArrondissement,
+							forceRefresh,
+						},
+					);
 
 					// Track statistics
-					if (result) {
-						if (result.wasInStorage) {
+					if (result.coordinates) {
+						if (hadStoredLocation && !forceRefresh) {
 							storageHits++;
 						} else if (result.source === "geocoded") {
 							apiCalls++;
-						} else if (result.source === "estimated") {
+						} else if (result.source === "estimated_arrondissement") {
 							fallbacks++;
 						}
 					}
@@ -150,10 +164,11 @@ export class EventCoordinatePopulator {
 					onProgress?.(processed, events.length, event);
 
 					// Add coordinates to event
-					if (result) {
+					if (result.coordinates) {
 						return {
 							...event,
 							coordinates: result.coordinates,
+							locationResolution: result,
 						};
 					}
 
@@ -183,7 +198,7 @@ export class EventCoordinatePopulator {
 
 		if (apiCalls > 0 || fallbacks > 0) {
 			try {
-				await LocationStorage.save(storedLocations);
+				await LocationRepository.save(storedLocations);
 			} catch (error) {
 				log.error(
 					"coordinates",

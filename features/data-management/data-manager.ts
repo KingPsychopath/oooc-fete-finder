@@ -100,7 +100,7 @@ const loadFromStore: SourceDescriptor = {
 			}
 
 			const parsed = await processCSVData(storeCsv, "store", false, {
-				populateCoordinates: options?.populateCoordinates ?? true,
+				populateCoordinates: options?.populateCoordinates ?? false,
 			});
 
 			const validation = validateProcessedEvents(

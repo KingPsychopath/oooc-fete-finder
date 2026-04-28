@@ -4,8 +4,8 @@
  */
 
 import { Event } from "@/features/events/types";
+import { createGoogleGeocodingProvider } from "@/features/locations/providers/google-geocoding-provider";
 import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
-import { GoogleCloudAPI } from "@/lib/google/api";
 import { log } from "@/lib/platform/logger";
 import { assembleEvent } from "./assembly/event-assembler";
 import { createDateNormalizationContext } from "./assembly/date-normalization";
@@ -170,23 +170,23 @@ export async function processCSVData(
 			});
 		}
 
-		// Determine if coordinate population should be enabled
-		// Default: true for remote (API available), false for local/store (avoid geocoding on every read)
+		// Determine if coordinate population should be enabled.
+		// Runtime reads should pass false; admin warmup can opt in explicitly.
 		const defaultPopulate = source === "remote";
-			const shouldPopulateCoordinates =
-				options.populateCoordinates !== undefined
-					? options.populateCoordinates
-					: defaultPopulate;
-			let geocodingConfigured = false;
-			if (shouldPopulateCoordinates) {
-				try {
-					geocodingConfigured = GoogleCloudAPI.supportsGeocoding();
-				} catch (error) {
-					log.warn("data", "Unable to determine geocoding availability", {
-						error: error instanceof Error ? error.message : String(error),
-					});
-				}
+		const shouldPopulateCoordinates =
+			options.populateCoordinates !== undefined
+				? options.populateCoordinates
+				: defaultPopulate;
+		let geocodingConfigured = false;
+		if (shouldPopulateCoordinates) {
+			try {
+				geocodingConfigured = createGoogleGeocodingProvider().isConfigured();
+			} catch (error) {
+				log.warn("data", "Unable to determine geocoding availability", {
+					error: error instanceof Error ? error.message : String(error),
+				});
 			}
+		}
 
 		log.info("data", "Coordinate population", {
 			source,
@@ -222,10 +222,7 @@ export async function processCSVData(
 		} else if (shouldPopulateCoordinates && !geocodingConfigured) {
 			log.warn(
 				"data",
-				"GOOGLE_MAPS_API_KEY not set — enable Geocoding API for address lookup",
-			);
-			errors.push(
-				"Coordinate population requested but GOOGLE_MAPS_API_KEY not set (required for geocoding)",
+				"Coordinate population skipped because no geocoding provider is configured",
 			);
 		}
 
