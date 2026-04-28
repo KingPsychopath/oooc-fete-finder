@@ -140,7 +140,7 @@ export type Event = {
 	isPromoted?: boolean; // Indicates promoted listing projection is active
 	promotedAt?: string; // ISO timestamp when promoted window starts
 	promotedEndsAt?: string; // ISO timestamp when promoted window ends
-	calendarSyncCount?: number; // Social proof count from tracked calendar sync actions
+	socialProofSaveCount?: number; // Public social proof count from session-deduped calendar sync actions
 	nationality?: Nationality[]; // GB/FR indicators from CSV - now supports multiple
 	// Legacy field for backwards compatibility
 	category?: EventCategory;

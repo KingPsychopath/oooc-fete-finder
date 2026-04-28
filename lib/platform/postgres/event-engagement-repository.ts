@@ -346,7 +346,7 @@ export class EventEngagementRepository {
 		return rows;
 	}
 
-	async getCalendarSyncCounts(
+	async getSocialProofSaveCounts(
 		eventKeys: string[],
 	): Promise<Map<string, number>> {
 		await this.ready();

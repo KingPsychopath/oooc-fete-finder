@@ -139,12 +139,12 @@ export async function getLiveEvents(options?: {
 		if (normalized.success && includeEngagementProjection) {
 			const repository = getEventEngagementRepository();
 			if (repository) {
-				const calendarSyncCounts = await repository.getCalendarSyncCounts(
+				const socialProofSaveCounts = await repository.getSocialProofSaveCounts(
 					normalized.data.map((event) => event.eventKey),
 				);
 				normalized.data = normalized.data.map((event) => ({
 					...event,
-					calendarSyncCount: calendarSyncCounts.get(event.eventKey) ?? 0,
+					socialProofSaveCount: socialProofSaveCounts.get(event.eventKey) ?? 0,
 				}));
 			}
 		}
@@ -243,10 +243,9 @@ export async function getRuntimeDataStatusFromSource(): Promise<RuntimeDataStatu
 		: normalizeFailureSource(configStatus.dataSource);
 	const eventCount = statusRead.success ? statusRead.count : 0;
 	const currentYearDateRange = getCurrentParisYearDateRange();
-	const currentYearEventCount =
-		statusRead.success ?
-			getEventCountForDateRange(statusRead.data, currentYearDateRange)
-		:	0;
+	const currentYearEventCount = statusRead.success
+		? getEventCountForDateRange(statusRead.data, currentYearDateRange)
+		: 0;
 	const lastFetchTime = statusRead.success
 		? (statusRead.lastUpdate ?? new Date().toISOString())
 		: null;

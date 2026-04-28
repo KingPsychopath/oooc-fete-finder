@@ -11,6 +11,7 @@ import {
 	getDayNightPeriod,
 	getVisibleEventTypeLabel,
 } from "@/features/events/types";
+import { CARD_SOCIAL_PROOF_MIN_SAVES } from "@/features/events/social-proof";
 import { clientLog } from "@/lib/platform/client-logger";
 import {
 	Building2,
@@ -33,8 +34,6 @@ type EventCardProps = {
 	onClick: (event: Event) => void;
 	showSocialProof?: boolean;
 };
-
-export const CARD_SOCIAL_PROOF_MIN_SAVES = 3;
 
 /**
  * Reusable EventCard component used across Featured Events and All Events
@@ -64,8 +63,8 @@ export function EventCard({
 	const hasOOOCPick = event.isOOOCPick === true;
 	const dayNightPeriod = getDayNightPeriod(event.time ?? "");
 	const visibleEventType = getVisibleEventTypeLabel(event.type);
-	const calendarSyncCount = event.calendarSyncCount ?? 0;
-	const savedLabel = calendarSyncCount === 1 ? "person" : "people";
+	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
+	const savedLabel = socialProofSaveCount === 1 ? "person" : "people";
 	const visibleGenres = event.genre.slice(0, 2);
 	const hasMetadataBadges = Boolean(
 		visibleEventType || event.nationality?.length || visibleGenres.length,
@@ -247,12 +246,13 @@ export function EventCard({
 					))}
 				</div>
 			)}
-			{showSocialProof && calendarSyncCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
-				<div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-200">
-					<Flame className="h-3 w-3" />
-					{calendarSyncCount} {savedLabel} saved this
-				</div>
-			)}
+			{showSocialProof &&
+				socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
+					<div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-200">
+						<Flame className="h-3 w-3" />
+						{socialProofSaveCount} {savedLabel} saved this
+					</div>
+				)}
 		</div>
 	);
 }

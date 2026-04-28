@@ -5,7 +5,6 @@ import { useAuth } from "@/features/auth/auth-context";
 import AuthGate from "@/features/auth/components/AuthGate";
 import EmailGateModal from "@/features/auth/components/EmailGateModal";
 import { AllEvents } from "@/features/events/components/AllEvents";
-import { CARD_SOCIAL_PROOF_MIN_SAVES } from "@/features/events/components/EventCard";
 import EventModal from "@/features/events/components/EventModal";
 import EventStats from "@/features/events/components/EventStats";
 import FilterPanel from "@/features/events/components/FilterPanel";
@@ -14,6 +13,10 @@ import { trackEventEngagement } from "@/features/events/engagement/client-tracki
 import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
+import {
+	CARD_SOCIAL_PROOF_MAX_VISIBLE,
+	CARD_SOCIAL_PROOF_MIN_SAVES,
+} from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { EventsMapCard } from "@/features/maps/components/events-map-card";
@@ -27,7 +30,6 @@ interface EventsClientProps {
 }
 
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
-const CARD_SOCIAL_PROOF_MAX_VISIBLE = 8;
 
 export function EventsClient({
 	initialEvents,
@@ -318,11 +320,11 @@ export function EventsClient({
 		const eligibleEvents = filteredEvents
 			.filter(
 				(event) =>
-					(event.calendarSyncCount ?? 0) >= CARD_SOCIAL_PROOF_MIN_SAVES,
+					(event.socialProofSaveCount ?? 0) >= CARD_SOCIAL_PROOF_MIN_SAVES,
 			)
 			.sort((left, right) => {
 				const syncDelta =
-					(right.calendarSyncCount ?? 0) - (left.calendarSyncCount ?? 0);
+					(right.socialProofSaveCount ?? 0) - (left.socialProofSaveCount ?? 0);
 				if (syncDelta !== 0) return syncDelta;
 				const nameOrder = left.name.localeCompare(right.name);
 				if (nameOrder !== 0) return nameOrder;

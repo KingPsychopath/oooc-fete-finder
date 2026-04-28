@@ -15,6 +15,7 @@ import {
 } from "@/features/events/calendar-utils";
 import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
+import { CARD_SOCIAL_PROOF_MIN_SAVES } from "@/features/events/social-proof";
 import {
 	type Event,
 	MUSIC_GENRES,
@@ -130,8 +131,8 @@ const EventModal: React.FC<EventModalProps> = ({
 	if (!isOpen || !event) return null;
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
 	const canAddToCalendar = isCalendarDateValid(event.date);
-	const calendarSyncCount = event.calendarSyncCount ?? 0;
-	const savedLabel = calendarSyncCount === 1 ? "person" : "people";
+	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
+	const savedLabel = socialProofSaveCount === 1 ? "person" : "people";
 
 	const handleOpenLocation = async (
 		location: string,
@@ -448,10 +449,10 @@ const EventModal: React.FC<EventModalProps> = ({
 								OOOC Pick
 							</Badge>
 						)}
-						{calendarSyncCount > 0 && (
+						{socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
 							<Badge className="border-amber-300/70 bg-amber-500/15 text-amber-900 hover:bg-amber-500/20 dark:border-amber-400/45 dark:text-amber-200">
 								<Flame className="mr-1 h-3.5 w-3.5" />
-								{calendarSyncCount} {savedLabel} saved this
+								{socialProofSaveCount} {savedLabel} saved this
 							</Badge>
 						)}
 						{event.category && (

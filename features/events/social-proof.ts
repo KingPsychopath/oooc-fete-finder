@@ -1,0 +1,2 @@
+export const CARD_SOCIAL_PROOF_MIN_SAVES = 3;
+export const CARD_SOCIAL_PROOF_MAX_VISIBLE = 8;
