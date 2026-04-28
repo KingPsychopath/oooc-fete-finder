@@ -15,7 +15,10 @@ import {
 } from "@/features/events/calendar-utils";
 import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
-import { CARD_SOCIAL_PROOF_MIN_SAVES } from "@/features/events/social-proof";
+import {
+	CARD_SOCIAL_PROOF_MIN_SAVES,
+	type SocialProofDisplayMode,
+} from "@/features/events/social-proof";
 import {
 	type Event,
 	MUSIC_GENRES,
@@ -62,6 +65,7 @@ interface EventModalProps {
 	isOpen: boolean;
 	onClose: () => void;
 	isAuthenticated?: boolean;
+	socialProofMode?: SocialProofDisplayMode;
 }
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -87,6 +91,7 @@ const EventModal: React.FC<EventModalProps> = ({
 	isOpen,
 	onClose,
 	isAuthenticated = false,
+	socialProofMode,
 }) => {
 	const { mapPreference, setMapPreference, isLoaded } = useMapPreference();
 	const [showMapSelection, setShowMapSelection] = useState(false);
@@ -136,6 +141,10 @@ const EventModal: React.FC<EventModalProps> = ({
 	const canAddToCalendar = isCalendarDateValid(event.date);
 	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
 	const savedLabel = socialProofSaveCount === 1 ? "person" : "people";
+	const socialProofLabel =
+		socialProofMode === "numeric"
+			? `${socialProofSaveCount} ${savedLabel} saved this`
+			: "People are saving this";
 
 	const handleOpenLocation = async (
 		location: string,
@@ -461,12 +470,13 @@ const EventModal: React.FC<EventModalProps> = ({
 								OOOC Pick
 							</Badge>
 						)}
-						{socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
-							<Badge className="border-amber-300/70 bg-amber-500/15 text-amber-900 hover:bg-amber-500/20 dark:border-amber-400/45 dark:text-amber-200">
-								<Flame className="mr-1 h-3.5 w-3.5" />
-								{socialProofSaveCount} {savedLabel} saved this
-							</Badge>
-						)}
+						{socialProofMode &&
+							socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
+								<Badge className="border-amber-300/70 bg-amber-500/15 text-amber-900 hover:bg-amber-500/20 dark:border-amber-400/45 dark:text-amber-200">
+									<Flame className="mr-1 h-3.5 w-3.5" />
+									{socialProofLabel}
+								</Badge>
+							)}
 						{event.category && (
 							<Badge
 								className={

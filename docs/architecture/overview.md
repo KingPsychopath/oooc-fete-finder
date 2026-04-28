@@ -62,14 +62,14 @@ Runtime event reads flow through:
 Projection behavior in runtime service:
 
 - Featured and promoted projection enabled by default
-- Engagement projection enabled by default (`socialProofSaveCount` hydration)
+- Engagement projection enabled by default (`socialProofSaveCount` hydration from seven-day, session-deduped calendar syncs)
 
 ## Engagement Tracking Contract
 
 - `POST /api/track` records event actions (`click`, `outbound_click`, `calendar_sync`)
 - `POST /api/track/discovery` records search/filter behavior
 - `POST /api/user/preference` records authenticated genre preferences
-- "saved this" UX maps to session-deduped `calendar_sync` counts
+- "saved this" UX maps to seven-day, session-deduped `calendar_sync` counts, with numeric copy reserved for the top public social-proof events
 
 ## Canonical Stores
 

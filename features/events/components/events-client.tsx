@@ -13,10 +13,7 @@ import { trackEventEngagement } from "@/features/events/engagement/client-tracki
 import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
-import {
-	CARD_SOCIAL_PROOF_MAX_VISIBLE,
-	CARD_SOCIAL_PROOF_MIN_SAVES,
-} from "@/features/events/social-proof";
+import { getSocialProofDisplayModes } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { EventsMapCard } from "@/features/maps/components/events-map-card";
@@ -316,26 +313,10 @@ export function EventsClient({
 		return [...featuredMatches, ...promotedMatches, ...regularMatches];
 	}, [filteredEvents]);
 
-	const socialProofEventKeys = useMemo(() => {
-		const eligibleEvents = filteredEvents
-			.filter(
-				(event) =>
-					(event.socialProofSaveCount ?? 0) >= CARD_SOCIAL_PROOF_MIN_SAVES,
-			)
-			.sort((left, right) => {
-				const syncDelta =
-					(right.socialProofSaveCount ?? 0) - (left.socialProofSaveCount ?? 0);
-				if (syncDelta !== 0) return syncDelta;
-				const nameOrder = left.name.localeCompare(right.name);
-				if (nameOrder !== 0) return nameOrder;
-				return left.eventKey.localeCompare(right.eventKey);
-			});
-		return new Set(
-			eligibleEvents
-				.slice(0, CARD_SOCIAL_PROOF_MAX_VISIBLE)
-				.map((event) => event.eventKey),
-		);
-	}, [filteredEvents]);
+	const socialProofDisplayModes = useMemo(
+		() => getSocialProofDisplayModes(filteredEvents),
+		[filteredEvents],
+	);
 
 	return (
 		<>
@@ -386,7 +367,7 @@ export function EventsClient({
 				events={allEventsOrdered}
 				onEventClick={handleEventClick}
 				onScrollToAllEvents={scrollToAllEvents}
-				socialProofEventKeys={socialProofEventKeys}
+				socialProofDisplayModes={socialProofDisplayModes}
 			/>
 
 			<EventStats
@@ -451,7 +432,7 @@ export function EventsClient({
 				ref={allEventsRef}
 				events={allEventsOrdered}
 				onEventClick={handleEventClick}
-				socialProofEventKeys={socialProofEventKeys}
+				socialProofDisplayModes={socialProofDisplayModes}
 				onFilterClickAction={toggleFilterPanel}
 				onAuthRequired={() => setShowEmailGate(true)}
 				hasActiveFilters={hasAnyActiveFilters}
@@ -465,6 +446,11 @@ export function EventsClient({
 				isOpen={selectedEvent !== null}
 				onClose={handleEventClose}
 				isAuthenticated={isAuthenticated}
+				socialProofMode={
+					selectedEvent
+						? socialProofDisplayModes.get(selectedEvent.eventKey)
+						: undefined
+				}
 			/>
 
 			<EmailGateModal

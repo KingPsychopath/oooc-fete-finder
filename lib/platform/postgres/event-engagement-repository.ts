@@ -346,16 +346,23 @@ export class EventEngagementRepository {
 		return rows;
 	}
 
-	async getSocialProofSaveCounts(
-		eventKeys: string[],
-	): Promise<Map<string, number>> {
+	async getSocialProofSaveCounts(input: {
+		eventKeys: string[];
+		windowDays: number;
+	}): Promise<Map<string, number>> {
 		await this.ready();
-		const normalizedEventKeys = [...new Set(eventKeys.map((key) => key.trim()))]
+		const normalizedEventKeys = [
+			...new Set(input.eventKeys.map((key) => key.trim())),
+		]
 			.filter((key) => key.length > 0)
 			.slice(0, 2000);
 		if (normalizedEventKeys.length === 0) {
 			return new Map<string, number>();
 		}
+		const safeWindowDays = Math.max(
+			1,
+			Math.min(Math.floor(input.windowDays), 90),
+		);
 
 		const rows = await this.sql<Array<{ eventKey: string; count: number }>>`
 			SELECT
@@ -367,6 +374,7 @@ export class EventEngagementRepository {
 			FROM app_event_engagement_stats
 			WHERE action_type = 'calendar_sync'
 				AND event_key = ANY(${normalizedEventKeys})
+				AND recorded_at >= NOW() - (${safeWindowDays} * INTERVAL '1 day')
 			GROUP BY event_key
 		`;
 

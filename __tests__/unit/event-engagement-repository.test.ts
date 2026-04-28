@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { EventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 
 describe("EventEngagementRepository", () => {
-	it("projects public save counts with session dedupe", async () => {
+	it("projects public save counts with session dedupe inside the configured window", async () => {
 		const calls: Array<{ query: string; values: unknown[] }> = [];
 		const sql = vi.fn(
 			async (strings: TemplateStringsArray, ...values: unknown[]) => {
@@ -20,11 +20,10 @@ describe("EventEngagementRepository", () => {
 		);
 		const repository = new EventEngagementRepository(sql as unknown as Sql);
 
-		const counts = await repository.getSocialProofSaveCounts([
-			" event-a ",
-			"event-a",
-			"event-b",
-		]);
+		const counts = await repository.getSocialProofSaveCounts({
+			eventKeys: [" event-a ", "event-a", "event-b"],
+			windowDays: 7,
+		});
 
 		expect(counts.get("event-a")).toBe(2);
 		const projectionCall = calls.find((call) =>
@@ -33,6 +32,10 @@ describe("EventEngagementRepository", () => {
 		expect(projectionCall?.query).toContain(
 			"COUNT(*) FILTER (WHERE session_id IS NULL)",
 		);
+		expect(projectionCall?.query).toContain(
+			"recorded_at >= NOW() - (? * INTERVAL '1 day')",
+		);
 		expect(projectionCall?.values).toContainEqual(["event-a", "event-b"]);
+		expect(projectionCall?.values).toContain(7);
 	});
 });

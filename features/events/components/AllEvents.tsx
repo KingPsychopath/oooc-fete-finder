@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EventCard } from "@/features/events/components/EventCard";
 import { FilterButton } from "@/features/events/components/FilterButton";
+import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 import { Lock } from "lucide-react";
 import Link from "next/link";
@@ -15,7 +16,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 type AllEventsProps = {
 	events: Event[];
 	onEventClick: (event: Event) => void;
-	socialProofEventKeys: Set<string>;
+	socialProofDisplayModes: Map<string, SocialProofDisplayMode>;
 	onFilterClickAction: () => void;
 	onAuthRequired: () => void;
 	hasActiveFilters: boolean;
@@ -29,7 +30,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		{
 			events,
 			onEventClick,
-			socialProofEventKeys,
+			socialProofDisplayModes,
 			onFilterClickAction,
 			onAuthRequired,
 			hasActiveFilters,
@@ -88,7 +89,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								key={event.id}
 								event={event}
 								onClick={onEventClick}
-								showSocialProof={socialProofEventKeys.has(event.eventKey)}
+								socialProofMode={socialProofDisplayModes.get(event.eventKey)}
 							/>
 						))}
 					</div>
@@ -118,7 +119,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 											<EventCard
 												event={event}
 												onClick={onEventClick}
-												showSocialProof={socialProofEventKeys.has(
+												socialProofMode={socialProofDisplayModes.get(
 													event.eventKey,
 												)}
 											/>

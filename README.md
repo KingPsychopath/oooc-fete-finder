@@ -187,7 +187,7 @@ Tracking and preference endpoints are also rate-limited:
 - `POST /api/track/discovery`
 - `POST /api/user/preference`
 
-Saved-event social proof (`"X people saved this"`) is powered by tracked `calendar_sync` interactions, deduped by browser session for public display, and projected back into event payloads as `socialProofSaveCount`.
+Saved-event social proof is powered by tracked `calendar_sync` interactions. Public display uses seven-day, browser-session-deduped `socialProofSaveCount` values: the top eligible events can show numeric copy (`"X people saved this"`), while other eligible events use softer non-numeric copy.
 
 ## Documentation
 

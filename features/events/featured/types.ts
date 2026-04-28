@@ -1,10 +1,11 @@
+import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 
 export type FeaturedEventsProps = {
 	events: Event[];
 	onEventClick: (event: Event) => void;
 	onScrollToAllEvents: () => void;
-	socialProofEventKeys: Set<string>;
+	socialProofDisplayModes: Map<string, SocialProofDisplayMode>;
 	maxFeaturedEvents?: number;
 };
 
@@ -12,7 +13,7 @@ export type SafeFeaturedEventsProps = {
 	events: NonNullable<Event>[];
 	onEventClick: (event: NonNullable<Event>) => void;
 	onScrollToAllEvents: () => void;
-	socialProofEventKeys: Set<string>;
+	socialProofDisplayModes: Map<string, SocialProofDisplayMode>;
 	maxFeaturedEvents?: number;
 };
 

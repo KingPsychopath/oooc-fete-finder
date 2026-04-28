@@ -2,6 +2,10 @@
 import { Badge } from "@/components/ui/badge";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import {
+	CARD_SOCIAL_PROOF_MIN_SAVES,
+	type SocialProofDisplayMode,
+} from "@/features/events/social-proof";
+import {
 	type Event,
 	MUSIC_GENRES,
 	NATIONALITIES,
@@ -11,7 +15,6 @@ import {
 	getDayNightPeriod,
 	getVisibleEventTypeLabel,
 } from "@/features/events/types";
-import { CARD_SOCIAL_PROOF_MIN_SAVES } from "@/features/events/social-proof";
 import { clientLog } from "@/lib/platform/client-logger";
 import {
 	Building2,
@@ -32,18 +35,14 @@ import {
 type EventCardProps = {
 	event: Event;
 	onClick: (event: Event) => void;
-	showSocialProof?: boolean;
+	socialProofMode?: SocialProofDisplayMode;
 };
 
 /**
  * Reusable EventCard component used across Featured Events and All Events
  * Implements the improved visual hierarchy with priority badge system
  */
-export function EventCard({
-	event,
-	onClick,
-	showSocialProof = true,
-}: EventCardProps) {
+export function EventCard({ event, onClick, socialProofMode }: EventCardProps) {
 	const handleClick = () => {
 		if (!event || !onClick) {
 			clientLog.warn("event-card", "Missing event or onClick handler");
@@ -65,6 +64,10 @@ export function EventCard({
 	const visibleEventType = getVisibleEventTypeLabel(event.type);
 	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
 	const savedLabel = socialProofSaveCount === 1 ? "person" : "people";
+	const socialProofLabel =
+		socialProofMode === "numeric"
+			? `${socialProofSaveCount} ${savedLabel} saved this`
+			: "People are saving this";
 	const visibleGenres = event.genre.slice(0, 2);
 	const hasMetadataBadges = Boolean(
 		visibleEventType || event.nationality?.length || visibleGenres.length,
@@ -246,11 +249,11 @@ export function EventCard({
 					))}
 				</div>
 			)}
-			{showSocialProof &&
+			{socialProofMode &&
 				socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
 					<div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-200">
 						<Flame className="h-3 w-3" />
-						{socialProofSaveCount} {savedLabel} saved this
+						{socialProofLabel}
 					</div>
 				)}
 		</div>
