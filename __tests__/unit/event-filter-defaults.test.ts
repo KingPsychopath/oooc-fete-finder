@@ -3,7 +3,9 @@ import { serializeEventFilterStateToSearchParams } from "@/features/events/filte
 import {
 	DEFAULT_EVENT_FILTER_STATE,
 	getActiveFiltersCount,
+	getCurrentParisYearDateRange,
 	getDefaultDateRangeForEvents,
+	getEventCountForDateRange,
 	hasActiveFilters,
 } from "@/features/events/filtering";
 import { getEventTypeForDate, type Event } from "@/features/events/types";
@@ -39,6 +41,24 @@ describe("event filter defaults", () => {
 			from: "2026-01-01",
 			to: "2026-12-31",
 		});
+	});
+
+	it("counts events inside the current Paris year range", () => {
+		const currentYearDateRange = getCurrentParisYearDateRange(
+			new Date("2026-04-24T10:00:00.000Z"),
+		);
+
+		expect(
+			getEventCountForDateRange(
+				[
+					makeEvent("2025-08-18", 1),
+					makeEvent("2026-06-21", 2),
+					makeEvent("2026-12-31", 3),
+					makeEvent("2027-01-01", 4),
+				],
+				currentYearDateRange,
+			),
+		).toBe(2);
 	});
 
 	it("falls back to an unfiltered date range when no current-year events exist", () => {

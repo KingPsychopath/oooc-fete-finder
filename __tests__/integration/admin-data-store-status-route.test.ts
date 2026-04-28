@@ -37,6 +37,7 @@ const loadRoute = async (): Promise<Setup> => {
 	const getRuntimeDataStatusFromSource = vi.fn().mockResolvedValue({
 		dataSource: "store",
 		eventCount: 81,
+		currentYearEventCount: 64,
 		lastFetchTime: "2026-02-18T00:00:00.000Z",
 		lastRemoteErrorMessage: "",
 	});
@@ -114,7 +115,7 @@ describe("/api/admin/data-store/status route", () => {
 		const payload = (await response.json()) as {
 			success: boolean;
 			store: { rowCount: number };
-			runtime: { eventCount: number };
+			runtime: { eventCount: number; currentYearEventCount: number };
 			metrics: { totalRequests: number };
 		};
 
@@ -122,6 +123,7 @@ describe("/api/admin/data-store/status route", () => {
 		expect(payload.success).toBe(true);
 		expect(payload.store.rowCount).toBe(81);
 		expect(payload.runtime.eventCount).toBe(81);
+		expect(payload.runtime.currentYearEventCount).toBe(64);
 		expect(payload.metrics.totalRequests).toBe(1);
 		expect(response.headers.get("cache-control")).toContain("no-store");
 		expect(validateAdminKeyForApiRoute).toHaveBeenCalledWith(

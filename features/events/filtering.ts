@@ -89,13 +89,19 @@ export const getDefaultDateRangeForEvents = (
 	events: Event[],
 	referenceDate = new Date(),
 ): DateRangeFilter => {
-	const { from, to } = getCurrentParisYearDateRange(referenceDate);
+	const currentYearDateRange = getCurrentParisYearDateRange(referenceDate);
 	const hasCurrentYearEvents = events.some((event) => {
 		if (!isStrictISODate(event.date)) return false;
-		return event.date >= from && event.date <= to;
+		if (!currentYearDateRange.from || !currentYearDateRange.to) return false;
+		return (
+			event.date >= currentYearDateRange.from &&
+			event.date <= currentYearDateRange.to
+		);
 	});
 
-	return hasCurrentYearEvents ? { from, to } : DEFAULT_EVENT_FILTER_STATE.selectedDateRange;
+	return hasCurrentYearEvents
+		? currentYearDateRange
+		: DEFAULT_EVENT_FILTER_STATE.selectedDateRange;
 };
 
 export const getDefaultEventFilterState = (
