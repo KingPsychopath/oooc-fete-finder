@@ -16,10 +16,14 @@ import {
 	saveEventSheetEditorRows,
 } from "@/features/data-management/actions";
 import {
-	createBlankEditableSheetRow,
-	createCustomColumnKey,
+	createDateNormalizationContext,
+	normalizeCsvDate,
+} from "@/features/data-management/assembly/date-normalization";
+import {
 	type EditableSheetColumn,
 	type EditableSheetRow,
+	createBlankEditableSheetRow,
+	createCustomColumnKey,
 } from "@/features/data-management/csv/sheet-editor";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -35,6 +39,7 @@ type EditorSnapshot = {
 	columns: EditableSheetColumn[];
 	rows: EditableSheetRow[];
 };
+type SheetSortMode = "smart-date" | "date-asc" | "date-desc" | "sheet-order";
 
 const ROW_DELETE_CONFIRMATION =
 	"Delete this row from the event sheet? This will be removed on next save.";
@@ -45,9 +50,71 @@ const ROW_NUMBER_COLUMN_WIDTH = 56;
 const DATA_COLUMN_WIDTH = 170;
 const MAX_FROZEN_COLUMNS = 4;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
+const DEFAULT_SORT_MODE: SheetSortMode = "smart-date";
 
 const cellRefKey = (rowIndex: number, columnKey: string) =>
 	`${rowIndex}:${columnKey}`;
+
+const toUTCDateOnlyTime = (date: Date): number =>
+	Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+
+const getRowDateTime = (
+	row: EditableSheetRow,
+	context: ReturnType<typeof createDateNormalizationContext>,
+): number | null => {
+	const normalized = normalizeCsvDate(row.date ?? "", context);
+	if (!normalized.isoDate) return null;
+
+	const time = Date.parse(`${normalized.isoDate}T00:00:00.000Z`);
+	return Number.isNaN(time) ? null : time;
+};
+
+const sortRowIndexes = (
+	indexes: number[],
+	rows: EditableSheetRow[],
+	sortMode: SheetSortMode,
+): number[] => {
+	if (sortMode === "sheet-order") {
+		return indexes;
+	}
+
+	const referenceDate = new Date();
+	const today = toUTCDateOnlyTime(referenceDate);
+	const context = createDateNormalizationContext(
+		rows.map((row) => ({ date: row.date ?? "" })),
+		{ referenceDate },
+	);
+	const dateTimes = new Map<number, number | null>(
+		indexes.map((index) => [index, getRowDateTime(rows[index], context)]),
+	);
+
+	return [...indexes].sort((leftIndex, rightIndex) => {
+		const leftTime = dateTimes.get(leftIndex) ?? null;
+		const rightTime = dateTimes.get(rightIndex) ?? null;
+		if (leftTime === null && rightTime === null) {
+			return leftIndex - rightIndex;
+		}
+		if (leftTime === null) return 1;
+		if (rightTime === null) return -1;
+
+		if (sortMode === "date-asc") {
+			return leftTime - rightTime || leftIndex - rightIndex;
+		}
+		if (sortMode === "date-desc") {
+			return rightTime - leftTime || leftIndex - rightIndex;
+		}
+
+		const leftIsPast = leftTime < today;
+		const rightIsPast = rightTime < today;
+		if (leftIsPast !== rightIsPast) {
+			return leftIsPast ? 1 : -1;
+		}
+
+		const direction = leftIsPast ? -1 : 1;
+		const dateComparison = (leftTime - rightTime) * direction;
+		return dateComparison || leftIndex - rightIndex;
+	});
+};
 
 function initialEditorState(initialEditorData?: EditorPayload): {
 	loading: boolean;
@@ -67,7 +134,9 @@ function initialEditorState(initialEditorData?: EditorPayload): {
 		statusMessage: hasInitial
 			? `Loaded ${initialEditorData.rows?.length ?? 0} rows and ${initialEditorData.columns?.length ?? 0} columns from Postgres store`
 			: "Loading sheet...",
-		lastSavedAt: hasInitial ? initialEditorData.status?.updatedAt ?? null : null,
+		lastSavedAt: hasInitial
+			? (initialEditorData.status?.updatedAt ?? null)
+			: null,
 	};
 }
 
@@ -80,7 +149,9 @@ export const EventSheetEditorCard = ({
 	const [isLoading, setIsLoading] = useState(initial.loading);
 	const [isSaving, setIsSaving] = useState(false);
 	const [rows, setRows] = useState<EditableSheetRow[]>(initial.rows);
-	const [columns, setColumns] = useState<EditableSheetColumn[]>(initial.columns);
+	const [columns, setColumns] = useState<EditableSheetColumn[]>(
+		initial.columns,
+	);
 	const [query, setQuery] = useState("");
 	const [statusMessage, setStatusMessage] = useState(initial.statusMessage);
 	const [errorMessage, setErrorMessage] = useState("");
@@ -91,6 +162,7 @@ export const EventSheetEditorCard = ({
 	const [newColumnLabel, setNewColumnLabel] = useState("");
 	const [displayLimit, setDisplayLimit] = useState(50);
 	const [pinnedColumnsCount, setPinnedColumnsCount] = useState(0);
+	const [sortMode, setSortMode] = useState<SheetSortMode>(DEFAULT_SORT_MODE);
 	const [canUndo, setCanUndo] = useState(false);
 	const [canRedo, setCanRedo] = useState(false);
 
@@ -307,14 +379,25 @@ export const EventSheetEditorCard = ({
 
 	const handleAddRow = () => {
 		const nextRows = [
-			...rowsRef.current.map((row) => ({ ...row })),
 			createBlankEditableSheetRow(columnsRef.current),
+			...rowsRef.current.map((row) => ({ ...row })),
 		];
 		commitSheetMutation(
 			columnsRef.current.map((column) => ({ ...column })),
 			nextRows,
-			"New row added",
+			"New row added at the top",
 		);
+		setSortMode("sheet-order");
+		setQuery("");
+		window.setTimeout(() => {
+			const firstEditableColumn =
+				columnsRef.current.find(
+					(column) => !SYSTEM_MANAGED_COLUMN_KEYS.has(column.key),
+				) ?? columnsRef.current[0];
+			if (!firstEditableColumn) return;
+
+			inputRefs.current[cellRefKey(0, firstEditableColumn.key)]?.focus();
+		}, 0);
 	};
 
 	const handleDeleteRow = (rowIndex: number) => {
@@ -377,7 +460,11 @@ export const EventSheetEditorCard = ({
 			return nextRow;
 		});
 
-		commitSheetMutation(nextColumns, nextRows, `Column "${column.label}" deleted`);
+		commitSheetMutation(
+			nextColumns,
+			nextRows,
+			`Column "${column.label}" deleted`,
+		);
 	};
 
 	const handleRenameColumn = (columnKey: string, nextLabel: string) => {
@@ -385,8 +472,14 @@ export const EventSheetEditorCard = ({
 		if (!label) return;
 
 		const currentColumns = columnsRef.current;
-		const currentColumn = currentColumns.find((column) => column.key === columnKey);
-		if (!currentColumn || currentColumn.isCore || currentColumn.label === label) {
+		const currentColumn = currentColumns.find(
+			(column) => column.key === columnKey,
+		);
+		if (
+			!currentColumn ||
+			currentColumn.isCore ||
+			currentColumn.label === label
+		) {
 			return;
 		}
 
@@ -461,11 +554,15 @@ export const EventSheetEditorCard = ({
 			.filter((index) => index >= 0);
 	}, [query, rows]);
 
-	const visibleRowIndexes = useMemo(() => {
-		return filteredRowIndexes.slice(0, displayLimit);
-	}, [filteredRowIndexes, displayLimit]);
+	const sortedRowIndexes = useMemo(() => {
+		return sortRowIndexes(filteredRowIndexes, rows, sortMode);
+	}, [filteredRowIndexes, rows, sortMode]);
 
-	const canShowMoreRows = filteredRowIndexes.length > visibleRowIndexes.length;
+	const visibleRowIndexes = useMemo(() => {
+		return sortedRowIndexes.slice(0, displayLimit);
+	}, [sortedRowIndexes, displayLimit]);
+
+	const canShowMoreRows = sortedRowIndexes.length > visibleRowIndexes.length;
 
 	const focusCell = (
 		rowIndex: number,
@@ -508,9 +605,9 @@ export const EventSheetEditorCard = ({
 			zIndex: layer === "header" ? 22 : 8,
 			background: "color-mix(in oklab, var(--background) 94%, transparent)",
 			boxShadow:
-				columnIndex === safePinnedCount - 1 ?
-					"1px 0 0 rgba(0,0,0,0.1), 8px 0 14px -14px rgba(0,0,0,0.4)"
-				:	undefined,
+				columnIndex === safePinnedCount - 1
+					? "1px 0 0 rgba(0,0,0,0.1), 8px 0 14px -14px rgba(0,0,0,0.4)"
+					: undefined,
 		};
 	};
 
@@ -521,7 +618,9 @@ export const EventSheetEditorCard = ({
 	return (
 		<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
 			<CardHeader>
-				<CardTitle className="text-2xl tracking-tight">Event Sheet Editor</CardTitle>
+				<CardTitle className="text-2xl tracking-tight">
+					Event Sheet Editor
+				</CardTitle>
 				<CardDescription>
 					Spreadsheet editing with dynamic custom columns and autosave to
 					Postgres.
@@ -545,7 +644,7 @@ export const EventSheetEditorCard = ({
 					)}
 				</div>
 
-				<div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-[minmax(0,1fr)_minmax(0,260px)_auto_auto_auto]">
+				<div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_220px_auto]">
 					<div className="space-y-2">
 						<Label htmlFor="sheet-search">Search rows</Label>
 						<Input
@@ -556,32 +655,28 @@ export const EventSheetEditorCard = ({
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label htmlFor="new-column-label">New column label</Label>
-						<Input
-							id="new-column-label"
-							value={newColumnLabel}
-							onChange={(event) => setNewColumnLabel(event.target.value)}
-							placeholder="e.g. Promoter"
-						/>
-					</div>
-					<div className="flex items-end">
-						<Button
-							onClick={handleAddColumn}
-							variant="outline"
-							disabled={isSaving || isLoading}
+						<Label htmlFor="sheet-sort">Sort rows</Label>
+						<select
+							id="sheet-sort"
+							value={sortMode}
+							onChange={(event) =>
+								setSortMode(event.target.value as SheetSortMode)
+							}
+							className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
 						>
-							Add column
-						</Button>
+							<option value="smart-date">Upcoming first</option>
+							<option value="date-asc">Date ascending</option>
+							<option value="date-desc">Date descending</option>
+							<option value="sheet-order">Sheet order</option>
+						</select>
 					</div>
-					<div className="flex items-end">
+					<div className="flex flex-wrap items-end gap-2">
 						<Button
 							onClick={handleManualSave}
 							disabled={isSaving || !hasUnsavedChanges}
 						>
 							Save and Revalidate Homepage
 						</Button>
-					</div>
-					<div className="flex items-end gap-2">
 						<Button
 							type="button"
 							variant="outline"
@@ -603,26 +698,47 @@ export const EventSheetEditorCard = ({
 					</div>
 				</div>
 
-				<div className="flex flex-wrap gap-2">
-					<Button onClick={handleAddRow} variant="outline" size="sm">
-						Add row
-					</Button>
-					<Button
-						onClick={() => void loadEditorData()}
-						disabled={isSaving}
-						variant="outline"
-						size="sm"
-					>
-						Reload
-					</Button>
-					<Button
-						onClick={() => setDisplayLimit((current) => current + 50)}
-						disabled={!canShowMoreRows}
-						variant="outline"
-						size="sm"
-					>
-						Show 50 more rows
-					</Button>
+				<div className="flex flex-wrap items-end gap-3 border-t pt-3">
+					<div className="space-y-2">
+						<Label htmlFor="new-column-label">New column label</Label>
+						<div className="flex flex-wrap gap-2">
+							<Input
+								id="new-column-label"
+								value={newColumnLabel}
+								onChange={(event) => setNewColumnLabel(event.target.value)}
+								placeholder="e.g. Promoter"
+								className="w-[min(100%,260px)]"
+							/>
+							<Button
+								onClick={handleAddColumn}
+								variant="outline"
+								disabled={isSaving || isLoading}
+							>
+								Add column
+							</Button>
+						</div>
+					</div>
+					<div className="flex flex-wrap gap-2">
+						<Button onClick={handleAddRow} variant="outline" size="sm">
+							Add row at top
+						</Button>
+						<Button
+							onClick={() => void loadEditorData()}
+							disabled={isSaving}
+							variant="outline"
+							size="sm"
+						>
+							Reload
+						</Button>
+						<Button
+							onClick={() => setDisplayLimit((current) => current + 50)}
+							disabled={!canShowMoreRows}
+							variant="outline"
+							size="sm"
+						>
+							Show 50 more rows
+						</Button>
+					</div>
 					<div className="flex items-center gap-2 rounded-md border px-2 py-1 text-xs">
 						<span className="text-muted-foreground">Frozen columns</span>
 						<Button
@@ -637,7 +753,9 @@ export const EventSheetEditorCard = ({
 						>
 							-
 						</Button>
-						<span className="min-w-5 text-center font-medium">{safePinnedCount}</span>
+						<span className="min-w-5 text-center font-medium">
+							{safePinnedCount}
+						</span>
 						<Button
 							type="button"
 							size="sm"
@@ -681,10 +799,10 @@ export const EventSheetEditorCard = ({
 					When missing, Event Key is generated from canonical identity fields:
 					`Title`, `Date`, `Start Time`, `Location`, `District/Area`.
 				</div>
-					<div className="text-xs text-amber-700">
-						`Featured` column is legacy-only. Manage featured scheduling in
-						`Spotlight & Promoted Scheduler`.
-					</div>
+				<div className="text-xs text-amber-700">
+					`Featured` column is legacy-only. Manage featured scheduling in
+					`Spotlight & Promoted Scheduler`.
+				</div>
 				<div className="text-xs text-muted-foreground">
 					`Host Country` and `Audience Country` support `FR`, `UK`, `CA`, `NL`
 					(flags, ISO codes, or common names). Unknown tokens are flagged in
@@ -692,8 +810,8 @@ export const EventSheetEditorCard = ({
 				</div>
 
 				<div className="text-xs text-muted-foreground">
-					Showing {visibleRowIndexes.length} of {filteredRowIndexes.length} filtered
-					rows ({rows.length} total).
+					Showing {visibleRowIndexes.length} of {filteredRowIndexes.length}{" "}
+					filtered rows ({rows.length} total).
 				</div>
 				<div className="max-w-full overflow-auto rounded-md border max-h-[70vh]">
 					<table className="w-max min-w-full table-fixed border-separate border-spacing-0 text-xs">
@@ -766,32 +884,32 @@ export const EventSheetEditorCard = ({
 														System
 													</Badge>
 												)}
-												</div>
-												<div className="flex items-center gap-1">
-													<Button
-														type="button"
-														size="sm"
-														variant="ghost"
-														className="h-6 px-2 text-[10px]"
-														onClick={() => handleMoveColumn(column.key, -1)}
-														disabled={columnIndex === 0}
-													>
-														←
-													</Button>
-													<Button
-														type="button"
-														size="sm"
-														variant="ghost"
-														className="h-6 px-2 text-[10px]"
-														onClick={() => handleMoveColumn(column.key, 1)}
-														disabled={columnIndex === columns.length - 1}
-													>
-														→
-													</Button>
-												</div>
 											</div>
-										</th>
-									))}
+											<div className="flex items-center gap-1">
+												<Button
+													type="button"
+													size="sm"
+													variant="ghost"
+													className="h-6 px-2 text-[10px]"
+													onClick={() => handleMoveColumn(column.key, -1)}
+													disabled={columnIndex === 0}
+												>
+													←
+												</Button>
+												<Button
+													type="button"
+													size="sm"
+													variant="ghost"
+													className="h-6 px-2 text-[10px]"
+													onClick={() => handleMoveColumn(column.key, 1)}
+													disabled={columnIndex === columns.length - 1}
+												>
+													→
+												</Button>
+											</div>
+										</div>
+									</th>
+								))}
 								<th className="w-24 border-b bg-background px-2 py-2 text-left">
 									Action
 								</th>
@@ -816,46 +934,52 @@ export const EventSheetEditorCard = ({
 										No rows match your search.
 									</td>
 								</tr>
-								) : (
-									visibleRowIndexes.map((rowIndex) => {
-										const row = rows[rowIndex];
-										return (
-											<tr key={`row-${rowIndex}`} className="align-top">
+							) : (
+								visibleRowIndexes.map((rowIndex) => {
+									const row = rows[rowIndex];
+									return (
+										<tr key={`row-${rowIndex}`} className="align-top">
+											<td
+												className="sticky z-10 border-r border-b bg-background px-2 py-1 font-mono text-[11px] text-muted-foreground"
+												style={{
+													left: 0,
+													width: `${ROW_NUMBER_COLUMN_WIDTH}px`,
+												}}
+											>
+												{rowIndex + 1}
+											</td>
+											{columns.map((column, columnIndex) => (
 												<td
-													className="sticky z-10 border-r border-b bg-background px-2 py-1 font-mono text-[11px] text-muted-foreground"
-													style={{ left: 0, width: `${ROW_NUMBER_COLUMN_WIDTH}px` }}
+													key={`row-${rowIndex}-${column.key}`}
+													className="w-[170px] border-b border-r p-0"
+													style={getPinnedColumnStyle(columnIndex, "cell")}
 												>
-													{rowIndex + 1}
-												</td>
-												{columns.map((column, columnIndex) => (
-													<td
-														key={`row-${rowIndex}-${column.key}`}
-														className="w-[170px] border-b border-r p-0"
-														style={getPinnedColumnStyle(columnIndex, "cell")}
-													>
-														<input
-															ref={(node) => {
-																inputRefs.current[cellRefKey(rowIndex, column.key)] =
-																node;
+													<input
+														ref={(node) => {
+															inputRefs.current[
+																cellRefKey(rowIndex, column.key)
+															] = node;
 														}}
 														value={row[column.key] ?? ""}
-														readOnly={SYSTEM_MANAGED_COLUMN_KEYS.has(column.key)}
+														readOnly={SYSTEM_MANAGED_COLUMN_KEYS.has(
+															column.key,
+														)}
 														onChange={(event) =>
 															handleCellChange(
 																rowIndex,
 																column.key,
 																event.target.value,
-																)
+															)
+														}
+														onBlur={() => {
+															const key = cellRefKey(rowIndex, column.key);
+															if (activeCellEditRef.current === key) {
+																activeCellEditRef.current = null;
 															}
-															onBlur={() => {
-																const key = cellRefKey(rowIndex, column.key);
-																if (activeCellEditRef.current === key) {
-																	activeCellEditRef.current = null;
-																}
-															}}
-															onKeyDown={(event) => {
-																if (event.key === "Enter") {
-																	event.preventDefault();
+														}}
+														onKeyDown={(event) => {
+															if (event.key === "Enter") {
+																event.preventDefault();
 																focusCell(rowIndex, column.key, 1, 0);
 															}
 															if (event.key === "ArrowDown") {
