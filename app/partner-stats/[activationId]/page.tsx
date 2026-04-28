@@ -8,29 +8,38 @@ import {
 } from "@/components/ui/card";
 import { getPartnerStatsSnapshot } from "@/features/partners/partner-stats";
 import {
-	generateOGImageUrl,
 	generateOGMetadata,
+	generatePresetOGImage,
 } from "@/lib/social/og-utils";
 import { ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
-export const metadata: Metadata = generateOGMetadata({
-	title: "Partner Performance Report | OOOC Fete Finder",
-	description:
-		"Private partner performance metrics for OOOC campaign placements.",
-	ogImageUrl: generateOGImageUrl({
-		title: "Partner Performance Report",
-		subtitle: "Private campaign performance metrics",
-		variant: "default",
-	}),
-	url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${basePath || ""}/partner-stats`,
-	noIndex: true,
-});
+type PartnerStatsPageProps = {
+	params: Promise<{ activationId: string }>;
+	searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export async function generateMetadata({
+	params,
+}: Pick<PartnerStatsPageProps, "params">): Promise<Metadata> {
+	const { activationId } = await params;
+	const encodedActivationId = encodeURIComponent(activationId);
+
+	return generateOGMetadata({
+		title: "Partner Performance Report | OOOC Fete Finder",
+		description:
+			"Private partner performance metrics for OOOC campaign placements.",
+		ogImageUrl: generatePresetOGImage("partner-performance-report"),
+		url: `${siteUrl}${basePath || ""}/partner-stats/${encodedActivationId}`,
+		noIndex: true,
+	});
+}
 
 export const dynamic = "force-dynamic";
 
@@ -61,10 +70,7 @@ const PartnerMetricCard = ({
 export default async function PartnerStatsPage({
 	params,
 	searchParams,
-}: {
-	params: Promise<{ activationId: string }>;
-	searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+}: PartnerStatsPageProps) {
 	const { activationId } = await params;
 	const resolvedSearchParams = await searchParams;
 	const tokenValue = resolvedSearchParams.token;

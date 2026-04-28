@@ -1,8 +1,13 @@
 import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { formatDayWithDate, formatPrice } from "@/features/events/types";
 import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
 import { log } from "@/lib/platform/logger";
+import {
+	type EventShareDetails,
+	getEventShareDetails,
+} from "@/lib/social/event-share-details";
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
 
@@ -14,11 +19,19 @@ const RATE_LIMIT_KEY_PREFIX = "og-rate:";
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 120;
 const MAX_TEXT_LENGTH = 110;
-const MAX_EVENT_COUNT = 9999;
 const MAX_CHIPS = 3;
 const ALLOWED_VARIANTS = ["default", "event-modal"] as const;
+const ALLOWED_PRESETS = [
+	"home",
+	"submit-event",
+	"feature-event",
+	"partner-success",
+	"partner-performance-report",
+	"event",
+] as const;
 
 type OGVariant = (typeof ALLOWED_VARIANTS)[number];
+type OGPreset = (typeof ALLOWED_PRESETS)[number];
 type RateState = { count: number; resetAt: number };
 
 type OGTheme = {
@@ -42,6 +55,19 @@ type OGFont = {
 	data: Buffer;
 	weight: 400;
 	style: "normal";
+};
+
+type OGContent = {
+	variant: OGVariant;
+	title: string;
+	subtitle: string;
+	eventCount: number;
+	arrondissement: string;
+	date: string;
+	time: string;
+	price: string;
+	venue: string;
+	genres: string[];
 };
 
 const loadFontBuffer = (filePath: string): Buffer | null => {
@@ -144,6 +170,37 @@ const sanitizeText = (value: string, fallback: string): string => {
 		: cleaned;
 };
 
+const STATIC_PRESET_CONTENT: Record<
+	Exclude<OGPreset, "event">,
+	Omit<OGContent, "eventCount" | "arrondissement" | "date" | "time" | "price" | "venue" | "genres">
+> = {
+	home: {
+		variant: "default",
+		title: "Fête Finder",
+		subtitle: "Curated Paris music events by Out Of Office Collective",
+	},
+	"submit-event": {
+		variant: "default",
+		title: "Submit Your Event",
+		subtitle: "Share your event with Out Of Office Collective",
+	},
+	"feature-event": {
+		variant: "default",
+		title: "Partner With OOOC",
+		subtitle: "Spotlight and promoted placements in Fête Finder",
+	},
+	"partner-success": {
+		variant: "default",
+		title: "Payment Received",
+		subtitle: "Your OOOC placement is now in the activation queue",
+	},
+	"partner-performance-report": {
+		variant: "default",
+		title: "Partner Performance Report",
+		subtitle: "Private campaign performance metrics",
+	},
+};
+
 const getClientIp = (request: NextRequest): string => {
 	const forwardedFor = request.headers.get("x-forwarded-for");
 	if (forwardedFor?.trim()) {
@@ -240,31 +297,109 @@ const buildThemeText = (
 	};
 };
 
-const parseVariant = (searchParams: URLSearchParams): OGVariant => {
-	const variantParam = searchParams.get("variant") || "";
-	const legacyThemeParam = searchParams.get("theme") || "";
-	const rawVariant =
-		variantParam || (legacyThemeParam === "event" ? "event-modal" : "default");
-
-	return ALLOWED_VARIANTS.includes(rawVariant as OGVariant)
-		? (rawVariant as OGVariant)
-		: "default";
+const toDisplayTitle = (value: string): string => {
+	const normalized = value.replace(/[-_]+/g, " ").trim();
+	if (!normalized) return "Event";
+	return normalized
+		.split(/\s+/)
+		.map((segment) => segment[0]?.toUpperCase() + segment.slice(1))
+		.join(" ");
 };
 
-const parseEventCount = (searchParams: URLSearchParams): number => {
-	const rawEventCount = Number.parseInt(searchParams.get("eventCount") || "0", 10);
-	if (!Number.isFinite(rawEventCount)) return 0;
-	return Math.min(Math.max(rawEventCount, 0), MAX_EVENT_COUNT);
+const formatArrondissement = (
+	value: EventShareDetails["arrondissement"],
+): string => {
+	if (value === "unknown") return "Paris";
+	return `${value}e arrondissement`;
 };
 
-const parseGenres = (searchParams: URLSearchParams): string[] => {
-	const raw = searchParams.get("genres") || "";
-	if (!raw.trim()) return [];
-	return raw
-		.split(",")
-		.map((value) => sanitizeText(value, ""))
-		.filter(Boolean)
-		.slice(0, MAX_CHIPS);
+const formatTimeRange = (event: EventShareDetails): string => {
+	const hasStart = Boolean(event.time && event.time !== "TBC");
+	const hasEnd = Boolean(event.endTime && event.endTime !== "TBC");
+	if (hasStart && hasEnd) return `${event.time} - ${event.endTime}`;
+	if (hasStart) return event.time || "";
+	return "";
+};
+
+const formatVenue = (value: string | undefined): string => {
+	if (!value) return "";
+	const cleaned = value.trim();
+	if (!cleaned || cleaned.toUpperCase() === "TBA") return "";
+	return cleaned;
+};
+
+const formatEventDate = (event: EventShareDetails): string => {
+	if (!event.date) return "";
+	return formatDayWithDate(event.day, event.date);
+};
+
+const formatEventPrice = (event: EventShareDetails): string => {
+	const price = formatPrice(event.price);
+	return price === "TBA" ? "" : price;
+};
+
+const parsePreset = (searchParams: URLSearchParams): OGPreset => {
+	const preset = searchParams.get("preset") || "";
+	return ALLOWED_PRESETS.includes(preset as OGPreset)
+		? (preset as OGPreset)
+		: "home";
+};
+
+const resolveStaticPresetContent = (
+	preset: Exclude<OGPreset, "event">,
+): OGContent => {
+	const content = STATIC_PRESET_CONTENT[preset];
+	return {
+		...content,
+		eventCount: 0,
+		arrondissement: "",
+		date: "",
+		time: "",
+		price: "",
+		venue: "",
+		genres: [],
+	};
+};
+
+const resolveEventContent = async (
+	searchParams: URLSearchParams,
+): Promise<OGContent> => {
+	const eventKey = searchParams.get("eventKey") || "";
+	const event = await getEventShareDetails(eventKey);
+	if (!event) {
+		return {
+			...resolveStaticPresetContent("home"),
+			variant: "event-modal",
+			title: eventKey ? toDisplayTitle(eventKey) : "Live Music Events",
+			subtitle:
+				"Live event details and nearby picks curated by Out Of Office Collective",
+		};
+	}
+
+	const arrondissement = formatArrondissement(event.arrondissement);
+	return {
+		variant: "event-modal",
+		title: event.name,
+		subtitle: `Live picks in ${arrondissement} curated by Out Of Office Collective`,
+		eventCount: 0,
+		arrondissement,
+		date: formatEventDate(event),
+		time: formatTimeRange(event),
+		price: formatEventPrice(event),
+		venue: formatVenue(event.location),
+		genres: event.genres,
+	};
+};
+
+const resolveOGContent = async (
+	searchParams: URLSearchParams,
+): Promise<OGContent> => {
+	const preset = parsePreset(searchParams);
+	if (preset === "event") {
+		return resolveEventContent(searchParams);
+	}
+
+	return resolveStaticPresetContent(preset);
 };
 
 export async function GET(request: NextRequest) {
@@ -279,20 +414,21 @@ export async function GET(request: NextRequest) {
 		}
 
 		const { searchParams } = new URL(request.url);
-		const variant = parseVariant(searchParams);
-		const eventCount = parseEventCount(searchParams);
-		const arrondissement = sanitizeText(searchParams.get("arrondissement") || "", "");
-		const date = sanitizeText(searchParams.get("date") || "", "");
-		const time = sanitizeText(searchParams.get("time") || "", "");
-		const price = sanitizeText(searchParams.get("price") || "", "");
-		const venue = sanitizeText(searchParams.get("venue") || "", "");
-		const genres = parseGenres(searchParams);
+		const content = await resolveOGContent(searchParams);
+		const variant = content.variant;
+		const eventCount = content.eventCount;
+		const arrondissement = sanitizeText(content.arrondissement, "");
+		const date = sanitizeText(content.date, "");
+		const time = sanitizeText(content.time, "");
+		const price = sanitizeText(content.price, "");
+		const venue = sanitizeText(content.venue, "");
+		const genres = content.genres
+			.map((value) => sanitizeText(value, ""))
+			.filter(Boolean)
+			.slice(0, MAX_CHIPS);
 		const defaultText = buildThemeText(variant, arrondissement, eventCount);
-		const title = sanitizeText(searchParams.get("title") || "", defaultText.title);
-		const subtitle = sanitizeText(
-			searchParams.get("subtitle") || "",
-			defaultText.subtitle,
-		);
+		const title = sanitizeText(content.title, defaultText.title);
+		const subtitle = sanitizeText(content.subtitle, defaultText.subtitle);
 		const palette = THEMES[variant];
 
 		return new ImageResponse(

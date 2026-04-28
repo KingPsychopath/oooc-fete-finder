@@ -15,14 +15,20 @@ describe("og-utils", () => {
 		vi.clearAllMocks();
 	});
 
-	it("builds branded main OG route URL with default variant params", async () => {
+	it("builds branded main OG route URL with bounded preset params", async () => {
 		const { generateMainOGImage } = await loadOgUtils();
 		const url = generateMainOGImage(81);
 
-		expect(url).toContain("/api/og?");
-		expect(url).toContain("variant=default");
-		expect(url).toContain("eventCount=81");
-		expect(url).toContain("title=F%C3%AAte+Finder");
+		expect(url).toBe("/api/og?preset=home");
+	});
+
+	it("builds event OG route URL with only the event key", async () => {
+		const { generateEventOGImage } = await loadOgUtils();
+		const url = generateEventOGImage({
+			eventKey: "evt_77b18c8e22eadd87",
+		});
+
+		expect(url).toBe("/api/og?preset=event&eventKey=evt_77b18c8e22eadd87");
 	});
 
 	it("builds complete Open Graph/Twitter metadata payload", async () => {

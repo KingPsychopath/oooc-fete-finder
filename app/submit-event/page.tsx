@@ -1,4 +1,4 @@
-import { generateOGImageUrl, generateOGMetadata } from "@/lib/social/og-utils";
+import { generateOGMetadata, generatePresetOGImage } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -12,11 +12,7 @@ export const metadata: Metadata = generateOGMetadata({
 	title: "Submit Event | Fête Finder",
 	description:
 		"Submit your event to Out Of Office Collective with only the essential details. Our team reviews every submission before publishing.",
-	ogImageUrl: generateOGImageUrl({
-		title: "Submit Your Event",
-		subtitle: "Share your event with Out Of Office Collective",
-		variant: "default",
-	}),
+	ogImageUrl: generatePresetOGImage("submit-event"),
 	url: `${siteUrl}${basePath || ""}/submit-event`,
 });
 

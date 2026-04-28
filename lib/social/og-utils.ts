@@ -7,6 +7,12 @@ import { env } from "@/lib/config/env";
 
 type OGImageVariant = "default" | "event-modal";
 type LegacyTheme = "default" | "event" | "admin" | "custom";
+export type OGPreset =
+	| "home"
+	| "submit-event"
+	| "feature-event"
+	| "partner-success"
+	| "partner-performance-report";
 
 type OGImageParams = {
 	title?: string;
@@ -20,6 +26,18 @@ type OGImageParams = {
 	date?: string;
 	price?: string;
 	genres?: string[];
+};
+
+const buildOGRouteUrl = (params: Record<string, string | undefined>): string => {
+	const searchParams = new URLSearchParams();
+	for (const [key, value] of Object.entries(params)) {
+		if (value) {
+			searchParams.set(key, value);
+		}
+	}
+
+	const query = searchParams.toString();
+	return `/api/og${query ? `?${query}` : ""}`;
 };
 
 const resolveVariant = (params: OGImageParams): OGImageVariant => {
@@ -60,34 +78,14 @@ export const generateOGImageUrl = (params: OGImageParams = {}): string => {
 	return `/api/og${query ? `?${query}` : ""}`;
 };
 
+export const generatePresetOGImage = (preset: OGPreset): string =>
+	buildOGRouteUrl({ preset });
+
 /**
  * Generate OG:image URL for event-specific content
  */
-export const generateEventOGImage = (params: {
-	eventName?: string;
-	arrondissement?: string;
-	eventCount?: number;
-	venue?: string;
-	time?: string;
-	date?: string;
-	price?: string;
-	genres?: string[];
-}): string => {
-	return generateOGImageUrl({
-		title: params.eventName || "Live Music Events",
-		subtitle: params.arrondissement
-			? `Live picks in ${params.arrondissement} curated by Out Of Office Collective`
-			: "Live event details and nearby picks curated by Out Of Office Collective",
-		variant: "event-modal",
-		eventCount: params.eventCount,
-		arrondissement: params.arrondissement,
-		venue: params.venue,
-		time: params.time,
-		date: params.date,
-		price: params.price,
-		genres: params.genres,
-	});
-};
+export const generateEventOGImage = (params: { eventKey: string }): string =>
+	buildOGRouteUrl({ preset: "event", eventKey: params.eventKey });
 
 /**
  * Generate OG:image URL for admin/dashboard content
@@ -99,21 +97,15 @@ export const generateAdminOGImage = (
 	} = {},
 ): string => {
 	void params;
-	return generateOGImageUrl({
-		variant: "default",
-	});
+	return generatePresetOGImage("home");
 };
 
 /**
  * Generate OG:image URL for the main site
  */
 export const generateMainOGImage = (eventCount?: number): string => {
-	return generateOGImageUrl({
-		title: "Fête Finder",
-		subtitle: "Curated Paris music events by Out Of Office Collective",
-		variant: "default",
-		eventCount,
-	});
+	void eventCount;
+	return generatePresetOGImage("home");
 };
 
 /**
@@ -174,8 +166,6 @@ export const generateOGMetadata = (params: {
 export const OG_PRESETS = {
 	main: () => generateMainOGImage(),
 	admin: () => generateAdminOGImage(),
-	event: (arrondissement?: string, eventCount?: number) =>
-		generateEventOGImage({ arrondissement, eventCount }),
-	custom: (title: string, subtitle: string) =>
-		generateOGImageUrl({ title, subtitle, variant: "default" }),
+	event: (eventKey: string) => generateEventOGImage({ eventKey }),
+	custom: (_title: string, _subtitle: string) => generatePresetOGImage("home"),
 } as const;

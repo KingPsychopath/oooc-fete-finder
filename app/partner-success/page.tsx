@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import {
-	generateOGImageUrl,
 	generateOGMetadata,
+	generatePresetOGImage,
 } from "@/lib/social/og-utils";
 import { CheckCircle2 } from "lucide-react";
 import type { Metadata } from "next";
@@ -12,11 +12,7 @@ export const metadata: Metadata = generateOGMetadata({
 	title: "Payment Received | OOOC Fete Finder",
 	description:
 		"Your payment was received. The OOOC team will activate your placement shortly.",
-	ogImageUrl: generateOGImageUrl({
-		title: "Payment Received",
-		subtitle: "Your OOOC placement is now in the activation queue",
-		variant: "default",
-	}),
+	ogImageUrl: generatePresetOGImage("partner-success"),
 	url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${basePath || ""}/partner-success`,
 });
 

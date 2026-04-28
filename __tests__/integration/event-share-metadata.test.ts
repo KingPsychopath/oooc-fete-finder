@@ -17,6 +17,10 @@ const loadGenerateMetadata = async () => {
 		},
 	}));
 
+	vi.doMock("next/cache", () => ({
+		unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+	}));
+
 	const module = await import("@/app/event/[eventKey]/[[...slug]]/page");
 	return module.generateMetadata;
 };
@@ -69,6 +73,7 @@ describe("/event/[eventKey]/[[...slug]] metadata", () => {
 		expect(canonical).toBe(
 			"https://fete.outofofficecollective.co.uk/event/evt_77b18c8e22eadd87/party-by-kklain",
 		);
+		expect(metadata.title).toBe("Party by Kklain | Fête Finder");
 		expect(metadata.description).toContain("10e arrondissement");
 		expect(metadata.description).toContain("Saturday 21st");
 		expect(metadata.description).toContain("16:00 - 02:00");
@@ -91,11 +96,13 @@ describe("/event/[eventKey]/[[...slug]] metadata", () => {
 		);
 
 		expect(imageUrl.pathname).toBe("/api/og");
-		expect(imageUrl.searchParams.get("arrondissement")).toBe("10e arrondissement");
-		expect(imageUrl.searchParams.get("date")).toBe("Saturday 21st");
-		expect(imageUrl.searchParams.get("time")).toBe("16:00 - 02:00");
-		expect(imageUrl.searchParams.get("venue")).toBe("18 Av. Richerand");
-		expect(imageUrl.searchParams.get("price")).toBe("Free");
-		expect(imageUrl.searchParams.get("genres")).toBe("afrobeats,amapiano,dancehall");
+		expect(imageUrl.searchParams.get("preset")).toBe("event");
+		expect(imageUrl.searchParams.get("eventKey")).toBe("evt_77b18c8e22eadd87");
+		expect(imageUrl.searchParams.has("arrondissement")).toBe(false);
+		expect(imageUrl.searchParams.has("date")).toBe(false);
+		expect(imageUrl.searchParams.has("time")).toBe(false);
+		expect(imageUrl.searchParams.has("venue")).toBe(false);
+		expect(imageUrl.searchParams.has("price")).toBe(false);
+		expect(imageUrl.searchParams.has("genres")).toBe(false);
 	});
 });

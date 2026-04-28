@@ -1,6 +1,9 @@
 import { generateEventOGImage, generateOGMetadata } from "@/lib/social/og-utils";
-import { DataManager } from "@/features/data-management/data-manager";
-import { formatDayWithDate, formatPrice, type Event } from "@/features/events/types";
+import { formatDayWithDate, formatPrice } from "@/features/events/types";
+import {
+	type EventShareDetails,
+	getEventShareDetails,
+} from "@/lib/social/event-share-details";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EventShareRedirect } from "./EventShareRedirect";
@@ -37,12 +40,14 @@ const normalizeBasePath = (value: string): string => {
 const getSlug = (value: string[] | undefined): string =>
 	Array.isArray(value) && value.length > 0 ? value[0] || "" : "";
 
-const formatArrondissement = (value: Event["arrondissement"]): string => {
+const formatArrondissement = (
+	value: EventShareDetails["arrondissement"],
+): string => {
 	if (value === "unknown") return "Paris";
 	return `${value}e arrondissement`;
 };
 
-const formatTimeRange = (event: Event): string => {
+const formatTimeRange = (event: EventShareDetails): string => {
 	const hasStart = Boolean(event.time && event.time !== "TBC");
 	const hasEnd = Boolean(event.endTime && event.endTime !== "TBC");
 	if (hasStart && hasEnd) return `${event.time} - ${event.endTime}`;
@@ -57,17 +62,17 @@ const formatVenue = (value: string | undefined): string => {
 	return cleaned;
 };
 
-const formatEventDate = (event: Event): string => {
+const formatEventDate = (event: EventShareDetails): string => {
 	if (!event.date) return "";
 	return formatDayWithDate(event.day, event.date);
 };
 
-const formatEventPrice = (event: Event): string => {
+const formatEventPrice = (event: EventShareDetails): string => {
 	const price = formatPrice(event.price);
 	return price === "TBA" ? "" : price;
 };
 
-const buildShareDescription = (event: Event | null): string => {
+const buildShareDescription = (event: EventShareDetails | null): string => {
 	if (!event) {
 		return "Event details from Fête Finder by Out Of Office Collective. View location, time, and nearby picks.";
 	}
@@ -109,39 +114,20 @@ export async function generateMetadata({
 	const { eventKey, slug } = await params;
 	const resolvedSlug = getSlug(slug);
 	const fallbackTitle = toDisplayTitle(eventKey);
-	const result = await DataManager.getEventsData({ populateCoordinates: false });
-	const matchedEvent = result.success
-		? result.data.find(
-				(event) => event.eventKey.toLowerCase() === eventKey.trim().toLowerCase(),
-			) || null
-		: null;
+	const matchedEvent = await getEventShareDetails(eventKey);
 	const eventTitle =
 		matchedEvent?.name || (resolvedSlug ? toDisplayTitle(resolvedSlug) : fallbackTitle);
 	const shareTitle = `${eventTitle} | Fête Finder`;
 	const shareDescription = buildShareDescription(matchedEvent);
 	const eventSharePath = buildEventSharePath(eventKey, resolvedSlug);
 	const eventUrl = new URL(eventSharePath, siteUrl);
-	const ogArrondissement = matchedEvent
-		? formatArrondissement(matchedEvent.arrondissement)
-		: undefined;
-	const ogTime = matchedEvent ? formatTimeRange(matchedEvent) : undefined;
-	const ogVenue = matchedEvent ? formatVenue(matchedEvent.location) : undefined;
-	const ogDate = matchedEvent ? formatEventDate(matchedEvent) : undefined;
-	const ogPrice = matchedEvent ? formatEventPrice(matchedEvent) : undefined;
-	const ogGenres = matchedEvent?.genre?.slice(0, 3);
 
 	return {
 		...generateOGMetadata({
 			title: shareTitle,
 			description: shareDescription,
 			ogImageUrl: generateEventOGImage({
-				eventName: eventTitle,
-				arrondissement: ogArrondissement,
-				time: ogTime,
-				venue: ogVenue,
-				date: ogDate,
-				price: ogPrice,
-				genres: ogGenres,
+				eventKey,
 			}),
 			url: eventUrl.toString(),
 			noIndex: true,

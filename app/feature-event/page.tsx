@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
 import { getFeaturedProjection } from "@/features/events/featured/service";
-import { generateOGImageUrl, generateOGMetadata } from "@/lib/social/og-utils";
+import { generateOGMetadata, generatePresetOGImage } from "@/lib/social/og-utils";
 import {
 	ArrowRight,
 	CheckCircle,
@@ -43,11 +43,7 @@ export const metadata: Metadata = {
 		title: "Partner With OOOC | Fete Finder",
 		description:
 			"Book Spotlight and Promoted placements for Fete de la Musique 2026 in minutes via Stripe Payment Links.",
-		ogImageUrl: generateOGImageUrl({
-			title: "Partner With OOOC",
-			subtitle: "Spotlight and promoted placements in Fete Finder",
-			variant: "default",
-		}),
+		ogImageUrl: generatePresetOGImage("feature-event"),
 		url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${process.env.NEXT_PUBLIC_BASE_PATH || ""}/feature-event`,
 	}),
 	keywords: [
