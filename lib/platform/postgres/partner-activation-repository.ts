@@ -512,6 +512,35 @@ export class PartnerActivationRepository {
 		}
 		return summary;
 	}
+
+	async getPendingNotificationSummary(): Promise<{
+		count: number;
+		oldestCreatedAt: string | null;
+		newestCreatedAt: string | null;
+	}> {
+		await this.ready();
+		const rows = await this.sql<
+			{
+				count: number;
+				oldest_created_at: Date | string | null;
+				newest_created_at: Date | string | null;
+			}[]
+		>`
+			SELECT
+				COUNT(*)::int AS count,
+				MIN(created_at) AS oldest_created_at,
+				MAX(created_at) AS newest_created_at
+			FROM app_partner_activation_queue
+			WHERE status = 'pending'
+		`;
+
+		const row = rows[0];
+		return {
+			count: row?.count ?? 0,
+			oldestCreatedAt: toNullableIsoString(row?.oldest_created_at ?? null),
+			newestCreatedAt: toNullableIsoString(row?.newest_created_at ?? null),
+		};
+	}
 }
 
 export const getPartnerActivationRepository =
