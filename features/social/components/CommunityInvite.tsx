@@ -7,6 +7,7 @@ import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { LAYERS } from "@/lib/ui/layers";
 import { MessageCircle, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { COMMUNITY_INVITE_CONFIG } from "../config";
 import { useCommunityInviteStorage } from "../hooks/use-community-invite-storage";
@@ -23,6 +24,7 @@ export function CommunityInvite({
 	className = "",
 }: CommunityInviteProps = {}) {
 	const [isAnimating, setIsAnimating] = useState(false);
+	const pathname = usePathname();
 	const hasActiveOverlay = useHasActiveBodyOverlay();
 	const { shouldShow, markChatClicked, markDismissed } =
 		useCommunityInviteStorage({
@@ -71,7 +73,7 @@ export function CommunityInvite({
 		[handleDismiss],
 	);
 
-	if (!shouldShow) return null;
+	if (!shouldShow || pathname?.startsWith("/social/")) return null;
 
 	const { CONTENT } = COMMUNITY_INVITE_CONFIG;
 

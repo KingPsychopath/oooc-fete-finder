@@ -6,6 +6,7 @@ import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { LAYERS } from "@/lib/ui/layers";
 import { Coffee } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 interface CoffeePromptState {
@@ -95,6 +96,7 @@ function isPromptAllowed(now = Date.now()): boolean {
 export function SupportCoffeePrompt() {
 	const [isDelayComplete, setIsDelayComplete] = useState(false);
 	const [isAllowed, setIsAllowed] = useState(false);
+	const pathname = usePathname();
 	const hasActiveOverlay = useHasActiveBodyOverlay();
 	const { isVisible: isEngagedByScroll } = useScrollVisibility({
 		threshold: 8,
@@ -143,6 +145,7 @@ export function SupportCoffeePrompt() {
 
 	if (
 		!isAllowed ||
+		pathname?.startsWith("/social/") ||
 		!isDelayComplete ||
 		!isEngagedByScroll ||
 		hasActiveOverlay ||
