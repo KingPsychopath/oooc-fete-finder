@@ -10,7 +10,6 @@
     "duplicates"
   ],
   "ignoreDependencies": [
-    "webpack",
     "sharp",
     "@types/geojson"
   ],
