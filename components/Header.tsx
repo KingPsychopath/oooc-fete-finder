@@ -21,8 +21,8 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
 
 const COMPRESS_ENTER_THRESHOLD = 20;
 const COMPRESS_EXIT_THRESHOLD = 6;
-const COLLAPSE_ENTER_THRESHOLD = 52;
-const COLLAPSE_EXIT_THRESHOLD = 34;
+const COLLAPSE_ENTER_THRESHOLD = 96;
+const COLLAPSE_EXIT_THRESHOLD = 12;
 const DEFAULT_BANNER_MESSAGES = [
 	"Curated by Out Of Office Collective",
 	"Paris summer rhythm, mapped live",
@@ -267,9 +267,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 						className={`overflow-hidden border-t border-border/75 transition-all duration-300 ease-out ${
 							isCollapsed
 								? "max-h-0 border-transparent opacity-0"
-								: "opacity-100"
-						} ${isCompressed && !isCollapsed ? "max-h-10" : ""} ${
-							!isCompressed && !isCollapsed ? "max-h-20" : ""
+								: "max-h-20 opacity-100"
 						}`}
 					>
 						<div className="px-3 pt-2 pb-2 sm:px-5 sm:pt-2.5 sm:pb-3">
@@ -283,7 +281,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 					messages={bannerSettings.messages}
 					messageDurationMs={bannerSettings.messageDurationMs}
 					desktopMessageCount={bannerSettings.desktopMessageCount}
-					className="mx-3 mt-2 rounded-xl border border-white/35 bg-[rgba(246,241,233,0.78)] dark:border-white/16 dark:bg-[rgba(12,13,16,0.82)] sm:mx-4"
+					className="mx-3 mt-2 rounded-xl border border-white/35 bg-[rgba(246,241,233,0.78)] dark:border-[rgba(248,189,112,0.2)] dark:bg-[rgba(31,24,18,0.86)] sm:mx-4"
 				/>
 			)}
 			<MusicPlatformModal
