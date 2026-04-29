@@ -1,32 +1,9 @@
+import { canonicalCodeToIsoCode, findCountryByText } from "./countries";
 import type { Nationality } from "./types";
 
 const FLAG_PAIR_REGEX = /[\u{1f1e6}-\u{1f1ff}]{2}/gu;
 const TOKEN_SPLIT_REGEX = /[\/&+,\s]+/;
-
-const ISO_TO_NATIONALITY: Record<string, Nationality> = {
-	GB: "UK",
-	UK: "UK",
-	FR: "FR",
-	CA: "CA",
-	NL: "NL",
-};
-
-const TEXT_TO_NATIONALITY: Record<string, Nationality> = {
-	gb: "UK",
-	uk: "UK",
-	britain: "UK",
-	british: "UK",
-	"united kingdom": "UK",
-	fr: "FR",
-	france: "FR",
-	french: "FR",
-	ca: "CA",
-	canada: "CA",
-	canadian: "CA",
-	nl: "NL",
-	netherlands: "NL",
-	dutch: "NL",
-};
+const PHRASE_SPLIT_REGEX = /[\/&+,]+/;
 
 const asIsoFromFlag = (flag: string): string | null => {
 	const codePoints = Array.from(flag).map((char) => char.codePointAt(0) ?? 0);
@@ -73,31 +50,36 @@ export const parseSupportedNationalities = (
 	for (const flag of flags) {
 		const iso = asIsoFromFlag(flag);
 		if (!iso) continue;
-		const mapped = ISO_TO_NATIONALITY[iso];
+		const mapped = findCountryByText(iso);
 		if (mapped) {
-			pushCode(mapped);
+			pushCode(mapped.code);
 		} else if (!unsupportedTokens.includes(iso)) {
 			unsupportedTokens.push(iso);
 		}
 	}
 
-	const lowered = value.toLowerCase();
-	for (const [text, mapped] of Object.entries(TEXT_TO_NATIONALITY)) {
-		if (lowered.includes(text)) {
-			pushCode(mapped);
+	for (const phrase of value
+		.split(PHRASE_SPLIT_REGEX)
+		.map((part) => part.trim())
+		.filter((part) => part.length > 0)) {
+		const phraseMatch = findCountryByText(phrase);
+		if (phraseMatch) {
+			pushCode(phraseMatch.code);
 		}
 	}
 
 	for (const token of tokenizeText(value)) {
-		const mapped = TEXT_TO_NATIONALITY[token];
+		const mapped = findCountryByText(token);
 		if (mapped) {
-			pushCode(mapped);
+			pushCode(mapped.code);
 			continue;
 		}
 
 		const upper = token.toUpperCase();
-		if (ISO_TO_NATIONALITY[upper]) {
-			pushCode(ISO_TO_NATIONALITY[upper]);
+		const iso = canonicalCodeToIsoCode(upper);
+		const isoMapped = findCountryByText(iso);
+		if (isoMapped) {
+			pushCode(isoMapped.code);
 			continue;
 		}
 

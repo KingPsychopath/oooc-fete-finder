@@ -1,5 +1,10 @@
 // Strict type definitions for enhanced event categorization
 import type { LocationResolution } from "@/features/locations/types";
+import {
+	COUNTRY_CODES,
+	COUNTRY_OPTIONS,
+	type CountryOption,
+} from "./countries";
 
 export type EventDay =
 	| "monday"
@@ -15,9 +20,9 @@ export type DayNightPeriod = "day" | "night";
 
 export type EventType = "Pre-Fete" | "Fete" | "Post-Fete";
 
-// Host country codes supported by ingestion/filtering
-export const SUPPORTED_NATIONALITY_CODES = ["UK", "FR", "CA", "NL"] as const;
-export type Nationality = (typeof SUPPORTED_NATIONALITY_CODES)[number];
+// Host/audience country codes supported by ingestion/filtering.
+export const SUPPORTED_NATIONALITY_CODES = COUNTRY_CODES;
+export type Nationality = string;
 
 // Venue type for Indoor/Outdoor column
 export type VenueType = "indoor" | "outdoor";
@@ -256,12 +261,17 @@ export const EVENT_TYPES = [
 	{ key: "Post-Fete" as const, label: "Post-Fete", icon: "➡️" },
 ] as const;
 
-export const NATIONALITIES = [
-	{ key: "CA" as const, label: "Canada", flag: "🇨🇦", shortCode: "CA" },
-	{ key: "FR" as const, label: "France", flag: "🇫🇷", shortCode: "FR" },
-	{ key: "NL" as const, label: "Netherlands", flag: "🇳🇱", shortCode: "NL" },
-	{ key: "UK" as const, label: "United Kingdom", flag: "🇬🇧", shortCode: "GB" },
-] as const;
+export const NATIONALITIES = COUNTRY_OPTIONS.map((country: CountryOption) => ({
+	key: country.code,
+	label: country.label,
+	flag: country.flag,
+	shortCode: country.code,
+})) as Array<{
+	key: Nationality;
+	label: string;
+	flag: string;
+	shortCode: string;
+}>;
 
 export const PARIS_ARRONDISSEMENTS = [
 	{

@@ -31,6 +31,10 @@ import {
 	createCustomColumnKey,
 } from "@/features/data-management/csv/sheet-editor";
 import {
+	type CountryOption,
+	filterCountryOptions,
+} from "@/features/events/countries";
+import {
 	DEFAULT_GENRE_ALIASES,
 	type GenreTaxonomyDefinition,
 	type GenreTaxonomySnapshot,
@@ -59,6 +63,10 @@ type GenreCellPart = {
 	resolved: string | null;
 	label: string;
 };
+type FocusedCell = {
+	rowIndex: number;
+	columnKey: string;
+};
 
 const ROW_DELETE_CONFIRMATION =
 	"Delete this row from the event sheet? This will be removed on next save.";
@@ -71,6 +79,7 @@ const MAX_FROZEN_COLUMNS = 4;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
 const DEFAULT_SORT_MODE: SheetSortMode = "smart-date";
 const CATEGORY_COLUMN_KEY = "categories";
+const COUNTRY_COLUMN_KEYS = new Set(["hostCountry", "audienceCountry"]);
 const DEFAULT_ALIAS_KEYS = new Set(
 	DEFAULT_GENRE_ALIASES.map(
 		([alias, genreKey]) => `${normalizeGenreKey(alias)}:${genreKey}`,
@@ -79,6 +88,19 @@ const DEFAULT_ALIAS_KEYS = new Set(
 
 const cellRefKey = (rowIndex: number, columnKey: string) =>
 	`${rowIndex}:${columnKey}`;
+
+const getCountrySearchSegment = (value: string): string => {
+	const parts = value.split(/[\/,&+]/);
+	return (parts.at(-1) ?? value).trim();
+};
+
+const replaceCountrySearchSegment = (
+	value: string,
+	countryCode: string,
+): string => {
+	const match = value.match(/^([\s\S]*[\/,&+]\s*)?([^\/,&+]*)$/);
+	return `${match?.[1] ?? ""}${countryCode}`;
+};
 
 const splitGenreCell = (
 	value: string,
@@ -221,6 +243,9 @@ export const EventSheetEditorCard = ({
 	const [focusedCategoryRowIndex, setFocusedCategoryRowIndex] = useState<
 		number | null
 	>(null);
+	const [focusedCountryCell, setFocusedCountryCell] =
+		useState<FocusedCell | null>(null);
+	const [highlightedCountryIndex, setHighlightedCountryIndex] = useState(0);
 
 	const rowsRef = useRef<EditableSheetRow[]>([]);
 	const columnsRef = useRef<EditableSheetColumn[]>([]);
@@ -713,6 +738,30 @@ export const EventSheetEditorCard = ({
 		setGenreTaxonomy(result.genreTaxonomy);
 		setStatusMessage(result.message || "Genre alias removed");
 	}, []);
+
+	const countryOptionsForFocusedCell = useMemo((): CountryOption[] => {
+		if (!focusedCountryCell) return [];
+		const value =
+			rows[focusedCountryCell.rowIndex]?.[focusedCountryCell.columnKey] ?? "";
+		return filterCountryOptions(getCountrySearchSegment(value), 8);
+	}, [focusedCountryCell, rows]);
+
+	const selectCountryForCell = useCallback(
+		(rowIndex: number, columnKey: string, country: CountryOption) => {
+			const row = rowsRef.current[rowIndex];
+			if (!row) return;
+			handleCellChange(
+				rowIndex,
+				columnKey,
+				replaceCountrySearchSegment(row[columnKey] ?? "", country.code),
+			);
+			setFocusedCountryCell({ rowIndex, columnKey });
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange],
+	);
 
 	const filteredRowIndexes = useMemo(() => {
 		if (!query.trim()) {
@@ -1294,9 +1343,9 @@ export const EventSheetEditorCard = ({
 					`Spotlight & Promoted Scheduler`.
 				</div>
 				<div className="text-xs text-muted-foreground">
-					`Host Country` and `Audience Country` support `FR`, `UK`, `CA`, `NL`
-					(flags, ISO codes, or common names). Unknown tokens are flagged in
-					schema preflight.
+					`Host Country` and `Audience Country` support country names, flags,
+					and ISO codes. Focus either column to search and insert normalized
+					country codes.
 				</div>
 
 				<div className="text-xs text-muted-foreground">
@@ -1523,6 +1572,167 @@ export const EventSheetEditorCard = ({
 																	</span>
 																))}
 															</div>
+														</div>
+													) : COUNTRY_COLUMN_KEYS.has(column.key) ? (
+														<div className="relative min-h-9 bg-transparent">
+															<input
+																ref={(node) => {
+																	inputRefs.current[
+																		cellRefKey(rowIndex, column.key)
+																	] = node;
+																}}
+																value={row[column.key] ?? ""}
+																onFocus={() => {
+																	setFocusedCountryCell({
+																		rowIndex,
+																		columnKey: column.key,
+																	});
+																	setHighlightedCountryIndex(0);
+																}}
+																onChange={(event) => {
+																	setFocusedCountryCell({
+																		rowIndex,
+																		columnKey: column.key,
+																	});
+																	setHighlightedCountryIndex(0);
+																	handleCellChange(
+																		rowIndex,
+																		column.key,
+																		event.target.value,
+																	);
+																}}
+																onBlur={() => {
+																	const key = cellRefKey(rowIndex, column.key);
+																	if (activeCellEditRef.current === key) {
+																		activeCellEditRef.current = null;
+																	}
+																	window.setTimeout(() => {
+																		setFocusedCountryCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? null
+																				: current,
+																		);
+																	}, 120);
+																}}
+																onKeyDown={(event) => {
+																	if (
+																		event.key === "ArrowDown" &&
+																		countryOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		setHighlightedCountryIndex((current) =>
+																			Math.min(
+																				current + 1,
+																				countryOptionsForFocusedCell.length - 1,
+																			),
+																		);
+																		return;
+																	}
+																	if (
+																		event.key === "ArrowUp" &&
+																		countryOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		setHighlightedCountryIndex((current) =>
+																			Math.max(current - 1, 0),
+																		);
+																		return;
+																	}
+																	if (
+																		event.key === "Enter" &&
+																		countryOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		selectCountryForCell(
+																			rowIndex,
+																			column.key,
+																			countryOptionsForFocusedCell[
+																				highlightedCountryIndex
+																			] ?? countryOptionsForFocusedCell[0],
+																		);
+																		return;
+																	}
+																	if (event.key === "Escape") {
+																		event.preventDefault();
+																		setFocusedCountryCell(null);
+																		return;
+																	}
+																	if (event.key === "Enter") {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (
+																		event.key === "ArrowRight" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, 0, 1);
+																	}
+																	if (
+																		event.key === "ArrowLeft" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, 0, -1);
+																	}
+																}}
+																className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+																aria-autocomplete="list"
+																aria-expanded={
+																	focusedCountryCell?.rowIndex === rowIndex &&
+																	focusedCountryCell.columnKey === column.key
+																}
+															/>
+															{focusedCountryCell?.rowIndex === rowIndex &&
+																focusedCountryCell.columnKey === column.key && (
+																	<div className="absolute left-1 top-8 z-40 w-64 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																			Country
+																		</div>
+																		<div className="max-h-56 overflow-y-auto p-1">
+																			{countryOptionsForFocusedCell.map(
+																				(country, optionIndex) => (
+																					<button
+																						key={country.code}
+																						type="button"
+																						onMouseDown={(event) => {
+																							event.preventDefault();
+																							selectCountryForCell(
+																								rowIndex,
+																								column.key,
+																								country,
+																							);
+																						}}
+																						className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																							optionIndex ===
+																							highlightedCountryIndex
+																								? "bg-accent text-accent-foreground"
+																								: "hover:bg-accent/70"
+																						}`}
+																					>
+																						<span className="text-sm">
+																							{country.flag}
+																						</span>
+																						<span className="min-w-0 flex-1 truncate">
+																							{country.label}
+																						</span>
+																						<span className="font-mono text-[10px] text-muted-foreground">
+																							{country.code}
+																						</span>
+																					</button>
+																				),
+																			)}
+																			{countryOptionsForFocusedCell.length ===
+																				0 && (
+																				<div className="px-2 py-2 text-xs text-muted-foreground">
+																					No matching country. Keep typing a
+																					code or name.
+																				</div>
+																			)}
+																		</div>
+																	</div>
+																)}
 														</div>
 													) : (
 														<input

@@ -9,6 +9,7 @@ import EventModal from "@/features/events/components/EventModal";
 import EventStats from "@/features/events/components/EventStats";
 import FilterPanel from "@/features/events/components/FilterPanel";
 import SearchBar from "@/features/events/components/SearchBar";
+import { getCountryOption } from "@/features/events/countries";
 import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
 import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
@@ -22,6 +23,7 @@ import {
 	type Event,
 	MUSIC_GENRES,
 	type MusicGenreDefinition,
+	type Nationality,
 } from "@/features/events/types";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { EventsMapCard } from "@/features/maps/components/events-map-card";
@@ -54,6 +56,28 @@ const buildAvailableGenresForEvents = (
 		}
 	}
 	return Array.from(genreByKey.values()).sort((left, right) =>
+		left.label.localeCompare(right.label),
+	);
+};
+
+const buildAvailableNationalitiesForEvents = (events: Event[]) => {
+	const optionsByCode = new Map<
+		Nationality,
+		{ key: Nationality; label: string; flag: string; shortCode: string }
+	>();
+	for (const event of events) {
+		for (const nationality of event.nationality ?? []) {
+			if (optionsByCode.has(nationality)) continue;
+			const country = getCountryOption(nationality);
+			optionsByCode.set(nationality, {
+				key: nationality,
+				label: country?.label ?? nationality,
+				flag: country?.flag ?? "",
+				shortCode: nationality,
+			});
+		}
+	}
+	return Array.from(optionsByCode.values()).sort((left, right) =>
 		left.label.localeCompare(right.label),
 	);
 };
@@ -141,6 +165,10 @@ export function EventsClient({
 	});
 	const availableGenres = useMemo(
 		() => buildAvailableGenresForEvents(initialEvents),
+		[initialEvents],
+	);
+	const availableNationalities = useMemo(
+		() => buildAvailableNationalitiesForEvents(initialEvents),
 		[initialEvents],
 	);
 
@@ -451,6 +479,7 @@ export function EventsClient({
 						onClearFilters={onClearFilters}
 						availableArrondissements={availableArrondissements}
 						availableGenres={availableGenres}
+						availableNationalities={availableNationalities}
 						availableEventDates={availableEventDates}
 						quickSelectEventDates={quickSelectEventDates}
 						filteredEventsCount={filteredEvents.length}

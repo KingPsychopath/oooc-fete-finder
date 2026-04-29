@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { parseSupportedNationalities } from "@/features/events/nationality-utils";
+import { describe, expect, it } from "vitest";
 
 describe("parseSupportedNationalities", () => {
 	it("parses concatenated flag emojis including NL", () => {
@@ -15,10 +15,17 @@ describe("parseSupportedNationalities", () => {
 		expect(parsed.codes).toEqual(["UK", "FR", "CA"]);
 	});
 
-	it("reports unsupported country tokens", () => {
-		const parsed = parseSupportedNationalities("🇫🇷🇩🇪");
+	it("parses countries beyond the visible default filter set", () => {
+		const parsed = parseSupportedNationalities("United States / Spanish / 🇩🇪");
+
+		expect(parsed.codes).toEqual(expect.arrayContaining(["US", "ES", "DE"]));
+		expect(parsed.unsupportedTokens).toEqual([]);
+	});
+
+	it("reports invalid country tokens", () => {
+		const parsed = parseSupportedNationalities("FR / XX");
 
 		expect(parsed.codes).toEqual(["FR"]);
-		expect(parsed.unsupportedTokens).toContain("DE");
+		expect(parsed.unsupportedTokens).toContain("XX");
 	});
 });

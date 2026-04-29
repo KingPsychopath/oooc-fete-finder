@@ -33,7 +33,6 @@ import {
 	MUSIC_GENRES,
 	type MusicGenre,
 	type MusicGenreDefinition,
-	NATIONALITIES,
 	type Nationality,
 	PRICE_RANGE_CONFIG,
 	type ParisArrondissement,
@@ -89,6 +88,12 @@ type FilterPanelProps = {
 	onClearFilters: () => void;
 	availableArrondissements: ParisArrondissement[];
 	availableGenres?: MusicGenreDefinition[];
+	availableNationalities?: Array<{
+		key: Nationality;
+		label: string;
+		flag: string;
+		shortCode: string;
+	}>;
 	availableEventDates: string[];
 	quickSelectEventDates: string[];
 	filteredEventsCount: number;
@@ -124,6 +129,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onClearFilters,
 	availableArrondissements,
 	availableGenres,
+	availableNationalities = [],
 	availableEventDates,
 	quickSelectEventDates,
 	filteredEventsCount,
@@ -787,18 +793,27 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														)}
 													</h3>
 													<div className="grid grid-cols-3 gap-1">
-														{NATIONALITIES.map(({ key, flag, shortCode }) => (
-															<Toggle
-																key={key}
-																pressed={selectedNationalities.includes(key)}
-																onPressedChange={() => onNationalityToggle(key)}
-																className={regularToggleClassName}
-																size="sm"
-															>
-																<span className="mr-1.5 text-sm">{flag}</span>
-																<span className="text-xs">{shortCode}</span>
-															</Toggle>
-														))}
+														{availableNationalities.map(
+															({ key, flag, shortCode }) => (
+																<Toggle
+																	key={key}
+																	pressed={selectedNationalities.includes(key)}
+																	onPressedChange={() =>
+																		onNationalityToggle(key)
+																	}
+																	className={regularToggleClassName}
+																	size="sm"
+																>
+																	<span className="mr-1.5 text-sm">{flag}</span>
+																	<span className="text-xs">{shortCode}</span>
+																</Toggle>
+															),
+														)}
+														{availableNationalities.length === 0 && (
+															<p className="col-span-3 text-xs text-muted-foreground">
+																No country filters available.
+															</p>
+														)}
 													</div>
 												</div>
 											</div>
@@ -1248,7 +1263,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										)}
 									</h3>
 									<div className="grid grid-cols-3 gap-1">
-										{NATIONALITIES.map(({ key, flag, shortCode }) => (
+										{availableNationalities.map(({ key, flag, shortCode }) => (
 											<Toggle
 												key={key}
 												pressed={selectedNationalities.includes(key)}
@@ -1260,6 +1275,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												<span className="text-xs">{shortCode}</span>
 											</Toggle>
 										))}
+										{availableNationalities.length === 0 && (
+											<p className="col-span-3 text-xs text-muted-foreground">
+												No country filters available.
+											</p>
+										)}
 									</div>
 								</div>
 

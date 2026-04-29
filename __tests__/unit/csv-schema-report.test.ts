@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { analyzeCsvSchemaRows } from "@/features/data-management/validation/csv-schema-report";
+import { describe, expect, it } from "vitest";
 
 describe("analyzeCsvSchemaRows", () => {
 	it("flags legacy featured values as blocking", () => {
@@ -13,25 +13,28 @@ describe("analyzeCsvSchemaRows", () => {
 
 		expect(report.hasBlockingIssues).toBe(true);
 		expect(report.blockingCount).toBeGreaterThan(0);
-		expect(report.issues.some((issue) => issue.code === "featured_legacy_value")).toBe(
-			true,
-		);
+		expect(
+			report.issues.some((issue) => issue.code === "featured_legacy_value"),
+		).toBe(true);
 	});
 
 	it("blocks missing event keys when eventKeyMode is error", () => {
-		const report = analyzeCsvSchemaRows([
-			{
-				title: "Event",
-				date: "2026-06-21",
-				eventKey: "",
-			},
-		], { eventKeyMode: "error" });
+		const report = analyzeCsvSchemaRows(
+			[
+				{
+					title: "Event",
+					date: "2026-06-21",
+					eventKey: "",
+				},
+			],
+			{ eventKeyMode: "error" },
+		);
 
 		expect(report.hasBlockingIssues).toBe(true);
 		expect(report.blockingCount).toBeGreaterThan(0);
-		expect(report.issues.some((issue) => issue.code === "event_key_missing")).toBe(
-			true,
-		);
+		expect(
+			report.issues.some((issue) => issue.code === "event_key_missing"),
+		).toBe(true);
 	});
 
 	it("warns on missing event keys without blocking import", () => {
@@ -45,12 +48,12 @@ describe("analyzeCsvSchemaRows", () => {
 
 		expect(report.hasBlockingIssues).toBe(false);
 		expect(report.warningCount).toBeGreaterThan(0);
-		expect(report.issues.some((issue) => issue.code === "event_key_missing")).toBe(
-			true,
-		);
-		expect(report.issues.some((issue) => issue.code === "date_missing_year")).toBe(
-			true,
-		);
+		expect(
+			report.issues.some((issue) => issue.code === "event_key_missing"),
+		).toBe(true);
+		expect(
+			report.issues.some((issue) => issue.code === "date_missing_year"),
+		).toBe(true);
 	});
 
 	it("warns on unsupported host and audience country tokens", () => {
@@ -58,8 +61,8 @@ describe("analyzeCsvSchemaRows", () => {
 			{
 				title: "Event",
 				date: "2026-06-21",
-				hostCountry: "🇫🇷🇩🇪",
-				audienceCountry: "UK + DE",
+				hostCountry: "🇫🇷 XX",
+				audienceCountry: "UK + ZZ",
 			},
 		]);
 

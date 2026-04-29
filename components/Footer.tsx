@@ -54,32 +54,37 @@ const socialLinks = [
 const Footer = () => {
 	return (
 		<footer className="mt-10 border-t border-border/70 bg-card/78 backdrop-blur">
-			<div className="container mx-auto px-4 py-6">
-				<div className="flex flex-col items-center justify-center space-y-4 sm:flex-row sm:justify-between sm:space-y-0">
+			<div className="container mx-auto px-4 py-7 sm:py-6">
+				<div className="flex flex-col items-center justify-center gap-6 lg:flex-row lg:justify-between">
 					{/* Social Links */}
-					<div className="flex flex-col items-center gap-2 sm:items-start">
-						<div className="flex items-center space-x-4">
-							<span className="text-sm text-muted-foreground">
+					<div className="flex w-full flex-col items-center gap-4 lg:w-auto lg:items-start">
+						<div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+							<span className="text-center text-sm text-muted-foreground sm:text-left">
 								Follow us on socials for updates
 							</span>
-							{socialLinks.map((social) => {
-								const IconComponent = social.icon;
-								return (
-									<Link
-										key={social.name}
-										href={social.url}
-										target="_blank"
-										rel="noopener noreferrer"
-										aria-label={social.ariaLabel}
-										className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-									>
-										<IconComponent className="h-4 w-4" />
-										<ExternalLink className="ml-1 h-3 w-3" />
-									</Link>
-								);
-							})}
+							<div className="flex items-center justify-center gap-2">
+								{socialLinks.map((social) => {
+									const IconComponent = social.icon;
+									return (
+										<Link
+											key={social.name}
+											href={social.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											aria-label={social.ariaLabel}
+											className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+										>
+											<IconComponent className="h-4 w-4" />
+											<ExternalLink className="ml-1 h-3 w-3" />
+										</Link>
+									);
+								})}
+							</div>
 						</div>
-						<div className="flex items-center gap-3 text-xs">
+						<nav
+							aria-label="Footer"
+							className="grid w-full max-w-sm grid-cols-2 gap-x-5 gap-y-2 text-center text-xs sm:max-w-none sm:grid-cols-none sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-4 sm:gap-y-2 lg:justify-start"
+						>
 							<Link
 								href="/how-it-works"
 								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
@@ -120,13 +125,13 @@ const Footer = () => {
 							>
 								FAQ&apos;s
 							</Link>
-						</div>
+						</nav>
 					</div>
 
 					{/* Version and Attribution */}
-					<div className="flex flex-col items-center sm:items-end space-y-1">
-						<div className="flex flex-col items-center sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-1 text-xs text-muted-foreground">
-							<div className="flex items-center space-x-1">
+					<div className="flex flex-col items-center space-y-1 text-center lg:items-end lg:text-right">
+						<div className="flex flex-col items-center space-y-1 text-xs text-muted-foreground sm:flex-row sm:items-center sm:space-x-1 sm:space-y-0">
+							<div className="flex flex-wrap items-center justify-center gap-x-1 lg:justify-end">
 								<span>Web app v1.0.0 • Made by</span>
 								<Link
 									href="https://x.com/milkandh3nny"
