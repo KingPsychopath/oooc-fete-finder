@@ -603,14 +603,16 @@ export const EventSheetEditorCard = ({
 	}, []);
 
 	const addGenreToRow = useCallback(
-		(rowIndex: number, genreKey: string) => {
+		(
+			rowIndex: number,
+			genreKey: string,
+			taxonomyOverride?: GenreTaxonomySnapshot,
+		) => {
 			const row = rowsRef.current[rowIndex];
 			if (!row) return;
-			const label = getGenreLabel(genreKey, genreTaxonomy?.genres ?? []);
-			const parts = splitGenreCell(
-				row[CATEGORY_COLUMN_KEY] ?? "",
-				genreTaxonomy,
-			);
+			const taxonomy = taxonomyOverride ?? genreTaxonomy;
+			const label = getGenreLabel(genreKey, taxonomy?.genres ?? []);
+			const parts = splitGenreCell(row[CATEGORY_COLUMN_KEY] ?? "", taxonomy);
 			if (parts.some((part) => part.resolved === genreKey)) {
 				return;
 			}
@@ -644,7 +646,7 @@ export const EventSheetEditorCard = ({
 			setStatusMessage(result.message || "Genre added");
 			const targetRowIndex = rowIndex ?? focusedCategoryRowIndex;
 			if (targetRowIndex !== null) {
-				addGenreToRow(targetRowIndex, result.genreKey);
+				addGenreToRow(targetRowIndex, result.genreKey, result.genreTaxonomy);
 			}
 		},
 		[addGenreToRow, focusedCategoryRowIndex],
