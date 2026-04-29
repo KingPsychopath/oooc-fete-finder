@@ -10,6 +10,7 @@ import { SOCIAL_PROOF_SAVE_WINDOW_DAYS } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { cache } from "react";
 import { DataManager } from "./data-manager";
 import { isValidEventsData } from "./data-processor";
 
@@ -118,58 +119,74 @@ const toEventsResult = (
 	};
 };
 
+const getSourceEventsForRequest = cache(async (populateCoordinates: boolean) =>
+	DataManager.getEventsData({ populateCoordinates }),
+);
+
+const getLiveEventsForRequest = cache(
+	async (
+		includeFeaturedProjection: boolean,
+		includeEngagementProjection: boolean,
+	): Promise<EventsResult> => {
+		const startedAt = Date.now();
+		try {
+			const result = await getSourceEventsForRequest(false);
+			metrics.totalFetchMs += Date.now() - startedAt;
+			metrics.fetchCount += 1;
+
+			const normalized = toEventsResult(result);
+			if (normalized.success && includeFeaturedProjection) {
+				normalized.data = await applyFeaturedProjectionToEvents(
+					normalized.data,
+				);
+				normalized.data = await applyPromotedProjectionToEvents(
+					normalized.data,
+				);
+			}
+			if (normalized.success && includeEngagementProjection) {
+				const repository = getEventEngagementRepository();
+				if (repository) {
+					const socialProofSaveCounts =
+						await repository.getSocialProofSaveCounts({
+							eventKeys: normalized.data.map((event) => event.eventKey),
+							windowDays: SOCIAL_PROOF_SAVE_WINDOW_DAYS,
+						});
+					normalized.data = normalized.data.map((event) => ({
+						...event,
+						socialProofSaveCount:
+							socialProofSaveCounts.get(event.eventKey) ?? 0,
+					}));
+				}
+			}
+			if (!normalized.success) {
+				metrics.errors += 1;
+			}
+			return normalized;
+		} catch (error) {
+			metrics.totalFetchMs += Date.now() - startedAt;
+			metrics.fetchCount += 1;
+			metrics.errors += 1;
+			return {
+				success: false,
+				data: [],
+				count: 0,
+				cached: false,
+				source: "store",
+				error:
+					error instanceof Error ? error.message : "Unknown events fetch error",
+			};
+		}
+	},
+);
+
 export async function getLiveEvents(options?: {
 	includeFeaturedProjection?: boolean;
 	includeEngagementProjection?: boolean;
 }): Promise<EventsResult> {
-	const startedAt = Date.now();
-	const includeFeaturedProjection =
-		options?.includeFeaturedProjection !== false;
-	const includeEngagementProjection =
-		options?.includeEngagementProjection !== false;
-	try {
-		const result = await DataManager.getEventsData();
-		metrics.totalFetchMs += Date.now() - startedAt;
-		metrics.fetchCount += 1;
-
-		const normalized = toEventsResult(result);
-		if (normalized.success && includeFeaturedProjection) {
-			normalized.data = await applyFeaturedProjectionToEvents(normalized.data);
-			normalized.data = await applyPromotedProjectionToEvents(normalized.data);
-		}
-		if (normalized.success && includeEngagementProjection) {
-			const repository = getEventEngagementRepository();
-			if (repository) {
-				const socialProofSaveCounts = await repository.getSocialProofSaveCounts(
-					{
-						eventKeys: normalized.data.map((event) => event.eventKey),
-						windowDays: SOCIAL_PROOF_SAVE_WINDOW_DAYS,
-					},
-				);
-				normalized.data = normalized.data.map((event) => ({
-					...event,
-					socialProofSaveCount: socialProofSaveCounts.get(event.eventKey) ?? 0,
-				}));
-			}
-		}
-		if (!normalized.success) {
-			metrics.errors += 1;
-		}
-		return normalized;
-	} catch (error) {
-		metrics.totalFetchMs += Date.now() - startedAt;
-		metrics.fetchCount += 1;
-		metrics.errors += 1;
-		return {
-			success: false,
-			data: [],
-			count: 0,
-			cached: false,
-			source: "store",
-			error:
-				error instanceof Error ? error.message : "Unknown events fetch error",
-		};
-	}
+	return getLiveEventsForRequest(
+		options?.includeFeaturedProjection !== false,
+		options?.includeEngagementProjection !== false,
+	);
 }
 
 export const revalidateEventsPaths = (
@@ -239,7 +256,7 @@ export async function fullEventsRevalidation(
 export async function getRuntimeDataStatusFromSource(): Promise<RuntimeDataStatus> {
 	const [configStatus, statusRead] = await Promise.all([
 		DataManager.getDataConfigStatus(),
-		DataManager.getEventsData({ populateCoordinates: false }),
+		getSourceEventsForRequest(false),
 	]);
 
 	const source = statusRead.success
