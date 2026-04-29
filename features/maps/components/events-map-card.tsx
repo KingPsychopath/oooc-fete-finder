@@ -60,6 +60,9 @@ export function EventsMapCard({
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	const [mapPortalElement, setMapPortalElement] =
 		useState<HTMLDivElement | null>(null);
+	const fullscreenButtonRef = useRef<HTMLButtonElement>(null);
+	const fullscreenCloseButtonRef = useRef<HTMLButtonElement>(null);
+	const hasFullscreenHistoryEntryRef = useRef(false);
 	const normalMapSlotRef = useRef<HTMLDivElement>(null);
 	const fullscreenMapSlotRef = useRef<HTMLDivElement>(null);
 
@@ -129,17 +132,51 @@ export function EventsMapCard({
 		const previousOverflow = document.body.style.overflow;
 		document.body.style.overflow = "hidden";
 
+		window.history.pushState(
+			{ ...(window.history.state ?? {}), ooocMapFullscreen: true },
+			"",
+		);
+		hasFullscreenHistoryEntryRef.current = true;
+
+		window.requestAnimationFrame(() => {
+			fullscreenCloseButtonRef.current?.focus();
+		});
+
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
 				setIsFullscreen(false);
 			}
 		};
+		const handlePopState = (event: PopStateEvent) => {
+			const nextState =
+				event.state &&
+				typeof event.state === "object" &&
+				!Array.isArray(event.state)
+					? (event.state as Record<string, unknown>)
+					: {};
+			if (
+				hasFullscreenHistoryEntryRef.current &&
+				nextState.ooocMapFullscreen !== true
+			) {
+				hasFullscreenHistoryEntryRef.current = false;
+				setIsFullscreen(false);
+			}
+		};
 
 		window.addEventListener("keydown", handleKeyDown);
+		window.addEventListener("popstate", handlePopState);
 
 		return () => {
 			document.body.style.overflow = previousOverflow;
 			window.removeEventListener("keydown", handleKeyDown);
+			window.removeEventListener("popstate", handlePopState);
+			if (hasFullscreenHistoryEntryRef.current) {
+				hasFullscreenHistoryEntryRef.current = false;
+				window.history.back();
+			}
+			window.requestAnimationFrame(() => {
+				fullscreenButtonRef.current?.focus();
+			});
 		};
 	}, [isFullscreen]);
 
@@ -251,6 +288,7 @@ export function EventsMapCard({
 							<Button
 								variant="outline"
 								size="sm"
+								ref={fullscreenButtonRef}
 								onClick={handleOpenFullscreen}
 								className="h-9 rounded-full border-border/70 bg-background/65 px-3 text-xs"
 								aria-expanded={isFullscreen}
@@ -296,11 +334,15 @@ export function EventsMapCard({
 					<div
 						className="fixed inset-0 h-[100svh] w-screen overflow-hidden bg-background"
 						style={{ zIndex: LAYERS.OVERLAY - 10 }}
+						role="dialog"
+						aria-modal="true"
+						aria-label="Full screen Paris event map"
 					>
 						<div className="pointer-events-none absolute right-2 top-28 z-[4] flex flex-col items-center gap-2 sm:left-1/2 sm:right-auto sm:top-5 sm:-translate-x-1/2 sm:flex-row">
 							<Button
 								variant="secondary"
 								size="sm"
+								ref={fullscreenCloseButtonRef}
 								onClick={() => setIsFullscreen(false)}
 								className="pointer-events-auto h-11 w-11 rounded-full border border-border/70 bg-background/82 p-0 shadow-lg backdrop-blur-md"
 								aria-label="Close full screen map"
