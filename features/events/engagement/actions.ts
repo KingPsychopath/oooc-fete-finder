@@ -201,7 +201,7 @@ export async function getEventEngagementDashboard(
 			}
 		}
 
-		const genreLabelByKey = new Map(
+		const genreLabelByKey = new Map<string, string>(
 			MUSIC_GENRES.map((genre) => [genre.key, genre.label]),
 		);
 

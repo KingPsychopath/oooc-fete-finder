@@ -4,8 +4,10 @@
  * Generic source pipeline with explicit source priority and fallback reasons.
  */
 
-import { env } from "@/lib/config/env";
+import { DEFAULT_GENRE_TAXONOMY } from "@/features/events/genre-normalization";
 import { Event } from "@/features/events/types";
+import { env } from "@/lib/config/env";
+import { loadGenreTaxonomySnapshot } from "@/lib/platform/postgres/music-genre-taxonomy-repository";
 import { fetchLocalCSV } from "./csv/fetcher";
 import { isValidEventsData, processCSVData } from "./data-processor";
 import { LocalEventStore } from "./local-event-store";
@@ -43,6 +45,7 @@ type SourceAttemptResult = SourceAttemptSuccess | SourceAttemptFailure;
 
 interface DataReadOptions {
 	populateCoordinates?: boolean;
+	genreTaxonomy?: Awaited<ReturnType<typeof loadGenreTaxonomySnapshot>>;
 }
 
 interface SourceDescriptor {
@@ -210,8 +213,18 @@ export class DataManager {
 			return runTestMode();
 		}
 
+		const genreTaxonomy =
+			options?.genreTaxonomy ??
+			(process.env.NODE_ENV === "test"
+				? DEFAULT_GENRE_TAXONOMY
+				: await loadGenreTaxonomySnapshot());
+		const readOptions = {
+			...options,
+			genreTaxonomy,
+		};
+
 		if (configuredMode === "local") {
-			return runSourceChain([loadFromLocal], [], options);
+			return runSourceChain([loadFromLocal], [], readOptions);
 		}
 
 		// Remote mode pipeline:
@@ -220,7 +233,7 @@ export class DataManager {
 		const result = await runSourceChain(
 			[loadFromStore, loadFromLocal],
 			[],
-			options,
+			readOptions,
 		);
 		if (result.success && result.source === "local") {
 			return {

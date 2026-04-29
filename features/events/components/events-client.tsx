@@ -14,7 +14,11 @@ import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
 import { getSocialProofDisplayModes } from "@/features/events/social-proof";
-import type { Event } from "@/features/events/types";
+import {
+	type Event,
+	MUSIC_GENRES,
+	type MusicGenreDefinition,
+} from "@/features/events/types";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { EventsMapCard } from "@/features/maps/components/events-map-card";
 import { clientLog } from "@/lib/platform/client-logger";
@@ -27,6 +31,31 @@ interface EventsClientProps {
 }
 
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
+
+const buildAvailableGenresForEvents = (
+	events: Event[],
+): MusicGenreDefinition[] => {
+	const genreByKey = new Map<string, MusicGenreDefinition>(
+		MUSIC_GENRES.map((genre) => [genre.key, { ...genre }]),
+	);
+	for (const event of events) {
+		for (const genre of event.genre ?? []) {
+			if (genreByKey.has(genre)) continue;
+			genreByKey.set(genre, {
+				key: genre,
+				label: genre
+					.split(" ")
+					.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+					.join(" "),
+				color: "bg-stone-500",
+				isActive: true,
+			});
+		}
+	}
+	return Array.from(genreByKey.values()).sort((left, right) =>
+		left.label.localeCompare(right.label),
+	);
+};
 
 export function EventsClient({
 	initialEvents,
@@ -109,6 +138,10 @@ export function EventsClient({
 		requireAuth,
 		isFilterAccessAllowed: isAuthenticated || authMode === "offline-grace",
 	});
+	const availableGenres = useMemo(
+		() => buildAvailableGenresForEvents(initialEvents),
+		[initialEvents],
+	);
 
 	const eventsByEventKey = useMemo(() => {
 		return new Map(
@@ -416,6 +449,7 @@ export function EventsClient({
 						onOOOCPicksToggle={onOOOCPicksToggle}
 						onClearFilters={onClearFilters}
 						availableArrondissements={availableArrondissements}
+						availableGenres={availableGenres}
 						availableEventDates={availableEventDates}
 						quickSelectEventDates={quickSelectEventDates}
 						filteredEventsCount={filteredEvents.length}

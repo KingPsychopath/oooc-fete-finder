@@ -173,6 +173,18 @@ describe("event assembler identity", () => {
 		expect(fromAmpersand.genre).toEqual(["r&b"]);
 	});
 
+	it("treats afrotrap as its own canonical genre", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				categories: "Afrotrap",
+			},
+			0,
+		);
+
+		expect(event.genre).toEqual(["afrotrap"]);
+	});
+
 	it("preserves CSV-only live genres instead of collapsing them into other", () => {
 		const event = assembleEvent(
 			{

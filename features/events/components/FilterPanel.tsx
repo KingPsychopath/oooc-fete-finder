@@ -17,8 +17,14 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { FilterButton } from "@/features/events/components/FilterButton";
 import { DateRangePickerControl } from "@/features/events/components/DateRangePickerControl";
+import { FilterButton } from "@/features/events/components/FilterButton";
+import {
+	type DateRangeFilter,
+	areDateRangesEqual,
+	getActiveFiltersCount,
+	hasActiveFilters as hasActiveEventFilters,
+} from "@/features/events/filtering";
 import {
 	AGE_RANGE_CONFIG,
 	type AgeRange,
@@ -26,6 +32,7 @@ import {
 	type DayNightPeriod,
 	MUSIC_GENRES,
 	type MusicGenre,
+	type MusicGenreDefinition,
 	NATIONALITIES,
 	type Nationality,
 	PRICE_RANGE_CONFIG,
@@ -35,12 +42,6 @@ import {
 	formatAgeRange,
 	formatPriceRange,
 } from "@/features/events/types";
-import {
-	areDateRangesEqual,
-	type DateRangeFilter,
-	getActiveFiltersCount,
-	hasActiveFilters as hasActiveEventFilters,
-} from "@/features/events/filtering";
 import { LAYERS } from "@/lib/ui/layers";
 import {
 	OVERLAY_BODY_ATTRIBUTE,
@@ -87,6 +88,7 @@ type FilterPanelProps = {
 	onOOOCPicksToggle: (selected: boolean) => void;
 	onClearFilters: () => void;
 	availableArrondissements: ParisArrondissement[];
+	availableGenres?: MusicGenreDefinition[];
 	availableEventDates: string[];
 	quickSelectEventDates: string[];
 	filteredEventsCount: number;
@@ -121,6 +123,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onOOOCPicksToggle,
 	onClearFilters,
 	availableArrondissements,
+	availableGenres,
 	availableEventDates,
 	quickSelectEventDates,
 	filteredEventsCount,
@@ -138,6 +141,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		"h-7 justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
 	const regularToggleClassName =
 		"h-8 justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
+	const genreOptions = availableGenres ?? MUSIC_GENRES;
 
 	// Stable accordion state for desktop compact mode
 	const [openAccordionSections, setOpenAccordionSections] = useState<string[]>([
@@ -261,7 +265,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	const formatDateRangeLabel = useCallback(
 		(dateRange: DateRangeFilter) => {
 			if (dateRange.from && dateRange.to) {
-				if (dateRange.from === dateRange.to) return formatDateLabel(dateRange.from);
+				if (dateRange.from === dateRange.to)
+					return formatDateLabel(dateRange.from);
 				return `${formatDateLabel(dateRange.from)} - ${formatDateLabel(dateRange.to)}`;
 			}
 			if (dateRange.from) return `From ${formatDateLabel(dateRange.from)}`;
@@ -515,7 +520,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								variant="secondary"
 								className="border border-border/70 bg-secondary/72 text-xs"
 							>
-								{MUSIC_GENRES.find((g) => g.key === genre)?.label}
+								{genreOptions.find((g) => g.key === genre)?.label ?? genre}
 								<Button
 									variant="ghost"
 									size="sm"
@@ -621,26 +626,26 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									className="w-full space-y-2"
 								>
 									{/* Days & Times Section */}
-										<AccordionItem value="days">
-											<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors">
-												Date & Times
-												{(hasSelectedDateRange ||
-													selectedDayNightPeriods.length > 0) && (
-													<Badge
-														variant="secondary"
-														className="ml-2 border border-border/70 bg-secondary/72 text-xs"
-													>
-														{(hasSelectedDateRange ? 1 : 0) +
-															selectedDayNightPeriods.length}{" "}
-														active
-													</Badge>
+									<AccordionItem value="days">
+										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors">
+											Date & Times
+											{(hasSelectedDateRange ||
+												selectedDayNightPeriods.length > 0) && (
+												<Badge
+													variant="secondary"
+													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+												>
+													{(hasSelectedDateRange ? 1 : 0) +
+														selectedDayNightPeriods.length}{" "}
+													active
+												</Badge>
 											)}
 										</AccordionTrigger>
 										<AccordionContent>
-										<div className="space-y-3">
-											<DefaultDateRangeHint />
-											{/* Day/Night Periods */}
-											<div className={sectionClassName}>
+											<div className="space-y-3">
+												<DefaultDateRangeHint />
+												{/* Day/Night Periods */}
+												<div className={sectionClassName}>
 													<div className="flex items-center justify-between mb-1">
 														<h4 className={sectionTitleClassName}>
 															Filter by Time
@@ -746,7 +751,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													</h3>
 													<div className="relative contain-layout">
 														<div className="grid min-h-[8rem] max-h-36 grid-cols-2 gap-1 overflow-y-auto rounded-md border border-border/70 bg-background/55 p-1.5">
-															{MUSIC_GENRES.map(({ key, label, color }) => (
+															{genreOptions.map(({ key, label, color }) => (
 																<Toggle
 																	key={key}
 																	pressed={selectedGenres.includes(key)}
@@ -766,7 +771,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														<div className="absolute top-1.5 left-1.5 right-1.5 h-4 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
 														<div className="absolute bottom-1.5 left-1.5 right-1.5 h-4 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
 														<div className="mt-1 text-center text-[11px] text-muted-foreground/88">
-															{MUSIC_GENRES.length} genres
+															{genreOptions.length} genres
 														</div>
 													</div>
 												</div>
@@ -988,9 +993,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 				onClose();
 			}}
 		>
-			<div
-				className="absolute right-0 top-0 h-full w-full max-w-sm border-l border-border/70 bg-background/97 lg:static lg:max-w-none lg:border-l-0 lg:h-fit"
-			>
+			<div className="absolute right-0 top-0 h-full w-full max-w-sm border-l border-border/70 bg-background/97 lg:static lg:max-w-none lg:border-l-0 lg:h-fit">
 				<Card className="ooo-site-card h-full border-0 py-0 lg:h-fit lg:border">
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/70 py-5 pb-4">
 						<CardTitle className="flex items-center text-[1.45rem] [font-family:var(--ooo-font-display)] font-light">
@@ -1050,19 +1053,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									}
 									className="w-full"
 								>
-										<AccordionItem value="days">
-											<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
-												Date & Times
-												{(hasSelectedDateRange ||
-													selectedDayNightPeriods.length > 0) && (
-													<Badge
-														variant="secondary"
-														className="ml-2 border border-border/70 bg-secondary/72 text-xs"
-													>
-														{(hasSelectedDateRange ? 1 : 0) +
-															selectedDayNightPeriods.length}
-													</Badge>
-												)}
+									<AccordionItem value="days">
+										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
+											Date & Times
+											{(hasSelectedDateRange ||
+												selectedDayNightPeriods.length > 0) && (
+												<Badge
+													variant="secondary"
+													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+												>
+													{(hasSelectedDateRange ? 1 : 0) +
+														selectedDayNightPeriods.length}
+												</Badge>
+											)}
 										</AccordionTrigger>
 										<AccordionContent>
 											{/* Compact Days Section for Accordion */}
@@ -1181,19 +1184,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											</div>
 										</div>
 
-											<DateRangePickerControl
-												mobileNative
-												selectedDateRange={selectedDateRange}
-												defaultDateRange={defaultDateRange}
-												onDateRangeChange={onDateRangeChange}
-												availableEventDates={availableEventDates}
-												quickSelectEventDates={quickSelectEventDates}
-												formatDateLabel={formatDateLabel}
-												formatDateRangeLabel={formatDateRangeLabel}
-												sectionClassName={sectionClassName}
-												sectionTitleClassName={sectionTitleClassName}
-												denseToggleClassName={denseToggleClassName}
-											/>
+										<DateRangePickerControl
+											mobileNative
+											selectedDateRange={selectedDateRange}
+											defaultDateRange={defaultDateRange}
+											onDateRangeChange={onDateRangeChange}
+											availableEventDates={availableEventDates}
+											quickSelectEventDates={quickSelectEventDates}
+											formatDateLabel={formatDateLabel}
+											formatDateRangeLabel={formatDateRangeLabel}
+											sectionClassName={sectionClassName}
+											sectionTitleClassName={sectionTitleClassName}
+											denseToggleClassName={denseToggleClassName}
+										/>
 									</div>
 								</div>
 
@@ -1342,7 +1345,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									<h3 className={sectionTitleClassName}>Music Genres</h3>
 									<div className="relative contain-layout">
 										<div className="grid grid-cols-2 gap-1 max-h-48 min-h-[12rem] overflow-y-auto rounded-md border border-border/70 bg-background/55 p-2">
-											{MUSIC_GENRES.map(({ key, label, color }) => (
+											{genreOptions.map(({ key, label, color }) => (
 												<Toggle
 													key={key}
 													pressed={selectedGenres.includes(key)}
@@ -1360,7 +1363,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<div className="absolute top-2 left-2 right-2 h-2 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
 										<div className="absolute bottom-2 left-2 right-2 h-2 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
 										<div className="mt-1 h-4 text-center text-xs text-muted-foreground/88">
-											{MUSIC_GENRES.length} genres
+											{genreOptions.length} genres
 										</div>
 									</div>
 								</div>

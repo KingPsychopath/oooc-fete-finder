@@ -5,6 +5,14 @@
  * Each transformer handles one specific field type with all its variations and edge cases.
  */
 
+import {
+	GENRE_ALIAS_ENTRIES,
+	type GenreTaxonomySnapshot,
+	getGenreAliasEntries,
+	normalizeGenreInputText,
+	resolveMusicGenre,
+} from "@/features/events/genre-normalization";
+import { parseSupportedNationalities } from "@/features/events/nationality-utils";
 import type {
 	EventDay,
 	MusicGenre,
@@ -13,12 +21,9 @@ import type {
 	VenueType,
 } from "@/features/events/types";
 import {
-	GENRE_ALIAS_ENTRIES,
-	normalizeGenreInputText,
-	resolveMusicGenre,
-} from "@/features/events/genre-normalization";
-import { parseSupportedNationalities } from "@/features/events/nationality-utils";
-import { createDateNormalizationContext, normalizeCsvDate } from "./date-normalization";
+	createDateNormalizationContext,
+	normalizeCsvDate,
+} from "./date-normalization";
 
 /**
  * Date and Day Transformers
@@ -283,17 +288,23 @@ export const GenreTransformers = {
 	/**
 	 * Convert genre string to MusicGenre array
 	 */
-	convertToMusicGenres: (genreStr: string): MusicGenre[] => {
+	convertToMusicGenres: (
+		genreStr: string,
+		taxonomy?: GenreTaxonomySnapshot,
+	): MusicGenre[] => {
 		if (!genreStr || genreStr.trim() === "") return [];
 
 		const normalized = normalizeGenreInputText(genreStr);
 		const genres: MusicGenre[] = [];
+		const aliasEntries = taxonomy
+			? getGenreAliasEntries(taxonomy)
+			: GENRE_ALIAS_ENTRIES;
 
 		// Split by common separators and check each part
 		const parts = normalized.split(/[,\/&+]/).map((part) => part.trim());
 
 		for (const part of parts) {
-			const resolved = resolveMusicGenre(part);
+			const resolved = resolveMusicGenre(part, taxonomy);
 			if (resolved) {
 				if (!genres.includes(resolved)) {
 					genres.push(resolved);
@@ -302,7 +313,7 @@ export const GenreTransformers = {
 			}
 
 			// Partial matching for complex descriptions
-			for (const [keyword, genre] of GENRE_ALIAS_ENTRIES) {
+			for (const [keyword, genre] of aliasEntries) {
 				if (part.includes(keyword)) {
 					if (!genres.includes(genre)) {
 						genres.push(genre);

@@ -12,7 +12,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+	createMusicGenreFromEditor,
 	getEventSheetEditorData,
+	getMusicGenreTaxonomy,
+	mapMusicGenreAliasFromEditor,
 	saveEventSheetEditorRows,
 } from "@/features/data-management/actions";
 import {
@@ -25,6 +28,13 @@ import {
 	createBlankEditableSheetRow,
 	createCustomColumnKey,
 } from "@/features/data-management/csv/sheet-editor";
+import {
+	type GenreTaxonomyDefinition,
+	type GenreTaxonomySnapshot,
+	normalizeGenreInputText,
+	resolveMusicGenre,
+	toGenreLabel,
+} from "@/features/events/genre-normalization";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -40,6 +50,11 @@ type EditorSnapshot = {
 	rows: EditableSheetRow[];
 };
 type SheetSortMode = "smart-date" | "date-asc" | "date-desc" | "sheet-order";
+type GenreCellPart = {
+	value: string;
+	resolved: string | null;
+	label: string;
+};
 
 const ROW_DELETE_CONFIRMATION =
 	"Delete this row from the event sheet? This will be removed on next save.";
@@ -51,9 +66,32 @@ const DATA_COLUMN_WIDTH = 170;
 const MAX_FROZEN_COLUMNS = 4;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
 const DEFAULT_SORT_MODE: SheetSortMode = "smart-date";
+const CATEGORY_COLUMN_KEY = "categories";
 
 const cellRefKey = (rowIndex: number, columnKey: string) =>
 	`${rowIndex}:${columnKey}`;
+
+const splitGenreCell = (
+	value: string,
+	taxonomy?: GenreTaxonomySnapshot,
+): GenreCellPart[] =>
+	normalizeGenreInputText(value)
+		.split(/[,/&+]/)
+		.map((part) => part.trim())
+		.filter((part) => part.length > 0)
+		.map((part) => ({
+			value: part,
+			resolved: resolveMusicGenre(part, taxonomy),
+			label: toGenreLabel(part),
+		}));
+
+const joinGenreLabels = (values: string[]): string => values.join(", ");
+
+const getGenreLabel = (
+	key: string,
+	genres: GenreTaxonomyDefinition[],
+): string =>
+	genres.find((genre) => genre.key === key)?.label ?? toGenreLabel(key);
 
 const toUTCDateOnlyTime = (date: Date): number =>
 	Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
@@ -165,6 +203,14 @@ export const EventSheetEditorCard = ({
 	const [sortMode, setSortMode] = useState<SheetSortMode>(DEFAULT_SORT_MODE);
 	const [canUndo, setCanUndo] = useState(false);
 	const [canRedo, setCanRedo] = useState(false);
+	const [genreTaxonomy, setGenreTaxonomy] = useState<
+		GenreTaxonomySnapshot | undefined
+	>(initialEditorData?.genreTaxonomy);
+	const [newGenreLabel, setNewGenreLabel] = useState("");
+	const [aliasGenreKey, setAliasGenreKey] = useState("");
+	const [focusedCategoryRowIndex, setFocusedCategoryRowIndex] = useState<
+		number | null
+	>(null);
 
 	const rowsRef = useRef<EditableSheetRow[]>([]);
 	const columnsRef = useRef<EditableSheetColumn[]>([]);
@@ -237,6 +283,7 @@ export const EventSheetEditorCard = ({
 
 			setColumns(result.columns);
 			setRows(result.rows);
+			setGenreTaxonomy(result.genreTaxonomy);
 			setLastSavedAt(result.status?.updatedAt ?? null);
 			setHasUnsavedChanges(false);
 			pastRef.current = [];
@@ -538,6 +585,83 @@ export const EventSheetEditorCard = ({
 		await performSave("manual");
 	};
 
+	const refreshGenreTaxonomy = useCallback(async () => {
+		const result = await getMusicGenreTaxonomy();
+		if (result.success && result.genreTaxonomy) {
+			setGenreTaxonomy(result.genreTaxonomy);
+		}
+	}, []);
+
+	const addGenreToRow = useCallback(
+		(rowIndex: number, genreKey: string) => {
+			const row = rowsRef.current[rowIndex];
+			if (!row) return;
+			const label = getGenreLabel(genreKey, genreTaxonomy?.genres ?? []);
+			const parts = splitGenreCell(
+				row[CATEGORY_COLUMN_KEY] ?? "",
+				genreTaxonomy,
+			);
+			if (parts.some((part) => part.resolved === genreKey)) {
+				return;
+			}
+			handleCellChange(
+				rowIndex,
+				CATEGORY_COLUMN_KEY,
+				joinGenreLabels([...parts.map((part) => part.label), label]),
+			);
+			setFocusedCategoryRowIndex(rowIndex);
+		},
+		[genreTaxonomy, handleCellChange],
+	);
+
+	const handleCreateGenre = useCallback(
+		async (labelInput: string, rowIndex?: number) => {
+			const label = labelInput.trim();
+			if (!label) {
+				setErrorMessage("Genre label is required");
+				return;
+			}
+
+			setErrorMessage("");
+			const result = await createMusicGenreFromEditor(label);
+			if (!result.success || !result.genreTaxonomy || !result.genreKey) {
+				setErrorMessage(result.error || "Failed to add genre");
+				return;
+			}
+
+			setGenreTaxonomy(result.genreTaxonomy);
+			setNewGenreLabel("");
+			setStatusMessage(result.message || "Genre added");
+			const targetRowIndex = rowIndex ?? focusedCategoryRowIndex;
+			if (targetRowIndex !== null) {
+				addGenreToRow(targetRowIndex, result.genreKey);
+			}
+		},
+		[addGenreToRow, focusedCategoryRowIndex],
+	);
+
+	const handleMapAlias = useCallback(
+		async (aliasInput: string) => {
+			const alias = aliasInput.trim();
+			if (!alias || !aliasGenreKey) {
+				setErrorMessage("Choose an unknown genre and a target genre");
+				return;
+			}
+
+			setErrorMessage("");
+			const result = await mapMusicGenreAliasFromEditor(alias, aliasGenreKey);
+			if (!result.success || !result.genreTaxonomy) {
+				setErrorMessage(result.error || "Failed to map genre alias");
+				return;
+			}
+
+			setGenreTaxonomy(result.genreTaxonomy);
+			setStatusMessage(result.message || "Genre alias saved");
+			await refreshGenreTaxonomy();
+		},
+		[aliasGenreKey, refreshGenreTaxonomy],
+	);
+
 	const filteredRowIndexes = useMemo(() => {
 		if (!query.trim()) {
 			return rows.map((_, index) => index);
@@ -563,6 +687,39 @@ export const EventSheetEditorCard = ({
 	}, [sortedRowIndexes, displayLimit]);
 
 	const canShowMoreRows = sortedRowIndexes.length > visibleRowIndexes.length;
+	const availableGenres = useMemo(
+		() =>
+			(genreTaxonomy?.genres ?? [])
+				.filter((genre) => genre.isActive !== false)
+				.sort(
+					(left, right) =>
+						(left.sortOrder ?? 1000) - (right.sortOrder ?? 1000) ||
+						left.label.localeCompare(right.label),
+				),
+		[genreTaxonomy],
+	);
+	const unknownGenres = useMemo(() => {
+		const unknown = new Map<string, { label: string; count: number }>();
+		for (const row of rows) {
+			for (const part of splitGenreCell(
+				row[CATEGORY_COLUMN_KEY] ?? "",
+				genreTaxonomy,
+			)) {
+				if (part.resolved) continue;
+				const existing = unknown.get(part.value);
+				unknown.set(part.value, {
+					label: part.label,
+					count: (existing?.count ?? 0) + 1,
+				});
+			}
+		}
+		return Array.from(unknown.entries())
+			.map(([value, meta]) => ({ value, ...meta }))
+			.sort(
+				(left, right) =>
+					right.count - left.count || left.label.localeCompare(right.label),
+			);
+	}, [genreTaxonomy, rows]);
 
 	const focusCell = (
 		rowIndex: number,
@@ -812,6 +969,141 @@ export const EventSheetEditorCard = ({
 					</div>
 				</div>
 
+				<div className="space-y-3 rounded-md border bg-background/55 p-3">
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<Label>Genre library</Label>
+						</div>
+						<div className="flex flex-wrap gap-2">
+							<Input
+								value={newGenreLabel}
+								onChange={(event) => setNewGenreLabel(event.target.value)}
+								placeholder="French Pop"
+								className="h-9 w-[min(100%,220px)]"
+								onKeyDown={(event) => {
+									if (event.key === "Enter") {
+										event.preventDefault();
+										void handleCreateGenre(newGenreLabel);
+									}
+								}}
+								aria-label="New genre label"
+							/>
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								className="h-9"
+								onClick={() => void handleCreateGenre(newGenreLabel)}
+								disabled={isSaving || isLoading}
+							>
+								Add genre
+							</Button>
+						</div>
+					</div>
+
+					<div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
+						{availableGenres.map((genre) => (
+							<button
+								key={genre.key}
+								type="button"
+								onClick={() => {
+									if (focusedCategoryRowIndex !== null) {
+										addGenreToRow(focusedCategoryRowIndex, genre.key);
+									}
+								}}
+								disabled={focusedCategoryRowIndex === null}
+								className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border/70 bg-background px-2.5 text-xs transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55"
+								title={
+									focusedCategoryRowIndex === null
+										? "Focus a Categories cell first"
+										: `Add ${genre.label}`
+								}
+							>
+								<span
+									className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
+								/>
+								{genre.label}
+							</button>
+						))}
+						{availableGenres.length === 0 && (
+							<span className="text-xs text-muted-foreground">
+								Genre list unavailable. Check the Postgres connection.
+							</span>
+						)}
+					</div>
+
+					{unknownGenres.length > 0 && (
+						<div className="space-y-2 border-t pt-3">
+							<Label>Unknown genres in the sheet</Label>
+							<div className="flex flex-wrap gap-2">
+								{unknownGenres.slice(0, 12).map((genre) => (
+									<div
+										key={genre.value}
+										className="flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900"
+									>
+										<span>
+											{genre.label} ({genre.count})
+										</span>
+										<Button
+											type="button"
+											size="sm"
+											variant="ghost"
+											className="h-5 px-1.5 text-[10px]"
+											onClick={() => void handleCreateGenre(genre.label)}
+										>
+											Add
+										</Button>
+										<Button
+											type="button"
+											size="sm"
+											variant="ghost"
+											className="h-5 px-1.5 text-[10px]"
+											onClick={() => setNewGenreLabel(genre.label)}
+										>
+											Edit
+										</Button>
+									</div>
+								))}
+							</div>
+							<div className="flex flex-wrap items-end gap-2">
+								<div className="space-y-1">
+									<Label htmlFor="genre-alias-target">Map typed genre to</Label>
+									<select
+										id="genre-alias-target"
+										value={aliasGenreKey}
+										onChange={(event) => setAliasGenreKey(event.target.value)}
+										className="h-9 w-48 rounded-md border border-input bg-background px-3 text-sm"
+									>
+										<option value="">Choose genre</option>
+										{availableGenres.map((genre) => (
+											<option key={genre.key} value={genre.key}>
+												{genre.label}
+											</option>
+										))}
+									</select>
+								</div>
+								<Input
+									value={newGenreLabel}
+									onChange={(event) => setNewGenreLabel(event.target.value)}
+									placeholder="Afrotrap"
+									className="h-9 w-[min(100%,220px)]"
+									aria-label="Alias to map"
+								/>
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									className="h-9"
+									onClick={() => void handleMapAlias(newGenreLabel)}
+									disabled={!newGenreLabel.trim() || !aliasGenreKey}
+								>
+									Map alias
+								</Button>
+							</div>
+						</div>
+					)}
+				</div>
+
 				{errorMessage && (
 					<div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
 						{errorMessage}
@@ -980,57 +1272,142 @@ export const EventSheetEditorCard = ({
 													className="w-[170px] border-b border-r p-0"
 													style={getPinnedColumnStyle(columnIndex, "cell")}
 												>
-													<input
-														ref={(node) => {
-															inputRefs.current[
-																cellRefKey(rowIndex, column.key)
-															] = node;
-														}}
-														value={row[column.key] ?? ""}
-														readOnly={SYSTEM_MANAGED_COLUMN_KEYS.has(
-															column.key,
-														)}
-														onChange={(event) =>
-															handleCellChange(
-																rowIndex,
+													{column.key === CATEGORY_COLUMN_KEY ? (
+														<div className="min-h-9 bg-transparent">
+															<input
+																ref={(node) => {
+																	inputRefs.current[
+																		cellRefKey(rowIndex, column.key)
+																	] = node;
+																}}
+																value={row[column.key] ?? ""}
+																onFocus={() =>
+																	setFocusedCategoryRowIndex(rowIndex)
+																}
+																onChange={(event) =>
+																	handleCellChange(
+																		rowIndex,
+																		column.key,
+																		event.target.value,
+																	)
+																}
+																onBlur={() => {
+																	const key = cellRefKey(rowIndex, column.key);
+																	if (activeCellEditRef.current === key) {
+																		activeCellEditRef.current = null;
+																	}
+																}}
+																onKeyDown={(event) => {
+																	if (event.key === "Enter") {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (event.key === "ArrowDown") {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (event.key === "ArrowUp") {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, -1, 0);
+																	}
+																	if (
+																		event.key === "ArrowRight" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, 0, 1);
+																	}
+																	if (
+																		event.key === "ArrowLeft" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, 0, -1);
+																	}
+																}}
+																className="h-8 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+															/>
+															<div className="flex min-h-7 flex-wrap gap-1 px-1.5 pb-1.5">
+																{splitGenreCell(
+																	row[column.key] ?? "",
+																	genreTaxonomy,
+																).map((part) => (
+																	<span
+																		key={`${rowIndex}-${part.value}`}
+																		className={`inline-flex h-5 max-w-full items-center rounded-full border px-1.5 text-[10px] ${
+																			part.resolved
+																				? "border-border/70 bg-muted/45 text-foreground/80"
+																				: "border-amber-300 bg-amber-50 text-amber-900"
+																		}`}
+																		title={
+																			part.resolved
+																				? `Maps to ${part.resolved}`
+																				: "Unknown genre"
+																		}
+																	>
+																		<span className="truncate">
+																			{part.label}
+																		</span>
+																	</span>
+																))}
+															</div>
+														</div>
+													) : (
+														<input
+															ref={(node) => {
+																inputRefs.current[
+																	cellRefKey(rowIndex, column.key)
+																] = node;
+															}}
+															value={row[column.key] ?? ""}
+															readOnly={SYSTEM_MANAGED_COLUMN_KEYS.has(
 																column.key,
-																event.target.value,
-															)
-														}
-														onBlur={() => {
-															const key = cellRefKey(rowIndex, column.key);
-															if (activeCellEditRef.current === key) {
-																activeCellEditRef.current = null;
+															)}
+															onChange={(event) =>
+																handleCellChange(
+																	rowIndex,
+																	column.key,
+																	event.target.value,
+																)
 															}
-														}}
-														onKeyDown={(event) => {
-															if (event.key === "Enter") {
-																event.preventDefault();
-																focusCell(rowIndex, column.key, 1, 0);
-															}
-															if (event.key === "ArrowDown") {
-																event.preventDefault();
-																focusCell(rowIndex, column.key, 1, 0);
-															}
-															if (event.key === "ArrowUp") {
-																event.preventDefault();
-																focusCell(rowIndex, column.key, -1, 0);
-															}
-															if (event.key === "ArrowRight" && event.altKey) {
-																event.preventDefault();
-																focusCell(rowIndex, column.key, 0, 1);
-															}
-															if (event.key === "ArrowLeft" && event.altKey) {
-																event.preventDefault();
-																focusCell(rowIndex, column.key, 0, -1);
-															}
-														}}
-														className={`h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30 ${
-															SYSTEM_MANAGED_COLUMN_KEYS.has(column.key)
-																? "cursor-not-allowed bg-muted/25 text-muted-foreground"
-																: ""
-														}`}
-													/>
+															onBlur={() => {
+																const key = cellRefKey(rowIndex, column.key);
+																if (activeCellEditRef.current === key) {
+																	activeCellEditRef.current = null;
+																}
+															}}
+															onKeyDown={(event) => {
+																if (event.key === "Enter") {
+																	event.preventDefault();
+																	focusCell(rowIndex, column.key, 1, 0);
+																}
+																if (event.key === "ArrowDown") {
+																	event.preventDefault();
+																	focusCell(rowIndex, column.key, 1, 0);
+																}
+																if (event.key === "ArrowUp") {
+																	event.preventDefault();
+																	focusCell(rowIndex, column.key, -1, 0);
+																}
+																if (
+																	event.key === "ArrowRight" &&
+																	event.altKey
+																) {
+																	event.preventDefault();
+																	focusCell(rowIndex, column.key, 0, 1);
+																}
+																if (event.key === "ArrowLeft" && event.altKey) {
+																	event.preventDefault();
+																	focusCell(rowIndex, column.key, 0, -1);
+																}
+															}}
+															className={`h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30 ${
+																SYSTEM_MANAGED_COLUMN_KEYS.has(column.key)
+																	? "cursor-not-allowed bg-muted/25 text-muted-foreground"
+																	: ""
+															}`}
+														/>
+													)}
 												</td>
 											))}
 											<td className="border-b px-2 py-1">

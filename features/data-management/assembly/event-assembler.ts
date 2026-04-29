@@ -5,10 +5,11 @@
  * This replaces the massive event-transformer.ts with a cleaner, more maintainable approach.
  */
 
+import type { GenreTaxonomySnapshot } from "@/features/events/genre-normalization";
 import {
-	getEventTypeForDate,
 	type Event,
 	type ParisArrondissement,
+	getEventTypeForDate,
 } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
 import type { CSVEventRow } from "../csv/parser";
@@ -128,6 +129,7 @@ const determineVerificationStatus = (
 export interface EventAssemblyOptions {
 	dateNormalizationContext?: DateNormalizationContext;
 	referenceDate?: Date;
+	genreTaxonomy?: GenreTaxonomySnapshot;
 }
 
 const toWarningType = (
@@ -210,7 +212,10 @@ export const assembleEvent = (
 		.join(" / ");
 	const nationality =
 		NationalityTransformers.convertToNationality(nationalityInput);
-	const genre = GenreTransformers.convertToMusicGenres(csvRow.categories);
+	const genre = GenreTransformers.convertToMusicGenres(
+		csvRow.categories,
+		options.genreTaxonomy,
+	);
 	const tags = MetadataTransformers.parseTags(csvRow.tags);
 	const venueTypes = VenueTransformers.convertToVenueTypes(csvRow.setting);
 

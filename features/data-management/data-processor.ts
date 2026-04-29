@@ -3,12 +3,13 @@
  * Handles CSV parsing and event data conversion
  */
 
+import type { GenreTaxonomySnapshot } from "@/features/events/genre-normalization";
 import { Event } from "@/features/events/types";
 import { createGoogleGeocodingProvider } from "@/features/locations/providers/google-geocoding-provider";
 import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
 import { log } from "@/lib/platform/logger";
-import { assembleEvent } from "./assembly/event-assembler";
 import { createDateNormalizationContext } from "./assembly/date-normalization";
+import { assembleEvent } from "./assembly/event-assembler";
 import { ensureUniqueEventKeys } from "./assembly/event-key";
 import { parseCSVContent } from "./csv/parser";
 import {
@@ -54,6 +55,7 @@ export async function processCSVData(
 		populateCoordinates?: boolean; // Override coordinate population (defaults to true for remote, false for local)
 		referenceDate?: Date; // Deterministic date inference during tests/backfills
 		coordinateBatchSize?: number;
+		genreTaxonomy?: GenreTaxonomySnapshot;
 		onCoordinateProgress?: (
 			processed: number,
 			total: number,
@@ -74,7 +76,10 @@ export async function processCSVData(
 			referenceDate: options.referenceDate,
 		});
 		let events: Event[] = keyedRows.rows.map((row, index) =>
-			assembleEvent(row, index, { dateNormalizationContext: dateContext }),
+			assembleEvent(row, index, {
+				dateNormalizationContext: dateContext,
+				genreTaxonomy: options.genreTaxonomy,
+			}),
 		);
 		log.info("data", "Event key hydration", {
 			source,
@@ -109,6 +114,7 @@ export async function processCSVData(
 				const localEvents = keyedLocalRows.rows.map((row, index) =>
 					assembleEvent(row, index, {
 						dateNormalizationContext: localDateContext,
+						genreTaxonomy: options.genreTaxonomy,
 					}),
 				);
 				log.info("data", "Event key hydration", {

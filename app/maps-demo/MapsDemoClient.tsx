@@ -2,36 +2,63 @@
 
 import EventModal from "@/features/events/components/EventModal";
 import FilterPanel from "@/features/events/components/FilterPanel";
-import ParisMap from "@/features/maps/components/ParisMap";
-import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
 import { SelectedEventDisplay } from "@/features/events/components/SelectedEventDisplay";
+import {
+	type DateRangeFilter,
+	areDateRangesEqual,
+	getDefaultDateRangeForEvents,
+	getTopEventDatesByCount,
+} from "@/features/events/filtering";
 import type {
 	AgeRange,
 	DayNightPeriod,
 	Event,
 	MusicGenre,
+	MusicGenreDefinition,
 	Nationality,
 	ParisArrondissement,
 	VenueType,
 } from "@/features/events/types";
 import {
 	AGE_RANGE_CONFIG,
+	MUSIC_GENRES,
 	PRICE_RANGE_CONFIG,
 	isAgeInRange,
 	isEventInDayNightPeriod,
 	isPriceInRange,
 } from "@/features/events/types";
-import {
-	areDateRangesEqual,
-	getDefaultDateRangeForEvents,
-	getTopEventDatesByCount,
-	type DateRangeFilter,
-} from "@/features/events/filtering";
+import ParisMap from "@/features/maps/components/ParisMap";
+import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
 import React, { useState, useMemo, useCallback } from "react";
 
 type MapsDemoClientProps = {
 	initialEvents: Event[];
 	initialError: string | null;
+};
+
+const buildAvailableGenresForEvents = (
+	events: Event[],
+): MusicGenreDefinition[] => {
+	const genreByKey = new Map<string, MusicGenreDefinition>(
+		MUSIC_GENRES.map((genre) => [genre.key, { ...genre }]),
+	);
+	for (const event of events) {
+		for (const genre of event.genre ?? []) {
+			if (genreByKey.has(genre)) continue;
+			genreByKey.set(genre, {
+				key: genre,
+				label: genre
+					.split(" ")
+					.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+					.join(" "),
+				color: "bg-stone-500",
+				isActive: true,
+			});
+		}
+	}
+	return Array.from(genreByKey.values()).sort((left, right) =>
+		left.label.localeCompare(right.label),
+	);
 };
 
 export function MapsDemoClient({
@@ -93,6 +120,10 @@ export function MapsDemoClient({
 	const quickSelectEventDates = useMemo(() => {
 		return getTopEventDatesByCount(initialEvents, 4, defaultDateRange);
 	}, [defaultDateRange, initialEvents]);
+	const availableGenres = useMemo(
+		() => buildAvailableGenresForEvents(initialEvents),
+		[initialEvents],
+	);
 
 	const filteredEvents = useMemo(() => {
 		return initialEvents.filter((event) => {
@@ -392,6 +423,7 @@ export function MapsDemoClient({
 						onOOOCPicksToggle={setSelectedOOOCPicks}
 						onClearFilters={handleClearFilters}
 						availableArrondissements={availableArrondissements}
+						availableGenres={availableGenres}
 						availableEventDates={availableEventDates}
 						quickSelectEventDates={quickSelectEventDates}
 						filteredEventsCount={filteredEvents.length}

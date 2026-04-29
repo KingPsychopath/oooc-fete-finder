@@ -495,18 +495,18 @@ export function HowItWorksExperience() {
 
 	return (
 		<div className="overflow-hidden">
-			<section className="relative min-h-[calc(100svh-8rem)] px-4 py-16 sm:px-6 lg:px-8">
+			<section className="relative px-4 py-16 sm:px-6 lg:min-h-[calc(100svh-8rem)] lg:px-8 lg:py-20">
 				<div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.26),rgba(255,255,255,0)),linear-gradient(120deg,color-mix(in_oklab,var(--background)_82%,#dca15f_18%),color-mix(in_oklab,var(--background)_70%,#315b5f_30%))]" />
 				<div className="absolute inset-0 bg-[linear-gradient(rgba(62,42,26,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(62,42,26,0.07)_1px,transparent_1px)] bg-[length:56px_56px]" />
-				<div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(26rem,0.78fr)] lg:items-center">
-					<div className="max-w-3xl">
+				<div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.92fr)_minmax(25rem,0.78fr)] lg:items-center lg:gap-16 xl:gap-20">
+					<div className="max-w-4xl">
 						<p className="text-[11px] font-medium uppercase tracking-[0.22em] text-foreground/62">
 							Out Of Office Collective
 						</p>
-						<h1 className="mt-5 text-[clamp(4rem,14vw,10.5rem)] font-light leading-[0.8] text-foreground [font-family:var(--ooo-font-display)]">
+						<h1 className="mt-5 max-w-[9ch] text-[clamp(4rem,14vw,8rem)] font-light leading-[0.82] text-foreground [font-family:var(--ooo-font-display)] lg:text-[clamp(5.6rem,7.2vw,8.4rem)] xl:text-[clamp(6rem,7vw,9rem)]">
 							Your Fête weekend, beautifully mapped.
 						</h1>
-						<p className="mt-8 max-w-2xl text-xl leading-relaxed text-foreground/72 sm:text-2xl">
+						<p className="mt-8 max-w-2xl text-xl leading-relaxed text-foreground/72 sm:text-2xl lg:text-xl xl:text-2xl">
 							Fête Finder is the OOOC guide for Paris during Fête de la Musique
 							weekend: curated events, practical filters, shareable plans and a
 							live community of like-minded people on the ground.
@@ -534,7 +534,7 @@ export function HowItWorksExperience() {
 						</div>
 					</div>
 
-					<div className="rounded-[2rem] border border-white/42 bg-card/64 p-3 shadow-[0_30px_90px_-56px_rgba(21,14,9,0.85)] backdrop-blur-xl">
+					<div className="rounded-[2rem] border border-white/42 bg-card/64 p-3 shadow-[0_30px_90px_-56px_rgba(21,14,9,0.85)] backdrop-blur-xl lg:justify-self-end">
 						<div className="rounded-[1.55rem] border border-border/70 bg-background/78 p-5">
 							<div className="flex items-center justify-between gap-3">
 								<div>
@@ -595,14 +595,14 @@ export function HowItWorksExperience() {
 				</div>
 			</section>
 
-			<section className="px-4 py-16 sm:px-6 lg:px-8">
-				<div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(28rem,1fr)]">
-					<div className="grid gap-8">
+			<section className="px-4 py-12 sm:px-6 lg:px-8 lg:py-14">
+				<div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.84fr)_minmax(27rem,0.92fr)]">
+					<div className="grid gap-4 lg:gap-2">
 						{storySteps.map((step, index) => (
 							<article
 								key={step.id}
 								data-story-step={step.id}
-								className="min-h-[68svh] border-t border-border/70 py-12"
+								className="border-t border-border/70 py-12 lg:min-h-[46svh] lg:py-9 xl:min-h-[50svh]"
 							>
 								<div className="flex items-center gap-3">
 									<span
@@ -619,13 +619,13 @@ export function HowItWorksExperience() {
 										{step.kicker}
 									</p>
 								</div>
-								<h2 className="mt-6 text-[clamp(2.4rem,7vw,5.8rem)] font-light leading-[0.9] text-foreground [font-family:var(--ooo-font-display)]">
+								<h2 className="mt-6 max-w-3xl text-[clamp(2.4rem,7vw,5.8rem)] font-light leading-[0.9] text-foreground [font-family:var(--ooo-font-display)] lg:text-[clamp(3.8rem,4.6vw,5.2rem)] xl:text-[clamp(4.2rem,4.8vw,5.6rem)]">
 									{step.title}
 								</h2>
-								<p className="mt-7 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+								<p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground lg:text-base xl:text-lg">
 									{step.body}
 								</p>
-								<div className="mt-8 flex flex-wrap gap-2">
+								<div className="mt-6 flex flex-wrap gap-2">
 									{step.points.map((point) => (
 										<div
 											key={point}

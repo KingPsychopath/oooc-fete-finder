@@ -43,46 +43,7 @@ export type EventLocation = {
 	lastUpdated: string; // ISO timestamp
 };
 
-// Expanded genre types based on CSV data
-export type MusicGenre =
-	| "amapiano"
-	| "afrobeats"
-	| "francophone"
-	| "soca"
-	| "pop"
-	| "bashment"
-	| "hip hop"
-	| "r&b"
-	| "shatta"
-	| "dancehall"
-	| "reggaeton"
-	| "baile funk"
-	| "house"
-	| "disco"
-	| "afro house"
-	| "slow jams"
-	| "3-step"
-	| "electro"
-	| "funk"
-	| "rap"
-	| "trap"
-	| "uk drill"
-	| "uk garage"
-	| "bouyon"
-	| "zouk"
-	| "coupé-décalé"
-	| "urban fr"
-	| "kompa"
-	| "afro"
-	| "gqom"
-	| "alternative"
-	| "dance"
-	| "bachata"
-	| "batida"
-	| "edits"
-	| "reggae"
-	| "salsa"
-	| "other";
+export type MusicGenre = string;
 
 export type ParisArrondissement =
 	| 1
@@ -229,9 +190,20 @@ export const DAY_NIGHT_PERIODS = [
 	},
 ] as const;
 
+export interface MusicGenreDefinition {
+	key: MusicGenre;
+	label: string;
+	color: string;
+	isDefault?: boolean;
+	isActive?: boolean;
+	sortOrder?: number;
+	aliases?: string[];
+}
+
 export const MUSIC_GENRES = [
 	{ key: "amapiano" as const, label: "Amapiano", color: "bg-emerald-500" },
 	{ key: "afrobeats" as const, label: "Afrobeats", color: "bg-orange-500" },
+	{ key: "afrotrap" as const, label: "Afrotrap", color: "bg-orange-700" },
 	{
 		key: "francophone" as const,
 		label: "Francophone",

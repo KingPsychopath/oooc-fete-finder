@@ -2,7 +2,6 @@ import {
 	AGE_RANGE_CONFIG,
 	type AgeRange,
 	type DayNightPeriod,
-	MUSIC_GENRES,
 	type MusicGenre,
 	type Nationality,
 	PRICE_RANGE_CONFIG,
@@ -34,7 +33,6 @@ const FILTER_PARAM_KEYS = [
 	"pick",
 ] as const;
 
-const GENRE_KEYS = new Set(MUSIC_GENRES.map((genre) => genre.key));
 const NATIONALITY_KEYS = new Set(SUPPORTED_NATIONALITY_CODES);
 const DAY_NIGHT_KEYS = new Set<DayNightPeriod>(["day", "night"]);
 const VENUE_TYPE_KEYS = new Set<VenueType>(["indoor", "outdoor"]);
@@ -89,7 +87,7 @@ export const parseEventFilterStateFromSearchParams = (
 	);
 	const arrondissements = parseArrondissements(params.get("arr"));
 	const genres = parseCsvParam(params.get("g")).filter(
-		(value): value is MusicGenre => GENRE_KEYS.has(value as MusicGenre),
+		(value): value is MusicGenre => value.length <= 80,
 	);
 	const nationalities = parseCsvParam(params.get("nat"))
 		.map((value) => value.toUpperCase())

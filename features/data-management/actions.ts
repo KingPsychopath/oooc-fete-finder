@@ -7,6 +7,13 @@ import {
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { clearFeaturedQueueHistory as clearFeaturedQueueHistoryService } from "@/features/events/featured/service";
+import {
+	DEFAULT_GENRE_TAXONOMY,
+	type GenreTaxonomySnapshot,
+	normalizeGenreKey,
+	resolveMusicGenre,
+	toGenreLabel,
+} from "@/features/events/genre-normalization";
 import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 import { clearAllEventSubmissions } from "@/features/events/submissions/store";
 import type { ParisArrondissement } from "@/features/events/types";
@@ -26,6 +33,10 @@ import { log } from "@/lib/platform/logger";
 import { getActionMetricsRepository } from "@/lib/platform/postgres/action-metrics-repository";
 import { getAdminSessionRepository } from "@/lib/platform/postgres/admin-session-repository";
 import { getEventStoreBackupRepository } from "@/lib/platform/postgres/event-store-backup-repository";
+import {
+	getMusicGenreTaxonomyRepository,
+	loadGenreTaxonomySnapshot,
+} from "@/lib/platform/postgres/music-genre-taxonomy-repository";
 import { getRateLimitRepository } from "@/lib/platform/postgres/rate-limit-repository";
 import { revalidatePath } from "next/cache";
 import { parseCSVContent } from "./csv/parser";
@@ -823,6 +834,7 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 	success: boolean;
 	columns?: EditableSheetColumn[];
 	rows?: EditableSheetRow[];
+	genreTaxonomy?: GenreTaxonomySnapshot;
 	status?: Awaited<ReturnType<typeof LocalEventStore.getStatus>>;
 	sheetSource?: "store";
 	error?: string;
@@ -832,9 +844,10 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 	}
 
 	try {
-		const [status, csv] = await Promise.all([
+		const [status, csv, genreTaxonomy] = await Promise.all([
 			LocalEventStore.getStatus(),
 			LocalEventStore.getCsv(),
+			loadGenreTaxonomySnapshot(),
 		]);
 		const sheet = csvToEditableSheet(csv);
 		const sanitized = stripLegacyFeaturedColumn(sheet.columns, sheet.rows);
@@ -844,8 +857,126 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 			success: true,
 			columns: sanitized.columns,
 			rows: sortedRows,
+			genreTaxonomy,
 			status,
 			sheetSource: "store",
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+export async function getMusicGenreTaxonomy(keyOrToken?: string): Promise<{
+	success: boolean;
+	genreTaxonomy?: GenreTaxonomySnapshot;
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized access" };
+	}
+
+	try {
+		return {
+			success: true,
+			genreTaxonomy: await loadGenreTaxonomySnapshot(),
+		};
+	} catch (error) {
+		return {
+			success: false,
+			genreTaxonomy: DEFAULT_GENRE_TAXONOMY,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+export async function createMusicGenreFromEditor(
+	labelInput: string,
+	keyOrToken?: string,
+): Promise<{
+	success: boolean;
+	genreTaxonomy?: GenreTaxonomySnapshot;
+	genreKey?: string;
+	message?: string;
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized access" };
+	}
+
+	try {
+		const label = toGenreLabel(labelInput);
+		const key = normalizeGenreKey(label);
+		if (!key) {
+			return { success: false, error: "Genre label is required" };
+		}
+
+		const repository = getMusicGenreTaxonomyRepository();
+		if (!repository) {
+			return {
+				success: false,
+				error: "Genre taxonomy database unavailable",
+			};
+		}
+
+		await repository.createCustomGenre({ label });
+		const genreTaxonomy = await repository.listTaxonomy();
+		revalidateEventsPaths(["/admin", "/"]);
+		return {
+			success: true,
+			genreTaxonomy,
+			genreKey: key,
+			message: `${label} added to the genre list`,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+export async function mapMusicGenreAliasFromEditor(
+	aliasInput: string,
+	genreKey: string,
+	keyOrToken?: string,
+): Promise<{
+	success: boolean;
+	genreTaxonomy?: GenreTaxonomySnapshot;
+	message?: string;
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized access" };
+	}
+
+	try {
+		const repository = getMusicGenreTaxonomyRepository();
+		if (!repository) {
+			return {
+				success: false,
+				error: "Genre taxonomy database unavailable",
+			};
+		}
+
+		const taxonomy = await repository.listTaxonomy();
+		const canonicalGenre = resolveMusicGenre(genreKey, taxonomy);
+		if (!canonicalGenre) {
+			return { success: false, error: "Choose a valid genre to map to" };
+		}
+
+		await repository.upsertAlias({
+			alias: aliasInput,
+			genreKey: canonicalGenre,
+		});
+		const genreTaxonomy = await repository.listTaxonomy();
+		revalidateEventsPaths(["/admin", "/"]);
+		return {
+			success: true,
+			genreTaxonomy,
+			message: `${aliasInput} now maps to ${canonicalGenre}`,
 		};
 	} catch (error) {
 		return {
