@@ -29,8 +29,7 @@ export default function NotFound() {
 							</p>
 							<p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">
 								No stress. The music is still somewhere nearby. We can guide you
-								back to the map, the listings, or the place to add a missing
-								stop.
+								back home, into the listings, or through the guide.
 							</p>
 
 							<div className="mt-7 flex flex-wrap gap-3">
@@ -41,7 +40,7 @@ export default function NotFound() {
 									render={<Link href={basePath || "/"} />}
 								>
 									<Home className="h-4 w-4" />
-									Return to the Map
+									Return Home
 								</Button>
 								<Button
 									variant="outline"
@@ -53,28 +52,28 @@ export default function NotFound() {
 									<Music2 className="h-4 w-4" />
 									Browse Events
 								</Button>
+								<Button
+									variant="outline"
+									size="lg"
+									className="gap-2 rounded-full bg-background/56"
+									nativeButton={false}
+									render={
+										<Link
+											href={`${basePath}/how-it-works`}
+										/>
+									}
+								>
+									Get Oriented
+									<ArrowRight className="h-4 w-4" />
+								</Button>
 							</div>
 
-							<div className="mt-8 grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
-								<Link
-									href={`${basePath || ""}/#event-map`}
-									className="group flex items-center justify-between rounded-2xl border border-border/70 bg-background/58 px-4 py-3 transition-colors hover:bg-accent hover:text-foreground"
-								>
-									<span>Open city map</span>
-									<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-								</Link>
-								<Link
-									href={`${basePath}/submit-event`}
-									className="group flex items-center justify-between rounded-2xl border border-border/70 bg-background/58 px-4 py-3 transition-colors hover:bg-accent hover:text-foreground"
-								>
-									<span>Add a route</span>
-									<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-								</Link>
+							<div className="mt-8 max-w-sm text-sm text-muted-foreground">
 								<Link
 									href={`${basePath}/how-it-works`}
-									className="group flex items-center justify-between rounded-2xl border border-border/70 bg-background/58 px-4 py-3 transition-colors hover:bg-accent hover:text-foreground"
+									className="group inline-flex items-center gap-2 underline-offset-4 transition-colors hover:text-foreground hover:underline"
 								>
-									<span>Get oriented</span>
+									<span>New here? See how Fête Finder works</span>
 									<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
 								</Link>
 							</div>
