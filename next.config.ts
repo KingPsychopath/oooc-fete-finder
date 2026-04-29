@@ -164,6 +164,9 @@ module.exports = withPWA({
 	assetPrefix: process.env.NEXT_PUBLIC_BASE_PATH || "",
 	reactStrictMode: true,
 	trailingSlash: false,
+	outputFileTracingIncludes: {
+		"/*": ["./data/events.csv"],
+	},
 	// Explicitly use webpack for builds (required for next-pwa)
 	turbopack: {},
 });

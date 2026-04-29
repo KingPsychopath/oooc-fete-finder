@@ -14,6 +14,37 @@ export interface GenreTaxonomySnapshot {
 	}>;
 }
 
+const CUSTOM_GENRE_COLORS = [
+	"bg-teal-600",
+	"bg-teal-700",
+	"bg-cyan-600",
+	"bg-cyan-700",
+	"bg-sky-600",
+	"bg-sky-700",
+	"bg-blue-600",
+	"bg-blue-700",
+	"bg-indigo-600",
+	"bg-indigo-700",
+	"bg-violet-600",
+	"bg-violet-700",
+	"bg-fuchsia-600",
+	"bg-fuchsia-700",
+	"bg-pink-600",
+	"bg-pink-700",
+	"bg-rose-600",
+	"bg-rose-700",
+	"bg-red-600",
+	"bg-red-700",
+	"bg-orange-600",
+	"bg-orange-700",
+	"bg-amber-600",
+	"bg-amber-700",
+	"bg-lime-600",
+	"bg-lime-700",
+	"bg-emerald-600",
+	"bg-emerald-700",
+] as const;
+
 const stripDiacritics = (value: string): string =>
 	value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 
@@ -125,6 +156,25 @@ export const toGenreLabel = (value: string): string =>
 			return part.charAt(0).toUpperCase() + part.slice(1);
 		})
 		.join(" ");
+
+export const getCustomGenreColor = (
+	value: string,
+	reservedColors?: Iterable<string>,
+): string => {
+	const normalized = normalizeGenreKey(value);
+	let hash = 0;
+	for (let index = 0; index < normalized.length; index += 1) {
+		hash = (hash * 31 + normalized.charCodeAt(index)) >>> 0;
+	}
+	const offset = hash % CUSTOM_GENRE_COLORS.length;
+	const reserved = new Set(reservedColors ?? []);
+	for (let index = 0; index < CUSTOM_GENRE_COLORS.length; index += 1) {
+		const color =
+			CUSTOM_GENRE_COLORS[(offset + index) % CUSTOM_GENRE_COLORS.length];
+		if (!reserved.has(color)) return color;
+	}
+	return CUSTOM_GENRE_COLORS[offset];
+};
 
 export const DEFAULT_GENRE_TAXONOMY: GenreTaxonomySnapshot = {
 	genres: MUSIC_GENRES.map((genre, index) => ({

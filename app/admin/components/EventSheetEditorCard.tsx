@@ -969,17 +969,15 @@ export const EventSheetEditorCard = ({
 					</div>
 				</div>
 
-				<div className="space-y-3 rounded-md border bg-background/55 p-3">
-					<div className="flex flex-wrap items-start justify-between gap-3">
-						<div>
-							<Label>Genre library</Label>
-						</div>
-						<div className="flex flex-wrap gap-2">
+				<div className="space-y-2 rounded-md border bg-background/55 p-3">
+					<div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
+						<Label>Genre library</Label>
+						<div className="grid grid-cols-[minmax(12rem,16rem)_auto] items-center gap-2">
 							<Input
 								value={newGenreLabel}
 								onChange={(event) => setNewGenreLabel(event.target.value)}
 								placeholder="French Pop"
-								className="h-9 w-[min(100%,220px)]"
+								className="h-9"
 								onKeyDown={(event) => {
 									if (event.key === "Enter") {
 										event.preventDefault();
@@ -1001,7 +999,7 @@ export const EventSheetEditorCard = ({
 						</div>
 					</div>
 
-					<div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
+					<div className="flex max-h-28 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
 						{availableGenres.map((genre) => (
 							<button
 								key={genre.key}

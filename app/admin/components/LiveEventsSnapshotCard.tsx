@@ -22,9 +22,14 @@ type LiveEventsSnapshotCardProps = {
 const DEFAULT_VISIBLE_ROWS = 5;
 
 const sourceDisplay = (source?: SnapshotState["source"]) => {
-	if (source === "store") return { label: "Postgres Store", variant: "default" as const };
-	if (source === "local") return { label: "Local CSV Fallback", variant: "outline" as const };
-	if (source === "test") return { label: "Test Dataset", variant: "outline" as const };
+	if (source === "store")
+		return { label: "Postgres Store", variant: "default" as const };
+	if (source === "backup")
+		return { label: "Event Backup Fallback", variant: "secondary" as const };
+	if (source === "local")
+		return { label: "Local CSV Fallback", variant: "outline" as const };
+	if (source === "test")
+		return { label: "Test Dataset", variant: "outline" as const };
 	return { label: "Unknown", variant: "outline" as const };
 };
 
@@ -92,7 +97,10 @@ export const LiveEventsSnapshotCard = ({
 							? new Date(snapshot.lastUpdate).toLocaleString()
 							: "Unknown"}
 					</span>
-					<span>Last check: {lastCheckMode === "source" ? "Source dry run" : "Runtime read"}</span>
+					<span>
+						Last check:{" "}
+						{lastCheckMode === "source" ? "Source dry run" : "Runtime read"}
+					</span>
 					<Button
 						type="button"
 						size="sm"
@@ -100,7 +108,9 @@ export const LiveEventsSnapshotCard = ({
 						disabled={isLoading}
 						onClick={() => void loadSnapshot("runtime")}
 					>
-						{isLoading && lastCheckMode === "runtime" ? "Refreshing..." : "Refresh snapshot"}
+						{isLoading && lastCheckMode === "runtime"
+							? "Refreshing..."
+							: "Refresh snapshot"}
 					</Button>
 					<Button
 						type="button"
@@ -109,9 +119,9 @@ export const LiveEventsSnapshotCard = ({
 						disabled={isLoading}
 						onClick={() => void loadSnapshot("source")}
 					>
-						{isLoading && lastCheckMode === "source" ?
-							"Checking..."
-						:	"Dry-run source check"}
+						{isLoading && lastCheckMode === "source"
+							? "Checking..."
+							: "Dry-run source check"}
 					</Button>
 				</div>
 			</CardHeader>
@@ -126,6 +136,12 @@ export const LiveEventsSnapshotCard = ({
 					</div>
 				) : (
 					<>
+						{snapshot?.source === "backup" && (
+							<div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+								Live site is currently serving the latest event backup, not the
+								primary Postgres store.
+							</div>
+						)}
 						{snapshot?.source === "local" && (
 							<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
 								Live site is currently serving local CSV fallback, not Postgres.
@@ -138,7 +154,9 @@ export const LiveEventsSnapshotCard = ({
 										<th className="px-2 py-2 text-left font-medium">Name</th>
 										<th className="px-2 py-2 text-left font-medium">Date</th>
 										<th className="px-2 py-2 text-left font-medium">Time</th>
-										<th className="px-2 py-2 text-left font-medium">Location</th>
+										<th className="px-2 py-2 text-left font-medium">
+											Location
+										</th>
 										<th className="px-2 py-2 text-left font-medium">Arr.</th>
 										<th className="px-2 py-2 text-left font-medium">Genre</th>
 										<th className="px-2 py-2 text-left font-medium">Type</th>

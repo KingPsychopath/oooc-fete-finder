@@ -7,6 +7,7 @@
 import { DEFAULT_GENRE_TAXONOMY } from "@/features/events/genre-normalization";
 import { Event } from "@/features/events/types";
 import { env } from "@/lib/config/env";
+import { getEventStoreBackupRepository } from "@/lib/platform/postgres/event-store-backup-repository";
 import { loadGenreTaxonomySnapshot } from "@/lib/platform/postgres/music-genre-taxonomy-repository";
 import { fetchLocalCSV } from "./csv/fetcher";
 import { isValidEventsData, processCSVData } from "./data-processor";
@@ -14,7 +15,7 @@ import { LocalEventStore } from "./local-event-store";
 
 export type ConfiguredDataMode = "remote" | "local" | "test";
 
-type LiveDataSource = "local" | "store" | "test";
+type LiveDataSource = "backup" | "local" | "store" | "test";
 
 export interface DataManagerResult {
 	success: boolean;
@@ -128,6 +129,50 @@ const loadFromStore: SourceDescriptor = {
 	},
 };
 
+const loadFromBackup: SourceDescriptor = {
+	id: "backup",
+	async load(_warnings, options) {
+		try {
+			const repository = getEventStoreBackupRepository();
+			if (!repository) {
+				return toFailure("Event store backup repository unavailable");
+			}
+
+			const backup = await repository.getLatestBackup();
+			if (!backup?.csvContent) {
+				return toFailure("No event store backup available");
+			}
+
+			const parsed = await processCSVData(backup.csvContent, "backup", false, {
+				populateCoordinates: options?.populateCoordinates ?? false,
+				genreTaxonomy: options?.genreTaxonomy,
+			});
+			const validation = validateProcessedEvents(
+				parsed.events,
+				parsed.count,
+				"backup",
+				parsed.errors,
+			);
+			if (!isSourceAttemptSuccess(validation)) {
+				return toFailure(validation.reason, parsed.errors);
+			}
+
+			return {
+				...validation,
+				source: "backup",
+				warnings: [
+					`Serving latest event store backup from ${backup.createdAt}`,
+					...validation.warnings,
+				],
+			};
+		} catch (error) {
+			return toFailure(
+				`Event store backup failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+		}
+	},
+};
+
 const loadFromLocal: SourceDescriptor = {
 	id: "local",
 	async load(_warnings, options) {
@@ -229,17 +274,27 @@ export class DataManager {
 
 		// Remote mode pipeline:
 		// 1) managed store
-		// 2) local CSV stale-safe fallback
+		// 2) latest event store backup
+		// 3) bundled local CSV stale-safe fallback
 		const result = await runSourceChain(
-			[loadFromStore, loadFromLocal],
+			[loadFromStore, loadFromBackup, loadFromLocal],
 			[],
 			readOptions,
 		);
+		if (result.success && result.source === "backup") {
+			return {
+				...result,
+				warnings: [
+					"Managed store unavailable; serving latest event store backup.",
+					...result.warnings,
+				],
+			};
+		}
 		if (result.success && result.source === "local") {
 			return {
 				...result,
 				warnings: [
-					"Managed store unavailable; serving local CSV fallback (stale-safe mode).",
+					"Managed store and backup unavailable; serving local CSV fallback (stale-safe mode).",
 					...result.warnings,
 				],
 			};

@@ -6,14 +6,14 @@ import {
 	getEventCountForDateRange,
 } from "@/features/events/filtering";
 import { applyPromotedProjectionToEvents } from "@/features/events/promoted/service";
-import type { Event } from "@/features/events/types";
 import { SOCIAL_PROOF_SAVE_WINDOW_DAYS } from "@/features/events/social-proof";
+import type { Event } from "@/features/events/types";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { DataManager } from "./data-manager";
 import { isValidEventsData } from "./data-processor";
 
-export type DataSource = "local" | "store" | "test";
+export type DataSource = "backup" | "local" | "store" | "test";
 
 export interface EventsResult {
 	success: boolean;

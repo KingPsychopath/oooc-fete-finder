@@ -31,21 +31,21 @@ export const CSV_EVENT_COLUMNS = [
 
 const COLUMN_MAPPINGS = {
 	eventKey: ["Event Key", "eventKey"],
-	curated: ["Curated", "curated"],
-	hostCountry: ["Host Country", "hostCountry"],
+	curated: ["Curated", "curated", "OOOC Picks", "OOOC Pick"],
+	hostCountry: ["Host Country", "hostCountry", "GB/FR"],
 	audienceCountry: ["Audience Country", "audienceCountry"],
-	title: ["Title", "title"],
+	title: ["Title", "title", "Name", "Event Name"],
 	date: ["Date", "date"],
-	startTime: ["Start Time", "startTime"],
-	endTime: ["End Time", "endTime"],
+	startTime: ["Start Time", "startTime", "Start time"],
+	endTime: ["End Time", "endTime", "End time"],
 	location: ["Location", "location"],
-	districtArea: ["District/Area", "districtArea"],
-	categories: ["Categories", "categories"],
+	districtArea: ["District/Area", "districtArea", "Arr.", "Arrondissement"],
+	categories: ["Categories", "categories", "Genre", "Genres"],
 	tags: ["Tags", "tags"],
 	price: ["Price", "price"],
-	primaryUrl: ["Primary URL", "primaryUrl"],
-	ageGuidance: ["Age Guidance", "ageGuidance"],
-	setting: ["Setting", "setting"],
+	primaryUrl: ["Primary URL", "primaryUrl", "Ticket link", "Ticket Link"],
+	ageGuidance: ["Age Guidance", "ageGuidance", "Age"],
+	setting: ["Setting", "setting", "Indoor/Outdoor"],
 	notes: ["Notes", "notes"],
 	verified: ["Verified", "verified"],
 } as const;
@@ -100,7 +100,9 @@ const buildAliasLookup = (): Map<string, Array<keyof CSVEventRow>> => {
 		}
 	};
 
-	for (const field of Object.keys(COLUMN_MAPPINGS) as Array<keyof CSVEventRow>) {
+	for (const field of Object.keys(COLUMN_MAPPINGS) as Array<
+		keyof CSVEventRow
+	>) {
 		appendAlias(field, field);
 		for (const alias of COLUMN_MAPPINGS[field]) {
 			appendAlias(alias, field);
@@ -278,7 +280,12 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 			);
 			const unrecoverableFieldMismatchErrors = fieldMismatchErrors.filter(
 				(error) =>
-					!isRecoverableTooFewFieldsError(error, rawData, headers, columnMapping),
+					!isRecoverableTooFewFieldsError(
+						error,
+						rawData,
+						headers,
+						columnMapping,
+					),
 			);
 			const recoveredCount =
 				fieldMismatchErrors.length - unrecoverableFieldMismatchErrors.length;
@@ -376,7 +383,12 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 
 		return normalizedRows;
 	} catch (error) {
-		clientLog.error("csv-parser", "Error parsing CSV content", undefined, error);
+		clientLog.error(
+			"csv-parser",
+			"Error parsing CSV content",
+			undefined,
+			error,
+		);
 		throw new Error(
 			`Failed to parse CSV: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);

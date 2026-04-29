@@ -5,6 +5,7 @@ import {
 	DEFAULT_GENRE_TAXONOMY,
 	type GenreTaxonomyDefinition,
 	type GenreTaxonomySnapshot,
+	getCustomGenreColor,
 	normalizeGenreKey,
 	toGenreLabel,
 } from "@/features/events/genre-normalization";
@@ -160,18 +161,30 @@ export class MusicGenreTaxonomyRepository {
 			aliasesByGenre.set(row.genre_key, aliases);
 		}
 
+		const reservedColors = new Set(
+			genreRows
+				.filter((row) => row.is_default || row.color !== DEFAULT_CUSTOM_COLOR)
+				.map((row) => row.color),
+		);
+		const genres = genreRows.map((row): GenreTaxonomyDefinition => {
+			const color =
+				!row.is_default && row.color === DEFAULT_CUSTOM_COLOR
+					? getCustomGenreColor(row.key, reservedColors)
+					: row.color;
+			reservedColors.add(color);
+			return {
+				key: row.key,
+				label: row.label,
+				color,
+				isDefault: row.is_default,
+				isActive: row.is_active,
+				sortOrder: row.sort_order,
+				aliases: aliasesByGenre.get(row.key) ?? [],
+			};
+		});
+
 		return {
-			genres: genreRows.map(
-				(row): GenreTaxonomyDefinition => ({
-					key: row.key,
-					label: row.label,
-					color: row.color,
-					isDefault: row.is_default,
-					isActive: row.is_active,
-					sortOrder: row.sort_order,
-					aliases: aliasesByGenre.get(row.key) ?? [],
-				}),
-			),
+			genres,
 			aliases: aliasRows.map((row) => ({
 				alias: row.alias,
 				genreKey: row.genre_key,
@@ -191,12 +204,18 @@ export class MusicGenreTaxonomyRepository {
 			throw new Error("Genre label is required");
 		}
 
-		const [{ sort_order: sortOrder }] = await this.sql<
-			Array<{ sort_order: number }>
-		>`
-			SELECT COALESCE(MAX(sort_order), 999) + 1 AS sort_order
-			FROM app_music_genres
-		`;
+		const [sortOrderRows, colorRows] = await Promise.all([
+			this.sql<Array<{ sort_order: number }>>`
+				SELECT COALESCE(MAX(sort_order), 999) + 1 AS sort_order
+				FROM app_music_genres
+			`,
+			this.sql<Array<{ color: string }>>`
+				SELECT color
+				FROM app_music_genres
+				WHERE is_active = TRUE
+			`,
+		]);
+		const sortOrder = sortOrderRows[0]?.sort_order ?? 1000;
 
 		const rows = await this.sql<GenreRow[]>`
 			INSERT INTO app_music_genres (
@@ -210,7 +229,13 @@ export class MusicGenreTaxonomyRepository {
 			VALUES (
 				${key},
 				${label},
-				${input.color ?? DEFAULT_CUSTOM_COLOR},
+				${
+					input.color ??
+					getCustomGenreColor(
+						key,
+						colorRows.map((row) => row.color),
+					)
+				},
 				FALSE,
 				TRUE,
 				${sortOrder}

@@ -18,6 +18,8 @@ const formatRuntimeSourceLabel = (source: string): string => {
 	switch (source) {
 		case "store":
 			return "Postgres Store";
+		case "backup":
+			return "Event Backup Fallback";
 		case "local":
 			return "Local CSV Fallback";
 		case "test":
@@ -64,7 +66,9 @@ export default async function AdminPage() {
 							Runtime Source
 						</p>
 						<p className="mt-1 text-sm font-medium">
-							{formatRuntimeSourceLabel(runtimeDataStatus?.dataSource ?? "unknown")}
+							{formatRuntimeSourceLabel(
+								runtimeDataStatus?.dataSource ?? "unknown",
+							)}
 						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
@@ -94,14 +98,19 @@ export default async function AdminPage() {
 
 			<div className="grid gap-4 xl:grid-cols-2">
 				{adminAreas.map((route) => (
-					<Card key={route.key} className="ooo-admin-card-soft min-w-0 overflow-hidden">
+					<Card
+						key={route.key}
+						className="ooo-admin-card-soft min-w-0 overflow-hidden"
+					>
 						<CardHeader className="space-y-2">
 							<div className="flex flex-wrap items-center justify-between gap-2">
 								<div>
 									<CardTitle>{route.label}</CardTitle>
 									<CardDescription>{route.description}</CardDescription>
 								</div>
-								<Badge variant="outline">{route.sections.length} sections</Badge>
+								<Badge variant="outline">
+									{route.sections.length} sections
+								</Badge>
 							</div>
 						</CardHeader>
 						<CardContent className="space-y-3">

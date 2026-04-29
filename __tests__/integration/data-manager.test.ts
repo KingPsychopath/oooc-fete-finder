@@ -1,7 +1,8 @@
+import type { DataManager as DataManagerClass } from "@/features/data-management/data-manager";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type Setup = {
-	DataManager: typeof import("@/features/data-management/data-manager").DataManager;
+	DataManager: typeof DataManagerClass;
 	localEventStore: {
 		getCsv: ReturnType<typeof vi.fn>;
 		getStatus: ReturnType<typeof vi.fn>;
@@ -9,6 +10,9 @@ type Setup = {
 	processCSVData: ReturnType<typeof vi.fn>;
 	isValidEventsData: ReturnType<typeof vi.fn>;
 	fetchLocalCSV: ReturnType<typeof vi.fn>;
+	backupRepository: {
+		getLatestBackup: ReturnType<typeof vi.fn>;
+	};
 };
 
 const loadDataManager = async (
@@ -32,6 +36,9 @@ const loadDataManager = async (
 	const processCSVData = vi.fn();
 	const isValidEventsData = vi.fn((events: unknown[]) => events.length > 0);
 	const fetchLocalCSV = vi.fn();
+	const backupRepository = {
+		getLatestBackup: vi.fn().mockResolvedValue(null),
+	};
 
 	vi.doMock("@/lib/config/env", () => ({
 		env: {
@@ -53,6 +60,10 @@ const loadDataManager = async (
 		fetchLocalCSV,
 	}));
 
+	vi.doMock("@/lib/platform/postgres/event-store-backup-repository", () => ({
+		getEventStoreBackupRepository: () => backupRepository,
+	}));
+
 	const { DataManager } = await import(
 		"@/features/data-management/data-manager"
 	);
@@ -63,6 +74,7 @@ const loadDataManager = async (
 		processCSVData,
 		isValidEventsData,
 		fetchLocalCSV,
+		backupRepository,
 	};
 };
 
@@ -92,10 +104,16 @@ describe("DataManager source orchestration", () => {
 	});
 
 	it("falls back to local CSV when store is empty", async () => {
-		const { DataManager, localEventStore, processCSVData, fetchLocalCSV } =
-			await loadDataManager("remote");
+		const {
+			DataManager,
+			localEventStore,
+			processCSVData,
+			fetchLocalCSV,
+			backupRepository,
+		} = await loadDataManager("remote");
 
 		localEventStore.getCsv.mockResolvedValue(null);
+		backupRepository.getLatestBackup.mockResolvedValue(null);
 		fetchLocalCSV.mockResolvedValue("local-csv");
 		processCSVData.mockResolvedValue({
 			events: [{ id: "2", name: "Fallback Event", date: "2025-06-21" }],
@@ -111,6 +129,48 @@ describe("DataManager source orchestration", () => {
 		expect(result.source).toBe("local");
 		expect(result.warnings.join(" | ")).toContain(
 			"Managed store unavailable or empty",
+		);
+	});
+
+	it("falls back to the latest backup before local CSV", async () => {
+		const {
+			DataManager,
+			localEventStore,
+			processCSVData,
+			fetchLocalCSV,
+			backupRepository,
+		} = await loadDataManager("remote");
+
+		localEventStore.getCsv.mockResolvedValue(null);
+		backupRepository.getLatestBackup.mockResolvedValue({
+			id: "backup-1",
+			createdAt: "2026-04-29T10:00:00.000Z",
+			rowCount: 1,
+			csvContent: "backup-csv",
+		});
+		processCSVData.mockResolvedValue({
+			events: [
+				{ id: "backup-event", name: "Backup Event", date: "2026-06-21" },
+			],
+			count: 1,
+			source: "backup",
+			errors: [],
+			warnings: [],
+		});
+
+		const result = await DataManager.getEventsData();
+
+		expect(result.success).toBe(true);
+		expect(result.source).toBe("backup");
+		expect(fetchLocalCSV).not.toHaveBeenCalled();
+		expect(processCSVData).toHaveBeenCalledWith(
+			"backup-csv",
+			"backup",
+			false,
+			expect.objectContaining({ populateCoordinates: false }),
+		);
+		expect(result.warnings.join(" | ")).toContain(
+			"Managed store unavailable; serving latest event store backup.",
 		);
 	});
 

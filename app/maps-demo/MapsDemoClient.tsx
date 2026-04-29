@@ -9,6 +9,10 @@ import {
 	getDefaultDateRangeForEvents,
 	getTopEventDatesByCount,
 } from "@/features/events/filtering";
+import {
+	getCustomGenreColor,
+	toGenreLabel,
+} from "@/features/events/genre-normalization";
 import type {
 	AgeRange,
 	DayNightPeriod,
@@ -47,11 +51,8 @@ const buildAvailableGenresForEvents = (
 			if (genreByKey.has(genre)) continue;
 			genreByKey.set(genre, {
 				key: genre,
-				label: genre
-					.split(" ")
-					.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-					.join(" "),
-				color: "bg-stone-500",
+				label: toGenreLabel(genre),
+				color: getCustomGenreColor(genre),
 				isActive: true,
 			});
 		}

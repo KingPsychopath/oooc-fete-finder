@@ -18,10 +18,15 @@ type RuntimeDataStatusCardProps = {
 
 const sourcePresentation = (
 	source: RuntimeDataStatus["dataSource"],
-): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } => {
+): {
+	label: string;
+	variant: "default" | "secondary" | "outline" | "destructive";
+} => {
 	switch (source) {
 		case "store":
 			return { label: "Postgres Store", variant: "default" };
+		case "backup":
+			return { label: "Event Backup Fallback", variant: "secondary" };
 		case "local":
 			return { label: "Local CSV Fallback", variant: "secondary" };
 		case "test":
@@ -33,7 +38,10 @@ const sourcePresentation = (
 
 const modePresentation = (
 	mode: RuntimeDataStatus["configuredDataSource"],
-): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } => {
+): {
+	label: string;
+	variant: "default" | "secondary" | "outline" | "destructive";
+} => {
 	switch (mode) {
 		case "remote":
 			return { label: "Remote Mode", variant: "default" };
@@ -85,8 +93,8 @@ export const RuntimeDataStatusCard = ({
 					<div>
 						<CardTitle>Runtime Data Status</CardTitle>
 						<CardDescription>
-							Remote Mode serves Postgres first. If unavailable, the app serves local
-							CSV fallback until store data is restored.
+							Remote Mode serves Postgres first. If unavailable, the app serves
+							local CSV fallback until store data is restored.
 						</CardDescription>
 					</div>
 					<div className="flex items-center gap-2">
@@ -112,7 +120,9 @@ export const RuntimeDataStatusCard = ({
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Store Events
 						</p>
-						<p className="mt-1 text-lg font-semibold">{runtimeDataStatus.storeRowCount}</p>
+						<p className="mt-1 text-lg font-semibold">
+							{runtimeDataStatus.storeRowCount}
+						</p>
 						<p className="mt-1 text-xs text-muted-foreground">
 							Currently saved in the managed database-backed store.
 						</p>
@@ -122,9 +132,9 @@ export const RuntimeDataStatusCard = ({
 							Last Runtime Check
 						</p>
 						<p className="mt-1 text-sm font-medium">
-							{runtimeDataStatus.lastFetchTime ?
-								new Date(runtimeDataStatus.lastFetchTime).toLocaleString()
-							: 	"Never"}
+							{runtimeDataStatus.lastFetchTime
+								? new Date(runtimeDataStatus.lastFetchTime).toLocaleString()
+								: "Never"}
 						</p>
 						<p className="mt-1 text-xs text-muted-foreground">
 							Updated when the runtime source is read.
@@ -134,8 +144,8 @@ export const RuntimeDataStatusCard = ({
 
 				{fallbackActive && (
 					<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-						Postgres is not currently serving live data. The site is using local CSV
-						fallback until Postgres data is available again.
+						Postgres is not currently serving live data. The site is using local
+						CSV fallback until Postgres data is available again.
 					</div>
 				)}
 

@@ -12,6 +12,10 @@ import SearchBar from "@/features/events/components/SearchBar";
 import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
 import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
+import {
+	getCustomGenreColor,
+	toGenreLabel,
+} from "@/features/events/genre-normalization";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
 import { getSocialProofDisplayModes } from "@/features/events/social-proof";
 import {
@@ -43,11 +47,8 @@ const buildAvailableGenresForEvents = (
 			if (genreByKey.has(genre)) continue;
 			genreByKey.set(genre, {
 				key: genre,
-				label: genre
-					.split(" ")
-					.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-					.join(" "),
-				color: "bg-stone-500",
+				label: toGenreLabel(genre),
+				color: getCustomGenreColor(genre),
 				isActive: true,
 			});
 		}
