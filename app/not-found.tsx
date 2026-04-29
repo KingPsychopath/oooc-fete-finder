@@ -52,20 +52,6 @@ export default function NotFound() {
 									<Music2 className="h-4 w-4" />
 									Browse Events
 								</Button>
-								<Button
-									variant="outline"
-									size="lg"
-									className="gap-2 rounded-full bg-background/56"
-									nativeButton={false}
-									render={
-										<Link
-											href={`${basePath}/how-it-works`}
-										/>
-									}
-								>
-									Get Oriented
-									<ArrowRight className="h-4 w-4" />
-								</Button>
 							</div>
 
 							<div className="mt-8 max-w-sm text-sm text-muted-foreground">
