@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Compass, Home, Map, Music2, Send, Sparkles } from "lucide-react";
+import { ArrowRight, Compass, Home, Map, MapPin, Music2, Send } from "lucide-react";
 import Link from "next/link";
 import { NotFoundDevDetails } from "./NotFoundDevDetails";
 
@@ -14,7 +14,7 @@ export default function NotFound() {
 					<div className="relative grid min-h-[34rem] gap-8 p-6 sm:p-9 lg:grid-cols-[1.05fr_0.95fr] lg:p-12">
 						<div className="flex flex-col justify-center">
 							<div className="inline-flex w-fit items-center gap-2 rounded-full border border-border/70 bg-background/64 px-3 py-1.5 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-								<Sparkles className="h-3.5 w-3.5" />
+								<MapPin className="h-3.5 w-3.5" />
 								Fete Finder
 							</div>
 							<h1
