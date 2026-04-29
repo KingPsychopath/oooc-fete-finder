@@ -314,13 +314,20 @@
 
 @keyframes slide-banner {
 	0% {
-		transform: translateX(100%);
+		transform: translate3d(0, 0, 0);
 	}
 	100% {
-		transform: translateX(-100%);
+		transform: translate3d(-50%, 0, 0);
 	}
 }
 
 .animate-slide-banner {
 	animation: slide-banner linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.animate-slide-banner {
+		animation: none;
+		transform: translate3d(0, 0, 0);
+	}
 }

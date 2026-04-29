@@ -24,9 +24,14 @@ function TooltipProvider({
   )
 }
 
-function Tooltip({ open, onOpenChange, defaultOpen, ...props }: TooltipPrimitive.Root.Props) {
+function Tooltip({
+  open,
+  onOpenChange,
+  defaultOpen,
+  ...props
+}: TooltipPrimitive.Root.Props) {
   const [isTouchDevice, setIsTouchDevice] = React.useState(false)
-  const [mobileOpen, setMobileOpen] = React.useState(defaultOpen ?? false)
+  const [internalOpen, setInternalOpen] = React.useState(defaultOpen ?? false)
 
   React.useEffect(() => {
     const mediaQuery = window.matchMedia("(hover: none), (pointer: coarse)")
@@ -41,20 +46,19 @@ function Tooltip({ open, onOpenChange, defaultOpen, ...props }: TooltipPrimitive
   }, [])
 
   const isControlled = open !== undefined
-  const activeOpen = isControlled ? open : mobileOpen
+  const activeOpen = isControlled ? open : internalOpen
 
   return (
     <TooltipMobileContext.Provider
-      value={{ isTouchDevice, isOpen: activeOpen, setOpen: setMobileOpen }}
+      value={{ isTouchDevice, isOpen: activeOpen, setOpen: setInternalOpen }}
     >
       <TooltipPrimitive.Root
         data-slot="tooltip"
         {...props}
-        defaultOpen={defaultOpen}
-        open={isTouchDevice ? activeOpen : open}
+        open={activeOpen}
         onOpenChange={(nextOpen, eventDetails) => {
-          if (isTouchDevice && !isControlled) {
-            setMobileOpen(nextOpen)
+          if (!isControlled) {
+            setInternalOpen(nextOpen)
           }
           onOpenChange?.(nextOpen, eventDetails)
         }}

@@ -19,8 +19,10 @@ import { useEffect, useState } from "react";
 // Get base path from environment variable directly
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
 
-const COMPRESS_THRESHOLD = 14;
-const COLLAPSE_THRESHOLD = 44;
+const COMPRESS_ENTER_THRESHOLD = 20;
+const COMPRESS_EXIT_THRESHOLD = 6;
+const COLLAPSE_ENTER_THRESHOLD = 52;
+const COLLAPSE_EXIT_THRESHOLD = 34;
 const DEFAULT_BANNER_MESSAGES = [
 	"Curated by Out Of Office Collective",
 	"Paris summer rhythm, mapped live",
@@ -76,15 +78,31 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 	useEffect(() => {
 		let rafId: number | null = null;
 		let lastY = -1;
+		let isCompressed = false;
+		let isCollapsed = false;
 
 		const tick = () => {
 			rafId = null;
 			const y = window.scrollY;
 			if (y === lastY) return;
 			lastY = y;
+
+			const nextCompressed = isCompressed
+				? y > COMPRESS_EXIT_THRESHOLD
+				: y > COMPRESS_ENTER_THRESHOLD;
+			const nextCollapsed = isCollapsed
+				? y > COLLAPSE_EXIT_THRESHOLD
+				: y > COLLAPSE_ENTER_THRESHOLD;
+
+			if (nextCompressed === isCompressed && nextCollapsed === isCollapsed) {
+				return;
+			}
+
+			isCompressed = nextCompressed;
+			isCollapsed = nextCollapsed;
 			setScrollState({
-				compressed: y > COMPRESS_THRESHOLD,
-				collapsed: y > COLLAPSE_THRESHOLD,
+				compressed: nextCompressed,
+				collapsed: nextCollapsed,
 			});
 		};
 
