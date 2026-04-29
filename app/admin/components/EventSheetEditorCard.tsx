@@ -57,7 +57,10 @@ import {
 	resolveMusicGenre,
 	toGenreLabel,
 } from "@/features/events/genre-normalization";
-import { normalizeSupportedNationalities } from "@/features/events/nationality-utils";
+import {
+	normalizeSupportedNationalities,
+	parseSupportedNationalities,
+} from "@/features/events/nationality-utils";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -96,6 +99,11 @@ type SimpleOption = {
 	label: string;
 	description: string;
 };
+type SheetHealthIssue = {
+	rowIndex: number;
+	column: string;
+	message: string;
+};
 type FocusedCell = {
 	rowIndex: number;
 	columnKey: string;
@@ -121,6 +129,8 @@ const END_TIME_COLUMN_KEY = "endTime";
 const CATEGORY_COLUMN_KEY = "categories";
 const AREA_COLUMN_KEY = "districtArea";
 const AGE_COLUMN_KEY = "ageGuidance";
+const PRICE_COLUMN_KEY = "price";
+const PRIMARY_URL_COLUMN_KEY = "primaryUrl";
 const SETTING_COLUMN_KEY = "setting";
 const COUNTRY_COLUMN_KEYS = new Set(["hostCountry", "audienceCountry"]);
 const TIME_COLUMN_KEYS = new Set([START_TIME_COLUMN_KEY, END_TIME_COLUMN_KEY]);
@@ -319,6 +329,45 @@ const normalizeSettingValue = (value: string): string => {
 const isCuratedValue = (value: string): boolean => {
 	const normalized = value.trim().toLowerCase();
 	return value.includes(CURATED_PICK_VALUE) || normalized.includes("pick");
+};
+
+const URL_SEPARATOR_REGEX = /[,\n\r|]+/;
+const URL_SCHEME_REGEX = /^[a-z][a-z\d+\-.]*:\/\//i;
+const DOMAIN_LIKE_REGEX =
+	/^(?:www\.)?[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+(?:[/?#].*)?$/i;
+
+const normalizeUrlPart = (value: string): string => {
+	const trimmed = value.trim();
+	if (!trimmed || /\s/.test(trimmed)) return trimmed;
+	if (URL_SCHEME_REGEX.test(trimmed)) return trimmed;
+	if (DOMAIN_LIKE_REGEX.test(trimmed)) return `https://${trimmed}`;
+	return trimmed;
+};
+
+const normalizeUrlValue = (value: string): string =>
+	value
+		.split(URL_SEPARATOR_REGEX)
+		.map(normalizeUrlPart)
+		.filter((part) => part.length > 0)
+		.join(", ");
+
+const isValidHttpUrl = (value: string): boolean => {
+	try {
+		const url = new URL(value);
+		return url.protocol === "http:" || url.protocol === "https:";
+	} catch {
+		return false;
+	}
+};
+
+const normalizePriceValue = (value: string): string => {
+	const trimmed = value.trim().replace(/\s+/g, " ");
+	const normalized = trimmed.toLowerCase();
+	if (!trimmed) return "";
+	if (/^(?:free|0|0\.00|[€£$]0(?:\.00)?)$/.test(normalized)) return "Free";
+	if (normalized === "tba") return "TBA";
+	if (normalized === "tbc") return "TBC";
+	return trimmed.replace(/\s*[-–—]\s*/g, " - ");
 };
 
 const toUTCDateOnlyTime = (date: Date): number =>
@@ -792,6 +841,12 @@ export const EventSheetEditorCard = ({
 			}
 			if (TIME_COLUMN_KEYS.has(columnKey)) {
 				return DateTransformers.convertToTime(value);
+			}
+			if (columnKey === PRIMARY_URL_COLUMN_KEY) {
+				return normalizeUrlValue(value);
+			}
+			if (columnKey === PRICE_COLUMN_KEY) {
+				return normalizePriceValue(value);
 			}
 			return value;
 		},
@@ -1353,6 +1408,87 @@ export const EventSheetEditorCard = ({
 			);
 	}, [genreTaxonomy, rows]);
 
+	const sheetHealthIssues = useMemo((): SheetHealthIssue[] => {
+		const referenceDate = new Date();
+		const context = createDateNormalizationContext(
+			rows.map((row) => ({ date: row.date ?? "" })),
+			{ referenceDate },
+		);
+		const issues: SheetHealthIssue[] = [];
+
+		rows.forEach((row, index) => {
+			const rowNumber = index + 1;
+			const dateValue = String(row[DATE_COLUMN_KEY] ?? "").trim();
+			if (dateValue) {
+				const normalized = normalizeCsvDate(dateValue, context);
+				if (normalized.warning) {
+					issues.push({
+						rowIndex: rowNumber,
+						column: "Date",
+						message: normalized.warning.message,
+					});
+				}
+			}
+
+			for (const columnKey of TIME_COLUMN_KEYS) {
+				const value = String(row[columnKey] ?? "").trim();
+				if (!value || /^(?:tba|tbc)$/i.test(value)) continue;
+				const normalized = DateTransformers.convertToTime(value);
+				const isNormalizedTime = /^\d{2}:\d{2}$/.test(normalized);
+				if (!isNormalizedTime && /\d/.test(value)) {
+					issues.push({
+						rowIndex: rowNumber,
+						column:
+							columnKey === START_TIME_COLUMN_KEY ? "Start Time" : "End Time",
+						message: `Suspicious time value "${value}".`,
+					});
+				}
+			}
+
+			const urlValue = String(row[PRIMARY_URL_COLUMN_KEY] ?? "").trim();
+			if (urlValue) {
+				const invalidUrl = urlValue
+					.split(URL_SEPARATOR_REGEX)
+					.map(normalizeUrlPart)
+					.find((part) => part.length > 0 && !isValidHttpUrl(part));
+				if (invalidUrl) {
+					issues.push({
+						rowIndex: rowNumber,
+						column: "Primary URL",
+						message: `Invalid URL "${invalidUrl}".`,
+					});
+				}
+			}
+
+			for (const [columnKey, column] of [
+				["hostCountry", "Host Country"],
+				["audienceCountry", "Audience Country"],
+			] as const) {
+				const value = String(row[columnKey] ?? "").trim();
+				if (!value) continue;
+				const parsed = parseSupportedNationalities(value);
+				if (parsed.unsupportedTokens.length > 0) {
+					issues.push({
+						rowIndex: rowNumber,
+						column,
+						message: `Unknown country token: ${parsed.unsupportedTokens.join(", ")}.`,
+					});
+				}
+			}
+
+			const settingValue = String(row[SETTING_COLUMN_KEY] ?? "").trim();
+			if (settingValue && splitSettingCell(settingValue).length === 0) {
+				issues.push({
+					rowIndex: rowNumber,
+					column: "Setting",
+					message: 'Use "Indoor", "Outdoor", or both.',
+				});
+			}
+		});
+
+		return issues;
+	}, [rows]);
+
 	const focusCell = (
 		rowIndex: number,
 		columnKey: string,
@@ -1434,6 +1570,31 @@ export const EventSheetEditorCard = ({
 						</span>
 					)}
 				</div>
+
+				{sheetHealthIssues.length > 0 && (
+					<details className="rounded-md border border-amber-300/70 bg-amber-50/75 px-3 py-2 text-xs text-amber-950">
+						<summary className="cursor-pointer font-medium">
+							Sheet health: {sheetHealthIssues.length} value
+							{sheetHealthIssues.length === 1 ? "" : "s"} worth reviewing
+						</summary>
+						<div className="mt-2 space-y-1">
+							{sheetHealthIssues.slice(0, 5).map((issue) => (
+								<div
+									key={`${issue.rowIndex}-${issue.column}-${issue.message}`}
+									className="leading-snug"
+								>
+									Row {issue.rowIndex} · {issue.column}: {issue.message}
+								</div>
+							))}
+							{sheetHealthIssues.length > 5 && (
+								<div className="text-amber-900/80">
+									+{sheetHealthIssues.length - 5} more. Use search or sort to
+									review affected rows.
+								</div>
+							)}
+						</div>
+					</details>
+				)}
 
 				<div className="space-y-3 rounded-md border bg-background/55 p-3">
 					<div className="grid items-end gap-3 xl:grid-cols-[minmax(280px,1fr)_220px_auto]">
