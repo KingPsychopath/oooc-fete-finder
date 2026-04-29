@@ -39,6 +39,7 @@ import {
 	VENUE_TYPES,
 	type VenueType,
 	formatAgeRange,
+	formatLocationAreaShort,
 	formatPriceRange,
 } from "@/features/events/types";
 import { LAYERS } from "@/lib/ui/layers";
@@ -509,7 +510,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								variant="secondary"
 								className="border border-border/70 bg-secondary/72 text-xs"
 							>
-								{arr === "unknown" ? "TBC" : `${arr}e`}
+								{formatLocationAreaShort(arr)}
 								<Button
 									variant="ghost"
 									size="sm"
@@ -712,7 +713,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<AccordionContent>
 											<div className="space-y-3">
 												<h3 className={sectionTitleClassName}>
-													Arrondissements
+													Location / Area
 												</h3>
 												<div className="grid grid-cols-5 gap-1 min-h-[5rem] content-start">
 													{availableArrondissements.map((arr) => (
@@ -725,7 +726,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															size="sm"
 															className={denseToggleClassName}
 														>
-															{arr === "unknown" ? "TBC" : `${arr}e`}
+															{formatLocationAreaShort(arr)}
 														</Toggle>
 													))}
 												</div>
@@ -1390,7 +1391,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 								{/* Arrondissements */}
 								<div className={sectionClassName}>
-									<h3 className={sectionTitleClassName}>Arrondissements</h3>
+									<h3 className={sectionTitleClassName}>Location / Area</h3>
 									<div className="grid grid-cols-4 lg:grid-cols-5 gap-1 min-h-[7rem] content-start">
 										{availableArrondissements.map((arr) => (
 											<Toggle
@@ -1400,7 +1401,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												size="sm"
 												className={denseToggleClassName}
 											>
-												{arr === "unknown" ? "TBC" : `${arr}e`}
+												{formatLocationAreaShort(arr)}
 											</Toggle>
 										))}
 									</div>

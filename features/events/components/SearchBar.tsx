@@ -6,7 +6,11 @@ import {
 	normalizeSearchText,
 } from "@/features/events/genre-normalization";
 import { DEFAULT_SEARCH_EXAMPLES } from "@/features/events/search-defaults";
-import type { Event } from "@/features/events/types";
+import {
+	type Event,
+	type ParisArrondissement,
+	formatLocationAreaLong,
+} from "@/features/events/types";
 import { Search, X } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
@@ -61,9 +65,17 @@ const extractArrondissementNumber = (text: string): number | null => {
  * Checks if text contains arrondissement match
  */
 const matchesArrondissement = (
-	eventArr: number | string,
+	eventArr: ParisArrondissement,
 	searchTerms: string[],
 ): boolean => {
+	if (
+		searchTerms.some((term) =>
+			normalizeSearchText(formatLocationAreaLong(eventArr)).includes(term),
+		)
+	) {
+		return true;
+	}
+
 	const eventArrNum =
 		typeof eventArr === "string" ? parseInt(eventArr) : eventArr;
 	if (isNaN(eventArrNum)) return false;

@@ -105,6 +105,7 @@ const loadFromStore: SourceDescriptor = {
 
 			const parsed = await processCSVData(storeCsv, "store", false, {
 				populateCoordinates: options?.populateCoordinates ?? false,
+				genreTaxonomy: options?.genreTaxonomy,
 			});
 
 			const validation = validateProcessedEvents(
@@ -180,6 +181,7 @@ const loadFromLocal: SourceDescriptor = {
 			const localCsv = await fetchLocalCSV();
 			const parsed = await processCSVData(localCsv, "local", false, {
 				populateCoordinates: options?.populateCoordinates ?? false,
+				genreTaxonomy: options?.genreTaxonomy,
 			});
 			const validation = validateProcessedEvents(
 				parsed.events,

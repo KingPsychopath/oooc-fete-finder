@@ -3,7 +3,7 @@ import {
 	getEventStatsDateRange,
 	getEventStatsUniqueDays,
 } from "@/features/events/event-stats-utils";
-import { type Event } from "@/features/events/types";
+import { type Event, isNumberedArrondissement } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
 import React, { useEffect, useMemo } from "react";
 
@@ -25,7 +25,7 @@ const EventStats: React.FC<EventStatsProps> = ({
 		const arrondissements = new Set(
 			filteredEvents
 				.map((event) => event.arrondissement)
-				.filter((arr) => arr !== "unknown"),
+				.filter(isNumberedArrondissement),
 		);
 		return arrondissements.size;
 	}, [filteredEvents]);

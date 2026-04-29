@@ -1,5 +1,8 @@
 import type { Coordinates, ParisArrondissement } from "@/features/events/types";
-import { PARIS_ARRONDISSEMENTS } from "@/features/events/types";
+import {
+	PARIS_ARRONDISSEMENTS,
+	isNumberedArrondissement,
+} from "@/features/events/types";
 
 const PARIS_CENTER: Coordinates = { lat: 48.8566, lng: 2.3522 };
 
@@ -31,11 +34,7 @@ export function isCoordinateResolvableInput(
 		normalizedLocation !== "location tbc" &&
 		normalizedLocation !== "location tba";
 
-	const hasValidArrondissement =
-		arrondissement !== "unknown" &&
-		typeof arrondissement === "number" &&
-		arrondissement >= 1 &&
-		arrondissement <= 20;
+	const hasValidArrondissement = arrondissement !== "unknown";
 
 	return hasValidLocation && hasValidArrondissement;
 }
@@ -43,6 +42,7 @@ export function isCoordinateResolvableInput(
 export function getArrondissementCenter(
 	arrondissement: ParisArrondissement,
 ): Coordinates | null {
+	if (!isNumberedArrondissement(arrondissement)) return null;
 	const arr = PARIS_ARRONDISSEMENTS.find((item) => item.id === arrondissement);
 	if (!arr) return PARIS_CENTER;
 	return {

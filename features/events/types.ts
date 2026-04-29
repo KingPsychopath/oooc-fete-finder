@@ -71,7 +71,47 @@ export type ParisArrondissement =
 	| 18
 	| 19
 	| 20
+	| "greater-paris"
+	| "outside-paris"
 	| "unknown";
+
+export const NON_PARIS_AREA_VALUES = [
+	"greater-paris",
+	"outside-paris",
+	"unknown",
+] as const satisfies ParisArrondissement[];
+
+export const isNumberedArrondissement = (
+	value: ParisArrondissement,
+): value is Exclude<ParisArrondissement, string> =>
+	typeof value === "number" && value >= 1 && value <= 20;
+
+export const formatLocationAreaShort = (
+	value: ParisArrondissement,
+): string => {
+	if (value === "greater-paris") return "Greater Paris";
+	if (value === "outside-paris") return "Outside Paris";
+	if (value === "unknown") return "TBC";
+	return `${value}e`;
+};
+
+export const formatLocationAreaLong = (
+	value: ParisArrondissement,
+): string => {
+	if (value === "greater-paris") return "Greater Paris Area";
+	if (value === "outside-paris") return "Outside Paris";
+	if (value === "unknown") return "Location TBC";
+	return `${value}e Arrondissement`;
+};
+
+export const getLocationAreaSortValue = (
+	value: ParisArrondissement,
+): number => {
+	if (typeof value === "number") return value;
+	if (value === "greater-paris") return 21;
+	if (value === "outside-paris") return 22;
+	return 23;
+};
 
 // Legacy type for backwards compatibility
 export type EventCategory =

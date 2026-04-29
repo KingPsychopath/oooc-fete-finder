@@ -103,6 +103,40 @@ describe("DataManager source orchestration", () => {
 		expect(fetchLocalCSV).not.toHaveBeenCalled();
 	});
 
+	it("passes custom genre taxonomy into the live store parser", async () => {
+		const { DataManager, localEventStore, processCSVData } =
+			await loadDataManager("remote");
+		const genreTaxonomy = {
+			genres: [
+				{
+					key: "latino",
+					label: "Latino",
+					color: "bg-blue-600",
+					isActive: true,
+				},
+			],
+			aliases: [],
+		};
+
+		localEventStore.getCsv.mockResolvedValue("store-csv");
+		processCSVData.mockResolvedValue({
+			events: [{ id: "1", name: "Store Event", date: "2025-06-21" }],
+			count: 1,
+			source: "store",
+			errors: [],
+			warnings: [],
+		});
+
+		await DataManager.getEventsData({ genreTaxonomy });
+
+		expect(processCSVData).toHaveBeenCalledWith(
+			"store-csv",
+			"store",
+			false,
+			expect.objectContaining({ genreTaxonomy }),
+		);
+	});
+
 	it("falls back to local CSV when store is empty", async () => {
 		const {
 			DataManager,

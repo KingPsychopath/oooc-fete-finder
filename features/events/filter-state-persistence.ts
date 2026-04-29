@@ -64,7 +64,13 @@ const parseArrondissements = (raw: string | null): ParisArrondissement[] => {
 	return parseCsvParam(raw)
 		.map((value) => value.toLowerCase())
 		.map((value): ParisArrondissement | null => {
-			if (value === "unknown") return "unknown";
+			if (
+				value === "unknown" ||
+				value === "greater-paris" ||
+				value === "outside-paris"
+			) {
+				return value;
+			}
 			const parsed = Number.parseInt(value, 10);
 			if (!Number.isFinite(parsed)) return null;
 			if (parsed < 1 || parsed > 20) return null;

@@ -1,5 +1,9 @@
 import { generateEventOGImage, generateOGMetadata } from "@/lib/social/og-utils";
-import { formatDayWithDate, formatPrice } from "@/features/events/types";
+import {
+	formatDayWithDate,
+	formatLocationAreaLong,
+	formatPrice,
+} from "@/features/events/types";
 import {
 	type EventShareDetails,
 	getEventShareDetails,
@@ -44,7 +48,8 @@ const formatArrondissement = (
 	value: EventShareDetails["arrondissement"],
 ): string => {
 	if (value === "unknown") return "Paris";
-	return `${value}e arrondissement`;
+	if (typeof value === "number") return `${value}e arrondissement`;
+	return formatLocationAreaLong(value);
 };
 
 const formatTimeRange = (event: EventShareDetails): string => {

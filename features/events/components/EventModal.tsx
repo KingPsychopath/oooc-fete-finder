@@ -16,6 +16,10 @@ import {
 import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import {
+	getCustomGenreColor,
+	toGenreLabel,
+} from "@/features/events/genre-normalization";
+import {
 	CARD_SOCIAL_PROOF_MIN_SAVES,
 	type SocialProofDisplayMode,
 } from "@/features/events/social-proof";
@@ -25,6 +29,7 @@ import {
 	type ParisArrondissement,
 	VENUE_TYPES,
 	formatDayWithDate,
+	formatLocationAreaLong,
 	formatPrice,
 } from "@/features/events/types";
 import type { LocationResolution } from "@/features/locations/types";
@@ -214,11 +219,11 @@ const EventModal: React.FC<EventModalProps> = ({
 
 	const getGenreColor = (genre: string) => {
 		const genreInfo = MUSIC_GENRES.find((g) => g.key === genre);
-		return (
-			genreInfo?.color ||
-			"bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-gray-200 dark:border dark:border-white/15"
-		);
+		return genreInfo?.color || getCustomGenreColor(genre);
 	};
+
+	const getGenreLabel = (genre: string) =>
+		MUSIC_GENRES.find((g) => g.key === genre)?.label || toGenreLabel(genre);
 
 	const setTimedShareStatus = (
 		message: string,
@@ -337,10 +342,7 @@ const EventModal: React.FC<EventModalProps> = ({
 			: event.indoor
 				? "Indoor"
 				: "Outdoor";
-	const locationLabel =
-		event.arrondissement === "unknown"
-			? "Location TBC"
-			: `${event.arrondissement}e Arrondissement`;
+	const locationLabel = formatLocationAreaLong(event.arrondissement);
 	const priceLabel = formatPrice(event.price);
 	const ageLabel = event.age || "All ages";
 
@@ -500,7 +502,7 @@ const EventModal: React.FC<EventModalProps> = ({
 								className={`${getGenreColor(genre)} border border-white/20 dark:bg-opacity-25`}
 							>
 								<Music className="mr-1 h-3 w-3" />
-								{genre}
+								{getGenreLabel(genre)}
 							</Badge>
 						))}
 						{extraGenreCount > 0 && (

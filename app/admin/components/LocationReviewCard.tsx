@@ -21,7 +21,11 @@ import type {
 	EventLocationReviewItem,
 	EventLocationReviewPayload,
 } from "@/features/data-management/actions";
-import type { ParisArrondissement } from "@/features/events/types";
+import {
+	type ParisArrondissement,
+	formatLocationAreaShort,
+	getLocationAreaSortValue,
+} from "@/features/events/types";
 import {
 	type MapLinkProvider,
 	buildMapLink,
@@ -125,7 +129,7 @@ const getReviewPriority = (item: EventLocationReviewItem): number => {
 };
 
 const formatArrondissement = (arrondissement: ParisArrondissement): string =>
-	arrondissement === "unknown" ? "Unknown arr." : `${arrondissement}e`;
+	formatLocationAreaShort(arrondissement);
 
 const formatCoordinates = (item: EventLocationReviewItem): string => {
 	const coordinates = item.resolution?.coordinates;
@@ -164,9 +168,7 @@ const compareArrondissement = (
 	right: ParisArrondissement,
 ): number => {
 	if (left === right) return 0;
-	if (left === "unknown") return 1;
-	if (right === "unknown") return -1;
-	return left - right;
+	return getLocationAreaSortValue(left) - getLocationAreaSortValue(right);
 };
 
 const getMapLink = (

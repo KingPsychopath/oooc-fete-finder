@@ -71,6 +71,13 @@ type GenreCellPart = {
 	resolved: string | null;
 	label: string;
 };
+type AreaOption = {
+	value: string;
+	label: string;
+	group: "Paris arrondissements" | "Beyond Paris" | "Unconfirmed";
+	description: string;
+	aliases: string[];
+};
 type FocusedCell = {
 	rowIndex: number;
 	columnKey: string;
@@ -87,7 +94,41 @@ const MAX_FROZEN_COLUMNS = 4;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
 const DEFAULT_SORT_MODE: SheetSortMode = "smart-date";
 const CATEGORY_COLUMN_KEY = "categories";
+const AREA_COLUMN_KEY = "districtArea";
 const COUNTRY_COLUMN_KEYS = new Set(["hostCountry", "audienceCountry"]);
+const AREA_OPTIONS: AreaOption[] = [
+	...Array.from({ length: 20 }, (_, index) => {
+		const value = String(index + 1);
+		return {
+			value,
+			label: `${value}e`,
+			group: "Paris arrondissements" as const,
+			description: `${value}e arrondissement`,
+			aliases: [value, `${value}e`, `${value}eme`, `${value} arrondissement`],
+		};
+	}),
+	{
+		value: "Greater Paris",
+		label: "Greater Paris",
+		group: "Beyond Paris",
+		description: "Paris-adjacent / Ile-de-France venue",
+		aliases: ["grand paris", "idf", "suburbs", "near paris"],
+	},
+	{
+		value: "Outside Paris",
+		label: "Outside Paris",
+		group: "Beyond Paris",
+		description: "Not a Paris or Paris-adjacent venue",
+		aliases: ["outside", "out of paris", "not paris"],
+	},
+	{
+		value: "Location TBC",
+		label: "Location TBC",
+		group: "Unconfirmed",
+		description: "Venue or area still unconfirmed",
+		aliases: ["tbc", "unknown", "-", "tba"],
+	},
+];
 const DEFAULT_ALIAS_KEYS = new Set(
 	DEFAULT_GENRE_ALIASES.map(
 		([alias, genreKey]) => `${normalizeGenreKey(alias)}:${genreKey}`,
@@ -163,6 +204,37 @@ const getGenreLabel = (
 	genres: GenreTaxonomyDefinition[],
 ): string =>
 	genres.find((genre) => genre.key === key)?.label ?? toGenreLabel(key);
+
+const normalizeAreaSearchText = (value: string): string =>
+	value
+		.trim()
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/ème/g, "eme")
+		.replace(/\s+/g, " ");
+
+const findAreaOption = (value: string): AreaOption | null => {
+	const normalized = normalizeAreaSearchText(value);
+	if (!normalized) return null;
+	return (
+		AREA_OPTIONS.find((option) =>
+			[option.value, option.label, option.description, ...option.aliases]
+				.map(normalizeAreaSearchText)
+				.includes(normalized),
+		) ?? null
+	);
+};
+
+const filterAreaOptions = (query: string): AreaOption[] => {
+	const normalized = normalizeAreaSearchText(query);
+	if (!normalized) return AREA_OPTIONS;
+	return AREA_OPTIONS.filter((option) =>
+		[option.value, option.label, option.description, ...option.aliases]
+			.map(normalizeAreaSearchText)
+			.some((candidate) => candidate.includes(normalized)),
+	);
+};
 
 const toUTCDateOnlyTime = (date: Date): number =>
 	Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
@@ -293,6 +365,11 @@ export const EventSheetEditorCard = ({
 		useState<FocusedCell | null>(null);
 	const [countrySearchQuery, setCountrySearchQuery] = useState("");
 	const [highlightedCountryIndex, setHighlightedCountryIndex] = useState(0);
+	const [focusedAreaCell, setFocusedAreaCell] = useState<FocusedCell | null>(
+		null,
+	);
+	const [areaSearchQuery, setAreaSearchQuery] = useState("");
+	const [highlightedAreaIndex, setHighlightedAreaIndex] = useState(0);
 
 	const rowsRef = useRef<EditableSheetRow[]>([]);
 	const columnsRef = useRef<EditableSheetColumn[]>([]);
@@ -308,6 +385,8 @@ export const EventSheetEditorCard = ({
 		setGenreSearchQuery("");
 		setFocusedCountryCell(null);
 		setCountrySearchQuery("");
+		setFocusedAreaCell(null);
+		setAreaSearchQuery("");
 	}, []);
 
 	useEffect(() => {
@@ -839,6 +918,11 @@ export const EventSheetEditorCard = ({
 		return filterCountryOptions(countrySearchQuery, 8);
 	}, [countrySearchQuery, focusedCountryCell]);
 
+	const areaOptionsForFocusedCell = useMemo((): AreaOption[] => {
+		if (!focusedAreaCell) return [];
+		return filterAreaOptions(areaSearchQuery);
+	}, [areaSearchQuery, focusedAreaCell]);
+
 	const selectCountryForCell = useCallback(
 		(rowIndex: number, columnKey: string, country: CountryOption) => {
 			const row = rowsRef.current[rowIndex];
@@ -865,6 +949,31 @@ export const EventSheetEditorCard = ({
 			const normalized = normalizeSupportedNationalities(rawValue);
 			if (normalized && normalized !== rawValue) {
 				handleCellChange(rowIndex, columnKey, normalized);
+			}
+		},
+		[handleCellChange],
+	);
+
+	const selectAreaForCell = useCallback(
+		(rowIndex: number, columnKey: string, area: AreaOption) => {
+			handleCellChange(rowIndex, columnKey, area.value);
+			setAreaSearchQuery(area.value);
+			setFocusedAreaCell({ rowIndex, columnKey });
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange],
+	);
+
+	const normalizeAreaCell = useCallback(
+		(rowIndex: number, columnKey: string) => {
+			const row = rowsRef.current[rowIndex];
+			if (!row) return;
+			const rawValue = row[columnKey] ?? "";
+			const option = findAreaOption(rawValue);
+			if (option && option.value !== rawValue) {
+				handleCellChange(rowIndex, columnKey, option.value);
 			}
 		},
 		[handleCellChange],
@@ -1120,8 +1229,8 @@ export const EventSheetEditorCard = ({
 						</div>
 					</div>
 
-					<div className="grid items-end gap-4 border-t pt-3 lg:grid-cols-[minmax(280px,1.1fr)_minmax(220px,0.7fr)_minmax(260px,0.8fr)_auto]">
-						<div className="space-y-2">
+					<div className="flex flex-wrap items-end gap-x-6 gap-y-4 border-t pt-3">
+						<div className="min-w-fit space-y-2">
 							<Label>Sheet actions</Label>
 							<div className="flex flex-wrap gap-2">
 								<Button
@@ -1153,7 +1262,7 @@ export const EventSheetEditorCard = ({
 							</div>
 						</div>
 
-						<div className="space-y-2">
+						<div className="min-w-fit space-y-2">
 							<Label>Genre tools</Label>
 							<div className="flex flex-wrap items-center gap-2">
 								<Badge variant="outline" className="h-8 text-[10px]">
@@ -1182,7 +1291,7 @@ export const EventSheetEditorCard = ({
 							</div>
 						</div>
 
-						<div className="space-y-2">
+						<div className="min-w-[min(100%,320px)] space-y-2">
 							<Label htmlFor="new-column-label">New column</Label>
 							<div className="flex flex-wrap gap-2">
 								<Input
@@ -1204,10 +1313,10 @@ export const EventSheetEditorCard = ({
 							</div>
 						</div>
 
-						<div className="space-y-2 lg:justify-self-end">
+						<div className="ml-0 min-w-fit space-y-2 xl:ml-auto">
 							<Label>View options</Label>
-							<div className="flex h-9 items-center overflow-hidden rounded-md border bg-background text-sm">
-								<span className="border-r px-3 text-muted-foreground">
+							<div className="flex h-9 items-center overflow-hidden rounded-md border bg-background text-sm whitespace-nowrap">
+								<span className="border-r px-3 text-muted-foreground whitespace-nowrap">
 									Frozen columns
 								</span>
 								<Button
@@ -1328,18 +1437,18 @@ export const EventSheetEditorCard = ({
 				</div>
 
 				<Dialog open={isGenreManagerOpen} onOpenChange={setIsGenreManagerOpen}>
-					<DialogContent className="max-h-[86vh] max-w-[min(960px,calc(100%-1.5rem))] overflow-y-auto">
-						<DialogHeader>
-							<DialogTitle>Manage genres</DialogTitle>
-							<DialogDescription>
+					<DialogContent className="max-h-[88vh] w-[min(1040px,calc(100vw-2rem))] max-w-none overflow-y-auto p-5 sm:max-w-none sm:p-6">
+						<DialogHeader className="pr-10">
+							<DialogTitle className="text-xl">Manage genres</DialogTitle>
+							<DialogDescription className="max-w-2xl text-base leading-relaxed">
 								Default genres are protected. Custom genres and aliases apply
 								across the whole sheet.
 							</DialogDescription>
 						</DialogHeader>
 
 						<div className="space-y-4">
-							<div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
-								<div className="space-y-1.5">
+							<div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+								<div className="min-w-0 space-y-1.5">
 									<Label htmlFor="new-genre-label">Add custom genre</Label>
 									<Input
 										id="new-genre-label"
@@ -1367,12 +1476,17 @@ export const EventSheetEditorCard = ({
 								</Button>
 							</div>
 
-							<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.5fr)]">
-								<div className="space-y-1.5">
-									<Label className="text-xs text-muted-foreground">
-										Default genres
-									</Label>
-									<div className="flex max-h-44 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
+							<div className="grid gap-3 xl:grid-cols-2">
+								<div className="min-w-0 space-y-1.5">
+									<div className="flex items-center gap-2">
+										<Label className="text-xs text-muted-foreground whitespace-nowrap">
+											Default genres
+										</Label>
+										<Badge variant="outline" className="text-[10px]">
+											{defaultGenres.length}
+										</Badge>
+									</div>
+									<div className="flex max-h-56 min-h-24 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-3">
 										{defaultGenres.map((genre) => (
 											<span
 												key={genre.key}
@@ -1392,11 +1506,16 @@ export const EventSheetEditorCard = ({
 									</div>
 								</div>
 
-								<div className="space-y-1.5">
-									<Label className="text-xs text-muted-foreground">
-										Custom genres
-									</Label>
-									<div className="flex max-h-44 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
+								<div className="min-w-0 space-y-1.5">
+									<div className="flex items-center gap-2">
+										<Label className="text-xs text-muted-foreground whitespace-nowrap">
+											Custom genres
+										</Label>
+										<Badge variant="secondary" className="text-[10px]">
+											{customGenres.length}
+										</Badge>
+									</div>
+									<div className="flex max-h-56 min-h-24 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-3">
 										{customGenres.map((genre) => (
 											<div
 												key={genre.key}
@@ -1467,8 +1586,8 @@ export const EventSheetEditorCard = ({
 
 							<div className="space-y-2 border-t pt-3">
 								<Label>Alias mapping</Label>
-								<div className="flex flex-wrap items-end gap-2">
-									<div className="space-y-1">
+								<div className="grid gap-2 md:grid-cols-[minmax(12rem,16rem)_minmax(12rem,1fr)_auto] md:items-end">
+									<div className="min-w-0 space-y-1">
 										<Label htmlFor="genre-alias-target">
 											Treat typed genre as
 										</Label>
@@ -1476,7 +1595,7 @@ export const EventSheetEditorCard = ({
 											id="genre-alias-target"
 											value={aliasGenreKey}
 											onChange={(event) => setAliasGenreKey(event.target.value)}
-											className="h-9 w-52 rounded-md border border-input bg-background px-3 text-sm"
+											className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
 										>
 											<option value="">Choose genre</option>
 											{availableGenres.map((genre) => (
@@ -1486,14 +1605,14 @@ export const EventSheetEditorCard = ({
 											))}
 										</select>
 									</div>
-									<div className="space-y-1">
+									<div className="min-w-0 space-y-1">
 										<Label htmlFor="genre-alias-input">Typed genre</Label>
 										<Input
 											id="genre-alias-input"
 											value={aliasInput}
 											onChange={(event) => setAliasInput(event.target.value)}
 											placeholder="Afro Trap"
-											className="h-9 w-[min(100%,240px)]"
+											className="h-9 w-full"
 										/>
 									</div>
 									<Button
@@ -1560,6 +1679,10 @@ export const EventSheetEditorCard = ({
 					`Host Country` and `Audience Country` support country names, flags,
 					and ISO codes. Focus either column to search and insert normalized
 					country codes.
+				</div>
+				<div className="text-xs text-muted-foreground">
+					`District/Area` supports an Area picker: choose `1`-`20`, `Greater
+					Paris`, `Outside Paris`, or `Location TBC`.
 				</div>
 
 				<div className="text-xs text-muted-foreground">
@@ -1927,6 +2050,187 @@ export const EventSheetEditorCard = ({
 																	</span>
 																))}
 															</div>
+														</div>
+													) : column.key === AREA_COLUMN_KEY ? (
+														<div className="relative min-h-9 bg-transparent">
+															<input
+																ref={(node) => {
+																	inputRefs.current[
+																		cellRefKey(rowIndex, column.key)
+																	] = node;
+																}}
+																value={row[column.key] ?? ""}
+																onFocus={() => {
+																	setFocusedAreaCell({
+																		rowIndex,
+																		columnKey: column.key,
+																	});
+																	setAreaSearchQuery(row[column.key] ?? "");
+																	setHighlightedAreaIndex(0);
+																}}
+																onChange={(event) => {
+																	setFocusedAreaCell((current) =>
+																		current?.rowIndex === rowIndex &&
+																		current.columnKey === column.key
+																			? current
+																			: { rowIndex, columnKey: column.key },
+																	);
+																	setAreaSearchQuery(event.target.value);
+																	setHighlightedAreaIndex(0);
+																	handleCellChange(
+																		rowIndex,
+																		column.key,
+																		event.target.value,
+																	);
+																}}
+																onBlur={() => {
+																	const key = cellRefKey(rowIndex, column.key);
+																	if (activeCellEditRef.current === key) {
+																		activeCellEditRef.current = null;
+																	}
+																	normalizeAreaCell(rowIndex, column.key);
+																	window.setTimeout(() => {
+																		setFocusedAreaCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? null
+																				: current,
+																		);
+																	}, 120);
+																}}
+																onKeyDown={(event) => {
+																	if (
+																		event.key === "ArrowDown" &&
+																		areaOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		setHighlightedAreaIndex((current) =>
+																			Math.min(
+																				current + 1,
+																				areaOptionsForFocusedCell.length - 1,
+																			),
+																		);
+																		return;
+																	}
+																	if (
+																		event.key === "ArrowUp" &&
+																		areaOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		setHighlightedAreaIndex((current) =>
+																			Math.max(current - 1, 0),
+																		);
+																		return;
+																	}
+																	if (
+																		event.key === "Enter" &&
+																		areaOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		selectAreaForCell(
+																			rowIndex,
+																			column.key,
+																			areaOptionsForFocusedCell[
+																				highlightedAreaIndex
+																			] ?? areaOptionsForFocusedCell[0],
+																		);
+																		return;
+																	}
+																	if (event.key === "Escape") {
+																		event.preventDefault();
+																		setFocusedAreaCell(null);
+																		return;
+																	}
+																	if (event.key === "Enter") {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (
+																		event.key === "ArrowRight" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, 0, 1);
+																	}
+																	if (
+																		event.key === "ArrowLeft" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, 0, -1);
+																	}
+																}}
+																className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+																placeholder="Choose area"
+																aria-autocomplete="list"
+																aria-expanded={
+																	focusedAreaCell?.rowIndex === rowIndex &&
+																	focusedAreaCell.columnKey === column.key
+																}
+															/>
+															{focusedAreaCell?.rowIndex === rowIndex &&
+																focusedAreaCell.columnKey === column.key && (
+																	<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																			Area
+																		</div>
+																		<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+																			Choose arrondissement or area.
+																		</div>
+																		<div className="max-h-60 overflow-y-auto p-1">
+																			{areaOptionsForFocusedCell.map(
+																				(area, optionIndex) => {
+																					const previousArea =
+																						areaOptionsForFocusedCell[
+																							optionIndex - 1
+																						];
+																					const showGroup =
+																						!previousArea ||
+																						previousArea.group !== area.group;
+																					return (
+																						<div key={area.value}>
+																							{showGroup && (
+																								<div className="px-2 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+																									{area.group}
+																								</div>
+																							)}
+																							<button
+																								type="button"
+																								onMouseDown={(event) => {
+																									event.preventDefault();
+																									selectAreaForCell(
+																										rowIndex,
+																										column.key,
+																										area,
+																									);
+																								}}
+																								className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																									optionIndex ===
+																									highlightedAreaIndex
+																										? "bg-accent text-accent-foreground"
+																										: "hover:bg-accent/70"
+																								}`}
+																							>
+																								<span className="min-w-0 flex-1 truncate font-medium">
+																									{area.label}
+																								</span>
+																								<span className="max-w-36 truncate text-[10px] text-muted-foreground">
+																									{area.description}
+																								</span>
+																							</button>
+																						</div>
+																					);
+																				},
+																			)}
+																			{areaOptionsForFocusedCell.length === 0 && (
+																				<div className="px-2 py-2 text-xs text-muted-foreground">
+																					No matching area. Use `Greater Paris`,
+																					`Outside Paris`, or `Location TBC`.
+																				</div>
+																			)}
+																		</div>
+																	</div>
+																)}
 														</div>
 													) : COUNTRY_COLUMN_KEYS.has(column.key) ? (
 														<div className="relative min-h-9 bg-transparent">

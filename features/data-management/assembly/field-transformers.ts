@@ -115,6 +115,18 @@ export const LocationTransformers = {
 		// Clean the string and extract number
 		const cleaned = arrStr.trim().toLowerCase();
 
+		if (
+			["greater paris", "grand paris", "paris suburbs", "idf"].includes(cleaned)
+		) {
+			return "greater-paris";
+		}
+		if (["outside paris", "outside-paris", "out of paris"].includes(cleaned)) {
+			return "outside-paris";
+		}
+		if (["location tbc", "tbc", "unknown", "-"].includes(cleaned)) {
+			return "unknown";
+		}
+
 		// Try to extract number from various formats
 		const numberMatch = cleaned.match(/(\d{1,2})/);
 		if (numberMatch) {

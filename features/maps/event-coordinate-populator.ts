@@ -316,7 +316,7 @@ export class EventCoordinatePopulator {
 	 */
 	static async setManualLocation(
 		locationName: string,
-		arrondissement: number | "unknown",
+		arrondissement: ParisArrondissement,
 		coordinates: { lat: number; lng: number },
 		confidence: number = 1.0,
 	): Promise<void> {
@@ -324,7 +324,7 @@ export class EventCoordinatePopulator {
 
 		CoordinateService.setManualCoordinates(
 			locationName,
-			arrondissement as ParisArrondissement,
+			arrondissement,
 			coordinates,
 			storedLocations,
 			confidence,

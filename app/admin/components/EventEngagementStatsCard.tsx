@@ -468,7 +468,9 @@ export const EventEngagementStatsCard = ({
 		(filterState: {
 			selectedDateRange: { from: string | null; to: string | null };
 			selectedDayNightPeriods: Array<"day" | "night">;
-			selectedArrondissements: Array<number | "unknown">;
+			selectedArrondissements: Array<
+				number | "greater-paris" | "outside-paris" | "unknown"
+			>;
 			selectedGenres: MusicGenre[];
 			selectedNationalities: string[];
 			selectedVenueTypes: Array<"indoor" | "outdoor">;

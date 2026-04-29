@@ -1,6 +1,7 @@
 "use client";
 import { Badge } from "@/components/ui/badge";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
+import { toGenreLabel } from "@/features/events/genre-normalization";
 import {
 	type GenreFrequency,
 	getGenrePreview,
@@ -15,6 +16,7 @@ import {
 	NATIONALITIES,
 	formatAge,
 	formatDayWithDate,
+	formatLocationAreaShort,
 	formatPrice,
 	getDayNightPeriod,
 	getVisibleEventTypeLabel,
@@ -156,9 +158,7 @@ export function EventCard({
 						</Badge>
 					)}
 					<Badge variant="outline" className="text-xs">
-						{event.arrondissement === "unknown"
-							? "TBC"
-							: `${event.arrondissement}e`}
+						{formatLocationAreaShort(event.arrondissement)}
 					</Badge>
 				</div>
 			</div>
@@ -258,7 +258,8 @@ export function EventCard({
 							variant="outline"
 							className="border-border/75 bg-background/50 text-xs"
 						>
-							{MUSIC_GENRES.find((g) => g.key === genre)?.label || genre}
+							{MUSIC_GENRES.find((g) => g.key === genre)?.label ||
+								toGenreLabel(genre)}
 						</Badge>
 					))}
 					{hiddenGenreCount > 0 && (

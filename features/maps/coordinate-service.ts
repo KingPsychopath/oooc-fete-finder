@@ -3,7 +3,10 @@ import type {
 	EventLocation,
 	ParisArrondissement,
 } from "@/features/events/types";
-import { PARIS_ARRONDISSEMENTS } from "@/features/events/types";
+import {
+	PARIS_ARRONDISSEMENTS,
+	isNumberedArrondissement,
+} from "@/features/events/types";
 import {
 	type GeocodingResult as GCPGeocodingResult,
 	GoogleCloudAPI,
@@ -135,6 +138,7 @@ function isWithinParisBounds(coordinates: Coordinates): boolean {
 export function getArrondissementCenter(
 	arrondissement: ParisArrondissement,
 ): Coordinates | null {
+	if (!isNumberedArrondissement(arrondissement)) return null;
 	const arr = PARIS_ARRONDISSEMENTS.find((a) => a.id === arrondissement);
 
 	if (arr) {
@@ -266,12 +270,7 @@ export function isCoordinateResolvableInput(
 		locationName.toLowerCase() !== "location tbc" &&
 		locationName.toLowerCase() !== "location tba";
 
-	const hasValidArrondissement =
-		arrondissement &&
-		arrondissement !== "unknown" &&
-		typeof arrondissement === "number" &&
-		arrondissement >= 1 &&
-		arrondissement <= 20;
+	const hasValidArrondissement = arrondissement && arrondissement !== "unknown";
 
 	return Boolean(hasValidLocation && hasValidArrondissement);
 }

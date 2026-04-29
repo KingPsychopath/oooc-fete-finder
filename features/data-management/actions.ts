@@ -17,7 +17,10 @@ import {
 } from "@/features/events/genre-normalization";
 import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 import { clearAllEventSubmissions } from "@/features/events/submissions/store";
-import type { ParisArrondissement } from "@/features/events/types";
+import {
+	type ParisArrondissement,
+	isNumberedArrondissement,
+} from "@/features/events/types";
 import { LocationRepository } from "@/features/locations/location-repository";
 import { LocationResolver } from "@/features/locations/location-resolver";
 import {
@@ -155,14 +158,16 @@ const normalizeCsvForStorage = (csvContent: string): string => {
 };
 
 const isParisArrondissement = (
-	value: number | "unknown",
+	value: ParisArrondissement,
 ): value is ParisArrondissement =>
-	value === "unknown" || (Number.isInteger(value) && value >= 1 && value <= 20);
+	value === "unknown" ||
+	value === "greater-paris" ||
+	value === "outside-paris" ||
+	isNumberedArrondissement(value);
 
 const parseArrondissementInput = (
-	value: number | "unknown",
+	value: ParisArrondissement,
 ): ParisArrondissement | null => {
-	if (value === "unknown") return "unknown";
 	return isParisArrondissement(value) ? value : null;
 };
 
@@ -1261,7 +1266,7 @@ export async function getEventLocationReviewData(
 export async function resolveEventLocation(
 	keyOrToken: string | undefined,
 	locationName: string,
-	arrondissementInput: number | "unknown",
+	arrondissementInput: ParisArrondissement,
 	options?: { forceRefresh?: boolean },
 ): Promise<{
 	success: boolean;
@@ -1337,7 +1342,7 @@ export async function resolveEventLocation(
 export async function saveManualEventLocation(
 	keyOrToken: string | undefined,
 	locationName: string,
-	arrondissementInput: number | "unknown",
+	arrondissementInput: ParisArrondissement,
 	coordinates: { lat: number; lng: number },
 ): Promise<{ success: boolean; message: string; error?: string }> {
 	if (!(await validateAdminAccess(keyOrToken))) {
@@ -1361,7 +1366,7 @@ export async function saveManualEventLocation(
 	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
 		return { success: false, message: "Latitude and longitude are required" };
 	}
-	if (!isWithinParisBounds(lat, lng)) {
+	if (isNumberedArrondissement(arrondissement) && !isWithinParisBounds(lat, lng)) {
 		return {
 			success: false,
 			message: "Coordinates must be within Paris bounds",
@@ -1390,7 +1395,7 @@ export async function saveManualEventLocation(
 export async function clearEventLocationResolution(
 	keyOrToken: string | undefined,
 	locationName: string,
-	arrondissementInput: number | "unknown",
+	arrondissementInput: ParisArrondissement,
 ): Promise<{ success: boolean; message: string; error?: string }> {
 	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, message: "Unauthorized access" };

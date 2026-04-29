@@ -35,7 +35,7 @@ type AliasRow = {
 };
 
 const DEFAULT_CUSTOM_COLOR = "bg-stone-500";
-const TAXONOMY_READ_TIMEOUT_MS = 300;
+const TAXONOMY_READ_TIMEOUT_MS = 2000;
 
 const normalizeAlias = (value: string): string => normalizeGenreKey(value);
 

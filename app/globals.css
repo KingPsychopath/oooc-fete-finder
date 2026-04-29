@@ -173,6 +173,26 @@
 	background: var(--ooo-main-background);
 }
 
+.ooo-grain {
+	position: relative;
+}
+
+.ooo-grain::before {
+	position: absolute;
+	inset: 0;
+	content: "";
+	pointer-events: none;
+	opacity: 0.16;
+	mix-blend-mode: multiply;
+	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23noise)' opacity='0.46'/%3E%3C/svg%3E");
+	background-size: 180px 180px;
+}
+
+.dark .ooo-grain::before {
+	opacity: 0.1;
+	mix-blend-mode: screen;
+}
+
 .ooo-site-card {
 	border-color: color-mix(in oklab, var(--border) 86%, rgba(23, 16, 11, 0.18));
 	background: color-mix(in oklab, var(--card) 90%, rgba(252, 249, 244, 0.35));

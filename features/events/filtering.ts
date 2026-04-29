@@ -8,6 +8,8 @@ import {
 	PRICE_RANGE_CONFIG,
 	type ParisArrondissement,
 	type VenueType,
+	formatLocationAreaLong,
+	getLocationAreaSortValue,
 	isAgeInRange,
 	isEventInDayNightPeriod,
 	isPriceInRange,
@@ -122,7 +124,11 @@ const matchesSearchQuery = (event: Event, rawQuery: string): boolean => {
 		query,
 	);
 	const matchesDate = normalizeSearchText(event.date).includes(query);
-	const matchesArrondissement = event.arrondissement.toString().includes(query);
+	const matchesArrondissement =
+		event.arrondissement.toString().includes(query) ||
+		normalizeSearchText(formatLocationAreaLong(event.arrondissement)).includes(
+			query,
+		);
 	const matchesDay = normalizeSearchText(event.day).includes(query);
 	const matchesGenre = event.genre.some((genre) =>
 		getSearchableGenreText(genre).includes(query),
@@ -257,9 +263,7 @@ export const getAvailableArrondissements = (
 ): ParisArrondissement[] => {
 	const arrondissements = new Set(events.map((event) => event.arrondissement));
 	return Array.from(arrondissements).sort((left, right) => {
-		if (left === "unknown") return 1;
-		if (right === "unknown") return -1;
-		return (left as number) - (right as number);
+		return getLocationAreaSortValue(left) - getLocationAreaSortValue(right);
 	}) as ParisArrondissement[];
 };
 

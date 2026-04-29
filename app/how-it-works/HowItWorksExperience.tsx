@@ -108,7 +108,7 @@ function MiniMap({ activeStep }: { activeStep: StoryStepId }) {
 	const isPlanActive = activeStep === "plan" || activeStep === "community";
 
 	return (
-		<div className="relative overflow-hidden rounded-[1.35rem] border border-border/70 bg-[linear-gradient(145deg,color-mix(in_oklab,var(--card)_92%,#f0b668_8%),color-mix(in_oklab,var(--card)_82%,#244a4e_18%))] p-4 shadow-[0_24px_58px_-42px_rgba(22,16,10,0.74)]">
+		<div className="ooo-grain relative overflow-hidden rounded-[1.35rem] border border-border/70 bg-[linear-gradient(145deg,color-mix(in_oklab,var(--card)_92%,#f0b668_8%),color-mix(in_oklab,var(--card)_82%,#244a4e_18%))] p-4 shadow-[0_24px_58px_-42px_rgba(22,16,10,0.74)]">
 			<div className="relative flex items-center justify-between">
 				<Badge className="rounded-full border-[#fff4df]/50 bg-[#fff7ea]/78 text-[#25464a]">
 					<Map className="h-3 w-3" />
@@ -600,7 +600,7 @@ export function HowItWorksExperience() {
 	return (
 		<div className="overflow-hidden">
 			<section className="relative px-4 py-16 sm:px-6 lg:min-h-[calc(100svh-8rem)] lg:px-8 lg:py-20">
-				<div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.26),rgba(255,255,255,0)),linear-gradient(120deg,color-mix(in_oklab,var(--background)_82%,#dca15f_18%),color-mix(in_oklab,var(--background)_70%,#315b5f_30%))]" />
+				<div className="ooo-grain absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.26),rgba(255,255,255,0)),linear-gradient(120deg,color-mix(in_oklab,var(--background)_82%,#dca15f_18%),color-mix(in_oklab,var(--background)_70%,#315b5f_30%))]" />
 				<div className="absolute inset-0 bg-[linear-gradient(rgba(62,42,26,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(62,42,26,0.07)_1px,transparent_1px)] bg-[length:56px_56px]" />
 				<div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.92fr)_minmax(25rem,0.78fr)] lg:items-center lg:gap-16 xl:gap-20">
 					<div className="max-w-4xl">
@@ -638,43 +638,140 @@ export function HowItWorksExperience() {
 						</div>
 					</div>
 
-					<div className="rounded-[2rem] border border-white/42 bg-card/64 p-3 shadow-[0_30px_90px_-56px_rgba(21,14,9,0.85)] backdrop-blur-xl lg:justify-self-end">
-						<div className="rounded-[1.55rem] border border-border/70 bg-background/78 p-5">
-							<div className="flex items-center justify-between gap-3">
+					<div className="ooo-grain relative overflow-hidden rounded-[1.75rem] border border-white/48 bg-[linear-gradient(150deg,color-mix(in_oklab,var(--card)_88%,#fff7ea_12%),color-mix(in_oklab,var(--card)_82%,#244a4e_18%))] p-4 shadow-[0_34px_90px_-58px_rgba(21,14,9,0.92)] backdrop-blur-xl lg:justify-self-end">
+						<div className="relative rounded-[1.35rem] border border-border/70 bg-background/76 p-5 shadow-[0_1px_0_rgba(255,255,255,0.48)_inset]">
+							<div className="flex items-start justify-between gap-6">
 								<div>
-									<p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+									<p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
 										Weekend route
 									</p>
-									<p className="mt-1 text-xl font-semibold leading-tight text-foreground sm:text-2xl">
-										3 stops · 2 areas
+									<p className="mt-2 max-w-60 text-2xl font-semibold leading-none text-foreground sm:text-3xl">
+										Move east, then follow the night north.
 									</p>
 								</div>
-								<div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#244a4e] text-white">
+								<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/30 bg-[#244a4e] text-white shadow-[0_16px_36px_-24px_rgba(13,45,49,0.9)]">
 									<Moon className="h-5 w-5" />
 								</div>
 							</div>
-							<div className="mt-6 grid gap-3">
-								{itinerary.map((item, index) => (
-									<div
-										key={item.time}
-										className="grid grid-cols-[4.5rem_1fr_auto] items-center gap-3 rounded-2xl border border-border/65 bg-card/72 p-3"
-									>
-										<p className="text-sm font-semibold text-foreground">
-											{item.time}
-										</p>
-										<div>
-											<p className="text-sm font-medium text-foreground">
-												{item.label}
+
+							<div className="mt-5 flex flex-wrap gap-2">
+								<Badge className="rounded-full border-[#244a4e]/15 bg-[#244a4e] text-white">
+									<Route className="h-3 w-3" /> 3 curated stops
+								</Badge>
+								<Badge
+									variant="outline"
+									className="rounded-full bg-background/58"
+								>
+									2 neighbourhoods
+								</Badge>
+							</div>
+
+							<div className="relative mt-7">
+								<div className="grid gap-4">
+									{itinerary.map((item, index) => (
+										<div
+											key={item.time}
+											className="grid grid-cols-[3.6rem_1.45rem_1fr_auto] items-center gap-3"
+										>
+											<p className="text-sm font-semibold tabular-nums text-foreground">
+												{item.time}
 											</p>
-											<p className="text-xs text-muted-foreground">
-												Curated stop {index + 1}
-											</p>
+											<div className="relative flex h-full items-center justify-center">
+												{index < itinerary.length - 1 && (
+													<svg
+														aria-hidden="true"
+														className="absolute left-1/2 top-1/2 z-0 h-[calc(100%+1rem)] w-4 -translate-x-1/2 overflow-visible"
+														preserveAspectRatio="none"
+														viewBox="0 0 16 100"
+													>
+														<path
+															d={
+																index === 0
+																	? "M8 0 C8 28 3 35 8 100"
+																	: "M8 0 C13 32 8 46 8 100"
+															}
+															fill="none"
+															stroke={
+																index === 0
+																	? "url(#routeSegmentOne)"
+																	: "url(#routeSegmentTwo)"
+															}
+															strokeLinecap="round"
+															strokeWidth="2.25"
+															vectorEffect="non-scaling-stroke"
+														/>
+														<defs>
+															<linearGradient
+																id={
+																	index === 0
+																		? "routeSegmentOne"
+																		: "routeSegmentTwo"
+																}
+																x1="0"
+																x2="0"
+																y1="0"
+																y2="1"
+															>
+																<stop
+																	offset="0"
+																	stopColor={
+																		index === 0 ? "#a35f3b" : "#244a4e"
+																	}
+																/>
+																<stop
+																	offset="1"
+																	stopColor={
+																		index === 0 ? "#244a4e" : "#6d7e64"
+																	}
+																/>
+															</linearGradient>
+														</defs>
+													</svg>
+												)}
+												<span
+													className={cn(
+														"relative z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background text-[10px] font-semibold text-white shadow-[0_12px_26px_-18px_rgba(20,14,9,0.75)]",
+														index === 0
+															? "bg-[#a35f3b]"
+															: index === 1
+																? "bg-[#244a4e]"
+																: "bg-[#6d7e64]",
+													)}
+												>
+													{index + 1}
+												</span>
+											</div>
+											<div className="min-w-0 rounded-2xl border border-border/60 bg-card/70 px-4 py-3 shadow-[0_14px_34px_-30px_rgba(20,14,9,0.72)]">
+												<p className="text-sm font-semibold text-foreground">
+													{item.label}
+												</p>
+												<p className="mt-0.5 text-xs text-muted-foreground">
+													Curated stop {index + 1}
+												</p>
+											</div>
+											<Badge
+												variant="outline"
+												className="rounded-full bg-background/62 px-3"
+											>
+												{item.area}
+											</Badge>
 										</div>
-										<Badge variant="outline" className="bg-background/62">
-											{item.area}
-										</Badge>
+									))}
+								</div>
+							</div>
+
+							<div className="mt-6 rounded-2xl border border-[#244a4e]/18 bg-[#244a4e]/8 p-4">
+								<div className="flex items-center justify-between gap-4">
+									<div>
+										<p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+											Ready for maps
+										</p>
+										<p className="mt-1 text-sm font-semibold text-foreground">
+											11e start → 10e live set → 18e late move
+										</p>
 									</div>
-								))}
+									<Navigation className="h-5 w-5 shrink-0 text-[#244a4e]" />
+								</div>
 							</div>
 						</div>
 					</div>
@@ -837,7 +934,7 @@ export function HowItWorksExperience() {
 			</section>
 
 			<section className="px-4 pb-24 sm:px-6 lg:px-8">
-				<div className="mx-auto max-w-5xl rounded-[2rem] border border-border/70 bg-[linear-gradient(145deg,color-mix(in_oklab,var(--card)_84%,#f0b668_16%),color-mix(in_oklab,var(--card)_78%,#244a4e_22%))] p-8 text-center shadow-[0_28px_80px_-58px_rgba(22,16,10,0.86)] sm:p-12">
+				<div className="ooo-grain mx-auto max-w-5xl overflow-hidden rounded-[2rem] border border-border/70 bg-[linear-gradient(145deg,color-mix(in_oklab,var(--card)_84%,#f0b668_16%),color-mix(in_oklab,var(--card)_78%,#244a4e_22%))] p-8 text-center shadow-[0_28px_80px_-58px_rgba(22,16,10,0.86)] sm:p-12">
 					<Route className="mx-auto h-7 w-7 text-[#a35f3b]" />
 					<h2 className="mx-auto mt-5 max-w-3xl text-[clamp(2.6rem,7vw,6rem)] font-light leading-[0.88] text-foreground [font-family:var(--ooo-font-display)]">
 						Ready to find your route?

@@ -1,7 +1,11 @@
 import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { formatDayWithDate, formatPrice } from "@/features/events/types";
+import {
+	formatDayWithDate,
+	formatLocationAreaLong,
+	formatPrice,
+} from "@/features/events/types";
 import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
 import { log } from "@/lib/platform/logger";
 import {
@@ -310,7 +314,8 @@ const formatArrondissement = (
 	value: EventShareDetails["arrondissement"],
 ): string => {
 	if (value === "unknown") return "Paris";
-	return `${value}e arrondissement`;
+	if (typeof value === "number") return `${value}e arrondissement`;
+	return formatLocationAreaLong(value);
 };
 
 const formatTimeRange = (event: EventShareDetails): string => {
