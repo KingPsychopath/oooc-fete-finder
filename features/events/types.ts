@@ -86,18 +86,14 @@ export const isNumberedArrondissement = (
 ): value is Exclude<ParisArrondissement, string> =>
 	typeof value === "number" && value >= 1 && value <= 20;
 
-export const formatLocationAreaShort = (
-	value: ParisArrondissement,
-): string => {
+export const formatLocationAreaShort = (value: ParisArrondissement): string => {
 	if (value === "greater-paris") return "Greater Paris";
 	if (value === "outside-paris") return "Outside Paris";
 	if (value === "unknown") return "TBC";
 	return `${value}e`;
 };
 
-export const formatLocationAreaLong = (
-	value: ParisArrondissement,
-): string => {
+export const formatLocationAreaLong = (value: ParisArrondissement): string => {
 	if (value === "greater-paris") return "Greater Paris Area";
 	if (value === "outside-paris") return "Outside Paris";
 	if (value === "unknown") return "Location TBC";
@@ -156,6 +152,8 @@ export type Event = {
 	promotedEndsAt?: string; // ISO timestamp when promoted window ends
 	socialProofSaveCount?: number; // Public social proof count from recent, session-deduped calendar sync actions
 	nationality?: Nationality[]; // GB/FR indicators from CSV - now supports multiple
+	hostCountries?: Nationality[]; // Host Country column, kept separate for detail views
+	audienceCountries?: Nationality[]; // Audience Country column, kept separate for detail views
 	// Legacy field for backwards compatibility
 	category?: EventCategory;
 };
@@ -586,7 +584,9 @@ const hasEurMarker = (cleanPrice: string): boolean =>
 	cleanPrice.includes("€") || /\beur\b|\beuros?\b/.test(cleanPrice);
 
 const hasCurrencyMarker = (cleanPrice: string): boolean =>
-	hasGbpMarker(cleanPrice) || hasUsdMarker(cleanPrice) || hasEurMarker(cleanPrice);
+	hasGbpMarker(cleanPrice) ||
+	hasUsdMarker(cleanPrice) ||
+	hasEurMarker(cleanPrice);
 
 const toEuroAmount = (amount: number, cleanPrice: string): number => {
 	const rates = getPriceConversionRates();

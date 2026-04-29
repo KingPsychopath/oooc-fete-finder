@@ -127,6 +127,8 @@ describe("event assembler identity", () => {
 		);
 
 		expect(event.nationality).toEqual(expect.arrayContaining(["FR", "CA"]));
+		expect(event.hostCountries).toEqual(["FR"]);
+		expect(event.audienceCountries).toEqual(["CA"]);
 	});
 
 	it("maps francophone categories into the canonical genre list", () => {

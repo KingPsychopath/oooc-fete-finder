@@ -13,6 +13,7 @@ import {
 	addToCalendar,
 	isCalendarDateValid,
 } from "@/features/events/calendar-utils";
+import { getCountryOption } from "@/features/events/countries";
 import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import {
@@ -50,8 +51,10 @@ import {
 	CalendarPlus,
 	Check,
 	Clock,
+	Copy,
 	Euro,
 	ExternalLink,
+	Flag,
 	Flame,
 	Link2,
 	MapPin,
@@ -74,6 +77,7 @@ interface EventModalProps {
 }
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const CONTACT_EMAIL = "hello@outofofficecollective.co.uk";
 const MODAL_GENRE_PREVIEW_LIMIT = 8;
 const MODAL_MIN_COLLAPSED_GENRES = 3;
 
@@ -107,7 +111,11 @@ const EventModal: React.FC<EventModalProps> = ({
 		message: string;
 		tone: "success" | "error";
 	} | null>(null);
+	const [isContactEmailCopied, setIsContactEmailCopied] = useState(false);
 	const shareStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
+	const contactCopyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
 	);
 	const [pendingLocationData, setPendingLocationData] = useState<{
@@ -124,6 +132,7 @@ const EventModal: React.FC<EventModalProps> = ({
 			setLinkShareStatus(null);
 			setPendingLocationData(null);
 			setShowAllGenres(false);
+			setIsContactEmailCopied(false);
 		}
 	}, [isOpen]);
 
@@ -131,6 +140,9 @@ const EventModal: React.FC<EventModalProps> = ({
 		return () => {
 			if (shareStatusTimeoutRef.current) {
 				clearTimeout(shareStatusTimeoutRef.current);
+			}
+			if (contactCopyTimeoutRef.current) {
+				clearTimeout(contactCopyTimeoutRef.current);
 			}
 		};
 	}, []);
@@ -216,6 +228,14 @@ const EventModal: React.FC<EventModalProps> = ({
 			? allGenres
 			: allGenres.slice(0, MODAL_GENRE_PREVIEW_LIMIT);
 	const extraGenreCount = Math.max(0, allGenres.length - visibleGenres.length);
+	const hasHeaderBadges = Boolean(
+		event.isOOOCPick ||
+			(socialProofMode &&
+				socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES) ||
+			event.category ||
+			visibleGenres.length > 0 ||
+			extraGenreCount > 0,
+	);
 
 	const getGenreColor = (genre: string) => {
 		const genreInfo = MUSIC_GENRES.find((g) => g.key === genre);
@@ -290,6 +310,18 @@ const EventModal: React.FC<EventModalProps> = ({
 		return copied;
 	};
 
+	const handleCopyContactEmail = async () => {
+		const copied = await copyToClipboard(CONTACT_EMAIL);
+		if (!copied) return;
+		setIsContactEmailCopied(true);
+		if (contactCopyTimeoutRef.current) {
+			clearTimeout(contactCopyTimeoutRef.current);
+		}
+		contactCopyTimeoutRef.current = setTimeout(() => {
+			setIsContactEmailCopied(false);
+		}, 1800);
+	};
+
 	const handleShareEventLink = async () => {
 		const shareUrl = buildCanonicalEventUrl();
 		if (!shareUrl) return;
@@ -342,6 +374,20 @@ const EventModal: React.FC<EventModalProps> = ({
 			: event.indoor
 				? "Indoor"
 				: "Outdoor";
+	const formatCountryList = (countries: string[] | undefined) => {
+		if (!countries || countries.length === 0) return "TBC";
+		return countries
+			.map((countryCode) => {
+				const country = getCountryOption(countryCode);
+				return country ? `${country.flag} ${country.code}` : countryCode;
+			})
+			.join(", ");
+	};
+	const hostCountryLabel = formatCountryList(event.hostCountries);
+	const audienceCountryLabel = formatCountryList(event.audienceCountries);
+	const eventUpdateHref = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
+		`Fete Finder event update: ${event.name}`,
+	)}`;
 	const locationLabel = formatLocationAreaLong(event.arrondissement);
 	const priceLabel = formatPrice(event.price);
 	const ageLabel = event.age || "All ages";
@@ -472,56 +518,59 @@ const EventModal: React.FC<EventModalProps> = ({
 							</Button>
 						</div>
 					</div>
-					<div className="mt-2 flex flex-wrap items-center gap-1.5">
-						{event.isOOOCPick && (
-							<Badge className="border-yellow-300 bg-yellow-400 text-black hover:bg-yellow-500">
-								<Star className="mr-1 h-3.5 w-3.5 fill-current" />
-								OOOC Pick
-							</Badge>
-						)}
-						{socialProofMode &&
-							socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
-								<Badge className="border-amber-300/70 bg-amber-500/15 text-amber-900 hover:bg-amber-500/20 dark:border-amber-400/45 dark:text-amber-200">
-									<Flame className="mr-1 h-3.5 w-3.5" />
-									{socialProofLabel}
+					{hasHeaderBadges && (
+						<div className="mt-2 flex flex-wrap items-center gap-1.5">
+							{event.isOOOCPick && (
+								<Badge className="border-yellow-300 bg-yellow-400 text-black hover:bg-yellow-500">
+									<Star className="mr-1 h-3.5 w-3.5 fill-current" />
+									OOOC Pick
 								</Badge>
 							)}
-						{event.category && (
-							<Badge
-								className={
-									CATEGORY_COLORS[event.category] || "bg-gray-100 text-gray-800"
-								}
-							>
-								<Tag className="mr-1 h-3 w-3" />
-								{event.category}
-							</Badge>
-						)}
-						{visibleGenres.map((genre) => (
-							<Badge
-								key={genre}
-								className={`${getGenreColor(genre)} border border-white/20 dark:bg-opacity-25`}
-							>
-								<Music className="mr-1 h-3 w-3" />
-								{getGenreLabel(genre)}
-							</Badge>
-						))}
-						{extraGenreCount > 0 && (
-							<Badge
-								render={
-									<button
-										type="button"
-										onClick={() => setShowAllGenres(true)}
-										className="cursor-pointer hover:bg-accent hover:text-foreground"
-										aria-label={`Show ${extraGenreCount} more genres`}
-									/>
-								}
-								variant="outline"
-								className="border-border/70"
-							>
-								+{extraGenreCount} more
-							</Badge>
-						)}
-					</div>
+							{socialProofMode &&
+								socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
+									<Badge className="border-amber-300/70 bg-amber-500/15 text-amber-900 hover:bg-amber-500/20 dark:border-amber-400/45 dark:text-amber-200">
+										<Flame className="mr-1 h-3.5 w-3.5" />
+										{socialProofLabel}
+									</Badge>
+								)}
+							{event.category && (
+								<Badge
+									className={
+										CATEGORY_COLORS[event.category] ||
+										"bg-gray-100 text-gray-800"
+									}
+								>
+									<Tag className="mr-1 h-3 w-3" />
+									{event.category}
+								</Badge>
+							)}
+							{visibleGenres.map((genre) => (
+								<Badge
+									key={genre}
+									className={`${getGenreColor(genre)} border border-white/20 dark:bg-opacity-25`}
+								>
+									<Music className="mr-1 h-3 w-3" />
+									{getGenreLabel(genre)}
+								</Badge>
+							))}
+							{extraGenreCount > 0 && (
+								<Badge
+									render={
+										<button
+											type="button"
+											onClick={() => setShowAllGenres(true)}
+											className="cursor-pointer hover:bg-accent hover:text-foreground"
+											aria-label={`Show ${extraGenreCount} more genres`}
+										/>
+									}
+									variant="outline"
+									className="border-border/70"
+								>
+									+{extraGenreCount} more
+								</Badge>
+							)}
+						</div>
+					)}
 				</CardHeader>
 
 				<CardContent className="space-y-3 pt-0">
@@ -568,14 +617,36 @@ const EventModal: React.FC<EventModalProps> = ({
 								{ageLabel}
 							</p>
 						</div>
-						<div className="col-span-2 rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
-							<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
-								<Building2 className="h-3.5 w-3.5" />
-								<span>Venue Type</span>
-							</p>
-							<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
-								{venueTypeLabel}
-							</p>
+						<div className="col-span-2 grid grid-cols-2 gap-1.5">
+							<div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
+								<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
+									<Building2 className="h-3.5 w-3.5" />
+									<span>Venue Type</span>
+								</p>
+								<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
+									{venueTypeLabel}
+								</p>
+							</div>
+							<div className="grid grid-cols-2 gap-1.5">
+								<div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
+									<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
+										<Flag className="h-3.5 w-3.5" />
+										<span>Host</span>
+									</p>
+									<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
+										{hostCountryLabel}
+									</p>
+								</div>
+								<div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
+									<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
+										<User className="h-3.5 w-3.5" />
+										<span>Audience</span>
+									</p>
+									<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
+										{audienceCountryLabel}
+									</p>
+								</div>
+							</div>
 						</div>
 						<div className="col-span-2 rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
 							<div className="flex items-start justify-between gap-2">
@@ -745,7 +816,49 @@ const EventModal: React.FC<EventModalProps> = ({
 						<p>
 							This information is preliminary. Please check the official event
 							page for the most up-to-date details including exact location,
-							timing, and any entry requirements.
+							timing, and any entry requirements.{" "}
+							<a
+								href={eventUpdateHref}
+								className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-primary"
+							>
+								Own this event? Request an update.
+							</a>
+							<TooltipProvider>
+								<Tooltip>
+									<TooltipTrigger
+										onClick={() => void handleCopyContactEmail()}
+										render={
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon"
+												className="ml-1 inline-flex h-5 w-5 align-[-0.2em] text-muted-foreground hover:text-foreground"
+												aria-label={
+													isContactEmailCopied
+														? "Contact email copied"
+														: "Copy contact email"
+												}
+											/>
+										}
+									>
+										{isContactEmailCopied ? (
+											<Check className="h-3 w-3 text-emerald-700 dark:text-emerald-300" />
+										) : (
+											<Copy className="h-3 w-3" />
+										)}
+									</TooltipTrigger>
+									<TooltipContent>
+										<p>
+											{isContactEmailCopied
+												? "Email copied"
+												: "Copy contact email"}
+										</p>
+									</TooltipContent>
+								</Tooltip>
+							</TooltipProvider>
+							<span className="sr-only" role="status" aria-live="polite">
+								{isContactEmailCopied ? "Contact email copied" : ""}
+							</span>
 						</p>
 					</div>
 				</CardContent>

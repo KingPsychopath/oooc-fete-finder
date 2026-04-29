@@ -212,6 +212,12 @@ export const assembleEvent = (
 		.join(" / ");
 	const nationality =
 		NationalityTransformers.convertToNationality(nationalityInput);
+	const hostCountries = NationalityTransformers.convertToNationality(
+		csvRow.hostCountry,
+	);
+	const audienceCountries = NationalityTransformers.convertToNationality(
+		csvRow.audienceCountry,
+	);
 	const genre = GenreTransformers.convertToMusicGenres(
 		csvRow.categories,
 		options.genreTaxonomy,
@@ -279,6 +285,8 @@ export const assembleEvent = (
 		promotedAt,
 		promotedEndsAt,
 		nationality,
+		hostCountries,
+		audienceCountries,
 	};
 
 	return event;
