@@ -39,6 +39,15 @@ describe("calendar utils", () => {
 		expect(content).toContain("SUMMARY:Calendar Event");
 	});
 
+	it("uses transparent price range copy in calendar descriptions", () => {
+		const content = generateICSContent({
+			...makeEvent("2026-06-21"),
+			price: "€28.00 - €35.84",
+		});
+
+		expect(content).toContain("Price: €28.00 - €35.84");
+	});
+
 	it("returns empty content when event date is invalid", () => {
 		const content = generateICSContent(makeEvent("2026-02-30"));
 		expect(content).toBe("");

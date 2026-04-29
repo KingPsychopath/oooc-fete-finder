@@ -529,6 +529,9 @@ const extractNumericCandidates = (cleanPrice: string): number[] => {
 	return parsed;
 };
 
+const formatEuroAmount = (amount: number): string =>
+	Number.isInteger(amount) ? `€${amount}` : `€${amount.toFixed(2)}`;
+
 const toEuroAmount = (amount: number, cleanPrice: string): number => {
 	if (
 		cleanPrice.includes("£") ||
@@ -581,12 +584,21 @@ export const formatPrice = (priceStr?: string): string => {
 		return priceStr;
 	}
 
+	const candidates = extractNumericCandidates(cleanPrice);
+	if (candidates.length > 1) {
+		const minPrice = Math.min(...candidates);
+		const maxPrice = Math.max(...candidates);
+		if (minPrice !== maxPrice) {
+			return `${formatEuroAmount(minPrice)} - ${formatEuroAmount(maxPrice)}`;
+		}
+	}
+
 	// Try to parse and format
 	const numericPrice = parsePrice(priceStr);
 	if (numericPrice === null) return priceStr;
 	if (numericPrice === 0) return "Free";
 
-	return `€${numericPrice.toFixed(0)}`;
+	return formatEuroAmount(numericPrice);
 };
 
 export const isPriceInRange = (

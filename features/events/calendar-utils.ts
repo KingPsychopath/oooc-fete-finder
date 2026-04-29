@@ -1,5 +1,5 @@
 import { parseISODateParts } from "@/features/events/date-utils";
-import type { Event } from "@/features/events/types";
+import { formatPrice, type Event } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
 
 export const isCalendarDateValid = (isoDate: string): boolean =>
@@ -165,11 +165,7 @@ function createEventDescription(event: Event): string {
 	}
 
 	if (event.price !== undefined) {
-		const price =
-			event.price === "0" || event.price === "Free"
-				? "Free"
-				: `€${event.price}`;
-		details.push(`Price: ${price}`);
+		details.push(`Price: ${formatPrice(event.price)}`);
 	}
 
 	if (event.age) {

@@ -479,7 +479,7 @@ export function SubmitEventForm({
 									id="price"
 									value={form.price}
 									onChange={(event) => updateField("price", event.target.value)}
-									placeholder="Free, EUR 15, etc."
+									placeholder="Free, €15, €28 - €35.84"
 									disabled={isFormDisabled}
 								/>
 							</div>
