@@ -27,6 +27,25 @@ const getCurrentAdminSessionOrNull =
 		}
 	};
 
+export interface CurrentAdminActivityActor {
+	actorType: "admin_session" | "admin_key";
+	actorLabel: string;
+	actorSessionJti: string | null;
+}
+
+export const getCurrentAdminActivityActor =
+	async (): Promise<CurrentAdminActivityActor> => {
+		const currentSession = await getCurrentAdminSessionOrNull();
+		const actorSessionJti = currentSession?.jti ?? null;
+		return {
+			actorType: actorSessionJti ? "admin_session" : "admin_key",
+			actorLabel: actorSessionJti
+				? `Admin session ${shortJti(actorSessionJti)}`
+				: "Admin key",
+			actorSessionJti,
+		};
+	};
+
 export const recordAdminActivity = async (
 	input: AdminActivityRecordInput,
 ): Promise<void> => {
@@ -36,16 +55,17 @@ export const recordAdminActivity = async (
 	if (!repository) return;
 
 	try {
-		const currentSession =
+		const currentActor =
 			input.actorType || input.actorSessionJti
 				? null
-				: await getCurrentAdminSessionOrNull();
+				: await getCurrentAdminActivityActor();
 		const actorSessionJti =
-			input.actorSessionJti ?? currentSession?.jti ?? null;
+			input.actorSessionJti ?? currentActor?.actorSessionJti ?? null;
 		const actorType =
 			input.actorType ?? (actorSessionJti ? "admin_session" : "admin_key");
 		const actorLabel =
 			input.actorLabel ??
+			currentActor?.actorLabel ??
 			(actorSessionJti
 				? `Admin session ${shortJti(actorSessionJti)}`
 				: actorType === "cron"

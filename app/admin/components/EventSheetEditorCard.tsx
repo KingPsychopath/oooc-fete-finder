@@ -35,6 +35,7 @@ import {
 	createBlankEditableSheetRow,
 	createCustomColumnKey,
 } from "@/features/data-management/csv/sheet-editor";
+import type { EventSheetRevisionRecord } from "@/features/data-management/event-sheet-revision-types";
 import {
 	type CountryOption,
 	filterCountryOptions,
@@ -53,6 +54,7 @@ import {
 	normalizeSupportedNationalities,
 	parseSupportedNationalities,
 } from "@/features/events/nationality-utils";
+import { History, RefreshCw } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -68,6 +70,8 @@ type EditorPayload = {
 	columns?: EditableSheetColumn[];
 	rows?: EditableSheetRow[];
 	genreTaxonomy?: GenreTaxonomySnapshot;
+	sheetRevisions?: EventSheetRevisionRecord[];
+	sheetRevisionSupported?: boolean;
 	status?: {
 		updatedAt?: string | null;
 	};
@@ -79,6 +83,14 @@ type SaveEventSheetResult = {
 	message: string;
 	rowCount?: number;
 	updatedAt?: string;
+	revision?: EventSheetRevisionRecord | null;
+	error?: string;
+};
+type RevisionSnapshotPayload = {
+	success: boolean;
+	revision?: EventSheetRevisionRecord;
+	columns?: EditableSheetColumn[];
+	rows?: EditableSheetRow[];
 	error?: string;
 };
 type GenreMutationResult = {
@@ -311,7 +323,7 @@ const fetchEditorData = async (): Promise<EditorPayload> => {
 const saveEditorData = async (
 	columns: EditableSheetColumn[],
 	rows: EditableSheetRow[],
-	options: { revalidateHomepage: boolean },
+	options: { revalidateHomepage: boolean; restoreRevisionId?: string },
 ): Promise<SaveEventSheetResult> => {
 	const response = await fetch(buildApiPath(EVENT_SHEET_ENDPOINT), {
 		method: "POST",
@@ -332,6 +344,52 @@ const saveEditorData = async (
 		};
 	}
 	return payload;
+};
+
+const fetchRevisionSnapshot = async (
+	revisionId: string,
+): Promise<RevisionSnapshotPayload> => {
+	const params = new URLSearchParams({ revisionId });
+	const response = await fetch(
+		`${buildApiPath(EVENT_SHEET_ENDPOINT)}?${params.toString()}`,
+		{
+			method: "GET",
+			credentials: "same-origin",
+			headers: {
+				Accept: "application/json",
+			},
+			cache: "no-store",
+		},
+	);
+	const payload = (await response.json()) as RevisionSnapshotPayload;
+	if (!response.ok) {
+		return {
+			success: false,
+			error: payload.error || `Revision load failed (${response.status})`,
+		};
+	}
+	return payload;
+};
+
+const formatRevisionTime = (isoDate: string): string => {
+	const time = new Date(isoDate).getTime();
+	if (!Number.isFinite(time)) return "Unknown time";
+	const diffMs = Date.now() - time;
+	if (diffMs < 45_000) return "just now";
+	const minutes = Math.floor(diffMs / 60_000);
+	if (minutes < 60) return `${minutes}m ago`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}h ago`;
+	return new Date(isoDate).toLocaleString();
+};
+
+const formatRevisionStats = (revision: EventSheetRevisionRecord): string => {
+	const parts = [
+		revision.addedRows > 0 ? `+${revision.addedRows}` : null,
+		revision.deletedRows > 0 ? `-${revision.deletedRows}` : null,
+		revision.changedRows > 0 ? `${revision.changedRows} changed` : null,
+	].filter((part): part is string => Boolean(part));
+	return parts.length > 0 ? parts.join(" · ") : "No row diff";
 };
 
 const postGenreTaxonomyAction = async (
@@ -652,6 +710,19 @@ export const EventSheetEditorCard = ({
 	const [genreTaxonomy, setGenreTaxonomy] = useState<
 		GenreTaxonomySnapshot | undefined
 	>(initialEditorData?.genreTaxonomy);
+	const [sheetRevisions, setSheetRevisions] = useState<
+		EventSheetRevisionRecord[]
+	>(initialEditorData?.sheetRevisions ?? []);
+	const [isSheetRevisionSupported, setIsSheetRevisionSupported] = useState(
+		initialEditorData?.sheetRevisionSupported !== false,
+	);
+	const [isRevisionHistoryOpen, setIsRevisionHistoryOpen] = useState(false);
+	const [revisionPreview, setRevisionPreview] =
+		useState<RevisionSnapshotPayload | null>(null);
+	const [isLoadingRevisionPreview, setIsLoadingRevisionPreview] =
+		useState(false);
+	const [restoreReviewRevision, setRestoreReviewRevision] =
+		useState<EventSheetRevisionRecord | null>(null);
 	const [isGenreManagerOpen, setIsGenreManagerOpen] = useState(false);
 	const [newGenreLabel, setNewGenreLabel] = useState("");
 	const [aliasInput, setAliasInput] = useState("");
@@ -694,6 +765,19 @@ export const EventSheetEditorCard = ({
 	const editVersionRef = useRef(0);
 	const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const inputRefs = useRef<Record<string, HTMLElement | null>>({});
+
+	const updateRevisionHistory = useCallback(
+		(revision: EventSheetRevisionRecord | null | undefined) => {
+			if (!revision) return;
+			setSheetRevisions((current) =>
+				[revision, ...current.filter((item) => item.id !== revision.id)].slice(
+					0,
+					24,
+				),
+			);
+		},
+		[],
+	);
 
 	const clearInlineHelpers = useCallback(() => {
 		cellDraftRef.current = null;
@@ -777,6 +861,9 @@ export const EventSheetEditorCard = ({
 			setColumns(result.columns);
 			setRows(result.rows);
 			setGenreTaxonomy(result.genreTaxonomy);
+			setSheetRevisions(result.sheetRevisions ?? []);
+			setIsSheetRevisionSupported(result.sheetRevisionSupported !== false);
+			setRestoreReviewRevision(null);
 			setLastSavedAt(result.status?.updatedAt ?? null);
 			setHasUnsavedChanges(false);
 			pastRef.current = [];
@@ -798,6 +885,98 @@ export const EventSheetEditorCard = ({
 			setIsLoading(false);
 		}
 	}, [clearInlineHelpers, isAuthenticated, refreshHistoryFlags]);
+
+	const handleRefreshRevisionHistory = async () => {
+		if (!isAuthenticated) return;
+		setErrorMessage("");
+		try {
+			const result = await fetchEditorData();
+			if (!result.success) {
+				throw new Error(result.error || "Failed to load revision history");
+			}
+			setSheetRevisions(result.sheetRevisions ?? []);
+			setIsSheetRevisionSupported(result.sheetRevisionSupported !== false);
+			setStatusMessage("Revision history refreshed");
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error
+					? error.message
+					: "Failed to load revision history",
+			);
+		}
+	};
+
+	const handlePreviewRevision = async (revision: EventSheetRevisionRecord) => {
+		if (!revision.canRestore) {
+			setErrorMessage(
+				"That revision was recorded before restorable snapshots were enabled.",
+			);
+			return;
+		}
+
+		setErrorMessage("");
+		setIsLoadingRevisionPreview(true);
+		try {
+			const result = await fetchRevisionSnapshot(revision.id);
+			if (
+				!result.success ||
+				!result.revision ||
+				!result.columns ||
+				!result.rows
+			) {
+				throw new Error(result.error || "Failed to load revision snapshot");
+			}
+			setRevisionPreview(result);
+			setIsRevisionHistoryOpen(true);
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error
+					? error.message
+					: "Failed to load revision snapshot",
+			);
+		} finally {
+			setIsLoadingRevisionPreview(false);
+		}
+	};
+
+	const handleRestoreRevisionPreview = () => {
+		if (
+			!revisionPreview?.revision ||
+			!revisionPreview.columns ||
+			!revisionPreview.rows
+		) {
+			return;
+		}
+
+		pushHistorySnapshot();
+		activeCellEditRef.current = null;
+		clearInlineHelpers();
+		const nextColumns = revisionPreview.columns.map((column) => ({
+			...column,
+		}));
+		const nextRows = revisionPreview.rows.map((row) => ({ ...row }));
+		columnsRef.current = nextColumns;
+		rowsRef.current = nextRows;
+		setColumns(nextColumns);
+		setRows(nextRows);
+		setRestoreReviewRevision(revisionPreview.revision);
+		setHasUnsavedChanges(true);
+		editVersionRef.current += 1;
+		setQuery("");
+		setSortMode("sheet-order");
+		clearStoredEditorDraft();
+		setRecoverableDraft(null);
+		setStatusMessage(
+			`Restored revision loaded for review (${revisionPreview.rows.length} rows). Publish when ready.`,
+		);
+		setIsRevisionHistoryOpen(false);
+	};
+
+	const handleDiscardRestoredRevision = () => {
+		setRestoreReviewRevision(null);
+		setRevisionPreview(null);
+		void loadEditorData();
+	};
 
 	const hasInitialEditorData = Boolean(
 		initialEditorData?.success &&
@@ -894,7 +1073,13 @@ export const EventSheetEditorCard = ({
 				const result = await saveEditorData(
 					columnsRef.current,
 					rowsRef.current,
-					{ revalidateHomepage: mode === "manual" },
+					{
+						revalidateHomepage: mode === "manual",
+						restoreRevisionId:
+							mode === "manual"
+								? (restoreReviewRevision?.id ?? undefined)
+								: undefined,
+					},
 				);
 				if (!result.success) {
 					throw new Error(result.error || result.message);
@@ -906,6 +1091,10 @@ export const EventSheetEditorCard = ({
 					setRecoverableDraft(null);
 				}
 				setLastSavedAt(result.updatedAt || new Date().toISOString());
+				updateRevisionHistory(result.revision);
+				if (mode === "manual") {
+					setRestoreReviewRevision(null);
+				}
 				setStatusMessage(
 					mode === "auto"
 						? "Autosaved to Postgres (homepage revalidation pending)"
@@ -931,7 +1120,12 @@ export const EventSheetEditorCard = ({
 				setIsSaving(false);
 			}
 		},
-		[activeDeploymentId, onDataSaved],
+		[
+			activeDeploymentId,
+			onDataSaved,
+			restoreReviewRevision,
+			updateRevisionHistory,
+		],
 	);
 
 	useEffect(() => {
@@ -940,6 +1134,7 @@ export const EventSheetEditorCard = ({
 			isSaving ||
 			hasNewDeployment ||
 			activeCellDraft ||
+			restoreReviewRevision ||
 			saveScheduleVersion === 0
 		) {
 			return;
@@ -964,6 +1159,7 @@ export const EventSheetEditorCard = ({
 		hasUnsavedChanges,
 		isSaving,
 		performSave,
+		restoreReviewRevision,
 		saveScheduleVersion,
 	]);
 
@@ -1633,6 +1829,7 @@ export const EventSheetEditorCard = ({
 	const visibleRowIndexes = useMemo(() => {
 		return sortedRowIndexes.slice(0, displayLimit);
 	}, [sortedRowIndexes, displayLimit]);
+	const visibleSheetRevisions = sheetRevisions.slice(0, 3);
 
 	const canShowMoreRows = sortedRowIndexes.length > visibleRowIndexes.length;
 	const availableGenres = useMemo(
@@ -1898,6 +2095,9 @@ export const EventSheetEditorCard = ({
 						<Badge variant="default">All changes saved</Badge>
 					)}
 					<Badge variant="outline">Source of truth: Postgres</Badge>
+					{restoreReviewRevision && (
+						<Badge variant="secondary">Revision loaded for review</Badge>
+					)}
 					<span className="text-xs text-muted-foreground">{statusMessage}</span>
 					{lastSavedAt && (
 						<span className="text-xs text-muted-foreground">
@@ -1965,6 +2165,39 @@ export const EventSheetEditorCard = ({
 					</div>
 				)}
 
+				{restoreReviewRevision && (
+					<div className="rounded-md border border-sky-300/70 bg-sky-50/80 p-3 text-sm text-sky-950">
+						<div className="flex flex-wrap items-center justify-between gap-3">
+							<div>
+								<p className="font-medium">Revision loaded for review.</p>
+								<p className="mt-1 text-xs text-sky-900/85">
+									{restoreReviewRevision.summary}. Publish to make it live, or
+									discard to reload the current saved sheet.
+								</p>
+							</div>
+							<div className="flex flex-wrap gap-2">
+								<Button
+									type="button"
+									size="sm"
+									onClick={() => void handleManualSave()}
+									disabled={isSaving}
+								>
+									Publish Revision
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									onClick={handleDiscardRestoredRevision}
+									disabled={isSaving}
+								>
+									Discard
+								</Button>
+							</div>
+						</div>
+					</div>
+				)}
+
 				{sheetHealthIssues.length > 0 && (
 					<details className="rounded-md border border-amber-300/70 bg-amber-50/75 px-3 py-2 text-xs text-amber-950">
 						<summary className="cursor-pointer font-medium">
@@ -1989,6 +2222,317 @@ export const EventSheetEditorCard = ({
 						</div>
 					</details>
 				)}
+
+				<div className="rounded-md border bg-background/55 p-3">
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div className="min-w-0">
+							<div className="flex items-center gap-2">
+								<History className="h-4 w-4 text-muted-foreground" />
+								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+									Sheet revision history
+								</p>
+								<Badge variant="outline" className="text-[10px]">
+									{sheetRevisions.length} loaded
+								</Badge>
+							</div>
+							<p className="mt-1 text-xs text-muted-foreground">
+								Autosaves are grouped into editing sessions. Published saves are
+								listed separately. Restore loads a revision for review before
+								publishing.
+							</p>
+						</div>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="h-8"
+								onClick={() => setIsRevisionHistoryOpen(true)}
+								disabled={sheetRevisions.length === 0}
+							>
+								View all
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="h-8 gap-1.5"
+								onClick={() => void handleRefreshRevisionHistory()}
+								disabled={isSaving}
+							>
+								<RefreshCw className="h-3.5 w-3.5" />
+								Refresh
+							</Button>
+						</div>
+					</div>
+
+					{!isSheetRevisionSupported ? (
+						<div className="mt-3 rounded-md border border-amber-300/70 bg-amber-50/75 px-3 py-2 text-xs text-amber-950">
+							Sheet revision history requires Postgres.
+						</div>
+					) : visibleSheetRevisions.length > 0 ? (
+						<div className="mt-3 divide-y rounded-md border bg-background/70">
+							{visibleSheetRevisions.map((revision) => (
+								<div
+									key={revision.id}
+									className="grid gap-2 px-3 py-2 md:grid-cols-[minmax(0,1fr)_auto]"
+								>
+									<div className="min-w-0">
+										<div className="flex min-w-0 flex-wrap items-center gap-2">
+											<Badge
+												variant={
+													revision.trigger === "publish"
+														? "default"
+														: "secondary"
+												}
+												className="text-[10px]"
+											>
+												{revision.trigger === "publish"
+													? "Published"
+													: "Autosave"}
+											</Badge>
+											<span className="min-w-0 truncate text-sm font-medium">
+												{revision.summary}
+											</span>
+										</div>
+										<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+											<span>{revision.actorLabel}</span>
+											<span>{formatRevisionTime(revision.updatedAt)}</span>
+											<span>{revision.rowCount} rows</span>
+											{revision.autosaveCount > 1 && (
+												<span>{revision.autosaveCount} autosaves</span>
+											)}
+											{!revision.canRestore && <span>Summary only</span>}
+										</div>
+										{(revision.changedColumns.length > 0 ||
+											revision.sampleAdded.length > 0 ||
+											revision.sampleDeleted.length > 0) && (
+											<details className="mt-1 text-xs text-muted-foreground">
+												<summary className="cursor-pointer">
+													Columns and samples
+												</summary>
+												<div className="mt-1 space-y-1">
+													{revision.changedColumns.length > 0 && (
+														<p>Columns: {revision.changedColumns.join(", ")}</p>
+													)}
+													{revision.sampleAdded.length > 0 && (
+														<p>Added: {revision.sampleAdded.join(", ")}</p>
+													)}
+													{revision.sampleDeleted.length > 0 && (
+														<p>Deleted: {revision.sampleDeleted.join(", ")}</p>
+													)}
+												</div>
+											</details>
+										)}
+									</div>
+									<div className="flex items-start justify-start md:justify-end">
+										<div className="flex flex-wrap justify-start gap-2 md:justify-end">
+											<Badge variant="outline" className="text-[10px]">
+												{formatRevisionStats(revision)}
+											</Badge>
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												className="h-7"
+												onClick={() => void handlePreviewRevision(revision)}
+												disabled={
+													!revision.canRestore || isLoadingRevisionPreview
+												}
+											>
+												Preview
+											</Button>
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
+					) : (
+						<div className="mt-3 rounded-md border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+							No sheet revisions recorded yet.
+						</div>
+					)}
+				</div>
+
+				<Dialog
+					open={isRevisionHistoryOpen}
+					onOpenChange={setIsRevisionHistoryOpen}
+				>
+					<DialogContent className="max-h-[88vh] w-[min(980px,calc(100vw-2rem))] max-w-none overflow-hidden p-5 sm:max-w-none sm:p-6">
+						<DialogHeader className="pr-10">
+							<DialogTitle className="text-xl">
+								Sheet revision history
+							</DialogTitle>
+							<DialogDescription className="max-w-2xl text-base leading-relaxed">
+								Preview a revision before restoring it into the editor. The
+								restore stays unpublished until you save and revalidate.
+							</DialogDescription>
+						</DialogHeader>
+
+						<div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+							<div className="max-h-[58vh] min-h-0 overflow-y-auto rounded-md border bg-background/70">
+								{sheetRevisions.length > 0 ? (
+									<div className="divide-y">
+										{sheetRevisions.map((revision) => (
+											<button
+												key={revision.id}
+												type="button"
+												className="block w-full px-3 py-2 text-left transition hover:bg-muted/45 disabled:cursor-not-allowed disabled:opacity-60"
+												onClick={() => void handlePreviewRevision(revision)}
+												disabled={
+													!revision.canRestore || isLoadingRevisionPreview
+												}
+											>
+												<div className="flex flex-wrap items-center gap-2">
+													<Badge
+														variant={
+															revision.trigger === "publish"
+																? "default"
+																: "secondary"
+														}
+														className="text-[10px]"
+													>
+														{revision.trigger === "publish"
+															? "Published"
+															: "Autosave"}
+													</Badge>
+													<span className="min-w-0 truncate text-sm font-medium">
+														{revision.summary}
+													</span>
+												</div>
+												<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+													<span>{revision.actorLabel}</span>
+													<span>{formatRevisionTime(revision.updatedAt)}</span>
+													<span>{revision.rowCount} rows</span>
+													<span>{formatRevisionStats(revision)}</span>
+													{revision.autosaveCount > 1 && (
+														<span>{revision.autosaveCount} autosaves</span>
+													)}
+													{!revision.canRestore && <span>Summary only</span>}
+												</div>
+											</button>
+										))}
+									</div>
+								) : (
+									<div className="p-3 text-sm text-muted-foreground">
+										No sheet revisions recorded yet.
+									</div>
+								)}
+							</div>
+
+							<div className="min-h-0 rounded-md border bg-background/70 p-3">
+								{revisionPreview?.revision ? (
+									<div className="space-y-3">
+										<div>
+											<div className="flex flex-wrap items-center gap-2">
+												<Badge
+													variant={
+														revisionPreview.revision.trigger === "publish"
+															? "default"
+															: "secondary"
+													}
+													className="text-[10px]"
+												>
+													{revisionPreview.revision.trigger === "publish"
+														? "Published"
+														: "Autosave"}
+												</Badge>
+												<span className="text-sm font-medium">
+													{formatRevisionTime(
+														revisionPreview.revision.updatedAt,
+													)}
+												</span>
+											</div>
+											<p className="mt-2 text-sm">
+												{revisionPreview.revision.summary}
+											</p>
+											<p className="mt-1 text-xs text-muted-foreground">
+												{revisionPreview.rows?.length ?? 0} rows,{" "}
+												{revisionPreview.columns?.length ?? 0} columns
+											</p>
+										</div>
+
+										<div className="space-y-1 text-xs text-muted-foreground">
+											{revisionPreview.revision.changedColumns.length > 0 && (
+												<p>
+													Columns:{" "}
+													{revisionPreview.revision.changedColumns.join(", ")}
+												</p>
+											)}
+											{revisionPreview.revision.sampleAdded.length > 0 && (
+												<p>
+													Added:{" "}
+													{revisionPreview.revision.sampleAdded.join(", ")}
+												</p>
+											)}
+											{revisionPreview.revision.sampleDeleted.length > 0 && (
+												<p>
+													Deleted:{" "}
+													{revisionPreview.revision.sampleDeleted.join(", ")}
+												</p>
+											)}
+										</div>
+
+										<div className="max-h-56 overflow-y-auto rounded-md border bg-background">
+											<table className="w-full text-xs">
+												<thead className="sticky top-0 bg-background">
+													<tr>
+														<th className="border-b px-2 py-1 text-left">
+															Title
+														</th>
+														<th className="border-b px-2 py-1 text-left">
+															Date
+														</th>
+													</tr>
+												</thead>
+												<tbody>
+													{(revisionPreview.rows ?? [])
+														.slice(0, 8)
+														.map((row, index) => (
+															<tr
+																key={`${row.eventKey || row.title}-${index}`}
+																className="border-b last:border-0"
+															>
+																<td className="px-2 py-1">
+																	{row.title || "Untitled event"}
+																</td>
+																<td className="px-2 py-1">
+																	{row.date || "TBC"}
+																</td>
+															</tr>
+														))}
+												</tbody>
+											</table>
+										</div>
+
+										<div className="flex flex-wrap justify-end gap-2 border-t pt-3">
+											<Button
+												type="button"
+												variant="outline"
+												onClick={() => setRevisionPreview(null)}
+											>
+												Clear preview
+											</Button>
+											<Button
+												type="button"
+												onClick={handleRestoreRevisionPreview}
+												disabled={isSaving}
+											>
+												Restore as draft
+											</Button>
+										</div>
+									</div>
+								) : (
+									<div className="flex min-h-48 items-center rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground">
+										{isLoadingRevisionPreview
+											? "Loading revision preview..."
+											: "Choose a restorable revision to preview."}
+									</div>
+								)}
+							</div>
+						</div>
+					</DialogContent>
+				</Dialog>
 
 				<div className="space-y-3 rounded-md border bg-background/55 p-3">
 					<div className="grid items-end gap-3 xl:grid-cols-[minmax(280px,1fr)_220px_auto]">

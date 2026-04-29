@@ -1,10 +1,13 @@
 "use server";
 
 import {
+	getCurrentAdminActivityActor,
+	recordAdminActivity,
+} from "@/features/admin/activity/record";
+import {
 	revokeAllAdminSessions,
 	secureCompare,
 } from "@/features/auth/admin-auth-token";
-import { recordAdminActivity } from "@/features/admin/activity/record";
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { clearFeaturedQueueHistory as clearFeaturedQueueHistoryService } from "@/features/events/featured/service";
@@ -37,6 +40,7 @@ import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
 import { getActionMetricsRepository } from "@/lib/platform/postgres/action-metrics-repository";
 import { getAdminSessionRepository } from "@/lib/platform/postgres/admin-session-repository";
+import { getEventSheetRevisionRepository } from "@/lib/platform/postgres/event-sheet-revision-repository";
 import { getEventStoreBackupRepository } from "@/lib/platform/postgres/event-store-backup-repository";
 import { getMusicGenreTaxonomyRepository } from "@/lib/platform/postgres/music-genre-taxonomy-repository";
 import { getRateLimitRepository } from "@/lib/platform/postgres/rate-limit-repository";
@@ -53,13 +57,30 @@ import {
 } from "./csv/sheet-editor";
 import { DataManager } from "./data-manager";
 import { processCSVData } from "./data-processor";
+import type {
+	EventSheetRevisionChangeSummary,
+	EventSheetRevisionRecord,
+	EventSheetRevisionSnapshot,
+} from "./event-sheet-revision-types";
 import { EventStoreBackupService } from "./event-store-backup-service";
 import type {
 	EventStoreBackupStatus,
 	EventStoreBackupSummary,
 } from "./event-store-backup-types";
 import { LocalEventStore } from "./local-event-store";
-import type { EventsResult, RuntimeDataStatus } from "./runtime-service";
+import {
+	type EventsResult,
+	type RuntimeDataStatus,
+	forceRefreshEventsData,
+	fullEventsRevalidation,
+	getLiveEvents,
+	getRuntimeDataStatusFromSource,
+	revalidateEventsPaths,
+} from "./runtime-service";
+import {
+	type CsvSchemaIssue,
+	analyzeCsvSchemaRows,
+} from "./validation/csv-schema-report";
 
 const DEFAULT_ALIAS_KEYS = new Set(
 	DEFAULT_GENRE_ALIASES.map(
@@ -71,17 +92,6 @@ const loadAdminGenreTaxonomy = async (): Promise<GenreTaxonomySnapshot> => {
 	const repository = getMusicGenreTaxonomyRepository();
 	return repository ? await repository.listTaxonomy() : DEFAULT_GENRE_TAXONOMY;
 };
-import {
-	forceRefreshEventsData,
-	fullEventsRevalidation,
-	getLiveEvents,
-	getRuntimeDataStatusFromSource,
-	revalidateEventsPaths,
-} from "./runtime-service";
-import {
-	type CsvSchemaIssue,
-	analyzeCsvSchemaRows,
-} from "./validation/csv-schema-report";
 
 /**
  * Data Management Server Actions
@@ -170,14 +180,7 @@ const buildEventSheetChangeSummary = (
 	beforeRows: EditableSheetRow[],
 	afterRows: EditableSheetRow[],
 	columns: EditableSheetColumn[],
-): {
-	addedRows: number;
-	deletedRows: number;
-	changedRows: number;
-	changedColumns: string[];
-	sampleAdded: string[];
-	sampleDeleted: string[];
-} => {
+): EventSheetRevisionChangeSummary => {
 	const beforeByKey = new Map(
 		beforeRows.map((row) => [getComparableEventSheetRowKey(row), row]),
 	);
@@ -225,6 +228,78 @@ const buildEventSheetChangeSummary = (
 			)
 			.slice(0, 3),
 	};
+};
+
+const hasEventSheetChanges = (
+	summary: EventSheetRevisionChangeSummary,
+): boolean =>
+	summary.addedRows > 0 || summary.deletedRows > 0 || summary.changedRows > 0;
+
+const formatEventSheetRevisionSummary = (
+	trigger: "autosave" | "publish",
+	rowCount: number,
+	changeSummary: EventSheetRevisionChangeSummary,
+): string => {
+	const parts = [
+		changeSummary.addedRows > 0 ? `${changeSummary.addedRows} added` : null,
+		changeSummary.deletedRows > 0
+			? `${changeSummary.deletedRows} deleted`
+			: null,
+		changeSummary.changedRows > 0
+			? `${changeSummary.changedRows} changed`
+			: null,
+	].filter((part): part is string => Boolean(part));
+	const prefix = trigger === "publish" ? "Published" : "Autosaved";
+	return parts.length > 0
+		? `${prefix} event sheet: ${parts.join(", ")}`
+		: `${prefix} event sheet (${rowCount} rows)`;
+};
+
+const recordEventSheetRevision = async (input: {
+	trigger: "autosave" | "publish";
+	rowCount: number;
+	columnCount: number;
+	changeSummary: EventSheetRevisionChangeSummary;
+	csvContent: string;
+}): Promise<EventSheetRevisionRecord | null> => {
+	if (process.env.NODE_ENV === "test") return null;
+	if (
+		input.trigger === "autosave" &&
+		!hasEventSheetChanges(input.changeSummary)
+	) {
+		return null;
+	}
+
+	const repository = getEventSheetRevisionRepository();
+	if (!repository) return null;
+
+	try {
+		const actor = await getCurrentAdminActivityActor();
+		const revisionInput = {
+			trigger: input.trigger,
+			actorLabel: actor.actorLabel,
+			actorSessionJti: actor.actorSessionJti,
+			rowCount: input.rowCount,
+			columnCount: input.columnCount,
+			summary: formatEventSheetRevisionSummary(
+				input.trigger,
+				input.rowCount,
+				input.changeSummary,
+			),
+			csvContent: input.csvContent,
+			href: "/admin/content#event-sheet-editor",
+			...input.changeSummary,
+		};
+		return input.trigger === "publish"
+			? await repository.createPublish(revisionInput)
+			: await repository.upsertAutosave(revisionInput);
+	} catch (error) {
+		log.warn("event-sheet", "Failed to record event sheet revision", {
+			trigger: input.trigger,
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
+		return null;
+	}
 };
 
 const isParisArrondissement = (
@@ -997,6 +1072,8 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 	columns?: EditableSheetColumn[];
 	rows?: EditableSheetRow[];
 	genreTaxonomy?: GenreTaxonomySnapshot;
+	sheetRevisions?: EventSheetRevisionRecord[];
+	sheetRevisionSupported?: boolean;
 	status?: Awaited<ReturnType<typeof LocalEventStore.getStatus>>;
 	sheetSource?: "store";
 	error?: string;
@@ -1006,10 +1083,12 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 	}
 
 	try {
-		const [status, csv, genreTaxonomy] = await Promise.all([
+		const revisionRepository = getEventSheetRevisionRepository();
+		const [status, csv, genreTaxonomy, sheetRevisions] = await Promise.all([
 			LocalEventStore.getStatus(),
 			LocalEventStore.getCsv(),
 			loadAdminGenreTaxonomy(),
+			revisionRepository ? revisionRepository.listRecent(24) : [],
 		]);
 		const sheet = csvToEditableSheet(csv);
 		const sanitized = stripLegacyFeaturedColumn(sheet.columns, sheet.rows);
@@ -1020,6 +1099,8 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 			columns: sanitized.columns,
 			rows: sortedRows,
 			genreTaxonomy,
+			sheetRevisions,
+			sheetRevisionSupported: Boolean(revisionRepository),
 			status,
 			sheetSource: "store",
 		};
@@ -1027,6 +1108,62 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+export async function getEventSheetRevisionSnapshot(
+	keyOrToken: string | undefined,
+	revisionId: string,
+): Promise<{
+	success: boolean;
+	revision?: EventSheetRevisionSnapshot["revision"];
+	columns?: EditableSheetColumn[];
+	rows?: EditableSheetRow[];
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized access" };
+	}
+
+	const id = revisionId.trim();
+	if (!id) {
+		return { success: false, error: "Choose a revision to preview" };
+	}
+
+	const repository = getEventSheetRevisionRepository();
+	if (!repository) {
+		return {
+			success: false,
+			error: "Sheet revision history requires Postgres",
+		};
+	}
+
+	try {
+		const snapshot = await repository.getSnapshotById(id);
+		if (!snapshot) {
+			return {
+				success: false,
+				error:
+					"This revision is not restorable. Older summary-only revisions do not have snapshots.",
+			};
+		}
+		const sheet = csvToEditableSheet(snapshot.csvContent);
+		const sanitized = stripLegacyFeaturedColumn(sheet.columns, sheet.rows);
+
+		return {
+			success: true,
+			revision: snapshot.revision,
+			columns: sanitized.columns,
+			rows: sanitized.rows,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error:
+				error instanceof Error
+					? error.message
+					: "Failed to load revision snapshot",
 		};
 	}
 }
@@ -1291,12 +1428,14 @@ export async function saveEventSheetEditorRows(
 	rows: EditableSheetRow[],
 	options?: {
 		revalidateHomepage?: boolean;
+		restoreRevisionId?: string;
 	},
 ): Promise<{
 	success: boolean;
 	message: string;
 	rowCount?: number;
 	updatedAt?: string;
+	revision?: EventSheetRevisionRecord | null;
 	error?: string;
 }> {
 	if (!(await validateAdminAccess(keyOrToken))) {
@@ -1341,17 +1480,41 @@ export async function saveEventSheetEditorRows(
 			validation.rows,
 			validation.columns,
 		);
+		const shouldRevalidateHomepage = options?.revalidateHomepage !== false;
+		const restoreRevisionId = options?.restoreRevisionId?.trim() || null;
+		if (shouldRevalidateHomepage && restoreRevisionId) {
+			const backupResult = await EventStoreBackupService.createBackup({
+				createdBy: "admin-sheet-revision-restore",
+				trigger: "pre-restore",
+			});
+			if (!backupResult.success && !backupResult.noData) {
+				log.warn(
+					"event-sheet",
+					"Pre-restore backup failed before revision publish",
+					{
+						restoreRevisionId,
+						error: backupResult.error ?? backupResult.message,
+					},
+				);
+			}
+		}
 		const saved = await LocalEventStore.saveCsv(csvContent, {
 			updatedBy: "admin-sheet-editor",
 			origin: "manual",
 		});
-		const shouldRevalidateHomepage = options?.revalidateHomepage !== false;
 		if (shouldRevalidateHomepage) {
 			await warmCoordinateCacheFromCsv(csvContent, "save-sheet-editor");
 			await forceRefreshEventsData();
 		} else {
 			revalidateEventsPaths(["/"]);
 		}
+		const revision = await recordEventSheetRevision({
+			trigger: shouldRevalidateHomepage ? "publish" : "autosave",
+			rowCount: saved.rowCount,
+			columnCount: validation.columns.length,
+			changeSummary,
+			csvContent,
+		});
 		if (shouldRevalidateHomepage) {
 			await recordAdminActivity({
 				action: "event_sheet.saved",
@@ -1362,6 +1525,7 @@ export async function saveEventSheetEditorRows(
 				metadata: {
 					rowCount: saved.rowCount,
 					columnCount: validation.columns.length,
+					restoreRevisionId,
 					...changeSummary,
 				},
 				href: "/admin/content#event-sheet-editor",
@@ -1375,6 +1539,7 @@ export async function saveEventSheetEditorRows(
 				: "Saved event sheet to store",
 			rowCount: saved.rowCount,
 			updatedAt: saved.updatedAt,
+			revision,
 		};
 	} catch (error) {
 		return {

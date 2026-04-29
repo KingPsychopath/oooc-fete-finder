@@ -1,6 +1,7 @@
 import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
 import {
 	getEventSheetEditorData,
+	getEventSheetRevisionSnapshot,
 	saveEventSheetEditorRows,
 } from "@/features/data-management/actions";
 import type {
@@ -53,9 +54,13 @@ export async function GET(request: NextRequest) {
 		);
 	}
 
-	const result = await getEventSheetEditorData(credential ?? undefined);
+	const hasRevisionId = request.nextUrl.searchParams.has("revisionId");
+	const revisionId = request.nextUrl.searchParams.get("revisionId") ?? "";
+	const result = hasRevisionId
+		? await getEventSheetRevisionSnapshot(credential ?? undefined, revisionId)
+		: await getEventSheetEditorData(credential ?? undefined);
 	return NextResponse.json(result, {
-		status: result.success ? 200 : 500,
+		status: result.success ? 200 : hasRevisionId ? 404 : 500,
 		headers: NO_STORE_HEADERS,
 	});
 }
@@ -105,6 +110,10 @@ export async function POST(request: NextRequest) {
 				revalidateHomepage: parseBooleanOption(
 					payload.options.revalidateHomepage,
 				),
+				restoreRevisionId:
+					typeof payload.options.restoreRevisionId === "string"
+						? payload.options.restoreRevisionId
+						: undefined,
 			}
 		: undefined;
 

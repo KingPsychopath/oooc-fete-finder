@@ -77,6 +77,8 @@ interface ParisMapLibreProps {
 	events: Event[];
 	onEventClick: (event: Event) => void;
 	selectedDay?: string;
+	className?: string;
+	resizeSignal?: number;
 }
 
 // Paris center coordinates
@@ -118,6 +120,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	events,
 	onEventClick,
 	selectedDay,
+	className,
+	resizeSignal = 0,
 }) => {
 	const mapContainer = useRef<HTMLDivElement>(null);
 	const map = useRef<maplibregl.Map | null>(null);
@@ -367,6 +371,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					zoom: 11,
 					minZoom: 10,
 					maxZoom: 18,
+					attributionControl: {
+						customAttribution: "Paris Event Map",
+					},
 					maxBounds: [
 						[2.18, 48.8], // Southwest corner (medium expansion)
 						[2.51, 48.92], // Northeast corner (medium expansion)
@@ -417,6 +424,30 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			}
 		};
 	}, []);
+
+	useEffect(() => {
+		if (!map.current) return;
+
+		const signal = resizeSignal;
+		let frameId: number | null = null;
+		const timeoutId = window.setTimeout(
+			() => {
+				map.current?.resize();
+			},
+			signal === 0 ? 0 : 320,
+		);
+
+		frameId = window.requestAnimationFrame(() => {
+			map.current?.resize();
+		});
+
+		return () => {
+			if (frameId !== null) {
+				window.cancelAnimationFrame(frameId);
+			}
+			window.clearTimeout(timeoutId);
+		};
+	}, [resizeSignal]);
 
 	useEffect(() => {
 		selectedArrondissementRef.current = selectedArrondissement;
@@ -679,7 +710,12 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	// Error state
 	if (loadError) {
 		return (
-			<div className="relative h-[600px] w-full overflow-hidden rounded-xl border border-border/70 bg-[linear-gradient(160deg,rgba(248,242,236,0.95),rgba(242,232,223,0.82))] dark:bg-[linear-gradient(160deg,rgba(26,20,18,0.95),rgba(20,16,14,0.88))]">
+			<div
+				className={cn(
+					"relative h-[600px] w-full overflow-hidden rounded-xl border border-border/70 bg-[linear-gradient(160deg,rgba(248,242,236,0.95),rgba(242,232,223,0.82))] dark:bg-[linear-gradient(160deg,rgba(26,20,18,0.95),rgba(20,16,14,0.88))]",
+					className,
+				)}
+			>
 				<div className="flex h-full items-center justify-center p-4">
 					<div className="ooo-site-card w-full max-w-md rounded-2xl border border-border/75 p-6 text-center">
 						<div className="mb-2 text-red-600 dark:text-red-400">
@@ -708,7 +744,12 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	}
 
 	return (
-		<div className="relative h-[600px] w-full overflow-hidden rounded-xl border border-border/70 bg-[radial-gradient(circle_at_22%_18%,rgba(255,255,255,0.68),rgba(255,255,255,0)_45%),linear-gradient(155deg,rgba(240,233,223,0.86),rgba(227,220,210,0.68))] dark:bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.06),rgba(255,255,255,0)_42%),linear-gradient(155deg,rgba(21,18,16,0.94),rgba(28,23,20,0.9))]">
+		<div
+			className={cn(
+				"relative h-[600px] w-full overflow-hidden rounded-xl border border-border/70 bg-[radial-gradient(circle_at_22%_18%,rgba(255,255,255,0.68),rgba(255,255,255,0)_45%),linear-gradient(155deg,rgba(240,233,223,0.86),rgba(227,220,210,0.68))] dark:bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.06),rgba(255,255,255,0)_42%),linear-gradient(155deg,rgba(21,18,16,0.94),rgba(28,23,20,0.9))]",
+				className,
+			)}
+		>
 			{/* Map container */}
 			<div
 				ref={mapContainer}
