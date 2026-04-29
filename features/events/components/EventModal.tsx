@@ -383,6 +383,10 @@ const EventModal: React.FC<EventModalProps> = ({
 			})
 			.join(", ");
 	};
+	const hasHostCountries = Boolean(event.hostCountries?.length);
+	const hasAudienceCountries = Boolean(event.audienceCountries?.length);
+	const hasCountryDetails = hasHostCountries || hasAudienceCountries;
+	const hasCountrySplit = hasHostCountries && hasAudienceCountries;
 	const hostCountryLabel = formatCountryList(event.hostCountries);
 	const audienceCountryLabel = formatCountryList(event.audienceCountries);
 	const eventUpdateHref = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
@@ -617,7 +621,11 @@ const EventModal: React.FC<EventModalProps> = ({
 								{ageLabel}
 							</p>
 						</div>
-						<div className="col-span-2 grid grid-cols-2 gap-1.5">
+						<div
+							className={`col-span-2 grid gap-1.5 ${
+								hasCountryDetails ? "grid-cols-2" : "grid-cols-1"
+							}`}
+						>
 							<div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
 								<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
 									<Building2 className="h-3.5 w-3.5" />
@@ -627,26 +635,46 @@ const EventModal: React.FC<EventModalProps> = ({
 									{venueTypeLabel}
 								</p>
 							</div>
-							<div className="grid grid-cols-2 gap-1.5">
-								<div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
-									<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
-										<Flag className="h-3.5 w-3.5" />
-										<span>Host</span>
-									</p>
-									<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
-										{hostCountryLabel}
-									</p>
+							{hasCountryDetails && (
+								<div
+									className={`relative overflow-hidden rounded-lg border border-border/70 bg-background/80 dark:bg-white/[0.04] ${
+										hasCountrySplit ? "grid grid-cols-2" : ""
+									}`}
+								>
+									{hasCountrySplit && (
+										<div
+											className="pointer-events-none absolute top-[-18%] bottom-[-18%] left-1/2 z-10 w-px rotate-[14deg] bg-border/80 dark:bg-border/65"
+											aria-hidden="true"
+										/>
+									)}
+									{hasHostCountries && (
+										<div
+											className={`px-2.5 py-2 ${hasCountrySplit ? "pr-4" : ""}`}
+										>
+											<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
+												<Flag className="h-3.5 w-3.5" />
+												<span>Host</span>
+											</p>
+											<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
+												{hostCountryLabel}
+											</p>
+										</div>
+									)}
+									{hasAudienceCountries && (
+										<div
+											className={`px-2.5 py-2 ${hasCountrySplit ? "pl-4" : ""}`}
+										>
+											<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
+												<User className="h-3.5 w-3.5" />
+												<span>Audience</span>
+											</p>
+											<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
+												{audienceCountryLabel}
+											</p>
+										</div>
+									)}
 								</div>
-								<div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
-									<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
-										<User className="h-3.5 w-3.5" />
-										<span>Audience</span>
-									</p>
-									<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
-										{audienceCountryLabel}
-									</p>
-								</div>
-							</div>
+							)}
 						</div>
 						<div className="col-span-2 rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
 							<div className="flex items-start justify-between gap-2">
@@ -828,11 +856,9 @@ const EventModal: React.FC<EventModalProps> = ({
 									<TooltipTrigger
 										onClick={() => void handleCopyContactEmail()}
 										render={
-											<Button
+											<button
 												type="button"
-												variant="ghost"
-												size="icon"
-												className="ml-1 inline-flex h-5 w-5 align-[-0.2em] text-muted-foreground hover:text-foreground"
+												className="relative ml-0 inline-flex h-[1em] w-[1em] items-center justify-center align-[-0.14em] text-muted-foreground/65 transition-colors before:absolute before:-inset-1.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
 												aria-label={
 													isContactEmailCopied
 														? "Contact email copied"
@@ -842,9 +868,9 @@ const EventModal: React.FC<EventModalProps> = ({
 										}
 									>
 										{isContactEmailCopied ? (
-											<Check className="h-3 w-3 text-emerald-700 dark:text-emerald-300" />
+											<Check className="h-[0.72em] w-[0.72em] text-emerald-700 dark:text-emerald-300" />
 										) : (
-											<Copy className="h-3 w-3" />
+											<Copy className="h-[0.72em] w-[0.72em]" />
 										)}
 									</TooltipTrigger>
 									<TooltipContent>
