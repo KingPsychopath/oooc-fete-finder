@@ -23,7 +23,6 @@ import {
 	Route,
 	Search,
 	Share2,
-	Sparkles,
 	Star,
 	Ticket,
 	Users,
@@ -206,9 +205,185 @@ function MiniMap({ activeStep }: { activeStep: StoryStepId }) {
 	);
 }
 
+function DemoStage({ activeStep }: { activeStep: StoryStepId }) {
+	if (activeStep === "signal") {
+		return (
+			<div className="rounded-[1.35rem] border border-border/70 bg-card/72 p-4">
+				<div className="space-y-4">
+					<div className="flex items-end gap-2">
+						<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#6d7e64] text-[10px] font-semibold text-white">
+							M
+						</div>
+						<div className="max-w-[78%] rounded-[1.1rem] rounded-bl-sm bg-background/82 px-4 py-3 text-sm leading-snug text-foreground shadow-[0_10px_22px_-20px_rgba(20,14,9,0.65)]">
+							Where should we go this weekend?
+						</div>
+					</div>
+					<div className="flex items-end justify-end gap-2">
+						<div className="max-w-[78%] rounded-[1.1rem] rounded-br-sm bg-[#244a4e] px-4 py-3 text-sm leading-snug text-white shadow-[0_10px_22px_-20px_rgba(20,14,9,0.65)]">
+							Is this free?
+						</div>
+						<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#a35f3b] text-[10px] font-semibold text-white">
+							A
+						</div>
+					</div>
+					<div className="flex items-end gap-2">
+						<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c4944d] text-[10px] font-semibold text-white">
+							S
+						</div>
+						<div className="max-w-[78%] rounded-[1.1rem] rounded-bl-sm bg-background/82 px-4 py-3 text-sm leading-snug text-foreground shadow-[0_10px_22px_-20px_rgba(20,14,9,0.65)]">
+							Send the location
+						</div>
+					</div>
+					<div className="ml-9 rounded-[1.1rem] border border-[#244a4e]/18 bg-[#fff7ea]/82 px-4 py-3 shadow-[0_14px_28px_-24px_rgba(20,14,9,0.7)]">
+						<p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+							Fête Finder
+						</p>
+						<p className="mt-1 text-sm font-semibold leading-snug text-foreground">
+							8 free picks near Oberkampf. Start here, then move toward Canal
+							Saint-Martin.
+						</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	if (activeStep === "map") {
+		return <MiniMap activeStep={activeStep} />;
+	}
+
+	if (activeStep === "filters") {
+		return (
+			<div className="rounded-[1.35rem] border border-border/70 bg-card/72 p-4">
+				<div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/64 px-3 py-2">
+					<Filter className="h-4 w-4 text-[#244a4e]" />
+					<span className="text-sm text-muted-foreground">
+						Narrow the weekend in seconds
+					</span>
+				</div>
+				<div className="mt-4 grid grid-cols-2 gap-2">
+					{filters.map((filter) => (
+						<span
+							key={filter}
+							className="rounded-full border border-[#244a4e]/36 bg-[#244a4e] px-3 py-2 text-center text-xs text-white"
+						>
+							{filter}
+						</span>
+					))}
+				</div>
+				<div className="mt-4 rounded-2xl border border-[#f0b668]/55 bg-[#fff7ea]/76 p-4">
+					<p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+						Filtered route
+					</p>
+					<p className="mt-1 text-lg font-semibold text-foreground">
+						Free outdoor Afrobeats near the 11e
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (activeStep === "community") {
+		return (
+			<div className="rounded-[1.35rem] border border-border/70 bg-[#244a4e] p-5 text-white">
+				<div className="flex items-center gap-3">
+					<div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/12">
+						<MessageCircle className="h-5 w-5" />
+					</div>
+					<div>
+						<p className="text-[10px] uppercase tracking-[0.18em] text-white/58">
+							OOOC Community
+						</p>
+						<p className="text-base font-semibold">
+							Live Fête weekend updates from people in Paris
+						</p>
+					</div>
+				</div>
+				<div className="mt-5 grid gap-3 text-sm text-white/76">
+					<p>18-35 travellers and locals moving through the same weekend.</p>
+					<p>
+						Recommendations, meeting points and useful “where next?” signal.
+					</p>
+				</div>
+				<div className="mt-5 rounded-2xl border border-white/12 bg-white/10 p-4">
+					<p className="text-[10px] uppercase tracking-[0.18em] text-white/58">
+						Live layer
+					</p>
+					<p className="mt-1 text-sm font-semibold">
+						“Heading to Bastille now. Anyone found a good late set?”
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="rounded-2xl border border-border/75 bg-card/86 p-4">
+			<div className="flex items-start justify-between gap-3">
+				<div>
+					<div className="flex items-center gap-2">
+						<Badge className="rounded-full bg-[#211912] text-white">
+							<Star className="h-3 w-3 fill-current" />
+							OOOC Pick
+						</Badge>
+						<Badge variant="outline">11e</Badge>
+					</div>
+					<h3 className="mt-3 text-xl font-semibold text-foreground">
+						Rooftop Rhythm Session
+					</h3>
+				</div>
+				<Music2 className="mt-1 h-5 w-5 text-[#a35f3b]" />
+			</div>
+			<div className="mt-4 grid gap-2 text-sm text-muted-foreground">
+				<p className="flex items-center gap-2">
+					<Clock className="h-4 w-4" />
+					20:00 - late · Saturday
+				</p>
+				<p className="flex items-center gap-2">
+					<MapPin className="h-4 w-4" />
+					Near Oberkampf
+				</p>
+				<p className="flex items-center gap-2">
+					<Euro className="h-4 w-4" />
+					Free entry
+				</p>
+			</div>
+			<div
+				className={cn(
+					"mt-5 grid grid-cols-3 gap-2 transition-opacity duration-500",
+					activeStep === "plan" ? "opacity-100" : "opacity-55",
+				)}
+			>
+				<Button size="sm" variant="outline" className="rounded-full">
+					<CalendarPlus className="h-3.5 w-3.5" />
+					Save
+				</Button>
+				<Button size="sm" variant="outline" className="rounded-full">
+					<Share2 className="h-3.5 w-3.5" />
+					Share
+				</Button>
+				<Button size="sm" className="rounded-full">
+					<Route className="h-3.5 w-3.5" />
+					Route
+				</Button>
+			</div>
+			{activeStep === "plan" && (
+				<div className="mt-4 rounded-2xl border border-[#244a4e]/25 bg-[#244a4e] p-3 text-white">
+					<p className="text-[10px] uppercase tracking-[0.18em] text-white/62">
+						Next move
+					</p>
+					<p className="mt-1 text-sm font-semibold">
+						Saved, shared, and ready to open in maps.
+					</p>
+				</div>
+			)}
+		</div>
+	);
+}
+
 function DemoPanel({ activeStep }: { activeStep: StoryStepId }) {
 	return (
-		<div className="sticky top-32 ml-auto w-full max-w-[34rem]">
+		<div className="w-full max-w-[34rem]">
 			<div className="rounded-[2rem] border border-border/70 bg-card/82 p-3 shadow-[0_30px_90px_-58px_rgba(24,16,10,0.9)] backdrop-blur-xl">
 				<div className="overflow-hidden rounded-[1.55rem] border border-border/70 bg-background/72">
 					<div className="flex items-center justify-between border-b border-border/65 px-4 py-3">
@@ -223,82 +398,11 @@ function DemoPanel({ activeStep }: { activeStep: StoryStepId }) {
 					</div>
 
 					<div className="grid gap-4 p-4">
-						<MiniMap activeStep={activeStep} />
-
-						<div className="flex flex-wrap gap-2">
-							{filters.map((filter, index) => {
-								const isActive =
-									activeStep === "filters" ||
-									activeStep === "event" ||
-									activeStep === "plan" ||
-									(index < 2 && activeStep === "map");
-								return (
-									<span
-										key={filter}
-										className={cn(
-											"rounded-full border px-3 py-1.5 text-xs transition-colors duration-500",
-											isActive
-												? "border-[#244a4e]/40 bg-[#244a4e] text-white"
-												: "border-border/70 bg-card/64 text-muted-foreground",
-										)}
-									>
-										{filter}
-									</span>
-								);
-							})}
-						</div>
-
-						<div className="rounded-2xl border border-border/75 bg-card/86 p-4">
-							<div className="flex items-start justify-between gap-3">
-								<div>
-									<div className="flex items-center gap-2">
-										<Badge className="rounded-full bg-[#211912] text-white">
-											<Star className="h-3 w-3 fill-current" />
-											OOOC Pick
-										</Badge>
-										<Badge variant="outline">11e</Badge>
-									</div>
-									<h3 className="mt-3 text-xl font-semibold text-foreground">
-										Rooftop Rhythm Session
-									</h3>
-								</div>
-								<Music2 className="mt-1 h-5 w-5 text-[#a35f3b]" />
-							</div>
-							<div className="mt-4 grid gap-2 text-sm text-muted-foreground">
-								<p className="flex items-center gap-2">
-									<Clock className="h-4 w-4" />
-									20:00 - late · Saturday
-								</p>
-								<p className="flex items-center gap-2">
-									<MapPin className="h-4 w-4" />
-									Near Oberkampf
-								</p>
-								<p className="flex items-center gap-2">
-									<Euro className="h-4 w-4" />
-									Free entry
-								</p>
-							</div>
-							<div
-								className={cn(
-									"mt-4 grid grid-cols-3 gap-2 transition-opacity duration-500",
-									activeStep === "plan" || activeStep === "community"
-										? "opacity-100"
-										: "opacity-55",
-								)}
-							>
-								<Button size="sm" variant="outline" className="rounded-full">
-									<CalendarPlus className="h-3.5 w-3.5" />
-									Save
-								</Button>
-								<Button size="sm" variant="outline" className="rounded-full">
-									<Share2 className="h-3.5 w-3.5" />
-									Share
-								</Button>
-								<Button size="sm" className="rounded-full">
-									<Route className="h-3.5 w-3.5" />
-									Route
-								</Button>
-							</div>
+						<div
+							key={activeStep}
+							className="animate-in fade-in-0 slide-in-from-bottom-2 duration-500"
+						>
+							<DemoStage activeStep={activeStep} />
 						</div>
 					</div>
 				</div>
@@ -595,15 +699,15 @@ export function HowItWorksExperience() {
 				</div>
 			</section>
 
-			<section className="px-4 py-12 sm:px-6 lg:px-8 lg:py-14">
-				<div className="mx-auto grid max-w-[108rem] gap-10 lg:grid-cols-[minmax(0,0.86fr)_minmax(30rem,0.7fr)] lg:gap-14 xl:gap-20">
-					<div className="grid gap-4 lg:gap-2">
-						{storySteps.map((step, index) => (
-							<article
-								key={step.id}
-								data-story-step={step.id}
-								className="border-t border-border/70 py-12 lg:min-h-[46svh] lg:py-9 xl:min-h-[50svh]"
-							>
+			<section className="relative px-4 py-12 sm:px-6 lg:px-8 lg:py-14">
+				<div className="mx-auto grid max-w-[108rem] gap-4 lg:gap-2">
+					{storySteps.map((step, index) => (
+						<article
+							key={step.id}
+							data-story-step={step.id}
+							className="grid border-t border-border/70 py-12 lg:min-h-[48svh] lg:grid-cols-[minmax(0,54rem)_minmax(28rem,34rem)] lg:items-center lg:gap-12 lg:py-10 xl:min-h-[52svh] xl:gap-20"
+						>
+							<div>
 								<div className="flex items-center gap-3">
 									<span
 										className={cn(
@@ -641,13 +745,20 @@ export function HowItWorksExperience() {
 								<div className="mt-8 lg:hidden">
 									<MobileStepPreview stepId={step.id} />
 								</div>
-							</article>
-						))}
-					</div>
+							</div>
 
-					<div className="hidden self-start lg:block">
-						<DemoPanel activeStep={activeStep} />
-					</div>
+							<div
+								className={cn(
+									"hidden justify-end transition-all duration-500 lg:flex",
+									activeStep === step.id
+										? "translate-y-0 opacity-100"
+										: "translate-y-6 opacity-75",
+								)}
+							>
+								<DemoPanel activeStep={step.id} />
+							</div>
+						</article>
+					))}
 				</div>
 			</section>
 
@@ -727,7 +838,7 @@ export function HowItWorksExperience() {
 
 			<section className="px-4 pb-24 sm:px-6 lg:px-8">
 				<div className="mx-auto max-w-5xl rounded-[2rem] border border-border/70 bg-[linear-gradient(145deg,color-mix(in_oklab,var(--card)_84%,#f0b668_16%),color-mix(in_oklab,var(--card)_78%,#244a4e_22%))] p-8 text-center shadow-[0_28px_80px_-58px_rgba(22,16,10,0.86)] sm:p-12">
-					<Sparkles className="mx-auto h-7 w-7 text-[#a35f3b]" />
+					<Route className="mx-auto h-7 w-7 text-[#a35f3b]" />
 					<h2 className="mx-auto mt-5 max-w-3xl text-[clamp(2.6rem,7vw,6rem)] font-light leading-[0.88] text-foreground [font-family:var(--ooo-font-display)]">
 						Ready to find your route?
 					</h2>

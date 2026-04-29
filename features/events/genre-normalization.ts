@@ -193,14 +193,17 @@ const buildGenreAliasMap = (
 	taxonomy: GenreTaxonomySnapshot = DEFAULT_GENRE_TAXONOMY,
 ): Map<string, MusicGenre> => {
 	const entries: Array<[string, MusicGenre]> = [];
+	const activeGenreKeys = new Set<MusicGenre>();
 	for (const genre of taxonomy.genres) {
 		if (genre.isActive === false) continue;
+		activeGenreKeys.add(genre.key);
 		entries.push([genre.key, genre.key], [genre.label, genre.key]);
 		for (const alias of genre.aliases ?? []) {
 			entries.push([alias, genre.key]);
 		}
 	}
 	for (const alias of taxonomy.aliases) {
+		if (!activeGenreKeys.has(alias.genreKey)) continue;
 		entries.push([alias.alias, alias.genreKey]);
 	}
 	return new Map(

@@ -16,6 +16,8 @@ import {
 	getEventSheetEditorData,
 	getMusicGenreTaxonomy,
 	mapMusicGenreAliasFromEditor,
+	removeMusicGenreAliasFromEditor,
+	removeMusicGenreFromEditor,
 	saveEventSheetEditorRows,
 } from "@/features/data-management/actions";
 import {
@@ -29,9 +31,11 @@ import {
 	createCustomColumnKey,
 } from "@/features/data-management/csv/sheet-editor";
 import {
+	DEFAULT_GENRE_ALIASES,
 	type GenreTaxonomyDefinition,
 	type GenreTaxonomySnapshot,
 	normalizeGenreInputText,
+	normalizeGenreKey,
 	resolveMusicGenre,
 	toGenreLabel,
 } from "@/features/events/genre-normalization";
@@ -67,6 +71,11 @@ const MAX_FROZEN_COLUMNS = 4;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
 const DEFAULT_SORT_MODE: SheetSortMode = "smart-date";
 const CATEGORY_COLUMN_KEY = "categories";
+const DEFAULT_ALIAS_KEYS = new Set(
+	DEFAULT_GENRE_ALIASES.map(
+		([alias, genreKey]) => `${normalizeGenreKey(alias)}:${genreKey}`,
+	),
+);
 
 const cellRefKey = (rowIndex: number, columnKey: string) =>
 	`${rowIndex}:${columnKey}`;
@@ -207,6 +216,7 @@ export const EventSheetEditorCard = ({
 		GenreTaxonomySnapshot | undefined
 	>(initialEditorData?.genreTaxonomy);
 	const [newGenreLabel, setNewGenreLabel] = useState("");
+	const [aliasInput, setAliasInput] = useState("");
 	const [aliasGenreKey, setAliasGenreKey] = useState("");
 	const [focusedCategoryRowIndex, setFocusedCategoryRowIndex] = useState<
 		number | null
@@ -640,6 +650,33 @@ export const EventSheetEditorCard = ({
 		[addGenreToRow, focusedCategoryRowIndex],
 	);
 
+	const handleRemoveCustomGenre = useCallback(
+		async (genre: GenreTaxonomyDefinition) => {
+			if (genre.isDefault) {
+				setErrorMessage("Default genres cannot be removed");
+				return;
+			}
+			if (
+				!window.confirm(
+					`Remove "${genre.label}" from custom genres? Existing sheet cells using it will become unknown until remapped.`,
+				)
+			) {
+				return;
+			}
+
+			setErrorMessage("");
+			const result = await removeMusicGenreFromEditor(genre.key);
+			if (!result.success || !result.genreTaxonomy) {
+				setErrorMessage(result.error || "Failed to remove genre");
+				return;
+			}
+
+			setGenreTaxonomy(result.genreTaxonomy);
+			setStatusMessage(result.message || "Custom genre removed");
+		},
+		[],
+	);
+
 	const handleMapAlias = useCallback(
 		async (aliasInput: string) => {
 			const alias = aliasInput.trim();
@@ -656,11 +693,24 @@ export const EventSheetEditorCard = ({
 			}
 
 			setGenreTaxonomy(result.genreTaxonomy);
+			setAliasInput("");
 			setStatusMessage(result.message || "Genre alias saved");
 			await refreshGenreTaxonomy();
 		},
 		[aliasGenreKey, refreshGenreTaxonomy],
 	);
+
+	const handleRemoveAlias = useCallback(async (alias: string) => {
+		setErrorMessage("");
+		const result = await removeMusicGenreAliasFromEditor(alias);
+		if (!result.success || !result.genreTaxonomy) {
+			setErrorMessage(result.error || "Failed to remove alias");
+			return;
+		}
+
+		setGenreTaxonomy(result.genreTaxonomy);
+		setStatusMessage(result.message || "Genre alias removed");
+	}, []);
 
 	const filteredRowIndexes = useMemo(() => {
 		if (!query.trim()) {
@@ -698,6 +748,34 @@ export const EventSheetEditorCard = ({
 				),
 		[genreTaxonomy],
 	);
+	const defaultGenres = useMemo(
+		() => availableGenres.filter((genre) => genre.isDefault),
+		[availableGenres],
+	);
+	const customGenres = useMemo(
+		() => availableGenres.filter((genre) => !genre.isDefault),
+		[availableGenres],
+	);
+	const customAliases = useMemo(() => {
+		const genreByKey = new Map(
+			availableGenres.map((genre) => [genre.key, genre.label]),
+		);
+		return (genreTaxonomy?.aliases ?? [])
+			.filter(
+				(alias) =>
+					!DEFAULT_ALIAS_KEYS.has(`${alias.alias}:${alias.genreKey}`) &&
+					genreByKey.has(alias.genreKey),
+			)
+			.map((alias) => ({
+				...alias,
+				genreLabel: genreByKey.get(alias.genreKey) ?? alias.genreKey,
+			}))
+			.sort(
+				(left, right) =>
+					left.genreLabel.localeCompare(right.genreLabel) ||
+					left.alias.localeCompare(right.alias),
+			);
+	}, [availableGenres, genreTaxonomy]);
 	const unknownGenres = useMemo(() => {
 		const unknown = new Map<string, { label: string; count: number }>();
 		for (const row of rows) {
@@ -971,7 +1049,15 @@ export const EventSheetEditorCard = ({
 
 				<div className="space-y-2 rounded-md border bg-background/55 p-3">
 					<div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
-						<Label>Genre library</Label>
+						<div className="flex flex-wrap items-center gap-2">
+							<Label>Genre library</Label>
+							<Badge variant="outline" className="text-[10px]">
+								{defaultGenres.length} default
+							</Badge>
+							<Badge variant="secondary" className="text-[10px]">
+								{customGenres.length} custom
+							</Badge>
+						</div>
 						<div className="grid grid-cols-[minmax(12rem,16rem)_auto] items-center gap-2">
 							<Input
 								value={newGenreLabel}
@@ -994,40 +1080,96 @@ export const EventSheetEditorCard = ({
 								onClick={() => void handleCreateGenre(newGenreLabel)}
 								disabled={isSaving || isLoading}
 							>
-								Add genre
+								Add custom
 							</Button>
 						</div>
 					</div>
 
-					<div className="flex max-h-28 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
-						{availableGenres.map((genre) => (
-							<button
-								key={genre.key}
-								type="button"
-								onClick={() => {
-									if (focusedCategoryRowIndex !== null) {
-										addGenreToRow(focusedCategoryRowIndex, genre.key);
-									}
-								}}
-								disabled={focusedCategoryRowIndex === null}
-								className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border/70 bg-background px-2.5 text-xs transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55"
-								title={
-									focusedCategoryRowIndex === null
-										? "Focus a Categories cell first"
-										: `Add ${genre.label}`
-								}
-							>
-								<span
-									className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
-								/>
-								{genre.label}
-							</button>
-						))}
-						{availableGenres.length === 0 && (
-							<span className="text-xs text-muted-foreground">
-								Genre list unavailable. Check the Postgres connection.
-							</span>
-						)}
+					<div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">
+						<div className="space-y-1.5">
+							<Label className="text-xs text-muted-foreground">
+								Default genres
+							</Label>
+							<div className="flex max-h-24 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
+								{defaultGenres.map((genre) => (
+									<button
+										key={genre.key}
+										type="button"
+										onClick={() => {
+											if (focusedCategoryRowIndex !== null) {
+												addGenreToRow(focusedCategoryRowIndex, genre.key);
+											}
+										}}
+										disabled={focusedCategoryRowIndex === null}
+										className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border/70 bg-background px-2.5 text-xs transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55"
+										title={
+											focusedCategoryRowIndex === null
+												? "Focus a Categories cell first"
+												: `Add ${genre.label}`
+										}
+									>
+										<span
+											className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
+										/>
+										{genre.label}
+									</button>
+								))}
+								{availableGenres.length === 0 && (
+									<span className="text-xs text-muted-foreground">
+										Genre list unavailable. Check the Postgres connection.
+									</span>
+								)}
+							</div>
+						</div>
+
+						<div className="space-y-1.5">
+							<Label className="text-xs text-muted-foreground">
+								Custom genres
+							</Label>
+							<div className="flex max-h-24 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
+								{customGenres.map((genre) => (
+									<div
+										key={genre.key}
+										className="inline-flex h-7 items-center overflow-hidden rounded-full border border-border/70 bg-background text-xs"
+									>
+										<button
+											type="button"
+											onClick={() => {
+												if (focusedCategoryRowIndex !== null) {
+													addGenreToRow(focusedCategoryRowIndex, genre.key);
+												}
+											}}
+											disabled={focusedCategoryRowIndex === null}
+											className="inline-flex h-7 items-center gap-1.5 px-2.5 transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55"
+											title={
+												focusedCategoryRowIndex === null
+													? "Focus a Categories cell first"
+													: `Add ${genre.label}`
+											}
+										>
+											<span
+												className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
+											/>
+											{genre.label}
+										</button>
+										<button
+											type="button"
+											className="h-7 border-l px-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+											onClick={() => void handleRemoveCustomGenre(genre)}
+											aria-label={`Remove ${genre.label}`}
+											title={`Remove ${genre.label}`}
+										>
+											x
+										</button>
+									</div>
+								))}
+								{customGenres.length === 0 && (
+									<span className="text-xs text-muted-foreground">
+										No custom genres yet.
+									</span>
+								)}
+							</div>
+						</div>
 					</div>
 
 					{unknownGenres.length > 0 && (
@@ -1049,16 +1191,19 @@ export const EventSheetEditorCard = ({
 											className="h-5 px-1.5 text-[10px]"
 											onClick={() => void handleCreateGenre(genre.label)}
 										>
-											Add
+											Add custom
 										</Button>
 										<Button
 											type="button"
 											size="sm"
 											variant="ghost"
 											className="h-5 px-1.5 text-[10px]"
-											onClick={() => setNewGenreLabel(genre.label)}
+											onClick={() => {
+												setAliasInput(genre.label);
+												setNewGenreLabel(genre.label);
+											}}
 										>
-											Edit
+											Map
 										</Button>
 									</div>
 								))}
@@ -1081,8 +1226,8 @@ export const EventSheetEditorCard = ({
 									</select>
 								</div>
 								<Input
-									value={newGenreLabel}
-									onChange={(event) => setNewGenreLabel(event.target.value)}
+									value={aliasInput}
+									onChange={(event) => setAliasInput(event.target.value)}
 									placeholder="Afrotrap"
 									className="h-9 w-[min(100%,220px)]"
 									aria-label="Alias to map"
@@ -1092,11 +1237,38 @@ export const EventSheetEditorCard = ({
 									size="sm"
 									variant="outline"
 									className="h-9"
-									onClick={() => void handleMapAlias(newGenreLabel)}
-									disabled={!newGenreLabel.trim() || !aliasGenreKey}
+									onClick={() => void handleMapAlias(aliasInput)}
+									disabled={!aliasInput.trim() || !aliasGenreKey}
 								>
-									Map alias
+									Save mapping
 								</Button>
+							</div>
+						</div>
+					)}
+
+					{customAliases.length > 0 && (
+						<div className="space-y-2 border-t pt-3">
+							<Label>Custom alias mappings</Label>
+							<div className="flex flex-wrap gap-2">
+								{customAliases.map((alias) => (
+									<div
+										key={`${alias.alias}:${alias.genreKey}`}
+										className="inline-flex h-7 items-center overflow-hidden rounded-full border border-border/70 bg-background text-xs"
+									>
+										<span className="px-2.5">
+											{toGenreLabel(alias.alias)} -&gt; {alias.genreLabel}
+										</span>
+										<button
+											type="button"
+											className="h-7 border-l px-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+											onClick={() => void handleRemoveAlias(alias.alias)}
+											aria-label={`Remove ${alias.alias} alias`}
+											title={`Remove ${alias.alias} alias`}
+										>
+											x
+										</button>
+									</div>
+								))}
 							</div>
 						</div>
 					)}

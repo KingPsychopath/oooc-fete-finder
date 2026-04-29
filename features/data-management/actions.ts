@@ -8,6 +8,7 @@ import { validateAdminAccessFromServerContext } from "@/features/auth/admin-vali
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { clearFeaturedQueueHistory as clearFeaturedQueueHistoryService } from "@/features/events/featured/service";
 import {
+	DEFAULT_GENRE_ALIASES,
 	DEFAULT_GENRE_TAXONOMY,
 	type GenreTaxonomySnapshot,
 	normalizeGenreKey,
@@ -58,6 +59,12 @@ import type {
 } from "./event-store-backup-types";
 import { LocalEventStore } from "./local-event-store";
 import type { EventsResult, RuntimeDataStatus } from "./runtime-service";
+
+const DEFAULT_ALIAS_KEYS = new Set(
+	DEFAULT_GENRE_ALIASES.map(
+		([alias, genreKey]) => `${normalizeGenreKey(alias)}:${genreKey}`,
+	),
+);
 import {
 	forceRefreshEventsData,
 	fullEventsRevalidation,
@@ -938,6 +945,53 @@ export async function createMusicGenreFromEditor(
 	}
 }
 
+export async function removeMusicGenreFromEditor(
+	genreKey: string,
+	keyOrToken?: string,
+): Promise<{
+	success: boolean;
+	genreTaxonomy?: GenreTaxonomySnapshot;
+	message?: string;
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized access" };
+	}
+
+	try {
+		const repository = getMusicGenreTaxonomyRepository();
+		if (!repository) {
+			return {
+				success: false,
+				error: "Genre taxonomy database unavailable",
+			};
+		}
+
+		const taxonomy = await repository.listTaxonomy();
+		const genre = taxonomy.genres.find((item) => item.key === genreKey);
+		if (!genre) {
+			return { success: false, error: "Choose a valid genre to remove" };
+		}
+		if (genre.isDefault) {
+			return { success: false, error: "Default genres cannot be removed" };
+		}
+
+		await repository.removeCustomGenre(genre.key);
+		const genreTaxonomy = await repository.listTaxonomy();
+		revalidateEventsPaths(["/admin", "/"]);
+		return {
+			success: true,
+			genreTaxonomy,
+			message: `${genre.label} removed from custom genres`,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
 export async function mapMusicGenreAliasFromEditor(
 	aliasInput: string,
 	genreKey: string,
@@ -977,6 +1031,54 @@ export async function mapMusicGenreAliasFromEditor(
 			success: true,
 			genreTaxonomy,
 			message: `${aliasInput} now maps to ${canonicalGenre}`,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+export async function removeMusicGenreAliasFromEditor(
+	aliasInput: string,
+	keyOrToken?: string,
+): Promise<{
+	success: boolean;
+	genreTaxonomy?: GenreTaxonomySnapshot;
+	message?: string;
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized access" };
+	}
+
+	try {
+		const repository = getMusicGenreTaxonomyRepository();
+		if (!repository) {
+			return {
+				success: false,
+				error: "Genre taxonomy database unavailable",
+			};
+		}
+
+		const taxonomy = await repository.listTaxonomy();
+		const alias = normalizeGenreKey(aliasInput);
+		const existingAlias = taxonomy.aliases.find((item) => item.alias === alias);
+		if (
+			existingAlias &&
+			DEFAULT_ALIAS_KEYS.has(`${existingAlias.alias}:${existingAlias.genreKey}`)
+		) {
+			return { success: false, error: "Default aliases cannot be removed" };
+		}
+
+		await repository.removeAlias(aliasInput);
+		const genreTaxonomy = await repository.listTaxonomy();
+		revalidateEventsPaths(["/admin", "/"]);
+		return {
+			success: true,
+			genreTaxonomy,
+			message: `${aliasInput} alias removed`,
 		};
 	} catch (error) {
 		return {

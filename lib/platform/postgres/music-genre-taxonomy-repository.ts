@@ -268,6 +268,34 @@ export class MusicGenreTaxonomyRepository {
 		};
 	}
 
+	async removeCustomGenre(genreKey: MusicGenre): Promise<void> {
+		await this.ready();
+		const key = normalizeGenreKey(genreKey);
+		if (!key) {
+			throw new Error("Genre is required");
+		}
+
+		const rows = await this.sql<Array<{ is_default: boolean }>>`
+			SELECT is_default
+			FROM app_music_genres
+			WHERE key = ${key}
+			LIMIT 1
+		`;
+		const row = rows[0];
+		if (!row) {
+			throw new Error("Genre does not exist");
+		}
+		if (row.is_default) {
+			throw new Error("Default genres cannot be removed");
+		}
+
+		await this.sql`
+			DELETE FROM app_music_genres
+			WHERE key = ${key}
+				AND is_default = FALSE
+		`;
+	}
+
 	async upsertAlias(input: {
 		alias: string;
 		genreKey: MusicGenre;
@@ -283,6 +311,19 @@ export class MusicGenreTaxonomyRepository {
 			VALUES (${alias}, ${input.genreKey})
 			ON CONFLICT (alias)
 			DO UPDATE SET genre_key = EXCLUDED.genre_key
+		`;
+	}
+
+	async removeAlias(aliasInput: string): Promise<void> {
+		await this.ready();
+		const alias = normalizeAlias(aliasInput);
+		if (!alias) {
+			throw new Error("Alias is required");
+		}
+
+		await this.sql`
+			DELETE FROM app_music_genre_aliases
+			WHERE alias = ${alias}
 		`;
 	}
 }
