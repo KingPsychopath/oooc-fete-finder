@@ -1,13 +1,13 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
 	Accordion,
 	AccordionContent,
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -24,14 +24,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-	createMusicGenreFromEditor,
-	getEventSheetEditorData,
-	mapMusicGenreAliasFromEditor,
-	removeMusicGenreAliasFromEditor,
-	removeMusicGenreFromEditor,
-	saveEventSheetEditorRows,
-} from "@/features/data-management/actions";
 import {
 	createDateNormalizationContext,
 	normalizeCsvDate,
@@ -66,14 +58,43 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type EventSheetEditorCardProps = {
 	isAuthenticated: boolean;
+	initialDeploymentId: string;
 	initialEditorData?: EditorPayload;
 	onDataSaved?: () => Promise<void> | void;
 };
 
-type EditorPayload = Awaited<ReturnType<typeof getEventSheetEditorData>>;
+type EditorPayload = {
+	success: boolean;
+	columns?: EditableSheetColumn[];
+	rows?: EditableSheetRow[];
+	genreTaxonomy?: GenreTaxonomySnapshot;
+	status?: {
+		updatedAt?: string | null;
+	};
+	sheetSource?: "store";
+	error?: string;
+};
+type SaveEventSheetResult = {
+	success: boolean;
+	message: string;
+	rowCount?: number;
+	updatedAt?: string;
+	error?: string;
+};
+type GenreMutationResult = {
+	success: boolean;
+	genreTaxonomy?: GenreTaxonomySnapshot;
+	genreKey?: string;
+	message?: string;
+	error?: string;
+};
 type EditorSnapshot = {
 	columns: EditableSheetColumn[];
 	rows: EditableSheetRow[];
+};
+type StoredEditorDraft = EditorSnapshot & {
+	savedAt: string;
+	deploymentId: string;
 };
 type SheetSortMode = "smart-date" | "date-asc" | "date-desc" | "sheet-order";
 type GenreCellPart = {
@@ -196,9 +217,149 @@ const DEFAULT_ALIAS_KEYS = new Set(
 		([alias, genreKey]) => `${normalizeGenreKey(alias)}:${genreKey}`,
 	),
 );
+const EVENT_SHEET_DRAFT_KEY = "oooc-admin:event-sheet-draft:v1";
+const DEPLOYMENT_STATUS_ENDPOINT = "/api/admin/deployment-status";
+const EVENT_SHEET_ENDPOINT = "/api/admin/event-sheet";
+const MUSIC_GENRE_TAXONOMY_ENDPOINT = "/api/admin/music-genre-taxonomy";
+const DEPLOYMENT_POLL_INTERVAL_MS = 30_000;
 
 const cellRefKey = (rowIndex: number, columnKey: string) =>
 	`${rowIndex}:${columnKey}`;
+
+const getBasePath = (): string =>
+	process.env.NEXT_PUBLIC_BASE_PATH?.trim() ?? "";
+
+const buildApiPath = (path: string): string => `${getBasePath()}${path}`;
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isEditableSheetColumn = (
+	value: unknown,
+): value is EditableSheetColumn => {
+	if (!isPlainRecord(value)) return false;
+	return (
+		typeof value.key === "string" &&
+		typeof value.label === "string" &&
+		typeof value.isCore === "boolean" &&
+		typeof value.isRequired === "boolean"
+	);
+};
+
+const isEditableSheetRow = (value: unknown): value is EditableSheetRow => {
+	if (!isPlainRecord(value)) return false;
+	return Object.values(value).every((item) => typeof item === "string");
+};
+
+const isStoredEditorDraft = (value: unknown): value is StoredEditorDraft => {
+	if (!isPlainRecord(value)) return false;
+	return (
+		typeof value.savedAt === "string" &&
+		typeof value.deploymentId === "string" &&
+		Array.isArray(value.columns) &&
+		value.columns.every(isEditableSheetColumn) &&
+		Array.isArray(value.rows) &&
+		value.rows.every(isEditableSheetRow)
+	);
+};
+
+const readStoredEditorDraft = (): StoredEditorDraft | null => {
+	if (typeof window === "undefined") return null;
+	const raw = window.sessionStorage.getItem(EVENT_SHEET_DRAFT_KEY);
+	if (!raw) return null;
+	try {
+		const parsed = JSON.parse(raw) as unknown;
+		return isStoredEditorDraft(parsed) ? parsed : null;
+	} catch {
+		return null;
+	}
+};
+
+const writeStoredEditorDraft = (draft: StoredEditorDraft): void => {
+	if (typeof window === "undefined") return;
+	try {
+		window.sessionStorage.setItem(EVENT_SHEET_DRAFT_KEY, JSON.stringify(draft));
+	} catch {
+		// Session draft storage is best-effort; server saves remain source of truth.
+	}
+};
+
+const clearStoredEditorDraft = (): void => {
+	if (typeof window === "undefined") return;
+	window.sessionStorage.removeItem(EVENT_SHEET_DRAFT_KEY);
+};
+
+const fetchEditorData = async (): Promise<EditorPayload> => {
+	const response = await fetch(buildApiPath(EVENT_SHEET_ENDPOINT), {
+		method: "GET",
+		credentials: "same-origin",
+		headers: {
+			Accept: "application/json",
+		},
+		cache: "no-store",
+	});
+	const payload = (await response.json()) as EditorPayload;
+	if (!response.ok) {
+		return {
+			success: false,
+			error: payload.error || `Sheet load failed (${response.status})`,
+		};
+	}
+	return payload;
+};
+
+const saveEditorData = async (
+	columns: EditableSheetColumn[],
+	rows: EditableSheetRow[],
+	options: { revalidateHomepage: boolean },
+): Promise<SaveEventSheetResult> => {
+	const response = await fetch(buildApiPath(EVENT_SHEET_ENDPOINT), {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		},
+		cache: "no-store",
+		body: JSON.stringify({ columns, rows, options }),
+	});
+	const payload = (await response.json()) as SaveEventSheetResult;
+	if (!response.ok) {
+		return {
+			success: false,
+			message: payload.message || `Sheet save failed (${response.status})`,
+			error: payload.error,
+		};
+	}
+	return payload;
+};
+
+const postGenreTaxonomyAction = async (
+	payload:
+		| { action: "create-genre"; label: string }
+		| { action: "remove-genre"; genreKey: string }
+		| { action: "map-alias"; alias: string; genreKey: string }
+		| { action: "remove-alias"; alias: string },
+): Promise<GenreMutationResult> => {
+	const response = await fetch(buildApiPath(MUSIC_GENRE_TAXONOMY_ENDPOINT), {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		},
+		cache: "no-store",
+		body: JSON.stringify(payload),
+	});
+	const result = (await response.json()) as GenreMutationResult;
+	if (!response.ok) {
+		return {
+			success: false,
+			error: result.error || `Genre update failed (${response.status})`,
+		};
+	}
+	return result;
+};
 
 const COUNTRY_FLAG_REGEX = /[\u{1f1e6}-\u{1f1ff}]{2}/u;
 const COUNTRY_EXPLICIT_SEPARATOR_REGEX = /[\/,&+]/;
@@ -457,6 +618,7 @@ function initialEditorState(initialEditorData?: EditorPayload): {
 
 export const EventSheetEditorCard = ({
 	isAuthenticated,
+	initialDeploymentId,
 	initialEditorData,
 	onDataSaved,
 }: EventSheetEditorCardProps) => {
@@ -475,6 +637,12 @@ export const EventSheetEditorCard = ({
 	);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [saveScheduleVersion, setSaveScheduleVersion] = useState(0);
+	const [activeDeploymentId] = useState(initialDeploymentId);
+	const [latestDeploymentId, setLatestDeploymentId] =
+		useState(initialDeploymentId);
+	const [hasNewDeployment, setHasNewDeployment] = useState(false);
+	const [recoverableDraft, setRecoverableDraft] =
+		useState<StoredEditorDraft | null>(null);
 	const [newColumnLabel, setNewColumnLabel] = useState("");
 	const [displayLimit, setDisplayLimit] = useState(50);
 	const [pinnedColumnsCount, setPinnedColumnsCount] = useState(0);
@@ -522,6 +690,7 @@ export const EventSheetEditorCard = ({
 	const futureRef = useRef<EditorSnapshot[]>([]);
 	const cellDraftRef = useRef<CellDraft | null>(null);
 	const activeCellEditRef = useRef<string | null>(null);
+	const editingLockedRef = useRef(false);
 	const editVersionRef = useRef(0);
 	const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const inputRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -546,6 +715,10 @@ export const EventSheetEditorCard = ({
 	useEffect(() => {
 		columnsRef.current = columns;
 	}, [columns]);
+
+	useEffect(() => {
+		editingLockedRef.current = hasNewDeployment;
+	}, [hasNewDeployment]);
 
 	const cloneSnapshot = useCallback(
 		(
@@ -596,7 +769,7 @@ export const EventSheetEditorCard = ({
 		setIsLoading(true);
 		setErrorMessage("");
 		try {
-			const result: EditorPayload = await getEventSheetEditorData();
+			const result = await fetchEditorData();
 			if (!result.success || !result.columns || !result.rows) {
 				throw new Error(result.error || "Failed to load sheet data");
 			}
@@ -610,6 +783,8 @@ export const EventSheetEditorCard = ({
 			futureRef.current = [];
 			activeCellEditRef.current = null;
 			clearInlineHelpers();
+			clearStoredEditorDraft();
+			setRecoverableDraft(null);
 			refreshHistoryFlags();
 			setStatusMessage(
 				`Loaded ${result.rows.length} rows and ${result.columns.length} columns from Postgres store`,
@@ -637,15 +812,86 @@ export const EventSheetEditorCard = ({
 		void loadEditorData();
 	}, [hasInitialEditorData, loadEditorData]);
 
+	useEffect(() => {
+		const draft = readStoredEditorDraft();
+		if (!draft) return;
+		setRecoverableDraft(draft);
+	}, []);
+
+	useEffect(() => {
+		if (!hasUnsavedChanges) return;
+		writeStoredEditorDraft({
+			columns: columns.map((column) => ({ ...column })),
+			rows: rows.map((row) => ({ ...row })),
+			savedAt: new Date().toISOString(),
+			deploymentId: activeDeploymentId,
+		});
+	}, [activeDeploymentId, columns, hasUnsavedChanges, rows]);
+
+	useEffect(() => {
+		if (!hasUnsavedChanges) return;
+
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			event.preventDefault();
+			event.returnValue = "";
+		};
+
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		return () => {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+		};
+	}, [hasUnsavedChanges]);
+
+	useEffect(() => {
+		if (!isAuthenticated) return;
+
+		const checkDeployment = async () => {
+			if (document.visibilityState !== "visible") return;
+			try {
+				const response = await fetch(buildApiPath(DEPLOYMENT_STATUS_ENDPOINT), {
+					method: "GET",
+					credentials: "same-origin",
+					headers: {
+						Accept: "application/json",
+					},
+					cache: "no-store",
+				});
+				if (!response.ok) return;
+				const payload = (await response.json()) as {
+					success?: boolean;
+					deploymentId?: string;
+				};
+				if (!payload.success || !payload.deploymentId) return;
+				setLatestDeploymentId(payload.deploymentId);
+				if (payload.deploymentId !== activeDeploymentId) {
+					setHasNewDeployment(true);
+				}
+			} catch {
+				// Keep editing with the local draft if the status check is unreachable.
+			}
+		};
+
+		void checkDeployment();
+		const intervalId = window.setInterval(
+			checkDeployment,
+			DEPLOYMENT_POLL_INTERVAL_MS,
+		);
+		document.addEventListener("visibilitychange", checkDeployment);
+
+		return () => {
+			window.clearInterval(intervalId);
+			document.removeEventListener("visibilitychange", checkDeployment);
+		};
+	}, [activeDeploymentId, isAuthenticated]);
+
 	const performSave = useCallback(
-		async (mode: "auto" | "manual") => {
+		async (mode: "auto" | "manual"): Promise<boolean> => {
 			const versionToSave = editVersionRef.current;
 			setIsSaving(true);
 			setErrorMessage("");
 
 			try {
-				const result = await saveEventSheetEditorRows(
-					undefined,
+				const result = await saveEditorData(
 					columnsRef.current,
 					rowsRef.current,
 					{ revalidateHomepage: mode === "manual" },
@@ -656,6 +902,8 @@ export const EventSheetEditorCard = ({
 
 				if (versionToSave === editVersionRef.current) {
 					setHasUnsavedChanges(false);
+					clearStoredEditorDraft();
+					setRecoverableDraft(null);
 				}
 				setLastSavedAt(result.updatedAt || new Date().toISOString());
 				setStatusMessage(
@@ -667,21 +915,30 @@ export const EventSheetEditorCard = ({
 				if (onDataSaved && mode === "manual") {
 					await onDataSaved();
 				}
+				return true;
 			} catch (error) {
 				setErrorMessage(
 					error instanceof Error ? error.message : "Unknown save error",
 				);
+				writeStoredEditorDraft({
+					columns: columnsRef.current.map((column) => ({ ...column })),
+					rows: rowsRef.current.map((row) => ({ ...row })),
+					savedAt: new Date().toISOString(),
+					deploymentId: activeDeploymentId,
+				});
+				return false;
 			} finally {
 				setIsSaving(false);
 			}
 		},
-		[onDataSaved],
+		[activeDeploymentId, onDataSaved],
 	);
 
 	useEffect(() => {
 		if (
 			!hasUnsavedChanges ||
 			isSaving ||
+			hasNewDeployment ||
 			activeCellDraft ||
 			saveScheduleVersion === 0
 		) {
@@ -703,6 +960,7 @@ export const EventSheetEditorCard = ({
 		};
 	}, [
 		activeCellDraft,
+		hasNewDeployment,
 		hasUnsavedChanges,
 		isSaving,
 		performSave,
@@ -721,6 +979,10 @@ export const EventSheetEditorCard = ({
 			nextRows: EditableSheetRow[],
 			status: string,
 		) => {
+			if (editingLockedRef.current) {
+				setStatusMessage("Reload required before continuing edits");
+				return;
+			}
 			pushHistorySnapshot();
 			activeCellEditRef.current = null;
 			clearInlineHelpers();
@@ -736,6 +998,10 @@ export const EventSheetEditorCard = ({
 
 	const handleCellChange = useCallback(
 		(rowIndex: number, columnKey: string, value: string) => {
+			if (editingLockedRef.current) {
+				setStatusMessage("Reload required before continuing edits");
+				return;
+			}
 			const currentRows = rowsRef.current;
 			const targetRow = currentRows[rowIndex];
 			if (!targetRow || targetRow[columnKey] === value) {
@@ -1026,6 +1292,31 @@ export const EventSheetEditorCard = ({
 		await performSave("manual");
 	};
 
+	const handleRestoreDraft = () => {
+		if (!recoverableDraft) return;
+		applySnapshot(recoverableDraft, "Restored local draft");
+		setRecoverableDraft(null);
+		setSortMode("sheet-order");
+	};
+
+	const handleDiscardDraft = () => {
+		clearStoredEditorDraft();
+		setRecoverableDraft(null);
+	};
+
+	const handleReloadForDeployment = async () => {
+		if (hasUnsavedChanges) {
+			const saved = await performSave("manual");
+			if (!saved) {
+				setStatusMessage(
+					"Save failed. Local draft kept in this browser; reload paused.",
+				);
+				return;
+			}
+		}
+		window.location.reload();
+	};
+
 	const addGenreToRow = useCallback(
 		(
 			rowIndex: number,
@@ -1104,8 +1395,15 @@ export const EventSheetEditorCard = ({
 				return;
 			}
 
+			if (editingLockedRef.current) {
+				setStatusMessage("Reload required before changing genres");
+				return;
+			}
 			setErrorMessage("");
-			const result = await createMusicGenreFromEditor(label);
+			const result = await postGenreTaxonomyAction({
+				action: "create-genre",
+				label,
+			});
 			if (!result.success || !result.genreTaxonomy || !result.genreKey) {
 				setErrorMessage(result.error || "Failed to add genre");
 				return;
@@ -1136,8 +1434,15 @@ export const EventSheetEditorCard = ({
 				return;
 			}
 
+			if (editingLockedRef.current) {
+				setStatusMessage("Reload required before changing genres");
+				return;
+			}
 			setErrorMessage("");
-			const result = await removeMusicGenreFromEditor(genre.key);
+			const result = await postGenreTaxonomyAction({
+				action: "remove-genre",
+				genreKey: genre.key,
+			});
 			if (!result.success || !result.genreTaxonomy) {
 				setErrorMessage(result.error || "Failed to remove genre");
 				return;
@@ -1157,8 +1462,16 @@ export const EventSheetEditorCard = ({
 				return;
 			}
 
+			if (editingLockedRef.current) {
+				setStatusMessage("Reload required before changing genres");
+				return;
+			}
 			setErrorMessage("");
-			const result = await mapMusicGenreAliasFromEditor(alias, aliasGenreKey);
+			const result = await postGenreTaxonomyAction({
+				action: "map-alias",
+				alias,
+				genreKey: aliasGenreKey,
+			});
 			if (!result.success || !result.genreTaxonomy) {
 				setErrorMessage(result.error || "Failed to map genre alias");
 				return;
@@ -1172,8 +1485,15 @@ export const EventSheetEditorCard = ({
 	);
 
 	const handleRemoveAlias = useCallback(async (alias: string) => {
+		if (editingLockedRef.current) {
+			setStatusMessage("Reload required before changing genres");
+			return;
+		}
 		setErrorMessage("");
-		const result = await removeMusicGenreAliasFromEditor(alias);
+		const result = await postGenreTaxonomyAction({
+			action: "remove-alias",
+			alias,
+		});
 		if (!result.success || !result.genreTaxonomy) {
 			setErrorMessage(result.error || "Failed to remove alias");
 			return;
@@ -1552,6 +1872,21 @@ export const EventSheetEditorCard = ({
 					Spreadsheet editing with dynamic custom columns and autosave to
 					Postgres.
 				</CardDescription>
+				{recoverableDraft && (
+					<div className="flex flex-wrap gap-2 pt-2">
+						<Button type="button" size="sm" onClick={handleRestoreDraft}>
+							Restore Local Draft
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onClick={handleDiscardDraft}
+						>
+							Discard Draft
+						</Button>
+					</div>
+				)}
 			</CardHeader>
 			<CardContent className="space-y-4">
 				<div className="flex flex-wrap items-center gap-2" role="status">
@@ -1570,6 +1905,65 @@ export const EventSheetEditorCard = ({
 						</span>
 					)}
 				</div>
+
+				{hasNewDeployment && (
+					<div className="rounded-md border border-amber-300/70 bg-amber-50/80 p-3 text-sm text-amber-950">
+						<div className="flex flex-wrap items-center justify-between gap-3">
+							<div>
+								<p className="font-medium">A new deployment is live.</p>
+								<p className="mt-1 text-xs text-amber-900/85">
+									Editing is paused on this old admin tab. Your current sheet is
+									stored locally in this browser. Deployment checks run every{" "}
+									{DEPLOYMENT_POLL_INTERVAL_MS / 1000}s while this tab is
+									visible.
+								</p>
+							</div>
+							<div className="flex flex-wrap gap-2">
+								<Button
+									type="button"
+									size="sm"
+									onClick={() => void handleReloadForDeployment()}
+									disabled={isSaving}
+								>
+									{hasUnsavedChanges ? "Save and Reload" : "Reload"}
+								</Button>
+								<Badge
+									variant="outline"
+									className="bg-background/70 text-[10px]"
+								>
+									{latestDeploymentId.slice(0, 12)}
+								</Badge>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{recoverableDraft && (
+					<div className="rounded-md border border-emerald-300/70 bg-emerald-50/80 p-3 text-sm text-emerald-950">
+						<div className="flex flex-wrap items-center justify-between gap-3">
+							<div>
+								<p className="font-medium">Local sheet draft available.</p>
+								<p className="mt-1 text-xs text-emerald-900/85">
+									Saved in this browser{" "}
+									{new Date(recoverableDraft.savedAt).toLocaleString()}.
+								</p>
+							</div>
+							<div className="flex flex-wrap gap-2">
+								<Button type="button" size="sm" onClick={handleRestoreDraft}>
+									Restore Draft
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									onClick={handleDiscardDraft}
+								>
+									Discard
+								</Button>
+							</div>
+						</div>
+					</div>
+				)}
 
 				{sheetHealthIssues.length > 0 && (
 					<details className="rounded-md border border-amber-300/70 bg-amber-50/75 px-3 py-2 text-xs text-amber-950">

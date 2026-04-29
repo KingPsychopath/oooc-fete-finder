@@ -11,6 +11,8 @@ describe("next-pwa runtime caching guardrails", () => {
 		expect(configSource).toContain("urlPattern: /\\/api\\/auth\\/.*$/i");
 		expect(configSource).toContain("urlPattern: /\\/api\\/admin\\/.*$/i");
 		expect(configSource).toContain('handler: "NetworkOnly"');
+		expect(configSource).toContain('method: "POST"');
+		expect(configSource).toContain('url.pathname.startsWith("/admin")');
 		expect(configSource).toContain('request.mode === "navigate"');
 		expect(configSource).not.toContain("/^https://.*\\.(?:json)$/i");
 		expect(configSource).not.toContain("urlPattern: /.*/");

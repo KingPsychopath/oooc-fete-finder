@@ -75,8 +75,8 @@ const storySteps = [
 	{
 		id: "community",
 		kicker: "The Community",
-		title: "Join people who are on the ground and moving with the same energy.",
-		body: "OOOC gives Fête Finder a live layer: updates, recommendations and like-minded 18-35 travellers in Paris for the weekend, so the guide does not stop at the map.",
+		title: "Find the people already out, sharing tips, plans and next moves.",
+		body: "The OOOC community adds the live bit: real updates, recommendations and people to move with once you're in Paris.",
 		points: ["Live updates", "OOOC community", "Weekend travel energy"],
 	},
 ] as const;
@@ -940,8 +940,8 @@ export function HowItWorksExperience() {
 						Ready to find your route?
 					</h2>
 					<p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-						Open the map, join the live OOOC layer and let Fête weekend feel
-						easier to read.
+						Open the map, join the OOOC chat and make Fête weekend easier to
+						follow.
 					</p>
 					<div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
 						<Link

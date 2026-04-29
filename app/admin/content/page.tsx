@@ -4,6 +4,7 @@ import {
 } from "@/features/data-management/actions";
 import { getEventSubmissionsDashboard } from "@/features/events/submissions/actions";
 import { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
+import { getCurrentDeploymentId } from "@/lib/deployment/build-id";
 import { unstable_noStore as noStore } from "next/cache";
 import { EventSheetEditorCard } from "../components/EventSheetEditorCard";
 import { EventSubmissionsCard } from "../components/EventSubmissionsCard";
@@ -28,6 +29,7 @@ export default async function AdminContentPage() {
 			<section id="event-sheet-editor" className="scroll-mt-44">
 				<EventSheetEditorCard
 					isAuthenticated
+					initialDeploymentId={getCurrentDeploymentId()}
 					initialEditorData={
 						editorData.status === "fulfilled" ? editorData.value : undefined
 					}

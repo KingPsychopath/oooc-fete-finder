@@ -116,6 +116,11 @@ const withPWA = require("next-pwa")({
 			method: "GET",
 		},
 		{
+			urlPattern: /\/api\/admin\/.*$/i,
+			handler: "NetworkOnly",
+			method: "POST",
+		},
+		{
 			urlPattern: /\/api\/cron\/cleanup-admin-sessions\/?$/i,
 			handler: "NetworkOnly",
 			method: "GET",
@@ -140,6 +145,11 @@ const withPWA = require("next-pwa")({
 				},
 				networkTimeoutSeconds: 10, // Fall back to cache if network request takes longer than 10 seconds
 			},
+		},
+		{
+			urlPattern: ({ request, url }: { request: Request; url: URL }) =>
+				request.mode === "navigate" && url.pathname.startsWith("/admin"),
+			handler: "NetworkOnly",
 		},
 		{
 			urlPattern: ({ request }: { request: Request }) =>
