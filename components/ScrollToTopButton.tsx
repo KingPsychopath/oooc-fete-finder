@@ -37,7 +37,7 @@ export const ScrollToTopButton = ({
 			className={cn(
 				"fixed size-10 rounded-full border border-border/80 bg-background/52 text-foreground/85 shadow-lg backdrop-blur-sm hover:bg-accent transition-all duration-500 ease-out",
 				mobileDock === "stacked-with-filter"
-					? "right-4 bottom-[calc(env(safe-area-inset-bottom)+9.5rem)] lg:right-4 lg:bottom-4"
+					? "right-4 bottom-[calc(env(safe-area-inset-bottom)+var(--oooc-mobile-top-offset,4.75rem))] lg:right-4 lg:bottom-4"
 					: "bottom-4 right-[7.5rem] lg:right-4",
 				isVisible
 					? "opacity-100 translate-y-0 pointer-events-auto"

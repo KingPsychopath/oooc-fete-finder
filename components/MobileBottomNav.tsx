@@ -32,6 +32,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const SCROLL_HIDE_THRESHOLD = 96;
 const PIN_STORAGE_KEY = "oooc_mobile_nav_pinned";
+const MOBILE_NAV_VISIBLE_OFFSET = "5.75rem";
+const MOBILE_NAV_HIDDEN_OFFSET = "1rem";
+const MOBILE_TOP_WITH_NAV_OFFSET = "9.5rem";
+const MOBILE_TOP_WITHOUT_NAV_OFFSET = "4.75rem";
+const MOBILE_PROMPT_WITH_NAV_OFFSET = "6.25rem";
+const MOBILE_PROMPT_WITHOUT_NAV_OFFSET = "1rem";
+const ACTIVE_SECTION_LOCK_MS = 2200;
 
 const excludedPathPrefixes = [
 	"/admin",
@@ -134,6 +141,7 @@ export function MobileBottomNav() {
 	const [toiletFinderUrl, setToiletFinderUrl] = useState(
 		"https://apps.apple.com/app/id311896604",
 	);
+	const activeSectionLockUntilRef = useRef(0);
 	const hasActiveOverlay = useHasActiveBodyOverlay();
 	const isVisible = useMobileNavVisibility(
 		isPinned || isMoreOpen || isMusicModalOpen,
@@ -207,14 +215,22 @@ export function MobileBottomNav() {
 
 		const syncSectionFromScroll = () => {
 			rafId = null;
-			const activationLine = 180;
-			let nextSection: NavKey | null = null;
+			if (Date.now() < activeSectionLockUntilRef.current) return;
 
-			for (const section of sections) {
-				const rect = section.element.getBoundingClientRect();
-				if (rect.top <= activationLine) {
-					nextSection = section.key;
-				}
+			const activationOffset = 24;
+			const currentY = window.scrollY + activationOffset;
+			let nextSection: NavKey | null = null;
+			const mapSection = sections.find((section) => section.key === "map");
+			const eventsSection = sections.find(
+				(section) => section.key === "events",
+			);
+
+			if (mapSection && currentY >= mapSection.element.offsetTop) {
+				nextSection = "map";
+			}
+
+			if (eventsSection && currentY >= eventsSection.element.offsetTop) {
+				nextSection = "events";
 			}
 
 			setActiveSection(nextSection);
@@ -247,6 +263,39 @@ export function MobileBottomNav() {
 			);
 		});
 	}, [normalizedPathname]);
+
+	useEffect(() => {
+		if (typeof document === "undefined") return;
+
+		const isMobileViewport = window.matchMedia("(max-width: 767px)").matches;
+		const root = document.documentElement;
+		const shouldReserveNavSpace =
+			isMobileViewport && shouldRender && isVisible && !hasActiveOverlay;
+		root.style.setProperty(
+			"--oooc-mobile-nav-offset",
+			shouldReserveNavSpace
+				? MOBILE_NAV_VISIBLE_OFFSET
+				: MOBILE_NAV_HIDDEN_OFFSET,
+		);
+		root.style.setProperty(
+			"--oooc-mobile-top-offset",
+			shouldReserveNavSpace
+				? MOBILE_TOP_WITH_NAV_OFFSET
+				: MOBILE_TOP_WITHOUT_NAV_OFFSET,
+		);
+		root.style.setProperty(
+			"--oooc-mobile-prompt-offset",
+			shouldReserveNavSpace
+				? MOBILE_PROMPT_WITH_NAV_OFFSET
+				: MOBILE_PROMPT_WITHOUT_NAV_OFFSET,
+		);
+
+		return () => {
+			root.style.removeProperty("--oooc-mobile-nav-offset");
+			root.style.removeProperty("--oooc-mobile-top-offset");
+			root.style.removeProperty("--oooc-mobile-prompt-offset");
+		};
+	}, [hasActiveOverlay, isVisible, shouldRender]);
 
 	if (!shouldRender) {
 		return null;
@@ -297,8 +346,11 @@ export function MobileBottomNav() {
 		normalizedPathname === "/feature-event" ||
 		normalizedPathname.startsWith("/feature-event/");
 	const activeIndex = navItems.findIndex((item) => item.isActive);
-	const resolvedActiveIndex =
-		isMoreActive ? navItems.length : activeIndex >= 0 ? activeIndex : -1;
+	const resolvedActiveIndex = isMoreActive
+		? navItems.length
+		: activeIndex >= 0
+			? activeIndex
+			: -1;
 
 	const handlePinToggle = () => {
 		setIsPinned((current) => {
@@ -306,6 +358,17 @@ export function MobileBottomNav() {
 			window.localStorage.setItem(PIN_STORAGE_KEY, String(next));
 			return next;
 		});
+	};
+
+	const handleNavItemClick = (key: NavKey) => {
+		activeSectionLockUntilRef.current = Date.now() + ACTIVE_SECTION_LOCK_MS;
+		setActiveSection(key === "home" ? "home" : key);
+		setIsMoreOpen(false);
+	};
+
+	const handleMoreToggle = () => {
+		activeSectionLockUntilRef.current = Date.now() + ACTIVE_SECTION_LOCK_MS;
+		setIsMoreOpen((current) => !current);
 	};
 
 	return (
@@ -435,7 +498,7 @@ export function MobileBottomNav() {
 						type="button"
 						onClick={handlePinToggle}
 						className={cn(
-							"absolute -top-10 left-1 z-20 flex size-8 items-center justify-center rounded-full border border-border/70 bg-card/90 text-muted-foreground shadow-sm backdrop-blur-md transition-colors hover:bg-accent hover:text-foreground",
+							"absolute -top-3 left-3 z-20 flex size-7 items-center justify-center rounded-full border border-border/70 bg-card/96 text-muted-foreground shadow-sm backdrop-blur-md transition-colors hover:bg-accent hover:text-foreground",
 							isPinned && "text-foreground",
 						)}
 						aria-label={
@@ -444,9 +507,9 @@ export function MobileBottomNav() {
 						aria-pressed={isPinned}
 					>
 						{isPinned ? (
-							<PinOff className="h-3.5 w-3.5" />
+							<PinOff className="h-3 w-3" />
 						) : (
-							<Pin className="h-3.5 w-3.5" />
+							<Pin className="h-3 w-3" />
 						)}
 					</button>
 					{resolvedActiveIndex >= 0 && (
@@ -461,20 +524,18 @@ export function MobileBottomNav() {
 					)}
 					{navItems.map((item) => {
 						const Icon = item.icon;
+						const isItemVisuallyActive = item.isActive && !isMoreActive;
 						return (
 							<Link
 								key={item.label}
 								href={item.href}
-								onClick={() => {
-									setActiveSection(item.key === "home" ? "home" : item.key);
-									setIsMoreOpen(false);
-								}}
+								onClick={() => handleNavItemClick(item.key)}
 								className={cn(
 									"relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground",
-									item.isActive &&
+									isItemVisuallyActive &&
 										"text-primary-foreground hover:text-primary-foreground",
 								)}
-								aria-current={item.isActive ? "page" : undefined}
+								aria-current={isItemVisuallyActive ? "page" : undefined}
 							>
 								<Icon className="h-4 w-4" />
 								<span>{item.label}</span>
@@ -483,7 +544,7 @@ export function MobileBottomNav() {
 					})}
 					<button
 						type="button"
-						onClick={() => setIsMoreOpen((current) => !current)}
+						onClick={handleMoreToggle}
 						className={cn(
 							"relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground",
 							isMoreActive &&

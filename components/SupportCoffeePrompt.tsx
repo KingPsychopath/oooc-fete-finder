@@ -156,8 +156,12 @@ export function SupportCoffeePrompt() {
 
 	return (
 		<div
-			className="fixed bottom-5 left-5 max-w-[min(22rem,calc(100vw-2.5rem))]"
-			style={{ zIndex: LAYERS.FLOATING_PROMPT }}
+			className="fixed left-5 max-w-[min(22rem,calc(100vw-2.5rem))]"
+			style={{
+				bottom:
+					"calc(env(safe-area-inset-bottom) + var(--oooc-mobile-prompt-offset, 1.25rem))",
+				zIndex: LAYERS.FLOATING_PROMPT,
+			}}
 		>
 			<div className="rounded-lg border border-border/65 bg-card/95 px-3.5 py-3 text-xs shadow-lg backdrop-blur-md">
 				<p className="text-muted-foreground">

@@ -124,7 +124,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 	return (
 		<>
 			<header
-				className={`sticky top-0 z-50 px-3 transition-[padding-top] duration-300 ease-out sm:px-4 ${
+				className={`relative z-50 px-3 transition-[padding-top] duration-300 ease-out sm:sticky sm:top-0 sm:px-4 ${
 					isCompressed ? "pt-1.5 sm:pt-2" : "pt-2 sm:pt-3"
 				}`}
 			>

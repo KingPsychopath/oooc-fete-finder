@@ -437,7 +437,10 @@ export function EventsClient({
 				hasActiveFilters={hasAnyActiveFilters}
 			/>
 
-			<div id="event-map" className="scroll-mt-28 mb-8 relative z-10">
+			<div
+				id="event-map"
+				className="scroll-mt-6 mb-8 relative z-10 sm:scroll-mt-28"
+			>
 				<EventsMapCard
 					events={filteredEvents}
 					isExpanded={isMapExpanded}
@@ -492,7 +495,7 @@ export function EventsClient({
 				</AuthGate>
 			</div>
 
-			<div id="all-events" className="scroll-mt-28">
+			<div id="all-events" className="scroll-mt-6 sm:scroll-mt-28">
 				<AllEvents
 					ref={allEventsRef}
 					events={allEventsOrdered}

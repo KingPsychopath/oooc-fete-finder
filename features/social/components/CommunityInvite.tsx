@@ -79,8 +79,10 @@ export function CommunityInvite({
 
 	return (
 		<div
-			className={`fixed bottom-24 right-5 pointer-events-none lg:bottom-5 ${className}`}
+			className={`fixed right-5 pointer-events-none lg:bottom-5 ${className}`}
 			style={{
+				bottom:
+					"calc(env(safe-area-inset-bottom) + var(--oooc-mobile-prompt-offset, 1.25rem))",
 				zIndex: LAYERS.FLOATING_PROMPT,
 			}}
 			role="complementary"
