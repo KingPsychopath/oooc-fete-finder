@@ -81,6 +81,12 @@ const Footer = () => {
 						</div>
 						<div className="flex items-center gap-3 text-xs">
 							<Link
+								href="/how-it-works"
+								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+							>
+								How it works
+							</Link>
+							<Link
 								href="/submit-event"
 								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
 							>
@@ -144,19 +150,17 @@ const Footer = () => {
 								<span>Buy me a coffee</span>
 							</Link>
 						</div>
-							<Tooltip>
-								<TooltipTrigger
-									id="footer-community-tooltip-trigger"
-									render={
-										<span className="text-xs text-muted-foreground/70" />
-									}
-								>
-									Maintained by the OOOC Community
-								</TooltipTrigger>
-								<TooltipContent id="footer-community-tooltip-content">
-									<p>With special thanks to Mel</p>
-								</TooltipContent>
-							</Tooltip>
+						<Tooltip>
+							<TooltipTrigger
+								id="footer-community-tooltip-trigger"
+								render={<span className="text-xs text-muted-foreground/70" />}
+							>
+								Maintained by the OOOC Community
+							</TooltipTrigger>
+							<TooltipContent id="footer-community-tooltip-content">
+								<p>With special thanks to Mel</p>
+							</TooltipContent>
+						</Tooltip>
 					</div>
 				</div>
 			</div>

@@ -61,6 +61,9 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 			? normalizedPathname.slice(basePath.length) || "/"
 			: normalizedPathname;
 	const isHomePage = pathWithoutBasePath === "/";
+	const isHowItWorksPage =
+		pathWithoutBasePath === "/how-it-works" ||
+		pathWithoutBasePath.startsWith("/how-it-works/");
 	const isPromotePage =
 		pathWithoutBasePath === "/feature-event" ||
 		pathWithoutBasePath.startsWith("/feature-event/") ||
@@ -159,6 +162,14 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 								}`}
 							>
 								Home
+							</Link>
+							<Link
+								href={`${basePath || ""}/how-it-works`}
+								className={`text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
+									isHowItWorksPage ? "text-foreground" : "text-foreground/75"
+								}`}
+							>
+								How it works
 							</Link>
 							<Link
 								href={`${basePath || ""}/submit-event`}

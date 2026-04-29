@@ -1,7 +1,8 @@
+import Link from "next/link";
+import { Suspense } from "react";
 import { HomeEventsSection } from "./HomeEventsSection";
 import { HomeEventsSectionLoading } from "./HomeEventsSectionLoading";
 import { HomeHeader } from "./HomeHeader";
-import { Suspense } from "react";
 
 // Keep ISR short to limit stale windows when data changes.
 export const revalidate = 300; // 5 minutes in seconds
@@ -31,6 +32,12 @@ export default function Home() {
 						Explore live music and cultural events by arrondissement. Use the
 						map and filters to find what’s on.
 					</p>
+					<Link
+						href="/how-it-works"
+						className="mt-3 inline-flex text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-foreground/78 hover:underline"
+					>
+						New here? See how Fête Finder works →
+					</Link>
 					<div className="mt-6 border-t border-border" role="presentation" />
 				</section>
 
