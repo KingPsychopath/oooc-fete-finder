@@ -39,6 +39,7 @@ const MOBILE_TOP_WITHOUT_NAV_OFFSET = "4.75rem";
 const MOBILE_PROMPT_WITH_NAV_OFFSET = "6.25rem";
 const MOBILE_PROMPT_WITHOUT_NAV_OFFSET = "1rem";
 const ACTIVE_SECTION_LOCK_MS = 2200;
+const PENDING_HOME_SECTION_STORAGE_KEY = "oooc_pending_home_section";
 
 const excludedPathPrefixes = [
 	"/admin",
@@ -131,6 +132,23 @@ function readPinnedPreference(): boolean {
 	return window.localStorage.getItem(PIN_STORAGE_KEY) === "true";
 }
 
+function scrollToHomeSectionWhenReady(
+	sectionId: string,
+	behavior: ScrollBehavior = "auto",
+	attempt = 0,
+) {
+	const section = document.getElementById(sectionId);
+	if (section) {
+		section.scrollIntoView({ block: "start", behavior });
+		return;
+	}
+
+	if (attempt >= 24) return;
+	window.setTimeout(() => {
+		scrollToHomeSectionWhenReady(sectionId, behavior, attempt + 1);
+	}, 50);
+}
+
 export function MobileBottomNav() {
 	const pathname = usePathname();
 	const normalizedPathname = normalizePathname(pathname);
@@ -142,6 +160,9 @@ export function MobileBottomNav() {
 		"https://apps.apple.com/app/id311896604",
 	);
 	const activeSectionLockUntilRef = useRef(0);
+	const pendingHomeSectionScrollRef = useRef<string | null>(null);
+	const previousPathnameRef = useRef(pathname);
+	const shouldScrollToTopOnRouteRef = useRef(false);
 	const hasActiveOverlay = useHasActiveBodyOverlay();
 	const isVisible = useMobileNavVisibility(
 		isPinned || isMoreOpen || isMusicModalOpen,
@@ -158,6 +179,41 @@ export function MobileBottomNav() {
 	useEffect(() => {
 		if (pathname === null) return;
 		setIsMoreOpen(false);
+
+		const pendingStoredSection =
+			typeof window === "undefined"
+				? null
+				: window.sessionStorage.getItem(PENDING_HOME_SECTION_STORAGE_KEY);
+		if (pendingStoredSection && normalizePathname(pathname) === "/") {
+			pendingHomeSectionScrollRef.current = pendingStoredSection;
+			window.sessionStorage.removeItem(PENDING_HOME_SECTION_STORAGE_KEY);
+		}
+
+		if (
+			pendingHomeSectionScrollRef.current &&
+			normalizePathname(pathname) === "/"
+		) {
+			const sectionId = pendingHomeSectionScrollRef.current;
+			pendingHomeSectionScrollRef.current = null;
+			setActiveSection(sectionId === "event-map" ? "map" : "events");
+			window.requestAnimationFrame(() => {
+				window.requestAnimationFrame(() => {
+					scrollToHomeSectionWhenReady(sectionId, "auto");
+				});
+			});
+		}
+
+		if (
+			shouldScrollToTopOnRouteRef.current &&
+			previousPathnameRef.current !== pathname
+		) {
+			shouldScrollToTopOnRouteRef.current = false;
+			window.requestAnimationFrame(() => {
+				window.scrollTo({ top: 0, behavior: "auto" });
+			});
+		}
+
+		previousPathnameRef.current = pathname;
 	}, [pathname]);
 
 	useEffect(() => {
@@ -360,10 +416,42 @@ export function MobileBottomNav() {
 		});
 	};
 
-	const handleNavItemClick = (key: NavKey) => {
+	const handleNavItemClick = (key: NavKey, sectionId?: string) => {
 		activeSectionLockUntilRef.current = Date.now() + ACTIVE_SECTION_LOCK_MS;
 		setActiveSection(key === "home" ? "home" : key);
 		setIsMoreOpen(false);
+
+		if (key === "home") {
+			shouldScrollToTopOnRouteRef.current = false;
+			pendingHomeSectionScrollRef.current = null;
+			if (normalizedPathname === "/") {
+				window.requestAnimationFrame(() => {
+					window.scrollTo({ top: 0, behavior: "smooth" });
+				});
+				return;
+			}
+			shouldScrollToTopOnRouteRef.current = true;
+			return;
+		}
+
+		if (key === "submit") {
+			shouldScrollToTopOnRouteRef.current = true;
+			pendingHomeSectionScrollRef.current = null;
+			return;
+		}
+
+		shouldScrollToTopOnRouteRef.current = false;
+		pendingHomeSectionScrollRef.current =
+			sectionId && normalizedPathname !== "/" ? sectionId : null;
+		if (sectionId && normalizedPathname !== "/") {
+			window.sessionStorage.setItem(PENDING_HOME_SECTION_STORAGE_KEY, sectionId);
+			return;
+		}
+		if (sectionId) {
+			window.requestAnimationFrame(() => {
+				scrollToHomeSectionWhenReady(sectionId, "smooth");
+			});
+		}
 	};
 
 	const handleMoreToggle = () => {
@@ -529,7 +617,8 @@ export function MobileBottomNav() {
 							<Link
 								key={item.label}
 								href={item.href}
-								onClick={() => handleNavItemClick(item.key)}
+								scroll={item.sectionId ? false : undefined}
+								onClick={() => handleNavItemClick(item.key, item.sectionId)}
 								className={cn(
 									"relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground",
 									isItemVisuallyActive &&

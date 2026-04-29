@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { CopyEmailButton } from "@/components/CopyEmailButton";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 
 // Force static generation for this page
 export const dynamic = "force-static";
@@ -164,6 +165,7 @@ export default function PrivacyPolicy() {
 					</CardContent>
 				</Card>
 			</div>
+			<ScrollToTopButton mobileDock="stacked-with-filter" />
 		</div>
 	);
 }

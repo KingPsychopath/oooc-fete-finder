@@ -54,6 +54,9 @@ function DateRangePickerControl({
 		defaultDateRange.from !== null || defaultDateRange.to !== null;
 	const hasCustomDateRange =
 		hasSelectedDateRange && !areDateRangesEqual(selectedDateRange, defaultDateRange);
+	const mobileDateRangeLabel = hasSelectedDateRange
+		? formatDateRangeLabel(selectedDateRange)
+		: "All dates";
 
 	const toLocalDate = useCallback(
 		(isoDate: string | null): Date | undefined => {
@@ -183,38 +186,54 @@ function DateRangePickerControl({
 				)}
 			</div>
 			{mobileNative ? (
-				<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-					<div className="min-w-0">
-						<Input
-							type="date"
-							value={selectedDateRange.from ?? ""}
-							min={dateBounds.min}
-							max={selectedDateRange.to ?? dateBounds.max}
-							onChange={(event) =>
-								onDateRangeChange({
-									from: event.target.value || null,
-									to: selectedDateRange.to,
-								})
-							}
-							className="h-8 w-full min-w-0 border-border/75 bg-background/68 text-xs"
-							aria-label="Filter events from date"
-						/>
+				<div className="space-y-2">
+					<div className="rounded-lg border border-border/70 bg-background/72 px-3 py-2">
+						<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+							Current range
+						</p>
+						<p className="mt-0.5 text-sm font-medium text-foreground">
+							{mobileDateRangeLabel}
+						</p>
 					</div>
-					<div className="min-w-0">
-						<Input
-							type="date"
-							value={selectedDateRange.to ?? ""}
-							min={selectedDateRange.from ?? dateBounds.min}
-							max={dateBounds.max}
-							onChange={(event) =>
-								onDateRangeChange({
-									from: selectedDateRange.from,
-									to: event.target.value || null,
-								})
-							}
-							className="h-8 w-full min-w-0 border-border/75 bg-background/68 text-xs"
-							aria-label="Filter events to date"
-						/>
+					<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+						<label className="min-w-0 space-y-1">
+							<span className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+								From
+							</span>
+							<Input
+								type="date"
+								value={selectedDateRange.from ?? ""}
+								min={dateBounds.min}
+								max={selectedDateRange.to ?? dateBounds.max}
+								onChange={(event) =>
+									onDateRangeChange({
+										from: event.target.value || null,
+										to: selectedDateRange.to,
+									})
+								}
+								className="h-8 w-full min-w-0 border-border/75 bg-background/68 text-xs"
+								aria-label="Filter events from date"
+							/>
+						</label>
+						<label className="min-w-0 space-y-1">
+							<span className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+								To
+							</span>
+							<Input
+								type="date"
+								value={selectedDateRange.to ?? ""}
+								min={selectedDateRange.from ?? dateBounds.min}
+								max={dateBounds.max}
+								onChange={(event) =>
+									onDateRangeChange({
+										from: selectedDateRange.from,
+										to: event.target.value || null,
+									})
+								}
+								className="h-8 w-full min-w-0 border-border/75 bg-background/68 text-xs"
+								aria-label="Filter events to date"
+							/>
+						</label>
 					</div>
 				</div>
 			) : (

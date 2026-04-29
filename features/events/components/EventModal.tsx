@@ -63,6 +63,7 @@ import {
 	Star,
 	Tag,
 	User,
+	Users,
 	X,
 } from "lucide-react";
 import type React from "react";
@@ -80,6 +81,13 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const CONTACT_EMAIL = "hello@outofofficecollective.co.uk";
 const MODAL_GENRE_PREVIEW_LIMIT = 8;
 const MODAL_MIN_COLLAPSED_GENRES = 3;
+const COUNTRY_PREVIEW_LIMIT = 3;
+
+interface CountryDisplay {
+	code: string;
+	flag?: string;
+	label: string;
+}
 
 const CATEGORY_COLORS: Record<string, string> = {
 	electronic:
@@ -96,6 +104,55 @@ const CATEGORY_COLORS: Record<string, string> = {
 	cultural:
 		"bg-amber-100 text-amber-800 dark:bg-amber-500/18 dark:text-amber-200 dark:border dark:border-amber-400/35",
 };
+
+function getCountryDisplayList(
+	countries: string[] | undefined,
+): CountryDisplay[] {
+	if (!countries || countries.length === 0) return [];
+
+	return countries.map((countryCode) => {
+		const country = getCountryOption(countryCode);
+		return {
+			code: country?.code ?? countryCode,
+			flag: country?.flag,
+			label: country ? `${country.flag} ${country.code}` : countryCode,
+		};
+	});
+}
+
+function formatCountryDisplayList(countries: CountryDisplay[]) {
+	if (countries.length === 0) return "TBC";
+	return countries.map((country) => country.label).join(", ");
+}
+
+function CountryChipList({ countries }: { countries: CountryDisplay[] }) {
+	const visibleCountries = countries.slice(0, COUNTRY_PREVIEW_LIMIT);
+	const hiddenCount = countries.length - visibleCountries.length;
+	const fullLabel = formatCountryDisplayList(countries);
+
+	return (
+		<div className="mt-1 flex flex-wrap gap-1" aria-label={fullLabel}>
+			{visibleCountries.map((country) => (
+				<span
+					key={country.code}
+					className="inline-flex min-h-6 items-center rounded-full border border-border/70 bg-background/70 px-2 text-[12px] font-medium leading-none text-foreground"
+					title={country.label}
+				>
+					{country.flag && <span className="mr-1">{country.flag}</span>}
+					{country.code}
+				</span>
+			))}
+			{hiddenCount > 0 && (
+				<span
+					className="inline-flex min-h-6 items-center rounded-full border border-border/70 bg-muted/45 px-2 text-[12px] font-medium leading-none text-muted-foreground"
+					title={fullLabel}
+				>
+					+{hiddenCount}
+				</span>
+			)}
+		</div>
+	);
+}
 
 const EventModal: React.FC<EventModalProps> = ({
 	event,
@@ -374,21 +431,12 @@ const EventModal: React.FC<EventModalProps> = ({
 			: event.indoor
 				? "Indoor"
 				: "Outdoor";
-	const formatCountryList = (countries: string[] | undefined) => {
-		if (!countries || countries.length === 0) return "TBC";
-		return countries
-			.map((countryCode) => {
-				const country = getCountryOption(countryCode);
-				return country ? `${country.flag} ${country.code}` : countryCode;
-			})
-			.join(", ");
-	};
-	const hasHostCountries = Boolean(event.hostCountries?.length);
-	const hasAudienceCountries = Boolean(event.audienceCountries?.length);
+	const hostCountries = getCountryDisplayList(event.hostCountries);
+	const audienceCountries = getCountryDisplayList(event.audienceCountries);
+	const hasHostCountries = hostCountries.length > 0;
+	const hasAudienceCountries = audienceCountries.length > 0;
 	const hasCountryDetails = hasHostCountries || hasAudienceCountries;
 	const hasCountrySplit = hasHostCountries && hasAudienceCountries;
-	const hostCountryLabel = formatCountryList(event.hostCountries);
-	const audienceCountryLabel = formatCountryList(event.audienceCountries);
 	const eventUpdateHref = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
 		`Fete Finder event update: ${event.name}`,
 	)}`;
@@ -649,28 +697,24 @@ const EventModal: React.FC<EventModalProps> = ({
 									)}
 									{hasHostCountries && (
 										<div
-											className={`px-2.5 py-2 ${hasCountrySplit ? "pr-4" : ""}`}
+											className={`min-w-0 px-2.5 py-2 ${hasCountrySplit ? "pr-4" : ""}`}
 										>
 											<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
-												<Flag className="h-3.5 w-3.5" />
+												<Flag className="h-4 w-4 shrink-0" />
 												<span>Host</span>
 											</p>
-											<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
-												{hostCountryLabel}
-											</p>
+											<CountryChipList countries={hostCountries} />
 										</div>
 									)}
 									{hasAudienceCountries && (
 										<div
-											className={`px-2.5 py-2 ${hasCountrySplit ? "pl-4" : ""}`}
+											className={`min-w-0 px-2.5 py-2 ${hasCountrySplit ? "pl-4" : ""}`}
 										>
 											<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
-												<User className="h-3.5 w-3.5" />
+												<Users className="h-4 w-4 shrink-0" />
 												<span>Audience</span>
 											</p>
-											<p className="mt-0.5 text-[13px] font-medium sm:text-sm">
-												{audienceCountryLabel}
-											</p>
+											<CountryChipList countries={audienceCountries} />
 										</div>
 									)}
 								</div>

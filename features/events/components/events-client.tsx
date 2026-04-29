@@ -528,7 +528,10 @@ export function EventsClient({
 				onEmailSubmit={handleEmailSubmit}
 			/>
 
-			<ScrollToTopButton mobileDock="stacked-with-filter" />
+			<ScrollToTopButton
+				mobileDock="stacked-with-filter"
+				className="hidden lg:inline-flex"
+			/>
 		</>
 	);
 }

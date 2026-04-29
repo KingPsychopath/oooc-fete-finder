@@ -1,4 +1,5 @@
 import Header from "@/components/Header";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import type { Metadata } from "next";
 import { HowItWorksExperience } from "./HowItWorksExperience";
 
@@ -15,6 +16,7 @@ export default function HowItWorksPage() {
 			<main id="main-content" tabIndex={-1}>
 				<HowItWorksExperience />
 			</main>
+			<ScrollToTopButton mobileDock="stacked-with-filter" />
 		</div>
 	);
 }

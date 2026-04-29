@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Toggle } from "@/components/ui/toggle";
 import {
@@ -55,6 +56,7 @@ import {
 	Filter,
 	Info,
 	Moon,
+	Search,
 	Star,
 	Sun,
 	Trees,
@@ -149,6 +151,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	const regularToggleClassName =
 		"h-8 justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
 	const genreOptions = availableGenres ?? MUSIC_GENRES;
+	const [genreSearchQuery, setGenreSearchQuery] = useState("");
 
 	// Stable accordion state for desktop compact mode
 	const [openAccordionSections, setOpenAccordionSections] = useState<string[]>([
@@ -238,6 +241,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedOOOCPicks,
 		],
 	);
+	const filteredGenreOptions = useMemo(() => {
+		const normalizedQuery = genreSearchQuery.trim().toLowerCase();
+		if (!normalizedQuery) return genreOptions;
+
+		return genreOptions.filter(({ key, label }) => {
+			if (selectedGenres.includes(key)) return true;
+			return (
+				label.toLowerCase().includes(normalizedQuery) ||
+				key.toLowerCase().includes(normalizedQuery)
+			);
+		});
+	}, [genreOptions, genreSearchQuery, selectedGenres]);
 
 	// Decision logic for UI variations
 	const uiDecisions = useMemo(() => {
@@ -756,9 +771,22 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													<h3 className={sectionTitleClassName}>
 														Music Genres
 													</h3>
+													<div className="relative mt-2">
+														<Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+														<Input
+															type="search"
+															value={genreSearchQuery}
+															onChange={(event) =>
+																setGenreSearchQuery(event.target.value)
+															}
+															placeholder="Search genres"
+															className="h-8 rounded-md border-border/75 bg-background/68 pl-8 text-xs"
+															aria-label="Search music genres"
+														/>
+													</div>
 													<div className="relative contain-layout">
 														<div className="grid min-h-[8rem] max-h-36 grid-cols-2 gap-1 overflow-y-auto rounded-md border border-border/70 bg-background/55 p-1.5">
-															{genreOptions.map(({ key, label, color }) => (
+															{filteredGenreOptions.map(({ key, label, color }) => (
 																<Toggle
 																	key={key}
 																	pressed={selectedGenres.includes(key)}
@@ -774,11 +802,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																	</span>
 																</Toggle>
 															))}
+															{filteredGenreOptions.length === 0 && (
+																<p className="col-span-2 px-2 py-6 text-center text-xs text-muted-foreground">
+																	No genres found.
+																</p>
+															)}
 														</div>
 														<div className="absolute top-1.5 left-1.5 right-1.5 h-4 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
 														<div className="absolute bottom-1.5 left-1.5 right-1.5 h-4 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
 														<div className="mt-1 text-center text-[11px] text-muted-foreground/88">
-															{genreOptions.length} genres
+															{genreSearchQuery.trim()
+																? `${filteredGenreOptions.length} of ${genreOptions.length} genres`
+																: `${genreOptions.length} genres`}
 														</div>
 													</div>
 												</div>
@@ -1364,9 +1399,22 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								{/* Music Genres */}
 								<div className={sectionClassName}>
 									<h3 className={sectionTitleClassName}>Music Genres</h3>
+									<div className="relative">
+										<Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+										<Input
+											type="search"
+											value={genreSearchQuery}
+											onChange={(event) =>
+												setGenreSearchQuery(event.target.value)
+											}
+											placeholder="Search genres"
+											className="h-8 rounded-md border-border/75 bg-background/68 pl-8 text-xs"
+											aria-label="Search music genres"
+										/>
+									</div>
 									<div className="relative contain-layout">
 										<div className="grid grid-cols-2 gap-1 max-h-48 min-h-[12rem] overflow-y-auto rounded-md border border-border/70 bg-background/55 p-2">
-											{genreOptions.map(({ key, label, color }) => (
+											{filteredGenreOptions.map(({ key, label, color }) => (
 												<Toggle
 													key={key}
 													pressed={selectedGenres.includes(key)}
@@ -1380,11 +1428,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													<span className="text-xs truncate">{label}</span>
 												</Toggle>
 											))}
+											{filteredGenreOptions.length === 0 && (
+												<p className="col-span-2 px-2 py-8 text-center text-xs text-muted-foreground">
+													No genres found.
+												</p>
+											)}
 										</div>
 										<div className="absolute top-2 left-2 right-2 h-2 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
 										<div className="absolute bottom-2 left-2 right-2 h-2 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
 										<div className="mt-1 h-4 text-center text-xs text-muted-foreground/88">
-											{genreOptions.length} genres
+											{genreSearchQuery.trim()
+												? `${filteredGenreOptions.length} of ${genreOptions.length} genres`
+												: `${genreOptions.length} genres`}
 										</div>
 									</div>
 								</div>
