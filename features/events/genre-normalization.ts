@@ -53,6 +53,7 @@ const applyGenrePhraseReplacements = (value: string): string =>
 		.replace(/\br\s*&\s*b\b/g, "rnb")
 		.replace(/\br\s+and\s+b\b/g, "rnb")
 		.replace(/\bafro[\s-]*house\b/g, "afro house")
+		.replace(/\bafro[\s-]*trap\b/g, "afrotrap")
 		.replace(/\bhip[\s-]*hop\b/g, "hip hop")
 		.replace(/\bukg\b/g, "uk garage")
 		.replace(/\b3\s*step\b/g, "3-step")
@@ -71,16 +72,13 @@ export const normalizeSearchText = (value: string): string =>
 		.trim();
 
 export const DEFAULT_GENRE_ALIASES: Array<[string, MusicGenre]> = [
-	["afro trap", "afrotrap"],
 	["francophone party", "francophone"],
 	["francais", "francophone"],
 	["français", "francophone"],
 	["french", "francophone"],
 	["mainstream", "pop"],
 	["commercial", "pop"],
-	["soul", "r&b"],
-	["techno", "house"],
-	["afo house", "afro house"],
+	["techno", "electro"],
 	["electronic", "electro"],
 	["edm", "electro"],
 	["trance", "electro"],
@@ -102,6 +100,8 @@ export const toGenreLabel = (value: string): string =>
 		.split(" ")
 		.filter(Boolean)
 		.map((part) => {
+			if (part === "edm") return "EDM";
+			if (part === "francais") return "Français";
 			if (part === "rnb") return "R&B";
 			if (part === "uk") return "UK";
 			if (part === "fr") return "FR";

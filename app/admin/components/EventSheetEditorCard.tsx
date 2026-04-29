@@ -3,6 +3,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
 	Card,
 	CardContent,
 	CardDescription,
@@ -30,6 +36,7 @@ import {
 	createDateNormalizationContext,
 	normalizeCsvDate,
 } from "@/features/data-management/assembly/date-normalization";
+import { DateTransformers } from "@/features/data-management/assembly/field-transformers";
 import {
 	type EditableSheetColumn,
 	type EditableSheetRow,
@@ -71,6 +78,12 @@ type GenreCellPart = {
 	resolved: string | null;
 	label: string;
 };
+type GenreAliasMapping = {
+	alias: string;
+	genreKey: string;
+	genreLabel: string;
+	isDefault: boolean;
+};
 type AreaOption = {
 	value: string;
 	label: string;
@@ -78,9 +91,17 @@ type AreaOption = {
 	description: string;
 	aliases: string[];
 };
+type SimpleOption = {
+	value: string;
+	label: string;
+	description: string;
+};
 type FocusedCell = {
 	rowIndex: number;
 	columnKey: string;
+};
+type CellDraft = FocusedCell & {
+	value: string;
 };
 
 const ROW_DELETE_CONFIRMATION =
@@ -93,9 +114,40 @@ const DATA_COLUMN_WIDTH = 170;
 const MAX_FROZEN_COLUMNS = 4;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
 const DEFAULT_SORT_MODE: SheetSortMode = "smart-date";
+const CURATED_COLUMN_KEY = "curated";
+const DATE_COLUMN_KEY = "date";
+const START_TIME_COLUMN_KEY = "startTime";
+const END_TIME_COLUMN_KEY = "endTime";
 const CATEGORY_COLUMN_KEY = "categories";
 const AREA_COLUMN_KEY = "districtArea";
+const AGE_COLUMN_KEY = "ageGuidance";
+const SETTING_COLUMN_KEY = "setting";
 const COUNTRY_COLUMN_KEYS = new Set(["hostCountry", "audienceCountry"]);
+const TIME_COLUMN_KEYS = new Set([START_TIME_COLUMN_KEY, END_TIME_COLUMN_KEY]);
+const CURATED_PICK_VALUE = "🌟";
+const SETTING_OPTIONS: SimpleOption[] = [
+	{
+		value: "Indoor",
+		label: "Indoor",
+		description: "Club, bar, hall, venue or enclosed room",
+	},
+	{
+		value: "Outdoor",
+		label: "Outdoor",
+		description: "Park, street, terrace, rooftop or open air",
+	},
+];
+const AGE_OPTIONS: SimpleOption[] = [
+	{ value: "18+", label: "18+", description: "Standard adult entry" },
+	{ value: "21+", label: "21+", description: "Older crowd / stricter entry" },
+	{ value: "20+", label: "20+", description: "Occasional venue policy" },
+	{
+		value: "All ages",
+		label: "All ages",
+		description: "No age restriction listed",
+	},
+	{ value: "TBC", label: "TBC", description: "Age policy still unknown" },
+];
 const AREA_OPTIONS: AreaOption[] = [
 	...Array.from({ length: 20 }, (_, index) => {
 		const value = String(index + 1);
@@ -152,19 +204,16 @@ const getCountrySearchSegment = (value: string): string => {
 	return (tokenPrefixMatch?.[2] ?? segment).trim();
 };
 
-const replaceCountrySearchSegment = (
-	value: string,
-	countryCode: string,
-): string => {
-	const match = value.match(/^([\s\S]*[\/,&+]\s*)?([^\/,&+]*)$/u);
-	const prefix = match?.[1] ?? "";
-	const segment = match?.[2] ?? value;
-	const tokenPrefixMatch = segment.match(COUNTRY_TOKEN_PREFIX_REGEX);
-	if (tokenPrefixMatch) {
-		return `${prefix}${tokenPrefixMatch[1]}${countryCode}`;
-	}
-	return `${prefix}${countryCode}`;
-};
+const splitCountryCell = (value: string): string[] =>
+	normalizeSupportedNationalities(value)
+		.split(",")
+		.map((part) => part.trim())
+		.filter((part) => part.length > 0);
+
+const joinCountryCodes = (codes: string[]): string => codes.join(", ");
+
+const getSelectedCountryCodes = (value: string): Set<string> =>
+	new Set(splitCountryCell(value));
 
 const GENRE_EXPLICIT_SEPARATOR_REGEX = /[,/&+]/;
 
@@ -226,6 +275,9 @@ const findAreaOption = (value: string): AreaOption | null => {
 	);
 };
 
+const normalizeAreaValue = (value: string): string =>
+	findAreaOption(value)?.value ?? value;
+
 const filterAreaOptions = (query: string): AreaOption[] => {
 	const normalized = normalizeAreaSearchText(query);
 	if (!normalized) return AREA_OPTIONS;
@@ -234,6 +286,39 @@ const filterAreaOptions = (query: string): AreaOption[] => {
 			.map(normalizeAreaSearchText)
 			.some((candidate) => candidate.includes(normalized)),
 	);
+};
+
+const normalizeCountryValue = (value: string): string =>
+	normalizeSupportedNationalities(value) || value;
+
+const SETTING_SEPARATOR_REGEX = /[,/&+\n\r]+/;
+
+const splitSettingCell = (value: string): string[] =>
+	value
+		.split(SETTING_SEPARATOR_REGEX)
+		.map((part) => part.trim().toLowerCase())
+		.filter((part) => part.length > 0)
+		.flatMap((part) => {
+			if (part.includes("indoor") || part.includes("inside")) return ["Indoor"];
+			if (
+				part.includes("outdoor") ||
+				part.includes("outside") ||
+				part.includes("open air")
+			) {
+				return ["Outdoor"];
+			}
+			return [];
+		})
+		.filter((value, index, values) => values.indexOf(value) === index);
+
+const normalizeSettingValue = (value: string): string => {
+	const selected = splitSettingCell(value);
+	return selected.length > 0 ? selected.join(", ") : value.trim();
+};
+
+const isCuratedValue = (value: string): boolean => {
+	const normalized = value.trim().toLowerCase();
+	return value.includes(CURATED_PICK_VALUE) || normalized.includes("pick");
 };
 
 const toUTCDateOnlyTime = (date: Date): number =>
@@ -340,6 +425,7 @@ export const EventSheetEditorCard = ({
 		initial.lastSavedAt,
 	);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+	const [saveScheduleVersion, setSaveScheduleVersion] = useState(0);
 	const [newColumnLabel, setNewColumnLabel] = useState("");
 	const [displayLimit, setDisplayLimit] = useState(50);
 	const [pinnedColumnsCount, setPinnedColumnsCount] = useState(0);
@@ -370,23 +456,38 @@ export const EventSheetEditorCard = ({
 	);
 	const [areaSearchQuery, setAreaSearchQuery] = useState("");
 	const [highlightedAreaIndex, setHighlightedAreaIndex] = useState(0);
+	const [focusedSettingCell, setFocusedSettingCell] =
+		useState<FocusedCell | null>(null);
+	const [highlightedSettingIndex, setHighlightedSettingIndex] = useState(0);
+	const [focusedAgeCell, setFocusedAgeCell] = useState<FocusedCell | null>(
+		null,
+	);
+	const [highlightedAgeIndex, setHighlightedAgeIndex] = useState(0);
+	const [activeCellDraft, setActiveCellDraft] = useState<CellDraft | null>(
+		null,
+	);
 
 	const rowsRef = useRef<EditableSheetRow[]>([]);
 	const columnsRef = useRef<EditableSheetColumn[]>([]);
 	const pastRef = useRef<EditorSnapshot[]>([]);
 	const futureRef = useRef<EditorSnapshot[]>([]);
+	const cellDraftRef = useRef<CellDraft | null>(null);
 	const activeCellEditRef = useRef<string | null>(null);
 	const editVersionRef = useRef(0);
 	const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+	const inputRefs = useRef<Record<string, HTMLElement | null>>({});
 
 	const clearInlineHelpers = useCallback(() => {
+		cellDraftRef.current = null;
+		setActiveCellDraft(null);
 		setFocusedGenreCell(null);
 		setGenreSearchQuery("");
 		setFocusedCountryCell(null);
 		setCountrySearchQuery("");
 		setFocusedAreaCell(null);
 		setAreaSearchQuery("");
+		setFocusedSettingCell(null);
+		setFocusedAgeCell(null);
 	}, []);
 
 	useEffect(() => {
@@ -433,6 +534,7 @@ export const EventSheetEditorCard = ({
 			setColumns(nextColumns);
 			setRows(nextRows);
 			setHasUnsavedChanges(true);
+			setSaveScheduleVersion((current) => current + 1);
 			editVersionRef.current += 1;
 			setStatusMessage(statusMessage);
 		},
@@ -528,7 +630,12 @@ export const EventSheetEditorCard = ({
 	);
 
 	useEffect(() => {
-		if (!hasUnsavedChanges || isSaving) {
+		if (
+			!hasUnsavedChanges ||
+			isSaving ||
+			activeCellDraft ||
+			saveScheduleVersion === 0
+		) {
 			return;
 		}
 
@@ -545,11 +652,18 @@ export const EventSheetEditorCard = ({
 				clearTimeout(autosaveTimerRef.current);
 			}
 		};
-	}, [hasUnsavedChanges, isSaving, performSave]);
+	}, [
+		activeCellDraft,
+		hasUnsavedChanges,
+		isSaving,
+		performSave,
+		saveScheduleVersion,
+	]);
 
 	const markDirty = useCallback(() => {
 		editVersionRef.current += 1;
 		setHasUnsavedChanges(true);
+		setSaveScheduleVersion((current) => current + 1);
 	}, []);
 
 	const commitSheetMutation = useCallback(
@@ -593,6 +707,107 @@ export const EventSheetEditorCard = ({
 			markDirty();
 		},
 		[markDirty, pushHistorySnapshot],
+	);
+
+	const setCellDraft = useCallback((draft: CellDraft | null) => {
+		cellDraftRef.current = draft;
+		setActiveCellDraft(draft);
+	}, []);
+
+	const beginCellDraft = useCallback(
+		(rowIndex: number, columnKey: string, value: string) => {
+			setCellDraft({ rowIndex, columnKey, value });
+		},
+		[setCellDraft],
+	);
+
+	const updateCellDraft = useCallback(
+		(rowIndex: number, columnKey: string, value: string) => {
+			setCellDraft({ rowIndex, columnKey, value });
+		},
+		[setCellDraft],
+	);
+
+	const getDraftAwareCellValue = useCallback(
+		(rowIndex: number, columnKey: string): string => {
+			const draft = cellDraftRef.current;
+			if (draft?.rowIndex === rowIndex && draft.columnKey === columnKey) {
+				return draft.value;
+			}
+			return rowsRef.current[rowIndex]?.[columnKey] ?? "";
+		},
+		[],
+	);
+
+	const getCellDisplayValue = useCallback(
+		(rowIndex: number, columnKey: string, storedValue: string): string => {
+			if (
+				activeCellDraft?.rowIndex === rowIndex &&
+				activeCellDraft.columnKey === columnKey
+			) {
+				return activeCellDraft.value;
+			}
+			return storedValue;
+		},
+		[activeCellDraft],
+	);
+
+	const commitCellDraft = useCallback(
+		(
+			rowIndex: number,
+			columnKey: string,
+			normalizeValue?: (value: string) => string,
+		) => {
+			const rawValue = getDraftAwareCellValue(rowIndex, columnKey);
+			const value = normalizeValue ? normalizeValue(rawValue) : rawValue;
+			setCellDraft(null);
+			handleCellChange(rowIndex, columnKey, value);
+			if (activeCellEditRef.current === cellRefKey(rowIndex, columnKey)) {
+				activeCellEditRef.current = null;
+			}
+			return value;
+		},
+		[getDraftAwareCellValue, handleCellChange, setCellDraft],
+	);
+
+	const normalizeDateCellValue = useCallback((value: string): string => {
+		const trimmed = value.trim();
+		if (!trimmed) return "";
+		const context = createDateNormalizationContext(
+			rowsRef.current.map((row) => ({ date: row.date ?? "" })),
+		);
+		const normalized = normalizeCsvDate(trimmed, context);
+		if (normalized.isoDate) return normalized.isoDate;
+
+		if (normalized.warning) {
+			setStatusMessage(normalized.warning.message);
+		}
+		return trimmed;
+	}, []);
+
+	const normalizeValueForColumn = useCallback(
+		(columnKey: string, value: string): string => {
+			if (columnKey === DATE_COLUMN_KEY) {
+				return normalizeDateCellValue(value);
+			}
+			if (TIME_COLUMN_KEYS.has(columnKey)) {
+				return DateTransformers.convertToTime(value);
+			}
+			return value;
+		},
+		[normalizeDateCellValue],
+	);
+
+	const commitStandardCell = useCallback(
+		(rowIndex: number, columnKey: string) => {
+			const rawValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
+			const normalizedValue = normalizeValueForColumn(columnKey, rawValue);
+			handleCellChange(rowIndex, columnKey, normalizedValue);
+			if (activeCellEditRef.current === cellRefKey(rowIndex, columnKey)) {
+				activeCellEditRef.current = null;
+			}
+		},
+		[handleCellChange, normalizeValueForColumn],
 	);
 
 	const handleAddRow = () => {
@@ -784,7 +999,7 @@ export const EventSheetEditorCard = ({
 		(rowIndex: number, columnKey: string, genre: GenreTaxonomyDefinition) => {
 			const row = rowsRef.current[rowIndex];
 			if (!row) return;
-			const currentValue = row[columnKey] ?? "";
+			const currentValue = getDraftAwareCellValue(rowIndex, columnKey);
 			const taxonomy = genreTaxonomy;
 			const parts = splitGenreCell(currentValue, taxonomy);
 			const isSelected = parts.some((part) => part.resolved === genre.key);
@@ -809,6 +1024,7 @@ export const EventSheetEditorCard = ({
 					})();
 
 			handleCellChange(rowIndex, columnKey, joinGenreLabels(labels));
+			setCellDraft(null);
 			setGenreSearchQuery("");
 			setFocusedCategoryRowIndex(rowIndex);
 			setFocusedGenreCell({ rowIndex, columnKey });
@@ -816,7 +1032,13 @@ export const EventSheetEditorCard = ({
 				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
 			}, 0);
 		},
-		[genreSearchQuery, genreTaxonomy, handleCellChange],
+		[
+			genreSearchQuery,
+			genreTaxonomy,
+			getDraftAwareCellValue,
+			handleCellChange,
+			setCellDraft,
+		],
 	);
 
 	const handleCreateGenre = useCallback(
@@ -923,60 +1145,94 @@ export const EventSheetEditorCard = ({
 		return filterAreaOptions(areaSearchQuery);
 	}, [areaSearchQuery, focusedAreaCell]);
 
+	const settingOptionsForFocusedCell = useMemo((): SimpleOption[] => {
+		if (!focusedSettingCell) return [];
+		return SETTING_OPTIONS;
+	}, [focusedSettingCell]);
+
+	const ageOptionsForFocusedCell = useMemo((): SimpleOption[] => {
+		if (!focusedAgeCell) return [];
+		return AGE_OPTIONS;
+	}, [focusedAgeCell]);
+
+	const toggleCuratedForCell = useCallback(
+		(rowIndex: number, columnKey: string) => {
+			const row = rowsRef.current[rowIndex];
+			if (!row) return;
+			const nextValue = isCuratedValue(row[columnKey] ?? "")
+				? ""
+				: CURATED_PICK_VALUE;
+			handleCellChange(rowIndex, columnKey, nextValue);
+		},
+		[handleCellChange],
+	);
+
+	const selectSettingForCell = useCallback(
+		(rowIndex: number, columnKey: string, setting: SimpleOption) => {
+			const row = rowsRef.current[rowIndex];
+			if (!row) return;
+			const currentValue = getDraftAwareCellValue(rowIndex, columnKey);
+			const selectedValues = splitSettingCell(currentValue);
+			const nextValues = selectedValues.includes(setting.value)
+				? selectedValues.filter((value) => value !== setting.value)
+				: [...selectedValues, setting.value];
+
+			handleCellChange(rowIndex, columnKey, nextValues.join(", "));
+			setCellDraft(null);
+			setFocusedSettingCell({ rowIndex, columnKey });
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[getDraftAwareCellValue, handleCellChange, setCellDraft],
+	);
+
+	const selectAgeForCell = useCallback(
+		(rowIndex: number, columnKey: string, age: SimpleOption | null) => {
+			const row = rowsRef.current[rowIndex];
+			if (!row) return;
+			handleCellChange(rowIndex, columnKey, age?.value ?? "");
+			setCellDraft(null);
+			setFocusedAgeCell({ rowIndex, columnKey });
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange, setCellDraft],
+	);
+
 	const selectCountryForCell = useCallback(
 		(rowIndex: number, columnKey: string, country: CountryOption) => {
 			const row = rowsRef.current[rowIndex];
 			if (!row) return;
-			handleCellChange(
-				rowIndex,
-				columnKey,
-				replaceCountrySearchSegment(row[columnKey] ?? "", country.code),
-			);
+			const currentValue = getDraftAwareCellValue(rowIndex, columnKey);
+			const selectedCodes = splitCountryCell(currentValue);
+			const nextCodes = selectedCodes.includes(country.code)
+				? selectedCodes.filter((code) => code !== country.code)
+				: [...selectedCodes, country.code];
+
+			handleCellChange(rowIndex, columnKey, joinCountryCodes(nextCodes));
+			setCellDraft(null);
 			setCountrySearchQuery("");
 			setFocusedCountryCell({ rowIndex, columnKey });
 			window.setTimeout(() => {
 				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
 			}, 0);
 		},
-		[handleCellChange],
-	);
-
-	const normalizeCountryCell = useCallback(
-		(rowIndex: number, columnKey: string) => {
-			const row = rowsRef.current[rowIndex];
-			if (!row) return;
-			const rawValue = row[columnKey] ?? "";
-			const normalized = normalizeSupportedNationalities(rawValue);
-			if (normalized && normalized !== rawValue) {
-				handleCellChange(rowIndex, columnKey, normalized);
-			}
-		},
-		[handleCellChange],
+		[getDraftAwareCellValue, handleCellChange, setCellDraft],
 	);
 
 	const selectAreaForCell = useCallback(
 		(rowIndex: number, columnKey: string, area: AreaOption) => {
 			handleCellChange(rowIndex, columnKey, area.value);
+			setCellDraft(null);
 			setAreaSearchQuery(area.value);
 			setFocusedAreaCell({ rowIndex, columnKey });
 			window.setTimeout(() => {
 				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
 			}, 0);
 		},
-		[handleCellChange],
-	);
-
-	const normalizeAreaCell = useCallback(
-		(rowIndex: number, columnKey: string) => {
-			const row = rowsRef.current[rowIndex];
-			if (!row) return;
-			const rawValue = row[columnKey] ?? "";
-			const option = findAreaOption(rawValue);
-			if (option && option.value !== rawValue) {
-				handleCellChange(rowIndex, columnKey, option.value);
-			}
-		},
-		[handleCellChange],
+		[handleCellChange, setCellDraft],
 	);
 
 	const filteredRowIndexes = useMemo(() => {
@@ -1048,27 +1304,31 @@ export const EventSheetEditorCard = ({
 			);
 		return scored.slice(0, 10).map((item) => item.genre);
 	}, [availableGenres, focusedGenreCell, genreSearchQuery]);
-	const customAliases = useMemo(() => {
+	const aliasMappings = useMemo<GenreAliasMapping[]>(() => {
 		const genreByKey = new Map(
 			availableGenres.map((genre) => [genre.key, genre.label]),
 		);
 		return (genreTaxonomy?.aliases ?? [])
 			.filter(
 				(alias) =>
-					!DEFAULT_ALIAS_KEYS.has(`${alias.alias}:${alias.genreKey}`) &&
 					!isRedundantGenreAlias(alias.alias, alias.genreKey) &&
 					genreByKey.has(alias.genreKey),
 			)
 			.map((alias) => ({
 				...alias,
 				genreLabel: genreByKey.get(alias.genreKey) ?? alias.genreKey,
+				isDefault: DEFAULT_ALIAS_KEYS.has(`${alias.alias}:${alias.genreKey}`),
 			}))
 			.sort(
 				(left, right) =>
+					Number(left.isDefault) - Number(right.isDefault) ||
 					left.genreLabel.localeCompare(right.genreLabel) ||
 					left.alias.localeCompare(right.alias),
 			);
 	}, [availableGenres, genreTaxonomy]);
+	const customAliasCount = aliasMappings.filter(
+		(alias) => !alias.isDefault,
+	).length;
 	const unknownGenres = useMemo(() => {
 		if (!genreTaxonomy) return [];
 		const unknown = new Map<string, { label: string; count: number }>();
@@ -1111,7 +1371,9 @@ export const EventSheetEditorCard = ({
 		const target = inputRefs.current[targetKey];
 		if (target) {
 			target.focus();
-			target.select();
+			if (target instanceof HTMLInputElement) {
+				target.select();
+			}
 		}
 	};
 
@@ -1628,32 +1890,66 @@ export const EventSheetEditorCard = ({
 								</div>
 							</div>
 
-							{customAliases.length > 0 && (
-								<div className="space-y-2 border-t pt-3">
-									<Label>Custom alias mappings</Label>
-									<div className="flex flex-wrap gap-2">
-										{customAliases.map((alias) => (
-											<div
-												key={`${alias.alias}:${alias.genreKey}`}
-												className="inline-flex h-7 items-center overflow-hidden rounded-full border border-border/70 bg-background text-xs"
-											>
-												<span className="px-2.5">
-													{toGenreLabel(alias.alias)} -&gt; {alias.genreLabel}
-												</span>
-												<button
-													type="button"
-													className="h-7 border-l px-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-													onClick={() => void handleRemoveAlias(alias.alias)}
-													aria-label={`Remove ${alias.alias} alias`}
-													title={`Remove ${alias.alias} alias`}
-												>
-													x
-												</button>
-											</div>
-										))}
-									</div>
-								</div>
-							)}
+							<div className="border-t pt-3">
+								<Accordion>
+									<AccordionItem value="genre-aliases" className="border-0">
+										<AccordionTrigger className="rounded-md border border-border/70 bg-background/70 px-3 py-2 text-sm no-underline hover:bg-muted/40 hover:no-underline">
+											<span className="flex min-w-0 flex-wrap items-center gap-2">
+												<span>Current alias mappings</span>
+												<Badge variant="outline" className="text-[10px]">
+													{aliasMappings.length}
+												</Badge>
+												{customAliasCount > 0 && (
+													<Badge variant="secondary" className="text-[10px]">
+														{customAliasCount} custom
+													</Badge>
+												)}
+											</span>
+										</AccordionTrigger>
+										<AccordionContent className="pt-2 pb-0">
+											{aliasMappings.length > 0 ? (
+												<div className="grid max-h-64 gap-2 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2 sm:grid-cols-2">
+													{aliasMappings.map((alias) => (
+														<div
+															key={`${alias.alias}:${alias.genreKey}`}
+															className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-border/60 bg-background px-2.5 py-2 text-xs"
+														>
+															<span className="min-w-0 truncate">
+																{toGenreLabel(alias.alias)} -&gt;{" "}
+																{alias.genreLabel}
+															</span>
+															{alias.isDefault ? (
+																<Badge
+																	variant="outline"
+																	className="text-[10px]"
+																>
+																	Built-in
+																</Badge>
+															) : (
+																<button
+																	type="button"
+																	className="shrink-0 rounded-sm px-2 py-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+																	onClick={() =>
+																		void handleRemoveAlias(alias.alias)
+																	}
+																	aria-label={`Remove ${alias.alias} alias`}
+																	title={`Remove ${alias.alias} alias`}
+																>
+																	x
+																</button>
+															)}
+														</div>
+													))}
+												</div>
+											) : (
+												<p className="rounded-md border border-border/70 bg-background/70 p-3 text-xs text-muted-foreground">
+													No alias mappings are available yet.
+												</p>
+											)}
+										</AccordionContent>
+									</AccordionItem>
+								</Accordion>
+							</div>
 						</div>
 					</DialogContent>
 				</Dialog>
@@ -1813,8 +2109,13 @@ export const EventSheetEditorCard = ({
 							) : (
 								visibleRowIndexes.map((rowIndex) => {
 									const row = rows[rowIndex];
-									const selectedGenreKeys = getSelectedGenreKeys(
+									const categoryValue = getCellDisplayValue(
+										rowIndex,
+										CATEGORY_COLUMN_KEY,
 										row[CATEGORY_COLUMN_KEY] ?? "",
+									);
+									const selectedGenreKeys = getSelectedGenreKeys(
+										categoryValue,
 										genreTaxonomy,
 									);
 									return (
@@ -1834,7 +2135,59 @@ export const EventSheetEditorCard = ({
 													className="w-[170px] border-b border-r p-0"
 													style={getPinnedColumnStyle(columnIndex, "cell")}
 												>
-													{column.key === CATEGORY_COLUMN_KEY ? (
+													{column.key === CURATED_COLUMN_KEY ? (
+														<button
+															ref={(node) => {
+																inputRefs.current[
+																	cellRefKey(rowIndex, column.key)
+																] = node;
+															}}
+															type="button"
+															aria-pressed={isCuratedValue(
+																row[column.key] ?? "",
+															)}
+															onClick={() =>
+																toggleCuratedForCell(rowIndex, column.key)
+															}
+															onKeyDown={(event) => {
+																if (event.key === "ArrowDown") {
+																	event.preventDefault();
+																	focusCell(rowIndex, column.key, 1, 0);
+																}
+																if (event.key === "ArrowUp") {
+																	event.preventDefault();
+																	focusCell(rowIndex, column.key, -1, 0);
+																}
+																if (
+																	event.key === "ArrowRight" &&
+																	event.altKey
+																) {
+																	event.preventDefault();
+																	focusCell(rowIndex, column.key, 0, 1);
+																}
+																if (event.key === "ArrowLeft" && event.altKey) {
+																	event.preventDefault();
+																	focusCell(rowIndex, column.key, 0, -1);
+																}
+															}}
+															className={`flex h-9 w-full items-center gap-2 px-2 text-left text-xs outline-none transition hover:bg-accent/60 focus:bg-muted/30 ${
+																isCuratedValue(row[column.key] ?? "")
+																	? "text-amber-700"
+																	: "text-muted-foreground"
+															}`}
+														>
+															<span className="text-base leading-none">
+																{isCuratedValue(row[column.key] ?? "")
+																	? CURATED_PICK_VALUE
+																	: "☆"}
+															</span>
+															<span className="truncate">
+																{isCuratedValue(row[column.key] ?? "")
+																	? "OOOC Pick"
+																	: "Not curated"}
+															</span>
+														</button>
+													) : column.key === CATEGORY_COLUMN_KEY ? (
 														<div className="relative min-h-9 bg-transparent">
 															<input
 																ref={(node) => {
@@ -1842,8 +2195,13 @@ export const EventSheetEditorCard = ({
 																		cellRefKey(rowIndex, column.key)
 																	] = node;
 																}}
-																value={row[column.key] ?? ""}
+																value={categoryValue}
 																onFocus={() => {
+																	beginCellDraft(
+																		rowIndex,
+																		column.key,
+																		row[column.key] ?? "",
+																	);
 																	setFocusedCategoryRowIndex(rowIndex);
 																	setFocusedGenreCell({
 																		rowIndex,
@@ -1864,17 +2222,14 @@ export const EventSheetEditorCard = ({
 																		getGenreSearchSegment(event.target.value),
 																	);
 																	setHighlightedGenreIndex(0);
-																	handleCellChange(
+																	updateCellDraft(
 																		rowIndex,
 																		column.key,
 																		event.target.value,
 																	);
 																}}
 																onBlur={() => {
-																	const key = cellRefKey(rowIndex, column.key);
-																	if (activeCellEditRef.current === key) {
-																		activeCellEditRef.current = null;
-																	}
+																	commitCellDraft(rowIndex, column.key);
 																	window.setTimeout(() => {
 																		setFocusedGenreCell((current) =>
 																			current?.rowIndex === rowIndex &&
@@ -1924,19 +2279,23 @@ export const EventSheetEditorCard = ({
 																	}
 																	if (event.key === "Escape") {
 																		event.preventDefault();
+																		setCellDraft(null);
 																		setFocusedGenreCell(null);
 																		return;
 																	}
 																	if (event.key === "Enter") {
 																		event.preventDefault();
+																		commitCellDraft(rowIndex, column.key);
 																		focusCell(rowIndex, column.key, 1, 0);
 																	}
 																	if (event.key === "ArrowDown") {
 																		event.preventDefault();
+																		commitCellDraft(rowIndex, column.key);
 																		focusCell(rowIndex, column.key, 1, 0);
 																	}
 																	if (event.key === "ArrowUp") {
 																		event.preventDefault();
+																		commitCellDraft(rowIndex, column.key);
 																		focusCell(rowIndex, column.key, -1, 0);
 																	}
 																	if (
@@ -1944,6 +2303,7 @@ export const EventSheetEditorCard = ({
 																		event.altKey
 																	) {
 																		event.preventDefault();
+																		commitCellDraft(rowIndex, column.key);
 																		focusCell(rowIndex, column.key, 0, 1);
 																	}
 																	if (
@@ -1951,6 +2311,7 @@ export const EventSheetEditorCard = ({
 																		event.altKey
 																	) {
 																		event.preventDefault();
+																		commitCellDraft(rowIndex, column.key);
 																		focusCell(rowIndex, column.key, 0, -1);
 																	}
 																}}
@@ -2028,7 +2389,7 @@ export const EventSheetEditorCard = ({
 																)}
 															<div className="flex min-h-7 flex-wrap gap-1 px-1.5 pb-1.5">
 																{splitGenreCell(
-																	row[column.key] ?? "",
+																	categoryValue,
 																	genreTaxonomy,
 																).map((part) => (
 																	<span
@@ -2059,8 +2420,17 @@ export const EventSheetEditorCard = ({
 																		cellRefKey(rowIndex, column.key)
 																	] = node;
 																}}
-																value={row[column.key] ?? ""}
+																value={getCellDisplayValue(
+																	rowIndex,
+																	column.key,
+																	row[column.key] ?? "",
+																)}
 																onFocus={() => {
+																	beginCellDraft(
+																		rowIndex,
+																		column.key,
+																		row[column.key] ?? "",
+																	);
 																	setFocusedAreaCell({
 																		rowIndex,
 																		columnKey: column.key,
@@ -2077,18 +2447,18 @@ export const EventSheetEditorCard = ({
 																	);
 																	setAreaSearchQuery(event.target.value);
 																	setHighlightedAreaIndex(0);
-																	handleCellChange(
+																	updateCellDraft(
 																		rowIndex,
 																		column.key,
 																		event.target.value,
 																	);
 																}}
 																onBlur={() => {
-																	const key = cellRefKey(rowIndex, column.key);
-																	if (activeCellEditRef.current === key) {
-																		activeCellEditRef.current = null;
-																	}
-																	normalizeAreaCell(rowIndex, column.key);
+																	commitCellDraft(
+																		rowIndex,
+																		column.key,
+																		normalizeAreaValue,
+																	);
 																	window.setTimeout(() => {
 																		setFocusedAreaCell((current) =>
 																			current?.rowIndex === rowIndex &&
@@ -2138,11 +2508,17 @@ export const EventSheetEditorCard = ({
 																	}
 																	if (event.key === "Escape") {
 																		event.preventDefault();
+																		setCellDraft(null);
 																		setFocusedAreaCell(null);
 																		return;
 																	}
 																	if (event.key === "Enter") {
 																		event.preventDefault();
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			normalizeAreaValue,
+																		);
 																		focusCell(rowIndex, column.key, 1, 0);
 																	}
 																	if (
@@ -2150,6 +2526,11 @@ export const EventSheetEditorCard = ({
 																		event.altKey
 																	) {
 																		event.preventDefault();
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			normalizeAreaValue,
+																		);
 																		focusCell(rowIndex, column.key, 0, 1);
 																	}
 																	if (
@@ -2157,6 +2538,11 @@ export const EventSheetEditorCard = ({
 																		event.altKey
 																	) {
 																		event.preventDefault();
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			normalizeAreaValue,
+																		);
 																		focusCell(rowIndex, column.key, 0, -1);
 																	}
 																}}
@@ -2184,6 +2570,14 @@ export const EventSheetEditorCard = ({
 																						areaOptionsForFocusedCell[
 																							optionIndex - 1
 																						];
+																					const isSelected =
+																						normalizeAreaValue(
+																							getCellDisplayValue(
+																								rowIndex,
+																								column.key,
+																								row[column.key] ?? "",
+																							),
+																						) === area.value;
 																					const showGroup =
 																						!previousArea ||
 																						previousArea.group !== area.group;
@@ -2208,7 +2602,9 @@ export const EventSheetEditorCard = ({
 																									optionIndex ===
 																									highlightedAreaIndex
 																										? "bg-accent text-accent-foreground"
-																										: "hover:bg-accent/70"
+																										: isSelected
+																											? "bg-muted text-foreground"
+																											: "hover:bg-accent/70"
 																								}`}
 																							>
 																								<span className="min-w-0 flex-1 truncate font-medium">
@@ -2222,11 +2618,426 @@ export const EventSheetEditorCard = ({
 																					);
 																				},
 																			)}
-																			{areaOptionsForFocusedCell.length === 0 && (
+																			{areaOptionsForFocusedCell.length ===
+																				0 && (
 																				<div className="px-2 py-2 text-xs text-muted-foreground">
 																					No matching area. Use `Greater Paris`,
 																					`Outside Paris`, or `Location TBC`.
 																				</div>
+																			)}
+																		</div>
+																	</div>
+																)}
+														</div>
+													) : column.key === SETTING_COLUMN_KEY ? (
+														<div className="relative min-h-9 bg-transparent">
+															<input
+																ref={(node) => {
+																	inputRefs.current[
+																		cellRefKey(rowIndex, column.key)
+																	] = node;
+																}}
+																value={getCellDisplayValue(
+																	rowIndex,
+																	column.key,
+																	row[column.key] ?? "",
+																)}
+																onFocus={() => {
+																	beginCellDraft(
+																		rowIndex,
+																		column.key,
+																		row[column.key] ?? "",
+																	);
+																	setFocusedSettingCell({
+																		rowIndex,
+																		columnKey: column.key,
+																	});
+																	setHighlightedSettingIndex(0);
+																}}
+																onChange={(event) => {
+																	setFocusedSettingCell((current) =>
+																		current?.rowIndex === rowIndex &&
+																		current.columnKey === column.key
+																			? current
+																			: { rowIndex, columnKey: column.key },
+																	);
+																	setHighlightedSettingIndex(0);
+																	updateCellDraft(
+																		rowIndex,
+																		column.key,
+																		event.target.value,
+																	);
+																}}
+																onBlur={() => {
+																	commitCellDraft(
+																		rowIndex,
+																		column.key,
+																		normalizeSettingValue,
+																	);
+																	window.setTimeout(() => {
+																		setFocusedSettingCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? null
+																				: current,
+																		);
+																	}, 120);
+																}}
+																onKeyDown={(event) => {
+																	if (
+																		event.key === "ArrowDown" &&
+																		settingOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		setHighlightedSettingIndex((current) =>
+																			Math.min(
+																				current + 1,
+																				settingOptionsForFocusedCell.length - 1,
+																			),
+																		);
+																		return;
+																	}
+																	if (
+																		event.key === "ArrowUp" &&
+																		settingOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		setHighlightedSettingIndex((current) =>
+																			Math.max(current - 1, 0),
+																		);
+																		return;
+																	}
+																	if (
+																		event.key === "Enter" &&
+																		settingOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		selectSettingForCell(
+																			rowIndex,
+																			column.key,
+																			settingOptionsForFocusedCell[
+																				highlightedSettingIndex
+																			] ?? settingOptionsForFocusedCell[0],
+																		);
+																		return;
+																	}
+																	if (event.key === "Escape") {
+																		event.preventDefault();
+																		setCellDraft(null);
+																		setFocusedSettingCell(null);
+																		return;
+																	}
+																	if (event.key === "Enter") {
+																		event.preventDefault();
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			normalizeSettingValue,
+																		);
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (
+																		event.key === "ArrowRight" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			normalizeSettingValue,
+																		);
+																		focusCell(rowIndex, column.key, 0, 1);
+																	}
+																	if (
+																		event.key === "ArrowLeft" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			normalizeSettingValue,
+																		);
+																		focusCell(rowIndex, column.key, 0, -1);
+																	}
+																}}
+																className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+																placeholder="Indoor / Outdoor"
+																aria-autocomplete="list"
+																aria-expanded={
+																	focusedSettingCell?.rowIndex === rowIndex &&
+																	focusedSettingCell.columnKey === column.key
+																}
+															/>
+															{focusedSettingCell?.rowIndex === rowIndex &&
+																focusedSettingCell.columnKey === column.key && (
+																	<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																			Setting
+																		</div>
+																		<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+																			Select one or both.
+																		</div>
+																		<div className="p-1">
+																			{settingOptionsForFocusedCell.map(
+																				(setting, optionIndex) => {
+																					const selectedValues =
+																						splitSettingCell(
+																							getCellDisplayValue(
+																								rowIndex,
+																								column.key,
+																								row[column.key] ?? "",
+																							),
+																						);
+																					const isSelected =
+																						selectedValues.includes(
+																							setting.value,
+																						);
+																					return (
+																						<button
+																							key={setting.value}
+																							type="button"
+																							onMouseDown={(event) => {
+																								event.preventDefault();
+																								selectSettingForCell(
+																									rowIndex,
+																									column.key,
+																									setting,
+																								);
+																							}}
+																							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																								optionIndex ===
+																								highlightedSettingIndex
+																									? "bg-accent text-accent-foreground"
+																									: isSelected
+																										? "bg-muted text-foreground"
+																										: "hover:bg-accent/70"
+																							}`}
+																						>
+																							<span
+																								className={`h-3 w-3 rounded-sm border ${
+																									isSelected
+																										? "border-foreground bg-foreground"
+																										: "border-muted-foreground/40"
+																								}`}
+																								aria-hidden="true"
+																							/>
+																							<span className="min-w-0 flex-1 truncate font-medium">
+																								{setting.label}
+																							</span>
+																							<span className="max-w-40 truncate text-[10px] text-muted-foreground">
+																								{setting.description}
+																							</span>
+																						</button>
+																					);
+																				},
+																			)}
+																		</div>
+																	</div>
+																)}
+														</div>
+													) : column.key === AGE_COLUMN_KEY ? (
+														<div className="relative min-h-9 bg-transparent">
+															<input
+																ref={(node) => {
+																	inputRefs.current[
+																		cellRefKey(rowIndex, column.key)
+																	] = node;
+																}}
+																value={getCellDisplayValue(
+																	rowIndex,
+																	column.key,
+																	row[column.key] ?? "",
+																)}
+																onFocus={() => {
+																	beginCellDraft(
+																		rowIndex,
+																		column.key,
+																		row[column.key] ?? "",
+																	);
+																	setFocusedAgeCell({
+																		rowIndex,
+																		columnKey: column.key,
+																	});
+																	setHighlightedAgeIndex(0);
+																}}
+																onChange={(event) => {
+																	setFocusedAgeCell((current) =>
+																		current?.rowIndex === rowIndex &&
+																		current.columnKey === column.key
+																			? current
+																			: { rowIndex, columnKey: column.key },
+																	);
+																	setHighlightedAgeIndex(0);
+																	updateCellDraft(
+																		rowIndex,
+																		column.key,
+																		event.target.value,
+																	);
+																}}
+																onBlur={() => {
+																	commitCellDraft(
+																		rowIndex,
+																		column.key,
+																		(value) => value.trim(),
+																	);
+																	window.setTimeout(() => {
+																		setFocusedAgeCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? null
+																				: current,
+																		);
+																	}, 120);
+																}}
+																onKeyDown={(event) => {
+																	if (
+																		event.key === "ArrowDown" &&
+																		ageOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		setHighlightedAgeIndex((current) =>
+																			Math.min(
+																				current + 1,
+																				ageOptionsForFocusedCell.length - 1,
+																			),
+																		);
+																		return;
+																	}
+																	if (
+																		event.key === "ArrowUp" &&
+																		ageOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		setHighlightedAgeIndex((current) =>
+																			Math.max(current - 1, 0),
+																		);
+																		return;
+																	}
+																	if (
+																		event.key === "Enter" &&
+																		ageOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		selectAgeForCell(
+																			rowIndex,
+																			column.key,
+																			ageOptionsForFocusedCell[
+																				highlightedAgeIndex
+																			] ?? ageOptionsForFocusedCell[0],
+																		);
+																		return;
+																	}
+																	if (event.key === "Escape") {
+																		event.preventDefault();
+																		setCellDraft(null);
+																		setFocusedAgeCell(null);
+																		return;
+																	}
+																	if (event.key === "Enter") {
+																		event.preventDefault();
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			(value) => value.trim(),
+																		);
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (
+																		event.key === "ArrowRight" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			(value) => value.trim(),
+																		);
+																		focusCell(rowIndex, column.key, 0, 1);
+																	}
+																	if (
+																		event.key === "ArrowLeft" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			(value) => value.trim(),
+																		);
+																		focusCell(rowIndex, column.key, 0, -1);
+																	}
+																}}
+																className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+																placeholder="18+, 21+, TBC"
+																aria-autocomplete="list"
+																aria-expanded={
+																	focusedAgeCell?.rowIndex === rowIndex &&
+																	focusedAgeCell.columnKey === column.key
+																}
+															/>
+															{focusedAgeCell?.rowIndex === rowIndex &&
+																focusedAgeCell.columnKey === column.key && (
+																	<div className="absolute left-1 top-8 z-40 w-64 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																			Age Guidance
+																		</div>
+																		<div className="max-h-56 overflow-y-auto p-1">
+																			<button
+																				type="button"
+																				onMouseDown={(event) => {
+																					event.preventDefault();
+																					selectAgeForCell(
+																						rowIndex,
+																						column.key,
+																						null,
+																					);
+																				}}
+																				className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-muted-foreground transition hover:bg-accent/70"
+																			>
+																				Clear
+																			</button>
+																			{ageOptionsForFocusedCell.map(
+																				(age, optionIndex) => {
+																					const isSelected =
+																						getCellDisplayValue(
+																							rowIndex,
+																							column.key,
+																							row[column.key] ?? "",
+																						)
+																							.trim()
+																							.toLowerCase() ===
+																						age.value.toLowerCase();
+																					return (
+																						<button
+																							key={age.value}
+																							type="button"
+																							onMouseDown={(event) => {
+																								event.preventDefault();
+																								selectAgeForCell(
+																									rowIndex,
+																									column.key,
+																									age,
+																								);
+																							}}
+																							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																								optionIndex ===
+																								highlightedAgeIndex
+																									? "bg-accent text-accent-foreground"
+																									: isSelected
+																										? "bg-muted text-foreground"
+																										: "hover:bg-accent/70"
+																							}`}
+																						>
+																							<span className="min-w-0 flex-1 truncate font-medium">
+																								{age.label}
+																							</span>
+																							<span className="max-w-36 truncate text-[10px] text-muted-foreground">
+																								{age.description}
+																							</span>
+																						</button>
+																					);
+																				},
 																			)}
 																		</div>
 																	</div>
@@ -2240,8 +3051,17 @@ export const EventSheetEditorCard = ({
 																		cellRefKey(rowIndex, column.key)
 																	] = node;
 																}}
-																value={row[column.key] ?? ""}
+																value={getCellDisplayValue(
+																	rowIndex,
+																	column.key,
+																	row[column.key] ?? "",
+																)}
 																onFocus={() => {
+																	beginCellDraft(
+																		rowIndex,
+																		column.key,
+																		row[column.key] ?? "",
+																	);
 																	setFocusedCountryCell({
 																		rowIndex,
 																		columnKey: column.key,
@@ -2264,18 +3084,18 @@ export const EventSheetEditorCard = ({
 																		getCountrySearchSegment(event.target.value),
 																	);
 																	setHighlightedCountryIndex(0);
-																	handleCellChange(
+																	updateCellDraft(
 																		rowIndex,
 																		column.key,
 																		event.target.value,
 																	);
 																}}
 																onBlur={() => {
-																	const key = cellRefKey(rowIndex, column.key);
-																	if (activeCellEditRef.current === key) {
-																		activeCellEditRef.current = null;
-																	}
-																	normalizeCountryCell(rowIndex, column.key);
+																	commitCellDraft(
+																		rowIndex,
+																		column.key,
+																		normalizeCountryValue,
+																	);
 																	window.setTimeout(() => {
 																		setFocusedCountryCell((current) =>
 																			current?.rowIndex === rowIndex &&
@@ -2325,11 +3145,17 @@ export const EventSheetEditorCard = ({
 																	}
 																	if (event.key === "Escape") {
 																		event.preventDefault();
+																		setCellDraft(null);
 																		setFocusedCountryCell(null);
 																		return;
 																	}
 																	if (event.key === "Enter") {
 																		event.preventDefault();
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			normalizeCountryValue,
+																		);
 																		focusCell(rowIndex, column.key, 1, 0);
 																	}
 																	if (
@@ -2337,6 +3163,11 @@ export const EventSheetEditorCard = ({
 																		event.altKey
 																	) {
 																		event.preventDefault();
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			normalizeCountryValue,
+																		);
 																		focusCell(rowIndex, column.key, 0, 1);
 																	}
 																	if (
@@ -2344,6 +3175,11 @@ export const EventSheetEditorCard = ({
 																		event.altKey
 																	) {
 																		event.preventDefault();
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			normalizeCountryValue,
+																		);
 																		focusCell(rowIndex, column.key, 0, -1);
 																	}
 																}}
@@ -2366,36 +3202,56 @@ export const EventSheetEditorCard = ({
 																		</div>
 																		<div className="max-h-56 overflow-y-auto p-1">
 																			{countryOptionsForFocusedCell.map(
-																				(country, optionIndex) => (
-																					<button
-																						key={country.code}
-																						type="button"
-																						onMouseDown={(event) => {
-																							event.preventDefault();
-																							selectCountryForCell(
+																				(country, optionIndex) => {
+																					const isSelected =
+																						getSelectedCountryCodes(
+																							getCellDisplayValue(
 																								rowIndex,
 																								column.key,
-																								country,
-																							);
-																						}}
-																						className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
-																							optionIndex ===
-																							highlightedCountryIndex
-																								? "bg-accent text-accent-foreground"
-																								: "hover:bg-accent/70"
-																						}`}
-																					>
-																						<span className="text-sm">
-																							{country.flag}
-																						</span>
-																						<span className="min-w-0 flex-1 truncate">
-																							{country.label}
-																						</span>
-																						<span className="font-mono text-[10px] text-muted-foreground">
-																							{country.code}
-																						</span>
-																					</button>
-																				),
+																								row[column.key] ?? "",
+																							),
+																						).has(country.code);
+																					return (
+																						<button
+																							key={country.code}
+																							type="button"
+																							onMouseDown={(event) => {
+																								event.preventDefault();
+																								selectCountryForCell(
+																									rowIndex,
+																									column.key,
+																									country,
+																								);
+																							}}
+																							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																								optionIndex ===
+																								highlightedCountryIndex
+																									? "bg-accent text-accent-foreground"
+																									: isSelected
+																										? "bg-muted text-foreground"
+																										: "hover:bg-accent/70"
+																							}`}
+																						>
+																							<span
+																								className={`h-3 w-3 rounded-sm border ${
+																									isSelected
+																										? "border-foreground bg-foreground"
+																										: "border-muted-foreground/40"
+																								}`}
+																								aria-hidden="true"
+																							/>
+																							<span className="text-sm">
+																								{country.flag}
+																							</span>
+																							<span className="min-w-0 flex-1 truncate">
+																								{country.label}
+																							</span>
+																							<span className="font-mono text-[10px] text-muted-foreground">
+																								{country.code}
+																							</span>
+																						</button>
+																					);
+																				},
 																			)}
 																			{countryOptionsForFocusedCell.length ===
 																				0 && (
@@ -2427,22 +3283,22 @@ export const EventSheetEditorCard = ({
 																)
 															}
 															onBlur={() => {
-																const key = cellRefKey(rowIndex, column.key);
-																if (activeCellEditRef.current === key) {
-																	activeCellEditRef.current = null;
-																}
+																commitStandardCell(rowIndex, column.key);
 															}}
 															onKeyDown={(event) => {
 																if (event.key === "Enter") {
 																	event.preventDefault();
+																	commitStandardCell(rowIndex, column.key);
 																	focusCell(rowIndex, column.key, 1, 0);
 																}
 																if (event.key === "ArrowDown") {
 																	event.preventDefault();
+																	commitStandardCell(rowIndex, column.key);
 																	focusCell(rowIndex, column.key, 1, 0);
 																}
 																if (event.key === "ArrowUp") {
 																	event.preventDefault();
+																	commitStandardCell(rowIndex, column.key);
 																	focusCell(rowIndex, column.key, -1, 0);
 																}
 																if (
@@ -2450,10 +3306,12 @@ export const EventSheetEditorCard = ({
 																	event.altKey
 																) {
 																	event.preventDefault();
+																	commitStandardCell(rowIndex, column.key);
 																	focusCell(rowIndex, column.key, 0, 1);
 																}
 																if (event.key === "ArrowLeft" && event.altKey) {
 																	event.preventDefault();
+																	commitStandardCell(rowIndex, column.key);
 																	focusCell(rowIndex, column.key, 0, -1);
 																}
 															}}
