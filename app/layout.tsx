@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Footer from "@/components/Footer";
 import { DevServiceWorkerReset } from "@/components/DevServiceWorkerReset";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { SupportCoffeePrompt } from "@/components/SupportCoffeePrompt";
 import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { OfflineIndicator } from "@/components/offline-indicator";
@@ -177,6 +178,7 @@ export default function RootLayout({
 					<ThemeColorSync />
 					<AuthProvider>
 						{children}
+						<MobileBottomNav />
 						<Footer />
 						<SupportCoffeePrompt />
 						<CommunityInvite />

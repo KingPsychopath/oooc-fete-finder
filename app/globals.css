@@ -157,6 +157,14 @@
 	* {
 		@apply border-border;
 	}
+	html {
+		scroll-behavior: smooth;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		html {
+			scroll-behavior: auto;
+		}
+	}
 	*:focus-visible {
 		@apply outline outline-2 outline-offset-2 outline-ring/50;
 	}

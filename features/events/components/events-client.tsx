@@ -437,7 +437,7 @@ export function EventsClient({
 				hasActiveFilters={hasAnyActiveFilters}
 			/>
 
-			<div className="mb-8 relative z-10">
+			<div id="event-map" className="scroll-mt-28 mb-8 relative z-10">
 				<EventsMapCard
 					events={filteredEvents}
 					isExpanded={isMapExpanded}
@@ -492,18 +492,20 @@ export function EventsClient({
 				</AuthGate>
 			</div>
 
-			<AllEvents
-				ref={allEventsRef}
-				events={allEventsOrdered}
-				onEventClick={handleEventClick}
-				socialProofDisplayModes={socialProofDisplayModes}
-				onFilterClickAction={toggleFilterPanel}
-				onAuthRequired={() => setShowEmailGate(true)}
-				hasActiveFilters={hasAnyActiveFilters}
-				activeFiltersCount={activeFiltersCount}
-				isAuthenticated={isAuthenticated}
-				isAuthResolved={isAuthResolved}
-			/>
+			<div id="all-events" className="scroll-mt-28">
+				<AllEvents
+					ref={allEventsRef}
+					events={allEventsOrdered}
+					onEventClick={handleEventClick}
+					socialProofDisplayModes={socialProofDisplayModes}
+					onFilterClickAction={toggleFilterPanel}
+					onAuthRequired={() => setShowEmailGate(true)}
+					hasActiveFilters={hasAnyActiveFilters}
+					activeFiltersCount={activeFiltersCount}
+					isAuthenticated={isAuthenticated}
+					isAuthResolved={isAuthResolved}
+				/>
+			</div>
 
 			<EventModal
 				event={selectedEvent}
