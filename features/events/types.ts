@@ -514,13 +514,47 @@ const extractNumericCandidates = (cleanPrice: string): number[] => {
 const formatEuroAmount = (amount: number): string =>
 	Number.isInteger(amount) ? `€${amount}` : `€${amount.toFixed(2)}`;
 
+const DEFAULT_GBP_TO_EUR_RATE = 1.154;
+const DEFAULT_USD_TO_EUR_RATE = 0.854;
+
+const parseConversionRate = (
+	rawValue: string | undefined,
+	fallback: number,
+): number => {
+	const value = Number.parseFloat(rawValue ?? "");
+	return Number.isFinite(value) && value > 0 ? value : fallback;
+};
+
+const getPriceConversionRates = () => ({
+	gbpToEur: parseConversionRate(
+		process.env.NEXT_PUBLIC_PRICE_RATE_GBP_TO_EUR,
+		DEFAULT_GBP_TO_EUR_RATE,
+	),
+	usdToEur: parseConversionRate(
+		process.env.NEXT_PUBLIC_PRICE_RATE_USD_TO_EUR,
+		DEFAULT_USD_TO_EUR_RATE,
+	),
+});
+
+const hasGbpMarker = (cleanPrice: string): boolean =>
+	cleanPrice.includes("£") || /\bgbp\b|\bpounds?\b/.test(cleanPrice);
+
+const hasUsdMarker = (cleanPrice: string): boolean =>
+	cleanPrice.includes("$") || /\busd\b|\bdollars?\b/.test(cleanPrice);
+
+const hasEurMarker = (cleanPrice: string): boolean =>
+	cleanPrice.includes("€") || /\beur\b|\beuros?\b/.test(cleanPrice);
+
+const hasCurrencyMarker = (cleanPrice: string): boolean =>
+	hasGbpMarker(cleanPrice) || hasUsdMarker(cleanPrice) || hasEurMarker(cleanPrice);
+
 const toEuroAmount = (amount: number, cleanPrice: string): number => {
-	if (
-		cleanPrice.includes("£") ||
-		cleanPrice.includes("gbp") ||
-		cleanPrice.includes("pound")
-	) {
-		return amount * 1.17;
+	const rates = getPriceConversionRates();
+	if (hasGbpMarker(cleanPrice)) {
+		return amount * rates.gbpToEur;
+	}
+	if (hasUsdMarker(cleanPrice)) {
+		return amount * rates.usdToEur;
 	}
 	return amount;
 };
@@ -561,8 +595,8 @@ export const formatPrice = (priceStr?: string): string => {
 		return "Free";
 	}
 
-	// Return original format if it already looks formatted
-	if (priceStr.includes("€") || priceStr.includes("£")) {
+	// Return original format if it already includes an explicit currency marker.
+	if (hasCurrencyMarker(cleanPrice)) {
 		return priceStr;
 	}
 

@@ -103,6 +103,8 @@ export const env = createEnv({
 		NEXT_PUBLIC_BASE_PATH: z.string().default(""),
 		NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
 		NEXT_PUBLIC_WHATSAPP_URL: z.string().url().optional(),
+		NEXT_PUBLIC_PRICE_RATE_GBP_TO_EUR: z.coerce.number().positive().default(1.154),
+		NEXT_PUBLIC_PRICE_RATE_USD_TO_EUR: z.coerce.number().positive().default(0.854),
 	},
 
 	/**
@@ -139,6 +141,10 @@ export const env = createEnv({
 		NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH,
 		NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
 		NEXT_PUBLIC_WHATSAPP_URL: process.env.NEXT_PUBLIC_WHATSAPP_URL,
+		NEXT_PUBLIC_PRICE_RATE_GBP_TO_EUR:
+			process.env.NEXT_PUBLIC_PRICE_RATE_GBP_TO_EUR,
+		NEXT_PUBLIC_PRICE_RATE_USD_TO_EUR:
+			process.env.NEXT_PUBLIC_PRICE_RATE_USD_TO_EUR,
 	},
 
 	/**

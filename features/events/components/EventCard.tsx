@@ -168,9 +168,10 @@ export function EventCard({
 				<div className="flex items-center space-x-1">
 					<Clock className="h-3 w-3 flex-shrink-0" />
 					<span className="truncate">
-						{event.time || "TBC"}
-						{event.endTime && event.time !== "TBC" && <> - {event.endTime}</>} •{" "}
 						{formatDayWithDate(event.day, event.date)}
+						{" • "}
+						{event.time || "TBC"}
+						{event.endTime && event.time !== "TBC" && <> - {event.endTime}</>}
 					</span>
 					{event.time && dayNightPeriod && (
 						<span

@@ -9,6 +9,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -125,15 +132,6 @@ const getGenreSearchSegment = (value: string): string => {
 	return (parts.at(-1) ?? value).trim();
 };
 
-const replaceGenreSearchSegment = (
-	value: string,
-	genreLabel: string,
-): string => {
-	const match = value.match(/^([\s\S]*[,/&+]\s*)?([^,/&+]*)$/u);
-	const prefix = match?.[1] ?? "";
-	return `${prefix}${genreLabel}`;
-};
-
 const splitGenreCell = (
 	value: string,
 	taxonomy?: GenreTaxonomySnapshot,
@@ -149,6 +147,16 @@ const splitGenreCell = (
 		}));
 
 const joinGenreLabels = (values: string[]): string => values.join(", ");
+
+const getSelectedGenreKeys = (
+	value: string,
+	taxonomy?: GenreTaxonomySnapshot,
+): Set<string> =>
+	new Set(
+		splitGenreCell(value, taxonomy)
+			.map((part) => part.resolved)
+			.filter((key): key is string => Boolean(key)),
+	);
 
 const getGenreLabel = (
 	key: string,
@@ -269,6 +277,7 @@ export const EventSheetEditorCard = ({
 	const [genreTaxonomy, setGenreTaxonomy] = useState<
 		GenreTaxonomySnapshot | undefined
 	>(initialEditorData?.genreTaxonomy);
+	const [isGenreManagerOpen, setIsGenreManagerOpen] = useState(false);
 	const [newGenreLabel, setNewGenreLabel] = useState("");
 	const [aliasInput, setAliasInput] = useState("");
 	const [aliasGenreKey, setAliasGenreKey] = useState("");
@@ -692,6 +701,45 @@ export const EventSheetEditorCard = ({
 		[genreTaxonomy, handleCellChange],
 	);
 
+	const toggleGenreForCell = useCallback(
+		(rowIndex: number, columnKey: string, genre: GenreTaxonomyDefinition) => {
+			const row = rowsRef.current[rowIndex];
+			if (!row) return;
+			const currentValue = row[columnKey] ?? "";
+			const taxonomy = genreTaxonomy;
+			const parts = splitGenreCell(currentValue, taxonomy);
+			const isSelected = parts.some((part) => part.resolved === genre.key);
+			const labels = isSelected
+				? parts
+						.filter((part) => part.resolved !== genre.key)
+						.map((part) => part.label)
+				: (() => {
+						const nextLabels = parts.map((part) => part.label);
+						const lastPart = parts.at(-1);
+						const search = normalizeGenreInputText(genreSearchQuery);
+						const shouldReplaceTypedSegment =
+							Boolean(search) &&
+							lastPart !== undefined &&
+							!lastPart.resolved &&
+							normalizeGenreInputText(lastPart.value) === search;
+						if (shouldReplaceTypedSegment && nextLabels.length > 0) {
+							nextLabels[nextLabels.length - 1] = genre.label;
+							return nextLabels;
+						}
+						return [...nextLabels, genre.label];
+					})();
+
+			handleCellChange(rowIndex, columnKey, joinGenreLabels(labels));
+			setGenreSearchQuery("");
+			setFocusedCategoryRowIndex(rowIndex);
+			setFocusedGenreCell({ rowIndex, columnKey });
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[genreSearchQuery, genreTaxonomy, handleCellChange],
+	);
+
 	const handleCreateGenre = useCallback(
 		async (labelInput: string, rowIndex?: number) => {
 			const label = labelInput.trim();
@@ -781,21 +829,9 @@ export const EventSheetEditorCard = ({
 
 	const selectGenreForCell = useCallback(
 		(rowIndex: number, columnKey: string, genre: GenreTaxonomyDefinition) => {
-			const row = rowsRef.current[rowIndex];
-			if (!row) return;
-			handleCellChange(
-				rowIndex,
-				columnKey,
-				replaceGenreSearchSegment(row[columnKey] ?? "", genre.label),
-			);
-			setGenreSearchQuery("");
-			setFocusedCategoryRowIndex(rowIndex);
-			setFocusedGenreCell({ rowIndex, columnKey });
-			window.setTimeout(() => {
-				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
-			}, 0);
+			toggleGenreForCell(rowIndex, columnKey, genre);
 		},
-		[handleCellChange],
+		[toggleGenreForCell],
 	);
 
 	const countryOptionsForFocusedCell = useMemo((): CountryOption[] => {
@@ -1084,7 +1120,7 @@ export const EventSheetEditorCard = ({
 						</div>
 					</div>
 
-					<div className="flex flex-wrap items-end gap-4 border-t pt-3">
+					<div className="grid items-end gap-4 border-t pt-3 lg:grid-cols-[minmax(280px,1.1fr)_minmax(220px,0.7fr)_minmax(260px,0.8fr)_auto]">
 						<div className="space-y-2">
 							<Label>Sheet actions</Label>
 							<div className="flex flex-wrap gap-2">
@@ -1117,7 +1153,34 @@ export const EventSheetEditorCard = ({
 							</div>
 						</div>
 
-						<div className="hidden h-9 w-px bg-border lg:block" />
+						<div className="space-y-2">
+							<Label>Genre tools</Label>
+							<div className="flex flex-wrap items-center gap-2">
+								<Badge variant="outline" className="h-8 text-[10px]">
+									{defaultGenres.length} default
+								</Badge>
+								<Badge variant="secondary" className="h-8 text-[10px]">
+									{customGenres.length} custom
+								</Badge>
+								{unknownGenres.length > 0 && (
+									<Badge
+										variant="outline"
+										className="h-8 border-amber-300 bg-amber-50 text-[10px] text-amber-900"
+									>
+										{unknownGenres.length} unknown
+									</Badge>
+								)}
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									className="h-9"
+									onClick={() => setIsGenreManagerOpen(true)}
+								>
+									Manage genres
+								</Button>
+							</div>
+						</div>
 
 						<div className="space-y-2">
 							<Label htmlFor="new-column-label">New column</Label>
@@ -1141,7 +1204,7 @@ export const EventSheetEditorCard = ({
 							</div>
 						</div>
 
-						<div className="ml-0 space-y-2 xl:ml-auto">
+						<div className="space-y-2 lg:justify-self-end">
 							<Label>View options</Label>
 							<div className="flex h-9 items-center overflow-hidden rounded-md border bg-background text-sm">
 								<span className="border-r px-3 text-muted-foreground">
@@ -1194,234 +1257,287 @@ export const EventSheetEditorCard = ({
 							</div>
 						</div>
 					</div>
-				</div>
-
-				<div className="space-y-2 rounded-md border bg-background/55 p-3">
-					<div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
-						<div className="flex flex-wrap items-center gap-2">
-							<Label>Genre library</Label>
-							<Badge variant="outline" className="text-[10px]">
-								{defaultGenres.length} default
-							</Badge>
-							<Badge variant="secondary" className="text-[10px]">
-								{customGenres.length} custom
-							</Badge>
-						</div>
-						<div className="grid grid-cols-[minmax(12rem,16rem)_auto] items-center gap-2">
-							<Input
-								value={newGenreLabel}
-								onChange={(event) => setNewGenreLabel(event.target.value)}
-								placeholder="French Pop"
-								className="h-9"
-								onKeyDown={(event) => {
-									if (event.key === "Enter") {
-										event.preventDefault();
-										void handleCreateGenre(newGenreLabel);
-									}
-								}}
-								aria-label="New genre label"
-							/>
-							<Button
-								type="button"
-								size="sm"
-								variant="outline"
-								className="h-9"
-								onClick={() => void handleCreateGenre(newGenreLabel)}
-								disabled={isSaving || isLoading}
-							>
-								Add custom
-							</Button>
-						</div>
-					</div>
-
-					<div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">
-						<div className="space-y-1.5">
-							<Label className="text-xs text-muted-foreground">
-								Default genres
-							</Label>
-							<div className="flex max-h-24 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
-								{defaultGenres.map((genre) => (
-									<button
-										key={genre.key}
-										type="button"
-										onClick={() => {
-											if (focusedCategoryRowIndex !== null) {
-												addGenreToRow(focusedCategoryRowIndex, genre.key);
-											}
-										}}
-										disabled={focusedCategoryRowIndex === null}
-										className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border/70 bg-background px-2.5 text-xs transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55"
-										title={
-											focusedCategoryRowIndex === null
-												? "Focus a Categories cell first"
-												: `Add ${genre.label}`
-										}
-									>
-										<span
-											className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
-										/>
-										{genre.label}
-									</button>
-								))}
-								{availableGenres.length === 0 && (
-									<span className="text-xs text-muted-foreground">
-										Genre list unavailable. Check the Postgres connection.
-									</span>
-								)}
-							</div>
-						</div>
-
-						<div className="space-y-1.5">
-							<Label className="text-xs text-muted-foreground">
-								Custom genres
-							</Label>
-							<div className="flex max-h-24 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
-								{customGenres.map((genre) => (
-									<div
-										key={genre.key}
-										className="inline-flex h-7 items-center overflow-hidden rounded-full border border-border/70 bg-background text-xs"
-									>
-										<button
-											type="button"
-											onClick={() => {
-												if (focusedCategoryRowIndex !== null) {
-													addGenreToRow(focusedCategoryRowIndex, genre.key);
-												}
-											}}
-											disabled={focusedCategoryRowIndex === null}
-											className="inline-flex h-7 items-center gap-1.5 px-2.5 transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55"
-											title={
-												focusedCategoryRowIndex === null
-													? "Focus a Categories cell first"
-													: `Add ${genre.label}`
-											}
-										>
-											<span
-												className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
-											/>
-											{genre.label}
-										</button>
-										<button
-											type="button"
-											className="h-7 border-l px-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-											onClick={() => void handleRemoveCustomGenre(genre)}
-											aria-label={`Remove ${genre.label}`}
-											title={`Remove ${genre.label}`}
-										>
-											x
-										</button>
-									</div>
-								))}
-								{customGenres.length === 0 && (
-									<span className="text-xs text-muted-foreground">
-										No custom genres yet.
-									</span>
-								)}
-							</div>
-						</div>
-					</div>
 
 					{unknownGenres.length > 0 && (
-						<div className="space-y-2 border-t pt-3">
-							<Label>Unknown genres in the sheet</Label>
-							<div className="flex flex-wrap gap-2">
-								{unknownGenres.slice(0, 12).map((genre) => (
-									<div
-										key={genre.value}
-										className="flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900"
+						<div className="border-t pt-3">
+							<div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+								<div className="flex flex-wrap items-center gap-2">
+									<span className="font-medium">Unknown genre tags</span>
+									<span className="text-amber-900">
+										Highlighted in the sheet. Add or map before publishing so
+										filters and genre chips stay consistent.
+									</span>
+									<Button
+										type="button"
+										size="sm"
+										variant="outline"
+										className="ml-auto h-8 border-amber-300 bg-amber-50"
+										onClick={() => setIsGenreManagerOpen(true)}
 									>
-										<span>
-											{genre.label} ({genre.count})
-										</span>
-										<Button
-											type="button"
-											size="sm"
-											variant="ghost"
-											className="h-5 px-1.5 text-[10px]"
-											title="Add this as a custom genre everywhere it appears"
-											onClick={() => void handleCreateGenre(genre.label)}
-										>
-											Add globally
-										</Button>
-										<Button
-											type="button"
-											size="sm"
-											variant="ghost"
-											className="h-5 px-1.5 text-[10px]"
-											onClick={() => {
-												setAliasInput(genre.label);
-											}}
-										>
-											Map
-										</Button>
-									</div>
-								))}
-							</div>
-							<div className="flex flex-wrap items-end gap-2">
-								<div className="space-y-1">
-									<Label htmlFor="genre-alias-target">Map typed genre to</Label>
-									<select
-										id="genre-alias-target"
-										value={aliasGenreKey}
-										onChange={(event) => setAliasGenreKey(event.target.value)}
-										className="h-9 w-48 rounded-md border border-input bg-background px-3 text-sm"
-									>
-										<option value="">Choose genre</option>
-										{availableGenres.map((genre) => (
-											<option key={genre.key} value={genre.key}>
-												{genre.label}
-											</option>
-										))}
-									</select>
+										Review all
+									</Button>
 								</div>
-								<Input
-									value={aliasInput}
-									onChange={(event) => setAliasInput(event.target.value)}
-									placeholder="Afrotrap"
-									className="h-9 w-[min(100%,220px)]"
-									aria-label="Alias to map"
-								/>
+								<div className="mt-2 flex flex-wrap gap-2">
+									{unknownGenres.slice(0, 6).map((genre) => (
+										<div
+											key={genre.value}
+											className="flex items-center gap-1 rounded-full border border-amber-300 bg-background/80 px-2 py-1 text-xs text-amber-900"
+										>
+											<span>
+												{genre.label} ({genre.count})
+											</span>
+											<Button
+												type="button"
+												size="sm"
+												variant="ghost"
+												className="h-5 px-1.5 text-[10px]"
+												title="Add this as a custom genre everywhere it appears"
+												onClick={() => void handleCreateGenre(genre.label)}
+											>
+												Add globally
+											</Button>
+											<Button
+												type="button"
+												size="sm"
+												variant="ghost"
+												className="h-5 px-1.5 text-[10px]"
+												onClick={() => {
+													setAliasInput(genre.label);
+													setIsGenreManagerOpen(true);
+												}}
+											>
+												Map
+											</Button>
+										</div>
+									))}
+									{unknownGenres.length > 6 && (
+										<Button
+											type="button"
+											size="sm"
+											variant="ghost"
+											className="h-7 text-xs text-amber-950"
+											onClick={() => setIsGenreManagerOpen(true)}
+										>
+											+{unknownGenres.length - 6} more
+										</Button>
+									)}
+								</div>
+							</div>
+						</div>
+					)}
+				</div>
+
+				<Dialog open={isGenreManagerOpen} onOpenChange={setIsGenreManagerOpen}>
+					<DialogContent className="max-h-[86vh] max-w-[min(960px,calc(100%-1.5rem))] overflow-y-auto">
+						<DialogHeader>
+							<DialogTitle>Manage genres</DialogTitle>
+							<DialogDescription>
+								Default genres are protected. Custom genres and aliases apply
+								across the whole sheet.
+							</DialogDescription>
+						</DialogHeader>
+
+						<div className="space-y-4">
+							<div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
+								<div className="space-y-1.5">
+									<Label htmlFor="new-genre-label">Add custom genre</Label>
+									<Input
+										id="new-genre-label"
+										value={newGenreLabel}
+										onChange={(event) => setNewGenreLabel(event.target.value)}
+										placeholder="French Pop"
+										className="h-9"
+										onKeyDown={(event) => {
+											if (event.key === "Enter") {
+												event.preventDefault();
+												void handleCreateGenre(newGenreLabel);
+											}
+										}}
+									/>
+								</div>
 								<Button
 									type="button"
 									size="sm"
 									variant="outline"
 									className="h-9"
-									onClick={() => void handleMapAlias(aliasInput)}
-									disabled={!aliasInput.trim() || !aliasGenreKey}
+									onClick={() => void handleCreateGenre(newGenreLabel)}
+									disabled={isSaving || isLoading}
 								>
-									Save mapping
+									Add custom
 								</Button>
 							</div>
-						</div>
-					)}
 
-					{customAliases.length > 0 && (
-						<div className="space-y-2 border-t pt-3">
-							<Label>Custom alias mappings</Label>
-							<div className="flex flex-wrap gap-2">
-								{customAliases.map((alias) => (
-									<div
-										key={`${alias.alias}:${alias.genreKey}`}
-										className="inline-flex h-7 items-center overflow-hidden rounded-full border border-border/70 bg-background text-xs"
-									>
-										<span className="px-2.5">
-											{toGenreLabel(alias.alias)} -&gt; {alias.genreLabel}
-										</span>
-										<button
-											type="button"
-											className="h-7 border-l px-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-											onClick={() => void handleRemoveAlias(alias.alias)}
-											aria-label={`Remove ${alias.alias} alias`}
-											title={`Remove ${alias.alias} alias`}
-										>
-											x
-										</button>
+							<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.5fr)]">
+								<div className="space-y-1.5">
+									<Label className="text-xs text-muted-foreground">
+										Default genres
+									</Label>
+									<div className="flex max-h-44 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
+										{defaultGenres.map((genre) => (
+											<span
+												key={genre.key}
+												className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border/70 bg-background px-2.5 text-xs"
+											>
+												<span
+													className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
+												/>
+												{genre.label}
+											</span>
+										))}
+										{availableGenres.length === 0 && (
+											<span className="text-xs text-muted-foreground">
+												Genre list unavailable. Check the Postgres connection.
+											</span>
+										)}
 									</div>
-								))}
+								</div>
+
+								<div className="space-y-1.5">
+									<Label className="text-xs text-muted-foreground">
+										Custom genres
+									</Label>
+									<div className="flex max-h-44 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
+										{customGenres.map((genre) => (
+											<div
+												key={genre.key}
+												className="inline-flex h-7 items-center overflow-hidden rounded-full border border-border/70 bg-background text-xs"
+											>
+												<span className="inline-flex h-7 items-center gap-1.5 px-2.5">
+													<span
+														className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
+													/>
+													{genre.label}
+												</span>
+												<button
+													type="button"
+													className="h-7 border-l px-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+													onClick={() => void handleRemoveCustomGenre(genre)}
+													aria-label={`Remove ${genre.label}`}
+													title={`Remove ${genre.label}`}
+												>
+													x
+												</button>
+											</div>
+										))}
+										{customGenres.length === 0 && (
+											<span className="text-xs text-muted-foreground">
+												No custom genres yet.
+											</span>
+										)}
+									</div>
+								</div>
 							</div>
+
+							{unknownGenres.length > 0 && (
+								<div className="space-y-2 border-t pt-3">
+									<Label>Unknown genres in the sheet</Label>
+									<div className="flex flex-wrap gap-2">
+										{unknownGenres.map((genre) => (
+											<div
+												key={genre.value}
+												className="flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900"
+											>
+												<span>
+													{genre.label} ({genre.count})
+												</span>
+												<Button
+													type="button"
+													size="sm"
+													variant="ghost"
+													className="h-5 px-1.5 text-[10px]"
+													title="Add this as a custom genre everywhere it appears"
+													onClick={() => void handleCreateGenre(genre.label)}
+												>
+													Add globally
+												</Button>
+												<Button
+													type="button"
+													size="sm"
+													variant="ghost"
+													className="h-5 px-1.5 text-[10px]"
+													onClick={() => setAliasInput(genre.label)}
+												>
+													Map
+												</Button>
+											</div>
+										))}
+									</div>
+								</div>
+							)}
+
+							<div className="space-y-2 border-t pt-3">
+								<Label>Alias mapping</Label>
+								<div className="flex flex-wrap items-end gap-2">
+									<div className="space-y-1">
+										<Label htmlFor="genre-alias-target">
+											Treat typed genre as
+										</Label>
+										<select
+											id="genre-alias-target"
+											value={aliasGenreKey}
+											onChange={(event) => setAliasGenreKey(event.target.value)}
+											className="h-9 w-52 rounded-md border border-input bg-background px-3 text-sm"
+										>
+											<option value="">Choose genre</option>
+											{availableGenres.map((genre) => (
+												<option key={genre.key} value={genre.key}>
+													{genre.label}
+												</option>
+											))}
+										</select>
+									</div>
+									<div className="space-y-1">
+										<Label htmlFor="genre-alias-input">Typed genre</Label>
+										<Input
+											id="genre-alias-input"
+											value={aliasInput}
+											onChange={(event) => setAliasInput(event.target.value)}
+											placeholder="Afro Trap"
+											className="h-9 w-[min(100%,240px)]"
+										/>
+									</div>
+									<Button
+										type="button"
+										size="sm"
+										variant="outline"
+										className="h-9"
+										onClick={() => void handleMapAlias(aliasInput)}
+										disabled={!aliasInput.trim() || !aliasGenreKey}
+									>
+										Save mapping
+									</Button>
+								</div>
+							</div>
+
+							{customAliases.length > 0 && (
+								<div className="space-y-2 border-t pt-3">
+									<Label>Custom alias mappings</Label>
+									<div className="flex flex-wrap gap-2">
+										{customAliases.map((alias) => (
+											<div
+												key={`${alias.alias}:${alias.genreKey}`}
+												className="inline-flex h-7 items-center overflow-hidden rounded-full border border-border/70 bg-background text-xs"
+											>
+												<span className="px-2.5">
+													{toGenreLabel(alias.alias)} -&gt; {alias.genreLabel}
+												</span>
+												<button
+													type="button"
+													className="h-7 border-l px-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+													onClick={() => void handleRemoveAlias(alias.alias)}
+													aria-label={`Remove ${alias.alias} alias`}
+													title={`Remove ${alias.alias} alias`}
+												>
+													x
+												</button>
+											</div>
+										))}
+									</div>
+								</div>
+							)}
 						</div>
-					)}
-				</div>
+					</DialogContent>
+				</Dialog>
 
 				{errorMessage && (
 					<div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -1574,6 +1690,10 @@ export const EventSheetEditorCard = ({
 							) : (
 								visibleRowIndexes.map((rowIndex) => {
 									const row = rows[rowIndex];
+									const selectedGenreKeys = getSelectedGenreKeys(
+										row[CATEGORY_COLUMN_KEY] ?? "",
+										genreTaxonomy,
+									);
 									return (
 										<tr key={`row-${rowIndex}`} className="align-top">
 											<td
@@ -1606,11 +1726,7 @@ export const EventSheetEditorCard = ({
 																		rowIndex,
 																		columnKey: column.key,
 																	});
-																	setGenreSearchQuery(
-																		getGenreSearchSegment(
-																			row[column.key] ?? "",
-																		),
-																	);
+																	setGenreSearchQuery("");
 																	setHighlightedGenreIndex(0);
 																}}
 																onChange={(event) => {
@@ -1730,38 +1846,52 @@ export const EventSheetEditorCard = ({
 																		</div>
 																		<div className="max-h-60 overflow-y-auto p-1">
 																			{genreOptionsForFocusedCell.map(
-																				(genre, optionIndex) => (
-																					<button
-																						key={genre.key}
-																						type="button"
-																						onMouseDown={(event) => {
-																							event.preventDefault();
-																							selectGenreForCell(
-																								rowIndex,
-																								column.key,
-																								genre,
-																							);
-																						}}
-																						className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
-																							optionIndex ===
-																							highlightedGenreIndex
-																								? "bg-accent text-accent-foreground"
-																								: "hover:bg-accent/70"
-																						}`}
-																					>
-																						<span
-																							className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
-																						/>
-																						<span className="min-w-0 flex-1 truncate">
-																							{genre.label}
-																						</span>
-																						<span className="text-[10px] text-muted-foreground">
-																							{genre.isDefault
-																								? "Default"
-																								: "Custom"}
-																						</span>
-																					</button>
-																				),
+																				(genre, optionIndex) => {
+																					const isSelected =
+																						selectedGenreKeys.has(genre.key);
+																					return (
+																						<button
+																							key={genre.key}
+																							type="button"
+																							onMouseDown={(event) => {
+																								event.preventDefault();
+																								selectGenreForCell(
+																									rowIndex,
+																									column.key,
+																									genre,
+																								);
+																							}}
+																							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																								optionIndex ===
+																								highlightedGenreIndex
+																									? "bg-accent text-accent-foreground"
+																									: isSelected
+																										? "bg-muted text-foreground"
+																										: "hover:bg-accent/70"
+																							}`}
+																						>
+																							<span
+																								className={`h-3 w-3 rounded-sm border ${
+																									isSelected
+																										? "border-foreground bg-foreground"
+																										: "border-muted-foreground/40"
+																								}`}
+																								aria-hidden="true"
+																							/>
+																							<span
+																								className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
+																							/>
+																							<span className="min-w-0 flex-1 truncate">
+																								{genre.label}
+																							</span>
+																							<span className="text-[10px] text-muted-foreground">
+																								{genre.isDefault
+																									? "Default"
+																									: "Custom"}
+																							</span>
+																						</button>
+																					);
+																				},
 																			)}
 																			{genreOptionsForFocusedCell.length ===
 																				0 && (
