@@ -55,7 +55,7 @@ Runtime event reads flow through:
 1. `features/data-management/runtime-service.ts#getLiveEvents()`
 2. `features/data-management/data-manager.ts#getEventsData()`
 3. Source order based on mode:
-- `DATA_MODE=remote`: managed store first, then local CSV fallback
+- `DATA_MODE=remote`: managed store first, then latest Postgres event-store backup, then bundled local CSV fallback
 - `DATA_MODE=local`: local CSV only
 - `DATA_MODE=test`: test fixture data
 

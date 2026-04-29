@@ -7,7 +7,8 @@ A Next.js app for discovering Fete de la Musique events, with an admin workflow 
 Runtime source order (`DATA_MODE=remote`):
 
 1. Postgres event store (primary)
-2. Local CSV fallback (`data/events.csv`) if Postgres data is unavailable
+2. Latest Postgres event-store backup if the live store is unavailable/invalid
+3. Bundled local CSV fallback (`data/events.csv`) if Postgres data and backups are unavailable
 
 Google Sheets is not used in the runtime or admin data workflow.
 
@@ -29,7 +30,8 @@ Server-side event reads flow as:
 2. `DataManager.getEventsData()`
 3. Source chain in remote mode:
    - managed Postgres event store (`store`)
-   - local CSV fallback (`data/events.csv`) if store is unavailable/invalid
+   - latest Postgres event-store backup (`backup`) if store is unavailable/invalid
+   - bundled local CSV fallback (`data/events.csv`) if Postgres data and backups are unavailable
 4. `processCSVData()`:
    - event key hydration
    - quality checks
@@ -145,7 +147,7 @@ Geocoding is an optional enrichment path. Homepage event reads do not require
 or perform provider lookups; admin warmup/on-demand location resolution can use
 the provider when configured, while map links fall back to venue text search.
 
-No custom in-memory events cache is used. Live reads are pass-through source reads (`Postgres -> local fallback` in remote mode), with Next.js built-ins (ISR/on-demand revalidation) for delivery where configured.
+No custom in-memory events cache is used. Live reads are pass-through source reads (`Postgres -> latest backup -> bundled CSV` in remote mode), with Next.js built-ins (ISR/on-demand revalidation) for delivery where configured. The bundled CSV is a server-side emergency fallback and deployment artifact; it helps when remote data reads fail, but browser offline behavior still depends on the app's PWA/client caching.
 
 ## Logging + Dedupe
 

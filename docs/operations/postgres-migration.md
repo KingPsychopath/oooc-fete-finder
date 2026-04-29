@@ -5,7 +5,8 @@ Use this for first-time setup, cutover, or restore.
 ## Target State
 
 - Primary runtime source: managed Postgres event store
-- Fallback source: local CSV (`data/events.csv`) in remote mode if store read fails
+- Fallback sources in remote mode: latest Postgres event-store backup, then bundled local CSV (`data/events.csv`)
+- Bundled CSV is a server-side emergency fallback. It is deployment-time data, not a live sync or full browser offline cache.
 
 ## Required Env
 

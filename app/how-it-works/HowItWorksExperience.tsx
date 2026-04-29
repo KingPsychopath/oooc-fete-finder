@@ -208,8 +208,8 @@ function MiniMap({ activeStep }: { activeStep: StoryStepId }) {
 
 function DemoPanel({ activeStep }: { activeStep: StoryStepId }) {
 	return (
-		<div className="sticky top-28">
-			<div className="rounded-[2rem] border border-border/70 bg-card/78 p-3 shadow-[0_30px_90px_-58px_rgba(24,16,10,0.9)] backdrop-blur-xl">
+		<div className="sticky top-32 ml-auto w-full max-w-[34rem]">
+			<div className="rounded-[2rem] border border-border/70 bg-card/82 p-3 shadow-[0_30px_90px_-58px_rgba(24,16,10,0.9)] backdrop-blur-xl">
 				<div className="overflow-hidden rounded-[1.55rem] border border-border/70 bg-background/72">
 					<div className="flex items-center justify-between border-b border-border/65 px-4 py-3">
 						<div className="flex items-center gap-2">
@@ -596,7 +596,7 @@ export function HowItWorksExperience() {
 			</section>
 
 			<section className="px-4 py-12 sm:px-6 lg:px-8 lg:py-14">
-				<div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.84fr)_minmax(27rem,0.92fr)]">
+				<div className="mx-auto grid max-w-[108rem] gap-10 lg:grid-cols-[minmax(0,0.86fr)_minmax(30rem,0.7fr)] lg:gap-14 xl:gap-20">
 					<div className="grid gap-4 lg:gap-2">
 						{storySteps.map((step, index) => (
 							<article
@@ -645,7 +645,7 @@ export function HowItWorksExperience() {
 						))}
 					</div>
 
-					<div className="hidden lg:block">
+					<div className="hidden self-start lg:block">
 						<DemoPanel activeStep={activeStep} />
 					</div>
 				</div>
