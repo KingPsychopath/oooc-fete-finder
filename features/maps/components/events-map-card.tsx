@@ -5,7 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Event } from "@/features/events/types";
-import { ChevronDown, LocateFixed, MapPin, Maximize2, X } from "lucide-react";
+import { LAYERS } from "@/lib/ui/layers";
+import {
+	ChevronDown,
+	Filter,
+	LocateFixed,
+	MapPin,
+	Maximize2,
+	X,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -32,6 +40,9 @@ type EventsMapCardProps = {
 	onToggleExpanded: () => void;
 	onEventClick: (event: Event) => void;
 	mapLoadStrategy?: MapLoadStrategy;
+	onFilterClick?: () => void;
+	hasActiveFilters?: boolean;
+	activeFiltersCount?: number;
 };
 
 export function EventsMapCard({
@@ -40,6 +51,9 @@ export function EventsMapCard({
 	onToggleExpanded,
 	onEventClick,
 	mapLoadStrategy = "idle",
+	onFilterClick,
+	hasActiveFilters = false,
+	activeFiltersCount = 0,
 }: EventsMapCardProps) {
 	const isOnline = useOnlineStatus();
 	const [hasMountedMap, setHasMountedMap] = useState(false);
@@ -279,8 +293,11 @@ export function EventsMapCard({
 			</Card>
 			{isFullscreen &&
 				createPortal(
-					<div className="fixed inset-0 z-[100] h-[100svh] w-screen overflow-hidden bg-background">
-						<div className="pointer-events-none absolute left-1/2 top-3 z-[4] -translate-x-1/2 sm:top-5">
+					<div
+						className="fixed inset-0 h-[100svh] w-screen overflow-hidden bg-background"
+						style={{ zIndex: LAYERS.OVERLAY - 10 }}
+					>
+						<div className="pointer-events-none absolute right-2 top-28 z-[4] flex flex-col items-center gap-2 sm:left-1/2 sm:right-auto sm:top-5 sm:-translate-x-1/2 sm:flex-row">
 							<Button
 								variant="secondary"
 								size="sm"
@@ -290,6 +307,26 @@ export function EventsMapCard({
 							>
 								<X className="h-4 w-4" />
 							</Button>
+							{onFilterClick && (
+								<Button
+									variant="secondary"
+									size="sm"
+									onClick={onFilterClick}
+									className="pointer-events-auto h-11 rounded-full border border-border/70 bg-background/82 px-4 text-xs shadow-lg backdrop-blur-md"
+									aria-label="Open event filters"
+								>
+									<Filter className="mr-1.5 h-3.5 w-3.5" />
+									<span className="hidden min-[380px]:inline">Filters</span>
+									{hasActiveFilters && (
+										<Badge
+											variant="destructive"
+											className="ml-0 h-4 min-w-4 rounded-full px-1 text-[10px] min-[380px]:ml-1.5"
+										>
+											{activeFiltersCount}
+										</Badge>
+									)}
+								</Button>
+							)}
 						</div>
 						<div ref={fullscreenMapSlotRef} className="h-[100svh] w-screen" />
 					</div>,

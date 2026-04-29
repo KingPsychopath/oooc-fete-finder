@@ -447,6 +447,9 @@ export function EventsClient({
 					onToggleExpanded={toggleMapExpansion}
 					onEventClick={handleEventClick}
 					mapLoadStrategy={mapLoadStrategy}
+					onFilterClick={toggleFilterPanel}
+					hasActiveFilters={hasAnyActiveFilters}
+					activeFiltersCount={activeFiltersCount}
 				/>
 			</div>
 

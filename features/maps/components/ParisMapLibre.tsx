@@ -125,6 +125,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 }) => {
 	const mapContainer = useRef<HTMLDivElement>(null);
 	const map = useRef<maplibregl.Map | null>(null);
+	const hasLoadedMapRef = useRef(false);
 	const [mapLoaded, setMapLoaded] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
@@ -384,12 +385,22 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				map.current.addControl(new maplibregl.NavigationControl(), "top-right");
 
 				map.current.on("load", () => {
+					hasLoadedMapRef.current = true;
 					setMapLoaded(true);
 					setIsLoading(false);
 				});
 
 				map.current.on("error", (e: maplibregl.ErrorEvent) => {
-					clientLog.error("maps.maplibre", "Map loading error", undefined, e);
+					if (hasLoadedMapRef.current) {
+						clientLog.warn("maps.maplibre", "Non-fatal map tile error", {
+							message: e.error.message,
+						});
+						return;
+					}
+
+					clientLog.error("maps.maplibre", "Map loading error", {
+						message: e.error.message,
+					});
 					setLoadError("Failed to load map tiles");
 					setIsLoading(false);
 				});
@@ -448,6 +459,44 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			window.clearTimeout(timeoutId);
 		};
 	}, [resizeSignal]);
+
+	useEffect(() => {
+		if (!mapLoaded) return;
+
+		let frameId: number | null = null;
+		let timeoutId: ReturnType<typeof setTimeout> | null = null;
+		const resizeMap = () => {
+			if (frameId !== null) {
+				window.cancelAnimationFrame(frameId);
+			}
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+
+			frameId = window.requestAnimationFrame(() => {
+				map.current?.resize();
+			});
+			timeoutId = setTimeout(() => {
+				map.current?.resize();
+			}, 260);
+		};
+
+		window.addEventListener("resize", resizeMap);
+		window.addEventListener("orientationchange", resizeMap);
+		window.visualViewport?.addEventListener("resize", resizeMap);
+
+		return () => {
+			window.removeEventListener("resize", resizeMap);
+			window.removeEventListener("orientationchange", resizeMap);
+			window.visualViewport?.removeEventListener("resize", resizeMap);
+			if (frameId !== null) {
+				window.cancelAnimationFrame(frameId);
+			}
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+		};
+	}, [mapLoaded]);
 
 	useEffect(() => {
 		selectedArrondissementRef.current = selectedArrondissement;
