@@ -195,6 +195,68 @@ export function AdminShell({
 		window.setTimeout(scrollToTarget, 0);
 	}, [normalizedPath, pendingAnchor]);
 
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		const handleAdminHashLinkClick = (event: MouseEvent) => {
+			const target = event.target;
+			if (!(target instanceof Element)) return;
+			const anchor = target.closest<HTMLAnchorElement>("a[href]");
+			if (!anchor?.href) return;
+
+			const url = new URL(anchor.href);
+			if (url.origin !== window.location.origin || !url.hash) return;
+			const anchorId = url.hash.replace(/^#/, "").trim();
+			if (!anchorId) return;
+
+			setPendingAnchor({
+				pathname: stripAdminBasePath(url.pathname),
+				anchorId,
+			});
+		};
+
+		document.addEventListener("click", handleAdminHashLinkClick, {
+			capture: true,
+		});
+		return () => {
+			document.removeEventListener("click", handleAdminHashLinkClick, {
+				capture: true,
+			});
+		};
+	}, []);
+
+	useEffect(() => {
+		if (pendingAnchor || typeof window === "undefined") return;
+		const routePath = normalizedPath;
+
+		const scrollToCurrentHash = () => {
+			const anchorId = window.location.hash.replace(/^#/, "").trim();
+			if (!anchorId || !routePath) return;
+
+			let attempts = 0;
+			const maxAttempts = 10;
+			const scrollToTarget = () => {
+				const target = document.getElementById(anchorId);
+				if (target) {
+					target.scrollIntoView({ behavior: "smooth", block: "start" });
+					return;
+				}
+				if (attempts < maxAttempts) {
+					attempts += 1;
+					window.setTimeout(scrollToTarget, 80);
+				}
+			};
+
+			window.setTimeout(scrollToTarget, 0);
+		};
+
+		scrollToCurrentHash();
+		window.addEventListener("hashchange", scrollToCurrentHash);
+		return () => {
+			window.removeEventListener("hashchange", scrollToCurrentHash);
+		};
+	}, [normalizedPath, pendingAnchor]);
+
 	return (
 		<div className="ooo-admin-shell overflow-x-hidden">
 			<div className="mx-auto w-full max-w-[1960px] px-4 py-6 sm:px-6 lg:px-8">

@@ -1,6 +1,7 @@
 "use server";
 
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
+import { recordAdminActivity } from "@/features/admin/activity/record";
 import {
 	getLiveEvents,
 	revalidateEventsPaths,
@@ -131,6 +132,16 @@ export async function schedulePromotedEvent(
 			createdBy: "admin-panel",
 		});
 		revalidateEventsPaths(["/", "/feature-event"]);
+		await recordAdminActivity({
+			action: "placement.promoted.scheduled",
+			category: "placements",
+			targetType: "promoted_placement",
+			targetId: eventKey,
+			targetLabel: eventKey,
+			summary: `Promoted placement scheduled for ${eventKey}`,
+			metadata: { requestedStartAt, durationHours },
+			href: "/admin/placements#featured-events-manager",
+		});
 		return {
 			success: true,
 			message: "Promoted schedule saved and pages revalidated",
@@ -156,6 +167,16 @@ export async function cancelPromotedSchedule(entryId: string): Promise<{
 			return { success: false, message: "Promoted entry not found" };
 		}
 		revalidateEventsPaths(["/", "/feature-event"]);
+		await recordAdminActivity({
+			action: "placement.promoted.cancelled",
+			category: "placements",
+			targetType: "promoted_placement",
+			targetId: entryId,
+			targetLabel: entryId,
+			summary: "Promoted placement cancelled",
+			severity: "warning",
+			href: "/admin/placements#featured-events-manager",
+		});
 		return {
 			success: true,
 			message: "Promoted entry cancelled and pages revalidated",
@@ -189,6 +210,16 @@ export async function reschedulePromotedEvent(
 			return { success: false, message: "Promoted entry not found" };
 		}
 		revalidateEventsPaths(["/", "/feature-event"]);
+		await recordAdminActivity({
+			action: "placement.promoted.rescheduled",
+			category: "placements",
+			targetType: "promoted_placement",
+			targetId: entryId,
+			targetLabel: entryId,
+			summary: "Promoted placement rescheduled",
+			metadata: { requestedStartAt, durationHours },
+			href: "/admin/placements#featured-events-manager",
+		});
 		return {
 			success: true,
 			message: "Promoted entry rescheduled and pages revalidated",
@@ -212,6 +243,16 @@ export async function clearPromotedQueueHistory(): Promise<{
 		await assertAdmin();
 		const clearedCount = await clearPromotedQueueHistoryService();
 		revalidateEventsPaths(["/", "/feature-event"]);
+		await recordAdminActivity({
+			action: "placement.promoted.cleared_all",
+			category: "placements",
+			targetType: "promoted_queue",
+			targetLabel: "Promoted queue and history",
+			summary: `Cleared ${clearedCount} promoted queue/history entr${clearedCount === 1 ? "y" : "ies"}`,
+			metadata: { clearedCount },
+			severity: "destructive",
+			href: "/admin/placements#featured-events-manager",
+		});
 		return {
 			success: true,
 			message: `Cleared ${clearedCount} promoted queue/history entr${clearedCount === 1 ? "y" : "ies"}`,
@@ -234,6 +275,16 @@ export async function clearPromotedQueue(): Promise<{
 		await assertAdmin();
 		const clearedCount = await clearPromotedQueueOnlyService();
 		revalidateEventsPaths(["/", "/feature-event"]);
+		await recordAdminActivity({
+			action: "placement.promoted.cleared_queue",
+			category: "placements",
+			targetType: "promoted_queue",
+			targetLabel: "Promoted scheduled queue",
+			summary: `Cleared ${clearedCount} scheduled promoted entr${clearedCount === 1 ? "y" : "ies"}`,
+			metadata: { clearedCount },
+			severity: "destructive",
+			href: "/admin/placements#featured-events-manager",
+		});
 		return {
 			success: true,
 			message: `Cleared ${clearedCount} scheduled promoted entr${clearedCount === 1 ? "y" : "ies"}`,
@@ -257,6 +308,16 @@ export async function clearPromotedHistory(): Promise<{
 		await assertAdmin();
 		const clearedCount = await clearPromotedHistoryOnlyService();
 		revalidateEventsPaths(["/", "/feature-event"]);
+		await recordAdminActivity({
+			action: "placement.promoted.cleared_history",
+			category: "placements",
+			targetType: "promoted_history",
+			targetLabel: "Promoted history",
+			summary: `Cleared ${clearedCount} promoted history entr${clearedCount === 1 ? "y" : "ies"}`,
+			metadata: { clearedCount },
+			severity: "destructive",
+			href: "/admin/placements#featured-events-manager",
+		});
 		return {
 			success: true,
 			message: `Cleared ${clearedCount} promoted history entr${clearedCount === 1 ? "y" : "ies"}`,

@@ -1,4 +1,5 @@
 import { EventStoreBackupService } from "@/features/data-management/event-store-backup-service";
+import { recordAdminActivity } from "@/features/admin/activity/record";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -37,6 +38,24 @@ export async function GET(request: NextRequest) {
 				{ status: 500, headers: NO_STORE_HEADERS },
 			);
 		}
+		await recordAdminActivity({
+			actorType: "cron",
+			actorLabel: "Daily backup cron",
+			action: "backup.created",
+			category: "operations",
+			targetType: "event_store_backup",
+			targetId: result.backup?.id ?? null,
+			targetLabel: "Daily snapshot",
+			summary: "Daily operational snapshot created",
+			metadata: {
+				trigger: "cron",
+				rowCount: result.backup?.rowCount ?? 0,
+				featuredEntryCount: result.backup?.featuredEntryCount ?? 0,
+				userCollectionCount: result.backup?.userCollectionCount ?? null,
+				prunedCount: result.prunedCount ?? 0,
+			},
+			href: "/admin/operations#data-store-controls",
+		});
 
 		return NextResponse.json(
 			{

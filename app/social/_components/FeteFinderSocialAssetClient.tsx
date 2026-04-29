@@ -286,7 +286,7 @@ function StoryArtwork() {
 			</div>
 
 			<div className="absolute right-[72px] top-[82px] rounded-full border border-[#9b7155]/36 bg-white/48 px-6 py-3 text-[20px] font-semibold uppercase tracking-[0.12em] text-[#5c3224]">
-				Paris
+				2026 guide
 			</div>
 
 			<div className="absolute left-[72px] right-[72px] top-[238px]">
@@ -346,7 +346,7 @@ function WideArtwork() {
 						</p>
 					</div>
 				</div>
-				<div className="rounded-full border border-[#9b7155]/34 bg-white/52 px-6 py-3 text-[18px] font-semibold uppercase tracking-[0.12em] text-[#5c3224]">
+				<div className="rounded-full border border-[#fff2da]/28 bg-[#fff7e9] px-6 py-3 text-[18px] font-semibold uppercase tracking-[0.12em] text-[#213f43]">
 					2026 guide
 				</div>
 			</div>
@@ -388,8 +388,8 @@ function SquareArtwork() {
 			<WideBackground />
 			<div className="absolute left-[64px] right-[64px] top-[62px] flex items-center justify-between">
 				<BrandMark size={76} />
-				<div className="rounded-full border border-[#9b7155]/34 bg-white/52 px-5 py-3 text-[18px] font-semibold uppercase tracking-[0.12em] text-[#5c3224]">
-					Paris
+				<div className="rounded-full border border-[#fff2da]/28 bg-[#fff7e9] px-5 py-3 text-[18px] font-semibold uppercase tracking-[0.12em] text-[#213f43]">
+					2026 guide
 				</div>
 			</div>
 
@@ -410,7 +410,7 @@ function SquareArtwork() {
 			</div>
 
 			<div className="absolute bottom-[64px] left-[64px] right-[64px] flex items-center justify-between border-t border-[#fff2da]/30 pt-7">
-				<p className="m-0 text-[28px] font-semibold text-[#fff9ef]">
+				<p className="m-0 text-[28px] font-semibold text-[#211912]">
 					fete.outofofficecollective.co.uk
 				</p>
 				<div className="rounded-full bg-[#fff7e9] px-6 py-3 text-[18px] font-semibold uppercase tracking-[0.12em] text-[#213f43]">
@@ -477,6 +477,7 @@ function StoryBackground() {
 			<div className="absolute inset-0 bg-[linear-gradient(180deg,#fbf5ec_0%,#ead6bd_54%,#213f43_100%)]" />
 			<div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(167,94,55,0.34),transparent_32%),radial-gradient(circle_at_88%_28%,rgba(226,170,91,0.34),transparent_34%),radial-gradient(circle_at_46%_88%,rgba(23,85,91,0.82),transparent_46%)]" />
 			<div className="absolute inset-x-0 bottom-0 h-[44%] bg-[linear-gradient(180deg,rgba(25,47,48,0)_0%,rgba(12,29,31,0.86)_58%,rgba(8,20,22,0.95)_100%)]" />
+			<GrainOverlay />
 		</>
 	);
 }
@@ -487,6 +488,21 @@ function WideBackground() {
 			<div className="absolute inset-0 bg-[linear-gradient(135deg,#fbf5ec_0%,#ead6bd_48%,#d5b38c_100%)]" />
 			<div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_14%,rgba(167,94,55,0.35),transparent_31%),radial-gradient(circle_at_86%_18%,rgba(226,170,91,0.42),transparent_32%),radial-gradient(circle_at_86%_86%,rgba(23,85,91,0.88),transparent_38%)]" />
 			<div className="absolute inset-y-0 right-0 w-[42%] bg-[linear-gradient(90deg,rgba(25,47,48,0)_0%,rgba(12,29,31,0.72)_72%,rgba(8,20,22,0.92)_100%)]" />
+			<GrainOverlay />
 		</>
+	);
+}
+
+function GrainOverlay() {
+	return (
+		<div
+			className="pointer-events-none absolute inset-0 opacity-[0.16] mix-blend-multiply"
+			style={{
+				backgroundImage:
+					"radial-gradient(circle at 20% 30%, rgba(33, 25, 18, 0.42) 0 0.7px, transparent 0.9px), radial-gradient(circle at 70% 80%, rgba(255, 247, 233, 0.54) 0 0.7px, transparent 1px), radial-gradient(circle at 45% 55%, rgba(33, 25, 18, 0.28) 0 0.6px, transparent 0.9px)",
+				backgroundPosition: "0 0, 1px 2px, 3px 1px",
+				backgroundSize: "4px 4px, 5px 5px, 6px 6px",
+			}}
+		/>
 	);
 }

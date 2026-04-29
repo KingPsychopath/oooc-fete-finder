@@ -1,6 +1,7 @@
 "use server";
 
 import { randomUUID } from "crypto";
+import { recordAdminActivity } from "@/features/admin/activity/record";
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import {
@@ -262,6 +263,21 @@ export async function fulfillPartnerActivation(input: {
 		const siteUrl =
 			env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "") +
 			`${env.NEXT_PUBLIC_BASE_PATH}/partner-stats/${updated.id}?token=${updated.partnerStatsToken}`;
+		await recordAdminActivity({
+			action: "partner_activation.fulfilled",
+			category: "placements",
+			targetType: "partner_activation",
+			targetId: updated.id,
+			targetLabel: updated.eventName ?? input.eventKey,
+			summary: `Paid order fulfilled as ${input.tier} for ${input.eventKey}`,
+			metadata: {
+				tier: input.tier,
+				eventKey: input.eventKey,
+				startAt: effectiveStartAt,
+				endAt: effectiveEndAt,
+			},
+			href: "/admin/placements#paid-orders-inbox",
+		});
 
 		return {
 			success: true,
@@ -307,6 +323,17 @@ export async function updatePartnerActivationStatus(input: {
 				error: "Activation queue item not found",
 			};
 		}
+		await recordAdminActivity({
+			action: "partner_activation.status_updated",
+			category: "placements",
+			targetType: "partner_activation",
+			targetId: updated.id,
+			targetLabel: updated.eventName ?? updated.customerEmail,
+			summary: `Paid order marked ${input.status}`,
+			metadata: { status: input.status },
+			severity: input.status === "dismissed" ? "warning" : "info",
+			href: "/admin/placements#paid-orders-inbox",
+		});
 		return {
 			success: true,
 			message: `Marked item as ${input.status}`,
@@ -357,6 +384,16 @@ export async function revokePartnerStatsLink(input: {
 				error: "This item does not have a partner stats link to revoke",
 			};
 		}
+		await recordAdminActivity({
+			action: "partner_report.revoked",
+			category: "placements",
+			targetType: "partner_report",
+			targetId: updated.id,
+			targetLabel: updated.eventName ?? updated.fulfilledEventKey,
+			summary: "Partner stats link revoked",
+			severity: "warning",
+			href: "/admin/placements#paid-orders-inbox",
+		});
 		return {
 			success: true,
 			message: "Partner stats link revoked",
@@ -414,6 +451,15 @@ export async function regeneratePartnerStatsLink(input: {
 				error: "Failed to regenerate partner stats link",
 			};
 		}
+		await recordAdminActivity({
+			action: "partner_report.regenerated",
+			category: "placements",
+			targetType: "partner_report",
+			targetId: updated.id,
+			targetLabel: updated.eventName ?? updated.fulfilledEventKey,
+			summary: "Partner stats link regenerated",
+			href: "/admin/placements#paid-orders-inbox",
+		});
 		return {
 			success: true,
 			statsPath,
@@ -513,6 +559,21 @@ export async function generatePartnerStatsTestLink(input: {
 		const statsPath =
 			env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "") +
 			`${env.NEXT_PUBLIC_BASE_PATH}/partner-stats/${updated.id}?token=${updated.partnerStatsToken}`;
+		await recordAdminActivity({
+			action: "partner_report.test_link_generated",
+			category: "placements",
+			targetType: "partner_report",
+			targetId: updated.id,
+			targetLabel: trimmedEventKey,
+			summary: `Test partner stats link generated for ${trimmedEventKey}`,
+			metadata: {
+				tier: input.tier,
+				eventKey: trimmedEventKey,
+				startAt: reportWindow.startAt,
+				endAt: reportWindow.endAt,
+			},
+			href: "/admin/placements#paid-orders-inbox",
+		});
 
 		return {
 			success: true,
@@ -642,6 +703,21 @@ export async function getOrCreatePartnerReportForPlacement(input: {
 				error: "Failed to finalize scheduler report",
 			};
 		}
+		await recordAdminActivity({
+			action: "partner_report.created_for_placement",
+			category: "placements",
+			targetType: "partner_report",
+			targetId: updated.id,
+			targetLabel: input.eventName?.trim() || eventKey,
+			summary: `Partner report created for ${eventKey}`,
+			metadata: {
+				placementId: input.placementId,
+				tier: input.tier,
+				startAt,
+				endAt,
+			},
+			href: "/admin/placements#featured-events-manager",
+		});
 
 		return {
 			success: true,

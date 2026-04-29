@@ -4,6 +4,7 @@ import type {
 	CollectedEmailsResponse,
 	UserRecord,
 } from "@/features/auth/types";
+import { recordAdminActivity } from "@/features/admin/activity/record";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { isAdminAuthEnabled } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
@@ -194,6 +195,18 @@ export async function createAdminSession(adminKey: string): Promise<{
 	}
 
 	const session = await createAdminSessionWithCookie();
+	await recordAdminActivity({
+		actorType: "admin_session",
+		actorSessionJti: session.jti,
+		actorLabel: `Admin session ${session.jti.slice(0, 8)}...${session.jti.slice(-4)}`,
+		action: "auth.session.created",
+		category: "auth",
+		targetType: "admin_session",
+		targetId: session.jti,
+		targetLabel: "Admin login",
+		summary: "Admin session created",
+		href: "/admin/operations#admin-session",
+	});
 	return {
 		success: true,
 		expiresAt: session.expiresAt,
@@ -334,6 +347,17 @@ export async function revokeAdminTokenSessionByJti(
 		return { success: false, error: "Session not found or invalid jti" };
 	}
 
+	await recordAdminActivity({
+		action: "auth.session.revoked",
+		category: "auth",
+		targetType: "admin_session",
+		targetId: jti,
+		targetLabel: `Session ${jti.slice(0, 8)}...${jti.slice(-4)}`,
+		summary: "Admin session revoked",
+		severity: "warning",
+		href: "/admin/operations#admin-session",
+	});
+
 	return { success: true };
 }
 
@@ -352,6 +376,16 @@ export async function revokeAllAdminTokenSessionsAction(
 	}
 
 	const nextTokenVersion = await revokeAllAdminSessions();
+	await recordAdminActivity({
+		action: "auth.sessions.revoked_all",
+		category: "auth",
+		targetType: "admin_sessions",
+		targetLabel: "All admin sessions",
+		summary: `All admin sessions revoked; token version is now ${nextTokenVersion}`,
+		metadata: { nextTokenVersion },
+		severity: "destructive",
+		href: "/admin/operations#admin-session",
+	});
 	return {
 		success: true,
 		nextTokenVersion,
@@ -446,6 +480,20 @@ export async function importCollectedEmails(
 	}
 
 	const status = await UserCollectionStore.getStatus();
+	await recordAdminActivity({
+		action: "audience.emails.imported",
+		category: "insights",
+		targetType: "collected_users",
+		targetLabel: "Collected users",
+		summary: `Imported ${importedCount} and updated ${updatedCount} collected user record${importedCount + updatedCount === 1 ? "" : "s"}`,
+		metadata: {
+			importedCount,
+			updatedCount,
+			skippedCount,
+			totalCount: status.totalUsers,
+		},
+		href: "/admin/insights#collected-users",
+	});
 	return {
 		success: true,
 		importedCount,
@@ -473,6 +521,20 @@ export async function deleteCollectedEmails(
 
 	const deletedCount = await UserCollectionStore.deleteByEmails(emails);
 	const status = await UserCollectionStore.getStatus();
+	await recordAdminActivity({
+		action: "audience.emails.deleted",
+		category: "insights",
+		targetType: "collected_users",
+		targetLabel: "Collected users",
+		summary: `Deleted ${deletedCount} collected user record${deletedCount === 1 ? "" : "s"}`,
+		metadata: {
+			requestedCount: emails.length,
+			deletedCount,
+			totalCount: status.totalUsers,
+		},
+		severity: "destructive",
+		href: "/admin/insights#collected-users",
+	});
 	return {
 		success: true,
 		deletedCount,

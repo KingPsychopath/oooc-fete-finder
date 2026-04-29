@@ -1,6 +1,7 @@
 "use server";
 
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
+import { recordAdminActivity } from "@/features/admin/activity/record";
 import {
 	getLiveEvents,
 	revalidateEventsPaths,
@@ -136,6 +137,16 @@ export async function scheduleFeaturedEvent(
 			createdBy: "admin-panel",
 		});
 		revalidateEventsPaths(["/", "/feature-event"]);
+		await recordAdminActivity({
+			action: "placement.spotlight.scheduled",
+			category: "placements",
+			targetType: "spotlight_placement",
+			targetId: eventKey,
+			targetLabel: eventKey,
+			summary: `Spotlight placement scheduled for ${eventKey}`,
+			metadata: { requestedStartAt, durationHours },
+			href: "/admin/placements#featured-events-manager",
+		});
 
 		return {
 			success: true,
@@ -165,6 +176,16 @@ export async function cancelFeaturedSchedule(entryId: string): Promise<{
 			};
 		}
 		revalidateEventsPaths(["/", "/feature-event"]);
+		await recordAdminActivity({
+			action: "placement.spotlight.cancelled",
+			category: "placements",
+			targetType: "spotlight_placement",
+			targetId: entryId,
+			targetLabel: entryId,
+			summary: "Spotlight placement cancelled",
+			severity: "warning",
+			href: "/admin/placements#featured-events-manager",
+		});
 
 		return {
 			success: true,
@@ -202,6 +223,16 @@ export async function rescheduleFeaturedEvent(
 			};
 		}
 		revalidateEventsPaths(["/", "/feature-event"]);
+		await recordAdminActivity({
+			action: "placement.spotlight.rescheduled",
+			category: "placements",
+			targetType: "spotlight_placement",
+			targetId: entryId,
+			targetLabel: entryId,
+			summary: "Spotlight placement rescheduled",
+			metadata: { requestedStartAt, durationHours },
+			href: "/admin/placements#featured-events-manager",
+		});
 
 		return {
 			success: true,
@@ -226,6 +257,16 @@ export async function clearFeaturedQueueHistory(): Promise<{
 		await assertAdmin();
 		const clearedCount = await clearFeaturedQueueHistoryService();
 		revalidateEventsPaths(["/", "/feature-event"]);
+		await recordAdminActivity({
+			action: "placement.spotlight.cleared_all",
+			category: "placements",
+			targetType: "spotlight_queue",
+			targetLabel: "Spotlight queue and history",
+			summary: `Cleared ${clearedCount} Spotlight queue/history entr${clearedCount === 1 ? "y" : "ies"}`,
+			metadata: { clearedCount },
+			severity: "destructive",
+			href: "/admin/placements#featured-events-manager",
+		});
 
 		return {
 			success: true,
@@ -249,6 +290,16 @@ export async function clearFeaturedQueue(): Promise<{
 		await assertAdmin();
 		const clearedCount = await clearFeaturedQueueOnlyService();
 		revalidateEventsPaths(["/", "/feature-event"]);
+		await recordAdminActivity({
+			action: "placement.spotlight.cleared_queue",
+			category: "placements",
+			targetType: "spotlight_queue",
+			targetLabel: "Spotlight scheduled queue",
+			summary: `Cleared ${clearedCount} scheduled Spotlight entr${clearedCount === 1 ? "y" : "ies"}`,
+			metadata: { clearedCount },
+			severity: "destructive",
+			href: "/admin/placements#featured-events-manager",
+		});
 		return {
 			success: true,
 			message: `Cleared ${clearedCount} scheduled queue entr${clearedCount === 1 ? "y" : "ies"}`,
@@ -272,6 +323,16 @@ export async function clearFeaturedHistory(): Promise<{
 		await assertAdmin();
 		const clearedCount = await clearFeaturedHistoryOnlyService();
 		revalidateEventsPaths(["/", "/feature-event"]);
+		await recordAdminActivity({
+			action: "placement.spotlight.cleared_history",
+			category: "placements",
+			targetType: "spotlight_history",
+			targetLabel: "Spotlight history",
+			summary: `Cleared ${clearedCount} Spotlight history entr${clearedCount === 1 ? "y" : "ies"}`,
+			metadata: { clearedCount },
+			severity: "destructive",
+			href: "/admin/placements#featured-events-manager",
+		});
 		return {
 			success: true,
 			message: `Cleared ${clearedCount} history entr${clearedCount === 1 ? "y" : "ies"}`,

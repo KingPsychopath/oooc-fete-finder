@@ -1,12 +1,10 @@
 "use server";
 
+import { recordAdminActivity } from "@/features/admin/activity/record";
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { invalidateSlidingBannerCache } from "./cache";
 import { SlidingBannerStore } from "./sliding-banner-store";
-import type {
-	SlidingBannerSettings,
-	SlidingBannerStoreStatus,
-} from "./types";
+import type { SlidingBannerSettings, SlidingBannerStoreStatus } from "./types";
 
 interface SlidingBannerAdminResponse {
 	success: boolean;
@@ -84,6 +82,20 @@ export async function updateAdminSlidingBannerSettings(
 		);
 		invalidateSlidingBannerCache();
 		const store = await SlidingBannerStore.getStatus();
+		await recordAdminActivity({
+			action: "settings.sliding_banner.updated",
+			category: "settings",
+			targetType: "sliding_banner",
+			targetLabel: "Homepage sliding banner",
+			summary: `Sliding banner settings saved (${settings.messages.length} message${settings.messages.length === 1 ? "" : "s"})`,
+			metadata: {
+				enabled: settings.enabled,
+				messageCount: settings.messages.length,
+				messageDurationMs: settings.messageDurationMs,
+				desktopMessageCount: settings.desktopMessageCount,
+			},
+			href: "/admin/content#sliding-banner",
+		});
 		return {
 			success: true,
 			settings,

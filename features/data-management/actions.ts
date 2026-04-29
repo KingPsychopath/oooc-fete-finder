@@ -4,6 +4,7 @@ import {
 	revokeAllAdminSessions,
 	secureCompare,
 } from "@/features/auth/admin-auth-token";
+import { recordAdminActivity } from "@/features/admin/activity/record";
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { clearFeaturedQueueHistory as clearFeaturedQueueHistoryService } from "@/features/events/featured/service";
@@ -155,6 +156,75 @@ const getCsvRuntimeValidationError = (csvContent: string): string | null => {
 const normalizeCsvForStorage = (csvContent: string): string => {
 	const sheet = csvToEditableSheet(csvContent);
 	return editableSheetToCsv(sheet.columns, sheet.rows);
+};
+
+const getComparableEventSheetRowKey = (row: EditableSheetRow): string => {
+	const eventKey = row.eventKey?.trim();
+	if (eventKey) return `event:${eventKey}`;
+	return [row.title, row.date, row.startTime, row.location, row.primaryUrl]
+		.map((value) => value?.trim().toLowerCase() ?? "")
+		.join("|");
+};
+
+const buildEventSheetChangeSummary = (
+	beforeRows: EditableSheetRow[],
+	afterRows: EditableSheetRow[],
+	columns: EditableSheetColumn[],
+): {
+	addedRows: number;
+	deletedRows: number;
+	changedRows: number;
+	changedColumns: string[];
+	sampleAdded: string[];
+	sampleDeleted: string[];
+} => {
+	const beforeByKey = new Map(
+		beforeRows.map((row) => [getComparableEventSheetRowKey(row), row]),
+	);
+	const afterByKey = new Map(
+		afterRows.map((row) => [getComparableEventSheetRowKey(row), row]),
+	);
+	const changedColumnLabels = new Set<string>();
+	let changedRows = 0;
+
+	for (const [key, afterRow] of afterByKey.entries()) {
+		const beforeRow = beforeByKey.get(key);
+		if (!beforeRow) continue;
+
+		let rowChanged = false;
+		for (const column of columns) {
+			if ((beforeRow[column.key] ?? "") === (afterRow[column.key] ?? "")) {
+				continue;
+			}
+			rowChanged = true;
+			changedColumnLabels.add(column.label || column.key);
+		}
+		if (rowChanged) changedRows += 1;
+	}
+
+	const addedRows = afterRows.filter(
+		(row) => !beforeByKey.has(getComparableEventSheetRowKey(row)),
+	);
+	const deletedRows = beforeRows.filter(
+		(row) => !afterByKey.has(getComparableEventSheetRowKey(row)),
+	);
+
+	return {
+		addedRows: addedRows.length,
+		deletedRows: deletedRows.length,
+		changedRows,
+		changedColumns: [...changedColumnLabels].slice(0, 12),
+		sampleAdded: addedRows
+			.map(
+				(row) => row.title?.trim() || row.eventKey?.trim() || "Untitled event",
+			)
+			.slice(0, 3),
+		sampleDeleted: deletedRows
+			.map(
+				(row) => row.title?.trim() || row.eventKey?.trim() || "Untitled event",
+			)
+			.slice(0, 3),
+	};
 };
 
 const isParisArrondissement = (
@@ -465,6 +535,24 @@ export async function createEventStoreBackup(keyOrToken?: string): Promise<{
 			result.prunedCount && result.prunedCount > 0
 				? ` (pruned ${result.prunedCount} old backups)`
 				: "";
+		await recordAdminActivity({
+			action: "backup.created",
+			category: "operations",
+			targetType: "event_store_backup",
+			targetId: result.backup?.id ?? null,
+			targetLabel: result.backup
+				? `${result.backup.rowCount} rows`
+				: "Manual backup",
+			summary: `Manual snapshot created${pruneSuffix}`,
+			metadata: {
+				trigger: "manual",
+				rowCount: result.backup?.rowCount ?? 0,
+				featuredEntryCount: result.backup?.featuredEntryCount ?? 0,
+				userCollectionCount: result.backup?.userCollectionCount ?? null,
+				prunedCount: result.prunedCount ?? 0,
+			},
+			href: "/admin/operations#data-store-controls",
+		});
 
 		return {
 			success: true,
@@ -559,6 +647,25 @@ export async function restoreLatestEventStoreBackup(
 			await warmCoordinateCacheFromCsv(result.restoredCsv, "restore-backup");
 		}
 		await forceRefreshEventsData();
+		await recordAdminActivity({
+			action: "backup.restored",
+			category: "operations",
+			targetType: "event_store_backup",
+			targetId: result.restoredFrom?.id ?? backupId ?? null,
+			targetLabel: result.restoredFrom
+				? new Date(result.restoredFrom.createdAt).toLocaleString()
+				: "Snapshot",
+			summary: "Snapshot restored and homepage revalidated",
+			metadata: {
+				restoredBackupId: result.restoredFrom?.id ?? null,
+				preRestoreBackupId: result.preRestoreBackup?.id ?? null,
+				rowCount: result.restoredRowCount ?? 0,
+				featuredEntryCount: result.restoredFeaturedCount ?? 0,
+				userCollectionCount: result.restoredUserCollectionCount ?? null,
+			},
+			severity: "warning",
+			href: "/admin/operations#data-store-controls",
+		});
 
 		return {
 			success: true,
@@ -647,6 +754,15 @@ export async function saveLocalEventStoreCsv(
 		});
 		await warmCoordinateCacheFromCsv(normalizedCsv, "save-local");
 		await forceRefreshEventsData();
+		await recordAdminActivity({
+			action: "event_store.csv_uploaded",
+			category: "operations",
+			targetType: "event_store",
+			targetLabel: "Managed event store",
+			summary: `CSV uploaded to managed store (${result.rowCount} rows)`,
+			metadata: { rowCount: result.rowCount },
+			href: "/admin/operations#data-store-controls",
+		});
 		return {
 			success: true,
 			message: "Managed store updated and homepage revalidated",
@@ -676,6 +792,15 @@ export async function clearLocalEventStoreCsv(keyOrToken?: string): Promise<{
 	try {
 		await LocalEventStore.clearCsv();
 		await forceRefreshEventsData();
+		await recordAdminActivity({
+			action: "event_store.cleared",
+			category: "operations",
+			targetType: "event_store",
+			targetLabel: "Managed event store",
+			summary: "Managed event store cleared and homepage revalidated",
+			severity: "destructive",
+			href: "/admin/operations#data-store-controls",
+		});
 		return {
 			success: true,
 			message: "Managed store cleared and homepage revalidated",
@@ -783,6 +908,29 @@ export async function factoryResetApplicationState(
 			clearedAdminSessions,
 			clearedActionMetrics,
 			clearedRateLimitCounters,
+		});
+		await recordAdminActivity({
+			action:
+				mode === "hard"
+					? "application.hard_reset"
+					: "application.factory_reset",
+			category: "operations",
+			targetType: "application_state",
+			targetLabel: "Application state",
+			summary:
+				mode === "hard" ? "Hard reset completed" : "Factory reset completed",
+			metadata: {
+				mode,
+				clearedFeaturedEntries,
+				clearedEventSubmissions,
+				clearedBackups,
+				nextAdminTokenVersion,
+				clearedAdminSessions,
+				clearedActionMetrics,
+				clearedRateLimitCounters,
+			},
+			severity: "destructive",
+			href: "/admin/operations#factory-reset",
 		});
 
 		return {
@@ -938,6 +1086,15 @@ export async function createMusicGenreFromEditor(
 		await repository.createCustomGenre({ label });
 		const genreTaxonomy = await repository.listTaxonomy();
 		revalidateEventsPaths(["/admin", "/"]);
+		await recordAdminActivity({
+			action: "genre.created",
+			category: "content",
+			targetType: "genre",
+			targetId: key,
+			targetLabel: label,
+			summary: `${label} added to the genre list`,
+			href: "/admin/content#event-sheet-editor",
+		});
 		return {
 			success: true,
 			genreTaxonomy,
@@ -986,6 +1143,16 @@ export async function removeMusicGenreFromEditor(
 		await repository.removeCustomGenre(genre.key);
 		const genreTaxonomy = await repository.listTaxonomy();
 		revalidateEventsPaths(["/admin", "/"]);
+		await recordAdminActivity({
+			action: "genre.removed",
+			category: "content",
+			targetType: "genre",
+			targetId: genre.key,
+			targetLabel: genre.label,
+			summary: `${genre.label} removed from custom genres`,
+			severity: "warning",
+			href: "/admin/content#event-sheet-editor",
+		});
 		return {
 			success: true,
 			genreTaxonomy,
@@ -1034,6 +1201,16 @@ export async function mapMusicGenreAliasFromEditor(
 		});
 		const genreTaxonomy = await repository.listTaxonomy();
 		revalidateEventsPaths(["/admin", "/"]);
+		await recordAdminActivity({
+			action: "genre_alias.mapped",
+			category: "content",
+			targetType: "genre_alias",
+			targetId: normalizeGenreKey(aliasInput),
+			targetLabel: aliasInput,
+			summary: `${aliasInput} now maps to ${canonicalGenre}`,
+			metadata: { genreKey: canonicalGenre },
+			href: "/admin/content#event-sheet-editor",
+		});
 		return {
 			success: true,
 			genreTaxonomy,
@@ -1082,6 +1259,16 @@ export async function removeMusicGenreAliasFromEditor(
 		await repository.removeAlias(aliasInput);
 		const genreTaxonomy = await repository.listTaxonomy();
 		revalidateEventsPaths(["/admin", "/"]);
+		await recordAdminActivity({
+			action: "genre_alias.removed",
+			category: "content",
+			targetType: "genre_alias",
+			targetId: normalizeGenreKey(aliasInput),
+			targetLabel: aliasInput,
+			summary: `${aliasInput} alias removed`,
+			severity: "warning",
+			href: "/admin/content#event-sheet-editor",
+		});
 		return {
 			success: true,
 			genreTaxonomy,
@@ -1145,6 +1332,15 @@ export async function saveEventSheetEditorRows(
 				error: runtimeValidationError,
 			};
 		}
+		const previousCsv = await LocalEventStore.getCsv();
+		const previousSheet = previousCsv?.trim()
+			? csvToEditableSheet(previousCsv)
+			: { columns: validation.columns, rows: [] };
+		const changeSummary = buildEventSheetChangeSummary(
+			previousSheet.rows,
+			validation.rows,
+			validation.columns,
+		);
 		const saved = await LocalEventStore.saveCsv(csvContent, {
 			updatedBy: "admin-sheet-editor",
 			origin: "manual",
@@ -1155,6 +1351,21 @@ export async function saveEventSheetEditorRows(
 			await forceRefreshEventsData();
 		} else {
 			revalidateEventsPaths(["/"]);
+		}
+		if (shouldRevalidateHomepage) {
+			await recordAdminActivity({
+				action: "event_sheet.saved",
+				category: "content",
+				targetType: "event_sheet",
+				targetLabel: "Event sheet",
+				summary: `Event sheet saved and homepage revalidated (${saved.rowCount} rows)`,
+				metadata: {
+					rowCount: saved.rowCount,
+					columnCount: validation.columns.length,
+					...changeSummary,
+				},
+				href: "/admin/content#event-sheet-editor",
+			});
 		}
 
 		return {
@@ -1325,6 +1536,16 @@ export async function resolveEventLocation(
 		revalidateEventsPaths(["/"]);
 
 		const storageKey = generateLocationStorageKey(name, arrondissement);
+		await recordAdminActivity({
+			action: "location.resolved",
+			category: "content",
+			targetType: "location",
+			targetId: storageKey,
+			targetLabel: name,
+			summary: `${name} geocoded and saved`,
+			metadata: { arrondissement },
+			href: "/admin/content#location-review",
+		});
 		return {
 			success: true,
 			message: "Location resolved and saved",
@@ -1366,7 +1587,10 @@ export async function saveManualEventLocation(
 	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
 		return { success: false, message: "Latitude and longitude are required" };
 	}
-	if (isNumberedArrondissement(arrondissement) && !isWithinParisBounds(lat, lng)) {
+	if (
+		isNumberedArrondissement(arrondissement) &&
+		!isWithinParisBounds(lat, lng)
+	) {
 		return {
 			success: false,
 			message: "Coordinates must be within Paris bounds",
@@ -1379,6 +1603,16 @@ export async function saveManualEventLocation(
 			lng,
 		});
 		revalidateEventsPaths(["/"]);
+		await recordAdminActivity({
+			action: "location.manual_coordinates_saved",
+			category: "content",
+			targetType: "location",
+			targetId: generateLocationStorageKey(name, arrondissement),
+			targetLabel: name,
+			summary: `${name} manual coordinates saved`,
+			metadata: { arrondissement },
+			href: "/admin/content#location-review",
+		});
 		return {
 			success: true,
 			message: "Manual coordinates saved",
@@ -1412,6 +1646,20 @@ export async function clearEventLocationResolution(
 			arrondissement,
 		);
 		revalidateEventsPaths(["/"]);
+		if (removed) {
+			const name = locationName.trim();
+			await recordAdminActivity({
+				action: "location.cleared",
+				category: "content",
+				targetType: "location",
+				targetId: generateLocationStorageKey(name, arrondissement),
+				targetLabel: name,
+				summary: `${name} stored coordinates removed`,
+				metadata: { arrondissement },
+				severity: "warning",
+				href: "/admin/content#location-review",
+			});
+		}
 		return {
 			success: true,
 			message: removed

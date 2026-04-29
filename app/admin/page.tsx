@@ -7,9 +7,11 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { getAdminActivityOverview } from "@/features/admin/activity/actions";
 import { getRuntimeDataStatus } from "@/features/data-management/actions";
 import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
+import { AdminActivityTimelineCard } from "./components/AdminActivityTimelineCard";
 import { ADMIN_ROUTES, withAdminBasePath } from "./config";
 
 export const dynamic = "force-dynamic";
@@ -32,13 +34,23 @@ const formatRuntimeSourceLabel = (source: string): string => {
 export default async function AdminPage() {
 	noStore();
 
-	const runtimeDataStatusResult = await Promise.allSettled([
-		getRuntimeDataStatus(),
-	]);
+	const [runtimeDataStatusResult, activityOverviewResult] =
+		await Promise.allSettled([
+			getRuntimeDataStatus(),
+			getAdminActivityOverview(undefined, 90),
+		]);
 	const runtimeDataStatus =
-		runtimeDataStatusResult[0].status === "fulfilled"
-			? runtimeDataStatusResult[0].value
+		runtimeDataStatusResult.status === "fulfilled"
+			? runtimeDataStatusResult.value
 			: undefined;
+	const activityOverview =
+		activityOverviewResult.status === "fulfilled"
+			? activityOverviewResult.value
+			: {
+					success: false,
+					supported: false,
+					error: "Failed to load activity timeline",
+				};
 
 	const adminAreas = ADMIN_ROUTES.filter((route) => route.key !== "hub");
 
@@ -95,6 +107,24 @@ export default async function AdminPage() {
 					</div>
 				</CardContent>
 			</Card>
+
+			<AdminActivityTimelineCard
+				events={activityOverview.success ? (activityOverview.events ?? []) : []}
+				categoryCounts={
+					activityOverview.success && activityOverview.categoryCounts
+						? activityOverview.categoryCounts
+						: {
+								auth: 0,
+								content: 0,
+								insights: 0,
+								operations: 0,
+								placements: 0,
+								settings: 0,
+							}
+				}
+				supported={activityOverview.supported !== false}
+				error={activityOverview.success ? undefined : activityOverview.error}
+			/>
 
 			<div className="grid gap-4 xl:grid-cols-2">
 				{adminAreas.map((route) => (

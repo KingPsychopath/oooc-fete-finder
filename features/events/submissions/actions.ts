@@ -1,6 +1,7 @@
 "use server";
 
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
+import { recordAdminActivity } from "@/features/admin/activity/record";
 import {
 	createBlankEditableSheetRow,
 	type EditableSheetColumn,
@@ -25,7 +26,9 @@ import type {
 } from "./types";
 
 const assertAdmin = async (keyOrToken?: string): Promise<void> => {
-	const authorized = await validateAdminAccessFromServerContext(keyOrToken ?? null);
+	const authorized = await validateAdminAccessFromServerContext(
+		keyOrToken ?? null,
+	);
 	if (!authorized) {
 		throw new Error("Unauthorized access");
 	}
@@ -85,11 +88,11 @@ export async function getEventSubmissionsDashboard(
 			success: true;
 			settings: EventSubmissionSettings;
 			settingsStatus: EventSubmissionSettingsStatus;
-		} & EventSubmissionSnapshot)
+	  } & EventSubmissionSnapshot)
 	| {
 			success: false;
 			error: string;
-		}
+	  }
 > {
 	try {
 		await assertAdmin(keyOrToken);
@@ -107,7 +110,8 @@ export async function getEventSubmissionsDashboard(
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : "Unknown submissions error",
+			error:
+				error instanceof Error ? error.message : "Unknown submissions error",
 		};
 	}
 }
@@ -131,6 +135,17 @@ export async function updateEventSubmissionEnabled(
 		const settingsStatus = await EventSubmissionSettingsStore.getStatus();
 		revalidatePath("/");
 		revalidatePath("/submit-event");
+		await recordAdminActivity({
+			action: enabled ? "submissions.enabled" : "submissions.disabled",
+			category: "settings",
+			targetType: "event_submission_settings",
+			targetLabel: "Event submissions",
+			summary: enabled
+				? "Event submissions opened"
+				: "Event submissions closed",
+			severity: enabled ? "info" : "warning",
+			href: "/admin/content#event-submissions",
+		});
 		return {
 			success: true,
 			settings,
@@ -156,12 +171,12 @@ export async function declineEventSubmission(
 			success: true;
 			record: EventSubmissionRecord;
 			message: string;
-		}
+	  }
 	| {
 			success: false;
 			error: string;
 			message: string;
-		}
+	  }
 > {
 	try {
 		await assertAdmin(keyOrToken);
@@ -211,6 +226,17 @@ export async function declineEventSubmission(
 				error: "Submission was already reviewed by another admin",
 			};
 		}
+		await recordAdminActivity({
+			action: "submission.declined",
+			category: "content",
+			targetType: "event_submission",
+			targetId: reviewed.id,
+			targetLabel: reviewed.payload.eventName,
+			summary: `${reviewed.payload.eventName} submission declined`,
+			metadata: { reason: normalizedReason },
+			severity: "warning",
+			href: "/admin/content#event-submissions",
+		});
 
 		return {
 			success: true,
@@ -234,12 +260,12 @@ export async function acceptEventSubmission(
 			success: true;
 			record: EventSubmissionRecord;
 			message: string;
-		}
+	  }
 	| {
 			success: false;
 			error: string;
 			message: string;
-		}
+	  }
 > {
 	try {
 		await assertAdmin(keyOrToken);
@@ -297,7 +323,10 @@ export async function acceptEventSubmission(
 			};
 		}
 
-		const acceptedEventKey = parseAcceptedEventKey(nextRows, editorData.rows.length);
+		const acceptedEventKey = parseAcceptedEventKey(
+			nextRows,
+			editorData.rows.length,
+		);
 		const reviewed = await reviewEventSubmission({
 			id: normalizedSubmissionId,
 			status: "accepted",
@@ -312,6 +341,16 @@ export async function acceptEventSubmission(
 				error: "Submission was already reviewed by another admin",
 			};
 		}
+		await recordAdminActivity({
+			action: "submission.accepted",
+			category: "content",
+			targetType: "event_submission",
+			targetId: reviewed.id,
+			targetLabel: reviewed.payload.eventName,
+			summary: `${reviewed.payload.eventName} submission accepted and published`,
+			metadata: { acceptedEventKey },
+			href: "/admin/content#event-submissions",
+		});
 
 		return {
 			success: true,

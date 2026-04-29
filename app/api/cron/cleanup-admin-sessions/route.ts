@@ -1,4 +1,5 @@
 import { cleanupExpiredAdminSessions } from "@/features/auth/admin-auth-token";
+import { recordAdminActivity } from "@/features/admin/activity/record";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -20,6 +21,19 @@ export async function GET(request: NextRequest) {
 
 	try {
 		const deleted = await cleanupExpiredAdminSessions();
+		if (deleted > 0) {
+			await recordAdminActivity({
+				actorType: "cron",
+				actorLabel: "Session cleanup cron",
+				action: "auth.sessions.cleaned_up",
+				category: "auth",
+				targetType: "admin_sessions",
+				targetLabel: "Expired admin sessions",
+				summary: `Cleaned up ${deleted} expired admin session record${deleted === 1 ? "" : "s"}`,
+				metadata: { deleted },
+				href: "/admin/operations#admin-session",
+			});
+		}
 		return NextResponse.json(
 			{ ok: true, deleted },
 			{ headers: NO_STORE_HEADERS },
