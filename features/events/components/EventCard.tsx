@@ -2,6 +2,10 @@
 import { Badge } from "@/components/ui/badge";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import {
+	type GenreFrequency,
+	getGenrePreview,
+} from "@/features/events/genre-preview";
+import {
 	CARD_SOCIAL_PROOF_MIN_SAVES,
 	type SocialProofDisplayMode,
 } from "@/features/events/social-proof";
@@ -36,13 +40,19 @@ type EventCardProps = {
 	event: Event;
 	onClick: (event: Event) => void;
 	socialProofMode?: SocialProofDisplayMode;
+	genreFrequency?: GenreFrequency;
 };
 
 /**
  * Reusable EventCard component used across Featured Events and All Events
  * Implements the improved visual hierarchy with priority badge system
  */
-export function EventCard({ event, onClick, socialProofMode }: EventCardProps) {
+export function EventCard({
+	event,
+	onClick,
+	socialProofMode,
+	genreFrequency,
+}: EventCardProps) {
 	const handleClick = () => {
 		if (!event || !onClick) {
 			clientLog.warn("event-card", "Missing event or onClick handler");
@@ -68,7 +78,10 @@ export function EventCard({ event, onClick, socialProofMode }: EventCardProps) {
 		socialProofMode === "numeric"
 			? `${socialProofSaveCount} ${savedLabel} saved this`
 			: "People are saving this";
-	const visibleGenres = event.genre.slice(0, 2);
+	const { visibleGenres, hiddenGenreCount } = getGenrePreview(
+		event.genre,
+		genreFrequency,
+	);
 	const hasMetadataBadges = Boolean(
 		visibleEventType || event.nationality?.length || visibleGenres.length,
 	);
@@ -247,6 +260,17 @@ export function EventCard({ event, onClick, socialProofMode }: EventCardProps) {
 							{MUSIC_GENRES.find((g) => g.key === genre)?.label || genre}
 						</Badge>
 					))}
+					{hiddenGenreCount > 0 && (
+						<Badge
+							variant="outline"
+							className="border-border/75 bg-background/50 text-xs text-muted-foreground"
+							title={`${hiddenGenreCount} more genre${
+								hiddenGenreCount === 1 ? "" : "s"
+							} in details`}
+						>
+							+{hiddenGenreCount}
+						</Badge>
+					)}
 				</div>
 			)}
 			{socialProofMode &&

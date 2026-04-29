@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EventCard } from "@/features/events/components/EventCard";
 import { FilterButton } from "@/features/events/components/FilterButton";
+import { buildGenreFrequency } from "@/features/events/genre-preview";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 import { Lock } from "lucide-react";
@@ -41,6 +42,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		ref,
 	) => {
 		const safeEvents = events.filter((event) => event != null);
+		const genreFrequency = buildGenreFrequency(safeEvents);
 		const shouldBlurHalf =
 			isAuthResolved && !isAuthenticated && safeEvents.length > 2;
 		const visibleEventsCount = shouldBlurHalf
@@ -90,6 +92,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								event={event}
 								onClick={onEventClick}
 								socialProofMode={socialProofDisplayModes.get(event.eventKey)}
+								genreFrequency={genreFrequency}
 							/>
 						))}
 					</div>
@@ -122,6 +125,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 												socialProofMode={socialProofDisplayModes.get(
 													event.eventKey,
 												)}
+												genreFrequency={genreFrequency}
 											/>
 										</div>
 									))}

@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EventCard } from "@/features/events/components/EventCard";
+import { buildGenreFrequency } from "@/features/events/genre-preview";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ChevronDown } from "lucide-react";
 import { FeaturedEventsHeader } from "./components/FeaturedEventsHeader";
@@ -31,6 +32,7 @@ export function FeaturedEvents({
 		events,
 		responsiveMaxFeaturedEvents,
 	);
+	const genreFrequency = buildGenreFrequency(events);
 	const browseAllLabel = `Browse All ${totalEventsCount} Event${totalEventsCount !== 1 ? "s" : ""}`;
 
 	return (
@@ -47,6 +49,7 @@ export function FeaturedEvents({
 							event={event}
 							onClick={onEventClick}
 							socialProofMode={socialProofDisplayModes.get(event.eventKey)}
+							genreFrequency={genreFrequency}
 						/>
 					))}
 				</div>

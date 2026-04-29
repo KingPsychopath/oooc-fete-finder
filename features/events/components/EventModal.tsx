@@ -27,12 +27,12 @@ import {
 	formatDayWithDate,
 	formatPrice,
 } from "@/features/events/types";
+import type { LocationResolution } from "@/features/locations/types";
 import { MapPreferenceSettings } from "@/features/maps/components/map-preference-settings";
 import { MapSelectionModal } from "@/features/maps/components/map-selection-modal";
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
 import type { MapProvider } from "@/features/maps/types";
 import { openLocationInMaps } from "@/features/maps/utils/map-launcher";
-import type { LocationResolution } from "@/features/locations/types";
 import { LAYERS } from "@/lib/ui/layers";
 import {
 	OVERLAY_BODY_ATTRIBUTE,
@@ -69,6 +69,8 @@ interface EventModalProps {
 }
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const MODAL_GENRE_PREVIEW_LIMIT = 8;
+const MODAL_MIN_COLLAPSED_GENRES = 3;
 
 const CATEGORY_COLORS: Record<string, string> = {
 	electronic:
@@ -202,7 +204,12 @@ const EventModal: React.FC<EventModalProps> = ({
 	const primaryLink = allLinks[0];
 	const secondaryLinks = allLinks.slice(1);
 	const allGenres = event.genre || [];
-	const visibleGenres = showAllGenres ? allGenres : allGenres.slice(0, 4);
+	const shouldCollapseGenres =
+		allGenres.length >= MODAL_GENRE_PREVIEW_LIMIT + MODAL_MIN_COLLAPSED_GENRES;
+	const visibleGenres =
+		showAllGenres || !shouldCollapseGenres
+			? allGenres
+			: allGenres.slice(0, MODAL_GENRE_PREVIEW_LIMIT);
 	const extraGenreCount = Math.max(0, allGenres.length - visibleGenres.length);
 
 	const getGenreColor = (genre: string) => {
