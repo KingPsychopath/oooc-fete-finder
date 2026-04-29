@@ -1,3 +1,4 @@
+import { normalizeSupportedNationalities } from "@/features/events/nationality-utils";
 import Papa from "papaparse";
 import {
 	createDateNormalizationContext,
@@ -53,6 +54,7 @@ const CORE_COLUMN_LABELS: Record<(typeof CSV_EVENT_COLUMNS)[number], string> = {
 const REQUIRED_CORE_COLUMNS = new Set<string>(["title", "date"]);
 const LEGACY_FEATURED_COLUMN_KEY = "featured";
 const CORE_COLUMN_SET = new Set<string>(CSV_EVENT_COLUMNS);
+const COUNTRY_COLUMN_KEYS = new Set<string>(["hostCountry", "audienceCountry"]);
 
 const CORE_HEADER_LOOKUP = new Map<string, string>(
 	CSV_EVENT_COLUMNS.flatMap((key) => [
@@ -70,6 +72,20 @@ const resolveCoreKeyFromHeader = (header: string): string | null => {
 
 const buildBlankRow = (columns: EditableSheetColumn[]): EditableSheetRow => {
 	return Object.fromEntries(columns.map((column) => [column.key, ""]));
+};
+
+export const normalizeEditableSheetRowValues = (
+	row: EditableSheetRow,
+): EditableSheetRow => {
+	const nextRow = { ...row };
+	for (const key of COUNTRY_COLUMN_KEYS) {
+		const rawValue = nextRow[key] ?? "";
+		const normalized = normalizeSupportedNationalities(rawValue);
+		if (normalized) {
+			nextRow[key] = normalized;
+		}
+	}
+	return nextRow;
 };
 
 const toUTCDateOnlyTime = (date: Date): number =>
@@ -344,9 +360,12 @@ export const editableSheetToCsv = (
 	const headerLine = csvColumns
 		.map((column) => toCsvValue(column.label))
 		.join(",");
-	const dataLines = normalized.rows.map((row) =>
-		csvColumns.map((column) => toCsvValue(row[column.key] ?? "")).join(","),
-	);
+	const dataLines = normalized.rows.map((row) => {
+		const normalizedRow = normalizeEditableSheetRowValues(row);
+		return csvColumns
+			.map((column) => toCsvValue(normalizedRow[column.key] ?? ""))
+			.join(",");
+	});
 
 	return [headerLine, ...dataLines].join("\n").trim();
 };

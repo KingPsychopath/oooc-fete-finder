@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import {
 	createMusicGenreFromEditor,
 	getEventSheetEditorData,
-	getMusicGenreTaxonomy,
 	mapMusicGenreAliasFromEditor,
 	removeMusicGenreAliasFromEditor,
 	removeMusicGenreFromEditor,
@@ -38,11 +37,13 @@ import {
 	DEFAULT_GENRE_ALIASES,
 	type GenreTaxonomyDefinition,
 	type GenreTaxonomySnapshot,
+	isRedundantGenreAlias,
 	normalizeGenreInputText,
 	normalizeGenreKey,
 	resolveMusicGenre,
 	toGenreLabel,
 } from "@/features/events/genre-normalization";
+import { normalizeSupportedNationalities } from "@/features/events/nationality-utils";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -89,17 +90,48 @@ const DEFAULT_ALIAS_KEYS = new Set(
 const cellRefKey = (rowIndex: number, columnKey: string) =>
 	`${rowIndex}:${columnKey}`;
 
+const COUNTRY_FLAG_REGEX = /[\u{1f1e6}-\u{1f1ff}]{2}/u;
+const COUNTRY_EXPLICIT_SEPARATOR_REGEX = /[\/,&+]/;
+const COUNTRY_TOKEN_PREFIX_REGEX = new RegExp(
+	`^((?:(?:${COUNTRY_FLAG_REGEX.source}|[A-Za-z]{2,3})\\s+)+)(\\S[\\s\\S]*)$`,
+	"u",
+);
+
 const getCountrySearchSegment = (value: string): string => {
-	const parts = value.split(/[\/,&+]/);
-	return (parts.at(-1) ?? value).trim();
+	const explicitParts = value.split(COUNTRY_EXPLICIT_SEPARATOR_REGEX);
+	const segment = (explicitParts.at(-1) ?? value).trim();
+	const tokenPrefixMatch = segment.match(COUNTRY_TOKEN_PREFIX_REGEX);
+	return (tokenPrefixMatch?.[2] ?? segment).trim();
 };
 
 const replaceCountrySearchSegment = (
 	value: string,
 	countryCode: string,
 ): string => {
-	const match = value.match(/^([\s\S]*[\/,&+]\s*)?([^\/,&+]*)$/);
-	return `${match?.[1] ?? ""}${countryCode}`;
+	const match = value.match(/^([\s\S]*[\/,&+]\s*)?([^\/,&+]*)$/u);
+	const prefix = match?.[1] ?? "";
+	const segment = match?.[2] ?? value;
+	const tokenPrefixMatch = segment.match(COUNTRY_TOKEN_PREFIX_REGEX);
+	if (tokenPrefixMatch) {
+		return `${prefix}${tokenPrefixMatch[1]}${countryCode}`;
+	}
+	return `${prefix}${countryCode}`;
+};
+
+const GENRE_EXPLICIT_SEPARATOR_REGEX = /[,/&+]/;
+
+const getGenreSearchSegment = (value: string): string => {
+	const parts = value.split(GENRE_EXPLICIT_SEPARATOR_REGEX);
+	return (parts.at(-1) ?? value).trim();
+};
+
+const replaceGenreSearchSegment = (
+	value: string,
+	genreLabel: string,
+): string => {
+	const match = value.match(/^([\s\S]*[,/&+]\s*)?([^,/&+]*)$/u);
+	const prefix = match?.[1] ?? "";
+	return `${prefix}${genreLabel}`;
 };
 
 const splitGenreCell = (
@@ -243,8 +275,14 @@ export const EventSheetEditorCard = ({
 	const [focusedCategoryRowIndex, setFocusedCategoryRowIndex] = useState<
 		number | null
 	>(null);
+	const [focusedGenreCell, setFocusedGenreCell] = useState<FocusedCell | null>(
+		null,
+	);
+	const [genreSearchQuery, setGenreSearchQuery] = useState("");
+	const [highlightedGenreIndex, setHighlightedGenreIndex] = useState(0);
 	const [focusedCountryCell, setFocusedCountryCell] =
 		useState<FocusedCell | null>(null);
+	const [countrySearchQuery, setCountrySearchQuery] = useState("");
 	const [highlightedCountryIndex, setHighlightedCountryIndex] = useState(0);
 
 	const rowsRef = useRef<EditableSheetRow[]>([]);
@@ -255,6 +293,13 @@ export const EventSheetEditorCard = ({
 	const editVersionRef = useRef(0);
 	const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+	const clearInlineHelpers = useCallback(() => {
+		setFocusedGenreCell(null);
+		setGenreSearchQuery("");
+		setFocusedCountryCell(null);
+		setCountrySearchQuery("");
+	}, []);
 
 	useEffect(() => {
 		rowsRef.current = rows;
@@ -294,6 +339,7 @@ export const EventSheetEditorCard = ({
 			const nextColumns = snapshot.columns.map((column) => ({ ...column }));
 			const nextRows = snapshot.rows.map((row) => ({ ...row }));
 			activeCellEditRef.current = null;
+			clearInlineHelpers();
 			columnsRef.current = nextColumns;
 			rowsRef.current = nextRows;
 			setColumns(nextColumns);
@@ -302,7 +348,7 @@ export const EventSheetEditorCard = ({
 			editVersionRef.current += 1;
 			setStatusMessage(statusMessage);
 		},
-		[],
+		[clearInlineHelpers],
 	);
 
 	const loadEditorData = useCallback(async () => {
@@ -324,6 +370,7 @@ export const EventSheetEditorCard = ({
 			pastRef.current = [];
 			futureRef.current = [];
 			activeCellEditRef.current = null;
+			clearInlineHelpers();
 			refreshHistoryFlags();
 			setStatusMessage(
 				`Loaded ${result.rows.length} rows and ${result.columns.length} columns from Postgres store`,
@@ -336,7 +383,7 @@ export const EventSheetEditorCard = ({
 		} finally {
 			setIsLoading(false);
 		}
-	}, [isAuthenticated, refreshHistoryFlags]);
+	}, [clearInlineHelpers, isAuthenticated, refreshHistoryFlags]);
 
 	const hasInitialEditorData = Boolean(
 		initialEditorData?.success &&
@@ -425,6 +472,7 @@ export const EventSheetEditorCard = ({
 		) => {
 			pushHistorySnapshot();
 			activeCellEditRef.current = null;
+			clearInlineHelpers();
 			columnsRef.current = nextColumns;
 			rowsRef.current = nextRows;
 			setColumns(nextColumns);
@@ -432,7 +480,7 @@ export const EventSheetEditorCard = ({
 			markDirty();
 			setStatusMessage(status);
 		},
-		[markDirty, pushHistorySnapshot],
+		[clearInlineHelpers, markDirty, pushHistorySnapshot],
 	);
 
 	const handleCellChange = useCallback(
@@ -620,13 +668,6 @@ export const EventSheetEditorCard = ({
 		await performSave("manual");
 	};
 
-	const refreshGenreTaxonomy = useCallback(async () => {
-		const result = await getMusicGenreTaxonomy();
-		if (result.success && result.genreTaxonomy) {
-			setGenreTaxonomy(result.genreTaxonomy);
-		}
-	}, []);
-
 	const addGenreToRow = useCallback(
 		(
 			rowIndex: number,
@@ -722,9 +763,8 @@ export const EventSheetEditorCard = ({
 			setGenreTaxonomy(result.genreTaxonomy);
 			setAliasInput("");
 			setStatusMessage(result.message || "Genre alias saved");
-			await refreshGenreTaxonomy();
 		},
-		[aliasGenreKey, refreshGenreTaxonomy],
+		[aliasGenreKey],
 	);
 
 	const handleRemoveAlias = useCallback(async (alias: string) => {
@@ -739,12 +779,29 @@ export const EventSheetEditorCard = ({
 		setStatusMessage(result.message || "Genre alias removed");
 	}, []);
 
+	const selectGenreForCell = useCallback(
+		(rowIndex: number, columnKey: string, genre: GenreTaxonomyDefinition) => {
+			const row = rowsRef.current[rowIndex];
+			if (!row) return;
+			handleCellChange(
+				rowIndex,
+				columnKey,
+				replaceGenreSearchSegment(row[columnKey] ?? "", genre.label),
+			);
+			setGenreSearchQuery("");
+			setFocusedCategoryRowIndex(rowIndex);
+			setFocusedGenreCell({ rowIndex, columnKey });
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange],
+	);
+
 	const countryOptionsForFocusedCell = useMemo((): CountryOption[] => {
 		if (!focusedCountryCell) return [];
-		const value =
-			rows[focusedCountryCell.rowIndex]?.[focusedCountryCell.columnKey] ?? "";
-		return filterCountryOptions(getCountrySearchSegment(value), 8);
-	}, [focusedCountryCell, rows]);
+		return filterCountryOptions(countrySearchQuery, 8);
+	}, [countrySearchQuery, focusedCountryCell]);
 
 	const selectCountryForCell = useCallback(
 		(rowIndex: number, columnKey: string, country: CountryOption) => {
@@ -755,10 +812,24 @@ export const EventSheetEditorCard = ({
 				columnKey,
 				replaceCountrySearchSegment(row[columnKey] ?? "", country.code),
 			);
+			setCountrySearchQuery("");
 			setFocusedCountryCell({ rowIndex, columnKey });
 			window.setTimeout(() => {
 				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
 			}, 0);
+		},
+		[handleCellChange],
+	);
+
+	const normalizeCountryCell = useCallback(
+		(rowIndex: number, columnKey: string) => {
+			const row = rowsRef.current[rowIndex];
+			if (!row) return;
+			const rawValue = row[columnKey] ?? "";
+			const normalized = normalizeSupportedNationalities(rawValue);
+			if (normalized && normalized !== rawValue) {
+				handleCellChange(rowIndex, columnKey, normalized);
+			}
 		},
 		[handleCellChange],
 	);
@@ -807,6 +878,31 @@ export const EventSheetEditorCard = ({
 		() => availableGenres.filter((genre) => !genre.isDefault),
 		[availableGenres],
 	);
+	const genreOptionsForFocusedCell = useMemo(() => {
+		if (!focusedGenreCell) return [];
+		const query = normalizeGenreInputText(genreSearchQuery);
+		const scored = availableGenres
+			.map((genre) => {
+				const haystack = [genre.label, genre.key, ...(genre.aliases ?? [])].map(
+					normalizeGenreInputText,
+				);
+				const exact = haystack.some((value) => value === query);
+				const startsWith = haystack.some((value) => value.startsWith(query));
+				const includes = haystack.some((value) => value.includes(query));
+				return {
+					genre,
+					score: !query ? 1 : exact ? 4 : startsWith ? 3 : includes ? 2 : 0,
+				};
+			})
+			.filter((item) => item.score > 0)
+			.sort(
+				(left, right) =>
+					right.score - left.score ||
+					(left.genre.sortOrder ?? 1000) - (right.genre.sortOrder ?? 1000) ||
+					left.genre.label.localeCompare(right.genre.label),
+			);
+		return scored.slice(0, 10).map((item) => item.genre);
+	}, [availableGenres, focusedGenreCell, genreSearchQuery]);
 	const customAliases = useMemo(() => {
 		const genreByKey = new Map(
 			availableGenres.map((genre) => [genre.key, genre.label]),
@@ -815,6 +911,7 @@ export const EventSheetEditorCard = ({
 			.filter(
 				(alias) =>
 					!DEFAULT_ALIAS_KEYS.has(`${alias.alias}:${alias.genreKey}`) &&
+					!isRedundantGenreAlias(alias.alias, alias.genreKey) &&
 					genreByKey.has(alias.genreKey),
 			)
 			.map((alias) => ({
@@ -828,6 +925,7 @@ export const EventSheetEditorCard = ({
 			);
 	}, [availableGenres, genreTaxonomy]);
 	const unknownGenres = useMemo(() => {
+		if (!genreTaxonomy) return [];
 		const unknown = new Map<string, { label: string; count: number }>();
 		for (const row of rows) {
 			for (const part of splitGenreCell(
@@ -1240,9 +1338,10 @@ export const EventSheetEditorCard = ({
 											size="sm"
 											variant="ghost"
 											className="h-5 px-1.5 text-[10px]"
+											title="Add this as a custom genre everywhere it appears"
 											onClick={() => void handleCreateGenre(genre.label)}
 										>
-											Add custom
+											Add globally
 										</Button>
 										<Button
 											type="button"
@@ -1251,7 +1350,6 @@ export const EventSheetEditorCard = ({
 											className="h-5 px-1.5 text-[10px]"
 											onClick={() => {
 												setAliasInput(genre.label);
-												setNewGenreLabel(genre.label);
 											}}
 										>
 											Map
@@ -1494,7 +1592,7 @@ export const EventSheetEditorCard = ({
 													style={getPinnedColumnStyle(columnIndex, "cell")}
 												>
 													{column.key === CATEGORY_COLUMN_KEY ? (
-														<div className="min-h-9 bg-transparent">
+														<div className="relative min-h-9 bg-transparent">
 															<input
 																ref={(node) => {
 																	inputRefs.current[
@@ -1502,23 +1600,94 @@ export const EventSheetEditorCard = ({
 																	] = node;
 																}}
 																value={row[column.key] ?? ""}
-																onFocus={() =>
-																	setFocusedCategoryRowIndex(rowIndex)
-																}
-																onChange={(event) =>
+																onFocus={() => {
+																	setFocusedCategoryRowIndex(rowIndex);
+																	setFocusedGenreCell({
+																		rowIndex,
+																		columnKey: column.key,
+																	});
+																	setGenreSearchQuery(
+																		getGenreSearchSegment(
+																			row[column.key] ?? "",
+																		),
+																	);
+																	setHighlightedGenreIndex(0);
+																}}
+																onChange={(event) => {
+																	setFocusedCategoryRowIndex(rowIndex);
+																	setFocusedGenreCell((current) =>
+																		current?.rowIndex === rowIndex &&
+																		current.columnKey === column.key
+																			? current
+																			: { rowIndex, columnKey: column.key },
+																	);
+																	setGenreSearchQuery(
+																		getGenreSearchSegment(event.target.value),
+																	);
+																	setHighlightedGenreIndex(0);
 																	handleCellChange(
 																		rowIndex,
 																		column.key,
 																		event.target.value,
-																	)
-																}
+																	);
+																}}
 																onBlur={() => {
 																	const key = cellRefKey(rowIndex, column.key);
 																	if (activeCellEditRef.current === key) {
 																		activeCellEditRef.current = null;
 																	}
+																	window.setTimeout(() => {
+																		setFocusedGenreCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? null
+																				: current,
+																		);
+																	}, 120);
 																}}
 																onKeyDown={(event) => {
+																	if (
+																		event.key === "ArrowDown" &&
+																		genreOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		setHighlightedGenreIndex((current) =>
+																			Math.min(
+																				current + 1,
+																				genreOptionsForFocusedCell.length - 1,
+																			),
+																		);
+																		return;
+																	}
+																	if (
+																		event.key === "ArrowUp" &&
+																		genreOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		setHighlightedGenreIndex((current) =>
+																			Math.max(current - 1, 0),
+																		);
+																		return;
+																	}
+																	if (
+																		event.key === "Enter" &&
+																		genreOptionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		selectGenreForCell(
+																			rowIndex,
+																			column.key,
+																			genreOptionsForFocusedCell[
+																				highlightedGenreIndex
+																			] ?? genreOptionsForFocusedCell[0],
+																		);
+																		return;
+																	}
+																	if (event.key === "Escape") {
+																		event.preventDefault();
+																		setFocusedGenreCell(null);
+																		return;
+																	}
 																	if (event.key === "Enter") {
 																		event.preventDefault();
 																		focusCell(rowIndex, column.key, 1, 0);
@@ -1547,7 +1716,63 @@ export const EventSheetEditorCard = ({
 																	}
 																}}
 																className="h-8 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+																aria-autocomplete="list"
+																aria-expanded={
+																	focusedGenreCell?.rowIndex === rowIndex &&
+																	focusedGenreCell.columnKey === column.key
+																}
 															/>
+															{focusedGenreCell?.rowIndex === rowIndex &&
+																focusedGenreCell.columnKey === column.key && (
+																	<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																			Genres
+																		</div>
+																		<div className="max-h-60 overflow-y-auto p-1">
+																			{genreOptionsForFocusedCell.map(
+																				(genre, optionIndex) => (
+																					<button
+																						key={genre.key}
+																						type="button"
+																						onMouseDown={(event) => {
+																							event.preventDefault();
+																							selectGenreForCell(
+																								rowIndex,
+																								column.key,
+																								genre,
+																							);
+																						}}
+																						className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																							optionIndex ===
+																							highlightedGenreIndex
+																								? "bg-accent text-accent-foreground"
+																								: "hover:bg-accent/70"
+																						}`}
+																					>
+																						<span
+																							className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
+																						/>
+																						<span className="min-w-0 flex-1 truncate">
+																							{genre.label}
+																						</span>
+																						<span className="text-[10px] text-muted-foreground">
+																							{genre.isDefault
+																								? "Default"
+																								: "Custom"}
+																						</span>
+																					</button>
+																				),
+																			)}
+																			{genreOptionsForFocusedCell.length ===
+																				0 && (
+																				<div className="px-2 py-2 text-xs text-muted-foreground">
+																					No matching genre. Keep typing or add
+																					it from Unknown genres.
+																				</div>
+																			)}
+																		</div>
+																	</div>
+																)}
 															<div className="flex min-h-7 flex-wrap gap-1 px-1.5 pb-1.5">
 																{splitGenreCell(
 																	row[column.key] ?? "",
@@ -1587,13 +1812,23 @@ export const EventSheetEditorCard = ({
 																		rowIndex,
 																		columnKey: column.key,
 																	});
+																	setCountrySearchQuery(
+																		getCountrySearchSegment(
+																			row[column.key] ?? "",
+																		),
+																	);
 																	setHighlightedCountryIndex(0);
 																}}
 																onChange={(event) => {
-																	setFocusedCountryCell({
-																		rowIndex,
-																		columnKey: column.key,
-																	});
+																	setFocusedCountryCell((current) =>
+																		current?.rowIndex === rowIndex &&
+																		current.columnKey === column.key
+																			? current
+																			: { rowIndex, columnKey: column.key },
+																	);
+																	setCountrySearchQuery(
+																		getCountrySearchSegment(event.target.value),
+																	);
 																	setHighlightedCountryIndex(0);
 																	handleCellChange(
 																		rowIndex,
@@ -1606,6 +1841,7 @@ export const EventSheetEditorCard = ({
 																	if (activeCellEditRef.current === key) {
 																		activeCellEditRef.current = null;
 																	}
+																	normalizeCountryCell(rowIndex, column.key);
 																	window.setTimeout(() => {
 																		setFocusedCountryCell((current) =>
 																			current?.rowIndex === rowIndex &&
@@ -1689,6 +1925,10 @@ export const EventSheetEditorCard = ({
 																	<div className="absolute left-1 top-8 z-40 w-64 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
 																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 																			Country
+																		</div>
+																		<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+																			Use comma, slash, +, or & for multiple
+																			countries.
 																		</div>
 																		<div className="max-h-56 overflow-y-auto p-1">
 																			{countryOptionsForFocusedCell.map(

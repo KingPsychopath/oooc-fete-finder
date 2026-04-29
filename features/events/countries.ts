@@ -324,6 +324,21 @@ const COUNTRY_BY_CODE = new Map(
 		[country.isoCode, country],
 	]),
 );
+const COUNTRY_BY_NORMALIZED_LABEL = new Map(
+	COUNTRY_OPTIONS.map((country) => [
+		normalizeSearchText(country.label),
+		country,
+	]),
+);
+const COUNTRY_BY_NORMALIZED_ALIAS = new Map(
+	Object.entries(COUNTRY_ALIASES).flatMap(([isoCode, aliases]) => {
+		const country = COUNTRY_BY_CODE.get(isoCode);
+		if (!country) return [];
+		return aliases.map(
+			(alias) => [normalizeSearchText(alias), country] as const,
+		);
+	}),
+);
 
 export const getCountryOption = (code: string): CountryOption | null =>
 	COUNTRY_BY_CODE.get(canonicalCodeToIsoCode(code)) ??
@@ -337,12 +352,8 @@ export const findCountryByText = (value: string): CountryOption | null => {
 		COUNTRY_OPTIONS.find((country) =>
 			[country.code, country.isoCode].includes(value.trim().toUpperCase()),
 		) ??
-		COUNTRY_OPTIONS.find((country) =>
-			country.searchText.split(" ").includes(normalized),
-		) ??
-		COUNTRY_OPTIONS.find(
-			(country) => normalizeSearchText(country.label) === normalized,
-		) ??
+		COUNTRY_BY_NORMALIZED_LABEL.get(normalized) ??
+		COUNTRY_BY_NORMALIZED_ALIAS.get(normalized) ??
 		null
 	);
 };

@@ -71,72 +71,24 @@ export const normalizeSearchText = (value: string): string =>
 		.trim();
 
 export const DEFAULT_GENRE_ALIASES: Array<[string, MusicGenre]> = [
-	["amapiano", "amapiano"],
-	["afrobeats", "afrobeats"],
-	["afrotrap", "afrotrap"],
 	["afro trap", "afrotrap"],
-	["francophone", "francophone"],
 	["francophone party", "francophone"],
 	["francais", "francophone"],
 	["français", "francophone"],
 	["french", "francophone"],
-	["soca", "soca"],
-	["pop", "pop"],
 	["mainstream", "pop"],
 	["commercial", "pop"],
-	["bashment", "bashment"],
-	["hip hop", "hip hop"],
-	["hiphop", "hip hop"],
-	["hip-hop", "hip hop"],
-	["r&b", "r&b"],
-	["rnb", "r&b"],
 	["soul", "r&b"],
-	["shatta", "shatta"],
-	["dancehall", "dancehall"],
-	["reggaeton", "reggaeton"],
-	["baile funk", "baile funk"],
-	["house", "house"],
 	["techno", "house"],
-	["disco", "disco"],
-	["afro house", "afro house"],
-	["afrohouse", "afro house"],
-	["afro-house", "afro house"],
 	["afo house", "afro house"],
-	["slow jams", "slow jams"],
-	["slowjams", "slow jams"],
-	["3-step", "3-step"],
-	["3step", "3-step"],
-	["electro", "electro"],
 	["electronic", "electro"],
 	["edm", "electro"],
 	["trance", "electro"],
 	["dubstep", "electro"],
-	["funk", "funk"],
-	["rap", "rap"],
-	["trap", "trap"],
-	["uk drill", "uk drill"],
-	["uk garage", "uk garage"],
-	["bouyon", "bouyon"],
-	["zouk", "zouk"],
-	["coupé-décalé", "coupé-décalé"],
-	["coupe-decale", "coupé-décalé"],
-	["coupe decale", "coupé-décalé"],
-	["urban fr", "urban fr"],
-	["kompa", "kompa"],
-	["afro", "afro"],
-	["gqom", "gqom"],
-	["alternative", "alternative"],
 	["alt", "alternative"],
 	["indie", "alternative"],
 	["alternative rock", "alternative"],
-	["dance", "dance"],
 	["dance music", "dance"],
-	["bachata", "bachata"],
-	["batida", "batida"],
-	["edits", "edits"],
-	["reggae", "reggae"],
-	["salsa", "salsa"],
-	["other", "other"],
 ];
 
 export const normalizeGenreKey = (value: string): MusicGenre =>
@@ -156,6 +108,18 @@ export const toGenreLabel = (value: string): string =>
 			return part.charAt(0).toUpperCase() + part.slice(1);
 		})
 		.join(" ");
+
+export const isRedundantGenreAlias = (
+	alias: string,
+	genreKey: MusicGenre,
+): boolean => {
+	const normalizedAlias = normalizeSearchText(alias);
+	if (!normalizedAlias) return true;
+	return (
+		normalizedAlias === normalizeSearchText(genreKey) ||
+		normalizedAlias === normalizeSearchText(toGenreLabel(genreKey))
+	);
+};
 
 export const getCustomGenreColor = (
 	value: string,
@@ -186,7 +150,7 @@ export const DEFAULT_GENRE_TAXONOMY: GenreTaxonomySnapshot = {
 	aliases: DEFAULT_GENRE_ALIASES.map(([alias, genreKey]) => ({
 		alias,
 		genreKey,
-	})),
+	})).filter((alias) => !isRedundantGenreAlias(alias.alias, alias.genreKey)),
 };
 
 const buildGenreAliasMap = (
@@ -204,6 +168,7 @@ const buildGenreAliasMap = (
 	}
 	for (const alias of taxonomy.aliases) {
 		if (!activeGenreKeys.has(alias.genreKey)) continue;
+		if (isRedundantGenreAlias(alias.alias, alias.genreKey)) continue;
 		entries.push([alias.alias, alias.genreKey]);
 	}
 	return new Map(

@@ -90,3 +90,7 @@ export const parseSupportedNationalities = (
 
 	return { codes, unsupportedTokens };
 };
+
+export const normalizeSupportedNationalities = (
+	rawValue: string | null | undefined,
+): string => parseSupportedNationalities(rawValue).codes.join(", ");

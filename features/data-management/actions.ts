@@ -34,10 +34,7 @@ import { log } from "@/lib/platform/logger";
 import { getActionMetricsRepository } from "@/lib/platform/postgres/action-metrics-repository";
 import { getAdminSessionRepository } from "@/lib/platform/postgres/admin-session-repository";
 import { getEventStoreBackupRepository } from "@/lib/platform/postgres/event-store-backup-repository";
-import {
-	getMusicGenreTaxonomyRepository,
-	loadGenreTaxonomySnapshot,
-} from "@/lib/platform/postgres/music-genre-taxonomy-repository";
+import { getMusicGenreTaxonomyRepository } from "@/lib/platform/postgres/music-genre-taxonomy-repository";
 import { getRateLimitRepository } from "@/lib/platform/postgres/rate-limit-repository";
 import { revalidatePath } from "next/cache";
 import { parseCSVContent } from "./csv/parser";
@@ -65,6 +62,11 @@ const DEFAULT_ALIAS_KEYS = new Set(
 		([alias, genreKey]) => `${normalizeGenreKey(alias)}:${genreKey}`,
 	),
 );
+
+const loadAdminGenreTaxonomy = async (): Promise<GenreTaxonomySnapshot> => {
+	const repository = getMusicGenreTaxonomyRepository();
+	return repository ? await repository.listTaxonomy() : DEFAULT_GENRE_TAXONOMY;
+};
 import {
 	forceRefreshEventsData,
 	fullEventsRevalidation,
@@ -854,7 +856,7 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 		const [status, csv, genreTaxonomy] = await Promise.all([
 			LocalEventStore.getStatus(),
 			LocalEventStore.getCsv(),
-			loadGenreTaxonomySnapshot(),
+			loadAdminGenreTaxonomy(),
 		]);
 		const sheet = csvToEditableSheet(csv);
 		const sanitized = stripLegacyFeaturedColumn(sheet.columns, sheet.rows);
@@ -888,7 +890,7 @@ export async function getMusicGenreTaxonomy(keyOrToken?: string): Promise<{
 	try {
 		return {
 			success: true,
-			genreTaxonomy: await loadGenreTaxonomySnapshot(),
+			genreTaxonomy: await loadAdminGenreTaxonomy(),
 		};
 	} catch (error) {
 		return {

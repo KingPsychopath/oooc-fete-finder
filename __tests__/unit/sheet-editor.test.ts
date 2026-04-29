@@ -1,4 +1,7 @@
-import { sortEditableSheetRowsByDefaultDate } from "@/features/data-management/csv/sheet-editor";
+import {
+	editableSheetToCsv,
+	sortEditableSheetRowsByDefaultDate,
+} from "@/features/data-management/csv/sheet-editor";
 import { describe, expect, it } from "vitest";
 
 describe("sortEditableSheetRowsByDefaultDate", () => {
@@ -38,5 +41,37 @@ describe("sortEditableSheetRowsByDefaultDate", () => {
 			"June soonest",
 			"June later",
 		]);
+	});
+
+	it("normalizes country emoji and names to codes when exporting CSV", () => {
+		const csv = editableSheetToCsv(
+			[
+				{
+					key: "hostCountry",
+					label: "Host Country",
+					isCore: true,
+					isRequired: false,
+				},
+				{
+					key: "audienceCountry",
+					label: "Audience Country",
+					isCore: true,
+					isRequired: false,
+				},
+				{ key: "title", label: "Title", isCore: true, isRequired: true },
+				{ key: "date", label: "Date", isCore: true, isRequired: true },
+			],
+			[
+				{
+					hostCountry: "🇫🇷 / Spain",
+					audienceCountry: "🇬🇧, United States",
+					title: "Event",
+					date: "2026-06-21",
+				},
+			],
+		);
+
+		expect(csv).toContain('"FR, ES"');
+		expect(csv).toContain('"UK, US"');
 	});
 });

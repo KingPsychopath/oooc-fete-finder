@@ -6,6 +6,7 @@ import {
 	type GenreTaxonomyDefinition,
 	type GenreTaxonomySnapshot,
 	getCustomGenreColor,
+	isRedundantGenreAlias,
 	normalizeGenreKey,
 	toGenreLabel,
 } from "@/features/events/genre-normalization";
@@ -119,6 +120,7 @@ export class MusicGenreTaxonomyRepository {
 		for (const [alias, genreKey] of DEFAULT_GENRE_ALIASES) {
 			const normalizedAlias = normalizeAlias(alias);
 			if (!normalizedAlias) continue;
+			if (isRedundantGenreAlias(normalizedAlias, genreKey)) continue;
 			aliasRowsByAlias.set(normalizedAlias, {
 				alias: normalizedAlias,
 				genre_key: genreKey,
@@ -135,6 +137,29 @@ export class MusicGenreTaxonomyRepository {
 				)}
 				ON CONFLICT (alias)
 				DO UPDATE SET genre_key = EXCLUDED.genre_key
+			`;
+		}
+
+		for (const [alias, genreKey] of DEFAULT_GENRE_ALIASES) {
+			const normalizedAlias = normalizeAlias(alias);
+			if (!isRedundantGenreAlias(normalizedAlias, genreKey)) continue;
+			await this.sql`
+				DELETE FROM app_music_genre_aliases
+				WHERE alias = ${normalizedAlias}
+					AND genre_key = ${genreKey}
+			`;
+		}
+
+		const storedAliases = await this.sql<AliasRow[]>`
+			SELECT alias, genre_key
+			FROM app_music_genre_aliases
+		`;
+		for (const row of storedAliases) {
+			if (!isRedundantGenreAlias(row.alias, row.genre_key)) continue;
+			await this.sql`
+				DELETE FROM app_music_genre_aliases
+				WHERE alias = ${row.alias}
+					AND genre_key = ${row.genre_key}
 			`;
 		}
 	}
@@ -154,8 +179,12 @@ export class MusicGenreTaxonomyRepository {
 			`,
 		]);
 
+		const cleanAliasRows = aliasRows.filter(
+			(row) => !isRedundantGenreAlias(row.alias, row.genre_key),
+		);
+
 		const aliasesByGenre = new Map<string, string[]>();
-		for (const row of aliasRows) {
+		for (const row of cleanAliasRows) {
 			const aliases = aliasesByGenre.get(row.genre_key) ?? [];
 			aliases.push(row.alias);
 			aliasesByGenre.set(row.genre_key, aliases);
@@ -185,7 +214,7 @@ export class MusicGenreTaxonomyRepository {
 
 		return {
 			genres,
-			aliases: aliasRows.map((row) => ({
+			aliases: cleanAliasRows.map((row) => ({
 				alias: row.alias,
 				genreKey: row.genre_key,
 			})),
@@ -304,6 +333,14 @@ export class MusicGenreTaxonomyRepository {
 		const alias = normalizeAlias(input.alias);
 		if (!alias) {
 			throw new Error("Alias is required");
+		}
+		if (isRedundantGenreAlias(alias, input.genreKey)) {
+			await this.sql`
+				DELETE FROM app_music_genre_aliases
+				WHERE alias = ${alias}
+					AND genre_key = ${input.genreKey}
+			`;
+			return;
 		}
 
 		await this.sql`
