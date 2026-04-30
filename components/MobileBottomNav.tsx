@@ -46,6 +46,7 @@ const excludedPathPrefixes = [
 	"/event-modal-lab",
 	"/header-lab",
 	"/home-style-lab",
+	"/how-it-works",
 	"/social",
 ] as const;
 
