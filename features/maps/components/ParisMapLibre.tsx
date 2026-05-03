@@ -3,6 +3,7 @@
 import maplibregl from "maplibre-gl";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { MapControls, Map as MapcnMap, useMap } from "@/components/ui/map";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import type { Event } from "@/features/events/types";
 import { formatPrice, getDayNightPeriod } from "@/features/events/types";
@@ -116,6 +117,34 @@ const getArrondissementFillColor = (eventCount: number): string => {
 	return ARRONDISSEMENT_COLORS.EMPTY;
 };
 
+type ParisMapBridgeProps = {
+	onMapReady: (mapInstance: maplibregl.Map, isLoaded: boolean) => void;
+	onMapError: (event: maplibregl.ErrorEvent) => void;
+	onMapRemoved: () => void;
+};
+
+function ParisMapBridge({
+	onMapReady,
+	onMapError,
+	onMapRemoved,
+}: ParisMapBridgeProps) {
+	const { map, isLoaded } = useMap();
+
+	useEffect(() => {
+		if (!map) return;
+
+		onMapReady(map, isLoaded);
+		map.on("error", onMapError);
+
+		return () => {
+			map.off("error", onMapError);
+			onMapRemoved();
+		};
+	}, [isLoaded, map, onMapError, onMapReady, onMapRemoved]);
+
+	return null;
+}
+
 const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	events,
 	onEventClick,
@@ -123,7 +152,6 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	className,
 	resizeSignal = 0,
 }) => {
-	const mapContainer = useRef<HTMLDivElement>(null);
 	const map = useRef<maplibregl.Map | null>(null);
 	const hasLoadedMapRef = useRef(false);
 	const [mapLoaded, setMapLoaded] = useState(false);
@@ -355,85 +383,39 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		}
 	}, []);
 
-	// Initialize map with proper cleanup
-	useEffect(() => {
-		if (!mapContainer.current || map.current) return;
+	const handleMapReady = useCallback(
+		(mapInstance: maplibregl.Map, isLoaded: boolean) => {
+			map.current = mapInstance;
+			if (!isLoaded) return;
 
-		const initMap = async () => {
-			try {
-				setIsLoading(true);
-				setLoadError(null);
+			hasLoadedMapRef.current = true;
+			setMapLoaded(true);
+			setIsLoading(false);
+			setLoadError(null);
+		},
+		[],
+	);
 
-				// Initialize map
-				map.current = new maplibregl.Map({
-					container: mapContainer.current!,
-					style: "https://tiles.openfreemap.org/styles/liberty",
-					center: PARIS_CENTER,
-					zoom: 11,
-					minZoom: 10,
-					maxZoom: 18,
-					attributionControl: {
-						customAttribution: "Paris Event Map",
-					},
-					maxBounds: [
-						[2.18, 48.8], // Southwest corner (medium expansion)
-						[2.51, 48.92], // Northeast corner (medium expansion)
-					],
-				});
+	const handleMapRemoved = useCallback(() => {
+		map.current = null;
+		hasLoadedMapRef.current = false;
+		setMapLoaded(false);
+		setIsLoading(true);
+	}, []);
 
-				// Add navigation controls
-				map.current.addControl(new maplibregl.NavigationControl(), "top-right");
+	const handleMapError = useCallback((e: maplibregl.ErrorEvent) => {
+		if (hasLoadedMapRef.current) {
+			clientLog.warn("maps.maplibre", "Non-fatal map tile error", {
+				message: e.error.message,
+			});
+			return;
+		}
 
-				map.current.on("load", () => {
-					hasLoadedMapRef.current = true;
-					setMapLoaded(true);
-					setIsLoading(false);
-				});
-
-				map.current.on("error", (e: maplibregl.ErrorEvent) => {
-					if (hasLoadedMapRef.current) {
-						clientLog.warn("maps.maplibre", "Non-fatal map tile error", {
-							message: e.error.message,
-						});
-						return;
-					}
-
-					clientLog.error("maps.maplibre", "Map loading error", {
-						message: e.error.message,
-					});
-					setLoadError("Failed to load map tiles");
-					setIsLoading(false);
-				});
-			} catch (error) {
-				clientLog.error(
-					"maps.maplibre",
-					"Failed to initialize map",
-					undefined,
-					error,
-				);
-				setLoadError(
-					error instanceof Error ? error.message : "Failed to load map",
-				);
-				setIsLoading(false);
-			}
-		};
-
-		initMap();
-
-		// Proper cleanup function
-		return () => {
-			const currentMap = map.current;
-			if (!currentMap) return;
-			try {
-				currentMap.remove();
-			} catch (error) {
-				clientLog.warn("maps.maplibre", "Map cleanup error", {
-					error: error instanceof Error ? error.message : String(error),
-				});
-			} finally {
-				map.current = null;
-			}
-		};
+		clientLog.error("maps.maplibre", "Map loading error", {
+			message: e.error.message,
+		});
+		setLoadError("Failed to load map tiles");
+		setIsLoading(false);
 	}, []);
 
 	useEffect(() => {
@@ -799,12 +781,29 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				className,
 			)}
 		>
-			{/* Map container */}
-			<div
-				ref={mapContainer}
-				className="absolute inset-0 rounded-lg overflow-hidden"
-				style={{ width: "100%", height: "100%" }}
-			/>
+			<MapcnMap
+				center={PARIS_CENTER}
+				zoom={11}
+				minZoom={10}
+				maxZoom={18}
+				maxBounds={[
+					[2.18, 48.8],
+					[2.51, 48.92],
+				]}
+				className="absolute inset-0 overflow-hidden rounded-lg"
+				loading={isLoading}
+			>
+				<ParisMapBridge
+					onMapReady={handleMapReady}
+					onMapError={handleMapError}
+					onMapRemoved={handleMapRemoved}
+				/>
+				<MapControls
+					position="top-right"
+					showCompass
+					className="z-[3] rounded-2xl border border-border/70 bg-card/88 p-1 shadow-[0_18px_42px_-32px_rgba(16,12,9,0.65)] backdrop-blur-md"
+				/>
+			</MapcnMap>
 
 			{/* Loading overlay */}
 			{isLoading && (
