@@ -5,16 +5,26 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import type { Event } from "@/features/events/types";
-import { formatPrice, getDayNightPeriod } from "@/features/events/types";
+import {
+	formatDayWithDate,
+	formatPrice,
+	getDayNightPeriod,
+} from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
 import { cn } from "@/lib/utils";
 import {
 	Building2,
 	CalendarDays,
 	Euro,
+	Filter,
+	Locate,
 	MapPin,
 	MapPinned,
+	Maximize2,
+	Minimize2,
+	Minus,
 	Moon,
+	Plus,
 	Star,
 	Sun,
 	Trees,
@@ -79,6 +89,11 @@ interface ParisMapLibreProps {
 	selectedDay?: string;
 	className?: string;
 	resizeSignal?: number;
+	onFullscreenRequest?: () => void;
+	isFullscreen?: boolean;
+	onFilterClick?: () => void;
+	hasActiveFilters?: boolean;
+	activeFiltersCount?: number;
 }
 
 // Paris center coordinates
@@ -116,16 +131,41 @@ const getArrondissementFillColor = (eventCount: number): string => {
 	return ARRONDISSEMENT_COLORS.EMPTY;
 };
 
+const getDistrictActivityLabel = (eventCount: number): string => {
+	if (eventCount >= 5) return "High activity district";
+	if (eventCount >= 2) return "Medium activity district";
+	if (eventCount === 1) return "Low activity district";
+	return "No current events";
+};
+
+const formatEventMapSchedule = (event: Event): string => {
+	const dateLabel = formatDayWithDate(event.day, event.date);
+	const hasStartTime = Boolean(event.time && event.time !== "TBC");
+	const hasEndTime = Boolean(event.endTime && event.endTime !== "TBC");
+
+	if (!hasStartTime) return `${dateLabel} • Time TBC`;
+	if (hasEndTime) return `${dateLabel} • ${event.time} - ${event.endTime}`;
+	return `${dateLabel} • ${event.time}`;
+};
+
 const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	events,
 	onEventClick,
 	selectedDay,
 	className,
 	resizeSignal = 0,
+	onFullscreenRequest,
+	isFullscreen = false,
+	onFilterClick,
+	hasActiveFilters = false,
+	activeFiltersCount = 0,
 }) => {
 	const mapContainer = useRef<HTMLDivElement>(null);
 	const map = useRef<maplibregl.Map | null>(null);
 	const hasLoadedMapRef = useRef(false);
+	const locateNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
 	const [mapLoaded, setMapLoaded] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
@@ -133,6 +173,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		number | null
 	>(null);
 	const [showCoordinates, setShowCoordinates] = useState(false);
+	const [showLocateNotice, setShowLocateNotice] = useState(false);
 	const [isOffline, setIsOffline] = useState(false);
 
 	useEffect(() => {
@@ -163,6 +204,21 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const eventsById = React.useMemo(() => {
 		return new Map(filteredEvents.map((event) => [event.id, event]));
 	}, [filteredEvents]);
+
+	const eventsWithCoordinatesCount = React.useMemo(
+		() =>
+			filteredEvents.filter(
+				(event) =>
+					event.coordinates &&
+					typeof event.coordinates.lat === "number" &&
+					typeof event.coordinates.lng === "number" &&
+					!isNaN(event.coordinates.lat) &&
+					!isNaN(event.coordinates.lng),
+			).length,
+		[filteredEvents],
+	);
+
+	const canShowCoordinates = eventsWithCoordinatesCount > 0;
 
 	const arrondissementEventCounts = React.useMemo(() => {
 		const counts: Record<number, number> = {};
@@ -237,6 +293,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		).length;
 		return {
 			total: selectedArrondissementEvents.length,
+			activityLabel: getDistrictActivityLabel(
+				selectedArrondissementEvents.length,
+			),
 			featuredCount,
 			promotedCount,
 			ooocCount,
@@ -343,6 +402,32 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		[eventsById, onEventClick],
 	);
 
+	const handleEventClusterClick = useCallback(
+		(
+			e: maplibregl.MapMouseEvent & {
+				features?: maplibregl.MapGeoJSONFeature[];
+			},
+		) => {
+			const feature = e.features?.[0];
+			const clusterId = feature?.properties?.cluster_id;
+			if (typeof clusterId !== "number" || !map.current) return;
+
+			const source = map.current.getSource("events");
+			if (!source || !("getClusterExpansionZoom" in source)) return;
+
+			const geoJsonSource = source as maplibregl.GeoJSONSource;
+			geoJsonSource.getClusterExpansionZoom(clusterId).then((zoom) => {
+				if (!map.current) return;
+				map.current.easeTo({
+					center: e.lngLat,
+					zoom,
+					duration: 650,
+				});
+			});
+		},
+		[],
+	);
+
 	const handleEventMarkersMouseEnter = useCallback(() => {
 		if (map.current) {
 			map.current.getCanvas().style.cursor = "pointer";
@@ -353,6 +438,45 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		if (map.current) {
 			map.current.getCanvas().style.cursor = "";
 		}
+	}, []);
+
+	const handleZoomIn = useCallback(() => {
+		map.current?.zoomTo(map.current.getZoom() + 1, { duration: 300 });
+	}, []);
+
+	const handleZoomOut = useCallback(() => {
+		map.current?.zoomTo(map.current.getZoom() - 1, { duration: 300 });
+	}, []);
+
+	const handleLocateClick = useCallback(() => {
+		setShowLocateNotice(true);
+		if (locateNoticeTimeoutRef.current) {
+			clearTimeout(locateNoticeTimeoutRef.current);
+		}
+		locateNoticeTimeoutRef.current = setTimeout(() => {
+			setShowLocateNotice(false);
+		}, 3600);
+	}, []);
+
+	const handleFullscreenClick = useCallback(() => {
+		onFullscreenRequest?.();
+	}, [onFullscreenRequest]);
+
+	const handleFullscreenPointerDown = useCallback(
+		(event: React.PointerEvent<HTMLButtonElement>) => {
+			event.preventDefault();
+			event.stopPropagation();
+			handleFullscreenClick();
+		},
+		[handleFullscreenClick],
+	);
+
+	useEffect(() => {
+		return () => {
+			if (locateNoticeTimeoutRef.current) {
+				clearTimeout(locateNoticeTimeoutRef.current);
+			}
+		};
 	}, []);
 
 	// Initialize map with proper cleanup
@@ -372,7 +496,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					zoom: 11,
 					minZoom: 10,
 					maxZoom: 18,
+					dragRotate: false,
+					touchPitch: false,
+					touchZoomRotate: false,
 					attributionControl: {
+						compact: true,
 						customAttribution: "Paris Event Map",
 					},
 					maxBounds: [
@@ -381,13 +509,19 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					],
 				});
 
-				// Add navigation controls
-				map.current.addControl(new maplibregl.NavigationControl(), "top-right");
-
 				map.current.on("load", () => {
 					hasLoadedMapRef.current = true;
 					setMapLoaded(true);
 					setIsLoading(false);
+					const collapseAttribution = () => {
+						const attribution = mapContainer.current?.querySelector(
+							".maplibregl-ctrl-attrib.maplibregl-compact",
+						);
+						attribution?.classList.remove("maplibregl-compact-show");
+						attribution?.classList.add("ooo-attribution-ready");
+					};
+					window.requestAnimationFrame(collapseAttribution);
+					window.setTimeout(collapseAttribution, 200);
 				});
 
 				map.current.on("error", (e: maplibregl.ErrorEvent) => {
@@ -659,12 +793,36 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		const currentMap = map.current;
 		const teardownEventMarkers = () => {
 			try {
+				currentMap.off(
+					"click",
+					"event-cluster-counts",
+					handleEventClusterClick,
+				);
+			} catch {}
+			try {
 				currentMap.off("click", "event-markers", handleEventMarkersClick);
+			} catch {}
+			try {
+				currentMap.off("click", "event-star-markers", handleEventMarkersClick);
 			} catch {}
 			try {
 				currentMap.off(
 					"mouseenter",
 					"event-markers",
+					handleEventMarkersMouseEnter,
+				);
+			} catch {}
+			try {
+				currentMap.off(
+					"mouseenter",
+					"event-star-markers",
+					handleEventMarkersMouseEnter,
+				);
+			} catch {}
+			try {
+				currentMap.off(
+					"mouseenter",
+					"event-cluster-counts",
 					handleEventMarkersMouseEnter,
 				);
 			} catch {}
@@ -676,8 +834,47 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				);
 			} catch {}
 			try {
+				currentMap.off(
+					"mouseleave",
+					"event-star-markers",
+					handleEventMarkersMouseLeave,
+				);
+			} catch {}
+			try {
+				currentMap.off(
+					"mouseleave",
+					"event-cluster-counts",
+					handleEventMarkersMouseLeave,
+				);
+			} catch {}
+			try {
+				if (currentMap.getLayer("event-cluster-counts")) {
+					currentMap.removeLayer("event-cluster-counts");
+				}
+			} catch {}
+			try {
+				if (currentMap.getLayer("event-cluster-badges")) {
+					currentMap.removeLayer("event-cluster-badges");
+				}
+			} catch {}
+			try {
+				if (currentMap.getLayer("event-star-markers")) {
+					currentMap.removeLayer("event-star-markers");
+				}
+			} catch {}
+			try {
+				if (currentMap.getLayer("event-marker-centers")) {
+					currentMap.removeLayer("event-marker-centers");
+				}
+			} catch {}
+			try {
 				if (currentMap.getLayer("event-markers")) {
 					currentMap.removeLayer("event-markers");
+				}
+			} catch {}
+			try {
+				if (currentMap.getLayer("event-marker-halos")) {
+					currentMap.removeLayer("event-marker-halos");
 				}
 			} catch {}
 			try {
@@ -726,24 +923,126 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		currentMap.addSource("events", {
 			type: "geojson",
 			data: eventsGeoJSON,
+			cluster: true,
+			clusterMaxZoom: 15,
+			clusterRadius: 42,
+		});
+
+		currentMap.addLayer({
+			id: "event-cluster-badges",
+			type: "circle",
+			source: "events",
+			filter: ["has", "point_count"],
+			paint: {
+				"circle-radius": ["step", ["get", "point_count"], 17, 5, 20, 12, 24],
+				"circle-color": "#49382e",
+				"circle-stroke-color": "#fffaf3",
+				"circle-stroke-width": 2.5,
+				"circle-opacity": 0.96,
+			},
+		});
+
+		currentMap.addLayer({
+			id: "event-cluster-counts",
+			type: "symbol",
+			source: "events",
+			filter: ["has", "point_count"],
+			layout: {
+				"text-field": ["get", "point_count_abbreviated"],
+				"text-size": 12,
+				"text-allow-overlap": true,
+				"text-ignore-placement": true,
+			},
+			paint: {
+				"text-color": "#fffaf3",
+				"text-halo-color": "#49382e",
+				"text-halo-width": 0.5,
+			},
+		});
+
+		currentMap.addLayer({
+			id: "event-marker-halos",
+			type: "circle",
+			source: "events",
+			filter: ["!", ["has", "point_count"]],
+			paint: {
+				"circle-radius": ["case", ["get", "isOOOCPick"], 15, 12],
+				"circle-color": ["case", ["get", "isOOOCPick"], "#d8a241", "#49382e"],
+				"circle-opacity": ["case", ["get", "isOOOCPick"], 0.24, 0.18],
+				"circle-blur": 0.35,
+			},
 		});
 
 		currentMap.addLayer({
 			id: "event-markers",
 			type: "circle",
 			source: "events",
+			filter: ["!", ["has", "point_count"]],
 			paint: {
-				"circle-radius": ["case", ["get", "isOOOCPick"], 8, 6],
-				"circle-color": ["case", ["get", "isOOOCPick"], "#fbbf24", "#3b82f6"],
-				"circle-stroke-width": 2,
-				"circle-stroke-color": "#ffffff",
-				"circle-opacity": 0.9,
+				"circle-radius": ["case", ["get", "isOOOCPick"], 8.5, 6.5],
+				"circle-color": ["case", ["get", "isOOOCPick"], "#d8a241", "#49382e"],
+				"circle-stroke-width": ["case", ["get", "isOOOCPick"], 2.5, 2],
+				"circle-stroke-color": "#fffaf3",
+				"circle-opacity": 0.96,
 			},
 		});
 
+		currentMap.addLayer({
+			id: "event-marker-centers",
+			type: "circle",
+			source: "events",
+			filter: [
+				"all",
+				["!", ["has", "point_count"]],
+				["!", ["get", "isOOOCPick"]],
+			],
+			paint: {
+				"circle-radius": 2.6,
+				"circle-color": "#d8a241",
+				"circle-opacity": 0.98,
+			},
+		});
+
+		currentMap.addLayer({
+			id: "event-star-markers",
+			type: "symbol",
+			source: "events",
+			filter: ["all", ["!", ["has", "point_count"]], ["get", "isOOOCPick"]],
+			layout: {
+				"text-field": "★",
+				"text-size": 12,
+				"text-allow-overlap": true,
+			},
+			paint: {
+				"text-color": "#49382e",
+			},
+		});
+
+		currentMap.on("click", "event-cluster-counts", handleEventClusterClick);
 		currentMap.on("click", "event-markers", handleEventMarkersClick);
+		currentMap.on("click", "event-star-markers", handleEventMarkersClick);
+		currentMap.on(
+			"mouseenter",
+			"event-cluster-counts",
+			handleEventMarkersMouseEnter,
+		);
 		currentMap.on("mouseenter", "event-markers", handleEventMarkersMouseEnter);
+		currentMap.on(
+			"mouseenter",
+			"event-star-markers",
+			handleEventMarkersMouseEnter,
+		);
+		currentMap.on(
+			"mouseleave",
+			"event-cluster-counts",
+			handleEventMarkersMouseLeave,
+		);
 		currentMap.on("mouseleave", "event-markers", handleEventMarkersMouseLeave);
+		currentMap.on(
+			"mouseleave",
+			"event-star-markers",
+			handleEventMarkersMouseLeave,
+		);
 		return () => {
 			teardownEventMarkers();
 		};
@@ -751,6 +1050,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		mapLoaded,
 		filteredEvents,
 		showCoordinates,
+		handleEventClusterClick,
 		handleEventMarkersClick,
 		handleEventMarkersMouseEnter,
 		handleEventMarkersMouseLeave,
@@ -802,9 +1102,82 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			{/* Map container */}
 			<div
 				ref={mapContainer}
-				className="absolute inset-0 rounded-lg overflow-hidden"
+				className="ooo-map-shell absolute inset-0 rounded-lg overflow-hidden"
 				style={{ width: "100%", height: "100%" }}
 			/>
+
+			{mapLoaded && (
+				<div className="absolute right-2 top-2 z-[3] flex flex-col gap-1 rounded-xl border border-border/70 bg-card/88 p-0.5 shadow-[0_14px_30px_-24px_rgba(16,12,9,0.68)] backdrop-blur-md">
+					<div className="flex flex-col overflow-hidden rounded-lg border border-border/70 bg-background/92 shadow-sm">
+						<button
+							type="button"
+							onClick={handleZoomIn}
+							className="inline-flex h-9 w-9 items-center justify-center text-foreground transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							aria-label="Zoom in"
+						>
+							<Plus className="h-3.5 w-3.5" />
+						</button>
+						<div className="h-px bg-border/70" />
+						<button
+							type="button"
+							onClick={handleZoomOut}
+							className="inline-flex h-9 w-9 items-center justify-center text-foreground transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							aria-label="Zoom out"
+						>
+							<Minus className="h-3.5 w-3.5" />
+						</button>
+					</div>
+					<div className="relative">
+						<button
+							type="button"
+							onClick={handleLocateClick}
+							className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border/70 bg-background/92 text-foreground shadow-sm transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							aria-label="Find events near me"
+						>
+							<Locate className="h-3.5 w-3.5" />
+						</button>
+						{showLocateNotice && (
+							<div className="absolute right-[calc(100%+0.5rem)] top-0 w-56 rounded-xl border border-border/75 bg-popover/96 px-3 py-2 text-left text-xs leading-snug text-popover-foreground shadow-[0_16px_34px_-24px_rgba(16,12,9,0.68)] backdrop-blur-md">
+								<p className="font-medium text-foreground">
+									Near me is coming soon
+								</p>
+								<p className="mt-0.5 text-muted-foreground">
+									It will map events closest to your location.
+								</p>
+							</div>
+						)}
+					</div>
+					{isFullscreen && onFilterClick && (
+						<button
+							type="button"
+							onClick={onFilterClick}
+							className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border/70 bg-background/92 text-foreground shadow-sm transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							aria-label="Open event filters"
+						>
+							<Filter className="h-3.5 w-3.5" />
+							{hasActiveFilters && (
+								<span className="-right-1 -top-1 absolute inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-medium text-destructive-foreground shadow-sm">
+									{activeFiltersCount}
+								</span>
+							)}
+						</button>
+					)}
+					<button
+						type="button"
+						onPointerDown={handleFullscreenPointerDown}
+						className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border/70 bg-background/92 text-foreground shadow-sm transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						aria-label={
+							isFullscreen ? "Close full screen map" : "Open full screen map"
+						}
+					>
+						{isFullscreen ? (
+							<Minimize2 className="h-3.5 w-3.5" />
+						) : (
+							<Maximize2 className="h-3.5 w-3.5" />
+						)}
+					</button>
+				</div>
+			)}
 
 			{/* Loading overlay */}
 			{isLoading && (
@@ -831,7 +1204,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				>
 					{/* Header */}
 					<div className="flex items-center space-x-2 mb-3">
-						<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+						<div className="h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
 						<h3 className="text-sm font-semibold text-foreground">
 							{filteredEvents.length} events showing
 						</h3>
@@ -839,20 +1212,29 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 					{/* Coordinates Toggle */}
 					<div className="mb-3 border-b border-border/65 pb-3">
-						<label className="flex items-center space-x-2 cursor-not-allowed">
+						<label
+							className={cn(
+								"flex items-center space-x-2",
+								canShowCoordinates ? "cursor-pointer" : "cursor-not-allowed",
+							)}
+						>
 							<input
 								type="checkbox"
 								checked={showCoordinates}
 								onChange={(e) => setShowCoordinates(e.target.checked)}
-								disabled={true}
-								className="h-4 w-4 rounded border-border/70 bg-background/70 text-blue-600 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+								disabled={!canShowCoordinates}
+								className="h-4 w-4 rounded border-border/70 bg-background/70 text-[#7a4f3a] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-45"
 							/>
 							<div className="flex flex-col">
 								<span className="text-sm text-foreground/88">
 									Show Event Pins
 								</span>
 								<span className="text-xs text-muted-foreground">
-									Coming soon
+									{canShowCoordinates
+										? `${eventsWithCoordinatesCount} precise venue pin${
+												eventsWithCoordinatesCount === 1 ? "" : "s"
+											}`
+										: "No precise venue coordinates yet"}
 								</span>
 							</div>
 						</label>
@@ -862,16 +1244,16 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					{showCoordinates && (
 						<div className="space-y-2 mb-3">
 							<div className="flex items-center space-x-2">
-								<div className="w-3 h-3 rounded-full bg-blue-500"></div>
+								<div className="h-3 w-3 rounded-full border border-white bg-[#49382e] shadow-sm"></div>
 								<span className="text-xs text-foreground/82">
 									Regular Event
 								</span>
 							</div>
 							<div className="flex items-center space-x-2">
-								<div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+								<div className="h-3 w-3 rounded-full border border-white bg-[#d8a241] shadow-sm"></div>
 								<span className="inline-flex items-center gap-1 text-xs text-foreground/82">
 									OOOC Pick
-									<Star className="h-3 w-3 fill-current text-yellow-500" />
+									<Star className="h-3 w-3 fill-current text-[#d8a241]" />
 								</span>
 							</div>
 						</div>
@@ -894,7 +1276,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 								<div className="mt-2 flex items-center space-x-2 border-t border-border/65 pt-2">
 									<CalendarDays className="h-3.5 w-3.5 text-blue-500" />
 									<span className="font-medium text-blue-600 dark:text-blue-400">
-										Filtered by {selectedDay}
+										Filtered by{" "}
+										{selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1)}
 									</span>
 								</div>
 							)}
@@ -907,35 +1290,29 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			{mapLoaded && (
 				<div
 					className={cn(
-						"ooo-site-card absolute bottom-3 left-3 z-[2] rounded-xl border border-border/75 p-3 shadow-[0_16px_36px_-28px_rgba(16,12,9,0.55)] backdrop-blur-md sm:bottom-4 sm:left-4",
+						"ooo-site-card absolute bottom-3 left-3 z-[2] rounded-xl border border-border/75 px-2.5 py-2 shadow-[0_14px_30px_-24px_rgba(16,12,9,0.55)] backdrop-blur-md sm:bottom-4 sm:left-4",
 						selectedArrondissement ? "hidden sm:block" : "block",
 					)}
 				>
-					<h4 className="mb-2 text-xs font-medium text-foreground">
-						District Colors
+					<h4 className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+						District activity
 					</h4>
-					<div className="space-y-1">
-						<div className="flex items-center space-x-2">
-							<div className="w-3 h-2 rounded-sm bg-gray-300"></div>
-							<span className="text-xs text-muted-foreground">0 events</span>
+					<div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+						<div className="flex flex-col items-center gap-1">
+							<div className="h-2 w-4 rounded-sm bg-gray-300" />
+							<span>0</span>
 						</div>
-						<div className="flex items-center space-x-2">
-							<div className="w-3 h-2 rounded-sm bg-green-600"></div>
-							<span className="text-xs text-muted-foreground">1 event</span>
+						<div className="flex flex-col items-center gap-1">
+							<div className="h-2 w-4 rounded-sm bg-green-600" />
+							<span>1</span>
 						</div>
-						<div className="flex items-center space-x-2">
-							<div className="w-3 h-2 rounded-sm bg-orange-600"></div>
-							<span className="text-xs text-muted-foreground">2-4 events</span>
+						<div className="flex flex-col items-center gap-1">
+							<div className="h-2 w-4 rounded-sm bg-orange-600" />
+							<span>2-4</span>
 						</div>
-						<div className="flex items-center space-x-2">
-							<div className="w-3 h-2 rounded-sm bg-red-600"></div>
-							<span className="text-xs text-muted-foreground">5+ events</span>
-						</div>
-						<div className="mt-1 flex items-center space-x-2">
-							<div className="h-2 w-3 rounded-sm bg-blue-700"></div>
-							<span className="text-xs text-muted-foreground">
-								Selected district
-							</span>
+						<div className="flex flex-col items-center gap-1">
+							<div className="h-2 w-4 rounded-sm bg-red-600" />
+							<span>5+</span>
 						</div>
 					</div>
 				</div>
@@ -951,14 +1328,17 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 									Paris Map
 								</p>
 								<h3 className="text-[1.02rem] [font-family:var(--ooo-font-display)] font-light leading-tight">
-									{selectedArrondissement}e Arrondissement Events
+									{selectedArrondissement}e Arrondissement
 								</h3>
-								<p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/85">
-									Featured first, then promoted
+								<p className="mt-0.5 text-xs text-muted-foreground">
+									{selectedArrondissementSummary.total} event
+									{selectedArrondissementSummary.total === 1 ? "" : "s"} here
+									{" · "}
+									{selectedArrondissementSummary.activityLabel}
 								</p>
 								<div className="mt-2 flex flex-wrap gap-1.5">
 									<span className="rounded-full border border-border/70 bg-background/58 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-foreground/80">
-										{selectedArrondissementSummary.total} events
+										Featured first
 									</span>
 									{selectedArrondissementSummary.featuredCount > 0 && (
 										<span className="rounded-full border border-rose-400/55 bg-rose-100/75 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-rose-700 dark:border-rose-400/40 dark:bg-rose-500/12 dark:text-rose-200">
@@ -1033,9 +1413,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 													)}
 												</div>
 												<p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-													<span>
-														{event.time} • {event.day}
-													</span>
+													<span>{formatEventMapSchedule(event)}</span>
 													{dayNightPeriod === "day" ? (
 														<Sun className="h-3 w-3" />
 													) : dayNightPeriod === "night" ? (

@@ -6,16 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Event } from "@/features/events/types";
 import { LAYERS } from "@/lib/ui/layers";
-import {
-	ChevronDown,
-	Filter,
-	LocateFixed,
-	MapPin,
-	Maximize2,
-	X,
-} from "lucide-react";
+import { ChevronDown, LocateFixed, MapPin, Maximize2 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+	type PointerEvent,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 const ParisMapLibre = dynamic(
@@ -58,11 +57,14 @@ export function EventsMapCard({
 	const isOnline = useOnlineStatus();
 	const [hasMountedMap, setHasMountedMap] = useState(false);
 	const [isFullscreen, setIsFullscreen] = useState(false);
+	const [showNearMeNotice, setShowNearMeNotice] = useState(false);
 	const [mapPortalElement, setMapPortalElement] =
 		useState<HTMLDivElement | null>(null);
 	const fullscreenButtonRef = useRef<HTMLButtonElement>(null);
-	const fullscreenCloseButtonRef = useRef<HTMLButtonElement>(null);
 	const hasFullscreenHistoryEntryRef = useRef(false);
+	const nearMeNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
 	const normalMapSlotRef = useRef<HTMLDivElement>(null);
 	const fullscreenMapSlotRef = useRef<HTMLDivElement>(null);
 
@@ -73,6 +75,9 @@ export function EventsMapCard({
 
 		return () => {
 			element.remove();
+			if (nearMeNoticeTimeoutRef.current) {
+				clearTimeout(nearMeNoticeTimeoutRef.current);
+			}
 		};
 	}, []);
 
@@ -137,10 +142,6 @@ export function EventsMapCard({
 			"",
 		);
 		hasFullscreenHistoryEntryRef.current = true;
-
-		window.requestAnimationFrame(() => {
-			fullscreenCloseButtonRef.current?.focus();
-		});
 
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
@@ -207,11 +208,42 @@ export function EventsMapCard({
 		setIsFullscreen(true);
 	};
 
+	const handleOpenFullscreenPointerDown = (
+		event: PointerEvent<HTMLButtonElement>,
+	) => {
+		event.preventDefault();
+		event.stopPropagation();
+		handleOpenFullscreen();
+	};
+
+	const handleToggleFullscreen = () => {
+		if (isFullscreen) {
+			setIsFullscreen(false);
+			return;
+		}
+		handleOpenFullscreen();
+	};
+
+	const handleNearMeClick = () => {
+		setShowNearMeNotice(true);
+		if (nearMeNoticeTimeoutRef.current) {
+			clearTimeout(nearMeNoticeTimeoutRef.current);
+		}
+		nearMeNoticeTimeoutRef.current = setTimeout(() => {
+			setShowNearMeNotice(false);
+		}, 3600);
+	};
+
 	const mapContent = (
 		<ParisMapLibre
 			events={events}
 			onEventClick={onEventClick}
 			resizeSignal={mapResizeSignal}
+			onFullscreenRequest={handleToggleFullscreen}
+			isFullscreen={isFullscreen}
+			onFilterClick={onFilterClick}
+			hasActiveFilters={hasActiveFilters}
+			activeFiltersCount={activeFiltersCount}
 			className={isFullscreen ? "h-[100svh] rounded-none border-0" : undefined}
 		/>
 	);
@@ -271,26 +303,37 @@ export function EventsMapCard({
 						</div>
 
 						<div className="flex flex-wrap justify-center gap-2 sm:justify-end">
-							<div className="flex items-center space-x-2 rounded-lg border border-border/70 bg-background/65 p-1">
-								<span className="px-2 text-xs text-muted-foreground">
+							<div className="relative flex items-center space-x-1.5 rounded-lg border border-border/70 bg-background/65 p-0.5">
+								<span className="px-1.5 text-[11px] text-muted-foreground">
 									Explore:
 								</span>
 								<Button
 									variant="secondary"
 									size="sm"
-									disabled
-									className="text-xs h-7 px-3"
+									onClick={handleNearMeClick}
+									className="h-7 px-2.5 text-[11px]"
 								>
 									<LocateFixed className="mr-1 h-3.5 w-3.5" />
 									Near me (soon)
 								</Button>
+								{showNearMeNotice && (
+									<div className="absolute top-[calc(100%+0.5rem)] right-0 z-20 w-56 rounded-xl border border-border/75 bg-popover/96 px-3 py-2 text-left text-xs leading-snug text-popover-foreground shadow-[0_16px_34px_-24px_rgba(16,12,9,0.68)] backdrop-blur-md">
+										<p className="font-medium text-foreground">
+											Near me is coming soon
+										</p>
+										<p className="mt-0.5 text-muted-foreground">
+											It will map events closest to your location.
+										</p>
+									</div>
+								)}
 							</div>
 							<Button
 								variant="outline"
 								size="sm"
 								ref={fullscreenButtonRef}
+								onPointerDown={handleOpenFullscreenPointerDown}
 								onClick={handleOpenFullscreen}
-								className="h-9 rounded-full border-border/70 bg-background/65 px-3 text-xs"
+								className="h-8 rounded-full border-border/70 bg-background/65 px-2.5 text-[11px]"
 								aria-expanded={isFullscreen}
 								aria-label="Open Paris event map full screen"
 							>
@@ -338,38 +381,6 @@ export function EventsMapCard({
 						aria-modal="true"
 						aria-label="Full screen Paris event map"
 					>
-						<div className="pointer-events-none absolute right-2 top-28 z-[4] flex flex-col items-center gap-2 sm:left-1/2 sm:right-auto sm:top-5 sm:-translate-x-1/2 sm:flex-row">
-							<Button
-								variant="secondary"
-								size="sm"
-								ref={fullscreenCloseButtonRef}
-								onClick={() => setIsFullscreen(false)}
-								className="pointer-events-auto h-11 w-11 rounded-full border border-border/70 bg-background/82 p-0 shadow-lg backdrop-blur-md"
-								aria-label="Close full screen map"
-							>
-								<X className="h-4 w-4" />
-							</Button>
-							{onFilterClick && (
-								<Button
-									variant="secondary"
-									size="sm"
-									onClick={onFilterClick}
-									className="pointer-events-auto h-11 rounded-full border border-border/70 bg-background/82 px-4 text-xs shadow-lg backdrop-blur-md"
-									aria-label="Open event filters"
-								>
-									<Filter className="mr-1.5 h-3.5 w-3.5" />
-									<span className="hidden min-[380px]:inline">Filters</span>
-									{hasActiveFilters && (
-										<Badge
-											variant="destructive"
-											className="ml-0 h-4 min-w-4 rounded-full px-1 text-[10px] min-[380px]:ml-1.5"
-										>
-											{activeFiltersCount}
-										</Badge>
-									)}
-								</Button>
-							)}
-						</div>
 						<div ref={fullscreenMapSlotRef} className="h-[100svh] w-screen" />
 					</div>,
 					document.body,
