@@ -16,6 +16,7 @@ import {
 	Building2,
 	CalendarDays,
 	Euro,
+	Filter,
 	Locate,
 	MapPin,
 	MapPinned,
@@ -90,6 +91,9 @@ interface ParisMapLibreProps {
 	resizeSignal?: number;
 	onFullscreenRequest?: () => void;
 	isFullscreen?: boolean;
+	onFilterClick?: () => void;
+	hasActiveFilters?: boolean;
+	activeFiltersCount?: number;
 }
 
 // Paris center coordinates
@@ -127,6 +131,13 @@ const getArrondissementFillColor = (eventCount: number): string => {
 	return ARRONDISSEMENT_COLORS.EMPTY;
 };
 
+const getDistrictActivityLabel = (eventCount: number): string => {
+	if (eventCount >= 5) return "High activity district";
+	if (eventCount >= 2) return "Medium activity district";
+	if (eventCount === 1) return "Low activity district";
+	return "No current events";
+};
+
 const formatEventMapSchedule = (event: Event): string => {
 	const dateLabel = formatDayWithDate(event.day, event.date);
 	const hasStartTime = Boolean(event.time && event.time !== "TBC");
@@ -145,6 +156,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	resizeSignal = 0,
 	onFullscreenRequest,
 	isFullscreen = false,
+	onFilterClick,
+	hasActiveFilters = false,
+	activeFiltersCount = 0,
 }) => {
 	const mapContainer = useRef<HTMLDivElement>(null);
 	const map = useRef<maplibregl.Map | null>(null);
@@ -279,6 +293,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		).length;
 		return {
 			total: selectedArrondissementEvents.length,
+			activityLabel: getDistrictActivityLabel(
+				selectedArrondissementEvents.length,
+			),
 			featuredCount,
 			promotedCount,
 			ooocCount,
@@ -1130,6 +1147,21 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							</div>
 						)}
 					</div>
+					{isFullscreen && onFilterClick && (
+						<button
+							type="button"
+							onClick={onFilterClick}
+							className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border/70 bg-background/92 text-foreground shadow-sm transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							aria-label="Open event filters"
+						>
+							<Filter className="h-3.5 w-3.5" />
+							{hasActiveFilters && (
+								<span className="-right-1 -top-1 absolute inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-medium text-destructive-foreground shadow-sm">
+									{activeFiltersCount}
+								</span>
+							)}
+						</button>
+					)}
 					<button
 						type="button"
 						onPointerDown={handleFullscreenPointerDown}
@@ -1258,35 +1290,29 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			{mapLoaded && (
 				<div
 					className={cn(
-						"ooo-site-card absolute bottom-3 left-3 z-[2] rounded-xl border border-border/75 p-3 shadow-[0_16px_36px_-28px_rgba(16,12,9,0.55)] backdrop-blur-md sm:bottom-4 sm:left-4",
+						"ooo-site-card absolute bottom-3 left-3 z-[2] rounded-xl border border-border/75 px-2.5 py-2 shadow-[0_14px_30px_-24px_rgba(16,12,9,0.55)] backdrop-blur-md sm:bottom-4 sm:left-4",
 						selectedArrondissement ? "hidden sm:block" : "block",
 					)}
 				>
-					<h4 className="mb-2 text-xs font-medium text-foreground">
-						District Colors
+					<h4 className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+						District activity
 					</h4>
-					<div className="space-y-1">
-						<div className="flex items-center space-x-2">
-							<div className="w-3 h-2 rounded-sm bg-gray-300"></div>
-							<span className="text-xs text-muted-foreground">0 events</span>
+					<div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+						<div className="flex flex-col items-center gap-1">
+							<div className="h-2 w-4 rounded-sm bg-gray-300" />
+							<span>0</span>
 						</div>
-						<div className="flex items-center space-x-2">
-							<div className="w-3 h-2 rounded-sm bg-green-600"></div>
-							<span className="text-xs text-muted-foreground">1 event</span>
+						<div className="flex flex-col items-center gap-1">
+							<div className="h-2 w-4 rounded-sm bg-green-600" />
+							<span>1</span>
 						</div>
-						<div className="flex items-center space-x-2">
-							<div className="w-3 h-2 rounded-sm bg-orange-600"></div>
-							<span className="text-xs text-muted-foreground">2-4 events</span>
+						<div className="flex flex-col items-center gap-1">
+							<div className="h-2 w-4 rounded-sm bg-orange-600" />
+							<span>2-4</span>
 						</div>
-						<div className="flex items-center space-x-2">
-							<div className="w-3 h-2 rounded-sm bg-red-600"></div>
-							<span className="text-xs text-muted-foreground">5+ events</span>
-						</div>
-						<div className="mt-1 flex items-center space-x-2">
-							<div className="h-2 w-3 rounded-sm bg-blue-700"></div>
-							<span className="text-xs text-muted-foreground">
-								Selected district
-							</span>
+						<div className="flex flex-col items-center gap-1">
+							<div className="h-2 w-4 rounded-sm bg-red-600" />
+							<span>5+</span>
 						</div>
 					</div>
 				</div>
@@ -1302,14 +1328,17 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 									Paris Map
 								</p>
 								<h3 className="text-[1.02rem] [font-family:var(--ooo-font-display)] font-light leading-tight">
-									{selectedArrondissement}e Arrondissement Events
+									{selectedArrondissement}e Arrondissement
 								</h3>
-								<p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/85">
-									Featured first, then promoted
+								<p className="mt-0.5 text-xs text-muted-foreground">
+									{selectedArrondissementSummary.total} event
+									{selectedArrondissementSummary.total === 1 ? "" : "s"} here
+									{" · "}
+									{selectedArrondissementSummary.activityLabel}
 								</p>
 								<div className="mt-2 flex flex-wrap gap-1.5">
 									<span className="rounded-full border border-border/70 bg-background/58 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-foreground/80">
-										{selectedArrondissementSummary.total} events
+										Featured first
 									</span>
 									{selectedArrondissementSummary.featuredCount > 0 && (
 										<span className="rounded-full border border-rose-400/55 bg-rose-100/75 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-rose-700 dark:border-rose-400/40 dark:bg-rose-500/12 dark:text-rose-200">
