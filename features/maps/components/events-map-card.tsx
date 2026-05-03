@@ -15,7 +15,13 @@ import {
 	X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+	type PointerEvent,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 const ParisMapLibre = dynamic(
@@ -58,11 +64,15 @@ export function EventsMapCard({
 	const isOnline = useOnlineStatus();
 	const [hasMountedMap, setHasMountedMap] = useState(false);
 	const [isFullscreen, setIsFullscreen] = useState(false);
+	const [showNearMeNotice, setShowNearMeNotice] = useState(false);
 	const [mapPortalElement, setMapPortalElement] =
 		useState<HTMLDivElement | null>(null);
 	const fullscreenButtonRef = useRef<HTMLButtonElement>(null);
 	const fullscreenCloseButtonRef = useRef<HTMLButtonElement>(null);
 	const hasFullscreenHistoryEntryRef = useRef(false);
+	const nearMeNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
 	const normalMapSlotRef = useRef<HTMLDivElement>(null);
 	const fullscreenMapSlotRef = useRef<HTMLDivElement>(null);
 
@@ -73,6 +83,9 @@ export function EventsMapCard({
 
 		return () => {
 			element.remove();
+			if (nearMeNoticeTimeoutRef.current) {
+				clearTimeout(nearMeNoticeTimeoutRef.current);
+			}
 		};
 	}, []);
 
@@ -207,11 +220,39 @@ export function EventsMapCard({
 		setIsFullscreen(true);
 	};
 
+	const handleOpenFullscreenPointerDown = (
+		event: PointerEvent<HTMLButtonElement>,
+	) => {
+		event.preventDefault();
+		event.stopPropagation();
+		handleOpenFullscreen();
+	};
+
+	const handleToggleFullscreen = () => {
+		if (isFullscreen) {
+			setIsFullscreen(false);
+			return;
+		}
+		handleOpenFullscreen();
+	};
+
+	const handleNearMeClick = () => {
+		setShowNearMeNotice(true);
+		if (nearMeNoticeTimeoutRef.current) {
+			clearTimeout(nearMeNoticeTimeoutRef.current);
+		}
+		nearMeNoticeTimeoutRef.current = setTimeout(() => {
+			setShowNearMeNotice(false);
+		}, 3600);
+	};
+
 	const mapContent = (
 		<ParisMapLibre
 			events={events}
 			onEventClick={onEventClick}
 			resizeSignal={mapResizeSignal}
+			onFullscreenRequest={handleToggleFullscreen}
+			isFullscreen={isFullscreen}
 			className={isFullscreen ? "h-[100svh] rounded-none border-0" : undefined}
 		/>
 	);
@@ -271,26 +312,37 @@ export function EventsMapCard({
 						</div>
 
 						<div className="flex flex-wrap justify-center gap-2 sm:justify-end">
-							<div className="flex items-center space-x-2 rounded-lg border border-border/70 bg-background/65 p-1">
-								<span className="px-2 text-xs text-muted-foreground">
+							<div className="relative flex items-center space-x-1.5 rounded-lg border border-border/70 bg-background/65 p-0.5">
+								<span className="px-1.5 text-[11px] text-muted-foreground">
 									Explore:
 								</span>
 								<Button
 									variant="secondary"
 									size="sm"
-									disabled
-									className="text-xs h-7 px-3"
+									onClick={handleNearMeClick}
+									className="h-7 px-2.5 text-[11px]"
 								>
 									<LocateFixed className="mr-1 h-3.5 w-3.5" />
 									Near me (soon)
 								</Button>
+								{showNearMeNotice && (
+									<div className="absolute top-[calc(100%+0.5rem)] right-0 z-20 w-56 rounded-xl border border-border/75 bg-popover/96 px-3 py-2 text-left text-xs leading-snug text-popover-foreground shadow-[0_16px_34px_-24px_rgba(16,12,9,0.68)] backdrop-blur-md">
+										<p className="font-medium text-foreground">
+											Near me is coming soon
+										</p>
+										<p className="mt-0.5 text-muted-foreground">
+											It will map events closest to your location.
+										</p>
+									</div>
+								)}
 							</div>
 							<Button
 								variant="outline"
 								size="sm"
 								ref={fullscreenButtonRef}
+								onPointerDown={handleOpenFullscreenPointerDown}
 								onClick={handleOpenFullscreen}
-								className="h-9 rounded-full border-border/70 bg-background/65 px-3 text-xs"
+								className="h-8 rounded-full border-border/70 bg-background/65 px-2.5 text-[11px]"
 								aria-expanded={isFullscreen}
 								aria-label="Open Paris event map full screen"
 							>
