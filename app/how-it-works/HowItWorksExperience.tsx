@@ -76,7 +76,7 @@ const storySteps = [
 		id: "community",
 		kicker: "The Community",
 		title: "Find the people already out, sharing tips, plans and next moves.",
-		body: "The OOOC community adds the live bit: real updates, recommendations and people to move with once you're in Paris.",
+		body: "The OOOC community brings it to life: real-time updates, trusted recommendations, and people to move with once you're in Paris.",
 		points: ["Live updates", "OOOC community", "Weekend travel energy"],
 	},
 ] as const;
@@ -300,7 +300,7 @@ function DemoStage({ activeStep }: { activeStep: StoryStepId }) {
 					</div>
 				</div>
 				<div className="mt-5 grid gap-3 text-sm text-white/76">
-					<p>18-35 travellers and locals moving through the same weekend.</p>
+					<p>18-35-year-old travellers and locals moving through the same weekend.</p>
 					<p>
 						Recommendations, meeting points and useful “where next?” signal.
 					</p>
@@ -516,7 +516,7 @@ function MobileStepPreview({ stepId }: { stepId: StoryStepId }) {
 					</div>
 				</div>
 				<div className="mt-4 grid gap-2 text-sm text-white/76">
-					<p>18-35 travellers and locals moving through the same weekend.</p>
+					<p>18-35-year-old travellers and locals moving through the same weekend.</p>
 					<p>
 						Recommendations, meeting points and useful “where next?” signal.
 					</p>
@@ -874,7 +874,7 @@ export function HowItWorksExperience() {
 							{
 								icon: MessageCircle,
 								title: "Join the community",
-								body: "Get live on-the-ground access to OOOC updates and like-minded 18-35 travellers in Paris for Fête weekend.",
+								body: "Get live on-the-ground access to OOOC updates and like-minded 18-35-year-old travellers in Paris for Fête weekend.",
 								href: COMMUNITY_INVITE_CONFIG.WHATSAPP_URL,
 								cta: "Join community",
 								external: true,
