@@ -17,6 +17,7 @@ import {
 	getCustomGenreColor,
 	toGenreLabel,
 } from "@/features/events/genre-normalization";
+import { createRegularEventsComparator } from "@/features/events/ordering";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
 import { getSocialProofDisplayModes } from "@/features/events/social-proof";
 import {
@@ -359,6 +360,7 @@ export function EventsClient({
 		const featuredMatches: Event[] = [];
 		const promotedMatches: Event[] = [];
 		const regularMatches: Event[] = [];
+		const regularEventsComparator = createRegularEventsComparator(new Date());
 
 		for (const event of filteredEvents) {
 			if (shouldDisplayFeaturedEvent(event)) {
@@ -372,7 +374,9 @@ export function EventsClient({
 			regularMatches.push(event);
 		}
 
-		return [...featuredMatches, ...promotedMatches, ...regularMatches];
+		const sortedRegularMatches = [...regularMatches].sort(regularEventsComparator);
+
+		return [...featuredMatches, ...promotedMatches, ...sortedRegularMatches];
 	}, [filteredEvents]);
 
 	const socialProofDisplayModes = useMemo(
