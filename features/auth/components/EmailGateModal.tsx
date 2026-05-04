@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { OFFLINE_GRACE_WINDOW_MS } from "@/features/auth/offline-grace";
 import { Lock, Mail, User } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -203,15 +202,6 @@ const EmailGateModal = ({
 				.replace(/^[\s<([{"'`.,;:>)}]+/, "")
 				.replace(/[\s<([{"'`.,;:>)}]+$/, ""),
 		);
-	};
-
-	const formatGraceWindow = (): string => {
-		const hours = Math.round(OFFLINE_GRACE_WINDOW_MS / (1000 * 60 * 60));
-		if (hours >= 24) {
-			const days = Math.round(hours / 24);
-			return `${days} days`;
-		}
-		return `${hours} hours`;
 	};
 
 	const validateName = (name: string) => {
@@ -562,12 +552,6 @@ const EmailGateModal = ({
 							connection.
 						</p>
 					)}
-					<p className="text-xs text-muted-foreground">
-						If connectivity drops, this browser keeps your sign-in hint for about{" "}
-						{formatGraceWindow()} so you can get back in quickly.
-						It applies per browser storage (same profile/tabs), not across
-						separate app/browser profiles.
-					</p>
 
 					<div className="flex flex-col gap-2">
 						<Button
@@ -577,10 +561,6 @@ const EmailGateModal = ({
 						>
 							{isSubmitting ? "Verifying..." : "Continue to Events"}
 						</Button>
-						<p className="text-xs text-muted-foreground text-center">
-							Sign-in is kept on this browser/device; other browser tabs/apps may
-							ask for verification again.
-						</p>
 						<p className="text-xs text-muted-foreground text-center">
 							Your data is secure and will only be used as described in
 							our privacy policy.
