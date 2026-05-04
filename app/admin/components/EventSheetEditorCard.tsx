@@ -54,7 +54,7 @@ import {
 	normalizeSupportedNationalities,
 	parseSupportedNationalities,
 } from "@/features/events/nationality-utils";
-import { History, RefreshCw } from "lucide-react";
+import { Copy, History, RefreshCw } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -147,6 +147,8 @@ type CellDraft = FocusedCell & {
 
 const ROW_DELETE_CONFIRMATION =
 	"Delete this row from the event sheet? This will be removed on next save.";
+const DATE_RANGE_HELPER_MESSAGE =
+	"The Date column is single-date. For multi-day events, duplicate the row and set each day's date explicitly.";
 const COLUMN_DELETE_CONFIRMATION =
 	"Delete this custom column? This will remove values for this column from all rows.";
 const HISTORY_LIMIT = 120;
@@ -1362,6 +1364,38 @@ export const EventSheetEditorCard = ({
 			nextRows,
 			"Row deleted",
 		);
+	};
+
+	const handleDuplicateRow = (rowIndex: number) => {
+		const sourceRow = rowsRef.current[rowIndex];
+		if (!sourceRow) {
+			return;
+		}
+
+		const nextRows = rowsRef.current
+			.map((row) => ({ ...row }))
+			.toSpliced(rowIndex + 1, 0, {
+				...sourceRow,
+				eventKey: "",
+			});
+		commitSheetMutation(
+			columnsRef.current.map((column) => ({ ...column })),
+			nextRows,
+			"Row duplicated",
+		);
+		setSortMode("sheet-order");
+		setQuery("");
+		window.setTimeout(() => {
+			const firstEditableColumn =
+				columnsRef.current.find(
+					(column) => !SYSTEM_MANAGED_COLUMN_KEYS.has(column.key),
+				) ?? columnsRef.current[0];
+			if (!firstEditableColumn) return;
+
+			inputRefs.current[
+				cellRefKey(rowIndex + 1, firstEditableColumn.key)
+			]?.focus();
+		}, 0);
 	};
 
 	const handleAddColumn = () => {
@@ -3079,6 +3113,9 @@ export const EventSheetEditorCard = ({
 					`District/Area` supports an Area picker: choose `1`-`20`, `Greater
 					Paris`, `Outside Paris`, or `Location TBC`.
 				</div>
+				<div className="text-xs text-muted-foreground">
+					{DATE_RANGE_HELPER_MESSAGE}
+				</div>
 
 				<div className="text-xs text-muted-foreground">
 					Showing {visibleRowIndexes.length} of {filteredRowIndexes.length}{" "}
@@ -3094,7 +3131,7 @@ export const EventSheetEditorCard = ({
 									style={{ width: `${DATA_COLUMN_WIDTH}px` }}
 								/>
 							))}
-							<col style={{ width: "96px" }} />
+							<col style={{ width: "128px" }} />
 						</colgroup>
 						<thead className="sticky top-0 z-20 bg-background/95 backdrop-blur-[2px]">
 							<tr>
@@ -3181,7 +3218,7 @@ export const EventSheetEditorCard = ({
 										</div>
 									</th>
 								))}
-								<th className="w-24 border-b bg-background px-2 py-2 text-left">
+								<th className="w-32 border-b bg-background px-2 py-2 text-left">
 									Action
 								</th>
 							</tr>
@@ -4424,14 +4461,27 @@ export const EventSheetEditorCard = ({
 												</td>
 											))}
 											<td className="border-b px-2 py-1">
-												<Button
-													type="button"
-													size="sm"
-													variant="ghost"
-													onClick={() => handleDeleteRow(rowIndex)}
-												>
-													Delete
-												</Button>
+												<div className="flex items-center gap-1">
+													<Button
+														type="button"
+														size="sm"
+														variant="ghost"
+														onClick={() => handleDuplicateRow(rowIndex)}
+														className="h-8 gap-1.5"
+													>
+														<Copy className="h-3.5 w-3.5" />
+														<span>Duplicate</span>
+													</Button>
+													<Button
+														type="button"
+														size="sm"
+														variant="ghost"
+														onClick={() => handleDeleteRow(rowIndex)}
+														className="h-8"
+													>
+														Delete
+													</Button>
+												</div>
 											</td>
 										</tr>
 									);
