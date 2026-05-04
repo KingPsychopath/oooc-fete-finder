@@ -578,6 +578,10 @@ const EmailGateModal = ({
 							{isSubmitting ? "Verifying..." : "Continue to Events"}
 						</Button>
 						<p className="text-xs text-muted-foreground text-center">
+							Sign-in is kept on this browser/device; other browser tabs/apps may
+							ask for verification again.
+						</p>
+						<p className="text-xs text-muted-foreground text-center">
 							Your data is secure and will only be used as described in
 							our privacy policy.
 						</p>

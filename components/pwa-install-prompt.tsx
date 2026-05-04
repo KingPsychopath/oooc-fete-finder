@@ -22,6 +22,7 @@ import {
 	Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useIsRestrictedPromptRoute } from "@/hooks/useRestrictedPromptRoutes";
 
 interface BeforeInstallPromptEvent extends Event {
 	prompt(): Promise<void>;
@@ -87,6 +88,7 @@ export function PWAInstallPrompt() {
 	const [isPromptEligible, setIsPromptEligible] = useState(false);
 	const [isDelayComplete, setIsDelayComplete] = useState(false);
 	const [isIOS, setIsIOS] = useState(false);
+	const isRestrictedPromptRoute = useIsRestrictedPromptRoute();
 	const hasActiveOverlay = useHasActiveBodyOverlay();
 	const { isVisible: isEngagedByScroll } = useScrollVisibility({
 		threshold: SCROLL_ENGAGEMENT_THRESHOLD,
@@ -200,7 +202,7 @@ export function PWAInstallPrompt() {
 		recordDismissal();
 	};
 
-	if (!isRequestingSlot || !hasPromptSlot) {
+	if (isRestrictedPromptRoute || !isRequestingSlot || !hasPromptSlot) {
 		return null;
 	}
 
