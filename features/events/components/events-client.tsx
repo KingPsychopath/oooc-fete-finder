@@ -293,9 +293,21 @@ export function EventsClient({
 
 	const handleEmailSubmit = useCallback(async () => {
 		const hasConfirmedSession = await refreshSession();
-		if (!hasConfirmedSession) return false;
-		setShowEmailGate(false);
-		return true;
+		if (hasConfirmedSession) {
+			setShowEmailGate(false);
+			return true;
+		}
+
+		await new Promise((resolve) => {
+			setTimeout(resolve, 350);
+		});
+		const retryAfterDelay = await refreshSession();
+
+		if (retryAfterDelay) {
+			setShowEmailGate(false);
+			return true;
+		}
+		return false;
 	}, [refreshSession]);
 
 	const toggleFilterPanel = useCallback(() => {

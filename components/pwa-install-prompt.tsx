@@ -38,8 +38,8 @@ const DEFAULT_DISMISSAL_DATA: InstallDismissalData = {
 	count: 0,
 	timestamp: 0,
 };
-const INITIAL_DELAY_MS = 30_000;
-const SCROLL_ENGAGEMENT_THRESHOLD = 8;
+const INITIAL_DELAY_MS = 45_000;
+const SCROLL_ENGAGEMENT_THRESHOLD = 14;
 const DISMISSAL_COUNT_RESET_MS = 30 * 24 * 60 * 60 * 1000;
 const PROMPT_PRIORITY = 30;
 
