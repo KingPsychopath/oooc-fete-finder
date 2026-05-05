@@ -127,46 +127,79 @@ function formatCountryDisplayList(countries: CountryDisplay[]) {
 
 function CountryChipList({
 	countries,
-	previewLimit = COUNTRY_PREVIEW_LIMIT,
+	mobilePreviewLimit = COUNTRY_PREVIEW_LIMIT,
+	desktopPreviewLimit = mobilePreviewLimit,
 	onShowAll,
 }: {
 	countries: CountryDisplay[];
-	previewLimit?: number;
+	mobilePreviewLimit?: number;
+	desktopPreviewLimit?: number;
 	onShowAll?: () => void;
 }) {
-	const visibleCountries = countries.slice(0, previewLimit);
-	const hiddenCount = countries.length - visibleCountries.length;
+	const mobileCountries = countries.slice(0, mobilePreviewLimit);
+	const desktopCountries = countries.slice(0, desktopPreviewLimit);
+	const mobileHiddenCount = countries.length - mobileCountries.length;
+	const desktopHiddenCount = countries.length - desktopCountries.length;
 	const fullLabel = formatCountryDisplayList(countries);
 
 	return (
 		<div className="mt-1 flex flex-wrap gap-1" aria-label={fullLabel}>
-			{visibleCountries.map((country) => (
+			{mobileCountries.map((country) => (
 				<span
 					key={country.code}
-					className="inline-flex min-h-6 items-center rounded-full border border-border/70 bg-background/70 px-2 text-[12px] font-medium leading-none text-foreground"
+					className="inline-flex min-h-6 items-center rounded-full border border-border/70 bg-background/70 px-2 text-[12px] font-medium leading-none text-foreground sm:hidden"
 					title={country.label}
 				>
 					{country.flag && <span className="mr-1">{country.flag}</span>}
 					{country.code}
 				</span>
 			))}
-			{hiddenCount > 0 && onShowAll && (
+			{desktopCountries.map((country) => (
+				<span
+					key={country.code}
+					className="hidden min-h-6 items-center rounded-full border border-border/70 bg-background/70 px-2 text-[12px] font-medium leading-none text-foreground sm:inline-flex"
+					title={country.label}
+				>
+					{country.flag && <span className="mr-1">{country.flag}</span>}
+					{country.code}
+				</span>
+			))}
+			{mobileHiddenCount > 0 && onShowAll && (
 				<button
 					type="button"
-					className="inline-flex min-h-6 items-center rounded-full border border-border/70 bg-muted/45 px-2 text-[12px] font-medium leading-none text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+					className="inline-flex min-h-6 items-center rounded-full border border-border/70 bg-muted/45 px-2 text-[12px] font-medium leading-none text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:hidden"
 					title={fullLabel}
 					aria-label={`Show all countries: ${fullLabel}`}
 					onClick={onShowAll}
 				>
-					+{hiddenCount}
+					+{mobileHiddenCount}
 				</button>
 			)}
-			{hiddenCount > 0 && !onShowAll && (
+			{desktopHiddenCount > 0 && onShowAll && (
+				<button
+					type="button"
+					className="hidden min-h-6 items-center rounded-full border border-border/70 bg-muted/45 px-2 text-[12px] font-medium leading-none text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:inline-flex"
+					title={fullLabel}
+					aria-label={`Show all countries: ${fullLabel}`}
+					onClick={onShowAll}
+				>
+					+{desktopHiddenCount}
+				</button>
+			)}
+			{mobileHiddenCount > 0 && !onShowAll && (
 				<span
-					className="inline-flex min-h-6 items-center rounded-full border border-border/70 bg-muted/45 px-2 text-[12px] font-medium leading-none text-muted-foreground"
+					className="inline-flex min-h-6 items-center rounded-full border border-border/70 bg-muted/45 px-2 text-[12px] font-medium leading-none text-muted-foreground sm:hidden"
 					title={fullLabel}
 				>
-					+{hiddenCount}
+					+{mobileHiddenCount}
+				</span>
+			)}
+			{desktopHiddenCount > 0 && !onShowAll && (
+				<span
+					className="hidden min-h-6 items-center rounded-full border border-border/70 bg-muted/45 px-2 text-[12px] font-medium leading-none text-muted-foreground sm:inline-flex"
+					title={fullLabel}
+				>
+					+{desktopHiddenCount}
 				</span>
 			)}
 		</div>
@@ -488,10 +521,13 @@ const EventModal: React.FC<EventModalProps> = ({
 	const hasAudienceCountries = audienceCountries.length > 0;
 	const hasCountryDetails = hasHostCountries || hasAudienceCountries;
 	const hasCountrySplit = hasHostCountries && hasAudienceCountries;
-	const countryPreviewLimit = hasCountrySplit ? 2 : COUNTRY_PREVIEW_LIMIT;
+	const mobileCountryPreviewLimit = hasCountrySplit ? 1 : COUNTRY_PREVIEW_LIMIT;
+	const desktopCountryPreviewLimit = hasCountrySplit
+		? 2
+		: COUNTRY_PREVIEW_LIMIT;
 	const hasHiddenCountries =
-		hostCountries.length > countryPreviewLimit ||
-		audienceCountries.length > countryPreviewLimit;
+		hostCountries.length > mobileCountryPreviewLimit ||
+		audienceCountries.length > mobileCountryPreviewLimit;
 	const eventUpdateHref = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
 		`Fete Finder event update: ${event.name}`,
 	)}`;
@@ -760,7 +796,8 @@ const EventModal: React.FC<EventModalProps> = ({
 											</p>
 											<CountryChipList
 												countries={hostCountries}
-												previewLimit={countryPreviewLimit}
+												mobilePreviewLimit={mobileCountryPreviewLimit}
+												desktopPreviewLimit={desktopCountryPreviewLimit}
 												onShowAll={() => setShowCountryDetails(true)}
 											/>
 										</div>
@@ -775,7 +812,8 @@ const EventModal: React.FC<EventModalProps> = ({
 											</p>
 											<CountryChipList
 												countries={audienceCountries}
-												previewLimit={countryPreviewLimit}
+												mobilePreviewLimit={mobileCountryPreviewLimit}
+												desktopPreviewLimit={desktopCountryPreviewLimit}
 												onShowAll={() => setShowCountryDetails(true)}
 											/>
 										</div>
