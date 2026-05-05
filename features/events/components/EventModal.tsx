@@ -125,8 +125,16 @@ function formatCountryDisplayList(countries: CountryDisplay[]) {
 	return countries.map((country) => country.label).join(", ");
 }
 
-function CountryChipList({ countries }: { countries: CountryDisplay[] }) {
-	const visibleCountries = countries.slice(0, COUNTRY_PREVIEW_LIMIT);
+function CountryChipList({
+	countries,
+	previewLimit = COUNTRY_PREVIEW_LIMIT,
+	onShowAll,
+}: {
+	countries: CountryDisplay[];
+	previewLimit?: number;
+	onShowAll?: () => void;
+}) {
+	const visibleCountries = countries.slice(0, previewLimit);
 	const hiddenCount = countries.length - visibleCountries.length;
 	const fullLabel = formatCountryDisplayList(countries);
 
@@ -142,7 +150,18 @@ function CountryChipList({ countries }: { countries: CountryDisplay[] }) {
 					{country.code}
 				</span>
 			))}
-			{hiddenCount > 0 && (
+			{hiddenCount > 0 && onShowAll && (
+				<button
+					type="button"
+					className="inline-flex min-h-6 items-center rounded-full border border-border/70 bg-muted/45 px-2 text-[12px] font-medium leading-none text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+					title={fullLabel}
+					aria-label={`Show all countries: ${fullLabel}`}
+					onClick={onShowAll}
+				>
+					+{hiddenCount}
+				</button>
+			)}
+			{hiddenCount > 0 && !onShowAll && (
 				<span
 					className="inline-flex min-h-6 items-center rounded-full border border-border/70 bg-muted/45 px-2 text-[12px] font-medium leading-none text-muted-foreground"
 					title={fullLabel}
@@ -150,6 +169,36 @@ function CountryChipList({ countries }: { countries: CountryDisplay[] }) {
 					+{hiddenCount}
 				</span>
 			)}
+		</div>
+	);
+}
+
+function CountryDetailsGroup({
+	label,
+	countries,
+}: {
+	label: string;
+	countries: CountryDisplay[];
+}) {
+	if (countries.length === 0) return null;
+
+	return (
+		<div>
+			<p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+				{label}
+			</p>
+			<div className="mt-2 flex flex-wrap gap-1.5">
+				{countries.map((country) => (
+					<span
+						key={country.code}
+						className="inline-flex min-h-7 items-center rounded-full border border-border/70 bg-background/75 px-2.5 text-[13px] font-medium leading-none text-foreground"
+						title={country.label}
+					>
+						{country.flag && <span className="mr-1.5">{country.flag}</span>}
+						{country.code}
+					</span>
+				))}
+			</div>
 		</div>
 	);
 }
@@ -181,6 +230,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		resolution?: LocationResolution | null;
 	} | null>(null);
 	const [showAllGenres, setShowAllGenres] = useState(false);
+	const [showCountryDetails, setShowCountryDetails] = useState(false);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -189,6 +239,7 @@ const EventModal: React.FC<EventModalProps> = ({
 			setLinkShareStatus(null);
 			setPendingLocationData(null);
 			setShowAllGenres(false);
+			setShowCountryDetails(false);
 			setIsContactEmailCopied(false);
 		}
 	}, [isOpen]);
@@ -437,6 +488,10 @@ const EventModal: React.FC<EventModalProps> = ({
 	const hasAudienceCountries = audienceCountries.length > 0;
 	const hasCountryDetails = hasHostCountries || hasAudienceCountries;
 	const hasCountrySplit = hasHostCountries && hasAudienceCountries;
+	const countryPreviewLimit = hasCountrySplit ? 2 : COUNTRY_PREVIEW_LIMIT;
+	const hasHiddenCountries =
+		hostCountries.length > countryPreviewLimit ||
+		audienceCountries.length > countryPreviewLimit;
 	const eventUpdateHref = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
 		`Fete Finder event update: ${event.name}`,
 	)}`;
@@ -703,7 +758,11 @@ const EventModal: React.FC<EventModalProps> = ({
 												<Flag className="h-4 w-4 shrink-0" />
 												<span>Host</span>
 											</p>
-											<CountryChipList countries={hostCountries} />
+											<CountryChipList
+												countries={hostCountries}
+												previewLimit={countryPreviewLimit}
+												onShowAll={() => setShowCountryDetails(true)}
+											/>
 										</div>
 									)}
 									{hasAudienceCountries && (
@@ -712,9 +771,13 @@ const EventModal: React.FC<EventModalProps> = ({
 										>
 											<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
 												<Users className="h-4 w-4 shrink-0" />
-												<span>Audience</span>
+												<span>Crowd</span>
 											</p>
-											<CountryChipList countries={audienceCountries} />
+											<CountryChipList
+												countries={audienceCountries}
+												previewLimit={countryPreviewLimit}
+												onShowAll={() => setShowCountryDetails(true)}
+											/>
 										</div>
 									)}
 								</div>
@@ -933,6 +996,52 @@ const EventModal: React.FC<EventModalProps> = ({
 					</div>
 				</CardContent>
 			</Card>
+
+			{showCountryDetails && hasHiddenCountries && (
+				<div
+					className="fixed inset-0 flex items-end justify-center bg-black/35 p-3 backdrop-blur-[2px] sm:items-center"
+					style={{ zIndex: LAYERS.SYSTEM_TOAST }}
+					onClick={() => setShowCountryDetails(false)}
+				>
+					<div
+						className="w-full max-w-sm rounded-2xl border border-border/80 bg-card p-4 shadow-[0_24px_70px_-38px_rgba(0,0,0,0.95)] sm:rounded-[22px]"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="country-details-title"
+						onClick={(event) => event.stopPropagation()}
+					>
+						<div className="flex items-start justify-between gap-3">
+							<div>
+								<p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+									Country split
+								</p>
+								<h2
+									id="country-details-title"
+									className="mt-1 text-lg font-medium leading-tight"
+								>
+									Host and crowd
+								</h2>
+							</div>
+							<Button
+								variant="outline"
+								size="icon"
+								onClick={() => setShowCountryDetails(false)}
+								className="h-9 w-9 rounded-xl border-border/70 bg-background/70"
+							>
+								<X className="h-4 w-4" />
+								<span className="sr-only">Close country split</span>
+							</Button>
+						</div>
+						<div className="mt-4 space-y-4">
+							<CountryDetailsGroup label="Host" countries={hostCountries} />
+							<CountryDetailsGroup
+								label="Crowd"
+								countries={audienceCountries}
+							/>
+						</div>
+					</div>
+				</div>
+			)}
 
 			<MapSelectionModal
 				isOpen={showMapSelection}
