@@ -12,10 +12,8 @@ import type { RuntimeDataStatus } from "../types";
 type RuntimeDataStatusCardProps = {
 	runtimeDataStatus: RuntimeDataStatus;
 	refreshing: boolean;
-	purgingOGCache: boolean;
 	refreshMessage: string;
 	onRefresh: () => void;
-	onPurgeOGCache: () => void;
 };
 
 const sourcePresentation = (
@@ -79,10 +77,8 @@ const getRefreshMessageTone = (message: string) => {
 export const RuntimeDataStatusCard = ({
 	runtimeDataStatus,
 	refreshing,
-	purgingOGCache,
 	refreshMessage,
 	onRefresh,
-	onPurgeOGCache,
 }: RuntimeDataStatusCardProps) => {
 	const source = sourcePresentation(runtimeDataStatus.dataSource);
 	const mode = modePresentation(runtimeDataStatus.configuredDataSource);
@@ -163,13 +159,6 @@ export const RuntimeDataStatusCard = ({
 				<div className="flex flex-wrap items-center gap-3">
 					<Button onClick={onRefresh} disabled={refreshing}>
 						{refreshing ? "Revalidating..." : "Revalidate Homepage"}
-					</Button>
-					<Button
-						variant="outline"
-						onClick={onPurgeOGCache}
-						disabled={refreshing || purgingOGCache}
-					>
-						{purgingOGCache ? "Purging..." : "Purge OG Images"}
 					</Button>
 				</div>
 

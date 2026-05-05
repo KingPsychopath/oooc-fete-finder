@@ -12,7 +12,6 @@ import {
 	type EventShareDetails,
 	getEventShareDetails,
 } from "@/lib/social/event-share-details";
-import { OG_IMAGE_CACHE_PREFIX } from "@/lib/social/og-cache";
 import { DataManager } from "@/features/data-management/data-manager";
 import { ImageResponse } from "next/og";
 import { unstable_cache } from "next/cache";
@@ -21,8 +20,14 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 
 const OG_CACHE_CONTROL =
+	"public, max-age=0, must-revalidate";
+const OG_CDN_CACHE_CONTROL =
 	"public, s-maxage=86400, stale-while-revalidate=604800";
-const OG_IMAGE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const OG_RESPONSE_HEADERS = {
+	"Cache-Control": OG_CACHE_CONTROL,
+	"CDN-Cache-Control": OG_CDN_CACHE_CONTROL,
+	"Vercel-CDN-Cache-Control": OG_CDN_CACHE_CONTROL,
+} as const;
 const RATE_LIMIT_KEY_PREFIX = "og-rate:";
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 120;
@@ -44,11 +49,6 @@ const ALLOWED_PRESETS = [
 type OGVariant = (typeof ALLOWED_VARIANTS)[number];
 type OGPreset = (typeof ALLOWED_PRESETS)[number];
 type RateState = { count: number; resetAt: number };
-type CachedOGImage = {
-	bodyBase64: string;
-	contentType: string;
-	expiresAt: number;
-};
 
 type OGTheme = {
 	label: string;
@@ -186,6 +186,33 @@ const sanitizeText = (value: string, fallback: string): string => {
 		: cleaned;
 };
 
+const sanitizeCacheTagSegment = (value: string): string =>
+	value
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9_-]+/g, "-")
+		.replace(/^-+|-+$/g, "")
+		.slice(0, 80);
+
+const getOGCacheTags = (searchParams: URLSearchParams): string => {
+	const preset = parsePreset(searchParams);
+	if (preset === "event") {
+		const eventKey = sanitizeCacheTagSegment(
+			searchParams.get("eventKey") || "unknown",
+		);
+		return `og,event,event-${eventKey || "unknown"}`;
+	}
+
+	const requestedPreset = searchParams.get("preset") || "home";
+	const cachePreset = requestedPreset === preset ? preset : "fallback-home";
+	return `og,preset,preset-${sanitizeCacheTagSegment(cachePreset)}`;
+};
+
+const getOGResponseHeaders = (cacheTags: string): HeadersInit => ({
+	...OG_RESPONSE_HEADERS,
+	"Vercel-Cache-Tag": cacheTags,
+});
+
 const STATIC_PRESET_CONTENT: Record<
 	Exclude<OGPreset, "event">,
 	Omit<OGContent, "eventCount" | "arrondissement" | "date" | "time" | "price" | "venue" | "genres">
@@ -242,102 +269,6 @@ const getClientIp = (request: NextRequest): string => {
 
 const hashIp = (ip: string): string =>
 	createHash("sha256").update(ip).digest("hex").slice(0, 24);
-
-const parseCachedOGImage = (raw: string | null): CachedOGImage | null => {
-	if (!raw) return null;
-	try {
-		const parsed = JSON.parse(raw) as Partial<CachedOGImage>;
-		if (
-			typeof parsed.bodyBase64 !== "string" ||
-			typeof parsed.contentType !== "string" ||
-			typeof parsed.expiresAt !== "number" ||
-			!Number.isFinite(parsed.expiresAt)
-		) {
-			return null;
-		}
-		if (Date.now() >= parsed.expiresAt) {
-			return null;
-		}
-		return {
-			bodyBase64: parsed.bodyBase64,
-			contentType: parsed.contentType,
-			expiresAt: parsed.expiresAt,
-		};
-	} catch {
-		return null;
-	}
-};
-
-const getNormalizedCacheIdentity = (searchParams: URLSearchParams): string => {
-	const preset = parsePreset(searchParams);
-	if (preset === "event") {
-		return `event:${searchParams.get("eventKey") || ""}`;
-	}
-
-	const requestedPreset = searchParams.get("preset") || "home";
-	return requestedPreset === preset ? preset : "fallback-home";
-};
-
-const buildImageCacheKey = (searchParams: URLSearchParams): string =>
-	`${OG_IMAGE_CACHE_PREFIX}${createHash("sha256")
-		.update(getNormalizedCacheIdentity(searchParams))
-		.digest("hex")
-		.slice(0, 32)}`;
-
-const getCachedImageResponse = async (
-	cacheKey: string,
-): Promise<Response | null> => {
-	try {
-		const kv = await getKVStore();
-		const cached = parseCachedOGImage(await kv.get(cacheKey));
-		if (!cached) return null;
-
-		return new Response(Buffer.from(cached.bodyBase64, "base64"), {
-			headers: {
-				"Cache-Control": OG_CACHE_CONTROL,
-				"Content-Type": cached.contentType,
-				"X-OG-Cache": "HIT",
-			},
-		});
-	} catch (error) {
-		log.warn("og-image", "Unable to read cached OG image", {
-			error: error instanceof Error ? error.message : "unknown",
-		});
-		return null;
-	}
-};
-
-const cacheImageResponse = async (
-	cacheKey: string,
-	response: Response,
-): Promise<Response> => {
-	const body = Buffer.from(await response.arrayBuffer());
-	const contentType = response.headers.get("content-type") || "image/png";
-
-	try {
-		const kv = await getKVStore();
-		await kv.set(
-			cacheKey,
-			JSON.stringify({
-				bodyBase64: body.toString("base64"),
-				contentType,
-				expiresAt: Date.now() + OG_IMAGE_CACHE_TTL_MS,
-			} satisfies CachedOGImage),
-		);
-	} catch (error) {
-		log.warn("og-image", "Unable to persist OG image cache", {
-			error: error instanceof Error ? error.message : "unknown",
-		});
-	}
-
-	return new Response(body, {
-		headers: {
-			"Cache-Control": OG_CACHE_CONTROL,
-			"Content-Type": contentType,
-			"X-OG-Cache": "MISS",
-		},
-	});
-};
 
 const parseRateState = (raw: string | null): RateState | null => {
 	if (!raw) return null;
@@ -556,6 +487,7 @@ const resolveOGContent = async (
 };
 
 export async function GET(request: NextRequest) {
+	let cacheTags = "og,error";
 	try {
 		if (await isRateLimited(request)) {
 			return new Response("Rate limit exceeded", {
@@ -567,12 +499,7 @@ export async function GET(request: NextRequest) {
 		}
 
 		const { searchParams } = new URL(request.url);
-		const imageCacheKey = buildImageCacheKey(searchParams);
-		const cachedResponse = await getCachedImageResponse(imageCacheKey);
-		if (cachedResponse) {
-			return cachedResponse;
-		}
-
+		cacheTags = getOGCacheTags(searchParams);
 		const content = await resolveOGContent(searchParams);
 		const variant = content.variant;
 		const eventCount = content.eventCount;
@@ -590,7 +517,7 @@ export async function GET(request: NextRequest) {
 		const subtitle = sanitizeText(content.subtitle, defaultText.subtitle);
 		const palette = THEMES[variant];
 
-		const response = new ImageResponse(
+		return new ImageResponse(
 			<div
 				style={{
 					width: "100%",
@@ -881,13 +808,9 @@ export async function GET(request: NextRequest) {
 				width: 1200,
 				height: 630,
 				fonts: ogFonts,
-				headers: {
-					"Cache-Control": OG_CACHE_CONTROL,
-				},
+				headers: getOGResponseHeaders(cacheTags),
 			},
 		);
-
-		return cacheImageResponse(imageCacheKey, response);
 	} catch (error) {
 		log.error("og-image", "Failed to generate OG image", undefined, error);
 		return new ImageResponse(
@@ -912,9 +835,7 @@ export async function GET(request: NextRequest) {
 				width: 1200,
 				height: 630,
 				fonts: ogFonts,
-				headers: {
-					"Cache-Control": OG_CACHE_CONTROL,
-				},
+				headers: getOGResponseHeaders(cacheTags),
 			},
 		);
 	}

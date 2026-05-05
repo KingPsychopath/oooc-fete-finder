@@ -9,7 +9,6 @@ import { applyPromotedProjectionToEvents } from "@/features/events/promoted/serv
 import { SOCIAL_PROOF_SAVE_WINDOW_DAYS } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
-import { purgeOGImageCache } from "@/lib/social/og-cache";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { cache } from "react";
 import { DataManager } from "./data-manager";
@@ -209,7 +208,6 @@ export const revalidateEventsPaths = (
 export async function forceRefreshEventsData(): Promise<RuntimeRefreshResult> {
 	const result = await getLiveEvents();
 	revalidateEventsPaths(["/"]);
-	await purgeOGImageCache();
 
 	if (!result.success) {
 		return {

@@ -31,6 +31,20 @@ type OGImageParams = {
 	genres?: string[];
 };
 
+const getOGImageVersion = (): string =>
+	(
+		process.env.NEXT_PUBLIC_OG_IMAGE_VERSION ||
+		process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ||
+		""
+	).trim();
+
+const applyOGImageVersion = (searchParams: URLSearchParams): void => {
+	const version = getOGImageVersion();
+	if (version) {
+		searchParams.set("v", version);
+	}
+};
+
 const buildOGRouteUrl = (params: Record<string, string | undefined>): string => {
 	const searchParams = new URLSearchParams();
 	for (const [key, value] of Object.entries(params)) {
@@ -38,6 +52,7 @@ const buildOGRouteUrl = (params: Record<string, string | undefined>): string => 
 			searchParams.set(key, value);
 		}
 	}
+	applyOGImageVersion(searchParams);
 
 	const query = searchParams.toString();
 	return `/api/og${query ? `?${query}` : ""}`;
@@ -76,6 +91,7 @@ export const generateOGImageUrl = (params: OGImageParams = {}): string => {
 	if (params.price) searchParams.set("price", params.price);
 	if (params.genres && params.genres.length > 0)
 		searchParams.set("genres", params.genres.join(","));
+	applyOGImageVersion(searchParams);
 
 	const query = searchParams.toString();
 	return `/api/og${query ? `?${query}` : ""}`;

@@ -44,7 +44,6 @@ import { getEventSheetRevisionRepository } from "@/lib/platform/postgres/event-s
 import { getEventStoreBackupRepository } from "@/lib/platform/postgres/event-store-backup-repository";
 import { getMusicGenreTaxonomyRepository } from "@/lib/platform/postgres/music-genre-taxonomy-repository";
 import { getRateLimitRepository } from "@/lib/platform/postgres/rate-limit-repository";
-import { purgeOGImageCache } from "@/lib/social/og-cache";
 import { revalidatePath } from "next/cache";
 import { parseCSVContent } from "./csv/parser";
 import {
@@ -512,43 +511,6 @@ export async function revalidatePages(
 			success: false,
 			error: error instanceof Error ? error.message : "Unknown error",
 			processingTimeMs: processingTime,
-		};
-	}
-}
-
-export async function purgeOpenGraphImageCache(
-	keyOrToken?: string,
-): Promise<{
-	success: boolean;
-	message?: string;
-	purgedCount?: number;
-	error?: string;
-}> {
-	if (!(await validateAdminAccess(keyOrToken))) {
-		return { success: false, error: "Unauthorized access" };
-	}
-
-	try {
-		const purgedCount = await purgeOGImageCache();
-		await recordAdminActivity({
-			action: "cache.og_images_purged",
-			category: "operations",
-			targetType: "cache",
-			targetLabel: "Open Graph image cache",
-			summary: `Purged ${purgedCount} cached Open Graph image${purgedCount === 1 ? "" : "s"}`,
-			metadata: { purgedCount },
-			href: "/admin/operations#events-data-status",
-		});
-		return {
-			success: true,
-			message: `Purged ${purgedCount} cached Open Graph image${purgedCount === 1 ? "" : "s"}`,
-			purgedCount,
-		};
-	} catch (error) {
-		log.error("cache", "Open Graph image cache purge failed", undefined, error);
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : "Unknown error",
 		};
 	}
 }
