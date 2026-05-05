@@ -17,8 +17,8 @@ import {
 	getCustomGenreColor,
 	toGenreLabel,
 } from "@/features/events/genre-normalization";
-import { createRegularEventsComparator } from "@/features/events/ordering";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
+import { createRegularEventsComparator } from "@/features/events/ordering";
 import { getSocialProofDisplayModes } from "@/features/events/social-proof";
 import {
 	type Event,
@@ -38,6 +38,31 @@ interface EventsClientProps {
 }
 
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
+
+const normalizeBasePath = (value: string): string => {
+	if (!value || value === "/") return "";
+	return value.endsWith("/") ? value.slice(0, -1) : value;
+};
+
+const decodePathSegment = (value: string): string => {
+	try {
+		return decodeURIComponent(value);
+	} catch {
+		return value;
+	}
+};
+
+const removeLegacyEventParams = (params: URLSearchParams): URLSearchParams => {
+	const next = new URLSearchParams(params.toString());
+	next.delete("event");
+	next.delete("slug");
+	return next;
+};
+
+const appendQuery = (path: string, params: URLSearchParams): string => {
+	const query = params.toString();
+	return query ? `${path}?${query}` : path;
+};
 
 const buildAvailableGenresForEvents = (
 	events: Event[],
@@ -179,33 +204,38 @@ export function EventsClient({
 		);
 	}, [initialEvents]);
 
-	const buildUrlFromParams = useCallback(
-		(params: URLSearchParams) => {
-			const basePath =
-				typeof window !== "undefined" ? window.location.pathname : pathname;
-			const query = params.toString();
-			return query ? `${basePath}?${query}` : basePath;
+	const buildEventPath = useCallback(
+		(event: Event, params = new URLSearchParams()): string => {
+			const basePath = normalizeBasePath(
+				process.env.NEXT_PUBLIC_BASE_PATH || "",
+			);
+			const encodedEventKey = encodeURIComponent(event.eventKey);
+			const encodedSlug = event.slug
+				? `/${encodeURIComponent(event.slug)}`
+				: "";
+			return appendQuery(
+				`${basePath}/event/${encodedEventKey}${encodedSlug}`,
+				removeLegacyEventParams(params),
+			);
 		},
-		[pathname],
+		[],
 	);
 
-	const createUrlForEventState = useCallback(
-		(event: Event | null) => {
-			const params =
-				typeof window !== "undefined"
-					? new URLSearchParams(window.location.search)
-					: new URLSearchParams(searchParams.toString());
-			if (!event) {
-				params.delete("event");
-				params.delete("slug");
-			} else {
-				params.set("event", event.eventKey);
-				params.set("slug", event.slug);
-			}
-			return buildUrlFromParams(params);
-		},
-		[buildUrlFromParams, searchParams],
-	);
+	const homePath = useCallback((params = new URLSearchParams()): string => {
+		const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || "");
+		return appendQuery(basePath || "/", removeLegacyEventParams(params));
+	}, []);
+
+	const getEventKeyFromPath = useCallback((value: string): string | null => {
+		const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || "");
+		const withoutBase =
+			basePath && value.startsWith(`${basePath}/`)
+				? value.slice(basePath.length)
+				: value;
+		const segments = withoutBase.split("/").filter(Boolean);
+		if (segments[0] !== "event" || !segments[1]) return null;
+		return decodePathSegment(segments[1]);
+	}, []);
 
 	const getCurrentUrl = useCallback(() => {
 		if (typeof window !== "undefined") {
@@ -254,7 +284,8 @@ export function EventsClient({
 	);
 
 	useEffect(() => {
-		const eventParam = searchParams.get("event");
+		const eventParam =
+			searchParams.get("event") || getEventKeyFromPath(pathname);
 		if (!eventParam) {
 			setSelectedEvent((current) => (current ? null : current));
 			return;
@@ -269,7 +300,10 @@ export function EventsClient({
 				invalidEventParamCount: invalidEventParamCountRef.current,
 			});
 			setSelectedEvent((current) => (current ? null : current));
-			updateUrlWithoutNavigation(createUrlForEventState(null), "replace");
+			updateUrlWithoutNavigation(
+				homePath(new URLSearchParams(searchParams.toString())),
+				"replace",
+			);
 			return;
 		}
 
@@ -278,15 +312,29 @@ export function EventsClient({
 		);
 
 		const slugParam = searchParams.get("slug");
-		if (slugParam !== resolvedEvent.slug) {
-			updateUrlWithoutNavigation(
-				createUrlForEventState(resolvedEvent),
-				"replace",
-			);
+		const isLegacyQueryUrl = searchParams.has("event");
+		const isEventPath = getEventKeyFromPath(pathname) !== null;
+		const currentParams = new URLSearchParams(searchParams.toString());
+		const canonicalEventPath = buildEventPath(resolvedEvent, currentParams);
+		const canonicalEventPathname = canonicalEventPath.split("?")[0] || "";
+		const hasStaleLegacySlug =
+			isLegacyQueryUrl && slugParam !== resolvedEvent.slug;
+		const hasStaleEventPath =
+			isEventPath && pathname !== canonicalEventPathname;
+		if (
+			isLegacyQueryUrl ||
+			!isEventPath ||
+			hasStaleLegacySlug ||
+			hasStaleEventPath
+		) {
+			updateUrlWithoutNavigation(canonicalEventPath, "replace");
 		}
 	}, [
-		createUrlForEventState,
+		buildEventPath,
 		eventsByEventKey,
+		getEventKeyFromPath,
+		homePath,
+		pathname,
 		searchParams,
 		updateUrlWithoutNavigation,
 	]);
@@ -334,11 +382,15 @@ export function EventsClient({
 			setSelectedEvent((current) =>
 				current?.eventKey === event.eventKey ? current : event,
 			);
-			updateUrlWithoutNavigation(createUrlForEventState(event), "push", {
+			const currentParams =
+				typeof window !== "undefined"
+					? new URLSearchParams(window.location.search)
+					: new URLSearchParams(searchParams.toString());
+			updateUrlWithoutNavigation(buildEventPath(event, currentParams), "push", {
 				markModalEntry: true,
 			});
 		},
-		[createUrlForEventState, isAuthenticated, updateUrlWithoutNavigation],
+		[buildEventPath, isAuthenticated, searchParams, updateUrlWithoutNavigation],
 	);
 
 	const handleEventClose = useCallback(() => {
@@ -350,16 +402,19 @@ export function EventsClient({
 				!Array.isArray(window.history.state)
 					? (window.history.state as Record<string, unknown>)
 					: {};
-			const hasEventParam = new URLSearchParams(window.location.search).has(
-				"event",
-			);
-			if (hasEventParam && currentState[EVENT_MODAL_HISTORY_FLAG] === true) {
+			const hasEventPath =
+				getEventKeyFromPath(window.location.pathname) !== null;
+			if (hasEventPath && currentState[EVENT_MODAL_HISTORY_FLAG] === true) {
 				window.history.back();
 				return;
 			}
 		}
-		updateUrlWithoutNavigation(createUrlForEventState(null), "replace");
-	}, [createUrlForEventState, updateUrlWithoutNavigation]);
+		const currentParams =
+			typeof window !== "undefined"
+				? new URLSearchParams(window.location.search)
+				: new URLSearchParams(searchParams.toString());
+		updateUrlWithoutNavigation(homePath(currentParams), "replace");
+	}, [getEventKeyFromPath, homePath, searchParams, updateUrlWithoutNavigation]);
 
 	const scrollToAllEvents = useCallback(() => {
 		allEventsRef.current?.scrollIntoView({
@@ -386,7 +441,9 @@ export function EventsClient({
 			regularMatches.push(event);
 		}
 
-		const sortedRegularMatches = [...regularMatches].sort(regularEventsComparator);
+		const sortedRegularMatches = [...regularMatches].sort(
+			regularEventsComparator,
+		);
 
 		return [...featuredMatches, ...promotedMatches, ...sortedRegularMatches];
 	}, [filteredEvents]);

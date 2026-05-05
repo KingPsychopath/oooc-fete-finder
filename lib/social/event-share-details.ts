@@ -1,9 +1,14 @@
 import { DataManager } from "@/features/data-management/data-manager";
-import type { Event, MusicGenre, ParisArrondissement } from "@/features/events/types";
+import type {
+	Event,
+	MusicGenre,
+	ParisArrondissement,
+} from "@/features/events/types";
 import { unstable_cache } from "next/cache";
 
 export interface EventShareDetails {
 	eventKey: string;
+	slug: string;
 	name: string;
 	day: Event["day"];
 	date: string;
@@ -19,6 +24,7 @@ const normalizeEventKey = (value: string): string => value.trim().toLowerCase();
 
 const toEventShareDetails = (event: Event): EventShareDetails => ({
 	eventKey: event.eventKey,
+	slug: event.slug,
 	name: event.name,
 	day: event.day,
 	date: event.date,
@@ -32,7 +38,9 @@ const toEventShareDetails = (event: Event): EventShareDetails => ({
 
 const getCachedEventShareIndex = unstable_cache(
 	async (): Promise<Record<string, EventShareDetails>> => {
-		const result = await DataManager.getEventsData({ populateCoordinates: false });
+		const result = await DataManager.getEventsData({
+			populateCoordinates: false,
+		});
 		if (!result.success) {
 			throw new Error(result.error || "Unable to load event share details");
 		}

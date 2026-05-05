@@ -28,7 +28,8 @@ const loadGenerateMetadata = async () => {
 describe("/event/[eventKey]/[[...slug]] metadata", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		process.env.NEXT_PUBLIC_SITE_URL = "https://fete.outofofficecollective.co.uk";
+		process.env.NEXT_PUBLIC_SITE_URL =
+			"https://fete.outofofficecollective.co.uk";
 		process.env.NEXT_PUBLIC_BASE_PATH = "";
 	});
 
@@ -65,7 +66,7 @@ describe("/event/[eventKey]/[[...slug]] metadata", () => {
 		const metadata = await generateMetadata({
 			params: Promise.resolve({
 				eventKey: "evt_77b18c8e22eadd87",
-				slug: ["party-by-kklain"],
+				slug: ["stale-copied-slug"],
 			}),
 		});
 
@@ -73,7 +74,8 @@ describe("/event/[eventKey]/[[...slug]] metadata", () => {
 		expect(canonical).toBe(
 			"https://fete.outofofficecollective.co.uk/event/evt_77b18c8e22eadd87/party-by-kklain",
 		);
-		expect(metadata.title).toBe("Party by Kklain | Fête Finder");
+		expect(metadata.title).toBe("Party by Kklain");
+		expect(metadata.openGraph?.title).toBe("Party by Kklain | Fête Finder");
 		expect(metadata.description).toContain("10e arrondissement");
 		expect(metadata.description).toContain("Saturday 21st");
 		expect(metadata.description).toContain("16:00 - 02:00");
