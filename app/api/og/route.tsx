@@ -12,13 +12,17 @@ import {
 	type EventShareDetails,
 	getEventShareDetails,
 } from "@/lib/social/event-share-details";
+import { OG_IMAGE_CACHE_PREFIX } from "@/lib/social/og-cache";
+import { DataManager } from "@/features/data-management/data-manager";
 import { ImageResponse } from "next/og";
+import { unstable_cache } from "next/cache";
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
 const OG_CACHE_CONTROL =
 	"public, s-maxage=86400, stale-while-revalidate=604800";
+const OG_IMAGE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const RATE_LIMIT_KEY_PREFIX = "og-rate:";
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 120;
@@ -27,16 +31,24 @@ const MAX_CHIPS = 3;
 const ALLOWED_VARIANTS = ["default", "event-modal"] as const;
 const ALLOWED_PRESETS = [
 	"home",
+	"how-it-works",
+	"privacy",
 	"submit-event",
 	"feature-event",
 	"partner-success",
 	"partner-performance-report",
+	"social-assets",
 	"event",
 ] as const;
 
 type OGVariant = (typeof ALLOWED_VARIANTS)[number];
 type OGPreset = (typeof ALLOWED_PRESETS)[number];
 type RateState = { count: number; resetAt: number };
+type CachedOGImage = {
+	bodyBase64: string;
+	contentType: string;
+	expiresAt: number;
+};
 
 type OGTheme = {
 	label: string;
@@ -183,6 +195,16 @@ const STATIC_PRESET_CONTENT: Record<
 		title: "Fête Finder",
 		subtitle: "Curated Paris music events by Out Of Office Collective",
 	},
+	"how-it-works": {
+		variant: "default",
+		title: "How Fête Finder Works",
+		subtitle: "Plan your Paris music weekend with curated picks, filters and community tips",
+	},
+	privacy: {
+		variant: "default",
+		title: "Privacy Policy",
+		subtitle: "How Fête Finder handles attendee, host and partner data",
+	},
 	"submit-event": {
 		variant: "default",
 		title: "Submit Your Event",
@@ -203,6 +225,11 @@ const STATIC_PRESET_CONTENT: Record<
 		title: "Partner Performance Report",
 		subtitle: "Private campaign performance metrics",
 	},
+	"social-assets": {
+		variant: "default",
+		title: "Fête Finder Social Assets",
+		subtitle: "Private branded export routes for Out Of Office Collective",
+	},
 };
 
 const getClientIp = (request: NextRequest): string => {
@@ -215,6 +242,102 @@ const getClientIp = (request: NextRequest): string => {
 
 const hashIp = (ip: string): string =>
 	createHash("sha256").update(ip).digest("hex").slice(0, 24);
+
+const parseCachedOGImage = (raw: string | null): CachedOGImage | null => {
+	if (!raw) return null;
+	try {
+		const parsed = JSON.parse(raw) as Partial<CachedOGImage>;
+		if (
+			typeof parsed.bodyBase64 !== "string" ||
+			typeof parsed.contentType !== "string" ||
+			typeof parsed.expiresAt !== "number" ||
+			!Number.isFinite(parsed.expiresAt)
+		) {
+			return null;
+		}
+		if (Date.now() >= parsed.expiresAt) {
+			return null;
+		}
+		return {
+			bodyBase64: parsed.bodyBase64,
+			contentType: parsed.contentType,
+			expiresAt: parsed.expiresAt,
+		};
+	} catch {
+		return null;
+	}
+};
+
+const getNormalizedCacheIdentity = (searchParams: URLSearchParams): string => {
+	const preset = parsePreset(searchParams);
+	if (preset === "event") {
+		return `event:${searchParams.get("eventKey") || ""}`;
+	}
+
+	const requestedPreset = searchParams.get("preset") || "home";
+	return requestedPreset === preset ? preset : "fallback-home";
+};
+
+const buildImageCacheKey = (searchParams: URLSearchParams): string =>
+	`${OG_IMAGE_CACHE_PREFIX}${createHash("sha256")
+		.update(getNormalizedCacheIdentity(searchParams))
+		.digest("hex")
+		.slice(0, 32)}`;
+
+const getCachedImageResponse = async (
+	cacheKey: string,
+): Promise<Response | null> => {
+	try {
+		const kv = await getKVStore();
+		const cached = parseCachedOGImage(await kv.get(cacheKey));
+		if (!cached) return null;
+
+		return new Response(Buffer.from(cached.bodyBase64, "base64"), {
+			headers: {
+				"Cache-Control": OG_CACHE_CONTROL,
+				"Content-Type": cached.contentType,
+				"X-OG-Cache": "HIT",
+			},
+		});
+	} catch (error) {
+		log.warn("og-image", "Unable to read cached OG image", {
+			error: error instanceof Error ? error.message : "unknown",
+		});
+		return null;
+	}
+};
+
+const cacheImageResponse = async (
+	cacheKey: string,
+	response: Response,
+): Promise<Response> => {
+	const body = Buffer.from(await response.arrayBuffer());
+	const contentType = response.headers.get("content-type") || "image/png";
+
+	try {
+		const kv = await getKVStore();
+		await kv.set(
+			cacheKey,
+			JSON.stringify({
+				bodyBase64: body.toString("base64"),
+				contentType,
+				expiresAt: Date.now() + OG_IMAGE_CACHE_TTL_MS,
+			} satisfies CachedOGImage),
+		);
+	} catch (error) {
+		log.warn("og-image", "Unable to persist OG image cache", {
+			error: error instanceof Error ? error.message : "unknown",
+		});
+	}
+
+	return new Response(body, {
+		headers: {
+			"Cache-Control": OG_CACHE_CONTROL,
+			"Content-Type": contentType,
+			"X-OG-Cache": "MISS",
+		},
+	});
+};
 
 const parseRateState = (raw: string | null): RateState | null => {
 	if (!raw) return null;
@@ -366,6 +489,21 @@ const resolveStaticPresetContent = (
 	};
 };
 
+const getCachedEventCount = unstable_cache(
+	async (): Promise<number> => {
+		const result = await DataManager.getEventsData({ populateCoordinates: false });
+		if (!result.success) {
+			return 0;
+		}
+		return result.count;
+	},
+	["og-event-count"],
+	{
+		revalidate: 3600,
+		tags: ["events", "events-data"],
+	},
+);
+
 const resolveEventContent = async (
 	searchParams: URLSearchParams,
 ): Promise<OGContent> => {
@@ -404,7 +542,17 @@ const resolveOGContent = async (
 		return resolveEventContent(searchParams);
 	}
 
-	return resolveStaticPresetContent(preset);
+	const content = resolveStaticPresetContent(preset);
+	const requestedPreset = searchParams.get("preset") || "home";
+	if (preset !== "home" || requestedPreset !== "home") {
+		return content;
+	}
+
+	return {
+		...content,
+		subtitle: "Curated Paris music events by Out Of Office Collective",
+		eventCount: await getCachedEventCount(),
+	};
 };
 
 export async function GET(request: NextRequest) {
@@ -419,6 +567,12 @@ export async function GET(request: NextRequest) {
 		}
 
 		const { searchParams } = new URL(request.url);
+		const imageCacheKey = buildImageCacheKey(searchParams);
+		const cachedResponse = await getCachedImageResponse(imageCacheKey);
+		if (cachedResponse) {
+			return cachedResponse;
+		}
+
 		const content = await resolveOGContent(searchParams);
 		const variant = content.variant;
 		const eventCount = content.eventCount;
@@ -436,7 +590,7 @@ export async function GET(request: NextRequest) {
 		const subtitle = sanitizeText(content.subtitle, defaultText.subtitle);
 		const palette = THEMES[variant];
 
-		return new ImageResponse(
+		const response = new ImageResponse(
 			<div
 				style={{
 					width: "100%",
@@ -719,7 +873,7 @@ export async function GET(request: NextRequest) {
 						}}
 					>
 						<div>{arrondissement ? `${arrondissement} · Paris` : "Paris"}</div>
-						<div>outofofficecollective.co.uk</div>
+						<div>fete.outofofficecollective.co.uk</div>
 					</div>
 				</div>
 			</div>,
@@ -732,6 +886,8 @@ export async function GET(request: NextRequest) {
 				},
 			},
 		);
+
+		return cacheImageResponse(imageCacheKey, response);
 	} catch (error) {
 		log.error("og-image", "Failed to generate OG image", undefined, error);
 		return new ImageResponse(

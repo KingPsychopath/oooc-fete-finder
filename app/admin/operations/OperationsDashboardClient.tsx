@@ -3,6 +3,7 @@
 import { logoutAdminSession } from "@/features/auth/actions";
 import {
 	getRuntimeDataStatus,
+	purgeOpenGraphImageCache,
 	revalidatePages,
 } from "@/features/data-management/actions";
 import { useRouter } from "next/navigation";
@@ -45,6 +46,7 @@ export function OperationsDashboardClient({
 		initialData.runtimeDataStatus ?? FALLBACK_RUNTIME_DATA_STATUS,
 	);
 	const [refreshing, setRefreshing] = useState(false);
+	const [purgingOGCache, setPurgingOGCache] = useState(false);
 	const [refreshMessage, setRefreshMessage] = useState("");
 	const [statusRefreshing, setStatusRefreshing] = useState(false);
 
@@ -102,6 +104,29 @@ export function OperationsDashboardClient({
 		}
 	}, [loadRuntimeDataStatus]);
 
+	const handleOGCachePurge = useCallback(async () => {
+		setPurgingOGCache(true);
+		setRefreshMessage("Purging Open Graph image cache...");
+		try {
+			const purgeResult = await purgeOpenGraphImageCache();
+			if (!purgeResult.success) {
+				setRefreshMessage(
+					`OG cache purge failed: ${purgeResult.error || "Unknown error"}`,
+				);
+				return;
+			}
+			setRefreshMessage(purgeResult.message || "Open Graph image cache purged");
+		} catch (purgeError) {
+			setRefreshMessage(
+				`OG cache purge failed: ${
+					purgeError instanceof Error ? purgeError.message : "Unknown error"
+				}`,
+			);
+		} finally {
+			setPurgingOGCache(false);
+		}
+	}, []);
+
 	const onStoreUpdated = useCallback(async () => {
 		await loadRuntimeDataStatus();
 	}, [loadRuntimeDataStatus]);
@@ -112,8 +137,10 @@ export function OperationsDashboardClient({
 				<RuntimeDataStatusCard
 					runtimeDataStatus={runtimeDataStatus}
 					refreshing={refreshing}
+					purgingOGCache={purgingOGCache}
 					refreshMessage={refreshMessage}
 					onRefresh={handleHomepageRevalidate}
+					onPurgeOGCache={handleOGCachePurge}
 				/>
 			</section>
 

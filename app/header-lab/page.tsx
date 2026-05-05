@@ -1,3 +1,5 @@
+import { generateOGMetadata, generateMainOGImage } from "@/lib/social/og-utils";
+import type { Metadata } from "next";
 import Link from "next/link";
 
 type HeaderOption = {
@@ -56,6 +58,15 @@ const HEADER_OPTIONS: HeaderOption[] = [
 	},
 ];
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+export const metadata: Metadata = generateOGMetadata({
+	title: "Header Lab | Fête Finder",
+	description: "Private Fête Finder header design lab.",
+	ogImageUrl: generateMainOGImage(),
+	url: `${siteUrl}${basePath || ""}/header-lab`,
+	noIndex: true,
+});
 
 export default function HeaderLabPage() {
 	return (

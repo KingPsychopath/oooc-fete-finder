@@ -92,8 +92,9 @@ describe("/api/og route", () => {
 		expect(response.status).toBe(200);
 		expect(response.headers.get("content-type")).toBe("image/png");
 		expect(response.headers.get("cache-control")).toContain("s-maxage=86400");
-		expect(kv.get).toHaveBeenCalledTimes(1);
-		expect(kv.set).toHaveBeenCalledTimes(1);
+		expect(response.headers.get("x-og-cache")).toBe("MISS");
+		expect(kv.get).toHaveBeenCalledTimes(2);
+		expect(kv.set).toHaveBeenCalledTimes(2);
 	});
 
 	it("renders event preset images from bounded eventKey metadata", async () => {

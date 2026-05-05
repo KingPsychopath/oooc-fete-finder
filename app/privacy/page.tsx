@@ -1,8 +1,21 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { generateOGMetadata, generatePresetOGImage } from "@/lib/social/og-utils";
 import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CopyEmailButton } from "@/components/CopyEmailButton";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
+
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+export const metadata: Metadata = generateOGMetadata({
+	title: "Privacy Policy | Fête Finder",
+	description:
+		"How Out Of Office Collective handles attendee, host and partner data for Fête Finder.",
+	ogImageUrl: generatePresetOGImage("privacy"),
+	url: `${siteUrl}${basePath || ""}/privacy`,
+});
 
 // Force static generation for this page
 export const dynamic = "force-static";

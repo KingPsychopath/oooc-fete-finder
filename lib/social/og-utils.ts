@@ -9,10 +9,13 @@ type OGImageVariant = "default" | "event-modal";
 type LegacyTheme = "default" | "event" | "admin" | "custom";
 export type OGPreset =
 	| "home"
+	| "how-it-works"
+	| "privacy"
 	| "submit-event"
 	| "feature-event"
 	| "partner-success"
-	| "partner-performance-report";
+	| "partner-performance-report"
+	| "social-assets";
 
 type OGImageParams = {
 	title?: string;
@@ -119,20 +122,28 @@ export const generateOGMetadata = (params: {
 	noIndex?: boolean;
 }) => {
 	const siteUrl = env.NEXT_PUBLIC_SITE_URL;
+	const url = params.url || siteUrl;
 
 	return {
 		title: params.title,
 		description: params.description,
+		alternates: {
+			canonical: url,
+		},
 		...(params.noIndex && {
 			robots: {
 				index: false,
 				follow: false,
+				googleBot: {
+					index: false,
+					follow: false,
+				},
 			},
 		}),
 		openGraph: {
 			type: "website" as const,
 			locale: "en_US",
-			url: params.url || siteUrl,
+			url,
 			title: params.title,
 			description: params.description,
 			siteName: "Fête Finder - OOOC",
@@ -148,6 +159,8 @@ export const generateOGMetadata = (params: {
 		},
 		twitter: {
 			card: "summary_large_image" as const,
+			site: "@OutOfOfficeCol",
+			creator: "@OutOfOfficeCol",
 			title: params.title,
 			description: params.description,
 			images: [

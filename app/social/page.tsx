@@ -1,16 +1,19 @@
 import { ArrowRight } from "lucide-react";
+import { generateOGMetadata, generatePresetOGImage } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+export const metadata: Metadata = generateOGMetadata({
 	title: "Fête Finder Social Assets",
 	description:
 		"Private social asset variants for sharing Fête Finder by Out Of Office Collective.",
-	robots: {
-		index: false,
-		follow: false,
-	},
-};
+	ogImageUrl: generatePresetOGImage("social-assets"),
+	url: `${siteUrl}${basePath || ""}/social`,
+	noIndex: true,
+});
 
 const socialAssets = [
 	{
