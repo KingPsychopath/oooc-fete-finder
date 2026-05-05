@@ -2,6 +2,10 @@ import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import { join } from "path";
 import {
+	getCurrentParisYearDateRange,
+	getEventCountForDateRange,
+} from "@/features/events/filtering";
+import {
 	formatDayWithDate,
 	formatLocationAreaLong,
 	formatPrice,
@@ -141,40 +145,40 @@ const ogTitleFontFamily = hasDisplayFont
 
 const THEMES: Record<OGVariant, OGTheme> = {
 	default: {
-		label: "City Guide",
+		label: "Fête de la Musique · Paris",
 		background:
-			"linear-gradient(145deg, #f8f1e8 0%, #f0e2d0 46%, #e5cfb4 100%)",
-		accent: "#5f3223",
-		accentSoft: "rgba(95,50,35,0.12)",
-		card: "rgba(255,255,255,0.86)",
-		border: "rgba(107,66,45,0.26)",
-		shadow: "0 24px 70px -42px rgba(62, 32, 18, 0.55)",
-		ink: "#26170f",
-		muted: "#705746",
-		badge: "rgba(255,255,255,0.62)",
-		badgeText: "#4f2d1f",
+			"linear-gradient(145deg, #fbf3e7 0%, #f2dcc3 42%, #dfeee7 100%)",
+		accent: "#7f2f28",
+		accentSoft: "rgba(127,47,40,0.13)",
+		card: "rgba(255,252,247,0.92)",
+		border: "rgba(91,66,48,0.25)",
+		shadow: "0 26px 72px -44px rgba(40, 29, 22, 0.58)",
+		ink: "#241911",
+		muted: "#6d5546",
+		badge: "rgba(255,252,247,0.72)",
+		badgeText: "#5d2f27",
 		ambientA:
-			"radial-gradient(circle at 20% 14%, rgba(182, 102, 63, 0.28), transparent 44%)",
+			"radial-gradient(circle at 18% 16%, rgba(191, 75, 55, 0.28), transparent 44%)",
 		ambientB:
-			"radial-gradient(circle at 84% 82%, rgba(82, 118, 93, 0.2), transparent 46%)",
+			"radial-gradient(circle at 84% 80%, rgba(27, 105, 95, 0.24), transparent 46%)",
 	},
 	"event-modal": {
-		label: "Event Focus",
+		label: "Event Pick",
 		background:
-			"linear-gradient(148deg, #f7efe4 0%, #ecddca 44%, #e1c7a7 100%)",
-		accent: "#21545a",
-		accentSoft: "rgba(33,84,90,0.14)",
-		card: "rgba(255,255,255,0.86)",
-		border: "rgba(43,84,80,0.25)",
-		shadow: "0 24px 70px -42px rgba(18, 54, 58, 0.5)",
-		ink: "#1e1b16",
-		muted: "#556058",
-		badge: "rgba(255,255,255,0.6)",
-		badgeText: "#1f4f55",
+			"linear-gradient(148deg, #fbf0e4 0%, #e3eee9 48%, #efd2b3 100%)",
+		accent: "#155d63",
+		accentSoft: "rgba(21,93,99,0.15)",
+		card: "rgba(255,252,247,0.93)",
+		border: "rgba(36,88,84,0.24)",
+		shadow: "0 26px 72px -44px rgba(12, 58, 64, 0.54)",
+		ink: "#1d1a16",
+		muted: "#52625c",
+		badge: "rgba(255,252,247,0.72)",
+		badgeText: "#164f56",
 		ambientA:
-			"radial-gradient(circle at 14% 12%, rgba(30, 98, 104, 0.28), transparent 44%)",
+			"radial-gradient(circle at 15% 12%, rgba(24, 115, 122, 0.28), transparent 44%)",
 		ambientB:
-			"radial-gradient(circle at 84% 86%, rgba(174, 108, 71, 0.24), transparent 48%)",
+			"radial-gradient(circle at 85% 84%, rgba(192, 86, 54, 0.24), transparent 48%)",
 	},
 };
 
@@ -420,15 +424,18 @@ const resolveStaticPresetContent = (
 	};
 };
 
-const getCachedEventCount = unstable_cache(
+const getCachedCurrentYearEventCount = unstable_cache(
 	async (): Promise<number> => {
 		const result = await DataManager.getEventsData({ populateCoordinates: false });
 		if (!result.success) {
 			return 0;
 		}
-		return result.count;
+		return getEventCountForDateRange(
+			result.data,
+			getCurrentParisYearDateRange(),
+		);
 	},
-	["og-event-count"],
+	["og-current-year-event-count"],
 	{
 		revalidate: 3600,
 		tags: ["events", "events-data"],
@@ -454,7 +461,7 @@ const resolveEventContent = async (
 	return {
 		variant: "event-modal",
 		title: event.name,
-		subtitle: `Live picks in ${arrondissement} curated by Out Of Office Collective`,
+		subtitle: `Fête de la Musique pick in ${arrondissement}`,
 		eventCount: 0,
 		arrondissement,
 		date: formatEventDate(event),
@@ -482,7 +489,7 @@ const resolveOGContent = async (
 	return {
 		...content,
 		subtitle: "Curated Paris music events by Out Of Office Collective",
-		eventCount: await getCachedEventCount(),
+		eventCount: await getCachedCurrentYearEventCount(),
 	};
 };
 
@@ -516,6 +523,16 @@ export async function GET(request: NextRequest) {
 		const title = sanitizeText(content.title, defaultText.title);
 		const subtitle = sanitizeText(content.subtitle, defaultText.subtitle);
 		const palette = THEMES[variant];
+		const footerLocation =
+			arrondissement && arrondissement !== "Paris"
+				? `${arrondissement} · Paris`
+				: "Paris";
+		const isEventCard = variant === "event-modal";
+		const titleFontSize =
+			title.length > 58 ? 62 : title.length > 38 ? 70 : 82;
+		const cardMaxWidth = isEventCard ? 1000 : 960;
+		const cardPadding = isEventCard ? "36px 40px" : "34px 38px";
+		const subtitleFontSize = isEventCard ? 28 : 29;
 
 		return new ImageResponse(
 			<div
@@ -569,24 +586,11 @@ export async function GET(request: NextRequest) {
 				/>
 				<div
 					style={{
-						position: "absolute",
-						right: 58,
-						top: 56,
-						width: 170,
-						height: 8,
-						borderRadius: 999,
-						background: palette.accentSoft,
-						border: `1px solid ${palette.border}`,
-					}}
-				/>
-
-				<div
-					style={{
 						position: "relative",
 						display: "flex",
 						width: "100%",
 						height: "100%",
-						padding: "48px 54px",
+						padding: "46px 54px 44px",
 						flexDirection: "column",
 						justifyContent: "space-between",
 					}}
@@ -607,11 +611,11 @@ export async function GET(request: NextRequest) {
 						>
 							<div
 								style={{
-									fontSize: 16,
-									letterSpacing: "0.24em",
+									fontSize: 15,
+									letterSpacing: "0.22em",
 									textTransform: "uppercase",
 									color: palette.muted,
-									fontWeight: 500,
+									fontWeight: 600,
 								}}
 							>
 								Out Of Office Collective
@@ -620,12 +624,12 @@ export async function GET(request: NextRequest) {
 								style={{
 									display: "flex",
 									alignItems: "center",
-									padding: "6px 14px",
+									padding: "7px 15px",
 									borderRadius: 999,
 									fontSize: 15,
 									fontWeight: 600,
 									color: palette.accent,
-									background: "rgba(255,255,255,0.48)",
+									background: "rgba(255,252,247,0.62)",
 									border: `1px solid ${palette.border}`,
 								}}
 							>
@@ -638,7 +642,7 @@ export async function GET(request: NextRequest) {
 								style={{
 									display: "flex",
 									alignItems: "center",
-									padding: "10px 16px",
+									padding: "10px 17px",
 									borderRadius: 999,
 									fontSize: 16,
 									fontWeight: 700,
@@ -647,7 +651,7 @@ export async function GET(request: NextRequest) {
 									border: `1px solid ${palette.border}`,
 								}}
 							>
-								{eventCount} events live
+								{eventCount} events this year
 							</div>
 						) : null}
 					</div>
@@ -656,10 +660,10 @@ export async function GET(request: NextRequest) {
 						style={{
 							display: "flex",
 							flexDirection: "column",
-							gap: 16,
-							maxWidth: 944,
-							padding: "30px 34px",
-							borderRadius: 30,
+							gap: isEventCard ? 17 : 15,
+							maxWidth: cardMaxWidth,
+							padding: cardPadding,
+							borderRadius: 28,
 							background: palette.card,
 							border: `1px solid ${palette.border}`,
 							boxShadow: palette.shadow,
@@ -668,19 +672,19 @@ export async function GET(request: NextRequest) {
 						<div
 							style={{
 								fontFamily: ogTitleFontFamily,
-								fontSize: 77,
-								lineHeight: 1.03,
-								letterSpacing: "-0.02em",
+								fontSize: titleFontSize,
+								lineHeight: 1.04,
+								letterSpacing: 0,
 								color: palette.ink,
-								fontWeight: 500,
+								fontWeight: 520,
 							}}
 						>
 							{title}
 						</div>
 						<div
 							style={{
-								fontSize: 30,
-								lineHeight: 1.26,
+								fontSize: subtitleFontSize,
+								lineHeight: 1.28,
 								color: palette.muted,
 								fontWeight: 500,
 								maxWidth: 820,
@@ -694,7 +698,7 @@ export async function GET(request: NextRequest) {
 									display: "flex",
 									flexWrap: "wrap",
 									gap: 10,
-									marginTop: 8,
+									marginTop: 5,
 								}}
 							>
 								{date ? (
@@ -799,7 +803,7 @@ export async function GET(request: NextRequest) {
 							fontWeight: 600,
 						}}
 					>
-						<div>{arrondissement ? `${arrondissement} · Paris` : "Paris"}</div>
+						<div>{footerLocation}</div>
 						<div>fete.outofofficecollective.co.uk</div>
 					</div>
 				</div>
@@ -826,7 +830,7 @@ export async function GET(request: NextRequest) {
 					color: "#26170f",
 					fontFamily: ogTitleFontFamily,
 					fontSize: 58,
-					letterSpacing: "-0.01em",
+					letterSpacing: 0,
 				}}
 			>
 				Fête Finder
