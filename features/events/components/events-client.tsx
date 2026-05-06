@@ -35,9 +35,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 interface EventsClientProps {
 	initialEvents: Event[];
 	mapLoadStrategy: MapLoadStrategy;
+	eventSubmissionsEnabled?: boolean;
 }
 
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
+const REQUEST_UPDATE_PARAM = "requestUpdate";
 
 const normalizeBasePath = (value: string): string => {
 	if (!value || value === "/") return "";
@@ -111,6 +113,7 @@ const buildAvailableNationalitiesForEvents = (events: Event[]) => {
 export function EventsClient({
 	initialEvents,
 	mapLoadStrategy,
+	eventSubmissionsEnabled = true,
 }: EventsClientProps) {
 	const router = useRouter();
 	const pathname = usePathname();
@@ -120,6 +123,7 @@ export function EventsClient({
 	const [isMapExpanded, setIsMapExpanded] = useState(false);
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 	const [showEmailGate, setShowEmailGate] = useState(false);
+	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false);
 	const invalidEventParamCountRef = useRef(0);
 	const allEventsRef = useRef<HTMLDivElement>(null);
 	const {
@@ -288,6 +292,12 @@ export function EventsClient({
 			searchParams.get("event") || getEventKeyFromPath(pathname);
 		if (!eventParam) {
 			setSelectedEvent((current) => (current ? null : current));
+			setIsRequestUpdateOpen(false);
+			if (searchParams.has(REQUEST_UPDATE_PARAM)) {
+				const currentParams = new URLSearchParams(searchParams.toString());
+				currentParams.delete(REQUEST_UPDATE_PARAM);
+				updateUrlWithoutNavigation(homePath(currentParams), "replace");
+			}
 			return;
 		}
 
@@ -300,21 +310,28 @@ export function EventsClient({
 				invalidEventParamCount: invalidEventParamCountRef.current,
 			});
 			setSelectedEvent((current) => (current ? null : current));
-			updateUrlWithoutNavigation(
-				homePath(new URLSearchParams(searchParams.toString())),
-				"replace",
-			);
+			const currentParams = new URLSearchParams(searchParams.toString());
+			currentParams.delete(REQUEST_UPDATE_PARAM);
+			updateUrlWithoutNavigation(homePath(currentParams), "replace");
 			return;
 		}
 
 		setSelectedEvent((current) =>
 			current?.eventKey === resolvedEvent.eventKey ? current : resolvedEvent,
 		);
+		const hasRequestUpdateParam =
+			searchParams.get(REQUEST_UPDATE_PARAM) === "1";
+		setIsRequestUpdateOpen(hasRequestUpdateParam && eventSubmissionsEnabled);
 
 		const slugParam = searchParams.get("slug");
 		const isLegacyQueryUrl = searchParams.has("event");
 		const isEventPath = getEventKeyFromPath(pathname) !== null;
 		const currentParams = new URLSearchParams(searchParams.toString());
+		const hasDisabledRequestUpdateParam =
+			hasRequestUpdateParam && !eventSubmissionsEnabled;
+		if (hasDisabledRequestUpdateParam) {
+			currentParams.delete(REQUEST_UPDATE_PARAM);
+		}
 		const canonicalEventPath = buildEventPath(resolvedEvent, currentParams);
 		const canonicalEventPathname = canonicalEventPath.split("?")[0] || "";
 		const hasStaleLegacySlug =
@@ -325,7 +342,8 @@ export function EventsClient({
 			isLegacyQueryUrl ||
 			!isEventPath ||
 			hasStaleLegacySlug ||
-			hasStaleEventPath
+			hasStaleEventPath ||
+			hasDisabledRequestUpdateParam
 		) {
 			updateUrlWithoutNavigation(canonicalEventPath, "replace");
 		}
@@ -337,6 +355,7 @@ export function EventsClient({
 		pathname,
 		searchParams,
 		updateUrlWithoutNavigation,
+		eventSubmissionsEnabled,
 	]);
 
 	const handleEmailSubmit = useCallback(async () => {
@@ -386,6 +405,7 @@ export function EventsClient({
 				typeof window !== "undefined"
 					? new URLSearchParams(window.location.search)
 					: new URLSearchParams(searchParams.toString());
+			currentParams.delete(REQUEST_UPDATE_PARAM);
 			updateUrlWithoutNavigation(buildEventPath(event, currentParams), "push", {
 				markModalEntry: true,
 			});
@@ -395,6 +415,7 @@ export function EventsClient({
 
 	const handleEventClose = useCallback(() => {
 		setSelectedEvent((current) => (current ? null : current));
+		setIsRequestUpdateOpen(false);
 		if (typeof window !== "undefined") {
 			const currentState =
 				window.history.state &&
@@ -413,8 +434,34 @@ export function EventsClient({
 			typeof window !== "undefined"
 				? new URLSearchParams(window.location.search)
 				: new URLSearchParams(searchParams.toString());
+		currentParams.delete(REQUEST_UPDATE_PARAM);
 		updateUrlWithoutNavigation(homePath(currentParams), "replace");
 	}, [getEventKeyFromPath, homePath, searchParams, updateUrlWithoutNavigation]);
+
+	const handleRequestUpdateOpenChange = useCallback(
+		(open: boolean) => {
+			setIsRequestUpdateOpen(open);
+			if (!selectedEvent) return;
+			const currentParams =
+				typeof window !== "undefined"
+					? new URLSearchParams(window.location.search)
+					: new URLSearchParams(searchParams.toString());
+			if (open) {
+				currentParams.set(REQUEST_UPDATE_PARAM, "1");
+				updateUrlWithoutNavigation(
+					buildEventPath(selectedEvent, currentParams),
+					"replace",
+				);
+				return;
+			}
+			currentParams.delete(REQUEST_UPDATE_PARAM);
+			updateUrlWithoutNavigation(
+				buildEventPath(selectedEvent, currentParams),
+				"replace",
+			);
+		},
+		[buildEventPath, searchParams, selectedEvent, updateUrlWithoutNavigation],
+	);
 
 	const scrollToAllEvents = useCallback(() => {
 		allEventsRef.current?.scrollIntoView({
@@ -591,6 +638,9 @@ export function EventsClient({
 				isOpen={selectedEvent !== null}
 				onClose={handleEventClose}
 				isAuthenticated={isAuthenticated}
+				submissionsEnabled={eventSubmissionsEnabled}
+				isRequestUpdateOpen={isRequestUpdateOpen}
+				onRequestUpdateOpenChange={handleRequestUpdateOpenChange}
 				socialProofMode={
 					selectedEvent
 						? socialProofDisplayModes.get(selectedEvent.eventKey)

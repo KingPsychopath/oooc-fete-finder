@@ -42,3 +42,20 @@ export const normalizeProofLink = (value: string): string | null => {
 		return null;
 	}
 };
+
+export const normalizeProofLinks = (value: string): string[] | null => {
+	const parts = value
+		.split(/[,\n\r|]/)
+		.map((part) => part.trim())
+		.filter(Boolean);
+	if (parts.length === 0) return [];
+
+	const normalizedLinks: string[] = [];
+	for (const part of parts) {
+		const normalized = normalizeProofLink(part);
+		if (!normalized) return null;
+		normalizedLinks.push(normalized);
+	}
+
+	return normalizedLinks;
+};

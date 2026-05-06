@@ -38,7 +38,19 @@ const DECLINE_REASON_LABELS: Record<EventSubmissionDeclineReason, string> = {
 	other: "Other",
 };
 
-type DashboardPayload = Awaited<ReturnType<typeof getEventSubmissionsDashboard>>;
+type EventUpdateSnapshotKey = keyof NonNullable<
+	EventSubmissionRecord["payload"]["originalEventSnapshot"]
+>;
+
+const parseDisplayLinks = (value: string | undefined): string[] =>
+	(value || "")
+		.split(/[,\n\r|]/)
+		.map((link) => link.trim())
+		.filter(Boolean);
+
+type DashboardPayload = Awaited<
+	ReturnType<typeof getEventSubmissionsDashboard>
+>;
 
 const getSubmissionRowsByStatus = (
 	payload: DashboardPayload | null,
@@ -67,9 +79,8 @@ export const EventSubmissionsCard = ({
 	const [payload, setPayload] = useState<DashboardPayload | null>(
 		initialPayload ?? null,
 	);
-	const [activeStatus, setActiveStatus] = useState<EventSubmissionStatus>(
-		"pending",
-	);
+	const [activeStatus, setActiveStatus] =
+		useState<EventSubmissionStatus>("pending");
 	const [isLoading, setIsLoading] = useState(false);
 	const [isMutating, setIsMutating] = useState(false);
 	const [busySubmissionId, setBusySubmissionId] = useState<string | null>(null);
@@ -104,7 +115,14 @@ export const EventSubmissionsCard = ({
 	}, [initialPayload?.success, loadDashboard]);
 
 	const withMutation = useCallback(
-		async (submissionId: string, task: () => Promise<{ success: boolean; message: string; error?: string }>) => {
+		async (
+			submissionId: string,
+			task: () => Promise<{
+				success: boolean;
+				message: string;
+				error?: string;
+			}>,
+		) => {
 			setIsMutating(true);
 			setBusySubmissionId(submissionId);
 			setStatusMessage("");
@@ -152,7 +170,9 @@ export const EventSubmissionsCard = ({
 
 	const handleAccept = useCallback(
 		async (submissionId: string) => {
-			await withMutation(submissionId, () => acceptEventSubmission(submissionId));
+			await withMutation(submissionId, () =>
+				acceptEventSubmission(submissionId),
+			);
 		},
 		[withMutation],
 	);
@@ -162,10 +182,11 @@ export const EventSubmissionsCard = ({
 			const selectedReason =
 				selectedDeclineReasonById[submissionId] ?? "not_enough_information";
 			const customReason = (customDeclineReasonById[submissionId] || "").trim();
-			const reason =
-				selectedReason === "other" ? customReason : selectedReason;
+			const reason = selectedReason === "other" ? customReason : selectedReason;
 			if (!reason) {
-				setErrorMessage("Add a decline reason before declining this submission.");
+				setErrorMessage(
+					"Add a decline reason before declining this submission.",
+				);
 				return;
 			}
 			await withMutation(submissionId, () =>
@@ -200,8 +221,9 @@ export const EventSubmissionsCard = ({
 					<div>
 						<CardTitle>Event Submissions</CardTitle>
 						<CardDescription>
-							Host-submitted events awaiting moderation. Accept adds to the live
-							event sheet and revalidates homepage immediately.
+							Host-submitted events and update requests awaiting moderation.
+							Accept publishes new events; update requests are reviewed against
+							the current event sheet.
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
@@ -247,14 +269,16 @@ export const EventSubmissionsCard = ({
 					<div className="rounded-md border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
 						<p className="break-all">Store path: {settingsStatus.location}</p>
 						<p className="mt-1">
-							Last updated: {new Date(settingsStatus.updatedAt).toLocaleString()} by{" "}
+							Last updated:{" "}
+							{new Date(settingsStatus.updatedAt).toLocaleString()} by{" "}
 							{settingsStatus.updatedBy}
 						</p>
 					</div>
 				)}
 				{!submissionsEnabled && (
 					<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-						Public submissions are currently disabled. The submit endpoint is blocked.
+						Public submissions are currently disabled. The submit endpoint is
+						blocked.
 					</div>
 				)}
 				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -287,7 +311,8 @@ export const EventSubmissionsCard = ({
 							Total
 						</p>
 						<p className="mt-1 text-sm font-medium">
-							{metrics?.totalCount ?? tabCounts.pending + tabCounts.accepted + tabCounts.declined}
+							{metrics?.totalCount ??
+								tabCounts.pending + tabCounts.accepted + tabCounts.declined}
 						</p>
 					</div>
 				</div>
@@ -330,6 +355,57 @@ export const EventSubmissionsCard = ({
 							const isBusy = isMutating && busySubmissionId === submission.id;
 							const suggestedGenres =
 								submission.payload.suggestedGenres?.filter(Boolean) ?? [];
+							const ticketLinks = parseDisplayLinks(
+								submission.payload.ticketLink,
+							);
+							const isUpdateRequest =
+								submission.payload.submissionType === "event_update";
+							const originalSnapshot =
+								submission.payload.originalEventSnapshot ?? {};
+							const changedFields: Array<{
+								label: string;
+								key: EventUpdateSnapshotKey;
+								next: string;
+							}> = [
+								["Event", "eventName", submission.payload.eventName],
+								["Date", "date", submission.payload.date],
+								["Start", "startTime", submission.payload.startTime],
+								["End", "endTime", submission.payload.endTime || ""],
+								["Location", "location", submission.payload.location],
+								["Genre", "genre", submission.payload.genre || ""],
+								["Price", "price", submission.payload.price || ""],
+								["Age", "age", submission.payload.age || ""],
+								[
+									"Venue",
+									"indoorOutdoor",
+									submission.payload.indoorOutdoor || "",
+								],
+								[
+									"Arrondissement",
+									"arrondissement",
+									submission.payload.arrondissement || "",
+								],
+								[
+									"Proof of change URL",
+									"proofLink",
+									submission.payload.proofLink,
+								],
+								[
+									"Ticket link",
+									"ticketLink",
+									submission.payload.ticketLink || "",
+								],
+								["Notes", "notes", submission.payload.notes || ""],
+							]
+								.map(([label, key, next]) => ({
+									label,
+									key: key as EventUpdateSnapshotKey,
+									next,
+								}))
+								.filter(({ key, next }) => {
+									const previous = originalSnapshot[key] || "";
+									return previous !== next;
+								});
 
 							return (
 								<div
@@ -338,20 +414,25 @@ export const EventSubmissionsCard = ({
 								>
 									<div className="flex flex-wrap items-start justify-between gap-2">
 										<div className="space-y-1">
-											<p className="text-sm font-medium">{submission.payload.eventName}</p>
+											<p className="text-sm font-medium">
+												{submission.payload.eventName}
+											</p>
 											<p className="text-xs text-muted-foreground">
-												{submission.payload.date} at {submission.payload.startTime} • {submission.payload.location}
+												{submission.payload.date} at{" "}
+												{submission.payload.startTime} •{" "}
+												{submission.payload.location}
 											</p>
 											<p className="text-xs text-muted-foreground break-all">
 												{submission.payload.hostEmail}
 											</p>
 										</div>
 										<div className="flex flex-wrap gap-1.5">
+											{isUpdateRequest && (
+												<Badge variant="outline">Update request</Badge>
+											)}
 											<Badge variant="outline">{submission.status}</Badge>
 											{suggestedGenres.length > 0 && (
-												<Badge variant="outline">
-													Review genre suggestion
-												</Badge>
+												<Badge variant="outline">Review genre suggestion</Badge>
 											)}
 											{submission.spamSignals.reasons.map((reason) => (
 												<Badge key={reason} variant="destructive">
@@ -362,14 +443,71 @@ export const EventSubmissionsCard = ({
 									</div>
 
 									<div className="mt-2 text-xs text-muted-foreground break-all">
-										Proof: {submission.payload.proofLink}
+										{isUpdateRequest ? "Proof of change" : "Proof"}:{" "}
+										{submission.payload.proofLink}
 									</div>
+									{ticketLinks.length > 0 && (
+										<div className="mt-1 text-xs text-muted-foreground">
+											<p className="font-medium text-foreground/75">
+												Ticket link{ticketLinks.length === 1 ? "" : "s"}:
+											</p>
+											<div className="mt-1 space-y-0.5">
+												{ticketLinks.map((link, index) => (
+													<p
+														key={`${submission.id}-ticket-link-${index}-${link}`}
+														className="break-all"
+													>
+														<span className="font-medium">
+															{index === 0 ? "Primary" : `Additional ${index}`}:
+														</span>{" "}
+														{link}
+													</p>
+												))}
+											</div>
+										</div>
+									)}
+
+									{isUpdateRequest && (
+										<div className="mt-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">
+											<p className="font-medium">
+												Update for{" "}
+												{submission.payload.originalEventName ||
+													submission.payload.eventName}
+											</p>
+											{submission.payload.originalEventKey && (
+												<p className="mt-1 break-all">
+													Event key: {submission.payload.originalEventKey}
+												</p>
+											)}
+											{submission.payload.originalEventUrl && (
+												<p className="mt-1 break-all">
+													Canonical URL: {submission.payload.originalEventUrl}
+												</p>
+											)}
+											{changedFields.length > 0 && (
+												<div className="mt-2 space-y-1">
+													<p className="font-medium">Changed fields</p>
+													{changedFields.map(({ label, key, next }) => (
+														<p key={key} className="break-words">
+															<span className="font-medium">{label}:</span>{" "}
+															<span className="whitespace-pre-wrap line-through opacity-70">
+																{originalSnapshot[key] || "-"}
+															</span>{" "}
+															<span className="whitespace-pre-wrap">
+																→ {next || "-"}
+															</span>
+														</p>
+													))}
+												</div>
+											)}
+										</div>
+									)}
 
 									{suggestedGenres.length > 0 && (
 										<div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
 											<span className="font-medium">Suggested genres:</span>{" "}
-											{suggestedGenres.join(", ")}. Add or map these in Manage genres if
-											they should become reusable filters.
+											{suggestedGenres.join(", ")}. Add or map these in Manage
+											genres if they should become reusable filters.
 										</div>
 									)}
 
@@ -381,13 +519,17 @@ export const EventSubmissionsCard = ({
 											<div>End time: {submission.payload.endTime || "-"}</div>
 											<div>Genre: {submission.payload.genre || "-"}</div>
 											<div>
-												Suggested genres:{" "}
-												{suggestedGenres.join(", ") || "-"}
+												Suggested genres: {suggestedGenres.join(", ") || "-"}
 											</div>
 											<div>Price: {submission.payload.price || "-"}</div>
 											<div>Age: {submission.payload.age || "-"}</div>
-											<div>Venue: {submission.payload.indoorOutdoor || "-"}</div>
-											<div>Arrondissement: {submission.payload.arrondissement || "-"}</div>
+											<div>
+												Venue: {submission.payload.indoorOutdoor || "-"}
+											</div>
+											<div>
+												Arrondissement:{" "}
+												{submission.payload.arrondissement || "-"}
+											</div>
 										</div>
 										{submission.payload.notes && (
 											<p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
@@ -401,7 +543,9 @@ export const EventSubmissionsCard = ({
 										{submission.reviewedAt
 											? ` • Reviewed ${new Date(submission.reviewedAt).toLocaleString()}`
 											: ""}
-										{submission.reviewReason ? ` • Reason: ${submission.reviewReason}` : ""}
+										{submission.reviewReason
+											? ` • Reason: ${submission.reviewReason}`
+											: ""}
 									</div>
 
 									{submission.status === "pending" && (
@@ -430,8 +574,13 @@ export const EventSubmissionsCard = ({
 													<Button
 														type="button"
 														onClick={() => void handleAccept(submission.id)}
-														disabled={isBusy}
+														disabled={isBusy || isUpdateRequest}
 														size="sm"
+														title={
+															isUpdateRequest
+																? "Apply update requests manually in the event sheet"
+																: undefined
+														}
 													>
 														{isBusy ? "Working..." : "Accept"}
 													</Button>

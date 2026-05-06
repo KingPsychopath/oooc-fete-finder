@@ -67,7 +67,9 @@ const loadRoute = async (): Promise<Setup> => {
 		keyHash: "hashed-fingerprint",
 	});
 	const parseEventSubmissionInput = vi.fn().mockReturnValue(normalizedInput);
-	const buildEventSubmissionFingerprint = vi.fn().mockReturnValue("fingerprint");
+	const buildEventSubmissionFingerprint = vi
+		.fn()
+		.mockReturnValue("fingerprint");
 	const evaluateSubmissionSpamSignals = vi.fn().mockReturnValue({
 		honeypotFilled: false,
 		completedTooFast: false,
@@ -128,7 +130,10 @@ describe("/api/event-submissions route", () => {
 				body: JSON.stringify(validBody),
 			}),
 		);
-		const payload = (await response.json()) as { success: boolean; message: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			message: string;
+		};
 
 		expect(response.status).toBe(200);
 		expect(payload.success).toBe(true);
@@ -138,7 +143,8 @@ describe("/api/event-submissions route", () => {
 	});
 
 	it("returns 503 when submissions are disabled", async () => {
-		const { POST, getPublicSettings, createEventSubmission } = await loadRoute();
+		const { POST, getPublicSettings, createEventSubmission } =
+			await loadRoute();
 		getPublicSettings.mockResolvedValue({
 			enabled: false,
 			updatedAt: "2026-02-18T00:00:00.000Z",
@@ -151,7 +157,10 @@ describe("/api/event-submissions route", () => {
 				body: JSON.stringify(validBody),
 			}),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(503);
 		expect(payload.error).toContain("temporarily closed");
@@ -198,7 +207,8 @@ describe("/api/event-submissions route", () => {
 	});
 
 	it("returns 429 when IP rate limit is exceeded", async () => {
-		const { POST, checkEventSubmitIpLimit, createEventSubmission } = await loadRoute();
+		const { POST, checkEventSubmitIpLimit, createEventSubmission } =
+			await loadRoute();
 		checkEventSubmitIpLimit.mockResolvedValue({
 			allowed: false,
 			retryAfterSeconds: 37,
@@ -221,7 +231,8 @@ describe("/api/event-submissions route", () => {
 	});
 
 	it("returns 503 when rate limiter storage is unavailable", async () => {
-		const { POST, checkEventSubmitIpLimit, createEventSubmission } = await loadRoute();
+		const { POST, checkEventSubmitIpLimit, createEventSubmission } =
+			await loadRoute();
 		checkEventSubmitIpLimit.mockResolvedValue({
 			allowed: true,
 			retryAfterSeconds: null,
@@ -308,7 +319,10 @@ describe("/api/event-submissions route", () => {
 				body: JSON.stringify(validBody),
 			}),
 		);
-		const payload = (await response.json()) as { success: boolean; message: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			message: string;
+		};
 
 		expect(response.status).toBe(200);
 		expect(payload.success).toBe(true);

@@ -4,8 +4,7 @@ export const EVENT_SUBMISSION_STATUSES = [
 	"declined",
 ] as const;
 
-export type EventSubmissionStatus =
-	(typeof EVENT_SUBMISSION_STATUSES)[number];
+export type EventSubmissionStatus = (typeof EVENT_SUBMISSION_STATUSES)[number];
 
 export type EventSubmissionReviewStatus = Exclude<
 	EventSubmissionStatus,
@@ -20,9 +19,29 @@ export interface EventSubmissionPayload {
 	hostEmail: string;
 	proofLink: string;
 	submittedAt: string;
+	submissionType?: "new_event" | "event_update";
+	originalEventKey?: string;
+	originalEventName?: string;
+	originalEventUrl?: string;
+	originalEventSnapshot?: Partial<{
+		eventName: string;
+		date: string;
+		startTime: string;
+		endTime: string;
+		location: string;
+		genre: string;
+		price: string;
+		age: string;
+		indoorOutdoor: string;
+		arrondissement: string;
+		proofLink: string;
+		ticketLink: string;
+		notes: string;
+	}>;
 	endTime?: string;
 	genre?: string;
 	suggestedGenres?: string[];
+	ticketLink?: string;
 	price?: string;
 	age?: string;
 	indoorOutdoor?: string;

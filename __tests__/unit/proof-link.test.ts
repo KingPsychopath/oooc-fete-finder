@@ -1,5 +1,8 @@
+import {
+	normalizeProofLink,
+	normalizeProofLinks,
+} from "@/features/events/submissions/proof-link";
 import { describe, expect, it } from "vitest";
-import { normalizeProofLink } from "@/features/events/submissions/proof-link";
 
 describe("proof link normalization", () => {
 	it("adds https for scheme-less domains", () => {
@@ -20,5 +23,23 @@ describe("proof link normalization", () => {
 
 	it("rejects non-url text", () => {
 		expect(normalizeProofLink("this is not a link")).toBeNull();
+	});
+
+	it("normalizes multiple links split by newline, comma, or pipe", () => {
+		expect(
+			normalizeProofLinks(
+				"tickets.example.com/one\nhttps://example.com/two | example.org/three",
+			),
+		).toEqual([
+			"https://tickets.example.com/one",
+			"https://example.com/two",
+			"https://example.org/three",
+		]);
+	});
+
+	it("rejects a multiple-link list when any entry is invalid", () => {
+		expect(
+			normalizeProofLinks("tickets.example.com/one | not a url"),
+		).toBeNull();
 	});
 });

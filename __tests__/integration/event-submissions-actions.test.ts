@@ -1,16 +1,27 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type * as EventSubmissionActionsModule from "@/features/events/submissions/actions";
 import type { EventSubmissionRecord } from "@/features/events/submissions/types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const buildSubmission = (status: EventSubmissionRecord["status"]): EventSubmissionRecord => ({
+type EventSubmissionOverrides = Partial<
+	Omit<EventSubmissionRecord, "payload">
+> & {
+	payload?: Partial<EventSubmissionRecord["payload"]>;
+};
+type EventSubmissionActions = typeof EventSubmissionActionsModule;
+
+const buildSubmission = (
+	status: EventSubmissionRecord["status"],
+	overrides: EventSubmissionOverrides = {},
+): EventSubmissionRecord => ({
 	id: "submission_1",
 	status,
 	payload: {
-		eventName: "Sunset Party",
-		date: "2026-06-21",
-		startTime: "18:00",
-		location: "Paris",
-		hostEmail: "host@example.com",
-		proofLink: "https://example.com/event",
+		eventName: overrides.payload?.eventName ?? "Sunset Party",
+		date: overrides.payload?.date ?? "2026-06-21",
+		startTime: overrides.payload?.startTime ?? "18:00",
+		location: overrides.payload?.location ?? "Paris",
+		hostEmail: overrides.payload?.hostEmail ?? "host@example.com",
+		proofLink: overrides.payload?.proofLink ?? "https://example.com/event",
 		submittedAt: "2026-02-18T10:00:00.000Z",
 		endTime: "23:00",
 		genre: "Afrobeats",
@@ -19,6 +30,12 @@ const buildSubmission = (status: EventSubmissionRecord["status"]): EventSubmissi
 		indoorOutdoor: "Indoor",
 		notes: "Bring friends",
 		arrondissement: "11",
+		submissionType: overrides.payload?.submissionType,
+		originalEventKey: overrides.payload?.originalEventKey,
+		originalEventName: overrides.payload?.originalEventName,
+		originalEventUrl: overrides.payload?.originalEventUrl,
+		originalEventSnapshot: overrides.payload?.originalEventSnapshot,
+		ticketLink: overrides.payload?.ticketLink,
 	},
 	hostEmail: "host@example.com",
 	sourceIpHash: "hashed-ip",
@@ -39,9 +56,9 @@ const buildSubmission = (status: EventSubmissionRecord["status"]): EventSubmissi
 });
 
 type Setup = {
-	getEventSubmissionsDashboard: typeof import("@/features/events/submissions/actions").getEventSubmissionsDashboard;
-	acceptEventSubmission: typeof import("@/features/events/submissions/actions").acceptEventSubmission;
-	declineEventSubmission: typeof import("@/features/events/submissions/actions").declineEventSubmission;
+	getEventSubmissionsDashboard: EventSubmissionActions["getEventSubmissionsDashboard"];
+	acceptEventSubmission: EventSubmissionActions["acceptEventSubmission"];
+	declineEventSubmission: EventSubmissionActions["declineEventSubmission"];
 	validateAdminAccess: ReturnType<typeof vi.fn>;
 	getEventSubmissionSnapshot: ReturnType<typeof vi.fn>;
 	getEventSubmissionById: ReturnType<typeof vi.fn>;
@@ -52,7 +69,7 @@ type Setup = {
 	getStatus: ReturnType<typeof vi.fn>;
 	updateEnabled: ReturnType<typeof vi.fn>;
 	revalidatePath: ReturnType<typeof vi.fn>;
-	updateEventSubmissionEnabled: typeof import("@/features/events/submissions/actions").updateEventSubmissionEnabled;
+	updateEventSubmissionEnabled: EventSubmissionActions["updateEventSubmissionEnabled"];
 };
 
 const loadActions = async (): Promise<Setup> => {
@@ -70,14 +87,23 @@ const loadActions = async (): Promise<Setup> => {
 		accepted: [buildSubmission("accepted")],
 		declined: [buildSubmission("declined")],
 	});
-	const getEventSubmissionById = vi.fn().mockResolvedValue(buildSubmission("pending"));
-	const reviewEventSubmission = vi.fn().mockResolvedValue(buildSubmission("accepted"));
+	const getEventSubmissionById = vi
+		.fn()
+		.mockResolvedValue(buildSubmission("pending"));
+	const reviewEventSubmission = vi
+		.fn()
+		.mockResolvedValue(buildSubmission("accepted"));
 	const getEventSheetEditorData = vi.fn().mockResolvedValue({
 		success: true,
 		columns: [
 			{ key: "eventKey", label: "Event Key", isCore: true, isRequired: false },
 			{ key: "curated", label: "Curated", isCore: true, isRequired: false },
-			{ key: "hostCountry", label: "Host Country", isCore: true, isRequired: false },
+			{
+				key: "hostCountry",
+				label: "Host Country",
+				isCore: true,
+				isRequired: false,
+			},
 			{
 				key: "audienceCountry",
 				label: "Audience Country",
@@ -86,7 +112,12 @@ const loadActions = async (): Promise<Setup> => {
 			},
 			{ key: "title", label: "Title", isCore: true, isRequired: true },
 			{ key: "date", label: "Date", isCore: true, isRequired: true },
-			{ key: "startTime", label: "Start Time", isCore: true, isRequired: false },
+			{
+				key: "startTime",
+				label: "Start Time",
+				isCore: true,
+				isRequired: false,
+			},
 			{ key: "endTime", label: "End Time", isCore: true, isRequired: false },
 			{ key: "location", label: "Location", isCore: true, isRequired: false },
 			{
@@ -95,7 +126,12 @@ const loadActions = async (): Promise<Setup> => {
 				isCore: true,
 				isRequired: false,
 			},
-			{ key: "categories", label: "Categories", isCore: true, isRequired: false },
+			{
+				key: "categories",
+				label: "Categories",
+				isCore: true,
+				isRequired: false,
+			},
 			{ key: "tags", label: "Tags", isCore: true, isRequired: false },
 			{ key: "price", label: "Price", isCore: true, isRequired: false },
 			{
@@ -212,7 +248,8 @@ describe("event submission admin actions", () => {
 	});
 
 	it("declines a pending submission with reason", async () => {
-		const { declineEventSubmission, reviewEventSubmission } = await loadActions();
+		const { declineEventSubmission, reviewEventSubmission } =
+			await loadActions();
 		reviewEventSubmission.mockResolvedValue(buildSubmission("declined"));
 
 		const result = await declineEventSubmission(
@@ -269,9 +306,79 @@ describe("event submission admin actions", () => {
 		);
 	});
 
+	it("uses ticket link rather than proof-of-change link when publishing", async () => {
+		const {
+			acceptEventSubmission,
+			getEventSubmissionById,
+			saveEventSheetEditorRows,
+		} = await loadActions();
+		getEventSubmissionById.mockResolvedValue(
+			buildSubmission("pending", {
+				payload: {
+					ticketLink: "https://tickets.example.com/event",
+					proofLink: "https://instagram.example.com/change-proof",
+				},
+			}),
+		);
+
+		const result = await acceptEventSubmission("submission_1");
+
+		expect(result.success).toBe(true);
+		expect(saveEventSheetEditorRows).toHaveBeenCalledWith(
+			undefined,
+			expect.any(Array),
+			expect.arrayContaining([
+				expect.objectContaining({
+					primaryUrl: "https://tickets.example.com/event",
+				}),
+			]),
+			expect.objectContaining({ revalidateHomepage: true }),
+		);
+		const savedRows = saveEventSheetEditorRows.mock.calls[0]?.[2] as Array<{
+			primaryUrl?: string;
+		}>;
+		const acceptedRow = savedRows[savedRows.length - 1];
+		expect(acceptedRow?.primaryUrl).not.toBe(
+			"https://instagram.example.com/change-proof",
+		);
+	});
+
+	it("does not append update requests as new events", async () => {
+		const {
+			acceptEventSubmission,
+			getEventSubmissionById,
+			saveEventSheetEditorRows,
+		} = await loadActions();
+		getEventSubmissionById.mockResolvedValue(
+			buildSubmission("pending", {
+				payload: {
+					eventName: "Sunset Party",
+					date: "2026-06-21",
+					startTime: "19:00",
+					location: "Paris",
+					hostEmail: "host@example.com",
+					proofLink: "https://example.com/update",
+					submittedAt: "2026-02-18T10:00:00.000Z",
+					submissionType: "event_update",
+					originalEventKey: "sunset-party",
+					originalEventName: "Sunset Party",
+				},
+			}),
+		);
+
+		const result = await acceptEventSubmission("submission_1");
+
+		expect(result.success).toBe(false);
+		expect(result.message).toContain("manually");
+		expect(saveEventSheetEditorRows).not.toHaveBeenCalled();
+	});
+
 	it("returns unauthorized when admin validation fails", async () => {
-		const { getEventSubmissionsDashboard, acceptEventSubmission, validateAdminAccess } =
-			await loadActions();
+		const {
+			getEventSubmissionsDashboard,
+			acceptEventSubmission,
+			validateAdminAccess,
+		} = await loadActions();
 		validateAdminAccess.mockResolvedValue(false);
 
 		const listResult = await getEventSubmissionsDashboard();

@@ -14,7 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { normalizeSearchText } from "@/features/events/genre-normalization";
 import { normalizeProofLink } from "@/features/events/submissions/proof-link";
-import { MUSIC_GENRES, type MusicGenreDefinition } from "@/features/events/types";
+import {
+	MUSIC_GENRES,
+	type MusicGenreDefinition,
+} from "@/features/events/types";
 import { Check, ChevronDown, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -77,12 +80,7 @@ const hasDraftContent = (form: FormState): boolean =>
 	);
 
 const shouldShowOptionalDetails = (form: FormState): boolean =>
-	Boolean(
-		form.age ||
-			form.indoorOutdoor ||
-			form.notes ||
-			form.arrondissement,
-	);
+	Boolean(form.age || form.indoorOutdoor || form.notes || form.arrondissement);
 
 const toStoredDraft = (form: FormState): FormState => {
 	const selectedGenres = dedupeGenreLabels(parseGenreLabels(form.genre));
@@ -145,7 +143,9 @@ const toRestoredDraft = (candidate: unknown): FormState | null => {
 			typeof draft.arrondissement === "string" ? draft.arrondissement : "",
 		honeypot: "",
 	};
-	const selectedGenres = dedupeGenreLabels(parseGenreLabels(restoredForm.genre));
+	const selectedGenres = dedupeGenreLabels(
+		parseGenreLabels(restoredForm.genre),
+	);
 	const suggestedGenres = dedupeGenreLabels(
 		parseGenreLabels(restoredForm.suggestedGenres),
 	).filter((genre) => hasGenreLabel(selectedGenres, genre));
@@ -215,6 +215,15 @@ const hasMatchingGenreOption = (
 	);
 };
 
+const isValidArrondissementInput = (value: string): boolean => {
+	const normalized = value.trim().toLowerCase();
+	if (!normalized) return true;
+	return (
+		/^([1-9]|1\d|20)$/.test(normalized) ||
+		["greater-paris", "outside-paris", "unknown"].includes(normalized)
+	);
+};
+
 export function SubmitEventForm({
 	submissionsEnabled = true,
 	genreOptions = MUSIC_GENRES,
@@ -276,7 +285,8 @@ export function SubmitEventForm({
 			const isRemoving = hasGenreLabel(selectedGenres, label);
 			const nextGenres = isRemoving
 				? selectedGenres.filter(
-						(genre) => normalizeSearchText(genre) !== normalizeSearchText(label),
+						(genre) =>
+							normalizeSearchText(genre) !== normalizeSearchText(label),
 					)
 				: [...selectedGenres, label];
 			const nextSuggestedGenres = isRemoving
@@ -330,6 +340,9 @@ export function SubmitEventForm({
 		if (!normalizeProofLink(form.proofLink)) {
 			return "Proof link must be a valid URL.";
 		}
+		if (!isValidArrondissementInput(form.arrondissement)) {
+			return "Arrondissement must be 1-20, greater-paris, outside-paris, or unknown.";
+		}
 		return null;
 	};
 
@@ -353,7 +366,9 @@ export function SubmitEventForm({
 			setErrorMessage("Proof link must be a valid URL.");
 			return;
 		}
-		const selectedSubmittedGenres = dedupeGenreLabels(parseGenreLabels(form.genre));
+		const selectedSubmittedGenres = dedupeGenreLabels(
+			parseGenreLabels(form.genre),
+		);
 		const suggestedSubmittedGenres = dedupeGenreLabels(
 			parseGenreLabels(form.suggestedGenres),
 		).filter((genre) => hasGenreLabel(selectedSubmittedGenres, genre));
@@ -468,7 +483,9 @@ export function SubmitEventForm({
 	};
 
 	const selectedGenres = dedupeGenreLabels(parseGenreLabels(form.genre));
-	const suggestedGenres = dedupeGenreLabels(parseGenreLabels(form.suggestedGenres));
+	const suggestedGenres = dedupeGenreLabels(
+		parseGenreLabels(form.suggestedGenres),
+	);
 	const activeSuggestedGenres = suggestedGenres.filter((genre) =>
 		hasGenreLabel(selectedGenres, genre),
 	);
@@ -594,8 +611,7 @@ export function SubmitEventForm({
 						</Button>
 						{activeSuggestedGenres.length > 0 && (
 							<p className="text-xs text-muted-foreground">
-								Suggested for review:{" "}
-								{formatGenreValue(activeSuggestedGenres)}
+								Suggested for review: {formatGenreValue(activeSuggestedGenres)}
 							</p>
 						)}
 					</div>
@@ -741,10 +757,7 @@ export function SubmitEventForm({
 							)}
 						</div>
 						<DialogFooter>
-							<Button
-								type="button"
-								onClick={() => setIsGenrePickerOpen(false)}
-							>
+							<Button type="button" onClick={() => setIsGenrePickerOpen(false)}>
 								Done
 							</Button>
 						</DialogFooter>

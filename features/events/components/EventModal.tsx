@@ -4,6 +4,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
@@ -18,12 +29,17 @@ import { trackEventEngagement } from "@/features/events/engagement/client-tracki
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import {
 	getCustomGenreColor,
+	normalizeSearchText,
 	toGenreLabel,
 } from "@/features/events/genre-normalization";
 import {
 	CARD_SOCIAL_PROOF_MIN_SAVES,
 	type SocialProofDisplayMode,
 } from "@/features/events/social-proof";
+import {
+	normalizeProofLink,
+	normalizeProofLinks,
+} from "@/features/events/submissions/proof-link";
 import {
 	type Event,
 	MUSIC_GENRES,
@@ -50,6 +66,7 @@ import {
 	Calendar,
 	CalendarPlus,
 	Check,
+	ChevronDown,
 	Clock,
 	Copy,
 	Euro,
@@ -59,21 +76,26 @@ import {
 	Link2,
 	MapPin,
 	Music,
+	Plus,
 	Settings,
 	Star,
 	Tag,
+	Trash2,
 	User,
 	Users,
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface EventModalProps {
 	event: Event | null;
 	isOpen: boolean;
 	onClose: () => void;
 	isAuthenticated?: boolean;
+	submissionsEnabled?: boolean;
+	isRequestUpdateOpen?: boolean;
+	onRequestUpdateOpenChange?: (open: boolean) => void;
 	socialProofMode?: SocialProofDisplayMode;
 }
 
@@ -88,6 +110,95 @@ interface CountryDisplay {
 	flag?: string;
 	label: string;
 }
+
+interface EventUpdateRequestForm {
+	eventName: string;
+	date: string;
+	startTime: string;
+	endTime: string;
+	location: string;
+	genre: string;
+	price: string;
+	age: string;
+	indoorOutdoor: string;
+	arrondissement: string;
+	proofLink: string;
+	ticketLink: string;
+	hostEmail: string;
+	notes: string;
+}
+
+const parseGenreLabels = (value: string): string[] =>
+	value
+		.split(",")
+		.map((genre) => genre.trim())
+		.filter(Boolean);
+
+const dedupeGenreLabels = (genres: string[]): string[] => {
+	const seen = new Set<string>();
+	const result: string[] = [];
+	for (const genre of genres) {
+		const normalized = normalizeSearchText(genre);
+		if (!normalized || seen.has(normalized)) continue;
+		seen.add(normalized);
+		result.push(genre.trim());
+	}
+	return result;
+};
+
+const formatGenreValue = (genres: string[]): string => genres.join(", ");
+
+const parseTicketLinkRows = (value: string): string[] => {
+	if (!value) return [""];
+	const rows = value.split(/[,\n\r|]/).map((link) => link.trim());
+	return rows.length > 0 ? rows : [""];
+};
+
+const formatTicketLinkRows = (links: string[]): string =>
+	links.map((link) => link.trim()).join("\n");
+
+const hasGenreLabel = (genres: string[], label: string): boolean => {
+	const normalized = normalizeSearchText(label);
+	return genres.some((genre) => normalizeSearchText(genre) === normalized);
+};
+
+const getDisplayGenreLabel = (genre: string) =>
+	MUSIC_GENRES.find((item) => item.key === genre)?.label || toGenreLabel(genre);
+
+const buildEventUpdateRequestForm = (event: Event): EventUpdateRequestForm => {
+	const eventLinks =
+		event.links && event.links.length > 0 ? event.links : [event.link];
+	const normalizedTicketLinks =
+		normalizeProofLinks(eventLinks.filter(Boolean).join("\n")) ?? [];
+	const venueTypeLabel =
+		event.venueTypes && event.venueTypes.length > 0
+			? event.venueTypes
+					.map((vt) => VENUE_TYPES.find((venue) => venue.key === vt)?.label)
+					.filter(Boolean)
+					.join(" & ")
+			: event.indoor
+				? "Indoor"
+				: "Outdoor";
+	const priceLabel = formatPrice(event.price);
+	const ageLabel = event.age || "All ages";
+
+	return {
+		eventName: event.name,
+		date: event.date || "",
+		startTime: event.time && event.time !== "TBC" ? event.time : "",
+		endTime: event.endTime && event.endTime !== "TBC" ? event.endTime : "",
+		location: event.location && event.location !== "TBA" ? event.location : "",
+		genre: formatGenreValue(event.genre.map(getDisplayGenreLabel)),
+		price: priceLabel === "TBC" ? "" : priceLabel,
+		age: ageLabel,
+		indoorOutdoor: venueTypeLabel,
+		arrondissement: String(event.arrondissement),
+		proofLink: "",
+		ticketLink: normalizedTicketLinks.join("\n"),
+		hostEmail: "",
+		notes: event.description || "",
+	};
+};
 
 const CATEGORY_COLORS: Record<string, string> = {
 	electronic:
@@ -241,6 +352,9 @@ const EventModal: React.FC<EventModalProps> = ({
 	isOpen,
 	onClose,
 	isAuthenticated = false,
+	submissionsEnabled = true,
+	isRequestUpdateOpen: controlledRequestUpdateOpen,
+	onRequestUpdateOpenChange,
 	socialProofMode,
 }) => {
 	const { mapPreference, setMapPreference, isLoaded } = useMapPreference();
@@ -264,6 +378,20 @@ const EventModal: React.FC<EventModalProps> = ({
 	} | null>(null);
 	const [showAllGenres, setShowAllGenres] = useState(false);
 	const [showCountryDetails, setShowCountryDetails] = useState(false);
+	const [internalRequestUpdateOpen, setInternalRequestUpdateOpen] =
+		useState(false);
+	const [isGenrePickerOpen, setIsGenrePickerOpen] = useState(false);
+	const [genreSearchQuery, setGenreSearchQuery] = useState("");
+	const [updateRequestForm, setUpdateRequestForm] =
+		useState<EventUpdateRequestForm | null>(null);
+	const [isSubmittingUpdateRequest, setIsSubmittingUpdateRequest] =
+		useState(false);
+	const [updateRequestStatus, setUpdateRequestStatus] = useState<{
+		message: string;
+		tone: "success" | "error";
+	} | null>(null);
+	const isUpdateRequestOpen =
+		controlledRequestUpdateOpen ?? internalRequestUpdateOpen;
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -274,6 +402,10 @@ const EventModal: React.FC<EventModalProps> = ({
 			setShowAllGenres(false);
 			setShowCountryDetails(false);
 			setIsContactEmailCopied(false);
+			setInternalRequestUpdateOpen(false);
+			setIsGenrePickerOpen(false);
+			setGenreSearchQuery("");
+			setUpdateRequestStatus(null);
 		}
 	}, [isOpen]);
 
@@ -295,6 +427,29 @@ const EventModal: React.FC<EventModalProps> = ({
 			setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.EVENT_MODAL, false);
 		};
 	}, [isOpen]);
+
+	useEffect(() => {
+		setUpdateRequestForm(null);
+		setUpdateRequestStatus(null);
+		setIsGenrePickerOpen(false);
+		setGenreSearchQuery("");
+		if (!isOpen || !event || !isUpdateRequestOpen || !submissionsEnabled)
+			return;
+		setUpdateRequestForm(buildEventUpdateRequestForm(event));
+	}, [event, isOpen, isUpdateRequestOpen, submissionsEnabled]);
+
+	const selectedUpdateGenres = dedupeGenreLabels(
+		parseGenreLabels(updateRequestForm?.genre ?? ""),
+	);
+	const filteredGenreOptions = useMemo(() => {
+		const query = normalizeSearchText(genreSearchQuery);
+		if (!query) return MUSIC_GENRES;
+		return MUSIC_GENRES.filter((genre) =>
+			[genre.label, genre.key].some((candidate) =>
+				normalizeSearchText(candidate).includes(query),
+			),
+		);
+	}, [genreSearchQuery]);
 
 	if (!isOpen || !event) return null;
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
@@ -383,8 +538,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		return genreInfo?.color || getCustomGenreColor(genre);
 	};
 
-	const getGenreLabel = (genre: string) =>
-		MUSIC_GENRES.find((g) => g.key === genre)?.label || toGenreLabel(genre);
+	const getGenreLabel = getDisplayGenreLabel;
 
 	const setTimedShareStatus = (
 		message: string,
@@ -409,6 +563,22 @@ const EventModal: React.FC<EventModalProps> = ({
 		const encodedSlug = event.slug ? `/${encodeURIComponent(event.slug)}` : "";
 		const eventPath = `${normalizedBasePath}/event/${encodedEventKey}${encodedSlug}/`;
 		return new URL(eventPath, window.location.origin).toString();
+	};
+
+	const buildRequestUpdateUrl = (): string => {
+		const eventUrl = buildCanonicalEventUrl();
+		if (!eventUrl) return "";
+		const url = new URL(eventUrl);
+		url.searchParams.set("requestUpdate", "1");
+		return url.toString();
+	};
+
+	const setRequestUpdateOpen = (open: boolean) => {
+		if (onRequestUpdateOpenChange) {
+			onRequestUpdateOpenChange(open);
+			return;
+		}
+		setInternalRequestUpdateOpen(open);
 	};
 
 	const copyToClipboard = async (value: string): Promise<boolean> => {
@@ -463,6 +633,16 @@ const EventModal: React.FC<EventModalProps> = ({
 		}, 1800);
 	};
 
+	const handleCopyRequestUpdateUrl = async () => {
+		const requestUpdateUrl = buildRequestUpdateUrl();
+		if (!requestUpdateUrl) return;
+		const copied = await copyToClipboard(requestUpdateUrl);
+		setTimedShareStatus(
+			copied ? "Update link copied" : "Unable to copy update link",
+			copied ? "success" : "error",
+		);
+	};
+
 	const handleShareEventLink = async () => {
 		const shareUrl = buildCanonicalEventUrl();
 		if (!shareUrl) return;
@@ -499,6 +679,182 @@ const EventModal: React.FC<EventModalProps> = ({
 		}
 	};
 
+	const buildUpdateRequestForm = (): EventUpdateRequestForm => {
+		return buildEventUpdateRequestForm(event);
+	};
+
+	const openUpdateRequest = () => {
+		if (!submissionsEnabled) return;
+		setUpdateRequestForm(buildUpdateRequestForm());
+		setUpdateRequestStatus(null);
+		setGenreSearchQuery("");
+		setRequestUpdateOpen(true);
+	};
+
+	const updateRequestField = (
+		field: keyof EventUpdateRequestForm,
+		value: string,
+	) => {
+		setUpdateRequestForm((current) =>
+			current ? { ...current, [field]: value } : current,
+		);
+	};
+
+	const toggleUpdateGenre = (label: string) => {
+		setUpdateRequestForm((current) => {
+			if (!current) return current;
+			const selectedGenres = dedupeGenreLabels(parseGenreLabels(current.genre));
+			const nextGenres = hasGenreLabel(selectedGenres, label)
+				? selectedGenres.filter(
+						(genre) =>
+							normalizeSearchText(genre) !== normalizeSearchText(label),
+					)
+				: [...selectedGenres, label];
+			return {
+				...current,
+				genre: formatGenreValue(nextGenres),
+			};
+		});
+	};
+
+	const addUpdateGenreSuggestion = () => {
+		const label = genreSearchQuery.trim();
+		if (!label) return;
+		toggleUpdateGenre(label);
+		setGenreSearchQuery("");
+	};
+
+	const ticketLinkRows = parseTicketLinkRows(
+		updateRequestForm?.ticketLink ?? "",
+	);
+
+	const updateTicketLinkRow = (index: number, value: string) => {
+		setUpdateRequestForm((current) => {
+			if (!current) return current;
+			const rows = parseTicketLinkRows(current.ticketLink);
+			rows[index] = value;
+			return {
+				...current,
+				ticketLink: formatTicketLinkRows(rows),
+			};
+		});
+	};
+
+	const addTicketLinkRow = () => {
+		setUpdateRequestForm((current) => {
+			if (!current) return current;
+			return {
+				...current,
+				ticketLink: [...parseTicketLinkRows(current.ticketLink), ""].join("\n"),
+			};
+		});
+	};
+
+	const removeTicketLinkRow = (index: number) => {
+		setUpdateRequestForm((current) => {
+			if (!current) return current;
+			const rows = parseTicketLinkRows(current.ticketLink).filter(
+				(_, rowIndex) => rowIndex !== index,
+			);
+			return {
+				...current,
+				ticketLink: formatTicketLinkRows(rows.length > 0 ? rows : [""]),
+			};
+		});
+	};
+
+	const normalizeTicketLinkRows = () => {
+		setUpdateRequestForm((current) => {
+			if (!current?.ticketLink.trim()) return current;
+			const normalized = normalizeProofLinks(current.ticketLink);
+			if (!normalized) return current;
+			return {
+				...current,
+				ticketLink: normalized.join("\n"),
+			};
+		});
+	};
+
+	const submitUpdateRequest = async (formEvent: React.FormEvent) => {
+		formEvent.preventDefault();
+		if (!updateRequestForm) return;
+		setUpdateRequestStatus(null);
+		if (!updateRequestForm.hostEmail.includes("@")) {
+			setUpdateRequestStatus({
+				message: "Add a contact email so admins can verify the update.",
+				tone: "error",
+			});
+			return;
+		}
+		const normalizedProofLink = normalizeProofLink(updateRequestForm.proofLink);
+		if (!normalizedProofLink) {
+			setUpdateRequestStatus({
+				message:
+					"Add a valid proof URL showing the change, like an organiser post or ticket page update.",
+				tone: "error",
+			});
+			return;
+		}
+		const normalizedTicketLinks = updateRequestForm.ticketLink.trim()
+			? normalizeProofLinks(updateRequestForm.ticketLink)
+			: [];
+		if (updateRequestForm.ticketLink.trim() && !normalizedTicketLinks) {
+			setUpdateRequestStatus({
+				message: "Ticket links must be valid URLs.",
+				tone: "error",
+			});
+			return;
+		}
+
+		const originalSnapshot = buildUpdateRequestForm();
+		setIsSubmittingUpdateRequest(true);
+		try {
+			const response = await fetch(`${basePath}/api/event-submissions`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					...updateRequestForm,
+					proofLink: normalizedProofLink,
+					ticketLink: (normalizedTicketLinks ?? []).join("\n"),
+					submissionType: "event_update",
+					originalEventKey: event.eventKey,
+					originalEventName: event.name,
+					originalEventUrl: buildCanonicalEventUrl(),
+					originalEventSnapshot: originalSnapshot,
+					formStartedAt: new Date(Date.now() - 5000).toISOString(),
+				}),
+				signal: AbortSignal.timeout(12000),
+			});
+			const payload = (await response.json()) as {
+				success?: boolean;
+				message?: string;
+				error?: string;
+			};
+			if (!response.ok || !payload.success) {
+				setUpdateRequestStatus({
+					message: payload.error || "Could not send this update request.",
+					tone: "error",
+				});
+				return;
+			}
+			setUpdateRequestStatus({
+				message: "Update request sent for admin review.",
+				tone: "success",
+			});
+		} catch (error) {
+			setUpdateRequestStatus({
+				message:
+					error instanceof Error &&
+					(error.name === "TimeoutError" || error.name === "AbortError")
+						? "Request timed out. Please try again."
+						: "Could not send this update request.",
+				tone: "error",
+			});
+		} finally {
+			setIsSubmittingUpdateRequest(false);
+		}
+	};
+
 	const hasTime = Boolean(event.time && event.time !== "TBC");
 	const hasEndTime = Boolean(event.endTime && event.endTime !== "TBC");
 	const timeRange = hasTime
@@ -528,9 +884,6 @@ const EventModal: React.FC<EventModalProps> = ({
 	const hasHiddenCountries =
 		hostCountries.length > mobileCountryPreviewLimit ||
 		audienceCountries.length > mobileCountryPreviewLimit;
-	const eventUpdateHref = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
-		`Fete Finder event update: ${event.name}`,
-	)}`;
 	const locationLabel = formatLocationAreaLong(event.arrondissement);
 	const priceLabel = formatPrice(event.price);
 	const ageLabel = event.age || "All ages";
@@ -989,51 +1342,459 @@ const EventModal: React.FC<EventModalProps> = ({
 						<p>
 							This information is preliminary. Please check the official event
 							page for the most up-to-date details including exact location,
-							timing, and any entry requirements.{" "}
-							<a
-								href={eventUpdateHref}
-								className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-primary"
-							>
-								Own this event? Request an update.
-							</a>
-							<TooltipProvider>
-								<Tooltip>
-									<TooltipTrigger
-										onClick={() => void handleCopyContactEmail()}
-										render={
-											<button
-												type="button"
-												className="relative ml-0 inline-flex h-[1em] w-[1em] items-center justify-center align-[-0.14em] text-muted-foreground/65 transition-colors before:absolute before:-inset-1.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
-												aria-label={
-													isContactEmailCopied
-														? "Contact email copied"
-														: "Copy contact email"
-												}
-											/>
-										}
+							timing, and any entry requirements.
+							{submissionsEnabled && (
+								<>
+									{" "}
+									<button
+										type="button"
+										onClick={openUpdateRequest}
+										className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-primary"
 									>
-										{isContactEmailCopied ? (
-											<Check className="h-[0.72em] w-[0.72em] text-emerald-700 dark:text-emerald-300" />
-										) : (
-											<Copy className="h-[0.72em] w-[0.72em]" />
-										)}
-									</TooltipTrigger>
-									<TooltipContent>
-										<p>
-											{isContactEmailCopied
-												? "Email copied"
-												: "Copy contact email"}
-										</p>
-									</TooltipContent>
-								</Tooltip>
-							</TooltipProvider>
-							<span className="sr-only" role="status" aria-live="polite">
-								{isContactEmailCopied ? "Contact email copied" : ""}
-							</span>
+										Own this event? Request an update.
+									</button>
+									<TooltipProvider>
+										<Tooltip>
+											<TooltipTrigger
+												onClick={() => void handleCopyRequestUpdateUrl()}
+												render={
+													<button
+														type="button"
+														className="relative ml-0 inline-flex h-[1em] w-[1em] items-center justify-center align-[-0.14em] text-muted-foreground/65 transition-colors before:absolute before:-inset-1.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
+														aria-label="Copy request update link"
+													/>
+												}
+											>
+												<Copy className="h-[0.72em] w-[0.72em]" />
+											</TooltipTrigger>
+											<TooltipContent>
+												<p>Copy request update link</p>
+											</TooltipContent>
+										</Tooltip>
+									</TooltipProvider>
+								</>
+							)}
 						</p>
 					</div>
 				</CardContent>
 			</Card>
+
+			<Dialog
+				open={isUpdateRequestOpen}
+				onOpenChange={(open) => {
+					if (open && !updateRequestForm && submissionsEnabled) {
+						setUpdateRequestForm(buildUpdateRequestForm());
+					}
+					setRequestUpdateOpen(open);
+					if (!open) {
+						setIsGenrePickerOpen(false);
+						setGenreSearchQuery("");
+					}
+				}}
+			>
+				<DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>Request an event update</DialogTitle>
+						<DialogDescription className="space-y-1.5">
+							<span className="block">
+								Edit the details that changed and add a source URL for the admin
+								team to review.
+							</span>
+							<span className="block text-xs">
+								Need to contact us directly?{" "}
+								<a
+									href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
+										`Fete Finder event update: ${event.name}`,
+									)}`}
+								>
+									Email us
+								</a>
+								<button
+									type="button"
+									onClick={() => void handleCopyContactEmail()}
+									className="relative ml-1 inline-flex h-[1em] w-[1em] items-center justify-center align-[-0.14em] text-muted-foreground/70 transition-colors before:absolute before:-inset-1.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
+									aria-label={
+										isContactEmailCopied
+											? "Contact email copied"
+											: "Copy contact email"
+									}
+									title={
+										isContactEmailCopied
+											? "Contact email copied"
+											: "Copy contact email"
+									}
+								>
+									{isContactEmailCopied ? (
+										<Check
+											className="h-[0.72em] w-[0.72em]"
+											aria-hidden="true"
+										/>
+									) : (
+										<Copy
+											className="h-[0.72em] w-[0.72em]"
+											aria-hidden="true"
+										/>
+									)}
+								</button>
+								<span className="sr-only" role="status" aria-live="polite">
+									{isContactEmailCopied ? "Contact email copied" : ""}
+								</span>
+							</span>
+						</DialogDescription>
+					</DialogHeader>
+					{updateRequestForm && (
+						<form onSubmit={submitUpdateRequest} className="space-y-4">
+							<div className="grid gap-3 sm:grid-cols-2">
+								<div className="space-y-1.5 sm:col-span-2">
+									<Label htmlFor="update-event-name">Event name</Label>
+									<Input
+										id="update-event-name"
+										value={updateRequestForm.eventName}
+										onChange={(inputEvent) =>
+											updateRequestField("eventName", inputEvent.target.value)
+										}
+										required
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="update-date">Date</Label>
+									<Input
+										id="update-date"
+										type="date"
+										value={updateRequestForm.date}
+										onChange={(inputEvent) =>
+											updateRequestField("date", inputEvent.target.value)
+										}
+										required
+									/>
+								</div>
+								<div className="grid grid-cols-2 gap-2">
+									<div className="space-y-1.5">
+										<Label htmlFor="update-start">Start</Label>
+										<Input
+											id="update-start"
+											type="time"
+											value={updateRequestForm.startTime}
+											onChange={(inputEvent) =>
+												updateRequestField("startTime", inputEvent.target.value)
+											}
+											required
+										/>
+									</div>
+									<div className="space-y-1.5">
+										<Label htmlFor="update-end">End</Label>
+										<Input
+											id="update-end"
+											type="time"
+											value={updateRequestForm.endTime}
+											onChange={(inputEvent) =>
+												updateRequestField("endTime", inputEvent.target.value)
+											}
+											required
+										/>
+									</div>
+								</div>
+								<div className="space-y-1.5 sm:col-span-2">
+									<Label htmlFor="update-location">Location</Label>
+									<Input
+										id="update-location"
+										value={updateRequestForm.location}
+										onChange={(inputEvent) =>
+											updateRequestField("location", inputEvent.target.value)
+										}
+										required
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="update-genre">Music genres</Label>
+									<Button
+										id="update-genre"
+										type="button"
+										variant="outline"
+										className="h-10 w-full justify-between px-3 font-normal"
+										onClick={() => setIsGenrePickerOpen((current) => !current)}
+									>
+										<span className="truncate">
+											{selectedUpdateGenres.length > 0
+												? formatGenreValue(selectedUpdateGenres)
+												: "Choose genres"}
+										</span>
+										<ChevronDown aria-hidden="true" />
+									</Button>
+									{isGenrePickerOpen && (
+										<div className="space-y-3 rounded-lg border border-border bg-background p-3">
+											<div className="flex gap-2">
+												<div className="relative min-w-0 flex-1">
+													<Input
+														value={genreSearchQuery}
+														onChange={(inputEvent) =>
+															setGenreSearchQuery(inputEvent.target.value)
+														}
+														placeholder="Afrobeats, Kompa, Jersey club..."
+														autoComplete="off"
+														className={genreSearchQuery ? "pr-9" : undefined}
+													/>
+													{genreSearchQuery && (
+														<button
+															type="button"
+															onClick={() => setGenreSearchQuery("")}
+															className="absolute right-1.5 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+															aria-label="Clear genre search"
+														>
+															<X className="size-3.5" aria-hidden="true" />
+														</button>
+													)}
+												</div>
+												<Button
+													type="button"
+													variant="outline"
+													onClick={addUpdateGenreSuggestion}
+													disabled={!genreSearchQuery.trim()}
+												>
+													Add
+												</Button>
+											</div>
+											<div className="grid max-h-52 gap-1 overflow-y-auto rounded-md border border-border bg-background p-2">
+												{filteredGenreOptions.map((genre) => {
+													const isSelected = hasGenreLabel(
+														selectedUpdateGenres,
+														genre.label,
+													);
+													return (
+														<button
+															key={genre.key}
+															type="button"
+															onClick={() => toggleUpdateGenre(genre.label)}
+															className="flex min-h-9 items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+															aria-pressed={isSelected}
+														>
+															<span
+																className={`h-2.5 w-2.5 shrink-0 rounded-full ${genre.color || "bg-stone-500"}`}
+																aria-hidden="true"
+															/>
+															<span className="min-w-0 flex-1 truncate">
+																{genre.label}
+															</span>
+															{isSelected && (
+																<Check
+																	className="size-4 shrink-0"
+																	aria-hidden="true"
+																/>
+															)}
+														</button>
+													);
+												})}
+											</div>
+											{selectedUpdateGenres.length > 0 && (
+												<div className="flex flex-wrap gap-1.5">
+													{selectedUpdateGenres.map((genre) => (
+														<button
+															key={genre}
+															type="button"
+															onClick={() => toggleUpdateGenre(genre)}
+															className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-1 text-xs hover:bg-muted"
+															aria-label={`Remove ${genre}`}
+														>
+															{genre}
+															<X className="size-3" aria-hidden="true" />
+														</button>
+													))}
+												</div>
+											)}
+										</div>
+									)}
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="update-price">Price</Label>
+									<Input
+										id="update-price"
+										value={updateRequestForm.price}
+										onChange={(inputEvent) =>
+											updateRequestField("price", inputEvent.target.value)
+										}
+										required
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="update-age">Age</Label>
+									<Input
+										id="update-age"
+										value={updateRequestForm.age}
+										onChange={(inputEvent) =>
+											updateRequestField("age", inputEvent.target.value)
+										}
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="update-setting">Indoor/Outdoor</Label>
+									<Input
+										id="update-setting"
+										value={updateRequestForm.indoorOutdoor}
+										onChange={(inputEvent) =>
+											updateRequestField(
+												"indoorOutdoor",
+												inputEvent.target.value,
+											)
+										}
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="update-area">Arrondissement</Label>
+									<Input
+										id="update-area"
+										value={updateRequestForm.arrondissement}
+										onChange={(inputEvent) =>
+											updateRequestField(
+												"arrondissement",
+												inputEvent.target.value,
+											)
+										}
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="update-email">Contact email</Label>
+									<Input
+										id="update-email"
+										type="email"
+										value={updateRequestForm.hostEmail}
+										onChange={(inputEvent) =>
+											updateRequestField("hostEmail", inputEvent.target.value)
+										}
+										placeholder="you@example.com"
+										required
+									/>
+								</div>
+								<div className="space-y-1.5 sm:col-span-2">
+									<Label htmlFor="update-ticket-link">Ticket link(s)</Label>
+									<div className="space-y-2">
+										{ticketLinkRows.map((link, index) => {
+											const inputId = `update-ticket-link-${index}`;
+											return (
+												<div
+													key={`${inputId}-${index}`}
+													className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
+												>
+													<div className="space-y-1">
+														<div className="flex items-center justify-between gap-2">
+															<Label
+																htmlFor={inputId}
+																className="text-xs text-muted-foreground"
+															>
+																{index === 0
+																	? "Primary link"
+																	: `Additional link ${index}`}
+															</Label>
+														</div>
+														<Input
+															id={inputId}
+															value={link}
+															onChange={(inputEvent) =>
+																updateTicketLinkRow(
+																	index,
+																	inputEvent.target.value,
+																)
+															}
+															onBlur={normalizeTicketLinkRows}
+															placeholder={
+																index === 0
+																	? "Ticket, RSVP, or official event URL"
+																	: "Additional ticket or official event URL"
+															}
+														/>
+													</div>
+													{ticketLinkRows.length > 1 && (
+														<Button
+															type="button"
+															variant="outline"
+															size="icon-sm"
+															className="self-end"
+															onClick={() => removeTicketLinkRow(index)}
+															aria-label={`Remove ${
+																index === 0
+																	? "primary link"
+																	: `additional link ${index}`
+															}`}
+															title="Remove link"
+														>
+															<Trash2 className="size-3.5" aria-hidden="true" />
+														</Button>
+													)}
+												</div>
+											);
+										})}
+										<div className="flex flex-wrap items-center gap-2">
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												onClick={addTicketLinkRow}
+											>
+												<Plus className="size-3.5" aria-hidden="true" />
+												Add another link
+											</Button>
+											<p className="text-xs text-muted-foreground">
+												The first link is used as the main event button.
+											</p>
+										</div>
+									</div>
+								</div>
+								<div className="space-y-1.5 sm:col-span-2">
+									<Label htmlFor="update-proof">Proof of change URL</Label>
+									<Input
+										id="update-proof"
+										value={updateRequestForm.proofLink}
+										onChange={(inputEvent) =>
+											updateRequestField("proofLink", inputEvent.target.value)
+										}
+										onBlur={() => {
+											const normalized = normalizeProofLink(
+												updateRequestForm.proofLink,
+											);
+											if (normalized) {
+												updateRequestField("proofLink", normalized);
+											}
+										}}
+										placeholder="Post, organiser update, or ticket page proving the changed detail"
+										required
+									/>
+								</div>
+								<div className="space-y-1.5 sm:col-span-2">
+									<Label htmlFor="update-notes">Notes</Label>
+									<Textarea
+										id="update-notes"
+										value={updateRequestForm.notes}
+										onChange={(inputEvent) =>
+											updateRequestField("notes", inputEvent.target.value)
+										}
+										rows={4}
+									/>
+								</div>
+							</div>
+
+							{updateRequestStatus && (
+								<div
+									className={`rounded-md border px-3 py-2 text-sm ${
+										updateRequestStatus.tone === "success"
+											? "border-emerald-200 bg-emerald-50 text-emerald-900"
+											: "border-rose-200 bg-rose-50 text-rose-800"
+									}`}
+									role="status"
+								>
+									{updateRequestStatus.message}
+								</div>
+							)}
+
+							<DialogFooter>
+								<Button type="submit" disabled={isSubmittingUpdateRequest}>
+									{isSubmittingUpdateRequest
+										? "Sending..."
+										: "Send update request"}
+								</Button>
+							</DialogFooter>
+						</form>
+					)}
+				</DialogContent>
+			</Dialog>
 
 			{showCountryDetails && hasHiddenCountries && (
 				<div

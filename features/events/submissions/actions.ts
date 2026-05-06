@@ -1,28 +1,28 @@
 "use server";
 
-import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { recordAdminActivity } from "@/features/admin/activity/record";
-import {
-	createBlankEditableSheetRow,
-	type EditableSheetColumn,
-	type EditableSheetRow,
-} from "@/features/data-management/csv/sheet-editor";
+import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import {
 	getEventSheetEditorData,
 	saveEventSheetEditorRows,
 } from "@/features/data-management/actions";
+import {
+	type EditableSheetColumn,
+	type EditableSheetRow,
+	createBlankEditableSheetRow,
+} from "@/features/data-management/csv/sheet-editor";
 import { revalidatePath } from "next/cache";
+import { EventSubmissionSettingsStore } from "./settings-store";
 import {
 	getEventSubmissionById,
 	getEventSubmissionSnapshot,
 	reviewEventSubmission,
 } from "./store";
-import { EventSubmissionSettingsStore } from "./settings-store";
 import type {
 	EventSubmissionRecord,
 	EventSubmissionSettings,
-	EventSubmissionSnapshot,
 	EventSubmissionSettingsStatus,
+	EventSubmissionSnapshot,
 } from "./types";
 
 const assertAdmin = async (keyOrToken?: string): Promise<void> => {
@@ -39,6 +39,12 @@ const buildSubmissionNotes = (
 ): string | undefined => {
 	const notes = submission.payload.notes?.trim() || "";
 	return notes || undefined;
+};
+
+const getSubmissionPrimaryUrl = (submission: EventSubmissionRecord): string => {
+	if (submission.payload.ticketLink) return submission.payload.ticketLink;
+	if (submission.payload.submissionType === "event_update") return "";
+	return submission.payload.proofLink;
 };
 
 const mapSubmissionToSheetRow = (
@@ -61,7 +67,7 @@ const mapSubmissionToSheetRow = (
 	row.categories = submission.payload.genre || "";
 	row.tags = "";
 	row.price = submission.payload.price || "";
-	row.primaryUrl = submission.payload.proofLink;
+	row.primaryUrl = getSubmissionPrimaryUrl(submission);
 	row.ageGuidance = submission.payload.age || "";
 	row.setting = submission.payload.indoorOutdoor || "";
 	row.notes = notes || "";
@@ -291,6 +297,14 @@ export async function acceptEventSubmission(
 				success: false,
 				message: "Submission already reviewed",
 				error: `Submission is already ${current.status}`,
+			};
+		}
+		if (current.payload.submissionType === "event_update") {
+			return {
+				success: false,
+				message: "Review this update manually",
+				error:
+					"Update requests are queued for admin consideration. Apply the changed fields in the event sheet, then decline or leave the request as a reference.",
 			};
 		}
 
