@@ -637,15 +637,28 @@ export function SubmitEventForm({
 							<div className="space-y-2">
 								<Label htmlFor="genre-search">Search or suggest a genre</Label>
 								<div className="flex gap-2">
-									<Input
-										id="genre-search"
-										value={genreSearchQuery}
-										onChange={(event) =>
-											setGenreSearchQuery(event.target.value)
-										}
-										placeholder="Afrobeats, Kompa, Jersey club..."
-										autoComplete="off"
-									/>
+									<div className="relative min-w-0 flex-1">
+										<Input
+											id="genre-search"
+											value={genreSearchQuery}
+											onChange={(event) =>
+												setGenreSearchQuery(event.target.value)
+											}
+											placeholder="Afrobeats, Kompa, Jersey club..."
+											autoComplete="off"
+											className={genreSearchQuery ? "pr-9" : undefined}
+										/>
+										{genreSearchQuery && (
+											<button
+												type="button"
+												onClick={() => setGenreSearchQuery("")}
+												className="absolute right-1.5 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+												aria-label="Clear genre search"
+											>
+												<X className="size-3.5" aria-hidden="true" />
+											</button>
+										)}
+									</div>
 									<Button
 										type="button"
 										variant="outline"
