@@ -1,18 +1,22 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import { MUSIC_GENRES } from "@/features/events/types";
+import { normalizeSearchText } from "@/features/events/genre-normalization";
 import { normalizeProofLink } from "@/features/events/submissions/proof-link";
-import { Check, ChevronDown } from "lucide-react";
-import { useEffect, useState } from "react";
+import { MUSIC_GENRES, type MusicGenreDefinition } from "@/features/events/types";
+import { Check, ChevronDown, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const DRAFT_STORAGE_KEY = "oooc:fete-finder:submit-event:draft:v1";
@@ -27,6 +31,7 @@ type FormState = {
 	proofLink: string;
 	endTime: string;
 	genre: string;
+	suggestedGenres: string;
 	price: string;
 	age: string;
 	indoorOutdoor: string;
@@ -44,6 +49,7 @@ const EMPTY_FORM: FormState = {
 	proofLink: "",
 	endTime: "",
 	genre: "",
+	suggestedGenres: "",
 	price: "",
 	age: "",
 	indoorOutdoor: "",
@@ -58,6 +64,7 @@ const buildReusableForm = (previous: FormState): FormState => ({
 	location: previous.location,
 	hostEmail: previous.hostEmail,
 	genre: previous.genre,
+	suggestedGenres: previous.suggestedGenres,
 	price: previous.price,
 	age: previous.age,
 	indoorOutdoor: previous.indoorOutdoor,
@@ -79,13 +86,31 @@ const shouldShowOptionalDetails = (form: FormState): boolean =>
 
 const toStoredDraft = (form: FormState): FormState => ({
 	...form,
+	suggestedGenres: formatGenreValue(
+		parseGenreLabels(form.suggestedGenres).filter((genre) =>
+			parseGenreLabels(form.genre).includes(genre),
+		),
+	),
 	honeypot: "",
 });
+
+const parseGenreLabels = (value: string): string[] =>
+	value
+		.split(",")
+		.map((genre) => genre.trim())
+		.filter(Boolean);
+
+const formatGenreValue = (genres: string[]): string => genres.join(", ");
+
+const hasGenreLabel = (genres: string[], label: string): boolean => {
+	const normalized = normalizeSearchText(label);
+	return genres.some((genre) => normalizeSearchText(genre) === normalized);
+};
 
 const toRestoredDraft = (candidate: unknown): FormState | null => {
 	if (!candidate || typeof candidate !== "object") return null;
 	const draft = candidate as Record<string, unknown>;
-	return {
+	const restoredForm = {
 		eventName: typeof draft.eventName === "string" ? draft.eventName : "",
 		date: typeof draft.date === "string" ? draft.date : "",
 		startTime: typeof draft.startTime === "string" ? draft.startTime : "",
@@ -94,6 +119,8 @@ const toRestoredDraft = (candidate: unknown): FormState | null => {
 		proofLink: typeof draft.proofLink === "string" ? draft.proofLink : "",
 		endTime: typeof draft.endTime === "string" ? draft.endTime : "",
 		genre: typeof draft.genre === "string" ? draft.genre : "",
+		suggestedGenres:
+			typeof draft.suggestedGenres === "string" ? draft.suggestedGenres : "",
 		price: typeof draft.price === "string" ? draft.price : "",
 		age: typeof draft.age === "string" ? draft.age : "",
 		indoorOutdoor:
@@ -102,6 +129,14 @@ const toRestoredDraft = (candidate: unknown): FormState | null => {
 		arrondissement:
 			typeof draft.arrondissement === "string" ? draft.arrondissement : "",
 		honeypot: "",
+	};
+	return {
+		...restoredForm,
+		suggestedGenres: formatGenreValue(
+			parseGenreLabels(restoredForm.suggestedGenres).filter((genre) =>
+				parseGenreLabels(restoredForm.genre).includes(genre),
+			),
+		),
 	};
 };
 
@@ -151,18 +186,25 @@ const clearDraft = () => {
 	}
 };
 
-const parseGenreLabels = (value: string): string[] =>
-	value
-		.split(",")
-		.map((genre) => genre.trim())
-		.filter(Boolean);
-
-const formatGenreValue = (genres: string[]): string => genres.join(", ");
+const hasMatchingGenreOption = (
+	value: string,
+	genreOptions: readonly MusicGenreDefinition[],
+): boolean => {
+	const normalized = normalizeSearchText(value);
+	if (!normalized) return false;
+	return genreOptions.some((genre) =>
+		[genre.label, genre.key, ...(genre.aliases ?? [])].some(
+			(candidate) => normalizeSearchText(candidate) === normalized,
+		),
+	);
+};
 
 export function SubmitEventForm({
 	submissionsEnabled = true,
+	genreOptions = MUSIC_GENRES,
 }: {
 	submissionsEnabled?: boolean;
+	genreOptions?: readonly MusicGenreDefinition[];
 }) {
 	const [form, setForm] = useState<FormState>(EMPTY_FORM);
 	const [lastSubmittedForm, setLastSubmittedForm] = useState<FormState | null>(
@@ -170,6 +212,7 @@ export function SubmitEventForm({
 	);
 	const [showOptional, setShowOptional] = useState(false);
 	const [isGenrePickerOpen, setIsGenrePickerOpen] = useState(false);
+	const [genreSearchQuery, setGenreSearchQuery] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isSubmitted, setIsSubmitted] = useState(false);
 	const [isReusingPrevious, setIsReusingPrevious] = useState(false);
@@ -212,11 +255,47 @@ export function SubmitEventForm({
 	};
 
 	const toggleGenre = (label: string) => {
-		const selectedGenres = parseGenreLabels(form.genre);
-		const nextGenres = selectedGenres.includes(label)
-			? selectedGenres.filter((genre) => genre !== label)
-			: [...selectedGenres, label];
-		updateField("genre", formatGenreValue(nextGenres));
+		setForm((current) => {
+			const selectedGenres = parseGenreLabels(current.genre);
+			const isRemoving = hasGenreLabel(selectedGenres, label);
+			const nextGenres = isRemoving
+				? selectedGenres.filter(
+						(genre) => normalizeSearchText(genre) !== normalizeSearchText(label),
+					)
+				: [...selectedGenres, label];
+			const nextSuggestedGenres = isRemoving
+				? parseGenreLabels(current.suggestedGenres).filter(
+						(genre) =>
+							normalizeSearchText(genre) !== normalizeSearchText(label),
+					)
+				: parseGenreLabels(current.suggestedGenres);
+			return {
+				...current,
+				genre: formatGenreValue(nextGenres),
+				suggestedGenres: formatGenreValue(nextSuggestedGenres),
+			};
+		});
+	};
+
+	const addSuggestedGenre = () => {
+		const label = genreSearchQuery.trim();
+		if (!label || hasMatchingGenreOption(label, genreOptions)) return;
+		setForm((current) => {
+			const selectedGenres = parseGenreLabels(current.genre);
+			const suggestedGenres = parseGenreLabels(current.suggestedGenres);
+			const nextGenres = hasGenreLabel(selectedGenres, label)
+				? selectedGenres
+				: [...selectedGenres, label];
+			const nextSuggestedGenres = hasGenreLabel(suggestedGenres, label)
+				? suggestedGenres
+				: [...suggestedGenres, label];
+			return {
+				...current,
+				genre: formatGenreValue(nextGenres),
+				suggestedGenres: formatGenreValue(nextSuggestedGenres),
+			};
+		});
+		setGenreSearchQuery("");
 	};
 
 	const validate = (): string | null => {
@@ -259,6 +338,11 @@ export function SubmitEventForm({
 		const submittedForm = {
 			...form,
 			proofLink: normalizedProofLink,
+			suggestedGenres: formatGenreValue(
+				parseGenreLabels(form.suggestedGenres).filter((genre) =>
+					parseGenreLabels(form.genre).includes(genre),
+				),
+			),
 		};
 
 		setIsSubmitting(true);
@@ -365,6 +449,23 @@ export function SubmitEventForm({
 	};
 
 	const selectedGenres = parseGenreLabels(form.genre);
+	const suggestedGenres = parseGenreLabels(form.suggestedGenres);
+	const activeSuggestedGenres = suggestedGenres.filter((genre) =>
+		selectedGenres.includes(genre),
+	);
+	const filteredGenreOptions = useMemo(() => {
+		const query = normalizeSearchText(genreSearchQuery);
+		if (!query) return genreOptions;
+		return genreOptions.filter((genre) =>
+			[genre.label, genre.key, ...(genre.aliases ?? [])].some((candidate) =>
+				normalizeSearchText(candidate).includes(query),
+			),
+		);
+	}, [genreOptions, genreSearchQuery]);
+	const canAddSuggestedGenre =
+		genreSearchQuery.trim().length > 0 &&
+		!hasMatchingGenreOption(genreSearchQuery, genreOptions) &&
+		!hasGenreLabel(suggestedGenres, genreSearchQuery.trim());
 
 	return (
 		<div className="rounded-xl border border-border bg-card/70 p-4 shadow-sm sm:p-6">
@@ -399,39 +500,48 @@ export function SubmitEventForm({
 							disabled={isFormDisabled}
 						/>
 					</div>
-					<div className="space-y-2">
-						<Label htmlFor="date">Date</Label>
-						<Input
-							id="date"
-							type="date"
-							value={form.date}
-							onChange={(event) => updateField("date", event.target.value)}
-							required
-							disabled={isFormDisabled}
-						/>
-					</div>
-					<div className="space-y-2">
-						<Label htmlFor="startTime">Start Time</Label>
-						<Input
-							id="startTime"
-							type="time"
-							value={form.startTime}
-							onChange={(event) => updateField("startTime", event.target.value)}
-							required
-							disabled={isFormDisabled}
-						/>
-					</div>
-					<div className="space-y-2">
-						<Label htmlFor="endTime">End Time</Label>
-						<Input
-							id="endTime"
-							type="time"
-							value={form.endTime}
-							onChange={(event) => updateField("endTime", event.target.value)}
-							required
-							disabled={isFormDisabled}
-						/>
-					</div>
+					<fieldset className="space-y-2 md:col-span-2">
+						<legend className="text-sm font-medium">Schedule</legend>
+						<div className="grid gap-4 md:grid-cols-3">
+							<div className="space-y-2">
+								<Label htmlFor="date">Date</Label>
+								<Input
+									id="date"
+									type="date"
+									value={form.date}
+									onChange={(event) => updateField("date", event.target.value)}
+									required
+									disabled={isFormDisabled}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="startTime">Start</Label>
+								<Input
+									id="startTime"
+									type="time"
+									value={form.startTime}
+									onChange={(event) =>
+										updateField("startTime", event.target.value)
+									}
+									required
+									disabled={isFormDisabled}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="endTime">End</Label>
+								<Input
+									id="endTime"
+									type="time"
+									value={form.endTime}
+									onChange={(event) =>
+										updateField("endTime", event.target.value)
+									}
+									required
+									disabled={isFormDisabled}
+								/>
+							</div>
+						</div>
+					</fieldset>
 					<div className="space-y-2 md:col-span-2">
 						<Label htmlFor="location">Location</Label>
 						<Input
@@ -446,55 +556,29 @@ export function SubmitEventForm({
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="genre-picker">Music Genres</Label>
-						<Popover
-							open={isGenrePickerOpen}
-							onOpenChange={setIsGenrePickerOpen}
+						<Button
+							id="genre-picker"
+							type="button"
+							variant="outline"
+							className="h-10 w-full justify-between px-3 font-normal"
+							disabled={isFormDisabled}
+							aria-expanded={isGenrePickerOpen}
+							aria-controls="genre-picker-options"
+							onClick={() => setIsGenrePickerOpen(true)}
 						>
-							<PopoverTrigger
-								id="genre-picker"
-								render={
-									<Button
-										type="button"
-										variant="outline"
-										className="h-10 w-full justify-between px-3 font-normal"
-										disabled={isFormDisabled}
-									>
-										<span className="truncate">
-											{selectedGenres.length > 0
-												? formatGenreValue(selectedGenres)
-												: "Choose genres"}
-										</span>
-										<ChevronDown aria-hidden="true" />
-									</Button>
-								}
-							/>
-							<PopoverContent align="start" className="w-80 max-w-[90vw] p-2">
-								<div className="grid max-h-72 gap-1 overflow-y-auto pr-1">
-									{MUSIC_GENRES.map((genre) => {
-										const isSelected = selectedGenres.includes(genre.label);
-										return (
-											<button
-												key={genre.key}
-												type="button"
-												onClick={() => toggleGenre(genre.label)}
-												className="flex min-h-9 items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-											>
-												<span
-													className={`h-2.5 w-2.5 shrink-0 rounded-full ${genre.color}`}
-													aria-hidden="true"
-												/>
-												<span className="min-w-0 flex-1 truncate">
-													{genre.label}
-												</span>
-												{isSelected && (
-													<Check className="size-4 shrink-0" aria-hidden="true" />
-												)}
-											</button>
-										);
-									})}
-								</div>
-							</PopoverContent>
-						</Popover>
+							<span className="truncate">
+								{selectedGenres.length > 0
+									? formatGenreValue(selectedGenres)
+									: "Choose genres"}
+							</span>
+							<ChevronDown aria-hidden="true" />
+						</Button>
+						{activeSuggestedGenres.length > 0 && (
+							<p className="text-xs text-muted-foreground">
+								Suggested for review:{" "}
+								{formatGenreValue(activeSuggestedGenres)}
+							</p>
+						)}
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="price">Price</Label>
@@ -536,6 +620,104 @@ export function SubmitEventForm({
 						/>
 					</div>
 				</div>
+
+				<Dialog open={isGenrePickerOpen} onOpenChange={setIsGenrePickerOpen}>
+					<DialogContent
+						className="max-h-[88vh] gap-3 sm:max-w-xl"
+						showCloseButton={false}
+					>
+						<DialogHeader>
+							<DialogTitle>Choose music genres</DialogTitle>
+							<DialogDescription>
+								Select one or more genres. Add a missing genre as a suggestion
+								for admin review.
+							</DialogDescription>
+						</DialogHeader>
+						<div className="space-y-3">
+							<div className="space-y-2">
+								<Label htmlFor="genre-search">Search or suggest a genre</Label>
+								<div className="flex gap-2">
+									<Input
+										id="genre-search"
+										value={genreSearchQuery}
+										onChange={(event) =>
+											setGenreSearchQuery(event.target.value)
+										}
+										placeholder="Afrobeats, Kompa, Jersey club..."
+										autoComplete="off"
+									/>
+									<Button
+										type="button"
+										variant="outline"
+										onClick={addSuggestedGenre}
+										disabled={!canAddSuggestedGenre}
+									>
+										Add
+									</Button>
+								</div>
+							</div>
+							<div
+								id="genre-picker-options"
+								className="grid max-h-[42vh] gap-1 overflow-y-auto rounded-lg border border-border bg-background p-2"
+							>
+								{filteredGenreOptions.map((genre) => {
+									const isSelected = selectedGenres.includes(genre.label);
+									return (
+										<button
+											key={genre.key}
+											type="button"
+											onClick={() => toggleGenre(genre.label)}
+											className="flex min-h-9 items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+											aria-pressed={isSelected}
+										>
+											<span
+												className={`h-2.5 w-2.5 shrink-0 rounded-full ${genre.color || "bg-stone-500"}`}
+												aria-hidden="true"
+											/>
+											<span className="min-w-0 flex-1 truncate">
+												{genre.label}
+											</span>
+											{isSelected && (
+												<Check className="size-4 shrink-0" aria-hidden="true" />
+											)}
+										</button>
+									);
+								})}
+								{filteredGenreOptions.length === 0 && (
+									<p className="px-2 py-3 text-sm text-muted-foreground">
+										No matching saved genres. Add this as a suggestion for
+										review.
+									</p>
+								)}
+							</div>
+							{selectedGenres.length > 0 && (
+								<div className="flex flex-wrap gap-1.5">
+									{selectedGenres.map((genre) => (
+										<button
+											key={genre}
+											type="button"
+											onClick={() => toggleGenre(genre)}
+											className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-1 text-xs hover:bg-muted"
+											aria-label={`Remove ${genre}`}
+											title={`Remove ${genre}`}
+										>
+											{genre}
+											<X className="size-3" aria-hidden="true" />
+										</button>
+									))}
+								</div>
+							)}
+						</div>
+						<DialogFooter>
+							<Button
+								type="button"
+								onClick={() => setIsGenrePickerOpen(false)}
+							>
+								Done
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 
 				<div className="rounded-md border bg-background/60 p-3">
 					<button

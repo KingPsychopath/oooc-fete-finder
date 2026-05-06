@@ -328,6 +328,8 @@ export const EventSubmissionsCard = ({
 								"not_enough_information";
 							const customReason = customDeclineReasonById[submission.id] ?? "";
 							const isBusy = isMutating && busySubmissionId === submission.id;
+							const suggestedGenres =
+								submission.payload.suggestedGenres?.filter(Boolean) ?? [];
 
 							return (
 								<div
@@ -346,6 +348,11 @@ export const EventSubmissionsCard = ({
 										</div>
 										<div className="flex flex-wrap gap-1.5">
 											<Badge variant="outline">{submission.status}</Badge>
+											{suggestedGenres.length > 0 && (
+												<Badge variant="outline">
+													Review genre suggestion
+												</Badge>
+											)}
 											{submission.spamSignals.reasons.map((reason) => (
 												<Badge key={reason} variant="destructive">
 													{reason}
@@ -358,13 +365,25 @@ export const EventSubmissionsCard = ({
 										Proof: {submission.payload.proofLink}
 									</div>
 
+									{suggestedGenres.length > 0 && (
+										<div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+											<span className="font-medium">Suggested genres:</span>{" "}
+											{suggestedGenres.join(", ")}. Add or map these in Manage genres if
+											they should become reusable filters.
+										</div>
+									)}
+
 									<details className="mt-2 rounded-md border bg-background/80 px-3 py-2">
 										<summary className="cursor-pointer text-xs font-medium text-foreground/85">
-											Optional details
+											Submission details
 										</summary>
 										<div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
 											<div>End time: {submission.payload.endTime || "-"}</div>
 											<div>Genre: {submission.payload.genre || "-"}</div>
+											<div>
+												Suggested genres:{" "}
+												{suggestedGenres.join(", ") || "-"}
+											</div>
 											<div>Price: {submission.payload.price || "-"}</div>
 											<div>Age: {submission.payload.age || "-"}</div>
 											<div>Venue: {submission.payload.indoorOutdoor || "-"}</div>

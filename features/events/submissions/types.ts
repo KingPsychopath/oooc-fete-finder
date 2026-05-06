@@ -22,6 +22,7 @@ export interface EventSubmissionPayload {
 	submittedAt: string;
 	endTime?: string;
 	genre?: string;
+	suggestedGenres?: string[];
 	price?: string;
 	age?: string;
 	indoorOutdoor?: string;

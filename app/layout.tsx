@@ -13,7 +13,7 @@ import { generateMainOGImage } from "@/lib/social/og-utils";
 import { Analytics } from "@vercel/analytics/next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
-import { Gloock } from "next/font/google";
+import { Playfair_Display } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 
 // Get base path from environment variable - use direct access for build-time
@@ -22,11 +22,11 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 // Get the site URL from environment or default to localhost for development
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-const gloock = Gloock({
-	weight: "400",
+const playfairDisplay = Playfair_Display({
+	weight: "variable",
 	subsets: ["latin"],
 	display: "swap",
-	variable: "--font-gloock",
+	variable: "--font-playfair-display",
 });
 
 export const metadata: Metadata = {
@@ -113,7 +113,7 @@ export default function RootLayout({
 	return (
 		<html
 			lang="en"
-			className={`${GeistSans.variable} ${GeistMono.variable} ${gloock.variable}`}
+			className={`${GeistSans.variable} ${GeistMono.variable} ${playfairDisplay.variable}`}
 			suppressHydrationWarning
 		>
 			<head>

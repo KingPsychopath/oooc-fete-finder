@@ -84,6 +84,11 @@ const toPayload = (value: unknown): EventSubmissionPayload => {
 		submittedAt: record.submittedAt,
 		endTime: typeof record.endTime === "string" ? record.endTime : undefined,
 		genre: typeof record.genre === "string" ? record.genre : undefined,
+		suggestedGenres: Array.isArray(record.suggestedGenres)
+			? record.suggestedGenres.filter(
+					(genre): genre is string => typeof genre === "string",
+				)
+			: undefined,
 		price: typeof record.price === "string" ? record.price : undefined,
 		age: typeof record.age === "string" ? record.age : undefined,
 		indoorOutdoor:

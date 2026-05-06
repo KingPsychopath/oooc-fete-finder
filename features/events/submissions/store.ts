@@ -36,7 +36,8 @@ const eventSubmissionInputSchema = z.object({
 			return normalized;
 		}),
 	endTime: z.string().trim().min(1).max(40),
-	genre: z.string().trim().min(1).max(240),
+	genre: z.string().trim().min(1).max(500),
+	suggestedGenres: z.string().trim().max(500).optional().default(""),
 	price: z.string().trim().min(1).max(80),
 	age: z.string().trim().max(80).optional().default(""),
 	indoorOutdoor: z.string().trim().max(80).optional().default(""),
@@ -57,6 +58,7 @@ export interface NormalizedEventSubmissionInput {
 	proofLink: string;
 	endTime: string;
 	genre: string;
+	suggestedGenres: string;
 	price: string;
 	age: string;
 	indoorOutdoor: string;
@@ -97,6 +99,7 @@ export const parseEventSubmissionInput = (
 		proofLink: parsed.proofLink,
 		endTime: toOptionalField(parsed.endTime),
 		genre: toOptionalField(parsed.genre),
+		suggestedGenres: toOptionalField(parsed.suggestedGenres),
 		price: toOptionalField(parsed.price),
 		age: toOptionalField(parsed.age),
 		indoorOutdoor: toOptionalField(parsed.indoorOutdoor),
@@ -180,6 +183,12 @@ const buildSubmissionPayload = (
 	submittedAt,
 	endTime: input.endTime || undefined,
 	genre: input.genre || undefined,
+	suggestedGenres: input.suggestedGenres
+		? input.suggestedGenres
+				.split(",")
+				.map((genre) => genre.trim())
+				.filter(Boolean)
+		: undefined,
 	price: input.price || undefined,
 	age: input.age || undefined,
 	indoorOutdoor: input.indoorOutdoor || undefined,
