@@ -84,21 +84,36 @@ const shouldShowOptionalDetails = (form: FormState): boolean =>
 			form.arrondissement,
 	);
 
-const toStoredDraft = (form: FormState): FormState => ({
-	...form,
-	suggestedGenres: formatGenreValue(
-		parseGenreLabels(form.suggestedGenres).filter((genre) =>
-			parseGenreLabels(form.genre).includes(genre),
-		),
-	),
-	honeypot: "",
-});
+const toStoredDraft = (form: FormState): FormState => {
+	const selectedGenres = dedupeGenreLabels(parseGenreLabels(form.genre));
+	const suggestedGenres = dedupeGenreLabels(
+		parseGenreLabels(form.suggestedGenres),
+	).filter((genre) => hasGenreLabel(selectedGenres, genre));
+	return {
+		...form,
+		genre: formatGenreValue(selectedGenres),
+		suggestedGenres: formatGenreValue(suggestedGenres),
+		honeypot: "",
+	};
+};
 
 const parseGenreLabels = (value: string): string[] =>
 	value
 		.split(",")
 		.map((genre) => genre.trim())
 		.filter(Boolean);
+
+const dedupeGenreLabels = (genres: string[]): string[] => {
+	const seen = new Set<string>();
+	const result: string[] = [];
+	for (const genre of genres) {
+		const normalized = normalizeSearchText(genre);
+		if (!normalized || seen.has(normalized)) continue;
+		seen.add(normalized);
+		result.push(genre.trim());
+	}
+	return result;
+};
 
 const formatGenreValue = (genres: string[]): string => genres.join(", ");
 
@@ -130,13 +145,14 @@ const toRestoredDraft = (candidate: unknown): FormState | null => {
 			typeof draft.arrondissement === "string" ? draft.arrondissement : "",
 		honeypot: "",
 	};
+	const selectedGenres = dedupeGenreLabels(parseGenreLabels(restoredForm.genre));
+	const suggestedGenres = dedupeGenreLabels(
+		parseGenreLabels(restoredForm.suggestedGenres),
+	).filter((genre) => hasGenreLabel(selectedGenres, genre));
 	return {
 		...restoredForm,
-		suggestedGenres: formatGenreValue(
-			parseGenreLabels(restoredForm.suggestedGenres).filter((genre) =>
-				parseGenreLabels(restoredForm.genre).includes(genre),
-			),
-		),
+		genre: formatGenreValue(selectedGenres),
+		suggestedGenres: formatGenreValue(suggestedGenres),
 	};
 };
 
@@ -256,7 +272,7 @@ export function SubmitEventForm({
 
 	const toggleGenre = (label: string) => {
 		setForm((current) => {
-			const selectedGenres = parseGenreLabels(current.genre);
+			const selectedGenres = dedupeGenreLabels(parseGenreLabels(current.genre));
 			const isRemoving = hasGenreLabel(selectedGenres, label);
 			const nextGenres = isRemoving
 				? selectedGenres.filter(
@@ -268,7 +284,7 @@ export function SubmitEventForm({
 						(genre) =>
 							normalizeSearchText(genre) !== normalizeSearchText(label),
 					)
-				: parseGenreLabels(current.suggestedGenres);
+				: dedupeGenreLabels(parseGenreLabels(current.suggestedGenres));
 			return {
 				...current,
 				genre: formatGenreValue(nextGenres),
@@ -281,8 +297,10 @@ export function SubmitEventForm({
 		const label = genreSearchQuery.trim();
 		if (!label || hasMatchingGenreOption(label, genreOptions)) return;
 		setForm((current) => {
-			const selectedGenres = parseGenreLabels(current.genre);
-			const suggestedGenres = parseGenreLabels(current.suggestedGenres);
+			const selectedGenres = dedupeGenreLabels(parseGenreLabels(current.genre));
+			const suggestedGenres = dedupeGenreLabels(
+				parseGenreLabels(current.suggestedGenres),
+			);
 			const nextGenres = hasGenreLabel(selectedGenres, label)
 				? selectedGenres
 				: [...selectedGenres, label];
@@ -335,14 +353,15 @@ export function SubmitEventForm({
 			setErrorMessage("Proof link must be a valid URL.");
 			return;
 		}
+		const selectedSubmittedGenres = dedupeGenreLabels(parseGenreLabels(form.genre));
+		const suggestedSubmittedGenres = dedupeGenreLabels(
+			parseGenreLabels(form.suggestedGenres),
+		).filter((genre) => hasGenreLabel(selectedSubmittedGenres, genre));
 		const submittedForm = {
 			...form,
+			genre: formatGenreValue(selectedSubmittedGenres),
 			proofLink: normalizedProofLink,
-			suggestedGenres: formatGenreValue(
-				parseGenreLabels(form.suggestedGenres).filter((genre) =>
-					parseGenreLabels(form.genre).includes(genre),
-				),
-			),
+			suggestedGenres: formatGenreValue(suggestedSubmittedGenres),
 		};
 
 		setIsSubmitting(true);
@@ -448,10 +467,10 @@ export function SubmitEventForm({
 		handleStartFresh();
 	};
 
-	const selectedGenres = parseGenreLabels(form.genre);
-	const suggestedGenres = parseGenreLabels(form.suggestedGenres);
+	const selectedGenres = dedupeGenreLabels(parseGenreLabels(form.genre));
+	const suggestedGenres = dedupeGenreLabels(parseGenreLabels(form.suggestedGenres));
 	const activeSuggestedGenres = suggestedGenres.filter((genre) =>
-		selectedGenres.includes(genre),
+		hasGenreLabel(selectedGenres, genre),
 	);
 	const filteredGenreOptions = useMemo(() => {
 		const query = normalizeSearchText(genreSearchQuery);
