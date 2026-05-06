@@ -13,6 +13,7 @@ import {
 } from "@/features/data-management/csv/sheet-editor";
 import { revalidatePath } from "next/cache";
 import { EventSubmissionSettingsStore } from "./settings-store";
+import type { EventSubmissionSettingKey } from "./settings-store";
 import {
 	getEventSubmissionById,
 	getEventSubmissionSnapshot,
@@ -123,6 +124,7 @@ export async function getEventSubmissionsDashboard(
 }
 
 export async function updateEventSubmissionEnabled(
+	setting: EventSubmissionSettingKey,
 	enabled: boolean,
 	keyOrToken?: string,
 ): Promise<{
@@ -135,20 +137,25 @@ export async function updateEventSubmissionEnabled(
 	try {
 		await assertAdmin(keyOrToken);
 		const settings = await EventSubmissionSettingsStore.updateEnabled(
+			setting,
 			enabled,
 			"admin-panel",
 		);
 		const settingsStatus = await EventSubmissionSettingsStore.getStatus();
 		revalidatePath("/");
 		revalidatePath("/submit-event");
+		const label =
+			setting === "new_events" ? "new event submissions" : "update requests";
+		const title =
+			setting === "new_events" ? "New event submissions" : "Update requests";
 		await recordAdminActivity({
-			action: enabled ? "submissions.enabled" : "submissions.disabled",
+			action: enabled
+				? `submissions.${setting}.enabled`
+				: `submissions.${setting}.disabled`,
 			category: "settings",
 			targetType: "event_submission_settings",
-			targetLabel: "Event submissions",
-			summary: enabled
-				? "Event submissions opened"
-				: "Event submissions closed",
+			targetLabel: title,
+			summary: enabled ? `${title} opened` : `${title} closed`,
 			severity: enabled ? "info" : "warning",
 			href: "/admin/content#event-submissions",
 		});
@@ -156,9 +163,7 @@ export async function updateEventSubmissionEnabled(
 			success: true,
 			settings,
 			settingsStatus,
-			message: enabled
-				? "Event submissions are now open"
-				: "Event submissions are now closed",
+			message: enabled ? `${label} are now open` : `${label} are now closed`,
 		};
 	} catch (error) {
 		return {

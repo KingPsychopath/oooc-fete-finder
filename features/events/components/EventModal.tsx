@@ -778,6 +778,7 @@ const EventModal: React.FC<EventModalProps> = ({
 	const submitUpdateRequest = async (formEvent: React.FormEvent) => {
 		formEvent.preventDefault();
 		if (!updateRequestForm) return;
+		if (updateRequestStatus?.tone === "success") return;
 		setUpdateRequestStatus(null);
 		if (!updateRequestForm.hostEmail.includes("@")) {
 			setUpdateRequestStatus({
@@ -829,10 +830,14 @@ const EventModal: React.FC<EventModalProps> = ({
 				success?: boolean;
 				message?: string;
 				error?: string;
+				issues?: string[];
 			};
 			if (!response.ok || !payload.success) {
 				setUpdateRequestStatus({
-					message: payload.error || "Could not send this update request.",
+					message:
+						payload.issues?.[0] ||
+						payload.error ||
+						"Could not send this update request.",
 					tone: "error",
 				});
 				return;
@@ -1661,6 +1666,9 @@ const EventModal: React.FC<EventModalProps> = ({
 											updateRequestField("hostEmail", inputEvent.target.value)
 										}
 										placeholder="you@example.com"
+										autoCapitalize="off"
+										autoCorrect="off"
+										spellCheck={false}
 										required
 									/>
 								</div>
@@ -1687,6 +1695,7 @@ const EventModal: React.FC<EventModalProps> = ({
 														</div>
 														<Input
 															id={inputId}
+															type="url"
 															value={link}
 															onChange={(inputEvent) =>
 																updateTicketLinkRow(
@@ -1700,6 +1709,9 @@ const EventModal: React.FC<EventModalProps> = ({
 																	? "Ticket, RSVP, or official event URL"
 																	: "Additional ticket or official event URL"
 															}
+															autoCapitalize="off"
+															autoCorrect="off"
+															spellCheck={false}
 														/>
 													</div>
 													{ticketLinkRows.length > 1 && (
@@ -1742,6 +1754,7 @@ const EventModal: React.FC<EventModalProps> = ({
 									<Label htmlFor="update-proof">Proof of change URL</Label>
 									<Input
 										id="update-proof"
+										type="url"
 										value={updateRequestForm.proofLink}
 										onChange={(inputEvent) =>
 											updateRequestField("proofLink", inputEvent.target.value)
@@ -1755,6 +1768,9 @@ const EventModal: React.FC<EventModalProps> = ({
 											}
 										}}
 										placeholder="Post, organiser update, or ticket page proving the changed detail"
+										autoCapitalize="off"
+										autoCorrect="off"
+										spellCheck={false}
 										required
 									/>
 								</div>
@@ -1785,10 +1801,18 @@ const EventModal: React.FC<EventModalProps> = ({
 							)}
 
 							<DialogFooter>
-								<Button type="submit" disabled={isSubmittingUpdateRequest}>
+								<Button
+									type="submit"
+									disabled={
+										isSubmittingUpdateRequest ||
+										updateRequestStatus?.tone === "success"
+									}
+								>
 									{isSubmittingUpdateRequest
 										? "Sending..."
-										: "Send update request"}
+										: updateRequestStatus?.tone === "success"
+											? "Sent"
+											: "Send update request"}
 								</Button>
 							</DialogFooter>
 						</form>

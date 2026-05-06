@@ -12,7 +12,7 @@ export async function SubmitEventFormSection() {
 	);
 	return (
 		<SubmitEventForm
-			submissionsEnabled={settings.enabled}
+			submissionsEnabled={settings.newEventsEnabled}
 			genreOptions={genreOptions}
 		/>
 	);

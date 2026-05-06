@@ -396,6 +396,7 @@ export function SubmitEventForm({
 				success: boolean;
 				message?: string;
 				error?: string;
+				issues?: string[];
 			};
 
 			if (!response.ok || !payload.success) {
@@ -406,7 +407,9 @@ export function SubmitEventForm({
 					);
 					return;
 				}
-				setErrorMessage(payload.error || "Failed to submit event.");
+				setErrorMessage(
+					payload.issues?.[0] || payload.error || "Failed to submit event.",
+				);
 				return;
 			}
 

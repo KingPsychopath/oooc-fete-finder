@@ -201,7 +201,8 @@ const loadService = async (): Promise<Setup> => {
 		slidingBannerReplace: vi.fn().mockResolvedValue(undefined),
 		eventSubmissionGet: vi.fn().mockResolvedValue({
 			version: 1,
-			enabled: true,
+			newEventsEnabled: true,
+			eventUpdatesEnabled: true,
 			updatedAt: "2026-02-18T09:00:00.000Z",
 			updatedBy: "admin",
 		}),
@@ -333,7 +334,8 @@ describe("EventStoreBackupService", () => {
 		});
 		settingsStores.eventSubmissionGet.mockResolvedValueOnce({
 			version: 1,
-			enabled: true,
+			newEventsEnabled: true,
+			eventUpdatesEnabled: true,
 			updatedAt: new Date(0).toISOString(),
 			updatedBy: "system-default",
 		});
@@ -457,7 +459,8 @@ describe("EventStoreBackupService", () => {
 					},
 					eventSubmissions: {
 						version: 1,
-						enabled: false,
+						newEventsEnabled: false,
+						eventUpdatesEnabled: true,
 						updatedAt: "2026-02-18T08:00:00.000Z",
 						updatedBy: "backup",
 					},
@@ -511,7 +514,10 @@ describe("EventStoreBackupService", () => {
 			expect.objectContaining({ enabled: false }),
 		);
 		expect(settingsStores.eventSubmissionReplace).toHaveBeenCalledWith(
-			expect.objectContaining({ enabled: false }),
+			expect.objectContaining({
+				newEventsEnabled: false,
+				eventUpdatesEnabled: true,
+			}),
 		);
 		expect(
 			backupRepository.createBackup.mock.invocationCallOrder[0],

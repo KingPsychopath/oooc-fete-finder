@@ -111,13 +111,16 @@ export interface ReviewEventSubmissionInput {
 
 export interface EventSubmissionSettings {
 	version: 1;
-	enabled: boolean;
+	enabled?: boolean;
+	newEventsEnabled: boolean;
+	eventUpdatesEnabled: boolean;
 	updatedAt: string;
 	updatedBy: string;
 }
 
 export interface EventSubmissionPublicSettings {
-	enabled: boolean;
+	newEventsEnabled: boolean;
+	eventUpdatesEnabled: boolean;
 	updatedAt: string;
 }
 

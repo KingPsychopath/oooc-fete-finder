@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
 	createDateNormalizationContext,
 	normalizeCsvDate,
 } from "@/features/data-management/assembly/date-normalization";
 import type { CSVEventRow } from "@/features/data-management/csv/parser";
+import { describe, expect, it } from "vitest";
 
 const makeRow = (date: string): CSVEventRow => ({
 	eventKey: "",
@@ -66,7 +66,11 @@ describe("date normalization", () => {
 	});
 
 	it("breaks inferred-year ties by nearest reference year then larger year", () => {
-		const rows = [makeRow("2024-06-21"), makeRow("2026-06-21"), makeRow("21 June")];
+		const rows = [
+			makeRow("2024-06-21"),
+			makeRow("2026-06-21"),
+			makeRow("21 June"),
+		];
 		const context = createDateNormalizationContext(rows, {
 			referenceDate: new Date("2025-01-01T00:00:00.000Z"),
 		});
@@ -85,6 +89,61 @@ describe("date normalization", () => {
 		expect(normalized.isoDate).toBe("");
 		expect(normalized.day).toBe("tbc");
 		expect(normalized.warning?.type).toBe("ambiguous");
+	});
+
+	it("normalizes explicit dot dates as day-first", () => {
+		const context = createDateNormalizationContext([makeRow("2021-03-29")], {
+			referenceDate: new Date("2025-01-01T00:00:00.000Z"),
+		});
+		const normalized = normalizeCsvDate("29.03.2021", context);
+
+		expect(normalized.isoDate).toBe("2021-03-29");
+		expect(normalized.day).toBe("monday");
+		expect(normalized.warning).toBeUndefined();
+	});
+
+	it("infers missing years for dot dates", () => {
+		const context = createDateNormalizationContext([makeRow("2026-06-21")], {
+			referenceDate: new Date("2025-01-01T00:00:00.000Z"),
+		});
+		const normalized = normalizeCsvDate("29.03", context);
+
+		expect(normalized.isoDate).toBe("2026-03-29");
+		expect(normalized.day).toBe("sunday");
+		expect(normalized.warning?.type).toBe("inferred_year");
+	});
+
+	it("treats ambiguous-looking dot dates as day-first", () => {
+		const context = createDateNormalizationContext([makeRow("2021-03-29")], {
+			referenceDate: new Date("2025-01-01T00:00:00.000Z"),
+		});
+		const normalized = normalizeCsvDate("03.04.2021", context);
+
+		expect(normalized.isoDate).toBe("2021-04-03");
+		expect(normalized.day).toBe("saturday");
+		expect(normalized.warning).toBeUndefined();
+	});
+
+	it("normalizes non-ambiguous dot dates as day-first", () => {
+		const context = createDateNormalizationContext([makeRow("2026-06-21")], {
+			referenceDate: new Date("2025-01-01T00:00:00.000Z"),
+		});
+		const normalized = normalizeCsvDate("21.06.2026", context);
+
+		expect(normalized.isoDate).toBe("2026-06-21");
+		expect(normalized.day).toBe("sunday");
+		expect(normalized.warning).toBeUndefined();
+	});
+
+	it("rejects impossible dot dates", () => {
+		const context = createDateNormalizationContext([makeRow("2021-03-29")], {
+			referenceDate: new Date("2025-01-01T00:00:00.000Z"),
+		});
+		const normalized = normalizeCsvDate("31.02.2021", context);
+
+		expect(normalized.isoDate).toBe("");
+		expect(normalized.day).toBe("tbc");
+		expect(normalized.warning?.type).toBe("invalid");
 	});
 
 	it("rejects impossible calendar dates", () => {

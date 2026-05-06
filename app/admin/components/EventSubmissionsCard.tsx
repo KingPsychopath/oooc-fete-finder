@@ -48,6 +48,8 @@ const parseDisplayLinks = (value: string | undefined): string[] =>
 		.map((link) => link.trim())
 		.filter(Boolean);
 
+type SubmissionSettingKey = "new_events" | "event_updates";
+
 type DashboardPayload = Awaited<
 	ReturnType<typeof getEventSubmissionsDashboard>
 >;
@@ -146,27 +148,36 @@ export const EventSubmissionsCard = ({
 		[loadDashboard, onSubmissionReviewed],
 	);
 
-	const handleToggleSubmissions = useCallback(async () => {
-		const enabled = payload?.success ? payload.settings.enabled : true;
-		setIsMutating(true);
-		setStatusMessage("");
-		setErrorMessage("");
-		try {
-			const result = await updateEventSubmissionEnabled(!enabled);
-			if (!result.success) {
-				setErrorMessage(result.error || "Failed to update submission setting");
-				return;
+	const handleToggleSubmissions = useCallback(
+		async (setting: SubmissionSettingKey) => {
+			const enabled = payload?.success
+				? setting === "new_events"
+					? payload.settings.newEventsEnabled
+					: payload.settings.eventUpdatesEnabled
+				: true;
+			setIsMutating(true);
+			setStatusMessage("");
+			setErrorMessage("");
+			try {
+				const result = await updateEventSubmissionEnabled(setting, !enabled);
+				if (!result.success) {
+					setErrorMessage(
+						result.error || "Failed to update submission setting",
+					);
+					return;
+				}
+				setStatusMessage(result.message || "Submission setting updated");
+				await loadDashboard();
+				if (onSubmissionReviewed) {
+					await onSubmissionReviewed();
+				}
+			} finally {
+				setIsMutating(false);
+				setBusySubmissionId(null);
 			}
-			setStatusMessage(result.message || "Submission setting updated");
-			await loadDashboard();
-			if (onSubmissionReviewed) {
-				await onSubmissionReviewed();
-			}
-		} finally {
-			setIsMutating(false);
-			setBusySubmissionId(null);
-		}
-	}, [loadDashboard, onSubmissionReviewed, payload]);
+		},
+		[loadDashboard, onSubmissionReviewed, payload],
+	);
 
 	const handleAccept = useCallback(
 		async (submissionId: string) => {
@@ -211,7 +222,12 @@ export const EventSubmissionsCard = ({
 	);
 
 	const metrics = payload?.success ? payload.metrics : null;
-	const submissionsEnabled = payload?.success ? payload.settings.enabled : true;
+	const newEventsEnabled = payload?.success
+		? payload.settings.newEventsEnabled
+		: true;
+	const eventUpdatesEnabled = payload?.success
+		? payload.settings.eventUpdatesEnabled
+		: true;
 	const settingsStatus = payload?.success ? payload.settingsStatus : null;
 
 	return (
@@ -230,29 +246,56 @@ export const EventSubmissionsCard = ({
 						<button
 							type="button"
 							role="switch"
-							aria-checked={submissionsEnabled}
-							aria-label="Toggle event submissions"
-							onClick={() => void handleToggleSubmissions()}
+							aria-checked={newEventsEnabled}
+							aria-label="Toggle new event submissions"
+							onClick={() => void handleToggleSubmissions("new_events")}
 							disabled={isLoading || isMutating}
 							className={`group inline-flex h-8 items-center gap-2 rounded-full border px-2.5 text-xs tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-								submissionsEnabled
+								newEventsEnabled
 									? "border-emerald-300 bg-emerald-50 text-emerald-900"
 									: "border-rose-300 bg-rose-50 text-rose-900"
 							}`}
 						>
 							<span
 								className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${
-									submissionsEnabled ? "bg-emerald-500" : "bg-rose-400"
+									newEventsEnabled ? "bg-emerald-500" : "bg-rose-400"
 								}`}
 								aria-hidden="true"
 							>
 								<span
 									className={`absolute h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
-										submissionsEnabled ? "translate-x-4" : "translate-x-0.5"
+										newEventsEnabled ? "translate-x-4" : "translate-x-0.5"
 									}`}
 								/>
 							</span>
-							<span>{submissionsEnabled ? "Open" : "Closed"}</span>
+							<span>New events {newEventsEnabled ? "open" : "closed"}</span>
+						</button>
+						<button
+							type="button"
+							role="switch"
+							aria-checked={eventUpdatesEnabled}
+							aria-label="Toggle event update requests"
+							onClick={() => void handleToggleSubmissions("event_updates")}
+							disabled={isLoading || isMutating}
+							className={`group inline-flex h-8 items-center gap-2 rounded-full border px-2.5 text-xs tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+								eventUpdatesEnabled
+									? "border-emerald-300 bg-emerald-50 text-emerald-900"
+									: "border-rose-300 bg-rose-50 text-rose-900"
+							}`}
+						>
+							<span
+								className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${
+									eventUpdatesEnabled ? "bg-emerald-500" : "bg-rose-400"
+								}`}
+								aria-hidden="true"
+							>
+								<span
+									className={`absolute h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
+										eventUpdatesEnabled ? "translate-x-4" : "translate-x-0.5"
+									}`}
+								/>
+							</span>
+							<span>Updates {eventUpdatesEnabled ? "open" : "closed"}</span>
 						</button>
 						<Button
 							type="button"
@@ -275,10 +318,16 @@ export const EventSubmissionsCard = ({
 						</p>
 					</div>
 				)}
-				{!submissionsEnabled && (
+				{!newEventsEnabled && (
 					<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-						Public submissions are currently disabled. The submit endpoint is
-						blocked.
+						New event submissions are currently disabled. The new-event endpoint
+						path is blocked.
+					</div>
+				)}
+				{!eventUpdatesEnabled && (
+					<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+						Event update requests are currently disabled. Request-update links
+						are hidden and blocked.
 					</div>
 				)}
 				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">

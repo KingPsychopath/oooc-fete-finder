@@ -1,11 +1,10 @@
-import { z } from "zod";
+import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 import {
 	buildEventSubmissionFingerprint,
 	createEventSubmission,
 	evaluateSubmissionSpamSignals,
 	parseEventSubmissionInput,
 } from "@/features/events/submissions/store";
-import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 import {
 	checkEventSubmitEmailIpLimit,
 	checkEventSubmitFingerprintLimit,
@@ -14,6 +13,7 @@ import {
 } from "@/features/security/rate-limiter";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 const ACCEPTED_MESSAGE =
 	"Thanks, your event submission has been received for review.";
@@ -68,11 +68,36 @@ export async function POST(request: Request) {
 	} catch {
 		return serviceUnavailableResponse();
 	}
-	if (!submissionSettings.enabled) {
+
+	let rawBody: unknown;
+	try {
+		rawBody = await request.json();
+	} catch {
+		return NextResponse.json(
+			{ success: false, error: "Invalid request payload" },
+			{ status: 400, headers: NO_STORE_HEADERS },
+		);
+	}
+
+	const submissionType =
+		rawBody &&
+		typeof rawBody === "object" &&
+		"submissionType" in rawBody &&
+		rawBody.submissionType === "event_update"
+			? "event_update"
+			: "new_event";
+	const isSubmissionTypeEnabled =
+		submissionType === "event_update"
+			? submissionSettings.eventUpdatesEnabled
+			: submissionSettings.newEventsEnabled;
+	if (!isSubmissionTypeEnabled) {
 		return NextResponse.json(
 			{
 				success: false,
-				error: "Event submissions are temporarily closed.",
+				error:
+					submissionType === "event_update"
+						? "Event update requests are temporarily closed."
+						: "Event submissions are temporarily closed.",
 			},
 			{
 				status: 503,
@@ -89,16 +114,6 @@ export async function POST(request: Request) {
 	}
 	if (!ipDecision.allowed) {
 		return rateLimitedResponse(ipDecision.retryAfterSeconds ?? 1);
-	}
-
-	let rawBody: unknown;
-	try {
-		rawBody = await request.json();
-	} catch {
-		return NextResponse.json(
-			{ success: false, error: "Invalid request payload" },
-			{ status: 400, headers: NO_STORE_HEADERS },
-		);
 	}
 
 	let normalizedInput;
@@ -133,7 +148,8 @@ export async function POST(request: Request) {
 	}
 
 	const fingerprint = buildEventSubmissionFingerprint(normalizedInput);
-	const fingerprintDecision = await checkEventSubmitFingerprintLimit(fingerprint);
+	const fingerprintDecision =
+		await checkEventSubmitFingerprintLimit(fingerprint);
 	if (fingerprintDecision.reason === "limiter_unavailable") {
 		return serviceUnavailableResponse();
 	}

@@ -78,7 +78,8 @@ const loadRoute = async (): Promise<Setup> => {
 	});
 	const createEventSubmission = vi.fn().mockResolvedValue({ id: "sub_1" });
 	const getPublicSettings = vi.fn().mockResolvedValue({
-		enabled: true,
+		newEventsEnabled: true,
+		eventUpdatesEnabled: true,
 		updatedAt: "2026-02-18T00:00:00.000Z",
 	});
 
@@ -146,7 +147,8 @@ describe("/api/event-submissions route", () => {
 		const { POST, getPublicSettings, createEventSubmission } =
 			await loadRoute();
 		getPublicSettings.mockResolvedValue({
-			enabled: false,
+			newEventsEnabled: false,
+			eventUpdatesEnabled: true,
 			updatedAt: "2026-02-18T00:00:00.000Z",
 		});
 
@@ -164,6 +166,61 @@ describe("/api/event-submissions route", () => {
 
 		expect(response.status).toBe(503);
 		expect(payload.error).toContain("temporarily closed");
+		expect(createEventSubmission).not.toHaveBeenCalled();
+	});
+
+	it("allows update requests when new event submissions are disabled", async () => {
+		const { POST, getPublicSettings, createEventSubmission } =
+			await loadRoute();
+		getPublicSettings.mockResolvedValue({
+			newEventsEnabled: false,
+			eventUpdatesEnabled: true,
+			updatedAt: "2026-02-18T00:00:00.000Z",
+		});
+
+		const response = await POST(
+			new Request("https://example.com/api/event-submissions", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					...validBody,
+					submissionType: "event_update",
+					originalEventKey: "evt_123",
+				}),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(createEventSubmission).toHaveBeenCalledTimes(1);
+	});
+
+	it("returns 503 when update requests are disabled", async () => {
+		const { POST, getPublicSettings, createEventSubmission } =
+			await loadRoute();
+		getPublicSettings.mockResolvedValue({
+			newEventsEnabled: true,
+			eventUpdatesEnabled: false,
+			updatedAt: "2026-02-18T00:00:00.000Z",
+		});
+
+		const response = await POST(
+			new Request("https://example.com/api/event-submissions", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					...validBody,
+					submissionType: "event_update",
+					originalEventKey: "evt_123",
+				}),
+			}),
+		);
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
+
+		expect(response.status).toBe(503);
+		expect(payload.error).toContain("update requests");
 		expect(createEventSubmission).not.toHaveBeenCalled();
 	});
 

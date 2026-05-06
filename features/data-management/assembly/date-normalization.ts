@@ -151,7 +151,7 @@ const parseNumericDate = (
 	leftPart: string,
 	rightPart: string,
 	yearPart: string | undefined,
-	separator: "/" | "-",
+	separator: "/" | "-" | ".",
 	contextYear: number,
 ): DateParseResult => {
 	const left = Number.parseInt(leftPart, 10);
@@ -187,6 +187,19 @@ const parseNumericDate = (
 	const candidateYear = explicitYear ?? contextYear;
 	const dayFirstValid = isValidCalendarDate(candidateYear, right, left);
 	const monthFirstValid = isValidCalendarDate(candidateYear, left, right);
+
+	if (separator === "." && dayFirstValid) {
+		return {
+			status: "success",
+			day: left,
+			month: right,
+			year: explicitYear,
+			detectedFormat:
+				yearPart === undefined
+					? "numeric-dot-day-first-without-year"
+					: "numeric-dot-day-first",
+		};
+	}
 
 	if (dayFirstValid && monthFirstValid && left !== right) {
 		const detectedFormat =
@@ -345,6 +358,19 @@ const parseDate = (rawDate: string, contextYear: number): DateParseResult => {
 			hyphenNumericMatch[2],
 			hyphenNumericMatch[3],
 			"-",
+			contextYear,
+		);
+	}
+
+	const dotNumericMatch = normalized.match(
+		/^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?$/,
+	);
+	if (dotNumericMatch) {
+		return parseNumericDate(
+			dotNumericMatch[1],
+			dotNumericMatch[2],
+			dotNumericMatch[3],
+			".",
 			contextYear,
 		);
 	}

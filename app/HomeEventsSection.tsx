@@ -18,7 +18,11 @@ export async function HomeEventsSection({
 			log.warn("home", "Unable to load event submission settings", {
 				error: error instanceof Error ? error.message : String(error),
 			});
-			return { enabled: true, updatedAt: new Date(0).toISOString() };
+			return {
+				newEventsEnabled: true,
+				eventUpdatesEnabled: true,
+				updatedAt: new Date(0).toISOString(),
+			};
 		}),
 	]);
 	const isRemoteMode = env.DATA_MODE === "remote";
@@ -42,7 +46,7 @@ export async function HomeEventsSection({
 			<EventsClient
 				initialEvents={result.data}
 				mapLoadStrategy={mapLoadStrategy}
-				eventSubmissionsEnabled={submissionSettings.enabled}
+				eventUpdateRequestsEnabled={submissionSettings.eventUpdatesEnabled}
 			/>
 		</>
 	);

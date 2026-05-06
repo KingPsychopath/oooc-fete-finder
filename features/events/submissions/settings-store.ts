@@ -11,10 +11,13 @@ const EVENT_SUBMISSION_SETTINGS_KEY = "events:submissions:settings:v1";
 
 const DEFAULT_SETTINGS: EventSubmissionSettings = {
 	version: 1,
-	enabled: true,
+	newEventsEnabled: true,
+	eventUpdatesEnabled: true,
 	updatedAt: new Date(0).toISOString(),
 	updatedBy: "system-default",
 };
+
+export type EventSubmissionSettingKey = "new_events" | "event_updates";
 
 const normalizeTimestamp = (value: unknown, fallback: string): string => {
 	if (typeof value !== "string" || value.trim().length === 0) return fallback;
@@ -32,12 +35,18 @@ const normalizeActor = (value: unknown, fallback: string): string => {
 const normalizeSettings = (
 	candidate: Partial<EventSubmissionSettings> | null | undefined,
 ): EventSubmissionSettings => {
+	const legacyEnabled =
+		typeof candidate?.enabled === "boolean" ? candidate.enabled : undefined;
 	return {
 		version: 1,
-		enabled:
-			typeof candidate?.enabled === "boolean"
-				? candidate.enabled
-				: DEFAULT_SETTINGS.enabled,
+		newEventsEnabled:
+			typeof candidate?.newEventsEnabled === "boolean"
+				? candidate.newEventsEnabled
+				: (legacyEnabled ?? DEFAULT_SETTINGS.newEventsEnabled),
+		eventUpdatesEnabled:
+			typeof candidate?.eventUpdatesEnabled === "boolean"
+				? candidate.eventUpdatesEnabled
+				: (legacyEnabled ?? DEFAULT_SETTINGS.eventUpdatesEnabled),
 		updatedAt: normalizeTimestamp(
 			candidate?.updatedAt,
 			DEFAULT_SETTINGS.updatedAt,
@@ -62,7 +71,8 @@ const parseStoredSettings = (raw: string | null): EventSubmissionSettings => {
 const toPublicSettings = (
 	settings: EventSubmissionSettings,
 ): EventSubmissionPublicSettings => ({
-	enabled: settings.enabled,
+	newEventsEnabled: settings.newEventsEnabled,
+	eventUpdatesEnabled: settings.eventUpdatesEnabled,
 	updatedAt: settings.updatedAt,
 });
 
@@ -90,13 +100,17 @@ export class EventSubmissionSettingsStore {
 	}
 
 	static async updateEnabled(
+		setting: EventSubmissionSettingKey,
 		enabled: boolean,
 		updatedBy: string,
 	): Promise<EventSubmissionSettings> {
 		const current = await this.readSettings();
 		const next: EventSubmissionSettings = {
 			...current,
-			enabled,
+			newEventsEnabled:
+				setting === "new_events" ? enabled : current.newEventsEnabled,
+			eventUpdatesEnabled:
+				setting === "event_updates" ? enabled : current.eventUpdatesEnabled,
 			updatedAt: new Date().toISOString(),
 			updatedBy: updatedBy.trim() || "admin-panel",
 		};

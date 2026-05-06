@@ -35,7 +35,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 interface EventsClientProps {
 	initialEvents: Event[];
 	mapLoadStrategy: MapLoadStrategy;
-	eventSubmissionsEnabled?: boolean;
+	eventUpdateRequestsEnabled?: boolean;
 }
 
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
@@ -113,7 +113,7 @@ const buildAvailableNationalitiesForEvents = (events: Event[]) => {
 export function EventsClient({
 	initialEvents,
 	mapLoadStrategy,
-	eventSubmissionsEnabled = true,
+	eventUpdateRequestsEnabled = true,
 }: EventsClientProps) {
 	const router = useRouter();
 	const pathname = usePathname();
@@ -321,14 +321,14 @@ export function EventsClient({
 		);
 		const hasRequestUpdateParam =
 			searchParams.get(REQUEST_UPDATE_PARAM) === "1";
-		setIsRequestUpdateOpen(hasRequestUpdateParam && eventSubmissionsEnabled);
+		setIsRequestUpdateOpen(hasRequestUpdateParam && eventUpdateRequestsEnabled);
 
 		const slugParam = searchParams.get("slug");
 		const isLegacyQueryUrl = searchParams.has("event");
 		const isEventPath = getEventKeyFromPath(pathname) !== null;
 		const currentParams = new URLSearchParams(searchParams.toString());
 		const hasDisabledRequestUpdateParam =
-			hasRequestUpdateParam && !eventSubmissionsEnabled;
+			hasRequestUpdateParam && !eventUpdateRequestsEnabled;
 		if (hasDisabledRequestUpdateParam) {
 			currentParams.delete(REQUEST_UPDATE_PARAM);
 		}
@@ -355,7 +355,7 @@ export function EventsClient({
 		pathname,
 		searchParams,
 		updateUrlWithoutNavigation,
-		eventSubmissionsEnabled,
+		eventUpdateRequestsEnabled,
 	]);
 
 	const handleEmailSubmit = useCallback(async () => {
@@ -638,7 +638,7 @@ export function EventsClient({
 				isOpen={selectedEvent !== null}
 				onClose={handleEventClose}
 				isAuthenticated={isAuthenticated}
-				submissionsEnabled={eventSubmissionsEnabled}
+				submissionsEnabled={eventUpdateRequestsEnabled}
 				isRequestUpdateOpen={isRequestUpdateOpen}
 				onRequestUpdateOpenChange={handleRequestUpdateOpenChange}
 				socialProofMode={

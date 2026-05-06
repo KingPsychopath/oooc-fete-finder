@@ -159,7 +159,8 @@ const loadActions = async (): Promise<Setup> => {
 	});
 	const getSettings = vi.fn().mockResolvedValue({
 		version: 1,
-		enabled: true,
+		newEventsEnabled: true,
+		eventUpdatesEnabled: true,
 		updatedAt: "2026-02-18T10:00:00.000Z",
 		updatedBy: "admin-panel",
 	});
@@ -172,7 +173,8 @@ const loadActions = async (): Promise<Setup> => {
 	});
 	const updateEnabled = vi.fn().mockResolvedValue({
 		version: 1,
-		enabled: false,
+		newEventsEnabled: false,
+		eventUpdatesEnabled: true,
 		updatedAt: "2026-02-18T11:00:00.000Z",
 		updatedBy: "admin-panel",
 	});
@@ -199,7 +201,8 @@ const loadActions = async (): Promise<Setup> => {
 			getStatus,
 			updateEnabled,
 			getPublicSettings: vi.fn().mockResolvedValue({
-				enabled: true,
+				newEventsEnabled: true,
+				eventUpdatesEnabled: true,
 				updatedAt: "2026-02-18T10:00:00.000Z",
 			}),
 		},
@@ -391,10 +394,14 @@ describe("event submission admin actions", () => {
 	it("updates persisted submission enabled setting for admins", async () => {
 		const { updateEventSubmissionEnabled, updateEnabled, revalidatePath } =
 			await loadActions();
-		const result = await updateEventSubmissionEnabled(false);
+		const result = await updateEventSubmissionEnabled("new_events", false);
 
 		expect(result.success).toBe(true);
-		expect(updateEnabled).toHaveBeenCalledWith(false, "admin-panel");
+		expect(updateEnabled).toHaveBeenCalledWith(
+			"new_events",
+			false,
+			"admin-panel",
+		);
 		expect(revalidatePath).toHaveBeenCalledWith("/");
 		expect(revalidatePath).toHaveBeenCalledWith("/submit-event");
 	});

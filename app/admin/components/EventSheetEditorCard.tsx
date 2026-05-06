@@ -132,6 +132,11 @@ type SimpleOption = {
 	label: string;
 	description: string;
 };
+type DateSuggestionOption = {
+	value: string;
+	label: string;
+	description: string;
+};
 type SheetHealthIssue = {
 	rowIndex: number;
 	column: string;
@@ -193,6 +198,7 @@ const AGE_OPTIONS: SimpleOption[] = [
 	},
 	{ value: "TBC", label: "TBC", description: "Age policy still unknown" },
 ];
+const FETE_DATE_OFFSETS = [-2, -1, 0, 1, 2] as const;
 const AREA_OPTIONS: AreaOption[] = [
 	...Array.from({ length: 20 }, (_, index) => {
 		const value = String(index + 1);
@@ -594,6 +600,36 @@ const normalizePriceValue = (value: string): string => {
 const toUTCDateOnlyTime = (date: Date): number =>
 	Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 
+const formatDateSuggestionLabel = (isoDate: string): string => {
+	const parsed = new Date(`${isoDate}T00:00:00.000Z`);
+	if (Number.isNaN(parsed.getTime())) return isoDate;
+	return parsed.toLocaleDateString("en-GB", {
+		weekday: "short",
+		day: "2-digit",
+		month: "short",
+		timeZone: "UTC",
+	});
+};
+
+const getNormalizedSheetDate = (
+	value: string,
+	context: ReturnType<typeof createDateNormalizationContext>,
+): string | null => {
+	const normalized = normalizeCsvDate(value, context);
+	return normalized.isoDate || null;
+};
+
+const buildCommonFeteDates = (year: number): DateSuggestionOption[] =>
+	FETE_DATE_OFFSETS.map((offset) => {
+		const date = new Date(Date.UTC(year, 5, 21 + offset));
+		const value = date.toISOString().slice(0, 10);
+		return {
+			value,
+			label: formatDateSuggestionLabel(value),
+			description: offset === 0 ? "Fete day" : "Fete week",
+		};
+	});
+
 const getRowDateTime = (
 	row: EditableSheetRow,
 	context: ReturnType<typeof createDateNormalizationContext>,
@@ -741,6 +777,9 @@ export const EventSheetEditorCard = ({
 		useState<FocusedCell | null>(null);
 	const [countrySearchQuery, setCountrySearchQuery] = useState("");
 	const [highlightedCountryIndex, setHighlightedCountryIndex] = useState(0);
+	const [focusedDateCell, setFocusedDateCell] = useState<FocusedCell | null>(
+		null,
+	);
 	const [focusedAreaCell, setFocusedAreaCell] = useState<FocusedCell | null>(
 		null,
 	);
@@ -788,6 +827,7 @@ export const EventSheetEditorCard = ({
 		setGenreSearchQuery("");
 		setFocusedCountryCell(null);
 		setCountrySearchQuery("");
+		setFocusedDateCell(null);
 		setFocusedAreaCell(null);
 		setAreaSearchQuery("");
 		setFocusedSettingCell(null);
@@ -1760,6 +1800,69 @@ export const EventSheetEditorCard = ({
 		return AGE_OPTIONS;
 	}, [focusedAgeCell]);
 
+	const dateSuggestionsForFocusedCell = useMemo((): DateSuggestionOption[] => {
+		if (!focusedDateCell) return [];
+
+		const context = createDateNormalizationContext(
+			rows.map((row) => ({ date: row.date ?? "" })),
+		);
+		const seen = new Set<string>();
+		const suggestions: DateSuggestionOption[] = [];
+		const addSuggestion = (option: DateSuggestionOption) => {
+			if (seen.has(option.value)) return;
+			seen.add(option.value);
+			suggestions.push(option);
+		};
+
+		const rowAbove = rows[focusedDateCell.rowIndex - 1];
+		const rowAboveDate = rowAbove
+			? getNormalizedSheetDate(rowAbove[DATE_COLUMN_KEY] ?? "", context)
+			: null;
+		if (rowAboveDate) {
+			addSuggestion({
+				value: rowAboveDate,
+				label: formatDateSuggestionLabel(rowAboveDate),
+				description: "Use row above",
+			});
+		}
+
+		const dateStats = new Map<string, { count: number; lastIndex: number }>();
+		rows.forEach((row, rowIndex) => {
+			if (rowIndex === focusedDateCell.rowIndex) return;
+			const normalized = getNormalizedSheetDate(
+				row[DATE_COLUMN_KEY] ?? "",
+				context,
+			);
+			if (!normalized) return;
+			const existing = dateStats.get(normalized);
+			dateStats.set(normalized, {
+				count: (existing?.count ?? 0) + 1,
+				lastIndex: Math.max(existing?.lastIndex ?? -1, rowIndex),
+			});
+		});
+
+		for (const [value, stats] of Array.from(dateStats.entries())
+			.sort(
+				([leftDate, left], [rightDate, right]) =>
+					right.count - left.count ||
+					right.lastIndex - left.lastIndex ||
+					leftDate.localeCompare(rightDate),
+			)
+			.slice(0, 6)) {
+			addSuggestion({
+				value,
+				label: formatDateSuggestionLabel(value),
+				description: `${stats.count} row${stats.count === 1 ? "" : "s"} in sheet`,
+			});
+		}
+
+		for (const option of buildCommonFeteDates(context.inferredYear)) {
+			addSuggestion(option);
+		}
+
+		return suggestions.slice(0, 9);
+	}, [focusedDateCell, rows]);
+
 	const toggleCuratedForCell = useCallback(
 		(rowIndex: number, columnKey: string) => {
 			const row = rowsRef.current[rowIndex];
@@ -1768,6 +1871,41 @@ export const EventSheetEditorCard = ({
 				? ""
 				: CURATED_PICK_VALUE;
 			handleCellChange(rowIndex, columnKey, nextValue);
+		},
+		[handleCellChange],
+	);
+
+	const selectDateForCell = useCallback(
+		(rowIndex: number, columnKey: string, date: string) => {
+			handleCellChange(rowIndex, columnKey, date);
+			setFocusedDateCell(null);
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange],
+	);
+
+	const fillDateFromRowAbove = useCallback(
+		(rowIndex: number, columnKey: string): boolean => {
+			const rowAbove = rowsRef.current[rowIndex - 1];
+			if (!rowAbove) return false;
+			const context = createDateNormalizationContext(
+				rowsRef.current.map((row) => ({ date: row.date ?? "" })),
+			);
+			const rowAboveDate = getNormalizedSheetDate(
+				rowAbove[DATE_COLUMN_KEY] ?? "",
+				context,
+			);
+			if (!rowAboveDate) return false;
+
+			handleCellChange(rowIndex, columnKey, rowAboveDate);
+			if (activeCellEditRef.current === cellRefKey(rowIndex, columnKey)) {
+				activeCellEditRef.current = null;
+			}
+			setFocusedDateCell(null);
+			setStatusMessage(`Copied ${rowAboveDate} from row above`);
+			return true;
 		},
 		[handleCellChange],
 	);
@@ -3323,6 +3461,153 @@ export const EventSheetEditorCard = ({
 																	: "Not curated"}
 															</span>
 														</button>
+													) : column.key === DATE_COLUMN_KEY ? (
+														<div className="relative min-h-9 bg-transparent">
+															<input
+																ref={(node) => {
+																	inputRefs.current[
+																		cellRefKey(rowIndex, column.key)
+																	] = node;
+																}}
+																value={row[column.key] ?? ""}
+																onFocus={() => {
+																	setFocusedDateCell({
+																		rowIndex,
+																		columnKey: column.key,
+																	});
+																}}
+																onChange={(event) =>
+																	handleCellChange(
+																		rowIndex,
+																		column.key,
+																		event.target.value,
+																	)
+																}
+																onBlur={() => {
+																	commitStandardCell(rowIndex, column.key);
+																	window.setTimeout(() => {
+																		setFocusedDateCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? null
+																				: current,
+																		);
+																	}, 120);
+																}}
+																onKeyDown={(event) => {
+																	if (
+																		event.key.toLowerCase() === "d" &&
+																		(event.metaKey || event.ctrlKey)
+																	) {
+																		event.preventDefault();
+																		const didFill = fillDateFromRowAbove(
+																			rowIndex,
+																			column.key,
+																		);
+																		if (!didFill) {
+																			setStatusMessage(
+																				"No date available in the row above",
+																			);
+																		}
+																		return;
+																	}
+																	if (event.key === "Escape") {
+																		setFocusedDateCell(null);
+																		return;
+																	}
+																	if (event.key === "Enter") {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (event.key === "ArrowDown") {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (event.key === "ArrowUp") {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, -1, 0);
+																	}
+																	if (
+																		event.key === "ArrowRight" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 0, 1);
+																	}
+																	if (
+																		event.key === "ArrowLeft" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 0, -1);
+																	}
+																}}
+																className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+																placeholder="YYYY-MM-DD or 29.03.2026"
+																aria-autocomplete="list"
+																aria-expanded={
+																	focusedDateCell?.rowIndex === rowIndex &&
+																	focusedDateCell.columnKey === column.key
+																}
+															/>
+															{focusedDateCell?.rowIndex === rowIndex &&
+																focusedDateCell.columnKey === column.key && (
+																	<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																			Date
+																		</div>
+																		<div className="max-h-60 overflow-y-auto p-1">
+																			{dateSuggestionsForFocusedCell.map(
+																				(option) => {
+																					const isSelected =
+																						(row[column.key] ?? "") ===
+																						option.value;
+																					return (
+																						<button
+																							key={`${option.description}-${option.value}`}
+																							type="button"
+																							onMouseDown={(event) => {
+																								event.preventDefault();
+																								selectDateForCell(
+																									rowIndex,
+																									column.key,
+																									option.value,
+																								);
+																							}}
+																							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																								isSelected
+																									? "bg-muted text-foreground"
+																									: "hover:bg-accent/70"
+																							}`}
+																						>
+																							<span className="min-w-0 flex-1 truncate font-medium">
+																								{option.label}
+																							</span>
+																							<span className="font-mono text-[10px] text-muted-foreground">
+																								{option.value}
+																							</span>
+																							<span className="max-w-24 truncate text-[10px] text-muted-foreground">
+																								{option.description}
+																							</span>
+																						</button>
+																					);
+																				},
+																			)}
+																			{dateSuggestionsForFocusedCell.length ===
+																				0 && (
+																				<div className="px-2 py-2 text-xs text-muted-foreground">
+																					No reusable dates yet.
+																				</div>
+																			)}
+																		</div>
+																	</div>
+																)}
+														</div>
 													) : column.key === CATEGORY_COLUMN_KEY ? (
 														<div className="relative min-h-9 bg-transparent">
 															<input
