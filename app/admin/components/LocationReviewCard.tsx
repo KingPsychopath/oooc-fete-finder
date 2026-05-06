@@ -153,6 +153,16 @@ const getClearResolutionLabel = (item: EventLocationReviewItem): string => {
 const getResolvedTimestamp = (item: EventLocationReviewItem): string =>
 	item.resolution?.lastResolvedAt ?? item.resolution?.lastUpdated ?? "";
 
+const formatAdminDateTime = (isoDate: string): string => {
+	const time = new Date(isoDate).getTime();
+	if (!Number.isFinite(time)) return "Unknown time";
+	return new Intl.DateTimeFormat("en-GB", {
+		dateStyle: "short",
+		timeStyle: "medium",
+		timeZone: "Europe/London",
+	}).format(time);
+};
+
 const matchesStatusFilter = (
 	item: EventLocationReviewItem,
 	filter: StatusFilter,
@@ -747,9 +757,7 @@ export const LocationReviewCard = ({
 											{getResolvedTimestamp(item) && (
 												<p>
 													Resolved{" "}
-													{new Date(
-														getResolvedTimestamp(item),
-													).toLocaleString()}
+													{formatAdminDateTime(getResolvedTimestamp(item))}
 												</p>
 											)}
 											<div className="flex flex-wrap gap-1.5 pt-1">

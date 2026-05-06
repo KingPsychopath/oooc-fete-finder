@@ -15,6 +15,10 @@ import type {
 	AdminActivityEvent,
 	AdminActivitySeverity,
 } from "@/features/admin/activity/types";
+import {
+	formatAdminDate,
+	formatAdminDateTime,
+} from "@/lib/ui/admin-date-format";
 import { cn } from "@/lib/utils";
 import {
 	ArrowDownAZ,
@@ -98,7 +102,7 @@ const formatRelativeTime = (isoDate: string): string => {
 	if (hours < 24) return `${hours}h ago`;
 	const days = Math.floor(hours / 24);
 	if (days < 7) return `${days}d ago`;
-	return new Date(isoDate).toLocaleDateString();
+	return formatAdminDate(isoDate);
 };
 
 const formatActionLabel = (action: string): string =>
@@ -335,7 +339,7 @@ export function AdminActivityTimelineCard({
 														</p>
 														<p className="mt-1 text-xs text-muted-foreground">
 															{formatRelativeTime(event.occurredAt)} •{" "}
-															{new Date(event.occurredAt).toLocaleString()} •{" "}
+															{formatAdminDateTime(event.occurredAt)} •{" "}
 															{event.actorLabel}
 														</p>
 													</div>

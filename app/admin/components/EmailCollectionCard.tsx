@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
 import {
 	CheckSquare,
 	Copy,
@@ -340,7 +341,7 @@ export const EmailCollectionCard = ({
 					<p className="mt-1">
 						Last updated:{" "}
 						{store?.lastUpdatedAt
-							? new Date(store.lastUpdatedAt).toLocaleString()
+							? formatAdminDateTime(store.lastUpdatedAt)
 							: "Never"}
 					</p>
 				</div>
@@ -527,8 +528,7 @@ export const EmailCollectionCard = ({
 											</span>
 										</span>
 										<span className="mt-2 block text-xs text-muted-foreground">
-											{new Date(user.timestamp).toLocaleString()} ·{" "}
-											{user.source}
+											{formatAdminDateTime(user.timestamp)} · {user.source}
 										</span>
 									</span>
 								</label>

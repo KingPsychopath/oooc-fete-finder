@@ -71,6 +71,16 @@ const getSubmissionRowsByStatus = (
 	}
 };
 
+const formatAdminDateTime = (isoDate: string): string => {
+	const time = new Date(isoDate).getTime();
+	if (!Number.isFinite(time)) return "Unknown time";
+	return new Intl.DateTimeFormat("en-GB", {
+		dateStyle: "short",
+		timeStyle: "medium",
+		timeZone: "Europe/London",
+	}).format(time);
+};
+
 export const EventSubmissionsCard = ({
 	initialPayload,
 	onSubmissionReviewed,
@@ -312,8 +322,7 @@ export const EventSubmissionsCard = ({
 					<div className="rounded-md border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
 						<p className="break-all">Store path: {settingsStatus.location}</p>
 						<p className="mt-1">
-							Last updated:{" "}
-							{new Date(settingsStatus.updatedAt).toLocaleString()} by{" "}
+							Last updated: {formatAdminDateTime(settingsStatus.updatedAt)} by{" "}
 							{settingsStatus.updatedBy}
 						</p>
 					</div>
@@ -588,9 +597,9 @@ export const EventSubmissionsCard = ({
 									</details>
 
 									<div className="mt-2 text-[11px] text-muted-foreground">
-										Submitted {new Date(submission.createdAt).toLocaleString()}
+										Submitted {formatAdminDateTime(submission.createdAt)}
 										{submission.reviewedAt
-											? ` • Reviewed ${new Date(submission.reviewedAt).toLocaleString()}`
+											? ` • Reviewed ${formatAdminDateTime(submission.reviewedAt)}`
 											: ""}
 										{submission.reviewReason
 											? ` • Reason: ${submission.reviewReason}`

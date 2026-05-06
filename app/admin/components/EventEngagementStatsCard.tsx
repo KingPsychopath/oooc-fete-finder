@@ -25,6 +25,7 @@ import {
 } from "@/features/events/filter-state-persistence";
 import { PRICE_RANGE_CONFIG } from "@/features/events/types";
 import { MUSIC_GENRES, type MusicGenre } from "@/features/events/types";
+import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
 import { CircleHelp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -731,8 +732,8 @@ export const EventEngagementStatsCard = ({
 					<div className="text-xs text-muted-foreground">
 						Window:{" "}
 						<Badge variant="outline" className="ml-1">
-							{new Date(payload.range.startAt).toLocaleString()} -{" "}
-							{new Date(payload.range.endAt).toLocaleString()}
+							{formatAdminDateTime(payload.range.startAt)} -{" "}
+							{formatAdminDateTime(payload.range.endAt)}
 						</Badge>
 					</div>
 				) : null}
@@ -1326,18 +1327,18 @@ export const EventEngagementStatsCard = ({
 									<th
 										className="px-3 py-2 text-left font-medium"
 										title="Total event detail opens."
-										>
-											Views
-										</th>
-										<th
-											className="px-3 py-2 text-left font-medium"
-											title="View opens after per-session dedupe (max 1 view per event every 10 minutes)."
-										>
-											Deduped Views
-										</th>
-										<th
-											className="px-3 py-2 text-left font-medium"
-											title="Total clicks on ticket/external partner links."
+									>
+										Views
+									</th>
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="View opens after per-session dedupe (max 1 view per event every 10 minutes)."
+									>
+										Deduped Views
+									</th>
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Total clicks on ticket/external partner links."
 									>
 										Outbound
 									</th>
@@ -1399,12 +1400,12 @@ export const EventEngagementStatsCard = ({
 							</thead>
 							<tbody>
 								{rows.length === 0 ? (
-										<tr>
-											<td
-												colSpan={14}
-												className="px-3 py-6 text-center text-muted-foreground"
-											>
-												No tracked engagement events in this window.
+									<tr>
+										<td
+											colSpan={14}
+											className="px-3 py-6 text-center text-muted-foreground"
+										>
+											No tracked engagement events in this window.
 										</td>
 									</tr>
 								) : (

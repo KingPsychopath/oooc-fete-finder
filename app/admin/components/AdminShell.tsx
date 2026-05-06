@@ -9,11 +9,12 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { formatAdminTime } from "@/lib/ui/admin-date-format";
 import { cn } from "@/lib/utils";
 import { Bell, Home, Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
 	ADMIN_ROUTES,
 	getAdminRouteByPath,
@@ -36,10 +37,7 @@ type AdminShellProps = {
 	};
 };
 
-export function AdminShell({
-	children,
-	notificationCounts,
-}: AdminShellProps) {
+export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -59,7 +57,8 @@ export function AdminShell({
 	const normalizedPath = stripAdminBasePath(pathname || "/admin");
 	const activeRoute = getAdminRouteByPath(normalizedPath);
 	const totalNotifications =
-		notificationCounts.pendingSubmissions + notificationCounts.pendingPlacements;
+		notificationCounts.pendingSubmissions +
+		notificationCounts.pendingPlacements;
 
 	const formatRelativeAge = (isoDate: string | null): string | null => {
 		if (!isoDate) return null;
@@ -294,7 +293,8 @@ export function AdminShell({
 									{totalNotifications}
 								</Badge>
 							)}
-							{(isSubmissionNewSinceLastVisit || isPlacementNewSinceLastVisit) && (
+							{(isSubmissionNewSinceLastVisit ||
+								isPlacementNewSinceLastVisit) && (
 								<span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-emerald-500" />
 							)}
 						</Button>
@@ -439,8 +439,7 @@ export function AdminShell({
 					</DialogHeader>
 					<div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
 						<span>
-							Last updated{" "}
-							{new Date(notificationCounts.lastUpdatedAt).toLocaleTimeString()}
+							Last updated {formatAdminTime(notificationCounts.lastUpdatedAt)}
 						</span>
 						<Button
 							type="button"
@@ -462,7 +461,9 @@ export function AdminShell({
 					<div className="space-y-2">
 						<button
 							type="button"
-							onClick={() => navigateToSection("/admin/content#event-submissions")}
+							onClick={() =>
+								navigateToSection("/admin/content#event-submissions")
+							}
 							className="block w-full rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
 						>
 							<p className="text-sm font-medium">Event Submissions</p>
@@ -472,9 +473,9 @@ export function AdminShell({
 									: "No pending submissions"}
 							</p>
 							<p className="mt-1 text-xs text-muted-foreground">
-								{oldestPendingSubmissionAge ?
-									`Oldest pending: ${oldestPendingSubmissionAge}`
-								:	"Oldest pending: none"}
+								{oldestPendingSubmissionAge
+									? `Oldest pending: ${oldestPendingSubmissionAge}`
+									: "Oldest pending: none"}
 							</p>
 							{isSubmissionNewSinceLastVisit && (
 								<Badge variant="secondary" className="mt-2 text-[10px]">
@@ -484,7 +485,9 @@ export function AdminShell({
 						</button>
 						<button
 							type="button"
-							onClick={() => navigateToSection("/admin/placements#paid-orders-inbox")}
+							onClick={() =>
+								navigateToSection("/admin/placements#paid-orders-inbox")
+							}
 							className="block w-full rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
 						>
 							<p className="text-sm font-medium">Paid Orders Queue</p>
@@ -494,9 +497,9 @@ export function AdminShell({
 									: "No pending paid orders"}
 							</p>
 							<p className="mt-1 text-xs text-muted-foreground">
-								{oldestPendingPlacementAge ?
-									`Oldest pending: ${oldestPendingPlacementAge}`
-								:	"Oldest pending: none"}
+								{oldestPendingPlacementAge
+									? `Oldest pending: ${oldestPendingPlacementAge}`
+									: "Oldest pending: none"}
 							</p>
 							{isPlacementNewSinceLastVisit && (
 								<Badge variant="secondary" className="mt-2 text-[10px]">

@@ -19,6 +19,7 @@ import {
 	updatePartnerActivationStatus,
 } from "@/features/partners/activation-actions";
 import type { PartnerActivationStatus } from "@/lib/platform/postgres/partner-activation-repository";
+import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type DashboardPayload = Awaited<
@@ -108,12 +109,7 @@ const getWindowEnd = (input: TestLinkInput): Date | null => {
 };
 
 const formatReportDateTime = (value: Date | string): string =>
-	new Date(value).toLocaleString(undefined, {
-		month: "short",
-		day: "numeric",
-		hour: "numeric",
-		minute: "2-digit",
-	});
+	formatAdminDateTime(value);
 
 const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
@@ -948,7 +944,7 @@ export const PartnerActivationQueueCard = ({
 												? `${(item.amountTotalCents / 100).toFixed(2)} ${item.currency?.toUpperCase() || ""}`
 												: "n/a"}
 										</p>
-										<p>Created: {new Date(item.createdAt).toLocaleString()}</p>
+										<p>Created: {formatAdminDateTime(item.createdAt)}</p>
 										{item.fulfilledEventKey ? (
 											<p>
 												Fulfilled:{" "}
@@ -970,14 +966,12 @@ export const PartnerActivationQueueCard = ({
 											</p>
 										) : null}
 										{item.activatedAt ? (
-											<p>
-												Activated: {new Date(item.activatedAt).toLocaleString()}
-											</p>
+											<p>Activated: {formatAdminDateTime(item.activatedAt)}</p>
 										) : null}
 										{item.partnerStatsRevokedAt ? (
 											<p>
 												Partner link revoked:{" "}
-												{new Date(item.partnerStatsRevokedAt).toLocaleString()}
+												{formatAdminDateTime(item.partnerStatsRevokedAt)}
 											</p>
 										) : null}
 									</div>

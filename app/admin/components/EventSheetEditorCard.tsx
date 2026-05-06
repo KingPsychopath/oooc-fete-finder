@@ -34,6 +34,8 @@ import {
 	type EditableSheetRow,
 	createBlankEditableSheetRow,
 	createCustomColumnKey,
+	isEditableSheetRowEmpty,
+	pruneEmptyEditableSheetRows,
 } from "@/features/data-management/csv/sheet-editor";
 import type { EventSheetRevisionRecord } from "@/features/data-management/event-sheet-revision-types";
 import {
@@ -54,7 +56,15 @@ import {
 	normalizeSupportedNationalities,
 	parseSupportedNationalities,
 } from "@/features/events/nationality-utils";
-import { Copy, History, RefreshCw } from "lucide-react";
+import {
+	ArrowDown,
+	ArrowUp,
+	Copy,
+	History,
+	Plus,
+	RefreshCw,
+	Trash2,
+} from "lucide-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -137,10 +147,23 @@ type DateSuggestionOption = {
 	label: string;
 	description: string;
 };
+type DateSuggestionGroup = {
+	label: string;
+	options: DateSuggestionOption[];
+};
+type DateInputPreview = {
+	tone: "success" | "warning";
+	message: string;
+};
+type DateSuggestionState = {
+	preview: DateInputPreview | null;
+	groups: DateSuggestionGroup[];
+};
 type SheetHealthIssue = {
 	rowIndex: number;
 	column: string;
 	message: string;
+	severity: "blocking" | "warning";
 };
 type FocusedCell = {
 	rowIndex: number;
@@ -157,12 +180,13 @@ const DATE_RANGE_HELPER_MESSAGE =
 const COLUMN_DELETE_CONFIRMATION =
 	"Delete this custom column? This will remove values for this column from all rows.";
 const HISTORY_LIMIT = 120;
-const ROW_NUMBER_COLUMN_WIDTH = 56;
+const ROW_NUMBER_COLUMN_WIDTH = 144;
 const DATA_COLUMN_WIDTH = 170;
 const MAX_FROZEN_COLUMNS = 4;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
 const DEFAULT_SORT_MODE: SheetSortMode = "smart-date";
 const CURATED_COLUMN_KEY = "curated";
+const TITLE_COLUMN_KEY = "title";
 const DATE_COLUMN_KEY = "date";
 const START_TIME_COLUMN_KEY = "startTime";
 const END_TIME_COLUMN_KEY = "endTime";
@@ -175,6 +199,30 @@ const SETTING_COLUMN_KEY = "setting";
 const COUNTRY_COLUMN_KEYS = new Set(["hostCountry", "audienceCountry"]);
 const TIME_COLUMN_KEYS = new Set([START_TIME_COLUMN_KEY, END_TIME_COLUMN_KEY]);
 const CURATED_PICK_VALUE = "🌟";
+const getRequiredSheetHealthIssues = (
+	rows: EditableSheetRow[],
+): SheetHealthIssue[] => {
+	const issues: SheetHealthIssue[] = [];
+	rows.forEach((row, index) => {
+		if (isEditableSheetRowEmpty(row)) return;
+		const rowNumber = index + 1;
+		for (const [columnKey, column] of [
+			[TITLE_COLUMN_KEY, "Title"],
+			[DATE_COLUMN_KEY, "Date"],
+		] as const) {
+			const value = String(row[columnKey] ?? "").trim();
+			if (!value) {
+				issues.push({
+					rowIndex: rowNumber,
+					column,
+					message: `${column} is required before publishing.`,
+					severity: "blocking",
+				});
+			}
+		}
+	});
+	return issues;
+};
 const SETTING_OPTIONS: SimpleOption[] = [
 	{
 		value: "Indoor",
@@ -388,7 +436,17 @@ const formatRevisionTime = (isoDate: string): string => {
 	if (minutes < 60) return `${minutes}m ago`;
 	const hours = Math.floor(minutes / 60);
 	if (hours < 24) return `${hours}h ago`;
-	return new Date(isoDate).toLocaleString();
+	return formatAdminDateTime(isoDate);
+};
+
+const formatAdminDateTime = (isoDate: string): string => {
+	const time = new Date(isoDate).getTime();
+	if (!Number.isFinite(time)) return "Unknown time";
+	return new Intl.DateTimeFormat("en-GB", {
+		dateStyle: "short",
+		timeStyle: "medium",
+		timeZone: "Europe/London",
+	}).format(time);
 };
 
 const formatRevisionStats = (revision: EventSheetRevisionRecord): string => {
@@ -629,6 +687,51 @@ const buildCommonFeteDates = (year: number): DateSuggestionOption[] =>
 			description: offset === 0 ? "Fete day" : "Fete week",
 		};
 	});
+
+const pickUsefulFeteYear = (
+	focusedRowIndex: number,
+	rows: EditableSheetRow[],
+	context: ReturnType<typeof createDateNormalizationContext>,
+): number => {
+	const adjacentYears = [rows[focusedRowIndex - 1], rows[focusedRowIndex + 1]]
+		.map((row) =>
+			row ? getNormalizedSheetDate(row[DATE_COLUMN_KEY] ?? "", context) : null,
+		)
+		.filter((date): date is string => Boolean(date))
+		.map((date) => Number.parseInt(date.slice(0, 4), 10))
+		.filter(Number.isInteger);
+	if (adjacentYears.length > 0) return adjacentYears[0];
+
+	const currentYear = new Date().getFullYear();
+	const sheetYearCounts = new Map<number, number>();
+	for (const row of rows) {
+		const normalized = getNormalizedSheetDate(
+			row[DATE_COLUMN_KEY] ?? "",
+			context,
+		);
+		if (!normalized) continue;
+		const year = Number.parseInt(normalized.slice(0, 4), 10);
+		if (!Number.isInteger(year)) continue;
+		sheetYearCounts.set(year, (sheetYearCounts.get(year) ?? 0) + 1);
+	}
+
+	const sortedSheetYears = Array.from(sheetYearCounts.entries()).sort(
+		([leftYear, leftCount], [rightYear, rightCount]) => {
+			const leftIsCurrentOrFuture = leftYear >= currentYear;
+			const rightIsCurrentOrFuture = rightYear >= currentYear;
+			if (leftIsCurrentOrFuture !== rightIsCurrentOrFuture) {
+				return leftIsCurrentOrFuture ? -1 : 1;
+			}
+			if (leftCount !== rightCount) return rightCount - leftCount;
+			return (
+				Math.abs(leftYear - currentYear) - Math.abs(rightYear - currentYear)
+			);
+		},
+	);
+	if (sortedSheetYears.length > 0) return sortedSheetYears[0][0];
+
+	return Math.max(context.inferredYear, currentYear);
+};
 
 const getRowDateTime = (
 	row: EditableSheetRow,
@@ -1112,22 +1215,26 @@ export const EventSheetEditorCard = ({
 			setErrorMessage("");
 
 			try {
-				const result = await saveEditorData(
-					columnsRef.current,
-					rowsRef.current,
-					{
-						revalidateHomepage: mode === "manual",
-						restoreRevisionId:
-							mode === "manual"
-								? (restoreReviewRevision?.id ?? undefined)
-								: undefined,
-					},
-				);
+				const rowsToSave = pruneEmptyEditableSheetRows(rowsRef.current);
+				const removedBlankRowCount = rowsRef.current.length - rowsToSave.length;
+				const result = await saveEditorData(columnsRef.current, rowsToSave, {
+					revalidateHomepage: mode === "manual",
+					restoreRevisionId:
+						mode === "manual"
+							? (restoreReviewRevision?.id ?? undefined)
+							: undefined,
+				});
 				if (!result.success) {
 					throw new Error(result.error || result.message);
 				}
 
 				if (versionToSave === editVersionRef.current) {
+					if (rowsToSave.length !== rowsRef.current.length) {
+						rowsRef.current = rowsToSave;
+						setRows(rowsToSave);
+						setQuery("");
+						setSortMode("sheet-order");
+					}
 					setHasUnsavedChanges(false);
 					clearStoredEditorDraft();
 					setRecoverableDraft(null);
@@ -1139,8 +1246,12 @@ export const EventSheetEditorCard = ({
 				}
 				setStatusMessage(
 					mode === "auto"
-						? "Autosaved to Postgres (homepage revalidation pending)"
-						: "Saved to Postgres and homepage revalidated",
+						? removedBlankRowCount === 0
+							? "Autosaved to Postgres (homepage revalidation pending)"
+							: "Removed blank rows and autosaved to Postgres"
+						: removedBlankRowCount === 0
+							? "Saved to Postgres and homepage revalidated"
+							: "Removed blank rows, saved to Postgres, and homepage revalidated",
 				);
 
 				if (onDataSaved && mode === "manual") {
@@ -1392,6 +1503,36 @@ export const EventSheetEditorCard = ({
 		}, 0);
 	};
 
+	const focusFirstEditableCell = (rowIndex: number) => {
+		window.setTimeout(() => {
+			const firstEditableColumn =
+				columnsRef.current.find(
+					(column) => !SYSTEM_MANAGED_COLUMN_KEYS.has(column.key),
+				) ?? columnsRef.current[0];
+			if (!firstEditableColumn) return;
+
+			inputRefs.current[cellRefKey(rowIndex, firstEditableColumn.key)]?.focus();
+		}, 0);
+	};
+
+	const handleInsertRowBelow = (rowIndex: number) => {
+		const nextRows = rowsRef.current
+			.map((row) => ({ ...row }))
+			.toSpliced(
+				rowIndex + 1,
+				0,
+				createBlankEditableSheetRow(columnsRef.current),
+			);
+		commitSheetMutation(
+			columnsRef.current.map((column) => ({ ...column })),
+			nextRows,
+			"New row inserted",
+		);
+		setSortMode("sheet-order");
+		setQuery("");
+		focusFirstEditableCell(rowIndex + 1);
+	};
+
 	const handleDeleteRow = (rowIndex: number) => {
 		if (!window.confirm(ROW_DELETE_CONFIRMATION)) {
 			return;
@@ -1425,17 +1566,31 @@ export const EventSheetEditorCard = ({
 		);
 		setSortMode("sheet-order");
 		setQuery("");
-		window.setTimeout(() => {
-			const firstEditableColumn =
-				columnsRef.current.find(
-					(column) => !SYSTEM_MANAGED_COLUMN_KEYS.has(column.key),
-				) ?? columnsRef.current[0];
-			if (!firstEditableColumn) return;
+		focusFirstEditableCell(rowIndex + 1);
+	};
 
-			inputRefs.current[
-				cellRefKey(rowIndex + 1, firstEditableColumn.key)
-			]?.focus();
-		}, 0);
+	const handleMoveRow = (rowIndex: number, direction: -1 | 1) => {
+		const targetIndex = rowIndex + direction;
+		if (targetIndex < 0 || targetIndex >= rowsRef.current.length) {
+			return;
+		}
+
+		const nextRows = rowsRef.current.map((row) => ({ ...row }));
+		const currentRow = nextRows[rowIndex];
+		const targetRow = nextRows[targetIndex];
+		if (!currentRow || !targetRow) {
+			return;
+		}
+
+		nextRows[rowIndex] = targetRow;
+		nextRows[targetIndex] = currentRow;
+		commitSheetMutation(
+			columnsRef.current.map((column) => ({ ...column })),
+			nextRows,
+			direction === -1 ? "Row moved up" : "Row moved down",
+		);
+		setSortMode("sheet-order");
+		focusFirstEditableCell(targetIndex);
 	};
 
 	const handleAddColumn = () => {
@@ -1559,6 +1714,16 @@ export const EventSheetEditorCard = ({
 	};
 
 	const handleManualSave = async () => {
+		const blockingIssues = getRequiredSheetHealthIssues(rowsRef.current);
+		if (blockingIssues.length > 0) {
+			setErrorMessage(
+				`Fix ${blockingIssues.length} required field ${blockingIssues.length === 1 ? "issue" : "issues"} before publishing. First issue: row ${blockingIssues[0]?.rowIndex} ${blockingIssues[0]?.column}.`,
+			);
+			setStatusMessage(
+				"Publish blocked until required sheet fields are filled.",
+			);
+			return;
+		}
 		await performSave("manual");
 	};
 
@@ -1576,6 +1741,16 @@ export const EventSheetEditorCard = ({
 
 	const handleReloadForDeployment = async () => {
 		if (hasUnsavedChanges) {
+			const blockingIssues = getRequiredSheetHealthIssues(rowsRef.current);
+			if (blockingIssues.length > 0) {
+				setErrorMessage(
+					`Fix ${blockingIssues.length} required field ${blockingIssues.length === 1 ? "issue" : "issues"} before publishing. First issue: row ${blockingIssues[0]?.rowIndex} ${blockingIssues[0]?.column}.`,
+				);
+				setStatusMessage(
+					"Save and reload blocked until required sheet fields are filled.",
+				);
+				return;
+			}
 			const saved = await performSave("manual");
 			if (!saved) {
 				setStatusMessage(
@@ -1800,31 +1975,53 @@ export const EventSheetEditorCard = ({
 		return AGE_OPTIONS;
 	}, [focusedAgeCell]);
 
-	const dateSuggestionsForFocusedCell = useMemo((): DateSuggestionOption[] => {
-		if (!focusedDateCell) return [];
+	const dateSuggestionState = useMemo((): DateSuggestionState => {
+		if (!focusedDateCell) return { preview: null, groups: [] };
 
 		const context = createDateNormalizationContext(
 			rows.map((row) => ({ date: row.date ?? "" })),
 		);
 		const seen = new Set<string>();
-		const suggestions: DateSuggestionOption[] = [];
+		const groups: DateSuggestionGroup[] = [];
 		const addSuggestion = (option: DateSuggestionOption) => {
 			if (seen.has(option.value)) return;
 			seen.add(option.value);
-			suggestions.push(option);
+			return option;
+		};
+		const addGroup = (label: string, options: DateSuggestionOption[]): void => {
+			const deduped = options
+				.map(addSuggestion)
+				.filter((option): option is DateSuggestionOption => Boolean(option));
+			if (deduped.length > 0) groups.push({ label, options: deduped });
 		};
 
-		const rowAbove = rows[focusedDateCell.rowIndex - 1];
-		const rowAboveDate = rowAbove
-			? getNormalizedSheetDate(rowAbove[DATE_COLUMN_KEY] ?? "", context)
+		const rawInput =
+			rows[focusedDateCell.rowIndex]?.[focusedDateCell.columnKey] ?? "";
+		const trimmedInput = rawInput.trim();
+		const normalizedInput = trimmedInput
+			? normalizeCsvDate(trimmedInput, context)
 			: null;
-		if (rowAboveDate) {
-			addSuggestion({
-				value: rowAboveDate,
-				label: formatDateSuggestionLabel(rowAboveDate),
-				description: "Use row above",
-			});
-		}
+		const preview: DateInputPreview | null = normalizedInput?.isoDate
+			? {
+					tone: "success",
+					message:
+						normalizedInput.isoDate === trimmedInput
+							? `Valid date: ${formatDateSuggestionLabel(normalizedInput.isoDate)}`
+							: `Will save as ${normalizedInput.isoDate}`,
+				}
+			: normalizedInput?.warning
+				? {
+						tone: "warning",
+						message: normalizedInput.warning.message,
+					}
+				: null;
+
+		const feteYear = pickUsefulFeteYear(
+			focusedDateCell.rowIndex,
+			rows,
+			context,
+		);
+		addGroup(`Fete week ${feteYear}`, buildCommonFeteDates(feteYear));
 
 		const dateStats = new Map<string, { count: number; lastIndex: number }>();
 		rows.forEach((row, rowIndex) => {
@@ -1841,26 +2038,50 @@ export const EventSheetEditorCard = ({
 			});
 		});
 
-		for (const [value, stats] of Array.from(dateStats.entries())
-			.sort(
-				([leftDate, left], [rightDate, right]) =>
-					right.count - left.count ||
-					right.lastIndex - left.lastIndex ||
-					leftDate.localeCompare(rightDate),
-			)
-			.slice(0, 6)) {
-			addSuggestion({
-				value,
-				label: formatDateSuggestionLabel(value),
-				description: `${stats.count} row${stats.count === 1 ? "" : "s"} in sheet`,
-			});
-		}
+		addGroup(
+			"Nearby rows",
+			[
+				{
+					row: rows[focusedDateCell.rowIndex - 1],
+					description: "Use row above",
+				},
+				{
+					row: rows[focusedDateCell.rowIndex + 1],
+					description: "Use row below",
+				},
+			].flatMap((adjacent) => {
+				const adjacentDate = adjacent.row
+					? getNormalizedSheetDate(adjacent.row[DATE_COLUMN_KEY] ?? "", context)
+					: null;
+				if (!adjacentDate) return [];
+				return [
+					{
+						value: adjacentDate,
+						label: formatDateSuggestionLabel(adjacentDate),
+						description: adjacent.description,
+					},
+				];
+			}),
+		);
 
-		for (const option of buildCommonFeteDates(context.inferredYear)) {
-			addSuggestion(option);
-		}
+		addGroup(
+			"Used in sheet",
+			Array.from(dateStats.entries())
+				.sort(
+					([leftDate, left], [rightDate, right]) =>
+						right.count - left.count ||
+						right.lastIndex - left.lastIndex ||
+						leftDate.localeCompare(rightDate),
+				)
+				.slice(0, 6)
+				.map(([value, stats]) => ({
+					value,
+					label: formatDateSuggestionLabel(value),
+					description: `${stats.count} row${stats.count === 1 ? "" : "s"} in sheet`,
+				})),
+		);
 
-		return suggestions.slice(0, 9);
+		return { preview, groups };
 	}, [focusedDateCell, rows]);
 
 	const toggleCuratedForCell = useCallback(
@@ -2004,6 +2225,7 @@ export const EventSheetEditorCard = ({
 	const visibleSheetRevisions = sheetRevisions.slice(0, 3);
 
 	const canShowMoreRows = sortedRowIndexes.length > visibleRowIndexes.length;
+	const canManuallyMoveRows = sortMode === "sheet-order" && !query.trim();
 	const availableGenres = useMemo(
 		() =>
 			(genreTaxonomy?.genres ?? [])
@@ -2107,6 +2329,8 @@ export const EventSheetEditorCard = ({
 
 		rows.forEach((row, index) => {
 			const rowNumber = index + 1;
+			if (isEditableSheetRowEmpty(row)) return;
+
 			const dateValue = String(row[DATE_COLUMN_KEY] ?? "").trim();
 			if (dateValue) {
 				const normalized = normalizeCsvDate(dateValue, context);
@@ -2115,6 +2339,7 @@ export const EventSheetEditorCard = ({
 						rowIndex: rowNumber,
 						column: "Date",
 						message: normalized.warning.message,
+						severity: "warning",
 					});
 				}
 			}
@@ -2130,6 +2355,7 @@ export const EventSheetEditorCard = ({
 						column:
 							columnKey === START_TIME_COLUMN_KEY ? "Start Time" : "End Time",
 						message: `Suspicious time value "${value}".`,
+						severity: "warning",
 					});
 				}
 			}
@@ -2145,6 +2371,7 @@ export const EventSheetEditorCard = ({
 						rowIndex: rowNumber,
 						column: "Primary URL",
 						message: `Invalid URL "${invalidUrl}".`,
+						severity: "warning",
 					});
 				}
 			}
@@ -2161,6 +2388,7 @@ export const EventSheetEditorCard = ({
 						rowIndex: rowNumber,
 						column,
 						message: `Unknown country token: ${parsed.unsupportedTokens.join(", ")}.`,
+						severity: "warning",
 					});
 				}
 			}
@@ -2171,12 +2399,16 @@ export const EventSheetEditorCard = ({
 					rowIndex: rowNumber,
 					column: "Setting",
 					message: 'Use "Indoor", "Outdoor", or both.',
+					severity: "warning",
 				});
 			}
 		});
 
-		return issues;
+		return [...getRequiredSheetHealthIssues(rows), ...issues];
 	}, [rows]);
+	const blockingSheetHealthIssues = sheetHealthIssues.filter(
+		(issue) => issue.severity === "blocking",
+	);
 
 	const focusCell = (
 		rowIndex: number,
@@ -2273,7 +2505,7 @@ export const EventSheetEditorCard = ({
 					<span className="text-xs text-muted-foreground">{statusMessage}</span>
 					{lastSavedAt && (
 						<span className="text-xs text-muted-foreground">
-							Last saved: {new Date(lastSavedAt).toLocaleString()}
+							Last saved: {formatAdminDateTime(lastSavedAt)}
 						</span>
 					)}
 				</div>
@@ -2317,7 +2549,7 @@ export const EventSheetEditorCard = ({
 								<p className="font-medium">Local sheet draft available.</p>
 								<p className="mt-1 text-xs text-emerald-900/85">
 									Saved in this browser{" "}
-									{new Date(recoverableDraft.savedAt).toLocaleString()}.
+									{formatAdminDateTime(recoverableDraft.savedAt)}.
 								</p>
 							</div>
 							<div className="flex flex-wrap gap-2">
@@ -2373,8 +2605,10 @@ export const EventSheetEditorCard = ({
 				{sheetHealthIssues.length > 0 && (
 					<details className="rounded-md border border-amber-300/70 bg-amber-50/75 px-3 py-2 text-xs text-amber-950">
 						<summary className="cursor-pointer font-medium">
-							Sheet health: {sheetHealthIssues.length} value
-							{sheetHealthIssues.length === 1 ? "" : "s"} worth reviewing
+							Sheet health:{" "}
+							{blockingSheetHealthIssues.length > 0
+								? `${blockingSheetHealthIssues.length} required fix${blockingSheetHealthIssues.length === 1 ? "" : "es"} before publishing`
+								: `${sheetHealthIssues.length} value${sheetHealthIssues.length === 1 ? "" : "s"} worth reviewing`}
 						</summary>
 						<div className="mt-2 space-y-1">
 							{sheetHealthIssues.slice(0, 5).map((issue) => (
@@ -2382,7 +2616,8 @@ export const EventSheetEditorCard = ({
 									key={`${issue.rowIndex}-${issue.column}-${issue.message}`}
 									className="leading-snug"
 								>
-									Row {issue.rowIndex} · {issue.column}: {issue.message}
+									{issue.severity === "blocking" ? "Required" : "Review"} · Row{" "}
+									{issue.rowIndex} · {issue.column}: {issue.message}
 								</div>
 							))}
 							{sheetHealthIssues.length > 5 && (
@@ -3269,7 +3504,6 @@ export const EventSheetEditorCard = ({
 									style={{ width: `${DATA_COLUMN_WIDTH}px` }}
 								/>
 							))}
-							<col style={{ width: "128px" }} />
 						</colgroup>
 						<thead className="sticky top-0 z-20 bg-background/95 backdrop-blur-[2px]">
 							<tr>
@@ -3277,7 +3511,7 @@ export const EventSheetEditorCard = ({
 									className="sticky z-30 border-b border-r bg-background px-2 py-2 text-left"
 									style={{ left: 0, width: `${ROW_NUMBER_COLUMN_WIDTH}px` }}
 								>
-									#
+									Row
 								</th>
 								{columns.map((column, columnIndex) => (
 									<th
@@ -3356,16 +3590,13 @@ export const EventSheetEditorCard = ({
 										</div>
 									</th>
 								))}
-								<th className="w-32 border-b bg-background px-2 py-2 text-left">
-									Action
-								</th>
 							</tr>
 						</thead>
 						<tbody>
 							{isLoading ? (
 								<tr>
 									<td
-										colSpan={columns.length + 2}
+										colSpan={columns.length + 1}
 										className="px-3 py-8 text-center text-muted-foreground"
 									>
 										Loading editor data...
@@ -3374,7 +3605,7 @@ export const EventSheetEditorCard = ({
 							) : visibleRowIndexes.length === 0 ? (
 								<tr>
 									<td
-										colSpan={columns.length + 2}
+										colSpan={columns.length + 1}
 										className="px-3 py-8 text-center text-muted-foreground"
 									>
 										No rows match your search.
@@ -3393,15 +3624,82 @@ export const EventSheetEditorCard = ({
 										genreTaxonomy,
 									);
 									return (
-										<tr key={`row-${rowIndex}`} className="align-top">
+										<tr key={`row-${rowIndex}`} className="group/row align-top">
 											<td
-												className="sticky z-10 border-r border-b bg-background px-2 py-1 font-mono text-[11px] text-muted-foreground"
+												className="sticky z-10 border-r border-b bg-background px-1.5 py-1 text-[11px] text-muted-foreground"
 												style={{
 													left: 0,
 													width: `${ROW_NUMBER_COLUMN_WIDTH}px`,
 												}}
 											>
-												{rowIndex + 1}
+												<div className="flex h-8 items-center gap-1">
+													<span className="min-w-7 text-center font-mono">
+														{rowIndex + 1}
+													</span>
+													<div className="flex items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
+														<Button
+															type="button"
+															size="sm"
+															variant="ghost"
+															onClick={() => handleInsertRowBelow(rowIndex)}
+															className="h-6 w-6 p-0"
+															aria-label={`Insert row below ${rowIndex + 1}`}
+															title="Insert row below"
+														>
+															<Plus className="h-3.5 w-3.5" />
+														</Button>
+														<Button
+															type="button"
+															size="sm"
+															variant="ghost"
+															onClick={() => handleDuplicateRow(rowIndex)}
+															className="h-6 w-6 p-0"
+															aria-label={`Duplicate row ${rowIndex + 1}`}
+															title="Duplicate row"
+														>
+															<Copy className="h-3.5 w-3.5" />
+														</Button>
+														{canManuallyMoveRows && (
+															<>
+																<Button
+																	type="button"
+																	size="sm"
+																	variant="ghost"
+																	onClick={() => handleMoveRow(rowIndex, -1)}
+																	disabled={rowIndex === 0}
+																	className="h-6 w-6 p-0"
+																	aria-label={`Move row ${rowIndex + 1} up`}
+																	title="Move row up"
+																>
+																	<ArrowUp className="h-3.5 w-3.5" />
+																</Button>
+																<Button
+																	type="button"
+																	size="sm"
+																	variant="ghost"
+																	onClick={() => handleMoveRow(rowIndex, 1)}
+																	disabled={rowIndex >= rows.length - 1}
+																	className="h-6 w-6 p-0"
+																	aria-label={`Move row ${rowIndex + 1} down`}
+																	title="Move row down"
+																>
+																	<ArrowDown className="h-3.5 w-3.5" />
+																</Button>
+															</>
+														)}
+														<Button
+															type="button"
+															size="sm"
+															variant="ghost"
+															onClick={() => handleDeleteRow(rowIndex)}
+															className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+															aria-label={`Delete row ${rowIndex + 1}`}
+															title="Delete row"
+														>
+															<Trash2 className="h-3.5 w-3.5" />
+														</Button>
+													</div>
+												</div>
 											</td>
 											{columns.map((column, columnIndex) => (
 												<td
@@ -3561,44 +3859,63 @@ export const EventSheetEditorCard = ({
 																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 																			Date
 																		</div>
+																		{dateSuggestionState.preview && (
+																			<div
+																				className={`border-b px-2 py-1.5 text-[11px] ${
+																					dateSuggestionState.preview.tone ===
+																					"success"
+																						? "text-foreground/75"
+																						: "text-amber-700"
+																				}`}
+																			>
+																				{dateSuggestionState.preview.message}
+																			</div>
+																		)}
 																		<div className="max-h-60 overflow-y-auto p-1">
-																			{dateSuggestionsForFocusedCell.map(
-																				(option) => {
-																					const isSelected =
-																						(row[column.key] ?? "") ===
-																						option.value;
-																					return (
-																						<button
-																							key={`${option.description}-${option.value}`}
-																							type="button"
-																							onMouseDown={(event) => {
-																								event.preventDefault();
-																								selectDateForCell(
-																									rowIndex,
-																									column.key,
-																									option.value,
-																								);
-																							}}
-																							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
-																								isSelected
-																									? "bg-muted text-foreground"
-																									: "hover:bg-accent/70"
-																							}`}
-																						>
-																							<span className="min-w-0 flex-1 truncate font-medium">
-																								{option.label}
-																							</span>
-																							<span className="font-mono text-[10px] text-muted-foreground">
-																								{option.value}
-																							</span>
-																							<span className="max-w-24 truncate text-[10px] text-muted-foreground">
-																								{option.description}
-																							</span>
-																						</button>
-																					);
-																				},
+																			{dateSuggestionState.groups.map(
+																				(group) => (
+																					<div key={group.label}>
+																						<div className="px-2 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+																							{group.label}
+																						</div>
+																						{group.options.map((option) => {
+																							const isSelected =
+																								(row[column.key] ?? "") ===
+																								option.value;
+																							return (
+																								<button
+																									key={`${group.label}-${option.description}-${option.value}`}
+																									type="button"
+																									onMouseDown={(event) => {
+																										event.preventDefault();
+																										selectDateForCell(
+																											rowIndex,
+																											column.key,
+																											option.value,
+																										);
+																									}}
+																									className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																										isSelected
+																											? "bg-muted text-foreground"
+																											: "hover:bg-accent/70"
+																									}`}
+																								>
+																									<span className="min-w-0 flex-1 truncate font-medium">
+																										{option.label}
+																									</span>
+																									<span className="font-mono text-[10px] text-muted-foreground">
+																										{option.value}
+																									</span>
+																									<span className="max-w-24 truncate text-[10px] text-muted-foreground">
+																										{option.description}
+																									</span>
+																								</button>
+																							);
+																						})}
+																					</div>
+																				),
 																			)}
-																			{dateSuggestionsForFocusedCell.length ===
+																			{dateSuggestionState.groups.length ===
 																				0 && (
 																				<div className="px-2 py-2 text-xs text-muted-foreground">
 																					No reusable dates yet.
@@ -4745,29 +5062,6 @@ export const EventSheetEditorCard = ({
 													)}
 												</td>
 											))}
-											<td className="border-b px-2 py-1">
-												<div className="flex items-center gap-1">
-													<Button
-														type="button"
-														size="sm"
-														variant="ghost"
-														onClick={() => handleDuplicateRow(rowIndex)}
-														className="h-8 gap-1.5"
-													>
-														<Copy className="h-3.5 w-3.5" />
-														<span>Duplicate</span>
-													</Button>
-													<Button
-														type="button"
-														size="sm"
-														variant="ghost"
-														onClick={() => handleDeleteRow(rowIndex)}
-														className="h-8"
-													>
-														Delete
-													</Button>
-												</div>
-											</td>
 										</tr>
 									);
 								})

@@ -20,6 +20,10 @@ import {
 	saveLocalEventStoreCsv,
 } from "@/features/data-management/actions";
 import {
+	formatAdminDateTime,
+	formatAdminTime,
+} from "@/lib/ui/admin-date-format";
+import {
 	type ChangeEvent,
 	useCallback,
 	useEffect,
@@ -283,7 +287,7 @@ export const LocalEventStoreCard = ({
 		}
 
 		const confirmed = window.confirm(
-			`Restore latest backup from ${new Date(latestBackup.createdAt).toLocaleString()}? This will overwrite current store data, featured schedule data, and collected emails when the snapshot includes them.`,
+			`Restore latest backup from ${formatAdminDateTime(latestBackup.createdAt)}? This will overwrite current store data, featured schedule data, and collected emails when the snapshot includes them.`,
 		);
 		if (!confirmed) return;
 
@@ -311,7 +315,7 @@ export const LocalEventStoreCard = ({
 		}
 
 		const confirmed = window.confirm(
-			`Restore snapshot from ${new Date(selectedBackup.createdAt).toLocaleString()} (${selectedBackup.trigger}, ${selectedBackup.rowCount} rows, ${selectedBackup.userCollectionCount ?? "legacy"} emails)? This overwrites current store, featured schedule data, and collected emails when the snapshot includes them.`,
+			`Restore snapshot from ${formatAdminDateTime(selectedBackup.createdAt)} (${selectedBackup.trigger}, ${selectedBackup.rowCount} rows, ${selectedBackup.userCollectionCount ?? "legacy"} emails)? This overwrites current store, featured schedule data, and collected emails when the snapshot includes them.`,
 		);
 		if (!confirmed) return;
 
@@ -389,7 +393,7 @@ export const LocalEventStoreCard = ({
 				return nextHistory;
 			});
 			setRows(nextRows);
-			setSampleNote(`Sample shuffled at ${new Date().toLocaleTimeString()}`);
+			setSampleNote(`Sample shuffled at ${formatAdminTime(new Date())}`);
 		});
 	};
 
@@ -455,7 +459,7 @@ export const LocalEventStoreCard = ({
 						</p>
 						<p className="mt-1 text-sm leading-snug">
 							{status?.updatedAt
-								? new Date(status.updatedAt).toLocaleString()
+								? formatAdminDateTime(status.updatedAt)
 								: "Never"}
 						</p>
 					</div>
@@ -473,7 +477,7 @@ export const LocalEventStoreCard = ({
 						</p>
 						<p className="mt-1 text-sm leading-snug">
 							{latestBackup?.createdAt
-								? new Date(latestBackup.createdAt).toLocaleString()
+								? formatAdminDateTime(latestBackup.createdAt)
 								: "Never"}
 						</p>
 					</div>
@@ -594,8 +598,8 @@ export const LocalEventStoreCard = ({
 								>
 									{recentBackups.map((backup) => (
 										<option key={backup.id} value={backup.id}>
-											{new Date(backup.createdAt).toLocaleString()} |{" "}
-											{backup.trigger} | {backup.rowCount} rows |{" "}
+											{formatAdminDateTime(backup.createdAt)} | {backup.trigger}{" "}
+											| {backup.rowCount} rows |{" "}
 											{backup.userCollectionCount ?? "legacy"} emails
 										</option>
 									))}

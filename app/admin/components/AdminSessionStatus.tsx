@@ -14,6 +14,7 @@ import {
 	revokeAdminTokenSessionByJti,
 	revokeAllAdminTokenSessionsAction,
 } from "@/features/auth/actions";
+import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
 import { Clock3, LogOut, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -36,12 +37,8 @@ type TokenSession = {
 };
 
 type AdminSessionStatusProps = {
-	initialSessionStatus?: Awaited<
-		ReturnType<typeof getAdminSessionStatus>
-	>;
-	initialTokenSessions?: Awaited<
-		ReturnType<typeof getAdminTokenSessions>
-	>;
+	initialSessionStatus?: Awaited<ReturnType<typeof getAdminSessionStatus>>;
+	initialTokenSessions?: Awaited<ReturnType<typeof getAdminTokenSessions>>;
 	onLogout: () => void | Promise<void>;
 };
 
@@ -117,7 +114,7 @@ export const AdminSessionStatus = ({
 		sessionInfoFromStatus(initialSessionStatus),
 	);
 	const [sessions, setSessions] = useState<TokenSession[]>(() =>
-		initialTokenSessions?.success ? initialTokenSessions.sessions ?? [] : [],
+		initialTokenSessions?.success ? (initialTokenSessions.sessions ?? []) : [],
 	);
 	const [currentTokenVersion, setCurrentTokenVersion] = useState<number>(
 		() => initialTokenSessions?.currentTokenVersion ?? 1,
@@ -205,7 +202,11 @@ export const AdminSessionStatus = ({
 	};
 
 	const handleRevokeAll = async () => {
-		if (!window.confirm("Revoke all admin sessions? This signs out all active admins.")) {
+		if (
+			!window.confirm(
+				"Revoke all admin sessions? This signs out all active admins.",
+			)
+		) {
 			return;
 		}
 
@@ -233,7 +234,9 @@ export const AdminSessionStatus = ({
 	const status = getSessionBadge(sessionInfo.expiresAt);
 
 	const counts = useMemo(() => {
-		const active = sessions.filter((session) => session.status === "active").length;
+		const active = sessions.filter(
+			(session) => session.status === "active",
+		).length;
 		const inactive = sessions.length - active;
 		return { active, inactive, total: sessions.length };
 	}, [sessions]);
@@ -252,7 +255,8 @@ export const AdminSessionStatus = ({
 							Admin Session & Tokens
 						</CardTitle>
 						<CardDescription>
-							JWT cookie-auth with server-side session registry and revoke controls.
+							JWT cookie-auth with server-side session registry and revoke
+							controls.
 						</CardDescription>
 					</div>
 					<Badge variant={status.variant}>{status.label}</Badge>
@@ -294,8 +298,11 @@ export const AdminSessionStatus = ({
 
 				<div className="rounded-md border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
 					<Clock3 className="mr-1 inline h-3.5 w-3.5" />
-					Current session: {sessionInfo.jti ? shortJti(sessionInfo.jti) : "Unknown"}
-					{sessionInfo.expiresAt ? ` • Expires ${new Date(sessionInfo.expiresAt).toLocaleString()}` : ""}
+					Current session:{" "}
+					{sessionInfo.jti ? shortJti(sessionInfo.jti) : "Unknown"}
+					{sessionInfo.expiresAt
+						? ` • Expires ${formatAdminDateTime(sessionInfo.expiresAt)}`
+						: ""}
 				</div>
 
 				<div className="flex flex-wrap gap-2">
@@ -323,11 +330,14 @@ export const AdminSessionStatus = ({
 						Token Sessions
 					</p>
 					<p className="mt-1 text-xs text-muted-foreground">
-						Expandable JWT session records (jti, expiry, ip, user-agent). Expired records are kept for 7 days then removed by a daily cron.
+						Expandable JWT session records (jti, expiry, ip, user-agent).
+						Expired records are kept for 7 days then removed by a daily cron.
 					</p>
 
 					{(() => {
-						const expiredCount = sessions.filter((s) => s.status === "expired").length;
+						const expiredCount = sessions.filter(
+							(s) => s.status === "expired",
+						).length;
 						const visibleSessions = showExpired
 							? sessions
 							: sessions.filter((s) => s.status !== "expired");
@@ -357,51 +367,103 @@ export const AdminSessionStatus = ({
 										</p>
 									) : (
 										visibleSessions.map((session) => {
-								const expiresIn = session.exp - Math.floor(Date.now() / 1000);
-								const issuedAgo = Math.max(0, Math.floor(Date.now() / 1000) - session.iat);
-								const statusDef = TOKEN_SESSION_STATUS[session.status];
+											const expiresIn =
+												session.exp - Math.floor(Date.now() / 1000);
+											const issuedAgo = Math.max(
+												0,
+												Math.floor(Date.now() / 1000) - session.iat,
+											);
+											const statusDef = TOKEN_SESSION_STATUS[session.status];
 
-								return (
-									<details key={session.jti} className="rounded-md border bg-background/80 p-3">
-										<summary className="cursor-pointer list-none">
-											<div className="flex items-center justify-between gap-3">
-												<div className="min-w-0">
-													<p className="truncate text-sm font-medium">
-														<span className="inline-flex items-center gap-2">
-															<span className={`h-1.5 w-1.5 rounded-full ${statusDef.dotClass}`} />
-															<span>{shortJti(session.jti)} • {statusDef.label}</span>
-														</span>
-													</p>
-													<p className="truncate text-xs text-muted-foreground">
-														issued {formatRemaining(issuedAgo)} ago • expires in {formatRemaining(expiresIn)}
-													</p>
-												</div>
-												<span className="shrink-0 text-xs text-muted-foreground">details</span>
-											</div>
-										</summary>
-
-										<div className="mt-3 space-y-2 border-t pt-3 text-xs text-muted-foreground">
-											<p>jti: <span className="text-foreground">{session.jti}</span></p>
-											<p>token version: <span className="text-foreground">{session.tv}</span></p>
-											<p>issued at: <span className="text-foreground">{new Date(session.iat * 1000).toLocaleString()}</span></p>
-											<p>expires at: <span className="text-foreground">{new Date(session.exp * 1000).toLocaleString()}</span></p>
-											<p>ip: <span className="text-foreground">{session.ip || "unknown"}</span></p>
-											<p className="break-words">user-agent: <span className="text-foreground">{session.ua || "unknown"}</span></p>
-											<div className="flex justify-end">
-												<Button
-													type="button"
-													size="sm"
-													variant="outline"
-													disabled={session.status !== "active" || revokingJti === session.jti}
-													onClick={() => void handleRevokeSingle(session.jti)}
+											return (
+												<details
+													key={session.jti}
+													className="rounded-md border bg-background/80 p-3"
 												>
-													{revokingJti === session.jti ? "Revoking..." : "Revoke"}
-												</Button>
-											</div>
-										</div>
-									</details>
-								);
-							})
+													<summary className="cursor-pointer list-none">
+														<div className="flex items-center justify-between gap-3">
+															<div className="min-w-0">
+																<p className="truncate text-sm font-medium">
+																	<span className="inline-flex items-center gap-2">
+																		<span
+																			className={`h-1.5 w-1.5 rounded-full ${statusDef.dotClass}`}
+																		/>
+																		<span>
+																			{shortJti(session.jti)} •{" "}
+																			{statusDef.label}
+																		</span>
+																	</span>
+																</p>
+																<p className="truncate text-xs text-muted-foreground">
+																	issued {formatRemaining(issuedAgo)} ago •
+																	expires in {formatRemaining(expiresIn)}
+																</p>
+															</div>
+															<span className="shrink-0 text-xs text-muted-foreground">
+																details
+															</span>
+														</div>
+													</summary>
+
+													<div className="mt-3 space-y-2 border-t pt-3 text-xs text-muted-foreground">
+														<p>
+															jti:{" "}
+															<span className="text-foreground">
+																{session.jti}
+															</span>
+														</p>
+														<p>
+															token version:{" "}
+															<span className="text-foreground">
+																{session.tv}
+															</span>
+														</p>
+														<p>
+															issued at:{" "}
+															<span className="text-foreground">
+																{formatAdminDateTime(session.iat * 1000)}
+															</span>
+														</p>
+														<p>
+															expires at:{" "}
+															<span className="text-foreground">
+																{formatAdminDateTime(session.exp * 1000)}
+															</span>
+														</p>
+														<p>
+															ip:{" "}
+															<span className="text-foreground">
+																{session.ip || "unknown"}
+															</span>
+														</p>
+														<p className="break-words">
+															user-agent:{" "}
+															<span className="text-foreground">
+																{session.ua || "unknown"}
+															</span>
+														</p>
+														<div className="flex justify-end">
+															<Button
+																type="button"
+																size="sm"
+																variant="outline"
+																disabled={
+																	session.status !== "active" ||
+																	revokingJti === session.jti
+																}
+																onClick={() =>
+																	void handleRevokeSingle(session.jti)
+																}
+															>
+																{revokingJti === session.jti
+																	? "Revoking..."
+																	: "Revoke"}
+															</Button>
+														</div>
+													</div>
+												</details>
+											);
+										})
 									)}
 								</div>
 							</>

@@ -7,6 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
 import type { RuntimeDataStatus } from "../types";
 
 type RuntimeDataStatusCardProps = {
@@ -133,7 +134,7 @@ export const RuntimeDataStatusCard = ({
 						</p>
 						<p className="mt-1 text-sm font-medium">
 							{runtimeDataStatus.lastFetchTime
-								? new Date(runtimeDataStatus.lastFetchTime).toLocaleString()
+								? formatAdminDateTime(runtimeDataStatus.lastFetchTime)
 								: "Never"}
 						</p>
 						<p className="mt-1 text-xs text-muted-foreground">

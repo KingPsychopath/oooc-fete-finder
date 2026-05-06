@@ -10,6 +10,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { getLiveSiteEventsSnapshot } from "@/features/data-management/actions";
+import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type SnapshotState = Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
@@ -94,7 +95,7 @@ export const LiveEventsSnapshotCard = ({
 					<span>
 						Last update:{" "}
 						{snapshot?.lastUpdate
-							? new Date(snapshot.lastUpdate).toLocaleString()
+							? formatAdminDateTime(snapshot.lastUpdate)
 							: "Unknown"}
 					</span>
 					<span>

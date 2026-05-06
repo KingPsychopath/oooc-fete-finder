@@ -52,6 +52,7 @@ const CORE_COLUMN_LABELS: Record<(typeof CSV_EVENT_COLUMNS)[number], string> = {
 };
 
 const REQUIRED_CORE_COLUMNS = new Set<string>(["title", "date"]);
+const REQUIRED_CORE_COLUMN_KEYS = ["title", "date"] as const;
 const LEGACY_FEATURED_COLUMN_KEY = "featured";
 const CORE_COLUMN_SET = new Set<string>(CSV_EVENT_COLUMNS);
 const COUNTRY_COLUMN_KEYS = new Set<string>(["hostCountry", "audienceCountry"]);
@@ -73,6 +74,16 @@ const resolveCoreKeyFromHeader = (header: string): string | null => {
 const buildBlankRow = (columns: EditableSheetColumn[]): EditableSheetRow => {
 	return Object.fromEntries(columns.map((column) => [column.key, ""]));
 };
+
+export const isEditableSheetRowEmpty = (row: EditableSheetRow): boolean =>
+	Object.values(row).every((value) => value.trim().length === 0);
+
+export const pruneEmptyEditableSheetRows = (
+	rows: EditableSheetRow[],
+): EditableSheetRow[] =>
+	rows
+		.map((row) => ({ ...row }))
+		.filter((row) => !isEditableSheetRowEmpty(row));
 
 export const normalizeEditableSheetRowValues = (
 	row: EditableSheetRow,
@@ -212,7 +223,7 @@ export const ensureCoreColumns = (
 } => {
 	const stripped = stripLegacyFeaturedColumn(columns, rows);
 	const nextColumns = [...stripped.columns];
-	const nextRows = stripped.rows.map((row) => ({ ...row }));
+	const nextRows = pruneEmptyEditableSheetRows(stripped.rows);
 	const existingKeys = new Set(nextColumns.map((column) => column.key));
 
 	for (const coreKey of CSV_EVENT_COLUMNS) {
@@ -272,6 +283,23 @@ export const validateEditableSheet = (
 		return {
 			valid: false,
 			error: "At least one non-empty row is required",
+			...normalized,
+		};
+	}
+
+	const incompleteRowIndex = normalized.rows.findIndex((row) =>
+		REQUIRED_CORE_COLUMN_KEYS.some(
+			(requiredKey) => !String(row[requiredKey] ?? "").trim(),
+		),
+	);
+	if (incompleteRowIndex >= 0) {
+		const row = normalized.rows[incompleteRowIndex];
+		const missingColumns = REQUIRED_CORE_COLUMN_KEYS.filter(
+			(requiredKey) => !String(row[requiredKey] ?? "").trim(),
+		).map((requiredKey) => CORE_COLUMN_LABELS[requiredKey]);
+		return {
+			valid: false,
+			error: `Row ${incompleteRowIndex + 1} is missing required ${missingColumns.join(" and ")}.`,
 			...normalized,
 		};
 	}
@@ -354,7 +382,7 @@ export const editableSheetToCsv = (
 	const withoutLegacyFeatured = stripLegacyFeaturedColumn(columns, rows);
 	const normalized = ensureCoreColumns(
 		withoutLegacyFeatured.columns,
-		withoutLegacyFeatured.rows,
+		pruneEmptyEditableSheetRows(withoutLegacyFeatured.rows),
 	);
 	const csvColumns = normalized.columns;
 	const headerLine = csvColumns

@@ -42,6 +42,16 @@ const parseMessageInput = (raw: string): string[] => {
 		.filter((message) => message.length > 0);
 };
 
+const formatAdminDateTime = (isoDate: string): string => {
+	const time = new Date(isoDate).getTime();
+	if (!Number.isFinite(time)) return "Unknown time";
+	return new Intl.DateTimeFormat("en-GB", {
+		dateStyle: "short",
+		timeStyle: "medium",
+		timeZone: "Europe/London",
+	}).format(time);
+};
+
 export const SlidingBannerSettingsCard = ({
 	initialSettings,
 }: SlidingBannerSettingsCardProps) => {
@@ -285,7 +295,7 @@ export const SlidingBannerSettingsCard = ({
 						</p>
 						<p className="mt-1 text-sm font-medium">
 							{storeMeta?.updatedAt
-								? new Date(storeMeta.updatedAt).toLocaleString()
+								? formatAdminDateTime(storeMeta.updatedAt)
 								: "Never"}
 						</p>
 					</div>
