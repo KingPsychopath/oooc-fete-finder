@@ -30,6 +30,18 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const toiletFinderIosUrl =
+	process.env.NEXT_PUBLIC_TOILET_FINDER_IOS_URL?.trim() ||
+	"https://apps.apple.com/app/id311896604";
+const toiletFinderAndroidUrl =
+	process.env.NEXT_PUBLIC_TOILET_FINDER_ANDROID_URL?.trim() ||
+	"https://play.google.com/store/apps/details?id=com.bto.toilet&hl=en_GB";
+const foodGuideUrl =
+	process.env.NEXT_PUBLIC_FOOD_GUIDE_URL?.trim() ||
+	"https://maps.app.goo.gl/YZdYYpsh2ViR2tQi8?g_st=i";
+const ooocFaqUrl =
+	process.env.NEXT_PUBLIC_OOOC_FAQ_URL?.trim() ||
+	"https://outofofficecollective.co.uk/faqs";
 const SCROLL_HIDE_THRESHOLD = 96;
 const PIN_STORAGE_KEY = "oooc_mobile_nav_pinned";
 const MOBILE_NAV_VISIBLE_OFFSET = "5.75rem";
@@ -117,15 +129,15 @@ function useMobileNavVisibility(isPinnedOpen: boolean) {
 
 function getToiletFinderUrl() {
 	if (typeof navigator === "undefined") {
-		return "https://apps.apple.com/app/id311896604";
+		return toiletFinderIosUrl;
 	}
 
 	const userAgent = navigator.userAgent.toLowerCase();
 	if (/android/.test(userAgent)) {
-		return "https://play.google.com/store/apps/details?id=com.bto.toilet&hl=en_GB";
+		return toiletFinderAndroidUrl;
 	}
 
-	return "https://apps.apple.com/app/id311896604";
+	return toiletFinderIosUrl;
 }
 
 function readPinnedPreference(): boolean {
@@ -157,9 +169,7 @@ export function MobileBottomNav() {
 	const [isPinned, setIsPinned] = useState(false);
 	const [isMoreOpen, setIsMoreOpen] = useState(false);
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
-	const [toiletFinderUrl, setToiletFinderUrl] = useState(
-		"https://apps.apple.com/app/id311896604",
-	);
+	const [toiletFinderUrl, setToiletFinderUrl] = useState(toiletFinderIosUrl);
 	const activeSectionLockUntilRef = useRef(0);
 	const pendingHomeSectionScrollRef = useRef<string | null>(null);
 	const previousPathnameRef = useRef(pathname);
@@ -527,7 +537,7 @@ export function MobileBottomNav() {
 										<span>Playlist</span>
 									</button>
 									<Link
-										href="https://maps.app.goo.gl/YZdYYpsh2ViR2tQi8?g_st=i"
+										href={foodGuideUrl}
 										target="_blank"
 										rel="noopener noreferrer"
 										className="grid min-h-12 grid-cols-[1fr_auto] items-start gap-2 rounded-xl px-3 py-2 text-sm text-foreground/85 hover:bg-accent hover:text-foreground"
@@ -563,7 +573,7 @@ export function MobileBottomNav() {
 										<ExternalLink className="mt-0.5 h-3 w-3 opacity-55" />
 									</Link>
 									<Link
-										href="https://outofofficecollective.co.uk/faqs"
+										href={ooocFaqUrl}
 										target="_blank"
 										rel="noopener noreferrer"
 										className="grid min-h-12 grid-cols-[1fr_auto] items-start gap-2 rounded-xl px-3 py-2 text-sm text-foreground/85 hover:bg-accent hover:text-foreground"

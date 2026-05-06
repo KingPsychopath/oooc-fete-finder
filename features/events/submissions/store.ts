@@ -35,9 +35,9 @@ const eventSubmissionInputSchema = z.object({
 			}
 			return normalized;
 		}),
-	endTime: z.string().trim().max(40).optional().default(""),
-	genre: z.string().trim().max(120).optional().default(""),
-	price: z.string().trim().max(80).optional().default(""),
+	endTime: z.string().trim().min(1).max(40),
+	genre: z.string().trim().min(1).max(240),
+	price: z.string().trim().min(1).max(80),
 	age: z.string().trim().max(80).optional().default(""),
 	indoorOutdoor: z.string().trim().max(80).optional().default(""),
 	notes: z.string().trim().max(3000).optional().default(""),

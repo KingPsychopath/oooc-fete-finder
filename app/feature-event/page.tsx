@@ -69,6 +69,7 @@ const packages: Package[] = [
 			"Above-the-fold Spotlight placement",
 			"Pinned to top of relevant search results",
 			"Featured map treatment",
+			"WhatsApp community announcement included",
 		],
 		badge: "Only 3 Spotlight slots visible at once",
 		tier: "spotlight",
@@ -82,6 +83,7 @@ const packages: Package[] = [
 		includes: [
 			"All Spotlight Standard benefits",
 			"Priority activation window (June 15-20, 2026)",
+			"WhatsApp community announcement included",
 			"Ideal for final-week urgency",
 		],
 		badge: "Reserve now for peak week",
@@ -106,7 +108,8 @@ const addOns: AddOn[] = [
 	{
 		name: "WhatsApp Announcement Add-on",
 		priceLabel: "+ EUR 50",
-		description: "Admin channel mention to high-intent community members.",
+		description:
+			"Included with Spotlight packages, or add it to Promoted Listing.",
 		reachHint: "Typically reaches 2,000+ community members.",
 		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_ADDON_WHATSAPP,
 	},

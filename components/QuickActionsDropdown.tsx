@@ -29,6 +29,16 @@ interface QuickActionsDropdownProps {
 	menuClassName?: string;
 }
 
+const toiletFinderIosUrl =
+	process.env.NEXT_PUBLIC_TOILET_FINDER_IOS_URL?.trim() ||
+	"https://apps.apple.com/app/id311896604";
+const toiletFinderAndroidUrl =
+	process.env.NEXT_PUBLIC_TOILET_FINDER_ANDROID_URL?.trim() ||
+	"https://play.google.com/store/apps/details?id=com.bto.toilet&hl=en_GB";
+const foodGuideUrl =
+	process.env.NEXT_PUBLIC_FOOD_GUIDE_URL?.trim() ||
+	"https://maps.app.goo.gl/YZdYYpsh2ViR2tQi8?g_st=i";
+
 const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 	onMusicSelect,
 	triggerClassName,
@@ -64,18 +74,18 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 	const getToiletFinderData = () => {
 		if (isIOS) {
 			return {
-				url: "https://apps.apple.com/app/id311896604",
+				url: toiletFinderIosUrl,
 				description: "Download from App Store",
 			};
 		} else if (isAndroid) {
 			return {
-				url: "https://play.google.com/store/apps/details?id=com.bto.toilet&hl=en_GB",
+				url: toiletFinderAndroidUrl,
 				description: "Download from Play Store",
 			};
 		} else {
 			// Default to iOS link for desktop/other devices
 			return {
-				url: "https://apps.apple.com/app/id311896604",
+				url: toiletFinderIosUrl,
 				description: "150,000+ restrooms worldwide",
 			};
 		}
@@ -146,7 +156,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 
 						{/* Food Guide Option */}
 						<Link
-							href="https://maps.app.goo.gl/YZdYYpsh2ViR2tQi8?g_st=i"
+							href={foodGuideUrl}
 							target="_blank"
 							rel="noopener noreferrer"
 							onClick={() => setIsOpen(false)}

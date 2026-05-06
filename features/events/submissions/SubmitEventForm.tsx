@@ -3,8 +3,15 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { MUSIC_GENRES } from "@/features/events/types";
 import { normalizeProofLink } from "@/features/events/submissions/proof-link";
+import { Check, ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -64,10 +71,7 @@ const hasDraftContent = (form: FormState): boolean =>
 
 const shouldShowOptionalDetails = (form: FormState): boolean =>
 	Boolean(
-		form.endTime ||
-			form.genre ||
-			form.price ||
-			form.age ||
+		form.age ||
 			form.indoorOutdoor ||
 			form.notes ||
 			form.arrondissement,
@@ -147,6 +151,14 @@ const clearDraft = () => {
 	}
 };
 
+const parseGenreLabels = (value: string): string[] =>
+	value
+		.split(",")
+		.map((genre) => genre.trim())
+		.filter(Boolean);
+
+const formatGenreValue = (genres: string[]): string => genres.join(", ");
+
 export function SubmitEventForm({
 	submissionsEnabled = true,
 }: {
@@ -157,6 +169,7 @@ export function SubmitEventForm({
 		null,
 	);
 	const [showOptional, setShowOptional] = useState(false);
+	const [isGenrePickerOpen, setIsGenrePickerOpen] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isSubmitted, setIsSubmitted] = useState(false);
 	const [isReusingPrevious, setIsReusingPrevious] = useState(false);
@@ -198,11 +211,22 @@ export function SubmitEventForm({
 		}
 	};
 
+	const toggleGenre = (label: string) => {
+		const selectedGenres = parseGenreLabels(form.genre);
+		const nextGenres = selectedGenres.includes(label)
+			? selectedGenres.filter((genre) => genre !== label)
+			: [...selectedGenres, label];
+		updateField("genre", formatGenreValue(nextGenres));
+	};
+
 	const validate = (): string | null => {
 		if (!form.eventName.trim()) return "Event name is required.";
 		if (!form.date.trim()) return "Date is required.";
 		if (!form.startTime.trim()) return "Start time is required.";
+		if (!form.endTime.trim()) return "End time is required.";
 		if (!form.location.trim()) return "Location is required.";
+		if (!form.genre.trim()) return "Choose at least one music genre.";
+		if (!form.price.trim()) return "Price is required.";
 		if (!form.hostEmail.trim()) return "Host email is required.";
 		if (!form.proofLink.trim()) return "Proof link is required.";
 		if (!form.hostEmail.includes("@")) return "Enter a valid email address.";
@@ -303,9 +327,7 @@ export function SubmitEventForm({
 		setForm(buildReusableForm(lastSubmittedForm));
 		setShowOptional(
 			Boolean(
-				lastSubmittedForm.genre ||
-					lastSubmittedForm.price ||
-					lastSubmittedForm.age ||
+				lastSubmittedForm.age ||
 					lastSubmittedForm.indoorOutdoor ||
 					lastSubmittedForm.arrondissement,
 			),
@@ -341,6 +363,8 @@ export function SubmitEventForm({
 		}
 		handleStartFresh();
 	};
+
+	const selectedGenres = parseGenreLabels(form.genre);
 
 	return (
 		<div className="rounded-xl border border-border bg-card/70 p-4 shadow-sm sm:p-6">
@@ -397,6 +421,17 @@ export function SubmitEventForm({
 							disabled={isFormDisabled}
 						/>
 					</div>
+					<div className="space-y-2">
+						<Label htmlFor="endTime">End Time</Label>
+						<Input
+							id="endTime"
+							type="time"
+							value={form.endTime}
+							onChange={(event) => updateField("endTime", event.target.value)}
+							required
+							disabled={isFormDisabled}
+						/>
+					</div>
 					<div className="space-y-2 md:col-span-2">
 						<Label htmlFor="location">Location</Label>
 						<Input
@@ -405,6 +440,69 @@ export function SubmitEventForm({
 							value={form.location}
 							onChange={(event) => updateField("location", event.target.value)}
 							placeholder="Venue name or address"
+							required
+							disabled={isFormDisabled}
+						/>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="genre-picker">Music Genres</Label>
+						<Popover
+							open={isGenrePickerOpen}
+							onOpenChange={setIsGenrePickerOpen}
+						>
+							<PopoverTrigger
+								id="genre-picker"
+								render={
+									<Button
+										type="button"
+										variant="outline"
+										className="h-10 w-full justify-between px-3 font-normal"
+										disabled={isFormDisabled}
+									>
+										<span className="truncate">
+											{selectedGenres.length > 0
+												? formatGenreValue(selectedGenres)
+												: "Choose genres"}
+										</span>
+										<ChevronDown aria-hidden="true" />
+									</Button>
+								}
+							/>
+							<PopoverContent align="start" className="w-80 max-w-[90vw] p-2">
+								<div className="grid max-h-72 gap-1 overflow-y-auto pr-1">
+									{MUSIC_GENRES.map((genre) => {
+										const isSelected = selectedGenres.includes(genre.label);
+										return (
+											<button
+												key={genre.key}
+												type="button"
+												onClick={() => toggleGenre(genre.label)}
+												className="flex min-h-9 items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+											>
+												<span
+													className={`h-2.5 w-2.5 shrink-0 rounded-full ${genre.color}`}
+													aria-hidden="true"
+												/>
+												<span className="min-w-0 flex-1 truncate">
+													{genre.label}
+												</span>
+												{isSelected && (
+													<Check className="size-4 shrink-0" aria-hidden="true" />
+												)}
+											</button>
+										);
+									})}
+								</div>
+							</PopoverContent>
+						</Popover>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="price">Price</Label>
+						<Input
+							id="price"
+							value={form.price}
+							onChange={(event) => updateField("price", event.target.value)}
+							placeholder="Free, €15, €28 - €35.84"
 							required
 							disabled={isFormDisabled}
 						/>
@@ -450,39 +548,6 @@ export function SubmitEventForm({
 					</button>
 					{showOptional && (
 						<div className="mt-3 grid gap-4 md:grid-cols-2">
-							<div className="space-y-2">
-								<Label htmlFor="endTime">End Time</Label>
-								<Input
-									id="endTime"
-									type="time"
-									value={form.endTime}
-									onChange={(event) =>
-										updateField("endTime", event.target.value)
-									}
-									disabled={isFormDisabled}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="genre">Genre</Label>
-								<Input
-									id="genre"
-									list="previous-genres"
-									value={form.genre}
-									onChange={(event) => updateField("genre", event.target.value)}
-									placeholder="Afrobeats, Dancehall, House"
-									disabled={isFormDisabled}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="price">Price</Label>
-								<Input
-									id="price"
-									value={form.price}
-									onChange={(event) => updateField("price", event.target.value)}
-									placeholder="Free, €15, €28 - €35.84"
-									disabled={isFormDisabled}
-								/>
-							</div>
 							<div className="space-y-2">
 								<Label htmlFor="age">Age</Label>
 								<Input
@@ -547,12 +612,6 @@ export function SubmitEventForm({
 						<option value={lastSubmittedForm.location} />
 					)}
 				</datalist>
-				<datalist id="previous-genres">
-					{lastSubmittedForm?.genre && (
-						<option value={lastSubmittedForm.genre} />
-					)}
-				</datalist>
-
 				<div className="sr-only" aria-hidden="true">
 					<label htmlFor="website">Website</label>
 					<input

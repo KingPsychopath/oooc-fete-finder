@@ -18,6 +18,9 @@ import { useEffect, useState } from "react";
 
 // Get base path from environment variable directly
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
+const ooocFaqUrl =
+	process.env.NEXT_PUBLIC_OOOC_FAQ_URL?.trim() ||
+	"https://outofofficecollective.co.uk/faqs";
 
 const COMPRESS_ENTER_THRESHOLD = 20;
 const COMPRESS_EXIT_THRESHOLD = 6;
@@ -32,7 +35,7 @@ const DEFAULT_BANNER_MESSAGES = [
 const EXTERNAL_NAV_LINKS = [
 	{
 		label: "FAQs",
-		href: "https://outofofficecollective.co.uk/faqs",
+		href: ooocFaqUrl,
 	},
 ] as const;
 

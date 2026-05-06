@@ -24,6 +24,9 @@ const DISMISSAL_BACKOFF_MS = [
 	45 * 24 * 60 * 60 * 1000,
 ] as const;
 const PROMPT_PRIORITY = 10;
+const supportCoffeeUrl =
+	process.env.NEXT_PUBLIC_SUPPORT_COFFEE_URL?.trim() ||
+	"https://coff.ee/milkandhenny";
 
 function isCoffeePromptState(value: unknown): value is CoffeePromptState {
 	if (typeof value !== "object" || value === null) {
@@ -170,7 +173,7 @@ export function SupportCoffeePrompt() {
 				</p>
 				<div className="mt-2 flex items-center gap-3">
 					<Link
-						href="https://coff.ee/milkandhenny"
+						href={supportCoffeeUrl}
 						target="_blank"
 						rel="noopener noreferrer"
 						onClick={handleSupportClick}

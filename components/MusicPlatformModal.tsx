@@ -29,12 +29,21 @@ type MusicPlatformConfig = {
 	icon: React.ReactNode;
 };
 
+const spotifyPlaylistUrl =
+	process.env.NEXT_PUBLIC_SPOTIFY_PLAYLIST_URL?.trim() ||
+	"https://open.spotify.com/playlist/5TFP3Cyoqe75g7CLf3j1iR?si=Jg-WhZlLSDq12cXCg_M9DA&pi=5CTuc9IcSbqjf";
+const appleMusicPlaylistUrl =
+	process.env.NEXT_PUBLIC_APPLE_MUSIC_PLAYLIST_URL?.trim() ||
+	"https://music.apple.com/gb/playlist/konzombazouklove/pl.u-2aoqXWaHq8NvKE";
+const youtubeMusicPlaylistUrl =
+	process.env.NEXT_PUBLIC_YOUTUBE_MUSIC_PLAYLIST_URL?.trim() || null;
+
 const PLATFORM_CONFIGS: MusicPlatformConfig[] = [
 	{
 		id: "spotify",
 		label: "Spotify",
 		subtitle: "Community playlist",
-		href: "https://open.spotify.com/playlist/0zfRemqFPipkrXo5VEcATh?si=_1Kvv_wvQ6eVlF-7eNJxSA&pi=Uw3u5NKeRDqXL",
+		href: spotifyPlaylistUrl,
 		buttonClassName:
 			"border-[#1db954]/60 bg-[linear-gradient(145deg,rgba(29,185,84,0.16),rgba(29,185,84,0.08))] text-foreground hover:bg-[linear-gradient(145deg,rgba(29,185,84,0.2),rgba(29,185,84,0.12))] dark:border-[#1db954]/40 dark:bg-[linear-gradient(145deg,rgba(29,185,84,0.18),rgba(29,185,84,0.08))]",
 		badgeClassName:
@@ -53,7 +62,7 @@ const PLATFORM_CONFIGS: MusicPlatformConfig[] = [
 		id: "apple",
 		label: "Apple Music",
 		subtitle: "Curated vibe set",
-		href: "https://music.apple.com/gb/playlist/konzombazouklove/pl.u-2aoqXWaHq8NvKE",
+		href: appleMusicPlaylistUrl,
 		buttonClassName:
 			"border-pink-300/70 bg-[linear-gradient(140deg,rgba(250,87,193,0.16),rgba(255,190,11,0.12))] text-foreground hover:bg-[linear-gradient(140deg,rgba(250,87,193,0.22),rgba(255,190,11,0.16))] dark:border-pink-400/35 dark:bg-[linear-gradient(140deg,rgba(250,87,193,0.18),rgba(255,190,11,0.1))]",
 		badgeClassName:
@@ -72,7 +81,7 @@ const PLATFORM_CONFIGS: MusicPlatformConfig[] = [
 		id: "youtubeMusic",
 		label: "YouTube Music",
 		subtitle: "Playlist link coming soon",
-		href: null,
+		href: youtubeMusicPlaylistUrl,
 		buttonClassName:
 			"border-rose-300/65 bg-[linear-gradient(145deg,rgba(234,67,53,0.14),rgba(244,114,182,0.1))] text-foreground hover:bg-[linear-gradient(145deg,rgba(234,67,53,0.17),rgba(244,114,182,0.12))] dark:border-rose-400/35 dark:bg-[linear-gradient(145deg,rgba(234,67,53,0.16),rgba(244,114,182,0.08))]",
 		badgeClassName:

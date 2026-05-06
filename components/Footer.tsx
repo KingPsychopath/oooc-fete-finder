@@ -6,6 +6,28 @@ import {
 import { Coffee, ExternalLink, Globe } from "lucide-react";
 import Link from "next/link";
 
+const ooocWebsiteUrl =
+	process.env.NEXT_PUBLIC_OOOC_WEBSITE_URL?.trim() ||
+	"https://www.outofofficecollective.co.uk/";
+const ooocInstagramUrl =
+	process.env.NEXT_PUBLIC_OOOC_INSTAGRAM_URL?.trim() ||
+	"https://www.instagram.com/outofofficecollectivee/";
+const ooocTikTokUrl =
+	process.env.NEXT_PUBLIC_OOOC_TIKTOK_URL?.trim() ||
+	"https://www.tiktok.com/@outofofficecollective";
+const ooocContactUrl =
+	process.env.NEXT_PUBLIC_OOOC_CONTACT_URL?.trim() ||
+	"https://outofofficecollective.co.uk/contact";
+const ooocFaqUrl =
+	process.env.NEXT_PUBLIC_OOOC_FAQ_URL?.trim() ||
+	"https://outofofficecollective.co.uk/faqs";
+const creatorXUrl =
+	process.env.NEXT_PUBLIC_CREATOR_X_URL?.trim() ||
+	"https://x.com/milkandh3nny";
+const supportCoffeeUrl =
+	process.env.NEXT_PUBLIC_SUPPORT_COFFEE_URL?.trim() ||
+	"https://coff.ee/milkandhenny";
+
 // Custom Instagram icon component matching Instagram's brand symbol
 const InstagramIcon = ({ className }: { className?: string }) => (
 	<svg
@@ -33,19 +55,19 @@ const TikTokIcon = ({ className }: { className?: string }) => (
 const socialLinks = [
 	{
 		name: "Website",
-		url: "https://www.outofofficecollective.co.uk/",
+		url: ooocWebsiteUrl,
 		icon: Globe,
 		ariaLabel: "Visit Out of Office Collective website",
 	},
 	{
 		name: "Instagram",
-		url: "https://www.instagram.com/outofofficecollectivee/",
+		url: ooocInstagramUrl,
 		icon: InstagramIcon,
 		ariaLabel: "Follow Out of Office Collective on Instagram",
 	},
 	{
 		name: "TikTok",
-		url: "https://www.tiktok.com/@outofofficecollective",
+		url: ooocTikTokUrl,
 		icon: TikTokIcon,
 		ariaLabel: "Follow Out of Office Collective on TikTok",
 	},
@@ -110,7 +132,7 @@ const Footer = () => {
 								Privacy Policy
 							</Link>
 							<Link
-								href="https://outofofficecollective.co.uk/contact"
+								href={ooocContactUrl}
 								target="_blank"
 								rel="noopener noreferrer"
 								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
@@ -118,7 +140,7 @@ const Footer = () => {
 								Contact us
 							</Link>
 							<Link
-								href="https://outofofficecollective.co.uk/faqs"
+								href={ooocFaqUrl}
 								target="_blank"
 								rel="noopener noreferrer"
 								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
@@ -134,7 +156,7 @@ const Footer = () => {
 							<div className="flex flex-wrap items-center justify-center gap-x-1 lg:justify-end">
 								<span>Web app v1.0.0 • Made by</span>
 								<Link
-									href="https://x.com/milkandh3nny"
+									href={creatorXUrl}
 									target="_blank"
 									rel="noopener noreferrer"
 									className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
@@ -145,7 +167,7 @@ const Footer = () => {
 							</div>
 							<span className="hidden sm:inline">•</span>
 							<Link
-								href="https://coff.ee/milkandhenny"
+								href={supportCoffeeUrl}
 								target="_blank"
 								rel="noopener noreferrer"
 								className="inline-flex items-center space-x-1 font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
