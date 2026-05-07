@@ -306,6 +306,12 @@ const getQualityDotClassName = (value: RowQualityValue): string => {
 	if (value === "draft") return "border-muted-foreground/45 bg-transparent";
 	return "border-amber-500 bg-amber-500";
 };
+const getQualityFilterDescription = (value: RowQualityValue): string => {
+	if (value === "complete") return "details complete rows";
+	if (value === "blocking") return "rows that need fixes";
+	if (value === "draft") return "draft rows";
+	return "rows recommended for review";
+};
 const hasUsableTextValue = (value: string | undefined): boolean => {
 	const normalized = String(value ?? "")
 		.trim()
@@ -1093,6 +1099,9 @@ export const EventSheetEditorCard = ({
 	const [displayLimit, setDisplayLimit] = useState(50);
 	const [pinnedColumnsCount, setPinnedColumnsCount] = useState(0);
 	const [sortMode, setSortMode] = useState<SheetSortMode>(DEFAULT_SORT_MODE);
+	const [qualityFilter, setQualityFilter] = useState<RowQualityValue | null>(
+		null,
+	);
 	const [canUndo, setCanUndo] = useState(false);
 	const [canRedo, setCanRedo] = useState(false);
 	const [genreTaxonomy, setGenreTaxonomy] = useState<
@@ -2672,33 +2681,7 @@ export const EventSheetEditorCard = ({
 		[handleCellChange],
 	);
 
-	const filteredRowIndexes = useMemo(() => {
-		if (!query.trim()) {
-			return rows.map((_, index) => index);
-		}
-
-		const needle = query.trim().toLowerCase();
-		return rows
-			.map((row, index) => {
-				const hasMatch = Object.values(row).some((value) =>
-					value.toLowerCase().includes(needle),
-				);
-				return hasMatch ? index : -1;
-			})
-			.filter((index) => index >= 0);
-	}, [query, rows]);
-
-	const sortedRowIndexes = useMemo(() => {
-		return sortRowIndexes(filteredRowIndexes, rows, sortMode);
-	}, [filteredRowIndexes, rows, sortMode]);
-
-	const visibleRowIndexes = useMemo(() => {
-		return sortedRowIndexes.slice(0, displayLimit);
-	}, [sortedRowIndexes, displayLimit]);
 	const visibleSheetRevisions = sheetRevisions.slice(0, 3);
-
-	const canShowMoreRows = sortedRowIndexes.length > visibleRowIndexes.length;
-	const canManuallyMoveRows = sortMode === "sheet-order" && !query.trim();
 	const availableGenres = useMemo(
 		() =>
 			(genreTaxonomy?.genres ?? [])
@@ -2909,6 +2892,42 @@ export const EventSheetEditorCard = ({
 		});
 		return counts;
 	}, [rows, sheetHealthIssuesByRow]);
+	const filteredRowIndexes = useMemo(() => {
+		const needle = query.trim().toLowerCase();
+		return rows
+			.map((row, index) => {
+				if (needle) {
+					const hasMatch = Object.values(row).some((value) =>
+						value.toLowerCase().includes(needle),
+					);
+					if (!hasMatch) return -1;
+				}
+
+				if (qualityFilter) {
+					const quality = getRowQualityAssessment(
+						row,
+						sheetHealthIssuesByRow.get(index + 1) ?? [],
+					);
+					if (quality.value !== qualityFilter) return -1;
+				}
+
+				return index;
+			})
+			.filter((index) => index >= 0);
+	}, [qualityFilter, query, rows, sheetHealthIssuesByRow]);
+	const sortedRowIndexes = useMemo(() => {
+		return sortRowIndexes(filteredRowIndexes, rows, sortMode);
+	}, [filteredRowIndexes, rows, sortMode]);
+	const visibleRowIndexes = useMemo(() => {
+		return sortedRowIndexes.slice(0, displayLimit);
+	}, [sortedRowIndexes, displayLimit]);
+	const canShowMoreRows = sortedRowIndexes.length > visibleRowIndexes.length;
+	const canManuallyMoveRows = sortMode === "sheet-order" && !query.trim();
+	const handleQualityFilterToggle = useCallback((value: RowQualityValue) => {
+		setQualityFilter((current) => (current === value ? null : value));
+		setDisplayLimit(50);
+		setQualityPopover(null);
+	}, []);
 	const openQualityPopover = useCallback(
 		(rowIndex: number, anchor: HTMLElement) => {
 			const rect = anchor.getBoundingClientRect();
@@ -3630,6 +3649,17 @@ export const EventSheetEditorCard = ({
 							</select>
 						</div>
 						<div className="flex flex-wrap items-center justify-start gap-2 xl:justify-end">
+							{qualityFilter && (
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => setQualityFilter(null)}
+									className="h-10 border-foreground/30 bg-background px-3 text-xs"
+									title="Clear quality filter"
+								>
+									Quality: {getQualityLabel(qualityFilter)} x
+								</Button>
+							)}
 							<Button
 								onClick={handleManualSave}
 								disabled={isSaving || !hasUnsavedChanges}
@@ -4140,19 +4170,6 @@ export const EventSheetEditorCard = ({
 					When missing, Event Key is generated from canonical identity fields:
 					`Title`, `Date`, `Start Time`, `Location`, `District/Area`.
 				</div>
-				<div className="text-xs text-amber-700">
-					`Featured` column is legacy-only. Manage featured scheduling in
-					`Spotlight & Promoted Scheduler`.
-				</div>
-				<div className="text-xs text-muted-foreground">
-					`Host Country` and `Audience Country` support country names, flags,
-					and ISO codes. Focus either column to search and insert normalized
-					country codes.
-				</div>
-				<div className="text-xs text-muted-foreground">
-					`District/Area` supports an Area picker: choose `1`-`20`, `Greater
-					Paris`, `Outside Paris`, or `Location TBC`.
-				</div>
 				<div className="text-xs text-muted-foreground">
 					{DATE_RANGE_HELPER_MESSAGE}
 				</div>
@@ -4160,25 +4177,56 @@ export const EventSheetEditorCard = ({
 				<div className="text-xs text-muted-foreground">
 					Showing {visibleRowIndexes.length} of {filteredRowIndexes.length}{" "}
 					filtered rows ({rows.length} total).
+					{qualityFilter
+						? ` Quality filter: ${getQualityFilterDescription(qualityFilter)}.`
+						: ""}
 				</div>
 				<div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-background/65 px-3 py-2 text-xs text-muted-foreground">
 					<span className="font-medium text-foreground">Row quality</span>
-					<span className="inline-flex items-center gap-1">
+					<button
+						type="button"
+						onClick={() => handleQualityFilterToggle("complete")}
+						className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
+							qualityFilter === "complete" ? "bg-muted text-foreground" : ""
+						}`}
+						aria-pressed={qualityFilter === "complete"}
+					>
 						<span className="h-2.5 w-2.5 rounded-full bg-green-600" />
 						{rowQualityCounts.complete} complete
-					</span>
-					<span className="inline-flex items-center gap-1">
+					</button>
+					<button
+						type="button"
+						onClick={() => handleQualityFilterToggle("review")}
+						className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
+							qualityFilter === "review" ? "bg-muted text-foreground" : ""
+						}`}
+						aria-pressed={qualityFilter === "review"}
+					>
 						<span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
 						{rowQualityCounts.review} review
-					</span>
-					<span className="inline-flex items-center gap-1">
+					</button>
+					<button
+						type="button"
+						onClick={() => handleQualityFilterToggle("blocking")}
+						className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
+							qualityFilter === "blocking" ? "bg-muted text-foreground" : ""
+						}`}
+						aria-pressed={qualityFilter === "blocking"}
+					>
 						<span className="h-2.5 w-2.5 rounded-full bg-red-600" />
 						{rowQualityCounts.blocking} need fix
-					</span>
-					<span className="inline-flex items-center gap-1">
+					</button>
+					<button
+						type="button"
+						onClick={() => handleQualityFilterToggle("draft")}
+						className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
+							qualityFilter === "draft" ? "bg-muted text-foreground" : ""
+						}`}
+						aria-pressed={qualityFilter === "draft"}
+					>
 						<span className="h-2.5 w-2.5 rounded-full border border-muted-foreground/45" />
 						{rowQualityCounts.draft} draft
-					</span>
+					</button>
 					<span className="border-l border-border/70 pl-2">
 						{rowQualityCounts.sourceConfirmed} source confirmed
 					</span>
@@ -4341,20 +4389,32 @@ export const EventSheetEditorCard = ({
 												}}
 												>
 													<div className="relative flex h-8 items-center gap-1">
-														<span className="min-w-7 text-center font-mono">
-															{rowIndex + 1}
-														</span>
 														<button
 															type="button"
 															data-quality-popover
 															onClick={(event) =>
 																openQualityPopover(rowIndex, event.currentTarget)
 															}
+															className="min-w-7 rounded px-1 text-center font-mono transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+															aria-label={`Open quality details for row ${rowIndex + 1}`}
+															title="Open quality details"
+														>
+															{rowIndex + 1}
+														</button>
+														<button
+															type="button"
+															onClick={() =>
+																handleQualityFilterToggle(rowQuality.value)
+															}
 															className={`h-2.5 w-2.5 shrink-0 rounded-full border ${getQualityDotClassName(
 																rowQuality.value,
-															)} cursor-pointer transition-transform hover:scale-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring`}
-															aria-label={`${rowQuality.label} for row ${rowIndex + 1}`}
-															title={`${rowQuality.label} · ${rowQuality.source}`}
+															)} cursor-pointer transition-transform hover:scale-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
+																qualityFilter === rowQuality.value
+																	? "outline outline-2 outline-offset-2 outline-ring"
+																: ""
+															}`}
+															aria-label={`Show only ${getQualityFilterDescription(rowQuality.value)}`}
+															title={`Show only ${getQualityFilterDescription(rowQuality.value)}`}
 														/>
 														{rowQuality.isConfirmed && (
 															<span
