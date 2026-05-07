@@ -16,7 +16,7 @@ const makeEvent = (id: string) => ({
 	genre: ["afrobeats" as const],
 	venueTypes: ["indoor" as const],
 	indoor: true,
-	verified: true,
+	sourceConfirmed: true,
 });
 
 type Setup = {

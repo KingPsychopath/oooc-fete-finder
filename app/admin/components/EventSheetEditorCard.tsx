@@ -70,6 +70,7 @@ import {
 } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type EventSheetEditorCardProps = {
 	isAuthenticated: boolean;
@@ -184,6 +185,21 @@ type SheetHealthIssue = {
 	message: string;
 	severity: "blocking" | "warning";
 };
+type RowQualityValue = "complete" | "review" | "blocking" | "draft";
+type RowQualityAssessment = {
+	value: RowQualityValue;
+	source: "inferred" | "manual";
+	label: string;
+	description: string;
+	checks: Array<{ label: string; passed: boolean }>;
+	issues: SheetHealthIssue[];
+	isConfirmed: boolean;
+};
+type QualityPopoverState = {
+	rowIndex: number;
+	top: number;
+	left: number;
+};
 type FocusedCell = {
 	rowIndex: number;
 	columnKey: string;
@@ -216,6 +232,8 @@ const AGE_COLUMN_KEY = "ageGuidance";
 const PRICE_COLUMN_KEY = "price";
 const PRIMARY_URL_COLUMN_KEY = "primaryUrl";
 const SETTING_COLUMN_KEY = "setting";
+const SOURCE_CONFIRMED_COLUMN_KEY = "sourceConfirmed";
+const DETAILS_QUALITY_OVERRIDE_COLUMN_KEY = "detailsQualityOverride";
 const COUNTRY_COLUMN_KEYS = new Set(["hostCountry", "audienceCountry"]);
 const TIME_COLUMN_KEYS = new Set([START_TIME_COLUMN_KEY, END_TIME_COLUMN_KEY]);
 const CURATED_PICK_VALUE = "🌟";
@@ -242,6 +260,108 @@ const getRequiredSheetHealthIssues = (
 		}
 	});
 	return issues;
+};
+const parseBooleanCellValue = (value: string | undefined): boolean => {
+	const normalized = String(value ?? "")
+		.trim()
+		.toLowerCase();
+	return ["true", "yes", "y", "1", "confirmed", "verified"].includes(
+		normalized,
+	);
+};
+const parseQualityOverride = (
+	value: string | undefined,
+): Exclude<RowQualityValue, "draft"> | null => {
+	const normalized = String(value ?? "")
+		.trim()
+		.toLowerCase();
+	if (!normalized || normalized === "auto" || normalized === "inferred") {
+		return null;
+	}
+	if (normalized === "complete") return "complete";
+	if (normalized === "review" || normalized === "needs review") return "review";
+	if (normalized === "blocking" || normalized === "blocked") return "blocking";
+	return null;
+};
+const getQualityLabel = (value: RowQualityValue): string => {
+	if (value === "complete") return "Details complete";
+	if (value === "blocking") return "Needs fix";
+	if (value === "draft") return "Draft row";
+	return "Review recommended";
+};
+const getQualityDescription = (value: RowQualityValue): string => {
+	if (value === "complete") return "Enough public-facing details are present.";
+	if (value === "blocking") return "Important public-facing details are missing.";
+	if (value === "draft") return "Blank row, ignored on save.";
+	return "Usable, but one or more details should be checked.";
+};
+const getQualityDotClassName = (value: RowQualityValue): string => {
+	if (value === "complete") return "border-green-600 bg-green-600";
+	if (value === "blocking") return "border-red-600 bg-red-600";
+	if (value === "draft") return "border-muted-foreground/45 bg-transparent";
+	return "border-amber-500 bg-amber-500";
+};
+const hasUsableTextValue = (value: string | undefined): boolean => {
+	const normalized = String(value ?? "")
+		.trim()
+		.toLowerCase();
+	return Boolean(normalized) && !["tba", "tbc", "#"].includes(normalized);
+};
+const getRowQualityAssessment = (
+	row: EditableSheetRow,
+	issues: SheetHealthIssue[],
+): RowQualityAssessment => {
+	if (isEditableSheetRowEmpty(row)) {
+		return {
+			value: "draft",
+			source: "inferred",
+			label: getQualityLabel("draft"),
+			description: getQualityDescription("draft"),
+			checks: [],
+			issues,
+			isConfirmed: false,
+		};
+	}
+
+	const titlePresent = hasUsableTextValue(row[TITLE_COLUMN_KEY]);
+	const hasBlockingIssue = issues.some((issue) => issue.severity === "blocking");
+	const datePresent =
+		hasUsableTextValue(row[DATE_COLUMN_KEY]) &&
+		!issues.some((issue) => issue.column === "Date");
+	const locationPresent = hasUsableTextValue(row[LOCATION_COLUMN_KEY]);
+	const areaKnown = Boolean(findAreaOption(row[AREA_COLUMN_KEY] ?? ""));
+	const startTimePresent = hasUsableTextValue(row[START_TIME_COLUMN_KEY]);
+	const urlPresent = hasUsableTextValue(row[PRIMARY_URL_COLUMN_KEY]);
+	const pricePresent = hasUsableTextValue(row[PRICE_COLUMN_KEY]);
+	const detailCount = [startTimePresent, urlPresent, pricePresent].filter(
+		Boolean,
+	).length;
+	const inferredValue: RowQualityValue =
+		hasBlockingIssue || !titlePresent || !datePresent
+			? "blocking"
+			: locationPresent && areaKnown && detailCount >= 2
+				? "complete"
+				: "review";
+	const manualValue = parseQualityOverride(row[DETAILS_QUALITY_OVERRIDE_COLUMN_KEY]);
+	const value = manualValue ?? inferredValue;
+
+	return {
+		value,
+		source: manualValue ? "manual" : "inferred",
+		label: getQualityLabel(value),
+		description: getQualityDescription(value),
+		checks: [
+			{ label: "Title present", passed: titlePresent },
+			{ label: "Date valid", passed: datePresent },
+			{ label: "Location present", passed: locationPresent },
+			{ label: "Area known", passed: areaKnown },
+			{ label: "Start time present", passed: startTimePresent },
+			{ label: "Primary URL present", passed: urlPresent },
+			{ label: "Price present", passed: pricePresent },
+		],
+		issues,
+		isConfirmed: parseBooleanCellValue(row[SOURCE_CONFIRMED_COLUMN_KEY]),
+	};
 };
 const SETTING_OPTIONS: SimpleOption[] = [
 	{
@@ -313,6 +433,9 @@ const DEPLOYMENT_POLL_INTERVAL_MS = 30_000;
 
 const cellRefKey = (rowIndex: number, columnKey: string) =>
 	`${rowIndex}:${columnKey}`;
+
+const urlPartRefKey = (rowIndex: number, columnKey: string, partIndex: number) =>
+	`${rowIndex}:${columnKey}:${partIndex}`;
 
 const getBasePath = (): string =>
 	process.env.NEXT_PUBLIC_BASE_PATH?.trim() ?? "";
@@ -1023,6 +1146,8 @@ export const EventSheetEditorCard = ({
 		null,
 	);
 	const [highlightedAgeIndex, setHighlightedAgeIndex] = useState(0);
+	const [qualityPopover, setQualityPopover] =
+		useState<QualityPopoverState | null>(null);
 	const [activeCellDraft, setActiveCellDraft] = useState<CellDraft | null>(
 		null,
 	);
@@ -1037,6 +1162,8 @@ export const EventSheetEditorCard = ({
 	const editVersionRef = useRef(0);
 	const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const inputRefs = useRef<Record<string, HTMLElement | null>>({});
+	const urlPartInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+	const primaryUrlBlurTimerRef = useRef<number | null>(null);
 
 	const updateRevisionHistory = useCallback(
 		(revision: EventSheetRevisionRecord | null | undefined) => {
@@ -2497,16 +2624,31 @@ export const EventSheetEditorCard = ({
 	const addPrimaryUrlSlot = useCallback(
 		(rowIndex: number, columnKey: string) => {
 			const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
-			const prefix = currentValue.trim() ? `${currentValue.trim()}, ` : "";
-			const nextValue = `${prefix}https://`;
+			const parts = splitUrlRawParts(currentValue);
+			const nextParts = [...parts, "https://"];
+			const nextValue = nextParts.join(", ");
+			const nextPartIndex = nextParts.length - 1;
 			handleCellChange(rowIndex, columnKey, nextValue);
 			window.setTimeout(() => {
-				const input = inputRefs.current[cellRefKey(rowIndex, columnKey)];
+				const input =
+					urlPartInputRefs.current[
+						urlPartRefKey(rowIndex, columnKey, nextPartIndex)
+					];
 				input?.focus();
-				if (input instanceof HTMLInputElement) {
-					input.setSelectionRange(nextValue.length, nextValue.length);
+				if (input) {
+					input.setSelectionRange(input.value.length, input.value.length);
 				}
 			}, 0);
+		},
+		[handleCellChange],
+	);
+
+	const updatePrimaryUrlPart = useCallback(
+		(rowIndex: number, columnKey: string, partIndex: number, value: string) => {
+			const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
+			const parts = splitUrlRawParts(currentValue);
+			parts[partIndex] = value;
+			handleCellChange(rowIndex, columnKey, parts.join(", "));
 		},
 		[handleCellChange],
 	);
@@ -2735,6 +2877,60 @@ export const EventSheetEditorCard = ({
 	const blockingSheetHealthIssues = sheetHealthIssues.filter(
 		(issue) => issue.severity === "blocking",
 	);
+	const sheetHealthIssuesByRow = useMemo(() => {
+		const byRow = new Map<number, SheetHealthIssue[]>();
+		for (const issue of sheetHealthIssues) {
+			byRow.set(issue.rowIndex, [...(byRow.get(issue.rowIndex) ?? []), issue]);
+		}
+		return byRow;
+	}, [sheetHealthIssues]);
+	const openQualityPopover = useCallback(
+		(rowIndex: number, anchor: HTMLElement) => {
+			const rect = anchor.getBoundingClientRect();
+			const width = 288;
+			const left = Math.min(
+				Math.max(rect.left + 16, 8),
+				Math.max(window.innerWidth - width - 8, 8),
+			);
+			const top =
+				rect.bottom + 8 > window.innerHeight - 220
+					? Math.max(rect.top - 8, 8)
+					: rect.bottom + 8;
+			setQualityPopover((current) =>
+				current?.rowIndex === rowIndex ? null : { rowIndex, top, left },
+			);
+		},
+		[],
+	);
+	useEffect(() => {
+		if (!qualityPopover) return;
+		const close = () => setQualityPopover(null);
+		const closeOnOutsidePointerDown = (event: PointerEvent) => {
+			const target = event.target;
+			if (
+				target instanceof Element &&
+				target.closest("[data-quality-popover]")
+			) {
+				return;
+			}
+			setQualityPopover(null);
+		};
+		const closeOnEscape = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				setQualityPopover(null);
+			}
+		};
+		document.addEventListener("pointerdown", closeOnOutsidePointerDown);
+		document.addEventListener("keydown", closeOnEscape);
+		window.addEventListener("resize", close);
+		window.addEventListener("scroll", close, true);
+		return () => {
+			document.removeEventListener("pointerdown", closeOnOutsidePointerDown);
+			document.removeEventListener("keydown", closeOnEscape);
+			window.removeEventListener("resize", close);
+			window.removeEventListener("scroll", close, true);
+		};
+	}, [qualityPopover]);
 
 	const focusCell = (
 		rowIndex: number,
@@ -2789,8 +2985,121 @@ export const EventSheetEditorCard = ({
 		return null;
 	}
 
+	const qualityPopoverPortal =
+		qualityPopover && typeof document !== "undefined"
+			? (() => {
+					const row = rows[qualityPopover.rowIndex];
+					if (!row) return null;
+					const rowIssues =
+						sheetHealthIssuesByRow.get(qualityPopover.rowIndex + 1) ?? [];
+					const rowQuality = getRowQualityAssessment(row, rowIssues);
+
+					return createPortal(
+						<div
+							data-quality-popover
+							className="fixed z-[120] w-72 rounded-md border border-border/80 bg-popover p-3 text-left text-xs text-popover-foreground shadow-xl"
+							style={{
+								top: qualityPopover.top,
+								left: qualityPopover.left,
+							}}
+						>
+							<div className="mb-2">
+								<div className="font-medium text-foreground">
+									{rowQuality.label}
+								</div>
+								<div className="text-muted-foreground">
+									{rowQuality.description} Status is {rowQuality.source}.
+								</div>
+							</div>
+							<div className="mb-2 grid grid-cols-1 gap-1">
+								{rowQuality.checks.map((check) => (
+									<div
+										key={check.label}
+										className="flex items-center justify-between gap-2"
+									>
+										<span>{check.label}</span>
+										<span
+											className={
+												check.passed
+													? "text-green-700"
+													: "text-muted-foreground"
+											}
+										>
+											{check.passed ? "Yes" : "No"}
+										</span>
+									</div>
+								))}
+							</div>
+							{rowQuality.issues.length > 0 && (
+								<div className="mb-2 space-y-1 border-t border-border/70 pt-2">
+									{rowQuality.issues.slice(0, 3).map((issue) => (
+										<div
+											key={`${issue.column}-${issue.message}`}
+											className={
+												issue.severity === "blocking"
+													? "text-red-700"
+													: "text-amber-700"
+											}
+										>
+											{issue.column}: {issue.message}
+										</div>
+									))}
+								</div>
+							)}
+							<div className="grid grid-cols-2 gap-1 border-t border-border/70 pt-2">
+								{[
+									{ label: "Auto", value: "" },
+									{ label: "Complete", value: "complete" },
+									{ label: "Review", value: "review" },
+									{ label: "Needs fix", value: "blocking" },
+								].map((option) => (
+									<Button
+										key={option.label}
+										type="button"
+										size="sm"
+										variant={
+											(row[DETAILS_QUALITY_OVERRIDE_COLUMN_KEY] ?? "") ===
+											option.value
+												? "default"
+												: "outline"
+										}
+										className="h-7 px-2 text-[11px]"
+										onClick={() =>
+											handleCellChange(
+												qualityPopover.rowIndex,
+												DETAILS_QUALITY_OVERRIDE_COLUMN_KEY,
+												option.value,
+											)
+										}
+									>
+										{option.label}
+									</Button>
+								))}
+							</div>
+							<label className="mt-2 flex items-center gap-2 border-t border-border/70 pt-2">
+								<input
+									type="checkbox"
+									checked={rowQuality.isConfirmed}
+									onChange={(event) =>
+										handleCellChange(
+											qualityPopover.rowIndex,
+											SOURCE_CONFIRMED_COLUMN_KEY,
+											event.target.checked ? "true" : "",
+										)
+									}
+								/>
+								<span>Source confirmed</span>
+							</label>
+						</div>,
+						document.body,
+					);
+				})()
+			: null;
+
 	return (
-		<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
+		<>
+			{qualityPopoverPortal}
+			<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
 			<CardHeader>
 				<CardTitle className="text-2xl tracking-tight">
 					Event Sheet Editor
@@ -3971,6 +4280,9 @@ export const EventSheetEditorCard = ({
 									const primaryUrlParts = parseUrlParts(
 										row[PRIMARY_URL_COLUMN_KEY] ?? "",
 									);
+									const rowIssues =
+										sheetHealthIssuesByRow.get(rowIndex + 1) ?? [];
+									const rowQuality = getRowQualityAssessment(row, rowIssues);
 									return (
 										<tr key={`row-${rowIndex}`} className="group/row align-top">
 											<td
@@ -3979,11 +4291,29 @@ export const EventSheetEditorCard = ({
 													left: 0,
 													width: `${ROW_NUMBER_COLUMN_WIDTH}px`,
 												}}
-											>
-												<div className="flex h-8 items-center gap-1">
-													<span className="min-w-7 text-center font-mono">
-														{rowIndex + 1}
-													</span>
+												>
+													<div className="relative flex h-8 items-center gap-1">
+														<span className="min-w-7 text-center font-mono">
+															{rowIndex + 1}
+														</span>
+														<button
+															type="button"
+															data-quality-popover
+															onClick={(event) =>
+																openQualityPopover(rowIndex, event.currentTarget)
+															}
+															className={`h-2.5 w-2.5 shrink-0 rounded-full border ${getQualityDotClassName(
+																rowQuality.value,
+															)} cursor-pointer transition-transform hover:scale-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring`}
+															aria-label={`${rowQuality.label} for row ${rowIndex + 1}`}
+															title={`${rowQuality.label} · ${rowQuality.source}`}
+														/>
+														{rowQuality.isConfirmed && (
+															<span
+																className="h-1.5 w-1.5 rounded-full bg-green-700"
+																title="Source confirmed"
+															/>
+														)}
 													<div className="flex items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
 														<Button
 															type="button"
@@ -5424,7 +5754,31 @@ export const EventSheetEditorCard = ({
 																)}
 														</div>
 													) : column.key === PRIMARY_URL_COLUMN_KEY ? (
-														<div className="relative min-h-9 bg-transparent px-2 py-1">
+														<div
+															className="relative min-h-9 bg-transparent px-2 py-1"
+															onBlurCapture={(event) => {
+																const nextTarget = event.relatedTarget;
+																if (
+																	nextTarget instanceof Node &&
+																	event.currentTarget.contains(nextTarget)
+																) {
+																	return;
+																}
+																commitStandardCell(rowIndex, column.key);
+																if (primaryUrlBlurTimerRef.current) {
+																	window.clearTimeout(primaryUrlBlurTimerRef.current);
+																}
+																primaryUrlBlurTimerRef.current = window.setTimeout(() => {
+																	setFocusedPrimaryUrlCell((current) =>
+																		current?.rowIndex === rowIndex &&
+																		current.columnKey === column.key
+																			? null
+																			: current,
+																	);
+																	primaryUrlBlurTimerRef.current = null;
+																}, 120);
+															}}
+														>
 															<input
 																ref={(node) => {
 																	inputRefs.current[
@@ -5433,6 +5787,24 @@ export const EventSheetEditorCard = ({
 																}}
 																value={row[column.key] ?? ""}
 																onFocus={() => {
+																	if (primaryUrlBlurTimerRef.current) {
+																		window.clearTimeout(
+																			primaryUrlBlurTimerRef.current,
+																		);
+																		primaryUrlBlurTimerRef.current = null;
+																	}
+																	setFocusedPrimaryUrlCell({
+																		rowIndex,
+																		columnKey: column.key,
+																	});
+																}}
+																onClick={() => {
+																	if (primaryUrlBlurTimerRef.current) {
+																		window.clearTimeout(
+																			primaryUrlBlurTimerRef.current,
+																		);
+																		primaryUrlBlurTimerRef.current = null;
+																	}
 																	setFocusedPrimaryUrlCell({
 																		rowIndex,
 																		columnKey: column.key,
@@ -5447,14 +5819,6 @@ export const EventSheetEditorCard = ({
 																}
 																onBlur={() => {
 																	commitStandardCell(rowIndex, column.key);
-																	window.setTimeout(() => {
-																		setFocusedPrimaryUrlCell((current) =>
-																			current?.rowIndex === rowIndex &&
-																			current.columnKey === column.key
-																				? null
-																				: current,
-																		);
-																	}, 120);
 																}}
 																onKeyDown={(event) => {
 																	if (event.key === "Escape") {
@@ -5525,6 +5889,8 @@ export const EventSheetEditorCard = ({
 																				className="h-7 w-full justify-start px-2 text-xs"
 																				onMouseDown={(event) => {
 																					event.preventDefault();
+																				}}
+																				onClick={() => {
 																					addPrimaryUrlSlot(rowIndex, column.key);
 																				}}
 																			>
@@ -5572,9 +5938,45 @@ export const EventSheetEditorCard = ({
 																							<Trash2 className="h-3 w-3" />
 																						</button>
 																					</div>
-																					<div className="mt-0.5 truncate pl-4 text-[10px] text-muted-foreground">
-																						{part.normalized}
-																					</div>
+																					<input
+																						ref={(node) => {
+																							urlPartInputRefs.current[
+																								urlPartRefKey(
+																									rowIndex,
+																									column.key,
+																									partIndex,
+																								)
+																							] = node;
+																						}}
+																						value={part.raw}
+																						onChange={(event) =>
+																							updatePrimaryUrlPart(
+																								rowIndex,
+																								column.key,
+																								partIndex,
+																								event.target.value,
+																							)
+																						}
+																						onBlur={() => {
+																							const normalized = normalizeUrlValue(
+																								rowsRef.current[rowIndex]?.[
+																									column.key
+																								] ?? "",
+																							);
+																							handleCellChange(
+																								rowIndex,
+																								column.key,
+																								normalized,
+																							);
+																						}}
+																						className="mt-1 h-7 w-full rounded border border-border/70 bg-background px-2 font-mono text-[11px] outline-none focus:border-ring"
+																						placeholder="https://example.com/event"
+																					/>
+																					{part.normalized !== part.raw && (
+																						<div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+																							Will save as {part.normalized}
+																						</div>
+																					)}
 																				</div>
 																			))}
 																			{primaryUrlParts.length === 0 && (
@@ -5877,5 +6279,6 @@ export const EventSheetEditorCard = ({
 				</div>
 			</CardContent>
 		</Card>
+		</>
 	);
 };

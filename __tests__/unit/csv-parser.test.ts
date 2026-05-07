@@ -45,7 +45,7 @@ describe("parseCSVContent", () => {
 		expect(rows[0].setting).toBe("Outdoor");
 	});
 
-	it("parses optional verified column when present", () => {
+	it("parses legacy verified column as source confirmation", () => {
 		const csv = [
 			"Title,Date,Location,Verified",
 			"Block Party,22 June,Canal,yes",
@@ -53,7 +53,7 @@ describe("parseCSVContent", () => {
 
 		const rows = parseCSVContent(csv);
 		expect(rows).toHaveLength(1);
-		expect(rows[0].verified).toBe("yes");
+		expect(rows[0].sourceConfirmed).toBe("yes");
 	});
 
 	it("throws a clear error when essential headers are missing", () => {

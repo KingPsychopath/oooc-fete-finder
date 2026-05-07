@@ -79,7 +79,7 @@ describe("event assembler identity", () => {
 		);
 	});
 
-	it("marks events unverified when only one essential detail is present", () => {
+	it("marks events as needing review when only one essential detail is present", () => {
 		const event = assembleEvent(
 			{
 				...baseRow,
@@ -90,30 +90,45 @@ describe("event assembler identity", () => {
 			0,
 		);
 
-		expect(event.verified).toBe(false);
+		expect(event.detailsQuality).toBe("review");
+		expect(event.detailsQualitySource).toBe("inferred");
+		expect(event.sourceConfirmed).toBe(false);
 	});
 
-	it("respects explicit verified override from CSV", () => {
-		const unverified = assembleEvent(
+	it("uses explicit source confirmation values", () => {
+		const unconfirmed = assembleEvent(
 			{
 				...baseRow,
-				verified: "false",
+				sourceConfirmed: "false",
 			},
 			0,
 		);
-		const verified = assembleEvent(
+		const confirmed = assembleEvent(
 			{
 				...baseRow,
 				location: "",
 				districtArea: "",
 				date: "",
-				verified: "true",
+				sourceConfirmed: "true",
 			},
 			0,
 		);
 
-		expect(unverified.verified).toBe(false);
-		expect(verified.verified).toBe(true);
+		expect(unconfirmed.sourceConfirmed).toBe(false);
+		expect(confirmed.sourceConfirmed).toBe(true);
+	});
+
+	it("respects manual details quality overrides", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				detailsQualityOverride: "review",
+			},
+			0,
+		);
+
+		expect(event.detailsQuality).toBe("review");
+		expect(event.detailsQualitySource).toBe("manual");
 	});
 
 	it("unions host and audience country for nationality parsing", () => {

@@ -47,7 +47,19 @@ const COLUMN_MAPPINGS = {
 	ageGuidance: ["Age Guidance", "ageGuidance", "Age"],
 	setting: ["Setting", "setting", "Indoor/Outdoor"],
 	notes: ["Notes", "notes"],
-	verified: ["Verified", "verified"],
+	sourceConfirmed: [
+		"Source Confirmed",
+		"sourceConfirmed",
+		"Details Confirmed",
+		"detailsConfirmed",
+		"Verified",
+		"verified",
+	],
+	detailsQualityOverride: [
+		"Details Quality Override",
+		"detailsQualityOverride",
+		"Review Status",
+	],
 } as const;
 
 type RawCSVRow = Record<string, string>;
@@ -76,7 +88,8 @@ export type CSVEventRow = {
 	ageGuidance: string;
 	setting: string;
 	notes: string;
-	verified?: string;
+	sourceConfirmed?: string;
+	detailsQualityOverride?: string;
 };
 
 const normalizeHeaderKey = (value: string): string => {
@@ -135,7 +148,8 @@ const createColumnMapping = (
 		ageGuidance: null,
 		setting: null,
 		notes: null,
-		verified: null,
+		sourceConfirmed: null,
+		detailsQualityOverride: null,
 	};
 	const ambiguousHeaders: Array<{ header: string; fields: string[] }> = [];
 	const duplicateFieldMatches: Array<{
@@ -195,7 +209,8 @@ const createColumnMapping = (
 
 const RECOVERABLE_TRAILING_FIELDS = new Set<keyof CSVEventRow>([
 	"notes",
-	"verified",
+	"sourceConfirmed",
+	"detailsQualityOverride",
 ]);
 
 const isRecoverableTooFewFieldsError = (
@@ -368,8 +383,14 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 						(columnMapping.ageGuidance && row[columnMapping.ageGuidance]) || "",
 					setting: (columnMapping.setting && row[columnMapping.setting]) || "",
 					notes: (columnMapping.notes && row[columnMapping.notes]) || "",
-					verified:
-						(columnMapping.verified && row[columnMapping.verified]) || "",
+					sourceConfirmed:
+						(columnMapping.sourceConfirmed &&
+							row[columnMapping.sourceConfirmed]) ||
+						"",
+					detailsQualityOverride:
+						(columnMapping.detailsQualityOverride &&
+							row[columnMapping.detailsQualityOverride]) ||
+						"",
 				};
 				return csvRow;
 			})

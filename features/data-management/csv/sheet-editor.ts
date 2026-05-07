@@ -15,6 +15,19 @@ export interface EditableSheetColumn {
 
 export type EditableSheetRow = Record<string, string>;
 
+const HIDDEN_EVENT_COLUMNS = [
+	{
+		key: "sourceConfirmed",
+		label: "Source Confirmed",
+		aliases: ["Details Confirmed", "Verified"],
+	},
+	{
+		key: "detailsQualityOverride",
+		label: "Details Quality Override",
+		aliases: ["Review Status"],
+	},
+] as const;
+
 const normalizeKey = (value: string): string => {
 	return value
 		.trim()
@@ -61,6 +74,9 @@ const REQUIRED_CORE_COLUMNS = new Set<string>(["title", "date"]);
 const REQUIRED_CORE_COLUMN_KEYS = ["title", "date"] as const;
 const LEGACY_FEATURED_COLUMN_KEY = "featured";
 const CORE_COLUMN_SET = new Set<string>(CSV_EVENT_COLUMNS);
+const HIDDEN_EVENT_COLUMN_SET = new Set<string>(
+	HIDDEN_EVENT_COLUMNS.map((column) => column.key),
+);
 const COUNTRY_COLUMN_KEYS = new Set<string>(["hostCountry", "audienceCountry"]);
 const TIME_COLUMN_KEYS = new Set<string>(["startTime", "endTime"]);
 const DEFAULT_UNKNOWN_TIME_HOUR = 23;
@@ -74,6 +90,8 @@ const CORE_HEADER_LOOKUP = new Map<string, string>(
 );
 
 const isCoreKey = (key: string): boolean => CORE_COLUMN_SET.has(key);
+const isHiddenEventKey = (key: string): boolean =>
+	HIDDEN_EVENT_COLUMN_SET.has(key);
 
 const resolveCoreKeyFromHeader = (header: string): string | null => {
 	const normalized = normalizeKey(header);
@@ -342,6 +360,11 @@ export const ensureCoreColumns = (
 			row[coreKey] = "";
 		}
 	}
+	for (const row of nextRows) {
+		for (const column of HIDDEN_EVENT_COLUMNS) {
+			row[column.key] = row[column.key] ?? "";
+		}
+	}
 
 	const normalizedColumns = nextColumns.map((column) => {
 		if (!isCoreKey(column.key)) return column;
@@ -438,7 +461,14 @@ export const csvToEditableSheet = (
 
 	for (const header of rawHeaders) {
 		const coreKey = resolveCoreKeyFromHeader(header);
-		let key = coreKey || normalizeKey(header) || "custom_column";
+		const normalizedHeader = normalizeKey(header);
+		const hiddenKey = HIDDEN_EVENT_COLUMNS.find(
+			(column) =>
+				normalizeKey(column.label) === normalizedHeader ||
+				normalizeKey(column.key) === normalizedHeader ||
+				column.aliases.some((alias) => normalizeKey(alias) === normalizedHeader),
+		)?.key;
+		let key = coreKey || hiddenKey || normalizedHeader || "custom_column";
 		if (isCoreKey(key)) {
 			key = key;
 		} else if (usedKeys.has(key)) {
@@ -451,14 +481,16 @@ export const csvToEditableSheet = (
 
 		usedKeys.add(key);
 		headerMappings.push({ header, key });
-		columns.push({
-			key,
-			label: coreKey
-				? CORE_COLUMN_LABELS[coreKey as keyof typeof CORE_COLUMN_LABELS]
-				: header,
-			isCore: isCoreKey(key),
-			isRequired: REQUIRED_CORE_COLUMNS.has(key),
-		});
+		if (!isHiddenEventKey(key)) {
+			columns.push({
+				key,
+				label: coreKey
+					? CORE_COLUMN_LABELS[coreKey as keyof typeof CORE_COLUMN_LABELS]
+					: header,
+				isCore: isCoreKey(key),
+				isRequired: REQUIRED_CORE_COLUMNS.has(key),
+			});
+		}
 	}
 
 	const rows = result.data.map((rawRow) => {
@@ -488,7 +520,10 @@ export const editableSheetToCsv = (
 		withoutLegacyFeatured.columns,
 		pruneEmptyEditableSheetRows(withoutLegacyFeatured.rows),
 	);
-	const csvColumns = normalized.columns;
+	const metadataColumns = HIDDEN_EVENT_COLUMNS.filter((column) =>
+		normalized.rows.some((row) => String(row[column.key] ?? "").trim()),
+	);
+	const csvColumns = [...normalized.columns, ...metadataColumns];
 	const context = createDateNormalizationContext(
 		normalized.rows.map((row) => ({ date: row.date ?? "" })),
 	);

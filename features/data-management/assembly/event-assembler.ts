@@ -46,9 +46,7 @@ const EVENT_KEY_FINGERPRINT_FIELDS: readonly (keyof CSVEventRow)[] = [
 	"districtArea",
 ];
 
-const parseVerificationOverride = (
-	value: string | undefined,
-): boolean | null => {
+const parseSourceConfirmation = (value: string | undefined): boolean | null => {
 	if (!value) return null;
 
 	const normalized = value.trim().toLowerCase();
@@ -65,10 +63,34 @@ const parseVerificationOverride = (
 	return null;
 };
 
-/**
- * Determine if an event should be considered "verified" based on data completeness
- */
-const determineVerificationStatus = (
+type DetailsQuality = "complete" | "review" | "blocking";
+
+const parseDetailsQualityOverride = (
+	value: string | undefined,
+): DetailsQuality | null => {
+	if (!value) return null;
+	const normalized = value.trim().toLowerCase();
+	if (!normalized || normalized === "auto" || normalized === "inferred") {
+		return null;
+	}
+	if (["complete", "details complete"].includes(normalized)) return "complete";
+	if (
+		[
+			"review",
+			"needs review",
+			"details need review",
+			"details may change",
+		].includes(normalized)
+	) {
+		return "review";
+	}
+	if (["blocking", "blocked", "required"].includes(normalized)) {
+		return "blocking";
+	}
+	return null;
+};
+
+const determineDetailsQuality = (
 	csvRow: CSVEventRow,
 	assembledFields: {
 		arrondissement: ParisArrondissement;
@@ -76,13 +98,15 @@ const determineVerificationStatus = (
 		mainLink: string;
 		normalizedDate: string;
 	},
-): boolean => {
-	const explicitVerification = parseVerificationOverride(csvRow.verified);
-	if (explicitVerification !== null) {
-		return explicitVerification;
+): {
+	quality: DetailsQuality;
+	source: "inferred" | "manual";
+} => {
+	const override = parseDetailsQualityOverride(csvRow.detailsQualityOverride);
+	if (override) {
+		return { quality: override, source: "manual" };
 	}
 
-	// Core completeness criteria for verification
 	const hasValidLocation =
 		csvRow.location !== undefined &&
 		csvRow.location.trim() !== "" &&
@@ -112,10 +136,10 @@ const determineVerificationStatus = (
 		csvRow.price.toLowerCase() !== "tbc" &&
 		csvRow.price.toLowerCase() !== "tba";
 
-	// Event is verified if it has:
-	// 1. Valid location AND arrondissement
-	// 2. Valid date
-	// 3. At least two of: valid time, valid link, OR valid price
+	if (!csvRow.title.trim() || !hasValidDate) {
+		return { quality: "blocking", source: "inferred" };
+	}
+
 	const coreDataComplete =
 		hasValidLocation && hasValidArrondissement && hasValidDate;
 	const detailCount = [hasValidTime, hasValidLink, hasValidPrice].filter(
@@ -123,7 +147,10 @@ const determineVerificationStatus = (
 	).length;
 	const hasEssentialDetails = detailCount >= 2;
 
-	return coreDataComplete && hasEssentialDetails;
+	return {
+		quality: coreDataComplete && hasEssentialDetails ? "complete" : "review",
+		source: "inferred",
+	};
 };
 
 export interface EventAssemblyOptions {
@@ -246,6 +273,14 @@ export const assembleEvent = (
 	const isOOOCPick =
 		csvRow.curated.includes("🌟") ||
 		csvRow.curated.toLowerCase().includes("pick");
+	const detailsQuality = determineDetailsQuality(csvRow, {
+		arrondissement,
+		time,
+		mainLink,
+		normalizedDate: date,
+	});
+	const explicitConfirmation = parseSourceConfirmation(csvRow.sourceConfirmed);
+	const sourceConfirmed = explicitConfirmation === true;
 
 	// Handle legacy indoor field (backwards compatibility)
 	const indoor = venueTypes.includes("indoor");
@@ -270,12 +305,9 @@ export const assembleEvent = (
 		tags,
 		venueTypes,
 		indoor, // Legacy field
-		verified: determineVerificationStatus(csvRow, {
-			arrondissement,
-			time,
-			mainLink,
-			normalizedDate: date,
-		}),
+		detailsQuality: detailsQuality.quality,
+		detailsQualitySource: detailsQuality.source,
+		sourceConfirmed,
 		price: csvRow.price.trim() || undefined,
 		age: csvRow.ageGuidance.trim() || undefined,
 		isOOOCPick,

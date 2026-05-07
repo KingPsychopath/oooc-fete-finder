@@ -127,7 +127,7 @@ describe("/api/og route", () => {
 					genre: ["afrobeats", "amapiano", "dancehall", "rap"],
 					venueTypes: ["outdoor"],
 					indoor: false,
-					verified: true,
+					sourceConfirmed: true,
 					price: "Free",
 				},
 			],

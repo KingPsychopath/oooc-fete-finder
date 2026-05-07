@@ -516,6 +516,28 @@ const EventModal: React.FC<EventModalProps> = ({
 		event.links && event.links.length > 0 ? event.links : [event.link];
 	const primaryLink = allLinks[0];
 	const secondaryLinks = allLinks.slice(1);
+	const detailsQuality = event.detailsQuality ?? "review";
+	const sourceConfirmed = event.sourceConfirmed ?? false;
+	const detailsStatus =
+		sourceConfirmed
+			? {
+					label: "Details confirmed",
+					dotClassName: "bg-green-500",
+				}
+			: detailsQuality === "complete"
+				? {
+						label: "Details complete",
+						dotClassName: "bg-green-500",
+					}
+				: detailsQuality === "blocking"
+					? {
+							label: "Details need review",
+							dotClassName: "bg-red-500",
+						}
+					: {
+							label: "Details may change",
+							dotClassName: "bg-yellow-500",
+						};
 	const allGenres = event.genre || [];
 	const shouldCollapseGenres =
 		allGenres.length >= MODAL_GENRE_PREVIEW_LIMIT + MODAL_MIN_COLLAPSED_GENRES;
@@ -1255,15 +1277,9 @@ const EventModal: React.FC<EventModalProps> = ({
 
 					<div className="flex items-center gap-2 text-[11px] text-muted-foreground">
 						<div
-							className={`h-2 w-2 rounded-full ${
-								event.verified ? "bg-green-500" : "bg-yellow-500"
-							}`}
+							className={`h-2 w-2 rounded-full ${detailsStatus.dotClassName}`}
 						/>
-						<span>
-							{event.verified
-								? "Verified event"
-								: "Unverified - details may change"}
-						</span>
+						<span>{detailsStatus.label}</span>
 					</div>
 
 					<div className="space-y-1.5 border-t border-border/70 pt-3">

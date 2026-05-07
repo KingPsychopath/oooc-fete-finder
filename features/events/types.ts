@@ -140,7 +140,9 @@ export type Event = {
 	tags?: string[]; // Metadata tags parsed from the CSV Tags column
 	venueTypes: VenueType[]; // New field for venue types
 	indoor: boolean; // Deprecated: kept for backwards compatibility
-	verified: boolean;
+	detailsQuality?: "complete" | "review" | "blocking";
+	detailsQualitySource?: "inferred" | "manual";
+	sourceConfirmed?: boolean;
 	price?: string; // Price information from CSV
 	age?: string; // Age restrictions from CSV
 	isOOOCPick?: boolean; // 🌟 indicator from CSV
@@ -177,7 +179,8 @@ export type CSVEventRow = {
 	ageGuidance: string;
 	setting: string;
 	notes: string;
-	verified?: string;
+	sourceConfirmed?: string;
+	detailsQualityOverride?: string;
 };
 
 export type Arrondissement = {

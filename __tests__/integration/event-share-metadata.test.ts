@@ -53,7 +53,7 @@ describe("/event/[eventKey]/[[...slug]] metadata", () => {
 					genre: ["afrobeats", "amapiano", "dancehall", "rap"],
 					venueTypes: ["outdoor"],
 					indoor: false,
-					verified: true,
+					sourceConfirmed: true,
 					price: "Free",
 				},
 			],

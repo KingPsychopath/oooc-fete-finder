@@ -21,7 +21,7 @@ const makeEvent = (date: string): Event => ({
 	genre: ["afrobeats"],
 	venueTypes: ["indoor"],
 	indoor: true,
-	verified: true,
+	sourceConfirmed: true,
 });
 
 describe("calendar utils", () => {

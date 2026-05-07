@@ -18,7 +18,7 @@ const makeEvent = (genre: Event["genre"], suffix: string): Event => ({
 	genre,
 	venueTypes: ["indoor"],
 	indoor: true,
-	verified: true,
+	sourceConfirmed: true,
 });
 
 describe("genre preview", () => {

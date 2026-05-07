@@ -20,7 +20,7 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
 	genre: ["house"],
 	venueTypes: ["indoor"],
 	indoor: true,
-	verified: true,
+	sourceConfirmed: true,
 	...overrides,
 });
 

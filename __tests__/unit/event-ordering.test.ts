@@ -18,7 +18,7 @@ const makeEvent = ({
 	genre: ["Afrobeats"],
 	venueTypes: ["indoor"],
 	indoor: true,
-	verified: true,
+	sourceConfirmed: true,
 	...overrides,
 	eventKey,
 });

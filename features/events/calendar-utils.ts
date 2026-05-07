@@ -177,9 +177,10 @@ function createEventDescription(event: Event): string {
 		parts.push(""); // Empty line
 	}
 
-	// Add verification status
-	if (!event.verified) {
-		parts.push("⚠️ Unverified event - details may change");
+	const detailsQuality = event.detailsQuality ?? "review";
+	const sourceConfirmed = event.sourceConfirmed ?? false;
+	if (!sourceConfirmed && detailsQuality !== "complete") {
+		parts.push("Details may change");
 		parts.push("");
 	}
 

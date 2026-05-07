@@ -42,7 +42,7 @@ const makeEvent = (
 		genre: ["afrobeats"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: true,
+		sourceConfirmed: true,
 		location: "Le Klub",
 		coordinates,
 		locationResolution,

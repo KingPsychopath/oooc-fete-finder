@@ -46,7 +46,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["pop", "afrobeats"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		isFeatured: true,
 		category: "electronic",
 	},
@@ -64,7 +64,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["afrobeats", "amapiano"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "club",
 	},
 	{
@@ -81,7 +81,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["bashment", "afrobeats"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "electronic",
 	},
 	{
@@ -98,7 +98,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["pop", "soca"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "club",
 	},
 	{
@@ -115,7 +115,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["pop", "afrobeats"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "cultural",
 	},
 	{
@@ -132,7 +132,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["bashment", "amapiano"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "club",
 	},
 
@@ -151,7 +151,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["afrobeats", "amapiano"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "electronic",
 	},
 	{
@@ -168,7 +168,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["soca", "afrobeats"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "outdoor",
 	},
 	{
@@ -185,7 +185,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["bashment", "afrobeats"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "block-party",
 	},
 	{
@@ -202,7 +202,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["amapiano", "afrobeats"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "block-party",
 	},
 	{
@@ -219,7 +219,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["bashment", "amapiano"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "block-party",
 	},
 	{
@@ -236,7 +236,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["afrobeats", "amapiano"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "cultural",
 	},
 
@@ -255,7 +255,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["amapiano", "bashment"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "afterparty",
 	},
 	{
@@ -272,7 +272,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["afrobeats", "amapiano"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "afterparty",
 	},
 	{
@@ -289,7 +289,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["soca", "bashment"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "afterparty",
 	},
 	{
@@ -306,7 +306,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["soca", "pop"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "club",
 	},
 	{
@@ -323,7 +323,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["bashment", "amapiano"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "block-party",
 	},
 	{
@@ -340,7 +340,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["afrobeats", "amapiano"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "club",
 	},
 	{
@@ -357,7 +357,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["bashment", "pop"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "electronic",
 	},
 
@@ -376,7 +376,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["soca", "afrobeats"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "outdoor",
 	},
 	{
@@ -393,7 +393,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["afrobeats", "amapiano"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "cultural",
 	},
 	{
@@ -410,7 +410,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["pop", "amapiano"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "electronic",
 	},
 	{
@@ -427,7 +427,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["bashment", "afrobeats"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "electronic",
 	},
 	{
@@ -444,7 +444,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["afrobeats", "soca"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "club",
 	},
 	{
@@ -461,7 +461,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["soca", "pop"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		isFeatured: true,
 		category: "cruise",
 	},
@@ -481,7 +481,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["pop", "amapiano"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "outdoor",
 	},
 	{
@@ -498,7 +498,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["pop", "amapiano"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "outdoor",
 	},
 	{
@@ -515,7 +515,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["bashment", "afrobeats"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "club",
 	},
 	{
@@ -532,7 +532,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["pop", "soca"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "club",
 	},
 	{
@@ -549,7 +549,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["amapiano", "afrobeats"],
 		venueTypes: ["outdoor"],
 		indoor: false,
-		verified: false,
+		sourceConfirmed: false,
 		category: "cultural",
 	},
 	{
@@ -566,7 +566,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["soca", "pop"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "club",
 	},
 	{
@@ -583,7 +583,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["pop", "bashment"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "electronic",
 	},
 	{
@@ -600,7 +600,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["afrobeats", "amapiano"],
 		venueTypes: ["indoor"],
 		indoor: true,
-		verified: false,
+		sourceConfirmed: false,
 		category: "electronic",
 	},
 
@@ -619,7 +619,7 @@ const RAW_EVENTS_DATA: LegacyEvent[] = [
 		genre: ["afrobeats", "shatta", "rap", "r&b"],
 		venueTypes: ["indoor", "outdoor"],
 		indoor: true, // For backwards compatibility, true since it has indoor component
-		verified: true,
+		sourceConfirmed: true,
 		isOOOCPick: true,
 		category: "cultural",
 	},
