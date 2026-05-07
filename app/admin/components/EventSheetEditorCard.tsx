@@ -5901,7 +5901,11 @@ export const EventSheetEditorCard = ({
 																		<div className="max-h-60 overflow-y-auto p-1">
 																			{primaryUrlParts.map((part, partIndex) => (
 																				<div
-																					key={`${part.raw}-${partIndex}`}
+																					key={urlPartRefKey(
+																						rowIndex,
+																						column.key,
+																						partIndex,
+																					)}
 																					className="rounded px-2 py-1.5 text-xs hover:bg-accent/40"
 																				>
 																					<div className="flex items-center gap-2">
