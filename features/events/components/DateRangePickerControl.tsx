@@ -140,11 +140,11 @@ function DateRangePickerControl({
 	}, [availableEventDates, selectedCalendarRange, toLocalDate]);
 
 	return (
-		<div className={sectionClassName}>
-			<div className="flex items-center justify-between">
+		<div className={`${sectionClassName} min-w-0 overflow-hidden`}>
+			<div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
 				<h4 className={sectionTitleClassName}>Pick Date Range</h4>
 				{hasSelectedDateRange ? (
-					<div className="flex items-center gap-1">
+					<div className="flex shrink-0 items-center gap-1">
 						{hasCustomDateRange && hasDefaultDateRange && (
 							<Button
 								type="button"
@@ -186,16 +186,16 @@ function DateRangePickerControl({
 				)}
 			</div>
 			{mobileNative ? (
-				<div className="space-y-2">
-					<div className="rounded-lg border border-border/70 bg-background/72 px-3 py-2">
+				<div className="min-w-0 space-y-2">
+					<div className="min-w-0 rounded-lg border border-border/70 bg-background/72 px-3 py-2">
 						<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 							Current range
 						</p>
-						<p className="mt-0.5 text-sm font-medium text-foreground">
+						<p className="mt-0.5 truncate text-sm font-medium text-foreground">
 							{mobileDateRangeLabel}
 						</p>
 					</div>
-					<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+					<div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
 						<label className="min-w-0 space-y-1">
 							<span className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
 								From
@@ -211,7 +211,7 @@ function DateRangePickerControl({
 										to: selectedDateRange.to,
 									})
 								}
-								className="h-8 w-full min-w-0 border-border/75 bg-background/68 text-xs"
+								className="h-8 w-full min-w-0 max-w-full appearance-none border-border/75 bg-background/68 text-xs"
 								aria-label="Filter events from date"
 							/>
 						</label>
@@ -230,7 +230,7 @@ function DateRangePickerControl({
 										to: event.target.value || null,
 									})
 								}
-								className="h-8 w-full min-w-0 border-border/75 bg-background/68 text-xs"
+								className="h-8 w-full min-w-0 max-w-full appearance-none border-border/75 bg-background/68 text-xs"
 								aria-label="Filter events to date"
 							/>
 						</label>

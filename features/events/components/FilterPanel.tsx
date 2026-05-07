@@ -818,10 +818,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													</div>
 												</div>
 
-												{/* Nationality */}
+												{/* Host Nationality */}
 												<div>
 													<h3 className={sectionTitleClassName}>
-														Nationality{" "}
+														Host nationality{" "}
 														{selectedNationalities.length > 1 && (
 															<span className="text-sm text-muted-foreground font-normal">
 																(must INCLUDE)
@@ -1288,10 +1288,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</div>
 								</div>
 
-								{/* Nationality */}
+								{/* Host Nationality */}
 								<div className={sectionClassName}>
 									<h3 className={sectionTitleClassName}>
-										Nationality{" "}
+										Host nationality{" "}
 										{selectedNationalities.length > 1 && (
 											<span className="text-sm text-muted-foreground font-normal">
 												(must INCLUDE)
