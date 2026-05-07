@@ -34,8 +34,10 @@ import {
 	type EditableSheetRow,
 	createBlankEditableSheetRow,
 	createCustomColumnKey,
+	formatIsoDateForEditableSheet,
 	isEditableSheetRowEmpty,
 	pruneEmptyEditableSheetRows,
+	toEditableSheetRowSortableDateTime,
 } from "@/features/data-management/csv/sheet-editor";
 import type { EventSheetRevisionRecord } from "@/features/data-management/event-sheet-revision-types";
 import {
@@ -153,6 +155,10 @@ type DateSuggestionGroup = {
 };
 type DateInputPreview = {
 	tone: "success" | "warning";
+	message: string;
+};
+type TimeInputPreview = {
+	tone: "success" | "muted";
 	message: string;
 };
 type DateSuggestionState = {
@@ -669,12 +675,81 @@ const formatDateSuggestionLabel = (isoDate: string): string => {
 	});
 };
 
+const parseNormalizedTimeParts = (
+	value: string,
+): { hours: number; minutes: number } | null => {
+	const match = value.trim().match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+	if (!match) return null;
+	return {
+		hours: Number.parseInt(match[1], 10),
+		minutes: Number.parseInt(match[2], 10),
+	};
+};
+
+const formatTwelveHourTime = (value: string): string | null => {
+	const parts = parseNormalizedTimeParts(value);
+	if (!parts) return null;
+
+	const period = parts.hours >= 12 ? "pm" : "am";
+	const displayHours = parts.hours % 12 || 12;
+	return `${displayHours}:${parts.minutes.toString().padStart(2, "0")} ${period}`;
+};
+
+const getTimeInputPreview = (value: string): TimeInputPreview | null => {
+	const trimmed = value.trim();
+	if (!trimmed) return null;
+
+	const normalized = DateTransformers.convertToTime(trimmed);
+	const normalizedLower = normalized.toLowerCase();
+	if (normalizedLower === "tbc" || normalizedLower === "tba") {
+		return {
+			tone: "success",
+			message: `Will save as ${normalized.toUpperCase()}`,
+		};
+	}
+
+	const twelveHour = formatTwelveHourTime(normalized);
+	if (twelveHour) {
+		return {
+			tone: "success",
+			message:
+				normalized === trimmed
+					? `Valid time: ${normalized} (${twelveHour})`
+					: `Will save as ${normalized} (${twelveHour})`,
+		};
+	}
+
+	return {
+		tone: "muted",
+		message: "Will save as typed",
+	};
+};
+
 const getNormalizedSheetDate = (
 	value: string,
 	context: ReturnType<typeof createDateNormalizationContext>,
 ): string | null => {
 	const normalized = normalizeCsvDate(value, context);
 	return normalized.isoDate || null;
+};
+
+const formatDateCellHint = (
+	value: string,
+	context: ReturnType<typeof createDateNormalizationContext>,
+): string | null => {
+	const normalized = normalizeCsvDate(value, context);
+	if (!normalized.isoDate) return null;
+
+	const parsed = new Date(`${normalized.isoDate}T00:00:00.000Z`);
+	if (Number.isNaN(parsed.getTime())) return null;
+
+	return parsed.toLocaleDateString("en-GB", {
+		weekday: "short",
+		day: "2-digit",
+		month: "short",
+		year: "numeric",
+		timeZone: "UTC",
+	});
 };
 
 const buildCommonFeteDates = (year: number): DateSuggestionOption[] =>
@@ -737,11 +812,7 @@ const getRowDateTime = (
 	row: EditableSheetRow,
 	context: ReturnType<typeof createDateNormalizationContext>,
 ): number | null => {
-	const normalized = normalizeCsvDate(row.date ?? "", context);
-	if (!normalized.isoDate) return null;
-
-	const time = Date.parse(`${normalized.isoDate}T00:00:00.000Z`);
-	return Number.isNaN(time) ? null : time;
+	return toEditableSheetRowSortableDateTime(row, context);
 };
 
 const sortRowIndexes = (
@@ -883,6 +954,9 @@ export const EventSheetEditorCard = ({
 	const [focusedDateCell, setFocusedDateCell] = useState<FocusedCell | null>(
 		null,
 	);
+	const [focusedTimeCell, setFocusedTimeCell] = useState<FocusedCell | null>(
+		null,
+	);
 	const [focusedAreaCell, setFocusedAreaCell] = useState<FocusedCell | null>(
 		null,
 	);
@@ -931,6 +1005,7 @@ export const EventSheetEditorCard = ({
 		setFocusedCountryCell(null);
 		setCountrySearchQuery("");
 		setFocusedDateCell(null);
+		setFocusedTimeCell(null);
 		setFocusedAreaCell(null);
 		setAreaSearchQuery("");
 		setFocusedSettingCell(null);
@@ -1441,7 +1516,9 @@ export const EventSheetEditorCard = ({
 			rowsRef.current.map((row) => ({ date: row.date ?? "" })),
 		);
 		const normalized = normalizeCsvDate(trimmed, context);
-		if (normalized.isoDate) return normalized.isoDate;
+		if (normalized.isoDate) {
+			return formatIsoDateForEditableSheet(normalized.isoDate);
+		}
 
 		if (normalized.warning) {
 			setStatusMessage(normalized.warning.message);
@@ -1975,12 +2052,18 @@ export const EventSheetEditorCard = ({
 		return AGE_OPTIONS;
 	}, [focusedAgeCell]);
 
+	const sheetDateContext = useMemo(
+		() =>
+			createDateNormalizationContext(
+				rows.map((row) => ({ date: row.date ?? "" })),
+			),
+		[rows],
+	);
+
 	const dateSuggestionState = useMemo((): DateSuggestionState => {
 		if (!focusedDateCell) return { preview: null, groups: [] };
 
-		const context = createDateNormalizationContext(
-			rows.map((row) => ({ date: row.date ?? "" })),
-		);
+		const context = sheetDateContext;
 		const seen = new Set<string>();
 		const groups: DateSuggestionGroup[] = [];
 		const addSuggestion = (option: DateSuggestionOption) => {
@@ -2007,7 +2090,7 @@ export const EventSheetEditorCard = ({
 					message:
 						normalizedInput.isoDate === trimmedInput
 							? `Valid date: ${formatDateSuggestionLabel(normalizedInput.isoDate)}`
-							: `Will save as ${normalizedInput.isoDate}`,
+							: `Will save as ${formatIsoDateForEditableSheet(normalizedInput.isoDate)}`,
 				}
 			: normalizedInput?.warning
 				? {
@@ -2082,7 +2165,14 @@ export const EventSheetEditorCard = ({
 		);
 
 		return { preview, groups };
-	}, [focusedDateCell, rows]);
+	}, [focusedDateCell, rows, sheetDateContext]);
+
+	const timeInputPreview = useMemo((): TimeInputPreview | null => {
+		if (!focusedTimeCell) return null;
+		const value =
+			rows[focusedTimeCell.rowIndex]?.[focusedTimeCell.columnKey] ?? "";
+		return getTimeInputPreview(value);
+	}, [focusedTimeCell, rows]);
 
 	const toggleCuratedForCell = useCallback(
 		(rowIndex: number, columnKey: string) => {
@@ -2098,7 +2188,7 @@ export const EventSheetEditorCard = ({
 
 	const selectDateForCell = useCallback(
 		(rowIndex: number, columnKey: string, date: string) => {
-			handleCellChange(rowIndex, columnKey, date);
+			handleCellChange(rowIndex, columnKey, formatIsoDateForEditableSheet(date));
 			setFocusedDateCell(null);
 			window.setTimeout(() => {
 				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
@@ -2120,12 +2210,13 @@ export const EventSheetEditorCard = ({
 			);
 			if (!rowAboveDate) return false;
 
-			handleCellChange(rowIndex, columnKey, rowAboveDate);
+			const sheetDate = formatIsoDateForEditableSheet(rowAboveDate);
+			handleCellChange(rowIndex, columnKey, sheetDate);
 			if (activeCellEditRef.current === cellRefKey(rowIndex, columnKey)) {
 				activeCellEditRef.current = null;
 			}
 			setFocusedDateCell(null);
-			setStatusMessage(`Copied ${rowAboveDate} from row above`);
+			setStatusMessage(`Copied ${sheetDate} from row above`);
 			return true;
 		},
 		[handleCellChange],
@@ -2963,8 +3054,8 @@ export const EventSheetEditorCard = ({
 								className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
 							>
 								<option value="smart-date">Upcoming first</option>
-								<option value="date-asc">Date ascending</option>
-								<option value="date-desc">Date descending</option>
+								<option value="date-asc">Date/time ascending</option>
+								<option value="date-desc">Date/time descending</option>
 								<option value="sheet-order">Sheet order</option>
 							</select>
 						</div>
@@ -3760,7 +3851,7 @@ export const EventSheetEditorCard = ({
 															</span>
 														</button>
 													) : column.key === DATE_COLUMN_KEY ? (
-														<div className="relative min-h-9 bg-transparent">
+														<div className="relative min-h-9 bg-transparent px-2 py-1">
 															<input
 																ref={(node) => {
 																	inputRefs.current[
@@ -3845,14 +3936,25 @@ export const EventSheetEditorCard = ({
 																		focusCell(rowIndex, column.key, 0, -1);
 																	}
 																}}
-																className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
-																placeholder="YYYY-MM-DD or 29.03.2026"
+																className="h-5 w-full border-0 bg-transparent p-0 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30"
+																placeholder="DD-MM-YYYY"
 																aria-autocomplete="list"
 																aria-expanded={
 																	focusedDateCell?.rowIndex === rowIndex &&
 																	focusedDateCell.columnKey === column.key
 																}
 															/>
+															{formatDateCellHint(
+																row[column.key] ?? "",
+																sheetDateContext,
+															) && (
+																<div className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70">
+																	{formatDateCellHint(
+																		row[column.key] ?? "",
+																		sheetDateContext,
+																	)}
+																</div>
+															)}
 															{focusedDateCell?.rowIndex === rowIndex &&
 																focusedDateCell.columnKey === column.key && (
 																	<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
@@ -3921,6 +4023,108 @@ export const EventSheetEditorCard = ({
 																					No reusable dates yet.
 																				</div>
 																			)}
+																		</div>
+																	</div>
+																)}
+														</div>
+													) : TIME_COLUMN_KEYS.has(column.key) ? (
+														<div className="relative min-h-9 bg-transparent px-2 py-1">
+															<input
+																ref={(node) => {
+																	inputRefs.current[
+																		cellRefKey(rowIndex, column.key)
+																	] = node;
+																}}
+																value={row[column.key] ?? ""}
+																onFocus={() => {
+																	setFocusedTimeCell({
+																		rowIndex,
+																		columnKey: column.key,
+																	});
+																}}
+																onChange={(event) =>
+																	handleCellChange(
+																		rowIndex,
+																		column.key,
+																		event.target.value,
+																	)
+																}
+																onBlur={() => {
+																	commitStandardCell(rowIndex, column.key);
+																	window.setTimeout(() => {
+																		setFocusedTimeCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? null
+																				: current,
+																		);
+																	}, 120);
+																}}
+																onKeyDown={(event) => {
+																	if (event.key === "Escape") {
+																		setFocusedTimeCell(null);
+																		return;
+																	}
+																	if (event.key === "Enter") {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (event.key === "ArrowDown") {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (event.key === "ArrowUp") {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, -1, 0);
+																	}
+																	if (
+																		event.key === "ArrowRight" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 0, 1);
+																	}
+																	if (
+																		event.key === "ArrowLeft" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 0, -1);
+																	}
+																}}
+																className="h-5 w-full border-0 bg-transparent p-0 font-mono text-xs outline-none focus:bg-muted/30"
+																placeholder="14:00 or 2 pm"
+															/>
+															{formatTwelveHourTime(row[column.key] ?? "") && (
+																<div className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70">
+																	{formatTwelveHourTime(row[column.key] ?? "")}
+																</div>
+															)}
+															{focusedTimeCell?.rowIndex === rowIndex &&
+																focusedTimeCell.columnKey === column.key &&
+																timeInputPreview && (
+																	<div className="absolute left-1 top-8 z-40 w-56 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																			{column.key === START_TIME_COLUMN_KEY
+																				? "Start time"
+																				: "End time"}
+																		</div>
+																		<div
+																			className={`border-b px-2 py-1.5 text-[11px] ${
+																				timeInputPreview.tone === "success"
+																					? "text-foreground/75"
+																					: "text-muted-foreground"
+																			}`}
+																		>
+																			{timeInputPreview.message}
+																		</div>
+																		<div className="px-2 py-1.5 text-[10px] text-muted-foreground">
+																			Try 2 pm, 14:00, 11.30pm, or 14h00
 																		</div>
 																	</div>
 																)}

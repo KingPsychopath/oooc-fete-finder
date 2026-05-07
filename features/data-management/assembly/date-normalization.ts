@@ -188,7 +188,7 @@ const parseNumericDate = (
 	const dayFirstValid = isValidCalendarDate(candidateYear, right, left);
 	const monthFirstValid = isValidCalendarDate(candidateYear, left, right);
 
-	if (separator === "." && dayFirstValid) {
+	if ((separator === "." || separator === "-") && dayFirstValid) {
 		return {
 			status: "success",
 			day: left,
@@ -196,8 +196,8 @@ const parseNumericDate = (
 			year: explicitYear,
 			detectedFormat:
 				yearPart === undefined
-					? "numeric-dot-day-first-without-year"
-					: "numeric-dot-day-first",
+					? `numeric-${separator}-day-first-without-year`
+					: `numeric-${separator}-day-first`,
 		};
 	}
 
@@ -212,7 +212,7 @@ const parseNumericDate = (
 			status: "ambiguous",
 			detectedFormat,
 			message:
-				"Ambiguous numeric date. Use YYYY-MM-DD or write the month name.",
+				"Ambiguous numeric date. Use DD-MM-YYYY, YYYY-MM-DD, or write the month name.",
 			potentialFormats: {
 				us: `${left.toString().padStart(2, "0")}/${right.toString().padStart(2, "0")}/${candidateYear} (ISO ${usIso})`,
 				uk: `${left.toString().padStart(2, "0")}/${right.toString().padStart(2, "0")}/${candidateYear} (ISO ${ukIso})`,
@@ -469,7 +469,7 @@ export const normalizeCsvDate = (
 					detectedFormat: parsed.detectedFormat,
 					message: parsed.message,
 					recommendedAction:
-						"Use an unambiguous format like YYYY-MM-DD or month names.",
+						"Use DD-MM-YYYY, YYYY-MM-DD, or month names.",
 					potentialFormats: parsed.potentialFormats,
 				},
 			};

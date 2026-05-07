@@ -91,6 +91,17 @@ describe("date normalization", () => {
 		expect(normalized.warning?.type).toBe("ambiguous");
 	});
 
+	it("treats hyphen numeric dates as day-first for editor input", () => {
+		const context = createDateNormalizationContext([makeRow("2026-06-21")], {
+			referenceDate: new Date("2025-01-01T00:00:00.000Z"),
+		});
+		const normalized = normalizeCsvDate("03-04-2026", context);
+
+		expect(normalized.isoDate).toBe("2026-04-03");
+		expect(normalized.day).toBe("friday");
+		expect(normalized.warning).toBeUndefined();
+	});
+
 	it("normalizes explicit dot dates as day-first", () => {
 		const context = createDateNormalizationContext([makeRow("2021-03-29")], {
 			referenceDate: new Date("2025-01-01T00:00:00.000Z"),

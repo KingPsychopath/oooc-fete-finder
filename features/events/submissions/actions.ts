@@ -10,6 +10,7 @@ import {
 	type EditableSheetColumn,
 	type EditableSheetRow,
 	createBlankEditableSheetRow,
+	sortEditableSheetRowsByDefaultDate,
 } from "@/features/data-management/csv/sheet-editor";
 import { revalidatePath } from "next/cache";
 import { EventSubmissionSettingsStore } from "./settings-store";
@@ -78,11 +79,16 @@ const mapSubmissionToSheetRow = (
 
 const parseAcceptedEventKey = (
 	rows: EditableSheetRow[],
-	beforeLength: number,
+	acceptedRow: EditableSheetRow,
 ): string | null => {
-	const addedRow = rows[beforeLength];
-	if (!addedRow) return null;
-	const rawEventKey = addedRow.eventKey;
+	const addedRow = rows.find(
+		(row) =>
+			row.title === acceptedRow.title &&
+			row.date === acceptedRow.date &&
+			row.startTime === acceptedRow.startTime &&
+			row.location === acceptedRow.location,
+	);
+	const rawEventKey = addedRow?.eventKey;
 	if (typeof rawEventKey !== "string") return null;
 	const normalized = rawEventKey.trim();
 	return normalized.length > 0 ? normalized : null;
@@ -322,10 +328,11 @@ export async function acceptEventSubmission(
 			};
 		}
 
-		const nextRows = [
+		const acceptedRow = mapSubmissionToSheetRow(current, editorData.columns);
+		const nextRows = sortEditableSheetRowsByDefaultDate([
 			...editorData.rows.map((row) => ({ ...row })),
-			mapSubmissionToSheetRow(current, editorData.columns),
-		];
+			acceptedRow,
+		]);
 		const saveResult = await saveEventSheetEditorRows(
 			undefined,
 			editorData.columns,
@@ -342,10 +349,7 @@ export async function acceptEventSubmission(
 			};
 		}
 
-		const acceptedEventKey = parseAcceptedEventKey(
-			nextRows,
-			editorData.rows.length,
-		);
+		const acceptedEventKey = parseAcceptedEventKey(nextRows, acceptedRow);
 		const reviewed = await reviewEventSubmission({
 			id: normalizedSubmissionId,
 			status: "accepted",

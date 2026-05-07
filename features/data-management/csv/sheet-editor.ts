@@ -31,6 +31,12 @@ const toCsvValue = (value: string): string => {
 	return value;
 };
 
+export const formatIsoDateForEditableSheet = (isoDate: string): string => {
+	const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+	if (!match) return isoDate;
+	return `${match[3]}-${match[2]}-${match[1]}`;
+};
+
 const CORE_COLUMN_LABELS: Record<(typeof CSV_EVENT_COLUMNS)[number], string> = {
 	eventKey: "Event Key",
 	curated: "Curated",
@@ -56,6 +62,9 @@ const REQUIRED_CORE_COLUMN_KEYS = ["title", "date"] as const;
 const LEGACY_FEATURED_COLUMN_KEY = "featured";
 const CORE_COLUMN_SET = new Set<string>(CSV_EVENT_COLUMNS);
 const COUNTRY_COLUMN_KEYS = new Set<string>(["hostCountry", "audienceCountry"]);
+const TIME_COLUMN_KEYS = new Set<string>(["startTime", "endTime"]);
+const DEFAULT_UNKNOWN_TIME_HOUR = 23;
+const DEFAULT_UNKNOWN_TIME_MINUTE = 59;
 
 const CORE_HEADER_LOOKUP = new Map<string, string>(
 	CSV_EVENT_COLUMNS.flatMap((key) => [
@@ -87,8 +96,15 @@ export const pruneEmptyEditableSheetRows = (
 
 export const normalizeEditableSheetRowValues = (
 	row: EditableSheetRow,
+	context?: ReturnType<typeof createDateNormalizationContext>,
 ): EditableSheetRow => {
 	const nextRow = { ...row };
+	if (context) {
+		const normalizedDate = normalizeCsvDate(nextRow.date ?? "", context);
+		if (normalizedDate.isoDate) {
+			nextRow.date = formatIsoDateForEditableSheet(normalizedDate.isoDate);
+		}
+	}
 	for (const key of COUNTRY_COLUMN_KEYS) {
 		const rawValue = nextRow[key] ?? "";
 		const normalized = normalizeSupportedNationalities(rawValue);
@@ -96,20 +112,108 @@ export const normalizeEditableSheetRowValues = (
 			nextRow[key] = normalized;
 		}
 	}
+	for (const key of TIME_COLUMN_KEYS) {
+		nextRow[key] = normalizeEditableSheetTimeValue(nextRow[key] ?? "");
+	}
 	return nextRow;
 };
 
 const toUTCDateOnlyTime = (date: Date): number =>
 	Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 
-const toSortableDateTime = (
+const parseSortableTime = (rawTime: string): [number, number] => {
+	const normalized = rawTime.trim().toLowerCase();
+	if (!normalized || normalized === "tbc") {
+		return [DEFAULT_UNKNOWN_TIME_HOUR, DEFAULT_UNKNOWN_TIME_MINUTE];
+	}
+
+	const period = normalized.match(/(am|pm)\s*$/)?.[1] ?? null;
+	const isAM = period === "am";
+	const isPM = period === "pm";
+	const cleaned = normalized
+		.replace(/\s+/g, "")
+		.replace(/[.-]/g, ":")
+		.replace(/h/g, ":")
+		.replace(/[;,]/g, ":")
+		.replace(/:+/g, ":")
+		.replace(/:$/, "")
+		.replace(/(am|pm)$/g, "");
+	const [hoursText, minutesText = "0"] = cleaned.split(":");
+	const parsedHours = Number.parseInt(hoursText, 10);
+	const parsedMinutes = Number.parseInt(minutesText, 10);
+
+	if (
+		!Number.isFinite(parsedHours) ||
+		!Number.isFinite(parsedMinutes) ||
+		parsedHours < 0 ||
+		parsedHours > 23 ||
+		parsedMinutes < 0 ||
+		parsedMinutes > 59
+	) {
+		return [DEFAULT_UNKNOWN_TIME_HOUR, DEFAULT_UNKNOWN_TIME_MINUTE];
+	}
+
+	let hours = parsedHours;
+	if (isPM && hours !== 12) hours += 12;
+	if (isAM && hours === 12) hours = 0;
+
+	return [hours, parsedMinutes];
+};
+
+const normalizeEditableSheetTimeValue = (rawTime: string): string => {
+	const trimmed = rawTime.trim();
+	if (!trimmed) return "";
+
+	const normalized = trimmed.toLowerCase();
+	if (normalized === "tbc" || normalized === "tba") {
+		return normalized.toUpperCase();
+	}
+
+	const period = normalized.match(/(am|pm)\s*$/)?.[1] ?? null;
+	const isAM = period === "am";
+	const isPM = period === "pm";
+	const cleaned = normalized
+		.replace(/\s+/g, "")
+		.replace(/[.-]/g, ":")
+		.replace(/h/g, ":")
+		.replace(/[;,]/g, ":")
+		.replace(/:+/g, ":")
+		.replace(/:$/, "");
+	const amPmMatch = cleaned.match(/^(\d{1,2}):?(\d{2})?(am|pm)$/);
+	const time24Match = cleaned.match(/^(\d{1,2})(?::?(\d{2}))?$/);
+	const match = amPmMatch ?? time24Match;
+	if (!match) return trimmed;
+
+	let hours = Number.parseInt(match[1], 10);
+	const minutes = match[2] ? Number.parseInt(match[2], 10) : 0;
+	if (
+		!Number.isFinite(hours) ||
+		!Number.isFinite(minutes) ||
+		hours < 0 ||
+		hours > 23 ||
+		minutes < 0 ||
+		minutes > 59
+	) {
+		return trimmed;
+	}
+
+	if (isPM && hours !== 12) hours += 12;
+	if (isAM && hours === 12) hours = 0;
+
+	return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+};
+
+export const toEditableSheetRowSortableDateTime = (
 	row: EditableSheetRow,
 	context: ReturnType<typeof createDateNormalizationContext>,
 ): number | null => {
 	const normalized = normalizeCsvDate(row.date ?? "", context);
 	if (!normalized.isoDate) return null;
 
-	const time = Date.parse(`${normalized.isoDate}T00:00:00.000Z`);
+	const [hours, minutes] = parseSortableTime(row.startTime ?? "");
+	const time = Date.parse(
+		`${normalized.isoDate}T${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00.000Z`,
+	);
 	return Number.isNaN(time) ? null : time;
 };
 
@@ -192,7 +296,7 @@ export const sortEditableSheetRowsByDefaultDate = (
 		.map((row, index) => ({
 			row: { ...row },
 			index,
-			dateTime: toSortableDateTime(row, context),
+			dateTime: toEditableSheetRowSortableDateTime(row, context),
 		}))
 		.sort((left, right) => {
 			if (left.dateTime === null && right.dateTime === null) {
@@ -385,11 +489,14 @@ export const editableSheetToCsv = (
 		pruneEmptyEditableSheetRows(withoutLegacyFeatured.rows),
 	);
 	const csvColumns = normalized.columns;
+	const context = createDateNormalizationContext(
+		normalized.rows.map((row) => ({ date: row.date ?? "" })),
+	);
 	const headerLine = csvColumns
 		.map((column) => toCsvValue(column.label))
 		.join(",");
 	const dataLines = normalized.rows.map((row) => {
-		const normalizedRow = normalizeEditableSheetRowValues(row);
+		const normalizedRow = normalizeEditableSheetRowValues(row, context);
 		return csvColumns
 			.map((column) => toCsvValue(normalizedRow[column.key] ?? ""))
 			.join(",");

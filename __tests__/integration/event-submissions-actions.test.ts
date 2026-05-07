@@ -346,6 +346,43 @@ describe("event submission admin actions", () => {
 		);
 	});
 
+	it("inserts accepted submissions into date and time order before saving", async () => {
+		const {
+			acceptEventSubmission,
+			getEventSheetEditorData,
+			saveEventSheetEditorRows,
+		} = await loadActions();
+		getEventSheetEditorData.mockResolvedValueOnce({
+			success: true,
+			columns: [
+				{ key: "title", label: "Title", isCore: true, isRequired: true },
+				{ key: "date", label: "Date", isCore: true, isRequired: true },
+				{
+					key: "startTime",
+					label: "Start Time",
+					isCore: true,
+					isRequired: false,
+				},
+			],
+			rows: [
+				{ title: "Late same day", date: "21-06-2026", startTime: "23:00" },
+				{ title: "Earlier day", date: "20-06-2026", startTime: "23:00" },
+			],
+		});
+
+		const result = await acceptEventSubmission("submission_1");
+
+		expect(result.success).toBe(true);
+		const savedRows = saveEventSheetEditorRows.mock.calls[0]?.[2] as Array<{
+			title?: string;
+		}>;
+		expect(savedRows.map((row) => row.title)).toEqual([
+			"Earlier day",
+			"Sunset Party",
+			"Late same day",
+		]);
+	});
+
 	it("does not append update requests as new events", async () => {
 		const {
 			acceptEventSubmission,
