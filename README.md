@@ -1,267 +1,205 @@
-# OOOC Fete Finder
+# OOOC Fête Finder
 
-A Next.js app for discovering Fete de la Musique events, with an admin workflow built around a Postgres source of truth.
+OOOC Fête Finder is a Next.js application for discovering Fête de la Musique events in Paris. It combines a public event finder with an authenticated admin workflow for managing event data, submissions, featured placements, partner activations, and engagement insights.
 
-## Data Model
+The project is maintained for Out Of Office Collective and is designed around a Postgres source of truth, static-first public pages, and dynamic authenticated admin operations.
 
-Runtime source order (`DATA_MODE=remote`):
+## Highlights
 
-1. Postgres event store (primary)
-2. Latest Postgres event-store backup if the live store is unavailable/invalid
-3. Bundled local CSV fallback (`data/events.csv`) if Postgres data and backups are unavailable
+- Event discovery with search, filters, maps, stable share links, and event detail modals
+- Admin console for event sheet editing, host submissions, featured/promoted scheduling, runtime health, and recovery actions
+- Postgres-backed event store with backup and bundled CSV fallback paths
+- Engagement tracking for saved-event social proof, discovery analytics, partner reporting, and audience preferences
+- Optional geocoding enrichment for map coordinates, with text-search fallbacks when provider keys are unavailable
+- Abuse protection for auth, tracking, preference, and event-submission endpoints
 
-Google Sheets is not used in the runtime or admin data workflow.
+## Tech Stack
 
-Featured scheduling is Postgres-backed (`app_featured_event_schedule`) and managed from the dedicated admin Featured Events Manager (not from CSV free-text `Featured` values).
+- Next.js App Router
+- React
+- TypeScript
+- Tailwind CSS v4
+- Postgres
+- Vitest
+- Biome
+- Vercel-oriented deployment/runtime conventions
 
-Auth modal user submissions are stored in the managed user store (`app_kv_store`) first, with optional Google mirroring only when explicitly enabled.
+## Repository Status
 
-Host event submissions are stored in Postgres (`app_event_submissions`) and reviewed in `/admin` before publishing.
+This repository is source-available, not open-source licensed. The code is shared for transparency and review, but reuse, copying, modification, distribution, sublicensing, or sale is not permitted without prior written permission.
 
-In Vercel preview/production, KV provider selection is strict Postgres-only (no file/memory fallback).
+See [LICENSE](./LICENSE) for the full terms.
 
-## Runtime Data Flow (Current)
+## Getting Started
 
-There is no custom app cache layer for events. `lib/cache/*` has been removed.
+### Prerequisites
 
-Server-side event reads flow as:
+- Node.js compatible with the current Next.js version
+- pnpm
+- A Postgres database for remote/runtime data workflows
 
-1. `features/data-management/runtime-service.ts#getLiveEvents()`
-2. `DataManager.getEventsData()`
-3. Source chain in remote mode:
-   - managed Postgres event store (`store`)
-   - latest Postgres event-store backup (`backup`) if store is unavailable/invalid
-   - bundled local CSV fallback (`data/events.csv`) if Postgres data and backups are unavailable
-4. `processCSVData()`:
-   - event key hydration
-   - quality checks
-   - coordinate population (when enabled)
-5. Coordinate storage is durable KV-backed (`maps:locations:v1`) and prewarmed on admin writes (`save/import/sheet save + revalidate`) to reduce live geocoding churn. Warm-up also prunes stale keys and auto-upgrades `estimated` entries when geocoding is available.
-6. Public delivery uses Next.js built-ins (ISR/revalidate APIs where configured).
-
-What did not become a data cache:
-
-- Logger dedupe map in `logger.ts` (line 20) is only log suppression.
-- Runtime metrics counters in `runtime-service.ts` (line 74) are telemetry only.
-
-## Cache + Revalidation Policy
-
-### What "stale" means
-
-In this app, "stale" means the user is seeing the last cached HTML/RSC payload for a route, not the newest backend state.
-
-If a route has `revalidate: N`, then:
-
-1. Cached output can be reused for up to `N` seconds.
-2. After that window, the next request may still receive the previous cached payload while Next.js regenerates in the background.
-3. Once regeneration succeeds, later requests receive the new payload.
-4. If regeneration fails, the previous cached payload can continue to be served until a later successful regeneration.
-
-If regenerated output is unchanged, users effectively receive the same page payload/content as before. Revalidation still performs server work, but it does not imply a full "new site download" for end users.
-
-### Route behavior (current)
-
-- `/`: ISR, `revalidate = 300` (5 minutes)
-- `/feature-event`: static with short ISR windows from cached server reads (`revalidate = 60` on featured projection/status lookups)
-- `/submit-event`: static-first, route revalidate window is 5 minutes
-- `/partner-success`: static-first, route revalidate window is 5 minutes
-- `/privacy`: `force-static` (build-time static output)
-- `/event/[eventKey]/[[...slug]]`: dynamic route render
-- `/partner-stats/[activationId]`: `force-dynamic` (always request-time render)
-- `/admin/*`: `force-dynamic` + `noStore()` (always request-time render)
-
-### Shared cached data
-
-- Sliding banner settings use `unstable_cache` with `revalidate = 300` and tag/path invalidation helpers in `features/site-settings/cache.ts`.
-
-## Postgres Schema (Events)
-
-Event sheet data is stored in normalized tables:
-
-- `app_event_store_columns`
-- `app_event_store_rows`
-- `app_event_store_meta`
-- `app_event_store_settings`
-
-Other app state (auth/session/user collection) remains in:
-
-- `app_kv_store`
-- `app_event_submissions`
-
-## Admin Workflow (`/admin`)
-
-Admin is now split into focused areas:
-
-1. `/admin` - overview and launchpad
-2. `/admin/operations` - runtime health, store controls, sessions, recovery
-3. `/admin/content` - event sheet editor, submissions moderation, sliding banner
-4. `/admin/placements` - paid orders queue + spotlight/promoted schedulers
-5. `/admin/insights` - engagement analytics + collected users
-
-Standard publish loop:
-
-1. Edit content in `/admin/content`
-2. Manage spotlight/promoted placements in `/admin/placements` when needed
-3. Backup + revalidate in `/admin/operations`
-4. Validate tracking outcomes in `/admin/insights`
-
-### Featured Scheduling (Strict Cutover)
-
-- `Featured` CSV/sheet column is legacy and non-canonical.
-- Any non-empty legacy `Featured` values are rejected on save/import.
-- Use `/admin` -> `Featured Events Manager` for:
-1. `Feature now`
-2. Scheduled starts (Paris timezone)
-3. Cancel/reschedule queue entries
-
-### Stable Share Links (`eventKey`)
-
-- Each event has a canonical immutable key: `Event Key` (`evt_...`).
-- Public share links use `/event/<eventKey>/<eventSlug>/`.
-- The share route redirects to homepage modal state using `/?event=<eventKey>&slug=<eventSlug>`.
-- `event` / `eventKey` is canonical; `slug` is decorative.
-- In admin UI, `Event Key` is system-managed (read-only).
-- CSV import/export keeps `Event Key`; if missing on import, it is generated and persisted.
-
-## Environment Setup
-
-Copy `.env.example` and set at least:
-
-```bash
-AUTH_SECRET=replace-with-a-random-32-plus-character-secret
-DATABASE_URL=postgresql://...
-DATA_MODE=remote
-```
-
-`DATA_MODE` is required in production deploys. The app now fails fast at startup if it is missing in production.
-
-`ADMIN_KEY` is optional for builds. If unset, admin login/admin APIs are disabled.
-
-Optional geocoding:
-
-```bash
-GOOGLE_MAPS_API_KEY=          # optional; enables trusted provider coordinates for location resolution
-```
-
-Geocoding is an optional enrichment path. Homepage event reads do not require
-or perform provider lookups; admin warmup/on-demand location resolution can use
-the provider when configured, while map links fall back to venue text search.
-
-No custom in-memory events cache is used. Live reads are pass-through source reads (`Postgres -> latest backup -> bundled CSV` in remote mode), with Next.js built-ins (ISR/on-demand revalidation) for delivery where configured. The bundled CSV is a server-side emergency fallback and deployment artifact; it helps when remote data reads fail, but browser offline behavior still depends on the app's PWA/client caching.
-
-## Logging + Dedupe
-
-One-line startup banner (data mode, DB, geocoding). Runtime logs use `lib/platform/logger` (scope + message; no per-event or memory spam). In development, identical `info` logs are deduped briefly to reduce spam. This dedupe affects logs only, not data reads. See `docs/operations/logging-and-observability.md`.
-
-## OG Images
-
-Sharing now uses two standardized OG image variants:
-
-1. `default` (site-wide)
-2. `event-modal` (when sharing links with `/event/<eventKey>/<eventSlug>/`)
-
-Admin and other pages inherit the default OG style unless explicitly overridden.
-
-## Abuse Protection
-
-`POST /api/auth/verify` is protected by two layers:
-
-1. Vercel WAF edge rule (first-pass filtering before serverless execution).
-2. In-app Postgres atomic rate limiting (`60/min` per IP and `6/15min` per email+IP).
-
-Blocked requests return `429` with `Retry-After` and `no-store` cache headers.
-Sensitive identifiers are HMAC-hashed with `AUTH_SECRET` in limiter keys/log context.
-
-`POST /api/event-submissions` is protected by in-app Postgres atomic rate limiting:
-
-- `20 / 10 minutes` per IP (`event_submit_ip`)
-- `5 / 60 minutes` per email+IP (`event_submit_email_ip`)
-- `1 / 24 hours` per normalized event fingerprint (`event_submit_fingerprint`)
-
-Submission spam heuristics (honeypot + minimum completion time) are persisted for moderation and return a generic success response.
-
-Submissions can be globally enabled/disabled from `/admin` -> `Event Submissions`.
-When disabled, the public endpoint returns `503` with `no-store` headers.
-
-Tracking and preference endpoints are also rate-limited:
-
-- `POST /api/track`
-- `POST /api/track/discovery`
-- `POST /api/user/preference`
-
-Saved-event social proof is powered by tracked `calendar_sync` interactions. Public display uses seven-day, browser-session-deduped `socialProofSaveCount` values: the top eligible events can show numeric copy (`"X people saved this"`), while other eligible events use softer non-numeric copy.
-
-## Documentation
-
-- `docs/README.md` — guided docs entry point
-- `docs/architecture/overview.md` — rendering/auth/data contract and code map
-- `docs/architecture/engagement-tracking.md` — tracking model and "saved this" semantics
-- `docs/architecture/event-identity.md` — stable identity and share-link model
-- `docs/operations/admin-workflow.md` — day-to-day admin publish flow
-- `docs/operations/serverless-hardening.md` — preview/production runtime guardrails
-- `docs/operations/logging-and-observability.md` — logging and troubleshooting
-- `docs/operations/postgres-migration.md` — migration/cutover runbook
-- `docs/security/rate-limiting.md` — abuse controls and limits
-- `docs/integrations/google.md` — Google integration scope
-- `docs/integrations/geocoding.md` — geocoding behavior and fallback
-- `docs/reference/environment-variables.md` — env var reference
-- `docs/reference/api-endpoints.md` — endpoint inventory
-
-## Development
+### Install
 
 ```bash
 pnpm install
+```
+
+### Configure Environment
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env.local
+```
+
+Set the required values:
+
+```bash
+AUTH_SECRET=replace-with-a-random-32-plus-character-secret
+DATABASE_URL=postgresql://user:pass@host:5432/dbname?sslmode=require
+DATA_MODE=remote
+```
+
+`ADMIN_KEY` is optional. If it is empty, admin login and admin APIs are disabled.
+
+Optional provider integrations, such as Google geocoding and Stripe payment links, are documented in [.env.example](./.env.example) and [docs/reference/environment-variables.md](./docs/reference/environment-variables.md).
+
+### Run Locally
+
+```bash
 pnpm dev
 ```
 
-## Scripts
+The app will be available at [http://localhost:3000](http://localhost:3000).
+
+### Seed Runtime Data
+
+For a Postgres-backed setup, seed or migrate the event store before relying on `DATA_MODE=remote`:
 
 ```bash
-pnpm bootstrap:postgres-store   # seed Postgres event store
-pnpm bootstrap:featured-schedule # migrate legacy Featured rows into scheduler queue
-pnpm health:check               # verify db + admin health endpoints
-pnpm db:cli                     # interactive db/status utility
+pnpm bootstrap:postgres-store
+```
+
+If you are migrating old featured-event values into the scheduler:
+
+```bash
+pnpm bootstrap:featured-schedule
+```
+
+## Common Commands
+
+```bash
+pnpm dev                 # start the local dev server
+pnpm build               # create a production build
+pnpm start               # run the production build
+pnpm test                # run Vitest
+pnpm test:coverage       # run Vitest with coverage
+pnpm lint                # run Biome linting
+pnpm format              # format with Biome
+pnpm fix                 # apply Biome fixes
+pnpm deadcode            # scan unused files/dependencies with knip
+pnpm deadcode:exports    # scan unused TypeScript exports
+pnpm health:check        # verify database and admin health endpoints
+pnpm db:cli              # open the database/status utility
+```
+
+## Project Structure
+
+```text
+app/                       Next.js routes, layouts, route handlers, and page-level UI
+features/data-management/  Runtime data orchestration and admin write workflows
+features/events/           Event domain logic, filtering, ordering, cards, and tracking
+features/events/featured/  Featured event scheduling
+features/events/promoted/  Promoted event scheduling
+features/locations/        Location resolution and map-link behavior
+features/maps/             Coordinate storage, warmup, and map utilities
+features/partners/         Partner activation and reporting workflows
+features/security/         Rate limiting and abuse-prevention primitives
+lib/platform/              Logging, KV adapters, Postgres clients, and repositories
+docs/                      Architecture notes, runbooks, integration docs, and references
+```
+
+## Runtime Model
+
+In `DATA_MODE=remote`, event reads use this source order:
+
+1. Managed Postgres event store
+2. Latest Postgres event-store backup if the live store is unavailable or invalid
+3. Bundled local CSV fallback if remote reads and backups are unavailable
+
+Public pages are static-first where possible. Admin routes and admin APIs are authenticated, dynamic, and request-time rendered. The app does not use Google Sheets as a runtime or admin data source.
+
+See [docs/architecture/overview.md](./docs/architecture/overview.md) for the full rendering, auth, data, and code-map contract.
+
+## Admin Workflow
+
+The admin console is split into focused areas:
+
+- `/admin` for the overview hub
+- `/admin/operations` for runtime health, store controls, sessions, and recovery
+- `/admin/content` for event editing, submissions moderation, and sliding banner settings
+- `/admin/placements` for paid order queues and spotlight/promoted schedulers
+- `/admin/insights` for engagement analytics and collected users
+
+The standard publish loop is:
+
+1. Edit event content in `/admin/content`
+2. Manage featured or promoted placements in `/admin/placements`
+3. Backup and revalidate in `/admin/operations`
+4. Review tracking and audience outcomes in `/admin/insights`
+
+See [docs/operations/admin-workflow.md](./docs/operations/admin-workflow.md) for the day-to-day runbook.
+
+## Documentation
+
+Start with [docs/README.md](./docs/README.md) for a guided index.
+
+Key references:
+
+- [Architecture Overview](./docs/architecture/overview.md)
+- [Event Identity](./docs/architecture/event-identity.md)
+- [Engagement Tracking](./docs/architecture/engagement-tracking.md)
+- [Admin Workflow](./docs/operations/admin-workflow.md)
+- [Serverless Hardening](./docs/operations/serverless-hardening.md)
+- [Logging and Observability](./docs/operations/logging-and-observability.md)
+- [Rate Limiting](./docs/security/rate-limiting.md)
+- [API Endpoints](./docs/reference/api-endpoints.md)
+- [Environment Variables](./docs/reference/environment-variables.md)
+- [Google Integrations](./docs/integrations/google.md)
+- [Geocoding](./docs/integrations/geocoding.md)
+
+## Quality Checks
+
+Before merging meaningful changes, run the checks that match the change scope:
+
+```bash
 pnpm lint
+pnpm test
 pnpm exec tsc --noEmit
+pnpm build
 ```
 
-## Key Admin Endpoints
-
-- `GET /api/admin/health`
-- `GET /api/admin/data-store/status`
-- `GET /api/admin/postgres/kv`
-- `GET /api/admin/tokens/sessions`
-- `POST /api/revalidate/deploy` (or `GET`) with `Authorization: Bearer <DEPLOY_REVALIDATE_SECRET>` for post-deploy live reload + homepage revalidation
-
-All admin endpoints require valid admin auth.
-
-**Cron (scheduled):**
-
-- `GET /api/cron/cleanup-admin-sessions` — removes admin session records that expired more than 7 days ago.
-- `GET /api/cron/cleanup-rate-limits` — removes stale auth verify limiter counters (24h grace).
-- `GET /api/cron/backup-event-store` — creates Postgres operational snapshots daily at 04:20 UTC (events, placements, paid orders, submissions, settings, collected emails; retention: newest 30 snapshots).
-
-All are secured with `CRON_SECRET` (Bearer token) and configured in `vercel.json`.
-
-## Post-Deploy Revalidation Hook
-
-Set `DEPLOY_REVALIDATE_SECRET`, then call:
+For cleanup or dependency work, also run:
 
 ```bash
-curl -X POST "https://<your-domain>/api/revalidate/deploy" \
-  -H "Authorization: Bearer $DEPLOY_REVALIDATE_SECRET"
+pnpm deadcode
+pnpm deadcode:exports
 ```
 
-This endpoint forces a live events reload and revalidates `/`, so preview/prod comes up with the right data immediately after deploy.
+## Security Notes
 
-## Migration notes
+- `AUTH_SECRET` must be at least 32 characters and should be generated with a secure random source.
+- `ADMIN_KEY`, `ADMIN_RESET_PASSCODE`, `CRON_SECRET`, and `DEPLOY_REVALIDATE_SECRET` should be distinct values.
+- Admin endpoints require valid admin authentication.
+- Production and preview deploys should set `DATA_MODE=remote` and `DATABASE_URL`.
+- Sensitive identifiers used for rate limiting are HMAC-hashed with `AUTH_SECRET`.
 
-- `docs/operations/postgres-migration.md` — Postgres migration
-- `docs/reference/environment-variables.md` — env reference
-- `docs/integrations/google.md` — Google geocoding
+## Images
 
-## Future Architecture Option
+This README intentionally does not include screenshots. The project is primarily an operational web application, and the most useful context for new readers is the architecture, setup path, and admin workflow. Visual assets live in the app and docs where they support a specific feature or artifact.
 
-- Keep current static-first rendering for best ISR/cache performance.
-- Optional future upgrade: dynamic auth island (partial prerendering boundary) so auth-dependent UI is request-correct on first paint while preserving static shell/cache for the rest of the page.
-- Tradeoff: higher implementation/runtime complexity in exchange for eliminating auth bootstrap reconciliation on first paint.
+## License
+
+Copyright (c) 2026 Out Of Office Collective.
+
+All rights reserved. This project is proprietary. See [LICENSE](./LICENSE).

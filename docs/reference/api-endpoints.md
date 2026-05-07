@@ -22,6 +22,10 @@
 
 - `GET /api/admin/health`
 - `GET /api/admin/data-store/status`
+- `GET /api/admin/deployment-status`
+- `GET /api/admin/event-sheet`
+- `POST /api/admin/event-sheet`
+- `POST /api/admin/music-genre-taxonomy`
 - `GET /api/admin/postgres/kv`
 - `GET /api/admin/tokens/sessions`
 - `DELETE /api/admin/tokens/sessions/[jti]`

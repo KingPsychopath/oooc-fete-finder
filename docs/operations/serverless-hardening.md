@@ -23,6 +23,7 @@ Configured in `vercel.json`:
 - `GET /api/cron/cleanup-admin-sessions` at `0 4 * * *`
 - `GET /api/cron/cleanup-rate-limits` at `10 4 * * *`
 - `GET /api/cron/backup-event-store` at `20 4 * * *`
+- `GET /api/cron/cleanup-dismissed-partner-reports` at `30 4 * * *`
 
 All require: `Authorization: Bearer <CRON_SECRET>`
 
