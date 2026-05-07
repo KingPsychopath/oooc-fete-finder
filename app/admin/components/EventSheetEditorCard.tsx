@@ -122,7 +122,12 @@ type StoredEditorDraft = EditorSnapshot & {
 	savedAt: string;
 	deploymentId: string;
 };
-type SheetSortMode = "smart-date" | "date-asc" | "date-desc" | "sheet-order";
+type SheetSortMode =
+	| "soonest-upcoming"
+	| "latest-upcoming"
+	| "date-asc"
+	| "date-desc"
+	| "sheet-order";
 type GenreCellPart = {
 	value: string;
 	resolved: string | null;
@@ -219,7 +224,7 @@ const ROW_NUMBER_COLUMN_WIDTH = 144;
 const DATA_COLUMN_WIDTH = 170;
 const MAX_FROZEN_COLUMNS = 4;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
-const DEFAULT_SORT_MODE: SheetSortMode = "smart-date";
+const DEFAULT_SORT_MODE: SheetSortMode = "soonest-upcoming";
 const CURATED_COLUMN_KEY = "curated";
 const TITLE_COLUMN_KEY = "title";
 const DATE_COLUMN_KEY = "date";
@@ -1027,7 +1032,7 @@ const sortRowIndexes = (
 			return leftIsPast ? 1 : -1;
 		}
 
-		const direction = leftIsPast ? -1 : 1;
+		const direction = sortMode === "latest-upcoming" || leftIsPast ? -1 : 1;
 		const dateComparison = (leftTime - rightTime) * direction;
 		return dateComparison || leftIndex - rightIndex;
 	});
@@ -3617,7 +3622,8 @@ export const EventSheetEditorCard = ({
 								}
 								className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
 							>
-								<option value="smart-date">Upcoming first</option>
+								<option value="soonest-upcoming">Soonest upcoming</option>
+								<option value="latest-upcoming">Latest upcoming</option>
 								<option value="date-asc">Date/time ascending</option>
 								<option value="date-desc">Date/time descending</option>
 								<option value="sheet-order">Sheet order</option>
@@ -3691,6 +3697,25 @@ export const EventSheetEditorCard = ({
 								>
 									Show 50 more rows
 								</Button>
+								<Label htmlFor="new-column-label" className="sr-only">
+									New column
+								</Label>
+								<Input
+									id="new-column-label"
+									value={newColumnLabel}
+									onChange={(event) => setNewColumnLabel(event.target.value)}
+									placeholder="New column"
+									className="h-9 w-44"
+								/>
+								<Button
+									onClick={handleAddColumn}
+									variant="outline"
+									size="sm"
+									disabled={isSaving || isLoading}
+									className="h-9"
+								>
+									Add column
+								</Button>
 							</div>
 						</div>
 
@@ -3719,28 +3744,6 @@ export const EventSheetEditorCard = ({
 									onClick={() => setIsGenreManagerOpen(true)}
 								>
 									Manage genres
-								</Button>
-							</div>
-						</div>
-
-						<div className="min-w-[min(100%,320px)] space-y-2">
-							<Label htmlFor="new-column-label">New column</Label>
-							<div className="flex flex-wrap gap-2">
-								<Input
-									id="new-column-label"
-									value={newColumnLabel}
-									onChange={(event) => setNewColumnLabel(event.target.value)}
-									placeholder="e.g. Promoter"
-									className="h-9 w-[min(100%,260px)]"
-								/>
-								<Button
-									onClick={handleAddColumn}
-									variant="outline"
-									size="sm"
-									disabled={isSaving || isLoading}
-									className="h-9"
-								>
-									Add column
 								</Button>
 							</div>
 						</div>
