@@ -161,6 +161,18 @@ type TimeInputPreview = {
 	tone: "success" | "muted";
 	message: string;
 };
+type LocationSuggestion = {
+	value: string;
+	area: string;
+	count: number;
+	isAreaMatch: boolean;
+};
+type ParsedUrlPart = {
+	raw: string;
+	normalized: string;
+	isValid: boolean;
+	host: string | null;
+};
 type DateSuggestionState = {
 	preview: DateInputPreview | null;
 	groups: DateSuggestionGroup[];
@@ -197,6 +209,7 @@ const DATE_COLUMN_KEY = "date";
 const START_TIME_COLUMN_KEY = "startTime";
 const END_TIME_COLUMN_KEY = "endTime";
 const CATEGORY_COLUMN_KEY = "categories";
+const LOCATION_COLUMN_KEY = "location";
 const AREA_COLUMN_KEY = "districtArea";
 const AGE_COLUMN_KEY = "ageGuidance";
 const PRICE_COLUMN_KEY = "price";
@@ -642,6 +655,27 @@ const normalizeUrlValue = (value: string): string =>
 		.filter((part) => part.length > 0)
 		.join(", ");
 
+const parseUrlParts = (value: string): ParsedUrlPart[] =>
+	value
+		.split(URL_SEPARATOR_REGEX)
+		.map((part) => part.trim())
+		.filter((part) => part.length > 0)
+		.map((raw) => {
+			const normalized = normalizeUrlPart(raw);
+			try {
+				const url = new URL(normalized);
+				const isValid = url.protocol === "http:" || url.protocol === "https:";
+				return {
+					raw,
+					normalized,
+					isValid,
+					host: isValid ? url.hostname.replace(/^www\./, "") : null,
+				};
+			} catch {
+				return { raw, normalized, isValid: false, host: null };
+			}
+		});
+
 const isValidHttpUrl = (value: string): boolean => {
 	try {
 		const url = new URL(value);
@@ -660,6 +694,16 @@ const normalizePriceValue = (value: string): string => {
 	if (normalized === "tbc") return "TBC";
 	return trimmed.replace(/\s*[-–—]\s*/g, " - ");
 };
+
+const normalizeLocationSearchText = (value: string): string =>
+	value
+		.trim()
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/[^\p{L}\p{N}]+/gu, " ")
+		.replace(/\s+/g, " ")
+		.trim();
 
 const toUTCDateOnlyTime = (date: Date): number =>
 	Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
@@ -957,6 +1001,12 @@ export const EventSheetEditorCard = ({
 	const [focusedTimeCell, setFocusedTimeCell] = useState<FocusedCell | null>(
 		null,
 	);
+	const [focusedLocationCell, setFocusedLocationCell] =
+		useState<FocusedCell | null>(null);
+	const [locationSearchQuery, setLocationSearchQuery] = useState("");
+	const [highlightedLocationIndex, setHighlightedLocationIndex] = useState(0);
+	const [focusedPrimaryUrlCell, setFocusedPrimaryUrlCell] =
+		useState<FocusedCell | null>(null);
 	const [focusedAreaCell, setFocusedAreaCell] = useState<FocusedCell | null>(
 		null,
 	);
@@ -1006,6 +1056,9 @@ export const EventSheetEditorCard = ({
 		setCountrySearchQuery("");
 		setFocusedDateCell(null);
 		setFocusedTimeCell(null);
+		setFocusedLocationCell(null);
+		setLocationSearchQuery("");
+		setFocusedPrimaryUrlCell(null);
 		setFocusedAreaCell(null);
 		setAreaSearchQuery("");
 		setFocusedSettingCell(null);
@@ -2039,8 +2092,84 @@ export const EventSheetEditorCard = ({
 
 	const areaOptionsForFocusedCell = useMemo((): AreaOption[] => {
 		if (!focusedAreaCell) return [];
-		return filterAreaOptions(areaSearchQuery);
-	}, [areaSearchQuery, focusedAreaCell]);
+		const baseOptions = filterAreaOptions(areaSearchQuery);
+		const locationValue =
+			rows[focusedAreaCell.rowIndex]?.[LOCATION_COLUMN_KEY] ?? "";
+		const normalizedLocation = normalizeLocationSearchText(locationValue);
+		if (!normalizedLocation) return baseOptions;
+
+		const knownAreas = new Map<string, number>();
+		for (const [rowIndex, row] of rows.entries()) {
+			if (rowIndex === focusedAreaCell.rowIndex) continue;
+			if (
+				normalizeLocationSearchText(row[LOCATION_COLUMN_KEY] ?? "") !==
+				normalizedLocation
+			) {
+				continue;
+			}
+			const area = normalizeAreaValue(row[AREA_COLUMN_KEY] ?? "").trim();
+			if (!area) continue;
+			knownAreas.set(area, (knownAreas.get(area) ?? 0) + 1);
+		}
+
+		const suggested = Array.from(knownAreas.entries())
+			.sort((left, right) => right[1] - left[1])
+			.flatMap(([area]) => {
+				const option = findAreaOption(area);
+				return option ? [option] : [];
+			});
+		const seen = new Set<string>();
+		return [...suggested, ...baseOptions].filter((option) => {
+			if (seen.has(option.value)) return false;
+			seen.add(option.value);
+			return true;
+		});
+	}, [areaSearchQuery, focusedAreaCell, rows]);
+
+	const locationSuggestionsForFocusedCell = useMemo((): LocationSuggestion[] => {
+		if (!focusedLocationCell) return [];
+
+		const query = normalizeLocationSearchText(locationSearchQuery);
+		const currentArea = normalizeAreaValue(
+			rows[focusedLocationCell.rowIndex]?.[AREA_COLUMN_KEY] ?? "",
+		);
+		const suggestions = new Map<string, LocationSuggestion>();
+
+		for (const [rowIndex, row] of rows.entries()) {
+			if (rowIndex === focusedLocationCell.rowIndex) continue;
+			const value = (row[LOCATION_COLUMN_KEY] ?? "").trim();
+			if (!value) continue;
+			const normalized = normalizeLocationSearchText(value);
+			if (!normalized) continue;
+			if (query && !normalized.includes(query)) continue;
+
+			const area = normalizeAreaValue(row[AREA_COLUMN_KEY] ?? "").trim();
+			const existing = suggestions.get(normalized);
+			const isAreaMatch = Boolean(currentArea && area === currentArea);
+			if (!existing) {
+				suggestions.set(normalized, {
+					value,
+					area,
+					count: 1,
+					isAreaMatch,
+				});
+				continue;
+			}
+			existing.count += 1;
+			existing.isAreaMatch = existing.isAreaMatch || isAreaMatch;
+			if (!existing.area && area) existing.area = area;
+		}
+
+		return Array.from(suggestions.values())
+			.sort((left, right) => {
+				if (left.isAreaMatch !== right.isAreaMatch) {
+					return left.isAreaMatch ? -1 : 1;
+				}
+				if (left.count !== right.count) return right.count - left.count;
+				return left.value.localeCompare(right.value);
+			})
+			.slice(0, 8);
+	}, [focusedLocationCell, locationSearchQuery, rows]);
 
 	const settingOptionsForFocusedCell = useMemo((): SimpleOption[] => {
 		if (!focusedSettingCell) return [];
@@ -2288,6 +2417,22 @@ export const EventSheetEditorCard = ({
 			}, 0);
 		},
 		[handleCellChange, setCellDraft],
+	);
+
+	const selectLocationForCell = useCallback(
+		(rowIndex: number, columnKey: string, suggestion: LocationSuggestion) => {
+			handleCellChange(rowIndex, columnKey, suggestion.value);
+			const currentArea = rowsRef.current[rowIndex]?.[AREA_COLUMN_KEY] ?? "";
+			if (!currentArea.trim() && suggestion.area) {
+				handleCellChange(rowIndex, AREA_COLUMN_KEY, suggestion.area);
+			}
+			setFocusedLocationCell({ rowIndex, columnKey });
+			setLocationSearchQuery(suggestion.value);
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange],
 	);
 
 	const filteredRowIndexes = useMemo(() => {
@@ -3714,6 +3859,19 @@ export const EventSheetEditorCard = ({
 										categoryValue,
 										genreTaxonomy,
 									);
+									const dateCellHint = formatDateCellHint(
+										row[DATE_COLUMN_KEY] ?? "",
+										sheetDateContext,
+									);
+									const startTimeHint = formatTwelveHourTime(
+										row[START_TIME_COLUMN_KEY] ?? "",
+									);
+									const endTimeHint = formatTwelveHourTime(
+										row[END_TIME_COLUMN_KEY] ?? "",
+									);
+									const primaryUrlParts = parseUrlParts(
+										row[PRIMARY_URL_COLUMN_KEY] ?? "",
+									);
 									return (
 										<tr key={`row-${rowIndex}`} className="group/row align-top">
 											<td
@@ -3944,15 +4102,9 @@ export const EventSheetEditorCard = ({
 																	focusedDateCell.columnKey === column.key
 																}
 															/>
-															{formatDateCellHint(
-																row[column.key] ?? "",
-																sheetDateContext,
-															) && (
+															{dateCellHint && (
 																<div className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70">
-																	{formatDateCellHint(
-																		row[column.key] ?? "",
-																		sheetDateContext,
-																	)}
+																	{dateCellHint}
 																</div>
 															)}
 															{focusedDateCell?.rowIndex === rowIndex &&
@@ -4100,9 +4252,13 @@ export const EventSheetEditorCard = ({
 																className="h-5 w-full border-0 bg-transparent p-0 font-mono text-xs outline-none focus:bg-muted/30"
 																placeholder="14:00 or 2 pm"
 															/>
-															{formatTwelveHourTime(row[column.key] ?? "") && (
+															{(column.key === START_TIME_COLUMN_KEY
+																? startTimeHint
+																: endTimeHint) && (
 																<div className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70">
-																	{formatTwelveHourTime(row[column.key] ?? "")}
+																	{column.key === START_TIME_COLUMN_KEY
+																		? startTimeHint
+																		: endTimeHint}
 																</div>
 															)}
 															{focusedTimeCell?.rowIndex === rowIndex &&
@@ -4125,6 +4281,189 @@ export const EventSheetEditorCard = ({
 																		</div>
 																		<div className="px-2 py-1.5 text-[10px] text-muted-foreground">
 																			Try 2 pm, 14:00, 11.30pm, or 14h00
+																		</div>
+																	</div>
+																)}
+														</div>
+													) : column.key === LOCATION_COLUMN_KEY ? (
+														<div className="relative min-h-9 bg-transparent">
+															<input
+																ref={(node) => {
+																	inputRefs.current[
+																		cellRefKey(rowIndex, column.key)
+																	] = node;
+																}}
+																value={row[column.key] ?? ""}
+																onFocus={() => {
+																	setFocusedLocationCell({
+																		rowIndex,
+																		columnKey: column.key,
+																	});
+																	setLocationSearchQuery(row[column.key] ?? "");
+																	setHighlightedLocationIndex(0);
+																}}
+																onChange={(event) => {
+																	setFocusedLocationCell((current) =>
+																		current?.rowIndex === rowIndex &&
+																		current.columnKey === column.key
+																			? current
+																			: { rowIndex, columnKey: column.key },
+																	);
+																	setLocationSearchQuery(event.target.value);
+																	setHighlightedLocationIndex(0);
+																	handleCellChange(
+																		rowIndex,
+																		column.key,
+																		event.target.value,
+																	);
+																}}
+																onBlur={() => {
+																	commitStandardCell(rowIndex, column.key);
+																	window.setTimeout(() => {
+																		setFocusedLocationCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? null
+																				: current,
+																		);
+																	}, 120);
+																}}
+																onKeyDown={(event) => {
+																	if (
+																		event.key === "ArrowDown" &&
+																		locationSuggestionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		setHighlightedLocationIndex((current) =>
+																			Math.min(
+																				current + 1,
+																				locationSuggestionsForFocusedCell.length -
+																					1,
+																			),
+																		);
+																		return;
+																	}
+																	if (
+																		event.key === "ArrowUp" &&
+																		locationSuggestionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		setHighlightedLocationIndex((current) =>
+																			Math.max(current - 1, 0),
+																		);
+																		return;
+																	}
+																	if (
+																		event.key === "Enter" &&
+																		locationSuggestionsForFocusedCell.length > 0
+																	) {
+																		event.preventDefault();
+																		selectLocationForCell(
+																			rowIndex,
+																			column.key,
+																			locationSuggestionsForFocusedCell[
+																				highlightedLocationIndex
+																			] ?? locationSuggestionsForFocusedCell[0],
+																		);
+																		return;
+																	}
+																	if (event.key === "Escape") {
+																		setFocusedLocationCell(null);
+																		return;
+																	}
+																	if (event.key === "Enter") {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (event.key === "ArrowDown") {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (event.key === "ArrowUp") {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, -1, 0);
+																	}
+																	if (
+																		event.key === "ArrowRight" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 0, 1);
+																	}
+																	if (
+																		event.key === "ArrowLeft" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 0, -1);
+																	}
+																}}
+																className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30"
+																placeholder="Venue or address"
+																aria-autocomplete="list"
+																aria-expanded={
+																	focusedLocationCell?.rowIndex === rowIndex &&
+																	focusedLocationCell.columnKey === column.key
+																}
+															/>
+															{focusedLocationCell?.rowIndex === rowIndex &&
+																focusedLocationCell.columnKey === column.key && (
+																	<div className="absolute left-1 top-8 z-40 w-80 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																			Location
+																		</div>
+																		<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+																			Reuses venues already in this sheet. Matching
+																			area suggestions appear first.
+																		</div>
+																		<div className="max-h-60 overflow-y-auto p-1">
+																			{locationSuggestionsForFocusedCell.map(
+																				(suggestion, optionIndex) => (
+																					<button
+																						key={`${suggestion.value}-${suggestion.area}`}
+																						type="button"
+																						onMouseDown={(event) => {
+																							event.preventDefault();
+																							selectLocationForCell(
+																								rowIndex,
+																								column.key,
+																								suggestion,
+																							);
+																						}}
+																						className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																							optionIndex ===
+																							highlightedLocationIndex
+																								? "bg-accent text-accent-foreground"
+																								: suggestion.isAreaMatch
+																									? "bg-muted text-foreground"
+																									: "hover:bg-accent/70"
+																						}`}
+																					>
+																						<span className="min-w-0 flex-1 truncate font-medium">
+																							{suggestion.value}
+																						</span>
+																						{suggestion.area && (
+																							<span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+																								{suggestion.area}
+																							</span>
+																						)}
+																						<span className="text-[10px] text-muted-foreground">
+																							{suggestion.count}x
+																						</span>
+																					</button>
+																				),
+																			)}
+																			{locationSuggestionsForFocusedCell.length ===
+																				0 && (
+																				<div className="px-2 py-2 text-xs text-muted-foreground">
+																					No matching sheet locations yet.
+																				</div>
+																			)}
 																		</div>
 																	</div>
 																)}
@@ -4980,6 +5319,139 @@ export const EventSheetEditorCard = ({
 																						</button>
 																					);
 																				},
+																			)}
+																		</div>
+																	</div>
+																)}
+														</div>
+													) : column.key === PRIMARY_URL_COLUMN_KEY ? (
+														<div className="relative min-h-9 bg-transparent px-2 py-1">
+															<input
+																ref={(node) => {
+																	inputRefs.current[
+																		cellRefKey(rowIndex, column.key)
+																	] = node;
+																}}
+																value={row[column.key] ?? ""}
+																onFocus={() => {
+																	setFocusedPrimaryUrlCell({
+																		rowIndex,
+																		columnKey: column.key,
+																	});
+																}}
+																onChange={(event) =>
+																	handleCellChange(
+																		rowIndex,
+																		column.key,
+																		event.target.value,
+																	)
+																}
+																onBlur={() => {
+																	commitStandardCell(rowIndex, column.key);
+																	window.setTimeout(() => {
+																		setFocusedPrimaryUrlCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? null
+																				: current,
+																		);
+																	}, 120);
+																}}
+																onKeyDown={(event) => {
+																	if (event.key === "Escape") {
+																		setFocusedPrimaryUrlCell(null);
+																		return;
+																	}
+																	if (event.key === "Enter") {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (event.key === "ArrowDown") {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (event.key === "ArrowUp") {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, -1, 0);
+																	}
+																	if (
+																		event.key === "ArrowRight" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 0, 1);
+																	}
+																	if (
+																		event.key === "ArrowLeft" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		commitStandardCell(rowIndex, column.key);
+																		focusCell(rowIndex, column.key, 0, -1);
+																	}
+																}}
+																className="h-5 w-full border-0 bg-transparent p-0 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30"
+																placeholder="URL, or comma-separated URLs"
+															/>
+															{primaryUrlParts.length > 0 && (
+																<div className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70">
+																	{primaryUrlParts
+																		.map((part) =>
+																			part.isValid
+																				? part.host
+																				: `Invalid: ${part.raw}`,
+																		)
+																		.join(" / ")}
+																</div>
+															)}
+															{focusedPrimaryUrlCell?.rowIndex === rowIndex &&
+																focusedPrimaryUrlCell.columnKey === column.key && (
+																	<div className="absolute left-1 top-8 z-40 w-80 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																			Primary URL
+																		</div>
+																		<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+																			Separate multiple links with commas or new
+																			lines. Domains are saved with https://.
+																		</div>
+																		<div className="max-h-60 overflow-y-auto p-1">
+																			{primaryUrlParts.map((part, partIndex) => (
+																				<div
+																					key={`${part.raw}-${partIndex}`}
+																					className="rounded px-2 py-1.5 text-xs"
+																				>
+																					<div className="flex items-center gap-2">
+																						<span
+																							className={`h-2 w-2 rounded-full ${
+																								part.isValid
+																									? "bg-emerald-500"
+																									: "bg-amber-500"
+																							}`}
+																							aria-hidden="true"
+																						/>
+																						<span className="min-w-0 flex-1 truncate font-medium">
+																							{part.isValid
+																								? part.host
+																								: "Needs review"}
+																						</span>
+																						<span className="font-mono text-[10px] text-muted-foreground">
+																							#{partIndex + 1}
+																						</span>
+																					</div>
+																					<div className="mt-0.5 truncate pl-4 text-[10px] text-muted-foreground">
+																						{part.normalized}
+																					</div>
+																				</div>
+																			))}
+																			{primaryUrlParts.length === 0 && (
+																				<div className="px-2 py-2 text-xs text-muted-foreground">
+																					Add a ticket, RSVP, or official event
+																					URL.
+																				</div>
 																			)}
 																		</div>
 																	</div>
