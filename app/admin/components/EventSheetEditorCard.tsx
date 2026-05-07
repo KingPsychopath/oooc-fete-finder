@@ -656,11 +656,14 @@ const normalizeUrlValue = (value: string): string =>
 		.filter((part) => part.length > 0)
 		.join(", ");
 
-const parseUrlParts = (value: string): ParsedUrlPart[] =>
+const splitUrlRawParts = (value: string): string[] =>
 	value
 		.split(URL_SEPARATOR_REGEX)
 		.map((part) => part.trim())
-		.filter((part) => part.length > 0)
+		.filter((part) => part.length > 0);
+
+const parseUrlParts = (value: string): ParsedUrlPart[] =>
+	splitUrlRawParts(value)
 		.map((raw) => {
 			const normalized = normalizeUrlPart(raw);
 			try {
@@ -2484,6 +2487,37 @@ export const EventSheetEditorCard = ({
 			}
 			setFocusedLocationCell({ rowIndex, columnKey });
 			setLocationSearchQuery(suggestion.value);
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange],
+	);
+
+	const addPrimaryUrlSlot = useCallback(
+		(rowIndex: number, columnKey: string) => {
+			const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
+			const prefix = currentValue.trim() ? `${currentValue.trim()}, ` : "";
+			const nextValue = `${prefix}https://`;
+			handleCellChange(rowIndex, columnKey, nextValue);
+			window.setTimeout(() => {
+				const input = inputRefs.current[cellRefKey(rowIndex, columnKey)];
+				input?.focus();
+				if (input instanceof HTMLInputElement) {
+					input.setSelectionRange(nextValue.length, nextValue.length);
+				}
+			}, 0);
+		},
+		[handleCellChange],
+	);
+
+	const removePrimaryUrlPart = useCallback(
+		(rowIndex: number, columnKey: string, partIndex: number) => {
+			const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
+			const nextValue = splitUrlRawParts(currentValue)
+				.filter((_, index) => index !== partIndex)
+				.join(", ");
+			handleCellChange(rowIndex, columnKey, nextValue);
 			window.setTimeout(() => {
 				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
 			}, 0);
@@ -5483,11 +5517,26 @@ export const EventSheetEditorCard = ({
 																			Separate multiple links with commas or new
 																			lines. Domains are saved with https://.
 																		</div>
+																		<div className="border-b p-1">
+																			<Button
+																				type="button"
+																				size="sm"
+																				variant="ghost"
+																				className="h-7 w-full justify-start px-2 text-xs"
+																				onMouseDown={(event) => {
+																					event.preventDefault();
+																					addPrimaryUrlSlot(rowIndex, column.key);
+																				}}
+																			>
+																				<Plus className="mr-1 h-3.5 w-3.5" />
+																				Add URL
+																			</Button>
+																		</div>
 																		<div className="max-h-60 overflow-y-auto p-1">
 																			{primaryUrlParts.map((part, partIndex) => (
 																				<div
 																					key={`${part.raw}-${partIndex}`}
-																					className="rounded px-2 py-1.5 text-xs"
+																					className="rounded px-2 py-1.5 text-xs hover:bg-accent/40"
 																				>
 																					<div className="flex items-center gap-2">
 																						<span
@@ -5506,6 +5555,22 @@ export const EventSheetEditorCard = ({
 																						<span className="font-mono text-[10px] text-muted-foreground">
 																							#{partIndex + 1}
 																						</span>
+																						<button
+																							type="button"
+																							className="rounded p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+																							aria-label={`Remove URL ${partIndex + 1}`}
+																							title={`Remove URL ${partIndex + 1}`}
+																							onMouseDown={(event) => {
+																								event.preventDefault();
+																								removePrimaryUrlPart(
+																									rowIndex,
+																									column.key,
+																									partIndex,
+																								);
+																							}}
+																						>
+																							<Trash2 className="h-3 w-3" />
+																						</button>
 																					</div>
 																					<div className="mt-0.5 truncate pl-4 text-[10px] text-muted-foreground">
 																						{part.normalized}
