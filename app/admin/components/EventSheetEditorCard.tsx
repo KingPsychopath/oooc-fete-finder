@@ -36,6 +36,7 @@ import {
 	createCustomColumnKey,
 	formatIsoDateForEditableSheet,
 	isEditableSheetRowEmpty,
+	normalizeEditableSheetRowValues,
 	pruneEmptyEditableSheetRows,
 	toEditableSheetRowSortableDateTime,
 } from "@/features/data-management/csv/sheet-editor";
@@ -1609,6 +1610,61 @@ export const EventSheetEditorCard = ({
 		},
 		[handleCellChange, normalizeValueForColumn],
 	);
+
+	const handleNormalizeSheet = useCallback(() => {
+		const currentRows = rowsRef.current;
+		const context = createDateNormalizationContext(
+			currentRows.map((row) => ({ date: row.date ?? "" })),
+		);
+		const changesByKind = {
+			dates: 0,
+			times: 0,
+			countries: 0,
+			urls: 0,
+		};
+		let totalChanges = 0;
+
+		const nextRows = currentRows.map((row) => {
+			const normalizedRow = normalizeEditableSheetRowValues(row, context);
+			const nextRow = { ...normalizedRow };
+
+			if ((row[DATE_COLUMN_KEY] ?? "") !== (nextRow[DATE_COLUMN_KEY] ?? "")) {
+				changesByKind.dates += 1;
+			}
+			for (const columnKey of TIME_COLUMN_KEYS) {
+				if ((row[columnKey] ?? "") !== (nextRow[columnKey] ?? "")) {
+					changesByKind.times += 1;
+				}
+			}
+			for (const columnKey of COUNTRY_COLUMN_KEYS) {
+				if ((row[columnKey] ?? "") !== (nextRow[columnKey] ?? "")) {
+					changesByKind.countries += 1;
+				}
+			}
+
+			const normalizedUrl = normalizeUrlValue(row[PRIMARY_URL_COLUMN_KEY] ?? "");
+			if ((row[PRIMARY_URL_COLUMN_KEY] ?? "") !== normalizedUrl) {
+				nextRow[PRIMARY_URL_COLUMN_KEY] = normalizedUrl;
+				changesByKind.urls += 1;
+			}
+
+			totalChanges += Object.keys(nextRow).filter(
+				(key) => (row[key] ?? "") !== (nextRow[key] ?? ""),
+			).length;
+			return nextRow;
+		});
+
+		if (totalChanges === 0) {
+			setStatusMessage("Sheet already normalized");
+			return;
+		}
+
+		commitSheetMutation(
+			columnsRef.current.map((column) => ({ ...column })),
+			nextRows,
+			`Normalized ${totalChanges} cell${totalChanges === 1 ? "" : "s"}: ${changesByKind.dates} date, ${changesByKind.times} time, ${changesByKind.countries} country, ${changesByKind.urls} URL`,
+		);
+	}, [commitSheetMutation]);
 
 	const handleAddRow = () => {
 		const nextRows = [
@@ -3253,6 +3309,15 @@ export const EventSheetEditorCard = ({
 									className="h-9"
 								>
 									Reload
+								</Button>
+								<Button
+									onClick={handleNormalizeSheet}
+									disabled={isSaving || isLoading}
+									variant="outline"
+									size="sm"
+									className="h-9"
+								>
+									Normalize sheet
 								</Button>
 								<Button
 									onClick={() => setDisplayLimit((current) => current + 50)}
