@@ -531,7 +531,7 @@ const EventModal: React.FC<EventModalProps> = ({
 					}
 				: detailsQuality === "blocking"
 					? {
-							label: "Details need review",
+							label: "Some details TBA",
 							dotClassName: "bg-red-500",
 						}
 					: {

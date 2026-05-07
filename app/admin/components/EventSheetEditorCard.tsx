@@ -2884,6 +2884,26 @@ export const EventSheetEditorCard = ({
 		}
 		return byRow;
 	}, [sheetHealthIssues]);
+	const rowQualityCounts = useMemo(() => {
+		const counts = {
+			complete: 0,
+			review: 0,
+			blocking: 0,
+			draft: 0,
+			manual: 0,
+			sourceConfirmed: 0,
+		};
+		rows.forEach((row, index) => {
+			const quality = getRowQualityAssessment(
+				row,
+				sheetHealthIssuesByRow.get(index + 1) ?? [],
+			);
+			counts[quality.value] += 1;
+			if (quality.source === "manual") counts.manual += 1;
+			if (quality.isConfirmed) counts.sourceConfirmed += 1;
+		});
+		return counts;
+	}, [rows, sheetHealthIssuesByRow]);
 	const openQualityPopover = useCallback(
 		(rowIndex: number, anchor: HTMLElement) => {
 			const rect = anchor.getBoundingClientRect();
@@ -3046,6 +3066,20 @@ export const EventSheetEditorCard = ({
 									))}
 								</div>
 							)}
+							<label className="mb-2 flex items-center gap-2 border-t border-border/70 pt-2">
+								<input
+									type="checkbox"
+									checked={rowQuality.isConfirmed}
+									onChange={(event) =>
+										handleCellChange(
+											qualityPopover.rowIndex,
+											SOURCE_CONFIRMED_COLUMN_KEY,
+											event.target.checked ? "true" : "",
+										)
+									}
+								/>
+								<span>Source confirmed</span>
+							</label>
 							<div className="grid grid-cols-2 gap-1 border-t border-border/70 pt-2">
 								{[
 									{ label: "Auto", value: "" },
@@ -3076,20 +3110,6 @@ export const EventSheetEditorCard = ({
 									</Button>
 								))}
 							</div>
-							<label className="mt-2 flex items-center gap-2 border-t border-border/70 pt-2">
-								<input
-									type="checkbox"
-									checked={rowQuality.isConfirmed}
-									onChange={(event) =>
-										handleCellChange(
-											qualityPopover.rowIndex,
-											SOURCE_CONFIRMED_COLUMN_KEY,
-											event.target.checked ? "true" : "",
-										)
-									}
-								/>
-								<span>Source confirmed</span>
-							</label>
 						</div>,
 						document.body,
 					);
@@ -4137,6 +4157,31 @@ export const EventSheetEditorCard = ({
 				<div className="text-xs text-muted-foreground">
 					Showing {visibleRowIndexes.length} of {filteredRowIndexes.length}{" "}
 					filtered rows ({rows.length} total).
+				</div>
+				<div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-background/65 px-3 py-2 text-xs text-muted-foreground">
+					<span className="font-medium text-foreground">Row quality</span>
+					<span className="inline-flex items-center gap-1">
+						<span className="h-2.5 w-2.5 rounded-full bg-green-600" />
+						{rowQualityCounts.complete} complete
+					</span>
+					<span className="inline-flex items-center gap-1">
+						<span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+						{rowQualityCounts.review} review
+					</span>
+					<span className="inline-flex items-center gap-1">
+						<span className="h-2.5 w-2.5 rounded-full bg-red-600" />
+						{rowQualityCounts.blocking} need fix
+					</span>
+					<span className="inline-flex items-center gap-1">
+						<span className="h-2.5 w-2.5 rounded-full border border-muted-foreground/45" />
+						{rowQualityCounts.draft} draft
+					</span>
+					<span className="border-l border-border/70 pl-2">
+						{rowQualityCounts.sourceConfirmed} source confirmed
+					</span>
+					{rowQualityCounts.manual > 0 && (
+						<span>{rowQualityCounts.manual} manual override</span>
+					)}
 				</div>
 				<div className="max-w-full overflow-auto rounded-md border max-h-[70vh]">
 					<table className="w-max min-w-full table-fixed border-separate border-spacing-0 text-xs">
