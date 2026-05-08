@@ -1,4 +1,8 @@
 import {
+	getSearchableGenreText,
+	normalizeSearchText,
+} from "@/features/events/genre-normalization";
+import {
 	AGE_RANGE_CONFIG,
 	type AgeRange,
 	type DayNightPeriod,
@@ -9,15 +13,13 @@ import {
 	type ParisArrondissement,
 	type VenueType,
 	formatLocationAreaLong,
+	formatPrice,
+	getDayNightPeriod,
 	getLocationAreaSortValue,
 	isAgeInRange,
 	isEventInDayNightPeriod,
 	isPriceInRange,
 } from "@/features/events/types";
-import {
-	getSearchableGenreText,
-	normalizeSearchText,
-} from "@/features/events/genre-normalization";
 import { isStrictISODate } from "./date-utils";
 
 export type DateRangeFilter = {
@@ -118,18 +120,34 @@ const matchesSearchQuery = (event: Event, rawQuery: string): boolean => {
 	const query = normalizeSearchText(rawQuery);
 	if (query.length === 0) return true;
 
+	const dateParts = event.date.split("-");
+	const dayOfMonth = Number.parseInt(dateParts[2] ?? "", 10);
+	const dateSearchText =
+		Number.isFinite(dayOfMonth) && dayOfMonth > 0
+			? normalizeSearchText(
+					[
+						event.date,
+						String(dayOfMonth),
+						`${dayOfMonth}${getOrdinalSuffix(dayOfMonth)}`,
+					].join(" "),
+				)
+			: normalizeSearchText(event.date);
 	const matchesName = normalizeSearchText(event.name).includes(query);
-	const matchesLocation = normalizeSearchText(event.location ?? "").includes(query);
-	const matchesDescription = normalizeSearchText(event.description ?? "").includes(
+	const matchesLocation = normalizeSearchText(event.location ?? "").includes(
 		query,
 	);
-	const matchesDate = normalizeSearchText(event.date).includes(query);
+	const matchesDescription = normalizeSearchText(
+		event.description ?? "",
+	).includes(query);
+	const matchesDate = dateSearchText.includes(query);
 	const matchesArrondissement =
 		event.arrondissement.toString().includes(query) ||
 		normalizeSearchText(formatLocationAreaLong(event.arrondissement)).includes(
 			query,
 		);
 	const matchesDay = normalizeSearchText(event.day).includes(query);
+	const period = getDayNightPeriod(event.time ?? "");
+	const matchesDayNight = period ? query === period : false;
 	const matchesGenre = event.genre.some((genre) =>
 		getSearchableGenreText(genre).includes(query),
 	);
@@ -137,6 +155,8 @@ const matchesSearchQuery = (event: Event, rawQuery: string): boolean => {
 		normalizeSearchText(tag).includes(query),
 	);
 	const matchesType = normalizeSearchText(event.type).includes(query);
+	const priceLabel = normalizeSearchText(formatPrice(event.price));
+	const matchesPrice = priceLabel.includes(query);
 
 	return (
 		matchesName ||
@@ -145,10 +165,27 @@ const matchesSearchQuery = (event: Event, rawQuery: string): boolean => {
 		matchesDate ||
 		matchesArrondissement ||
 		matchesDay ||
+		matchesDayNight ||
 		matchesGenre ||
 		matchesTags ||
-		matchesType
+		matchesType ||
+		matchesPrice
 	);
+};
+
+const getOrdinalSuffix = (day: number): string => {
+	const mod100 = day % 100;
+	if (mod100 >= 11 && mod100 <= 13) return "th";
+	switch (day % 10) {
+		case 1:
+			return "st";
+		case 2:
+			return "nd";
+		case 3:
+			return "rd";
+		default:
+			return "th";
+	}
 };
 
 const matchesVenueTypes = (
@@ -195,7 +232,8 @@ export const filterEvents = (
 	return events.filter((event) => {
 		if (filters.selectedOOOCPicks && event.isOOOCPick !== true) return false;
 
-		const { from: selectedDateFrom, to: selectedDateTo } = filters.selectedDateRange;
+		const { from: selectedDateFrom, to: selectedDateTo } =
+			filters.selectedDateRange;
 		if (selectedDateFrom || selectedDateTo) {
 			if (!isStrictISODate(event.date)) return false;
 			if (selectedDateFrom && event.date < selectedDateFrom) return false;
@@ -250,7 +288,10 @@ export const filterEvents = (
 			return false;
 		}
 
-		if (filters.searchQuery && !matchesSearchQuery(event, filters.searchQuery)) {
+		if (
+			filters.searchQuery &&
+			!matchesSearchQuery(event, filters.searchQuery)
+		) {
 			return false;
 		}
 
@@ -300,7 +341,9 @@ export const getTopEventDatesByCount = (
 };
 
 const hasCustomPriceRange = (range: [number, number]): boolean => {
-	return range[0] !== PRICE_RANGE_CONFIG.min || range[1] !== PRICE_RANGE_CONFIG.max;
+	return (
+		range[0] !== PRICE_RANGE_CONFIG.min || range[1] !== PRICE_RANGE_CONFIG.max
+	);
 };
 
 const hasCustomAgeRange = (range: AgeRange | null): boolean => {
@@ -315,7 +358,8 @@ const hasSelectedDateRange = (range: DateRangeFilter): boolean => {
 const hasCustomSelectedDateRange = (
 	range: DateRangeFilter,
 	defaultDateRange: DateRangeFilter,
-): boolean => hasSelectedDateRange(range) && !areDateRangesEqual(range, defaultDateRange);
+): boolean =>
+	hasSelectedDateRange(range) && !areDateRangesEqual(range, defaultDateRange);
 
 export const hasActiveFilters = (
 	filters: EventFilterState,

@@ -2,6 +2,7 @@ import {
 	getEventLocationReviewData,
 	getEventSheetEditorData,
 } from "@/features/data-management/actions";
+import { getAdminSearchChipSettings } from "@/features/events/search-chip-actions";
 import { getEventSubmissionsDashboard } from "@/features/events/submissions/actions";
 import { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
 import { getCurrentDeploymentId } from "@/lib/deployment/build-id";
@@ -9,6 +10,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { EventSheetEditorCard } from "../components/EventSheetEditorCard";
 import { EventSubmissionsCard } from "../components/EventSubmissionsCard";
 import { LocationReviewCard } from "../components/LocationReviewCard";
+import { SearchChipSettingsCard } from "../components/SearchChipSettingsCard";
 import { SlidingBannerSettingsCard } from "../components/SlidingBannerSettingsCard";
 
 export const dynamic = "force-dynamic";
@@ -16,13 +18,19 @@ export const dynamic = "force-dynamic";
 export default async function AdminContentPage() {
 	noStore();
 
-	const [editorData, eventSubmissions, locationReview, slidingBannerSettings] =
-		await Promise.allSettled([
-			getEventSheetEditorData(),
-			getEventSubmissionsDashboard(),
-			getEventLocationReviewData(),
-			getAdminSlidingBannerSettings(),
-		]);
+	const [
+		editorData,
+		eventSubmissions,
+		locationReview,
+		searchChipSettings,
+		slidingBannerSettings,
+	] = await Promise.allSettled([
+		getEventSheetEditorData(),
+		getEventSubmissionsDashboard(),
+		getEventLocationReviewData(),
+		getAdminSearchChipSettings(),
+		getAdminSlidingBannerSettings(),
+	]);
 
 	return (
 		<div className="space-y-6">
@@ -51,6 +59,16 @@ export default async function AdminContentPage() {
 					initialPayload={
 						locationReview.status === "fulfilled"
 							? locationReview.value
+							: undefined
+					}
+				/>
+			</section>
+
+			<section id="search-chips" className="scroll-mt-44">
+				<SearchChipSettingsCard
+					initialSettings={
+						searchChipSettings.status === "fulfilled"
+							? searchChipSettings.value
 							: undefined
 					}
 				/>

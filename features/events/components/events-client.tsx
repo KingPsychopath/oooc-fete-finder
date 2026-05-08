@@ -24,6 +24,7 @@ import {
 	createFreshActivityComparator,
 	createRegularEventsComparator,
 } from "@/features/events/ordering";
+import type { SearchChip } from "@/features/events/search-chips";
 import { getSocialProofDisplayModes } from "@/features/events/social-proof";
 import {
 	type Event,
@@ -41,6 +42,7 @@ interface EventsClientProps {
 	initialEvents: Event[];
 	mapLoadStrategy: MapLoadStrategy;
 	eventUpdateRequestsEnabled?: boolean;
+	dynamicSearchChips?: SearchChip[];
 }
 
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
@@ -121,6 +123,7 @@ export function EventsClient({
 	initialEvents,
 	mapLoadStrategy,
 	eventUpdateRequestsEnabled = true,
+	dynamicSearchChips = [],
 }: EventsClientProps) {
 	const router = useRouter();
 	const pathname = usePathname();
@@ -594,24 +597,25 @@ export function EventsClient({
 					onAuthRequired={() => setShowEmailGate(true)}
 					className="min-h-[120px] flex items-center"
 				>
-					<div id="tour-search">
+					<div id="tour-search" className="w-full">
 						<SearchBar
 							onSearch={onSearchQueryChange}
 							placeholder="Search events, locations, genres, phases..."
-							className="max-w-md mx-auto"
+							className="mx-auto w-full max-w-[46rem]"
 							value={searchQuery}
 							resultsCount={filteredEvents.length}
 							showResultsCount
 							resultsCountLabelMode={
 								hasAnyActiveFilters ? "found" : "available"
 							}
+							dynamicChips={dynamicSearchChips}
 						/>
 					</div>
 				</AuthGate>
 				{ooocPicksInViewCount > 0 && (
 					<div
 						id="tour-oooc-picks"
-						className="mx-auto mt-3 flex max-w-md flex-col gap-2 rounded-md border border-border/65 bg-background/55 px-3 py-2 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between"
+						className="mx-auto mt-3 flex w-full max-w-[46rem] flex-col gap-2 rounded-md border border-border/65 bg-background/55 px-3 py-2 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between"
 					>
 						<div className="min-w-0">
 							<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">

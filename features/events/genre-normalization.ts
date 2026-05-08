@@ -57,6 +57,7 @@ const applyGenrePhraseReplacements = (value: string): string =>
 		.replace(/\bhip[\s-]*hop\b/g, "hip hop")
 		.replace(/\bukg\b/g, "uk garage")
 		.replace(/\b3\s*step\b/g, "3-step")
+		.replace(/\bkonpa\b/g, "kompa")
 		.replace(/\bslow\s*jams\b/g, "slow jams");
 
 export const normalizeGenreInputText = (value: string): string =>

@@ -146,6 +146,14 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 				moduleKey: "content",
 				keywords: ["banner", "messages", "site settings"],
 			},
+			{
+				id: "search-chips",
+				label: "Search Chips",
+				description: "Turn dynamic Popular now chips on or off.",
+				path: "/admin/content#search-chips",
+				moduleKey: "content",
+				keywords: ["search", "chips", "popular", "dynamic"],
+			},
 		],
 	},
 	{

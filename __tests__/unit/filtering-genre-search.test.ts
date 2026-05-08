@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
 	DEFAULT_EVENT_FILTER_STATE,
 	filterEvents,
 } from "@/features/events/filtering";
-import { getEventTypeForDate, type Event } from "@/features/events/types";
+import { type Event, getEventTypeForDate } from "@/features/events/types";
+import { describe, expect, it } from "vitest";
 
 const makeEvent = (genre: Event["genre"], suffix: string): Event => ({
 	eventKey: `evt_test_${suffix}`,
@@ -27,6 +27,7 @@ describe("genre-aware search filtering", () => {
 			makeEvent(["r&b"], "rnb"),
 			makeEvent(["afro house"], "afrohouse"),
 			makeEvent(["coupé-décalé"], "coupe-decale"),
+			makeEvent(["kompa"], "kompa"),
 		];
 
 		expect(
@@ -45,6 +46,40 @@ describe("genre-aware search filtering", () => {
 			filterEvents(events, {
 				...DEFAULT_EVENT_FILTER_STATE,
 				searchQuery: "coupe decale",
+			}),
+		).toHaveLength(1);
+		expect(
+			filterEvents(events, {
+				...DEFAULT_EVENT_FILTER_STATE,
+				searchQuery: "konpa",
+			}),
+		).toHaveLength(1);
+	});
+
+	it("matches static chip concepts for price, night, and ordinal date", () => {
+		const event = {
+			...makeEvent(["amapiano"], "chip-concepts"),
+			date: "2026-06-21",
+			time: "23:30",
+			price: "Free entry",
+		};
+
+		expect(
+			filterEvents([event], {
+				...DEFAULT_EVENT_FILTER_STATE,
+				searchQuery: "Free",
+			}),
+		).toHaveLength(1);
+		expect(
+			filterEvents([event], {
+				...DEFAULT_EVENT_FILTER_STATE,
+				searchQuery: "Night",
+			}),
+		).toHaveLength(1);
+		expect(
+			filterEvents([event], {
+				...DEFAULT_EVENT_FILTER_STATE,
+				searchQuery: "21st",
 			}),
 		).toHaveLength(1);
 	});

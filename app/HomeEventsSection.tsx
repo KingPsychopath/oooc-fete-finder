@@ -1,5 +1,11 @@
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { EventsClient } from "@/features/events/components/events-client";
+import {
+	getPopularSearchChipSignalsCached,
+	getPublicSearchChipSettingsCached,
+} from "@/features/events/search-chip-queries";
+import { SearchChipSettingsStore } from "@/features/events/search-chip-settings-store";
+import { buildDynamicSearchChips } from "@/features/events/search-chips";
 import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { env } from "@/lib/config/env";
@@ -12,7 +18,13 @@ interface HomeEventsSectionProps {
 export async function HomeEventsSection({
 	mapLoadStrategy,
 }: HomeEventsSectionProps) {
-	const [result, submissionSettings] = await Promise.all([
+	const [
+		result,
+		submissionSettings,
+		searchChipSettings,
+		popularSearchSignals,
+		suppressedEventQueries,
+	] = await Promise.all([
 		getLiveEvents(),
 		EventSubmissionSettingsStore.getPublicSettings().catch((error: unknown) => {
 			log.warn("home", "Unable to load event submission settings", {
@@ -24,10 +36,27 @@ export async function HomeEventsSection({
 				updatedAt: new Date(0).toISOString(),
 			};
 		}),
+		getPublicSearchChipSettingsCached(),
+		getPopularSearchChipSignalsCached(),
+		SearchChipSettingsStore.getSuppressedEventQueries().catch(() => []),
 	]);
 	const isRemoteMode = env.DATA_MODE === "remote";
 	const isBackupFallback = isRemoteMode && result.source === "backup";
 	const isLocalFallback = isRemoteMode && result.source === "local";
+	const dynamicSearchChips =
+		searchChipSettings.dynamicChipsEnabled && result.data.length > 0
+			? buildDynamicSearchChips(popularSearchSignals, result.data, {
+					maxChips: searchChipSettings.maxDynamicChips,
+					suppressedEventQueries,
+				})
+			: [];
+	if (dynamicSearchChips.length > 0) {
+		void SearchChipSettingsStore.recordEventChipSelection(
+			dynamicSearchChips
+				.filter((chip) => chip.kind === "event")
+				.map((chip) => chip.query),
+		);
+	}
 
 	if (result.error) {
 		log.error("home", "Error loading events", { error: result.error });
@@ -47,6 +76,7 @@ export async function HomeEventsSection({
 				initialEvents={result.data}
 				mapLoadStrategy={mapLoadStrategy}
 				eventUpdateRequestsEnabled={submissionSettings.eventUpdatesEnabled}
+				dynamicSearchChips={dynamicSearchChips}
 			/>
 		</>
 	);

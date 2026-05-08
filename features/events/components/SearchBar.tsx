@@ -5,13 +5,16 @@ import {
 	getSearchableGenreText,
 	normalizeSearchText,
 } from "@/features/events/genre-normalization";
+import type { SearchChip } from "@/features/events/search-chips";
 import { DEFAULT_SEARCH_EXAMPLES } from "@/features/events/search-defaults";
 import {
 	type Event,
 	type ParisArrondissement,
 	formatLocationAreaLong,
+	formatPrice,
+	getDayNightPeriod,
 } from "@/features/events/types";
-import { Search, X } from "lucide-react";
+import { Search, TrendingUp, X } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 
@@ -25,6 +28,7 @@ type SearchBarProps = {
 	showResultsCount?: boolean;
 	resultsCountLabelMode?: "found" | "available";
 	value?: string;
+	dynamicChips?: SearchChip[];
 };
 
 type SearchResult = {
@@ -112,6 +116,21 @@ const getMatchScore = (targetText: string, searchTerms: string[]): number => {
 	return score;
 };
 
+const getOrdinalSuffix = (day: number): string => {
+	const mod100 = day % 100;
+	if (mod100 >= 11 && mod100 <= 13) return "th";
+	switch (day % 10) {
+		case 1:
+			return "st";
+		case 2:
+			return "nd";
+		case 3:
+			return "rd";
+		default:
+			return "th";
+	}
+};
+
 /**
  * Performs intelligent fuzzy search across all event fields
  * Supports multiple search terms and partial matching
@@ -197,6 +216,21 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			}
 		}
 
+		// PRIORITY 6.5: Price and day/night facets (Score: 28 + match quality)
+		const priceScore = getMatchScore(formatPrice(event.price), searchTerms);
+		if (priceScore > 0) {
+			totalScore += 28 + priceScore;
+			matchedFields.push("price");
+		}
+		const dayNightPeriod = getDayNightPeriod(event.time ?? "");
+		if (dayNightPeriod) {
+			const periodScore = getMatchScore(dayNightPeriod, searchTerms);
+			if (periodScore > 0) {
+				totalScore += 28 + periodScore;
+				matchedFields.push("day/night");
+			}
+		}
+
 		// PRIORITY 7: Description (Score: 20 + match quality)
 		if (event.description) {
 			const descScore = getMatchScore(event.description, searchTerms);
@@ -221,6 +255,20 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			if (dayScore > 0) {
 				totalScore += 10 + dayScore;
 				matchedFields.push("day");
+			}
+		}
+
+		if (event.date) {
+			const [, , dayRaw] = event.date.split("-");
+			const dayOfMonth = Number.parseInt(dayRaw ?? "", 10);
+			const dateText =
+				Number.isFinite(dayOfMonth) && dayOfMonth > 0
+					? `${event.date} ${dayOfMonth} ${dayOfMonth}${getOrdinalSuffix(dayOfMonth)}`
+					: event.date;
+			const dateScore = getMatchScore(dateText, searchTerms);
+			if (dateScore > 0) {
+				totalScore += 10 + dateScore;
+				matchedFields.push("date");
 			}
 		}
 
@@ -253,6 +301,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	showResultsCount = false,
 	resultsCountLabelMode = "found",
 	value,
+	dynamicChips = [],
 }) => {
 	const [internalQuery, setInternalQuery] = useState("");
 	const query = value ?? internalQuery;
@@ -315,20 +364,43 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
 			{/* Example Search Chips */}
 			<div
-				className={`${showResultsCount ? "mt-2" : "mt-3"} flex flex-wrap gap-1.5`}
+				className={`${showResultsCount ? "mt-2" : "mt-3"} max-h-[4.25rem] overflow-hidden sm:max-h-[4.5rem]`}
 			>
-				{exampleSearches.map((example) => (
-					<Button
-						key={example}
-						variant="outline"
-						size="sm"
-						onClick={() => handleSearch(example)}
-						className="text-xs px-3 py-1.5 h-auto rounded-full border-border/60 hover:border-border hover:bg-accent/50 transition-colors"
-					>
-						{example}
-					</Button>
-				))}
+				<div className="flex flex-wrap gap-1.5">
+					{exampleSearches.map((example) => (
+						<Button
+							key={example}
+							variant="outline"
+							size="sm"
+							onClick={() => handleSearch(example)}
+							className="h-auto rounded-full border-border/60 px-3 py-1.5 text-xs transition-colors hover:border-border hover:bg-accent/50"
+						>
+							{example}
+						</Button>
+					))}
+				</div>
 			</div>
+			{dynamicChips.length > 0 && (
+				<div className="mt-2 flex flex-wrap items-center gap-1.5">
+					<span className="inline-flex h-7 items-center rounded-full px-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+						Popular now
+					</span>
+					{dynamicChips.map((chip) => (
+						<Button
+							key={`popular-${chip.label}`}
+							variant="outline"
+							size="sm"
+							onClick={() => handleSearch(chip.query)}
+							className="h-auto max-w-[13rem] rounded-full border-amber-300/70 bg-amber-50/55 px-3 py-1.5 text-xs text-amber-950 transition-colors hover:border-amber-400 hover:bg-amber-100/70 dark:border-amber-500/45 dark:bg-amber-950/25 dark:text-amber-100"
+							aria-label={`Popular now: ${chip.label}`}
+							title="Based on recent anonymous searches"
+						>
+							<TrendingUp className="mr-1.5 h-3 w-3" aria-hidden="true" />
+							<span className="truncate">{chip.label}</span>
+						</Button>
+					))}
+				</div>
+			)}
 		</div>
 	);
 };

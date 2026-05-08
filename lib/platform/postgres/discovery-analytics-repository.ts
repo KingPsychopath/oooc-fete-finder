@@ -221,6 +221,55 @@ export class DiscoveryAnalyticsRepository {
 		return rows;
 	}
 
+	async listTopSearchSignals(input: {
+		startAt: string;
+		endAt: string;
+		recentStartAt: string;
+		limit: number;
+	}): Promise<
+		Array<{
+			query: string;
+			count: number;
+			recentCount: number;
+			lastSeenAt: string;
+		}>
+	> {
+		await this.ready();
+		const safeLimit = Math.max(1, Math.min(input.limit, 250));
+		const rows = await this.sql<
+			Array<{
+				query: string;
+				count: number;
+				recentCount: number;
+				lastSeenAt: Date | string;
+			}>
+		>`
+			SELECT
+				search_query AS query,
+				COUNT(*)::int AS count,
+				COUNT(*) FILTER (WHERE recorded_at >= ${input.recentStartAt})::int AS "recentCount",
+				MAX(recorded_at) AS "lastSeenAt"
+			FROM app_discovery_analytics_stats
+			WHERE action_type = 'search'
+				AND search_query IS NOT NULL
+				AND search_query <> ''
+				AND recorded_at >= ${input.startAt}
+				AND recorded_at < ${input.endAt}
+			GROUP BY search_query
+			ORDER BY count DESC, "recentCount" DESC, MAX(recorded_at) DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows.map((row) => ({
+			query: row.query,
+			count: row.count,
+			recentCount: row.recentCount,
+			lastSeenAt:
+				row.lastSeenAt instanceof Date
+					? row.lastSeenAt.toISOString()
+					: new Date(row.lastSeenAt).toISOString(),
+		}));
+	}
+
 	async listUserFilterMatches(input: {
 		startAt: string;
 		endAt: string;
