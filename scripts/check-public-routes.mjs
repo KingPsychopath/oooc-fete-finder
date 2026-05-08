@@ -11,6 +11,9 @@ const eventPath =
 	"/event/evt_115811d709b9b6ed/krispy-jam-n-29-tascha";
 const maxEventHtmlBytes = Number(process.env.MAX_EVENT_HTML_BYTES || 120_000);
 const maxHomeHtmlBytes = Number(process.env.MAX_HOME_HTML_BYTES || 360_000);
+const maxFullEventsJsonBytes = Number(
+	process.env.MAX_FULL_EVENTS_JSON_BYTES || 650_000,
+);
 const maxChunkBytes = Number(process.env.MAX_JS_CHUNK_BYTES || 1_250_000);
 const maxTotalChunkBytes = Number(
 	process.env.MAX_TOTAL_JS_CHUNK_BYTES || 5_000_000,
@@ -122,9 +125,52 @@ const checkPublicHtml = async () => {
 		"event-map",
 		"homepage includes event discovery map anchor",
 	);
+	assertExcludes(
+		home.text,
+		'"coordinates"',
+		"homepage initial payload excludes map-only coordinates",
+	);
+
+	const fullEvents = await fetchText("/api/events/live");
+	if (!fullEvents.ok) {
+		fail(`full events endpoint returned HTTP ${fullEvents.status}`);
+	}
+	const fullEventsBytes = byteLength(fullEvents.text);
+	if (fullEventsBytes <= maxFullEventsJsonBytes) {
+		pass(
+			`full events JSON budget ${fullEventsBytes}/${maxFullEventsJsonBytes} bytes`,
+		);
+	} else {
+		fail(
+			`full events JSON budget ${fullEventsBytes}/${maxFullEventsJsonBytes} bytes`,
+		);
+	}
+	assertIncludes(
+		fullEvents.text,
+		'"events"',
+		"full events endpoint returns deferred event data",
+	);
+
+	const eventDetailsPath = `/api/events/${encodeURIComponent(
+		eventPath.split("/")[2] || "",
+	)}`;
+	const eventDetails = await fetchText(eventDetailsPath);
+	if (!eventDetails.ok) {
+		fail(`event details endpoint returned HTTP ${eventDetails.status}`);
+	}
+	assertIncludes(
+		eventDetails.text,
+		'"event"',
+		"event details endpoint returns one selected event",
+	);
+	assertIncludes(
+		eventDetails.text,
+		"Krispy Jam N°29 - Tascha",
+		"event details endpoint includes selected event title",
+	);
 
 	console.log(
-		`Timings: event first ${firstEvent.timeMs}ms, event repeat ${secondEvent.timeMs}ms, home ${home.timeMs}ms`,
+		`Timings: event first ${firstEvent.timeMs}ms, event repeat ${secondEvent.timeMs}ms, home ${home.timeMs}ms, full events ${fullEvents.timeMs}ms, event details ${eventDetails.timeMs}ms`,
 	);
 };
 

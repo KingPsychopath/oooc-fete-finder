@@ -14,6 +14,7 @@ import {
 } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { HomeHeader } from "../../../HomeHeader";
 import { EventShareClient } from "./EventShareClient";
 import { EventShareModalPreview } from "./EventShareModalPreview";
@@ -167,9 +168,10 @@ export default async function EventSharePage({ params }: EventSharePageProps) {
 				className="container mx-auto px-4 py-8"
 				tabIndex={-1}
 			>
-				<EventShareClient event={event}>
-					<EventShareModalPreview event={event} />
-				</EventShareClient>
+				<EventShareModalPreview event={event} />
+				<Suspense fallback={null}>
+					<EventShareClient event={event} />
+				</Suspense>
 			</main>
 		</div>
 	);

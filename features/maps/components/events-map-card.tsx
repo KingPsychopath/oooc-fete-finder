@@ -45,6 +45,7 @@ type EventsMapCardProps = {
 	onEventClick: (event: Event) => void;
 	mapLoadStrategy?: MapLoadStrategy;
 	onFilterClick?: () => void;
+	onMapIntent?: () => void;
 	hasActiveFilters?: boolean;
 	activeFiltersCount?: number;
 };
@@ -56,6 +57,7 @@ export function EventsMapCard({
 	onEventClick,
 	mapLoadStrategy = "idle",
 	onFilterClick,
+	onMapIntent,
 	hasActiveFilters = false,
 	activeFiltersCount = 0,
 }: EventsMapCardProps) {
@@ -209,6 +211,7 @@ export function EventsMapCard({
 		(isExpanded ? 1 : 0) + (isFullscreen ? 2 : 0) + (shouldRenderMap ? 4 : 0);
 
 	const handleOpenFullscreen = () => {
+		onMapIntent?.();
 		setHasMountedMap(true);
 		setIsFullscreen(true);
 	};

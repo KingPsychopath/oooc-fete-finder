@@ -4,10 +4,9 @@ import { useAuth } from "@/features/auth/auth-context";
 import EventModal from "@/features/events/components/EventModal";
 import type { Event } from "@/features/events/types";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface EventShareClientProps {
-	children: ReactNode;
 	event: Event;
 }
 
@@ -28,7 +27,7 @@ const buildEventPath = (event: Event, params = new URLSearchParams()): string =>
 	return query ? `${path}?${query}` : path;
 };
 
-export function EventShareClient({ children, event }: EventShareClientProps) {
+export function EventShareClient({ event }: EventShareClientProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const { isAuthenticated } = useAuth();
@@ -40,6 +39,17 @@ export function EventShareClient({ children, event }: EventShareClientProps) {
 
 	useEffect(() => {
 		setHasHydrated(true);
+		const previewElements = document.querySelectorAll<HTMLElement>(
+			"[data-event-share-preview]",
+		);
+		for (const element of previewElements) {
+			element.hidden = true;
+		}
+		return () => {
+			for (const element of previewElements) {
+				element.hidden = false;
+			}
+		};
 	}, []);
 
 	useEffect(() => {
@@ -85,7 +95,7 @@ export function EventShareClient({ children, event }: EventShareClientProps) {
 	};
 
 	if (!hasHydrated) {
-		return children;
+		return null;
 	}
 
 	return (

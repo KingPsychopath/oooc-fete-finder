@@ -1,5 +1,6 @@
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { EventsClient } from "@/features/events/components/events-client";
+import { toHomepageEventPayload } from "@/features/events/homepage-event-payload";
 import {
 	getPopularSearchChipSignalsCached,
 	getPublicSearchChipSettingsCached,
@@ -73,7 +74,8 @@ export async function HomeEventsSection({
 				</div>
 			)}
 			<EventsClient
-				initialEvents={result.data}
+				initialEvents={result.data.map(toHomepageEventPayload)}
+				fullEventsPath="/api/events/live"
 				mapLoadStrategy={mapLoadStrategy}
 				eventUpdateRequestsEnabled={submissionSettings.eventUpdatesEnabled}
 				dynamicSearchChips={dynamicSearchChips}

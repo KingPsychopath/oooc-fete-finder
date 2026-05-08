@@ -112,6 +112,14 @@ const CONTACT_EMAIL = "hello@outofofficecollective.co.uk";
 const MODAL_GENRE_PREVIEW_LIMIT = 8;
 const MODAL_MIN_COLLAPSED_GENRES = 3;
 const COUNTRY_PREVIEW_LIMIT = 3;
+const FOCUSABLE_MODAL_SELECTOR = [
+	'a[href]',
+	'button:not([disabled])',
+	'input:not([disabled])',
+	'select:not([disabled])',
+	'textarea:not([disabled])',
+	'[tabindex]:not([tabindex="-1"])',
+].join(",");
 
 interface CountryDisplay {
 	code: string;
@@ -377,6 +385,7 @@ const EventModal: React.FC<EventModalProps> = ({
 	const shareStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
 	);
+	const modalCardRef = useRef<HTMLDivElement>(null);
 	const closeButtonRef = useRef<HTMLButtonElement>(null);
 	const contactCopyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
@@ -447,6 +456,46 @@ const EventModal: React.FC<EventModalProps> = ({
 			window.cancelAnimationFrame(frameId);
 		};
 	}, [isOpen]);
+
+	const handleModalKeyDown = (keyboardEvent: React.KeyboardEvent) => {
+		if (keyboardEvent.key === "Escape") {
+			if (showMapSelection || isUpdateRequestOpen) return;
+			keyboardEvent.preventDefault();
+			onClose();
+			return;
+		}
+
+		if (keyboardEvent.key !== "Tab") return;
+		if (showMapSelection || isUpdateRequestOpen) return;
+
+		const modalCard = modalCardRef.current;
+		if (!modalCard) return;
+
+		const focusableElements = Array.from(
+			modalCard.querySelectorAll<HTMLElement>(FOCUSABLE_MODAL_SELECTOR),
+		).filter(
+			(element) =>
+				!element.hasAttribute("disabled") &&
+				element.getAttribute("aria-hidden") !== "true" &&
+				element.offsetParent !== null,
+		);
+		if (focusableElements.length === 0) return;
+
+		const firstElement = focusableElements[0];
+		const lastElement = focusableElements[focusableElements.length - 1];
+		const activeElement = document.activeElement;
+
+		if (keyboardEvent.shiftKey && activeElement === firstElement) {
+			keyboardEvent.preventDefault();
+			lastElement.focus();
+			return;
+		}
+
+		if (!keyboardEvent.shiftKey && activeElement === lastElement) {
+			keyboardEvent.preventDefault();
+			firstElement.focus();
+		}
+	};
 
 	useEffect(() => {
 		setUpdateRequestForm(null);
@@ -970,15 +1019,10 @@ const EventModal: React.FC<EventModalProps> = ({
 		<div
 			className="fixed inset-0 flex items-center justify-center bg-black/70 p-2 backdrop-blur-[4px] sm:p-4"
 			style={{ zIndex: LAYERS.OVERLAY }}
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby={modalTitleId}
-			onKeyDown={(keyboardEvent) => {
-				if (keyboardEvent.key !== "Escape") return;
-				if (showMapSelection || isUpdateRequestOpen) return;
-				keyboardEvent.preventDefault();
-				onClose();
-			}}
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby={modalTitleId}
+				onKeyDown={handleModalKeyDown}
 			onPointerDown={(pointerEvent) => {
 				if (pointerEvent.target !== pointerEvent.currentTarget) return;
 				if (showMapSelection) return;
@@ -993,8 +1037,10 @@ const EventModal: React.FC<EventModalProps> = ({
 				onClose();
 			}}
 		>
-			<Card
-				className={`relative max-h-[94vh] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))] ${
+				<Card
+					ref={modalCardRef}
+					data-event-modal-card
+					className={`relative max-h-[94vh] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))] ${
 					isCurrentlyFeatured
 						? "border-amber-300/70 shadow-[0_38px_94px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(212,164,96,0.35)] dark:border-amber-500/45"
 						: "border-border/80"

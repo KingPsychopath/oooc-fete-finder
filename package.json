@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:update": "playwright test --update-snapshots",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "biome lint .",
@@ -49,6 +51,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/geojson": "^7946.0.16",
     "@types/jsonwebtoken": "^9.0.10",
