@@ -658,32 +658,13 @@ export function EventsClient({
 			</div>
 
 			<div id="all-events" className="scroll-mt-6 sm:scroll-mt-28">
-				<div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/70 bg-background/65 px-3 py-2 text-sm">
-					<div>
-						<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-							Event order
-						</p>
-						<p className="text-xs text-muted-foreground">
-							Fresh activity lifts new, updated, and recently saved events.
-						</p>
-					</div>
-					<select
-						value={sortMode}
-						onChange={(event) =>
-							setSortMode(event.target.value as EventSortMode)
-						}
-						className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-						aria-label="Sort events"
-					>
-						<option value="recommended">Recommended</option>
-						<option value="fresh-activity">Fresh activity</option>
-					</select>
-				</div>
 				<AllEvents
 					ref={allEventsRef}
 					events={allEventsOrdered}
 					onEventClick={handleEventClick}
 					socialProofDisplayModes={socialProofDisplayModes}
+					sortMode={sortMode}
+					onSortModeChange={setSortMode}
 					onFilterClickAction={toggleFilterPanel}
 					onAuthRequired={() => setShowEmailGate(true)}
 					hasActiveFilters={hasAnyActiveFilters}

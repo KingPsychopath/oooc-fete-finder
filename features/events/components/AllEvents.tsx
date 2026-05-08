@@ -18,6 +18,8 @@ type AllEventsProps = {
 	events: Event[];
 	onEventClick: (event: Event) => void;
 	socialProofDisplayModes: Map<string, SocialProofDisplayMode>;
+	sortMode: "recommended" | "fresh-activity";
+	onSortModeChange: (mode: "recommended" | "fresh-activity") => void;
 	onFilterClickAction: () => void;
 	onAuthRequired: () => void;
 	hasActiveFilters: boolean;
@@ -32,6 +34,8 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			events,
 			onEventClick,
 			socialProofDisplayModes,
+			sortMode,
+			onSortModeChange,
 			onFilterClickAction,
 			onAuthRequired,
 			hasActiveFilters,
@@ -56,7 +60,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		return (
 			<Card ref={ref} className="ooo-site-card mt-6 py-0">
 				<CardHeader className="border-b border-border/70 py-5">
-					<div className="flex items-start justify-between">
+					<div className="flex flex-wrap items-start justify-between gap-3">
 						<div className="flex flex-col">
 							<div className="flex items-center">
 								<CardTitle className="text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
@@ -75,13 +79,34 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								and submit your event →
 							</Link>
 						</div>
-						<FilterButton
-							onClickAction={onFilterClickAction}
-							hasActiveFilters={hasActiveFilters}
-							activeFiltersCount={activeFiltersCount}
-							className="self-start rounded-full lg:hidden"
-							size="sm"
-						/>
+						<div className="flex shrink-0 items-center gap-2">
+							<label
+								htmlFor="all-events-sort"
+								className="text-xs text-muted-foreground"
+							>
+								Sort
+							</label>
+							<select
+								id="all-events-sort"
+								value={sortMode}
+								onChange={(event) =>
+									onSortModeChange(
+										event.target.value as "recommended" | "fresh-activity",
+									)
+								}
+								className="h-9 rounded-md border border-input bg-background px-2.5 text-sm"
+							>
+								<option value="recommended">Recommended</option>
+								<option value="fresh-activity">Fresh activity</option>
+							</select>
+							<FilterButton
+								onClickAction={onFilterClickAction}
+								hasActiveFilters={hasActiveFilters}
+								activeFiltersCount={activeFiltersCount}
+								className="self-start rounded-full lg:hidden"
+								size="sm"
+							/>
+						</div>
 					</div>
 				</CardHeader>
 				<CardContent className="py-5">
