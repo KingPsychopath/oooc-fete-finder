@@ -139,7 +139,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 					}`}
 				>
 					<div
-						className={`mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 transition-transform duration-300 ease-out will-change-transform sm:min-h-[84px] sm:px-5 lg:grid lg:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] lg:gap-6 ${
+						className={`mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 transition-transform duration-300 ease-out will-change-transform sm:min-h-[84px] sm:px-5 lg:grid lg:grid-cols-[minmax(190px,1fr)_auto_minmax(170px,1fr)] lg:gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] xl:gap-6 ${
 							isCompressed ? "scale-[0.94] sm:scale-[0.96]" : "scale-100"
 						}`}
 					>
@@ -173,12 +173,12 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 						</Link>
 
 						<nav
-							className="hidden items-center gap-6 lg:flex lg:justify-self-center lg:gap-7"
+							className="hidden items-center gap-5 lg:flex lg:justify-self-center xl:gap-7"
 							aria-label="Main"
 						>
 							<Link
 								href={basePath || "/"}
-								className={`text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
+								className={`whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
 									isHomePage ? "text-foreground" : "text-foreground/75"
 								}`}
 							>
@@ -186,7 +186,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							</Link>
 							<Link
 								href={`${basePath || ""}/how-it-works`}
-								className={`text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
+								className={`whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
 									isHowItWorksPage ? "text-foreground" : "text-foreground/75"
 								}`}
 							>
@@ -194,7 +194,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							</Link>
 							<Link
 								href={`${basePath || ""}/submit-event`}
-								className={`text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
+								className={`whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
 									isSubmitPage ? "text-foreground" : "text-foreground/75"
 								}`}
 							>
@@ -202,7 +202,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							</Link>
 							<Link
 								href={`${basePath || ""}/feature-event`}
-								className={`text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
+								className={`whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
 									isPromotePage ? "text-foreground" : "text-foreground/75"
 								}`}
 							>
@@ -214,7 +214,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 									href={link.href}
 									target="_blank"
 									rel="noopener noreferrer"
-									className="text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
+									className="whitespace-nowrap text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"
 								>
 									{link.label}
 								</Link>
