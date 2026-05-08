@@ -9,10 +9,14 @@ export function FeaturedEventsHeader() {
 			<CardTitle className="text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
 				Spotlight
 			</CardTitle>
+			<p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+				Featured placements lead, then OOOC Picks and a rotating mix from the
+				current date set.
+			</p>
 			{/* CTA Message positioned close to heading like an underline */}
 			<Link
 				href={FEATURED_EVENTS_CONFIG.FEATURE_PAGE_ROUTE}
-				className="mt-1 text-xs leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
+				className="mt-2 text-xs leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
 				style={{ textWrap: "balance" }}
 			>
 				{FEATURED_EVENTS_CONFIG.CTA_MESSAGE}

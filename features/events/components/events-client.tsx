@@ -1,6 +1,7 @@
 "use client";
 
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import AuthGate from "@/features/auth/components/AuthGate";
 import EmailGateModal from "@/features/auth/components/EmailGateModal";
@@ -32,6 +33,7 @@ import {
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { EventsMapCard } from "@/features/maps/components/events-map-card";
 import { clientLog } from "@/lib/platform/client-logger";
+import { Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -508,6 +510,10 @@ export function EventsClient({
 		() => getSocialProofDisplayModes(filteredEvents),
 		[filteredEvents],
 	);
+	const ooocPicksInViewCount = useMemo(
+		() => filteredEvents.filter((event) => event.isOOOCPick === true).length,
+		[filteredEvents],
+	);
 
 	return (
 		<>
@@ -554,11 +560,35 @@ export function EventsClient({
 				</div>
 			)}
 
+			{ooocPicksInViewCount > 0 && (
+				<div className="mb-6 flex flex-col gap-3 rounded-md border border-border/70 bg-card/70 px-4 py-3 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between">
+					<div>
+						<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+							OOOC Picks
+						</p>
+						<p className="mt-1 text-foreground/85">
+							Short on time? Start with our community-curated favourites.
+						</p>
+					</div>
+					<Button
+						type="button"
+						variant={selectedOOOCPicks ? "default" : "outline"}
+						size="sm"
+						onClick={() => onOOOCPicksToggle(!selectedOOOCPicks)}
+						className="w-full shrink-0 sm:w-auto"
+					>
+						<Sparkles className="h-4 w-4" />
+						{selectedOOOCPicks ? "Showing Picks" : "Show Picks"}
+					</Button>
+				</div>
+			)}
+
 			<FeaturedEvents
 				events={allEventsOrdered}
 				onEventClick={handleEventClick}
 				onScrollToAllEvents={scrollToAllEvents}
 				socialProofDisplayModes={socialProofDisplayModes}
+				dateRange={selectedDateRange}
 			/>
 
 			<EventStats
@@ -639,7 +669,9 @@ export function EventsClient({
 					</div>
 					<select
 						value={sortMode}
-						onChange={(event) => setSortMode(event.target.value as EventSortMode)}
+						onChange={(event) =>
+							setSortMode(event.target.value as EventSortMode)
+						}
 						className="h-9 rounded-md border border-input bg-background px-3 text-sm"
 						aria-label="Sort events"
 					>

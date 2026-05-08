@@ -1,3 +1,4 @@
+import { parseISODateParts } from "@/features/events/date-utils";
 import type { DateRangeFilter } from "@/features/events/filtering";
 import type { Event } from "@/features/events/types";
 import { shouldDisplayFeaturedEvent } from "./utils/timestamp-utils";
@@ -6,7 +7,72 @@ interface SelectFeaturedEventsInput {
 	events: Event[];
 	maxFeaturedEvents: number;
 	dateRange: DateRangeFilter;
+	referenceDate?: Date;
 }
+
+const DEFAULT_UNKNOWN_TIME_HOUR = 23;
+const DEFAULT_UNKNOWN_TIME_MINUTE = 59;
+
+const parseTime = (rawTime: string): [number, number] | null => {
+	const normalized = rawTime.trim().toLowerCase();
+	if (!normalized || normalized === "tbc") {
+		return null;
+	}
+
+	const isAM = /\bam\b/.test(normalized);
+	const isPM = /\bpm\b/.test(normalized);
+	const cleaned = normalized.replace(/\s*(am|pm)\s*/g, "").trim();
+	const [hoursText, minutesText = "0"] = cleaned.split(":");
+	const parsedHours = Number.parseInt(hoursText, 10);
+	const parsedMinutes = Number.parseInt(minutesText, 10);
+
+	if (!Number.isFinite(parsedHours) || !Number.isFinite(parsedMinutes)) {
+		return null;
+	}
+	if (
+		parsedHours < 0 ||
+		parsedHours > 23 ||
+		parsedMinutes < 0 ||
+		parsedMinutes > 59
+	) {
+		return null;
+	}
+
+	let hours = parsedHours;
+	if (isPM && hours !== 12) {
+		hours += 12;
+	}
+	if (isAM && hours === 12) {
+		hours = 0;
+	}
+
+	return [hours, parsedMinutes];
+};
+
+const isUpcomingFallbackEvent = (
+	event: Event,
+	referenceDate: Date,
+): boolean => {
+	const dateParts = parseISODateParts(event.date);
+	if (!dateParts) return true;
+
+	const parsedTime = parseTime(event.time ?? "");
+	const [hours, minutes] = parsedTime ?? [
+		DEFAULT_UNKNOWN_TIME_HOUR,
+		DEFAULT_UNKNOWN_TIME_MINUTE,
+	];
+	const startAt = new Date(
+		dateParts.year,
+		dateParts.month - 1,
+		dateParts.day,
+		hours,
+		minutes,
+		0,
+		0,
+	);
+
+	return startAt.getTime() >= referenceDate.getTime();
+};
 
 const getSeedForDateSet = (
 	events: Event[],
@@ -67,6 +133,7 @@ export const selectFeaturedEvents = ({
 	events,
 	maxFeaturedEvents,
 	dateRange,
+	referenceDate = new Date(),
 }: SelectFeaturedEventsInput): Event[] => {
 	const safeEvents = events.filter(Boolean);
 	const seed = getSeedForDateSet(safeEvents, dateRange);
@@ -79,6 +146,9 @@ export const selectFeaturedEvents = ({
 			placementEvents.push(event);
 			continue;
 		}
+		if (!isUpcomingFallbackEvent(event, referenceDate)) {
+			continue;
+		}
 		if (event.isOOOCPick === true) {
 			ooocPickEvents.push(event);
 			continue;
@@ -86,7 +156,10 @@ export const selectFeaturedEvents = ({
 		regularEvents.push(event);
 	}
 
-	const selected = dedupeByEventKey(placementEvents).slice(0, maxFeaturedEvents);
+	const selected = dedupeByEventKey(placementEvents).slice(
+		0,
+		maxFeaturedEvents,
+	);
 	const seenEventKeys = new Set(
 		selected.map((event) => event.eventKey).filter((key) => key.length > 0),
 	);
@@ -104,7 +177,12 @@ export const selectFeaturedEvents = ({
 
 	appendCandidates(deterministicShuffle(ooocPickEvents, `${seed}:oooc-picks`));
 	appendCandidates(deterministicShuffle(regularEvents, `${seed}:regular`));
-	appendCandidates(deterministicShuffle(safeEvents, `${seed}:fill`));
+	appendCandidates(
+		deterministicShuffle(
+			[...placementEvents, ...ooocPickEvents, ...regularEvents],
+			`${seed}:fill`,
+		),
+	);
 
 	return selected;
 };

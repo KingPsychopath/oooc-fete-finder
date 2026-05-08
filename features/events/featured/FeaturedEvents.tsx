@@ -21,6 +21,7 @@ export function FeaturedEvents({
 	onScrollToAllEvents,
 	socialProofDisplayModes,
 	maxFeaturedEvents = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS,
+	dateRange,
 }: FeaturedEventsProps) {
 	const isAtLeastTablet = useMediaQuery("(min-width: 768px)");
 	const isDesktopUp = useMediaQuery("(min-width: 1024px)");
@@ -31,7 +32,12 @@ export function FeaturedEvents({
 	const { featuredEvents, totalEventsCount, hasMoreEvents } = useFeaturedEvents(
 		events,
 		responsiveMaxFeaturedEvents,
+		dateRange,
 	);
+	if (featuredEvents.length === 0) {
+		return null;
+	}
+
 	const genreFrequency = buildGenreFrequency(events);
 	const browseAllLabel = `Browse All ${totalEventsCount} Event${totalEventsCount !== 1 ? "s" : ""}`;
 
