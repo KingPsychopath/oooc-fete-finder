@@ -155,11 +155,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	const genreOptions = availableGenres ?? MUSIC_GENRES;
 	const [genreSearchQuery, setGenreSearchQuery] = useState("");
 	const activeFilterBadgeClassName =
-		"border border-border/70 bg-secondary/72 text-xs";
+		"h-7 gap-1 rounded-full border border-border/70 bg-background/72 px-2.5 text-xs font-normal shadow-none";
 	const compactActiveFilterBadgeClassName =
 		"h-7 gap-1 rounded-full border border-border/70 bg-background/80 px-2 text-xs font-normal shadow-none";
 	const activeFilterRemoveButtonClassName =
-		"h-auto p-0 ml-1 hover:bg-transparent";
+		"h-auto p-0 ml-1 text-muted-foreground hover:bg-transparent hover:text-foreground";
 	const ooocPickHelp =
 		"OOOC Picks are events highlighted by Out Of Office Collective as especially worth considering.";
 	const hostNationalityHelp =
@@ -390,6 +390,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							<div className="text-xs font-medium text-muted-foreground">
 								Active Filters ({activeFilterCount})
 							</div>
+							{isDesktopContentExpanded && (
+								<ClearFiltersButton
+									onClick={onClearFilters}
+									className="h-7 rounded-full px-3 text-xs"
+								>
+									Clear
+								</ClearFiltersButton>
+							)}
 						</div>
 					)}
 					<div
@@ -628,7 +636,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								className={
 									compact
 										? "h-7 shrink-0 rounded-full border-border/70 bg-background/60 px-2 text-xs font-normal"
-										: "text-xs"
+										: "h-7 rounded-full border-border/70 bg-background/60 px-2.5 text-xs font-normal"
 								}
 							>
 								+{selectedGenres.length - 4} more
@@ -682,11 +690,16 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</Badge>
 							</CardTitle>
 							<div className="flex items-center space-x-2">
-								{hasActiveFilters && (
-									<ClearFiltersButton onClick={onClearFilters} className="h-8">
-										Clear filters
-									</ClearFiltersButton>
-								)}
+								{hasActiveFilters &&
+									(!isDesktopContentExpanded ||
+										!uiDecisions.activeFiltersAtTop) && (
+										<ClearFiltersButton
+											onClick={onClearFilters}
+											className="h-8"
+										>
+											Clear filters
+										</ClearFiltersButton>
+									)}
 								{onToggleExpanded && (
 									<Button
 										variant="ghost"
@@ -1176,14 +1189,16 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</Badge>
 						</CardTitle>
 						<div className="flex items-center space-x-2">
-							{hasActiveFilters && (
-								<ClearFiltersButton
-									onClick={onClearFilters}
-									className="hidden h-8 lg:inline-flex"
-								>
-									Clear filters
-								</ClearFiltersButton>
-							)}
+							{hasActiveFilters &&
+								(!isDesktopContentExpanded ||
+									!uiDecisions.activeFiltersAtTop) && (
+									<ClearFiltersButton
+										onClick={onClearFilters}
+										className="hidden h-8 lg:inline-flex"
+									>
+										Clear filters
+									</ClearFiltersButton>
+								)}
 							<Button
 								variant="outline"
 								size="icon"
