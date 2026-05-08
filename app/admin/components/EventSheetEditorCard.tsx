@@ -609,9 +609,6 @@ const formatAdminDateTime = (isoDate: string): string => {
 	}).format(time);
 };
 
-const formatOptionalLifecycleTime = (isoDate: string | undefined): string =>
-	isoDate ? formatAdminDateTime(isoDate) : "Not captured";
-
 const formatRevisionStats = (revision: EventSheetRevisionRecord): string => {
 	const parts = [
 		revision.addedRows > 0 ? `+${revision.addedRows}` : null,
@@ -2938,24 +2935,6 @@ export const EventSheetEditorCard = ({
 			),
 		[rowMetadata],
 	);
-	const lifecycleCounts = useMemo(() => {
-		let firstSeen = 0;
-		let changed = 0;
-		for (const row of rows) {
-			const eventKey = row.eventKey?.trim();
-			const metadata = eventKey
-				? lifecycleMetadataByEventKey.get(eventKey)
-				: undefined;
-			if (metadata?.firstSeenAt) firstSeen += 1;
-			if (
-				metadata?.lastMeaningfulChangeAt &&
-				metadata.lastMeaningfulChangeAt !== metadata.firstSeenAt
-			) {
-				changed += 1;
-			}
-		}
-		return { firstSeen, changed };
-	}, [lifecycleMetadataByEventKey, rows]);
 	const filteredRowIndexes = useMemo(() => {
 		const needle = query.trim().toLowerCase();
 		return rows
@@ -3159,6 +3138,19 @@ export const EventSheetEditorCard = ({
 									))}
 								</div>
 							)}
+							<Button
+								type="button"
+								size="sm"
+								variant={
+									qualityFilter === rowQuality.value ? "default" : "outline"
+								}
+								className="mb-2 h-7 w-full px-2 text-[11px]"
+								onClick={() => handleQualityFilterToggle(rowQuality.value)}
+							>
+								{qualityFilter === rowQuality.value
+									? "Clear this quality filter"
+									: `Show only ${getQualityFilterDescription(rowQuality.value)}`}
+							</Button>
 							<label className="mb-2 flex items-center gap-2 border-t border-border/70 pt-2">
 								<input
 									type="checkbox"
@@ -3714,7 +3706,7 @@ export const EventSheetEditorCard = ({
 								<option value="latest-upcoming">Latest upcoming</option>
 								<option value="date-asc">Date/time ascending</option>
 								<option value="date-desc">Date/time descending</option>
-								<option value="fresh-lifecycle">Recently changed</option>
+								<option value="fresh-lifecycle">Recently added/updated</option>
 								<option value="sheet-order">Sheet order</option>
 							</select>
 						</div>
@@ -4304,14 +4296,6 @@ export const EventSheetEditorCard = ({
 						<span>{rowQualityCounts.manual} manual override</span>
 					)}
 				</div>
-				<div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-background/65 px-3 py-2 text-xs text-muted-foreground">
-					<span className="font-medium text-foreground">Lifecycle</span>
-					<span>{lifecycleCounts.firstSeen} first-seen timestamps</span>
-					<span>{lifecycleCounts.changed} meaningful updates</span>
-					<span className="border-l border-border/70 pl-2">
-						Publish once after deploy to hydrate hashes for every row.
-					</span>
-				</div>
 				<div className="max-w-full overflow-auto rounded-md border max-h-[70vh]">
 					<table className="w-max min-w-full table-fixed border-separate border-spacing-0 text-xs">
 						<colgroup>
@@ -4457,10 +4441,6 @@ export const EventSheetEditorCard = ({
 									const rowIssues =
 										sheetHealthIssuesByRow.get(rowIndex + 1) ?? [];
 									const rowQuality = getRowQualityAssessment(row, rowIssues);
-									const eventKey = row.eventKey?.trim();
-									const lifecycleMetadata = eventKey
-										? lifecycleMetadataByEventKey.get(eventKey)
-										: undefined;
 									return (
 										<tr key={`row-${rowIndex}`} className="group/row align-top">
 											<td
@@ -4471,22 +4451,14 @@ export const EventSheetEditorCard = ({
 												}}
 												>
 													<div className="relative flex h-8 items-center gap-1">
+														<span className="min-w-7 px-1 text-center font-mono">
+															{rowIndex + 1}
+														</span>
 														<button
 															type="button"
 															data-quality-popover
 															onClick={(event) =>
 																openQualityPopover(rowIndex, event.currentTarget)
-															}
-															className="min-w-7 rounded px-1 text-center font-mono transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-															aria-label={`Open quality details for row ${rowIndex + 1}`}
-															title="Open quality details"
-														>
-															{rowIndex + 1}
-														</button>
-														<button
-															type="button"
-															onClick={() =>
-																handleQualityFilterToggle(rowQuality.value)
 															}
 															className={`h-2.5 w-2.5 shrink-0 rounded-full border ${getQualityDotClassName(
 																rowQuality.value,
@@ -4495,22 +4467,14 @@ export const EventSheetEditorCard = ({
 																	? "outline outline-2 outline-offset-2 outline-ring"
 																: ""
 															}`}
-															aria-label={`Show only ${getQualityFilterDescription(rowQuality.value)}`}
-															title={`Show only ${getQualityFilterDescription(rowQuality.value)}`}
+															aria-label={`Open quality details for row ${rowIndex + 1}`}
+															title={`${rowQuality.label}. Click to review or filter.`}
 														/>
 														{rowQuality.isConfirmed && (
 															<span
 																className="h-1.5 w-1.5 rounded-full bg-green-700"
 																title="Source confirmed"
 															/>
-														)}
-														{lifecycleMetadata && (
-															<span
-																className="rounded border border-border/70 bg-muted/45 px-1 font-mono text-[9px] text-muted-foreground"
-																title={`First seen: ${formatOptionalLifecycleTime(lifecycleMetadata.firstSeenAt)} | Changed: ${formatOptionalLifecycleTime(lifecycleMetadata.lastMeaningfulChangeAt)}`}
-															>
-																meta
-															</span>
 														)}
 													<div className="flex items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
 														<Button

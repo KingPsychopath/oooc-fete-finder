@@ -21,6 +21,7 @@ import {
 	isPriceInRange,
 } from "@/features/events/types";
 import { isStrictISODate } from "./date-utils";
+import { isEventInDiscoveryDateRange } from "./discovery-eligibility";
 
 export type DateRangeFilter = {
 	from: string | null;
@@ -232,13 +233,8 @@ export const filterEvents = (
 	return events.filter((event) => {
 		if (filters.selectedOOOCPicks && event.isOOOCPick !== true) return false;
 
-		const { from: selectedDateFrom, to: selectedDateTo } =
-			filters.selectedDateRange;
-		if (selectedDateFrom || selectedDateTo) {
-			if (!isStrictISODate(event.date)) return false;
-			if (selectedDateFrom && event.date < selectedDateFrom) return false;
-			if (selectedDateTo && event.date > selectedDateTo) return false;
-		}
+		if (!isEventInDiscoveryDateRange(event, filters.selectedDateRange))
+			return false;
 
 		if (filters.selectedDayNightPeriods.length > 0) {
 			const hasMatchingPeriod = filters.selectedDayNightPeriods.some((period) =>

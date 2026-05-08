@@ -71,7 +71,7 @@ type SegmentCriterion = {
 };
 
 export async function getEventEngagementDashboard(
-	windowDays = 30,
+	windowDays = 7,
 	searchClusterMode: SearchClusterMode = "conservative",
 ): Promise<
 	| {

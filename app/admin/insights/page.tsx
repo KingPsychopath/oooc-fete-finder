@@ -10,7 +10,7 @@ export default async function AdminInsightsPage() {
 	noStore();
 
 	const [eventEngagementDashboard, emailsResult] = await Promise.allSettled([
-		getEventEngagementDashboard(30),
+		getEventEngagementDashboard(7),
 		getCollectedEmails(),
 	]);
 

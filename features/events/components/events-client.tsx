@@ -12,6 +12,7 @@ import { FeteFinderTour } from "@/features/events/components/FeteFinderTour";
 import FilterPanel from "@/features/events/components/FilterPanel";
 import SearchBar from "@/features/events/components/SearchBar";
 import { getCountryOption } from "@/features/events/countries";
+import { getDiscoveryEligibleEvents } from "@/features/events/discovery-eligibility";
 import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
 import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
@@ -74,6 +75,38 @@ const removeLegacyEventParams = (params: URLSearchParams): URLSearchParams => {
 const appendQuery = (path: string, params: URLSearchParams): string => {
 	const query = params.toString();
 	return query ? `${path}?${query}` : path;
+};
+
+const orderEventsForDiscoverySurface = (
+	events: Event[],
+	sortMode: EventSortMode,
+): Event[] => {
+	const featuredMatches: Event[] = [];
+	const promotedMatches: Event[] = [];
+	const regularMatches: Event[] = [];
+	const now = new Date();
+	const regularEventsComparator =
+		sortMode === "fresh-activity"
+			? createFreshActivityComparator(now)
+			: createRegularEventsComparator(now);
+
+	for (const event of events) {
+		if (shouldDisplayFeaturedEvent(event)) {
+			featuredMatches.push(event);
+			continue;
+		}
+		if (event.isPromoted === true) {
+			promotedMatches.push(event);
+			continue;
+		}
+		regularMatches.push(event);
+	}
+
+	return [
+		...featuredMatches,
+		...promotedMatches,
+		...[...regularMatches].sort(regularEventsComparator),
+	];
 };
 
 const buildAvailableGenresForEvents = (
@@ -582,38 +615,27 @@ export function EventsClient({
 		setShowEmailGate(false);
 	}, []);
 
-	const allEventsOrdered = useMemo(() => {
-		const featuredMatches: Event[] = [];
-		const promotedMatches: Event[] = [];
-		const regularMatches: Event[] = [];
-		const now = new Date();
-		const regularEventsComparator =
-			sortMode === "fresh-activity"
-				? createFreshActivityComparator(now)
-				: createRegularEventsComparator(now);
+	const spotlightEligibleEvents = useMemo(
+		() =>
+			getDiscoveryEligibleEvents(initialEvents, {
+				dateRange: defaultDateRange,
+			}),
+		[defaultDateRange, initialEvents],
+	);
 
-		for (const event of filteredEvents) {
-			if (shouldDisplayFeaturedEvent(event)) {
-				featuredMatches.push(event);
-				continue;
-			}
-			if (event.isPromoted === true) {
-				promotedMatches.push(event);
-				continue;
-			}
-			regularMatches.push(event);
-		}
+	const spotlightEventsOrdered = useMemo(
+		() => orderEventsForDiscoverySurface(spotlightEligibleEvents, sortMode),
+		[sortMode, spotlightEligibleEvents],
+	);
 
-		const sortedRegularMatches = [...regularMatches].sort(
-			regularEventsComparator,
-		);
-
-		return [...featuredMatches, ...promotedMatches, ...sortedRegularMatches];
-	}, [filteredEvents, sortMode]);
+	const allEventsOrdered = useMemo(
+		() => orderEventsForDiscoverySurface(filteredEvents, sortMode),
+		[filteredEvents, sortMode],
+	);
 
 	const socialProofDisplayModes = useMemo(
-		() => getSocialProofDisplayModes(filteredEvents),
-		[filteredEvents],
+		() => getSocialProofDisplayModes(spotlightEligibleEvents),
+		[spotlightEligibleEvents],
 	);
 	const ooocPicksInViewCount = useMemo(
 		() => filteredEvents.filter((event) => event.isOOOCPick === true).length,
@@ -716,11 +738,11 @@ export function EventsClient({
 			)}
 
 			<FeaturedEvents
-				events={allEventsOrdered}
+				events={spotlightEventsOrdered}
 				onEventClick={handleEventClick}
 				onScrollToAllEvents={scrollToAllEvents}
 				socialProofDisplayModes={socialProofDisplayModes}
-				dateRange={selectedDateRange}
+				dateRange={defaultDateRange}
 			/>
 
 			<EventStats
