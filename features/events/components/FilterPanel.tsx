@@ -1215,9 +1215,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 				className="absolute right-0 top-0 h-full w-full max-w-sm border-l border-border/70 bg-background/97 lg:static lg:max-w-none lg:border-l-0 lg:h-fit"
 			>
 				<Card className="ooo-site-card flex h-full flex-col border-0 py-0 lg:h-fit lg:border">
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/70 py-5 pb-4">
-						<CardTitle className="flex items-center text-[1.45rem] [font-family:var(--ooo-font-display)] font-light">
-							<Filter className="h-5 w-5 mr-2" />
+					<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 border-b border-border/70 py-5">
+						<CardTitle className="flex min-w-0 items-center whitespace-nowrap text-[1.5rem] [font-family:var(--ooo-font-display)] font-light leading-none tracking-[0.01em]">
+							<Filter className="mr-2.5 h-[1.15rem] w-[1.15rem] stroke-[1.75]" />
 							Filters
 							{hasActiveFilters && (
 								<Badge
@@ -1235,17 +1235,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								{filteredEventsCount !== 1 ? "s" : ""}
 							</Badge>
 						</CardTitle>
-						<div className="flex items-center space-x-2">
-							{hasActiveFilters &&
-								(!isDesktopContentExpanded ||
-									!uiDecisions.activeFiltersAtTop) && (
-									<ClearFiltersButton
-										onClick={onClearFilters}
-										className="hidden h-8 lg:inline-flex"
-									>
-										Clear filters
-									</ClearFiltersButton>
-								)}
+						<div className="flex shrink-0 items-center gap-2">
+							{hasActiveFilters && (
+								<ClearFiltersButton
+									onClick={onClearFilters}
+									className="hidden h-7 px-2.5 lg:inline-flex"
+								/>
+							)}
 							<Button
 								variant="outline"
 								size="icon"
