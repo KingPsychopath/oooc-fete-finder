@@ -20,10 +20,7 @@ import {
 	exportAudienceSegmentCsv,
 	getEventEngagementDashboard,
 } from "@/features/events/engagement/actions";
-import {
-	parseEventFilterStateFromSearchParams,
-	readStoredEventFilterState,
-} from "@/features/events/filter-state-persistence";
+import { parseEventFilterStateFromSearchParams } from "@/features/events/filter-state-persistence";
 import { PRICE_RANGE_CONFIG } from "@/features/events/types";
 import { MUSIC_GENRES, type MusicGenre } from "@/features/events/types";
 import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
@@ -54,6 +51,15 @@ type SegmentFilterRule = {
 type SegmentGenreRule = {
 	genre: MusicGenre;
 	minScore: number;
+};
+
+type SegmentSuggestion = {
+	key: string;
+	title: string;
+	description: string;
+	filterRules: SegmentFilterRule[];
+	genreRules: SegmentGenreRule[];
+	searchRule?: string;
 };
 
 const WINDOW_OPTIONS = [7, 30, 90] as const;
@@ -317,6 +323,9 @@ export const EventEngagementStatsCard = ({
 			? initialPayload.windowDays
 			: DEFAULT_WINDOW_DAYS,
 	);
+	const [expandedDecisionBucket, setExpandedDecisionBucket] = useState<
+		string | null
+	>(null);
 	const [searchInput, setSearchInput] = useState("");
 	const [searchRule, setSearchRule] = useState("");
 	const [filterUrlInput, setFilterUrlInput] = useState("");
@@ -481,6 +490,162 @@ export const EventEngagementStatsCard = ({
 			),
 		},
 	];
+	const actionQueue = [
+		{
+			key: "feature-candidates",
+			label: "Consider Featuring",
+			description: "High attention and high partner intent.",
+			rows: decisionBuckets[0]?.rows ?? [],
+		},
+		{
+			key: "fix-details",
+			label: "Fix Event Links / Details",
+			description: "High opens but weaker partner intent.",
+			rows: decisionBuckets[1]?.rows ?? [],
+		},
+		{
+			key: "niche-picks",
+			label: "Niche But Strong",
+			description: "Lower attention, stronger action rate.",
+			rows: decisionBuckets[2]?.rows ?? [],
+		},
+	];
+	const dataQualityFlags = [
+		{
+			key: "high-opens-low-intent",
+			label: "Check Proof, Price, Link",
+			description: "People open these, then do not click out.",
+			rows: chartRows.filter(
+				(row) =>
+					row.clickCount >= attentionThreshold &&
+					row.outboundSessionRate < intentThreshold,
+			),
+		},
+		{
+			key: "calendar-without-partner",
+			label: "Calendar Interest, Low Partner Action",
+			description: "These may need clearer booking/ticket instructions.",
+			rows: chartRows.filter(
+				(row) =>
+					row.calendarSyncCount > 0 &&
+					row.outboundClickCount <= row.calendarSyncCount,
+			),
+		},
+		{
+			key: "promote-low-open-high-intent",
+			label: "Promote Niche Intent",
+			description: "Small audience, but the people who find it act.",
+			rows: decisionBuckets[2]?.rows ?? [],
+		},
+	];
+	const knownTopFilters = topFilterRows.filter((rule) =>
+		FILTER_GROUP_OPTIONS.some((option) => option.value === rule.filterGroup),
+	);
+	const topDayNightFilter = knownTopFilters.find(
+		(rule) => rule.filterGroup === "day_night",
+	);
+	const topOoocPickFilter = knownTopFilters.find(
+		(rule) => rule.filterGroup === "oooc_pick",
+	);
+	const topAreaFilter = knownTopFilters.find(
+		(rule) => rule.filterGroup === "arrondissement",
+	);
+	const topBehaviorFilter = knownTopFilters.find(
+		(rule) => rule.filterGroup !== "date_range",
+	);
+	const possibleSegmentSuggestions: Array<SegmentSuggestion | null> = [
+		topGenreRows[0] && topDayNightFilter
+			? {
+					key: "top-genre-day-night",
+					title: `${topGenreRows[0].label} + ${topDayNightFilter.filterValue}`,
+					description: "Top genre preference with a top day/night behavior.",
+					genreRules: [{ genre: topGenreRows[0].genre, minScore: 2 }],
+					filterRules: [
+						{
+							filterGroup: "day_night",
+							filterValue: topDayNightFilter.filterValue,
+						},
+					],
+				}
+			: null,
+		topGenreRows[1] && topOoocPickFilter
+			? {
+					key: "second-genre-oooc-pick",
+					title: `${topGenreRows[1].label} + OOOC ${topOoocPickFilter.filterValue}`,
+					description: "Pairs a strong genre preference with curation intent.",
+					genreRules: [{ genre: topGenreRows[1].genre, minScore: 2 }],
+					filterRules: [
+						{
+							filterGroup: "oooc_pick",
+							filterValue: topOoocPickFilter.filterValue,
+						},
+					],
+				}
+			: null,
+		topAreaFilter && topDayNightFilter
+			? {
+					key: "area-day-night",
+					title: `${getFilterGroupLabel(topAreaFilter.filterGroup)} ${topAreaFilter.filterValue} + ${topDayNightFilter.filterValue}`,
+					description: "Useful for location-led partner exports.",
+					genreRules: [],
+					filterRules: [
+						{
+							filterGroup: "arrondissement",
+							filterValue: topAreaFilter.filterValue,
+						},
+						{
+							filterGroup: "day_night",
+							filterValue: topDayNightFilter.filterValue,
+						},
+					],
+				}
+			: null,
+		topGenreRows[0] && topAreaFilter
+			? {
+					key: "top-genre-area",
+					title: `${topGenreRows[0].label} + ${topAreaFilter.filterValue}`,
+					description: "Best when a partner wants a local genre-led audience.",
+					genreRules: [{ genre: topGenreRows[0].genre, minScore: 2 }],
+					filterRules: [
+						{
+							filterGroup: "arrondissement",
+							filterValue: topAreaFilter.filterValue,
+						},
+					],
+				}
+			: null,
+		topSearchRows[0] && topGenreRows[0]
+			? {
+					key: "search-genre",
+					title: `${topSearchRows[0].query} + ${topGenreRows[0].label}`,
+					description:
+						"Turns the strongest search intent into a genre-qualified export.",
+					searchRule: topSearchRows[0].query.toLowerCase(),
+					genreRules: [{ genre: topGenreRows[0].genre, minScore: 2 }],
+					filterRules: [],
+				}
+			: null,
+		topSearchRows[0] && topBehaviorFilter
+			? {
+					key: "search-behavior",
+					title: `${topSearchRows[0].query} + ${getFilterGroupLabel(topBehaviorFilter.filterGroup)}`,
+					description:
+						"Combines the top search cluster with a live filter signal.",
+					searchRule: topSearchRows[0].query.toLowerCase(),
+					genreRules: [],
+					filterRules: [
+						{
+							filterGroup:
+								topBehaviorFilter.filterGroup as DiscoveryFilterGroup,
+							filterValue: topBehaviorFilter.filterValue,
+						},
+					],
+				}
+			: null,
+	];
+	const segmentSuggestions = possibleSegmentSuggestions.filter(
+		(suggestion): suggestion is SegmentSuggestion => suggestion !== null,
+	);
 
 	const addFilterRule = useCallback(() => {
 		const value = ruleValue.trim().toLowerCase();
@@ -554,6 +719,36 @@ export const EventEngagementStatsCard = ({
 			return [...current, { genre, minScore: 2 }];
 		});
 	}, []);
+
+	const applySegmentSuggestion = useCallback(
+		(suggestion: SegmentSuggestion) => {
+			setFilterRules((current) => {
+				const next = [...current];
+				for (const rule of suggestion.filterRules) {
+					const key = normalizeRuleKey(rule);
+					if (!next.some((item) => normalizeRuleKey(item) === key)) {
+						next.push(rule);
+					}
+				}
+				return next;
+			});
+			setGenreRules((current) => {
+				const next = [...current];
+				for (const rule of suggestion.genreRules) {
+					if (!next.some((item) => item.genre === rule.genre)) {
+						next.push(rule);
+					}
+				}
+				return next;
+			});
+			if (suggestion.searchRule) {
+				setSearchRule(suggestion.searchRule);
+			}
+			setErrorMessage("");
+			setSegmentMessage(`Loaded segment suggestion: ${suggestion.title}`);
+		},
+		[],
+	);
 
 	const removeGenreRule = useCallback((genre: MusicGenre) => {
 		setGenreRules((current) => current.filter((rule) => rule.genre !== genre));
@@ -695,15 +890,6 @@ export const EventEngagementStatsCard = ({
 		}
 		applyFilterStateToSegmentBuilder(parsed);
 	}, [applyFilterStateToSegmentBuilder, filterUrlInput]);
-
-	const loadSegmentRulesFromSavedFilters = useCallback(() => {
-		const parsed = readStoredEventFilterState();
-		if (!parsed) {
-			setErrorMessage("No saved app filters found in this browser");
-			return;
-		}
-		applyFilterStateToSegmentBuilder(parsed);
-	}, [applyFilterStateToSegmentBuilder]);
 
 	const handleExportSegmentCsv = useCallback(async () => {
 		setIsExporting(true);
@@ -961,9 +1147,19 @@ export const EventEngagementStatsCard = ({
 					</div>
 
 					<div className="space-y-2 rounded-md border bg-background/55 p-3">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Event Decision Matrix
-						</p>
+						<div className="flex items-center">
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Event Decision Matrix
+							</p>
+							<InfoPopover
+								aria-label="Explain event decision matrix"
+								side="top"
+							>
+								Events are grouped by opens and partner intent using thresholds
+								from the current top events. Click a quadrant to see every event
+								inside it.
+							</InfoPopover>
+						</div>
 						<p className="text-xs text-muted-foreground">
 							Use this to decide what to feature, what to fix, and what can
 							wait.
@@ -975,17 +1171,32 @@ export const EventEngagementStatsCard = ({
 						) : (
 							<div className="grid gap-2 sm:grid-cols-2">
 								{decisionBuckets.map((bucket) => (
-									<div
+									<button
 										key={bucket.key}
-										className="min-h-32 rounded-md border bg-background/70 p-2"
+										type="button"
+										onClick={() =>
+											setExpandedDecisionBucket((current) =>
+												current === bucket.key ? null : bucket.key,
+											)
+										}
+										className={`min-h-32 rounded-md border bg-background/70 p-2 text-left transition-colors hover:bg-accent/45 ${
+											expandedDecisionBucket === bucket.key
+												? "border-foreground/35 bg-accent/35"
+												: ""
+										}`}
 									>
-										<div className="mb-2">
-											<p className="text-xs font-semibold text-foreground">
-												{bucket.label}
-											</p>
-											<p className="text-[11px] text-muted-foreground">
-												{bucket.description}
-											</p>
+										<div className="mb-2 flex items-start justify-between gap-2">
+											<div>
+												<p className="text-xs font-semibold text-foreground">
+													{bucket.label}
+												</p>
+												<p className="text-[11px] text-muted-foreground">
+													{bucket.description}
+												</p>
+											</div>
+											<span className="rounded-full border border-border bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+												{bucket.rows.length} events
+											</span>
 										</div>
 										{bucket.rows.length === 0 ? (
 											<p className="text-[11px] text-muted-foreground">
@@ -1010,13 +1221,165 @@ export const EventEngagementStatsCard = ({
 												))}
 											</div>
 										)}
-									</div>
+									</button>
 								))}
+								{expandedDecisionBucket ? (
+									<div className="space-y-2 rounded-md border bg-background/70 p-2 sm:col-span-2">
+										{decisionBuckets
+											.find((bucket) => bucket.key === expandedDecisionBucket)
+											?.rows.map((row) => (
+												<div
+													key={row.eventKey}
+													className="grid gap-2 rounded border border-border/70 bg-background px-2 py-1.5 sm:grid-cols-[minmax(0,1fr)_auto]"
+												>
+													<div className="min-w-0">
+														<p className="truncate text-xs font-medium">
+															{row.eventName}
+														</p>
+														<p className="truncate text-[11px] text-muted-foreground">
+															{row.eventKey}
+														</p>
+													</div>
+													<p className="text-[11px] text-muted-foreground sm:text-right">
+														{row.clickCount} opens · {row.outboundClickCount}{" "}
+														partner · {row.calendarSyncCount} calendar ·{" "}
+														{formatPercent(row.outboundSessionRate)} intent
+													</p>
+												</div>
+											))}
+									</div>
+								) : null}
 								<p className="text-[11px] text-muted-foreground sm:col-span-2">
 									Thresholds are based on the current top events:{" "}
 									{attentionThreshold} opens and{" "}
 									{formatPercent(intentThreshold)} partner intent.
 								</p>
+							</div>
+						)}
+					</div>
+				</section>
+
+				<section className="grid gap-4 xl:grid-cols-3">
+					<div className="space-y-2 rounded-md border bg-background/55 p-3">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Action Queue
+						</p>
+						<div className="space-y-2">
+							{actionQueue.map((item) => (
+								<div
+									key={item.key}
+									className="rounded-md border bg-background/70 p-2"
+								>
+									<div className="mb-1 flex items-start justify-between gap-2">
+										<div>
+											<p className="text-xs font-semibold text-foreground">
+												{item.label}
+											</p>
+											<p className="text-[11px] text-muted-foreground">
+												{item.description}
+											</p>
+										</div>
+										<span className="rounded-full border border-border bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+											{item.rows.length} events
+										</span>
+									</div>
+									{item.rows.length === 0 ? (
+										<p className="text-[11px] text-muted-foreground">
+											No events right now.
+										</p>
+									) : (
+										<div className="space-y-1">
+											{item.rows.slice(0, 2).map((row) => (
+												<p
+													key={row.eventKey}
+													className="truncate text-[11px] text-muted-foreground"
+												>
+													{row.eventName}
+												</p>
+											))}
+										</div>
+									)}
+								</div>
+							))}
+						</div>
+					</div>
+
+					<div className="space-y-2 rounded-md border bg-background/55 p-3">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Data Quality Flags
+						</p>
+						<div className="space-y-2">
+							{dataQualityFlags.map((flag) => (
+								<div
+									key={flag.key}
+									className="rounded-md border bg-background/70 p-2"
+								>
+									<div className="mb-1 flex items-start justify-between gap-2">
+										<div>
+											<p className="text-xs font-semibold text-foreground">
+												{flag.label}
+											</p>
+											<p className="text-[11px] text-muted-foreground">
+												{flag.description}
+											</p>
+										</div>
+										<span className="rounded-full border border-border bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+											{flag.rows.length} events
+										</span>
+									</div>
+									{flag.rows.length === 0 ? (
+										<p className="text-[11px] text-muted-foreground">
+											No flags right now.
+										</p>
+									) : (
+										<div className="space-y-1">
+											{flag.rows.slice(0, 2).map((row) => (
+												<p
+													key={row.eventKey}
+													className="truncate text-[11px] text-muted-foreground"
+												>
+													{row.eventName}
+												</p>
+											))}
+										</div>
+									)}
+								</div>
+							))}
+						</div>
+					</div>
+
+					<div className="space-y-2 rounded-md border bg-background/55 p-3">
+						<div className="flex items-center">
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Segment Suggestions
+							</p>
+							<InfoPopover aria-label="Explain segment suggestions" side="top">
+								These are generated from the current top searches, genres, and
+								filters. Changing the date window or cluster mode can change the
+								suggestions.
+							</InfoPopover>
+						</div>
+						{segmentSuggestions.length === 0 ? (
+							<p className="text-xs text-muted-foreground">
+								Not enough live signal overlap for suggestions yet.
+							</p>
+						) : (
+							<div className="space-y-2">
+								{segmentSuggestions.map((suggestion) => (
+									<button
+										key={suggestion.key}
+										type="button"
+										onClick={() => applySegmentSuggestion(suggestion)}
+										className="w-full rounded-md border bg-background/70 p-2 text-left transition-colors hover:bg-accent/45"
+									>
+										<p className="text-xs font-semibold text-foreground">
+											{suggestion.title}
+										</p>
+										<p className="text-[11px] text-muted-foreground">
+											{suggestion.description}
+										</p>
+									</button>
+								))}
 							</div>
 						)}
 					</div>
@@ -1062,10 +1425,21 @@ export const EventEngagementStatsCard = ({
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Daily Pulse
 						</p>
-						<p className="text-xs text-muted-foreground">
-							Last {dailyRows.length} days shown. Amber opens, green partner,
-							blue calendar.
-						</p>
+						<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+							<span>Last {dailyRows.length} days</span>
+							<span className="inline-flex items-center gap-1">
+								<span className="h-1.5 w-5 rounded-full bg-amber-600/80" />
+								Opens
+							</span>
+							<span className="inline-flex items-center gap-1">
+								<span className="h-1.5 w-5 rounded-full bg-emerald-700/80" />
+								Partner
+							</span>
+							<span className="inline-flex items-center gap-1">
+								<span className="h-1.5 w-5 rounded-full bg-sky-700/80" />
+								Calendar
+							</span>
+						</div>
 						{dailyRows.length === 0 || !hasDailyActivity ? (
 							<p className="text-xs text-muted-foreground">
 								No daily activity in this window yet.
@@ -1140,7 +1514,11 @@ export const EventEngagementStatsCard = ({
 
 				<section className="space-y-2 rounded-md border bg-background/55 p-3">
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-						Discovery Intent Bars
+						Live Signal Bars
+					</p>
+					<p className="text-xs text-muted-foreground">
+						Searches use the current {discovery.searchClusterMode} clustering
+						mode; genre and filter counts stay raw.
 					</p>
 					<div className="grid gap-4 lg:grid-cols-3">
 						{[
@@ -1150,6 +1528,13 @@ export const EventEngagementStatsCard = ({
 									key: row.query,
 									label: row.query,
 									value: row.count,
+									meta:
+										row.variantCount > 1
+											? `${row.variantCount} variants: ${row.variants
+													.slice(0, 3)
+													.map((variant) => variant.query)
+													.join(", ")}${row.variantCount > 3 ? "..." : ""}`
+											: "",
 								})),
 								empty: "No search data yet.",
 							},
@@ -1159,6 +1544,7 @@ export const EventEngagementStatsCard = ({
 									key: row.genre,
 									label: row.label,
 									value: row.uniqueUsers,
+									meta: "",
 								})),
 								empty: "No genre data yet.",
 							},
@@ -1168,6 +1554,7 @@ export const EventEngagementStatsCard = ({
 									key: `${row.filterGroup}-${row.filterValue}`,
 									label: `${getFilterGroupLabel(row.filterGroup)}: ${row.filterValue}`,
 									value: row.count,
+									meta: "",
 								})),
 								empty: "No filter data yet.",
 							},
@@ -1183,7 +1570,14 @@ export const EventEngagementStatsCard = ({
 										{group.rows.map((row) => (
 											<div key={row.key} className="space-y-1">
 												<div className="flex justify-between gap-2 text-xs">
-													<span className="truncate">{row.label}</span>
+													<span className="min-w-0">
+														<span className="block truncate">{row.label}</span>
+														{row.meta ? (
+															<span className="block truncate text-[10px] text-muted-foreground">
+																{row.meta}
+															</span>
+														) : null}
+													</span>
 													<span className="tabular-nums">{row.value}</span>
 												</div>
 												<div className="h-2 rounded-full bg-muted/70">
@@ -1312,12 +1706,10 @@ export const EventEngagementStatsCard = ({
 								</p>
 								<InfoPopover
 									aria-label="Explain loading app filters"
-									align="start"
 									side="top"
 								>
 									Apply filters on the public events page, then copy that URL
-									from the address bar and paste it here. Saved filters loads
-									the last filters stored in this same browser.
+									from the address bar and paste it here.
 								</InfoPopover>
 							</div>
 							<div className="grid gap-2 sm:grid-cols-[1fr_auto]">
@@ -1337,14 +1729,6 @@ export const EventEngagementStatsCard = ({
 									Load From URL
 								</Button>
 							</div>
-							<Button
-								type="button"
-								size="sm"
-								variant="outline"
-								onClick={loadSegmentRulesFromSavedFilters}
-							>
-								Load Saved Filters
-							</Button>
 						</div>
 					</div>
 					<div className="space-y-3 rounded-md border border-border/70 bg-background/45 p-3">
@@ -1392,33 +1776,26 @@ export const EventEngagementStatsCard = ({
 							>
 								OR
 							</Button>
-							<TooltipProvider>
-								<Tooltip>
-									<TooltipTrigger
-										render={
-											<button
-												type="button"
-												className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-accent"
-												aria-label="Rule mode help"
-											/>
-										}
-									>
-										<CircleHelp className="h-3.5 w-3.5" />
-									</TooltipTrigger>
-									<TooltipContent>
-										<p className="max-w-[220px] text-xs">
-											Use AND to require every rule. Use OR to include users who
-											matched at least one rule.
-										</p>
-									</TooltipContent>
-								</Tooltip>
-							</TooltipProvider>
+							<InfoPopover aria-label="Explain rule mode" side="top">
+								Use AND to require every selected rule. Use OR to include users
+								who matched at least one selected rule.
+							</InfoPopover>
 						</div>
 						<div className="grid gap-2 sm:grid-cols-2">
 							<div className="space-y-1">
-								<p className="text-xs font-medium text-foreground">
-									Min hits per rule
-								</p>
+								<div className="flex items-center">
+									<p className="text-xs font-medium text-foreground">
+										Min hits per rule
+									</p>
+									<InfoPopover
+										aria-label="Explain minimum hits per rule"
+										side="top"
+									>
+										The user must match each selected rule at least this many
+										times in the export window. Keep it at 1 for broad exports;
+										raise it for stronger intent.
+									</InfoPopover>
+								</div>
 								<input
 									type="number"
 									min={1}
