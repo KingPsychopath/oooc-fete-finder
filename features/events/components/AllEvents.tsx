@@ -161,6 +161,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							<div
 								key={event.id}
 								id={index === 0 ? "tour-first-event-card" : undefined}
+								className="h-full"
 							>
 								<EventCard
 									event={event}

@@ -754,6 +754,7 @@ export function EventsClient({
 						isAuthResolved={isAuthResolved}
 						onAuthRequired={() => setShowEmailGate(true)}
 						className="min-h-0"
+						variant="filter-preview"
 					>
 						<FilterPanel
 							selectedDateRange={selectedDateRange}
@@ -789,7 +790,7 @@ export function EventsClient({
 							onOpen={openFilterPanel}
 							isExpanded={isFilterExpanded}
 							onToggleExpanded={toggleFilterExpansion}
-							hideFloatingButton={false}
+							hideFloatingButton={!canUseProtectedDiscovery}
 						/>
 					</AuthGate>
 				</aside>

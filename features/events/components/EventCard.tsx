@@ -103,7 +103,7 @@ export function EventCard({
 			? [...new Set(event.venueTypes)]
 			: [event.indoor ? "indoor" : "outdoor"];
 
-	const cardClasses = `group relative cursor-pointer rounded-xl border p-4 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-lg ${
+	const cardClasses = `group relative h-full cursor-pointer rounded-xl border p-4 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-lg ${
 		isCurrentlyFeatured
 			? "border-amber-300/75 bg-[linear-gradient(145deg,rgba(248,238,222,0.86),rgba(244,229,205,0.72))] dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.45),rgba(47,36,24,0.32))]"
 			: event.isOOOCPick === true
