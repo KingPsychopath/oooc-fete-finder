@@ -22,8 +22,7 @@ const ooocFaqUrl =
 	process.env.NEXT_PUBLIC_OOOC_FAQ_URL?.trim() ||
 	"https://outofofficecollective.co.uk/faqs";
 const creatorXUrl =
-	process.env.NEXT_PUBLIC_CREATOR_X_URL?.trim() ||
-	"https://x.com/milkandh3nny";
+	process.env.NEXT_PUBLIC_CREATOR_X_URL?.trim() || "https://x.com/milkandh3nny";
 const supportCoffeeUrl =
 	process.env.NEXT_PUBLIC_SUPPORT_COFFEE_URL?.trim() ||
 	"https://coff.ee/milkandhenny";
@@ -154,7 +153,7 @@ const Footer = () => {
 					<div className="flex flex-col items-center space-y-1 text-center lg:items-end lg:text-right">
 						<div className="flex flex-col items-center space-y-1 text-xs text-muted-foreground sm:flex-row sm:items-center sm:space-x-1 sm:space-y-0">
 							<div className="flex flex-wrap items-center justify-center gap-x-1 lg:justify-end">
-								<span>Web app v1.0.0 • Made by</span>
+								<span>Web app v2.0.0 • Made by</span>
 								<Link
 									href={creatorXUrl}
 									target="_blank"

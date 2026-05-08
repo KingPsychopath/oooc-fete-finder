@@ -9,15 +9,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoPopover } from "@/components/ui/info-popover";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Toggle } from "@/components/ui/toggle";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { ClearFiltersButton } from "@/features/events/components/ClearFiltersButton";
 import { DateRangePickerControl } from "@/features/events/components/DateRangePickerControl";
 import { FilterButton } from "@/features/events/components/FilterButton";
@@ -60,7 +55,6 @@ import {
 	ChevronDown,
 	Euro,
 	Filter,
-	Info,
 	Moon,
 	Search,
 	Star,
@@ -160,6 +154,22 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		"h-8 justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
 	const genreOptions = availableGenres ?? MUSIC_GENRES;
 	const [genreSearchQuery, setGenreSearchQuery] = useState("");
+	const activeFilterBadgeClassName =
+		"border border-border/70 bg-secondary/72 text-xs";
+	const compactActiveFilterBadgeClassName =
+		"h-7 gap-1 rounded-full border border-border/70 bg-background/80 px-2 text-xs font-normal shadow-none";
+	const activeFilterRemoveButtonClassName =
+		"h-auto p-0 ml-1 hover:bg-transparent";
+	const ooocPickHelp =
+		"OOOC Picks are events highlighted by Out Of Office Collective as especially worth considering.";
+	const hostNationalityHelp =
+		"The country or cultural background associated with the event host or promoter. Selecting more than one means events must include all selected host nationalities.";
+	const arrondissementHelp =
+		"Arr. is short for arrondissement: Paris's numbered neighbourhood districts. Use it to narrow events by area.";
+	const venueTypeHelp =
+		"Venue type filters events by setting, such as indoor club spaces or outdoor/open-air locations.";
+	const ageRangeHelp =
+		"Age range primarily reflects the minimum allowed age for an event. It can also hint at the typical attendee age when organisers provide that context.";
 
 	// Stable accordion state for desktop compact mode
 	const [openAccordionSections, setOpenAccordionSections] = useState<string[]>([
@@ -357,29 +367,53 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	};
 
 	// Active Filters Component (reusable)
-	const ActiveFiltersDisplay = () => (
+	const ActiveFiltersDisplay = ({
+		showHeading = true,
+		compact = false,
+	}: {
+		showHeading?: boolean;
+		compact?: boolean;
+	} = {}) => (
 		<div
-			className={`transition-opacity duration-200 ease-out ${hasActiveFilters ? "rounded-xl border border-border/70 bg-background/52 p-3 opacity-100" : "h-0 overflow-hidden opacity-0"}`}
+			className={`transition-opacity duration-200 ease-out ${
+				hasActiveFilters
+					? compact
+						? "opacity-100"
+						: "rounded-xl border border-border/70 bg-background/52 p-3 opacity-100"
+					: "h-0 overflow-hidden opacity-0"
+			}`}
 		>
 			{hasActiveFilters && (
 				<>
-					<div className="mb-2 flex items-center justify-between gap-2">
-						<div className="text-xs font-medium text-muted-foreground">
-							Active Filters ({activeFilterCount})
+					{showHeading && (
+						<div className="mb-2 flex items-center justify-between gap-2">
+							<div className="text-xs font-medium text-muted-foreground">
+								Active Filters ({activeFilterCount})
+							</div>
 						</div>
-					</div>
-					<div className="flex min-h-[28px] flex-wrap gap-2">
+					)}
+					<div
+						className={
+							compact
+								? "flex min-h-7 flex-nowrap gap-1.5 overflow-x-auto pb-0.5 [mask-image:linear-gradient(to_right,black_calc(100%_-_24px),transparent)] [scrollbar-width:none] [&>*]:shrink-0 [&::-webkit-scrollbar]:hidden"
+								: "flex min-h-[28px] flex-wrap gap-2"
+						}
+					>
 						{selectedOOOCPicks && (
 							<Badge
 								variant="secondary"
-								className="border border-border/70 bg-secondary/72 text-xs"
+								className={
+									compact
+										? compactActiveFilterBadgeClassName
+										: activeFilterBadgeClassName
+								}
 							>
 								<Star className="h-3 w-3 mr-1 fill-yellow-400" />
 								OOOC Picks
 								<Button
 									variant="ghost"
 									size="sm"
-									className="h-auto p-0 ml-1 hover:bg-transparent"
+									className={activeFilterRemoveButtonClassName}
 									onClick={() => onOOOCPicksToggle(false)}
 								>
 									<X className="h-3 w-3" />
@@ -389,14 +423,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						{hasSelectedDateRange && (
 							<Badge
 								variant="secondary"
-								className="border border-border/70 bg-secondary/72 text-xs"
+								className={
+									compact
+										? compactActiveFilterBadgeClassName
+										: activeFilterBadgeClassName
+								}
 							>
 								<CalendarDays className="h-3 w-3 mr-1" />
 								{formatDateRangeLabel(selectedDateRange)}
 								<Button
 									variant="ghost"
 									size="sm"
-									className="h-auto p-0 ml-1 hover:bg-transparent"
+									className={activeFilterRemoveButtonClassName}
 									onClick={resetDateRangeToDefault}
 								>
 									<X className="h-3 w-3" />
@@ -407,7 +445,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							<Badge
 								key={period}
 								variant="secondary"
-								className="border border-border/70 bg-secondary/72 text-xs"
+								className={
+									compact
+										? compactActiveFilterBadgeClassName
+										: activeFilterBadgeClassName
+								}
 							>
 								<span className="mr-1 inline-flex items-center text-muted-foreground">
 									{renderDayNightIcon(period)}
@@ -416,7 +458,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								<Button
 									variant="ghost"
 									size="sm"
-									className="h-auto p-0 ml-1 hover:bg-transparent"
+									className={activeFilterRemoveButtonClassName}
 									onClick={() => onDayNightPeriodToggle(period)}
 								>
 									<X className="h-3 w-3" />
@@ -427,13 +469,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							<Badge
 								key={nationality}
 								variant="secondary"
-								className="border border-border/70 bg-secondary/72 text-xs"
+								className={
+									compact
+										? compactActiveFilterBadgeClassName
+										: activeFilterBadgeClassName
+								}
 							>
 								{nationality}
 								<Button
 									variant="ghost"
 									size="sm"
-									className="h-auto p-0 ml-1 hover:bg-transparent"
+									className={activeFilterRemoveButtonClassName}
 									onClick={() => onNationalityToggle(nationality)}
 								>
 									<X className="h-3 w-3" />
@@ -444,7 +490,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							<Badge
 								key={venueType}
 								variant="secondary"
-								className="border border-border/70 bg-secondary/72 text-xs"
+								className={
+									compact
+										? compactActiveFilterBadgeClassName
+										: activeFilterBadgeClassName
+								}
 							>
 								<span className="mr-1 inline-flex items-center text-muted-foreground">
 									{renderVenueTypeIcon(venueType)}
@@ -453,7 +503,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								<Button
 									variant="ghost"
 									size="sm"
-									className="h-auto p-0 ml-1 hover:bg-transparent"
+									className={activeFilterRemoveButtonClassName}
 									onClick={() => onVenueTypeToggle(venueType)}
 								>
 									<X className="h-3 w-3" />
@@ -463,7 +513,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						{selectedIndoorPreference !== null && (
 							<Badge
 								variant="secondary"
-								className="border border-border/70 bg-secondary/72 text-xs"
+								className={
+									compact
+										? compactActiveFilterBadgeClassName
+										: activeFilterBadgeClassName
+								}
 							>
 								<span className="mr-1 inline-flex items-center text-muted-foreground">
 									{selectedIndoorPreference
@@ -474,7 +528,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								<Button
 									variant="ghost"
 									size="sm"
-									className="h-auto p-0 ml-1 hover:bg-transparent"
+									className={activeFilterRemoveButtonClassName}
 									onClick={() => onIndoorPreferenceChange(null)}
 								>
 									<X className="h-3 w-3" />
@@ -485,14 +539,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
 							<Badge
 								variant="secondary"
-								className="border border-border/70 bg-secondary/72 text-xs"
+								className={
+									compact
+										? compactActiveFilterBadgeClassName
+										: activeFilterBadgeClassName
+								}
 							>
 								<Euro className="mr-1 h-3 w-3" />
 								{formatPriceRange(selectedPriceRange)}
 								<Button
 									variant="ghost"
 									size="sm"
-									className="h-auto p-0 ml-1 hover:bg-transparent"
+									className={activeFilterRemoveButtonClassName}
 									onClick={resetPriceRange}
 								>
 									<X className="h-3 w-3" />
@@ -504,14 +562,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								selectedAgeRange[1] !== AGE_RANGE_CONFIG.max) && (
 								<Badge
 									variant="secondary"
-									className="border border-border/70 bg-secondary/72 text-xs"
+									className={
+										compact
+											? compactActiveFilterBadgeClassName
+											: activeFilterBadgeClassName
+									}
 								>
 									<Users className="mr-1 h-3 w-3" />
 									{formatAgeRange(selectedAgeRange)}
 									<Button
 										variant="ghost"
 										size="sm"
-										className="h-auto p-0 ml-1 hover:bg-transparent"
+										className={activeFilterRemoveButtonClassName}
 										onClick={resetAgeRange}
 									>
 										<X className="h-3 w-3" />
@@ -522,13 +584,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							<Badge
 								key={arr}
 								variant="secondary"
-								className="border border-border/70 bg-secondary/72 text-xs"
+								className={
+									compact
+										? compactActiveFilterBadgeClassName
+										: activeFilterBadgeClassName
+								}
 							>
 								{formatLocationAreaShort(arr)}
 								<Button
 									variant="ghost"
 									size="sm"
-									className="h-auto p-0 ml-1 hover:bg-transparent"
+									className={activeFilterRemoveButtonClassName}
 									onClick={() => onArrondissementToggle(arr)}
 								>
 									<X className="h-3 w-3" />
@@ -539,13 +605,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							<Badge
 								key={genre}
 								variant="secondary"
-								className="border border-border/70 bg-secondary/72 text-xs"
+								className={
+									compact
+										? compactActiveFilterBadgeClassName
+										: activeFilterBadgeClassName
+								}
 							>
 								{genreOptions.find((g) => g.key === genre)?.label ?? genre}
 								<Button
 									variant="ghost"
 									size="sm"
-									className="h-auto p-0 ml-1 hover:bg-transparent"
+									className={activeFilterRemoveButtonClassName}
 									onClick={() => onGenreToggle(genre)}
 								>
 									<X className="h-3 w-3" />
@@ -553,7 +623,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</Badge>
 						))}
 						{selectedGenres.length > 4 && (
-							<Badge variant="outline" className="text-xs">
+							<Badge
+								variant="outline"
+								className={
+									compact
+										? "h-7 shrink-0 rounded-full border-border/70 bg-background/60 px-2 text-xs font-normal"
+										: "text-xs"
+								}
+							>
 								+{selectedGenres.length - 4} more
 							</Badge>
 						)}
@@ -725,9 +802,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										</AccordionTrigger>
 										<AccordionContent>
 											<div className="space-y-3">
-												<h3 className={sectionTitleClassName}>
-													Location / Area
-												</h3>
+												<div className="flex items-center">
+													<h3 className={sectionTitleClassName}>
+														Location / Area
+													</h3>
+													<InfoPopover aria-label="Explain Paris arrondissement filters">
+														{arrondissementHelp}
+													</InfoPopover>
+												</div>
 												<div className="grid grid-cols-5 gap-1 min-h-[5rem] content-start">
 													{availableArrondissements.map((arr) => (
 														<Toggle
@@ -820,14 +902,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Host Nationality */}
 												<div>
-													<h3 className={sectionTitleClassName}>
-														Host nationality{" "}
-														{selectedNationalities.length > 1 && (
-															<span className="text-sm text-muted-foreground font-normal">
-																(must INCLUDE)
-															</span>
-														)}
-													</h3>
+													<div className="flex items-center">
+														<h3 className={sectionTitleClassName}>
+															Host nationality{" "}
+															{selectedNationalities.length > 1 && (
+																<span className="text-sm text-muted-foreground font-normal">
+																	(must INCLUDE)
+																</span>
+															)}
+														</h3>
+														<InfoPopover aria-label="Explain host nationality filters">
+															{hostNationalityHelp}
+														</InfoPopover>
+													</div>
 													<div className="grid grid-cols-3 gap-1">
 														{availableNationalities.map(
 															({ key, flag, shortCode }) => (
@@ -890,7 +977,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											<div className="space-y-4">
 												{/* OOOC Picks */}
 												<div>
-													<h3 className={sectionTitleClassName}>OOOC Picks</h3>
+													<div className="flex items-center">
+														<h3 className={sectionTitleClassName}>
+															OOOC Picks
+														</h3>
+														<InfoPopover aria-label="Explain OOOC Picks">
+															{ooocPickHelp}
+														</InfoPopover>
+													</div>
 													<Toggle
 														pressed={selectedOOOCPicks}
 														onPressedChange={onOOOCPicksToggle}
@@ -906,7 +1000,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Venue Type */}
 												<div>
-													<h3 className={sectionTitleClassName}>Venue Type</h3>
+													<div className="flex items-center">
+														<h3 className={sectionTitleClassName}>
+															Venue Type
+														</h3>
+														<InfoPopover aria-label="Explain venue type filters">
+															{venueTypeHelp}
+														</InfoPopover>
+													</div>
 													<div className="grid grid-cols-2 gap-1">
 														{VENUE_TYPES.map(({ key, label }) => (
 															<Toggle
@@ -969,7 +1070,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 												{/* Age Range */}
 												<div>
-													<h3 className={sectionTitleClassName}>Age Range</h3>
+													<div className="flex items-center">
+														<h3 className={sectionTitleClassName}>Age Range</h3>
+														<InfoPopover aria-label="Explain age range filters">
+															{ageRangeHelp}
+														</InfoPopover>
+													</div>
 													<div className="space-y-1.5 px-1">
 														<Slider
 															value={
@@ -1048,7 +1154,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 				id="tour-filter-panel"
 				className="absolute right-0 top-0 h-full w-full max-w-sm border-l border-border/70 bg-background/97 lg:static lg:max-w-none lg:border-l-0 lg:h-fit"
 			>
-				<Card className="ooo-site-card h-full border-0 py-0 lg:h-fit lg:border">
+				<Card className="ooo-site-card flex h-full flex-col border-0 py-0 lg:h-fit lg:border">
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/70 py-5 pb-4">
 						<CardTitle className="flex items-center text-[1.45rem] [font-family:var(--ooo-font-display)] font-light">
 							<Filter className="h-5 w-5 mr-2" />
@@ -1056,14 +1162,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							{hasActiveFilters && (
 								<Badge
 									variant="secondary"
-									className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+									className="ml-2 hidden border border-border/70 bg-secondary/72 text-xs lg:inline-flex"
 								>
 									{activeFilterCount} active
 								</Badge>
 							)}
 							<Badge
 								variant="outline"
-								className="ml-2 border-border/70 bg-background/52 text-xs"
+								className="ml-2 hidden border-border/70 bg-background/52 text-xs lg:inline-flex"
 							>
 								{filteredEventsCount} result
 								{filteredEventsCount !== 1 ? "s" : ""}
@@ -1089,9 +1195,43 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						</div>
 					</CardHeader>
 
-					<CardContent className="space-y-6 overflow-y-auto py-4 lg:overflow-y-visible">
-						{/* Active Filters - Top (Mobile) or when few filters */}
-						{uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
+					{hasActiveFilters && (
+						<div className="border-b border-border/70 bg-card/72 px-4 py-2.5 lg:hidden">
+							<div className="flex items-center justify-between gap-3">
+								<div className="min-w-0">
+									<p className="text-xs font-medium text-foreground/88">
+										{activeFilterCount} active filter
+										{activeFilterCount !== 1 ? "s" : ""}
+										<span className="mx-1.5 text-muted-foreground/50">/</span>
+										<span className="font-normal text-muted-foreground">
+											{filteredEventsCount} result
+											{filteredEventsCount !== 1 ? "s" : ""}
+										</span>
+									</p>
+								</div>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onClick={onClearFilters}
+									className="h-7 shrink-0 rounded-full border border-dashed border-border/70 px-3 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+								>
+									Clear
+								</Button>
+							</div>
+							<div className="mt-1.5">
+								<ActiveFiltersDisplay showHeading={false} compact />
+							</div>
+						</div>
+					)}
+
+					<CardContent className="min-h-0 flex-1 space-y-6 overflow-y-auto py-4 lg:overflow-y-visible">
+						{/* Active Filters - Top on desktop when few filters */}
+						{uiDecisions.activeFiltersAtTop && (
+							<div className="hidden lg:block">
+								<ActiveFiltersDisplay />
+							</div>
+						)}
 
 						{/* Conditional Layout: Accordion vs Expanded */}
 						{uiDecisions.useAccordion ? (
@@ -1178,33 +1318,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								<div className={sectionClassName}>
 									<div className="flex items-center mb-3">
 										<h3 className={sectionTitleClassName}>Date & Times</h3>
-										<TooltipProvider>
-											<Tooltip>
-												<TooltipTrigger
-													render={
-														<button
-															className="h-4 w-4 ml-2 text-muted-foreground cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
-															type="button"
-															aria-label="Show day and night time definitions"
-														/>
-													}
-												>
-													<Info className="h-4 w-4" />
-												</TooltipTrigger>
-												<TooltipContent>
-													<div className="text-sm space-y-1">
-														<p className="inline-flex items-center gap-1.5">
-															<strong>Day:</strong> 6:00 AM - 9:59 PM
-															<Sun className="h-3.5 w-3.5" />
-														</p>
-														<p className="inline-flex items-center gap-1.5">
-															<strong>Night:</strong> 10:00 PM - 5:59 AM
-															<Moon className="h-3.5 w-3.5" />
-														</p>
-													</div>
-												</TooltipContent>
-											</Tooltip>
-										</TooltipProvider>
+										<InfoPopover
+											aria-label="Show day and night time definitions"
+											contentClassName="space-y-1.5"
+										>
+											<p className="inline-flex items-center gap-1.5">
+												<strong>Day:</strong> 6:00 AM - 9:59 PM
+												<Sun className="h-3.5 w-3.5" />
+											</p>
+											<p className="inline-flex items-center gap-1.5">
+												<strong>Night:</strong> 10:00 PM - 5:59 AM
+												<Moon className="h-3.5 w-3.5" />
+											</p>
+										</InfoPopover>
 									</div>
 
 									<div className="space-y-2">
@@ -1254,7 +1380,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 								{/* OOOC Picks */}
 								<div className={sectionClassName}>
-									<h3 className={sectionTitleClassName}>OOOC Picks</h3>
+									<div className="flex items-center">
+										<h3 className={sectionTitleClassName}>OOOC Picks</h3>
+										<InfoPopover aria-label="Explain OOOC Picks">
+											{ooocPickHelp}
+										</InfoPopover>
+									</div>
 									<Toggle
 										pressed={selectedOOOCPicks}
 										onPressedChange={onOOOCPicksToggle}
@@ -1268,7 +1399,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 								{/* Venue Type */}
 								<div className={sectionClassName}>
-									<h3 className={sectionTitleClassName}>Venue Type</h3>
+									<div className="flex items-center">
+										<h3 className={sectionTitleClassName}>Venue Type</h3>
+										<InfoPopover aria-label="Explain venue type filters">
+											{venueTypeHelp}
+										</InfoPopover>
+									</div>
 									<div className="grid grid-cols-2 gap-1">
 										{VENUE_TYPES.map(({ key, label }) => (
 											<Toggle
@@ -1291,14 +1427,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 								{/* Host Nationality */}
 								<div className={sectionClassName}>
-									<h3 className={sectionTitleClassName}>
-										Host nationality{" "}
-										{selectedNationalities.length > 1 && (
-											<span className="text-sm text-muted-foreground font-normal">
-												(must INCLUDE)
-											</span>
-										)}
-									</h3>
+									<div className="flex items-center">
+										<h3 className={sectionTitleClassName}>
+											Host nationality{" "}
+											{selectedNationalities.length > 1 && (
+												<span className="text-sm text-muted-foreground font-normal">
+													(must INCLUDE)
+												</span>
+											)}
+										</h3>
+										<InfoPopover aria-label="Explain host nationality filters">
+											{hostNationalityHelp}
+										</InfoPopover>
+									</div>
 									<div className="grid grid-cols-3 gap-1">
 										{availableNationalities.map(({ key, flag, shortCode }) => (
 											<Toggle
@@ -1360,7 +1501,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 								{/* Age Range */}
 								<div className={sectionClassName}>
-									<h3 className={sectionTitleClassName}>Age Range</h3>
+									<div className="flex items-center">
+										<h3 className={sectionTitleClassName}>Age Range</h3>
+										<InfoPopover aria-label="Explain age range filters">
+											{ageRangeHelp}
+										</InfoPopover>
+									</div>
 									<div className="space-y-2 px-1">
 										<Slider
 											value={selectedAgeRange || AGE_RANGE_CONFIG.defaultRange}
@@ -1447,7 +1593,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 								{/* Arrondissements */}
 								<div className={sectionClassName}>
-									<h3 className={sectionTitleClassName}>Location / Area</h3>
+									<div className="flex items-center">
+										<h3 className={sectionTitleClassName}>Location / Area</h3>
+										<InfoPopover aria-label="Explain Paris arrondissement filters">
+											{arrondissementHelp}
+										</InfoPopover>
+									</div>
 									<div className="grid grid-cols-4 lg:grid-cols-5 gap-1 min-h-[7rem] content-start">
 										{availableArrondissements.map((arr) => (
 											<Toggle
@@ -1465,15 +1616,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</div>
 						)}
 
-						{/* Active Filters - Bottom when many filters */}
-						{!uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
-					</CardContent>
-					<div className="flex items-center justify-between gap-2 border-t border-border/70 bg-background/76 px-4 py-3 lg:hidden">
-						{hasActiveFilters && (
-							<ClearFiltersButton onClick={onClearFilters} className="h-8">
-								Clear filters
-							</ClearFiltersButton>
+						{/* Active Filters - Bottom on desktop when many filters */}
+						{!uiDecisions.activeFiltersAtTop && (
+							<div className="hidden lg:block">
+								<ActiveFiltersDisplay />
+							</div>
 						)}
+					</CardContent>
+					<div className="flex items-center justify-end gap-2 border-t border-border/70 bg-background/76 px-4 py-3 lg:hidden">
 						<Button
 							type="button"
 							size="sm"
