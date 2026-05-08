@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClearFiltersButton } from "@/features/events/components/ClearFiltersButton";
 import { EventCard } from "@/features/events/components/EventCard";
 import { FilterButton } from "@/features/events/components/FilterButton";
 import { buildGenreFrequency } from "@/features/events/genre-preview";
@@ -122,15 +123,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								size="sm"
 							/>
 							{hasActiveFilters && (
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
+								<ClearFiltersButton
 									onClick={onClearFilters}
-									className="h-9 rounded-full border border-dashed border-border/75 bg-muted/25 px-3 text-xs text-muted-foreground hover:bg-muted/45 hover:text-foreground lg:hidden"
-								>
-									Clear
-								</Button>
+									className="lg:hidden"
+								/>
 							)}
 						</div>
 					</div>

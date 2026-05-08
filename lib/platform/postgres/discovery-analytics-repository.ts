@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getUserRepository } from "@/lib/platform/postgres/user-repository";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
 
@@ -15,7 +16,6 @@ export interface DiscoveryAnalyticsRecordInput {
 	actionType: DiscoveryActionType;
 	sessionId?: string | null;
 	userId?: string | null;
-	userEmail?: string | null;
 	filterGroup?: string | null;
 	filterValue?: string | null;
 	searchQuery?: string | null;
@@ -101,6 +101,7 @@ export class DiscoveryAnalyticsRepository {
 	}
 
 	private async ready(): Promise<void> {
+		await getUserRepository()?.ensureReady();
 		await this.ensureTablePromise;
 	}
 
@@ -111,7 +112,6 @@ export class DiscoveryAnalyticsRepository {
 				action_type,
 				session_id,
 				user_id,
-				user_email,
 				filter_group,
 				filter_value,
 				search_query,
@@ -123,7 +123,6 @@ export class DiscoveryAnalyticsRepository {
 				${input.actionType},
 				${cleanString(input.sessionId, 120)},
 				${cleanString(input.userId, 80)},
-				${cleanString(input.userEmail, 320)},
 				${cleanString(input.filterGroup, 80)},
 				${cleanString(input.filterValue, 120)},
 				${cleanString(input.searchQuery, 280)},
@@ -242,19 +241,19 @@ export class DiscoveryAnalyticsRepository {
 
 		const rows = await this.sql<DiscoveryUserMatchRow[]>`
 			SELECT
-				user_email AS email,
+				users.email_normalized AS email,
 				COUNT(*)::int AS "hitCount",
-				MAX(recorded_at) AS "lastSeenAt"
-			FROM app_discovery_analytics_stats
-			WHERE action_type = 'filter_apply'
-				AND user_email IS NOT NULL
-				AND filter_group = ${filterGroup}
-				AND filter_value = ${filterValue}
-				AND recorded_at >= ${input.startAt}
-				AND recorded_at < ${input.endAt}
-			GROUP BY user_email
+				MAX(stats.recorded_at) AS "lastSeenAt"
+			FROM app_discovery_analytics_stats stats
+			INNER JOIN app_users users ON users.id = stats.user_id
+			WHERE stats.action_type = 'filter_apply'
+				AND stats.filter_group = ${filterGroup}
+				AND stats.filter_value = ${filterValue}
+				AND stats.recorded_at >= ${input.startAt}
+				AND stats.recorded_at < ${input.endAt}
+			GROUP BY users.email_normalized
 			HAVING COUNT(*) >= ${safeMinHits}
-			ORDER BY "hitCount" DESC, MAX(recorded_at) DESC
+			ORDER BY "hitCount" DESC, MAX(stats.recorded_at) DESC
 			LIMIT ${safeLimit}
 		`;
 
@@ -287,19 +286,19 @@ export class DiscoveryAnalyticsRepository {
 
 		const rows = await this.sql<DiscoveryUserMatchRow[]>`
 			SELECT
-				user_email AS email,
+				users.email_normalized AS email,
 				COUNT(*)::int AS "hitCount",
-				MAX(recorded_at) AS "lastSeenAt"
-			FROM app_discovery_analytics_stats
-			WHERE action_type = 'search'
-				AND user_email IS NOT NULL
-				AND search_query IS NOT NULL
-				AND LOWER(search_query) LIKE ${searchLike}
-				AND recorded_at >= ${input.startAt}
-				AND recorded_at < ${input.endAt}
-			GROUP BY user_email
+				MAX(stats.recorded_at) AS "lastSeenAt"
+			FROM app_discovery_analytics_stats stats
+			INNER JOIN app_users users ON users.id = stats.user_id
+			WHERE stats.action_type = 'search'
+				AND stats.search_query IS NOT NULL
+				AND LOWER(stats.search_query) LIKE ${searchLike}
+				AND stats.recorded_at >= ${input.startAt}
+				AND stats.recorded_at < ${input.endAt}
+			GROUP BY users.email_normalized
 			HAVING COUNT(*) >= ${safeMinHits}
-			ORDER BY "hitCount" DESC, MAX(recorded_at) DESC
+			ORDER BY "hitCount" DESC, MAX(stats.recorded_at) DESC
 			LIMIT ${safeLimit}
 		`;
 

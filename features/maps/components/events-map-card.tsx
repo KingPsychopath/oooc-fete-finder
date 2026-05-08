@@ -4,6 +4,11 @@ import { useOnlineStatus } from "@/components/offline-indicator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	panelActionButtonClassName,
+	panelActionIconClassName,
+	panelActionLabelClassName,
+} from "@/features/events/components/filter-action-button-styles";
 import type { Event } from "@/features/events/types";
 import { LAYERS } from "@/lib/ui/layers";
 import { ChevronDown, LocateFixed, MapPin, Maximize2 } from "lucide-react";
@@ -252,16 +257,16 @@ export function EventsMapCard({
 		<>
 			<Card className="ooo-site-card py-0">
 				<CardHeader className="border-b border-border/70 py-5 pb-4">
-					<div className="space-y-4 sm:space-y-3">
-						<div className="flex items-center justify-between">
-							<CardTitle className="flex items-center space-x-2 flex-wrap">
+					<div className="flex flex-col gap-4">
+						<div className="flex items-start justify-between gap-3">
+							<CardTitle className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
 								<div className="flex items-center space-x-2">
 									<MapPin className="h-5 w-5 flex-shrink-0" />
 									<span className="text-lg [font-family:var(--ooo-font-display)] font-light sm:text-2xl">
 										Paris Event Map
 									</span>
 								</div>
-								<div className="flex items-center space-x-1 mt-1 sm:mt-0">
+								<div className="flex items-center space-x-1">
 									<Badge variant="secondary" className="text-xs">
 										{events.length} event{events.length !== 1 ? "s" : ""}
 									</Badge>
@@ -285,7 +290,7 @@ export function EventsMapCard({
 								variant="ghost"
 								size="sm"
 								onClick={onToggleExpanded}
-								className="ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-background/65 p-0 text-muted-foreground hover:bg-accent hover:text-foreground sm:h-9 sm:w-auto sm:px-3"
+								className={`lg:hidden ${panelActionButtonClassName}`}
 								aria-expanded={isExpanded}
 								aria-label={
 									isExpanded
@@ -294,16 +299,74 @@ export function EventsMapCard({
 								}
 							>
 								<ChevronDown
-									className={`h-3.5 w-3.5 transition-transform transition-bouncy sm:h-4 sm:w-4 sm:mr-1 ${isExpanded ? "rotate-180" : "rotate-0"}`}
+									className={`${panelActionIconClassName} transition-transform transition-bouncy ${isExpanded ? "rotate-180" : "rotate-0"}`}
 								/>
-								<span className="text-sm hidden sm:inline">
+								<span className={panelActionLabelClassName}>
 									{isExpanded ? "Collapse" : "Expand"}
 								</span>
 							</Button>
+							<div className="hidden items-center gap-2 lg:flex">
+								<div className="relative flex h-7 w-fit items-center space-x-1.5 rounded-lg border border-border/70 bg-background/65 p-0.5">
+									<span className="px-1.5 text-[11px] text-muted-foreground">
+										Explore:
+									</span>
+									<Button
+										variant="secondary"
+										size="sm"
+										onClick={handleNearMeClick}
+										className="h-6 px-2.5 text-[11px]"
+									>
+										<LocateFixed className="mr-1 h-3.5 w-3.5" />
+										Near me (soon)
+									</Button>
+									{showNearMeNotice && (
+										<div className="absolute top-[calc(100%+0.5rem)] right-0 z-20 w-56 rounded-xl border border-border/75 bg-popover/96 px-3 py-2 text-left text-xs leading-snug text-popover-foreground shadow-[0_16px_34px_-24px_rgba(16,12,9,0.68)] backdrop-blur-md">
+											<p className="font-medium text-foreground">
+												Near me is coming soon
+											</p>
+											<p className="mt-0.5 text-muted-foreground">
+												It will map events closest to your location.
+											</p>
+										</div>
+									)}
+								</div>
+								<Button
+									variant="outline"
+									size="sm"
+									ref={fullscreenButtonRef}
+									onPointerDown={handleOpenFullscreenPointerDown}
+									onClick={handleOpenFullscreen}
+									className={panelActionButtonClassName}
+									aria-expanded={isFullscreen}
+									aria-label="Open Paris event map full screen"
+								>
+									<Maximize2 className={panelActionIconClassName} />
+									<span className={panelActionLabelClassName}>Full screen</span>
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={onToggleExpanded}
+									className={panelActionButtonClassName}
+									aria-expanded={isExpanded}
+									aria-label={
+										isExpanded
+											? "Collapse Paris event map"
+											: "Expand Paris event map"
+									}
+								>
+									<ChevronDown
+										className={`${panelActionIconClassName} transition-transform transition-bouncy ${isExpanded ? "rotate-180" : "rotate-0"}`}
+									/>
+									<span className={panelActionLabelClassName}>
+										{isExpanded ? "Collapse" : "Expand"}
+									</span>
+								</Button>
+							</div>
 						</div>
 
-						<div className="flex flex-wrap justify-center gap-2 sm:justify-end">
-							<div className="relative flex items-center space-x-1.5 rounded-lg border border-border/70 bg-background/65 p-0.5">
+						<div className="flex flex-wrap items-center justify-between gap-2 lg:hidden">
+							<div className="relative flex h-7 w-fit items-center space-x-1.5 rounded-lg border border-border/70 bg-background/65 p-0.5">
 								<span className="px-1.5 text-[11px] text-muted-foreground">
 									Explore:
 								</span>
@@ -311,7 +374,7 @@ export function EventsMapCard({
 									variant="secondary"
 									size="sm"
 									onClick={handleNearMeClick}
-									className="h-7 px-2.5 text-[11px]"
+									className="h-6 px-2.5 text-[11px]"
 								>
 									<LocateFixed className="mr-1 h-3.5 w-3.5" />
 									Near me (soon)
@@ -330,15 +393,14 @@ export function EventsMapCard({
 							<Button
 								variant="outline"
 								size="sm"
-								ref={fullscreenButtonRef}
 								onPointerDown={handleOpenFullscreenPointerDown}
 								onClick={handleOpenFullscreen}
-								className="h-8 rounded-full border-border/70 bg-background/65 px-2.5 text-[11px]"
+								className={panelActionButtonClassName}
 								aria-expanded={isFullscreen}
 								aria-label="Open Paris event map full screen"
 							>
-								<Maximize2 className="mr-1.5 h-3.5 w-3.5" />
-								Full screen
+								<Maximize2 className={panelActionIconClassName} />
+								<span className={panelActionLabelClassName}>Full screen</span>
 							</Button>
 						</div>
 					</div>

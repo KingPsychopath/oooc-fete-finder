@@ -18,8 +18,14 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ClearFiltersButton } from "@/features/events/components/ClearFiltersButton";
 import { DateRangePickerControl } from "@/features/events/components/DateRangePickerControl";
 import { FilterButton } from "@/features/events/components/FilterButton";
+import {
+	panelActionButtonClassName,
+	panelActionIconClassName,
+	panelActionLabelClassName,
+} from "@/features/events/components/filter-action-button-styles";
 import {
 	type DateRangeFilter,
 	areDateRangesEqual,
@@ -359,15 +365,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						<div className="text-xs font-medium text-muted-foreground">
 							Active Filters ({activeFilterCount})
 						</div>
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							onClick={onClearFilters}
-							className="h-7 rounded-full border border-border/70 px-3 text-xs text-foreground/80 hover:bg-accent"
-						>
-							Clear all
-						</Button>
 					</div>
 					<div className="flex min-h-[28px] flex-wrap gap-2">
 						{selectedOOOCPicks && (
@@ -603,26 +600,21 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</CardTitle>
 							<div className="flex items-center space-x-2">
 								{hasActiveFilters && (
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={onClearFilters}
-										className="h-7 rounded-full border-border/70 bg-background/70 px-3 text-xs hover:bg-accent"
-									>
-										Clear all
-									</Button>
+									<ClearFiltersButton onClick={onClearFilters} className="h-8">
+										Clear filters
+									</ClearFiltersButton>
 								)}
 								{onToggleExpanded && (
 									<Button
 										variant="ghost"
 										size="sm"
 										onClick={onToggleExpanded}
-										className="w-[110px] shrink-0 justify-center rounded-full border border-border/70 bg-background/66 text-muted-foreground hover:bg-accent hover:text-foreground"
+										className={panelActionButtonClassName}
 									>
 										<ChevronDown
-											className={`h-4 w-4 mr-1 transition-transform transition-bouncy ${isExpanded ? "rotate-180" : "rotate-0"}`}
+											className={`${panelActionIconClassName} transition-transform transition-bouncy ${isExpanded ? "rotate-180" : "rotate-0"}`}
 										/>
-										<span className="text-sm">
+										<span className={panelActionLabelClassName}>
 											{isExpanded ? "Collapse" : "Expand"}
 										</span>
 									</Button>
@@ -786,22 +778,24 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													</div>
 													<div className="relative contain-layout">
 														<div className="grid min-h-[8rem] max-h-36 grid-cols-2 gap-1 overflow-y-auto rounded-md border border-border/70 bg-background/55 p-1.5">
-															{filteredGenreOptions.map(({ key, label, color }) => (
-																<Toggle
-																	key={key}
-																	pressed={selectedGenres.includes(key)}
-																	onPressedChange={() => onGenreToggle(key)}
-																	className={denseToggleClassName}
-																	size="sm"
-																>
-																	<div
-																		className={`w-1.5 h-1.5 rounded-full ${color} mr-1.5 flex-shrink-0`}
-																	/>
-																	<span className="text-xs truncate">
-																		{label}
-																	</span>
-																</Toggle>
-															))}
+															{filteredGenreOptions.map(
+																({ key, label, color }) => (
+																	<Toggle
+																		key={key}
+																		pressed={selectedGenres.includes(key)}
+																		onPressedChange={() => onGenreToggle(key)}
+																		className={denseToggleClassName}
+																		size="sm"
+																	>
+																		<div
+																			className={`w-1.5 h-1.5 rounded-full ${color} mr-1.5 flex-shrink-0`}
+																		/>
+																		<span className="text-xs truncate">
+																			{label}
+																		</span>
+																	</Toggle>
+																),
+															)}
 															{filteredGenreOptions.length === 0 && (
 																<p className="col-span-2 px-2 py-6 text-center text-xs text-muted-foreground">
 																	No genres found.
@@ -1068,14 +1062,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						</CardTitle>
 						<div className="flex items-center space-x-2">
 							{hasActiveFilters && (
-								<Button
-									variant="outline"
-									size="sm"
+								<ClearFiltersButton
 									onClick={onClearFilters}
-									className="h-7 rounded-full border-border/70 bg-background/70 px-3 text-xs hover:bg-accent"
+									className="hidden h-8 lg:inline-flex"
 								>
-									Clear all
-								</Button>
+									Clear filters
+								</ClearFiltersButton>
 							)}
 							<Button
 								variant="outline"
@@ -1468,20 +1460,16 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						{!uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
 					</CardContent>
 					<div className="flex items-center justify-between gap-2 border-t border-border/70 bg-background/76 px-4 py-3 lg:hidden">
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={onClearFilters}
-							className="h-8 rounded-full border-border/75 bg-background/70 px-3 text-xs hover:bg-accent"
-						>
-							Clear filters
-						</Button>
+						{hasActiveFilters && (
+							<ClearFiltersButton onClick={onClearFilters} className="h-8">
+								Clear filters
+							</ClearFiltersButton>
+						)}
 						<Button
 							type="button"
 							size="sm"
 							onClick={onClose}
-							className="h-8 rounded-full px-4 text-xs"
+							className="ml-auto h-8 rounded-full px-4 text-xs"
 						>
 							Done ({filteredEventsCount})
 						</Button>

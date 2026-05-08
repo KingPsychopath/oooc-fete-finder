@@ -235,6 +235,14 @@ try {
 		RETURNING stats.id
 	`;
 
+	const clearedDiscoveryEmails = await sql`
+		UPDATE app_discovery_analytics_stats
+		SET user_email = NULL
+		WHERE user_id IS NOT NULL
+			AND user_email IS NOT NULL
+		RETURNING id
+	`;
+
 	const preferenceRows = await sql`
 		UPDATE app_user_genre_preferences preferences
 		SET user_id = users.id
@@ -254,6 +262,7 @@ try {
 	console.log(`- canonical users total: ${totals[0]?.count ?? 0}`);
 	console.log(`- collection events linked: ${collectionEvents.length}`);
 	console.log(`- discovery rows linked: ${discoveryRows.length}`);
+	console.log(`- discovery row emails cleared: ${clearedDiscoveryEmails.length}`);
 	console.log(`- genre preference rows linked: ${preferenceRows.length}`);
 } finally {
 	await sql.end({ timeout: 5 });
