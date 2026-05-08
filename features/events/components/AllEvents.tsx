@@ -17,9 +17,13 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 type EventSortMode = "upcoming" | "fresh-activity";
 
-const eventSortOptions: { value: EventSortMode; label: string }[] = [
-	{ value: "upcoming", label: "Upcoming" },
-	{ value: "fresh-activity", label: "Fresh activity" },
+const eventSortOptions: {
+	value: EventSortMode;
+	label: string;
+	shortLabel: string;
+}[] = [
+	{ value: "upcoming", label: "Upcoming", shortLabel: "Upcoming" },
+	{ value: "fresh-activity", label: "Fresh activity", shortLabel: "Fresh" },
 ];
 
 type AllEventsProps = {
@@ -66,62 +70,82 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		const lockedEvents = shouldBlurHalf
 			? safeEvents.slice(visibleEventsCount)
 			: [];
+		const sortModeControl = (
+			<div
+				className="inline-flex h-7 items-center rounded-full border border-border/75 bg-background/62 p-0.5 shadow-[0_1px_0_rgba(255,255,255,0.55)_inset]"
+				aria-label="Sort events"
+				role="group"
+			>
+				<span className="sr-only">Sort events</span>
+				{eventSortOptions.map((option) => {
+					const isSelected = option.value === sortMode;
+					return (
+						<button
+							key={option.value}
+							type="button"
+							onClick={() => onSortModeChange(option.value)}
+							aria-pressed={isSelected}
+							className={`h-6 rounded-full px-3 text-xs transition-colors ${
+								isSelected
+									? "bg-foreground text-background shadow-sm"
+									: "text-muted-foreground hover:bg-accent hover:text-foreground"
+							}`}
+						>
+							<span className="sm:hidden">{option.shortLabel}</span>
+							<span className="hidden sm:inline">{option.label}</span>
+						</button>
+					);
+				})}
+			</div>
+		);
 
 		return (
 			<Card ref={ref} className="ooo-site-card mt-6 py-0">
 				<CardHeader className="border-b border-border/70 py-5">
-					<div className="flex flex-wrap items-start justify-between gap-3">
-						<div className="flex flex-col">
-							<div className="flex items-center">
-								<CardTitle className="text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
-									All Events
-								</CardTitle>
-								<Badge variant="outline" className="ml-2 text-xs">
-									{events.length} event{events.length !== 1 ? "s" : ""}
-								</Badge>
+					<div className="flex flex-col gap-3">
+						<div className="flex items-start justify-between gap-3">
+							<div className="flex min-w-0 flex-col">
+								<div className="flex items-center">
+									<CardTitle className="text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
+										All Events
+									</CardTitle>
+									<Badge variant="outline" className="ml-2 text-xs">
+										{events.length} event{events.length !== 1 ? "s" : ""}
+									</Badge>
+								</div>
 							</div>
-							<Link
-								href={`${basePath}/submit-event`}
-								className="mt-1 text-xs leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
-								style={{ textWrap: "balance" }}
-							>
-								Hosting something special? Put it on the map with the collective
-								and submit your event →
-							</Link>
+							<div className="hidden shrink-0 items-center gap-2 lg:flex">
+								{sortModeControl}
+							</div>
+							<div className="hidden shrink-0 items-center gap-2 sm:flex lg:hidden">
+								{sortModeControl}
+								<FilterButton
+									onClickAction={onFilterClickAction}
+									hasActiveFilters={hasActiveFilters}
+									activeFiltersCount={activeFiltersCount}
+									className="h-7 min-h-7 shrink-0 rounded-full px-3 text-xs"
+									size="sm"
+								/>
+							</div>
 						</div>
-						<div className="flex shrink-0 items-center gap-2">
-							<div
-								className="inline-flex h-9 items-center rounded-full border border-border/75 bg-background/62 p-0.5 shadow-[0_1px_0_rgba(255,255,255,0.55)_inset]"
-								aria-label="Sort events"
-								role="group"
-							>
-								<span className="sr-only">Sort events</span>
-								{eventSortOptions.map((option) => {
-									const isSelected = option.value === sortMode;
-									return (
-										<button
-											key={option.value}
-											type="button"
-											onClick={() => onSortModeChange(option.value)}
-											aria-pressed={isSelected}
-											className={`h-8 rounded-full px-3 text-xs transition-colors ${
-												isSelected
-													? "bg-foreground text-background shadow-sm"
-													: "text-muted-foreground hover:bg-accent hover:text-foreground"
-											}`}
-										>
-											{option.label}
-										</button>
-									);
-								})}
-							</div>
+						<Link
+							href={`${basePath}/submit-event`}
+							className="max-w-full text-xs leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
+						>
+							Hosting something special? Put it on the map with the collective
+							and submit your event →
+						</Link>
+						<div className="flex max-w-full items-center gap-2 overflow-x-auto sm:hidden">
+							{sortModeControl}
 							<FilterButton
 								onClickAction={onFilterClickAction}
 								hasActiveFilters={hasActiveFilters}
 								activeFiltersCount={activeFiltersCount}
-								className="h-9 min-h-9 self-start rounded-full px-3 text-xs lg:hidden"
+								className="h-7 min-h-7 shrink-0 rounded-full px-3 text-xs"
 								size="sm"
 							/>
+						</div>
+						<div className="flex items-center gap-2 lg:hidden">
 							{hasActiveFilters && (
 								<ClearFiltersButton
 									onClick={onClearFilters}

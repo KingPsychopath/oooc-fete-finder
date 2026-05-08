@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EventCard } from "@/features/events/components/EventCard";
 import { buildGenreFrequency } from "@/features/events/genre-preview";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ChevronDown } from "lucide-react";
 import { FeaturedEventsHeader } from "./components/FeaturedEventsHeader";
 import { FEATURED_EVENTS_CONFIG } from "./constants";
@@ -23,15 +22,9 @@ export function FeaturedEvents({
 	maxFeaturedEvents = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS,
 	dateRange,
 }: FeaturedEventsProps) {
-	const isAtLeastTablet = useMediaQuery("(min-width: 768px)");
-	const isDesktopUp = useMediaQuery("(min-width: 1024px)");
-	const isTabletTwoColumnRange = isAtLeastTablet && !isDesktopUp;
-	const responsiveMaxFeaturedEvents = isTabletTwoColumnRange
-		? 4
-		: maxFeaturedEvents;
 	const { featuredEvents, totalEventsCount, hasMoreEvents } = useFeaturedEvents(
 		events,
-		responsiveMaxFeaturedEvents,
+		maxFeaturedEvents,
 		dateRange,
 	);
 	if (featuredEvents.length === 0) {
