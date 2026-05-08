@@ -450,6 +450,15 @@ export const EventEngagementStatsCard = ({
 		});
 	}, [genreRuleGenre, genreRuleMinScore]);
 
+	const addTopGenreRule = useCallback((genre: MusicGenre) => {
+		setGenreRules((current) => {
+			if (current.some((rule) => rule.genre === genre)) {
+				return current;
+			}
+			return [...current, { genre, minScore: 2 }];
+		});
+	}, []);
+
 	const removeGenreRule = useCallback((genre: MusicGenre) => {
 		setGenreRules((current) => current.filter((rule) => rule.genre !== genre));
 	}, []);
@@ -815,150 +824,20 @@ export const EventEngagementStatsCard = ({
 							Build a partner audience by combining behavior rules, then export
 							one clean CSV.
 						</p>
-						<div className="space-y-1">
-							<p className="text-xs font-medium text-foreground">Date window</p>
-							<div className="flex flex-wrap items-center gap-1.5">
-								{EXPORT_WINDOW_OPTIONS.map((days) => (
-									<Button
-										key={days}
-										type="button"
-										size="sm"
-										variant={segmentWindowDays === days ? "default" : "outline"}
-										onClick={() => setSegmentWindowDays(days)}
-									>
-										{days}d
-									</Button>
-								))}
-							</div>
-						</div>
-						<div className="flex flex-wrap items-center gap-2">
-							<p className="text-xs font-medium text-foreground">Rule mode</p>
-							<Button
-								type="button"
-								size="sm"
-								variant={ruleOperator === "all" ? "default" : "outline"}
-								onClick={() => setRuleOperator("all")}
-							>
-								AND
-							</Button>
-							<Button
-								type="button"
-								size="sm"
-								variant={ruleOperator === "any" ? "default" : "outline"}
-								onClick={() => setRuleOperator("any")}
-							>
-								OR
-							</Button>
-							<TooltipProvider>
-								<Tooltip>
-									<TooltipTrigger
-										render={
-											<button
-												type="button"
-												className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-accent"
-												aria-label="Rule mode help"
-											/>
-										}
-									>
-										<CircleHelp className="h-3.5 w-3.5" />
-									</TooltipTrigger>
-									<TooltipContent>
-										<p className="max-w-[220px] text-xs">
-											Use AND to require every rule. Use OR to include users who
-											matched at least one rule.
-										</p>
-									</TooltipContent>
-								</Tooltip>
-							</TooltipProvider>
-						</div>
-						<div className="space-y-1">
-							<p className="text-xs font-medium text-foreground">
-								Add filter rule
+						<div className="space-y-3 rounded-md border border-border/70 bg-background/45 p-3">
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Quick Add From Top Signals
 							</p>
-							<div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-								<select
-									className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-									value={ruleGroup}
-									onChange={(event) =>
-										setRuleGroup(event.target.value as DiscoveryFilterGroup)
-									}
-								>
-									{FILTER_GROUP_OPTIONS.map((option) => (
-										<option key={option.value} value={option.value}>
-											{option.label}
-										</option>
-									))}
-								</select>
-								<input
-									type="text"
-									className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-									value={ruleValue}
-									onChange={(event) => setRuleValue(event.target.value)}
-									placeholder={FILTER_VALUE_PLACEHOLDER[ruleGroup]}
-								/>
-								<Button type="button" size="sm" onClick={addFilterRule}>
-									Add Rule
-								</Button>
-							</div>
-						</div>
-						<div className="space-y-1">
-							<p className="text-xs font-medium text-foreground">
-								Load from app filters
-							</p>
-							<div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-								<input
-									type="text"
-									className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-									value={filterUrlInput}
-									onChange={(event) => setFilterUrlInput(event.target.value)}
-									placeholder="Paste events page URL with filters"
-								/>
-								<Button
-									type="button"
-									size="sm"
-									variant="outline"
-									onClick={loadSegmentRulesFromUrl}
-								>
-									Load From URL
-								</Button>
-							</div>
-							<Button
-								type="button"
-								size="sm"
-								variant="outline"
-								onClick={loadSegmentRulesFromSavedFilters}
-							>
-								Load Saved Filters (Same Browser)
-							</Button>
-						</div>
-						<div className="space-y-1">
-							<p className="text-xs font-medium text-foreground">
-								Add search rule (optional)
-							</p>
-							<div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-								<input
-									type="text"
-									className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-									value={searchInput}
-									onChange={(event) => setSearchInput(event.target.value)}
-									placeholder="e.g. techno, rooftop, 11e"
-								/>
-								<Button
-									type="button"
-									size="sm"
-									variant="outline"
-									onClick={addSearchRule}
-								>
-									Add Search Rule
-								</Button>
-							</div>
-							<div className="flex flex-wrap gap-1.5">
-								{payload?.success
-									? payload.discovery.topSearches.slice(0, 6).map((row) => (
+							<div className="space-y-1">
+								<p className="text-xs font-medium text-foreground">Searches</p>
+								<div className="flex flex-wrap gap-1.5">
+									{payload?.success &&
+									payload.discovery.topSearches.length > 0 ? (
+										payload.discovery.topSearches.slice(0, 6).map((row) => (
 											<button
 												key={row.query}
 												type="button"
-												onClick={() => setSearchRule(row.query)}
+												onClick={() => setSearchRule(row.query.toLowerCase())}
 												className="rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent"
 												title={
 													row.variantCount > 1
@@ -969,76 +848,309 @@ export const EventEngagementStatsCard = ({
 														: undefined
 												}
 											>
-												+ search:{row.query}
+												+ search:{row.query} ({row.count}
 												{row.variantCount > 1
-													? ` (${row.variantCount} variants)`
+													? `, ${row.variantCount} variants`
 													: ""}
+												)
 											</button>
 										))
-									: null}
+									) : (
+										<p className="text-xs text-muted-foreground">
+											No search data yet.
+										</p>
+									)}
+								</div>
 							</div>
+							<div className="space-y-1">
+								<p className="text-xs font-medium text-foreground">Genres</p>
+								<div className="flex flex-wrap gap-1.5">
+									{payload?.success && payload.topGenres.length > 0 ? (
+										payload.topGenres.map((genre) => (
+											<button
+												key={genre.genre}
+												type="button"
+												onClick={() => addTopGenreRule(genre.genre)}
+												className="rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent"
+											>
+												+ {genre.label}: {genre.uniqueUsers} users
+											</button>
+										))
+									) : (
+										<p className="text-xs text-muted-foreground">
+											No genre preference data yet.
+										</p>
+									)}
+								</div>
+							</div>
+							{payload?.success && payload.discovery.topFilters.length > 0 ? (
+								<div className="space-y-1">
+									<p className="text-xs font-medium text-foreground">Filters</p>
+									<div className="flex flex-wrap gap-1.5">
+										{payload.discovery.topFilters.slice(0, 8).map((rule) => {
+											const isKnownGroup = FILTER_GROUP_OPTIONS.some(
+												(option) => option.value === rule.filterGroup,
+											);
+											if (!isKnownGroup) return null;
+											return (
+												<button
+													key={`${rule.filterGroup}-${rule.filterValue}`}
+													type="button"
+													onClick={() =>
+														addTopFilterRule({
+															filterGroup:
+																rule.filterGroup as DiscoveryFilterGroup,
+															filterValue: rule.filterValue,
+														})
+													}
+													className="rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent"
+												>
+													+ {rule.filterGroup}:{rule.filterValue} (
+													{rule.count})
+												</button>
+											);
+										})}
+									</div>
+								</div>
+							) : null}
 						</div>
-						<div className="grid gap-2 sm:grid-cols-2">
+						<div className="space-y-3 rounded-md border border-border/70 bg-background/45 p-3">
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Segment Settings
+							</p>
 							<div className="space-y-1">
 								<p className="text-xs font-medium text-foreground">
-									Min hits per rule
+									Export window
 								</p>
-								<input
-									type="number"
-									min={1}
-									max={30}
-									className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs"
-									value={segmentMinHits}
-									onChange={(event) => setSegmentMinHits(event.target.value)}
-								/>
+								<div className="flex flex-wrap items-center gap-1.5">
+									{EXPORT_WINDOW_OPTIONS.map((days) => (
+										<Button
+											key={days}
+											type="button"
+											size="sm"
+											variant={
+												segmentWindowDays === days ? "default" : "outline"
+											}
+											onClick={() => setSegmentWindowDays(days)}
+										>
+											{days}d
+										</Button>
+									))}
+								</div>
+								<p className="text-[11px] text-muted-foreground">
+									Date filters use this export window. Add filter rules for
+									genre, arrondissement, day/night, price, age, and other
+									behavior dimensions.
+								</p>
+							</div>
+							<div className="flex flex-wrap items-center gap-2">
+								<p className="text-xs font-medium text-foreground">Rule mode</p>
+								<Button
+									type="button"
+									size="sm"
+									variant={ruleOperator === "all" ? "default" : "outline"}
+									onClick={() => setRuleOperator("all")}
+								>
+									AND
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									variant={ruleOperator === "any" ? "default" : "outline"}
+									onClick={() => setRuleOperator("any")}
+								>
+									OR
+								</Button>
+								<TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger
+											render={
+												<button
+													type="button"
+													className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-accent"
+													aria-label="Rule mode help"
+												/>
+											}
+										>
+											<CircleHelp className="h-3.5 w-3.5" />
+										</TooltipTrigger>
+										<TooltipContent>
+											<p className="max-w-[220px] text-xs">
+												Use AND to require every rule. Use OR to include users
+												who matched at least one rule.
+											</p>
+										</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
+							</div>
+							<div className="grid gap-2 sm:grid-cols-2">
+								<div className="space-y-1">
+									<p className="text-xs font-medium text-foreground">
+										Min hits per rule
+									</p>
+									<input
+										type="number"
+										min={1}
+										max={30}
+										className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs"
+										value={segmentMinHits}
+										onChange={(event) => setSegmentMinHits(event.target.value)}
+									/>
+								</div>
+								<div className="space-y-1">
+									<p className="text-xs font-medium text-foreground">
+										Max rows
+									</p>
+									<input
+										type="number"
+										min={1}
+										max={10000}
+										className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs"
+										value={segmentLimit}
+										onChange={(event) => setSegmentLimit(event.target.value)}
+									/>
+								</div>
+							</div>
+						</div>
+						<div className="space-y-3 rounded-md border border-border/70 bg-background/45 p-3">
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Manual Rules
+							</p>
+							<div className="space-y-1">
+								<p className="text-xs font-medium text-foreground">
+									Filter behavior
+								</p>
+								<div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+									<select
+										className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+										value={ruleGroup}
+										onChange={(event) =>
+											setRuleGroup(event.target.value as DiscoveryFilterGroup)
+										}
+									>
+										{FILTER_GROUP_OPTIONS.map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
+											</option>
+										))}
+									</select>
+									<input
+										type="text"
+										className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+										value={ruleValue}
+										onChange={(event) => setRuleValue(event.target.value)}
+										placeholder={FILTER_VALUE_PLACEHOLDER[ruleGroup]}
+									/>
+									<Button type="button" size="sm" onClick={addFilterRule}>
+										Add Filter
+									</Button>
+								</div>
 							</div>
 							<div className="space-y-1">
-								<p className="text-xs font-medium text-foreground">Max rows</p>
-								<input
-									type="number"
-									min={1}
-									max={10000}
-									className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs"
-									value={segmentLimit}
-									onChange={(event) => setSegmentLimit(event.target.value)}
-								/>
+								<p className="text-xs font-medium text-foreground">
+									Search contains
+								</p>
+								<div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+									<input
+										type="text"
+										className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+										value={searchInput}
+										onChange={(event) => setSearchInput(event.target.value)}
+										placeholder="e.g. techno, rooftop, 11e"
+									/>
+									<Button
+										type="button"
+										size="sm"
+										variant="outline"
+										onClick={addSearchRule}
+									>
+										Add Search
+									</Button>
+								</div>
+							</div>
+							<div className="space-y-1">
+								<p className="text-xs font-medium text-foreground">
+									Genre preference
+								</p>
+								<div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+									<select
+										className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+										value={genreRuleGenre}
+										onChange={(event) =>
+											setGenreRuleGenre(event.target.value as MusicGenre)
+										}
+									>
+										{MUSIC_GENRES.map((genre) => (
+											<option key={genre.key} value={genre.key}>
+												{genre.label}
+											</option>
+										))}
+									</select>
+									<input
+										type="number"
+										min={1}
+										max={100}
+										className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+										value={genreRuleMinScore}
+										onChange={(event) =>
+											setGenreRuleMinScore(event.target.value)
+										}
+										placeholder="Genre score >="
+									/>
+									<Button
+										type="button"
+										size="sm"
+										variant="outline"
+										onClick={addGenreRule}
+									>
+										Add Genre
+									</Button>
+								</div>
+							</div>
+							<div className="space-y-1">
+								<p className="text-xs font-medium text-foreground">
+									Load app filters
+								</p>
+								<div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+									<input
+										type="text"
+										className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+										value={filterUrlInput}
+										onChange={(event) => setFilterUrlInput(event.target.value)}
+										placeholder="Paste events page URL with filters"
+									/>
+									<Button
+										type="button"
+										size="sm"
+										variant="outline"
+										onClick={loadSegmentRulesFromUrl}
+									>
+										Load From URL
+									</Button>
+								</div>
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									onClick={loadSegmentRulesFromSavedFilters}
+								>
+									Load Saved Filters
+								</Button>
 							</div>
 						</div>
-						<div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-							<select
-								className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-								value={genreRuleGenre}
-								onChange={(event) =>
-									setGenreRuleGenre(event.target.value as MusicGenre)
-								}
-							>
-								{MUSIC_GENRES.map((genre) => (
-									<option key={genre.key} value={genre.key}>
-										{genre.label}
-									</option>
-								))}
-							</select>
-							<input
-								type="number"
-								min={1}
-								max={100}
-								className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-								value={genreRuleMinScore}
-								onChange={(event) => setGenreRuleMinScore(event.target.value)}
-								placeholder="Genre score >="
-							/>
-							<Button
-								type="button"
-								size="sm"
-								variant="outline"
-								onClick={addGenreRule}
-							>
-								Add Genre Rule
-							</Button>
-						</div>
-						<div className="flex flex-wrap gap-1.5">
-							{filterRules.length > 0 ? (
-								filterRules.map((rule) => (
+						<div className="space-y-2 rounded-md border border-border/70 bg-background/45 p-3">
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Selected Segment
+							</p>
+							<div className="flex flex-wrap gap-1.5">
+								{filterRules.length === 0 &&
+								genreRules.length === 0 &&
+								!searchRule ? (
+									<p className="text-xs text-muted-foreground">
+										No rules selected yet.
+									</p>
+								) : null}
+								{filterRules.map((rule) => (
 									<Badge
 										key={normalizeRuleKey(rule)}
 										variant="outline"
@@ -1053,47 +1165,38 @@ export const EventEngagementStatsCard = ({
 											x
 										</button>
 									</Badge>
-								))
-							) : (
-								<p className="text-xs text-muted-foreground">
-									No filter rules added yet.
-								</p>
-							)}
-						</div>
-						<div className="flex flex-wrap gap-1.5">
-							{searchRule ? (
-								<Badge variant="outline" className="gap-1">
-									search contains: {searchRule}
-									<button
-										type="button"
-										onClick={clearSearchRule}
-										className="ml-1 text-[10px]"
-									>
-										x
-									</button>
-								</Badge>
-							) : (
-								<p className="text-xs text-muted-foreground">
-									No search rule added.
-								</p>
-							)}
-						</div>
-						<div className="flex flex-wrap gap-1.5">
-							{genreRules.length > 0
-								? genreRules.map((rule) => (
-										<Badge key={rule.genre} variant="outline" className="gap-1">
-											Genre pref: {rule.genre} (score {"\u003e="}{" "}
-											{rule.minScore})
-											<button
-												type="button"
-												onClick={() => removeGenreRule(rule.genre)}
-												className="ml-1 text-[10px]"
-											>
-												x
-											</button>
-										</Badge>
-									))
-								: null}
+								))}
+								{searchRule ? (
+									<Badge variant="outline" className="gap-1">
+										search contains: {searchRule}
+										<button
+											type="button"
+											onClick={clearSearchRule}
+											className="ml-1 text-[10px]"
+										>
+											x
+										</button>
+									</Badge>
+								) : null}
+								{genreRules.map((rule) => (
+									<Badge key={rule.genre} variant="outline" className="gap-1">
+										Genre pref: {rule.genre} (score {"\u003e="}{" "}
+										{rule.minScore})
+										<button
+											type="button"
+											onClick={() => removeGenreRule(rule.genre)}
+											className="ml-1 text-[10px]"
+										>
+											x
+										</button>
+									</Badge>
+								))}
+							</div>
+							<p className="text-xs text-muted-foreground">
+								{ruleOperator === "all"
+									? "AND mode: users must match every selected rule."
+									: "OR mode: users can match any selected rule."}
+							</p>
 						</div>
 						<div className="flex flex-wrap gap-2">
 							<Button
@@ -1110,60 +1213,6 @@ export const EventEngagementStatsCard = ({
 								{isExporting ? "Exporting..." : "Export Custom Segment CSV"}
 							</Button>
 						</div>
-						<p className="text-xs text-muted-foreground">
-							{ruleOperator === "all"
-								? "AND mode: users must match every selected rule."
-								: "OR mode: users can match any selected rule."}
-						</p>
-						<p className="text-xs text-muted-foreground">
-							Date filtering uses the selected export window above. Use filter
-							rules for genre, arrondissement, day/night, price, age, and other
-							behavior dimensions.
-						</p>
-						<div className="flex flex-wrap gap-2">
-							{payload?.success && payload.topGenres.length > 0 ? (
-								payload.topGenres.map((genre) => (
-									<Badge key={genre.genre} variant="outline">
-										{genre.label}: {genre.uniqueUsers} users
-									</Badge>
-								))
-							) : (
-								<p className="text-xs text-muted-foreground">
-									No genre preference data yet.
-								</p>
-							)}
-						</div>
-						{payload?.success && payload.discovery.topFilters.length > 0 ? (
-							<div className="space-y-1">
-								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-									Quick Add From Top Filters
-								</p>
-								<div className="flex flex-wrap gap-1.5">
-									{payload.discovery.topFilters.slice(0, 8).map((rule) => {
-										const isKnownGroup = FILTER_GROUP_OPTIONS.some(
-											(option) => option.value === rule.filterGroup,
-										);
-										if (!isKnownGroup) return null;
-										return (
-											<button
-												key={`${rule.filterGroup}-${rule.filterValue}`}
-												type="button"
-												onClick={() =>
-													addTopFilterRule({
-														filterGroup:
-															rule.filterGroup as DiscoveryFilterGroup,
-														filterValue: rule.filterValue,
-													})
-												}
-												className="rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent"
-											>
-												+ {rule.filterGroup}:{rule.filterValue}
-											</button>
-										);
-									})}
-								</div>
-							</div>
-						) : null}
 					</div>
 				</section>
 
