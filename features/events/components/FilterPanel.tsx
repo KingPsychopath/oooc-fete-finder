@@ -715,19 +715,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								)}
 							</CardTitle>
 							<div className="flex shrink-0 items-center gap-2">
-								{hasActiveFilters &&
-									(!isDesktopContentExpanded ||
-									!uiDecisions.activeFiltersAtTop ? (
-										<ClearFiltersButton
-											onClick={onClearFilters}
-											className="h-7 px-2.5"
-										/>
-									) : (
-										<div
-											aria-hidden="true"
-											className="h-7 w-[3.875rem] shrink-0"
-										/>
-									))}
+								{hasActiveFilters && (
+									<ClearFiltersButton
+										onClick={onClearFilters}
+										className="h-7 px-2.5"
+									/>
+								)}
 								{onToggleExpanded && (
 									<Button
 										variant="ghost"
