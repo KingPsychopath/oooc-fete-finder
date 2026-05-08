@@ -31,28 +31,32 @@ export default async function AdminContentPage() {
 		getAdminSearchChipSettings(),
 		getAdminSlidingBannerSettings(),
 	]);
+	const editorPayload =
+		editorData.status === "fulfilled" ? editorData.value : undefined;
+	const submissionsPayload =
+		eventSubmissions.status === "fulfilled" ? eventSubmissions.value : undefined;
+	const hasPendingSubmissions = Boolean(
+		submissionsPayload?.success && submissionsPayload.pending.length > 0,
+	);
+	const eventSubmissionsSection = (
+		<section id="event-submissions" className="scroll-mt-44">
+			<EventSubmissionsCard initialPayload={submissionsPayload} />
+		</section>
+	);
+	const eventSheetEditorSection = (
+		<section id="event-sheet-editor" className="scroll-mt-44">
+			<EventSheetEditorCard
+				isAuthenticated
+				initialDeploymentId={getCurrentDeploymentId()}
+				initialEditorData={editorPayload}
+			/>
+		</section>
+	);
 
 	return (
 		<div className="space-y-6">
-			<section id="event-sheet-editor" className="scroll-mt-44">
-				<EventSheetEditorCard
-					isAuthenticated
-					initialDeploymentId={getCurrentDeploymentId()}
-					initialEditorData={
-						editorData.status === "fulfilled" ? editorData.value : undefined
-					}
-				/>
-			</section>
-
-			<section id="event-submissions" className="scroll-mt-44">
-				<EventSubmissionsCard
-					initialPayload={
-						eventSubmissions.status === "fulfilled"
-							? eventSubmissions.value
-							: undefined
-					}
-				/>
-			</section>
+			{hasPendingSubmissions ? eventSubmissionsSection : eventSheetEditorSection}
+			{hasPendingSubmissions ? eventSheetEditorSection : eventSubmissionsSection}
 
 			<section id="location-review" className="scroll-mt-44">
 				<LocationReviewCard

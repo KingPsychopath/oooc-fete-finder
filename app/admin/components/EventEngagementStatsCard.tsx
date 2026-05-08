@@ -646,102 +646,117 @@ export const EventEngagementStatsCard = ({
 	return (
 		<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
 			<CardHeader className="space-y-4">
-				<div className="flex flex-wrap items-start justify-between gap-3">
+				<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
 					<div className="space-y-1">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Data + Proof
+							Audience + Performance
 						</p>
-						<CardTitle>Event Engagement Stats</CardTitle>
+						<CardTitle>Discovery & Event Performance</CardTitle>
 						<CardDescription>
-							Event ROI, discovery behavior, and audience segmentation in one
-							panel.
+							Event opens, discovery behavior, partner actions, and audience
+							export in one panel.
 						</CardDescription>
 					</div>
-					<div className="flex flex-wrap items-center gap-2">
-						{WINDOW_OPTIONS.map((days) => (
-							<Button
-								key={days}
-								type="button"
-								size="sm"
-								variant={windowDays === days ? "default" : "outline"}
-								onClick={() => {
-									setWindowDays(days);
-									void loadStats(days, searchClusterMode);
-								}}
-								disabled={isLoading}
-							>
-								{days}d
-							</Button>
-						))}
-						<Button
-							type="button"
-							size="sm"
-							variant="outline"
-							onClick={() => void loadStats(windowDays, searchClusterMode)}
-							disabled={isLoading}
-						>
-							{isLoading ? "Refreshing..." : "Refresh"}
-						</Button>
-						<div className="inline-flex items-center rounded-md border p-0.5">
-							{SEARCH_CLUSTER_MODE_OPTIONS.map((mode) => (
+					<div className="flex max-w-full flex-col items-end gap-2 lg:justify-self-end">
+						<div className="flex flex-wrap items-center justify-end gap-2">
+							{WINDOW_OPTIONS.map((days) => (
 								<Button
-									key={mode}
+									key={days}
 									type="button"
 									size="sm"
-									variant={searchClusterMode === mode ? "default" : "ghost"}
+									variant={windowDays === days ? "default" : "outline"}
 									onClick={() => {
-										setSearchClusterMode(mode);
-										void loadStats(windowDays, mode);
+										setWindowDays(days);
+										void loadStats(days, searchClusterMode);
 									}}
 									disabled={isLoading}
 								>
-									{mode === "conservative"
-										? "Cluster: Conservative"
-										: "Aggressive"}
+									{days}d
 								</Button>
 							))}
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								onClick={() => void loadStats(windowDays, searchClusterMode)}
+								disabled={isLoading}
+							>
+								{isLoading ? "Refreshing..." : "Refresh"}
+							</Button>
+							<div className="inline-flex items-center rounded-md border p-0.5">
+								{SEARCH_CLUSTER_MODE_OPTIONS.map((mode) => (
+									<Button
+										key={mode}
+										type="button"
+										size="sm"
+										variant={searchClusterMode === mode ? "default" : "ghost"}
+										onClick={() => {
+											setSearchClusterMode(mode);
+											void loadStats(windowDays, mode);
+										}}
+										disabled={isLoading}
+									>
+										{mode === "conservative"
+											? "Cluster: Conservative"
+											: "Aggressive"}
+									</Button>
+								))}
+							</div>
 						</div>
+						{payload?.success ? (
+							<p className="text-right text-xs text-muted-foreground">
+								Last {payload.windowDays} days · updated{" "}
+								{formatAdminDateTime(payload.range.endAt)}
+							</p>
+						) : null}
 					</div>
 				</div>
 
-				<div className="grid grid-cols-2 gap-2 lg:grid-cols-7">
-					{SUMMARY_METRICS.map((metric) => (
-						<SummaryMetric
-							key={metric.key}
-							label={metric.label}
-							value={summary[metric.key]}
-							description={metric.description}
-						/>
-					))}
-					{DISCOVERY_SUMMARY_METRICS.map((metric) => (
-						<SummaryMetric
-							key={metric.key}
-							label={metric.label}
-							value={discovery[metric.key]}
-							description={metric.description}
-						/>
-					))}
-				</div>
-				<div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-					{RATE_SUMMARY_METRICS.map((metric) => (
-						<SummaryMetric
-							key={metric.key}
-							label={metric.label}
-							value={metric.format(summary[metric.key])}
-							description={metric.description}
-						/>
-					))}
-				</div>
-
-				{payload?.success ? (
-					<div className="text-xs text-muted-foreground">
-						Window:{" "}
-						<Badge variant="outline" className="ml-1">
-							{formatAdminDateTime(payload.range.startAt)} -{" "}
-							{formatAdminDateTime(payload.range.endAt)}
-						</Badge>
+				<div className="space-y-2">
+					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+						Event Performance
+					</p>
+					<div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+						{SUMMARY_METRICS.map((metric) => (
+							<SummaryMetric
+								key={metric.key}
+								label={metric.label}
+								value={summary[metric.key]}
+								description={metric.description}
+							/>
+						))}
 					</div>
-				) : null}
+				</div>
+				<div className="space-y-2">
+					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+						Discovery Behavior
+					</p>
+					<div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+						{DISCOVERY_SUMMARY_METRICS.map((metric) => (
+							<SummaryMetric
+								key={metric.key}
+								label={metric.label}
+								value={discovery[metric.key]}
+								description={metric.description}
+							/>
+						))}
+					</div>
+				</div>
+				<div className="space-y-2">
+					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+						Partner Action Rates
+					</p>
+					<div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+						{RATE_SUMMARY_METRICS.map((metric) => (
+							<SummaryMetric
+								key={metric.key}
+								label={metric.label}
+								value={metric.format(summary[metric.key])}
+								description={metric.description}
+							/>
+						))}
+					</div>
+				</div>
 
 				{errorMessage ? (
 					<div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">

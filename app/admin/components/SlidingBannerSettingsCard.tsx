@@ -270,7 +270,7 @@ export const SlidingBannerSettingsCard = ({
 			<CardHeader className="space-y-2">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<div>
-						<CardTitle>Homepage Sliding Banner</CardTitle>
+						<CardTitle>Homepage Banner</CardTitle>
 						<CardDescription>
 							Rotate focused messages with one slot on mobile and one or two on
 							desktop.

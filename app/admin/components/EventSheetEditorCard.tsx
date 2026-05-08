@@ -4247,14 +4247,14 @@ export const EventSheetEditorCard = ({
 					<span className="font-medium text-foreground">Row quality</span>
 					<button
 						type="button"
-						onClick={() => handleQualityFilterToggle("complete")}
+						onClick={() => handleQualityFilterToggle("blocking")}
 						className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
-							qualityFilter === "complete" ? "bg-muted text-foreground" : ""
+							qualityFilter === "blocking" ? "bg-muted text-foreground" : ""
 						}`}
-						aria-pressed={qualityFilter === "complete"}
+						aria-pressed={qualityFilter === "blocking"}
 					>
-						<span className="h-2.5 w-2.5 rounded-full bg-green-600" />
-						{rowQualityCounts.complete} complete
+						<span className="h-2.5 w-2.5 rounded-full bg-red-600" />
+						{rowQualityCounts.blocking} need fix
 					</button>
 					<button
 						type="button"
@@ -4269,14 +4269,14 @@ export const EventSheetEditorCard = ({
 					</button>
 					<button
 						type="button"
-						onClick={() => handleQualityFilterToggle("blocking")}
+						onClick={() => handleQualityFilterToggle("complete")}
 						className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
-							qualityFilter === "blocking" ? "bg-muted text-foreground" : ""
+							qualityFilter === "complete" ? "bg-muted text-foreground" : ""
 						}`}
-						aria-pressed={qualityFilter === "blocking"}
+						aria-pressed={qualityFilter === "complete"}
 					>
-						<span className="h-2.5 w-2.5 rounded-full bg-red-600" />
-						{rowQualityCounts.blocking} need fix
+						<span className="h-2.5 w-2.5 rounded-full bg-green-600" />
+						{rowQualityCounts.complete} complete
 					</button>
 					<button
 						type="button"

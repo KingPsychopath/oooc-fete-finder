@@ -115,20 +115,20 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 		path: "/admin/content",
 		sections: [
 			{
-				id: "event-sheet-editor",
-				label: "Event Sheet Editor",
-				description: "Edit event data rows and custom columns.",
-				path: "/admin/content#event-sheet-editor",
-				moduleKey: "content",
-				keywords: ["sheet", "editor", "rows", "events"],
-			},
-			{
 				id: "event-submissions",
 				label: "Event Submissions",
 				description: "Review and moderate submitted events.",
 				path: "/admin/content#event-submissions",
 				moduleKey: "content",
 				keywords: ["submissions", "moderation", "review"],
+			},
+			{
+				id: "event-sheet-editor",
+				label: "Event Sheet Editor",
+				description: "Edit event data rows and custom columns.",
+				path: "/admin/content#event-sheet-editor",
+				moduleKey: "content",
+				keywords: ["sheet", "editor", "rows", "events"],
 			},
 			{
 				id: "location-review",
@@ -140,7 +140,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 			},
 			{
 				id: "sliding-banner",
-				label: "Homepage Sliding Banner",
+				label: "Homepage Banner",
 				description: "Configure rotating homepage banner messages.",
 				path: "/admin/content#sliding-banner",
 				moduleKey: "content",
@@ -148,7 +148,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 			},
 			{
 				id: "search-chips",
-				label: "Search Chips",
+				label: "Homepage Search Chips",
 				description: "Turn dynamic Popular now chips on or off.",
 				path: "/admin/content#search-chips",
 				moduleKey: "content",
@@ -189,8 +189,8 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 		sections: [
 			{
 				id: "event-engagement-stats",
-				label: "Event Engagement Stats",
-				description: "Behavior and ROI analytics.",
+				label: "Discovery & Event Performance",
+				description: "Discovery behavior, event opens, and partner actions.",
 				path: "/admin/insights#event-engagement-stats",
 				moduleKey: "insights",
 				keywords: ["analytics", "engagement", "discovery", "roi"],

@@ -165,7 +165,7 @@ export const SearchChipSettingsCard = ({
 			<CardHeader className="space-y-2">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<div>
-						<CardTitle>Search Chips</CardTitle>
+						<CardTitle>Homepage Search Chips</CardTitle>
 						<CardDescription>
 							Control whether anonymous aggregate searches can add Popular now
 							chips beside the curated suggestions.
