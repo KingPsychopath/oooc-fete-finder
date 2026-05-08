@@ -655,9 +655,9 @@ export function EventsClient({
 						</p>
 						<Link
 							href="/how-it-works"
-							className="mt-3 inline-flex text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-foreground/78 hover:underline"
+							className="mt-3 inline-flex flex-wrap items-baseline gap-x-1 text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-foreground/78 hover:underline"
 						>
-							New here? See how Fête Finder{" "}
+							<span>New here? See how Fête Finder</span>
 							<span className="whitespace-nowrap">works →</span>
 						</Link>
 					</div>
