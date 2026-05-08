@@ -157,14 +157,18 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 				</CardHeader>
 				<CardContent className="py-5">
 					<div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
-						{visibleEvents.map((event) => (
-							<EventCard
+						{visibleEvents.map((event, index) => (
+							<div
 								key={event.id}
-								event={event}
-								onClick={onEventClick}
-								socialProofMode={socialProofDisplayModes.get(event.eventKey)}
-								genreFrequency={genreFrequency}
-							/>
+								id={index === 0 ? "tour-first-event-card" : undefined}
+							>
+								<EventCard
+									event={event}
+									onClick={onEventClick}
+									socialProofMode={socialProofDisplayModes.get(event.eventKey)}
+									genreFrequency={genreFrequency}
+								/>
+							</div>
 						))}
 					</div>
 

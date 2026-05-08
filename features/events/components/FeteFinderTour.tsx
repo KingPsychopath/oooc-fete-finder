@@ -267,7 +267,7 @@ export function FeteFinderTour({
 			},
 			{
 				id: "events",
-				selector: "#tour-all-events",
+				selector: "#tour-first-event-card",
 				title: "Open the right event",
 				body: "Cards lead to the practical details: time, address, price, share links, calendar saves and update requests.",
 				preferredSide: "top",

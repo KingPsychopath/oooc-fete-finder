@@ -35,6 +35,7 @@ import {
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { EventsMapCard } from "@/features/maps/components/events-map-card";
 import { clientLog } from "@/lib/platform/client-logger";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -624,7 +625,7 @@ export function EventsClient({
 				onSearch={handleSearchIntent}
 				onSearchFocus={handleSearchFocus}
 				placeholder="Search events, locations, genres, phases..."
-				className="mx-auto w-full max-w-[46rem]"
+				className="mx-auto w-full max-w-[64rem]"
 				value={searchQuery}
 				resultsCount={filteredEvents.length}
 				showResultsCount
@@ -636,32 +637,59 @@ export function EventsClient({
 
 	return (
 		<>
-			{ooocPicksInViewCount > 0 && (
-				<div className="mb-8">
-					<div
-						id="tour-oooc-picks"
-						className="mx-auto flex w-full max-w-[46rem] flex-col gap-2 rounded-md border border-border/65 bg-background/55 px-3 py-2 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between"
-					>
-						<div className="min-w-0">
-							<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-								OOOC Picks
-							</p>
-							<p className="mt-0.5 text-xs leading-relaxed text-foreground/80">
-								Short on time? Start with the community-curated favourites.
-							</p>
-						</div>
-						<Button
-							type="button"
-							variant={selectedOOOCPicks ? "default" : "outline"}
-							size="sm"
-							onClick={handleOOOCPicksCalloutClick}
-							className="h-8 w-full shrink-0 px-3 text-xs sm:w-auto"
+			<section className="mb-8" aria-label="Introduction">
+				<div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] lg:items-end">
+					<div className="min-w-0">
+						<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+							Paris · Fête de la Musique
+						</p>
+						<h2
+							className="mt-2 text-2xl font-light tracking-tight text-foreground sm:text-3xl"
+							style={{ fontFamily: "var(--ooo-font-display)" }}
 						>
-							{selectedOOOCPicks ? "Showing Picks" : "Show All Picks"}
-						</Button>
+							Discover events across the city
+						</h2>
+						<p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+							Explore live music and cultural events by arrondissement. Use the
+							map and filters to find what’s on.
+						</p>
+						<Link
+							href="/how-it-works"
+							className="mt-3 inline-flex text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-foreground/78 hover:underline"
+						>
+							New here? See how Fête Finder{" "}
+							<span className="whitespace-nowrap">works →</span>
+						</Link>
 					</div>
+					{ooocPicksInViewCount > 0 && (
+						<div
+							id="tour-oooc-picks"
+							className="ooo-site-card-soft w-full rounded-xl border border-border/70 bg-background/62 p-3 shadow-sm lg:justify-self-end"
+						>
+							<div className="flex items-center justify-between gap-3">
+								<div className="min-w-0">
+									<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+										OOOC Picks
+									</p>
+									<p className="mt-1 text-xs leading-relaxed text-foreground/80">
+										Short on time? Start with the community-curated favourites.
+									</p>
+								</div>
+								<Button
+									type="button"
+									variant={selectedOOOCPicks ? "default" : "outline"}
+									size="sm"
+									onClick={handleOOOCPicksCalloutClick}
+									className="h-8 shrink-0 rounded-full px-3 text-xs"
+								>
+									{selectedOOOCPicks ? "Showing Picks" : "Show Picks"}
+								</Button>
+							</div>
+						</div>
+					)}
 				</div>
-			)}
+				<div className="mt-6 border-t border-border" role="presentation" />
+			</section>
 
 			{authMode === "offline-grace" && (
 				<div className="mb-6 rounded-md border border-amber-300/70 bg-amber-50/85 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-200">
