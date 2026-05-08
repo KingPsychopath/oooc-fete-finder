@@ -109,14 +109,14 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 										>
 											{option.label}
 										</button>
-									)
+									);
 								})}
 							</div>
 							<FilterButton
 								onClickAction={onFilterClickAction}
 								hasActiveFilters={hasActiveFilters}
 								activeFiltersCount={activeFiltersCount}
-								className="self-start rounded-full lg:hidden"
+								className="h-9 min-h-9 self-start rounded-full px-3 text-xs lg:hidden"
 								size="sm"
 							/>
 						</div>

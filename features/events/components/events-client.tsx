@@ -572,6 +572,27 @@ export function EventsClient({
 						resultsCountLabelMode={hasAnyActiveFilters ? "found" : "available"}
 					/>
 				</AuthGate>
+				{ooocPicksInViewCount > 0 && (
+					<div className="mx-auto mt-3 flex max-w-md flex-col gap-2 rounded-md border border-border/65 bg-background/55 px-3 py-2 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between">
+						<div className="min-w-0">
+							<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+								OOOC Picks
+							</p>
+							<p className="mt-0.5 text-xs leading-relaxed text-foreground/80">
+								Short on time? Start with the community-curated favourites.
+							</p>
+						</div>
+						<Button
+							type="button"
+							variant={selectedOOOCPicks ? "default" : "outline"}
+							size="sm"
+							onClick={handleOOOCPicksCalloutClick}
+							className="h-8 w-full shrink-0 px-3 text-xs sm:w-auto"
+						>
+							{selectedOOOCPicks ? "Showing Picks" : "Show All Picks"}
+						</Button>
+					</div>
+				)}
 			</div>
 
 			{authMode === "offline-grace" && (
@@ -595,28 +616,6 @@ export function EventsClient({
 					<p className="mt-1 leading-relaxed">
 						Reconnect to unlock filters and search.
 					</p>
-				</div>
-			)}
-
-			{ooocPicksInViewCount > 0 && (
-				<div className="mb-6 flex flex-col gap-3 rounded-md border border-border/70 bg-card/70 px-4 py-3 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between">
-					<div>
-						<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-							OOOC Picks
-						</p>
-						<p className="mt-1 text-foreground/85">
-							Short on time? Start with our community-curated favourites.
-						</p>
-					</div>
-					<Button
-						type="button"
-						variant={selectedOOOCPicks ? "default" : "outline"}
-						size="sm"
-						onClick={handleOOOCPicksCalloutClick}
-						className="w-full shrink-0 sm:w-auto"
-					>
-						{selectedOOOCPicks ? "Showing Picks" : "Show All Picks"}
-					</Button>
 				</div>
 			)}
 

@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Filter } from "lucide-react";
 import React from "react";
 
@@ -33,7 +34,10 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
 			variant={variant}
 			size={size}
 			onClick={onClickAction}
-			className={`min-h-[44px] border-border/80 bg-background/72 text-foreground/85 hover:bg-accent ${className}`}
+			className={cn(
+				"min-h-[44px] border-border/80 bg-background/72 text-foreground/85 hover:bg-accent",
+				className,
+			)}
 		>
 			<Filter className="h-4 w-4 mr-2" />
 			Filters
