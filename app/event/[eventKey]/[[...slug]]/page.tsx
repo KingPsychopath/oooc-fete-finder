@@ -5,6 +5,7 @@ import {
 } from "@/features/events/types";
 import {
 	type EventShareDetails,
+	getEventShareEvent,
 	getEventShareDetails,
 } from "@/lib/social/event-share-details";
 import {
@@ -12,10 +13,10 @@ import {
 	generateOGMetadata,
 } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { HomeEventsSection } from "../../../HomeEventsSection";
+import { notFound } from "next/navigation";
 import { HomeHeader } from "../../../HomeHeader";
-import { EventShareLoadingShell } from "./EventShareLoadingShell";
+import { EventShareClient } from "./EventShareClient";
+import { EventShareModalPreview } from "./EventShareModalPreview";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -152,7 +153,11 @@ export async function generateMetadata({
 
 export default async function EventSharePage({ params }: EventSharePageProps) {
 	const { eventKey } = await params;
-	const homeMapLoadStrategy: "immediate" | "expand" | "idle" = "expand";
+	const event = await getEventShareEvent(eventKey);
+
+	if (!event) {
+		notFound();
+	}
 
 	return (
 		<div className="ooo-site-shell">
@@ -162,12 +167,9 @@ export default async function EventSharePage({ params }: EventSharePageProps) {
 				className="container mx-auto px-4 py-8"
 				tabIndex={-1}
 			>
-				<Suspense fallback={<EventShareLoadingShell />}>
-					<HomeEventsSection
-						mapLoadStrategy={homeMapLoadStrategy}
-						initialSelectedEventKey={eventKey}
-					/>
-				</Suspense>
+				<EventShareClient event={event}>
+					<EventShareModalPreview event={event} />
+				</EventShareClient>
 			</main>
 		</div>
 	);

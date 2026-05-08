@@ -1055,6 +1055,7 @@ const EventModal: React.FC<EventModalProps> = ({
 								size="icon"
 								onClick={onClose}
 								className="h-10 w-10 rounded-xl border-border/70 bg-background/70 hover:bg-accent dark:bg-white/5 dark:hover:bg-white/10"
+								aria-label="Close event details"
 							>
 								<X className="h-5 w-5" />
 							</Button>

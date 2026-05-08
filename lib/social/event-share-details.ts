@@ -37,7 +37,7 @@ const toEventShareDetails = (event: Event): EventShareDetails => ({
 });
 
 const getCachedEventShareIndex = unstable_cache(
-	async (): Promise<Record<string, EventShareDetails>> => {
+	async (): Promise<Record<string, Event>> => {
 		const result = await DataManager.getEventsData({
 			populateCoordinates: false,
 		});
@@ -46,10 +46,7 @@ const getCachedEventShareIndex = unstable_cache(
 		}
 
 		return Object.fromEntries(
-			result.data.map((event) => [
-				normalizeEventKey(event.eventKey),
-				toEventShareDetails(event),
-			]),
+			result.data.map((event) => [normalizeEventKey(event.eventKey), event]),
 		);
 	},
 	["event-share-details"],
@@ -58,6 +55,22 @@ const getCachedEventShareIndex = unstable_cache(
 		tags: ["events", "events-data"],
 	},
 );
+
+export const getEventShareEvent = async (
+	eventKey: string,
+): Promise<Event | null> => {
+	const normalizedEventKey = normalizeEventKey(eventKey);
+	if (!normalizedEventKey) {
+		return null;
+	}
+
+	try {
+		const index = await getCachedEventShareIndex();
+		return index[normalizedEventKey] ?? null;
+	} catch {
+		return null;
+	}
+};
 
 export const getEventShareDetails = async (
 	eventKey: string,
@@ -69,7 +82,8 @@ export const getEventShareDetails = async (
 
 	try {
 		const index = await getCachedEventShareIndex();
-		return index[normalizedEventKey] ?? null;
+		const event = index[normalizedEventKey];
+		return event ? toEventShareDetails(event) : null;
 	} catch {
 		return null;
 	}

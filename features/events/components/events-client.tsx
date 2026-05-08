@@ -43,7 +43,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 interface EventsClientProps {
 	initialEvents: Event[];
 	mapLoadStrategy: MapLoadStrategy;
-	initialSelectedEventKey?: string;
 	eventUpdateRequestsEnabled?: boolean;
 	dynamicSearchChips?: SearchChip[];
 }
@@ -162,45 +161,21 @@ const buildAvailableNationalitiesForEvents = (events: Event[]) => {
 	);
 };
 
-const resolveEventByKey = (
-	events: Event[],
-	eventKey: string | undefined,
-): Event | null => {
-	const normalizedEventKey = eventKey?.trim().toLowerCase();
-	if (!normalizedEventKey) return null;
-	return (
-		events.find((event) => event.eventKey.toLowerCase() === normalizedEventKey) ??
-		null
-	);
-};
-
 export function EventsClient({
 	initialEvents,
 	mapLoadStrategy,
-	initialSelectedEventKey,
 	eventUpdateRequestsEnabled = true,
 	dynamicSearchChips = [],
 }: EventsClientProps) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
-	const initialSelectedEvent = resolveEventByKey(
-		initialEvents,
-		initialSelectedEventKey,
-	);
-	const [selectedEvent, setSelectedEvent] = useState<Event | null>(
-		initialSelectedEvent,
-	);
+	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [isMapExpanded, setIsMapExpanded] = useState(false);
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 	const [showEmailGate, setShowEmailGate] = useState(false);
-	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(
-		() =>
-			initialSelectedEvent !== null &&
-			searchParams.get(REQUEST_UPDATE_PARAM) === "1" &&
-			eventUpdateRequestsEnabled,
-	);
+	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false);
 	const [sortMode, setSortMode] = useState<EventSortMode>("upcoming");
 	const pendingAuthActionRef = useRef<PendingAuthAction | null>(null);
 	const invalidEventParamCountRef = useRef(0);
