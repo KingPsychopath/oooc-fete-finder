@@ -431,7 +431,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							compact
 								? compactRows === "double"
 									? "flex max-h-[3.65rem] min-h-7 flex-wrap gap-1.5 overflow-y-auto pb-0.5 pr-1 [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_34%,transparent)_transparent] [scrollbar-width:thin] [&>*]:shrink-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/28 [&::-webkit-scrollbar-track]:bg-transparent"
-									: "grid max-h-[3.65rem] auto-cols-max grid-flow-col grid-rows-2 gap-1.5 overflow-x-auto pb-0.5 [mask-image:linear-gradient(to_right,black_calc(100%_-_24px),transparent)] [scrollbar-width:none] [&>*]:shrink-0 [&::-webkit-scrollbar]:hidden"
+									: "flex h-7 min-w-0 gap-1.5 overflow-x-auto [mask-image:linear-gradient(to_right,black_calc(100%_-_24px),transparent)] [scrollbar-width:none] [&>*]:shrink-0 [&::-webkit-scrollbar]:hidden"
 								: "flex min-h-[28px] flex-wrap gap-2"
 						}
 					>
@@ -764,8 +764,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							>
 								{/* Active Filters - Top when few filters */}
 								{hasActiveFilters && uiDecisions.activeFiltersAtTop && (
-									<div className="sticky top-0 z-10 bg-card/95 pb-1.5 backdrop-blur">
-										<ActiveFiltersDisplay compact compactRows="double" />
+									<div className="sticky top-0 z-10 -mx-1 border-b border-border/70 bg-card/95 px-1 pt-1.5 pb-1 backdrop-blur">
+										<ActiveFiltersDisplay
+											compact
+											compactRows="single"
+											showHeading={false}
+										/>
 									</div>
 								)}
 

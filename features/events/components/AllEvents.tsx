@@ -9,7 +9,7 @@ import { FilterButton } from "@/features/events/components/FilterButton";
 import { buildGenreFrequency } from "@/features/events/genre-preview";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
-import { Lock } from "lucide-react";
+import { Lock, SearchX } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, forwardRef } from "react";
 
@@ -156,22 +156,45 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 					</div>
 				</CardHeader>
 				<CardContent className="py-5">
-					<div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
-						{visibleEvents.map((event, index) => (
-							<div
-								key={event.id}
-								id={index === 0 ? "tour-first-event-card" : undefined}
-								className="h-full"
-							>
-								<EventCard
-									event={event}
-									onClick={onEventClick}
-									socialProofMode={socialProofDisplayModes.get(event.eventKey)}
-									genreFrequency={genreFrequency}
-								/>
+					{visibleEvents.length === 0 ? (
+						<div className="rounded-xl border border-dashed border-border/80 bg-background/45 px-4 py-10 text-center">
+							<div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 text-muted-foreground">
+								<SearchX className="h-4 w-4" />
 							</div>
-						))}
-					</div>
+							<h3 className="mt-4 text-lg [font-family:var(--ooo-font-display)] font-light text-foreground">
+								No events match this view
+							</h3>
+							<p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+								Try a broader search, remove a chip, or clear filters to bring
+								the full list back.
+							</p>
+							{hasActiveFilters && (
+								<ClearFiltersButton
+									onClick={onClearFilters}
+									className="mt-4 h-8 rounded-full px-4"
+								/>
+							)}
+						</div>
+					) : (
+						<div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
+							{visibleEvents.map((event, index) => (
+								<div
+									key={event.id}
+									id={index === 0 ? "tour-first-event-card" : undefined}
+									className="h-full"
+								>
+									<EventCard
+										event={event}
+										onClick={onEventClick}
+										socialProofMode={socialProofDisplayModes.get(
+											event.eventKey,
+										)}
+										genreFrequency={genreFrequency}
+									/>
+								</div>
+							))}
+						</div>
+					)}
 
 					{lockedEvents.length > 0 && (
 						<div className="mt-6">
