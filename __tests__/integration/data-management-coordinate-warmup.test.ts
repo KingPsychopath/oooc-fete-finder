@@ -66,6 +66,7 @@ const loadActions = async (): Promise<Setup> => {
 		LocalEventStore: {
 			getStatus: vi.fn(),
 			getCsv: vi.fn(),
+			getRowMetadata: vi.fn().mockResolvedValue([]),
 			saveCsv: localEventStoreSaveCsv,
 			clearCsv: vi.fn(),
 			getPreview: vi.fn(),

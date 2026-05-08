@@ -40,6 +40,7 @@ type Setup = {
 	};
 	localEventStore: {
 		getCsv: ReturnType<typeof vi.fn>;
+		getRowMetadata: ReturnType<typeof vi.fn>;
 		saveCsv: ReturnType<typeof vi.fn>;
 		clearCsv: ReturnType<typeof vi.fn>;
 	};
@@ -105,6 +106,14 @@ const loadService = async (): Promise<Setup> => {
 	};
 	const localEventStore = {
 		getCsv: vi.fn().mockResolvedValue("Title,Date\nEvent,2026-06-21"),
+		getRowMetadata: vi.fn().mockResolvedValue([
+			{
+				eventKey: "evt_1",
+				firstSeenAt: "2026-02-18T09:00:00.000Z",
+				lastMeaningfulChangeAt: "2026-02-18T09:00:00.000Z",
+				publicContentHash: "hash-a",
+			},
+		]),
 		saveCsv: vi.fn().mockResolvedValue({
 			rowCount: 50,
 			updatedAt: "2026-02-18T12:00:00.000Z",
@@ -296,6 +305,7 @@ describe("EventStoreBackupService", () => {
 				featuredEntryCount: 1,
 				userCollectionCount: 1,
 				userCollectionJson: expect.stringContaining("real@example.com"),
+				rowMetadataJson: expect.stringContaining("evt_1"),
 				operationalStateJson: expect.stringContaining("partner@example.com"),
 			}),
 		);
@@ -385,6 +395,14 @@ describe("EventStoreBackupService", () => {
 			storeUpdatedAt: "2026-02-18T07:45:00.000Z",
 			storeChecksum: "latest123",
 			csvContent: "Title,Date\nRestored Event,2026-06-22",
+			rowMetadataJson: JSON.stringify([
+				{
+					eventKey: "evt_target",
+					firstSeenAt: "2026-02-17T07:00:00.000Z",
+					lastMeaningfulChangeAt: "2026-02-18T07:30:00.000Z",
+					publicContentHash: "hash-target",
+				},
+			]),
 			featuredEntriesJson: JSON.stringify([
 				sampleFeaturedEntry({
 					id: "f_target",
@@ -488,6 +506,20 @@ describe("EventStoreBackupService", () => {
 		expect(result.success).toBe(true);
 		expect(result.preRestoreBackup?.id).toBe("bkp_pre");
 		expect(localEventStore.saveCsv).toHaveBeenCalledTimes(1);
+		expect(localEventStore.saveCsv).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.objectContaining({
+				rowMetadata: expect.any(Array),
+			}),
+		);
+		expect(localEventStore.saveCsv.mock.calls[0]?.[1].rowMetadata).toEqual([
+			{
+				eventKey: "evt_target",
+				firstSeenAt: "2026-02-17T07:00:00.000Z",
+				lastMeaningfulChangeAt: "2026-02-18T07:30:00.000Z",
+				publicContentHash: "hash-target",
+			},
+		]);
 		expect(featuredRepository.session.replaceAllEntries).toHaveBeenCalledWith(
 			expect.arrayContaining([
 				expect.objectContaining({ id: "f_target", eventKey: "evt_target" }),
@@ -498,6 +530,7 @@ describe("EventStoreBackupService", () => {
 			expect.objectContaining({
 				userCollectionCount: 1,
 				userCollectionJson: expect.stringContaining("real@example.com"),
+				rowMetadataJson: expect.stringContaining("evt_1"),
 			}),
 		);
 		expect(userCollectionStore.clearAll).toHaveBeenCalledTimes(1);

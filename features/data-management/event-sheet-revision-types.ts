@@ -1,5 +1,12 @@
 export type EventSheetRevisionTrigger = "autosave" | "publish";
 
+export interface EventRowLifecycleMetadata {
+	eventKey: string;
+	firstSeenAt: string;
+	lastMeaningfulChangeAt: string;
+	publicContentHash: string;
+}
+
 export interface EventSheetRevisionChangeSummary {
 	addedRows: number;
 	deletedRows: number;
@@ -35,10 +42,12 @@ export interface EventSheetRevisionInput
 	columnCount: number;
 	summary: string;
 	csvContent: string;
+	rowMetadata: EventRowLifecycleMetadata[];
 	href?: string | null;
 }
 
 export interface EventSheetRevisionSnapshot {
 	revision: EventSheetRevisionRecord;
 	csvContent: string;
+	rowMetadata: EventRowLifecycleMetadata[];
 }

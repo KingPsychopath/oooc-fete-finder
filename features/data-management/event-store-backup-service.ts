@@ -24,6 +24,7 @@ import {
 	getPartnerActivationRepository,
 } from "@/lib/platform/postgres/partner-activation-repository";
 import { getPromotedEventRepository } from "@/lib/platform/postgres/promoted-event-repository";
+import type { EventRowLifecycleMetadata } from "./event-sheet-revision-types";
 import type {
 	EventStoreBackupStatus,
 	EventStoreBackupSummary,
@@ -121,6 +122,36 @@ const parseUserCollectionJson = (value: string | null): UserRecord[] | null => {
 
 const stringifyUserCollection = (users: UserRecord[]): string =>
 	JSON.stringify(users);
+
+const isRowLifecycleMetadata = (
+	value: unknown,
+): value is EventRowLifecycleMetadata => {
+	if (!value || typeof value !== "object") return false;
+	const candidate = value as Record<string, unknown>;
+	return (
+		typeof candidate.eventKey === "string" &&
+		typeof candidate.firstSeenAt === "string" &&
+		typeof candidate.lastMeaningfulChangeAt === "string" &&
+		typeof candidate.publicContentHash === "string"
+	);
+};
+
+const parseRowMetadataJson = (
+	value: string | null | undefined,
+): EventRowLifecycleMetadata[] => {
+	if (!value) return [];
+	try {
+		const parsed = JSON.parse(value) as unknown;
+		if (!Array.isArray(parsed)) return [];
+		return parsed.filter(isRowLifecycleMetadata);
+	} catch {
+		return [];
+	}
+};
+
+const stringifyRowMetadata = (
+	rowMetadata: EventRowLifecycleMetadata[],
+): string => JSON.stringify(rowMetadata);
 
 interface OperationalBackupState {
 	version: 1;
@@ -316,12 +347,14 @@ export class EventStoreBackupService {
 				csvRaw,
 				featuredEntries,
 				storeMeta,
+				rowMetadata,
 				collectedUsers,
 				operationalState,
 			] = await Promise.all([
 				LocalEventStore.getCsv(),
 				featuredRepository.withScheduleLock((session) => session.listEntries()),
 				eventStoreRepository.getMeta(),
+				LocalEventStore.getRowMetadata(),
 				UserCollectionStore.listAll(),
 				buildOperationalState(),
 			]);
@@ -351,6 +384,7 @@ export class EventStoreBackupService {
 					? storeMeta.checksum || buildChecksum(normalizedCsv)
 					: "",
 				csvContent: normalizedCsv,
+				rowMetadataJson: normalizedCsv ? stringifyRowMetadata(rowMetadata) : null,
 				featuredEntriesJson: stringifyFeaturedEntries(featuredEntries),
 				userCollectionJson: stringifyUserCollection(collectedUsers),
 				operationalStateJson: stringifyOperationalState(operationalState),
@@ -404,12 +438,14 @@ export class EventStoreBackupService {
 				currentCsvRaw,
 				currentFeaturedEntries,
 				currentMeta,
+				currentRowMetadata,
 				currentCollectedUsers,
 				currentOperationalState,
 			] = await Promise.all([
 				LocalEventStore.getCsv(),
 				featuredRepository.withScheduleLock((session) => session.listEntries()),
 				eventStoreRepository.getMeta(),
+				LocalEventStore.getRowMetadata(),
 				UserCollectionStore.listAll(),
 				buildOperationalState(),
 			]);
@@ -431,6 +467,9 @@ export class EventStoreBackupService {
 						? currentMeta.checksum || buildChecksum(currentCsv)
 						: "",
 					csvContent: currentCsv,
+					rowMetadataJson: currentCsv
+						? stringifyRowMetadata(currentRowMetadata)
+						: null,
 					featuredEntriesJson: stringifyFeaturedEntries(currentFeaturedEntries),
 					userCollectionJson: stringifyUserCollection(currentCollectedUsers),
 					operationalStateJson: stringifyOperationalState(
@@ -441,11 +480,15 @@ export class EventStoreBackupService {
 			}
 
 			const restoredCsv = normalizeCsv(targetBackup.csvContent || "");
+			const restoredRowMetadata = parseRowMetadataJson(
+				targetBackup.rowMetadataJson,
+			);
 			const restoredRowCount = restoredCsv
 				? (
 						await LocalEventStore.saveCsv(restoredCsv, {
 							updatedBy: input.createdBy,
 							origin: "manual",
+							rowMetadata: restoredRowMetadata,
 						})
 					).rowCount
 				: (await LocalEventStore.clearCsv(), 0);

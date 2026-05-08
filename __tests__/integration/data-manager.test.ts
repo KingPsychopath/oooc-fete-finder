@@ -5,6 +5,7 @@ type Setup = {
 	DataManager: typeof DataManagerClass;
 	localEventStore: {
 		getCsv: ReturnType<typeof vi.fn>;
+		getRowMetadata: ReturnType<typeof vi.fn>;
 		getStatus: ReturnType<typeof vi.fn>;
 	};
 	processCSVData: ReturnType<typeof vi.fn>;
@@ -22,6 +23,7 @@ const loadDataManager = async (
 
 	const localEventStore = {
 		getCsv: vi.fn(),
+		getRowMetadata: vi.fn().mockResolvedValue([]),
 		getStatus: vi.fn().mockResolvedValue({
 			hasStoreData: true,
 			rowCount: 1,
@@ -101,6 +103,36 @@ describe("DataManager source orchestration", () => {
 		expect(result.success).toBe(true);
 		expect(result.source).toBe("store");
 		expect(fetchLocalCSV).not.toHaveBeenCalled();
+	});
+
+	it("applies stable per-event row metadata from the store", async () => {
+		const { DataManager, localEventStore, processCSVData } =
+			await loadDataManager("remote");
+
+		localEventStore.getCsv.mockResolvedValue("store-csv");
+		localEventStore.getRowMetadata.mockResolvedValue([
+			{
+				eventKey: "event-1",
+				firstSeenAt: "2026-05-01T10:00:00.000Z",
+				lastMeaningfulChangeAt: "2026-05-07T11:00:00.000Z",
+				publicContentHash: "hash-a",
+			},
+		]);
+		processCSVData.mockResolvedValue({
+			events: [{ eventKey: "event-1", name: "Store Event", date: "2026-06-21" }],
+			count: 1,
+			source: "store",
+			errors: [],
+			warnings: [],
+		});
+
+		const result = await DataManager.getEventsData();
+
+		expect(result.success).toBe(true);
+		expect(result.data[0]).toMatchObject({
+			firstSeenAt: "2026-05-01T10:00:00.000Z",
+			lastMeaningfulChangeAt: "2026-05-07T11:00:00.000Z",
+		});
 	});
 
 	it("passes custom genre taxonomy into the live store parser", async () => {

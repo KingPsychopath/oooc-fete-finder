@@ -35,6 +35,7 @@ type BackupSummaryRow = {
 
 type BackupPayloadRow = BackupSummaryRow & {
 	csv_content: string;
+	row_metadata_json: string | null;
 	featured_entries_json: string;
 	user_collection_json: string | null;
 	operational_state_json: string | null;
@@ -63,10 +64,16 @@ export class EventStoreBackupRepository {
 				store_updated_at TIMESTAMPTZ NULL,
 				store_checksum TEXT NOT NULL,
 				csv_content TEXT NOT NULL,
+				row_metadata_json TEXT NULL,
 				featured_entries_json TEXT NOT NULL DEFAULT '[]',
 				user_collection_json TEXT NULL,
 				operational_state_json TEXT NULL
 			)
+		`;
+
+		await this.sql`
+			ALTER TABLE app_event_store_backups
+			ADD COLUMN IF NOT EXISTS row_metadata_json TEXT NULL
 		`;
 
 		await this.sql`
@@ -130,6 +137,7 @@ export class EventStoreBackupRepository {
 		storeUpdatedAt: string | null;
 		storeChecksum: string;
 		csvContent: string;
+		rowMetadataJson: string | null;
 		featuredEntriesJson: string;
 		userCollectionJson: string | null;
 		operationalStateJson: string | null;
@@ -148,6 +156,7 @@ export class EventStoreBackupRepository {
 				store_updated_at,
 				store_checksum,
 				csv_content,
+				row_metadata_json,
 				featured_entries_json,
 				user_collection_json,
 				operational_state_json
@@ -162,6 +171,7 @@ export class EventStoreBackupRepository {
 				${input.storeUpdatedAt},
 				${input.storeChecksum},
 				${input.csvContent},
+				${input.rowMetadataJson},
 				${input.featuredEntriesJson},
 				${input.userCollectionJson},
 				${input.operationalStateJson}
@@ -189,6 +199,7 @@ export class EventStoreBackupRepository {
 	async getLatestBackup(): Promise<
 		| (EventStoreBackupSummary & {
 				csvContent: string;
+				rowMetadataJson: string | null;
 				featuredEntriesJson: string;
 				userCollectionJson: string | null;
 				operationalStateJson: string | null;
@@ -208,6 +219,7 @@ export class EventStoreBackupRepository {
 				store_updated_at,
 				store_checksum,
 				csv_content,
+				row_metadata_json,
 				featured_entries_json,
 				user_collection_json,
 				operational_state_json
@@ -222,6 +234,7 @@ export class EventStoreBackupRepository {
 		return {
 			...this.mapBackup(record),
 			csvContent: record.csv_content,
+			rowMetadataJson: record.row_metadata_json,
 			featuredEntriesJson: record.featured_entries_json,
 			userCollectionJson: record.user_collection_json,
 			operationalStateJson: record.operational_state_json,
@@ -231,6 +244,7 @@ export class EventStoreBackupRepository {
 	async getBackupById(id: string): Promise<
 		| (EventStoreBackupSummary & {
 				csvContent: string;
+				rowMetadataJson: string | null;
 				featuredEntriesJson: string;
 				userCollectionJson: string | null;
 				operationalStateJson: string | null;
@@ -250,6 +264,7 @@ export class EventStoreBackupRepository {
 				store_updated_at,
 				store_checksum,
 				csv_content,
+				row_metadata_json,
 				featured_entries_json,
 				user_collection_json,
 				operational_state_json
@@ -264,6 +279,7 @@ export class EventStoreBackupRepository {
 		return {
 			...this.mapBackup(record),
 			csvContent: record.csv_content,
+			rowMetadataJson: record.row_metadata_json,
 			featuredEntriesJson: record.featured_entries_json,
 			userCollectionJson: record.user_collection_json,
 			operationalStateJson: record.operational_state_json,

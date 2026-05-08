@@ -59,6 +59,7 @@ import { DataManager } from "./data-manager";
 import { processCSVData } from "./data-processor";
 import type {
 	EventSheetRevisionChangeSummary,
+	EventSheetRevisionInput,
 	EventSheetRevisionRecord,
 	EventSheetRevisionSnapshot,
 } from "./event-sheet-revision-types";
@@ -261,6 +262,7 @@ const recordEventSheetRevision = async (input: {
 	columnCount: number;
 	changeSummary: EventSheetRevisionChangeSummary;
 	csvContent: string;
+	rowMetadata: EventSheetRevisionInput["rowMetadata"];
 }): Promise<EventSheetRevisionRecord | null> => {
 	if (process.env.NODE_ENV === "test") return null;
 	if (
@@ -287,6 +289,7 @@ const recordEventSheetRevision = async (input: {
 				input.changeSummary,
 			),
 			csvContent: input.csvContent,
+			rowMetadata: input.rowMetadata,
 			href: "/admin/content#event-sheet-editor",
 			...input.changeSummary,
 		};
@@ -1498,10 +1501,18 @@ export async function saveEventSheetEditorRows(
 				);
 			}
 		}
+		const restoreRowMetadata =
+			shouldRevalidateHomepage && restoreRevisionId
+				? ((await getEventSheetRevisionRepository()?.getSnapshotById(
+						restoreRevisionId,
+					))?.rowMetadata ?? [])
+				: [];
 		const saved = await LocalEventStore.saveCsv(csvContent, {
 			updatedBy: "admin-sheet-editor",
 			origin: "manual",
+			rowMetadata: restoreRowMetadata,
 		});
+		const rowMetadata = await LocalEventStore.getRowMetadata();
 		if (shouldRevalidateHomepage) {
 			await warmCoordinateCacheFromCsv(csvContent, "save-sheet-editor");
 			await forceRefreshEventsData();
@@ -1514,6 +1525,7 @@ export async function saveEventSheetEditorRows(
 			columnCount: validation.columns.length,
 			changeSummary,
 			csvContent,
+			rowMetadata,
 		});
 		if (shouldRevalidateHomepage) {
 			await recordAdminActivity({

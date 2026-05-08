@@ -99,12 +99,17 @@ const applyFirstSeenMetadata = (
 	metadata: Awaited<ReturnType<typeof LocalEventStore.getRowMetadata>>,
 ): Event[] => {
 	if (metadata.length === 0) return events;
-	const firstSeenAtByEventKey = new Map(
-		metadata.map((record) => [record.eventKey, record.firstSeenAt]),
+	const metadataByEventKey = new Map(
+		metadata.map((record) => [record.eventKey, record]),
 	);
 	return events.map((event) => {
-		const firstSeenAt = firstSeenAtByEventKey.get(event.eventKey);
-		return firstSeenAt ? { ...event, firstSeenAt } : event;
+		const record = metadataByEventKey.get(event.eventKey);
+		if (!record) return event;
+		return {
+			...event,
+			firstSeenAt: record.firstSeenAt,
+			lastMeaningfulChangeAt: record.lastMeaningfulChangeAt,
+		};
 	});
 };
 

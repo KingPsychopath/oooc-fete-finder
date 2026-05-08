@@ -37,6 +37,10 @@ import {
 	isRecentlyAddedEvent,
 } from "@/features/events/recently-added";
 import {
+	formatRecentlyUpdatedLabel,
+	isRecentlyUpdatedEvent,
+} from "@/features/events/recently-updated";
+import {
 	CARD_SOCIAL_PROOF_MIN_SAVES,
 	type SocialProofDisplayMode,
 } from "@/features/events/social-proof";
@@ -458,7 +462,9 @@ const EventModal: React.FC<EventModalProps> = ({
 	if (!isOpen || !event) return null;
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
 	const isNewlyAdded = isRecentlyAddedEvent(event);
+	const isRecentlyUpdated = !isNewlyAdded && isRecentlyUpdatedEvent(event);
 	const recentlyAddedLabel = formatRecentlyAddedLabel(event);
+	const recentlyUpdatedLabel = formatRecentlyUpdatedLabel(event);
 	const canAddToCalendar = isCalendarDateValid(event.date);
 	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
 	const savedLabel = socialProofSaveCount === 1 ? "person" : "people";
@@ -553,6 +559,7 @@ const EventModal: React.FC<EventModalProps> = ({
 	const extraGenreCount = Math.max(0, allGenres.length - visibleGenres.length);
 	const hasHeaderBadges = Boolean(
 		isNewlyAdded ||
+			isRecentlyUpdated ||
 			event.isOOOCPick ||
 			(socialProofMode &&
 				socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES) ||
@@ -1054,6 +1061,11 @@ const EventModal: React.FC<EventModalProps> = ({
 									New
 								</Badge>
 							)}
+							{isRecentlyUpdated && (
+								<Badge className="border border-sky-500/30 bg-sky-500/10 text-sky-800 hover:bg-sky-500/15 dark:text-sky-200">
+									Updated
+								</Badge>
+							)}
 							{event.isOOOCPick && (
 								<Badge className="border-yellow-300 bg-yellow-400 text-black hover:bg-yellow-500">
 									<Star className="mr-1 h-3.5 w-3.5 fill-current" />
@@ -1295,6 +1307,12 @@ const EventModal: React.FC<EventModalProps> = ({
 							<>
 								<span aria-hidden="true">•</span>
 								<span>{recentlyAddedLabel}</span>
+							</>
+						)}
+						{isRecentlyUpdated && (
+							<>
+								<span aria-hidden="true">•</span>
+								<span>{recentlyUpdatedLabel}</span>
 							</>
 						)}
 					</div>

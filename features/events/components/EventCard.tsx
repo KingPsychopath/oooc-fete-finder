@@ -7,6 +7,7 @@ import {
 	getGenrePreview,
 } from "@/features/events/genre-preview";
 import { isRecentlyAddedEvent } from "@/features/events/recently-added";
+import { isRecentlyUpdatedEvent } from "@/features/events/recently-updated";
 import {
 	CARD_SOCIAL_PROOF_MIN_SAVES,
 	type SocialProofDisplayMode,
@@ -73,6 +74,7 @@ export function EventCard({
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
 	const isCurrentlyPromoted = event.isPromoted === true;
 	const isNewlyAdded = isRecentlyAddedEvent(event);
+	const isRecentlyUpdated = !isNewlyAdded && isRecentlyUpdatedEvent(event);
 	const hasOOOCPick = event.isOOOCPick === true;
 	const dayNightPeriod = getDayNightPeriod(event.time ?? "");
 	const visibleEventType = getVisibleEventTypeLabel(event.type);
@@ -162,6 +164,11 @@ export function EventCard({
 					{isNewlyAdded && (
 						<Badge className="border border-emerald-500/30 bg-emerald-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800 shadow-none hover:bg-emerald-500/15 dark:text-emerald-200">
 							New
+						</Badge>
+					)}
+					{isRecentlyUpdated && (
+						<Badge className="border border-sky-500/30 bg-sky-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-800 shadow-none hover:bg-sky-500/15 dark:text-sky-200">
+							Updated
 						</Badge>
 					)}
 					<Badge variant="outline" className="text-xs">

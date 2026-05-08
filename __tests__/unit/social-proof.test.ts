@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	CARD_SOCIAL_PROOF_MAX_VISIBLE,
+	getSocialProofSaveWindowDays,
 	getSocialProofDisplayModes,
 } from "@/features/events/social-proof";
 
@@ -28,5 +29,23 @@ describe("getSocialProofDisplayModes", () => {
 		expect(modes.get("ninth")).toBe("generic");
 		expect(modes.has("tenth")).toBe(false);
 		expect(modes.has("below-threshold")).toBe(false);
+	});
+
+	it("uses a longer save window early and tightens near Fete", () => {
+		expect(
+			getSocialProofSaveWindowDays(new Date("2026-05-08T12:00:00.000Z")),
+		).toBe(21);
+		expect(
+			getSocialProofSaveWindowDays(new Date("2026-06-01T12:00:00.000Z")),
+		).toBe(14);
+		expect(
+			getSocialProofSaveWindowDays(new Date("2026-06-13T12:00:00.000Z")),
+		).toBe(14);
+		expect(
+			getSocialProofSaveWindowDays(new Date("2026-06-14T12:00:00.000Z")),
+		).toBe(7);
+		expect(
+			getSocialProofSaveWindowDays(new Date("2026-06-21T12:00:00.000Z")),
+		).toBe(7);
 	});
 });

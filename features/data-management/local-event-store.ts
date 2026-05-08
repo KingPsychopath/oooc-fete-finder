@@ -7,6 +7,7 @@ import {
 	type EventSheetRowMetadataRecord,
 	type EventSheetRowRecord,
 	type EventStoreOrigin,
+	buildMeaningfulEventRowHash,
 	getEventSheetStoreRepository,
 } from "@/lib/platform/postgres/event-sheet-store-repository";
 import Papa from "papaparse";
@@ -47,6 +48,7 @@ interface StorePreviewOptions {
 type SaveCsvMeta = {
 	updatedBy: string;
 	origin: EventStoreMetadata["origin"];
+	rowMetadata?: EventSheetRowMetadataRecord[];
 };
 
 interface EventStoreAdapter {
@@ -207,6 +209,7 @@ class PostgresEventStoreAdapter implements EventStoreAdapter {
 				origin: meta.origin,
 				checksum,
 			},
+			{ rowMetadata: meta.rowMetadata },
 		);
 
 		return {
@@ -334,16 +337,46 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 				record.firstSeenAt,
 			]),
 		);
+		const existingMetadataByEventKey = new Map(
+			this.state.rowMetadata.map((record) => [record.eventKey, record]),
+		);
+		const suppliedMetadataByEventKey = new Map(
+			(meta.rowMetadata ?? []).map((record) => [record.eventKey, record]),
+		);
+		const rowByEventKey = new Map(
+			sanitized.rows
+				.map((row) => [row.eventKey?.trim(), row] as const)
+				.filter((entry): entry is readonly [string, EventSheetRowRecord] =>
+					Boolean(entry[0]),
+				),
+		);
 		this.state.columns = toRepositoryColumns(sanitized.columns);
 		this.state.rows = sanitized.rows;
 		this.state.rowMetadata = sanitized.rows
 			.map((row) => row.eventKey?.trim())
 			.filter((eventKey): eventKey is string => Boolean(eventKey))
-			.map((eventKey) => ({
-				eventKey,
-				firstSeenAt:
-					existingFirstSeenAtByEventKey.get(eventKey) ?? defaultFirstSeenAt,
-			}));
+			.map((eventKey) => {
+				const row = rowByEventKey.get(eventKey);
+				const publicContentHash = row ? buildMeaningfulEventRowHash(row) : "";
+				const existing = existingMetadataByEventKey.get(eventKey);
+				const supplied = suppliedMetadataByEventKey.get(eventKey);
+				const baseline = supplied ?? existing;
+				const firstSeenAt =
+					baseline?.firstSeenAt ??
+					existingFirstSeenAtByEventKey.get(eventKey) ??
+					defaultFirstSeenAt;
+				const lastMeaningfulChangeAt =
+					baseline?.publicContentHash &&
+					baseline.publicContentHash !== publicContentHash
+						? nowIso
+						: (baseline?.lastMeaningfulChangeAt ?? firstSeenAt);
+				return {
+					eventKey,
+					firstSeenAt,
+					lastMeaningfulChangeAt,
+					publicContentHash,
+				};
+			});
 		this.state.meta = {
 			rowCount: sanitized.rows.length,
 			updatedAt: nowIso,

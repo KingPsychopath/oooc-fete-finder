@@ -6,7 +6,7 @@ import {
 	getEventCountForDateRange,
 } from "@/features/events/filtering";
 import { applyPromotedProjectionToEvents } from "@/features/events/promoted/service";
-import { SOCIAL_PROOF_SAVE_WINDOW_DAYS } from "@/features/events/social-proof";
+import { getSocialProofSaveWindowDays } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import { revalidatePath, revalidateTag } from "next/cache";
@@ -149,7 +149,7 @@ const getLiveEventsForRequest = cache(
 					const socialProofSaveCounts =
 						await repository.getSocialProofSaveCounts({
 							eventKeys: normalized.data.map((event) => event.eventKey),
-							windowDays: SOCIAL_PROOF_SAVE_WINDOW_DAYS,
+							windowDays: getSocialProofSaveWindowDays(),
 						});
 					normalized.data = normalized.data.map((event) => ({
 						...event,

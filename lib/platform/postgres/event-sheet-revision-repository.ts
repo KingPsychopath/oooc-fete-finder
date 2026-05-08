@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import type {
+	EventRowLifecycleMetadata,
 	EventSheetRevisionInput,
 	EventSheetRevisionRecord,
 	EventSheetRevisionSnapshot,
@@ -36,6 +37,7 @@ type EventSheetRevisionRow = {
 	summary: string;
 	href: string | null;
 	csv_content: string | null;
+	row_metadata_json: string | null;
 };
 
 const toIsoString = (value: Date | string): string =>
@@ -44,6 +46,32 @@ const toIsoString = (value: Date | string): string =>
 const toStringArray = (value: unknown): string[] => {
 	if (!Array.isArray(value)) return [];
 	return value.filter((item): item is string => typeof item === "string");
+};
+
+const isRowLifecycleMetadata = (
+	value: unknown,
+): value is EventRowLifecycleMetadata => {
+	if (!value || typeof value !== "object") return false;
+	const candidate = value as Record<string, unknown>;
+	return (
+		typeof candidate.eventKey === "string" &&
+		typeof candidate.firstSeenAt === "string" &&
+		typeof candidate.lastMeaningfulChangeAt === "string" &&
+		typeof candidate.publicContentHash === "string"
+	);
+};
+
+const parseRowMetadataJson = (
+	value: string | null,
+): EventRowLifecycleMetadata[] => {
+	if (!value) return [];
+	try {
+		const parsed = JSON.parse(value) as unknown;
+		if (!Array.isArray(parsed)) return [];
+		return parsed.filter(isRowLifecycleMetadata);
+	} catch {
+		return [];
+	}
 };
 
 const uniqueStrings = (values: string[], limit: number): string[] =>
@@ -121,13 +149,19 @@ export class EventSheetRevisionRepository {
 				autosave_count INTEGER NOT NULL DEFAULT 1,
 				summary TEXT NOT NULL,
 				href TEXT NULL,
-				csv_content TEXT NULL
+				csv_content TEXT NULL,
+				row_metadata_json TEXT NULL
 			)
 		`;
 
 		await this.sql`
 			ALTER TABLE app_event_sheet_revisions
 			ADD COLUMN IF NOT EXISTS csv_content TEXT NULL
+		`;
+
+		await this.sql`
+			ALTER TABLE app_event_sheet_revisions
+			ADD COLUMN IF NOT EXISTS row_metadata_json TEXT NULL
 		`;
 
 		await this.sql`
@@ -174,7 +208,8 @@ export class EventSheetRevisionRepository {
 				autosave_count,
 				summary,
 				href,
-				csv_content
+				csv_content,
+				row_metadata_json
 			)
 			VALUES (
 				${id},
@@ -193,7 +228,8 @@ export class EventSheetRevisionRepository {
 				1,
 				${input.summary || formatSummary(input.trigger, input)},
 				${input.href ?? null},
-				${input.csvContent}
+				${input.csvContent},
+				${JSON.stringify(input.rowMetadata)}
 			)
 			RETURNING *
 		`;
@@ -280,7 +316,8 @@ export class EventSheetRevisionRepository {
 				autosave_count = autosave_count + 1,
 				summary = ${summary},
 				href = ${input.href ?? recent.href},
-				csv_content = ${input.csvContent}
+				csv_content = ${input.csvContent},
+				row_metadata_json = ${JSON.stringify(input.rowMetadata)}
 			WHERE id = ${recent.id}
 			RETURNING *
 		`;
@@ -316,7 +353,8 @@ export class EventSheetRevisionRepository {
 				autosave_count,
 				summary,
 				href,
-				CASE WHEN csv_content IS NULL THEN NULL ELSE 'available' END AS csv_content
+				CASE WHEN csv_content IS NULL THEN NULL ELSE 'available' END AS csv_content,
+				NULL AS row_metadata_json
 			FROM app_event_sheet_revisions
 			ORDER BY updated_at DESC, id DESC
 			LIMIT ${safeLimit}
@@ -342,6 +380,7 @@ export class EventSheetRevisionRepository {
 		return {
 			revision: toRecord(row),
 			csvContent: row.csv_content,
+			rowMetadata: parseRowMetadataJson(row.row_metadata_json),
 		};
 	}
 }

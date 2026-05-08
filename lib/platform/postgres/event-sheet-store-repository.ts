@@ -1,8 +1,9 @@
 import "server-only";
 
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
+import type { EventRowLifecycleMetadata } from "@/features/data-management/event-sheet-revision-types";
 import {
 	type NormalizedRowDataRecord,
 	normalizeEventSheetRowData,
@@ -28,10 +29,7 @@ export interface EventSheetMetaRecord {
 	checksum: string;
 }
 
-export interface EventSheetRowMetadataRecord {
-	eventKey: string;
-	firstSeenAt: string;
-}
+export type EventSheetRowMetadataRecord = EventRowLifecycleMetadata;
 
 declare global {
 	var __ooocFeteFinderEventSheetStoreRepository:
@@ -59,6 +57,45 @@ const defaultMeta = (): EventSheetMetaRecord => ({
 const getRowEventKey = (row: EventSheetRowRecord): string | null => {
 	const value = row.eventKey?.trim();
 	return value ? value : null;
+};
+
+const MEANINGFUL_EVENT_FIELDS = [
+	"curated",
+	"hostCountry",
+	"audienceCountry",
+	"title",
+	"date",
+	"startTime",
+	"endTime",
+	"location",
+	"districtArea",
+	"categories",
+	"tags",
+	"price",
+	"primaryUrl",
+	"ageGuidance",
+	"setting",
+	"notes",
+	"sourceConfirmed",
+	"detailsQualityOverride",
+] as const;
+
+const normalizeMeaningfulValue = (value: string | undefined): string =>
+	(value ?? "").trim().replace(/\s+/g, " ");
+
+export const buildMeaningfulEventRowHash = (
+	row: EventSheetRowRecord,
+): string => {
+	const payload = Object.fromEntries(
+		MEANINGFUL_EVENT_FIELDS.map((field) => [
+			field,
+			normalizeMeaningfulValue(row[field]),
+		]),
+	);
+	return createHash("sha256")
+		.update(JSON.stringify(payload))
+		.digest("hex")
+		.slice(0, 16);
 };
 
 export class EventSheetStoreRepository {
@@ -90,6 +127,8 @@ export class EventSheetStoreRepository {
 				row_data JSONB NOT NULL,
 				event_key TEXT,
 				first_seen_at TIMESTAMPTZ,
+				last_meaningful_change_at TIMESTAMPTZ,
+				public_content_hash TEXT,
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)
@@ -106,6 +145,16 @@ export class EventSheetStoreRepository {
 		`;
 
 		await this.sql`
+			ALTER TABLE app_event_store_rows
+			ADD COLUMN IF NOT EXISTS last_meaningful_change_at TIMESTAMPTZ
+		`;
+
+		await this.sql`
+			ALTER TABLE app_event_store_rows
+			ADD COLUMN IF NOT EXISTS public_content_hash TEXT
+		`;
+
+		await this.sql`
 			UPDATE app_event_store_rows
 			SET event_key = NULLIF(row_data->>'eventKey', '')
 			WHERE event_key IS NULL
@@ -115,6 +164,12 @@ export class EventSheetStoreRepository {
 			UPDATE app_event_store_rows
 			SET first_seen_at = NOW() - INTERVAL '30 days'
 			WHERE first_seen_at IS NULL
+		`;
+
+		await this.sql`
+			UPDATE app_event_store_rows
+			SET last_meaningful_change_at = first_seen_at
+			WHERE last_meaningful_change_at IS NULL
 		`;
 
 		await this.sql`
@@ -217,10 +272,13 @@ export class EventSheetStoreRepository {
 		const rows = await this.sql<
 			{
 				event_key: string | null;
+				row_data: unknown;
 				first_seen_at: Date | string | null;
+				last_meaningful_change_at: Date | string | null;
+				public_content_hash: string | null;
 			}[]
 		>`
-			SELECT event_key, first_seen_at
+			SELECT event_key, row_data, first_seen_at, last_meaningful_change_at, public_content_hash
 			FROM app_event_store_rows
 			WHERE event_key IS NOT NULL
 			ORDER BY display_order ASC, id ASC
@@ -231,6 +289,12 @@ export class EventSheetStoreRepository {
 			.map((row) => ({
 				eventKey: row.event_key as string,
 				firstSeenAt: toIsoString(row.first_seen_at as Date | string),
+				lastMeaningfulChangeAt: row.last_meaningful_change_at
+					? toIsoString(row.last_meaningful_change_at)
+					: toIsoString(row.first_seen_at as Date | string),
+				publicContentHash:
+					row.public_content_hash ??
+					buildMeaningfulEventRowHash(normalizeEventSheetRowData(row.row_data)),
 			}));
 	}
 
@@ -252,6 +316,7 @@ export class EventSheetStoreRepository {
 		columns: EventSheetColumnRecord[],
 		rows: EventSheetRowRecord[],
 		meta: Omit<EventSheetMetaRecord, "rowCount" | "updatedAt">,
+		options?: { rowMetadata?: EventSheetRowMetadataRecord[] },
 	): Promise<EventSheetMetaRecord> {
 		await this.ready();
 		const now = new Date();
@@ -263,6 +328,12 @@ export class EventSheetStoreRepository {
 			: getBackfillFirstSeenAt(now);
 		const firstSeenAtByEventKey = new Map(
 			existingMetadata.map((record) => [record.eventKey, record.firstSeenAt]),
+		);
+		const existingMetadataByEventKey = new Map(
+			existingMetadata.map((record) => [record.eventKey, record]),
+		);
+		const suppliedMetadataByEventKey = new Map(
+			(options?.rowMetadata ?? []).map((record) => [record.eventKey, record]),
 		);
 
 		await this.sql`DELETE FROM app_event_store_rows`;
@@ -293,14 +364,32 @@ export class EventSheetStoreRepository {
 				Object.entries(row).map(([key, value]) => [key, String(value ?? "")]),
 			);
 			const eventKey = getRowEventKey(normalizedRow);
+			const publicContentHash = buildMeaningfulEventRowHash(normalizedRow);
+			const existing = eventKey
+				? existingMetadataByEventKey.get(eventKey)
+				: undefined;
+			const supplied = eventKey
+				? suppliedMetadataByEventKey.get(eventKey)
+				: undefined;
+			const baseline = supplied ?? existing;
+			const firstSeenAt = eventKey
+				? (baseline?.firstSeenAt ??
+					firstSeenAtByEventKey.get(eventKey) ??
+					defaultFirstSeenAt)
+				: defaultFirstSeenAt;
+			const lastMeaningfulChangeAt =
+				baseline?.publicContentHash &&
+				baseline.publicContentHash !== publicContentHash
+					? nowIso
+					: (baseline?.lastMeaningfulChangeAt ?? firstSeenAt);
 			return {
 				id: randomUUID(),
 				display_order: displayOrder,
 				row_data: this.sql.json(normalizedRow),
 				event_key: eventKey,
-				first_seen_at: eventKey
-					? (firstSeenAtByEventKey.get(eventKey) ?? defaultFirstSeenAt)
-					: defaultFirstSeenAt,
+				first_seen_at: firstSeenAt,
+				last_meaningful_change_at: lastMeaningfulChangeAt,
+				public_content_hash: publicContentHash,
 			};
 		});
 		if (rowRows.length > 0) {
@@ -312,6 +401,8 @@ export class EventSheetStoreRepository {
 					"row_data",
 					"event_key",
 					"first_seen_at",
+					"last_meaningful_change_at",
+					"public_content_hash",
 				)}
 			`;
 		}
