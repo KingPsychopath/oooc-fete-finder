@@ -421,6 +421,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									Clear
 								</ClearFiltersButton>
 							)}
+							{!isDesktopContentExpanded && compact && (
+								<div aria-hidden="true" className="h-7 w-[3.35rem] shrink-0" />
+							)}
 						</div>
 					)}
 					<div
@@ -698,9 +701,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						size="sm"
 						className="ooo-site-card overflow-hidden py-0"
 					>
-						<CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 border-b border-border/70 py-4">
-							<CardTitle className="flex min-w-0 items-center whitespace-nowrap text-2xl [font-family:var(--ooo-font-display)] font-light">
-								<Filter className="mr-2 h-4 w-4" />
+						<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 border-b border-border/70 py-5">
+							<CardTitle className="flex min-w-0 items-center whitespace-nowrap text-[1.35rem] [font-family:var(--ooo-font-display)] font-light leading-none">
+								<Filter className="mr-2.5 h-5 w-5 stroke-[1.8]" />
 								Filters
 								{hasActiveFilters && (
 									<Badge
@@ -714,12 +717,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							<div className="flex shrink-0 items-center gap-2">
 								{hasActiveFilters &&
 									(!isDesktopContentExpanded ||
-										!uiDecisions.activeFiltersAtTop) && (
+									!uiDecisions.activeFiltersAtTop ? (
 										<ClearFiltersButton
 											onClick={onClearFilters}
 											className="h-7 px-2.5"
 										/>
-									)}
+									) : (
+										<div
+											aria-hidden="true"
+											className="h-7 w-[3.875rem] shrink-0"
+										/>
+									))}
 								{onToggleExpanded && (
 									<Button
 										variant="ghost"
@@ -746,10 +754,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						</CardHeader>
 
 						<CardContent
-							className={`motion-safe:transition-[max-height,padding] motion-safe:duration-250 motion-safe:ease-out overflow-hidden relative ${
-								isDesktopContentExpanded
-									? "max-h-[650px] py-4"
-									: "max-h-24 py-4"
+							className={`motion-safe:transition-[max-height] motion-safe:duration-250 motion-safe:ease-out overflow-hidden relative py-3 ${
+								isDesktopContentExpanded ? "max-h-[650px]" : "max-h-24"
 							}`}
 						>
 							<div
@@ -758,7 +764,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							>
 								{/* Active Filters - Top when few filters */}
 								{hasActiveFilters && uiDecisions.activeFiltersAtTop && (
-									<div className="sticky top-0 z-10 bg-card/95 pb-3 backdrop-blur">
+									<div className="sticky top-0 z-10 bg-card/95 pb-1.5 backdrop-blur">
 										<ActiveFiltersDisplay compact compactRows="double" />
 									</div>
 								)}
@@ -769,7 +775,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									onValueChange={(value) =>
 										setOpenAccordionSections(value.filter(Boolean) as string[])
 									}
-									className="w-full space-y-2"
+									className="w-full space-y-1.5"
 								>
 									{/* Days & Times Section */}
 									<AccordionItem value="days">
