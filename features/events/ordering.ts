@@ -1,4 +1,6 @@
 import { isStrictISODate, parseISODateParts } from "@/features/events/date-utils";
+import { isRecentlyAddedEvent } from "@/features/events/recently-added";
+import { isRecentlyUpdatedEvent } from "@/features/events/recently-updated";
 import type { Event } from "@/features/events/types";
 
 type RegularEventSortTime = {
@@ -81,6 +83,19 @@ const getRegularEventSortTime = (event: Event): RegularEventSortTime => {
 const compareNames = (left: Event, right: Event): number =>
 	left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
 
+const getFreshActivityScore = (event: Event, now: Date): number => {
+	const newScore = isRecentlyAddedEvent(event, now) ? 1_000_000 : 0;
+	const updatedScore = isRecentlyUpdatedEvent(event, now) ? 700_000 : 0;
+	const saveScore = Math.min(event.socialProofSaveCount ?? 0, 999) * 1_000;
+	const changedTime = Date.parse(event.lastMeaningfulChangeAt ?? "");
+	const firstSeenTime = Date.parse(event.firstSeenAt ?? "");
+	const freshnessTime = Math.max(
+		Number.isFinite(changedTime) ? changedTime : 0,
+		Number.isFinite(firstSeenTime) ? firstSeenTime : 0,
+	);
+	return newScore + updatedScore + saveScore + Math.floor(freshnessTime / 86_400_000);
+};
+
 export const createRegularEventsComparator = (
 	now: Date,
 ): ((left: Event, right: Event) => number) => {
@@ -123,5 +138,18 @@ export const createRegularEventsComparator = (
 		}
 
 		return compareNames(left, right);
+	};
+};
+
+export const createFreshActivityComparator = (
+	now: Date,
+): ((left: Event, right: Event) => number) => {
+	const regularComparator = createRegularEventsComparator(now);
+
+	return (left, right) => {
+		const scoreDelta =
+			getFreshActivityScore(right, now) - getFreshActivityScore(left, now);
+		if (scoreDelta !== 0) return scoreDelta;
+		return regularComparator(left, right);
 	};
 };

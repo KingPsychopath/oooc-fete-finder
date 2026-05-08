@@ -62,6 +62,7 @@ import type {
 	EventSheetRevisionInput,
 	EventSheetRevisionRecord,
 	EventSheetRevisionSnapshot,
+	EventRowLifecycleMetadata,
 } from "./event-sheet-revision-types";
 import { EventStoreBackupService } from "./event-store-backup-service";
 import type {
@@ -1075,6 +1076,7 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 	columns?: EditableSheetColumn[];
 	rows?: EditableSheetRow[];
 	genreTaxonomy?: GenreTaxonomySnapshot;
+	rowMetadata?: EventRowLifecycleMetadata[];
 	sheetRevisions?: EventSheetRevisionRecord[];
 	sheetRevisionSupported?: boolean;
 	status?: Awaited<ReturnType<typeof LocalEventStore.getStatus>>;
@@ -1087,12 +1089,14 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 
 	try {
 		const revisionRepository = getEventSheetRevisionRepository();
-		const [status, csv, genreTaxonomy, sheetRevisions] = await Promise.all([
-			LocalEventStore.getStatus(),
-			LocalEventStore.getCsv(),
-			loadAdminGenreTaxonomy(),
-			revisionRepository ? revisionRepository.listRecent(24) : [],
-		]);
+		const [status, csv, rowMetadata, genreTaxonomy, sheetRevisions] =
+			await Promise.all([
+				LocalEventStore.getStatus(),
+				LocalEventStore.getCsv(),
+				LocalEventStore.getRowMetadata(),
+				loadAdminGenreTaxonomy(),
+				revisionRepository ? revisionRepository.listRecent(24) : [],
+			]);
 		const sheet = csvToEditableSheet(csv);
 		const sanitized = stripLegacyFeaturedColumn(sheet.columns, sheet.rows);
 		const sortedRows = sortEditableSheetRowsByDefaultDate(sanitized.rows);
@@ -1101,6 +1105,7 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 			success: true,
 			columns: sanitized.columns,
 			rows: sortedRows,
+			rowMetadata,
 			genreTaxonomy,
 			sheetRevisions,
 			sheetRevisionSupported: Boolean(revisionRepository),

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createRegularEventsComparator } from "@/features/events/ordering";
+import {
+	createFreshActivityComparator,
+	createRegularEventsComparator,
+} from "@/features/events/ordering";
 import { getEventTypeForDate, type Event } from "@/features/events/types";
 
 const makeEvent = ({
@@ -120,5 +123,43 @@ describe("createRegularEventsComparator", () => {
 
 		const sorted = [...events].sort(createRegularEventsComparator(now));
 		expect(sorted.map((event) => event.eventKey)).toEqual(["alpha", "zeta"]);
+	});
+});
+
+describe("createFreshActivityComparator", () => {
+	it("lifts new, updated, and strongly saved events before regular ordering", () => {
+		const now = new Date("2026-05-08T12:00:00.000Z");
+		const events: Event[] = [
+			makeEvent({
+				eventKey: "soon-regular",
+				date: "2026-06-20",
+				time: "18:00",
+			}),
+			makeEvent({
+				eventKey: "saved",
+				date: "2026-06-22",
+				socialProofSaveCount: 8,
+			}),
+			makeEvent({
+				eventKey: "updated",
+				date: "2026-06-22",
+				firstSeenAt: "2026-04-20T12:00:00.000Z",
+				lastMeaningfulChangeAt: "2026-05-08T08:00:00.000Z",
+			}),
+			makeEvent({
+				eventKey: "new",
+				date: "2026-06-22",
+				firstSeenAt: "2026-05-08T08:00:00.000Z",
+				lastMeaningfulChangeAt: "2026-05-08T08:00:00.000Z",
+			}),
+		];
+
+		const sorted = [...events].sort(createFreshActivityComparator(now));
+		expect(sorted.map((event) => event.eventKey)).toEqual([
+			"new",
+			"updated",
+			"saved",
+			"soon-regular",
+		]);
 	});
 });

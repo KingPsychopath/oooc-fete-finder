@@ -18,7 +18,10 @@ import {
 	toGenreLabel,
 } from "@/features/events/genre-normalization";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
-import { createRegularEventsComparator } from "@/features/events/ordering";
+import {
+	createFreshActivityComparator,
+	createRegularEventsComparator,
+} from "@/features/events/ordering";
 import { getSocialProofDisplayModes } from "@/features/events/social-proof";
 import {
 	type Event,
@@ -40,6 +43,7 @@ interface EventsClientProps {
 
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
 const REQUEST_UPDATE_PARAM = "requestUpdate";
+type EventSortMode = "recommended" | "fresh-activity";
 
 const normalizeBasePath = (value: string): string => {
 	if (!value || value === "/") return "";
@@ -124,6 +128,7 @@ export function EventsClient({
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 	const [showEmailGate, setShowEmailGate] = useState(false);
 	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false);
+	const [sortMode, setSortMode] = useState<EventSortMode>("recommended");
 	const invalidEventParamCountRef = useRef(0);
 	const allEventsRef = useRef<HTMLDivElement>(null);
 	const {
@@ -474,7 +479,11 @@ export function EventsClient({
 		const featuredMatches: Event[] = [];
 		const promotedMatches: Event[] = [];
 		const regularMatches: Event[] = [];
-		const regularEventsComparator = createRegularEventsComparator(new Date());
+		const now = new Date();
+		const regularEventsComparator =
+			sortMode === "fresh-activity"
+				? createFreshActivityComparator(now)
+				: createRegularEventsComparator(now);
 
 		for (const event of filteredEvents) {
 			if (shouldDisplayFeaturedEvent(event)) {
@@ -493,7 +502,7 @@ export function EventsClient({
 		);
 
 		return [...featuredMatches, ...promotedMatches, ...sortedRegularMatches];
-	}, [filteredEvents]);
+	}, [filteredEvents, sortMode]);
 
 	const socialProofDisplayModes = useMemo(
 		() => getSocialProofDisplayModes(filteredEvents),
@@ -619,6 +628,25 @@ export function EventsClient({
 			</div>
 
 			<div id="all-events" className="scroll-mt-6 sm:scroll-mt-28">
+				<div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/70 bg-background/65 px-3 py-2 text-sm">
+					<div>
+						<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+							Event order
+						</p>
+						<p className="text-xs text-muted-foreground">
+							Fresh activity lifts new, updated, and recently saved events.
+						</p>
+					</div>
+					<select
+						value={sortMode}
+						onChange={(event) => setSortMode(event.target.value as EventSortMode)}
+						className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+						aria-label="Sort events"
+					>
+						<option value="recommended">Recommended</option>
+						<option value="fresh-activity">Fresh activity</option>
+					</select>
+				</div>
 				<AllEvents
 					ref={allEventsRef}
 					events={allEventsOrdered}

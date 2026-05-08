@@ -40,7 +40,10 @@ import {
 	pruneEmptyEditableSheetRows,
 	toEditableSheetRowSortableDateTime,
 } from "@/features/data-management/csv/sheet-editor";
-import type { EventSheetRevisionRecord } from "@/features/data-management/event-sheet-revision-types";
+import type {
+	EventRowLifecycleMetadata,
+	EventSheetRevisionRecord,
+} from "@/features/data-management/event-sheet-revision-types";
 import {
 	type CountryOption,
 	filterCountryOptions,
@@ -83,6 +86,7 @@ type EditorPayload = {
 	success: boolean;
 	columns?: EditableSheetColumn[];
 	rows?: EditableSheetRow[];
+	rowMetadata?: EventRowLifecycleMetadata[];
 	genreTaxonomy?: GenreTaxonomySnapshot;
 	sheetRevisions?: EventSheetRevisionRecord[];
 	sheetRevisionSupported?: boolean;
@@ -127,6 +131,7 @@ type SheetSortMode =
 	| "latest-upcoming"
 	| "date-asc"
 	| "date-desc"
+	| "fresh-lifecycle"
 	| "sheet-order";
 type GenreCellPart = {
 	value: string;
@@ -603,6 +608,9 @@ const formatAdminDateTime = (isoDate: string): string => {
 	}).format(time);
 };
 
+const formatOptionalLifecycleTime = (isoDate: string | undefined): string =>
+	isoDate ? formatAdminDateTime(isoDate) : "Not captured";
+
 const formatRevisionStats = (revision: EventSheetRevisionRecord): string => {
 	const parts = [
 		revision.addedRows > 0 ? `+${revision.addedRows}` : null,
@@ -997,13 +1005,37 @@ const getRowDateTime = (
 	return toEditableSheetRowSortableDateTime(row, context);
 };
 
+const getRowLifecycleTime = (
+	row: EditableSheetRow,
+	metadataByEventKey: Map<string, EventRowLifecycleMetadata>,
+): number => {
+	const eventKey = row.eventKey?.trim();
+	const metadata = eventKey ? metadataByEventKey.get(eventKey) : undefined;
+	const changedTime = Date.parse(metadata?.lastMeaningfulChangeAt ?? "");
+	if (Number.isFinite(changedTime)) return changedTime;
+	const firstSeenTime = Date.parse(metadata?.firstSeenAt ?? "");
+	return Number.isFinite(firstSeenTime) ? firstSeenTime : 0;
+};
+
 const sortRowIndexes = (
 	indexes: number[],
 	rows: EditableSheetRow[],
 	sortMode: SheetSortMode,
+	metadataByEventKey: Map<string, EventRowLifecycleMetadata> = new Map(),
 ): number[] => {
 	if (sortMode === "sheet-order") {
 		return indexes;
+	}
+
+	if (sortMode === "fresh-lifecycle") {
+		return [...indexes].sort((leftIndex, rightIndex) => {
+			const leftTime = getRowLifecycleTime(rows[leftIndex], metadataByEventKey);
+			const rightTime = getRowLifecycleTime(
+				rows[rightIndex],
+				metadataByEventKey,
+			);
+			return rightTime - leftTime || leftIndex - rightIndex;
+		});
 	}
 
 	const referenceDate = new Date();
@@ -2892,6 +2924,34 @@ export const EventSheetEditorCard = ({
 		});
 		return counts;
 	}, [rows, sheetHealthIssuesByRow]);
+	const lifecycleMetadataByEventKey = useMemo(
+		() =>
+			new Map(
+				(initialEditorData?.rowMetadata ?? []).map((metadata) => [
+					metadata.eventKey,
+					metadata,
+				]),
+			),
+		[initialEditorData?.rowMetadata],
+	);
+	const lifecycleCounts = useMemo(() => {
+		let firstSeen = 0;
+		let changed = 0;
+		for (const row of rows) {
+			const eventKey = row.eventKey?.trim();
+			const metadata = eventKey
+				? lifecycleMetadataByEventKey.get(eventKey)
+				: undefined;
+			if (metadata?.firstSeenAt) firstSeen += 1;
+			if (
+				metadata?.lastMeaningfulChangeAt &&
+				metadata.lastMeaningfulChangeAt !== metadata.firstSeenAt
+			) {
+				changed += 1;
+			}
+		}
+		return { firstSeen, changed };
+	}, [lifecycleMetadataByEventKey, rows]);
 	const filteredRowIndexes = useMemo(() => {
 		const needle = query.trim().toLowerCase();
 		return rows
@@ -2916,8 +2976,13 @@ export const EventSheetEditorCard = ({
 			.filter((index) => index >= 0);
 	}, [qualityFilter, query, rows, sheetHealthIssuesByRow]);
 	const sortedRowIndexes = useMemo(() => {
-		return sortRowIndexes(filteredRowIndexes, rows, sortMode);
-	}, [filteredRowIndexes, rows, sortMode]);
+		return sortRowIndexes(
+			filteredRowIndexes,
+			rows,
+			sortMode,
+			lifecycleMetadataByEventKey,
+		);
+	}, [filteredRowIndexes, lifecycleMetadataByEventKey, rows, sortMode]);
 	const visibleRowIndexes = useMemo(() => {
 		return sortedRowIndexes.slice(0, displayLimit);
 	}, [sortedRowIndexes, displayLimit]);
@@ -3645,6 +3710,7 @@ export const EventSheetEditorCard = ({
 								<option value="latest-upcoming">Latest upcoming</option>
 								<option value="date-asc">Date/time ascending</option>
 								<option value="date-desc">Date/time descending</option>
+								<option value="fresh-lifecycle">Recently changed</option>
 								<option value="sheet-order">Sheet order</option>
 							</select>
 						</div>
@@ -4234,6 +4300,14 @@ export const EventSheetEditorCard = ({
 						<span>{rowQualityCounts.manual} manual override</span>
 					)}
 				</div>
+				<div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-background/65 px-3 py-2 text-xs text-muted-foreground">
+					<span className="font-medium text-foreground">Lifecycle</span>
+					<span>{lifecycleCounts.firstSeen} first-seen timestamps</span>
+					<span>{lifecycleCounts.changed} meaningful updates</span>
+					<span className="border-l border-border/70 pl-2">
+						Publish once after deploy to hydrate hashes for every row.
+					</span>
+				</div>
 				<div className="max-w-full overflow-auto rounded-md border max-h-[70vh]">
 					<table className="w-max min-w-full table-fixed border-separate border-spacing-0 text-xs">
 						<colgroup>
@@ -4379,6 +4453,10 @@ export const EventSheetEditorCard = ({
 									const rowIssues =
 										sheetHealthIssuesByRow.get(rowIndex + 1) ?? [];
 									const rowQuality = getRowQualityAssessment(row, rowIssues);
+									const eventKey = row.eventKey?.trim();
+									const lifecycleMetadata = eventKey
+										? lifecycleMetadataByEventKey.get(eventKey)
+										: undefined;
 									return (
 										<tr key={`row-${rowIndex}`} className="group/row align-top">
 											<td
@@ -4421,6 +4499,14 @@ export const EventSheetEditorCard = ({
 																className="h-1.5 w-1.5 rounded-full bg-green-700"
 																title="Source confirmed"
 															/>
+														)}
+														{lifecycleMetadata && (
+															<span
+																className="rounded border border-border/70 bg-muted/45 px-1 font-mono text-[9px] text-muted-foreground"
+																title={`First seen: ${formatOptionalLifecycleTime(lifecycleMetadata.firstSeenAt)} | Changed: ${formatOptionalLifecycleTime(lifecycleMetadata.lastMeaningfulChangeAt)}`}
+															>
+																meta
+															</span>
 														)}
 													<div className="flex items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
 														<Button
