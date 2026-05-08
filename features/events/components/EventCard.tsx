@@ -127,8 +127,8 @@ export function EventCard({
 			) : null}
 
 			{/* Header with proper overflow handling */}
-			<div className="flex items-start justify-between gap-3 mb-2">
-				<div className="flex items-center space-x-2 min-w-0 flex-1">
+			<div className="mb-2 flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+				<div className="flex min-w-[9rem] flex-1 items-center space-x-2">
 					<h3
 						className={`min-w-0 flex-1 truncate text-sm leading-tight font-medium ${
 							isCurrentlyFeatured ? "text-foreground font-semibold" : ""
@@ -144,7 +144,7 @@ export function EventCard({
 						)}
 					</h3>
 				</div>
-				<div className="flex items-center gap-1 flex-shrink-0 ml-auto">
+				<div className="ml-auto flex max-w-full flex-shrink-0 flex-wrap items-center justify-end gap-1">
 					{/* Featured badge - show whenever event is currently featured, regardless of variant */}
 					{isCurrentlyFeatured && (
 						<Badge
@@ -169,16 +169,16 @@ export function EventCard({
 						</Badge>
 					)}
 					{isNewlyAdded && (
-						<Badge className="border border-emerald-500/30 bg-emerald-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800 shadow-none hover:bg-emerald-500/15 dark:text-emerald-200">
+						<Badge className="max-w-full border border-emerald-500/30 bg-emerald-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800 shadow-none hover:bg-emerald-500/15 dark:text-emerald-200">
 							New
 						</Badge>
 					)}
 					{isRecentlyUpdated && (
-						<Badge className="border border-sky-500/30 bg-sky-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-800 shadow-none hover:bg-sky-500/15 dark:text-sky-200">
+						<Badge className="max-w-full border border-sky-500/30 bg-sky-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-800 shadow-none hover:bg-sky-500/15 dark:text-sky-200">
 							Updated
 						</Badge>
 					)}
-					<Badge variant="outline" className="text-xs">
+					<Badge variant="outline" className="max-w-full truncate text-xs">
 						{formatLocationAreaShort(event.arrondissement)}
 					</Badge>
 				</div>
