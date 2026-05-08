@@ -13,6 +13,7 @@ describe("user session cookie helpers", () => {
 		expect(session).toEqual({
 			isAuthenticated: true,
 			email: "owen@example.com",
+			userId: null,
 		});
 		expect(getUserAuthCookieOptions()).toMatchObject({
 			httpOnly: true,
@@ -29,10 +30,25 @@ describe("user session cookie helpers", () => {
 		expect(getUserSessionFromCookieHeader(undefined)).toEqual({
 			isAuthenticated: false,
 			email: null,
+			userId: null,
 		});
 		expect(getUserSessionFromCookieHeader(tamperedToken)).toEqual({
 			isAuthenticated: false,
 			email: null,
+			userId: null,
+		});
+	});
+
+	it("preserves a canonical user id in v2 tokens", () => {
+		const token = signUserSessionToken(
+			"owen@example.com",
+			"019b0000-0000-7000-8000-000000000001",
+		);
+
+		expect(getUserSessionFromCookieHeader(token)).toEqual({
+			isAuthenticated: true,
+			email: "owen@example.com",
+			userId: "019b0000-0000-7000-8000-000000000001",
 		});
 	});
 });

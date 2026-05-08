@@ -20,7 +20,18 @@ const validBody = {
 const loadRoute = async (): Promise<Setup> => {
 	vi.resetModules();
 
-	const addOrUpdate = vi.fn().mockResolvedValue({ alreadyExisted: false });
+	const addOrUpdate = vi.fn().mockResolvedValue({
+		record: {
+			userId: "019b0000-0000-7000-8000-000000000001",
+			firstName: "Owen",
+			lastName: "Hahaha",
+			email: "owen@example.com",
+			timestamp: "2026-05-08T00:00:00.000Z",
+			consent: true,
+			source: "auth-modal",
+		},
+		alreadyExisted: false,
+	});
 	const getStatus = vi.fn().mockResolvedValue({ provider: "postgres" });
 	const checkAuthVerifyIpLimit = vi.fn().mockResolvedValue({
 		allowed: true,
@@ -179,12 +190,14 @@ describe("/api/auth/verify route", () => {
 		const payload = (await response.json()) as {
 			success: boolean;
 			email: string;
+			userId: string;
 			storedIn: string;
 		};
 
 		expect(response.status).toBe(200);
 		expect(payload.success).toBe(true);
 		expect(payload.email).toBe("owen@example.com");
+		expect(payload.userId).toBe("019b0000-0000-7000-8000-000000000001");
 		expect(payload.storedIn).toBe("postgres");
 		expect(response.headers.get("set-cookie")).toContain("oooc_user_session=");
 		expect(response.headers.get("cache-control")).toContain("no-store");

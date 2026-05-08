@@ -126,6 +126,7 @@ export async function POST(request: Request) {
 			{
 				success: true,
 				email,
+				userId: storeResult.record.userId ?? null,
 				storedIn: storeStatus.provider,
 				message: storeResult.alreadyExisted
 					? "Existing user verified"
@@ -135,7 +136,7 @@ export async function POST(request: Request) {
 		);
 		response.cookies.set(
 			USER_AUTH_COOKIE_NAME,
-			signUserSessionToken(email),
+			signUserSessionToken(email, storeResult.record.userId),
 			getUserAuthCookieOptions(),
 		);
 		return response;

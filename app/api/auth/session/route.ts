@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
 			isAuthenticated: session.isAuthenticated,
 			isAdminAuthenticated: Boolean(adminSession),
 			email: session.email,
+			userId: session.userId,
 		},
 		{
 			headers: NO_STORE_HEADERS,

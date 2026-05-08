@@ -66,12 +66,18 @@ export class EventEngagementRepository {
 				id BIGSERIAL PRIMARY KEY,
 				event_key TEXT NOT NULL,
 				action_type TEXT NOT NULL CHECK (action_type IN ('click', 'outbound_click', 'calendar_sync')),
+				user_id TEXT,
 				session_id TEXT,
 				source TEXT,
 				path TEXT,
 				is_authenticated BOOLEAN,
 				recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)
+		`;
+
+		await this.sql`
+			ALTER TABLE app_event_engagement_stats
+			ADD COLUMN IF NOT EXISTS user_id TEXT
 		`;
 
 		await this.sql`
@@ -87,6 +93,11 @@ export class EventEngagementRepository {
 		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_app_event_engagement_time
 			ON app_event_engagement_stats (recorded_at DESC)
+		`;
+
+		await this.sql`
+			CREATE INDEX IF NOT EXISTS idx_app_event_engagement_user_time
+			ON app_event_engagement_stats (user_id, recorded_at DESC)
 		`;
 	}
 
@@ -105,6 +116,7 @@ export class EventEngagementRepository {
 			INSERT INTO app_event_engagement_stats (
 				event_key,
 				action_type,
+				user_id,
 				session_id,
 				source,
 				path,
@@ -114,6 +126,7 @@ export class EventEngagementRepository {
 			VALUES (
 				${eventKey},
 				${input.actionType},
+				${cleanString(input.userId, 80)},
 				${cleanString(input.sessionId, 120)},
 				${cleanString(input.source, 80)},
 				${cleanString(input.path, 280)},

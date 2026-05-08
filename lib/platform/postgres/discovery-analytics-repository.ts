@@ -14,6 +14,7 @@ export type DiscoveryActionType = "search" | "filter_apply" | "filter_clear";
 export interface DiscoveryAnalyticsRecordInput {
 	actionType: DiscoveryActionType;
 	sessionId?: string | null;
+	userId?: string | null;
 	userEmail?: string | null;
 	filterGroup?: string | null;
 	filterValue?: string | null;
@@ -61,6 +62,7 @@ export class DiscoveryAnalyticsRepository {
 				id BIGSERIAL PRIMARY KEY,
 				action_type TEXT NOT NULL CHECK (action_type IN ('search', 'filter_apply', 'filter_clear')),
 				session_id TEXT,
+				user_id TEXT,
 				user_email TEXT,
 				filter_group TEXT,
 				filter_value TEXT,
@@ -69,6 +71,11 @@ export class DiscoveryAnalyticsRepository {
 				is_authenticated BOOLEAN,
 				recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)
+		`;
+
+		await this.sql`
+			ALTER TABLE app_discovery_analytics_stats
+			ADD COLUMN IF NOT EXISTS user_id TEXT
 		`;
 
 		await this.sql`
@@ -87,6 +94,10 @@ export class DiscoveryAnalyticsRepository {
 			CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_search
 			ON app_discovery_analytics_stats (search_query, recorded_at DESC)
 		`;
+		await this.sql`
+			CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_user_time
+			ON app_discovery_analytics_stats (user_id, recorded_at DESC)
+		`;
 	}
 
 	private async ready(): Promise<void> {
@@ -99,6 +110,7 @@ export class DiscoveryAnalyticsRepository {
 			INSERT INTO app_discovery_analytics_stats (
 				action_type,
 				session_id,
+				user_id,
 				user_email,
 				filter_group,
 				filter_value,
@@ -110,6 +122,7 @@ export class DiscoveryAnalyticsRepository {
 			VALUES (
 				${input.actionType},
 				${cleanString(input.sessionId, 120)},
+				${cleanString(input.userId, 80)},
 				${cleanString(input.userEmail, 320)},
 				${cleanString(input.filterGroup, 80)},
 				${cleanString(input.filterValue, 120)},

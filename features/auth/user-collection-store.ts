@@ -4,6 +4,7 @@ import type {
 	UserCollectionAnalytics,
 	UserRecord,
 } from "@/features/auth/types";
+import { generateUserId, isValidUserId } from "@/features/auth/user-id";
 import {
 	type UserCollectionStoreSnapshot,
 	getUserCollectionRepository,
@@ -36,6 +37,7 @@ const emptyAnalytics = (): UserCollectionAnalytics => ({
 });
 
 const normalizeUserRecord = (user: UserRecord): UserRecord => ({
+	...(isValidUserId(user.userId) ? { userId: user.userId } : {}),
 	firstName: user.firstName.trim(),
 	lastName: user.lastName.trim(),
 	email: user.email.trim().toLowerCase(),
@@ -54,6 +56,7 @@ const toSortedUserRecords = (
 				new Date(left.timestamp).getTime(),
 		)
 		.map((record) => ({
+			userId: record.userId,
 			firstName: record.firstName,
 			lastName: record.lastName,
 			email: record.email,
@@ -167,11 +170,13 @@ export class UserCollectionStore {
 
 		const store = getMemoryStore();
 		const existing = store[normalized.email];
-		store[normalized.email] = {
+		const storedRecord: StoredUserRecord = {
 			...normalized,
+			userId: existing?.userId ?? normalized.userId ?? generateUserId(),
 			submissions: (existing?.submissions ?? 0) + 1,
 			firstSeenAt: existing?.firstSeenAt ?? normalized.timestamp,
 		};
+		store[normalized.email] = storedRecord;
 
 		const keys = Object.keys(store);
 		if (keys.length > MAX_USERS) {
@@ -186,7 +191,15 @@ export class UserCollectionStore {
 		}
 
 		return {
-			record: normalized,
+			record: {
+				userId: storedRecord.userId,
+				firstName: storedRecord.firstName,
+				lastName: storedRecord.lastName,
+				email: storedRecord.email,
+				timestamp: storedRecord.timestamp,
+				consent: storedRecord.consent,
+				source: storedRecord.source,
+			},
 			alreadyExisted: Boolean(existing),
 		};
 	}
@@ -217,7 +230,7 @@ export class UserCollectionStore {
 				status: {
 					provider: "postgres",
 					location:
-						"Postgres tables app_user_collection_events + app_user_collection_rollup",
+						"Postgres tables app_users + app_user_collection_events + app_user_collection_rollup",
 					totalUsers: snapshot.totalUsers,
 					lastUpdatedAt: snapshot.lastUpdatedAt,
 				},

@@ -4,6 +4,7 @@
  */
 
 export type UserRecord = {
+	userId?: string;
 	firstName: string;
 	lastName: string;
 	email: string;

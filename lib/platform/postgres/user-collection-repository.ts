@@ -6,6 +6,7 @@ import type {
 	UserCollectionSourceSummary,
 	UserRecord,
 } from "@/features/auth/types";
+import { getUserRepository } from "@/lib/platform/postgres/user-repository";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
 
@@ -23,6 +24,7 @@ export interface UserCollectionStoreSnapshot {
 }
 
 type RollupRow = {
+	user_id: string | null;
 	email: string;
 	first_name: string;
 	last_name: string;
@@ -74,6 +76,7 @@ export class UserCollectionRepository {
 		await this.sql`
 			CREATE TABLE IF NOT EXISTS app_user_collection_events (
 				id TEXT PRIMARY KEY,
+				user_id TEXT,
 				email TEXT NOT NULL,
 				first_name TEXT NOT NULL,
 				last_name TEXT NOT NULL,
@@ -87,6 +90,7 @@ export class UserCollectionRepository {
 		await this.sql`
 			CREATE TABLE IF NOT EXISTS app_user_collection_rollup (
 				email TEXT PRIMARY KEY,
+				user_id TEXT,
 				first_name TEXT NOT NULL,
 				last_name TEXT NOT NULL,
 				consent BOOLEAN NOT NULL,
@@ -96,6 +100,16 @@ export class UserCollectionRepository {
 				submission_count INTEGER NOT NULL DEFAULT 1,
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)
+		`;
+
+		await this.sql`
+			ALTER TABLE app_user_collection_events
+			ADD COLUMN IF NOT EXISTS user_id TEXT
+		`;
+
+		await this.sql`
+			ALTER TABLE app_user_collection_rollup
+			ADD COLUMN IF NOT EXISTS user_id TEXT
 		`;
 
 		await this.sql`
@@ -112,9 +126,15 @@ export class UserCollectionRepository {
 			CREATE INDEX IF NOT EXISTS idx_app_user_collection_events_source_submitted
 			ON app_user_collection_events (source, submitted_at DESC)
 		`;
+
+		await this.sql`
+			CREATE INDEX IF NOT EXISTS idx_app_user_collection_events_user_submitted
+			ON app_user_collection_events (user_id, submitted_at DESC)
+		`;
 	}
 
 	private async ready(): Promise<void> {
+		await getUserRepository()?.ensureReady();
 		await this.ensureSchemaPromise;
 	}
 
@@ -124,9 +144,21 @@ export class UserCollectionRepository {
 	}> {
 		await this.ready();
 		const nowIso = user.timestamp || new Date().toISOString();
+		const canonicalUser = await getUserRepository()?.upsertFromEmail({
+			email: user.email,
+			firstName: user.firstName,
+			lastName: user.lastName,
+			source: user.source,
+			privacyConsent: user.consent,
+			timestamp: nowIso,
+		});
+		const userId = canonicalUser?.id ?? user.userId ?? null;
+		const record = userId ? { ...user, userId } : user;
+
 		await this.sql`
 			INSERT INTO app_user_collection_events (
 				id,
+				user_id,
 				email,
 				first_name,
 				last_name,
@@ -136,11 +168,12 @@ export class UserCollectionRepository {
 			)
 			VALUES (
 				${randomUUID()},
-				${user.email},
-				${user.firstName},
-				${user.lastName},
-				${user.consent},
-				${user.source},
+				${userId},
+				${record.email},
+				${record.firstName},
+				${record.lastName},
+				${record.consent},
+				${record.source},
 				${nowIso}
 			)
 		`;
@@ -148,6 +181,7 @@ export class UserCollectionRepository {
 		const upsertRows = await this.sql<{ inserted: boolean }[]>`
 			INSERT INTO app_user_collection_rollup (
 				email,
+				user_id,
 				first_name,
 				last_name,
 				consent,
@@ -158,11 +192,12 @@ export class UserCollectionRepository {
 				updated_at
 			)
 			VALUES (
-				${user.email},
-				${user.firstName},
-				${user.lastName},
-				${user.consent},
-				${user.source},
+				${record.email},
+				${userId},
+				${record.firstName},
+				${record.lastName},
+				${record.consent},
+				${record.source},
 				${nowIso},
 				${nowIso},
 				1,
@@ -170,6 +205,7 @@ export class UserCollectionRepository {
 			)
 			ON CONFLICT (email)
 			DO UPDATE SET
+				user_id = COALESCE(app_user_collection_rollup.user_id, EXCLUDED.user_id),
 				first_name = EXCLUDED.first_name,
 				last_name = EXCLUDED.last_name,
 				consent = EXCLUDED.consent,
@@ -181,7 +217,7 @@ export class UserCollectionRepository {
 		`;
 
 		return {
-			record: user,
+			record,
 			alreadyExisted: !(upsertRows[0]?.inserted ?? false),
 		};
 	}
@@ -191,19 +227,22 @@ export class UserCollectionRepository {
 		const safeLimit = Math.max(1, Math.min(limit, 20_000));
 		const rows = await this.sql<RollupRow[]>`
 			SELECT
-				email,
-				first_name,
-				last_name,
-				consent,
-				source,
-				last_seen_at,
-				updated_at
-			FROM app_user_collection_rollup
-			ORDER BY last_seen_at DESC
+				COALESCE(r.user_id, u.id) AS user_id,
+				r.email,
+				r.first_name,
+				r.last_name,
+				r.consent,
+				r.source,
+				r.last_seen_at,
+				r.updated_at
+			FROM app_user_collection_rollup r
+			LEFT JOIN app_users u ON u.email_normalized = r.email
+			ORDER BY r.last_seen_at DESC
 			LIMIT ${safeLimit}
 		`;
 
 		return rows.map((row) => ({
+			...(row.user_id ? { userId: row.user_id } : {}),
 			firstName: row.first_name,
 			lastName: row.last_name,
 			email: row.email,

@@ -19,6 +19,7 @@
     "format": "biome format . --write",
     "bootstrap:postgres-store": "node scripts/bootstrap-postgres-store.mjs",
     "bootstrap:featured-schedule": "node scripts/seed-featured-schedule-from-legacy.mjs",
+    "backfill:user-identity": "node scripts/backfill-user-identity.mjs",
     "db:pull-events-csv": "node scripts/pull-event-store-csv.mjs",
     "health:check": "node scripts/health-check.mjs",
     "db:cli": "node scripts/db-cli.mjs"

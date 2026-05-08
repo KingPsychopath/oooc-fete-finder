@@ -91,6 +91,7 @@ export async function POST(request: Request) {
 	try {
 		await repository.incrementGenreScore({
 			email: userSession.email,
+			userId: userSession.userId,
 			genre,
 			incrementBy: parsed.data.incrementBy ?? 1,
 		});

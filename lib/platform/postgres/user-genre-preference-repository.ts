@@ -31,6 +31,7 @@ export class UserGenrePreferenceRepository {
 		await this.sql`
 			CREATE TABLE IF NOT EXISTS app_user_genre_preferences (
 				email TEXT NOT NULL,
+				user_id TEXT,
 				genre TEXT NOT NULL,
 				score INTEGER NOT NULL DEFAULT 0,
 				first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -40,8 +41,18 @@ export class UserGenrePreferenceRepository {
 		`;
 
 		await this.sql`
+			ALTER TABLE app_user_genre_preferences
+			ADD COLUMN IF NOT EXISTS user_id TEXT
+		`;
+
+		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_app_user_genre_preferences_genre_score
 			ON app_user_genre_preferences (genre, score DESC, last_seen_at DESC)
+		`;
+
+		await this.sql`
+			CREATE INDEX IF NOT EXISTS idx_app_user_genre_preferences_user_score
+			ON app_user_genre_preferences (user_id, score DESC, last_seen_at DESC)
 		`;
 	}
 
@@ -51,6 +62,7 @@ export class UserGenrePreferenceRepository {
 
 	async incrementGenreScore(input: {
 		email: string;
+		userId?: string | null;
 		genre: MusicGenre;
 		incrementBy?: number;
 	}): Promise<void> {
@@ -60,6 +72,7 @@ export class UserGenrePreferenceRepository {
 		await this.sql`
 			INSERT INTO app_user_genre_preferences (
 				email,
+				user_id,
 				genre,
 				score,
 				first_seen_at,
@@ -67,6 +80,7 @@ export class UserGenrePreferenceRepository {
 			)
 			VALUES (
 				${email},
+				${input.userId ?? null},
 				${input.genre},
 				${incrementBy},
 				NOW(),
@@ -74,6 +88,7 @@ export class UserGenrePreferenceRepository {
 			)
 			ON CONFLICT (email, genre)
 			DO UPDATE SET
+				user_id = COALESCE(app_user_genre_preferences.user_id, EXCLUDED.user_id),
 				score = app_user_genre_preferences.score + ${incrementBy},
 				last_seen_at = NOW()
 		`;

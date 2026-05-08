@@ -9,6 +9,7 @@ export type EventEngagementAction = (typeof EVENT_ENGAGEMENT_ACTIONS)[number];
 export interface EventEngagementRecordInput {
 	eventKey: string;
 	actionType: EventEngagementAction;
+	userId?: string | null;
 	sessionId?: string | null;
 	source?: string | null;
 	path?: string | null;

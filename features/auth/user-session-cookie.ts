@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isValidUserId } from "@/features/auth/user-id";
 import { env } from "@/lib/config/env";
 import jwt from "jsonwebtoken";
 
@@ -11,7 +12,8 @@ const MIN_AUTH_SECRET_LENGTH = 32;
 
 type UserSessionPayload = {
 	email: string;
-	v: 1;
+	userId?: string;
+	v: 1 | 2;
 } & jwt.JwtPayload;
 
 const getUserAuthSecret = (): string => {
@@ -29,11 +31,13 @@ const getUserAuthSecret = (): string => {
 	return authSecret;
 };
 
-export const signUserSessionToken = (email: string): string => {
+export const signUserSessionToken = (email: string, userId?: string): string => {
+	const safeUserId = isValidUserId(userId) ? userId : undefined;
 	return jwt.sign(
 		{
 			email: email.toLowerCase().trim(),
-			v: 1,
+			...(safeUserId ? { userId: safeUserId } : {}),
+			v: safeUserId ? 2 : 1,
 		},
 		getUserAuthSecret(),
 		{
@@ -65,15 +69,20 @@ const verifyUserSessionToken = (
 
 export const getUserSessionFromCookieHeader = (
 	cookieValue: string | undefined,
-): { isAuthenticated: boolean; email: string | null } => {
+): { isAuthenticated: boolean; email: string | null; userId: string | null } => {
 	const payload = verifyUserSessionToken(cookieValue);
 	if (!payload?.email) {
-		return { isAuthenticated: false, email: null };
+		return { isAuthenticated: false, email: null, userId: null };
 	}
+	const userId =
+		typeof payload.userId === "string" && isValidUserId(payload.userId)
+			? payload.userId
+			: null;
 
 	return {
 		isAuthenticated: true,
 		email: payload.email,
+		userId,
 	};
 };
 

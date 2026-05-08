@@ -15,6 +15,7 @@ import {
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { log } from "@/lib/platform/logger";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
+import { getUserEventRelationshipRepository } from "@/lib/platform/postgres/user-event-relationship-repository";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -132,11 +133,21 @@ export async function POST(request: Request) {
 		await repository.recordEventAction({
 			eventKey,
 			actionType: body.actionType as EventEngagementAction,
+			userId: userSession.userId,
 			sessionId: body.sessionId ?? null,
 			source: body.source ?? null,
 			path: body.path ?? null,
 			isAuthenticated: userSession.isAuthenticated,
 		});
+		if (body.actionType === "calendar_sync" && userSession.userId) {
+			await getUserEventRelationshipRepository()?.upsertRelationship({
+				userId: userSession.userId,
+				eventKey,
+				relationshipType: "calendar_added",
+				source: body.source ?? "calendar_sync",
+				notifyOnChanges: true,
+			});
+		}
 	} catch (error) {
 		log.warn("events.track", "Failed to record event engagement", {
 			eventKey,

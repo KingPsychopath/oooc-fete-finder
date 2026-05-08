@@ -119,6 +119,7 @@ export async function POST(request: Request) {
 		await repository.recordAction({
 			actionType: body.actionType,
 			sessionId: body.sessionId ?? null,
+			userId: userSession.userId,
 			userEmail: userSession.email,
 			filterGroup: body.filterGroup?.trim().toLowerCase() ?? null,
 			filterValue: body.filterValue?.trim().toLowerCase() ?? null,

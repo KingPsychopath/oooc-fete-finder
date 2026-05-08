@@ -15,7 +15,11 @@ const loadRoute = async (): Promise<Setup> => {
 	const verifyAdminSessionFromRequest = vi.fn().mockResolvedValue(null);
 	const getUserSessionFromCookieHeader = vi
 		.fn()
-		.mockReturnValue({ isAuthenticated: true, email: "owen@example.com" });
+		.mockReturnValue({
+			isAuthenticated: true,
+			email: "owen@example.com",
+			userId: "019b0000-0000-7000-8000-000000000001",
+		});
 	const getUserAuthCookieOptions = vi.fn().mockReturnValue({
 		httpOnly: true,
 		secure: false,
@@ -69,6 +73,7 @@ describe("/api/auth/session route", () => {
 			isAuthenticated: boolean;
 			isAdminAuthenticated: boolean;
 			email: string | null;
+			userId: string | null;
 		};
 
 		expect(response.status).toBe(200);
@@ -77,6 +82,7 @@ describe("/api/auth/session route", () => {
 			isAuthenticated: true,
 			isAdminAuthenticated: true,
 			email: "owen@example.com",
+			userId: "019b0000-0000-7000-8000-000000000001",
 		});
 		expect(response.headers.get("cache-control")).toContain("no-store");
 		expect(response.headers.get("pragma")).toBe("no-cache");
