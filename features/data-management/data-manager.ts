@@ -94,6 +94,20 @@ const validateProcessedEvents = (
 	};
 };
 
+const applyFirstSeenMetadata = (
+	events: Event[],
+	metadata: Awaited<ReturnType<typeof LocalEventStore.getRowMetadata>>,
+): Event[] => {
+	if (metadata.length === 0) return events;
+	const firstSeenAtByEventKey = new Map(
+		metadata.map((record) => [record.eventKey, record.firstSeenAt]),
+	);
+	return events.map((event) => {
+		const firstSeenAt = firstSeenAtByEventKey.get(event.eventKey);
+		return firstSeenAt ? { ...event, firstSeenAt } : event;
+	});
+};
+
 const loadFromStore: SourceDescriptor = {
 	id: "store",
 	async load(_warnings, options) {
@@ -107,9 +121,11 @@ const loadFromStore: SourceDescriptor = {
 				populateCoordinates: options?.populateCoordinates ?? false,
 				genreTaxonomy: options?.genreTaxonomy,
 			});
+			const rowMetadata = await LocalEventStore.getRowMetadata();
+			const events = applyFirstSeenMetadata(parsed.events, rowMetadata);
 
 			const validation = validateProcessedEvents(
-				parsed.events,
+				events,
 				parsed.count,
 				"store",
 				parsed.errors,

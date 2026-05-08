@@ -4,8 +4,8 @@ import { randomUUID } from "crypto";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
 import {
-	normalizeEventSheetRowData,
 	type NormalizedRowDataRecord,
+	normalizeEventSheetRowData,
 } from "./row-data-normalizer";
 
 export type EventStoreOrigin = "manual" | "local-file-import";
@@ -28,6 +28,11 @@ export interface EventSheetMetaRecord {
 	checksum: string;
 }
 
+export interface EventSheetRowMetadataRecord {
+	eventKey: string;
+	firstSeenAt: string;
+}
+
 declare global {
 	var __ooocFeteFinderEventSheetStoreRepository:
 		| EventSheetStoreRepository
@@ -37,6 +42,12 @@ declare global {
 const toIsoString = (value: Date | string): string =>
 	value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 
+const FIRST_SEEN_BACKFILL_DAYS = 30;
+const getBackfillFirstSeenAt = (now: Date = new Date()): string =>
+	new Date(
+		now.getTime() - FIRST_SEEN_BACKFILL_DAYS * 24 * 60 * 60 * 1000,
+	).toISOString();
+
 const defaultMeta = (): EventSheetMetaRecord => ({
 	rowCount: 0,
 	updatedAt: new Date(0).toISOString(),
@@ -44,6 +55,11 @@ const defaultMeta = (): EventSheetMetaRecord => ({
 	origin: "manual",
 	checksum: "",
 });
+
+const getRowEventKey = (row: EventSheetRowRecord): string | null => {
+	const value = row.eventKey?.trim();
+	return value ? value : null;
+};
 
 export class EventSheetStoreRepository {
 	private readonly sql: Sql;
@@ -72,14 +88,43 @@ export class EventSheetStoreRepository {
 				id TEXT PRIMARY KEY,
 				display_order INTEGER NOT NULL,
 				row_data JSONB NOT NULL,
+				event_key TEXT,
+				first_seen_at TIMESTAMPTZ,
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)
 		`;
 
 		await this.sql`
+			ALTER TABLE app_event_store_rows
+			ADD COLUMN IF NOT EXISTS event_key TEXT
+		`;
+
+		await this.sql`
+			ALTER TABLE app_event_store_rows
+			ADD COLUMN IF NOT EXISTS first_seen_at TIMESTAMPTZ
+		`;
+
+		await this.sql`
+			UPDATE app_event_store_rows
+			SET event_key = NULLIF(row_data->>'eventKey', '')
+			WHERE event_key IS NULL
+		`;
+
+		await this.sql`
+			UPDATE app_event_store_rows
+			SET first_seen_at = NOW() - INTERVAL '30 days'
+			WHERE first_seen_at IS NULL
+		`;
+
+		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_app_event_store_rows_display_order
 			ON app_event_store_rows (display_order ASC)
+		`;
+
+		await this.sql`
+			CREATE INDEX IF NOT EXISTS idx_app_event_store_rows_event_key
+			ON app_event_store_rows (event_key)
 		`;
 
 		await this.sql`
@@ -167,6 +212,28 @@ export class EventSheetStoreRepository {
 		return rows.map((row) => normalizeEventSheetRowData(row.row_data));
 	}
 
+	async getRowMetadata(): Promise<EventSheetRowMetadataRecord[]> {
+		await this.ready();
+		const rows = await this.sql<
+			{
+				event_key: string | null;
+				first_seen_at: Date | string | null;
+			}[]
+		>`
+			SELECT event_key, first_seen_at
+			FROM app_event_store_rows
+			WHERE event_key IS NOT NULL
+			ORDER BY display_order ASC, id ASC
+		`;
+
+		return rows
+			.filter((row) => row.event_key && row.first_seen_at)
+			.map((row) => ({
+				eventKey: row.event_key as string,
+				firstSeenAt: toIsoString(row.first_seen_at as Date | string),
+			}));
+	}
+
 	async getSheet(): Promise<{
 		columns: EventSheetColumnRecord[];
 		rows: EventSheetRowRecord[];
@@ -187,7 +254,16 @@ export class EventSheetStoreRepository {
 		meta: Omit<EventSheetMetaRecord, "rowCount" | "updatedAt">,
 	): Promise<EventSheetMetaRecord> {
 		await this.ready();
-		const nowIso = new Date().toISOString();
+		const now = new Date();
+		const nowIso = now.toISOString();
+		const existingMetadata = await this.getRowMetadata();
+		const hasExistingRows = (await this.getCounts()).rowCount > 0;
+		const defaultFirstSeenAt = hasExistingRows
+			? nowIso
+			: getBackfillFirstSeenAt(now);
+		const firstSeenAtByEventKey = new Map(
+			existingMetadata.map((record) => [record.eventKey, record.firstSeenAt]),
+		);
 
 		await this.sql`DELETE FROM app_event_store_rows`;
 		await this.sql`DELETE FROM app_event_store_columns`;
@@ -216,10 +292,15 @@ export class EventSheetStoreRepository {
 			const normalizedRow = Object.fromEntries(
 				Object.entries(row).map(([key, value]) => [key, String(value ?? "")]),
 			);
+			const eventKey = getRowEventKey(normalizedRow);
 			return {
 				id: randomUUID(),
 				display_order: displayOrder,
 				row_data: this.sql.json(normalizedRow),
+				event_key: eventKey,
+				first_seen_at: eventKey
+					? (firstSeenAtByEventKey.get(eventKey) ?? defaultFirstSeenAt)
+					: defaultFirstSeenAt,
 			};
 		});
 		if (rowRows.length > 0) {
@@ -229,6 +310,8 @@ export class EventSheetStoreRepository {
 					"id",
 					"display_order",
 					"row_data",
+					"event_key",
+					"first_seen_at",
 				)}
 			`;
 		}

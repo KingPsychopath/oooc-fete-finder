@@ -1,23 +1,24 @@
 import "server-only";
 
 import { createHash } from "crypto";
-import Papa from "papaparse";
 import { env } from "@/lib/config/env";
+import {
+	type EventSheetColumnRecord,
+	type EventSheetRowMetadataRecord,
+	type EventSheetRowRecord,
+	type EventStoreOrigin,
+	getEventSheetStoreRepository,
+} from "@/lib/platform/postgres/event-sheet-store-repository";
+import Papa from "papaparse";
+import { ensureUniqueEventKeys } from "./assembly/event-key";
 import { CSV_EVENT_COLUMNS } from "./csv/parser";
 import {
+	type EditableSheetColumn,
 	csvToEditableSheet,
 	editableSheetToCsv,
 	stripLegacyFeaturedColumn,
-	type EditableSheetColumn,
 	validateEditableSheet,
 } from "./csv/sheet-editor";
-import { ensureUniqueEventKeys } from "./assembly/event-key";
-import {
-	getEventSheetStoreRepository,
-	type EventStoreOrigin,
-	type EventSheetColumnRecord,
-	type EventSheetRowRecord,
-} from "@/lib/platform/postgres/event-sheet-store-repository";
 
 interface EventStoreMetadata {
 	rowCount: number;
@@ -50,6 +51,7 @@ type SaveCsvMeta = {
 
 interface EventStoreAdapter {
 	getCsv(): Promise<string | null>;
+	getRowMetadata(): Promise<EventSheetRowMetadataRecord[]>;
 	saveCsv(csvContent: string, meta: SaveCsvMeta): Promise<EventStoreMetadata>;
 	clearCsv(): Promise<void>;
 	getStatus(): Promise<EventStoreStatus>;
@@ -62,6 +64,12 @@ const DEFAULT_META: EventStoreMetadata = {
 	origin: "manual",
 	checksum: "",
 };
+
+const FIRST_SEEN_BACKFILL_DAYS = 30;
+const getBackfillFirstSeenAt = (now: Date = new Date()): string =>
+	new Date(
+		now.getTime() - FIRST_SEEN_BACKFILL_DAYS * 24 * 60 * 60 * 1000,
+	).toISOString();
 
 const sanitizeCsv = (csvContent: string): string =>
 	csvContent.replace(/\r\n/g, "\n").trim();
@@ -125,10 +133,9 @@ const parseCsvPreview = (
 	});
 	const headers = parseResult.meta.fields || CSV_EVENT_COLUMNS;
 	const normalizedLimit = Math.max(1, Math.min(limit, 100));
-	const sourceRows =
-		options?.random ?
-			sampleRows(parseResult.data, normalizedLimit)
-		: 	parseResult.data.slice(0, normalizedLimit);
+	const sourceRows = options?.random
+		? sampleRows(parseResult.data, normalizedLimit)
+		: parseResult.data.slice(0, normalizedLimit);
 
 	const rows = sourceRows.map((row) => {
 		const normalizedRow: StorePreviewRow = {};
@@ -166,7 +173,14 @@ class PostgresEventStoreAdapter implements EventStoreAdapter {
 		return editableSheetToCsv(sanitized.columns, sanitized.rows);
 	}
 
-	async saveCsv(csvContent: string, meta: SaveCsvMeta): Promise<EventStoreMetadata> {
+	async getRowMetadata(): Promise<EventSheetRowMetadataRecord[]> {
+		return this.ensureRepository().getRowMetadata();
+	}
+
+	async saveCsv(
+		csvContent: string,
+		meta: SaveCsvMeta,
+	): Promise<EventStoreMetadata> {
 		const cleanedCsv = sanitizeCsv(csvContent);
 		if (!cleanedCsv) {
 			throw new Error("CSV content cannot be empty");
@@ -178,7 +192,10 @@ class PostgresEventStoreAdapter implements EventStoreAdapter {
 			throw new Error(validation.error || "Invalid CSV content");
 		}
 		const keyedRows = ensureUniqueEventKeys(validation.rows);
-		const sanitized = stripLegacyFeaturedColumn(validation.columns, keyedRows.rows);
+		const sanitized = stripLegacyFeaturedColumn(
+			validation.columns,
+			keyedRows.rows,
+		);
 		const normalizedCsv = editableSheetToCsv(sanitized.columns, sanitized.rows);
 
 		const checksum = buildChecksum(normalizedCsv);
@@ -241,10 +258,11 @@ class PostgresEventStoreAdapter implements EventStoreAdapter {
 declare global {
 	var __ooocFeteFinderMemoryEventStoreData:
 		| {
-			columns: EventSheetColumnRecord[];
-			rows: EventSheetRowRecord[];
-			meta: EventStoreMetadata;
-		}
+				columns: EventSheetColumnRecord[];
+				rows: EventSheetRowRecord[];
+				rowMetadata: EventSheetRowMetadataRecord[];
+				meta: EventStoreMetadata;
+		  }
 		| undefined;
 }
 
@@ -262,6 +280,7 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 					displayOrder: index,
 				})),
 				rows: [],
+				rowMetadata: [],
 				meta: DEFAULT_META,
 			};
 		}
@@ -280,7 +299,14 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 		return editableSheetToCsv(sanitized.columns, sanitized.rows);
 	}
 
-	async saveCsv(csvContent: string, meta: SaveCsvMeta): Promise<EventStoreMetadata> {
+	async getRowMetadata(): Promise<EventSheetRowMetadataRecord[]> {
+		return this.state.rowMetadata.slice();
+	}
+
+	async saveCsv(
+		csvContent: string,
+		meta: SaveCsvMeta,
+	): Promise<EventStoreMetadata> {
 		const cleanedCsv = sanitizeCsv(csvContent);
 		if (!cleanedCsv) {
 			throw new Error("CSV content cannot be empty");
@@ -292,15 +318,35 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 			throw new Error(validation.error || "Invalid CSV content");
 		}
 		const keyedRows = ensureUniqueEventKeys(validation.rows);
-		const sanitized = stripLegacyFeaturedColumn(validation.columns, keyedRows.rows);
+		const sanitized = stripLegacyFeaturedColumn(
+			validation.columns,
+			keyedRows.rows,
+		);
 		const normalizedCsv = editableSheetToCsv(sanitized.columns, sanitized.rows);
 
-		const now = new Date().toISOString();
+		const now = new Date();
+		const nowIso = now.toISOString();
+		const defaultFirstSeenAt =
+			this.state.rowMetadata.length > 0 ? nowIso : getBackfillFirstSeenAt(now);
+		const existingFirstSeenAtByEventKey = new Map(
+			this.state.rowMetadata.map((record) => [
+				record.eventKey,
+				record.firstSeenAt,
+			]),
+		);
 		this.state.columns = toRepositoryColumns(sanitized.columns);
 		this.state.rows = sanitized.rows;
+		this.state.rowMetadata = sanitized.rows
+			.map((row) => row.eventKey?.trim())
+			.filter((eventKey): eventKey is string => Boolean(eventKey))
+			.map((eventKey) => ({
+				eventKey,
+				firstSeenAt:
+					existingFirstSeenAtByEventKey.get(eventKey) ?? defaultFirstSeenAt,
+			}));
 		this.state.meta = {
 			rowCount: sanitized.rows.length,
-			updatedAt: now,
+			updatedAt: nowIso,
 			updatedBy: meta.updatedBy,
 			origin: meta.origin,
 			checksum: buildChecksum(normalizedCsv),
@@ -310,6 +356,7 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 
 	async clearCsv(): Promise<void> {
 		this.state.rows = [];
+		this.state.rowMetadata = [];
 		this.state.meta = {
 			...DEFAULT_META,
 			updatedAt: new Date().toISOString(),
@@ -340,7 +387,14 @@ class UnavailableEventStoreAdapter implements EventStoreAdapter {
 		throw new Error(this.reason);
 	}
 
-	async saveCsv(_csvContent: string, _meta: SaveCsvMeta): Promise<EventStoreMetadata> {
+	async getRowMetadata(): Promise<EventSheetRowMetadataRecord[]> {
+		return [];
+	}
+
+	async saveCsv(
+		_csvContent: string,
+		_meta: SaveCsvMeta,
+	): Promise<EventStoreMetadata> {
 		throw new Error(this.reason);
 	}
 
@@ -381,7 +435,14 @@ export class LocalEventStore {
 		return this.adapter().getCsv();
 	}
 
-	static async saveCsv(csvContent: string, meta: SaveCsvMeta): Promise<EventStoreMetadata> {
+	static async getRowMetadata(): Promise<EventSheetRowMetadataRecord[]> {
+		return this.adapter().getRowMetadata();
+	}
+
+	static async saveCsv(
+		csvContent: string,
+		meta: SaveCsvMeta,
+	): Promise<EventStoreMetadata> {
 		return this.adapter().saveCsv(csvContent, meta);
 	}
 

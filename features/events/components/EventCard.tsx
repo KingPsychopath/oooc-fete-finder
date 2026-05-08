@@ -6,6 +6,7 @@ import {
 	type GenreFrequency,
 	getGenrePreview,
 } from "@/features/events/genre-preview";
+import { isRecentlyAddedEvent } from "@/features/events/recently-added";
 import {
 	CARD_SOCIAL_PROOF_MIN_SAVES,
 	type SocialProofDisplayMode,
@@ -71,6 +72,7 @@ export function EventCard({
 	// Check if event should display as featured (with expiration logic)
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
 	const isCurrentlyPromoted = event.isPromoted === true;
+	const isNewlyAdded = isRecentlyAddedEvent(event);
 	const hasOOOCPick = event.isOOOCPick === true;
 	const dayNightPeriod = getDayNightPeriod(event.time ?? "");
 	const visibleEventType = getVisibleEventTypeLabel(event.type);
@@ -155,6 +157,11 @@ export function EventCard({
 								<Megaphone className="h-3 w-3" />
 								Promoted
 							</span>
+						</Badge>
+					)}
+					{isNewlyAdded && (
+						<Badge className="border border-emerald-500/30 bg-emerald-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800 shadow-none hover:bg-emerald-500/15 dark:text-emerald-200">
+							New
 						</Badge>
 					)}
 					<Badge variant="outline" className="text-xs">

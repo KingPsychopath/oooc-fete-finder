@@ -152,6 +152,7 @@ export type Event = {
 	isPromoted?: boolean; // Indicates promoted listing projection is active
 	promotedAt?: string; // ISO timestamp when promoted window starts
 	promotedEndsAt?: string; // ISO timestamp when promoted window ends
+	firstSeenAt?: string; // ISO timestamp when this app first saw the event in the managed store
 	socialProofSaveCount?: number; // Public social proof count from recent, session-deduped calendar sync actions
 	nationality?: Nationality[]; // GB/FR indicators from CSV - now supports multiple
 	hostCountries?: Nationality[]; // Host Country column, kept separate for detail views

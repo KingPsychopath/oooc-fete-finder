@@ -33,6 +33,10 @@ import {
 	toGenreLabel,
 } from "@/features/events/genre-normalization";
 import {
+	formatRecentlyAddedLabel,
+	isRecentlyAddedEvent,
+} from "@/features/events/recently-added";
+import {
 	CARD_SOCIAL_PROOF_MIN_SAVES,
 	type SocialProofDisplayMode,
 } from "@/features/events/social-proof";
@@ -453,6 +457,8 @@ const EventModal: React.FC<EventModalProps> = ({
 
 	if (!isOpen || !event) return null;
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
+	const isNewlyAdded = isRecentlyAddedEvent(event);
+	const recentlyAddedLabel = formatRecentlyAddedLabel(event);
 	const canAddToCalendar = isCalendarDateValid(event.date);
 	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
 	const savedLabel = socialProofSaveCount === 1 ? "person" : "people";
@@ -518,26 +524,25 @@ const EventModal: React.FC<EventModalProps> = ({
 	const secondaryLinks = allLinks.slice(1);
 	const detailsQuality = event.detailsQuality ?? "review";
 	const sourceConfirmed = event.sourceConfirmed ?? false;
-	const detailsStatus =
-		sourceConfirmed
+	const detailsStatus = sourceConfirmed
+		? {
+				label: "Details confirmed",
+				dotClassName: "bg-green-500",
+			}
+		: detailsQuality === "complete"
 			? {
-					label: "Details confirmed",
+					label: "Details complete",
 					dotClassName: "bg-green-500",
 				}
-			: detailsQuality === "complete"
+			: detailsQuality === "blocking"
 				? {
-						label: "Details complete",
-						dotClassName: "bg-green-500",
+						label: "Some details TBA",
+						dotClassName: "bg-red-500",
 					}
-				: detailsQuality === "blocking"
-					? {
-							label: "Some details TBA",
-							dotClassName: "bg-red-500",
-						}
-					: {
-							label: "Details may change",
-							dotClassName: "bg-yellow-500",
-						};
+				: {
+						label: "Details may change",
+						dotClassName: "bg-yellow-500",
+					};
 	const allGenres = event.genre || [];
 	const shouldCollapseGenres =
 		allGenres.length >= MODAL_GENRE_PREVIEW_LIMIT + MODAL_MIN_COLLAPSED_GENRES;
@@ -547,7 +552,8 @@ const EventModal: React.FC<EventModalProps> = ({
 			: allGenres.slice(0, MODAL_GENRE_PREVIEW_LIMIT);
 	const extraGenreCount = Math.max(0, allGenres.length - visibleGenres.length);
 	const hasHeaderBadges = Boolean(
-		event.isOOOCPick ||
+		isNewlyAdded ||
+			event.isOOOCPick ||
 			(socialProofMode &&
 				socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES) ||
 			event.category ||
@@ -1043,6 +1049,11 @@ const EventModal: React.FC<EventModalProps> = ({
 					</div>
 					{hasHeaderBadges && (
 						<div className="mt-2 flex flex-wrap items-center gap-1.5">
+							{isNewlyAdded && (
+								<Badge className="border border-emerald-500/30 bg-emerald-500/10 text-emerald-800 hover:bg-emerald-500/15 dark:text-emerald-200">
+									New
+								</Badge>
+							)}
 							{event.isOOOCPick && (
 								<Badge className="border-yellow-300 bg-yellow-400 text-black hover:bg-yellow-500">
 									<Star className="mr-1 h-3.5 w-3.5 fill-current" />
@@ -1280,6 +1291,12 @@ const EventModal: React.FC<EventModalProps> = ({
 							className={`h-2 w-2 rounded-full ${detailsStatus.dotClassName}`}
 						/>
 						<span>{detailsStatus.label}</span>
+						{isNewlyAdded && (
+							<>
+								<span aria-hidden="true">•</span>
+								<span>{recentlyAddedLabel}</span>
+							</>
+						)}
 					</div>
 
 					<div className="space-y-1.5 border-t border-border/70 pt-3">
