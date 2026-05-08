@@ -36,7 +36,8 @@ export default function Home() {
 						href="/how-it-works"
 						className="mt-3 inline-flex text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-foreground/78 hover:underline"
 					>
-						New here? See how Fête Finder works →
+						New here? See how Fête Finder{" "}
+						<span className="whitespace-nowrap">works →</span>
 					</Link>
 					<div className="mt-6 border-t border-border" role="presentation" />
 				</section>
