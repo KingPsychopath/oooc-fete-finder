@@ -8,7 +8,6 @@ import EmailGateModal from "@/features/auth/components/EmailGateModal";
 import { AllEvents } from "@/features/events/components/AllEvents";
 import EventModal from "@/features/events/components/EventModal";
 import EventStats from "@/features/events/components/EventStats";
-import { FeteFinderTour } from "@/features/events/components/FeteFinderTour";
 import FilterPanel from "@/features/events/components/FilterPanel";
 import SearchBar from "@/features/events/components/SearchBar";
 import { getCountryOption } from "@/features/events/countries";
@@ -36,6 +35,7 @@ import {
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { EventsMapCard } from "@/features/maps/components/events-map-card";
 import { clientLog } from "@/lib/platform/client-logger";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -52,6 +52,14 @@ const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
 const REQUEST_UPDATE_PARAM = "requestUpdate";
 type EventSortMode = "upcoming" | "fresh-activity";
 type PendingAuthAction = "show-oooc-picks" | { type: "search"; query: string };
+
+const FeteFinderTour = dynamic(
+	() =>
+		import("@/features/events/components/FeteFinderTour").then(
+			(module) => module.FeteFinderTour,
+		),
+	{ ssr: false },
+);
 
 const normalizeBasePath = (value: string): string => {
 	if (!value || value === "/") return "";

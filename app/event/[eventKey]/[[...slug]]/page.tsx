@@ -14,8 +14,8 @@ import {
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { HomeEventsSection } from "../../../HomeEventsSection";
-import { HomeEventsSectionLoading } from "../../../HomeEventsSectionLoading";
 import { HomeHeader } from "../../../HomeHeader";
+import { EventShareLoadingShell } from "./EventShareLoadingShell";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -162,7 +162,7 @@ export default async function EventSharePage({ params }: EventSharePageProps) {
 				className="container mx-auto px-4 py-8"
 				tabIndex={-1}
 			>
-				<Suspense fallback={<HomeEventsSectionLoading />}>
+				<Suspense fallback={<EventShareLoadingShell />}>
 					<HomeEventsSection
 						mapLoadStrategy={homeMapLoadStrategy}
 						initialSelectedEventKey={eventKey}

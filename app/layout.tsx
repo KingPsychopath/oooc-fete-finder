@@ -114,6 +114,7 @@ export default function RootLayout({
 		<html
 			lang="en"
 			className={`${GeistSans.variable} ${GeistMono.variable} ${crimsonPro.variable}`}
+			style={{ backgroundColor: "var(--background, #f6f3ee)" }}
 			suppressHydrationWarning
 		>
 			<head>
@@ -169,7 +170,11 @@ export default function RootLayout({
 					content={`${basePath}/icons/icon-192x192.png`}
 				/>
 			</head>
-			<body suppressHydrationWarning className="antialiased">
+			<body
+				suppressHydrationWarning
+				className="antialiased"
+				style={{ backgroundColor: "var(--background, #f6f3ee)" }}
+			>
 				<a
 					href="#main-content"
 					className="sr-only rounded-md border-2 border-foreground bg-background px-4 py-2 text-sm font-medium text-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
