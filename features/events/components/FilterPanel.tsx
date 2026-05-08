@@ -111,6 +111,7 @@ type FilterPanelProps = {
 	onOpen?: () => void;
 	isExpanded?: boolean;
 	onToggleExpanded?: () => void;
+	hideFloatingButton?: boolean;
 };
 
 const FilterPanel: React.FC<FilterPanelProps> = ({
@@ -147,6 +148,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onOpen,
 	isExpanded,
 	onToggleExpanded,
+	hideFloatingButton = false,
 }) => {
 	const sectionClassName =
 		"space-y-3 rounded-xl border border-border/70 bg-background/58 p-3";
@@ -566,14 +568,16 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		return (
 			<>
 				{/* Mobile floating button */}
-				<FilterButton
-					onClickAction={onOpen || onClose}
-					hasActiveFilters={hasActiveFilters}
-					activeFiltersCount={activeFilterCount}
-					className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+var(--oooc-mobile-nav-offset,1rem))] z-30 min-w-[8.25rem] rounded-full px-4 shadow-lg transition-[bottom] duration-300 ease-out lg:hidden"
-					variant="outline"
-					size="sm"
-				/>
+				{!hideFloatingButton && (
+					<FilterButton
+						onClickAction={onOpen || onClose}
+						hasActiveFilters={hasActiveFilters}
+						activeFiltersCount={activeFilterCount}
+						className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+var(--oooc-mobile-nav-offset,1rem))] z-30 min-w-[8.25rem] rounded-full px-4 shadow-lg transition-[bottom] duration-300 ease-out lg:hidden"
+						variant="outline"
+						size="sm"
+					/>
+				)}
 
 				{/* Desktop version - always visible */}
 				<div className="hidden lg:block">

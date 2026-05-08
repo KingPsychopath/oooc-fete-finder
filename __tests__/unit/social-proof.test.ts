@@ -31,6 +31,32 @@ describe("getSocialProofDisplayModes", () => {
 		expect(modes.has("below-threshold")).toBe(false);
 	});
 
+	it("uses strong historical saves for generic proof only", () => {
+		const modes = getSocialProofDisplayModes([
+			{ eventKey: "first", name: "First", socialProofSaveCount: 20 },
+			{ eventKey: "second", name: "Second", socialProofSaveCount: 19 },
+			{ eventKey: "third", name: "Third", socialProofSaveCount: 18 },
+			{
+				eventKey: "historical",
+				name: "Historical",
+				socialProofSaveCount: 1,
+				socialProofHistoricalSaveCount: 10,
+			},
+			{
+				eventKey: "weak-historical",
+				name: "Weak Historical",
+				socialProofSaveCount: 1,
+				socialProofHistoricalSaveCount: 9,
+			},
+		]);
+
+		expect(modes.get("first")).toBe("numeric");
+		expect(modes.get("second")).toBe("numeric");
+		expect(modes.get("third")).toBe("numeric");
+		expect(modes.get("historical")).toBe("generic");
+		expect(modes.has("weak-historical")).toBe(false);
+	});
+
 	it("uses a longer save window early and tightens near Fete", () => {
 		expect(
 			getSocialProofSaveWindowDays(new Date("2026-05-08T12:00:00.000Z")),

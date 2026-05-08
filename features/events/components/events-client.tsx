@@ -128,6 +128,8 @@ export function EventsClient({
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [isMapExpanded, setIsMapExpanded] = useState(false);
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+	const [isAllEventsHeaderVisible, setIsAllEventsHeaderVisible] =
+		useState(false);
 	const [showEmailGate, setShowEmailGate] = useState(false);
 	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false);
 	const [sortMode, setSortMode] = useState<EventSortMode>("upcoming");
@@ -396,6 +398,27 @@ export function EventsClient({
 
 	const toggleFilterExpansion = useCallback(() => {
 		setIsFilterExpanded((previous) => !previous);
+	}, []);
+
+	useEffect(() => {
+		if (typeof IntersectionObserver === "undefined") return;
+		const allEventsElement = allEventsRef.current;
+		if (!allEventsElement) return;
+
+		const observer = new IntersectionObserver(
+			([entry]) => {
+				setIsAllEventsHeaderVisible(entry.isIntersecting);
+			},
+			{
+				rootMargin: "-8% 0px -58% 0px",
+				threshold: 0,
+			},
+		);
+		observer.observe(allEventsElement);
+
+		return () => {
+			observer.disconnect();
+		};
 	}, []);
 
 	const handleEventClick = useCallback(
@@ -689,6 +712,7 @@ export function EventsClient({
 						onOpen={() => setIsFilterOpen(true)}
 						isExpanded={isFilterExpanded}
 						onToggleExpanded={toggleFilterExpansion}
+						hideFloatingButton={isAllEventsHeaderVisible}
 					/>
 				</AuthGate>
 			</div>

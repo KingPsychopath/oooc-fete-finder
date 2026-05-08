@@ -9,8 +9,8 @@ import {
 import { isRecentlyAddedEvent } from "@/features/events/recently-added";
 import { isRecentlyUpdatedEvent } from "@/features/events/recently-updated";
 import {
-	CARD_SOCIAL_PROOF_MIN_SAVES,
 	type SocialProofDisplayMode,
+	shouldShowSocialProofBadge,
 } from "@/features/events/social-proof";
 import {
 	type Event,
@@ -79,11 +79,18 @@ export function EventCard({
 	const dayNightPeriod = getDayNightPeriod(event.time ?? "");
 	const visibleEventType = getVisibleEventTypeLabel(event.type);
 	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
+	const socialProofHistoricalSaveCount =
+		event.socialProofHistoricalSaveCount ?? 0;
 	const savedLabel = socialProofSaveCount === 1 ? "person" : "people";
 	const socialProofLabel =
 		socialProofMode === "numeric"
 			? `${socialProofSaveCount} ${savedLabel} saved this`
 			: "People are saving this";
+	const hasSocialProofBadge = shouldShowSocialProofBadge(
+		socialProofMode,
+		socialProofSaveCount,
+		socialProofHistoricalSaveCount,
+	);
 	const { visibleGenres, hiddenGenreCount } = getGenrePreview(
 		event.genre,
 		genreFrequency,
@@ -289,13 +296,12 @@ export function EventCard({
 					)}
 				</div>
 			)}
-			{socialProofMode &&
-				socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
-					<div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-200">
-						<Flame className="h-3 w-3" />
-						{socialProofLabel}
-					</div>
-				)}
+			{hasSocialProofBadge && (
+				<div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-200">
+					<Flame className="h-3 w-3" />
+					{socialProofLabel}
+				</div>
+			)}
 		</div>
 	);
 }

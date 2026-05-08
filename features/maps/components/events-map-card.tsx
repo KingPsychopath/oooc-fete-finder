@@ -365,7 +365,7 @@ export function EventsMapCard({
 							</div>
 						</div>
 
-						<div className="flex flex-wrap items-center justify-between gap-2 lg:hidden">
+						<div className="flex max-w-full flex-wrap items-center justify-between gap-2 overflow-x-auto pb-0.5 lg:hidden">
 							<div className="relative flex h-7 w-fit items-center space-x-1.5 rounded-lg border border-border/70 bg-background/65 p-0.5">
 								<span className="px-1.5 text-[11px] text-muted-foreground">
 									Explore:

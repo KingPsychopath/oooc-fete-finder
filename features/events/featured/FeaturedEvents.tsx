@@ -59,7 +59,7 @@ export function FeaturedEvents({
 						<Button
 							variant="outline"
 							onClick={onScrollToAllEvents}
-							className="w-full border-border/80 bg-background/65 text-foreground/85 hover:bg-accent sm:w-auto"
+							className="h-auto min-h-8 w-full whitespace-normal border-border/80 bg-background/65 px-3 py-2 text-center leading-tight text-foreground/85 hover:bg-accent sm:h-8 sm:w-auto sm:whitespace-nowrap"
 						>
 							{browseAllLabel}
 							<ChevronDown className="h-4 w-4 ml-1" />

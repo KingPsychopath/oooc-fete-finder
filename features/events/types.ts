@@ -154,7 +154,8 @@ export type Event = {
 	promotedEndsAt?: string; // ISO timestamp when promoted window ends
 	firstSeenAt?: string; // ISO timestamp when this app first saw the event in the managed store
 	lastMeaningfulChangeAt?: string; // ISO timestamp when public event details last changed in the managed store
-	socialProofSaveCount?: number; // Public social proof count from recent, session-deduped calendar sync actions
+	socialProofSaveCount?: number; // Public numeric proof count from fresh, session-deduped calendar sync actions
+	socialProofHistoricalSaveCount?: number; // Generic proof fallback count from the broader historical save window
 	nationality?: Nationality[]; // GB/FR indicators from CSV - now supports multiple
 	hostCountries?: Nationality[]; // Host Country column, kept separate for detail views
 	audienceCountries?: Nationality[]; // Audience Country column, kept separate for detail views

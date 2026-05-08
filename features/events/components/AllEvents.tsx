@@ -135,7 +135,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							Hosting something special? Put it on the map with the collective
 							and submit your event →
 						</Link>
-						<div className="flex max-w-full items-center gap-2 overflow-x-auto sm:hidden">
+						<div className="flex max-w-full items-center gap-2 overflow-x-auto pb-0.5 sm:hidden">
 							{sortModeControl}
 							<FilterButton
 								onClickAction={onFilterClickAction}

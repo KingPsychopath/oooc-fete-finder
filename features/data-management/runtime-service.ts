@@ -6,7 +6,10 @@ import {
 	getEventCountForDateRange,
 } from "@/features/events/filtering";
 import { applyPromotedProjectionToEvents } from "@/features/events/promoted/service";
-import { getSocialProofSaveWindowDays } from "@/features/events/social-proof";
+import {
+	CARD_SOCIAL_PROOF_HISTORICAL_WINDOW_DAYS,
+	getSocialProofSaveWindowDays,
+} from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import { revalidatePath, revalidateTag } from "next/cache";
@@ -146,15 +149,23 @@ const getLiveEventsForRequest = cache(
 			if (normalized.success && includeEngagementProjection) {
 				const repository = getEventEngagementRepository();
 				if (repository) {
+					const eventKeys = normalized.data.map((event) => event.eventKey);
 					const socialProofSaveCounts =
 						await repository.getSocialProofSaveCounts({
-							eventKeys: normalized.data.map((event) => event.eventKey),
+							eventKeys,
 							windowDays: getSocialProofSaveWindowDays(),
+						});
+					const socialProofHistoricalSaveCounts =
+						await repository.getSocialProofSaveCounts({
+							eventKeys,
+							windowDays: CARD_SOCIAL_PROOF_HISTORICAL_WINDOW_DAYS,
 						});
 					normalized.data = normalized.data.map((event) => ({
 						...event,
 						socialProofSaveCount:
 							socialProofSaveCounts.get(event.eventKey) ?? 0,
+						socialProofHistoricalSaveCount:
+							socialProofHistoricalSaveCounts.get(event.eventKey) ?? 0,
 					}));
 				}
 			}

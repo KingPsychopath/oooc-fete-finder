@@ -41,8 +41,8 @@ import {
 	isRecentlyUpdatedEvent,
 } from "@/features/events/recently-updated";
 import {
-	CARD_SOCIAL_PROOF_MIN_SAVES,
 	type SocialProofDisplayMode,
+	shouldShowSocialProofBadge,
 } from "@/features/events/social-proof";
 import {
 	normalizeProofLink,
@@ -467,11 +467,18 @@ const EventModal: React.FC<EventModalProps> = ({
 	const recentlyUpdatedLabel = formatRecentlyUpdatedLabel(event);
 	const canAddToCalendar = isCalendarDateValid(event.date);
 	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
+	const socialProofHistoricalSaveCount =
+		event.socialProofHistoricalSaveCount ?? 0;
 	const savedLabel = socialProofSaveCount === 1 ? "person" : "people";
 	const socialProofLabel =
 		socialProofMode === "numeric"
 			? `${socialProofSaveCount} ${savedLabel} saved this`
 			: "People are saving this";
+	const hasSocialProofBadge = shouldShowSocialProofBadge(
+		socialProofMode,
+		socialProofSaveCount,
+		socialProofHistoricalSaveCount,
+	);
 
 	const handleOpenLocation = async (
 		location: string,
@@ -561,8 +568,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		isNewlyAdded ||
 			isRecentlyUpdated ||
 			event.isOOOCPick ||
-			(socialProofMode &&
-				socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES) ||
+			hasSocialProofBadge ||
 			event.category ||
 			visibleGenres.length > 0 ||
 			extraGenreCount > 0,
@@ -1072,13 +1078,12 @@ const EventModal: React.FC<EventModalProps> = ({
 									OOOC Pick
 								</Badge>
 							)}
-							{socialProofMode &&
-								socialProofSaveCount >= CARD_SOCIAL_PROOF_MIN_SAVES && (
-									<Badge className="border-amber-300/70 bg-amber-500/15 text-amber-900 hover:bg-amber-500/20 dark:border-amber-400/45 dark:text-amber-200">
-										<Flame className="mr-1 h-3.5 w-3.5" />
-										{socialProofLabel}
-									</Badge>
-								)}
+							{hasSocialProofBadge && (
+								<Badge className="border-amber-300/70 bg-amber-500/15 text-amber-900 hover:bg-amber-500/20 dark:border-amber-400/45 dark:text-amber-200">
+									<Flame className="mr-1 h-3.5 w-3.5" />
+									{socialProofLabel}
+								</Badge>
+							)}
 							{event.category && (
 								<Badge
 									className={
