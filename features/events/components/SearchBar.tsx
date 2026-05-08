@@ -20,6 +20,7 @@ import { useState } from "react";
 
 type SearchBarProps = {
 	onSearch: (query: string, results?: SearchResult[]) => void;
+	onSearchFocus?: () => void;
 	placeholder?: string;
 	className?: string;
 	exampleSearches?: string[];
@@ -293,6 +294,7 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 
 const SearchBar: React.FC<SearchBarProps> = ({
 	onSearch,
+	onSearchFocus,
 	placeholder = "Search events...",
 	className = "",
 	exampleSearches = [...DEFAULT_SEARCH_EXAMPLES],
@@ -304,13 +306,16 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	dynamicChips = [],
 }) => {
 	const [internalQuery, setInternalQuery] = useState("");
+	const isControlled = value !== undefined;
 	const query = value ?? internalQuery;
 
 	/**
 	 * Handles search input with real-time fuzzy matching
 	 */
 	const handleSearch = (value: string) => {
-		setInternalQuery(value);
+		if (!isControlled) {
+			setInternalQuery(value);
+		}
 		const results = searchEvents(events, value);
 		onSearch(value, results);
 	};
@@ -319,7 +324,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	 * Clears the search input and results
 	 */
 	const clearSearch = () => {
-		setInternalQuery("");
+		if (!isControlled) {
+			setInternalQuery("");
+		}
 		onSearch("");
 	};
 
@@ -334,6 +341,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 					type="text"
 					value={query}
 					onChange={(e) => handleSearch(e.target.value)}
+					onFocus={onSearchFocus}
 					placeholder={placeholder}
 					className="w-full rounded-full border border-border/75 bg-background/70 py-2 pr-10 pl-10 text-sm placeholder:text-muted-foreground/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-transparent"
 					aria-label={placeholder}

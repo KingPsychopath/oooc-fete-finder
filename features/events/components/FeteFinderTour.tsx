@@ -235,13 +235,6 @@ export function FeteFinderTour({
 	const steps = useMemo<TourStep[]>(
 		() => [
 			{
-				id: "search",
-				selector: "#tour-search",
-				title: "Start with a signal",
-				body: "Search by area, genre, venue or phase of the night when you already know the mood.",
-				preferredSide: "bottom",
-			},
-			{
 				id: "picks",
 				selector: "#tour-oooc-picks",
 				title: "Trust the curated picks",
@@ -263,6 +256,14 @@ export function FeteFinderTour({
 				body: "Use the desktop filter rail, or the drawer on smaller screens, to narrow by time, price, arrondissement, venue setting, genre and OOOC Picks.",
 				preferredSide: "top",
 				beforeStep: onFilterOpen,
+			},
+			{
+				id: "search",
+				selector: "#tour-search",
+				title: "Search the list",
+				body: "Use the chips or type your own cue when you already know the day, price, sound, phase or event name you want.",
+				preferredSide: "top",
+				beforeStep: onScrollToAllEvents,
 			},
 			{
 				id: "events",
@@ -512,7 +513,7 @@ export function FeteFinderTour({
 						Find your first plan in 30 seconds
 					</h2>
 					<p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-						Take a quick guided pass through search, picks, map, filters and
+						Take a quick guided pass through picks, map, filters, search and
 						event cards.
 					</p>
 					<div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

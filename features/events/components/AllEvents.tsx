@@ -11,7 +11,7 @@ import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 import { Lock } from "lucide-react";
 import Link from "next/link";
-import { forwardRef } from "react";
+import { type ReactNode, forwardRef } from "react";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -39,6 +39,7 @@ type AllEventsProps = {
 	activeFiltersCount: number;
 	isAuthenticated: boolean;
 	isAuthResolved: boolean;
+	searchSlot?: ReactNode;
 };
 
 export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
@@ -56,6 +57,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			activeFiltersCount,
 			isAuthenticated,
 			isAuthResolved,
+			searchSlot,
 		},
 		ref,
 	) => {
@@ -145,6 +147,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							Hosting something special? Put it on the map with the collective
 							and submit <span className="whitespace-nowrap">your event →</span>
 						</Link>
+						{searchSlot ? <div className="pt-1">{searchSlot}</div> : null}
 						<div className="flex max-w-full items-center gap-2 overflow-x-auto pb-0.5 sm:hidden">
 							{clearFiltersControl}
 							{filterButtonControl}

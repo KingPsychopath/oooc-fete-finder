@@ -48,7 +48,7 @@ interface EventsClientProps {
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
 const REQUEST_UPDATE_PARAM = "requestUpdate";
 type EventSortMode = "upcoming" | "fresh-activity";
-type PendingAuthAction = "show-oooc-picks";
+type PendingAuthAction = "show-oooc-picks" | { type: "search"; query: string };
 
 const normalizeBasePath = (value: string): string => {
 	if (!value || value === "/") return "";
@@ -146,6 +146,8 @@ export function EventsClient({
 		offlineGraceExpiresAt,
 		refreshSession,
 	} = useAuth();
+	const canUseProtectedDiscovery =
+		isAuthenticated || authMode === "offline-grace";
 
 	const offlineGraceExpiryLabel = useMemo(() => {
 		if (offlineGraceExpiresAt == null) return null;
@@ -162,12 +164,12 @@ export function EventsClient({
 	}, [offlineGraceExpiresAt]);
 
 	const requireAuth = useCallback(() => {
-		if (!isAuthenticated) {
+		if (!canUseProtectedDiscovery) {
 			setShowEmailGate(true);
 			return false;
 		}
 		return true;
-	}, [isAuthenticated]);
+	}, [canUseProtectedDiscovery]);
 
 	const {
 		defaultDateRange,
@@ -203,7 +205,7 @@ export function EventsClient({
 	} = useEventFilters({
 		events: initialEvents,
 		requireAuth,
-		isFilterAccessAllowed: isAuthenticated || authMode === "offline-grace",
+		isFilterAccessAllowed: canUseProtectedDiscovery,
 	});
 	const availableGenres = useMemo(
 		() => buildAvailableGenresForEvents(initialEvents),
@@ -515,7 +517,7 @@ export function EventsClient({
 
 	const handleOOOCPicksCalloutClick = useCallback(() => {
 		const shouldSelectOOOCPicks = !selectedOOOCPicks;
-		if (shouldSelectOOOCPicks && !isAuthenticated) {
+		if (shouldSelectOOOCPicks && !canUseProtectedDiscovery) {
 			pendingAuthActionRef.current = "show-oooc-picks";
 			setShowEmailGate(true);
 			return;
@@ -528,22 +530,51 @@ export function EventsClient({
 			scrollToAllEvents();
 		});
 	}, [
-		isAuthenticated,
+		canUseProtectedDiscovery,
 		onOOOCPicksToggle,
 		scrollToAllEvents,
 		selectedOOOCPicks,
 	]);
 
+	const handleSearchIntent = useCallback(
+		(query: string) => {
+			if (!canUseProtectedDiscovery) {
+				if (query.trim().length > 0) {
+					pendingAuthActionRef.current = { type: "search", query };
+				}
+				setShowEmailGate(true);
+				return;
+			}
+			onSearchQueryChange(query);
+		},
+		[canUseProtectedDiscovery, onSearchQueryChange],
+	);
+
+	const handleSearchFocus = useCallback(() => {
+		if (canUseProtectedDiscovery) return;
+		setShowEmailGate(true);
+	}, [canUseProtectedDiscovery]);
+
 	useEffect(() => {
 		if (!isAuthenticated) return;
-		if (pendingAuthActionRef.current !== "show-oooc-picks") return;
+		const pendingAuthAction = pendingAuthActionRef.current;
+		if (!pendingAuthAction) return;
 
 		pendingAuthActionRef.current = null;
-		onOOOCPicksToggle(true);
+		if (pendingAuthAction === "show-oooc-picks") {
+			onOOOCPicksToggle(true);
+		} else {
+			onSearchQueryChange(pendingAuthAction.query);
+		}
 		window.requestAnimationFrame(() => {
 			scrollToAllEvents();
 		});
-	}, [isAuthenticated, onOOOCPicksToggle, scrollToAllEvents]);
+	}, [
+		isAuthenticated,
+		onOOOCPicksToggle,
+		onSearchQueryChange,
+		scrollToAllEvents,
+	]);
 
 	const handleEmailGateClose = useCallback(() => {
 		pendingAuthActionRef.current = null;
@@ -587,35 +618,29 @@ export function EventsClient({
 		() => filteredEvents.filter((event) => event.isOOOCPick === true).length,
 		[filteredEvents],
 	);
+	const searchSlot = (
+		<div id="tour-search" className="w-full">
+			<SearchBar
+				onSearch={handleSearchIntent}
+				onSearchFocus={handleSearchFocus}
+				placeholder="Search events, locations, genres, phases..."
+				className="mx-auto w-full max-w-[46rem]"
+				value={searchQuery}
+				resultsCount={filteredEvents.length}
+				showResultsCount
+				resultsCountLabelMode={hasAnyActiveFilters ? "found" : "available"}
+				dynamicChips={dynamicSearchChips}
+			/>
+		</div>
+	);
 
 	return (
 		<>
-			<div className="mb-8">
-				<AuthGate
-					isAuthenticated={isAuthenticated}
-					isAuthResolved={isAuthResolved}
-					onAuthRequired={() => setShowEmailGate(true)}
-					className="min-h-[120px] flex items-center"
-				>
-					<div id="tour-search" className="w-full">
-						<SearchBar
-							onSearch={onSearchQueryChange}
-							placeholder="Search events, locations, genres, phases..."
-							className="mx-auto w-full max-w-[46rem]"
-							value={searchQuery}
-							resultsCount={filteredEvents.length}
-							showResultsCount
-							resultsCountLabelMode={
-								hasAnyActiveFilters ? "found" : "available"
-							}
-							dynamicChips={dynamicSearchChips}
-						/>
-					</div>
-				</AuthGate>
-				{ooocPicksInViewCount > 0 && (
+			{ooocPicksInViewCount > 0 && (
+				<div className="mb-8">
 					<div
 						id="tour-oooc-picks"
-						className="mx-auto mt-3 flex w-full max-w-[46rem] flex-col gap-2 rounded-md border border-border/65 bg-background/55 px-3 py-2 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between"
+						className="mx-auto flex w-full max-w-[46rem] flex-col gap-2 rounded-md border border-border/65 bg-background/55 px-3 py-2 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between"
 					>
 						<div className="min-w-0">
 							<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -635,8 +660,8 @@ export function EventsClient({
 							{selectedOOOCPicks ? "Showing Picks" : "Show All Picks"}
 						</Button>
 					</div>
-				)}
-			</div>
+				</div>
+			)}
 
 			{authMode === "offline-grace" && (
 				<div className="mb-6 rounded-md border border-amber-300/70 bg-amber-50/85 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-200">
@@ -697,7 +722,7 @@ export function EventsClient({
 			>
 				<aside className="lg:sticky lg:top-30 lg:self-start">
 					<AuthGate
-						isAuthenticated={isAuthenticated}
+						isAuthenticated={canUseProtectedDiscovery}
 						isAuthResolved={isAuthResolved}
 						onAuthRequired={() => setShowEmailGate(true)}
 						className="min-h-0"
@@ -757,8 +782,9 @@ export function EventsClient({
 						onAuthRequired={() => setShowEmailGate(true)}
 						hasActiveFilters={hasAnyActiveFilters}
 						activeFiltersCount={activeFiltersCount}
-						isAuthenticated={isAuthenticated}
+						isAuthenticated={canUseProtectedDiscovery}
 						isAuthResolved={isAuthResolved}
+						searchSlot={searchSlot}
 					/>
 				</div>
 			</div>
