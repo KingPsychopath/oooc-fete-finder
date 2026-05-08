@@ -87,6 +87,18 @@ const toSortedUserRecords = (
 		}));
 };
 
+const maxCount = (stored: number | undefined, computed: number): number =>
+	Math.max(stored ?? 0, computed);
+
+const latestIso = (
+	left: string | null | undefined,
+	right: string | null | undefined,
+): string | null => {
+	if (!left) return right ?? null;
+	if (!right) return left;
+	return left > right ? left : right;
+};
+
 const getMemoryStore = (): Record<string, StoredUserRecord> => {
 	if (!globalThis.__ooocFeteFinderUserCollectionMemoryStore) {
 		globalThis.__ooocFeteFinderUserCollectionMemoryStore = {};
@@ -344,17 +356,24 @@ export class UserCollectionStore {
 		return {
 			user: {
 				...user,
-				linkedSignalCount: user.linkedSignalCount ?? linkedSignalCount,
-				searchSignalCount:
-					user.searchSignalCount ?? activityCounts.searchSignalCount,
-				filterSignalCount:
-					user.filterSignalCount ?? activityCounts.filterSignalCount,
-				eventActionSignalCount:
-					user.eventActionSignalCount ?? activityCounts.eventActionSignalCount,
-				genrePreferenceSignalCount:
-					user.genrePreferenceSignalCount ??
+				linkedSignalCount: maxCount(user.linkedSignalCount, linkedSignalCount),
+				searchSignalCount: maxCount(
+					user.searchSignalCount,
+					activityCounts.searchSignalCount,
+				),
+				filterSignalCount: maxCount(
+					user.filterSignalCount,
+					activityCounts.filterSignalCount,
+				),
+				eventActionSignalCount: maxCount(
+					user.eventActionSignalCount,
+					activityCounts.eventActionSignalCount,
+				),
+				genrePreferenceSignalCount: maxCount(
+					user.genrePreferenceSignalCount,
 					activityCounts.genrePreferenceSignalCount,
-				lastSignalAt: user.lastSignalAt ?? lastSignalAt,
+				),
+				lastSignalAt: latestIso(user.lastSignalAt, lastSignalAt),
 			},
 			genrePreferences,
 			recentSearches: recentDiscovery

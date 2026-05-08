@@ -296,11 +296,13 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 };
 
 const getProfileSignalCount = (profile: CollectedUserProfile): number =>
-	profile.user.linkedSignalCount ??
-	profile.genrePreferences.length +
-		profile.recentSearches.length +
-		profile.recentFilters.length +
-		profile.recentEventActions.length;
+	Math.max(
+		profile.user.linkedSignalCount ?? 0,
+		profile.genrePreferences.length +
+			profile.recentSearches.length +
+			profile.recentFilters.length +
+			profile.recentEventActions.length,
+	);
 
 const getLastActiveAt = (profile: CollectedUserProfile): string | null => {
 	const dates = [
@@ -314,18 +316,28 @@ const getLastActiveAt = (profile: CollectedUserProfile): string | null => {
 };
 
 const getBehaviorRead = (profile: CollectedUserProfile): string => {
-	const searches =
-		profile.user.searchSignalCount ?? profile.recentSearches.length;
-	const filters =
-		profile.user.filterSignalCount ?? profile.recentFilters.length;
-	const eventActions =
-		profile.user.eventActionSignalCount ?? profile.recentEventActions.length;
-	const genres =
-		profile.user.genrePreferenceSignalCount ?? profile.genrePreferences.length;
-	if (eventActions >= Math.max(searches + filters, 1)) return "Event-led";
-	if (filters > searches) return "Filter-led";
-	if (searches > 0) return "Search-led";
-	if (genres > 0) return "Taste-led";
+	const searches = Math.max(
+		profile.user.searchSignalCount ?? 0,
+		profile.recentSearches.length,
+	);
+	const filters = Math.max(
+		profile.user.filterSignalCount ?? 0,
+		profile.recentFilters.length,
+	);
+	const eventActions = Math.max(
+		profile.user.eventActionSignalCount ?? 0,
+		profile.recentEventActions.length,
+	);
+	const genres = Math.max(
+		profile.user.genrePreferenceSignalCount ?? 0,
+		profile.genrePreferences.length,
+	);
+	if (eventActions >= Math.max(searches + filters, 1)) {
+		return "Event-led browsing";
+	}
+	if (filters > searches) return "Filter-led browsing";
+	if (searches > 0) return "Search-led browsing";
+	if (genres > 0) return "Taste-led browsing";
 	return "Signup only";
 };
 
@@ -336,22 +348,31 @@ const getSignalMetricItems = (profile: CollectedUserProfile) => [
 	},
 	{
 		label: "Searches",
-		value: profile.user.searchSignalCount ?? profile.recentSearches.length,
+		value: Math.max(
+			profile.user.searchSignalCount ?? 0,
+			profile.recentSearches.length,
+		),
 	},
 	{
 		label: "Filters",
-		value: profile.user.filterSignalCount ?? profile.recentFilters.length,
+		value: Math.max(
+			profile.user.filterSignalCount ?? 0,
+			profile.recentFilters.length,
+		),
 	},
 	{
 		label: "Event actions",
-		value:
-			profile.user.eventActionSignalCount ?? profile.recentEventActions.length,
+		value: Math.max(
+			profile.user.eventActionSignalCount ?? 0,
+			profile.recentEventActions.length,
+		),
 	},
 	{
 		label: "Genre prefs",
-		value:
-			profile.user.genrePreferenceSignalCount ??
+		value: Math.max(
+			profile.user.genrePreferenceSignalCount ?? 0,
 			profile.genrePreferences.length,
+		),
 	},
 ];
 
@@ -417,8 +438,19 @@ export const EmailCollectionCard = ({
 	const [profile, setProfile] = useState<CollectedUserProfile | null>(null);
 	const [profileStatus, setProfileStatus] = useState("");
 	const [isProfileLoading, setIsProfileLoading] = useState(false);
+	const [profileOverrides, setProfileOverrides] = useState<
+		Record<string, Partial<EmailRecord>>
+	>({});
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
-	const likelyTestCount = emails.filter((user) =>
+	const mergedEmails = useMemo(
+		() =>
+			emails.map((user) => ({
+				...user,
+				...(profileOverrides[user.email] ?? {}),
+			})),
+		[emails, profileOverrides],
+	);
+	const likelyTestCount = mergedEmails.filter((user) =>
 		isLikelyTestEmail(user.email),
 	).length;
 	const totalSubmissions = analytics?.totalSubmissions ?? emails.length;
@@ -429,16 +461,17 @@ export const EmailCollectionCard = ({
 			new Map(
 				ACTIVITY_SEGMENTS.map((segment) => [
 					segment.value,
-					emails.filter((user) => matchesActivityFilter(user, segment.value))
-						.length,
+					mergedEmails.filter((user) =>
+						matchesActivityFilter(user, segment.value),
+					).length,
 				]),
 			),
-		[emails],
+		[mergedEmails],
 	);
 
 	const filteredEmails = useMemo(() => {
 		const normalizedQuery = query.trim().toLowerCase();
-		const filtered = emails.filter((user) => {
+		const filtered = mergedEmails.filter((user) => {
 			if (filterMode === "consented" && !user.consent) return false;
 			if (filterMode === "no-consent" && user.consent) return false;
 			if (filterMode === "likely-test" && !isLikelyTestEmail(user.email)) {
@@ -463,7 +496,7 @@ export const EmailCollectionCard = ({
 				.includes(normalizedQuery);
 		});
 		return sortEmails(filtered, sortMode);
-	}, [activityFilterMode, emails, filterMode, query, sortMode]);
+	}, [activityFilterMode, filterMode, mergedEmails, query, sortMode]);
 
 	const visibleEmailSet = useMemo(
 		() => new Set(filteredEmails.map((user) => user.email)),
@@ -479,9 +512,14 @@ export const EmailCollectionCard = ({
 		[selectedEmails],
 	);
 	const selectedRecords = useMemo(
-		() => emails.filter((user) => selectedEmailSet.has(user.email)),
-		[emails, selectedEmailSet],
+		() => mergedEmails.filter((user) => selectedEmailSet.has(user.email)),
+		[mergedEmails, selectedEmailSet],
 	);
+
+	const handleRefresh = async () => {
+		await onRefresh();
+		setProfileOverrides({});
+	};
 
 	const handleToggleEmail = (email: string) => {
 		setSelectedEmails((current) =>
@@ -521,7 +559,7 @@ export const EmailCollectionCard = ({
 		if (result.success) {
 			setStatusMessage(`Deleted ${result.deletedCount ?? 0} email record(s).`);
 			setSelectedEmails([]);
-			await onRefresh();
+			await handleRefresh();
 		} else {
 			setStatusMessage(result.error || "Delete failed.");
 		}
@@ -541,7 +579,7 @@ export const EmailCollectionCard = ({
 				}, skipped ${result.skippedCount ?? 0} from ${sourceLabel}.`,
 			);
 			setImportText("");
-			await onRefresh();
+			await handleRefresh();
 		} else {
 			setStatusMessage(result.error || "Import failed.");
 		}
@@ -574,7 +612,25 @@ export const EmailCollectionCard = ({
 		setIsProfileLoading(true);
 		const result = await onGetUserProfile(user.email);
 		if (result.success && result.profile) {
-			setProfile(result.profile);
+			const loadedProfile = result.profile;
+			setProfile(loadedProfile);
+			setProfileOverrides((current) => ({
+				...current,
+				[loadedProfile.user.email]: {
+					linkedSignalCount: loadedProfile.user.linkedSignalCount,
+					searchSignalCount: loadedProfile.user.searchSignalCount,
+					filterSignalCount: loadedProfile.user.filterSignalCount,
+					eventActionSignalCount: loadedProfile.user.eventActionSignalCount,
+					genrePreferenceSignalCount:
+						loadedProfile.user.genrePreferenceSignalCount,
+					lastSignalAt: loadedProfile.user.lastSignalAt,
+					deviceClass: loadedProfile.user.deviceClass,
+					platform: loadedProfile.user.platform,
+					browserFamily: loadedProfile.user.browserFamily,
+					timezone: loadedProfile.user.timezone,
+					locale: loadedProfile.user.locale,
+				},
+			}));
 		} else {
 			setProfileStatus(result.error || "Profile could not be loaded.");
 		}
@@ -594,7 +650,7 @@ export const EmailCollectionCard = ({
 					</div>
 					<div className="flex flex-wrap gap-2">
 						<Button
-							onClick={() => void onRefresh()}
+							onClick={() => void handleRefresh()}
 							variant="outline"
 							size="sm"
 							disabled={isBusy}
@@ -1081,7 +1137,7 @@ export const EmailCollectionCard = ({
 					</DialogHeader>
 					{isProfileLoading ? (
 						<div className="rounded-md border bg-background/60 px-3 py-8 text-center text-sm text-muted-foreground">
-							Loading user signals...
+							Loading user activity...
 						</div>
 					) : profile ? (
 						<div className="space-y-4">
@@ -1100,8 +1156,15 @@ export const EmailCollectionCard = ({
 								</div>
 								<div className="mt-3 grid gap-2 sm:grid-cols-3">
 									<p className="rounded-md border bg-background/60 px-2.5 py-2 text-xs">
-										<span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+										<span className="flex items-center text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
 											Behavior Type
+											<InfoPopover
+												aria-label="Explain behavior type"
+												side="top"
+											>
+												The dominant pattern across linked searches, filters,
+												event actions, and genre preferences.
+											</InfoPopover>
 										</span>
 										<span className="mt-1 block font-medium">
 											{getBehaviorRead(profile)}
@@ -1173,7 +1236,7 @@ export const EmailCollectionCard = ({
 									<div className="mt-2 space-y-1.5">
 										{profile.genrePreferences.length === 0 ? (
 											<p className="text-xs text-muted-foreground">
-												No genre signals.
+												No genre activity.
 											</p>
 										) : (
 											profile.genrePreferences.map((item) => (

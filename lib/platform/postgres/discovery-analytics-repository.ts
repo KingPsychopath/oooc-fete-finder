@@ -447,19 +447,20 @@ export class DiscoveryAnalyticsRepository {
 				recordedAt: Date | string;
 			}>
 		>`
-			SELECT
-				stats.action_type AS "actionType",
-				stats.filter_group AS "filterGroup",
-				stats.filter_value AS "filterValue",
-				stats.search_query AS "searchQuery",
-				stats.recorded_at AS "recordedAt"
-			FROM app_discovery_analytics_stats stats
-			LEFT JOIN app_users users ON users.id = stats.user_id
-			WHERE (${input.userId ?? null}::text IS NOT NULL AND stats.user_id = ${input.userId ?? null})
-				OR users.email_normalized = ${input.email.trim().toLowerCase()}
-			ORDER BY stats.recorded_at DESC
-			LIMIT ${safeLimit}
-		`;
+				SELECT
+					stats.action_type AS "actionType",
+					stats.filter_group AS "filterGroup",
+					stats.filter_value AS "filterValue",
+					stats.search_query AS "searchQuery",
+					stats.recorded_at AS "recordedAt"
+				FROM app_discovery_analytics_stats stats
+				LEFT JOIN app_users users ON users.id = stats.user_id
+				WHERE (${input.userId ?? null}::text IS NOT NULL AND stats.user_id = ${input.userId ?? null})
+					OR users.email_normalized = ${input.email.trim().toLowerCase()}
+					OR LOWER(stats.user_email) = ${input.email.trim().toLowerCase()}
+				ORDER BY stats.recorded_at DESC
+				LIMIT ${safeLimit}
+			`;
 		return rows.map((row) => ({
 			actionType: row.actionType,
 			filterGroup: row.filterGroup,

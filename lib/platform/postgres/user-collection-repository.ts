@@ -387,16 +387,25 @@ export class UserCollectionRepository {
 	private async listSignalCounts(
 		users: Array<{ email: string; userId: string | null }>,
 	): Promise<Map<string, SignalCounts>> {
-		const emails = [
-			...new Set(users.map((user) => normalizeEmail(user.email))),
-		];
+		const normalizedUsers = users.map((user) => ({
+			email: normalizeEmail(user.email),
+			userId: user.userId,
+		}));
+		const emails = [...new Set(normalizedUsers.map((user) => user.email))];
 		const userIds = [
 			...new Set(
-				users
+				normalizedUsers
 					.map((user) => user.userId)
 					.filter((userId): userId is string => Boolean(userId)),
 			),
 		];
+		const userIdToEmail = new Map(
+			normalizedUsers
+				.filter((user): user is { email: string; userId: string } =>
+					Boolean(user.userId),
+				)
+				.map((user) => [user.userId, user.email]),
+		);
 		const counts = new Map<string, SignalCounts>();
 		if (emails.length === 0) return counts;
 
@@ -414,24 +423,72 @@ export class UserCollectionRepository {
 		`;
 		const tables = tableRows[0];
 
-		if (tables?.event_table) {
-			const rows = await this.sql<
+		if (tables?.event_table && userIds.length > 0) {
+			const rowsByUserId = await this.sql<
 				Array<{
-					email: string;
+					user_id: string;
 					count: number;
 					last_seen_at: Date | string | null;
 				}>
 			>`
 				SELECT
-					users.email_normalized AS email,
+					stats.user_id,
 					COUNT(*)::int AS count,
 					MAX(stats.recorded_at) AS last_seen_at
 				FROM app_event_engagement_stats stats
-				INNER JOIN app_users users ON users.id = stats.user_id
-				WHERE users.email_normalized = ANY(${emails})
-				GROUP BY users.email_normalized
+				WHERE stats.user_id = ANY(${userIds})
+				GROUP BY stats.user_id
 			`;
-			for (const row of rows) {
+			for (const row of rowsByUserId) {
+				const email = userIdToEmail.get(row.user_id);
+				if (!email) continue;
+				bumpSignalCounts(
+					counts,
+					email,
+					"eventActionSignalCount",
+					row.count,
+					row.last_seen_at,
+				);
+			}
+		}
+
+		if (tables?.event_table && emails.length > 0) {
+			const rowsByEmail =
+				userIds.length > 0
+					? await this.sql<
+							Array<{
+								email: string;
+								count: number;
+								last_seen_at: Date | string | null;
+							}>
+						>`
+							SELECT
+								users.email_normalized AS email,
+								COUNT(*)::int AS count,
+								MAX(stats.recorded_at) AS last_seen_at
+							FROM app_event_engagement_stats stats
+							INNER JOIN app_users users ON users.id = stats.user_id
+							WHERE users.email_normalized = ANY(${emails})
+								AND (stats.user_id IS NULL OR stats.user_id <> ALL(${userIds}))
+							GROUP BY users.email_normalized
+						`
+					: await this.sql<
+							Array<{
+								email: string;
+								count: number;
+								last_seen_at: Date | string | null;
+							}>
+						>`
+							SELECT
+								users.email_normalized AS email,
+								COUNT(*)::int AS count,
+								MAX(stats.recorded_at) AS last_seen_at
+							FROM app_event_engagement_stats stats
+							INNER JOIN app_users users ON users.id = stats.user_id
+							WHERE users.email_normalized = ANY(${emails})
+							GROUP BY users.email_normalized
+						`;
+			for (const row of rowsByEmail) {
 				bumpSignalCounts(
 					counts,
 					row.email,
@@ -442,26 +499,89 @@ export class UserCollectionRepository {
 			}
 		}
 
-		if (tables?.discovery_table) {
-			const rows = await this.sql<
+		if (tables?.discovery_table && userIds.length > 0) {
+			const rowsByUserId = await this.sql<
 				Array<{
-					email: string;
+					user_id: string;
 					search_count: number;
 					filter_count: number;
 					last_seen_at: Date | string | null;
 				}>
 			>`
 				SELECT
-					users.email_normalized AS email,
+					stats.user_id,
 					COUNT(*) FILTER (WHERE stats.action_type = 'search')::int AS search_count,
 					COUNT(*) FILTER (WHERE stats.action_type = 'filter_apply')::int AS filter_count,
 					MAX(stats.recorded_at) AS last_seen_at
 				FROM app_discovery_analytics_stats stats
-				INNER JOIN app_users users ON users.id = stats.user_id
-				WHERE users.email_normalized = ANY(${emails})
-				GROUP BY users.email_normalized
+				WHERE stats.user_id = ANY(${userIds})
+				GROUP BY stats.user_id
 			`;
-			for (const row of rows) {
+			for (const row of rowsByUserId) {
+				const email = userIdToEmail.get(row.user_id);
+				if (!email) continue;
+				bumpSignalCounts(
+					counts,
+					email,
+					"searchSignalCount",
+					row.search_count,
+					row.last_seen_at,
+				);
+				bumpSignalCounts(
+					counts,
+					email,
+					"filterSignalCount",
+					row.filter_count,
+					row.last_seen_at,
+				);
+			}
+		}
+
+		if (tables?.discovery_table && emails.length > 0) {
+			const rowsByEmail =
+				userIds.length > 0
+					? await this.sql<
+							Array<{
+								email: string;
+								search_count: number;
+								filter_count: number;
+								last_seen_at: Date | string | null;
+							}>
+						>`
+							SELECT
+								COALESCE(users.email_normalized, LOWER(stats.user_email)) AS email,
+								COUNT(*) FILTER (WHERE stats.action_type = 'search')::int AS search_count,
+								COUNT(*) FILTER (WHERE stats.action_type = 'filter_apply')::int AS filter_count,
+								MAX(stats.recorded_at) AS last_seen_at
+							FROM app_discovery_analytics_stats stats
+							LEFT JOIN app_users users ON users.id = stats.user_id
+							WHERE (
+									users.email_normalized = ANY(${emails})
+									OR LOWER(stats.user_email) = ANY(${emails})
+								)
+								AND (stats.user_id IS NULL OR stats.user_id <> ALL(${userIds}))
+							GROUP BY COALESCE(users.email_normalized, LOWER(stats.user_email))
+						`
+					: await this.sql<
+							Array<{
+								email: string;
+								search_count: number;
+								filter_count: number;
+								last_seen_at: Date | string | null;
+							}>
+						>`
+							SELECT
+								COALESCE(users.email_normalized, LOWER(stats.user_email)) AS email,
+								COUNT(*) FILTER (WHERE stats.action_type = 'search')::int AS search_count,
+								COUNT(*) FILTER (WHERE stats.action_type = 'filter_apply')::int AS filter_count,
+								MAX(stats.recorded_at) AS last_seen_at
+							FROM app_discovery_analytics_stats stats
+							LEFT JOIN app_users users ON users.id = stats.user_id
+							WHERE users.email_normalized = ANY(${emails})
+								OR LOWER(stats.user_email) = ANY(${emails})
+							GROUP BY COALESCE(users.email_normalized, LOWER(stats.user_email))
+						`;
+			for (const row of rowsByEmail) {
 				bumpSignalCounts(
 					counts,
 					row.email,
@@ -480,43 +600,53 @@ export class UserCollectionRepository {
 		}
 
 		if (tables?.genre_table) {
-			const rows =
+			const rowsByIdentity =
 				userIds.length > 0
 					? await this.sql<
 							Array<{
 								email: string;
+								user_id: string | null;
 								count: number;
 								last_seen_at: Date | string | null;
 							}>
 						>`
 							SELECT
 								email,
+								user_id,
 								COUNT(*)::int AS count,
 								MAX(last_seen_at) AS last_seen_at
 							FROM app_user_genre_preferences
 							WHERE email = ANY(${emails})
 								OR user_id = ANY(${userIds})
-							GROUP BY email
+							GROUP BY email, user_id
 						`
 					: await this.sql<
 							Array<{
 								email: string;
+								user_id: string | null;
 								count: number;
 								last_seen_at: Date | string | null;
 							}>
 						>`
 							SELECT
 								email,
+								user_id,
 								COUNT(*)::int AS count,
 								MAX(last_seen_at) AS last_seen_at
 							FROM app_user_genre_preferences
 							WHERE email = ANY(${emails})
-							GROUP BY email
+							GROUP BY email, user_id
 						`;
-			for (const row of rows) {
+			for (const row of rowsByIdentity) {
+				const email = emails.includes(normalizeEmail(row.email))
+					? row.email
+					: row.user_id
+						? userIdToEmail.get(row.user_id)
+						: null;
+				if (!email) continue;
 				bumpSignalCounts(
 					counts,
-					row.email,
+					email,
 					"genrePreferenceSignalCount",
 					row.count,
 					row.last_seen_at,
@@ -572,34 +702,8 @@ export class UserCollectionRepository {
 	}
 
 	private async countLinkedBehaviorUsers(): Promise<number> {
-		const tableRows = await this.sql<
-			Array<{ event_table: string | null; discovery_table: string | null }>
-		>`
-			SELECT
-				to_regclass('app_event_engagement_stats')::text AS event_table,
-				to_regclass('app_discovery_analytics_stats')::text AS discovery_table
-		`;
-		const tables = tableRows[0];
-		if (!tables?.event_table && !tables?.discovery_table) return 0;
-
-		const userIds = new Set<string>();
-		if (tables.event_table) {
-			const rows = await this.sql<Array<{ user_id: string }>>`
-				SELECT DISTINCT user_id
-				FROM app_event_engagement_stats
-				WHERE user_id IS NOT NULL
-			`;
-			for (const row of rows) userIds.add(row.user_id);
-		}
-		if (tables.discovery_table) {
-			const rows = await this.sql<Array<{ user_id: string }>>`
-				SELECT DISTINCT user_id
-				FROM app_discovery_analytics_stats
-				WHERE user_id IS NOT NULL
-			`;
-			for (const row of rows) userIds.add(row.user_id);
-		}
-		return userIds.size;
+		const users = await this.listAll(10_000);
+		return users.filter((user) => (user.linkedSignalCount ?? 0) > 0).length;
 	}
 
 	async getAnalytics(): Promise<UserCollectionAnalytics> {
