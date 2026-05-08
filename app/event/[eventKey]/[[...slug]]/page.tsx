@@ -24,6 +24,14 @@ type EventSharePageProps = {
 	params: Promise<{ eventKey: string; slug?: string[] }>;
 };
 
+export const revalidate = 300;
+
+export async function generateStaticParams(): Promise<
+	Array<{ eventKey: string; slug?: string[] }>
+> {
+	return [];
+}
+
 const decodePathSegment = (value: string): string => {
 	try {
 		return decodeURIComponent(value);
@@ -142,7 +150,8 @@ export async function generateMetadata({
 	};
 }
 
-export default function EventSharePage() {
+export default async function EventSharePage({ params }: EventSharePageProps) {
+	const { eventKey } = await params;
 	const homeMapLoadStrategy: "immediate" | "expand" | "idle" = "expand";
 
 	return (
@@ -154,7 +163,10 @@ export default function EventSharePage() {
 				tabIndex={-1}
 			>
 				<Suspense fallback={<HomeEventsSectionLoading />}>
-					<HomeEventsSection mapLoadStrategy={homeMapLoadStrategy} />
+					<HomeEventsSection
+						mapLoadStrategy={homeMapLoadStrategy}
+						initialSelectedEventKey={eventKey}
+					/>
 				</Suspense>
 			</main>
 		</div>

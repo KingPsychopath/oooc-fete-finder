@@ -287,7 +287,7 @@ export class UserCollectionStore {
 		if (!normalizedEmail) return null;
 
 		const repository = getUserCollectionRepository();
-		const user = repository
+		const user = repository?.findByEmail
 			? await repository.findByEmail(normalizedEmail)
 			: (await this.listAll()).find(
 					(record) => record.email === normalizedEmail,

@@ -13,10 +13,12 @@ import { log } from "@/lib/platform/logger";
 
 interface HomeEventsSectionProps {
 	mapLoadStrategy: MapLoadStrategy;
+	initialSelectedEventKey?: string;
 }
 
 export async function HomeEventsSection({
 	mapLoadStrategy,
+	initialSelectedEventKey,
 }: HomeEventsSectionProps) {
 	const [
 		result,
@@ -75,6 +77,7 @@ export async function HomeEventsSection({
 			<EventsClient
 				initialEvents={result.data}
 				mapLoadStrategy={mapLoadStrategy}
+				initialSelectedEventKey={initialSelectedEventKey}
 				eventUpdateRequestsEnabled={submissionSettings.eventUpdatesEnabled}
 				dynamicSearchChips={dynamicSearchChips}
 			/>

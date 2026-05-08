@@ -933,7 +933,11 @@ export const getUserCollectionRepository =
 		const sql = getPostgresClient();
 		if (!sql) return null;
 
-		if (!globalThis.__ooocFeteFinderUserCollectionRepository) {
+		if (
+			!globalThis.__ooocFeteFinderUserCollectionRepository ||
+			typeof globalThis.__ooocFeteFinderUserCollectionRepository.findByEmail !==
+				"function"
+		) {
 			globalThis.__ooocFeteFinderUserCollectionRepository =
 				new UserCollectionRepository(sql);
 		}
