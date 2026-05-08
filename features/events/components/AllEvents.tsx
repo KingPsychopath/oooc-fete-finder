@@ -14,12 +14,19 @@ import { forwardRef } from "react";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
+type EventSortMode = "recommended" | "fresh-activity";
+
+const eventSortOptions: { value: EventSortMode; label: string }[] = [
+	{ value: "recommended", label: "Recommended" },
+	{ value: "fresh-activity", label: "Fresh activity" },
+];
+
 type AllEventsProps = {
 	events: Event[];
 	onEventClick: (event: Event) => void;
 	socialProofDisplayModes: Map<string, SocialProofDisplayMode>;
-	sortMode: "recommended" | "fresh-activity";
-	onSortModeChange: (mode: "recommended" | "fresh-activity") => void;
+	sortMode: EventSortMode;
+	onSortModeChange: (mode: EventSortMode) => void;
 	onFilterClickAction: () => void;
 	onAuthRequired: () => void;
 	hasActiveFilters: boolean;
@@ -80,25 +87,31 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							</Link>
 						</div>
 						<div className="flex shrink-0 items-center gap-2">
-							<label
-								htmlFor="all-events-sort"
-								className="text-xs text-muted-foreground"
+							<div
+								className="inline-flex h-9 items-center rounded-full border border-border/75 bg-background/62 p-0.5 shadow-[0_1px_0_rgba(255,255,255,0.55)_inset]"
+								aria-label="Sort events"
+								role="group"
 							>
-								Sort
-							</label>
-							<select
-								id="all-events-sort"
-								value={sortMode}
-								onChange={(event) =>
-									onSortModeChange(
-										event.target.value as "recommended" | "fresh-activity",
+								<span className="sr-only">Sort events</span>
+								{eventSortOptions.map((option) => {
+									const isSelected = option.value === sortMode;
+									return (
+										<button
+											key={option.value}
+											type="button"
+											onClick={() => onSortModeChange(option.value)}
+											aria-pressed={isSelected}
+											className={`h-8 rounded-full px-3 text-xs transition-colors ${
+												isSelected
+													? "bg-foreground text-background shadow-sm"
+													: "text-muted-foreground hover:bg-accent hover:text-foreground"
+											}`}
+										>
+											{option.label}
+										</button>
 									)
-								}
-								className="h-9 rounded-md border border-input bg-background px-2.5 text-sm"
-							>
-								<option value="recommended">Recommended</option>
-								<option value="fresh-activity">Fresh activity</option>
-							</select>
+								})}
+							</div>
 							<FilterButton
 								onClickAction={onFilterClickAction}
 								hasActiveFilters={hasActiveFilters}

@@ -33,7 +33,6 @@ import {
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { EventsMapCard } from "@/features/maps/components/events-map-card";
 import { clientLog } from "@/lib/platform/client-logger";
-import { Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -46,6 +45,7 @@ interface EventsClientProps {
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
 const REQUEST_UPDATE_PARAM = "requestUpdate";
 type EventSortMode = "recommended" | "fresh-activity";
+type PendingAuthAction = "show-oooc-picks";
 
 const normalizeBasePath = (value: string): string => {
 	if (!value || value === "/") return "";
@@ -131,6 +131,7 @@ export function EventsClient({
 	const [showEmailGate, setShowEmailGate] = useState(false);
 	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false);
 	const [sortMode, setSortMode] = useState<EventSortMode>("recommended");
+	const pendingAuthActionRef = useRef<PendingAuthAction | null>(null);
 	const invalidEventParamCountRef = useRef(0);
 	const allEventsRef = useRef<HTMLDivElement>(null);
 	const {
@@ -477,6 +478,43 @@ export function EventsClient({
 		});
 	}, []);
 
+	const handleOOOCPicksCalloutClick = useCallback(() => {
+		const shouldSelectOOOCPicks = !selectedOOOCPicks;
+		if (shouldSelectOOOCPicks && !isAuthenticated) {
+			pendingAuthActionRef.current = "show-oooc-picks";
+			setShowEmailGate(true);
+			return;
+		}
+
+		onOOOCPicksToggle(shouldSelectOOOCPicks);
+		if (!shouldSelectOOOCPicks) return;
+
+		window.requestAnimationFrame(() => {
+			scrollToAllEvents();
+		});
+	}, [
+		isAuthenticated,
+		onOOOCPicksToggle,
+		scrollToAllEvents,
+		selectedOOOCPicks,
+	]);
+
+	useEffect(() => {
+		if (!isAuthenticated) return;
+		if (pendingAuthActionRef.current !== "show-oooc-picks") return;
+
+		pendingAuthActionRef.current = null;
+		onOOOCPicksToggle(true);
+		window.requestAnimationFrame(() => {
+			scrollToAllEvents();
+		});
+	}, [isAuthenticated, onOOOCPicksToggle, scrollToAllEvents]);
+
+	const handleEmailGateClose = useCallback(() => {
+		pendingAuthActionRef.current = null;
+		setShowEmailGate(false);
+	}, []);
+
 	const allEventsOrdered = useMemo(() => {
 		const featuredMatches: Event[] = [];
 		const promotedMatches: Event[] = [];
@@ -574,11 +612,10 @@ export function EventsClient({
 						type="button"
 						variant={selectedOOOCPicks ? "default" : "outline"}
 						size="sm"
-						onClick={() => onOOOCPicksToggle(!selectedOOOCPicks)}
+						onClick={handleOOOCPicksCalloutClick}
 						className="w-full shrink-0 sm:w-auto"
 					>
-						<Sparkles className="h-4 w-4" />
-						{selectedOOOCPicks ? "Showing Picks" : "Show Picks"}
+						{selectedOOOCPicks ? "Showing Picks" : "Show All Picks"}
 					</Button>
 				</div>
 			)}
@@ -691,7 +728,7 @@ export function EventsClient({
 
 			<EmailGateModal
 				isOpen={showEmailGate}
-				onClose={() => setShowEmailGate(false)}
+				onClose={handleEmailGateClose}
 				onEmailSubmit={handleEmailSubmit}
 			/>
 
