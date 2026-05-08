@@ -570,6 +570,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 				{/* Mobile floating button */}
 				{!hideFloatingButton && (
 					<FilterButton
+						id="tour-filter-button"
 						onClickAction={onOpen || onClose}
 						hasActiveFilters={hasActiveFilters}
 						activeFiltersCount={activeFilterCount}
@@ -580,7 +581,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 				)}
 
 				{/* Desktop version - always visible */}
-				<div className="hidden lg:block">
+				<div id="tour-filter-panel" className="hidden lg:block">
 					<Card className="ooo-site-card overflow-hidden py-0">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/70 py-5 pb-4">
 							<CardTitle className="flex items-center text-[1.55rem] [font-family:var(--ooo-font-display)] font-light">
@@ -1042,7 +1043,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 				onClose();
 			}}
 		>
-			<div className="absolute right-0 top-0 h-full w-full max-w-sm border-l border-border/70 bg-background/97 lg:static lg:max-w-none lg:border-l-0 lg:h-fit">
+			<div
+				id="tour-filter-panel"
+				className="absolute right-0 top-0 h-full w-full max-w-sm border-l border-border/70 bg-background/97 lg:static lg:max-w-none lg:border-l-0 lg:h-fit"
+			>
 				<Card className="ooo-site-card h-full border-0 py-0 lg:h-fit lg:border">
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/70 py-5 pb-4">
 						<CardTitle className="flex items-center text-[1.45rem] [font-family:var(--ooo-font-display)] font-light">

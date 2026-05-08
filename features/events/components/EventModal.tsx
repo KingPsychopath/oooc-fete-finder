@@ -991,13 +991,13 @@ const EventModal: React.FC<EventModalProps> = ({
 							<p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
 								Out Of Office Collective
 							</p>
-							<div className="mt-1 flex flex-wrap items-center gap-2">
+							<div className="mt-1">
 								<CardTitle className="break-words text-[clamp(1.25rem,3.5vw,1.9rem)] [font-family:var(--ooo-font-display)] font-light leading-tight">
 									{event.name}
+									{event.isOOOCPick && (
+										<Star className="ml-2 inline h-4 w-4 translate-y-[-0.08em] fill-current text-yellow-500" />
+									)}
 								</CardTitle>
-								{event.isOOOCPick && (
-									<Star className="h-4 w-4 fill-current text-yellow-500" />
-								)}
 							</div>
 						</div>
 						<div className="relative mt-0.5 flex shrink-0 items-center gap-2 self-start">

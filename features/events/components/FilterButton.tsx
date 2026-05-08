@@ -11,6 +11,7 @@ type FilterButtonProps = {
 	hasActiveFilters: boolean;
 	activeFiltersCount: number;
 	className?: string;
+	id?: string;
 	size?: "sm" | "default" | "lg";
 	variant?:
 		| "outline"
@@ -26,11 +27,13 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
 	hasActiveFilters,
 	activeFiltersCount,
 	className = "",
+	id,
 	size = "default",
 	variant = "outline",
 }) => {
 	return (
 		<Button
+			id={id}
 			variant={variant}
 			size={size}
 			onClick={onClickAction}

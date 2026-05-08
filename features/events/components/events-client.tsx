@@ -8,6 +8,7 @@ import EmailGateModal from "@/features/auth/components/EmailGateModal";
 import { AllEvents } from "@/features/events/components/AllEvents";
 import EventModal from "@/features/events/components/EventModal";
 import EventStats from "@/features/events/components/EventStats";
+import { FeteFinderTour } from "@/features/events/components/FeteFinderTour";
 import FilterPanel from "@/features/events/components/FilterPanel";
 import SearchBar from "@/features/events/components/SearchBar";
 import { getCountryOption } from "@/features/events/countries";
@@ -396,6 +397,14 @@ export function EventsClient({
 		setIsMapExpanded((previous) => !previous);
 	}, []);
 
+	const openMap = useCallback(() => {
+		setIsMapExpanded(true);
+	}, []);
+
+	const openFilterPanel = useCallback(() => {
+		setIsFilterOpen(true);
+	}, []);
+
 	const toggleFilterExpansion = useCallback(() => {
 		setIsFilterExpanded((previous) => !previous);
 	}, []);
@@ -501,6 +510,13 @@ export function EventsClient({
 		});
 	}, []);
 
+	const scrollToAllEventsForTour = useCallback(() => {
+		setIsFilterOpen(false);
+		window.requestAnimationFrame(() => {
+			scrollToAllEvents();
+		});
+	}, [scrollToAllEvents]);
+
 	const handleOOOCPicksCalloutClick = useCallback(() => {
 		const shouldSelectOOOCPicks = !selectedOOOCPicks;
 		if (shouldSelectOOOCPicks && !isAuthenticated) {
@@ -585,18 +601,25 @@ export function EventsClient({
 					onAuthRequired={() => setShowEmailGate(true)}
 					className="min-h-[120px] flex items-center"
 				>
-					<SearchBar
-						onSearch={onSearchQueryChange}
-						placeholder="Search events, locations, genres, phases..."
-						className="max-w-md mx-auto"
-						value={searchQuery}
-						resultsCount={filteredEvents.length}
-						showResultsCount
-						resultsCountLabelMode={hasAnyActiveFilters ? "found" : "available"}
-					/>
+					<div id="tour-search">
+						<SearchBar
+							onSearch={onSearchQueryChange}
+							placeholder="Search events, locations, genres, phases..."
+							className="max-w-md mx-auto"
+							value={searchQuery}
+							resultsCount={filteredEvents.length}
+							showResultsCount
+							resultsCountLabelMode={
+								hasAnyActiveFilters ? "found" : "available"
+							}
+						/>
+					</div>
 				</AuthGate>
 				{ooocPicksInViewCount > 0 && (
-					<div className="mx-auto mt-3 flex max-w-md flex-col gap-2 rounded-md border border-border/65 bg-background/55 px-3 py-2 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between">
+					<div
+						id="tour-oooc-picks"
+						className="mx-auto mt-3 flex max-w-md flex-col gap-2 rounded-md border border-border/65 bg-background/55 px-3 py-2 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between"
+					>
 						<div className="min-w-0">
 							<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 								OOOC Picks
@@ -709,7 +732,7 @@ export function EventsClient({
 						filteredEventsCount={filteredEvents.length}
 						isOpen={isFilterOpen}
 						onClose={() => setIsFilterOpen(false)}
-						onOpen={() => setIsFilterOpen(true)}
+						onOpen={openFilterPanel}
 						isExpanded={isFilterExpanded}
 						onToggleExpanded={toggleFilterExpansion}
 						hideFloatingButton={isAllEventsHeaderVisible}
@@ -718,21 +741,23 @@ export function EventsClient({
 			</div>
 
 			<div id="all-events" className="scroll-mt-6 sm:scroll-mt-28">
-				<AllEvents
-					ref={allEventsRef}
-					events={allEventsOrdered}
-					onEventClick={handleEventClick}
-					socialProofDisplayModes={socialProofDisplayModes}
-					sortMode={sortMode}
-					onSortModeChange={setSortMode}
-					onFilterClickAction={toggleFilterPanel}
-					onClearFilters={onClearFilters}
-					onAuthRequired={() => setShowEmailGate(true)}
-					hasActiveFilters={hasAnyActiveFilters}
-					activeFiltersCount={activeFiltersCount}
-					isAuthenticated={isAuthenticated}
-					isAuthResolved={isAuthResolved}
-				/>
+				<div id="tour-all-events" className="scroll-mt-6 sm:scroll-mt-28">
+					<AllEvents
+						ref={allEventsRef}
+						events={allEventsOrdered}
+						onEventClick={handleEventClick}
+						socialProofDisplayModes={socialProofDisplayModes}
+						sortMode={sortMode}
+						onSortModeChange={setSortMode}
+						onFilterClickAction={toggleFilterPanel}
+						onClearFilters={onClearFilters}
+						onAuthRequired={() => setShowEmailGate(true)}
+						hasActiveFilters={hasAnyActiveFilters}
+						activeFiltersCount={activeFiltersCount}
+						isAuthenticated={isAuthenticated}
+						isAuthResolved={isAuthResolved}
+					/>
+				</div>
 			</div>
 
 			<EventModal
@@ -759,6 +784,15 @@ export function EventsClient({
 			<ScrollToTopButton
 				mobileDock="stacked-with-filter"
 				className="hidden lg:inline-flex"
+			/>
+			<FeteFinderTour
+				isAuthenticated={isAuthenticated}
+				isAuthResolved={isAuthResolved}
+				onAuthRequired={() => setShowEmailGate(true)}
+				onFilterClose={() => setIsFilterOpen(false)}
+				onFilterOpen={openFilterPanel}
+				onMapExpand={openMap}
+				onScrollToAllEvents={scrollToAllEventsForTour}
 			/>
 		</>
 	);

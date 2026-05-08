@@ -2,6 +2,7 @@
 
 import MusicPlatformModal from "@/components/MusicPlatformModal";
 import { Button } from "@/components/ui/button";
+import { requestFeteFinderTour } from "@/features/events/tour-events";
 import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
 import { LAYERS } from "@/lib/ui/layers";
@@ -455,7 +456,10 @@ export function MobileBottomNav() {
 		pendingHomeSectionScrollRef.current =
 			sectionId && normalizedPathname !== "/" ? sectionId : null;
 		if (sectionId && normalizedPathname !== "/") {
-			window.sessionStorage.setItem(PENDING_HOME_SECTION_STORAGE_KEY, sectionId);
+			window.sessionStorage.setItem(
+				PENDING_HOME_SECTION_STORAGE_KEY,
+				sectionId,
+			);
 			return;
 		}
 		if (sectionId) {
@@ -470,15 +474,30 @@ export function MobileBottomNav() {
 		setIsMoreOpen((current) => !current);
 	};
 
+	const handleTourStart = () => {
+		setIsMoreOpen(false);
+		requestFeteFinderTour();
+	};
+	const moreItemClassName =
+		"rounded-xl border border-border/55 bg-card/50 px-3 py-2 text-sm text-foreground/85 shadow-[0_1px_0_rgba(255,255,255,0.42)_inset] transition-colors hover:border-border/80 hover:bg-accent hover:text-foreground";
+	const moreInternalItemClassName = cn(
+		moreItemClassName,
+		"flex min-h-12 flex-col justify-center gap-1",
+	);
+	const moreExternalItemClassName = cn(
+		moreItemClassName,
+		"grid min-h-12 grid-cols-[1fr_auto] items-start gap-2",
+	);
+
 	return (
 		<>
 			<div
 				aria-hidden="true"
-				className="h-[calc(5.75rem+env(safe-area-inset-bottom))] md:hidden"
+				className="h-[calc(5.75rem+env(safe-area-inset-bottom))] lg:hidden"
 			/>
 			<div
 				className={cn(
-					"fixed inset-x-0 bottom-0 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 transition-transform duration-300 ease-out md:hidden",
+					"fixed inset-x-0 bottom-0 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 transition-transform duration-300 ease-out lg:hidden",
 					isVisible && !hasActiveOverlay ? "translate-y-0" : "translate-y-full",
 				)}
 				style={{ zIndex: LAYERS.FLOATING_CONTROL }}
@@ -503,25 +522,48 @@ export function MobileBottomNav() {
 								<X className="h-4 w-4" />
 							</Button>
 						</div>
-						<div className="grid gap-3">
-							<div className="grid grid-cols-2 gap-1">
-								<Link
-									href={`${basePath || ""}/how-it-works`}
-									className="flex min-h-12 flex-col justify-center gap-1 rounded-xl px-3 py-2 text-sm text-foreground/85 hover:bg-accent hover:text-foreground"
+						<div className="grid gap-3.5">
+							<div className="rounded-2xl border border-border/70 bg-background/48 p-1">
+								<button
+									type="button"
+									onClick={handleTourStart}
+									className="grid min-h-14 w-full grid-cols-[2.5rem_1fr] items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-foreground/90 transition-colors hover:bg-accent hover:text-foreground"
 								>
-									<Info className="h-4 w-4" />
-									<span>How it works</span>
-								</Link>
-								<Link
-									href={`${basePath || ""}/feature-event`}
-									className="flex min-h-12 flex-col justify-center gap-1 rounded-xl px-3 py-2 text-sm text-foreground/85 hover:bg-accent hover:text-foreground"
-								>
-									<Megaphone className="h-4 w-4" />
-									<span>Promote</span>
-								</Link>
+									<span className="flex size-9 items-center justify-center rounded-full border border-border/70 bg-card/80">
+										<CircleHelp className="h-4 w-4" />
+									</span>
+									<span className="min-w-0">
+										<span className="block font-medium">Take the tour</span>
+										<span className="mt-0.5 block text-xs leading-tight text-muted-foreground">
+											Find your first plan in 30 seconds
+										</span>
+									</span>
+								</button>
 							</div>
-							<div>
-								<p className="px-1 pb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+
+							<div className="rounded-2xl border border-border/60 bg-background/36 p-2">
+								<p className="px-1 pb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+									Guide
+								</p>
+								<div className="grid grid-cols-2 gap-1">
+									<Link
+										href={`${basePath || ""}/how-it-works`}
+										className={moreInternalItemClassName}
+									>
+										<Info className="h-4 w-4" />
+										<span>How it works</span>
+									</Link>
+									<Link
+										href={`${basePath || ""}/feature-event`}
+										className={moreInternalItemClassName}
+									>
+										<Megaphone className="h-4 w-4" />
+										<span>Promote</span>
+									</Link>
+								</div>
+							</div>
+							<div className="rounded-2xl border border-border/60 bg-background/36 p-2">
+								<p className="px-1 pb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
 									Essentials
 								</p>
 								<div className="grid grid-cols-2 gap-1">
@@ -531,7 +573,7 @@ export function MobileBottomNav() {
 											setIsMoreOpen(false);
 											setIsMusicModalOpen(true);
 										}}
-										className="flex min-h-12 flex-col justify-center gap-1 rounded-xl px-3 py-2 text-left text-sm text-foreground/85 hover:bg-accent hover:text-foreground"
+										className={cn(moreInternalItemClassName, "text-left")}
 									>
 										<Music2 className="h-4 w-4" />
 										<span>Playlist</span>
@@ -540,7 +582,7 @@ export function MobileBottomNav() {
 										href={foodGuideUrl}
 										target="_blank"
 										rel="noopener noreferrer"
-										className="grid min-h-12 grid-cols-[1fr_auto] items-start gap-2 rounded-xl px-3 py-2 text-sm text-foreground/85 hover:bg-accent hover:text-foreground"
+										className={moreExternalItemClassName}
 									>
 										<span className="flex flex-col gap-1">
 											<Utensils className="h-4 w-4" />
@@ -552,7 +594,7 @@ export function MobileBottomNav() {
 										href={COMMUNITY_INVITE_CONFIG.WHATSAPP_URL}
 										target="_blank"
 										rel="noopener noreferrer"
-										className="grid min-h-12 grid-cols-[1fr_auto] items-start gap-2 rounded-xl px-3 py-2 text-sm text-foreground/85 hover:bg-accent hover:text-foreground"
+										className={moreExternalItemClassName}
 									>
 										<span className="flex flex-col gap-1">
 											<MessageCircle className="h-4 w-4" />
@@ -564,7 +606,7 @@ export function MobileBottomNav() {
 										href={toiletFinderUrl}
 										target="_blank"
 										rel="noopener noreferrer"
-										className="grid min-h-12 grid-cols-[1fr_auto] items-start gap-2 rounded-xl px-3 py-2 text-sm text-foreground/85 hover:bg-accent hover:text-foreground"
+										className={moreExternalItemClassName}
 									>
 										<span className="flex flex-col gap-1">
 											<Toilet className="h-4 w-4" />
@@ -576,7 +618,7 @@ export function MobileBottomNav() {
 										href={ooocFaqUrl}
 										target="_blank"
 										rel="noopener noreferrer"
-										className="grid min-h-12 grid-cols-[1fr_auto] items-start gap-2 rounded-xl px-3 py-2 text-sm text-foreground/85 hover:bg-accent hover:text-foreground"
+										className={moreExternalItemClassName}
 									>
 										<span className="flex flex-col gap-1">
 											<CircleHelp className="h-4 w-4" />

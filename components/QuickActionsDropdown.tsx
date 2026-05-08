@@ -1,27 +1,29 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { requestFeteFinderTour } from "@/features/events/tour-events";
+import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
+import { cn } from "@/lib/utils";
 import {
 	ChevronDown,
+	CircleHelp,
 	ExternalLink,
 	MapPin,
 	MessageCircle,
 	Music2,
+	Toilet,
 	Utensils,
 	Zap,
-	Toilet,
 } from "lucide-react";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
-import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
 
 interface QuickActionsDropdownProps {
 	onMusicSelect: () => void;
@@ -67,6 +69,11 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 
 	const handleMusicClick = () => {
 		onMusicSelect();
+		setIsOpen(false);
+	};
+
+	const handleTourClick = () => {
+		requestFeteFinderTour();
 		setIsOpen(false);
 	};
 
@@ -134,6 +141,24 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 					)}
 				>
 					<div className="p-1">
+						<button
+							type="button"
+							onClick={handleTourClick}
+							className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors text-left"
+						>
+							<div className="w-10 flex items-center justify-center">
+								<CircleHelp className="h-4 w-4 text-amber-700 dark:text-amber-300" />
+							</div>
+							<div className="flex-1 min-w-0">
+								<div className="font-medium">Take the Tour</div>
+								<div className="text-xs text-muted-foreground line-clamp-2">
+									Find your first plan in 30 seconds
+								</div>
+							</div>
+						</button>
+
+						<div className="my-1 h-px bg-border" />
+
 						{/* Music Option */}
 						<button
 							onClick={handleMusicClick}

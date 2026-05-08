@@ -98,6 +98,21 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 				})}
 			</div>
 		);
+		const filterButtonControl = (
+			<FilterButton
+				onClickAction={onFilterClickAction}
+				hasActiveFilters={hasActiveFilters}
+				activeFiltersCount={activeFiltersCount}
+				className="h-7 min-h-7 shrink-0 rounded-full px-3 text-xs max-[340px]:w-10 max-[340px]:px-0 [&_span[data-filter-label]]:max-[340px]:sr-only [&_svg]:max-[340px]:mr-0"
+				size="sm"
+			/>
+		);
+		const clearFiltersControl = hasActiveFilters ? (
+			<ClearFiltersButton
+				onClick={onClearFilters}
+				className="h-7 shrink-0 px-3 max-[340px]:px-2"
+			/>
+		) : null;
 
 		return (
 			<Card ref={ref} className="ooo-site-card mt-6 py-0">
@@ -118,14 +133,9 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								{sortModeControl}
 							</div>
 							<div className="hidden shrink-0 items-center gap-2 sm:flex lg:hidden">
+								{clearFiltersControl}
+								{filterButtonControl}
 								{sortModeControl}
-								<FilterButton
-									onClickAction={onFilterClickAction}
-									hasActiveFilters={hasActiveFilters}
-									activeFiltersCount={activeFiltersCount}
-									className="h-7 min-h-7 shrink-0 rounded-full px-3 text-xs max-[340px]:w-10 max-[340px]:px-0 [&_span[data-filter-label]]:max-[340px]:sr-only [&_svg]:max-[340px]:mr-0"
-									size="sm"
-								/>
 							</div>
 						</div>
 						<Link
@@ -136,22 +146,9 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							and submit <span className="whitespace-nowrap">your event →</span>
 						</Link>
 						<div className="flex max-w-full items-center gap-2 overflow-x-auto pb-0.5 sm:hidden">
+							{clearFiltersControl}
+							{filterButtonControl}
 							{sortModeControl}
-							<FilterButton
-								onClickAction={onFilterClickAction}
-								hasActiveFilters={hasActiveFilters}
-								activeFiltersCount={activeFiltersCount}
-								className="h-7 min-h-7 shrink-0 rounded-full px-3 text-xs max-[340px]:w-10 max-[340px]:px-0 [&_span[data-filter-label]]:max-[340px]:sr-only [&_svg]:max-[340px]:mr-0"
-								size="sm"
-							/>
-						</div>
-						<div className="flex items-center gap-2 lg:hidden">
-							{hasActiveFilters && (
-								<ClearFiltersButton
-									onClick={onClearFilters}
-									className="lg:hidden"
-								/>
-							)}
 						</div>
 					</div>
 				</CardHeader>
