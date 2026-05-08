@@ -144,9 +144,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	const sectionTitleClassName =
 		"text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground";
 	const denseToggleClassName =
-		"h-7 min-w-0 justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
+		"h-7 w-full min-w-0 overflow-hidden justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
 	const regularToggleClassName =
-		"h-8 min-w-0 justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
+		"h-8 w-full min-w-0 overflow-hidden justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
 	const compactRailSectionClassName =
 		"space-y-2.5 rounded-lg border border-border/70 bg-background/58 p-2.5";
 	const genreOptions = availableGenres ?? MUSIC_GENRES;
@@ -154,7 +154,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	const activeFilterBadgeClassName =
 		"h-7 gap-1 rounded-full border border-border/70 bg-background/72 px-2.5 text-xs font-normal shadow-none";
 	const compactActiveFilterBadgeClassName =
-		"h-7 gap-1 rounded-full border border-border/70 bg-background/80 px-2 text-xs font-normal shadow-none";
+		"h-7 max-w-full gap-1 rounded-full border border-border/70 bg-background/80 px-2 text-xs font-normal shadow-none";
 	const activeFilterRemoveButtonClassName =
 		"h-auto p-0 ml-1 text-muted-foreground hover:bg-transparent hover:text-foreground";
 	const ooocPickHelp =
@@ -431,7 +431,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							compact
 								? compactRows === "double"
 									? "flex max-h-[3.65rem] min-h-7 flex-wrap gap-1.5 overflow-y-auto pb-0.5 pr-1 [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_34%,transparent)_transparent] [scrollbar-width:thin] [&>*]:shrink-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/28 [&::-webkit-scrollbar-track]:bg-transparent"
-									: "flex h-7 min-w-0 gap-1.5 overflow-x-auto [mask-image:linear-gradient(to_right,black_calc(100%_-_24px),transparent)] [scrollbar-width:none] [&>*]:shrink-0 [&::-webkit-scrollbar]:hidden"
+									: "flex max-h-[3.65rem] min-h-7 min-w-0 flex-wrap gap-1.5 overflow-hidden"
 								: "flex min-h-[28px] flex-wrap gap-2"
 						}
 					>
@@ -747,13 +747,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						</CardHeader>
 
 						<CardContent
-							className={`motion-safe:transition-[max-height] motion-safe:duration-250 motion-safe:ease-out overflow-hidden relative py-3 ${
+							className={`motion-safe:transition-[max-height] motion-safe:duration-250 motion-safe:ease-out min-w-0 overflow-hidden relative py-3 ${
 								isDesktopContentExpanded ? "max-h-[650px]" : "max-h-24"
 							}`}
 						>
 							<div
 								ref={desktopRailScrollRef}
-								className="h-[calc(650px-4rem)] overflow-y-auto relative"
+								className="h-[calc(650px-4rem)] min-w-0 overflow-x-hidden overflow-y-auto relative"
 							>
 								{/* Active Filters - Top when few filters */}
 								{hasActiveFilters && uiDecisions.activeFiltersAtTop && (
@@ -811,11 +811,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																size="sm"
 																className={`${denseToggleClassName} justify-center`}
 															>
-																<span className="inline-flex items-center gap-1">
-																	<span className="text-muted-foreground">
+																<span className="inline-flex min-w-0 items-center gap-1">
+																	<span className="shrink-0 text-muted-foreground">
 																		{renderDayNightIcon(key)}
 																	</span>
-																	<span>{label}</span>
+																	<span className="min-w-0 truncate">
+																		{label}
+																	</span>
 																</span>
 															</Toggle>
 														))}
@@ -938,7 +940,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																		<div
 																			className={`w-1.5 h-1.5 rounded-full ${color} mr-1.5 flex-shrink-0`}
 																		/>
-																		<span className="text-xs truncate">
+																		<span className="min-w-0 truncate text-xs">
 																			{label}
 																		</span>
 																	</Toggle>
@@ -987,8 +989,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																	className={regularToggleClassName}
 																	size="sm"
 																>
-																	<span className="mr-1.5 text-sm">{flag}</span>
-																	<span className="text-xs">{shortCode}</span>
+																	<span className="mr-1.5 shrink-0 text-sm">
+																		{flag}
+																	</span>
+																	<span className="min-w-0 truncate text-xs">
+																		{shortCode}
+																	</span>
 																</Toggle>
 															),
 														)}
@@ -1051,8 +1057,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														className={denseToggleClassName}
 														size="sm"
 													>
-														<Star className="h-3.5 w-3.5 mr-1.5 fill-yellow-400" />
-														<span className="text-xs">
+														<Star className="h-3.5 w-3.5 mr-1.5 shrink-0 fill-yellow-400" />
+														<span className="min-w-0 truncate text-xs">
 															Show only OOOC Picks
 														</span>
 													</Toggle>
@@ -1077,11 +1083,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																className={regularToggleClassName}
 																size="sm"
 															>
-																<span className="inline-flex items-center gap-1 text-xs">
-																	<span className="text-muted-foreground">
+																<span className="inline-flex min-w-0 items-center gap-1 text-xs">
+																	<span className="shrink-0 text-muted-foreground">
 																		{renderVenueTypeIcon(key)}
 																	</span>
-																	<span>{label}</span>
+																	<span className="min-w-0 truncate">
+																		{label}
+																	</span>
 																</span>
 															</Toggle>
 														))}

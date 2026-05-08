@@ -1060,7 +1060,6 @@ export function EventsClient({
 					className="min-w-0 scroll-mt-6 sm:scroll-mt-28"
 				>
 					<AllEvents
-						key={`${sortMode}:${searchQuery}:${activeFiltersCount}:${allEventsOrdered.length}:${allEventsOrdered[0]?.eventKey ?? ""}:${allEventsOrdered.at(-1)?.eventKey ?? ""}`}
 						ref={allEventsRef}
 						events={allEventsOrdered}
 						onEventClick={handleEventClick}
