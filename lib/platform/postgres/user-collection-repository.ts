@@ -216,9 +216,14 @@ export class UserCollectionRepository {
 		`;
 
 		await this.sql`
-			CREATE INDEX IF NOT EXISTS idx_app_user_collection_events_user_submitted
-			ON app_user_collection_events (user_id, submitted_at DESC)
-		`;
+				CREATE INDEX IF NOT EXISTS idx_app_user_collection_events_user_submitted
+				ON app_user_collection_events (user_id, submitted_at DESC)
+			`;
+
+		await this.sql`
+				CREATE INDEX IF NOT EXISTS idx_app_user_collection_rollup_user
+				ON app_user_collection_rollup (user_id)
+			`;
 	}
 
 	private async ready(): Promise<void> {
@@ -382,6 +387,54 @@ export class UserCollectionRepository {
 			locale: row.locale,
 			...signalCounts.get(normalizeEmail(row.email)),
 		}));
+	}
+
+	async findByEmail(email: string): Promise<UserRecord | null> {
+		await this.ready();
+		const normalizedEmail = normalizeEmail(email);
+		if (!normalizedEmail) return null;
+
+		const rows = await this.sql<RollupRow[]>`
+			SELECT
+				COALESCE(r.user_id, u.id) AS user_id,
+				r.email,
+				r.first_name,
+				r.last_name,
+				r.consent,
+				r.source,
+				r.device_class,
+				r.platform,
+				r.browser_family,
+				r.timezone,
+				r.locale,
+				r.last_seen_at,
+				r.updated_at
+			FROM app_user_collection_rollup r
+			LEFT JOIN app_users u ON u.email_normalized = r.email
+			WHERE r.email = ${normalizedEmail}
+			LIMIT 1
+		`;
+		const row = rows[0];
+		if (!row) return null;
+
+		const signalCounts = await this.listSignalCounts([
+			{ email: row.email, userId: row.user_id },
+		]);
+		return {
+			...(row.user_id ? { userId: row.user_id } : {}),
+			firstName: row.first_name,
+			lastName: row.last_name,
+			email: normalizeEmail(row.email),
+			timestamp: toIsoString(row.last_seen_at) || new Date(0).toISOString(),
+			consent: row.consent,
+			source: row.source,
+			deviceClass: row.device_class,
+			platform: row.platform,
+			browserFamily: row.browser_family,
+			timezone: row.timezone,
+			locale: row.locale,
+			...signalCounts.get(normalizeEmail(row.email)),
+		};
 	}
 
 	private async listSignalCounts(
@@ -706,7 +759,9 @@ export class UserCollectionRepository {
 		return users.filter((user) => (user.linkedSignalCount ?? 0) > 0).length;
 	}
 
-	async getAnalytics(): Promise<UserCollectionAnalytics> {
+	async getAnalytics(
+		linkedBehaviorUsersOverride?: number,
+	): Promise<UserCollectionAnalytics> {
 		await this.ready();
 		const contextSummaryQuery = (columnName: string) => this.sql<
 			ContextSummaryRow[]
@@ -798,7 +853,8 @@ export class UserCollectionRepository {
 		}
 		const recent = recentRows[0];
 		const capturedRange = rangeRows[0];
-		const linkedBehaviorUsers = await this.countLinkedBehaviorUsers();
+		const linkedBehaviorUsers =
+			linkedBehaviorUsersOverride ?? (await this.countLinkedBehaviorUsers());
 
 		return {
 			totalUsers: totals.total_users,
@@ -822,14 +878,16 @@ export class UserCollectionRepository {
 
 	async getSnapshot(): Promise<UserCollectionStoreSnapshot> {
 		await this.ready();
-		const [users, analytics, statusRow] = await Promise.all([
+		const [users, statusRow] = await Promise.all([
 			this.listAll(),
-			this.getAnalytics(),
 			this.sql<{ last_updated_at: Date | string | null }[]>`
 				SELECT MAX(updated_at) AS last_updated_at
 				FROM app_user_collection_rollup
 			`,
 		]);
+		const analytics = await this.getAnalytics(
+			users.filter((user) => (user.linkedSignalCount ?? 0) > 0).length,
+		);
 
 		return {
 			users,

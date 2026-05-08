@@ -86,8 +86,8 @@ const ACTIVITY_SEGMENTS: Array<{
 		value: "genre-prefs",
 		sortMode: "activity",
 	},
-	{ label: "Has context", value: "has-context", sortMode: "last-active" },
-	{ label: "Missing context", value: "missing-context", sortMode: "newest" },
+	{ label: "Context captured", value: "has-context", sortMode: "last-active" },
+	{ label: "Context missing", value: "missing-context", sortMode: "newest" },
 ];
 
 type EmailMutationResult = {
@@ -442,6 +442,7 @@ export const EmailCollectionCard = ({
 		Record<string, Partial<EmailRecord>>
 	>({});
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
+	const profileRequestIdRef = useRef(0);
 	const mergedEmails = useMemo(
 		() =>
 			emails.map((user) => ({
@@ -606,35 +607,48 @@ export const EmailCollectionCard = ({
 	};
 
 	const handleOpenProfile = async (user: EmailRecord) => {
+		const requestId = profileRequestIdRef.current + 1;
+		profileRequestIdRef.current = requestId;
 		setProfileEmail(user.email);
 		setProfile(null);
 		setProfileStatus("");
 		setIsProfileLoading(true);
-		const result = await onGetUserProfile(user.email);
-		if (result.success && result.profile) {
-			const loadedProfile = result.profile;
-			setProfile(loadedProfile);
-			setProfileOverrides((current) => ({
-				...current,
-				[loadedProfile.user.email]: {
-					linkedSignalCount: loadedProfile.user.linkedSignalCount,
-					searchSignalCount: loadedProfile.user.searchSignalCount,
-					filterSignalCount: loadedProfile.user.filterSignalCount,
-					eventActionSignalCount: loadedProfile.user.eventActionSignalCount,
-					genrePreferenceSignalCount:
-						loadedProfile.user.genrePreferenceSignalCount,
-					lastSignalAt: loadedProfile.user.lastSignalAt,
-					deviceClass: loadedProfile.user.deviceClass,
-					platform: loadedProfile.user.platform,
-					browserFamily: loadedProfile.user.browserFamily,
-					timezone: loadedProfile.user.timezone,
-					locale: loadedProfile.user.locale,
-				},
-			}));
-		} else {
-			setProfileStatus(result.error || "Profile could not be loaded.");
+		try {
+			const result = await onGetUserProfile(user.email);
+			if (profileRequestIdRef.current !== requestId) return;
+			if (result.success && result.profile) {
+				const loadedProfile = result.profile;
+				setProfile(loadedProfile);
+				setProfileOverrides((current) => ({
+					...current,
+					[loadedProfile.user.email]: {
+						linkedSignalCount: loadedProfile.user.linkedSignalCount,
+						searchSignalCount: loadedProfile.user.searchSignalCount,
+						filterSignalCount: loadedProfile.user.filterSignalCount,
+						eventActionSignalCount: loadedProfile.user.eventActionSignalCount,
+						genrePreferenceSignalCount:
+							loadedProfile.user.genrePreferenceSignalCount,
+						lastSignalAt: loadedProfile.user.lastSignalAt,
+						deviceClass: loadedProfile.user.deviceClass,
+						platform: loadedProfile.user.platform,
+						browserFamily: loadedProfile.user.browserFamily,
+						timezone: loadedProfile.user.timezone,
+						locale: loadedProfile.user.locale,
+					},
+				}));
+			} else {
+				setProfileStatus(result.error || "Profile could not be loaded.");
+			}
+		} catch (error) {
+			if (profileRequestIdRef.current !== requestId) return;
+			setProfileStatus(
+				error instanceof Error ? error.message : "Profile could not be loaded.",
+			);
+		} finally {
+			if (profileRequestIdRef.current === requestId) {
+				setIsProfileLoading(false);
+			}
 		}
-		setIsProfileLoading(false);
 	};
 
 	return (
@@ -825,8 +839,8 @@ export const EmailCollectionCard = ({
 						<option value="filters">Used filters</option>
 						<option value="event-actions">Opened/saved events</option>
 						<option value="genre-prefs">Genre prefs</option>
-						<option value="has-context">Has context</option>
-						<option value="missing-context">Missing context</option>
+						<option value="has-context">Context captured</option>
+						<option value="missing-context">Context missing</option>
 					</select>
 					<select
 						value={sortMode}
@@ -1026,7 +1040,7 @@ export const EmailCollectionCard = ({
 							return (
 								<div
 									key={`${user.email}-${user.timestamp}`}
-									className="flex gap-3 rounded-md border bg-background/60 p-3 transition-colors hover:bg-muted/40"
+									className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md border bg-background/60 p-3 transition-colors hover:bg-muted/40 sm:grid-cols-[auto_minmax(0,1fr)_auto]"
 								>
 									<input
 										type="checkbox"
@@ -1107,6 +1121,7 @@ export const EmailCollectionCard = ({
 										variant="outline"
 										size="sm"
 										onClick={() => void handleOpenProfile(user)}
+										className="col-start-2 w-fit shrink-0 justify-self-start sm:col-start-auto sm:justify-self-end"
 									>
 										<Eye className="size-4" />
 										View

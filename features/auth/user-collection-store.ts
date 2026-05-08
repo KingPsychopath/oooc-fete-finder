@@ -286,9 +286,12 @@ export class UserCollectionStore {
 		const normalizedEmail = email.trim().toLowerCase();
 		if (!normalizedEmail) return null;
 
-		const user = (await this.listAll()).find(
-			(record) => record.email === normalizedEmail,
-		);
+		const repository = getUserCollectionRepository();
+		const user = repository
+			? await repository.findByEmail(normalizedEmail)
+			: (await this.listAll()).find(
+					(record) => record.email === normalizedEmail,
+				);
 		if (!user) return null;
 
 		const [genrePreferences, recentDiscovery, recentEventActions] =
@@ -309,15 +312,21 @@ export class UserCollectionStore {
 					limit: 16,
 				}) ?? Promise.resolve([]),
 			]);
-		const liveEventsResult = await getLiveEvents({
-			includeFeaturedProjection: false,
-			includeEngagementProjection: false,
-		});
-		const eventsByKey = new Map(
-			liveEventsResult.success
-				? liveEventsResult.data.map((event) => [event.eventKey, event])
-				: [],
-		);
+		const eventsByKey = new Map<
+			string,
+			{ eventKey: string; name: string; slug: string }
+		>();
+		if (recentEventActions.length > 0) {
+			const liveEventsResult = await getLiveEvents({
+				includeFeaturedProjection: false,
+				includeEngagementProjection: false,
+			});
+			for (const event of liveEventsResult.success
+				? liveEventsResult.data
+				: []) {
+				eventsByKey.set(event.eventKey, event);
+			}
+		}
 		const enrichedEventActions = recentEventActions.map((action) => {
 			const event = eventsByKey.get(action.eventKey);
 			return {

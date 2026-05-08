@@ -115,9 +115,13 @@ export class DiscoveryAnalyticsRepository {
 			ON app_discovery_analytics_stats (search_query, recorded_at DESC)
 		`;
 		await this.sql`
-			CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_user_time
-			ON app_discovery_analytics_stats (user_id, recorded_at DESC)
-		`;
+				CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_user_time
+				ON app_discovery_analytics_stats (user_id, recorded_at DESC)
+			`;
+		await this.sql`
+				CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_user_email_time
+				ON app_discovery_analytics_stats (LOWER(user_email), recorded_at DESC)
+			`;
 	}
 
 	private async ready(): Promise<void> {
