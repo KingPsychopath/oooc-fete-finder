@@ -98,6 +98,8 @@ interface ParisMapLibreProps {
 
 // Paris center coordinates
 const PARIS_CENTER: [number, number] = [2.3522, 48.8566]; // [lng, lat]
+const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const MAP_LOAD_ERROR_GRACE_MS = 3500;
 
 /**
  * Arrondissement fill colors based on event density
@@ -163,6 +165,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const mapContainer = useRef<HTMLDivElement>(null);
 	const map = useRef<maplibregl.Map | null>(null);
 	const hasLoadedMapRef = useRef(false);
+	const loadErrorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
 	const locateNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
 	);
@@ -462,6 +467,30 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		onFullscreenRequest?.();
 	}, [onFullscreenRequest]);
 
+	const handleMapRetry = useCallback(() => {
+		if (loadErrorTimeoutRef.current) {
+			clearTimeout(loadErrorTimeoutRef.current);
+			loadErrorTimeoutRef.current = null;
+		}
+
+		const currentMap = map.current;
+		if (currentMap) {
+			try {
+				currentMap.remove();
+			} catch (error) {
+				clientLog.warn("maps.maplibre", "Map retry cleanup error", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
+
+		map.current = null;
+		hasLoadedMapRef.current = false;
+		setMapLoaded(false);
+		setIsLoading(true);
+		setLoadError(null);
+	}, []);
+
 	const handleFullscreenPointerDown = useCallback(
 		(event: React.PointerEvent<HTMLButtonElement>) => {
 			event.preventDefault();
@@ -481,7 +510,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 	// Initialize map with proper cleanup
 	useEffect(() => {
+		if (loadError) return;
 		if (!mapContainer.current || map.current) return;
+		hasLoadedMapRef.current = false;
 
 		const initMap = async () => {
 			try {
@@ -491,7 +522,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				// Initialize map
 				map.current = new maplibregl.Map({
 					container: mapContainer.current!,
-					style: "https://tiles.openfreemap.org/styles/liberty",
+					style: MAP_STYLE_URL,
 					center: PARIS_CENTER,
 					zoom: 11,
 					minZoom: 10,
@@ -511,6 +542,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 				map.current.on("load", () => {
 					hasLoadedMapRef.current = true;
+					if (loadErrorTimeoutRef.current) {
+						clearTimeout(loadErrorTimeoutRef.current);
+						loadErrorTimeoutRef.current = null;
+					}
 					setMapLoaded(true);
 					setIsLoading(false);
 					const collapseAttribution = () => {
@@ -532,11 +567,21 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						return;
 					}
 
-					clientLog.error("maps.maplibre", "Map loading error", {
+					clientLog.warn("maps.maplibre", "Map loading delayed by tile error", {
 						message: e.error.message,
 					});
-					setLoadError("Failed to load map tiles");
-					setIsLoading(false);
+					if (loadErrorTimeoutRef.current) return;
+
+					loadErrorTimeoutRef.current = setTimeout(() => {
+						loadErrorTimeoutRef.current = null;
+						if (hasLoadedMapRef.current) return;
+
+						clientLog.error("maps.maplibre", "Map loading error", {
+							message: e.error.message,
+						});
+						setLoadError("Failed to load map tiles");
+						setIsLoading(false);
+					}, MAP_LOAD_ERROR_GRACE_MS);
 				});
 			} catch (error) {
 				clientLog.error(
@@ -557,7 +602,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		// Proper cleanup function
 		return () => {
 			const currentMap = map.current;
-			if (!currentMap) return;
+			if (!currentMap) {
+				if (loadErrorTimeoutRef.current) {
+					clearTimeout(loadErrorTimeoutRef.current);
+					loadErrorTimeoutRef.current = null;
+				}
+				return;
+			}
 			try {
 				currentMap.remove();
 			} catch (error) {
@@ -565,10 +616,14 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					error: error instanceof Error ? error.message : String(error),
 				});
 			} finally {
+				if (loadErrorTimeoutRef.current) {
+					clearTimeout(loadErrorTimeoutRef.current);
+					loadErrorTimeoutRef.current = null;
+				}
 				map.current = null;
 			}
 		};
-	}, []);
+	}, [loadError]);
 
 	useEffect(() => {
 		if (!map.current) return;
@@ -1079,7 +1134,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							</p>
 						) : (
 							<button
-								onClick={() => window.location.reload()}
+								onClick={handleMapRetry}
 								className="mt-4 inline-flex h-8 items-center justify-center rounded-full border border-red-600/30 bg-red-600 px-4 text-sm text-white transition-colors hover:bg-red-700"
 								type="button"
 							>

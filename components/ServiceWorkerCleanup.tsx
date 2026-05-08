@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-const CLEANUP_STORAGE_KEY = "oooc:service-worker-cleanup:v1";
+const CLEANUP_STORAGE_KEY = "oooc:service-worker-cleanup:v2";
 
 const hasCleanupRun = () => {
 	try {
@@ -28,7 +28,8 @@ export function ServiceWorkerCleanup() {
 		void (async () => {
 			try {
 				if ("serviceWorker" in navigator) {
-					const registrations = await navigator.serviceWorker.getRegistrations();
+					const registrations =
+						await navigator.serviceWorker.getRegistrations();
 					await Promise.all(
 						registrations.map((registration) => registration.unregister()),
 					);

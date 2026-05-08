@@ -14,10 +14,10 @@ import { forwardRef } from "react";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
-type EventSortMode = "recommended" | "fresh-activity";
+type EventSortMode = "upcoming" | "fresh-activity";
 
 const eventSortOptions: { value: EventSortMode; label: string }[] = [
-	{ value: "recommended", label: "Recommended" },
+	{ value: "upcoming", label: "Upcoming" },
 	{ value: "fresh-activity", label: "Fresh activity" },
 ];
 
@@ -28,6 +28,7 @@ type AllEventsProps = {
 	sortMode: EventSortMode;
 	onSortModeChange: (mode: EventSortMode) => void;
 	onFilterClickAction: () => void;
+	onClearFilters: () => void;
 	onAuthRequired: () => void;
 	hasActiveFilters: boolean;
 	activeFiltersCount: number;
@@ -44,6 +45,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			sortMode,
 			onSortModeChange,
 			onFilterClickAction,
+			onClearFilters,
 			onAuthRequired,
 			hasActiveFilters,
 			activeFiltersCount,
@@ -119,6 +121,17 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								className="h-9 min-h-9 self-start rounded-full px-3 text-xs lg:hidden"
 								size="sm"
 							/>
+							{hasActiveFilters && (
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onClick={onClearFilters}
+									className="h-9 rounded-full border border-dashed border-border/75 bg-muted/25 px-3 text-xs text-muted-foreground hover:bg-muted/45 hover:text-foreground lg:hidden"
+								>
+									Clear
+								</Button>
+							)}
 						</div>
 					</div>
 				</CardHeader>

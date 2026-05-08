@@ -44,7 +44,7 @@ interface EventsClientProps {
 
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
 const REQUEST_UPDATE_PARAM = "requestUpdate";
-type EventSortMode = "recommended" | "fresh-activity";
+type EventSortMode = "upcoming" | "fresh-activity";
 type PendingAuthAction = "show-oooc-picks";
 
 const normalizeBasePath = (value: string): string => {
@@ -130,7 +130,7 @@ export function EventsClient({
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 	const [showEmailGate, setShowEmailGate] = useState(false);
 	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false);
-	const [sortMode, setSortMode] = useState<EventSortMode>("recommended");
+	const [sortMode, setSortMode] = useState<EventSortMode>("upcoming");
 	const pendingAuthActionRef = useRef<PendingAuthAction | null>(null);
 	const invalidEventParamCountRef = useRef(0);
 	const allEventsRef = useRef<HTMLDivElement>(null);
@@ -702,6 +702,7 @@ export function EventsClient({
 					sortMode={sortMode}
 					onSortModeChange={setSortMode}
 					onFilterClickAction={toggleFilterPanel}
+					onClearFilters={onClearFilters}
 					onAuthRequired={() => setShowEmailGate(true)}
 					hasActiveFilters={hasAnyActiveFilters}
 					activeFiltersCount={activeFiltersCount}
