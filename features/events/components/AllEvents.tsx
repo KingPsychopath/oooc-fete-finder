@@ -115,7 +115,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		) : null;
 
 		return (
-			<Card ref={ref} className="ooo-site-card mt-6 py-0">
+			<Card ref={ref} className="ooo-site-card mt-6 py-0 lg:mt-0">
 				<CardHeader className="border-b border-border/70 py-5">
 					<div className="flex flex-col gap-3">
 						<div className="flex items-start justify-between gap-3">
@@ -153,7 +153,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 					</div>
 				</CardHeader>
 				<CardContent className="py-5">
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+					<div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
 						{visibleEvents.map((event) => (
 							<EventCard
 								key={event.id}
@@ -180,7 +180,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								tabIndex={0}
 								aria-label="Authenticate to view remaining events"
 							>
-								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+								<div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
 									{lockedEvents.map((event) => (
 										<div
 											key={event.id}

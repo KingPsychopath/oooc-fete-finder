@@ -10,15 +10,14 @@ import {
 } from "@/components/ui/popover";
 import { Toggle } from "@/components/ui/toggle";
 import {
-	areDateRangesEqual,
 	type DateRangeFilter,
+	areDateRangesEqual,
 } from "@/features/events/filtering";
 import { CalendarDays } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
 
 type DateRangePickerControlProps = {
-	compact?: boolean;
 	mobileNative?: boolean;
 	selectedDateRange: DateRangeFilter;
 	defaultDateRange: DateRangeFilter;
@@ -33,7 +32,6 @@ type DateRangePickerControlProps = {
 };
 
 function DateRangePickerControl({
-	compact = false,
 	mobileNative = false,
 	selectedDateRange,
 	defaultDateRange,
@@ -53,7 +51,8 @@ function DateRangePickerControl({
 	const hasDefaultDateRange =
 		defaultDateRange.from !== null || defaultDateRange.to !== null;
 	const hasCustomDateRange =
-		hasSelectedDateRange && !areDateRangesEqual(selectedDateRange, defaultDateRange);
+		hasSelectedDateRange &&
+		!areDateRangesEqual(selectedDateRange, defaultDateRange);
 	const mobileDateRangeLabel = hasSelectedDateRange
 		? formatDateRangeLabel(selectedDateRange)
 		: "All dates";
@@ -287,9 +286,7 @@ function DateRangePickerControl({
 				</Popover>
 			)}
 			{quickSelectEventDates.length > 0 && (
-				<div
-					className={`grid ${compact ? "grid-cols-2" : "grid-cols-2"} gap-1`}
-				>
+				<div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
 					{quickSelectEventDates.slice(0, 4).map((date) => (
 						<Toggle
 							key={date}
@@ -312,7 +309,7 @@ function DateRangePickerControl({
 							size="sm"
 							className={denseToggleClassName}
 						>
-							{formatDateLabel(date)}
+							<span className="min-w-0 truncate">{formatDateLabel(date)}</span>
 						</Toggle>
 					))}
 				</div>

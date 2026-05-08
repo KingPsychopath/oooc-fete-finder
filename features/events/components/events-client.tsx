@@ -388,6 +388,14 @@ export function EventsClient({
 
 	const toggleFilterPanel = useCallback(() => {
 		if (!requireAuth()) return;
+		if (
+			typeof window !== "undefined" &&
+			window.matchMedia("(min-width: 1024px)").matches
+		) {
+			setIsFilterExpanded((previous) => !previous);
+			setIsFilterOpen(false);
+			return;
+		}
 		setIsFilterOpen((previous) => !previous);
 	}, [requireAuth]);
 
@@ -400,6 +408,14 @@ export function EventsClient({
 	}, []);
 
 	const openFilterPanel = useCallback(() => {
+		if (
+			typeof window !== "undefined" &&
+			window.matchMedia("(min-width: 1024px)").matches
+		) {
+			setIsFilterExpanded(true);
+			setIsFilterOpen(false);
+			return;
+		}
 		setIsFilterOpen(true);
 	}, []);
 
@@ -671,54 +687,60 @@ export function EventsClient({
 				/>
 			</div>
 
-			<div className="mb-8">
-				<AuthGate
-					isAuthenticated={isAuthenticated}
-					isAuthResolved={isAuthResolved}
-					onAuthRequired={() => setShowEmailGate(true)}
-					className="min-h-[400px]"
-				>
-					<FilterPanel
-						selectedDateRange={selectedDateRange}
-						defaultDateRange={defaultDateRange}
-						selectedDayNightPeriods={selectedDayNightPeriods}
-						selectedArrondissements={selectedArrondissements}
-						selectedGenres={selectedGenres}
-						selectedNationalities={selectedNationalities}
-						selectedVenueTypes={selectedVenueTypes}
-						selectedIndoorPreference={selectedIndoorPreference}
-						selectedPriceRange={selectedPriceRange}
-						selectedAgeRange={selectedAgeRange}
-						selectedOOOCPicks={selectedOOOCPicks}
-						onDateRangeChange={onDateRangeChange}
-						onDayNightPeriodToggle={onDayNightPeriodToggle}
-						onArrondissementToggle={onArrondissementToggle}
-						onGenreToggle={onGenreToggle}
-						onNationalityToggle={onNationalityToggle}
-						onVenueTypeToggle={onVenueTypeToggle}
-						onIndoorPreferenceChange={onIndoorPreferenceChange}
-						onPriceRangeChange={onPriceRangeChange}
-						onAgeRangeChange={onAgeRangeChange}
-						onOOOCPicksToggle={onOOOCPicksToggle}
-						onClearFilters={onClearFilters}
-						availableArrondissements={availableArrondissements}
-						availableGenres={availableGenres}
-						availableNationalities={availableNationalities}
-						availableEventDates={availableEventDates}
-						quickSelectEventDates={quickSelectEventDates}
-						filteredEventsCount={filteredEvents.length}
-						isOpen={isFilterOpen}
-						onClose={() => setIsFilterOpen(false)}
-						onOpen={openFilterPanel}
-						isExpanded={isFilterExpanded}
-						onToggleExpanded={toggleFilterExpansion}
-						hideFloatingButton={false}
-					/>
-				</AuthGate>
-			</div>
+			<div
+				id="all-events"
+				className="scroll-mt-6 lg:grid lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] lg:items-start lg:gap-5 sm:scroll-mt-28"
+			>
+				<aside className="lg:sticky lg:top-30 lg:self-start">
+					<AuthGate
+						isAuthenticated={isAuthenticated}
+						isAuthResolved={isAuthResolved}
+						onAuthRequired={() => setShowEmailGate(true)}
+						className="min-h-0"
+					>
+						<FilterPanel
+							selectedDateRange={selectedDateRange}
+							defaultDateRange={defaultDateRange}
+							selectedDayNightPeriods={selectedDayNightPeriods}
+							selectedArrondissements={selectedArrondissements}
+							selectedGenres={selectedGenres}
+							selectedNationalities={selectedNationalities}
+							selectedVenueTypes={selectedVenueTypes}
+							selectedIndoorPreference={selectedIndoorPreference}
+							selectedPriceRange={selectedPriceRange}
+							selectedAgeRange={selectedAgeRange}
+							selectedOOOCPicks={selectedOOOCPicks}
+							onDateRangeChange={onDateRangeChange}
+							onDayNightPeriodToggle={onDayNightPeriodToggle}
+							onArrondissementToggle={onArrondissementToggle}
+							onGenreToggle={onGenreToggle}
+							onNationalityToggle={onNationalityToggle}
+							onVenueTypeToggle={onVenueTypeToggle}
+							onIndoorPreferenceChange={onIndoorPreferenceChange}
+							onPriceRangeChange={onPriceRangeChange}
+							onAgeRangeChange={onAgeRangeChange}
+							onOOOCPicksToggle={onOOOCPicksToggle}
+							onClearFilters={onClearFilters}
+							availableArrondissements={availableArrondissements}
+							availableGenres={availableGenres}
+							availableNationalities={availableNationalities}
+							availableEventDates={availableEventDates}
+							quickSelectEventDates={quickSelectEventDates}
+							filteredEventsCount={filteredEvents.length}
+							isOpen={isFilterOpen}
+							onClose={() => setIsFilterOpen(false)}
+							onOpen={openFilterPanel}
+							isExpanded={isFilterExpanded}
+							onToggleExpanded={toggleFilterExpansion}
+							hideFloatingButton={false}
+						/>
+					</AuthGate>
+				</aside>
 
-			<div id="all-events" className="scroll-mt-6 sm:scroll-mt-28">
-				<div id="tour-all-events" className="scroll-mt-6 sm:scroll-mt-28">
+				<div
+					id="tour-all-events"
+					className="min-w-0 scroll-mt-6 sm:scroll-mt-28"
+				>
 					<AllEvents
 						ref={allEventsRef}
 						events={allEventsOrdered}

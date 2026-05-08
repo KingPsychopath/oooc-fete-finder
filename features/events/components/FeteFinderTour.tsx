@@ -69,6 +69,23 @@ function hasBlockingOverlay(): boolean {
 	);
 }
 
+function findVisibleTourTarget(selector: string): Element | null {
+	if (typeof document === "undefined") return null;
+	const targets = Array.from(document.querySelectorAll(selector));
+	return (
+		targets.find((target) => {
+			const rect = target.getBoundingClientRect();
+			const style = window.getComputedStyle(target);
+			return (
+				style.display !== "none" &&
+				style.visibility !== "hidden" &&
+				rect.width > 0 &&
+				rect.height > 0
+			);
+		}) ?? null
+	);
+}
+
 function trapTabKey(event: KeyboardEvent, dialog: HTMLElement | null): void {
 	if (event.key !== "Tab" || !dialog) return;
 	const focusableElements = Array.from(
@@ -241,9 +258,9 @@ export function FeteFinderTour({
 			},
 			{
 				id: "filters",
-				selector: "#tour-filter-panel, #tour-filter-button",
+				selector: "#tour-filter-rail, #tour-filter-panel, #tour-filter-button",
 				title: "Shape the list",
-				body: "Filter by time, price, arrondissement, venue setting, genre and OOOC Picks when the full guide needs narrowing.",
+				body: "Use the desktop filter rail, or the drawer on smaller screens, to narrow by time, price, arrondissement, venue setting, genre and OOOC Picks.",
 				preferredSide: "top",
 				beforeStep: onFilterOpen,
 			},
@@ -263,7 +280,7 @@ export function FeteFinderTour({
 
 	const syncSpotlight = useCallback(() => {
 		if (!currentStep || typeof document === "undefined") return false;
-		const target = document.querySelector(currentStep.selector);
+		const target = findVisibleTourTarget(currentStep.selector);
 		if (!target) return false;
 		setSpotlightRect(getSpotlightRect(target));
 		return true;
@@ -277,7 +294,7 @@ export function FeteFinderTour({
 				index >= 0 && index < steps.length;
 				index += direction
 			) {
-				const target = document.querySelector(steps[index].selector);
+				const target = findVisibleTourTarget(steps[index].selector);
 				if (target) {
 					setStepIndex(index);
 					return;
@@ -422,7 +439,7 @@ export function FeteFinderTour({
 		}
 		currentStep.beforeStep?.();
 		const timer = window.setTimeout(() => {
-			const target = document.querySelector(currentStep.selector);
+			const target = findVisibleTourTarget(currentStep.selector);
 			if (!target) {
 				moveToAvailableStep(stepIndex + 1, 1);
 				return;

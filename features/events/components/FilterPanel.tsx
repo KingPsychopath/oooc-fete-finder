@@ -17,11 +17,6 @@ import { ClearFiltersButton } from "@/features/events/components/ClearFiltersBut
 import { DateRangePickerControl } from "@/features/events/components/DateRangePickerControl";
 import { FilterButton } from "@/features/events/components/FilterButton";
 import {
-	panelActionButtonClassName,
-	panelActionIconClassName,
-	panelActionLabelClassName,
-} from "@/features/events/components/filter-action-button-styles";
-import {
 	type DateRangeFilter,
 	areDateRangesEqual,
 	getActiveFiltersCount,
@@ -64,7 +59,7 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type FilterPanelProps = {
 	selectedDateRange: DateRangeFilter;
@@ -149,9 +144,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	const sectionTitleClassName =
 		"text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground";
 	const denseToggleClassName =
-		"h-7 justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
+		"h-7 min-w-0 justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
 	const regularToggleClassName =
-		"h-8 justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
+		"h-8 min-w-0 justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
+	const compactRailSectionClassName =
+		"space-y-2.5 rounded-lg border border-border/70 bg-background/58 p-2.5";
 	const genreOptions = availableGenres ?? MUSIC_GENRES;
 	const [genreSearchQuery, setGenreSearchQuery] = useState("");
 	const activeFilterBadgeClassName =
@@ -177,6 +174,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		"types",
 		"price",
 	]);
+	const desktopRailScrollRef = useRef<HTMLDivElement>(null);
 
 	// Stable price range reset handler
 	const resetPriceRange = useCallback(() => {
@@ -291,6 +289,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		};
 	}, [isOpen]);
 
+	useEffect(() => {
+		if (!isDesktopContentExpanded) return;
+		desktopRailScrollRef.current?.scrollTo({ top: 0 });
+	}, [isDesktopContentExpanded]);
+
 	const formatDateLabel = useCallback((isoDate: string) => {
 		const parsed = new Date(`${isoDate}T12:00:00`);
 		if (Number.isNaN(parsed.getTime())) return isoDate;
@@ -366,13 +369,33 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		);
 	};
 
+	const RangeValueLabels = ({
+		left,
+		center,
+		right,
+	}: {
+		left: string;
+		center: string;
+		right: string;
+	}) => (
+		<div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-xs text-muted-foreground">
+			<span className="min-w-0 truncate text-left">{left}</span>
+			<span className="max-w-[9rem] truncate text-center font-medium text-foreground/78">
+				{center}
+			</span>
+			<span className="min-w-0 truncate text-right">{right}</span>
+		</div>
+	);
+
 	// Active Filters Component (reusable)
 	const ActiveFiltersDisplay = ({
 		showHeading = true,
 		compact = false,
+		compactRows = "single",
 	}: {
 		showHeading?: boolean;
 		compact?: boolean;
+		compactRows?: "single" | "double";
 	} = {}) => (
 		<div
 			className={`transition-opacity duration-200 ease-out ${
@@ -403,7 +426,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					<div
 						className={
 							compact
-								? "flex min-h-7 flex-nowrap gap-1.5 overflow-x-auto pb-0.5 [mask-image:linear-gradient(to_right,black_calc(100%_-_24px),transparent)] [scrollbar-width:none] [&>*]:shrink-0 [&::-webkit-scrollbar]:hidden"
+								? compactRows === "double"
+									? "flex max-h-[3.65rem] min-h-7 flex-wrap gap-1.5 overflow-y-auto pb-0.5 pr-1 [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_34%,transparent)_transparent] [scrollbar-width:thin] [&>*]:shrink-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/28 [&::-webkit-scrollbar-track]:bg-transparent"
+									: "grid max-h-[3.65rem] auto-cols-max grid-flow-col grid-rows-2 gap-1.5 overflow-x-auto pb-0.5 [mask-image:linear-gradient(to_right,black_calc(100%_-_24px),transparent)] [scrollbar-width:none] [&>*]:shrink-0 [&::-webkit-scrollbar]:hidden"
 								: "flex min-h-[28px] flex-wrap gap-2"
 						}
 					>
@@ -668,11 +693,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 				{/* Desktop version - always visible */}
 				<div id="tour-filter-panel" className="hidden lg:block">
-					<Card className="ooo-site-card overflow-hidden py-0">
-						<CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/70 py-5 pb-4">
-							<CardTitle className="flex items-center text-[1.55rem] [font-family:var(--ooo-font-display)] font-light">
-								<Filter className="h-4 w-4 mr-2" />
-								Event Filters
+					<Card
+						id="tour-filter-rail"
+						size="sm"
+						className="ooo-site-card overflow-hidden py-0"
+					>
+						<CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 border-b border-border/70 py-4">
+							<CardTitle className="flex min-w-0 items-center whitespace-nowrap text-2xl [font-family:var(--ooo-font-display)] font-light">
+								<Filter className="mr-2 h-4 w-4" />
+								Filters
 								{hasActiveFilters && (
 									<Badge
 										variant="secondary"
@@ -681,51 +710,58 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										{activeFilterCount} active
 									</Badge>
 								)}
-								<Badge
-									variant="outline"
-									className="ml-2 border-border/70 bg-background/52 text-xs"
-								>
-									{filteredEventsCount} result
-									{filteredEventsCount !== 1 ? "s" : ""}
-								</Badge>
 							</CardTitle>
-							<div className="flex items-center space-x-2">
+							<div className="flex shrink-0 items-center gap-2">
 								{hasActiveFilters &&
 									(!isDesktopContentExpanded ||
 										!uiDecisions.activeFiltersAtTop) && (
 										<ClearFiltersButton
 											onClick={onClearFilters}
-											className="h-8"
-										>
-											Clear filters
-										</ClearFiltersButton>
+											className="h-7 px-2.5"
+										/>
 									)}
 								{onToggleExpanded && (
 									<Button
 										variant="ghost"
-										size="sm"
+										size="icon-sm"
 										onClick={onToggleExpanded}
-										className={panelActionButtonClassName}
+										aria-label={
+											isDesktopContentExpanded
+												? "Collapse filters"
+												: "Expand filters"
+										}
+										title={
+											isDesktopContentExpanded
+												? "Collapse filters"
+												: "Expand filters"
+										}
+										className="rounded-full border border-border/70 bg-background/66 text-muted-foreground hover:bg-accent hover:text-foreground"
 									>
 										<ChevronDown
-											className={`${panelActionIconClassName} transition-transform transition-bouncy ${isExpanded ? "rotate-180" : "rotate-0"}`}
+											className={`h-4 w-4 transition-transform transition-bouncy ${isDesktopContentExpanded ? "rotate-180" : "rotate-0"}`}
 										/>
-										<span className={panelActionLabelClassName}>
-											{isExpanded ? "Collapse" : "Expand"}
-										</span>
 									</Button>
 								)}
 							</div>
 						</CardHeader>
 
 						<CardContent
-							className={`motion-safe:transition-[max-height] motion-safe:duration-250 motion-safe:ease-out overflow-hidden relative ${
-								isDesktopContentExpanded ? "max-h-[650px]" : "max-h-24"
-							} py-4`}
+							className={`motion-safe:transition-[max-height,padding] motion-safe:duration-250 motion-safe:ease-out overflow-hidden relative ${
+								isDesktopContentExpanded
+									? "max-h-[650px] py-4"
+									: "max-h-24 py-4"
+							}`}
 						>
-							<div className="h-[calc(650px-4rem)] overflow-y-auto relative">
+							<div
+								ref={desktopRailScrollRef}
+								className="h-[calc(650px-4rem)] overflow-y-auto relative"
+							>
 								{/* Active Filters - Top when few filters */}
-								{uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
+								{hasActiveFilters && uiDecisions.activeFiltersAtTop && (
+									<div className="sticky top-0 z-10 bg-card/95 pb-3 backdrop-blur">
+										<ActiveFiltersDisplay compact compactRows="double" />
+									</div>
+								)}
 
 								<Accordion
 									multiple
@@ -755,7 +791,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											<div className="space-y-3">
 												<DefaultDateRangeHint />
 												{/* Day/Night Periods */}
-												<div className={sectionClassName}>
+												<div className={compactRailSectionClassName}>
 													<div className="flex items-center justify-between mb-1">
 														<h4 className={sectionTitleClassName}>
 															Filter by Time
@@ -770,7 +806,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																	onDayNightPeriodToggle(key)
 																}
 																size="sm"
-																className={denseToggleClassName}
+																className={`${denseToggleClassName} justify-center`}
 															>
 																<span className="inline-flex items-center gap-1">
 																	<span className="text-muted-foreground">
@@ -784,7 +820,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												</div>
 
 												<DateRangePickerControl
-													compact
 													selectedDateRange={selectedDateRange}
 													defaultDateRange={defaultDateRange}
 													onDateRangeChange={onDateRangeChange}
@@ -823,20 +858,29 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														{arrondissementHelp}
 													</InfoPopover>
 												</div>
-												<div className="grid grid-cols-5 gap-1 min-h-[5rem] content-start">
-													{availableArrondissements.map((arr) => (
-														<Toggle
-															key={arr}
-															pressed={selectedArrondissements.includes(arr)}
-															onPressedChange={() =>
-																onArrondissementToggle(arr)
-															}
-															size="sm"
-															className={denseToggleClassName}
-														>
-															{formatLocationAreaShort(arr)}
-														</Toggle>
-													))}
+												<div className="grid min-h-[5rem] grid-cols-3 gap-1.5 content-start">
+													{availableArrondissements.map((arr) => {
+														const locationLabel = formatLocationAreaShort(arr);
+														const isWideLocation =
+															arr === "greater-paris" ||
+															arr === "outside-paris";
+
+														return (
+															<Toggle
+																key={arr}
+																pressed={selectedArrondissements.includes(arr)}
+																onPressedChange={() =>
+																	onArrondissementToggle(arr)
+																}
+																size="sm"
+																className={`${denseToggleClassName} justify-center px-2 ${isWideLocation ? "col-span-2" : ""}`}
+															>
+																<span className="min-w-0 truncate">
+																	{locationLabel}
+																</span>
+															</Toggle>
+														);
+													})}
 												</div>
 											</div>
 										</AccordionContent>
@@ -864,7 +908,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													<h3 className={sectionTitleClassName}>
 														Music Genres
 													</h3>
-													<div className="relative mt-2">
+													<div className="relative mb-2 mt-2">
 														<Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
 														<Input
 															type="search"
@@ -878,7 +922,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														/>
 													</div>
 													<div className="relative contain-layout">
-														<div className="grid min-h-[8rem] max-h-36 grid-cols-2 gap-1 overflow-y-auto rounded-md border border-border/70 bg-background/55 p-1.5">
+														<div className="grid min-h-[8rem] max-h-36 grid-cols-1 gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/55 p-1.5 [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_34%,transparent)_transparent] [scrollbar-width:thin] min-[1180px]:grid-cols-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/28 [&::-webkit-scrollbar-track]:bg-transparent">
 															{filteredGenreOptions.map(
 																({ key, label, color }) => (
 																	<Toggle
@@ -903,8 +947,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																</p>
 															)}
 														</div>
-														<div className="absolute top-1.5 left-1.5 right-1.5 h-4 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
-														<div className="absolute bottom-1.5 left-1.5 right-1.5 h-4 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
+														<div className="absolute top-1.5 left-1.5 right-3 h-3 bg-gradient-to-b from-background/88 to-transparent pointer-events-none" />
+														<div className="absolute bottom-5 left-1.5 right-3 h-5 bg-gradient-to-t from-background/90 to-transparent pointer-events-none" />
 														<div className="mt-1 text-center text-[11px] text-muted-foreground/88">
 															{genreSearchQuery.trim()
 																? `${filteredGenreOptions.length} of ${genreOptions.length} genres`
@@ -928,7 +972,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															{hostNationalityHelp}
 														</InfoPopover>
 													</div>
-													<div className="grid grid-cols-3 gap-1">
+													<div className="grid grid-cols-2 gap-1.5 min-[1180px]:grid-cols-3">
 														{availableNationalities.map(
 															({ key, flag, shortCode }) => (
 																<Toggle
@@ -989,7 +1033,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<AccordionContent>
 											<div className="space-y-4">
 												{/* OOOC Picks */}
-												<div>
+												<div className="space-y-2">
 													<div className="flex items-center">
 														<h3 className={sectionTitleClassName}>
 															OOOC Picks
@@ -1021,7 +1065,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															{venueTypeHelp}
 														</InfoPopover>
 													</div>
-													<div className="grid grid-cols-2 gap-1">
+													<div className="grid grid-cols-1 gap-1.5 min-[1180px]:grid-cols-2">
 														{VENUE_TYPES.map(({ key, label }) => (
 															<Toggle
 																key={key}
@@ -1042,9 +1086,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												</div>
 
 												{/* Price Range */}
-												<div>
+												<div className="space-y-2">
 													<h3 className={sectionTitleClassName}>Price Range</h3>
-													<div className="space-y-1.5 px-1">
+													<div className="space-y-2 px-1">
 														<Slider
 															value={selectedPriceRange}
 															onValueChange={(value) =>
@@ -1056,13 +1100,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															className="w-full"
 															aria-label="Price range filter"
 														/>
-														<div className="flex justify-between text-xs text-muted-foreground">
-															<span>€{PRICE_RANGE_CONFIG.min}</span>
-															<span className="font-medium text-center">
-																{formatPriceRange(selectedPriceRange)}
-															</span>
-															<span>€{PRICE_RANGE_CONFIG.max}+</span>
-														</div>
+														<RangeValueLabels
+															left={`€${PRICE_RANGE_CONFIG.min}`}
+															center={formatPriceRange(selectedPriceRange)}
+															right={`€${PRICE_RANGE_CONFIG.max}+`}
+														/>
 														{(selectedPriceRange[0] !==
 															PRICE_RANGE_CONFIG.min ||
 															selectedPriceRange[1] !==
@@ -1082,14 +1124,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												</div>
 
 												{/* Age Range */}
-												<div>
+												<div className="space-y-2">
 													<div className="flex items-center">
 														<h3 className={sectionTitleClassName}>Age Range</h3>
 														<InfoPopover aria-label="Explain age range filters">
 															{ageRangeHelp}
 														</InfoPopover>
 													</div>
-													<div className="space-y-1.5 px-1">
+													<div className="space-y-2 px-1">
 														<Slider
 															value={
 																selectedAgeRange ||
@@ -1104,15 +1146,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															className="w-full"
 															aria-label="Age range filter"
 														/>
-														<div className="flex justify-between text-xs text-muted-foreground">
-															<span>{AGE_RANGE_CONFIG.min} or less</span>
-															<span className="font-medium text-center">
-																{selectedAgeRange
+														<RangeValueLabels
+															left={`${AGE_RANGE_CONFIG.min} or less`}
+															center={
+																selectedAgeRange
 																	? formatAgeRange(selectedAgeRange)
-																	: "All ages"}
-															</span>
-															<span>{AGE_RANGE_CONFIG.max}+</span>
-														</div>
+																	: "All ages"
+															}
+															right={`${AGE_RANGE_CONFIG.max}+`}
+														/>
 														{selectedAgeRange && (
 															<div className="flex justify-center">
 																<Button
@@ -1133,7 +1175,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</Accordion>
 
 								{/* Active Filters - Bottom when many filters */}
-								{!uiDecisions.activeFiltersAtTop && <ActiveFiltersDisplay />}
+								{hasActiveFilters && !uiDecisions.activeFiltersAtTop && (
+									<ActiveFiltersDisplay compact compactRows="double" />
+								)}
 
 								<div className="mt-2 text-center text-[11px] text-muted-foreground/80">
 									Showing {filteredEventsCount} matching event
@@ -1141,7 +1185,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</div>
 							</div>
 							{!isDesktopContentExpanded && (
-								<div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-card via-card/92 to-transparent pb-2 pt-5">
+								<div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex h-20 items-end justify-center bg-gradient-to-t from-card via-card/96 to-card/10 pb-3">
 									<p className="text-[11px] tracking-[0.04em] text-muted-foreground/92">
 										Expand filters to refine the view
 									</p>
@@ -1182,7 +1226,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							)}
 							<Badge
 								variant="outline"
-								className="ml-2 hidden border-border/70 bg-background/52 text-xs lg:inline-flex"
+								className="ml-2 hidden border-border/70 bg-background/52 text-xs"
 							>
 								{filteredEventsCount} result
 								{filteredEventsCount !== 1 ? "s" : ""}
@@ -1308,7 +1352,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												</div>
 
 												<DateRangePickerControl
-													compact
 													selectedDateRange={selectedDateRange}
 													defaultDateRange={defaultDateRange}
 													onDateRangeChange={onDateRangeChange}
@@ -1491,13 +1534,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											className="w-full"
 											aria-label="Price range filter"
 										/>
-										<div className="flex justify-between text-xs text-muted-foreground">
-											<span>€{PRICE_RANGE_CONFIG.min}</span>
-											<span className="font-medium text-center">
-												{formatPriceRange(selectedPriceRange)}
-											</span>
-											<span>€{PRICE_RANGE_CONFIG.max}+</span>
-										</div>
+										<RangeValueLabels
+											left={`€${PRICE_RANGE_CONFIG.min}`}
+											center={formatPriceRange(selectedPriceRange)}
+											right={`€${PRICE_RANGE_CONFIG.max}+`}
+										/>
 										{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 											selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
 											<div className="flex justify-center">
@@ -1534,15 +1575,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											className="w-full"
 											aria-label="Age range filter"
 										/>
-										<div className="flex justify-between text-xs text-muted-foreground">
-											<span>{AGE_RANGE_CONFIG.min} or less</span>
-											<span className="font-medium text-center">
-												{selectedAgeRange
+										<RangeValueLabels
+											left={`${AGE_RANGE_CONFIG.min} or less`}
+											center={
+												selectedAgeRange
 													? formatAgeRange(selectedAgeRange)
-													: "All ages"}
-											</span>
-											<span>{AGE_RANGE_CONFIG.max}+</span>
-										</div>
+													: "All ages"
+											}
+											right={`${AGE_RANGE_CONFIG.max}+`}
+										/>
 										{selectedAgeRange && (
 											<div className="flex justify-center">
 												<Button
@@ -1561,7 +1602,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								{/* Music Genres */}
 								<div className={sectionClassName}>
 									<h3 className={sectionTitleClassName}>Music Genres</h3>
-									<div className="relative">
+									<div className="relative mb-2">
 										<Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
 										<Input
 											type="search"
@@ -1575,7 +1616,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										/>
 									</div>
 									<div className="relative contain-layout">
-										<div className="grid grid-cols-2 gap-1 max-h-48 min-h-[12rem] overflow-y-auto rounded-md border border-border/70 bg-background/55 p-2">
+										<div className="grid grid-cols-2 gap-1 max-h-48 min-h-[12rem] overflow-y-auto rounded-md border border-border/70 bg-background/55 p-2 [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_34%,transparent)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/28 [&::-webkit-scrollbar-track]:bg-transparent">
 											{filteredGenreOptions.map(({ key, label, color }) => (
 												<Toggle
 													key={key}
@@ -1596,8 +1637,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												</p>
 											)}
 										</div>
-										<div className="absolute top-2 left-2 right-2 h-2 bg-gradient-to-b from-muted/40 to-transparent pointer-events-none" />
-										<div className="absolute bottom-2 left-2 right-2 h-2 bg-gradient-to-t from-muted/40 to-transparent pointer-events-none" />
+										<div className="absolute top-2 left-2 right-3 h-3 bg-gradient-to-b from-background/88 to-transparent pointer-events-none" />
+										<div className="absolute bottom-6 left-2 right-3 h-5 bg-gradient-to-t from-background/90 to-transparent pointer-events-none" />
 										<div className="mt-1 h-4 text-center text-xs text-muted-foreground/88">
 											{genreSearchQuery.trim()
 												? `${filteredGenreOptions.length} of ${genreOptions.length} genres`
@@ -1614,18 +1655,26 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											{arrondissementHelp}
 										</InfoPopover>
 									</div>
-									<div className="grid grid-cols-4 lg:grid-cols-5 gap-1 min-h-[7rem] content-start">
-										{availableArrondissements.map((arr) => (
-											<Toggle
-												key={arr}
-												pressed={selectedArrondissements.includes(arr)}
-												onPressedChange={() => onArrondissementToggle(arr)}
-												size="sm"
-												className={denseToggleClassName}
-											>
-												{formatLocationAreaShort(arr)}
-											</Toggle>
-										))}
+									<div className="grid grid-cols-4 gap-1 min-h-[7rem] content-start lg:grid-cols-5">
+										{availableArrondissements.map((arr) => {
+											const locationLabel = formatLocationAreaShort(arr);
+											const isWideLocation =
+												arr === "greater-paris" || arr === "outside-paris";
+
+											return (
+												<Toggle
+													key={arr}
+													pressed={selectedArrondissements.includes(arr)}
+													onPressedChange={() => onArrondissementToggle(arr)}
+													size="sm"
+													className={`${denseToggleClassName} ${isWideLocation ? "col-span-2" : ""}`}
+												>
+													<span className="min-w-0 truncate">
+														{locationLabel}
+													</span>
+												</Toggle>
+											);
+										})}
 									</div>
 								</div>
 							</div>
