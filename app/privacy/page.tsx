@@ -1,10 +1,13 @@
+import { CopyEmailButton } from "@/components/CopyEmailButton";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { generateOGMetadata, generatePresetOGImage } from "@/lib/social/og-utils";
+import {
+	generateOGMetadata,
+	generatePresetOGImage,
+} from "@/lib/social/og-utils";
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CopyEmailButton } from "@/components/CopyEmailButton";
-import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -37,7 +40,7 @@ export default function PrivacyPolicy() {
 					<CardHeader>
 						<CardTitle className="text-2xl">Privacy Policy</CardTitle>
 						<p className="text-sm text-muted-foreground">
-							Last updated: 27 February 2026
+							Last updated: 8 May 2026
 						</p>
 					</CardHeader>
 					<CardContent className="prose prose-sm max-w-none space-y-6">
@@ -48,6 +51,10 @@ export default function PrivacyPolicy() {
 								<li>
 									First-party product activity (for example: event opens,
 									outbound clicks, calendar saves, and genre preference signals)
+								</li>
+								<li>
+									Coarse technical context such as device type, platform,
+									browser family, timezone, and language/locale
 								</li>
 								<li>
 									Technical security logs and rate-limiting data to protect the
@@ -69,6 +76,10 @@ export default function PrivacyPolicy() {
 								<li>To send event updates and OOOC community communications</li>
 								<li>To improve our service and user experience</li>
 								<li>
+									To understand first-party audience patterns, such as which
+									devices, timezones, and discovery behaviors are most common
+								</li>
+								<li>
 									To provide anonymized, aggregated performance reporting to
 									venue and promoter partners
 								</li>
@@ -89,8 +100,14 @@ export default function PrivacyPolicy() {
 									first-party infrastructure.
 								</li>
 								<li>
-									We use access controls, token-protected partner reporting pages,
-									and security monitoring.
+									When you register or sign in, recent first-party activity from
+									the same browser session may be associated with your account
+									so we can improve recommendations, analytics, and audience
+									tools.
+								</li>
+								<li>
+									We use access controls, token-protected partner reporting
+									pages, and security monitoring.
 								</li>
 								<li>
 									We retain data only as long as needed for service delivery,
@@ -128,17 +145,21 @@ export default function PrivacyPolicy() {
 						</section>
 
 						<section>
-							<h3 className="text-lg font-semibold mb-3">
-								Cookies & Tracking
-							</h3>
+							<h3 className="text-lg font-semibold mb-3">Cookies & Tracking</h3>
 							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
 								<li>
 									We use first-party session cookies to keep you signed in and
 									enable gated features.
 								</li>
 								<li>
-									We use first-party event interaction tracking to improve search,
-									discovery, and partner reporting.
+									We use first-party event interaction tracking to improve
+									search, discovery, recommendations, audience tools, and
+									partner reporting.
+								</li>
+								<li>
+									We do not collect precise GPS location for analytics. Coarse
+									context such as timezone or locale may be used to understand
+									how people use the service.
 								</li>
 								<li>
 									We do not rely on third-party ad trackers for core analytics.
@@ -150,8 +171,7 @@ export default function PrivacyPolicy() {
 							<h3 className="text-lg font-semibold mb-3">Contact Us</h3>
 							<p className="text-muted-foreground">
 								If you have any questions about this privacy policy or want to
-								exercise your rights, please contact us at
-								{" "}
+								exercise your rights, please contact us at{" "}
 								hello@outofofficecollective.co.uk
 								<CopyEmailButton email="hello@outofofficecollective.co.uk" />
 							</p>

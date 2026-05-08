@@ -62,7 +62,7 @@ type SegmentSuggestion = {
 	searchRule?: string;
 };
 
-const WINDOW_OPTIONS = [7, 30, 90] as const;
+const WINDOW_OPTIONS = [7, 14, 30, 90] as const;
 const EXPORT_WINDOW_OPTIONS = [7, 14, 30, 60, 90] as const;
 const TABLE_ROW_LIMIT_OPTIONS = [10, 25, 50, 100] as const;
 const SEARCH_CLUSTER_MODE_OPTIONS = ["conservative", "aggressive"] as const;

@@ -14,6 +14,11 @@ export interface EventEngagementRecordInput {
 	source?: string | null;
 	path?: string | null;
 	isAuthenticated?: boolean | null;
+	deviceClass?: string | null;
+	platform?: string | null;
+	browserFamily?: string | null;
+	timezone?: string | null;
+	locale?: string | null;
 	recordedAt?: string;
 }
 

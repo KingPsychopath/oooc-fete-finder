@@ -1,3 +1,4 @@
+import { touchAuthenticatedUserContext } from "@/features/auth/user-context-touch";
 import {
 	USER_AUTH_COOKIE_NAME,
 	getUserSessionFromCookieHeader,
@@ -17,6 +18,15 @@ import { z } from "zod";
 const genrePreferenceSchema = z.object({
 	genre: z.string().trim().min(1).max(60),
 	incrementBy: z.number().int().min(1).max(10).optional(),
+	clientContext: z
+		.object({
+			deviceClass: z.string().trim().max(40).nullable().optional(),
+			platform: z.string().trim().max(40).nullable().optional(),
+			browserFamily: z.string().trim().max(40).nullable().optional(),
+			timezone: z.string().trim().max(80).nullable().optional(),
+			locale: z.string().trim().max(40).nullable().optional(),
+		})
+		.optional(),
 });
 
 const allowedGenres = new Set<MusicGenre>(
@@ -94,6 +104,11 @@ export async function POST(request: Request) {
 			userId: userSession.userId,
 			genre,
 			incrementBy: parsed.data.incrementBy ?? 1,
+		});
+		await touchAuthenticatedUserContext({
+			userId: userSession.userId,
+			email: userSession.email,
+			clientContext: parsed.data.clientContext,
 		});
 	} catch (error) {
 		log.warn("events.genre-preference", "Failed to store genre preference", {

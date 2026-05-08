@@ -9,6 +9,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { InfoPopover } from "@/components/ui/info-popover";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
@@ -16,14 +24,18 @@ import {
 	CheckSquare,
 	Copy,
 	Download,
+	Eye,
 	FileUp,
 	RefreshCw,
 	Search,
 	Trash2,
 	Upload,
 } from "lucide-react";
+import Link from "next/link";
 import { type ChangeEvent, useMemo, useRef, useState } from "react";
 import type {
+	CollectedUserProfile,
+	CollectedUserProfileResponse,
 	EmailRecord,
 	UserCollectionAnalytics,
 	UserCollectionStoreSummary,
@@ -35,9 +47,48 @@ type EmailSortMode =
 	| "email"
 	| "name"
 	| "consented"
-	| "likely-test";
+	| "likely-test"
+	| "activity"
+	| "last-active"
+	| "searches"
+	| "filters";
 
 type EmailFilterMode = "all" | "consented" | "no-consent" | "likely-test";
+
+type EmailActivityFilterMode =
+	| "all"
+	| "has-activity"
+	| "no-activity"
+	| "recently-active"
+	| "searches"
+	| "filters"
+	| "event-actions"
+	| "genre-prefs"
+	| "has-context"
+	| "missing-context";
+
+const ACTIVITY_SEGMENTS: Array<{
+	label: string;
+	value: EmailActivityFilterMode;
+	sortMode: EmailSortMode;
+}> = [
+	{ label: "Active users", value: "has-activity", sortMode: "activity" },
+	{
+		label: "Active last 7d",
+		value: "recently-active",
+		sortMode: "last-active",
+	},
+	{ label: "Searchers", value: "searches", sortMode: "searches" },
+	{ label: "Filter users", value: "filters", sortMode: "filters" },
+	{ label: "Event action users", value: "event-actions", sortMode: "activity" },
+	{
+		label: "Genre preference users",
+		value: "genre-prefs",
+		sortMode: "activity",
+	},
+	{ label: "Has context", value: "has-context", sortMode: "last-active" },
+	{ label: "Missing context", value: "missing-context", sortMode: "newest" },
+];
 
 type EmailMutationResult = {
 	success: boolean;
@@ -57,6 +108,7 @@ type EmailCollectionCardProps = {
 	onRefresh: () => Promise<void>;
 	onDeleteEmails: (emails: string[]) => Promise<EmailMutationResult>;
 	onImportEmails: (rawInput: string) => Promise<EmailMutationResult>;
+	onGetUserProfile: (email: string) => Promise<CollectedUserProfileResponse>;
 };
 
 const TEST_EMAIL_HINTS = [
@@ -76,6 +128,15 @@ const isLikelyTestEmail = (email: string): boolean => {
 
 const compareStrings = (left: string, right: string): number =>
 	left.localeCompare(right, undefined, { sensitivity: "base" });
+
+const getTime = (value: string | null | undefined): number => {
+	if (!value) return 0;
+	const parsed = new Date(value).getTime();
+	return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const getActivityCount = (user: EmailRecord): number =>
+	user.linkedSignalCount ?? 0;
 
 const sortEmails = (emails: EmailRecord[], sortMode: EmailSortMode) => {
 	return [...emails].sort((left, right) => {
@@ -99,6 +160,14 @@ const sortEmails = (emails: EmailRecord[], sortMode: EmailSortMode) => {
 					Number(isLikelyTestEmail(right.email)) -
 					Number(isLikelyTestEmail(left.email))
 				);
+			case "activity":
+				return getActivityCount(right) - getActivityCount(left);
+			case "last-active":
+				return getTime(right.lastSignalAt) - getTime(left.lastSignalAt);
+			case "searches":
+				return (right.searchSignalCount ?? 0) - (left.searchSignalCount ?? 0);
+			case "filters":
+				return (right.filterSignalCount ?? 0) - (left.filterSignalCount ?? 0);
 			default:
 				return (
 					new Date(right.timestamp).getTime() -
@@ -107,6 +176,222 @@ const sortEmails = (emails: EmailRecord[], sortMode: EmailSortMode) => {
 		}
 	});
 };
+
+const formatContextValue = (
+	value: string | null | undefined,
+): string | null => {
+	const trimmed = value?.trim();
+	if (!trimmed) return null;
+	return trimmed
+		.split(/[-_\s]+/)
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(" ");
+};
+
+const getUserContextItems = (user: EmailRecord) =>
+	[
+		["Device", user.deviceClass],
+		["Platform", user.platform],
+		["Browser", user.browserFamily],
+		["Timezone", user.timezone],
+		["Locale", user.locale],
+	]
+		.map(([label, value]) => ({
+			label,
+			value: formatContextValue(value),
+		}))
+		.filter((item): item is { label: string; value: string } =>
+			Boolean(item.value),
+		);
+
+const hasUsefulContext = (user: EmailRecord): boolean =>
+	getUserContextItems(user).length > 0;
+
+const matchesActivityFilter = (
+	user: EmailRecord,
+	filterMode: EmailActivityFilterMode,
+): boolean => {
+	const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+	switch (filterMode) {
+		case "has-activity":
+			return getActivityCount(user) > 0;
+		case "no-activity":
+			return getActivityCount(user) === 0;
+		case "recently-active":
+			return getTime(user.lastSignalAt) >= sevenDaysAgo;
+		case "searches":
+			return (user.searchSignalCount ?? 0) > 0;
+		case "filters":
+			return (user.filterSignalCount ?? 0) > 0;
+		case "event-actions":
+			return (user.eventActionSignalCount ?? 0) > 0;
+		case "genre-prefs":
+			return (user.genrePreferenceSignalCount ?? 0) > 0;
+		case "has-context":
+			return hasUsefulContext(user);
+		case "missing-context":
+			return !hasUsefulContext(user);
+		default:
+			return true;
+	}
+};
+
+const toCsvCell = (value: string | number | boolean | null | undefined) => {
+	const text = String(value ?? "");
+	return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+};
+
+const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
+	if (records.length === 0 || typeof document === "undefined") return;
+	const header = [
+		"First Name",
+		"Last Name",
+		"Email",
+		"Captured At",
+		"Last Active At",
+		"Consent",
+		"Source",
+		"Linked Activity",
+		"Search Activity",
+		"Filter Activity",
+		"Event Action Activity",
+		"Genre Preference Activity",
+		"Device",
+		"Platform",
+		"Browser",
+		"Timezone",
+		"Locale",
+	];
+	const rows = records.map((user) => [
+		user.firstName,
+		user.lastName,
+		user.email,
+		user.timestamp,
+		user.lastSignalAt ?? "",
+		user.consent,
+		user.source,
+		user.linkedSignalCount ?? 0,
+		user.searchSignalCount ?? 0,
+		user.filterSignalCount ?? 0,
+		user.eventActionSignalCount ?? 0,
+		user.genrePreferenceSignalCount ?? 0,
+		user.deviceClass ?? "",
+		user.platform ?? "",
+		user.browserFamily ?? "",
+		user.timezone ?? "",
+		user.locale ?? "",
+	]);
+	const csv = [header, ...rows]
+		.map((row) => row.map((cell) => toCsvCell(cell)).join(","))
+		.join("\n");
+	const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+	const url = URL.createObjectURL(blob);
+	const anchor = document.createElement("a");
+	anchor.href = url;
+	anchor.download = `${filenamePrefix}-${new Date().toISOString().split("T")[0]}.csv`;
+	document.body.appendChild(anchor);
+	anchor.click();
+	document.body.removeChild(anchor);
+	URL.revokeObjectURL(url);
+};
+
+const getProfileSignalCount = (profile: CollectedUserProfile): number =>
+	profile.user.linkedSignalCount ??
+	profile.genrePreferences.length +
+		profile.recentSearches.length +
+		profile.recentFilters.length +
+		profile.recentEventActions.length;
+
+const getLastActiveAt = (profile: CollectedUserProfile): string | null => {
+	const dates = [
+		profile.user.lastSignalAt,
+		...profile.genrePreferences.map((item) => item.lastSeenAt),
+		...profile.recentSearches.map((item) => item.recordedAt),
+		...profile.recentFilters.map((item) => item.recordedAt),
+		...profile.recentEventActions.map((item) => item.recordedAt),
+	].filter((value): value is string => Boolean(value));
+	return dates.sort((left, right) => right.localeCompare(left))[0] ?? null;
+};
+
+const getBehaviorRead = (profile: CollectedUserProfile): string => {
+	const searches =
+		profile.user.searchSignalCount ?? profile.recentSearches.length;
+	const filters =
+		profile.user.filterSignalCount ?? profile.recentFilters.length;
+	const eventActions =
+		profile.user.eventActionSignalCount ?? profile.recentEventActions.length;
+	const genres =
+		profile.user.genrePreferenceSignalCount ?? profile.genrePreferences.length;
+	if (eventActions >= Math.max(searches + filters, 1)) return "Event-led";
+	if (filters > searches) return "Filter-led";
+	if (searches > 0) return "Search-led";
+	if (genres > 0) return "Taste-led";
+	return "Signup only";
+};
+
+const getSignalMetricItems = (profile: CollectedUserProfile) => [
+	{
+		label: "Linked activity",
+		value: getProfileSignalCount(profile),
+	},
+	{
+		label: "Searches",
+		value: profile.user.searchSignalCount ?? profile.recentSearches.length,
+	},
+	{
+		label: "Filters",
+		value: profile.user.filterSignalCount ?? profile.recentFilters.length,
+	},
+	{
+		label: "Event actions",
+		value:
+			profile.user.eventActionSignalCount ?? profile.recentEventActions.length,
+	},
+	{
+		label: "Genre prefs",
+		value:
+			profile.user.genrePreferenceSignalCount ??
+			profile.genrePreferences.length,
+	},
+];
+
+const getKnownUserDataItems = (profile: CollectedUserProfile) => [
+	{ label: "User ID", value: profile.user.userId ?? "Unknown" },
+	{ label: "Email", value: profile.user.email },
+	{
+		label: "Name",
+		value:
+			profile.user.firstName || profile.user.lastName
+				? `${profile.user.firstName} ${profile.user.lastName}`.trim()
+				: "Unknown",
+	},
+	{
+		label: "Consent",
+		value: profile.user.consent ? "Consented" : "No consent",
+	},
+	{ label: "Source", value: profile.user.source || "Unknown" },
+	{ label: "Captured", value: formatAdminDateTime(profile.user.timestamp) },
+	{
+		label: "Last active",
+		value: getLastActiveAt(profile)
+			? formatAdminDateTime(getLastActiveAt(profile) ?? "")
+			: "No linked activity",
+	},
+	{
+		label: "Device",
+		value: formatContextValue(profile.user.deviceClass) ?? "Unknown",
+	},
+	{
+		label: "Platform",
+		value: formatContextValue(profile.user.platform) ?? "Unknown",
+	},
+	{
+		label: "Browser",
+		value: formatContextValue(profile.user.browserFamily) ?? "Unknown",
+	},
+	{ label: "Timezone", value: profile.user.timezone ?? "Unknown" },
+	{ label: "Locale", value: profile.user.locale ?? "Unknown" },
+];
 
 export const EmailCollectionCard = ({
 	emails,
@@ -117,20 +402,39 @@ export const EmailCollectionCard = ({
 	onRefresh,
 	onDeleteEmails,
 	onImportEmails,
+	onGetUserProfile,
 }: EmailCollectionCardProps) => {
 	const [query, setQuery] = useState("");
 	const [sortMode, setSortMode] = useState<EmailSortMode>("newest");
 	const [filterMode, setFilterMode] = useState<EmailFilterMode>("all");
+	const [activityFilterMode, setActivityFilterMode] =
+		useState<EmailActivityFilterMode>("all");
 	const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
 	const [importText, setImportText] = useState("");
 	const [statusMessage, setStatusMessage] = useState("");
 	const [isBusy, setIsBusy] = useState(false);
+	const [profileEmail, setProfileEmail] = useState<string | null>(null);
+	const [profile, setProfile] = useState<CollectedUserProfile | null>(null);
+	const [profileStatus, setProfileStatus] = useState("");
+	const [isProfileLoading, setIsProfileLoading] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
-	const consentedCount = analytics?.consentedUsers ?? 0;
-	const notConsentedCount = analytics?.nonConsentedUsers ?? 0;
 	const likelyTestCount = emails.filter((user) =>
 		isLikelyTestEmail(user.email),
 	).length;
+	const totalSubmissions = analytics?.totalSubmissions ?? emails.length;
+	const submissionsLast24Hours = analytics?.submissionsLast24Hours ?? 0;
+	const submissionsLast7Days = analytics?.submissionsLast7Days ?? 0;
+	const activitySegmentCounts = useMemo(
+		() =>
+			new Map(
+				ACTIVITY_SEGMENTS.map((segment) => [
+					segment.value,
+					emails.filter((user) => matchesActivityFilter(user, segment.value))
+						.length,
+				]),
+			),
+		[emails],
+	);
 
 	const filteredEmails = useMemo(() => {
 		const normalizedQuery = query.trim().toLowerCase();
@@ -140,6 +444,7 @@ export const EmailCollectionCard = ({
 			if (filterMode === "likely-test" && !isLikelyTestEmail(user.email)) {
 				return false;
 			}
+			if (!matchesActivityFilter(user, activityFilterMode)) return false;
 			if (!normalizedQuery) return true;
 			return [
 				user.firstName,
@@ -147,13 +452,18 @@ export const EmailCollectionCard = ({
 				user.email,
 				user.source,
 				user.timestamp,
+				user.deviceClass,
+				user.platform,
+				user.browserFamily,
+				user.timezone,
+				user.locale,
 			]
 				.join(" ")
 				.toLowerCase()
 				.includes(normalizedQuery);
 		});
 		return sortEmails(filtered, sortMode);
-	}, [emails, filterMode, query, sortMode]);
+	}, [activityFilterMode, emails, filterMode, query, sortMode]);
 
 	const visibleEmailSet = useMemo(
 		() => new Set(filteredEmails.map((user) => user.email)),
@@ -257,6 +567,20 @@ export const EmailCollectionCard = ({
 		}
 	};
 
+	const handleOpenProfile = async (user: EmailRecord) => {
+		setProfileEmail(user.email);
+		setProfile(null);
+		setProfileStatus("");
+		setIsProfileLoading(true);
+		const result = await onGetUserProfile(user.email);
+		if (result.success && result.profile) {
+			setProfile(result.profile);
+		} else {
+			setProfileStatus(result.error || "Profile could not be loaded.");
+		}
+		setIsProfileLoading(false);
+	};
+
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
 			<CardHeader className="space-y-3">
@@ -307,31 +631,14 @@ export const EmailCollectionCard = ({
 					</div>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Last 24h
+							Recent Capture
 						</p>
-						<p className="mt-1 text-sm font-medium">
-							{analytics?.submissionsLast24Hours ?? 0}
+						<p className="mt-1 text-sm font-medium tabular-nums">
+							{submissionsLast24Hours} / {submissionsLast7Days}
 						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-3 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Last 7d
+						<p className="mt-0.5 text-[11px] text-muted-foreground">
+							24h / 7d submissions
 						</p>
-						<p className="mt-1 text-sm font-medium">
-							{analytics?.submissionsLast7Days ?? 0}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-3 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Consented
-						</p>
-						<p className="mt-1 text-sm font-medium">{consentedCount}</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-3 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							No Consent
-						</p>
-						<p className="mt-1 text-sm font-medium">{notConsentedCount}</p>
 					</div>
 				</div>
 				<div className="rounded-md border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
@@ -345,15 +652,91 @@ export const EmailCollectionCard = ({
 							: "Never"}
 					</p>
 				</div>
+				<div className="grid gap-2 lg:grid-cols-2">
+					<div className="space-y-2 rounded-md border bg-background/60 px-3 py-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Capture Pace
+						</p>
+						<div className="space-y-1.5">
+							{[
+								{ label: "24h", value: submissionsLast24Hours },
+								{ label: "7d", value: submissionsLast7Days },
+							].map((item) => (
+								<div key={item.label} className="space-y-1">
+									<div className="flex justify-between gap-2 text-xs">
+										<span>{item.label}</span>
+										<span className="tabular-nums">{item.value}</span>
+									</div>
+									<div className="h-1.5 rounded-full bg-muted/70">
+										<div
+											className="h-1.5 rounded-full bg-amber-600/80"
+											style={{
+												width: `${Math.max(
+													item.value > 0 ? 5 : 0,
+													totalSubmissions > 0
+														? (item.value / totalSubmissions) * 100
+														: 0,
+												)}%`,
+											}}
+										/>
+									</div>
+								</div>
+							))}
+						</div>
+					</div>
+					<div className="space-y-2 rounded-md border bg-background/60 px-3 py-2">
+						<div className="flex items-center">
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								User Context
+							</p>
+							<InfoPopover aria-label="Explain user context" side="top">
+								Device, platform, browser, timezone, and locale are coarse
+								first-party context captured from signed-in browsing.
+							</InfoPopover>
+						</div>
+						<div className="space-y-1 text-xs text-muted-foreground">
+							<p className="flex justify-between gap-2">
+								<span>Device</span>
+								<span className="truncate text-foreground">
+									{analytics?.topDeviceClasses?.[0]?.label ?? "Unknown"}
+								</span>
+							</p>
+							<p className="flex justify-between gap-2">
+								<span>Platform</span>
+								<span className="truncate text-foreground">
+									{analytics?.topPlatforms?.[0]?.label ?? "Unknown"}
+								</span>
+							</p>
+							<p className="flex justify-between gap-2">
+								<span>Timezone</span>
+								<span className="truncate text-foreground">
+									{analytics?.topTimezones?.[0]?.label ?? "Unknown"}
+								</span>
+							</p>
+							<p className="flex justify-between gap-2">
+								<span>Locale</span>
+								<span className="truncate text-foreground">
+									{analytics?.topLocales?.[0]?.label ?? "Unknown"}
+								</span>
+							</p>
+							<p className="flex justify-between gap-2">
+								<span>Linked activity</span>
+								<span className="tabular-nums text-foreground">
+									{analytics?.linkedBehaviorUsers ?? 0}/{emails.length}
+								</span>
+							</p>
+						</div>
+					</div>
+				</div>
 			</CardHeader>
 			<CardContent className="space-y-4">
-				<div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_9rem_9rem]">
+				<div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_9rem_11rem_9rem]">
 					<div className="relative">
 						<Search className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground" />
 						<Input
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
-							placeholder="Search name, email, source..."
+							placeholder="Search name, email, source, device, timezone..."
 							className="pl-8"
 						/>
 					</div>
@@ -370,6 +753,26 @@ export const EmailCollectionCard = ({
 						<option value="likely-test">Likely tests</option>
 					</select>
 					<select
+						value={activityFilterMode}
+						onChange={(event) =>
+							setActivityFilterMode(
+								event.target.value as EmailActivityFilterMode,
+							)
+						}
+						className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+					>
+						<option value="all">Any activity</option>
+						<option value="has-activity">Has activity</option>
+						<option value="no-activity">No activity</option>
+						<option value="recently-active">Active last 7d</option>
+						<option value="searches">Searched</option>
+						<option value="filters">Used filters</option>
+						<option value="event-actions">Opened/saved events</option>
+						<option value="genre-prefs">Genre prefs</option>
+						<option value="has-context">Has context</option>
+						<option value="missing-context">Missing context</option>
+					</select>
+					<select
 						value={sortMode}
 						onChange={(event) =>
 							setSortMode(event.target.value as EmailSortMode)
@@ -382,7 +785,64 @@ export const EmailCollectionCard = ({
 						<option value="name">Name A-Z</option>
 						<option value="consented">Consent first</option>
 						<option value="likely-test">Tests first</option>
+						<option value="activity">Most activity</option>
+						<option value="last-active">Last active</option>
+						<option value="searches">Most searches</option>
+						<option value="filters">Most filters</option>
 					</select>
+				</div>
+
+				<div className="rounded-md border bg-background/60 p-3">
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<div>
+							<div className="flex items-center">
+								<p className="text-sm font-medium">User segments</p>
+								<InfoPopover aria-label="Explain user segments" side="top">
+									These buttons filter collected users by linked first-party
+									activity. Export Filtered downloads only the users currently
+									in view.
+								</InfoPopover>
+							</div>
+							<p className="mt-1 text-xs text-muted-foreground">
+								Filter users by linked activity and context, then export that
+								filtered user list.
+							</p>
+						</div>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => {
+								setActivityFilterMode("all");
+								setFilterMode("all");
+								setSortMode("newest");
+								setQuery("");
+							}}
+						>
+							Reset
+						</Button>
+					</div>
+					<div className="mt-3 flex flex-wrap gap-2">
+						{ACTIVITY_SEGMENTS.map((segment) => (
+							<Button
+								key={segment.value}
+								type="button"
+								variant={
+									activityFilterMode === segment.value ? "default" : "outline"
+								}
+								size="sm"
+								onClick={() => {
+									setActivityFilterMode(segment.value);
+									setSortMode(segment.sortMode);
+								}}
+							>
+								{segment.label}
+								<span className="tabular-nums">
+									{activitySegmentCounts.get(segment.value) ?? 0}
+								</span>
+							</Button>
+						))}
+					</div>
 				</div>
 
 				<div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background/60 px-3 py-2">
@@ -420,6 +880,18 @@ export const EmailCollectionCard = ({
 						>
 							<Copy className="size-4" />
 							Copy Filtered
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() =>
+								exportUserCsv(filteredEmails, "fete-finder-filtered-users")
+							}
+							disabled={filteredEmails.length === 0}
+						>
+							<Download className="size-4" />
+							Export Filtered
 						</Button>
 						<Button
 							type="button"
@@ -496,15 +968,16 @@ export const EmailCollectionCard = ({
 							const isSelected = selectedEmails.includes(user.email);
 							const isTest = isLikelyTestEmail(user.email);
 							return (
-								<label
+								<div
 									key={`${user.email}-${user.timestamp}`}
-									className="flex cursor-pointer gap-3 rounded-md border bg-background/60 p-3 transition-colors hover:bg-muted/40"
+									className="flex gap-3 rounded-md border bg-background/60 p-3 transition-colors hover:bg-muted/40"
 								>
 									<input
 										type="checkbox"
 										checked={isSelected}
 										onChange={() => handleToggleEmail(user.email)}
 										className="mt-1 size-4 rounded border-input"
+										aria-label={`Select ${user.email}`}
 									/>
 									<span className="min-w-0 flex-1">
 										<span className="flex flex-wrap items-start justify-between gap-2">
@@ -520,6 +993,9 @@ export const EmailCollectionCard = ({
 											</span>
 											<span className="flex flex-wrap gap-1.5">
 												{isTest && <Badge variant="outline">Likely test</Badge>}
+												<Badge variant="outline">
+													{user.linkedSignalCount ?? 0} activity
+												</Badge>
 												<Badge
 													variant={user.consent ? "default" : "destructive"}
 												>
@@ -527,16 +1003,289 @@ export const EmailCollectionCard = ({
 												</Badge>
 											</span>
 										</span>
-										<span className="mt-2 block text-xs text-muted-foreground">
-											{formatAdminDateTime(user.timestamp)} · {user.source}
+										<span className="mt-2 flex flex-wrap gap-1.5">
+											{(user.searchSignalCount ?? 0) > 0 && (
+												<Badge variant="outline">
+													Searches: {user.searchSignalCount}
+												</Badge>
+											)}
+											{(user.filterSignalCount ?? 0) > 0 && (
+												<Badge variant="outline">
+													Filters: {user.filterSignalCount}
+												</Badge>
+											)}
+											{(user.eventActionSignalCount ?? 0) > 0 && (
+												<Badge variant="outline">
+													Events: {user.eventActionSignalCount}
+												</Badge>
+											)}
+											{(user.genrePreferenceSignalCount ?? 0) > 0 && (
+												<Badge variant="outline">
+													Genres: {user.genrePreferenceSignalCount}
+												</Badge>
+											)}
+										</span>
+										{getUserContextItems(user).length > 0 && (
+											<span className="mt-2 flex flex-wrap gap-1.5">
+												{getUserContextItems(user).map((item) => (
+													<Badge key={item.label} variant="outline">
+														{item.label}: {item.value}
+													</Badge>
+												))}
+											</span>
+										)}
+										<span className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
+											<span>
+												Captured {formatAdminDateTime(user.timestamp)}
+											</span>
+											<span>{user.source}</span>
+											{user.lastSignalAt && (
+												<span>
+													Last active {formatAdminDateTime(user.lastSignalAt)}
+												</span>
+											)}
 										</span>
 									</span>
-								</label>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={() => void handleOpenProfile(user)}
+									>
+										<Eye className="size-4" />
+										View
+									</Button>
+								</div>
 							);
 						})}
 					</div>
 				)}
 			</CardContent>
+			<Dialog
+				open={Boolean(profileEmail)}
+				onOpenChange={(open) => {
+					if (!open) {
+						setProfileEmail(null);
+						setProfile(null);
+						setProfileStatus("");
+					}
+				}}
+			>
+				<DialogContent className="max-h-[86vh] overflow-y-auto sm:max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>User Profile</DialogTitle>
+						<DialogDescription>
+							First-party context and recent behavior linked to this signed-in
+							user.
+						</DialogDescription>
+					</DialogHeader>
+					{isProfileLoading ? (
+						<div className="rounded-md border bg-background/60 px-3 py-8 text-center text-sm text-muted-foreground">
+							Loading user signals...
+						</div>
+					) : profile ? (
+						<div className="space-y-4">
+							<div className="rounded-md border bg-background/60 p-3">
+								<div className="flex flex-wrap items-start justify-between gap-2">
+									<div className="min-w-0">
+										<p className="truncate text-sm font-medium">
+											{profile.user.firstName || profile.user.lastName
+												? `${profile.user.firstName} ${profile.user.lastName}`.trim()
+												: "No name"}
+										</p>
+										<p className="truncate text-xs text-muted-foreground">
+											{profile.user.email}
+										</p>
+									</div>
+								</div>
+								<div className="mt-3 grid gap-2 sm:grid-cols-3">
+									<p className="rounded-md border bg-background/60 px-2.5 py-2 text-xs">
+										<span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+											Behavior Type
+										</span>
+										<span className="mt-1 block font-medium">
+											{getBehaviorRead(profile)}
+										</span>
+										<span className="mt-1 block text-[11px] leading-snug text-muted-foreground">
+											Dominant linked activity pattern.
+										</span>
+									</p>
+									<p className="rounded-md border bg-background/60 px-2.5 py-2 text-xs">
+										<span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+											Last Active
+										</span>
+										<span className="mt-1 block font-medium">
+											{getLastActiveAt(profile)
+												? formatAdminDateTime(getLastActiveAt(profile) ?? "")
+												: "No activity yet"}
+										</span>
+									</p>
+									<p className="rounded-md border bg-background/60 px-2.5 py-2 text-xs">
+										<span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+											Top Genre
+										</span>
+										<span className="mt-1 block font-medium">
+											{formatContextValue(profile.genrePreferences[0]?.genre) ??
+												"Unknown"}
+										</span>
+										<span className="mt-1 block text-[11px] leading-snug text-muted-foreground">
+											Highest score, then most recent.
+										</span>
+									</p>
+								</div>
+								<div className="mt-3 grid gap-2 sm:grid-cols-5">
+									{getSignalMetricItems(profile).map((item) => (
+										<p
+											key={item.label}
+											className="rounded-md border bg-background/60 px-2.5 py-2 text-xs"
+										>
+											<span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+												{item.label}
+											</span>
+											<span className="mt-1 block font-medium tabular-nums">
+												{item.value}
+											</span>
+										</p>
+									))}
+								</div>
+								<div className="mt-3 grid gap-2 sm:grid-cols-2">
+									{getKnownUserDataItems(profile).map((item) => (
+										<p
+											key={item.label}
+											className="flex justify-between gap-2 rounded-md border bg-background/60 px-2.5 py-2 text-xs"
+										>
+											<span className="text-muted-foreground">
+												{item.label}
+											</span>
+											<span className="truncate text-foreground">
+												{item.value}
+											</span>
+										</p>
+									))}
+								</div>
+							</div>
+
+							<div className="grid gap-3 lg:grid-cols-2">
+								<div className="rounded-md border bg-background/60 p-3">
+									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+										Genre Preferences
+									</p>
+									<div className="mt-2 space-y-1.5">
+										{profile.genrePreferences.length === 0 ? (
+											<p className="text-xs text-muted-foreground">
+												No genre signals.
+											</p>
+										) : (
+											profile.genrePreferences.map((item) => (
+												<p
+													key={item.genre}
+													className="flex justify-between gap-2 text-xs"
+												>
+													<span>{formatContextValue(item.genre)}</span>
+													<span className="tabular-nums text-muted-foreground">
+														score {item.score}
+													</span>
+												</p>
+											))
+										)}
+									</div>
+								</div>
+								<div className="rounded-md border bg-background/60 p-3">
+									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+										Recent Searches
+									</p>
+									<div className="mt-2 space-y-1.5">
+										{profile.recentSearches.length === 0 ? (
+											<p className="text-xs text-muted-foreground">
+												No searches linked.
+											</p>
+										) : (
+											profile.recentSearches.map((item) => (
+												<p
+													key={`${item.query}-${item.recordedAt}`}
+													className="flex justify-between gap-2 text-xs"
+												>
+													<span className="truncate">{item.query}</span>
+													<span className="shrink-0 text-muted-foreground">
+														{formatAdminDateTime(item.recordedAt)}
+													</span>
+												</p>
+											))
+										)}
+									</div>
+								</div>
+								<div className="rounded-md border bg-background/60 p-3">
+									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+										Recent Filters
+									</p>
+									<div className="mt-2 space-y-1.5">
+										{profile.recentFilters.length === 0 ? (
+											<p className="text-xs text-muted-foreground">
+												No filters linked.
+											</p>
+										) : (
+											profile.recentFilters.map((item) => (
+												<p
+													key={`${item.filterGroup}-${item.filterValue}-${item.recordedAt}`}
+													className="flex justify-between gap-2 text-xs"
+												>
+													<span className="truncate">
+														{formatContextValue(item.filterGroup)}:{" "}
+														{formatContextValue(item.filterValue)}
+													</span>
+													<span className="shrink-0 text-muted-foreground">
+														{formatAdminDateTime(item.recordedAt)}
+													</span>
+												</p>
+											))
+										)}
+									</div>
+								</div>
+								<div className="rounded-md border bg-background/60 p-3">
+									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+										Recent Event Actions
+									</p>
+									<div className="mt-2 space-y-1.5">
+										{profile.recentEventActions.length === 0 ? (
+											<p className="text-xs text-muted-foreground">
+												No event actions linked.
+											</p>
+										) : (
+											profile.recentEventActions.slice(0, 8).map((item) => (
+												<p
+													key={`${item.eventKey}-${item.actionType}-${item.recordedAt}`}
+													className="flex justify-between gap-2 text-xs"
+												>
+													<span className="truncate">
+														{formatContextValue(item.actionType)} ·{" "}
+														{item.eventHref ? (
+															<Link
+																href={item.eventHref}
+																className="underline-offset-4 hover:underline"
+															>
+																{item.eventName ?? item.eventKey}
+															</Link>
+														) : (
+															(item.eventName ?? item.eventKey)
+														)}
+													</span>
+													<span className="shrink-0 text-muted-foreground">
+														{formatAdminDateTime(item.recordedAt)}
+													</span>
+												</p>
+											))
+										)}
+									</div>
+								</div>
+							</div>
+						</div>
+					) : (
+						<div className="rounded-md border bg-background/60 px-3 py-8 text-center text-sm text-muted-foreground">
+							{profileStatus || "No profile data available."}
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 		</Card>
 	);
 };

@@ -1,3 +1,4 @@
+import { touchAuthenticatedUserContext } from "@/features/auth/user-context-touch";
 import {
 	USER_AUTH_COOKIE_NAME,
 	getUserSessionFromCookieHeader,
@@ -25,6 +26,15 @@ const trackPayloadSchema = z.object({
 	sessionId: z.string().trim().max(120).optional(),
 	source: z.string().trim().max(80).optional(),
 	path: z.string().trim().max(280).optional(),
+	clientContext: z
+		.object({
+			deviceClass: z.string().trim().max(40).nullable().optional(),
+			platform: z.string().trim().max(40).nullable().optional(),
+			browserFamily: z.string().trim().max(40).nullable().optional(),
+			timezone: z.string().trim().max(80).nullable().optional(),
+			locale: z.string().trim().max(40).nullable().optional(),
+		})
+		.optional(),
 });
 
 export const runtime = "nodejs";
@@ -138,6 +148,11 @@ export async function POST(request: Request) {
 			source: body.source ?? null,
 			path: body.path ?? null,
 			isAuthenticated: userSession.isAuthenticated,
+			deviceClass: body.clientContext?.deviceClass ?? null,
+			platform: body.clientContext?.platform ?? null,
+			browserFamily: body.clientContext?.browserFamily ?? null,
+			timezone: body.clientContext?.timezone ?? null,
+			locale: body.clientContext?.locale ?? null,
 		});
 		if (body.actionType === "calendar_sync" && userSession.userId) {
 			await getUserEventRelationshipRepository()?.upsertRelationship({
@@ -146,6 +161,13 @@ export async function POST(request: Request) {
 				relationshipType: "calendar_added",
 				source: body.source ?? "calendar_sync",
 				notifyOnChanges: true,
+			});
+		}
+		if (userSession.isAuthenticated) {
+			await touchAuthenticatedUserContext({
+				userId: userSession.userId,
+				email: userSession.email,
+				clientContext: body.clientContext,
 			});
 		}
 	} catch (error) {

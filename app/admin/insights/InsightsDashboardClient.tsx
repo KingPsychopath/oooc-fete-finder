@@ -4,6 +4,7 @@ import {
 	deleteCollectedEmails,
 	exportCollectedEmailsCsv,
 	getCollectedEmails,
+	getCollectedUserProfile,
 	importCollectedEmails,
 } from "@/features/auth/actions";
 import { useCallback, useEffect, useState } from "react";
@@ -93,6 +94,7 @@ export function InsightsDashboardClient({
 					onRefresh={loadEmails}
 					onDeleteEmails={deleteCollectedEmails}
 					onImportEmails={importCollectedEmails}
+					onGetUserProfile={getCollectedUserProfile}
 				/>
 			</section>
 		</div>

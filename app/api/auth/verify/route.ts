@@ -12,15 +12,30 @@ import {
 } from "@/features/security/rate-limiter";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { log } from "@/lib/platform/logger";
+import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
+import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
-type VerifyBody = {
-	firstName?: string;
-	lastName?: string;
-	email?: string;
-	consent?: boolean;
-	source?: string;
-};
+const clientContextSchema = z
+	.object({
+		deviceClass: z.string().trim().max(40).nullable().optional(),
+		platform: z.string().trim().max(40).nullable().optional(),
+		browserFamily: z.string().trim().max(40).nullable().optional(),
+		timezone: z.string().trim().max(80).nullable().optional(),
+		locale: z.string().trim().max(40).nullable().optional(),
+	})
+	.optional();
+
+const verifyBodySchema = z.object({
+	firstName: z.string().optional(),
+	lastName: z.string().optional(),
+	email: z.string().optional(),
+	consent: z.boolean().optional(),
+	source: z.string().optional(),
+	anonymousSessionId: z.string().trim().max(120).nullable().optional(),
+	clientContext: clientContextSchema,
+});
 
 const isValidEmail = (email: string): boolean => {
 	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -62,9 +77,16 @@ export async function POST(request: Request) {
 		return rateLimitedResponse(ipDecision.retryAfterSeconds ?? 1);
 	}
 
-	let body: VerifyBody;
+	let body: z.infer<typeof verifyBodySchema>;
 	try {
-		body = (await request.json()) as VerifyBody;
+		const parsed = verifyBodySchema.safeParse(await request.json());
+		if (!parsed.success) {
+			return NextResponse.json(
+				{ success: false, error: "Invalid request payload" },
+				{ status: 400, headers: NO_STORE_HEADERS },
+			);
+		}
+		body = parsed.data;
 	} catch {
 		return NextResponse.json(
 			{ success: false, error: "Invalid request payload" },
@@ -117,9 +139,36 @@ export async function POST(request: Request) {
 			consent: true,
 			source: body.source?.trim() || "fete-finder-auth",
 			timestamp: new Date().toISOString(),
+			deviceClass: body.clientContext?.deviceClass ?? null,
+			platform: body.clientContext?.platform ?? null,
+			browserFamily: body.clientContext?.browserFamily ?? null,
+			timezone: body.clientContext?.timezone ?? null,
+			locale: body.clientContext?.locale ?? null,
 		};
 
 		const storeResult = await UserCollectionStore.addOrUpdate(user);
+		const anonymousSessionId = body.anonymousSessionId?.trim();
+		let linkedEventRows = 0;
+		let linkedDiscoveryRows = 0;
+		if (anonymousSessionId && storeResult.record.userId) {
+			const linkInput = {
+				sessionId: anonymousSessionId,
+				userId: storeResult.record.userId,
+				deviceClass: body.clientContext?.deviceClass ?? null,
+				platform: body.clientContext?.platform ?? null,
+				browserFamily: body.clientContext?.browserFamily ?? null,
+				timezone: body.clientContext?.timezone ?? null,
+				locale: body.clientContext?.locale ?? null,
+			};
+			const [eventRows, discoveryRows] = await Promise.all([
+				getEventEngagementRepository()?.attachUserToSession(linkInput) ??
+					Promise.resolve(0),
+				getDiscoveryAnalyticsRepository()?.attachUserToSession(linkInput) ??
+					Promise.resolve(0),
+			]);
+			linkedEventRows = eventRows;
+			linkedDiscoveryRows = discoveryRows;
+		}
 		const storeStatus = await UserCollectionStore.getStatus();
 
 		const response = NextResponse.json(
@@ -128,6 +177,7 @@ export async function POST(request: Request) {
 				email,
 				userId: storeResult.record.userId ?? null,
 				storedIn: storeStatus.provider,
+				linkedBehaviorRows: linkedEventRows + linkedDiscoveryRows,
 				message: storeResult.alreadyExisted
 					? "Existing user verified"
 					: "User verified",

@@ -154,6 +154,37 @@ export class UserGenrePreferenceRepository {
 		`;
 		return rows;
 	}
+
+	async listForUser(input: {
+		email: string;
+		userId?: string | null;
+		limit: number;
+	}): Promise<Array<{ genre: MusicGenre; score: number; lastSeenAt: string }>> {
+		await this.ready();
+		const email = normalizeEmail(input.email);
+		const safeLimit = Math.max(1, Math.min(50, Math.floor(input.limit)));
+		const rows = await this.sql<
+			Array<{ genre: MusicGenre; score: number; lastSeenAt: Date | string }>
+		>`
+			SELECT
+				genre,
+				score,
+				last_seen_at AS "lastSeenAt"
+			FROM app_user_genre_preferences
+			WHERE email = ${email}
+				OR (${input.userId ?? null}::text IS NOT NULL AND user_id = ${input.userId ?? null})
+			ORDER BY score DESC, last_seen_at DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows.map((row) => ({
+			genre: row.genre,
+			score: row.score,
+			lastSeenAt:
+				row.lastSeenAt instanceof Date
+					? row.lastSeenAt.toISOString()
+					: new Date(row.lastSeenAt).toISOString(),
+		}));
+	}
 }
 
 export const getUserGenrePreferenceRepository =

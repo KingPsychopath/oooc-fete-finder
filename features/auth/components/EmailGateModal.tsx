@@ -16,6 +16,10 @@ import {
 	sanitizeRecentProfile,
 	validateEmail,
 } from "@/features/auth/email-gate-utils";
+import {
+	getClientContext,
+	getOrCreateEngagementSessionId,
+} from "@/features/events/engagement/client-tracking";
 import { Lock, Mail, User } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -168,6 +172,8 @@ const EmailGateModal = ({
 					email: finalEmail,
 					consent: true,
 					source: "fete-finder-auth",
+					anonymousSessionId: getOrCreateEngagementSessionId(),
+					clientContext: getClientContext(),
 				}),
 				signal: AbortSignal.timeout(12000),
 			});

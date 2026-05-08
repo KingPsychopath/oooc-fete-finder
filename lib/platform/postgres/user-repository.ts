@@ -14,6 +14,11 @@ export interface CanonicalUserInput {
 	lastName: string;
 	source: string;
 	privacyConsent: boolean;
+	deviceClass?: string | null;
+	platform?: string | null;
+	browserFamily?: string | null;
+	timezone?: string | null;
+	locale?: string | null;
 	timestamp?: string;
 }
 
@@ -78,6 +83,11 @@ export class UserRepository {
 				privacy_accepted_at TIMESTAMPTZ,
 				privacy_version TEXT NOT NULL DEFAULT '2026-05-08',
 				email_notifications_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+				last_device_class TEXT,
+				last_platform TEXT,
+				last_browser_family TEXT,
+				last_timezone TEXT,
+				last_locale TEXT,
 				unsubscribe_token TEXT NOT NULL UNIQUE,
 				first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -86,6 +96,17 @@ export class UserRepository {
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)
 		`;
+
+		await this
+			.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS last_device_class TEXT`;
+		await this
+			.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS last_platform TEXT`;
+		await this
+			.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS last_browser_family TEXT`;
+		await this
+			.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS last_timezone TEXT`;
+		await this
+			.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS last_locale TEXT`;
 
 		await this.sql`
 			CREATE TABLE IF NOT EXISTS app_user_auth_identities (
@@ -131,6 +152,11 @@ export class UserRepository {
 				event_update_consent_at,
 				privacy_accepted_at,
 				privacy_version,
+				last_device_class,
+				last_platform,
+				last_browser_family,
+				last_timezone,
+				last_locale,
 				unsubscribe_token,
 				first_seen_at,
 				last_seen_at,
@@ -148,6 +174,11 @@ export class UserRepository {
 				${privacyConsent ? timestamp : null},
 				${privacyConsent ? timestamp : null},
 				${PRIVACY_VERSION},
+				${input.deviceClass ?? null},
+				${input.platform ?? null},
+				${input.browserFamily ?? null},
+				${input.timezone ?? null},
+				${input.locale ?? null},
 				${generateUserId()},
 				${timestamp},
 				${timestamp},
@@ -164,6 +195,11 @@ export class UserRepository {
 				event_update_consent_at = COALESCE(app_users.event_update_consent_at, EXCLUDED.event_update_consent_at),
 				privacy_accepted_at = COALESCE(app_users.privacy_accepted_at, EXCLUDED.privacy_accepted_at),
 				privacy_version = EXCLUDED.privacy_version,
+				last_device_class = COALESCE(EXCLUDED.last_device_class, app_users.last_device_class),
+				last_platform = COALESCE(EXCLUDED.last_platform, app_users.last_platform),
+				last_browser_family = COALESCE(EXCLUDED.last_browser_family, app_users.last_browser_family),
+				last_timezone = COALESCE(EXCLUDED.last_timezone, app_users.last_timezone),
+				last_locale = COALESCE(EXCLUDED.last_locale, app_users.last_locale),
 				last_seen_at = EXCLUDED.last_seen_at,
 				last_authenticated_at = EXCLUDED.last_authenticated_at,
 				updated_at = NOW()
@@ -199,6 +235,50 @@ export class UserRepository {
 		`;
 		const row = rows[0];
 		return row ? toCanonicalUser(row) : null;
+	}
+
+	async touchContext(input: {
+		userId?: string | null;
+		email?: string | null;
+		deviceClass?: string | null;
+		platform?: string | null;
+		browserFamily?: string | null;
+		timezone?: string | null;
+		locale?: string | null;
+	}): Promise<void> {
+		await this.ready();
+		const userId = isValidUserId(input.userId) ? input.userId : null;
+		const email = input.email ? normalizeEmail(input.email) : null;
+		if (!userId && !email) return;
+
+		if (userId) {
+			await this.sql`
+				UPDATE app_users
+				SET
+					last_device_class = COALESCE(${input.deviceClass ?? null}, last_device_class),
+					last_platform = COALESCE(${input.platform ?? null}, last_platform),
+					last_browser_family = COALESCE(${input.browserFamily ?? null}, last_browser_family),
+					last_timezone = COALESCE(${input.timezone ?? null}, last_timezone),
+					last_locale = COALESCE(${input.locale ?? null}, last_locale),
+					last_seen_at = NOW(),
+					updated_at = NOW()
+				WHERE id = ${userId}
+			`;
+			return;
+		}
+
+		await this.sql`
+			UPDATE app_users
+			SET
+				last_device_class = COALESCE(${input.deviceClass ?? null}, last_device_class),
+				last_platform = COALESCE(${input.platform ?? null}, last_platform),
+				last_browser_family = COALESCE(${input.browserFamily ?? null}, last_browser_family),
+				last_timezone = COALESCE(${input.timezone ?? null}, last_timezone),
+				last_locale = COALESCE(${input.locale ?? null}, last_locale),
+				last_seen_at = NOW(),
+				updated_at = NOW()
+			WHERE email_normalized = ${email}
+		`;
 	}
 
 	private async upsertEmailIdentity(

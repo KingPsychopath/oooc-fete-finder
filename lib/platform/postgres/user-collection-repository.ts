@@ -6,6 +6,7 @@ import type {
 	UserCollectionSourceSummary,
 	UserRecord,
 } from "@/features/auth/types";
+import { isValidUserId } from "@/features/auth/user-id";
 import { getUserRepository } from "@/lib/platform/postgres/user-repository";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
@@ -30,8 +31,27 @@ type RollupRow = {
 	last_name: string;
 	consent: boolean;
 	source: string;
+	device_class: string | null;
+	platform: string | null;
+	browser_family: string | null;
+	timezone: string | null;
+	locale: string | null;
 	last_seen_at: Date | string;
 	updated_at: Date | string;
+};
+
+type ContextSummaryRow = {
+	label: string;
+	users: number;
+};
+
+type SignalCounts = {
+	linkedSignalCount: number;
+	searchSignalCount: number;
+	filterSignalCount: number;
+	eventActionSignalCount: number;
+	genrePreferenceSignalCount: number;
+	lastSignalAt: string | null;
 };
 
 const toIsoString = (value: Date | string | null): string | null => {
@@ -48,8 +68,14 @@ const emptyAnalytics = (): UserCollectionAnalytics => ({
 	nonConsentedUsers: 0,
 	submissionsLast24Hours: 0,
 	submissionsLast7Days: 0,
+	linkedBehaviorUsers: 0,
 	uniqueSources: 0,
 	topSources: [],
+	topDeviceClasses: [],
+	topPlatforms: [],
+	topBrowserFamilies: [],
+	topTimezones: [],
+	topLocales: [],
 	firstCapturedAt: null,
 	lastCapturedAt: null,
 });
@@ -62,6 +88,38 @@ const normalizeTopSources = (
 		users: row.users,
 		submissions: row.submissions,
 	}));
+
+const emptySignalCounts = (): SignalCounts => ({
+	linkedSignalCount: 0,
+	searchSignalCount: 0,
+	filterSignalCount: 0,
+	eventActionSignalCount: 0,
+	genrePreferenceSignalCount: 0,
+	lastSignalAt: null,
+});
+
+const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
+const bumpSignalCounts = (
+	counts: Map<string, SignalCounts>,
+	email: string,
+	key: keyof Omit<SignalCounts, "linkedSignalCount" | "lastSignalAt">,
+	count: number,
+	lastSeenAt: Date | string | null,
+) => {
+	const normalizedEmail = normalizeEmail(email);
+	const entry = counts.get(normalizedEmail) ?? emptySignalCounts();
+	entry[key] += count;
+	entry.linkedSignalCount += count;
+	const lastSeenIso = toIsoString(lastSeenAt);
+	if (
+		lastSeenIso &&
+		(!entry.lastSignalAt || lastSeenIso > entry.lastSignalAt)
+	) {
+		entry.lastSignalAt = lastSeenIso;
+	}
+	counts.set(normalizedEmail, entry);
+};
 
 export class UserCollectionRepository {
 	private readonly sql: Sql;
@@ -82,6 +140,11 @@ export class UserCollectionRepository {
 				last_name TEXT NOT NULL,
 				consent BOOLEAN NOT NULL,
 				source TEXT NOT NULL,
+				device_class TEXT,
+				platform TEXT,
+				browser_family TEXT,
+				timezone TEXT,
+				locale TEXT,
 				submitted_at TIMESTAMPTZ NOT NULL,
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)
@@ -95,6 +158,11 @@ export class UserCollectionRepository {
 				last_name TEXT NOT NULL,
 				consent BOOLEAN NOT NULL,
 				source TEXT NOT NULL,
+				device_class TEXT,
+				platform TEXT,
+				browser_family TEXT,
+				timezone TEXT,
+				locale TEXT,
 				first_seen_at TIMESTAMPTZ NOT NULL,
 				last_seen_at TIMESTAMPTZ NOT NULL,
 				submission_count INTEGER NOT NULL DEFAULT 1,
@@ -111,6 +179,26 @@ export class UserCollectionRepository {
 			ALTER TABLE app_user_collection_rollup
 			ADD COLUMN IF NOT EXISTS user_id TEXT
 		`;
+		await this
+			.sql`ALTER TABLE app_user_collection_events ADD COLUMN IF NOT EXISTS device_class TEXT`;
+		await this
+			.sql`ALTER TABLE app_user_collection_events ADD COLUMN IF NOT EXISTS platform TEXT`;
+		await this
+			.sql`ALTER TABLE app_user_collection_events ADD COLUMN IF NOT EXISTS browser_family TEXT`;
+		await this
+			.sql`ALTER TABLE app_user_collection_events ADD COLUMN IF NOT EXISTS timezone TEXT`;
+		await this
+			.sql`ALTER TABLE app_user_collection_events ADD COLUMN IF NOT EXISTS locale TEXT`;
+		await this
+			.sql`ALTER TABLE app_user_collection_rollup ADD COLUMN IF NOT EXISTS device_class TEXT`;
+		await this
+			.sql`ALTER TABLE app_user_collection_rollup ADD COLUMN IF NOT EXISTS platform TEXT`;
+		await this
+			.sql`ALTER TABLE app_user_collection_rollup ADD COLUMN IF NOT EXISTS browser_family TEXT`;
+		await this
+			.sql`ALTER TABLE app_user_collection_rollup ADD COLUMN IF NOT EXISTS timezone TEXT`;
+		await this
+			.sql`ALTER TABLE app_user_collection_rollup ADD COLUMN IF NOT EXISTS locale TEXT`;
 
 		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_app_user_collection_events_email_submitted
@@ -150,6 +238,11 @@ export class UserCollectionRepository {
 			lastName: user.lastName,
 			source: user.source,
 			privacyConsent: user.consent,
+			deviceClass: user.deviceClass,
+			platform: user.platform,
+			browserFamily: user.browserFamily,
+			timezone: user.timezone,
+			locale: user.locale,
 			timestamp: nowIso,
 		});
 		const userId = canonicalUser?.id ?? user.userId ?? null;
@@ -164,6 +257,11 @@ export class UserCollectionRepository {
 				last_name,
 				consent,
 				source,
+				device_class,
+				platform,
+				browser_family,
+				timezone,
+				locale,
 				submitted_at
 			)
 			VALUES (
@@ -174,6 +272,11 @@ export class UserCollectionRepository {
 				${record.lastName},
 				${record.consent},
 				${record.source},
+				${record.deviceClass ?? null},
+				${record.platform ?? null},
+				${record.browserFamily ?? null},
+				${record.timezone ?? null},
+				${record.locale ?? null},
 				${nowIso}
 			)
 		`;
@@ -186,6 +289,11 @@ export class UserCollectionRepository {
 				last_name,
 				consent,
 				source,
+				device_class,
+				platform,
+				browser_family,
+				timezone,
+				locale,
 				first_seen_at,
 				last_seen_at,
 				submission_count,
@@ -198,6 +306,11 @@ export class UserCollectionRepository {
 				${record.lastName},
 				${record.consent},
 				${record.source},
+				${record.deviceClass ?? null},
+				${record.platform ?? null},
+				${record.browserFamily ?? null},
+				${record.timezone ?? null},
+				${record.locale ?? null},
 				${nowIso},
 				${nowIso},
 				1,
@@ -210,6 +323,11 @@ export class UserCollectionRepository {
 				last_name = EXCLUDED.last_name,
 				consent = EXCLUDED.consent,
 				source = EXCLUDED.source,
+				device_class = COALESCE(EXCLUDED.device_class, app_user_collection_rollup.device_class),
+				platform = COALESCE(EXCLUDED.platform, app_user_collection_rollup.platform),
+				browser_family = COALESCE(EXCLUDED.browser_family, app_user_collection_rollup.browser_family),
+				timezone = COALESCE(EXCLUDED.timezone, app_user_collection_rollup.timezone),
+				locale = COALESCE(EXCLUDED.locale, app_user_collection_rollup.locale),
 				last_seen_at = EXCLUDED.last_seen_at,
 				submission_count = app_user_collection_rollup.submission_count + 1,
 				updated_at = NOW()
@@ -233,37 +351,292 @@ export class UserCollectionRepository {
 				r.last_name,
 				r.consent,
 				r.source,
+				r.device_class,
+				r.platform,
+				r.browser_family,
+				r.timezone,
+				r.locale,
 				r.last_seen_at,
 				r.updated_at
 			FROM app_user_collection_rollup r
-			LEFT JOIN app_users u ON u.email_normalized = r.email
+			LEFT JOIN app_users u ON u.email_normalized = LOWER(r.email)
 			ORDER BY r.last_seen_at DESC
 			LIMIT ${safeLimit}
 		`;
+		const signalCounts = await this.listSignalCounts(
+			rows.map((row) => ({ email: row.email, userId: row.user_id })),
+		);
 
 		return rows.map((row) => ({
 			...(row.user_id ? { userId: row.user_id } : {}),
 			firstName: row.first_name,
 			lastName: row.last_name,
-			email: row.email,
+			email: normalizeEmail(row.email),
 			timestamp: toIsoString(row.last_seen_at) || new Date(0).toISOString(),
 			consent: row.consent,
 			source: row.source,
+			deviceClass: row.device_class,
+			platform: row.platform,
+			browserFamily: row.browser_family,
+			timezone: row.timezone,
+			locale: row.locale,
+			...signalCounts.get(normalizeEmail(row.email)),
 		}));
+	}
+
+	private async listSignalCounts(
+		users: Array<{ email: string; userId: string | null }>,
+	): Promise<Map<string, SignalCounts>> {
+		const emails = [
+			...new Set(users.map((user) => normalizeEmail(user.email))),
+		];
+		const userIds = [
+			...new Set(
+				users
+					.map((user) => user.userId)
+					.filter((userId): userId is string => Boolean(userId)),
+			),
+		];
+		const counts = new Map<string, SignalCounts>();
+		if (emails.length === 0) return counts;
+
+		const tableRows = await this.sql<
+			Array<{
+				event_table: string | null;
+				discovery_table: string | null;
+				genre_table: string | null;
+			}>
+		>`
+			SELECT
+				to_regclass('app_event_engagement_stats')::text AS event_table,
+				to_regclass('app_discovery_analytics_stats')::text AS discovery_table,
+				to_regclass('app_user_genre_preferences')::text AS genre_table
+		`;
+		const tables = tableRows[0];
+
+		if (tables?.event_table) {
+			const rows = await this.sql<
+				Array<{
+					email: string;
+					count: number;
+					last_seen_at: Date | string | null;
+				}>
+			>`
+				SELECT
+					users.email_normalized AS email,
+					COUNT(*)::int AS count,
+					MAX(stats.recorded_at) AS last_seen_at
+				FROM app_event_engagement_stats stats
+				INNER JOIN app_users users ON users.id = stats.user_id
+				WHERE users.email_normalized = ANY(${emails})
+				GROUP BY users.email_normalized
+			`;
+			for (const row of rows) {
+				bumpSignalCounts(
+					counts,
+					row.email,
+					"eventActionSignalCount",
+					row.count,
+					row.last_seen_at,
+				);
+			}
+		}
+
+		if (tables?.discovery_table) {
+			const rows = await this.sql<
+				Array<{
+					email: string;
+					search_count: number;
+					filter_count: number;
+					last_seen_at: Date | string | null;
+				}>
+			>`
+				SELECT
+					users.email_normalized AS email,
+					COUNT(*) FILTER (WHERE stats.action_type = 'search')::int AS search_count,
+					COUNT(*) FILTER (WHERE stats.action_type = 'filter_apply')::int AS filter_count,
+					MAX(stats.recorded_at) AS last_seen_at
+				FROM app_discovery_analytics_stats stats
+				INNER JOIN app_users users ON users.id = stats.user_id
+				WHERE users.email_normalized = ANY(${emails})
+				GROUP BY users.email_normalized
+			`;
+			for (const row of rows) {
+				bumpSignalCounts(
+					counts,
+					row.email,
+					"searchSignalCount",
+					row.search_count,
+					row.last_seen_at,
+				);
+				bumpSignalCounts(
+					counts,
+					row.email,
+					"filterSignalCount",
+					row.filter_count,
+					row.last_seen_at,
+				);
+			}
+		}
+
+		if (tables?.genre_table) {
+			const rows =
+				userIds.length > 0
+					? await this.sql<
+							Array<{
+								email: string;
+								count: number;
+								last_seen_at: Date | string | null;
+							}>
+						>`
+							SELECT
+								email,
+								COUNT(*)::int AS count,
+								MAX(last_seen_at) AS last_seen_at
+							FROM app_user_genre_preferences
+							WHERE email = ANY(${emails})
+								OR user_id = ANY(${userIds})
+							GROUP BY email
+						`
+					: await this.sql<
+							Array<{
+								email: string;
+								count: number;
+								last_seen_at: Date | string | null;
+							}>
+						>`
+							SELECT
+								email,
+								COUNT(*)::int AS count,
+								MAX(last_seen_at) AS last_seen_at
+							FROM app_user_genre_preferences
+							WHERE email = ANY(${emails})
+							GROUP BY email
+						`;
+			for (const row of rows) {
+				bumpSignalCounts(
+					counts,
+					row.email,
+					"genrePreferenceSignalCount",
+					row.count,
+					row.last_seen_at,
+				);
+			}
+		}
+
+		return counts;
+	}
+
+	async touchContext(input: {
+		userId?: string | null;
+		email?: string | null;
+		deviceClass?: string | null;
+		platform?: string | null;
+		browserFamily?: string | null;
+		timezone?: string | null;
+		locale?: string | null;
+	}): Promise<void> {
+		await this.ready();
+		const userId = isValidUserId(input.userId) ? input.userId : null;
+		const email = input.email?.trim().toLowerCase() || null;
+		if (!userId && !email) return;
+
+		if (userId) {
+			await this.sql`
+				UPDATE app_user_collection_rollup
+				SET
+					device_class = COALESCE(${input.deviceClass ?? null}, device_class),
+					platform = COALESCE(${input.platform ?? null}, platform),
+					browser_family = COALESCE(${input.browserFamily ?? null}, browser_family),
+					timezone = COALESCE(${input.timezone ?? null}, timezone),
+					locale = COALESCE(${input.locale ?? null}, locale),
+					last_seen_at = NOW(),
+					updated_at = NOW()
+				WHERE user_id = ${userId}
+			`;
+			return;
+		}
+
+		await this.sql`
+			UPDATE app_user_collection_rollup
+			SET
+				device_class = COALESCE(${input.deviceClass ?? null}, device_class),
+				platform = COALESCE(${input.platform ?? null}, platform),
+				browser_family = COALESCE(${input.browserFamily ?? null}, browser_family),
+				timezone = COALESCE(${input.timezone ?? null}, timezone),
+				locale = COALESCE(${input.locale ?? null}, locale),
+				last_seen_at = NOW(),
+				updated_at = NOW()
+			WHERE email = ${email}
+		`;
+	}
+
+	private async countLinkedBehaviorUsers(): Promise<number> {
+		const tableRows = await this.sql<
+			Array<{ event_table: string | null; discovery_table: string | null }>
+		>`
+			SELECT
+				to_regclass('app_event_engagement_stats')::text AS event_table,
+				to_regclass('app_discovery_analytics_stats')::text AS discovery_table
+		`;
+		const tables = tableRows[0];
+		if (!tables?.event_table && !tables?.discovery_table) return 0;
+
+		const userIds = new Set<string>();
+		if (tables.event_table) {
+			const rows = await this.sql<Array<{ user_id: string }>>`
+				SELECT DISTINCT user_id
+				FROM app_event_engagement_stats
+				WHERE user_id IS NOT NULL
+			`;
+			for (const row of rows) userIds.add(row.user_id);
+		}
+		if (tables.discovery_table) {
+			const rows = await this.sql<Array<{ user_id: string }>>`
+				SELECT DISTINCT user_id
+				FROM app_discovery_analytics_stats
+				WHERE user_id IS NOT NULL
+			`;
+			for (const row of rows) userIds.add(row.user_id);
+		}
+		return userIds.size;
 	}
 
 	async getAnalytics(): Promise<UserCollectionAnalytics> {
 		await this.ready();
-		const [rollupRows, recentRows, topSourceRows, rangeRows] =
-			await Promise.all([
-				this.sql<
-					{
-						total_users: number;
-						total_submissions: number;
-						consented_users: number;
-						non_consented_users: number;
-					}[]
-				>`
+		const contextSummaryQuery = (columnName: string) => this.sql<
+			ContextSummaryRow[]
+		>`
+			SELECT
+				${this.sql(columnName)} AS label,
+				COUNT(*)::int AS users
+			FROM app_user_collection_rollup
+			WHERE ${this.sql(columnName)} IS NOT NULL
+				AND ${this.sql(columnName)} <> ''
+			GROUP BY ${this.sql(columnName)}
+			ORDER BY users DESC, label ASC
+			LIMIT 8
+		`;
+
+		const [
+			rollupRows,
+			recentRows,
+			topSourceRows,
+			rangeRows,
+			topDeviceClasses,
+			topPlatforms,
+			topBrowserFamilies,
+			topTimezones,
+			topLocales,
+		] = await Promise.all([
+			this.sql<
+				{
+					total_users: number;
+					total_submissions: number;
+					consented_users: number;
+					non_consented_users: number;
+				}[]
+			>`
 				SELECT
 					COUNT(*)::int AS total_users,
 					COALESCE(SUM(submission_count), 0)::int AS total_submissions,
@@ -271,24 +644,24 @@ export class UserCollectionRepository {
 					COALESCE(SUM(CASE WHEN consent THEN 0 ELSE 1 END), 0)::int AS non_consented_users
 				FROM app_user_collection_rollup
 			`,
-				this.sql<
-					{
-						submissions_last_24h: number;
-						submissions_last_7d: number;
-					}[]
-				>`
+			this.sql<
+				{
+					submissions_last_24h: number;
+					submissions_last_7d: number;
+				}[]
+			>`
 				SELECT
 					COALESCE(SUM(CASE WHEN submitted_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END), 0)::int AS submissions_last_24h,
 					COALESCE(SUM(CASE WHEN submitted_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END), 0)::int AS submissions_last_7d
 				FROM app_user_collection_events
 			`,
-				this.sql<
-					{
-						source: string;
-						users: number;
-						submissions: number;
-					}[]
-				>`
+			this.sql<
+				{
+					source: string;
+					users: number;
+					submissions: number;
+				}[]
+			>`
 				SELECT
 					source,
 					COUNT(DISTINCT email)::int AS users,
@@ -297,18 +670,23 @@ export class UserCollectionRepository {
 				GROUP BY source
 				ORDER BY users DESC, submissions DESC
 			`,
-				this.sql<
-					{
-						first_captured_at: Date | string | null;
-						last_captured_at: Date | string | null;
-					}[]
-				>`
+			this.sql<
+				{
+					first_captured_at: Date | string | null;
+					last_captured_at: Date | string | null;
+				}[]
+			>`
 				SELECT
 					MIN(submitted_at) AS first_captured_at,
 					MAX(submitted_at) AS last_captured_at
 				FROM app_user_collection_events
 			`,
-			]);
+			contextSummaryQuery("device_class"),
+			contextSummaryQuery("platform"),
+			contextSummaryQuery("browser_family"),
+			contextSummaryQuery("timezone"),
+			contextSummaryQuery("locale"),
+		]);
 
 		const totals = rollupRows[0];
 		if (!totals) {
@@ -316,6 +694,7 @@ export class UserCollectionRepository {
 		}
 		const recent = recentRows[0];
 		const capturedRange = rangeRows[0];
+		const linkedBehaviorUsers = await this.countLinkedBehaviorUsers();
 
 		return {
 			totalUsers: totals.total_users,
@@ -324,8 +703,14 @@ export class UserCollectionRepository {
 			nonConsentedUsers: totals.non_consented_users,
 			submissionsLast24Hours: recent?.submissions_last_24h ?? 0,
 			submissionsLast7Days: recent?.submissions_last_7d ?? 0,
+			linkedBehaviorUsers,
 			uniqueSources: topSourceRows.length,
 			topSources: normalizeTopSources(topSourceRows),
+			topDeviceClasses,
+			topPlatforms,
+			topBrowserFamilies,
+			topTimezones,
+			topLocales,
 			firstCapturedAt: toIsoString(capturedRange?.first_captured_at ?? null),
 			lastCapturedAt: toIsoString(capturedRange?.last_captured_at ?? null),
 		};

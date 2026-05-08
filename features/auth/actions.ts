@@ -1,10 +1,11 @@
 "use server";
 
+import { recordAdminActivity } from "@/features/admin/activity/record";
 import type {
 	CollectedEmailsResponse,
+	CollectedUserProfileResponse,
 	UserRecord,
 } from "@/features/auth/types";
-import { recordAdminActivity } from "@/features/admin/activity/record";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { isAdminAuthEnabled } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
@@ -415,6 +416,25 @@ export async function getCollectedEmails(
 		count: snapshot.users.length,
 		store: snapshot.status,
 		analytics: snapshot.analytics,
+	};
+}
+
+export async function getCollectedUserProfile(
+	email: string,
+	keyOrToken?: string,
+): Promise<CollectedUserProfileResponse> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized" };
+	}
+
+	const profile = await UserCollectionStore.getUserProfile(email);
+	if (!profile) {
+		return { success: false, error: "User not found" };
+	}
+
+	return {
+		success: true,
+		profile,
 	};
 }
 

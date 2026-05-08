@@ -71,6 +71,11 @@ export class EventEngagementRepository {
 				source TEXT,
 				path TEXT,
 				is_authenticated BOOLEAN,
+				device_class TEXT,
+				platform TEXT,
+				browser_family TEXT,
+				timezone TEXT,
+				locale TEXT,
 				recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)
 		`;
@@ -79,6 +84,16 @@ export class EventEngagementRepository {
 			ALTER TABLE app_event_engagement_stats
 			ADD COLUMN IF NOT EXISTS user_id TEXT
 		`;
+		await this
+			.sql`ALTER TABLE app_event_engagement_stats ADD COLUMN IF NOT EXISTS device_class TEXT`;
+		await this
+			.sql`ALTER TABLE app_event_engagement_stats ADD COLUMN IF NOT EXISTS platform TEXT`;
+		await this
+			.sql`ALTER TABLE app_event_engagement_stats ADD COLUMN IF NOT EXISTS browser_family TEXT`;
+		await this
+			.sql`ALTER TABLE app_event_engagement_stats ADD COLUMN IF NOT EXISTS timezone TEXT`;
+		await this
+			.sql`ALTER TABLE app_event_engagement_stats ADD COLUMN IF NOT EXISTS locale TEXT`;
 
 		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_app_event_engagement_event_time
@@ -121,6 +136,11 @@ export class EventEngagementRepository {
 				source,
 				path,
 				is_authenticated,
+				device_class,
+				platform,
+				browser_family,
+				timezone,
+				locale,
 				recorded_at
 			)
 			VALUES (
@@ -131,9 +151,46 @@ export class EventEngagementRepository {
 				${cleanString(input.source, 80)},
 				${cleanString(input.path, 280)},
 				${input.isAuthenticated ?? null},
+				${cleanString(input.deviceClass, 40)},
+				${cleanString(input.platform, 40)},
+				${cleanString(input.browserFamily, 40)},
+				${cleanString(input.timezone, 80)},
+				${cleanString(input.locale, 40)},
 				${toSafeIsoTimestamp(input.recordedAt)}
 			)
 		`;
+	}
+
+	async attachUserToSession(input: {
+		sessionId: string;
+		userId: string;
+		deviceClass?: string | null;
+		platform?: string | null;
+		browserFamily?: string | null;
+		timezone?: string | null;
+		locale?: string | null;
+		windowDays?: number;
+	}): Promise<number> {
+		await this.ready();
+		const sessionId = cleanString(input.sessionId, 120);
+		const userId = cleanString(input.userId, 80);
+		if (!sessionId || !userId) return 0;
+		const windowDays = Math.max(1, Math.min(input.windowDays ?? 30, 90));
+		const rows = await this.sql<Array<{ id: number }>>`
+			UPDATE app_event_engagement_stats
+			SET
+				user_id = COALESCE(user_id, ${userId}),
+				device_class = COALESCE(device_class, ${cleanString(input.deviceClass, 40)}),
+				platform = COALESCE(platform, ${cleanString(input.platform, 40)}),
+				browser_family = COALESCE(browser_family, ${cleanString(input.browserFamily, 40)}),
+				timezone = COALESCE(timezone, ${cleanString(input.timezone, 80)}),
+				locale = COALESCE(locale, ${cleanString(input.locale, 40)})
+			WHERE session_id = ${sessionId}
+				AND user_id IS NULL
+				AND recorded_at >= NOW() - (${windowDays} * INTERVAL '1 day')
+			RETURNING id
+		`;
+		return rows.length;
 	}
 
 	async listTopEvents(input: {
@@ -392,6 +449,51 @@ export class EventEngagementRepository {
 		`;
 
 		return new Map(rows.map((row) => [row.eventKey, row.count]));
+	}
+
+	async listRecentForUser(input: {
+		email: string;
+		userId?: string | null;
+		limit: number;
+	}): Promise<
+		Array<{
+			eventKey: string;
+			actionType: string;
+			source: string | null;
+			recordedAt: string;
+		}>
+	> {
+		await this.ready();
+		const safeLimit = Math.max(1, Math.min(input.limit, 100));
+		const rows = await this.sql<
+			Array<{
+				eventKey: string;
+				actionType: string;
+				source: string | null;
+				recordedAt: Date | string;
+			}>
+		>`
+			SELECT
+				stats.event_key AS "eventKey",
+				stats.action_type AS "actionType",
+				stats.source,
+				stats.recorded_at AS "recordedAt"
+			FROM app_event_engagement_stats stats
+			LEFT JOIN app_users users ON users.id = stats.user_id
+			WHERE (${input.userId ?? null}::text IS NOT NULL AND stats.user_id = ${input.userId ?? null})
+				OR users.email_normalized = ${input.email.trim().toLowerCase()}
+			ORDER BY stats.recorded_at DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows.map((row) => ({
+			eventKey: row.eventKey,
+			actionType: row.actionType,
+			source: row.source,
+			recordedAt:
+				row.recordedAt instanceof Date
+					? row.recordedAt.toISOString()
+					: new Date(row.recordedAt).toISOString(),
+		}));
 	}
 }
 

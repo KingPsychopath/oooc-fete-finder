@@ -20,6 +20,8 @@ import type { getPartnerActivationDashboard } from "@/features/partners/activati
 import type { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
 
 export type {
+	CollectedUserProfile,
+	CollectedUserProfileResponse,
 	UserCollectionAnalytics,
 	UserCollectionStoreSummary,
 	UserRecord as EmailRecord,

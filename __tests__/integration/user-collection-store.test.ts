@@ -43,8 +43,14 @@ const buildAnalytics = (
 			nonConsentedUsers: 0,
 			submissionsLast24Hours: 0,
 			submissionsLast7Days: 0,
+			linkedBehaviorUsers: 0,
 			uniqueSources: 0,
 			topSources: [],
+			topDeviceClasses: [],
+			topPlatforms: [],
+			topBrowserFamilies: [],
+			topTimezones: [],
+			topLocales: [],
 			firstCapturedAt: null,
 			lastCapturedAt: null,
 		};
@@ -105,11 +111,17 @@ const buildAnalytics = (
 		nonConsentedUsers: values.length - consentedUsers,
 		submissionsLast24Hours,
 		submissionsLast7Days,
+		linkedBehaviorUsers: 0,
 		uniqueSources: sourceTotals.size,
 		topSources: Array.from(sourceTotals.values()).sort((left, right) => {
 			if (right.users !== left.users) return right.users - left.users;
 			return right.submissions - left.submissions;
 		}),
+		topDeviceClasses: [],
+		topPlatforms: [],
+		topBrowserFamilies: [],
+		topTimezones: [],
+		topLocales: [],
 		firstCapturedAt,
 		lastCapturedAt,
 	};

@@ -1,14 +1,19 @@
 import "server-only";
 
 import type {
+	CollectedUserProfile,
 	UserCollectionAnalytics,
 	UserRecord,
 } from "@/features/auth/types";
 import { generateUserId, isValidUserId } from "@/features/auth/user-id";
+import { getLiveEvents } from "@/features/data-management/runtime-service";
+import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
+import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import {
 	type UserCollectionStoreSnapshot,
 	getUserCollectionRepository,
 } from "@/lib/platform/postgres/user-collection-repository";
+import { getUserGenrePreferenceRepository } from "@/lib/platform/postgres/user-genre-preference-repository";
 
 const MAX_USERS = 10_000;
 
@@ -30,8 +35,14 @@ const emptyAnalytics = (): UserCollectionAnalytics => ({
 	nonConsentedUsers: 0,
 	submissionsLast24Hours: 0,
 	submissionsLast7Days: 0,
+	linkedBehaviorUsers: 0,
 	uniqueSources: 0,
 	topSources: [],
+	topDeviceClasses: [],
+	topPlatforms: [],
+	topBrowserFamilies: [],
+	topTimezones: [],
+	topLocales: [],
 	firstCapturedAt: null,
 	lastCapturedAt: null,
 });
@@ -44,6 +55,11 @@ const normalizeUserRecord = (user: UserRecord): UserRecord => ({
 	timestamp: user.timestamp || new Date().toISOString(),
 	consent: Boolean(user.consent),
 	source: user.source.trim() || "fete-finder-auth",
+	deviceClass: user.deviceClass ?? null,
+	platform: user.platform ?? null,
+	browserFamily: user.browserFamily ?? null,
+	timezone: user.timezone ?? null,
+	locale: user.locale ?? null,
 });
 
 const toSortedUserRecords = (
@@ -63,6 +79,11 @@ const toSortedUserRecords = (
 			timestamp: record.timestamp,
 			consent: record.consent,
 			source: record.source,
+			deviceClass: record.deviceClass,
+			platform: record.platform,
+			browserFamily: record.browserFamily,
+			timezone: record.timezone,
+			locale: record.locale,
 		}));
 };
 
@@ -111,6 +132,22 @@ const getMemorySnapshot = (): UserCollectionStoreSnapshot => {
 			});
 		}
 	}
+	const summarizeContext = (
+		getValue: (record: StoredUserRecord) => string | null | undefined,
+	) =>
+		Array.from(
+			values.reduce<Map<string, number>>((summary, record) => {
+				const value = getValue(record)?.trim();
+				if (!value) return summary;
+				summary.set(value, (summary.get(value) ?? 0) + 1);
+				return summary;
+			}, new Map()),
+		)
+			.map(([label, users]) => ({ label, users }))
+			.sort(
+				(left, right) =>
+					right.users - left.users || left.label.localeCompare(right.label),
+			);
 
 	const lastUpdatedAt =
 		values
@@ -126,6 +163,7 @@ const getMemorySnapshot = (): UserCollectionStoreSnapshot => {
 			nonConsentedUsers: values.length - consentedUsers,
 			submissionsLast24Hours: 0,
 			submissionsLast7Days: 0,
+			linkedBehaviorUsers: 0,
 			uniqueSources: sources.size,
 			topSources: Array.from(sources.values()).sort((left, right) => {
 				if (right.users !== left.users) {
@@ -133,6 +171,11 @@ const getMemorySnapshot = (): UserCollectionStoreSnapshot => {
 				}
 				return right.submissions - left.submissions;
 			}),
+			topDeviceClasses: summarizeContext((record) => record.deviceClass),
+			topPlatforms: summarizeContext((record) => record.platform),
+			topBrowserFamilies: summarizeContext((record) => record.browserFamily),
+			topTimezones: summarizeContext((record) => record.timezone),
+			topLocales: summarizeContext((record) => record.locale),
 			firstCapturedAt:
 				values
 					.map((record) => record.firstSeenAt)
@@ -199,6 +242,11 @@ export class UserCollectionStore {
 				timestamp: storedRecord.timestamp,
 				consent: storedRecord.consent,
 				source: storedRecord.source,
+				deviceClass: storedRecord.deviceClass,
+				platform: storedRecord.platform,
+				browserFamily: storedRecord.browserFamily,
+				timezone: storedRecord.timezone,
+				locale: storedRecord.locale,
 			},
 			alreadyExisted: Boolean(existing),
 		};
@@ -218,6 +266,121 @@ export class UserCollectionStore {
 			return repository.getAnalytics();
 		}
 		return getMemorySnapshot().analytics;
+	}
+
+	static async getUserProfile(
+		email: string,
+	): Promise<CollectedUserProfile | null> {
+		const normalizedEmail = email.trim().toLowerCase();
+		if (!normalizedEmail) return null;
+
+		const user = (await this.listAll()).find(
+			(record) => record.email === normalizedEmail,
+		);
+		if (!user) return null;
+
+		const [genrePreferences, recentDiscovery, recentEventActions] =
+			await Promise.all([
+				getUserGenrePreferenceRepository()?.listForUser({
+					email: user.email,
+					userId: user.userId,
+					limit: 8,
+				}) ?? Promise.resolve([]),
+				getDiscoveryAnalyticsRepository()?.listRecentForUser({
+					email: user.email,
+					userId: user.userId,
+					limit: 24,
+				}) ?? Promise.resolve([]),
+				getEventEngagementRepository()?.listRecentForUser({
+					email: user.email,
+					userId: user.userId,
+					limit: 16,
+				}) ?? Promise.resolve([]),
+			]);
+		const liveEventsResult = await getLiveEvents({
+			includeFeaturedProjection: false,
+			includeEngagementProjection: false,
+		});
+		const eventsByKey = new Map(
+			liveEventsResult.success
+				? liveEventsResult.data.map((event) => [event.eventKey, event])
+				: [],
+		);
+		const enrichedEventActions = recentEventActions.map((action) => {
+			const event = eventsByKey.get(action.eventKey);
+			return {
+				...action,
+				eventName: event?.name ?? null,
+				eventHref: event
+					? `/event/${encodeURIComponent(event.eventKey)}/${encodeURIComponent(event.slug)}`
+					: null,
+			};
+		});
+		const activityCounts = {
+			searchSignalCount: recentDiscovery.filter(
+				(record) => record.actionType === "search" && record.searchQuery,
+			).length,
+			filterSignalCount: recentDiscovery.filter(
+				(record) =>
+					record.actionType === "filter_apply" &&
+					record.filterGroup &&
+					record.filterValue,
+			).length,
+			eventActionSignalCount: recentEventActions.length,
+			genrePreferenceSignalCount: genrePreferences.length,
+		};
+		const linkedSignalCount =
+			activityCounts.searchSignalCount +
+			activityCounts.filterSignalCount +
+			activityCounts.eventActionSignalCount +
+			activityCounts.genrePreferenceSignalCount;
+		const lastSignalAt =
+			[
+				...genrePreferences.map((item) => item.lastSeenAt),
+				...recentDiscovery.map((item) => item.recordedAt),
+				...recentEventActions.map((item) => item.recordedAt),
+			].sort((left, right) => right.localeCompare(left))[0] ?? null;
+
+		return {
+			user: {
+				...user,
+				linkedSignalCount: user.linkedSignalCount ?? linkedSignalCount,
+				searchSignalCount:
+					user.searchSignalCount ?? activityCounts.searchSignalCount,
+				filterSignalCount:
+					user.filterSignalCount ?? activityCounts.filterSignalCount,
+				eventActionSignalCount:
+					user.eventActionSignalCount ?? activityCounts.eventActionSignalCount,
+				genrePreferenceSignalCount:
+					user.genrePreferenceSignalCount ??
+					activityCounts.genrePreferenceSignalCount,
+				lastSignalAt: user.lastSignalAt ?? lastSignalAt,
+			},
+			genrePreferences,
+			recentSearches: recentDiscovery
+				.filter(
+					(record) => record.actionType === "search" && record.searchQuery,
+				)
+				.map((record) => ({
+					query: record.searchQuery ?? "",
+					recordedAt: record.recordedAt,
+				}))
+				.slice(0, 8),
+			recentFilters: recentDiscovery
+				.filter(
+					(record) =>
+						record.actionType === "filter_apply" &&
+						record.filterGroup &&
+						record.filterValue,
+				)
+				.map((record) => ({
+					filterGroup: record.filterGroup ?? "",
+					filterValue: record.filterValue ?? "",
+					recordedAt: record.recordedAt,
+				}))
+				.slice(0, 8),
+			recentEventActions: enrichedEventActions,
+		};
 	}
 
 	static async getAdminSnapshot(): Promise<UserCollectionAdminSnapshot> {
