@@ -85,7 +85,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							type="button"
 							onClick={() => onSortModeChange(option.value)}
 							aria-pressed={isSelected}
-							className={`h-6 rounded-full px-3 text-xs transition-colors ${
+							className={`h-6 rounded-full px-3 text-xs transition-colors max-[340px]:px-2 ${
 								isSelected
 									? "bg-foreground text-background shadow-sm"
 									: "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -123,7 +123,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 									onClickAction={onFilterClickAction}
 									hasActiveFilters={hasActiveFilters}
 									activeFiltersCount={activeFiltersCount}
-									className="h-7 min-h-7 shrink-0 rounded-full px-3 text-xs"
+									className="h-7 min-h-7 shrink-0 rounded-full px-3 text-xs max-[340px]:w-10 max-[340px]:px-0 [&_span[data-filter-label]]:max-[340px]:sr-only [&_svg]:max-[340px]:mr-0"
 									size="sm"
 								/>
 							</div>
@@ -141,7 +141,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								onClickAction={onFilterClickAction}
 								hasActiveFilters={hasActiveFilters}
 								activeFiltersCount={activeFiltersCount}
-								className="h-7 min-h-7 shrink-0 rounded-full px-3 text-xs"
+								className="h-7 min-h-7 shrink-0 rounded-full px-3 text-xs max-[340px]:w-10 max-[340px]:px-0 [&_span[data-filter-label]]:max-[340px]:sr-only [&_svg]:max-[340px]:mr-0"
 								size="sm"
 							/>
 						</div>

@@ -40,7 +40,7 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
 			)}
 		>
 			<Filter className="h-4 w-4 mr-2" />
-			Filters
+			<span data-filter-label="">Filters</span>
 			{hasActiveFilters && (
 				<Badge
 					variant="destructive"
