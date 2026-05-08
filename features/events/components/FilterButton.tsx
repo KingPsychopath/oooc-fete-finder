@@ -13,6 +13,7 @@ type FilterButtonProps = {
 	className?: string;
 	id?: string;
 	size?: "sm" | "default" | "lg";
+	style?: React.CSSProperties;
 	variant?:
 		| "outline"
 		| "default"
@@ -29,6 +30,7 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
 	className = "",
 	id,
 	size = "default",
+	style,
 	variant = "outline",
 }) => {
 	return (
@@ -37,6 +39,7 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
 			variant={variant}
 			size={size}
 			onClick={onClickAction}
+			style={style}
 			className={cn(
 				"min-h-[44px] border-border/80 bg-background/72 text-foreground/85 hover:bg-accent",
 				className,

@@ -335,7 +335,7 @@ export function MobileBottomNav() {
 	useEffect(() => {
 		if (typeof document === "undefined") return;
 
-		const isMobileViewport = window.matchMedia("(max-width: 767px)").matches;
+		const isMobileViewport = window.matchMedia("(max-width: 1023px)").matches;
 		const root = document.documentElement;
 		const shouldReserveNavSpace =
 			isMobileViewport && shouldRender && isVisible && !hasActiveOverlay;
