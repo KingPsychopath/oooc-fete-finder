@@ -3,7 +3,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Coffee, ExternalLink, Globe } from "lucide-react";
+import { Croissant, ExternalLink, Globe } from "lucide-react";
 import Link from "next/link";
 
 const ooocWebsiteUrl =
@@ -171,10 +171,10 @@ const Footer = () => {
 								target="_blank"
 								rel="noopener noreferrer"
 								className="inline-flex items-center space-x-1 font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
-								title="Buy me a drink if this was helpful"
+								title="Buy me a croissant if this was helpful"
 							>
-								<Coffee className="h-3 w-3" />
-								<span>Buy me a coffee</span>
+								<Croissant className="h-3 w-3" />
+								<span>Buy me a croissant</span>
 							</Link>
 						</div>
 						<Tooltip>

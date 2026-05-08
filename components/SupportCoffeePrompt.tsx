@@ -4,7 +4,7 @@ import { useFloatingPromptSlot } from "@/hooks/useFloatingPromptSlot";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { LAYERS } from "@/lib/ui/layers";
-import { Coffee } from "lucide-react";
+import { Croissant } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useIsRestrictedPromptRoute } from "@/hooks/useRestrictedPromptRoutes";
@@ -169,7 +169,7 @@ export function SupportCoffeePrompt() {
 			<div className="rounded-lg border border-border/65 bg-card/95 px-3.5 py-3 text-xs shadow-lg backdrop-blur-md">
 				<p className="text-muted-foreground">
 					Enjoying Fete Finder? If it helped, you can support updates with a
-					coffee.
+					croissant.
 				</p>
 				<div className="mt-2 flex items-center gap-3">
 					<Link
@@ -180,8 +180,8 @@ export function SupportCoffeePrompt() {
 						className="inline-flex items-center gap-1 rounded-sm font-medium text-foreground underline-offset-4 transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 						title="Support future updates"
 					>
-						<Coffee className="h-3 w-3" />
-						<span>Buy a coffee</span>
+						<Croissant className="h-3 w-3" />
+						<span>Buy a croissant</span>
 					</Link>
 					<button
 						type="button"
