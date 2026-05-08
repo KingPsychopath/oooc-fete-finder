@@ -1443,6 +1443,7 @@ export async function saveEventSheetEditorRows(
 	message: string;
 	rowCount?: number;
 	updatedAt?: string;
+	rowMetadata?: EventRowLifecycleMetadata[];
 	revision?: EventSheetRevisionRecord | null;
 	error?: string;
 }> {
@@ -1556,6 +1557,7 @@ export async function saveEventSheetEditorRows(
 				: "Saved event sheet to store",
 			rowCount: saved.rowCount,
 			updatedAt: saved.updatedAt,
+			rowMetadata,
 			revision,
 		};
 	} catch (error) {

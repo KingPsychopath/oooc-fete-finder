@@ -101,6 +101,7 @@ type SaveEventSheetResult = {
 	message: string;
 	rowCount?: number;
 	updatedAt?: string;
+	rowMetadata?: EventRowLifecycleMetadata[];
 	revision?: EventSheetRevisionRecord | null;
 	error?: string;
 };
@@ -1139,6 +1140,9 @@ export const EventSheetEditorCard = ({
 	const [genreTaxonomy, setGenreTaxonomy] = useState<
 		GenreTaxonomySnapshot | undefined
 	>(initialEditorData?.genreTaxonomy);
+	const [rowMetadata, setRowMetadata] = useState<EventRowLifecycleMetadata[]>(
+		initialEditorData?.rowMetadata ?? [],
+	);
 	const [sheetRevisions, setSheetRevisions] = useState<
 		EventSheetRevisionRecord[]
 	>(initialEditorData?.sheetRevisions ?? []);
@@ -1545,6 +1549,9 @@ export const EventSheetEditorCard = ({
 					setRecoverableDraft(null);
 				}
 				setLastSavedAt(result.updatedAt || new Date().toISOString());
+				if (result.rowMetadata) {
+					setRowMetadata(result.rowMetadata);
+				}
 				updateRevisionHistory(result.revision);
 				if (mode === "manual") {
 					setRestoreReviewRevision(null);
@@ -2927,12 +2934,9 @@ export const EventSheetEditorCard = ({
 	const lifecycleMetadataByEventKey = useMemo(
 		() =>
 			new Map(
-				(initialEditorData?.rowMetadata ?? []).map((metadata) => [
-					metadata.eventKey,
-					metadata,
-				]),
+				rowMetadata.map((metadata) => [metadata.eventKey, metadata]),
 			),
-		[initialEditorData?.rowMetadata],
+		[rowMetadata],
 	);
 	const lifecycleCounts = useMemo(() => {
 		let firstSeen = 0;

@@ -73,6 +73,31 @@ describe("selectFeaturedEvents", () => {
 		expect(selected.some((event) => event.isOOOCPick)).toBe(true);
 	});
 
+	it("limits OOOC pick fallback to one slot when regular candidates exist", () => {
+		const selected = selectFeaturedEvents({
+			events: [
+				makeEvent({
+					eventKey: "oooc-pick-a",
+					date: "2026-06-21",
+					isOOOCPick: true,
+				}),
+				makeEvent({
+					eventKey: "oooc-pick-b",
+					date: "2026-06-22",
+					isOOOCPick: true,
+				}),
+				makeEvent({ eventKey: "regular-a", date: "2026-06-21" }),
+				makeEvent({ eventKey: "regular-b", date: "2026-06-22" }),
+			],
+			maxFeaturedEvents: 3,
+			dateRange,
+			referenceDate: new Date("2026-06-20T12:00:00"),
+		});
+
+		expect(selected.filter((event) => event.isOOOCPick).length).toBe(1);
+		expect(selected.filter((event) => !event.isOOOCPick).length).toBe(2);
+	});
+
 	it("does not use passed events as fallback cards", () => {
 		const selected = selectFeaturedEvents({
 			events: [
@@ -98,7 +123,7 @@ describe("selectFeaturedEvents", () => {
 		]);
 	});
 
-	it("returns no fallback cards when every non-placement event has passed", () => {
+	it("uses a seeded archive fallback when every non-placement event has passed", () => {
 		const selected = selectFeaturedEvents({
 			events: [
 				makeEvent({
@@ -118,7 +143,10 @@ describe("selectFeaturedEvents", () => {
 			referenceDate: new Date("2026-06-28T12:00:00"),
 		});
 
-		expect(selected).toEqual([]);
+		expect(selected.map((event) => event.eventKey).sort()).toEqual([
+			"passed-pick",
+			"passed-regular",
+		]);
 	});
 
 	it("keeps promoted events eligible even after their event time has passed", () => {

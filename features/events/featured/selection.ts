@@ -138,24 +138,36 @@ export const selectFeaturedEvents = ({
 	const safeEvents = events.filter(Boolean);
 	const seed = getSeedForDateSet(safeEvents, dateRange);
 	const placementEvents: Event[] = [];
-	const ooocPickEvents: Event[] = [];
-	const regularEvents: Event[] = [];
+	const upcomingFallbackEvents: Event[] = [];
+	const archiveFallbackEvents: Event[] = [];
 
 	for (const event of safeEvents) {
 		if (shouldDisplayFeaturedEvent(event) || event.isPromoted === true) {
 			placementEvents.push(event);
 			continue;
 		}
-		if (!isUpcomingFallbackEvent(event, referenceDate)) {
-			continue;
-		}
+		archiveFallbackEvents.push(event);
 		if (event.isOOOCPick === true) {
-			ooocPickEvents.push(event);
+			if (isUpcomingFallbackEvent(event, referenceDate)) {
+				upcomingFallbackEvents.push(event);
+			}
 			continue;
 		}
-		regularEvents.push(event);
+		if (isUpcomingFallbackEvent(event, referenceDate)) {
+			upcomingFallbackEvents.push(event);
+		}
 	}
 
+	const fallbackEvents =
+		upcomingFallbackEvents.length > 0
+			? upcomingFallbackEvents
+			: archiveFallbackEvents;
+	const ooocPickEvents = fallbackEvents.filter(
+		(event) => event.isOOOCPick === true,
+	);
+	const regularEvents = fallbackEvents.filter(
+		(event) => event.isOOOCPick !== true,
+	);
 	const selected = dedupeByEventKey(placementEvents).slice(
 		0,
 		maxFeaturedEvents,
@@ -175,11 +187,13 @@ export const selectFeaturedEvents = ({
 		}
 	};
 
-	appendCandidates(deterministicShuffle(ooocPickEvents, `${seed}:oooc-picks`));
+	appendCandidates(
+		deterministicShuffle(ooocPickEvents, `${seed}:oooc-picks`).slice(0, 1),
+	);
 	appendCandidates(deterministicShuffle(regularEvents, `${seed}:regular`));
 	appendCandidates(
 		deterministicShuffle(
-			[...placementEvents, ...ooocPickEvents, ...regularEvents],
+			[...placementEvents, ...regularEvents, ...ooocPickEvents.slice(0, 1)],
 			`${seed}:fill`,
 		),
 	);

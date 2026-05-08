@@ -162,4 +162,27 @@ describe("createFreshActivityComparator", () => {
 			"soon-regular",
 		]);
 	});
+
+	it("keeps updated events above regular events even when saves are high", () => {
+		const now = new Date("2026-05-08T12:00:00.000Z");
+		const events: Event[] = [
+			makeEvent({
+				eventKey: "many-saves",
+				date: "2026-06-20",
+				socialProofSaveCount: 999,
+			}),
+			makeEvent({
+				eventKey: "updated",
+				date: "2026-06-22",
+				firstSeenAt: "2026-04-20T12:00:00.000Z",
+				lastMeaningfulChangeAt: "2026-05-08T08:00:00.000Z",
+			}),
+		];
+
+		const sorted = [...events].sort(createFreshActivityComparator(now));
+		expect(sorted.map((event) => event.eventKey)).toEqual([
+			"updated",
+			"many-saves",
+		]);
+	});
 });

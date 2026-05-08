@@ -83,10 +83,21 @@ const getRegularEventSortTime = (event: Event): RegularEventSortTime => {
 const compareNames = (left: Event, right: Event): number =>
 	left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
 
+const FRESH_ACTIVITY_NEW_SCORE = 1_000_000;
+const FRESH_ACTIVITY_UPDATED_SCORE = 700_000;
+const FRESH_ACTIVITY_SAVE_SCORE = 1_000;
+const FRESH_ACTIVITY_SAVE_CAP = 250;
+
 const getFreshActivityScore = (event: Event, now: Date): number => {
-	const newScore = isRecentlyAddedEvent(event, now) ? 1_000_000 : 0;
-	const updatedScore = isRecentlyUpdatedEvent(event, now) ? 700_000 : 0;
-	const saveScore = Math.min(event.socialProofSaveCount ?? 0, 999) * 1_000;
+	const newScore = isRecentlyAddedEvent(event, now)
+		? FRESH_ACTIVITY_NEW_SCORE
+		: 0;
+	const updatedScore = isRecentlyUpdatedEvent(event, now)
+		? FRESH_ACTIVITY_UPDATED_SCORE
+		: 0;
+	const saveScore =
+		Math.min(event.socialProofSaveCount ?? 0, FRESH_ACTIVITY_SAVE_CAP) *
+		FRESH_ACTIVITY_SAVE_SCORE;
 	const changedTime = Date.parse(event.lastMeaningfulChangeAt ?? "");
 	const firstSeenTime = Date.parse(event.firstSeenAt ?? "");
 	const freshnessTime = Math.max(
