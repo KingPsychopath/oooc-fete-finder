@@ -4,11 +4,8 @@ import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import AuthGate from "@/features/auth/components/AuthGate";
-import EmailGateModal from "@/features/auth/components/EmailGateModal";
 import { AllEvents } from "@/features/events/components/AllEvents";
-import EventModal from "@/features/events/components/EventModal";
 import EventStats from "@/features/events/components/EventStats";
-import FilterPanel from "@/features/events/components/FilterPanel";
 import SearchBar from "@/features/events/components/SearchBar";
 import { getCountryOption } from "@/features/events/countries";
 import { getDiscoveryEligibleEvents } from "@/features/events/discovery-eligibility";
@@ -33,7 +30,6 @@ import {
 	type Nationality,
 } from "@/features/events/types";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
-import { EventsMapCard } from "@/features/maps/components/events-map-card";
 import { clientLog } from "@/lib/platform/client-logger";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -51,6 +47,29 @@ const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
 const REQUEST_UPDATE_PARAM = "requestUpdate";
 type EventSortMode = "upcoming" | "fresh-activity";
 type PendingAuthAction = "show-oooc-picks" | { type: "search"; query: string };
+
+const EmailGateModal = dynamic(
+	() => import("@/features/auth/components/EmailGateModal"),
+	{ ssr: false },
+);
+
+const EventModal = dynamic(
+	() => import("@/features/events/components/EventModal"),
+	{ ssr: false },
+);
+
+const FilterPanel = dynamic(
+	() => import("@/features/events/components/FilterPanel"),
+	{ ssr: false },
+);
+
+const EventsMapCard = dynamic(
+	() =>
+		import("@/features/maps/components/events-map-card").then(
+			(module) => module.EventsMapCard,
+		),
+	{ ssr: false },
+);
 
 const FeteFinderTour = dynamic(
 	() =>
@@ -830,6 +849,7 @@ export function EventsClient({
 					className="min-w-0 scroll-mt-6 sm:scroll-mt-28"
 				>
 					<AllEvents
+						key={`${sortMode}:${searchQuery}:${activeFiltersCount}:${allEventsOrdered.length}:${allEventsOrdered[0]?.eventKey ?? ""}:${allEventsOrdered.at(-1)?.eventKey ?? ""}`}
 						ref={allEventsRef}
 						events={allEventsOrdered}
 						onEventClick={handleEventClick}

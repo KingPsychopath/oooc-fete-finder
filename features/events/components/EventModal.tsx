@@ -94,7 +94,7 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 interface EventModalProps {
 	event: Event | null;
@@ -365,6 +365,7 @@ const EventModal: React.FC<EventModalProps> = ({
 	onRequestUpdateOpenChange,
 	socialProofMode,
 }) => {
+	const modalTitleId = useId();
 	const { mapPreference, setMapPreference, isLoaded } = useMapPreference();
 	const [showMapSelection, setShowMapSelection] = useState(false);
 	const [showMapSettings, setShowMapSettings] = useState(false);
@@ -376,6 +377,7 @@ const EventModal: React.FC<EventModalProps> = ({
 	const shareStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
 	);
+	const closeButtonRef = useRef<HTMLButtonElement>(null);
 	const contactCopyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
 	);
@@ -433,6 +435,16 @@ const EventModal: React.FC<EventModalProps> = ({
 
 		return () => {
 			setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.EVENT_MODAL, false);
+		};
+	}, [isOpen]);
+
+	useEffect(() => {
+		if (!isOpen) return;
+		const frameId = window.requestAnimationFrame(() => {
+			closeButtonRef.current?.focus();
+		});
+		return () => {
+			window.cancelAnimationFrame(frameId);
 		};
 	}, [isOpen]);
 
@@ -958,6 +970,15 @@ const EventModal: React.FC<EventModalProps> = ({
 		<div
 			className="fixed inset-0 flex items-center justify-center bg-black/70 p-2 backdrop-blur-[4px] sm:p-4"
 			style={{ zIndex: LAYERS.OVERLAY }}
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby={modalTitleId}
+			onKeyDown={(keyboardEvent) => {
+				if (keyboardEvent.key !== "Escape") return;
+				if (showMapSelection || isUpdateRequestOpen) return;
+				keyboardEvent.preventDefault();
+				onClose();
+			}}
 			onPointerDown={(pointerEvent) => {
 				if (pointerEvent.target !== pointerEvent.currentTarget) return;
 				if (showMapSelection) return;
@@ -993,7 +1014,7 @@ const EventModal: React.FC<EventModalProps> = ({
 							</p>
 							<div className="mt-1">
 								<CardTitle className="break-words text-[clamp(1.25rem,3.5vw,1.9rem)] [font-family:var(--ooo-font-display)] font-light leading-tight">
-									{event.name}
+									<span id={modalTitleId}>{event.name}</span>
 									{event.isOOOCPick && (
 										<Star className="ml-2 inline h-4 w-4 translate-y-[-0.08em] fill-current text-yellow-500" />
 									)}
@@ -1051,6 +1072,7 @@ const EventModal: React.FC<EventModalProps> = ({
 								</Tooltip>
 							</TooltipProvider>
 							<Button
+								ref={closeButtonRef}
 								variant="outline"
 								size="icon"
 								onClick={onClose}

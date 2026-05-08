@@ -22,6 +22,7 @@
     "backfill:user-identity": "node scripts/backfill-user-identity.mjs",
     "db:pull-events-csv": "node scripts/pull-event-store-csv.mjs",
     "health:check": "node scripts/health-check.mjs",
+    "check:public-routes": "node scripts/check-public-routes.mjs",
     "db:cli": "node scripts/db-cli.mjs"
   },
   "dependencies": {

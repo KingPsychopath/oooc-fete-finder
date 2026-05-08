@@ -11,7 +11,7 @@ import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 import { Lock, SearchX } from "lucide-react";
 import Link from "next/link";
-import { type ReactNode, forwardRef } from "react";
+import { type ReactNode, forwardRef, useState } from "react";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -25,6 +25,8 @@ const eventSortOptions: {
 	{ value: "upcoming", label: "Upcoming", shortLabel: "Upcoming" },
 	{ value: "fresh-activity", label: "Fresh activity", shortLabel: "Fresh" },
 ];
+const INITIAL_VISIBLE_EVENTS = 24;
+const VISIBLE_EVENTS_INCREMENT = 24;
 
 type AllEventsProps = {
 	events: Event[];
@@ -62,13 +64,16 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		ref,
 	) => {
 		const safeEvents = events.filter((event) => event != null);
+		const [visibleLimit, setVisibleLimit] = useState(INITIAL_VISIBLE_EVENTS);
 		const genreFrequency = buildGenreFrequency(safeEvents);
 		const shouldBlurHalf =
 			isAuthResolved && !isAuthenticated && safeEvents.length > 2;
 		const visibleEventsCount = shouldBlurHalf
 			? Math.ceil(safeEvents.length / 2)
 			: safeEvents.length;
-		const visibleEvents = safeEvents.slice(0, visibleEventsCount);
+		const allVisibleEvents = safeEvents.slice(0, visibleEventsCount);
+		const visibleEvents = allVisibleEvents.slice(0, visibleLimit);
+		const hasMoreVisibleEvents = visibleLimit < allVisibleEvents.length;
 		const lockedEvents = shouldBlurHalf
 			? safeEvents.slice(visibleEventsCount)
 			: [];
@@ -193,6 +198,29 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 									/>
 								</div>
 							))}
+						</div>
+					)}
+
+					{hasMoreVisibleEvents && (
+						<div className="mt-5 flex justify-center">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() =>
+									setVisibleLimit((current) =>
+										Math.min(
+											current + VISIBLE_EVENTS_INCREMENT,
+											allVisibleEvents.length,
+										),
+									)
+								}
+								className="h-9 rounded-full border-border/75 bg-background/70 px-4 text-sm"
+							>
+								Show more events
+								<span className="ml-1 text-muted-foreground">
+									({visibleEvents.length}/{allVisibleEvents.length})
+								</span>
+							</Button>
 						</div>
 					)}
 
