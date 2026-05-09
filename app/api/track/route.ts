@@ -26,6 +26,7 @@ const trackPayloadSchema = z.object({
 	sessionId: z.string().trim().max(120).optional(),
 	source: z.string().trim().max(80).optional(),
 	path: z.string().trim().max(280).optional(),
+	recordedAt: z.string().trim().max(80).optional(),
 	clientContext: z
 		.object({
 			deviceClass: z.string().trim().max(40).nullable().optional(),
@@ -35,6 +36,9 @@ const trackPayloadSchema = z.object({
 			locale: z.string().trim().max(40).nullable().optional(),
 		})
 		.optional(),
+});
+const trackBatchPayloadSchema = z.object({
+	events: z.array(trackPayloadSchema).min(1).max(25),
 });
 
 export const runtime = "nodejs";
@@ -101,14 +105,16 @@ export async function POST(request: Request) {
 	}
 
 	const parsed = trackPayloadSchema.safeParse(payload);
-	if (!parsed.success) {
+	const parsedBatch = trackBatchPayloadSchema.safeParse(payload);
+	if (!parsed.success && !parsedBatch.success) {
 		return accepted();
 	}
-
-	const body = parsed.data;
-	const eventKey = body.eventKey.toLowerCase();
-	const knownEventKey = await isKnownEventKey(eventKey);
-	if (knownEventKey === false) {
+	const events = parsed.success
+		? [parsed.data]
+		: parsedBatch.success
+			? parsedBatch.data.events
+			: [];
+	if (events.length === 0) {
 		return accepted();
 	}
 
@@ -121,8 +127,15 @@ export async function POST(request: Request) {
 		return accepted();
 	}
 
-	if (body.sessionId) {
-		const sessionDecision = await checkTrackEventSessionLimit(body.sessionId);
+	const sessionIds = Array.from(
+		new Set(
+			events
+				.map((event) => event.sessionId?.trim())
+				.filter((sessionId): sessionId is string => Boolean(sessionId)),
+		),
+	);
+	for (const sessionId of sessionIds) {
+		const sessionDecision = await checkTrackEventSessionLimit(sessionId);
 		if (sessionDecision.reason === "limiter_unavailable") {
 			return accepted();
 		}
@@ -136,40 +149,49 @@ export async function POST(request: Request) {
 	const userSession = getUserSessionFromCookieHeader(userCookie);
 
 	try {
-		await repository.recordEventAction({
-			eventKey,
-			actionType: body.actionType as EventEngagementAction,
-			userId: userSession.userId,
-			sessionId: body.sessionId ?? null,
-			source: body.source ?? null,
-			path: body.path ?? null,
-			isAuthenticated: userSession.isAuthenticated,
-			deviceClass: body.clientContext?.deviceClass ?? null,
-			platform: body.clientContext?.platform ?? null,
-			browserFamily: body.clientContext?.browserFamily ?? null,
-			timezone: body.clientContext?.timezone ?? null,
-			locale: body.clientContext?.locale ?? null,
-		});
-		if (body.actionType === "calendar_sync" && userSession.userId) {
-			await getUserEventRelationshipRepository()?.upsertRelationship({
-				userId: userSession.userId,
+		for (const body of events) {
+			const eventKey = body.eventKey.toLowerCase();
+			const knownEventKey = await isKnownEventKey(eventKey);
+			if (knownEventKey === false) {
+				continue;
+			}
+
+			await repository.recordEventAction({
 				eventKey,
-				relationshipType: "calendar_added",
-				source: body.source ?? "calendar_sync",
-				notifyOnChanges: true,
+				actionType: body.actionType as EventEngagementAction,
+				userId: userSession.userId,
+				sessionId: body.sessionId ?? null,
+				source: body.source ?? null,
+				path: body.path ?? null,
+				isAuthenticated: userSession.isAuthenticated,
+				deviceClass: body.clientContext?.deviceClass ?? null,
+				platform: body.clientContext?.platform ?? null,
+				browserFamily: body.clientContext?.browserFamily ?? null,
+				timezone: body.clientContext?.timezone ?? null,
+				locale: body.clientContext?.locale ?? null,
+				recordedAt: body.recordedAt,
 			});
+			if (body.actionType === "calendar_sync" && userSession.userId) {
+				await getUserEventRelationshipRepository()?.upsertRelationship({
+					userId: userSession.userId,
+					eventKey,
+					relationshipType: "calendar_added",
+					source: body.source ?? "calendar_sync",
+					notifyOnChanges: true,
+				});
+			}
 		}
-		if (userSession.isAuthenticated) {
+		if (userSession.isAuthenticated && events.length > 0) {
+			const latestContext = events[events.length - 1]?.clientContext;
 			await touchAuthenticatedUserContext({
 				userId: userSession.userId,
 				email: userSession.email,
-				clientContext: body.clientContext,
+				clientContext: latestContext,
 			});
 		}
 	} catch (error) {
 		log.warn("events.track", "Failed to record event engagement", {
-			eventKey,
-			actionType: body.actionType,
+			eventCount: events.length,
 			error: error instanceof Error ? error.message : "unknown",
 		});
 	}

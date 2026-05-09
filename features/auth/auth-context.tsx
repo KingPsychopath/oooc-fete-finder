@@ -120,8 +120,7 @@ const isAdminPath = (): boolean => {
 			? normalizedPath.slice(basePath.length) || "/"
 			: normalizedPath;
 	return (
-		normalizedBasePath === "/admin" ||
-		normalizedBasePath.startsWith("/admin/")
+		normalizedBasePath === "/admin" || normalizedBasePath.startsWith("/admin/")
 	);
 };
 
@@ -253,13 +252,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 	}, [setLiveAuthenticatedState, setSignedOutState, tryApplyOfflineGraceState]);
 
 	useEffect(() => {
-		if (readAuthSessionHint() || isAdminPath()) {
+		const hasSessionHint = readAuthSessionHint();
+		const hasOfflineGraceState = Boolean(readOfflineGraceState());
+		const isBrowserOffline =
+			typeof navigator !== "undefined" && navigator.onLine === false;
+
+		if (
+			hasSessionHint ||
+			isAdminPath() ||
+			(hasOfflineGraceState && !isBrowserOffline)
+		) {
 			void refreshSession();
 			return;
 		}
 
 		setIsAdminAuthenticated(false);
-		if (!tryApplyOfflineGraceState()) {
+		if (!isBrowserOffline || !tryApplyOfflineGraceState()) {
 			setSignedOutState();
 		}
 		setIsAuthResolved(true);
@@ -271,7 +279,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
 		const handleOnline = () => {
 			setIsOnline(true);
-			if (readAuthSessionHint() || isAdminPath()) {
+			if (readAuthSessionHint() || readOfflineGraceState() || isAdminPath()) {
 				void refreshSession();
 			}
 		};

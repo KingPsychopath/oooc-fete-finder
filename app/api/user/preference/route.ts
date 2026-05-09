@@ -18,6 +18,7 @@ import { z } from "zod";
 const genrePreferenceSchema = z.object({
 	genre: z.string().trim().min(1).max(60),
 	incrementBy: z.number().int().min(1).max(10).optional(),
+	recordedAt: z.string().trim().max(80).optional(),
 	clientContext: z
 		.object({
 			deviceClass: z.string().trim().max(40).nullable().optional(),
@@ -27,6 +28,9 @@ const genrePreferenceSchema = z.object({
 			locale: z.string().trim().max(40).nullable().optional(),
 		})
 		.optional(),
+});
+const genrePreferenceBatchSchema = z.object({
+	events: z.array(genrePreferenceSchema).min(1).max(25),
 });
 
 const allowedGenres = new Set<MusicGenre>(
@@ -70,7 +74,16 @@ export async function POST(request: Request) {
 	}
 
 	const parsed = genrePreferenceSchema.safeParse(payload);
-	if (!parsed.success) {
+	const parsedBatch = genrePreferenceBatchSchema.safeParse(payload);
+	if (!parsed.success && !parsedBatch.success) {
+		return accepted();
+	}
+	const events = parsed.success
+		? [parsed.data]
+		: parsedBatch.success
+			? parsedBatch.data.events
+			: [];
+	if (events.length === 0) {
 		return accepted();
 	}
 
@@ -83,11 +96,13 @@ export async function POST(request: Request) {
 		return accepted();
 	}
 
-	const genre = resolveMusicGenre(parsed.data.genre);
-	if (!genre) {
-		return accepted();
+	const validEvents: Array<(typeof events)[number] & { genre: MusicGenre }> = [];
+	for (const event of events) {
+		const genre = resolveMusicGenre(event.genre);
+		if (!genre || !allowedGenres.has(genre)) continue;
+		validEvents.push({ ...event, genre });
 	}
-	if (!allowedGenres.has(genre)) {
+	if (validEvents.length === 0) {
 		return accepted();
 	}
 
@@ -99,20 +114,23 @@ export async function POST(request: Request) {
 	}
 
 	try {
-		await repository.incrementGenreScore({
-			email: userSession.email,
-			userId: userSession.userId,
-			genre,
-			incrementBy: parsed.data.incrementBy ?? 1,
-		});
+		for (const event of validEvents) {
+			await repository.incrementGenreScore({
+				email: userSession.email,
+				userId: userSession.userId,
+				genre: event.genre,
+				incrementBy: event.incrementBy ?? 1,
+			});
+		}
+		const latestContext = validEvents[validEvents.length - 1]?.clientContext;
 		await touchAuthenticatedUserContext({
 			userId: userSession.userId,
 			email: userSession.email,
-			clientContext: parsed.data.clientContext,
+			clientContext: latestContext,
 		});
 	} catch (error) {
 		log.warn("events.genre-preference", "Failed to store genre preference", {
-			genre,
+			eventCount: validEvents.length,
 			error: error instanceof Error ? error.message : "unknown",
 		});
 	}

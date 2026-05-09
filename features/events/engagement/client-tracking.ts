@@ -2,6 +2,56 @@ import type { EventEngagementAction } from "@/features/events/engagement/types";
 
 const SESSION_STORAGE_KEY = "oooc:event-engagement-session";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const BATCH_FLUSH_DELAY_MS = 3000;
+const MAX_BATCH_SIZE = 20;
+const QUEUE_STORAGE_PREFIX = "oooc:analytics-queue:";
+
+type ClientContext = ReturnType<typeof getClientContext>;
+
+type EventEngagementPayload = {
+	eventKey: string;
+	actionType: EventEngagementAction;
+	sessionId: string | null;
+	source?: string;
+	path: string;
+	isAuthenticated: boolean;
+	clientContext: ClientContext;
+	recordedAt: string;
+};
+
+type DiscoveryAnalyticsPayload = {
+	actionType: "search" | "filter_apply" | "filter_clear";
+	sessionId: string | null;
+	filterGroup?: string;
+	filterValue?: string;
+	searchQuery?: string;
+	path: string;
+	clientContext: ClientContext;
+	recordedAt: string;
+};
+
+type GenrePreferencePayload = {
+	genre: string;
+	incrementBy: number;
+	clientContext: ClientContext;
+	recordedAt: string;
+};
+
+type QueueName = "engagement" | "discovery" | "preference";
+
+const queues: Record<QueueName, unknown[]> = {
+	engagement: [],
+	discovery: [],
+	preference: [],
+};
+const flushTimers: Partial<Record<QueueName, ReturnType<typeof setTimeout>>> = {};
+const loadedQueues = new Set<QueueName>();
+
+const endpoints: Record<QueueName, string> = {
+	engagement: `${basePath}/api/track`,
+	discovery: `${basePath}/api/track/discovery`,
+	preference: `${basePath}/api/user/preference`,
+};
 
 const createSessionId = (): string => {
 	if (
@@ -83,6 +133,136 @@ export const getClientContext = () => {
 	};
 };
 
+const getQueueStorageKey = (name: QueueName): string =>
+	`${QUEUE_STORAGE_PREFIX}${name}`;
+
+const persistQueue = (name: QueueName) => {
+	if (typeof window === "undefined") return;
+	try {
+		const queue = queues[name];
+		if (queue.length === 0) {
+			window.localStorage.removeItem(getQueueStorageKey(name));
+			return;
+		}
+		window.localStorage.setItem(getQueueStorageKey(name), JSON.stringify(queue));
+	} catch {
+		// In-memory queue still works when storage is unavailable.
+	}
+};
+
+const loadQueue = (name: QueueName) => {
+	if (loadedQueues.has(name) || typeof window === "undefined") return;
+	loadedQueues.add(name);
+	try {
+		const raw = window.localStorage.getItem(getQueueStorageKey(name));
+		if (!raw) return;
+		const parsed = JSON.parse(raw) as unknown;
+		if (!Array.isArray(parsed)) return;
+		queues[name] = parsed;
+	} catch {
+		window.localStorage.removeItem(getQueueStorageKey(name));
+	}
+};
+
+const postPayload = (
+	url: string,
+	payload: string,
+	preferBeacon: boolean,
+	onFailure: () => void,
+) => {
+	if (preferBeacon) {
+		try {
+			if (
+				typeof navigator !== "undefined" &&
+				typeof navigator.sendBeacon === "function"
+			) {
+				const blob = new Blob([payload], { type: "application/json" });
+				if (navigator.sendBeacon(url, blob)) {
+					return;
+				}
+			}
+		} catch {
+			// Fall through to fetch fallback.
+		}
+	}
+
+	void fetch(url, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: payload,
+		keepalive: true,
+	}).catch(onFailure);
+};
+
+const flushQueue = (name: QueueName, preferBeacon = false) => {
+	if (typeof window === "undefined") return;
+	loadQueue(name);
+	const timer = flushTimers[name];
+	if (timer) {
+		clearTimeout(timer);
+		delete flushTimers[name];
+	}
+
+	const queue = queues[name];
+	if (queue.length === 0) return;
+	const batch = queue.splice(0, MAX_BATCH_SIZE);
+	persistQueue(name);
+	const payload =
+		batch.length === 1
+			? JSON.stringify(batch[0])
+			: JSON.stringify({ events: batch });
+	postPayload(endpoints[name], payload, preferBeacon, () => {
+		queues[name].unshift(...batch);
+		persistQueue(name);
+		scheduleFlush(name);
+	});
+
+	if (queue.length > 0) {
+		flushQueue(name, preferBeacon);
+	}
+};
+
+const scheduleFlush = (name: QueueName) => {
+	if (flushTimers[name]) return;
+	flushTimers[name] = setTimeout(() => {
+		flushQueue(name);
+	}, BATCH_FLUSH_DELAY_MS);
+};
+
+const enqueuePayload = (name: QueueName, payload: unknown) => {
+	if (typeof window === "undefined") return;
+	loadQueue(name);
+	const queue = queues[name];
+	queue.push(payload);
+	persistQueue(name);
+	if (queue.length >= MAX_BATCH_SIZE) {
+		flushQueue(name);
+		return;
+	}
+	scheduleFlush(name);
+};
+
+const installFlushListeners = (() => {
+	let installed = false;
+	return () => {
+		if (installed || typeof window === "undefined") return;
+		installed = true;
+		const flushAll = () => {
+			flushQueue("engagement", true);
+			flushQueue("discovery", true);
+			flushQueue("preference", true);
+		};
+		window.addEventListener("pagehide", flushAll);
+		document.addEventListener("visibilitychange", () => {
+			if (document.visibilityState === "hidden") {
+				flushAll();
+			}
+		});
+	};
+})();
+
 export const trackEventEngagement = (input: {
 	eventKey: string;
 	actionType: EventEngagementAction;
@@ -92,8 +272,9 @@ export const trackEventEngagement = (input: {
 	if (typeof window === "undefined") return;
 	const eventKey = input.eventKey?.trim();
 	if (!eventKey) return;
+	installFlushListeners();
 
-	const payload = JSON.stringify({
+	const payload: EventEngagementPayload = {
 		eventKey,
 		actionType: input.actionType,
 		sessionId: getOrCreateEngagementSessionId(),
@@ -101,29 +282,9 @@ export const trackEventEngagement = (input: {
 		path: window.location.pathname,
 		isAuthenticated: input.isAuthenticated ?? false,
 		clientContext: getClientContext(),
-	});
-
-	try {
-		if (
-			typeof navigator !== "undefined" &&
-			typeof navigator.sendBeacon === "function"
-		) {
-			const blob = new Blob([payload], { type: "application/json" });
-			const sent = navigator.sendBeacon(`${basePath}/api/track`, blob);
-			if (sent) return;
-		}
-	} catch {
-		// Fall through to fetch fallback.
-	}
-
-	void fetch(`${basePath}/api/track`, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: payload,
-		keepalive: true,
-	}).catch(() => undefined);
+		recordedAt: new Date().toISOString(),
+	};
+	enqueuePayload("engagement", payload);
 };
 
 export const trackDiscoveryAnalytics = (input: {
@@ -133,7 +294,8 @@ export const trackDiscoveryAnalytics = (input: {
 	searchQuery?: string;
 }) => {
 	if (typeof window === "undefined") return;
-	const payload = JSON.stringify({
+	installFlushListeners();
+	const payload: DiscoveryAnalyticsPayload = {
 		actionType: input.actionType,
 		sessionId: getOrCreateEngagementSessionId(),
 		filterGroup: input.filterGroup,
@@ -141,29 +303,19 @@ export const trackDiscoveryAnalytics = (input: {
 		searchQuery: input.searchQuery,
 		path: window.location.pathname,
 		clientContext: getClientContext(),
-	});
-	void fetch(`${basePath}/api/track/discovery`, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: payload,
-		keepalive: true,
-	}).catch(() => undefined);
+		recordedAt: new Date().toISOString(),
+	};
+	enqueuePayload("discovery", payload);
 };
 
 export const trackGenrePreference = (genre: string) => {
 	if (typeof window === "undefined") return;
-	void fetch(`${basePath}/api/user/preference`, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({
-			genre,
-			incrementBy: 1,
-			clientContext: getClientContext(),
-		}),
-		keepalive: true,
-	}).catch(() => undefined);
+	installFlushListeners();
+	const payload: GenrePreferencePayload = {
+		genre,
+		incrementBy: 1,
+		clientContext: getClientContext(),
+		recordedAt: new Date().toISOString(),
+	};
+	enqueuePayload("preference", payload);
 };

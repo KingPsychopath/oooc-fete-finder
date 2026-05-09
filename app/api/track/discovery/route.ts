@@ -21,6 +21,7 @@ const discoveryTrackSchema = z.object({
 	filterValue: z.string().trim().max(120).optional(),
 	searchQuery: z.string().trim().max(280).optional(),
 	path: z.string().trim().max(280).optional(),
+	recordedAt: z.string().trim().max(80).optional(),
 	clientContext: z
 		.object({
 			deviceClass: z.string().trim().max(40).nullable().optional(),
@@ -30,6 +31,9 @@ const discoveryTrackSchema = z.object({
 			locale: z.string().trim().max(40).nullable().optional(),
 		})
 		.optional(),
+});
+const discoveryTrackBatchSchema = z.object({
+	events: z.array(discoveryTrackSchema).min(1).max(25),
 });
 
 const KNOWN_FILTER_GROUPS = new Set([
@@ -82,7 +86,16 @@ export async function POST(request: Request) {
 	}
 
 	const parsed = discoveryTrackSchema.safeParse(payload);
-	if (!parsed.success) {
+	const parsedBatch = discoveryTrackBatchSchema.safeParse(payload);
+	if (!parsed.success && !parsedBatch.success) {
+		return accepted();
+	}
+	const events = parsed.success
+		? [parsed.data]
+		: parsedBatch.success
+			? parsedBatch.data.events
+			: [];
+	if (events.length === 0) {
 		return accepted();
 	}
 
@@ -95,28 +108,37 @@ export async function POST(request: Request) {
 		return accepted();
 	}
 
-	const cookieHeader = request.headers.get("cookie");
-	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
-	const userSession = getUserSessionFromCookieHeader(userCookie);
-	const body = parsed.data;
-	if (body.actionType === "filter_apply") {
+	const validEvents = events.filter((body) => {
+		if (body.actionType === "filter_apply") {
 		const filterGroup = (body.filterGroup ?? "").trim().toLowerCase();
 		const filterValue = (body.filterValue ?? "").trim().toLowerCase();
 		if (!KNOWN_FILTER_GROUPS.has(filterGroup) || filterValue.length === 0) {
-			return accepted();
+			return false;
 		}
 	}
 	if (body.actionType === "search") {
 		const searchQuery = (body.searchQuery ?? "").trim().toLowerCase();
 		if (searchQuery.length < 2) {
-			return accepted();
+			return false;
 		}
+	}
+		return true;
+	});
+	if (validEvents.length === 0) {
+		return accepted();
 	}
 
 	try {
-		if (body.sessionId) {
+		const sessionIds = Array.from(
+			new Set(
+				validEvents
+					.map((event) => event.sessionId?.trim())
+					.filter((sessionId): sessionId is string => Boolean(sessionId)),
+			),
+		);
+		for (const sessionId of sessionIds) {
 			const sessionDecision = await checkTrackDiscoverySessionLimit(
-				body.sessionId,
+				sessionId,
 			);
 			if (sessionDecision.reason === "limiter_unavailable") {
 				return accepted();
@@ -126,31 +148,38 @@ export async function POST(request: Request) {
 			}
 		}
 
-		await repository.recordAction({
-			actionType: body.actionType,
-			sessionId: body.sessionId ?? null,
-			userId: userSession.userId,
-			filterGroup: body.filterGroup?.trim().toLowerCase() ?? null,
-			filterValue: body.filterValue?.trim().toLowerCase() ?? null,
-			searchQuery: body.searchQuery?.trim().toLowerCase() ?? null,
-			path: body.path ?? null,
-			isAuthenticated: userSession.isAuthenticated,
-			deviceClass: body.clientContext?.deviceClass ?? null,
-			platform: body.clientContext?.platform ?? null,
-			browserFamily: body.clientContext?.browserFamily ?? null,
-			timezone: body.clientContext?.timezone ?? null,
-			locale: body.clientContext?.locale ?? null,
-		});
+		const cookieHeader = request.headers.get("cookie");
+		const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
+		const userSession = getUserSessionFromCookieHeader(userCookie);
+		for (const body of validEvents) {
+			await repository.recordAction({
+				actionType: body.actionType,
+				sessionId: body.sessionId ?? null,
+				userId: userSession.userId,
+				filterGroup: body.filterGroup?.trim().toLowerCase() ?? null,
+				filterValue: body.filterValue?.trim().toLowerCase() ?? null,
+				searchQuery: body.searchQuery?.trim().toLowerCase() ?? null,
+				path: body.path ?? null,
+				isAuthenticated: userSession.isAuthenticated,
+				deviceClass: body.clientContext?.deviceClass ?? null,
+				platform: body.clientContext?.platform ?? null,
+				browserFamily: body.clientContext?.browserFamily ?? null,
+				timezone: body.clientContext?.timezone ?? null,
+				locale: body.clientContext?.locale ?? null,
+				recordedAt: body.recordedAt,
+			});
+		}
 		if (userSession.isAuthenticated) {
+			const latestContext = validEvents[validEvents.length - 1]?.clientContext;
 			await touchAuthenticatedUserContext({
 				userId: userSession.userId,
 				email: userSession.email,
-				clientContext: body.clientContext,
+				clientContext: latestContext,
 			});
 		}
 	} catch (error) {
 		log.warn("events.discovery-track", "Failed to record discovery analytics", {
-			actionType: body.actionType,
+			eventCount: validEvents.length,
 			error: error instanceof Error ? error.message : "unknown",
 		});
 	}
