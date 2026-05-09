@@ -47,6 +47,7 @@ type AllEventsProps = {
 	onNearbyClick: () => void;
 	isEventSaved: (eventKey: string) => boolean;
 	savedEventsCount: number;
+	pendingSavedMutationCount: number;
 	showSavedOnly: boolean;
 	onSavedOnlyChange: (showSavedOnly: boolean) => void;
 	searchSlot?: ReactNode;
@@ -73,6 +74,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			onNearbyClick,
 			isEventSaved,
 			savedEventsCount,
+			pendingSavedMutationCount,
 			showSavedOnly,
 			onSavedOnlyChange,
 			searchSlot,
@@ -226,6 +228,13 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 						{showSavedOnly && (
 							<p className="text-xs leading-relaxed text-muted-foreground">
 								Showing events you saved on this device or account.
+							</p>
+						)}
+						{pendingSavedMutationCount > 0 && (
+							<p className="text-xs leading-relaxed text-muted-foreground">
+								{pendingSavedMutationCount} saved change
+								{pendingSavedMutationCount === 1 ? "" : "s"} will sync when
+								you’re back online.
 							</p>
 						)}
 						{isNearbyActive || nearbyEventsError ? (

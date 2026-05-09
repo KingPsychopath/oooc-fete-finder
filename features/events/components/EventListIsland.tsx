@@ -37,7 +37,12 @@ export function EventListIsland({
 		toggleNearbyEvents,
 		toggleFilterPanel,
 	} = useEventsSearchFilters();
-	const { getSavedEvents, isEventSaved, savedEventsCount } = useSavedEvents();
+	const {
+		getSavedEvents,
+		isEventSaved,
+		pendingSavedMutationCount,
+		savedEventsCount,
+	} = useSavedEvents();
 	const [showSavedOnly, setShowSavedOnly] = useState(false);
 	const visibleEvents = useMemo(
 		() => (showSavedOnly ? getSavedEvents(allEventsOrdered) : allEventsOrdered),
@@ -65,6 +70,7 @@ export function EventListIsland({
 			onNearbyClick={toggleNearbyEvents}
 			isEventSaved={isEventSaved}
 			savedEventsCount={savedEventsCount}
+			pendingSavedMutationCount={pendingSavedMutationCount}
 			showSavedOnly={showSavedOnly}
 			onSavedOnlyChange={setShowSavedOnly}
 			searchSlot={searchSlot}

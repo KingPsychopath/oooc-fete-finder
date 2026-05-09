@@ -13,6 +13,7 @@ const savedEventsSchema = z.object({
 	eventKey: z.string().trim().min(1).max(220).optional(),
 	isSaved: z.boolean().optional(),
 	source: z.string().trim().max(80).optional(),
+	idempotencyKey: z.string().trim().max(240).optional(),
 });
 
 export const runtime = "nodejs";
@@ -130,6 +131,7 @@ export async function POST(request: Request) {
 	} catch (error) {
 		log.warn("events.saved", "Failed to update saved events", {
 			eventCount: uniqueEventKeys.length,
+			hasIdempotencyKey: Boolean(parsed.data.idempotencyKey),
 			error: error instanceof Error ? error.message : "unknown",
 		});
 	}

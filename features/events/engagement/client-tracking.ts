@@ -4,7 +4,10 @@ import type { MapProvider } from "@/features/maps/types";
 const SESSION_STORAGE_KEY = "oooc:event-engagement-session";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const BATCH_FLUSH_DELAY_MS = 3000;
+const MAX_RETRY_FLUSH_DELAY_MS = 5 * 60 * 1000;
 const MAX_BATCH_SIZE = 20;
+const MAX_QUEUE_SIZE = 250;
+const MAX_TRACKING_EVENT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const QUEUE_STORAGE_PREFIX = "oooc:analytics-queue:";
 const MAP_OPEN_DEDUPE_MS = 30_000;
 
@@ -54,15 +57,24 @@ const queues: Record<QueueName, unknown[]> = {
 	discovery: [],
 	preference: [],
 };
-const flushTimers: Partial<Record<QueueName, ReturnType<typeof setTimeout>>> = {};
+const flushTimers: Partial<Record<QueueName, ReturnType<typeof setTimeout>>> =
+	{};
 const loadedQueues = new Set<QueueName>();
 const recentMapOpenKeys = new Map<string, number>();
+const queueRetryAttempts: Record<QueueName, number> = {
+	engagement: 0,
+	discovery: 0,
+	preference: 0,
+};
 
 const endpoints: Record<QueueName, string> = {
 	engagement: `${basePath}/api/track`,
 	discovery: `${basePath}/api/track/discovery`,
 	preference: `${basePath}/api/user/preference`,
 };
+
+const isBrowserOffline = (): boolean =>
+	typeof navigator !== "undefined" && navigator.onLine === false;
 
 const createSessionId = (): string => {
 	if (
@@ -147,15 +159,37 @@ export const getClientContext = () => {
 const getQueueStorageKey = (name: QueueName): string =>
 	`${QUEUE_STORAGE_PREFIX}${name}`;
 
+const getPayloadRecordedAt = (payload: unknown): string | null => {
+	if (!payload || typeof payload !== "object") return null;
+	const value = (payload as { recordedAt?: unknown }).recordedAt;
+	return typeof value === "string" ? value : null;
+};
+
+const pruneQueuePayloads = (payloads: unknown[]): unknown[] => {
+	const minRecordedAt = Date.now() - MAX_TRACKING_EVENT_AGE_MS;
+	return payloads
+		.filter((payload) => {
+			const recordedAt = getPayloadRecordedAt(payload);
+			if (!recordedAt) return true;
+			const time = new Date(recordedAt).getTime();
+			return Number.isFinite(time) && time >= minRecordedAt;
+		})
+		.slice(-MAX_QUEUE_SIZE);
+};
+
 const persistQueue = (name: QueueName) => {
 	if (typeof window === "undefined") return;
 	try {
-		const queue = queues[name];
+		const queue = pruneQueuePayloads(queues[name]);
+		queues[name] = queue;
 		if (queue.length === 0) {
 			window.localStorage.removeItem(getQueueStorageKey(name));
 			return;
 		}
-		window.localStorage.setItem(getQueueStorageKey(name), JSON.stringify(queue));
+		window.localStorage.setItem(
+			getQueueStorageKey(name),
+			JSON.stringify(queue),
+		);
 	} catch {
 		// In-memory queue still works when storage is unavailable.
 	}
@@ -169,7 +203,7 @@ const loadQueue = (name: QueueName) => {
 		if (!raw) return;
 		const parsed = JSON.parse(raw) as unknown;
 		if (!Array.isArray(parsed)) return;
-		queues[name] = parsed;
+		queues[name] = pruneQueuePayloads(parsed);
 	} catch {
 		window.localStorage.removeItem(getQueueStorageKey(name));
 	}
@@ -207,9 +241,30 @@ const postPayload = (
 	}).catch(onFailure);
 };
 
+const scheduleFlush = (name: QueueName, delayMs = BATCH_FLUSH_DELAY_MS) => {
+	if (flushTimers[name]) return;
+	if (isBrowserOffline()) return;
+	flushTimers[name] = setTimeout(() => {
+		flushQueue(name);
+	}, delayMs);
+};
+
+const scheduleRetryFlush = (name: QueueName) => {
+	queueRetryAttempts[name] += 1;
+	const retryDelay = Math.min(
+		MAX_RETRY_FLUSH_DELAY_MS,
+		BATCH_FLUSH_DELAY_MS * 2 ** Math.min(queueRetryAttempts[name], 6),
+	);
+	scheduleFlush(name, retryDelay);
+};
+
 const flushQueue = (name: QueueName, preferBeacon = false) => {
 	if (typeof window === "undefined") return;
 	loadQueue(name);
+	if (!preferBeacon && isBrowserOffline()) {
+		scheduleFlush(name);
+		return;
+	}
 	const timer = flushTimers[name];
 	if (timer) {
 		clearTimeout(timer);
@@ -227,19 +282,13 @@ const flushQueue = (name: QueueName, preferBeacon = false) => {
 	postPayload(endpoints[name], payload, preferBeacon, () => {
 		queues[name].unshift(...batch);
 		persistQueue(name);
-		scheduleFlush(name);
+		scheduleRetryFlush(name);
 	});
+	queueRetryAttempts[name] = 0;
 
 	if (queue.length > 0) {
 		flushQueue(name, preferBeacon);
 	}
-};
-
-const scheduleFlush = (name: QueueName) => {
-	if (flushTimers[name]) return;
-	flushTimers[name] = setTimeout(() => {
-		flushQueue(name);
-	}, BATCH_FLUSH_DELAY_MS);
 };
 
 const enqueuePayload = (name: QueueName, payload: unknown) => {
@@ -247,8 +296,9 @@ const enqueuePayload = (name: QueueName, payload: unknown) => {
 	loadQueue(name);
 	const queue = queues[name];
 	queue.push(payload);
+	queues[name] = pruneQueuePayloads(queue);
 	persistQueue(name);
-	if (queue.length >= MAX_BATCH_SIZE) {
+	if (queues[name].length >= MAX_BATCH_SIZE) {
 		flushQueue(name);
 		return;
 	}
@@ -265,7 +315,13 @@ const installFlushListeners = (() => {
 			flushQueue("discovery", true);
 			flushQueue("preference", true);
 		};
+		const flushAllWhenOnline = () => {
+			flushQueue("engagement");
+			flushQueue("discovery");
+			flushQueue("preference");
+		};
 		window.addEventListener("pagehide", flushAll);
+		window.addEventListener("online", flushAllWhenOnline);
 		document.addEventListener("visibilitychange", () => {
 			if (document.visibilityState === "hidden") {
 				flushAll();

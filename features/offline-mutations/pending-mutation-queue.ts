@@ -30,6 +30,12 @@ interface FlushSavedEventMutationInput {
 	mutation: PendingSavedEventMutation;
 }
 
+/*
+ * Shared queue for user-visible state mutations that must survive offline mode.
+ * Add new mutation types here only when there is a real product surface that can
+ * create them. Current consumer: saved events.
+ */
+
 const createMutationId = (): string => {
 	if (
 		typeof crypto !== "undefined" &&

@@ -88,6 +88,7 @@ const syncSavedEvents = (input: {
 	isSaved?: boolean;
 	source: string;
 	queueOnFailure?: boolean;
+	idempotencyKey?: string;
 }): Promise<boolean> => {
 	if (typeof window === "undefined" || input.eventKeys.length === 0) {
 		return Promise.resolve(false);
@@ -99,6 +100,7 @@ const syncSavedEvents = (input: {
 			eventKeys: input.eventKeys,
 			isSaved: input.isSaved,
 			source: input.source,
+			idempotencyKey: input.idempotencyKey,
 			clientContext: getClientContext(),
 		}),
 		keepalive: true,
@@ -233,6 +235,7 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 						eventKeys: [mutation.payload.eventKey],
 						isSaved: mutation.payload.isSaved,
 						source: mutation.payload.source,
+						idempotencyKey: mutation.idempotencyKey,
 					}),
 			});
 			setPendingSavedMutationCount(result.remaining);
