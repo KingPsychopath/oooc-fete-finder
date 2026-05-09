@@ -555,6 +555,8 @@ export function FeatureEventRequestBuilder({
 				)}
 				style={{
 					bottom: "calc(env(safe-area-inset-bottom) + 3.5rem)",
+					paddingRight: "env(safe-area-inset-right)",
+					paddingLeft: "env(safe-area-inset-left)",
 					transitionTimingFunction: isMobileSummaryOpen
 						? "cubic-bezier(0.16, 1, 0.3, 1)"
 						: "cubic-bezier(0.7, 0, 0.84, 0)",
@@ -653,7 +655,14 @@ export function FeatureEventRequestBuilder({
 					</div>
 				</div>
 
-			<div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-card/95 p-3 backdrop-blur lg:hidden">
+			<div
+				className="fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-card/95 pt-3 backdrop-blur lg:hidden"
+				style={{
+					paddingRight: "max(env(safe-area-inset-right), 0.75rem)",
+					paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)",
+					paddingLeft: "max(env(safe-area-inset-left), 0.75rem)",
+				}}
+			>
 				<div className="mx-auto flex max-w-6xl items-center gap-3">
 					<button
 						type="button"

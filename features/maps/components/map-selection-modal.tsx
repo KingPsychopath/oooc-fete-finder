@@ -38,13 +38,19 @@ export const MapSelectionModal: React.FC<MapSelectionModalProps> = ({
 
 	return (
 		<div
-			className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4"
+			className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
+			style={{
+				paddingTop: "max(env(safe-area-inset-top), 1rem)",
+				paddingRight: "max(env(safe-area-inset-right), 1rem)",
+				paddingBottom: "max(env(safe-area-inset-bottom), 1rem)",
+				paddingLeft: "max(env(safe-area-inset-left), 1rem)",
+			}}
 			onPointerDown={(pointerEvent) => {
 				if (pointerEvent.target !== pointerEvent.currentTarget) return;
 				onClose();
 			}}
 		>
-			<Card className="w-full max-w-md animate-in fade-in-0 zoom-in-95 duration-200">
+			<Card className="max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-full max-w-md overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-200">
 				<CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
 					<div className="flex-1">
 						<CardTitle className="text-lg flex items-center gap-2">

@@ -208,10 +208,12 @@ export function PWAInstallPrompt() {
 
 	return (
 		<div
-			className="pointer-events-none fixed inset-x-0 px-4 sm:px-6"
+			className="pointer-events-none fixed inset-x-0"
 			style={{
 				bottom:
 					"calc(env(safe-area-inset-bottom) + var(--oooc-mobile-prompt-offset, 1rem))",
+				paddingRight: "max(env(safe-area-inset-right), 1rem)",
+				paddingLeft: "max(env(safe-area-inset-left), 1rem)",
 				zIndex: LAYERS.FLOATING_PROMPT,
 			}}
 		>

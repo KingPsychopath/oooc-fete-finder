@@ -53,9 +53,15 @@ export function EventShareModalPreview({ event }: EventShareModalPreviewProps) {
 	return (
 		<div
 			data-event-share-preview
-			className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-2 backdrop-blur-[4px] sm:p-4"
+			className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-[4px]"
+			style={{
+				paddingTop: "max(env(safe-area-inset-top), 0.5rem)",
+				paddingRight: "max(env(safe-area-inset-right), 0.5rem)",
+				paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
+				paddingLeft: "max(env(safe-area-inset-left), 0.5rem)",
+			}}
 		>
-			<section className="max-h-[94vh] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border border-border/80 bg-card/95 p-4 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] sm:p-5">
+			<section className="max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border border-border/80 bg-card/95 p-4 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] sm:p-5">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 flex-1">
 						<p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">

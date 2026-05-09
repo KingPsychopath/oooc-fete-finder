@@ -159,8 +159,9 @@ export function SupportCoffeePrompt() {
 
 	return (
 		<div
-			className="fixed left-5 max-w-[min(22rem,calc(100vw-2.5rem))]"
+			className="fixed max-w-[min(22rem,calc(100vw-2.5rem))]"
 			style={{
+				left: "max(env(safe-area-inset-left), 1.25rem)",
 				bottom:
 					"calc(env(safe-area-inset-bottom) + var(--oooc-mobile-prompt-offset, 1.25rem))",
 				zIndex: LAYERS.FLOATING_PROMPT,

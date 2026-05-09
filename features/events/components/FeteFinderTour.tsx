@@ -500,8 +500,14 @@ export function FeteFinderTour({
 		isPromptOpen &&
 		createPortal(
 			<div
-				className="fixed inset-0 flex items-end justify-center bg-black/35 px-4 py-5 backdrop-blur-[2px] sm:items-center"
-				style={{ zIndex: LAYERS.SYSTEM_TOAST - 1 }}
+				className="fixed inset-0 flex items-end justify-center bg-black/35 backdrop-blur-[2px] sm:items-center"
+				style={{
+					zIndex: LAYERS.SYSTEM_TOAST - 1,
+					paddingTop: "max(env(safe-area-inset-top), 1.25rem)",
+					paddingRight: "max(env(safe-area-inset-right), 1rem)",
+					paddingBottom: "max(env(safe-area-inset-bottom), 1.25rem)",
+					paddingLeft: "max(env(safe-area-inset-left), 1rem)",
+				}}
 				role="dialog"
 				aria-modal="true"
 				aria-labelledby="fete-finder-tour-prompt-title"

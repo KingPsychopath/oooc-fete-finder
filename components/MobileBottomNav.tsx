@@ -505,10 +505,14 @@ export function MobileBottomNav() {
 			/>
 			<div
 				className={cn(
-					"fixed inset-x-0 bottom-0 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 transition-transform duration-300 ease-out lg:hidden",
+					"fixed inset-x-0 bottom-0 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 transition-transform duration-300 ease-out lg:hidden",
 					isVisible && !hasActiveOverlay ? "translate-y-0" : "translate-y-full",
 				)}
-				style={{ zIndex: LAYERS.FLOATING_CONTROL }}
+				style={{
+					zIndex: LAYERS.FLOATING_CONTROL,
+					paddingRight: "max(env(safe-area-inset-right), 0.75rem)",
+					paddingLeft: "max(env(safe-area-inset-left), 0.75rem)",
+				}}
 			>
 				{isMoreOpen && (
 					<div

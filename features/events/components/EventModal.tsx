@@ -1067,8 +1067,14 @@ const EventModal: React.FC<EventModalProps> = ({
 
 	return (
 		<div
-			className="fixed inset-0 flex items-center justify-center bg-black/70 p-2 backdrop-blur-[4px] sm:p-4"
-			style={{ zIndex: LAYERS.OVERLAY }}
+			className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-[4px]"
+			style={{
+				zIndex: LAYERS.OVERLAY,
+				paddingTop: "max(env(safe-area-inset-top), 0.5rem)",
+				paddingRight: "max(env(safe-area-inset-right), 0.5rem)",
+				paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
+				paddingLeft: "max(env(safe-area-inset-left), 0.5rem)",
+			}}
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby={modalTitleId}
@@ -1090,7 +1096,7 @@ const EventModal: React.FC<EventModalProps> = ({
 			<Card
 				ref={modalCardRef}
 				data-event-modal-card
-				className={`relative max-h-[94vh] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))] ${
+				className={`relative max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))] ${
 					isCurrentlyFeatured
 						? "border-amber-300/70 shadow-[0_38px_94px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(212,164,96,0.35)] dark:border-amber-500/45"
 						: "border-border/80"
@@ -2027,8 +2033,14 @@ const EventModal: React.FC<EventModalProps> = ({
 
 			{showCountryDetails && hasHiddenCountries && (
 				<div
-					className="fixed inset-0 flex items-end justify-center bg-black/35 p-3 backdrop-blur-[2px] sm:items-center"
-					style={{ zIndex: LAYERS.SYSTEM_TOAST }}
+					className="fixed inset-0 flex items-end justify-center bg-black/35 backdrop-blur-[2px] sm:items-center"
+					style={{
+						zIndex: LAYERS.SYSTEM_TOAST,
+						paddingTop: "max(env(safe-area-inset-top), 0.75rem)",
+						paddingRight: "max(env(safe-area-inset-right), 0.75rem)",
+						paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)",
+						paddingLeft: "max(env(safe-area-inset-left), 0.75rem)",
+					}}
 					onClick={() => setShowCountryDetails(false)}
 				>
 					<div

@@ -40,6 +40,7 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  style,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
@@ -53,6 +54,13 @@ function DialogContent({
           "bg-background data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 ring-foreground/10 grid max-w-[calc(100%-2rem)] gap-4 rounded-xl p-4 text-sm ring-1 duration-100 sm:max-w-sm fixed top-1/2 left-1/2 z-[95] w-full -translate-x-1/2 -translate-y-1/2 outline-none",
           className
         )}
+        style={{
+          maxWidth:
+            "calc(100dvw - max(env(safe-area-inset-left), 1rem) - max(env(safe-area-inset-right), 1rem))",
+          maxHeight:
+            "calc(100dvh - max(env(safe-area-inset-top), 1rem) - max(env(safe-area-inset-bottom), 1rem))",
+          ...style,
+        }}
         {...props}
       >
         {children}

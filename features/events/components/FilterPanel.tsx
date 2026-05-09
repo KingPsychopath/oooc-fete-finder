@@ -687,8 +687,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						onClickAction={onOpen || onClose}
 						hasActiveFilters={hasActiveFilters}
 						activeFiltersCount={activeFilterCount}
-						className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+var(--oooc-mobile-nav-offset,1rem))] min-w-[8.25rem] rounded-full px-4 shadow-lg transition-[bottom] duration-300 ease-out lg:hidden"
-						style={{ zIndex: LAYERS.FLOATING_CONTROL + 1 }}
+						className="fixed bottom-[calc(env(safe-area-inset-bottom)+var(--oooc-mobile-nav-offset,1rem))] min-w-[8.25rem] rounded-full px-4 shadow-lg transition-[bottom] duration-300 ease-out lg:hidden"
+						style={{
+							zIndex: LAYERS.FLOATING_CONTROL + 1,
+							right: "max(env(safe-area-inset-right), 1rem)",
+						}}
 						variant="outline"
 						size="sm"
 					/>
@@ -1215,7 +1218,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	return (
 		<div
 			className="fixed inset-0 bg-black/45 backdrop-blur-[2px] lg:static lg:bg-transparent lg:z-auto"
-			style={{ zIndex: LAYERS.OVERLAY }}
+			style={{
+				zIndex: LAYERS.OVERLAY,
+				paddingRight: "env(safe-area-inset-right)",
+				paddingLeft: "env(safe-area-inset-left)",
+			}}
 			onPointerDown={(pointerEvent) => {
 				if (pointerEvent.target !== pointerEvent.currentTarget) return;
 				onClose();
