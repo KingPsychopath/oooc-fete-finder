@@ -39,6 +39,7 @@ interface EventsMapErrorBoundaryProps {
 	children: ReactNode;
 	eventsCount: number;
 	isOnline: boolean;
+	reason?: "offline" | "render-error";
 }
 
 interface EventsMapErrorBoundaryState {
@@ -68,6 +69,7 @@ class EventsMapErrorBoundary extends Component<
 				<EventsMapFallback
 					eventsCount={this.props.eventsCount}
 					isOnline={this.props.isOnline}
+					reason="render-error"
 				/>
 			);
 		}
@@ -79,10 +81,14 @@ class EventsMapErrorBoundary extends Component<
 function EventsMapFallback({
 	eventsCount,
 	isOnline,
+	reason,
 }: {
 	eventsCount: number;
 	isOnline: boolean;
+	reason?: "offline" | "render-error";
 }) {
+	const isOfflineFallback = reason === "offline" || !isOnline;
+
 	return (
 		<Card className="ooo-site-card py-0">
 			<CardHeader className="border-b border-border/70 py-5 pb-4">
@@ -102,12 +108,14 @@ function EventsMapFallback({
 				<div className="flex min-h-48 items-center justify-center rounded-xl border border-border/65 bg-background/58 px-4 text-center">
 					<div className="max-w-md">
 						<p className="text-sm font-medium text-foreground">
-							Map temporarily unavailable
+							{isOfflineFallback
+								? "Map unavailable offline"
+								: "Map temporarily unavailable"}
 						</p>
 						<p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-							{isOnline
-								? "Event browsing, search, and filters are still available below."
-								: "You are offline. Saved event browsing, search, and filters are still available below."}
+							{isOfflineFallback
+								? "Map style, sprite, glyph, and tile assets are online-only. Saved event browsing, search, and filters are still available below."
+								: "Event browsing, search, and filters are still available below."}
 						</p>
 					</div>
 				</div>
@@ -132,25 +140,36 @@ export function EventsMapIsland({
 	const isOnline = useOnlineStatus();
 
 	return (
-		<div id="event-map" className="scroll-mt-6 mb-8 relative z-10 sm:scroll-mt-28">
-			<EventsMapErrorBoundary
-				eventsCount={filteredEvents.length}
-				isOnline={isOnline}
-			>
-				<Suspense fallback={NoopSuspenseFallback}>
-					<EventsMapCard
-						events={filteredEvents}
-						isExpanded={isExpanded}
-						onToggleExpanded={onToggleExpanded}
-						onEventClick={onEventClick}
-						mapLoadStrategy={mapLoadStrategy}
-						onFilterClick={toggleFilterPanel}
-						onMapIntent={onMapIntent}
-						hasActiveFilters={hasAnyActiveFilters}
-						activeFiltersCount={activeFiltersCount}
-					/>
-				</Suspense>
-			</EventsMapErrorBoundary>
+		<div
+			id="event-map"
+			className="scroll-mt-6 mb-8 relative z-10 sm:scroll-mt-28"
+		>
+			{!isOnline ? (
+				<EventsMapFallback
+					eventsCount={filteredEvents.length}
+					isOnline={isOnline}
+					reason="offline"
+				/>
+			) : (
+				<EventsMapErrorBoundary
+					eventsCount={filteredEvents.length}
+					isOnline={isOnline}
+				>
+					<Suspense fallback={NoopSuspenseFallback}>
+						<EventsMapCard
+							events={filteredEvents}
+							isExpanded={isExpanded}
+							onToggleExpanded={onToggleExpanded}
+							onEventClick={onEventClick}
+							mapLoadStrategy={mapLoadStrategy}
+							onFilterClick={toggleFilterPanel}
+							onMapIntent={onMapIntent}
+							hasActiveFilters={hasAnyActiveFilters}
+							activeFiltersCount={activeFiltersCount}
+						/>
+					</Suspense>
+				</EventsMapErrorBoundary>
+			)}
 		</div>
 	);
 }

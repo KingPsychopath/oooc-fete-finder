@@ -1126,7 +1126,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							Map temporarily unavailable
 						</p>
 						<p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-							{loadError}
+							{loadError}. Map style, sprite, glyph, and tile assets are loaded
+							online.
 						</p>
 						{isOffline ? (
 							<p className="mt-2 text-xs leading-relaxed text-muted-foreground">

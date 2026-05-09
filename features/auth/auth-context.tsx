@@ -23,6 +23,7 @@ type AuthContextType = {
 	isAuthResolved: boolean;
 	isOnline: boolean;
 	authMode: AuthMode;
+	canUseProtectedDiscovery: boolean;
 	offlineGraceExpiresAt: number | null;
 	userEmail: string | null;
 	refreshSession: () => Promise<boolean>;
@@ -48,6 +49,7 @@ const defaultAuthContext: AuthContextType = {
 	isAuthResolved: true,
 	isOnline: true,
 	authMode: "signed-out",
+	canUseProtectedDiscovery: false,
 	offlineGraceExpiresAt: null,
 	userEmail: null,
 	refreshSession: async () => false,
@@ -309,6 +311,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 			setIsAuthResolved(true);
 		}
 	};
+	const canUseProtectedDiscovery =
+		isAuthenticated && (authMode === "live" || authMode === "offline-grace");
 
 	return (
 		<AuthContext.Provider
@@ -318,6 +322,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 				isAuthResolved,
 				isOnline,
 				authMode,
+				canUseProtectedDiscovery,
 				offlineGraceExpiresAt,
 				userEmail,
 				refreshSession,

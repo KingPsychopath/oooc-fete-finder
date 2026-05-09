@@ -1,6 +1,12 @@
-const CACHE_VERSION = "oooc-fete-finder-v1";
+const CACHE_VERSION = "oooc-fete-finder-v2";
 const APP_SHELL_CACHE = `${CACHE_VERSION}:app-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}:static`;
+const SAFE_API_CACHE = `${CACHE_VERSION}:safe-api`;
+const STATIC_CACHE_PATH_PREFIXES = [
+	"/_next/static/",
+	"/fonts/",
+	"/favicon",
+];
 const SAME_ORIGIN_CACHEABLE_DESTINATIONS = new Set([
 	"font",
 	"image",
@@ -8,13 +14,51 @@ const SAME_ORIGIN_CACHEABLE_DESTINATIONS = new Set([
 	"style",
 ]);
 
-const APP_SHELL_URLS = ["/", "/manifest.json"];
+const APP_SHELL_URLS = ["/", "/manifest.webmanifest"];
+const SENSITIVE_PATH_PREFIXES = [
+	"/_vercel",
+	"/admin",
+	"/api/admin",
+	"/api/auth",
+	"/api/cron",
+	"/api/revalidate",
+	"/api/user",
+	"/api/webhooks",
+	"/partner-stats",
+];
+const SAFE_API_EXACT_PATHS = new Set(["/api/events/live"]);
 
 const withScopePath = (path) => {
-	const scopePath = new URL(self.registration.scope).pathname.replace(/\/$/, "");
+	const scopePath = new URL(self.registration.scope).pathname.replace(
+		/\/$/,
+		"",
+	);
 	if (!scopePath) return path;
 	return `${scopePath}${path === "/" ? "" : path}`;
 };
+
+const getPathWithoutScope = (pathname) => {
+	const scopePath = new URL(self.registration.scope).pathname.replace(
+		/\/$/,
+		"",
+	);
+	if (!scopePath || !pathname.startsWith(scopePath)) return pathname;
+	const nextPath = pathname.slice(scopePath.length);
+	return nextPath || "/";
+};
+
+const isSensitivePath = (pathname) =>
+	SENSITIVE_PATH_PREFIXES.some(
+		(prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+	);
+
+const isSafeApiPath = (pathname) => {
+	if (SAFE_API_EXACT_PATHS.has(pathname)) return true;
+	return /^\/api\/events\/[^/]+$/.test(pathname);
+};
+
+const isStaticAssetPath = (pathname) =>
+	STATIC_CACHE_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
 self.addEventListener("install", (event) => {
 	event.waitUntil(
@@ -41,14 +85,48 @@ self.addEventListener("activate", (event) => {
 	);
 });
 
+const isCacheableResponse = (response) => {
+	if (!response || !response.ok) return false;
+	const cacheControl = response.headers.get("Cache-Control") || "";
+	return !/(^|,\s*)(no-store|private)(\s*,|$)/i.test(cacheControl);
+};
+
 const fetchAndCache = async (request, cacheName) => {
 	const response = await fetch(request);
-	if (response.ok) {
+	if (isCacheableResponse(response)) {
 		const cache = await caches.open(cacheName);
 		await cache.put(request, response.clone());
 	}
 	return response;
 };
+
+const cacheStaticUrls = async (urls) => {
+	const cache = await caches.open(STATIC_CACHE);
+	await Promise.all(
+		urls.map(async (url) => {
+			try {
+				const requestUrl = new URL(url, self.location.origin);
+				if (requestUrl.origin !== self.location.origin) return;
+				const pathname = getPathWithoutScope(requestUrl.pathname);
+				if (!isStaticAssetPath(pathname)) return;
+				const request = new Request(requestUrl.href, { credentials: "same-origin" });
+				const response = await fetch(request);
+				if (isCacheableResponse(response)) {
+					await cache.put(request, response);
+				}
+			} catch {
+				// Static cache seeding is best-effort; runtime caching still applies.
+			}
+		}),
+	);
+};
+
+self.addEventListener("message", (event) => {
+	if (event.data?.type !== "CACHE_STATIC_URLS") return;
+	if (!Array.isArray(event.data.urls)) return;
+
+	event.waitUntil(cacheStaticUrls(event.data.urls));
+});
 
 self.addEventListener("fetch", (event) => {
 	const { request } = event;
@@ -56,6 +134,9 @@ self.addEventListener("fetch", (event) => {
 
 	const url = new URL(request.url);
 	if (url.origin !== self.location.origin) return;
+
+	const pathname = getPathWithoutScope(url.pathname);
+	if (isSensitivePath(pathname)) return;
 
 	if (request.mode === "navigate") {
 		event.respondWith(
@@ -71,13 +152,24 @@ self.addEventListener("fetch", (event) => {
 		return;
 	}
 
+	if (isSafeApiPath(pathname)) {
+		event.respondWith(
+			fetchAndCache(request, SAFE_API_CACHE).catch(async () => {
+				const cache = await caches.open(SAFE_API_CACHE);
+				return (await cache.match(request)) || Response.error();
+			}),
+		);
+		return;
+	}
+
 	if (
-		url.pathname.startsWith("/_next/static/") ||
+		isStaticAssetPath(pathname) ||
 		SAME_ORIGIN_CACHEABLE_DESTINATIONS.has(request.destination)
 	) {
 		event.respondWith(
 			caches.match(request).then((cachedResponse) => {
-				return cachedResponse || fetchAndCache(request, STATIC_CACHE);
+				if (cachedResponse) return cachedResponse;
+				return fetchAndCache(request, STATIC_CACHE).catch(() => Response.error());
 			}),
 		);
 	}

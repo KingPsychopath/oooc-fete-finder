@@ -13,6 +13,7 @@ import {
 	useEventsOffline,
 } from "@/features/events/components/events-offline-provider";
 import { useEventsSearchFilters } from "@/features/events/components/events-search-filters-provider";
+import { useEventDetailHydration } from "@/features/events/components/use-event-detail-hydration";
 import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
 import type { SearchChip } from "@/features/events/search-chips";
 import {
@@ -55,20 +56,6 @@ const NoopSuspenseFallback = (
 		Loading
 	</span>
 );
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isEventPayload = (value: unknown): value is Event =>
-	isRecord(value) &&
-	typeof value.eventKey === "string" &&
-	typeof value.id === "string" &&
-	typeof value.name === "string";
-
-const parseEventDetailsResponse = (value: unknown): Event | null => {
-	if (!isRecord(value) || !isEventPayload(value.event)) return null;
-	return value.event;
-};
 
 const normalizeBasePath = (value: string): string => {
 	if (!value || value === "/") return "";
@@ -160,12 +147,12 @@ function EventsClientShell({
 	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false);
 	const [hasMountedTourIsland, setHasMountedTourIsland] = useState(false);
 	const invalidEventParamCountRef = useRef(0);
-	const eventDetailsPromiseRef = useRef(new Map<string, Promise<Event | null>>());
 	const hasMountedTourIslandRef = useRef(false);
-	const {
-		openFilterPanel,
-		setIsFilterOpen,
-	} = useEventsSearchFilters();
+	const { openFilterPanel, setIsFilterOpen } = useEventsSearchFilters();
+	const requestEventDetails = useEventDetailHydration({
+		setEvents,
+		setSelectedEvent,
+	});
 
 	const offlineGraceExpiryLabel = useMemo(() => {
 		if (offlineGraceExpiresAt == null) return null;
@@ -192,66 +179,16 @@ function EventsClientShell({
 		void requestFullEvents();
 	}, [mapLoadStrategy, requestFullEvents]);
 
-	const requestEventDetails = useCallback(
-		(eventKey: string) => {
-			const normalizedEventKey = eventKey.trim().toLowerCase();
-			const cachedRequest =
-				eventDetailsPromiseRef.current.get(normalizedEventKey);
-			if (cachedRequest) return cachedRequest;
-
-			const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || "");
-			const request = fetch(
-				`${basePath}/api/events/${encodeURIComponent(eventKey)}`,
-				{
-					headers: { Accept: "application/json" },
-				},
-			)
-				.then(async (response) => {
-					if (!response.ok) {
-						throw new Error(`Event details request failed: ${response.status}`);
-					}
-					const event = parseEventDetailsResponse(await response.json());
-					if (!event) {
-						throw new Error(
-							"Event details response was not a valid event payload",
-						);
-					}
-					setEvents((currentEvents) =>
-						currentEvents.map((currentEvent) =>
-							currentEvent.eventKey.toLowerCase() === normalizedEventKey
-								? event
-								: currentEvent,
-						),
-					);
-					setSelectedEvent((currentEvent) =>
-						currentEvent?.eventKey.toLowerCase() === normalizedEventKey
-							? event
-							: currentEvent,
-					);
-					return event;
-				})
-				.catch((error: unknown) => {
-					clientLog.warn("events-data", "Unable to hydrate event details", {
-						error: error instanceof Error ? error.message : String(error),
-						eventKey,
-					});
-					eventDetailsPromiseRef.current.delete(normalizedEventKey);
-					return null;
-				});
-
-			eventDetailsPromiseRef.current.set(normalizedEventKey, request);
-			return request;
-		},
-		[setEvents],
-	);
-
 	useEffect(() => {
 		let idleId: number | null = null;
 		let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
 		const mountForTourIntent = () => {
 			try {
-				window.sessionStorage.setItem(PENDING_FETE_FINDER_TOUR_STORAGE_KEY, "1");
+				window.sessionStorage.setItem(
+					PENDING_FETE_FINDER_TOUR_STORAGE_KEY,
+					"1",
+				);
 			} catch {
 				// The tour can still mount; storage only preserves the start request.
 			}
@@ -295,7 +232,9 @@ function EventsClientShell({
 	}, [mountTourIsland]);
 
 	const eventsByEventKey = useMemo(() => {
-		return new Map(events.map((event) => [event.eventKey.toLowerCase(), event]));
+		return new Map(
+			events.map((event) => [event.eventKey.toLowerCase(), event]),
+		);
 	}, [events]);
 
 	useEffect(() => {
@@ -397,7 +336,9 @@ function EventsClientShell({
 			setSelectedEvent((current) => (current ? null : current));
 			setIsRequestUpdateOpen(false);
 			if (currentSearchParams.has(REQUEST_UPDATE_PARAM)) {
-				const currentParams = new URLSearchParams(currentSearchParams.toString());
+				const currentParams = new URLSearchParams(
+					currentSearchParams.toString(),
+				);
 				currentParams.delete(REQUEST_UPDATE_PARAM);
 				updateUrlWithoutNavigation(homePath(currentParams), "replace");
 			}
@@ -493,12 +434,7 @@ function EventsClientShell({
 				markModalEntry: true,
 			});
 		},
-		[
-			buildEventPath,
-			isAuthenticated,
-			searchParams,
-			updateUrlWithoutNavigation,
-		],
+		[buildEventPath, isAuthenticated, searchParams, updateUrlWithoutNavigation],
 	);
 
 	const handleEventClose = useCallback(() => {

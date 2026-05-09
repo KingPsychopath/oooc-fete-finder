@@ -42,11 +42,10 @@ export function AuthGatedControlsIsland({
 		isAuthResolved,
 		isOnline,
 		authMode,
+		canUseProtectedDiscovery,
 		offlineGraceExpiresAt,
 		refreshSession,
 	} = useAuth();
-	const canUseProtectedDiscovery =
-		isAuthenticated || authMode === "offline-grace";
 
 	const handleAuthRequired = useCallback(() => {
 		setShowEmailGate(true);
