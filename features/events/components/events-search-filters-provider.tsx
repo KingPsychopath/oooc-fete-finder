@@ -20,6 +20,11 @@ import {
 	type Nationality,
 } from "@/features/events/types";
 import { useEventsOffline } from "@/features/events/components/events-offline-provider";
+import { findNearbyEvents } from "@/features/locations/nearby-event-service";
+import {
+	type SavedClientLocation,
+	requestClientLocation,
+} from "@/features/locations/client-location";
 import {
 	type ReactNode,
 	createContext,
@@ -31,7 +36,13 @@ import {
 	useState,
 } from "react";
 
-export type EventSortMode = "upcoming" | "fresh-activity";
+export type EventSortMode = "upcoming" | "fresh-activity" | "nearby";
+export type NearbyEventsStatus =
+	| "idle"
+	| "requesting"
+	| "active-current"
+	| "active-last-known"
+	| "unavailable";
 type PendingAuthAction = "show-oooc-picks" | { type: "search"; query: string };
 
 interface EventsSearchFiltersProviderProps {
@@ -66,6 +77,10 @@ interface EventsSearchFiltersContextValue {
 	hasAnyActiveFilters: boolean;
 	isFilterExpanded: boolean;
 	isFilterOpen: boolean;
+	nearbyEventsError: string | null;
+	nearbyEventsStatus: NearbyEventsStatus;
+	nearbyLocation: SavedClientLocation | null;
+	nearbyMatchedEventsCount: number;
 	onAgeRangeChange: ReturnType<typeof useEventFilters>["onAgeRangeChange"];
 	onArrondissementToggle: ReturnType<
 		typeof useEventFilters
@@ -116,6 +131,7 @@ interface EventsSearchFiltersContextValue {
 	socialProofDisplayModes: Map<string, ReturnType<typeof getSocialProofDisplayModes> extends Map<string, infer T> ? T : never>;
 	sortMode: EventSortMode;
 	spotlightEventsOrdered: Event[];
+	toggleNearbyEvents: () => void;
 	toggleFilterExpansion: () => void;
 	toggleFilterPanel: () => void;
 }
@@ -212,6 +228,13 @@ export function EventsSearchFiltersProvider({
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 	const [sortMode, setSortMode] = useState<EventSortMode>("upcoming");
+	const [nearbyEventsStatus, setNearbyEventsStatus] =
+		useState<NearbyEventsStatus>("idle");
+	const [nearbyEventsError, setNearbyEventsError] = useState<string | null>(
+		null,
+	);
+	const [nearbyLocation, setNearbyLocation] =
+		useState<SavedClientLocation | null>(null);
 	const pendingAuthActionRef = useRef<PendingAuthAction | null>(null);
 	const filters = useEventFilters({
 		events,
@@ -318,6 +341,34 @@ export function EventsSearchFiltersProvider({
 		onAuthRequired();
 	}, [canUseProtectedDiscovery, onAuthRequired, onNeedFullEvents]);
 
+	const toggleNearbyEvents = useCallback(async () => {
+		if (sortMode === "nearby") {
+			setSortMode("upcoming");
+			setNearbyEventsError(null);
+			return;
+		}
+		if (!requireAuth()) return;
+
+		onNeedFullEvents();
+		setNearbyEventsStatus("requesting");
+		setNearbyEventsError(null);
+		const result = await requestClientLocation();
+		if (!result.location) {
+			setNearbyEventsStatus("unavailable");
+			setNearbyEventsError(result.error);
+			return;
+		}
+
+		setNearbyLocation(result.location);
+		setNearbyEventsStatus(
+			result.status === "last-known" ? "active-last-known" : "active-current",
+		);
+		setSortMode("nearby");
+		window.requestAnimationFrame(() => {
+			onScrollToAllEvents();
+		});
+	}, [onNeedFullEvents, onScrollToAllEvents, requireAuth, sortMode]);
+
 	useEffect(() => {
 		if (!isAuthenticated) return;
 		const pendingAuthAction = pendingAuthActionRef.current;
@@ -354,10 +405,17 @@ export function EventsSearchFiltersProvider({
 		[sortMode, spotlightEligibleEvents],
 	);
 
-	const allEventsOrdered = useMemo(
-		() => orderEventsForDiscoverySurface(filteredEvents, sortMode),
-		[filteredEvents, sortMode],
-	);
+	const nearbyEventsOrdered = useMemo(() => {
+		if (!nearbyLocation) return [];
+		return findNearbyEvents(filteredEvents, nearbyLocation.coordinates, {
+			limit: filteredEvents.length,
+		});
+	}, [filteredEvents, nearbyLocation]);
+
+	const allEventsOrdered = useMemo(() => {
+		if (sortMode === "nearby") return nearbyEventsOrdered;
+		return orderEventsForDiscoverySurface(filteredEvents, sortMode);
+	}, [filteredEvents, nearbyEventsOrdered, sortMode]);
 
 	const socialProofDisplayModes = useMemo(
 		() => getSocialProofDisplayModes(spotlightEligibleEvents),
@@ -375,12 +433,17 @@ export function EventsSearchFiltersProvider({
 			handleSearchIntent,
 			isFilterExpanded,
 			isFilterOpen,
+			nearbyEventsError,
+			nearbyEventsStatus,
+			nearbyLocation,
+			nearbyMatchedEventsCount: nearbyEventsOrdered.length,
 			openFilterPanel,
 			setIsFilterOpen,
 			setSortMode,
 			socialProofDisplayModes,
 			sortMode,
 			spotlightEventsOrdered,
+			toggleNearbyEvents,
 			toggleFilterExpansion,
 			toggleFilterPanel,
 		}),
@@ -394,10 +457,15 @@ export function EventsSearchFiltersProvider({
 			handleSearchIntent,
 			isFilterExpanded,
 			isFilterOpen,
+			nearbyEventsError,
+			nearbyEventsStatus,
+			nearbyLocation,
+			nearbyEventsOrdered.length,
 			openFilterPanel,
 			socialProofDisplayModes,
 			sortMode,
 			spotlightEventsOrdered,
+			toggleNearbyEvents,
 			toggleFilterExpansion,
 			toggleFilterPanel,
 		],

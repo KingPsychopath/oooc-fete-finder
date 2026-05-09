@@ -9,16 +9,16 @@ import { FilterButton } from "@/features/events/components/FilterButton";
 import { buildGenreFrequency } from "@/features/events/genre-preview";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
-import { Lock, SearchX } from "lucide-react";
+import { LocateFixed, Lock, SearchX } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, forwardRef, useState } from "react";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
-type EventSortMode = "upcoming" | "fresh-activity";
+type EventSortMode = "upcoming" | "fresh-activity" | "nearby";
 
 const eventSortOptions: {
-	value: EventSortMode;
+	value: Exclude<EventSortMode, "nearby">;
 	label: string;
 	shortLabel: string;
 }[] = [
@@ -41,6 +41,10 @@ type AllEventsProps = {
 	activeFiltersCount: number;
 	isAuthenticated: boolean;
 	isAuthResolved: boolean;
+	nearbyEventsError: string | null;
+	nearbyEventsStatus: string;
+	nearbyMatchedEventsCount: number;
+	onNearbyClick: () => void;
 	searchSlot?: ReactNode;
 };
 
@@ -59,6 +63,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			activeFiltersCount,
 			isAuthenticated,
 			isAuthResolved,
+			nearbyEventsError,
+			nearbyEventsStatus,
+			nearbyMatchedEventsCount,
+			onNearbyClick,
 			searchSlot,
 		},
 		ref,
@@ -120,6 +128,27 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 				className="h-7 shrink-0 px-3 max-[340px]:px-2"
 			/>
 		) : null;
+		const isNearbyActive = sortMode === "nearby";
+		const nearbyButtonControl = (
+			<Button
+				type="button"
+				variant="outline"
+				onClick={onNearbyClick}
+				disabled={nearbyEventsStatus === "requesting"}
+				aria-pressed={isNearbyActive}
+				className={`h-7 shrink-0 rounded-full px-3 text-xs max-[340px]:w-10 max-[340px]:px-0 ${
+					isNearbyActive
+						? "border-foreground bg-foreground text-background hover:bg-foreground/90"
+						: "border-border/75 bg-background/70"
+				}`}
+				size="sm"
+			>
+				<LocateFixed className="mr-1.5 h-3.5 w-3.5 max-[340px]:mr-0" />
+				<span className="max-[340px]:sr-only">
+					{nearbyEventsStatus === "requesting" ? "Locating" : "Near me"}
+				</span>
+			</Button>
+		);
 
 		return (
 			<Card ref={ref} className="ooo-site-card mt-6 py-0 lg:mt-0">
@@ -137,11 +166,13 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								</div>
 							</div>
 							<div className="hidden shrink-0 items-center gap-2 lg:flex">
+								{nearbyButtonControl}
 								{sortModeControl}
 							</div>
 							<div className="hidden shrink-0 items-center gap-2 sm:flex lg:hidden">
 								{clearFiltersControl}
 								{filterButtonControl}
+								{nearbyButtonControl}
 								{sortModeControl}
 							</div>
 						</div>
@@ -156,8 +187,22 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 						<div className="flex max-w-full items-center gap-2 overflow-x-auto pb-0.5 sm:hidden">
 							{clearFiltersControl}
 							{filterButtonControl}
+							{nearbyButtonControl}
 							{sortModeControl}
 						</div>
+						{isNearbyActive || nearbyEventsError ? (
+							<p className="text-xs leading-relaxed text-muted-foreground">
+								{isNearbyActive
+									? `Showing ${nearbyMatchedEventsCount} saved event${
+											nearbyMatchedEventsCount === 1 ? "" : "s"
+										} with trusted coordinates nearest to ${
+											nearbyEventsStatus === "active-last-known"
+												? "your last known location"
+												: "you"
+										}.`
+									: nearbyEventsError}
+							</p>
+						) : null}
 					</div>
 				</CardHeader>
 				<CardContent className="py-5">

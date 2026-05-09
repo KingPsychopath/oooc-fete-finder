@@ -1,7 +1,6 @@
 "use client";
 
 import { useOnlineStatus } from "@/components/offline-indicator";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -11,7 +10,7 @@ import {
 } from "@/features/events/components/filter-action-button-styles";
 import type { Event } from "@/features/events/types";
 import { LAYERS } from "@/lib/ui/layers";
-import { ChevronDown, LocateFixed, MapPin, Maximize2 } from "lucide-react";
+import { ChevronDown, MapPin, Maximize2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import {
 	type PointerEvent,
@@ -64,14 +63,10 @@ export function EventsMapCard({
 	const isOnline = useOnlineStatus();
 	const [hasMountedMap, setHasMountedMap] = useState(false);
 	const [isFullscreen, setIsFullscreen] = useState(false);
-	const [showNearMeNotice, setShowNearMeNotice] = useState(false);
 	const [mapPortalElement, setMapPortalElement] =
 		useState<HTMLDivElement | null>(null);
 	const fullscreenButtonRef = useRef<HTMLButtonElement>(null);
 	const hasFullscreenHistoryEntryRef = useRef(false);
-	const nearMeNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-		null,
-	);
 	const normalMapSlotRef = useRef<HTMLDivElement>(null);
 	const fullscreenMapSlotRef = useRef<HTMLDivElement>(null);
 
@@ -82,9 +77,6 @@ export function EventsMapCard({
 
 		return () => {
 			element.remove();
-			if (nearMeNoticeTimeoutRef.current) {
-				clearTimeout(nearMeNoticeTimeoutRef.current);
-			}
 		};
 	}, []);
 
@@ -232,16 +224,6 @@ export function EventsMapCard({
 		handleOpenFullscreen();
 	};
 
-	const handleNearMeClick = () => {
-		setShowNearMeNotice(true);
-		if (nearMeNoticeTimeoutRef.current) {
-			clearTimeout(nearMeNoticeTimeoutRef.current);
-		}
-		nearMeNoticeTimeoutRef.current = setTimeout(() => {
-			setShowNearMeNotice(false);
-		}, 3600);
-	};
-
 	const mapContent = (
 		<ParisMapLibre
 			events={events}
@@ -269,70 +251,13 @@ export function EventsMapCard({
 										Paris Event Map
 									</span>
 								</div>
-								<div className="flex items-center space-x-1">
-									<Badge variant="secondary" className="text-xs">
-										{events.length} event{events.length !== 1 ? "s" : ""}
-									</Badge>
-									<Badge
-										variant="outline"
-										className="border-border/70 bg-background/52 text-xs"
-									>
-										MapLibre
-									</Badge>
-									{!isOnline && (
-										<Badge
-											variant="outline"
-											className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs"
-										>
-											Offline: tiles unavailable
-										</Badge>
-									)}
-								</div>
-							</CardTitle>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={onToggleExpanded}
-								className={`lg:hidden ${panelActionButtonClassName}`}
-								aria-expanded={isExpanded}
-								aria-label={
-									isExpanded
-										? "Collapse Paris event map"
-										: "Expand Paris event map"
-								}
-							>
-								<ChevronDown
-									className={`${panelActionIconClassName} transition-transform transition-bouncy ${isExpanded ? "rotate-180" : "rotate-0"}`}
-								/>
-								<span className={panelActionLabelClassName}>
-									{isExpanded ? "Collapse" : "Expand"}
-								</span>
-							</Button>
-							<div className="hidden items-center gap-2 lg:flex">
-								<div className="relative flex h-7 w-fit items-center space-x-1.5 rounded-lg border border-border/70 bg-background/65 p-0.5">
-									<span className="px-1.5 text-[11px] text-muted-foreground">
-										Explore:
+								{!isOnline && (
+									<span className="rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-xs font-normal text-amber-700 dark:text-amber-300">
+										Offline: tiles unavailable
 									</span>
-									<Button
-										variant="secondary"
-										size="sm"
-										onClick={handleNearMeClick}
-										className="h-6 px-2.5 text-[11px]"
-									>
-										<LocateFixed className="mr-1 h-3.5 w-3.5" />
-										Near me (soon)
-									</Button>
-									{showNearMeNotice && (
-										<div className="absolute top-[calc(100%+0.5rem)] right-0 z-20 w-56 rounded-xl border border-border/75 bg-popover/96 px-3 py-2 text-left text-xs leading-snug text-popover-foreground shadow-[0_16px_34px_-24px_rgba(16,12,9,0.68)] backdrop-blur-md">
-											<p className="font-medium text-foreground">
-												Near me is coming soon
-											</p>
-											<p className="mt-0.5 text-muted-foreground">
-												It will map events closest to your location.
-											</p>
-										</div>
-									)}
-								</div>
+								)}
+							</CardTitle>
+							<div className="flex shrink-0 items-center gap-2">
 								<Button
 									variant="outline"
 									size="sm"
@@ -366,45 +291,6 @@ export function EventsMapCard({
 									</span>
 								</Button>
 							</div>
-						</div>
-
-						<div className="flex max-w-full flex-wrap items-center justify-between gap-2 overflow-x-auto pb-0.5 lg:hidden">
-							<div className="relative flex h-7 w-fit items-center space-x-1.5 rounded-lg border border-border/70 bg-background/65 p-0.5">
-								<span className="px-1.5 text-[11px] text-muted-foreground">
-									Explore:
-								</span>
-								<Button
-									variant="secondary"
-									size="sm"
-									onClick={handleNearMeClick}
-									className="h-6 px-2.5 text-[11px]"
-								>
-									<LocateFixed className="mr-1 h-3.5 w-3.5" />
-									Near me (soon)
-								</Button>
-								{showNearMeNotice && (
-									<div className="absolute top-[calc(100%+0.5rem)] right-0 z-20 w-56 rounded-xl border border-border/75 bg-popover/96 px-3 py-2 text-left text-xs leading-snug text-popover-foreground shadow-[0_16px_34px_-24px_rgba(16,12,9,0.68)] backdrop-blur-md">
-										<p className="font-medium text-foreground">
-											Near me is coming soon
-										</p>
-										<p className="mt-0.5 text-muted-foreground">
-											It will map events closest to your location.
-										</p>
-									</div>
-								)}
-							</div>
-							<Button
-								variant="outline"
-								size="sm"
-								onPointerDown={handleOpenFullscreenPointerDown}
-								onClick={handleOpenFullscreen}
-								className={panelActionButtonClassName}
-								aria-expanded={isFullscreen}
-								aria-label="Open Paris event map full screen"
-							>
-								<Maximize2 className={panelActionIconClassName} />
-								<span className={panelActionLabelClassName}>Full screen</span>
-							</Button>
 						</div>
 					</div>
 				</CardHeader>

@@ -343,7 +343,7 @@ test.describe("event share routes", () => {
 
 		await page.getByRole("button", { name: /expand paris event map/i }).click();
 
-		await expect(page.getByText("MapLibre", { exact: true })).toBeVisible();
+		await expect(page.locator(".maplibregl-canvas")).toBeVisible();
 	});
 
 	test("homepage reloads offline from saved events with search and map fallback", async ({

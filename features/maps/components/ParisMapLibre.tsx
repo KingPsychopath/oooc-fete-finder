@@ -1196,10 +1196,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						{showLocateNotice && (
 							<div className="absolute right-[calc(100%+0.5rem)] top-0 w-56 rounded-xl border border-border/75 bg-popover/96 px-3 py-2 text-left text-xs leading-snug text-popover-foreground shadow-[0_16px_34px_-24px_rgba(16,12,9,0.68)] backdrop-blur-md">
 								<p className="font-medium text-foreground">
-									Near me is coming soon
+									Use the event list
 								</p>
 								<p className="mt-0.5 text-muted-foreground">
-									It will map events closest to your location.
+									Near me sorting is available in All Events and works with saved
+									offline data.
 								</p>
 							</div>
 						)}

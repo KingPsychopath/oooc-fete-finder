@@ -41,7 +41,7 @@ export function FeaturedEvents({
 			</CardHeader>
 			<CardContent className="py-5">
 				{/* Responsive grid: 1 col on mobile, 2 cols on tablet, 3 cols on desktop */}
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:[&>*:last-child:nth-child(odd)]:col-start-2 md:[&>*]:col-span-2 lg:grid-cols-3 lg:[&>*:last-child:nth-child(odd)]:col-start-auto lg:[&>*]:col-span-1">
 					{featuredEvents.map((event) => (
 						<EventCard
 							key={event.eventKey || event.id}

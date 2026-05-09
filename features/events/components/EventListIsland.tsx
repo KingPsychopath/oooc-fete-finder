@@ -26,10 +26,14 @@ export function EventListIsland({
 		activeFiltersCount,
 		allEventsOrdered,
 		hasAnyActiveFilters,
+		nearbyEventsError,
+		nearbyEventsStatus,
+		nearbyMatchedEventsCount,
 		onClearFilters,
 		setSortMode,
 		socialProofDisplayModes,
 		sortMode,
+		toggleNearbyEvents,
 		toggleFilterPanel,
 	} = useEventsSearchFilters();
 
@@ -48,6 +52,10 @@ export function EventListIsland({
 			activeFiltersCount={activeFiltersCount}
 			isAuthenticated={isAuthenticated}
 			isAuthResolved={isAuthResolved}
+			nearbyEventsError={nearbyEventsError}
+			nearbyEventsStatus={nearbyEventsStatus}
+			nearbyMatchedEventsCount={nearbyMatchedEventsCount}
+			onNearbyClick={toggleNearbyEvents}
 			searchSlot={searchSlot}
 		/>
 	);
