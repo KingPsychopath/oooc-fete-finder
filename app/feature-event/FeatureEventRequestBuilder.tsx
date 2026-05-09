@@ -436,7 +436,7 @@ export function FeatureEventRequestBuilder({
 								onChange={(event) =>
 									handleDetailChange("notes", event.target.value)
 								}
-								placeholder="Preferred activation window, target audience, links, anything useful."
+								placeholder="Genre, area, date context, target audience, links, anything useful."
 								className="min-h-28"
 							/>
 						</div>
