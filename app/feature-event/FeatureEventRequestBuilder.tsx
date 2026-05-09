@@ -105,6 +105,7 @@ function buildEmailBody({
 		selectedPackage
 			? `- ${selectedPackage.name} (${selectedPackage.priceLabel})`
 			: "- [package not selected]",
+		"- Activation period: 48 hours",
 		"",
 		"Add-ons:",
 		...addOnLines,
@@ -540,99 +541,114 @@ export function FeatureEventRequestBuilder({
 				</div>
 			</aside>
 
-			{isMobileSummaryOpen ? (
-				<div
-					id="promotion-mobile-summary"
-					data-testid="promotion-mobile-summary-drawer"
-					className="fixed inset-x-0 z-40 px-3 lg:hidden"
-					style={{
-						bottom: "calc(env(safe-area-inset-bottom) + 4.75rem)",
-					}}
-				>
-					<div className="mx-auto max-w-md rounded-2xl border border-border/80 bg-card/98 p-4 shadow-[0_18px_44px_rgba(18,14,10,0.24)] backdrop-blur">
-						<div className="flex items-start justify-between gap-3">
-							<div>
-								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-									Request summary
-								</p>
-								<p className="mt-1 text-lg font-medium text-foreground">
-									{formatPrice(total)}
-								</p>
-							</div>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon"
-								className="size-8 rounded-full"
-								onClick={() => setIsMobileSummaryOpen(false)}
-								aria-label="Close request summary"
-							>
-								<ChevronDown className="h-4 w-4" />
-							</Button>
-						</div>
-						<div className="mt-3 space-y-2 text-sm">
+			<div
+				id="promotion-mobile-summary"
+				data-testid="promotion-mobile-summary-drawer"
+				className={cn(
+					"fixed inset-x-0 z-40 transform-gpu transition-[transform,opacity] duration-300 ease-out lg:hidden",
+					isMobileSummaryOpen
+						? "translate-y-0 opacity-100"
+						: "pointer-events-none translate-y-full opacity-0",
+				)}
+				style={{
+					bottom: "calc(env(safe-area-inset-bottom) + 4.25rem)",
+					transitionTimingFunction: isMobileSummaryOpen
+						? "cubic-bezier(0.16, 1, 0.3, 1)"
+						: "cubic-bezier(0.7, 0, 0.84, 0)",
+				}}
+				aria-hidden={!isMobileSummaryOpen}
+			>
+					<div className="rounded-t-3xl border-x border-t border-border/80 bg-card/98 shadow-[0_-18px_44px_rgba(18,14,10,0.22)] backdrop-blur">
+						<button
+							type="button"
+							className="flex w-full flex-col items-center px-4 pt-3"
+							onClick={() => setIsMobileSummaryOpen(false)}
+							aria-label="Collapse request summary"
+						>
+							<span className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+						</button>
+						<div className="max-h-[42vh] overflow-y-auto px-4 pb-4 pt-3">
 							<div className="flex items-start justify-between gap-3">
-								<p className="font-medium text-foreground">
-									{selectedPackage?.name ?? "Choose a package"}
+								<div>
+									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+										Request summary
+									</p>
+									<p className="mt-1 text-lg font-medium text-foreground">
+										{formatPrice(total)}
+									</p>
+								</div>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									className="size-8 rounded-full"
+									onClick={() => setIsMobileSummaryOpen(false)}
+									aria-label="Close request summary"
+								>
+									<ChevronDown className="h-4 w-4" />
+								</Button>
+							</div>
+							<div className="mt-3 space-y-2 text-sm">
+								<div className="flex items-start justify-between gap-3">
+									<p className="font-medium text-foreground">
+										{selectedPackage?.name ?? "Choose a package"}
+									</p>
+									<p className="shrink-0 text-foreground">
+										{selectedPackage ? formatPrice(selectedPackage.price) : "-"}
+									</p>
+								</div>
+								{addOns.map((addOn) => {
+									const isIncluded = includedAddOnIds.has(addOn.id);
+									const isSelected = selectedAddOns.some(
+										(selectedAddOn) => selectedAddOn.id === addOn.id,
+									);
+
+									if (!isIncluded && !isSelected) {
+										return null;
+									}
+
+									return (
+										<div
+											key={addOn.id}
+											className="flex items-start justify-between gap-3 text-muted-foreground"
+										>
+											<p>{addOn.name}</p>
+											<p className="shrink-0">
+												{isIncluded ? "Included" : formatPrice(addOn.price)}
+											</p>
+										</div>
+									);
+								})}
+							</div>
+							<div className="mt-3 rounded-xl border border-border/70 bg-background/65 p-3">
+								<p className="flex items-center gap-2 text-sm font-medium text-foreground">
+									<LineChart className="h-4 w-4" />
+									Post-promotion reporting included
 								</p>
-								<p className="shrink-0 text-foreground">
-									{selectedPackage ? formatPrice(selectedPackage.price) : "-"}
+								<p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+									Private performance link with clicks, saves, and placement
+									activity where available.
 								</p>
 							</div>
-							{addOns.map((addOn) => {
-								const isIncluded = includedAddOnIds.has(addOn.id);
-								const isSelected = selectedAddOns.some(
-									(selectedAddOn) => selectedAddOn.id === addOn.id,
-								);
-
-								if (!isIncluded && !isSelected) {
-									return null;
-								}
-
-								return (
-									<div
-										key={addOn.id}
-										className="flex items-start justify-between gap-3 text-muted-foreground"
-									>
-										<p>{addOn.name}</p>
-										<p className="shrink-0">
-											{isIncluded
-												? `${formatPrice(addOn.price)} value`
-												: formatPrice(addOn.price)}
-										</p>
-									</div>
-								);
-							})}
-						</div>
-						<div className="mt-3 rounded-xl border border-border/70 bg-background/65 p-3">
-							<p className="flex items-center gap-2 text-sm font-medium text-foreground">
-								<LineChart className="h-4 w-4" />
-								Post-promotion reporting included
-							</p>
-							<p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-								Private performance link with clicks, saves, and placement
-								activity where available.
-							</p>
-						</div>
-						<div className="mt-3 grid grid-cols-2 gap-2">
-							<a
-								href={mailtoHref}
-								className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-foreground px-3 text-sm font-medium text-background transition-all hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-							>
-								Request
-							</a>
-							<Button
-								type="button"
-								variant="outline"
-								className="h-10 rounded-full"
-								onClick={handleCopyRequest}
-							>
-								{hasCopied ? "Copied" : "Copy"}
-							</Button>
+							<div className="mt-3 grid grid-cols-2 gap-2">
+								<a
+									href={mailtoHref}
+									className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-foreground px-3 text-sm font-medium text-background transition-all hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+								>
+									Request
+								</a>
+								<Button
+									type="button"
+									variant="outline"
+									className="h-10 rounded-full"
+									onClick={handleCopyRequest}
+								>
+									{hasCopied ? "Copied" : "Copy"}
+								</Button>
+							</div>
 						</div>
 					</div>
 				</div>
-			) : null}
 
 			<div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-card/95 p-3 backdrop-blur lg:hidden">
 				<div className="mx-auto flex max-w-6xl items-center gap-3">

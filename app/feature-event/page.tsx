@@ -55,6 +55,7 @@ const packages: PromotionPackage[] = [
 		priceLabel: "EUR 80",
 		description: "Best for early-season bookings before peak June pricing.",
 		includes: [
+			"48-hour activation period",
 			"Above-the-fold Spotlight placement",
 			"Pinned to top of relevant search results",
 			"Featured map treatment",
@@ -71,6 +72,7 @@ const packages: PromotionPackage[] = [
 		description:
 			"Premium placement for the final Fete push: June 15-20, 2026.",
 		includes: [
+			"48-hour activation period",
 			"All Spotlight Standard benefits",
 			"Priority activation window (June 15-20, 2026)",
 			"WhatsApp community announcement included",
@@ -86,6 +88,7 @@ const packages: PromotionPackage[] = [
 		priceLabel: "EUR 40",
 		description: "Mid-tier visibility without full Spotlight placement.",
 		includes: [
+			"48-hour activation period",
 			"Promoted badge on event card",
 			"Visual highlight in map event list",
 			"Promoted label in list results",
@@ -327,8 +330,8 @@ export default async function FeatureEventPage() {
 										</p>
 										<p className="mt-0.5 text-muted-foreground">
 											After confirmation, your campaign is reviewed, scheduled,
-											and activated in the booked tier with post-event ROI
-											reporting once the promotion period ends.
+											and activated for 48 hours with post-event ROI reporting
+											once the promotion period ends.
 										</p>
 									</div>
 								</li>
