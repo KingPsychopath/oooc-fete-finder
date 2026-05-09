@@ -1,0 +1,421 @@
+"use client";
+
+import { getCountryOption } from "@/features/events/countries";
+import { getDiscoveryEligibleEvents } from "@/features/events/discovery-eligibility";
+import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
+import {
+	getCustomGenreColor,
+	toGenreLabel,
+} from "@/features/events/genre-normalization";
+import { useEventFilters } from "@/features/events/hooks/use-event-filters";
+import {
+	createFreshActivityComparator,
+	createRegularEventsComparator,
+} from "@/features/events/ordering";
+import { getSocialProofDisplayModes } from "@/features/events/social-proof";
+import {
+	type Event,
+	MUSIC_GENRES,
+	type MusicGenreDefinition,
+	type Nationality,
+} from "@/features/events/types";
+import { useEventsOffline } from "@/features/events/components/events-offline-provider";
+import {
+	type ReactNode,
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+
+export type EventSortMode = "upcoming" | "fresh-activity";
+type PendingAuthAction = "show-oooc-picks" | { type: "search"; query: string };
+
+interface EventsSearchFiltersProviderProps {
+	canUseProtectedDiscovery: boolean;
+	children: ReactNode;
+	isAuthenticated: boolean;
+	onAuthRequired: () => void;
+	onNeedFullEvents: () => void;
+	onScrollToAllEvents: () => void;
+	requireAuth: () => boolean;
+}
+
+interface EventsSearchFiltersContextValue {
+	activeFiltersCount: number;
+	allEventsOrdered: Event[];
+	availableArrondissements: ReturnType<
+		typeof useEventFilters
+	>["availableArrondissements"];
+	availableEventDates: ReturnType<typeof useEventFilters>["availableEventDates"];
+	availableGenres: MusicGenreDefinition[];
+	availableNationalities: {
+		key: Nationality;
+		label: string;
+		flag: string;
+		shortCode: string;
+	}[];
+	defaultDateRange: ReturnType<typeof useEventFilters>["defaultDateRange"];
+	filteredEvents: Event[];
+	handleOOOCPicksCalloutClick: () => void;
+	handleSearchFocus: () => void;
+	handleSearchIntent: (query: string) => void;
+	hasAnyActiveFilters: boolean;
+	isFilterExpanded: boolean;
+	isFilterOpen: boolean;
+	onAgeRangeChange: ReturnType<typeof useEventFilters>["onAgeRangeChange"];
+	onArrondissementToggle: ReturnType<
+		typeof useEventFilters
+	>["onArrondissementToggle"];
+	onClearFilters: ReturnType<typeof useEventFilters>["onClearFilters"];
+	onDateRangeChange: ReturnType<typeof useEventFilters>["onDateRangeChange"];
+	onDayNightPeriodToggle: ReturnType<
+		typeof useEventFilters
+	>["onDayNightPeriodToggle"];
+	onGenreToggle: ReturnType<typeof useEventFilters>["onGenreToggle"];
+	onIndoorPreferenceChange: ReturnType<
+		typeof useEventFilters
+	>["onIndoorPreferenceChange"];
+	onNationalityToggle: ReturnType<
+		typeof useEventFilters
+	>["onNationalityToggle"];
+	onOOOCPicksToggle: ReturnType<typeof useEventFilters>["onOOOCPicksToggle"];
+	onPriceRangeChange: ReturnType<typeof useEventFilters>["onPriceRangeChange"];
+	onSearchQueryChange: ReturnType<
+		typeof useEventFilters
+	>["onSearchQueryChange"];
+	onVenueTypeToggle: ReturnType<typeof useEventFilters>["onVenueTypeToggle"];
+	openFilterPanel: () => void;
+	quickSelectEventDates: ReturnType<
+		typeof useEventFilters
+	>["quickSelectEventDates"];
+	searchQuery: string;
+	selectedAgeRange: ReturnType<typeof useEventFilters>["selectedAgeRange"];
+	selectedArrondissements: ReturnType<
+		typeof useEventFilters
+	>["selectedArrondissements"];
+	selectedDateRange: ReturnType<typeof useEventFilters>["selectedDateRange"];
+	selectedDayNightPeriods: ReturnType<
+		typeof useEventFilters
+	>["selectedDayNightPeriods"];
+	selectedGenres: ReturnType<typeof useEventFilters>["selectedGenres"];
+	selectedIndoorPreference: ReturnType<
+		typeof useEventFilters
+	>["selectedIndoorPreference"];
+	selectedNationalities: ReturnType<
+		typeof useEventFilters
+	>["selectedNationalities"];
+	selectedOOOCPicks: boolean;
+	selectedPriceRange: ReturnType<typeof useEventFilters>["selectedPriceRange"];
+	selectedVenueTypes: ReturnType<typeof useEventFilters>["selectedVenueTypes"];
+	setIsFilterOpen: (isOpen: boolean) => void;
+	setSortMode: (sortMode: EventSortMode) => void;
+	socialProofDisplayModes: Map<string, ReturnType<typeof getSocialProofDisplayModes> extends Map<string, infer T> ? T : never>;
+	sortMode: EventSortMode;
+	spotlightEventsOrdered: Event[];
+	toggleFilterExpansion: () => void;
+	toggleFilterPanel: () => void;
+}
+
+const EventsSearchFiltersContext =
+	createContext<EventsSearchFiltersContextValue | null>(null);
+
+const orderEventsForDiscoverySurface = (
+	events: Event[],
+	sortMode: EventSortMode,
+): Event[] => {
+	const featuredMatches: Event[] = [];
+	const promotedMatches: Event[] = [];
+	const regularMatches: Event[] = [];
+	const now = new Date();
+	const regularEventsComparator =
+		sortMode === "fresh-activity"
+			? createFreshActivityComparator(now)
+			: createRegularEventsComparator(now);
+
+	for (const event of events) {
+		if (shouldDisplayFeaturedEvent(event)) {
+			featuredMatches.push(event);
+			continue;
+		}
+		if (event.isPromoted === true) {
+			promotedMatches.push(event);
+			continue;
+		}
+		regularMatches.push(event);
+	}
+
+	return [
+		...featuredMatches,
+		...promotedMatches,
+		...[...regularMatches].sort(regularEventsComparator),
+	];
+};
+
+const buildAvailableGenresForEvents = (
+	events: Event[],
+): MusicGenreDefinition[] => {
+	const genreByKey = new Map<string, MusicGenreDefinition>(
+		MUSIC_GENRES.map((genre) => [genre.key, { ...genre }]),
+	);
+	for (const event of events) {
+		for (const genre of event.genre ?? []) {
+			if (genreByKey.has(genre)) continue;
+			genreByKey.set(genre, {
+				key: genre,
+				label: toGenreLabel(genre),
+				color: getCustomGenreColor(genre),
+				isActive: true,
+			});
+		}
+	}
+	return Array.from(genreByKey.values()).sort((left, right) =>
+		left.label.localeCompare(right.label),
+	);
+};
+
+const buildAvailableNationalitiesForEvents = (events: Event[]) => {
+	const optionsByCode = new Map<
+		Nationality,
+		{ key: Nationality; label: string; flag: string; shortCode: string }
+	>();
+	for (const event of events) {
+		for (const nationality of event.nationality ?? []) {
+			if (optionsByCode.has(nationality)) continue;
+			const country = getCountryOption(nationality);
+			optionsByCode.set(nationality, {
+				key: nationality,
+				label: country?.label ?? nationality,
+				flag: country?.flag ?? "",
+				shortCode: nationality,
+			});
+		}
+	}
+	return Array.from(optionsByCode.values()).sort((left, right) =>
+		left.label.localeCompare(right.label),
+	);
+};
+
+export function EventsSearchFiltersProvider({
+	canUseProtectedDiscovery,
+	children,
+	isAuthenticated,
+	onAuthRequired,
+	onNeedFullEvents,
+	onScrollToAllEvents,
+	requireAuth,
+}: EventsSearchFiltersProviderProps) {
+	const { events } = useEventsOffline();
+	const [isFilterOpen, setIsFilterOpen] = useState(false);
+	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+	const [sortMode, setSortMode] = useState<EventSortMode>("upcoming");
+	const pendingAuthActionRef = useRef<PendingAuthAction | null>(null);
+	const filters = useEventFilters({
+		events,
+		requireAuth,
+		isFilterAccessAllowed: canUseProtectedDiscovery,
+	});
+	const {
+		defaultDateRange,
+		filteredEvents,
+		onOOOCPicksToggle,
+		onSearchQueryChange,
+		selectedOOOCPicks,
+	} = filters;
+
+	const availableGenres = useMemo(
+		() => buildAvailableGenresForEvents(events),
+		[events],
+	);
+	const availableNationalities = useMemo(
+		() => buildAvailableNationalitiesForEvents(events),
+		[events],
+	);
+
+	const toggleFilterPanel = useCallback(() => {
+		if (!requireAuth()) return;
+		onNeedFullEvents();
+		if (
+			typeof window !== "undefined" &&
+			window.matchMedia("(min-width: 1024px)").matches
+		) {
+			setIsFilterExpanded((previous) => !previous);
+			setIsFilterOpen(false);
+			return;
+		}
+		setIsFilterOpen((previous) => !previous);
+	}, [onNeedFullEvents, requireAuth]);
+
+	const openFilterPanel = useCallback(() => {
+		onNeedFullEvents();
+		if (
+			typeof window !== "undefined" &&
+			window.matchMedia("(min-width: 1024px)").matches
+		) {
+			setIsFilterExpanded(true);
+			setIsFilterOpen(false);
+			return;
+		}
+		setIsFilterOpen(true);
+	}, [onNeedFullEvents]);
+
+	const toggleFilterExpansion = useCallback(() => {
+		setIsFilterExpanded((previous) => !previous);
+	}, []);
+
+	const handleOOOCPicksCalloutClick = useCallback(() => {
+		const shouldSelectOOOCPicks = !selectedOOOCPicks;
+		if (shouldSelectOOOCPicks && !canUseProtectedDiscovery) {
+			pendingAuthActionRef.current = "show-oooc-picks";
+			onAuthRequired();
+			return;
+		}
+
+		onOOOCPicksToggle(shouldSelectOOOCPicks);
+		onNeedFullEvents();
+		if (!shouldSelectOOOCPicks) return;
+
+		window.requestAnimationFrame(() => {
+			onScrollToAllEvents();
+		});
+	}, [
+		canUseProtectedDiscovery,
+		onAuthRequired,
+		onNeedFullEvents,
+		onOOOCPicksToggle,
+		onScrollToAllEvents,
+		selectedOOOCPicks,
+	]);
+
+	const handleSearchIntent = useCallback(
+		(query: string) => {
+			if (!canUseProtectedDiscovery) {
+				if (query.trim().length > 0) {
+					pendingAuthActionRef.current = { type: "search", query };
+				}
+				onAuthRequired();
+				return;
+			}
+			onSearchQueryChange(query);
+			onNeedFullEvents();
+		},
+		[
+			canUseProtectedDiscovery,
+			onAuthRequired,
+			onNeedFullEvents,
+			onSearchQueryChange,
+		],
+	);
+
+	const handleSearchFocus = useCallback(() => {
+		if (canUseProtectedDiscovery) {
+			onNeedFullEvents();
+			return;
+		}
+		onAuthRequired();
+	}, [canUseProtectedDiscovery, onAuthRequired, onNeedFullEvents]);
+
+	useEffect(() => {
+		if (!isAuthenticated) return;
+		const pendingAuthAction = pendingAuthActionRef.current;
+		if (!pendingAuthAction) return;
+
+		pendingAuthActionRef.current = null;
+		if (pendingAuthAction === "show-oooc-picks") {
+			onOOOCPicksToggle(true);
+		} else {
+			onSearchQueryChange(pendingAuthAction.query);
+		}
+		onNeedFullEvents();
+		window.requestAnimationFrame(() => {
+			onScrollToAllEvents();
+		});
+	}, [
+		isAuthenticated,
+		onNeedFullEvents,
+		onOOOCPicksToggle,
+		onScrollToAllEvents,
+		onSearchQueryChange,
+	]);
+
+	const spotlightEligibleEvents = useMemo(
+		() =>
+			getDiscoveryEligibleEvents(events, {
+				dateRange: defaultDateRange,
+			}),
+		[defaultDateRange, events],
+	);
+
+	const spotlightEventsOrdered = useMemo(
+		() => orderEventsForDiscoverySurface(spotlightEligibleEvents, sortMode),
+		[sortMode, spotlightEligibleEvents],
+	);
+
+	const allEventsOrdered = useMemo(
+		() => orderEventsForDiscoverySurface(filteredEvents, sortMode),
+		[filteredEvents, sortMode],
+	);
+
+	const socialProofDisplayModes = useMemo(
+		() => getSocialProofDisplayModes(spotlightEligibleEvents),
+		[spotlightEligibleEvents],
+	);
+
+	const value = useMemo(
+		() => ({
+			...filters,
+			allEventsOrdered,
+			availableGenres,
+			availableNationalities,
+			handleOOOCPicksCalloutClick,
+			handleSearchFocus,
+			handleSearchIntent,
+			isFilterExpanded,
+			isFilterOpen,
+			openFilterPanel,
+			setIsFilterOpen,
+			setSortMode,
+			socialProofDisplayModes,
+			sortMode,
+			spotlightEventsOrdered,
+			toggleFilterExpansion,
+			toggleFilterPanel,
+		}),
+		[
+			filters,
+			allEventsOrdered,
+			availableGenres,
+			availableNationalities,
+			handleOOOCPicksCalloutClick,
+			handleSearchFocus,
+			handleSearchIntent,
+			isFilterExpanded,
+			isFilterOpen,
+			openFilterPanel,
+			socialProofDisplayModes,
+			sortMode,
+			spotlightEventsOrdered,
+			toggleFilterExpansion,
+			toggleFilterPanel,
+		],
+	);
+
+	return (
+		<EventsSearchFiltersContext.Provider value={value}>
+			{children}
+		</EventsSearchFiltersContext.Provider>
+	);
+}
+
+export function useEventsSearchFilters() {
+	const context = useContext(EventsSearchFiltersContext);
+	if (!context) {
+		throw new Error(
+			"useEventsSearchFilters must be used within EventsSearchFiltersProvider",
+		);
+	}
+	return context;
+}

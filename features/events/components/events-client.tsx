@@ -1,49 +1,31 @@
 "use client";
 
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/features/auth/auth-context";
-import AuthGate from "@/features/auth/components/AuthGate";
-import { AllEvents } from "@/features/events/components/AllEvents";
-import EventModal from "@/features/events/components/EventModal";
-import EventStats from "@/features/events/components/EventStats";
-import SearchBar from "@/features/events/components/SearchBar";
-import { getCountryOption } from "@/features/events/countries";
-import { getDiscoveryEligibleEvents } from "@/features/events/discovery-eligibility";
+import { AuthGatedControlsIsland } from "@/features/events/components/AuthGatedControlsIsland";
+import { EventListIsland } from "@/features/events/components/EventListIsland";
+import { EventModalIsland } from "@/features/events/components/EventModalIsland";
+import { EventsDataStatusBanner } from "@/features/events/components/EventsDataStatusBanner";
+import { EventsDiscoverySummaryIsland } from "@/features/events/components/EventsDiscoverySummaryIsland";
+import { EventsMapIsland } from "@/features/events/components/EventsMapIsland";
+import { EventsSearchFiltersIsland } from "@/features/events/components/EventsSearchFiltersIsland";
+import {
+	EventsOfflineProvider,
+	useEventsOffline,
+} from "@/features/events/components/events-offline-provider";
+import { useEventsSearchFilters } from "@/features/events/components/events-search-filters-provider";
 import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
-import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
-import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
-import {
-	getCustomGenreColor,
-	toGenreLabel,
-} from "@/features/events/genre-normalization";
-import { useEventFilters } from "@/features/events/hooks/use-event-filters";
-import {
-	createFreshActivityComparator,
-	createRegularEventsComparator,
-} from "@/features/events/ordering";
 import type { SearchChip } from "@/features/events/search-chips";
-import { getSocialProofDisplayModes } from "@/features/events/social-proof";
 import {
 	FETE_FINDER_TOUR_EVENT,
 	PENDING_FETE_FINDER_TOUR_STORAGE_KEY,
 } from "@/features/events/tour-events";
-import {
-	type Event,
-	MUSIC_GENRES,
-	type MusicGenreDefinition,
-	type Nationality,
-} from "@/features/events/types";
-import {
-	readHomeEventSnapshot,
-	writeHomeEventSnapshot,
-} from "@/features/events/offline-event-snapshot";
+import type { Event } from "@/features/events/types";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { clientLog } from "@/lib/platform/client-logger";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
 	Suspense,
+	type RefObject,
 	lazy,
 	useCallback,
 	useEffect,
@@ -62,22 +44,6 @@ interface EventsClientProps {
 
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
 const REQUEST_UPDATE_PARAM = "requestUpdate";
-type EventSortMode = "upcoming" | "fresh-activity";
-type PendingAuthAction = "show-oooc-picks" | { type: "search"; query: string };
-type EventDataSource = "live" | "saved";
-
-const EmailGateModal = lazy(
-	() => import("@/features/auth/components/EmailGateModal"),
-);
-
-const FilterPanel = lazy(
-	() => import("@/features/events/components/FilterPanel"),
-);
-
-const EventsMapCard = lazy(async () => {
-	const module = await import("@/features/maps/components/events-map-card");
-	return { default: module.EventsMapCard };
-});
 
 const FeteFinderTour = lazy(async () => {
 	const module = await import("@/features/events/components/FeteFinderTour");
@@ -98,12 +64,6 @@ const isEventPayload = (value: unknown): value is Event =>
 	typeof value.eventKey === "string" &&
 	typeof value.id === "string" &&
 	typeof value.name === "string";
-
-const parseFullEventsResponse = (value: unknown): Event[] | null => {
-	if (!isRecord(value) || !Array.isArray(value.events)) return null;
-	if (!value.events.every(isEventPayload)) return null;
-	return value.events;
-};
 
 const parseEventDetailsResponse = (value: unknown): Event | null => {
 	if (!isRecord(value) || !isEventPayload(value.event)) return null;
@@ -135,82 +95,6 @@ const appendQuery = (path: string, params: URLSearchParams): string => {
 	return query ? `${path}?${query}` : path;
 };
 
-const orderEventsForDiscoverySurface = (
-	events: Event[],
-	sortMode: EventSortMode,
-): Event[] => {
-	const featuredMatches: Event[] = [];
-	const promotedMatches: Event[] = [];
-	const regularMatches: Event[] = [];
-	const now = new Date();
-	const regularEventsComparator =
-		sortMode === "fresh-activity"
-			? createFreshActivityComparator(now)
-			: createRegularEventsComparator(now);
-
-	for (const event of events) {
-		if (shouldDisplayFeaturedEvent(event)) {
-			featuredMatches.push(event);
-			continue;
-		}
-		if (event.isPromoted === true) {
-			promotedMatches.push(event);
-			continue;
-		}
-		regularMatches.push(event);
-	}
-
-	return [
-		...featuredMatches,
-		...promotedMatches,
-		...[...regularMatches].sort(regularEventsComparator),
-	];
-};
-
-const buildAvailableGenresForEvents = (
-	events: Event[],
-): MusicGenreDefinition[] => {
-	const genreByKey = new Map<string, MusicGenreDefinition>(
-		MUSIC_GENRES.map((genre) => [genre.key, { ...genre }]),
-	);
-	for (const event of events) {
-		for (const genre of event.genre ?? []) {
-			if (genreByKey.has(genre)) continue;
-			genreByKey.set(genre, {
-				key: genre,
-				label: toGenreLabel(genre),
-				color: getCustomGenreColor(genre),
-				isActive: true,
-			});
-		}
-	}
-	return Array.from(genreByKey.values()).sort((left, right) =>
-		left.label.localeCompare(right.label),
-	);
-};
-
-const buildAvailableNationalitiesForEvents = (events: Event[]) => {
-	const optionsByCode = new Map<
-		Nationality,
-		{ key: Nationality; label: string; flag: string; shortCode: string }
-	>();
-	for (const event of events) {
-		for (const nationality of event.nationality ?? []) {
-			if (optionsByCode.has(nationality)) continue;
-			const country = getCountryOption(nationality);
-			optionsByCode.set(nationality, {
-				key: nationality,
-				label: country?.label ?? nationality,
-				flag: country?.flag ?? "",
-				shortCode: nationality,
-			});
-		}
-	}
-	return Array.from(optionsByCode.values()).sort((left, right) =>
-		left.label.localeCompare(right.label),
-	);
-};
-
 export function EventsClient({
 	initialEvents,
 	fullEventsPath,
@@ -218,41 +102,70 @@ export function EventsClient({
 	eventUpdateRequestsEnabled = true,
 	dynamicSearchChips = [],
 }: EventsClientProps) {
+	return (
+		<EventsOfflineProvider
+			initialEvents={initialEvents}
+			fullEventsPath={fullEventsPath}
+		>
+			<AuthGatedControlsIsland>
+				{(authControls) => (
+					<EventsClientShell
+						{...authControls}
+						dynamicSearchChips={dynamicSearchChips}
+						eventUpdateRequestsEnabled={eventUpdateRequestsEnabled}
+						mapLoadStrategy={mapLoadStrategy}
+					/>
+				)}
+			</AuthGatedControlsIsland>
+		</EventsOfflineProvider>
+	);
+}
+
+interface EventsClientShellProps {
+	mapLoadStrategy: MapLoadStrategy;
+	eventUpdateRequestsEnabled: boolean;
+	dynamicSearchChips: SearchChip[];
+}
+
+interface EventsClientShellInnerProps extends EventsClientShellProps {
+	allEventsRef: RefObject<HTMLDivElement | null>;
+	authMode: string;
+	canUseProtectedDiscovery: boolean;
+	isAuthenticated: boolean;
+	isAuthResolved: boolean;
+	isOnline: boolean;
+	onAuthRequired: () => void;
+	offlineGraceExpiresAt: number | null;
+}
+
+function EventsClientShell({
+	allEventsRef,
+	authMode,
+	canUseProtectedDiscovery,
+	dynamicSearchChips,
+	eventUpdateRequestsEnabled,
+	isAuthResolved,
+	isAuthenticated,
+	isOnline,
+	mapLoadStrategy,
+	onAuthRequired,
+	offlineGraceExpiresAt,
+}: EventsClientShellInnerProps) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
-	const [events, setEvents] = useState(initialEvents);
-	const [eventDataSource, setEventDataSource] =
-		useState<EventDataSource>("live");
-	const [eventSnapshotSavedAt, setEventSnapshotSavedAt] = useState<
-		string | null
-	>(null);
-	const [hasLoadedFullEvents, setHasLoadedFullEvents] =
-		useState(!fullEventsPath);
+	const { events, setEvents, requestFullEvents } = useEventsOffline();
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [isMapExpanded, setIsMapExpanded] = useState(false);
-	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
-	const [showEmailGate, setShowEmailGate] = useState(false);
 	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false);
-	const [sortMode, setSortMode] = useState<EventSortMode>("upcoming");
 	const [hasMountedTourIsland, setHasMountedTourIsland] = useState(false);
-	const pendingAuthActionRef = useRef<PendingAuthAction | null>(null);
 	const invalidEventParamCountRef = useRef(0);
-	const fullEventsPromiseRef = useRef<Promise<Event[] | null> | null>(null);
 	const eventDetailsPromiseRef = useRef(new Map<string, Promise<Event | null>>());
 	const hasMountedTourIslandRef = useRef(false);
-	const allEventsRef = useRef<HTMLDivElement>(null);
 	const {
-		isAuthenticated,
-		isAuthResolved,
-		isOnline,
-		authMode,
-		offlineGraceExpiresAt,
-		refreshSession,
-	} = useAuth();
-	const canUseProtectedDiscovery =
-		isAuthenticated || authMode === "offline-grace";
+		openFilterPanel,
+		setIsFilterOpen,
+	} = useEventsSearchFilters();
 
 	const offlineGraceExpiryLabel = useMemo(() => {
 		if (offlineGraceExpiresAt == null) return null;
@@ -268,143 +181,69 @@ export function EventsClient({
 		}
 	}, [offlineGraceExpiresAt]);
 
-	const requireAuth = useCallback(() => {
-		if (!canUseProtectedDiscovery) {
-			setShowEmailGate(true);
-			return false;
-		}
-		return true;
-	}, [canUseProtectedDiscovery]);
-
-	useEffect(() => {
-		let isCancelled = false;
-
-		void readHomeEventSnapshot()
-			.then((snapshot) => {
-				if (isCancelled || !snapshot) return;
-				setEventSnapshotSavedAt(snapshot.savedAt);
-				if (initialEvents.length > 0 && navigator.onLine) return;
-				setEvents(snapshot.events);
-				setEventDataSource("saved");
-				setHasLoadedFullEvents(true);
-			})
-			.catch((error: unknown) => {
-				clientLog.warn("events-offline", "Unable to read saved event data", {
-					error: error instanceof Error ? error.message : String(error),
-				});
-			});
-
-		return () => {
-			isCancelled = true;
-		};
-	}, [initialEvents.length]);
-
-	useEffect(() => {
-		if (eventDataSource !== "live" || events.length === 0) return;
-
-		void writeHomeEventSnapshot(events)
-			.then((snapshot) => {
-				if (!snapshot) return;
-				setEventSnapshotSavedAt(snapshot.savedAt);
-			})
-			.catch((error: unknown) => {
-				clientLog.warn("events-offline", "Unable to save event data", {
-					error: error instanceof Error ? error.message : String(error),
-				});
-			});
-	}, [eventDataSource, events]);
-
 	const mountTourIsland = useCallback(() => {
 		if (hasMountedTourIslandRef.current) return;
 		hasMountedTourIslandRef.current = true;
 		setHasMountedTourIsland(true);
 	}, []);
 
-	const requestFullEvents = useCallback(() => {
-		if (!fullEventsPath || hasLoadedFullEvents) {
-			return Promise.resolve(events);
-		}
-		if (fullEventsPromiseRef.current) return fullEventsPromiseRef.current;
-
-		const request = fetch(fullEventsPath, {
-			headers: { Accept: "application/json" },
-		})
-			.then(async (response) => {
-				if (!response.ok) {
-					throw new Error(`Full events request failed: ${response.status}`);
-				}
-				const payload = parseFullEventsResponse(await response.json());
-				if (!payload) {
-					throw new Error("Full events response was not a valid event payload");
-				}
-				setEvents(payload);
-				setEventDataSource("live");
-				setHasLoadedFullEvents(true);
-				return payload;
-			})
-			.catch((error: unknown) => {
-				clientLog.warn("events-data", "Unable to hydrate full event payload", {
-					error: error instanceof Error ? error.message : String(error),
-				});
-				fullEventsPromiseRef.current = null;
-				return null;
-			});
-
-		fullEventsPromiseRef.current = request;
-		return request;
-	}, [events, fullEventsPath, hasLoadedFullEvents]);
-
 	useEffect(() => {
 		if (mapLoadStrategy !== "immediate") return;
 		void requestFullEvents();
 	}, [mapLoadStrategy, requestFullEvents]);
 
-	const requestEventDetails = useCallback((eventKey: string) => {
-		const normalizedEventKey = eventKey.trim().toLowerCase();
-		const cachedRequest = eventDetailsPromiseRef.current.get(normalizedEventKey);
-		if (cachedRequest) return cachedRequest;
+	const requestEventDetails = useCallback(
+		(eventKey: string) => {
+			const normalizedEventKey = eventKey.trim().toLowerCase();
+			const cachedRequest =
+				eventDetailsPromiseRef.current.get(normalizedEventKey);
+			if (cachedRequest) return cachedRequest;
 
-		const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || "");
-		const request = fetch(
-			`${basePath}/api/events/${encodeURIComponent(eventKey)}`,
-			{
-				headers: { Accept: "application/json" },
-			},
-		)
-			.then(async (response) => {
-				if (!response.ok) {
-					throw new Error(`Event details request failed: ${response.status}`);
-				}
-				const event = parseEventDetailsResponse(await response.json());
-				if (!event) {
-					throw new Error("Event details response was not a valid event payload");
-				}
-				setEvents((currentEvents) =>
-					currentEvents.map((currentEvent) =>
-						currentEvent.eventKey.toLowerCase() === normalizedEventKey
+			const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || "");
+			const request = fetch(
+				`${basePath}/api/events/${encodeURIComponent(eventKey)}`,
+				{
+					headers: { Accept: "application/json" },
+				},
+			)
+				.then(async (response) => {
+					if (!response.ok) {
+						throw new Error(`Event details request failed: ${response.status}`);
+					}
+					const event = parseEventDetailsResponse(await response.json());
+					if (!event) {
+						throw new Error(
+							"Event details response was not a valid event payload",
+						);
+					}
+					setEvents((currentEvents) =>
+						currentEvents.map((currentEvent) =>
+							currentEvent.eventKey.toLowerCase() === normalizedEventKey
+								? event
+								: currentEvent,
+						),
+					);
+					setSelectedEvent((currentEvent) =>
+						currentEvent?.eventKey.toLowerCase() === normalizedEventKey
 							? event
 							: currentEvent,
-					),
-				);
-				setSelectedEvent((currentEvent) =>
-					currentEvent?.eventKey.toLowerCase() === normalizedEventKey
-						? event
-						: currentEvent,
-				);
-				return event;
-			})
-			.catch((error: unknown) => {
-				clientLog.warn("events-data", "Unable to hydrate event details", {
-					error: error instanceof Error ? error.message : String(error),
-					eventKey,
+					);
+					return event;
+				})
+				.catch((error: unknown) => {
+					clientLog.warn("events-data", "Unable to hydrate event details", {
+						error: error instanceof Error ? error.message : String(error),
+						eventKey,
+					});
+					eventDetailsPromiseRef.current.delete(normalizedEventKey);
+					return null;
 				});
-				eventDetailsPromiseRef.current.delete(normalizedEventKey);
-				return null;
-			});
 
-		eventDetailsPromiseRef.current.set(normalizedEventKey, request);
-		return request;
-	}, []);
+			eventDetailsPromiseRef.current.set(normalizedEventKey, request);
+			return request;
+		},
+		[setEvents],
+	);
 
 	useEffect(() => {
 		let idleId: number | null = null;
@@ -454,51 +293,6 @@ export function EventsClient({
 			}
 		};
 	}, [mountTourIsland]);
-
-	const {
-		defaultDateRange,
-		selectedDateRange,
-		selectedDayNightPeriods,
-		selectedArrondissements,
-		selectedGenres,
-		selectedNationalities,
-		selectedVenueTypes,
-		selectedIndoorPreference,
-		selectedPriceRange,
-		selectedAgeRange,
-		selectedOOOCPicks,
-		searchQuery,
-		availableArrondissements,
-		availableEventDates,
-		quickSelectEventDates,
-		filteredEvents,
-		hasAnyActiveFilters,
-		activeFiltersCount,
-		onDateRangeChange,
-		onDayNightPeriodToggle,
-		onArrondissementToggle,
-		onGenreToggle,
-		onNationalityToggle,
-		onVenueTypeToggle,
-		onIndoorPreferenceChange,
-		onPriceRangeChange,
-		onAgeRangeChange,
-		onOOOCPicksToggle,
-		onSearchQueryChange,
-		onClearFilters,
-	} = useEventFilters({
-		events,
-		requireAuth,
-		isFilterAccessAllowed: canUseProtectedDiscovery,
-	});
-	const availableGenres = useMemo(
-		() => buildAvailableGenresForEvents(events),
-		[events],
-	);
-	const availableNationalities = useMemo(
-		() => buildAvailableNationalitiesForEvents(events),
-		[events],
-	);
 
 	const eventsByEventKey = useMemo(() => {
 		return new Map(events.map((event) => [event.eventKey.toLowerCase(), event]));
@@ -669,39 +463,6 @@ export function EventsClient({
 		eventUpdateRequestsEnabled,
 	]);
 
-	const handleEmailSubmit = useCallback(async () => {
-		const hasConfirmedSession = await refreshSession();
-		if (hasConfirmedSession) {
-			setShowEmailGate(false);
-			return true;
-		}
-
-		await new Promise((resolve) => {
-			setTimeout(resolve, 350);
-		});
-		const retryAfterDelay = await refreshSession();
-
-		if (retryAfterDelay) {
-			setShowEmailGate(false);
-			return true;
-		}
-		return false;
-	}, [refreshSession]);
-
-	const toggleFilterPanel = useCallback(() => {
-		if (!requireAuth()) return;
-		void requestFullEvents();
-		if (
-			typeof window !== "undefined" &&
-			window.matchMedia("(min-width: 1024px)").matches
-		) {
-			setIsFilterExpanded((previous) => !previous);
-			setIsFilterOpen(false);
-			return;
-		}
-		setIsFilterOpen((previous) => !previous);
-	}, [requestFullEvents, requireAuth]);
-
 	const toggleMapExpansion = useCallback(() => {
 		void requestFullEvents();
 		setIsMapExpanded((previous) => !previous);
@@ -711,23 +472,6 @@ export function EventsClient({
 		void requestFullEvents();
 		setIsMapExpanded(true);
 	}, [requestFullEvents]);
-
-	const openFilterPanel = useCallback(() => {
-		void requestFullEvents();
-		if (
-			typeof window !== "undefined" &&
-			window.matchMedia("(min-width: 1024px)").matches
-		) {
-			setIsFilterExpanded(true);
-			setIsFilterOpen(false);
-			return;
-		}
-		setIsFilterOpen(true);
-	}, [requestFullEvents]);
-
-	const toggleFilterExpansion = useCallback(() => {
-		setIsFilterExpanded((previous) => !previous);
-	}, []);
 
 	const handleEventClick = useCallback(
 		(event: Event) => {
@@ -812,206 +556,18 @@ export function EventsClient({
 			behavior: "smooth",
 			block: "start",
 		});
-	}, []);
+	}, [allEventsRef]);
 
 	const scrollToAllEventsForTour = useCallback(() => {
 		setIsFilterOpen(false);
 		window.requestAnimationFrame(() => {
 			scrollToAllEvents();
 		});
-	}, [scrollToAllEvents]);
-
-	const handleOOOCPicksCalloutClick = useCallback(() => {
-		const shouldSelectOOOCPicks = !selectedOOOCPicks;
-		if (shouldSelectOOOCPicks && !canUseProtectedDiscovery) {
-			pendingAuthActionRef.current = "show-oooc-picks";
-			setShowEmailGate(true);
-			return;
-		}
-
-		onOOOCPicksToggle(shouldSelectOOOCPicks);
-		void requestFullEvents();
-		if (!shouldSelectOOOCPicks) return;
-
-		window.requestAnimationFrame(() => {
-			scrollToAllEvents();
-		});
-	}, [
-		canUseProtectedDiscovery,
-		onOOOCPicksToggle,
-		requestFullEvents,
-		scrollToAllEvents,
-		selectedOOOCPicks,
-	]);
-
-	const handleSearchIntent = useCallback(
-		(query: string) => {
-			if (!canUseProtectedDiscovery) {
-				if (query.trim().length > 0) {
-					pendingAuthActionRef.current = { type: "search", query };
-				}
-				setShowEmailGate(true);
-				return;
-			}
-			onSearchQueryChange(query);
-			void requestFullEvents();
-		},
-		[canUseProtectedDiscovery, onSearchQueryChange, requestFullEvents],
-	);
-
-	const handleSearchFocus = useCallback(() => {
-		if (canUseProtectedDiscovery) {
-			void requestFullEvents();
-			return;
-		}
-		setShowEmailGate(true);
-	}, [canUseProtectedDiscovery, requestFullEvents]);
-
-	useEffect(() => {
-		if (!isAuthenticated) return;
-		const pendingAuthAction = pendingAuthActionRef.current;
-		if (!pendingAuthAction) return;
-
-		pendingAuthActionRef.current = null;
-		if (pendingAuthAction === "show-oooc-picks") {
-			onOOOCPicksToggle(true);
-		} else {
-			onSearchQueryChange(pendingAuthAction.query);
-		}
-		void requestFullEvents();
-		window.requestAnimationFrame(() => {
-			scrollToAllEvents();
-		});
-	}, [
-		isAuthenticated,
-		onOOOCPicksToggle,
-		onSearchQueryChange,
-		requestFullEvents,
-		scrollToAllEvents,
-	]);
-
-	const handleEmailGateClose = useCallback(() => {
-		pendingAuthActionRef.current = null;
-		setShowEmailGate(false);
-	}, []);
-
-	const spotlightEligibleEvents = useMemo(
-		() =>
-			getDiscoveryEligibleEvents(events, {
-				dateRange: defaultDateRange,
-			}),
-		[defaultDateRange, events],
-	);
-
-	const spotlightEventsOrdered = useMemo(
-		() => orderEventsForDiscoverySurface(spotlightEligibleEvents, sortMode),
-		[sortMode, spotlightEligibleEvents],
-	);
-
-	const allEventsOrdered = useMemo(
-		() => orderEventsForDiscoverySurface(filteredEvents, sortMode),
-		[filteredEvents, sortMode],
-	);
-
-	const socialProofDisplayModes = useMemo(
-		() => getSocialProofDisplayModes(spotlightEligibleEvents),
-		[spotlightEligibleEvents],
-	);
-	const ooocPicksInViewCount = useMemo(
-		() => filteredEvents.filter((event) => event.isOOOCPick === true).length,
-		[filteredEvents],
-	);
-	const searchSlot = (
-		<div id="tour-search" className="w-full">
-			<SearchBar
-				onSearch={handleSearchIntent}
-				onSearchFocus={handleSearchFocus}
-				placeholder="Search events, locations, genres, phases..."
-				className="mx-auto w-full max-w-[64rem]"
-				value={searchQuery}
-				resultsCount={filteredEvents.length}
-				showResultsCount
-				resultsCountLabelMode={hasAnyActiveFilters ? "found" : "available"}
-				dynamicChips={dynamicSearchChips}
-			/>
-		</div>
-	);
-	const eventSnapshotSavedAtLabel = useMemo(() => {
-		if (!eventSnapshotSavedAt) return null;
-		try {
-			return new Intl.DateTimeFormat(undefined, {
-				month: "short",
-				day: "numeric",
-				hour: "numeric",
-				minute: "2-digit",
-			}).format(new Date(eventSnapshotSavedAt));
-		} catch {
-			return null;
-		}
-	}, [eventSnapshotSavedAt]);
+	}, [scrollToAllEvents, setIsFilterOpen]);
 
 	return (
 		<>
-			{eventDataSource === "saved" && eventSnapshotSavedAtLabel && (
-				<div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-					<strong>Saved events:</strong> You are viewing the latest saved event
-					snapshot from {eventSnapshotSavedAtLabel}. Some live details may be
-					unavailable until you are back online.
-				</div>
-			)}
-			<section className="mb-8" aria-label="Introduction">
-				<div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] lg:items-end">
-					<div className="min-w-0">
-						<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-							Paris · Fête de la Musique
-						</p>
-						<h2
-							className="mt-2 text-2xl font-light tracking-tight text-foreground sm:text-3xl"
-							style={{ fontFamily: "var(--ooo-font-display)" }}
-						>
-							Discover events across the city
-						</h2>
-						<p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-							Explore live music and cultural events by arrondissement. Use the
-							map and filters to find what’s on.
-						</p>
-						<Link
-							href="/how-it-works"
-							className="mt-3 inline-flex flex-wrap items-baseline gap-x-1 text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-foreground/78 hover:underline"
-						>
-							<span>New here? See how Fête Finder</span>
-							<span className="whitespace-nowrap">works →</span>
-						</Link>
-					</div>
-					{ooocPicksInViewCount > 0 && (
-						<div
-							id="tour-oooc-picks"
-							className="ooo-site-card-soft w-full rounded-xl border border-border/70 bg-background/62 p-3 shadow-sm lg:justify-self-end"
-						>
-							<div className="flex items-center justify-between gap-3">
-								<div className="min-w-0">
-									<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-										OOOC Picks
-									</p>
-									<p className="mt-1 text-xs leading-relaxed text-foreground/80">
-										Short on time? Start with the community-curated favourites.
-									</p>
-								</div>
-								<Button
-									type="button"
-									variant={selectedOOOCPicks ? "default" : "outline"}
-									size="sm"
-									onClick={handleOOOCPicksCalloutClick}
-									className="h-8 shrink-0 rounded-full px-3 text-xs"
-								>
-									{selectedOOOCPicks ? "Showing Picks" : "Show Picks"}
-								</Button>
-							</div>
-						</div>
-					)}
-				</div>
-				<div className="mt-6 border-t border-border" role="presentation" />
-			</section>
+			<EventsDataStatusBanner />
 
 			{authMode === "offline-grace" && (
 				<div className="mb-6 rounded-md border border-amber-300/70 bg-amber-50/85 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-200">
@@ -1037,138 +593,47 @@ export function EventsClient({
 				</div>
 			)}
 
-			<FeaturedEvents
-				events={spotlightEventsOrdered}
+			<EventsDiscoverySummaryIsland
 				onEventClick={handleEventClick}
 				onScrollToAllEvents={scrollToAllEvents}
-				socialProofDisplayModes={socialProofDisplayModes}
-				dateRange={defaultDateRange}
 			/>
 
-			<EventStats
-				filteredEvents={filteredEvents}
-				hasActiveFilters={hasAnyActiveFilters}
+			<EventsMapIsland
+				isExpanded={isMapExpanded}
+				mapLoadStrategy={mapLoadStrategy}
+				onToggleExpanded={toggleMapExpansion}
+				onEventClick={handleEventClick}
+				onMapIntent={() => {
+					void requestFullEvents();
+				}}
 			/>
 
-			<div
-				id="event-map"
-				className="scroll-mt-6 mb-8 relative z-10 sm:scroll-mt-28"
+			<EventsSearchFiltersIsland
+				canUseProtectedDiscovery={canUseProtectedDiscovery}
+				dynamicSearchChips={dynamicSearchChips}
+				isAuthResolved={isAuthResolved}
+				onAuthRequired={onAuthRequired}
 			>
-				<Suspense fallback={NoopSuspenseFallback}>
-					<EventsMapCard
-						events={filteredEvents}
-						isExpanded={isMapExpanded}
-						onToggleExpanded={toggleMapExpansion}
+				{(searchSlot) => (
+					<EventListIsland
+						allEventsRef={allEventsRef}
 						onEventClick={handleEventClick}
-						mapLoadStrategy={mapLoadStrategy}
-						onFilterClick={toggleFilterPanel}
-						onMapIntent={() => {
-							void requestFullEvents();
-						}}
-						hasActiveFilters={hasAnyActiveFilters}
-						activeFiltersCount={activeFiltersCount}
-					/>
-				</Suspense>
-			</div>
-
-			<div
-				id="all-events"
-				className="scroll-mt-6 lg:grid lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] lg:items-start lg:gap-5 sm:scroll-mt-28"
-			>
-				<aside className="lg:sticky lg:top-30 lg:self-start">
-					<Suspense fallback={NoopSuspenseFallback}>
-						<AuthGate
-							isAuthenticated={canUseProtectedDiscovery}
-							isAuthResolved={isAuthResolved}
-							onAuthRequired={() => setShowEmailGate(true)}
-							className="min-h-0"
-							variant="filter-preview"
-						>
-							<FilterPanel
-								selectedDateRange={selectedDateRange}
-								defaultDateRange={defaultDateRange}
-								selectedDayNightPeriods={selectedDayNightPeriods}
-								selectedArrondissements={selectedArrondissements}
-								selectedGenres={selectedGenres}
-								selectedNationalities={selectedNationalities}
-								selectedVenueTypes={selectedVenueTypes}
-								selectedIndoorPreference={selectedIndoorPreference}
-								selectedPriceRange={selectedPriceRange}
-								selectedAgeRange={selectedAgeRange}
-								selectedOOOCPicks={selectedOOOCPicks}
-								onDateRangeChange={onDateRangeChange}
-								onDayNightPeriodToggle={onDayNightPeriodToggle}
-								onArrondissementToggle={onArrondissementToggle}
-								onGenreToggle={onGenreToggle}
-								onNationalityToggle={onNationalityToggle}
-								onVenueTypeToggle={onVenueTypeToggle}
-								onIndoorPreferenceChange={onIndoorPreferenceChange}
-								onPriceRangeChange={onPriceRangeChange}
-								onAgeRangeChange={onAgeRangeChange}
-								onOOOCPicksToggle={onOOOCPicksToggle}
-								onClearFilters={onClearFilters}
-								availableArrondissements={availableArrondissements}
-								availableGenres={availableGenres}
-								availableNationalities={availableNationalities}
-								availableEventDates={availableEventDates}
-								quickSelectEventDates={quickSelectEventDates}
-								filteredEventsCount={filteredEvents.length}
-								isOpen={isFilterOpen}
-								onClose={() => setIsFilterOpen(false)}
-								onOpen={openFilterPanel}
-								isExpanded={isFilterExpanded}
-								onToggleExpanded={toggleFilterExpansion}
-								hideFloatingButton={!canUseProtectedDiscovery}
-							/>
-						</AuthGate>
-					</Suspense>
-				</aside>
-
-				<div
-					id="tour-all-events"
-					className="min-w-0 scroll-mt-6 sm:scroll-mt-28"
-				>
-					<AllEvents
-						ref={allEventsRef}
-						events={allEventsOrdered}
-						onEventClick={handleEventClick}
-						socialProofDisplayModes={socialProofDisplayModes}
-						sortMode={sortMode}
-						onSortModeChange={setSortMode}
-						onFilterClickAction={toggleFilterPanel}
-						onClearFilters={onClearFilters}
-						onAuthRequired={() => setShowEmailGate(true)}
-						hasActiveFilters={hasAnyActiveFilters}
-						activeFiltersCount={activeFiltersCount}
+						onAuthRequired={onAuthRequired}
 						isAuthenticated={canUseProtectedDiscovery}
 						isAuthResolved={isAuthResolved}
 						searchSlot={searchSlot}
 					/>
-				</div>
-			</div>
+				)}
+			</EventsSearchFiltersIsland>
 
-			{selectedEvent && (
-				<EventModal
-					event={selectedEvent}
-					isOpen
-					onClose={handleEventClose}
-					isAuthenticated={isAuthenticated}
-					submissionsEnabled={eventUpdateRequestsEnabled}
-					isRequestUpdateOpen={isRequestUpdateOpen}
-					onRequestUpdateOpenChange={handleRequestUpdateOpenChange}
-					socialProofMode={socialProofDisplayModes.get(selectedEvent.eventKey)}
-				/>
-			)}
-
-			{showEmailGate && (
-				<Suspense fallback={NoopSuspenseFallback}>
-					<EmailGateModal
-						isOpen={showEmailGate}
-						onClose={handleEmailGateClose}
-						onEmailSubmit={handleEmailSubmit}
-					/>
-				</Suspense>
-			)}
+			<EventModalIsland
+				event={selectedEvent}
+				isAuthenticated={isAuthenticated}
+				submissionsEnabled={eventUpdateRequestsEnabled}
+				isRequestUpdateOpen={isRequestUpdateOpen}
+				onClose={handleEventClose}
+				onRequestUpdateOpenChange={handleRequestUpdateOpenChange}
+			/>
 
 			<ScrollToTopButton
 				mobileDock="stacked-with-filter"
@@ -1179,7 +644,7 @@ export function EventsClient({
 					<FeteFinderTour
 						isAuthenticated={isAuthenticated}
 						isAuthResolved={isAuthResolved}
-						onAuthRequired={() => setShowEmailGate(true)}
+						onAuthRequired={onAuthRequired}
 						onFilterClose={() => setIsFilterOpen(false)}
 						onFilterOpen={openFilterPanel}
 						onMapExpand={openMap}

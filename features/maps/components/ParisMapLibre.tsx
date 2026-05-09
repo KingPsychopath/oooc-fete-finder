@@ -1122,20 +1122,21 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			>
 				<div className="flex h-full items-center justify-center p-4">
 					<div className="ooo-site-card w-full max-w-md rounded-2xl border border-border/75 p-6 text-center">
-						<div className="mb-2 text-red-600 dark:text-red-400">
-							⚠️ Map Load Error
-						</div>
-						<p className="text-sm text-red-700 dark:text-red-300">
+						<p className="text-sm font-medium text-foreground">
+							Map temporarily unavailable
+						</p>
+						<p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
 							{loadError}
 						</p>
 						{isOffline ? (
-							<p className="mt-2 text-xs text-red-700/80 dark:text-red-300/80">
-								You are offline. The events list is still available below.
+							<p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+								You are offline. Saved event browsing, search, and filters are
+								still available below.
 							</p>
 						) : (
 							<button
 								onClick={handleMapRetry}
-								className="mt-4 inline-flex h-8 items-center justify-center rounded-full border border-red-600/30 bg-red-600 px-4 text-sm text-white transition-colors hover:bg-red-700"
+								className="mt-4 inline-flex h-8 items-center justify-center rounded-full border border-border/75 bg-foreground px-4 text-sm text-background transition-colors hover:bg-foreground/88"
 								type="button"
 							>
 								Retry
