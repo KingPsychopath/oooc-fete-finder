@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClearFiltersButton } from "@/features/events/components/ClearFiltersButton";
 import { EventCard } from "@/features/events/components/EventCard";
 import { FilterButton } from "@/features/events/components/FilterButton";
+import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import { buildGenreFrequency } from "@/features/events/genre-preview";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
@@ -178,6 +179,12 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 						</div>
 						<Link
 							href={`${basePath}/submit-event`}
+							onClick={() =>
+								trackNavigationClick({
+									group: "homepage_link",
+									label: "submit_event_all_events",
+								})
+							}
 							className="max-w-full text-xs leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
 						>
 							Hosting something special? Put it on the map with the collective
