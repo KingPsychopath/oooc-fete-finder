@@ -25,6 +25,7 @@
     "db:pull-events-csv": "node scripts/pull-event-store-csv.mjs",
     "health:check": "node scripts/health-check.mjs",
     "check:public-routes": "node scripts/check-public-routes.mjs",
+    "generate:og": "node scripts/generate-static-og-images.mjs",
     "db:cli": "node scripts/db-cli.mjs"
   },
   "dependencies": {
