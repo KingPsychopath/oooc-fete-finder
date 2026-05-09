@@ -149,7 +149,7 @@ function DateRangePickerControl({
 								type="button"
 								variant="ghost"
 								size="sm"
-								className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent"
+								className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent lg:text-[11px]"
 								onClick={() => onDateRangeChange(defaultDateRange)}
 							>
 								This year
@@ -159,7 +159,7 @@ function DateRangePickerControl({
 							type="button"
 							variant="ghost"
 							size="sm"
-							className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent"
+							className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent lg:text-[11px]"
 							onClick={() =>
 								onDateRangeChange({
 									from: null,
@@ -176,7 +176,7 @@ function DateRangePickerControl({
 							type="button"
 							variant="ghost"
 							size="sm"
-							className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent"
+							className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent lg:text-[11px]"
 							onClick={() => onDateRangeChange(defaultDateRange)}
 						>
 							This year
@@ -241,7 +241,7 @@ function DateRangePickerControl({
 						render={
 							<Button
 								variant="outline"
-								className="h-8 w-full justify-start px-2.5 font-normal text-xs"
+								className="h-8 w-full justify-start px-2.5 font-normal text-xs lg:text-[11px]"
 								aria-label="Open date range picker"
 							>
 								<CalendarDays

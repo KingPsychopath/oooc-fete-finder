@@ -142,19 +142,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	const sectionClassName =
 		"space-y-3 rounded-xl border border-border/70 bg-background/58 p-3";
 	const sectionTitleClassName =
-		"text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground";
+		"text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground lg:text-[10px]";
 	const denseToggleClassName =
-		"h-7 w-full min-w-0 overflow-hidden justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
+		"h-7 w-full min-w-0 overflow-hidden justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground lg:text-[11px]";
 	const regularToggleClassName =
-		"h-8 w-full min-w-0 overflow-hidden justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
+		"h-8 w-full min-w-0 overflow-hidden justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground lg:text-[11px]";
 	const compactRailSectionClassName =
 		"space-y-2.5 rounded-lg border border-border/70 bg-background/58 p-2.5";
 	const genreOptions = availableGenres ?? MUSIC_GENRES;
 	const [genreSearchQuery, setGenreSearchQuery] = useState("");
 	const activeFilterBadgeClassName =
-		"h-7 gap-1 rounded-full border border-border/70 bg-background/72 px-2.5 text-xs font-normal shadow-none";
+		"h-7 gap-1 rounded-full border border-border/70 bg-background/72 px-2.5 text-xs font-normal shadow-none lg:text-[11px]";
 	const compactActiveFilterBadgeClassName =
-		"h-7 max-w-full gap-1 rounded-full border border-border/70 bg-background/80 px-2 text-xs font-normal shadow-none";
+		"h-7 max-w-full gap-1 rounded-full border border-border/70 bg-background/80 px-2 text-xs font-normal shadow-none lg:text-[11px]";
 	const activeFilterRemoveButtonClassName =
 		"h-auto p-0 ml-1 text-muted-foreground hover:bg-transparent hover:text-foreground";
 	const ooocPickHelp =
@@ -362,7 +362,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		if (!isUsingDefaultDateRange) return null;
 
 		return (
-			<div className="rounded-lg border border-border/70 bg-muted/35 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+			<div className="rounded-lg border border-border/70 bg-muted/35 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground lg:text-[10px]">
 				Showing this year&apos;s events by default. Older showcase events are
 				still available if you widen the date range.
 			</div>
@@ -378,7 +378,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		center: string;
 		right: string;
 	}) => (
-		<div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-xs text-muted-foreground">
+		<div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-xs text-muted-foreground lg:text-[11px]">
 			<span className="min-w-0 truncate text-left">{left}</span>
 			<span className="max-w-[9rem] truncate text-center font-medium text-foreground/78">
 				{center}
@@ -410,13 +410,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 				<>
 					{showHeading && (
 						<div className="mb-2 flex items-center justify-between gap-2">
-							<div className="text-xs font-medium text-muted-foreground">
+							<div className="text-xs font-medium text-muted-foreground lg:text-[11px]">
 								Active Filters ({activeFilterCount})
 							</div>
 							{isDesktopContentExpanded && (
 								<ClearFiltersButton
 									onClick={onClearFilters}
-									className="h-7 rounded-full px-3 text-xs"
+									className="h-7 rounded-full px-3 text-xs lg:text-[11px]"
 								>
 									Clear
 								</ClearFiltersButton>
@@ -663,8 +663,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								variant="outline"
 								className={
 									compact
-										? "h-7 shrink-0 rounded-full border-border/70 bg-background/60 px-2 text-xs font-normal"
-										: "h-7 rounded-full border-border/70 bg-background/60 px-2.5 text-xs font-normal"
+										? "h-7 shrink-0 rounded-full border-border/70 bg-background/60 px-2 text-xs font-normal lg:text-[11px]"
+										: "h-7 rounded-full border-border/70 bg-background/60 px-2.5 text-xs font-normal lg:text-[11px]"
 								}
 							>
 								+{selectedGenres.length - 4} more
@@ -701,14 +701,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						size="sm"
 						className="ooo-site-card overflow-hidden py-0"
 					>
-						<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 border-b border-border/70 py-5">
-							<CardTitle className="flex min-w-0 items-center whitespace-nowrap !text-[1.75rem] [font-family:var(--ooo-font-display)] font-light leading-none tracking-[0.01em]">
-								<Filter className="mr-3 h-[1.45rem] w-[1.45rem] stroke-[1.6]" />
+						<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 border-b border-border/70 py-4">
+							<CardTitle className="flex min-w-0 items-center whitespace-nowrap !text-[1.35rem] [font-family:var(--ooo-font-display)] font-light leading-none tracking-[0.01em]">
+								<Filter className="mr-2.5 h-[1.1rem] w-[1.1rem] stroke-[1.7]" />
 								Filters
 								{hasActiveFilters && (
 									<Badge
 										variant="secondary"
-										className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+										className="ml-2 border border-border/70 bg-secondary/72 text-xs lg:text-[11px]"
 									>
 										{activeFilterCount} active
 									</Badge>
@@ -736,10 +736,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												? "Collapse filters"
 												: "Expand filters"
 										}
-										className="rounded-full border border-border/70 bg-background/66 text-muted-foreground hover:bg-accent hover:text-foreground"
+										className="h-8 w-8 rounded-full border border-border/70 bg-background/66 text-muted-foreground hover:bg-accent hover:text-foreground"
 									>
 										<ChevronDown
-											className={`h-4 w-4 transition-transform transition-bouncy ${isDesktopContentExpanded ? "rotate-180" : "rotate-0"}`}
+											className={`h-3.5 w-3.5 transition-transform transition-bouncy ${isDesktopContentExpanded ? "rotate-180" : "rotate-0"}`}
 										/>
 									</Button>
 								)}
@@ -776,13 +776,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								>
 									{/* Days & Times Section */}
 									<AccordionItem value="days">
-										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors">
+										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors lg:text-[12px]">
 											Date & Times
 											{(hasSelectedDateRange ||
 												selectedDayNightPeriods.length > 0) && (
 												<Badge
 													variant="secondary"
-													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+													className="ml-2 border border-border/70 bg-secondary/72 text-xs lg:text-[11px]"
 												>
 													{(hasSelectedDateRange ? 1 : 0) +
 														selectedDayNightPeriods.length}{" "}
@@ -842,12 +842,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 									{/* Location Section */}
 									<AccordionItem value="location">
-										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors">
+										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors lg:text-[12px]">
 											Location
 											{selectedArrondissements.length > 0 && (
 												<Badge
 													variant="secondary"
-													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+													className="ml-2 border border-border/70 bg-secondary/72 text-xs lg:text-[11px]"
 												>
 													{selectedArrondissements.length} active
 												</Badge>
@@ -893,13 +893,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 									{/* Music & Culture Section */}
 									<AccordionItem value="music">
-										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors">
+										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors lg:text-[12px]">
 											Music & Culture
 											{(selectedGenres.length > 0 ||
 												selectedNationalities.length > 0) && (
 												<Badge
 													variant="secondary"
-													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+													className="ml-2 border border-border/70 bg-secondary/72 text-xs lg:text-[11px]"
 												>
 													{selectedGenres.length + selectedNationalities.length}{" "}
 													active
@@ -922,7 +922,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																setGenreSearchQuery(event.target.value)
 															}
 															placeholder="Search genres"
-															className="h-8 rounded-md border-border/75 bg-background/68 pl-8 text-xs"
+															className="h-8 rounded-md border-border/75 bg-background/68 pl-8 text-xs lg:text-[11px]"
 															aria-label="Search music genres"
 														/>
 													</div>
@@ -940,21 +940,21 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																		<div
 																			className={`w-1.5 h-1.5 rounded-full ${color} mr-1.5 flex-shrink-0`}
 																		/>
-																		<span className="min-w-0 truncate text-xs">
+																		<span className="min-w-0 truncate text-xs lg:text-[11px]">
 																			{label}
 																		</span>
 																	</Toggle>
 																),
 															)}
 															{filteredGenreOptions.length === 0 && (
-																<p className="col-span-2 px-2 py-6 text-center text-xs text-muted-foreground">
+																<p className="col-span-2 px-2 py-6 text-center text-xs text-muted-foreground lg:text-[11px]">
 																	No genres found.
 																</p>
 															)}
 														</div>
 														<div className="absolute top-1.5 left-1.5 right-3 h-3 bg-gradient-to-b from-background/88 to-transparent pointer-events-none" />
 														<div className="absolute bottom-5 left-1.5 right-3 h-5 bg-gradient-to-t from-background/90 to-transparent pointer-events-none" />
-														<div className="mt-1 text-center text-[11px] text-muted-foreground/88">
+														<div className="mt-1 text-center text-[11px] text-muted-foreground/88 lg:text-[10px]">
 															{genreSearchQuery.trim()
 																? `${filteredGenreOptions.length} of ${genreOptions.length} genres`
 																: `${genreOptions.length} genres`}
@@ -968,7 +968,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														<h3 className={sectionTitleClassName}>
 															Host nationality{" "}
 															{selectedNationalities.length > 1 && (
-																<span className="text-sm text-muted-foreground font-normal">
+																<span className="text-sm text-muted-foreground font-normal lg:text-[11px]">
 																	(must INCLUDE)
 																</span>
 															)}
@@ -989,17 +989,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																	className={regularToggleClassName}
 																	size="sm"
 																>
-																	<span className="mr-1.5 shrink-0 text-sm">
+																	<span className="mr-1.5 shrink-0 text-sm lg:text-xs">
 																		{flag}
 																	</span>
-																	<span className="min-w-0 truncate text-xs">
+																	<span className="min-w-0 truncate text-xs lg:text-[11px]">
 																		{shortCode}
 																	</span>
 																</Toggle>
 															),
 														)}
 														{availableNationalities.length === 0 && (
-															<p className="col-span-3 text-xs text-muted-foreground">
+															<p className="col-span-3 text-xs text-muted-foreground lg:text-[11px]">
 																No country filters available.
 															</p>
 														)}
@@ -1011,7 +1011,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 									{/* Preferences Section */}
 									<AccordionItem value="preferences">
-										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors">
+										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors lg:text-[12px]">
 											Preferences
 											{(selectedVenueTypes.length > 0 ||
 												selectedIndoorPreference !== null ||
@@ -1021,7 +1021,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												selectedOOOCPicks) && (
 												<Badge
 													variant="secondary"
-													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+													className="ml-2 border border-border/70 bg-secondary/72 text-xs lg:text-[11px]"
 												>
 													{
 														[
@@ -1058,7 +1058,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														size="sm"
 													>
 														<Star className="h-3.5 w-3.5 mr-1.5 shrink-0 fill-yellow-400" />
-														<span className="min-w-0 truncate text-xs">
+														<span className="min-w-0 truncate text-xs lg:text-[11px]">
 															Show only OOOC Picks
 														</span>
 													</Toggle>
@@ -1083,7 +1083,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																className={regularToggleClassName}
 																size="sm"
 															>
-																<span className="inline-flex min-w-0 items-center gap-1 text-xs">
+																<span className="inline-flex min-w-0 items-center gap-1 text-xs lg:text-[11px]">
 																	<span className="shrink-0 text-muted-foreground">
 																		{renderVenueTypeIcon(key)}
 																	</span>
@@ -1125,7 +1125,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																	variant="ghost"
 																	size="sm"
 																	onClick={resetPriceRange}
-																	className="h-7 rounded-full border border-border/70 px-3 text-xs text-foreground/80 hover:bg-accent"
+																	className="h-7 rounded-full border border-border/70 px-3 text-xs text-foreground/80 hover:bg-accent lg:text-[11px]"
 																>
 																	Clear price filter
 																</Button>
@@ -1172,7 +1172,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																	variant="ghost"
 																	size="sm"
 																	onClick={resetAgeRange}
-																	className="h-7 rounded-full border border-border/70 px-3 text-xs text-foreground/80 hover:bg-accent"
+																	className="h-7 rounded-full border border-border/70 px-3 text-xs text-foreground/80 hover:bg-accent lg:text-[11px]"
 																>
 																	Clear age filter
 																</Button>
@@ -1190,14 +1190,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									<ActiveFiltersDisplay compact compactRows="double" />
 								)}
 
-								<div className="mt-2 text-center text-[11px] text-muted-foreground/80">
+								<div className="mt-2 text-center text-[11px] text-muted-foreground/80 lg:text-[10px]">
 									Showing {filteredEventsCount} matching event
 									{filteredEventsCount !== 1 ? "s" : ""}.
 								</div>
 							</div>
 							{!isDesktopContentExpanded && (
 								<div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex h-20 items-end justify-center bg-gradient-to-t from-card via-card/96 to-card/10 pb-3">
-									<p className="text-[11px] tracking-[0.04em] text-muted-foreground/92">
+									<p className="text-[11px] tracking-[0.04em] text-muted-foreground/92 lg:text-[10px]">
 										Expand filters to refine the view
 									</p>
 								</div>
