@@ -49,8 +49,9 @@ export function AuthGatedControlsIsland({
 	} = useOptionalAuth();
 
 	const handleAuthRequired = useCallback(() => {
+		if (!isOnline) return;
 		setShowEmailGate(true);
-	}, []);
+	}, [isOnline]);
 
 	const requireAuth = useCallback(() => {
 		if (!canUseProtectedDiscovery) {

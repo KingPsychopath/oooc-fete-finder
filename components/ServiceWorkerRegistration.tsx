@@ -6,6 +6,7 @@ const STATIC_RESOURCE_PATH_PREFIXES = [
 	"/_next/static/",
 	"/fonts/",
 	"/favicon",
+	"/maps/",
 ] as const;
 
 const normalizeBasePath = (value: string): string => {
@@ -64,8 +65,16 @@ const sendStaticResourcesToServiceWorker = (basePath: string) => {
 
 export function ServiceWorkerRegistration() {
 	useEffect(() => {
-		if (process.env.NODE_ENV !== "production") return;
 		if (!("serviceWorker" in navigator)) return;
+		if (process.env.NODE_ENV !== "production") {
+			void navigator.serviceWorker
+				.getRegistrations()
+				.then((registrations) =>
+					Promise.all(registrations.map((registration) => registration.unregister())),
+				)
+				.catch(() => undefined);
+			return;
+		}
 
 		const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || "");
 		const serviceWorkerPath = `${basePath}/sw.js`;

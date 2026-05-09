@@ -4,28 +4,18 @@ import { useOnlineStatus } from "@/components/offline-indicator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEventsSearchFilters } from "@/features/events/components/events-search-filters-provider";
 import type { Event } from "@/features/events/types";
-import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
+import {
+	EventsMapCard,
+	type MapLoadStrategy,
+} from "@/features/maps/components/events-map-card";
 import { clientLog } from "@/lib/platform/client-logger";
 import { MapPin } from "lucide-react";
 import {
 	Component,
-	Suspense,
-	lazy,
 	type ErrorInfo,
 	type ReactNode,
 	useCallback,
 } from "react";
-
-const EventsMapCard = lazy(async () => {
-	const module = await import("@/features/maps/components/events-map-card");
-	return { default: module.EventsMapCard };
-});
-
-const NoopSuspenseFallback = (
-	<span className="sr-only" aria-hidden="true">
-		Loading
-	</span>
-);
 
 interface EventsMapIslandProps {
 	isExpanded: boolean;
@@ -144,29 +134,21 @@ export function EventsMapIsland({
 			id="event-map"
 			className="scroll-mt-6 mb-8 relative z-10 sm:scroll-mt-28"
 		>
-			{!isOnline ? (
-				<EventsMapFallback
-					isOnline={isOnline}
-					reason="offline"
+			<EventsMapErrorBoundary isOnline={isOnline}>
+				<EventsMapCard
+					events={filteredEvents}
+					isExpanded={isExpanded}
+					onToggleExpanded={onToggleExpanded}
+					onEventClick={onEventClick}
+					mapLoadStrategy={mapLoadStrategy}
+					onFilterClick={openFilterDrawer}
+					onFullscreenClose={handleFullscreenClose}
+					onMapIntent={onMapIntent}
+					hasActiveFilters={hasAnyActiveFilters}
+					activeFiltersCount={activeFiltersCount}
+					isOfflineMode={!isOnline}
 				/>
-			) : (
-				<EventsMapErrorBoundary isOnline={isOnline}>
-					<Suspense fallback={NoopSuspenseFallback}>
-						<EventsMapCard
-							events={filteredEvents}
-							isExpanded={isExpanded}
-							onToggleExpanded={onToggleExpanded}
-							onEventClick={onEventClick}
-							mapLoadStrategy={mapLoadStrategy}
-							onFilterClick={openFilterDrawer}
-							onFullscreenClose={handleFullscreenClose}
-							onMapIntent={onMapIntent}
-							hasActiveFilters={hasAnyActiveFilters}
-							activeFiltersCount={activeFiltersCount}
-						/>
-					</Suspense>
-				</EventsMapErrorBoundary>
-			)}
+			</EventsMapErrorBoundary>
 		</div>
 	);
 }

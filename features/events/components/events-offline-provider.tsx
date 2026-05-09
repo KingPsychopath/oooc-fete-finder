@@ -172,6 +172,9 @@ export function EventsOfflineProvider({
 		if (!fullEventsPath || hasLoadedFullEvents) {
 			return Promise.resolve(events);
 		}
+		if (typeof navigator !== "undefined" && navigator.onLine === false) {
+			return Promise.resolve(events);
+		}
 		if (fullEventsPromiseRef.current) return fullEventsPromiseRef.current;
 
 		setEventSnapshotSyncState("refreshing");

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "oooc-fete-finder-v2";
+const CACHE_VERSION = "oooc-fete-finder-v4";
 const APP_SHELL_CACHE = `${CACHE_VERSION}:app-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}:static`;
 const SAFE_API_CACHE = `${CACHE_VERSION}:safe-api`;
@@ -6,6 +6,7 @@ const STATIC_CACHE_PATH_PREFIXES = [
 	"/_next/static/",
 	"/fonts/",
 	"/favicon",
+	"/maps/",
 ];
 const SAME_ORIGIN_CACHEABLE_DESTINATIONS = new Set([
 	"font",
@@ -14,7 +15,7 @@ const SAME_ORIGIN_CACHEABLE_DESTINATIONS = new Set([
 	"style",
 ]);
 
-const APP_SHELL_URLS = ["/", "/manifest.webmanifest"];
+const APP_SHELL_URLS = ["/", "/manifest.webmanifest", "/maps/paris-map-preview.jpg"];
 const SENSITIVE_PATH_PREFIXES = [
 	"/_vercel",
 	"/admin",

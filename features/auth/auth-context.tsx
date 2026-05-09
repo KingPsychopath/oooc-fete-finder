@@ -131,7 +131,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 	const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 	const [userEmail, setUserEmail] = useState<string | null>(null);
 	const [isAuthResolved, setIsAuthResolved] = useState(false);
-	const [isOnline, setIsOnline] = useState(true);
+	const [isOnline, setIsOnline] = useState(
+		() => typeof navigator === "undefined" || navigator.onLine,
+	);
 	const [authMode, setAuthMode] = useState<AuthMode>("signed-out");
 	const [offlineGraceExpiresAt, setOfflineGraceExpiresAt] = useState<
 		number | null
@@ -227,10 +229,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 			// on transient online failures so one flaky session check does not sign
 			// people out.
 			setIsAdminAuthenticated(false);
-			const canUseOfflineGrace =
-				typeof navigator !== "undefined" &&
-				navigator.onLine === false &&
-				tryApplyOfflineGraceState();
+			const canUseOfflineGrace = tryApplyOfflineGraceState();
 			if (!canUseOfflineGrace) {
 				outcome = "error";
 				return false;

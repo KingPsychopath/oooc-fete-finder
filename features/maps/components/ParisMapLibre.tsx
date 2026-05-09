@@ -3,6 +3,7 @@
 import maplibregl from "maplibre-gl";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
+import arrondissementData from "@/data/paris-arr-v2.json";
 import { trackDiscoveryAnalytics } from "@/features/events/engagement/client-tracking";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import type { Event } from "@/features/events/types";
@@ -84,6 +85,14 @@ interface ParisArrondissementFeature {
 	properties: ParisArrondissementProperties;
 }
 
+interface ParisArrondissementFeatureWithGeometry
+	extends ParisArrondissementFeature {
+	geometry: {
+		type: "Polygon";
+		coordinates: number[][][];
+	};
+}
+
 interface ParisMapLibreProps {
 	events: Event[];
 	onEventClick: (event: Event) => void;
@@ -95,12 +104,49 @@ interface ParisMapLibreProps {
 	onFilterClick?: () => void;
 	hasActiveFilters?: boolean;
 	activeFiltersCount?: number;
+	isOfflineMode?: boolean;
 }
 
 // Paris center coordinates
 const PARIS_CENTER: [number, number] = [2.3522, 48.8566]; // [lng, lat]
 const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const MAP_ASSET_BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const MAP_LOAD_ERROR_GRACE_MS = 18000;
+const PARIS_PREVIEW_IMAGE_SOURCE: maplibregl.ImageSourceSpecification = {
+	type: "image",
+	url: `${MAP_ASSET_BASE_PATH}/maps/paris-map-preview.jpg`,
+	coordinates: [
+		[2.197265625, 48.95136647094771],
+		[2.548828125, 48.95136647094771],
+		[2.548828125, 48.77791275550182],
+		[2.197265625, 48.77791275550182],
+	],
+};
+const OFFLINE_MAP_STYLE: maplibregl.StyleSpecification = {
+	version: 8,
+	name: "OOOC Offline Paris Event Map",
+	sources: {
+		"paris-preview": PARIS_PREVIEW_IMAGE_SOURCE,
+	},
+	layers: [
+		{
+			id: "background",
+			type: "background",
+			paint: {
+				"background-color": "#f2ece4",
+			},
+		},
+		{
+			id: "paris-preview",
+			type: "raster",
+			source: "paris-preview",
+			paint: {
+				"raster-opacity": 0.96,
+				"raster-saturation": -0.08,
+			},
+		},
+	],
+};
 
 /**
  * Arrondissement fill colors based on event density
@@ -134,6 +180,22 @@ const getArrondissementFillColor = (eventCount: number): string => {
 	return ARRONDISSEMENT_COLORS.EMPTY;
 };
 
+const isParisArrondissementFeatureWithGeometry = (
+	feature: ParisArrondissementFeature,
+): feature is ParisArrondissementFeatureWithGeometry =>
+	Boolean(feature.geometry);
+
+const PARIS_ARRONDISSEMENT_DATA = {
+	...(arrondissementData as GeoJSON.FeatureCollection & {
+		features: ParisArrondissementFeature[];
+	}),
+	features: (
+		arrondissementData as GeoJSON.FeatureCollection & {
+			features: ParisArrondissementFeature[];
+		}
+	).features.filter(isParisArrondissementFeatureWithGeometry),
+};
+
 const getDistrictActivityLabel = (eventCount: number): string => {
 	if (eventCount >= 5) return "High activity district";
 	if (eventCount >= 2) return "Medium activity district";
@@ -162,6 +224,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	onFilterClick,
 	hasActiveFilters = false,
 	activeFiltersCount = 0,
+	isOfflineMode = false,
 }) => {
 	const mapContainer = useRef<HTMLDivElement>(null);
 	const map = useRef<maplibregl.Map | null>(null);
@@ -176,12 +239,16 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const [mapLoaded, setMapLoaded] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
+	const [useLocalMapFallback, setUseLocalMapFallback] = useState(
+		() => isOfflineMode,
+	);
 	const [selectedArrondissement, setSelectedArrondissement] = useState<
 		number | null
 	>(null);
 	const [showCoordinates, setShowCoordinates] = useState(false);
 	const [showLocateNotice, setShowLocateNotice] = useState(false);
 	const [isOffline, setIsOffline] = useState(false);
+	const shouldUseLocalMap = useLocalMapFallback;
 
 	useEffect(() => {
 		if (typeof navigator === "undefined") return;
@@ -440,6 +507,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			const geoJsonSource = source as maplibregl.GeoJSONSource;
 			geoJsonSource.getClusterExpansionZoom(clusterId).then((zoom) => {
 				if (!map.current) return;
+				if (typeof zoom !== "number" || Number.isNaN(zoom)) return;
 				map.current.easeTo({
 					center: e.lngLat,
 					zoom,
@@ -513,10 +581,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 		map.current = null;
 		hasLoadedMapRef.current = false;
+		setUseLocalMapFallback(isOfflineMode);
 		setMapLoaded(false);
 		setIsLoading(true);
 		setLoadError(null);
-	}, []);
+	}, [isOfflineMode]);
 
 	const handleFullscreenPointerDown = useCallback(
 		(event: React.PointerEvent<HTMLButtonElement>) => {
@@ -540,6 +609,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		if (loadError) return;
 		if (!mapContainer.current || map.current) return;
 		hasLoadedMapRef.current = false;
+		const shouldStartWithLocalMap = useLocalMapFallback;
 
 		const initMap = async () => {
 			try {
@@ -549,7 +619,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				// Initialize map
 				map.current = new maplibregl.Map({
 					container: mapContainer.current!,
-					style: MAP_STYLE_URL,
+					style: shouldStartWithLocalMap ? OFFLINE_MAP_STYLE : MAP_STYLE_URL,
 					center: PARIS_CENTER,
 					zoom: 11,
 					minZoom: 10,
@@ -559,7 +629,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					touchZoomRotate: false,
 					attributionControl: {
 						compact: true,
-						customAttribution: "Paris Event Map",
+						customAttribution: shouldStartWithLocalMap
+							? "Paris Event Map · Offline preview"
+							: "Paris Event Map",
 					},
 					maxBounds: [
 						[2.18, 48.8], // Southwest corner (medium expansion)
@@ -635,10 +707,31 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							// Fall through to the retry state if the map is no longer usable.
 						}
 
+						if (!shouldStartWithLocalMap) {
+							clientLog.warn(
+								"maps.maplibre",
+								"Map tiles unavailable; switching to local preview",
+								{ message: e.error.message },
+							);
+							try {
+								map.current?.remove();
+							} catch (error) {
+								clientLog.warn("maps.maplibre", "Map fallback cleanup error", {
+									error: error instanceof Error ? error.message : String(error),
+								});
+							}
+							map.current = null;
+							hasLoadedMapRef.current = false;
+							setMapLoaded(false);
+							setIsLoading(true);
+							setUseLocalMapFallback(true);
+							return;
+						}
+
 						clientLog.error("maps.maplibre", "Map loading error", {
 							message: e.error.message,
 						});
-						setLoadError("Failed to load map tiles");
+						setLoadError("Failed to load map preview");
 						setIsLoading(false);
 					}, MAP_LOAD_ERROR_GRACE_MS);
 				});
@@ -682,7 +775,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				map.current = null;
 			}
 		};
-	}, [loadError]);
+	}, [loadError, useLocalMapFallback]);
 
 	useEffect(() => {
 		if (!map.current) return;
@@ -768,16 +861,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 		const loadBoundaries = async () => {
 			try {
-				// Lazy load GeoJSON data
-				const { default: arrondissementData } = await import(
-					"@/data/paris-arr-v2.json"
-				);
 				if (isCancelled) return;
-
-				// Type assert the data to use our interface
-				const typedData = arrondissementData as GeoJSON.FeatureCollection & {
-					features: ParisArrondissementFeature[];
-				};
 
 				// Check if source already exists
 				let hasBoundariesSource = false;
@@ -791,7 +875,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				if (!hasBoundariesSource) {
 					currentMap.addSource("admin-boundaries", {
 						type: "geojson",
-						data: typedData,
+						data: PARIS_ARRONDISSEMENT_DATA,
 					});
 				}
 
@@ -914,6 +998,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				);
 			} catch {}
 			try {
+				currentMap.off("click", "event-cluster-badges", handleEventClusterClick);
+			} catch {}
+			try {
 				currentMap.off("click", "event-markers", handleEventMarkersClick);
 			} catch {}
 			try {
@@ -942,6 +1029,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			} catch {}
 			try {
 				currentMap.off(
+					"mouseenter",
+					"event-cluster-badges",
+					handleEventMarkersMouseEnter,
+				);
+			} catch {}
+			try {
+				currentMap.off(
 					"mouseleave",
 					"event-markers",
 					handleEventMarkersMouseLeave,
@@ -958,6 +1052,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				currentMap.off(
 					"mouseleave",
 					"event-cluster-counts",
+					handleEventMarkersMouseLeave,
+				);
+			} catch {}
+			try {
+				currentMap.off(
+					"mouseleave",
+					"event-cluster-badges",
 					handleEventMarkersMouseLeave,
 				);
 			} catch {}
@@ -1056,23 +1157,25 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			},
 		});
 
-		currentMap.addLayer({
-			id: "event-cluster-counts",
-			type: "symbol",
-			source: "events",
-			filter: ["has", "point_count"],
-			layout: {
-				"text-field": ["get", "point_count_abbreviated"],
-				"text-size": 12,
-				"text-allow-overlap": true,
-				"text-ignore-placement": true,
-			},
-			paint: {
-				"text-color": "#fffaf3",
-				"text-halo-color": "#49382e",
-				"text-halo-width": 0.5,
-			},
-		});
+		if (!shouldUseLocalMap) {
+			currentMap.addLayer({
+				id: "event-cluster-counts",
+				type: "symbol",
+				source: "events",
+				filter: ["has", "point_count"],
+				layout: {
+					"text-field": ["get", "point_count_abbreviated"],
+					"text-size": 12,
+					"text-allow-overlap": true,
+					"text-ignore-placement": true,
+				},
+				paint: {
+					"text-color": "#fffaf3",
+					"text-halo-color": "#49382e",
+					"text-halo-width": 0.5,
+				},
+			});
+		}
 
 		currentMap.addLayer({
 			id: "event-marker-halos",
@@ -1117,52 +1220,65 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			},
 		});
 
-		currentMap.addLayer({
-			id: "event-star-markers",
-			type: "symbol",
-			source: "events",
-			filter: ["all", ["!", ["has", "point_count"]], ["get", "isOOOCPick"]],
-			layout: {
-				"text-field": "★",
-				"text-size": 12,
-				"text-allow-overlap": true,
-			},
-			paint: {
-				"text-color": "#49382e",
-			},
-		});
+		if (!shouldUseLocalMap) {
+			currentMap.addLayer({
+				id: "event-star-markers",
+				type: "symbol",
+				source: "events",
+				filter: ["all", ["!", ["has", "point_count"]], ["get", "isOOOCPick"]],
+				layout: {
+					"text-field": "★",
+					"text-size": 12,
+					"text-allow-overlap": true,
+				},
+				paint: {
+					"text-color": "#49382e",
+				},
+			});
+		}
 
-		currentMap.on("click", "event-cluster-counts", handleEventClusterClick);
+		currentMap.on(
+			"click",
+			shouldUseLocalMap ? "event-cluster-badges" : "event-cluster-counts",
+			handleEventClusterClick,
+		);
 		currentMap.on("click", "event-markers", handleEventMarkersClick);
-		currentMap.on("click", "event-star-markers", handleEventMarkersClick);
+		if (!shouldUseLocalMap) {
+			currentMap.on("click", "event-star-markers", handleEventMarkersClick);
+		}
 		currentMap.on(
 			"mouseenter",
-			"event-cluster-counts",
+			shouldUseLocalMap ? "event-cluster-badges" : "event-cluster-counts",
 			handleEventMarkersMouseEnter,
 		);
 		currentMap.on("mouseenter", "event-markers", handleEventMarkersMouseEnter);
-		currentMap.on(
-			"mouseenter",
-			"event-star-markers",
-			handleEventMarkersMouseEnter,
-		);
+		if (!shouldUseLocalMap) {
+			currentMap.on(
+				"mouseenter",
+				"event-star-markers",
+				handleEventMarkersMouseEnter,
+			);
+		}
 		currentMap.on(
 			"mouseleave",
-			"event-cluster-counts",
+			shouldUseLocalMap ? "event-cluster-badges" : "event-cluster-counts",
 			handleEventMarkersMouseLeave,
 		);
 		currentMap.on("mouseleave", "event-markers", handleEventMarkersMouseLeave);
-		currentMap.on(
-			"mouseleave",
-			"event-star-markers",
-			handleEventMarkersMouseLeave,
-		);
+		if (!shouldUseLocalMap) {
+			currentMap.on(
+				"mouseleave",
+				"event-star-markers",
+				handleEventMarkersMouseLeave,
+			);
+		}
 		return () => {
 			teardownEventMarkers();
 		};
 	}, [
 		mapLoaded,
 		filteredEvents,
+		shouldUseLocalMap,
 		showCoordinates,
 		handleEventClusterClick,
 		handleEventMarkersClick,

@@ -8,7 +8,9 @@ interface OfflineIndicatorProps {
 }
 
 export function OfflineIndicator({ className }: OfflineIndicatorProps) {
-	const [isOnline, setIsOnline] = useState(true);
+	const [isOnline, setIsOnline] = useState(
+		() => typeof navigator === "undefined" || navigator.onLine,
+	);
 	const [showIndicator, setShowIndicator] = useState(false);
 
 	useEffect(() => {
@@ -72,7 +74,9 @@ export function OfflineIndicator({ className }: OfflineIndicatorProps) {
  * Hook to detect online/offline status
  */
 export function useOnlineStatus() {
-	const [isOnline, setIsOnline] = useState(true);
+	const [isOnline, setIsOnline] = useState(
+		() => typeof navigator === "undefined" || navigator.onLine,
+	);
 
 	useEffect(() => {
 		setIsOnline(navigator.onLine);

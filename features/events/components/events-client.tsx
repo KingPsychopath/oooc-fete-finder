@@ -182,10 +182,10 @@ function EventsClientShell({
 	}, [mapLoadStrategy, requestFullEvents]);
 
 	useEffect(() => {
-		let idleId: number | null = null;
-		let timeoutId: ReturnType<typeof setTimeout> | null = null;
+		if (!isOnline) return;
 
 		const mountForTourIntent = () => {
+			if (navigator.onLine === false) return;
 			try {
 				window.sessionStorage.setItem(
 					PENDING_FETE_FINDER_TOUR_STORAGE_KEY,
@@ -210,28 +210,10 @@ function EventsClientShell({
 
 		window.addEventListener(FETE_FINDER_TOUR_EVENT, mountForTourIntent);
 
-		timeoutId = setTimeout(() => {
-			if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-				idleId = window.requestIdleCallback(mountTourIsland, { timeout: 3000 });
-				return;
-			}
-			mountTourIsland();
-		}, 12_000);
-
 		return () => {
 			window.removeEventListener(FETE_FINDER_TOUR_EVENT, mountForTourIntent);
-			if (
-				idleId !== null &&
-				typeof window !== "undefined" &&
-				"cancelIdleCallback" in window
-			) {
-				window.cancelIdleCallback(idleId);
-			}
-			if (timeoutId) {
-				clearTimeout(timeoutId);
-			}
 		};
-	}, [mountTourIsland]);
+	}, [isOnline, mountTourIsland]);
 
 	const eventsByEventKey = useMemo(() => {
 		return new Map(

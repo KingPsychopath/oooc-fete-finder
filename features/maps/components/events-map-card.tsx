@@ -11,7 +11,7 @@ import type { Event } from "@/features/events/types";
 import { LAYERS } from "@/lib/ui/layers";
 import { cn } from "@/lib/utils";
 import { ChevronDown, MapPin, Maximize2 } from "lucide-react";
-import dynamic from "next/dynamic";
+import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
 import {
 	type PointerEvent,
 	useEffect,
@@ -20,14 +20,6 @@ import {
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
-
-const ParisMapLibre = dynamic(
-	() => import("@/features/maps/components/ParisMapLibre"),
-	{
-		ssr: false,
-		loading: () => <MapPreview />,
-	},
-);
 
 export type MapLoadStrategy = "immediate" | "expand" | "idle";
 
@@ -42,6 +34,7 @@ type EventsMapCardProps = {
 	onMapIntent?: () => void;
 	hasActiveFilters?: boolean;
 	activeFiltersCount?: number;
+	isOfflineMode?: boolean;
 };
 
 function MapPreview() {
@@ -67,6 +60,7 @@ export function EventsMapCard({
 	onMapIntent,
 	hasActiveFilters = false,
 	activeFiltersCount = 0,
+	isOfflineMode = false,
 }: EventsMapCardProps) {
 	const isOnline = useOnlineStatus();
 	const [hasMountedMap, setHasMountedMap] = useState(false);
@@ -277,6 +271,7 @@ export function EventsMapCard({
 			onFilterClick={onFilterClick}
 			hasActiveFilters={hasActiveFilters}
 			activeFiltersCount={activeFiltersCount}
+			isOfflineMode={isOfflineMode}
 			className={isFullscreen ? "h-[100dvh] rounded-none border-0" : undefined}
 		/>
 	);
