@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { useFloatingPromptSlot } from "@/hooks/useFloatingPromptSlot";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
+import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { LAYERS } from "@/lib/ui/layers";
 import {
@@ -83,6 +84,7 @@ const recordDismissal = () => {
 };
 
 export function PWAInstallPrompt() {
+	const { settings } = useLocalAppSettings();
 	const [deferredPrompt, setDeferredPrompt] =
 		useState<BeforeInstallPromptEvent | null>(null);
 	const [isPromptEligible, setIsPromptEligible] = useState(false);
@@ -202,7 +204,12 @@ export function PWAInstallPrompt() {
 		recordDismissal();
 	};
 
-	if (isRestrictedPromptRoute || !isRequestingSlot || !hasPromptSlot) {
+	if (
+		settings.hideFloatingPrompts ||
+		isRestrictedPromptRoute ||
+		!isRequestingSlot ||
+		!hasPromptSlot
+	) {
 		return null;
 	}
 

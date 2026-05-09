@@ -100,7 +100,7 @@ interface ParisMapLibreProps {
 // Paris center coordinates
 const PARIS_CENTER: [number, number] = [2.3522, 48.8566]; // [lng, lat]
 const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
-const MAP_LOAD_ERROR_GRACE_MS = 10000;
+const MAP_LOAD_ERROR_GRACE_MS = 18000;
 
 /**
  * Arrondissement fill colors based on event density

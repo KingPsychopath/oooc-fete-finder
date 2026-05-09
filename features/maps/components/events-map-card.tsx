@@ -63,6 +63,8 @@ export function EventsMapCard({
 	const isOnline = useOnlineStatus();
 	const [hasMountedMap, setHasMountedMap] = useState(false);
 	const [isFullscreen, setIsFullscreen] = useState(false);
+	const [shouldOpenFullscreenAfterMount, setShouldOpenFullscreenAfterMount] =
+		useState(false);
 	const [mapPortalElement, setMapPortalElement] =
 		useState<HTMLDivElement | null>(null);
 	const fullscreenButtonRef = useRef<HTMLButtonElement>(null);
@@ -198,6 +200,24 @@ export function EventsMapCard({
 		}
 	}, [isFullscreen, mapPortalElement]);
 
+	useEffect(() => {
+		if (!shouldOpenFullscreenAfterMount || !hasMountedMap || !mapPortalElement) {
+			return;
+		}
+
+		let frameId: number | null = null;
+		frameId = window.requestAnimationFrame(() => {
+			setIsFullscreen(true);
+			setShouldOpenFullscreenAfterMount(false);
+		});
+
+		return () => {
+			if (frameId !== null) {
+				window.cancelAnimationFrame(frameId);
+			}
+		};
+	}, [hasMountedMap, mapPortalElement, shouldOpenFullscreenAfterMount]);
+
 	const shouldRenderMap = hasMountedMap || isExpanded || isFullscreen;
 	const mapResizeSignal =
 		(isExpanded ? 1 : 0) + (isFullscreen ? 2 : 0) + (shouldRenderMap ? 4 : 0);
@@ -213,6 +233,11 @@ export function EventsMapCard({
 
 	const handleOpenFullscreen = () => {
 		onMapIntent?.();
+		if (!hasMountedMap) {
+			setHasMountedMap(true);
+			setShouldOpenFullscreenAfterMount(true);
+			return;
+		}
 		setHasMountedMap(true);
 		setIsFullscreen(true);
 	};

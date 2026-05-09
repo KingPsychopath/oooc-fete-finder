@@ -26,6 +26,7 @@ import {
 	type SavedClientLocation,
 	requestClientLocation,
 } from "@/features/locations/client-location";
+import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import {
 	type ReactNode,
 	createContext,
@@ -226,6 +227,8 @@ export function EventsSearchFiltersProvider({
 	requireAuth,
 }: EventsSearchFiltersProviderProps) {
 	const { events } = useEventsOffline();
+	const { settings: localAppSettings, isLoaded: areLocalSettingsLoaded } =
+		useLocalAppSettings();
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 	const [sortMode, setSortMode] = useState<EventSortMode>("upcoming");
@@ -237,6 +240,7 @@ export function EventsSearchFiltersProvider({
 	const [nearbyLocation, setNearbyLocation] =
 		useState<SavedClientLocation | null>(null);
 	const pendingAuthActionRef = useRef<PendingAuthAction | null>(null);
+	const lastAppliedDefaultSortRef = useRef<EventSortMode | null>(null);
 	const filters = useEventFilters({
 		events,
 		requireAuth,
@@ -353,6 +357,16 @@ export function EventsSearchFiltersProvider({
 			return nextSortMode;
 		});
 	}, []);
+
+	useEffect(() => {
+		if (!areLocalSettingsLoaded) return;
+		const defaultSortMode = localAppSettings.defaultEventSortMode;
+		if (lastAppliedDefaultSortRef.current === defaultSortMode) return;
+		lastAppliedDefaultSortRef.current = defaultSortMode;
+		setSortMode((current) =>
+			current === "nearby" ? current : defaultSortMode,
+		);
+	}, [areLocalSettingsLoaded, localAppSettings.defaultEventSortMode]);
 
 	const toggleNearbyEvents = useCallback(async () => {
 		if (sortMode === "nearby") {

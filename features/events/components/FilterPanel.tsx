@@ -39,6 +39,7 @@ import {
 	formatLocationAreaShort,
 	formatPriceRange,
 } from "@/features/events/types";
+import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { LAYERS } from "@/lib/ui/layers";
 import {
 	OVERLAY_BODY_ATTRIBUTE,
@@ -139,6 +140,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onToggleExpanded,
 	hideFloatingButton = false,
 }) => {
+	const { settings: localAppSettings } = useLocalAppSettings();
 	const sectionClassName =
 		"space-y-3 rounded-xl border border-border/70 bg-background/58 p-3";
 	const sectionTitleClassName =
@@ -681,7 +683,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		return (
 			<>
 				{/* Mobile floating button */}
-				{!hideFloatingButton && (
+				{!hideFloatingButton &&
+					!localAppSettings.hideFloatingFilterButton && (
 					<FilterButton
 						id="tour-filter-button"
 						onClickAction={onOpen || onClose}

@@ -1,5 +1,6 @@
 "use client";
 
+import { AppSettingsModal } from "@/components/AppSettingsModal";
 import MusicPlatformModal from "@/components/MusicPlatformModal";
 import { Button } from "@/components/ui/button";
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
@@ -22,6 +23,7 @@ import {
 	Pin,
 	PinOff,
 	PlusCircle,
+	Settings,
 	Toilet,
 	Utensils,
 	X,
@@ -172,6 +174,7 @@ export function MobileBottomNav() {
 	const [isPinned, setIsPinned] = useState(false);
 	const [isMoreOpen, setIsMoreOpen] = useState(false);
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
+	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const [toiletFinderUrl, setToiletFinderUrl] = useState(toiletFinderIosUrl);
 	const activeSectionLockUntilRef = useRef(0);
 	const pendingHomeSectionScrollRef = useRef<string | null>(null);
@@ -179,7 +182,7 @@ export function MobileBottomNav() {
 	const shouldScrollToTopOnRouteRef = useRef(false);
 	const hasActiveOverlay = useHasActiveBodyOverlay();
 	const isVisible = useMobileNavVisibility(
-		isPinned || isMoreOpen || isMusicModalOpen,
+		isPinned || isMoreOpen || isMusicModalOpen || isSettingsOpen,
 	);
 
 	useEffect(() => {
@@ -482,6 +485,11 @@ export function MobileBottomNav() {
 		setIsMoreOpen(false);
 		requestFeteFinderTour();
 	};
+	const handleSettingsOpen = () => {
+		trackNavigationClick({ group: "mobile_nav", label: "settings" });
+		setIsMoreOpen(false);
+		setIsSettingsOpen(true);
+	};
 	const handleMoreLinkClick = (label: string) => {
 		trackNavigationClick({ group: "mobile_nav", label });
 		setIsMoreOpen(false);
@@ -654,6 +662,16 @@ export function MobileBottomNav() {
 										<span>FAQs</span>
 										<ExternalLink className="mt-0.5 h-3 w-3 opacity-55" />
 									</Link>
+									<button
+										type="button"
+										onClick={handleSettingsOpen}
+										className={cn(moreInternalItemClassName, "text-left")}
+									>
+										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+											<Settings className="h-3.5 w-3.5" />
+										</span>
+										<span>Settings</span>
+									</button>
 								</div>
 							</div>
 						</div>
@@ -731,6 +749,10 @@ export function MobileBottomNav() {
 			<MusicPlatformModal
 				isOpen={isMusicModalOpen}
 				onClose={() => setIsMusicModalOpen(false)}
+			/>
+			<AppSettingsModal
+				isOpen={isSettingsOpen}
+				onClose={() => setIsSettingsOpen(false)}
 			/>
 		</>
 	);

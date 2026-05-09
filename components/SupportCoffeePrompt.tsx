@@ -2,6 +2,7 @@
 
 import { useFloatingPromptSlot } from "@/hooks/useFloatingPromptSlot";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
+import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { LAYERS } from "@/lib/ui/layers";
 import { Croissant } from "lucide-react";
@@ -97,6 +98,7 @@ function isPromptAllowed(now = Date.now()): boolean {
 }
 
 export function SupportCoffeePrompt() {
+	const { settings } = useLocalAppSettings();
 	const [isDelayComplete, setIsDelayComplete] = useState(false);
 	const [isAllowed, setIsAllowed] = useState(false);
 	const isRestrictedPromptRoute = useIsRestrictedPromptRoute();
@@ -148,6 +150,7 @@ export function SupportCoffeePrompt() {
 
 	if (
 		!isAllowed ||
+		settings.hideFloatingPrompts ||
 		isRestrictedPromptRoute ||
 		!isDelayComplete ||
 		!isEngagedByScroll ||

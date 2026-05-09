@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useFloatingPromptSlot } from "@/hooks/useFloatingPromptSlot";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
+import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { LAYERS } from "@/lib/ui/layers";
 import { MessageCircle, X } from "lucide-react";
@@ -23,6 +24,7 @@ export function CommunityInvite({
 		.HIDE_THRESHOLD_PERCENTAGE,
 	className = "",
 }: CommunityInviteProps = {}) {
+	const { settings } = useLocalAppSettings();
 	const [isAnimating, setIsAnimating] = useState(false);
 	const isRestrictedPromptRoute = useIsRestrictedPromptRoute();
 	const hasActiveOverlay = useHasActiveBodyOverlay();
@@ -73,7 +75,9 @@ export function CommunityInvite({
 		[handleDismiss],
 	);
 
-	if (!shouldShow || isRestrictedPromptRoute) return null;
+	if (settings.hideFloatingPrompts || !shouldShow || isRestrictedPromptRoute) {
+		return null;
+	}
 
 	const { CONTENT } = COMMUNITY_INVITE_CONFIG;
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { AppSettingsModal } from "@/components/AppSettingsModal";
 import { Clock } from "@/components/Clock";
 import MusicPlatformModal from "@/components/MusicPlatformModal";
 import QuickActionsDropdown from "@/components/QuickActionsDropdown";
@@ -57,6 +58,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 		useOptionalAuth();
 	const pathname = usePathname();
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
+	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const [scrollState, setScrollState] = useState({
 		compressed: false,
 		collapsed: false,
@@ -252,6 +254,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 
 							<QuickActionsDropdown
 								onMusicSelect={() => setIsMusicModalOpen(true)}
+								onSettingsOpen={() => setIsSettingsOpen(true)}
 								triggerClassName="h-9 rounded-full border border-border/80 bg-background/70 px-3 text-[11px] tracking-[0.08em] text-foreground/85 hover:bg-accent"
 								menuClassName="z-[80] rounded-xl border border-border bg-popover/95 shadow-[0_12px_36px_rgba(16,12,9,0.28)]"
 							/>
@@ -300,6 +303,10 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 			<MusicPlatformModal
 				isOpen={isMusicModalOpen}
 				onClose={() => setIsMusicModalOpen(false)}
+			/>
+			<AppSettingsModal
+				isOpen={isSettingsOpen}
+				onClose={() => setIsSettingsOpen(false)}
 			/>
 		</>
 	);

@@ -19,6 +19,7 @@ import {
 	MapPin,
 	MessageCircle,
 	Music2,
+	Settings,
 	Toilet,
 	Utensils,
 	Zap,
@@ -28,6 +29,7 @@ import React, { useState, useEffect } from "react";
 
 interface QuickActionsDropdownProps {
 	onMusicSelect: () => void;
+	onSettingsOpen?: () => void;
 	triggerClassName?: string;
 	menuClassName?: string;
 }
@@ -44,6 +46,7 @@ const foodGuideUrl =
 
 const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 	onMusicSelect,
+	onSettingsOpen,
 	triggerClassName,
 	menuClassName,
 }) => {
@@ -77,6 +80,12 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 	const handleTourClick = () => {
 		trackNavigationClick({ group: "quick_action", label: "tour" });
 		requestFeteFinderTour();
+		setIsOpen(false);
+	};
+
+	const handleSettingsClick = () => {
+		trackNavigationClick({ group: "quick_action", label: "settings" });
+		onSettingsOpen?.();
 		setIsOpen(false);
 	};
 
@@ -254,6 +263,27 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 							</div>
 							<ExternalLink className="h-3 w-3 opacity-50 flex-shrink-0" />
 						</Link>
+
+						{onSettingsOpen && (
+							<>
+								<div className="my-1 h-px bg-border" />
+								<button
+									type="button"
+									onClick={handleSettingsClick}
+									className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors text-left"
+								>
+									<div className="w-10 flex items-center justify-center">
+										<Settings className="h-4 w-4 text-muted-foreground" />
+									</div>
+									<div className="flex-1 min-w-0">
+										<div className="font-medium">Settings</div>
+										<div className="text-xs text-muted-foreground line-clamp-2">
+											Theme, maps, and local controls
+										</div>
+									</div>
+								</button>
+							</>
+						)}
 					</div>
 				</div>
 			)}
