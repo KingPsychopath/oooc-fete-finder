@@ -504,14 +504,12 @@ export class EventEngagementRepository {
 		const rows = await this.sql<Array<{ eventKey: string; count: number }>>`
 			SELECT
 				event_key AS "eventKey",
-				(
-					COUNT(DISTINCT session_id)
-					+ COUNT(*) FILTER (WHERE session_id IS NULL)
-				)::int AS count
+				COUNT(DISTINCT COALESCE(user_id, session_id, CONCAT('anonymous:', id::text)))::int AS count
 			FROM app_event_engagement_stats
-			WHERE action_type = 'calendar_sync'
+			WHERE action_type IN ('calendar_sync', 'saved_toggle')
 				AND event_key = ANY(${normalizedEventKeys})
 				AND recorded_at >= NOW() - (${safeWindowDays} * INTERVAL '1 day')
+				AND NOT (action_type = 'saved_toggle' AND COALESCE(source, '') ILIKE '%unsave%')
 			GROUP BY event_key
 		`;
 

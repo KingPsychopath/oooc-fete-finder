@@ -11,7 +11,7 @@ describe("EventEngagementRepository", () => {
 				calls.push({ query, values });
 				if (
 					query.includes('event_key AS "eventKey"') &&
-					query.includes("COUNT(DISTINCT session_id)")
+					query.includes("COUNT(DISTINCT COALESCE")
 				) {
 					return [{ eventKey: "event-a", count: 2 }];
 				}
@@ -27,10 +27,13 @@ describe("EventEngagementRepository", () => {
 
 		expect(counts.get("event-a")).toBe(2);
 		const projectionCall = calls.find((call) =>
-			call.query.includes("COUNT(DISTINCT session_id)"),
+			call.query.includes("COUNT(DISTINCT COALESCE"),
 		);
 		expect(projectionCall?.query).toContain(
-			"COUNT(*) FILTER (WHERE session_id IS NULL)",
+			"action_type IN ('calendar_sync', 'saved_toggle')",
+		);
+		expect(projectionCall?.query).toContain(
+			"NOT (action_type = 'saved_toggle' AND COALESCE(source, '') ILIKE '%unsave%')",
 		);
 		expect(projectionCall?.query).toContain(
 			"recorded_at >= NOW() - (? * INTERVAL '1 day')",
