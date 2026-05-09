@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/features/auth/auth-context";
+import { useOptionalAuth } from "@/features/auth/auth-context";
 import { EventsSearchFiltersProvider } from "@/features/events/components/events-search-filters-provider";
 import { useEventsOffline } from "@/features/events/components/events-offline-provider";
 import type { ReactNode, RefObject } from "react";
@@ -45,7 +45,7 @@ export function AuthGatedControlsIsland({
 		canUseProtectedDiscovery,
 		offlineGraceExpiresAt,
 		refreshSession,
-	} = useAuth();
+	} = useOptionalAuth();
 
 	const handleAuthRequired = useCallback(() => {
 		setShowEmailGate(true);
