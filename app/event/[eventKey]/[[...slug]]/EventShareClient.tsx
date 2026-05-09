@@ -2,6 +2,10 @@
 
 import { useOptionalAuth } from "@/features/auth/auth-context";
 import EventModal from "@/features/events/components/EventModal";
+import {
+	SavedEventsProvider,
+	useSavedEvents,
+} from "@/features/events/components/saved-events-provider";
 import type { Event } from "@/features/events/types";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -18,7 +22,10 @@ const normalizeBasePath = (value: string): string => {
 	return value.endsWith("/") ? value.slice(0, -1) : value;
 };
 
-const buildEventPath = (event: Event, params = new URLSearchParams()): string => {
+const buildEventPath = (
+	event: Event,
+	params = new URLSearchParams(),
+): string => {
 	const normalizedBasePath = normalizeBasePath(basePath);
 	const encodedEventKey = encodeURIComponent(event.eventKey);
 	const encodedSlug = event.slug ? `/${encodeURIComponent(event.slug)}` : "";
@@ -28,9 +35,18 @@ const buildEventPath = (event: Event, params = new URLSearchParams()): string =>
 };
 
 export function EventShareClient({ event }: EventShareClientProps) {
+	return (
+		<SavedEventsProvider>
+			<EventShareModal event={event} />
+		</SavedEventsProvider>
+	);
+}
+
+function EventShareModal({ event }: EventShareClientProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const { isAuthenticated } = useOptionalAuth();
+	const { isEventSaved, toggleSavedEvent } = useSavedEvents();
 	const [hasHydrated, setHasHydrated] = useState(false);
 	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(
 		() => searchParams.get(REQUEST_UPDATE_PARAM) === "1",
@@ -106,6 +122,10 @@ export function EventShareClient({ event }: EventShareClientProps) {
 			isAuthenticated={isAuthenticated}
 			isRequestUpdateOpen={isRequestUpdateOpen}
 			onRequestUpdateOpenChange={handleRequestUpdateOpenChange}
+			isSaved={isEventSaved(event.eventKey)}
+			onToggleSaved={(selectedEvent) =>
+				toggleSavedEvent(selectedEvent, "direct_event_modal_save_button")
+			}
 		/>
 	);
 }
