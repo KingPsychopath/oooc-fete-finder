@@ -253,7 +253,7 @@ export function FeteFinderTour({
 				id: "filters",
 				selector: "#tour-filter-rail, #tour-filter-panel, #tour-filter-button",
 				title: "Shape the list",
-				body: "Use the desktop filter rail, or the drawer on smaller screens, to narrow by time, price, arrondissement, venue setting, genre and OOOC Picks.",
+				body: "Use the filter rail or open the filter drawer to narrow by time, price, arrondissement, venue setting, genre and OOOC Picks.",
 				preferredSide: "top",
 				beforeStep: onFilterOpen,
 			},
