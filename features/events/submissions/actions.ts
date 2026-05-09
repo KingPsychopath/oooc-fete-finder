@@ -12,7 +12,7 @@ import {
 	createBlankEditableSheetRow,
 	sortEditableSheetRowsByDefaultDate,
 } from "@/features/data-management/csv/sheet-editor";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { EventSubmissionSettingsStore } from "./settings-store";
 import type { EventSubmissionSettingKey } from "./settings-store";
 import {
@@ -150,6 +150,7 @@ export async function updateEventSubmissionEnabled(
 		const settingsStatus = await EventSubmissionSettingsStore.getStatus();
 		revalidatePath("/");
 		revalidatePath("/submit-event");
+		revalidateTag("event-submission-settings", "max");
 		const label =
 			setting === "new_events" ? "new event submissions" : "update requests";
 		const title =

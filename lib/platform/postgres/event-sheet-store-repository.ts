@@ -108,90 +108,97 @@ export class EventSheetStoreRepository {
 	}
 
 	private async ensureSchema(): Promise<void> {
-		await this.sql`
-			CREATE TABLE IF NOT EXISTS app_event_store_columns (
-				key TEXT PRIMARY KEY,
-				label TEXT NOT NULL,
-				is_core BOOLEAN NOT NULL,
-				is_required BOOLEAN NOT NULL,
-				display_order INTEGER NOT NULL,
-				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-			)
-		`;
+		await this.sql.begin(async (transactionSql) => {
+			const lockedSql = transactionSql as unknown as Sql;
+			await lockedSql`
+				SELECT pg_advisory_xact_lock(hashtext('oooc_fete_finder_event_store_schema'))
+			`;
 
-		await this.sql`
-			CREATE TABLE IF NOT EXISTS app_event_store_rows (
-				id TEXT PRIMARY KEY,
-				display_order INTEGER NOT NULL,
-				row_data JSONB NOT NULL,
-				event_key TEXT,
-				first_seen_at TIMESTAMPTZ,
-				last_meaningful_change_at TIMESTAMPTZ,
-				public_content_hash TEXT,
-				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-			)
-		`;
+			await lockedSql`
+				CREATE TABLE IF NOT EXISTS app_event_store_columns (
+					key TEXT PRIMARY KEY,
+					label TEXT NOT NULL,
+					is_core BOOLEAN NOT NULL,
+					is_required BOOLEAN NOT NULL,
+					display_order INTEGER NOT NULL,
+					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+					updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				)
+			`;
 
-		await this.sql`
-			ALTER TABLE app_event_store_rows
-			ADD COLUMN IF NOT EXISTS event_key TEXT
-		`;
+			await lockedSql`
+				CREATE TABLE IF NOT EXISTS app_event_store_rows (
+					id TEXT PRIMARY KEY,
+					display_order INTEGER NOT NULL,
+					row_data JSONB NOT NULL,
+					event_key TEXT,
+					first_seen_at TIMESTAMPTZ,
+					last_meaningful_change_at TIMESTAMPTZ,
+					public_content_hash TEXT,
+					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+					updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				)
+			`;
 
-		await this.sql`
-			ALTER TABLE app_event_store_rows
-			ADD COLUMN IF NOT EXISTS first_seen_at TIMESTAMPTZ
-		`;
+			await lockedSql`
+				ALTER TABLE app_event_store_rows
+				ADD COLUMN IF NOT EXISTS event_key TEXT
+			`;
 
-		await this.sql`
-			ALTER TABLE app_event_store_rows
-			ADD COLUMN IF NOT EXISTS last_meaningful_change_at TIMESTAMPTZ
-		`;
+			await lockedSql`
+				ALTER TABLE app_event_store_rows
+				ADD COLUMN IF NOT EXISTS first_seen_at TIMESTAMPTZ
+			`;
 
-		await this.sql`
-			ALTER TABLE app_event_store_rows
-			ADD COLUMN IF NOT EXISTS public_content_hash TEXT
-		`;
+			await lockedSql`
+				ALTER TABLE app_event_store_rows
+				ADD COLUMN IF NOT EXISTS last_meaningful_change_at TIMESTAMPTZ
+			`;
 
-		await this.sql`
-			UPDATE app_event_store_rows
-			SET event_key = NULLIF(row_data->>'eventKey', '')
-			WHERE event_key IS NULL
-		`;
+			await lockedSql`
+				ALTER TABLE app_event_store_rows
+				ADD COLUMN IF NOT EXISTS public_content_hash TEXT
+			`;
 
-		await this.sql`
-			UPDATE app_event_store_rows
-			SET first_seen_at = NOW() - INTERVAL '30 days'
-			WHERE first_seen_at IS NULL
-		`;
+			await lockedSql`
+				UPDATE app_event_store_rows
+				SET event_key = NULLIF(row_data->>'eventKey', '')
+				WHERE event_key IS NULL
+			`;
 
-		await this.sql`
-			UPDATE app_event_store_rows
-			SET last_meaningful_change_at = first_seen_at
-			WHERE last_meaningful_change_at IS NULL
-		`;
+			await lockedSql`
+				UPDATE app_event_store_rows
+				SET first_seen_at = NOW() - INTERVAL '30 days'
+				WHERE first_seen_at IS NULL
+			`;
 
-		await this.sql`
-			CREATE INDEX IF NOT EXISTS idx_app_event_store_rows_display_order
-			ON app_event_store_rows (display_order ASC)
-		`;
+			await lockedSql`
+				UPDATE app_event_store_rows
+				SET last_meaningful_change_at = first_seen_at
+				WHERE last_meaningful_change_at IS NULL
+			`;
 
-		await this.sql`
-			CREATE INDEX IF NOT EXISTS idx_app_event_store_rows_event_key
-			ON app_event_store_rows (event_key)
-		`;
+			await lockedSql`
+				CREATE INDEX IF NOT EXISTS idx_app_event_store_rows_display_order
+				ON app_event_store_rows (display_order ASC)
+			`;
 
-		await this.sql`
-			CREATE TABLE IF NOT EXISTS app_event_store_meta (
-				singleton BOOLEAN PRIMARY KEY DEFAULT TRUE,
-				row_count INTEGER NOT NULL DEFAULT 0,
-				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-				updated_by TEXT NOT NULL DEFAULT 'system',
-				origin TEXT NOT NULL DEFAULT 'manual',
-				checksum TEXT NOT NULL DEFAULT ''
-			)
-		`;
+			await lockedSql`
+				CREATE INDEX IF NOT EXISTS idx_app_event_store_rows_event_key
+				ON app_event_store_rows (event_key)
+			`;
+
+			await lockedSql`
+				CREATE TABLE IF NOT EXISTS app_event_store_meta (
+					singleton BOOLEAN PRIMARY KEY DEFAULT TRUE,
+					row_count INTEGER NOT NULL DEFAULT 0,
+					updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+					updated_by TEXT NOT NULL DEFAULT 'system',
+					origin TEXT NOT NULL DEFAULT 'manual',
+					checksum TEXT NOT NULL DEFAULT ''
+				)
+			`;
+		});
 	}
 
 	private async ready(): Promise<void> {
@@ -265,6 +272,22 @@ export class EventSheetStoreRepository {
 		`;
 
 		return rows.map((row) => normalizeEventSheetRowData(row.row_data));
+	}
+
+	async hasEventKey(eventKey: string): Promise<boolean> {
+		await this.ready();
+		const normalizedEventKey = eventKey.trim().toLowerCase();
+		if (!normalizedEventKey) return false;
+
+		const rows = await this.sql<{ exists: boolean }[]>`
+			SELECT EXISTS (
+				SELECT 1
+				FROM app_event_store_rows
+				WHERE event_key = ${normalizedEventKey}
+				LIMIT 1
+			) AS exists
+		`;
+		return rows[0]?.exists === true;
 	}
 
 	async getRowMetadata(): Promise<EventSheetRowMetadataRecord[]> {

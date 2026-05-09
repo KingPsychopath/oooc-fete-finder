@@ -3,7 +3,6 @@ import {
 	USER_AUTH_COOKIE_NAME,
 	getUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
-import { getLiveEvents } from "@/features/data-management/runtime-service";
 import {
 	EVENT_ENGAGEMENT_ACTIONS,
 	type EventEngagementAction,
@@ -16,6 +15,7 @@ import {
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { log } from "@/lib/platform/logger";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
+import { getEventSheetStoreRepository } from "@/lib/platform/postgres/event-sheet-store-repository";
 import { getUserEventRelationshipRepository } from "@/lib/platform/postgres/user-event-relationship-repository";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -60,35 +60,31 @@ const parseCookieByName = (
 	return undefined;
 };
 
-let eventKeyCache: {
-	expiresAtMs: number;
-	keys: Set<string>;
-} | null = null;
-
 const EVENT_KEY_CACHE_TTL_MS = 5 * 60 * 1000;
 
-const getKnownEventKeys = async (): Promise<Set<string> | null> => {
+const eventKeyCache = new Map<string, number>();
+
+const isKnownEventKey = async (eventKey: string): Promise<boolean | null> => {
 	const nowMs = Date.now();
-	if (eventKeyCache && eventKeyCache.expiresAtMs > nowMs) {
-		return eventKeyCache.keys;
+	const cachedExpiry = eventKeyCache.get(eventKey);
+	if (cachedExpiry && cachedExpiry > nowMs) {
+		return true;
 	}
 
-	const eventsResult = await getLiveEvents({
-		includeFeaturedProjection: false,
-		includeEngagementProjection: false,
-	});
-	if (!eventsResult.success) {
+	const repository = getEventSheetStoreRepository();
+	if (!repository) {
 		return null;
 	}
 
-	const keys = new Set(
-		eventsResult.data.map((event) => event.eventKey.toLowerCase()),
-	);
-	eventKeyCache = {
-		expiresAtMs: nowMs + EVENT_KEY_CACHE_TTL_MS,
-		keys,
-	};
-	return keys;
+	try {
+		const exists = await repository.hasEventKey(eventKey);
+		if (exists) {
+			eventKeyCache.set(eventKey, nowMs + EVENT_KEY_CACHE_TTL_MS);
+		}
+		return exists;
+	} catch {
+		return null;
+	}
 };
 
 export async function POST(request: Request) {
@@ -111,8 +107,8 @@ export async function POST(request: Request) {
 
 	const body = parsed.data;
 	const eventKey = body.eventKey.toLowerCase();
-	const knownEventKeys = await getKnownEventKeys();
-	if (!knownEventKeys || !knownEventKeys.has(eventKey)) {
+	const knownEventKey = await isKnownEventKey(eventKey);
+	if (knownEventKey === false) {
 		return accepted();
 	}
 

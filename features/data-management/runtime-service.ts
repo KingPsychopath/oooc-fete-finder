@@ -12,7 +12,7 @@ import {
 } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { cache } from "react";
 import { DataManager } from "./data-manager";
 import { isValidEventsData } from "./data-processor";
@@ -75,6 +75,7 @@ const EVENTS_CACHE_TAGS = [
 	"featured-events",
 	"promoted-events",
 ] as const;
+const EVENTS_SOURCE_CACHE_REVALIDATE_SECONDS = 24 * 60 * 60;
 const EVENTS_LAYOUT_PATHS = [
 	"/",
 	"/events",
@@ -122,8 +123,19 @@ const toEventsResult = (
 	};
 };
 
+const getCachedSourceEvents = unstable_cache(
+	async () => DataManager.getEventsData({ populateCoordinates: false }),
+	["events-source-data"],
+	{
+		revalidate: EVENTS_SOURCE_CACHE_REVALIDATE_SECONDS,
+		tags: ["events", "events-data"],
+	},
+);
+
 const getSourceEventsForRequest = cache(async (populateCoordinates: boolean) =>
-	DataManager.getEventsData({ populateCoordinates }),
+	populateCoordinates
+		? DataManager.getEventsData({ populateCoordinates })
+		: getCachedSourceEvents(),
 );
 
 const getLiveEventsForRequest = cache(

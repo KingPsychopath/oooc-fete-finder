@@ -69,6 +69,7 @@ type Setup = {
 	getStatus: ReturnType<typeof vi.fn>;
 	updateEnabled: ReturnType<typeof vi.fn>;
 	revalidatePath: ReturnType<typeof vi.fn>;
+	revalidateTag: ReturnType<typeof vi.fn>;
 	updateEventSubmissionEnabled: EventSubmissionActions["updateEventSubmissionEnabled"];
 };
 
@@ -179,6 +180,7 @@ const loadActions = async (): Promise<Setup> => {
 		updatedBy: "admin-panel",
 	});
 	const revalidatePath = vi.fn();
+	const revalidateTag = vi.fn();
 
 	vi.doMock("@/features/auth/admin-validation", () => ({
 		validateAdminAccessFromServerContext: validateAdminAccess,
@@ -209,6 +211,7 @@ const loadActions = async (): Promise<Setup> => {
 	}));
 	vi.doMock("next/cache", () => ({
 		revalidatePath,
+		revalidateTag,
 	}));
 
 	const actions = await import("@/features/events/submissions/actions");
@@ -227,6 +230,7 @@ const loadActions = async (): Promise<Setup> => {
 		getStatus,
 		updateEnabled,
 		revalidatePath,
+		revalidateTag,
 	};
 };
 
@@ -429,8 +433,12 @@ describe("event submission admin actions", () => {
 	});
 
 	it("updates persisted submission enabled setting for admins", async () => {
-		const { updateEventSubmissionEnabled, updateEnabled, revalidatePath } =
-			await loadActions();
+		const {
+			updateEventSubmissionEnabled,
+			updateEnabled,
+			revalidatePath,
+			revalidateTag,
+		} = await loadActions();
 		const result = await updateEventSubmissionEnabled("new_events", false);
 
 		expect(result.success).toBe(true);
@@ -441,5 +449,9 @@ describe("event submission admin actions", () => {
 		);
 		expect(revalidatePath).toHaveBeenCalledWith("/");
 		expect(revalidatePath).toHaveBeenCalledWith("/submit-event");
+		expect(revalidateTag).toHaveBeenCalledWith(
+			"event-submission-settings",
+			"max",
+		);
 	});
 });

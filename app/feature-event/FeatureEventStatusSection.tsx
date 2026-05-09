@@ -5,7 +5,7 @@ import { FeatureCountdown } from "@/features/events/featured/components/FeatureC
 const getFeaturedStatusEventsCached = cache(
 	async () => getFeaturedStatusEvents(),
 	["feature-event-status-events"],
-	{ revalidate: 60 },
+	{ revalidate: 3600, tags: ["events", "events-data", "featured-events"] },
 );
 
 export async function FeatureEventStatusSection() {

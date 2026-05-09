@@ -2,7 +2,7 @@ import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { log } from "@/lib/platform/logger";
 import { NextResponse } from "next/server";
 
-export const revalidate = 300;
+export const revalidate = 3600;
 
 export async function GET() {
 	const result = await getLiveEvents();
@@ -22,7 +22,7 @@ export async function GET() {
 		},
 		{
 			headers: {
-				"Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+				"Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
 			},
 		},
 	);

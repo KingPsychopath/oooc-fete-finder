@@ -217,6 +217,14 @@ const getOGResponseHeaders = (cacheTags: string): HeadersInit => ({
 	"Vercel-Cache-Tag": cacheTags,
 });
 
+export async function HEAD(request: NextRequest) {
+	const { searchParams } = new URL(request.url);
+	return new Response(null, {
+		status: 200,
+		headers: getOGResponseHeaders(getOGCacheTags(searchParams)),
+	});
+}
+
 const STATIC_PRESET_CONTENT: Record<
 	Exclude<OGPreset, "event">,
 	Omit<OGContent, "eventCount" | "arrondissement" | "date" | "time" | "price" | "venue" | "genres">
@@ -529,10 +537,10 @@ export async function GET(request: NextRequest) {
 				: "Paris";
 		const isEventCard = variant === "event-modal";
 		const titleFontSize =
-			title.length > 58 ? 62 : title.length > 38 ? 70 : 82;
-		const cardMaxWidth = isEventCard ? 1000 : 960;
+			title.length > 58 ? 62 : title.length > 38 ? 76 : 98;
+		const cardMaxWidth = isEventCard ? 1000 : 980;
 		const cardPadding = isEventCard ? "36px 40px" : "34px 38px";
-		const subtitleFontSize = isEventCard ? 28 : 29;
+		const subtitleFontSize = isEventCard ? 28 : 32;
 
 		return new ImageResponse(
 			<div
@@ -590,7 +598,7 @@ export async function GET(request: NextRequest) {
 						display: "flex",
 						width: "100%",
 						height: "100%",
-						padding: "46px 54px 44px",
+						padding: "46px 72px 44px 54px",
 						flexDirection: "column",
 						justifyContent: "space-between",
 					}}
@@ -660,20 +668,32 @@ export async function GET(request: NextRequest) {
 						style={{
 							display: "flex",
 							flexDirection: "column",
-							gap: isEventCard ? 17 : 15,
+							gap: isEventCard ? 17 : 18,
 							maxWidth: cardMaxWidth,
-							padding: cardPadding,
-							borderRadius: 28,
-							background: palette.card,
-							border: `1px solid ${palette.border}`,
-							boxShadow: palette.shadow,
+							padding: isEventCard ? cardPadding : "0",
+							borderRadius: isEventCard ? 28 : 0,
+							background: isEventCard ? palette.card : "transparent",
+							border: isEventCard ? `1px solid ${palette.border}` : "none",
+							boxShadow: isEventCard ? palette.shadow : "none",
 						}}
 					>
+						{!isEventCard ? (
+							<div
+								style={{
+									display: "flex",
+									width: 86,
+									height: 4,
+									borderRadius: 999,
+									background: palette.accent,
+									marginBottom: 2,
+								}}
+							/>
+						) : null}
 						<div
 							style={{
 								fontFamily: ogTitleFontFamily,
 								fontSize: titleFontSize,
-								lineHeight: 1.04,
+								lineHeight: isEventCard ? 1.04 : 0.96,
 								letterSpacing: 0,
 								color: palette.ink,
 								fontWeight: 520,
@@ -684,10 +704,10 @@ export async function GET(request: NextRequest) {
 						<div
 							style={{
 								fontSize: subtitleFontSize,
-								lineHeight: 1.28,
+								lineHeight: isEventCard ? 1.28 : 1.22,
 								color: palette.muted,
 								fontWeight: 500,
-								maxWidth: 820,
+								maxWidth: isEventCard ? 820 : 860,
 							}}
 						>
 							{subtitle}
@@ -804,7 +824,7 @@ export async function GET(request: NextRequest) {
 						}}
 					>
 						<div>{footerLocation}</div>
-						<div>fete.outofofficecollective.co.uk</div>
+						<div>OOOC</div>
 					</div>
 				</div>
 			</div>,

@@ -54,6 +54,8 @@ export const metadata: Metadata = {
 	],
 };
 
+export const revalidate = 3600;
+
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const contactEmail = "hello@outofofficecollective.co.uk";
 const fallbackContactHref = `mailto:${contactEmail}?subject=OOOC%20Fete%202026%20-%20Partnership%20Inquiry`;
@@ -154,7 +156,7 @@ function StripeOrContactButton({
 const getFeaturedProjectionCached = cache(
 	async () => getFeaturedProjection().catch(() => null),
 	["feature-event-projection"],
-	{ revalidate: 60 },
+	{ revalidate: 3600, tags: ["featured-events", "promoted-events"] },
 );
 
 async function SpotlightAvailabilityBadge() {

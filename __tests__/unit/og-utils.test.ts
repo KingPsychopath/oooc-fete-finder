@@ -15,11 +15,11 @@ describe("og-utils", () => {
 		vi.clearAllMocks();
 	});
 
-	it("builds branded main OG route URL with bounded preset params", async () => {
+	it("uses a static PNG for the main preset OG image", async () => {
 		const { generateMainOGImage } = await loadOgUtils();
 		const url = generateMainOGImage(81);
 
-		expect(url).toBe("/api/og?preset=home");
+		expect(url).toBe("/og/home.png");
 	});
 
 	it("builds event OG route URL with only the event key", async () => {

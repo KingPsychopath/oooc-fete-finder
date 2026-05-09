@@ -3,8 +3,8 @@ import { HomeEventsSection } from "./HomeEventsSection";
 import { HomeEventsSectionLoading } from "./HomeEventsSectionLoading";
 import { HomeHeader } from "./HomeHeader";
 
-// Keep ISR short to limit stale windows when data changes.
-export const revalidate = 300; // 5 minutes in seconds
+// Event edits trigger on-demand revalidation; keep public ISR calm by default.
+export const revalidate = 3600;
 const homeMapLoadStrategy: "immediate" | "expand" | "idle" = "expand";
 
 export default function Home() {

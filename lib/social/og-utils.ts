@@ -1,6 +1,6 @@
 /**
- * Utility functions for generating dynamic OG:image URLs
- * Used throughout the app to create custom social media images
+ * Utility functions for generating OG:image URLs.
+ * Static public pages use fixed PNGs; event shares stay dynamic.
  */
 
 import { env } from "@/lib/config/env";
@@ -16,6 +16,17 @@ export type OGPreset =
 	| "partner-success"
 	| "partner-performance-report"
 	| "social-assets";
+
+const STATIC_OG_IMAGE_BY_PRESET: Record<OGPreset, string> = {
+	home: "/og/home.png",
+	"how-it-works": "/og/how-it-works.png",
+	privacy: "/og/privacy.png",
+	"submit-event": "/og/submit-event.png",
+	"feature-event": "/og/feature-event.png",
+	"partner-success": "/og/partner-success.png",
+	"partner-performance-report": "/og/partner-performance-report.png",
+	"social-assets": "/og/social-assets.png",
+};
 
 type OGImageParams = {
 	title?: string;
@@ -98,7 +109,7 @@ export const generateOGImageUrl = (params: OGImageParams = {}): string => {
 };
 
 export const generatePresetOGImage = (preset: OGPreset): string =>
-	buildOGRouteUrl({ preset });
+	STATIC_OG_IMAGE_BY_PRESET[preset];
 
 /**
  * Generate OG:image URL for event-specific content

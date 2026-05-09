@@ -31,6 +31,7 @@ const loadRuntimeService = async (): Promise<Setup> => {
 	);
 	const revalidatePath = vi.fn();
 	const revalidateTag = vi.fn();
+	const unstableCache = vi.fn((fn) => fn);
 
 	vi.doMock("@/features/data-management/data-manager", () => ({
 		DataManager: {
@@ -58,6 +59,7 @@ const loadRuntimeService = async (): Promise<Setup> => {
 	vi.doMock("next/cache", () => ({
 		revalidatePath,
 		revalidateTag,
+		unstable_cache: unstableCache,
 	}));
 
 	const service = await import("@/features/data-management/runtime-service");

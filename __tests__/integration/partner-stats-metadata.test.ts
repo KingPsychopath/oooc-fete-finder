@@ -56,9 +56,7 @@ describe("/partner-stats/[activationId] metadata", () => {
 			imageRef.url,
 			"https://fete.outofofficecollective.co.uk",
 		);
-		expect(imageUrl.searchParams.get("preset")).toBe(
-			"partner-performance-report",
-		);
+		expect(imageUrl.pathname).toBe("/og/partner-performance-report.png");
 		expect(imageUrl.toString()).not.toContain("token");
 		expect(imageUrl.toString()).not.toContain("click");
 		expect(imageUrl.toString()).not.toContain("impression");

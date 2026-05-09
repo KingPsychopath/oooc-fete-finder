@@ -26,7 +26,7 @@ type EventSharePageProps = {
 	params: Promise<{ eventKey: string; slug?: string[] }>;
 };
 
-export const revalidate = 300;
+export const revalidate = 3600;
 
 export async function generateStaticParams(): Promise<
 	Array<{ eventKey: string; slug?: string[] }>

@@ -1,7 +1,7 @@
 import { getEventShareEvent } from "@/lib/social/event-share-details";
 import { NextResponse, type NextRequest } from "next/server";
 
-export const revalidate = 300;
+export const revalidate = 3600;
 
 interface EventDetailsRouteContext {
 	params: Promise<{
@@ -19,7 +19,7 @@ export async function GET(_request: NextRequest, context: EventDetailsRouteConte
 			{
 				status: 404,
 				headers: {
-					"Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+					"Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
 				},
 			},
 		);
@@ -29,7 +29,7 @@ export async function GET(_request: NextRequest, context: EventDetailsRouteConte
 		{ event },
 		{
 			headers: {
-				"Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+				"Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
 			},
 		},
 	);
