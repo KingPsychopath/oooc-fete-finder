@@ -13,6 +13,7 @@ import {
 	lazy,
 	type ErrorInfo,
 	type ReactNode,
+	useCallback,
 } from "react";
 
 const EventsMapCard = lazy(async () => {
@@ -109,7 +110,7 @@ function EventsMapFallback({
 						</p>
 						<p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
 							{isOfflineFallback
-								? "Map style, sprite, glyph, and tile assets are online-only. Saved event browsing, search, and filters are still available below."
+								? "Saved event browsing, search, and filters are still available below."
 								: "Event browsing, search, and filters are still available below."}
 						</p>
 					</div>
@@ -130,9 +131,13 @@ export function EventsMapIsland({
 		activeFiltersCount,
 		filteredEvents,
 		hasAnyActiveFilters,
-		toggleFilterPanel,
+		openFilterDrawer,
+		setIsFilterOpen,
 	} = useEventsSearchFilters();
 	const isOnline = useOnlineStatus();
+	const handleFullscreenClose = useCallback(() => {
+		setIsFilterOpen(false);
+	}, [setIsFilterOpen]);
 
 	return (
 		<div
@@ -153,7 +158,8 @@ export function EventsMapIsland({
 							onToggleExpanded={onToggleExpanded}
 							onEventClick={onEventClick}
 							mapLoadStrategy={mapLoadStrategy}
-							onFilterClick={toggleFilterPanel}
+							onFilterClick={openFilterDrawer}
+							onFullscreenClose={handleFullscreenClose}
 							onMapIntent={onMapIntent}
 							hasActiveFilters={hasAnyActiveFilters}
 							activeFiltersCount={activeFiltersCount}

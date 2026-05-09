@@ -41,6 +41,7 @@ export function EventsSearchFiltersIsland({
 		handleSearchFocus,
 		handleSearchIntent,
 		hasAnyActiveFilters,
+		isFilterDrawerForced,
 		isFilterExpanded,
 		isFilterOpen,
 		onAgeRangeChange,
@@ -133,6 +134,7 @@ export function EventsSearchFiltersIsland({
 							isOpen={isFilterOpen}
 							onClose={() => setIsFilterOpen(false)}
 							onOpen={openFilterPanel}
+							forceDrawer={isFilterDrawerForced}
 							isExpanded={isFilterExpanded}
 							onToggleExpanded={toggleFilterExpansion}
 							hideFloatingButton={!canUseProtectedDiscovery}

@@ -25,13 +25,7 @@ const ParisMapLibre = dynamic(
 	() => import("@/features/maps/components/ParisMapLibre"),
 	{
 		ssr: false,
-		loading: () => (
-			<div className="flex h-full items-center justify-center bg-background/50 px-4 text-center">
-				<p className="text-xs text-muted-foreground sm:text-sm">
-					Loading interactive map…
-				</p>
-			</div>
-		),
+		loading: () => <MapPreview />,
 	},
 );
 
@@ -44,10 +38,23 @@ type EventsMapCardProps = {
 	onEventClick: (event: Event) => void;
 	mapLoadStrategy?: MapLoadStrategy;
 	onFilterClick?: () => void;
+	onFullscreenClose?: () => void;
 	onMapIntent?: () => void;
 	hasActiveFilters?: boolean;
 	activeFiltersCount?: number;
 };
+
+function MapPreview() {
+	return (
+		<div className="relative h-full overflow-hidden bg-background">
+			<div
+				className="absolute inset-0 bg-cover bg-center opacity-80 saturate-[0.92]"
+				style={{ backgroundImage: "url('/maps/paris-map-preview.jpg')" }}
+			/>
+			<div className="absolute inset-0 bg-card/20" />
+		</div>
+	);
+}
 
 export function EventsMapCard({
 	events,
@@ -56,6 +63,7 @@ export function EventsMapCard({
 	onEventClick,
 	mapLoadStrategy = "idle",
 	onFilterClick,
+	onFullscreenClose,
 	onMapIntent,
 	hasActiveFilters = false,
 	activeFiltersCount = 0,
@@ -169,6 +177,7 @@ export function EventsMapCard({
 		window.addEventListener("popstate", handlePopState);
 
 		return () => {
+			onFullscreenClose?.();
 			document.body.style.overflow = previousOverflow;
 			window.removeEventListener("keydown", handleKeyDown);
 			window.removeEventListener("popstate", handlePopState);
@@ -180,7 +189,7 @@ export function EventsMapCard({
 				fullscreenButtonRef.current?.focus();
 			});
 		};
-	}, [isFullscreen]);
+	}, [isFullscreen, onFullscreenClose]);
 
 	useLayoutEffect(() => {
 		const normalMapSlot = normalMapSlotRef.current;
@@ -290,7 +299,7 @@ export function EventsMapCard({
 								</div>
 								{!isOnline && (
 									<span className="rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-xs font-normal text-amber-700 dark:text-amber-300">
-										Offline: tiles unavailable
+										Offline
 									</span>
 								)}
 							</CardTitle>
@@ -342,19 +351,12 @@ export function EventsMapCard({
 						}`}
 					>
 						<div ref={normalMapSlotRef} className="h-[600px] w-full">
-							{!shouldRenderMap && (
-								<div className="flex h-full items-center justify-center bg-background/50 px-4 text-center">
-									<p className="text-xs text-muted-foreground sm:text-sm">
-										Map preview loading quietly. Expand to explore by
-										arrondissement.
-									</p>
-								</div>
-							)}
+							{!shouldRenderMap && <MapPreview />}
 						</div>
 						{!isExpanded && (
 							<>
 								<div className="pointer-events-none absolute inset-x-0 bottom-3 z-[1] flex justify-center px-3">
-									<p className="text-[11px] tracking-[0.04em] text-muted-foreground/92">
+									<p className="rounded-full border border-border/65 bg-card/88 px-3 py-1 text-[11px] tracking-[0.04em] text-muted-foreground/92 shadow-sm backdrop-blur">
 										Expand to explore the live map by arrondissement
 									</p>
 								</div>

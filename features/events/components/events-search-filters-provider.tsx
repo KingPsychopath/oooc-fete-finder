@@ -77,6 +77,7 @@ interface EventsSearchFiltersContextValue {
 	handleSearchFocus: () => void;
 	handleSearchIntent: (query: string) => void;
 	hasAnyActiveFilters: boolean;
+	isFilterDrawerForced: boolean;
 	isFilterExpanded: boolean;
 	isFilterOpen: boolean;
 	nearbyEventsError: string | null;
@@ -105,6 +106,7 @@ interface EventsSearchFiltersContextValue {
 		typeof useEventFilters
 	>["onSearchQueryChange"];
 	onVenueTypeToggle: ReturnType<typeof useEventFilters>["onVenueTypeToggle"];
+	openFilterDrawer: () => void;
 	openFilterPanel: () => void;
 	quickSelectEventDates: ReturnType<
 		typeof useEventFilters
@@ -231,6 +233,7 @@ export function EventsSearchFiltersProvider({
 		useLocalAppSettings();
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+	const [isFilterDrawerForced, setIsFilterDrawerForced] = useState(false);
 	const [sortMode, setSortMode] = useState<EventSortMode>("upcoming");
 	const [nearbyEventsStatus, setNearbyEventsStatus] =
 		useState<NearbyEventsStatus>("idle");
@@ -275,6 +278,7 @@ export function EventsSearchFiltersProvider({
 	const toggleFilterPanel = useCallback(() => {
 		if (!requireAuth()) return;
 		onNeedFullEvents();
+		setIsFilterDrawerForced(false);
 		if (
 			typeof window !== "undefined" &&
 			window.matchMedia("(min-width: 1024px)").matches
@@ -288,6 +292,7 @@ export function EventsSearchFiltersProvider({
 
 	const openFilterPanel = useCallback(() => {
 		onNeedFullEvents();
+		setIsFilterDrawerForced(false);
 		if (
 			typeof window !== "undefined" &&
 			window.matchMedia("(min-width: 1024px)").matches
@@ -298,6 +303,20 @@ export function EventsSearchFiltersProvider({
 		}
 		setIsFilterOpen(true);
 	}, [onNeedFullEvents]);
+
+	const openFilterDrawer = useCallback(() => {
+		if (!requireAuth()) return;
+		onNeedFullEvents();
+		setIsFilterDrawerForced(true);
+		setIsFilterOpen(true);
+	}, [onNeedFullEvents, requireAuth]);
+
+	const setFilterOpen = useCallback((isOpen: boolean) => {
+		if (!isOpen) {
+			setIsFilterDrawerForced(false);
+		}
+		setIsFilterOpen(isOpen);
+	}, []);
 
 	const toggleFilterExpansion = useCallback(() => {
 		setIsFilterExpanded((previous) => !previous);
@@ -492,13 +511,15 @@ export function EventsSearchFiltersProvider({
 			handleSearchFocus,
 			handleSearchIntent,
 			isFilterExpanded,
+			isFilterDrawerForced,
 			isFilterOpen,
 			nearbyEventsError,
 			nearbyEventsStatus,
 			nearbyLocation,
 			nearbyMatchedEventsCount: nearbyEventsOrdered.length,
+			openFilterDrawer,
 			openFilterPanel,
-			setIsFilterOpen,
+			setIsFilterOpen: setFilterOpen,
 			setSortMode: handleSortModeChange,
 			socialProofDisplayModes,
 			sortMode,
@@ -516,12 +537,15 @@ export function EventsSearchFiltersProvider({
 			handleSearchFocus,
 			handleSearchIntent,
 			isFilterExpanded,
+			isFilterDrawerForced,
 			isFilterOpen,
 			nearbyEventsError,
 			nearbyEventsStatus,
 			nearbyLocation,
 			nearbyEventsOrdered.length,
+			openFilterDrawer,
 			openFilterPanel,
+			setFilterOpen,
 			handleSortModeChange,
 			socialProofDisplayModes,
 			sortMode,

@@ -172,6 +172,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const locateNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
 	);
+	const nonFatalMapErrorCountRef = useRef(0);
 	const [mapLoaded, setMapLoaded] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
@@ -588,12 +589,32 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 				map.current.on("style.load", markMapReady);
 				map.current.on("load", markMapReady);
-
+				window.requestAnimationFrame(() => {
+					try {
+						if (map.current?.isStyleLoaded()) {
+							markMapReady();
+						}
+					} catch {
+						// The normal load/error handlers still cover torn-down maps.
+					}
+				});
+				window.setTimeout(() => {
+					try {
+						if (map.current?.isStyleLoaded()) {
+							markMapReady();
+						}
+					} catch {
+						// The normal load/error handlers still cover torn-down maps.
+					}
+				}, 120);
 				map.current.on("error", (e: maplibregl.ErrorEvent) => {
 					if (hasLoadedMapRef.current) {
-						clientLog.warn("maps.maplibre", "Non-fatal map tile error", {
-							message: e.error.message,
-						});
+						if (nonFatalMapErrorCountRef.current < 3) {
+							nonFatalMapErrorCountRef.current += 1;
+							clientLog.warn("maps.maplibre", "Non-fatal map asset error", {
+								message: e.error.message,
+							});
+						}
 						return;
 					}
 
@@ -1164,8 +1185,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							Map temporarily unavailable
 						</p>
 						<p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-							{loadError}. Map style, sprite, glyph, and tile assets are loaded
-							online.
+							{loadError}. The district map can be retried without losing your
+							current filters.
 						</p>
 						{isOffline ? (
 							<p className="mt-2 text-xs leading-relaxed text-muted-foreground">

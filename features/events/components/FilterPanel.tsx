@@ -61,6 +61,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type FilterPanelProps = {
 	selectedDateRange: DateRangeFilter;
@@ -102,6 +103,7 @@ type FilterPanelProps = {
 	isExpanded?: boolean;
 	onToggleExpanded?: () => void;
 	hideFloatingButton?: boolean;
+	forceDrawer?: boolean;
 };
 
 const FilterPanel: React.FC<FilterPanelProps> = ({
@@ -139,6 +141,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	isExpanded,
 	onToggleExpanded,
 	hideFloatingButton = false,
+	forceDrawer = false,
 }) => {
 	const { settings: localAppSettings } = useLocalAppSettings();
 	const sectionClassName =
@@ -1218,9 +1221,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		);
 	}
 
-	return (
+	const openPanel = (
 		<div
-			className="fixed inset-0 bg-black/45 backdrop-blur-[2px] lg:static lg:bg-transparent lg:z-auto"
+			className={`fixed inset-0 bg-black/45 backdrop-blur-[2px] ${
+				forceDrawer ? "" : "lg:static lg:bg-transparent lg:z-auto"
+			}`}
 			style={{
 				zIndex: LAYERS.OVERLAY,
 				paddingRight: "env(safe-area-inset-right)",
@@ -1233,9 +1238,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		>
 			<div
 				id="tour-filter-panel"
-				className="absolute right-0 top-0 h-full w-full max-w-sm border-l border-border/70 bg-background/97 lg:static lg:max-w-none lg:border-l-0 lg:h-fit"
+				className={`absolute right-0 top-0 h-full w-full max-w-sm border-l border-border/70 bg-background/97 ${
+					forceDrawer ? "" : "lg:static lg:h-fit lg:max-w-none lg:border-l-0"
+				}`}
 			>
-				<Card className="ooo-site-card flex h-full flex-col border-0 py-0 lg:h-fit lg:border">
+				<Card
+					className={`ooo-site-card flex h-full flex-col border-0 py-0 ${
+						forceDrawer ? "" : "lg:h-fit lg:border"
+					}`}
+				>
 					<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 border-b border-border/70 py-5">
 						<CardTitle className="flex min-w-0 items-center gap-2 whitespace-nowrap text-[1.5rem] [font-family:var(--ooo-font-display)] font-light leading-none tracking-[0.01em]">
 							<Filter
@@ -1270,7 +1281,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								variant="outline"
 								size="icon"
 								onClick={onClose}
-								className="h-8 w-8 rounded-full border-border/70 bg-background/70 hover:bg-accent lg:hidden"
+								className={`h-8 w-8 rounded-full border-border/70 bg-background/70 hover:bg-accent ${
+									forceDrawer ? "" : "lg:hidden"
+								}`}
 							>
 								<X className="h-4 w-4" />
 							</Button>
@@ -1307,7 +1320,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						</div>
 					)}
 
-					<CardContent className="min-h-0 flex-1 space-y-6 overflow-y-auto py-4 lg:overflow-y-visible">
+					<CardContent
+						className={`min-h-0 flex-1 space-y-6 overflow-y-auto py-4 ${
+							forceDrawer ? "" : "lg:overflow-y-visible"
+						}`}
+					>
 						{/* Active Filters - Top on desktop when few filters */}
 						{uiDecisions.activeFiltersAtTop && (
 							<div className="hidden lg:block">
@@ -1710,7 +1727,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</div>
 						)}
 					</CardContent>
-					<div className="flex items-center justify-end gap-2 border-t border-border/70 bg-background/76 px-4 py-3 lg:hidden">
+					<div
+						className={`flex items-center justify-end gap-2 border-t border-border/70 bg-background/76 px-4 py-3 ${
+							forceDrawer ? "" : "lg:hidden"
+						}`}
+					>
 						<Button
 							type="button"
 							size="sm"
@@ -1724,6 +1745,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			</div>
 		</div>
 	);
+
+	if (forceDrawer && typeof document !== "undefined") {
+		return createPortal(openPanel, document.body);
+	}
+
+	return openPanel;
 };
 
 export default FilterPanel;
