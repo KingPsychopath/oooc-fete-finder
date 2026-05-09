@@ -191,8 +191,8 @@ export default function RootLayout({
 					<ThemeColorSync />
 					<AuthProvider>
 						{children}
-						<MobileBottomNav />
 						<Footer />
+						<MobileBottomNav />
 						<SupportCoffeePrompt />
 						<CommunityInvite />
 						<OfflineIndicator />

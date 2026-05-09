@@ -493,7 +493,7 @@ export function MobileBottomNav() {
 		<>
 			<div
 				aria-hidden="true"
-				className="h-[calc(5.75rem+env(safe-area-inset-bottom))] lg:hidden"
+				className="h-[calc(5.75rem+env(safe-area-inset-bottom))] bg-card/78 backdrop-blur lg:hidden"
 			/>
 			<div
 				className={cn(
