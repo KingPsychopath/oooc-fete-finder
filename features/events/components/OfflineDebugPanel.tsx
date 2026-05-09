@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/features/auth/auth-context";
+import { useOptionalAuth } from "@/features/auth/auth-context";
 import { useEventsOffline } from "@/features/events/components/events-offline-provider";
 import { useEffect, useMemo, useState } from "react";
 
@@ -78,7 +78,7 @@ export function OfflineDebugPanel() {
 		isAuthenticated,
 		isOnline,
 		offlineGraceExpiresAt,
-	} = useAuth();
+	} = useOptionalAuth();
 	const {
 		eventDataSource,
 		eventSnapshotFreshness,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/features/auth/auth-context";
+import { useOptionalAuth } from "@/features/auth/auth-context";
 import EventModal from "@/features/events/components/EventModal";
 import type { Event } from "@/features/events/types";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -30,7 +30,7 @@ const buildEventPath = (event: Event, params = new URLSearchParams()): string =>
 export function EventShareClient({ event }: EventShareClientProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
-	const { isAuthenticated } = useAuth();
+	const { isAuthenticated } = useOptionalAuth();
 	const [hasHydrated, setHasHydrated] = useState(false);
 	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(
 		() => searchParams.get(REQUEST_UPDATE_PARAM) === "1",
