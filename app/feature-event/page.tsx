@@ -55,7 +55,6 @@ const packages: PromotionPackage[] = [
 		priceLabel: "EUR 80",
 		description: "Best for early-season bookings before peak June pricing.",
 		includes: [
-			"48-hour activation period",
 			"Above-the-fold Spotlight placement",
 			"Pinned to top of relevant search results",
 			"Featured map treatment",
@@ -72,7 +71,6 @@ const packages: PromotionPackage[] = [
 		description:
 			"Premium placement for the final Fete push: June 15-20, 2026.",
 		includes: [
-			"48-hour activation period",
 			"All Spotlight Standard benefits",
 			"Priority activation window (June 15-20, 2026)",
 			"WhatsApp community announcement included",
@@ -88,7 +86,6 @@ const packages: PromotionPackage[] = [
 		priceLabel: "EUR 40",
 		description: "Mid-tier visibility without full Spotlight placement.",
 		includes: [
-			"48-hour activation period",
 			"Promoted badge on event card",
 			"Visual highlight in map event list",
 			"Promoted label in list results",
@@ -363,8 +360,9 @@ export default async function FeatureEventPage() {
 								without taking one of the top slots.
 							</p>
 							<p className="mt-3">
-								Send the request even if you are unsure. We will recommend the
-								best fit before confirming anything.
+								Tell us the genre, area, date, or audience context you care
+								about. We can use Fête Finder search, filter, and click signals
+								to help shape the placement before confirming anything.
 							</p>
 						</CardContent>
 					</Card>

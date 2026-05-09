@@ -205,6 +205,9 @@ export function FeatureEventRequestBuilder({
 							Pick a visibility level. We will confirm fit, timing, and payment
 							before anything goes live.
 						</p>
+						<p className="mt-2 text-xs font-medium text-foreground/80">
+							All placements run for 48 hours once activated.
+						</p>
 					</div>
 					<div className="grid gap-4 md:grid-cols-2">
 						{packages.map((pkg) => {
@@ -551,7 +554,7 @@ export function FeatureEventRequestBuilder({
 						: "pointer-events-none translate-y-full opacity-0",
 				)}
 				style={{
-					bottom: "calc(env(safe-area-inset-bottom) + 4.25rem)",
+					bottom: "calc(env(safe-area-inset-bottom) + 3.5rem)",
 					transitionTimingFunction: isMobileSummaryOpen
 						? "cubic-bezier(0.16, 1, 0.3, 1)"
 						: "cubic-bezier(0.7, 0, 0.84, 0)",
@@ -664,6 +667,10 @@ export function FeatureEventRequestBuilder({
 						</p>
 						<p className="flex items-center gap-1 text-xs text-muted-foreground">
 							{formatPrice(total)} estimated
+							<span aria-hidden="true">·</span>
+							<span>
+								{isMobileSummaryOpen ? "Hide summary" : "View summary"}
+							</span>
 							{isMobileSummaryOpen ? (
 								<ChevronDown className="h-3.5 w-3.5" />
 							) : (
