@@ -31,6 +31,7 @@ import {
 	Crown,
 	Euro,
 	Flame,
+	LocateFixed,
 	MapPin,
 	Megaphone,
 	Moon,
@@ -47,6 +48,7 @@ type EventCardProps = {
 	socialProofMode?: SocialProofDisplayMode;
 	genreFrequency?: GenreFrequency;
 	isSaved?: boolean;
+	proximityLabel?: string;
 };
 
 /**
@@ -59,6 +61,7 @@ export function EventCard({
 	socialProofMode,
 	genreFrequency,
 	isSaved = false,
+	proximityLabel,
 }: EventCardProps) {
 	const handleClick = () => {
 		if (!event || !onClick) {
@@ -242,6 +245,14 @@ export function EventCard({
 									<Trees className="h-3.5 w-3.5" />
 								</span>
 							)}
+						</span>
+					</div>
+				)}
+				{proximityLabel && (
+					<div className="flex items-center space-x-1 text-sky-800 dark:text-sky-200">
+						<LocateFixed className="h-3 w-3 flex-shrink-0" />
+						<span className="truncate text-xs font-medium">
+							{proximityLabel}
 						</span>
 					</div>
 				)}

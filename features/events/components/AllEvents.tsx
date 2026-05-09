@@ -28,6 +28,21 @@ const eventSortOptions: {
 const INITIAL_VISIBLE_EVENTS = 24;
 const VISIBLE_EVENTS_INCREMENT = 24;
 
+const getDistanceKm = (event: Event): number | null => {
+	if (!("distanceKm" in event)) return null;
+	const distanceKm = (event as Record<"distanceKm", unknown>).distanceKm;
+	return typeof distanceKm === "number" && Number.isFinite(distanceKm)
+		? distanceKm
+		: null;
+};
+
+const formatProximityLabel = (event: Event): string | undefined => {
+	const distanceKm = getDistanceKm(event);
+	if (distanceKm === null) return undefined;
+	if (distanceKm < 1) return `${Math.round(distanceKm * 1000)} m away`;
+	return `${distanceKm.toFixed(distanceKm < 10 ? 1 : 0)} km away`;
+};
+
 type AllEventsProps = {
 	events: Event[];
 	onEventClick: (event: Event) => void;
@@ -240,13 +255,17 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 						{isNearbyActive || nearbyEventsError ? (
 							<p className="text-xs leading-relaxed text-muted-foreground">
 								{isNearbyActive
-									? `Showing ${nearbyMatchedEventsCount} saved event${
+									? `Ordered by distance: ${nearbyMatchedEventsCount} event${
 											nearbyMatchedEventsCount === 1 ? "" : "s"
 										} with trusted coordinates nearest to ${
 											nearbyEventsStatus === "active-last-known"
 												? "your last known location"
 												: "you"
-										}.`
+										}${
+											nearbyEventsStatus === "active-last-known"
+												? " from this device."
+												: "."
+										}`
 									: nearbyEventsError}
 							</p>
 						) : null}
@@ -301,6 +320,9 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 										)}
 										genreFrequency={genreFrequency}
 										isSaved={isEventSaved(event.eventKey)}
+										proximityLabel={
+											isNearbyActive ? formatProximityLabel(event) : undefined
+										}
 									/>
 								</div>
 							))}
