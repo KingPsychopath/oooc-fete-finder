@@ -5,6 +5,10 @@ import {
 	getUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
+import {
+	forbiddenNoStoreResponse,
+	isSameOriginRequest,
+} from "@/lib/http/request-security";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -31,7 +35,11 @@ export async function GET(request: NextRequest) {
 	);
 }
 
-export async function DELETE() {
+export async function DELETE(request?: NextRequest) {
+	if (request && !isSameOriginRequest(request)) {
+		return forbiddenNoStoreResponse();
+	}
+
 	const response = NextResponse.json(
 		{ success: true },
 		{

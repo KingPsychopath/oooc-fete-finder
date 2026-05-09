@@ -3,11 +3,20 @@ import {
 	verifyStripeWebhookSignature,
 } from "@/features/partners/stripe-webhook";
 import { env } from "@/lib/config/env";
+import {
+	isWithinBodySizeLimit,
+	tooLargeNoStoreResponse,
+} from "@/lib/http/request-security";
 import { log } from "@/lib/platform/logger";
 
 export const runtime = "nodejs";
+const STRIPE_WEBHOOK_BODY_LIMIT_BYTES = 256 * 1024;
 
 export async function POST(request: Request) {
+	if (!isWithinBodySizeLimit(request, STRIPE_WEBHOOK_BODY_LIMIT_BYTES)) {
+		return tooLargeNoStoreResponse();
+	}
+
 	const webhookSecret = env.STRIPE_WEBHOOK_SECRET?.trim();
 	if (!webhookSecret) {
 		log.warn(

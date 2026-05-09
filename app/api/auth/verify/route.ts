@@ -11,6 +11,14 @@ import {
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
+import {
+	DEFAULT_JSON_BODY_LIMIT_BYTES,
+	forbiddenNoStoreResponse,
+	isJsonContentType,
+	isSameOriginRequest,
+	isWithinBodySizeLimit,
+	tooLargeNoStoreResponse,
+} from "@/lib/http/request-security";
 import { log } from "@/lib/platform/logger";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
@@ -70,6 +78,19 @@ const logLimiterUnavailable = (decision: RateLimitDecision): void => {
 };
 
 export async function POST(request: Request) {
+	if (!isSameOriginRequest(request)) {
+		return forbiddenNoStoreResponse();
+	}
+	if (!isJsonContentType(request)) {
+		return NextResponse.json(
+			{ success: false, error: "Unsupported media type" },
+			{ status: 415, headers: NO_STORE_HEADERS },
+		);
+	}
+	if (!isWithinBodySizeLimit(request, DEFAULT_JSON_BODY_LIMIT_BYTES)) {
+		return tooLargeNoStoreResponse();
+	}
+
 	const clientIp = extractClientIpFromHeaders(request.headers);
 	const ipDecision = await checkAuthVerifyIpLimit(clientIp);
 	logLimiterUnavailable(ipDecision);

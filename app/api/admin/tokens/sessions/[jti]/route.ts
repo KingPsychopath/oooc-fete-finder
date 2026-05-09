@@ -1,6 +1,10 @@
 import { revokeAdminSessionByJti } from "@/features/auth/admin-auth-token";
 import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
+import {
+	forbiddenNoStoreResponse,
+	isSameOriginRequest,
+} from "@/lib/http/request-security";
 import { NextRequest, NextResponse } from "next/server";
 
 type RouteContext = {
@@ -8,6 +12,10 @@ type RouteContext = {
 };
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
+	if (!isSameOriginRequest(request)) {
+		return forbiddenNoStoreResponse();
+	}
+
 	if (!(await validateAdminKeyForApiRoute(request))) {
 		return NextResponse.json(
 			{ success: false, error: "Unauthorized" },

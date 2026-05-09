@@ -8,11 +8,23 @@ import {
 	checkTrackDiscoverySessionLimit,
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
-import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
+import {
+	TRACKING_JSON_BODY_LIMIT_BYTES,
+	acceptedNoStoreResponse,
+	isJsonContentType,
+	isSameOriginRequest,
+	isWithinBodySizeLimit,
+} from "@/lib/http/request-security";
 import { log } from "@/lib/platform/logger";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
-import { NextResponse } from "next/server";
 import { z } from "zod";
+
+const recordedAtSchema = z
+	.string()
+	.trim()
+	.max(80)
+	.refine((value) => !Number.isNaN(Date.parse(value)), "Invalid timestamp")
+	.optional();
 
 const discoveryTrackSchema = z.object({
 	actionType: z.enum([
@@ -30,7 +42,7 @@ const discoveryTrackSchema = z.object({
 	filterValue: z.string().trim().max(120).optional(),
 	searchQuery: z.string().trim().max(280).optional(),
 	path: z.string().trim().max(280).optional(),
-	recordedAt: z.string().trim().max(80).optional(),
+	recordedAt: recordedAtSchema,
 	clientContext: z
 		.object({
 			deviceClass: z.string().trim().max(40).nullable().optional(),
@@ -74,11 +86,7 @@ const KNOWN_DISCOVERY_INTERACTION_GROUPS = new Set([
 
 export const runtime = "nodejs";
 
-const accepted = () =>
-	NextResponse.json(
-		{ success: true },
-		{ status: 202, headers: NO_STORE_HEADERS },
-	);
+const accepted = acceptedNoStoreResponse;
 
 const parseCookieByName = (
 	cookieHeader: string | null,
@@ -96,6 +104,16 @@ const parseCookieByName = (
 };
 
 export async function POST(request: Request) {
+	if (!isSameOriginRequest(request)) {
+		return accepted();
+	}
+	if (!isJsonContentType(request)) {
+		return accepted();
+	}
+	if (!isWithinBodySizeLimit(request, TRACKING_JSON_BODY_LIMIT_BYTES)) {
+		return accepted();
+	}
+
 	const repository = getDiscoveryAnalyticsRepository();
 	if (!repository) {
 		return accepted();
@@ -176,9 +194,7 @@ export async function POST(request: Request) {
 			),
 		);
 		for (const sessionId of sessionIds) {
-			const sessionDecision = await checkTrackDiscoverySessionLimit(
-				sessionId,
-			);
+			const sessionDecision = await checkTrackDiscoverySessionLimit(sessionId);
 			if (sessionDecision.reason === "limiter_unavailable") {
 				return accepted();
 			}

@@ -9,16 +9,28 @@ import {
 	checkUserPreferenceIpLimit,
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
-import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
+import {
+	TRACKING_JSON_BODY_LIMIT_BYTES,
+	acceptedNoStoreResponse,
+	isJsonContentType,
+	isSameOriginRequest,
+	isWithinBodySizeLimit,
+} from "@/lib/http/request-security";
 import { log } from "@/lib/platform/logger";
 import { getUserGenrePreferenceRepository } from "@/lib/platform/postgres/user-genre-preference-repository";
-import { NextResponse } from "next/server";
 import { z } from "zod";
+
+const recordedAtSchema = z
+	.string()
+	.trim()
+	.max(80)
+	.refine((value) => !Number.isNaN(Date.parse(value)), "Invalid timestamp")
+	.optional();
 
 const genrePreferenceSchema = z.object({
 	genre: z.string().trim().min(1).max(60),
 	incrementBy: z.number().int().min(1).max(10).optional(),
-	recordedAt: z.string().trim().max(80).optional(),
+	recordedAt: recordedAtSchema,
 	clientContext: z
 		.object({
 			deviceClass: z.string().trim().max(40).nullable().optional(),
@@ -39,11 +51,7 @@ const allowedGenres = new Set<MusicGenre>(
 
 export const runtime = "nodejs";
 
-const accepted = () =>
-	NextResponse.json(
-		{ success: true },
-		{ status: 202, headers: NO_STORE_HEADERS },
-	);
+const accepted = acceptedNoStoreResponse;
 
 const parseCookieByName = (
 	cookieHeader: string | null,
@@ -61,6 +69,16 @@ const parseCookieByName = (
 };
 
 export async function POST(request: Request) {
+	if (!isSameOriginRequest(request)) {
+		return accepted();
+	}
+	if (!isJsonContentType(request)) {
+		return accepted();
+	}
+	if (!isWithinBodySizeLimit(request, TRACKING_JSON_BODY_LIMIT_BYTES)) {
+		return accepted();
+	}
+
 	const repository = getUserGenrePreferenceRepository();
 	if (!repository) {
 		return accepted();
@@ -96,7 +114,8 @@ export async function POST(request: Request) {
 		return accepted();
 	}
 
-	const validEvents: Array<(typeof events)[number] & { genre: MusicGenre }> = [];
+	const validEvents: Array<(typeof events)[number] & { genre: MusicGenre }> =
+		[];
 	for (const event of events) {
 		const genre = resolveMusicGenre(event.genre);
 		if (!genre || !allowedGenres.has(genre)) continue;

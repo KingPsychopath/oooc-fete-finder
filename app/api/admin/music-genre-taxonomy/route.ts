@@ -6,6 +6,13 @@ import {
 	removeMusicGenreFromEditor,
 } from "@/features/data-management/actions";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
+import {
+	DEFAULT_JSON_BODY_LIMIT_BYTES,
+	forbiddenNoStoreResponse,
+	isSameOriginRequest,
+	isWithinBodySizeLimit,
+	tooLargeNoStoreResponse,
+} from "@/lib/http/request-security";
 import { NextRequest, NextResponse } from "next/server";
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
@@ -31,6 +38,13 @@ const getAdminCredential = (request: NextRequest): string | null => {
 };
 
 export async function POST(request: NextRequest) {
+	if (!isSameOriginRequest(request)) {
+		return forbiddenNoStoreResponse();
+	}
+	if (!isWithinBodySizeLimit(request, DEFAULT_JSON_BODY_LIMIT_BYTES)) {
+		return tooLargeNoStoreResponse();
+	}
+
 	const credential = getAdminCredential(request);
 	if (!(await validateAdminKeyForApiRoute(request, credential))) {
 		return NextResponse.json(

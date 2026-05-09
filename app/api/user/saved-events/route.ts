@@ -3,6 +3,13 @@ import {
 	getUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
+import {
+	DEFAULT_JSON_BODY_LIMIT_BYTES,
+	acceptedNoStoreResponse,
+	isJsonContentType,
+	isSameOriginRequest,
+	isWithinBodySizeLimit,
+} from "@/lib/http/request-security";
 import { log } from "@/lib/platform/logger";
 import { getUserEventRelationshipRepository } from "@/lib/platform/postgres/user-event-relationship-repository";
 import { NextResponse } from "next/server";
@@ -72,6 +79,16 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+	if (!isSameOriginRequest(request)) {
+		return acceptedNoStoreResponse();
+	}
+	if (!isJsonContentType(request)) {
+		return acceptedNoStoreResponse();
+	}
+	if (!isWithinBodySizeLimit(request, DEFAULT_JSON_BODY_LIMIT_BYTES)) {
+		return acceptedNoStoreResponse();
+	}
+
 	const repository = getUserEventRelationshipRepository();
 	const userId = getUserRelationshipId(request);
 	if (!repository || !userId) {

@@ -12,6 +12,13 @@ import {
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
+import {
+	DEFAULT_JSON_BODY_LIMIT_BYTES,
+	forbiddenNoStoreResponse,
+	isSameOriginRequest,
+	isWithinBodySizeLimit,
+	tooLargeNoStoreResponse,
+} from "@/lib/http/request-security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -54,6 +61,13 @@ const serviceUnavailableResponse = (): NextResponse =>
 	);
 
 export async function POST(request: Request) {
+	if (!isSameOriginRequest(request)) {
+		return forbiddenNoStoreResponse();
+	}
+	if (!isWithinBodySizeLimit(request, DEFAULT_JSON_BODY_LIMIT_BYTES)) {
+		return tooLargeNoStoreResponse();
+	}
+
 	const contentType = request.headers.get("content-type") || "";
 	if (!contentType.toLowerCase().includes("application/json")) {
 		return NextResponse.json(

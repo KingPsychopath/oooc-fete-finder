@@ -1,5 +1,9 @@
 import { forceRefreshEventsData } from "@/features/data-management/runtime-service";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
+import {
+	forbiddenNoStoreResponse,
+	isSameOriginRequest,
+} from "@/lib/http/request-security";
 import { log } from "@/lib/platform/logger";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -19,6 +23,10 @@ const readSecretToken = (request: NextRequest): string => {
 };
 
 async function handleRevalidation(request: NextRequest): Promise<NextResponse> {
+	if (!isSameOriginRequest(request)) {
+		return forbiddenNoStoreResponse();
+	}
+
 	const configuredSecret = process.env.DEPLOY_REVALIDATE_SECRET?.trim() ?? "";
 	if (!configuredSecret) {
 		log.warn(

@@ -12,13 +12,25 @@ import {
 	checkTrackEventSessionLimit,
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
-import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
+import {
+	TRACKING_JSON_BODY_LIMIT_BYTES,
+	acceptedNoStoreResponse,
+	isJsonContentType,
+	isSameOriginRequest,
+	isWithinBodySizeLimit,
+} from "@/lib/http/request-security";
 import { log } from "@/lib/platform/logger";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import { getEventSheetStoreRepository } from "@/lib/platform/postgres/event-sheet-store-repository";
 import { getUserEventRelationshipRepository } from "@/lib/platform/postgres/user-event-relationship-repository";
-import { NextResponse } from "next/server";
 import { z } from "zod";
+
+const recordedAtSchema = z
+	.string()
+	.trim()
+	.max(80)
+	.refine((value) => !Number.isNaN(Date.parse(value)), "Invalid timestamp")
+	.optional();
 
 const trackPayloadSchema = z.object({
 	eventKey: z.string().trim().min(1).max(220),
@@ -26,7 +38,7 @@ const trackPayloadSchema = z.object({
 	sessionId: z.string().trim().max(120).optional(),
 	source: z.string().trim().max(80).optional(),
 	path: z.string().trim().max(280).optional(),
-	recordedAt: z.string().trim().max(80).optional(),
+	recordedAt: recordedAtSchema,
 	clientContext: z
 		.object({
 			deviceClass: z.string().trim().max(40).nullable().optional(),
@@ -43,11 +55,7 @@ const trackBatchPayloadSchema = z.object({
 
 export const runtime = "nodejs";
 
-const accepted = () =>
-	NextResponse.json(
-		{ success: true },
-		{ status: 202, headers: NO_STORE_HEADERS },
-	);
+const accepted = acceptedNoStoreResponse;
 
 const parseCookieByName = (
 	cookieHeader: string | null,
@@ -92,6 +100,16 @@ const isKnownEventKey = async (eventKey: string): Promise<boolean | null> => {
 };
 
 export async function POST(request: Request) {
+	if (!isSameOriginRequest(request)) {
+		return accepted();
+	}
+	if (!isJsonContentType(request)) {
+		return accepted();
+	}
+	if (!isWithinBodySizeLimit(request, TRACKING_JSON_BODY_LIMIT_BYTES)) {
+		return accepted();
+	}
+
 	const repository = getEventEngagementRepository();
 	if (!repository) {
 		return accepted();
