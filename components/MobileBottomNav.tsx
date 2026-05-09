@@ -487,14 +487,14 @@ export function MobileBottomNav() {
 		setIsMoreOpen(false);
 	};
 	const moreItemClassName =
-		"rounded-xl border border-border/55 bg-card/50 px-3 py-2 text-sm text-foreground/85 shadow-[0_1px_0_rgba(255,255,255,0.42)_inset] transition-colors hover:border-border/80 hover:bg-accent hover:text-foreground";
+		"rounded-xl px-2.5 py-2 text-sm text-foreground/86 transition-colors hover:bg-accent hover:text-foreground";
 	const moreInternalItemClassName = cn(
 		moreItemClassName,
-		"flex min-h-12 flex-col justify-center gap-1",
+		"grid min-h-11 grid-cols-[1.75rem_1fr] items-center gap-2",
 	);
 	const moreExternalItemClassName = cn(
 		moreItemClassName,
-		"grid min-h-12 grid-cols-[1fr_auto] items-start gap-2",
+		"grid min-h-11 grid-cols-[1.75rem_1fr_auto] items-center gap-2",
 	);
 
 	return (
@@ -513,7 +513,7 @@ export function MobileBottomNav() {
 				{isMoreOpen && (
 					<div
 						id="mobile-more-menu"
-						className="mx-auto mb-2 max-w-md rounded-2xl border border-border/75 bg-card/96 p-3 shadow-[0_18px_48px_rgba(20,16,12,0.28)] backdrop-blur-xl"
+						className="mx-auto mb-2 max-h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom))] max-w-md overflow-y-auto rounded-2xl border border-border/75 bg-card/96 p-3 shadow-[0_18px_48px_rgba(20,16,12,0.28)] backdrop-blur-xl"
 					>
 						<div className="flex items-center justify-between px-1 pb-2">
 							<p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -530,18 +530,18 @@ export function MobileBottomNav() {
 								<X className="h-4 w-4" />
 							</Button>
 						</div>
-						<div className="grid gap-3.5">
-							<div className="rounded-2xl border border-border/70 bg-background/48 p-1">
+						<div className="grid gap-3">
+							<div className="rounded-2xl border border-primary/35 bg-primary/10 p-1.5 shadow-[0_16px_34px_-28px_rgba(20,16,12,0.58)]">
 								<button
 									type="button"
 									onClick={handleTourStart}
-									className="grid min-h-14 w-full grid-cols-[2.5rem_1fr] items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-foreground/90 transition-colors hover:bg-accent hover:text-foreground"
+									className="grid min-h-16 w-full grid-cols-[2.75rem_1fr] items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-background/70"
 								>
-									<span className="flex size-9 items-center justify-center rounded-full border border-border/70 bg-card/80">
-										<CircleHelp className="h-4 w-4" />
+									<span className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+										<CircleHelp className="h-4.5 w-4.5" />
 									</span>
 									<span className="min-w-0">
-										<span className="block font-medium">Take the tour</span>
+										<span className="block font-semibold">Take the tour</span>
 										<span className="mt-0.5 block text-xs leading-tight text-muted-foreground">
 											Find your first plan in 30 seconds
 										</span>
@@ -553,13 +553,15 @@ export function MobileBottomNav() {
 								<p className="px-1 pb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
 									Guide
 								</p>
-								<div className="grid grid-cols-2 gap-1">
+								<div className="grid gap-0.5">
 									<Link
 										href={`${basePath || ""}/how-it-works`}
 										onClick={() => handleMoreLinkClick("how_it_works")}
 										className={moreInternalItemClassName}
 									>
-										<Info className="h-4 w-4" />
+										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+											<Info className="h-3.5 w-3.5" />
+										</span>
 										<span>How it works</span>
 									</Link>
 									<Link
@@ -567,7 +569,9 @@ export function MobileBottomNav() {
 										onClick={() => handleMoreLinkClick("feature_event")}
 										className={moreInternalItemClassName}
 									>
-										<Megaphone className="h-4 w-4" />
+										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+											<Megaphone className="h-3.5 w-3.5" />
+										</span>
 										<span>Promote</span>
 									</Link>
 								</div>
@@ -576,7 +580,7 @@ export function MobileBottomNav() {
 								<p className="px-1 pb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
 									Essentials
 								</p>
-								<div className="grid grid-cols-2 gap-1">
+								<div className="grid gap-0.5">
 									<button
 										type="button"
 										onClick={() => {
@@ -589,7 +593,9 @@ export function MobileBottomNav() {
 										}}
 										className={cn(moreInternalItemClassName, "text-left")}
 									>
-										<Music2 className="h-4 w-4" />
+										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+											<Music2 className="h-3.5 w-3.5" />
+										</span>
 										<span>Playlist</span>
 									</button>
 									<Link
@@ -599,10 +605,10 @@ export function MobileBottomNav() {
 										onClick={() => handleMoreLinkClick("food_guide")}
 										className={moreExternalItemClassName}
 									>
-										<span className="flex flex-col gap-1">
-											<Utensils className="h-4 w-4" />
-											<span>Food</span>
+										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+											<Utensils className="h-3.5 w-3.5" />
 										</span>
+										<span>Food</span>
 										<ExternalLink className="mt-0.5 h-3 w-3 opacity-55" />
 									</Link>
 									<Link
@@ -612,10 +618,10 @@ export function MobileBottomNav() {
 										onClick={() => handleMoreLinkClick("whatsapp")}
 										className={moreExternalItemClassName}
 									>
-										<span className="flex flex-col gap-1">
-											<MessageCircle className="h-4 w-4" />
-											<span>WhatsApp</span>
+										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+											<MessageCircle className="h-3.5 w-3.5" />
 										</span>
+										<span>WhatsApp</span>
 										<ExternalLink className="mt-0.5 h-3 w-3 opacity-55" />
 									</Link>
 									<Link
@@ -625,10 +631,10 @@ export function MobileBottomNav() {
 										onClick={() => handleMoreLinkClick("toilet_finder")}
 										className={moreExternalItemClassName}
 									>
-										<span className="flex flex-col gap-1">
-											<Toilet className="h-4 w-4" />
-											<span>Toilets</span>
+										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+											<Toilet className="h-3.5 w-3.5" />
 										</span>
+										<span>Toilets</span>
 										<ExternalLink className="mt-0.5 h-3 w-3 opacity-55" />
 									</Link>
 									<Link
@@ -638,10 +644,10 @@ export function MobileBottomNav() {
 										onClick={() => handleMoreLinkClick("faqs")}
 										className={moreExternalItemClassName}
 									>
-										<span className="flex flex-col gap-1">
-											<CircleHelp className="h-4 w-4" />
-											<span>FAQs</span>
+										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+											<CircleHelp className="h-3.5 w-3.5" />
 										</span>
+										<span>FAQs</span>
 										<ExternalLink className="mt-0.5 h-3 w-3 opacity-55" />
 									</Link>
 								</div>
