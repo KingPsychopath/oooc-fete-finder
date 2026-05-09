@@ -1,4 +1,6 @@
+import { readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
+import jwt from "jsonwebtoken";
 
 const EVENT_PATH = "/event/evt_115811d709b9b6ed/krispy-jam-n-29-tascha";
 const EVENT_KEY = "evt_115811d709b9b6ed";
@@ -7,6 +9,40 @@ const OFFLINE_DATABASE_NAME = "oooc-fete-finder";
 const OFFLINE_SNAPSHOT_STORE = "event-snapshots";
 const OFFLINE_DETAIL_SNAPSHOT_STORE = "event-detail-snapshots";
 const OFFLINE_HOME_SNAPSHOT_KEY = "home";
+const USER_AUTH_COOKIE_NAME = "oooc_user_session";
+const USER_AUTH_COOKIE_AUDIENCE = "oooc-fete-finder:user";
+const USER_AUTH_COOKIE_ISSUER = "oooc-fete-finder";
+
+const readLocalEnvValue = (key: string) => {
+	try {
+		const envFile = readFileSync(".env", "utf8");
+		const line = envFile
+			.split(/\r?\n/)
+			.find((candidate) => candidate.startsWith(`${key}=`));
+		return line?.slice(key.length + 1).trim();
+	} catch {
+		return undefined;
+	}
+};
+
+const signE2eUserSessionToken = (email: string) => {
+	const authSecret =
+		process.env.AUTH_SECRET?.trim() || readLocalEnvValue("AUTH_SECRET");
+	if (!authSecret) throw new Error("AUTH_SECRET is required for auth e2e");
+	return jwt.sign(
+		{
+			email: email.toLowerCase().trim(),
+			v: 1,
+		},
+		authSecret,
+		{
+			algorithm: "HS256",
+			audience: USER_AUTH_COOKIE_AUDIENCE,
+			expiresIn: 60 * 60 * 24 * 30,
+			issuer: USER_AUTH_COOKIE_ISSUER,
+		},
+	);
+};
 
 const waitForServiceWorkerReady = async (page: Page) => {
 	await page.evaluate(async () => {
@@ -176,6 +212,34 @@ const waitForNextStaticCache = async (page: Page) => {
 	});
 };
 
+const verifyUserSession = async (page: Page) => {
+	await page.context().addCookies([
+		{
+			name: USER_AUTH_COOKIE_NAME,
+			value: signE2eUserSessionToken("offline-e2e@example.com"),
+			url: "http://localhost:3000",
+			httpOnly: true,
+			sameSite: "Lax",
+			expires: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
+		},
+	]);
+};
+
+const waitForOfflineGraceState = async (page: Page) => {
+	await page.waitForFunction(() => {
+		const raw = window.localStorage.getItem("oooc_offline_auth_grace_v1");
+		if (!raw) return false;
+		try {
+			const parsed = JSON.parse(raw) as { expiresAt?: number };
+			return (
+				typeof parsed.expiresAt === "number" && parsed.expiresAt > Date.now()
+			);
+		} catch {
+			return false;
+		}
+	});
+};
+
 const failOnChunkLoadError = (page: Page) => {
 	const errors: string[] = [];
 
@@ -324,6 +388,45 @@ test.describe("event share routes", () => {
 				"Map style, sprite, glyph, and tile assets are online-only. Saved event browsing, search, and filters are still available below.",
 			),
 		).toBeVisible();
+	});
+
+	test("live session seeds offline grace before protected filters are used offline", async ({
+		context,
+		page,
+	}) => {
+		await verifyUserSession(page);
+		await page.goto("/?offlineDebug=1");
+		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		const sessionPayload = await page.evaluate(async () => {
+			const response = await fetch("/api/auth/session", { cache: "no-store" });
+			return response.json() as Promise<{ isAuthenticated: boolean }>;
+		});
+		expect(sessionPayload).toMatchObject({ isAuthenticated: true });
+		await waitForServiceWorkerReady(page);
+		await page.reload({ waitUntil: "domcontentloaded" });
+		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await waitForHomeEventSnapshot(page);
+		await waitForOfflineGraceState(page);
+		await expect(page.getByText("Auth mode").locator("..")).toContainText("live");
+		await expect(page.getByText("Protected discovery").locator("..")).toContainText(
+			"allowed",
+		);
+
+		await context.setOffline(true);
+		await page.reload({ waitUntil: "domcontentloaded" });
+
+		await expect(page.getByText(/^Saved events:/)).toBeVisible();
+		await expect(page.getByText("Auth mode").locator("..")).toContainText(
+			"offline-grace",
+		);
+		await expect(page.getByText("Protected discovery").locator("..")).toContainText(
+			"allowed",
+		);
+		await page.getByRole("button", { name: /show picks/i }).click();
+		await expect(
+			page.getByRole("button", { name: /showing picks/i }),
+		).toBeVisible();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
 	});
 
 	test("event modal reopens offline from saved event detail", async ({

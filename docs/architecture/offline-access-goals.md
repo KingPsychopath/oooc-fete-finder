@@ -198,12 +198,37 @@ a full Workbox/Serwist strategy.
 Production hardening tasks:
 
 - Decide whether to keep the hand-written service worker or migrate to Serwist.
-- Add observability for install, activate, cache hit/miss, and offline fallback
-  paths if production debugging needs it.
+- Extend observability for install, activate, cache hit/miss, and offline
+  fallback paths if production debugging needs it.
 - Review cache eviction and storage pressure behavior on mobile browsers.
 - Verify `Cache-Control` behavior for all safe event JSON responses.
 - Add a manual refresh affordance only if product design wants user-controlled
   sync.
+
+### Offline Debug Access
+
+The homepage includes an internal `OfflineDebugPanel` mounted near the saved-data
+banner. It shows the service worker version, service worker controller state,
+event snapshot saved time, snapshot freshness, event data source, auth mode,
+offline grace expiry, protected discovery access, and browser cache names.
+
+Debug panel entry points:
+
+- Development builds: visible automatically, but service worker fields will show
+  unavailable/not controlled because service worker registration is disabled in
+  `pnpm dev`.
+- Production one-off: add `?offlineDebug=1` to the homepage URL.
+- Production persistent browser toggle: run
+  `localStorage.setItem("oooc_offline_debug", "1")` in DevTools, then reload.
+- Production build-wide toggle: set `NEXT_PUBLIC_OFFLINE_DEBUG=1` at build time.
+
+To hide the persistent browser toggle, run
+`localStorage.removeItem("oooc_offline_debug")` and reload.
+
+Use this panel when diagnosing stale data, missed service worker control, or an
+offline grace issue before clearing browser storage. The source of truth for
+event freshness is the IndexedDB snapshot `savedAt` value and the provider's
+`live`/`saved` data source, not the service worker cache alone.
 
 ### Offline Auth And Search
 
@@ -226,6 +251,9 @@ future changes:
 - Build in production mode; service worker registration is production-only.
 - Visit `/` online and wait for the first event card to render.
 - Confirm `navigator.serviceWorker.ready` resolves.
+- If auth-gated filters should work offline, sign in online and confirm the
+  debug panel shows `Auth mode: live`, `Protected discovery: allowed`, and a
+  future `Offline grace expires` value before switching offline.
 - Confirm IndexedDB database `oooc-fete-finder`, store `event-snapshots`, key
   `home` contains:
   - `metadata.schemaName === "home-events"`

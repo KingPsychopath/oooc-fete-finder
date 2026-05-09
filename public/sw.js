@@ -122,6 +122,19 @@ const cacheStaticUrls = async (urls) => {
 };
 
 self.addEventListener("message", (event) => {
+	if (event.data?.type === "GET_OFFLINE_STATUS") {
+		event.ports?.[0]?.postMessage({
+			type: "OFFLINE_STATUS",
+			cacheVersion: CACHE_VERSION,
+			cacheNames: {
+				appShell: APP_SHELL_CACHE,
+				static: STATIC_CACHE,
+				safeApi: SAFE_API_CACHE,
+			},
+		});
+		return;
+	}
+
 	if (event.data?.type !== "CACHE_STATIC_URLS") return;
 	if (!Array.isArray(event.data.urls)) return;
 

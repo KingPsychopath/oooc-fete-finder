@@ -254,16 +254,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 	}, [setLiveAuthenticatedState, setSignedOutState, tryApplyOfflineGraceState]);
 
 	useEffect(() => {
-		const hasSessionHint = readAuthSessionHint();
-		const hasOfflineGraceState = Boolean(readOfflineGraceState());
 		const isBrowserOffline =
 			typeof navigator !== "undefined" && navigator.onLine === false;
 
-		if (
-			hasSessionHint ||
-			isAdminPath() ||
-			(hasOfflineGraceState && !isBrowserOffline)
-		) {
+		if (!isBrowserOffline) {
 			void refreshSession();
 			return;
 		}

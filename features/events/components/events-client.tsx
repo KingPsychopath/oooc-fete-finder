@@ -8,6 +8,7 @@ import { EventsDataStatusBanner } from "@/features/events/components/EventsDataS
 import { EventsDiscoverySummaryIsland } from "@/features/events/components/EventsDiscoverySummaryIsland";
 import { EventsMapIsland } from "@/features/events/components/EventsMapIsland";
 import { EventsSearchFiltersIsland } from "@/features/events/components/EventsSearchFiltersIsland";
+import { OfflineDebugPanel } from "@/features/events/components/OfflineDebugPanel";
 import {
 	EventsOfflineProvider,
 	useEventsOffline,
@@ -504,6 +505,7 @@ function EventsClientShell({
 	return (
 		<>
 			<EventsDataStatusBanner />
+			<OfflineDebugPanel />
 
 			{authMode === "offline-grace" && (
 				<div className="mb-6 rounded-md border border-amber-300/70 bg-amber-50/85 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-200">
