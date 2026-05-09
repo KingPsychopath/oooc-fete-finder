@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
 	CheckCircle,
+	ChevronDown,
+	ChevronUp,
 	Clipboard,
 	LineChart,
 	Mail,
@@ -129,6 +131,7 @@ export function FeatureEventRequestBuilder({
 	const [selectedAddOnIds, setSelectedAddOnIds] = useState<string[]>([]);
 	const [details, setDetails] = useState<RequestDetails>(initialDetails);
 	const [hasCopied, setHasCopied] = useState(false);
+	const [isMobileSummaryOpen, setIsMobileSummaryOpen] = useState(false);
 
 	const selectedPackage = packages.find(
 		(pkg) => pkg.id === selectedPackageId,
@@ -205,6 +208,7 @@ export function FeatureEventRequestBuilder({
 					<div className="grid gap-4 md:grid-cols-2">
 						{packages.map((pkg) => {
 							const isSelected = selectedPackageId === pkg.id;
+							const isPromoted = pkg.tier === "promoted";
 
 							return (
 								<button
@@ -213,12 +217,13 @@ export function FeatureEventRequestBuilder({
 									data-testid={`promotion-package-${pkg.id}`}
 									onClick={() => setSelectedPackageId(pkg.id)}
 									className={cn(
-										"flex h-full flex-col rounded-2xl border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:min-h-[390px]",
+										"flex h-full flex-col rounded-2xl border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:p-6",
 										isSelected
 											? "border-foreground bg-card shadow-[0_12px_34px_rgba(18,14,10,0.16)]"
 											: pkg.tier === "spotlight"
 												? "border-amber-700/30 bg-amber-50/30 hover:border-amber-900/50"
 												: "border-border/80 bg-card hover:border-foreground/40",
+										isPromoted && "md:col-span-2",
 									)}
 									aria-pressed={isSelected}
 								>
@@ -249,7 +254,12 @@ export function FeatureEventRequestBuilder({
 											{pkg.badge}
 										</Badge>
 									) : null}
-									<ul className="mt-5 space-y-2 text-sm text-muted-foreground">
+									<ul
+										className={cn(
+											"mt-5 space-y-2 text-sm text-muted-foreground",
+											isPromoted && "md:grid md:grid-cols-3 md:gap-3 md:space-y-0",
+										)}
+									>
 										{pkg.includes.map((line) => (
 											<li key={line} className="flex items-start gap-2">
 												<CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-foreground/70" />
@@ -520,16 +530,119 @@ export function FeatureEventRequestBuilder({
 				</div>
 			</aside>
 
+			{isMobileSummaryOpen ? (
+				<div
+					id="promotion-mobile-summary"
+					data-testid="promotion-mobile-summary-drawer"
+					className="fixed inset-x-0 z-40 px-3 lg:hidden"
+					style={{
+						bottom: "calc(env(safe-area-inset-bottom) + 4.75rem)",
+					}}
+				>
+					<div className="mx-auto max-w-md rounded-2xl border border-border/80 bg-card/98 p-4 shadow-[0_18px_44px_rgba(18,14,10,0.24)] backdrop-blur">
+						<div className="flex items-start justify-between gap-3">
+							<div>
+								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+									Request summary
+								</p>
+								<p className="mt-1 text-lg font-medium text-foreground">
+									{formatPrice(total)}
+								</p>
+							</div>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="size-8 rounded-full"
+								onClick={() => setIsMobileSummaryOpen(false)}
+								aria-label="Close request summary"
+							>
+								<ChevronDown className="h-4 w-4" />
+							</Button>
+						</div>
+						<div className="mt-3 space-y-2 text-sm">
+							<div className="flex items-start justify-between gap-3">
+								<p className="font-medium text-foreground">
+									{selectedPackage?.name ?? "Choose a package"}
+								</p>
+								<p className="shrink-0 text-foreground">
+									{selectedPackage ? formatPrice(selectedPackage.price) : "-"}
+								</p>
+							</div>
+							{addOns.map((addOn) => {
+								const isIncluded = includedAddOnIds.has(addOn.id);
+								const isSelected = selectedAddOns.some(
+									(selectedAddOn) => selectedAddOn.id === addOn.id,
+								);
+
+								if (!isIncluded && !isSelected) {
+									return null;
+								}
+
+								return (
+									<div
+										key={addOn.id}
+										className="flex items-start justify-between gap-3 text-muted-foreground"
+									>
+										<p>{addOn.name}</p>
+										<p className="shrink-0">
+											{isIncluded ? "Included" : formatPrice(addOn.price)}
+										</p>
+									</div>
+								);
+							})}
+						</div>
+						<div className="mt-3 rounded-xl border border-border/70 bg-background/65 p-3">
+							<p className="flex items-center gap-2 text-sm font-medium text-foreground">
+								<LineChart className="h-4 w-4" />
+								Post-promotion reporting included
+							</p>
+							<p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+								Private performance link with clicks, saves, and placement
+								activity where available.
+							</p>
+						</div>
+						<div className="mt-3 grid grid-cols-2 gap-2">
+							<a
+								href={mailtoHref}
+								className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-foreground px-3 text-sm font-medium text-background transition-all hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+							>
+								Request
+							</a>
+							<Button
+								type="button"
+								variant="outline"
+								className="h-10 rounded-full"
+								onClick={handleCopyRequest}
+							>
+								{hasCopied ? "Copied" : "Copy"}
+							</Button>
+						</div>
+					</div>
+				</div>
+			) : null}
+
 			<div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-card/95 p-3 backdrop-blur lg:hidden">
 				<div className="mx-auto flex max-w-6xl items-center gap-3">
-					<div className="min-w-0 flex-1">
+					<button
+						type="button"
+						className="min-w-0 flex-1 text-left"
+						onClick={() => setIsMobileSummaryOpen((current) => !current)}
+						aria-expanded={isMobileSummaryOpen}
+						aria-controls="promotion-mobile-summary"
+					>
 						<p className="truncate text-sm font-medium text-foreground">
 							{selectedPackage?.name ?? "Promotion request"}
 						</p>
-						<p className="text-xs text-muted-foreground">
+						<p className="flex items-center gap-1 text-xs text-muted-foreground">
 							{formatPrice(total)} estimated
+							{isMobileSummaryOpen ? (
+								<ChevronDown className="h-3.5 w-3.5" />
+							) : (
+								<ChevronUp className="h-3.5 w-3.5" />
+							)}
 						</p>
-					</div>
+					</button>
 					<a
 						data-testid="promotion-request-mailto-mobile"
 						href={mailtoHref}

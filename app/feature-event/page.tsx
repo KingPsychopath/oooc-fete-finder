@@ -66,17 +66,17 @@ const packages: PromotionPackage[] = [
 	{
 		id: "spotlight-takeover",
 		name: "Spotlight Takeover",
-		price: 150,
-		priceLabel: "EUR 150",
+		price: 100,
+		priceLabel: "EUR 100",
 		description:
-			"Reserve now for premium placement from June 15 to June 20, 2026.",
+			"Reserve premium peak-week placement before the June price increase.",
 		includes: [
 			"All Spotlight Standard benefits",
 			"Priority activation window (June 15-20, 2026)",
 			"WhatsApp community announcement included",
 			"Ideal for final-week urgency",
 		],
-		badge: "Reserve now for peak week",
+		badge: "EUR 150 from June 15 to June 20",
 		tier: "spotlight",
 	},
 	{
