@@ -263,6 +263,15 @@ export function EventsSearchFiltersProvider({
 		[events],
 	);
 
+	useEffect(() => {
+		if (
+			typeof window !== "undefined" &&
+			window.matchMedia("(min-width: 1024px)").matches
+		) {
+			setIsFilterExpanded(true);
+		}
+	}, []);
+
 	const toggleFilterPanel = useCallback(() => {
 		if (!requireAuth()) return;
 		onNeedFullEvents();
