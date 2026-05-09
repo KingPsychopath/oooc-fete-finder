@@ -3,7 +3,15 @@
 import { useEventsOffline } from "@/features/events/components/events-offline-provider";
 import { useMemo } from "react";
 
-export function EventsDataStatusBanner() {
+interface EventsDataStatusBannerProps {
+	offlineGraceExpiryLabel?: string | null;
+	showOfflineGraceAccess?: boolean;
+}
+
+export function EventsDataStatusBanner({
+	offlineGraceExpiryLabel = null,
+	showOfflineGraceAccess = false,
+}: EventsDataStatusBannerProps) {
 	const {
 		events,
 		eventDataSource,
@@ -59,6 +67,13 @@ export function EventsDataStatusBanner() {
 			are viewing {isStale ? "an older" : "the latest"} saved event snapshot
 			from {savedAtLabel}. Some live details may be unavailable until you are
 			back online.
+			{showOfflineGraceAccess ? (
+				<span>
+					{" "}
+					Filters and search are available offline
+					{offlineGraceExpiryLabel ? ` until ${offlineGraceExpiryLabel}` : ""}.
+				</span>
+			) : null}
 			{eventSnapshotSyncState === "refreshing" ? (
 				<span> Refreshing saved event data…</span>
 			) : null}
