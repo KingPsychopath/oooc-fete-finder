@@ -332,10 +332,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
 	return (
 		<div
-			className={`relative rounded-xl border p-3 ooo-site-card-soft ${className}`}
+			className={`ooo-site-card-soft relative min-w-0 overflow-hidden rounded-xl border p-3 ${className}`}
 		>
 			{/* Search Input */}
-			<div className="relative">
+			<div className="relative min-w-0">
 				<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 				<input
 					type="text"
@@ -343,7 +343,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 					onChange={(e) => handleSearch(e.target.value)}
 					onFocus={onSearchFocus}
 					placeholder={placeholder}
-					className="w-full rounded-full border border-border/75 bg-background/70 py-2 pr-10 pl-10 text-sm placeholder:text-muted-foreground/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-transparent"
+					className="min-w-0 w-full rounded-full border border-border/75 bg-background/70 py-2 pr-10 pl-10 text-sm placeholder:text-muted-foreground/90 focus:outline-none focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-ring"
 					aria-label={placeholder}
 				/>
 				{query && (
@@ -372,24 +372,24 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
 			{/* Example Search Chips */}
 			<div
-				className={`${showResultsCount ? "mt-2" : "mt-3"} max-h-[4.25rem] overflow-hidden sm:max-h-[4.5rem]`}
+				className={`${showResultsCount ? "mt-2" : "mt-3"} min-w-0`}
 			>
-				<div className="flex flex-wrap gap-1.5">
+				<div className="flex min-w-0 flex-wrap gap-1.5">
 					{exampleSearches.map((example) => (
 						<Button
 							key={example}
 							variant="outline"
 							size="sm"
 							onClick={() => handleSearch(example)}
-							className="h-auto rounded-full border-border/60 px-3 py-1.5 text-xs transition-colors hover:border-border hover:bg-accent/50"
+							className="h-auto min-w-0 max-w-full rounded-full border-border/60 px-3 py-1.5 text-xs transition-colors hover:border-border hover:bg-accent/50"
 						>
-							{example}
+							<span className="truncate">{example}</span>
 						</Button>
 					))}
 				</div>
 			</div>
 			{dynamicChips.length > 0 && (
-				<div className="mt-2 flex flex-wrap items-center gap-1.5">
+				<div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
 					<span className="inline-flex h-7 items-center rounded-full px-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
 						Popular now
 					</span>
@@ -399,7 +399,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 							variant="outline"
 							size="sm"
 							onClick={() => handleSearch(chip.query)}
-							className="h-auto max-w-[13rem] rounded-full border-amber-300/70 bg-amber-50/55 px-3 py-1.5 text-xs text-amber-950 transition-colors hover:border-amber-400 hover:bg-amber-100/70 dark:border-amber-500/45 dark:bg-amber-950/25 dark:text-amber-100"
+							className="h-auto min-w-0 max-w-full rounded-full border-amber-300/70 bg-amber-50/55 px-3 py-1.5 text-xs text-amber-950 transition-colors hover:border-amber-400 hover:bg-amber-100/70 sm:max-w-[13rem] dark:border-amber-500/45 dark:bg-amber-950/25 dark:text-amber-100"
 							aria-label={`Popular now: ${chip.label}`}
 							title="Based on recent anonymous searches"
 						>

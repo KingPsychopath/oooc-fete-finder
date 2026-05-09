@@ -112,7 +112,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			: [];
 		const sortModeControl = (
 			<div
-				className="inline-flex h-7 items-center rounded-full border border-border/75 bg-background/62 p-0.5 shadow-[0_1px_0_rgba(255,255,255,0.55)_inset]"
+				className="inline-flex h-7 w-full items-center rounded-full border border-border/75 bg-background/62 p-0.5 shadow-[0_1px_0_rgba(255,255,255,0.55)_inset] sm:w-auto"
 				aria-label="Sort events"
 				role="group"
 			>
@@ -125,7 +125,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							type="button"
 							onClick={() => onSortModeChange(option.value)}
 							aria-pressed={isSelected}
-							className={`h-6 rounded-full px-3 text-xs transition-colors max-[340px]:px-2 ${
+							className={`h-6 flex-1 rounded-full px-3 text-xs transition-colors max-[340px]:px-2 sm:flex-none ${
 								isSelected
 									? "bg-foreground text-background shadow-sm"
 									: "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -143,7 +143,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 				onClickAction={onFilterClickAction}
 				hasActiveFilters={hasActiveFilters}
 				activeFiltersCount={activeFiltersCount}
-				className="h-7 min-h-7 shrink-0 rounded-full px-3 text-xs max-[340px]:w-10 max-[340px]:px-0 [&_span[data-filter-label]]:max-[340px]:sr-only [&_svg]:max-[340px]:mr-0"
+				className="h-7 min-h-7 w-full shrink-0 rounded-full px-3 text-xs sm:w-auto max-[340px]:px-0 [&_span[data-filter-label]]:max-[340px]:sr-only [&_svg]:max-[340px]:mr-0"
 				size="sm"
 			/>
 		);
@@ -161,7 +161,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 				onClick={onNearbyClick}
 				disabled={nearbyEventsStatus === "requesting"}
 				aria-pressed={isNearbyActive}
-				className={`h-7 shrink-0 rounded-full px-3 text-xs max-[340px]:w-10 max-[340px]:px-0 ${
+				className={`h-7 w-full shrink-0 rounded-full px-3 text-xs sm:w-auto max-[340px]:px-0 ${
 					isNearbyActive
 						? "border-foreground bg-foreground text-background hover:bg-foreground/90"
 						: "border-border/75 bg-background/70"
@@ -180,7 +180,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 				variant="outline"
 				onClick={() => onSavedOnlyChange(!showSavedOnly)}
 				aria-pressed={showSavedOnly}
-				className={`h-7 shrink-0 rounded-full px-3 text-xs max-[340px]:w-10 max-[340px]:px-0 ${
+				className={`h-7 w-full shrink-0 rounded-full px-3 text-xs sm:w-auto max-[340px]:px-0 ${
 					showSavedOnly
 						? "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800 dark:border-emerald-400 dark:bg-emerald-400 dark:text-emerald-950 dark:hover:bg-emerald-300"
 						: "border-border/75 bg-background/70"
@@ -195,9 +195,9 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		);
 
 		return (
-			<Card ref={ref} className="ooo-site-card mt-6 py-0 lg:mt-0">
-				<CardHeader className="border-b border-border/70 py-5">
-					<div className="flex flex-col gap-3">
+			<Card ref={ref} className="ooo-site-card mt-6 min-w-0 py-0 lg:mt-0">
+				<CardHeader className="min-w-0 border-b border-border/70 py-5">
+					<div className="flex min-w-0 flex-col gap-3">
 						<div className="flex items-start justify-between gap-3">
 							<div className="flex min-w-0 flex-col">
 								<div className="flex items-center">
@@ -232,8 +232,8 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							Hosting something special? Put it on the map with the collective
 							and submit <span className="whitespace-nowrap">your event →</span>
 						</Link>
-						{searchSlot ? <div className="pt-1">{searchSlot}</div> : null}
-						<div className="flex max-w-full items-center gap-2 overflow-x-auto pb-0.5 sm:hidden">
+						{searchSlot ? <div className="min-w-0 pt-1">{searchSlot}</div> : null}
+						<div className="grid max-w-full min-w-0 grid-cols-2 items-center gap-2 sm:hidden">
 							{clearFiltersControl}
 							{filterButtonControl}
 							{savedButtonControl}
