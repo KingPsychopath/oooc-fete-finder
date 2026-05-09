@@ -702,8 +702,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						className="ooo-site-card overflow-hidden py-0"
 					>
 						<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 border-b border-border/70 py-4">
-							<CardTitle className="flex min-w-0 items-center whitespace-nowrap !text-[1.35rem] [font-family:var(--ooo-font-display)] font-light leading-none tracking-[0.01em]">
-								<Filter className="mr-2.5 h-[1.1rem] w-[1.1rem] stroke-[1.7]" />
+							<CardTitle className="flex min-w-0 items-center gap-2 whitespace-nowrap !text-[1.35rem] [font-family:var(--ooo-font-display)] font-light leading-none tracking-[0.01em]">
+								<Filter
+									className="h-5 w-5 shrink-0 text-muted-foreground/75"
+									strokeWidth={1.6}
+								/>
 								Filters
 								{hasActiveFilters && (
 									<Badge
@@ -1224,8 +1227,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			>
 				<Card className="ooo-site-card flex h-full flex-col border-0 py-0 lg:h-fit lg:border">
 					<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 border-b border-border/70 py-5">
-						<CardTitle className="flex min-w-0 items-center whitespace-nowrap text-[1.5rem] [font-family:var(--ooo-font-display)] font-light leading-none tracking-[0.01em]">
-							<Filter className="mr-2.5 h-[1.15rem] w-[1.15rem] stroke-[1.75]" />
+						<CardTitle className="flex min-w-0 items-center gap-2 whitespace-nowrap text-[1.5rem] [font-family:var(--ooo-font-display)] font-light leading-none tracking-[0.01em]">
+							<Filter
+								className="h-5.5 w-5.5 shrink-0 text-muted-foreground/75"
+								strokeWidth={1.6}
+							/>
 							Filters
 							{hasActiveFilters && (
 								<Badge

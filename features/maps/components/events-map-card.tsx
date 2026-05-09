@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	panelActionButtonClassName,
 	panelActionIconClassName,
-	panelActionLabelClassName,
 } from "@/features/events/components/filter-action-button-styles";
 import type { Event } from "@/features/events/types";
 import { LAYERS } from "@/lib/ui/layers";
+import { cn } from "@/lib/utils";
 import { ChevronDown, MapPin, Maximize2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import {
@@ -201,6 +201,15 @@ export function EventsMapCard({
 	const shouldRenderMap = hasMountedMap || isExpanded || isFullscreen;
 	const mapResizeSignal =
 		(isExpanded ? 1 : 0) + (isFullscreen ? 2 : 0) + (shouldRenderMap ? 4 : 0);
+	const mapHeaderActionButtonClassName = cn(
+		panelActionButtonClassName,
+		"w-11 whitespace-nowrap px-0 md:w-[8.5rem] md:px-3",
+	);
+	const mapHeaderActionIconClassName = cn(
+		panelActionIconClassName,
+		"mr-0 md:mr-1",
+	);
+	const mapHeaderActionLabelClassName = "sr-only text-sm md:not-sr-only";
 
 	const handleOpenFullscreen = () => {
 		onMapIntent?.();
@@ -245,8 +254,11 @@ export function EventsMapCard({
 					<div className="flex flex-col gap-4">
 						<div className="flex items-start justify-between gap-3">
 							<CardTitle className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-								<div className="flex items-center space-x-2">
-									<MapPin className="h-5 w-5 flex-shrink-0" />
+								<div className="flex items-center gap-2">
+									<MapPin
+										className="h-5.5 w-5.5 flex-shrink-0 text-muted-foreground/75"
+										strokeWidth={1.6}
+									/>
 									<span className="text-lg [font-family:var(--ooo-font-display)] font-light sm:text-2xl">
 										Paris Event Map
 									</span>
@@ -264,18 +276,18 @@ export function EventsMapCard({
 									ref={fullscreenButtonRef}
 									onPointerDown={handleOpenFullscreenPointerDown}
 									onClick={handleOpenFullscreen}
-									className={panelActionButtonClassName}
+									className={mapHeaderActionButtonClassName}
 									aria-expanded={isFullscreen}
 									aria-label="Open Paris event map full screen"
 								>
-									<Maximize2 className={panelActionIconClassName} />
-									<span className={panelActionLabelClassName}>Full screen</span>
+									<Maximize2 className={mapHeaderActionIconClassName} />
+									<span className={mapHeaderActionLabelClassName}>Full screen</span>
 								</Button>
 								<Button
 									variant="ghost"
 									size="sm"
 									onClick={onToggleExpanded}
-									className={panelActionButtonClassName}
+									className={mapHeaderActionButtonClassName}
 									aria-expanded={isExpanded}
 									aria-label={
 										isExpanded
@@ -284,9 +296,13 @@ export function EventsMapCard({
 									}
 								>
 									<ChevronDown
-										className={`${panelActionIconClassName} transition-transform transition-bouncy ${isExpanded ? "rotate-180" : "rotate-0"}`}
+										className={cn(
+											mapHeaderActionIconClassName,
+											"transition-transform transition-bouncy",
+											isExpanded ? "rotate-180" : "rotate-0",
+										)}
 									/>
-									<span className={panelActionLabelClassName}>
+									<span className={mapHeaderActionLabelClassName}>
 										{isExpanded ? "Collapse" : "Expand"}
 									</span>
 								</Button>

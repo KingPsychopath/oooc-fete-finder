@@ -1,7 +1,6 @@
 "use client";
 
 import { useOnlineStatus } from "@/components/offline-indicator";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEventsSearchFilters } from "@/features/events/components/events-search-filters-provider";
 import type { Event } from "@/features/events/types";
@@ -37,7 +36,6 @@ interface EventsMapIslandProps {
 
 interface EventsMapErrorBoundaryProps {
 	children: ReactNode;
-	eventsCount: number;
 	isOnline: boolean;
 	reason?: "offline" | "render-error";
 }
@@ -67,7 +65,6 @@ class EventsMapErrorBoundary extends Component<
 		if (this.state.hasError) {
 			return (
 				<EventsMapFallback
-					eventsCount={this.props.eventsCount}
 					isOnline={this.props.isOnline}
 					reason="render-error"
 				/>
@@ -79,11 +76,9 @@ class EventsMapErrorBoundary extends Component<
 }
 
 function EventsMapFallback({
-	eventsCount,
 	isOnline,
 	reason,
 }: {
-	eventsCount: number;
 	isOnline: boolean;
 	reason?: "offline" | "render-error";
 }) {
@@ -93,15 +88,15 @@ function EventsMapFallback({
 		<Card className="ooo-site-card py-0">
 			<CardHeader className="border-b border-border/70 py-5 pb-4">
 				<CardTitle className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-					<div className="flex items-center space-x-2">
-						<MapPin className="h-5 w-5 flex-shrink-0" />
+					<div className="flex items-center gap-2">
+						<MapPin
+							className="h-5.5 w-5.5 flex-shrink-0 text-muted-foreground/75"
+							strokeWidth={1.6}
+						/>
 						<span className="text-lg [font-family:var(--ooo-font-display)] font-light sm:text-2xl">
 							Paris Event Map
 						</span>
 					</div>
-					<Badge variant="secondary" className="text-xs">
-						{eventsCount} event{eventsCount !== 1 ? "s" : ""}
-					</Badge>
 				</CardTitle>
 			</CardHeader>
 			<CardContent className="px-3 py-5 pt-3 sm:px-6">
@@ -146,15 +141,11 @@ export function EventsMapIsland({
 		>
 			{!isOnline ? (
 				<EventsMapFallback
-					eventsCount={filteredEvents.length}
 					isOnline={isOnline}
 					reason="offline"
 				/>
 			) : (
-				<EventsMapErrorBoundary
-					eventsCount={filteredEvents.length}
-					isOnline={isOnline}
-				>
+				<EventsMapErrorBoundary isOnline={isOnline}>
 					<Suspense fallback={NoopSuspenseFallback}>
 						<EventsMapCard
 							events={filteredEvents}

@@ -9,7 +9,13 @@ import { trackNavigationClick } from "@/features/events/engagement/client-tracki
 import { buildGenreFrequency } from "@/features/events/genre-preview";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
-import { BookmarkCheck, LocateFixed, Lock, SearchX } from "lucide-react";
+import {
+	BookmarkCheck,
+	CalendarDays,
+	LocateFixed,
+	Lock,
+	SearchX,
+} from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, forwardRef, useState } from "react";
 
@@ -201,8 +207,12 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 						<div className="flex items-start justify-between gap-3">
 							<div className="flex min-w-0 flex-col">
 								<div className="flex items-center">
-									<CardTitle className="text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
-										All Events
+									<CardTitle className="flex items-center gap-2 text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
+										<CalendarDays
+											className="h-5.5 w-5.5 shrink-0 text-muted-foreground/75"
+											strokeWidth={1.6}
+										/>
+										<span>Events</span>
 									</CardTitle>
 								</div>
 							</div>

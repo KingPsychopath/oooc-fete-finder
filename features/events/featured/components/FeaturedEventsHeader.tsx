@@ -1,5 +1,4 @@
 "use client";
-import { CardTitle } from "@/components/ui/card";
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import Link from "next/link";
 import { FEATURED_EVENTS_CONFIG } from "../constants";
@@ -7,10 +6,6 @@ import { FEATURED_EVENTS_CONFIG } from "../constants";
 export function FeaturedEventsHeader() {
 	return (
 		<div className="flex flex-col">
-			<CardTitle className="text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
-				Spotlight
-			</CardTitle>
-			{/* CTA Message positioned close to heading like an underline */}
 			<Link
 				href={FEATURED_EVENTS_CONFIG.FEATURE_PAGE_ROUTE}
 				onClick={() =>
