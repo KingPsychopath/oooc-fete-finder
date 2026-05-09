@@ -69,14 +69,14 @@ const packages: PromotionPackage[] = [
 		price: 100,
 		priceLabel: "EUR 100",
 		description:
-			"Reserve premium peak-week placement before the June price increase.",
+			"Premium placement for the final Fete push: June 15-20, 2026.",
 		includes: [
 			"All Spotlight Standard benefits",
 			"Priority activation window (June 15-20, 2026)",
 			"WhatsApp community announcement included",
 			"Ideal for final-week urgency",
 		],
-		badge: "EUR 150 from June 15 to June 20",
+		badge: "EUR 100 now. EUR 150 during peak week.",
 		tier: "spotlight",
 	},
 	{

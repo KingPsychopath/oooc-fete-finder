@@ -201,8 +201,8 @@ export function FeatureEventRequestBuilder({
 							Choose a promotion package
 						</h2>
 						<p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-							Pick the level of visibility you want. We will confirm fit,
-							timing, and activation details before anything goes live.
+							Pick a visibility level. We will confirm fit, timing, and payment
+							before anything goes live.
 						</p>
 					</div>
 					<div className="grid gap-4 md:grid-cols-2">
@@ -285,6 +285,10 @@ export function FeatureEventRequestBuilder({
 							<Megaphone className="h-5 w-5 text-muted-foreground" />
 							Add extra reach
 						</h2>
+						<p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+							Add-ons are attached to the promotion package above. Spotlight
+							already includes WhatsApp.
+						</p>
 					</div>
 					<div className="grid gap-3 md:grid-cols-2">
 						{addOns.map((addOn) => {
@@ -356,8 +360,12 @@ export function FeatureEventRequestBuilder({
 						id="request-details-heading"
 						className="mt-1 text-2xl font-light text-foreground"
 					>
-						Tell us what to activate
+						Add event details
 					</h2>
+					<p className="mt-1 text-sm text-muted-foreground">
+						Optional but helpful. You can still send the request and fill in any
+						blanks by email.
+					</p>
 					<div className="mt-5 grid gap-4 md:grid-cols-2">
 						<div className="space-y-2">
 							<Label htmlFor="event-name">Event name</Label>
@@ -405,7 +413,7 @@ export function FeatureEventRequestBuilder({
 							/>
 						</div>
 						<div className="space-y-2 md:col-span-2">
-							<Label htmlFor="contact-email">Reply-to email</Label>
+							<Label htmlFor="contact-email">Your email</Label>
 							<Input
 								id="contact-email"
 								inputMode="email"
@@ -470,7 +478,9 @@ export function FeatureEventRequestBuilder({
 									<div>
 										<p className="font-medium text-foreground">{addOn.name}</p>
 										<p className="text-xs text-muted-foreground">
-											{isIncluded ? "Included with package" : "Paid add-on"}
+											{isIncluded
+												? `${formatPrice(addOn.price)} value included`
+												: "Paid add-on"}
 										</p>
 									</div>
 									<p className="shrink-0 font-medium text-foreground">
@@ -586,7 +596,9 @@ export function FeatureEventRequestBuilder({
 									>
 										<p>{addOn.name}</p>
 										<p className="shrink-0">
-											{isIncluded ? "Included" : formatPrice(addOn.price)}
+											{isIncluded
+												? `${formatPrice(addOn.price)} value`
+												: formatPrice(addOn.price)}
 										</p>
 									</div>
 								);
