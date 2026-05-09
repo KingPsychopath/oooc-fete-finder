@@ -86,20 +86,26 @@ export async function getEventEngagementDashboard(
 				dedupedViewCount: number;
 				outboundClickCount: number;
 				calendarSyncCount: number;
+				mapOpenCount: number;
+				mapPreferenceChangeCount: number;
 				uniqueSessionCount: number;
 				uniqueViewSessionCount: number;
 				uniqueOutboundSessionCount: number;
 				uniqueCalendarSessionCount: number;
+				uniqueMapSessionCount: number;
 				outboundSessionRate: number;
 				calendarSessionRate: number;
+				mapSessionRate: number;
 				outboundInteractionRate: number;
 				calendarInteractionRate: number;
+				mapInteractionRate: number;
 			};
 			dailySeries: Array<{
 				day: string;
 				clickCount: number;
 				outboundClickCount: number;
 				calendarSyncCount: number;
+				mapOpenCount: number;
 			}>;
 			rows: Array<{
 				eventKey: string;
@@ -108,14 +114,24 @@ export async function getEventEngagementDashboard(
 				dedupedViewCount: number;
 				outboundClickCount: number;
 				calendarSyncCount: number;
+				mapOpenCount: number;
+				mapPreferenceChangeCount: number;
 				uniqueSessionCount: number;
 				uniqueViewSessionCount: number;
 				uniqueOutboundSessionCount: number;
 				uniqueCalendarSessionCount: number;
+				uniqueMapSessionCount: number;
 				outboundSessionRate: number;
 				calendarSessionRate: number;
+				mapSessionRate: number;
 				outboundInteractionRate: number;
 				calendarInteractionRate: number;
+				mapInteractionRate: number;
+			}>;
+			mapProviders: Array<{
+				provider: string;
+				count: number;
+				uniqueSessionCount: number;
 			}>;
 			discovery: {
 				searchClusterMode: SearchClusterMode;
@@ -166,6 +182,7 @@ export async function getEventEngagementDashboard(
 			discoverySummary,
 			topSearchesRaw,
 			topFilters,
+			mapProviders,
 			topGenresRaw,
 		] = await Promise.all([
 			engagementRepository.summarizeWindow({ startAt, endAt }),
@@ -189,6 +206,11 @@ export async function getEventEngagementDashboard(
 			discoveryRepository
 				? discoveryRepository.listTopFilters({ startAt, endAt, limit: 30 })
 				: Promise.resolve([]),
+			engagementRepository.listMapProviderBreakdown({
+				startAt,
+				endAt,
+				limit: 8,
+			}),
 			preferenceRepository
 				? preferenceRepository.listTopGenres({ limit: 10 })
 				: Promise.resolve([]),
@@ -220,16 +242,23 @@ export async function getEventEngagementDashboard(
 				dedupedViewCount: summary.dedupedViewCount,
 				outboundClickCount: summary.outboundClickCount,
 				calendarSyncCount: summary.calendarSyncCount,
+				mapOpenCount: summary.mapOpenCount,
+				mapPreferenceChangeCount: summary.mapPreferenceChangeCount,
 				uniqueSessionCount: summary.uniqueSessionCount,
 				uniqueViewSessionCount: summary.uniqueViewSessionCount,
 				uniqueOutboundSessionCount: summary.uniqueOutboundSessionCount,
 				uniqueCalendarSessionCount: summary.uniqueCalendarSessionCount,
+				uniqueMapSessionCount: summary.uniqueMapSessionCount,
 				outboundSessionRate: toPercent(
 					summary.uniqueOutboundSessionCount,
 					summary.uniqueViewSessionCount,
 				),
 				calendarSessionRate: toPercent(
 					summary.uniqueCalendarSessionCount,
+					summary.uniqueViewSessionCount,
+				),
+				mapSessionRate: toPercent(
+					summary.uniqueMapSessionCount,
 					summary.uniqueViewSessionCount,
 				),
 				outboundInteractionRate: toPercent(
@@ -240,6 +269,7 @@ export async function getEventEngagementDashboard(
 					summary.calendarSyncCount,
 					summary.clickCount,
 				),
+				mapInteractionRate: toPercent(summary.mapOpenCount, summary.clickCount),
 			},
 			dailySeries,
 			rows: topRows.map((row) => ({
@@ -249,16 +279,23 @@ export async function getEventEngagementDashboard(
 				dedupedViewCount: row.dedupedViewCount,
 				outboundClickCount: row.outboundClickCount,
 				calendarSyncCount: row.calendarSyncCount,
+				mapOpenCount: row.mapOpenCount,
+				mapPreferenceChangeCount: row.mapPreferenceChangeCount,
 				uniqueSessionCount: row.uniqueSessionCount,
 				uniqueViewSessionCount: row.uniqueViewSessionCount,
 				uniqueOutboundSessionCount: row.uniqueOutboundSessionCount,
 				uniqueCalendarSessionCount: row.uniqueCalendarSessionCount,
+				uniqueMapSessionCount: row.uniqueMapSessionCount,
 				outboundSessionRate: toPercent(
 					row.uniqueOutboundSessionCount,
 					row.uniqueViewSessionCount,
 				),
 				calendarSessionRate: toPercent(
 					row.uniqueCalendarSessionCount,
+					row.uniqueViewSessionCount,
+				),
+				mapSessionRate: toPercent(
+					row.uniqueMapSessionCount,
 					row.uniqueViewSessionCount,
 				),
 				outboundInteractionRate: toPercent(
@@ -269,7 +306,9 @@ export async function getEventEngagementDashboard(
 					row.calendarSyncCount,
 					row.clickCount,
 				),
+				mapInteractionRate: toPercent(row.mapOpenCount, row.clickCount),
 			})),
+			mapProviders,
 			discovery: {
 				searchClusterMode,
 				searchCount: discoverySummary.searchCount,

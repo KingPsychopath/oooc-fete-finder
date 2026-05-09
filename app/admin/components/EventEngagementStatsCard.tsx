@@ -90,6 +90,12 @@ const SUMMARY_METRICS = [
 		label: "Calendar Adds",
 		description: "Clicks to add or sync an event to a calendar.",
 	},
+	{
+		key: "mapOpenCount",
+		label: "Map Opens",
+		description:
+			"Clicks that open an event location in a map app, deduped client-side per event and provider for 30 seconds.",
+	},
 ] as const;
 
 const DISCOVERY_SUMMARY_METRICS = [
@@ -127,6 +133,13 @@ const RATE_SUMMARY_METRICS = [
 		format: (value: number) => `${value.toFixed(1)}%`,
 	},
 	{
+		key: "mapSessionRate",
+		label: "Map Session Index",
+		description:
+			"Map-open sessions divided by event-open sessions. This shows whether modal visitors use location intent, not just ticket intent.",
+		format: (value: number) => `${value.toFixed(1)}%`,
+	},
+	{
 		key: "outboundInteractionRate",
 		label: "Outbound Clicks / Open",
 		description: "Partner link clicks divided by total event opens.",
@@ -136,6 +149,12 @@ const RATE_SUMMARY_METRICS = [
 		key: "calendarInteractionRate",
 		label: "Calendar Adds / Open",
 		description: "Calendar adds divided by total event opens.",
+		format: (value: number) => `${value.toFixed(1)}%`,
+	},
+	{
+		key: "mapInteractionRate",
+		label: "Map Opens / Open",
+		description: "Map opens divided by total event opens.",
 		format: (value: number) => `${value.toFixed(1)}%`,
 	},
 ] as const;
@@ -163,6 +182,10 @@ const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 		description: "Total calendar sync clicks.",
 	},
 	{
+		label: "Map",
+		description: "Total location map opens.",
+	},
+	{
 		label: "Unique Sessions",
 		description: "Distinct sessions with any engagement for this event.",
 	},
@@ -179,6 +202,10 @@ const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 		description: "Distinct sessions with at least one calendar sync.",
 	},
 	{
+		label: "Map Sessions",
+		description: "Distinct sessions with at least one map open.",
+	},
+	{
 		label: "Outbound CVR",
 		description: "Outbound Sessions divided by View Sessions.",
 	},
@@ -187,12 +214,20 @@ const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 		description: "Calendar Sessions divided by View Sessions.",
 	},
 	{
+		label: "Map CVR",
+		description: "Map Sessions divided by View Sessions.",
+	},
+	{
 		label: "Outbound Interaction",
 		description: "Outbound clicks divided by total views.",
 	},
 	{
 		label: "Calendar Interaction",
 		description: "Calendar syncs divided by total views.",
+	},
+	{
+		label: "Map Interaction",
+		description: "Map opens divided by total views.",
 	},
 ];
 
@@ -383,14 +418,19 @@ export const EventEngagementStatsCard = ({
 				dedupedViewCount: 0,
 				outboundClickCount: 0,
 				calendarSyncCount: 0,
+				mapOpenCount: 0,
+				mapPreferenceChangeCount: 0,
 				uniqueSessionCount: 0,
 				uniqueViewSessionCount: 0,
 				uniqueOutboundSessionCount: 0,
 				uniqueCalendarSessionCount: 0,
+				uniqueMapSessionCount: 0,
 				outboundSessionRate: 0,
 				calendarSessionRate: 0,
+				mapSessionRate: 0,
 				outboundInteractionRate: 0,
 				calendarInteractionRate: 0,
+				mapInteractionRate: 0,
 			};
 
 	const discovery = payload?.success
@@ -410,7 +450,7 @@ export const EventEngagementStatsCard = ({
 	const maxChartAction = Math.max(
 		1,
 		...chartRows.map((row) =>
-			Math.max(row.outboundClickCount, row.calendarSyncCount),
+			Math.max(row.outboundClickCount, row.calendarSyncCount, row.mapOpenCount),
 		),
 	);
 	const topSearchRows = payload?.success
@@ -433,12 +473,18 @@ export const EventEngagementStatsCard = ({
 		(row) =>
 			row.clickCount > 0 ||
 			row.outboundClickCount > 0 ||
-			row.calendarSyncCount > 0,
+			row.calendarSyncCount > 0 ||
+			row.mapOpenCount > 0,
 	);
 	const maxDailyValue = Math.max(
 		1,
 		...dailyRows.map((row) =>
-			Math.max(row.clickCount, row.outboundClickCount, row.calendarSyncCount),
+			Math.max(
+				row.clickCount,
+				row.outboundClickCount,
+				row.calendarSyncCount,
+				row.mapOpenCount,
+			),
 		),
 	);
 	const selectedRuleCount =
@@ -1007,7 +1053,7 @@ export const EventEngagementStatsCard = ({
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						Event Performance
 					</p>
-					<div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+					<div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
 						{SUMMARY_METRICS.map((metric) => (
 							<SummaryMetric
 								key={metric.key}
@@ -1037,7 +1083,7 @@ export const EventEngagementStatsCard = ({
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						Partner Action Rates
 					</p>
-					<div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+					<div className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
 						{RATE_SUMMARY_METRICS.map((metric) => (
 							<SummaryMetric
 								key={metric.key}
@@ -1098,7 +1144,7 @@ export const EventEngagementStatsCard = ({
 												}}
 											/>
 										</div>
-										<div className="grid grid-cols-2 gap-1.5 text-[10px] text-muted-foreground">
+										<div className="grid grid-cols-3 gap-1.5 text-[10px] text-muted-foreground">
 											<div className="space-y-1">
 												<div className="flex justify-between gap-2">
 													<span>Partner</span>
@@ -1133,6 +1179,25 @@ export const EventEngagementStatsCard = ({
 																Math.round(
 																	(row.calendarSyncCount / maxChartAction) *
 																		100,
+																),
+															)}%`,
+														}}
+													/>
+												</div>
+											</div>
+											<div className="space-y-1">
+												<div className="flex justify-between gap-2">
+													<span>Map</span>
+													<span>{row.mapOpenCount}</span>
+												</div>
+												<div className="h-1.5 rounded-full bg-muted/70">
+													<div
+														className="h-1.5 rounded-full bg-violet-700/80"
+														style={{
+															width: `${Math.max(
+																row.mapOpenCount > 0 ? 6 : 0,
+																Math.round(
+																	(row.mapOpenCount / maxChartAction) * 100,
 																),
 															)}%`,
 														}}
@@ -1395,6 +1460,7 @@ export const EventEngagementStatsCard = ({
 								{ label: "Event opens", value: summary.clickCount },
 								{ label: "Unique opens", value: summary.dedupedViewCount },
 								{ label: "Partner clicks", value: summary.outboundClickCount },
+								{ label: "Map opens", value: summary.mapOpenCount },
 								{ label: "Calendar adds", value: summary.calendarSyncCount },
 							].map((step) => (
 								<div key={step.label} className="space-y-1">
@@ -1436,6 +1502,10 @@ export const EventEngagementStatsCard = ({
 								Partner
 							</span>
 							<span className="inline-flex items-center gap-1">
+								<span className="h-1.5 w-5 rounded-full bg-violet-700/80" />
+								Map
+							</span>
+							<span className="inline-flex items-center gap-1">
 								<span className="h-1.5 w-5 rounded-full bg-sky-700/80" />
 								Calendar
 							</span>
@@ -1450,7 +1520,7 @@ export const EventEngagementStatsCard = ({
 									<div
 										key={row.day}
 										className="grid grid-cols-[4.5rem_1fr] items-center gap-2"
-										title={`${row.day}: ${row.clickCount} opens, ${row.outboundClickCount} partner, ${row.calendarSyncCount} calendar`}
+										title={`${row.day}: ${row.clickCount} opens, ${row.outboundClickCount} partner, ${row.mapOpenCount} map, ${row.calendarSyncCount} calendar`}
 									>
 										<p className="truncate text-[11px] text-muted-foreground">
 											{row.day.slice(5)}
@@ -1491,6 +1561,22 @@ export const EventEngagementStatsCard = ({
 											<div className="flex items-center gap-1.5">
 												<div className="h-1.5 flex-1 rounded-full bg-muted/70">
 													<div
+														className="h-1.5 rounded-full bg-violet-700/80"
+														style={{
+															width: `${Math.max(
+																row.mapOpenCount > 0 ? 5 : 0,
+																(row.mapOpenCount / maxDailyValue) * 100,
+															)}%`,
+														}}
+													/>
+												</div>
+												<span className="w-6 text-right text-[10px] tabular-nums">
+													{row.mapOpenCount}
+												</span>
+											</div>
+											<div className="flex items-center gap-1.5">
+												<div className="h-1.5 flex-1 rounded-full bg-muted/70">
+													<div
 														className="h-1.5 rounded-full bg-sky-700/80"
 														style={{
 															width: `${Math.max(
@@ -1509,6 +1595,70 @@ export const EventEngagementStatsCard = ({
 								))}
 							</div>
 						)}
+					</div>
+				</section>
+
+				<section className="space-y-2 rounded-md border bg-background/55 p-3">
+					<div className="flex items-center">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Map App Preference
+						</p>
+						<InfoPopover aria-label="Explain map app analytics" side="top">
+							Map opens are tracked from the event modal location button. Map
+							preference changes are tracked only when someone changes the saved
+							provider in modal settings or the map picker.
+						</InfoPopover>
+					</div>
+					<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+						<div className="rounded-md border bg-background/70 p-3">
+							<p className="text-xs font-medium text-foreground">
+								Preference Changes
+							</p>
+							<p className="mt-1 text-2xl font-semibold tabular-nums">
+								{summary.mapPreferenceChangeCount}
+							</p>
+							<p className="mt-1 text-[11px] text-muted-foreground">
+								Only real value changes are counted.
+							</p>
+						</div>
+						<div className="space-y-2">
+							<p className="text-xs font-medium text-foreground">
+								Map opens by selected provider
+							</p>
+							{payload?.success && payload.mapProviders.length > 0 ? (
+								<div className="space-y-1.5">
+									{payload.mapProviders.map((row) => (
+										<div key={row.provider} className="space-y-1">
+											<div className="flex justify-between gap-2 text-xs">
+												<span className="capitalize">{row.provider}</span>
+												<span className="tabular-nums">
+													{row.count} opens · {row.uniqueSessionCount} sessions
+												</span>
+											</div>
+											<div className="h-2 rounded-full bg-muted/70">
+												<div
+													className="h-2 rounded-full bg-violet-700/80"
+													style={{
+														width: `${Math.max(
+															row.count > 0 ? 6 : 0,
+															Math.round(
+																(row.count /
+																	Math.max(1, summary.mapOpenCount)) *
+																	100,
+															),
+														)}%`,
+													}}
+												/>
+											</div>
+										</div>
+									))}
+								</div>
+							) : (
+								<p className="text-xs text-muted-foreground">
+									No map-open data yet.
+								</p>
+							)}
+						</div>
 					</div>
 				</section>
 
@@ -2148,7 +2298,7 @@ export const EventEngagementStatsCard = ({
 								: ""
 						}`}
 					>
-						<table className="min-w-[1280px] w-full text-xs">
+						<table className="min-w-[1560px] w-full text-xs">
 							<thead className="sticky top-0 z-10 bg-muted/85 backdrop-blur">
 								<tr>
 									<th
@@ -2192,6 +2342,12 @@ export const EventEngagementStatsCard = ({
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
+										title="Total location map opens."
+									>
+										Map
+									</th>
+									<th
+										className="px-3 py-2 text-left font-medium"
 										title="Distinct sessions with any engagement for this event."
 									>
 										Unique Sessions
@@ -2216,6 +2372,12 @@ export const EventEngagementStatsCard = ({
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
+										title="Distinct sessions with at least one map open."
+									>
+										Map Sessions
+									</th>
+									<th
+										className="px-3 py-2 text-left font-medium"
 										title="Outbound Sessions divided by View Sessions."
 									>
 										Outbound CVR
@@ -2225,6 +2387,12 @@ export const EventEngagementStatsCard = ({
 										title="Calendar Sessions divided by View Sessions."
 									>
 										Calendar CVR
+									</th>
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Map Sessions divided by View Sessions."
+									>
+										Map CVR
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
@@ -2238,13 +2406,19 @@ export const EventEngagementStatsCard = ({
 									>
 										Calendar Interaction
 									</th>
+									<th
+										className="px-3 py-2 text-left font-medium"
+										title="Map opens divided by total views."
+									>
+										Map Interaction
+									</th>
 								</tr>
 							</thead>
 							<tbody>
 								{rows.length === 0 ? (
 									<tr>
 										<td
-											colSpan={14}
+											colSpan={18}
 											className="px-3 py-6 text-center text-muted-foreground"
 										>
 											No tracked engagement events in this window.
@@ -2278,6 +2452,9 @@ export const EventEngagementStatsCard = ({
 												{row.calendarSyncCount}
 											</td>
 											<td className="px-3 py-2.5 tabular-nums">
+												{row.mapOpenCount}
+											</td>
+											<td className="px-3 py-2.5 tabular-nums">
 												{row.uniqueSessionCount}
 											</td>
 											<td className="px-3 py-2.5 tabular-nums">
@@ -2290,16 +2467,25 @@ export const EventEngagementStatsCard = ({
 												{row.uniqueCalendarSessionCount}
 											</td>
 											<td className="px-3 py-2.5 tabular-nums">
+												{row.uniqueMapSessionCount}
+											</td>
+											<td className="px-3 py-2.5 tabular-nums">
 												{formatPercent(row.outboundSessionRate)}
 											</td>
 											<td className="px-3 py-2.5 tabular-nums">
 												{formatPercent(row.calendarSessionRate)}
 											</td>
 											<td className="px-3 py-2.5 tabular-nums">
+												{formatPercent(row.mapSessionRate)}
+											</td>
+											<td className="px-3 py-2.5 tabular-nums">
 												{formatPercent(row.outboundInteractionRate)}
 											</td>
 											<td className="px-3 py-2.5 tabular-nums">
 												{formatPercent(row.calendarInteractionRate)}
+											</td>
+											<td className="px-3 py-2.5 tabular-nums">
+												{formatPercent(row.mapInteractionRate)}
 											</td>
 										</tr>
 									))

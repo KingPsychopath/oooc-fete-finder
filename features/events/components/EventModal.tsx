@@ -25,7 +25,11 @@ import {
 	isCalendarDateValid,
 } from "@/features/events/calendar-utils";
 import { getCountryOption } from "@/features/events/countries";
-import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
+import {
+	trackEventEngagement,
+	trackMapOpen,
+	trackMapPreferenceChange,
+} from "@/features/events/engagement/client-tracking";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import {
 	getCustomGenreColor,
@@ -552,6 +556,11 @@ const EventModal: React.FC<EventModalProps> = ({
 			setPendingLocationData({ location, arrondissement, resolution });
 			setShowMapSelection(true);
 		} else {
+			trackMapOpen({
+				eventKey: event.eventKey,
+				provider: mapPreference,
+				isAuthenticated,
+			});
 			await openLocationInMaps(
 				location,
 				arrondissement,
@@ -564,6 +573,11 @@ const EventModal: React.FC<EventModalProps> = ({
 
 	const handleMapSelection = async (selectedProvider: MapProvider) => {
 		if (pendingLocationData) {
+			trackMapOpen({
+				eventKey: event.eventKey,
+				provider: selectedProvider,
+				isAuthenticated,
+			});
 			await openLocationInMaps(
 				pendingLocationData.location,
 				pendingLocationData.arrondissement,
@@ -577,7 +591,27 @@ const EventModal: React.FC<EventModalProps> = ({
 	};
 
 	const handleSetMapPreference = (provider: MapProvider) => {
+		trackMapPreferenceChange({
+			eventKey: event.eventKey,
+			from: mapPreference,
+			to: provider,
+			source: "selection_default",
+			isAuthenticated,
+		});
 		setMapPreference(provider);
+	};
+
+	const handleMapSettingsPreferenceChange = (
+		from: MapProvider,
+		to: MapProvider,
+	) => {
+		trackMapPreferenceChange({
+			eventKey: event.eventKey,
+			from,
+			to,
+			source: "modal_settings",
+			isAuthenticated,
+		});
 	};
 
 	const getLinkButtonText = (url: string) => {
@@ -1356,6 +1390,7 @@ const EventModal: React.FC<EventModalProps> = ({
 									compact={true}
 									showTitle={false}
 									className="w-full"
+									onPreferenceChange={handleMapSettingsPreferenceChange}
 								/>
 							</div>
 						)}

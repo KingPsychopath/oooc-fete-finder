@@ -1,10 +1,12 @@
 import type { EventEngagementAction } from "@/features/events/engagement/types";
+import type { MapProvider } from "@/features/maps/types";
 
 const SESSION_STORAGE_KEY = "oooc:event-engagement-session";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const BATCH_FLUSH_DELAY_MS = 3000;
 const MAX_BATCH_SIZE = 20;
 const QUEUE_STORAGE_PREFIX = "oooc:analytics-queue:";
+const MAP_OPEN_DEDUPE_MS = 30_000;
 
 type ClientContext = ReturnType<typeof getClientContext>;
 
@@ -46,6 +48,7 @@ const queues: Record<QueueName, unknown[]> = {
 };
 const flushTimers: Partial<Record<QueueName, ReturnType<typeof setTimeout>>> = {};
 const loadedQueues = new Set<QueueName>();
+const recentMapOpenKeys = new Map<string, number>();
 
 const endpoints: Record<QueueName, string> = {
 	engagement: `${basePath}/api/track`,
@@ -285,6 +288,43 @@ export const trackEventEngagement = (input: {
 		recordedAt: new Date().toISOString(),
 	};
 	enqueuePayload("engagement", payload);
+};
+
+export const trackMapOpen = (input: {
+	eventKey: string;
+	provider: MapProvider;
+	isAuthenticated?: boolean;
+}) => {
+	if (typeof window === "undefined") return;
+	const eventKey = input.eventKey.trim();
+	if (!eventKey) return;
+	const now = Date.now();
+	const dedupeKey = `${eventKey}:${input.provider}`;
+	const lastTrackedAt = recentMapOpenKeys.get(dedupeKey) ?? 0;
+	if (now - lastTrackedAt < MAP_OPEN_DEDUPE_MS) return;
+	recentMapOpenKeys.set(dedupeKey, now);
+	trackEventEngagement({
+		eventKey,
+		actionType: "map_open",
+		source: `modal_location:${input.provider}`,
+		isAuthenticated: input.isAuthenticated,
+	});
+};
+
+export const trackMapPreferenceChange = (input: {
+	eventKey: string;
+	from: MapProvider;
+	to: MapProvider;
+	source: "modal_settings" | "selection_default";
+	isAuthenticated?: boolean;
+}) => {
+	if (input.from === input.to) return;
+	trackEventEngagement({
+		eventKey: input.eventKey,
+		actionType: "map_preference_change",
+		source: `${input.source}:${input.from}:${input.to}`,
+		isAuthenticated: input.isAuthenticated,
+	});
 };
 
 export const trackDiscoveryAnalytics = (input: {

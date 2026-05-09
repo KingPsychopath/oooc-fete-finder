@@ -19,10 +19,13 @@ type EventEngagementSummaryRow = {
 	dedupedViewCount: number;
 	outboundClickCount: number;
 	calendarSyncCount: number;
+	mapOpenCount: number;
+	mapPreferenceChangeCount: number;
 	uniqueSessionCount: number;
 	uniqueViewSessionCount: number;
 	uniqueOutboundSessionCount: number;
 	uniqueCalendarSessionCount: number;
+	uniqueMapSessionCount: number;
 };
 
 const EVENT_VIEW_DEDUPE_WINDOW_SECONDS = 10 * 60;
@@ -32,6 +35,7 @@ type EventEngagementDailyRow = {
 	clickCount: number;
 	outboundClickCount: number;
 	calendarSyncCount: number;
+	mapOpenCount: number;
 };
 
 const cleanString = (
@@ -65,7 +69,7 @@ export class EventEngagementRepository {
 			CREATE TABLE IF NOT EXISTS app_event_engagement_stats (
 				id BIGSERIAL PRIMARY KEY,
 				event_key TEXT NOT NULL,
-				action_type TEXT NOT NULL CHECK (action_type IN ('click', 'outbound_click', 'calendar_sync')),
+				action_type TEXT NOT NULL CHECK (action_type IN ('click', 'outbound_click', 'calendar_sync', 'map_open', 'map_preference_change')),
 				user_id TEXT,
 				session_id TEXT,
 				source TEXT,
@@ -78,6 +82,17 @@ export class EventEngagementRepository {
 				locale TEXT,
 				recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)
+		`;
+
+		await this.sql`
+			DO $$
+			BEGIN
+				ALTER TABLE app_event_engagement_stats
+				DROP CONSTRAINT IF EXISTS app_event_engagement_stats_action_type_check;
+				ALTER TABLE app_event_engagement_stats
+				ADD CONSTRAINT app_event_engagement_stats_action_type_check
+				CHECK (action_type IN ('click', 'outbound_click', 'calendar_sync', 'map_open', 'map_preference_change'));
+			END $$;
 		`;
 
 		await this.sql`
@@ -237,13 +252,16 @@ export class EventEngagementRepository {
 				), 0)::int AS "dedupedViewCount",
 				COUNT(*) FILTER (WHERE action_type = 'outbound_click')::int AS "outboundClickCount",
 				COUNT(*) FILTER (WHERE action_type = 'calendar_sync')::int AS "calendarSyncCount",
+				COUNT(*) FILTER (WHERE action_type = 'map_open')::int AS "mapOpenCount",
+				COUNT(*) FILTER (WHERE action_type = 'map_preference_change')::int AS "mapPreferenceChangeCount",
 				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'click')::int AS "uniqueViewSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'outbound_click')::int AS "uniqueOutboundSessionCount",
-				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'calendar_sync')::int AS "uniqueCalendarSessionCount"
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'calendar_sync')::int AS "uniqueCalendarSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'map_open')::int AS "uniqueMapSessionCount"
 			FROM annotated
 			GROUP BY event_key
-			ORDER BY "clickCount" DESC, "outboundClickCount" DESC, "calendarSyncCount" DESC
+			ORDER BY "clickCount" DESC, "mapOpenCount" DESC, "outboundClickCount" DESC, "calendarSyncCount" DESC
 			LIMIT ${safeLimit}
 		`;
 		return rows;
@@ -257,10 +275,13 @@ export class EventEngagementRepository {
 		dedupedViewCount: number;
 		outboundClickCount: number;
 		calendarSyncCount: number;
+		mapOpenCount: number;
+		mapPreferenceChangeCount: number;
 		uniqueSessionCount: number;
 		uniqueViewSessionCount: number;
 		uniqueOutboundSessionCount: number;
 		uniqueCalendarSessionCount: number;
+		uniqueMapSessionCount: number;
 	}> {
 		await this.ready();
 		const rows = await this.sql<
@@ -269,10 +290,13 @@ export class EventEngagementRepository {
 				dedupedViewCount: number;
 				outboundClickCount: number;
 				calendarSyncCount: number;
+				mapOpenCount: number;
+				mapPreferenceChangeCount: number;
 				uniqueSessionCount: number;
 				uniqueViewSessionCount: number;
 				uniqueOutboundSessionCount: number;
 				uniqueCalendarSessionCount: number;
+				uniqueMapSessionCount: number;
 			}>
 		>`
 			WITH filtered AS (
@@ -310,10 +334,13 @@ export class EventEngagementRepository {
 				), 0)::int AS "dedupedViewCount",
 				COUNT(*) FILTER (WHERE action_type = 'outbound_click')::int AS "outboundClickCount",
 				COUNT(*) FILTER (WHERE action_type = 'calendar_sync')::int AS "calendarSyncCount",
+				COUNT(*) FILTER (WHERE action_type = 'map_open')::int AS "mapOpenCount",
+				COUNT(*) FILTER (WHERE action_type = 'map_preference_change')::int AS "mapPreferenceChangeCount",
 				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'click')::int AS "uniqueViewSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'outbound_click')::int AS "uniqueOutboundSessionCount",
-				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'calendar_sync')::int AS "uniqueCalendarSessionCount"
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'calendar_sync')::int AS "uniqueCalendarSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'map_open')::int AS "uniqueMapSessionCount"
 			FROM annotated
 		`;
 
@@ -323,10 +350,13 @@ export class EventEngagementRepository {
 				dedupedViewCount: 0,
 				outboundClickCount: 0,
 				calendarSyncCount: 0,
+				mapOpenCount: 0,
+				mapPreferenceChangeCount: 0,
 				uniqueSessionCount: 0,
 				uniqueViewSessionCount: 0,
 				uniqueOutboundSessionCount: 0,
 				uniqueCalendarSessionCount: 0,
+				uniqueMapSessionCount: 0,
 			}
 		);
 	}
@@ -375,10 +405,13 @@ export class EventEngagementRepository {
 				), 0)::int AS "dedupedViewCount",
 				COUNT(*) FILTER (WHERE action_type = 'outbound_click')::int AS "outboundClickCount",
 				COUNT(*) FILTER (WHERE action_type = 'calendar_sync')::int AS "calendarSyncCount",
+				COUNT(*) FILTER (WHERE action_type = 'map_open')::int AS "mapOpenCount",
+				COUNT(*) FILTER (WHERE action_type = 'map_preference_change')::int AS "mapPreferenceChangeCount",
 				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'click')::int AS "uniqueViewSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'outbound_click')::int AS "uniqueOutboundSessionCount",
-				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'calendar_sync')::int AS "uniqueCalendarSessionCount"
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'calendar_sync')::int AS "uniqueCalendarSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'map_open')::int AS "uniqueMapSessionCount"
 			FROM annotated
 		`;
 		return (
@@ -388,10 +421,13 @@ export class EventEngagementRepository {
 				dedupedViewCount: 0,
 				outboundClickCount: 0,
 				calendarSyncCount: 0,
+				mapOpenCount: 0,
+				mapPreferenceChangeCount: 0,
 				uniqueSessionCount: 0,
 				uniqueViewSessionCount: 0,
 				uniqueOutboundSessionCount: 0,
 				uniqueCalendarSessionCount: 0,
+				uniqueMapSessionCount: 0,
 			}
 		);
 	}
@@ -406,12 +442,41 @@ export class EventEngagementRepository {
 				TO_CHAR(DATE_TRUNC('day', recorded_at), 'YYYY-MM-DD') AS day,
 				COUNT(*) FILTER (WHERE action_type = 'click')::int AS "clickCount",
 				COUNT(*) FILTER (WHERE action_type = 'outbound_click')::int AS "outboundClickCount",
-				COUNT(*) FILTER (WHERE action_type = 'calendar_sync')::int AS "calendarSyncCount"
+				COUNT(*) FILTER (WHERE action_type = 'calendar_sync')::int AS "calendarSyncCount",
+				COUNT(*) FILTER (WHERE action_type = 'map_open')::int AS "mapOpenCount"
 			FROM app_event_engagement_stats
 			WHERE recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
 			GROUP BY 1
 			ORDER BY 1 ASC
+		`;
+		return rows;
+	}
+
+	async listMapProviderBreakdown(input: {
+		startAt: string;
+		endAt: string;
+		limit: number;
+	}): Promise<Array<{ provider: string; count: number; uniqueSessionCount: number }>> {
+		await this.ready();
+		const safeLimit = Math.max(1, Math.min(input.limit, 20));
+		const rows = await this.sql<
+			Array<{ provider: string; count: number; uniqueSessionCount: number }>
+		>`
+			SELECT
+				CASE
+					WHEN source LIKE 'modal_location:%' THEN SPLIT_PART(source, ':', 2)
+					ELSE 'unknown'
+				END AS provider,
+				COUNT(*)::int AS count,
+				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount"
+			FROM app_event_engagement_stats
+			WHERE action_type = 'map_open'
+				AND recorded_at >= ${input.startAt}
+				AND recorded_at < ${input.endAt}
+			GROUP BY 1
+			ORDER BY count DESC
+			LIMIT ${safeLimit}
 		`;
 		return rows;
 	}

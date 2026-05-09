@@ -45,6 +45,8 @@ const toggleArrayValue = <T>(values: T[], value: T): T[] => {
 		: [...values, value];
 };
 
+const RANGE_FILTER_TRACK_DELAY_MS = 900;
+
 const normalizeDateRange = (range: DateRangeFilter): DateRangeFilter => {
 	const from = range.from && range.from.trim().length > 0 ? range.from : null;
 	const to = range.to && range.to.trim().length > 0 ? range.to : null;
@@ -453,7 +455,7 @@ export const useEventFilters = ({
 					filterGroup: "price_range",
 					filterValue: value,
 				});
-			}, 450);
+			}, RANGE_FILTER_TRACK_DELAY_MS);
 		},
 		[requireAuth],
 	);
@@ -487,7 +489,7 @@ export const useEventFilters = ({
 					filterGroup: "age_range",
 					filterValue: value,
 				});
-			}, 450);
+			}, RANGE_FILTER_TRACK_DELAY_MS);
 		},
 		[requireAuth],
 	);

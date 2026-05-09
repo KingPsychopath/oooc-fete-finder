@@ -18,14 +18,22 @@ interface MapPreferenceSettingsProps {
 	className?: string;
 	showTitle?: boolean;
 	compact?: boolean;
+	onPreferenceChange?: (from: MapProvider, to: MapProvider) => void;
 }
 
 export const MapPreferenceSettings: React.FC<MapPreferenceSettingsProps> = ({
 	className = "",
 	showTitle = true,
 	compact = false,
+	onPreferenceChange,
 }) => {
 	const { mapPreference, setMapPreference, isLoaded } = useMapPreference();
+
+	const handlePreferenceChange = (value: MapProvider | null) => {
+		if (!value) return;
+		onPreferenceChange?.(mapPreference, value);
+		setMapPreference(value);
+	};
 
 	if (!isLoaded) {
 		return compact ? (
@@ -59,9 +67,7 @@ export const MapPreferenceSettings: React.FC<MapPreferenceSettingsProps> = ({
 				)}
 				<Select
 					value={mapPreference}
-					onValueChange={(value) => {
-						if (value) setMapPreference(value as MapProvider);
-					}}
+					onValueChange={handlePreferenceChange}
 				>
 					<SelectTrigger className="w-full">
 						<SelectValue>
@@ -108,9 +114,7 @@ export const MapPreferenceSettings: React.FC<MapPreferenceSettingsProps> = ({
 
 				<Select
 					value={mapPreference}
-					onValueChange={(value) => {
-						if (value) setMapPreference(value as MapProvider);
-					}}
+					onValueChange={handlePreferenceChange}
 				>
 					<SelectTrigger>
 						<SelectValue>

@@ -2,6 +2,8 @@ export const EVENT_ENGAGEMENT_ACTIONS = [
 	"click",
 	"outbound_click",
 	"calendar_sync",
+	"map_open",
+	"map_preference_change",
 ] as const;
 
 export type EventEngagementAction = (typeof EVENT_ENGAGEMENT_ACTIONS)[number];
@@ -28,8 +30,11 @@ export interface EventEngagementSummary {
 	dedupedViewCount: number;
 	outboundClickCount: number;
 	calendarSyncCount: number;
+	mapOpenCount: number;
+	mapPreferenceChangeCount: number;
 	uniqueSessionCount: number;
 	uniqueViewSessionCount: number;
 	uniqueOutboundSessionCount: number;
 	uniqueCalendarSessionCount: number;
+	uniqueMapSessionCount: number;
 }
