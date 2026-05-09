@@ -15,7 +15,16 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 const discoveryTrackSchema = z.object({
-	actionType: z.enum(["search", "filter_apply", "filter_clear"]),
+	actionType: z.enum([
+		"search",
+		"filter_apply",
+		"filter_clear",
+		"map_interaction",
+		"sort_change",
+		"location_request",
+		"tour_interaction",
+		"nav_click",
+	]),
 	sessionId: z.string().trim().max(120).optional(),
 	filterGroup: z.string().trim().max(80).optional(),
 	filterValue: z.string().trim().max(120).optional(),
@@ -47,6 +56,20 @@ const KNOWN_FILTER_GROUPS = new Set([
 	"oooc_pick",
 	"price_range",
 	"age_range",
+]);
+
+const KNOWN_DISCOVERY_INTERACTION_GROUPS = new Set([
+	"map_arrondissement",
+	"map_cluster",
+	"map_control",
+	"sort_mode",
+	"nearby",
+	"tour",
+	"homepage_link",
+	"quick_action",
+	"mobile_nav",
+	"footer_link",
+	"header_nav",
 ]);
 
 export const runtime = "nodejs";
@@ -110,18 +133,34 @@ export async function POST(request: Request) {
 
 	const validEvents = events.filter((body) => {
 		if (body.actionType === "filter_apply") {
-		const filterGroup = (body.filterGroup ?? "").trim().toLowerCase();
-		const filterValue = (body.filterValue ?? "").trim().toLowerCase();
-		if (!KNOWN_FILTER_GROUPS.has(filterGroup) || filterValue.length === 0) {
-			return false;
+			const filterGroup = (body.filterGroup ?? "").trim().toLowerCase();
+			const filterValue = (body.filterValue ?? "").trim().toLowerCase();
+			if (!KNOWN_FILTER_GROUPS.has(filterGroup) || filterValue.length === 0) {
+				return false;
+			}
 		}
-	}
-	if (body.actionType === "search") {
-		const searchQuery = (body.searchQuery ?? "").trim().toLowerCase();
-		if (searchQuery.length < 2) {
-			return false;
+		if (body.actionType === "search") {
+			const searchQuery = (body.searchQuery ?? "").trim().toLowerCase();
+			if (searchQuery.length < 2) {
+				return false;
+			}
 		}
-	}
+		if (
+			body.actionType === "map_interaction" ||
+			body.actionType === "sort_change" ||
+			body.actionType === "location_request" ||
+			body.actionType === "tour_interaction" ||
+			body.actionType === "nav_click"
+		) {
+			const filterGroup = (body.filterGroup ?? "").trim().toLowerCase();
+			const filterValue = (body.filterValue ?? "").trim().toLowerCase();
+			if (
+				!KNOWN_DISCOVERY_INTERACTION_GROUPS.has(filterGroup) ||
+				filterValue.length === 0
+			) {
+				return false;
+			}
+		}
 		return true;
 	});
 	if (validEvents.length === 0) {

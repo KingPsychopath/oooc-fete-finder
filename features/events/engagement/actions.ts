@@ -138,6 +138,11 @@ export async function getEventEngagementDashboard(
 				searchCount: number;
 				filterApplyCount: number;
 				filterClearCount: number;
+				mapInteractionCount: number;
+				sortChangeCount: number;
+				locationRequestCount: number;
+				tourInteractionCount: number;
+				navClickCount: number;
 				uniqueSessionCount: number;
 				topSearches: Array<{
 					query: string;
@@ -148,6 +153,31 @@ export async function getEventEngagementDashboard(
 				topFilters: Array<{
 					filterGroup: string;
 					filterValue: string;
+					count: number;
+				}>;
+				topMapInteractions: Array<{
+					group: string;
+					value: string;
+					count: number;
+				}>;
+				topSortChanges: Array<{
+					group: string;
+					value: string;
+					count: number;
+				}>;
+				topLocationRequests: Array<{
+					group: string;
+					value: string;
+					count: number;
+				}>;
+				topTourInteractions: Array<{
+					group: string;
+					value: string;
+					count: number;
+				}>;
+				topNavigationClicks: Array<{
+					group: string;
+					value: string;
 					count: number;
 				}>;
 			};
@@ -182,6 +212,11 @@ export async function getEventEngagementDashboard(
 			discoverySummary,
 			topSearchesRaw,
 			topFilters,
+			topMapInteractions,
+			topSortChanges,
+			topLocationRequests,
+			topTourInteractions,
+			topNavigationClicks,
 			mapProviders,
 			topGenresRaw,
 		] = await Promise.all([
@@ -198,6 +233,11 @@ export async function getEventEngagementDashboard(
 						searchCount: 0,
 						filterApplyCount: 0,
 						filterClearCount: 0,
+						mapInteractionCount: 0,
+						sortChangeCount: 0,
+						locationRequestCount: 0,
+						tourInteractionCount: 0,
+						navClickCount: 0,
 						uniqueSessionCount: 0,
 					}),
 			discoveryRepository
@@ -205,6 +245,46 @@ export async function getEventEngagementDashboard(
 				: Promise.resolve([]),
 			discoveryRepository
 				? discoveryRepository.listTopFilters({ startAt, endAt, limit: 30 })
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopDiscoveryActions({
+						actionType: "map_interaction",
+						startAt,
+						endAt,
+						limit: 20,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopDiscoveryActions({
+						actionType: "sort_change",
+						startAt,
+						endAt,
+						limit: 10,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopDiscoveryActions({
+						actionType: "location_request",
+						startAt,
+						endAt,
+						limit: 10,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopDiscoveryActions({
+						actionType: "tour_interaction",
+						startAt,
+						endAt,
+						limit: 20,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopDiscoveryActions({
+						actionType: "nav_click",
+						startAt,
+						endAt,
+						limit: 20,
+					})
 				: Promise.resolve([]),
 			engagementRepository.listMapProviderBreakdown({
 				startAt,
@@ -314,9 +394,19 @@ export async function getEventEngagementDashboard(
 				searchCount: discoverySummary.searchCount,
 				filterApplyCount: discoverySummary.filterApplyCount,
 				filterClearCount: discoverySummary.filterClearCount,
+				mapInteractionCount: discoverySummary.mapInteractionCount,
+				sortChangeCount: discoverySummary.sortChangeCount,
+				locationRequestCount: discoverySummary.locationRequestCount,
+				tourInteractionCount: discoverySummary.tourInteractionCount,
+				navClickCount: discoverySummary.navClickCount,
 				uniqueSessionCount: discoverySummary.uniqueSessionCount,
 				topSearches,
 				topFilters,
+				topMapInteractions,
+				topSortChanges,
+				topLocationRequests,
+				topTourInteractions,
+				topNavigationClicks,
 			},
 			topGenres: topGenresRaw.map((row) => ({
 				genre: row.genre,

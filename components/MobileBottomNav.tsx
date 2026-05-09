@@ -2,6 +2,7 @@
 
 import MusicPlatformModal from "@/components/MusicPlatformModal";
 import { Button } from "@/components/ui/button";
+import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import { requestFeteFinderTour } from "@/features/events/tour-events";
 import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
@@ -431,6 +432,7 @@ export function MobileBottomNav() {
 
 	const handleNavItemClick = (key: NavKey, sectionId?: string) => {
 		activeSectionLockUntilRef.current = Date.now() + ACTIVE_SECTION_LOCK_MS;
+		trackNavigationClick({ group: "mobile_nav", label: key });
 		setActiveSection(key === "home" ? "home" : key);
 		setIsMoreOpen(false);
 
@@ -476,8 +478,13 @@ export function MobileBottomNav() {
 	};
 
 	const handleTourStart = () => {
+		trackNavigationClick({ group: "mobile_nav", label: "tour" });
 		setIsMoreOpen(false);
 		requestFeteFinderTour();
+	};
+	const handleMoreLinkClick = (label: string) => {
+		trackNavigationClick({ group: "mobile_nav", label });
+		setIsMoreOpen(false);
 	};
 	const moreItemClassName =
 		"rounded-xl border border-border/55 bg-card/50 px-3 py-2 text-sm text-foreground/85 shadow-[0_1px_0_rgba(255,255,255,0.42)_inset] transition-colors hover:border-border/80 hover:bg-accent hover:text-foreground";
@@ -549,6 +556,7 @@ export function MobileBottomNav() {
 								<div className="grid grid-cols-2 gap-1">
 									<Link
 										href={`${basePath || ""}/how-it-works`}
+										onClick={() => handleMoreLinkClick("how_it_works")}
 										className={moreInternalItemClassName}
 									>
 										<Info className="h-4 w-4" />
@@ -556,6 +564,7 @@ export function MobileBottomNav() {
 									</Link>
 									<Link
 										href={`${basePath || ""}/feature-event`}
+										onClick={() => handleMoreLinkClick("feature_event")}
 										className={moreInternalItemClassName}
 									>
 										<Megaphone className="h-4 w-4" />
@@ -571,6 +580,10 @@ export function MobileBottomNav() {
 									<button
 										type="button"
 										onClick={() => {
+											trackNavigationClick({
+												group: "mobile_nav",
+												label: "playlist",
+											});
 											setIsMoreOpen(false);
 											setIsMusicModalOpen(true);
 										}}
@@ -583,6 +596,7 @@ export function MobileBottomNav() {
 										href={foodGuideUrl}
 										target="_blank"
 										rel="noopener noreferrer"
+										onClick={() => handleMoreLinkClick("food_guide")}
 										className={moreExternalItemClassName}
 									>
 										<span className="flex flex-col gap-1">
@@ -595,6 +609,7 @@ export function MobileBottomNav() {
 										href={COMMUNITY_INVITE_CONFIG.WHATSAPP_URL}
 										target="_blank"
 										rel="noopener noreferrer"
+										onClick={() => handleMoreLinkClick("whatsapp")}
 										className={moreExternalItemClassName}
 									>
 										<span className="flex flex-col gap-1">
@@ -607,6 +622,7 @@ export function MobileBottomNav() {
 										href={toiletFinderUrl}
 										target="_blank"
 										rel="noopener noreferrer"
+										onClick={() => handleMoreLinkClick("toilet_finder")}
 										className={moreExternalItemClassName}
 									>
 										<span className="flex flex-col gap-1">
@@ -619,6 +635,7 @@ export function MobileBottomNav() {
 										href={ooocFaqUrl}
 										target="_blank"
 										rel="noopener noreferrer"
+										onClick={() => handleMoreLinkClick("faqs")}
 										className={moreExternalItemClassName}
 									>
 										<span className="flex flex-col gap-1">

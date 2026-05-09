@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import EventStats from "@/features/events/components/EventStats";
 import { useEventsSearchFilters } from "@/features/events/components/events-search-filters-provider";
+import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
 import type { Event } from "@/features/events/types";
 import Link from "next/link";
@@ -51,6 +52,12 @@ export function EventsDiscoverySummaryIsland({
 						</p>
 						<Link
 							href="/how-it-works"
+							onClick={() =>
+								trackNavigationClick({
+									group: "homepage_link",
+									label: "how_it_works_intro",
+								})
+							}
 							className="mt-3 inline-flex flex-wrap items-baseline gap-x-1 text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-foreground/78 hover:underline"
 						>
 							<span>New here? See how Fête Finder</span>

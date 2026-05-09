@@ -7,6 +7,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import { requestFeteFinderTour } from "@/features/events/tour-events";
 import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
@@ -68,12 +69,19 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 	};
 
 	const handleMusicClick = () => {
+		trackNavigationClick({ group: "quick_action", label: "playlist" });
 		onMusicSelect();
 		setIsOpen(false);
 	};
 
 	const handleTourClick = () => {
+		trackNavigationClick({ group: "quick_action", label: "tour" });
 		requestFeteFinderTour();
+		setIsOpen(false);
+	};
+
+	const handleExternalLinkClick = (label: string) => {
+		trackNavigationClick({ group: "quick_action", label });
 		setIsOpen(false);
 	};
 
@@ -184,7 +192,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 							href={foodGuideUrl}
 							target="_blank"
 							rel="noopener noreferrer"
-							onClick={() => setIsOpen(false)}
+							onClick={() => handleExternalLinkClick("food_guide")}
 							className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors"
 						>
 							<div className="w-10 flex items-center justify-center gap-1">
@@ -208,7 +216,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 							href={COMMUNITY_INVITE_CONFIG.WHATSAPP_URL}
 							target="_blank"
 							rel="noopener noreferrer"
-							onClick={() => setIsOpen(false)}
+							onClick={() => handleExternalLinkClick("whatsapp")}
 							className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors"
 						>
 							<div className="w-10 flex items-center justify-center gap-1">
@@ -231,7 +239,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 							href={toiletFinderData.url}
 							target="_blank"
 							rel="noopener noreferrer"
-							onClick={() => setIsOpen(false)}
+							onClick={() => handleExternalLinkClick("toilet_finder")}
 							className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors"
 						>
 							<div className="w-10 flex items-center justify-center gap-1">

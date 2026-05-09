@@ -82,8 +82,8 @@ const SUMMARY_METRICS = [
 	},
 	{
 		key: "outboundClickCount",
-		label: "Partner Link Clicks",
-		description: "Clicks on ticket, venue, or external partner links.",
+		label: "Ticket & Info Clicks",
+		description: "Clicks on the event modal's primary or secondary external links.",
 	},
 	{
 		key: "calendarSyncCount",
@@ -111,18 +111,47 @@ const DISCOVERY_SUMMARY_METRICS = [
 			"User-applied filter changes. The default current-year date range is not counted on page load.",
 	},
 	{
+		key: "mapInteractionCount",
+		label: "Map Interactions",
+		description:
+			"Paris map exploration actions, including arrondissement clicks, cluster zooms, and fullscreen toggles.",
+	},
+	{
+		key: "sortChangeCount",
+		label: "Sort Changes",
+		description: "All Events sort changes, including Upcoming, Fresh, and Near Me.",
+	},
+	{
+		key: "locationRequestCount",
+		label: "Location Requests",
+		description:
+			"Near Me and map-locate requests. These track attempts and outcomes, not precise coordinates.",
+	},
+	{
+		key: "tourInteractionCount",
+		label: "Tour Activity",
+		description: "Tour prompts, starts, completions, skips, and auth handoffs.",
+	},
+	{
+		key: "navClickCount",
+		label: "Nav Clicks",
+		description:
+			"Homepage navigation clicks to key internal pages and essential external resources.",
+	},
+	{
 		key: "uniqueSessionCount",
 		label: "Discovery Sessions",
-		description: "Distinct browser sessions with search or filter activity.",
+		description:
+			"Distinct browser sessions with search, filter, map, sort, or location activity.",
 	},
 ] as const;
 
 const RATE_SUMMARY_METRICS = [
 	{
 		key: "outboundSessionRate",
-		label: "Outbound Session Index",
+		label: "External Link Session Index",
 		description:
-			"Partner-link sessions divided by event-open sessions. This can exceed 100% if a link click is tracked without an event-open record in the same window.",
+			"External-link sessions divided by event-open sessions. This can exceed 100% if a link click is tracked without an event-open record in the same window.",
 		format: (value: number) => `${value.toFixed(1)}%`,
 	},
 	{
@@ -141,8 +170,8 @@ const RATE_SUMMARY_METRICS = [
 	},
 	{
 		key: "outboundInteractionRate",
-		label: "Outbound Clicks / Open",
-		description: "Partner link clicks divided by total event opens.",
+		label: "External Links / Open",
+		description: "External link clicks divided by total event opens.",
 		format: (value: number) => `${value.toFixed(1)}%`,
 	},
 	{
@@ -174,8 +203,8 @@ const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 			"View opens after per-session dedupe (max 1 view per event every 10 minutes).",
 	},
 	{
-		label: "Outbound",
-		description: "Total clicks on ticket/external partner links.",
+		label: "External Links",
+		description: "Total clicks on the modal's ticket or info links.",
 	},
 	{
 		label: "Calendar",
@@ -194,8 +223,8 @@ const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 		description: "Distinct sessions that opened the event.",
 	},
 	{
-		label: "Outbound Sessions",
-		description: "Distinct sessions with at least one outbound click.",
+		label: "External Link Sessions",
+		description: "Distinct sessions with at least one external link click.",
 	},
 	{
 		label: "Calendar Sessions",
@@ -206,8 +235,8 @@ const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 		description: "Distinct sessions with at least one map open.",
 	},
 	{
-		label: "Outbound CVR",
-		description: "Outbound Sessions divided by View Sessions.",
+		label: "External Link CVR",
+		description: "External Link Sessions divided by View Sessions.",
 	},
 	{
 		label: "Calendar CVR",
@@ -218,8 +247,8 @@ const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 		description: "Map Sessions divided by View Sessions.",
 	},
 	{
-		label: "Outbound Interaction",
-		description: "Outbound clicks divided by total views.",
+		label: "External Link Interaction",
+		description: "External link clicks divided by total views.",
 	},
 	{
 		label: "Calendar Interaction",
@@ -270,6 +299,13 @@ const getFilterGroupLabel = (group: string): string =>
 
 const getGenreLabel = (genre: MusicGenre | string): string =>
 	MUSIC_GENRES.find((option) => option.key === genre)?.label ?? genre;
+
+const formatContextLabel = (value: string): string =>
+	value
+		.split(/[-_\s:]+/)
+		.filter(Boolean)
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(" ");
 
 const getMedian = (values: number[]): number => {
 	if (values.length === 0) return 0;
@@ -440,9 +476,19 @@ export const EventEngagementStatsCard = ({
 				searchCount: 0,
 				filterApplyCount: 0,
 				filterClearCount: 0,
+				mapInteractionCount: 0,
+				sortChangeCount: 0,
+				locationRequestCount: 0,
+				tourInteractionCount: 0,
+				navClickCount: 0,
 				uniqueSessionCount: 0,
 				topSearches: [],
 				topFilters: [],
+				topMapInteractions: [],
+				topSortChanges: [],
+				topLocationRequests: [],
+				topTourInteractions: [],
+				topNavigationClicks: [],
 			};
 
 	const chartRows = useMemo(() => filteredRows.slice(0, 8), [filteredRows]);
@@ -460,11 +506,31 @@ export const EventEngagementStatsCard = ({
 	const topFilterRows = payload?.success
 		? payload.discovery.topFilters.slice(0, 8)
 		: [];
+	const topMapInteractionRows = payload?.success
+		? payload.discovery.topMapInteractions.slice(0, 8)
+		: [];
+	const topSortRows = payload?.success
+		? payload.discovery.topSortChanges.slice(0, 6)
+		: [];
+	const topLocationRequestRows = payload?.success
+		? payload.discovery.topLocationRequests.slice(0, 6)
+		: [];
+	const topTourRows = payload?.success
+		? payload.discovery.topTourInteractions.slice(0, 6)
+		: [];
+	const topNavigationRows = payload?.success
+		? payload.discovery.topNavigationClicks.slice(0, 8)
+		: [];
 	const maxDiscoverySignal = Math.max(
 		1,
 		...topSearchRows.map((row) => row.count),
 		...topGenreRows.map((row) => row.uniqueUsers),
 		...topFilterRows.map((row) => row.count),
+		...topMapInteractionRows.map((row) => row.count),
+		...topSortRows.map((row) => row.count),
+		...topLocationRequestRows.map((row) => row.count),
+		...topTourRows.map((row) => row.count),
+		...topNavigationRows.map((row) => row.count),
 	);
 	const dailyRows = payload?.success
 		? payload.dailySeries.slice(-Math.min(windowDays, 30))
@@ -498,7 +564,7 @@ export const EventEngagementStatsCard = ({
 		{
 			key: "high-attention-high-intent",
 			label: "Prioritize",
-			description: "High attention, high partner intent",
+			description: "High attention, high external-link intent",
 			rows: chartRows.filter(
 				(row) =>
 					row.clickCount >= attentionThreshold &&
@@ -540,13 +606,13 @@ export const EventEngagementStatsCard = ({
 		{
 			key: "feature-candidates",
 			label: "Consider Featuring",
-			description: "High attention and high partner intent.",
+			description: "High attention and high external-link intent.",
 			rows: decisionBuckets[0]?.rows ?? [],
 		},
 		{
 			key: "fix-details",
 			label: "Fix Event Links / Details",
-			description: "High opens but weaker partner intent.",
+			description: "High opens but weaker external-link intent.",
 			rows: decisionBuckets[1]?.rows ?? [],
 		},
 		{
@@ -569,7 +635,7 @@ export const EventEngagementStatsCard = ({
 		},
 		{
 			key: "calendar-without-partner",
-			label: "Calendar Interest, Low Partner Action",
+			label: "Calendar Interest, Low Link Action",
 			description: "These may need clearer booking/ticket instructions.",
 			rows: chartRows.filter(
 				(row) =>
@@ -990,7 +1056,7 @@ export const EventEngagementStatsCard = ({
 						</p>
 						<CardTitle>Discovery & Event Performance</CardTitle>
 						<CardDescription>
-							Event opens, discovery behavior, partner actions, and audience
+							Event opens, discovery behavior, external link actions, and audience
 							export in one panel.
 						</CardDescription>
 					</div>
@@ -1068,7 +1134,7 @@ export const EventEngagementStatsCard = ({
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						Discovery Behavior
 					</p>
-					<div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+					<div className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-4">
 						{DISCOVERY_SUMMARY_METRICS.map((metric) => (
 							<SummaryMetric
 								key={metric.key}
@@ -1081,7 +1147,7 @@ export const EventEngagementStatsCard = ({
 				</div>
 				<div className="space-y-2">
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-						Partner Action Rates
+						External Link Action Rates
 					</p>
 					<div className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
 						{RATE_SUMMARY_METRICS.map((metric) => (
@@ -1114,7 +1180,7 @@ export const EventEngagementStatsCard = ({
 							Top Events By Attention
 						</p>
 						<p className="text-xs text-muted-foreground">
-							Opens show attention; partner clicks and calendar adds show
+							Opens show attention; external link clicks and calendar adds show
 							intent.
 						</p>
 						{chartRows.length === 0 ? (
@@ -1147,7 +1213,7 @@ export const EventEngagementStatsCard = ({
 										<div className="grid grid-cols-3 gap-1.5 text-[10px] text-muted-foreground">
 											<div className="space-y-1">
 												<div className="flex justify-between gap-2">
-													<span>Partner</span>
+													<span>Links</span>
 													<span>{row.outboundClickCount}</span>
 												</div>
 												<div className="h-1.5 rounded-full bg-muted/70">
@@ -1220,9 +1286,9 @@ export const EventEngagementStatsCard = ({
 								aria-label="Explain event decision matrix"
 								side="top"
 							>
-								Events are grouped by opens and partner intent using thresholds
-								from the current top events. Click a quadrant to see every event
-								inside it.
+								Events are grouped by opens and external-link intent using
+								thresholds from the current top events. Click a quadrant to see
+								every event inside it.
 							</InfoPopover>
 						</div>
 						<p className="text-xs text-muted-foreground">
@@ -1279,7 +1345,7 @@ export const EventEngagementStatsCard = ({
 														</p>
 														<p className="text-[11px] text-muted-foreground">
 															{row.clickCount} opens ·{" "}
-															{formatPercent(row.outboundSessionRate)} partner
+															{formatPercent(row.outboundSessionRate)} link
 															intent
 														</p>
 													</div>
@@ -1307,7 +1373,7 @@ export const EventEngagementStatsCard = ({
 													</div>
 													<p className="text-[11px] text-muted-foreground sm:text-right">
 														{row.clickCount} opens · {row.outboundClickCount}{" "}
-														partner · {row.calendarSyncCount} calendar ·{" "}
+														links · {row.calendarSyncCount} calendar ·{" "}
 														{formatPercent(row.outboundSessionRate)} intent
 													</p>
 												</div>
@@ -1317,7 +1383,7 @@ export const EventEngagementStatsCard = ({
 								<p className="text-[11px] text-muted-foreground sm:col-span-2">
 									Thresholds are based on the current top events:{" "}
 									{attentionThreshold} opens and{" "}
-									{formatPercent(intentThreshold)} partner intent.
+									{formatPercent(intentThreshold)} external-link intent.
 								</p>
 							</div>
 						)}
@@ -1459,7 +1525,7 @@ export const EventEngagementStatsCard = ({
 							{[
 								{ label: "Event opens", value: summary.clickCount },
 								{ label: "Unique opens", value: summary.dedupedViewCount },
-								{ label: "Partner clicks", value: summary.outboundClickCount },
+								{ label: "External link clicks", value: summary.outboundClickCount },
 								{ label: "Map opens", value: summary.mapOpenCount },
 								{ label: "Calendar adds", value: summary.calendarSyncCount },
 							].map((step) => (
@@ -1499,7 +1565,7 @@ export const EventEngagementStatsCard = ({
 							</span>
 							<span className="inline-flex items-center gap-1">
 								<span className="h-1.5 w-5 rounded-full bg-emerald-700/80" />
-								Partner
+								Links
 							</span>
 							<span className="inline-flex items-center gap-1">
 								<span className="h-1.5 w-5 rounded-full bg-violet-700/80" />
@@ -1520,7 +1586,7 @@ export const EventEngagementStatsCard = ({
 									<div
 										key={row.day}
 										className="grid grid-cols-[4.5rem_1fr] items-center gap-2"
-										title={`${row.day}: ${row.clickCount} opens, ${row.outboundClickCount} partner, ${row.mapOpenCount} map, ${row.calendarSyncCount} calendar`}
+										title={`${row.day}: ${row.clickCount} opens, ${row.outboundClickCount} external links, ${row.mapOpenCount} map, ${row.calendarSyncCount} calendar`}
 									>
 										<p className="truncate text-[11px] text-muted-foreground">
 											{row.day.slice(5)}
@@ -1668,7 +1734,7 @@ export const EventEngagementStatsCard = ({
 					</p>
 					<p className="text-xs text-muted-foreground">
 						Searches use the current {discovery.searchClusterMode} clustering
-						mode; genre and filter counts stay raw.
+						mode; genre, filter, map, sort, and location counts stay raw.
 					</p>
 					<div className="grid gap-4 lg:grid-cols-3">
 						{[
@@ -1707,6 +1773,56 @@ export const EventEngagementStatsCard = ({
 									meta: "",
 								})),
 								empty: "No filter data yet.",
+							},
+							{
+								label: "Map",
+								rows: topMapInteractionRows.map((row) => ({
+									key: `${row.group}-${row.value}`,
+									label: `${formatContextLabel(row.group)}: ${row.value}`,
+									value: row.count,
+									meta: "",
+								})),
+								empty: "No map interaction data yet.",
+							},
+							{
+								label: "Sort",
+								rows: topSortRows.map((row) => ({
+									key: `${row.group}-${row.value}`,
+									label: `${formatContextLabel(row.value)}`,
+									value: row.count,
+									meta: "",
+								})),
+								empty: "No sort-change data yet.",
+							},
+							{
+								label: "Location",
+								rows: topLocationRequestRows.map((row) => ({
+									key: `${row.group}-${row.value}`,
+									label: `${formatContextLabel(row.value)}`,
+									value: row.count,
+									meta: "",
+								})),
+								empty: "No location request data yet.",
+							},
+							{
+								label: "Tour",
+								rows: topTourRows.map((row) => ({
+									key: `${row.group}-${row.value}`,
+									label: `${formatContextLabel(row.value)}`,
+									value: row.count,
+									meta: "",
+								})),
+								empty: "No tour data yet.",
+							},
+							{
+								label: "Navigation",
+								rows: topNavigationRows.map((row) => ({
+									key: `${row.group}-${row.value}`,
+									label: `${formatContextLabel(row.group)}: ${formatContextLabel(row.value)}`,
+									value: row.count,
+									meta: "",
+								})),
+								empty: "No navigation data yet.",
 							},
 						].map((group) => (
 							<div key={group.label} className="space-y-2">
@@ -2330,9 +2446,9 @@ export const EventEngagementStatsCard = ({
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
-										title="Total clicks on ticket/external partner links."
+										title="Total clicks on the modal's ticket or info links."
 									>
-										Outbound
+										External Links
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
@@ -2360,9 +2476,9 @@ export const EventEngagementStatsCard = ({
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
-										title="Distinct sessions with at least one outbound click."
+										title="Distinct sessions with at least one external link click."
 									>
-										Outbound Sessions
+										External Link Sessions
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
@@ -2378,9 +2494,9 @@ export const EventEngagementStatsCard = ({
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
-										title="Outbound Sessions divided by View Sessions."
+										title="External Link Sessions divided by View Sessions."
 									>
-										Outbound CVR
+										External Link CVR
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
@@ -2396,9 +2512,9 @@ export const EventEngagementStatsCard = ({
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
-										title="Outbound clicks divided by total views."
+										title="External link clicks divided by total views."
 									>
-										Outbound Interaction
+										External Link Interaction
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"

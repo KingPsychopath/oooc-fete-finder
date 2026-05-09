@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { trackTourInteraction } from "@/features/events/engagement/client-tracking";
 import {
 	FETE_FINDER_TOUR_EVENT,
 	FETE_FINDER_TOUR_STORAGE_KEY,
@@ -312,6 +313,7 @@ export function FeteFinderTour({
 			setIsPromptOpen(false);
 			return;
 		}
+		trackTourInteraction({ action: "start" });
 		setIsPromptOpen(false);
 		setIsTourOpen(true);
 		setStepIndex(0);
@@ -319,6 +321,10 @@ export function FeteFinderTour({
 
 	const finishTour = useCallback(
 		(state: string) => {
+			trackTourInteraction({
+				action: state === TOUR_STATE_COMPLETED ? "complete" : "skip",
+				stepId: currentStep?.id,
+			});
 			writeTourState(state);
 			onFilterClose();
 			setHasPendingOverlayTour(false);
@@ -326,12 +332,13 @@ export function FeteFinderTour({
 			setIsTourOpen(false);
 			setSpotlightRect(null);
 		},
-		[onFilterClose],
+		[currentStep?.id, onFilterClose],
 	);
 
 	const handleExternalStart = useCallback(() => {
 		setHasManualTourRequest(true);
 		if (!isAuthenticated) {
+			trackTourInteraction({ action: "auth_required", source: "manual" });
 			setHasPendingAuthTour(true);
 			onAuthRequired();
 			return;
@@ -410,6 +417,7 @@ export function FeteFinderTour({
 		if (readTourState() !== null) return;
 		const timer = window.setTimeout(() => {
 			if (hasBlockingOverlay()) return;
+			trackTourInteraction({ action: "prompt_shown", source: "auto" });
 			setIsPromptOpen(true);
 		}, 900);
 		return () => window.clearTimeout(timer);

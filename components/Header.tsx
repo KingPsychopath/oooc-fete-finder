@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { useOptionalAuth } from "@/features/auth/auth-context";
 import Countdown from "@/features/events/components/Countdown";
+import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import type { SlidingBannerPublicSettings } from "@/features/site-settings/types";
 // Note: Using process.env directly to avoid server-side env variable access on client
 import { LogOut, ShieldCheck } from "lucide-react";
@@ -77,6 +78,10 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 	const isSubmitPage =
 		pathWithoutBasePath === "/submit-event" ||
 		pathWithoutBasePath.startsWith("/submit-event/");
+	const trackHeaderNav = (label: string) => {
+		if (!isHomePage) return;
+		trackNavigationClick({ group: "header_nav", label });
+	};
 
 	useEffect(() => {
 		let rafId: number | null = null;
@@ -178,6 +183,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 						>
 							<Link
 								href={basePath || "/"}
+								onClick={() => trackHeaderNav("home")}
 								className={`whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
 									isHomePage ? "text-foreground" : "text-foreground/75"
 								}`}
@@ -186,6 +192,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							</Link>
 							<Link
 								href={`${basePath || ""}/how-it-works`}
+								onClick={() => trackHeaderNav("how_it_works")}
 								className={`whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
 									isHowItWorksPage ? "text-foreground" : "text-foreground/75"
 								}`}
@@ -194,6 +201,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							</Link>
 							<Link
 								href={`${basePath || ""}/submit-event`}
+								onClick={() => trackHeaderNav("submit_event")}
 								className={`whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
 									isSubmitPage ? "text-foreground" : "text-foreground/75"
 								}`}
@@ -202,6 +210,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							</Link>
 							<Link
 								href={`${basePath || ""}/feature-event`}
+								onClick={() => trackHeaderNav("feature_event")}
 								className={`whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
 									isPromotePage ? "text-foreground" : "text-foreground/75"
 								}`}
@@ -212,6 +221,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 								<Link
 									key={link.href}
 									href={link.href}
+									onClick={() => trackHeaderNav(link.label.toLowerCase())}
 									target="_blank"
 									rel="noopener noreferrer"
 									className="whitespace-nowrap text-sm tracking-wide text-foreground/75 underline-offset-4 transition-colors hover:text-foreground hover:underline"

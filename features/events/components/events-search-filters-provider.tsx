@@ -2,6 +2,7 @@
 
 import { getCountryOption } from "@/features/events/countries";
 import { getDiscoveryEligibleEvents } from "@/features/events/discovery-eligibility";
+import { trackDiscoveryAnalytics } from "@/features/events/engagement/client-tracking";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import {
 	getCustomGenreColor,
@@ -341,21 +342,43 @@ export function EventsSearchFiltersProvider({
 		onAuthRequired();
 	}, [canUseProtectedDiscovery, onAuthRequired, onNeedFullEvents]);
 
+	const handleSortModeChange = useCallback((nextSortMode: EventSortMode) => {
+		setSortMode((current) => {
+			if (current === nextSortMode) return current;
+			trackDiscoveryAnalytics({
+				actionType: "sort_change",
+				filterGroup: "sort_mode",
+				filterValue: nextSortMode,
+			});
+			return nextSortMode;
+		});
+	}, []);
+
 	const toggleNearbyEvents = useCallback(async () => {
 		if (sortMode === "nearby") {
-			setSortMode("upcoming");
+			handleSortModeChange("upcoming");
 			setNearbyEventsError(null);
 			return;
 		}
 		if (!requireAuth()) return;
 
 		onNeedFullEvents();
+		trackDiscoveryAnalytics({
+			actionType: "location_request",
+			filterGroup: "nearby",
+			filterValue: "all_events_request",
+		});
 		setNearbyEventsStatus("requesting");
 		setNearbyEventsError(null);
 		const result = await requestClientLocation();
 		if (!result.location) {
 			setNearbyEventsStatus("unavailable");
 			setNearbyEventsError(result.error);
+			trackDiscoveryAnalytics({
+				actionType: "location_request",
+				filterGroup: "nearby",
+				filterValue: "all_events_unavailable",
+			});
 			return;
 		}
 
@@ -363,11 +386,25 @@ export function EventsSearchFiltersProvider({
 		setNearbyEventsStatus(
 			result.status === "last-known" ? "active-last-known" : "active-current",
 		);
-		setSortMode("nearby");
+		handleSortModeChange("nearby");
+		trackDiscoveryAnalytics({
+			actionType: "location_request",
+			filterGroup: "nearby",
+			filterValue:
+				result.status === "last-known"
+					? "all_events_last_known"
+					: "all_events_current",
+		});
 		window.requestAnimationFrame(() => {
 			onScrollToAllEvents();
 		});
-	}, [onNeedFullEvents, onScrollToAllEvents, requireAuth, sortMode]);
+	}, [
+		handleSortModeChange,
+		onNeedFullEvents,
+		onScrollToAllEvents,
+		requireAuth,
+		sortMode,
+	]);
 
 	useEffect(() => {
 		if (!isAuthenticated) return;
@@ -439,7 +476,7 @@ export function EventsSearchFiltersProvider({
 			nearbyMatchedEventsCount: nearbyEventsOrdered.length,
 			openFilterPanel,
 			setIsFilterOpen,
-			setSortMode,
+			setSortMode: handleSortModeChange,
 			socialProofDisplayModes,
 			sortMode,
 			spotlightEventsOrdered,
@@ -462,6 +499,7 @@ export function EventsSearchFiltersProvider({
 			nearbyLocation,
 			nearbyEventsOrdered.length,
 			openFilterPanel,
+			handleSortModeChange,
 			socialProofDisplayModes,
 			sortMode,
 			spotlightEventsOrdered,

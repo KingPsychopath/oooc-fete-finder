@@ -3,6 +3,7 @@
 import maplibregl from "maplibre-gl";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { trackDiscoveryAnalytics } from "@/features/events/engagement/client-tracking";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import type { Event } from "@/features/events/types";
 import {
@@ -372,9 +373,15 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				.properties as ParisArrondissementProperties;
 			const arrondissement = properties.c_ar;
 			if (!arrondissement) return;
+			const eventCount = arrondissementEventCountsRef.current[arrondissement] ?? 0;
 			setSelectedArrondissement((current) =>
 				current === arrondissement ? null : arrondissement,
 			);
+			trackDiscoveryAnalytics({
+				actionType: "map_interaction",
+				filterGroup: "map_arrondissement",
+				filterValue: `${arrondissement}:${eventCount}`,
+			});
 		},
 		[],
 	);
@@ -416,6 +423,15 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			const feature = e.features?.[0];
 			const clusterId = feature?.properties?.cluster_id;
 			if (typeof clusterId !== "number" || !map.current) return;
+			const pointCount =
+				typeof feature?.properties?.point_count === "number"
+					? feature.properties.point_count
+					: null;
+			trackDiscoveryAnalytics({
+				actionType: "map_interaction",
+				filterGroup: "map_cluster",
+				filterValue: pointCount == null ? "unknown" : String(pointCount),
+			});
 
 			const source = map.current.getSource("events");
 			if (!source || !("getClusterExpansionZoom" in source)) return;
@@ -454,6 +470,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	}, []);
 
 	const handleLocateClick = useCallback(() => {
+		trackDiscoveryAnalytics({
+			actionType: "location_request",
+			filterGroup: "nearby",
+			filterValue: "map_locate_notice",
+		});
 		setShowLocateNotice(true);
 		if (locateNoticeTimeoutRef.current) {
 			clearTimeout(locateNoticeTimeoutRef.current);
@@ -464,8 +485,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	}, []);
 
 	const handleFullscreenClick = useCallback(() => {
+		trackDiscoveryAnalytics({
+			actionType: "map_interaction",
+			filterGroup: "map_control",
+			filterValue: isFullscreen ? "fullscreen_close" : "fullscreen_open",
+		});
 		onFullscreenRequest?.();
-	}, [onFullscreenRequest]);
+	}, [isFullscreen, onFullscreenRequest]);
 
 	const handleMapRetry = useCallback(() => {
 		if (loadErrorTimeoutRef.current) {

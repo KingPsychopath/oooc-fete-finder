@@ -22,7 +22,15 @@ type EventEngagementPayload = {
 };
 
 type DiscoveryAnalyticsPayload = {
-	actionType: "search" | "filter_apply" | "filter_clear";
+	actionType:
+		| "search"
+		| "filter_apply"
+		| "filter_clear"
+		| "map_interaction"
+		| "sort_change"
+		| "location_request"
+		| "tour_interaction"
+		| "nav_click";
 	sessionId: string | null;
 	filterGroup?: string;
 	filterValue?: string;
@@ -328,7 +336,15 @@ export const trackMapPreferenceChange = (input: {
 };
 
 export const trackDiscoveryAnalytics = (input: {
-	actionType: "search" | "filter_apply" | "filter_clear";
+	actionType:
+		| "search"
+		| "filter_apply"
+		| "filter_clear"
+		| "map_interaction"
+		| "sort_change"
+		| "location_request"
+		| "tour_interaction"
+		| "nav_click";
 	filterGroup?: string;
 	filterValue?: string;
 	searchQuery?: string;
@@ -346,6 +362,36 @@ export const trackDiscoveryAnalytics = (input: {
 		recordedAt: new Date().toISOString(),
 	};
 	enqueuePayload("discovery", payload);
+};
+
+export const trackTourInteraction = (input: {
+	action: "prompt_shown" | "start" | "complete" | "skip" | "auth_required";
+	stepId?: string;
+	source?: string;
+}) => {
+	trackDiscoveryAnalytics({
+		actionType: "tour_interaction",
+		filterGroup: "tour",
+		filterValue: [input.action, input.stepId, input.source]
+			.filter(Boolean)
+			.join(":"),
+	});
+};
+
+export const trackNavigationClick = (input: {
+	group:
+		| "homepage_link"
+		| "quick_action"
+		| "mobile_nav"
+		| "footer_link"
+		| "header_nav";
+	label: string;
+}) => {
+	trackDiscoveryAnalytics({
+		actionType: "nav_click",
+		filterGroup: input.group,
+		filterValue: input.label,
+	});
 };
 
 export const trackGenrePreference = (genre: string) => {

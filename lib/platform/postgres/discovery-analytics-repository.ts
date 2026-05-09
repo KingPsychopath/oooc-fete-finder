@@ -10,7 +10,15 @@ declare global {
 		| undefined;
 }
 
-export type DiscoveryActionType = "search" | "filter_apply" | "filter_clear";
+export type DiscoveryActionType =
+	| "search"
+	| "filter_apply"
+	| "filter_clear"
+	| "map_interaction"
+	| "sort_change"
+	| "location_request"
+	| "tour_interaction"
+	| "nav_click";
 
 export interface DiscoveryAnalyticsRecordInput {
 	actionType: DiscoveryActionType;
@@ -65,7 +73,7 @@ export class DiscoveryAnalyticsRepository {
 		await this.sql`
 			CREATE TABLE IF NOT EXISTS app_discovery_analytics_stats (
 				id BIGSERIAL PRIMARY KEY,
-				action_type TEXT NOT NULL CHECK (action_type IN ('search', 'filter_apply', 'filter_clear')),
+				action_type TEXT NOT NULL CHECK (action_type IN ('search', 'filter_apply', 'filter_clear', 'map_interaction', 'sort_change', 'location_request', 'tour_interaction', 'nav_click')),
 				session_id TEXT,
 				user_id TEXT,
 				user_email TEXT,
@@ -81,6 +89,17 @@ export class DiscoveryAnalyticsRepository {
 				locale TEXT,
 				recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)
+		`;
+
+		await this.sql`
+			DO $$
+			BEGIN
+				ALTER TABLE app_discovery_analytics_stats
+				DROP CONSTRAINT IF EXISTS app_discovery_analytics_stats_action_type_check;
+				ALTER TABLE app_discovery_analytics_stats
+				ADD CONSTRAINT app_discovery_analytics_stats_action_type_check
+				CHECK (action_type IN ('search', 'filter_apply', 'filter_clear', 'map_interaction', 'sort_change', 'location_request', 'tour_interaction', 'nav_click'));
+			END $$;
 		`;
 
 		await this.sql`
@@ -206,6 +225,11 @@ export class DiscoveryAnalyticsRepository {
 		searchCount: number;
 		filterApplyCount: number;
 		filterClearCount: number;
+		mapInteractionCount: number;
+		sortChangeCount: number;
+		locationRequestCount: number;
+		tourInteractionCount: number;
+		navClickCount: number;
 		uniqueSessionCount: number;
 	}> {
 		await this.ready();
@@ -214,6 +238,11 @@ export class DiscoveryAnalyticsRepository {
 				searchCount: number;
 				filterApplyCount: number;
 				filterClearCount: number;
+				mapInteractionCount: number;
+				sortChangeCount: number;
+				locationRequestCount: number;
+				tourInteractionCount: number;
+				navClickCount: number;
 				uniqueSessionCount: number;
 			}>
 		>`
@@ -221,6 +250,11 @@ export class DiscoveryAnalyticsRepository {
 				COUNT(*) FILTER (WHERE action_type = 'search')::int AS "searchCount",
 				COUNT(*) FILTER (WHERE action_type = 'filter_apply')::int AS "filterApplyCount",
 				COUNT(*) FILTER (WHERE action_type = 'filter_clear')::int AS "filterClearCount",
+				COUNT(*) FILTER (WHERE action_type = 'map_interaction')::int AS "mapInteractionCount",
+				COUNT(*) FILTER (WHERE action_type = 'sort_change')::int AS "sortChangeCount",
+				COUNT(*) FILTER (WHERE action_type = 'location_request')::int AS "locationRequestCount",
+				COUNT(*) FILTER (WHERE action_type = 'tour_interaction')::int AS "tourInteractionCount",
+				COUNT(*) FILTER (WHERE action_type = 'nav_click')::int AS "navClickCount",
 				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount"
 			FROM app_discovery_analytics_stats
 			WHERE recorded_at >= ${input.startAt}
@@ -231,9 +265,40 @@ export class DiscoveryAnalyticsRepository {
 				searchCount: 0,
 				filterApplyCount: 0,
 				filterClearCount: 0,
+				mapInteractionCount: 0,
+				sortChangeCount: 0,
+				locationRequestCount: 0,
+				tourInteractionCount: 0,
+				navClickCount: 0,
 				uniqueSessionCount: 0,
 			}
 		);
+	}
+
+	async listTopDiscoveryActions(input: {
+		actionType: DiscoveryActionType;
+		startAt: string;
+		endAt: string;
+		limit: number;
+	}): Promise<Array<{ group: string; value: string; count: number }>> {
+		await this.ready();
+		const safeLimit = Math.max(1, Math.min(input.limit, 100));
+		const rows = await this.sql<
+			Array<{ group: string; value: string; count: number }>
+		>`
+			SELECT
+				COALESCE(filter_group, 'unknown') AS "group",
+				COALESCE(filter_value, 'unknown') AS value,
+				COUNT(*)::int AS count
+			FROM app_discovery_analytics_stats
+			WHERE action_type = ${input.actionType}
+				AND recorded_at >= ${input.startAt}
+				AND recorded_at < ${input.endAt}
+			GROUP BY 1, 2
+			ORDER BY count DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows;
 	}
 
 	async listTopFilters(input: {

@@ -757,34 +757,36 @@ export const EmailCollectionCard = ({
 					<div className="space-y-2 rounded-md border bg-background/60 px-3 py-2">
 						<div className="flex items-center">
 							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-								User Context
+								Most Common User Context
 							</p>
 							<InfoPopover aria-label="Explain user context" side="top">
-								Device, platform, browser, timezone, and locale are coarse
-								first-party context captured from signed-in browsing.
+								These are the most common values across collected users with
+								captured context, not averages. Each user's latest signed-in
+								activity can update their device, platform, browser, timezone,
+								and locale.
 							</InfoPopover>
 						</div>
 						<div className="space-y-1 text-xs text-muted-foreground">
 							<p className="flex justify-between gap-2">
-								<span>Device</span>
+								<span>Top Device</span>
 								<span className="truncate text-foreground">
 									{analytics?.topDeviceClasses?.[0]?.label ?? "Unknown"}
 								</span>
 							</p>
 							<p className="flex justify-between gap-2">
-								<span>Platform</span>
+								<span>Top Platform</span>
 								<span className="truncate text-foreground">
 									{analytics?.topPlatforms?.[0]?.label ?? "Unknown"}
 								</span>
 							</p>
 							<p className="flex justify-between gap-2">
-								<span>Timezone</span>
+								<span>Top Timezone</span>
 								<span className="truncate text-foreground">
 									{analytics?.topTimezones?.[0]?.label ?? "Unknown"}
 								</span>
 							</p>
 							<p className="flex justify-between gap-2">
-								<span>Locale</span>
+								<span>Top Locale</span>
 								<span className="truncate text-foreground">
 									{analytics?.topLocales?.[0]?.label ?? "Unknown"}
 								</span>
