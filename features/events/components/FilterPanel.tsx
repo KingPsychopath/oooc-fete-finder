@@ -1251,6 +1251,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								/>
 							)}
 							<Button
+								id="tour-filter-drawer-close"
 								variant="outline"
 								size="icon"
 								onClick={onClose}
