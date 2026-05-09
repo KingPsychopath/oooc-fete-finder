@@ -4,6 +4,11 @@ import { useOptionalAuth } from "@/features/auth/auth-context";
 import { getClientContext } from "@/features/events/engagement/client-tracking";
 import type { Event } from "@/features/events/types";
 import {
+	enqueueSavedEventMutation,
+	flushPendingMutations,
+	getPendingMutationCount,
+} from "@/features/offline-mutations/pending-mutation-queue";
+import {
 	type ReactNode,
 	createContext,
 	useCallback,
@@ -20,6 +25,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 interface SavedEventsContextValue {
 	savedEventKeys: Set<string>;
 	savedEventsCount: number;
+	pendingSavedMutationCount: number;
 	isEventSaved: (eventKey: string) => boolean;
 	getSavedEvents: (events: Event[]) => Event[];
 	toggleSavedEvent: (event: Event, source?: string) => boolean;
@@ -77,12 +83,16 @@ const clearLocalSavedEventKeys = (ownerKey: string) => {
 };
 
 const syncSavedEvents = (input: {
+	ownerKey: string;
 	eventKeys: string[];
 	isSaved?: boolean;
 	source: string;
-}) => {
-	if (typeof window === "undefined" || input.eventKeys.length === 0) return;
-	void fetch(`${basePath}/api/user/saved-events`, {
+	queueOnFailure?: boolean;
+}): Promise<boolean> => {
+	if (typeof window === "undefined" || input.eventKeys.length === 0) {
+		return Promise.resolve(false);
+	}
+	return fetch(`${basePath}/api/user/saved-events`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({
@@ -92,7 +102,34 @@ const syncSavedEvents = (input: {
 			clientContext: getClientContext(),
 		}),
 		keepalive: true,
-	}).catch(() => {});
+	})
+		.then((response) => {
+			if (response.ok) return true;
+			if (input.queueOnFailure && typeof input.isSaved === "boolean") {
+				for (const eventKey of input.eventKeys) {
+					enqueueSavedEventMutation({
+						ownerKey: input.ownerKey,
+						eventKey,
+						isSaved: input.isSaved,
+						source: input.source,
+					});
+				}
+			}
+			return false;
+		})
+		.catch(() => {
+			if (input.queueOnFailure && typeof input.isSaved === "boolean") {
+				for (const eventKey of input.eventKeys) {
+					enqueueSavedEventMutation({
+						ownerKey: input.ownerKey,
+						eventKey,
+						isSaved: input.isSaved,
+						source: input.source,
+					});
+				}
+			}
+			return false;
+		});
 };
 
 export function SavedEventsProvider({ children }: { children: ReactNode }) {
@@ -100,6 +137,7 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 	const [savedEventKeys, setSavedEventKeys] = useState<Set<string>>(
 		() => new Set(),
 	);
+	const [pendingSavedMutationCount, setPendingSavedMutationCount] = useState(0);
 	const canSync = isAuthenticated && authMode === "live";
 	const ownerKey = getOwnerKey(userEmail, canSync);
 	const previousOwnerKeyRef = useRef(ownerKey);
@@ -128,11 +166,15 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 		setSavedEventKeys(localKeys);
 		if (shouldMergeAnonymousKeys) {
 			syncSavedEvents({
+				ownerKey,
 				eventKeys: Array.from(anonymousKeys),
+				isSaved: true,
 				source: "saved_events_anon_merge",
+				queueOnFailure: true,
 			});
 			clearLocalSavedEventKeys("anon");
 		}
+		setPendingSavedMutationCount(getPendingMutationCount(ownerKey));
 	}, [canSync, ownerKey]);
 
 	useEffect(() => {
@@ -179,6 +221,31 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 		};
 	}, [canSync, ownerKey]);
 
+	useEffect(() => {
+		if (!canSync) return;
+
+		const flushForCurrentOwner = async () => {
+			const result = await flushPendingMutations({
+				ownerKey,
+				savedEvent: ({ mutation }) =>
+					syncSavedEvents({
+						ownerKey: mutation.ownerKey,
+						eventKeys: [mutation.payload.eventKey],
+						isSaved: mutation.payload.isSaved,
+						source: mutation.payload.source,
+					}),
+			});
+			setPendingSavedMutationCount(result.remaining);
+		};
+
+		void flushForCurrentOwner();
+		window.addEventListener("online", flushForCurrentOwner);
+
+		return () => {
+			window.removeEventListener("online", flushForCurrentOwner);
+		};
+	}, [canSync, ownerKey]);
+
 	const isEventSaved = useCallback(
 		(eventKey: string) => savedEventKeys.has(normalizeEventKey(eventKey)),
 		[savedEventKeys],
@@ -207,26 +274,37 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 					nextIsSaved = true;
 				}
 				syncSavedEvents({
+					ownerKey,
 					eventKeys: [eventKey],
 					isSaved: nextIsSaved,
 					source,
+					queueOnFailure: true,
+				}).then(() => {
+					setPendingSavedMutationCount(getPendingMutationCount(ownerKey));
 				});
 				return next;
 			});
 			return nextIsSaved;
 		},
-		[],
+		[ownerKey],
 	);
 
 	const value = useMemo(
 		() => ({
 			savedEventKeys,
 			savedEventsCount: savedEventKeys.size,
+			pendingSavedMutationCount,
 			isEventSaved,
 			getSavedEvents,
 			toggleSavedEvent,
 		}),
-		[getSavedEvents, isEventSaved, savedEventKeys, toggleSavedEvent],
+		[
+			getSavedEvents,
+			isEventSaved,
+			pendingSavedMutationCount,
+			savedEventKeys,
+			toggleSavedEvent,
+		],
 	);
 
 	return (
