@@ -103,24 +103,32 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 	const canSync = isAuthenticated && authMode === "live";
 	const ownerKey = getOwnerKey(userEmail, canSync);
 	const previousOwnerKeyRef = useRef(ownerKey);
+	const pendingAnonymousMergeKeysRef = useRef<Set<string>>(new Set());
 
 	useEffect(() => {
 		const previousOwnerKey = previousOwnerKeyRef.current;
 		previousOwnerKeyRef.current = ownerKey;
 		const localKeys = new Set(readLocalSavedEventKeys(ownerKey));
+		const anonymousKeys = new Set(readLocalSavedEventKeys("anon"));
 		const shouldMergeAnonymousKeys =
-			canSync && previousOwnerKey === "anon" && ownerKey !== "anon";
+			canSync &&
+			previousOwnerKey === "anon" &&
+			ownerKey !== "anon" &&
+			anonymousKeys.size > 0;
 
 		if (shouldMergeAnonymousKeys) {
-			for (const eventKey of readLocalSavedEventKeys("anon")) {
+			for (const eventKey of anonymousKeys) {
 				localKeys.add(eventKey);
 			}
+			pendingAnonymousMergeKeysRef.current = anonymousKeys;
+		} else {
+			pendingAnonymousMergeKeysRef.current = new Set();
 		}
 
 		setSavedEventKeys(localKeys);
-		if (shouldMergeAnonymousKeys && localKeys.size > 0) {
+		if (shouldMergeAnonymousKeys) {
 			syncSavedEvents({
-				eventKeys: Array.from(localKeys),
+				eventKeys: Array.from(anonymousKeys),
 				source: "saved_events_anon_merge",
 			});
 			clearLocalSavedEventKeys("anon");
@@ -134,6 +142,7 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		if (!canSync) return;
 		let isCancelled = false;
+		const activeOwnerKey = ownerKey;
 
 		const loadRemoteSavedEvents = async () => {
 			try {
@@ -144,15 +153,20 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 				const payload = (await response.json()) as {
 					eventKeys?: unknown;
 				};
-				if (isCancelled || !Array.isArray(payload.eventKeys)) return;
+				if (
+					isCancelled ||
+					activeOwnerKey !== previousOwnerKeyRef.current ||
+					!Array.isArray(payload.eventKeys)
+				) {
+					return;
+				}
 				const remoteKeys = payload.eventKeys
 					.filter((value): value is string => typeof value === "string")
 					.map(normalizeEventKey)
 					.filter(Boolean);
-				setSavedEventKeys((current) => {
-					const merged = new Set([...current, ...remoteKeys]);
-					return merged;
-				});
+				setSavedEventKeys(
+					new Set([...remoteKeys, ...pendingAnonymousMergeKeysRef.current]),
+				);
 			} catch {
 				// Local saves remain available if sync cannot complete.
 			}
@@ -163,7 +177,7 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 		return () => {
 			isCancelled = true;
 		};
-	}, [canSync]);
+	}, [canSync, ownerKey]);
 
 	const isEventSaved = useCallback(
 		(eventKey: string) => savedEventKeys.has(normalizeEventKey(eventKey)),
