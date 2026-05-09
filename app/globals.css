@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * OOOC brand fonts: Crimson Pro (display trial) + Degular (body).
+ * OOOC brand fonts: Prata (display trial) + Degular (body).
  * Browsers do not use locally installed fonts unless declared here.
  * Option A: Add your .woff2 files to public/fonts/ (see FONTS.md).
  * Option B: Use Adobe Fonts – create a kit with the brand display font + Degular
@@ -78,7 +78,7 @@
 	--radius: 0.625rem;
 	--ooo-font-body: "Degular", "Geist Sans", "Inter", system-ui, -apple-system,
 		"Segoe UI", sans-serif;
-	--ooo-font-display: var(--font-crimson-pro), "Swear Display", "Iowan Old Style",
+	--ooo-font-display: var(--font-prata), "Swear Display", "Iowan Old Style",
 		"Times New Roman", Times, serif;
 	--background: oklch(0.973 0.012 82);
 	--foreground: oklch(0.24 0.02 56);

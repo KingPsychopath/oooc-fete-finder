@@ -7,42 +7,27 @@ import { getFeaturedProjection } from "@/features/events/featured/service";
 import { generateOGMetadata, generatePresetOGImage } from "@/lib/social/og-utils";
 import {
 	ArrowRight,
-	CheckCircle,
 	CircleHelp,
 	Megaphone,
 	ShieldCheck,
-	Star,
 	TrendingUp,
 } from "lucide-react";
 import type { Metadata } from "next";
 import { unstable_cache as cache } from "next/cache";
 import Link from "next/link";
 import { Suspense } from "react";
+import {
+	FeatureEventRequestBuilder,
+	type PromotionAddOn,
+	type PromotionPackage,
+} from "./FeatureEventRequestBuilder";
 import { FeatureEventStatusSection } from "./FeatureEventStatusSection";
-
-type Package = {
-	name: string;
-	priceLabel: string;
-	description: string;
-	includes: string[];
-	badge?: string;
-	tier: "spotlight" | "promoted";
-	stripeUrl: string | undefined;
-};
-
-type AddOn = {
-	name: string;
-	priceLabel: string;
-	description: string;
-	reachHint?: string;
-	stripeUrl: string | undefined;
-};
 
 export const metadata: Metadata = {
 	...generateOGMetadata({
 		title: "Partner With OOOC | Fete Finder",
 		description:
-			"Book Spotlight and Promoted placements for Fete de la Musique 2026 in minutes via Stripe Payment Links.",
+			"Request Spotlight and Promoted placements for Fete de la Musique 2026 in minutes.",
 		ogImageUrl: generatePresetOGImage("feature-event"),
 		url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${process.env.NEXT_PUBLIC_BASE_PATH || ""}/feature-event`,
 	}),
@@ -62,9 +47,11 @@ const fallbackContactHref = `mailto:${contactEmail}?subject=OOOC%20Fete%202026%2
 const mediaKitHref = `${basePath}/media-kit/OOOC-Fete-2026-Media-Kit.pdf`;
 const ooocPressKitHref = `${basePath}/media-kit/OOOC-Press-Kit.pdf`;
 
-const packages: Package[] = [
+const packages: PromotionPackage[] = [
 	{
+		id: "spotlight-standard",
 		name: "Spotlight Standard",
+		price: 80,
 		priceLabel: "EUR 80",
 		description: "Best for early-season bookings before peak June pricing.",
 		includes: [
@@ -75,10 +62,11 @@ const packages: Package[] = [
 		],
 		badge: "Only 3 Spotlight slots visible at once",
 		tier: "spotlight",
-		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_SPOTLIGHT_STANDARD,
 	},
 	{
+		id: "spotlight-takeover",
 		name: "Spotlight Takeover",
+		price: 150,
 		priceLabel: "EUR 150",
 		description:
 			"Reserve now for premium placement from June 15 to June 20, 2026.",
@@ -90,10 +78,11 @@ const packages: Package[] = [
 		],
 		badge: "Reserve now for peak week",
 		tier: "spotlight",
-		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_SPOTLIGHT_TAKEOVER,
 	},
 	{
+		id: "promoted-listing",
 		name: "Promoted Listing",
+		price: 40,
 		priceLabel: "EUR 40",
 		description: "Mid-tier visibility without full Spotlight placement.",
 		includes: [
@@ -102,56 +91,29 @@ const packages: Package[] = [
 			"Promoted label in list results",
 		],
 		tier: "promoted",
-		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_PROMOTED,
 	},
 ];
 
-const addOns: AddOn[] = [
+const addOns: PromotionAddOn[] = [
 	{
+		id: "whatsapp-announcement",
 		name: "WhatsApp Announcement Add-on",
+		price: 50,
 		priceLabel: "+ EUR 50",
 		description:
 			"Included with Spotlight packages, or add it to Promoted Listing.",
 		reachHint: "Typically reaches 2,000+ community members.",
-		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_ADDON_WHATSAPP,
+		includedWith: ["spotlight"],
 	},
 	{
+		id: "newsletter-inclusion",
 		name: "Newsletter Inclusion Add-on",
+		price: 75,
 		priceLabel: "+ EUR 75",
 		description: "Editorial-style feature inside OOOC email newsletter.",
 		reachHint: "Sent to 16,000 people.",
-		stripeUrl: process.env.NEXT_PUBLIC_STRIPE_LINK_ADDON_NEWSLETTER,
 	},
 ];
-
-function StripeOrContactButton({
-	url,
-	label,
-	className,
-}: {
-	url: string | undefined;
-	label: string;
-	className?: string;
-}) {
-	const href = url && url.trim().length > 0 ? url : fallbackContactHref;
-	const isExternal = href.startsWith("http");
-
-	return (
-		<Button
-			nativeButton={false}
-			className={className}
-			render={
-				<a
-					href={href}
-					target={isExternal ? "_blank" : undefined}
-					rel={isExternal ? "noopener noreferrer" : undefined}
-				/>
-			}
-		>
-			{label}
-		</Button>
-	);
-}
 
 const getFeaturedProjectionCached = cache(
 	async () => getFeaturedProjection().catch(() => null),
@@ -205,20 +167,20 @@ function FeatureEventStatusSectionFallback() {
 export default async function FeatureEventPage() {
 	return (
 		<>
-			<main className="container mx-auto max-w-6xl px-4 py-10 pb-28 sm:pb-12">
-				<section className="rounded-2xl border border-border/80 bg-card/85 p-6 shadow-[0_8px_22px_rgba(18,14,10,0.14)] sm:p-8">
+			<main className="container mx-auto max-w-6xl px-4 py-8 pb-28 sm:py-10 sm:pb-12">
+				<section className="rounded-2xl border border-border/80 bg-card/85 p-5 shadow-[0_8px_22px_rgba(18,14,10,0.14)] sm:p-8">
 					<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
 						OOOC Partnerships
 					</p>
 					<h1
-						className="mt-2 text-3xl font-light tracking-tight text-foreground sm:text-4xl"
+						className="mt-2 text-3xl font-light leading-tight tracking-tight text-foreground sm:text-4xl"
 						style={{ fontFamily: "var(--ooo-font-display)" }}
 					>
 						Get your event discovered on Fete night
 					</h1>
 					<p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-						Reach people at the exact moment they decide where to go. Book your
-						placement now and activate fast.
+						Reach people at the exact moment they decide where to go. Build a
+						promotion request now, then we confirm activation by email.
 					</p>
 					<div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
 						<div className="rounded-xl border border-border/70 bg-background/70 p-3">
@@ -237,11 +199,13 @@ export default async function FeatureEventPage() {
 						</div>
 					</div>
 					<div className="mt-6 flex flex-wrap items-center gap-3">
-						<StripeOrContactButton
-							url={process.env.NEXT_PUBLIC_STRIPE_LINK_SPOTLIGHT_STANDARD}
-							label="Book placement now"
+						<Button
+							nativeButton={false}
 							className="rounded-full border border-border bg-foreground px-5 text-background hover:bg-foreground/90"
-						/>
+							render={<a href="#promotion-request" />}
+						>
+							Build promotion request
+						</Button>
 						<Button
 							nativeButton={false}
 							variant="outline"
@@ -272,8 +236,8 @@ export default async function FeatureEventPage() {
 						</Button>
 					</div>
 					<p className="mt-3 text-xs text-muted-foreground">
-						After payment, your order enters our activation queue and is
-						reviewed by the OOOC team before going live.
+						Request now, then we confirm fit, timing, and payment details before
+						anything goes live.
 					</p>
 					<p className="mt-4 text-xs text-muted-foreground">
 						No event yet? Why are you here.{"  "}
@@ -292,128 +256,30 @@ export default async function FeatureEventPage() {
 					</Suspense>
 				</section>
 
-				<section className="mt-8" aria-label="Partnership packages">
-					<div className="mb-4 flex items-center justify-between gap-3">
-						<div>
-							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-								Core offers
-							</p>
-							<h2 className="mt-1 text-2xl font-light text-foreground">
-								Choose a package and pay in one click
-							</h2>
-							<p className="mt-1 text-xs text-muted-foreground">
-								Spotlight Standard and Spotlight Takeover share the same 3-slot
-								Spotlight inventory.
-							</p>
-						</div>
-						<div className="flex flex-wrap items-center justify-end gap-2">
-							<Badge className="rounded-full border border-amber-700/20 bg-amber-500/15 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-amber-900 dark:text-amber-100">
-								Prices increase June 15 to June 20
-							</Badge>
-							<Suspense fallback={<SpotlightAvailabilityBadgeFallback />}>
-								<SpotlightAvailabilityBadge />
-							</Suspense>
-						</div>
+				<section
+					id="promotion-request"
+					className="mt-8"
+					aria-label="Promotion request"
+				>
+					<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+						<Badge className="rounded-full border border-amber-700/20 bg-amber-500/15 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-amber-900 dark:text-amber-100">
+							Prices increase June 15 to June 20
+						</Badge>
+						<Suspense fallback={<SpotlightAvailabilityBadgeFallback />}>
+							<SpotlightAvailabilityBadge />
+						</Suspense>
 					</div>
-					<div className="grid gap-4 md:grid-cols-3">
-						{packages.map((pkg) => (
-							<Card
-								key={pkg.name}
-								className={
-									pkg.tier === "spotlight"
-										? "border border-amber-700/30 bg-amber-50/30"
-										: "border border-border/80 bg-card"
-								}
-							>
-								<CardHeader className="space-y-2">
-									<CardTitle className="flex items-center gap-2 text-lg font-medium">
-										<Star className="h-4 w-4 text-muted-foreground" />
-										{pkg.name}
-									</CardTitle>
-									<p className="text-2xl font-medium text-foreground">
-										{pkg.priceLabel}
-									</p>
-									<p className="text-sm text-muted-foreground">
-										{pkg.description}
-									</p>
-									{pkg.badge ? (
-										<Badge
-											variant="outline"
-											className="w-fit rounded-full text-[10px] uppercase tracking-[0.08em]"
-										>
-											{pkg.badge}
-										</Badge>
-									) : null}
-								</CardHeader>
-								<CardContent>
-									<ul className="space-y-2 text-sm text-muted-foreground">
-										{pkg.includes.map((line) => (
-											<li key={line} className="flex items-start gap-2">
-												<CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-foreground/70" />
-												<span>{line}</span>
-											</li>
-										))}
-									</ul>
-									<StripeOrContactButton
-										url={pkg.stripeUrl}
-										label={`Pay for ${pkg.name}`}
-										className={
-											pkg.tier === "spotlight"
-												? "mt-6 w-full rounded-full border border-amber-900/15 bg-amber-900/85 text-amber-50 hover:bg-amber-900"
-												: "mt-6 w-full rounded-full border border-border bg-primary text-primary-foreground hover:bg-primary/90"
-										}
-									/>
-								</CardContent>
-							</Card>
-						))}
-					</div>
+					<FeatureEventRequestBuilder
+						packages={packages}
+						addOns={addOns}
+						contactEmail={contactEmail}
+					/>
 				</section>
 
 				<section
 					className="mt-8 grid gap-4 md:grid-cols-2"
 					aria-label="Add-ons and process"
 				>
-					<Card className="border border-border/80 bg-card">
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2 text-lg font-medium">
-								<Megaphone className="h-4 w-4 text-muted-foreground" />
-								Add-ons
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							{addOns.map((addOn) => (
-								<div
-									key={addOn.name}
-									className="rounded-xl border border-border/70 bg-background/60 p-4"
-								>
-									<div className="flex items-start justify-between gap-3">
-										<div>
-											<p className="font-medium text-foreground">
-												{addOn.name}
-											</p>
-											<p className="mt-1 text-sm text-muted-foreground">
-												{addOn.description}
-											</p>
-											{addOn.reachHint ? (
-												<p className="mt-1 text-xs text-muted-foreground/90">
-													{addOn.reachHint}
-												</p>
-											) : null}
-										</div>
-										<Badge variant="outline" className="rounded-full">
-											{addOn.priceLabel}
-										</Badge>
-									</div>
-									<StripeOrContactButton
-										url={addOn.stripeUrl}
-										label="Book add-on"
-										className="mt-4 rounded-full border border-amber-900/20 bg-amber-900/90 text-amber-50 hover:bg-amber-900 dark:border-amber-300/25 dark:bg-amber-500/20 dark:text-amber-100 dark:hover:bg-amber-500/28"
-									/>
-								</div>
-							))}
-						</CardContent>
-					</Card>
-
 					<Card className="border border-border/80 bg-card">
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2 text-lg font-medium">
@@ -443,10 +309,11 @@ export default async function FeatureEventPage() {
 									</span>
 									<div>
 										<p className="font-medium text-foreground">
-											Pay via Stripe
+											Send your request
 										</p>
 										<p className="mt-0.5 text-muted-foreground">
-											Apple Pay, Google Pay, and cards supported in seconds.
+											We receive your package, add-ons, event details, and
+											estimated total in one clear message.
 										</p>
 									</div>
 								</li>
@@ -456,12 +323,12 @@ export default async function FeatureEventPage() {
 									</span>
 									<div>
 										<p className="font-medium text-foreground">
-											We activate your placement
+											We activate and report back
 										</p>
 										<p className="mt-0.5 text-muted-foreground">
-											After payment, your order is reviewed, scheduled, and
-											activated in the booked tier with post-event ROI
-											reporting.
+											After confirmation, your campaign is reviewed, scheduled,
+											and activated in the booked tier with post-event ROI
+											reporting once the promotion period ends.
 										</p>
 									</div>
 								</li>
@@ -476,6 +343,26 @@ export default async function FeatureEventPage() {
 									clicks and calendar saves.
 								</p>
 							</div>
+						</CardContent>
+					</Card>
+
+					<Card className="border border-border/80 bg-card">
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2 text-lg font-medium">
+								<Megaphone className="h-4 w-4 text-muted-foreground" />
+								Not sure what to choose?
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="text-sm text-muted-foreground">
+							<p>
+								Spotlight is best when you want your event to be seen first.
+								Promoted Listing is best when you want a lighter visibility lift
+								without taking one of the top slots.
+							</p>
+							<p className="mt-3">
+								Send the request even if you are unsure. We will recommend the
+								best fit before confirming anything.
+							</p>
 						</CardContent>
 					</Card>
 				</section>
@@ -494,8 +381,9 @@ export default async function FeatureEventPage() {
 									Can I reserve now and run later?
 								</p>
 								<p className="mt-1 text-muted-foreground">
-									Yes. After payment, your order enters the activation queue,
-									then we confirm your exact go-live window before publishing.
+									Yes. After confirmation, your order enters the activation
+									queue, then we confirm your exact go-live window before
+									publishing.
 								</p>
 							</div>
 							<div>
@@ -533,18 +421,20 @@ export default async function FeatureEventPage() {
 						Final call
 					</p>
 					<h2 className="mt-2 text-2xl font-light text-foreground">
-						Close and collect payment in one message
+						Send a complete request in one message
 					</h2>
 					<p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">
-						Choose your package, pay in minutes, and we activate your campaign
-						fast with confirmation by email.
+						Choose your package, add your details, and the builder formats
+						everything for the OOOC team to confirm.
 					</p>
 					<div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-						<StripeOrContactButton
-							url={process.env.NEXT_PUBLIC_STRIPE_LINK_SPOTLIGHT_STANDARD}
-							label="Book Spotlight"
+						<Button
+							nativeButton={false}
 							className="rounded-full border border-border bg-primary text-primary-foreground hover:bg-primary/90"
-						/>
+							render={<a href="#promotion-request" />}
+						>
+							Build request
+						</Button>
 						<Button
 							nativeButton={false}
 							variant="outline"
@@ -567,14 +457,6 @@ export default async function FeatureEventPage() {
 					</Link>
 				</section>
 			</main>
-
-			<div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-card/95 p-3 backdrop-blur md:hidden">
-				<StripeOrContactButton
-					url={process.env.NEXT_PUBLIC_STRIPE_LINK_SPOTLIGHT_STANDARD}
-					label="Book Spotlight"
-					className="h-11 w-full rounded-full border border-border bg-foreground text-background hover:bg-foreground/90"
-				/>
-			</div>
 		</>
 	);
 }

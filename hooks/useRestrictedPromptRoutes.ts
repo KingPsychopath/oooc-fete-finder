@@ -9,7 +9,7 @@ const RESTRICTED_PREFIXES: string[] = [
 	"/partner-success",
 ];
 
-const RESTRICTED_EXACT_PATHS: string[] = ["/submit-event"];
+const RESTRICTED_EXACT_PATHS: string[] = ["/feature-event", "/submit-event"];
 
 export function useIsRestrictedPromptRoute(): boolean {
 	const pathname = usePathname();

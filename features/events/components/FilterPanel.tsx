@@ -702,8 +702,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						className="ooo-site-card overflow-hidden py-0"
 					>
 						<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 border-b border-border/70 py-5">
-							<CardTitle className="flex min-w-0 items-center whitespace-nowrap text-[1.5rem] [font-family:var(--ooo-font-display)] font-light leading-none tracking-[0.01em]">
-								<Filter className="mr-2.5 h-[1.15rem] w-[1.15rem] stroke-[1.75]" />
+							<CardTitle className="flex min-w-0 items-center whitespace-nowrap !text-[1.75rem] [font-family:var(--ooo-font-display)] font-light leading-none tracking-[0.01em]">
+								<Filter className="mr-3 h-[1.45rem] w-[1.45rem] stroke-[1.6]" />
 								Filters
 								{hasActiveFilters && (
 									<Badge

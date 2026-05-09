@@ -57,6 +57,7 @@ const PENDING_HOME_SECTION_STORAGE_KEY = "oooc_pending_home_section";
 const excludedPathPrefixes = [
 	"/admin",
 	"/event-modal-lab",
+	"/feature-event",
 	"/header-lab",
 	"/home-style-lab",
 	"/how-it-works",
