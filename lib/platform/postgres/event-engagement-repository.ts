@@ -69,7 +69,7 @@ export class EventEngagementRepository {
 			CREATE TABLE IF NOT EXISTS app_event_engagement_stats (
 				id BIGSERIAL PRIMARY KEY,
 				event_key TEXT NOT NULL,
-				action_type TEXT NOT NULL CHECK (action_type IN ('click', 'outbound_click', 'calendar_sync', 'map_open', 'map_preference_change')),
+				action_type TEXT NOT NULL CHECK (action_type IN ('click', 'outbound_click', 'calendar_sync', 'saved_toggle', 'map_open', 'map_preference_change')),
 				user_id TEXT,
 				session_id TEXT,
 				source TEXT,
@@ -91,7 +91,7 @@ export class EventEngagementRepository {
 				DROP CONSTRAINT IF EXISTS app_event_engagement_stats_action_type_check;
 				ALTER TABLE app_event_engagement_stats
 				ADD CONSTRAINT app_event_engagement_stats_action_type_check
-				CHECK (action_type IN ('click', 'outbound_click', 'calendar_sync', 'map_open', 'map_preference_change'));
+				CHECK (action_type IN ('click', 'outbound_click', 'calendar_sync', 'saved_toggle', 'map_open', 'map_preference_change'));
 			END $$;
 		`;
 
@@ -457,7 +457,9 @@ export class EventEngagementRepository {
 		startAt: string;
 		endAt: string;
 		limit: number;
-	}): Promise<Array<{ provider: string; count: number; uniqueSessionCount: number }>> {
+	}): Promise<
+		Array<{ provider: string; count: number; uniqueSessionCount: number }>
+	> {
 		await this.ready();
 		const safeLimit = Math.max(1, Math.min(input.limit, 20));
 		const rows = await this.sql<

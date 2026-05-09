@@ -2,8 +2,9 @@
 
 import { AllEvents } from "@/features/events/components/AllEvents";
 import { useEventsSearchFilters } from "@/features/events/components/events-search-filters-provider";
+import { useSavedEvents } from "@/features/events/components/saved-events-provider";
 import type { Event } from "@/features/events/types";
-import type { ReactNode, RefObject } from "react";
+import { type ReactNode, type RefObject, useMemo, useState } from "react";
 
 interface EventListIslandProps {
 	allEventsRef: RefObject<HTMLDivElement | null>;
@@ -36,11 +37,17 @@ export function EventListIsland({
 		toggleNearbyEvents,
 		toggleFilterPanel,
 	} = useEventsSearchFilters();
+	const { getSavedEvents, isEventSaved, savedEventsCount } = useSavedEvents();
+	const [showSavedOnly, setShowSavedOnly] = useState(false);
+	const visibleEvents = useMemo(
+		() => (showSavedOnly ? getSavedEvents(allEventsOrdered) : allEventsOrdered),
+		[allEventsOrdered, getSavedEvents, showSavedOnly],
+	);
 
 	return (
 		<AllEvents
 			ref={allEventsRef}
-			events={allEventsOrdered}
+			events={visibleEvents}
 			onEventClick={onEventClick}
 			socialProofDisplayModes={socialProofDisplayModes}
 			sortMode={sortMode}
@@ -56,6 +63,10 @@ export function EventListIsland({
 			nearbyEventsStatus={nearbyEventsStatus}
 			nearbyMatchedEventsCount={nearbyMatchedEventsCount}
 			onNearbyClick={toggleNearbyEvents}
+			isEventSaved={isEventSaved}
+			savedEventsCount={savedEventsCount}
+			showSavedOnly={showSavedOnly}
+			onSavedOnlyChange={setShowSavedOnly}
 			searchSlot={searchSlot}
 		/>
 	);

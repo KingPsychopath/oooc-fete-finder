@@ -1,8 +1,9 @@
 "use client";
 
 import { useOptionalAuth } from "@/features/auth/auth-context";
-import { EventsSearchFiltersProvider } from "@/features/events/components/events-search-filters-provider";
 import { useEventsOffline } from "@/features/events/components/events-offline-provider";
+import { EventsSearchFiltersProvider } from "@/features/events/components/events-search-filters-provider";
+import { SavedEventsProvider } from "@/features/events/components/saved-events-provider";
 import type { ReactNode, RefObject } from "react";
 import { Suspense, lazy, useCallback, useRef, useState } from "react";
 
@@ -100,16 +101,18 @@ export function AuthGatedControlsIsland({
 			onScrollToAllEvents={scrollToAllEvents}
 			requireAuth={requireAuth}
 		>
-			{children({
-				allEventsRef,
-				authMode,
-				canUseProtectedDiscovery,
-				isAuthResolved,
-				isAuthenticated,
-				isOnline,
-				offlineGraceExpiresAt,
-				onAuthRequired: handleAuthRequired,
-			})}
+			<SavedEventsProvider>
+				{children({
+					allEventsRef,
+					authMode,
+					canUseProtectedDiscovery,
+					isAuthResolved,
+					isAuthenticated,
+					isOnline,
+					offlineGraceExpiresAt,
+					onAuthRequired: handleAuthRequired,
+				})}
+			</SavedEventsProvider>
 			{showEmailGate && (
 				<Suspense fallback={NoopSuspenseFallback}>
 					<EmailGateModal

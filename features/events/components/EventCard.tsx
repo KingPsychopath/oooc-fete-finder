@@ -25,6 +25,7 @@ import {
 } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
 import {
+	BookmarkCheck,
 	Building2,
 	Clock,
 	Crown,
@@ -45,6 +46,7 @@ type EventCardProps = {
 	onClick: (event: Event) => void;
 	socialProofMode?: SocialProofDisplayMode;
 	genreFrequency?: GenreFrequency;
+	isSaved?: boolean;
 };
 
 /**
@@ -56,6 +58,7 @@ export function EventCard({
 	onClick,
 	socialProofMode,
 	genreFrequency,
+	isSaved = false,
 }: EventCardProps) {
 	const handleClick = () => {
 		if (!event || !onClick) {
@@ -126,6 +129,16 @@ export function EventCard({
 				</div>
 			) : null}
 
+			{isSaved && !isCurrentlyFeatured && !hasOOOCPick && (
+				<div
+					className="absolute -top-2.5 -right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200/90 bg-emerald-50 text-emerald-700 shadow-md dark:border-emerald-500/40 dark:bg-emerald-950 dark:text-emerald-200"
+					title="Saved event"
+					aria-hidden="true"
+				>
+					<BookmarkCheck className="h-4 w-4" />
+				</div>
+			)}
+
 			{/* Header with proper overflow handling */}
 			<div className="mb-2 flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
 				<div className="flex min-w-[9rem] flex-1 items-center space-x-2">
@@ -166,6 +179,11 @@ export function EventCard({
 								<Megaphone className="h-3 w-3" />
 								Promoted
 							</span>
+						</Badge>
+					)}
+					{isSaved && (
+						<Badge className="max-w-full border border-emerald-500/30 bg-emerald-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800 shadow-none hover:bg-emerald-500/15 dark:text-emerald-200">
+							Saved
 						</Badge>
 					)}
 					{isNewlyAdded && (

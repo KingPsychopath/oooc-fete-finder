@@ -77,9 +77,7 @@ export class UserEventRelationshipRepository {
 		await this.ensureTablePromise;
 	}
 
-	async upsertRelationship(
-		input: UserEventRelationshipInput,
-	): Promise<void> {
+	async upsertRelationship(input: UserEventRelationshipInput): Promise<void> {
 		await this.ready();
 		const userId = cleanString(input.userId, 80);
 		const eventKey = cleanString(input.eventKey, 220)?.toLowerCase();
@@ -110,6 +108,45 @@ export class UserEventRelationshipRepository {
 				notify_on_changes = app_user_event_relationships.notify_on_changes OR EXCLUDED.notify_on_changes,
 				updated_at = NOW()
 		`;
+	}
+
+	async deleteRelationship(input: UserEventRelationshipInput): Promise<void> {
+		await this.ready();
+		const userId = cleanString(input.userId, 80);
+		const eventKey = cleanString(input.eventKey, 220)?.toLowerCase();
+		if (!userId || !eventKey) {
+			throw new Error("User id and event key are required");
+		}
+
+		await this.sql`
+			DELETE FROM app_user_event_relationships
+			WHERE user_id = ${userId}
+				AND event_key = ${eventKey}
+				AND relationship_type = ${input.relationshipType}
+		`;
+	}
+
+	async listEventKeysForUser(input: {
+		userId: string;
+		relationshipType: UserEventRelationshipType;
+		limit?: number;
+	}): Promise<string[]> {
+		await this.ready();
+		const userId = cleanString(input.userId, 80);
+		if (!userId) {
+			throw new Error("User id is required");
+		}
+		const limit = Math.min(Math.max(input.limit ?? 500, 1), 1000);
+		const rows = await this.sql<{ event_key: string }[]>`
+			SELECT event_key
+			FROM app_user_event_relationships
+			WHERE user_id = ${userId}
+				AND relationship_type = ${input.relationshipType}
+			ORDER BY updated_at DESC
+			LIMIT ${limit}
+		`;
+
+		return rows.map((row) => row.event_key);
 	}
 }
 

@@ -2,6 +2,7 @@
 
 import EventModal from "@/features/events/components/EventModal";
 import { useEventsSearchFilters } from "@/features/events/components/events-search-filters-provider";
+import { useSavedEvents } from "@/features/events/components/saved-events-provider";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 
@@ -23,6 +24,7 @@ export function EventModalIsland({
 	submissionsEnabled,
 }: EventModalIslandProps) {
 	const { socialProofDisplayModes } = useEventsSearchFilters();
+	const { isEventSaved, toggleSavedEvent } = useSavedEvents();
 
 	if (!event) return null;
 
@@ -39,6 +41,10 @@ export function EventModalIsland({
 			isRequestUpdateOpen={isRequestUpdateOpen}
 			onRequestUpdateOpenChange={onRequestUpdateOpenChange}
 			socialProofMode={socialProofMode}
+			isSaved={isEventSaved(event.eventKey)}
+			onToggleSaved={(selectedEvent) =>
+				toggleSavedEvent(selectedEvent, "modal_save_button")
+			}
 		/>
 	);
 }

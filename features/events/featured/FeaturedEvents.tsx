@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EventCard } from "@/features/events/components/EventCard";
+import { useSavedEvents } from "@/features/events/components/saved-events-provider";
 import { buildGenreFrequency } from "@/features/events/genre-preview";
 import { ChevronDown } from "lucide-react";
 import { FeaturedEventsHeader } from "./components/FeaturedEventsHeader";
@@ -27,6 +28,7 @@ export function FeaturedEvents({
 		maxFeaturedEvents,
 		dateRange,
 	);
+	const { isEventSaved } = useSavedEvents();
 	if (featuredEvents.length === 0) {
 		return null;
 	}
@@ -49,6 +51,7 @@ export function FeaturedEvents({
 							onClick={onEventClick}
 							socialProofMode={socialProofDisplayModes.get(event.eventKey)}
 							genreFrequency={genreFrequency}
+							isSaved={isEventSaved(event.eventKey)}
 						/>
 					))}
 				</div>

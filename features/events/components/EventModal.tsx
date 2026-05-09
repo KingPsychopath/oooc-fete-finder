@@ -74,6 +74,8 @@ import {
 } from "@/lib/ui/overlay-state";
 import {
 	AlertCircle,
+	Bookmark,
+	BookmarkCheck,
 	Building2,
 	Calendar,
 	CalendarPlus,
@@ -109,6 +111,8 @@ interface EventModalProps {
 	isRequestUpdateOpen?: boolean;
 	onRequestUpdateOpenChange?: (open: boolean) => void;
 	socialProofMode?: SocialProofDisplayMode;
+	isSaved?: boolean;
+	onToggleSaved?: (event: Event) => boolean;
 }
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -117,11 +121,11 @@ const MODAL_GENRE_PREVIEW_LIMIT = 8;
 const MODAL_MIN_COLLAPSED_GENRES = 3;
 const COUNTRY_PREVIEW_LIMIT = 3;
 const FOCUSABLE_MODAL_SELECTOR = [
-	'a[href]',
-	'button:not([disabled])',
-	'input:not([disabled])',
-	'select:not([disabled])',
-	'textarea:not([disabled])',
+	"a[href]",
+	"button:not([disabled])",
+	"input:not([disabled])",
+	"select:not([disabled])",
+	"textarea:not([disabled])",
 	'[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
@@ -376,6 +380,8 @@ const EventModal: React.FC<EventModalProps> = ({
 	isRequestUpdateOpen: controlledRequestUpdateOpen,
 	onRequestUpdateOpenChange,
 	socialProofMode,
+	isSaved = false,
+	onToggleSaved,
 }) => {
 	const modalTitleId = useId();
 	const { mapPreference, setMapPreference, isLoaded } = useMapPreference();
@@ -1049,14 +1055,24 @@ const EventModal: React.FC<EventModalProps> = ({
 		addToCalendar(event);
 	};
 
+	const handleToggleSaved = () => {
+		onToggleSaved?.(event);
+		trackEventEngagement({
+			eventKey: event.eventKey,
+			actionType: "saved_toggle",
+			source: isSaved ? "modal_unsave" : "modal_save",
+			isAuthenticated,
+		});
+	};
+
 	return (
 		<div
 			className="fixed inset-0 flex items-center justify-center bg-black/70 p-2 backdrop-blur-[4px] sm:p-4"
 			style={{ zIndex: LAYERS.OVERLAY }}
-				role="dialog"
-				aria-modal="true"
-				aria-labelledby={modalTitleId}
-				onKeyDown={handleModalKeyDown}
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby={modalTitleId}
+			onKeyDown={handleModalKeyDown}
 			onPointerDown={(pointerEvent) => {
 				if (pointerEvent.target !== pointerEvent.currentTarget) return;
 				if (showMapSelection) return;
@@ -1071,10 +1087,10 @@ const EventModal: React.FC<EventModalProps> = ({
 				onClose();
 			}}
 		>
-				<Card
-					ref={modalCardRef}
-					data-event-modal-card
-					className={`relative max-h-[94vh] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))] ${
+			<Card
+				ref={modalCardRef}
+				data-event-modal-card
+				className={`relative max-h-[94vh] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))] ${
 					isCurrentlyFeatured
 						? "border-amber-300/70 shadow-[0_38px_94px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(212,164,96,0.35)] dark:border-amber-500/45"
 						: "border-border/80"
@@ -1116,6 +1132,35 @@ const EventModal: React.FC<EventModalProps> = ({
 								</span>
 							)}
 							<TooltipProvider>
+								{onToggleSaved && (
+									<Tooltip>
+										<TooltipTrigger
+											render={
+												<Button
+													variant="outline"
+													size="icon"
+													onClick={handleToggleSaved}
+													className={`h-10 w-10 rounded-xl border-border/70 bg-background/70 transition-all duration-200 hover:bg-accent dark:bg-white/5 dark:hover:bg-white/10 ${
+														isSaved
+															? "border-emerald-300/80 text-emerald-700 dark:border-emerald-400/45 dark:text-emerald-300"
+															: ""
+													}`}
+													aria-label={isSaved ? "Unsave event" : "Save event"}
+													aria-pressed={isSaved}
+												/>
+											}
+										>
+											{isSaved ? (
+												<BookmarkCheck className="h-4 w-4" />
+											) : (
+												<Bookmark className="h-4 w-4" />
+											)}
+										</TooltipTrigger>
+										<TooltipContent>
+											<p>{isSaved ? "Saved event" : "Save event"}</p>
+										</TooltipContent>
+									</Tooltip>
+								)}
 								<Tooltip>
 									<TooltipTrigger
 										render={

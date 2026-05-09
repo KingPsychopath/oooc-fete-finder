@@ -2,6 +2,7 @@ export const EVENT_ENGAGEMENT_ACTIONS = [
 	"click",
 	"outbound_click",
 	"calendar_sync",
+	"saved_toggle",
 	"map_open",
 	"map_preference_change",
 ] as const;

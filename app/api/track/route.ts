@@ -180,6 +180,22 @@ export async function POST(request: Request) {
 					notifyOnChanges: true,
 				});
 			}
+			if (body.actionType === "saved_toggle" && userSession.userId) {
+				if (body.source?.includes("unsave")) {
+					await getUserEventRelationshipRepository()?.deleteRelationship({
+						userId: userSession.userId,
+						eventKey,
+						relationshipType: "saved",
+					});
+				} else {
+					await getUserEventRelationshipRepository()?.upsertRelationship({
+						userId: userSession.userId,
+						eventKey,
+						relationshipType: "saved",
+						source: body.source ?? "saved_toggle",
+					});
+				}
+			}
 		}
 		if (userSession.isAuthenticated && events.length > 0) {
 			const latestContext = events[events.length - 1]?.clientContext;

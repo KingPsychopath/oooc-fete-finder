@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClearFiltersButton } from "@/features/events/components/ClearFiltersButton";
@@ -10,7 +9,7 @@ import { trackNavigationClick } from "@/features/events/engagement/client-tracki
 import { buildGenreFrequency } from "@/features/events/genre-preview";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
-import { LocateFixed, Lock, SearchX } from "lucide-react";
+import { BookmarkCheck, LocateFixed, Lock, SearchX } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, forwardRef, useState } from "react";
 
@@ -46,6 +45,10 @@ type AllEventsProps = {
 	nearbyEventsStatus: string;
 	nearbyMatchedEventsCount: number;
 	onNearbyClick: () => void;
+	isEventSaved: (eventKey: string) => boolean;
+	savedEventsCount: number;
+	showSavedOnly: boolean;
+	onSavedOnlyChange: (showSavedOnly: boolean) => void;
 	searchSlot?: ReactNode;
 };
 
@@ -68,6 +71,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			nearbyEventsStatus,
 			nearbyMatchedEventsCount,
 			onNearbyClick,
+			isEventSaved,
+			savedEventsCount,
+			showSavedOnly,
+			onSavedOnlyChange,
 			searchSlot,
 		},
 		ref,
@@ -150,6 +157,25 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 				</span>
 			</Button>
 		);
+		const savedButtonControl = (
+			<Button
+				type="button"
+				variant="outline"
+				onClick={() => onSavedOnlyChange(!showSavedOnly)}
+				aria-pressed={showSavedOnly}
+				className={`h-7 shrink-0 rounded-full px-3 text-xs max-[340px]:w-10 max-[340px]:px-0 ${
+					showSavedOnly
+						? "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800 dark:border-emerald-400 dark:bg-emerald-400 dark:text-emerald-950 dark:hover:bg-emerald-300"
+						: "border-border/75 bg-background/70"
+				}`}
+				size="sm"
+			>
+				<BookmarkCheck className="mr-1.5 h-3.5 w-3.5 max-[340px]:mr-0" />
+				<span className="max-[340px]:sr-only">
+					Saved{savedEventsCount > 0 ? ` ${savedEventsCount}` : ""}
+				</span>
+			</Button>
+		);
 
 		return (
 			<Card ref={ref} className="ooo-site-card mt-6 py-0 lg:mt-0">
@@ -161,18 +187,17 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 									<CardTitle className="text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
 										All Events
 									</CardTitle>
-									<Badge variant="outline" className="ml-2 text-xs">
-										{events.length} event{events.length !== 1 ? "s" : ""}
-									</Badge>
 								</div>
 							</div>
 							<div className="hidden shrink-0 items-center gap-2 lg:flex">
+								{savedButtonControl}
 								{nearbyButtonControl}
 								{sortModeControl}
 							</div>
 							<div className="hidden shrink-0 items-center gap-2 sm:flex lg:hidden">
 								{clearFiltersControl}
 								{filterButtonControl}
+								{savedButtonControl}
 								{nearbyButtonControl}
 								{sortModeControl}
 							</div>
@@ -194,9 +219,15 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 						<div className="flex max-w-full items-center gap-2 overflow-x-auto pb-0.5 sm:hidden">
 							{clearFiltersControl}
 							{filterButtonControl}
+							{savedButtonControl}
 							{nearbyButtonControl}
 							{sortModeControl}
 						</div>
+						{showSavedOnly && (
+							<p className="text-xs leading-relaxed text-muted-foreground">
+								Showing events you saved on this device or account.
+							</p>
+						)}
 						{isNearbyActive || nearbyEventsError ? (
 							<p className="text-xs leading-relaxed text-muted-foreground">
 								{isNearbyActive
@@ -219,12 +250,25 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								<SearchX className="h-4 w-4" />
 							</div>
 							<h3 className="mt-4 text-lg [font-family:var(--ooo-font-display)] font-light text-foreground">
-								No events match this view
+								{showSavedOnly
+									? "No saved events in this view"
+									: "No events match this view"}
 							</h3>
 							<p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-								Try a broader search, remove a chip, or clear filters to bring
-								the full list back.
+								{showSavedOnly
+									? "Save events from their detail modal, or clear filters if your saved events are hidden."
+									: "Try a broader search, remove a chip, or clear filters to bring the full list back."}
 							</p>
+							{showSavedOnly && (
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => onSavedOnlyChange(false)}
+									className="mt-4 h-8 rounded-full px-4"
+								>
+									Show all events
+								</Button>
+							)}
 							{hasActiveFilters && (
 								<ClearFiltersButton
 									onClick={onClearFilters}
@@ -247,6 +291,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 											event.eventKey,
 										)}
 										genreFrequency={genreFrequency}
+										isSaved={isEventSaved(event.eventKey)}
 									/>
 								</div>
 							))}
@@ -305,6 +350,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 													event.eventKey,
 												)}
 												genreFrequency={genreFrequency}
+												isSaved={isEventSaved(event.eventKey)}
 											/>
 										</div>
 									))}
