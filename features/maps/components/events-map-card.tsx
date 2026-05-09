@@ -234,7 +234,7 @@ export function EventsMapCard({
 			onFilterClick={onFilterClick}
 			hasActiveFilters={hasActiveFilters}
 			activeFiltersCount={activeFiltersCount}
-			className={isFullscreen ? "h-[100svh] rounded-none border-0" : undefined}
+			className={isFullscreen ? "h-[100dvh] rounded-none border-0" : undefined}
 		/>
 	);
 
@@ -326,13 +326,13 @@ export function EventsMapCard({
 			{isFullscreen &&
 				createPortal(
 					<div
-						className="fixed inset-0 h-[100svh] w-screen overflow-hidden bg-background"
+						className="fixed inset-0 h-[100dvh] w-screen overflow-hidden bg-background"
 						style={{ zIndex: LAYERS.OVERLAY - 10 }}
 						role="dialog"
 						aria-modal="true"
 						aria-label="Full screen Paris event map"
 					>
-						<div ref={fullscreenMapSlotRef} className="h-[100svh] w-screen" />
+						<div ref={fullscreenMapSlotRef} className="h-[100dvh] w-screen" />
 					</div>,
 					document.body,
 				)}

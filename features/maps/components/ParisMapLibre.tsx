@@ -1404,8 +1404,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 			{/* Selected arrondissement events */}
 			{selectedArrondissement && (
-				<div className="absolute inset-x-2 bottom-2 z-[3] md:top-3 md:right-3 md:bottom-3 md:left-auto md:w-[25.5rem] md:max-w-[calc(100%-1.5rem)]">
-					<div className="ooo-site-card flex max-h-[min(62svh,26rem)] flex-col rounded-2xl border border-border/80 p-3.5 shadow-[0_24px_44px_-32px_rgba(16,12,9,0.6)] backdrop-blur-xl md:h-full md:max-h-none">
+				<div className="absolute inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-[3] md:top-3 md:right-3 md:bottom-3 md:left-auto md:w-[25.5rem] md:max-w-[calc(100%-1.5rem)]">
+					<div className="ooo-site-card flex max-h-[min(calc(62dvh_-_env(safe-area-inset-bottom)),26rem)] flex-col rounded-2xl border border-border/80 p-3.5 shadow-[0_24px_44px_-32px_rgba(16,12,9,0.6)] backdrop-blur-xl md:h-full md:max-h-none">
 						<div className="mb-2 flex items-start justify-between gap-3">
 							<div>
 								<p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -1450,7 +1450,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							</button>
 						</div>
 						<div className="mb-2 h-px bg-border/70" />
-						<div className="space-y-2 overflow-y-auto pr-1 md:flex-1 md:min-h-0">
+						<div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
 							{selectedArrondissementEvents.map((event) => {
 								const dayNightPeriod = getDayNightPeriod(event.time ?? "");
 								const venueTypes = getEventVenueTypes(event);
