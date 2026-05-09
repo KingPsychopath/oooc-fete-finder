@@ -401,8 +401,8 @@ export function EventsSearchFiltersProvider({
 	);
 
 	const spotlightEventsOrdered = useMemo(
-		() => orderEventsForDiscoverySurface(spotlightEligibleEvents, sortMode),
-		[sortMode, spotlightEligibleEvents],
+		() => orderEventsForDiscoverySurface(spotlightEligibleEvents, "upcoming"),
+		[spotlightEligibleEvents],
 	);
 
 	const nearbyEventsOrdered = useMemo(() => {
