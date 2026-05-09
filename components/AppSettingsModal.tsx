@@ -22,6 +22,7 @@ import { normalizeMapPreference } from "@/lib/user-app-settings";
 import { cn } from "@/lib/utils";
 import {
 	BellOff,
+	HardDrive,
 	EyeOff,
 	Filter,
 	MapPinned,
@@ -29,7 +30,6 @@ import {
 	Moon,
 	RefreshCcw,
 	Settings,
-	Sparkles,
 	Sun,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -335,7 +335,7 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 
 					<section className="space-y-2.5">
 						<div className="flex items-center gap-2 border-b border-border/60 pb-1.5">
-							<Sparkles className="h-4 w-4 text-muted-foreground" />
+							<HardDrive className="h-4 w-4 text-muted-foreground" />
 							<h3 className="text-sm font-medium">Storage and sync</h3>
 						</div>
 						<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_13rem] sm:items-center">

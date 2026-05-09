@@ -9,6 +9,9 @@ const MAX_BATCH_SIZE = 20;
 const MAX_QUEUE_SIZE = 250;
 const MAX_TRACKING_EVENT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const QUEUE_STORAGE_PREFIX = "oooc:analytics-queue:";
+const RECENT_EVENT_ACTION_DEDUPE_MS = 2_000;
+const RECENT_DISCOVERY_ACTION_DEDUPE_MS = 1_500;
+const RECENT_GENRE_PREFERENCE_DEDUPE_MS = 10_000;
 const MAP_OPEN_DEDUPE_MS = 30_000;
 
 type ClientContext = ReturnType<typeof getClientContext>;
@@ -61,6 +64,9 @@ const flushTimers: Partial<Record<QueueName, ReturnType<typeof setTimeout>>> =
 	{};
 const loadedQueues = new Set<QueueName>();
 const recentMapOpenKeys = new Map<string, number>();
+const recentEventActionKeys = new Map<string, number>();
+const recentDiscoveryActionKeys = new Map<string, number>();
+const recentGenrePreferenceKeys = new Map<string, number>();
 const queueRetryAttempts: Record<QueueName, number> = {
 	engagement: 0,
 	discovery: 0,
@@ -305,6 +311,23 @@ const enqueuePayload = (name: QueueName, payload: unknown) => {
 	scheduleFlush(name);
 };
 
+const shouldSkipRecentAction = (
+	recentKeys: Map<string, number>,
+	key: string,
+	windowMs: number,
+	now = Date.now(),
+): boolean => {
+	const lastTrackedAt = recentKeys.get(key) ?? 0;
+	if (now - lastTrackedAt < windowMs) return true;
+	recentKeys.set(key, now);
+	for (const [recentKey, trackedAt] of recentKeys) {
+		if (now - trackedAt >= windowMs) {
+			recentKeys.delete(recentKey);
+		}
+	}
+	return false;
+};
+
 const installFlushListeners = (() => {
 	let installed = false;
 	return () => {
@@ -339,6 +362,21 @@ export const trackEventEngagement = (input: {
 	if (typeof window === "undefined") return;
 	const eventKey = input.eventKey?.trim();
 	if (!eventKey) return;
+	const dedupeKey = [
+		eventKey,
+		input.actionType,
+		input.source ?? "",
+		window.location.pathname,
+	].join(":");
+	if (
+		shouldSkipRecentAction(
+			recentEventActionKeys,
+			dedupeKey,
+			RECENT_EVENT_ACTION_DEDUPE_MS,
+		)
+	) {
+		return;
+	}
 	installFlushListeners();
 
 	const payload: EventEngagementPayload = {
@@ -406,6 +444,22 @@ export const trackDiscoveryAnalytics = (input: {
 	searchQuery?: string;
 }) => {
 	if (typeof window === "undefined") return;
+	const dedupeKey = [
+		input.actionType,
+		input.filterGroup ?? "",
+		input.filterValue ?? "",
+		input.searchQuery ?? "",
+		window.location.pathname,
+	].join(":");
+	if (
+		shouldSkipRecentAction(
+			recentDiscoveryActionKeys,
+			dedupeKey,
+			RECENT_DISCOVERY_ACTION_DEDUPE_MS,
+		)
+	) {
+		return;
+	}
 	installFlushListeners();
 	const payload: DiscoveryAnalyticsPayload = {
 		actionType: input.actionType,
@@ -452,9 +506,20 @@ export const trackNavigationClick = (input: {
 
 export const trackGenrePreference = (genre: string) => {
 	if (typeof window === "undefined") return;
+	const normalizedGenre = genre.trim().toLowerCase();
+	if (!normalizedGenre) return;
+	if (
+		shouldSkipRecentAction(
+			recentGenrePreferenceKeys,
+			normalizedGenre,
+			RECENT_GENRE_PREFERENCE_DEDUPE_MS,
+		)
+	) {
+		return;
+	}
 	installFlushListeners();
 	const payload: GenrePreferencePayload = {
-		genre,
+		genre: normalizedGenre,
 		incrementBy: 1,
 		clientContext: getClientContext(),
 		recordedAt: new Date().toISOString(),

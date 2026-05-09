@@ -92,9 +92,9 @@ const SUMMARY_METRICS = [
 	},
 	{
 		key: "mapOpenCount",
-		label: "Map Opens",
+		label: "Event Map Opens",
 		description:
-			"Clicks that open an event location in a map app, deduped client-side per event and provider for 30 seconds.",
+			"Clicks on an event modal's location button that open a map app. This is not arrondissement/map exploration.",
 	},
 ] as const;
 
@@ -212,7 +212,8 @@ const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 	},
 	{
 		label: "Map",
-		description: "Total location map opens.",
+		description:
+			"Total event-modal location map opens. Arrondissement map exploration is counted under Discovery Behavior.",
 	},
 	{
 		label: "Unique Sessions",
@@ -232,7 +233,8 @@ const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 	},
 	{
 		label: "Map Sessions",
-		description: "Distinct sessions with at least one map open.",
+		description:
+			"Distinct sessions with at least one event-modal location map open.",
 	},
 	{
 		label: "External Link CVR",
@@ -256,7 +258,7 @@ const METRIC_COLUMN_HELP: Array<{ label: string; description: string }> = [
 	},
 	{
 		label: "Map Interaction",
-		description: "Map opens divided by total views.",
+		description: "Event-modal location map opens divided by total views.",
 	},
 ];
 
@@ -306,6 +308,114 @@ const formatContextLabel = (value: string): string =>
 		.filter(Boolean)
 		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
 		.join(" ");
+
+const getOrdinalSuffix = (value: number): string => {
+	const mod100 = value % 100;
+	if (mod100 >= 11 && mod100 <= 13) return "th";
+	switch (value % 10) {
+		case 1:
+			return "st";
+		case 2:
+			return "nd";
+		case 3:
+			return "rd";
+		default:
+			return "th";
+	}
+};
+
+const formatMapInteractionSignal = ({
+	group,
+	value,
+}: {
+	group: string;
+	value: string;
+}): { label: string; meta: string } => {
+	if (group === "map_control") {
+		const controlLabels: Record<string, string> = {
+			fullscreen_close: "Exited fullscreen map",
+			fullscreen_open: "Opened fullscreen map",
+		};
+		return {
+			label: controlLabels[value] ?? formatContextLabel(value),
+			meta: "Map control",
+		};
+	}
+
+	if (group === "map_arrondissement") {
+		const [arrondissementRaw, eventCountRaw] = value.split(":");
+		const arrondissement = Number.parseInt(arrondissementRaw ?? "", 10);
+		const eventCount = Number.parseInt(eventCountRaw ?? "", 10);
+		const hasArrondissement =
+			Number.isFinite(arrondissement) && arrondissement >= 1 && arrondissement <= 20;
+		const hasEventCount = Number.isFinite(eventCount);
+
+		return {
+			label: hasArrondissement
+				? `${arrondissement}${getOrdinalSuffix(arrondissement)} arrondissement`
+				: "Unknown arrondissement",
+			meta: hasEventCount
+				? `${eventCount} event${eventCount === 1 ? "" : "s"} shown there at click time`
+				: "Arrondissement click",
+		};
+	}
+
+	if (group === "map_cluster") {
+		const clusterCount = Number.parseInt(value, 10);
+		return {
+			label: Number.isFinite(clusterCount)
+				? `Expanded ${clusterCount}-event cluster`
+				: "Expanded event cluster",
+			meta: "Map cluster",
+		};
+	}
+
+	return {
+		label: formatContextLabel(value),
+		meta: formatContextLabel(group),
+	};
+};
+
+const formatSortSignal = (value: string): { label: string; meta: string } => {
+	const sortLabels: Record<string, string> = {
+		"fresh-activity": "Fresh activity sort",
+		nearby: "Near Me sort",
+		upcoming: "Upcoming sort",
+	};
+	return {
+		label: sortLabels[value] ?? `${formatContextLabel(value)} sort`,
+		meta: "User-selected sort change",
+	};
+};
+
+const formatLocationRequestSignal = (value: string): { label: string; meta: string } => {
+	const locationLabels: Record<string, { label: string; meta: string }> = {
+		all_events_request: {
+			label: "Near Me requested",
+			meta: "User tapped Near Me in All Events",
+		},
+		all_events_current: {
+			label: "Near Me used current location",
+			meta: "Browser returned a fresh location",
+		},
+		all_events_last_known: {
+			label: "Near Me used saved location",
+			meta: "Browser returned a last-known location",
+		},
+		all_events_unavailable: {
+			label: "Near Me location unavailable",
+			meta: "Permission, timeout, or browser location failure",
+		},
+		map_locate_notice: {
+			label: "Map locate notice shown",
+			meta: "User tapped locate on the map",
+		},
+	};
+	return locationLabels[value] ?? {
+		label: formatContextLabel(value),
+		meta: "Location request",
+	};
+};
 
 const getMedian = (values: number[]): number => {
 	if (values.length === 0) return 0;
@@ -1317,7 +1427,7 @@ export const EventEngagementStatsCard = ({
 										}`}
 									>
 										<div className="mb-2 flex items-start justify-between gap-2">
-											<div>
+											<div className="min-w-0 flex-1">
 												<p className="text-xs font-semibold text-foreground">
 													{bucket.label}
 												</p>
@@ -1325,7 +1435,7 @@ export const EventEngagementStatsCard = ({
 													{bucket.description}
 												</p>
 											</div>
-											<span className="rounded-full border border-border bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+											<span className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-border bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
 												{bucket.rows.length} events
 											</span>
 										</div>
@@ -1402,7 +1512,7 @@ export const EventEngagementStatsCard = ({
 									className="rounded-md border bg-background/70 p-2"
 								>
 									<div className="mb-1 flex items-start justify-between gap-2">
-										<div>
+										<div className="min-w-0 flex-1">
 											<p className="text-xs font-semibold text-foreground">
 												{item.label}
 											</p>
@@ -1410,7 +1520,7 @@ export const EventEngagementStatsCard = ({
 												{item.description}
 											</p>
 										</div>
-										<span className="rounded-full border border-border bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+										<span className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-border bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
 											{item.rows.length} events
 										</span>
 									</div>
@@ -1446,7 +1556,7 @@ export const EventEngagementStatsCard = ({
 									className="rounded-md border bg-background/70 p-2"
 								>
 									<div className="mb-1 flex items-start justify-between gap-2">
-										<div>
+										<div className="min-w-0 flex-1">
 											<p className="text-xs font-semibold text-foreground">
 												{flag.label}
 											</p>
@@ -1454,7 +1564,7 @@ export const EventEngagementStatsCard = ({
 												{flag.description}
 											</p>
 										</div>
-										<span className="rounded-full border border-border bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+										<span className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-border bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
 											{flag.rows.length} events
 										</span>
 									</div>
@@ -1526,7 +1636,7 @@ export const EventEngagementStatsCard = ({
 								{ label: "Event opens", value: summary.clickCount },
 								{ label: "Unique opens", value: summary.dedupedViewCount },
 								{ label: "External link clicks", value: summary.outboundClickCount },
-								{ label: "Map opens", value: summary.mapOpenCount },
+								{ label: "Event map opens", value: summary.mapOpenCount },
 								{ label: "Calendar adds", value: summary.calendarSyncCount },
 							].map((step) => (
 								<div key={step.label} className="space-y-1">
@@ -1569,7 +1679,7 @@ export const EventEngagementStatsCard = ({
 							</span>
 							<span className="inline-flex items-center gap-1">
 								<span className="h-1.5 w-5 rounded-full bg-violet-700/80" />
-								Map
+								Event map
 							</span>
 							<span className="inline-flex items-center gap-1">
 								<span className="h-1.5 w-5 rounded-full bg-sky-700/80" />
@@ -1586,7 +1696,7 @@ export const EventEngagementStatsCard = ({
 									<div
 										key={row.day}
 										className="grid grid-cols-[4.5rem_1fr] items-center gap-2"
-										title={`${row.day}: ${row.clickCount} opens, ${row.outboundClickCount} external links, ${row.mapOpenCount} map, ${row.calendarSyncCount} calendar`}
+										title={`${row.day}: ${row.clickCount} opens, ${row.outboundClickCount} external links, ${row.mapOpenCount} event map opens, ${row.calendarSyncCount} calendar`}
 									>
 										<p className="truncate text-[11px] text-muted-foreground">
 											{row.day.slice(5)}
@@ -1670,9 +1780,11 @@ export const EventEngagementStatsCard = ({
 							Map App Preference
 						</p>
 						<InfoPopover aria-label="Explain map app analytics" side="top">
-							Map opens are tracked from the event modal location button. Map
-							preference changes are tracked only when someone changes the saved
-							provider in modal settings or the map picker.
+							Event map opens are tracked from the event modal location button.
+							Arrondissement clicks and other on-page map exploration live under
+							Discovery Behavior. Map preference changes are tracked only when
+							someone changes the saved provider in modal settings or the map
+							picker.
 						</InfoPopover>
 					</div>
 					<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
@@ -1729,17 +1841,25 @@ export const EventEngagementStatsCard = ({
 				</section>
 
 				<section className="space-y-2 rounded-md border bg-background/55 p-3">
-					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-						Live Signal Bars
-					</p>
+					<div className="flex items-center">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Live Signal Bars
+						</p>
+						<InfoPopover aria-label="Explain live signal bars" side="top">
+							These are explicit user actions in the selected window. Default
+							settings that apply automatically, like the saved default event
+							sort, are not counted as user sort changes.
+						</InfoPopover>
+					</div>
 					<p className="text-xs text-muted-foreground">
 						Searches use the current {discovery.searchClusterMode} clustering
-						mode; genre, filter, map, sort, and location counts stay raw.
+						mode; other rows are grouped from direct user interaction events.
 					</p>
 					<div className="grid gap-4 lg:grid-cols-3">
 						{[
 							{
 								label: "Searches",
+								help: "",
 								rows: topSearchRows.map((row) => ({
 									key: row.query,
 									label: row.query,
@@ -1756,6 +1876,7 @@ export const EventEngagementStatsCard = ({
 							},
 							{
 								label: "Genres",
+								help: "",
 								rows: topGenreRows.map((row) => ({
 									key: row.genre,
 									label: row.label,
@@ -1766,6 +1887,7 @@ export const EventEngagementStatsCard = ({
 							},
 							{
 								label: "Filters",
+								help: "",
 								rows: topFilterRows.map((row) => ({
 									key: `${row.filterGroup}-${row.filterValue}`,
 									label: `${getFilterGroupLabel(row.filterGroup)}: ${row.filterValue}`,
@@ -1776,36 +1898,49 @@ export const EventEngagementStatsCard = ({
 							},
 							{
 								label: "Map",
-								rows: topMapInteractionRows.map((row) => ({
-									key: `${row.group}-${row.value}`,
-									label: `${formatContextLabel(row.group)}: ${row.value}`,
-									value: row.count,
-									meta: "",
-								})),
+								help: "On-page map interactions: fullscreen controls, arrondissement clicks, and event-cluster expansion. Event-modal map app launches are counted separately as Event Map Opens.",
+								rows: topMapInteractionRows.map((row) => {
+									const formatted = formatMapInteractionSignal(row);
+									return {
+										key: `${row.group}-${row.value}`,
+										label: formatted.label,
+										value: row.count,
+										meta: formatted.meta,
+									};
+								}),
 								empty: "No map interaction data yet.",
 							},
 							{
-								label: "Sort",
-								rows: topSortRows.map((row) => ({
-									key: `${row.group}-${row.value}`,
-									label: `${formatContextLabel(row.value)}`,
-									value: row.count,
-									meta: "",
-								})),
+								label: "Sort changes",
+								help: "Only explicit user sort changes are counted. The saved default sort applies silently and is not counted here.",
+								rows: topSortRows.map((row) => {
+									const formatted = formatSortSignal(row.value);
+									return {
+										key: `${row.group}-${row.value}`,
+										label: formatted.label,
+										value: row.count,
+										meta: formatted.meta,
+									};
+								}),
 								empty: "No sort-change data yet.",
 							},
 							{
-								label: "Location",
-								rows: topLocationRequestRows.map((row) => ({
-									key: `${row.group}-${row.value}`,
-									label: `${formatContextLabel(row.value)}`,
-									value: row.count,
-									meta: "",
-								})),
+								label: "Near Me location",
+								help: "Location requests cover Near Me sorting on All Events plus the map locate button. They track attempts and outcomes, never precise coordinates.",
+								rows: topLocationRequestRows.map((row) => {
+									const formatted = formatLocationRequestSignal(row.value);
+									return {
+										key: `${row.group}-${row.value}`,
+										label: formatted.label,
+										value: row.count,
+										meta: formatted.meta,
+									};
+								}),
 								empty: "No location request data yet.",
 							},
 							{
 								label: "Tour",
+								help: "",
 								rows: topTourRows.map((row) => ({
 									key: `${row.group}-${row.value}`,
 									label: `${formatContextLabel(row.value)}`,
@@ -1816,6 +1951,7 @@ export const EventEngagementStatsCard = ({
 							},
 							{
 								label: "Navigation",
+								help: "",
 								rows: topNavigationRows.map((row) => ({
 									key: `${row.group}-${row.value}`,
 									label: `${formatContextLabel(row.group)}: ${formatContextLabel(row.value)}`,
@@ -1826,9 +1962,19 @@ export const EventEngagementStatsCard = ({
 							},
 						].map((group) => (
 							<div key={group.label} className="space-y-2">
-								<p className="text-xs font-medium text-foreground">
-									{group.label}
-								</p>
+								<div className="flex items-center">
+									<p className="text-xs font-medium text-foreground">
+										{group.label}
+									</p>
+									{group.help ? (
+										<InfoPopover
+											aria-label={`Explain ${group.label}`}
+											side="top"
+										>
+											{group.help}
+										</InfoPopover>
+									) : null}
+								</div>
 								{group.rows.length === 0 ? (
 									<p className="text-xs text-muted-foreground">{group.empty}</p>
 								) : (
@@ -2458,7 +2604,7 @@ export const EventEngagementStatsCard = ({
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
-										title="Total location map opens."
+										title="Total event-modal location map opens."
 									>
 										Map
 									</th>
@@ -2488,7 +2634,7 @@ export const EventEngagementStatsCard = ({
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
-										title="Distinct sessions with at least one map open."
+										title="Distinct sessions with at least one event-modal location map open."
 									>
 										Map Sessions
 									</th>
@@ -2524,7 +2670,7 @@ export const EventEngagementStatsCard = ({
 									</th>
 									<th
 										className="px-3 py-2 text-left font-medium"
-										title="Map opens divided by total views."
+										title="Event-modal location map opens divided by total views."
 									>
 										Map Interaction
 									</th>

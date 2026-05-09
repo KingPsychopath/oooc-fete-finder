@@ -288,7 +288,7 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 							{totalNotifications > 0 && (
 								<Badge
 									variant="destructive"
-									className="h-5 min-w-5 rounded-full px-1.5 text-[10px]"
+									className="h-5 min-w-5 shrink-0 whitespace-nowrap rounded-full px-1.5 text-[10px]"
 								>
 									{totalNotifications}
 								</Badge>
@@ -344,7 +344,7 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 												{routeAlertCount > 0 && (
 													<Badge
 														variant="destructive"
-														className="h-5 shrink-0 rounded-full px-1.5 text-[10px]"
+														className="h-5 shrink-0 whitespace-nowrap rounded-full px-1.5 text-[10px]"
 													>
 														{routeAlertCount} pending
 													</Badge>
@@ -416,7 +416,7 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 										{routeAlertCount > 0 && (
 											<Badge
 												variant="destructive"
-												className="h-5 rounded-full px-1.5 text-[10px]"
+												className="h-5 shrink-0 whitespace-nowrap rounded-full px-1.5 text-[10px]"
 											>
 												{routeAlertCount}
 											</Badge>
