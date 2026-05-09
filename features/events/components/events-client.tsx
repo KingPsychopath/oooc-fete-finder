@@ -34,6 +34,10 @@ import {
 	type MusicGenreDefinition,
 	type Nationality,
 } from "@/features/events/types";
+import {
+	readHomeEventSnapshot,
+	writeHomeEventSnapshot,
+} from "@/features/events/offline-event-snapshot";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { clientLog } from "@/lib/platform/client-logger";
 import Link from "next/link";
@@ -60,6 +64,7 @@ const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
 const REQUEST_UPDATE_PARAM = "requestUpdate";
 type EventSortMode = "upcoming" | "fresh-activity";
 type PendingAuthAction = "show-oooc-picks" | { type: "search"; query: string };
+type EventDataSource = "live" | "saved";
 
 const EmailGateModal = lazy(
 	() => import("@/features/auth/components/EmailGateModal"),
@@ -217,6 +222,11 @@ export function EventsClient({
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 	const [events, setEvents] = useState(initialEvents);
+	const [eventDataSource, setEventDataSource] =
+		useState<EventDataSource>("live");
+	const [eventSnapshotSavedAt, setEventSnapshotSavedAt] = useState<
+		string | null
+	>(null);
 	const [hasLoadedFullEvents, setHasLoadedFullEvents] =
 		useState(!fullEventsPath);
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -266,6 +276,44 @@ export function EventsClient({
 		return true;
 	}, [canUseProtectedDiscovery]);
 
+	useEffect(() => {
+		let isCancelled = false;
+
+		void readHomeEventSnapshot()
+			.then((snapshot) => {
+				if (isCancelled || !snapshot) return;
+				setEventSnapshotSavedAt(snapshot.savedAt);
+				if (initialEvents.length > 0 && navigator.onLine) return;
+				setEvents(snapshot.events);
+				setEventDataSource("saved");
+				setHasLoadedFullEvents(true);
+			})
+			.catch((error: unknown) => {
+				clientLog.warn("events-offline", "Unable to read saved event data", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			});
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [initialEvents.length]);
+
+	useEffect(() => {
+		if (eventDataSource !== "live" || events.length === 0) return;
+
+		void writeHomeEventSnapshot(events)
+			.then((snapshot) => {
+				if (!snapshot) return;
+				setEventSnapshotSavedAt(snapshot.savedAt);
+			})
+			.catch((error: unknown) => {
+				clientLog.warn("events-offline", "Unable to save event data", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			});
+	}, [eventDataSource, events]);
+
 	const mountTourIsland = useCallback(() => {
 		if (hasMountedTourIslandRef.current) return;
 		hasMountedTourIslandRef.current = true;
@@ -290,6 +338,7 @@ export function EventsClient({
 					throw new Error("Full events response was not a valid event payload");
 				}
 				setEvents(payload);
+				setEventDataSource("live");
 				setHasLoadedFullEvents(true);
 				return payload;
 			})
@@ -887,9 +936,29 @@ export function EventsClient({
 			/>
 		</div>
 	);
+	const eventSnapshotSavedAtLabel = useMemo(() => {
+		if (!eventSnapshotSavedAt) return null;
+		try {
+			return new Intl.DateTimeFormat(undefined, {
+				month: "short",
+				day: "numeric",
+				hour: "numeric",
+				minute: "2-digit",
+			}).format(new Date(eventSnapshotSavedAt));
+		} catch {
+			return null;
+		}
+	}, [eventSnapshotSavedAt]);
 
 	return (
 		<>
+			{eventDataSource === "saved" && eventSnapshotSavedAtLabel && (
+				<div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+					<strong>Saved events:</strong> You are viewing the latest saved event
+					snapshot from {eventSnapshotSavedAtLabel}. Some live details may be
+					unavailable until you are back online.
+				</div>
+			)}
 			<section className="mb-8" aria-label="Introduction">
 				<div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] lg:items-end">
 					<div className="min-w-0">

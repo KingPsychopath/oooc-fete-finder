@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Footer from "@/components/Footer";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
-import { ServiceWorkerCleanup } from "@/components/ServiceWorkerCleanup";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { SupportCoffeePrompt } from "@/components/SupportCoffeePrompt";
 import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { OfflineIndicator } from "@/components/offline-indicator";
@@ -187,7 +187,7 @@ export default function RootLayout({
 					enableSystem
 					disableTransitionOnChange
 				>
-					<ServiceWorkerCleanup />
+					<ServiceWorkerRegistration />
 					<ThemeColorSync />
 					<AuthProvider>
 						{children}
