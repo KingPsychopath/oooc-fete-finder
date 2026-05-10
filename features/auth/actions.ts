@@ -24,6 +24,11 @@ import {
 	validateDirectAdminKey,
 } from "./admin-validation";
 
+type CollectedUserProfileLookup = {
+	email?: string;
+	userId?: string;
+};
+
 /**
  * Admin Management Server Actions
  *
@@ -420,14 +425,23 @@ export async function getCollectedEmails(
 }
 
 export async function getCollectedUserProfile(
-	email: string,
+	lookup: string | CollectedUserProfileLookup,
 	keyOrToken?: string,
 ): Promise<CollectedUserProfileResponse> {
 	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized" };
 	}
 
-	const profile = await UserCollectionStore.getUserProfile(email);
+	const normalizedLookup: CollectedUserProfileLookup =
+		typeof lookup === "string" ? { email: lookup } : lookup;
+	if (!normalizedLookup.userId && !normalizedLookup.email) {
+		return { success: false, error: "Missing user identity" };
+	}
+
+	const profile = await UserCollectionStore.getUserProfile({
+		email: normalizedLookup.email,
+		userId: normalizedLookup.userId,
+	});
 	if (!profile) {
 		return { success: false, error: "User not found" };
 	}

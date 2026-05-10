@@ -442,6 +442,56 @@ export class UserCollectionRepository {
 		};
 	}
 
+	async findByUserId(userId: string): Promise<UserRecord | null> {
+		const normalizedUserId = isValidUserId(userId) ? userId : null;
+		if (!normalizedUserId) return null;
+		await this.ready();
+
+		const rows = await this.sql<RollupRow[]>`
+			SELECT
+				COALESCE(r.user_id, u.id) AS user_id,
+				r.email,
+				r.first_name,
+				r.last_name,
+				r.consent,
+				r.source,
+				r.device_class,
+				r.platform,
+				r.browser_family,
+				r.timezone,
+				r.locale,
+				r.first_seen_at,
+				r.last_seen_at,
+				r.updated_at
+			FROM app_user_collection_rollup r
+			LEFT JOIN app_users u ON u.email_normalized = r.email
+			WHERE COALESCE(r.user_id, u.id) = ${normalizedUserId}
+			LIMIT 1
+		`;
+		const row = rows[0];
+		if (!row) return null;
+
+		const signalCounts = await this.listSignalCounts([
+			{ email: row.email, userId: row.user_id },
+		]);
+		return {
+			...(row.user_id ? { userId: row.user_id } : {}),
+			firstName: row.first_name,
+			lastName: row.last_name,
+			email: normalizeEmail(row.email),
+			timestamp: toIsoString(row.last_seen_at) || new Date(0).toISOString(),
+			firstSignInAt: toIsoString(row.first_seen_at) || undefined,
+			consent: row.consent,
+			source: row.source,
+			deviceClass: row.device_class,
+			platform: row.platform,
+			browserFamily: row.browser_family,
+			timezone: row.timezone,
+			locale: row.locale,
+			...signalCounts.get(normalizeEmail(row.email)),
+		};
+	}
+
 	private async listSignalCounts(
 		users: Array<{ email: string; userId: string | null }>,
 	): Promise<Map<string, SignalCounts>> {

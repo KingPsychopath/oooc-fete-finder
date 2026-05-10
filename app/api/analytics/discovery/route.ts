@@ -1,7 +1,7 @@
 import { touchAuthenticatedUserContext } from "@/features/auth/user-context-touch";
 import {
 	USER_AUTH_COOKIE_NAME,
-	getUserSessionFromCookieHeader,
+	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
 import {
 	checkTrackDiscoveryIpLimit,
@@ -205,13 +205,13 @@ export async function POST(request: Request) {
 
 		const cookieHeader = request.headers.get("cookie");
 		const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
-		const userSession = getUserSessionFromCookieHeader(userCookie);
+		const userSession = await getCanonicalUserSessionFromCookieHeader(userCookie);
 		for (const body of validEvents) {
 			await repository.recordAction({
 				actionType: body.actionType,
 				sessionId: body.sessionId ?? null,
 				userId: userSession.userId,
-				userEmail: userSession.email,
+				userEmail: userSession.userId ? userSession.email : null,
 				filterGroup: body.filterGroup?.trim().toLowerCase() ?? null,
 				filterValue: body.filterValue?.trim().toLowerCase() ?? null,
 				searchQuery: body.searchQuery?.trim().toLowerCase() ?? null,

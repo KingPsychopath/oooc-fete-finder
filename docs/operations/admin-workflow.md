@@ -59,6 +59,7 @@ Clarification:
 - `GET /api/admin/data-store/status`
 - `GET /api/admin/storage/kv`
 - `GET /api/admin/tokens/sessions`
+- `pnpm check:user-id-drift` (with `DATABASE_URL` set) to confirm no fresh canonical identity misses or malformed IDs
 
 ## Common Failure Cases
 

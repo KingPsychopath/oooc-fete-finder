@@ -1,7 +1,7 @@
 import { touchAuthenticatedUserContext } from "@/features/auth/user-context-touch";
 import {
 	USER_AUTH_COOKIE_NAME,
-	getUserSessionFromCookieHeader,
+	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
 import { resolveMusicGenre } from "@/features/events/genre-normalization";
 import { MUSIC_GENRES, type MusicGenre } from "@/features/events/types";
@@ -127,8 +127,8 @@ export async function POST(request: Request) {
 
 	const cookieHeader = request.headers.get("cookie");
 	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
-	const userSession = getUserSessionFromCookieHeader(userCookie);
-	if (!userSession.isAuthenticated || !userSession.email) {
+	const userSession = await getCanonicalUserSessionFromCookieHeader(userCookie);
+	if (!userSession.isAuthenticated || !userSession.userId || !userSession.email) {
 		return accepted();
 	}
 

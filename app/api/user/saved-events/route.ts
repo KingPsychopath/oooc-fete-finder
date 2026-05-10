@@ -1,6 +1,6 @@
 import {
 	USER_AUTH_COOKIE_NAME,
-	getUserSessionFromCookieHeader,
+	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
@@ -40,17 +40,22 @@ const parseCookieByName = (
 	return undefined;
 };
 
-const getUserRelationshipId = (request: Request): string | null => {
+const getUserRelationshipId = async (
+	request: Request,
+): Promise<string | null> => {
 	const cookieHeader = request.headers.get("cookie");
 	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
-	const userSession = getUserSessionFromCookieHeader(userCookie);
-	if (!userSession.isAuthenticated || !userSession.email) return null;
-	return userSession.userId ?? userSession.email;
+	const userSession =
+		await getCanonicalUserSessionFromCookieHeader(userCookie);
+	if (!userSession.isAuthenticated || !userSession.userId || !userSession.email) {
+		return null;
+	}
+	return userSession.userId;
 };
 
 export async function GET(request: Request) {
 	const repository = getUserEventRelationshipRepository();
-	const userId = getUserRelationshipId(request);
+	const userId = await getUserRelationshipId(request);
 	if (!repository || !userId) {
 		return NextResponse.json(
 			{ success: true, eventKeys: [] },
@@ -90,7 +95,7 @@ export async function POST(request: Request) {
 	}
 
 	const repository = getUserEventRelationshipRepository();
-	const userId = getUserRelationshipId(request);
+	const userId = await getUserRelationshipId(request);
 	if (!repository || !userId) {
 		return NextResponse.json(
 			{ success: true },

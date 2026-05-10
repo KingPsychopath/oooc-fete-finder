@@ -18,6 +18,8 @@ const sql = postgres(databaseUrl, {
 const byteToHex = Array.from({ length: 256 }, (_, index) =>
 	index.toString(16).padStart(2, "0"),
 );
+const USER_ID_PATTERN =
+	"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
 
 const generateUserId = () => {
 	const timestamp = BigInt(Date.now());
@@ -33,6 +35,82 @@ const generateUserId = () => {
 
 	const hex = Array.from(bytes, (byte) => byteToHex[byte]).join("");
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
+const getIdentityCoverage = async () => {
+	const rows = await sql`
+		SELECT
+			table_name,
+			table_rows AS total,
+			user_id_rows AS with_user_id,
+			CASE
+				WHEN table_rows = 0 THEN 0
+				ELSE ((table_rows - user_id_rows) * 100.0 / table_rows)
+			END AS missing_percentage
+		FROM (
+			SELECT
+				'app_event_engagement_stats'::text AS table_name,
+				COUNT(*)::int AS table_rows,
+				COUNT(*) FILTER (
+					WHERE user_id ~* ${USER_ID_PATTERN}
+				)::int AS user_id_rows
+			FROM app_event_engagement_stats
+			UNION ALL
+			SELECT
+				'app_discovery_analytics_stats'::text AS table_name,
+				COUNT(*)::int AS table_rows,
+				COUNT(*) FILTER (
+					WHERE user_id ~* ${USER_ID_PATTERN}
+				)::int AS user_id_rows
+			FROM app_discovery_analytics_stats
+			UNION ALL
+			SELECT
+				'app_user_genre_preferences'::text AS table_name,
+				COUNT(*)::int AS table_rows,
+				COUNT(*) FILTER (
+					WHERE user_id ~* ${USER_ID_PATTERN}
+				)::int AS user_id_rows
+			FROM app_user_genre_preferences
+			UNION ALL
+			SELECT
+				'app_user_collection_events'::text AS table_name,
+				COUNT(*)::int AS table_rows,
+				COUNT(*) FILTER (
+					WHERE user_id ~* ${USER_ID_PATTERN}
+				)::int AS user_id_rows
+			FROM app_user_collection_events
+			UNION ALL
+			SELECT
+				'app_user_collection_rollup'::text AS table_name,
+				COUNT(*)::int AS table_rows,
+				COUNT(*) FILTER (
+					WHERE user_id ~* ${USER_ID_PATTERN}
+				)::int AS user_id_rows
+			FROM app_user_collection_rollup
+			UNION ALL
+			SELECT
+				'app_user_event_relationships'::text AS table_name,
+				COUNT(*)::int AS table_rows,
+				COUNT(*) FILTER (
+					WHERE user_id ~* ${USER_ID_PATTERN}
+				)::int AS user_id_rows
+			FROM app_user_event_relationships
+		) AS coverage
+	`;
+
+	return rows;
+};
+
+const logCoverage = async (prefix) => {
+	const coverage = await getIdentityCoverage();
+	console.log(`${prefix} identity coverage`);
+	for (const row of coverage) {
+		console.log(
+			`- ${row.table_name}: with user_id=${row.with_user_id}/${row.total} | missing=${row.total - row.with_user_id} | missing%=${Number(
+				row.missing_percentage ?? 0,
+			).toFixed(2)}%`,
+		);
+	}
 };
 
 const ensureSchema = async () => {
@@ -190,7 +268,56 @@ const upsertUser = async (row) => {
 };
 
 try {
+	await logCoverage("Before");
 	await ensureSchema();
+
+	console.log("Running canonical identity sweep...");
+
+	const [unlinkedDiscoveryEmails, unlinkedGenre, unlinkedRelationships] =
+		await Promise.all([
+		sql`
+			SELECT
+				COUNT(*)::int AS total_missing_email,
+				COUNT(*) FILTER (WHERE users.id IS NOT NULL)::int AS recoverable_by_email
+			FROM app_discovery_analytics_stats stats
+			LEFT JOIN app_users users
+				ON users.email_normalized = lower(stats.user_email)
+			WHERE (stats.user_id IS NULL OR stats.user_id = '')
+				AND stats.user_email IS NOT NULL
+				AND stats.user_email <> ''
+		`,
+		sql`
+			SELECT
+				COUNT(*)::int AS total_missing_user_id,
+				COUNT(*) FILTER (WHERE users.id IS NOT NULL)::int AS recoverable_by_email
+			FROM app_user_genre_preferences prefs
+			LEFT JOIN app_users users
+				ON users.email_normalized = lower(prefs.email)
+			WHERE prefs.user_id IS NULL OR prefs.user_id = ''
+			`,
+			sql`
+				SELECT
+					COUNT(*)::int AS malformed_rows,
+					COUNT(users.id) FILTER (WHERE users.id IS NOT NULL)::int AS recoverable_by_email
+				FROM app_user_event_relationships relationships
+				LEFT JOIN app_users users
+					ON users.email_normalized = lower(relationships.user_id)
+				WHERE relationships.user_id IS NOT NULL
+					AND relationships.user_id <> ''
+					AND NOT (relationships.user_id ~* ${USER_ID_PATTERN})
+				`,
+		]);
+
+	console.log(
+		`- discovery missing user_id with email: ${unlinkedDiscoveryEmails[0].total_missing_email} (recoverable ${unlinkedDiscoveryEmails[0].recoverable_by_email})`,
+	);
+	console.log(
+		`- genre missing user_id: ${unlinkedGenre[0].total_missing_user_id} (recoverable ${unlinkedGenre[0].recoverable_by_email})`,
+	);
+	console.log(
+		`- relationship malformed user_id: ${unlinkedRelationships[0].malformed_rows} (recoverable ${unlinkedRelationships[0].recoverable_by_email})`,
+	);
+
 	const rollupRows = await sql`
 		SELECT
 			email,
@@ -252,10 +379,60 @@ try {
 		RETURNING preferences.email
 	`;
 
+	const eventRows = await sql`
+		UPDATE app_event_engagement_stats stats
+		SET user_id = users.id
+		FROM app_users users
+		WHERE stats.user_id IS NULL
+			AND users.email_normalized = lower(stats.user_email)
+		RETURNING stats.id
+	`;
+
+	const relationshipRows = await sql`
+		UPDATE app_user_event_relationships relationships
+		SET user_id = users.id
+		FROM app_users users
+		WHERE relationships.user_id IS NOT NULL
+			AND relationships.user_id <> ''
+			AND users.email_normalized = lower(relationships.user_id)
+			AND NOT (relationships.user_id ~* ${USER_ID_PATTERN})
+		RETURNING relationships.id
+	`;
+
+	const [remainingDiscoveryRows, remainingGenreRows, remainingMalformedRelationships] =
+		await Promise.all([
+			sql`
+				SELECT
+					COUNT(*)::int AS missing_user_id
+				FROM app_discovery_analytics_stats stats
+				WHERE stats.user_id IS NULL
+					OR stats.user_id = ''
+					OR NOT (stats.user_id ~* ${USER_ID_PATTERN})
+			`,
+			sql`
+				SELECT
+					COUNT(*)::int AS missing_user_id
+				FROM app_user_genre_preferences
+				WHERE user_id IS NULL
+					OR user_id = ''
+					OR NOT (user_id ~* ${USER_ID_PATTERN})
+			`,
+			sql`
+				SELECT
+					COUNT(*)::int AS malformed_user_id
+				FROM app_user_event_relationships relationships
+				WHERE relationships.user_id IS NOT NULL
+					AND relationships.user_id <> ''
+					AND NOT (relationships.user_id ~* ${USER_ID_PATTERN})
+			`,
+		]);
+
 	const totals = await sql`
 		SELECT COUNT(*)::int AS count
 		FROM app_users
 	`;
+
+	await logCoverage("After");
 
 	console.log("User identity backfill complete");
 	console.log(`- rollup users processed: ${backfilledUsers}`);
@@ -264,6 +441,17 @@ try {
 	console.log(`- discovery rows linked: ${discoveryRows.length}`);
 	console.log(`- discovery row emails cleared: ${clearedDiscoveryEmails.length}`);
 	console.log(`- genre preference rows linked: ${preferenceRows.length}`);
+	console.log(`- event rows linked by email fallback: ${eventRows.length}`);
+	console.log(`- user-event relationship rows normalized: ${relationshipRows.length}`);
+	console.log(
+		`- discovery rows still missing canonical user_id: ${remainingDiscoveryRows[0]?.missing_user_id ?? 0}`,
+	);
+	console.log(
+		`- genre rows still missing canonical user_id: ${remainingGenreRows[0]?.missing_user_id ?? 0}`,
+	);
+	console.log(
+		`- relationship rows still malformed user_id: ${remainingMalformedRelationships[0]?.malformed_user_id ?? 0}`,
+	);
 } finally {
 	await sql.end({ timeout: 5 });
 }

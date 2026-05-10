@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getUserRepository } from "@/lib/platform/postgres/user-repository";
+import { isValidUserId } from "@/features/auth/user-id";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
 
@@ -52,6 +53,11 @@ const cleanString = (
 	const trimmed = value.trim();
 	if (trimmed.length === 0) return null;
 	return trimmed.slice(0, maxLength);
+};
+
+const sanitizeUserId = (userId: string | null | undefined): string | null => {
+	const cleaned = cleanString(userId, 80);
+	return cleaned && isValidUserId(cleaned) ? cleaned : null;
 };
 
 const toSafeIsoTimestamp = (value?: string): string => {
@@ -151,6 +157,7 @@ export class DiscoveryAnalyticsRepository {
 
 	async recordAction(input: DiscoveryAnalyticsRecordInput): Promise<void> {
 		await this.ready();
+		const userId = sanitizeUserId(input.userId);
 		await this.sql`
 			INSERT INTO app_discovery_analytics_stats (
 				action_type,
@@ -172,7 +179,7 @@ export class DiscoveryAnalyticsRepository {
 			VALUES (
 				${input.actionType},
 				${cleanString(input.sessionId, 120)},
-				${cleanString(input.userId, 80)},
+				${userId},
 				${cleanString(input.userEmail, 254)},
 				${cleanString(input.filterGroup, 80)},
 				${cleanString(input.filterValue, 120)},
@@ -202,7 +209,7 @@ export class DiscoveryAnalyticsRepository {
 	}): Promise<number> {
 		await this.ready();
 		const sessionId = cleanString(input.sessionId, 120);
-		const userId = cleanString(input.userId, 80);
+		const userId = sanitizeUserId(input.userId);
 		if (!sessionId || !userId) return 0;
 		const windowDays = Math.max(1, Math.min(input.windowDays ?? 30, 90));
 		const rows = await this.sql<Array<{ id: number }>>`

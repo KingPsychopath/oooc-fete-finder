@@ -99,6 +99,7 @@ pnpm format              # format with Biome
 pnpm fix                 # apply Biome fixes
 pnpm deadcode            # scan unused files/dependencies with knip
 pnpm deadcode:exports    # scan unused TypeScript exports
+pnpm check:user-id-drift  # check canonical userId identity drift in analytics tables
 pnpm health:check        # verify database and admin health endpoints
 pnpm db:cli              # open the database/status utility
 ```

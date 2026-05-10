@@ -5,6 +5,7 @@ type Setup = {
 	GET: typeof import("@/app/api/auth/session/route").GET;
 	DELETE: typeof import("@/app/api/auth/session/route").DELETE;
 	verifyAdminSessionFromRequest: ReturnType<typeof vi.fn>;
+	getCanonicalUserSessionFromCookieHeader: ReturnType<typeof vi.fn>;
 	getUserSessionFromCookieHeader: ReturnType<typeof vi.fn>;
 	getUserAuthCookieOptions: ReturnType<typeof vi.fn>;
 };
@@ -13,6 +14,11 @@ const loadRoute = async (): Promise<Setup> => {
 	vi.resetModules();
 
 	const verifyAdminSessionFromRequest = vi.fn().mockResolvedValue(null);
+	const getCanonicalUserSessionFromCookieHeader = vi.fn().mockResolvedValue({
+		isAuthenticated: true,
+		email: "owen@example.com",
+		userId: "019b0000-0000-7000-8000-000000000001",
+	});
 	const getUserSessionFromCookieHeader = vi
 		.fn()
 		.mockReturnValue({
@@ -34,6 +40,7 @@ const loadRoute = async (): Promise<Setup> => {
 
 	vi.doMock("@/features/auth/user-session-cookie", () => ({
 		USER_AUTH_COOKIE_NAME: "oooc_user_session",
+		getCanonicalUserSessionFromCookieHeader,
 		getUserSessionFromCookieHeader,
 		getUserAuthCookieOptions,
 	}));
@@ -43,6 +50,7 @@ const loadRoute = async (): Promise<Setup> => {
 		GET: route.GET,
 		DELETE: route.DELETE,
 		verifyAdminSessionFromRequest,
+		getCanonicalUserSessionFromCookieHeader,
 		getUserSessionFromCookieHeader,
 		getUserAuthCookieOptions,
 	};
@@ -57,6 +65,7 @@ describe("/api/auth/session route", () => {
 		const {
 			GET,
 			verifyAdminSessionFromRequest,
+			getCanonicalUserSessionFromCookieHeader,
 			getUserSessionFromCookieHeader,
 		} = await loadRoute();
 		verifyAdminSessionFromRequest.mockResolvedValue({ jti: "session-jti" });
@@ -87,7 +96,10 @@ describe("/api/auth/session route", () => {
 		expect(response.headers.get("cache-control")).toContain("no-store");
 		expect(response.headers.get("pragma")).toBe("no-cache");
 		expect(response.headers.get("expires")).toBe("0");
-		expect(getUserSessionFromCookieHeader).toHaveBeenCalledWith("test-token");
+		expect(getCanonicalUserSessionFromCookieHeader).toHaveBeenCalledWith(
+			"test-token",
+		);
+		expect(getUserSessionFromCookieHeader).toHaveBeenCalledTimes(0);
 		expect(verifyAdminSessionFromRequest).toHaveBeenCalledTimes(1);
 	});
 

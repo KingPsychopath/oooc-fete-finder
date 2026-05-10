@@ -1,6 +1,7 @@
 import "server-only";
 
 import { isValidUserId } from "@/features/auth/user-id";
+import { getUserRepository } from "@/lib/platform/postgres/user-repository";
 import { env } from "@/lib/config/env";
 import jwt from "jsonwebtoken";
 
@@ -83,6 +84,30 @@ export const getUserSessionFromCookieHeader = (
 		isAuthenticated: true,
 		email: payload.email,
 		userId,
+	};
+};
+
+export const getCanonicalUserSessionFromCookieHeader = async (
+	cookieValue: string | undefined,
+): Promise<{ isAuthenticated: boolean; email: string | null; userId: string | null }> => {
+	const baseSession = getUserSessionFromCookieHeader(cookieValue);
+	if (!baseSession.isAuthenticated || !baseSession.email || baseSession.userId) {
+		return baseSession;
+	}
+
+	const repository = getUserRepository();
+	if (!repository) {
+		return baseSession;
+	}
+
+	const canonicalUser = await repository.getByEmail(baseSession.email);
+	if (!canonicalUser?.id) {
+		return baseSession;
+	}
+
+	return {
+		...baseSession,
+		userId: canonicalUser.id,
 	};
 };
 

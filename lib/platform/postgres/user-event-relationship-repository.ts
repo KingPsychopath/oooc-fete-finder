@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Sql } from "postgres";
+import { isValidUserId } from "@/features/auth/user-id";
 import { getPostgresClient } from "./postgres-client";
 
 declare global {
@@ -35,6 +36,11 @@ const cleanString = (
 	const trimmed = value.trim();
 	if (trimmed.length === 0) return null;
 	return trimmed.slice(0, maxLength);
+};
+
+const sanitizeUserId = (userId: string | null | undefined): string | null => {
+	const cleaned = cleanString(userId, 80);
+	return cleaned && isValidUserId(cleaned) ? cleaned : null;
 };
 
 export class UserEventRelationshipRepository {
@@ -79,7 +85,7 @@ export class UserEventRelationshipRepository {
 
 	async upsertRelationship(input: UserEventRelationshipInput): Promise<void> {
 		await this.ready();
-		const userId = cleanString(input.userId, 80);
+		const userId = sanitizeUserId(input.userId);
 		const eventKey = cleanString(input.eventKey, 220)?.toLowerCase();
 		if (!userId || !eventKey) {
 			throw new Error("User id and event key are required");
@@ -112,7 +118,7 @@ export class UserEventRelationshipRepository {
 
 	async deleteRelationship(input: UserEventRelationshipInput): Promise<void> {
 		await this.ready();
-		const userId = cleanString(input.userId, 80);
+		const userId = sanitizeUserId(input.userId);
 		const eventKey = cleanString(input.eventKey, 220)?.toLowerCase();
 		if (!userId || !eventKey) {
 			throw new Error("User id and event key are required");
@@ -132,7 +138,7 @@ export class UserEventRelationshipRepository {
 		limit?: number;
 	}): Promise<string[]> {
 		await this.ready();
-		const userId = cleanString(input.userId, 80);
+		const userId = sanitizeUserId(input.userId);
 		if (!userId) {
 			throw new Error("User id is required");
 		}

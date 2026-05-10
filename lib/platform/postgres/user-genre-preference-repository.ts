@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { MusicGenre } from "@/features/events/types";
+import { isValidUserId } from "@/features/auth/user-id";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
 
@@ -17,6 +18,10 @@ type SegmentRow = {
 };
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
+const sanitizeUserId = (userId: string | null | undefined): string | null => {
+	return userId && isValidUserId(userId) ? userId : null;
+};
 
 export class UserGenrePreferenceRepository {
 	private readonly sql: Sql;
@@ -67,6 +72,7 @@ export class UserGenrePreferenceRepository {
 		incrementBy?: number;
 	}): Promise<void> {
 		await this.ready();
+		const userId = sanitizeUserId(input.userId);
 		const incrementBy = Math.max(1, Math.min(10, input.incrementBy ?? 1));
 		const email = normalizeEmail(input.email);
 		await this.sql`
@@ -80,7 +86,7 @@ export class UserGenrePreferenceRepository {
 			)
 			VALUES (
 				${email},
-				${input.userId ?? null},
+				${userId},
 				${input.genre},
 				${incrementBy},
 				NOW(),
@@ -156,13 +162,14 @@ export class UserGenrePreferenceRepository {
 	}
 
 	async listForUser(input: {
-		email: string;
 		userId?: string | null;
 		limit: number;
 	}): Promise<Array<{ genre: MusicGenre; score: number; lastSeenAt: string }>> {
 		await this.ready();
-		const email = normalizeEmail(input.email);
 		const safeLimit = Math.max(1, Math.min(50, Math.floor(input.limit)));
+		const userId = sanitizeUserId(input.userId);
+		if (!userId) return [];
+
 		const rows = await this.sql<
 			Array<{ genre: MusicGenre; score: number; lastSeenAt: Date | string }>
 		>`
@@ -171,8 +178,7 @@ export class UserGenrePreferenceRepository {
 				score,
 				last_seen_at AS "lastSeenAt"
 			FROM app_user_genre_preferences
-			WHERE email = ${email}
-				OR (${input.userId ?? null}::text IS NOT NULL AND user_id = ${input.userId ?? null})
+			WHERE user_id = ${userId}
 			ORDER BY score DESC, last_seen_at DESC
 			LIMIT ${safeLimit}
 		`;

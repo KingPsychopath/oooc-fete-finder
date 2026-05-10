@@ -118,6 +118,11 @@ const parseTourInteraction = (value: string | null | undefined): {
 	};
 };
 
+type UserProfileLookup = {
+	email?: string;
+	userId?: string;
+};
+
 const getMemoryStore = (): Record<string, StoredUserRecord> => {
 	if (!globalThis.__ooocFeteFinderUserCollectionMemoryStore) {
 		globalThis.__ooocFeteFinderUserCollectionMemoryStore = {};
@@ -301,51 +306,57 @@ export class UserCollectionStore {
 	}
 
 	static async getUserProfile(
-		email: string,
+		lookup: UserProfileLookup,
 	): Promise<CollectedUserProfile | null> {
-		const normalizedEmail = email.trim().toLowerCase();
-		if (!normalizedEmail) return null;
+		const normalizedEmail = lookup.email?.trim().toLowerCase() ?? "";
+		const trimmedUserId = lookup.userId?.trim() ?? "";
+		const normalizedUserId = isValidUserId(trimmedUserId)
+			? trimmedUserId
+			: null;
+		if (!normalizedUserId && !normalizedEmail) return null;
 
 		const repository = getUserCollectionRepository();
-		const user = repository?.findByEmail
-			? await repository.findByEmail(normalizedEmail)
-			: (await this.listAll()).find(
-					(record) => record.email === normalizedEmail,
-				);
+		let user = null;
+		if (repository) {
+			if (normalizedUserId && repository.findByUserId) {
+				user = await repository.findByUserId(normalizedUserId);
+			}
+			if (!user && normalizedEmail) {
+				user = await repository.findByEmail(normalizedEmail);
+			}
+		} else {
+			const allUsers = await this.listAll();
+			if (normalizedUserId) {
+				user = allUsers.find((record) => record.userId === normalizedUserId);
+			}
+			if (!user && normalizedEmail) {
+				user = allUsers.find((record) => record.email === normalizedEmail);
+			}
+		}
 		if (!user) return null;
+		const userId = isValidUserId(user.userId) ? user.userId : null;
 
 		const discoveryRepository = getDiscoveryAnalyticsRepository();
 		const eventRepository = getEventEngagementRepository();
 
 		const [primaryDiscovery, primaryEventActions] = await Promise.all([
 			discoveryRepository?.listRecentForUser({
-				userId: user.userId,
+				userId,
 				limit: 24,
 			}) ?? Promise.resolve([]),
 			eventRepository?.listRecentForUser({
-				userId: user.userId,
+				userId,
 				limit: 16,
 			}) ?? Promise.resolve([]),
 		]);
 
 		const [recentDiscovery, recentEventActions] = await Promise.all([
-			primaryDiscovery.length > 0 || !user.userId
-				? Promise.resolve(primaryDiscovery)
-				: discoveryRepository?.listRecentForUser({
-						email: user.email,
-						limit: 24,
-					}) ?? Promise.resolve([]),
-			primaryEventActions.length > 0 || !user.userId
-				? Promise.resolve(primaryEventActions)
-				: eventRepository?.listRecentForUser({
-					email: user.email,
-					limit: 16,
-				}) ?? Promise.resolve([]),
+			Promise.resolve(primaryDiscovery),
+			Promise.resolve(primaryEventActions),
 		]);
 		const genrePreferences =
 			(await getUserGenrePreferenceRepository()?.listForUser({
-				email: user.email,
-				userId: user.userId,
+				userId,
 				limit: 8,
 			})) ?? [];
 		const eventsByKey = new Map<

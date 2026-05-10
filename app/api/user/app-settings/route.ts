@@ -1,7 +1,8 @@
 import {
 	USER_AUTH_COOKIE_NAME,
-	getUserSessionFromCookieHeader,
+	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
+import { isValidUserId } from "@/features/auth/user-id";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	DEFAULT_JSON_BODY_LIMIT_BYTES,
@@ -49,13 +50,15 @@ const parseCookieByName = (
 	return undefined;
 };
 
-const getUserSettingsKey = (request: Request): string | null => {
+const getUserSettingsKey = async (
+	request: Request,
+): Promise<string | null> => {
 	const cookieHeader = request.headers.get("cookie");
 	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
-	const userSession = getUserSessionFromCookieHeader(userCookie);
-	if (!userSession.isAuthenticated || !userSession.email) return null;
-	const userKey = (userSession.userId ?? userSession.email).trim().toLowerCase();
-	return userKey ? `user-app-settings:${userKey}` : null;
+	const userSession = await getCanonicalUserSessionFromCookieHeader(userCookie);
+	if (!userSession.isAuthenticated) return null;
+	if (!userSession.userId || !isValidUserId(userSession.userId)) return null;
+	return `user-app-settings:${userSession.userId}`;
 };
 
 const normalizeSyncedSettings = (
@@ -74,7 +77,7 @@ const normalizeSyncedSettings = (
 
 export async function GET(request: Request) {
 	const repository = getAppKVStoreRepository();
-	const key = getUserSettingsKey(request);
+	const key = await getUserSettingsKey(request);
 	if (!repository || !key) {
 		return NextResponse.json(
 			{ success: true, settings: null },
@@ -123,7 +126,7 @@ export async function POST(request: Request) {
 	}
 
 	const repository = getAppKVStoreRepository();
-	const key = getUserSettingsKey(request);
+	const key = await getUserSettingsKey(request);
 	if (!repository || !key) {
 		return NextResponse.json(
 			{ success: true },

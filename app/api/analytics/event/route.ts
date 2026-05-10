@@ -1,7 +1,7 @@
 import { touchAuthenticatedUserContext } from "@/features/auth/user-context-touch";
 import {
 	USER_AUTH_COOKIE_NAME,
-	getUserSessionFromCookieHeader,
+	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
 import {
 	EVENT_ENGAGEMENT_ACTIONS,
@@ -164,7 +164,7 @@ export async function POST(request: Request) {
 
 	const cookieHeader = request.headers.get("cookie");
 	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
-	const userSession = getUserSessionFromCookieHeader(userCookie);
+	const userSession = await getCanonicalUserSessionFromCookieHeader(userCookie);
 
 	try {
 		for (const body of events) {
@@ -178,7 +178,7 @@ export async function POST(request: Request) {
 				eventKey,
 				actionType: body.actionType as EventEngagementAction,
 				userId: userSession.userId,
-				userEmail: userSession.email,
+				userEmail: userSession.userId ? userSession.email : null,
 				sessionId: body.sessionId ?? null,
 				source: body.source ?? null,
 				path: body.path ?? null,

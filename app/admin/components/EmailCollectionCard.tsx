@@ -44,6 +44,11 @@ import type {
 	UserCollectionStoreSummary,
 } from "../types";
 
+type UserProfileLookup = {
+	email?: string;
+	userId?: string;
+};
+
 type EmailSortMode =
 	| "newest"
 	| "oldest"
@@ -118,7 +123,9 @@ type EmailCollectionCardProps = {
 	onRefresh: () => Promise<void>;
 	onDeleteEmails: (emails: string[]) => Promise<EmailMutationResult>;
 	onImportEmails: (rawInput: string) => Promise<EmailMutationResult>;
-	onGetUserProfile: (email: string) => Promise<CollectedUserProfileResponse>;
+	onGetUserProfile: (
+		lookup: UserProfileLookup,
+	) => Promise<CollectedUserProfileResponse>;
 };
 
 const TEST_EMAIL_HINTS = [
@@ -836,7 +843,10 @@ export const EmailCollectionCard = ({
 		setProfileStatus("");
 		setIsProfileLoading(true);
 		try {
-			const result = await onGetUserProfile(user.email);
+			const result = await onGetUserProfile({
+				email: user.email,
+				userId: user.userId,
+			});
 			if (profileRequestIdRef.current !== requestId) return;
 			if (result.success && result.profile) {
 				const loadedProfile = result.profile;
