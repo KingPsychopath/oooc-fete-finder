@@ -2,6 +2,7 @@ import {
 	discardPendingMutations,
 	enqueueSavedEventMutation,
 	flushPendingMutations,
+	getPendingSavedEventMutations,
 	getPendingMutationCount,
 } from "@/features/offline-mutations/pending-mutation-queue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -78,6 +79,31 @@ describe("pending mutation queue", () => {
 		expect(getPendingMutationCount()).toBe(2);
 		expect(getPendingMutationCount("user:a@example.com")).toBe(1);
 		expect(getPendingMutationCount("user:b@example.com")).toBe(1);
+	});
+
+	it("lists pending saved-event mutations for one owner", () => {
+		enqueueSavedEventMutation({
+			ownerKey: "user:a@example.com",
+			eventKey: "EVT_1",
+			isSaved: true,
+			source: "modal_save",
+		});
+		enqueueSavedEventMutation({
+			ownerKey: "user:b@example.com",
+			eventKey: "evt_2",
+			isSaved: false,
+			source: "modal_unsave",
+		});
+
+		expect(getPendingSavedEventMutations("user:a@example.com")).toMatchObject([
+			{
+				ownerKey: "user:a@example.com",
+				payload: {
+					eventKey: "evt_1",
+					isSaved: true,
+				},
+			},
+		]);
 	});
 
 	it("discards pending mutations by owner", () => {

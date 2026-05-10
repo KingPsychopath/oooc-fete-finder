@@ -258,6 +258,14 @@ export const getPendingMutationCount = (ownerKey?: string): number =>
 	readQueue().filter((mutation) => !ownerKey || mutation.ownerKey === ownerKey)
 		.length;
 
+export const getPendingSavedEventMutations = (
+	ownerKey: string,
+): PendingSavedEventMutation[] =>
+	readQueue().filter(
+		(mutation): mutation is PendingSavedEventMutation =>
+			mutation.type === "saved_event" && mutation.ownerKey === ownerKey,
+	);
+
 export const discardPendingMutations = (ownerKey?: string): number => {
 	const queue = readQueue();
 	const retainedQueue = ownerKey

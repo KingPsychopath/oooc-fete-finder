@@ -6,6 +6,7 @@ import type { Event } from "@/features/events/types";
 import {
 	discardPendingMutations,
 	enqueueSavedEventMutation,
+	getPendingSavedEventMutations,
 	flushPendingMutations,
 	getPendingMutationCount,
 } from "@/features/offline-mutations/pending-mutation-queue";
@@ -47,11 +48,32 @@ const normalizeEventKey = (eventKey: string): string =>
 const getStorageKey = (ownerKey: string): string =>
 	`${SAVED_EVENTS_STORAGE_PREFIX}:${ownerKey}`;
 
-const getOwnerKey = (
+export const getSavedEventsOwnerKey = (
 	email: string | null,
-	isLiveAuthenticated: boolean,
-): string =>
-	isLiveAuthenticated && email ? `user:${email.trim().toLowerCase()}` : "anon";
+	isAuthenticated: boolean,
+): string => {
+	const normalizedEmail = email?.trim().toLowerCase();
+	return isAuthenticated && normalizedEmail ? `user:${normalizedEmail}` : "anon";
+};
+
+export const applyPendingSavedEventMutations = (
+	eventKeys: Iterable<string>,
+	pendingMutations: Iterable<{
+		payload: { eventKey: string; isSaved: boolean };
+	}>,
+): Set<string> => {
+	const next = new Set(Array.from(eventKeys, normalizeEventKey).filter(Boolean));
+	for (const mutation of pendingMutations) {
+		const eventKey = normalizeEventKey(mutation.payload.eventKey);
+		if (!eventKey) continue;
+		if (mutation.payload.isSaved) {
+			next.add(eventKey);
+		} else {
+			next.delete(eventKey);
+		}
+	}
+	return next;
+};
 
 const readLocalSavedEventKeys = (ownerKey: string): string[] => {
 	if (typeof window === "undefined") return [];
@@ -148,10 +170,10 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 		() => new Set(),
 	);
 	const [pendingSavedMutationCount, setPendingSavedMutationCount] = useState(0);
-	const isLiveAuthenticated = isAuthenticated && authMode === "live";
 	const syncMode = getClientSyncMode({ authMode, isAuthenticated, isOnline });
 	const canSync = canSyncAccountData(syncMode);
-	const ownerKey = getOwnerKey(userEmail, isLiveAuthenticated);
+	const ownerKey = getSavedEventsOwnerKey(userEmail, isAuthenticated);
+	const canQueueAccountMutation = isAuthenticated && ownerKey !== "anon";
 	const pendingSavedMutationStatus = getPendingSyncStatus(
 		pendingSavedMutationCount,
 		isOnline,
@@ -162,7 +184,10 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		const previousOwnerKey = previousOwnerKeyRef.current;
 		previousOwnerKeyRef.current = ownerKey;
-		const localKeys = new Set(readLocalSavedEventKeys(ownerKey));
+		const localKeys = applyPendingSavedEventMutations(
+			readLocalSavedEventKeys(ownerKey),
+			getPendingSavedEventMutations(ownerKey),
+		);
 		const anonymousKeys = new Set(readLocalSavedEventKeys("anon"));
 		const shouldMergeAnonymousKeys =
 			canSync &&
@@ -224,7 +249,10 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 					.map(normalizeEventKey)
 					.filter(Boolean);
 				setSavedEventKeys(
-					new Set([...remoteKeys, ...pendingAnonymousMergeKeysRef.current]),
+					applyPendingSavedEventMutations(
+						[...remoteKeys, ...pendingAnonymousMergeKeysRef.current],
+						getPendingSavedEventMutations(activeOwnerKey),
+					),
 				);
 			} catch {
 				// Local saves remain available if sync cannot complete.
@@ -292,7 +320,17 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 					nextIsSaved = true;
 				}
 				if (!canSync) {
-					setPendingSavedMutationCount(0);
+					if (canQueueAccountMutation) {
+						enqueueSavedEventMutation({
+							ownerKey,
+							eventKey,
+							isSaved: nextIsSaved,
+							source,
+						});
+						setPendingSavedMutationCount(getPendingMutationCount(ownerKey));
+					} else {
+						setPendingSavedMutationCount(0);
+					}
 					return next;
 				}
 				syncSavedEvents({
@@ -308,7 +346,7 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 			});
 			return nextIsSaved;
 		},
-		[canSync, ownerKey],
+		[canQueueAccountMutation, canSync, ownerKey],
 	);
 
 	const value = useMemo(
