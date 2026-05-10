@@ -12,11 +12,13 @@ import Countdown from "@/features/events/components/Countdown";
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import type { SlidingBannerPublicSettings } from "@/features/site-settings/types";
 // Note: Using process.env directly to avoid server-side env variable access on client
-import { LogOut, ShieldCheck } from "lucide-react";
+import { LogOut, ShieldCheck, UserRoundPlus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
+
+const EmailGateModal = lazy(() => import("@/features/auth/components/EmailGateModal"));
 
 // Get base path from environment variable directly
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
@@ -48,17 +50,26 @@ const DEFAULT_BANNER_SETTINGS: SlidingBannerPublicSettings = {
 	desktopMessageCount: 2,
 	updatedAt: new Date(0).toISOString(),
 };
+const AUTH_ICON_BUTTON_CLASS =
+	"hidden h-9 w-9 rounded-full border border-border/80 bg-background/70 p-0 text-foreground/75 hover:bg-accent hover:text-foreground sm:inline-flex";
 
 type HeaderProps = {
 	bannerSettings?: SlidingBannerPublicSettings;
 };
 
 const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
-	const { isAuthenticated, isAdminAuthenticated, userEmail, logout } =
-		useOptionalAuth();
+	const {
+		isAuthenticated,
+		isAdminAuthenticated,
+		isAuthResolved,
+		isOnline,
+		logout,
+		refreshSession,
+	} = useOptionalAuth();
 	const pathname = usePathname();
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+	const [isEmailGateOpen, setIsEmailGateOpen] = useState(false);
 	const [scrollState, setScrollState] = useState({
 		compressed: false,
 		collapsed: false,
@@ -127,6 +138,25 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 			if (rafId !== null) cancelAnimationFrame(rafId);
 		};
 	}, []);
+
+	const handleEmailSubmit = async () => {
+		const hasConfirmedSession = await refreshSession();
+		if (hasConfirmedSession) {
+			setIsEmailGateOpen(false);
+			return true;
+		}
+
+		await new Promise((resolve) => {
+			setTimeout(resolve, 350);
+		});
+		const retryAfterDelay = await refreshSession();
+
+		if (retryAfterDelay) {
+			setIsEmailGateOpen(false);
+			return true;
+		}
+		return false;
+	};
 
 	const isCompressed = scrollState.compressed;
 	const isCollapsed = scrollState.collapsed;
@@ -264,17 +294,37 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 									className="h-9 w-9 rounded-full border border-border/80 bg-background/70 hover:bg-accent"
 								/>
 							</div>
-							{isAuthenticated && userEmail && (
+							{isAuthenticated && isAuthResolved ? (
 								<Button
 									variant="ghost"
 									size="sm"
 									onClick={logout}
-									className="hidden h-9 w-9 rounded-full border border-border/80 bg-background/70 p-0 text-foreground/75 hover:bg-accent hover:text-foreground sm:inline-flex"
-									title="Logout"
-									aria-label="Logout"
-								>
-									<LogOut className="h-3.5 w-3.5" />
-								</Button>
+									className={AUTH_ICON_BUTTON_CLASS}
+										title="Logout"
+										aria-label="Logout"
+									>
+										<LogOut className="h-3.5 w-3.5" />
+									</Button>
+							) : (
+								isAuthResolved &&
+								isOnline && (
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => {
+											trackNavigationClick({
+												group: "header_nav",
+												label: "login",
+											});
+											setIsEmailGateOpen(true);
+										}}
+										className={AUTH_ICON_BUTTON_CLASS}
+										title="Login"
+										aria-label="Login"
+									>
+										<UserRoundPlus className="h-3.5 w-3.5" />
+									</Button>
+								)
 							)}
 						</div>
 					</div>
@@ -308,6 +358,21 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 				isOpen={isSettingsOpen}
 				onClose={() => setIsSettingsOpen(false)}
 			/>
+			{isEmailGateOpen && (
+				<Suspense
+					fallback={
+						<span className="sr-only" aria-hidden="true">
+							Loading
+						</span>
+					}
+				>
+					<EmailGateModal
+						isOpen={isEmailGateOpen}
+						onClose={() => setIsEmailGateOpen(false)}
+						onEmailSubmit={handleEmailSubmit}
+					/>
+				</Suspense>
+			)}
 		</>
 	);
 };

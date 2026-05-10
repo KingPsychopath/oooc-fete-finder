@@ -14,8 +14,9 @@ const DRIFT_LOOKBACK_DAYS = parsePositiveInt(
 	process.env.USER_ID_DRIFT_LOOKBACK_DAYS,
 	30,
 );
-const ALLOWED_RECENT_MISSING_WITH_EMAIL = parsePositiveInt(
-	process.env.USER_ID_DRIFT_ALLOWED_MISSING_WITH_EMAIL,
+const ALLOWED_RECENT_UNRECOVERABLE_MISSING_WITH_EMAIL = parsePositiveInt(
+	process.env.USER_ID_DRIFT_ALLOWED_UNRECOVERABLE_MISSING_WITH_EMAIL ??
+		process.env.USER_ID_DRIFT_ALLOWED_MISSING_WITH_EMAIL,
 	0,
 );
 const ALLOWED_RECENT_MALFORMED_IDS = parsePositiveInt(
@@ -42,8 +43,54 @@ const safePercent = (part, total) => {
 
 const getEventEngagementStats = async () => {
 	const rows = await sql`
+		WITH recent AS (
+			SELECT id, user_id, user_email, session_id
+			FROM app_event_engagement_stats
+			WHERE recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+		),
+		missing AS (
+			SELECT id, user_id, user_email, session_id
+			FROM recent
+			WHERE user_id IS NULL OR user_id = '' OR NOT (user_id ~* ${USER_ID_PATTERN})
+		),
+		session_candidates AS (
+			SELECT session_id, user_id
+			FROM (
+				SELECT session_id, user_id
+				FROM app_event_engagement_stats
+				WHERE session_id IS NOT NULL
+					AND session_id <> ''
+					AND user_id ~* ${USER_ID_PATTERN}
+					AND recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+				GROUP BY session_id, user_id
+			) candidates
+		),
+		session_map AS (
+			SELECT session_id, MIN(user_id) AS user_id
+			FROM session_candidates
+			GROUP BY session_id
+			HAVING COUNT(*) = 1
+		),
+		recent_recoverable_by_session AS (
+			SELECT missing.id
+			FROM missing
+			JOIN session_map
+				ON session_map.session_id = missing.session_id
+		),
+		recent_recoverable_by_email AS (
+			SELECT missing.id
+			FROM missing
+			JOIN app_users users
+				ON users.email_normalized = lower(NULLIF(BTRIM(missing.user_email), ''))
+			WHERE NULLIF(BTRIM(missing.user_email), '') IS NOT NULL
+		),
+		recent_recoverable_union AS (
+			SELECT id FROM recent_recoverable_by_session
+			UNION
+			SELECT id FROM recent_recoverable_by_email
+		)
 		SELECT
-			COUNT(*)::int AS total_rows,
+			(SELECT COUNT(*)::int FROM app_event_engagement_stats) AS total_rows,
 			COUNT(*) FILTER (
 				WHERE (stats.user_id IS NOT NULL AND stats.user_id <> '' AND stats.user_id ~* ${USER_ID_PATTERN})
 			)::int AS rows_with_user_id,
@@ -51,37 +98,84 @@ const getEventEngagementStats = async () => {
 				WHERE (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
 			)::int AS rows_missing_user_id,
 			COUNT(*) FILTER (
-				WHERE (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
-					AND COALESCE(NULLIF(BTRIM(stats.user_email), ''), '') <> ''
-					AND stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
-			)::int AS recent_missing_with_email,
+				WHERE (stats.user_id IS NOT NULL AND stats.user_id <> '' AND NOT (stats.user_id ~* ${USER_ID_PATTERN}))
+			)::int AS malformed_user_id,
 			COUNT(*) FILTER (
-				WHERE (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
+				WHERE stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+					AND (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
+			)::int AS recent_missing_user_id,
+			COUNT(*) FILTER (
+				WHERE stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+					AND (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
 					AND COALESCE(NULLIF(BTRIM(stats.user_email), ''), '') = ''
-					AND stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
 			)::int AS recent_missing_without_email,
 			COUNT(*) FILTER (
-				WHERE (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
+				WHERE stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+					AND (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
 					AND COALESCE(NULLIF(BTRIM(stats.user_email), ''), '') <> ''
-					AND users.id IS NOT NULL
-					AND stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
-			)::int AS recent_recoverable_with_email,
+			)::int AS recent_missing_with_email,
+			(SELECT COUNT(*)::int FROM recent_recoverable_by_session) AS recent_recoverable_by_session,
+			(SELECT COUNT(*)::int FROM recent_recoverable_by_email) AS recent_recoverable_by_email,
+			(SELECT COUNT(*)::int FROM recent_recoverable_union) AS recent_recoverable_total,
 			COUNT(*) FILTER (
-				WHERE (stats.user_id IS NOT NULL AND stats.user_id <> '')
-					AND NOT (stats.user_id ~* ${USER_ID_PATTERN})
-					AND stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+				WHERE stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+					AND (stats.user_id IS NOT NULL AND stats.user_id <> '' AND NOT (stats.user_id ~* ${USER_ID_PATTERN}))
 			)::int AS recent_malformed_user_id
 		FROM app_event_engagement_stats stats
-		LEFT JOIN app_users users
-			ON users.email_normalized = lower(NULLIF(BTRIM(stats.user_email), ''))
 	`;
 	return rows[0];
 };
 
 const getDiscoveryStats = async () => {
 	const rows = await sql`
+		WITH recent AS (
+			SELECT id, user_id, user_email, session_id
+			FROM app_discovery_analytics_stats
+			WHERE recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+		),
+		missing AS (
+			SELECT id, user_id, user_email, session_id
+			FROM recent
+			WHERE user_id IS NULL OR user_id = '' OR NOT (user_id ~* ${USER_ID_PATTERN})
+		),
+		session_candidates AS (
+			SELECT session_id, user_id
+			FROM (
+				SELECT session_id, user_id
+				FROM app_discovery_analytics_stats
+				WHERE session_id IS NOT NULL
+					AND session_id <> ''
+					AND user_id ~* ${USER_ID_PATTERN}
+					AND recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+				GROUP BY session_id, user_id
+			) candidates
+		),
+		session_map AS (
+			SELECT session_id, MIN(user_id) AS user_id
+			FROM session_candidates
+			GROUP BY session_id
+			HAVING COUNT(*) = 1
+		),
+		recent_recoverable_by_session AS (
+			SELECT missing.id
+			FROM missing
+			JOIN session_map
+				ON session_map.session_id = missing.session_id
+		),
+		recent_recoverable_by_email AS (
+			SELECT missing.id
+			FROM missing
+			JOIN app_users users
+				ON users.email_normalized = lower(NULLIF(BTRIM(missing.user_email), ''))
+			WHERE NULLIF(BTRIM(missing.user_email), '') IS NOT NULL
+		),
+		recent_recoverable_union AS (
+			SELECT id FROM recent_recoverable_by_session
+			UNION
+			SELECT id FROM recent_recoverable_by_email
+		)
 		SELECT
-			COUNT(*)::int AS total_rows,
+			(SELECT COUNT(*)::int FROM app_discovery_analytics_stats) AS total_rows,
 			COUNT(*) FILTER (
 				WHERE (stats.user_id IS NOT NULL AND stats.user_id <> '' AND stats.user_id ~* ${USER_ID_PATTERN})
 			)::int AS rows_with_user_id,
@@ -89,37 +183,55 @@ const getDiscoveryStats = async () => {
 				WHERE (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
 			)::int AS rows_missing_user_id,
 			COUNT(*) FILTER (
-				WHERE (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
-					AND COALESCE(NULLIF(BTRIM(stats.user_email), ''), '') <> ''
-					AND stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
-			)::int AS recent_missing_with_email,
+				WHERE (stats.user_id IS NOT NULL AND stats.user_id <> '' AND NOT (stats.user_id ~* ${USER_ID_PATTERN}))
+			)::int AS malformed_user_id,
 			COUNT(*) FILTER (
-				WHERE (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
+				WHERE stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+					AND (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
+			)::int AS recent_missing_user_id,
+			COUNT(*) FILTER (
+				WHERE stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+					AND (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
 					AND COALESCE(NULLIF(BTRIM(stats.user_email), ''), '') = ''
-					AND stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
 			)::int AS recent_missing_without_email,
 			COUNT(*) FILTER (
-				WHERE (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
+				WHERE stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+					AND (stats.user_id IS NULL OR stats.user_id = '' OR NOT (stats.user_id ~* ${USER_ID_PATTERN}))
 					AND COALESCE(NULLIF(BTRIM(stats.user_email), ''), '') <> ''
-					AND users.id IS NOT NULL
-					AND stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
-			)::int AS recent_recoverable_with_email,
+			)::int AS recent_missing_with_email,
+			(SELECT COUNT(*)::int FROM recent_recoverable_by_session) AS recent_recoverable_by_session,
+			(SELECT COUNT(*)::int FROM recent_recoverable_by_email) AS recent_recoverable_by_email,
+			(SELECT COUNT(*)::int FROM recent_recoverable_union) AS recent_recoverable_total,
 			COUNT(*) FILTER (
-				WHERE (stats.user_id IS NOT NULL AND stats.user_id <> '')
-					AND NOT (stats.user_id ~* ${USER_ID_PATTERN})
-					AND stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+				WHERE stats.recorded_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+					AND (stats.user_id IS NOT NULL AND stats.user_id <> '' AND NOT (stats.user_id ~* ${USER_ID_PATTERN}))
 			)::int AS recent_malformed_user_id
 		FROM app_discovery_analytics_stats stats
-		LEFT JOIN app_users users
-			ON users.email_normalized = lower(NULLIF(BTRIM(stats.user_email), ''))
 	`;
 	return rows[0];
 };
 
 const getGenrePreferenceStats = async () => {
 	const rows = await sql`
+		WITH recent AS (
+			SELECT user_id, email
+			FROM app_user_genre_preferences
+			WHERE last_seen_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+		),
+		recent_missing AS (
+			SELECT user_id, email
+			FROM recent
+			WHERE user_id IS NULL OR user_id = '' OR NOT (user_id ~* ${USER_ID_PATTERN})
+		),
+		recent_recoverable_by_email AS (
+			SELECT recent_missing.email
+			FROM recent_missing
+			JOIN app_users users
+				ON users.email_normalized = lower(NULLIF(BTRIM(recent_missing.email), ''))
+			WHERE NULLIF(BTRIM(recent_missing.email), '') IS NOT NULL
+		)
 		SELECT
-			COUNT(*)::int AS total_rows,
+			(SELECT COUNT(*)::int FROM app_user_genre_preferences) AS total_rows,
 			COUNT(*) FILTER (
 				WHERE (prefs.user_id IS NOT NULL AND prefs.user_id <> '' AND prefs.user_id ~* ${USER_ID_PATTERN})
 			)::int AS rows_with_user_id,
@@ -127,29 +239,30 @@ const getGenrePreferenceStats = async () => {
 				WHERE (prefs.user_id IS NULL OR prefs.user_id = '' OR NOT (prefs.user_id ~* ${USER_ID_PATTERN}))
 			)::int AS rows_missing_user_id,
 			COUNT(*) FILTER (
-				WHERE (prefs.user_id IS NULL OR prefs.user_id = '' OR NOT (prefs.user_id ~* ${USER_ID_PATTERN}))
-					AND COALESCE(NULLIF(BTRIM(prefs.email), ''), '') <> ''
-					AND prefs.last_seen_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
-			)::int AS recent_missing_with_email,
+				WHERE (prefs.user_id IS NOT NULL AND prefs.user_id <> '' AND NOT (prefs.user_id ~* ${USER_ID_PATTERN}))
+			)::int AS malformed_user_id,
 			COUNT(*) FILTER (
-				WHERE (prefs.user_id IS NULL OR prefs.user_id = '' OR NOT (prefs.user_id ~* ${USER_ID_PATTERN}))
+				WHERE prefs.last_seen_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+					AND (prefs.user_id IS NULL OR prefs.user_id = '' OR NOT (prefs.user_id ~* ${USER_ID_PATTERN}))
+			)::int AS recent_missing_user_id,
+			COUNT(*) FILTER (
+				WHERE prefs.last_seen_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+					AND (prefs.user_id IS NULL OR prefs.user_id = '' OR NOT (prefs.user_id ~* ${USER_ID_PATTERN}))
 					AND COALESCE(NULLIF(BTRIM(prefs.email), ''), '') = ''
-					AND prefs.last_seen_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
 			)::int AS recent_missing_without_email,
 			COUNT(*) FILTER (
-				WHERE (prefs.user_id IS NULL OR prefs.user_id = '' OR NOT (prefs.user_id ~* ${USER_ID_PATTERN}))
+				WHERE prefs.last_seen_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+					AND (prefs.user_id IS NULL OR prefs.user_id = '' OR NOT (prefs.user_id ~* ${USER_ID_PATTERN}))
 					AND COALESCE(NULLIF(BTRIM(prefs.email), ''), '') <> ''
-					AND users.id IS NOT NULL
-					AND prefs.last_seen_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
-			)::int AS recent_recoverable_with_email,
+			)::int AS recent_missing_with_email,
+			0::int AS recent_recoverable_by_session,
+			(SELECT COUNT(*)::int FROM recent_recoverable_by_email) AS recent_recoverable_by_email,
+			(SELECT COUNT(*)::int FROM recent_recoverable_by_email) AS recent_recoverable_total,
 			COUNT(*) FILTER (
-				WHERE (prefs.user_id IS NOT NULL AND prefs.user_id <> '')
-					AND NOT (prefs.user_id ~* ${USER_ID_PATTERN})
-					AND prefs.last_seen_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+				WHERE prefs.last_seen_at >= NOW() - (${DRIFT_LOOKBACK_DAYS} * INTERVAL '1 day')
+					AND (prefs.user_id IS NOT NULL AND prefs.user_id <> '' AND NOT (prefs.user_id ~* ${USER_ID_PATTERN}))
 			)::int AS recent_malformed_user_id
 		FROM app_user_genre_preferences prefs
-		LEFT JOIN app_users users
-			ON users.email_normalized = lower(NULLIF(BTRIM(prefs.email), ''))
 	`;
 	return rows[0];
 };
@@ -158,24 +271,37 @@ const summarize = (name, stats) => {
 	const total = Number(stats.total_rows ?? 0);
 	const withUserId = Number(stats.rows_with_user_id ?? 0);
 	const missing = Number(stats.rows_missing_user_id ?? 0);
+	const malformed = Number(stats.malformed_user_id ?? 0);
 	const recentMissingWithEmail = Number(stats.recent_missing_with_email ?? 0);
 	const recentMissingWithoutEmail = Number(
 		stats.recent_missing_without_email ?? 0,
 	);
-	const recentRecoverable = Number(stats.recent_recoverable_with_email ?? 0);
+	const recentRecoverableWithEmail = Number(stats.recent_recoverable_by_email ?? 0);
+	const recentRecoverableBySession = Number(stats.recent_recoverable_by_session ?? 0);
+	const recentRecoverableTotal = Number(stats.recent_recoverable_total ?? 0);
 	const recentMalformed = Number(stats.recent_malformed_user_id ?? 0);
+	const recentMissingUserId = Number(stats.recent_missing_user_id ?? 0);
+	const recentUnrecoverableWithEmail = Math.max(
+		0,
+		recentMissingWithEmail - recentRecoverableTotal,
+	);
 
 	console.log(`\n${name}`);
 	console.log(
 		`- total: ${total}, with canonical userId: ${withUserId}, missing: ${missing} (${safePercent(missing, total)}%)`,
 	);
 	console.log(
-		`- last ${DRIFT_LOOKBACK_DAYS}d with email (recoverability): missing=${recentMissingWithEmail}, recoverable=${recentRecoverable}, unrecoverable=${Math.max(0, recentMissingWithEmail - recentRecoverable)}`,
+		`- malformed userId: ${malformed} total, ${recentMalformed} in last ${DRIFT_LOOKBACK_DAYS}d`,
 	);
 	console.log(
-		`- last ${DRIFT_LOOKBACK_DAYS}d email-less/intentional anonymous: ${recentMissingWithoutEmail}`,
+		`- last ${DRIFT_LOOKBACK_DAYS}d missing canonical: total=${recentMissingUserId}, with email=${recentMissingWithEmail}, without email=${recentMissingWithoutEmail}`,
 	);
-	console.log(`- last ${DRIFT_LOOKBACK_DAYS}d malformed userId: ${recentMalformed}`);
+	console.log(
+		`- last ${DRIFT_LOOKBACK_DAYS}d recoverable via session=${recentRecoverableBySession}, via email=${recentRecoverableWithEmail}, recoverable total=${recentRecoverableTotal}`,
+	);
+	console.log(
+		`- last ${DRIFT_LOOKBACK_DAYS}d unrecoverable rows with email: ${recentUnrecoverableWithEmail}`,
+	);
 };
 
 const main = async () => {
@@ -196,7 +322,7 @@ const main = async () => {
 
 	let hasFailure = false;
 	console.log(
-		`Checking userId drift for canonical identity (lookback: ${DRIFT_LOOKBACK_DAYS} day(s), allowed missing-with-email: ${ALLOWED_RECENT_MISSING_WITH_EMAIL}, allowed malformed: ${ALLOWED_RECENT_MALFORMED_IDS})`,
+		`Checking userId drift for canonical identity (lookback: ${DRIFT_LOOKBACK_DAYS} day(s), allowed unrecoverable missing-with-email: ${ALLOWED_RECENT_UNRECOVERABLE_MISSING_WITH_EMAIL}, allowed malformed: ${ALLOWED_RECENT_MALFORMED_IDS})`,
 	);
 	for (const check of checks) {
 		let stats;
@@ -210,9 +336,14 @@ const main = async () => {
 		summarize(check.name, stats);
 
 		const recentMissingWithEmail = Number(stats.recent_missing_with_email ?? 0);
+		const recentRecoverableTotal = Number(stats.recent_recoverable_total ?? 0);
+		const recentUnrecoverableWithEmail = Math.max(
+			0,
+			recentMissingWithEmail - recentRecoverableTotal,
+		);
 		const recentMalformed = Number(stats.recent_malformed_user_id ?? 0);
 		if (
-			recentMissingWithEmail > ALLOWED_RECENT_MISSING_WITH_EMAIL ||
+			recentUnrecoverableWithEmail > ALLOWED_RECENT_UNRECOVERABLE_MISSING_WITH_EMAIL ||
 			recentMalformed > ALLOWED_RECENT_MALFORMED_IDS
 		) {
 			console.log(`- status: fail (possible new drift or unmapped auth writes)`);
