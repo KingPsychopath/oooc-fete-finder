@@ -126,6 +126,7 @@ const TEST_EMAIL_HINTS = [
 	"localhost",
 	"invalid",
 ];
+const RETURNED_AFTER_ACTION_THRESHOLD_MS = 30 * 60 * 1000;
 
 const isLikelyTestEmail = (email: string): boolean => {
 	const normalized = email.toLowerCase();
@@ -147,7 +148,11 @@ const getActivityCount = (user: EmailRecord): number =>
 const hasReturnedWithoutNewActivity = (user: EmailRecord): boolean => {
 	const capturedAt = getTime(user.timestamp);
 	const lastActiveAt = getTime(user.lastSignalAt);
-	return capturedAt > 0 && lastActiveAt > 0 && capturedAt > lastActiveAt;
+	return (
+		capturedAt > 0 &&
+		lastActiveAt > 0 &&
+		capturedAt - lastActiveAt >= RETURNED_AFTER_ACTION_THRESHOLD_MS
+	);
 };
 
 const sortEmails = (emails: EmailRecord[], sortMode: EmailSortMode) => {
@@ -890,13 +895,14 @@ export const EmailCollectionCard = ({
 							<div className="flex items-center">
 								<p className="text-sm font-medium">User segments</p>
 								<InfoPopover aria-label="Explain user segments" side="top">
-									These buttons filter users by linked behaviour, return visits,
-									and captured context. Click an active segment again to clear it.
+									These buttons filter users by linked behaviour, later return
+									visits, and captured context. Click an active segment again to
+									clear it.
 								</InfoPopover>
 							</div>
 							<p className="mt-1 text-xs text-muted-foreground">
-								Separate people who did something from people who only returned
-								or signed in again.
+								Separate people who did something from people seen again at
+								least 30 minutes after their last tracked action.
 							</p>
 						</div>
 						<Button
