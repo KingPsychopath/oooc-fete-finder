@@ -1202,6 +1202,10 @@ export const EventSheetEditorCard = ({
 		() => pruneEmptyEditableSheetRows(rows).length !== rows.length,
 		[rows],
 	);
+	const blockingRequiredIssues = useMemo(
+		() => getRequiredSheetHealthIssues(rows),
+		[rows],
+	);
 
 	const rowsRef = useRef<EditableSheetRow[]>([]);
 	const columnsRef = useRef<EditableSheetColumn[]>([]);
@@ -1601,6 +1605,7 @@ export const EventSheetEditorCard = ({
 			hasNewDeployment ||
 			activeCellDraft ||
 			hasBlankDraftRows ||
+			blockingRequiredIssues.length > 0 ||
 			restoreReviewRevision ||
 			saveScheduleVersion === 0
 		) {
@@ -1622,6 +1627,7 @@ export const EventSheetEditorCard = ({
 		};
 	}, [
 		activeCellDraft,
+		blockingRequiredIssues.length,
 		hasBlankDraftRows,
 		hasNewDeployment,
 		hasUnsavedChanges,
@@ -3246,6 +3252,11 @@ export const EventSheetEditorCard = ({
 					)}
 					{hasUnsavedChanges && hasBlankDraftRows && (
 						<Badge variant="secondary">Autosave paused for blank draft row</Badge>
+					)}
+					{hasUnsavedChanges && blockingRequiredIssues.length > 0 && (
+						<Badge variant="secondary">
+							Autosave paused: required fields missing
+						</Badge>
 					)}
 					<Badge variant="outline">Source of truth: Postgres</Badge>
 					{restoreReviewRevision && (
