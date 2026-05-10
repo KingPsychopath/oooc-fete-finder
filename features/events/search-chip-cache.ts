@@ -1,6 +1,6 @@
 import "server-only";
 
-import { revalidatePath, revalidateTag, updateTag } from "next/cache";
+import { updateTag } from "next/cache";
 
 export const SEARCH_CHIP_SETTINGS_CACHE_TAG = "search-chip-settings";
 export const SEARCH_CHIP_SETTINGS_CACHE_KEY = "public-search-chip-settings";
@@ -10,7 +10,5 @@ export const SEARCH_CHIP_SETTINGS_REVALIDATE_SECONDS = 3600;
 export const SEARCH_CHIP_SIGNALS_REVALIDATE_SECONDS = 60 * 60 * 12;
 
 export const invalidateSearchChipSettingsCache = (): void => {
-	revalidatePath("/", "page");
 	updateTag(SEARCH_CHIP_SETTINGS_CACHE_TAG);
-	revalidateTag(SEARCH_CHIP_SETTINGS_CACHE_TAG, "max");
 };

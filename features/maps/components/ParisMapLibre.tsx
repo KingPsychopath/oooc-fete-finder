@@ -617,9 +617,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					touchZoomRotate: false,
 					attributionControl: {
 						compact: true,
-						customAttribution: shouldStartWithLocalMap
-							? "Paris Event Map · Offline preview"
-							: "Paris Event Map",
+						customAttribution: "OpenFreeMap (c)",
 					},
 					maxBounds: [
 						[2.18, 48.8], // Southwest corner (medium expansion)
@@ -640,6 +638,12 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						const attribution = mapContainer.current?.querySelector(
 							".maplibregl-ctrl-attrib.maplibregl-compact",
 						);
+						const attributionInner = attribution?.querySelector(
+							".maplibregl-ctrl-attrib-inner",
+						);
+						if (attributionInner) {
+							attributionInner.textContent = "OpenFreeMap (c)";
+						}
 						attribution?.classList.remove("maplibregl-compact-show");
 						attribution?.classList.add("ooo-attribution-ready");
 					};

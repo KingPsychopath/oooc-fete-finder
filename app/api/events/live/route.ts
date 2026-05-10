@@ -2,7 +2,6 @@ import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { log } from "@/lib/platform/logger";
 import { NextResponse } from "next/server";
 
-export const revalidate = 3600;
 const EVENTS_API_CACHE_CONTROL =
 	"public, max-age=0, s-maxage=60, stale-while-revalidate=300";
 

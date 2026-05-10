@@ -1,7 +1,6 @@
 import { getEventShareEvent } from "@/lib/social/event-share-details";
 import { NextResponse, type NextRequest } from "next/server";
 
-export const revalidate = 3600;
 const EVENT_DETAILS_CACHE_CONTROL =
 	"public, max-age=0, s-maxage=60, stale-while-revalidate=300";
 const EVENT_NOT_FOUND_CACHE_CONTROL =

@@ -186,6 +186,16 @@
 		span {
 		display: none;
 	}
+	.ooo-map-shell .maplibregl-ctrl-attrib.maplibregl-compact-show {
+		max-width: min(9.5rem, calc(100vw - 2rem));
+	}
+	.ooo-map-shell
+		.maplibregl-ctrl-attrib.maplibregl-compact-show
+		.maplibregl-ctrl-attrib-inner {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 }
 
 .ooo-site-shell {
