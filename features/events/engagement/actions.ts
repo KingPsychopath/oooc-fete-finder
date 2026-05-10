@@ -73,6 +73,9 @@ type SegmentCriterion = {
 export async function getEventEngagementDashboard(
 	windowDays = 7,
 	searchClusterMode: SearchClusterMode = "conservative",
+	options: {
+		includeAuthenticatedOnly?: boolean;
+	} = {},
 ): Promise<
 	| {
 			success: true;
@@ -203,6 +206,7 @@ export async function getEventEngagementDashboard(
 		const preferenceRepository = getUserGenrePreferenceRepository();
 
 		const { safeWindowDays, startAt, endAt } = buildWindow(windowDays);
+		const includeAuthenticatedOnly = options.includeAuthenticatedOnly ?? false;
 
 		const [
 			summary,
@@ -220,15 +224,32 @@ export async function getEventEngagementDashboard(
 			mapProviders,
 			topGenresRaw,
 		] = await Promise.all([
-			engagementRepository.summarizeWindow({ startAt, endAt }),
-			engagementRepository.listDailySeries({ startAt, endAt }),
-			engagementRepository.listTopEvents({ startAt, endAt, limit: 60 }),
+			engagementRepository.summarizeWindow({
+				startAt,
+				endAt,
+				includeAuthenticatedOnly,
+			}),
+			engagementRepository.listDailySeries({
+				startAt,
+				endAt,
+				includeAuthenticatedOnly,
+			}),
+			engagementRepository.listTopEvents({
+				startAt,
+				endAt,
+				limit: 60,
+				includeAuthenticatedOnly,
+			}),
 			getLiveEvents({
 				includeFeaturedProjection: false,
 				includeEngagementProjection: false,
 			}),
 			discoveryRepository
-				? discoveryRepository.summarizeWindow({ startAt, endAt })
+				? discoveryRepository.summarizeWindow({
+						startAt,
+						endAt,
+						includeAuthenticatedOnly,
+				  })
 				: Promise.resolve({
 						searchCount: 0,
 						filterApplyCount: 0,
@@ -239,12 +260,22 @@ export async function getEventEngagementDashboard(
 						tourInteractionCount: 0,
 						navClickCount: 0,
 						uniqueSessionCount: 0,
-					}),
+			}),
 			discoveryRepository
-				? discoveryRepository.listTopSearches({ startAt, endAt, limit: 250 })
+				? discoveryRepository.listTopSearches({
+						startAt,
+						endAt,
+						limit: 250,
+						includeAuthenticatedOnly,
+				  })
 				: Promise.resolve([]),
 			discoveryRepository
-				? discoveryRepository.listTopFilters({ startAt, endAt, limit: 30 })
+				? discoveryRepository.listTopFilters({
+						startAt,
+						endAt,
+						limit: 30,
+						includeAuthenticatedOnly,
+				  })
 				: Promise.resolve([]),
 			discoveryRepository
 				? discoveryRepository.listTopDiscoveryActions({
@@ -252,6 +283,7 @@ export async function getEventEngagementDashboard(
 						startAt,
 						endAt,
 						limit: 20,
+						includeAuthenticatedOnly,
 					})
 				: Promise.resolve([]),
 			discoveryRepository
@@ -260,6 +292,7 @@ export async function getEventEngagementDashboard(
 						startAt,
 						endAt,
 						limit: 10,
+						includeAuthenticatedOnly,
 					})
 				: Promise.resolve([]),
 			discoveryRepository
@@ -268,6 +301,7 @@ export async function getEventEngagementDashboard(
 						startAt,
 						endAt,
 						limit: 10,
+						includeAuthenticatedOnly,
 					})
 				: Promise.resolve([]),
 			discoveryRepository
@@ -276,6 +310,7 @@ export async function getEventEngagementDashboard(
 						startAt,
 						endAt,
 						limit: 20,
+						includeAuthenticatedOnly,
 					})
 				: Promise.resolve([]),
 			discoveryRepository
@@ -284,12 +319,14 @@ export async function getEventEngagementDashboard(
 						startAt,
 						endAt,
 						limit: 20,
+						includeAuthenticatedOnly,
 					})
 				: Promise.resolve([]),
 			engagementRepository.listMapProviderBreakdown({
 				startAt,
 				endAt,
 				limit: 8,
+				includeAuthenticatedOnly,
 			}),
 			preferenceRepository
 				? preferenceRepository.listTopGenres({ limit: 10 })

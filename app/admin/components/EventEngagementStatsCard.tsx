@@ -66,7 +66,10 @@ const WINDOW_OPTIONS = [7, 14, 30, 90] as const;
 const EXPORT_WINDOW_OPTIONS = [7, 14, 30, 60, 90] as const;
 const TABLE_ROW_LIMIT_OPTIONS = [10, 25, 50, 100] as const;
 const SEARCH_CLUSTER_MODE_OPTIONS = ["conservative", "aggressive"] as const;
+const ANALYTICS_SCOPE_OPTIONS = ["all", "authenticatedOnly"] as const;
 const DEFAULT_WINDOW_DAYS = 7;
+
+type AnalyticsScope = (typeof ANALYTICS_SCOPE_OPTIONS)[number];
 
 const SUMMARY_METRICS = [
 	{
@@ -489,6 +492,7 @@ export const EventEngagementStatsCard = ({
 			? initialPayload.discovery.searchClusterMode
 			: "conservative",
 	);
+	const [analyticsScope, setAnalyticsScope] = useState<AnalyticsScope>("all");
 
 	const [ruleGroup, setRuleGroup] = useState<DiscoveryFilterGroup>("genre");
 	const [ruleValue, setRuleValue] = useState("");
@@ -514,11 +518,17 @@ export const EventEngagementStatsCard = ({
 	const [segmentLimit, setSegmentLimit] = useState("5000");
 
 	const loadStats = useCallback(
-		async (days: number, clusterMode: "conservative" | "aggressive") => {
+		async (
+			days: number,
+			clusterMode: "conservative" | "aggressive",
+			scope: AnalyticsScope,
+		) => {
 			setIsLoading(true);
 			setErrorMessage("");
 			try {
-				const result = await getEventEngagementDashboard(days, clusterMode);
+				const result = await getEventEngagementDashboard(days, clusterMode, {
+					includeAuthenticatedOnly: scope === "authenticatedOnly",
+				});
 				setPayload(result);
 				if (!result.success) {
 					setErrorMessage(
@@ -536,8 +546,14 @@ export const EventEngagementStatsCard = ({
 		if (initialPayload?.success) {
 			return;
 		}
-		void loadStats(windowDays, searchClusterMode);
-	}, [initialPayload?.success, loadStats, searchClusterMode, windowDays]);
+		void loadStats(windowDays, searchClusterMode, analyticsScope);
+	}, [
+		analyticsScope,
+		initialPayload?.success,
+		loadStats,
+		searchClusterMode,
+		windowDays,
+	]);
 
 	const filteredRows = useMemo(() => {
 		if (!payload?.success) return [];
@@ -1180,22 +1196,55 @@ export const EventEngagementStatsCard = ({
 									variant={windowDays === days ? "default" : "outline"}
 									onClick={() => {
 										setWindowDays(days);
-										void loadStats(days, searchClusterMode);
+										if (initialPayload?.success) {
+											void loadStats(
+												days,
+												searchClusterMode,
+												analyticsScope,
+											);
+										}
 									}}
 									disabled={isLoading}
 								>
 									{days}d
 								</Button>
-							))}
+								))}
 							<Button
 								type="button"
 								size="sm"
 								variant="outline"
-								onClick={() => void loadStats(windowDays, searchClusterMode)}
+								onClick={() =>
+									void loadStats(windowDays, searchClusterMode, analyticsScope)
+								}
 								disabled={isLoading}
 							>
 								{isLoading ? "Refreshing..." : "Refresh"}
 							</Button>
+							<div className="inline-flex items-center rounded-md border p-0.5">
+								{ANALYTICS_SCOPE_OPTIONS.map((scope) => (
+									<Button
+										key={scope}
+										type="button"
+										size="sm"
+										variant={
+											analyticsScope === scope ? "default" : "ghost"
+										}
+										onClick={() => {
+											setAnalyticsScope(scope);
+											if (initialPayload?.success) {
+												void loadStats(
+													windowDays,
+													searchClusterMode,
+													scope,
+												);
+											}
+										}}
+										disabled={isLoading}
+									>
+										{scope === "all" ? "All activity" : "Authenticated"}
+									</Button>
+								))}
+							</div>
 							<div className="inline-flex items-center rounded-md border p-0.5">
 								{SEARCH_CLUSTER_MODE_OPTIONS.map((mode) => (
 									<Button
@@ -1205,7 +1254,13 @@ export const EventEngagementStatsCard = ({
 										variant={searchClusterMode === mode ? "default" : "ghost"}
 										onClick={() => {
 											setSearchClusterMode(mode);
-											void loadStats(windowDays, mode);
+											if (initialPayload?.success) {
+												void loadStats(
+													windowDays,
+													mode,
+													analyticsScope,
+												);
+											}
 										}}
 										disabled={isLoading}
 									>

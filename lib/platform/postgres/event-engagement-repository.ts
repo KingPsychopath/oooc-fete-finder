@@ -229,9 +229,13 @@ export class EventEngagementRepository {
 		startAt: string;
 		endAt: string;
 		limit: number;
+		includeAuthenticatedOnly?: boolean;
 	}): Promise<EventEngagementSummary[]> {
 		await this.ready();
 		const safeLimit = Math.max(1, Math.min(input.limit, 100));
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND user_id IS NOT NULL`
+			: this.sql``;
 		const rows = await this.sql<EventEngagementSummaryRow[]>`
 			WITH filtered AS (
 				SELECT
@@ -242,6 +246,7 @@ export class EventEngagementRepository {
 				FROM app_event_engagement_stats
 				WHERE recorded_at >= ${input.startAt}
 					AND recorded_at < ${input.endAt}
+					${userScopeFilter}
 			),
 			annotated AS (
 				SELECT
@@ -287,6 +292,7 @@ export class EventEngagementRepository {
 	async summarizeWindow(input: {
 		startAt: string;
 		endAt: string;
+		includeAuthenticatedOnly?: boolean;
 	}): Promise<{
 		clickCount: number;
 		dedupedViewCount: number;
@@ -299,8 +305,11 @@ export class EventEngagementRepository {
 		uniqueOutboundSessionCount: number;
 		uniqueCalendarSessionCount: number;
 		uniqueMapSessionCount: number;
-	}> {
+		}> {
 		await this.ready();
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND user_id IS NOT NULL`
+			: this.sql``;
 		const rows = await this.sql<
 			Array<{
 				clickCount: number;
@@ -325,6 +334,7 @@ export class EventEngagementRepository {
 				FROM app_event_engagement_stats
 				WHERE recorded_at >= ${input.startAt}
 					AND recorded_at < ${input.endAt}
+					${userScopeFilter}
 			),
 			annotated AS (
 				SELECT
@@ -382,8 +392,12 @@ export class EventEngagementRepository {
 		eventKey: string;
 		startAt: string;
 		endAt: string;
+		includeAuthenticatedOnly?: boolean;
 	}): Promise<EventEngagementSummary> {
 		await this.ready();
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND user_id IS NOT NULL`
+			: this.sql``;
 		const rows = await this.sql<EventEngagementSummaryRow[]>`
 			WITH filtered AS (
 				SELECT
@@ -395,6 +409,7 @@ export class EventEngagementRepository {
 				WHERE event_key = ${input.eventKey}
 					AND recorded_at >= ${input.startAt}
 					AND recorded_at < ${input.endAt}
+					${userScopeFilter}
 			),
 			annotated AS (
 				SELECT
@@ -452,8 +467,12 @@ export class EventEngagementRepository {
 	async listDailySeries(input: {
 		startAt: string;
 		endAt: string;
+		includeAuthenticatedOnly?: boolean;
 	}): Promise<EventEngagementDailyRow[]> {
 		await this.ready();
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND user_id IS NOT NULL`
+			: this.sql``;
 		const rows = await this.sql<EventEngagementDailyRow[]>`
 			SELECT
 				TO_CHAR(DATE_TRUNC('day', recorded_at), 'YYYY-MM-DD') AS day,
@@ -464,6 +483,7 @@ export class EventEngagementRepository {
 			FROM app_event_engagement_stats
 			WHERE recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
+				${userScopeFilter}
 			GROUP BY 1
 			ORDER BY 1 ASC
 		`;
@@ -474,11 +494,15 @@ export class EventEngagementRepository {
 		startAt: string;
 		endAt: string;
 		limit: number;
+		includeAuthenticatedOnly?: boolean;
 	}): Promise<
 		Array<{ provider: string; count: number; uniqueSessionCount: number }>
 	> {
 		await this.ready();
 		const safeLimit = Math.max(1, Math.min(input.limit, 20));
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND user_id IS NOT NULL`
+			: this.sql``;
 		const rows = await this.sql<
 			Array<{ provider: string; count: number; uniqueSessionCount: number }>
 		>`
@@ -493,6 +517,7 @@ export class EventEngagementRepository {
 			WHERE action_type = 'map_open'
 				AND recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
+				${userScopeFilter}
 			GROUP BY 1
 			ORDER BY count DESC
 			LIMIT ${safeLimit}

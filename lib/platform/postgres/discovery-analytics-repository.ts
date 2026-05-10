@@ -233,6 +233,7 @@ export class DiscoveryAnalyticsRepository {
 	async summarizeWindow(input: {
 		startAt: string;
 		endAt: string;
+		includeAuthenticatedOnly?: boolean;
 	}): Promise<{
 		searchCount: number;
 		filterApplyCount: number;
@@ -245,6 +246,9 @@ export class DiscoveryAnalyticsRepository {
 		uniqueSessionCount: number;
 	}> {
 		await this.ready();
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND user_id IS NOT NULL`
+			: this.sql``;
 		const rows = await this.sql<
 			Array<{
 				searchCount: number;
@@ -271,6 +275,7 @@ export class DiscoveryAnalyticsRepository {
 			FROM app_discovery_analytics_stats
 			WHERE recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
+				${userScopeFilter}
 		`;
 		return (
 			rows[0] ?? {
@@ -292,9 +297,13 @@ export class DiscoveryAnalyticsRepository {
 		startAt: string;
 		endAt: string;
 		limit: number;
+		includeAuthenticatedOnly?: boolean;
 	}): Promise<Array<{ group: string; value: string; count: number }>> {
 		await this.ready();
 		const safeLimit = Math.max(1, Math.min(input.limit, 100));
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND user_id IS NOT NULL`
+			: this.sql``;
 		const rows = await this.sql<
 			Array<{ group: string; value: string; count: number }>
 		>`
@@ -306,6 +315,7 @@ export class DiscoveryAnalyticsRepository {
 			WHERE action_type = ${input.actionType}
 				AND recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
+				${userScopeFilter}
 			GROUP BY 1, 2
 			ORDER BY count DESC
 			LIMIT ${safeLimit}
@@ -317,11 +327,15 @@ export class DiscoveryAnalyticsRepository {
 		startAt: string;
 		endAt: string;
 		limit: number;
+		includeAuthenticatedOnly?: boolean;
 	}): Promise<
 		Array<{ filterGroup: string; filterValue: string; count: number }>
 	> {
 		await this.ready();
 		const safeLimit = Math.max(1, Math.min(input.limit, 100));
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND user_id IS NOT NULL`
+			: this.sql``;
 		const rows = await this.sql<
 			Array<{ filterGroup: string; filterValue: string; count: number }>
 		>`
@@ -333,6 +347,7 @@ export class DiscoveryAnalyticsRepository {
 			WHERE action_type = 'filter_apply'
 				AND recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
+				${userScopeFilter}
 			GROUP BY 1, 2
 			ORDER BY count DESC
 			LIMIT ${safeLimit}
@@ -344,9 +359,13 @@ export class DiscoveryAnalyticsRepository {
 		startAt: string;
 		endAt: string;
 		limit: number;
+		includeAuthenticatedOnly?: boolean;
 	}): Promise<Array<{ query: string; count: number }>> {
 		await this.ready();
 		const safeLimit = Math.max(1, Math.min(input.limit, 100));
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND user_id IS NOT NULL`
+			: this.sql``;
 		const rows = await this.sql<Array<{ query: string; count: number }>>`
 			SELECT
 				search_query AS query,
@@ -357,6 +376,7 @@ export class DiscoveryAnalyticsRepository {
 				AND search_query <> ''
 				AND recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
+				${userScopeFilter}
 			GROUP BY search_query
 			ORDER BY count DESC
 			LIMIT ${safeLimit}
