@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
 import { getFeaturedProjection } from "@/features/events/featured/service";
-import { generateOGMetadata, generatePresetOGImage } from "@/lib/social/og-utils";
+import {
+	generateOGMetadata,
+	generatePresetOGImage,
+} from "@/lib/social/og-utils";
 import {
 	ArrowRight,
 	CircleHelp,
@@ -68,10 +71,9 @@ const packages: PromotionPackage[] = [
 		name: "Spotlight Takeover",
 		price: 100,
 		priceLabel: "EUR 100",
-		description:
-			"Premium placement for the final Fete push: June 15-20, 2026.",
+		description: "Premium placement for the final Fete push: June 15-20, 2026.",
 		includes: [
-			"All Spotlight Standard benefits",
+			"All above-the-fold Spotlight Standard benefits",
 			"Priority activation window (June 15-20, 2026)",
 			"WhatsApp community announcement included",
 			"Ideal for final-week urgency",

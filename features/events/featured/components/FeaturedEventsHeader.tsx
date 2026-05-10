@@ -22,7 +22,7 @@ export function FeaturedEventsHeader() {
 					strokeWidth={1.8}
 					aria-hidden="true"
 				/>
-				Get noticed by thousands more yearners by promoting your event →
+				Get noticed by thousands more yearners with a Spotlight placement →
 			</Link>
 		</div>
 	);

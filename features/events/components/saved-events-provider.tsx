@@ -4,6 +4,7 @@ import { useOptionalAuth } from "@/features/auth/auth-context";
 import { getClientContext } from "@/features/events/engagement/client-tracking";
 import type { Event } from "@/features/events/types";
 import {
+	discardPendingMutations,
 	enqueueSavedEventMutation,
 	flushPendingMutations,
 	getPendingMutationCount,
@@ -135,13 +136,14 @@ const syncSavedEvents = (input: {
 };
 
 export function SavedEventsProvider({ children }: { children: ReactNode }) {
-	const { isAuthenticated, authMode, userEmail } = useOptionalAuth();
+	const { isAuthenticated, authMode, isOnline, userEmail } = useOptionalAuth();
 	const [savedEventKeys, setSavedEventKeys] = useState<Set<string>>(
 		() => new Set(),
 	);
 	const [pendingSavedMutationCount, setPendingSavedMutationCount] = useState(0);
-	const canSync = isAuthenticated && authMode === "live";
-	const ownerKey = getOwnerKey(userEmail, canSync);
+	const isLiveAuthenticated = isAuthenticated && authMode === "live";
+	const canSync = isLiveAuthenticated && isOnline;
+	const ownerKey = getOwnerKey(userEmail, isLiveAuthenticated);
 	const previousOwnerKeyRef = useRef(ownerKey);
 	const pendingAnonymousMergeKeysRef = useRef<Set<string>>(new Set());
 
@@ -176,6 +178,7 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 			});
 			clearLocalSavedEventKeys("anon");
 		}
+		discardPendingMutations("anon");
 		setPendingSavedMutationCount(getPendingMutationCount(ownerKey));
 	}, [canSync, ownerKey]);
 
@@ -276,6 +279,10 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 					next.add(eventKey);
 					nextIsSaved = true;
 				}
+				if (!canSync) {
+					setPendingSavedMutationCount(0);
+					return next;
+				}
 				syncSavedEvents({
 					ownerKey,
 					eventKeys: [eventKey],
@@ -289,7 +296,7 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 			});
 			return nextIsSaved;
 		},
-		[ownerKey],
+		[canSync, ownerKey],
 	);
 
 	const value = useMemo(

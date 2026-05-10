@@ -245,3 +245,15 @@ export const flushPendingMutations = async (handlers: {
 export const getPendingMutationCount = (ownerKey?: string): number =>
 	readQueue().filter((mutation) => !ownerKey || mutation.ownerKey === ownerKey)
 		.length;
+
+export const discardPendingMutations = (ownerKey?: string): number => {
+	const queue = readQueue();
+	const retainedQueue = ownerKey
+		? queue.filter((mutation) => mutation.ownerKey !== ownerKey)
+		: [];
+	const discarded = queue.length - retainedQueue.length;
+	if (discarded > 0) {
+		writeQueue(retainedQueue);
+	}
+	return discarded;
+};

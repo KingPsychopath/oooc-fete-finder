@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useOnlineStatus } from "@/components/offline-indicator";
 import { ClearFiltersButton } from "@/features/events/components/ClearFiltersButton";
 import { EventCard } from "@/features/events/components/EventCard";
 import { FilterButton } from "@/features/events/components/FilterButton";
@@ -102,6 +103,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		},
 		ref,
 	) => {
+		const isOnline = useOnlineStatus();
 		const safeEvents = events.filter((event) => event != null);
 		const [visibleLimit, setVisibleLimit] = useState(INITIAL_VISIBLE_EVENTS);
 		const genreFrequency = buildGenreFrequency(safeEvents);
@@ -258,8 +260,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 						{pendingSavedMutationCount > 0 && (
 							<p className="text-xs leading-relaxed text-muted-foreground">
 								{pendingSavedMutationCount} saved change
-								{pendingSavedMutationCount === 1 ? "" : "s"} will sync when
-								you’re back online.
+								{pendingSavedMutationCount === 1 ? "" : "s"}{" "}
+								{isOnline
+									? "will retry account sync shortly."
+									: "will sync when you’re back online."}
 							</p>
 						)}
 						{isNearbyActive || nearbyEventsError ? (

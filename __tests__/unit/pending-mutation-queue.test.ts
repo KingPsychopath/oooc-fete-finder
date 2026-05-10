@@ -1,4 +1,5 @@
 import {
+	discardPendingMutations,
 	enqueueSavedEventMutation,
 	flushPendingMutations,
 	getPendingMutationCount,
@@ -77,6 +78,25 @@ describe("pending mutation queue", () => {
 		expect(getPendingMutationCount()).toBe(2);
 		expect(getPendingMutationCount("user:a@example.com")).toBe(1);
 		expect(getPendingMutationCount("user:b@example.com")).toBe(1);
+	});
+
+	it("discards pending mutations by owner", () => {
+		enqueueSavedEventMutation({
+			ownerKey: "anon",
+			eventKey: "evt_1",
+			isSaved: true,
+			source: "modal_save",
+		});
+		enqueueSavedEventMutation({
+			ownerKey: "user:a@example.com",
+			eventKey: "evt_2",
+			isSaved: true,
+			source: "modal_save",
+		});
+
+		expect(discardPendingMutations("anon")).toBe(1);
+		expect(getPendingMutationCount("anon")).toBe(0);
+		expect(getPendingMutationCount("user:a@example.com")).toBe(1);
 	});
 
 	it("removes successful mutations after flush", async () => {
