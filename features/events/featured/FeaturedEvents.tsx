@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { EventCard } from "@/features/events/components/EventCard";
 import { useSavedEvents } from "@/features/events/components/saved-events-provider";
 import { buildGenreFrequency } from "@/features/events/genre-preview";
@@ -38,9 +38,6 @@ export function FeaturedEvents({
 
 	return (
 		<Card className="ooo-site-card mb-6 py-0">
-			<CardHeader className="border-b border-border/70 py-5">
-				<FeaturedEventsHeader />
-			</CardHeader>
 			<CardContent className="py-5">
 				{/* Responsive grid: 1 col on mobile, 2 cols on tablet, 3 cols on desktop */}
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:[&>*:last-child:nth-child(odd)]:col-start-2 md:[&>*]:col-span-2 lg:grid-cols-3 lg:[&>*:last-child:nth-child(odd)]:col-start-auto lg:[&>*]:col-span-1">
@@ -55,10 +52,12 @@ export function FeaturedEvents({
 						/>
 					))}
 				</div>
-
+			</CardContent>
+			<CardFooter className="flex flex-col items-stretch gap-3 border-border/70 bg-background/48 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+				<FeaturedEventsHeader />
 				{/* Show browse all button if there are more events than featured */}
 				{hasMoreEvents && (
-					<div className="mt-4 text-center">
+					<div className="sm:shrink-0">
 						<Button
 							variant="outline"
 							onClick={onScrollToAllEvents}
@@ -69,7 +68,7 @@ export function FeaturedEvents({
 						</Button>
 					</div>
 				)}
-			</CardContent>
+			</CardFooter>
 		</Card>
 	);
 }
