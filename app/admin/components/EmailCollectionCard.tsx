@@ -272,7 +272,7 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		"Last Seen At",
 		"Last Active At",
 		"Consent",
-		"Source",
+		"Collection Origin",
 		"Linked Activity",
 		"Search Activity",
 		"Filter Activity",
@@ -412,7 +412,7 @@ const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 		label: "Consent",
 		value: profile.user.consent ? "Consented" : "No consent",
 	},
-	{ label: "Source", value: profile.user.source || "Unknown" },
+	{ label: "Collection origin", value: profile.user.source || "Unknown" },
 	{
 		label: "Last seen",
 		value: formatAdminDateTime(profile.user.timestamp),
@@ -833,7 +833,7 @@ export const EmailCollectionCard = ({
 						<Input
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
-							placeholder="Search name, email, source, device, timezone..."
+							placeholder="Search name, email, origin, device, timezone..."
 							className="pl-8"
 						/>
 					</div>
@@ -1150,7 +1150,6 @@ export const EmailCollectionCard = ({
 													Last seen {formatAdminDateTime(user.timestamp)}
 												</span>
 											)}
-											<span>{user.source}</span>
 											{user.lastSignalAt && (
 												<span>
 													Last active {formatAdminDateTime(user.lastSignalAt)}
