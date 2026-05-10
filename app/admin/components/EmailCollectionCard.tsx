@@ -904,8 +904,8 @@ export const EmailCollectionCard = ({
 								</InfoPopover>
 							</div>
 							<p className="mt-1 text-xs text-muted-foreground">
-								Separate people who did something from people seen again at
-								least 30 minutes after their last tracked action.
+								Use these to spot behaviour patterns, quiet return visits, and
+								users with usable device context.
 							</p>
 						</div>
 						<Button
