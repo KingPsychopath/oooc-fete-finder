@@ -1838,8 +1838,8 @@ export const EventEngagementStatsCard = ({
 							Event map opens are tracked from the event modal location button.
 							Arrondissement clicks and other on-page map exploration live under
 							Discovery Behavior. Map preference changes are tracked only when
-							someone changes the saved provider in modal settings or the map
-							picker.
+							someone changes the saved provider in event modal settings, app
+							settings, or the map picker.
 						</InfoPopover>
 					</div>
 					<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
@@ -1851,7 +1851,8 @@ export const EventEngagementStatsCard = ({
 								{summary.mapPreferenceChangeCount}
 							</p>
 							<p className="mt-1 text-[11px] text-muted-foreground">
-								Only real value changes are counted.
+								Only real value changes are counted. Fast sequential provider
+								switches are not collapsed by the short-window dedupe.
 							</p>
 						</div>
 						<div className="space-y-2">

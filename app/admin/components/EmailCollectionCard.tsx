@@ -138,6 +138,8 @@ const TEST_EMAIL_HINTS = [
 	"invalid",
 ];
 const RETURNED_AFTER_ACTION_THRESHOLD_MS = 30 * 60 * 1000;
+const REGISTRATION_WINDOW_24_HOURS_MS = 24 * 60 * 60 * 1000;
+const REGISTRATION_WINDOW_7_DAYS_MS = 7 * REGISTRATION_WINDOW_24_HOURS_MS;
 const FILTER_GROUP_LABELS = {
 	date_range: "Date Range",
 	day_night: "Day / Night",
@@ -231,6 +233,11 @@ const getFilterDisplayValue = (group: string, value: string): string => {
 		return formatDateRange(value);
 	}
 	return formatContextValue(value) ?? value;
+};
+
+const getParsedTime = (value?: string): number => {
+	const parsed = Date.parse(value ?? "");
+	return Number.isFinite(parsed) ? parsed : Number.NaN;
 };
 
 const buildFilterEventHref = (
@@ -686,6 +693,22 @@ export const EmailCollectionCard = ({
 	const totalSubmissions = analytics?.totalSubmissions ?? emails.length;
 	const submissionsLast24Hours = analytics?.submissionsLast24Hours ?? 0;
 	const submissionsLast7Days = analytics?.submissionsLast7Days ?? 0;
+	const { newUsersLast24Hours, newUsersLast7Days } = useMemo(() => {
+		const now = Date.now();
+		const cutoff24h = now - REGISTRATION_WINDOW_24_HOURS_MS;
+		const cutoff7d = now - REGISTRATION_WINDOW_7_DAYS_MS;
+		let usersLast24h = 0;
+		let usersLast7d = 0;
+
+		for (const user of mergedEmails) {
+			const parsed = getParsedTime(user.firstSignInAt ?? user.timestamp);
+			if (Number.isNaN(parsed)) continue;
+			if (parsed >= cutoff24h) usersLast24h++;
+			if (parsed >= cutoff7d) usersLast7d++;
+		}
+
+		return { newUsersLast24Hours: usersLast24h, newUsersLast7Days: usersLast7d };
+	}, [mergedEmails]);
 	const activitySegmentCounts = useMemo(
 		() =>
 			new Map(
@@ -910,7 +933,18 @@ export const EmailCollectionCard = ({
 						</Button>
 					</div>
 				</div>
-				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+					<div className="rounded-md border bg-background/60 px-3 py-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							New Registrations
+						</p>
+						<p className="mt-1 text-sm font-medium tabular-nums">
+							{newUsersLast24Hours} / {newUsersLast7Days}
+						</p>
+						<p className="mt-0.5 text-[11px] text-muted-foreground">
+							24h / 7d
+						</p>
+					</div>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Unique Users
@@ -1595,7 +1629,10 @@ export const EmailCollectionCard = ({
 														key={`${item.filterGroup}-${item.filterValue}-${item.recordedAt}`}
 														className="flex justify-between gap-2 text-xs"
 													>
-														<span className="truncate">
+														<span
+															className="min-w-0 flex-1 whitespace-normal break-words"
+															title={`${groupLabel}: ${valueLabel}`}
+														>
 															{groupLabel}:{" "}
 															{filterHref == null ? (
 																valueLabel

@@ -12,6 +12,7 @@ import {
 	checkTrackEventSessionLimit,
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
+import { APP_PREFERENCES_EVENT_KEY } from "@/features/events/engagement/constants";
 import {
 	TRACKING_JSON_BODY_LIMIT_BYTES,
 	acceptedNoStoreResponse,
@@ -73,6 +74,7 @@ const parseCookieByName = (
 };
 
 const EVENT_KEY_CACHE_TTL_MS = 5 * 60 * 1000;
+const RESERVED_EVENT_KEYS = new Set<string>([APP_PREFERENCES_EVENT_KEY]);
 
 const eventKeyCache = new Map<string, number>();
 
@@ -80,6 +82,10 @@ const isKnownEventKey = async (eventKey: string): Promise<boolean | null> => {
 	const nowMs = Date.now();
 	const cachedExpiry = eventKeyCache.get(eventKey);
 	if (cachedExpiry && cachedExpiry > nowMs) {
+		return true;
+	}
+
+	if (RESERVED_EVENT_KEYS.has(eventKey)) {
 		return true;
 	}
 
@@ -169,7 +175,10 @@ export async function POST(request: Request) {
 	try {
 		for (const body of events) {
 			const eventKey = body.eventKey.toLowerCase();
-			const knownEventKey = await isKnownEventKey(eventKey);
+			const knownEventKey =
+				body.actionType === "map_preference_change"
+					? true
+					: await isKnownEventKey(eventKey);
 			if (knownEventKey === false) {
 				continue;
 			}

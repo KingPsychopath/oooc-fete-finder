@@ -369,6 +369,7 @@ export const trackEventEngagement = (input: {
 		window.location.pathname,
 	].join(":");
 	if (
+		input.actionType !== "map_preference_change" &&
 		shouldSkipRecentAction(
 			recentEventActionKeys,
 			dedupeKey,
@@ -417,7 +418,10 @@ export const trackMapPreferenceChange = (input: {
 	eventKey: string;
 	from: MapProvider;
 	to: MapProvider;
-	source: "modal_settings" | "selection_default";
+	source:
+		| "modal_settings"
+		| "selection_default"
+		| "app_settings";
 	isAuthenticated?: boolean;
 }) => {
 	if (input.from === input.to) return;

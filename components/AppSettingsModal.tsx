@@ -23,6 +23,8 @@ import {
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { useThemeToggle } from "@/hooks/useThemeToggle";
 import { normalizeMapPreference } from "@/lib/user-app-settings";
+import { APP_PREFERENCES_EVENT_KEY } from "@/features/events/engagement/constants";
+import { trackMapPreferenceChange } from "@/features/events/engagement/client-tracking";
 import { cn } from "@/lib/utils";
 import {
 	BellOff,
@@ -94,7 +96,17 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 	const syncMode = getClientSyncMode({ authMode, isAuthenticated, isOnline });
 
 	const handleMapPreferenceChange = (value: string | null) => {
-		setMapPreference(normalizeMapPreference(value));
+		const nextPreference = normalizeMapPreference(value);
+		if (mapPreference !== nextPreference) {
+			trackMapPreferenceChange({
+				eventKey: APP_PREFERENCES_EVENT_KEY,
+				from: mapPreference,
+				to: nextPreference,
+				source: "app_settings",
+				isAuthenticated,
+			});
+		}
+		setMapPreference(nextPreference);
 	};
 
 	const handleDefaultSortChange = (value: string | null) => {
