@@ -71,6 +71,7 @@ export class EventEngagementRepository {
 				event_key TEXT NOT NULL,
 				action_type TEXT NOT NULL CHECK (action_type IN ('click', 'outbound_click', 'calendar_sync', 'saved_toggle', 'map_open', 'map_preference_change')),
 				user_id TEXT,
+				user_email TEXT,
 				session_id TEXT,
 				source TEXT,
 				path TEXT,
@@ -99,6 +100,8 @@ export class EventEngagementRepository {
 			ALTER TABLE app_event_engagement_stats
 			ADD COLUMN IF NOT EXISTS user_id TEXT
 		`;
+		await this
+			.sql`ALTER TABLE app_event_engagement_stats ADD COLUMN IF NOT EXISTS user_email TEXT`;
 		await this
 			.sql`ALTER TABLE app_event_engagement_stats ADD COLUMN IF NOT EXISTS device_class TEXT`;
 		await this
@@ -129,6 +132,9 @@ export class EventEngagementRepository {
 			CREATE INDEX IF NOT EXISTS idx_app_event_engagement_user_time
 			ON app_event_engagement_stats (user_id, recorded_at DESC)
 		`;
+		await this
+			.sql`CREATE INDEX IF NOT EXISTS idx_app_event_engagement_user_email_time
+				ON app_event_engagement_stats (LOWER(user_email), recorded_at DESC)`;
 	}
 
 	private async ready(): Promise<void> {
@@ -147,6 +153,7 @@ export class EventEngagementRepository {
 				event_key,
 				action_type,
 				user_id,
+				user_email,
 				session_id,
 				source,
 				path,
@@ -162,6 +169,7 @@ export class EventEngagementRepository {
 				${eventKey},
 				${input.actionType},
 				${cleanString(input.userId, 80)},
+				${cleanString(input.userEmail, 254)},
 				${cleanString(input.sessionId, 120)},
 				${cleanString(input.source, 80)},
 				${cleanString(input.path, 280)},
@@ -179,6 +187,7 @@ export class EventEngagementRepository {
 	async attachUserToSession(input: {
 		sessionId: string;
 		userId: string;
+		userEmail?: string | null;
 		deviceClass?: string | null;
 		platform?: string | null;
 		browserFamily?: string | null;
@@ -195,6 +204,7 @@ export class EventEngagementRepository {
 			UPDATE app_event_engagement_stats
 			SET
 				user_id = COALESCE(user_id, ${userId}),
+				user_email = COALESCE(user_email, ${cleanString(input.userEmail, 254)}),
 				device_class = COALESCE(device_class, ${cleanString(input.deviceClass, 40)}),
 				platform = COALESCE(platform, ${cleanString(input.platform, 40)}),
 				browser_family = COALESCE(browser_family, ${cleanString(input.browserFamily, 40)}),
@@ -517,7 +527,7 @@ export class EventEngagementRepository {
 	}
 
 	async listRecentForUser(input: {
-		email: string;
+		email?: string | null;
 		userId?: string | null;
 		limit: number;
 	}): Promise<
@@ -530,6 +540,43 @@ export class EventEngagementRepository {
 	> {
 		await this.ready();
 		const safeLimit = Math.max(1, Math.min(input.limit, 100));
+		const normalizedEmail = input.email?.trim().toLowerCase();
+		const userId = cleanString(input.userId, 80);
+
+		if (userId) {
+			const rows = await this.sql<
+				Array<{
+					eventKey: string;
+					actionType: string;
+					source: string | null;
+					recordedAt: Date | string;
+				}>
+			>`
+				SELECT
+					stats.event_key AS "eventKey",
+					stats.action_type AS "actionType",
+					stats.source,
+					stats.recorded_at AS "recordedAt"
+				FROM app_event_engagement_stats stats
+				WHERE stats.user_id = ${userId}
+				ORDER BY stats.recorded_at DESC
+				LIMIT ${safeLimit}
+			`;
+			return rows.map((row) => ({
+				eventKey: row.eventKey,
+				actionType: row.actionType,
+				source: row.source,
+				recordedAt:
+					row.recordedAt instanceof Date
+						? row.recordedAt.toISOString()
+						: new Date(row.recordedAt).toISOString(),
+			}));
+		}
+
+		if (!normalizedEmail) {
+			return [];
+		}
+
 		const rows = await this.sql<
 			Array<{
 				eventKey: string;
@@ -537,7 +584,7 @@ export class EventEngagementRepository {
 				source: string | null;
 				recordedAt: Date | string;
 			}>
-		>`
+			>`
 			SELECT
 				stats.event_key AS "eventKey",
 				stats.action_type AS "actionType",
@@ -545,8 +592,7 @@ export class EventEngagementRepository {
 				stats.recorded_at AS "recordedAt"
 			FROM app_event_engagement_stats stats
 			LEFT JOIN app_users users ON users.id = stats.user_id
-			WHERE (${input.userId ?? null}::text IS NOT NULL AND stats.user_id = ${input.userId ?? null})
-				OR users.email_normalized = ${input.email.trim().toLowerCase()}
+			WHERE COALESCE(users.email_normalized, LOWER(stats.user_email)) = ${normalizedEmail}
 			ORDER BY stats.recorded_at DESC
 			LIMIT ${safeLimit}
 		`;

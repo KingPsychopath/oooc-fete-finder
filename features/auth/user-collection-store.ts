@@ -314,24 +314,40 @@ export class UserCollectionStore {
 				);
 		if (!user) return null;
 
-		const [genrePreferences, recentDiscovery, recentEventActions] =
-			await Promise.all([
-				getUserGenrePreferenceRepository()?.listForUser({
+		const discoveryRepository = getDiscoveryAnalyticsRepository();
+		const eventRepository = getEventEngagementRepository();
+
+		const [primaryDiscovery, primaryEventActions] = await Promise.all([
+			discoveryRepository?.listRecentForUser({
+				userId: user.userId,
+				limit: 24,
+			}) ?? Promise.resolve([]),
+			eventRepository?.listRecentForUser({
+				userId: user.userId,
+				limit: 16,
+			}) ?? Promise.resolve([]),
+		]);
+
+		const [recentDiscovery, recentEventActions] = await Promise.all([
+			primaryDiscovery.length > 0 || !user.userId
+				? Promise.resolve(primaryDiscovery)
+				: discoveryRepository?.listRecentForUser({
+						email: user.email,
+						limit: 24,
+					}) ?? Promise.resolve([]),
+			primaryEventActions.length > 0 || !user.userId
+				? Promise.resolve(primaryEventActions)
+				: eventRepository?.listRecentForUser({
 					email: user.email,
-					userId: user.userId,
-					limit: 8,
-				}) ?? Promise.resolve([]),
-				getDiscoveryAnalyticsRepository()?.listRecentForUser({
-					email: user.email,
-					userId: user.userId,
-					limit: 24,
-				}) ?? Promise.resolve([]),
-				getEventEngagementRepository()?.listRecentForUser({
-					email: user.email,
-					userId: user.userId,
 					limit: 16,
 				}) ?? Promise.resolve([]),
-			]);
+		]);
+		const genrePreferences =
+			(await getUserGenrePreferenceRepository()?.listForUser({
+				email: user.email,
+				userId: user.userId,
+				limit: 8,
+			})) ?? [];
 		const eventsByKey = new Map<
 			string,
 			{ eventKey: string; name: string; slug: string }

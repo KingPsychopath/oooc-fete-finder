@@ -13,6 +13,7 @@ export interface EventEngagementRecordInput {
 	eventKey: string;
 	actionType: EventEngagementAction;
 	userId?: string | null;
+	userEmail?: string | null;
 	sessionId?: string | null;
 	source?: string | null;
 	path?: string | null;

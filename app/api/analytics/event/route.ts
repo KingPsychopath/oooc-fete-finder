@@ -178,6 +178,7 @@ export async function POST(request: Request) {
 				eventKey,
 				actionType: body.actionType as EventEngagementAction,
 				userId: userSession.userId,
+				userEmail: userSession.email,
 				sessionId: body.sessionId ?? null,
 				source: body.source ?? null,
 				path: body.path ?? null,

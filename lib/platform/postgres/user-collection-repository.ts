@@ -521,14 +521,14 @@ export class UserCollectionRepository {
 							}>
 						>`
 							SELECT
-								users.email_normalized AS email,
+								COALESCE(users.email_normalized, LOWER(stats.user_email)) AS email,
 								COUNT(*)::int AS count,
 								MAX(stats.recorded_at) AS last_seen_at
 							FROM app_event_engagement_stats stats
-							INNER JOIN app_users users ON users.id = stats.user_id
-							WHERE users.email_normalized = ANY(${emails})
+							LEFT JOIN app_users users ON users.id = stats.user_id
+							WHERE COALESCE(users.email_normalized, LOWER(stats.user_email)) = ANY(${emails})
 								AND (stats.user_id IS NULL OR stats.user_id <> ALL(${userIds}))
-							GROUP BY users.email_normalized
+							GROUP BY COALESCE(users.email_normalized, LOWER(stats.user_email))
 						`
 					: await this.sql<
 							Array<{
@@ -538,13 +538,13 @@ export class UserCollectionRepository {
 							}>
 						>`
 							SELECT
-								users.email_normalized AS email,
+								COALESCE(users.email_normalized, LOWER(stats.user_email)) AS email,
 								COUNT(*)::int AS count,
 								MAX(stats.recorded_at) AS last_seen_at
 							FROM app_event_engagement_stats stats
-							INNER JOIN app_users users ON users.id = stats.user_id
-							WHERE users.email_normalized = ANY(${emails})
-							GROUP BY users.email_normalized
+							LEFT JOIN app_users users ON users.id = stats.user_id
+							WHERE COALESCE(users.email_normalized, LOWER(stats.user_email)) = ANY(${emails})
+							GROUP BY COALESCE(users.email_normalized, LOWER(stats.user_email))
 						`;
 			for (const row of rowsByEmail) {
 				bumpSignalCounts(

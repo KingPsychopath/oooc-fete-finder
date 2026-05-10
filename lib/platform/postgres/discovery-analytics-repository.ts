@@ -426,17 +426,18 @@ export class DiscoveryAnalyticsRepository {
 
 		const rows = await this.sql<DiscoveryUserMatchRow[]>`
 			SELECT
-				users.email_normalized AS email,
+				COALESCE(users.email_normalized, LOWER(stats.user_email)) AS email,
 				COUNT(*)::int AS "hitCount",
 				MAX(stats.recorded_at) AS "lastSeenAt"
 			FROM app_discovery_analytics_stats stats
-			INNER JOIN app_users users ON users.id = stats.user_id
+			LEFT JOIN app_users users ON users.id = stats.user_id
 			WHERE stats.action_type = 'filter_apply'
 				AND stats.filter_group = ${filterGroup}
 				AND stats.filter_value = ${filterValue}
 				AND stats.recorded_at >= ${input.startAt}
 				AND stats.recorded_at < ${input.endAt}
-			GROUP BY users.email_normalized
+				AND COALESCE(users.email_normalized, LOWER(stats.user_email)) IS NOT NULL
+			GROUP BY COALESCE(users.email_normalized, LOWER(stats.user_email))
 			HAVING COUNT(*) >= ${safeMinHits}
 			ORDER BY "hitCount" DESC, MAX(stats.recorded_at) DESC
 			LIMIT ${safeLimit}
@@ -471,17 +472,18 @@ export class DiscoveryAnalyticsRepository {
 
 		const rows = await this.sql<DiscoveryUserMatchRow[]>`
 			SELECT
-				users.email_normalized AS email,
+				COALESCE(users.email_normalized, LOWER(stats.user_email)) AS email,
 				COUNT(*)::int AS "hitCount",
 				MAX(stats.recorded_at) AS "lastSeenAt"
 			FROM app_discovery_analytics_stats stats
-			INNER JOIN app_users users ON users.id = stats.user_id
+			LEFT JOIN app_users users ON users.id = stats.user_id
 			WHERE stats.action_type = 'search'
 				AND stats.search_query IS NOT NULL
 				AND LOWER(stats.search_query) LIKE ${searchLike}
 				AND stats.recorded_at >= ${input.startAt}
 				AND stats.recorded_at < ${input.endAt}
-			GROUP BY users.email_normalized
+				AND COALESCE(users.email_normalized, LOWER(stats.user_email)) IS NOT NULL
+			GROUP BY COALESCE(users.email_normalized, LOWER(stats.user_email))
 			HAVING COUNT(*) >= ${safeMinHits}
 			ORDER BY "hitCount" DESC, MAX(stats.recorded_at) DESC
 			LIMIT ${safeLimit}
@@ -498,7 +500,7 @@ export class DiscoveryAnalyticsRepository {
 	}
 
 	async listRecentForUser(input: {
-		email: string;
+		email?: string | null;
 		userId?: string | null;
 		limit: number;
 	}): Promise<
@@ -512,6 +514,46 @@ export class DiscoveryAnalyticsRepository {
 	> {
 		await this.ready();
 		const safeLimit = Math.max(1, Math.min(input.limit, 100));
+		const normalizedEmail = input.email?.trim().toLowerCase();
+		const userId = cleanString(input.userId, 80);
+
+		if (userId) {
+			const userIdRows = await this.sql<
+				Array<{
+					actionType: DiscoveryActionType;
+					filterGroup: string | null;
+					filterValue: string | null;
+					searchQuery: string | null;
+					recordedAt: Date | string;
+				}>
+			>`
+				SELECT
+					stats.action_type AS "actionType",
+					stats.filter_group AS "filterGroup",
+					stats.filter_value AS "filterValue",
+					stats.search_query AS "searchQuery",
+					stats.recorded_at AS "recordedAt"
+				FROM app_discovery_analytics_stats stats
+				WHERE stats.user_id = ${userId}
+				ORDER BY stats.recorded_at DESC
+				LIMIT ${safeLimit}
+			`;
+			return userIdRows.map((row) => ({
+				actionType: row.actionType,
+				filterGroup: row.filterGroup,
+				filterValue: row.filterValue,
+				searchQuery: row.searchQuery,
+				recordedAt:
+					row.recordedAt instanceof Date
+						? row.recordedAt.toISOString()
+						: new Date(row.recordedAt).toISOString(),
+			}));
+		}
+
+		if (!normalizedEmail) {
+			return [];
+		}
+
 		const rows = await this.sql<
 			Array<{
 				actionType: DiscoveryActionType;
@@ -521,20 +563,19 @@ export class DiscoveryAnalyticsRepository {
 				recordedAt: Date | string;
 			}>
 		>`
-				SELECT
-					stats.action_type AS "actionType",
-					stats.filter_group AS "filterGroup",
-					stats.filter_value AS "filterValue",
-					stats.search_query AS "searchQuery",
-					stats.recorded_at AS "recordedAt"
-				FROM app_discovery_analytics_stats stats
-				LEFT JOIN app_users users ON users.id = stats.user_id
-				WHERE (${input.userId ?? null}::text IS NOT NULL AND stats.user_id = ${input.userId ?? null})
-					OR users.email_normalized = ${input.email.trim().toLowerCase()}
-					OR LOWER(stats.user_email) = ${input.email.trim().toLowerCase()}
-				ORDER BY stats.recorded_at DESC
-				LIMIT ${safeLimit}
-			`;
+			SELECT
+				stats.action_type AS "actionType",
+				stats.filter_group AS "filterGroup",
+				stats.filter_value AS "filterValue",
+				stats.search_query AS "searchQuery",
+				stats.recorded_at AS "recordedAt"
+			FROM app_discovery_analytics_stats stats
+			LEFT JOIN app_users users ON users.id = stats.user_id
+			WHERE users.email_normalized = ${normalizedEmail}
+				OR LOWER(stats.user_email) = ${normalizedEmail}
+			ORDER BY stats.recorded_at DESC
+			LIMIT ${safeLimit}
+		`;
 		return rows.map((row) => ({
 			actionType: row.actionType,
 			filterGroup: row.filterGroup,
