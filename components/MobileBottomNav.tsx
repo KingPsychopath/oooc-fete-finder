@@ -35,7 +35,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 
 const EmailGateModal = lazy(
 	() => import("@/features/auth/components/EmailGateModal"),
@@ -390,6 +390,25 @@ export function MobileBottomNav() {
 		return null;
 	}
 
+	const handleEmailSubmit = async () => {
+		const hasConfirmedSession = await refreshSession();
+		if (hasConfirmedSession) {
+			setIsEmailGateOpen(false);
+			return true;
+		}
+
+		await new Promise((resolve) => {
+			setTimeout(resolve, 350);
+		});
+		const retryAfterDelay = await refreshSession();
+
+		if (retryAfterDelay) {
+			setIsEmailGateOpen(false);
+			return true;
+		}
+		return false;
+	};
+
 	const navItems: NavItem[] = [
 		{
 			key: "home",
@@ -517,24 +536,6 @@ export function MobileBottomNav() {
 		setIsMoreOpen(false);
 		void logout();
 	};
-	const handleEmailSubmit = useCallback(async () => {
-		const hasConfirmedSession = await refreshSession();
-		if (hasConfirmedSession) {
-			setIsEmailGateOpen(false);
-			return true;
-		}
-
-		await new Promise((resolve) => {
-			setTimeout(resolve, 350);
-		});
-		const retryAfterDelay = await refreshSession();
-
-		if (retryAfterDelay) {
-			setIsEmailGateOpen(false);
-			return true;
-		}
-		return false;
-	}, [refreshSession]);
 	const handleMoreLinkClick = (label: string) => {
 		trackNavigationClick({ group: "mobile_nav", label });
 		setIsMoreOpen(false);
@@ -601,7 +602,7 @@ export function MobileBottomNav() {
 									<span className="min-w-0">
 										<span className="block font-semibold">Take the tour</span>
 										<span className="mt-0.5 block text-xs leading-tight text-muted-foreground">
-											Find your first plan in 30 seconds
+											Get to your first destination in under 30 seconds
 										</span>
 									</span>
 								</button>
@@ -678,6 +679,16 @@ export function MobileBottomNav() {
 												</button>
 											)
 										)}
+										<button
+											type="button"
+											onClick={handleSettingsOpen}
+											className={cn(moreInternalItemClassName, "text-left")}
+										>
+											<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+												<Settings className="h-3.5 w-3.5" />
+											</span>
+											<span>Settings</span>
+										</button>
 									</div>
 								</div>
 							)}
@@ -755,16 +766,6 @@ export function MobileBottomNav() {
 										<span>FAQs</span>
 										<ExternalLink className="mt-0.5 h-3 w-3 opacity-55" />
 									</Link>
-									<button
-										type="button"
-										onClick={handleSettingsOpen}
-										className={cn(moreInternalItemClassName, "text-left")}
-									>
-										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
-											<Settings className="h-3.5 w-3.5" />
-										</span>
-										<span>Settings</span>
-									</button>
 								</div>
 							</div>
 						</div>
