@@ -69,11 +69,13 @@ function Tooltip({
 
 function TooltipTrigger({ onClick, ...props }: TooltipPrimitive.Trigger.Props) {
   const mobileContext = React.useContext(TooltipMobileContext)
+  const triggerId = React.useId()
 
   return (
     <TooltipPrimitive.Trigger
       data-slot="tooltip-trigger"
       {...props}
+      id={props.id ?? `tooltip-trigger-${triggerId}`}
       onClick={(event) => {
         if (mobileContext?.isTouchDevice) {
           mobileContext.setOpen((current) => !current)

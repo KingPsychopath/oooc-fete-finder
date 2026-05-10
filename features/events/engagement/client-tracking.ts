@@ -431,6 +431,7 @@ export const trackMapPreferenceChange = (input: {
 		source: `${input.source}:${input.from}:${input.to}`,
 		isAuthenticated: input.isAuthenticated,
 	});
+	flushQueue("engagement", true);
 };
 
 export const trackDiscoveryAnalytics = (input: {
