@@ -3,6 +3,7 @@
 import { AppSettingsModal } from "@/components/AppSettingsModal";
 import MusicPlatformModal from "@/components/MusicPlatformModal";
 import { Button } from "@/components/ui/button";
+import { useOptionalAuth } from "@/features/auth/auth-context";
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import { requestFeteFinderTour } from "@/features/events/tour-events";
 import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
@@ -15,6 +16,8 @@ import {
 	ExternalLink,
 	House,
 	Info,
+	LogIn,
+	LogOut,
 	Map,
 	Megaphone,
 	Menu,
@@ -24,6 +27,7 @@ import {
 	PinOff,
 	PlusCircle,
 	Settings,
+	ShieldCheck,
 	Toilet,
 	Utensils,
 	X,
@@ -31,7 +35,11 @@ import {
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+const EmailGateModal = lazy(
+	() => import("@/features/auth/components/EmailGateModal"),
+);
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const toiletFinderIosUrl =
@@ -170,10 +178,18 @@ function scrollToHomeSectionWhenReady(
 export function MobileBottomNav() {
 	const pathname = usePathname();
 	const normalizedPathname = normalizePathname(pathname);
+	const {
+		isAuthenticated,
+		isAdminAuthenticated,
+		isOnline,
+		logout,
+		refreshSession,
+	} = useOptionalAuth();
 	const [activeSection, setActiveSection] = useState<NavKey | null>(null);
 	const [isPinned, setIsPinned] = useState(false);
 	const [isMoreOpen, setIsMoreOpen] = useState(false);
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
+	const [isEmailGateOpen, setIsEmailGateOpen] = useState(false);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const [toiletFinderUrl, setToiletFinderUrl] = useState(toiletFinderIosUrl);
 	const activeSectionLockUntilRef = useRef(0);
@@ -490,6 +506,35 @@ export function MobileBottomNav() {
 		setIsMoreOpen(false);
 		setIsSettingsOpen(true);
 	};
+	const handleLoginOpen = () => {
+		trackNavigationClick({ group: "mobile_nav", label: "login" });
+		setIsMoreOpen(false);
+		if (!isOnline) return;
+		setIsEmailGateOpen(true);
+	};
+	const handleLogout = () => {
+		trackNavigationClick({ group: "mobile_nav", label: "logout" });
+		setIsMoreOpen(false);
+		void logout();
+	};
+	const handleEmailSubmit = useCallback(async () => {
+		const hasConfirmedSession = await refreshSession();
+		if (hasConfirmedSession) {
+			setIsEmailGateOpen(false);
+			return true;
+		}
+
+		await new Promise((resolve) => {
+			setTimeout(resolve, 350);
+		});
+		const retryAfterDelay = await refreshSession();
+
+		if (retryAfterDelay) {
+			setIsEmailGateOpen(false);
+			return true;
+		}
+		return false;
+	}, [refreshSession]);
 	const handleMoreLinkClick = (label: string) => {
 		trackNavigationClick({ group: "mobile_nav", label });
 		setIsMoreOpen(false);
@@ -504,6 +549,7 @@ export function MobileBottomNav() {
 		moreItemClassName,
 		"grid min-h-11 grid-cols-[1.75rem_1fr_auto] items-center gap-2",
 	);
+	const hasAccountItems = isAdminAuthenticated || isAuthenticated || isOnline;
 
 	return (
 		<>
@@ -588,6 +634,53 @@ export function MobileBottomNav() {
 									</Link>
 								</div>
 							</div>
+							{hasAccountItems && (
+								<div className="rounded-2xl border border-border/60 bg-background/36 p-2">
+									<p className="px-1 pb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+										Account
+									</p>
+									<div className="grid gap-0.5">
+										{isAdminAuthenticated && (
+											<Link
+												href={`${basePath || ""}/admin`}
+												prefetch={false}
+												onClick={() => handleMoreLinkClick("admin")}
+												className={moreInternalItemClassName}
+											>
+												<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+													<ShieldCheck className="h-3.5 w-3.5" />
+												</span>
+												<span>Admin</span>
+											</Link>
+										)}
+										{isAuthenticated ? (
+											<button
+												type="button"
+												onClick={handleLogout}
+												className={cn(moreInternalItemClassName, "text-left")}
+											>
+												<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+													<LogOut className="h-3.5 w-3.5" />
+												</span>
+												<span>Sign out</span>
+											</button>
+										) : (
+											isOnline && (
+												<button
+													type="button"
+													onClick={handleLoginOpen}
+													className={cn(moreInternalItemClassName, "text-left")}
+												>
+													<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+														<LogIn className="h-3.5 w-3.5" />
+													</span>
+													<span>Login</span>
+												</button>
+											)
+										)}
+									</div>
+								</div>
+							)}
 							<div className="rounded-2xl border border-border/60 bg-background/36 p-2">
 								<p className="px-1 pb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
 									Essentials
@@ -754,6 +847,21 @@ export function MobileBottomNav() {
 				isOpen={isSettingsOpen}
 				onClose={() => setIsSettingsOpen(false)}
 			/>
+			{isEmailGateOpen && (
+				<Suspense
+					fallback={
+						<span className="sr-only" aria-hidden="true">
+							Loading
+						</span>
+					}
+				>
+					<EmailGateModal
+						isOpen={isEmailGateOpen}
+						onClose={() => setIsEmailGateOpen(false)}
+						onEmailSubmit={handleEmailSubmit}
+					/>
+				</Suspense>
+			)}
 		</>
 	);
 }
