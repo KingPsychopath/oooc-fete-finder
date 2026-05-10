@@ -1,6 +1,7 @@
 "use client";
 
 import { useOptionalAuth } from "@/features/auth/auth-context";
+import { getUserProfileStorageKey } from "@/features/auth/user-profile-storage-key";
 import { MAP_PREFERENCE_STORAGE_KEY } from "@/features/maps/constants/map-options";
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
 import {
@@ -22,9 +23,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const ACTIVE_PROFILE_STORAGE_KEY = "oooc_app_settings_active_profile_v1";
 const PROFILE_STORAGE_PREFIX = "oooc_app_settings_profile_v1:";
 const THEME_STORAGE_KEY = "theme";
-
-const getAnonymousProfileId = () => "anonymous";
-const getUserProfileId = (email: string) => `user:${email.trim().toLowerCase()}`;
+const ANONYMOUS_PROFILE_ID = "anonymous";
 
 const getProfileStorageKey = (profileId: string) =>
 	`${PROFILE_STORAGE_PREFIX}${profileId}`;
@@ -88,10 +87,11 @@ export function AppSettingsSync() {
 	const isReady = isAuthResolved && isLoaded && isMapPreferenceLoaded && mounted;
 	const syncMode = getClientSyncMode({ authMode, isAuthenticated, isOnline });
 	const canSyncAccountSettings = canSyncAccountData(syncMode);
-	const targetProfileId =
-		isAuthenticated && userEmail
-			? getUserProfileId(userEmail)
-			: getAnonymousProfileId();
+	const targetProfileId = getUserProfileStorageKey({
+		email: userEmail,
+		isAuthenticated,
+		anonymousKey: ANONYMOUS_PROFILE_ID,
+	});
 
 	const applySnapshot = useCallback(
 		(snapshot: SyncedUserAppSettings) => {
@@ -123,16 +123,15 @@ export function AppSettingsSync() {
 
 		const switchProfile = async () => {
 			const shouldUseCurrentAsAnonymousSnapshot =
-				previousProfileId === null ||
-				previousProfileId === getAnonymousProfileId();
+				previousProfileId === null || previousProfileId === ANONYMOUS_PROFILE_ID;
 			const anonymousSnapshot =
-				readProfileSnapshot(getAnonymousProfileId()) ??
+				readProfileSnapshot(ANONYMOUS_PROFILE_ID) ??
 				(shouldUseCurrentAsAnonymousSnapshot
 					? currentSnapshotRef.current
 					: DEFAULT_SYNCED_USER_APP_SETTINGS);
 
 			if (!isAuthenticated || !userEmail) {
-				writeProfileSnapshot(getAnonymousProfileId(), anonymousSnapshot);
+				writeProfileSnapshot(ANONYMOUS_PROFILE_ID, anonymousSnapshot);
 				if (!isCancelled) applySnapshot(anonymousSnapshot);
 				return;
 			}
@@ -192,8 +191,7 @@ export function AppSettingsSync() {
 
 		const activeProfileId = activeProfileRef.current;
 		writeProfileSnapshot(activeProfileId, payload);
-		if (activeProfileId === getAnonymousProfileId() || !canSyncAccountSettings)
-			return;
+		if (activeProfileId === ANONYMOUS_PROFILE_ID || !canSyncAccountSettings) return;
 
 		const timeoutId = window.setTimeout(() => {
 			void fetch(`${basePath}/api/user/app-settings`, {

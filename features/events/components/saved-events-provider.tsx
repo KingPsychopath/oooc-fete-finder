@@ -1,6 +1,7 @@
 "use client";
 
 import { useOptionalAuth } from "@/features/auth/auth-context";
+import { getUserProfileStorageKey } from "@/features/auth/user-profile-storage-key";
 import { getClientContext } from "@/features/events/engagement/client-tracking";
 import type { Event } from "@/features/events/types";
 import {
@@ -51,10 +52,12 @@ const getStorageKey = (ownerKey: string): string =>
 export const getSavedEventsOwnerKey = (
 	email: string | null,
 	isAuthenticated: boolean,
-): string => {
-	const normalizedEmail = email?.trim().toLowerCase();
-	return isAuthenticated && normalizedEmail ? `user:${normalizedEmail}` : "anon";
-};
+): string =>
+	getUserProfileStorageKey({
+		email,
+		isAuthenticated,
+		anonymousKey: "anon",
+	});
 
 export const applyPendingSavedEventMutations = (
 	eventKeys: Iterable<string>,
