@@ -69,7 +69,7 @@ export function EventsSearchFiltersIsland({
 				onSearch={handleSearchIntent}
 				onSearchFocus={handleSearchFocus}
 				placeholder="Search events, locations, genres, phases..."
-				className="mx-auto w-full max-w-[64rem]"
+				className="mx-auto w-full"
 				value={searchQuery}
 				resultsCount={filteredEvents.length}
 				showResultsCount
@@ -82,7 +82,7 @@ export function EventsSearchFiltersIsland({
 	return (
 		<div
 			id="all-events"
-			className="scroll-mt-6 lg:grid lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] lg:items-start lg:gap-5 sm:scroll-mt-28"
+			className="scroll-mt-6 lg:grid lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(340px,380px)_minmax(0,1fr)] lg:items-start lg:gap-5 2xl:gap-6 sm:scroll-mt-28"
 		>
 			<aside className="lg:sticky lg:top-30 lg:self-start">
 				<AuthGate

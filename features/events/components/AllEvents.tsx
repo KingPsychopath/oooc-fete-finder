@@ -320,7 +320,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							)}
 						</div>
 					) : (
-						<div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
+						<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
 							{visibleEvents.map((event, index) => (
 								<div
 									key={event.id}
@@ -382,7 +382,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								tabIndex={0}
 								aria-label="Authenticate to view remaining events"
 							>
-								<div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
+								<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
 									{lockedEvents.map((event) => (
 										<div
 											key={event.id}

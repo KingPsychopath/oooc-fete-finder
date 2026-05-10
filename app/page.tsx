@@ -13,7 +13,7 @@ export default function Home() {
 			<HomeHeader />
 			<main
 				id="main-content"
-				className="container mx-auto px-4 py-8"
+				className="container mx-auto w-full max-w-[92rem] px-4 py-8 sm:px-6 lg:px-10 2xl:px-14 2xl:max-w-[104rem]"
 				tabIndex={-1}
 			>
 				<Suspense fallback={<HomeEventsSectionLoading />}>
