@@ -1198,6 +1198,10 @@ export const EventSheetEditorCard = ({
 	const [activeCellDraft, setActiveCellDraft] = useState<CellDraft | null>(
 		null,
 	);
+	const hasBlankDraftRows = useMemo(
+		() => pruneEmptyEditableSheetRows(rows).length !== rows.length,
+		[rows],
+	);
 
 	const rowsRef = useRef<EditableSheetRow[]>([]);
 	const columnsRef = useRef<EditableSheetColumn[]>([]);
@@ -1535,7 +1539,7 @@ export const EventSheetEditorCard = ({
 				}
 
 				if (versionToSave === editVersionRef.current) {
-					if (rowsToSave.length !== rowsRef.current.length) {
+					if (mode === "manual" && rowsToSave.length !== rowsRef.current.length) {
 						rowsRef.current = rowsToSave;
 						setRows(rowsToSave);
 						setQuery("");
@@ -1596,6 +1600,7 @@ export const EventSheetEditorCard = ({
 			isSaving ||
 			hasNewDeployment ||
 			activeCellDraft ||
+			hasBlankDraftRows ||
 			restoreReviewRevision ||
 			saveScheduleVersion === 0
 		) {
@@ -1617,6 +1622,7 @@ export const EventSheetEditorCard = ({
 		};
 	}, [
 		activeCellDraft,
+		hasBlankDraftRows,
 		hasNewDeployment,
 		hasUnsavedChanges,
 		isSaving,
@@ -3237,6 +3243,9 @@ export const EventSheetEditorCard = ({
 						<Badge variant="outline">Unsaved changes</Badge>
 					) : (
 						<Badge variant="default">All changes saved</Badge>
+					)}
+					{hasUnsavedChanges && hasBlankDraftRows && (
+						<Badge variant="secondary">Autosave paused for blank draft row</Badge>
 					)}
 					<Badge variant="outline">Source of truth: Postgres</Badge>
 					{restoreReviewRevision && (
