@@ -155,6 +155,9 @@ const hasReturnedWithoutNewActivity = (user: EmailRecord): boolean => {
 	);
 };
 
+const shouldShowSeparateLastSeen = (user: EmailRecord): boolean =>
+	!user.lastSignalAt || hasReturnedWithoutNewActivity(user);
+
 const sortEmails = (emails: EmailRecord[], sortMode: EmailSortMode) => {
 	return [...emails].sort((left, right) => {
 		switch (sortMode) {
@@ -1142,9 +1145,11 @@ export const EmailCollectionCard = ({
 											</span>
 										)}
 										<span className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
-											<span>
-												Last seen {formatAdminDateTime(user.timestamp)}
-											</span>
+											{shouldShowSeparateLastSeen(user) && (
+												<span>
+													Last seen {formatAdminDateTime(user.timestamp)}
+												</span>
+											)}
 											<span>{user.source}</span>
 											{user.lastSignalAt && (
 												<span>
