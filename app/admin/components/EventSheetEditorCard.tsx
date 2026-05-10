@@ -229,6 +229,7 @@ const HISTORY_LIMIT = 120;
 const ROW_NUMBER_COLUMN_WIDTH = 144;
 const DATA_COLUMN_WIDTH = 170;
 const MAX_FROZEN_COLUMNS = 4;
+const AUTOSAVE_RETRY_BACKOFF_MS = 15_000;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
 const DEFAULT_SORT_MODE: SheetSortMode = "soonest-upcoming";
 const CURATED_COLUMN_KEY = "curated";
@@ -1206,6 +1207,11 @@ export const EventSheetEditorCard = ({
 		() => getRequiredSheetHealthIssues(rows),
 		[rows],
 	);
+	const [autosaveBlockedAtEditVersion, setAutosaveBlockedAtEditVersion] =
+		useState<number | null>(null);
+	const [autosaveRetryBlockedUntil, setAutosaveRetryBlockedUntil] = useState<
+		number | null
+	>(null);
 
 	const rowsRef = useRef<EditableSheetRow[]>([]);
 	const columnsRef = useRef<EditableSheetColumn[]>([]);
@@ -1219,6 +1225,20 @@ export const EventSheetEditorCard = ({
 	const inputRefs = useRef<Record<string, HTMLElement | null>>({});
 	const urlPartInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 	const primaryUrlBlurTimerRef = useRef<number | null>(null);
+	const isAutosaveInBackoff =
+		typeof autosaveRetryBlockedUntil === "number" &&
+		autosaveRetryBlockedUntil > Date.now();
+	const autosavePauseReason = !hasUnsavedChanges
+		? null
+		: hasBlankDraftRows
+			? "blank-draft-row"
+			: blockingRequiredIssues.length > 0
+				? "missing-required-fields"
+				: autosaveBlockedAtEditVersion === editVersionRef.current
+					? "awaiting-edit-after-error"
+					: isAutosaveInBackoff
+						? "retry-backoff"
+						: null;
 
 	const updateRevisionHistory = useCallback(
 		(revision: EventSheetRevisionRecord | null | undefined) => {
@@ -1549,6 +1569,8 @@ export const EventSheetEditorCard = ({
 						setQuery("");
 						setSortMode("sheet-order");
 					}
+					setAutosaveRetryBlockedUntil(null);
+					setAutosaveBlockedAtEditVersion(null);
 					setHasUnsavedChanges(false);
 					clearStoredEditorDraft();
 					setRecoverableDraft(null);
@@ -1576,6 +1598,10 @@ export const EventSheetEditorCard = ({
 				}
 				return true;
 			} catch (error) {
+				if (mode === "auto") {
+					setAutosaveRetryBlockedUntil(Date.now() + AUTOSAVE_RETRY_BACKOFF_MS);
+					setAutosaveBlockedAtEditVersion(editVersionRef.current);
+				}
 				setErrorMessage(
 					error instanceof Error ? error.message : "Unknown save error",
 				);
@@ -1599,6 +1625,14 @@ export const EventSheetEditorCard = ({
 	);
 
 	useEffect(() => {
+		if (isAutosaveInBackoff && hasUnsavedChanges) {
+			const remainingMs = Math.max(0, autosaveRetryBlockedUntil - Date.now());
+			const retryTimer = window.setTimeout(() => {
+				setSaveScheduleVersion((current) => current + 1);
+			}, remainingMs);
+			return () => window.clearTimeout(retryTimer);
+		}
+
 		if (
 			!hasUnsavedChanges ||
 			isSaving ||
@@ -1606,6 +1640,8 @@ export const EventSheetEditorCard = ({
 			activeCellDraft ||
 			hasBlankDraftRows ||
 			blockingRequiredIssues.length > 0 ||
+			autosaveBlockedAtEditVersion === editVersionRef.current ||
+			isAutosaveInBackoff ||
 			restoreReviewRevision ||
 			saveScheduleVersion === 0
 		) {
@@ -1627,10 +1663,13 @@ export const EventSheetEditorCard = ({
 		};
 	}, [
 		activeCellDraft,
+		autosaveBlockedAtEditVersion,
+		autosaveRetryBlockedUntil,
 		blockingRequiredIssues.length,
 		hasBlankDraftRows,
 		hasNewDeployment,
 		hasUnsavedChanges,
+		isAutosaveInBackoff,
 		isSaving,
 		performSave,
 		restoreReviewRevision,
@@ -1641,6 +1680,9 @@ export const EventSheetEditorCard = ({
 		editVersionRef.current += 1;
 		setHasUnsavedChanges(true);
 		setSaveScheduleVersion((current) => current + 1);
+		setAutosaveBlockedAtEditVersion(null);
+		setAutosaveRetryBlockedUntil(null);
+		setErrorMessage("");
 	}, []);
 
 	const commitSheetMutation = useCallback(
@@ -3250,13 +3292,21 @@ export const EventSheetEditorCard = ({
 					) : (
 						<Badge variant="default">All changes saved</Badge>
 					)}
-					{hasUnsavedChanges && hasBlankDraftRows && (
+					{autosavePauseReason === "blank-draft-row" && (
 						<Badge variant="secondary">Autosave paused for blank draft row</Badge>
 					)}
-					{hasUnsavedChanges && blockingRequiredIssues.length > 0 && (
+					{autosavePauseReason === "missing-required-fields" && (
 						<Badge variant="secondary">
 							Autosave paused: required fields missing
 						</Badge>
+					)}
+					{autosavePauseReason === "awaiting-edit-after-error" && (
+						<Badge variant="secondary">
+							Autosave paused after save error; edit to retry
+						</Badge>
+					)}
+					{autosavePauseReason === "retry-backoff" && (
+						<Badge variant="secondary">Autosave retrying in a few seconds</Badge>
 					)}
 					<Badge variant="outline">Source of truth: Postgres</Badge>
 					{restoreReviewRevision && (
