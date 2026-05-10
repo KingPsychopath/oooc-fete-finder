@@ -3,6 +3,10 @@
 import { useOptionalAuth } from "@/features/auth/auth-context";
 import { MAP_PREFERENCE_STORAGE_KEY } from "@/features/maps/constants/map-options";
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
+import {
+	canSyncAccountData,
+	getClientSyncMode,
+} from "@/features/sync/client-sync-mode";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { useThemeToggle } from "@/hooks/useThemeToggle";
 import {
@@ -82,7 +86,8 @@ export function AppSettingsSync() {
 	currentSnapshotRef.current = payload;
 
 	const isReady = isAuthResolved && isLoaded && isMapPreferenceLoaded && mounted;
-	const isLiveAccount = isAuthenticated && authMode === "live" && isOnline;
+	const syncMode = getClientSyncMode({ authMode, isAuthenticated, isOnline });
+	const canSyncAccountSettings = canSyncAccountData(syncMode);
 	const targetProfileId =
 		isAuthenticated && userEmail
 			? getUserProfileId(userEmail)
@@ -133,7 +138,7 @@ export function AppSettingsSync() {
 			}
 
 			try {
-				if (isLiveAccount) {
+				if (canSyncAccountSettings) {
 					const response = await fetch(`${basePath}/api/user/app-settings`, {
 						method: "GET",
 						cache: "no-store",
@@ -155,7 +160,7 @@ export function AppSettingsSync() {
 				writeProfileSnapshot(targetProfileId, localUserSnapshot);
 				if (!isCancelled) applySnapshot(localUserSnapshot);
 
-				if (isLiveAccount) {
+				if (canSyncAccountSettings) {
 					await fetch(`${basePath}/api/user/app-settings`, {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
@@ -174,7 +179,7 @@ export function AppSettingsSync() {
 		};
 	}, [
 		isAuthenticated,
-		isLiveAccount,
+		canSyncAccountSettings,
 		isReady,
 		applySnapshot,
 		targetProfileId,
@@ -187,7 +192,8 @@ export function AppSettingsSync() {
 
 		const activeProfileId = activeProfileRef.current;
 		writeProfileSnapshot(activeProfileId, payload);
-		if (activeProfileId === getAnonymousProfileId() || !isLiveAccount) return;
+		if (activeProfileId === getAnonymousProfileId() || !canSyncAccountSettings)
+			return;
 
 		const timeoutId = window.setTimeout(() => {
 			void fetch(`${basePath}/api/user/app-settings`, {
@@ -200,7 +206,7 @@ export function AppSettingsSync() {
 		}, 450);
 
 		return () => window.clearTimeout(timeoutId);
-	}, [isLiveAccount, isReady, payload]);
+	}, [canSyncAccountSettings, isReady, payload]);
 
 	useEffect(() => {
 		try {

@@ -10,6 +10,12 @@ import {
 	getPendingMutationCount,
 } from "@/features/offline-mutations/pending-mutation-queue";
 import {
+	canSyncAccountData,
+	getClientSyncMode,
+	getPendingSyncStatus,
+	type PendingSyncStatus,
+} from "@/features/sync/client-sync-mode";
+import {
 	type ReactNode,
 	createContext,
 	useCallback,
@@ -27,6 +33,7 @@ interface SavedEventsContextValue {
 	savedEventKeys: Set<string>;
 	savedEventsCount: number;
 	pendingSavedMutationCount: number;
+	pendingSavedMutationStatus: PendingSyncStatus;
 	isEventSaved: (eventKey: string) => boolean;
 	getSavedEvents: (events: Event[]) => Event[];
 	toggleSavedEvent: (event: Event, source?: string) => boolean;
@@ -142,8 +149,13 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 	);
 	const [pendingSavedMutationCount, setPendingSavedMutationCount] = useState(0);
 	const isLiveAuthenticated = isAuthenticated && authMode === "live";
-	const canSync = isLiveAuthenticated && isOnline;
+	const syncMode = getClientSyncMode({ authMode, isAuthenticated, isOnline });
+	const canSync = canSyncAccountData(syncMode);
 	const ownerKey = getOwnerKey(userEmail, isLiveAuthenticated);
+	const pendingSavedMutationStatus = getPendingSyncStatus(
+		pendingSavedMutationCount,
+		isOnline,
+	);
 	const previousOwnerKeyRef = useRef(ownerKey);
 	const pendingAnonymousMergeKeysRef = useRef<Set<string>>(new Set());
 
@@ -304,6 +316,7 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 			savedEventKeys,
 			savedEventsCount: savedEventKeys.size,
 			pendingSavedMutationCount,
+			pendingSavedMutationStatus,
 			isEventSaved,
 			getSavedEvents,
 			toggleSavedEvent,
@@ -312,6 +325,7 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 			getSavedEvents,
 			isEventSaved,
 			pendingSavedMutationCount,
+			pendingSavedMutationStatus,
 			savedEventKeys,
 			toggleSavedEvent,
 		],

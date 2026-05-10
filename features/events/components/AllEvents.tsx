@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useOnlineStatus } from "@/components/offline-indicator";
 import { ClearFiltersButton } from "@/features/events/components/ClearFiltersButton";
 import { EventCard } from "@/features/events/components/EventCard";
 import { FilterButton } from "@/features/events/components/FilterButton";
@@ -23,6 +22,7 @@ import { type ReactNode, forwardRef, useState } from "react";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 type EventSortMode = "upcoming" | "fresh-activity" | "nearby";
+type PendingSavedMutationStatus = "idle" | "offline" | "retrying";
 
 const eventSortOptions: {
 	value: Exclude<EventSortMode, "nearby">;
@@ -70,6 +70,7 @@ type AllEventsProps = {
 	isEventSaved: (eventKey: string) => boolean;
 	savedEventsCount: number;
 	pendingSavedMutationCount: number;
+	pendingSavedMutationStatus: PendingSavedMutationStatus;
 	showSavedOnly: boolean;
 	onSavedOnlyChange: (showSavedOnly: boolean) => void;
 	searchSlot?: ReactNode;
@@ -97,13 +98,13 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			isEventSaved,
 			savedEventsCount,
 			pendingSavedMutationCount,
+			pendingSavedMutationStatus,
 			showSavedOnly,
 			onSavedOnlyChange,
 			searchSlot,
 		},
 		ref,
 	) => {
-		const isOnline = useOnlineStatus();
 		const safeEvents = events.filter((event) => event != null);
 		const [visibleLimit, setVisibleLimit] = useState(INITIAL_VISIBLE_EVENTS);
 		const genreFrequency = buildGenreFrequency(safeEvents);
@@ -261,9 +262,9 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							<p className="text-xs leading-relaxed text-muted-foreground">
 								{pendingSavedMutationCount} saved change
 								{pendingSavedMutationCount === 1 ? "" : "s"}{" "}
-								{isOnline
-									? "will retry account sync shortly."
-									: "will sync when you’re back online."}
+								{pendingSavedMutationStatus === "offline"
+									? "will sync when you’re back online."
+									: "will retry account sync shortly."}
 							</p>
 						)}
 						{isNearbyActive || nearbyEventsError ? (

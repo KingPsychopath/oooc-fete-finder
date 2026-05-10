@@ -99,6 +99,33 @@ describe("pending mutation queue", () => {
 		expect(getPendingMutationCount("user:a@example.com")).toBe(1);
 	});
 
+	it("ignores stale pending mutations", () => {
+		const staleDate = new Date("2026-05-01T12:00:00.000Z").toISOString();
+		storage.set(
+			STORAGE_KEY,
+			JSON.stringify([
+				{
+					id: "stale-mutation",
+					type: "saved_event",
+					ownerKey: "user:a@example.com",
+					payload: {
+						eventKey: "evt_1",
+						isSaved: true,
+						source: "modal_save",
+					},
+					createdAt: staleDate,
+					updatedAt: staleDate,
+					attempts: 1,
+					nextAttemptAt: null,
+					idempotencyKey: "saved_event:user:a@example.com:evt_1",
+				},
+			]),
+		);
+		vi.setSystemTime(new Date("2026-05-10T12:00:00.000Z"));
+
+		expect(getPendingMutationCount("user:a@example.com")).toBe(0);
+	});
+
 	it("removes successful mutations after flush", async () => {
 		enqueueSavedEventMutation({
 			ownerKey: "user:a@example.com",

@@ -2,6 +2,10 @@ import { getEventShareEvent } from "@/lib/social/event-share-details";
 import { NextResponse, type NextRequest } from "next/server";
 
 export const revalidate = 3600;
+const EVENT_DETAILS_CACHE_CONTROL =
+	"public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+const EVENT_NOT_FOUND_CACHE_CONTROL =
+	"public, max-age=0, s-maxage=60, stale-while-revalidate=300";
 
 interface EventDetailsRouteContext {
 	params: Promise<{
@@ -19,7 +23,7 @@ export async function GET(_request: NextRequest, context: EventDetailsRouteConte
 			{
 				status: 404,
 				headers: {
-					"Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+					"Cache-Control": EVENT_NOT_FOUND_CACHE_CONTROL,
 				},
 			},
 		);
@@ -29,7 +33,7 @@ export async function GET(_request: NextRequest, context: EventDetailsRouteConte
 		{ event },
 		{
 			headers: {
-				"Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+				"Cache-Control": EVENT_DETAILS_CACHE_CONTROL,
 			},
 		},
 	);

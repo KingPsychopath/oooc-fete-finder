@@ -41,6 +41,7 @@ export function EventListIsland({
 		getSavedEvents,
 		isEventSaved,
 		pendingSavedMutationCount,
+		pendingSavedMutationStatus,
 		savedEventsCount,
 	} = useSavedEvents();
 	const [showSavedOnly, setShowSavedOnly] = useState(false);
@@ -71,6 +72,7 @@ export function EventListIsland({
 			isEventSaved={isEventSaved}
 			savedEventsCount={savedEventsCount}
 			pendingSavedMutationCount={pendingSavedMutationCount}
+			pendingSavedMutationStatus={pendingSavedMutationStatus}
 			showSavedOnly={showSavedOnly}
 			onSavedOnlyChange={setShowSavedOnly}
 			searchSlot={searchSlot}

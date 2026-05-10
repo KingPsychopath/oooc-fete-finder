@@ -138,7 +138,7 @@ describe("data-management coordinate warm-up", () => {
 		expect(forceRefreshEventsData).toHaveBeenCalledTimes(1);
 	});
 
-	it("skips warm-up when sheet save disables homepage revalidation", async () => {
+	it("skips warm-up but still invalidates public event caches when sheet save disables homepage revalidation", async () => {
 		const {
 			saveEventSheetEditorRows,
 			processCSVData,

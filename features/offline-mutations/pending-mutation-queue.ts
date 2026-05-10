@@ -3,6 +3,7 @@
 const STORAGE_KEY = "oooc:pending-mutations:v1";
 const MAX_QUEUE_ITEMS = 250;
 const MAX_ATTEMPTS = 8;
+const MAX_MUTATION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type PendingMutationType = "saved_event";
 
@@ -76,7 +77,7 @@ const readQueue = (): PendingMutation[] => {
 		if (!raw) return [];
 		const parsed = JSON.parse(raw) as unknown;
 		if (!Array.isArray(parsed)) return [];
-		return parsed
+		const normalizedQueue = parsed
 			.filter((item): item is PendingMutation =>
 				isSavedEventMutation(item as Partial<PendingMutation>),
 			)
@@ -87,8 +88,19 @@ const readQueue = (): PendingMutation[] => {
 					eventKey: normalizeEventKey(item.payload.eventKey),
 				},
 			}))
-			.filter((item) => item.payload.eventKey.length > 0)
+			.filter((item) => {
+				const updatedAtTime = new Date(item.updatedAt).getTime();
+				return (
+					item.payload.eventKey.length > 0 &&
+					!Number.isNaN(updatedAtTime) &&
+					Date.now() - updatedAtTime <= MAX_MUTATION_AGE_MS
+				);
+			})
 			.slice(-MAX_QUEUE_ITEMS);
+		if (normalizedQueue.length !== parsed.length) {
+			writeQueue(normalizedQueue);
+		}
+		return normalizedQueue;
 	} catch {
 		window.localStorage.removeItem(STORAGE_KEY);
 		return [];

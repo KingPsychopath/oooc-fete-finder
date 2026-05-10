@@ -3,6 +3,8 @@ import { log } from "@/lib/platform/logger";
 import { NextResponse } from "next/server";
 
 export const revalidate = 3600;
+const EVENTS_API_CACHE_CONTROL =
+	"public, max-age=0, s-maxage=60, stale-while-revalidate=300";
 
 export async function GET() {
 	const result = await getLiveEvents();
@@ -22,7 +24,7 @@ export async function GET() {
 		},
 		{
 			headers: {
-				"Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+				"Cache-Control": EVENTS_API_CACHE_CONTROL,
 			},
 		},
 	);

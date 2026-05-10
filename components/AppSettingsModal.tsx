@@ -16,6 +16,10 @@ import {
 import { useOptionalAuth } from "@/features/auth/auth-context";
 import { MAP_OPTIONS } from "@/features/maps/constants/map-options";
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
+import {
+	canSyncAccountData,
+	getClientSyncMode,
+} from "@/features/sync/client-sync-mode";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { useThemeToggle } from "@/hooks/useThemeToggle";
 import { normalizeMapPreference } from "@/lib/user-app-settings";
@@ -87,6 +91,7 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 		eventSortOptions.find(
 			(option) => option.value === settings.defaultEventSortMode,
 		) ?? eventSortOptions[0];
+	const syncMode = getClientSyncMode({ authMode, isAuthenticated, isOnline });
 
 	const handleMapPreferenceChange = (value: string | null) => {
 		setMapPreference(normalizeMapPreference(value));
@@ -129,9 +134,9 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 	const switchThumbClassName =
 		"absolute top-0.5 left-0.5 size-4.5 rounded-full bg-background shadow-sm transition-transform";
 	const syncStatusCopy =
-		isAuthenticated && authMode === "live" && isOnline
+		canSyncAccountData(syncMode)
 			? "Synced to your account and kept on this device for offline use."
-			: isAuthenticated
+			: syncMode === "offline-grace"
 				? "Saved on this device now; account sync resumes when your live session is online."
 				: "Saved on this device and available offline.";
 
