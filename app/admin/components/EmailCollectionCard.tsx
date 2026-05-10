@@ -88,7 +88,7 @@ const ACTIVITY_SEGMENTS: Array<{
 		sortMode: "activity",
 	},
 	{
-		label: "Returned no activity",
+		label: "Seen after last action",
 		value: "returned-no-activity",
 		sortMode: "newest",
 	},
@@ -261,7 +261,7 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		"First Name",
 		"Last Name",
 		"Email",
-		"Last Sign-In/Capture At",
+		"Last Seen At",
 		"Last Active At",
 		"Consent",
 		"Source",
@@ -406,7 +406,7 @@ const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 	},
 	{ label: "Source", value: profile.user.source || "Unknown" },
 	{
-		label: "Last sign-in/capture",
+		label: "Last seen",
 		value: formatAdminDateTime(profile.user.timestamp),
 	},
 	{
@@ -704,7 +704,7 @@ export const EmailCollectionCard = ({
 					</div>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Total Sign-ins/Captures
+							Total Seen Events
 						</p>
 						<p className="mt-1 text-sm font-medium">
 							{analytics?.totalSubmissions ?? emails.length}
@@ -718,7 +718,7 @@ export const EmailCollectionCard = ({
 					</div>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Recent Sign-ins/Captures
+							Recently Seen
 						</p>
 						<p className="mt-1 text-sm font-medium tabular-nums">
 							{submissionsLast24Hours} / {submissionsLast7Days}
@@ -742,7 +742,7 @@ export const EmailCollectionCard = ({
 				<div className="grid gap-2 lg:grid-cols-2">
 					<div className="space-y-2 rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Sign-in/Capture Pace
+							Seen Pace
 						</p>
 						<div className="space-y-1.5">
 							{[
@@ -859,7 +859,7 @@ export const EmailCollectionCard = ({
 						<option value="event-actions">Opened/saved events</option>
 						<option value="genre-prefs">Genre prefs</option>
 						<option value="returned-no-activity">
-							Returned, no new activity
+							Seen after last action
 						</option>
 						<option value="has-context">Context available</option>
 						<option value="missing-context">Context missing</option>
@@ -872,8 +872,8 @@ export const EmailCollectionCard = ({
 						className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
 					>
 						<option value="last-active">Last active</option>
-						<option value="newest">Recent sign-ins/captures</option>
-						<option value="oldest">Oldest sign-ins/captures</option>
+						<option value="newest">Recently seen</option>
+						<option value="oldest">Oldest seen</option>
 						<option value="email">Email A-Z</option>
 						<option value="name">Name A-Z</option>
 						<option value="consented">Consent first</option>
@@ -1122,7 +1122,7 @@ export const EmailCollectionCard = ({
 											)}
 											{hasReturnedWithoutNewActivity(user) && (
 												<Badge variant="outline">
-													Returned, no new activity
+													Seen after last action
 												</Badge>
 											)}
 										</span>
@@ -1137,8 +1137,7 @@ export const EmailCollectionCard = ({
 										)}
 										<span className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
 											<span>
-												Last sign-in/capture{" "}
-												{formatAdminDateTime(user.timestamp)}
+												Last seen {formatAdminDateTime(user.timestamp)}
 											</span>
 											<span>{user.source}</span>
 											{user.lastSignalAt && (
