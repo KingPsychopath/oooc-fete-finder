@@ -8,10 +8,10 @@ import {
 	panelActionIconClassName,
 } from "@/features/events/components/filter-action-button-styles";
 import type { Event } from "@/features/events/types";
+import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
 import { LAYERS } from "@/lib/ui/layers";
 import { cn } from "@/lib/utils";
 import { ChevronDown, MapPin, Maximize2 } from "lucide-react";
-import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
 import {
 	type PointerEvent,
 	useEffect,
@@ -204,7 +204,11 @@ export function EventsMapCard({
 	}, [isFullscreen, mapPortalElement]);
 
 	useEffect(() => {
-		if (!shouldOpenFullscreenAfterMount || !hasMountedMap || !mapPortalElement) {
+		if (
+			!shouldOpenFullscreenAfterMount ||
+			!hasMountedMap ||
+			!mapPortalElement
+		) {
 			return;
 		}
 
@@ -310,7 +314,9 @@ export function EventsMapCard({
 									aria-label="Open Paris event map full screen"
 								>
 									<Maximize2 className={mapHeaderActionIconClassName} />
-									<span className={mapHeaderActionLabelClassName}>Full screen</span>
+									<span className={mapHeaderActionLabelClassName}>
+										Full screen
+									</span>
 								</Button>
 								<Button
 									variant="ghost"
@@ -351,8 +357,10 @@ export function EventsMapCard({
 						{!isExpanded && (
 							<>
 								<div className="pointer-events-none absolute inset-x-0 bottom-3 z-[1] flex justify-center px-3">
-									<p className="rounded-full border border-border/65 bg-card/88 px-3 py-1 text-[11px] tracking-[0.04em] text-muted-foreground/92 shadow-sm backdrop-blur">
-										Expand to explore the live map by arrondissement
+									<p className="max-w-[min(42rem,calc(100%-1rem))] rounded-xl border border-border/65 bg-card/90 px-3 py-1 text-center text-[11px] leading-snug tracking-[0.04em] text-muted-foreground/92 shadow-sm backdrop-blur">
+										{isOfflineMode
+											? "Map style, sprite, glyph, and tile assets are online-only. Saved event browsing, search, and filters are still available below."
+											: "Expand to explore the live map by arrondissement"}
 									</p>
 								</div>
 								<div className="absolute inset-x-0 bottom-0 h-10 sm:h-12 bg-gradient-to-t from-card via-card/70 to-transparent pointer-events-none rounded-b-md" />

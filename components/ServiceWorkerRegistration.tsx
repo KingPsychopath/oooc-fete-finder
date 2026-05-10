@@ -6,7 +6,6 @@ const STATIC_RESOURCE_PATH_PREFIXES = [
 	"/_next/static/",
 	"/fonts/",
 	"/favicon",
-	"/maps/",
 ] as const;
 
 const normalizeBasePath = (value: string): string => {
@@ -35,9 +34,9 @@ const isStaticResourceUrl = (value: string, basePath: string) => {
 const collectStaticResourceUrls = (basePath: string) => {
 	const urls = new Set<string>();
 
-	for (const element of document.querySelectorAll<HTMLScriptElement | HTMLLinkElement>(
-		"script[src],link[href]",
-	)) {
+	for (const element of document.querySelectorAll<
+		HTMLScriptElement | HTMLLinkElement
+	>("script[src],link[href]")) {
 		const url =
 			element instanceof HTMLScriptElement ? element.src : element.href;
 		if (isStaticResourceUrl(url, basePath)) {
@@ -70,7 +69,9 @@ export function ServiceWorkerRegistration() {
 			void navigator.serviceWorker
 				.getRegistrations()
 				.then((registrations) =>
-					Promise.all(registrations.map((registration) => registration.unregister())),
+					Promise.all(
+						registrations.map((registration) => registration.unregister()),
+					),
 				)
 				.catch(() => undefined);
 			return;

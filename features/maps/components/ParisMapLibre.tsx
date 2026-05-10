@@ -110,43 +110,9 @@ interface ParisMapLibreProps {
 // Paris center coordinates
 const PARIS_CENTER: [number, number] = [2.3522, 48.8566]; // [lng, lat]
 const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
-const MAP_ASSET_BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || "";
-const MAP_LOAD_ERROR_GRACE_MS = 18000;
-const PARIS_PREVIEW_IMAGE_SOURCE: maplibregl.ImageSourceSpecification = {
-	type: "image",
-	url: `${MAP_ASSET_BASE_PATH}/maps/paris-map-preview.jpg`,
-	coordinates: [
-		[2.197265625, 48.95136647094771],
-		[2.548828125, 48.95136647094771],
-		[2.548828125, 48.77791275550182],
-		[2.197265625, 48.77791275550182],
-	],
-};
-const OFFLINE_MAP_STYLE: maplibregl.StyleSpecification = {
-	version: 8,
-	name: "OOOC Offline Paris Event Map",
-	sources: {
-		"paris-preview": PARIS_PREVIEW_IMAGE_SOURCE,
-	},
-	layers: [
-		{
-			id: "background",
-			type: "background",
-			paint: {
-				"background-color": "#f2ece4",
-			},
-		},
-		{
-			id: "paris-preview",
-			type: "raster",
-			source: "paris-preview",
-			paint: {
-				"raster-opacity": 0.96,
-				"raster-saturation": -0.08,
-			},
-		},
-	],
-};
+const MAP_LOAD_ERROR_GRACE_MS = 4500;
+const MAP_ONLINE_ONLY_MESSAGE =
+	"Map style, sprite, glyph, and tile assets are online-only";
 
 /**
  * Arrondissement fill colors based on event density
@@ -239,20 +205,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const [mapLoaded, setMapLoaded] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
-	const [useLocalMapFallback, setUseLocalMapFallback] = useState(
-		() => isOfflineMode,
-	);
 	const [selectedArrondissement, setSelectedArrondissement] = useState<
 		number | null
 	>(null);
 	const [showCoordinates, setShowCoordinates] = useState(false);
 	const [showLocateNotice, setShowLocateNotice] = useState(false);
-	const [isOffline, setIsOffline] = useState(false);
-	const shouldUseLocalMap = useLocalMapFallback;
-
-	useEffect(() => {
-		setIsOffline(isOfflineMode);
-	}, [isOfflineMode]);
 
 	// Filter events based on selected day
 	const filteredEvents = React.useMemo(() => {
@@ -569,11 +526,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 		map.current = null;
 		hasLoadedMapRef.current = false;
-		setUseLocalMapFallback(isOfflineMode);
 		setMapLoaded(false);
 		setIsLoading(true);
 		setLoadError(null);
-	}, [isOfflineMode]);
+	}, []);
 
 	const handleFullscreenPointerDown = useCallback(
 		(event: React.PointerEvent<HTMLButtonElement>) => {
@@ -594,10 +550,31 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 	// Initialize map with proper cleanup
 	useEffect(() => {
+		if (isOfflineMode) {
+			const currentMap = map.current;
+			if (currentMap) {
+				try {
+					currentMap.remove();
+				} catch (error) {
+					clientLog.warn("maps.maplibre", "Map offline cleanup error", {
+						error: error instanceof Error ? error.message : String(error),
+					});
+				}
+				map.current = null;
+			}
+			hasLoadedMapRef.current = false;
+			if (loadErrorTimeoutRef.current) {
+				clearTimeout(loadErrorTimeoutRef.current);
+				loadErrorTimeoutRef.current = null;
+			}
+			setMapLoaded(false);
+			setIsLoading(false);
+			setLoadError(null);
+			return;
+		}
 		if (loadError) return;
 		if (!mapContainer.current || map.current) return;
 		hasLoadedMapRef.current = false;
-		const shouldStartWithLocalMap = useLocalMapFallback;
 
 		const initMap = async () => {
 			try {
@@ -607,7 +584,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				// Initialize map
 				map.current = new maplibregl.Map({
 					container: mapContainer.current!,
-					style: shouldStartWithLocalMap ? OFFLINE_MAP_STYLE : MAP_STYLE_URL,
+					style: MAP_STYLE_URL,
 					center: PARIS_CENTER,
 					zoom: 11,
 					minZoom: 10,
@@ -699,31 +676,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							// Fall through to the retry state if the map is no longer usable.
 						}
 
-						if (!shouldStartWithLocalMap) {
-							clientLog.warn(
-								"maps.maplibre",
-								"Map tiles unavailable; switching to local preview",
-								{ message: e.error.message },
-							);
-							try {
-								map.current?.remove();
-							} catch (error) {
-								clientLog.warn("maps.maplibre", "Map fallback cleanup error", {
-									error: error instanceof Error ? error.message : String(error),
-								});
-							}
-							map.current = null;
-							hasLoadedMapRef.current = false;
-							setMapLoaded(false);
-							setIsLoading(true);
-							setUseLocalMapFallback(true);
-							return;
-						}
-
 						clientLog.error("maps.maplibre", "Map loading error", {
 							message: e.error.message,
 						});
-						setLoadError("Failed to load map preview");
+						setLoadError("Live map tiles failed to load");
 						setIsLoading(false);
 					}, MAP_LOAD_ERROR_GRACE_MS);
 				});
@@ -767,7 +723,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				map.current = null;
 			}
 		};
-	}, [loadError, useLocalMapFallback]);
+	}, [isOfflineMode, loadError]);
 
 	useEffect(() => {
 		if (!map.current) return;
@@ -1153,25 +1109,23 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			},
 		});
 
-		if (!shouldUseLocalMap) {
-			currentMap.addLayer({
-				id: "event-cluster-counts",
-				type: "symbol",
-				source: "events",
-				filter: ["has", "point_count"],
-				layout: {
-					"text-field": ["get", "point_count_abbreviated"],
-					"text-size": 12,
-					"text-allow-overlap": true,
-					"text-ignore-placement": true,
-				},
-				paint: {
-					"text-color": "#fffaf3",
-					"text-halo-color": "#49382e",
-					"text-halo-width": 0.5,
-				},
-			});
-		}
+		currentMap.addLayer({
+			id: "event-cluster-counts",
+			type: "symbol",
+			source: "events",
+			filter: ["has", "point_count"],
+			layout: {
+				"text-field": ["get", "point_count_abbreviated"],
+				"text-size": 12,
+				"text-allow-overlap": true,
+				"text-ignore-placement": true,
+			},
+			paint: {
+				"text-color": "#fffaf3",
+				"text-halo-color": "#49382e",
+				"text-halo-width": 0.5,
+			},
+		});
 
 		currentMap.addLayer({
 			id: "event-marker-halos",
@@ -1216,65 +1170,63 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			},
 		});
 
-		if (!shouldUseLocalMap) {
-			currentMap.addLayer({
-				id: "event-star-markers",
-				type: "symbol",
-				source: "events",
-				filter: ["all", ["!", ["has", "point_count"]], ["get", "isOOOCPick"]],
-				layout: {
-					"text-field": "★",
-					"text-size": 12,
-					"text-allow-overlap": true,
-				},
-				paint: {
-					"text-color": "#49382e",
-				},
-			});
-		}
+		currentMap.addLayer({
+			id: "event-star-markers",
+			type: "symbol",
+			source: "events",
+			filter: ["all", ["!", ["has", "point_count"]], ["get", "isOOOCPick"]],
+			layout: {
+				"text-field": "★",
+				"text-size": 12,
+				"text-allow-overlap": true,
+			},
+			paint: {
+				"text-color": "#49382e",
+			},
+		});
 
-		currentMap.on(
-			"click",
-			shouldUseLocalMap ? "event-cluster-badges" : "event-cluster-counts",
-			handleEventClusterClick,
-		);
+		currentMap.on("click", "event-cluster-badges", handleEventClusterClick);
+		currentMap.on("click", "event-cluster-counts", handleEventClusterClick);
 		currentMap.on("click", "event-markers", handleEventMarkersClick);
-		if (!shouldUseLocalMap) {
-			currentMap.on("click", "event-star-markers", handleEventMarkersClick);
-		}
+		currentMap.on("click", "event-star-markers", handleEventMarkersClick);
 		currentMap.on(
 			"mouseenter",
-			shouldUseLocalMap ? "event-cluster-badges" : "event-cluster-counts",
+			"event-cluster-badges",
+			handleEventMarkersMouseEnter,
+		);
+		currentMap.on(
+			"mouseenter",
+			"event-cluster-counts",
 			handleEventMarkersMouseEnter,
 		);
 		currentMap.on("mouseenter", "event-markers", handleEventMarkersMouseEnter);
-		if (!shouldUseLocalMap) {
-			currentMap.on(
-				"mouseenter",
-				"event-star-markers",
-				handleEventMarkersMouseEnter,
-			);
-		}
+		currentMap.on(
+			"mouseenter",
+			"event-star-markers",
+			handleEventMarkersMouseEnter,
+		);
 		currentMap.on(
 			"mouseleave",
-			shouldUseLocalMap ? "event-cluster-badges" : "event-cluster-counts",
+			"event-cluster-badges",
+			handleEventMarkersMouseLeave,
+		);
+		currentMap.on(
+			"mouseleave",
+			"event-cluster-counts",
 			handleEventMarkersMouseLeave,
 		);
 		currentMap.on("mouseleave", "event-markers", handleEventMarkersMouseLeave);
-		if (!shouldUseLocalMap) {
-			currentMap.on(
-				"mouseleave",
-				"event-star-markers",
-				handleEventMarkersMouseLeave,
-			);
-		}
+		currentMap.on(
+			"mouseleave",
+			"event-star-markers",
+			handleEventMarkersMouseLeave,
+		);
 		return () => {
 			teardownEventMarkers();
 		};
 	}, [
 		mapLoaded,
 		filteredEvents,
-		shouldUseLocalMap,
 		showCoordinates,
 		handleEventClusterClick,
 		handleEventMarkersClick,
@@ -1283,7 +1235,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	]);
 
 	// Error state
-	if (loadError) {
+	const visibleLoadError = isOfflineMode ? MAP_ONLINE_ONLY_MESSAGE : loadError;
+
+	if (visibleLoadError) {
 		return (
 			<div
 				className={cn(
@@ -1293,19 +1247,27 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			>
 				<div className="flex h-full items-center justify-center p-4">
 					<div className="ooo-site-card w-full max-w-md rounded-2xl border border-border/75 p-6 text-center">
+						{isFullscreen && onFullscreenRequest && (
+							<div className="mb-4 flex justify-end">
+								<button
+									type="button"
+									onPointerDown={handleFullscreenPointerDown}
+									className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/68 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+									aria-label="Close full screen map"
+								>
+									<X className="h-4 w-4" />
+								</button>
+							</div>
+						)}
 						<p className="text-sm font-medium text-foreground">
 							Map temporarily unavailable
 						</p>
 						<p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-							{loadError}. The district map can be retried without losing your
-							current filters.
+							{isOfflineMode
+								? `${visibleLoadError}. Saved event browsing, search, and filters are still available below.`
+								: `${visibleLoadError}. The district map can be retried without losing your current filters.`}
 						</p>
-						{isOffline ? (
-							<p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-								You are offline. Saved event browsing, search, and filters are
-								still available below.
-							</p>
-						) : (
+						{!isOfflineMode && (
 							<button
 								onClick={handleMapRetry}
 								className="mt-4 inline-flex h-8 items-center justify-center rounded-full border border-border/75 bg-foreground px-4 text-sm text-background transition-colors hover:bg-foreground/88"
