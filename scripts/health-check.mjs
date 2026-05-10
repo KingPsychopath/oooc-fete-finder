@@ -122,7 +122,7 @@ const run = async () => {
 
 		printSection("Admin Postgres KV Endpoint");
 		const kvResponse = await fetch(
-			`${baseUrl}/api/admin/postgres/kv?prefix=events-store:&limit=20`,
+			`${baseUrl}/api/admin/storage/kv?prefix=events-store:&limit=20`,
 			{
 				headers: {
 					"x-admin-key": adminKey,
@@ -132,7 +132,7 @@ const run = async () => {
 
 		if (!kvResponse.ok) {
 			console.log(
-				`GET /api/admin/postgres/kv failed: HTTP ${kvResponse.status}`,
+				`GET /api/admin/storage/kv failed: HTTP ${kvResponse.status}`,
 			);
 		} else {
 			const kvJson = await kvResponse.json();

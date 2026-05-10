@@ -120,7 +120,8 @@ const displayFonts = [
 		name: "Swear Display",
 		note: "Current local brand face",
 		className: "",
-		family: '"Swear Display", "Iowan Old Style", "Times New Roman", Times, serif',
+		family:
+			'"Swear Display", "Iowan Old Style", "Times New Roman", Times, serif',
 	},
 	{
 		name: "Cormorant Garamond",
@@ -286,8 +287,8 @@ export default function FontTestPage() {
 									<p className="mt-8 max-w-2xl text-xl leading-relaxed text-foreground/72 sm:text-2xl lg:text-xl">
 										Fête Finder is the OOOC guide for Paris during Fête de la
 										Musique weekend: curated events, practical filters,
-										shareable plans and a live community of like-minded people on
-										the ground.
+										shareable plans and a live community of like-minded people
+										on the ground.
 									</p>
 									<div className="mt-8 flex flex-wrap gap-3">
 										<span className="inline-flex h-11 items-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground">

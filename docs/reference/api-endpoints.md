@@ -8,9 +8,9 @@
 
 ## Public Tracking
 
-- `POST /api/track`: event engagement tracking (`click`, `outbound_click`, `calendar_sync`)
-- `POST /api/track/discovery`: discovery analytics tracking (`search`, `filter_apply`, `filter_clear`)
-- `POST /api/user/preference`: authenticated user genre preference signal
+- `POST /api/analytics/event`: event engagement tracking (`click`, `outbound_click`, `calendar_sync`)
+- `POST /api/analytics/discovery`: discovery analytics tracking (`search`, `filter_apply`, `filter_clear`)
+- `POST /api/user/preferences`: authenticated user genre preference signal
 
 ## Public Media + Utility
 
@@ -27,14 +27,14 @@
 - `GET /api/admin/event-sheet`
 - `POST /api/admin/event-sheet`
 - `POST /api/admin/music-genre-taxonomy`
-- `GET /api/admin/postgres/kv`
+- `GET /api/admin/storage/kv`
 - `GET /api/admin/tokens/sessions`
 - `DELETE /api/admin/tokens/sessions/[jti]`
 - `POST /api/admin/tokens/revoke`
 
 ## Revalidation Endpoint
 
-- `GET/POST /api/revalidate/deploy`
+- `POST /api/revalidate/deploy`
 - Requires `Authorization: Bearer <DEPLOY_REVALIDATE_SECRET>`
 
 ## Webhook Endpoint

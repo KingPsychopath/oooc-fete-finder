@@ -40,7 +40,13 @@ export function NotFoundDevDetails() {
 						nativeButton={false}
 						variant="outline"
 						size="sm"
-						render={<a href={withBasePath("/event-modal-lab")} target="_blank" rel="noreferrer" />}
+						render={
+							<a
+								href={withBasePath("/labs/event-modal")}
+								target="_blank"
+								rel="noreferrer"
+							/>
+						}
 					>
 						Open modal lab
 					</Button>
@@ -48,7 +54,13 @@ export function NotFoundDevDetails() {
 						nativeButton={false}
 						variant="outline"
 						size="sm"
-						render={<a href={withBasePath("/admin")} target="_blank" rel="noreferrer" />}
+						render={
+							<a
+								href={withBasePath("/admin")}
+								target="_blank"
+								rel="noreferrer"
+							/>
+						}
 					>
 						Open admin
 					</Button>

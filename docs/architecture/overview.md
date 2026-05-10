@@ -66,9 +66,9 @@ Projection behavior in runtime service:
 
 ## Engagement Tracking Contract
 
-- `POST /api/track` records event actions (`click`, `outbound_click`, `calendar_sync`)
-- `POST /api/track/discovery` records search/filter behavior
-- `POST /api/user/preference` records authenticated genre preferences
+- `POST /api/analytics/event` records event actions (`click`, `outbound_click`, `calendar_sync`)
+- `POST /api/analytics/discovery` records search/filter behavior
+- `POST /api/user/preferences` records authenticated genre preferences
 - "saved this" UX maps to session-deduped `calendar_sync` counts, with numeric copy reserved for the top fresh public social-proof events
 
 ## Canonical Stores

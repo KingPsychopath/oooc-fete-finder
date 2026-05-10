@@ -93,7 +93,3 @@ async function handleRevalidation(request: NextRequest): Promise<NextResponse> {
 export async function POST(request: NextRequest): Promise<NextResponse> {
 	return handleRevalidation(request);
 }
-
-export async function GET(request: NextRequest): Promise<NextResponse> {
-	return handleRevalidation(request);
-}

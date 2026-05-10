@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Setup = {
-	GET: typeof import("@/app/api/revalidate/deploy/route").GET;
 	POST: typeof import("@/app/api/revalidate/deploy/route").POST;
 	forceRefreshEventsData: ReturnType<typeof vi.fn>;
 	logWarn: ReturnType<typeof vi.fn>;
@@ -33,7 +32,6 @@ const loadRoute = async (): Promise<Setup> => {
 
 	const route = await import("@/app/api/revalidate/deploy/route");
 	return {
-		GET: route.GET,
 		POST: route.POST,
 		forceRefreshEventsData,
 		logWarn,
@@ -54,13 +52,18 @@ describe("/api/revalidate/deploy route", () => {
 	});
 
 	it("returns 503 when deploy secret is not configured", async () => {
-		const { GET, forceRefreshEventsData, logWarn } = await loadRoute();
+		const { POST, forceRefreshEventsData, logWarn } = await loadRoute();
 		process.env.DEPLOY_REVALIDATE_SECRET = "";
 
-		const response = await GET(
-			new NextRequest("https://example.com/api/revalidate/deploy"),
+		const response = await POST(
+			new NextRequest("https://example.com/api/revalidate/deploy", {
+				method: "POST",
+			}),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(503);
 		expect(payload.success).toBe(false);
@@ -70,16 +73,20 @@ describe("/api/revalidate/deploy route", () => {
 	});
 
 	it("returns 401 for unauthorized requests", async () => {
-		const { GET, forceRefreshEventsData } = await loadRoute();
+		const { POST, forceRefreshEventsData } = await loadRoute();
 
-		const response = await GET(
+		const response = await POST(
 			new NextRequest("https://example.com/api/revalidate/deploy", {
+				method: "POST",
 				headers: {
 					authorization: "Bearer wrong-secret",
 				},
 			}),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(401);
 		expect(payload).toEqual({ success: false, error: "Unauthorized" });
@@ -87,11 +94,12 @@ describe("/api/revalidate/deploy route", () => {
 		expect(response.headers.get("cache-control")).toContain("no-store");
 	});
 
-	it("supports GET with bearer auth", async () => {
-		const { GET, forceRefreshEventsData } = await loadRoute();
+	it("supports POST with bearer auth", async () => {
+		const { POST, forceRefreshEventsData } = await loadRoute();
 
-		const response = await GET(
+		const response = await POST(
 			new NextRequest("https://example.com/api/revalidate/deploy", {
+				method: "POST",
 				headers: {
 					authorization: "Bearer deploy-secret",
 				},
@@ -121,7 +129,10 @@ describe("/api/revalidate/deploy route", () => {
 				},
 			}),
 		);
-		const payload = (await response.json()) as { success: boolean; message: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			message: string;
+		};
 
 		expect(response.status).toBe(200);
 		expect(payload.success).toBe(true);
@@ -130,15 +141,16 @@ describe("/api/revalidate/deploy route", () => {
 	});
 
 	it("returns 500 when live refresh returns failure", async () => {
-		const { GET, forceRefreshEventsData, logWarn } = await loadRoute();
+		const { POST, forceRefreshEventsData, logWarn } = await loadRoute();
 		forceRefreshEventsData.mockResolvedValue({
 			success: false,
 			message: "Homepage revalidation failed",
 			error: "store unavailable",
 		});
 
-		const response = await GET(
+		const response = await POST(
 			new NextRequest("https://example.com/api/revalidate/deploy", {
+				method: "POST",
 				headers: {
 					authorization: "Bearer deploy-secret",
 				},
@@ -158,17 +170,23 @@ describe("/api/revalidate/deploy route", () => {
 	});
 
 	it("returns 500 when route throws unexpectedly", async () => {
-		const { GET, forceRefreshEventsData, logError } = await loadRoute();
-		forceRefreshEventsData.mockRejectedValue(new Error("unexpected refresh error"));
+		const { POST, forceRefreshEventsData, logError } = await loadRoute();
+		forceRefreshEventsData.mockRejectedValue(
+			new Error("unexpected refresh error"),
+		);
 
-		const response = await GET(
+		const response = await POST(
 			new NextRequest("https://example.com/api/revalidate/deploy", {
+				method: "POST",
 				headers: {
 					authorization: "Bearer deploy-secret",
 				},
 			}),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(500);
 		expect(payload.success).toBe(false);

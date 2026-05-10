@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type Setup = {
-	GET: typeof import("@/app/api/admin/postgres/kv/route").GET;
+	GET: typeof import("@/app/api/admin/storage/kv/route").GET;
 	validateAdminKeyForApiRoute: ReturnType<typeof vi.fn>;
 	getAppKVStoreRepository: ReturnType<typeof vi.fn>;
 	getRecord: ReturnType<typeof vi.fn>;
@@ -19,13 +19,13 @@ const loadRoute = async (): Promise<Setup> => {
 	const validateAdminKeyForApiRoute = vi.fn().mockResolvedValue(true);
 	const getRecord = vi.fn().mockResolvedValue({
 		key: "events-store:meta",
-		value: "{\"rowCount\":81}",
+		value: '{"rowCount":81}',
 		updatedAt: "2026-02-18T00:00:00.000Z",
 	});
 	const listRecords = vi.fn().mockResolvedValue([
 		{
 			key: "events-store:meta",
-			value: "{\"rowCount\":81}",
+			value: '{"rowCount":81}',
 			updatedAt: "2026-02-18T00:00:00.000Z",
 		},
 	]);
@@ -41,7 +41,9 @@ const loadRoute = async (): Promise<Setup> => {
 		countKeys,
 		getEventsStoreStats,
 	});
-	const getCounts = vi.fn().mockResolvedValue({ rowCount: 81, columnCount: 14 });
+	const getCounts = vi
+		.fn()
+		.mockResolvedValue({ rowCount: 81, columnCount: 14 });
 	const getMeta = vi.fn().mockResolvedValue({
 		rowCount: 81,
 		updatedAt: "2026-02-18T00:00:00.000Z",
@@ -64,7 +66,7 @@ const loadRoute = async (): Promise<Setup> => {
 		}),
 	}));
 
-	const route = await import("@/app/api/admin/postgres/kv/route");
+	const route = await import("@/app/api/admin/storage/kv/route");
 	return {
 		GET: route.GET,
 		validateAdminKeyForApiRoute,
@@ -78,7 +80,7 @@ const loadRoute = async (): Promise<Setup> => {
 	};
 };
 
-describe("/api/admin/postgres/kv route", () => {
+describe("/api/admin/storage/kv route", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
@@ -88,9 +90,12 @@ describe("/api/admin/postgres/kv route", () => {
 		validateAdminKeyForApiRoute.mockResolvedValue(false);
 
 		const response = await GET(
-			new NextRequest("https://example.com/api/admin/postgres/kv"),
+			new NextRequest("https://example.com/api/admin/storage/kv"),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(401);
 		expect(payload).toEqual({ success: false, error: "Unauthorized" });
@@ -103,9 +108,12 @@ describe("/api/admin/postgres/kv route", () => {
 		getAppKVStoreRepository.mockReturnValue(null);
 
 		const response = await GET(
-			new NextRequest("https://example.com/api/admin/postgres/kv"),
+			new NextRequest("https://example.com/api/admin/storage/kv"),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(503);
 		expect(payload.success).toBe(false);
@@ -118,7 +126,7 @@ describe("/api/admin/postgres/kv route", () => {
 
 		const response = await GET(
 			new NextRequest(
-				"https://example.com/api/admin/postgres/kv?key=events-store%3Ameta",
+				"https://example.com/api/admin/storage/kv?key=events-store%3Ameta",
 			),
 		);
 		const payload = (await response.json()) as {
@@ -142,7 +150,7 @@ describe("/api/admin/postgres/kv route", () => {
 
 		const response = await GET(
 			new NextRequest(
-				"https://example.com/api/admin/postgres/kv?prefix=events&limit=999",
+				"https://example.com/api/admin/storage/kv?prefix=events&limit=999",
 			),
 		);
 		const payload = (await response.json()) as {
@@ -177,9 +185,12 @@ describe("/api/admin/postgres/kv route", () => {
 		listRecords.mockRejectedValue(new Error("query failed"));
 
 		const response = await GET(
-			new NextRequest("https://example.com/api/admin/postgres/kv"),
+			new NextRequest("https://example.com/api/admin/storage/kv"),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(500);
 		expect(payload.success).toBe(false);

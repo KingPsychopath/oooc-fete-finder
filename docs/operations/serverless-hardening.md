@@ -13,7 +13,7 @@ This runbook defines production and preview runtime rules.
 
 1. Live reads: `runtime-service` -> `DataManager`
 2. Homepage publish uses save + revalidate path/tag behavior
-3. Deploy hook endpoint: `POST/GET /api/revalidate/deploy`
+3. Deploy hook endpoint: `POST /api/revalidate/deploy`
 4. Deploy hook requires `DEPLOY_REVALIDATE_SECRET`
 
 ## Cron Endpoints

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { expect, type Page, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 import jwt from "jsonwebtoken";
 
 const EVENT_PATH = "/event/evt_115811d709b9b6ed/krispy-jam-n-29-tascha";
@@ -407,10 +407,12 @@ test.describe("event share routes", () => {
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
 		await waitForHomeEventSnapshot(page);
 		await waitForOfflineGraceState(page);
-		await expect(page.getByText("Auth mode").locator("..")).toContainText("live");
-		await expect(page.getByText("Protected discovery").locator("..")).toContainText(
-			"allowed",
+		await expect(page.getByText("Auth mode").locator("..")).toContainText(
+			"live",
 		);
+		await expect(
+			page.getByText("Protected discovery").locator(".."),
+		).toContainText("allowed");
 
 		await context.setOffline(true);
 		await page.reload({ waitUntil: "domcontentloaded" });
@@ -419,9 +421,9 @@ test.describe("event share routes", () => {
 		await expect(page.getByText("Auth mode").locator("..")).toContainText(
 			"offline-grace",
 		);
-		await expect(page.getByText("Protected discovery").locator("..")).toContainText(
-			"allowed",
-		);
+		await expect(
+			page.getByText("Protected discovery").locator(".."),
+		).toContainText("allowed");
 		await page.getByRole("button", { name: /show picks/i }).click();
 		await expect(
 			page.getByRole("button", { name: /showing picks/i }),
@@ -495,13 +497,13 @@ test.describe("event share routes", () => {
 		await page.evaluate(async () => {
 			await Promise.allSettled([
 				fetch("/api/auth/session"),
-				fetch("/api/user/preference"),
+				fetch("/api/user/preferences"),
 				fetch("/api/admin/health"),
 			]);
 		});
 		const cachedPathnames = await getCachedPathnames(page);
 		expect(cachedPathnames).not.toContain("/api/auth/session");
-		expect(cachedPathnames).not.toContain("/api/user/preference");
+		expect(cachedPathnames).not.toContain("/api/user/preferences");
 		expect(cachedPathnames).not.toContain("/api/admin/health");
 
 		await context.setOffline(true);

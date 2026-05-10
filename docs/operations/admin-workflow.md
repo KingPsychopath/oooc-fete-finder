@@ -57,7 +57,7 @@ Clarification:
 
 - `GET /api/admin/health`
 - `GET /api/admin/data-store/status`
-- `GET /api/admin/postgres/kv`
+- `GET /api/admin/storage/kv`
 - `GET /api/admin/tokens/sessions`
 
 ## Common Failure Cases

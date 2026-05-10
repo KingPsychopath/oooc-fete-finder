@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 describe("request security helpers", () => {
 	it("allows same-origin browser requests", () => {
-		const request = new Request("http://localhost:3000/api/track", {
+		const request = new Request("http://localhost:3000/api/analytics/event", {
 			method: "POST",
 			headers: {
 				host: "localhost:3000",
@@ -20,7 +20,7 @@ describe("request security helpers", () => {
 	});
 
 	it("rejects cross-site browser requests", () => {
-		const request = new Request("https://fete.example/api/track", {
+		const request = new Request("https://fete.example/api/analytics/event", {
 			method: "POST",
 			headers: {
 				host: "fete.example",
@@ -44,7 +44,7 @@ describe("request security helpers", () => {
 	});
 
 	it("validates JSON content types and content-length limits", () => {
-		const request = new Request("https://fete.example/api/track", {
+		const request = new Request("https://fete.example/api/analytics/event", {
 			method: "POST",
 			headers: {
 				"content-type": "application/json; charset=utf-8",

@@ -1,4 +1,4 @@
-import { generateOGMetadata, generateMainOGImage } from "@/lib/social/og-utils";
+import { generateMainOGImage, generateOGMetadata } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -30,7 +30,7 @@ export const metadata: Metadata = generateOGMetadata({
 	title: "Event Modal Lab | Fête Finder",
 	description: "Private Fête Finder event modal design lab.",
 	ogImageUrl: generateMainOGImage(),
-	url: `${siteUrl}${basePath || ""}/event-modal-lab`,
+	url: `${siteUrl}${basePath || ""}/labs/event-modal`,
 	noIndex: true,
 });
 
@@ -223,10 +223,14 @@ export default function EventModalLabPage() {
 							</div>
 
 							<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_250px]">
-								<div className={`rounded-2xl border p-4 sm:p-5 ${option.panelClassName}`}>
+								<div
+									className={`rounded-2xl border p-4 sm:p-5 ${option.panelClassName}`}
+								>
 									<div className="flex items-start justify-between gap-3">
 										<div>
-											<p className={`text-[10px] uppercase tracking-[0.22em] ${option.metaClassName}`}>
+											<p
+												className={`text-[10px] uppercase tracking-[0.22em] ${option.metaClassName}`}
+											>
 												Saturday · 21 June · 20:00
 											</p>
 											<h3
@@ -264,11 +268,12 @@ export default function EventModalLabPage() {
 													23:59 - 05:45
 												</p>
 												<p className={option.bodyClassName}>
-													<span className={option.metaClassName}>Price:</span> €15.99
+													<span className={option.metaClassName}>Price:</span>{" "}
+													€15.99
 												</p>
 												<p className={option.bodyClassName}>
-													<span className={option.metaClassName}>Venue:</span> Indoor
-													Venue
+													<span className={option.metaClassName}>Venue:</span>{" "}
+													Indoor Venue
 												</p>
 												<p className={option.bodyClassName}>
 													<span className={option.metaClassName}>Age:</span> 18+
@@ -295,14 +300,16 @@ export default function EventModalLabPage() {
 												</button>
 											</div>
 										</div>
-										<p className={`text-sm leading-relaxed ${option.bodyClassName}`}>
-											Sunset into late-night rooftop session with a warm-up live set,
-											then resident DJs until close. Entry is free before 21:00 with
-											RSVP.
+										<p
+											className={`text-sm leading-relaxed ${option.bodyClassName}`}
+										>
+											Sunset into late-night rooftop session with a warm-up live
+											set, then resident DJs until close. Entry is free before
+											21:00 with RSVP.
 										</p>
 										<p className={`text-xs ${option.metaClassName}`}>
-											Bring ID, check venue updates before arrival, and confirm queue
-											policy on the official page.
+											Bring ID, check venue updates before arrival, and confirm
+											queue policy on the official page.
 										</p>
 									</div>
 								</div>
@@ -343,15 +350,17 @@ export default function EventModalLabPage() {
 								</p>
 								<div className="mt-2 max-w-sm rounded-xl border border-border/70 bg-background/80 p-3">
 									<p className="text-sm font-medium">
-										Very Long Event Name That Might Wrap Across Multiple Lines on
-										Small Screens
+										Very Long Event Name That Might Wrap Across Multiple Lines
+										on Small Screens
 									</p>
 									<p className="mt-1 text-xs text-muted-foreground">
 										Location with extra-long metadata for truncation behavior:
 										Passage des Panoramas, Paris, France, Rooftop Floor 5
 									</p>
 									<div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-										<span className="rounded-md border px-2 py-1">23:59-05:45</span>
+										<span className="rounded-md border px-2 py-1">
+											23:59-05:45
+										</span>
 										<span className="rounded-md border px-2 py-1">€15.99</span>
 										<span className="rounded-md border px-2 py-1">Indoor</span>
 										<span className="rounded-md border px-2 py-1">18+</span>
@@ -371,8 +380,8 @@ export default function EventModalLabPage() {
 							Random New Directions
 						</h2>
 						<p className="mt-1 text-sm text-muted-foreground">
-							More experimental ideas to spark direction before we commit production
-							time.
+							More experimental ideas to spark direction before we commit
+							production time.
 						</p>
 					</div>
 					<div className="grid gap-4 lg:grid-cols-3">

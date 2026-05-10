@@ -320,7 +320,7 @@ Verified in production-mode Playwright against the built app:
 - The map area shows the supported online-only asset fallback copy.
 - Reconnect plus reload returns to live event rendering and clears the saved
   events banner.
-- Requests to `/api/auth/session`, `/api/user/preference`, and
+- Requests to `/api/auth/session`, `/api/user/preferences`, and
   `/api/admin/health` are not present in service worker caches.
 - No browser console or page error matching `ChunkLoadError` or chunk loading
   failure was observed during the offline flow.

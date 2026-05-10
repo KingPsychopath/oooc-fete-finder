@@ -1,4 +1,4 @@
-import { generateOGMetadata, generateMainOGImage } from "@/lib/social/og-utils";
+import { generateMainOGImage, generateOGMetadata } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -64,7 +64,7 @@ export const metadata: Metadata = generateOGMetadata({
 	title: "Header Lab | Fête Finder",
 	description: "Private Fête Finder header design lab.",
 	ogImageUrl: generateMainOGImage(),
-	url: `${siteUrl}${basePath || ""}/header-lab`,
+	url: `${siteUrl}${basePath || ""}/labs/header`,
 	noIndex: true,
 });
 
@@ -122,7 +122,9 @@ export default function HeaderLabPage() {
 
 							<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/10 bg-white/35 px-3 py-3">
 								<div>
-									<p className={`text-[10px] uppercase tracking-[0.24em] ${option.accentClassName}`}>
+									<p
+										className={`text-[10px] uppercase tracking-[0.24em] ${option.accentClassName}`}
+									>
 										Out Of Office Collective
 									</p>
 									<p className="text-xl [font-family:var(--ooo-font-display)] font-light">

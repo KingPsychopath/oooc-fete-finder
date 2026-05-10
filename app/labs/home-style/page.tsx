@@ -1,4 +1,4 @@
-import { generateOGMetadata, generateMainOGImage } from "@/lib/social/og-utils";
+import { generateMainOGImage, generateOGMetadata } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -11,13 +11,15 @@ const CARD_OPTIONS = [
 	},
 	{
 		name: "Option B · Minimal Flat",
-		description: "Lower blur, flatter shadows, cleaner utility-first dashboard feel.",
+		description:
+			"Lower blur, flatter shadows, cleaner utility-first dashboard feel.",
 		cardClass:
 			"border-border/85 bg-card shadow-[0_4px_10px_-8px_rgba(30,22,17,0.22)]",
 	},
 	{
 		name: "Option C · Luxe Contrast",
-		description: "Stronger depth and richer tonal contrast for premium visual drama.",
+		description:
+			"Stronger depth and richer tonal contrast for premium visual drama.",
 		cardClass:
 			"border-border/65 bg-[color-mix(in_oklab,var(--card)_80%,rgba(248,236,214,0.2))] shadow-[0_16px_32px_-20px_rgba(20,14,10,0.52)]",
 	},
@@ -30,7 +32,7 @@ export const metadata: Metadata = generateOGMetadata({
 	title: "Homepage Style Lab | Fête Finder",
 	description: "Private Fête Finder homepage style lab.",
 	ogImageUrl: generateMainOGImage(),
-	url: `${siteUrl}${basePath || ""}/home-style-lab`,
+	url: `${siteUrl}${basePath || ""}/labs/home-style`,
 	noIndex: true,
 });
 
@@ -64,7 +66,9 @@ export default function HomeStyleLabPage() {
 							<h2 className="text-xl [font-family:var(--ooo-font-display)] font-light">
 								{option.name}
 							</h2>
-							<p className="mt-1 text-sm text-muted-foreground">{option.description}</p>
+							<p className="mt-1 text-sm text-muted-foreground">
+								{option.description}
+							</p>
 							<div className="mt-4 grid gap-3 md:grid-cols-3">
 								<div className="rounded-xl border border-border/70 bg-background/55 p-4">
 									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">

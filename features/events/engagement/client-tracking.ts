@@ -74,9 +74,9 @@ const queueRetryAttempts: Record<QueueName, number> = {
 };
 
 const endpoints: Record<QueueName, string> = {
-	engagement: `${basePath}/api/track`,
-	discovery: `${basePath}/api/track/discovery`,
-	preference: `${basePath}/api/user/preference`,
+	engagement: `${basePath}/api/analytics/event`,
+	discovery: `${basePath}/api/analytics/discovery`,
+	preference: `${basePath}/api/user/preferences`,
 };
 
 const isBrowserOffline = (): boolean =>

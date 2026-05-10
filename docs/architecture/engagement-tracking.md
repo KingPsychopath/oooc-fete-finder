@@ -7,7 +7,7 @@ This doc defines how event engagement tracking works, including the social-proof
 In this app, "saved" maps to `calendar_sync` actions.
 
 - A user clicks `Add to Calendar` in the event modal
-- Client tracking sends `actionType=calendar_sync` to `POST /api/track`
+- Client tracking sends `actionType=calendar_sync` to `POST /api/analytics/event`
 - The event engagement store records the interaction for that event
 - Runtime event payloads project fresh `socialProofSaveCount` and broader `socialProofHistoricalSaveCount` values back onto each event
 - UI surfaces top social proof like `"X people saved this"` and softer proof like `"People are saving this"`
@@ -22,7 +22,7 @@ Important:
 
 ## Tracked Event Actions
 
-`POST /api/track` supports:
+`POST /api/analytics/event` supports:
 
 - `click` (event open/view)
 - `outbound_click` (external/ticket link click)
@@ -42,11 +42,11 @@ These write to `app_event_engagement_stats` with:
 
 Additional first-party analytics routes:
 
-- `POST /api/track/discovery`
+- `POST /api/analytics/discovery`
 - Tracks `search`, `filter_apply`, `filter_clear`
 - Writes to `app_discovery_analytics_stats`
 
-- `POST /api/user/preference`
+- `POST /api/user/preferences`
 - Tracks authenticated genre preference increments
 - Writes to `app_user_genre_preferences`
 

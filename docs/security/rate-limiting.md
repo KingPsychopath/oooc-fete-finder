@@ -6,9 +6,9 @@ Public write and tracking endpoints are protected with in-app Postgres-backed at
 
 - `POST /api/auth/verify`
 - `POST /api/event-submissions`
-- `POST /api/track`
-- `POST /api/track/discovery`
-- `POST /api/user/preference`
+- `POST /api/analytics/event`
+- `POST /api/analytics/discovery`
+- `POST /api/user/preferences`
 
 ## Auth Verify Limits
 
@@ -31,19 +31,19 @@ Public write and tracking endpoints are protected with in-app Postgres-backed at
 
 ## Tracking Limits
 
-`POST /api/track`
+`POST /api/analytics/event`
 
 - IP: `240 requests / 60 seconds`
 - Session: `200 requests / 60 seconds`
 - On limiter failure or block: route returns accepted response (`202`) without recording
 
-`POST /api/track/discovery`
+`POST /api/analytics/discovery`
 
 - IP: `180 requests / 60 seconds`
 - Session: `150 requests / 60 seconds`
 - On limiter failure or block: route returns accepted response (`202`) without recording
 
-`POST /api/user/preference`
+`POST /api/user/preferences`
 
 - IP: `120 requests / 60 seconds`
 - Invalid/unauthenticated requests are accepted-noop (`202`)
