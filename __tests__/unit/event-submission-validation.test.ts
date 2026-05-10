@@ -18,6 +18,20 @@ const validInput = {
 	formStartedAt: "2026-02-18T10:00:00.000Z",
 };
 
+const baselineUpdatePayload = {
+	...validInput,
+	proofLink: "https://instagram.com/proof-post",
+	originalEventKey: "evt_123",
+	submissionType: "event_update" as const,
+	originalEventSnapshot: {
+		eventName: "Rooftop Session",
+		date: "2026-06-21",
+		startTime: "18:00",
+		endTime: "23:00",
+		location: "Paris",
+	},
+};
+
 describe("event submission validation", () => {
 	it("normalizes HTTP URLs and trims core fields", () => {
 		const parsed = parseEventSubmissionInput({
@@ -65,6 +79,60 @@ describe("event submission validation", () => {
 				...validInput,
 				submissionType: "event_update",
 				originalEventKey: "",
+			}),
+		).toThrow(ZodError);
+	});
+
+	it("accepts partial update payloads and merges with the original snapshot", () => {
+		const parsed = parseEventSubmissionInput({
+			...baselineUpdatePayload,
+			eventName: "  Rooftop Session: Reloaded ",
+			ticketLink:
+				"https://tickets.example.com/new-link\nhttps://example.org/queue",
+		});
+
+		expect(parsed.submissionType).toBe("event_update");
+		expect(parsed.eventName).toBe("Rooftop Session: Reloaded");
+		expect(parsed.location).toBe("Paris");
+		expect(parsed.date).toBe("2026-06-21");
+		expect(parsed.ticketLink).toBe(
+			"https://tickets.example.com/new-link\nhttps://example.org/queue",
+		);
+		expect(parsed.originalEventSnapshot.eventName).toBe("Rooftop Session");
+		expect(parsed.originalEventSnapshot.date).toBe("2026-06-21");
+		expect(parsed.originalEventSnapshot.startTime).toBe("18:00");
+		expect(parsed.originalEventSnapshot.location).toBe("Paris");
+		expect(parsed.originalEventSnapshot.endTime).toBe("23:00");
+		expect(parsed.originalEventSnapshot.ticketLink).toBeUndefined();
+	});
+
+	it("rejects updates when no changed event fields are provided", () => {
+		expect(() =>
+			parseEventSubmissionInput({
+				submissionType: "event_update",
+				originalEventKey: "evt_123",
+				originalEventSnapshot: {
+					eventName: "Rooftop Session",
+					date: "2026-06-21",
+					startTime: "18:00",
+					endTime: "23:00",
+					location: "Paris",
+				},
+				hostEmail: "host@example.com",
+				proofLink: "https://instagram.com/proof-post",
+			}),
+		).toThrow(ZodError);
+	});
+
+	it("rejects update payloads when required merge fields are missing from both payload and snapshot", () => {
+		expect(() =>
+			parseEventSubmissionInput({
+				submissionType: "event_update",
+				originalEventKey: "evt_123",
+				originalEventSnapshot: {},
+				eventName: "Rooftop Session",
+				proofLink: "https://instagram.com/proof-post",
+				hostEmail: "host@example.com",
 			}),
 		).toThrow(ZodError);
 	});

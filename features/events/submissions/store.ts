@@ -18,6 +18,15 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const ARRONDISSEMENT_PATTERN =
 	/^([1-9]|1\d|20|greater-paris|outside-paris|unknown)$/;
 
+const normalizeWhitespace = (value: string): string =>
+	value.replace(/\s+/g, " ").trim();
+
+const normalizeUpdateFieldValue = (
+	field: EventUpdatePatchField | string,
+	value: string,
+): string =>
+	field === "ticketLink" ? value.trim() : normalizeWhitespace(value);
+
 const isValidDateValue = (value: string): boolean => {
 	if (!DATE_PATTERN.test(value)) return false;
 	const parsed = new Date(`${value}T00:00:00.000Z`);
@@ -62,13 +71,87 @@ const normalizedOptionalUrlListField = (
 	return normalizedLinks.join("\n");
 };
 
-const eventSubmissionInputSchema = z
+const EVENT_UPDATE_PATCH_FIELDS = [
+	"eventName",
+	"date",
+	"startTime",
+	"endTime",
+	"location",
+	"genre",
+	"price",
+	"age",
+	"indoorOutdoor",
+	"arrondissement",
+	"ticketLink",
+	"notes",
+] as const;
+
+type EventUpdatePatchField = (typeof EVENT_UPDATE_PATCH_FIELDS)[number];
+
+const REQUIRED_UPDATE_MERGE_FIELDS = [
+	"eventName",
+	"date",
+	"startTime",
+	"location",
+	"endTime",
+] as const;
+
+const eventCoreSnapshotSchema = z.record(
+	z.string(),
+	z.string().trim().max(3000),
+);
+
+const eventSubmissionBaseSchema = {
+	eventName: z.string().trim().min(2).max(180),
+	date: z.string().trim().refine(isValidDateValue, "Date must use YYYY-MM-DD"),
+	startTime: z.string().trim().regex(TIME_PATTERN, "Start time must use HH:MM"),
+	location: z.string().trim().min(2).max(240),
+	hostEmail: z.string().trim().email().max(254),
+	proofLink: z
+		.string()
+		.trim()
+		.max(2000)
+		.transform((value, context) =>
+			normalizedUrlField(value, context, "Proof link must be an HTTP(S) URL"),
+		),
+	ticketLink: z
+		.string()
+		.trim()
+		.max(2000)
+		.transform((value, context) =>
+			normalizedOptionalUrlListField(
+				value,
+				context,
+				"Ticket links must be HTTP(S) URLs",
+			),
+		)
+		.optional()
+		.default(""),
+	endTime: z.string().trim().regex(TIME_PATTERN, "End time must use HH:MM"),
+	genre: z.string().trim().min(1).max(500),
+	suggestedGenres: z.string().trim().max(500).optional().default(""),
+	price: z.string().trim().min(1).max(80),
+	age: z.string().trim().max(80).optional().default(""),
+	indoorOutdoor: z.string().trim().max(80).optional().default(""),
+	notes: z.string().trim().max(3000).optional().default(""),
+	arrondissement: z
+		.string()
+		.trim()
+		.max(32)
+		.refine(
+			(value) => value === "" || ARRONDISSEMENT_PATTERN.test(value),
+			"Arrondissement must be 1-20, greater-paris, outside-paris, or unknown",
+		)
+		.optional()
+		.default(""),
+	formStartedAt: z.string().trim().optional().default(""),
+	honeypot: z.string().trim().optional().default(""),
+};
+
+const eventSubmissionUpdateInputSchema = z
 	.object({
-		submissionType: z
-			.enum(["new_event", "event_update"])
-			.optional()
-			.default("new_event"),
-		originalEventKey: z.string().trim().max(180).optional().default(""),
+		submissionType: z.literal("event_update"),
+		originalEventKey: z.string().trim().min(1).max(180),
 		originalEventName: z.string().trim().max(180).optional().default(""),
 		originalEventUrl: z
 			.string()
@@ -83,28 +166,63 @@ const eventSubmissionInputSchema = z
 			)
 			.optional()
 			.default(""),
-		originalEventSnapshot: z
-			.record(z.string(), z.string().trim().max(3000))
-			.optional()
-			.default({}),
-		eventName: z.string().trim().min(2).max(180),
+		originalEventSnapshot: eventCoreSnapshotSchema.optional().default({}),
+		eventName: z.string().trim().min(2).max(180).optional(),
 		date: z
 			.string()
 			.trim()
-			.refine(isValidDateValue, "Date must use YYYY-MM-DD"),
+			.refine(isValidDateValue, "Date must use YYYY-MM-DD")
+			.optional(),
 		startTime: z
 			.string()
 			.trim()
-			.regex(TIME_PATTERN, "Start time must use HH:MM"),
-		location: z.string().trim().min(2).max(240),
-		hostEmail: z.string().trim().email().max(254),
-		proofLink: z
+			.transform((value, context) => {
+				const normalized = normalizeWhitespace(value);
+				if (!normalized) return "";
+				if (!TIME_PATTERN.test(normalized)) {
+					context.addIssue({
+						code: "custom",
+						message: "Start time must use HH:MM",
+					});
+					return z.NEVER;
+				}
+				return normalized;
+			})
+			.optional(),
+		location: eventSubmissionBaseSchema.location.optional(),
+		hostEmail: eventSubmissionBaseSchema.hostEmail,
+		proofLink: eventSubmissionBaseSchema.proofLink,
+		endTime: z
 			.string()
 			.trim()
-			.max(2000)
-			.transform((value, context) =>
-				normalizedUrlField(value, context, "Proof link must be an HTTP(S) URL"),
-			),
+			.transform((value, context) => {
+				const normalized = normalizeWhitespace(value);
+				if (!normalized) return "";
+				if (!TIME_PATTERN.test(normalized)) {
+					context.addIssue({
+						code: "custom",
+						message: "End time must use HH:MM",
+					});
+					return z.NEVER;
+				}
+				return normalized;
+			})
+			.optional(),
+		genre: eventSubmissionBaseSchema.genre.optional(),
+		suggestedGenres: z.string().trim().max(500).optional(),
+		price: eventSubmissionBaseSchema.price.optional(),
+		age: z.string().trim().max(80).optional(),
+		indoorOutdoor: z.string().trim().max(80).optional(),
+		notes: z.string().trim().max(3000).optional(),
+		arrondissement: z
+			.string()
+			.trim()
+			.max(32)
+			.refine(
+				(value) => value === "" || ARRONDISSEMENT_PATTERN.test(value),
+				"Arrondissement must be 1-20, greater-paris, outside-paris, or unknown",
+			)
+			.optional(),
 		ticketLink: z
 			.string()
 			.trim()
@@ -116,38 +234,111 @@ const eventSubmissionInputSchema = z
 					"Ticket links must be HTTP(S) URLs",
 				),
 			)
-			.optional()
-			.default(""),
-		endTime: z.string().trim().regex(TIME_PATTERN, "End time must use HH:MM"),
-		genre: z.string().trim().min(1).max(500),
-		suggestedGenres: z.string().trim().max(500).optional().default(""),
-		price: z.string().trim().min(1).max(80),
-		age: z.string().trim().max(80).optional().default(""),
-		indoorOutdoor: z.string().trim().max(80).optional().default(""),
-		notes: z.string().trim().max(3000).optional().default(""),
-		arrondissement: z
-			.string()
-			.trim()
-			.max(32)
-			.refine(
-				(value) => value === "" || ARRONDISSEMENT_PATTERN.test(value),
-				"Arrondissement must be 1-20, greater-paris, outside-paris, or unknown",
-			)
-			.optional()
-			.default(""),
-		formStartedAt: z.string().trim().optional().default(""),
-		honeypot: z.string().trim().optional().default(""),
+			.optional(),
+		formStartedAt: eventSubmissionBaseSchema.formStartedAt,
+		honeypot: eventSubmissionBaseSchema.honeypot,
 	})
 	.superRefine((value, context) => {
-		if (value.submissionType !== "event_update") return;
-		if (!value.originalEventKey) {
+		const normalizedSnapshot = Object.fromEntries(
+			Object.entries(value.originalEventSnapshot)
+				.map(([key, val]) => [key, normalizeWhitespace(val)])
+				.filter(([, normalized]) => normalized.length > 0),
+		);
+
+		const changedFields = EVENT_UPDATE_PATCH_FIELDS.filter(
+			(field) =>
+				Object.prototype.hasOwnProperty.call(value, field) &&
+				normalizeUpdateFieldValue(
+					field,
+					String((value as Record<string, unknown>)[field] ?? ""),
+				) !== normalizeWhitespace(normalizedSnapshot[field] || ""),
+		);
+		if (changedFields.length === 0) {
 			context.addIssue({
 				code: "custom",
-				path: ["originalEventKey"],
-				message: "Update requests must reference an event key",
+				path: ["submissionType"],
+				message: "Update requests must include at least one changed field",
 			});
 		}
+
+		for (const requiredField of REQUIRED_UPDATE_MERGE_FIELDS) {
+			const valueProvided = Object.prototype.hasOwnProperty.call(
+				value,
+				requiredField,
+			)
+				? normalizeWhitespace(
+						String((value as Record<string, unknown>)[requiredField] ?? ""),
+					)
+				: "";
+			const snapshotValue = normalizeWhitespace(
+				normalizedSnapshot[requiredField] || "",
+			);
+			if (!valueProvided && !snapshotValue) {
+				context.addIssue({
+					code: "custom",
+					path: [requiredField],
+					message: `Update requests require ${requiredField} in payload or snapshot`,
+				});
+			}
+		}
 	});
+
+const eventSubmissionNewInputSchema = z.object({
+	submissionType: z.literal("new_event"),
+	originalEventKey: z.string().trim().max(180).optional().default(""),
+	originalEventName: z.string().trim().max(180).optional().default(""),
+	originalEventUrl: z
+		.string()
+		.trim()
+		.max(2000)
+		.transform((value, context) =>
+			normalizedOptionalUrlField(
+				value,
+				context,
+				"Original event URL must be an HTTP(S) URL",
+			),
+		)
+		.optional()
+		.default(""),
+	originalEventSnapshot: eventCoreSnapshotSchema.optional().default({}),
+	eventName: eventSubmissionBaseSchema.eventName,
+	date: eventSubmissionBaseSchema.date,
+	startTime: eventSubmissionBaseSchema.startTime,
+	location: eventSubmissionBaseSchema.location,
+	hostEmail: eventSubmissionBaseSchema.hostEmail,
+	proofLink: eventSubmissionBaseSchema.proofLink,
+	ticketLink: eventSubmissionBaseSchema.ticketLink,
+	endTime: eventSubmissionBaseSchema.endTime,
+	genre: eventSubmissionBaseSchema.genre,
+	suggestedGenres: eventSubmissionBaseSchema.suggestedGenres,
+	price: eventSubmissionBaseSchema.price,
+	age: eventSubmissionBaseSchema.age,
+	indoorOutdoor: eventSubmissionBaseSchema.indoorOutdoor,
+	notes: eventSubmissionBaseSchema.notes,
+	arrondissement: eventSubmissionBaseSchema.arrondissement,
+	formStartedAt: eventSubmissionBaseSchema.formStartedAt,
+	honeypot: eventSubmissionBaseSchema.honeypot,
+});
+
+const eventSubmissionInputSchema = z.preprocess(
+	(payload) => {
+		if (
+			payload &&
+			typeof payload === "object" &&
+			!("submissionType" in payload)
+		) {
+			return {
+				...(payload as Record<string, unknown>),
+				submissionType: "new_event",
+			};
+		}
+		return payload;
+	},
+	z.discriminatedUnion("submissionType", [
+		eventSubmissionNewInputSchema,
+		eventSubmissionUpdateInputSchema,
+	]),
+);
 
 export type EventSubmissionInput = z.infer<typeof eventSubmissionInputSchema>;
 
@@ -176,6 +367,15 @@ export interface NormalizedEventSubmissionInput {
 	honeypot: string;
 }
 
+const normalizeSnapshotMap = (
+	snapshot: Record<string, string>,
+): Record<string, string> =>
+	Object.fromEntries(
+		Object.entries(snapshot)
+			.map(([key, value]) => [key, normalizeUpdateFieldValue(key, value)])
+			.filter(([, value]) => value.length > 0),
+	);
+
 const getRepositoryOrThrow = () => {
 	const repository = getEventSubmissionRepository();
 	if (!repository) {
@@ -186,9 +386,6 @@ const getRepositoryOrThrow = () => {
 	return repository;
 };
 
-const normalizeWhitespace = (value: string): string =>
-	value.replace(/\s+/g, " ").trim();
-
 const toOptionalField = (value: string): string => normalizeWhitespace(value);
 
 const normalizeFingerprintSegment = (value: string): string =>
@@ -198,16 +395,80 @@ export const parseEventSubmissionInput = (
 	payload: unknown,
 ): NormalizedEventSubmissionInput => {
 	const parsed = eventSubmissionInputSchema.parse(payload);
+
+	const normalizedOriginalSnapshot = normalizeSnapshotMap(
+		parsed.originalEventSnapshot,
+	);
+	if (parsed.submissionType === "event_update") {
+		const updatePayload = parsed;
+		const changedFields = EVENT_UPDATE_PATCH_FIELDS.filter(
+			(field) =>
+				Object.prototype.hasOwnProperty.call(updatePayload, field) &&
+				normalizeUpdateFieldValue(
+					field,
+					String((updatePayload as Record<string, unknown>)[field] ?? ""),
+				) !== normalizeWhitespace(normalizedOriginalSnapshot[field] || ""),
+		);
+		if (changedFields.length === 0) {
+			throw new z.ZodError([
+				{
+					code: "custom",
+					path: ["submissionType"],
+					message: "Update requests must include at least one changed field",
+				},
+			]);
+		}
+
+		const mergeWithSnapshot = (field: EventUpdatePatchField): string => {
+			const patchValue = updatePayload[field as keyof typeof updatePayload];
+			return typeof patchValue === "string"
+				? normalizeUpdateFieldValue(field, patchValue)
+				: normalizedOriginalSnapshot[field] || "";
+		};
+
+		const storedSnapshot = Object.fromEntries(
+			Array.from(
+				new Set([
+					...REQUIRED_UPDATE_MERGE_FIELDS,
+					...EVENT_UPDATE_PATCH_FIELDS,
+				]),
+			)
+				.map((field) => [field, normalizedOriginalSnapshot[field]])
+				.filter((entry): entry is [string, string] => Boolean(entry[1])),
+		);
+
+		return {
+			submissionType: "event_update",
+			originalEventKey: normalizeWhitespace(updatePayload.originalEventKey),
+			originalEventName: normalizeWhitespace(updatePayload.originalEventName),
+			originalEventUrl: normalizeWhitespace(updatePayload.originalEventUrl),
+			originalEventSnapshot: storedSnapshot,
+			eventName: mergeWithSnapshot("eventName"),
+			date: mergeWithSnapshot("date"),
+			startTime: mergeWithSnapshot("startTime"),
+			location: mergeWithSnapshot("location"),
+			hostEmail: updatePayload.hostEmail.trim().toLowerCase(),
+			proofLink: updatePayload.proofLink,
+			ticketLink: mergeWithSnapshot("ticketLink"),
+			endTime: mergeWithSnapshot("endTime"),
+			genre: mergeWithSnapshot("genre"),
+			suggestedGenres: normalizedOriginalSnapshot.suggestedGenres || "",
+			price: mergeWithSnapshot("price"),
+			age: mergeWithSnapshot("age"),
+			indoorOutdoor: mergeWithSnapshot("indoorOutdoor"),
+			notes: mergeWithSnapshot("notes"),
+			arrondissement: mergeWithSnapshot("arrondissement"),
+			formStartedAt: updatePayload.formStartedAt.trim(),
+			honeypot: updatePayload.honeypot.trim(),
+		};
+	}
+
 	return {
 		submissionType: parsed.submissionType,
 		originalEventKey: normalizeWhitespace(parsed.originalEventKey),
 		originalEventName: normalizeWhitespace(parsed.originalEventName),
 		originalEventUrl: normalizeWhitespace(parsed.originalEventUrl),
-		originalEventSnapshot: Object.fromEntries(
-			Object.entries(parsed.originalEventSnapshot)
-				.map(([key, value]) => [key, normalizeWhitespace(value)])
-				.filter(([, value]) => value.length > 0),
-		),
+		originalEventSnapshot: normalizeSnapshotMap(parsed.originalEventSnapshot),
 		eventName: normalizeWhitespace(parsed.eventName),
 		date: normalizeWhitespace(parsed.date),
 		startTime: normalizeWhitespace(parsed.startTime),

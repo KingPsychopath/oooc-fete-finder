@@ -186,6 +186,33 @@ const hasGenreLabel = (genres: string[], label: string): boolean => {
 	return genres.some((genre) => normalizeSearchText(genre) === normalized);
 };
 
+const EVENT_UPDATE_DIFF_FIELDS = [
+	"eventName",
+	"date",
+	"startTime",
+	"endTime",
+	"location",
+	"genre",
+	"price",
+	"age",
+	"indoorOutdoor",
+	"arrondissement",
+	"ticketLink",
+	"notes",
+] as const;
+type EventUpdatePatchField = (typeof EVENT_UPDATE_DIFF_FIELDS)[number];
+
+const REQUIRED_EVENT_UPDATE_MERGE_FIELDS = [
+	"eventName",
+	"date",
+	"startTime",
+	"location",
+	"endTime",
+] as const;
+
+const normalizeEventUpdateText = (value: string): string =>
+	value.replace(/\s+/g, " ").trim();
+
 const getDisplayGenreLabel = (genre: string) =>
 	MUSIC_GENRES.find((item) => item.key === genre)?.label || toGenreLabel(genre);
 
@@ -948,22 +975,65 @@ const EventModal: React.FC<EventModalProps> = ({
 			});
 			return;
 		}
-
+		const normalizedTicketLink = normalizedTicketLinks
+			? normalizedTicketLinks.join("\n")
+			: "";
 		const originalSnapshot = buildUpdateRequestForm();
+		const changedFields = EVENT_UPDATE_DIFF_FIELDS.reduce(
+			(acc, field) => {
+				const updatedValue =
+					field === "ticketLink"
+						? normalizedTicketLink
+						: normalizeEventUpdateText(updateRequestForm[field]);
+				const originalValue = normalizeEventUpdateText(originalSnapshot[field]);
+				if (updatedValue !== originalValue) {
+					acc[field] = updatedValue;
+				}
+				return acc;
+			},
+			{} as Partial<Record<EventUpdatePatchField, string>>,
+		);
+
+		if (Object.keys(changedFields).length === 0) {
+			setUpdateRequestStatus({
+				message:
+					"Nothing changed. Please update at least one field before submitting.",
+				tone: "error",
+			});
+			return;
+		}
+
+		const originalEventSnapshot = Object.fromEntries(
+			Array.from(
+				new Set([
+					...REQUIRED_EVENT_UPDATE_MERGE_FIELDS,
+					...(Object.keys(changedFields) as EventUpdatePatchField[]),
+				]),
+			)
+				.map((field) => [
+					field,
+					normalizeEventUpdateText(originalSnapshot[field]),
+				])
+				.filter(([, value]) => value.length > 0),
+		) as Record<string, string>;
+
 		setIsSubmittingUpdateRequest(true);
 		try {
 			const response = await fetch(`${basePath}/api/event-submissions`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					...updateRequestForm,
+					...changedFields,
 					proofLink: normalizedProofLink,
-					ticketLink: (normalizedTicketLinks ?? []).join("\n"),
+					ticketLink:
+						changedFields.ticketLink !== undefined
+							? normalizedTicketLink
+							: undefined,
 					submissionType: "event_update",
 					originalEventKey: event.eventKey,
 					originalEventName: event.name,
 					originalEventUrl: buildCanonicalEventUrl(),
-					originalEventSnapshot: originalSnapshot,
+					originalEventSnapshot,
 					formStartedAt: new Date(Date.now() - 5000).toISOString(),
 				}),
 				signal: AbortSignal.timeout(12000),
