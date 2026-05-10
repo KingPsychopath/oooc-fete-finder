@@ -64,6 +64,7 @@ type EmailActivityFilterMode =
 	| "filters"
 	| "event-actions"
 	| "genre-prefs"
+	| "returned-no-activity"
 	| "has-context"
 	| "missing-context";
 
@@ -72,7 +73,7 @@ const ACTIVITY_SEGMENTS: Array<{
 	value: EmailActivityFilterMode;
 	sortMode: EmailSortMode;
 }> = [
-	{ label: "Active users", value: "has-activity", sortMode: "activity" },
+	{ label: "Any linked activity", value: "has-activity", sortMode: "activity" },
 	{
 		label: "Active last 7d",
 		value: "recently-active",
@@ -86,7 +87,12 @@ const ACTIVITY_SEGMENTS: Array<{
 		value: "genre-prefs",
 		sortMode: "activity",
 	},
-	{ label: "Context captured", value: "has-context", sortMode: "last-active" },
+	{
+		label: "Returned no activity",
+		value: "returned-no-activity",
+		sortMode: "newest",
+	},
+	{ label: "Context available", value: "has-context", sortMode: "last-active" },
 	{ label: "Context missing", value: "missing-context", sortMode: "newest" },
 ];
 
@@ -137,6 +143,12 @@ const getTime = (value: string | null | undefined): number => {
 
 const getActivityCount = (user: EmailRecord): number =>
 	user.linkedSignalCount ?? 0;
+
+const hasReturnedWithoutNewActivity = (user: EmailRecord): boolean => {
+	const capturedAt = getTime(user.timestamp);
+	const lastActiveAt = getTime(user.lastSignalAt);
+	return capturedAt > 0 && lastActiveAt > 0 && capturedAt > lastActiveAt;
+};
 
 const sortEmails = (emails: EmailRecord[], sortMode: EmailSortMode) => {
 	return [...emails].sort((left, right) => {
@@ -227,6 +239,8 @@ const matchesActivityFilter = (
 			return (user.eventActionSignalCount ?? 0) > 0;
 		case "genre-prefs":
 			return (user.genrePreferenceSignalCount ?? 0) > 0;
+		case "returned-no-activity":
+			return hasReturnedWithoutNewActivity(user);
 		case "has-context":
 			return hasUsefulContext(user);
 		case "missing-context":
@@ -247,7 +261,7 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		"First Name",
 		"Last Name",
 		"Email",
-		"Last Captured At",
+		"Last Sign-In/Capture At",
 		"Last Active At",
 		"Consent",
 		"Source",
@@ -392,7 +406,7 @@ const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 	},
 	{ label: "Source", value: profile.user.source || "Unknown" },
 	{
-		label: "Last captured",
+		label: "Last sign-in/capture",
 		value: formatAdminDateTime(profile.user.timestamp),
 	},
 	{
@@ -690,7 +704,7 @@ export const EmailCollectionCard = ({
 					</div>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Total Submissions
+							Total Sign-ins/Captures
 						</p>
 						<p className="mt-1 text-sm font-medium">
 							{analytics?.totalSubmissions ?? emails.length}
@@ -704,13 +718,13 @@ export const EmailCollectionCard = ({
 					</div>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Recent Capture
+							Recent Sign-ins/Captures
 						</p>
 						<p className="mt-1 text-sm font-medium tabular-nums">
 							{submissionsLast24Hours} / {submissionsLast7Days}
 						</p>
 						<p className="mt-0.5 text-[11px] text-muted-foreground">
-							24h / 7d submissions
+							24h / 7d
 						</p>
 					</div>
 				</div>
@@ -728,7 +742,7 @@ export const EmailCollectionCard = ({
 				<div className="grid gap-2 lg:grid-cols-2">
 					<div className="space-y-2 rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Capture Pace
+							Sign-in/Capture Pace
 						</p>
 						<div className="space-y-1.5">
 							{[
@@ -836,15 +850,18 @@ export const EmailCollectionCard = ({
 						}
 						className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
 					>
-						<option value="all">Any activity</option>
-						<option value="has-activity">Has activity</option>
-						<option value="no-activity">No activity</option>
+						<option value="all">All segments</option>
+						<option value="has-activity">Any linked activity</option>
+						<option value="no-activity">No linked activity</option>
 						<option value="recently-active">Active last 7d</option>
 						<option value="searches">Searched</option>
 						<option value="filters">Used filters</option>
 						<option value="event-actions">Opened/saved events</option>
 						<option value="genre-prefs">Genre prefs</option>
-						<option value="has-context">Context captured</option>
+						<option value="returned-no-activity">
+							Returned, no new activity
+						</option>
+						<option value="has-context">Context available</option>
 						<option value="missing-context">Context missing</option>
 					</select>
 					<select
@@ -855,8 +872,8 @@ export const EmailCollectionCard = ({
 						className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
 					>
 						<option value="last-active">Last active</option>
-						<option value="newest">Recent captures</option>
-						<option value="oldest">Oldest captures</option>
+						<option value="newest">Recent sign-ins/captures</option>
+						<option value="oldest">Oldest sign-ins/captures</option>
 						<option value="email">Email A-Z</option>
 						<option value="name">Name A-Z</option>
 						<option value="consented">Consent first</option>
@@ -873,14 +890,13 @@ export const EmailCollectionCard = ({
 							<div className="flex items-center">
 								<p className="text-sm font-medium">User segments</p>
 								<InfoPopover aria-label="Explain user segments" side="top">
-									These buttons filter collected users by linked first-party
-									activity. Export Filtered downloads only the users currently
-									in view.
+									These buttons filter users by linked behaviour, return visits,
+									and captured context. Click an active segment again to clear it.
 								</InfoPopover>
 							</div>
 							<p className="mt-1 text-xs text-muted-foreground">
-								Filter users by linked activity and context, then export that
-								filtered user list.
+								Separate people who did something from people who only returned
+								or signed in again.
 							</p>
 						</div>
 						<Button
@@ -907,6 +923,11 @@ export const EmailCollectionCard = ({
 								}
 								size="sm"
 								onClick={() => {
+									if (activityFilterMode === segment.value) {
+										setActivityFilterMode("all");
+										setSortMode("last-active");
+										return;
+									}
 									setActivityFilterMode(segment.value);
 									setSortMode(segment.sortMode);
 								}}
@@ -1099,6 +1120,11 @@ export const EmailCollectionCard = ({
 													Genres: {user.genrePreferenceSignalCount}
 												</Badge>
 											)}
+											{hasReturnedWithoutNewActivity(user) && (
+												<Badge variant="outline">
+													Returned, no new activity
+												</Badge>
+											)}
 										</span>
 										{getUserContextItems(user).length > 0 && (
 											<span className="mt-2 flex flex-wrap gap-1.5">
@@ -1111,7 +1137,8 @@ export const EmailCollectionCard = ({
 										)}
 										<span className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
 											<span>
-												Last captured {formatAdminDateTime(user.timestamp)}
+												Last sign-in/capture{" "}
+												{formatAdminDateTime(user.timestamp)}
 											</span>
 											<span>{user.source}</span>
 											{user.lastSignalAt && (

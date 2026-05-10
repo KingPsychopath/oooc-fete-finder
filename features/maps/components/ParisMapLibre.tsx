@@ -1246,23 +1246,29 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				)}
 			>
 				<div className="flex h-full items-center justify-center p-4">
-					<div className="ooo-site-card w-full max-w-md rounded-2xl border border-border/75 p-6 text-center">
-						{isFullscreen && onFullscreenRequest && (
-							<div className="mb-4 flex justify-end">
+					<div className="ooo-site-card w-full max-w-md rounded-2xl border border-border/75 p-5 text-left shadow-[0_24px_58px_-42px_rgba(16,12,9,0.72)] sm:p-6">
+						<div className="mb-3 flex items-start justify-between gap-4">
+							<div>
+								<p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+									Paris Map
+								</p>
+								<p className="mt-1 text-sm font-medium text-foreground">
+									Map temporarily unavailable
+								</p>
+							</div>
+							{isFullscreen && onFullscreenRequest && (
 								<button
 									type="button"
 									onPointerDown={handleFullscreenPointerDown}
-									className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/68 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-									aria-label="Close full screen map"
+									className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background/78 text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+									aria-label="Exit full screen map"
+									title="Exit full screen"
 								>
-									<X className="h-4 w-4" />
+									<Minimize2 className="h-3.5 w-3.5" />
 								</button>
-							</div>
-						)}
-						<p className="text-sm font-medium text-foreground">
-							Map temporarily unavailable
-						</p>
-						<p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+							)}
+						</div>
+						<p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
 							{isOfflineMode
 								? `${visibleLoadError}. Saved event browsing, search, and filters are still available below.`
 								: `${visibleLoadError}. The district map can be retried without losing your current filters.`}
