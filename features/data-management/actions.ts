@@ -118,6 +118,7 @@ const validateFactoryResetPasscode = (providedPasscode: string): boolean => {
 
 const COORDINATE_WARMUP_RECOVERABLE_ERROR_FRAGMENT =
 	"no geocoding provider is configured";
+const SLOW_ADMIN_REVALIDATION_MS = 1500;
 
 const PARIS_COORDINATE_BOUNDS = {
 	north: 48.92,
@@ -504,6 +505,13 @@ export async function revalidatePages(
 	try {
 		const revalidationResult = await fullEventsRevalidation(normalizedPath);
 		const processingTime = Date.now() - startTime;
+		if (processingTime >= SLOW_ADMIN_REVALIDATION_MS) {
+			log.warn("cache", "Slow admin revalidation", {
+				path: normalizedPath,
+				processingTimeMs: processingTime,
+				success: revalidationResult.success,
+			});
+		}
 		return {
 			...revalidationResult,
 			processingTimeMs: processingTime,

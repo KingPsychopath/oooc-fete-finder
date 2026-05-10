@@ -136,7 +136,7 @@ export async function scheduleFeaturedEvent(
 			durationHours,
 			createdBy: "admin-panel",
 		});
-		revalidateEventsPaths(["/", "/feature-event"]);
+		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.spotlight.scheduled",
 			category: "placements",
@@ -175,7 +175,7 @@ export async function cancelFeaturedSchedule(entryId: string): Promise<{
 				message: "Featured entry not found",
 			};
 		}
-		revalidateEventsPaths(["/", "/feature-event"]);
+		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.spotlight.cancelled",
 			category: "placements",
@@ -222,7 +222,7 @@ export async function rescheduleFeaturedEvent(
 				message: "Featured entry not found",
 			};
 		}
-		revalidateEventsPaths(["/", "/feature-event"]);
+		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.spotlight.rescheduled",
 			category: "placements",
@@ -256,7 +256,7 @@ export async function clearFeaturedQueueHistory(): Promise<{
 	try {
 		await assertAdmin();
 		const clearedCount = await clearFeaturedQueueHistoryService();
-		revalidateEventsPaths(["/", "/feature-event"]);
+		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.spotlight.cleared_all",
 			category: "placements",
@@ -289,7 +289,7 @@ export async function clearFeaturedQueue(): Promise<{
 	try {
 		await assertAdmin();
 		const clearedCount = await clearFeaturedQueueOnlyService();
-		revalidateEventsPaths(["/", "/feature-event"]);
+		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.spotlight.cleared_queue",
 			category: "placements",
@@ -322,7 +322,7 @@ export async function clearFeaturedHistory(): Promise<{
 	try {
 		await assertAdmin();
 		const clearedCount = await clearFeaturedHistoryOnlyService();
-		revalidateEventsPaths(["/", "/feature-event"]);
+		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.spotlight.cleared_history",
 			category: "placements",

@@ -5,7 +5,6 @@ import {
 	getPopularSearchChipSignalsCached,
 	getPublicSearchChipSettingsCached,
 } from "@/features/events/search-chip-queries";
-import { SearchChipSettingsStore } from "@/features/events/search-chip-settings-store";
 import { buildDynamicSearchChips } from "@/features/events/search-chips";
 import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
@@ -24,7 +23,6 @@ export async function HomeEventsSection({
 		submissionSettings,
 		searchChipSettings,
 		popularSearchSignals,
-		suppressedEventQueries,
 	] = await Promise.all([
 		getLiveEvents(),
 		EventSubmissionSettingsStore.getPublicSettings().catch((error: unknown) => {
@@ -39,8 +37,8 @@ export async function HomeEventsSection({
 		}),
 		getPublicSearchChipSettingsCached(),
 		getPopularSearchChipSignalsCached(),
-		SearchChipSettingsStore.getSuppressedEventQueries().catch(() => []),
 	]);
+	const suppressedEventQueries: string[] = [];
 	const isRemoteMode = env.DATA_MODE === "remote";
 	const isBackupFallback = isRemoteMode && result.source === "backup";
 	const isLocalFallback = isRemoteMode && result.source === "local";
@@ -51,14 +49,6 @@ export async function HomeEventsSection({
 					suppressedEventQueries,
 				})
 			: [];
-	if (dynamicSearchChips.length > 0) {
-		void SearchChipSettingsStore.recordEventChipSelection(
-			dynamicSearchChips
-				.filter((chip) => chip.kind === "event")
-				.map((chip) => chip.query),
-		);
-	}
-
 	if (result.error) {
 		log.error("home", "Error loading events", { error: result.error });
 	}

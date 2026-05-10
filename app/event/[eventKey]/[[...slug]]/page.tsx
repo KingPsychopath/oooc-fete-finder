@@ -12,6 +12,7 @@ import {
 	generateEventOGImage,
 	generateOGMetadata,
 } from "@/lib/social/og-utils";
+import { log } from "@/lib/platform/logger";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -120,6 +121,7 @@ const buildEventSharePath = (eventKey: string, slug: string): string => {
 export async function generateMetadata({
 	params,
 }: EventSharePageProps): Promise<Metadata> {
+	const startedAt = Date.now();
 	const { eventKey, slug } = await params;
 	const resolvedSlug = getSlug(slug);
 	const fallbackTitle = toDisplayTitle(eventKey);
@@ -134,6 +136,14 @@ export async function generateMetadata({
 		matchedEvent?.slug || resolvedSlug,
 	);
 	const eventUrl = new URL(eventSharePath, siteUrl);
+	const durationMs = Date.now() - startedAt;
+	if (durationMs >= 500) {
+		log.warn("event-share-page", "Slow event metadata generation", {
+			durationMs,
+			eventKey,
+			found: Boolean(matchedEvent),
+		});
+	}
 
 	return {
 		...generateOGMetadata({
@@ -153,8 +163,17 @@ export async function generateMetadata({
 }
 
 export default async function EventSharePage({ params }: EventSharePageProps) {
+	const startedAt = Date.now();
 	const { eventKey } = await params;
 	const event = await getEventShareEvent(eventKey);
+	const durationMs = Date.now() - startedAt;
+	if (durationMs >= 500) {
+		log.warn("event-share-page", "Slow event page data load", {
+			durationMs,
+			eventKey,
+			found: Boolean(event),
+		});
+	}
 
 	if (!event) {
 		notFound();

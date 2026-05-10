@@ -131,7 +131,7 @@ export async function schedulePromotedEvent(
 			durationHours,
 			createdBy: "admin-panel",
 		});
-		revalidateEventsPaths(["/", "/feature-event"]);
+		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.promoted.scheduled",
 			category: "placements",
@@ -166,7 +166,7 @@ export async function cancelPromotedSchedule(entryId: string): Promise<{
 		if (!cancelled) {
 			return { success: false, message: "Promoted entry not found" };
 		}
-		revalidateEventsPaths(["/", "/feature-event"]);
+		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.promoted.cancelled",
 			category: "placements",
@@ -209,7 +209,7 @@ export async function reschedulePromotedEvent(
 		if (!updated) {
 			return { success: false, message: "Promoted entry not found" };
 		}
-		revalidateEventsPaths(["/", "/feature-event"]);
+		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.promoted.rescheduled",
 			category: "placements",
@@ -242,7 +242,7 @@ export async function clearPromotedQueueHistory(): Promise<{
 	try {
 		await assertAdmin();
 		const clearedCount = await clearPromotedQueueHistoryService();
-		revalidateEventsPaths(["/", "/feature-event"]);
+		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.promoted.cleared_all",
 			category: "placements",
@@ -274,7 +274,7 @@ export async function clearPromotedQueue(): Promise<{
 	try {
 		await assertAdmin();
 		const clearedCount = await clearPromotedQueueOnlyService();
-		revalidateEventsPaths(["/", "/feature-event"]);
+		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.promoted.cleared_queue",
 			category: "placements",
@@ -307,7 +307,7 @@ export async function clearPromotedHistory(): Promise<{
 	try {
 		await assertAdmin();
 		const clearedCount = await clearPromotedHistoryOnlyService();
-		revalidateEventsPaths(["/", "/feature-event"]);
+		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.promoted.cleared_history",
 			category: "placements",

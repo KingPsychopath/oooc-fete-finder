@@ -502,6 +502,7 @@ const resolveOGContent = async (
 };
 
 export async function GET(request: NextRequest) {
+	const startedAt = Date.now();
 	let cacheTags = "og,error";
 	try {
 		if (await isRateLimited(request)) {
@@ -541,6 +542,15 @@ export async function GET(request: NextRequest) {
 		const cardMaxWidth = isEventCard ? 1000 : 980;
 		const cardPadding = isEventCard ? "36px 40px" : "34px 38px";
 		const subtitleFontSize = isEventCard ? 28 : 32;
+		const durationMs = Date.now() - startedAt;
+		if (durationMs >= 1000) {
+			log.warn("og-image", "Slow OG image response", {
+				durationMs,
+				variant,
+				cacheTags,
+				isEventCard,
+			});
+		}
 
 		return new ImageResponse(
 			<div

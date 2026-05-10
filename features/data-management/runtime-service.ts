@@ -76,12 +76,15 @@ const EVENTS_CACHE_TAGS = [
 	"promoted-events",
 ] as const;
 const EVENTS_SOURCE_CACHE_REVALIDATE_SECONDS = 24 * 60 * 60;
-const EVENTS_LAYOUT_PATHS = [
-	"/",
-	"/events",
-	"/admin",
-	"/feature-event",
-] as const;
+const EVENTS_PUBLIC_LAYOUT_PATHS = ["/", "/feature-event"] as const;
+const SOCIAL_PROOF_COUNTS_REVALIDATE_SECONDS = 5 * 60;
+
+type EventRevalidationScope = "event-data" | "placements" | "page-only";
+
+interface EventRevalidationOptions {
+	scope?: EventRevalidationScope;
+	includeLayouts?: boolean;
+}
 
 const metrics = {
 	errors: 0,
@@ -138,6 +141,26 @@ const getSourceEventsForRequest = cache(async (populateCoordinates: boolean) =>
 		: getCachedSourceEvents(),
 );
 
+const getCachedSocialProofSaveCountEntries = unstable_cache(
+	async (
+		eventKeys: string[],
+		windowDays: number,
+	): Promise<Array<[string, number]>> => {
+		const repository = getEventEngagementRepository();
+		if (!repository) return [];
+		const counts = await repository.getSocialProofSaveCounts({
+			eventKeys,
+			windowDays,
+		});
+		return [...counts.entries()];
+	},
+	["event-social-proof-save-counts"],
+	{
+		revalidate: SOCIAL_PROOF_COUNTS_REVALIDATE_SECONDS,
+		tags: ["event-engagement", "events"],
+	},
+);
+
 const getLiveEventsForRequest = cache(
 	async (
 		includeFeaturedProjection: boolean,
@@ -159,27 +182,28 @@ const getLiveEventsForRequest = cache(
 				);
 			}
 			if (normalized.success && includeEngagementProjection) {
-				const repository = getEventEngagementRepository();
-				if (repository) {
-					const eventKeys = normalized.data.map((event) => event.eventKey);
-					const socialProofSaveCounts =
-						await repository.getSocialProofSaveCounts({
+				const eventKeys = normalized.data.map((event) => event.eventKey);
+				const [socialProofSaveCounts, socialProofHistoricalSaveCounts] =
+					await Promise.all([
+						getCachedSocialProofSaveCountEntries(
 							eventKeys,
-							windowDays: getSocialProofSaveWindowDays(),
-						});
-					const socialProofHistoricalSaveCounts =
-						await repository.getSocialProofSaveCounts({
+							getSocialProofSaveWindowDays(),
+						),
+						getCachedSocialProofSaveCountEntries(
 							eventKeys,
-							windowDays: CARD_SOCIAL_PROOF_HISTORICAL_WINDOW_DAYS,
-						});
-					normalized.data = normalized.data.map((event) => ({
-						...event,
-						socialProofSaveCount:
-							socialProofSaveCounts.get(event.eventKey) ?? 0,
-						socialProofHistoricalSaveCount:
-							socialProofHistoricalSaveCounts.get(event.eventKey) ?? 0,
-					}));
-				}
+							CARD_SOCIAL_PROOF_HISTORICAL_WINDOW_DAYS,
+						),
+					]);
+				const socialProofSaveCountMap = new Map(socialProofSaveCounts);
+				const socialProofHistoricalSaveCountMap = new Map(
+					socialProofHistoricalSaveCounts,
+				);
+				normalized.data = normalized.data.map((event) => ({
+					...event,
+					socialProofSaveCount: socialProofSaveCountMap.get(event.eventKey) ?? 0,
+					socialProofHistoricalSaveCount:
+						socialProofHistoricalSaveCountMap.get(event.eventKey) ?? 0,
+				}));
 			}
 			if (!normalized.success) {
 				metrics.errors += 1;
@@ -214,23 +238,38 @@ export async function getLiveEvents(options?: {
 
 export const revalidateEventsPaths = (
 	paths: readonly string[] = ["/"],
+	options: EventRevalidationOptions = {},
 ): void => {
+	const scope = options.scope ?? "event-data";
 	for (const path of paths) {
 		revalidatePath(path, "page");
 	}
 
-	for (const path of EVENTS_LAYOUT_PATHS) {
-		revalidatePath(path, "layout");
+	if (options.includeLayouts) {
+		for (const path of EVENTS_PUBLIC_LAYOUT_PATHS) {
+			revalidatePath(path, "layout");
+		}
 	}
 
-	for (const tag of EVENTS_CACHE_TAGS) {
+	const tags =
+		scope === "page-only"
+			? []
+			: scope === "placements"
+				? (["featured-events", "promoted-events"] as const)
+				: EVENTS_CACHE_TAGS;
+
+	for (const tag of tags) {
 		revalidateTag(tag, "max");
 	}
 };
 
-export async function forceRefreshEventsData(): Promise<RuntimeRefreshResult> {
+export async function forceRefreshEventsData(
+	options: { revalidate?: boolean } = {},
+): Promise<RuntimeRefreshResult> {
 	const result = await getLiveEvents();
-	revalidateEventsPaths(["/"]);
+	if (options.revalidate !== false) {
+		revalidateEventsPaths(["/"]);
+	}
 
 	if (!result.success) {
 		return {
@@ -254,7 +293,7 @@ export async function fullEventsRevalidation(
 	path = "/",
 ): Promise<FullRevalidationResult> {
 	try {
-		const refreshResult = await forceRefreshEventsData();
+		const refreshResult = await forceRefreshEventsData({ revalidate: false });
 		revalidateEventsPaths([path]);
 		return {
 			success: refreshResult.success,

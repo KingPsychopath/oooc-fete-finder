@@ -102,7 +102,10 @@ describe("featured actions", () => {
 
 		expect(result.success).toBe(true);
 		expect(scheduleFeaturedEntry).toHaveBeenCalledTimes(1);
-		expect(revalidateEventsPaths).toHaveBeenCalledWith(["/", "/feature-event"]);
+		expect(revalidateEventsPaths).toHaveBeenCalledWith(
+			["/", "/feature-event"],
+			{ scope: "placements" },
+		);
 	});
 
 	it("cancels and reschedules entries", async () => {
@@ -137,7 +140,10 @@ describe("featured actions", () => {
 
 		expect(result.success).toBe(true);
 		expect(clearFeaturedQueueHistoryService).toHaveBeenCalledTimes(1);
-		expect(revalidateEventsPaths).toHaveBeenCalledWith(["/", "/feature-event"]);
+		expect(revalidateEventsPaths).toHaveBeenCalledWith(
+			["/", "/feature-event"],
+			{ scope: "placements" },
+		);
 	});
 
 	it("returns unauthorized errors when admin validation fails", async () => {
