@@ -19,16 +19,19 @@ import {
 	MapPin,
 	MessageCircle,
 	Music2,
+	ShieldCheck,
 	Settings,
 	Toilet,
 	Utensils,
 	Zap,
 } from "lucide-react";
 import Link from "next/link";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 interface QuickActionsDropdownProps {
 	onMusicSelect: () => void;
+	isAdminAuthenticated: boolean;
+	basePath?: string;
 	onSettingsOpen?: () => void;
 	triggerClassName?: string;
 	menuClassName?: string;
@@ -46,6 +49,8 @@ const foodGuideUrl =
 
 const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 	onMusicSelect,
+	isAdminAuthenticated,
+	basePath,
 	onSettingsOpen,
 	triggerClassName,
 	menuClassName,
@@ -89,32 +94,40 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 		setIsOpen(false);
 	};
 
+	const handleAdminClick = () => {
+		trackNavigationClick({ group: "quick_action", label: "admin" });
+		setIsOpen(false);
+	};
+
 	const handleExternalLinkClick = (label: string) => {
 		trackNavigationClick({ group: "quick_action", label });
 		setIsOpen(false);
 	};
 
-	// Toilet Finder app links and descriptions
 	const getToiletFinderData = () => {
 		if (isIOS) {
 			return {
 				url: toiletFinderIosUrl,
 				description: "Download from App Store",
 			};
-		} else if (isAndroid) {
+		}
+
+		if (isAndroid) {
 			return {
 				url: toiletFinderAndroidUrl,
 				description: "Download from Play Store",
 			};
-		} else {
-			// Default to iOS link for desktop/other devices
-			return {
-				url: toiletFinderIosUrl,
-				description: "150,000+ restrooms worldwide",
-			};
 		}
+
+		return {
+			url: toiletFinderIosUrl,
+			description: "150,000+ restrooms worldwide",
+		};
 	};
 
+	const showAdminTool = isAdminAuthenticated;
+	const showSettingsTool = Boolean(onSettingsOpen);
+	const showToolsSection = showAdminTool || showSettingsTool;
 	const toiletFinderData = getToiletFinderData();
 
 	return (
@@ -149,7 +162,6 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 				</Tooltip>
 			</TooltipProvider>
 
-			{/* Dropdown Menu */}
 			{isOpen && (
 				<div
 					className={cn(
@@ -158,6 +170,57 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 					)}
 				>
 					<div className="p-1">
+						{showToolsSection && (
+							<>
+								<div className="px-3 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+									Tools
+								</div>
+								{isAdminAuthenticated && (
+									<Link
+										href={`${basePath || ""}/admin`}
+										prefetch={false}
+										onClick={handleAdminClick}
+										className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors text-left"
+									>
+										<div className="w-10 flex items-center justify-center">
+											<ShieldCheck className="h-4 w-4 text-sky-700 dark:text-sky-200" />
+										</div>
+										<div className="flex-1 min-w-0">
+											<div className="font-medium">Admin</div>
+											<div className="text-xs text-muted-foreground line-clamp-2">
+												Moderation tools
+											</div>
+										</div>
+									</Link>
+								)}
+								{showAdminTool && showSettingsTool && (
+									<div className="my-1 h-px bg-border" />
+								)}
+								{showSettingsTool && (
+									<button
+										type="button"
+										onClick={handleSettingsClick}
+										className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors text-left"
+									>
+										<div className="w-10 flex items-center justify-center">
+											<Settings className="h-4 w-4 text-muted-foreground" />
+										</div>
+										<div className="flex-1 min-w-0">
+											<div className="font-medium">Settings</div>
+											<div className="text-xs text-muted-foreground line-clamp-2">
+												Theme, maps, and local controls
+											</div>
+										</div>
+									</button>
+								)}
+
+								<div className="my-1 h-px bg-border" />
+							</>
+						)}
+
+						<div className="px-3 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+							Quick actions
+						</div>
 						<button
 							type="button"
 							onClick={handleTourClick}
@@ -176,7 +239,6 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 
 						<div className="my-1 h-px bg-border" />
 
-						{/* Music Option */}
 						<button
 							onClick={handleMusicClick}
 							className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors text-left"
@@ -193,10 +255,11 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 							<ExternalLink className="h-3 w-3 opacity-50 flex-shrink-0" />
 						</button>
 
-						{/* Divider */}
 						<div className="my-1 h-px bg-border" />
+						<div className="px-3 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+							Paris essentials
+						</div>
 
-						{/* Food Guide Option */}
 						<Link
 							href={foodGuideUrl}
 							target="_blank"
@@ -217,10 +280,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 							<ExternalLink className="h-3 w-3 opacity-50 flex-shrink-0" />
 						</Link>
 
-						{/* Divider */}
 						<div className="my-1 h-px bg-border" />
-
-						{/* WhatsApp Community Option */}
 						<Link
 							href={COMMUNITY_INVITE_CONFIG.WHATSAPP_URL}
 							target="_blank"
@@ -240,10 +300,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 							<ExternalLink className="h-3 w-3 opacity-50 flex-shrink-0" />
 						</Link>
 
-						{/* Divider */}
 						<div className="my-1 h-px bg-border" />
-
-						{/* Toilet Finder Option */}
 						<Link
 							href={toiletFinderData.url}
 							target="_blank"
@@ -264,26 +321,6 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 							<ExternalLink className="h-3 w-3 opacity-50 flex-shrink-0" />
 						</Link>
 
-						{onSettingsOpen && (
-							<>
-								<div className="my-1 h-px bg-border" />
-								<button
-									type="button"
-									onClick={handleSettingsClick}
-									className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors text-left"
-								>
-									<div className="w-10 flex items-center justify-center">
-										<Settings className="h-4 w-4 text-muted-foreground" />
-									</div>
-									<div className="flex-1 min-w-0">
-										<div className="font-medium">Settings</div>
-										<div className="text-xs text-muted-foreground line-clamp-2">
-											Theme, maps, and local controls
-										</div>
-									</div>
-								</button>
-							</>
-						)}
 					</div>
 				</div>
 			)}
