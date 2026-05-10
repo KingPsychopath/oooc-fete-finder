@@ -63,6 +63,7 @@ import {
 	parseSupportedNationalities,
 } from "@/features/events/nationality-utils";
 import {
+	AlertCircle,
 	ArrowDown,
 	ArrowUp,
 	Copy,
@@ -230,6 +231,7 @@ const ROW_NUMBER_COLUMN_WIDTH = 144;
 const DATA_COLUMN_WIDTH = 170;
 const MAX_FROZEN_COLUMNS = 4;
 const AUTOSAVE_RETRY_BACKOFF_MS = 15_000;
+const CELL_EDIT_BATCH_WINDOW_MS = 140;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
 const DEFAULT_SORT_MODE: SheetSortMode = "soonest-upcoming";
 const CURATED_COLUMN_KEY = "curated";
@@ -1212,6 +1214,10 @@ export const EventSheetEditorCard = ({
 	const [autosaveRetryBlockedUntil, setAutosaveRetryBlockedUntil] = useState<
 		number | null
 	>(null);
+	const [lastAutosaveError, setLastAutosaveError] = useState<{
+		message: string;
+		at: string;
+	} | null>(null);
 
 	const rowsRef = useRef<EditableSheetRow[]>([]);
 	const columnsRef = useRef<EditableSheetColumn[]>([]);
@@ -1222,6 +1228,10 @@ export const EventSheetEditorCard = ({
 	const editingLockedRef = useRef(false);
 	const editVersionRef = useRef(0);
 	const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const dirtyCellBatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
+	const dirtyRowIndexesRef = useRef<Set<number>>(new Set());
 	const inputRefs = useRef<Record<string, HTMLElement | null>>({});
 	const urlPartInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 	const primaryUrlBlurTimerRef = useRef<number | null>(null);
@@ -1274,6 +1284,14 @@ export const EventSheetEditorCard = ({
 	useEffect(() => {
 		rowsRef.current = rows;
 	}, [rows]);
+
+	useEffect(() => {
+		return () => {
+			if (dirtyCellBatchTimerRef.current) {
+				clearTimeout(dirtyCellBatchTimerRef.current);
+			}
+		};
+	}, []);
 
 	useEffect(() => {
 		columnsRef.current = columns;
@@ -1571,6 +1589,7 @@ export const EventSheetEditorCard = ({
 					}
 					setAutosaveRetryBlockedUntil(null);
 					setAutosaveBlockedAtEditVersion(null);
+					setLastAutosaveError(null);
 					setHasUnsavedChanges(false);
 					clearStoredEditorDraft();
 					setRecoverableDraft(null);
@@ -1598,13 +1617,25 @@ export const EventSheetEditorCard = ({
 				}
 				return true;
 			} catch (error) {
+				const saveErrorMessage =
+					error instanceof Error ? error.message : "Unknown save error";
 				if (mode === "auto") {
 					setAutosaveRetryBlockedUntil(Date.now() + AUTOSAVE_RETRY_BACKOFF_MS);
 					setAutosaveBlockedAtEditVersion(editVersionRef.current);
+					setLastAutosaveError({
+						message: saveErrorMessage,
+						at: new Date().toISOString(),
+					});
+					setStatusMessage("Autosave paused after save error. Edit to retry.");
+					writeStoredEditorDraft({
+						columns: columnsRef.current.map((column) => ({ ...column })),
+						rows: rowsRef.current.map((row) => ({ ...row })),
+						savedAt: new Date().toISOString(),
+						deploymentId: activeDeploymentId,
+					});
+					return false;
 				}
-				setErrorMessage(
-					error instanceof Error ? error.message : "Unknown save error",
-				);
+				setErrorMessage(saveErrorMessage);
 				writeStoredEditorDraft({
 					columns: columnsRef.current.map((column) => ({ ...column })),
 					rows: rowsRef.current.map((row) => ({ ...row })),
@@ -1682,7 +1713,27 @@ export const EventSheetEditorCard = ({
 		setSaveScheduleVersion((current) => current + 1);
 		setAutosaveBlockedAtEditVersion(null);
 		setAutosaveRetryBlockedUntil(null);
+		setLastAutosaveError(null);
 		setErrorMessage("");
+	}, []);
+
+	const markCellDirty = useCallback((rowIndex: number) => {
+		editVersionRef.current += 1;
+		setHasUnsavedChanges(true);
+		setAutosaveBlockedAtEditVersion(null);
+		setAutosaveRetryBlockedUntil(null);
+		setLastAutosaveError(null);
+		setErrorMessage("");
+		dirtyRowIndexesRef.current.add(rowIndex);
+		if (dirtyCellBatchTimerRef.current) {
+			return;
+		}
+		dirtyCellBatchTimerRef.current = setTimeout(() => {
+			dirtyCellBatchTimerRef.current = null;
+			if (dirtyRowIndexesRef.current.size === 0) return;
+			dirtyRowIndexesRef.current.clear();
+			setSaveScheduleVersion((current) => current + 1);
+		}, CELL_EDIT_BATCH_WINDOW_MS);
 	}, []);
 
 	const commitSheetMutation = useCallback(
@@ -1731,9 +1782,9 @@ export const EventSheetEditorCard = ({
 			);
 			rowsRef.current = nextRows;
 			setRows(nextRows);
-			markDirty();
+			markCellDirty(rowIndex);
 		},
-		[markDirty, pushHistorySnapshot],
+		[markCellDirty, pushHistorySnapshot],
 	);
 
 	const setCellDraft = useCallback((draft: CellDraft | null) => {
@@ -3307,6 +3358,16 @@ export const EventSheetEditorCard = ({
 					)}
 					{autosavePauseReason === "retry-backoff" && (
 						<Badge variant="secondary">Autosave retrying in a few seconds</Badge>
+					)}
+					{lastAutosaveError && (
+						<Badge
+							variant="outline"
+							className="gap-1 border-amber-300/70 bg-amber-50/60 text-amber-900"
+							title={`${lastAutosaveError.message} (${formatAdminDateTime(lastAutosaveError.at)})`}
+						>
+							<AlertCircle className="h-3.5 w-3.5" />
+							Last autosave issue
+						</Badge>
 					)}
 					<Badge variant="outline">Source of truth: Postgres</Badge>
 					{restoreReviewRevision && (
