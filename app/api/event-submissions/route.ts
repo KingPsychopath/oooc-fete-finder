@@ -13,7 +13,7 @@ import {
 } from "@/features/security/rate-limiter";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
-	DEFAULT_JSON_BODY_LIMIT_BYTES,
+	EVENT_SUBMISSION_JSON_BODY_LIMIT_BYTES,
 	forbiddenNoStoreResponse,
 	isSameOriginRequest,
 	isWithinBodySizeLimit,
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 	if (!isSameOriginRequest(request)) {
 		return forbiddenNoStoreResponse();
 	}
-	if (!isWithinBodySizeLimit(request, DEFAULT_JSON_BODY_LIMIT_BYTES)) {
+	if (!isWithinBodySizeLimit(request, EVENT_SUBMISSION_JSON_BODY_LIMIT_BYTES)) {
 		return tooLargeNoStoreResponse();
 	}
 

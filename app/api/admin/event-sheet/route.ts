@@ -10,7 +10,7 @@ import type {
 } from "@/features/data-management/csv/sheet-editor";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
-	DEFAULT_JSON_BODY_LIMIT_BYTES,
+	EVENT_SHEET_JSON_BODY_LIMIT_BYTES,
 	forbiddenNoStoreResponse,
 	isSameOriginRequest,
 	isWithinBodySizeLimit,
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
 	if (!isSameOriginRequest(request)) {
 		return forbiddenNoStoreResponse();
 	}
-	if (!isWithinBodySizeLimit(request, DEFAULT_JSON_BODY_LIMIT_BYTES)) {
+	if (!isWithinBodySizeLimit(request, EVENT_SHEET_JSON_BODY_LIMIT_BYTES)) {
 		return tooLargeNoStoreResponse();
 	}
 

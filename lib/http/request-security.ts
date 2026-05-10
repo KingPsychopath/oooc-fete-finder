@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "./cache-control";
 
 export const DEFAULT_JSON_BODY_LIMIT_BYTES = 32 * 1024;
+export const EVENT_SUBMISSION_JSON_BODY_LIMIT_BYTES = 64 * 1024;
+export const EVENT_SHEET_JSON_BODY_LIMIT_BYTES = 256 * 1024;
 export const TRACKING_JSON_BODY_LIMIT_BYTES = 16 * 1024;
 
 const getHeaderHost = (headers: Pick<Headers, "get">): string =>
