@@ -247,7 +247,7 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		"First Name",
 		"Last Name",
 		"Email",
-		"Captured At",
+		"Last Captured At",
 		"Last Active At",
 		"Consent",
 		"Source",
@@ -391,7 +391,10 @@ const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 		value: profile.user.consent ? "Consented" : "No consent",
 	},
 	{ label: "Source", value: profile.user.source || "Unknown" },
-	{ label: "Captured", value: formatAdminDateTime(profile.user.timestamp) },
+	{
+		label: "Last captured",
+		value: formatAdminDateTime(profile.user.timestamp),
+	},
 	{
 		label: "Last active",
 		value: getLastActiveAt(profile)
@@ -426,7 +429,7 @@ export const EmailCollectionCard = ({
 	onGetUserProfile,
 }: EmailCollectionCardProps) => {
 	const [query, setQuery] = useState("");
-	const [sortMode, setSortMode] = useState<EmailSortMode>("newest");
+	const [sortMode, setSortMode] = useState<EmailSortMode>("last-active");
 	const [filterMode, setFilterMode] = useState<EmailFilterMode>("all");
 	const [activityFilterMode, setActivityFilterMode] =
 		useState<EmailActivityFilterMode>("all");
@@ -851,14 +854,14 @@ export const EmailCollectionCard = ({
 						}
 						className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
 					>
-						<option value="newest">Newest first</option>
-						<option value="oldest">Oldest first</option>
+						<option value="last-active">Last active</option>
+						<option value="newest">Recent captures</option>
+						<option value="oldest">Oldest captures</option>
 						<option value="email">Email A-Z</option>
 						<option value="name">Name A-Z</option>
 						<option value="consented">Consent first</option>
 						<option value="likely-test">Tests first</option>
 						<option value="activity">Most activity</option>
-						<option value="last-active">Last active</option>
 						<option value="searches">Most searches</option>
 						<option value="filters">Most filters</option>
 					</select>
@@ -887,7 +890,7 @@ export const EmailCollectionCard = ({
 							onClick={() => {
 								setActivityFilterMode("all");
 								setFilterMode("all");
-								setSortMode("newest");
+								setSortMode("last-active");
 								setQuery("");
 							}}
 						>
@@ -1108,7 +1111,7 @@ export const EmailCollectionCard = ({
 										)}
 										<span className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
 											<span>
-												Captured {formatAdminDateTime(user.timestamp)}
+												Last captured {formatAdminDateTime(user.timestamp)}
 											</span>
 											<span>{user.source}</span>
 											{user.lastSignalAt && (
