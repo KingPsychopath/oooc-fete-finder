@@ -1,5 +1,6 @@
 "use client";
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
+import { Megaphone } from "lucide-react";
 import Link from "next/link";
 import { FEATURED_EVENTS_CONFIG } from "../constants";
 
@@ -14,8 +15,13 @@ export function FeaturedEventsHeader() {
 						label: "promote_event_spotlight",
 					})
 				}
-				className="inline-flex max-w-full items-center text-balance text-xs leading-snug text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
+				className="inline-flex max-w-full items-center gap-1.5 text-balance text-xs leading-snug text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
 			>
+				<Megaphone
+					className="h-3.5 w-3.5 shrink-0 text-foreground/45"
+					strokeWidth={1.8}
+					aria-hidden="true"
+				/>
 				Get noticed by thousands more yearners by promoting your event →
 			</Link>
 		</div>

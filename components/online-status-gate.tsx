@@ -7,6 +7,7 @@ import {
 	useContext,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 } from "react";
 
@@ -23,7 +24,9 @@ const OnlineStatusContext = createContext<OnlineStatusContextValue | null>(
 	null,
 );
 const ONLINE_PROBE_PATH = `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/client-health`;
-const ONLINE_PROBE_TIMEOUT_MS = 3000;
+const IS_DEVELOPMENT = process.env.NODE_ENV === "development";
+const ONLINE_PROBE_TIMEOUT_MS = IS_DEVELOPMENT ? 8000 : 3000;
+const REQUIRED_PROBE_FAILURES = IS_DEVELOPMENT ? 2 : 1;
 
 const readBrowserOnlineStatus = () =>
 	typeof navigator === "undefined" || navigator.onLine;
@@ -56,22 +59,36 @@ async function canReachAppShell(): Promise<boolean> {
 
 export function OnlineStatusProvider({ children }: OnlineStatusProviderProps) {
 	const [isOnline, setIsOnline] = useState(true);
+	const failedProbeCountRef = useRef(0);
 
-	const refreshOnlineStatus = useCallback(() => {
-		if (readBrowserOnlineStatus()) {
+	const setOnlineStatus = useCallback((nextIsOnline: boolean) => {
+		if (nextIsOnline) {
+			failedProbeCountRef.current = 0;
 			setIsOnline(true);
 			return;
 		}
 
-		void canReachAppShell().then(setIsOnline);
+		failedProbeCountRef.current += 1;
+		if (failedProbeCountRef.current >= REQUIRED_PROBE_FAILURES) {
+			setIsOnline(false);
+		}
 	}, []);
+
+	const refreshOnlineStatus = useCallback(() => {
+		if (readBrowserOnlineStatus()) {
+			setOnlineStatus(true);
+			return;
+		}
+
+		void canReachAppShell().then(setOnlineStatus);
+	}, [setOnlineStatus]);
 
 	useEffect(() => {
 		refreshOnlineStatus();
 
-		const handleOnline = () => setIsOnline(true);
+		const handleOnline = () => setOnlineStatus(true);
 		const handleOffline = () => {
-			void canReachAppShell().then(setIsOnline);
+			void canReachAppShell().then(setOnlineStatus);
 		};
 
 		window.addEventListener("online", handleOnline);
@@ -88,7 +105,7 @@ export function OnlineStatusProvider({ children }: OnlineStatusProviderProps) {
 			document.removeEventListener("visibilitychange", refreshOnlineStatus);
 			window.clearInterval(probeInterval);
 		};
-	}, [refreshOnlineStatus]);
+	}, [refreshOnlineStatus, setOnlineStatus]);
 
 	const value = useMemo(
 		() => ({
