@@ -15,10 +15,10 @@ export function FeaturedEventsHeader() {
 						label: "promote_event_spotlight",
 					})
 				}
-				className="inline-flex max-w-full items-center gap-1.5 text-balance text-xs leading-snug text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:text-sm"
+				className="inline-flex w-full items-center gap-1 text-left text-[13px] leading-tight text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground sm:w-auto sm:gap-1.5 sm:text-sm sm:leading-snug"
 			>
 				<Megaphone
-					className="h-3.5 w-3.5 shrink-0 text-foreground/45"
+					className="h-3 w-3 shrink-0 text-foreground/45 sm:h-3.5 sm:w-3.5"
 					strokeWidth={1.8}
 					aria-hidden="true"
 				/>
