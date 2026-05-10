@@ -175,6 +175,7 @@ export async function POST(request: Request) {
 			const linkInput = {
 				sessionId: anonymousSessionId,
 				userId: storeResult.record.userId,
+				userEmail: email,
 				deviceClass: body.clientContext?.deviceClass ?? null,
 				platform: body.clientContext?.platform ?? null,
 				browserFamily: body.clientContext?.browserFamily ?? null,

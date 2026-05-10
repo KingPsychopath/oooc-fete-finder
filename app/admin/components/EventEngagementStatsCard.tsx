@@ -108,7 +108,7 @@ const DISCOVERY_SUMMARY_METRICS = [
 		key: "filterApplyCount",
 		label: "Filter Uses",
 		description:
-			"User-applied filter changes. The default current-year date range is not counted on page load.",
+			"User-initiated filter changes only. The page’s automatic current-year default date window is not counted on load.",
 	},
 	{
 		key: "mapInteractionCount",

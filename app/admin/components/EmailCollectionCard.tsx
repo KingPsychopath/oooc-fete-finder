@@ -19,7 +19,10 @@ import {
 import { InfoPopover } from "@/components/ui/info-popover";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
+import {
+	formatAdminDate,
+	formatAdminDateTime,
+} from "@/lib/ui/admin-date-format";
 import {
 	CheckSquare,
 	Copy,
@@ -50,6 +53,7 @@ type EmailSortMode =
 	| "likely-test"
 	| "activity"
 	| "last-active"
+	| "first-sign-in"
 	| "searches"
 	| "filters";
 
@@ -127,6 +131,182 @@ const TEST_EMAIL_HINTS = [
 	"invalid",
 ];
 const RETURNED_AFTER_ACTION_THRESHOLD_MS = 30 * 60 * 1000;
+const FILTER_GROUP_LABELS = {
+	date_range: "Date Range",
+	day_night: "Day / Night",
+	arrondissement: "Arrondissement",
+	genre: "Genre",
+	nationality: "Nationality",
+	venue_type: "Venue Type",
+	venue_setting: "Venue Setting",
+	oooc_pick: "OOOC Pick",
+	price_range: "Price Range",
+	age_range: "Age Range",
+} as const;
+const RECENT_LIST_HELP_TEXT = {
+	filters: "Tap a row to open this user's filter state on the home page.",
+	searches:
+		"Tap a search to open the home page with this query prefilled.",
+	eventActions:
+		"Tap an event action row to open this user's linked event.",
+} as const;
+
+const TOUR_STEP_LABELS: Record<string, string> = {
+	picks: "Curated picks",
+	map: "Map",
+	filters: "Filters",
+	search: "Search",
+	events: "Event details",
+};
+
+const TOUR_STEP_ORDER = Object.keys(TOUR_STEP_LABELS);
+const TOUR_STEP_COUNT = TOUR_STEP_ORDER.length;
+
+const getTourProgress = (
+	recentTourInteractions: Array<{
+		action: string;
+		stepId: string | null;
+		source: string | null;
+	}>,
+) => {
+	const latest = recentTourInteractions[0];
+	if (!latest) return "No tour interaction";
+
+	const action = latest.action.toLowerCase();
+	const stepLabel = latest.stepId
+		? TOUR_STEP_LABELS[latest.stepId] ?? latest.stepId
+		: null;
+	const stepIndex = latest.stepId
+		? TOUR_STEP_ORDER.indexOf(latest.stepId) + 1
+		: null;
+	const stepProgress =
+		stepIndex !== null && stepIndex > 0
+			? ` (${stepLabel ?? latest.stepId}, step ${stepIndex} of ${TOUR_STEP_COUNT})`
+			: "";
+	if (action === "complete") {
+		return `Tour completed${stepProgress}`;
+	}
+	if (action === "skip") {
+		return `Tour skipped${stepProgress}`;
+	}
+	if (action === "auth_required") {
+		return `Tour requires auth to continue${latest.source ? ` (${latest.source})` : ""}`;
+	}
+	if (action === "start") {
+		return `Tour in progress${stepProgress || ""}`;
+	}
+	if (action === "prompt_shown") {
+		return "Tour prompt shown";
+	}
+	return `Tour activity (${latest.action})`;
+};
+
+const isDateRangeValue = (value: string): boolean =>
+	value.includes(":") && value.split(":").length >= 2;
+
+const formatDateRange = (value: string): string => {
+	const [rawFrom, rawTo] = value.split(":", 2);
+	const from = rawFrom.toLowerCase() !== "any" ? rawFrom : "";
+	const to = rawTo.toLowerCase() !== "any" ? rawTo : "";
+	if (!from && !to) return "Any";
+	if (!from) return `Until ${formatAdminDate(to)}`;
+	if (!to) return `From ${formatAdminDate(from)}`;
+	return `${formatAdminDate(from)} — ${formatAdminDate(to)}`;
+};
+
+const getFilterGroupLabel = (group: string): string =>
+	(FILTER_GROUP_LABELS as Record<string, string>)[group] ??
+	formatContextValue(group) ??
+	group;
+
+const getFilterDisplayValue = (group: string, value: string): string => {
+	if (group === "date_range" && isDateRangeValue(value)) {
+		return formatDateRange(value);
+	}
+	return formatContextValue(value) ?? value;
+};
+
+const buildFilterEventHref = (
+	group: string,
+	value: string,
+): string | null => {
+	const normalizedGroup = group.trim();
+	const normalizedValue = value.trim();
+	const normalizedValueLower = normalizedValue.toLowerCase();
+	if (!normalizedGroup || !normalizedValue) return null;
+
+	const params = new URLSearchParams();
+
+	switch (normalizedGroup) {
+		case "genre": {
+			params.set("g", normalizedValue);
+			break;
+		}
+		case "arrondissement": {
+			params.set("arr", normalizedValue);
+			break;
+		}
+		case "day_night": {
+			if (normalizedValueLower === "day" || normalizedValueLower === "night") {
+				params.set("dn", normalizedValueLower);
+			}
+			break;
+		}
+		case "nationality": {
+			params.set("nat", normalizedValue.toUpperCase());
+			break;
+		}
+		case "venue_type": {
+			if (normalizedValueLower === "indoor" || normalizedValueLower === "outdoor") {
+				params.set("vt", normalizedValueLower);
+			}
+			break;
+		}
+		case "venue_setting": {
+			if (normalizedValueLower === "indoor" || normalizedValueLower === "outdoor") {
+				params.set("in", normalizedValueLower);
+			}
+			break;
+		}
+		case "oooc_pick": {
+			if (normalizedValueLower === "yes" || normalizedValueLower === "true") {
+				params.set("pick", "1");
+			}
+			break;
+		}
+		case "price_range": {
+			const [min, max] = normalizedValue.split(":");
+			if (min && max) params.set("pr", `${min}:${max}`);
+			break;
+		}
+		case "age_range": {
+			const [min, max] = normalizedValue.split(":");
+			if (min && max) params.set("ag", `${min}:${max}`);
+			break;
+		}
+		case "date_range": {
+			const [rawFrom, rawTo] = normalizedValue.split(":");
+			const from = rawFrom?.trim();
+			const to = rawTo?.trim();
+			if (from && from !== "any") params.set("df", from);
+			if (to && to !== "any") params.set("dt", to);
+			break;
+		}
+		default:
+			return null;
+	}
+
+	if (params.size === 0) return null;
+	return `/?${params.toString()}`;
+};
+
+const buildSearchEventHref = (query: string): string | null => {
+	const normalizedQuery = query.trim();
+	if (!normalizedQuery) return null;
+	const params = new URLSearchParams();
+	params.set("q", normalizedQuery);
+	return `/?${params.toString()}`;
+};
 
 const isLikelyTestEmail = (email: string): boolean => {
 	const normalized = email.toLowerCase();
@@ -155,12 +335,14 @@ const hasReturnedWithoutNewActivity = (user: EmailRecord): boolean => {
 	);
 };
 
-const shouldShowSeparateLastSeen = (user: EmailRecord): boolean =>
-	!user.lastSignalAt || hasReturnedWithoutNewActivity(user);
-
 const sortEmails = (emails: EmailRecord[], sortMode: EmailSortMode) => {
 	return [...emails].sort((left, right) => {
 		switch (sortMode) {
+			case "first-sign-in":
+				return (
+					getTime(right.firstSignInAt ?? right.timestamp) -
+					getTime(left.firstSignInAt ?? left.timestamp)
+				);
 			case "oldest":
 				return (
 					new Date(left.timestamp).getTime() -
@@ -269,7 +451,8 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		"First Name",
 		"Last Name",
 		"Email",
-		"Last Seen At",
+		"First Sign-in At",
+		"Last Sign-in At",
 		"Last Active At",
 		"Consent",
 		"Collection Origin",
@@ -288,6 +471,7 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		user.firstName,
 		user.lastName,
 		user.email,
+		user.firstSignInAt ?? "",
 		user.timestamp,
 		user.lastSignalAt ?? "",
 		user.consent,
@@ -321,6 +505,7 @@ const getProfileSignalCount = (profile: CollectedUserProfile): number =>
 	Math.max(
 		profile.user.linkedSignalCount ?? 0,
 		profile.genrePreferences.length +
+			profile.recentTourInteractions.length +
 			profile.recentSearches.length +
 			profile.recentFilters.length +
 			profile.recentEventActions.length,
@@ -330,6 +515,7 @@ const getLastActiveAt = (profile: CollectedUserProfile): string | null => {
 	const dates = [
 		profile.user.lastSignalAt,
 		...profile.genrePreferences.map((item) => item.lastSeenAt),
+		...profile.recentTourInteractions.map((item) => item.recordedAt),
 		...profile.recentSearches.map((item) => item.recordedAt),
 		...profile.recentFilters.map((item) => item.recordedAt),
 		...profile.recentEventActions.map((item) => item.recordedAt),
@@ -414,14 +600,25 @@ const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 	},
 	{ label: "Collection origin", value: profile.user.source || "Unknown" },
 	{
-		label: "Last seen",
+		label: "Last sign-in",
 		value: formatAdminDateTime(profile.user.timestamp),
 	},
 	{
-		label: "Last active",
+		label: "First sign-in",
+		value:
+			profile.user.firstSignInAt
+				? formatAdminDateTime(profile.user.firstSignInAt)
+				: "Not yet recorded",
+	},
+	{
+		label: "Latest linked activity",
 		value: getLastActiveAt(profile)
 			? formatAdminDateTime(getLastActiveAt(profile) ?? "")
 			: "No linked activity",
+	},
+	{
+		label: "Tour progress",
+		value: getTourProgress(profile.recentTourInteractions),
 	},
 	{
 		label: "Device",
@@ -886,6 +1083,7 @@ export const EmailCollectionCard = ({
 						<option value="name">Name A-Z</option>
 						<option value="consented">Consent first</option>
 						<option value="likely-test">Tests first</option>
+						<option value="first-sign-in">First sign in</option>
 						<option value="activity">Most activity</option>
 						<option value="searches">Most searches</option>
 						<option value="filters">Most filters</option>
@@ -1145,14 +1343,18 @@ export const EmailCollectionCard = ({
 											</span>
 										)}
 										<span className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
-											{shouldShowSeparateLastSeen(user) && (
+											{user.firstSignInAt && (
 												<span>
-													Last seen {formatAdminDateTime(user.timestamp)}
+													First sign in{" "}
+													{formatAdminDateTime(user.firstSignInAt)}
 												</span>
 											)}
+											<span>
+												Last sign in {formatAdminDateTime(user.timestamp)}
+											</span>
 											{user.lastSignalAt && (
 												<span>
-													Last active {formatAdminDateTime(user.lastSignalAt)}
+													Latest linked activity {formatAdminDateTime(user.lastSignalAt)}
 												</span>
 											)}
 										</span>
@@ -1231,7 +1433,7 @@ export const EmailCollectionCard = ({
 									</p>
 									<p className="rounded-md border bg-background/60 px-2.5 py-2 text-xs">
 										<span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-											Last Active
+											Latest Linked Activity
 										</span>
 										<span className="mt-1 block font-medium">
 											{getLastActiveAt(profile)
@@ -1284,7 +1486,7 @@ export const EmailCollectionCard = ({
 								</div>
 							</div>
 
-							<div className="grid gap-3 lg:grid-cols-2">
+								<div className="grid gap-3 lg:grid-cols-2">
 								<div className="rounded-md border bg-background/60 p-3">
 									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 										Genre Preferences
@@ -1313,6 +1515,9 @@ export const EmailCollectionCard = ({
 									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 										Recent Searches
 									</p>
+									<p className="mt-1 text-xs text-muted-foreground">
+										{RECENT_LIST_HELP_TEXT.searches}
+									</p>
 									<div className="mt-2 space-y-1.5">
 										{profile.recentSearches.length === 0 ? (
 											<p className="text-xs text-muted-foreground">
@@ -1324,7 +1529,24 @@ export const EmailCollectionCard = ({
 													key={`${item.query}-${item.recordedAt}`}
 													className="flex justify-between gap-2 text-xs"
 												>
-													<span className="truncate">{item.query}</span>
+													<span className="truncate">
+														{(() => {
+															const searchHref =
+																buildSearchEventHref(item.query);
+															return searchHref == null ? (
+																item.query
+															) : (
+																<Link
+																	href={searchHref}
+																	target="_blank"
+																	rel="noreferrer"
+																	className="inline-flex items-center underline decoration-dotted underline-offset-2 hover:decoration-solid"
+																>
+																	{item.query}
+																</Link>
+															);
+														})()}
+													</span>
 													<span className="shrink-0 text-muted-foreground">
 														{formatAdminDateTime(item.recordedAt)}
 													</span>
@@ -1337,32 +1559,62 @@ export const EmailCollectionCard = ({
 									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 										Recent Filters
 									</p>
+									<p className="mt-1 text-xs text-muted-foreground">
+										{RECENT_LIST_HELP_TEXT.filters}
+									</p>
 									<div className="mt-2 space-y-1.5">
 										{profile.recentFilters.length === 0 ? (
 											<p className="text-xs text-muted-foreground">
 												No filters linked.
 											</p>
 										) : (
-											profile.recentFilters.map((item) => (
-												<p
-													key={`${item.filterGroup}-${item.filterValue}-${item.recordedAt}`}
-													className="flex justify-between gap-2 text-xs"
-												>
-													<span className="truncate">
-														{formatContextValue(item.filterGroup)}:{" "}
-														{formatContextValue(item.filterValue)}
-													</span>
-													<span className="shrink-0 text-muted-foreground">
-														{formatAdminDateTime(item.recordedAt)}
-													</span>
-												</p>
-											))
+											profile.recentFilters.map((item) => {
+												const filterHref = buildFilterEventHref(
+													item.filterGroup,
+													item.filterValue,
+												);
+												const groupLabel = getFilterGroupLabel(
+													item.filterGroup,
+												);
+												const valueLabel = getFilterDisplayValue(
+													item.filterGroup,
+													item.filterValue,
+												);
+												return (
+													<p
+														key={`${item.filterGroup}-${item.filterValue}-${item.recordedAt}`}
+														className="flex justify-between gap-2 text-xs"
+													>
+														<span className="truncate">
+															{groupLabel}:{" "}
+															{filterHref == null ? (
+																valueLabel
+															) : (
+																<Link
+																	href={filterHref}
+																	target="_blank"
+																	rel="noreferrer"
+																	className="inline-flex items-center underline decoration-dotted underline-offset-2 hover:decoration-solid"
+																>
+																	{valueLabel}
+																</Link>
+															)}
+														</span>
+														<span className="shrink-0 text-muted-foreground">
+															{formatAdminDateTime(item.recordedAt)}
+														</span>
+													</p>
+												);
+											})
 										)}
 									</div>
 								</div>
 								<div className="rounded-md border bg-background/60 p-3">
 									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 										Recent Event Actions
+									</p>
+									<p className="mt-1 text-xs text-muted-foreground">
+										{RECENT_LIST_HELP_TEXT.eventActions}
 									</p>
 									<div className="mt-2 space-y-1.5">
 										{profile.recentEventActions.length === 0 ? (

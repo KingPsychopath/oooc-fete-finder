@@ -24,6 +24,7 @@ export interface DiscoveryAnalyticsRecordInput {
 	actionType: DiscoveryActionType;
 	sessionId?: string | null;
 	userId?: string | null;
+	userEmail?: string | null;
 	filterGroup?: string | null;
 	filterValue?: string | null;
 	searchQuery?: string | null;
@@ -155,6 +156,7 @@ export class DiscoveryAnalyticsRepository {
 				action_type,
 				session_id,
 				user_id,
+				user_email,
 				filter_group,
 				filter_value,
 				search_query,
@@ -171,6 +173,7 @@ export class DiscoveryAnalyticsRepository {
 				${input.actionType},
 				${cleanString(input.sessionId, 120)},
 				${cleanString(input.userId, 80)},
+				${cleanString(input.userEmail, 254)},
 				${cleanString(input.filterGroup, 80)},
 				${cleanString(input.filterValue, 120)},
 				${cleanString(input.searchQuery, 280)},
@@ -189,6 +192,7 @@ export class DiscoveryAnalyticsRepository {
 	async attachUserToSession(input: {
 		sessionId: string;
 		userId: string;
+		userEmail?: string | null;
 		deviceClass?: string | null;
 		platform?: string | null;
 		browserFamily?: string | null;
@@ -205,6 +209,7 @@ export class DiscoveryAnalyticsRepository {
 			UPDATE app_discovery_analytics_stats
 			SET
 				user_id = COALESCE(user_id, ${userId}),
+				user_email = COALESCE(user_email, ${cleanString(input.userEmail, 254)}),
 				device_class = COALESCE(device_class, ${cleanString(input.deviceClass, 40)}),
 				platform = COALESCE(platform, ${cleanString(input.platform, 40)}),
 				browser_family = COALESCE(browser_family, ${cleanString(input.browserFamily, 40)}),

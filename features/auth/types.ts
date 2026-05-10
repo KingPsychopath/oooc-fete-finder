@@ -9,6 +9,7 @@ export type UserRecord = {
 	lastName: string;
 	email: string;
 	timestamp: string;
+	firstSignInAt?: string;
 	consent: boolean;
 	source: string;
 	deviceClass?: string | null;
@@ -44,6 +45,12 @@ export type UserContextSummary = {
 
 export type CollectedUserProfile = {
 	user: UserRecord;
+	recentTourInteractions: Array<{
+		action: string;
+		stepId: string | null;
+		source: string | null;
+		recordedAt: string;
+	}>;
 	genrePreferences: Array<{
 		genre: string;
 		score: number;

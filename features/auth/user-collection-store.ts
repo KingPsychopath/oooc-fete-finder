@@ -77,6 +77,7 @@ const toSortedUserRecords = (
 			lastName: record.lastName,
 			email: record.email,
 			timestamp: record.timestamp,
+			firstSignInAt: record.firstSeenAt,
 			consent: record.consent,
 			source: record.source,
 			deviceClass: record.deviceClass,
@@ -97,6 +98,24 @@ const latestIso = (
 	if (!left) return right ?? null;
 	if (!right) return left;
 	return left > right ? left : right;
+};
+
+const parseTourInteraction = (value: string | null | undefined): {
+	action: string;
+	stepId: string | null;
+	source: string | null;
+} | null => {
+	const normalized = value?.trim();
+	if (!normalized) return null;
+	const [action, stepId, source] = normalized
+		.split(":", 3)
+		.map((segment) => segment.trim());
+	if (!action) return null;
+	return {
+		action,
+		stepId: stepId || null,
+		source: source || null,
+	};
 };
 
 const getMemoryStore = (): Record<string, StoredUserRecord> => {
@@ -252,6 +271,7 @@ export class UserCollectionStore {
 				lastName: storedRecord.lastName,
 				email: storedRecord.email,
 				timestamp: storedRecord.timestamp,
+				firstSignInAt: storedRecord.firstSeenAt,
 				consent: storedRecord.consent,
 				source: storedRecord.source,
 				deviceClass: storedRecord.deviceClass,
@@ -347,12 +367,19 @@ export class UserCollectionStore {
 					record.filterGroup &&
 					record.filterValue,
 			).length,
+			tourSignalCount: recentDiscovery.filter(
+				(record) =>
+					record.actionType === "tour_interaction" &&
+					record.filterGroup === "tour" &&
+					record.filterValue,
+			).length,
 			eventActionSignalCount: recentEventActions.length,
 			genrePreferenceSignalCount: genrePreferences.length,
 		};
 		const linkedSignalCount =
 			activityCounts.searchSignalCount +
 			activityCounts.filterSignalCount +
+			activityCounts.tourSignalCount +
 			activityCounts.eventActionSignalCount +
 			activityCounts.genrePreferenceSignalCount;
 		const lastSignalAt =
@@ -406,6 +433,21 @@ export class UserCollectionStore {
 					filterValue: record.filterValue ?? "",
 					recordedAt: record.recordedAt,
 				}))
+				.slice(0, 8),
+			recentTourInteractions: recentDiscovery
+				.filter(
+					(record) =>
+						record.actionType === "tour_interaction" && record.filterGroup === "tour",
+				)
+				.map((record) => {
+					const parsed = parseTourInteraction(record.filterValue);
+					return {
+						action: parsed?.action ?? "tour_interaction",
+						stepId: parsed?.stepId ?? null,
+						source: parsed?.source ?? null,
+						recordedAt: record.recordedAt,
+					};
+				})
 				.slice(0, 8),
 			recentEventActions: enrichedEventActions,
 		};

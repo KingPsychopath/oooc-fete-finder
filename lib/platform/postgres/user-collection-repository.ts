@@ -36,6 +36,7 @@ type RollupRow = {
 	browser_family: string | null;
 	timezone: string | null;
 	locale: string | null;
+	first_seen_at: Date | string;
 	last_seen_at: Date | string;
 	updated_at: Date | string;
 };
@@ -361,6 +362,7 @@ export class UserCollectionRepository {
 				r.browser_family,
 				r.timezone,
 				r.locale,
+				r.first_seen_at,
 				r.last_seen_at,
 				r.updated_at
 			FROM app_user_collection_rollup r
@@ -378,6 +380,7 @@ export class UserCollectionRepository {
 			lastName: row.last_name,
 			email: normalizeEmail(row.email),
 			timestamp: toIsoString(row.last_seen_at) || new Date(0).toISOString(),
+			firstSignInAt: toIsoString(row.first_seen_at) || undefined,
 			consent: row.consent,
 			source: row.source,
 			deviceClass: row.device_class,
@@ -407,6 +410,7 @@ export class UserCollectionRepository {
 				r.browser_family,
 				r.timezone,
 				r.locale,
+				r.first_seen_at,
 				r.last_seen_at,
 				r.updated_at
 			FROM app_user_collection_rollup r
@@ -426,6 +430,7 @@ export class UserCollectionRepository {
 			lastName: row.last_name,
 			email: normalizeEmail(row.email),
 			timestamp: toIsoString(row.last_seen_at) || new Date(0).toISOString(),
+			firstSignInAt: toIsoString(row.first_seen_at) || undefined,
 			consent: row.consent,
 			source: row.source,
 			deviceClass: row.device_class,
