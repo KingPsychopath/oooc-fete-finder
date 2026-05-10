@@ -15,7 +15,11 @@ const SAME_ORIGIN_CACHEABLE_DESTINATIONS = new Set([
 	"style",
 ]);
 
-const APP_SHELL_URLS = ["/", "/manifest.webmanifest", "/maps/paris-map-preview.jpg"];
+const APP_SHELL_URLS = [
+	"/",
+	"/manifest.webmanifest",
+	"/maps/paris-map-preview.jpg",
+];
 const SENSITIVE_PATH_PREFIXES = [
 	"/_vercel",
 	"/admin",
@@ -28,6 +32,7 @@ const SENSITIVE_PATH_PREFIXES = [
 	"/partner-stats",
 ];
 const SAFE_API_EXACT_PATHS = new Set(["/api/events/live"]);
+const NETWORK_ONLY_EXACT_PATHS = new Set(["/api/client-health"]);
 
 const withScopePath = (path) => {
 	const scopePath = new URL(self.registration.scope).pathname.replace(
@@ -110,7 +115,9 @@ const cacheStaticUrls = async (urls) => {
 				if (requestUrl.origin !== self.location.origin) return;
 				const pathname = getPathWithoutScope(requestUrl.pathname);
 				if (!isStaticAssetPath(pathname)) return;
-				const request = new Request(requestUrl.href, { credentials: "same-origin" });
+				const request = new Request(requestUrl.href, {
+					credentials: "same-origin",
+				});
 				const response = await fetch(request);
 				if (isCacheableResponse(response)) {
 					await cache.put(request, response);
@@ -150,6 +157,7 @@ self.addEventListener("fetch", (event) => {
 	if (url.origin !== self.location.origin) return;
 
 	const pathname = getPathWithoutScope(url.pathname);
+	if (NETWORK_ONLY_EXACT_PATHS.has(pathname)) return;
 	if (isSensitivePath(pathname)) return;
 
 	if (request.mode === "navigate") {
@@ -183,7 +191,9 @@ self.addEventListener("fetch", (event) => {
 		event.respondWith(
 			caches.match(request).then((cachedResponse) => {
 				if (cachedResponse) return cachedResponse;
-				return fetchAndCache(request, STATIC_CACHE).catch(() => Response.error());
+				return fetchAndCache(request, STATIC_CACHE).catch(() =>
+					Response.error(),
+				);
 			}),
 		);
 	}

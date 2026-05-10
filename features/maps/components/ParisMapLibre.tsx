@@ -251,21 +251,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const shouldUseLocalMap = useLocalMapFallback;
 
 	useEffect(() => {
-		if (typeof navigator === "undefined") return;
-
-		setIsOffline(!navigator.onLine);
-
-		const handleOnline = () => setIsOffline(false);
-		const handleOffline = () => setIsOffline(true);
-
-		window.addEventListener("online", handleOnline);
-		window.addEventListener("offline", handleOffline);
-
-		return () => {
-			window.removeEventListener("online", handleOnline);
-			window.removeEventListener("offline", handleOffline);
-		};
-	}, []);
+		setIsOffline(isOfflineMode);
+	}, [isOfflineMode]);
 
 	// Filter events based on selected day
 	const filteredEvents = React.useMemo(() => {
@@ -441,7 +428,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				.properties as ParisArrondissementProperties;
 			const arrondissement = properties.c_ar;
 			if (!arrondissement) return;
-			const eventCount = arrondissementEventCountsRef.current[arrondissement] ?? 0;
+			const eventCount =
+				arrondissementEventCountsRef.current[arrondissement] ?? 0;
 			setSelectedArrondissement((current) =>
 				current === arrondissement ? null : arrondissement,
 			);
@@ -998,7 +986,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				);
 			} catch {}
 			try {
-				currentMap.off("click", "event-cluster-badges", handleEventClusterClick);
+				currentMap.off(
+					"click",
+					"event-cluster-badges",
+					handleEventClusterClick,
+				);
 			} catch {}
 			try {
 				currentMap.off("click", "event-markers", handleEventMarkersClick);
@@ -1374,8 +1366,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 									Use the event list
 								</p>
 								<p className="mt-0.5 text-muted-foreground">
-									Near me sorting is available in All Events and works with saved
-									offline data.
+									Near me sorting is available in All Events and works with
+									saved offline data.
 								</p>
 							</div>
 						)}

@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Footer from "@/components/Footer";
 import { AppSettingsSync } from "@/components/AppSettingsSync";
+import Footer from "@/components/Footer";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { SmoothAnchorScroll } from "@/components/SmoothAnchorScroll";
 import { SupportCoffeePrompt } from "@/components/SupportCoffeePrompt";
 import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { OfflineIndicator } from "@/components/offline-indicator";
+import { OnlineStatusProvider } from "@/components/online-status-gate";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { AuthProvider } from "@/features/auth/auth-context";
 import { CommunityInvite } from "@/features/social/components/CommunityInvite";
@@ -15,8 +16,8 @@ import { generateMainOGImage } from "@/lib/social/og-utils";
 import { Analytics } from "@vercel/analytics/next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
-import { Prata } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { Prata } from "next/font/google";
 
 // Get base path from environment variable - use direct access for build-time
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -192,16 +193,18 @@ export default function RootLayout({
 					<SmoothAnchorScroll />
 					<ServiceWorkerRegistration />
 					<ThemeColorSync />
-					<AuthProvider>
-						<AppSettingsSync />
-						{children}
-						<Footer />
-						<MobileBottomNav />
-						<SupportCoffeePrompt />
-						<CommunityInvite />
-						<OfflineIndicator />
-						<PWAInstallPrompt />
-					</AuthProvider>
+					<OnlineStatusProvider>
+						<AuthProvider>
+							<AppSettingsSync />
+							{children}
+							<Footer />
+							<MobileBottomNav />
+							<SupportCoffeePrompt />
+							<CommunityInvite />
+							<OfflineIndicator />
+							<PWAInstallPrompt />
+						</AuthProvider>
+					</OnlineStatusProvider>
 				</ThemeProvider>
 				<Analytics />
 			</body>

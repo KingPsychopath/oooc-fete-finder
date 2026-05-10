@@ -1,5 +1,6 @@
 "use client";
 
+import { useOnlineStatus } from "@/components/online-status-gate";
 import {
 	isEventPayload,
 	readEventDetailSnapshot,
@@ -27,13 +28,11 @@ const normalizeBasePath = (value: string): string => {
 	return value.endsWith("/") ? value.slice(0, -1) : value;
 };
 
-const isBrowserOffline = () =>
-	typeof navigator !== "undefined" && navigator.onLine === false;
-
 export function useEventDetailHydration({
 	setEvents,
 	setSelectedEvent,
 }: UseEventDetailHydrationOptions) {
+	const isOnline = useOnlineStatus();
 	const eventDetailsPromiseRef = useRef(
 		new Map<string, Promise<Event | null>>(),
 	);
@@ -75,7 +74,7 @@ export function useEventDetailHydration({
 			if (cachedRequest) return cachedRequest;
 
 			const request = (async () => {
-				if (isBrowserOffline()) {
+				if (!isOnline) {
 					const savedEvent = await readSavedEventDetail(normalizedEventKey);
 					if (savedEvent) return savedEvent;
 				}
@@ -120,6 +119,6 @@ export function useEventDetailHydration({
 			eventDetailsPromiseRef.current.set(normalizedEventKey, request);
 			return request;
 		},
-		[applyEventDetail, readSavedEventDetail],
+		[applyEventDetail, isOnline, readSavedEventDetail],
 	);
 }

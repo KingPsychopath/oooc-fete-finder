@@ -15,6 +15,7 @@
 ## Public Media + Utility
 
 - `GET /api/og`: OG image generation endpoint
+- `GET /api/client-health`: uncached client connectivity probe for offline fallback gating
 - `GET /api/partner-stats/[activationId]`: tokenized partner stats snapshot (`?token=...`)
 - `GET /api/partner-stats/[activationId]?token=...&format=csv`: partner stats CSV export
 

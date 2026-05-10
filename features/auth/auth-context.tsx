@@ -1,5 +1,6 @@
 "use client";
 
+import { useOnlineStatus } from "@/components/online-status-gate";
 import {
 	type OfflineGraceState,
 	createOfflineGraceState,
@@ -78,29 +79,6 @@ const clearOfflineGraceState = (): void => {
 	window.localStorage.removeItem(OFFLINE_GRACE_STORAGE_KEY);
 };
 
-const readAuthSessionHint = (): boolean => {
-	if (typeof window === "undefined") return false;
-	const raw = window.localStorage.getItem(AUTH_SESSION_HINT_STORAGE_KEY);
-	if (!raw) return false;
-	if (raw === "1") return true;
-
-	try {
-		const parsed = JSON.parse(raw) as Partial<{ expiresAt: number }>;
-		if (
-			typeof parsed.expiresAt !== "number" ||
-			!Number.isFinite(parsed.expiresAt) ||
-			Date.now() >= parsed.expiresAt
-		) {
-			clearAuthSessionHint();
-			return false;
-		}
-		return true;
-	} catch {
-		clearAuthSessionHint();
-		return false;
-	}
-};
-
 const writeAuthSessionHint = (): void => {
 	if (typeof window === "undefined") return;
 	window.localStorage.setItem(
@@ -114,26 +92,12 @@ const clearAuthSessionHint = (): void => {
 	window.localStorage.removeItem(AUTH_SESSION_HINT_STORAGE_KEY);
 };
 
-const isAdminPath = (): boolean => {
-	if (typeof window === "undefined") return false;
-	const normalizedPath = window.location.pathname.replace(/\/+$/, "") || "/";
-	const normalizedBasePath =
-		basePath && basePath !== "/" && normalizedPath.startsWith(basePath)
-			? normalizedPath.slice(basePath.length) || "/"
-			: normalizedPath;
-	return (
-		normalizedBasePath === "/admin" || normalizedBasePath.startsWith("/admin/")
-	);
-};
-
 export const AuthProvider = ({ children }: AuthProviderProps) => {
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 	const [userEmail, setUserEmail] = useState<string | null>(null);
 	const [isAuthResolved, setIsAuthResolved] = useState(false);
-	const [isOnline, setIsOnline] = useState(
-		() => typeof navigator === "undefined" || navigator.onLine,
-	);
+	const isOnline = useOnlineStatus();
 	const [authMode, setAuthMode] = useState<AuthMode>("signed-out");
 	const [offlineGraceExpiresAt, setOfflineGraceExpiresAt] = useState<
 		number | null
@@ -245,52 +209,30 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 					durationMs: Math.round(endTimeMs - startTimeMs),
 					statusCode,
 					outcome,
-					isOnline: typeof navigator !== "undefined" ? navigator.onLine : null,
+					isOnline,
 				});
 			}
 			setIsAuthResolved(true);
 		}
-	}, [setLiveAuthenticatedState, setSignedOutState, tryApplyOfflineGraceState]);
+	}, [
+		isOnline,
+		setLiveAuthenticatedState,
+		setSignedOutState,
+		tryApplyOfflineGraceState,
+	]);
 
 	useEffect(() => {
-		const isBrowserOffline =
-			typeof navigator !== "undefined" && navigator.onLine === false;
-
-		if (!isBrowserOffline) {
+		if (isOnline) {
 			void refreshSession();
 			return;
 		}
 
 		setIsAdminAuthenticated(false);
-		if (!isBrowserOffline || !tryApplyOfflineGraceState()) {
+		if (!tryApplyOfflineGraceState()) {
 			setSignedOutState();
 		}
 		setIsAuthResolved(true);
-	}, [refreshSession, setSignedOutState, tryApplyOfflineGraceState]);
-
-	useEffect(() => {
-		if (typeof navigator === "undefined") return;
-		setIsOnline(navigator.onLine);
-
-		const handleOnline = () => {
-			setIsOnline(true);
-			if (readAuthSessionHint() || readOfflineGraceState() || isAdminPath()) {
-				void refreshSession();
-			}
-		};
-
-		const handleOffline = () => {
-			setIsOnline(false);
-		};
-
-		window.addEventListener("online", handleOnline);
-		window.addEventListener("offline", handleOffline);
-
-		return () => {
-			window.removeEventListener("online", handleOnline);
-			window.removeEventListener("offline", handleOffline);
-		};
-	}, [refreshSession]);
+	}, [isOnline, refreshSession, setSignedOutState, tryApplyOfflineGraceState]);
 
 	const logout = async () => {
 		try {

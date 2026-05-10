@@ -26,8 +26,8 @@ import type { MapLoadStrategy } from "@/features/maps/components/events-map-card
 import { clientLog } from "@/lib/platform/client-logger";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-	Suspense,
 	type RefObject,
+	Suspense,
 	lazy,
 	useCallback,
 	useEffect,
@@ -185,7 +185,6 @@ function EventsClientShell({
 		if (!isOnline) return;
 
 		const mountForTourIntent = () => {
-			if (navigator.onLine === false) return;
 			try {
 				window.sessionStorage.setItem(
 					PENDING_FETE_FINDER_TOUR_STORAGE_KEY,

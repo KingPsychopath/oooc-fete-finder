@@ -21,6 +21,7 @@ export default function robots(): MetadataRoute.Robots {
 				withBasePath("/api"),
 				withBasePath("/event"),
 				withBasePath("/event-modal-lab"),
+				withBasePath("/font-test"),
 				withBasePath("/header-lab"),
 				withBasePath("/home-style-lab"),
 				withBasePath("/partner-stats"),
@@ -28,7 +29,10 @@ export default function robots(): MetadataRoute.Robots {
 				withBasePath("/social"),
 			],
 		},
-		sitemap: new URL(`${normalizeBasePath(basePath)}/sitemap.xml`, siteUrl).toString(),
+		sitemap: new URL(
+			`${normalizeBasePath(basePath)}/sitemap.xml`,
+			siteUrl,
+		).toString(),
 		host: siteUrl,
 	};
 }

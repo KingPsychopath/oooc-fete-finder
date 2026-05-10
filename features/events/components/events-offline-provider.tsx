@@ -1,5 +1,6 @@
 "use client";
 
+import { useOnlineStatus } from "@/components/online-status-gate";
 import {
 	readHomeEventSnapshot,
 	writeHomeEventSnapshot,
@@ -93,6 +94,7 @@ export function EventsOfflineProvider({
 	const [hasLoadedFullEvents, setHasLoadedFullEvents] = useState(
 		!fullEventsPath,
 	);
+	const isOnline = useOnlineStatus();
 	const fullEventsPromiseRef = useRef<Promise<Event[] | null> | null>(null);
 
 	useEffect(() => {
@@ -113,7 +115,7 @@ export function EventsOfflineProvider({
 				setEventSnapshotFreshness(freshness);
 				setEventSnapshotSyncState("saved");
 				setEventSnapshotError(null);
-				if (initialEvents.length > 0 && navigator.onLine) return;
+				if (initialEvents.length > 0 && isOnline) return;
 				setEvents(snapshot.events);
 				setEventDataSource("saved");
 				setHasLoadedFullEvents(true);
@@ -139,7 +141,7 @@ export function EventsOfflineProvider({
 		return () => {
 			isCancelled = true;
 		};
-	}, [initialEvents.length]);
+	}, [initialEvents.length, isOnline]);
 
 	useEffect(() => {
 		if (eventDataSource !== "live" || events.length === 0) return;
@@ -172,7 +174,7 @@ export function EventsOfflineProvider({
 		if (!fullEventsPath || hasLoadedFullEvents) {
 			return Promise.resolve(events);
 		}
-		if (typeof navigator !== "undefined" && navigator.onLine === false) {
+		if (!isOnline) {
 			return Promise.resolve(events);
 		}
 		if (fullEventsPromiseRef.current) return fullEventsPromiseRef.current;
@@ -208,7 +210,7 @@ export function EventsOfflineProvider({
 
 		fullEventsPromiseRef.current = request;
 		return request;
-	}, [events, fullEventsPath, hasLoadedFullEvents]);
+	}, [events, fullEventsPath, hasLoadedFullEvents, isOnline]);
 
 	const value = useMemo(
 		() => ({

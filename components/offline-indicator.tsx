@@ -2,47 +2,28 @@
 
 import { LAYERS } from "@/lib/ui/layers";
 import { useEffect, useState } from "react";
+import { useOfflineFallbackGate, useOnlineStatus } from "./online-status-gate";
 
 interface OfflineIndicatorProps {
 	className?: string;
 }
 
 export function OfflineIndicator({ className }: OfflineIndicatorProps) {
-	const [isOnline, setIsOnline] = useState(
-		() => typeof navigator === "undefined" || navigator.onLine,
-	);
+	const isOnline = useOnlineStatus();
+	const isOfflineFallbackActive = useOfflineFallbackGate();
 	const [showIndicator, setShowIndicator] = useState(false);
 
 	useEffect(() => {
-		// Initial check
-		setIsOnline(navigator.onLine);
-
-		// Event listeners for online/offline status
-		const handleOnline = () => {
-			setIsOnline(true);
-			// Show "back online" message briefly
+		if (isOfflineFallbackActive) {
 			setShowIndicator(true);
-			setTimeout(() => setShowIndicator(false), 3000);
-		};
-
-		const handleOffline = () => {
-			setIsOnline(false);
-			setShowIndicator(true);
-		};
-
-		window.addEventListener("online", handleOnline);
-		window.addEventListener("offline", handleOffline);
-
-		// Show indicator if we're offline on mount
-		if (!navigator.onLine) {
-			setShowIndicator(true);
+			return;
 		}
 
-		return () => {
-			window.removeEventListener("online", handleOnline);
-			window.removeEventListener("offline", handleOffline);
-		};
-	}, []);
+		if (!showIndicator) return;
+
+		const hideTimeout = window.setTimeout(() => setShowIndicator(false), 3000);
+		return () => window.clearTimeout(hideTimeout);
+	}, [isOfflineFallbackActive, showIndicator]);
 
 	if (!showIndicator) return null;
 
@@ -71,27 +52,6 @@ export function OfflineIndicator({ className }: OfflineIndicatorProps) {
 }
 
 /**
- * Hook to detect online/offline status
+ * Hook to detect online/offline status.
  */
-export function useOnlineStatus() {
-	const [isOnline, setIsOnline] = useState(
-		() => typeof navigator === "undefined" || navigator.onLine,
-	);
-
-	useEffect(() => {
-		setIsOnline(navigator.onLine);
-
-		const handleOnline = () => setIsOnline(true);
-		const handleOffline = () => setIsOnline(false);
-
-		window.addEventListener("online", handleOnline);
-		window.addEventListener("offline", handleOffline);
-
-		return () => {
-			window.removeEventListener("online", handleOnline);
-			window.removeEventListener("offline", handleOffline);
-		};
-	}, []);
-
-	return isOnline;
-}
+export { useOnlineStatus } from "./online-status-gate";

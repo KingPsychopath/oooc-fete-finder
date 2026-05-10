@@ -1,3 +1,4 @@
+import { useOnlineStatus } from "@/components/online-status-gate";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -44,7 +45,8 @@ const EmailGateModal = ({
 	const [consent, setConsent] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState("");
-	const [isOffline, setIsOffline] = useState(false);
+	const isOnline = useOnlineStatus();
+	const isOffline = !isOnline;
 	const [recentProfile, setRecentProfile] = useState<StoredAuthProfile | null>(
 		null,
 	);
@@ -52,22 +54,6 @@ const EmailGateModal = ({
 	const validateName = (name: string) => {
 		return name.trim().length >= 2;
 	};
-
-	useEffect(() => {
-		if (typeof navigator === "undefined") return;
-		setIsOffline(navigator.onLine === false);
-
-		const handleOnline = () => setIsOffline(false);
-		const handleOffline = () => setIsOffline(true);
-
-		window.addEventListener("online", handleOnline);
-		window.addEventListener("offline", handleOffline);
-
-		return () => {
-			window.removeEventListener("online", handleOnline);
-			window.removeEventListener("offline", handleOffline);
-		};
-	}, []);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
@@ -206,7 +192,7 @@ const EmailGateModal = ({
 				setError(result.error || "Something went wrong. Please try again.");
 			}
 		} catch (submitError) {
-			if (typeof navigator !== "undefined" && navigator.onLine === false) {
+			if (!isOnline) {
 				setError("You are offline. Reconnect to verify your email.");
 				return;
 			}
