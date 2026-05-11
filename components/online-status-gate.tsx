@@ -26,7 +26,7 @@ const OnlineStatusContext = createContext<OnlineStatusContextValue | null>(
 const ONLINE_PROBE_PATH = `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/client-health`;
 const IS_DEVELOPMENT = process.env.NODE_ENV === "development";
 const ONLINE_PROBE_TIMEOUT_MS = IS_DEVELOPMENT ? 8000 : 3000;
-const REQUIRED_PROBE_FAILURES = IS_DEVELOPMENT ? 2 : 1;
+const REQUIRED_PROBE_FAILURES = IS_DEVELOPMENT ? 1 : 2;
 
 const readBrowserOnlineStatus = () =>
 	typeof navigator === "undefined" || navigator.onLine;

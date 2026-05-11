@@ -19,6 +19,7 @@ import { trackEventEngagement } from "@/features/events/engagement/client-tracki
 import type { SearchChip } from "@/features/events/search-chips";
 import {
 	FETE_FINDER_TOUR_EVENT,
+	FETE_FINDER_TOUR_STORAGE_KEY,
 	PENDING_FETE_FINDER_TOUR_STORAGE_KEY,
 } from "@/features/events/tour-events";
 import type { Event } from "@/features/events/types";
@@ -176,10 +177,25 @@ function EventsClientShell({
 		setHasMountedTourIsland(true);
 	}, []);
 
+	const hasSeenTourState = useCallback(() => {
+		if (typeof window === "undefined") return false;
+		try {
+			return window.localStorage.getItem(FETE_FINDER_TOUR_STORAGE_KEY) !== null;
+		} catch {
+			return false;
+		}
+	}, []);
+
 	useEffect(() => {
 		if (mapLoadStrategy !== "immediate") return;
 		void requestFullEvents();
 	}, [mapLoadStrategy, requestFullEvents]);
+
+	useEffect(() => {
+		if (!isAuthResolved || !isAuthenticated || hasMountedTourIsland) return;
+		if (hasSeenTourState()) return;
+		mountTourIsland();
+	}, [hasMountedTourIsland, hasSeenTourState, isAuthResolved, isAuthenticated, mountTourIsland]);
 
 	useEffect(() => {
 		if (!isOnline) return;
