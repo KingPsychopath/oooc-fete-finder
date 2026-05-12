@@ -98,6 +98,14 @@ export function EventsOfflineProvider({
 	const fullEventsPromiseRef = useRef<Promise<Event[] | null> | null>(null);
 
 	useEffect(() => {
+		if (!isOnline || initialEvents.length === 0) return;
+		setEvents(initialEvents);
+		setEventDataSource("live");
+		setHasLoadedFullEvents(!fullEventsPath);
+		fullEventsPromiseRef.current = null;
+	}, [fullEventsPath, initialEvents, isOnline]);
+
+	useEffect(() => {
 		let isCancelled = false;
 
 		setEventSnapshotSyncState("refreshing");
@@ -115,7 +123,13 @@ export function EventsOfflineProvider({
 				setEventSnapshotFreshness(freshness);
 				setEventSnapshotSyncState("saved");
 				setEventSnapshotError(null);
-				if (initialEvents.length > 0 && isOnline) return;
+				if (initialEvents.length > 0 && isOnline) {
+					setEvents(initialEvents);
+					setEventDataSource("live");
+					setHasLoadedFullEvents(!fullEventsPath);
+					fullEventsPromiseRef.current = null;
+					return;
+				}
 				setEvents(snapshot.events);
 				setEventDataSource("saved");
 				setHasLoadedFullEvents(true);
@@ -141,7 +155,7 @@ export function EventsOfflineProvider({
 		return () => {
 			isCancelled = true;
 		};
-	}, [initialEvents.length, isOnline]);
+	}, [fullEventsPath, initialEvents, isOnline]);
 
 	useEffect(() => {
 		if (eventDataSource !== "live" || events.length === 0) return;

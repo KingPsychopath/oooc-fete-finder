@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { type Page, expect, test } from "@playwright/test";
+import { type BrowserContext, type Page, expect, test } from "@playwright/test";
 import jwt from "jsonwebtoken";
 
 const EVENT_PATH = "/event/evt_115811d709b9b6ed/krispy-jam-n-29-tascha";
@@ -259,6 +259,19 @@ const failOnChunkLoadError = (page: Page) => {
 	};
 };
 
+const setBrowserOffline = async (
+	context: BrowserContext,
+	page: Page,
+	isOffline: boolean,
+) => {
+	await context.setOffline(isOffline);
+	await page.evaluate(
+		(offline) =>
+			window.dispatchEvent(new Event(offline ? "offline" : "online")),
+		isOffline,
+	);
+};
+
 test.describe("event share routes", () => {
 	test("direct event URL renders the hydrated modal", async ({ page }) => {
 		await page.goto(EVENT_PATH);
@@ -357,7 +370,7 @@ test.describe("event share routes", () => {
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
 		await waitForHomeEventSnapshot(page);
 
-		await context.setOffline(true);
+		await setBrowserOffline(context, page, true);
 		await page.evaluate(() => {
 			window.localStorage.setItem(
 				"oooc_offline_auth_grace_v1",
@@ -368,6 +381,7 @@ test.describe("event share routes", () => {
 			);
 		});
 		await page.reload({ waitUntil: "domcontentloaded" });
+		await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 
 		await expect(page.getByText(/^Saved events:/)).toBeVisible();
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
@@ -414,8 +428,9 @@ test.describe("event share routes", () => {
 			page.getByText("Protected discovery").locator(".."),
 		).toContainText("allowed");
 
-		await context.setOffline(true);
+		await setBrowserOffline(context, page, true);
 		await page.reload({ waitUntil: "domcontentloaded" });
+		await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 
 		await expect(page.getByText(/^Saved events:/)).toBeVisible();
 		await expect(page.getByText("Auth mode").locator("..")).toContainText(
@@ -449,8 +464,9 @@ test.describe("event share routes", () => {
 		await expect(page.getByRole("dialog", { name: EVENT_TITLE })).toBeVisible();
 		await waitForEventDetailSnapshot(page, EVENT_KEY);
 
-		await context.setOffline(true);
+		await setBrowserOffline(context, page, true);
 		await page.reload({ waitUntil: "domcontentloaded" });
+		await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 
 		await expect(page.getByRole("dialog", { name: EVENT_TITLE })).toBeVisible();
 		await expect(
@@ -506,7 +522,7 @@ test.describe("event share routes", () => {
 		expect(cachedPathnames).not.toContain("/api/user/preferences");
 		expect(cachedPathnames).not.toContain("/api/admin/health");
 
-		await context.setOffline(true);
+		await setBrowserOffline(context, page, true);
 		await page.evaluate(() => {
 			window.localStorage.setItem(
 				"oooc_offline_auth_grace_v1",
@@ -517,6 +533,7 @@ test.describe("event share routes", () => {
 			);
 		});
 		await page.reload({ waitUntil: "domcontentloaded" });
+		await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 
 		await expect(page.getByText(/^Saved events:/)).toBeVisible();
 		await page.getByRole("button", { name: /show picks/i }).click();
@@ -544,13 +561,29 @@ test.describe("event share routes", () => {
 			),
 		).toBeVisible();
 
-		await context.setOffline(false);
+		await setBrowserOffline(context, page, false);
 		await page.reload({ waitUntil: "domcontentloaded" });
 		await expect(page.getByRole("dialog", { name: EVENT_TITLE })).toBeVisible();
 		await expect(page.getByText(/^Saved events:/)).toHaveCount(0);
 		await page.getByRole("button", { name: "Close event details" }).click();
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
 		assertNoChunkLoadError();
+	});
+
+	test("transient offline fallback returns to live events after reconnect", async ({
+		context,
+		page,
+	}) => {
+		await page.goto("/");
+		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await waitForHomeEventSnapshot(page);
+
+		await setBrowserOffline(context, page, true);
+		await expect(page.getByText(/^Saved events:/)).toBeVisible();
+
+		await setBrowserOffline(context, page, false);
+		await expect(page.getByText(/^Saved events:/)).toHaveCount(0);
+		await expect(page.locator("#tour-first-event-card")).toBeVisible();
 	});
 });
 

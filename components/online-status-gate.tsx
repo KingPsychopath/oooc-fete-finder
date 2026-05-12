@@ -7,7 +7,6 @@ import {
 	useContext,
 	useEffect,
 	useMemo,
-	useRef,
 	useState,
 } from "react";
 
@@ -23,73 +22,22 @@ interface OnlineStatusProviderProps {
 const OnlineStatusContext = createContext<OnlineStatusContextValue | null>(
 	null,
 );
-const ONLINE_PROBE_PATH = `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/client-health`;
-const IS_DEVELOPMENT = process.env.NODE_ENV === "development";
-const ONLINE_PROBE_TIMEOUT_MS = IS_DEVELOPMENT ? 8000 : 3000;
-const REQUIRED_PROBE_FAILURES = IS_DEVELOPMENT ? 1 : 2;
 
 const readBrowserOnlineStatus = () =>
 	typeof navigator === "undefined" || navigator.onLine;
 
-async function canReachAppShell(): Promise<boolean> {
-	if (typeof fetch === "undefined") return readBrowserOnlineStatus();
-
-	const controller = new AbortController();
-	const timeout = window.setTimeout(
-		() => controller.abort(),
-		ONLINE_PROBE_TIMEOUT_MS,
-	);
-
-	try {
-		const response = await fetch(
-			`${ONLINE_PROBE_PATH}?onlineProbe=${Date.now()}`,
-			{
-				cache: "no-store",
-				headers: { Accept: "application/json" },
-				signal: controller.signal,
-			},
-		);
-		return response.ok;
-	} catch {
-		return false;
-	} finally {
-		window.clearTimeout(timeout);
-	}
-}
-
 export function OnlineStatusProvider({ children }: OnlineStatusProviderProps) {
 	const [isOnline, setIsOnline] = useState(true);
-	const failedProbeCountRef = useRef(0);
-
-	const setOnlineStatus = useCallback((nextIsOnline: boolean) => {
-		if (nextIsOnline) {
-			failedProbeCountRef.current = 0;
-			setIsOnline(true);
-			return;
-		}
-
-		failedProbeCountRef.current += 1;
-		if (failedProbeCountRef.current >= REQUIRED_PROBE_FAILURES) {
-			setIsOnline(false);
-		}
-	}, []);
 
 	const refreshOnlineStatus = useCallback(() => {
-		if (readBrowserOnlineStatus()) {
-			setOnlineStatus(true);
-			return;
-		}
-
-		void canReachAppShell().then(setOnlineStatus);
-	}, [setOnlineStatus]);
+		setIsOnline(readBrowserOnlineStatus());
+	}, []);
 
 	useEffect(() => {
 		refreshOnlineStatus();
 
-		const handleOnline = () => setOnlineStatus(true);
-		const handleOffline = () => {
-			void canReachAppShell().then(setOnlineStatus);
-		};
+		const handleOnline = () => setIsOnline(true);
+		const handleOffline = () => setIsOnline(false);
 
 		window.addEventListener("online", handleOnline);
 		window.addEventListener("offline", handleOffline);
@@ -105,7 +53,7 @@ export function OnlineStatusProvider({ children }: OnlineStatusProviderProps) {
 			document.removeEventListener("visibilitychange", refreshOnlineStatus);
 			window.clearInterval(probeInterval);
 		};
-	}, [refreshOnlineStatus, setOnlineStatus]);
+	}, [refreshOnlineStatus]);
 
 	const value = useMemo(
 		() => ({
