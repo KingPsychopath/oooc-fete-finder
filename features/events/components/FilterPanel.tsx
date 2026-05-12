@@ -52,7 +52,9 @@ import {
 	ChevronDown,
 	Euro,
 	Filter,
+	Minus,
 	Moon,
+	Plus,
 	Search,
 	Star,
 	Sun,
@@ -310,12 +312,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			...selectedGenres.map((genre) => ({
 				genre,
 				mode: "include" as const,
-				label: `Includes ${genreOptions.find((g) => g.key === genre)?.label ?? genre}`,
+				genreLabel: genreOptions.find((g) => g.key === genre)?.label ?? genre,
 			})),
 			...excludedGenres.map((genre) => ({
 				genre,
 				mode: "exclude" as const,
-				label: `Excludes ${genreOptions.find((g) => g.key === genre)?.label ?? genre}`,
+				genreLabel: genreOptions.find((g) => g.key === genre)?.label ?? genre,
 			})),
 		],
 		[excludedGenres, genreOptions, selectedGenres],
@@ -688,32 +690,37 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</Button>
 							</Badge>
 						))}
-						{activeGenreFilters.slice(0, 4).map(({ genre, mode, label }) => (
-							<Badge
-								key={`${mode}-${genre}`}
-								variant="secondary"
-								className={getGenreActiveFilterBadgeClassName(mode, compact)}
-							>
-								{mode === "include" ? (
-									<Check className="mr-1 h-3 w-3 text-emerald-600 dark:text-emerald-300" />
-								) : (
-									<X className="mr-1 h-3 w-3 text-red-600 dark:text-red-300" />
-								)}
-								{label}
-								<Button
-									variant="ghost"
-									size="sm"
-									className={activeFilterRemoveButtonClassName}
-									onClick={() =>
-										mode === "include"
-											? onGenreToggle(genre)
-											: onGenreExcludeToggle(genre)
-									}
+						{activeGenreFilters
+							.slice(0, 4)
+							.map(({ genre, mode, genreLabel }) => (
+								<Badge
+									key={`${mode}-${genre}`}
+									variant="secondary"
+									className={getGenreActiveFilterBadgeClassName(mode, compact)}
+									title={`${mode === "include" ? "Includes" : "Excludes"} ${genreLabel}`}
+									aria-label={`${mode === "include" ? "Includes" : "Excludes"} ${genreLabel}`}
 								>
-									<X className="h-3 w-3" />
-								</Button>
-							</Badge>
-						))}
+									{mode === "include" ? (
+										<Plus className="mr-1 h-3 w-3 text-emerald-600 dark:text-emerald-300" />
+									) : (
+										<Minus className="mr-1 h-3 w-3 text-red-600 dark:text-red-300" />
+									)}
+									{genreLabel}
+									<Button
+										variant="ghost"
+										size="sm"
+										aria-label={`Remove ${mode === "include" ? "included" : "excluded"} ${genreLabel} filter`}
+										className={activeFilterRemoveButtonClassName}
+										onClick={() =>
+											mode === "include"
+												? onGenreToggle(genre)
+												: onGenreExcludeToggle(genre)
+										}
+									>
+										<X className="h-3 w-3" />
+									</Button>
+								</Badge>
+							))}
 						{activeGenreFilters.length > 4 && (
 							<Badge
 								variant="outline"
