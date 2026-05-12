@@ -22,11 +22,13 @@ export function FeaturedEvents({
 	socialProofDisplayModes,
 	maxFeaturedEvents = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS,
 	dateRange,
+	rotationDate,
 }: FeaturedEventsProps) {
 	const { featuredEvents, totalEventsCount, hasMoreEvents } = useFeaturedEvents(
 		events,
 		maxFeaturedEvents,
 		dateRange,
+		rotationDate,
 	);
 	const { isEventSaved } = useSavedEvents();
 	if (featuredEvents.length === 0) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEventsOffline } from "@/features/events/components/events-offline-provider";
 import { getCountryOption } from "@/features/events/countries";
 import { getDiscoveryEligibleEvents } from "@/features/events/discovery-eligibility";
 import { trackDiscoveryAnalytics } from "@/features/events/engagement/client-tracking";
@@ -20,12 +21,11 @@ import {
 	type MusicGenreDefinition,
 	type Nationality,
 } from "@/features/events/types";
-import { useEventsOffline } from "@/features/events/components/events-offline-provider";
-import { findNearbyEvents } from "@/features/locations/nearby-event-service";
 import {
 	type SavedClientLocation,
 	requestClientLocation,
 } from "@/features/locations/client-location";
+import { findNearbyEvents } from "@/features/locations/nearby-event-service";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import {
 	type ReactNode,
@@ -55,6 +55,7 @@ interface EventsSearchFiltersProviderProps {
 	onNeedFullEvents: () => void;
 	onScrollToAllEvents: () => void;
 	requireAuth: () => boolean;
+	spotlightRotationDate: string;
 }
 
 interface EventsSearchFiltersContextValue {
@@ -63,7 +64,9 @@ interface EventsSearchFiltersContextValue {
 	availableArrondissements: ReturnType<
 		typeof useEventFilters
 	>["availableArrondissements"];
-	availableEventDates: ReturnType<typeof useEventFilters>["availableEventDates"];
+	availableEventDates: ReturnType<
+		typeof useEventFilters
+	>["availableEventDates"];
 	availableGenres: MusicGenreDefinition[];
 	availableNationalities: {
 		key: Nationality;
@@ -132,8 +135,14 @@ interface EventsSearchFiltersContextValue {
 	selectedVenueTypes: ReturnType<typeof useEventFilters>["selectedVenueTypes"];
 	setIsFilterOpen: (isOpen: boolean) => void;
 	setSortMode: (sortMode: EventSortMode) => void;
-	socialProofDisplayModes: Map<string, ReturnType<typeof getSocialProofDisplayModes> extends Map<string, infer T> ? T : never>;
+	socialProofDisplayModes: Map<
+		string,
+		ReturnType<typeof getSocialProofDisplayModes> extends Map<string, infer T>
+			? T
+			: never
+	>;
 	sortMode: EventSortMode;
+	spotlightRotationDate: string;
 	spotlightEventsOrdered: Event[];
 	toggleNearbyEvents: () => void;
 	toggleFilterExpansion: () => void;
@@ -227,6 +236,7 @@ export function EventsSearchFiltersProvider({
 	onNeedFullEvents,
 	onScrollToAllEvents,
 	requireAuth,
+	spotlightRotationDate,
 }: EventsSearchFiltersProviderProps) {
 	const { events } = useEventsOffline();
 	const { settings: localAppSettings, isLoaded: areLocalSettingsLoaded } =
@@ -523,6 +533,7 @@ export function EventsSearchFiltersProvider({
 			setSortMode: handleSortModeChange,
 			socialProofDisplayModes,
 			sortMode,
+			spotlightRotationDate,
 			spotlightEventsOrdered,
 			toggleNearbyEvents,
 			toggleFilterExpansion,
@@ -549,6 +560,7 @@ export function EventsSearchFiltersProvider({
 			handleSortModeChange,
 			socialProofDisplayModes,
 			sortMode,
+			spotlightRotationDate,
 			spotlightEventsOrdered,
 			toggleNearbyEvents,
 			toggleFilterExpansion,

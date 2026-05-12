@@ -1,4 +1,7 @@
-import { selectFeaturedEvents } from "@/features/events/featured/selection";
+import {
+	getParisSpotlightRotationDate,
+	selectFeaturedEvents,
+} from "@/features/events/featured/selection";
 import { type Event, getEventTypeForDate } from "@/features/events/types";
 import { describe, expect, it } from "vitest";
 
@@ -197,5 +200,75 @@ describe("selectFeaturedEvents", () => {
 		expect(secondSelection.map((event) => event.eventKey)).toEqual(
 			firstSelection.map((event) => event.eventKey),
 		);
+	});
+
+	it("rotates fallback ranking by Paris calendar day", () => {
+		const events = [
+			makeEvent({ eventKey: "regular-a", date: "2026-06-21" }),
+			makeEvent({ eventKey: "regular-b", date: "2026-06-22" }),
+			makeEvent({ eventKey: "regular-c", date: "2026-06-23" }),
+			makeEvent({ eventKey: "regular-d", date: "2026-06-24" }),
+			makeEvent({ eventKey: "regular-e", date: "2026-06-25" }),
+			makeEvent({ eventKey: "regular-f", date: "2026-06-26" }),
+		];
+		const firstSelection = selectFeaturedEvents({
+			events,
+			maxFeaturedEvents: 6,
+			dateRange,
+			referenceDate: new Date("2026-06-20T12:00:00"),
+			rotationDate: "2026-05-12",
+		});
+		const nextDaySelection = selectFeaturedEvents({
+			events,
+			maxFeaturedEvents: 6,
+			dateRange,
+			referenceDate: new Date("2026-06-20T12:00:00"),
+			rotationDate: "2026-05-13",
+		});
+
+		expect(nextDaySelection.map((event) => event.eventKey)).not.toEqual(
+			firstSelection.map((event) => event.eventKey),
+		);
+	});
+
+	it("keeps existing fallback relative order when a same-range event is added", () => {
+		const events = [
+			makeEvent({ eventKey: "regular-a", date: "2026-06-21" }),
+			makeEvent({ eventKey: "regular-b", date: "2026-06-22" }),
+			makeEvent({ eventKey: "regular-c", date: "2026-06-23" }),
+			makeEvent({ eventKey: "regular-d", date: "2026-06-24" }),
+		];
+		const baseSelection = selectFeaturedEvents({
+			events,
+			maxFeaturedEvents: 4,
+			dateRange,
+			referenceDate: new Date("2026-06-20T12:00:00"),
+			rotationDate: "2026-05-12",
+		});
+		const withAddedSelection = selectFeaturedEvents({
+			events: [
+				...events,
+				makeEvent({ eventKey: "regular-x", date: "2026-06-24" }),
+			],
+			maxFeaturedEvents: 5,
+			dateRange,
+			referenceDate: new Date("2026-06-20T12:00:00"),
+			rotationDate: "2026-05-12",
+		});
+
+		expect(
+			withAddedSelection
+				.map((event) => event.eventKey)
+				.filter((eventKey) => eventKey !== "regular-x"),
+		).toEqual(baseSelection.map((event) => event.eventKey));
+	});
+
+	it("uses the Paris day for the default rotation date", () => {
+		expect(
+			getParisSpotlightRotationDate(new Date("2026-05-12T21:59:00.000Z")),
+		).toBe("2026-05-12");
+		expect(
+			getParisSpotlightRotationDate(new Date("2026-05-12T22:00:00.000Z")),
+		).toBe("2026-05-13");
 	});
 });

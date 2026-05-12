@@ -30,10 +30,12 @@ interface AuthGatedControlsValue {
 
 interface AuthGatedControlsIslandProps {
 	children: (authControls: AuthGatedControlsValue) => ReactNode;
+	spotlightRotationDate: string;
 }
 
 export function AuthGatedControlsIsland({
 	children,
+	spotlightRotationDate,
 }: AuthGatedControlsIslandProps) {
 	const [showEmailGate, setShowEmailGate] = useState(false);
 	const allEventsRef = useRef<HTMLDivElement>(null);
@@ -101,6 +103,7 @@ export function AuthGatedControlsIsland({
 			}}
 			onScrollToAllEvents={scrollToAllEvents}
 			requireAuth={requireAuth}
+			spotlightRotationDate={spotlightRotationDate}
 		>
 			<SavedEventsProvider>
 				{children({

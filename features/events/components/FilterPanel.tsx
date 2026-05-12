@@ -363,7 +363,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		);
 	}, []);
 
-	const DefaultDateRangeHint = () => {
+	const renderDefaultDateRangeHint = () => {
 		if (!isUsingDefaultDateRange) return null;
 
 		return (
@@ -374,7 +374,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		);
 	};
 
-	const RangeValueLabels = ({
+	const renderRangeValueLabels = ({
 		left,
 		center,
 		right,
@@ -393,7 +393,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	);
 
 	// Active Filters Component (reusable)
-	const ActiveFiltersDisplay = ({
+	const renderActiveFiltersDisplay = ({
 		showHeading = true,
 		compact = false,
 		compactRows = "single",
@@ -769,11 +769,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								{/* Active Filters - Top when few filters */}
 								{hasActiveFilters && uiDecisions.activeFiltersAtTop && (
 									<div className="sticky top-0 z-10 -mx-1 border-b border-border/70 bg-card/95 px-1 pt-1.5 pb-1 backdrop-blur">
-										<ActiveFiltersDisplay
-											compact
-											compactRows="single"
-											showHeading={false}
-										/>
+										{renderActiveFiltersDisplay({
+											compact: true,
+											compactRows: "single",
+											showHeading: false,
+										})}
 									</div>
 								)}
 
@@ -803,7 +803,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										</AccordionTrigger>
 										<AccordionContent>
 											<div className="space-y-3">
-												<DefaultDateRangeHint />
+												{renderDefaultDateRangeHint()}
 												{/* Day/Night Periods */}
 												<div className={compactRailSectionClassName}>
 													<div className="flex items-center justify-between mb-1">
@@ -1127,11 +1127,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															className="w-full"
 															aria-label="Price range filter"
 														/>
-														<RangeValueLabels
-															left={`€${PRICE_RANGE_CONFIG.min}`}
-															center={formatPriceRange(selectedPriceRange)}
-															right={`€${PRICE_RANGE_CONFIG.max}+`}
-														/>
+														{renderRangeValueLabels({
+															left: `€${PRICE_RANGE_CONFIG.min}`,
+															center: formatPriceRange(selectedPriceRange),
+															right: `€${PRICE_RANGE_CONFIG.max}+`,
+														})}
 														{(selectedPriceRange[0] !==
 															PRICE_RANGE_CONFIG.min ||
 															selectedPriceRange[1] !==
@@ -1173,15 +1173,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															className="w-full"
 															aria-label="Age range filter"
 														/>
-														<RangeValueLabels
-															left={`${AGE_RANGE_CONFIG.min} or less`}
-															center={
-																selectedAgeRange
-																	? formatAgeRange(selectedAgeRange)
-																	: "All ages"
-															}
-															right={`${AGE_RANGE_CONFIG.max}+`}
-														/>
+														{renderRangeValueLabels({
+															left: `${AGE_RANGE_CONFIG.min} or less`,
+															center: selectedAgeRange
+																? formatAgeRange(selectedAgeRange)
+																: "All ages",
+															right: `${AGE_RANGE_CONFIG.max}+`,
+														})}
 														{selectedAgeRange && (
 															<div className="flex justify-center">
 																<Button
@@ -1202,9 +1200,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</Accordion>
 
 								{/* Active Filters - Bottom when many filters */}
-								{hasActiveFilters && !uiDecisions.activeFiltersAtTop && (
-									<ActiveFiltersDisplay compact compactRows="double" />
-								)}
+								{hasActiveFilters &&
+									!uiDecisions.activeFiltersAtTop &&
+									renderActiveFiltersDisplay({
+										compact: true,
+										compactRows: "double",
+									})}
 
 								<div className="mt-2 text-center text-[11px] text-muted-foreground/80 lg:text-[10px]">
 									Showing {filteredEventsCount} matching event
@@ -1319,7 +1320,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</Button>
 							</div>
 							<div className="mt-1.5">
-								<ActiveFiltersDisplay showHeading={false} compact />
+								{renderActiveFiltersDisplay({
+									showHeading: false,
+									compact: true,
+								})}
 							</div>
 						</div>
 					)}
@@ -1332,7 +1336,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						{/* Active Filters - Top on desktop when few filters */}
 						{uiDecisions.activeFiltersAtTop && (
 							<div className="hidden lg:block">
-								<ActiveFiltersDisplay />
+								{renderActiveFiltersDisplay()}
 							</div>
 						)}
 
@@ -1365,7 +1369,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<AccordionContent>
 											{/* Compact Days Section for Accordion */}
 											<div className="space-y-3">
-												<DefaultDateRangeHint />
+												{renderDefaultDateRangeHint()}
 												{/* Day/Night Periods */}
 												<div className="p-1.5 bg-muted/20 rounded-md border overflow-hidden">
 													<div className="flex items-center justify-between mb-1">
@@ -1441,7 +1445,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</div>
 
 									<div className="space-y-2">
-										<DefaultDateRangeHint />
+										{renderDefaultDateRangeHint()}
 										{/* Day/Night Periods */}
 										<div className={sectionClassName}>
 											<div className="flex items-center justify-between mb-2">
@@ -1584,11 +1588,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											className="w-full"
 											aria-label="Price range filter"
 										/>
-										<RangeValueLabels
-											left={`€${PRICE_RANGE_CONFIG.min}`}
-											center={formatPriceRange(selectedPriceRange)}
-											right={`€${PRICE_RANGE_CONFIG.max}+`}
-										/>
+										{renderRangeValueLabels({
+											left: `€${PRICE_RANGE_CONFIG.min}`,
+											center: formatPriceRange(selectedPriceRange),
+											right: `€${PRICE_RANGE_CONFIG.max}+`,
+										})}
 										{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 											selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
 											<div className="flex justify-center">
@@ -1625,15 +1629,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											className="w-full"
 											aria-label="Age range filter"
 										/>
-										<RangeValueLabels
-											left={`${AGE_RANGE_CONFIG.min} or less`}
-											center={
-												selectedAgeRange
-													? formatAgeRange(selectedAgeRange)
-													: "All ages"
-											}
-											right={`${AGE_RANGE_CONFIG.max}+`}
-										/>
+										{renderRangeValueLabels({
+											left: `${AGE_RANGE_CONFIG.min} or less`,
+											center: selectedAgeRange
+												? formatAgeRange(selectedAgeRange)
+												: "All ages",
+											right: `${AGE_RANGE_CONFIG.max}+`,
+										})}
 										{selectedAgeRange && (
 											<div className="flex justify-center">
 												<Button
@@ -1733,7 +1735,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						{/* Active Filters - Bottom on desktop when many filters */}
 						{!uiDecisions.activeFiltersAtTop && (
 							<div className="hidden lg:block">
-								<ActiveFiltersDisplay />
+								{renderActiveFiltersDisplay()}
 							</div>
 						)}
 					</CardContent>

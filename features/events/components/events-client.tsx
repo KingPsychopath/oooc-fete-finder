@@ -16,6 +16,7 @@ import {
 import { useEventsSearchFilters } from "@/features/events/components/events-search-filters-provider";
 import { useEventDetailHydration } from "@/features/events/components/use-event-detail-hydration";
 import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
+import { getParisSpotlightRotationDate } from "@/features/events/featured/selection";
 import type { SearchChip } from "@/features/events/search-chips";
 import {
 	FETE_FINDER_TOUR_EVENT,
@@ -43,6 +44,7 @@ interface EventsClientProps {
 	mapLoadStrategy: MapLoadStrategy;
 	eventUpdateRequestsEnabled?: boolean;
 	dynamicSearchChips?: SearchChip[];
+	spotlightRotationDate: string;
 }
 
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
@@ -90,13 +92,26 @@ export function EventsClient({
 	mapLoadStrategy,
 	eventUpdateRequestsEnabled = true,
 	dynamicSearchChips = [],
+	spotlightRotationDate,
 }: EventsClientProps) {
+	const [resolvedSpotlightRotationDate, setResolvedSpotlightRotationDate] =
+		useState(spotlightRotationDate);
+
+	useEffect(() => {
+		const currentParisDate = getParisSpotlightRotationDate();
+		setResolvedSpotlightRotationDate((current) =>
+			current === currentParisDate ? current : currentParisDate,
+		);
+	}, []);
+
 	return (
 		<EventsOfflineProvider
 			initialEvents={initialEvents}
 			fullEventsPath={fullEventsPath}
 		>
-			<AuthGatedControlsIsland>
+			<AuthGatedControlsIsland
+				spotlightRotationDate={resolvedSpotlightRotationDate}
+			>
 				{(authControls) => (
 					<EventsClientShell
 						{...authControls}
@@ -195,7 +210,13 @@ function EventsClientShell({
 		if (!isAuthResolved || !isAuthenticated || hasMountedTourIsland) return;
 		if (hasSeenTourState()) return;
 		mountTourIsland();
-	}, [hasMountedTourIsland, hasSeenTourState, isAuthResolved, isAuthenticated, mountTourIsland]);
+	}, [
+		hasMountedTourIsland,
+		hasSeenTourState,
+		isAuthResolved,
+		isAuthenticated,
+		mountTourIsland,
+	]);
 
 	useEffect(() => {
 		if (!isOnline) return;

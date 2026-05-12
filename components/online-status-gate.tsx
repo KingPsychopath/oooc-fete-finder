@@ -29,6 +29,7 @@ const ONLINE_PROBE_TIMEOUT_MS =
 const ONLINE_PROBE_ATTEMPTS = 2;
 const ONLINE_PROBE_INTERVAL_MS = 60_000;
 const ONLINE_PROBE_DEBOUNCE_MS = 2_000;
+const DEFAULT_ONLINE_STATUS = true;
 
 const readBrowserOnlineStatus = () =>
 	typeof navigator === "undefined" || navigator.onLine;
@@ -66,7 +67,7 @@ const probeAppReachability = async (): Promise<boolean> => {
 };
 
 export function OnlineStatusProvider({ children }: OnlineStatusProviderProps) {
-	const [isOnline, setIsOnline] = useState(readBrowserOnlineStatus);
+	const [isOnline, setIsOnline] = useState(DEFAULT_ONLINE_STATUS);
 	const inFlightProbeRef = useRef<Promise<boolean> | null>(null);
 	const lastProbeStartedAtRef = useRef(0);
 	const lastForcedProbeStartedAtRef = useRef(0);
@@ -154,10 +155,10 @@ export function OnlineStatusProvider({ children }: OnlineStatusProviderProps) {
 
 export function useOnlineStatus() {
 	const context = useContext(OnlineStatusContext);
-	return context?.isOnline ?? readBrowserOnlineStatus();
+	return context?.isOnline ?? DEFAULT_ONLINE_STATUS;
 }
 
 export function useOfflineFallbackGate() {
 	const context = useContext(OnlineStatusContext);
-	return context?.isOfflineFallbackActive ?? !readBrowserOnlineStatus();
+	return context?.isOfflineFallbackActive ?? !DEFAULT_ONLINE_STATUS;
 }

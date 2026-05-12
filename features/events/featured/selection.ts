@@ -8,6 +8,7 @@ interface SelectFeaturedEventsInput {
 	maxFeaturedEvents: number;
 	dateRange: DateRangeFilter;
 	referenceDate?: Date;
+	rotationDate?: string;
 }
 
 const DEFAULT_UNKNOWN_TIME_HOUR = 23;
@@ -94,29 +95,38 @@ const getSeedForDateSet = (
 	return `${eventDates[0]}:${eventDates[eventDates.length - 1]}`;
 };
 
+const PARIS_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+	timeZone: "Europe/Paris",
+	year: "numeric",
+	month: "2-digit",
+	day: "2-digit",
+});
+
+export const getParisSpotlightRotationDate = (
+	referenceDate = new Date(),
+): string => PARIS_DATE_FORMATTER.format(referenceDate);
+
 const getHashFromSeed = (seed: string): number => {
-	let hash = 0;
+	let hash = 2166136261;
 	for (let index = 0; index < seed.length; index++) {
-		hash = (hash << 5) - hash + seed.charCodeAt(index);
-		hash |= 0;
+		hash ^= seed.charCodeAt(index);
+		hash = Math.imul(hash, 16777619);
 	}
-	return hash;
+	return hash >>> 0;
 };
 
-const deterministicShuffle = <T>(array: T[], seed: string): T[] => {
-	const shuffled = [...array];
-	let hash = getHashFromSeed(seed);
+const getEventRankKey = (event: Event): string =>
+	event.eventKey || event.id || event.name;
 
-	for (let index = shuffled.length - 1; index > 0; index--) {
-		hash = (hash * 1664525 + 1013904223) >>> 0;
-		const swapIndex = Math.floor((hash / 2 ** 32) * (index + 1));
-		[shuffled[index], shuffled[swapIndex]] = [
-			shuffled[swapIndex],
-			shuffled[index],
-		];
-	}
-
-	return shuffled;
+const rankByDeterministicScore = (events: Event[], seed: string): Event[] => {
+	return [...events].sort((left, right) => {
+		const leftKey = getEventRankKey(left);
+		const rightKey = getEventRankKey(right);
+		const leftScore = getHashFromSeed(`${seed}:${leftKey}`) >>> 0;
+		const rightScore = getHashFromSeed(`${seed}:${rightKey}`) >>> 0;
+		if (leftScore !== rightScore) return leftScore - rightScore;
+		return leftKey.localeCompare(rightKey);
+	});
 };
 
 const dedupeByEventKey = (events: Event[]): Event[] => {
@@ -134,9 +144,10 @@ export const selectFeaturedEvents = ({
 	maxFeaturedEvents,
 	dateRange,
 	referenceDate = new Date(),
+	rotationDate = getParisSpotlightRotationDate(referenceDate),
 }: SelectFeaturedEventsInput): Event[] => {
 	const safeEvents = events.filter(Boolean);
-	const seed = getSeedForDateSet(safeEvents, dateRange);
+	const seed = `${getSeedForDateSet(safeEvents, dateRange)}:${rotationDate}`;
 	const placementEvents: Event[] = [];
 	const upcomingFallbackEvents: Event[] = [];
 	const archiveFallbackEvents: Event[] = [];
@@ -188,11 +199,11 @@ export const selectFeaturedEvents = ({
 	};
 
 	appendCandidates(
-		deterministicShuffle(ooocPickEvents, `${seed}:oooc-picks`).slice(0, 1),
+		rankByDeterministicScore(ooocPickEvents, `${seed}:oooc-picks`).slice(0, 1),
 	);
-	appendCandidates(deterministicShuffle(regularEvents, `${seed}:regular`));
+	appendCandidates(rankByDeterministicScore(regularEvents, `${seed}:regular`));
 	appendCandidates(
-		deterministicShuffle(
+		rankByDeterministicScore(
 			[...placementEvents, ...regularEvents, ...ooocPickEvents.slice(0, 1)],
 			`${seed}:fill`,
 		),

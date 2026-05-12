@@ -54,8 +54,6 @@ const DISCOVERY_FILTER_GROUPS = [
 
 type DiscoveryFilterGroup = (typeof DISCOVERY_FILTER_GROUPS)[number];
 
-const knownDiscoveryFilterGroups = new Set<string>(DISCOVERY_FILTER_GROUPS);
-
 const escapeCsvCell = (value: string | number): string => {
 	const text = String(value ?? "");
 	if (text.includes(",") || text.includes('"') || text.includes("\n")) {
@@ -249,7 +247,7 @@ export async function getEventEngagementDashboard(
 						startAt,
 						endAt,
 						includeAuthenticatedOnly,
-				  })
+					})
 				: Promise.resolve({
 						searchCount: 0,
 						filterApplyCount: 0,
@@ -260,14 +258,14 @@ export async function getEventEngagementDashboard(
 						tourInteractionCount: 0,
 						navClickCount: 0,
 						uniqueSessionCount: 0,
-			}),
+					}),
 			discoveryRepository
 				? discoveryRepository.listTopSearches({
 						startAt,
 						endAt,
 						limit: 250,
 						includeAuthenticatedOnly,
-				  })
+					})
 				: Promise.resolve([]),
 			discoveryRepository
 				? discoveryRepository.listTopFilters({
@@ -275,7 +273,7 @@ export async function getEventEngagementDashboard(
 						endAt,
 						limit: 30,
 						includeAuthenticatedOnly,
-				  })
+					})
 				: Promise.resolve([]),
 			discoveryRepository
 				? discoveryRepository.listTopDiscoveryActions({
@@ -502,7 +500,7 @@ export async function exportAudienceSegmentCsv(input: {
 			}))
 			.filter(
 				(rule) =>
-					knownDiscoveryFilterGroups.has(rule.filterGroup) &&
+					DISCOVERY_FILTER_GROUPS.includes(rule.filterGroup) &&
 					rule.filterValue.length > 0,
 			);
 		const genreRules = (input.genreRules ?? []).filter((rule) =>

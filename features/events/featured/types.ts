@@ -9,6 +9,7 @@ export type FeaturedEventsProps = {
 	socialProofDisplayModes: Map<string, SocialProofDisplayMode>;
 	maxFeaturedEvents?: number;
 	dateRange: DateRangeFilter;
+	rotationDate: string;
 };
 
 export type SafeFeaturedEventsProps = {

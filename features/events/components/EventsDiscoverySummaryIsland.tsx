@@ -25,6 +25,7 @@ export function EventsDiscoverySummaryIsland({
 		hasAnyActiveFilters,
 		selectedOOOCPicks,
 		socialProofDisplayModes,
+		spotlightRotationDate,
 		spotlightEventsOrdered,
 	} = useEventsSearchFilters();
 	const ooocPicksInViewCount = useMemo(
@@ -100,6 +101,7 @@ export function EventsDiscoverySummaryIsland({
 				onScrollToAllEvents={onScrollToAllEvents}
 				socialProofDisplayModes={socialProofDisplayModes}
 				dateRange={defaultDateRange}
+				rotationDate={spotlightRotationDate}
 			/>
 
 			<EventStats

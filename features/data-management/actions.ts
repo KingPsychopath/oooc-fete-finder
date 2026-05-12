@@ -84,10 +84,8 @@ import {
 	analyzeCsvSchemaRows,
 } from "./validation/csv-schema-report";
 
-const DEFAULT_ALIAS_KEYS = new Set(
-	DEFAULT_GENRE_ALIASES.map(
-		([alias, genreKey]) => `${normalizeGenreKey(alias)}:${genreKey}`,
-	),
+const DEFAULT_ALIAS_KEYS = DEFAULT_GENRE_ALIASES.map(
+	([alias, genreKey]) => `${normalizeGenreKey(alias)}:${genreKey}`,
 );
 
 const loadAdminGenreTaxonomy = async (): Promise<GenreTaxonomySnapshot> => {
@@ -1404,7 +1402,9 @@ export async function removeMusicGenreAliasFromEditor(
 		const existingAlias = taxonomy.aliases.find((item) => item.alias === alias);
 		if (
 			existingAlias &&
-			DEFAULT_ALIAS_KEYS.has(`${existingAlias.alias}:${existingAlias.genreKey}`)
+			DEFAULT_ALIAS_KEYS.includes(
+				`${existingAlias.alias}:${existingAlias.genreKey}`,
+			)
 		) {
 			return { success: false, error: "Default aliases cannot be removed" };
 		}
@@ -1517,9 +1517,11 @@ export async function saveEventSheetEditorRows(
 		}
 		const restoreRowMetadata =
 			shouldRevalidateHomepage && restoreRevisionId
-				? ((await getEventSheetRevisionRepository()?.getSnapshotById(
-						restoreRevisionId,
-					))?.rowMetadata ?? [])
+				? ((
+						await getEventSheetRevisionRepository()?.getSnapshotById(
+							restoreRevisionId,
+						)
+					)?.rowMetadata ?? [])
 				: [];
 		const saved = await LocalEventStore.saveCsv(csvContent, {
 			updatedBy: "admin-sheet-editor",

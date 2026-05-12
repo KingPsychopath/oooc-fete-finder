@@ -18,6 +18,7 @@ export function useFeaturedEvents(
 	events: Event[],
 	maxFeaturedEvents: number = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS,
 	dateRange: DateRangeFilter = { from: null, to: null },
+	rotationDate?: string,
 ): FeaturedEventSelectionResult {
 	const result = useMemo(() => {
 		// Input validation
@@ -60,6 +61,7 @@ export function useFeaturedEvents(
 			events,
 			maxFeaturedEvents: resolvedMaxFeaturedEvents,
 			dateRange,
+			rotationDate,
 		});
 
 		// Safety check: filter out any undefined events
@@ -81,7 +83,7 @@ export function useFeaturedEvents(
 			totalEventsCount: events.length,
 			hasMoreEvents: events.length > resolvedMaxFeaturedEvents,
 		};
-	}, [dateRange, events, maxFeaturedEvents]);
+	}, [dateRange, events, maxFeaturedEvents, rotationDate]);
 
 	return result;
 }

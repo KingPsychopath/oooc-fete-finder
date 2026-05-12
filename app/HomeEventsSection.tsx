@@ -1,5 +1,6 @@
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { EventsClient } from "@/features/events/components/events-client";
+import { getParisSpotlightRotationDate } from "@/features/events/featured/selection";
 import { toHomepageEventPayload } from "@/features/events/homepage-event-payload";
 import {
 	getPopularSearchChipSignalsCached,
@@ -18,26 +19,24 @@ interface HomeEventsSectionProps {
 export async function HomeEventsSection({
 	mapLoadStrategy,
 }: HomeEventsSectionProps) {
-	const [
-		result,
-		submissionSettings,
-		searchChipSettings,
-		popularSearchSignals,
-	] = await Promise.all([
-		getLiveEvents(),
-		EventSubmissionSettingsStore.getPublicSettings().catch((error: unknown) => {
-			log.warn("home", "Unable to load event submission settings", {
-				error: error instanceof Error ? error.message : String(error),
-			});
-			return {
-				newEventsEnabled: true,
-				eventUpdatesEnabled: true,
-				updatedAt: new Date(0).toISOString(),
-			};
-		}),
-		getPublicSearchChipSettingsCached(),
-		getPopularSearchChipSignalsCached(),
-	]);
+	const [result, submissionSettings, searchChipSettings, popularSearchSignals] =
+		await Promise.all([
+			getLiveEvents(),
+			EventSubmissionSettingsStore.getPublicSettings().catch(
+				(error: unknown) => {
+					log.warn("home", "Unable to load event submission settings", {
+						error: error instanceof Error ? error.message : String(error),
+					});
+					return {
+						newEventsEnabled: true,
+						eventUpdatesEnabled: true,
+						updatedAt: new Date(0).toISOString(),
+					};
+				},
+			),
+			getPublicSearchChipSettingsCached(),
+			getPopularSearchChipSignalsCached(),
+		]);
 	const suppressedEventQueries: string[] = [];
 	const isRemoteMode = env.DATA_MODE === "remote";
 	const isBackupFallback = isRemoteMode && result.source === "backup";
@@ -49,6 +48,7 @@ export async function HomeEventsSection({
 					suppressedEventQueries,
 				})
 			: [];
+	const spotlightRotationDate = getParisSpotlightRotationDate();
 	if (result.error) {
 		log.error("home", "Error loading events", { error: result.error });
 	}
@@ -69,6 +69,7 @@ export async function HomeEventsSection({
 				mapLoadStrategy={mapLoadStrategy}
 				eventUpdateRequestsEnabled={submissionSettings.eventUpdatesEnabled}
 				dynamicSearchChips={dynamicSearchChips}
+				spotlightRotationDate={spotlightRotationDate}
 			/>
 		</>
 	);

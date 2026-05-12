@@ -937,8 +937,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	]);
 
 	// Add event markers (only when coordinates enabled)
+	// react-doctor-disable-next-line react-doctor/effect-needs-cleanup -- teardownEventMarkers removes each MapLibre listener registered below.
 	useEffect(() => {
-		if (!map.current || !mapLoaded) return;
+		if (!map.current || !mapLoaded) return () => {};
 		const currentMap = map.current;
 		const teardownEventMarkers = () => {
 			try {
@@ -1055,7 +1056,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		};
 
 		teardownEventMarkers();
-		if (!showCoordinates) return;
+		if (!showCoordinates) return teardownEventMarkers;
 
 		// Filter events with coordinates
 		const eventsWithCoords = filteredEvents.filter(
@@ -1067,7 +1068,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				!isNaN(event.coordinates.lng),
 		);
 
-		if (eventsWithCoords.length === 0) return;
+		if (eventsWithCoords.length === 0) return teardownEventMarkers;
 
 		// Create GeoJSON for events
 		const eventsGeoJSON = {
@@ -1224,9 +1225,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			"event-star-markers",
 			handleEventMarkersMouseLeave,
 		);
-		return () => {
-			teardownEventMarkers();
-		};
+		return teardownEventMarkers;
 	}, [
 		mapLoaded,
 		filteredEvents,
@@ -1272,9 +1271,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							)}
 						</div>
 						<p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
-								{isOfflineMode
-									? `${visibleLoadError}. Cached event browsing, search, and filters are still available below.`
-									: `${visibleLoadError}. The district map can be retried without losing your current filters.`}
+							{isOfflineMode
+								? `${visibleLoadError}. Cached event browsing, search, and filters are still available below.`
+								: `${visibleLoadError}. The district map can be retried without losing your current filters.`}
 						</p>
 						{!isOfflineMode && (
 							<button
