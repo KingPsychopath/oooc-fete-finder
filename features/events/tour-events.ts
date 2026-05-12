@@ -1,5 +1,5 @@
 export const FETE_FINDER_TOUR_EVENT = "oooc:fete-finder-tour:start";
-export const FETE_FINDER_TOUR_VERSION = 1;
+export const FETE_FINDER_TOUR_VERSION = 2;
 export const FETE_FINDER_TOUR_STORAGE_KEY = `oooc:fete-finder-tour:v${FETE_FINDER_TOUR_VERSION}`;
 export const PENDING_FETE_FINDER_TOUR_STORAGE_KEY =
 	"oooc:fete-finder-tour:pending";

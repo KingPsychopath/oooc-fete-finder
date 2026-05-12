@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { type BrowserContext, type Page, expect, test } from "@playwright/test";
+import { FETE_FINDER_TOUR_STORAGE_KEY } from "@/features/events/tour-events";
 import jwt from "jsonwebtoken";
 
 const EVENT_PATH = "/event/evt_115811d709b9b6ed/krispy-jam-n-29-tascha";
@@ -275,9 +276,9 @@ const setBrowserOffline = async (
 };
 
 const markTourSeen = async (page: Page) => {
-	await page.addInitScript(() => {
-		window.localStorage.setItem("oooc:fete-finder-tour:v1", "skipped");
-	});
+	await page.addInitScript((storageKey) => {
+		window.localStorage.setItem(storageKey, "skipped");
+	}, FETE_FINDER_TOUR_STORAGE_KEY);
 };
 
 test.describe("event share routes", () => {
