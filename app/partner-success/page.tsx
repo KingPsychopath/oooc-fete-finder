@@ -8,6 +8,8 @@ import type { Metadata } from "next";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
+export const revalidate = false;
+
 export const metadata: Metadata = generateOGMetadata({
 	title: "Payment Received | OOOC Fete Finder",
 	description:

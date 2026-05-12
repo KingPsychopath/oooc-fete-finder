@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 	],
 };
 
-export const revalidate = 3600;
+export const revalidate = false;
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const contactEmail = "hello@outofofficecollective.co.uk";
@@ -120,7 +120,7 @@ const addOns: PromotionAddOn[] = [
 const getFeaturedProjectionCached = cache(
 	async () => getFeaturedProjection().catch(() => null),
 	["feature-event-projection"],
-	{ revalidate: 3600, tags: ["featured-events", "promoted-events"] },
+	{ revalidate: false, tags: ["featured-events", "promoted-events"] },
 );
 
 async function SpotlightAvailabilityBadge() {

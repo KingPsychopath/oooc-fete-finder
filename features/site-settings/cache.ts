@@ -4,7 +4,7 @@ import { revalidatePath, revalidateTag, updateTag } from "next/cache";
 
 export const SLIDING_BANNER_CACHE_TAG = "sliding-banner";
 export const SLIDING_BANNER_CACHE_KEY = "public-sliding-banner-settings";
-export const SLIDING_BANNER_REVALIDATE_SECONDS = 3600;
+export const SLIDING_BANNER_REVALIDATE_SECONDS = false;
 export const SLIDING_BANNER_LAYOUT_PATHS = ["/", "/feature-event"] as const;
 
 export const invalidateSlidingBannerCache = (): void => {

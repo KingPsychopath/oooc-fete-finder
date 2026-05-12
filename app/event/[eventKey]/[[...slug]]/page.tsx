@@ -27,13 +27,7 @@ type EventSharePageProps = {
 	params: Promise<{ eventKey: string; slug?: string[] }>;
 };
 
-export const revalidate = 3600;
-
-export async function generateStaticParams(): Promise<
-	Array<{ eventKey: string; slug?: string[] }>
-> {
-	return [];
-}
+export const dynamic = "force-dynamic";
 
 const decodePathSegment = (value: string): string => {
 	try {

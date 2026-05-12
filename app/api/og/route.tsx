@@ -445,7 +445,7 @@ const getCachedCurrentYearEventCount = unstable_cache(
 	},
 	["og-current-year-event-count"],
 	{
-		revalidate: 3600,
+		revalidate: false,
 		tags: ["events", "events-data"],
 	},
 );

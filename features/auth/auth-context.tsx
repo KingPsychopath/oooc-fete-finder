@@ -207,18 +207,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 			return false;
 		} catch {
 			// If we cannot verify the admin session, hide admin-only UI until
-			// connectivity/session checks recover. Keep the current user auth state
-			// on transient online failures so one flaky session check does not sign
-			// people out.
+			// connectivity/session checks recover. Only enter offline grace when the
+			// browser reports offline; transient online failures should not show the
+			// offline access card.
 			setIsAdminAuthenticated(false);
-			const canUseOfflineGrace = tryApplyOfflineGraceState();
-			if (!canUseOfflineGrace) {
-				outcome = "error";
-				return false;
-			} else {
-				outcome = "offline-grace";
+			if (!isBrowserOnline()) {
+				const canUseOfflineGrace = tryApplyOfflineGraceState();
+				if (canUseOfflineGrace) {
+					outcome = "offline-grace";
+					return true;
+				}
+			}
+			if (authMode === "live" && isAuthenticated) {
+				outcome = "live";
 				return true;
 			}
+			clearOfflineGraceState();
+			if (authMode === "offline-grace") {
+				setSignedOutState();
+			}
+			outcome = "error";
+			return false;
 		} finally {
 			if (AUTH_TIMING_LOG_ENABLED) {
 				const endTimeMs =
@@ -233,6 +242,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 			setIsAuthResolved(true);
 		}
 	}, [
+		authMode,
+		isAuthenticated,
 		isOnline,
 		setLiveAuthenticatedState,
 		setSignedOutState,

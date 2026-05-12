@@ -3,12 +3,12 @@ import { log } from "@/lib/platform/logger";
 import { NextResponse } from "next/server";
 
 const EVENTS_API_CACHE_CONTROL =
-	"public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+	"public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
 const SLOW_EVENTS_API_MS = 750;
 
 export async function GET() {
 	const startedAt = Date.now();
-	const result = await getLiveEvents();
+	const result = await getLiveEvents({ includeEngagementProjection: false });
 	const durationMs = Date.now() - startedAt;
 
 	if (result.error) {

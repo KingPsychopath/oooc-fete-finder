@@ -74,15 +74,33 @@ const parseCookieByName = (
 };
 
 const EVENT_KEY_CACHE_TTL_MS = 5 * 60 * 1000;
+const UNKNOWN_EVENT_KEY_CACHE_TTL_MS = 10 * 60 * 1000;
+const EVENT_KEY_CACHE_MAX_SIZE = 1000;
 const RESERVED_EVENT_KEYS = new Set<string>([APP_PREFERENCES_EVENT_KEY]);
 
 const eventKeyCache = new Map<string, number>();
+const unknownEventKeyCache = new Map<string, number>();
+
+const setBoundedCacheEntry = (
+	cache: Map<string, number>,
+	key: string,
+	expiresAt: number,
+) => {
+	if (cache.size >= EVENT_KEY_CACHE_MAX_SIZE) {
+		cache.clear();
+	}
+	cache.set(key, expiresAt);
+};
 
 const isKnownEventKey = async (eventKey: string): Promise<boolean | null> => {
 	const nowMs = Date.now();
 	const cachedExpiry = eventKeyCache.get(eventKey);
 	if (cachedExpiry && cachedExpiry > nowMs) {
 		return true;
+	}
+	const unknownCachedExpiry = unknownEventKeyCache.get(eventKey);
+	if (unknownCachedExpiry && unknownCachedExpiry > nowMs) {
+		return false;
 	}
 
 	if (RESERVED_EVENT_KEYS.has(eventKey)) {
@@ -97,7 +115,14 @@ const isKnownEventKey = async (eventKey: string): Promise<boolean | null> => {
 	try {
 		const exists = await repository.hasEventKey(eventKey);
 		if (exists) {
-			eventKeyCache.set(eventKey, nowMs + EVENT_KEY_CACHE_TTL_MS);
+			setBoundedCacheEntry(eventKeyCache, eventKey, nowMs + EVENT_KEY_CACHE_TTL_MS);
+			unknownEventKeyCache.delete(eventKey);
+		} else {
+			setBoundedCacheEntry(
+				unknownEventKeyCache,
+				eventKey,
+				nowMs + UNKNOWN_EVENT_KEY_CACHE_TTL_MS,
+			);
 		}
 		return exists;
 	} catch {

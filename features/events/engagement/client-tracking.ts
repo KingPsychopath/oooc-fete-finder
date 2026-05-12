@@ -7,9 +7,6 @@ import type { MapProvider } from "@/features/maps/types";
 
 const SESSION_STORAGE_KEY = "oooc:event-engagement-session";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-const ONLINE_PROBE_PATH = `${basePath}/api/client-health`;
-const ONLINE_PROBE_TIMEOUT_MS =
-	process.env.NODE_ENV === "development" ? 8000 : 3000;
 const BATCH_FLUSH_DELAY_MS = 3000;
 const MAX_RETRY_FLUSH_DELAY_MS = 5 * 60 * 1000;
 const MAX_BATCH_SIZE = 20;
@@ -22,6 +19,15 @@ const RECENT_GENRE_PREFERENCE_DEDUPE_MS = 10_000;
 const MAP_OPEN_DEDUPE_MS = 30_000;
 
 type ClientContext = ReturnType<typeof getClientContext>;
+type DiscoveryAnalyticsAction =
+	| "search"
+	| "filter_apply"
+	| "filter_clear"
+	| "map_interaction"
+	| "sort_change"
+	| "location_request"
+	| "tour_interaction"
+	| "nav_click";
 
 type EventEngagementPayload = {
 	eventKey: string;
@@ -35,15 +41,7 @@ type EventEngagementPayload = {
 };
 
 type DiscoveryAnalyticsPayload = {
-	actionType:
-		| "search"
-		| "filter_apply"
-		| "filter_clear"
-		| "map_interaction"
-		| "sort_change"
-		| "location_request"
-		| "tour_interaction"
-		| "nav_click";
+	actionType: DiscoveryAnalyticsAction;
 	sessionId: string | null;
 	filterGroup?: string;
 	filterValue?: string;
@@ -86,35 +84,56 @@ const endpoints: Record<QueueName, string> = {
 	preference: `${basePath}/api/user/preferences`,
 };
 
+const clampSampleRate = (value: string | undefined, fallback: number): number => {
+	const parsed = Number.parseFloat(value ?? "");
+	if (!Number.isFinite(parsed)) return fallback;
+	return Math.min(1, Math.max(0, parsed));
+};
+
+const HIGH_VALUE_ENGAGEMENT_ACTIONS = new Set<EventEngagementAction>([
+	"outbound_click",
+	"calendar_sync",
+	"saved_toggle",
+	"map_preference_change",
+]);
+const LOW_VALUE_DISCOVERY_ACTIONS = new Set<DiscoveryAnalyticsAction>([
+	"nav_click",
+	"tour_interaction",
+]);
+const ENGAGEMENT_SAMPLE_RATE = clampSampleRate(
+	process.env.NEXT_PUBLIC_ENGAGEMENT_ANALYTICS_SAMPLE_RATE,
+	0.25,
+);
+const DISCOVERY_SAMPLE_RATE = clampSampleRate(
+	process.env.NEXT_PUBLIC_DISCOVERY_ANALYTICS_SAMPLE_RATE,
+	0.25,
+);
+const LOW_VALUE_DISCOVERY_SAMPLE_RATE = clampSampleRate(
+	process.env.NEXT_PUBLIC_LOW_VALUE_ANALYTICS_SAMPLE_RATE,
+	0,
+);
+const GENRE_PREFERENCE_SAMPLE_RATE = clampSampleRate(
+	process.env.NEXT_PUBLIC_GENRE_PREFERENCE_ANALYTICS_SAMPLE_RATE,
+	0.25,
+);
+
 const isBrowserOffline = (): boolean =>
 	typeof navigator !== "undefined" && navigator.onLine === false;
 
-const canReachApp = async (): Promise<boolean> => {
-	if (typeof window === "undefined" || typeof fetch === "undefined") {
-		return !isBrowserOffline();
-	}
-	if (isBrowserOffline()) return false;
+const shouldSample = (sampleRate: number): boolean =>
+	sampleRate >= 1 || (sampleRate > 0 && Math.random() < sampleRate);
 
-	const controller = new AbortController();
-	const timeout = window.setTimeout(
-		() => controller.abort(),
-		ONLINE_PROBE_TIMEOUT_MS,
-	);
-	try {
-		const response = await fetch(
-			`${ONLINE_PROBE_PATH}?analyticsFlushProbe=${Date.now()}`,
-			{
-				cache: "no-store",
-				headers: { Accept: "application/json" },
-				signal: controller.signal,
-			},
-		);
-		return response.ok;
-	} catch {
-		return false;
-	} finally {
-		window.clearTimeout(timeout);
-	}
+const shouldTrackEventAction = (actionType: EventEngagementAction): boolean =>
+	HIGH_VALUE_ENGAGEMENT_ACTIONS.has(actionType) ||
+	shouldSample(ENGAGEMENT_SAMPLE_RATE);
+
+const shouldTrackDiscoveryAction = (
+	actionType: DiscoveryAnalyticsAction,
+): boolean => {
+	const sampleRate = LOW_VALUE_DISCOVERY_ACTIONS.has(actionType)
+		? LOW_VALUE_DISCOVERY_SAMPLE_RATE
+		: DISCOVERY_SAMPLE_RATE;
+	return shouldSample(sampleRate);
 };
 
 const createSessionId = (): string => {
@@ -374,12 +393,10 @@ const installFlushListeners = (() => {
 			flushQueue("preference", true);
 		};
 		const flushAllWhenOnline = () => {
-			void canReachApp().then((isReachable) => {
-				if (!isReachable) return;
-				flushQueue("engagement");
-				flushQueue("discovery");
-				flushQueue("preference");
-			});
+			if (isBrowserOffline()) return;
+			flushQueue("engagement");
+			flushQueue("discovery");
+			flushQueue("preference");
 		};
 		window.addEventListener("pagehide", flushAll);
 		window.addEventListener("online", flushAllWhenOnline);
@@ -400,6 +417,7 @@ export const trackEventEngagement = (input: {
 	if (typeof window === "undefined") return;
 	const eventKey = input.eventKey?.trim();
 	if (!eventKey) return;
+	if (!shouldTrackEventAction(input.actionType)) return;
 	const dedupeKey = [
 		eventKey,
 		input.actionType,
@@ -470,20 +488,13 @@ export const trackMapPreferenceChange = (input: {
 };
 
 export const trackDiscoveryAnalytics = (input: {
-	actionType:
-		| "search"
-		| "filter_apply"
-		| "filter_clear"
-		| "map_interaction"
-		| "sort_change"
-		| "location_request"
-		| "tour_interaction"
-		| "nav_click";
+	actionType: DiscoveryAnalyticsAction;
 	filterGroup?: string;
 	filterValue?: string;
 	searchQuery?: string;
 }) => {
 	if (typeof window === "undefined") return;
+	if (!shouldTrackDiscoveryAction(input.actionType)) return;
 	const dedupeKey = [
 		input.actionType,
 		input.filterGroup ?? "",
@@ -546,6 +557,7 @@ export const trackGenrePreference = (genre: string) => {
 	if (typeof window === "undefined") return;
 	const normalizedGenre = genre.trim().toLowerCase();
 	if (!normalizedGenre) return;
+	if (!shouldSample(GENRE_PREFERENCE_SAMPLE_RATE)) return;
 	if (
 		shouldSkipRecentAction(
 			recentGenrePreferenceKeys,

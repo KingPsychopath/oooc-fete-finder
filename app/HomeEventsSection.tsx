@@ -22,7 +22,7 @@ export async function HomeEventsSection({
 }: HomeEventsSectionProps) {
 	const [result, submissionSettings, searchChipSettings, popularSearchSignals] =
 		await Promise.all([
-			getLiveEvents(),
+			getLiveEvents({ includeEngagementProjection: false }),
 			EventSubmissionSettingsStore.getPublicSettings().catch(
 				(error: unknown) => {
 					log.warn("home", "Unable to load event submission settings", {

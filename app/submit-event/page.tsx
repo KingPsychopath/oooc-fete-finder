@@ -16,7 +16,7 @@ export const metadata: Metadata = generateOGMetadata({
 	url: `${siteUrl}${basePath || ""}/submit-event`,
 });
 
-export const revalidate = 3600;
+export const revalidate = false;
 
 export default function SubmitEventPage() {
 	return (

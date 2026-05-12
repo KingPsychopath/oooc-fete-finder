@@ -13,7 +13,7 @@ const getSubmitEventFormDataCached = cache(
 	},
 	["submit-event-form-data"],
 	{
-		revalidate: 3600,
+		revalidate: false,
 		tags: ["events", "events-data", "event-submission-settings"],
 	},
 );

@@ -3,9 +3,9 @@ import { log } from "@/lib/platform/logger";
 import { NextResponse, type NextRequest } from "next/server";
 
 const EVENT_DETAILS_CACHE_CONTROL =
-	"public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+	"public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
 const EVENT_NOT_FOUND_CACHE_CONTROL =
-	"public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+	"public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
 const SLOW_EVENT_DETAILS_API_MS = 500;
 
 interface EventDetailsRouteContext {

@@ -51,7 +51,7 @@ const getCachedEventShareIndex = unstable_cache(
 	},
 	["event-share-details"],
 	{
-		revalidate: 3600,
+		revalidate: false,
 		tags: ["events", "events-data"],
 	},
 );

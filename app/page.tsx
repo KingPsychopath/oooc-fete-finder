@@ -4,7 +4,7 @@ import { HomeEventsSectionLoading } from "./HomeEventsSectionLoading";
 import { HomeHeader } from "./HomeHeader";
 
 // Event edits trigger on-demand revalidation; keep public ISR calm by default.
-export const revalidate = 3600;
+export const revalidate = false;
 const homeMapLoadStrategy: "immediate" | "expand" | "idle" = "expand";
 
 export default function Home() {

@@ -46,6 +46,10 @@ Validation schema: `lib/config/env.ts`
 | `NEXT_PUBLIC_FOOD_GUIDE_URL` | - | Food guide link |
 | `NEXT_PUBLIC_PRICE_RATE_GBP_TO_EUR` | `1.154` | Price-filter normalization rate |
 | `NEXT_PUBLIC_PRICE_RATE_USD_TO_EUR` | `0.854` | Price-filter normalization rate |
+| `NEXT_PUBLIC_ENGAGEMENT_ANALYTICS_SAMPLE_RATE` | `0.25` | Sampling rate for low-value event engagement actions; high-value actions such as saves/calendar/outbound clicks are always kept |
+| `NEXT_PUBLIC_DISCOVERY_ANALYTICS_SAMPLE_RATE` | `0.25` | Sampling rate for search/filter/map/sort/location discovery analytics |
+| `NEXT_PUBLIC_LOW_VALUE_ANALYTICS_SAMPLE_RATE` | `0` | Sampling rate for low-value nav/tour analytics |
+| `NEXT_PUBLIC_GENRE_PREFERENCE_ANALYTICS_SAMPLE_RATE` | `0.25` | Sampling rate for genre preference analytics |
 | `NEXT_PUBLIC_STRIPE_LINK_SPOTLIGHT_STANDARD` | - | Partner checkout link |
 | `NEXT_PUBLIC_STRIPE_LINK_SPOTLIGHT_TAKEOVER` | - | Partner checkout link |
 | `NEXT_PUBLIC_STRIPE_LINK_PROMOTED` | - | Partner checkout link |
