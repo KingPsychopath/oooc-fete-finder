@@ -852,6 +852,7 @@ export const FeaturedEventsManagerCard = ({
 											<td className="px-2.5 py-2.5">
 												<div className="flex min-w-[210px] flex-col gap-1.5">
 													<Input
+														id={`placement-reschedule-${row.id}`}
 														type="datetime-local"
 														className="h-8 text-xs"
 														value={
