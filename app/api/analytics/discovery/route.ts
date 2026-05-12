@@ -62,6 +62,8 @@ const KNOWN_FILTER_GROUPS = new Set([
 	"day_night",
 	"arrondissement",
 	"genre",
+	"genre_include",
+	"genre_exclude",
 	"nationality",
 	"venue_type",
 	"venue_setting",
@@ -205,7 +207,8 @@ export async function POST(request: Request) {
 
 		const cookieHeader = request.headers.get("cookie");
 		const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
-		const userSession = await getCanonicalUserSessionFromCookieHeader(userCookie);
+		const userSession =
+			await getCanonicalUserSessionFromCookieHeader(userCookie);
 		for (const body of validEvents) {
 			await repository.recordAction({
 				actionType: body.actionType,

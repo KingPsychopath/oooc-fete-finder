@@ -40,6 +40,7 @@ export function EventsSearchFiltersIsland({
 		onClearFilters,
 		onDateRangeChange,
 		onDayNightPeriodToggle,
+		onGenreExcludeToggle,
 		onGenreToggle,
 		onIndoorPreferenceChange,
 		onNationalityToggle,
@@ -53,6 +54,7 @@ export function EventsSearchFiltersIsland({
 		selectedArrondissements,
 		selectedDateRange,
 		selectedDayNightPeriods,
+		excludedGenres,
 		selectedGenres,
 		selectedIndoorPreference,
 		selectedNationalities,
@@ -98,6 +100,7 @@ export function EventsSearchFiltersIsland({
 						selectedDayNightPeriods={selectedDayNightPeriods}
 						selectedArrondissements={selectedArrondissements}
 						selectedGenres={selectedGenres}
+						excludedGenres={excludedGenres}
 						selectedNationalities={selectedNationalities}
 						selectedVenueTypes={selectedVenueTypes}
 						selectedIndoorPreference={selectedIndoorPreference}
@@ -108,6 +111,7 @@ export function EventsSearchFiltersIsland({
 						onDayNightPeriodToggle={onDayNightPeriodToggle}
 						onArrondissementToggle={onArrondissementToggle}
 						onGenreToggle={onGenreToggle}
+						onGenreExcludeToggle={onGenreExcludeToggle}
 						onNationalityToggle={onNationalityToggle}
 						onVenueTypeToggle={onVenueTypeToggle}
 						onIndoorPreferenceChange={onIndoorPreferenceChange}

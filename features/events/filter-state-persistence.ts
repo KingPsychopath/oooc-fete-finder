@@ -25,6 +25,7 @@ const FILTER_PARAM_KEYS = [
 	"dn",
 	"arr",
 	"g",
+	"gx",
 	"nat",
 	"vt",
 	"in",
@@ -95,6 +96,13 @@ export const parseEventFilterStateFromSearchParams = (
 	const genres = parseCsvParam(params.get("g")).filter(
 		(value): value is MusicGenre => value.length <= 80,
 	);
+	const excludedGenreSet = new Set(
+		parseCsvParam(params.get("gx")).filter(
+			(value): value is MusicGenre => value.length <= 80,
+		),
+	);
+	const excludedGenres = Array.from(excludedGenreSet);
+	const includedGenres = genres.filter((genre) => !excludedGenreSet.has(genre));
 	const nationalities = parseCsvParam(params.get("nat"))
 		.map((value) => value.toUpperCase())
 		.filter((value): value is Nationality =>
@@ -135,7 +143,8 @@ export const parseEventFilterStateFromSearchParams = (
 		},
 		selectedDayNightPeriods: dayNightPeriods,
 		selectedArrondissements: arrondissements,
-		selectedGenres: genres,
+		selectedGenres: includedGenres,
+		excludedGenres,
 		selectedNationalities: nationalities,
 		selectedVenueTypes: venueTypes,
 		selectedIndoorPreference,
@@ -205,6 +214,9 @@ export const serializeEventFilterStateToSearchParams = (
 	}
 	if (state.selectedGenres.length > 0) {
 		next.set("g", state.selectedGenres.join(","));
+	}
+	if (state.excludedGenres.length > 0) {
+		next.set("gx", state.excludedGenres.join(","));
 	}
 	if (state.selectedNationalities.length > 0) {
 		next.set("nat", state.selectedNationalities.join(","));

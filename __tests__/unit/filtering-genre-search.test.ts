@@ -22,6 +22,37 @@ const makeEvent = (genre: Event["genre"], suffix: string): Event => ({
 });
 
 describe("genre-aware search filtering", () => {
+	it("supports including one genre while excluding another", () => {
+		const events = [
+			makeEvent(["afrobeats"], "afrobeats"),
+			makeEvent(["afrobeats", "amapiano"], "afrobeats-amapiano"),
+			makeEvent(["soca"], "soca"),
+		];
+
+		expect(
+			filterEvents(events, {
+				...DEFAULT_EVENT_FILTER_STATE,
+				selectedGenres: ["afrobeats"],
+				excludedGenres: ["amapiano"],
+			}).map((event) => event.eventKey),
+		).toEqual(["evt_test_afrobeats"]);
+	});
+
+	it("can show events that do not include an excluded genre", () => {
+		const events = [
+			makeEvent(["afrobeats"], "afrobeats"),
+			makeEvent(["amapiano"], "amapiano"),
+			makeEvent(["soca", "amapiano"], "soca-amapiano"),
+		];
+
+		expect(
+			filterEvents(events, {
+				...DEFAULT_EVENT_FILTER_STATE,
+				excludedGenres: ["amapiano"],
+			}).map((event) => event.eventKey),
+		).toEqual(["evt_test_afrobeats"]);
+	});
+
 	it("matches alias search terms against canonical genres", () => {
 		const events = [
 			makeEvent(["r&b"], "rnb"),

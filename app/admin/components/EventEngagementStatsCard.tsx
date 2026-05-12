@@ -37,6 +37,8 @@ type DiscoveryFilterGroup =
 	| "day_night"
 	| "arrondissement"
 	| "genre"
+	| "genre_include"
+	| "genre_exclude"
 	| "nationality"
 	| "venue_type"
 	| "venue_setting"
@@ -274,6 +276,8 @@ const FILTER_GROUP_OPTIONS: Array<{
 	label: string;
 }> = [
 	{ value: "genre", label: "Genre" },
+	{ value: "genre_include", label: "Genre Include" },
+	{ value: "genre_exclude", label: "Genre Exclude" },
 	{ value: "arrondissement", label: "Arrondissement" },
 	{ value: "day_night", label: "Day / Night" },
 	{ value: "nationality", label: "Nationality" },
@@ -290,6 +294,8 @@ const FILTER_VALUE_PLACEHOLDER: Record<DiscoveryFilterGroup, string> = {
 	day_night: "day or night",
 	arrondissement: "11",
 	genre: "house",
+	genre_include: "house",
+	genre_exclude: "amapiano",
 	nationality: "FR",
 	venue_type: "indoor or outdoor",
 	venue_setting: "indoor or outdoor",
@@ -1026,6 +1032,7 @@ export const EventEngagementStatsCard = ({
 				number | "greater-paris" | "outside-paris" | "unknown"
 			>;
 			selectedGenres: MusicGenre[];
+			excludedGenres?: MusicGenre[];
 			selectedNationalities: string[];
 			selectedVenueTypes: Array<"indoor" | "outdoor">;
 			selectedIndoorPreference: boolean | null;
@@ -1058,7 +1065,13 @@ export const EventEngagementStatsCard = ({
 			}
 			for (const genre of filterState.selectedGenres) {
 				importedRules.push({
-					filterGroup: "genre",
+					filterGroup: "genre_include",
+					filterValue: genre,
+				});
+			}
+			for (const genre of filterState.excludedGenres ?? []) {
+				importedRules.push({
+					filterGroup: "genre_exclude",
 					filterValue: genre,
 				});
 			}

@@ -48,6 +48,7 @@ import {
 import {
 	Building2,
 	CalendarDays,
+	Check,
 	ChevronDown,
 	Euro,
 	Filter,
@@ -69,6 +70,7 @@ type FilterPanelProps = {
 	selectedDayNightPeriods: DayNightPeriod[];
 	selectedArrondissements: ParisArrondissement[];
 	selectedGenres: MusicGenre[];
+	excludedGenres: MusicGenre[];
 	selectedNationalities: Nationality[];
 	selectedVenueTypes: VenueType[];
 	selectedIndoorPreference: boolean | null;
@@ -79,6 +81,7 @@ type FilterPanelProps = {
 	onDayNightPeriodToggle: (period: DayNightPeriod) => void;
 	onArrondissementToggle: (arrondissement: ParisArrondissement) => void;
 	onGenreToggle: (genre: MusicGenre) => void;
+	onGenreExcludeToggle: (genre: MusicGenre) => void;
 	onNationalityToggle: (nationality: Nationality) => void;
 	onVenueTypeToggle: (venueType: VenueType) => void;
 	onIndoorPreferenceChange: (preference: boolean | null) => void;
@@ -112,6 +115,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	selectedDayNightPeriods,
 	selectedArrondissements,
 	selectedGenres,
+	excludedGenres,
 	selectedNationalities,
 	selectedVenueTypes,
 	selectedIndoorPreference,
@@ -122,6 +126,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onDayNightPeriodToggle,
 	onArrondissementToggle,
 	onGenreToggle,
+	onGenreExcludeToggle,
 	onNationalityToggle,
 	onVenueTypeToggle,
 	onIndoorPreferenceChange,
@@ -162,6 +167,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		"h-7 max-w-full gap-1 rounded-full border border-border/70 bg-background/80 px-2 text-xs font-normal shadow-none lg:text-[11px]";
 	const activeFilterRemoveButtonClassName =
 		"h-auto p-0 ml-1 text-muted-foreground hover:bg-transparent hover:text-foreground";
+	const getGenreActiveFilterBadgeClassName = (
+		mode: "include" | "exclude",
+		compact: boolean,
+	): string =>
+		`${compact ? compactActiveFilterBadgeClassName : activeFilterBadgeClassName} ${
+			mode === "include"
+				? "border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+				: "border-red-500/35 bg-red-500/10 text-red-800 dark:text-red-200"
+		}`;
 	const ooocPickHelp =
 		"OOOC Picks are events highlighted by Out Of Office Collective as especially worth considering.";
 	const hostNationalityHelp =
@@ -172,6 +186,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		"Venue type filters events by setting, such as indoor club spaces or outdoor/open-air locations.";
 	const ageRangeHelp =
 		"Age range primarily reflects the minimum allowed age for an event. It can also hint at the typical attendee age when organisers provide that context.";
+	const genreModeLegend = (
+		<div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground lg:text-[10px]">
+			<span className="inline-flex items-center gap-1">
+				<Check className="h-3 w-3 text-emerald-600 dark:text-emerald-300" />
+				Include
+			</span>
+			<span className="inline-flex items-center gap-1">
+				<X className="h-3 w-3 text-red-600 dark:text-red-300" />
+				Exclude
+			</span>
+		</div>
+	);
 
 	// Stable accordion state for desktop compact mode
 	const [openAccordionSections, setOpenAccordionSections] = useState<string[]>([
@@ -200,6 +226,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					selectedDayNightPeriods,
 					selectedArrondissements,
 					selectedGenres,
+					excludedGenres,
 					selectedNationalities,
 					selectedVenueTypes,
 					selectedIndoorPreference,
@@ -218,6 +245,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedDayNightPeriods,
 			selectedArrondissements,
 			selectedGenres,
+			excludedGenres,
 			selectedNationalities,
 			selectedVenueTypes,
 			selectedIndoorPreference,
@@ -236,6 +264,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					selectedDayNightPeriods,
 					selectedArrondissements,
 					selectedGenres,
+					excludedGenres,
 					selectedNationalities,
 					selectedVenueTypes,
 					selectedIndoorPreference,
@@ -254,6 +283,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedDayNightPeriods,
 			selectedArrondissements,
 			selectedGenres,
+			excludedGenres,
 			selectedNationalities,
 			selectedVenueTypes,
 			selectedIndoorPreference,
@@ -267,13 +297,29 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		if (!normalizedQuery) return genreOptions;
 
 		return genreOptions.filter(({ key, label }) => {
-			if (selectedGenres.includes(key)) return true;
+			if (selectedGenres.includes(key) || excludedGenres.includes(key))
+				return true;
 			return (
 				label.toLowerCase().includes(normalizedQuery) ||
 				key.toLowerCase().includes(normalizedQuery)
 			);
 		});
-	}, [genreOptions, genreSearchQuery, selectedGenres]);
+	}, [excludedGenres, genreOptions, genreSearchQuery, selectedGenres]);
+	const activeGenreFilters = useMemo(
+		() => [
+			...selectedGenres.map((genre) => ({
+				genre,
+				mode: "include" as const,
+				label: `Includes ${genreOptions.find((g) => g.key === genre)?.label ?? genre}`,
+			})),
+			...excludedGenres.map((genre) => ({
+				genre,
+				mode: "exclude" as const,
+				label: `Excludes ${genreOptions.find((g) => g.key === genre)?.label ?? genre}`,
+			})),
+		],
+		[excludedGenres, genreOptions, selectedGenres],
+	);
 
 	// Decision logic for UI variations
 	const uiDecisions = useMemo(() => {
@@ -642,28 +688,33 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</Button>
 							</Badge>
 						))}
-						{selectedGenres.slice(0, 4).map((genre) => (
+						{activeGenreFilters.slice(0, 4).map(({ genre, mode, label }) => (
 							<Badge
-								key={genre}
+								key={`${mode}-${genre}`}
 								variant="secondary"
-								className={
-									compact
-										? compactActiveFilterBadgeClassName
-										: activeFilterBadgeClassName
-								}
+								className={getGenreActiveFilterBadgeClassName(mode, compact)}
 							>
-								{genreOptions.find((g) => g.key === genre)?.label ?? genre}
+								{mode === "include" ? (
+									<Check className="mr-1 h-3 w-3 text-emerald-600 dark:text-emerald-300" />
+								) : (
+									<X className="mr-1 h-3 w-3 text-red-600 dark:text-red-300" />
+								)}
+								{label}
 								<Button
 									variant="ghost"
 									size="sm"
 									className={activeFilterRemoveButtonClassName}
-									onClick={() => onGenreToggle(genre)}
+									onClick={() =>
+										mode === "include"
+											? onGenreToggle(genre)
+											: onGenreExcludeToggle(genre)
+									}
 								>
 									<X className="h-3 w-3" />
 								</Button>
 							</Badge>
 						))}
-						{selectedGenres.length > 4 && (
+						{activeGenreFilters.length > 4 && (
 							<Badge
 								variant="outline"
 								className={
@@ -672,7 +723,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										: "h-7 rounded-full border-border/70 bg-background/60 px-2.5 text-xs font-normal lg:text-[11px]"
 								}
 							>
-								+{selectedGenres.length - 4} more
+								+{activeGenreFilters.length - 4} more
 							</Badge>
 						)}
 					</div>
@@ -911,13 +962,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									<AccordionItem value="music">
 										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors lg:text-[12px]">
 											Music & Culture
-											{(selectedGenres.length > 0 ||
+											{(activeGenreFilters.length > 0 ||
 												selectedNationalities.length > 0) && (
 												<Badge
 													variant="secondary"
 													className="ml-2 border border-border/70 bg-secondary/72 text-xs lg:text-[11px]"
 												>
-													{selectedGenres.length + selectedNationalities.length}{" "}
+													{activeGenreFilters.length +
+														selectedNationalities.length}{" "}
 													active
 												</Badge>
 											)}
@@ -929,6 +981,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													<h3 className={sectionTitleClassName}>
 														Music Genres
 													</h3>
+													{genreModeLegend}
 													<div className="relative mb-2 mt-2">
 														<Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
 														<Input
@@ -945,22 +998,62 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													<div className="relative contain-layout">
 														<div className="grid min-h-[8rem] max-h-36 grid-cols-1 gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/55 p-1.5 [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_34%,transparent)_transparent] [scrollbar-width:thin] min-[1180px]:grid-cols-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/28 [&::-webkit-scrollbar-track]:bg-transparent">
 															{filteredGenreOptions.map(
-																({ key, label, color }) => (
-																	<Toggle
-																		key={key}
-																		pressed={selectedGenres.includes(key)}
-																		onPressedChange={() => onGenreToggle(key)}
-																		className={denseToggleClassName}
-																		size="sm"
-																	>
+																({ key, label, color }) => {
+																	const isIncluded =
+																		selectedGenres.includes(key);
+																	const isExcluded =
+																		excludedGenres.includes(key);
+
+																	return (
 																		<div
-																			className={`w-1.5 h-1.5 rounded-full ${color} mr-1.5 flex-shrink-0`}
-																		/>
-																		<span className="min-w-0 truncate text-xs lg:text-[11px]">
-																			{label}
-																		</span>
-																	</Toggle>
-																),
+																			key={key}
+																			className="flex h-8 min-w-0 items-center gap-1 rounded-lg border border-border/75 bg-background/68 px-1.5 text-xs text-foreground/90 lg:text-[11px]"
+																		>
+																			<div
+																				className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${color}`}
+																			/>
+																			<span className="min-w-0 flex-1 truncate">
+																				{label}
+																			</span>
+																			<div className="ml-auto flex shrink-0 items-center gap-1">
+																				<Button
+																					type="button"
+																					variant="ghost"
+																					size="icon-xs"
+																					aria-pressed={isIncluded}
+																					aria-label={`Include ${label}`}
+																					title={`Include ${label}`}
+																					onClick={() => onGenreToggle(key)}
+																					className={
+																						isIncluded
+																							? "border border-emerald-500/50 bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300"
+																							: "border border-transparent text-muted-foreground hover:border-emerald-500/35 hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300"
+																					}
+																				>
+																					<Check className="h-3 w-3" />
+																				</Button>
+																				<Button
+																					type="button"
+																					variant="ghost"
+																					size="icon-xs"
+																					aria-pressed={isExcluded}
+																					aria-label={`Exclude ${label}`}
+																					title={`Exclude ${label}`}
+																					onClick={() =>
+																						onGenreExcludeToggle(key)
+																					}
+																					className={
+																						isExcluded
+																							? "border border-red-500/50 bg-red-500/15 text-red-700 hover:bg-red-500/20 dark:text-red-300"
+																							: "border border-transparent text-muted-foreground hover:border-red-500/35 hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300"
+																					}
+																				>
+																					<X className="h-3 w-3" />
+																				</Button>
+																			</div>
+																		</div>
+																	);
+																},
 															)}
 															{filteredGenreOptions.length === 0 && (
 																<p className="col-span-2 px-2 py-6 text-center text-xs text-muted-foreground lg:text-[11px]">
@@ -1654,6 +1747,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								{/* Music Genres */}
 								<div className={sectionClassName}>
 									<h3 className={sectionTitleClassName}>Music Genres</h3>
+									{genreModeLegend}
 									<div className="relative mb-2">
 										<Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
 										<Input
@@ -1669,20 +1763,58 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</div>
 									<div className="relative contain-layout">
 										<div className="grid grid-cols-2 gap-1 max-h-48 min-h-[12rem] overflow-y-auto rounded-md border border-border/70 bg-background/55 p-2 [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_34%,transparent)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/28 [&::-webkit-scrollbar-track]:bg-transparent">
-											{filteredGenreOptions.map(({ key, label, color }) => (
-												<Toggle
-													key={key}
-													pressed={selectedGenres.includes(key)}
-													onPressedChange={() => onGenreToggle(key)}
-													className={denseToggleClassName}
-													size="sm"
-												>
+											{filteredGenreOptions.map(({ key, label, color }) => {
+												const isIncluded = selectedGenres.includes(key);
+												const isExcluded = excludedGenres.includes(key);
+
+												return (
 													<div
-														className={`w-2 h-2 rounded-full ${color} mr-1.5 flex-shrink-0`}
-													/>
-													<span className="text-xs truncate">{label}</span>
-												</Toggle>
-											))}
+														key={key}
+														className="flex h-8 min-w-0 items-center gap-1 rounded-lg border border-border/75 bg-background/68 px-1.5 text-xs text-foreground/90"
+													>
+														<div
+															className={`h-2 w-2 flex-shrink-0 rounded-full ${color}`}
+														/>
+														<span className="min-w-0 flex-1 truncate">
+															{label}
+														</span>
+														<div className="ml-auto flex shrink-0 items-center gap-1">
+															<Button
+																type="button"
+																variant="ghost"
+																size="icon-xs"
+																aria-pressed={isIncluded}
+																aria-label={`Include ${label}`}
+																title={`Include ${label}`}
+																onClick={() => onGenreToggle(key)}
+																className={
+																	isIncluded
+																		? "border border-emerald-500/50 bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300"
+																		: "border border-transparent text-muted-foreground hover:border-emerald-500/35 hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300"
+																}
+															>
+																<Check className="h-3 w-3" />
+															</Button>
+															<Button
+																type="button"
+																variant="ghost"
+																size="icon-xs"
+																aria-pressed={isExcluded}
+																aria-label={`Exclude ${label}`}
+																title={`Exclude ${label}`}
+																onClick={() => onGenreExcludeToggle(key)}
+																className={
+																	isExcluded
+																		? "border border-red-500/50 bg-red-500/15 text-red-700 hover:bg-red-500/20 dark:text-red-300"
+																		: "border border-transparent text-muted-foreground hover:border-red-500/35 hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300"
+																}
+															>
+																<X className="h-3 w-3" />
+															</Button>
+														</div>
+													</div>
+												);
+											})}
 											{filteredGenreOptions.length === 0 && (
 												<p className="col-span-2 px-2 py-8 text-center text-xs text-muted-foreground">
 													No genres found.

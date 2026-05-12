@@ -78,9 +78,10 @@ describe("event filter defaults", () => {
 			new Date("2026-04-24T10:00:00.000Z"),
 		);
 
-		expect(
-			getTopEventDatesByCount(events, 4, defaultDateRange),
-		).toEqual(["2026-06-21", "2026-06-22"]);
+		expect(getTopEventDatesByCount(events, 4, defaultDateRange)).toEqual([
+			"2026-06-21",
+			"2026-06-22",
+		]);
 	});
 
 	it("falls back to an unfiltered date range when no current-year events exist", () => {
@@ -131,6 +132,43 @@ describe("event filter defaults", () => {
 		expect(state).toMatchObject({
 			searchQuery: "Pre-Fete",
 			selectedDateRange: defaultDateRange,
+		});
+	});
+
+	it("round-trips excluded genre URL filters separately from included genres", () => {
+		const state = {
+			...DEFAULT_EVENT_FILTER_STATE,
+			selectedGenres: ["afrobeats"],
+			excludedGenres: ["amapiano"],
+		};
+
+		const params = serializeEventFilterStateToSearchParams(
+			new URLSearchParams("event=abc123"),
+			state,
+		);
+
+		expect(params.get("g")).toBe("afrobeats");
+		expect(params.get("gx")).toBe("amapiano");
+
+		const parsed = resolveInitialEventFilterStateFromSearchParams(params, {
+			defaultDateRange: DEFAULT_EVENT_FILTER_STATE.selectedDateRange,
+		});
+
+		expect(parsed).toMatchObject({
+			selectedGenres: ["afrobeats"],
+			excludedGenres: ["amapiano"],
+		});
+	});
+
+	it("lets excluded genre URL filters win conflicting include params", () => {
+		const parsed = resolveInitialEventFilterStateFromSearchParams(
+			new URLSearchParams("g=afrobeats,amapiano&gx=amapiano"),
+			{ defaultDateRange: DEFAULT_EVENT_FILTER_STATE.selectedDateRange },
+		);
+
+		expect(parsed).toMatchObject({
+			selectedGenres: ["afrobeats"],
+			excludedGenres: ["amapiano"],
 		});
 	});
 

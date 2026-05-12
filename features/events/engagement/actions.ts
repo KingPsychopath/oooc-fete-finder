@@ -44,6 +44,8 @@ const DISCOVERY_FILTER_GROUPS = [
 	"day_night",
 	"arrondissement",
 	"genre",
+	"genre_include",
+	"genre_exclude",
 	"nationality",
 	"venue_type",
 	"venue_setting",

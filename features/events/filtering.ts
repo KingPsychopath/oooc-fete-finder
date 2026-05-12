@@ -33,6 +33,7 @@ export type EventFilterState = {
 	selectedDayNightPeriods: DayNightPeriod[];
 	selectedArrondissements: ParisArrondissement[];
 	selectedGenres: MusicGenre[];
+	excludedGenres: MusicGenre[];
 	selectedNationalities: Nationality[];
 	selectedVenueTypes: VenueType[];
 	selectedIndoorPreference: boolean | null;
@@ -50,6 +51,7 @@ export const DEFAULT_EVENT_FILTER_STATE: EventFilterState = {
 	selectedDayNightPeriods: [],
 	selectedArrondissements: [],
 	selectedGenres: [],
+	excludedGenres: [],
 	selectedNationalities: [],
 	selectedVenueTypes: [],
 	selectedIndoorPreference: null,
@@ -258,6 +260,13 @@ export const filterEvents = (
 			if (!hasMatchingGenre) return false;
 		}
 
+		if (filters.excludedGenres.length > 0) {
+			const hasExcludedGenre = event.genre.some((genre) =>
+				filters.excludedGenres.includes(genre),
+			);
+			if (hasExcludedGenre) return false;
+		}
+
 		if (filters.selectedNationalities.length > 0) {
 			if (!event.nationality || event.nationality.length === 0) return false;
 			const hasAllSelectedNationalities = filters.selectedNationalities.every(
@@ -372,6 +381,7 @@ export const hasActiveFilters = (
 		filters.selectedDayNightPeriods.length > 0 ||
 		filters.selectedArrondissements.length > 0 ||
 		filters.selectedGenres.length > 0 ||
+		filters.excludedGenres.length > 0 ||
 		filters.selectedNationalities.length > 0 ||
 		filters.selectedVenueTypes.length > 0 ||
 		filters.selectedIndoorPreference !== null ||
@@ -398,6 +408,7 @@ export const getActiveFiltersCount = (
 		filters.selectedDayNightPeriods.length +
 		filters.selectedArrondissements.length +
 		filters.selectedGenres.length +
+		filters.excludedGenres.length +
 		filters.selectedNationalities.length +
 		filters.selectedVenueTypes.length +
 		(hasCustomPriceRange(filters.selectedPriceRange) ? 1 : 0) +

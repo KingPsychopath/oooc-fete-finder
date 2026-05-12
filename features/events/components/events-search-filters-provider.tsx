@@ -97,6 +97,9 @@ interface EventsSearchFiltersContextValue {
 		typeof useEventFilters
 	>["onDayNightPeriodToggle"];
 	onGenreToggle: ReturnType<typeof useEventFilters>["onGenreToggle"];
+	onGenreExcludeToggle: ReturnType<
+		typeof useEventFilters
+	>["onGenreExcludeToggle"];
 	onIndoorPreferenceChange: ReturnType<
 		typeof useEventFilters
 	>["onIndoorPreferenceChange"];
@@ -124,6 +127,7 @@ interface EventsSearchFiltersContextValue {
 		typeof useEventFilters
 	>["selectedDayNightPeriods"];
 	selectedGenres: ReturnType<typeof useEventFilters>["selectedGenres"];
+	excludedGenres: ReturnType<typeof useEventFilters>["excludedGenres"];
 	selectedIndoorPreference: ReturnType<
 		typeof useEventFilters
 	>["selectedIndoorPreference"];

@@ -304,7 +304,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							<p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
 								{showSavedOnly
 									? "Save events from their detail modal, or clear filters if your saved events are hidden."
-									: "Try a broader search, remove a chip, or clear filters to bring the full list back."}
+									: "Try a broader search, remove an include/exclude chip, or clear filters to bring the full list back."}
 							</p>
 							{showSavedOnly && (
 								<Button
