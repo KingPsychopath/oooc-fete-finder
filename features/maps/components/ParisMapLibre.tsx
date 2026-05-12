@@ -112,7 +112,9 @@ interface ParisMapLibreProps {
 // Paris center coordinates
 const PARIS_CENTER: [number, number] = [2.3522, 48.8566]; // [lng, lat]
 const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
-const MAP_LOAD_ERROR_GRACE_MS = 4500;
+const MAP_LOAD_ERROR_GRACE_MS = 10000;
+const MAP_INIT_RETRY_DELAY_MS = 900;
+const MAX_MAP_INIT_ATTEMPTS = 2;
 const MAP_ONLINE_ONLY_MESSAGE =
 	"Map style, sprite, glyph, and tile assets are online-only";
 
@@ -201,9 +203,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const loadErrorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
 	);
+	const initRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
 	const locateNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
 	);
+	const mapInitAttemptRef = useRef(0);
 	const nonFatalMapErrorCountRef = useRef(0);
 	const [mapLoaded, setMapLoaded] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
@@ -515,6 +521,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			clearTimeout(loadErrorTimeoutRef.current);
 			loadErrorTimeoutRef.current = null;
 		}
+		if (initRetryTimeoutRef.current) {
+			clearTimeout(initRetryTimeoutRef.current);
+			initRetryTimeoutRef.current = null;
+		}
 
 		const currentMap = map.current;
 		if (currentMap) {
@@ -529,6 +539,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 		map.current = null;
 		hasLoadedMapRef.current = false;
+		mapInitAttemptRef.current = 0;
+		nonFatalMapErrorCountRef.current = 0;
 		setMapLoaded(false);
 		setIsLoading(true);
 		setLoadError(null);
@@ -548,28 +560,51 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			if (locateNoticeTimeoutRef.current) {
 				clearTimeout(locateNoticeTimeoutRef.current);
 			}
+			if (initRetryTimeoutRef.current) {
+				clearTimeout(initRetryTimeoutRef.current);
+			}
 		};
 	}, []);
 
 	// Initialize map with proper cleanup
 	useEffect(() => {
-		if (isOfflineMode) {
-			const currentMap = map.current;
-			if (currentMap) {
-				try {
-					currentMap.remove();
-				} catch (error) {
-					clientLog.warn("maps.maplibre", "Map offline cleanup error", {
-						error: error instanceof Error ? error.message : String(error),
-					});
-				}
-				map.current = null;
-			}
-			hasLoadedMapRef.current = false;
+		let isCancelled = false;
+		let frameId: number | null = null;
+		let resizeObserver: ResizeObserver | null = null;
+
+		const clearLoadErrorTimer = () => {
 			if (loadErrorTimeoutRef.current) {
 				clearTimeout(loadErrorTimeoutRef.current);
 				loadErrorTimeoutRef.current = null;
 			}
+		};
+
+		const clearInitRetryTimer = () => {
+			if (initRetryTimeoutRef.current) {
+				clearTimeout(initRetryTimeoutRef.current);
+				initRetryTimeoutRef.current = null;
+			}
+		};
+
+		const removeCurrentMap = (logLabel: string) => {
+			const currentMap = map.current;
+			if (!currentMap) return;
+			try {
+				currentMap.remove();
+			} catch (error) {
+				clientLog.warn("maps.maplibre", logLabel, {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			} finally {
+				map.current = null;
+			}
+		};
+
+		if (isOfflineMode) {
+			removeCurrentMap("Map offline cleanup error");
+			hasLoadedMapRef.current = false;
+			clearLoadErrorTimer();
+			clearInitRetryTimer();
 			setMapLoaded(false);
 			setIsLoading(false);
 			setLoadError(null);
@@ -578,15 +613,19 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		if (loadError) return;
 		if (!mapContainer.current || map.current) return;
 		hasLoadedMapRef.current = false;
+		mapInitAttemptRef.current = 0;
+		nonFatalMapErrorCountRef.current = 0;
 
-		const initMap = async () => {
+		const initMap = (container: HTMLDivElement) => {
+			if (isCancelled || map.current) return;
+			mapInitAttemptRef.current += 1;
+
 			try {
 				setIsLoading(true);
 				setLoadError(null);
 
-				// Initialize map
 				map.current = new maplibregl.Map({
-					container: mapContainer.current!,
+					container,
 					style: MAP_STYLE_URL,
 					center: PARIS_CENTER,
 					zoom: 11,
@@ -604,14 +643,27 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						[2.51, 48.92], // Northeast corner (medium expansion)
 					],
 				});
+				const currentMap = map.current;
+				if (!currentMap) return;
+
+				const isBasemapReady = () => {
+					try {
+						return (
+							currentMap.isStyleLoaded() &&
+							currentMap.areTilesLoaded() &&
+							currentMap.loaded()
+						);
+					} catch {
+						return false;
+					}
+				};
 
 				const markMapReady = () => {
+					if (isCancelled) return;
 					if (hasLoadedMapRef.current) return;
 					hasLoadedMapRef.current = true;
-					if (loadErrorTimeoutRef.current) {
-						clearTimeout(loadErrorTimeoutRef.current);
-						loadErrorTimeoutRef.current = null;
-					}
+					clearLoadErrorTimer();
+					clearInitRetryTimer();
 					setMapLoaded(true);
 					setIsLoading(false);
 					const collapseAttribution = () => {
@@ -631,27 +683,59 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					window.setTimeout(collapseAttribution, 200);
 				};
 
-				map.current.on("style.load", markMapReady);
-				map.current.on("load", markMapReady);
-				window.requestAnimationFrame(() => {
-					try {
-						if (map.current?.isStyleLoaded()) {
-							markMapReady();
-						}
-					} catch {
-						// The normal load/error handlers still cover torn-down maps.
+				const markMapReadyWhenBasemapIsReady = () => {
+					if (isBasemapReady()) {
+						markMapReady();
 					}
+				};
+
+				const scheduleMapRetry = (message: string) => {
+					if (isCancelled || hasLoadedMapRef.current) return;
+					if (mapInitAttemptRef.current >= MAX_MAP_INIT_ATTEMPTS) {
+						clientLog.error("maps.maplibre", "Map loading error", {
+							attempt: mapInitAttemptRef.current,
+							message,
+						});
+						setLoadError("Live map tiles failed to load");
+						setIsLoading(false);
+						return;
+					}
+
+					clientLog.warn("maps.maplibre", "Retrying map initialization", {
+						attempt: mapInitAttemptRef.current + 1,
+						message,
+					});
+					removeCurrentMap("Map retry cleanup error");
+					clearLoadErrorTimer();
+					clearInitRetryTimer();
+					initRetryTimeoutRef.current = setTimeout(() => {
+						initRetryTimeoutRef.current = null;
+						initMap(container);
+					}, MAP_INIT_RETRY_DELAY_MS);
+				};
+
+				currentMap.on("style.load", markMapReadyWhenBasemapIsReady);
+				currentMap.on("load", markMapReadyWhenBasemapIsReady);
+				currentMap.on("idle", markMapReadyWhenBasemapIsReady);
+				currentMap.on("sourcedata", markMapReadyWhenBasemapIsReady);
+				window.requestAnimationFrame(() => {
+					markMapReadyWhenBasemapIsReady();
 				});
 				window.setTimeout(() => {
-					try {
-						if (map.current?.isStyleLoaded()) {
-							markMapReady();
-						}
-					} catch {
-						// The normal load/error handlers still cover torn-down maps.
-					}
+					markMapReadyWhenBasemapIsReady();
 				}, 120);
-				map.current.on("error", (e: maplibregl.ErrorEvent) => {
+
+				loadErrorTimeoutRef.current = setTimeout(() => {
+					loadErrorTimeoutRef.current = null;
+					if (hasLoadedMapRef.current) return;
+					if (isBasemapReady()) {
+						markMapReady();
+						return;
+					}
+					scheduleMapRetry("Timed out waiting for basemap tiles");
+				}, MAP_LOAD_ERROR_GRACE_MS);
+
+				currentMap.on("error", (e: maplibregl.ErrorEvent) => {
 					if (hasLoadedMapRef.current) {
 						if (nonFatalMapErrorCountRef.current < 3) {
 							nonFatalMapErrorCountRef.current += 1;
@@ -662,28 +746,24 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						return;
 					}
 
-					clientLog.warn("maps.maplibre", "Map loading delayed by tile error", {
-						message: e.error.message,
-					});
+					clientLog.warn(
+						"maps.maplibre",
+						"Map loading delayed by asset error",
+						{
+							attempt: mapInitAttemptRef.current,
+							message: e.error.message,
+						},
+					);
 					if (loadErrorTimeoutRef.current) return;
 
 					loadErrorTimeoutRef.current = setTimeout(() => {
 						loadErrorTimeoutRef.current = null;
 						if (hasLoadedMapRef.current) return;
-						try {
-							if (map.current?.isStyleLoaded()) {
-								markMapReady();
-								return;
-							}
-						} catch {
-							// Fall through to the retry state if the map is no longer usable.
+						if (isBasemapReady()) {
+							markMapReady();
+							return;
 						}
-
-						clientLog.error("maps.maplibre", "Map loading error", {
-							message: e.error.message,
-						});
-						setLoadError("Live map tiles failed to load");
-						setIsLoading(false);
+						scheduleMapRetry(e.error.message);
 					}, MAP_LOAD_ERROR_GRACE_MS);
 				});
 			} catch (error) {
@@ -700,31 +780,36 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			}
 		};
 
-		initMap();
+		const initMapWhenContainerIsReady = () => {
+			const container = mapContainer.current;
+			if (!container || map.current || isCancelled) return;
+			const bounds = container.getBoundingClientRect();
+			if (!container.isConnected || bounds.width < 1 || bounds.height < 1) {
+				frameId = window.requestAnimationFrame(initMapWhenContainerIsReady);
+				return;
+			}
+
+			resizeObserver?.disconnect();
+			resizeObserver = null;
+			initMap(container);
+		};
+
+		if (typeof ResizeObserver !== "undefined") {
+			resizeObserver = new ResizeObserver(initMapWhenContainerIsReady);
+			resizeObserver.observe(mapContainer.current);
+		}
+		initMapWhenContainerIsReady();
 
 		// Proper cleanup function
 		return () => {
-			const currentMap = map.current;
-			if (!currentMap) {
-				if (loadErrorTimeoutRef.current) {
-					clearTimeout(loadErrorTimeoutRef.current);
-					loadErrorTimeoutRef.current = null;
-				}
-				return;
+			isCancelled = true;
+			if (frameId !== null) {
+				window.cancelAnimationFrame(frameId);
 			}
-			try {
-				currentMap.remove();
-			} catch (error) {
-				clientLog.warn("maps.maplibre", "Map cleanup error", {
-					error: error instanceof Error ? error.message : String(error),
-				});
-			} finally {
-				if (loadErrorTimeoutRef.current) {
-					clearTimeout(loadErrorTimeoutRef.current);
-					loadErrorTimeoutRef.current = null;
-				}
-				map.current = null;
-			}
+			resizeObserver?.disconnect();
+			clearLoadErrorTimer();
+			clearInitRetryTimer();
+			removeCurrentMap("Map cleanup error");
 		};
 	}, [isOfflineMode, loadError]);
 
