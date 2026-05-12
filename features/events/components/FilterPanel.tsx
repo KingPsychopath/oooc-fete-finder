@@ -686,8 +686,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		return (
 			<>
 				{/* Mobile floating button */}
-				{!hideFloatingButton &&
-					!localAppSettings.hideFloatingFilterButton && (
+				{!hideFloatingButton && !localAppSettings.hideFloatingFilterButton && (
 					<FilterButton
 						id="tour-filter-button"
 						onClickAction={onOpen || onClose}
@@ -813,26 +812,31 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														</h4>
 													</div>
 													<div className="grid grid-cols-2 gap-1">
-														{DAY_NIGHT_PERIODS.map(({ key, label }) => (
-															<Toggle
-																key={key}
-																pressed={selectedDayNightPeriods.includes(key)}
-																onPressedChange={() =>
-																	onDayNightPeriodToggle(key)
-																}
-																size="sm"
-																className={`${denseToggleClassName} justify-center`}
-															>
-																<span className="inline-flex min-w-0 items-center gap-1">
-																	<span className="shrink-0 text-muted-foreground">
-																		{renderDayNightIcon(key)}
+														{DAY_NIGHT_PERIODS.map(
+															({ key, label, timeRange }) => (
+																<Toggle
+																	key={key}
+																	pressed={selectedDayNightPeriods.includes(
+																		key,
+																	)}
+																	onPressedChange={() =>
+																		onDayNightPeriodToggle(key)
+																	}
+																	size="sm"
+																	className={`${denseToggleClassName} justify-center`}
+																	title={timeRange}
+																>
+																	<span className="inline-flex min-w-0 items-center gap-1">
+																		<span className="shrink-0 text-muted-foreground">
+																			{renderDayNightIcon(key)}
+																		</span>
+																		<span className="min-w-0 truncate">
+																			{label}
+																		</span>
 																	</span>
-																	<span className="min-w-0 truncate">
-																		{label}
-																	</span>
-																</span>
-															</Toggle>
-														))}
+																</Toggle>
+															),
+														)}
 													</div>
 												</div>
 
@@ -1370,24 +1374,29 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														</h4>
 													</div>
 													<div className="grid grid-cols-2 gap-1">
-														{DAY_NIGHT_PERIODS.map(({ key, label }) => (
-															<Toggle
-																key={key}
-																pressed={selectedDayNightPeriods.includes(key)}
-																onPressedChange={() =>
-																	onDayNightPeriodToggle(key)
-																}
-																size="sm"
-																className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
-															>
-																<span className="inline-flex items-center gap-1">
-																	<span className="text-muted-foreground">
-																		{renderDayNightIcon(key)}
+														{DAY_NIGHT_PERIODS.map(
+															({ key, label, timeRange }) => (
+																<Toggle
+																	key={key}
+																	pressed={selectedDayNightPeriods.includes(
+																		key,
+																	)}
+																	onPressedChange={() =>
+																		onDayNightPeriodToggle(key)
+																	}
+																	size="sm"
+																	className="text-xs px-1.5 py-1 sm:px-2 flex-1 justify-center min-w-0 truncate"
+																	title={timeRange}
+																>
+																	<span className="inline-flex items-center gap-1">
+																		<span className="text-muted-foreground">
+																			{renderDayNightIcon(key)}
+																		</span>
+																		<span>{label}</span>
 																	</span>
-																	<span>{label}</span>
-																</span>
-															</Toggle>
-														))}
+																</Toggle>
+															),
+														)}
 													</div>
 												</div>
 
@@ -1441,13 +1450,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												</h4>
 											</div>
 											<div className="grid grid-cols-2 gap-2">
-												{DAY_NIGHT_PERIODS.map(({ key, label }) => (
+												{DAY_NIGHT_PERIODS.map(({ key, label, timeRange }) => (
 													<Toggle
 														key={key}
 														pressed={selectedDayNightPeriods.includes(key)}
 														onPressedChange={() => onDayNightPeriodToggle(key)}
 														size="sm"
 														className={regularToggleClassName}
+														title={timeRange}
 													>
 														<span className="inline-flex items-center gap-1">
 															<span className="text-muted-foreground">

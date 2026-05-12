@@ -17,6 +17,11 @@ export type EventDay =
 	| "tbc";
 
 export type DayNightPeriod = "day" | "night";
+export type EventTemporalPeriod =
+	| DayNightPeriod
+	| "evening"
+	| "overnight"
+	| "unknown";
 
 export type EventType = "Pre-Fete" | "Fete" | "Post-Fete";
 
@@ -228,13 +233,13 @@ export const DAY_NIGHT_PERIODS = [
 	{
 		key: "day" as const,
 		label: "Day",
-		timeRange: "6:00 AM - 9:59 PM",
+		timeRange: "Daytime and early evening",
 		icon: "☀️",
 	},
 	{
 		key: "night" as const,
 		label: "Night",
-		timeRange: "10:00 PM - 5:59 AM",
+		timeRange: "Late starts and events running into the night",
 		icon: "🌙",
 	},
 ] as const;
@@ -444,19 +449,172 @@ export const AGE_RANGE_CONFIG = {
 // Age range type for filtering
 export type AgeRange = [number, number];
 
+const MINUTES_PER_DAY = 24 * 60;
+const DAY_START_MINUTES = 6 * 60;
+const EVENING_START_MINUTES = 18 * 60;
+const NIGHT_START_MINUTES = 21 * 60;
+const MEANINGFUL_OVERLAP_MINUTES = 90;
+
+const parseClockTimeMinutes = (time: string | undefined): number | null => {
+	if (!time || time.trim().toUpperCase() === "TBC") return null;
+	const match = time.trim().match(/^(\d{1,2}):(\d{2})$/);
+	if (!match) return null;
+	const hours = Number.parseInt(match[1] ?? "", 10);
+	const minutes = Number.parseInt(match[2] ?? "", 10);
+	if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+	return hours * 60 + minutes;
+};
+
+const getOverlapMinutes = (
+	startMinutes: number,
+	endMinutes: number,
+	windowStartMinutes: number,
+	windowEndMinutes: number,
+): number =>
+	Math.max(
+		0,
+		Math.min(endMinutes, windowEndMinutes) -
+			Math.max(startMinutes, windowStartMinutes),
+	);
+
+export interface EventTemporalProfile {
+	primaryPeriod: EventTemporalPeriod;
+	matchesLegacyDay: boolean;
+	matchesLegacyNight: boolean;
+	crossesMidnight: boolean;
+	startMinutes: number | null;
+	endMinutes: number | null;
+	dayOverlapMinutes: number;
+	eveningOverlapMinutes: number;
+	nightOverlapMinutes: number;
+}
+
+const UNKNOWN_TEMPORAL_PROFILE: EventTemporalProfile = {
+	primaryPeriod: "unknown",
+	matchesLegacyDay: false,
+	matchesLegacyNight: false,
+	crossesMidnight: false,
+	startMinutes: null,
+	endMinutes: null,
+	dayOverlapMinutes: 0,
+	eveningOverlapMinutes: 0,
+	nightOverlapMinutes: 0,
+};
+
 // Utility functions for time-based classification
 export const getDayNightPeriod = (time: string): DayNightPeriod | null => {
-	if (!time || time === "TBC") return null;
+	const startMinutes = parseClockTimeMinutes(time);
+	if (startMinutes == null) return null;
 
-	const [hours] = time.split(":").map(Number);
+	return startMinutes >= DAY_START_MINUTES && startMinutes < NIGHT_START_MINUTES
+		? "day"
+		: "night";
+};
 
-	// Day: 6:00 AM (06:00) - 9:59 PM (21:59)
-	// Night: 10:00 PM (22:00) - 5:59 AM (05:59)
-	if (hours >= 6 && hours <= 21) {
-		return "day";
+export const getEventTemporalProfile = (
+	event: Pick<Event, "time" | "endTime">,
+): EventTemporalProfile => {
+	const startMinutes = parseClockTimeMinutes(event.time);
+	if (startMinutes == null) return UNKNOWN_TEMPORAL_PROFILE;
+
+	const rawEndMinutes = parseClockTimeMinutes(event.endTime);
+	const hasDuration = rawEndMinutes != null && rawEndMinutes !== startMinutes;
+	const endMinutes =
+		rawEndMinutes == null
+			? null
+			: rawEndMinutes <= startMinutes
+				? rawEndMinutes + MINUTES_PER_DAY
+				: rawEndMinutes;
+	const crossesMidnight = rawEndMinutes != null && rawEndMinutes < startMinutes;
+
+	const intervalEndMinutes = hasDuration
+		? (endMinutes ?? startMinutes)
+		: startMinutes;
+	const dayOverlapMinutes = hasDuration
+		? getOverlapMinutes(
+				startMinutes,
+				intervalEndMinutes,
+				DAY_START_MINUTES,
+				EVENING_START_MINUTES,
+			)
+		: 0;
+	const eveningOverlapMinutes = hasDuration
+		? getOverlapMinutes(
+				startMinutes,
+				intervalEndMinutes,
+				EVENING_START_MINUTES,
+				NIGHT_START_MINUTES,
+			)
+		: 0;
+	const nightOverlapMinutes = hasDuration
+		? getOverlapMinutes(
+				startMinutes,
+				intervalEndMinutes,
+				0,
+				DAY_START_MINUTES,
+			) +
+			getOverlapMinutes(
+				startMinutes,
+				intervalEndMinutes,
+				NIGHT_START_MINUTES,
+				MINUTES_PER_DAY + DAY_START_MINUTES,
+			)
+		: 0;
+
+	const startsInDay =
+		startMinutes >= DAY_START_MINUTES && startMinutes < EVENING_START_MINUTES;
+	const startsInEvening =
+		startMinutes >= EVENING_START_MINUTES && startMinutes < NIGHT_START_MINUTES;
+	const startsInNight =
+		startMinutes < DAY_START_MINUTES || startMinutes >= NIGHT_START_MINUTES;
+	const eveningRunsIntoNight =
+		startsInEvening && endMinutes != null && endMinutes > NIGHT_START_MINUTES;
+	const hasMeaningfulNightOverlap =
+		nightOverlapMinutes >= MEANINGFUL_OVERLAP_MINUTES;
+	const matchesLegacyNight =
+		startsInNight ||
+		crossesMidnight ||
+		eveningRunsIntoNight ||
+		hasMeaningfulNightOverlap;
+	const matchesLegacyDay =
+		startsInDay ||
+		(!matchesLegacyNight && startsInEvening) ||
+		dayOverlapMinutes >= MEANINGFUL_OVERLAP_MINUTES;
+
+	let primaryPeriod: EventTemporalPeriod;
+	if (crossesMidnight) {
+		primaryPeriod = "overnight";
+	} else if (
+		startsInNight ||
+		hasMeaningfulNightOverlap ||
+		eveningRunsIntoNight
+	) {
+		primaryPeriod = "night";
+	} else if (startsInEvening) {
+		primaryPeriod = "evening";
 	} else {
-		return "night";
+		primaryPeriod = "day";
 	}
+
+	return {
+		primaryPeriod,
+		matchesLegacyDay,
+		matchesLegacyNight,
+		crossesMidnight,
+		startMinutes,
+		endMinutes: rawEndMinutes,
+		dayOverlapMinutes,
+		eveningOverlapMinutes,
+		nightOverlapMinutes,
+	};
+};
+
+export const getEventDayNightPeriods = (event: Event): DayNightPeriod[] => {
+	const profile = getEventTemporalProfile(event);
+	const periods: DayNightPeriod[] = [];
+	if (profile.matchesLegacyDay) periods.push("day");
+	if (profile.matchesLegacyNight) periods.push("night");
+	return periods;
 };
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -487,8 +645,10 @@ export const isEventInDayNightPeriod = (
 	event: Event,
 	period: DayNightPeriod,
 ): boolean => {
-	const eventPeriod = getDayNightPeriod(event.time || "");
-	return eventPeriod === period;
+	const profile = getEventTemporalProfile(event);
+	return period === "day"
+		? profile.matchesLegacyDay
+		: profile.matchesLegacyNight;
 };
 
 export const formatTimeWithPeriod = (time: string): string => {

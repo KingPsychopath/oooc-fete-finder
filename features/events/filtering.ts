@@ -14,7 +14,7 @@ import {
 	type VenueType,
 	formatLocationAreaLong,
 	formatPrice,
-	getDayNightPeriod,
+	getEventDayNightPeriods,
 	getLocationAreaSortValue,
 	isAgeInRange,
 	isEventInDayNightPeriod,
@@ -147,8 +147,9 @@ const matchesSearchQuery = (event: Event, rawQuery: string): boolean => {
 			query,
 		);
 	const matchesDay = normalizeSearchText(event.day).includes(query);
-	const period = getDayNightPeriod(event.time ?? "");
-	const matchesDayNight = period ? query === period : false;
+	const matchesDayNight = getEventDayNightPeriods(event).some(
+		(period) => query === period,
+	);
 	const matchesGenre = event.genre.some((genre) =>
 		getSearchableGenreText(genre).includes(query),
 	);

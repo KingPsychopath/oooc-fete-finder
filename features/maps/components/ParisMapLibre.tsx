@@ -10,7 +10,7 @@ import type { Event } from "@/features/events/types";
 import {
 	formatDayWithDate,
 	formatPrice,
-	getDayNightPeriod,
+	getEventTemporalProfile,
 } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
 import { cn } from "@/lib/utils";
@@ -1565,7 +1565,12 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						<div className="mb-2 h-px bg-border/70" />
 						<div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
 							{selectedArrondissementEvents.map((event) => {
-								const dayNightPeriod = getDayNightPeriod(event.time ?? "");
+								const temporalProfile = getEventTemporalProfile(event);
+								const dayNightPeriod = temporalProfile.matchesLegacyNight
+									? "night"
+									: temporalProfile.matchesLegacyDay
+										? "day"
+										: null;
 								const venueTypes = getEventVenueTypes(event);
 								const isFeatured = shouldDisplayFeaturedEvent(event);
 								const isPromoted = !isFeatured && event.isPromoted === true;

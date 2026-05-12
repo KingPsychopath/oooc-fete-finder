@@ -38,8 +38,7 @@ type AuthProviderProps = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const OFFLINE_GRACE_STORAGE_KEY = "oooc_offline_auth_grace_v1";
-const AUTH_SESSION_HINT_STORAGE_KEY = "oooc_auth_session_hint_v1";
-const AUTH_SESSION_HINT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const DEPRECATED_STORAGE_KEYS = ["oooc_auth_session_hint_v1"] as const;
 const AUTH_TIMING_LOG_ENABLED =
 	process.env.NODE_ENV === "development" ||
 	process.env.NEXT_PUBLIC_AUTH_TIMING_LOG === "1";
@@ -77,19 +76,6 @@ const writeOfflineGraceState = (email: string, expiresAt: number): void => {
 const clearOfflineGraceState = (): void => {
 	if (typeof window === "undefined") return;
 	window.localStorage.removeItem(OFFLINE_GRACE_STORAGE_KEY);
-};
-
-const writeAuthSessionHint = (): void => {
-	if (typeof window === "undefined") return;
-	window.localStorage.setItem(
-		AUTH_SESSION_HINT_STORAGE_KEY,
-		JSON.stringify({ expiresAt: Date.now() + AUTH_SESSION_HINT_TTL_MS }),
-	);
-};
-
-const clearAuthSessionHint = (): void => {
-	if (typeof window === "undefined") return;
-	window.localStorage.removeItem(AUTH_SESSION_HINT_STORAGE_KEY);
 };
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
@@ -169,21 +155,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
 			if (hasLiveAuth) {
 				outcome = "live";
-				writeAuthSessionHint();
 				setLiveAuthenticatedState(payload.email as string);
 				return true;
 			}
 
 			if (hasAdminAuth) {
 				outcome = "signed-out";
-				writeAuthSessionHint();
 				clearOfflineGraceState();
 				setSignedOutState();
 				return false;
 			}
 
 			outcome = "signed-out";
-			clearAuthSessionHint();
 			clearOfflineGraceState();
 			setSignedOutState();
 			return false;
@@ -234,13 +217,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 		setIsAuthResolved(true);
 	}, [isOnline, refreshSession, setSignedOutState, tryApplyOfflineGraceState]);
 
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		DEPRECATED_STORAGE_KEYS.forEach((key) => {
+			window.localStorage.removeItem(key);
+		});
+	}, []);
+
 	const logout = async () => {
 		try {
 			await fetch(`${basePath}/api/auth/session`, {
 				method: "DELETE",
 			});
 		} finally {
-			clearAuthSessionHint();
 			clearOfflineGraceState();
 			setSignedOutState();
 			setIsAuthResolved(true);

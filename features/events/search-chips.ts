@@ -8,7 +8,7 @@ import {
 	type Event,
 	MUSIC_GENRES,
 	formatPrice,
-	getDayNightPeriod,
+	getEventDayNightPeriods,
 } from "@/features/events/types";
 import { shouldDisplayFeaturedEvent } from "./featured/utils/timestamp-utils";
 import { DEFAULT_SEARCH_EXAMPLES } from "./search-defaults";
@@ -200,11 +200,10 @@ const buildCandidates = (events: Event[]): SearchChipCandidate[] => {
 		if (normalize(formatPrice(event.price)) === "free") {
 			facetCounts.set("Free", (facetCounts.get("Free") ?? 0) + 1);
 		}
-		const period = getDayNightPeriod(event.time ?? "");
-		if (period === "night")
-			facetCounts.set("Night", (facetCounts.get("Night") ?? 0) + 1);
-		if (period === "day")
-			facetCounts.set("Day", (facetCounts.get("Day") ?? 0) + 1);
+		for (const period of getEventDayNightPeriods(event)) {
+			const label = period === "day" ? "Day" : "Night";
+			facetCounts.set(label, (facetCounts.get(label) ?? 0) + 1);
+		}
 		facetCounts.set(
 			titleCase(String(event.day)),
 			(facetCounts.get(titleCase(String(event.day))) ?? 0) + 1,

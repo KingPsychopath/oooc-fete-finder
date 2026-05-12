@@ -12,7 +12,7 @@ import {
 	type ParisArrondissement,
 	formatLocationAreaLong,
 	formatPrice,
-	getDayNightPeriod,
+	getEventDayNightPeriods,
 } from "@/features/events/types";
 import { Search, TrendingUp, X } from "lucide-react";
 import type React from "react";
@@ -223,8 +223,7 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 			totalScore += 28 + priceScore;
 			matchedFields.push("price");
 		}
-		const dayNightPeriod = getDayNightPeriod(event.time ?? "");
-		if (dayNightPeriod) {
+		for (const dayNightPeriod of getEventDayNightPeriods(event)) {
 			const periodScore = getMatchScore(dayNightPeriod, searchTerms);
 			if (periodScore > 0) {
 				totalScore += 28 + periodScore;
@@ -371,9 +370,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 			)}
 
 			{/* Example Search Chips */}
-			<div
-				className={`${showResultsCount ? "mt-2" : "mt-3"} min-w-0`}
-			>
+			<div className={`${showResultsCount ? "mt-2" : "mt-3"} min-w-0`}>
 				<div className="flex min-w-0 flex-wrap gap-1.5">
 					{exampleSearches.map((example) => (
 						<Button

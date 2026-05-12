@@ -20,7 +20,7 @@ import {
 	formatDayWithDate,
 	formatLocationAreaShort,
 	formatPrice,
-	getDayNightPeriod,
+	getEventTemporalProfile,
 	getVisibleEventTypeLabel,
 } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
@@ -82,7 +82,9 @@ export function EventCard({
 	const isNewlyAdded = isRecentlyAddedEvent(event);
 	const isRecentlyUpdated = !isNewlyAdded && isRecentlyUpdatedEvent(event);
 	const hasOOOCPick = event.isOOOCPick === true;
-	const dayNightPeriod = getDayNightPeriod(event.time ?? "");
+	const temporalProfile = getEventTemporalProfile(event);
+	const dayNightPeriod = temporalProfile.matchesLegacyNight ? "night" : "day";
+	const hasKnownDayNightPeriod = temporalProfile.primaryPeriod !== "unknown";
 	const visibleEventType = getVisibleEventTypeLabel(event.type);
 	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
 	const socialProofHistoricalSaveCount =
@@ -215,11 +217,13 @@ export function EventCard({
 						{event.time || "TBC"}
 						{event.endTime && event.time !== "TBC" && <> - {event.endTime}</>}
 					</span>
-					{event.time && dayNightPeriod && (
+					{event.time && hasKnownDayNightPeriod && (
 						<span
 							className="inline-flex flex-shrink-0 items-center text-muted-foreground"
 							title={
-								dayNightPeriod === "day" ? "Daytime event" : "Nighttime event"
+								dayNightPeriod === "day"
+									? "Daytime and early evening"
+									: "Late start or runs into the night"
 							}
 						>
 							{dayNightPeriod === "day" ? (
