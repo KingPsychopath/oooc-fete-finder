@@ -7,15 +7,15 @@ import type { Event } from "@/features/events/types";
 import {
 	discardPendingMutations,
 	enqueueSavedEventMutation,
-	getPendingSavedEventMutations,
 	flushPendingMutations,
 	getPendingMutationCount,
+	getPendingSavedEventMutations,
 } from "@/features/offline-mutations/pending-mutation-queue";
 import {
+	type PendingSyncStatus,
 	canSyncAccountData,
 	getClientSyncMode,
 	getPendingSyncStatus,
-	type PendingSyncStatus,
 } from "@/features/sync/client-sync-mode";
 import {
 	type ReactNode,
@@ -50,10 +50,12 @@ const getStorageKey = (ownerKey: string): string =>
 	`${SAVED_EVENTS_STORAGE_PREFIX}:${ownerKey}`;
 
 export const getSavedEventsOwnerKey = (
+	userId: string | null,
 	email: string | null,
 	isAuthenticated: boolean,
 ): string =>
 	getUserProfileStorageKey({
+		userId,
 		email,
 		isAuthenticated,
 		anonymousKey: "anon",
@@ -65,7 +67,9 @@ export const applyPendingSavedEventMutations = (
 		payload: { eventKey: string; isSaved: boolean };
 	}>,
 ): Set<string> => {
-	const next = new Set(Array.from(eventKeys, normalizeEventKey).filter(Boolean));
+	const next = new Set(
+		Array.from(eventKeys, normalizeEventKey).filter(Boolean),
+	);
 	for (const mutation of pendingMutations) {
 		const eventKey = normalizeEventKey(mutation.payload.eventKey);
 		if (!eventKey) continue;
@@ -168,14 +172,15 @@ const syncSavedEvents = (input: {
 };
 
 export function SavedEventsProvider({ children }: { children: ReactNode }) {
-	const { isAuthenticated, authMode, isOnline, userEmail } = useOptionalAuth();
+	const { isAuthenticated, authMode, isOnline, userEmail, userId } =
+		useOptionalAuth();
 	const [savedEventKeys, setSavedEventKeys] = useState<Set<string>>(
 		() => new Set(),
 	);
 	const [pendingSavedMutationCount, setPendingSavedMutationCount] = useState(0);
 	const syncMode = getClientSyncMode({ authMode, isAuthenticated, isOnline });
 	const canSync = canSyncAccountData(syncMode);
-	const ownerKey = getSavedEventsOwnerKey(userEmail, isAuthenticated);
+	const ownerKey = getSavedEventsOwnerKey(userId, userEmail, isAuthenticated);
 	const canQueueAccountMutation = isAuthenticated && ownerKey !== "anon";
 	const pendingSavedMutationStatus = getPendingSyncStatus(
 		pendingSavedMutationCount,

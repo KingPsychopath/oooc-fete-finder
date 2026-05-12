@@ -1,5 +1,5 @@
 export type OfflineGraceState = {
-	email: string;
+	userId: string;
 	expiresAt: number;
 };
 
@@ -12,15 +12,15 @@ export const parseOfflineGraceState = (
 	try {
 		const parsed = JSON.parse(raw) as Partial<OfflineGraceState>;
 		if (
-			typeof parsed.email !== "string" ||
+			typeof parsed.userId !== "string" ||
 			typeof parsed.expiresAt !== "number" ||
 			!Number.isFinite(parsed.expiresAt) ||
-			parsed.email.trim().length === 0
+			parsed.userId.trim().length === 0
 		) {
 			return null;
 		}
 		return {
-			email: parsed.email.trim().toLowerCase(),
+			userId: parsed.userId.trim(),
 			expiresAt: parsed.expiresAt,
 		};
 	} catch {
@@ -29,10 +29,10 @@ export const parseOfflineGraceState = (
 };
 
 export const createOfflineGraceState = (
-	email: string,
+	userId: string,
 	nowMs = Date.now(),
 ): OfflineGraceState => ({
-	email: email.trim().toLowerCase(),
+	userId: userId.trim(),
 	expiresAt: nowMs + OFFLINE_GRACE_WINDOW_MS,
 });
 

@@ -12,6 +12,7 @@ const OFFLINE_HOME_SNAPSHOT_KEY = "home";
 const USER_AUTH_COOKIE_NAME = "oooc_user_session";
 const USER_AUTH_COOKIE_AUDIENCE = "oooc-fete-finder:user";
 const USER_AUTH_COOKIE_ISSUER = "oooc-fete-finder";
+const E2E_USER_ID = "019b0000-0000-7000-8000-000000000001";
 
 const readLocalEnvValue = (key: string) => {
 	try {
@@ -32,6 +33,7 @@ const signE2eUserSessionToken = (email: string) => {
 	return jwt.sign(
 		{
 			email: email.toLowerCase().trim(),
+			userId: E2E_USER_ID,
 			v: 1,
 		},
 		authSecret,
@@ -371,23 +373,16 @@ test.describe("event share routes", () => {
 		context,
 		page,
 	}) => {
+		await verifyUserSession(page);
 		await page.goto("/");
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
 		await waitForServiceWorkerReady(page);
 		await page.reload({ waitUntil: "domcontentloaded" });
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
 		await waitForHomeEventSnapshot(page);
+		await waitForOfflineGraceState(page);
 
 		await setBrowserOffline(context, page, true);
-		await page.evaluate(() => {
-			window.localStorage.setItem(
-				"oooc_offline_auth_grace_v1",
-				JSON.stringify({
-					email: "offline-e2e@example.com",
-					expiresAt: Date.now() + 60 * 60 * 1000,
-				}),
-			);
-		});
 		await page.reload({ waitUntil: "domcontentloaded" });
 		await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 
@@ -491,6 +486,7 @@ test.describe("event share routes", () => {
 		context,
 		page,
 	}) => {
+		await verifyUserSession(page);
 		await markTourSeen(page);
 		const assertNoChunkLoadError = failOnChunkLoadError(page);
 		await page.goto("/");
@@ -512,6 +508,7 @@ test.describe("event share routes", () => {
 		await waitForNextStaticCache(page);
 
 		await waitForHomeEventSnapshot(page);
+		await waitForOfflineGraceState(page);
 		await page
 			.locator("#tour-all-events")
 			.getByRole("heading", { name: EVENT_TITLE })
@@ -532,15 +529,6 @@ test.describe("event share routes", () => {
 		expect(cachedPathnames).not.toContain("/api/admin/health");
 
 		await setBrowserOffline(context, page, true);
-		await page.evaluate(() => {
-			window.localStorage.setItem(
-				"oooc_offline_auth_grace_v1",
-				JSON.stringify({
-					email: "offline-e2e@example.com",
-					expiresAt: Date.now() + 60 * 60 * 1000,
-				}),
-			);
-		});
 		await page.reload({ waitUntil: "domcontentloaded" });
 		await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 

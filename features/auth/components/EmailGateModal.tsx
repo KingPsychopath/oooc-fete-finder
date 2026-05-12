@@ -31,7 +31,7 @@ type EmailGateModalProps = {
 };
 
 const LAST_AUTH_PROFILE_KEY = "oooc_last_auth_profile_v1";
-const LAST_AUTH_EMAIL_KEY = "oooc_last_auth_email_v1";
+const DEPRECATED_LAST_AUTH_EMAIL_KEY = "oooc_last_auth_email_v1";
 
 const EmailGateModal = ({
 	isOpen,
@@ -57,6 +57,7 @@ const EmailGateModal = ({
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
+		window.localStorage.removeItem(DEPRECATED_LAST_AUTH_EMAIL_KEY);
 		const storedProfileRaw = window.localStorage.getItem(LAST_AUTH_PROFILE_KEY);
 		if (storedProfileRaw) {
 			try {
@@ -68,18 +69,6 @@ const EmailGateModal = ({
 					return;
 				}
 			} catch {}
-		}
-
-		const storedEmail = window.localStorage.getItem(LAST_AUTH_EMAIL_KEY);
-		if (storedEmail) {
-			const clean = storedEmail.trim().toLowerCase();
-			if (validateEmail(clean)) {
-				setRecentProfile({
-					firstName: "",
-					lastName: "",
-					email: clean,
-				});
-			}
 		}
 	}, []);
 
@@ -170,7 +159,7 @@ const EmailGateModal = ({
 
 			if (result.success) {
 				if (typeof window !== "undefined") {
-					window.localStorage.setItem(LAST_AUTH_EMAIL_KEY, finalEmail);
+					window.localStorage.removeItem(DEPRECATED_LAST_AUTH_EMAIL_KEY);
 					const nextProfile = {
 						firstName: firstName.trim(),
 						lastName: lastName.trim(),

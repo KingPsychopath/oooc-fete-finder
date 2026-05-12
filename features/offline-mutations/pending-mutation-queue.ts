@@ -277,3 +277,44 @@ export const discardPendingMutations = (ownerKey?: string): number => {
 	}
 	return discarded;
 };
+
+export const migratePendingMutationOwnerKey = (
+	oldOwnerKey: string,
+	newOwnerKey: string,
+): number => {
+	if (oldOwnerKey === newOwnerKey) return 0;
+	const queue = readQueue();
+	let migrated = 0;
+	const compacted = new Map<string, PendingMutation>();
+
+	for (const mutation of queue) {
+		const nextMutation =
+			mutation.ownerKey === oldOwnerKey
+				? {
+						...mutation,
+						ownerKey: newOwnerKey,
+						idempotencyKey:
+							mutation.type === "saved_event"
+								? getSavedEventCompactionKey(
+										newOwnerKey,
+										mutation.payload.eventKey,
+									)
+								: mutation.idempotencyKey,
+					}
+				: mutation;
+		if (nextMutation !== mutation) migrated += 1;
+		const compactionKey =
+			nextMutation.type === "saved_event"
+				? getSavedEventCompactionKey(
+						nextMutation.ownerKey,
+						nextMutation.payload.eventKey,
+					)
+				: nextMutation.id;
+		compacted.set(compactionKey, nextMutation);
+	}
+
+	if (migrated > 0) {
+		writeQueue(Array.from(compacted.values()));
+	}
+	return migrated;
+};

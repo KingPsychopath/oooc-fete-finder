@@ -58,12 +58,20 @@ const writeProfileSnapshot = (
 };
 
 export function AppSettingsSync() {
-	const { authMode, isAuthResolved, isAuthenticated, isOnline, userEmail } =
-		useOptionalAuth();
-	const { settings, isLoaded, replaceLocalAppSettings } =
-		useLocalAppSettings();
-	const { mapPreference, setMapPreference, isLoaded: isMapPreferenceLoaded } =
-		useMapPreference();
+	const {
+		authMode,
+		isAuthResolved,
+		isAuthenticated,
+		isOnline,
+		userEmail,
+		userId,
+	} = useOptionalAuth();
+	const { settings, isLoaded, replaceLocalAppSettings } = useLocalAppSettings();
+	const {
+		mapPreference,
+		setMapPreference,
+		isLoaded: isMapPreferenceLoaded,
+	} = useMapPreference();
 	const { theme, setTheme, mounted } = useThemeToggle();
 	const activeProfileRef = useRef<string | null>(null);
 	const isApplyingSnapshotRef = useRef(false);
@@ -84,10 +92,12 @@ export function AppSettingsSync() {
 	);
 	currentSnapshotRef.current = payload;
 
-	const isReady = isAuthResolved && isLoaded && isMapPreferenceLoaded && mounted;
+	const isReady =
+		isAuthResolved && isLoaded && isMapPreferenceLoaded && mounted;
 	const syncMode = getClientSyncMode({ authMode, isAuthenticated, isOnline });
 	const canSyncAccountSettings = canSyncAccountData(syncMode);
 	const targetProfileId = getUserProfileStorageKey({
+		userId,
 		email: userEmail,
 		isAuthenticated,
 		anonymousKey: ANONYMOUS_PROFILE_ID,
@@ -95,13 +105,13 @@ export function AppSettingsSync() {
 
 	const applySnapshot = useCallback(
 		(snapshot: SyncedUserAppSettings) => {
-		isApplyingSnapshotRef.current = true;
-		replaceLocalAppSettings(snapshot.appSettings);
-		setMapPreference(snapshot.mapPreference);
-		setTheme(snapshot.themeMode);
-		window.setTimeout(() => {
-			isApplyingSnapshotRef.current = false;
-		}, 0);
+			isApplyingSnapshotRef.current = true;
+			replaceLocalAppSettings(snapshot.appSettings);
+			setMapPreference(snapshot.mapPreference);
+			setTheme(snapshot.themeMode);
+			window.setTimeout(() => {
+				isApplyingSnapshotRef.current = false;
+			}, 0);
 		},
 		[replaceLocalAppSettings, setMapPreference, setTheme],
 	);
@@ -123,14 +133,15 @@ export function AppSettingsSync() {
 
 		const switchProfile = async () => {
 			const shouldUseCurrentAsAnonymousSnapshot =
-				previousProfileId === null || previousProfileId === ANONYMOUS_PROFILE_ID;
+				previousProfileId === null ||
+				previousProfileId === ANONYMOUS_PROFILE_ID;
 			const anonymousSnapshot =
 				readProfileSnapshot(ANONYMOUS_PROFILE_ID) ??
 				(shouldUseCurrentAsAnonymousSnapshot
 					? currentSnapshotRef.current
 					: DEFAULT_SYNCED_USER_APP_SETTINGS);
 
-			if (!isAuthenticated || !userEmail) {
+			if (!isAuthenticated || targetProfileId === ANONYMOUS_PROFILE_ID) {
 				writeProfileSnapshot(ANONYMOUS_PROFILE_ID, anonymousSnapshot);
 				if (!isCancelled) applySnapshot(anonymousSnapshot);
 				return;
@@ -182,7 +193,6 @@ export function AppSettingsSync() {
 		isReady,
 		applySnapshot,
 		targetProfileId,
-		userEmail,
 	]);
 
 	useEffect(() => {
@@ -191,7 +201,8 @@ export function AppSettingsSync() {
 
 		const activeProfileId = activeProfileRef.current;
 		writeProfileSnapshot(activeProfileId, payload);
-		if (activeProfileId === ANONYMOUS_PROFILE_ID || !canSyncAccountSettings) return;
+		if (activeProfileId === ANONYMOUS_PROFILE_ID || !canSyncAccountSettings)
+			return;
 
 		const timeoutId = window.setTimeout(() => {
 			void fetch(`${basePath}/api/user/app-settings`, {

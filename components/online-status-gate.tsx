@@ -66,7 +66,7 @@ const probeAppReachability = async (): Promise<boolean> => {
 };
 
 export function OnlineStatusProvider({ children }: OnlineStatusProviderProps) {
-	const [isOnline, setIsOnline] = useState(true);
+	const [isOnline, setIsOnline] = useState(readBrowserOnlineStatus);
 	const inFlightProbeRef = useRef<Promise<boolean> | null>(null);
 	const lastProbeStartedAtRef = useRef(0);
 	const lastForcedProbeStartedAtRef = useRef(0);
@@ -83,7 +83,10 @@ export function OnlineStatusProvider({ children }: OnlineStatusProviderProps) {
 			void inFlightProbe.then(setIsOnline);
 			return;
 		}
-		if (!force && now - lastProbeStartedAtRef.current < ONLINE_PROBE_INTERVAL_MS) {
+		if (
+			!force &&
+			now - lastProbeStartedAtRef.current < ONLINE_PROBE_INTERVAL_MS
+		) {
 			return;
 		}
 		if (

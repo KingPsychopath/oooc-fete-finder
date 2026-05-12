@@ -2,8 +2,9 @@ import {
 	discardPendingMutations,
 	enqueueSavedEventMutation,
 	flushPendingMutations,
-	getPendingSavedEventMutations,
 	getPendingMutationCount,
+	getPendingSavedEventMutations,
+	migratePendingMutationOwnerKey,
 } from "@/features/offline-mutations/pending-mutation-queue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -191,5 +192,32 @@ describe("pending mutation queue", () => {
 		}>;
 		expect(queue[0].attempts).toBe(1);
 		expect(queue[0].nextAttemptAt).toBe("2026-05-09T12:00:01.000Z");
+	});
+
+	it("migrates owner and idempotency keys away from legacy email keys", () => {
+		enqueueSavedEventMutation({
+			ownerKey: "user:a@example.com",
+			eventKey: "evt_1",
+			isSaved: true,
+			source: "modal_save",
+		});
+
+		expect(
+			migratePendingMutationOwnerKey(
+				"user:a@example.com",
+				"user:019b0000-0000-7000-8000-000000000001",
+			),
+		).toBe(1);
+
+		expect(getPendingMutationCount("user:a@example.com")).toBe(0);
+		const mutations = getPendingSavedEventMutations(
+			"user:019b0000-0000-7000-8000-000000000001",
+		);
+		expect(mutations).toHaveLength(1);
+		expect(mutations[0]).toMatchObject({
+			ownerKey: "user:019b0000-0000-7000-8000-000000000001",
+			idempotencyKey:
+				"saved_event:user:019b0000-0000-7000-8000-000000000001:evt_1",
+		});
 	});
 });
