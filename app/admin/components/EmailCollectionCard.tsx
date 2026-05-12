@@ -19,6 +19,7 @@ import {
 import { InfoPopover } from "@/components/ui/info-popover";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { getTourProgressLabel } from "@/features/events/engagement/tour-analytics";
 import {
 	formatAdminDate,
 	formatAdminDateTime,
@@ -154,61 +155,9 @@ const FILTER_GROUP_LABELS = {
 } as const;
 const RECENT_LIST_HELP_TEXT = {
 	filters: "Tap a row to open this user's filter state on the home page.",
-	searches:
-		"Tap a search to open the home page with this query prefilled.",
-	eventActions:
-		"Tap an event action row to open this user's linked event.",
+	searches: "Tap a search to open the home page with this query prefilled.",
+	eventActions: "Tap an event action row to open this user's linked event.",
 } as const;
-
-const TOUR_STEP_LABELS: Record<string, string> = {
-	picks: "Curated picks",
-	map: "Map",
-	filters: "Filters",
-	search: "Search",
-	events: "Event details",
-};
-
-const TOUR_STEP_ORDER = Object.keys(TOUR_STEP_LABELS);
-const TOUR_STEP_COUNT = TOUR_STEP_ORDER.length;
-
-const getTourProgress = (
-	recentTourInteractions: Array<{
-		action: string;
-		stepId: string | null;
-		source: string | null;
-	}>,
-) => {
-	const latest = recentTourInteractions[0];
-	if (!latest) return "No tour interaction";
-
-	const action = latest.action.toLowerCase();
-	const stepLabel = latest.stepId
-		? TOUR_STEP_LABELS[latest.stepId] ?? latest.stepId
-		: null;
-	const stepIndex = latest.stepId
-		? TOUR_STEP_ORDER.indexOf(latest.stepId) + 1
-		: null;
-	const stepProgress =
-		stepIndex !== null && stepIndex > 0
-			? ` (${stepLabel ?? latest.stepId}, step ${stepIndex} of ${TOUR_STEP_COUNT})`
-			: "";
-	if (action === "complete") {
-		return `Tour completed${stepProgress}`;
-	}
-	if (action === "skip") {
-		return `Tour skipped${stepProgress}`;
-	}
-	if (action === "auth_required") {
-		return `Tour requires auth to continue${latest.source ? ` (${latest.source})` : ""}`;
-	}
-	if (action === "start") {
-		return `Tour in progress${stepProgress || ""}`;
-	}
-	if (action === "prompt_shown") {
-		return "Tour prompt shown";
-	}
-	return `Tour activity (${latest.action})`;
-};
 
 const isDateRangeValue = (value: string): boolean =>
 	value.includes(":") && value.split(":").length >= 2;
@@ -240,10 +189,7 @@ const getParsedTime = (value?: string): number => {
 	return Number.isFinite(parsed) ? parsed : Number.NaN;
 };
 
-const buildFilterEventHref = (
-	group: string,
-	value: string,
-): string | null => {
+const buildFilterEventHref = (group: string, value: string): string | null => {
 	const normalizedGroup = group.trim();
 	const normalizedValue = value.trim();
 	const normalizedValueLower = normalizedValue.toLowerCase();
@@ -271,13 +217,19 @@ const buildFilterEventHref = (
 			break;
 		}
 		case "venue_type": {
-			if (normalizedValueLower === "indoor" || normalizedValueLower === "outdoor") {
+			if (
+				normalizedValueLower === "indoor" ||
+				normalizedValueLower === "outdoor"
+			) {
 				params.set("vt", normalizedValueLower);
 			}
 			break;
 		}
 		case "venue_setting": {
-			if (normalizedValueLower === "indoor" || normalizedValueLower === "outdoor") {
+			if (
+				normalizedValueLower === "indoor" ||
+				normalizedValueLower === "outdoor"
+			) {
 				params.set("in", normalizedValueLower);
 			}
 			break;
@@ -619,10 +571,9 @@ const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 	},
 	{
 		label: "First sign-in",
-		value:
-			profile.user.firstSignInAt
-				? formatAdminDateTime(profile.user.firstSignInAt)
-				: "Not yet recorded",
+		value: profile.user.firstSignInAt
+			? formatAdminDateTime(profile.user.firstSignInAt)
+			: "Not yet recorded",
 	},
 	{
 		label: "Latest linked activity",
@@ -632,7 +583,7 @@ const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 	},
 	{
 		label: "Tour progress",
-		value: getTourProgress(profile.recentTourInteractions),
+		value: getTourProgressLabel(profile.recentTourInteractions),
 	},
 	{
 		label: "Device",
@@ -707,7 +658,10 @@ export const EmailCollectionCard = ({
 			if (parsed >= cutoff7d) usersLast7d++;
 		}
 
-		return { newUsersLast24Hours: usersLast24h, newUsersLast7Days: usersLast7d };
+		return {
+			newUsersLast24Hours: usersLast24h,
+			newUsersLast7Days: usersLast7d,
+		};
 	}, [mergedEmails]);
 	const activitySegmentCounts = useMemo(
 		() =>
@@ -941,9 +895,7 @@ export const EmailCollectionCard = ({
 						<p className="mt-1 text-sm font-medium tabular-nums">
 							{newUsersLast24Hours} / {newUsersLast7Days}
 						</p>
-						<p className="mt-0.5 text-[11px] text-muted-foreground">
-							24h / 7d
-						</p>
+						<p className="mt-0.5 text-[11px] text-muted-foreground">24h / 7d</p>
 					</div>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -972,9 +924,7 @@ export const EmailCollectionCard = ({
 						<p className="mt-1 text-sm font-medium tabular-nums">
 							{submissionsLast24Hours} / {submissionsLast7Days}
 						</p>
-						<p className="mt-0.5 text-[11px] text-muted-foreground">
-							24h / 7d
-						</p>
+						<p className="mt-0.5 text-[11px] text-muted-foreground">24h / 7d</p>
 					</div>
 				</div>
 				<div className="rounded-md border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
@@ -1107,9 +1057,7 @@ export const EmailCollectionCard = ({
 						<option value="filters">Used filters</option>
 						<option value="event-actions">Opened/saved events</option>
 						<option value="genre-prefs">Genre prefs</option>
-						<option value="returned-no-activity">
-							Seen after last action
-						</option>
+						<option value="returned-no-activity">Seen after last action</option>
 						<option value="has-context">Context available</option>
 						<option value="missing-context">Context missing</option>
 					</select>
@@ -1372,9 +1320,7 @@ export const EmailCollectionCard = ({
 												</Badge>
 											)}
 											{hasReturnedWithoutNewActivity(user) && (
-												<Badge variant="outline">
-													Seen after last action
-												</Badge>
+												<Badge variant="outline">Seen after last action</Badge>
 											)}
 										</span>
 										{getUserContextItems(user).length > 0 && (
@@ -1398,7 +1344,8 @@ export const EmailCollectionCard = ({
 											</span>
 											{user.lastSignalAt && (
 												<span>
-													Latest linked activity {formatAdminDateTime(user.lastSignalAt)}
+													Latest linked activity{" "}
+													{formatAdminDateTime(user.lastSignalAt)}
 												</span>
 											)}
 										</span>
@@ -1530,7 +1477,7 @@ export const EmailCollectionCard = ({
 								</div>
 							</div>
 
-								<div className="grid gap-3 lg:grid-cols-2">
+							<div className="grid gap-3 lg:grid-cols-2">
 								<div className="rounded-md border bg-background/60 p-3">
 									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 										Genre Preferences
@@ -1575,8 +1522,9 @@ export const EmailCollectionCard = ({
 												>
 													<span className="truncate">
 														{(() => {
-															const searchHref =
-																buildSearchEventHref(item.query);
+															const searchHref = buildSearchEventHref(
+																item.query,
+															);
 															return searchHref == null ? (
 																item.query
 															) : (

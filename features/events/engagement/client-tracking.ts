@@ -1,8 +1,15 @@
+import {
+	type TourInteractionAction,
+	serializeTourInteraction,
+} from "@/features/events/engagement/tour-analytics";
 import type { EventEngagementAction } from "@/features/events/engagement/types";
 import type { MapProvider } from "@/features/maps/types";
 
 const SESSION_STORAGE_KEY = "oooc:event-engagement-session";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const ONLINE_PROBE_PATH = `${basePath}/api/client-health`;
+const ONLINE_PROBE_TIMEOUT_MS =
+	process.env.NODE_ENV === "development" ? 8000 : 3000;
 const BATCH_FLUSH_DELAY_MS = 3000;
 const MAX_RETRY_FLUSH_DELAY_MS = 5 * 60 * 1000;
 const MAX_BATCH_SIZE = 20;
@@ -81,6 +88,34 @@ const endpoints: Record<QueueName, string> = {
 
 const isBrowserOffline = (): boolean =>
 	typeof navigator !== "undefined" && navigator.onLine === false;
+
+const canReachApp = async (): Promise<boolean> => {
+	if (typeof window === "undefined" || typeof fetch === "undefined") {
+		return !isBrowserOffline();
+	}
+	if (isBrowserOffline()) return false;
+
+	const controller = new AbortController();
+	const timeout = window.setTimeout(
+		() => controller.abort(),
+		ONLINE_PROBE_TIMEOUT_MS,
+	);
+	try {
+		const response = await fetch(
+			`${ONLINE_PROBE_PATH}?analyticsFlushProbe=${Date.now()}`,
+			{
+				cache: "no-store",
+				headers: { Accept: "application/json" },
+				signal: controller.signal,
+			},
+		);
+		return response.ok;
+	} catch {
+		return false;
+	} finally {
+		window.clearTimeout(timeout);
+	}
+};
 
 const createSessionId = (): string => {
 	if (
@@ -339,9 +374,12 @@ const installFlushListeners = (() => {
 			flushQueue("preference", true);
 		};
 		const flushAllWhenOnline = () => {
-			flushQueue("engagement");
-			flushQueue("discovery");
-			flushQueue("preference");
+			void canReachApp().then((isReachable) => {
+				if (!isReachable) return;
+				flushQueue("engagement");
+				flushQueue("discovery");
+				flushQueue("preference");
+			});
 		};
 		window.addEventListener("pagehide", flushAll);
 		window.addEventListener("online", flushAllWhenOnline);
@@ -418,10 +456,7 @@ export const trackMapPreferenceChange = (input: {
 	eventKey: string;
 	from: MapProvider;
 	to: MapProvider;
-	source:
-		| "modal_settings"
-		| "selection_default"
-		| "app_settings";
+	source: "modal_settings" | "selection_default" | "app_settings";
 	isAuthenticated?: boolean;
 }) => {
 	if (input.from === input.to) return;
@@ -480,16 +515,14 @@ export const trackDiscoveryAnalytics = (input: {
 };
 
 export const trackTourInteraction = (input: {
-	action: "prompt_shown" | "start" | "complete" | "skip" | "auth_required";
+	action: TourInteractionAction;
 	stepId?: string;
 	source?: string;
 }) => {
 	trackDiscoveryAnalytics({
 		actionType: "tour_interaction",
 		filterGroup: "tour",
-		filterValue: [input.action, input.stepId, input.source]
-			.filter(Boolean)
-			.join(":"),
+		filterValue: serializeTourInteraction(input),
 	});
 };
 

@@ -7,6 +7,7 @@ import type {
 } from "@/features/auth/types";
 import { generateUserId, isValidUserId } from "@/features/auth/user-id";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
+import { parseTourInteraction } from "@/features/events/engagement/tour-analytics";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import {
@@ -98,24 +99,6 @@ const latestIso = (
 	if (!left) return right ?? null;
 	if (!right) return left;
 	return left > right ? left : right;
-};
-
-const parseTourInteraction = (value: string | null | undefined): {
-	action: string;
-	stepId: string | null;
-	source: string | null;
-} | null => {
-	const normalized = value?.trim();
-	if (!normalized) return null;
-	const [action, stepId, source] = normalized
-		.split(":", 3)
-		.map((segment) => segment.trim());
-	if (!action) return null;
-	return {
-		action,
-		stepId: stepId || null,
-		source: source || null,
-	};
 };
 
 type UserProfileLookup = {
@@ -464,7 +447,8 @@ export class UserCollectionStore {
 			recentTourInteractions: recentDiscovery
 				.filter(
 					(record) =>
-						record.actionType === "tour_interaction" && record.filterGroup === "tour",
+						record.actionType === "tour_interaction" &&
+						record.filterGroup === "tour",
 				)
 				.map((record) => {
 					const parsed = parseTourInteraction(record.filterValue);

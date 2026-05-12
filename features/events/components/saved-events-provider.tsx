@@ -288,11 +288,6 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 		};
 
 		void flushForCurrentOwner();
-		window.addEventListener("online", flushForCurrentOwner);
-
-		return () => {
-			window.removeEventListener("online", flushForCurrentOwner);
-		};
 	}, [canSync, ownerKey]);
 
 	const isEventSaved = useCallback(

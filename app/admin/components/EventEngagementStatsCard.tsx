@@ -20,6 +20,7 @@ import {
 	exportAudienceSegmentCsv,
 	getEventEngagementDashboard,
 } from "@/features/events/engagement/actions";
+import { formatTourSignal } from "@/features/events/engagement/tour-analytics";
 import { parseEventFilterStateFromSearchParams } from "@/features/events/filter-state-persistence";
 import { PRICE_RANGE_CONFIG } from "@/features/events/types";
 import { MUSIC_GENRES, type MusicGenre } from "@/features/events/types";
@@ -86,7 +87,8 @@ const SUMMARY_METRICS = [
 	{
 		key: "outboundClickCount",
 		label: "Ticket & Info Clicks",
-		description: "Clicks on the event modal's primary or secondary external links.",
+		description:
+			"Clicks on the event modal's primary or secondary external links.",
 	},
 	{
 		key: "calendarSyncCount",
@@ -122,7 +124,8 @@ const DISCOVERY_SUMMARY_METRICS = [
 	{
 		key: "sortChangeCount",
 		label: "Sort Changes",
-		description: "All Events sort changes, including Upcoming, Fresh, and Near Me.",
+		description:
+			"All Events sort changes, including Upcoming, Fresh, and Near Me.",
 	},
 	{
 		key: "locationRequestCount",
@@ -133,7 +136,8 @@ const DISCOVERY_SUMMARY_METRICS = [
 	{
 		key: "tourInteractionCount",
 		label: "Tour Activity",
-		description: "Tour prompts, starts, completions, skips, and auth handoffs.",
+		description:
+			"Tour prompt views and dismissals, starts, completions, skips, and auth handoffs.",
 	},
 	{
 		key: "navClickCount",
@@ -350,7 +354,9 @@ const formatMapInteractionSignal = ({
 		const arrondissement = Number.parseInt(arrondissementRaw ?? "", 10);
 		const eventCount = Number.parseInt(eventCountRaw ?? "", 10);
 		const hasArrondissement =
-			Number.isFinite(arrondissement) && arrondissement >= 1 && arrondissement <= 20;
+			Number.isFinite(arrondissement) &&
+			arrondissement >= 1 &&
+			arrondissement <= 20;
 		const hasEventCount = Number.isFinite(eventCount);
 
 		return {
@@ -391,7 +397,9 @@ const formatSortSignal = (value: string): { label: string; meta: string } => {
 	};
 };
 
-const formatLocationRequestSignal = (value: string): { label: string; meta: string } => {
+const formatLocationRequestSignal = (
+	value: string,
+): { label: string; meta: string } => {
 	const locationLabels: Record<string, { label: string; meta: string }> = {
 		all_events_request: {
 			label: "Near Me requested",
@@ -414,10 +422,12 @@ const formatLocationRequestSignal = (value: string): { label: string; meta: stri
 			meta: "User tapped locate on the map",
 		},
 	};
-	return locationLabels[value] ?? {
-		label: formatContextLabel(value),
-		meta: "Location request",
-	};
+	return (
+		locationLabels[value] ?? {
+			label: formatContextLabel(value),
+			meta: "Location request",
+		}
+	);
 };
 
 const getMedian = (values: number[]): number => {
@@ -1182,8 +1192,8 @@ export const EventEngagementStatsCard = ({
 						</p>
 						<CardTitle>Discovery & Event Performance</CardTitle>
 						<CardDescription>
-							Event opens, discovery behavior, external link actions, and audience
-							export in one panel.
+							Event opens, discovery behavior, external link actions, and
+							audience export in one panel.
 						</CardDescription>
 					</div>
 					<div className="flex max-w-full flex-col items-end gap-2 lg:justify-self-end">
@@ -1197,18 +1207,14 @@ export const EventEngagementStatsCard = ({
 									onClick={() => {
 										setWindowDays(days);
 										if (initialPayload?.success) {
-											void loadStats(
-												days,
-												searchClusterMode,
-												analyticsScope,
-											);
+											void loadStats(days, searchClusterMode, analyticsScope);
 										}
 									}}
 									disabled={isLoading}
 								>
 									{days}d
 								</Button>
-								))}
+							))}
 							<Button
 								type="button"
 								size="sm"
@@ -1226,17 +1232,11 @@ export const EventEngagementStatsCard = ({
 										key={scope}
 										type="button"
 										size="sm"
-										variant={
-											analyticsScope === scope ? "default" : "ghost"
-										}
+										variant={analyticsScope === scope ? "default" : "ghost"}
 										onClick={() => {
 											setAnalyticsScope(scope);
 											if (initialPayload?.success) {
-												void loadStats(
-													windowDays,
-													searchClusterMode,
-													scope,
-												);
+												void loadStats(windowDays, searchClusterMode, scope);
 											}
 										}}
 										disabled={isLoading}
@@ -1255,11 +1255,7 @@ export const EventEngagementStatsCard = ({
 										onClick={() => {
 											setSearchClusterMode(mode);
 											if (initialPayload?.success) {
-												void loadStats(
-													windowDays,
-													mode,
-													analyticsScope,
-												);
+												void loadStats(windowDays, mode, analyticsScope);
 											}
 										}}
 										disabled={isLoading}
@@ -1690,7 +1686,10 @@ export const EventEngagementStatsCard = ({
 							{[
 								{ label: "Event opens", value: summary.clickCount },
 								{ label: "Unique opens", value: summary.dedupedViewCount },
-								{ label: "External link clicks", value: summary.outboundClickCount },
+								{
+									label: "External link clicks",
+									value: summary.outboundClickCount,
+								},
 								{ label: "Event map opens", value: summary.mapOpenCount },
 								{ label: "Calendar adds", value: summary.calendarSyncCount },
 							].map((step) => (
@@ -1996,13 +1995,16 @@ export const EventEngagementStatsCard = ({
 							},
 							{
 								label: "Tour",
-								help: "",
-								rows: topTourRows.map((row) => ({
-									key: `${row.group}-${row.value}`,
-									label: `${formatContextLabel(row.value)}`,
-									value: row.count,
-									meta: "",
-								})),
+								help: "Tour activity separates prompt exposure and dismissal from actual guided-tour starts, skips, completions, and auth handoffs.",
+								rows: topTourRows.map((row) => {
+									const formatted = formatTourSignal(row.value);
+									return {
+										key: `${row.group}-${row.value}`,
+										label: formatted.label,
+										value: row.count,
+										meta: formatted.meta,
+									};
+								}),
 								empty: "No tour data yet.",
 							},
 							{

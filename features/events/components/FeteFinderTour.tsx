@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const TOUR_STATE_COMPLETED = "completed";
+const TOUR_STATE_DISMISSED = "dismissed";
 const TOUR_STATE_SKIPPED = "skipped";
 
 interface TourStep {
@@ -319,11 +320,25 @@ export function FeteFinderTour({
 		setStepIndex(0);
 	}, []);
 
+	const dismissPrompt = useCallback(
+		(source: string) => {
+			trackTourInteraction({ action: "prompt_dismissed", source });
+			writeTourState(TOUR_STATE_DISMISSED);
+			onFilterClose();
+			setHasPendingOverlayTour(false);
+			setIsPromptOpen(false);
+			setIsTourOpen(false);
+			setSpotlightRect(null);
+		},
+		[onFilterClose],
+	);
+
 	const finishTour = useCallback(
-		(state: string) => {
+		(state: string, source: string) => {
 			trackTourInteraction({
 				action: state === TOUR_STATE_COMPLETED ? "complete" : "skip",
-				stepId: currentStep?.id,
+				stepId: isTourOpen ? currentStep?.id : undefined,
+				source,
 			});
 			writeTourState(state);
 			onFilterClose();
@@ -332,7 +347,7 @@ export function FeteFinderTour({
 			setIsTourOpen(false);
 			setSpotlightRect(null);
 		},
-		[currentStep?.id, onFilterClose],
+		[currentStep?.id, isTourOpen, onFilterClose],
 	);
 
 	const handleExternalStart = useCallback(() => {
@@ -372,14 +387,14 @@ export function FeteFinderTour({
 	useEffect(() => {
 		if (!isPromptOpen) return;
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === "Escape") finishTour(TOUR_STATE_SKIPPED);
+			if (event.key === "Escape") dismissPrompt("keyboard");
 			trapTabKey(event, promptRef.current);
 		};
 		window.addEventListener("keydown", handleKeyDown);
 		return () => {
 			window.removeEventListener("keydown", handleKeyDown);
 		};
-	}, [finishTour, isPromptOpen]);
+	}, [dismissPrompt, isPromptOpen]);
 
 	useEffect(() => {
 		if (!isAuthResolved) return;
@@ -479,7 +494,7 @@ export function FeteFinderTour({
 			syncSpotlight();
 		};
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === "Escape") finishTour(TOUR_STATE_SKIPPED);
+			if (event.key === "Escape") finishTour(TOUR_STATE_SKIPPED, "keyboard");
 			if (event.key === "ArrowRight") moveToAvailableStep(stepIndex + 1, 1);
 			if (event.key === "ArrowLeft") moveToAvailableStep(stepIndex - 1, -1);
 			trapTabKey(event, tourCardRef.current);
@@ -501,6 +516,7 @@ export function FeteFinderTour({
 		createPortal(
 			<div
 				className="fixed inset-0 flex items-end justify-center bg-black/35 backdrop-blur-[2px] sm:items-center"
+				onClick={() => dismissPrompt("backdrop")}
 				style={{
 					zIndex: LAYERS.SYSTEM_TOAST - 1,
 					paddingTop: "max(env(safe-area-inset-top), 1.25rem)",
@@ -515,6 +531,7 @@ export function FeteFinderTour({
 				<div
 					ref={promptRef}
 					tabIndex={-1}
+					onClick={(event) => event.stopPropagation()}
 					className="ooo-site-card w-full max-w-md rounded-2xl border border-border/80 bg-card/96 p-5 shadow-[0_28px_70px_-38px_rgba(6,4,2,0.78)] outline-none backdrop-blur-xl"
 				>
 					<p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
@@ -534,7 +551,7 @@ export function FeteFinderTour({
 						<Button
 							type="button"
 							variant="ghost"
-							onClick={() => finishTour(TOUR_STATE_SKIPPED)}
+							onClick={() => dismissPrompt("skip_button")}
 							className="rounded-full"
 						>
 							Skip
@@ -567,13 +584,6 @@ export function FeteFinderTour({
 					style={{ zIndex: LAYERS.SYSTEM_TOAST - 1 }}
 					aria-live="polite"
 				>
-					<button
-						type="button"
-						tabIndex={-1}
-						className="absolute inset-0 cursor-default"
-						aria-label="Skip Fete Finder tour"
-						onClick={() => finishTour(TOUR_STATE_SKIPPED)}
-					/>
 					<div
 						className="pointer-events-none fixed rounded-2xl border border-[#f0b668]/80 shadow-[0_0_0_9999px_rgba(9,7,5,0.58),0_0_0_1px_rgba(255,247,234,0.72),0_18px_48px_-28px_rgba(240,182,104,0.9)] transition-all duration-200"
 						style={{
@@ -587,7 +597,7 @@ export function FeteFinderTour({
 						ref={tourCardRef}
 						tabIndex={-1}
 						className={cn(
-							"fixed w-[min(360px,calc(100vw-2rem))] rounded-2xl border border-border/80 bg-card/97 p-4 text-card-foreground shadow-[0_24px_64px_-36px_rgba(6,4,2,0.82)] outline-none backdrop-blur-xl transition-all duration-200",
+							"pointer-events-auto fixed w-[min(360px,calc(100vw-2rem))] rounded-2xl border border-border/80 bg-card/97 p-4 text-card-foreground shadow-[0_24px_64px_-36px_rgba(6,4,2,0.82)] outline-none backdrop-blur-xl transition-all duration-200",
 							cardPosition.placement === "top" &&
 								"animate-in slide-in-from-bottom-1",
 							cardPosition.placement === "bottom" &&
@@ -614,7 +624,7 @@ export function FeteFinderTour({
 								type="button"
 								variant="ghost"
 								size="icon"
-								onClick={() => finishTour(TOUR_STATE_SKIPPED)}
+								onClick={() => finishTour(TOUR_STATE_SKIPPED, "close_button")}
 								className="h-8 w-8 rounded-full"
 								aria-label="Close tour"
 							>
@@ -655,7 +665,7 @@ export function FeteFinderTour({
 									size="sm"
 									onClick={() => {
 										if (isLastStep) {
-											finishTour(TOUR_STATE_COMPLETED);
+											finishTour(TOUR_STATE_COMPLETED, "done_button");
 											return;
 										}
 										moveToAvailableStep(stepIndex + 1, 1);
