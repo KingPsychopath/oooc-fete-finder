@@ -31,6 +31,7 @@ export function EventListIsland({
 		nearbyEventsStatus,
 		nearbyMatchedEventsCount,
 		onClearFilters,
+		selectedDayNightPeriods,
 		setSortMode,
 		socialProofDisplayModes,
 		sortMode,
@@ -75,6 +76,7 @@ export function EventListIsland({
 			pendingSavedMutationStatus={pendingSavedMutationStatus}
 			showSavedOnly={showSavedOnly}
 			onSavedOnlyChange={setShowSavedOnly}
+			selectedDayNightPeriods={selectedDayNightPeriods}
 			searchSlot={searchSlot}
 		/>
 	);

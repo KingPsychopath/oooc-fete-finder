@@ -8,7 +8,7 @@ import { FilterButton } from "@/features/events/components/FilterButton";
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import { buildGenreFrequency } from "@/features/events/genre-preview";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
-import type { Event } from "@/features/events/types";
+import type { DayNightPeriod, Event } from "@/features/events/types";
 import {
 	BookmarkCheck,
 	CalendarDays,
@@ -73,6 +73,7 @@ type AllEventsProps = {
 	pendingSavedMutationStatus: PendingSavedMutationStatus;
 	showSavedOnly: boolean;
 	onSavedOnlyChange: (showSavedOnly: boolean) => void;
+	selectedDayNightPeriods: DayNightPeriod[];
 	searchSlot?: ReactNode;
 };
 
@@ -101,6 +102,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			pendingSavedMutationStatus,
 			showSavedOnly,
 			onSavedOnlyChange,
+			selectedDayNightPeriods,
 			searchSlot,
 		},
 		ref,
@@ -245,7 +247,9 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							Hosting something special? Put it on the map with the collective
 							and submit <span className="whitespace-nowrap">your event →</span>
 						</Link>
-						{searchSlot ? <div className="min-w-0 pt-1">{searchSlot}</div> : null}
+						{searchSlot ? (
+							<div className="min-w-0 pt-1">{searchSlot}</div>
+						) : null}
 						<div className="grid max-w-full min-w-0 grid-cols-2 items-center gap-2 sm:hidden">
 							{clearFiltersControl}
 							{filterButtonControl}
@@ -338,6 +342,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 										proximityLabel={
 											isNearbyActive ? formatProximityLabel(event) : undefined
 										}
+										preferredDayNightPeriods={selectedDayNightPeriods}
 									/>
 								</div>
 							))}
@@ -397,6 +402,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 												)}
 												genreFrequency={genreFrequency}
 												isSaved={isEventSaved(event.eventKey)}
+												preferredDayNightPeriods={selectedDayNightPeriods}
 											/>
 										</div>
 									))}

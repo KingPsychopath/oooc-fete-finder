@@ -13,6 +13,7 @@ import {
 	shouldShowSocialProofBadge,
 } from "@/features/events/social-proof";
 import {
+	type DayNightPeriod,
 	type Event,
 	MUSIC_GENRES,
 	NATIONALITIES,
@@ -20,7 +21,7 @@ import {
 	formatDayWithDate,
 	formatLocationAreaShort,
 	formatPrice,
-	getEventTemporalProfile,
+	getEventDisplayDayNightPeriod,
 	getVisibleEventTypeLabel,
 } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
@@ -49,6 +50,7 @@ type EventCardProps = {
 	genreFrequency?: GenreFrequency;
 	isSaved?: boolean;
 	proximityLabel?: string;
+	preferredDayNightPeriods?: DayNightPeriod[];
 };
 
 /**
@@ -62,6 +64,7 @@ export function EventCard({
 	genreFrequency,
 	isSaved = false,
 	proximityLabel,
+	preferredDayNightPeriods,
 }: EventCardProps) {
 	const handleClick = () => {
 		if (!event || !onClick) {
@@ -82,9 +85,10 @@ export function EventCard({
 	const isNewlyAdded = isRecentlyAddedEvent(event);
 	const isRecentlyUpdated = !isNewlyAdded && isRecentlyUpdatedEvent(event);
 	const hasOOOCPick = event.isOOOCPick === true;
-	const temporalProfile = getEventTemporalProfile(event);
-	const dayNightPeriod = temporalProfile.matchesLegacyNight ? "night" : "day";
-	const hasKnownDayNightPeriod = temporalProfile.primaryPeriod !== "unknown";
+	const dayNightPeriod = getEventDisplayDayNightPeriod(
+		event,
+		preferredDayNightPeriods,
+	);
 	const visibleEventType = getVisibleEventTypeLabel(event.type);
 	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
 	const socialProofHistoricalSaveCount =
@@ -217,7 +221,7 @@ export function EventCard({
 						{event.time || "TBC"}
 						{event.endTime && event.time !== "TBC" && <> - {event.endTime}</>}
 					</span>
-					{event.time && hasKnownDayNightPeriod && (
+					{event.time && dayNightPeriod && (
 						<span
 							className="inline-flex flex-shrink-0 items-center text-muted-foreground"
 							title={

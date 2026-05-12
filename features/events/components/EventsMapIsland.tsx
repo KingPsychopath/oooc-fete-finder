@@ -10,12 +10,7 @@ import {
 } from "@/features/maps/components/events-map-card";
 import { clientLog } from "@/lib/platform/client-logger";
 import { MapPin } from "lucide-react";
-import {
-	Component,
-	type ErrorInfo,
-	type ReactNode,
-	useCallback,
-} from "react";
+import { Component, type ErrorInfo, type ReactNode, useCallback } from "react";
 
 interface EventsMapIslandProps {
 	isExpanded: boolean;
@@ -122,6 +117,7 @@ export function EventsMapIsland({
 		filteredEvents,
 		hasAnyActiveFilters,
 		openFilterDrawer,
+		selectedDayNightPeriods,
 		setIsFilterOpen,
 	} = useEventsSearchFilters();
 	const isOnline = useOnlineStatus();
@@ -147,6 +143,7 @@ export function EventsMapIsland({
 					hasActiveFilters={hasAnyActiveFilters}
 					activeFiltersCount={activeFiltersCount}
 					isOfflineMode={!isOnline}
+					selectedDayNightPeriods={selectedDayNightPeriods}
 				/>
 			</EventsMapErrorBoundary>
 		</div>

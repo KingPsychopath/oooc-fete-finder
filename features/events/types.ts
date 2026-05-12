@@ -617,6 +617,22 @@ export const getEventDayNightPeriods = (event: Event): DayNightPeriod[] => {
 	return periods;
 };
 
+export const getEventDisplayDayNightPeriod = (
+	event: Event,
+	preferredPeriods: DayNightPeriod[] = [],
+): DayNightPeriod | null => {
+	const profile = getEventTemporalProfile(event);
+	const uniquePreferredPeriods = [...new Set(preferredPeriods)];
+	if (uniquePreferredPeriods.length === 1) {
+		const [period] = uniquePreferredPeriods;
+		if (period === "day" && profile.matchesLegacyDay) return "day";
+		if (period === "night" && profile.matchesLegacyNight) return "night";
+	}
+	if (profile.matchesLegacyNight) return "night";
+	if (profile.matchesLegacyDay) return "day";
+	return null;
+};
+
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export const getEventTypeForDate = (date: string): EventType => {
@@ -655,6 +671,7 @@ export const formatTimeWithPeriod = (time: string): string => {
 	if (!time || time === "TBC") return time;
 
 	const period = getDayNightPeriod(time);
+	if (!period) return time;
 	const periodEmoji = period === "day" ? "☀️" : "🌙";
 
 	return `${time} ${periodEmoji}`;

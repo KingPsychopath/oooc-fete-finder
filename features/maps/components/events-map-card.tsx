@@ -7,7 +7,7 @@ import {
 	panelActionButtonClassName,
 	panelActionIconClassName,
 } from "@/features/events/components/filter-action-button-styles";
-import type { Event } from "@/features/events/types";
+import type { DayNightPeriod, Event } from "@/features/events/types";
 import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
 import { LAYERS } from "@/lib/ui/layers";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,7 @@ type EventsMapCardProps = {
 	hasActiveFilters?: boolean;
 	activeFiltersCount?: number;
 	isOfflineMode?: boolean;
+	selectedDayNightPeriods?: DayNightPeriod[];
 };
 
 function MapPreview() {
@@ -61,6 +62,7 @@ export function EventsMapCard({
 	hasActiveFilters = false,
 	activeFiltersCount = 0,
 	isOfflineMode = false,
+	selectedDayNightPeriods = [],
 }: EventsMapCardProps) {
 	const isOnline = useOnlineStatus();
 	const [hasMountedMap, setHasMountedMap] = useState(false);
@@ -276,6 +278,7 @@ export function EventsMapCard({
 			hasActiveFilters={hasActiveFilters}
 			activeFiltersCount={activeFiltersCount}
 			isOfflineMode={isOfflineMode}
+			selectedDayNightPeriods={selectedDayNightPeriods}
 			className={isFullscreen ? "h-[100dvh] rounded-none border-0" : undefined}
 		/>
 	);

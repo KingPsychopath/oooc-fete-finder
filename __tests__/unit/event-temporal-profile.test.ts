@@ -4,6 +4,8 @@ import {
 } from "@/features/events/filtering";
 import {
 	type Event,
+	formatTimeWithPeriod,
+	getEventDisplayDayNightPeriod,
 	getEventTemporalProfile,
 	getEventTypeForDate,
 	isEventInDayNightPeriod,
@@ -58,6 +60,17 @@ describe("event temporal profile", () => {
 		expect(profile.matchesLegacyNight).toBe(true);
 	});
 
+	it("prefers the active filter period when displaying both-matching events", () => {
+		const event = makeEvent("both-display", "14:00", "00:00");
+
+		expect(getEventDisplayDayNightPeriod(event)).toBe("night");
+		expect(getEventDisplayDayNightPeriod(event, ["day"])).toBe("day");
+		expect(getEventDisplayDayNightPeriod(event, ["night"])).toBe("night");
+		expect(getEventDisplayDayNightPeriod(event, ["day", "night"])).toBe(
+			"night",
+		);
+	});
+
 	it("treats evening events that run past 21:00 as night", () => {
 		const event = makeEvent("evening-to-night", "18:30", "22:30");
 		const profile = getEventTemporalProfile(event);
@@ -78,6 +91,7 @@ describe("event temporal profile", () => {
 			expect(profile.matchesLegacyDay).toBe(false);
 			expect(profile.matchesLegacyNight).toBe(false);
 		}
+		expect(formatTimeWithPeriod("24:00")).toBe("24:00");
 	});
 
 	it("filters using the expanded day/night semantics", () => {

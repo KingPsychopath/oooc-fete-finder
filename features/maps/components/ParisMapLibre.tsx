@@ -8,9 +8,10 @@ import { trackDiscoveryAnalytics } from "@/features/events/engagement/client-tra
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import type { Event } from "@/features/events/types";
 import {
+	type DayNightPeriod,
 	formatDayWithDate,
 	formatPrice,
-	getEventTemporalProfile,
+	getEventDisplayDayNightPeriod,
 } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
 import { cn } from "@/lib/utils";
@@ -105,6 +106,7 @@ interface ParisMapLibreProps {
 	hasActiveFilters?: boolean;
 	activeFiltersCount?: number;
 	isOfflineMode?: boolean;
+	selectedDayNightPeriods?: DayNightPeriod[];
 }
 
 // Paris center coordinates
@@ -191,6 +193,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	hasActiveFilters = false,
 	activeFiltersCount = 0,
 	isOfflineMode = false,
+	selectedDayNightPeriods = [],
 }) => {
 	const mapContainer = useRef<HTMLDivElement>(null);
 	const map = useRef<maplibregl.Map | null>(null);
@@ -1565,12 +1568,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						<div className="mb-2 h-px bg-border/70" />
 						<div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
 							{selectedArrondissementEvents.map((event) => {
-								const temporalProfile = getEventTemporalProfile(event);
-								const dayNightPeriod = temporalProfile.matchesLegacyNight
-									? "night"
-									: temporalProfile.matchesLegacyDay
-										? "day"
-										: null;
+								const dayNightPeriod = getEventDisplayDayNightPeriod(
+									event,
+									selectedDayNightPeriods,
+								);
 								const venueTypes = getEventVenueTypes(event);
 								const isFeatured = shouldDisplayFeaturedEvent(event);
 								const isPromoted = !isFeatured && event.isPromoted === true;
