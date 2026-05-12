@@ -7,6 +7,7 @@ import {
 	useContext,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 } from "react";
 
@@ -26,6 +27,8 @@ const ONLINE_PROBE_PATH = `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/client
 const ONLINE_PROBE_TIMEOUT_MS =
 	process.env.NODE_ENV === "development" ? 8000 : 3000;
 const ONLINE_PROBE_ATTEMPTS = 2;
+const ONLINE_PROBE_INTERVAL_MS = 60_000;
+const ONLINE_PROBE_DEBOUNCE_MS = 2_000;
 
 const readBrowserOnlineStatus = () =>
 	typeof navigator === "undefined" || navigator.onLine;
@@ -64,34 +67,69 @@ const probeAppReachability = async (): Promise<boolean> => {
 
 export function OnlineStatusProvider({ children }: OnlineStatusProviderProps) {
 	const [isOnline, setIsOnline] = useState(true);
+	const inFlightProbeRef = useRef<Promise<boolean> | null>(null);
+	const lastProbeStartedAtRef = useRef(0);
+	const lastForcedProbeStartedAtRef = useRef(0);
 
-	const refreshOnlineStatus = useCallback(() => {
+	const refreshOnlineStatus = useCallback((force = false) => {
 		if (!readBrowserOnlineStatus()) {
 			setIsOnline(false);
 			return;
 		}
 
-		void probeAppReachability().then(setIsOnline);
+		const now = Date.now();
+		const inFlightProbe = inFlightProbeRef.current;
+		if (inFlightProbe) {
+			void inFlightProbe.then(setIsOnline);
+			return;
+		}
+		if (!force && now - lastProbeStartedAtRef.current < ONLINE_PROBE_INTERVAL_MS) {
+			return;
+		}
+		if (
+			force &&
+			now - lastForcedProbeStartedAtRef.current < ONLINE_PROBE_DEBOUNCE_MS
+		) {
+			return;
+		}
+
+		if (force) lastForcedProbeStartedAtRef.current = now;
+		lastProbeStartedAtRef.current = now;
+		const probe = probeAppReachability().finally(() => {
+			if (inFlightProbeRef.current === probe) {
+				inFlightProbeRef.current = null;
+			}
+		});
+		inFlightProbeRef.current = probe;
+		void probe.then(setIsOnline);
 	}, []);
 
 	useEffect(() => {
 		refreshOnlineStatus();
 
-		const handleOnline = () => refreshOnlineStatus();
+		const handleOnline = () => refreshOnlineStatus(true);
 		const handleOffline = () => setIsOnline(false);
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === "visible") {
+				refreshOnlineStatus(true);
+			}
+		};
 
 		window.addEventListener("online", handleOnline);
 		window.addEventListener("offline", handleOffline);
-		window.addEventListener("focus", refreshOnlineStatus);
-		document.addEventListener("visibilitychange", refreshOnlineStatus);
+		window.addEventListener("focus", handleOnline);
+		document.addEventListener("visibilitychange", handleVisibilityChange);
 
-		const probeInterval = window.setInterval(refreshOnlineStatus, 15_000);
+		const probeInterval = window.setInterval(
+			() => refreshOnlineStatus(),
+			ONLINE_PROBE_INTERVAL_MS,
+		);
 
 		return () => {
 			window.removeEventListener("online", handleOnline);
 			window.removeEventListener("offline", handleOffline);
-			window.removeEventListener("focus", refreshOnlineStatus);
-			document.removeEventListener("visibilitychange", refreshOnlineStatus);
+			window.removeEventListener("focus", handleOnline);
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
 			window.clearInterval(probeInterval);
 		};
 	}, [refreshOnlineStatus]);
