@@ -4,6 +4,7 @@ import { useOptionalAuth } from "@/features/auth/auth-context";
 import { useEventsOffline } from "@/features/events/components/events-offline-provider";
 import { EventsSearchFiltersProvider } from "@/features/events/components/events-search-filters-provider";
 import { SavedEventsProvider } from "@/features/events/components/saved-events-provider";
+import type { SpotlightRotationContext } from "@/features/events/featured/selection";
 import type { ReactNode, RefObject } from "react";
 import { Suspense, lazy, useCallback, useRef, useState } from "react";
 
@@ -30,12 +31,12 @@ interface AuthGatedControlsValue {
 
 interface AuthGatedControlsIslandProps {
 	children: (authControls: AuthGatedControlsValue) => ReactNode;
-	spotlightRotationDate: string;
+	spotlightRotationContext: SpotlightRotationContext;
 }
 
 export function AuthGatedControlsIsland({
 	children,
-	spotlightRotationDate,
+	spotlightRotationContext,
 }: AuthGatedControlsIslandProps) {
 	const [showEmailGate, setShowEmailGate] = useState(false);
 	const allEventsRef = useRef<HTMLDivElement>(null);
@@ -103,7 +104,7 @@ export function AuthGatedControlsIsland({
 			}}
 			onScrollToAllEvents={scrollToAllEvents}
 			requireAuth={requireAuth}
-			spotlightRotationDate={spotlightRotationDate}
+			initialSpotlightRotationContext={spotlightRotationContext}
 		>
 			<SavedEventsProvider>
 				{children({

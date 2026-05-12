@@ -3,10 +3,20 @@ import { trackNavigationClick } from "@/features/events/engagement/client-tracki
 import { Megaphone } from "lucide-react";
 import Link from "next/link";
 import { FEATURED_EVENTS_CONFIG } from "../constants";
+import type { SpotlightRotationContext } from "../selection";
 
-export function FeaturedEventsHeader() {
+export function FeaturedEventsHeader({
+	rotationContext,
+}: {
+	rotationContext: SpotlightRotationContext;
+}) {
 	return (
 		<div className="min-w-0">
+			<p className="mb-1 text-[11px] leading-tight text-muted-foreground/85">
+				{rotationContext.eventPhase === "far"
+					? "Fresh picks for Paris time"
+					: `${rotationContext.label} picks`}
+			</p>
 			<Link
 				href={FEATURED_EVENTS_CONFIG.FEATURE_PAGE_ROUTE}
 				onClick={() =>

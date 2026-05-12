@@ -1,6 +1,7 @@
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { EventsClient } from "@/features/events/components/events-client";
-import { getParisSpotlightRotationDate } from "@/features/events/featured/selection";
+import { getSpotlightRotationContext } from "@/features/events/featured/selection";
+import { getDefaultDateRangeForEvents } from "@/features/events/filtering";
 import { toHomepageEventPayload } from "@/features/events/homepage-event-payload";
 import {
 	getPopularSearchChipSignalsCached,
@@ -38,6 +39,8 @@ export async function HomeEventsSection({
 			getPopularSearchChipSignalsCached(),
 		]);
 	const suppressedEventQueries: string[] = [];
+	const homepageEvents = result.data.map(toHomepageEventPayload);
+	const defaultDateRange = getDefaultDateRangeForEvents(homepageEvents);
 	const isRemoteMode = env.DATA_MODE === "remote";
 	const isBackupFallback = isRemoteMode && result.source === "backup";
 	const isLocalFallback = isRemoteMode && result.source === "local";
@@ -48,7 +51,9 @@ export async function HomeEventsSection({
 					suppressedEventQueries,
 				})
 			: [];
-	const spotlightRotationDate = getParisSpotlightRotationDate();
+	const spotlightRotationContext = getSpotlightRotationContext({
+		dateRange: defaultDateRange,
+	});
 	if (result.error) {
 		log.error("home", "Error loading events", { error: result.error });
 	}
@@ -64,12 +69,12 @@ export async function HomeEventsSection({
 				</div>
 			)}
 			<EventsClient
-				initialEvents={result.data.map(toHomepageEventPayload)}
+				initialEvents={homepageEvents}
 				fullEventsPath="/api/events/live"
 				mapLoadStrategy={mapLoadStrategy}
 				eventUpdateRequestsEnabled={submissionSettings.eventUpdatesEnabled}
 				dynamicSearchChips={dynamicSearchChips}
-				spotlightRotationDate={spotlightRotationDate}
+				spotlightRotationContext={spotlightRotationContext}
 			/>
 		</>
 	);

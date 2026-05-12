@@ -1,6 +1,7 @@
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
 import type { DateRangeFilter } from "../filtering";
+import type { SpotlightRotationContext } from "./selection";
 
 export type FeaturedEventsProps = {
 	events: Event[];
@@ -9,7 +10,7 @@ export type FeaturedEventsProps = {
 	socialProofDisplayModes: Map<string, SocialProofDisplayMode>;
 	maxFeaturedEvents?: number;
 	dateRange: DateRangeFilter;
-	rotationDate: string;
+	rotationContext: SpotlightRotationContext;
 };
 
 export type SafeFeaturedEventsProps = {

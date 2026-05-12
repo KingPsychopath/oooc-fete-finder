@@ -4,6 +4,10 @@ import { useEventsOffline } from "@/features/events/components/events-offline-pr
 import { getCountryOption } from "@/features/events/countries";
 import { getDiscoveryEligibleEvents } from "@/features/events/discovery-eligibility";
 import { trackDiscoveryAnalytics } from "@/features/events/engagement/client-tracking";
+import {
+	type SpotlightRotationContext,
+	getSpotlightRotationContext,
+} from "@/features/events/featured/selection";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import {
 	getCustomGenreColor,
@@ -55,7 +59,7 @@ interface EventsSearchFiltersProviderProps {
 	onNeedFullEvents: () => void;
 	onScrollToAllEvents: () => void;
 	requireAuth: () => boolean;
-	spotlightRotationDate: string;
+	initialSpotlightRotationContext: SpotlightRotationContext;
 }
 
 interface EventsSearchFiltersContextValue {
@@ -146,7 +150,7 @@ interface EventsSearchFiltersContextValue {
 			: never
 	>;
 	sortMode: EventSortMode;
-	spotlightRotationDate: string;
+	spotlightRotationContext: SpotlightRotationContext;
 	spotlightEventsOrdered: Event[];
 	toggleNearbyEvents: () => void;
 	toggleFilterExpansion: () => void;
@@ -240,7 +244,7 @@ export function EventsSearchFiltersProvider({
 	onNeedFullEvents,
 	onScrollToAllEvents,
 	requireAuth,
-	spotlightRotationDate,
+	initialSpotlightRotationContext,
 }: EventsSearchFiltersProviderProps) {
 	const { events } = useEventsOffline();
 	const { settings: localAppSettings, isLoaded: areLocalSettingsLoaded } =
@@ -248,6 +252,9 @@ export function EventsSearchFiltersProvider({
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 	const [isFilterDrawerForced, setIsFilterDrawerForced] = useState(false);
+	const [spotlightRotationContext, setSpotlightRotationContext] = useState(
+		initialSpotlightRotationContext,
+	);
 	const [sortMode, setSortMode] = useState<EventSortMode>("upcoming");
 	const [nearbyEventsStatus, setNearbyEventsStatus] =
 		useState<NearbyEventsStatus>("idle");
@@ -270,6 +277,18 @@ export function EventsSearchFiltersProvider({
 		onSearchQueryChange,
 		selectedOOOCPicks,
 	} = filters;
+
+	useEffect(() => {
+		const currentContext = getSpotlightRotationContext({
+			dateRange: defaultDateRange,
+		});
+		setSpotlightRotationContext((previous) =>
+			previous.rotationKey === currentContext.rotationKey &&
+			previous.eventPhase === currentContext.eventPhase
+				? previous
+				: currentContext,
+		);
+	}, [defaultDateRange]);
 
 	const availableGenres = useMemo(
 		() => buildAvailableGenresForEvents(events),
@@ -537,7 +556,7 @@ export function EventsSearchFiltersProvider({
 			setSortMode: handleSortModeChange,
 			socialProofDisplayModes,
 			sortMode,
-			spotlightRotationDate,
+			spotlightRotationContext,
 			spotlightEventsOrdered,
 			toggleNearbyEvents,
 			toggleFilterExpansion,
@@ -564,7 +583,7 @@ export function EventsSearchFiltersProvider({
 			handleSortModeChange,
 			socialProofDisplayModes,
 			sortMode,
-			spotlightRotationDate,
+			spotlightRotationContext,
 			spotlightEventsOrdered,
 			toggleNearbyEvents,
 			toggleFilterExpansion,

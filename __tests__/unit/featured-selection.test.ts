@@ -1,5 +1,6 @@
 import {
 	getParisSpotlightRotationDate,
+	getSpotlightRotationContext,
 	selectFeaturedEvents,
 } from "@/features/events/featured/selection";
 import { type Event, getEventTypeForDate } from "@/features/events/types";
@@ -178,6 +179,32 @@ describe("selectFeaturedEvents", () => {
 		]);
 	});
 
+	it("keeps featured placements ahead even after their event time has passed", () => {
+		const selected = selectFeaturedEvents({
+			events: [
+				makeEvent({
+					eventKey: "featured-passed",
+					date: "2026-06-19",
+					time: "18:00",
+					isFeatured: true,
+				}),
+				makeEvent({
+					eventKey: "soon-regular",
+					date: "2026-06-21",
+					time: "18:00",
+				}),
+			],
+			maxFeaturedEvents: 2,
+			dateRange,
+			referenceDate: new Date("2026-06-21T12:00:00.000Z"),
+		});
+
+		expect(selected.map((event) => event.eventKey)).toEqual([
+			"featured-passed",
+			"soon-regular",
+		]);
+	});
+
 	it("is deterministic for the same date set", () => {
 		const events = [
 			makeEvent({ eventKey: "regular-a", date: "2026-06-21" }),
@@ -270,5 +297,171 @@ describe("selectFeaturedEvents", () => {
 		expect(
 			getParisSpotlightRotationDate(new Date("2026-05-12T22:00:00.000Z")),
 		).toBe("2026-05-13");
+	});
+
+	it("uses daily cadence far from fete and six-hour mood buckets near fete", () => {
+		const farContext = getSpotlightRotationContext({
+			dateRange,
+			referenceDate: new Date("2026-05-12T12:00:00.000Z"),
+		});
+		const eveningContext = getSpotlightRotationContext({
+			dateRange,
+			referenceDate: new Date("2026-06-21T17:30:00.000Z"),
+		});
+		const lateContext = getSpotlightRotationContext({
+			dateRange,
+			referenceDate: new Date("2026-06-21T22:30:00.000Z"),
+		});
+
+		expect(farContext).toMatchObject({
+			cadence: "daily",
+			bucket: "daily",
+			eventPhase: "far",
+		});
+		expect(eveningContext).toMatchObject({
+			cadence: "six-hour",
+			bucket: "evening",
+			eventPhase: "event-day",
+		});
+		expect(lateContext).toMatchObject({
+			cadence: "six-hour",
+			bucket: "late",
+			eventPhase: "event-day",
+		});
+		expect(lateContext.rotationDate).toBe("2026-06-22");
+	});
+
+	it("uses bucket intent to prefer evening events during evening rotation", () => {
+		const selected = selectFeaturedEvents({
+			events: [
+				makeEvent({
+					eventKey: "morning-market",
+					date: "2026-06-21",
+					time: "10:00",
+					genre: ["other"],
+					tags: ["market"],
+					venueTypes: ["outdoor"],
+					indoor: false,
+				}),
+				makeEvent({
+					eventKey: "evening-dj",
+					date: "2026-06-21",
+					time: "20:00",
+					genre: ["house"],
+					tags: ["dj"],
+					venueTypes: ["indoor"],
+					indoor: true,
+				}),
+			],
+			maxFeaturedEvents: 1,
+			dateRange,
+			referenceDate: new Date("2026-06-21T16:00:00.000Z"),
+			rotationContext: getSpotlightRotationContext({
+				dateRange,
+				referenceDate: new Date("2026-06-21T16:00:00.000Z"),
+			}),
+		});
+
+		expect(selected.map((event) => event.eventKey)).toEqual(["evening-dj"]);
+	});
+
+	it("prefers near peak-date events over far-away fallbacks when enough exist", () => {
+		const selected = selectFeaturedEvents({
+			events: [
+				makeEvent({
+					eventKey: "far-social-proof",
+					date: "2026-06-28",
+					time: "20:00",
+					socialProofSaveCount: 999,
+				}),
+				makeEvent({ eventKey: "near-a", date: "2026-06-21", time: "18:00" }),
+				makeEvent({ eventKey: "near-b", date: "2026-06-21", time: "20:00" }),
+				makeEvent({ eventKey: "near-c", date: "2026-06-22", time: "16:00" }),
+			],
+			maxFeaturedEvents: 3,
+			dateRange,
+			referenceDate: new Date("2026-06-21T12:00:00.000Z"),
+			rotationContext: getSpotlightRotationContext({
+				dateRange,
+				referenceDate: new Date("2026-06-21T12:00:00.000Z"),
+			}),
+		});
+
+		expect(selected.map((event) => event.eventKey)).not.toContain(
+			"far-social-proof",
+		);
+	});
+
+	it("uses a start-time ladder on event day", () => {
+		const selected = selectFeaturedEvents({
+			events: [
+				makeEvent({ eventKey: "tomorrow", date: "2026-06-22", time: "18:00" }),
+				makeEvent({
+					eventKey: "later-tonight",
+					date: "2026-06-21",
+					time: "23:00",
+				}),
+				makeEvent({
+					eventKey: "starting-soon",
+					date: "2026-06-21",
+					time: "18:30",
+				}),
+			],
+			maxFeaturedEvents: 2,
+			dateRange,
+			referenceDate: new Date("2026-06-21T16:00:00.000Z"),
+			rotationContext: getSpotlightRotationContext({
+				dateRange,
+				referenceDate: new Date("2026-06-21T16:00:00.000Z"),
+			}),
+		});
+
+		expect(selected.map((event) => event.eventKey)).toEqual([
+			"starting-soon",
+			"later-tonight",
+		]);
+	});
+
+	it("applies a soft diversity guard for venue, genre, and arrondissement", () => {
+		const selected = selectFeaturedEvents({
+			events: [
+				makeEvent({
+					eventKey: "same-venue-a",
+					date: "2026-06-21",
+					time: "18:00",
+					location: "Venue A",
+					arrondissement: 11,
+					genre: ["house"],
+					socialProofSaveCount: 80,
+				}),
+				makeEvent({
+					eventKey: "same-venue-b",
+					date: "2026-06-21",
+					time: "18:30",
+					location: "Venue A",
+					arrondissement: 11,
+					genre: ["house"],
+					socialProofSaveCount: 70,
+				}),
+				makeEvent({
+					eventKey: "different-area",
+					date: "2026-06-21",
+					time: "19:00",
+					location: "Venue B",
+					arrondissement: 18,
+					genre: ["soca"],
+				}),
+			],
+			maxFeaturedEvents: 2,
+			dateRange,
+			referenceDate: new Date("2026-06-21T15:00:00.000Z"),
+			rotationContext: getSpotlightRotationContext({
+				dateRange,
+				referenceDate: new Date("2026-06-21T15:00:00.000Z"),
+			}),
+		});
+
+		expect(selected.map((event) => event.eventKey)).toContain("different-area");
+		expect(new Set(selected.map((event) => event.location)).size).toBe(2);
 	});
 });

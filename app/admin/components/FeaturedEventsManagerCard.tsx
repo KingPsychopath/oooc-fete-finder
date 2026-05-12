@@ -19,6 +19,8 @@ import {
 	rescheduleFeaturedEvent,
 	scheduleFeaturedEvent,
 } from "@/features/events/featured/actions";
+import { getSpotlightRotationContext } from "@/features/events/featured/selection";
+import { getCurrentParisYearDateRange } from "@/features/events/filtering";
 import {
 	cancelPromotedSchedule,
 	clearPromotedHistory,
@@ -227,6 +229,13 @@ export const FeaturedEventsManagerCard = ({
 	const scheduleTimezone =
 		currentPayload?.slotConfig?.timezone || "Europe/Paris";
 	const timezoneDisplayLabel = `${scheduleTimezone} (CET / GMT+1)`;
+	const spotlightRotationContext = useMemo(
+		() =>
+			getSpotlightRotationContext({
+				dateRange: getCurrentParisYearDateRange(),
+			}),
+		[],
+	);
 	const activeCount = currentPayload?.activeCount ?? 0;
 	const spotlightMaxConcurrent =
 		featuredPayload?.slotConfig?.maxConcurrent ?? 3;
@@ -484,6 +493,11 @@ export const FeaturedEventsManagerCard = ({
 							</Button>
 						</div>
 						<Badge variant="outline">Timezone: {timezoneDisplayLabel}</Badge>
+						{placementMode === "spotlight" && (
+							<Badge variant="outline">
+								Rotation: {spotlightRotationContext.label}
+							</Badge>
+						)}
 						<Button
 							type="button"
 							size="sm"
@@ -495,6 +509,16 @@ export const FeaturedEventsManagerCard = ({
 						</Button>
 					</div>
 				</div>
+				{placementMode === "spotlight" && (
+					<div className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+						<span className="font-medium text-foreground/80">
+							Current spotlight fallback intent:
+						</span>{" "}
+						{spotlightRotationContext.intentLabel}. Cadence:{" "}
+						{spotlightRotationContext.cadence === "daily" ? "daily" : "6-hour"}{" "}
+						rotation. Phase: {spotlightRotationContext.eventPhase}.
+					</div>
+				)}
 				<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
 					<div className="rounded-md border bg-background/60 px-2.5 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">

@@ -5,7 +5,10 @@ import type { Event } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
 import { useMemo } from "react";
 import { FEATURED_EVENTS_CONFIG, FEATURED_EVENTS_LIMITS } from "../constants";
-import { selectFeaturedEvents } from "../selection";
+import {
+	type SpotlightRotationContext,
+	selectFeaturedEvents,
+} from "../selection";
 import type { FeaturedEventSelectionResult } from "../types";
 
 /**
@@ -18,7 +21,7 @@ export function useFeaturedEvents(
 	events: Event[],
 	maxFeaturedEvents: number = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS,
 	dateRange: DateRangeFilter = { from: null, to: null },
-	rotationDate?: string,
+	rotationContext?: SpotlightRotationContext,
 ): FeaturedEventSelectionResult {
 	const result = useMemo(() => {
 		// Input validation
@@ -61,7 +64,7 @@ export function useFeaturedEvents(
 			events,
 			maxFeaturedEvents: resolvedMaxFeaturedEvents,
 			dateRange,
-			rotationDate,
+			rotationContext,
 		});
 
 		// Safety check: filter out any undefined events
@@ -83,7 +86,7 @@ export function useFeaturedEvents(
 			totalEventsCount: events.length,
 			hasMoreEvents: events.length > resolvedMaxFeaturedEvents,
 		};
-	}, [dateRange, events, maxFeaturedEvents, rotationDate]);
+	}, [dateRange, events, maxFeaturedEvents, rotationContext]);
 
 	return result;
 }

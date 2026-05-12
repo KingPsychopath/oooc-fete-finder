@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { EventCard } from "@/features/events/components/EventCard";
 import { useSavedEvents } from "@/features/events/components/saved-events-provider";
+import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
 import { buildGenreFrequency } from "@/features/events/genre-preview";
 import { ChevronDown } from "lucide-react";
 import { FeaturedEventsHeader } from "./components/FeaturedEventsHeader";
@@ -22,13 +23,13 @@ export function FeaturedEvents({
 	socialProofDisplayModes,
 	maxFeaturedEvents = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS,
 	dateRange,
-	rotationDate,
+	rotationContext,
 }: FeaturedEventsProps) {
 	const { featuredEvents, totalEventsCount, hasMoreEvents } = useFeaturedEvents(
 		events,
 		maxFeaturedEvents,
 		dateRange,
-		rotationDate,
+		rotationContext,
 	);
 	const { isEventSaved } = useSavedEvents();
 	if (featuredEvents.length === 0) {
@@ -37,6 +38,16 @@ export function FeaturedEvents({
 
 	const genreFrequency = buildGenreFrequency(events);
 	const browseAllLabel = `Browse All ${totalEventsCount} Event${totalEventsCount !== 1 ? "s" : ""}`;
+	const handleSpotlightEventClick = (
+		event: (typeof featuredEvents)[number],
+	) => {
+		trackEventEngagement({
+			eventKey: event.eventKey,
+			actionType: "click",
+			source: `spotlight:${rotationContext.bucket}:${rotationContext.eventPhase}:${rotationContext.cadence}`,
+		});
+		onEventClick(event);
+	};
 
 	return (
 		<Card className="ooo-site-card mb-6 py-0">
@@ -47,7 +58,7 @@ export function FeaturedEvents({
 						<EventCard
 							key={event.eventKey || event.id}
 							event={event}
-							onClick={onEventClick}
+							onClick={handleSpotlightEventClick}
 							socialProofMode={socialProofDisplayModes.get(event.eventKey)}
 							genreFrequency={genreFrequency}
 							isSaved={isEventSaved(event.eventKey)}
@@ -56,7 +67,7 @@ export function FeaturedEvents({
 				</div>
 			</CardContent>
 			<CardFooter className="flex flex-col items-stretch gap-3 border-border/70 bg-background/48 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-				<FeaturedEventsHeader />
+				<FeaturedEventsHeader rotationContext={rotationContext} />
 				{/* Show browse all button if there are more events than featured */}
 				{hasMoreEvents && (
 					<div className="sm:shrink-0">
