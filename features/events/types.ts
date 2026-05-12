@@ -628,6 +628,11 @@ export const getEventDisplayDayNightPeriod = (
 		if (period === "day" && profile.matchesLegacyDay) return "day";
 		if (period === "night" && profile.matchesLegacyNight) return "night";
 	}
+	if (profile.matchesLegacyDay && profile.matchesLegacyNight) {
+		const preNightMinutes =
+			profile.dayOverlapMinutes + profile.eveningOverlapMinutes;
+		return profile.nightOverlapMinutes >= preNightMinutes ? "night" : "day";
+	}
 	if (profile.matchesLegacyNight) return "night";
 	if (profile.matchesLegacyDay) return "day";
 	return null;

@@ -63,12 +63,17 @@ describe("event temporal profile", () => {
 	it("prefers the active filter period when displaying both-matching events", () => {
 		const event = makeEvent("both-display", "14:00", "00:00");
 
-		expect(getEventDisplayDayNightPeriod(event)).toBe("night");
+		expect(getEventDisplayDayNightPeriod(event)).toBe("day");
 		expect(getEventDisplayDayNightPeriod(event, ["day"])).toBe("day");
 		expect(getEventDisplayDayNightPeriod(event, ["night"])).toBe("night");
-		expect(getEventDisplayDayNightPeriod(event, ["day", "night"])).toBe(
-			"night",
-		);
+		expect(getEventDisplayDayNightPeriod(event, ["day", "night"])).toBe("day");
+	});
+
+	it("uses night as the default icon when night duration is at least tied", () => {
+		const event = makeEvent("deep-night-display", "16:00", "02:00");
+
+		expect(getEventDisplayDayNightPeriod(event)).toBe("night");
+		expect(getEventDisplayDayNightPeriod(event, ["day"])).toBe("day");
 	});
 
 	it("treats evening events that run past 21:00 as night", () => {
