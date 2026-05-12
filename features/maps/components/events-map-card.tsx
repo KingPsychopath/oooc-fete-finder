@@ -362,7 +362,7 @@ export function EventsMapCard({
 								<div className="pointer-events-none absolute inset-x-0 bottom-3 z-[1] flex justify-center px-3">
 									<p className="max-w-[min(42rem,calc(100%-1rem))] rounded-xl border border-border/65 bg-card/90 px-3 py-1 text-center text-[11px] leading-snug tracking-[0.04em] text-muted-foreground/92 shadow-sm backdrop-blur">
 										{isOfflineMode
-											? "Map style, sprite, glyph, and tile assets are online-only. Saved event browsing, search, and filters are still available below."
+											? "Map style, sprite, glyph, and tile assets are online-only. Cached event browsing, search, and filters are still available below."
 											: "Expand to explore the live map by arrondissement"}
 									</p>
 								</div>

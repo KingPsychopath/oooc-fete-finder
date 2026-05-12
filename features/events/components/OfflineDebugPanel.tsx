@@ -72,6 +72,7 @@ export function OfflineDebugPanel() {
 	const [serviceWorkerStatus, setServiceWorkerStatus] =
 		useState<ServiceWorkerOfflineStatus | null>(null);
 	const [browserCacheNames, setBrowserCacheNames] = useState<string[]>([]);
+	const [navigatorOnline, setNavigatorOnline] = useState<boolean | null>(null);
 	const {
 		authMode,
 		canUseProtectedDiscovery,
@@ -103,6 +104,9 @@ export function OfflineDebugPanel() {
 			if (isCancelled) return;
 			setServiceWorkerStatus(nextServiceWorkerStatus);
 			setBrowserCacheNames(nextCacheNames);
+			setNavigatorOnline(
+				typeof navigator === "undefined" ? null : navigator.onLine,
+			);
 		};
 
 		void loadDebugState();
@@ -123,8 +127,13 @@ export function OfflineDebugPanel() {
 					? "controlled"
 					: "not controlled",
 			],
-			["Browser online", isOnline ? "yes" : "no"],
+			[
+				"Navigator online",
+				navigatorOnline == null ? "unknown" : navigatorOnline ? "yes" : "no",
+			],
+			["App reachable", isOnline ? "yes" : "no"],
 			["Event data source", eventDataSource],
+			["Map mode", isOnline ? "live MapLibre" : "fallback card"],
 			["Event count", String(events.length)],
 			["Snapshot saved", formatDateTime(eventSnapshotSavedAt)],
 			["Snapshot freshness", eventSnapshotFreshness],
@@ -149,6 +158,7 @@ export function OfflineDebugPanel() {
 			events.length,
 			isAuthenticated,
 			isOnline,
+			navigatorOnline,
 			offlineGraceExpiresAt,
 			serviceWorkerStatus,
 		],

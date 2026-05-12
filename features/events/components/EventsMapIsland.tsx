@@ -95,7 +95,7 @@ function EventsMapFallback({
 						</p>
 						<p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
 							{isOfflineFallback
-								? "Saved event browsing, search, and filters are still available below."
+								? "Cached event browsing, search, and filters are still available below."
 								: "Event browsing, search, and filters are still available below."}
 						</p>
 					</div>

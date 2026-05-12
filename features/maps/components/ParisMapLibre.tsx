@@ -1272,9 +1272,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							)}
 						</div>
 						<p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
-							{isOfflineMode
-								? `${visibleLoadError}. Saved event browsing, search, and filters are still available below.`
-								: `${visibleLoadError}. The district map can be retried without losing your current filters.`}
+								{isOfflineMode
+									? `${visibleLoadError}. Cached event browsing, search, and filters are still available below.`
+									: `${visibleLoadError}. The district map can be retried without losing your current filters.`}
 						</p>
 						{!isOfflineMode && (
 							<button

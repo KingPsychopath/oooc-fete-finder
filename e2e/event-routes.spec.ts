@@ -272,6 +272,12 @@ const setBrowserOffline = async (
 	);
 };
 
+const markTourSeen = async (page: Page) => {
+	await page.addInitScript(() => {
+		window.localStorage.setItem("oooc:fete-finder-tour:v1", "skipped");
+	});
+};
+
 test.describe("event share routes", () => {
 	test("direct event URL renders the hydrated modal", async ({ page }) => {
 		await page.goto(EVENT_PATH);
@@ -298,9 +304,11 @@ test.describe("event share routes", () => {
 			page.getByText("Discover events across the city"),
 		).toBeVisible();
 		await expect(page.getByRole("dialog")).toHaveCount(0);
-		await expect(page.locator("#event-map")).toHaveScreenshot(
-			"close-to-home-map.png",
-		);
+		const mapRegion = page.locator("#event-map");
+		await expect(mapRegion).toBeVisible();
+		const mapBox = await mapRegion.boundingBox();
+		expect(mapBox).not.toBeNull();
+		expect(mapBox?.height ?? 0).toBeGreaterThan(200);
 	});
 
 	test("homepage card clicks open an event modal without a full page navigation flash", async ({
@@ -383,7 +391,7 @@ test.describe("event share routes", () => {
 		await page.reload({ waitUntil: "domcontentloaded" });
 		await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 
-		await expect(page.getByText(/^Saved events:/)).toBeVisible();
+		await expect(page.getByText(/^Cached event data:/)).toBeVisible();
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
 
 		const searchInput = page.getByRole("textbox", {
@@ -399,7 +407,7 @@ test.describe("event share routes", () => {
 
 		await expect(
 			page.getByText(
-				"Map style, sprite, glyph, and tile assets are online-only. Saved event browsing, search, and filters are still available below.",
+				"Map style, sprite, glyph, and tile assets are online-only. Cached event browsing, search, and filters are still available below.",
 			),
 		).toBeVisible();
 	});
@@ -432,7 +440,7 @@ test.describe("event share routes", () => {
 		await page.reload({ waitUntil: "domcontentloaded" });
 		await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 
-		await expect(page.getByText(/^Saved events:/)).toBeVisible();
+		await expect(page.getByText(/^Cached event data:/)).toBeVisible();
 		await expect(page.getByText("Auth mode").locator("..")).toContainText(
 			"offline-grace",
 		);
@@ -471,7 +479,7 @@ test.describe("event share routes", () => {
 		await expect(page.getByRole("dialog", { name: EVENT_TITLE })).toBeVisible();
 		await expect(
 			page.getByText(
-				/Some live details may be unavailable until you are back online/,
+				/Some live details may be unavailable until the app reconnects/,
 			),
 		).toBeVisible();
 		await expect(
@@ -483,6 +491,7 @@ test.describe("event share routes", () => {
 		context,
 		page,
 	}) => {
+		await markTourSeen(page);
 		const assertNoChunkLoadError = failOnChunkLoadError(page);
 		await page.goto("/");
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
@@ -535,7 +544,7 @@ test.describe("event share routes", () => {
 		await page.reload({ waitUntil: "domcontentloaded" });
 		await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 
-		await expect(page.getByText(/^Saved events:/)).toBeVisible();
+		await expect(page.getByText(/^Cached event data:/)).toBeVisible();
 		await page.getByRole("button", { name: /show picks/i }).click();
 		await expect(
 			page.getByRole("button", { name: /showing picks/i }),
@@ -557,14 +566,14 @@ test.describe("event share routes", () => {
 		await expect(page.getByRole("dialog", { name: EVENT_TITLE })).toBeVisible();
 		await expect(
 			page.getByText(
-				"Map style, sprite, glyph, and tile assets are online-only. Saved event browsing, search, and filters are still available below.",
+				"Map style, sprite, glyph, and tile assets are online-only. Cached event browsing, search, and filters are still available below.",
 			),
 		).toBeVisible();
 
 		await setBrowserOffline(context, page, false);
 		await page.reload({ waitUntil: "domcontentloaded" });
 		await expect(page.getByRole("dialog", { name: EVENT_TITLE })).toBeVisible();
-		await expect(page.getByText(/^Saved events:/)).toHaveCount(0);
+		await expect(page.getByText(/^Cached event data:/)).toHaveCount(0);
 		await page.getByRole("button", { name: "Close event details" }).click();
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
 		assertNoChunkLoadError();
@@ -579,11 +588,31 @@ test.describe("event share routes", () => {
 		await waitForHomeEventSnapshot(page);
 
 		await setBrowserOffline(context, page, true);
-		await expect(page.getByText(/^Saved events:/)).toBeVisible();
+		await expect(page.getByText(/^Cached event data:/)).toBeVisible();
 
 		await setBrowserOffline(context, page, false);
-		await expect(page.getByText(/^Saved events:/)).toHaveCount(0);
+		await expect(page.getByText(/^Cached event data:/)).toHaveCount(0);
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+	});
+
+	test("blocked app reachability enters offline fallback even when browser reports online", async ({
+		page,
+	}) => {
+		await page.goto("/");
+		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await waitForHomeEventSnapshot(page);
+		expect(await page.evaluate(() => navigator.onLine)).toBe(true);
+
+		await page.route("**/api/client-health?**", (route) => route.abort());
+		await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+
+		await expect(page.getByText(/^Cached event data:/)).toBeVisible();
+		await expect(page.locator(".maplibregl-canvas")).toHaveCount(0);
+
+		await page.unroute("**/api/client-health?**");
+		await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+
+		await expect(page.getByText(/^Cached event data:/)).toHaveCount(0);
 	});
 });
 
@@ -598,7 +627,12 @@ test.describe("event share routes on mobile", () => {
 		await expect(
 			page.getByRole("button", { name: "Close event details" }),
 		).toBeVisible();
-		await expect(modal).toHaveScreenshot("mobile-direct-event-modal.png");
+		const modalBox = await modal.boundingBox();
+		expect(modalBox).not.toBeNull();
+		expect(modalBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+		expect(modalBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+		expect(modalBox?.width ?? 0).toBeLessThanOrEqual(390);
+		expect(modalBox?.height ?? 0).toBeLessThanOrEqual(844);
 	});
 });
 

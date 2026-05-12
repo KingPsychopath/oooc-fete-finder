@@ -22,21 +22,62 @@ interface OnlineStatusProviderProps {
 const OnlineStatusContext = createContext<OnlineStatusContextValue | null>(
 	null,
 );
+const ONLINE_PROBE_PATH = `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/client-health`;
+const ONLINE_PROBE_TIMEOUT_MS =
+	process.env.NODE_ENV === "development" ? 8000 : 3000;
+const ONLINE_PROBE_ATTEMPTS = 2;
 
 const readBrowserOnlineStatus = () =>
 	typeof navigator === "undefined" || navigator.onLine;
+
+const probeAppReachability = async (): Promise<boolean> => {
+	if (typeof fetch === "undefined" || typeof window === "undefined") {
+		return readBrowserOnlineStatus();
+	}
+
+	for (let attempt = 0; attempt < ONLINE_PROBE_ATTEMPTS; attempt += 1) {
+		const controller = new AbortController();
+		const timeout = window.setTimeout(
+			() => controller.abort(),
+			ONLINE_PROBE_TIMEOUT_MS,
+		);
+
+		try {
+			const response = await fetch(
+				`${ONLINE_PROBE_PATH}?onlineProbe=${Date.now()}-${attempt}`,
+				{
+					cache: "no-store",
+					headers: { Accept: "application/json" },
+					signal: controller.signal,
+				},
+			);
+			if (response.ok) return true;
+		} catch {
+			// Retry once so a single transient failed request does not flip the UI.
+		} finally {
+			window.clearTimeout(timeout);
+		}
+	}
+
+	return false;
+};
 
 export function OnlineStatusProvider({ children }: OnlineStatusProviderProps) {
 	const [isOnline, setIsOnline] = useState(true);
 
 	const refreshOnlineStatus = useCallback(() => {
-		setIsOnline(readBrowserOnlineStatus());
+		if (!readBrowserOnlineStatus()) {
+			setIsOnline(false);
+			return;
+		}
+
+		void probeAppReachability().then(setIsOnline);
 	}, []);
 
 	useEffect(() => {
 		refreshOnlineStatus();
 
-		const handleOnline = () => setIsOnline(true);
+		const handleOnline = () => refreshOnlineStatus();
 		const handleOffline = () => setIsOnline(false);
 
 		window.addEventListener("online", handleOnline);

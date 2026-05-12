@@ -37,7 +37,7 @@ export function EventsDataStatusBanner({
 	if (eventSnapshotFreshness === "error") {
 		return (
 			<div className="mb-6 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-				<strong>Saved events unavailable:</strong>{" "}
+				<strong>Cached event data unavailable:</strong>{" "}
 				{eventSnapshotError ??
 					"Your saved event snapshot could not be read or updated."}{" "}
 				Live browsing will continue when the network is available.
@@ -51,8 +51,8 @@ export function EventsDataStatusBanner({
 	) {
 		return (
 			<div className="mb-6 rounded-md border border-border/70 bg-background/75 px-4 py-3 text-sm text-muted-foreground">
-				<strong>No saved events yet:</strong> Reconnect once to save event data
-				for offline browsing.
+				<strong>No cached event data yet:</strong> Reconnect once to save event
+				data for offline browsing.
 			</div>
 		);
 	}
@@ -63,14 +63,16 @@ export function EventsDataStatusBanner({
 
 	return (
 		<div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-			<strong>{isStale ? "Stale saved events:" : "Saved events:"}</strong> You
-			are viewing {isStale ? "an older" : "the latest"} saved event snapshot
-			from {savedAtLabel}. Some live details may be unavailable until you are
-			back online.
+			<strong>
+				{isStale ? "Stale cached event data:" : "Cached event data:"}
+			</strong>{" "}
+			You are viewing {isStale ? "an older" : "the latest"} event snapshot
+			saved on this device from {savedAtLabel}. Some live details may be
+			unavailable until the app reconnects.
 			{showOfflineGraceAccess ? (
 				<span>
 					{" "}
-					Filters and search are available offline
+					Filters and search are available with cached data
 					{offlineGraceExpiryLabel ? ` until ${offlineGraceExpiryLabel}` : ""}.
 				</span>
 			) : null}

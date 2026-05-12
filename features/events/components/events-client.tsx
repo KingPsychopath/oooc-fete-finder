@@ -511,10 +511,10 @@ function EventsClientShell({
 			{authMode === "offline-grace" && eventDataSource !== "saved" && (
 				<div className="mb-6 rounded-md border border-amber-300/70 bg-amber-50/85 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-200">
 					<p className="text-[11px] uppercase tracking-[0.14em] text-amber-800/85 dark:text-amber-200/85">
-						Offline Access
+						Cached Access
 					</p>
 					<p className="mt-1 leading-relaxed">
-						You are using temporary offline access for filters and search
+						You are using temporary cached access for filters and search
 						{offlineGraceExpiryLabel ? ` until ${offlineGraceExpiryLabel}` : ""}
 						. Reconnect to refresh your session.
 					</p>
