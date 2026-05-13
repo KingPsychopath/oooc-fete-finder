@@ -226,8 +226,45 @@
 	opacity: var(--ooo-grain-opacity);
 }
 
+.ooo-site-shell::after {
+	position: absolute;
+	inset-inline: 0;
+	bottom: 0;
+	z-index: 0;
+	height: clamp(7rem, 18vw, 16rem);
+	content: "";
+	pointer-events: none;
+	background:
+		linear-gradient(
+			to bottom,
+			transparent 0%,
+			color-mix(in oklab, var(--background) 42%, transparent) 58%,
+			color-mix(in oklab, var(--background) 76%, #f0b668 8%) 100%
+		),
+		radial-gradient(
+			ellipse at 50% 100%,
+			rgba(240, 182, 104, 0.12),
+			transparent 64%
+		);
+}
+
 .dark .ooo-site-shell::before {
 	mix-blend-mode: screen;
+}
+
+.dark .ooo-site-shell::after {
+	background:
+		linear-gradient(
+			to bottom,
+			transparent 0%,
+			color-mix(in oklab, var(--background) 54%, transparent) 56%,
+			color-mix(in oklab, var(--background) 84%, #f0b668 7%) 100%
+		),
+		radial-gradient(
+			ellipse at 50% 100%,
+			rgba(240, 182, 104, 0.16),
+			transparent 68%
+		);
 }
 
 .ooo-grain {

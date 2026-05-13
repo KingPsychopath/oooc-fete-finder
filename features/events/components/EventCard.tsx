@@ -34,9 +34,7 @@ import {
 	Flame,
 	LocateFixed,
 	MapPin,
-	Megaphone,
 	Moon,
-	Sparkles,
 	Star,
 	Sun,
 	Trees,
@@ -90,6 +88,8 @@ export function EventCard({
 		preferredDayNightPeriods,
 	);
 	const visibleEventType = getVisibleEventTypeLabel(event.type);
+	const headerEventTypeLabel =
+		visibleEventType ?? (event.type === "Fete" ? "Fête" : null);
 	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
 	const socialProofHistoricalSaveCount =
 		event.socialProofHistoricalSaveCount ?? 0;
@@ -103,12 +103,20 @@ export function EventCard({
 		socialProofSaveCount,
 		socialProofHistoricalSaveCount,
 	);
+	const areaLabel = formatLocationAreaShort(event.arrondissement);
 	const { visibleGenres, hiddenGenreCount } = getGenrePreview(
 		event.genre,
 		genreFrequency,
 	);
+	const shouldFoldLastGenreIntoCount =
+		hiddenGenreCount > 0 && visibleGenres.length > 1;
+	const displayedGenres = shouldFoldLastGenreIntoCount
+		? visibleGenres.slice(0, -1)
+		: visibleGenres;
+	const collapsedGenreCount =
+		hiddenGenreCount + (shouldFoldLastGenreIntoCount ? 1 : 0);
 	const hasMetadataBadges = Boolean(
-		visibleEventType || event.nationality?.length || visibleGenres.length,
+		event.nationality?.length || displayedGenres.length || collapsedGenreCount,
 	);
 	const venueTypes =
 		event.venueTypes && event.venueTypes.length > 0
@@ -136,10 +144,10 @@ export function EventCard({
 					<div className="absolute top-3 right-10 h-px w-9 rotate-[-18deg] bg-gradient-to-r from-transparent via-amber-200/60 to-transparent opacity-65 dark:via-amber-100/42" />
 				</div>
 			)}
-			{/* Priority Badge System - Featured takes precedence over OOOC Pick */}
+			{/* Priority corner marker. Labels remain in the header row for readability. */}
 			{isCurrentlyFeatured ? (
 				<div className="absolute -top-2.5 -right-2.5 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-amber-200 bg-[linear-gradient(145deg,rgba(212,164,96,0.95),rgba(178,131,70,0.95))] text-sm shadow-lg dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(184,140,79,0.85),rgba(141,100,49,0.88))]">
-					<Sparkles className="h-4 w-4" />
+					<Crown className="h-4 w-4" />
 				</div>
 			) : hasOOOCPick ? (
 				<div className="absolute -top-2.5 -right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-amber-200/90 bg-[linear-gradient(145deg,rgba(242,219,176,0.95),rgba(221,196,148,0.95))] text-black shadow-md dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(166,131,79,0.88),rgba(126,96,59,0.86))] dark:text-amber-100">
@@ -156,68 +164,59 @@ export function EventCard({
 					<BookmarkCheck className="h-4 w-4" />
 				</div>
 			)}
-
 			{/* Header with proper overflow handling */}
-			<div className="mb-2 flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-				<div className="flex min-w-[9rem] flex-1 items-center space-x-2">
-					<h3
-						className={`min-w-0 flex-1 truncate text-sm leading-tight font-medium ${
-							isCurrentlyFeatured ? "text-foreground font-semibold" : ""
-						}`}
+			<div className="mb-2 space-y-2">
+				<div className="flex items-start justify-between gap-3">
+					<div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+						{headerEventTypeLabel && (
+							<Badge
+								variant="outline"
+								className="max-w-full border-border/70 bg-background/50 px-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground"
+							>
+								{headerEventTypeLabel}
+							</Badge>
+						)}
+						{!isCurrentlyFeatured && !isCurrentlyPromoted && hasOOOCPick && (
+							<Badge className="border border-amber-400/28 bg-amber-400/12 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-900 shadow-none hover:bg-amber-400/12 dark:text-amber-100">
+								<span className="inline-flex items-center gap-1">
+									<Star className="h-3 w-3 fill-current" />
+									OOOC Pick
+								</span>
+							</Badge>
+						)}
+						{isSaved && (
+							<Badge className="max-w-full border border-emerald-500/30 bg-emerald-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800 shadow-none hover:bg-emerald-500/15 dark:text-emerald-200">
+								<span className="inline-flex items-center gap-1">
+									<BookmarkCheck className="h-3 w-3" />
+									Saved
+								</span>
+							</Badge>
+						)}
+						{isNewlyAdded && (
+							<Badge className="max-w-full border border-emerald-500/30 bg-emerald-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800 shadow-none hover:bg-emerald-500/15 dark:text-emerald-200">
+								New
+							</Badge>
+						)}
+						{isRecentlyUpdated && (
+							<Badge className="max-w-full border border-sky-500/30 bg-sky-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-800 shadow-none hover:bg-sky-500/15 dark:text-sky-200">
+								Updated
+							</Badge>
+						)}
+					</div>
+					<Badge
+						variant="outline"
+						className="max-w-[5rem] shrink-0 truncate border-border/70 bg-background/50 text-xs"
 					>
-						{isCurrentlyFeatured && (
-							<Crown className="mr-1 mb-0.5 inline h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
-						)}
-						{event.name}
-						{/* Show OOOC star in title only when it doesn't have featured badge (since featured takes precedence in corner) */}
-						{hasOOOCPick && !isCurrentlyFeatured && (
-							<Star className="ml-1 mb-0.5 inline h-3.5 w-3.5 fill-current text-amber-500" />
-						)}
-					</h3>
-				</div>
-				<div className="ml-auto flex max-w-full flex-shrink-0 flex-wrap items-center justify-end gap-1">
-					{/* Featured badge - show whenever event has the top placement tier. */}
-					{isCurrentlyFeatured && (
-						<Badge
-							className={`border-0 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] ${
-								hasOOOCPick
-									? "bg-[linear-gradient(145deg,rgba(190,145,82,0.96),rgba(154,112,58,0.96))] text-amber-50"
-									: "bg-[linear-gradient(145deg,rgba(204,159,93,0.96),rgba(167,122,67,0.96))] text-amber-50"
-							}`}
-						>
-							<span className="inline-flex items-center gap-1">
-								FEATURED
-								{hasOOOCPick && <Star className="h-3 w-3 fill-current" />}
-							</span>
-						</Badge>
-					)}
-					{!isCurrentlyFeatured && isCurrentlyPromoted && (
-						<Badge className="border-0 bg-[linear-gradient(145deg,rgba(160,111,58,0.94),rgba(127,84,40,0.95))] px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-50">
-							<span className="inline-flex items-center gap-1">
-								<Megaphone className="h-3 w-3" />
-								Promoted
-							</span>
-						</Badge>
-					)}
-					{isSaved && (
-						<Badge className="max-w-full border border-emerald-500/30 bg-emerald-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800 shadow-none hover:bg-emerald-500/15 dark:text-emerald-200">
-							Saved
-						</Badge>
-					)}
-					{isNewlyAdded && (
-						<Badge className="max-w-full border border-emerald-500/30 bg-emerald-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800 shadow-none hover:bg-emerald-500/15 dark:text-emerald-200">
-							New
-						</Badge>
-					)}
-					{isRecentlyUpdated && (
-						<Badge className="max-w-full border border-sky-500/30 bg-sky-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-800 shadow-none hover:bg-sky-500/15 dark:text-sky-200">
-							Updated
-						</Badge>
-					)}
-					<Badge variant="outline" className="max-w-full truncate text-xs">
-						{formatLocationAreaShort(event.arrondissement)}
+						{areaLabel}
 					</Badge>
 				</div>
+				<h3
+					className={`min-w-0 truncate text-sm leading-tight font-medium ${
+						isCurrentlyFeatured ? "text-foreground font-semibold" : ""
+					}`}
+				>
+					{event.name}
+				</h3>
 			</div>
 
 			{/* Event details */}
@@ -300,14 +299,6 @@ export function EventCard({
 			{/* Badges */}
 			{hasMetadataBadges && (
 				<div className="flex flex-wrap gap-1 mt-2">
-					{visibleEventType && (
-						<Badge
-							variant="secondary"
-							className="border border-border/70 bg-secondary/72 text-xs"
-						>
-							{visibleEventType}
-						</Badge>
-					)}
 					{event.nationality &&
 						event.nationality.map((nationality) => (
 							<Badge
@@ -319,7 +310,7 @@ export function EventCard({
 								{NATIONALITIES.find((n) => n.key === nationality)?.shortCode}
 							</Badge>
 						))}
-					{visibleGenres.map((genre) => (
+					{displayedGenres.map((genre) => (
 						<Badge
 							key={genre}
 							variant="outline"
@@ -329,19 +320,19 @@ export function EventCard({
 								toGenreLabel(genre)}
 						</Badge>
 					))}
-					{hiddenGenreCount > 0 && (
+					{collapsedGenreCount > 0 && (
 						<Badge
 							variant="outline"
 							className="border-border/75 bg-background/50 text-xs text-muted-foreground"
-							title={`${hiddenGenreCount} more genre${
-								hiddenGenreCount === 1 ? "" : "s"
+							title={`${collapsedGenreCount} more genre${
+								collapsedGenreCount === 1 ? "" : "s"
 							} in details`}
 						>
-							+{hiddenGenreCount}
+							+{collapsedGenreCount}
 						</Badge>
 					)}
-				</div>
-			)}
+					</div>
+				)}
 			{hasSocialProofBadge && (
 				<div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-200">
 					<Flame className="h-3 w-3" />

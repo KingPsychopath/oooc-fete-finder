@@ -40,12 +40,14 @@ import type { FeaturedEventsProps } from "./types";
 
 type SpotlightEventPanelProps = {
 	event: Event;
+	isDominant?: boolean;
 	isSaved: boolean;
 	onClick: (event: Event) => void;
 };
 
 function SpotlightEventPanel({
 	event,
+	isDominant = false,
 	isSaved,
 	onClick,
 }: SpotlightEventPanelProps) {
@@ -56,6 +58,7 @@ function SpotlightEventPanel({
 		event.genre.length - visibleGenres.length,
 	);
 	const priceLabel = formatPrice(event.price);
+	const areaLabel = formatLocationAreaShort(event.arrondissement);
 	const isFeaturedPlacement = event.isFeatured === true;
 	const isOOOCPick = event.isOOOCPick === true;
 	const isPromoted = event.isPromoted === true;
@@ -134,6 +137,9 @@ function SpotlightEventPanel({
 				)}
 				{isPromoted && (
 					<div className="absolute inset-y-5 left-0 w-px bg-gradient-to-b from-transparent via-cyan-300/36 to-transparent dark:via-cyan-100/18" />
+				)}
+				{isDominant && (
+					<div className="absolute top-5 bottom-5 left-[61%] hidden border-l border-dashed border-foreground/22 lg:block dark:border-white/18" />
 				)}
 			</div>
 			<div
@@ -221,32 +227,41 @@ function SpotlightEventPanel({
 								</span>
 							)}
 						</div>
-						{event.location && event.location !== "TBA" && (
-							<div className="flex min-w-0 items-center gap-2">
+						{(event.location || areaLabel) && (
+							<div
+								className={cn(
+									"flex min-w-0 max-w-full items-center gap-2",
+									isDominant && "lg:w-[61%] lg:max-w-none",
+								)}
+							>
 								<MapPin className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
-								<span className="inline-flex min-w-0 items-center gap-1.5">
-									<span className="min-w-0 truncate">{event.location}</span>
-									<span className="inline-flex shrink-0 items-center gap-1 text-muted-foreground">
-										{venueTypes.includes("indoor") && (
-											<span title="Indoor event">
-												<Building2 className="h-4 w-4" />
-											</span>
-										)}
-										{venueTypes.includes("outdoor") && (
-											<span title="Outdoor event">
-												<Trees className="h-4 w-4" />
-											</span>
-										)}
-									</span>
+								<span className="inline-flex min-w-0 flex-1 items-center gap-1.5">
+									{event.location && event.location !== "TBA" && (
+										<span className="min-w-0 truncate">{event.location}</span>
+									)}
+									{event.location && event.location !== "TBA" && areaLabel && (
+										<span className="shrink-0 text-muted-foreground/58">·</span>
+									)}
+									{areaLabel && (
+										<span className="shrink-0 text-muted-foreground">
+											{areaLabel}
+										</span>
+									)}
+								</span>
+								<span className="ml-auto inline-flex shrink-0 items-center gap-1 text-muted-foreground">
+									{venueTypes.includes("indoor") && (
+										<span title="Indoor event">
+											<Building2 className="h-4 w-4" />
+										</span>
+									)}
+									{venueTypes.includes("outdoor") && (
+										<span title="Outdoor event">
+											<Trees className="h-4 w-4" />
+										</span>
+									)}
 								</span>
 							</div>
 						)}
-						<div className="flex min-w-0 items-center gap-2">
-							<Ticket className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
-							<span className="min-w-0 truncate">
-								{formatLocationAreaShort(event.arrondissement)}
-							</span>
-						</div>
 						<div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
 							<span className="inline-flex items-center gap-2">
 								<Euro className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
@@ -388,11 +403,12 @@ export function FeaturedEvents({
 							</div>
 						)}
 					</div>
-					<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-						{featuredEvents.map((event) => (
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+						{featuredEvents.map((event, index) => (
 							<SpotlightEventPanel
 								key={event.eventKey || event.id}
 								event={event}
+								isDominant={index === 0}
 								onClick={handleSpotlightEventClick}
 								isSaved={isEventSaved(event.eventKey)}
 							/>

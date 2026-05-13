@@ -83,12 +83,14 @@ import {
 	ChevronDown,
 	Clock,
 	Copy,
+	Crown,
 	Euro,
 	ExternalLink,
 	Flag,
 	Flame,
 	Link2,
 	MapPin,
+	Megaphone,
 	Music,
 	Plus,
 	Settings,
@@ -559,6 +561,7 @@ const EventModal: React.FC<EventModalProps> = ({
 
 	if (!isOpen || !event) return null;
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
+	const isCurrentlyPromoted = event.isPromoted === true;
 	const isNewlyAdded = isRecentlyAddedEvent(event);
 	const isRecentlyUpdated = !isNewlyAdded && isRecentlyUpdatedEvent(event);
 	const recentlyAddedLabel = formatRecentlyAddedLabel(event);
@@ -693,7 +696,9 @@ const EventModal: React.FC<EventModalProps> = ({
 			: allGenres.slice(0, MODAL_GENRE_PREVIEW_LIMIT);
 	const extraGenreCount = Math.max(0, allGenres.length - visibleGenres.length);
 	const hasHeaderBadges = Boolean(
-		isNewlyAdded ||
+		isCurrentlyFeatured ||
+			(!isCurrentlyFeatured && isCurrentlyPromoted) ||
+			isNewlyAdded ||
 			isRecentlyUpdated ||
 			event.isOOOCPick ||
 			hasSocialProofBadge ||
@@ -1187,6 +1192,12 @@ const EventModal: React.FC<EventModalProps> = ({
 							<div className="mt-1">
 								<CardTitle className="break-words text-[clamp(1.25rem,3.5vw,1.9rem)] [font-family:var(--ooo-font-display)] font-light leading-tight">
 									<span id={modalTitleId}>{event.name}</span>
+									{isCurrentlyFeatured && (
+										<Crown className="ml-2 inline h-4 w-4 translate-y-[-0.08em] text-amber-600 dark:text-amber-300" />
+									)}
+									{!isCurrentlyFeatured && isCurrentlyPromoted && (
+										<Megaphone className="ml-2 inline h-4 w-4 translate-y-[-0.08em] text-[#315b5f] dark:text-cyan-200" />
+									)}
 									{event.isOOOCPick && (
 										<Star className="ml-2 inline h-4 w-4 translate-y-[-0.08em] fill-current text-yellow-500" />
 									)}
@@ -1286,6 +1297,18 @@ const EventModal: React.FC<EventModalProps> = ({
 					</div>
 					{hasHeaderBadges && (
 						<div className="mt-2 flex flex-wrap items-center gap-1.5">
+							{isCurrentlyFeatured && (
+								<Badge className="border-0 bg-[linear-gradient(145deg,rgba(204,159,93,0.96),rgba(167,122,67,0.96))] text-amber-50 hover:bg-[linear-gradient(145deg,rgba(204,159,93,0.96),rgba(167,122,67,0.96))]">
+									<Crown className="mr-1 h-3.5 w-3.5" />
+									Featured
+								</Badge>
+							)}
+							{!isCurrentlyFeatured && isCurrentlyPromoted && (
+								<Badge className="border border-[#213f43]/18 bg-[#213f43]/10 text-[#213f43] hover:bg-[#213f43]/10 dark:border-cyan-100/14 dark:bg-cyan-100/8 dark:text-cyan-100">
+									<Megaphone className="mr-1 h-3.5 w-3.5" />
+									Promoted
+								</Badge>
+							)}
 							{isNewlyAdded && (
 								<Badge className="border border-emerald-500/30 bg-emerald-500/10 text-emerald-800 hover:bg-emerald-500/15 dark:text-emerald-200">
 									New
