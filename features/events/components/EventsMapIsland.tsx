@@ -16,7 +16,6 @@ interface EventsMapIslandProps {
 	isExpanded: boolean;
 	mapLoadStrategy: MapLoadStrategy;
 	onEventClick: (event: Event) => void;
-	onMapIntent?: () => void;
 	onToggleExpanded: () => void;
 }
 
@@ -109,7 +108,6 @@ export function EventsMapIsland({
 	isExpanded,
 	mapLoadStrategy,
 	onEventClick,
-	onMapIntent,
 	onToggleExpanded,
 }: EventsMapIslandProps) {
 	const {
@@ -139,7 +137,6 @@ export function EventsMapIsland({
 					mapLoadStrategy={mapLoadStrategy}
 					onFilterClick={openFilterDrawer}
 					onFullscreenClose={handleFullscreenClose}
-					onMapIntent={onMapIntent}
 					hasActiveFilters={hasAnyActiveFilters}
 					activeFiltersCount={activeFiltersCount}
 					isOfflineMode={!isOnline}

@@ -31,7 +31,6 @@ type EventsMapCardProps = {
 	mapLoadStrategy?: MapLoadStrategy;
 	onFilterClick?: () => void;
 	onFullscreenClose?: () => void;
-	onMapIntent?: () => void;
 	hasActiveFilters?: boolean;
 	activeFiltersCount?: number;
 	isOfflineMode?: boolean;
@@ -58,7 +57,6 @@ export function EventsMapCard({
 	mapLoadStrategy = "idle",
 	onFilterClick,
 	onFullscreenClose,
-	onMapIntent,
 	hasActiveFilters = false,
 	activeFiltersCount = 0,
 	isOfflineMode = false,
@@ -241,7 +239,6 @@ export function EventsMapCard({
 	const mapHeaderActionLabelClassName = "sr-only text-sm md:not-sr-only";
 
 	const handleOpenFullscreen = () => {
-		onMapIntent?.();
 		if (!hasMountedMap) {
 			setHasMountedMap(true);
 			setShouldOpenFullscreenAfterMount(true);

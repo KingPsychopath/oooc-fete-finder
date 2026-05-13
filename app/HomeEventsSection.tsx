@@ -70,7 +70,6 @@ export async function HomeEventsSection({
 			)}
 			<EventsClient
 				initialEvents={homepageEvents}
-				fullEventsPath="/api/events/live"
 				mapLoadStrategy={mapLoadStrategy}
 				eventUpdateRequestsEnabled={submissionSettings.eventUpdatesEnabled}
 				dynamicSearchChips={dynamicSearchChips}

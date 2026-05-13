@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import { toHomepageEventPayload } from "@/features/events/homepage-event-payload";
 import type { Event } from "@/features/events/types";
+import { describe, expect, it } from "vitest";
 
 const baseEvent = {
 	eventKey: "evt_test",
@@ -27,7 +27,8 @@ const baseEvent = {
 	},
 	link: "https://example.com",
 	links: ["https://example.com"],
-	description: "A full description should remain available for lightweight search.",
+	description:
+		"A full description should remain available for lightweight search.",
 	type: "Pre-Fete",
 	genre: ["soul", "hip-hop"],
 	tags: ["live"],

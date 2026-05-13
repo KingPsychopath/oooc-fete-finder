@@ -1,7 +1,6 @@
 "use client";
 
 import { useOptionalAuth } from "@/features/auth/auth-context";
-import { useEventsOffline } from "@/features/events/components/events-offline-provider";
 import { EventsSearchFiltersProvider } from "@/features/events/components/events-search-filters-provider";
 import { SavedEventsProvider } from "@/features/events/components/saved-events-provider";
 import type { SpotlightRotationContext } from "@/features/events/featured/selection";
@@ -40,7 +39,6 @@ export function AuthGatedControlsIsland({
 }: AuthGatedControlsIslandProps) {
 	const [showEmailGate, setShowEmailGate] = useState(false);
 	const allEventsRef = useRef<HTMLDivElement>(null);
-	const { requestFullEvents } = useEventsOffline();
 	const {
 		isAuthenticated,
 		isAuthResolved,
@@ -99,9 +97,6 @@ export function AuthGatedControlsIsland({
 			canUseProtectedDiscovery={canUseProtectedDiscovery}
 			isAuthenticated={isAuthenticated}
 			onAuthRequired={handleAuthRequired}
-			onNeedFullEvents={() => {
-				void requestFullEvents();
-			}}
 			onScrollToAllEvents={scrollToAllEvents}
 			requireAuth={requireAuth}
 			initialSpotlightRotationContext={spotlightRotationContext}

@@ -22,7 +22,6 @@ const SENSITIVE_PATH_PREFIXES = [
 	"/api/webhooks",
 	"/partner-stats",
 ];
-const SAFE_API_EXACT_PATHS = new Set(["/api/events/live"]);
 const NETWORK_ONLY_EXACT_PATHS = new Set(["/api/client-health"]);
 
 const withScopePath = (path) => {
@@ -50,7 +49,6 @@ const isSensitivePath = (pathname) =>
 	);
 
 const isSafeApiPath = (pathname) => {
-	if (SAFE_API_EXACT_PATHS.has(pathname)) return true;
 	return /^\/api\/events\/[^/]+$/.test(pathname);
 };
 

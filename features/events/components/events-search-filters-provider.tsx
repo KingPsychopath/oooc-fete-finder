@@ -56,7 +56,6 @@ interface EventsSearchFiltersProviderProps {
 	children: ReactNode;
 	isAuthenticated: boolean;
 	onAuthRequired: () => void;
-	onNeedFullEvents: () => void;
 	onScrollToAllEvents: () => void;
 	requireAuth: () => boolean;
 	initialSpotlightRotationContext: SpotlightRotationContext;
@@ -241,7 +240,6 @@ export function EventsSearchFiltersProvider({
 	children,
 	isAuthenticated,
 	onAuthRequired,
-	onNeedFullEvents,
 	onScrollToAllEvents,
 	requireAuth,
 	initialSpotlightRotationContext,
@@ -310,7 +308,6 @@ export function EventsSearchFiltersProvider({
 
 	const toggleFilterPanel = useCallback(() => {
 		if (!requireAuth()) return;
-		onNeedFullEvents();
 		setIsFilterDrawerForced(false);
 		if (
 			typeof window !== "undefined" &&
@@ -321,10 +318,9 @@ export function EventsSearchFiltersProvider({
 			return;
 		}
 		setIsFilterOpen((previous) => !previous);
-	}, [onNeedFullEvents, requireAuth]);
+	}, [requireAuth]);
 
 	const openFilterPanel = useCallback(() => {
-		onNeedFullEvents();
 		setIsFilterDrawerForced(false);
 		if (
 			typeof window !== "undefined" &&
@@ -335,14 +331,13 @@ export function EventsSearchFiltersProvider({
 			return;
 		}
 		setIsFilterOpen(true);
-	}, [onNeedFullEvents]);
+	}, []);
 
 	const openFilterDrawer = useCallback(() => {
 		if (!requireAuth()) return;
-		onNeedFullEvents();
 		setIsFilterDrawerForced(true);
 		setIsFilterOpen(true);
-	}, [onNeedFullEvents, requireAuth]);
+	}, [requireAuth]);
 
 	const setFilterOpen = useCallback((isOpen: boolean) => {
 		if (!isOpen) {
@@ -364,7 +359,6 @@ export function EventsSearchFiltersProvider({
 		}
 
 		onOOOCPicksToggle(shouldSelectOOOCPicks);
-		onNeedFullEvents();
 		if (!shouldSelectOOOCPicks) return;
 
 		window.requestAnimationFrame(() => {
@@ -373,7 +367,6 @@ export function EventsSearchFiltersProvider({
 	}, [
 		canUseProtectedDiscovery,
 		onAuthRequired,
-		onNeedFullEvents,
 		onOOOCPicksToggle,
 		onScrollToAllEvents,
 		selectedOOOCPicks,
@@ -389,23 +382,16 @@ export function EventsSearchFiltersProvider({
 				return;
 			}
 			onSearchQueryChange(query);
-			onNeedFullEvents();
 		},
-		[
-			canUseProtectedDiscovery,
-			onAuthRequired,
-			onNeedFullEvents,
-			onSearchQueryChange,
-		],
+		[canUseProtectedDiscovery, onAuthRequired, onSearchQueryChange],
 	);
 
 	const handleSearchFocus = useCallback(() => {
 		if (canUseProtectedDiscovery) {
-			onNeedFullEvents();
 			return;
 		}
 		onAuthRequired();
-	}, [canUseProtectedDiscovery, onAuthRequired, onNeedFullEvents]);
+	}, [canUseProtectedDiscovery, onAuthRequired]);
 
 	const handleSortModeChange = useCallback((nextSortMode: EventSortMode) => {
 		setSortMode((current) => {
@@ -437,7 +423,6 @@ export function EventsSearchFiltersProvider({
 		}
 		if (!requireAuth()) return;
 
-		onNeedFullEvents();
 		trackDiscoveryAnalytics({
 			actionType: "location_request",
 			filterGroup: "nearby",
@@ -473,13 +458,7 @@ export function EventsSearchFiltersProvider({
 		window.requestAnimationFrame(() => {
 			onScrollToAllEvents();
 		});
-	}, [
-		handleSortModeChange,
-		onNeedFullEvents,
-		onScrollToAllEvents,
-		requireAuth,
-		sortMode,
-	]);
+	}, [handleSortModeChange, onScrollToAllEvents, requireAuth, sortMode]);
 
 	useEffect(() => {
 		if (!isAuthenticated) return;
@@ -492,13 +471,11 @@ export function EventsSearchFiltersProvider({
 		} else {
 			onSearchQueryChange(pendingAuthAction.query);
 		}
-		onNeedFullEvents();
 		window.requestAnimationFrame(() => {
 			onScrollToAllEvents();
 		});
 	}, [
 		isAuthenticated,
-		onNeedFullEvents,
 		onOOOCPicksToggle,
 		onScrollToAllEvents,
 		onSearchQueryChange,

@@ -39,7 +39,7 @@ reload while offline:
   and event detail snapshots to IndexedDB with schema name/version metadata and
   validation before restore.
 - `features/events/components/events-offline-provider.tsx` owns live/saved event
-  state, saved snapshot freshness, sync state, and full event hydration.
+  state, saved snapshot freshness, and sync state.
 - `features/events/components/use-event-detail-hydration.ts` owns event detail
   fetch, validation, IndexedDB persistence, and saved-detail fallback.
 - `features/events/components/EventsDataStatusBanner.tsx` reports saved,
@@ -132,8 +132,7 @@ Completed as a hand-written baseline.
 
 - The app shell is available offline after a prior successful visit.
 - Same-origin static assets are cached at runtime.
-- Safe event JSON endpoints are cached:
-  - `/api/events/live`
+- Safe event detail JSON endpoints are cached:
   - `/api/events/[eventKey]`
 - Sensitive endpoint families are explicitly excluded:
   - `/admin`

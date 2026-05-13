@@ -40,7 +40,6 @@ import {
 
 interface EventsClientProps {
 	initialEvents: Event[];
-	fullEventsPath?: string;
 	mapLoadStrategy: MapLoadStrategy;
 	eventUpdateRequestsEnabled?: boolean;
 	dynamicSearchChips?: SearchChip[];
@@ -88,17 +87,13 @@ const appendQuery = (path: string, params: URLSearchParams): string => {
 
 export function EventsClient({
 	initialEvents,
-	fullEventsPath,
 	mapLoadStrategy,
 	eventUpdateRequestsEnabled = true,
 	dynamicSearchChips = [],
 	spotlightRotationContext,
 }: EventsClientProps) {
 	return (
-		<EventsOfflineProvider
-			initialEvents={initialEvents}
-			fullEventsPath={fullEventsPath}
-		>
+		<EventsOfflineProvider initialEvents={initialEvents}>
 			<AuthGatedControlsIsland
 				spotlightRotationContext={spotlightRotationContext}
 			>
