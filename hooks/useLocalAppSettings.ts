@@ -5,6 +5,7 @@ import {
 	DEFAULT_LOCAL_APP_SETTINGS,
 	type DefaultEventSortMode,
 	type LocalAppSettings,
+	type UserMapLoadStrategy,
 	normalizeLocalAppSettings,
 } from "@/lib/user-app-settings";
 import { useCallback, useEffect, useState } from "react";
@@ -118,6 +119,16 @@ export function useLocalAppSettings() {
 		[updateSettings],
 	);
 
+	const setMapLoadStrategy = useCallback(
+		(mapLoadStrategy: UserMapLoadStrategy) => {
+			updateSettings((existingSettings) => ({
+				...existingSettings,
+				mapLoadStrategy,
+			}));
+		},
+		[updateSettings],
+	);
+
 	const resetLocalAppSettings = useCallback(() => {
 		writeStoredSettings(DEFAULT_LOCAL_APP_SETTINGS);
 		notifySettings(DEFAULT_LOCAL_APP_SETTINGS);
@@ -135,6 +146,7 @@ export function useLocalAppSettings() {
 		setHideFloatingFilterButton,
 		setHideFloatingPrompts,
 		setDefaultEventSortMode,
+		setMapLoadStrategy,
 		resetLocalAppSettings,
 		replaceLocalAppSettings,
 	};

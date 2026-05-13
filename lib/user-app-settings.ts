@@ -2,11 +2,13 @@ import type { MapProvider } from "@/features/maps/types";
 
 export type ThemeMode = "light" | "dark" | "system";
 export type DefaultEventSortMode = "upcoming" | "fresh-activity";
+export type UserMapLoadStrategy = "idle" | "expand";
 
 export interface LocalAppSettings {
 	hideFloatingFilterButton: boolean;
 	hideFloatingPrompts: boolean;
 	defaultEventSortMode: DefaultEventSortMode;
+	mapLoadStrategy: UserMapLoadStrategy;
 }
 
 export interface SyncedUserAppSettings {
@@ -20,6 +22,7 @@ export const DEFAULT_LOCAL_APP_SETTINGS: LocalAppSettings = {
 	hideFloatingFilterButton: false,
 	hideFloatingPrompts: false,
 	defaultEventSortMode: "upcoming",
+	mapLoadStrategy: "idle",
 };
 
 export const DEFAULT_SYNCED_USER_APP_SETTINGS: SyncedUserAppSettings = {
@@ -45,6 +48,11 @@ export function normalizeLocalAppSettings(
 			settings?.defaultEventSortMode === "upcoming"
 				? settings.defaultEventSortMode
 				: DEFAULT_LOCAL_APP_SETTINGS.defaultEventSortMode,
+		mapLoadStrategy:
+			settings?.mapLoadStrategy === "idle" ||
+			settings?.mapLoadStrategy === "expand"
+				? settings.mapLoadStrategy
+				: DEFAULT_LOCAL_APP_SETTINGS.mapLoadStrategy,
 	};
 }
 

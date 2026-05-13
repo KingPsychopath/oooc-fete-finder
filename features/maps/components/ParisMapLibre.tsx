@@ -115,6 +115,7 @@ const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 const MAP_LOAD_ERROR_GRACE_MS = 10000;
 const MAP_INIT_RETRY_DELAY_MS = 900;
 const MAX_MAP_INIT_ATTEMPTS = 2;
+const MAP_TILE_LOADING_NOTICE_DELAY_MS = 1200;
 const MAP_ONLINE_ONLY_MESSAGE =
 	"Map style, sprite, glyph, and tile assets are online-only";
 
@@ -212,6 +213,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const mapInitAttemptRef = useRef(0);
 	const nonFatalMapErrorCountRef = useRef(0);
 	const [mapLoaded, setMapLoaded] = useState(false);
+	const [mapTilesSettled, setMapTilesSettled] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [selectedArrondissement, setSelectedArrondissement] = useState<
@@ -219,6 +221,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	>(null);
 	const [showCoordinates, setShowCoordinates] = useState(true);
 	const [showLocateNotice, setShowLocateNotice] = useState(false);
+	const [showTileLoadingNotice, setShowTileLoadingNotice] = useState(false);
 
 	// Filter events based on selected day
 	const filteredEvents = React.useMemo(() => {
@@ -564,6 +567,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		mapInitAttemptRef.current = 0;
 		nonFatalMapErrorCountRef.current = 0;
 		setMapLoaded(false);
+		setMapTilesSettled(false);
+		setShowTileLoadingNotice(false);
 		setIsLoading(true);
 		setLoadError(null);
 	}, []);
@@ -628,6 +633,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			clearLoadErrorTimer();
 			clearInitRetryTimer();
 			setMapLoaded(false);
+			setMapTilesSettled(false);
+			setShowTileLoadingNotice(false);
 			setIsLoading(false);
 			setLoadError(null);
 			return;
@@ -637,6 +644,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		hasLoadedMapRef.current = false;
 		mapInitAttemptRef.current = 0;
 		nonFatalMapErrorCountRef.current = 0;
+		setMapTilesSettled(false);
+		setShowTileLoadingNotice(false);
 
 		const initMap = (container: HTMLDivElement) => {
 			if (isCancelled || map.current) return;
@@ -668,12 +677,19 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				const currentMap = map.current;
 				if (!currentMap) return;
 
-				const isBasemapReady = () => {
+				const isMapUsable = (): boolean => {
+					try {
+						return currentMap.isStyleLoaded() === true;
+					} catch {
+						return false;
+					}
+				};
+
+				const isMapFullySettled = (): boolean => {
 					try {
 						return (
-							currentMap.isStyleLoaded() &&
-							currentMap.areTilesLoaded() &&
-							currentMap.loaded()
+							currentMap.isStyleLoaded() === true &&
+							currentMap.areTilesLoaded() === true
 						);
 					} catch {
 						return false;
@@ -687,6 +703,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					clearLoadErrorTimer();
 					clearInitRetryTimer();
 					setMapLoaded(true);
+					setMapTilesSettled(isMapFullySettled());
 					setIsLoading(false);
 					const collapseAttribution = () => {
 						const attribution = mapContainer.current?.querySelector(
@@ -705,9 +722,17 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					window.setTimeout(collapseAttribution, 200);
 				};
 
-				const markMapReadyWhenBasemapIsReady = () => {
-					if (isBasemapReady()) {
+				const markMapReadyWhenStyleIsReady = () => {
+					if (isMapUsable()) {
 						markMapReady();
+					}
+				};
+
+				const markTilesSettledWhenReady = () => {
+					if (!hasLoadedMapRef.current) return;
+					if (isMapFullySettled()) {
+						setMapTilesSettled(true);
+						setShowTileLoadingNotice(false);
 					}
 				};
 
@@ -736,25 +761,25 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					}, MAP_INIT_RETRY_DELAY_MS);
 				};
 
-				currentMap.on("style.load", markMapReadyWhenBasemapIsReady);
-				currentMap.on("load", markMapReadyWhenBasemapIsReady);
-				currentMap.on("idle", markMapReadyWhenBasemapIsReady);
-				currentMap.on("sourcedata", markMapReadyWhenBasemapIsReady);
+				currentMap.on("style.load", markMapReadyWhenStyleIsReady);
+				currentMap.on("load", markMapReadyWhenStyleIsReady);
+				currentMap.on("idle", markTilesSettledWhenReady);
+				currentMap.on("sourcedata", markTilesSettledWhenReady);
 				window.requestAnimationFrame(() => {
-					markMapReadyWhenBasemapIsReady();
+					markMapReadyWhenStyleIsReady();
 				});
 				window.setTimeout(() => {
-					markMapReadyWhenBasemapIsReady();
+					markMapReadyWhenStyleIsReady();
 				}, 120);
 
 				loadErrorTimeoutRef.current = setTimeout(() => {
 					loadErrorTimeoutRef.current = null;
 					if (hasLoadedMapRef.current) return;
-					if (isBasemapReady()) {
+					if (isMapUsable()) {
 						markMapReady();
 						return;
 					}
-					scheduleMapRetry("Timed out waiting for basemap tiles");
+					scheduleMapRetry("Timed out waiting for map style");
 				}, MAP_LOAD_ERROR_GRACE_MS);
 
 				currentMap.on("error", (e: maplibregl.ErrorEvent) => {
@@ -781,7 +806,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					loadErrorTimeoutRef.current = setTimeout(() => {
 						loadErrorTimeoutRef.current = null;
 						if (hasLoadedMapRef.current) return;
-						if (isBasemapReady()) {
+						if (isMapUsable()) {
 							markMapReady();
 							return;
 						}
@@ -896,6 +921,21 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			}
 		};
 	}, [mapLoaded]);
+
+	useEffect(() => {
+		if (!mapLoaded || mapTilesSettled || isOfflineMode) {
+			setShowTileLoadingNotice(false);
+			return;
+		}
+
+		const timeoutId = window.setTimeout(() => {
+			setShowTileLoadingNotice(true);
+		}, MAP_TILE_LOADING_NOTICE_DELAY_MS);
+
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [isOfflineMode, mapLoaded, mapTilesSettled]);
 
 	useEffect(() => {
 		selectedArrondissementRef.current = selectedArrondissement;
@@ -1585,6 +1625,14 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							Initializing MapLibre & boundaries
 						</p>
 					</div>
+				</div>
+			)}
+
+			{showTileLoadingNotice && !isLoading && (
+				<div className="absolute left-3 right-3 bottom-3 z-[3] flex justify-center pointer-events-none sm:left-auto sm:right-3 sm:bottom-3">
+					<p className="rounded-full border border-border/70 bg-card/90 px-3 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur-md">
+						Map tiles still loading...
+					</p>
 				</div>
 			)}
 

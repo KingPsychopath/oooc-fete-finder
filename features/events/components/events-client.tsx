@@ -25,6 +25,7 @@ import {
 } from "@/features/events/tour-events";
 import type { Event } from "@/features/events/types";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
+import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { clientLog } from "@/lib/platform/client-logger";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -150,6 +151,8 @@ function EventsClientShell({
 	const [hasMountedTourIsland, setHasMountedTourIsland] = useState(false);
 	const invalidEventParamCountRef = useRef(0);
 	const hasMountedTourIslandRef = useRef(false);
+	const { settings: localAppSettings, isLoaded: areLocalSettingsLoaded } =
+		useLocalAppSettings();
 	const { openFilterPanel, setIsFilterOpen } = useEventsSearchFilters();
 	const requestEventDetails = useEventDetailHydration({
 		setEvents,
@@ -169,6 +172,12 @@ function EventsClientShell({
 			return null;
 		}
 	}, [offlineGraceExpiresAt]);
+	const effectiveMapLoadStrategy: MapLoadStrategy =
+		mapLoadStrategy === "immediate"
+			? "immediate"
+			: areLocalSettingsLoaded
+				? localAppSettings.mapLoadStrategy
+				: "expand";
 
 	const mountTourIsland = useCallback(() => {
 		if (hasMountedTourIslandRef.current) return;
@@ -537,7 +546,7 @@ function EventsClientShell({
 
 			<EventsMapIsland
 				isExpanded={isMapExpanded}
-				mapLoadStrategy={mapLoadStrategy}
+				mapLoadStrategy={effectiveMapLoadStrategy}
 				onToggleExpanded={toggleMapExpansion}
 				onEventClick={handleEventClick}
 			/>

@@ -1,8 +1,8 @@
+import { isValidUserId } from "@/features/auth/user-id";
 import {
 	USER_AUTH_COOKIE_NAME,
 	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
-import { isValidUserId } from "@/features/auth/user-id";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	DEFAULT_JSON_BODY_LIMIT_BYTES,
@@ -28,6 +28,7 @@ const appSettingsSchema = z.object({
 		hideFloatingFilterButton: z.boolean().optional(),
 		hideFloatingPrompts: z.boolean().optional(),
 		defaultEventSortMode: z.enum(["upcoming", "fresh-activity"]).optional(),
+		mapLoadStrategy: z.enum(["idle", "expand"]).optional(),
 	}),
 	mapPreference: z.enum(["system", "google", "apple", "ask"]),
 	themeMode: z.enum(["system", "light", "dark"]),
@@ -50,9 +51,7 @@ const parseCookieByName = (
 	return undefined;
 };
 
-const getUserSettingsKey = async (
-	request: Request,
-): Promise<string | null> => {
+const getUserSettingsKey = async (request: Request): Promise<string | null> => {
 	const cookieHeader = request.headers.get("cookie");
 	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
 	const userSession = await getCanonicalUserSessionFromCookieHeader(userCookie);

@@ -14,6 +14,8 @@ import {
 	SelectTrigger,
 } from "@/components/ui/select";
 import { useOptionalAuth } from "@/features/auth/auth-context";
+import { trackMapPreferenceChange } from "@/features/events/engagement/client-tracking";
+import { APP_PREFERENCES_EVENT_KEY } from "@/features/events/engagement/constants";
 import { MAP_OPTIONS } from "@/features/maps/constants/map-options";
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
 import {
@@ -23,14 +25,13 @@ import {
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { useThemeToggle } from "@/hooks/useThemeToggle";
 import { normalizeMapPreference } from "@/lib/user-app-settings";
-import { APP_PREFERENCES_EVENT_KEY } from "@/features/events/engagement/constants";
-import { trackMapPreferenceChange } from "@/features/events/engagement/client-tracking";
 import { cn } from "@/lib/utils";
 import {
 	BellOff,
-	HardDrive,
 	EyeOff,
 	Filter,
+	HardDrive,
+	Map,
 	MapPinned,
 	Monitor,
 	Moon,
@@ -64,23 +65,46 @@ const eventSortOptions = [
 	},
 ] as const;
 
+const mapLoadOptions = [
+	{
+		value: "idle",
+		label: "Faster opening",
+		description: "Preload the live map after the page settles.",
+	},
+	{
+		value: "expand",
+		label: "Save data",
+		description: "Load the live map only when you open it.",
+	},
+] as const;
+
 function isDefaultEventSortMode(
 	value: string | null,
 ): value is (typeof eventSortOptions)[number]["value"] {
 	return value === "upcoming" || value === "fresh-activity";
 }
 
+function isUserMapLoadStrategy(
+	value: string | null,
+): value is (typeof mapLoadOptions)[number]["value"] {
+	return value === "idle" || value === "expand";
+}
+
 export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 	const { authMode, isAuthenticated, isOnline } = useOptionalAuth();
 	const { theme, setTheme, mounted } = useThemeToggle();
-	const { mapPreference, setMapPreference, isLoaded: isMapPreferenceLoaded } =
-		useMapPreference();
+	const {
+		mapPreference,
+		setMapPreference,
+		isLoaded: isMapPreferenceLoaded,
+	} = useMapPreference();
 	const {
 		settings,
 		isLoaded: areLocalSettingsLoaded,
 		setHideFloatingFilterButton,
 		setHideFloatingPrompts,
 		setDefaultEventSortMode,
+		setMapLoadStrategy,
 		resetLocalAppSettings,
 	} = useLocalAppSettings();
 	const [isResetArmed, setIsResetArmed] = useState(false);
@@ -93,6 +117,10 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 		eventSortOptions.find(
 			(option) => option.value === settings.defaultEventSortMode,
 		) ?? eventSortOptions[0];
+	const selectedMapLoadOption =
+		mapLoadOptions.find(
+			(option) => option.value === settings.mapLoadStrategy,
+		) ?? mapLoadOptions[0];
 	const syncMode = getClientSyncMode({ authMode, isAuthenticated, isOnline });
 
 	const handleMapPreferenceChange = (value: string | null) => {
@@ -112,6 +140,12 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 	const handleDefaultSortChange = (value: string | null) => {
 		if (isDefaultEventSortMode(value)) {
 			setDefaultEventSortMode(value);
+		}
+	};
+
+	const handleMapLoadStrategyChange = (value: string | null) => {
+		if (isUserMapLoadStrategy(value)) {
+			setMapLoadStrategy(value);
 		}
 	};
 
@@ -145,12 +179,11 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 		"relative h-6 w-11 shrink-0 rounded-full border border-border bg-muted transition-colors";
 	const switchThumbClassName =
 		"absolute top-0.5 left-0.5 size-4.5 rounded-full bg-background shadow-sm transition-transform";
-	const syncStatusCopy =
-		canSyncAccountData(syncMode)
-			? "Synced to your account and kept on this device for offline use."
-			: syncMode === "offline-grace"
-				? "Saved on this device now; account sync resumes when your live session is online."
-				: "Saved on this device and available offline.";
+	const syncStatusCopy = canSyncAccountData(syncMode)
+		? "Synced to your account and kept on this device for offline use."
+		: syncMode === "offline-grace"
+			? "Saved on this device now; account sync resumes when your live session is online."
+			: "Saved on this device and available offline.";
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -228,13 +261,48 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 								<SelectContent>
 									{MAP_OPTIONS.map((option) => (
 										<SelectItem key={option.id} value={option.id}>
-											<span className="text-base leading-none">{option.icon}</span>
+											<span className="text-base leading-none">
+												{option.icon}
+											</span>
 											{option.name}
 										</SelectItem>
 									))}
 								</SelectContent>
 							</Select>
 						</div>
+					</section>
+
+					<section className="space-y-2.5">
+						<div className="flex items-center gap-2 border-b border-border/60 pb-1.5">
+							<Map className="h-4 w-4 text-muted-foreground" />
+							<h3 className="text-sm font-medium">Map loading</h3>
+						</div>
+						<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_15rem] sm:items-center">
+							<p className="text-xs leading-relaxed text-muted-foreground">
+								Choose when the live Paris map starts on this device.
+							</p>
+							<Select
+								value={settings.mapLoadStrategy}
+								onValueChange={handleMapLoadStrategyChange}
+								disabled={!areLocalSettingsLoaded}
+							>
+								<SelectTrigger className="h-9 w-full rounded-xl bg-background/55">
+									<span className="truncate">
+										{selectedMapLoadOption.label}
+									</span>
+								</SelectTrigger>
+								<SelectContent>
+									{mapLoadOptions.map((option) => (
+										<SelectItem key={option.value} value={option.value}>
+											{option.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+						<p className="text-xs leading-relaxed text-muted-foreground">
+							{selectedMapLoadOption.description}
+						</p>
 					</section>
 
 					<section className="space-y-2.5">
@@ -328,7 +396,8 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 											Hide support and install prompts
 										</span>
 										<span className="mt-0.5 block text-xs leading-snug text-muted-foreground sm:hidden">
-											Suppresses support, PWA install, and community invite cards.
+											Suppresses support, PWA install, and community invite
+											cards.
 										</span>
 									</span>
 								</span>
