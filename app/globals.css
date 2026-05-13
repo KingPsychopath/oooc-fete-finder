@@ -81,7 +81,7 @@
 	--ooo-font-display: var(--font-prata), "Swear Display", "Iowan Old Style",
 		"Times New Roman", Times, serif;
 	--ooo-grain-image: url("/grain.png");
-	--ooo-grain-opacity: 0.16;
+	--ooo-grain-opacity: 0.055;
 	--ooo-surface-alpha: 0.76;
 	--ooo-surface-soft-alpha: 0.58;
 	--background: oklch(0.973 0.012 82);
@@ -116,12 +116,12 @@
 	--sidebar-border: oklch(0.86 0.014 75);
 	--sidebar-ring: oklch(0.66 0.06 70);
 	--ooo-main-background:
-		linear-gradient(160deg, rgba(246, 243, 238, 0.95), rgba(232, 225, 216, 0.96)),
-		radial-gradient(circle at 16% 0%, rgba(255, 255, 255, 0.52), transparent 44%);
+		linear-gradient(160deg, rgba(248, 245, 240, 0.98), rgba(235, 229, 220, 0.985)),
+		radial-gradient(circle at 16% 0%, rgba(255, 255, 255, 0.36), transparent 42%);
 }
 
 .dark {
-	--ooo-grain-opacity: 0.12;
+	--ooo-grain-opacity: 0.05;
 	--ooo-surface-alpha: 0.7;
 	--ooo-surface-soft-alpha: 0.5;
 	--background: oklch(0.145 0.013 58);
@@ -221,7 +221,7 @@
 	content: "";
 	pointer-events: none;
 	background-image: var(--ooo-grain-image);
-	background-size: 220px 220px;
+	background-size: 280px 280px;
 	mix-blend-mode: multiply;
 	opacity: var(--ooo-grain-opacity);
 }
@@ -287,12 +287,12 @@
 }
 
 .ooo-grain-visible::before {
-	opacity: 0.14;
+	opacity: 0.07;
 	mix-blend-mode: multiply;
 }
 
 .dark .ooo-grain-visible::before {
-	opacity: 0.1;
+	opacity: 0.05;
 	mix-blend-mode: screen;
 }
 
