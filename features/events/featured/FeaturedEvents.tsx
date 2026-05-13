@@ -50,8 +50,18 @@ export function FeaturedEvents({
 	};
 
 	return (
-		<Card className="ooo-site-card mb-8 overflow-hidden py-0">
-			<CardContent className="px-4 py-5 sm:px-5">
+		<Card className="ooo-site-card relative mb-8 overflow-hidden py-0 shadow-[0_18px_42px_-34px_rgba(176,124,54,0.62)] dark:shadow-[0_18px_42px_-34px_rgba(224,169,85,0.42)]">
+			<div
+				className="pointer-events-none absolute inset-0 rounded-xl"
+				aria-hidden="true"
+			>
+				<div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/65 to-transparent dark:via-amber-200/34" />
+				<div className="absolute -top-10 -left-10 h-32 w-32 rounded-full border-t border-l border-amber-300/50 [mask-image:linear-gradient(315deg,transparent_0%,black_36%,black_64%,transparent_84%)] dark:border-amber-200/24" />
+				<div className="absolute top-8 left-5 h-px w-16 rotate-[16deg] bg-gradient-to-r from-transparent via-amber-200/75 to-transparent opacity-75 dark:via-amber-100/45" />
+				<div className="absolute inset-x-16 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-300/28 to-transparent dark:via-amber-200/18" />
+				<div className="absolute -right-12 -bottom-12 h-28 w-28 rounded-full border-r border-b border-amber-300/24 [mask-image:linear-gradient(135deg,transparent_0%,black_42%,black_60%,transparent_82%)] dark:border-amber-200/14" />
+			</div>
+			<CardContent className="relative px-4 py-5 sm:px-5">
 				{/* Responsive grid: 1 col on mobile, 2 cols on tablet, 3 cols on desktop */}
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:[&>*:last-child:nth-child(odd)]:col-start-2 md:[&>*]:col-span-2 lg:grid-cols-3 lg:[&>*:last-child:nth-child(odd)]:col-start-auto lg:[&>*]:col-span-1">
 					{featuredEvents.map((event) => (
