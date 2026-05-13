@@ -18,7 +18,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, lazy, useEffect, useState } from "react";
 
-const EmailGateModal = lazy(() => import("@/features/auth/components/EmailGateModal"));
+const EmailGateModal = lazy(
+	() => import("@/features/auth/components/EmailGateModal"),
+);
 
 // Get base path from environment variable directly
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
@@ -30,6 +32,7 @@ const COMPRESS_ENTER_THRESHOLD = 20;
 const COMPRESS_EXIT_THRESHOLD = 6;
 const COLLAPSE_ENTER_THRESHOLD = 96;
 const COLLAPSE_EXIT_THRESHOLD = 12;
+const STICKY_HEADER_QUERY = "(min-width: 640px)";
 const DEFAULT_BANNER_MESSAGES = [
 	"Curated by Out Of Office Collective",
 	"Paris summer rhythm, mapped live",
@@ -101,9 +104,20 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 		let lastY = -1;
 		let isCompressed = false;
 		let isCollapsed = false;
+		const mediaQuery = window.matchMedia(STICKY_HEADER_QUERY);
 
 		const tick = () => {
 			rafId = null;
+			if (!mediaQuery.matches) {
+				if (isCompressed || isCollapsed) {
+					isCompressed = false;
+					isCollapsed = false;
+					setScrollState({ compressed: false, collapsed: false });
+				}
+				lastY = window.scrollY;
+				return;
+			}
+
 			const y = window.scrollY;
 			if (y === lastY) return;
 			lastY = y;
@@ -131,10 +145,17 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 			if (rafId === null) rafId = requestAnimationFrame(tick);
 		};
 
+		const onMediaChange = () => {
+			lastY = -1;
+			onScroll();
+		};
+
 		tick();
 		window.addEventListener("scroll", onScroll, { passive: true });
+		mediaQuery.addEventListener("change", onMediaChange);
 		return () => {
 			window.removeEventListener("scroll", onScroll);
+			mediaQuery.removeEventListener("change", onMediaChange);
 			if (rafId !== null) cancelAnimationFrame(rafId);
 		};
 	}, []);
@@ -163,13 +184,9 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 
 	return (
 		<>
-			<header
-				className={`relative z-50 px-3 transition-[padding-top] duration-300 ease-out sm:sticky sm:top-0 sm:px-4 ${
-					isCompressed ? "pt-1.5 sm:pt-2" : "pt-2 sm:pt-3"
-				}`}
-			>
+			<header className="relative z-50 px-3 pt-2 sm:sticky sm:top-0 sm:px-4 sm:pt-3">
 				<div
-					className={`relative mx-auto w-full max-w-[1400px] 2xl:max-w-[1680px] overflow-visible rounded-2xl border ${
+					className={`relative mx-auto w-full max-w-[1400px] overflow-visible rounded-2xl border transition-[background-color,border-color,box-shadow] duration-300 ease-out 2xl:max-w-[1680px] ${
 						isCompressed
 							? "border-border/75 bg-card/95 shadow-[0_10px_26px_rgba(20,16,12,0.22)] backdrop-blur-xl"
 							: "border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg"
@@ -179,11 +196,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 						className="pointer-events-none absolute inset-0 rounded-2xl bg-[image:var(--ooo-grain-image)] bg-[length:220px_220px] opacity-[0.055] mix-blend-multiply dark:opacity-[0.075] dark:mix-blend-screen"
 						aria-hidden="true"
 					/>
-					<div
-						className={`relative mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 transition-transform duration-300 ease-out will-change-transform sm:min-h-[84px] sm:px-5 lg:grid lg:grid-cols-[minmax(190px,1fr)_auto_minmax(170px,1fr)] lg:gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] xl:gap-6 ${
-							isCompressed ? "scale-[0.94] sm:scale-[0.96]" : "scale-100"
-						}`}
-					>
+					<div className="relative mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 sm:min-h-[84px] sm:px-5 lg:grid lg:grid-cols-[minmax(190px,1fr)_auto_minmax(170px,1fr)] lg:gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] xl:gap-6">
 						<Link
 							href={basePath || "/"}
 							className="flex min-w-0 items-center gap-3 transition-colors hover:opacity-90 lg:justify-self-start"
@@ -296,11 +309,11 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 									size="sm"
 									onClick={logout}
 									className={AUTH_ICON_BUTTON_CLASS}
-										title="Logout"
-										aria-label="Logout"
-									>
-										<LogOut className="h-3.5 w-3.5" />
-									</Button>
+									title="Logout"
+									aria-label="Logout"
+								>
+									<LogOut className="h-3.5 w-3.5" />
+								</Button>
 							) : (
 								isAuthResolved &&
 								isOnline && (

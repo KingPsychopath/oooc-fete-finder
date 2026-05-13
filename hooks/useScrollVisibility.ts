@@ -46,6 +46,8 @@ export function useScrollVisibility({
 	const [scrollPercentage, setScrollPercentage] = useState(0);
 
 	useEffect(() => {
+		let rafId: number | null = null;
+
 		const handleScroll = () => {
 			// Calculate scroll percentage
 			const scrolled = document.documentElement.scrollTop;
@@ -59,16 +61,21 @@ export function useScrollVisibility({
 				currentScrollPercentage = (scrolled / maxHeight) * 100;
 			}
 
-			setScrollPercentage(currentScrollPercentage);
+			setScrollPercentage((previousPercentage) =>
+				Math.abs(previousPercentage - currentScrollPercentage) < 0.5
+					? previousPercentage
+					: currentScrollPercentage,
+			);
 
 			// Determine visibility based on mode
-			if (mode === "show-after") {
-				// Show element after scrolling past threshold (e.g., scroll-to-top button)
-				setIsVisible(currentScrollPercentage > threshold);
-			} else {
-				// Hide element after scrolling past threshold (e.g., vignette ad)
-				setIsVisible(currentScrollPercentage <= threshold);
-			}
+			const nextIsVisible =
+				mode === "show-after"
+					? currentScrollPercentage > threshold
+					: currentScrollPercentage <= threshold;
+
+			setIsVisible((previousIsVisible) =>
+				previousIsVisible === nextIsVisible ? previousIsVisible : nextIsVisible,
+			);
 		};
 
 		// Initial check
@@ -78,9 +85,10 @@ export function useScrollVisibility({
 		let ticking = false;
 		const throttledScroll = () => {
 			if (!ticking) {
-				requestAnimationFrame(() => {
+				rafId = requestAnimationFrame(() => {
 					handleScroll();
 					ticking = false;
+					rafId = null;
 				});
 				ticking = true;
 			}
@@ -90,6 +98,9 @@ export function useScrollVisibility({
 
 		return () => {
 			window.removeEventListener("scroll", throttledScroll);
+			if (rafId !== null) {
+				cancelAnimationFrame(rafId);
+			}
 		};
 	}, [threshold, mode]);
 
