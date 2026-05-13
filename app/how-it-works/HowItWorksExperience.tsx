@@ -3,6 +3,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button";
+import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
+import { requestFeteFinderTour } from "@/features/events/tour-events";
 import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
 import { cn } from "@/lib/utils";
 import {
@@ -569,6 +571,11 @@ function MobileStepPreview({ stepId }: { stepId: StoryStepId }) {
 export function HowItWorksExperience() {
 	const [activeStep, setActiveStep] = useState<StoryStepId>("signal");
 
+	const handleTourStart = (source: string) => {
+		trackNavigationClick({ group: "how_it_works", label: source });
+		requestFeteFinderTour();
+	};
+
 	useEffect(() => {
 		const sections =
 			document.querySelectorAll<HTMLElement>("[data-story-step]");
@@ -616,12 +623,23 @@ export function HowItWorksExperience() {
 							live community of like-minded people on the ground.
 						</p>
 						<div className="mt-9 flex flex-col gap-3 sm:flex-row">
+							<Button
+								type="button"
+								onClick={() => handleTourStart("hero_tour")}
+								className="h-11 rounded-full px-5"
+							>
+								Take the tour
+								<ArrowRight className="h-4 w-4" />
+							</Button>
 							<Link
 								href={`${basePath || ""}/`}
-								className={cn(buttonVariants(), "h-11 rounded-full px-5")}
+								className={cn(
+									buttonVariants({ variant: "outline" }),
+									"h-11 rounded-full bg-background/54 px-5",
+								)}
 							>
 								Explore the map
-								<ArrowRight className="h-4 w-4" />
+								<Map className="h-4 w-4" />
 							</Link>
 							<Link
 								href={COMMUNITY_INVITE_CONFIG.WHATSAPP_URL}
@@ -944,13 +962,14 @@ export function HowItWorksExperience() {
 						follow.
 					</p>
 					<div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-						<Link
-							href={`${basePath || ""}/`}
-							className={cn(buttonVariants(), "h-11 rounded-full px-6")}
+						<Button
+							type="button"
+							onClick={() => handleTourStart("final_tour")}
+							className="h-11 rounded-full px-6"
 						>
-							Explore Fête Finder
+							Take the tour
 							<MousePointer2 className="h-4 w-4" />
-						</Link>
+						</Button>
 						<Link
 							href={COMMUNITY_INVITE_CONFIG.WHATSAPP_URL}
 							target="_blank"

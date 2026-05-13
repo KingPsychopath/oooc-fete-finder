@@ -169,14 +169,14 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 				}`}
 			>
 				<div
-					className={`relative mx-auto w-full max-w-[1400px] 2xl:max-w-[1680px] overflow-hidden rounded-2xl border ${
+					className={`relative mx-auto w-full max-w-[1400px] 2xl:max-w-[1680px] overflow-visible rounded-2xl border ${
 						isCompressed
 							? "border-border/75 bg-card/95 shadow-[0_10px_26px_rgba(20,16,12,0.22)] backdrop-blur-xl"
 							: "border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg"
 					}`}
 				>
 					<div
-						className="pointer-events-none absolute inset-0 bg-[image:var(--ooo-grain-image)] bg-[length:220px_220px] opacity-[0.055] mix-blend-multiply dark:opacity-[0.075] dark:mix-blend-screen"
+						className="pointer-events-none absolute inset-0 rounded-2xl bg-[image:var(--ooo-grain-image)] bg-[length:220px_220px] opacity-[0.055] mix-blend-multiply dark:opacity-[0.075] dark:mix-blend-screen"
 						aria-hidden="true"
 					/>
 					<div
