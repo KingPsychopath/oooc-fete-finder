@@ -144,7 +144,7 @@ function SpotlightEventPanel({
 					<div className="absolute inset-y-5 left-0 w-px bg-gradient-to-b from-transparent via-cyan-300/36 to-transparent dark:via-cyan-100/18" />
 				)}
 				{isDominant && (
-					<div className="absolute bottom-3 left-[66%] top-16 hidden border-l border-dashed border-foreground/22 lg:block dark:border-white/18" />
+					<div className="absolute bottom-7 left-[66%] top-8 hidden border-l border-dashed border-foreground/22 lg:block dark:border-white/18" />
 				)}
 			</div>
 			<div
