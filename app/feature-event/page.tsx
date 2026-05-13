@@ -49,6 +49,10 @@ const contactEmail = "hello@outofofficecollective.co.uk";
 const fallbackContactHref = `mailto:${contactEmail}?subject=OOOC%20Fete%202026%20-%20Partnership%20Inquiry`;
 const mediaKitHref = `${basePath}/media-kit/OOOC-Fete-2026-Media-Kit.pdf`;
 const ooocPressKitHref = `${basePath}/media-kit/OOOC-Press-Kit.pdf`;
+const featureCardClassName =
+	"border border-border/80 bg-card dark:border-white/14 dark:bg-[color-mix(in_oklab,var(--card)_78%,white_7%)] dark:shadow-[0_18px_48px_-34px_rgba(0,0,0,0.9),0_1px_0_rgba(255,255,255,0.08)_inset]";
+const featurePanelClassName =
+	"rounded-xl border border-border/70 bg-background/70 p-3 dark:border-white/12 dark:bg-white/[0.055]";
 
 const packages: PromotionPackage[] = [
 	{
@@ -170,7 +174,9 @@ export default async function FeatureEventPage() {
 	return (
 		<>
 			<main className="container mx-auto max-w-6xl px-4 py-8 pb-28 sm:py-10 sm:pb-12">
-				<section className="rounded-2xl border border-border/80 bg-card/85 p-5 shadow-[0_8px_22px_rgba(18,14,10,0.14)] sm:p-8">
+				<section
+					className={`${featureCardClassName} rounded-2xl p-5 shadow-[0_8px_22px_rgba(18,14,10,0.14)] sm:p-8`}
+				>
 					<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
 						OOOC Partnerships
 					</p>
@@ -185,15 +191,15 @@ export default async function FeatureEventPage() {
 						promotion request now, then we confirm activation by email.
 					</p>
 					<div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-						<div className="rounded-xl border border-border/70 bg-background/70 p-3">
+						<div className={featurePanelClassName}>
 							<p className="text-muted-foreground">Peak views</p>
 							<p className="mt-1 text-lg font-medium text-foreground">50,000</p>
 						</div>
-						<div className="rounded-xl border border-border/70 bg-background/70 p-3">
+						<div className={featurePanelClassName}>
 							<p className="text-muted-foreground">Registered users</p>
 							<p className="mt-1 text-lg font-medium text-foreground">3,000+</p>
 						</div>
-						<div className="rounded-xl border border-border/70 bg-background/70 p-3">
+						<div className={featurePanelClassName}>
 							<p className="text-muted-foreground">
 								WhatsApp community members
 							</p>
@@ -282,7 +288,7 @@ export default async function FeatureEventPage() {
 					className="mt-8 grid gap-4 md:grid-cols-2"
 					aria-label="Add-ons and process"
 				>
-					<Card className="border border-border/80 bg-card">
+					<Card className={featureCardClassName}>
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2 text-lg font-medium">
 								<ArrowRight className="h-4 w-4 text-muted-foreground" />
@@ -335,7 +341,7 @@ export default async function FeatureEventPage() {
 									</div>
 								</li>
 							</ol>
-							<div className="mt-5 rounded-xl border border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
+							<div className="mt-5 rounded-xl border border-border/70 bg-background/60 p-4 text-sm text-muted-foreground dark:border-white/12 dark:bg-white/[0.055]">
 								<p className="flex items-center gap-2 font-medium text-foreground">
 									<ShieldCheck className="h-4 w-4" />
 									Post-event proof for partners
@@ -348,7 +354,7 @@ export default async function FeatureEventPage() {
 						</CardContent>
 					</Card>
 
-					<Card className="border border-border/80 bg-card">
+					<Card className={featureCardClassName}>
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2 text-lg font-medium">
 								<Megaphone className="h-4 w-4 text-muted-foreground" />
@@ -371,7 +377,7 @@ export default async function FeatureEventPage() {
 				</section>
 
 				<section className="mt-8" aria-label="FAQ">
-					<Card className="border border-border/80 bg-card">
+					<Card className={featureCardClassName}>
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2 text-lg font-medium">
 								<CircleHelp className="h-4 w-4 text-muted-foreground" />
@@ -419,7 +425,9 @@ export default async function FeatureEventPage() {
 					</Card>
 				</section>
 
-				<section className="mt-8 rounded-2xl border border-border/80 bg-card p-6 text-center">
+				<section
+					className={`${featureCardClassName} mt-8 rounded-2xl p-6 text-center`}
+				>
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						Final call
 					</p>

@@ -156,8 +156,10 @@
 	--sidebar-border: oklch(0.355 0.012 62);
 	--sidebar-ring: oklch(0.82 0.14 78);
 	--ooo-main-background:
-		linear-gradient(165deg, rgba(24, 18, 14, 0.99), rgba(13, 10, 8, 1)),
-		radial-gradient(circle at 14% 0%, rgba(248, 189, 112, 0.14), transparent 42%);
+		radial-gradient(ellipse 44rem 28rem at 12% 7%, rgba(240, 182, 104, 0.18), transparent 64%),
+		radial-gradient(ellipse 36rem 24rem at 88% 18%, rgba(49, 91, 95, 0.16), transparent 62%),
+		radial-gradient(ellipse 46rem 28rem at 58% 105%, rgba(163, 95, 59, 0.1), transparent 68%),
+		linear-gradient(165deg, rgba(24, 18, 14, 0.99), rgba(13, 10, 8, 1));
 }
 
 @layer base {
@@ -245,6 +247,16 @@
 
 .dark .ooo-grain::before {
 	mix-blend-mode: overlay;
+}
+
+.ooo-grain-visible::before {
+	opacity: 0.22;
+	mix-blend-mode: multiply;
+}
+
+.dark .ooo-grain-visible::before {
+	opacity: 0.18;
+	mix-blend-mode: screen;
 }
 
 .ooo-site-card {

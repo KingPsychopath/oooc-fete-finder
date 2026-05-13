@@ -326,6 +326,7 @@ export class UserCollectionStore {
 		const [primaryDiscovery, primaryEventActions] = await Promise.all([
 			discoveryRepository?.listRecentForUser({
 				userId,
+				email: normalizedEmail || user.email,
 				limit: 24,
 			}) ?? Promise.resolve([]),
 			eventRepository?.listRecentForUser({

@@ -67,6 +67,11 @@ const initialDetails: RequestDetails = {
 	notes: "",
 };
 
+const requestCardClassName =
+	"border-border/80 bg-card dark:border-white/14 dark:bg-[color-mix(in_oklab,var(--card)_78%,white_7%)] dark:shadow-[0_18px_48px_-34px_rgba(0,0,0,0.9),0_1px_0_rgba(255,255,255,0.08)_inset]";
+const requestPanelClassName =
+	"border-border/70 bg-background/65 dark:border-white/12 dark:bg-white/[0.055]";
+
 function formatPrice(value: number) {
 	return new Intl.NumberFormat("en-GB", {
 		style: "currency",
@@ -134,15 +139,12 @@ export function FeatureEventRequestBuilder({
 	const [hasCopied, setHasCopied] = useState(false);
 	const [isMobileSummaryOpen, setIsMobileSummaryOpen] = useState(false);
 
-	const selectedPackage = packages.find(
-		(pkg) => pkg.id === selectedPackageId,
-	);
+	const selectedPackage = packages.find((pkg) => pkg.id === selectedPackageId);
 	const includedAddOnIds = new Set(
 		addOns
 			.filter(
 				(addOn) =>
-					selectedPackage &&
-					addOn.includedWith?.includes(selectedPackage.tier),
+					selectedPackage && addOn.includedWith?.includes(selectedPackage.tier),
 			)
 			.map((addOn) => addOn.id),
 	);
@@ -223,10 +225,10 @@ export function FeatureEventRequestBuilder({
 									className={cn(
 										"flex h-full flex-col rounded-2xl border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:p-6",
 										isSelected
-											? "border-foreground bg-card shadow-[0_12px_34px_rgba(18,14,10,0.16)]"
+											? "border-foreground bg-card shadow-[0_12px_34px_rgba(18,14,10,0.16)] ring-2 ring-foreground/18 dark:border-amber-200/70 dark:bg-[linear-gradient(145deg,rgba(240,182,104,0.18),rgba(255,255,255,0.07))] dark:ring-amber-300/38 dark:shadow-[0_20px_54px_-34px_rgba(0,0,0,0.92),0_0_0_1px_rgba(240,182,104,0.12)_inset]"
 											: pkg.tier === "spotlight"
-												? "border-amber-700/30 bg-amber-50/30 hover:border-amber-900/50"
-												: "border-border/80 bg-card hover:border-foreground/40",
+												? "border-border/80 bg-card hover:border-foreground/40 dark:border-white/12 dark:bg-white/[0.035] dark:hover:border-white/28"
+												: "border-border/80 bg-card hover:border-foreground/40 dark:border-white/12 dark:bg-white/[0.035] dark:hover:border-white/28",
 										isPromoted && "md:col-span-2",
 									)}
 									aria-pressed={isSelected}
@@ -261,7 +263,8 @@ export function FeatureEventRequestBuilder({
 									<ul
 										className={cn(
 											"mt-5 space-y-2 text-sm text-muted-foreground",
-											isPromoted && "md:grid md:grid-cols-3 md:gap-3 md:space-y-0",
+											isPromoted &&
+												"md:grid md:grid-cols-3 md:gap-3 md:space-y-0",
 										)}
 									>
 										{pkg.includes.map((line) => (
@@ -313,15 +316,17 @@ export function FeatureEventRequestBuilder({
 									className={cn(
 										"rounded-2xl border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
 										isSelected
-											? "border-foreground bg-card shadow-[0_10px_24px_rgba(18,14,10,0.12)]"
-											: "border-border/80 bg-card hover:border-foreground/40",
+											? "border-foreground bg-card shadow-[0_10px_24px_rgba(18,14,10,0.12)] dark:border-amber-200/48 dark:bg-[linear-gradient(145deg,rgba(240,182,104,0.14),rgba(255,255,255,0.065))]"
+											: "border-border/80 bg-card hover:border-foreground/40 dark:border-white/14 dark:bg-white/[0.055] dark:hover:border-white/28",
 										isIncluded && "cursor-default",
 									)}
 									aria-pressed={isSelected}
 								>
 									<div className="flex items-start justify-between gap-3">
 										<div>
-											<p className="font-medium text-foreground">{addOn.name}</p>
+											<p className="font-medium text-foreground">
+												{addOn.name}
+											</p>
 											<p className="mt-1 text-sm text-muted-foreground">
 												{addOn.description}
 											</p>
@@ -354,7 +359,7 @@ export function FeatureEventRequestBuilder({
 				</section>
 
 				<section
-					className="rounded-2xl border border-border/80 bg-card p-5"
+					className={cn("rounded-2xl border p-5", requestCardClassName)}
 					aria-labelledby="request-details-heading"
 				>
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -444,8 +449,16 @@ export function FeatureEventRequestBuilder({
 				</section>
 			</div>
 
-			<aside className="xl:sticky xl:top-24" aria-label="Promotion request summary">
-				<div className="rounded-2xl border border-border/80 bg-card/95 p-5 shadow-[0_14px_34px_rgba(18,14,10,0.16)] backdrop-blur">
+			<aside
+				className="xl:sticky xl:top-24"
+				aria-label="Promotion request summary"
+			>
+				<div
+					className={cn(
+						"rounded-2xl border p-5 shadow-[0_14px_34px_rgba(18,14,10,0.16)] backdrop-blur",
+						requestCardClassName,
+					)}
+				>
 					<p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						<ShoppingBag className="h-4 w-4" />
 						Request summary
@@ -508,7 +521,12 @@ export function FeatureEventRequestBuilder({
 							by email.
 						</p>
 					</div>
-					<div className="mt-4 rounded-xl border border-border/70 bg-background/65 p-3 text-sm">
+					<div
+						className={cn(
+							"mt-4 rounded-xl border p-3 text-sm",
+							requestPanelClassName,
+						)}
+					>
 						<p className="flex items-center gap-2 font-medium text-foreground">
 							<LineChart className="h-4 w-4" />
 							Includes post-promotion reporting
@@ -563,100 +581,105 @@ export function FeatureEventRequestBuilder({
 				}}
 				aria-hidden={!isMobileSummaryOpen}
 			>
-					<div className="rounded-t-3xl border-x border-t border-border/80 bg-card/98 shadow-[0_-18px_44px_rgba(18,14,10,0.22)] backdrop-blur">
-						<button
-							type="button"
-							className="flex w-full flex-col items-center px-4 pt-3"
-							onClick={() => setIsMobileSummaryOpen(false)}
-							aria-label="Collapse request summary"
-						>
-							<span className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
-						</button>
-						<div className="max-h-[42vh] overflow-y-auto px-4 pb-4 pt-3">
+				<div className="rounded-t-3xl border-x border-t border-border/80 bg-card/98 shadow-[0_-18px_44px_rgba(18,14,10,0.22)] backdrop-blur dark:border-white/14 dark:bg-[color-mix(in_oklab,var(--card)_82%,white_8%)]">
+					<button
+						type="button"
+						className="flex w-full flex-col items-center px-4 pt-3"
+						onClick={() => setIsMobileSummaryOpen(false)}
+						aria-label="Collapse request summary"
+					>
+						<span className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+					</button>
+					<div className="max-h-[42vh] overflow-y-auto px-4 pb-4 pt-3">
+						<div className="flex items-start justify-between gap-3">
+							<div>
+								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+									Request summary
+								</p>
+								<p className="mt-1 text-lg font-medium text-foreground">
+									{formatPrice(total)}
+								</p>
+							</div>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="size-8 rounded-full"
+								onClick={() => setIsMobileSummaryOpen(false)}
+								aria-label="Close request summary"
+							>
+								<ChevronDown className="h-4 w-4" />
+							</Button>
+						</div>
+						<div className="mt-3 space-y-2 text-sm">
 							<div className="flex items-start justify-between gap-3">
-								<div>
-									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-										Request summary
-									</p>
-									<p className="mt-1 text-lg font-medium text-foreground">
-										{formatPrice(total)}
-									</p>
-								</div>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon"
-									className="size-8 rounded-full"
-									onClick={() => setIsMobileSummaryOpen(false)}
-									aria-label="Close request summary"
-								>
-									<ChevronDown className="h-4 w-4" />
-								</Button>
-							</div>
-							<div className="mt-3 space-y-2 text-sm">
-								<div className="flex items-start justify-between gap-3">
-									<p className="font-medium text-foreground">
-										{selectedPackage?.name ?? "Choose a package"}
-									</p>
-									<p className="shrink-0 text-foreground">
-										{selectedPackage ? formatPrice(selectedPackage.price) : "-"}
-									</p>
-								</div>
-								{addOns.map((addOn) => {
-									const isIncluded = includedAddOnIds.has(addOn.id);
-									const isSelected = selectedAddOns.some(
-										(selectedAddOn) => selectedAddOn.id === addOn.id,
-									);
-
-									if (!isIncluded && !isSelected) {
-										return null;
-									}
-
-									return (
-										<div
-											key={addOn.id}
-											className="flex items-start justify-between gap-3 text-muted-foreground"
-										>
-											<p>{addOn.name}</p>
-											<p className="shrink-0">
-												{isIncluded ? "Included" : formatPrice(addOn.price)}
-											</p>
-										</div>
-									);
-								})}
-							</div>
-							<div className="mt-3 rounded-xl border border-border/70 bg-background/65 p-3">
-								<p className="flex items-center gap-2 text-sm font-medium text-foreground">
-									<LineChart className="h-4 w-4" />
-									Post-promotion reporting included
+								<p className="font-medium text-foreground">
+									{selectedPackage?.name ?? "Choose a package"}
 								</p>
-								<p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-									Private performance link with clicks, saves, and placement
-									activity where available.
+								<p className="shrink-0 text-foreground">
+									{selectedPackage ? formatPrice(selectedPackage.price) : "-"}
 								</p>
 							</div>
-							<div className="mt-3 grid grid-cols-2 gap-2">
-								<a
-									href={mailtoHref}
-									className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-foreground px-3 text-sm font-medium text-background transition-all hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-								>
-									Request
-								</a>
-								<Button
-									type="button"
-									variant="outline"
-									className="h-10 rounded-full"
-									onClick={handleCopyRequest}
-								>
-									{hasCopied ? "Copied" : "Copy"}
-								</Button>
-							</div>
+							{addOns.map((addOn) => {
+								const isIncluded = includedAddOnIds.has(addOn.id);
+								const isSelected = selectedAddOns.some(
+									(selectedAddOn) => selectedAddOn.id === addOn.id,
+								);
+
+								if (!isIncluded && !isSelected) {
+									return null;
+								}
+
+								return (
+									<div
+										key={addOn.id}
+										className="flex items-start justify-between gap-3 text-muted-foreground"
+									>
+										<p>{addOn.name}</p>
+										<p className="shrink-0">
+											{isIncluded ? "Included" : formatPrice(addOn.price)}
+										</p>
+									</div>
+								);
+							})}
+						</div>
+						<div
+							className={cn(
+								"mt-3 rounded-xl border p-3",
+								requestPanelClassName,
+							)}
+						>
+							<p className="flex items-center gap-2 text-sm font-medium text-foreground">
+								<LineChart className="h-4 w-4" />
+								Post-promotion reporting included
+							</p>
+							<p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+								Private performance link with clicks, saves, and placement
+								activity where available.
+							</p>
+						</div>
+						<div className="mt-3 grid grid-cols-2 gap-2">
+							<a
+								href={mailtoHref}
+								className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-foreground px-3 text-sm font-medium text-background transition-all hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+							>
+								Request
+							</a>
+							<Button
+								type="button"
+								variant="outline"
+								className="h-10 rounded-full"
+								onClick={handleCopyRequest}
+							>
+								{hasCopied ? "Copied" : "Copy"}
+							</Button>
 						</div>
 					</div>
 				</div>
+			</div>
 
 			<div
-				className="fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-card/95 pt-3 backdrop-blur lg:hidden"
+				className="fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-card/95 pt-3 backdrop-blur dark:border-white/14 dark:bg-[color-mix(in_oklab,var(--card)_84%,white_7%)] lg:hidden"
 				style={{
 					paddingRight: "max(env(safe-area-inset-right), 0.75rem)",
 					paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)",

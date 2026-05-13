@@ -778,8 +778,8 @@ export function HowItWorksExperience() {
 				</div>
 			</section>
 
-			<section className="border-y border-border/70 bg-card/58 px-4 py-6 backdrop-blur sm:px-6 lg:px-8">
-				<div className="mx-auto grid max-w-7xl gap-3 sm:grid-cols-3">
+			<section className="ooo-grain ooo-grain-visible relative overflow-hidden border-y border-border/70 bg-card/42 px-4 py-6 backdrop-blur sm:px-6 lg:px-8">
+				<div className="relative mx-auto grid max-w-7xl gap-3 sm:grid-cols-3">
 					{featureStats.map((stat) => (
 						<div
 							key={stat.label}

@@ -84,7 +84,10 @@ const endpoints: Record<QueueName, string> = {
 	preference: `${basePath}/api/user/preferences`,
 };
 
-const clampSampleRate = (value: string | undefined, fallback: number): number => {
+const clampSampleRate = (
+	value: string | undefined,
+	fallback: number,
+): number => {
 	const parsed = Number.parseFloat(value ?? "");
 	if (!Number.isFinite(parsed)) return fallback;
 	return Math.min(1, Math.max(0, parsed));
@@ -96,9 +99,11 @@ const HIGH_VALUE_ENGAGEMENT_ACTIONS = new Set<EventEngagementAction>([
 	"saved_toggle",
 	"map_preference_change",
 ]);
+const HIGH_VALUE_DISCOVERY_ACTIONS = new Set<DiscoveryAnalyticsAction>([
+	"tour_interaction",
+]);
 const LOW_VALUE_DISCOVERY_ACTIONS = new Set<DiscoveryAnalyticsAction>([
 	"nav_click",
-	"tour_interaction",
 ]);
 const ENGAGEMENT_SAMPLE_RATE = clampSampleRate(
 	process.env.NEXT_PUBLIC_ENGAGEMENT_ANALYTICS_SAMPLE_RATE,
@@ -130,6 +135,7 @@ const shouldTrackEventAction = (actionType: EventEngagementAction): boolean =>
 const shouldTrackDiscoveryAction = (
 	actionType: DiscoveryAnalyticsAction,
 ): boolean => {
+	if (HIGH_VALUE_DISCOVERY_ACTIONS.has(actionType)) return true;
 	const sampleRate = LOW_VALUE_DISCOVERY_ACTIONS.has(actionType)
 		? LOW_VALUE_DISCOVERY_SAMPLE_RATE
 		: DISCOVERY_SAMPLE_RATE;
