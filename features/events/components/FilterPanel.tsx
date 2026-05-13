@@ -155,6 +155,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		"space-y-3 rounded-xl border border-border/70 bg-background/58 p-3";
 	const sectionTitleClassName =
 		"text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground lg:text-[10px]";
+	const hiddenScrollbarClassName =
+		"[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden";
 	const denseToggleClassName =
 		"h-7 w-full min-w-0 overflow-hidden justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground lg:text-[11px]";
 	const regularToggleClassName =
@@ -343,6 +345,34 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	}, [isOpen]);
 
 	useEffect(() => {
+		if (!isOpen || typeof window === "undefined") return;
+		const isDesktopViewport = window.matchMedia("(min-width: 1024px)").matches;
+		if (!forceDrawer && isDesktopViewport) return;
+
+		const scrollY = window.scrollY;
+		const { style } = document.body;
+		const previousStyles = {
+			overflow: style.overflow,
+			position: style.position,
+			top: style.top,
+			width: style.width,
+		};
+
+		style.overflow = "hidden";
+		style.position = "fixed";
+		style.top = `-${scrollY}px`;
+		style.width = "100%";
+
+		return () => {
+			style.overflow = previousStyles.overflow;
+			style.position = previousStyles.position;
+			style.top = previousStyles.top;
+			style.width = previousStyles.width;
+			window.scrollTo(0, scrollY);
+		};
+	}, [forceDrawer, isOpen]);
+
+	useEffect(() => {
 		if (!isDesktopContentExpanded) return;
 		desktopRailScrollRef.current?.scrollTo({ top: 0 });
 	}, [isDesktopContentExpanded]);
@@ -483,7 +513,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						className={
 							compact
 								? compactRows === "double"
-									? "flex max-h-[3.65rem] min-h-7 flex-wrap gap-1.5 overflow-y-auto pb-0.5 pr-1 [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_34%,transparent)_transparent] [scrollbar-width:thin] [&>*]:shrink-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/28 [&::-webkit-scrollbar-track]:bg-transparent"
+									? `flex max-h-[3.65rem] min-h-7 flex-wrap gap-1.5 overflow-y-auto pb-0.5 pr-1 ${hiddenScrollbarClassName} [&>*]:shrink-0`
 									: "flex max-h-[3.65rem] min-h-7 min-w-0 flex-wrap gap-1.5 overflow-hidden"
 								: "flex min-h-[28px] flex-wrap gap-2"
 						}
@@ -822,7 +852,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						>
 							<div
 								ref={desktopRailScrollRef}
-								className="h-[calc(650px-4rem)] min-w-0 overflow-x-hidden overflow-y-auto relative"
+								className={`h-[calc(650px-4rem)] min-w-0 overflow-x-hidden overflow-y-auto relative ${hiddenScrollbarClassName}`}
 							>
 								{/* Active Filters - Top when few filters */}
 								{hasActiveFilters && uiDecisions.activeFiltersAtTop && (
@@ -1003,7 +1033,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														/>
 													</div>
 													<div className="relative contain-layout">
-														<div className="grid min-h-[8rem] max-h-36 grid-cols-1 gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/55 p-1.5 [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_34%,transparent)_transparent] [scrollbar-width:thin] min-[1180px]:grid-cols-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/28 [&::-webkit-scrollbar-track]:bg-transparent">
+														<div
+															className={`grid min-h-[8rem] max-h-36 grid-cols-1 gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/55 p-1.5 min-[1180px]:grid-cols-2 ${hiddenScrollbarClassName}`}
+														>
 															{filteredGenreOptions.map(
 																({ key, label, color }) => {
 																	const isIncluded =
@@ -1328,7 +1360,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 	const openPanel = (
 		<div
-			className={`fixed inset-0 bg-black/45 backdrop-blur-[2px] ${
+			className={`fixed inset-0 overscroll-none bg-black/45 backdrop-blur-[2px] ${
 				forceDrawer ? "" : "lg:static lg:bg-transparent lg:z-auto"
 			}`}
 			style={{
@@ -1429,7 +1461,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					)}
 
 					<CardContent
-						className={`min-h-0 flex-1 space-y-6 overflow-y-auto py-4 ${
+						className={`min-h-0 flex-1 touch-pan-y space-y-6 overscroll-y-contain overflow-y-auto py-4 ${hiddenScrollbarClassName} ${
 							forceDrawer ? "" : "lg:overflow-y-visible"
 						}`}
 					>
@@ -1769,7 +1801,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										/>
 									</div>
 									<div className="relative contain-layout">
-										<div className="grid grid-cols-2 gap-1 max-h-48 min-h-[12rem] overflow-y-auto rounded-md border border-border/70 bg-background/55 p-2 [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_34%,transparent)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/28 [&::-webkit-scrollbar-track]:bg-transparent">
+										<div
+											className={`grid grid-cols-2 gap-1 max-h-48 min-h-[12rem] overflow-y-auto rounded-md border border-border/70 bg-background/55 p-2 ${hiddenScrollbarClassName}`}
+										>
 											{filteredGenreOptions.map(({ key, label, color }) => {
 												const isIncluded = selectedGenres.includes(key);
 												const isExcluded = excludedGenres.includes(key);

@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import {
 	Building2,
 	CalendarDays,
+	ChevronDown,
 	Euro,
 	Filter,
 	Locate,
@@ -119,6 +120,7 @@ const MAP_TILE_LOADING_NOTICE_DELAY_MS = 1200;
 const MAP_PREVIEW_IMAGE_URL = "/maps/paris-map-preview.jpg";
 const MAP_ONLINE_ONLY_MESSAGE =
 	"Map style, sprite, glyph, and tile assets are online-only";
+const MAP_MIN_ZOOM = 9.25;
 
 /**
  * Arrondissement fill colors based on event density
@@ -220,6 +222,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const [selectedArrondissement, setSelectedArrondissement] = useState<
 		number | null
 	>(null);
+	const [isLegendExpanded, setIsLegendExpanded] = useState(!isFullscreen);
 	const [showCoordinates, setShowCoordinates] = useState(true);
 	const [showLocateNotice, setShowLocateNotice] = useState(false);
 	const [showTileLoadingNotice, setShowTileLoadingNotice] = useState(false);
@@ -251,6 +254,16 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 	const canShowCoordinates = eventsWithCoordinatesCount > 0;
 	const areEventPinsVisible = showCoordinates && canShowCoordinates;
+
+	useEffect(() => {
+		setIsLegendExpanded(!isFullscreen);
+	}, [isFullscreen]);
+
+	useEffect(() => {
+		if (isFullscreen && selectedArrondissement) {
+			setIsLegendExpanded(false);
+		}
+	}, [isFullscreen, selectedArrondissement]);
 
 	const arrondissementEventCounts = React.useMemo(() => {
 		const counts: Record<number, number> = {};
@@ -661,7 +674,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					style: MAP_STYLE_URL,
 					center: PARIS_CENTER,
 					zoom: 11,
-					minZoom: 10,
+					minZoom: MAP_MIN_ZOOM,
 					maxZoom: 18,
 					dragRotate: false,
 					touchPitch: false,
@@ -671,8 +684,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						customAttribution: "OpenFreeMap (c)",
 					},
 					maxBounds: [
-						[2.18, 48.8], // Southwest corner (medium expansion)
-						[2.51, 48.92], // Northeast corner (medium expansion)
+						[2.02, 48.72], // Southwest corner with room to zoom out
+						[2.68, 49.02], // Northeast corner with room to zoom out
 					],
 				});
 				const currentMap = map.current;
@@ -1663,91 +1676,120 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			{mapLoaded && (
 				<div
 					className={cn(
-						"ooo-site-card absolute top-3 left-3 z-[2] max-w-xs rounded-2xl border border-border/75 p-4 shadow-[0_16px_36px_-28px_rgba(16,12,9,0.55)] backdrop-blur-md sm:top-4 sm:left-4",
+						"ooo-site-card absolute top-3 left-3 z-[2] max-w-[min(18rem,calc(100%-5rem))] rounded-2xl border border-border/75 shadow-[0_16px_36px_-28px_rgba(16,12,9,0.55)] backdrop-blur-md sm:top-4 sm:left-4",
+						isLegendExpanded ? "p-4" : "p-2.5",
 						selectedArrondissement ? "hidden md:block" : "block",
 					)}
 				>
 					{/* Header */}
-					<div className="flex items-center space-x-2 mb-3">
-						<div className="h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
-						<h3 className="text-sm font-semibold text-foreground">
-							{filteredEvents.length} events showing
-						</h3>
-					</div>
-
-					{/* Coordinates Toggle */}
-					<div className="mb-3 border-b border-border/65 pb-3">
-						<label
-							className={cn(
-								"flex items-center space-x-2",
-								canShowCoordinates ? "cursor-pointer" : "cursor-not-allowed",
-							)}
-						>
-							<input
-								type="checkbox"
-								checked={areEventPinsVisible}
-								onChange={(e) => setShowCoordinates(e.target.checked)}
-								disabled={!canShowCoordinates}
-								className="h-4 w-4 rounded border-border/70 bg-background/70 text-[#7a4f3a] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-45"
+					<button
+						type="button"
+						onClick={() => setIsLegendExpanded((current) => !current)}
+						className={cn(
+							"flex w-full items-center justify-between gap-3 rounded-xl text-left transition-colors hover:bg-background/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+							isLegendExpanded ? "-mx-1 -mt-1 mb-3 px-1 py-1" : "px-1 py-0.5",
+						)}
+						aria-expanded={isLegendExpanded}
+						aria-label={
+							isLegendExpanded ? "Collapse map key" : "Expand map key"
+						}
+					>
+						<span className="flex min-w-0 items-center gap-2">
+							<span className="h-2 w-2 flex-shrink-0 animate-pulse rounded-full bg-green-500" />
+							<span className="truncate text-sm font-semibold text-foreground">
+								{filteredEvents.length} events showing
+							</span>
+						</span>
+						<span className="flex flex-shrink-0 items-center text-muted-foreground">
+							<ChevronDown
+								className={cn(
+									"h-3.5 w-3.5 transition-transform",
+									isLegendExpanded ? "rotate-180" : "rotate-0",
+								)}
 							/>
-							<div className="flex flex-col">
-								<span className="text-sm text-foreground/88">
-									Show Event Pins
-								</span>
-								<span className="text-xs text-muted-foreground">
-									{canShowCoordinates
-										? `${eventsWithCoordinatesCount} event pin${
-												eventsWithCoordinatesCount === 1 ? "" : "s"
-											}`
-										: "No event pins available yet"}
-								</span>
-							</div>
-						</label>
-					</div>
+						</span>
+					</button>
 
-					{/* Event Type Legend */}
-					{areEventPinsVisible && (
-						<div className="space-y-2 mb-3">
-							<div className="flex items-center space-x-2">
-								<div className="h-3 w-3 rounded-full border border-white bg-[#49382e] shadow-sm"></div>
-								<span className="text-xs text-foreground/82">
-									Regular Event
-								</span>
+					{isLegendExpanded && (
+						<>
+							{/* Coordinates Toggle */}
+							<div className="mb-3 border-b border-border/65 pb-3">
+								<label
+									className={cn(
+										"flex items-center space-x-2",
+										canShowCoordinates
+											? "cursor-pointer"
+											: "cursor-not-allowed",
+									)}
+								>
+									<input
+										type="checkbox"
+										checked={areEventPinsVisible}
+										onChange={(e) => setShowCoordinates(e.target.checked)}
+										disabled={!canShowCoordinates}
+										className="h-4 w-4 rounded border-border/70 bg-background/70 text-[#7a4f3a] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-45"
+									/>
+									<div className="flex flex-col">
+										<span className="text-sm text-foreground/88">
+											Show Event Pins
+										</span>
+										<span className="text-xs text-muted-foreground">
+											{canShowCoordinates
+												? `${eventsWithCoordinatesCount} event pin${
+														eventsWithCoordinatesCount === 1 ? "" : "s"
+													}`
+												: "No event pins available yet"}
+										</span>
+									</div>
+								</label>
 							</div>
-							<div className="flex items-center space-x-2">
-								<div className="h-3 w-3 rounded-full border border-white bg-[#d8a241] shadow-sm"></div>
-								<span className="inline-flex items-center gap-1 text-xs text-foreground/82">
-									OOOC Pick
-									<Star className="h-3 w-3 fill-current text-[#d8a241]" />
-								</span>
-							</div>
-						</div>
-					)}
 
-					{/* Interactive Guide */}
-					<div className="border-t border-border/65 pt-3">
-						<div className="space-y-2 text-xs text-muted-foreground">
-							<div className="flex items-center space-x-2">
-								<MapPinned className="h-3.5 w-3.5 text-muted-foreground" />
-								<span>Click districts to explore events</span>
-							</div>
+							{/* Event Type Legend */}
 							{areEventPinsVisible && (
-								<div className="flex items-center space-x-2">
-									<MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-									<span>Click markers for event details</span>
+								<div className="space-y-2 mb-3">
+									<div className="flex items-center space-x-2">
+										<div className="h-3 w-3 rounded-full border border-white bg-[#49382e] shadow-sm"></div>
+										<span className="text-xs text-foreground/82">
+											Regular Event
+										</span>
+									</div>
+									<div className="flex items-center space-x-2">
+										<div className="h-3 w-3 rounded-full border border-white bg-[#d8a241] shadow-sm"></div>
+										<span className="inline-flex items-center gap-1 text-xs text-foreground/82">
+											OOOC Pick
+											<Star className="h-3 w-3 fill-current text-[#d8a241]" />
+										</span>
+									</div>
 								</div>
 							)}
-							{selectedDay && (
-								<div className="mt-2 flex items-center space-x-2 border-t border-border/65 pt-2">
-									<CalendarDays className="h-3.5 w-3.5 text-blue-500" />
-									<span className="font-medium text-blue-600 dark:text-blue-400">
-										Filtered by{" "}
-										{selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1)}
-									</span>
+
+							{/* Interactive Guide */}
+							<div className="border-t border-border/65 pt-3">
+								<div className="space-y-2 text-xs text-muted-foreground">
+									<div className="flex items-center space-x-2">
+										<MapPinned className="h-3.5 w-3.5 text-muted-foreground" />
+										<span>Click districts to explore events</span>
+									</div>
+									{areEventPinsVisible && (
+										<div className="flex items-center space-x-2">
+											<MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+											<span>Click markers for event details</span>
+										</div>
+									)}
+									{selectedDay && (
+										<div className="mt-2 flex items-center space-x-2 border-t border-border/65 pt-2">
+											<CalendarDays className="h-3.5 w-3.5 text-blue-500" />
+											<span className="font-medium text-blue-600 dark:text-blue-400">
+												Filtered by{" "}
+												{selectedDay.charAt(0).toUpperCase() +
+													selectedDay.slice(1)}
+											</span>
+										</div>
+									)}
 								</div>
-							)}
-						</div>
-					</div>
+							</div>
+						</>
+					)}
 				</div>
 			)}
 

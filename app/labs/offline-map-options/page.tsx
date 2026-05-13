@@ -1,3 +1,6 @@
+import { readFile, stat } from "node:fs/promises";
+import path from "node:path";
+import { gzipSync } from "node:zlib";
 import { generateMainOGImage, generateOGMetadata } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -14,7 +17,37 @@ export const metadata: Metadata = generateOGMetadata({
 	noIndex: true,
 });
 
-export default function OfflineMapOptionsPage() {
+const assetSize = async (relativePath: string) => {
+	try {
+		const stats = await stat(path.join(process.cwd(), relativePath));
+		return stats.size;
+	} catch {
+		return null;
+	}
+};
+
+const gzipAssetSize = async (relativePath: string) => {
+	try {
+		const contents = await readFile(path.join(process.cwd(), relativePath));
+		return gzipSync(contents).length;
+	} catch {
+		return null;
+	}
+};
+
+export default async function OfflineMapOptionsPage() {
+	const [
+		previewImageBytes,
+		arrondissementGeoJsonBytes,
+		previewImageGzipBytes,
+		arrondissementGeoJsonGzipBytes,
+	] = await Promise.all([
+		assetSize("public/maps/paris-map-preview.jpg"),
+		assetSize("data/paris-arr-v2.json"),
+		gzipAssetSize("public/maps/paris-map-preview.jpg"),
+		gzipAssetSize("data/paris-arr-v2.json"),
+	]);
+
 	return (
 		<div className="ooo-site-shell min-h-screen px-4 py-8 sm:px-6">
 			<div className="mx-auto w-full max-w-[1420px]">
@@ -35,7 +68,14 @@ export default function OfflineMapOptionsPage() {
 					</Link>
 				</div>
 
-				<OfflineMapOptionsClient />
+				<OfflineMapOptionsClient
+					assetStats={{
+						previewImageBytes,
+						arrondissementGeoJsonBytes,
+						previewImageGzipBytes,
+						arrondissementGeoJsonGzipBytes,
+					}}
+				/>
 			</div>
 		</div>
 	);

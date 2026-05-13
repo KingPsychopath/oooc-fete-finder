@@ -103,6 +103,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface EventModalProps {
 	event: Event | null;
@@ -462,8 +463,13 @@ const EventModal: React.FC<EventModalProps> = ({
 		message: string;
 		tone: "success" | "error";
 	} | null>(null);
+	const [hasMounted, setHasMounted] = useState(false);
 	const isUpdateRequestOpen =
 		controlledRequestUpdateOpen ?? internalRequestUpdateOpen;
+
+	useEffect(() => {
+		setHasMounted(true);
+	}, []);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -573,7 +579,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		);
 	}, [genreSearchQuery]);
 
-	if (!isOpen || !event) return null;
+	if (!hasMounted || !isOpen || !event) return null;
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
 	const isCurrentlyPromoted = event.isPromoted === true;
 	const isNewlyAdded = isRecentlyAddedEvent(event);
@@ -718,8 +724,6 @@ const EventModal: React.FC<EventModalProps> = ({
 	const hasHeaderBadges = Boolean(
 		isCurrentlyFeatured ||
 			(!isCurrentlyFeatured && isCurrentlyPromoted) ||
-			isNewlyAdded ||
-			isRecentlyUpdated ||
 			event.isOOOCPick ||
 			hasSocialProofBadge ||
 			event.category ||
@@ -1160,7 +1164,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		});
 	};
 
-	return (
+	return createPortal(
 		<div
 			className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-[4px]"
 			style={{
@@ -1338,16 +1342,6 @@ const EventModal: React.FC<EventModalProps> = ({
 								<Badge className="border border-[#213f43]/18 bg-[#213f43]/10 text-[#213f43] hover:bg-[#213f43]/10 dark:border-cyan-100/14 dark:bg-cyan-100/8 dark:text-cyan-100">
 									<Megaphone className="mr-1 h-3.5 w-3.5" />
 									Promoted
-								</Badge>
-							)}
-							{isNewlyAdded && (
-								<Badge className="border border-emerald-500/30 bg-emerald-500/10 text-emerald-800 hover:bg-emerald-500/15 dark:text-emerald-200">
-									New
-								</Badge>
-							)}
-							{isRecentlyUpdated && (
-								<Badge className="border border-sky-500/30 bg-sky-500/10 text-sky-800 hover:bg-sky-500/15 dark:text-sky-200">
-									Updated
 								</Badge>
 							)}
 							{event.isOOOCPick && (
@@ -2218,7 +2212,8 @@ const EventModal: React.FC<EventModalProps> = ({
 				title="Choose Map App"
 				description="How would you like to open this location?"
 			/>
-		</div>
+		</div>,
+		document.body,
 	);
 };
 

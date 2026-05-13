@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useSavedEvents } from "@/features/events/components/saved-events-provider";
 import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
 import { toGenreLabel } from "@/features/events/genre-normalization";
+import { isRecentlyAddedEvent } from "@/features/events/recently-added";
+import { isRecentlyUpdatedEvent } from "@/features/events/recently-updated";
 import {
 	type Event,
 	MUSIC_GENRES,
@@ -62,6 +64,8 @@ function SpotlightEventPanel({
 	const isFeaturedPlacement = event.isFeatured === true;
 	const isOOOCPick = event.isOOOCPick === true;
 	const isPromoted = event.isPromoted === true;
+	const isNewlyAdded = isRecentlyAddedEvent(event);
+	const isRecentlyUpdated = !isNewlyAdded && isRecentlyUpdatedEvent(event);
 	const dayNightPeriod = getEventDisplayDayNightPeriod(event);
 	const venueTypes =
 		event.venueTypes && event.venueTypes.length > 0
@@ -177,6 +181,16 @@ function SpotlightEventPanel({
 						<Badge className="border border-emerald-500/24 bg-emerald-500/10 px-2 text-[10px] font-medium uppercase tracking-[0.12em] text-emerald-800 shadow-none hover:bg-emerald-500/10 dark:text-emerald-100">
 							<BookmarkCheck className="h-3 w-3" />
 							Saved
+						</Badge>
+					)}
+					{isNewlyAdded && (
+						<Badge className="border border-emerald-500/30 bg-emerald-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800 shadow-none hover:bg-emerald-500/15 dark:text-emerald-200">
+							New
+						</Badge>
+					)}
+					{isRecentlyUpdated && (
+						<Badge className="border border-sky-500/30 bg-sky-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-800 shadow-none hover:bg-sky-500/15 dark:text-sky-200">
+							Updated
 						</Badge>
 					)}
 				</div>
