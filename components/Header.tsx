@@ -16,7 +16,7 @@ import { LogOut, UserRoundPlus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 
 const EmailGateModal = lazy(
 	() => import("@/features/auth/components/EmailGateModal"),
@@ -28,10 +28,10 @@ const ooocFaqUrl =
 	process.env.NEXT_PUBLIC_OOOC_FAQ_URL?.trim() ||
 	"https://outofofficecollective.co.uk/faqs";
 
-const COMPRESS_ENTER_THRESHOLD = 20;
-const COMPRESS_EXIT_THRESHOLD = 6;
-const COLLAPSE_ENTER_THRESHOLD = 96;
-const COLLAPSE_EXIT_THRESHOLD = 12;
+const COMPRESS_ENTER_THRESHOLD = 24;
+const COMPRESS_EXIT_THRESHOLD = 8;
+const COLLAPSE_ENTER_THRESHOLD = 104;
+const COLLAPSE_EXIT_THRESHOLD = 24;
 const STICKY_HEADER_QUERY = "(min-width: 640px)";
 const DEFAULT_BANNER_MESSAGES = [
 	"Curated by Out Of Office Collective",
@@ -73,12 +73,10 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const [isEmailGateOpen, setIsEmailGateOpen] = useState(false);
-	const headerRef = useRef<HTMLElement | null>(null);
-	const cardRef = useRef<HTMLDivElement | null>(null);
-	const headerRowRef = useRef<HTMLDivElement | null>(null);
-	const logoRef = useRef<HTMLDivElement | null>(null);
-	const countdownStripRef = useRef<HTMLDivElement | null>(null);
-	const countdownInnerRef = useRef<HTMLDivElement | null>(null);
+	const [scrollState, setScrollState] = useState({
+		compressed: false,
+		collapsed: false,
+	});
 	const normalizedPathname = (pathname || "/").replace(/\/+$/, "") || "/";
 	const pathWithoutBasePath =
 		basePath && basePath !== "/" && normalizedPathname.startsWith(basePath)
@@ -102,57 +100,26 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 	};
 
 	useEffect(() => {
+		const mediaQuery = window.matchMedia(STICKY_HEADER_QUERY);
 		let rafId: number | null = null;
 		let lastY = -1;
 		let isCompressed = false;
 		let isCollapsed = false;
-		const mediaQuery = window.matchMedia(STICKY_HEADER_QUERY);
 
-		const applyScrollState = (compressed: boolean, collapsed: boolean) => {
-			const compressedValue = String(compressed);
-			const collapsedValue = String(collapsed);
+		const setNextState = (compressed: boolean, collapsed: boolean) => {
+			if (compressed === isCompressed && collapsed === isCollapsed) return;
 
-			if (headerRef.current?.dataset.compressed !== compressedValue) {
-				if (headerRef.current)
-					headerRef.current.dataset.compressed = compressedValue;
-				if (cardRef.current)
-					cardRef.current.dataset.compressed = compressedValue;
-				if (headerRowRef.current)
-					headerRowRef.current.dataset.compressed = compressedValue;
-				if (logoRef.current)
-					logoRef.current.dataset.compressed = compressedValue;
-			}
-
-			if (countdownStripRef.current?.dataset.collapsed !== collapsedValue) {
-				if (countdownStripRef.current) {
-					countdownStripRef.current.dataset.collapsed = collapsedValue;
-					countdownStripRef.current.setAttribute("aria-hidden", collapsedValue);
-				}
-				if (countdownInnerRef.current)
-					countdownInnerRef.current.dataset.collapsed = collapsedValue;
-			}
-
-			if (countdownStripRef.current) {
-				countdownStripRef.current.style.maxHeight = collapsed ? "0px" : "5rem";
-				countdownStripRef.current.style.borderTopWidth = collapsed
-					? "0px"
-					: "1px";
-				countdownStripRef.current.style.borderColor = collapsed
-					? "transparent"
-					: "";
-				countdownStripRef.current.style.opacity = collapsed ? "0" : "1";
-			}
+			isCompressed = compressed;
+			isCollapsed = collapsed;
+			setScrollState({ compressed, collapsed });
 		};
 
 		const tick = () => {
 			rafId = null;
+
 			if (!mediaQuery.matches) {
-				if (isCompressed || isCollapsed) {
-					isCompressed = false;
-					isCollapsed = false;
-					applyScrollState(false, false);
-				}
 				lastY = window.scrollY;
+				setNextState(false, false);
 				return;
 			}
 
@@ -167,31 +134,29 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 				? y > COLLAPSE_EXIT_THRESHOLD
 				: y > COLLAPSE_ENTER_THRESHOLD;
 
-			if (nextCompressed === isCompressed && nextCollapsed === isCollapsed) {
-				applyScrollState(nextCompressed, nextCollapsed);
-				return;
-			}
-
-			isCompressed = nextCompressed;
-			isCollapsed = nextCollapsed;
-			applyScrollState(nextCompressed, nextCollapsed);
+			setNextState(nextCompressed, nextCollapsed);
 		};
 
-		const onScroll = () => {
+		const scheduleTick = () => {
 			if (rafId === null) rafId = requestAnimationFrame(tick);
 		};
 
-		const onMediaChange = () => {
+		const handleMediaChange = () => {
 			lastY = -1;
-			onScroll();
+			scheduleTick();
 		};
 
 		tick();
-		window.addEventListener("scroll", onScroll, { passive: true });
-		mediaQuery.addEventListener("change", onMediaChange);
+		window.addEventListener("scroll", scheduleTick, { passive: true });
+		window.addEventListener("wheel", scheduleTick, { passive: true });
+		window.addEventListener("touchmove", scheduleTick, { passive: true });
+		mediaQuery.addEventListener("change", handleMediaChange);
+
 		return () => {
-			window.removeEventListener("scroll", onScroll);
-			mediaQuery.removeEventListener("change", onMediaChange);
+			window.removeEventListener("scroll", scheduleTick);
+			window.removeEventListener("wheel", scheduleTick);
+			window.removeEventListener("touchmove", scheduleTick);
+			mediaQuery.removeEventListener("change", handleMediaChange);
 			if (rafId !== null) cancelAnimationFrame(rafId);
 		};
 	}, []);
@@ -215,26 +180,22 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 		return false;
 	};
 
+	const isCompressed = scrollState.compressed;
+	const isCollapsed = scrollState.collapsed;
+
 	return (
 		<>
-			<header
-				ref={headerRef}
-				data-compressed="false"
-				className="relative z-50 px-3 pt-2 sm:sticky sm:top-0 sm:px-4 sm:pt-3"
-			>
-				<div
-					ref={cardRef}
-					data-compressed="false"
-					className="relative mx-auto w-full max-w-[1400px] overflow-visible rounded-2xl border border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg transition-[background-color,border-color,box-shadow] duration-300 ease-out data-[compressed=true]:border-border/75 data-[compressed=true]:bg-card/95 data-[compressed=true]:shadow-[0_10px_26px_rgba(20,16,12,0.22)] 2xl:max-w-[1680px]"
-				>
+			<header className="relative z-50 px-3 pt-2 sm:sticky sm:top-0 sm:px-4 sm:pt-3">
+				<div className="relative mx-auto w-full max-w-[1400px] overflow-visible rounded-2xl border border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg 2xl:max-w-[1680px]">
 					<div
 						className="pointer-events-none absolute inset-0 rounded-2xl bg-[image:var(--ooo-grain-image)] bg-[length:220px_220px] opacity-[0.055] mix-blend-multiply dark:opacity-[0.075] dark:mix-blend-screen"
 						aria-hidden="true"
 					/>
 					<div
-						ref={headerRowRef}
-						data-compressed="false"
-						className="relative mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 transition-transform duration-300 ease-out will-change-transform data-[compressed=true]:scale-[0.94] sm:min-h-[84px] sm:px-5 sm:data-[compressed=true]:scale-[0.96] lg:grid lg:grid-cols-[minmax(190px,1fr)_auto_minmax(170px,1fr)] lg:gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] xl:gap-6"
+						className="relative z-20 mx-auto flex min-h-[72px] origin-top items-center gap-3 px-3 py-3 transition-transform duration-200 ease-out will-change-transform sm:min-h-[84px] sm:px-5 lg:grid lg:grid-cols-[minmax(190px,1fr)_auto_minmax(170px,1fr)] lg:gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] xl:gap-6"
+						style={{
+							transform: isCompressed ? "scale(0.97)" : "scale(1)",
+						}}
 					>
 						<Link
 							href={basePath || "/"}
@@ -242,9 +203,10 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							aria-label="Fete Finder home"
 						>
 							<div
-								ref={logoRef}
-								data-compressed="false"
-								className="relative h-10 w-10 shrink-0 transition-transform duration-300 ease-out will-change-transform data-[compressed=true]:scale-90 sm:h-12 sm:w-12 sm:data-[compressed=true]:scale-[0.92]"
+								className="relative h-10 w-10 shrink-0 transition-transform duration-200 ease-out will-change-transform sm:h-12 sm:w-12"
+								style={{
+									transform: isCompressed ? "scale(0.95)" : "scale(1)",
+								}}
 							>
 								<Image
 									src={`${basePath}/OOOCLogoDark.svg`}
@@ -334,7 +296,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 								onMusicSelect={() => setIsMusicModalOpen(true)}
 								onSettingsOpen={() => setIsSettingsOpen(true)}
 								triggerClassName="h-9 rounded-full border border-border/80 bg-background/70 px-3 text-[11px] tracking-[0.08em] text-foreground/85 hover:bg-accent"
-								menuClassName="z-[80] rounded-xl border border-border bg-popover/95 shadow-[0_12px_36px_rgba(16,12,9,0.28)]"
+								menuClassName="z-[120] rounded-xl border border-border bg-popover/95 shadow-[0_12px_36px_rgba(16,12,9,0.28)]"
 							/>
 							<div className="sm:hidden">
 								<ThemeToggle
@@ -378,19 +340,19 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 					</div>
 
 					<div
-						ref={countdownStripRef}
 						data-header-countdown-strip
-						data-collapsed="false"
-						className="relative overflow-hidden border-t border-border/75 opacity-100 transition-[max-height,border-color,border-width,opacity] duration-300 ease-out"
-						style={{ maxHeight: "5rem" }}
-						aria-hidden="false"
+						className="relative z-0 grid overflow-hidden border-border/75 transition-[grid-template-rows,border-width,opacity] duration-200 ease-out"
+						style={{
+							gridTemplateRows: isCollapsed ? "0fr" : "1fr",
+							borderTopWidth: isCollapsed ? "0px" : "1px",
+							opacity: isCollapsed ? 0 : 1,
+						}}
+						aria-hidden={isCollapsed}
 					>
-						<div
-							ref={countdownInnerRef}
-							data-collapsed="false"
-							className="px-3 pt-2 pb-2 sm:px-5 sm:pt-2.5 sm:pb-3"
-						>
-							<Countdown />
+						<div className="min-h-0 overflow-hidden">
+							<div className="px-3 pt-2 pb-2 sm:px-5 sm:pt-2.5 sm:pb-3">
+								<Countdown isActive={!isCollapsed} />
+							</div>
 						</div>
 					</div>
 				</div>

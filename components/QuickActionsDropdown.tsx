@@ -19,8 +19,8 @@ import {
 	MapPin,
 	MessageCircle,
 	Music2,
-	ShieldCheck,
 	Settings,
+	ShieldCheck,
 	Toilet,
 	Utensils,
 	Zap,
@@ -131,7 +131,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 	const toiletFinderData = getToiletFinderData();
 
 	return (
-		<div className="relative" ref={dropdownRef}>
+		<div className="relative z-[120]" ref={dropdownRef}>
 			<TooltipProvider>
 				<Tooltip>
 					<TooltipTrigger
@@ -165,7 +165,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 			{isOpen && (
 				<div
 					className={cn(
-						"absolute right-0 top-full mt-2 w-64 bg-popover border rounded-md shadow-lg z-50 animate-in fade-in-0 zoom-in-95 duration-150",
+						"absolute right-0 top-full z-[120] mt-2 w-64 rounded-md border bg-popover shadow-lg animate-in fade-in-0 zoom-in-95 duration-150",
 						menuClassName,
 					)}
 				>
@@ -320,7 +320,6 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 							</div>
 							<ExternalLink className="h-3 w-3 opacity-50 flex-shrink-0" />
 						</Link>
-
 					</div>
 				</div>
 			)}
