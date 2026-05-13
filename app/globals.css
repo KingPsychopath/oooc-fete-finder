@@ -116,8 +116,9 @@
 	--sidebar-border: oklch(0.86 0.014 75);
 	--sidebar-ring: oklch(0.66 0.06 70);
 	--ooo-main-background:
-		linear-gradient(160deg, rgba(248, 245, 240, 0.98), rgba(235, 229, 220, 0.985)),
-		radial-gradient(circle at 16% 0%, rgba(255, 255, 255, 0.36), transparent 42%);
+		radial-gradient(ellipse 56rem 18rem at 50% -8rem, rgba(255, 255, 255, 0.42), transparent 68%),
+		radial-gradient(ellipse 38rem 22rem at 12% 8%, rgba(240, 182, 104, 0.055), transparent 72%),
+		linear-gradient(180deg, rgba(248, 245, 240, 0.99) 0%, rgba(242, 238, 231, 0.985) 38%, rgba(235, 229, 220, 0.99) 100%);
 }
 
 .dark {
@@ -156,10 +157,11 @@
 	--sidebar-border: oklch(0.355 0.012 62);
 	--sidebar-ring: oklch(0.82 0.14 78);
 	--ooo-main-background:
-		radial-gradient(ellipse 44rem 28rem at 12% 7%, rgba(240, 182, 104, 0.18), transparent 64%),
-		radial-gradient(ellipse 36rem 24rem at 88% 18%, rgba(49, 91, 95, 0.16), transparent 62%),
-		radial-gradient(ellipse 46rem 28rem at 58% 105%, rgba(163, 95, 59, 0.1), transparent 68%),
-		linear-gradient(165deg, rgba(24, 18, 14, 0.99), rgba(13, 10, 8, 1));
+		radial-gradient(ellipse 58rem 22rem at 50% -9rem, rgba(255, 244, 224, 0.08), transparent 70%),
+		radial-gradient(ellipse 40rem 26rem at 13% 14%, rgba(240, 182, 104, 0.09), transparent 72%),
+		radial-gradient(ellipse 38rem 24rem at 88% 20%, rgba(49, 91, 95, 0.1), transparent 66%),
+		radial-gradient(ellipse 46rem 28rem at 58% 105%, rgba(163, 95, 59, 0.055), transparent 70%),
+		linear-gradient(180deg, rgba(25, 19, 15, 0.995) 0%, rgba(18, 13, 10, 1) 44%, rgba(13, 10, 8, 1) 100%);
 }
 
 @layer base {

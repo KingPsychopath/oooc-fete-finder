@@ -362,7 +362,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 					messages={bannerSettings.messages}
 					messageDurationMs={bannerSettings.messageDurationMs}
 					desktopMessageCount={bannerSettings.desktopMessageCount}
-					className="mx-3 mt-2 rounded-xl border border-white/35 bg-[rgba(246,241,233,0.78)] dark:border-[rgba(248,189,112,0.2)] dark:bg-[rgba(31,24,18,0.86)] sm:mx-4"
+					className="mx-3 mt-2 border-y border-border/20 bg-background/10 dark:border-border/16 dark:bg-background/8 sm:mx-4"
 				/>
 			)}
 			<MusicPlatformModal

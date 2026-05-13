@@ -39,11 +39,11 @@ const SlidingBanner = ({
 					key={`${copyKey}-${message}-${index}`}
 					className="flex shrink-0 items-center gap-10 sm:gap-14 md:gap-20 lg:gap-24"
 				>
-					<span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.18em] text-foreground/78 sm:text-xs sm:tracking-[0.22em] dark:text-foreground/84">
+					<span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.18em] text-foreground/58 sm:text-xs sm:tracking-[0.22em] dark:text-foreground/66">
 						{message}
 					</span>
 					<span
-						className="h-px w-8 bg-foreground/24 sm:w-12 dark:bg-[rgba(248,189,112,0.36)]"
+						className="h-px w-8 bg-foreground/14 sm:w-12 dark:bg-foreground/16"
 						aria-hidden="true"
 					/>
 				</div>
@@ -55,11 +55,11 @@ const SlidingBanner = ({
 		<div
 			aria-label={normalizedMessages.join(". ")}
 			className={cn(
-				"relative overflow-hidden bg-gradient-to-r from-white/10 via-white/5 to-white/10 shadow-[0_10px_30px_-28px_rgba(248,189,112,0.42)] backdrop-blur-sm [mask-image:linear-gradient(90deg,transparent,black_9%,black_91%,transparent)] dark:from-[rgba(248,189,112,0.08)] dark:via-white/[0.03] dark:to-[rgba(248,189,112,0.06)]",
+				"relative overflow-hidden bg-transparent shadow-none [mask-image:linear-gradient(90deg,transparent,black_11%,black_89%,transparent)]",
 				className,
 			)}
 		>
-			<div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent dark:via-[rgba(248,189,112,0.08)]" />
+			<div className="absolute inset-0 bg-gradient-to-r from-transparent via-background/12 to-transparent dark:via-background/10" />
 			<div
 				className="relative flex w-max animate-slide-banner py-2"
 				style={{ animationDuration: `${animationDurationSeconds}s` }}
