@@ -81,7 +81,7 @@
 	--ooo-font-display: var(--font-prata), "Swear Display", "Iowan Old Style",
 		"Times New Roman", Times, serif;
 	--ooo-grain-image: url("/grain.png");
-	--ooo-grain-opacity: 0.23;
+	--ooo-grain-opacity: 0.3;
 	--background: oklch(0.973 0.012 82);
 	--foreground: oklch(0.24 0.02 56);
 	--card: oklch(0.988 0.007 82);
@@ -114,13 +114,12 @@
 	--sidebar-border: oklch(0.86 0.014 75);
 	--sidebar-ring: oklch(0.66 0.06 70);
 	--ooo-main-background:
-		var(--ooo-grain-image),
 		linear-gradient(160deg, rgba(246, 243, 238, 0.95), rgba(232, 225, 216, 0.96)),
 		radial-gradient(circle at 16% 0%, rgba(255, 255, 255, 0.52), transparent 44%);
 }
 
 .dark {
-	--ooo-grain-opacity: 0.16;
+	--ooo-grain-opacity: 0.24;
 	--background: oklch(0.145 0.013 58);
 	--foreground: oklch(0.955 0.008 86);
 	--card: oklch(0.205 0.014 58);
@@ -153,7 +152,6 @@
 	--sidebar-border: oklch(0.355 0.012 62);
 	--sidebar-ring: oklch(0.82 0.14 78);
 	--ooo-main-background:
-		var(--ooo-grain-image),
 		linear-gradient(165deg, rgba(24, 18, 14, 0.99), rgba(13, 10, 8, 1)),
 		radial-gradient(circle at 14% 0%, rgba(248, 189, 112, 0.14), transparent 42%);
 }
@@ -204,10 +202,32 @@
 }
 
 .ooo-site-shell {
+	position: relative;
+	isolation: isolate;
 	min-height: 100vh;
 	background: var(--ooo-main-background);
-	background-blend-mode: soft-light, normal, normal;
-	background-size: 220px 220px, auto, auto;
+	overflow: hidden;
+}
+
+.ooo-site-shell::before {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	content: "";
+	pointer-events: none;
+	background-image: var(--ooo-grain-image);
+	background-size: 220px 220px;
+	mix-blend-mode: multiply;
+	opacity: var(--ooo-grain-opacity);
+}
+
+.dark .ooo-site-shell::before {
+	mix-blend-mode: screen;
+}
+
+.ooo-site-shell > * {
+	position: relative;
+	z-index: 1;
 }
 
 .ooo-grain {
