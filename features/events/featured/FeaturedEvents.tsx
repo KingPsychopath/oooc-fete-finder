@@ -32,7 +32,6 @@ import {
 	Moon,
 	Star,
 	Sun,
-	Ticket,
 	Trees,
 	Users,
 } from "lucide-react";
@@ -65,6 +64,7 @@ function SpotlightEventPanel({
 	const isFeaturedPlacement = event.isFeatured === true;
 	const isOOOCPick = event.isOOOCPick === true;
 	const isPromoted = event.isPromoted === true;
+	const hasPlacementBadge = isFeaturedPlacement || isPromoted || isOOOCPick;
 	const isNewlyAdded = isRecentlyAddedEvent(event);
 	const isRecentlyUpdated = !isNewlyAdded && isRecentlyUpdatedEvent(event);
 	const dayNightPeriod = getEventDisplayDayNightPeriod(event);
@@ -94,21 +94,16 @@ function SpotlightEventPanel({
 			: isFeaturedPlacement
 				? "border-amber-300/38 dark:border-amber-100/2"
 				: "border-border/18 dark:border-border/12";
-	const cornerSealClassName = isFeaturedPlacement
-		? "border-amber-200/70 bg-[linear-gradient(145deg,rgba(255,249,235,0.96),rgba(235,206,154,0.94))] text-amber-950 shadow-[0_14px_30px_-24px_rgba(154,112,58,0.48)]"
+	const placementBadgeClassName = isFeaturedPlacement
+		? "border-amber-400/30 bg-amber-400/12 text-amber-900 hover:bg-amber-400/12 dark:text-amber-100"
 		: isPromoted
-			? "border-cyan-100/50 bg-[linear-gradient(145deg,rgba(238,250,249,0.95),rgba(196,223,222,0.9))] text-[#213f43] shadow-[0_14px_30px_-24px_rgba(33,63,67,0.36)]"
-			: isOOOCPick
-				? "border-amber-200/58 bg-[linear-gradient(145deg,rgba(255,251,240,0.94),rgba(238,220,184,0.9))] text-amber-950 shadow-[0_14px_28px_-25px_rgba(176,124,54,0.38)]"
-				: "border-border/55 bg-background/58 text-foreground/62 shadow-[0_14px_30px_-26px_rgba(30,22,17,0.48)]";
-	const CornerSealIcon = isFeaturedPlacement
+			? "border-[#213f43]/18 bg-[#213f43]/10 text-[#213f43] hover:bg-[#213f43]/10 dark:border-cyan-100/14 dark:bg-cyan-100/8 dark:text-cyan-100"
+			: "border-amber-400/28 bg-amber-400/12 text-amber-900 hover:bg-amber-400/12 dark:text-amber-100";
+	const PlacementBadgeIcon = isFeaturedPlacement
 		? Crown
 		: isPromoted
 			? Megaphone
-			: isOOOCPick
-				? Star
-				: Ticket;
-
+			: Star;
 	return (
 		<button
 			type="button"
@@ -148,20 +143,26 @@ function SpotlightEventPanel({
 					<div className="absolute bottom-7 left-[70%] top-8 hidden border-l border-dashed border-foreground/22 lg:block dark:border-white/18" />
 				)}
 			</div>
-			<div
-				className={cn(
-					"pointer-events-none absolute right-3 top-3 z-[2] flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur transition-transform duration-300 group-hover:scale-105",
-					cornerSealClassName,
-				)}
-				aria-hidden="true"
-			>
-				<CornerSealIcon
-					className={cn("h-4 w-4", isOOOCPick && "fill-current")}
-					strokeWidth={1.8}
-				/>
-			</div>
+			{hasPlacementBadge && (
+				<Badge
+					className={cn(
+						"pointer-events-none absolute right-3 top-3 z-[2] flex h-8 w-8 rounded-full border p-0 shadow-none backdrop-blur transition-transform duration-300 group-hover:scale-105",
+						placementBadgeClassName,
+					)}
+					aria-hidden="true"
+				>
+					<PlacementBadgeIcon
+						className={cn("h-3 w-3", isOOOCPick && "fill-current")}
+					/>
+				</Badge>
+			)}
 			<div className="relative flex items-start justify-between gap-3">
-				<div className="flex min-w-0 flex-wrap items-center gap-1.5 pr-10">
+				<div
+					className={cn(
+						"flex min-w-0 flex-wrap items-center gap-1.5",
+						hasPlacementBadge && "pr-10",
+					)}
+				>
 					{visibleEventType && (
 						<Badge className="border border-border/55 bg-background/56 px-2 text-[10px] font-medium uppercase tracking-[0.12em] text-foreground/72 shadow-none hover:bg-background/56">
 							{visibleEventType}
