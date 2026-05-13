@@ -117,7 +117,7 @@ export function EventCard({
 
 	const cardClasses = `group relative h-full cursor-pointer rounded-xl border p-4 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-lg ${
 		isCurrentlyFeatured
-			? "border-amber-300/75 bg-[linear-gradient(145deg,rgba(248,238,222,0.86),rgba(244,229,205,0.72))] dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.45),rgba(47,36,24,0.32))]"
+			? "border-amber-300/65 bg-[linear-gradient(145deg,rgba(248,238,222,0.86),rgba(244,229,205,0.72))] shadow-[0_16px_34px_-28px_rgba(176,124,54,0.58)] dark:border-amber-500/35 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.45),rgba(47,36,24,0.32))] dark:shadow-[0_18px_38px_-30px_rgba(224,169,85,0.42)]"
 			: event.isOOOCPick === true
 				? "border-border/90 bg-[linear-gradient(145deg,rgba(247,241,231,0.82),rgba(242,235,224,0.68))] dark:bg-[linear-gradient(145deg,rgba(52,41,31,0.36),rgba(42,33,26,0.28))]"
 				: isCurrentlyPromoted
@@ -127,6 +127,15 @@ export function EventCard({
 
 	return (
 		<div className={cardClasses} onClick={handleClick}>
+			{isCurrentlyFeatured && (
+				<div
+					className="pointer-events-none absolute inset-0 rounded-xl"
+					aria-hidden="true"
+				>
+					<div className="absolute -top-6 -right-6 h-24 w-24 rounded-full border-t border-r border-amber-300/80 shadow-[8px_-8px_18px_-16px_rgba(177,121,45,0.95)] [mask-image:linear-gradient(135deg,transparent_0%,black_34%,black_68%,transparent_86%)] dark:border-amber-300/45 dark:shadow-[8px_-8px_18px_-16px_rgba(245,196,116,0.75)]" />
+					<div className="absolute top-3 right-10 h-px w-12 rotate-[-18deg] bg-gradient-to-r from-transparent via-amber-200/90 to-transparent opacity-80 dark:via-amber-100/70" />
+				</div>
+			)}
 			{/* Priority Badge System - Featured takes precedence over OOOC Pick */}
 			{isCurrentlyFeatured ? (
 				<div className="absolute -top-2.5 -right-2.5 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-amber-200 bg-[linear-gradient(145deg,rgba(212,164,96,0.95),rgba(178,131,70,0.95))] text-sm shadow-lg dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(184,140,79,0.85),rgba(141,100,49,0.88))]">

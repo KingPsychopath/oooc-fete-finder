@@ -5,6 +5,7 @@ import {
 } from "@/features/events/event-stats-utils";
 import { type Event, isNumberedArrondissement } from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
+import { CalendarDays, MapPinned, Ticket } from "lucide-react";
 import React, { useEffect, useMemo } from "react";
 
 interface EventStatsProps {
@@ -59,52 +60,78 @@ const EventStats: React.FC<EventStatsProps> = ({
 	}, [dateRangeStats, filteredEvents.length]);
 
 	const statCardClassName =
-		"border-border/55 bg-card/48 py-0 shadow-none backdrop-blur dark:border-[#f0b668]/12 dark:bg-[linear-gradient(145deg,rgba(240,182,104,0.055),rgba(255,255,255,0.035)_58%,rgba(255,255,255,0.018))] dark:shadow-[0_16px_38px_-34px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.055)]";
+		"relative overflow-hidden border-border/55 bg-card/52 py-0 shadow-none backdrop-blur transition-colors hover:bg-card/66 dark:border-[#f0b668]/12 dark:bg-[linear-gradient(145deg,rgba(240,182,104,0.06),rgba(255,255,255,0.035)_58%,rgba(255,255,255,0.018))] dark:shadow-[0_16px_38px_-34px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.055)]";
+	const statIconClassName =
+		"flex h-8 w-8 items-center justify-center rounded-full border border-amber-500/18 bg-amber-500/8 text-amber-800 dark:border-amber-300/16 dark:bg-amber-300/8 dark:text-amber-100";
+	const statGlint = (
+		<div
+			className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/45 to-transparent dark:via-amber-200/28"
+			aria-hidden="true"
+		/>
+	);
 
 	return (
 		<div className="mb-8 grid grid-cols-1 gap-3 md:grid-cols-3">
 			{/* Events Count */}
 			<Card className={statCardClassName}>
-				<CardContent className="p-3 text-center sm:p-4">
-					<div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-						Events
+				{statGlint}
+				<CardContent className="flex items-center gap-3 p-3 sm:p-4">
+					<div className={statIconClassName}>
+						<Ticket className="h-4 w-4" strokeWidth={1.7} />
 					</div>
-					<div className="mt-1 text-3xl [font-family:var(--ooo-font-display)] font-light text-foreground">
-						{eventCount.toLocaleString()}
-					</div>
-					<div className="mt-1 text-sm text-muted-foreground">
-						Event{eventCount !== 1 ? "s" : ""} {eventCountLabel}
+					<div className="min-w-0">
+						<div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+							Events
+						</div>
+						<div className="mt-0.5 text-3xl leading-none [font-family:var(--ooo-font-display)] font-light text-foreground">
+							{eventCount.toLocaleString()}
+						</div>
+						<div className="mt-1 truncate text-sm text-muted-foreground">
+							Event{eventCount !== 1 ? "s" : ""} {eventCountLabel}
+						</div>
 					</div>
 				</CardContent>
 			</Card>
 
 			{/* Arrondissements Count */}
 			<Card className={statCardClassName}>
-				<CardContent className="p-3 text-center sm:p-4">
-					<div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-						Coverage
+				{statGlint}
+				<CardContent className="flex items-center gap-3 p-3 sm:p-4">
+					<div className={statIconClassName}>
+						<MapPinned className="h-4 w-4" strokeWidth={1.7} />
 					</div>
-					<div className="mt-1 text-3xl [font-family:var(--ooo-font-display)] font-light text-foreground">
-						{filteredArrondissementsCount}
-					</div>
-					<div className="mt-1 text-sm text-muted-foreground">
-						Arrondissement{filteredArrondissementsCount !== 1 ? "s" : ""}{" "}
-						{coverageLabel}
+					<div className="min-w-0">
+						<div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+							Coverage
+						</div>
+						<div className="mt-0.5 text-3xl leading-none [font-family:var(--ooo-font-display)] font-light text-foreground">
+							{filteredArrondissementsCount}
+						</div>
+						<div className="mt-1 truncate text-sm text-muted-foreground">
+							Arrondissement{filteredArrondissementsCount !== 1 ? "s" : ""}{" "}
+							{coverageLabel}
+						</div>
 					</div>
 				</CardContent>
 			</Card>
 
 			{/* Dynamic Date Range */}
 			<Card className={statCardClassName}>
-				<CardContent className="p-3 text-center sm:p-4">
-					<div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-						Date Span
+				{statGlint}
+				<CardContent className="flex items-center gap-3 p-3 sm:p-4">
+					<div className={statIconClassName}>
+						<CalendarDays className="h-4 w-4" strokeWidth={1.7} />
 					</div>
-					<div className="mt-1 text-3xl [font-family:var(--ooo-font-display)] font-light text-foreground">
-						{uniqueDays > 0 ? uniqueDays : "—"}
-					</div>
-					<div className="mt-1 text-sm text-muted-foreground">
-						{uniqueDays === 1 ? "Day" : "Days"} • {dateRangeStats.label}
+					<div className="min-w-0">
+						<div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+							Date Span
+						</div>
+						<div className="mt-0.5 text-3xl leading-none [font-family:var(--ooo-font-display)] font-light text-foreground">
+							{uniqueDays > 0 ? uniqueDays : "—"}
+						</div>
+						<div className="mt-1 truncate text-sm text-muted-foreground">
+							{uniqueDays === 1 ? "Day" : "Days"} • {dateRangeStats.label}
+						</div>
 					</div>
 				</CardContent>
 			</Card>
