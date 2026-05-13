@@ -161,12 +161,6 @@ function SpotlightEventPanel({
 							{visibleEventType}
 						</Badge>
 					)}
-					{isFeaturedPlacement && (
-						<Badge className="border-0 bg-[linear-gradient(145deg,rgba(190,145,82,0.96),rgba(154,112,58,0.96))] px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-50 shadow-[0_8px_22px_-18px_rgba(154,112,58,0.8)] hover:bg-[linear-gradient(145deg,rgba(190,145,82,0.96),rgba(154,112,58,0.96))]">
-							<Crown className="h-3 w-3" />
-							Featured
-						</Badge>
-					)}
 					{isOOOCPick && (
 						<Badge className="border border-amber-400/28 bg-amber-400/12 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-900 shadow-none hover:bg-amber-400/12 dark:text-amber-100">
 							<Star className="h-3 w-3 fill-current" />

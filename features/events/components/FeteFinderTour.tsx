@@ -289,6 +289,30 @@ export function FeteFinderTour({
 		return true;
 	}, [currentStep]);
 
+	const syncSpotlightWhileLayoutSettles = useCallback(
+		(durationMs = 1200) => {
+			let isCancelled = false;
+			let frameId = 0;
+			const startedAt = performance.now();
+
+			const tick = () => {
+				if (isCancelled) return;
+				syncSpotlight();
+				if (performance.now() - startedAt < durationMs) {
+					frameId = window.requestAnimationFrame(tick);
+				}
+			};
+
+			frameId = window.requestAnimationFrame(tick);
+
+			return () => {
+				isCancelled = true;
+				window.cancelAnimationFrame(frameId);
+			};
+		},
+		[syncSpotlight],
+	);
+
 	const moveToAvailableStep = useCallback(
 		(nextIndex: number, direction: 1 | -1) => {
 			const boundedIndex = Math.min(Math.max(nextIndex, 0), steps.length - 1);
@@ -458,26 +482,31 @@ export function FeteFinderTour({
 
 	useEffect(() => {
 		if (!isTourOpen || !currentStep) return;
+		let cancelSettledSync: (() => void) | undefined;
+		let isCancelled = false;
 		if (currentStep.id !== "filters") {
 			onFilterClose();
 		}
 		currentStep.beforeStep?.();
 		const timer = window.setTimeout(() => {
+			if (isCancelled) return;
 			const target = findVisibleTourTarget(currentStep.selector);
 			if (!target) {
 				moveToAvailableStep(stepIndex + 1, 1);
 				return;
 			}
 			target.scrollIntoView({ block: "center", behavior: "smooth" });
-			window.setTimeout(() => {
-				const found = syncSpotlight();
-				if (!found) {
-					moveToAvailableStep(stepIndex + 1, 1);
-				}
-			}, 360);
+			const found = syncSpotlight();
+			if (!found) {
+				moveToAvailableStep(stepIndex + 1, 1);
+				return;
+			}
+			cancelSettledSync = syncSpotlightWhileLayoutSettles();
 		}, 220);
 		return () => {
+			isCancelled = true;
 			window.clearTimeout(timer);
+			cancelSettledSync?.();
 		};
 	}, [
 		currentStep,
@@ -486,6 +515,7 @@ export function FeteFinderTour({
 		onFilterClose,
 		stepIndex,
 		syncSpotlight,
+		syncSpotlightWhileLayoutSettles,
 	]);
 
 	useEffect(() => {
@@ -585,6 +615,7 @@ export function FeteFinderTour({
 					aria-live="polite"
 				>
 					<div
+						data-tour-spotlight="true"
 						className="pointer-events-none fixed rounded-2xl border border-[#f0b668]/80 shadow-[0_0_0_9999px_rgba(9,7,5,0.58),0_0_0_1px_rgba(255,247,234,0.72),0_18px_48px_-28px_rgba(240,182,104,0.9)] transition-all duration-200"
 						style={{
 							top: spotlightRect.top,

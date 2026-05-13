@@ -188,6 +188,20 @@ const hasGenreLabel = (genres: string[], label: string): boolean => {
 	return genres.some((genre) => normalizeSearchText(genre) === normalized);
 };
 
+const splitTitleForTrailingAdornment = (
+	title: string,
+): { leading: string; trailing: string } => {
+	const normalizedTitle = title.trim();
+	const match = normalizedTitle.match(/^(.*\S)(\s+)(\S+)$/);
+	if (!match) {
+		return { leading: "", trailing: normalizedTitle };
+	}
+	return {
+		leading: `${match[1]}${match[2]}`,
+		trailing: match[3],
+	};
+};
+
 const EVENT_UPDATE_DIFF_FIELDS = [
 	"eventName",
 	"date",
@@ -575,6 +589,12 @@ const EventModal: React.FC<EventModalProps> = ({
 		socialProofMode === "numeric"
 			? `${socialProofSaveCount} ${savedLabel} saved this`
 			: "People are saving this";
+	const titleParts = splitTitleForTrailingAdornment(event.name);
+	const hasTitleAdornment = Boolean(
+		isCurrentlyFeatured ||
+			(!isCurrentlyFeatured && isCurrentlyPromoted) ||
+			event.isOOOCPick,
+	);
 	const hasSocialProofBadge = shouldShowSocialProofBadge(
 		socialProofMode,
 		socialProofSaveCount,
@@ -1191,16 +1211,27 @@ const EventModal: React.FC<EventModalProps> = ({
 							</p>
 							<div className="mt-1">
 								<CardTitle className="break-words text-[clamp(1.25rem,3.5vw,1.9rem)] [font-family:var(--ooo-font-display)] font-light leading-tight">
-									<span id={modalTitleId}>{event.name}</span>
-									{isCurrentlyFeatured && (
-										<Crown className="ml-2 inline h-4 w-4 translate-y-[-0.08em] text-amber-600 dark:text-amber-300" />
-									)}
-									{!isCurrentlyFeatured && isCurrentlyPromoted && (
-										<Megaphone className="ml-2 inline h-4 w-4 translate-y-[-0.08em] text-[#315b5f] dark:text-cyan-200" />
-									)}
-									{event.isOOOCPick && (
-										<Star className="ml-2 inline h-4 w-4 translate-y-[-0.08em] fill-current text-yellow-500" />
-									)}
+									<span id={modalTitleId}>
+										{titleParts.leading}
+										<span
+											className={
+												hasTitleAdornment
+													? "inline-block whitespace-nowrap"
+													: undefined
+											}
+										>
+											{titleParts.trailing}
+											{isCurrentlyFeatured && (
+												<Crown className="ml-2 inline h-4 w-4 translate-y-[-0.08em] text-amber-600 dark:text-amber-300" />
+											)}
+											{!isCurrentlyFeatured && isCurrentlyPromoted && (
+												<Megaphone className="ml-2 inline h-4 w-4 translate-y-[-0.08em] text-[#315b5f] dark:text-cyan-200" />
+											)}
+											{event.isOOOCPick && (
+												<Star className="ml-2 inline h-4 w-4 translate-y-[-0.08em] fill-current text-yellow-500" />
+											)}
+										</span>
+									</span>
 								</CardTitle>
 							</div>
 						</div>

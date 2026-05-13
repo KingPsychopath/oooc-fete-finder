@@ -41,11 +41,11 @@ const baseEvent = {
 } satisfies Event;
 
 describe("toHomepageEventPayload", () => {
-	it("removes map-only coordinates from the initial homepage payload", () => {
+	it("keeps coordinates in the initial homepage payload for map pins", () => {
 		const payload = toHomepageEventPayload(baseEvent);
 
 		expect(payload).not.toBe(baseEvent);
-		expect(payload.coordinates).toBeUndefined();
+		expect(payload.coordinates).toEqual(baseEvent.coordinates);
 	});
 
 	it("keeps list, card, search, and selected-event modal fields", () => {

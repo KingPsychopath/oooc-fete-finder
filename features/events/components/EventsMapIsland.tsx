@@ -16,7 +16,7 @@ interface EventsMapIslandProps {
 	isExpanded: boolean;
 	mapLoadStrategy: MapLoadStrategy;
 	onEventClick: (event: Event) => void;
-	onMapIntent: () => void;
+	onMapIntent?: () => void;
 	onToggleExpanded: () => void;
 }
 

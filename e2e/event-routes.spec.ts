@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
-import { type BrowserContext, type Page, expect, test } from "@playwright/test";
 import { FETE_FINDER_TOUR_STORAGE_KEY } from "@/features/events/tour-events";
+import { type BrowserContext, type Page, expect, test } from "@playwright/test";
 import jwt from "jsonwebtoken";
 
 const EVENT_PATH = "/event/evt_115811d709b9b6ed/krispy-jam-n-29-tascha";
@@ -281,7 +281,85 @@ const markTourSeen = async (page: Page) => {
 	}, FETE_FINDER_TOUR_STORAGE_KEY);
 };
 
+const expectTourSpotlightToContainTarget = async (
+	page: Page,
+	targetSelector: string,
+) => {
+	await page.waitForFunction((selector) => {
+		const target = document.querySelector(selector);
+		const spotlight = document.querySelector("[data-tour-spotlight='true']");
+		if (!target || !spotlight) return false;
+
+		const targetRect = target.getBoundingClientRect();
+		const spotlightRect = spotlight.getBoundingClientRect();
+		const tolerance = 1;
+
+		return (
+			spotlightRect.top <= targetRect.top + tolerance &&
+			spotlightRect.left <= targetRect.left + tolerance &&
+			spotlightRect.right >= targetRect.right - tolerance &&
+			spotlightRect.bottom >= targetRect.bottom - tolerance
+		);
+	}, targetSelector);
+
+	const rects = await page.evaluate((selector) => {
+		const toPlainRect = (rect: DOMRect) => ({
+			bottom: rect.bottom,
+			left: rect.left,
+			right: rect.right,
+			top: rect.top,
+		});
+
+		const target = document.querySelector(selector);
+		const spotlight = document.querySelector("[data-tour-spotlight='true']");
+
+		return {
+			spotlight: spotlight
+				? toPlainRect(spotlight.getBoundingClientRect())
+				: null,
+			target: target ? toPlainRect(target.getBoundingClientRect()) : null,
+		};
+	}, targetSelector);
+
+	expect(rects.spotlight).not.toBeNull();
+	expect(rects.target).not.toBeNull();
+	expect(rects.spotlight?.top).toBeLessThanOrEqual(
+		(rects.target?.top ?? 0) + 1,
+	);
+	expect(rects.spotlight?.left).toBeLessThanOrEqual(
+		(rects.target?.left ?? 0) + 1,
+	);
+	expect(rects.spotlight?.right).toBeGreaterThanOrEqual(
+		(rects.target?.right ?? 0) - 1,
+	);
+	expect(rects.spotlight?.bottom).toBeGreaterThanOrEqual(
+		(rects.target?.bottom ?? 0) - 1,
+	);
+};
+
+const startHomepageTour = async (page: Page) => {
+	await verifyUserSession(page);
+	await page.addInitScript((storageKey) => {
+		window.localStorage.removeItem(storageKey);
+	}, FETE_FINDER_TOUR_STORAGE_KEY);
+	await page.goto("/");
+	await expect(page.locator("#tour-oooc-picks")).toBeVisible();
+	await expect(
+		page.getByRole("dialog", { name: "Find your first plan in 30 seconds" }),
+	).toBeVisible();
+	await page.getByRole("button", { name: "Start tour" }).click();
+	await expect(
+		page.getByRole("dialog", { name: "Trust the curated picks" }),
+	).toBeVisible();
+};
+
 test.describe("event share routes", () => {
+	test("tour spotlight frames the first OOOC Picks step", async ({ page }) => {
+		await startHomepageTour(page);
+
+		await expectTourSpotlightToContainTarget(page, "#tour-oooc-picks");
+	});
+
 	test("direct event URL renders the hydrated modal", async ({ page }) => {
 		await page.goto(EVENT_PATH);
 
@@ -607,6 +685,14 @@ test.describe("event share routes", () => {
 
 test.describe("event share routes on mobile", () => {
 	test.use({ viewport: { width: 390, height: 844 } });
+
+	test("tour spotlight frames the first OOOC Picks step on mobile", async ({
+		page,
+	}) => {
+		await startHomepageTour(page);
+
+		await expectTourSpotlightToContainTarget(page, "#tour-oooc-picks");
+	});
 
 	test("direct event URL is framed correctly on mobile", async ({ page }) => {
 		await page.goto(EVENT_PATH);

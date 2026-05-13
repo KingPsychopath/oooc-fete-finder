@@ -549,7 +549,8 @@ export const trackNavigationClick = (input: {
 		| "quick_action"
 		| "mobile_nav"
 		| "footer_link"
-		| "header_nav";
+		| "header_nav"
+		| "how_it_works";
 	label: string;
 }) => {
 	trackDiscoveryAnalytics({

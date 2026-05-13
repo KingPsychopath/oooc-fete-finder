@@ -555,10 +555,6 @@ export function MobileBottomNav() {
 	return (
 		<>
 			<div
-				aria-hidden="true"
-				className="h-[calc(5.75rem+env(safe-area-inset-bottom))] bg-card/78 backdrop-blur lg:hidden"
-			/>
-			<div
 				className={cn(
 					"fixed inset-x-0 bottom-0 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 transition-transform duration-300 ease-out lg:hidden",
 					isVisible && !hasActiveOverlay ? "translate-y-0" : "translate-y-full",

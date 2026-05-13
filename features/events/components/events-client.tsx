@@ -148,8 +148,7 @@ function EventsClientShell({
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
-	const { eventDataSource, events, setEvents, requestFullEvents } =
-		useEventsOffline();
+	const { eventDataSource, events, setEvents } = useEventsOffline();
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 	const [isMapExpanded, setIsMapExpanded] = useState(false);
 	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false);
@@ -190,11 +189,6 @@ function EventsClientShell({
 			return false;
 		}
 	}, []);
-
-	useEffect(() => {
-		if (mapLoadStrategy !== "immediate") return;
-		void requestFullEvents();
-	}, [mapLoadStrategy, requestFullEvents]);
 
 	useEffect(() => {
 		if (!isAuthResolved || !isAuthenticated || hasMountedTourIsland) return;
@@ -415,14 +409,12 @@ function EventsClientShell({
 	]);
 
 	const toggleMapExpansion = useCallback(() => {
-		void requestFullEvents();
 		setIsMapExpanded((previous) => !previous);
-	}, [requestFullEvents]);
+	}, []);
 
 	const openMap = useCallback(() => {
-		void requestFullEvents();
 		setIsMapExpanded(true);
-	}, [requestFullEvents]);
+	}, []);
 
 	const handleEventClick = useCallback(
 		(event: Event) => {
@@ -553,9 +545,6 @@ function EventsClientShell({
 				mapLoadStrategy={mapLoadStrategy}
 				onToggleExpanded={toggleMapExpansion}
 				onEventClick={handleEventClick}
-				onMapIntent={() => {
-					void requestFullEvents();
-				}}
 			/>
 
 			<EventsSearchFiltersIsland

@@ -84,6 +84,7 @@ const KNOWN_DISCOVERY_INTERACTION_GROUPS = new Set([
 	"mobile_nav",
 	"footer_link",
 	"header_nav",
+	"how_it_works",
 ]);
 
 export const runtime = "nodejs";
