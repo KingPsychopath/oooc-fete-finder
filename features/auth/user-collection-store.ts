@@ -6,6 +6,7 @@ import type {
 	UserRecord,
 } from "@/features/auth/types";
 import { generateUserId, isValidUserId } from "@/features/auth/user-id";
+import { DataManager } from "@/features/data-management/data-manager";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { parseTourInteraction } from "@/features/events/engagement/tour-analytics";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
@@ -347,6 +348,11 @@ export class UserCollectionStore {
 			{ eventKey: string; name: string; slug: string }
 		>();
 		if (recentEventActions.length > 0) {
+			const requestedEventKeys = new Set(
+				recentEventActions.map((action) =>
+					action.eventKey.trim().toLowerCase(),
+				),
+			);
 			const liveEventsResult = await getLiveEvents({
 				includeFeaturedProjection: false,
 				includeEngagementProjection: false,
@@ -354,11 +360,28 @@ export class UserCollectionStore {
 			for (const event of liveEventsResult.success
 				? liveEventsResult.data
 				: []) {
-				eventsByKey.set(event.eventKey, event);
+				const eventKey = event.eventKey.trim().toLowerCase();
+				if (requestedEventKeys.has(eventKey)) {
+					eventsByKey.set(eventKey, event);
+				}
+			}
+
+			if (eventsByKey.size < requestedEventKeys.size) {
+				const freshEventsResult = await DataManager.getEventsData({
+					populateCoordinates: false,
+				});
+				for (const event of freshEventsResult.success
+					? freshEventsResult.data
+					: []) {
+					const eventKey = event.eventKey.trim().toLowerCase();
+					if (requestedEventKeys.has(eventKey) && !eventsByKey.has(eventKey)) {
+						eventsByKey.set(eventKey, event);
+					}
+				}
 			}
 		}
 		const enrichedEventActions = recentEventActions.map((action) => {
-			const event = eventsByKey.get(action.eventKey);
+			const event = eventsByKey.get(action.eventKey.trim().toLowerCase());
 			return {
 				...action,
 				eventName: event?.name ?? null,

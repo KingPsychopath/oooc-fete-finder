@@ -56,6 +56,24 @@ const getCachedEventShareIndex = unstable_cache(
 	},
 );
 
+const findFreshEventShareEvent = async (
+	normalizedEventKey: string,
+): Promise<Event | null> => {
+	try {
+		const result = await DataManager.getEventsData({
+			populateCoordinates: false,
+		});
+		if (!result.success) return null;
+		return (
+			result.data.find(
+				(event) => normalizeEventKey(event.eventKey) === normalizedEventKey,
+			) ?? null
+		);
+	} catch {
+		return null;
+	}
+};
+
 export const getEventShareEvent = async (
 	eventKey: string,
 ): Promise<Event | null> => {
@@ -66,9 +84,12 @@ export const getEventShareEvent = async (
 
 	try {
 		const index = await getCachedEventShareIndex();
-		return index[normalizedEventKey] ?? null;
+		return (
+			index[normalizedEventKey] ??
+			(await findFreshEventShareEvent(normalizedEventKey))
+		);
 	} catch {
-		return null;
+		return findFreshEventShareEvent(normalizedEventKey);
 	}
 };
 
@@ -82,9 +103,12 @@ export const getEventShareDetails = async (
 
 	try {
 		const index = await getCachedEventShareIndex();
-		const event = index[normalizedEventKey];
+		const event =
+			index[normalizedEventKey] ??
+			(await findFreshEventShareEvent(normalizedEventKey));
 		return event ? toEventShareDetails(event) : null;
 	} catch {
-		return null;
+		const event = await findFreshEventShareEvent(normalizedEventKey);
+		return event ? toEventShareDetails(event) : null;
 	}
 };

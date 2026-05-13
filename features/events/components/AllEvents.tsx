@@ -209,7 +209,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			<Card ref={ref} className="ooo-site-card mt-6 min-w-0 py-0 lg:mt-0">
 				<CardHeader className="min-w-0 border-b border-border/70 py-5">
 					<div className="flex min-w-0 flex-col gap-3">
-						<div className="flex items-start justify-between gap-3">
+						<div className="flex flex-wrap items-start justify-between gap-3">
 							<div className="flex min-w-0 flex-col">
 								<div className="flex items-center">
 									<CardTitle className="flex items-center gap-2 text-2xl [font-family:var(--ooo-font-display)] font-light tracking-[0.01em]">
@@ -221,17 +221,19 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 									</CardTitle>
 								</div>
 							</div>
-							<div className="hidden shrink-0 items-center gap-2 lg:flex">
+							<div className="hidden shrink-0 items-center gap-2 2xl:flex">
 								{savedButtonControl}
 								{nearbyButtonControl}
 								{sortModeControl}
-							</div>
-							<div className="hidden shrink-0 items-center gap-2 sm:flex lg:hidden">
-								{clearFiltersControl}
 								{filterButtonControl}
+								{clearFiltersControl}
+							</div>
+							<div className="hidden min-w-0 basis-full flex-wrap items-center gap-2 sm:flex 2xl:hidden">
 								{savedButtonControl}
 								{nearbyButtonControl}
 								{sortModeControl}
+								{filterButtonControl}
+								{clearFiltersControl}
 							</div>
 						</div>
 						<Link
@@ -251,11 +253,11 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							<div className="min-w-0 pt-1">{searchSlot}</div>
 						) : null}
 						<div className="grid max-w-full min-w-0 grid-cols-2 items-center gap-2 sm:hidden">
-							{clearFiltersControl}
-							{filterButtonControl}
 							{savedButtonControl}
 							{nearbyButtonControl}
-							{sortModeControl}
+							<div className="col-span-2 min-w-0">{sortModeControl}</div>
+							{filterButtonControl}
+							{clearFiltersControl}
 						</div>
 						{showSavedOnly && (
 							<p className="text-xs leading-relaxed text-muted-foreground">
