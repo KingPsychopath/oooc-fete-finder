@@ -478,6 +478,26 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 								/>
 							</span>
 						</button>
+						<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem] sm:items-center">
+							<p className="text-xs leading-relaxed text-muted-foreground">
+								{haptics.isSupported
+									? haptics.isCoarsePointer
+										? "Supported on this device. Use the test button if you want to feel the pattern."
+										: "Supported by this browser. Use the test button if you want to feel the pattern."
+									: haptics.isCoarsePointer
+										? "Using the WebHaptics touch fallback for this browser."
+										: "Using the WebHaptics fallback when this browser supports it."}
+							</p>
+							<Button
+								type="button"
+								variant="outline"
+								disabled={!haptics.canTrigger}
+								onClick={() => haptics.success()}
+								className="h-8 rounded-xl text-xs"
+							>
+								Test haptics
+							</Button>
+						</div>
 					</section>
 
 					<section className="space-y-2.5">

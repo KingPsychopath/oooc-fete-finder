@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWebHaptics } from "web-haptics/react";
 
 type AppHapticPattern =
@@ -13,28 +13,41 @@ type AppHapticPattern =
 	| "error"
 	| "nudge";
 
-function hasCoarsePointer() {
-	if (typeof window === "undefined") return false;
-	return window.matchMedia("(pointer: coarse)").matches;
-}
-
 export function useAppHaptics() {
 	const { trigger, isSupported } = useWebHaptics();
 	const { settings } = useLocalAppSettings();
+	const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		const mediaQuery = window.matchMedia("(pointer: coarse)");
+		setIsCoarsePointer(mediaQuery.matches);
+
+		const handleChange = (event: MediaQueryListEvent) => {
+			setIsCoarsePointer(event.matches);
+		};
+
+		mediaQuery.addEventListener("change", handleChange);
+		return () => mediaQuery.removeEventListener("change", handleChange);
+	}, []);
 
 	const triggerHaptic = useCallback(
 		(pattern: AppHapticPattern) => {
-			if (!settings.enableHaptics || !isSupported || !hasCoarsePointer()) {
+			if (!settings.enableHaptics) {
 				return;
 			}
 			void trigger(pattern);
 		},
-		[isSupported, settings.enableHaptics, trigger],
+		[settings.enableHaptics, trigger],
 	);
 
 	return useMemo(
 		() => ({
-			isEnabled: settings.enableHaptics && isSupported,
+			isSupported,
+			isCoarsePointer,
+			canTrigger: settings.enableHaptics,
+			isEnabled: settings.enableHaptics,
 			selection: () => triggerHaptic("selection"),
 			light: () => triggerHaptic("light"),
 			medium: () => triggerHaptic("medium"),
@@ -43,6 +56,6 @@ export function useAppHaptics() {
 			error: () => triggerHaptic("error"),
 			nudge: () => triggerHaptic("nudge"),
 		}),
-		[isSupported, settings.enableHaptics, triggerHaptic],
+		[isCoarsePointer, isSupported, settings.enableHaptics, triggerHaptic],
 	);
 }
