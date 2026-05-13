@@ -122,6 +122,7 @@ export default function RootLayout({
 		>
 			<head>
 				{/* PWA Manifest */}
+				<link rel="preload" href={`${basePath}/grain.png`} as="image" />
 				<link rel="manifest" href={`${basePath}/manifest.webmanifest`} />
 				<meta name="theme-color" content="#000000" />
 				<meta name="background-color" content="#ffffff" />
