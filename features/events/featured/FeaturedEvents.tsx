@@ -73,18 +73,18 @@ function SpotlightEventPanel({
 			: [event.indoor ? "indoor" : "outdoor"];
 	const hasNationalities = Boolean(event.nationality?.length);
 	const statusSurfaceClassName = isFeaturedPlacement
-		? "border-amber-300/42 shadow-[0_24px_62px_-50px_rgba(176,124,54,0.56),0_0_24px_-22px_rgba(255,221,148,0.42),inset_0_1px_0_rgba(255,255,255,0.54)] hover:border-amber-300/54 hover:shadow-[0_30px_70px_-50px_rgba(176,124,54,0.62),0_0_30px_-22px_rgba(255,221,148,0.5),inset_0_1px_0_rgba(255,255,255,0.62)] dark:border-amber-200/22 dark:shadow-[0_24px_62px_-52px_rgba(224,169,85,0.34),0_0_24px_-24px_rgba(255,218,145,0.2),inset_0_1px_0_rgba(255,255,255,0.07)]"
+		? "border-amber-300/30 shadow-[0_24px_58px_-54px_rgba(151,111,61,0.34),0_0_18px_-24px_rgba(255,221,148,0.3),inset_0_1px_0_rgba(255,255,255,0.58)] hover:border-amber-300/42 hover:shadow-[0_30px_66px_-56px_rgba(151,111,61,0.38),0_0_22px_-24px_rgba(255,221,148,0.36),inset_0_1px_0_rgba(255,255,255,0.64)] dark:border-amber-200/16 dark:shadow-[0_24px_58px_-54px_rgba(224,169,85,0.22),0_0_18px_-25px_rgba(255,218,145,0.14),inset_0_1px_0_rgba(255,255,255,0.06)]"
 		: isPromoted
-			? "border-[#315b5f]/28 shadow-[0_24px_62px_-54px_rgba(49,91,95,0.46),0_0_20px_-22px_rgba(123,207,209,0.32),inset_0_1px_0_rgba(255,255,255,0.48)] hover:border-[#315b5f]/38 hover:shadow-[0_30px_70px_-54px_rgba(49,91,95,0.5),0_0_24px_-22px_rgba(123,207,209,0.38),inset_0_1px_0_rgba(255,255,255,0.54)] dark:border-cyan-100/14 dark:shadow-[0_24px_62px_-54px_rgba(49,91,95,0.3),0_0_20px_-23px_rgba(103,202,205,0.2),inset_0_1px_0_rgba(255,255,255,0.055)]"
+			? "border-[#315b5f]/20 shadow-[0_24px_58px_-56px_rgba(49,91,95,0.3),0_0_16px_-24px_rgba(123,207,209,0.2),inset_0_1px_0_rgba(255,255,255,0.5)] hover:border-[#315b5f]/30 hover:shadow-[0_30px_64px_-58px_rgba(49,91,95,0.34),0_0_20px_-24px_rgba(123,207,209,0.25),inset_0_1px_0_rgba(255,255,255,0.56)] dark:border-cyan-100/12 dark:shadow-[0_24px_58px_-56px_rgba(49,91,95,0.22),0_0_16px_-24px_rgba(103,202,205,0.14),inset_0_1px_0_rgba(255,255,255,0.05)]"
 			: isOOOCPick
-				? "border-amber-300/22 shadow-[0_22px_58px_-56px_rgba(196,149,78,0.3),inset_0_1px_0_rgba(255,255,255,0.48)] hover:border-amber-300/30 hover:shadow-[0_28px_64px_-56px_rgba(196,149,78,0.34),inset_0_1px_0_rgba(255,255,255,0.54)] dark:border-amber-200/12 dark:shadow-[0_22px_58px_-56px_rgba(224,169,85,0.18),inset_0_1px_0_rgba(255,255,255,0.05)]"
+				? "border-amber-300/16 shadow-[0_22px_54px_-58px_rgba(151,111,61,0.22),inset_0_1px_0_rgba(255,255,255,0.5)] hover:border-amber-300/24 hover:shadow-[0_28px_60px_-58px_rgba(151,111,61,0.26),inset_0_1px_0_rgba(255,255,255,0.56)] dark:border-amber-200/10 dark:shadow-[0_22px_54px_-58px_rgba(224,169,85,0.14),inset_0_1px_0_rgba(255,255,255,0.045)]"
 				: "border-border/28 shadow-[0_20px_52px_-56px_rgba(44,28,12,0.34),inset_0_1px_0_rgba(255,255,255,0.42)] hover:border-border/40 hover:shadow-[0_26px_58px_-58px_rgba(44,28,12,0.32),inset_0_1px_0_rgba(255,255,255,0.48)] dark:border-border/18 dark:shadow-[0_20px_52px_-56px_rgba(0,0,0,0.76),inset_0_1px_0_rgba(255,255,255,0.045)]";
 	const statusGlowClassName = isFeaturedPlacement
-		? "from-amber-200/24 via-amber-100/7"
+		? "from-amber-100/16 via-amber-50/5"
 		: isPromoted
-			? "from-[#b7dadb]/18 via-cyan-50/5"
+			? "from-[#d7e7e6]/14 via-cyan-50/4"
 			: isOOOCPick
-				? "from-amber-200/14 via-amber-50/5"
+				? "from-amber-100/10 via-amber-50/4"
 				: "from-white/12 via-amber-50/4";
 	const statusAccentClassName = isPromoted
 		? "border-cyan-300/28 dark:border-cyan-100/16"
@@ -94,11 +94,11 @@ function SpotlightEventPanel({
 				? "border-amber-300/38 dark:border-amber-100/2"
 				: "border-border/18 dark:border-border/12";
 	const cornerSealClassName = isFeaturedPlacement
-		? "border-amber-200/70 bg-[linear-gradient(145deg,rgba(212,164,96,0.96),rgba(154,112,58,0.98))] text-amber-50 shadow-[0_14px_34px_-22px_rgba(154,112,58,0.9)]"
+		? "border-amber-200/70 bg-[linear-gradient(145deg,rgba(255,249,235,0.96),rgba(235,206,154,0.94))] text-amber-950 shadow-[0_14px_30px_-24px_rgba(154,112,58,0.48)]"
 		: isPromoted
-			? "border-cyan-100/40 bg-[linear-gradient(145deg,rgba(63,103,107,0.92),rgba(33,63,67,0.98))] text-cyan-50 shadow-[0_14px_34px_-24px_rgba(33,63,67,0.72)]"
+			? "border-cyan-100/50 bg-[linear-gradient(145deg,rgba(238,250,249,0.95),rgba(196,223,222,0.9))] text-[#213f43] shadow-[0_14px_30px_-24px_rgba(33,63,67,0.36)]"
 			: isOOOCPick
-				? "border-amber-200/60 bg-[linear-gradient(145deg,rgba(244,220,176,0.95),rgba(198,153,84,0.94))] text-amber-950 shadow-[0_14px_34px_-24px_rgba(176,124,54,0.66)]"
+				? "border-amber-200/58 bg-[linear-gradient(145deg,rgba(255,251,240,0.94),rgba(238,220,184,0.9))] text-amber-950 shadow-[0_14px_28px_-25px_rgba(176,124,54,0.38)]"
 				: "border-border/55 bg-background/58 text-foreground/62 shadow-[0_14px_30px_-26px_rgba(30,22,17,0.48)]";
 	const CornerSealIcon = isFeaturedPlacement
 		? Crown
@@ -113,7 +113,7 @@ function SpotlightEventPanel({
 			type="button"
 			onClick={() => onClick(event)}
 			className={cn(
-				"group relative flex min-h-[15rem] w-full flex-col overflow-hidden rounded-2xl border bg-[linear-gradient(145deg,rgba(255,250,239,0.74),rgba(246,235,216,0.52)_48%,rgba(255,255,255,0.32))] p-4 text-left backdrop-blur transition-all duration-300 hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-ring/60 dark:bg-[linear-gradient(145deg,rgba(62,45,28,0.64),rgba(31,24,19,0.58)_54%,rgba(255,255,255,0.035))]",
+				"group relative flex min-h-[15rem] w-full flex-col overflow-hidden rounded-2xl border bg-[linear-gradient(145deg,rgba(255,252,246,0.78),rgba(250,245,236,0.54)_52%,rgba(255,255,255,0.36))] p-4 text-left backdrop-blur transition-all duration-300 hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-ring/60 dark:bg-[linear-gradient(145deg,rgba(47,39,31,0.58),rgba(29,25,21,0.56)_56%,rgba(255,255,255,0.035))]",
 				statusSurfaceClassName,
 			)}
 		>
@@ -121,6 +121,7 @@ function SpotlightEventPanel({
 				className="pointer-events-none absolute inset-0 rounded-2xl"
 				aria-hidden="true"
 			>
+				<div className="absolute inset-0 rounded-2xl bg-[image:var(--ooo-grain-image)] bg-[length:220px_220px] opacity-[0.12] mix-blend-multiply dark:opacity-[0.08] dark:mix-blend-screen" />
 				<div
 					className={cn(
 						"absolute inset-x-5 top-12 h-24 rounded-full bg-gradient-to-b to-transparent blur-2xl",
@@ -143,7 +144,7 @@ function SpotlightEventPanel({
 					<div className="absolute inset-y-5 left-0 w-px bg-gradient-to-b from-transparent via-cyan-300/36 to-transparent dark:via-cyan-100/18" />
 				)}
 				{isDominant && (
-					<div className="absolute top-5 bottom-5 left-[61%] hidden border-l border-dashed border-foreground/22 lg:block dark:border-white/18" />
+					<div className="absolute bottom-3 left-[66%] top-16 hidden border-l border-dashed border-foreground/22 lg:block dark:border-white/18" />
 				)}
 			</div>
 			<div
@@ -239,7 +240,7 @@ function SpotlightEventPanel({
 							<div
 								className={cn(
 									"flex min-w-0 max-w-full items-center gap-2",
-									isDominant && "lg:w-[58%] lg:max-w-none",
+									isDominant && "lg:w-[62%] lg:max-w-none",
 								)}
 							>
 								<MapPin className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
@@ -372,17 +373,16 @@ export function FeaturedEvents({
 	};
 
 	return (
-		<section className="relative left-1/2 mb-10 w-screen -translate-x-1/2 overflow-hidden border-y border-amber-300/18 bg-[linear-gradient(105deg,rgba(240,182,104,0.16),rgba(255,255,255,0.22)_28%,rgba(33,63,67,0.08)_70%,rgba(240,182,104,0.12))] py-6 shadow-[0_28px_90px_-76px_rgba(176,124,54,0.78)] dark:border-amber-200/10 dark:bg-[linear-gradient(105deg,rgba(240,182,104,0.09),rgba(255,255,255,0.025)_30%,rgba(49,91,95,0.12)_70%,rgba(240,182,104,0.065))]">
+		<section className="relative left-1/2 mb-10 w-screen -translate-x-1/2 overflow-hidden border-y border-amber-300/8 bg-[linear-gradient(105deg,rgba(240,182,104,0.16),rgba(255,255,255,0.22)_28%,rgba(33,63,67,0.08)_70%,rgba(240,182,104,0.12))] py-6 shadow-[0_28px_90px_-76px_rgba(176,124,54,0.78)] dark:border-amber-200/8 dark:bg-[linear-gradient(105deg,rgba(240,182,104,0.09),rgba(255,255,255,0.025)_30%,rgba(49,91,95,0.12)_70%,rgba(240,182,104,0.065))]">
 			<div className="pointer-events-none absolute inset-0" aria-hidden="true">
-				<div className="absolute inset-x-[10vw] top-0 h-px bg-gradient-to-r from-transparent via-amber-300/80 to-transparent dark:via-amber-200/42" />
+				<div className="absolute inset-x-[10vw] top-0 h-px bg-gradient-to-r from-transparent via-amber-300/18 to-transparent dark:via-amber-200/16" />
 				<div className="absolute inset-x-[10vw] bottom-0 h-px bg-gradient-to-r from-transparent via-amber-300/34 to-transparent dark:via-amber-200/18" />
-				<div className="absolute left-[9vw] top-[-3px] h-1.5 w-1.5 rounded-full border border-amber-300/50 bg-background/40 dark:border-amber-100/22 dark:bg-background/30" />
-				<div className="absolute right-[9vw] top-[-3px] h-1.5 w-1.5 rounded-full border border-amber-300/50 bg-background/40 dark:border-amber-100/22 dark:bg-background/30" />
+				<div className="absolute left-[9vw] top-[-3px] h-1.5 w-1.5 rounded-full border border-amber-300/22 bg-background/40 dark:border-amber-100/16 dark:bg-background/30" />
+				<div className="absolute right-[9vw] top-[-3px] h-1.5 w-1.5 rounded-full border border-amber-300/22 bg-background/40 dark:border-amber-100/16 dark:bg-background/30" />
 				<div className="absolute left-[9vw] bottom-[-3px] h-1.5 w-1.5 rounded-full border border-amber-300/26 bg-background/30 dark:border-amber-100/14 dark:bg-background/20" />
 				<div className="absolute right-[9vw] bottom-[-3px] h-1.5 w-1.5 rounded-full border border-amber-300/26 bg-background/30 dark:border-amber-100/14 dark:bg-background/20" />
-				<div className="absolute inset-x-[12vw] top-0 h-px bg-gradient-to-r from-transparent via-amber-300/75 to-transparent dark:via-amber-200/42" />
-				<div className="absolute -top-20 left-[6vw] h-52 w-52 rounded-full border-t border-l border-amber-300/42 [mask-image:linear-gradient(315deg,transparent_0%,black_34%,black_62%,transparent_82%)] dark:border-amber-200/22" />
-				<div className="absolute top-12 left-[12vw] h-px w-32 rotate-[16deg] bg-gradient-to-r from-transparent via-amber-200/80 to-transparent opacity-80 dark:via-amber-100/46" />
+				<div className="absolute -top-20 left-[6vw] h-52 w-52 rounded-full border-t border-l border-amber-300/20 [mask-image:linear-gradient(315deg,transparent_0%,black_34%,black_62%,transparent_82%)] dark:border-amber-200/12" />
+				<div className="absolute top-12 left-[12vw] h-px w-32 rotate-[16deg] bg-gradient-to-r from-transparent via-amber-200/30 to-transparent opacity-60 dark:via-amber-100/22" />
 				<div className="absolute inset-x-[18vw] bottom-0 h-px bg-gradient-to-r from-transparent via-amber-300/24 to-transparent dark:via-amber-200/16" />
 				<div className="absolute -right-20 -bottom-24 h-64 w-64 rounded-full border-r border-b border-amber-300/18 [mask-image:linear-gradient(135deg,transparent_0%,black_42%,black_60%,transparent_82%)] dark:border-amber-200/12" />
 			</div>
@@ -411,7 +411,7 @@ export function FeaturedEvents({
 							</div>
 						)}
 					</div>
-					<div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1fr)]">
 						{featuredEvents.map((event, index) => (
 							<SpotlightEventPanel
 								key={event.eventKey || event.id}

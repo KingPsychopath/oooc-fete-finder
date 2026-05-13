@@ -109,6 +109,16 @@ export function useLocalAppSettings() {
 		[updateSettings],
 	);
 
+	const setEnableHaptics = useCallback(
+		(enableHaptics: boolean) => {
+			updateSettings((existingSettings) => ({
+				...existingSettings,
+				enableHaptics,
+			}));
+		},
+		[updateSettings],
+	);
+
 	const setDefaultEventSortMode = useCallback(
 		(defaultEventSortMode: DefaultEventSortMode) => {
 			updateSettings((existingSettings) => ({
@@ -145,6 +155,7 @@ export function useLocalAppSettings() {
 		isLoaded,
 		setHideFloatingFilterButton,
 		setHideFloatingPrompts,
+		setEnableHaptics,
 		setDefaultEventSortMode,
 		setMapLoadStrategy,
 		resetLocalAppSettings,

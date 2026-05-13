@@ -7,6 +7,7 @@ import { useOptionalAuth } from "@/features/auth/auth-context";
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import { requestFeteFinderTour } from "@/features/events/tour-events";
 import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
 import { LAYERS } from "@/lib/ui/layers";
 import { cn } from "@/lib/utils";
@@ -177,6 +178,7 @@ function scrollToHomeSectionWhenReady(
 
 export function MobileBottomNav() {
 	const pathname = usePathname();
+	const haptics = useAppHaptics();
 	const normalizedPathname = normalizePathname(pathname);
 	const {
 		isAuthenticated,
@@ -461,6 +463,7 @@ export function MobileBottomNav() {
 			: -1;
 
 	const handlePinToggle = () => {
+		haptics.selection();
 		setIsPinned((current) => {
 			const next = !current;
 			window.localStorage.setItem(PIN_STORAGE_KEY, String(next));
@@ -469,6 +472,7 @@ export function MobileBottomNav() {
 	};
 
 	const handleNavItemClick = (key: NavKey, sectionId?: string) => {
+		haptics.selection();
 		activeSectionLockUntilRef.current = Date.now() + ACTIVE_SECTION_LOCK_MS;
 		trackNavigationClick({ group: "mobile_nav", label: key });
 		setActiveSection(key === "home" ? "home" : key);
@@ -511,32 +515,38 @@ export function MobileBottomNav() {
 	};
 
 	const handleMoreToggle = () => {
+		haptics.nudge();
 		activeSectionLockUntilRef.current = Date.now() + ACTIVE_SECTION_LOCK_MS;
 		setIsMoreOpen((current) => !current);
 	};
 
 	const handleTourStart = () => {
+		haptics.nudge();
 		trackNavigationClick({ group: "mobile_nav", label: "tour" });
 		setIsMoreOpen(false);
 		requestFeteFinderTour();
 	};
 	const handleSettingsOpen = () => {
+		haptics.selection();
 		trackNavigationClick({ group: "mobile_nav", label: "settings" });
 		setIsMoreOpen(false);
 		setIsSettingsOpen(true);
 	};
 	const handleLoginOpen = () => {
+		haptics.selection();
 		trackNavigationClick({ group: "mobile_nav", label: "login" });
 		setIsMoreOpen(false);
 		if (!isOnline) return;
 		setIsEmailGateOpen(true);
 	};
 	const handleLogout = () => {
+		haptics.warning();
 		trackNavigationClick({ group: "mobile_nav", label: "logout" });
 		setIsMoreOpen(false);
 		void logout();
 	};
 	const handleMoreLinkClick = (label: string) => {
+		haptics.selection();
 		trackNavigationClick({ group: "mobile_nav", label });
 		setIsMoreOpen(false);
 	};
@@ -578,7 +588,10 @@ export function MobileBottomNav() {
 								type="button"
 								variant="ghost"
 								size="icon"
-								onClick={() => setIsMoreOpen(false)}
+								onClick={() => {
+									haptics.light();
+									setIsMoreOpen(false);
+								}}
 								className="size-8 rounded-full"
 								aria-label="Close more menu"
 							>
@@ -696,6 +709,7 @@ export function MobileBottomNav() {
 									<button
 										type="button"
 										onClick={() => {
+											haptics.selection();
 											trackNavigationClick({
 												group: "mobile_nav",
 												label: "playlist",

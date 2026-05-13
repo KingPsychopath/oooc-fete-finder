@@ -24,6 +24,7 @@ import {
 	getEventDisplayDayNightPeriod,
 	getVisibleEventTypeLabel,
 } from "@/features/events/types";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { clientLog } from "@/lib/platform/client-logger";
 import {
 	BookmarkCheck,
@@ -64,11 +65,13 @@ export function EventCard({
 	proximityLabel,
 	preferredDayNightPeriods,
 }: EventCardProps) {
+	const haptics = useAppHaptics();
 	const handleClick = () => {
 		if (!event || !onClick) {
 			clientLog.warn("event-card", "Missing event or onClick handler");
 			return;
 		}
+		haptics.selection();
 		onClick(event);
 	};
 
@@ -331,8 +334,8 @@ export function EventCard({
 							+{collapsedGenreCount}
 						</Badge>
 					)}
-					</div>
-				)}
+				</div>
+			)}
 			{hasSocialProofBadge && (
 				<div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-200">
 					<Flame className="h-3 w-3" />

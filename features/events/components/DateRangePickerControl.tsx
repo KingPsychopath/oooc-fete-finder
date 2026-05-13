@@ -13,6 +13,7 @@ import {
 	type DateRangeFilter,
 	areDateRangesEqual,
 } from "@/features/events/filtering";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { CalendarDays } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
@@ -44,6 +45,7 @@ function DateRangePickerControl({
 	sectionTitleClassName,
 	denseToggleClassName,
 }: DateRangePickerControlProps) {
+	const haptics = useAppHaptics();
 	const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
 
 	const hasSelectedDateRange =
@@ -74,6 +76,14 @@ function DateRangePickerControl({
 		const day = String(date.getDate()).padStart(2, "0");
 		return `${year}-${month}-${day}`;
 	}, []);
+
+	const handleDateRangeChange = useCallback(
+		(dateRange: DateRangeFilter) => {
+			haptics.selection();
+			onDateRangeChange(dateRange);
+		},
+		[haptics, onDateRangeChange],
+	);
 
 	const dateBounds = useMemo(() => {
 		if (availableEventDates.length === 0)
@@ -150,7 +160,7 @@ function DateRangePickerControl({
 								variant="ghost"
 								size="sm"
 								className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent lg:text-[11px]"
-								onClick={() => onDateRangeChange(defaultDateRange)}
+								onClick={() => handleDateRangeChange(defaultDateRange)}
 							>
 								This year
 							</Button>
@@ -161,7 +171,7 @@ function DateRangePickerControl({
 							size="sm"
 							className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent lg:text-[11px]"
 							onClick={() =>
-								onDateRangeChange({
+								handleDateRangeChange({
 									from: null,
 									to: null,
 								})
@@ -177,7 +187,7 @@ function DateRangePickerControl({
 							variant="ghost"
 							size="sm"
 							className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent lg:text-[11px]"
-							onClick={() => onDateRangeChange(defaultDateRange)}
+							onClick={() => handleDateRangeChange(defaultDateRange)}
 						>
 							This year
 						</Button>
@@ -205,7 +215,7 @@ function DateRangePickerControl({
 								min={dateBounds.min}
 								max={selectedDateRange.to ?? dateBounds.max}
 								onChange={(event) =>
-									onDateRangeChange({
+									handleDateRangeChange({
 										from: event.target.value || null,
 										to: selectedDateRange.to,
 									})
@@ -224,7 +234,7 @@ function DateRangePickerControl({
 								min={selectedDateRange.from ?? dateBounds.min}
 								max={dateBounds.max}
 								onChange={(event) =>
-									onDateRangeChange({
+									handleDateRangeChange({
 										from: selectedDateRange.from,
 										to: event.target.value || null,
 									})
@@ -264,7 +274,7 @@ function DateRangePickerControl({
 							onSelect={(range) => {
 								const from = toISODate(range?.from);
 								const to = toISODate(range?.to);
-								onDateRangeChange({ from, to });
+								handleDateRangeChange({ from, to });
 								if (from && to) {
 									setIsDatePopoverOpen(false);
 									return;
@@ -294,7 +304,7 @@ function DateRangePickerControl({
 								selectedDateRange.from === date && selectedDateRange.to === date
 							}
 							onPressedChange={(pressed) =>
-								onDateRangeChange(
+								handleDateRangeChange(
 									pressed
 										? {
 												from: date,

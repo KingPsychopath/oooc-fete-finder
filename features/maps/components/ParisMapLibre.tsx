@@ -351,13 +351,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const regularEventButtonClassName =
 		"border-border/70 bg-background/65 hover:bg-accent/65";
 	const featuredEventButtonClassName =
-		"border-rose-300/80 bg-[linear-gradient(145deg,rgba(255,236,239,0.92),rgba(255,221,229,0.78))] hover:bg-[linear-gradient(145deg,rgba(255,236,239,0.97),rgba(255,221,229,0.86))] dark:border-rose-500/45 dark:bg-[linear-gradient(145deg,rgba(86,31,45,0.46),rgba(68,24,35,0.34))]";
+		"border-rose-300/80 bg-[linear-gradient(145deg,rgba(255,236,239,0.94),rgba(255,221,229,0.8))] shadow-[0_14px_30px_-26px_rgba(190,18,60,0.42)] hover:bg-[linear-gradient(145deg,rgba(255,240,243,0.98),rgba(255,225,232,0.88))] dark:border-rose-400/55 dark:bg-[linear-gradient(145deg,rgba(86,31,45,0.5),rgba(68,24,35,0.36))]";
 	const promotedEventButtonClassName =
-		"border-amber-500/45 bg-[linear-gradient(145deg,rgba(250,241,223,0.8),rgba(245,236,222,0.7))] hover:bg-[linear-gradient(145deg,rgba(252,243,227,0.9),rgba(247,238,224,0.82))] dark:border-amber-600/45 dark:bg-[linear-gradient(145deg,rgba(80,60,36,0.4),rgba(58,43,27,0.32))]";
+		"border-rose-300/45 bg-[linear-gradient(145deg,rgba(255,244,240,0.86),rgba(250,235,226,0.72))] hover:bg-[linear-gradient(145deg,rgba(255,247,243,0.94),rgba(252,239,232,0.82))] dark:border-rose-300/30 dark:bg-[linear-gradient(145deg,rgba(74,43,39,0.4),rgba(56,35,32,0.28))]";
 	const ooocEventButtonClassName =
 		"border-amber-300/75 bg-[linear-gradient(145deg,rgba(248,238,222,0.86),rgba(244,229,205,0.72))] dark:border-amber-500/40 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.45),rgba(47,36,24,0.32))]";
 	const featuredOoocEventButtonClassName =
-		"border-[color:color-mix(in_oklab,#f59e0b_52%,#fb7185_48%)] bg-[linear-gradient(145deg,rgba(255,241,228,0.95),rgba(255,226,219,0.82))] dark:border-[color:color-mix(in_oklab,#f59e0b_48%,#fb7185_52%)] dark:bg-[linear-gradient(145deg,rgba(88,53,33,0.5),rgba(87,33,45,0.36))]";
+		"border-[color:color-mix(in_oklab,#e11d48_54%,#d8a241_46%)] bg-[linear-gradient(145deg,rgba(255,241,228,0.96),rgba(255,226,219,0.84))] shadow-[0_14px_30px_-26px_rgba(190,18,60,0.38)] dark:border-[color:color-mix(in_oklab,#fb7185_56%,#d8a241_44%)] dark:bg-[linear-gradient(145deg,rgba(88,53,33,0.52),rgba(87,33,45,0.38))]";
 
 	// Update arrondissement colors based on event density
 	const updateArrondissementColors = useCallback(() => {
@@ -1853,8 +1853,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 										</span>
 									)}
 									{selectedArrondissementSummary.promotedCount > 0 && (
-										<span className="rounded-full border border-amber-500/55 bg-amber-100/75 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-amber-700 dark:border-amber-400/45 dark:bg-amber-500/12 dark:text-amber-200">
-											{selectedArrondissementSummary.promotedCount} promoted
+										<span className="rounded-full border border-rose-300/45 bg-rose-50/65 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-rose-700/80 dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100/85">
+											{selectedArrondissementSummary.promotedCount} featured
 										</span>
 									)}
 									{selectedArrondissementSummary.ooocCount > 0 && (
@@ -1911,8 +1911,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 														</span>
 													)}
 													{isPromoted && (
-														<span className="rounded-full border border-amber-500/80 bg-amber-100/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-amber-800 dark:border-amber-500/60 dark:bg-amber-500/20 dark:text-amber-200">
-															Promoted
+														<span className="rounded-full border border-rose-300/65 bg-rose-50/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-rose-700/85 dark:border-rose-300/45 dark:bg-rose-400/15 dark:text-rose-100/90">
+															Featured
 														</span>
 													)}
 													{event.isOOOCPick && (

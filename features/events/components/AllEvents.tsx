@@ -9,6 +9,7 @@ import { trackNavigationClick } from "@/features/events/engagement/client-tracki
 import { buildGenreFrequency } from "@/features/events/genre-preview";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { DayNightPeriod, Event } from "@/features/events/types";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import {
 	BookmarkCheck,
 	CalendarDays,
@@ -107,6 +108,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		},
 		ref,
 	) => {
+		const haptics = useAppHaptics();
 		const safeEvents = events.filter((event) => event != null);
 		const [visibleLimit, setVisibleLimit] = useState(INITIAL_VISIBLE_EVENTS);
 		const genreFrequency = buildGenreFrequency(safeEvents);
@@ -134,7 +136,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 						<button
 							key={option.value}
 							type="button"
-							onClick={() => onSortModeChange(option.value)}
+							onClick={() => {
+								haptics.selection();
+								onSortModeChange(option.value);
+							}}
 							aria-pressed={isSelected}
 							className={`h-6 flex-1 rounded-full px-3 text-xs transition-colors max-[340px]:px-2 sm:flex-none ${
 								isSelected
@@ -151,7 +156,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		);
 		const filterButtonControl = (
 			<FilterButton
-				onClickAction={onFilterClickAction}
+				onClickAction={() => {
+					haptics.nudge();
+					onFilterClickAction();
+				}}
 				hasActiveFilters={hasActiveFilters}
 				activeFiltersCount={activeFiltersCount}
 				className="h-7 min-h-7 w-full shrink-0 rounded-full px-3 text-xs sm:w-auto max-[340px]:px-0 [&_span[data-filter-label]]:max-[340px]:sr-only [&_svg]:max-[340px]:mr-0"
@@ -160,7 +168,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		);
 		const clearFiltersControl = hasActiveFilters ? (
 			<ClearFiltersButton
-				onClick={onClearFilters}
+				onClick={() => {
+					haptics.warning();
+					onClearFilters();
+				}}
 				className="h-7 shrink-0 px-3 max-[340px]:px-2"
 			/>
 		) : null;
@@ -169,7 +180,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			<Button
 				type="button"
 				variant="outline"
-				onClick={onNearbyClick}
+				onClick={() => {
+					haptics.selection();
+					onNearbyClick();
+				}}
 				disabled={nearbyEventsStatus === "requesting"}
 				aria-pressed={isNearbyActive}
 				className={`h-7 w-full shrink-0 rounded-full px-3 text-xs sm:w-auto max-[340px]:px-0 ${
@@ -189,7 +203,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			<Button
 				type="button"
 				variant="outline"
-				onClick={() => onSavedOnlyChange(!showSavedOnly)}
+				onClick={() => {
+					haptics.selection();
+					onSavedOnlyChange(!showSavedOnly);
+				}}
 				aria-pressed={showSavedOnly}
 				className={`h-7 w-full shrink-0 rounded-full px-3 text-xs sm:w-auto max-[340px]:px-0 ${
 					showSavedOnly
@@ -323,7 +340,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								<Button
 									type="button"
 									variant="outline"
-									onClick={() => onSavedOnlyChange(false)}
+									onClick={() => {
+										haptics.selection();
+										onSavedOnlyChange(false);
+									}}
 									className="mt-4 h-8 rounded-full px-4"
 								>
 									Show all events
@@ -331,7 +351,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							)}
 							{hasActiveFilters && (
 								<ClearFiltersButton
-									onClick={onClearFilters}
+									onClick={() => {
+										haptics.warning();
+										onClearFilters();
+									}}
 									className="mt-4 h-8 rounded-full px-4"
 								/>
 							)}
@@ -367,14 +390,15 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 							<Button
 								type="button"
 								variant="outline"
-								onClick={() =>
+								onClick={() => {
+									haptics.selection();
 									setVisibleLimit((current) =>
 										Math.min(
 											current + VISIBLE_EVENTS_INCREMENT,
 											allVisibleEvents.length,
 										),
-									)
-								}
+									);
+								}}
 								className="h-9 rounded-full border-border/75 bg-background/70 px-4 text-sm"
 							>
 								Show more events
@@ -389,10 +413,14 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 						<div className="mt-6">
 							<div
 								className="relative cursor-pointer overflow-hidden rounded-[22px] border border-border/60"
-								onClick={onAuthRequired}
+								onClick={() => {
+									haptics.nudge();
+									onAuthRequired();
+								}}
 								onKeyDown={(event) => {
 									if (event.key === "Enter" || event.key === " ") {
 										event.preventDefault();
+										haptics.nudge();
 										onAuthRequired();
 									}
 								}}
@@ -436,7 +464,10 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 											access.
 										</p>
 										<Button
-											onClick={onAuthRequired}
+											onClick={() => {
+												haptics.nudge();
+												onAuthRequired();
+											}}
 											className="mt-5 h-9 rounded-full border border-border/70 bg-primary text-primary-foreground hover:bg-primary/90"
 											size="sm"
 										>

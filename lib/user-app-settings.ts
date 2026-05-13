@@ -7,6 +7,7 @@ export type UserMapLoadStrategy = "idle" | "expand";
 export interface LocalAppSettings {
 	hideFloatingFilterButton: boolean;
 	hideFloatingPrompts: boolean;
+	enableHaptics: boolean;
 	defaultEventSortMode: DefaultEventSortMode;
 	mapLoadStrategy: UserMapLoadStrategy;
 }
@@ -21,6 +22,7 @@ export interface SyncedUserAppSettings {
 export const DEFAULT_LOCAL_APP_SETTINGS: LocalAppSettings = {
 	hideFloatingFilterButton: false,
 	hideFloatingPrompts: false,
+	enableHaptics: true,
 	defaultEventSortMode: "upcoming",
 	mapLoadStrategy: "idle",
 };
@@ -43,6 +45,10 @@ export function normalizeLocalAppSettings(
 			typeof settings?.hideFloatingPrompts === "boolean"
 				? settings.hideFloatingPrompts
 				: DEFAULT_LOCAL_APP_SETTINGS.hideFloatingPrompts,
+		enableHaptics:
+			typeof settings?.enableHaptics === "boolean"
+				? settings.enableHaptics
+				: DEFAULT_LOCAL_APP_SETTINGS.enableHaptics,
 		defaultEventSortMode:
 			settings?.defaultEventSortMode === "fresh-activity" ||
 			settings?.defaultEventSortMode === "upcoming"

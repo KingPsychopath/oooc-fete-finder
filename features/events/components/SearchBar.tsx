@@ -14,6 +14,7 @@ import {
 	formatPrice,
 	getEventDayNightPeriods,
 } from "@/features/events/types";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { Search, TrendingUp, X } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
@@ -304,6 +305,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	value,
 	dynamicChips = [],
 }) => {
+	const haptics = useAppHaptics();
 	const [internalQuery, setInternalQuery] = useState("");
 	const isControlled = value !== undefined;
 	const query = value ?? internalQuery;
@@ -323,6 +325,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	 * Clears the search input and results
 	 */
 	const clearSearch = () => {
+		haptics.light();
 		if (!isControlled) {
 			setInternalQuery("");
 		}
@@ -377,7 +380,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
 							key={example}
 							variant="outline"
 							size="sm"
-							onClick={() => handleSearch(example)}
+							onClick={() => {
+								haptics.selection();
+								handleSearch(example);
+							}}
 							className="h-auto min-w-0 max-w-full rounded-full border-border/60 px-3 py-1.5 text-xs transition-colors hover:border-border hover:bg-accent/50"
 						>
 							<span className="truncate">{example}</span>
@@ -395,7 +401,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
 							key={`popular-${chip.label}`}
 							variant="outline"
 							size="sm"
-							onClick={() => handleSearch(chip.query)}
+							onClick={() => {
+								haptics.selection();
+								handleSearch(chip.query);
+							}}
 							className="h-auto min-w-0 max-w-full rounded-full border-amber-300/70 bg-amber-50/55 px-3 py-1.5 text-xs text-amber-950 transition-colors hover:border-amber-400 hover:bg-amber-100/70 sm:max-w-[13rem] dark:border-amber-500/45 dark:bg-amber-950/25 dark:text-amber-100"
 							aria-label={`Popular now: ${chip.label}`}
 							title="Based on recent anonymous searches"

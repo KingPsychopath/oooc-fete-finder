@@ -22,6 +22,7 @@ import {
 	canSyncAccountData,
 	getClientSyncMode,
 } from "@/features/sync/client-sync-mode";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { useThemeToggle } from "@/hooks/useThemeToggle";
 import { normalizeMapPreference } from "@/lib/user-app-settings";
@@ -37,6 +38,7 @@ import {
 	Moon,
 	RefreshCcw,
 	Settings,
+	Smartphone,
 	Sun,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -91,6 +93,7 @@ function isUserMapLoadStrategy(
 }
 
 export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
+	const haptics = useAppHaptics();
 	const { authMode, isAuthenticated, isOnline } = useOptionalAuth();
 	const { theme, setTheme, mounted } = useThemeToggle();
 	const {
@@ -103,6 +106,7 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 		isLoaded: areLocalSettingsLoaded,
 		setHideFloatingFilterButton,
 		setHideFloatingPrompts,
+		setEnableHaptics,
 		setDefaultEventSortMode,
 		setMapLoadStrategy,
 		resetLocalAppSettings,
@@ -124,6 +128,7 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 	const syncMode = getClientSyncMode({ authMode, isAuthenticated, isOnline });
 
 	const handleMapPreferenceChange = (value: string | null) => {
+		haptics.selection();
 		const nextPreference = normalizeMapPreference(value);
 		if (mapPreference !== nextPreference) {
 			trackMapPreferenceChange({
@@ -139,21 +144,25 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 
 	const handleDefaultSortChange = (value: string | null) => {
 		if (isDefaultEventSortMode(value)) {
+			haptics.selection();
 			setDefaultEventSortMode(value);
 		}
 	};
 
 	const handleMapLoadStrategyChange = (value: string | null) => {
 		if (isUserMapLoadStrategy(value)) {
+			haptics.selection();
 			setMapLoadStrategy(value);
 		}
 	};
 
 	const handleResetSettings = () => {
 		if (!isResetArmed) {
+			haptics.warning();
 			setIsResetArmed(true);
 			return;
 		}
+		haptics.success();
 		resetLocalAppSettings();
 		setMapPreference("system");
 		setTheme("system");
@@ -222,7 +231,10 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 										type="button"
 										variant={isSelected ? "default" : "outline"}
 										disabled={!mounted}
-										onClick={() => setTheme(option.value)}
+										onClick={() => {
+											haptics.selection();
+											setTheme(option.value);
+										}}
 										className={cn(
 											"h-9 rounded-xl text-xs",
 											isSelected && "shadow-sm",
@@ -335,11 +347,12 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 							<button
 								type="button"
 								disabled={!areLocalSettingsLoaded}
-								onClick={() =>
+								onClick={() => {
+									haptics.selection();
 									setHideFloatingFilterButton(
 										!settings.hideFloatingFilterButton,
-									)
-								}
+									);
+								}}
 								className={cn(
 									preferenceToggleClassName,
 									settings.hideFloatingFilterButton &&
@@ -378,9 +391,10 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 							<button
 								type="button"
 								disabled={!areLocalSettingsLoaded}
-								onClick={() =>
-									setHideFloatingPrompts(!settings.hideFloatingPrompts)
-								}
+								onClick={() => {
+									haptics.selection();
+									setHideFloatingPrompts(!settings.hideFloatingPrompts);
+								}}
 								className={cn(
 									preferenceToggleClassName,
 									settings.hideFloatingPrompts &&
@@ -421,6 +435,53 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 
 					<section className="space-y-2.5">
 						<div className="flex items-center gap-2 border-b border-border/60 pb-1.5">
+							<Smartphone className="h-4 w-4 text-muted-foreground" />
+							<h3 className="text-sm font-medium">Mobile feedback</h3>
+						</div>
+						<button
+							type="button"
+							disabled={!areLocalSettingsLoaded}
+							onClick={() => {
+								haptics.selection();
+								setEnableHaptics(!settings.enableHaptics);
+							}}
+							className={cn(
+								preferenceToggleClassName,
+								settings.enableHaptics && "border-primary/45 bg-primary/10",
+							)}
+						>
+							<span className="flex min-w-0 items-center gap-2.5">
+								<span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground">
+									<Smartphone className="h-4 w-4" />
+								</span>
+								<span className="min-w-0">
+									<span className="block text-sm font-medium">
+										Haptic feedback
+									</span>
+									<span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+										Use subtle vibration on supported mobile devices.
+									</span>
+								</span>
+							</span>
+							<span
+								className={cn(
+									switchClassName,
+									settings.enableHaptics && "border-primary bg-primary",
+								)}
+								aria-hidden="true"
+							>
+								<span
+									className={cn(
+										switchThumbClassName,
+										settings.enableHaptics && "translate-x-5",
+									)}
+								/>
+							</span>
+						</button>
+					</section>
+
+					<section className="space-y-2.5">
+						<div className="flex items-center gap-2 border-b border-border/60 pb-1.5">
 							<HardDrive className="h-4 w-4 text-muted-foreground" />
 							<h3 className="text-sm font-medium">Storage and sync</h3>
 						</div>
@@ -441,8 +502,8 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 						</div>
 						{isResetArmed && (
 							<p className="text-xs leading-relaxed text-muted-foreground">
-								This resets theme, map links, prompts, filters, and default sort
-								on this device.
+								This resets theme, map links, prompts, filters, haptics, and
+								default sort on this device.
 							</p>
 						)}
 					</section>
@@ -451,7 +512,10 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 				<div className="border-t border-border/70 px-4 py-3">
 					<Button
 						type="button"
-						onClick={onClose}
+						onClick={() => {
+							haptics.success();
+							onClose();
+						}}
 						disabled={!isReady}
 						className="h-9 w-full rounded-xl"
 					>

@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { MapPin, Settings, X } from "lucide-react";
 import React from "react";
 import { MAP_OPTIONS } from "../constants/map-options";
@@ -26,9 +27,12 @@ export const MapSelectionModal: React.FC<MapSelectionModalProps> = ({
 	showRememberOption = true,
 	onRememberPreference,
 }) => {
+	const haptics = useAppHaptics();
+
 	if (!isOpen) return null;
 
 	const handleSelect = (provider: MapProvider, remember: boolean = false) => {
+		haptics.success();
 		if (remember && onRememberPreference) {
 			onRememberPreference(provider);
 		}
@@ -47,6 +51,7 @@ export const MapSelectionModal: React.FC<MapSelectionModalProps> = ({
 			}}
 			onPointerDown={(pointerEvent) => {
 				if (pointerEvent.target !== pointerEvent.currentTarget) return;
+				haptics.light();
 				onClose();
 			}}
 		>
@@ -72,7 +77,10 @@ export const MapSelectionModal: React.FC<MapSelectionModalProps> = ({
 					<Button
 						variant="outline"
 						size="icon"
-						onClick={onClose}
+						onClick={() => {
+							haptics.light();
+							onClose();
+						}}
 						className="h-8 w-8"
 					>
 						<X className="h-4 w-4" />
@@ -118,7 +126,14 @@ export const MapSelectionModal: React.FC<MapSelectionModalProps> = ({
 					))}
 
 					<div className="pt-3 border-t">
-						<Button variant="outline" onClick={onClose} className="w-full">
+						<Button
+							variant="outline"
+							onClick={() => {
+								haptics.light();
+								onClose();
+							}}
+							className="w-full"
+						>
 							Cancel
 						</Button>
 					</div>

@@ -39,6 +39,7 @@ import {
 	formatLocationAreaShort,
 	formatPriceRange,
 } from "@/features/events/types";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { LAYERS } from "@/lib/ui/layers";
 import {
@@ -151,6 +152,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	forceDrawer = false,
 }) => {
 	const { settings: localAppSettings } = useLocalAppSettings();
+	const haptics = useAppHaptics();
 	const sectionClassName =
 		"space-y-3 rounded-xl border border-border/70 bg-background/58 p-3";
 	const sectionTitleClassName =
@@ -213,13 +215,28 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 	// Stable price range reset handler
 	const resetPriceRange = useCallback(() => {
+		haptics.warning();
 		onPriceRangeChange(PRICE_RANGE_CONFIG.defaultRange);
-	}, [onPriceRangeChange]);
+	}, [haptics, onPriceRangeChange]);
 
 	// Stable age range reset handler
 	const resetAgeRange = useCallback(() => {
+		haptics.warning();
 		onAgeRangeChange(null);
-	}, [onAgeRangeChange]);
+	}, [haptics, onAgeRangeChange]);
+
+	const handleClearFilters = useCallback(() => {
+		haptics.warning();
+		onClearFilters();
+	}, [haptics, onClearFilters]);
+
+	const handleFilterSelection = useCallback(
+		(action: () => void) => {
+			haptics.selection();
+			action();
+		},
+		[haptics],
+	);
 
 	// Memoize the hasActiveFilters calculation
 	const hasActiveFilters = useMemo(
@@ -410,8 +427,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		!hasSelectedDateRange &&
 		(defaultDateRange.from !== null || defaultDateRange.to !== null);
 	const resetDateRangeToDefault = useCallback(() => {
+		haptics.warning();
 		onDateRangeChange(defaultDateRange);
-	}, [defaultDateRange, onDateRangeChange]);
+	}, [defaultDateRange, haptics, onDateRangeChange]);
 
 	const getDayNightLabel = useCallback((period: DayNightPeriod) => {
 		return (
@@ -498,7 +516,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							</div>
 							{isDesktopContentExpanded && (
 								<ClearFiltersButton
-									onClick={onClearFilters}
+									onClick={handleClearFilters}
 									className="h-7 rounded-full px-3 text-xs lg:text-[11px]"
 								>
 									Clear
@@ -533,7 +551,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									variant="ghost"
 									size="sm"
 									className={activeFilterRemoveButtonClassName}
-									onClick={() => onOOOCPicksToggle(false)}
+									onClick={() =>
+										handleFilterSelection(() => onOOOCPicksToggle(false))
+									}
 								>
 									<X className="h-3 w-3" />
 								</Button>
@@ -578,7 +598,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									variant="ghost"
 									size="sm"
 									className={activeFilterRemoveButtonClassName}
-									onClick={() => onDayNightPeriodToggle(period)}
+									onClick={() =>
+										handleFilterSelection(() => onDayNightPeriodToggle(period))
+									}
 								>
 									<X className="h-3 w-3" />
 								</Button>
@@ -599,7 +621,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									variant="ghost"
 									size="sm"
 									className={activeFilterRemoveButtonClassName}
-									onClick={() => onNationalityToggle(nationality)}
+									onClick={() =>
+										handleFilterSelection(() =>
+											onNationalityToggle(nationality),
+										)
+									}
 								>
 									<X className="h-3 w-3" />
 								</Button>
@@ -623,7 +649,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									variant="ghost"
 									size="sm"
 									className={activeFilterRemoveButtonClassName}
-									onClick={() => onVenueTypeToggle(venueType)}
+									onClick={() =>
+										handleFilterSelection(() => onVenueTypeToggle(venueType))
+									}
 								>
 									<X className="h-3 w-3" />
 								</Button>
@@ -648,7 +676,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									variant="ghost"
 									size="sm"
 									className={activeFilterRemoveButtonClassName}
-									onClick={() => onIndoorPreferenceChange(null)}
+									onClick={() =>
+										handleFilterSelection(() => onIndoorPreferenceChange(null))
+									}
 								>
 									<X className="h-3 w-3" />
 								</Button>
@@ -714,7 +744,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									variant="ghost"
 									size="sm"
 									className={activeFilterRemoveButtonClassName}
-									onClick={() => onArrondissementToggle(arr)}
+									onClick={() =>
+										handleFilterSelection(() => onArrondissementToggle(arr))
+									}
 								>
 									<X className="h-3 w-3" />
 								</Button>
@@ -742,9 +774,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										aria-label={`Remove ${mode === "include" ? "included" : "excluded"} ${genreLabel} filter`}
 										className={activeFilterRemoveButtonClassName}
 										onClick={() =>
-											mode === "include"
-												? onGenreToggle(genre)
-												: onGenreExcludeToggle(genre)
+											handleFilterSelection(() =>
+												mode === "include"
+													? onGenreToggle(genre)
+													: onGenreExcludeToggle(genre),
+											)
 										}
 									>
 										<X className="h-3 w-3" />
@@ -777,7 +811,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 				{!hideFloatingButton && !localAppSettings.hideFloatingFilterButton && (
 					<FilterButton
 						id="tour-filter-button"
-						onClickAction={onOpen || onClose}
+						onClickAction={() => {
+							haptics.nudge();
+							(isOpen ? onClose : onOpen)?.();
+						}}
 						hasActiveFilters={hasActiveFilters}
 						activeFiltersCount={activeFilterCount}
 						className="fixed bottom-[calc(env(safe-area-inset-bottom)+var(--oooc-mobile-nav-offset,1rem))] min-w-[8.25rem] rounded-full px-4 shadow-lg transition-[bottom] duration-300 ease-out lg:hidden"
@@ -816,7 +853,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 							<div className="flex shrink-0 items-center gap-2">
 								{hasActiveFilters && (
 									<ClearFiltersButton
-										onClick={onClearFilters}
+										onClick={handleClearFilters}
 										className="h-7 px-2.5"
 									/>
 								)}
@@ -824,7 +861,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									<Button
 										variant="ghost"
 										size="icon-sm"
-										onClick={onToggleExpanded}
+										onClick={() => {
+											haptics.nudge();
+											onToggleExpanded();
+										}}
 										aria-label={
 											isDesktopContentExpanded
 												? "Collapse filters"
@@ -1062,7 +1102,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																					aria-pressed={isIncluded}
 																					aria-label={`Include ${label}`}
 																					title={`Include ${label}`}
-																					onClick={() => onGenreToggle(key)}
+																					onClick={() =>
+																						handleFilterSelection(() =>
+																							onGenreToggle(key),
+																						)
+																					}
 																					className={
 																						isIncluded
 																							? "border border-emerald-500/50 bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300"
@@ -1079,7 +1123,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																					aria-label={`Exclude ${label}`}
 																					title={`Exclude ${label}`}
 																					onClick={() =>
-																						onGenreExcludeToggle(key)
+																						handleFilterSelection(() =>
+																							onGenreExcludeToggle(key),
+																						)
 																					}
 																					className={
 																						isExcluded
@@ -1201,7 +1247,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													</div>
 													<Toggle
 														pressed={selectedOOOCPicks}
-														onPressedChange={onOOOCPicksToggle}
+														onPressedChange={(pressed) =>
+															handleFilterSelection(() =>
+																onOOOCPicksToggle(pressed),
+															)
+														}
 														className={denseToggleClassName}
 														size="sm"
 													>
@@ -1227,7 +1277,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															<Toggle
 																key={key}
 																pressed={selectedVenueTypes.includes(key)}
-																onPressedChange={() => onVenueTypeToggle(key)}
+																onPressedChange={() =>
+																	handleFilterSelection(() =>
+																		onVenueTypeToggle(key),
+																	)
+																}
 																className={regularToggleClassName}
 																size="sm"
 															>
@@ -1410,14 +1464,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						<div className="flex shrink-0 items-center gap-2">
 							{hasActiveFilters && (
 								<ClearFiltersButton
-									onClick={onClearFilters}
+									onClick={handleClearFilters}
 									className="hidden h-7 px-2.5 lg:inline-flex"
 								/>
 							)}
 							<Button
 								variant="outline"
 								size="icon"
-								onClick={onClose}
+								onClick={() => {
+									haptics.light();
+									onClose();
+								}}
 								className={`h-8 w-8 rounded-full border-border/70 bg-background/70 hover:bg-accent ${
 									forceDrawer ? "" : "lg:hidden"
 								}`}
@@ -1445,7 +1502,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									type="button"
 									variant="ghost"
 									size="sm"
-									onClick={onClearFilters}
+									onClick={handleClearFilters}
 									className="h-7 shrink-0 rounded-full border border-dashed border-border/70 px-3 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
 								>
 									Clear
@@ -1590,7 +1647,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 													<Toggle
 														key={key}
 														pressed={selectedDayNightPeriods.includes(key)}
-														onPressedChange={() => onDayNightPeriodToggle(key)}
+														onPressedChange={() =>
+															handleFilterSelection(() =>
+																onDayNightPeriodToggle(key),
+															)
+														}
 														size="sm"
 														className={regularToggleClassName}
 														title={timeRange}
@@ -1632,7 +1693,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</div>
 									<Toggle
 										pressed={selectedOOOCPicks}
-										onPressedChange={onOOOCPicksToggle}
+										onPressedChange={(pressed) =>
+											handleFilterSelection(() => onOOOCPicksToggle(pressed))
+										}
 										className={regularToggleClassName}
 										size="sm"
 									>
@@ -1654,7 +1717,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											<Toggle
 												key={key}
 												pressed={selectedVenueTypes.includes(key)}
-												onPressedChange={() => onVenueTypeToggle(key)}
+												onPressedChange={() =>
+													handleFilterSelection(() => onVenueTypeToggle(key))
+												}
 												className={regularToggleClassName}
 												size="sm"
 											>
@@ -1689,7 +1754,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											<Toggle
 												key={key}
 												pressed={selectedNationalities.includes(key)}
-												onPressedChange={() => onNationalityToggle(key)}
+												onPressedChange={() =>
+													handleFilterSelection(() => onNationalityToggle(key))
+												}
 												className={regularToggleClassName}
 												size="sm"
 											>
@@ -1827,7 +1894,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																aria-pressed={isIncluded}
 																aria-label={`Include ${label}`}
 																title={`Include ${label}`}
-																onClick={() => onGenreToggle(key)}
+																onClick={() =>
+																	handleFilterSelection(() =>
+																		onGenreToggle(key),
+																	)
+																}
 																className={
 																	isIncluded
 																		? "border border-emerald-500/50 bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300"
@@ -1843,7 +1914,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																aria-pressed={isExcluded}
 																aria-label={`Exclude ${label}`}
 																title={`Exclude ${label}`}
-																onClick={() => onGenreExcludeToggle(key)}
+																onClick={() =>
+																	handleFilterSelection(() =>
+																		onGenreExcludeToggle(key),
+																	)
+																}
 																className={
 																	isExcluded
 																		? "border border-red-500/50 bg-red-500/15 text-red-700 hover:bg-red-500/20 dark:text-red-300"
@@ -1890,7 +1965,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												<Toggle
 													key={arr}
 													pressed={selectedArrondissements.includes(arr)}
-													onPressedChange={() => onArrondissementToggle(arr)}
+													onPressedChange={() =>
+														handleFilterSelection(() =>
+															onArrondissementToggle(arr),
+														)
+													}
 													size="sm"
 													className={`${denseToggleClassName} ${isWideLocation ? "col-span-2" : ""}`}
 												>
@@ -1920,7 +1999,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						<Button
 							type="button"
 							size="sm"
-							onClick={onClose}
+							onClick={() => {
+								haptics.success();
+								onClose();
+							}}
 							className="ml-auto h-8 rounded-full px-4 text-xs"
 						>
 							Done ({filteredEventsCount})

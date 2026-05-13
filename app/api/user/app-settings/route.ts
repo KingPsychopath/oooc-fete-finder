@@ -27,6 +27,7 @@ const appSettingsSchema = z.object({
 	appSettings: z.object({
 		hideFloatingFilterButton: z.boolean().optional(),
 		hideFloatingPrompts: z.boolean().optional(),
+		enableHaptics: z.boolean().optional(),
 		defaultEventSortMode: z.enum(["upcoming", "fresh-activity"]).optional(),
 		mapLoadStrategy: z.enum(["idle", "expand"]).optional(),
 	}),

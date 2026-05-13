@@ -67,6 +67,7 @@ import { MapSelectionModal } from "@/features/maps/components/map-selection-moda
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
 import type { MapProvider } from "@/features/maps/types";
 import { openLocationInMaps } from "@/features/maps/utils/map-launcher";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { LAYERS } from "@/lib/ui/layers";
 import {
 	OVERLAY_BODY_ATTRIBUTE,
@@ -429,6 +430,7 @@ const EventModal: React.FC<EventModalProps> = ({
 }) => {
 	const modalTitleId = useId();
 	const { mapPreference, setMapPreference, isLoaded } = useMapPreference();
+	const haptics = useAppHaptics();
 	const [showMapSelection, setShowMapSelection] = useState(false);
 	const [showMapSettings, setShowMapSettings] = useState(false);
 	const [linkShareStatus, setLinkShareStatus] = useState<{
@@ -616,8 +618,10 @@ const EventModal: React.FC<EventModalProps> = ({
 
 		if (mapPreference === "ask") {
 			setPendingLocationData({ location, arrondissement, resolution });
+			haptics.nudge();
 			setShowMapSelection(true);
 		} else {
+			haptics.selection();
 			trackMapOpen({
 				eventKey: event.eventKey,
 				provider: mapPreference,
@@ -667,6 +671,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		from: MapProvider,
 		to: MapProvider,
 	) => {
+		haptics.selection();
 		trackMapPreferenceChange({
 			eventKey: event.eventKey,
 			from,
@@ -821,7 +826,11 @@ const EventModal: React.FC<EventModalProps> = ({
 
 	const handleCopyContactEmail = async () => {
 		const copied = await copyToClipboard(CONTACT_EMAIL);
-		if (!copied) return;
+		if (!copied) {
+			haptics.error();
+			return;
+		}
+		haptics.success();
 		setIsContactEmailCopied(true);
 		if (contactCopyTimeoutRef.current) {
 			clearTimeout(contactCopyTimeoutRef.current);
@@ -835,6 +844,11 @@ const EventModal: React.FC<EventModalProps> = ({
 		const requestUpdateUrl = buildRequestUpdateUrl();
 		if (!requestUpdateUrl) return;
 		const copied = await copyToClipboard(requestUpdateUrl);
+		if (copied) {
+			haptics.success();
+		} else {
+			haptics.error();
+		}
 		setTimedShareStatus(
 			copied ? "Update link copied" : "Unable to copy update link",
 			copied ? "success" : "error",
@@ -858,18 +872,26 @@ const EventModal: React.FC<EventModalProps> = ({
 					text: `Check out ${event.name}`,
 					url: shareUrl,
 				});
+				haptics.success();
 				setTimedShareStatus("Link shared");
 				return;
 			}
 
 			const copied = await copyToClipboard(shareUrl);
 			if (copied) {
+				haptics.success();
 				setTimedShareStatus("Link copied");
 			} else {
+				haptics.error();
 				setTimedShareStatus("Unable to copy link", "error");
 			}
 		} catch {
 			const copied = await copyToClipboard(shareUrl);
+			if (copied) {
+				haptics.success();
+			} else {
+				haptics.error();
+			}
 			setTimedShareStatus(
 				copied ? "Link copied" : "Unable to share link",
 				copied ? "success" : "error",
@@ -883,6 +905,7 @@ const EventModal: React.FC<EventModalProps> = ({
 
 	const openUpdateRequest = () => {
 		if (!submissionsEnabled) return;
+		haptics.nudge();
 		setUpdateRequestForm(buildUpdateRequestForm());
 		setUpdateRequestStatus(null);
 		setGenreSearchQuery("");
@@ -979,6 +1002,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		if (updateRequestStatus?.tone === "success") return;
 		setUpdateRequestStatus(null);
 		if (!updateRequestForm.hostEmail.includes("@")) {
+			haptics.error();
 			setUpdateRequestStatus({
 				message: "Add a contact email so admins can verify the update.",
 				tone: "error",
@@ -987,6 +1011,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		}
 		const normalizedProofLink = normalizeProofLink(updateRequestForm.proofLink);
 		if (!normalizedProofLink) {
+			haptics.error();
 			setUpdateRequestStatus({
 				message:
 					"Add a valid proof URL showing the change, like an organiser post or ticket page update.",
@@ -998,6 +1023,7 @@ const EventModal: React.FC<EventModalProps> = ({
 			? normalizeProofLinks(updateRequestForm.ticketLink)
 			: [];
 		if (updateRequestForm.ticketLink.trim() && !normalizedTicketLinks) {
+			haptics.error();
 			setUpdateRequestStatus({
 				message: "Ticket links must be valid URLs.",
 				tone: "error",
@@ -1024,6 +1050,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		);
 
 		if (Object.keys(changedFields).length === 0) {
+			haptics.error();
 			setUpdateRequestStatus({
 				message:
 					"Nothing changed. Please update at least one field before submitting.",
@@ -1074,6 +1101,7 @@ const EventModal: React.FC<EventModalProps> = ({
 				issues?: string[];
 			};
 			if (!response.ok || !payload.success) {
+				haptics.error();
 				setUpdateRequestStatus({
 					message:
 						payload.issues?.[0] ||
@@ -1087,7 +1115,9 @@ const EventModal: React.FC<EventModalProps> = ({
 				message: "Update request sent for admin review.",
 				tone: "success",
 			});
+			haptics.success();
 		} catch (error) {
+			haptics.error();
 			setUpdateRequestStatus({
 				message:
 					error instanceof Error &&
@@ -1135,6 +1165,7 @@ const EventModal: React.FC<EventModalProps> = ({
 	const ageLabel = event.age || "All ages";
 
 	const openExternalLink = (url: string, source: string) => {
+		haptics.selection();
 		trackEventEngagement({
 			eventKey: event.eventKey,
 			actionType: "outbound_click",
@@ -1145,6 +1176,7 @@ const EventModal: React.FC<EventModalProps> = ({
 	};
 
 	const handleCalendarSync = () => {
+		haptics.success();
 		trackEventEngagement({
 			eventKey: event.eventKey,
 			actionType: "calendar_sync",
@@ -1155,6 +1187,11 @@ const EventModal: React.FC<EventModalProps> = ({
 	};
 
 	const handleToggleSaved = () => {
+		if (isSaved) {
+			haptics.light();
+		} else {
+			haptics.success();
+		}
 		onToggleSaved?.(event);
 		trackEventEngagement({
 			eventKey: event.eventKey,
