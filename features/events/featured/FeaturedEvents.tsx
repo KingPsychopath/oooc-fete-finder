@@ -74,12 +74,12 @@ function SpotlightEventPanel({
 			: [event.indoor ? "indoor" : "outdoor"];
 	const hasNationalities = Boolean(event.nationality?.length);
 	const statusSurfaceClassName = isFeaturedPlacement
-		? "border-amber-300/30 shadow-[0_24px_58px_-54px_rgba(151,111,61,0.34),0_0_18px_-24px_rgba(255,221,148,0.3),inset_0_1px_0_rgba(255,255,255,0.58)] hover:border-amber-300/42 hover:shadow-[0_30px_66px_-56px_rgba(151,111,61,0.38),0_0_22px_-24px_rgba(255,221,148,0.36),inset_0_1px_0_rgba(255,255,255,0.64)] dark:border-amber-200/16 dark:shadow-[0_24px_58px_-54px_rgba(224,169,85,0.22),0_0_18px_-25px_rgba(255,218,145,0.14),inset_0_1px_0_rgba(255,255,255,0.06)]"
+		? "border-amber-300/22 shadow-[0_22px_52px_-58px_rgba(151,111,61,0.24),0_0_14px_-26px_rgba(255,221,148,0.22),inset_0_1px_0_rgba(255,255,255,0.46)] hover:border-amber-300/34 hover:shadow-[0_28px_60px_-60px_rgba(151,111,61,0.3),0_0_18px_-26px_rgba(255,221,148,0.28),inset_0_1px_0_rgba(255,255,255,0.52)] dark:border-amber-200/12 dark:shadow-[0_22px_52px_-58px_rgba(224,169,85,0.16),0_0_14px_-27px_rgba(255,218,145,0.1),inset_0_1px_0_rgba(255,255,255,0.045)]"
 		: isPromoted
-			? "border-[#315b5f]/20 shadow-[0_24px_58px_-56px_rgba(49,91,95,0.3),0_0_16px_-24px_rgba(123,207,209,0.2),inset_0_1px_0_rgba(255,255,255,0.5)] hover:border-[#315b5f]/30 hover:shadow-[0_30px_64px_-58px_rgba(49,91,95,0.34),0_0_20px_-24px_rgba(123,207,209,0.25),inset_0_1px_0_rgba(255,255,255,0.56)] dark:border-cyan-100/12 dark:shadow-[0_24px_58px_-56px_rgba(49,91,95,0.22),0_0_16px_-24px_rgba(103,202,205,0.14),inset_0_1px_0_rgba(255,255,255,0.05)]"
+			? "border-[#315b5f]/16 shadow-[0_22px_52px_-60px_rgba(49,91,95,0.22),0_0_12px_-26px_rgba(123,207,209,0.15),inset_0_1px_0_rgba(255,255,255,0.42)] hover:border-[#315b5f]/26 hover:shadow-[0_28px_58px_-62px_rgba(49,91,95,0.28),0_0_16px_-26px_rgba(123,207,209,0.2),inset_0_1px_0_rgba(255,255,255,0.48)] dark:border-cyan-100/9 dark:shadow-[0_22px_52px_-60px_rgba(49,91,95,0.16),0_0_12px_-26px_rgba(103,202,205,0.1),inset_0_1px_0_rgba(255,255,255,0.04)]"
 			: isOOOCPick
-				? "border-amber-300/16 shadow-[0_22px_54px_-58px_rgba(151,111,61,0.22),inset_0_1px_0_rgba(255,255,255,0.5)] hover:border-amber-300/24 hover:shadow-[0_28px_60px_-58px_rgba(151,111,61,0.26),inset_0_1px_0_rgba(255,255,255,0.56)] dark:border-amber-200/10 dark:shadow-[0_22px_54px_-58px_rgba(224,169,85,0.14),inset_0_1px_0_rgba(255,255,255,0.045)]"
-				: "border-border/28 shadow-[0_20px_52px_-56px_rgba(44,28,12,0.34),inset_0_1px_0_rgba(255,255,255,0.42)] hover:border-border/40 hover:shadow-[0_26px_58px_-58px_rgba(44,28,12,0.32),inset_0_1px_0_rgba(255,255,255,0.48)] dark:border-border/18 dark:shadow-[0_20px_52px_-56px_rgba(0,0,0,0.76),inset_0_1px_0_rgba(255,255,255,0.045)]";
+				? "border-amber-300/12 shadow-[0_20px_48px_-62px_rgba(151,111,61,0.18),inset_0_1px_0_rgba(255,255,255,0.42)] hover:border-amber-300/20 hover:shadow-[0_26px_54px_-62px_rgba(151,111,61,0.22),inset_0_1px_0_rgba(255,255,255,0.48)] dark:border-amber-200/8 dark:shadow-[0_20px_48px_-62px_rgba(224,169,85,0.1),inset_0_1px_0_rgba(255,255,255,0.035)]"
+				: "border-border/22 shadow-[0_18px_46px_-60px_rgba(44,28,12,0.26),inset_0_1px_0_rgba(255,255,255,0.36)] hover:border-border/34 hover:shadow-[0_24px_52px_-62px_rgba(44,28,12,0.26),inset_0_1px_0_rgba(255,255,255,0.42)] dark:border-border/14 dark:shadow-[0_18px_46px_-60px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.035)]";
 	const statusGlowClassName = isFeaturedPlacement
 		? "from-amber-100/16 via-amber-50/5"
 		: isPromoted
@@ -109,7 +109,7 @@ function SpotlightEventPanel({
 			type="button"
 			onClick={() => onClick(event)}
 			className={cn(
-				"group relative flex min-h-[15rem] w-full flex-col overflow-hidden rounded-2xl border bg-[linear-gradient(145deg,rgba(255,252,246,0.78),rgba(250,245,236,0.54)_52%,rgba(255,255,255,0.36))] p-4 text-left backdrop-blur transition-all duration-300 hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-ring/60 dark:bg-[linear-gradient(145deg,rgba(47,39,31,0.58),rgba(29,25,21,0.56)_56%,rgba(255,255,255,0.035))]",
+				"group relative flex min-h-[15rem] w-full flex-col overflow-hidden rounded-2xl border bg-card/58 p-4 text-left backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:bg-card/72 focus-visible:ring-2 focus-visible:ring-ring/60 dark:bg-card/42 dark:hover:bg-card/54",
 				statusSurfaceClassName,
 			)}
 		>
@@ -117,7 +117,7 @@ function SpotlightEventPanel({
 				className="pointer-events-none absolute inset-0 rounded-2xl"
 				aria-hidden="true"
 			>
-				<div className="absolute inset-0 rounded-2xl bg-[image:var(--ooo-grain-image)] bg-[length:220px_220px] opacity-[0.12] mix-blend-multiply dark:opacity-[0.08] dark:mix-blend-screen" />
+				<div className="absolute inset-0 rounded-2xl bg-[image:var(--ooo-grain-image)] bg-[length:220px_220px] opacity-[0.055] mix-blend-multiply dark:opacity-[0.04] dark:mix-blend-screen" />
 				<div
 					className={cn(
 						"absolute inset-x-5 top-12 h-24 rounded-full bg-gradient-to-b to-transparent blur-2xl",
@@ -381,29 +381,21 @@ export function FeaturedEvents({
 	};
 
 	return (
-		<section className="relative left-1/2 mb-10 w-screen -translate-x-1/2 overflow-hidden border-y border-amber-300/8 bg-[linear-gradient(105deg,rgba(240,182,104,0.16),rgba(255,255,255,0.22)_28%,rgba(33,63,67,0.08)_70%,rgba(240,182,104,0.12))] py-6 shadow-[0_28px_90px_-76px_rgba(176,124,54,0.78)] dark:border-amber-200/8 dark:bg-[linear-gradient(105deg,rgba(240,182,104,0.09),rgba(255,255,255,0.025)_30%,rgba(49,91,95,0.12)_70%,rgba(240,182,104,0.065))]">
+		<section className="relative mb-10 overflow-visible border-t border-border/45 pt-6">
 			<div className="pointer-events-none absolute inset-0" aria-hidden="true">
-				<div className="absolute inset-x-[10vw] top-0 h-px bg-gradient-to-r from-transparent via-amber-300/18 to-transparent dark:via-amber-200/16" />
-				<div className="absolute inset-x-[10vw] bottom-0 h-px bg-gradient-to-r from-transparent via-amber-300/34 to-transparent dark:via-amber-200/18" />
-				<div className="absolute left-[9vw] top-[-3px] h-1.5 w-1.5 rounded-full border border-amber-300/22 bg-background/40 dark:border-amber-100/16 dark:bg-background/30" />
-				<div className="absolute right-[9vw] top-[-3px] h-1.5 w-1.5 rounded-full border border-amber-300/22 bg-background/40 dark:border-amber-100/16 dark:bg-background/30" />
-				<div className="absolute left-[9vw] bottom-[-3px] h-1.5 w-1.5 rounded-full border border-amber-300/26 bg-background/30 dark:border-amber-100/14 dark:bg-background/20" />
-				<div className="absolute right-[9vw] bottom-[-3px] h-1.5 w-1.5 rounded-full border border-amber-300/26 bg-background/30 dark:border-amber-100/14 dark:bg-background/20" />
-				<div className="absolute -top-20 left-[6vw] h-52 w-52 rounded-full border-t border-l border-amber-300/20 [mask-image:linear-gradient(315deg,transparent_0%,black_34%,black_62%,transparent_82%)] dark:border-amber-200/12" />
-				<div className="absolute top-12 left-[12vw] h-px w-32 rotate-[16deg] bg-gradient-to-r from-transparent via-amber-200/30 to-transparent opacity-60 dark:via-amber-100/22" />
-				<div className="absolute inset-x-[18vw] bottom-0 h-px bg-gradient-to-r from-transparent via-amber-300/24 to-transparent dark:via-amber-200/16" />
-				<div className="absolute -right-20 -bottom-24 h-64 w-64 rounded-full border-r border-b border-amber-300/18 [mask-image:linear-gradient(135deg,transparent_0%,black_42%,black_60%,transparent_82%)] dark:border-amber-200/12" />
+				<div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/22 to-transparent dark:via-amber-100/12" />
+				<div className="absolute -top-10 left-0 h-32 w-1/2 bg-[radial-gradient(ellipse_at_12%_0%,rgba(240,182,104,0.09),transparent_70%)] blur-xl dark:opacity-60" />
 			</div>
-			<div className="relative mx-auto w-full max-w-[104rem] px-4 sm:px-6 lg:px-10 2xl:px-14">
+			<div className="relative">
 				<div
-					className="pointer-events-none absolute bottom-6 left-4 top-6 hidden w-8 items-center justify-center border-l border-amber-300/22 lg:flex 2xl:left-8 dark:border-amber-100/12"
+					className="pointer-events-none absolute bottom-0 left-0 top-12 hidden w-8 items-center justify-center border-l border-border/24 lg:flex dark:border-border/14"
 					aria-hidden="true"
 				>
-					<span className="-rotate-90 whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.28em] text-amber-950/42 dark:text-amber-100/28">
+					<span className="-rotate-90 whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.28em] text-foreground/34 dark:text-foreground/28">
 						Current favourites
 					</span>
 				</div>
-				<div className="lg:pl-12 2xl:pl-14">
+				<div className="lg:pl-12">
 					<div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 						<FeaturedEventsHeader rotationContext={rotationContext} />
 						{hasMoreEvents && (

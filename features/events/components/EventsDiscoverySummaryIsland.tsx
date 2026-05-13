@@ -75,7 +75,7 @@ export function EventsDiscoverySummaryIsland({
 					{ooocPicksInViewCount > 0 && (
 						<div
 							id="tour-oooc-picks"
-							className="w-full rounded-xl border border-[#f0b668]/35 bg-[linear-gradient(145deg,rgba(255,247,234,0.64),rgba(255,255,255,0.3))] p-3 shadow-[0_16px_34px_-30px_rgba(22,16,10,0.58)] backdrop-blur lg:justify-self-end dark:border-[#f0b668]/22 dark:bg-[linear-gradient(145deg,rgba(240,182,104,0.12),rgba(255,255,255,0.035))]"
+							className="w-full rounded-xl border border-border/55 bg-card/46 p-3 shadow-[0_14px_30px_-30px_rgba(22,16,10,0.5)] backdrop-blur lg:justify-self-end dark:border-border/30 dark:bg-card/34"
 						>
 							<div className="flex items-center justify-between gap-3">
 								<div className="min-w-0">
@@ -99,10 +99,6 @@ export function EventsDiscoverySummaryIsland({
 						</div>
 					)}
 				</div>
-				<div
-					className="relative mt-6 border-t border-border/70"
-					role="presentation"
-				/>
 			</section>
 
 			<FeaturedEvents

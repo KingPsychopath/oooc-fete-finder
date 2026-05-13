@@ -81,7 +81,7 @@
 	--ooo-font-display: var(--font-prata), "Swear Display", "Iowan Old Style",
 		"Times New Roman", Times, serif;
 	--ooo-grain-image: url("/grain.png");
-	--ooo-grain-opacity: 0.3;
+	--ooo-grain-opacity: 0.16;
 	--ooo-surface-alpha: 0.76;
 	--ooo-surface-soft-alpha: 0.58;
 	--background: oklch(0.973 0.012 82);
@@ -121,7 +121,7 @@
 }
 
 .dark {
-	--ooo-grain-opacity: 0.24;
+	--ooo-grain-opacity: 0.12;
 	--ooo-surface-alpha: 0.7;
 	--ooo-surface-soft-alpha: 0.5;
 	--background: oklch(0.145 0.013 58);
@@ -287,12 +287,12 @@
 }
 
 .ooo-grain-visible::before {
-	opacity: 0.22;
+	opacity: 0.14;
 	mix-blend-mode: multiply;
 }
 
 .dark .ooo-grain-visible::before {
-	opacity: 0.18;
+	opacity: 0.1;
 	mix-blend-mode: screen;
 }
 
