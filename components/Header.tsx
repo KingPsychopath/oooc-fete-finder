@@ -169,14 +169,18 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 				}`}
 			>
 				<div
-					className={`mx-auto w-full max-w-[1400px] 2xl:max-w-[1680px] rounded-2xl border ${
+					className={`relative mx-auto w-full max-w-[1400px] 2xl:max-w-[1680px] overflow-hidden rounded-2xl border ${
 						isCompressed
 							? "border-border/75 bg-card/95 shadow-[0_10px_26px_rgba(20,16,12,0.22)] backdrop-blur-xl"
 							: "border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg"
 					}`}
 				>
 					<div
-						className={`mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 transition-transform duration-300 ease-out will-change-transform sm:min-h-[84px] sm:px-5 lg:grid lg:grid-cols-[minmax(190px,1fr)_auto_minmax(170px,1fr)] lg:gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] xl:gap-6 ${
+						className="pointer-events-none absolute inset-0 bg-[image:var(--ooo-grain-image)] bg-[length:220px_220px] opacity-[0.055] mix-blend-multiply dark:opacity-[0.075] dark:mix-blend-screen"
+						aria-hidden="true"
+					/>
+					<div
+						className={`relative mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 transition-transform duration-300 ease-out will-change-transform sm:min-h-[84px] sm:px-5 lg:grid lg:grid-cols-[minmax(190px,1fr)_auto_minmax(170px,1fr)] lg:gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] xl:gap-6 ${
 							isCompressed ? "scale-[0.94] sm:scale-[0.96]" : "scale-100"
 						}`}
 					>
@@ -322,7 +326,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 					</div>
 
 					<div
-						className={`overflow-hidden border-t border-border/75 transition-all duration-300 ease-out ${
+						className={`relative overflow-hidden border-t border-border/75 transition-all duration-300 ease-out ${
 							isCollapsed
 								? "max-h-0 border-transparent opacity-0"
 								: "max-h-20 opacity-100"

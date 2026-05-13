@@ -76,10 +76,15 @@ const findFreshEventShareEvent = async (
 
 export const getEventShareEvent = async (
 	eventKey: string,
+	options?: { bypassCache?: boolean },
 ): Promise<Event | null> => {
 	const normalizedEventKey = normalizeEventKey(eventKey);
 	if (!normalizedEventKey) {
 		return null;
+	}
+
+	if (options?.bypassCache) {
+		return findFreshEventShareEvent(normalizedEventKey);
 	}
 
 	try {

@@ -217,7 +217,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const [selectedArrondissement, setSelectedArrondissement] = useState<
 		number | null
 	>(null);
-	const [showCoordinates, setShowCoordinates] = useState(false);
+	const [showCoordinates, setShowCoordinates] = useState(true);
 	const [showLocateNotice, setShowLocateNotice] = useState(false);
 
 	// Filter events based on selected day
@@ -246,6 +246,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	);
 
 	const canShowCoordinates = eventsWithCoordinatesCount > 0;
+	const areEventPinsVisible = showCoordinates && canShowCoordinates;
 
 	const arrondissementEventCounts = React.useMemo(() => {
 		const counts: Record<number, number> = {};
@@ -426,6 +427,27 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				features?: maplibregl.MapGeoJSONFeature[];
 			},
 		) => {
+			const renderedFeatures =
+				map.current?.queryRenderedFeatures(e.point, {
+					layers: ["event-markers", "event-star-markers"],
+				}) ??
+				e.features ??
+				[];
+			const clickedEvents = renderedFeatures
+				.map((feature) => feature.properties?.id)
+				.filter((eventId): eventId is string => typeof eventId === "string")
+				.map((eventId) => eventsById.get(eventId))
+				.filter((event): event is Event => Boolean(event));
+			const preferredEvent =
+				clickedEvents.find((event) => shouldDisplayFeaturedEvent(event)) ??
+				clickedEvents.find((event) => event.isPromoted === true) ??
+				clickedEvents.find((event) => event.isOOOCPick === true) ??
+				clickedEvents[0];
+			if (preferredEvent) {
+				onEventClick(preferredEvent);
+				return;
+			}
+
 			const eventId = e.features?.[0]?.properties?.id;
 			if (typeof eventId !== "string") return;
 			const event = eventsById.get(eventId);
@@ -1141,7 +1163,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		};
 
 		teardownEventMarkers();
-		if (!showCoordinates) return teardownEventMarkers;
+		if (!areEventPinsVisible) return teardownEventMarkers;
 
 		// Filter events with coordinates
 		const eventsWithCoords = filteredEvents.filter(
@@ -1170,7 +1192,16 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				properties: {
 					id: event.id,
 					name: event.name,
+					isFeatured: shouldDisplayFeaturedEvent(event),
+					isPromoted: event.isPromoted === true,
 					isOOOCPick: event.isOOOCPick || false,
+					markerRank: shouldDisplayFeaturedEvent(event)
+						? 4
+						: event.isPromoted === true
+							? 3
+							: event.isOOOCPick
+								? 2
+								: 1,
 				},
 			})),
 		};
@@ -1182,6 +1213,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			cluster: true,
 			clusterMaxZoom: 15,
 			clusterRadius: 42,
+			clusterProperties: {
+				featured_count: ["+", ["case", ["get", "isFeatured"], 1, 0]],
+				promoted_count: ["+", ["case", ["get", "isPromoted"], 1, 0]],
+				oooc_count: ["+", ["case", ["get", "isOOOCPick"], 1, 0]],
+			},
 		});
 
 		currentMap.addLayer({
@@ -1191,7 +1227,16 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			filter: ["has", "point_count"],
 			paint: {
 				"circle-radius": ["step", ["get", "point_count"], 17, 5, 20, 12, 24],
-				"circle-color": "#49382e",
+				"circle-color": [
+					"case",
+					[">", ["get", "featured_count"], 0],
+					"#d8a241",
+					[">", ["get", "promoted_count"], 0],
+					"#2f8f8a",
+					[">", ["get", "oooc_count"], 0],
+					"#b7832d",
+					"#49382e",
+				],
 				"circle-stroke-color": "#fffaf3",
 				"circle-stroke-width": 2.5,
 				"circle-opacity": 0.96,
@@ -1221,10 +1266,40 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			type: "circle",
 			source: "events",
 			filter: ["!", ["has", "point_count"]],
+			layout: {
+				"circle-sort-key": ["get", "markerRank"],
+			},
 			paint: {
-				"circle-radius": ["case", ["get", "isOOOCPick"], 15, 12],
-				"circle-color": ["case", ["get", "isOOOCPick"], "#d8a241", "#49382e"],
-				"circle-opacity": ["case", ["get", "isOOOCPick"], 0.24, 0.18],
+				"circle-radius": [
+					"case",
+					["get", "isFeatured"],
+					17,
+					["get", "isPromoted"],
+					15,
+					["get", "isOOOCPick"],
+					15,
+					12,
+				],
+				"circle-color": [
+					"case",
+					["get", "isFeatured"],
+					"#d8a241",
+					["get", "isPromoted"],
+					"#2f8f8a",
+					["get", "isOOOCPick"],
+					"#d8a241",
+					"#49382e",
+				],
+				"circle-opacity": [
+					"case",
+					["get", "isFeatured"],
+					0.32,
+					["get", "isPromoted"],
+					0.25,
+					["get", "isOOOCPick"],
+					0.24,
+					0.18,
+				],
 				"circle-blur": 0.35,
 			},
 		});
@@ -1234,10 +1309,38 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			type: "circle",
 			source: "events",
 			filter: ["!", ["has", "point_count"]],
+			layout: {
+				"circle-sort-key": ["get", "markerRank"],
+			},
 			paint: {
-				"circle-radius": ["case", ["get", "isOOOCPick"], 8.5, 6.5],
-				"circle-color": ["case", ["get", "isOOOCPick"], "#d8a241", "#49382e"],
-				"circle-stroke-width": ["case", ["get", "isOOOCPick"], 2.5, 2],
+				"circle-radius": [
+					"case",
+					["get", "isFeatured"],
+					9.5,
+					["get", "isPromoted"],
+					8.5,
+					["get", "isOOOCPick"],
+					8.5,
+					6.5,
+				],
+				"circle-color": [
+					"case",
+					["get", "isFeatured"],
+					"#d8a241",
+					["get", "isPromoted"],
+					"#2f8f8a",
+					["get", "isOOOCPick"],
+					"#d8a241",
+					"#49382e",
+				],
+				"circle-stroke-width": [
+					"case",
+					["get", "isFeatured"],
+					3,
+					["get", "isOOOCPick"],
+					2.5,
+					2,
+				],
 				"circle-stroke-color": "#fffaf3",
 				"circle-opacity": 0.96,
 			},
@@ -1250,6 +1353,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			filter: [
 				"all",
 				["!", ["has", "point_count"]],
+				["!", ["get", "isFeatured"]],
+				["!", ["get", "isPromoted"]],
 				["!", ["get", "isOOOCPick"]],
 			],
 			paint: {
@@ -1263,11 +1368,16 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			id: "event-star-markers",
 			type: "symbol",
 			source: "events",
-			filter: ["all", ["!", ["has", "point_count"]], ["get", "isOOOCPick"]],
+			filter: [
+				"all",
+				["!", ["has", "point_count"]],
+				["any", ["get", "isFeatured"], ["get", "isOOOCPick"]],
+			],
 			layout: {
 				"text-field": "★",
 				"text-size": 12,
 				"text-allow-overlap": true,
+				"symbol-sort-key": ["get", "markerRank"],
 			},
 			paint: {
 				"text-color": "#49382e",
@@ -1314,7 +1424,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	}, [
 		mapLoaded,
 		filteredEvents,
-		showCoordinates,
+		areEventPinsVisible,
 		handleEventClusterClick,
 		handleEventMarkersClick,
 		handleEventMarkersMouseEnter,
@@ -1504,7 +1614,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						>
 							<input
 								type="checkbox"
-								checked={showCoordinates}
+								checked={areEventPinsVisible}
 								onChange={(e) => setShowCoordinates(e.target.checked)}
 								disabled={!canShowCoordinates}
 								className="h-4 w-4 rounded border-border/70 bg-background/70 text-[#7a4f3a] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-45"
@@ -1515,17 +1625,17 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 								</span>
 								<span className="text-xs text-muted-foreground">
 									{canShowCoordinates
-										? `${eventsWithCoordinatesCount} precise venue pin${
+										? `${eventsWithCoordinatesCount} event pin${
 												eventsWithCoordinatesCount === 1 ? "" : "s"
 											}`
-										: "No precise venue coordinates yet"}
+										: "No event pins available yet"}
 								</span>
 							</div>
 						</label>
 					</div>
 
 					{/* Event Type Legend */}
-					{showCoordinates && (
+					{areEventPinsVisible && (
 						<div className="space-y-2 mb-3">
 							<div className="flex items-center space-x-2">
 								<div className="h-3 w-3 rounded-full border border-white bg-[#49382e] shadow-sm"></div>
@@ -1550,7 +1660,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 								<MapPinned className="h-3.5 w-3.5 text-muted-foreground" />
 								<span>Click districts to explore events</span>
 							</div>
-							{showCoordinates && (
+							{areEventPinsVisible && (
 								<div className="flex items-center space-x-2">
 									<MapPin className="h-3.5 w-3.5 text-muted-foreground" />
 									<span>Click markers for event details</span>

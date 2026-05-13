@@ -47,6 +47,7 @@ const EventsOfflineContext = createContext<EventsOfflineContextValue | null>(
 );
 
 const FRESH_SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const FULL_EVENTS_REFRESH_MAX_AGE_MS = 60 * 1000;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
@@ -96,6 +97,7 @@ export function EventsOfflineProvider({
 	);
 	const isOnline = useOnlineStatus();
 	const fullEventsPromiseRef = useRef<Promise<Event[] | null> | null>(null);
+	const fullEventsLoadedAtRef = useRef<number | null>(null);
 
 	useEffect(() => {
 		if (!isOnline || initialEvents.length === 0) return;
@@ -103,6 +105,7 @@ export function EventsOfflineProvider({
 		setEventDataSource("live");
 		setHasLoadedFullEvents(!fullEventsPath);
 		fullEventsPromiseRef.current = null;
+		fullEventsLoadedAtRef.current = null;
 	}, [fullEventsPath, initialEvents, isOnline]);
 
 	useEffect(() => {
@@ -128,6 +131,7 @@ export function EventsOfflineProvider({
 					setEventDataSource("live");
 					setHasLoadedFullEvents(!fullEventsPath);
 					fullEventsPromiseRef.current = null;
+					fullEventsLoadedAtRef.current = null;
 					return;
 				}
 				setEvents(snapshot.events);
@@ -185,7 +189,11 @@ export function EventsOfflineProvider({
 	}, [eventDataSource, events]);
 
 	const requestFullEvents = useCallback(() => {
-		if (!fullEventsPath || hasLoadedFullEvents) {
+		const loadedAt = fullEventsLoadedAtRef.current;
+		const isRecentlyLoaded =
+			loadedAt != null &&
+			Date.now() - loadedAt < FULL_EVENTS_REFRESH_MAX_AGE_MS;
+		if (!fullEventsPath || (hasLoadedFullEvents && isRecentlyLoaded)) {
 			return Promise.resolve(events);
 		}
 		if (!isOnline) {
@@ -195,6 +203,7 @@ export function EventsOfflineProvider({
 
 		setEventSnapshotSyncState("refreshing");
 		const request = fetch(fullEventsPath, {
+			cache: "no-store",
 			headers: { Accept: "application/json" },
 		})
 			.then(async (response) => {
@@ -208,6 +217,7 @@ export function EventsOfflineProvider({
 				setEvents(payload);
 				setEventDataSource("live");
 				setHasLoadedFullEvents(true);
+				fullEventsLoadedAtRef.current = Date.now();
 				return payload;
 			})
 			.catch((error: unknown) => {

@@ -36,7 +36,7 @@ export function EventsDiscoverySummaryIsland({
 	return (
 		<>
 			<section
-				className="relative mb-10 overflow-hidden"
+				className="relative mb-10"
 				aria-label="Introduction"
 			>
 				<div

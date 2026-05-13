@@ -87,6 +87,7 @@ export function useEventDetailHydration({
 					const response = await fetch(
 						`${basePath}/api/events/${encodeURIComponent(eventKey)}`,
 						{
+							cache: "no-store",
 							headers: { Accept: "application/json" },
 						},
 					);
@@ -114,7 +115,9 @@ export function useEventDetailHydration({
 					eventDetailsPromiseRef.current.delete(normalizedEventKey);
 					return null;
 				}
-			})();
+			})().finally(() => {
+				eventDetailsPromiseRef.current.delete(normalizedEventKey);
+			});
 
 			eventDetailsPromiseRef.current.set(normalizedEventKey, request);
 			return request;

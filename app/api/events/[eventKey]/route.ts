@@ -1,11 +1,10 @@
-import { getEventShareEvent } from "@/lib/social/event-share-details";
+import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { log } from "@/lib/platform/logger";
-import { NextResponse, type NextRequest } from "next/server";
+import { getEventShareEvent } from "@/lib/social/event-share-details";
+import { type NextRequest, NextResponse } from "next/server";
 
-const EVENT_DETAILS_CACHE_CONTROL =
-	"public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
-const EVENT_NOT_FOUND_CACHE_CONTROL =
-	"public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
+export const dynamic = "force-dynamic";
+
 const SLOW_EVENT_DETAILS_API_MS = 500;
 
 interface EventDetailsRouteContext {
@@ -14,10 +13,13 @@ interface EventDetailsRouteContext {
 	}>;
 }
 
-export async function GET(_request: NextRequest, context: EventDetailsRouteContext) {
+export async function GET(
+	_request: NextRequest,
+	context: EventDetailsRouteContext,
+) {
 	const startedAt = Date.now();
 	const { eventKey } = await context.params;
-	const event = await getEventShareEvent(eventKey);
+	const event = await getEventShareEvent(eventKey, { bypassCache: true });
 	const durationMs = Date.now() - startedAt;
 	if (durationMs >= SLOW_EVENT_DETAILS_API_MS) {
 		log.warn("events-api", "Slow event detail response", {
@@ -32,9 +34,7 @@ export async function GET(_request: NextRequest, context: EventDetailsRouteConte
 			{ error: "Event not found" },
 			{
 				status: 404,
-				headers: {
-					"Cache-Control": EVENT_NOT_FOUND_CACHE_CONTROL,
-				},
+				headers: NO_STORE_HEADERS,
 			},
 		);
 	}
@@ -42,9 +42,7 @@ export async function GET(_request: NextRequest, context: EventDetailsRouteConte
 	return NextResponse.json(
 		{ event },
 		{
-			headers: {
-				"Cache-Control": EVENT_DETAILS_CACHE_CONTROL,
-			},
+			headers: NO_STORE_HEADERS,
 		},
 	);
 }

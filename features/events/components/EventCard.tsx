@@ -176,7 +176,7 @@ export function EventCard({
 					</h3>
 				</div>
 				<div className="ml-auto flex max-w-full flex-shrink-0 flex-wrap items-center justify-end gap-1">
-					{/* Featured badge - show whenever event is currently featured, regardless of variant */}
+					{/* Featured badge - show whenever event has the top placement tier. */}
 					{isCurrentlyFeatured && (
 						<Badge
 							className={`border-0 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] ${

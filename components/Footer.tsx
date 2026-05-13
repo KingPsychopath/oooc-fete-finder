@@ -74,8 +74,24 @@ const socialLinks = [
 
 const Footer = () => {
 	return (
-		<footer className="mt-10 border-t border-border/70 bg-card/78 backdrop-blur">
-			<div className="container mx-auto px-4 py-7 sm:py-6">
+		<footer className="relative overflow-hidden border-t border-border/35 bg-card/36 backdrop-blur-[2px] dark:border-[#f0b668]/18 dark:bg-transparent">
+			<div
+				className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f0b668]/22 to-transparent dark:via-[#f0b668]/20"
+				aria-hidden="true"
+			/>
+			<div
+				className="pointer-events-none absolute inset-0 bg-[image:var(--ooo-grain-image)] bg-[length:220px_220px] opacity-[0.1] mix-blend-multiply dark:opacity-[0.2] dark:mix-blend-soft-light"
+				aria-hidden="true"
+			/>
+			<div
+				className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#f0b668]/[0.03] via-[#f0b668]/[0.012] to-transparent dark:from-[#f0b668]/[0.09] dark:via-[#2f2419]/35"
+				aria-hidden="true"
+			/>
+			<div
+				className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background/28 to-transparent dark:from-[#1b130d]/30"
+				aria-hidden="true"
+			/>
+			<div className="container relative mx-auto px-4 py-7 sm:py-6">
 				<div className="flex flex-col items-center justify-center gap-6 lg:flex-row lg:justify-between">
 					{/* Social Links */}
 					<div className="flex w-full flex-col items-center gap-4 lg:w-auto lg:items-start">

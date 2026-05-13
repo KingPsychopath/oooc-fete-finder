@@ -1,14 +1,18 @@
 import { getLiveEvents } from "@/features/data-management/runtime-service";
+import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { log } from "@/lib/platform/logger";
 import { NextResponse } from "next/server";
 
-const EVENTS_API_CACHE_CONTROL =
-	"public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
+export const dynamic = "force-dynamic";
+
 const SLOW_EVENTS_API_MS = 750;
 
 export async function GET() {
 	const startedAt = Date.now();
-	const result = await getLiveEvents({ includeEngagementProjection: false });
+	const result = await getLiveEvents({
+		includeEngagementProjection: false,
+		bypassSourceCache: true,
+	});
 	const durationMs = Date.now() - startedAt;
 
 	if (result.error) {
@@ -33,9 +37,7 @@ export async function GET() {
 			source: result.source,
 		},
 		{
-			headers: {
-				"Cache-Control": EVENTS_API_CACHE_CONTROL,
-			},
+			headers: NO_STORE_HEADERS,
 		},
 	);
 }

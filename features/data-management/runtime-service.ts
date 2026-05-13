@@ -165,10 +165,14 @@ const getLiveEventsForRequest = cache(
 	async (
 		includeFeaturedProjection: boolean,
 		includeEngagementProjection: boolean,
+		populateCoordinates: boolean,
+		bypassSourceCache: boolean,
 	): Promise<EventsResult> => {
 		const startedAt = Date.now();
 		try {
-			const result = await getSourceEventsForRequest(false);
+			const result = bypassSourceCache
+				? await DataManager.getEventsData({ populateCoordinates })
+				: await getSourceEventsForRequest(populateCoordinates);
 			metrics.totalFetchMs += Date.now() - startedAt;
 			metrics.fetchCount += 1;
 
@@ -200,7 +204,8 @@ const getLiveEventsForRequest = cache(
 				);
 				normalized.data = normalized.data.map((event) => ({
 					...event,
-					socialProofSaveCount: socialProofSaveCountMap.get(event.eventKey) ?? 0,
+					socialProofSaveCount:
+						socialProofSaveCountMap.get(event.eventKey) ?? 0,
 					socialProofHistoricalSaveCount:
 						socialProofHistoricalSaveCountMap.get(event.eventKey) ?? 0,
 				}));
@@ -229,10 +234,14 @@ const getLiveEventsForRequest = cache(
 export async function getLiveEvents(options?: {
 	includeFeaturedProjection?: boolean;
 	includeEngagementProjection?: boolean;
+	populateCoordinates?: boolean;
+	bypassSourceCache?: boolean;
 }): Promise<EventsResult> {
 	return getLiveEventsForRequest(
 		options?.includeFeaturedProjection !== false,
 		options?.includeEngagementProjection !== false,
+		options?.populateCoordinates ?? false,
+		options?.bypassSourceCache ?? false,
 	);
 }
 
@@ -266,10 +275,10 @@ export const revalidateEventsPaths = (
 export async function forceRefreshEventsData(
 	options: { revalidate?: boolean } = {},
 ): Promise<RuntimeRefreshResult> {
-	const result = await getLiveEvents();
 	if (options.revalidate !== false) {
 		revalidateEventsPaths(["/"]);
 	}
+	const result = await getLiveEvents({ bypassSourceCache: true });
 
 	if (!result.success) {
 		return {
