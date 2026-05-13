@@ -17,6 +17,7 @@ import {
 	getEventDisplayDayNightPeriod,
 	getVisibleEventTypeLabel,
 } from "@/features/events/types";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { cn } from "@/lib/utils";
 import {
 	ArrowUpRight,
@@ -356,6 +357,7 @@ export function FeaturedEvents({
 		rotationContext,
 	);
 	const { isEventSaved } = useSavedEvents();
+	const haptics = useAppHaptics();
 	if (featuredEvents.length === 0) {
 		return null;
 	}
@@ -364,6 +366,11 @@ export function FeaturedEvents({
 	const handleSpotlightEventClick = (
 		event: (typeof featuredEvents)[number],
 	) => {
+		if (event.isFeatured || event.isOOOCPick) {
+			haptics.success();
+		} else {
+			haptics.selection();
+		}
 		trackEventEngagement({
 			eventKey: event.eventKey,
 			actionType: "click",
@@ -402,7 +409,10 @@ export function FeaturedEvents({
 							<div className="sm:shrink-0">
 								<Button
 									variant="outline"
-									onClick={onScrollToAllEvents}
+									onClick={() => {
+										haptics.nudge();
+										onScrollToAllEvents();
+									}}
 									className="h-auto min-h-8 w-full whitespace-normal rounded-full border-border/70 bg-background/55 px-3 py-2 text-center leading-tight text-foreground/85 hover:bg-accent sm:h-8 sm:w-auto sm:whitespace-nowrap"
 								>
 									{browseAllLabel}

@@ -13,6 +13,7 @@ import {
 	formatPrice,
 	getEventDisplayDayNightPeriod,
 } from "@/features/events/types";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { clientLog } from "@/lib/platform/client-logger";
 import { cn } from "@/lib/utils";
 import {
@@ -201,6 +202,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	isOfflineMode = false,
 	selectedDayNightPeriods = [],
 }) => {
+	const haptics = useAppHaptics();
 	const mapContainer = useRef<HTMLDivElement>(null);
 	const map = useRef<maplibregl.Map | null>(null);
 	const hasLoadedMapRef = useRef(false);
@@ -414,6 +416,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			if (!arrondissement) return;
 			const eventCount =
 				arrondissementEventCountsRef.current[arrondissement] ?? 0;
+			if (selectedArrondissementRef.current === arrondissement) {
+				haptics.light();
+			} else {
+				haptics.selection();
+			}
 			setSelectedArrondissement((current) =>
 				current === arrondissement ? null : arrondissement,
 			);
@@ -423,7 +430,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				filterValue: `${arrondissement}:${eventCount}`,
 			});
 		},
-		[],
+		[haptics],
 	);
 
 	const handleAdminFillMouseEnter = useCallback(() => {
@@ -461,6 +468,14 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				clickedEvents.find((event) => event.isOOOCPick === true) ??
 				clickedEvents[0];
 			if (preferredEvent) {
+				if (
+					shouldDisplayFeaturedEvent(preferredEvent) ||
+					preferredEvent.isOOOCPick
+				) {
+					haptics.success();
+				} else {
+					haptics.selection();
+				}
 				onEventClick(preferredEvent);
 				return;
 			}
@@ -469,10 +484,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			if (typeof eventId !== "string") return;
 			const event = eventsById.get(eventId);
 			if (event) {
+				haptics.selection();
 				onEventClick(event);
 			}
 		},
-		[eventsById, onEventClick],
+		[eventsById, haptics, onEventClick],
 	);
 
 	const handleEventClusterClick = useCallback(
@@ -484,6 +500,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			const feature = e.features?.[0];
 			const clusterId = feature?.properties?.cluster_id;
 			if (typeof clusterId !== "number" || !map.current) return;
+			haptics.nudge();
 			const pointCount =
 				typeof feature?.properties?.point_count === "number"
 					? feature.properties.point_count
@@ -508,7 +525,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				});
 			});
 		},
-		[],
+		[haptics],
 	);
 
 	const handleEventMarkersMouseEnter = useCallback(() => {
@@ -524,14 +541,17 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	}, []);
 
 	const handleZoomIn = useCallback(() => {
+		haptics.selection();
 		map.current?.zoomTo(map.current.getZoom() + 1, { duration: 300 });
-	}, []);
+	}, [haptics]);
 
 	const handleZoomOut = useCallback(() => {
+		haptics.selection();
 		map.current?.zoomTo(map.current.getZoom() - 1, { duration: 300 });
-	}, []);
+	}, [haptics]);
 
 	const handleLocateClick = useCallback(() => {
+		haptics.nudge();
 		trackDiscoveryAnalytics({
 			actionType: "location_request",
 			filterGroup: "nearby",
@@ -544,18 +564,20 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		locateNoticeTimeoutRef.current = setTimeout(() => {
 			setShowLocateNotice(false);
 		}, 3600);
-	}, []);
+	}, [haptics]);
 
 	const handleFullscreenClick = useCallback(() => {
+		haptics.nudge();
 		trackDiscoveryAnalytics({
 			actionType: "map_interaction",
 			filterGroup: "map_control",
 			filterValue: isFullscreen ? "fullscreen_close" : "fullscreen_open",
 		});
 		onFullscreenRequest?.();
-	}, [isFullscreen, onFullscreenRequest]);
+	}, [haptics, isFullscreen, onFullscreenRequest]);
 
 	const handleMapRetry = useCallback(() => {
+		haptics.selection();
 		if (loadErrorTimeoutRef.current) {
 			clearTimeout(loadErrorTimeoutRef.current);
 			loadErrorTimeoutRef.current = null;
@@ -585,7 +607,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		setShowTileLoadingNotice(false);
 		setIsLoading(true);
 		setLoadError(null);
-	}, []);
+	}, [haptics]);
 
 	const handleFullscreenPointerDown = useCallback(
 		(event: React.PointerEvent<HTMLButtonElement>) => {
@@ -1620,7 +1642,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					{isFullscreen && onFilterClick && (
 						<button
 							type="button"
-							onClick={onFilterClick}
+							onClick={() => {
+								haptics.nudge();
+								onFilterClick();
+							}}
 							className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border/70 bg-background/92 text-foreground shadow-sm transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 							aria-label="Open event filters"
 						>
@@ -1866,7 +1891,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							</div>
 							<button
 								type="button"
-								onClick={() => setSelectedArrondissement(null)}
+								onClick={() => {
+									haptics.light();
+									setSelectedArrondissement(null);
+								}}
 								className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/68 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 							>
 								<X className="h-4 w-4" />
@@ -1897,7 +1925,14 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 									<button
 										key={event.id}
 										className={`${baseEventButtonClassName} ${buttonClassName}`}
-										onClick={() => onEventClick(event)}
+										onClick={() => {
+											if (isFeatured || event.isOOOCPick) {
+												haptics.success();
+											} else {
+												haptics.selection();
+											}
+											onEventClick(event);
+										}}
 									>
 										<div className="flex items-center justify-between">
 											<div className="min-w-0 flex-1">

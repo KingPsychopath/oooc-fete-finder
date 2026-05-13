@@ -7,6 +7,7 @@ import {
 	FETE_FINDER_TOUR_STORAGE_KEY,
 	PENDING_FETE_FINDER_TOUR_STORAGE_KEY,
 } from "@/features/events/tour-events";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { LAYERS } from "@/lib/ui/layers";
 import {
 	OVERLAY_BODY_ATTRIBUTE,
@@ -221,6 +222,7 @@ export function FeteFinderTour({
 	onMapExpand,
 	onScrollToAllEvents,
 }: FeteFinderTourProps) {
+	const haptics = useAppHaptics();
 	const [isPromptOpen, setIsPromptOpen] = useState(false);
 	const [isTourOpen, setIsTourOpen] = useState(false);
 	const [stepIndex, setStepIndex] = useState(0);
@@ -315,6 +317,7 @@ export function FeteFinderTour({
 
 	const moveToAvailableStep = useCallback(
 		(nextIndex: number, direction: 1 | -1) => {
+			haptics.nudge();
 			const boundedIndex = Math.min(Math.max(nextIndex, 0), steps.length - 1);
 			for (
 				let index = boundedIndex;
@@ -329,23 +332,26 @@ export function FeteFinderTour({
 			}
 			setStepIndex(boundedIndex);
 		},
-		[steps],
+		[haptics, steps],
 	);
 
 	const startTour = useCallback(() => {
 		if (hasBlockingOverlay()) {
+			haptics.nudge();
 			setHasPendingOverlayTour(true);
 			setIsPromptOpen(false);
 			return;
 		}
+		haptics.nudge();
 		trackTourInteraction({ action: "start" });
 		setIsPromptOpen(false);
 		setIsTourOpen(true);
 		setStepIndex(0);
-	}, []);
+	}, [haptics]);
 
 	const dismissPrompt = useCallback(
 		(source: string) => {
+			haptics.light();
 			trackTourInteraction({ action: "prompt_dismissed", source });
 			writeTourState(TOUR_STATE_DISMISSED);
 			onFilterClose();
@@ -354,11 +360,16 @@ export function FeteFinderTour({
 			setIsTourOpen(false);
 			setSpotlightRect(null);
 		},
-		[onFilterClose],
+		[haptics, onFilterClose],
 	);
 
 	const finishTour = useCallback(
 		(state: string, source: string) => {
+			if (state === TOUR_STATE_COMPLETED) {
+				haptics.success();
+			} else {
+				haptics.light();
+			}
 			trackTourInteraction({
 				action: state === TOUR_STATE_COMPLETED ? "complete" : "skip",
 				stepId: isTourOpen ? currentStep?.id : undefined,
@@ -371,10 +382,11 @@ export function FeteFinderTour({
 			setIsTourOpen(false);
 			setSpotlightRect(null);
 		},
-		[currentStep?.id, isTourOpen, onFilterClose],
+		[currentStep?.id, haptics, isTourOpen, onFilterClose],
 	);
 
 	const handleExternalStart = useCallback(() => {
+		haptics.nudge();
 		setHasManualTourRequest(true);
 		if (!isAuthenticated) {
 			trackTourInteraction({ action: "auth_required", source: "manual" });
@@ -383,7 +395,7 @@ export function FeteFinderTour({
 			return;
 		}
 		startTour();
-	}, [isAuthenticated, onAuthRequired, startTour]);
+	}, [haptics, isAuthenticated, onAuthRequired, startTour]);
 
 	useEffect(() => {
 		setMounted(true);

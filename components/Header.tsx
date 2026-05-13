@@ -186,10 +186,10 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 		<>
 			<header className="relative z-50 px-3 pt-2 sm:sticky sm:top-0 sm:px-4 sm:pt-3">
 				<div
-					className={`relative mx-auto w-full max-w-[1400px] overflow-visible rounded-2xl border transition-[background-color,border-color,box-shadow] duration-300 ease-out 2xl:max-w-[1680px] ${
+					className={`relative mx-auto w-full max-w-[1400px] overflow-visible rounded-2xl border backdrop-blur-lg transition-[background-color,border-color,box-shadow] duration-300 ease-out 2xl:max-w-[1680px] ${
 						isCompressed
-							? "border-border/75 bg-card/95 shadow-[0_10px_26px_rgba(20,16,12,0.22)] backdrop-blur-xl"
-							: "border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg"
+							? "border-border/75 bg-card/95 shadow-[0_10px_26px_rgba(20,16,12,0.22)]"
+							: "border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)]"
 					}`}
 				>
 					<div
@@ -339,13 +339,21 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 					</div>
 
 					<div
-						className={`relative overflow-hidden border-t border-border/75 transition-all duration-300 ease-out ${
+						data-header-countdown-strip
+						className={`relative overflow-hidden transition-[height,border-color,opacity] duration-200 ease-out ${
 							isCollapsed
-								? "max-h-0 border-transparent opacity-0"
-								: "max-h-20 opacity-100"
+								? "h-0 border-t-0 border-transparent opacity-0"
+								: "h-[46px] border-t border-border/75 opacity-100 sm:h-[50px]"
 						}`}
+						aria-hidden={isCollapsed}
 					>
-						<div className="px-3 pt-2 pb-2 sm:px-5 sm:pt-2.5 sm:pb-3">
+						<div
+							className={`px-3 pt-2 pb-2 transition-[transform,opacity] duration-200 ease-out sm:px-5 sm:pt-2.5 sm:pb-3 ${
+								isCollapsed
+									? "-translate-y-2 opacity-0"
+									: "translate-y-0 opacity-100"
+							}`}
+						>
 							<Countdown isActive={!isCollapsed} />
 						</div>
 					</div>
