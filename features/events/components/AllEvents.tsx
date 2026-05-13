@@ -206,8 +206,19 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		);
 
 		return (
-			<Card ref={ref} className="ooo-site-card mt-8 min-w-0 py-0 lg:mt-0">
-				<CardHeader className="min-w-0 border-b border-border/70 py-5">
+			<Card
+				ref={ref}
+				className="ooo-site-card relative mt-10 min-w-0 overflow-hidden py-0 lg:mt-2"
+			>
+				<div
+					className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-border/70 to-transparent dark:via-amber-200/16"
+					aria-hidden="true"
+				/>
+				<div
+					className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-amber-100/10 to-transparent dark:from-amber-200/[0.035]"
+					aria-hidden="true"
+				/>
+				<CardHeader className="relative min-w-0 border-b border-border/55 py-5">
 					<div className="flex min-w-0 flex-col gap-3">
 						<div className="flex flex-wrap items-start justify-between gap-3">
 							<div className="flex min-w-0 flex-col">
