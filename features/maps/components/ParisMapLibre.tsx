@@ -116,6 +116,7 @@ const MAP_LOAD_ERROR_GRACE_MS = 10000;
 const MAP_INIT_RETRY_DELAY_MS = 900;
 const MAX_MAP_INIT_ATTEMPTS = 2;
 const MAP_TILE_LOADING_NOTICE_DELAY_MS = 1200;
+const MAP_PREVIEW_IMAGE_URL = "/maps/paris-map-preview.jpg";
 const MAP_ONLINE_ONLY_MESSAGE =
 	"Map style, sprite, glyph, and tile assets are online-only";
 
@@ -1532,10 +1533,32 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				className,
 			)}
 		>
+			<div
+				aria-hidden="true"
+				className={cn(
+					"absolute inset-0 bg-cover bg-center saturate-[0.92]",
+					"motion-safe:transition-opacity motion-safe:duration-250 motion-safe:ease-out",
+					mapLoaded ? "opacity-0" : "opacity-80",
+				)}
+				style={{ backgroundImage: `url('${MAP_PREVIEW_IMAGE_URL}')` }}
+			/>
+			<div
+				aria-hidden="true"
+				className={cn(
+					"absolute inset-0 bg-card/20",
+					"motion-safe:transition-opacity motion-safe:duration-250 motion-safe:ease-out",
+					mapLoaded ? "opacity-0" : "opacity-100",
+				)}
+			/>
+
 			{/* Map container */}
 			<div
 				ref={mapContainer}
-				className="ooo-map-shell absolute inset-0 rounded-lg overflow-hidden"
+				className={cn(
+					"ooo-map-shell absolute inset-0 overflow-hidden rounded-lg",
+					"motion-safe:transition-opacity motion-safe:duration-250 motion-safe:ease-out",
+					mapLoaded ? "opacity-100" : "opacity-0",
+				)}
 				style={{ width: "100%", height: "100%" }}
 			/>
 
@@ -1615,7 +1638,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 			{/* Loading overlay */}
 			{isLoading && (
-				<div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/62 backdrop-blur-[3px]">
+				<div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center rounded-lg">
 					<div className="ooo-site-card rounded-2xl border border-border/75 px-5 py-4 text-center">
 						<div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-foreground/70"></div>
 						<p className="mt-2 text-sm text-foreground/85">
