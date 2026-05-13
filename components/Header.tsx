@@ -16,7 +16,7 @@ import { LogOut, UserRoundPlus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 
 const EmailGateModal = lazy(
 	() => import("@/features/auth/components/EmailGateModal"),
@@ -73,10 +73,12 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 	const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const [isEmailGateOpen, setIsEmailGateOpen] = useState(false);
-	const [scrollState, setScrollState] = useState({
-		compressed: false,
-		collapsed: false,
-	});
+	const headerRef = useRef<HTMLElement | null>(null);
+	const cardRef = useRef<HTMLDivElement | null>(null);
+	const headerRowRef = useRef<HTMLDivElement | null>(null);
+	const logoRef = useRef<HTMLDivElement | null>(null);
+	const countdownStripRef = useRef<HTMLDivElement | null>(null);
+	const countdownInnerRef = useRef<HTMLDivElement | null>(null);
 	const normalizedPathname = (pathname || "/").replace(/\/+$/, "") || "/";
 	const pathWithoutBasePath =
 		basePath && basePath !== "/" && normalizedPathname.startsWith(basePath)
@@ -106,13 +108,49 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 		let isCollapsed = false;
 		const mediaQuery = window.matchMedia(STICKY_HEADER_QUERY);
 
+		const applyScrollState = (compressed: boolean, collapsed: boolean) => {
+			const compressedValue = String(compressed);
+			const collapsedValue = String(collapsed);
+
+			if (headerRef.current?.dataset.compressed !== compressedValue) {
+				if (headerRef.current)
+					headerRef.current.dataset.compressed = compressedValue;
+				if (cardRef.current)
+					cardRef.current.dataset.compressed = compressedValue;
+				if (headerRowRef.current)
+					headerRowRef.current.dataset.compressed = compressedValue;
+				if (logoRef.current)
+					logoRef.current.dataset.compressed = compressedValue;
+			}
+
+			if (countdownStripRef.current?.dataset.collapsed !== collapsedValue) {
+				if (countdownStripRef.current) {
+					countdownStripRef.current.dataset.collapsed = collapsedValue;
+					countdownStripRef.current.setAttribute("aria-hidden", collapsedValue);
+				}
+				if (countdownInnerRef.current)
+					countdownInnerRef.current.dataset.collapsed = collapsedValue;
+			}
+
+			if (countdownStripRef.current) {
+				countdownStripRef.current.style.maxHeight = collapsed ? "0px" : "5rem";
+				countdownStripRef.current.style.borderTopWidth = collapsed
+					? "0px"
+					: "1px";
+				countdownStripRef.current.style.borderColor = collapsed
+					? "transparent"
+					: "";
+				countdownStripRef.current.style.opacity = collapsed ? "0" : "1";
+			}
+		};
+
 		const tick = () => {
 			rafId = null;
 			if (!mediaQuery.matches) {
 				if (isCompressed || isCollapsed) {
 					isCompressed = false;
 					isCollapsed = false;
-					setScrollState({ compressed: false, collapsed: false });
+					applyScrollState(false, false);
 				}
 				lastY = window.scrollY;
 				return;
@@ -130,15 +168,13 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 				: y > COLLAPSE_ENTER_THRESHOLD;
 
 			if (nextCompressed === isCompressed && nextCollapsed === isCollapsed) {
+				applyScrollState(nextCompressed, nextCollapsed);
 				return;
 			}
 
 			isCompressed = nextCompressed;
 			isCollapsed = nextCollapsed;
-			setScrollState({
-				compressed: nextCompressed,
-				collapsed: nextCollapsed,
-			});
+			applyScrollState(nextCompressed, nextCollapsed);
 		};
 
 		const onScroll = () => {
@@ -179,33 +215,36 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 		return false;
 	};
 
-	const isCompressed = scrollState.compressed;
-	const isCollapsed = scrollState.collapsed;
-
 	return (
 		<>
-			<header className="relative z-50 px-3 pt-2 sm:sticky sm:top-0 sm:px-4 sm:pt-3">
+			<header
+				ref={headerRef}
+				data-compressed="false"
+				className="relative z-50 px-3 pt-2 sm:sticky sm:top-0 sm:px-4 sm:pt-3"
+			>
 				<div
-					className={`relative mx-auto w-full max-w-[1400px] overflow-visible rounded-2xl border backdrop-blur-lg transition-[background-color,border-color,box-shadow] duration-300 ease-out 2xl:max-w-[1680px] ${
-						isCompressed
-							? "border-border/75 bg-card/95 shadow-[0_10px_26px_rgba(20,16,12,0.22)]"
-							: "border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)]"
-					}`}
+					ref={cardRef}
+					data-compressed="false"
+					className="relative mx-auto w-full max-w-[1400px] overflow-visible rounded-2xl border border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg transition-[background-color,border-color,box-shadow] duration-300 ease-out data-[compressed=true]:border-border/75 data-[compressed=true]:bg-card/95 data-[compressed=true]:shadow-[0_10px_26px_rgba(20,16,12,0.22)] 2xl:max-w-[1680px]"
 				>
 					<div
 						className="pointer-events-none absolute inset-0 rounded-2xl bg-[image:var(--ooo-grain-image)] bg-[length:220px_220px] opacity-[0.055] mix-blend-multiply dark:opacity-[0.075] dark:mix-blend-screen"
 						aria-hidden="true"
 					/>
-					<div className="relative mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 sm:min-h-[84px] sm:px-5 lg:grid lg:grid-cols-[minmax(190px,1fr)_auto_minmax(170px,1fr)] lg:gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] xl:gap-6">
+					<div
+						ref={headerRowRef}
+						data-compressed="false"
+						className="relative mx-auto flex min-h-[72px] items-center gap-3 px-3 py-3 transition-transform duration-300 ease-out will-change-transform data-[compressed=true]:scale-[0.94] sm:min-h-[84px] sm:px-5 sm:data-[compressed=true]:scale-[0.96] lg:grid lg:grid-cols-[minmax(190px,1fr)_auto_minmax(170px,1fr)] lg:gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] xl:gap-6"
+					>
 						<Link
 							href={basePath || "/"}
 							className="flex min-w-0 items-center gap-3 transition-colors hover:opacity-90 lg:justify-self-start"
 							aria-label="Fete Finder home"
 						>
 							<div
-								className={`relative h-10 w-10 shrink-0 transition-transform duration-300 ease-out will-change-transform sm:h-12 sm:w-12 ${
-									isCompressed ? "scale-90 sm:scale-92" : "scale-100"
-								}`}
+								ref={logoRef}
+								data-compressed="false"
+								className="relative h-10 w-10 shrink-0 transition-transform duration-300 ease-out will-change-transform data-[compressed=true]:scale-90 sm:h-12 sm:w-12 sm:data-[compressed=true]:scale-[0.92]"
 							>
 								<Image
 									src={`${basePath}/OOOCLogoDark.svg`}
@@ -339,22 +378,19 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 					</div>
 
 					<div
+						ref={countdownStripRef}
 						data-header-countdown-strip
-						className={`relative overflow-hidden transition-[height,border-color,opacity] duration-200 ease-out ${
-							isCollapsed
-								? "h-0 border-t-0 border-transparent opacity-0"
-								: "h-[46px] border-t border-border/75 opacity-100 sm:h-[50px]"
-						}`}
-						aria-hidden={isCollapsed}
+						data-collapsed="false"
+						className="relative overflow-hidden border-t border-border/75 opacity-100 transition-[max-height,border-color,border-width,opacity] duration-300 ease-out"
+						style={{ maxHeight: "5rem" }}
+						aria-hidden="false"
 					>
 						<div
-							className={`px-3 pt-2 pb-2 transition-[transform,opacity] duration-200 ease-out sm:px-5 sm:pt-2.5 sm:pb-3 ${
-								isCollapsed
-									? "-translate-y-2 opacity-0"
-									: "translate-y-0 opacity-100"
-							}`}
+							ref={countdownInnerRef}
+							data-collapsed="false"
+							className="px-3 pt-2 pb-2 sm:px-5 sm:pt-2.5 sm:pb-3"
 						>
-							<Countdown isActive={!isCollapsed} />
+							<Countdown />
 						</div>
 					</div>
 				</div>

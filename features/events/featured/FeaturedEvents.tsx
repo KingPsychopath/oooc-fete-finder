@@ -145,7 +145,7 @@ function SpotlightEventPanel({
 					<div className="absolute inset-y-5 left-0 w-px bg-gradient-to-b from-transparent via-cyan-300/36 to-transparent dark:via-cyan-100/18" />
 				)}
 				{isDominant && (
-					<div className="absolute bottom-7 left-[66%] top-8 hidden border-l border-dashed border-foreground/22 lg:block dark:border-white/18" />
+					<div className="absolute bottom-7 left-[70%] top-8 hidden border-l border-dashed border-foreground/22 lg:block dark:border-white/18" />
 				)}
 			</div>
 			<div
@@ -199,7 +199,7 @@ function SpotlightEventPanel({
 			</div>
 
 			<div className="relative mt-5 flex flex-1 flex-col justify-between gap-5">
-				<div>
+				<div className={cn(isDominant && "lg:w-[68%] lg:pr-4")}>
 					<h3
 						className={cn(
 							"line-clamp-2 text-3xl leading-[0.98] [font-family:var(--ooo-font-display)] font-light tracking-[0.01em] text-foreground sm:text-4xl lg:text-[2.35rem]",
@@ -241,7 +241,7 @@ function SpotlightEventPanel({
 							<div
 								className={cn(
 									"flex min-w-0 max-w-full items-center gap-2",
-									isDominant && "lg:w-[62%] lg:max-w-none",
+									isDominant && "lg:max-w-none",
 								)}
 							>
 								<MapPin className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
