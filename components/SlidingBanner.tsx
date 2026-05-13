@@ -55,7 +55,7 @@ const SlidingBanner = ({
 		<div
 			aria-label={normalizedMessages.join(". ")}
 			className={cn(
-				"relative overflow-hidden border-b border-white/20 bg-gradient-to-r from-white/10 via-white/5 to-white/10 shadow-sm backdrop-blur-sm [mask-image:linear-gradient(90deg,transparent,black_9%,black_91%,transparent)] dark:border-[rgba(248,189,112,0.12)] dark:from-[rgba(248,189,112,0.08)] dark:via-white/[0.03] dark:to-[rgba(248,189,112,0.06)]",
+				"relative overflow-hidden bg-gradient-to-r from-white/10 via-white/5 to-white/10 shadow-[0_10px_30px_-28px_rgba(248,189,112,0.42)] backdrop-blur-sm [mask-image:linear-gradient(90deg,transparent,black_9%,black_91%,transparent)] dark:from-[rgba(248,189,112,0.08)] dark:via-white/[0.03] dark:to-[rgba(248,189,112,0.06)]",
 				className,
 			)}
 		>

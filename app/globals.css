@@ -287,6 +287,35 @@
 	background: color-mix(in oklab, var(--card) 70%, rgba(255, 255, 255, 0.035));
 }
 
+.ooo-ticket-stat-card {
+	--ooo-ticket-notch-x: 3.5rem;
+	--ooo-ticket-notch-r: 0.58rem;
+	-webkit-mask-image:
+		radial-gradient(
+			circle var(--ooo-ticket-notch-r) at var(--ooo-ticket-notch-x) 0,
+			transparent 98%,
+			#000 100%
+		),
+		radial-gradient(
+			circle var(--ooo-ticket-notch-r) at var(--ooo-ticket-notch-x) 100%,
+			transparent 98%,
+			#000 100%
+		);
+	-webkit-mask-composite: source-in;
+	mask-image:
+		radial-gradient(
+			circle var(--ooo-ticket-notch-r) at var(--ooo-ticket-notch-x) 0,
+			transparent 98%,
+			#000 100%
+		),
+		radial-gradient(
+			circle var(--ooo-ticket-notch-r) at var(--ooo-ticket-notch-x) 100%,
+			transparent 98%,
+			#000 100%
+		);
+	mask-composite: intersect;
+}
+
 /* Bouncy Transition for Interactive Elements */
 .transition-bouncy {
 	transition-duration: 500ms;

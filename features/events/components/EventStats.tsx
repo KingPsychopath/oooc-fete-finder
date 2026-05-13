@@ -60,7 +60,7 @@ const EventStats: React.FC<EventStatsProps> = ({
 	}, [dateRangeStats, filteredEvents.length]);
 
 	const statCardClassName =
-		"relative overflow-hidden border-border/55 bg-card/52 py-0 shadow-none backdrop-blur transition-colors hover:bg-card/66 dark:border-[#f0b668]/12 dark:bg-[linear-gradient(145deg,rgba(240,182,104,0.06),rgba(255,255,255,0.035)_58%,rgba(255,255,255,0.018))] dark:shadow-[0_16px_38px_-34px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.055)]";
+		"ooo-ticket-stat-card relative overflow-hidden border-border/55 bg-card/52 py-0 shadow-none backdrop-blur transition-colors hover:bg-card/66 dark:border-[#f0b668]/12 dark:bg-[linear-gradient(145deg,rgba(240,182,104,0.06),rgba(255,255,255,0.035)_58%,rgba(255,255,255,0.018))] dark:shadow-[0_16px_38px_-34px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.055)]";
 	const statIconClassName =
 		"flex h-8 w-8 items-center justify-center rounded-full border border-amber-500/18 bg-amber-500/8 text-amber-800 dark:border-amber-300/16 dark:bg-amber-300/8 dark:text-amber-100";
 	const statGlint = (
@@ -69,13 +69,22 @@ const EventStats: React.FC<EventStatsProps> = ({
 			aria-hidden="true"
 		/>
 	);
+	const ticketNotches = (
+		<div
+			className="pointer-events-none absolute inset-y-0 left-0"
+			aria-hidden="true"
+		>
+			<div className="absolute inset-y-3 left-14 border-l border-dashed border-amber-900/18 opacity-80 dark:border-amber-100/14" />
+		</div>
+	);
 
 	return (
 		<div className="mb-8 grid grid-cols-1 gap-3 md:grid-cols-3">
 			{/* Events Count */}
 			<Card className={statCardClassName}>
 				{statGlint}
-				<CardContent className="flex items-center gap-3 p-3 sm:p-4">
+				{ticketNotches}
+				<CardContent className="relative z-[1] flex items-center gap-5 p-3 sm:p-4">
 					<div className={statIconClassName}>
 						<Ticket className="h-4 w-4" strokeWidth={1.7} />
 					</div>
@@ -96,7 +105,8 @@ const EventStats: React.FC<EventStatsProps> = ({
 			{/* Arrondissements Count */}
 			<Card className={statCardClassName}>
 				{statGlint}
-				<CardContent className="flex items-center gap-3 p-3 sm:p-4">
+				{ticketNotches}
+				<CardContent className="relative z-[1] flex items-center gap-5 p-3 sm:p-4">
 					<div className={statIconClassName}>
 						<MapPinned className="h-4 w-4" strokeWidth={1.7} />
 					</div>
@@ -118,7 +128,8 @@ const EventStats: React.FC<EventStatsProps> = ({
 			{/* Dynamic Date Range */}
 			<Card className={statCardClassName}>
 				{statGlint}
-				<CardContent className="flex items-center gap-3 p-3 sm:p-4">
+				{ticketNotches}
+				<CardContent className="relative z-[1] flex items-center gap-5 p-3 sm:p-4">
 					<div className={statIconClassName}>
 						<CalendarDays className="h-4 w-4" strokeWidth={1.7} />
 					</div>
