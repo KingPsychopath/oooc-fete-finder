@@ -270,6 +270,7 @@
 
 .dark .ooo-site-card {
 	border-color: color-mix(in oklab, var(--border) 82%, rgba(255, 255, 255, 0.14));
+	background: color-mix(in oklab, var(--card) 76%, rgba(255, 255, 255, 0.045));
 	box-shadow:
 		0 14px 28px -20px rgba(0, 0, 0, 0.65),
 		0 1px 0 rgba(255, 255, 255, 0.07) inset;
@@ -283,6 +284,7 @@
 
 .dark .ooo-site-card-soft {
 	border-color: color-mix(in oklab, var(--border) 82%, rgba(255, 255, 255, 0.08));
+	background: color-mix(in oklab, var(--card) 70%, rgba(255, 255, 255, 0.035));
 }
 
 /* Bouncy Transition for Interactive Elements */

@@ -35,8 +35,12 @@ export function EventsDiscoverySummaryIsland({
 
 	return (
 		<>
-			<section className="mb-8" aria-label="Introduction">
-				<div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] lg:items-end">
+			<section className="relative mb-10" aria-label="Introduction">
+				<div
+					className="pointer-events-none absolute -inset-x-12 -top-24 h-80 bg-[radial-gradient(ellipse_at_14%_8%,rgba(240,182,104,0.18),transparent_68%),radial-gradient(ellipse_at_88%_18%,rgba(36,74,78,0.07),transparent_70%)] opacity-70 blur-2xl dark:opacity-55"
+					aria-hidden="true"
+				/>
+				<div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] lg:items-end">
 					<div className="min-w-0">
 						<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 							Paris · Fête de la Musique
@@ -68,7 +72,7 @@ export function EventsDiscoverySummaryIsland({
 					{ooocPicksInViewCount > 0 && (
 						<div
 							id="tour-oooc-picks"
-							className="ooo-site-card-soft w-full rounded-xl border border-border/70 bg-background/62 p-3 shadow-sm lg:justify-self-end"
+							className="w-full rounded-xl border border-[#f0b668]/35 bg-[linear-gradient(145deg,rgba(255,247,234,0.64),rgba(255,255,255,0.3))] p-3 shadow-[0_16px_34px_-30px_rgba(22,16,10,0.58)] backdrop-blur lg:justify-self-end dark:border-[#f0b668]/22 dark:bg-[linear-gradient(145deg,rgba(240,182,104,0.12),rgba(255,255,255,0.035))]"
 						>
 							<div className="flex items-center justify-between gap-3">
 								<div className="min-w-0">
@@ -92,7 +96,10 @@ export function EventsDiscoverySummaryIsland({
 						</div>
 					)}
 				</div>
-				<div className="mt-6 border-t border-border" role="presentation" />
+				<div
+					className="relative mt-6 border-t border-border/70"
+					role="presentation"
+				/>
 			</section>
 
 			<FeaturedEvents

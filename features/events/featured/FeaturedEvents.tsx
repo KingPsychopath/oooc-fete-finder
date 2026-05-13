@@ -50,8 +50,8 @@ export function FeaturedEvents({
 	};
 
 	return (
-		<Card className="ooo-site-card mb-6 py-0">
-			<CardContent className="py-5">
+		<Card className="ooo-site-card mb-8 overflow-hidden py-0">
+			<CardContent className="px-4 py-5 sm:px-5">
 				{/* Responsive grid: 1 col on mobile, 2 cols on tablet, 3 cols on desktop */}
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:[&>*:last-child:nth-child(odd)]:col-start-2 md:[&>*]:col-span-2 lg:grid-cols-3 lg:[&>*:last-child:nth-child(odd)]:col-start-auto lg:[&>*]:col-span-1">
 					{featuredEvents.map((event) => (
@@ -66,7 +66,7 @@ export function FeaturedEvents({
 					))}
 				</div>
 			</CardContent>
-			<CardFooter className="flex flex-col items-stretch gap-3 border-border/70 bg-background/48 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+			<CardFooter className="flex flex-col items-stretch gap-3 border-border/60 bg-background/36 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between dark:bg-white/[0.025]">
 				<FeaturedEventsHeader rotationContext={rotationContext} />
 				{/* Show browse all button if there are more events than featured */}
 				{hasMoreEvents && (

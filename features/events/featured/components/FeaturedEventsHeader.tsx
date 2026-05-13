@@ -11,11 +11,9 @@ export function FeaturedEventsHeader({
 	rotationContext: SpotlightRotationContext;
 }) {
 	return (
-		<div className="min-w-0">
-			<p className="mb-1 text-[11px] leading-tight text-muted-foreground/85">
-				{rotationContext.eventPhase === "far"
-					? "Fresh picks for Paris time"
-					: `${rotationContext.label} picks`}
+		<div className="min-w-0" data-spotlight-phase={rotationContext.eventPhase}>
+			<p className="mb-1 text-[11px] font-medium uppercase leading-tight tracking-[0.14em] text-muted-foreground">
+				Current favourites
 			</p>
 			<Link
 				href={FEATURED_EVENTS_CONFIG.FEATURE_PAGE_ROUTE}

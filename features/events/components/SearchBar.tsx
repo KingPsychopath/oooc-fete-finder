@@ -331,7 +331,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
 	return (
 		<div
-			className={`ooo-site-card-soft relative min-w-0 overflow-hidden rounded-xl border p-3 ${className}`}
+			className={`relative min-w-0 overflow-hidden rounded-xl border border-border/55 bg-background/48 p-3 shadow-none backdrop-blur ${className}`}
 		>
 			{/* Search Input */}
 			<div className="relative min-w-0">

@@ -59,10 +59,10 @@ const EventStats: React.FC<EventStatsProps> = ({
 	}, [dateRangeStats, filteredEvents.length]);
 
 	return (
-		<div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+		<div className="mb-8 grid grid-cols-1 gap-3 md:grid-cols-3">
 			{/* Events Count */}
-			<Card className="ooo-site-card py-0">
-				<CardContent className="p-4 text-center">
+			<Card className="border-border/55 bg-card/48 py-0 shadow-none backdrop-blur dark:bg-white/[0.035]">
+				<CardContent className="p-3 text-center sm:p-4">
 					<div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
 						Events
 					</div>
@@ -76,8 +76,8 @@ const EventStats: React.FC<EventStatsProps> = ({
 			</Card>
 
 			{/* Arrondissements Count */}
-			<Card className="ooo-site-card py-0">
-				<CardContent className="p-4 text-center">
+			<Card className="border-border/55 bg-card/48 py-0 shadow-none backdrop-blur dark:bg-white/[0.035]">
+				<CardContent className="p-3 text-center sm:p-4">
 					<div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
 						Coverage
 					</div>
@@ -92,8 +92,8 @@ const EventStats: React.FC<EventStatsProps> = ({
 			</Card>
 
 			{/* Dynamic Date Range */}
-			<Card className="ooo-site-card py-0">
-				<CardContent className="p-4 text-center">
+			<Card className="border-border/55 bg-card/48 py-0 shadow-none backdrop-blur dark:bg-white/[0.035]">
+				<CardContent className="p-3 text-center sm:p-4">
 					<div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
 						Date Span
 					</div>

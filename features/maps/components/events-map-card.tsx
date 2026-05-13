@@ -285,8 +285,8 @@ export function EventsMapCard({
 
 	return (
 		<>
-			<Card className="ooo-site-card py-0">
-				<CardHeader className="border-b border-border/70 py-5 pb-4">
+			<Card className="ooo-site-card overflow-hidden py-0">
+				<CardHeader className="border-b border-border/70 bg-background/18 py-5 pb-4">
 					<div className="flex flex-col gap-4">
 						<div className="flex items-start justify-between gap-3">
 							<CardTitle className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">

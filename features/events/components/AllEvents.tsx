@@ -206,7 +206,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		);
 
 		return (
-			<Card ref={ref} className="ooo-site-card mt-6 min-w-0 py-0 lg:mt-0">
+			<Card ref={ref} className="ooo-site-card mt-8 min-w-0 py-0 lg:mt-0">
 				<CardHeader className="min-w-0 border-b border-border/70 py-5">
 					<div className="flex min-w-0 flex-col gap-3">
 						<div className="flex flex-wrap items-start justify-between gap-3">
