@@ -231,7 +231,7 @@ function SpotlightEventPanel({
 							<div
 								className={cn(
 									"flex min-w-0 max-w-full items-center gap-2",
-									isDominant && "lg:w-[61%] lg:max-w-none",
+									isDominant && "lg:w-[58%] lg:max-w-none",
 								)}
 							>
 								<MapPin className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
