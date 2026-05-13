@@ -117,7 +117,7 @@ export function EventCard({
 
 	const cardClasses = `group relative h-full cursor-pointer rounded-xl border p-4 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-lg ${
 		isCurrentlyFeatured
-			? "border-amber-300/65 bg-[linear-gradient(145deg,rgba(248,238,222,0.86),rgba(244,229,205,0.72))] shadow-[0_16px_34px_-28px_rgba(176,124,54,0.58)] dark:border-amber-500/35 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.45),rgba(47,36,24,0.32))] dark:shadow-[0_18px_38px_-30px_rgba(224,169,85,0.42)]"
+			? "border-amber-300/48 bg-[linear-gradient(145deg,rgba(248,238,222,0.82),rgba(244,229,205,0.66))] shadow-[0_14px_30px_-29px_rgba(176,124,54,0.42)] dark:border-amber-500/24 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.38),rgba(47,36,24,0.28))] dark:shadow-[0_16px_34px_-31px_rgba(224,169,85,0.28)]"
 			: event.isOOOCPick === true
 				? "border-border/90 bg-[linear-gradient(145deg,rgba(247,241,231,0.82),rgba(242,235,224,0.68))] dark:bg-[linear-gradient(145deg,rgba(52,41,31,0.36),rgba(42,33,26,0.28))]"
 				: isCurrentlyPromoted
@@ -132,8 +132,8 @@ export function EventCard({
 					className="pointer-events-none absolute inset-0 rounded-xl"
 					aria-hidden="true"
 				>
-					<div className="absolute -top-6 -right-6 h-24 w-24 rounded-full border-t border-r border-amber-300/80 shadow-[8px_-8px_18px_-16px_rgba(177,121,45,0.95)] [mask-image:linear-gradient(135deg,transparent_0%,black_34%,black_68%,transparent_86%)] dark:border-amber-300/45 dark:shadow-[8px_-8px_18px_-16px_rgba(245,196,116,0.75)]" />
-					<div className="absolute top-3 right-10 h-px w-12 rotate-[-18deg] bg-gradient-to-r from-transparent via-amber-200/90 to-transparent opacity-80 dark:via-amber-100/70" />
+					<div className="absolute -top-5 -right-5 h-20 w-20 rounded-full border-t border-r border-amber-300/46 shadow-[8px_-8px_18px_-17px_rgba(177,121,45,0.68)] [mask-image:linear-gradient(135deg,transparent_0%,black_38%,black_62%,transparent_82%)] dark:border-amber-300/24 dark:shadow-[8px_-8px_18px_-17px_rgba(245,196,116,0.42)]" />
+					<div className="absolute top-3 right-10 h-px w-9 rotate-[-18deg] bg-gradient-to-r from-transparent via-amber-200/60 to-transparent opacity-65 dark:via-amber-100/42" />
 				</div>
 			)}
 			{/* Priority Badge System - Featured takes precedence over OOOC Pick */}

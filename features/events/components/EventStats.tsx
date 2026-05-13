@@ -60,12 +60,12 @@ const EventStats: React.FC<EventStatsProps> = ({
 	}, [dateRangeStats, filteredEvents.length]);
 
 	const statCardClassName =
-		"ooo-ticket-stat-card relative overflow-hidden border-border/55 bg-card/52 py-0 shadow-[0_14px_32px_-30px_rgba(34,24,16,0.45),inset_0_1px_0_rgba(255,255,255,0.5),inset_0_-1px_0_rgba(78,52,27,0.08)] backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:bg-card/66 hover:shadow-[0_18px_42px_-32px_rgba(176,124,54,0.46),inset_0_1px_0_rgba(255,255,255,0.62),inset_0_-1px_0_rgba(120,78,32,0.12)] dark:border-[#f0b668]/12 dark:bg-[linear-gradient(145deg,rgba(240,182,104,0.06),rgba(255,255,255,0.035)_58%,rgba(255,255,255,0.018))] dark:shadow-[0_16px_38px_-34px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.065),inset_0_-1px_0_rgba(240,182,104,0.06)] dark:hover:shadow-[0_20px_46px_-34px_rgba(224,169,85,0.34),inset_0_1px_0_rgba(255,255,255,0.09),inset_0_-1px_0_rgba(240,182,104,0.1)]";
+		"ooo-ticket-stat-card relative overflow-hidden border-border/55 bg-card/52 py-0 shadow-[0_14px_32px_-30px_rgba(34,24,16,0.38),inset_0_1px_0_rgba(255,255,255,0.46),inset_0_-1px_0_rgba(78,52,27,0.07)] backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:bg-card/66 hover:shadow-[0_18px_42px_-34px_rgba(176,124,54,0.34),inset_0_1px_0_rgba(255,255,255,0.56),inset_0_-1px_0_rgba(120,78,32,0.1)] dark:border-[#f0b668]/10 dark:bg-[linear-gradient(145deg,rgba(240,182,104,0.048),rgba(255,255,255,0.032)_58%,rgba(255,255,255,0.016))] dark:shadow-[0_16px_38px_-34px_rgba(0,0,0,0.86),inset_0_1px_0_rgba(255,255,255,0.058),inset_0_-1px_0_rgba(240,182,104,0.05)] dark:hover:shadow-[0_20px_46px_-36px_rgba(224,169,85,0.25),inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-1px_0_rgba(240,182,104,0.08)]";
 	const statIconClassName =
 		"flex h-8 w-8 items-center justify-center rounded-full border border-amber-500/18 bg-amber-500/8 text-amber-800 dark:border-amber-300/16 dark:bg-amber-300/8 dark:text-amber-100";
 	const statGlint = (
 		<div
-			className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/45 to-transparent dark:via-amber-200/28"
+			className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/24 to-transparent dark:via-amber-200/14"
 			aria-hidden="true"
 		/>
 	);

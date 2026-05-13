@@ -1,15 +1,240 @@
 "use client";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { EventCard } from "@/features/events/components/EventCard";
 import { useSavedEvents } from "@/features/events/components/saved-events-provider";
 import { trackEventEngagement } from "@/features/events/engagement/client-tracking";
-import { buildGenreFrequency } from "@/features/events/genre-preview";
-import { ChevronDown } from "lucide-react";
+import { toGenreLabel } from "@/features/events/genre-normalization";
+import {
+	type Event,
+	MUSIC_GENRES,
+	NATIONALITIES,
+	formatAge,
+	formatDayWithDate,
+	formatLocationAreaShort,
+	formatPrice,
+	getEventDisplayDayNightPeriod,
+	getVisibleEventTypeLabel,
+} from "@/features/events/types";
+import {
+	ArrowUpRight,
+	BookmarkCheck,
+	Building2,
+	CalendarDays,
+	ChevronDown,
+	Crown,
+	Euro,
+	MapPin,
+	Megaphone,
+	Moon,
+	Star,
+	Sun,
+	Ticket,
+	Trees,
+	Users,
+} from "lucide-react";
 import { FeaturedEventsHeader } from "./components/FeaturedEventsHeader";
 import { FEATURED_EVENTS_CONFIG } from "./constants";
 import { useFeaturedEvents } from "./hooks/use-featured-events";
 import type { FeaturedEventsProps } from "./types";
+
+type SpotlightEventPanelProps = {
+	event: Event;
+	isSaved: boolean;
+	onClick: (event: Event) => void;
+};
+
+function SpotlightEventPanel({
+	event,
+	isSaved,
+	onClick,
+}: SpotlightEventPanelProps) {
+	const visibleEventType = getVisibleEventTypeLabel(event.type);
+	const visibleGenres = event.genre.slice(0, 2);
+	const hiddenGenreCount = Math.max(
+		0,
+		event.genre.length - visibleGenres.length,
+	);
+	const priceLabel = formatPrice(event.price);
+	const isFeaturedPlacement = event.isFeatured === true;
+	const isOOOCPick = event.isOOOCPick === true;
+	const isPromoted = event.isPromoted === true;
+	const dayNightPeriod = getEventDisplayDayNightPeriod(event);
+	const venueTypes =
+		event.venueTypes && event.venueTypes.length > 0
+			? [...new Set(event.venueTypes)]
+			: [event.indoor ? "indoor" : "outdoor"];
+	const hasNationalities = Boolean(event.nationality?.length);
+
+	return (
+		<button
+			type="button"
+			onClick={() => onClick(event)}
+			className="group relative flex min-h-[15rem] w-full flex-col overflow-hidden rounded-2xl border border-amber-300/28 bg-[linear-gradient(145deg,rgba(255,250,239,0.74),rgba(246,235,216,0.52)_48%,rgba(255,255,255,0.32))] p-4 text-left shadow-[0_24px_60px_-48px_rgba(44,28,12,0.78),inset_0_1px_0_rgba(255,255,255,0.52)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-amber-300/42 hover:shadow-[0_30px_70px_-48px_rgba(176,124,54,0.58),inset_0_1px_0_rgba(255,255,255,0.62)] focus-visible:ring-2 focus-visible:ring-ring/60 dark:border-amber-200/16 dark:bg-[linear-gradient(145deg,rgba(62,45,28,0.64),rgba(31,24,19,0.58)_54%,rgba(255,255,255,0.035))] dark:shadow-[0_24px_60px_-50px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.065)] dark:hover:border-amber-200/24"
+		>
+			<div
+				className="pointer-events-none absolute inset-0 rounded-2xl"
+				aria-hidden="true"
+			>
+				<div className="absolute -top-10 -right-10 h-32 w-32 rounded-full border-t border-r border-amber-300/42 [mask-image:linear-gradient(135deg,transparent_0%,black_36%,black_62%,transparent_84%)] dark:border-amber-200/22" />
+				<div className="absolute top-6 right-8 h-px w-14 rotate-[-18deg] bg-gradient-to-r from-transparent via-amber-200/65 to-transparent opacity-70 dark:via-amber-100/36" />
+			</div>
+			<div className="relative flex items-start justify-between gap-3">
+				<div className="flex min-w-0 flex-wrap items-center gap-1.5">
+					{visibleEventType && (
+						<Badge className="border border-border/55 bg-background/56 px-2 text-[10px] font-medium uppercase tracking-[0.12em] text-foreground/72 shadow-none hover:bg-background/56">
+							{visibleEventType}
+						</Badge>
+					)}
+					{isFeaturedPlacement && (
+						<Badge className="border-0 bg-[linear-gradient(145deg,rgba(190,145,82,0.96),rgba(154,112,58,0.96))] px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-50 shadow-[0_8px_22px_-18px_rgba(154,112,58,0.8)] hover:bg-[linear-gradient(145deg,rgba(190,145,82,0.96),rgba(154,112,58,0.96))]">
+							<Crown className="h-3 w-3" />
+							Featured
+						</Badge>
+					)}
+					{isOOOCPick && (
+						<Badge className="border border-amber-400/28 bg-amber-400/12 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-900 shadow-none hover:bg-amber-400/12 dark:text-amber-100">
+							<Star className="h-3 w-3 fill-current" />
+							OOOC Pick
+						</Badge>
+					)}
+					{isPromoted && (
+						<Badge className="border border-[#213f43]/18 bg-[#213f43]/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#213f43] shadow-none hover:bg-[#213f43]/10 dark:border-cyan-100/14 dark:bg-cyan-100/8 dark:text-cyan-100">
+							<Megaphone className="h-3 w-3" />
+							Promoted
+						</Badge>
+					)}
+					{isSaved && (
+						<Badge className="border border-emerald-500/24 bg-emerald-500/10 px-2 text-[10px] font-medium uppercase tracking-[0.12em] text-emerald-800 shadow-none hover:bg-emerald-500/10 dark:text-emerald-100">
+							<BookmarkCheck className="h-3 w-3" />
+							Saved
+						</Badge>
+					)}
+				</div>
+			</div>
+
+			<div className="relative mt-5 flex flex-1 flex-col justify-between gap-5">
+				<div>
+					<h3 className="line-clamp-2 text-3xl leading-[0.98] [font-family:var(--ooo-font-display)] font-light tracking-[0.01em] text-foreground sm:text-4xl lg:text-[2.35rem]">
+						{event.name}
+					</h3>
+					<div className="mt-4 grid gap-2 text-sm text-muted-foreground">
+						<div className="flex min-w-0 items-center gap-2">
+							<CalendarDays className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
+							<span className="min-w-0 truncate">
+								{formatDayWithDate(event.day, event.date)}
+								{" · "}
+								{event.time || "TBC"}
+								{event.endTime && event.time !== "TBC" && (
+									<> - {event.endTime}</>
+								)}
+							</span>
+							{event.time && dayNightPeriod && (
+								<span
+									className="inline-flex shrink-0 items-center text-muted-foreground"
+									title={
+										dayNightPeriod === "day"
+											? "Daytime and early evening"
+											: "Late start or runs into the night"
+									}
+								>
+									{dayNightPeriod === "day" ? (
+										<Sun className="h-4 w-4" />
+									) : (
+										<Moon className="h-4 w-4" />
+									)}
+								</span>
+							)}
+						</div>
+						{event.location && event.location !== "TBA" && (
+							<div className="flex min-w-0 items-center gap-2">
+								<MapPin className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
+								<span className="inline-flex min-w-0 items-center gap-1.5">
+									<span className="min-w-0 truncate">{event.location}</span>
+									<span className="inline-flex shrink-0 items-center gap-1 text-muted-foreground">
+										{venueTypes.includes("indoor") && (
+											<span title="Indoor event">
+												<Building2 className="h-4 w-4" />
+											</span>
+										)}
+										{venueTypes.includes("outdoor") && (
+											<span title="Outdoor event">
+												<Trees className="h-4 w-4" />
+											</span>
+										)}
+									</span>
+								</span>
+							</div>
+						)}
+						<div className="flex min-w-0 items-center gap-2">
+							<Ticket className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
+							<span className="min-w-0 truncate">
+								{formatLocationAreaShort(event.arrondissement)}
+							</span>
+						</div>
+						<div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+							<span className="inline-flex items-center gap-2">
+								<Euro className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
+								<span
+									className={`text-xs font-medium ${
+										priceLabel === "Free"
+											? "text-green-600 dark:text-green-400"
+											: "text-muted-foreground"
+									}`}
+								>
+									{priceLabel}
+								</span>
+							</span>
+							{event.age && (
+								<span className="inline-flex items-center gap-2">
+									<Users className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
+									<span className="text-xs font-medium text-muted-foreground">
+										{formatAge(event.age)}
+									</span>
+								</span>
+							)}
+						</div>
+					</div>
+				</div>
+
+				<div className="flex flex-wrap items-center gap-1.5">
+					{hasNationalities &&
+						event.nationality?.map((nationality) => (
+							<Badge
+								key={nationality}
+								variant="outline"
+								className="border-border/50 bg-background/38 text-xs text-foreground/76"
+							>
+								{NATIONALITIES.find((n) => n.key === nationality)?.flag}{" "}
+								{NATIONALITIES.find((n) => n.key === nationality)?.shortCode}
+							</Badge>
+						))}
+					{visibleGenres.map((genre) => (
+						<Badge
+							key={genre}
+							variant="outline"
+							className="border-border/50 bg-background/38 text-xs text-foreground/76"
+						>
+							{MUSIC_GENRES.find((g) => g.key === genre)?.label ||
+								toGenreLabel(genre)}
+						</Badge>
+					))}
+					{hiddenGenreCount > 0 && (
+						<Badge
+							variant="outline"
+							className="border-border/45 bg-background/28 text-xs text-muted-foreground"
+						>
+							+{hiddenGenreCount}
+						</Badge>
+					)}
+					<span className="ml-auto hidden items-center gap-1 text-xs font-medium text-foreground/70 transition-colors group-hover:text-foreground sm:inline-flex">
+						View details
+						<ArrowUpRight className="h-3.5 w-3.5" />
+					</span>
+				</div>
+			</div>
+		</button>
+	);
+}
 
 /**
  * FeaturedEvents component displays a curated selection of events
@@ -20,7 +245,6 @@ export function FeaturedEvents({
 	events,
 	onEventClick,
 	onScrollToAllEvents,
-	socialProofDisplayModes,
 	maxFeaturedEvents = FEATURED_EVENTS_CONFIG.MAX_FEATURED_EVENTS,
 	dateRange,
 	rotationContext,
@@ -36,7 +260,6 @@ export function FeaturedEvents({
 		return null;
 	}
 
-	const genreFrequency = buildGenreFrequency(events);
 	const browseAllLabel = `Browse All ${totalEventsCount} Event${totalEventsCount !== 1 ? "s" : ""}`;
 	const handleSpotlightEventClick = (
 		event: (typeof featuredEvents)[number],
@@ -50,48 +273,41 @@ export function FeaturedEvents({
 	};
 
 	return (
-		<Card className="ooo-site-card relative mb-8 overflow-hidden py-0 shadow-[0_18px_42px_-34px_rgba(176,124,54,0.62)] dark:shadow-[0_18px_42px_-34px_rgba(224,169,85,0.42)]">
-			<div
-				className="pointer-events-none absolute inset-0 rounded-xl"
-				aria-hidden="true"
-			>
-				<div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/65 to-transparent dark:via-amber-200/34" />
-				<div className="absolute -top-10 -left-10 h-32 w-32 rounded-full border-t border-l border-amber-300/50 [mask-image:linear-gradient(315deg,transparent_0%,black_36%,black_64%,transparent_84%)] dark:border-amber-200/24" />
-				<div className="absolute top-8 left-5 h-px w-16 rotate-[16deg] bg-gradient-to-r from-transparent via-amber-200/75 to-transparent opacity-75 dark:via-amber-100/45" />
-				<div className="absolute inset-x-16 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-300/28 to-transparent dark:via-amber-200/18" />
-				<div className="absolute -right-12 -bottom-12 h-28 w-28 rounded-full border-r border-b border-amber-300/24 [mask-image:linear-gradient(135deg,transparent_0%,black_42%,black_60%,transparent_82%)] dark:border-amber-200/14" />
+		<section className="relative left-1/2 mb-10 w-screen -translate-x-1/2 overflow-hidden border-y border-amber-300/18 bg-[linear-gradient(105deg,rgba(240,182,104,0.16),rgba(255,255,255,0.22)_28%,rgba(33,63,67,0.08)_70%,rgba(240,182,104,0.12))] py-6 shadow-[0_28px_90px_-76px_rgba(176,124,54,0.78)] dark:border-amber-200/10 dark:bg-[linear-gradient(105deg,rgba(240,182,104,0.09),rgba(255,255,255,0.025)_30%,rgba(49,91,95,0.12)_70%,rgba(240,182,104,0.065))]">
+			<div className="pointer-events-none absolute inset-0" aria-hidden="true">
+				<div className="absolute inset-x-[12vw] top-0 h-px bg-gradient-to-r from-transparent via-amber-300/75 to-transparent dark:via-amber-200/42" />
+				<div className="absolute -top-20 left-[6vw] h-52 w-52 rounded-full border-t border-l border-amber-300/42 [mask-image:linear-gradient(315deg,transparent_0%,black_34%,black_62%,transparent_82%)] dark:border-amber-200/22" />
+				<div className="absolute top-12 left-[12vw] h-px w-32 rotate-[16deg] bg-gradient-to-r from-transparent via-amber-200/80 to-transparent opacity-80 dark:via-amber-100/46" />
+				<div className="absolute inset-x-[18vw] bottom-0 h-px bg-gradient-to-r from-transparent via-amber-300/24 to-transparent dark:via-amber-200/16" />
+				<div className="absolute -right-20 -bottom-24 h-64 w-64 rounded-full border-r border-b border-amber-300/18 [mask-image:linear-gradient(135deg,transparent_0%,black_42%,black_60%,transparent_82%)] dark:border-amber-200/12" />
 			</div>
-			<CardContent className="relative px-4 py-5 sm:px-5">
-				{/* Responsive grid: 1 col on mobile, 2 cols on tablet, 3 cols on desktop */}
-				<div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:[&>*:last-child:nth-child(odd)]:col-start-2 md:[&>*]:col-span-2 lg:grid-cols-3 lg:[&>*:last-child:nth-child(odd)]:col-start-auto lg:[&>*]:col-span-1">
+			<div className="relative mx-auto w-full max-w-[104rem] px-4 sm:px-6 lg:px-10 2xl:px-14">
+				<div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+					<FeaturedEventsHeader rotationContext={rotationContext} />
+					{hasMoreEvents && (
+						<div className="sm:shrink-0">
+							<Button
+								variant="outline"
+								onClick={onScrollToAllEvents}
+								className="h-auto min-h-8 w-full whitespace-normal rounded-full border-border/70 bg-background/55 px-3 py-2 text-center leading-tight text-foreground/85 hover:bg-accent sm:h-8 sm:w-auto sm:whitespace-nowrap"
+							>
+								{browseAllLabel}
+								<ChevronDown className="ml-1 h-4 w-4" />
+							</Button>
+						</div>
+					)}
+				</div>
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
 					{featuredEvents.map((event) => (
-						<EventCard
+						<SpotlightEventPanel
 							key={event.eventKey || event.id}
 							event={event}
 							onClick={handleSpotlightEventClick}
-							socialProofMode={socialProofDisplayModes.get(event.eventKey)}
-							genreFrequency={genreFrequency}
 							isSaved={isEventSaved(event.eventKey)}
 						/>
 					))}
 				</div>
-			</CardContent>
-			<CardFooter className="flex flex-col items-stretch gap-3 border-border/60 bg-background/36 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between dark:bg-white/[0.025]">
-				<FeaturedEventsHeader rotationContext={rotationContext} />
-				{/* Show browse all button if there are more events than featured */}
-				{hasMoreEvents && (
-					<div className="sm:shrink-0">
-						<Button
-							variant="outline"
-							onClick={onScrollToAllEvents}
-							className="h-auto min-h-8 w-full whitespace-normal border-border/80 bg-background/65 px-3 py-2 text-center leading-tight text-foreground/85 hover:bg-accent sm:h-8 sm:w-auto sm:whitespace-nowrap"
-						>
-							{browseAllLabel}
-							<ChevronDown className="h-4 w-4 ml-1" />
-						</Button>
-					</div>
-				)}
-			</CardFooter>
-		</Card>
+			</div>
+		</section>
 	);
 }
