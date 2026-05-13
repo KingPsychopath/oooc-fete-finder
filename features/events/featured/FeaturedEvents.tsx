@@ -205,7 +205,7 @@ function SpotlightEventPanel({
 						className={cn(
 							"line-clamp-2 text-3xl leading-[0.98] [font-family:var(--ooo-font-display)] font-light tracking-[0.01em] text-foreground sm:text-4xl lg:text-[2.35rem]",
 							isFeaturedPlacement &&
-								"[text-shadow:0_0_14px_rgba(255,221,148,0.34),0_1px_0_rgba(255,255,255,0.26)] dark:[text-shadow:0_0_14px_rgba(255,221,148,0.2)]",
+								"[text-shadow:0_1px_0_rgba(255,255,255,0.18)] dark:[text-shadow:0_1px_0_rgba(255,255,255,0.06)]",
 						)}
 					>
 						{event.name}
@@ -367,11 +367,7 @@ export function FeaturedEvents({
 	const handleSpotlightEventClick = (
 		event: (typeof featuredEvents)[number],
 	) => {
-		if (event.isFeatured || event.isOOOCPick) {
-			haptics.success();
-		} else {
-			haptics.selection();
-		}
+		haptics.selection();
 		trackEventEngagement({
 			eventKey: event.eventKey,
 			actionType: "click",
