@@ -541,23 +541,25 @@ export function SubmitEventForm({
 					</div>
 					<fieldset className="space-y-2 md:col-span-2">
 						<legend className="text-sm font-medium">Schedule</legend>
-						<div className="grid gap-4 md:grid-cols-3">
-							<div className="space-y-2">
+						<div className="grid min-w-0 gap-4 md:grid-cols-3">
+							<div className="min-w-0 space-y-2">
 								<Label htmlFor="date">Date</Label>
 								<Input
 									id="date"
 									type="date"
+									className="min-w-0 max-w-full"
 									value={form.date}
 									onChange={(event) => updateField("date", event.target.value)}
 									required
 									disabled={isFormDisabled}
 								/>
 							</div>
-							<div className="space-y-2">
+							<div className="min-w-0 space-y-2">
 								<Label htmlFor="startTime">Start</Label>
 								<Input
 									id="startTime"
 									type="time"
+									className="min-w-0 max-w-full"
 									value={form.startTime}
 									onChange={(event) =>
 										updateField("startTime", event.target.value)
@@ -566,11 +568,12 @@ export function SubmitEventForm({
 									disabled={isFormDisabled}
 								/>
 							</div>
-							<div className="space-y-2">
+							<div className="min-w-0 space-y-2">
 								<Label htmlFor="endTime">End</Label>
 								<Input
 									id="endTime"
 									type="time"
+									className="min-w-0 max-w-full"
 									value={form.endTime}
 									onChange={(event) =>
 										updateField("endTime", event.target.value)

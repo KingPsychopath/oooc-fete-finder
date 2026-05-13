@@ -35,9 +35,12 @@ export function EventsDiscoverySummaryIsland({
 
 	return (
 		<>
-			<section className="relative mb-10" aria-label="Introduction">
+			<section
+				className="relative mb-10 overflow-hidden"
+				aria-label="Introduction"
+			>
 				<div
-					className="pointer-events-none absolute -inset-x-12 -top-24 h-80 bg-[radial-gradient(ellipse_at_14%_8%,rgba(240,182,104,0.18),transparent_68%),radial-gradient(ellipse_at_88%_18%,rgba(36,74,78,0.07),transparent_70%)] opacity-70 blur-2xl dark:opacity-55"
+					className="pointer-events-none absolute inset-x-0 -top-24 h-80 bg-[radial-gradient(ellipse_at_14%_8%,rgba(240,182,104,0.18),transparent_68%),radial-gradient(ellipse_at_88%_18%,rgba(36,74,78,0.07),transparent_70%)] opacity-70 blur-2xl dark:opacity-55"
 					aria-hidden="true"
 				/>
 				<div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] lg:items-end">
