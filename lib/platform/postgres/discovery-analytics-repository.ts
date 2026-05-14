@@ -403,7 +403,7 @@ export class DiscoveryAnalyticsRepository {
 		const excludedSearchSource = cleanString(input.excludeSearchSource, 120);
 		const sourceFilter = excludedSearchSource
 			? this
-					.sql`AND NOT (filter_group = 'search_source' AND filter_value = ${excludedSearchSource})`
+					.sql`AND NOT (COALESCE(filter_group, '') = 'search_source' AND COALESCE(filter_value, '') = ${excludedSearchSource})`
 			: this.sql``;
 		const rows = await this.sql<
 			Array<{
