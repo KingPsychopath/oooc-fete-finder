@@ -29,6 +29,21 @@ const STATUS_TABS: Array<{ key: EventSubmissionStatus; label: string }> = [
 	{ key: "declined", label: "Declined" },
 ];
 
+type ReviewQueueFilter =
+	| "all"
+	| "new_event"
+	| "event_update"
+	| "price_flag"
+	| "genre_suggestion";
+
+const REVIEW_QUEUE_FILTERS: Array<{ key: ReviewQueueFilter; label: string }> = [
+	{ key: "all", label: "All" },
+	{ key: "new_event", label: "New events" },
+	{ key: "event_update", label: "Updates" },
+	{ key: "price_flag", label: "Price issues" },
+	{ key: "genre_suggestion", label: "Genre suggestions" },
+];
+
 const DECLINE_REASON_LABELS: Record<EventSubmissionDeclineReason, string> = {
 	not_enough_information: "Not enough information",
 	duplicate_submission: "Duplicate submission",
@@ -47,6 +62,18 @@ const parseDisplayLinks = (value: string | undefined): string[] =>
 		.split(/[,\n\r|]/)
 		.map((link) => link.trim())
 		.filter(Boolean);
+
+const getReviewQueueType = (
+	submission: EventSubmissionRecord,
+): Exclude<ReviewQueueFilter, "all"> => {
+	if (submission.payload.submissionType === "price_flag") return "price_flag";
+	if (submission.payload.submissionType === "event_update")
+		return "event_update";
+	if ((submission.payload.suggestedGenres?.filter(Boolean) ?? []).length > 0) {
+		return "genre_suggestion";
+	}
+	return "new_event";
+};
 
 type SubmissionSettingKey = "new_events" | "event_updates";
 
@@ -93,6 +120,8 @@ export const EventSubmissionsCard = ({
 	);
 	const [activeStatus, setActiveStatus] =
 		useState<EventSubmissionStatus>("pending");
+	const [activeQueueFilter, setActiveQueueFilter] =
+		useState<ReviewQueueFilter>("all");
 	const [isLoading, setIsLoading] = useState(false);
 	const [isMutating, setIsMutating] = useState(false);
 	const [busySubmissionId, setBusySubmissionId] = useState<string | null>(null);
@@ -217,9 +246,55 @@ export const EventSubmissionsCard = ({
 		[customDeclineReasonById, selectedDeclineReasonById, withMutation],
 	);
 
-	const rows = useMemo(
+	const handleClearPriceFlag = useCallback(
+		async (submissionId: string) => {
+			await withMutation(submissionId, () =>
+				declineEventSubmission(submissionId, "price_checked"),
+			);
+		},
+		[withMutation],
+	);
+
+	const handleMarkUpdateReviewed = useCallback(
+		async (submissionId: string) => {
+			await withMutation(submissionId, () =>
+				declineEventSubmission(submissionId, "update_reviewed"),
+			);
+		},
+		[withMutation],
+	);
+
+	const statusRows = useMemo(
 		() => getSubmissionRowsByStatus(payload, activeStatus),
 		[activeStatus, payload],
+	);
+
+	const rows = useMemo(
+		() =>
+			activeQueueFilter === "all"
+				? statusRows
+				: statusRows.filter(
+						(submission) =>
+							getReviewQueueType(submission) === activeQueueFilter,
+					),
+		[activeQueueFilter, statusRows],
+	);
+
+	const queueFilterCounts = useMemo(
+		() =>
+			REVIEW_QUEUE_FILTERS.reduce(
+				(counts, filter) => {
+					counts[filter.key] =
+						filter.key === "all"
+							? statusRows.length
+							: statusRows.filter(
+									(submission) => getReviewQueueType(submission) === filter.key,
+								).length;
+					return counts;
+				},
+				{} as Record<ReviewQueueFilter, number>,
+			),
+		[statusRows],
 	);
 
 	const tabCounts = useMemo(
@@ -245,11 +320,11 @@ export const EventSubmissionsCard = ({
 			<CardHeader className="space-y-3">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div>
-						<CardTitle>Event Submissions</CardTitle>
+						<CardTitle>Review Queue</CardTitle>
 						<CardDescription>
-							Host-submitted events and update requests awaiting moderation.
-							Accept publishes new events; update requests are reviewed against
-							the current event sheet.
+							Event work grouped by the action it needs: publish new events,
+							check update requests, clear price issues, and triage suggested
+							genres.
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
@@ -387,6 +462,26 @@ export const EventSubmissionsCard = ({
 						</Button>
 					))}
 				</div>
+				<div className="rounded-md border bg-background/60 p-2">
+					<p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+						Work type
+					</p>
+					<div className="flex flex-wrap gap-2">
+						{REVIEW_QUEUE_FILTERS.map((filter) => (
+							<Button
+								key={filter.key}
+								type="button"
+								size="sm"
+								variant={
+									activeQueueFilter === filter.key ? "default" : "outline"
+								}
+								onClick={() => setActiveQueueFilter(filter.key)}
+							>
+								{filter.label} ({queueFilterCounts[filter.key] ?? 0})
+							</Button>
+						))}
+					</div>
+				</div>
 				{statusMessage && (
 					<div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
 						{statusMessage}
@@ -401,7 +496,7 @@ export const EventSubmissionsCard = ({
 			<CardContent>
 				{rows.length === 0 ? (
 					<div className="rounded-md border bg-background/60 px-3 py-10 text-center text-sm text-muted-foreground">
-						No submissions in this status.
+						No queue items match this status and work type.
 					</div>
 				) : (
 					<div className="max-h-[36rem] space-y-3 overflow-y-auto pr-1">
@@ -467,6 +562,322 @@ export const EventSubmissionsCard = ({
 									return previous !== next;
 								});
 
+							if (isPriceFlag) {
+								const listedPrice =
+									submission.payload.price || originalSnapshot.price || "-";
+								const proofLinks = [
+									submission.payload.proofLink,
+									...ticketLinks.filter(
+										(link) => link !== submission.payload.proofLink,
+									),
+								].filter(Boolean);
+								const canonicalUrl = submission.payload.originalEventUrl;
+								const eventKey = submission.payload.originalEventKey;
+
+								return (
+									<div
+										key={submission.id}
+										className="rounded-md border border-amber-300/80 bg-amber-50/80 p-3 shadow-sm dark:border-amber-400/30 dark:bg-amber-400/10"
+									>
+										<div className="flex flex-wrap items-start justify-between gap-3">
+											<div className="min-w-0 space-y-1">
+												<div className="flex flex-wrap items-center gap-1.5">
+													<Badge className="bg-amber-600 text-white hover:bg-amber-600">
+														Price flag
+													</Badge>
+													<Badge variant="outline">{submission.status}</Badge>
+													{submission.spamSignals.reasons.map((reason) => (
+														<Badge key={reason} variant="destructive">
+															{reason}
+														</Badge>
+													))}
+												</div>
+												<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-900/75 dark:text-amber-100/80">
+													Community price check
+												</p>
+												<p className="break-words text-sm font-semibold text-foreground">
+													{submission.payload.eventName}
+												</p>
+												<p className="text-xs text-muted-foreground">
+													{submission.payload.date} at{" "}
+													{submission.payload.startTime} •{" "}
+													{submission.payload.location}
+												</p>
+											</div>
+											{submission.status === "pending" && (
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() =>
+														void handleClearPriceFlag(submission.id)
+													}
+													disabled={isBusy}
+													className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+												>
+													{isBusy ? "Clearing..." : "Clear flag"}
+												</Button>
+											)}
+										</div>
+
+										<div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+											<div className="rounded-md border border-amber-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+												<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+													Listed price
+												</p>
+												<p className="mt-1 font-medium text-foreground">
+													{listedPrice}
+												</p>
+											</div>
+											<div className="rounded-md border border-amber-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+												<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+													What to do
+												</p>
+												<p className="mt-1 text-muted-foreground">
+													Check the ticket page, update the sheet if needed,
+													then clear this flag.
+												</p>
+											</div>
+											{proofLinks.length > 0 && (
+												<div className="rounded-md border border-amber-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+													<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+														Ticket/proof
+													</p>
+													<div className="mt-1 space-y-1">
+														{proofLinks.map((link, index) => (
+															<a
+																key={`${submission.id}-price-proof-${index}-${link}`}
+																href={link}
+																target="_blank"
+																rel="noreferrer"
+																className="block break-all font-medium text-amber-900 underline underline-offset-2 hover:text-amber-700 dark:text-amber-100"
+															>
+																{index === 0
+																	? "Open ticket/proof page"
+																	: `Open extra link ${index + 1}`}
+															</a>
+														))}
+													</div>
+												</div>
+											)}
+											{canonicalUrl && (
+												<div className="rounded-md border border-amber-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+													<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+														Listing
+													</p>
+													<a
+														href={canonicalUrl}
+														target="_blank"
+														rel="noreferrer"
+														className="mt-1 block break-all font-medium text-amber-900 underline underline-offset-2 hover:text-amber-700 dark:text-amber-100"
+													>
+														Open current listing
+													</a>
+												</div>
+											)}
+										</div>
+
+										{submission.payload.reporterNote && (
+											<div className="mt-2 rounded-md border border-amber-200 bg-white/70 px-3 py-2 text-xs dark:bg-background/40">
+												<p className="font-medium text-foreground">
+													Visitor note
+												</p>
+												<p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+													{submission.payload.reporterNote}
+												</p>
+											</div>
+										)}
+
+										{eventKey && (
+											<p className="mt-2 break-all rounded-md border border-amber-200 bg-white/50 px-3 py-2 font-mono text-[11px] text-muted-foreground dark:bg-background/30">
+												{eventKey}
+											</p>
+										)}
+
+										<div className="mt-2 text-[11px] text-muted-foreground">
+											Flagged {formatAdminDateTime(submission.createdAt)}
+											{submission.reviewedAt
+												? ` • Cleared ${formatAdminDateTime(submission.reviewedAt)}`
+												: ""}
+											{submission.reviewReason
+												? ` • Reason: ${submission.reviewReason}`
+												: ""}
+										</div>
+									</div>
+								);
+							}
+
+							if (isUpdateRequest) {
+								const canonicalUrl = submission.payload.originalEventUrl;
+								const eventKey = submission.payload.originalEventKey;
+
+								return (
+									<div
+										key={submission.id}
+										className="rounded-md border border-blue-300/70 bg-blue-50/80 p-3 shadow-sm dark:border-blue-400/30 dark:bg-blue-400/10"
+									>
+										<div className="flex flex-wrap items-start justify-between gap-3">
+											<div className="min-w-0 space-y-1">
+												<div className="flex flex-wrap items-center gap-1.5">
+													<Badge className="bg-blue-700 text-white hover:bg-blue-700">
+														Update request
+													</Badge>
+													<Badge variant="outline">{submission.status}</Badge>
+													{submission.spamSignals.reasons.map((reason) => (
+														<Badge key={reason} variant="destructive">
+															{reason}
+														</Badge>
+													))}
+												</div>
+												<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-blue-950/70 dark:text-blue-100/80">
+													Manual sheet check
+												</p>
+												<p className="break-words text-sm font-semibold text-foreground">
+													{submission.payload.originalEventName ||
+														submission.payload.eventName}
+												</p>
+												<p className="text-xs text-muted-foreground">
+													{submission.payload.date} at{" "}
+													{submission.payload.startTime} •{" "}
+													{submission.payload.location}
+												</p>
+												<p className="break-all text-xs text-muted-foreground">
+													{submission.payload.hostEmail}
+												</p>
+											</div>
+											{submission.status === "pending" && (
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() =>
+														void handleMarkUpdateReviewed(submission.id)
+													}
+													disabled={isBusy}
+													className="border-blue-300 bg-white text-blue-950 hover:bg-blue-100"
+												>
+													{isBusy ? "Marking..." : "Mark reviewed"}
+												</Button>
+											)}
+										</div>
+
+										<div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+											<div className="rounded-md border border-blue-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+												<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+													What to do
+												</p>
+												<p className="mt-1 text-muted-foreground">
+													Check the requested changes against the source, update
+													the sheet if right, then mark reviewed.
+												</p>
+											</div>
+											<div className="rounded-md border border-blue-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+												<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+													Proof
+												</p>
+												<a
+													href={submission.payload.proofLink}
+													target="_blank"
+													rel="noreferrer"
+													className="mt-1 block break-all font-medium text-blue-900 underline underline-offset-2 hover:text-blue-700 dark:text-blue-100"
+												>
+													Open proof page
+												</a>
+											</div>
+											{canonicalUrl && (
+												<div className="rounded-md border border-blue-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+													<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+														Current listing
+													</p>
+													<a
+														href={canonicalUrl}
+														target="_blank"
+														rel="noreferrer"
+														className="mt-1 block break-all font-medium text-blue-900 underline underline-offset-2 hover:text-blue-700 dark:text-blue-100"
+													>
+														Open listing
+													</a>
+												</div>
+											)}
+											{ticketLinks.length > 0 && (
+												<div className="rounded-md border border-blue-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+													<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+														Ticket links
+													</p>
+													<div className="mt-1 space-y-1">
+														{ticketLinks.map((link, index) => (
+															<a
+																key={`${submission.id}-update-ticket-${index}-${link}`}
+																href={link}
+																target="_blank"
+																rel="noreferrer"
+																className="block break-all font-medium text-blue-900 underline underline-offset-2 hover:text-blue-700 dark:text-blue-100"
+															>
+																{index === 0
+																	? "Open ticket page"
+																	: `Open extra link ${index + 1}`}
+															</a>
+														))}
+													</div>
+												</div>
+											)}
+										</div>
+
+										<div className="mt-2 rounded-md border border-blue-200 bg-white/70 px-3 py-2 text-xs dark:bg-background/40">
+											<p className="font-medium text-foreground">
+												Changed fields
+											</p>
+											{changedFields.length > 0 ? (
+												<div className="mt-2 space-y-1">
+													{changedFields.map(({ label, key, next }) => (
+														<p key={key} className="break-words">
+															<span className="font-medium">{label}:</span>{" "}
+															<span className="whitespace-pre-wrap line-through opacity-70">
+																{originalSnapshot[key] || "-"}
+															</span>{" "}
+															<span className="whitespace-pre-wrap">
+																→ {next || "-"}
+															</span>
+														</p>
+													))}
+												</div>
+											) : (
+												<p className="mt-1 text-muted-foreground">
+													No changed fields were detected.
+												</p>
+											)}
+										</div>
+
+										{submission.payload.notes && (
+											<div className="mt-2 rounded-md border border-blue-200 bg-white/70 px-3 py-2 text-xs dark:bg-background/40">
+												<p className="font-medium text-foreground">
+													Submitter note
+												</p>
+												<p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+													{submission.payload.notes}
+												</p>
+											</div>
+										)}
+
+										{eventKey && (
+											<p className="mt-2 break-all rounded-md border border-blue-200 bg-white/50 px-3 py-2 font-mono text-[11px] text-muted-foreground dark:bg-background/30">
+												{eventKey}
+											</p>
+										)}
+
+										<div className="mt-2 text-[11px] text-muted-foreground">
+											Submitted {formatAdminDateTime(submission.createdAt)}
+											{submission.reviewedAt
+												? ` • Reviewed ${formatAdminDateTime(submission.reviewedAt)}`
+												: ""}
+											{submission.reviewReason
+												? ` • Reason: ${submission.reviewReason}`
+												: ""}
+										</div>
+									</div>
+								);
+							}
+
 							return (
 								<div
 									key={submission.id}
@@ -487,9 +898,6 @@ export const EventSubmissionsCard = ({
 											</p>
 										</div>
 										<div className="flex flex-wrap gap-1.5">
-											{isPriceFlag && (
-												<Badge variant="outline">Price flag</Badge>
-											)}
 											{isUpdateRequest && (
 												<Badge variant="outline">Update request</Badge>
 											)}
@@ -506,10 +914,8 @@ export const EventSubmissionsCard = ({
 									</div>
 
 									<div className="mt-2 text-xs text-muted-foreground break-all">
-										{isUpdateRequest || isPriceFlag
-											? "Proof of change"
-											: "Proof"}
-										: {submission.payload.proofLink}
+										{isUpdateRequest ? "Proof of change" : "Proof"}:{" "}
+										{submission.payload.proofLink}
 									</div>
 									{ticketLinks.length > 0 && (
 										<div className="mt-1 text-xs text-muted-foreground">
@@ -529,36 +935,6 @@ export const EventSubmissionsCard = ({
 													</p>
 												))}
 											</div>
-										</div>
-									)}
-
-									{isPriceFlag && (
-										<div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-											<p className="font-medium">
-												Visitor flagged this free price for review
-											</p>
-											{submission.payload.originalEventKey && (
-												<p className="mt-1 break-all">
-													Event key: {submission.payload.originalEventKey}
-												</p>
-											)}
-											{submission.payload.originalEventUrl && (
-												<p className="mt-1 break-all">
-													Canonical URL: {submission.payload.originalEventUrl}
-												</p>
-											)}
-											<p className="mt-1">
-												Current listed price:{" "}
-												<span className="font-medium">
-													{submission.payload.price || "-"}
-												</span>
-											</p>
-											{submission.payload.reporterNote && (
-												<p className="mt-2 whitespace-pre-wrap">
-													<span className="font-medium">Reporter note:</span>{" "}
-													{submission.payload.reporterNote}
-												</p>
-											)}
 										</div>
 									)}
 
@@ -669,15 +1045,10 @@ export const EventSubmissionsCard = ({
 													<Button
 														type="button"
 														onClick={() => void handleAccept(submission.id)}
-														disabled={isBusy || isUpdateRequest || isPriceFlag}
+														disabled={isBusy}
 														size="sm"
-														title={
-															isUpdateRequest || isPriceFlag
-																? "Review manually in the event sheet, then decline to clear it"
-																: undefined
-														}
 													>
-														{isBusy ? "Working..." : "Accept"}
+														{isBusy ? "Working..." : "Publish"}
 													</Button>
 													<Button
 														type="button"
@@ -686,7 +1057,7 @@ export const EventSubmissionsCard = ({
 														disabled={isBusy}
 														size="sm"
 													>
-														Decline
+														Reject
 													</Button>
 												</div>
 											</div>
