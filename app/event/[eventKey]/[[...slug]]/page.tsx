@@ -1,18 +1,19 @@
+import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 import {
 	formatDayWithDate,
 	formatLocationAreaLong,
 	formatPrice,
 } from "@/features/events/types";
+import { log } from "@/lib/platform/logger";
 import {
 	type EventShareDetails,
-	getEventShareEvent,
 	getEventShareDetails,
+	getEventShareEvent,
 } from "@/lib/social/event-share-details";
 import {
 	generateEventOGImage,
 	generateOGMetadata,
 } from "@/lib/social/og-utils";
-import { log } from "@/lib/platform/logger";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -159,7 +160,14 @@ export async function generateMetadata({
 export default async function EventSharePage({ params }: EventSharePageProps) {
 	const startedAt = Date.now();
 	const { eventKey } = await params;
-	const event = await getEventShareEvent(eventKey);
+	const [event, submissionSettings] = await Promise.all([
+		getEventShareEvent(eventKey),
+		EventSubmissionSettingsStore.getPublicSettings().catch(() => ({
+			newEventsEnabled: false,
+			eventUpdatesEnabled: false,
+			updatedAt: new Date(0).toISOString(),
+		})),
+	]);
 	const durationMs = Date.now() - startedAt;
 	if (durationMs >= 500) {
 		log.warn("event-share-page", "Slow event page data load", {
@@ -183,7 +191,10 @@ export default async function EventSharePage({ params }: EventSharePageProps) {
 			>
 				<EventShareModalPreview event={event} />
 				<Suspense fallback={null}>
-					<EventShareClient event={event} />
+					<EventShareClient
+						event={event}
+						eventUpdateRequestsEnabled={submissionSettings.eventUpdatesEnabled}
+					/>
 				</Suspense>
 			</main>
 		</div>

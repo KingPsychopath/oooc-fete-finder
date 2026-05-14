@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 
 interface EventShareClientProps {
 	event: Event;
+	eventUpdateRequestsEnabled: boolean;
 }
 
 const REQUEST_UPDATE_PARAM = "requestUpdate";
@@ -34,22 +35,33 @@ const buildEventPath = (
 	return query ? `${path}?${query}` : path;
 };
 
-export function EventShareClient({ event }: EventShareClientProps) {
+export function EventShareClient({
+	event,
+	eventUpdateRequestsEnabled,
+}: EventShareClientProps) {
 	return (
 		<SavedEventsProvider>
-			<EventShareModal event={event} />
+			<EventShareModal
+				event={event}
+				eventUpdateRequestsEnabled={eventUpdateRequestsEnabled}
+			/>
 		</SavedEventsProvider>
 	);
 }
 
-function EventShareModal({ event }: EventShareClientProps) {
+function EventShareModal({
+	event,
+	eventUpdateRequestsEnabled,
+}: EventShareClientProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const { isAuthenticated } = useOptionalAuth();
 	const { isEventSaved, toggleSavedEvent } = useSavedEvents();
 	const [hasHydrated, setHasHydrated] = useState(false);
 	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(
-		() => searchParams.get(REQUEST_UPDATE_PARAM) === "1",
+		() =>
+			eventUpdateRequestsEnabled &&
+			searchParams.get(REQUEST_UPDATE_PARAM) === "1",
 	);
 	const homeHref = normalizeBasePath(basePath) || "/";
 
@@ -95,6 +107,15 @@ function EventShareModal({ event }: EventShareClientProps) {
 		};
 	}, [homeHref, router]);
 
+	useEffect(() => {
+		if (eventUpdateRequestsEnabled) return;
+		setIsRequestUpdateOpen(false);
+		if (searchParams.get(REQUEST_UPDATE_PARAM) !== "1") return;
+		const nextParams = new URLSearchParams(searchParams.toString());
+		nextParams.delete(REQUEST_UPDATE_PARAM);
+		router.replace(buildEventPath(event, nextParams), { scroll: false });
+	}, [event, eventUpdateRequestsEnabled, router, searchParams]);
+
 	const handleClose = () => {
 		router.push(homeHref);
 	};
@@ -120,6 +141,7 @@ function EventShareModal({ event }: EventShareClientProps) {
 			isOpen
 			onClose={handleClose}
 			isAuthenticated={isAuthenticated}
+			submissionsEnabled={eventUpdateRequestsEnabled}
 			isRequestUpdateOpen={isRequestUpdateOpen}
 			onRequestUpdateOpenChange={handleRequestUpdateOpenChange}
 			isSaved={isEventSaved(event.eventKey)}
