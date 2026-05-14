@@ -106,6 +106,9 @@ interface EventsSearchFiltersContextValue {
 	onIndoorPreferenceChange: ReturnType<
 		typeof useEventFilters
 	>["onIndoorPreferenceChange"];
+	onIncludeFreeOptionsChange: ReturnType<
+		typeof useEventFilters
+	>["onIncludeFreeOptionsChange"];
 	onNationalityToggle: ReturnType<
 		typeof useEventFilters
 	>["onNationalityToggle"];
@@ -134,6 +137,7 @@ interface EventsSearchFiltersContextValue {
 	selectedIndoorPreference: ReturnType<
 		typeof useEventFilters
 	>["selectedIndoorPreference"];
+	includeFreeOptions: ReturnType<typeof useEventFilters>["includeFreeOptions"];
 	selectedNationalities: ReturnType<
 		typeof useEventFilters
 	>["selectedNationalities"];

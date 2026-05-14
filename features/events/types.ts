@@ -691,6 +691,31 @@ const FREE_PRICE_PATTERNS = [
 	/\bfree\s*entry\b/i,
 ] as const;
 
+const TRUE_FREE_PRICE_PATTERNS = [
+	/^(free|gratuit|gratis|no\s*fee)$/,
+	/^(free|gratuit|gratis)\s+(entry|admission)$/,
+	/^no\s+ticket\s+needed$/,
+	/^0\s*(€|eur|euros?|£|gbp|pounds?|\$|usd|dollars?)?$/,
+] as const;
+
+const FREE_OPTION_PATTERNS = [
+	/\bfree\s*(rsvp|ticket|entry|admission|before|until|advance|in\s+advance|option|tier)\b/i,
+	/\b(rsvp|entry|admission)\s*(is\s*)?free\b/i,
+	/\bfree\b.*(?:€|eur|euros?|£|gbp|pounds?|\$|usd|dollars?|\d)/i,
+	/(?:€|eur|euros?|£|gbp|pounds?|\$|usd|dollars?|\d).*\bfree\b/i,
+] as const;
+
+export type PriceKind = "free" | "free_option" | "paid" | "unknown";
+
+export interface PriceMeta {
+	label: string;
+	kind: PriceKind;
+	minPrice: number | null;
+	maxPrice: number | null;
+	isConditional: boolean;
+	hasFreeOption: boolean;
+}
+
 const normalizeNumericToken = (raw: string): string => {
 	const token = raw.replace(/\s+/g, "");
 	const hasComma = token.includes(",");
@@ -787,13 +812,101 @@ const toEuroAmount = (amount: number, cleanPrice: string): number => {
 	return amount;
 };
 
+const hasFreePriceCopy = (cleanPrice: string): boolean =>
+	FREE_PRICE_PATTERNS.some((pattern) => pattern.test(cleanPrice));
+
+const isTrueFreePriceCopy = (cleanPrice: string): boolean =>
+	TRUE_FREE_PRICE_PATTERNS.some((pattern) => pattern.test(cleanPrice));
+
+const hasFreeOptionPriceCopy = (cleanPrice: string): boolean =>
+	FREE_OPTION_PATTERNS.some((pattern) => pattern.test(cleanPrice));
+
+const extractEuroCandidates = (cleanPrice: string): number[] =>
+	extractNumericCandidates(cleanPrice).map((candidate) =>
+		toEuroAmount(candidate, cleanPrice),
+	);
+
+export const getPriceMeta = (priceStr?: string): PriceMeta => {
+	if (!priceStr) {
+		return {
+			label: "TBA",
+			kind: "unknown",
+			minPrice: null,
+			maxPrice: null,
+			isConditional: false,
+			hasFreeOption: false,
+		};
+	}
+
+	const cleanPrice = priceStr.toLowerCase().trim();
+	const candidates = extractEuroCandidates(cleanPrice);
+	const hasFreeCopy = hasFreePriceCopy(cleanPrice);
+	const hasTrueFreeCopy = isTrueFreePriceCopy(cleanPrice);
+	const hasFreeOptionCopy = hasFreeOptionPriceCopy(cleanPrice);
+	const minPaidPrice = candidates.length > 0 ? Math.min(...candidates) : null;
+	const maxPaidPrice = candidates.length > 0 ? Math.max(...candidates) : null;
+
+	if (hasTrueFreeCopy && candidates.length === 0) {
+		return {
+			label: "Free",
+			kind: "free",
+			minPrice: 0,
+			maxPrice: 0,
+			isConditional: false,
+			hasFreeOption: true,
+		};
+	}
+
+	if (hasFreeCopy) {
+		return {
+			label: priceStr,
+			kind: "free_option",
+			minPrice: 0,
+			maxPrice: maxPaidPrice,
+			isConditional: !hasTrueFreeCopy || candidates.length > 0,
+			hasFreeOption: true,
+		};
+	}
+
+	if (hasFreeOptionCopy) {
+		return {
+			label: priceStr,
+			kind: "free_option",
+			minPrice: 0,
+			maxPrice: maxPaidPrice,
+			isConditional: true,
+			hasFreeOption: true,
+		};
+	}
+
+	if (minPaidPrice === null) {
+		return {
+			label: priceStr,
+			kind: "unknown",
+			minPrice: null,
+			maxPrice: null,
+			isConditional: false,
+			hasFreeOption: false,
+		};
+	}
+
+	return {
+		label: formatPrice(priceStr),
+		kind: "paid",
+		minPrice: minPaidPrice,
+		maxPrice: maxPaidPrice,
+		isConditional: candidates.length > 1,
+		hasFreeOption: false,
+	};
+};
+
 export const parsePrice = (priceStr?: string): number | null => {
 	if (!priceStr) return null;
 
 	const cleanPrice = priceStr.toLowerCase().trim();
 
 	// Handle free cases
-	if (FREE_PRICE_PATTERNS.some((pattern) => pattern.test(cleanPrice))) {
+	if (hasFreePriceCopy(cleanPrice)) {
 		return 0;
 	}
 	if (cleanPrice === "0" || cleanPrice === "0€" || cleanPrice === "£0")
@@ -814,13 +927,11 @@ export const formatPrice = (priceStr?: string): string => {
 	const cleanPrice = priceStr.toLowerCase().trim();
 
 	// Handle free cases
-	if (
-		cleanPrice === "free" ||
-		cleanPrice === "0" ||
-		cleanPrice === "0€" ||
-		cleanPrice === "£0"
-	) {
+	if (isTrueFreePriceCopy(cleanPrice)) {
 		return "Free";
+	}
+	if (hasFreePriceCopy(cleanPrice)) {
+		return priceStr;
 	}
 
 	// Return original format if it already includes an explicit currency marker.
@@ -848,12 +959,20 @@ export const formatPrice = (priceStr?: string): string => {
 export const isPriceInRange = (
 	priceStr: string | undefined,
 	priceRange: [number, number],
+	options?: { includeFreeOptions?: boolean },
 ): boolean => {
-	const numericPrice = parsePrice(priceStr);
-	if (numericPrice === null) return false;
+	const priceMeta = getPriceMeta(priceStr);
+	if (priceMeta.minPrice === null) return false;
 
 	const [min, max] = priceRange;
-	return numericPrice >= min && numericPrice <= max;
+	if (min === 0 && max === 0) {
+		if (priceMeta.kind === "free") return true;
+		return Boolean(
+			options?.includeFreeOptions && priceMeta.kind === "free_option",
+		);
+	}
+
+	return priceMeta.minPrice >= min && priceMeta.minPrice <= max;
 };
 
 export const formatPriceRange = (range: [number, number]): string => {

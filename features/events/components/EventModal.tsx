@@ -65,6 +65,7 @@ import {
 	formatDayWithDate,
 	formatLocationAreaLong,
 	formatPrice,
+	getPriceMeta,
 } from "@/features/events/types";
 import type { LocationResolution } from "@/features/locations/types";
 import { MapPreferenceSettings } from "@/features/maps/components/map-preference-settings";
@@ -1278,6 +1279,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		audienceCountries.length > mobileCountryPreviewLimit;
 	const locationLabel = formatLocationAreaLong(event.arrondissement);
 	const priceLabel = formatPrice(event.price);
+	const priceMeta = getPriceMeta(event.price);
 	const ageLabel = event.age || "All ages";
 
 	const openExternalLink = (url: string, source: string) => {
@@ -1576,13 +1578,15 @@ const EventModal: React.FC<EventModalProps> = ({
 							</p>
 							<p
 								className={`mt-0.5 flex items-center gap-1.5 text-[13px] font-medium sm:text-sm ${
-									priceLabel === "Free"
+									priceMeta.kind === "free"
 										? "text-green-600 dark:text-green-400"
-										: "text-foreground"
+										: priceMeta.kind === "free_option"
+											? "text-amber-700 dark:text-amber-300"
+											: "text-foreground"
 								}`}
 							>
 								<span>{priceLabel}</span>
-								{priceLabel === "Free" && submissionsEnabled && (
+								{priceMeta.hasFreeOption && submissionsEnabled && (
 									<Popover>
 										<PopoverTrigger
 											render={

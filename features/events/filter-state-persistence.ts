@@ -30,6 +30,7 @@ const FILTER_PARAM_KEYS = [
 	"vt",
 	"in",
 	"pr",
+	"ifo",
 	"ag",
 	"pick",
 ] as const;
@@ -123,6 +124,13 @@ export const parseEventFilterStateFromSearchParams = (
 		priceRangeRaw[1] <= PRICE_RANGE_CONFIG.max
 			? priceRangeRaw
 			: PRICE_RANGE_CONFIG.defaultRange;
+	const includeFreeOptionsParam = (params.get("ifo") ?? "")
+		.trim()
+		.toLowerCase();
+	const includeFreeOptions =
+		includeFreeOptionsParam === "1" ||
+		includeFreeOptionsParam === "true" ||
+		includeFreeOptionsParam === "yes";
 
 	const ageRangeRaw = parseRange(params.get("ag"));
 	const selectedAgeRange: AgeRange | null =
@@ -149,6 +157,7 @@ export const parseEventFilterStateFromSearchParams = (
 		selectedVenueTypes: venueTypes,
 		selectedIndoorPreference,
 		selectedPriceRange,
+		includeFreeOptions,
 		selectedAgeRange,
 		selectedOOOCPicks,
 		searchQuery,
@@ -237,6 +246,9 @@ export const serializeEventFilterStateToSearchParams = (
 			"pr",
 			`${state.selectedPriceRange[0]}:${state.selectedPriceRange[1]}`,
 		);
+	}
+	if (state.includeFreeOptions) {
+		next.set("ifo", "1");
 	}
 
 	if (state.selectedAgeRange) {

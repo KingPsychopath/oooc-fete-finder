@@ -22,6 +22,7 @@ import {
 	formatLocationAreaShort,
 	formatPrice,
 	getEventDisplayDayNightPeriod,
+	getPriceMeta,
 	getVisibleEventTypeLabel,
 } from "@/features/events/types";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
@@ -82,6 +83,8 @@ export function EventCard({
 
 	// Check if event should display as featured (with expiration logic)
 	const isCurrentlyFeatured = shouldDisplayFeaturedEvent(event);
+	const priceLabel = formatPrice(event.price);
+	const priceMeta = getPriceMeta(event.price);
 	const isCurrentlyPromoted = event.isPromoted === true;
 	const isNewlyAdded = isRecentlyAddedEvent(event);
 	const isRecentlyUpdated = !isNewlyAdded && isRecentlyUpdatedEvent(event);
@@ -280,12 +283,14 @@ export function EventCard({
 					<Euro className="h-3 w-3 flex-shrink-0" />
 					<span
 						className={`text-xs font-medium ${
-							formatPrice(event.price) === "Free"
+							priceMeta.kind === "free"
 								? "text-green-600 dark:text-green-400"
-								: "text-muted-foreground"
+								: priceMeta.kind === "free_option"
+									? "text-amber-700 dark:text-amber-300"
+									: "text-muted-foreground"
 						}`}
 					>
-						{formatPrice(event.price)}
+						{priceLabel}
 					</span>
 				</div>
 				{/* Age Display */}

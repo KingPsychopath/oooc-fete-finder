@@ -7,8 +7,8 @@ import {
 	EVENT_TYPES,
 	type Event,
 	MUSIC_GENRES,
-	formatPrice,
 	getEventDayNightPeriods,
+	getPriceMeta,
 } from "@/features/events/types";
 import { shouldDisplayFeaturedEvent } from "./featured/utils/timestamp-utils";
 import { DEFAULT_SEARCH_EXAMPLES } from "./search-defaults";
@@ -197,7 +197,7 @@ const buildCandidates = (events: Event[]): SearchChipCandidate[] => {
 	const genreCounts = new Map<string, number>();
 
 	for (const event of events) {
-		if (normalize(formatPrice(event.price)) === "free") {
+		if (getPriceMeta(event.price).kind === "free") {
 			facetCounts.set("Free", (facetCounts.get("Free") ?? 0) + 1);
 		}
 		for (const period of getEventDayNightPeriods(event)) {

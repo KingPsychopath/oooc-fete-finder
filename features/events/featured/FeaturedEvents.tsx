@@ -15,6 +15,7 @@ import {
 	formatLocationAreaShort,
 	formatPrice,
 	getEventDisplayDayNightPeriod,
+	getPriceMeta,
 	getVisibleEventTypeLabel,
 } from "@/features/events/types";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
@@ -60,6 +61,7 @@ function SpotlightEventPanel({
 		event.genre.length - visibleGenres.length,
 	);
 	const priceLabel = formatPrice(event.price);
+	const priceMeta = getPriceMeta(event.price);
 	const areaLabel = formatLocationAreaShort(event.arrondissement);
 	const isFeaturedPlacement = event.isFeatured === true;
 	const isOOOCPick = event.isOOOCPick === true;
@@ -278,9 +280,11 @@ function SpotlightEventPanel({
 								<Euro className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
 								<span
 									className={`text-xs font-medium ${
-										priceLabel === "Free"
+										priceMeta.kind === "free"
 											? "text-green-600 dark:text-green-400"
-											: "text-muted-foreground"
+											: priceMeta.kind === "free_option"
+												? "text-amber-700 dark:text-amber-300"
+												: "text-muted-foreground"
 									}`}
 								>
 									{priceLabel}

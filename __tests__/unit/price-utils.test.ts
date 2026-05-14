@@ -1,5 +1,6 @@
 import {
 	formatPrice,
+	getPriceMeta,
 	isPriceInRange,
 	parsePrice,
 } from "@/features/events/types";
@@ -51,6 +52,14 @@ describe("parsePrice", () => {
 		expect(parsePrice("gratuit")).toBe(0);
 	});
 
+	it("distinguishes truly free prices from conditional free options", () => {
+		expect(getPriceMeta("Free").kind).toBe("free");
+		expect(getPriceMeta("No ticket needed").kind).toBe("free");
+		expect(getPriceMeta("Free - £10").kind).toBe("free_option");
+		expect(getPriceMeta("Free entry before 1am").kind).toBe("free_option");
+		expect(formatPrice("Free - 10")).toBe("Free - 10");
+	});
+
 	it("uses normalized euro-equivalent value for range filtering", () => {
 		expect(isPriceInRange("GBP 12", [13, 14])).toBe(true);
 		expect(isPriceInRange("GBP 12", [0, 13])).toBe(false);
@@ -59,6 +68,14 @@ describe("parsePrice", () => {
 	it("filters ranges by starting price", () => {
 		expect(isPriceInRange("€28.00 - €35.84", [28, 30])).toBe(true);
 		expect(isPriceInRange("€28.00 - €35.84", [0, 27])).toBe(false);
+	});
+
+	it("keeps free-only filtering strict unless free options are included", () => {
+		expect(isPriceInRange("Free", [0, 0])).toBe(true);
+		expect(isPriceInRange("Free - £10", [0, 0])).toBe(false);
+		expect(
+			isPriceInRange("Free - £10", [0, 0], { includeFreeOptions: true }),
+		).toBe(true);
 	});
 
 	it("keeps range copy visible when formatting prices", () => {

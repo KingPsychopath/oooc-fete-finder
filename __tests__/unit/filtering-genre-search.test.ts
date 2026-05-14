@@ -114,4 +114,30 @@ describe("genre-aware search filtering", () => {
 			}),
 		).toHaveLength(1);
 	});
+
+	it("keeps free-only price filtering strict unless free options are included", () => {
+		const trulyFree = {
+			...makeEvent(["amapiano"], "true-free"),
+			price: "Free",
+		};
+		const freeOption = {
+			...makeEvent(["amapiano"], "free-option"),
+			price: "Free - £10",
+		};
+
+		expect(
+			filterEvents([trulyFree, freeOption], {
+				...DEFAULT_EVENT_FILTER_STATE,
+				selectedPriceRange: [0, 0],
+			}).map((event) => event.eventKey),
+		).toEqual(["evt_test_true-free"]);
+
+		expect(
+			filterEvents([trulyFree, freeOption], {
+				...DEFAULT_EVENT_FILTER_STATE,
+				selectedPriceRange: [0, 0],
+				includeFreeOptions: true,
+			}).map((event) => event.eventKey),
+		).toEqual(["evt_test_true-free", "evt_test_free-option"]);
+	});
 });

@@ -35,6 +35,7 @@ export function EventsSearchFiltersIsland({
 		isFilterDrawerForced,
 		isFilterExpanded,
 		isFilterOpen,
+		includeFreeOptions,
 		onAgeRangeChange,
 		onArrondissementToggle,
 		onClearFilters,
@@ -43,6 +44,7 @@ export function EventsSearchFiltersIsland({
 		onGenreExcludeToggle,
 		onGenreToggle,
 		onIndoorPreferenceChange,
+		onIncludeFreeOptionsChange,
 		onNationalityToggle,
 		onOOOCPicksToggle,
 		onPriceRangeChange,
@@ -105,6 +107,7 @@ export function EventsSearchFiltersIsland({
 						selectedVenueTypes={selectedVenueTypes}
 						selectedIndoorPreference={selectedIndoorPreference}
 						selectedPriceRange={selectedPriceRange}
+						includeFreeOptions={includeFreeOptions}
 						selectedAgeRange={selectedAgeRange}
 						selectedOOOCPicks={selectedOOOCPicks}
 						onDateRangeChange={onDateRangeChange}
@@ -116,6 +119,7 @@ export function EventsSearchFiltersIsland({
 						onVenueTypeToggle={onVenueTypeToggle}
 						onIndoorPreferenceChange={onIndoorPreferenceChange}
 						onPriceRangeChange={onPriceRangeChange}
+						onIncludeFreeOptionsChange={onIncludeFreeOptionsChange}
 						onAgeRangeChange={onAgeRangeChange}
 						onOOOCPicksToggle={onOOOCPicksToggle}
 						onClearFilters={onClearFilters}

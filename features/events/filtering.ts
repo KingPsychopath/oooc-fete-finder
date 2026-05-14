@@ -38,6 +38,7 @@ export type EventFilterState = {
 	selectedVenueTypes: VenueType[];
 	selectedIndoorPreference: boolean | null;
 	selectedPriceRange: [number, number];
+	includeFreeOptions: boolean;
 	selectedAgeRange: AgeRange | null;
 	selectedOOOCPicks: boolean;
 	searchQuery: string;
@@ -56,6 +57,7 @@ export const DEFAULT_EVENT_FILTER_STATE: EventFilterState = {
 	selectedVenueTypes: [],
 	selectedIndoorPreference: null,
 	selectedPriceRange: PRICE_RANGE_CONFIG.defaultRange,
+	includeFreeOptions: false,
 	selectedAgeRange: null,
 	selectedOOOCPicks: false,
 	searchQuery: "",
@@ -282,7 +284,9 @@ export const filterEvents = (
 		if (
 			(filters.selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 				filters.selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) &&
-			!isPriceInRange(event.price, filters.selectedPriceRange)
+			!isPriceInRange(event.price, filters.selectedPriceRange, {
+				includeFreeOptions: filters.includeFreeOptions,
+			})
 		) {
 			return false;
 		}
@@ -386,6 +390,7 @@ export const hasActiveFilters = (
 		filters.selectedVenueTypes.length > 0 ||
 		filters.selectedIndoorPreference !== null ||
 		hasCustomPriceRange(filters.selectedPriceRange) ||
+		filters.includeFreeOptions ||
 		hasCustomAgeRange(filters.selectedAgeRange) ||
 		filters.selectedOOOCPicks ||
 		hasSearchQuery
@@ -412,6 +417,7 @@ export const getActiveFiltersCount = (
 		filters.selectedNationalities.length +
 		filters.selectedVenueTypes.length +
 		(hasCustomPriceRange(filters.selectedPriceRange) ? 1 : 0) +
+		(filters.includeFreeOptions ? 1 : 0) +
 		(hasCustomAgeRange(filters.selectedAgeRange) ? 1 : 0) +
 		(filters.selectedIndoorPreference !== null ? 1 : 0) +
 		(filters.selectedOOOCPicks ? 1 : 0) +

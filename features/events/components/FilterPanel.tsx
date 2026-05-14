@@ -78,6 +78,7 @@ type FilterPanelProps = {
 	selectedVenueTypes: VenueType[];
 	selectedIndoorPreference: boolean | null;
 	selectedPriceRange: [number, number];
+	includeFreeOptions: boolean;
 	selectedAgeRange: AgeRange | null;
 	selectedOOOCPicks: boolean;
 	onDateRangeChange: (dateRange: DateRangeFilter) => void;
@@ -89,6 +90,7 @@ type FilterPanelProps = {
 	onVenueTypeToggle: (venueType: VenueType) => void;
 	onIndoorPreferenceChange: (preference: boolean | null) => void;
 	onPriceRangeChange: (range: [number, number]) => void;
+	onIncludeFreeOptionsChange: (include: boolean) => void;
 	onAgeRangeChange: (range: AgeRange | null) => void;
 	onOOOCPicksToggle: (selected: boolean) => void;
 	onClearFilters: () => void;
@@ -123,6 +125,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	selectedVenueTypes,
 	selectedIndoorPreference,
 	selectedPriceRange,
+	includeFreeOptions,
 	selectedAgeRange,
 	selectedOOOCPicks,
 	onDateRangeChange,
@@ -134,6 +137,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onVenueTypeToggle,
 	onIndoorPreferenceChange,
 	onPriceRangeChange,
+	onIncludeFreeOptionsChange,
 	onAgeRangeChange,
 	onOOOCPicksToggle,
 	onClearFilters,
@@ -219,6 +223,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		onPriceRangeChange(PRICE_RANGE_CONFIG.defaultRange);
 	}, [haptics, onPriceRangeChange]);
 
+	const toggleIncludeFreeOptions = useCallback(() => {
+		haptics.selection();
+		onIncludeFreeOptionsChange(!includeFreeOptions);
+	}, [haptics, includeFreeOptions, onIncludeFreeOptionsChange]);
+
 	// Stable age range reset handler
 	const resetAgeRange = useCallback(() => {
 		haptics.warning();
@@ -252,6 +261,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					selectedVenueTypes,
 					selectedIndoorPreference,
 					selectedPriceRange,
+					includeFreeOptions,
 					selectedAgeRange,
 					selectedOOOCPicks,
 					searchQuery: "",
@@ -271,6 +281,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedVenueTypes,
 			selectedIndoorPreference,
 			selectedPriceRange,
+			includeFreeOptions,
 			selectedAgeRange,
 			selectedOOOCPicks,
 		],
@@ -290,6 +301,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					selectedVenueTypes,
 					selectedIndoorPreference,
 					selectedPriceRange,
+					includeFreeOptions,
 					selectedAgeRange,
 					selectedOOOCPicks,
 					searchQuery: "",
@@ -309,6 +321,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedVenueTypes,
 			selectedIndoorPreference,
 			selectedPriceRange,
+			includeFreeOptions,
 			selectedAgeRange,
 			selectedOOOCPicks,
 		],
@@ -701,6 +714,27 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									size="sm"
 									className={activeFilterRemoveButtonClassName}
 									onClick={resetPriceRange}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</Badge>
+						)}
+						{includeFreeOptions && (
+							<Badge
+								variant="secondary"
+								className={
+									compact
+										? compactActiveFilterBadgeClassName
+										: activeFilterBadgeClassName
+								}
+							>
+								<Euro className="mr-1 h-3 w-3" />
+								Free options
+								<Button
+									variant="ghost"
+									size="sm"
+									className={activeFilterRemoveButtonClassName}
+									onClick={toggleIncludeFreeOptions}
 								>
 									<X className="h-3 w-3" />
 								</Button>
@@ -1211,6 +1245,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												selectedIndoorPreference !== null ||
 												selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
+												includeFreeOptions ||
 												selectedAgeRange !== null ||
 												selectedOOOCPicks) && (
 												<Badge
@@ -1225,6 +1260,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																PRICE_RANGE_CONFIG.min ||
 																selectedPriceRange[1] !==
 																	PRICE_RANGE_CONFIG.max,
+															includeFreeOptions,
 															selectedAgeRange !== null,
 															selectedOOOCPicks,
 														].filter(Boolean).length
@@ -1318,6 +1354,38 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															center: formatPriceRange(selectedPriceRange),
 															right: `€${PRICE_RANGE_CONFIG.max}+`,
 														})}
+														<button
+															type="button"
+															role="switch"
+															aria-checked={includeFreeOptions}
+															onClick={toggleIncludeFreeOptions}
+															className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/65 px-3 py-2 text-left text-xs text-foreground/85 transition-colors hover:bg-accent/60 lg:text-[11px]"
+														>
+															<span className="min-w-0">
+																<span className="block font-medium">
+																	Include free options
+																</span>
+																<span className="block text-muted-foreground">
+																	Free RSVP, free-before, or free-to-paid ranges
+																</span>
+															</span>
+															<span
+																className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+																	includeFreeOptions
+																		? "bg-emerald-500"
+																		: "bg-muted-foreground/30"
+																}`}
+																aria-hidden="true"
+															>
+																<span
+																	className={`absolute size-4 rounded-full bg-background shadow-sm transition-transform ${
+																		includeFreeOptions
+																			? "translate-x-4"
+																			: "translate-x-0.5"
+																	}`}
+																/>
+															</span>
+														</button>
 														{(selectedPriceRange[0] !==
 															PRICE_RANGE_CONFIG.min ||
 															selectedPriceRange[1] !==
@@ -1792,6 +1860,38 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											center: formatPriceRange(selectedPriceRange),
 											right: `€${PRICE_RANGE_CONFIG.max}+`,
 										})}
+										<button
+											type="button"
+											role="switch"
+											aria-checked={includeFreeOptions}
+											onClick={toggleIncludeFreeOptions}
+											className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/65 px-3 py-2 text-left text-xs text-foreground/85 transition-colors hover:bg-accent/60"
+										>
+											<span className="min-w-0">
+												<span className="block font-medium">
+													Include free options
+												</span>
+												<span className="block text-muted-foreground">
+													Free RSVP, free-before, or free-to-paid ranges
+												</span>
+											</span>
+											<span
+												className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+													includeFreeOptions
+														? "bg-emerald-500"
+														: "bg-muted-foreground/30"
+												}`}
+												aria-hidden="true"
+											>
+												<span
+													className={`absolute size-4 rounded-full bg-background shadow-sm transition-transform ${
+														includeFreeOptions
+															? "translate-x-4"
+															: "translate-x-0.5"
+													}`}
+												/>
+											</span>
+										</button>
 										{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 											selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
 											<div className="flex justify-center">

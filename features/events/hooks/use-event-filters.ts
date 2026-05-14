@@ -107,6 +107,9 @@ export const useEventFilters = ({
 	const [selectedPriceRange, setSelectedPriceRange] = useState<
 		[number, number]
 	>(defaultFilterState.selectedPriceRange);
+	const [includeFreeOptions, setIncludeFreeOptions] = useState(
+		defaultFilterState.includeFreeOptions,
+	);
 	const [selectedAgeRange, setSelectedAgeRange] = useState<AgeRange | null>(
 		defaultFilterState.selectedAgeRange,
 	);
@@ -129,6 +132,7 @@ export const useEventFilters = ({
 		setSelectedVenueTypes(state.selectedVenueTypes);
 		setSelectedIndoorPreference(state.selectedIndoorPreference);
 		setSelectedPriceRange(state.selectedPriceRange);
+		setIncludeFreeOptions(state.includeFreeOptions);
 		setSelectedAgeRange(state.selectedAgeRange);
 		setSelectedOOOCPicks(state.selectedOOOCPicks);
 		setSearchQuery(state.searchQuery);
@@ -185,6 +189,7 @@ export const useEventFilters = ({
 			selectedVenueTypes,
 			selectedIndoorPreference,
 			selectedPriceRange,
+			includeFreeOptions,
 			selectedAgeRange,
 			selectedOOOCPicks,
 			searchQuery,
@@ -221,6 +226,7 @@ export const useEventFilters = ({
 		window.history.replaceState(currentState, "", nextUrl);
 	}, [
 		isFilterAccessAllowed,
+		includeFreeOptions,
 		searchQuery,
 		selectedAgeRange,
 		selectedArrondissements,
@@ -263,6 +269,7 @@ export const useEventFilters = ({
 				selectedVenueTypes,
 				selectedIndoorPreference,
 				selectedPriceRange,
+				includeFreeOptions,
 				selectedAgeRange,
 				selectedOOOCPicks,
 				searchQuery,
@@ -278,6 +285,7 @@ export const useEventFilters = ({
 			selectedVenueTypes,
 			selectedIndoorPreference,
 			selectedPriceRange,
+			includeFreeOptions,
 			selectedAgeRange,
 			selectedOOOCPicks,
 			searchQuery,
@@ -297,6 +305,7 @@ export const useEventFilters = ({
 					selectedVenueTypes,
 					selectedIndoorPreference,
 					selectedPriceRange,
+					includeFreeOptions,
 					selectedAgeRange,
 					selectedOOOCPicks,
 					searchQuery,
@@ -315,6 +324,7 @@ export const useEventFilters = ({
 			selectedVenueTypes,
 			selectedIndoorPreference,
 			selectedPriceRange,
+			includeFreeOptions,
 			selectedAgeRange,
 			selectedOOOCPicks,
 			searchQuery,
@@ -335,6 +345,7 @@ export const useEventFilters = ({
 					selectedVenueTypes,
 					selectedIndoorPreference,
 					selectedPriceRange,
+					includeFreeOptions,
 					selectedAgeRange,
 					selectedOOOCPicks,
 					searchQuery,
@@ -353,6 +364,7 @@ export const useEventFilters = ({
 			selectedVenueTypes,
 			selectedIndoorPreference,
 			selectedPriceRange,
+			includeFreeOptions,
 			selectedAgeRange,
 			selectedOOOCPicks,
 			searchQuery,
@@ -500,6 +512,19 @@ export const useEventFilters = ({
 		[requireAuth],
 	);
 
+	const onIncludeFreeOptionsChange = useCallback(
+		(include: boolean) => {
+			if (!requireAuth()) return;
+			setIncludeFreeOptions(include);
+			trackDiscoveryAnalytics({
+				actionType: "filter_apply",
+				filterGroup: "price_free_options",
+				filterValue: include ? "include" : "exclude",
+			});
+		},
+		[requireAuth],
+	);
+
 	const onAgeRangeChange = useCallback(
 		(range: AgeRange | null) => {
 			if (!requireAuth()) return;
@@ -593,6 +618,7 @@ export const useEventFilters = ({
 		selectedVenueTypes,
 		selectedIndoorPreference,
 		selectedPriceRange,
+		includeFreeOptions,
 		selectedAgeRange,
 		selectedOOOCPicks,
 		searchQuery,
@@ -611,6 +637,7 @@ export const useEventFilters = ({
 		onVenueTypeToggle,
 		onIndoorPreferenceChange,
 		onPriceRangeChange,
+		onIncludeFreeOptionsChange,
 		onAgeRangeChange,
 		onOOOCPicksToggle,
 		onSearchQueryChange,
