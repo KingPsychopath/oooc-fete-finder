@@ -14,6 +14,7 @@ import {
 	toGenreLabel,
 } from "@/features/events/genre-normalization";
 import { useEventFilters } from "@/features/events/hooks/use-event-filters";
+import type { SearchAnalyticsSource } from "@/features/events/hooks/use-event-filters";
 import {
 	createFreshActivityComparator,
 	createRegularEventsComparator,
@@ -49,7 +50,9 @@ export type NearbyEventsStatus =
 	| "active-current"
 	| "active-last-known"
 	| "unavailable";
-type PendingAuthAction = "show-oooc-picks" | { type: "search"; query: string };
+type PendingAuthAction =
+	| "show-oooc-picks"
+	| { type: "search"; query: string; source: SearchAnalyticsSource };
 
 interface EventsSearchFiltersProviderProps {
 	canUseProtectedDiscovery: boolean;
@@ -81,7 +84,7 @@ interface EventsSearchFiltersContextValue {
 	filteredEvents: Event[];
 	handleOOOCPicksCalloutClick: () => void;
 	handleSearchFocus: () => void;
-	handleSearchIntent: (query: string) => void;
+	handleSearchIntent: (query: string, source?: SearchAnalyticsSource) => void;
 	hasAnyActiveFilters: boolean;
 	isFilterDrawerForced: boolean;
 	isFilterExpanded: boolean;
@@ -377,15 +380,15 @@ export function EventsSearchFiltersProvider({
 	]);
 
 	const handleSearchIntent = useCallback(
-		(query: string) => {
+		(query: string, source: SearchAnalyticsSource = "input") => {
 			if (!canUseProtectedDiscovery) {
 				if (query.trim().length > 0) {
-					pendingAuthActionRef.current = { type: "search", query };
+					pendingAuthActionRef.current = { type: "search", query, source };
 				}
 				onAuthRequired();
 				return;
 			}
-			onSearchQueryChange(query);
+			onSearchQueryChange(query, source);
 		},
 		[canUseProtectedDiscovery, onAuthRequired, onSearchQueryChange],
 	);
@@ -473,7 +476,7 @@ export function EventsSearchFiltersProvider({
 		if (pendingAuthAction === "show-oooc-picks") {
 			onOOOCPicksToggle(true);
 		} else {
-			onSearchQueryChange(pendingAuthAction.query);
+			onSearchQueryChange(pendingAuthAction.query, pendingAuthAction.source);
 		}
 		window.requestAnimationFrame(() => {
 			onScrollToAllEvents();

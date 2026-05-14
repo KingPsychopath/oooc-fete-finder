@@ -50,6 +50,7 @@ const getCachedPopularSearchSignals = unstable_cache(
 			endAt,
 			recentStartAt,
 			limit: 250,
+			excludeSearchSource: "popular_chip",
 		});
 	},
 	[SEARCH_CHIP_SIGNALS_CACHE_KEY],

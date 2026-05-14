@@ -70,7 +70,9 @@ export function EventsSearchFiltersIsland({
 	const searchSlot = (
 		<div id="tour-search" className="w-full">
 			<SearchBar
-				onSearch={handleSearchIntent}
+				onSearch={(query, _results, source) =>
+					handleSearchIntent(query, source)
+				}
 				onSearchFocus={handleSearchFocus}
 				placeholder="Search events, locations, genres, phases..."
 				className="mx-auto w-full"

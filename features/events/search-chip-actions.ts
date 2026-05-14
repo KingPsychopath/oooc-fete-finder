@@ -2,19 +2,99 @@
 
 import { recordAdminActivity } from "@/features/admin/activity/record";
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
-import { invalidateSearchChipSettingsCache } from "./search-chip-cache";
+import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
+import {
+	SEARCH_CHIP_SIGNALS_REVALIDATE_SECONDS,
+	invalidateSearchChipSettingsCache,
+} from "./search-chip-cache";
 import {
 	type SearchChipSettings,
 	SearchChipSettingsStore,
 	type SearchChipStoreStatus,
 } from "./search-chip-settings-store";
 
+const SIGNAL_WINDOW_DAYS = 7;
+const SIGNAL_RECENT_WINDOW_DAYS = 2;
+
+interface SearchChipSignalStatus {
+	available: boolean;
+	windowDays: number;
+	recentWindowDays: number;
+	cacheRevalidateSeconds: number | false;
+	signalCount: number;
+	lastSeenAt?: string;
+	error?: string;
+}
+
 interface SearchChipAdminResponse {
 	success: boolean;
 	settings?: SearchChipSettings;
 	store?: SearchChipStoreStatus;
+	signalStatus?: SearchChipSignalStatus;
 	error?: string;
 	message?: string;
+}
+
+const buildSignalWindow = (): {
+	startAt: string;
+	endAt: string;
+	recentStartAt: string;
+} => {
+	const end = new Date();
+	const start = new Date(end);
+	start.setDate(start.getDate() - SIGNAL_WINDOW_DAYS);
+	const recentStart = new Date(end);
+	recentStart.setDate(recentStart.getDate() - SIGNAL_RECENT_WINDOW_DAYS);
+	return {
+		startAt: start.toISOString(),
+		endAt: end.toISOString(),
+		recentStartAt: recentStart.toISOString(),
+	};
+};
+
+async function getSearchChipSignalStatus(): Promise<SearchChipSignalStatus> {
+	const repository = getDiscoveryAnalyticsRepository();
+	const base = {
+		windowDays: SIGNAL_WINDOW_DAYS,
+		recentWindowDays: SIGNAL_RECENT_WINDOW_DAYS,
+		cacheRevalidateSeconds: SEARCH_CHIP_SIGNALS_REVALIDATE_SECONDS,
+	};
+	if (!repository) {
+		return {
+			...base,
+			available: false,
+			signalCount: 0,
+			error: "Discovery analytics store unavailable",
+		};
+	}
+	try {
+		const signals = await repository.listTopSearchSignals({
+			...buildSignalWindow(),
+			limit: 250,
+			excludeSearchSource: "popular_chip",
+		});
+		const lastSeenAt = signals.reduce<string | undefined>(
+			(latest, signal) =>
+				!latest || signal.lastSeenAt > latest ? signal.lastSeenAt : latest,
+			undefined,
+		);
+		return {
+			...base,
+			available: true,
+			signalCount: signals.length,
+			lastSeenAt,
+		};
+	} catch (error) {
+		return {
+			...base,
+			available: false,
+			signalCount: 0,
+			error:
+				error instanceof Error
+					? error.message
+					: "Unable to load search signal status",
+		};
+	}
 }
 
 export async function getAdminSearchChipSettings(
@@ -24,11 +104,12 @@ export async function getAdminSearchChipSettings(
 		return { success: false, error: "Unauthorized access" };
 	}
 	try {
-		const [settings, store] = await Promise.all([
+		const [settings, store, signalStatus] = await Promise.all([
 			SearchChipSettingsStore.getSettings(),
 			SearchChipSettingsStore.getStatus(),
+			getSearchChipSignalStatus(),
 		]);
-		return { success: true, settings, store };
+		return { success: true, settings, store, signalStatus };
 	} catch (error) {
 		return {
 			success: false,
@@ -69,6 +150,7 @@ export async function updateAdminSearchChipSettings(
 			success: true,
 			settings,
 			store,
+			signalStatus: await getSearchChipSignalStatus(),
 			message: settings.dynamicChipsEnabled
 				? "Dynamic search chips enabled"
 				: "Dynamic search chips disabled",

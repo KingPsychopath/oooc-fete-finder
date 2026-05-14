@@ -33,6 +33,13 @@ const formatAdminDateTime = (isoDate: string): string => {
 	}).format(time);
 };
 
+const formatRefreshInterval = (seconds: number | false | undefined): string => {
+	if (seconds === false) return "Manual";
+	if (!seconds) return "Unknown";
+	if (seconds % 60 === 0) return `${seconds / 60} min`;
+	return `${seconds}s`;
+};
+
 export const SearchChipSettingsCard = ({
 	initialSettings,
 }: SearchChipSettingsCardProps) => {
@@ -51,6 +58,9 @@ export const SearchChipSettingsCard = ({
 	);
 	const [storeMeta, setStoreMeta] = useState(
 		initialSettings?.success ? initialSettings.store : undefined,
+	);
+	const [signalStatus, setSignalStatus] = useState(
+		initialSettings?.success ? initialSettings.signalStatus : undefined,
 	);
 	const [isSaving, setIsSaving] = useState(false);
 	const [isRefreshing, setIsRefreshing] = useState(false);
@@ -92,6 +102,7 @@ export const SearchChipSettingsCard = ({
 				throw new Error(result.error || "Failed to load search chip settings");
 			}
 			applySettings(result.settings, result.store);
+			setSignalStatus(result.signalStatus);
 			setStatusMessage("Search chip settings refreshed");
 		} catch (error) {
 			setErrorMessage(
@@ -117,6 +128,7 @@ export const SearchChipSettingsCard = ({
 				}
 				if (!active) return;
 				applySettings(result.settings, result.store);
+				setSignalStatus(result.signalStatus);
 			} catch (error) {
 				if (!active) return;
 				setErrorMessage(
@@ -149,6 +161,7 @@ export const SearchChipSettingsCard = ({
 				);
 			}
 			applySettings(result.settings, result.store);
+			setSignalStatus(result.signalStatus);
 			setStatusMessage(result.message || "Search chip settings saved");
 		} catch (error) {
 			setEnabled(!nextEnabled);
@@ -206,9 +219,51 @@ export const SearchChipSettingsCard = ({
 
 				<p className="text-sm text-muted-foreground">
 					Static chips always remain curated. Dynamic chips are canonicalized,
-					filtered for safety, capped at four, and refreshed from recent
-					aggregate searches.
+					filtered for safety, capped at four, and ranked from anonymous
+					aggregate searches over the last{" "}
+					{signalStatus?.windowDays?.toLocaleString() ?? 7} days.
 				</p>
+
+				<div className="rounded-md border bg-muted/30 p-3 text-sm">
+					<div className="grid gap-3 sm:grid-cols-3">
+						<div>
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Signal Freshness
+							</p>
+							<p className="mt-1 font-medium">
+								{signalStatus?.lastSeenAt
+									? formatAdminDateTime(signalStatus.lastSeenAt)
+									: "No recent searches"}
+							</p>
+						</div>
+						<div>
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Signals
+							</p>
+							<p className="mt-1 font-medium">
+								{signalStatus?.available === false
+									? "Unavailable"
+									: (signalStatus?.signalCount ?? 0).toLocaleString()}
+							</p>
+						</div>
+						<div>
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Public Refresh
+							</p>
+							<p className="mt-1 font-medium">
+								{formatRefreshInterval(signalStatus?.cacheRevalidateSeconds)}
+							</p>
+						</div>
+					</div>
+					<p className="mt-3 text-xs text-muted-foreground">
+						Counts can stay stable when the same searches dominate the 7-day
+						window; the 2-day recent window only boosts newer matches, it does
+						not guarantee visible churn.
+					</p>
+					{signalStatus?.error && (
+						<p className="mt-2 text-xs text-rose-700">{signalStatus.error}</p>
+					)}
+				</div>
 
 				<div className="flex flex-wrap gap-2">
 					<Button

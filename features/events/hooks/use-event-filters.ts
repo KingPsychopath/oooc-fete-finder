@@ -39,6 +39,8 @@ type UseEventFiltersArgs = {
 	isFilterAccessAllowed: boolean;
 };
 
+export type SearchAnalyticsSource = "input" | "curated_chip" | "popular_chip";
+
 const toggleArrayValue = <T>(values: T[], value: T): T[] => {
 	return values.includes(value)
 		? values.filter((item) => item !== value)
@@ -573,7 +575,7 @@ export const useEventFilters = ({
 	);
 
 	const onSearchQueryChange = useCallback(
-		(query: string) => {
+		(query: string, source: SearchAnalyticsSource = "input") => {
 			if (!requireAuth()) return;
 			setSearchQuery(query);
 			if (searchTrackTimeoutRef.current) {
@@ -590,6 +592,8 @@ export const useEventFilters = ({
 				lastTrackedSearchRef.current = normalized;
 				trackDiscoveryAnalytics({
 					actionType: "search",
+					filterGroup: "search_source",
+					filterValue: source,
 					searchQuery: normalized,
 				});
 			}, 500);

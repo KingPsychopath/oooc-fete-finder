@@ -20,7 +20,11 @@ import type React from "react";
 import { useState } from "react";
 
 type SearchBarProps = {
-	onSearch: (query: string, results?: SearchResult[]) => void;
+	onSearch: (
+		query: string,
+		results?: SearchResult[],
+		source?: SearchIntentSource,
+	) => void;
 	onSearchFocus?: () => void;
 	placeholder?: string;
 	className?: string;
@@ -38,6 +42,8 @@ type SearchResult = {
 	score: number;
 	matchedFields: string[];
 };
+
+export type SearchIntentSource = "input" | "curated_chip" | "popular_chip";
 
 /**
  * Extracts arrondissement number from any format
@@ -313,12 +319,15 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	/**
 	 * Handles search input with real-time fuzzy matching
 	 */
-	const handleSearch = (value: string) => {
+	const handleSearch = (
+		value: string,
+		source: SearchIntentSource = "input",
+	) => {
 		if (!isControlled) {
 			setInternalQuery(value);
 		}
 		const results = searchEvents(events, value);
-		onSearch(value, results);
+		onSearch(value, results, source);
 	};
 
 	/**
@@ -382,7 +391,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 							size="sm"
 							onClick={() => {
 								haptics.selection();
-								handleSearch(example);
+								handleSearch(example, "curated_chip");
 							}}
 							className="h-auto min-w-0 max-w-full rounded-full border-border/60 px-3 py-1.5 text-xs transition-colors hover:border-border hover:bg-accent/50"
 						>
@@ -403,7 +412,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 							size="sm"
 							onClick={() => {
 								haptics.selection();
-								handleSearch(chip.query);
+								handleSearch(chip.query, "popular_chip");
 							}}
 							className="h-auto min-w-0 max-w-full rounded-full border-amber-300/70 bg-amber-50/55 px-3 py-1.5 text-xs text-amber-950 transition-colors hover:border-amber-400 hover:bg-amber-100/70 sm:max-w-[13rem] dark:border-amber-500/45 dark:bg-amber-950/25 dark:text-amber-100"
 							aria-label={`Popular now: ${chip.label}`}

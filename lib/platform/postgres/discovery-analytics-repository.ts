@@ -389,6 +389,7 @@ export class DiscoveryAnalyticsRepository {
 		endAt: string;
 		recentStartAt: string;
 		limit: number;
+		excludeSearchSource?: string;
 	}): Promise<
 		Array<{
 			query: string;
@@ -399,6 +400,11 @@ export class DiscoveryAnalyticsRepository {
 	> {
 		await this.ready();
 		const safeLimit = Math.max(1, Math.min(input.limit, 250));
+		const excludedSearchSource = cleanString(input.excludeSearchSource, 120);
+		const sourceFilter = excludedSearchSource
+			? this
+					.sql`AND NOT (filter_group = 'search_source' AND filter_value = ${excludedSearchSource})`
+			: this.sql``;
 		const rows = await this.sql<
 			Array<{
 				query: string;
@@ -418,6 +424,7 @@ export class DiscoveryAnalyticsRepository {
 				AND search_query <> ''
 				AND recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
+				${sourceFilter}
 			GROUP BY search_query
 			ORDER BY count DESC, "recentCount" DESC, MAX(recorded_at) DESC
 			LIMIT ${safeLimit}

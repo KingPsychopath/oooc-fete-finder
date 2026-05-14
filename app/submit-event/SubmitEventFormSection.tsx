@@ -14,7 +14,12 @@ const getSubmitEventFormDataCached = cache(
 	["submit-event-form-data"],
 	{
 		revalidate: false,
-		tags: ["events", "events-data", "event-submission-settings"],
+		tags: [
+			"events",
+			"events-data",
+			"event-submission-settings",
+			"music-genre-taxonomy",
+		],
 	},
 );
 

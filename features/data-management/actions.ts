@@ -44,7 +44,7 @@ import { getEventSheetRevisionRepository } from "@/lib/platform/postgres/event-s
 import { getEventStoreBackupRepository } from "@/lib/platform/postgres/event-store-backup-repository";
 import { getMusicGenreTaxonomyRepository } from "@/lib/platform/postgres/music-genre-taxonomy-repository";
 import { getRateLimitRepository } from "@/lib/platform/postgres/rate-limit-repository";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { parseCSVContent } from "./csv/parser";
 import {
 	type EditableSheetColumn,
@@ -87,6 +87,11 @@ import {
 const DEFAULT_ALIAS_KEYS = DEFAULT_GENRE_ALIASES.map(
 	([alias, genreKey]) => `${normalizeGenreKey(alias)}:${genreKey}`,
 );
+
+const revalidateGenreTaxonomyConsumers = (): void => {
+	revalidateEventsPaths(["/admin", "/", "/submit-event"]);
+	revalidateTag("music-genre-taxonomy", "max");
+};
 
 const loadAdminGenreTaxonomy = async (): Promise<GenreTaxonomySnapshot> => {
 	const repository = getMusicGenreTaxonomyRepository();
@@ -1243,7 +1248,7 @@ export async function createMusicGenreFromEditor(
 
 		await repository.createCustomGenre({ label });
 		const genreTaxonomy = await repository.listTaxonomy();
-		revalidateEventsPaths(["/admin", "/"]);
+		revalidateGenreTaxonomyConsumers();
 		await recordAdminActivity({
 			action: "genre.created",
 			category: "content",
@@ -1300,7 +1305,7 @@ export async function removeMusicGenreFromEditor(
 
 		await repository.removeCustomGenre(genre.key);
 		const genreTaxonomy = await repository.listTaxonomy();
-		revalidateEventsPaths(["/admin", "/"]);
+		revalidateGenreTaxonomyConsumers();
 		await recordAdminActivity({
 			action: "genre.removed",
 			category: "content",
@@ -1358,7 +1363,7 @@ export async function mapMusicGenreAliasFromEditor(
 			genreKey: canonicalGenre,
 		});
 		const genreTaxonomy = await repository.listTaxonomy();
-		revalidateEventsPaths(["/admin", "/"]);
+		revalidateGenreTaxonomyConsumers();
 		await recordAdminActivity({
 			action: "genre_alias.mapped",
 			category: "content",
@@ -1418,7 +1423,7 @@ export async function removeMusicGenreAliasFromEditor(
 
 		await repository.removeAlias(aliasInput);
 		const genreTaxonomy = await repository.listTaxonomy();
-		revalidateEventsPaths(["/admin", "/"]);
+		revalidateGenreTaxonomyConsumers();
 		await recordAdminActivity({
 			action: "genre_alias.removed",
 			category: "content",
