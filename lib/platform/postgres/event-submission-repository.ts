@@ -82,6 +82,29 @@ const toPayload = (value: unknown): EventSubmissionPayload => {
 		hostEmail: record.hostEmail,
 		proofLink: record.proofLink,
 		submittedAt: record.submittedAt,
+		submissionType:
+			record.submissionType === "new_event" ||
+			record.submissionType === "event_update" ||
+			record.submissionType === "price_flag"
+				? record.submissionType
+				: undefined,
+		originalEventKey:
+			typeof record.originalEventKey === "string"
+				? record.originalEventKey
+				: undefined,
+		originalEventName:
+			typeof record.originalEventName === "string"
+				? record.originalEventName
+				: undefined,
+		originalEventUrl:
+			typeof record.originalEventUrl === "string"
+				? record.originalEventUrl
+				: undefined,
+		originalEventSnapshot:
+			record.originalEventSnapshot &&
+			typeof record.originalEventSnapshot === "object"
+				? record.originalEventSnapshot
+				: undefined,
 		endTime: typeof record.endTime === "string" ? record.endTime : undefined,
 		genre: typeof record.genre === "string" ? record.genre : undefined,
 		suggestedGenres: Array.isArray(record.suggestedGenres)
@@ -89,6 +112,8 @@ const toPayload = (value: unknown): EventSubmissionPayload => {
 					(genre): genre is string => typeof genre === "string",
 				)
 			: undefined,
+		ticketLink:
+			typeof record.ticketLink === "string" ? record.ticketLink : undefined,
 		price: typeof record.price === "string" ? record.price : undefined,
 		age: typeof record.age === "string" ? record.age : undefined,
 		indoorOutdoor:
@@ -96,6 +121,8 @@ const toPayload = (value: unknown): EventSubmissionPayload => {
 				? record.indoorOutdoor
 				: undefined,
 		notes: typeof record.notes === "string" ? record.notes : undefined,
+		reporterNote:
+			typeof record.reporterNote === "string" ? record.reporterNote : undefined,
 		arrondissement:
 			typeof record.arrondissement === "string"
 				? record.arrondissement

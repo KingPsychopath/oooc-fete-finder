@@ -511,10 +511,10 @@ export const EventSubmissionsCard = ({
 							const ticketLinks = parseDisplayLinks(
 								submission.payload.ticketLink,
 							);
-							const isUpdateRequest =
-								submission.payload.submissionType === "event_update";
-							const isPriceFlag =
-								submission.payload.submissionType === "price_flag";
+							const queueType = getReviewQueueType(submission);
+							const isUpdateRequest = queueType === "event_update";
+							const isPriceFlag = queueType === "price_flag";
+							const isGenreSuggestion = queueType === "genre_suggestion";
 							const originalSnapshot =
 								submission.payload.originalEventSnapshot ?? {};
 							const changedFields: Array<{
@@ -878,14 +878,217 @@ export const EventSubmissionsCard = ({
 								);
 							}
 
+							if (isGenreSuggestion) {
+								return (
+									<div
+										key={submission.id}
+										className="rounded-md border border-teal-300/70 bg-teal-50/80 p-3 shadow-sm dark:border-teal-400/30 dark:bg-teal-400/10"
+									>
+										<div className="flex flex-wrap items-start justify-between gap-3">
+											<div className="min-w-0 space-y-1">
+												<div className="flex flex-wrap items-center gap-1.5">
+													<Badge className="bg-teal-700 text-white hover:bg-teal-700">
+														Genre suggestion
+													</Badge>
+													<Badge variant="outline">{submission.status}</Badge>
+													{submission.spamSignals.reasons.map((reason) => (
+														<Badge key={reason} variant="destructive">
+															{reason}
+														</Badge>
+													))}
+												</div>
+												<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-teal-950/70 dark:text-teal-100/80">
+													Taxonomy review
+												</p>
+												<p className="break-words text-sm font-semibold text-foreground">
+													{submission.payload.eventName}
+												</p>
+												<p className="text-xs text-muted-foreground">
+													{submission.payload.date} at{" "}
+													{submission.payload.startTime} •{" "}
+													{submission.payload.location}
+												</p>
+												<p className="break-all text-xs text-muted-foreground">
+													{submission.payload.hostEmail}
+												</p>
+											</div>
+										</div>
+
+										<div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+											<div className="rounded-md border border-teal-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+												<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+													Suggested genres
+												</p>
+												<p className="mt-1 font-medium text-foreground">
+													{suggestedGenres.join(", ")}
+												</p>
+											</div>
+											<div className="rounded-md border border-teal-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+												<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+													What to do
+												</p>
+												<p className="mt-1 text-muted-foreground">
+													Publish the event if it is valid, then add or map
+													these in Manage genres if they should become reusable
+													filters.
+												</p>
+											</div>
+											<div className="rounded-md border border-teal-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+												<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+													Proof
+												</p>
+												<a
+													href={submission.payload.proofLink}
+													target="_blank"
+													rel="noreferrer"
+													className="mt-1 block break-all font-medium text-teal-900 underline underline-offset-2 hover:text-teal-700 dark:text-teal-100"
+												>
+													Open proof page
+												</a>
+											</div>
+											{ticketLinks.length > 0 && (
+												<div className="rounded-md border border-teal-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+													<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+														Ticket links
+													</p>
+													<div className="mt-1 space-y-1">
+														{ticketLinks.map((link, index) => (
+															<a
+																key={`${submission.id}-genre-ticket-${index}-${link}`}
+																href={link}
+																target="_blank"
+																rel="noreferrer"
+																className="block break-all font-medium text-teal-900 underline underline-offset-2 hover:text-teal-700 dark:text-teal-100"
+															>
+																{index === 0
+																	? "Open ticket page"
+																	: `Open extra link ${index + 1}`}
+															</a>
+														))}
+													</div>
+												</div>
+											)}
+										</div>
+
+										<details className="mt-2 rounded-md border border-teal-200 bg-white/70 px-3 py-2 dark:bg-background/40">
+											<summary className="cursor-pointer text-xs font-medium text-foreground/85">
+												Event details
+											</summary>
+											<div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+												<div>End time: {submission.payload.endTime || "-"}</div>
+												<div>Genre: {submission.payload.genre || "-"}</div>
+												<div>Price: {submission.payload.price || "-"}</div>
+												<div>Age: {submission.payload.age || "-"}</div>
+												<div>
+													Venue: {submission.payload.indoorOutdoor || "-"}
+												</div>
+												<div>
+													Arrondissement:{" "}
+													{submission.payload.arrondissement || "-"}
+												</div>
+											</div>
+											{submission.payload.notes && (
+												<p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
+													{submission.payload.notes}
+												</p>
+											)}
+										</details>
+
+										<div className="mt-2 text-[11px] text-muted-foreground">
+											Submitted {formatAdminDateTime(submission.createdAt)}
+											{submission.reviewedAt
+												? ` • Reviewed ${formatAdminDateTime(submission.reviewedAt)}`
+												: ""}
+											{submission.reviewReason
+												? ` • Reason: ${submission.reviewReason}`
+												: ""}
+										</div>
+
+										{submission.status === "pending" && (
+											<div className="mt-3 space-y-2 rounded-md border border-teal-200 bg-white/70 p-2.5 dark:bg-background/40">
+												<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+													<select
+														value={selectedReason}
+														onChange={(event) => {
+															const nextReason = event.target
+																.value as EventSubmissionDeclineReason;
+															setSelectedDeclineReasonById((current) => ({
+																...current,
+																[submission.id]: nextReason,
+															}));
+														}}
+														className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+														disabled={isBusy}
+													>
+														{EVENT_SUBMISSION_DECLINE_REASONS.map((reason) => (
+															<option key={reason} value={reason}>
+																{DECLINE_REASON_LABELS[reason]}
+															</option>
+														))}
+													</select>
+													<div className="flex gap-2">
+														<Button
+															type="button"
+															onClick={() => void handleAccept(submission.id)}
+															disabled={isBusy}
+															size="sm"
+														>
+															{isBusy ? "Working..." : "Publish"}
+														</Button>
+														<Button
+															type="button"
+															variant="destructive"
+															onClick={() => void handleDecline(submission.id)}
+															disabled={isBusy}
+															size="sm"
+														>
+															Reject
+														</Button>
+													</div>
+												</div>
+												{selectedReason === "other" && (
+													<input
+														type="text"
+														value={customReason}
+														onChange={(event) =>
+															setCustomDeclineReasonById((current) => ({
+																...current,
+																[submission.id]: event.target.value,
+															}))
+														}
+														placeholder="Type decline reason"
+														className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+														disabled={isBusy}
+													/>
+												)}
+											</div>
+										)}
+									</div>
+								);
+							}
+
 							return (
 								<div
 									key={submission.id}
-									className="rounded-md border bg-background/60 p-3"
+									className="rounded-md border border-slate-200 bg-slate-50/70 p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900/30"
 								>
-									<div className="flex flex-wrap items-start justify-between gap-2">
-										<div className="space-y-1">
-											<p className="text-sm font-medium">
+									<div className="flex flex-wrap items-start justify-between gap-3">
+										<div className="min-w-0 space-y-1">
+											<div className="flex flex-wrap items-center gap-1.5">
+												<Badge className="bg-slate-700 text-white hover:bg-slate-700">
+													New event
+												</Badge>
+												<Badge variant="outline">{submission.status}</Badge>
+												{submission.spamSignals.reasons.map((reason) => (
+													<Badge key={reason} variant="destructive">
+														{reason}
+													</Badge>
+												))}
+											</div>
+											<p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">
+												Ready to publish
+											</p>
+											<p className="break-words text-sm font-semibold text-foreground">
 												{submission.payload.eventName}
 											</p>
 											<p className="text-xs text-muted-foreground">
@@ -893,105 +1096,66 @@ export const EventSubmissionsCard = ({
 												{submission.payload.startTime} •{" "}
 												{submission.payload.location}
 											</p>
-											<p className="text-xs text-muted-foreground break-all">
+											<p className="break-all text-xs text-muted-foreground">
 												{submission.payload.hostEmail}
 											</p>
 										</div>
-										<div className="flex flex-wrap gap-1.5">
-											{isUpdateRequest && (
-												<Badge variant="outline">Update request</Badge>
-											)}
-											<Badge variant="outline">{submission.status}</Badge>
-											{suggestedGenres.length > 0 && (
-												<Badge variant="outline">Review genre suggestion</Badge>
-											)}
-											{submission.spamSignals.reasons.map((reason) => (
-												<Badge key={reason} variant="destructive">
-													{reason}
-												</Badge>
-											))}
-										</div>
 									</div>
 
-									<div className="mt-2 text-xs text-muted-foreground break-all">
-										{isUpdateRequest ? "Proof of change" : "Proof"}:{" "}
-										{submission.payload.proofLink}
-									</div>
-									{ticketLinks.length > 0 && (
-										<div className="mt-1 text-xs text-muted-foreground">
-											<p className="font-medium text-foreground/75">
-												Ticket link{ticketLinks.length === 1 ? "" : "s"}:
+									<div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+										<div className="rounded-md border bg-white/70 px-3 py-2 dark:bg-background/40">
+											<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+												Proof
 											</p>
-											<div className="mt-1 space-y-0.5">
-												{ticketLinks.map((link, index) => (
-													<p
-														key={`${submission.id}-ticket-link-${index}-${link}`}
-														className="break-all"
-													>
-														<span className="font-medium">
-															{index === 0 ? "Primary" : `Additional ${index}`}:
-														</span>{" "}
-														{link}
-													</p>
-												))}
-											</div>
+											<a
+												href={submission.payload.proofLink}
+												target="_blank"
+												rel="noreferrer"
+												className="mt-1 block break-all font-medium text-slate-800 underline underline-offset-2 hover:text-slate-600 dark:text-slate-100"
+											>
+												Open proof page
+											</a>
 										</div>
-									)}
-
-									{isUpdateRequest && (
-										<div className="mt-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">
-											<p className="font-medium">
-												Update for{" "}
-												{submission.payload.originalEventName ||
-													submission.payload.eventName}
+										<div className="rounded-md border bg-white/70 px-3 py-2 dark:bg-background/40">
+											<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+												What to do
 											</p>
-											{submission.payload.originalEventKey && (
-												<p className="mt-1 break-all">
-													Event key: {submission.payload.originalEventKey}
+											<p className="mt-1 text-muted-foreground">
+												Check the proof, publish valid events to the sheet, or
+												reject if it is not suitable.
+											</p>
+										</div>
+										{ticketLinks.length > 0 && (
+											<div className="rounded-md border bg-white/70 px-3 py-2 dark:bg-background/40">
+												<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+													Ticket links
 												</p>
-											)}
-											{submission.payload.originalEventUrl && (
-												<p className="mt-1 break-all">
-													Canonical URL: {submission.payload.originalEventUrl}
-												</p>
-											)}
-											{changedFields.length > 0 && (
-												<div className="mt-2 space-y-1">
-													<p className="font-medium">Changed fields</p>
-													{changedFields.map(({ label, key, next }) => (
-														<p key={key} className="break-words">
-															<span className="font-medium">{label}:</span>{" "}
-															<span className="whitespace-pre-wrap line-through opacity-70">
-																{originalSnapshot[key] || "-"}
-															</span>{" "}
-															<span className="whitespace-pre-wrap">
-																→ {next || "-"}
-															</span>
-														</p>
+												<div className="mt-1 space-y-1">
+													{ticketLinks.map((link, index) => (
+														<a
+															key={`${submission.id}-ticket-link-${index}-${link}`}
+															href={link}
+															target="_blank"
+															rel="noreferrer"
+															className="block break-all font-medium text-slate-800 underline underline-offset-2 hover:text-slate-600 dark:text-slate-100"
+														>
+															{index === 0
+																? "Open ticket page"
+																: `Open extra link ${index + 1}`}
+														</a>
 													))}
 												</div>
-											)}
-										</div>
-									)}
+											</div>
+										)}
+									</div>
 
-									{suggestedGenres.length > 0 && (
-										<div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-											<span className="font-medium">Suggested genres:</span>{" "}
-											{suggestedGenres.join(", ")}. Add or map these in Manage
-											genres if they should become reusable filters.
-										</div>
-									)}
-
-									<details className="mt-2 rounded-md border bg-background/80 px-3 py-2">
+									<details className="mt-2 rounded-md border bg-white/70 px-3 py-2 dark:bg-background/40">
 										<summary className="cursor-pointer text-xs font-medium text-foreground/85">
-											Submission details
+											Event details
 										</summary>
 										<div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
 											<div>End time: {submission.payload.endTime || "-"}</div>
 											<div>Genre: {submission.payload.genre || "-"}</div>
-											<div>
-												Suggested genres: {suggestedGenres.join(", ") || "-"}
-											</div>
 											<div>Price: {submission.payload.price || "-"}</div>
 											<div>Age: {submission.payload.age || "-"}</div>
 											<div>
