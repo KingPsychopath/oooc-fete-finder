@@ -283,6 +283,76 @@ const eventSubmissionUpdateInputSchema = z
 		}
 	});
 
+const eventSubmissionPriceFlagInputSchema = z.object({
+	submissionType: z.literal("price_flag"),
+	originalEventKey: z.string().trim().min(1).max(180),
+	originalEventName: z.string().trim().max(180).optional().default(""),
+	originalEventUrl: z
+		.string()
+		.trim()
+		.max(2000)
+		.transform((value, context) =>
+			normalizedOptionalUrlField(
+				value,
+				context,
+				"Original event URL must be an HTTP(S) URL",
+			),
+		)
+		.optional()
+		.default(""),
+	originalEventSnapshot: eventCoreSnapshotSchema.optional().default({}),
+	eventName: z.string().trim().min(2).max(180),
+	date: z
+		.string()
+		.trim()
+		.refine(
+			(value) => value === "" || isValidDateValue(value),
+			"Date must use YYYY-MM-DD",
+		)
+		.optional()
+		.default(""),
+	startTime: z
+		.string()
+		.trim()
+		.transform((value, context) => {
+			const normalized = normalizeWhitespace(value);
+			if (!normalized || normalized.toLowerCase() === "tbc") return "";
+			if (!TIME_PATTERN.test(normalized)) {
+				context.addIssue({
+					code: "custom",
+					message: "Start time must use HH:MM",
+				});
+				return z.NEVER;
+			}
+			return normalized;
+		})
+		.optional()
+		.default(""),
+	location: z.string().trim().max(240).optional().default(""),
+	hostEmail: eventSubmissionBaseSchema.hostEmail
+		.optional()
+		.default("price-flag@outofofficecollective.co.uk"),
+	proofLink: eventSubmissionBaseSchema.proofLink,
+	ticketLink: z
+		.string()
+		.trim()
+		.max(2000)
+		.transform((value, context) =>
+			normalizedOptionalUrlListField(
+				value,
+				context,
+				"Ticket links must be HTTP(S) URLs",
+			),
+		)
+		.optional()
+		.default(""),
+	price: z.string().trim().min(1).max(80),
+	notes: z.string().trim().max(3000).optional().default(""),
+	reporterNote: z.string().trim().max(1000).optional().default(""),
+	formStartedAt: eventSubmissionBaseSchema.formStartedAt,
+	honeypot: eventSubmissionBaseSchema.honeypot,
+});
+
 const eventSubmissionNewInputSchema = z.object({
 	submissionType: z.literal("new_event"),
 	originalEventKey: z.string().trim().max(180).optional().default(""),
@@ -337,13 +407,14 @@ const eventSubmissionInputSchema = z.preprocess(
 	z.discriminatedUnion("submissionType", [
 		eventSubmissionNewInputSchema,
 		eventSubmissionUpdateInputSchema,
+		eventSubmissionPriceFlagInputSchema,
 	]),
 );
 
 export type EventSubmissionInput = z.infer<typeof eventSubmissionInputSchema>;
 
 export interface NormalizedEventSubmissionInput {
-	submissionType: "new_event" | "event_update";
+	submissionType: "new_event" | "event_update" | "price_flag";
 	originalEventKey: string;
 	originalEventName: string;
 	originalEventUrl: string;
@@ -362,6 +433,7 @@ export interface NormalizedEventSubmissionInput {
 	age: string;
 	indoorOutdoor: string;
 	notes: string;
+	reporterNote: string;
 	arrondissement: string;
 	formStartedAt: string;
 	honeypot: string;
@@ -457,9 +529,41 @@ export const parseEventSubmissionInput = (
 			age: mergeWithSnapshot("age"),
 			indoorOutdoor: mergeWithSnapshot("indoorOutdoor"),
 			notes: mergeWithSnapshot("notes"),
+			reporterNote: "",
 			arrondissement: mergeWithSnapshot("arrondissement"),
 			formStartedAt: updatePayload.formStartedAt.trim(),
 			honeypot: updatePayload.honeypot.trim(),
+		};
+	}
+
+	if (parsed.submissionType === "price_flag") {
+		const normalizedOriginalSnapshot = normalizeSnapshotMap(
+			parsed.originalEventSnapshot,
+		);
+		return {
+			submissionType: "price_flag",
+			originalEventKey: normalizeWhitespace(parsed.originalEventKey),
+			originalEventName: normalizeWhitespace(parsed.originalEventName),
+			originalEventUrl: normalizeWhitespace(parsed.originalEventUrl),
+			originalEventSnapshot: normalizedOriginalSnapshot,
+			eventName: normalizeWhitespace(parsed.eventName),
+			date: normalizeWhitespace(parsed.date),
+			startTime: normalizeWhitespace(parsed.startTime),
+			location: normalizeWhitespace(parsed.location),
+			hostEmail: parsed.hostEmail.trim().toLowerCase(),
+			proofLink: parsed.proofLink,
+			ticketLink: parsed.ticketLink,
+			endTime: normalizedOriginalSnapshot.endTime || "",
+			genre: normalizedOriginalSnapshot.genre || "",
+			suggestedGenres: "",
+			price: normalizeWhitespace(parsed.price),
+			age: normalizedOriginalSnapshot.age || "",
+			indoorOutdoor: normalizedOriginalSnapshot.indoorOutdoor || "",
+			notes: normalizeWhitespace(parsed.notes),
+			reporterNote: normalizeWhitespace(parsed.reporterNote),
+			arrondissement: normalizedOriginalSnapshot.arrondissement || "",
+			formStartedAt: parsed.formStartedAt.trim(),
+			honeypot: parsed.honeypot.trim(),
 		};
 	}
 
@@ -483,6 +587,7 @@ export const parseEventSubmissionInput = (
 		age: toOptionalField(parsed.age),
 		indoorOutdoor: toOptionalField(parsed.indoorOutdoor),
 		notes: toOptionalField(parsed.notes),
+		reporterNote: "",
 		arrondissement: toOptionalField(parsed.arrondissement),
 		formStartedAt: parsed.formStartedAt.trim(),
 		honeypot: parsed.honeypot.trim(),
@@ -562,19 +667,19 @@ const buildSubmissionPayload = (
 	submittedAt,
 	submissionType: input.submissionType,
 	originalEventKey:
-		input.submissionType === "event_update"
+		input.submissionType !== "new_event"
 			? input.originalEventKey || undefined
 			: undefined,
 	originalEventName:
-		input.submissionType === "event_update"
+		input.submissionType !== "new_event"
 			? input.originalEventName || undefined
 			: undefined,
 	originalEventUrl:
-		input.submissionType === "event_update"
+		input.submissionType !== "new_event"
 			? input.originalEventUrl || undefined
 			: undefined,
 	originalEventSnapshot:
-		input.submissionType === "event_update" &&
+		input.submissionType !== "new_event" &&
 		Object.keys(input.originalEventSnapshot).length > 0
 			? input.originalEventSnapshot
 			: undefined,
@@ -591,6 +696,7 @@ const buildSubmissionPayload = (
 	age: input.age || undefined,
 	indoorOutdoor: input.indoorOutdoor || undefined,
 	notes: input.notes || undefined,
+	reporterNote: input.reporterNote || undefined,
 	arrondissement: input.arrondissement || undefined,
 });
 

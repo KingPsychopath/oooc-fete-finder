@@ -94,14 +94,14 @@ export async function POST(request: Request) {
 	}
 
 	const submissionType =
-		rawBody &&
-		typeof rawBody === "object" &&
-		"submissionType" in rawBody &&
-		rawBody.submissionType === "event_update"
-			? "event_update"
+		rawBody && typeof rawBody === "object" && "submissionType" in rawBody
+			? rawBody.submissionType === "event_update" ||
+				rawBody.submissionType === "price_flag"
+				? rawBody.submissionType
+				: "new_event"
 			: "new_event";
 	const isSubmissionTypeEnabled =
-		submissionType === "event_update"
+		submissionType === "event_update" || submissionType === "price_flag"
 			? submissionSettings.eventUpdatesEnabled
 			: submissionSettings.newEventsEnabled;
 	if (!isSubmissionTypeEnabled) {
@@ -111,7 +111,9 @@ export async function POST(request: Request) {
 				error:
 					submissionType === "event_update"
 						? "Event update requests are temporarily closed."
-						: "Event submissions are temporarily closed.",
+						: submissionType === "price_flag"
+							? "Price flags are temporarily closed."
+							: "Event submissions are temporarily closed.",
 			},
 			{
 				status: 503,

@@ -194,6 +194,32 @@ describe("/api/event-submissions route", () => {
 		expect(createEventSubmission).toHaveBeenCalledTimes(1);
 	});
 
+	it("allows price flags when new event submissions are disabled", async () => {
+		const { POST, getPublicSettings, createEventSubmission } =
+			await loadRoute();
+		getPublicSettings.mockResolvedValue({
+			newEventsEnabled: false,
+			eventUpdatesEnabled: true,
+			updatedAt: "2026-02-18T00:00:00.000Z",
+		});
+
+		const response = await POST(
+			new Request("https://example.com/api/event-submissions", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					...validBody,
+					submissionType: "price_flag",
+					originalEventKey: "evt_123",
+					price: "Free",
+				}),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(createEventSubmission).toHaveBeenCalledTimes(1);
+	});
+
 	it("returns 503 when update requests are disabled", async () => {
 		const { POST, getPublicSettings, createEventSubmission } =
 			await loadRoute();
@@ -221,6 +247,37 @@ describe("/api/event-submissions route", () => {
 
 		expect(response.status).toBe(503);
 		expect(payload.error).toContain("update requests");
+		expect(createEventSubmission).not.toHaveBeenCalled();
+	});
+
+	it("returns 503 when price flags are disabled", async () => {
+		const { POST, getPublicSettings, createEventSubmission } =
+			await loadRoute();
+		getPublicSettings.mockResolvedValue({
+			newEventsEnabled: true,
+			eventUpdatesEnabled: false,
+			updatedAt: "2026-02-18T00:00:00.000Z",
+		});
+
+		const response = await POST(
+			new Request("https://example.com/api/event-submissions", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					...validBody,
+					submissionType: "price_flag",
+					originalEventKey: "evt_123",
+					price: "Free",
+				}),
+			}),
+		);
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
+
+		expect(response.status).toBe(503);
+		expect(payload.error).toContain("Price flags");
 		expect(createEventSubmission).not.toHaveBeenCalled();
 	});
 

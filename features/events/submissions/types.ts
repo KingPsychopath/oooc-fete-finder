@@ -19,7 +19,7 @@ export interface EventSubmissionPayload {
 	hostEmail: string;
 	proofLink: string;
 	submittedAt: string;
-	submissionType?: "new_event" | "event_update";
+	submissionType?: "new_event" | "event_update" | "price_flag";
 	originalEventKey?: string;
 	originalEventName?: string;
 	originalEventUrl?: string;
@@ -46,6 +46,7 @@ export interface EventSubmissionPayload {
 	age?: string;
 	indoorOutdoor?: string;
 	notes?: string;
+	reporterNote?: string;
 	arrondissement?: string;
 }
 

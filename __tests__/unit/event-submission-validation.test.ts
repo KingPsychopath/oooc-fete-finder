@@ -106,6 +106,43 @@ describe("event submission validation", () => {
 		expect(parsed.originalEventSnapshot.ticketLink).toBeUndefined();
 	});
 
+	it("accepts price flags with optional reporter notes", () => {
+		const parsed = parseEventSubmissionInput({
+			submissionType: "price_flag",
+			originalEventKey: "evt_free_123",
+			originalEventName: "Free Block Party",
+			originalEventUrl: "https://example.com/event/evt_free_123",
+			originalEventSnapshot: {
+				eventName: "Free Block Party",
+				date: "2026-06-21",
+				startTime: "16:00",
+				location: "Paris",
+				price: "Free",
+				ticketLink: "https://tickets.example.com/free-block-party",
+			},
+			eventName: "Free Block Party",
+			date: "2026-06-21",
+			startTime: "16:00",
+			location: "Paris",
+			price: "Free",
+			proofLink: "tickets.example.com/free-block-party",
+			ticketLink: "tickets.example.com/free-block-party",
+			reporterNote: "Ticket page now says €12.",
+			formStartedAt: "2026-02-18T10:00:00.000Z",
+		});
+
+		expect(parsed.submissionType).toBe("price_flag");
+		expect(parsed.hostEmail).toBe("price-flag@outofofficecollective.co.uk");
+		expect(parsed.proofLink).toBe(
+			"https://tickets.example.com/free-block-party",
+		);
+		expect(parsed.ticketLink).toBe(
+			"https://tickets.example.com/free-block-party",
+		);
+		expect(parsed.reporterNote).toBe("Ticket page now says €12.");
+		expect(parsed.originalEventSnapshot.price).toBe("Free");
+	});
+
 	it("rejects updates when no changed event fields are provided", () => {
 		expect(() =>
 			parseEventSubmissionInput({

@@ -418,6 +418,8 @@ export const EventSubmissionsCard = ({
 							);
 							const isUpdateRequest =
 								submission.payload.submissionType === "event_update";
+							const isPriceFlag =
+								submission.payload.submissionType === "price_flag";
 							const originalSnapshot =
 								submission.payload.originalEventSnapshot ?? {};
 							const changedFields: Array<{
@@ -485,6 +487,9 @@ export const EventSubmissionsCard = ({
 											</p>
 										</div>
 										<div className="flex flex-wrap gap-1.5">
+											{isPriceFlag && (
+												<Badge variant="outline">Price flag</Badge>
+											)}
 											{isUpdateRequest && (
 												<Badge variant="outline">Update request</Badge>
 											)}
@@ -501,8 +506,10 @@ export const EventSubmissionsCard = ({
 									</div>
 
 									<div className="mt-2 text-xs text-muted-foreground break-all">
-										{isUpdateRequest ? "Proof of change" : "Proof"}:{" "}
-										{submission.payload.proofLink}
+										{isUpdateRequest || isPriceFlag
+											? "Proof of change"
+											: "Proof"}
+										: {submission.payload.proofLink}
 									</div>
 									{ticketLinks.length > 0 && (
 										<div className="mt-1 text-xs text-muted-foreground">
@@ -522,6 +529,36 @@ export const EventSubmissionsCard = ({
 													</p>
 												))}
 											</div>
+										</div>
+									)}
+
+									{isPriceFlag && (
+										<div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+											<p className="font-medium">
+												Visitor flagged this free price for review
+											</p>
+											{submission.payload.originalEventKey && (
+												<p className="mt-1 break-all">
+													Event key: {submission.payload.originalEventKey}
+												</p>
+											)}
+											{submission.payload.originalEventUrl && (
+												<p className="mt-1 break-all">
+													Canonical URL: {submission.payload.originalEventUrl}
+												</p>
+											)}
+											<p className="mt-1">
+												Current listed price:{" "}
+												<span className="font-medium">
+													{submission.payload.price || "-"}
+												</span>
+											</p>
+											{submission.payload.reporterNote && (
+												<p className="mt-2 whitespace-pre-wrap">
+													<span className="font-medium">Reporter note:</span>{" "}
+													{submission.payload.reporterNote}
+												</p>
+											)}
 										</div>
 									)}
 
@@ -632,11 +669,11 @@ export const EventSubmissionsCard = ({
 													<Button
 														type="button"
 														onClick={() => void handleAccept(submission.id)}
-														disabled={isBusy || isUpdateRequest}
+														disabled={isBusy || isUpdateRequest || isPriceFlag}
 														size="sm"
 														title={
-															isUpdateRequest
-																? "Apply update requests manually in the event sheet"
+															isUpdateRequest || isPriceFlag
+																? "Review manually in the event sheet, then decline to clear it"
 																: undefined
 														}
 													>

@@ -13,6 +13,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import {
 	Tooltip,
@@ -82,6 +87,7 @@ import {
 	CalendarPlus,
 	Check,
 	ChevronDown,
+	CircleHelp,
 	Clock,
 	Copy,
 	Crown,
@@ -154,6 +160,11 @@ interface EventUpdateRequestForm {
 	ticketLink: string;
 	hostEmail: string;
 	notes: string;
+}
+
+interface PriceFlagStatus {
+	message: string;
+	tone: "success" | "error";
 }
 
 const parseGenreLabels = (value: string): string[] =>
@@ -465,6 +476,10 @@ const EventModal: React.FC<EventModalProps> = ({
 		message: string;
 		tone: "success" | "error";
 	} | null>(null);
+	const [priceFlagNote, setPriceFlagNote] = useState("");
+	const [priceFlagStatus, setPriceFlagStatus] =
+		useState<PriceFlagStatus | null>(null);
+	const [isSubmittingPriceFlag, setIsSubmittingPriceFlag] = useState(false);
 	const [hasMounted, setHasMounted] = useState(false);
 	const isUpdateRequestOpen =
 		controlledRequestUpdateOpen ?? internalRequestUpdateOpen;
@@ -486,6 +501,9 @@ const EventModal: React.FC<EventModalProps> = ({
 			setIsGenrePickerOpen(false);
 			setGenreSearchQuery("");
 			setUpdateRequestStatus(null);
+			setPriceFlagNote("");
+			setPriceFlagStatus(null);
+			setIsSubmittingPriceFlag(false);
 		}
 	}, [isOpen]);
 
@@ -1131,6 +1149,104 @@ const EventModal: React.FC<EventModalProps> = ({
 		}
 	};
 
+	const submitPriceFlag = async () => {
+		if (!submissionsEnabled || priceFlagStatus?.tone === "success") return;
+		setPriceFlagStatus(null);
+		setIsSubmittingPriceFlag(true);
+
+		const eventLinks =
+			event.links && event.links.length > 0 ? event.links : [event.link];
+		const normalizedTicketLinks =
+			normalizeProofLinks(eventLinks.filter(Boolean).join("\n")) ?? [];
+		const displayedPriceLabel = formatPrice(event.price);
+		const proofLink =
+			normalizedTicketLinks[0] ||
+			normalizeProofLink(buildCanonicalEventUrl()) ||
+			"";
+		const originalEventSnapshot = Object.fromEntries(
+			(
+				[
+					["eventName", event.name],
+					["date", event.date || ""],
+					["startTime", event.time && event.time !== "TBC" ? event.time : ""],
+					[
+						"endTime",
+						event.endTime && event.endTime !== "TBC" ? event.endTime : "",
+					],
+					[
+						"location",
+						event.location && event.location !== "TBA" ? event.location : "",
+					],
+					["price", displayedPriceLabel],
+					["ticketLink", normalizedTicketLinks.join("\n")],
+					["notes", event.description || ""],
+				] satisfies Array<[string, string]>
+			)
+				.map(([key, value]) => [key, normalizeEventUpdateText(value)])
+				.filter(([, value]) => value.length > 0),
+		);
+
+		try {
+			const response = await fetch(`${basePath}/api/event-submissions`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					submissionType: "price_flag",
+					originalEventKey: event.eventKey,
+					originalEventName: event.name,
+					originalEventUrl: buildCanonicalEventUrl(),
+					originalEventSnapshot,
+					eventName: event.name,
+					date: event.date || "",
+					startTime: event.time && event.time !== "TBC" ? event.time : "",
+					location:
+						event.location && event.location !== "TBA" ? event.location : "",
+					price: displayedPriceLabel,
+					proofLink,
+					ticketLink: normalizedTicketLinks.join("\n"),
+					reporterNote: priceFlagNote,
+					notes: "Visitor flagged this free price as possibly wrong.",
+					formStartedAt: new Date(Date.now() - 5000).toISOString(),
+				}),
+				signal: AbortSignal.timeout(12000),
+			});
+			const payload = (await response.json()) as {
+				success?: boolean;
+				message?: string;
+				error?: string;
+				issues?: string[];
+			};
+			if (!response.ok || !payload.success) {
+				haptics.error();
+				setPriceFlagStatus({
+					message:
+						payload.issues?.[0] ||
+						payload.error ||
+						"Could not flag this price right now.",
+					tone: "error",
+				});
+				return;
+			}
+			haptics.success();
+			setPriceFlagStatus({
+				message: "Thanks, we will check the ticket page.",
+				tone: "success",
+			});
+		} catch (error) {
+			haptics.error();
+			setPriceFlagStatus({
+				message:
+					error instanceof Error &&
+					(error.name === "TimeoutError" || error.name === "AbortError")
+						? "Request timed out. Please try again."
+						: "Could not flag this price right now.",
+				tone: "error",
+			});
+		} finally {
+			setIsSubmittingPriceFlag(false);
+		}
+	};
+
 	const hasTime = Boolean(event.time && event.time !== "TBC");
 	const hasEndTime = Boolean(event.endTime && event.endTime !== "TBC");
 	const timeRange = hasTime
@@ -1459,13 +1575,85 @@ const EventModal: React.FC<EventModalProps> = ({
 								<span>Price</span>
 							</p>
 							<p
-								className={`mt-0.5 text-[13px] font-medium sm:text-sm ${
+								className={`mt-0.5 flex items-center gap-1.5 text-[13px] font-medium sm:text-sm ${
 									priceLabel === "Free"
 										? "text-green-600 dark:text-green-400"
 										: "text-foreground"
 								}`}
 							>
-								{priceLabel}
+								<span>{priceLabel}</span>
+								{priceLabel === "Free" && submissionsEnabled && (
+									<Popover>
+										<PopoverTrigger
+											render={
+												<button
+													type="button"
+													className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+													aria-label="Flag wrong free price"
+												/>
+											}
+										>
+											<CircleHelp className="size-3.5" aria-hidden="true" />
+										</PopoverTrigger>
+										<PopoverContent
+											align="start"
+											className="w-72 gap-3 text-sm"
+										>
+											<div className="space-y-1">
+												<p className="font-medium text-foreground">
+													Think this price is wrong?
+												</p>
+												<p className="text-xs leading-relaxed text-muted-foreground">
+													Ticket pages can change. If this now requires payment,
+													flag it for admin review.
+												</p>
+											</div>
+											<Textarea
+												value={priceFlagNote}
+												onChange={(inputEvent) =>
+													setPriceFlagNote(inputEvent.target.value)
+												}
+												rows={3}
+												maxLength={1000}
+												placeholder="Optional note, like the price you saw"
+												disabled={
+													isSubmittingPriceFlag ||
+													priceFlagStatus?.tone === "success"
+												}
+												className="text-xs"
+											/>
+											{priceFlagStatus && (
+												<p
+													className={`rounded-md border px-2.5 py-2 text-xs ${
+														priceFlagStatus.tone === "success"
+															? "border-emerald-200 bg-emerald-50 text-emerald-900"
+															: "border-rose-200 bg-rose-50 text-rose-800"
+													}`}
+													role="status"
+												>
+													{priceFlagStatus.message}
+												</p>
+											)}
+											<Button
+												type="button"
+												size="sm"
+												onClick={() => void submitPriceFlag()}
+												disabled={
+													isSubmittingPriceFlag ||
+													priceFlagStatus?.tone === "success"
+												}
+												className="w-full"
+											>
+												<Flag className="size-3.5" aria-hidden="true" />
+												{isSubmittingPriceFlag
+													? "Flagging..."
+													: priceFlagStatus?.tone === "success"
+														? "Flagged"
+														: "Flag price issue"}
+											</Button>
+										</PopoverContent>
+									</Popover>
+								)}
 							</p>
 						</div>
 						<div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
