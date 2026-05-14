@@ -19,7 +19,7 @@ export async function GET(
 ) {
 	const startedAt = Date.now();
 	const { eventKey } = await context.params;
-	const event = await getEventShareEvent(eventKey, { bypassCache: true });
+	const event = await getEventShareEvent(eventKey);
 	const durationMs = Date.now() - startedAt;
 	if (durationMs >= SLOW_EVENT_DETAILS_API_MS) {
 		log.warn("events-api", "Slow event detail response", {
