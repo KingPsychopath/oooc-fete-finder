@@ -58,11 +58,11 @@ import {
 import { DataManager } from "./data-manager";
 import { processCSVData } from "./data-processor";
 import type {
+	EventRowLifecycleMetadata,
 	EventSheetRevisionChangeSummary,
 	EventSheetRevisionInput,
 	EventSheetRevisionRecord,
 	EventSheetRevisionSnapshot,
-	EventRowLifecycleMetadata,
 } from "./event-sheet-revision-types";
 import { EventStoreBackupService } from "./event-store-backup-service";
 import type {
@@ -130,6 +130,13 @@ export interface EventLocationReviewItem {
 	locationName: string;
 	arrondissement: ParisArrondissement;
 	eventCount: number;
+	sampleEvents: Array<{
+		eventKey: string;
+		slug: string;
+		name: string;
+		date: string;
+		time?: string;
+	}>;
 	sampleEventNames: string[];
 	isResolvable: boolean;
 	resolution: StoredLocationResolution | null;
@@ -1617,20 +1624,44 @@ export async function getEventLocationReviewData(
 			if (existing) {
 				existing.eventCount += 1;
 				if (
-					existing.sampleEventNames.length < 3 &&
-					!existing.sampleEventNames.includes(event.name)
+					existing.sampleEvents.length < 4 &&
+					!existing.sampleEvents.some(
+						(sampleEvent) => sampleEvent.eventKey === event.eventKey,
+					)
 				) {
-					existing.sampleEventNames.push(event.name);
+					existing.sampleEvents.push({
+						eventKey: event.eventKey,
+						slug: event.slug,
+						name: event.name,
+						date: event.date,
+						time: event.time,
+					});
+					existing.sampleEventNames = existing.sampleEvents.map(
+						(sampleEvent) => sampleEvent.name,
+					);
 				}
 				continue;
 			}
+
+			const sampleEvents = event.name
+				? [
+						{
+							eventKey: event.eventKey,
+							slug: event.slug,
+							name: event.name,
+							date: event.date,
+							time: event.time,
+						},
+					]
+				: [];
 
 			itemsByKey.set(id, {
 				id,
 				locationName,
 				arrondissement,
 				eventCount: 1,
-				sampleEventNames: [event.name].filter(Boolean).slice(0, 3),
+				sampleEvents,
+				sampleEventNames: sampleEvents.map((sampleEvent) => sampleEvent.name),
 				isResolvable,
 				resolution: isResolvable ? (storedLocations.get(id) ?? null) : null,
 			});

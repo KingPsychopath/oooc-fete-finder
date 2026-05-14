@@ -31,7 +31,7 @@ import {
 	buildMapLink,
 } from "@/features/locations/map-link-builder";
 import { cn } from "@/lib/utils";
-import { ExternalLink } from "lucide-react";
+import { CalendarDays, ExternalLink, MapPin } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type LocationReviewCardProps = {
@@ -153,6 +153,18 @@ const getClearResolutionLabel = (item: EventLocationReviewItem): string => {
 const getResolvedTimestamp = (item: EventLocationReviewItem): string =>
 	item.resolution?.lastResolvedAt ?? item.resolution?.lastUpdated ?? "";
 
+const normalizeBasePath = (value: string): string => {
+	if (!value || value === "/") return "";
+	return value.endsWith("/") ? value.slice(0, -1) : value;
+};
+
+const buildEventHref = (eventKey: string, slug: string): string => {
+	const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || "");
+	const encodedKey = encodeURIComponent(eventKey);
+	const encodedSlug = slug ? `/${encodeURIComponent(slug)}` : "";
+	return `${basePath}/event/${encodedKey}${encodedSlug}`;
+};
+
 const formatAdminDateTime = (isoDate: string): string => {
 	const time = new Date(isoDate).getTime();
 	if (!Number.isFinite(time)) return "Unknown time";
@@ -200,6 +212,15 @@ const canBatchResolveWithProvider = (item: EventLocationReviewItem): boolean =>
 
 const hasStoredResolution = (item: EventLocationReviewItem): boolean =>
 	Boolean(item.resolution);
+
+const getReviewHint = (item: EventLocationReviewItem): string => {
+	const status = getLocationStatus(item);
+	if (status === "unresolved") return "Resolve or add manual coordinates";
+	if (status === "approximate") return "Check map link before trusting";
+	if (status === "needs-location") return "Add a venue name in the event sheet";
+	if (status === "geocoded") return "Spot-check if this venue is reused often";
+	return "Ready for nearby matching";
+};
 
 export const LocationReviewCard = ({
 	initialPayload,
@@ -380,6 +401,7 @@ export const LocationReviewCard = ({
 				item.resolution?.formattedAddress ?? "",
 				item.resolution?.provider ?? "",
 				...item.sampleEventNames,
+				...(item.sampleEvents ?? []).map((event) => event.name),
 			]
 				.join(" ")
 				.toLowerCase();
@@ -714,12 +736,30 @@ export const LocationReviewCard = ({
 							const isBusy = busyId === item.id;
 							const isEditing = manualDraft?.locationId === item.id;
 							const canTestMapLinks = item.locationName.trim().length > 0;
+							const sampleEvents =
+								item.sampleEvents && item.sampleEvents.length > 0
+									? item.sampleEvents
+									: item.sampleEventNames.map((name) => ({
+											eventKey: "",
+											slug: "",
+											name,
+											date: "",
+											time: undefined,
+										}));
+							const hiddenEventCount = Math.max(
+								0,
+								item.eventCount - sampleEvents.length,
+							);
 							return (
 								<div
 									key={item.id}
-									className="rounded-md border bg-background/60 p-3"
+									className={cn(
+										"rounded-md border bg-background/60 p-3",
+										getReviewPriority(item) < 3 &&
+											"border-amber-200 bg-amber-50/45",
+									)}
 								>
-									<div className="grid gap-3 xl:grid-cols-[minmax(260px,1.3fr)_minmax(240px,1fr)_auto]">
+									<div className="grid gap-3 xl:grid-cols-[minmax(260px,1.2fr)_minmax(260px,1fr)_minmax(240px,1fr)_auto]">
 										<div className="min-w-0 space-y-1">
 											<div className="flex flex-wrap items-center gap-2">
 												<input
@@ -740,14 +780,62 @@ export const LocationReviewCard = ({
 												</Badge>
 											</div>
 											<p className="text-xs text-muted-foreground">
-												{item.eventCount} event
-												{item.eventCount === 1 ? "" : "s"}:{" "}
-												{item.sampleEventNames.join(", ")}
+												{getReviewHint(item)}
 											</p>
 										</div>
 
+										<div className="min-w-0 space-y-2">
+											<div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+												<CalendarDays className="h-3.5 w-3.5" />
+												<span>
+													{item.eventCount} event
+													{item.eventCount === 1 ? "" : "s"} at this location
+												</span>
+											</div>
+											<div className="flex flex-wrap gap-1.5">
+												{sampleEvents.map((event) =>
+													event.eventKey ? (
+														<a
+															key={event.eventKey}
+															href={buildEventHref(event.eventKey, event.slug)}
+															target="_blank"
+															rel="noreferrer"
+															className={cn(
+																buttonVariants({
+																	variant: "outline",
+																	size: "xs",
+																}),
+																"max-w-full justify-start gap-1.5 overflow-hidden",
+															)}
+															title={event.name}
+														>
+															<span className="truncate">{event.name}</span>
+															<ExternalLink className="h-3 w-3 shrink-0" />
+														</a>
+													) : (
+														<Badge
+															key={`${item.id}-${event.name}`}
+															variant="outline"
+															className="max-w-full truncate"
+															title={event.name}
+														>
+															{event.name}
+														</Badge>
+													),
+												)}
+												{hiddenEventCount > 0 && (
+													<Badge variant="secondary">
+														+{hiddenEventCount} more
+													</Badge>
+												)}
+											</div>
+										</div>
+
 										<div className="min-w-0 space-y-1 text-xs text-muted-foreground">
-											<p>{formatCoordinates(item)}</p>
+											<p className="flex items-center gap-1.5">
+												<MapPin className="h-3.5 w-3.5" />
+												<span>{formatCoordinates(item)}</span>
+											</p>
 											<p>{getMapBasisLabel(item)}</p>
 											{item.resolution?.formattedAddress && (
 												<p className="truncate">
