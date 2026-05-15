@@ -24,6 +24,7 @@ import {
 import {
 	type DateRangeFilter,
 	type EventFilterState,
+	areDateRangesEqual,
 	filterEvents,
 	getActiveFiltersCount,
 	getAvailableArrondissements,
@@ -82,6 +83,9 @@ export const useEventFilters = ({
 	const lastTrackedAgeRef = useRef("");
 	const pendingInitialFilterStateRef = useRef<EventFilterState | null>(null);
 	const hasHydratedInitialStateRef = useRef(false);
+	const previousDefaultDateRangeRef = useRef(
+		defaultFilterState.selectedDateRange,
+	);
 	const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
 		defaultFilterState.selectedDateRange,
 	);
@@ -176,6 +180,25 @@ export const useEventFilters = ({
 		defaultFilterState.selectedDateRange,
 		isFilterAccessAllowed,
 	]);
+
+	useEffect(() => {
+		const previousDefaultDateRange = previousDefaultDateRangeRef.current;
+		if (
+			areDateRangesEqual(
+				previousDefaultDateRange,
+				defaultFilterState.selectedDateRange,
+			)
+		) {
+			return;
+		}
+
+		previousDefaultDateRangeRef.current = defaultFilterState.selectedDateRange;
+		setSelectedDateRange((currentDateRange) =>
+			areDateRangesEqual(currentDateRange, previousDefaultDateRange)
+				? defaultFilterState.selectedDateRange
+				: currentDateRange,
+		);
+	}, [defaultFilterState.selectedDateRange]);
 
 	useEffect(() => {
 		if (!isFilterAccessAllowed) return;
