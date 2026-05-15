@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import {
 	resolveInitialEventFilterStateFromSearchParams,
 	serializeEventFilterStateToSearchParams,
@@ -7,12 +6,14 @@ import {
 	DEFAULT_EVENT_FILTER_STATE,
 	getActiveFiltersCount,
 	getCurrentParisYearDateRange,
+	getDateRangeAfterDefaultDateRangeChange,
 	getDefaultDateRangeForEvents,
 	getEventCountForDateRange,
 	getTopEventDatesByCount,
 	hasActiveFilters,
 } from "@/features/events/filtering";
-import { getEventTypeForDate, type Event } from "@/features/events/types";
+import { type Event, getEventTypeForDate } from "@/features/events/types";
+import { describe, expect, it } from "vitest";
 
 const makeEvent = (date: string, index: number): Event => ({
 	eventKey: `evt_test${index.toString().padStart(8, "0")}`,
@@ -94,6 +95,46 @@ describe("event filter defaults", () => {
 			from: null,
 			to: null,
 		});
+	});
+
+	it("moves the selected date range when the computed default changes after data loads", () => {
+		const previousDefaultDateRange = {
+			from: null,
+			to: null,
+		};
+		const nextDefaultDateRange = {
+			from: "2026-01-01",
+			to: "2026-12-31",
+		};
+
+		expect(
+			getDateRangeAfterDefaultDateRangeChange({
+				currentDateRange: previousDefaultDateRange,
+				nextDefaultDateRange,
+				previousDefaultDateRange,
+			}),
+		).toEqual(nextDefaultDateRange);
+	});
+
+	it("keeps explicit date selections when the computed default changes", () => {
+		const explicitDateRange = {
+			from: "2025-01-01",
+			to: "2025-12-31",
+		};
+
+		expect(
+			getDateRangeAfterDefaultDateRangeChange({
+				currentDateRange: explicitDateRange,
+				nextDefaultDateRange: {
+					from: "2026-01-01",
+					to: "2026-12-31",
+				},
+				previousDefaultDateRange: {
+					from: null,
+					to: null,
+				},
+			}),
+		).toEqual(explicitDateRange);
 	});
 
 	it("does not count the default year range as an active filter or URL param", () => {

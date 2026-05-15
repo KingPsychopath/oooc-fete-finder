@@ -1,6 +1,5 @@
 "use client";
 
-import { useOnlineStatus } from "@/components/online-status-gate";
 import {
 	readHomeEventSnapshot,
 	writeHomeEventSnapshot,
@@ -70,13 +69,11 @@ export function EventsOfflineProvider({
 	const [eventSnapshotError, setEventSnapshotError] = useState<string | null>(
 		null,
 	);
-	const isOnline = useOnlineStatus();
-
 	useEffect(() => {
-		if (!isOnline || initialEvents.length === 0) return;
+		if (initialEvents.length === 0) return;
 		setEvents(initialEvents);
 		setEventDataSource("live");
-	}, [initialEvents, isOnline]);
+	}, [initialEvents]);
 
 	useEffect(() => {
 		let isCancelled = false;
@@ -96,7 +93,7 @@ export function EventsOfflineProvider({
 				setEventSnapshotFreshness(freshness);
 				setEventSnapshotSyncState("saved");
 				setEventSnapshotError(null);
-				if (initialEvents.length > 0 && isOnline) {
+				if (initialEvents.length > 0) {
 					setEvents(initialEvents);
 					setEventDataSource("live");
 					return;
@@ -125,7 +122,7 @@ export function EventsOfflineProvider({
 		return () => {
 			isCancelled = true;
 		};
-	}, [initialEvents, isOnline]);
+	}, [initialEvents]);
 
 	useEffect(() => {
 		if (eventDataSource !== "live" || events.length === 0) return;

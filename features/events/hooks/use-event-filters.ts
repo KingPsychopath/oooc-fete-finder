@@ -29,6 +29,7 @@ import {
 	getActiveFiltersCount,
 	getAvailableArrondissements,
 	getAvailableEventDates,
+	getDateRangeAfterDefaultDateRangeChange,
 	getDefaultEventFilterState,
 	getTopEventDatesByCount,
 	hasActiveFilters,
@@ -194,9 +195,11 @@ export const useEventFilters = ({
 
 		previousDefaultDateRangeRef.current = defaultFilterState.selectedDateRange;
 		setSelectedDateRange((currentDateRange) =>
-			areDateRangesEqual(currentDateRange, previousDefaultDateRange)
-				? defaultFilterState.selectedDateRange
-				: currentDateRange,
+			getDateRangeAfterDefaultDateRangeChange({
+				currentDateRange,
+				nextDefaultDateRange: defaultFilterState.selectedDateRange,
+				previousDefaultDateRange,
+			}),
 		);
 	}, [defaultFilterState.selectedDateRange]);
 

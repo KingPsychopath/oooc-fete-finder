@@ -121,6 +121,19 @@ export const getDefaultEventFilterState = (
 	selectedDateRange: getDefaultDateRangeForEvents(events, referenceDate),
 });
 
+export const getDateRangeAfterDefaultDateRangeChange = ({
+	currentDateRange,
+	nextDefaultDateRange,
+	previousDefaultDateRange,
+}: {
+	currentDateRange: DateRangeFilter;
+	nextDefaultDateRange: DateRangeFilter;
+	previousDefaultDateRange: DateRangeFilter;
+}): DateRangeFilter =>
+	areDateRangesEqual(currentDateRange, previousDefaultDateRange)
+		? nextDefaultDateRange
+		: currentDateRange;
+
 const matchesSearchQuery = (event: Event, rawQuery: string): boolean => {
 	const query = normalizeSearchText(rawQuery);
 	if (query.length === 0) return true;
