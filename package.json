@@ -41,7 +41,7 @@
     "lucide-react": "^0.564.0",
     "maplibre-gl": "^5.18.0",
     "modern-screenshot": "^4.6.8",
-    "next": "16.1.6",
+    "next": "16.2.6",
     "next-themes": "^0.4.6",
     "papaparse": "^5.5.3",
     "postgres": "^3.4.8",
@@ -72,6 +72,10 @@
     "vitest": "^4.0.18"
   },
   "pnpm": {
+    "overrides": {
+      "postcss": "8.5.10",
+      "protocol-buffers-schema": "3.6.1"
+    },
     "onlyBuiltDependencies": [
       "@biomejs/biome",
       "esbuild",
