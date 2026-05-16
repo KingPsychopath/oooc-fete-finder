@@ -6,6 +6,8 @@ import {
 	FETE_FINDER_TOUR_EVENT,
 	FETE_FINDER_TOUR_STORAGE_KEY,
 	PENDING_FETE_FINDER_TOUR_STORAGE_KEY,
+	shouldSuppressFeteFinderTourPrompt,
+	snoozeFeteFinderTourPrompt,
 } from "@/features/events/tour-events";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { LAYERS } from "@/lib/ui/layers";
@@ -19,7 +21,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const TOUR_STATE_COMPLETED = "completed";
-const TOUR_STATE_DISMISSED = "dismissed";
 const TOUR_STATE_SKIPPED = "skipped";
 
 interface TourStep {
@@ -46,14 +47,6 @@ interface FeteFinderTourProps {
 	onFilterOpen: () => void;
 	onMapExpand: () => void;
 	onScrollToAllEvents: () => void;
-}
-
-function readTourState(): string | null {
-	try {
-		return window.localStorage.getItem(FETE_FINDER_TOUR_STORAGE_KEY);
-	} catch {
-		return null;
-	}
 }
 
 function writeTourState(state: string): void {
@@ -353,7 +346,7 @@ export function FeteFinderTour({
 		(source: string) => {
 			haptics.light();
 			trackTourInteraction({ action: "prompt_dismissed", source });
-			writeTourState(TOUR_STATE_DISMISSED);
+			snoozeFeteFinderTourPrompt();
 			onFilterClose();
 			setHasPendingOverlayTour(false);
 			setIsPromptOpen(false);
@@ -465,7 +458,7 @@ export function FeteFinderTour({
 			return;
 		}
 		if (hasManualTourRequest) return;
-		if (readTourState() !== null) return;
+		if (shouldSuppressFeteFinderTourPrompt()) return;
 		const timer = window.setTimeout(() => {
 			if (hasBlockingOverlay()) return;
 			trackTourInteraction({ action: "prompt_shown", source: "auto" });
@@ -596,7 +589,7 @@ export function FeteFinderTour({
 							onClick={() => dismissPrompt("skip_button")}
 							className="rounded-full"
 						>
-							Skip
+							Not now
 						</Button>
 						<Button type="button" onClick={startTour} className="rounded-full">
 							Start tour

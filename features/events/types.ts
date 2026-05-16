@@ -44,13 +44,13 @@ export const EVENT_EXPERIENCE_CATEGORIES = [
 		label: "Party",
 		description: "Dance, club, day party, afterparty, or social event",
 		color:
-			"border-amber-500/35 bg-amber-500/10 text-amber-800 dark:text-amber-200",
+			"border-amber-500/20 bg-muted/45 text-amber-900/75 dark:text-amber-100/80",
 	},
 	{
 		key: "activity",
 		label: "Activity",
 		description: "Things to do with a planned activity or group experience",
-		color: "border-sky-500/35 bg-sky-500/10 text-sky-800 dark:text-sky-200",
+		color: "border-sky-500/18 bg-muted/45 text-sky-900/75 dark:text-sky-100/80",
 	},
 	{
 		key: "culture",
@@ -58,21 +58,21 @@ export const EVENT_EXPERIENCE_CATEGORIES = [
 		description:
 			"Art, fashion, performance, talks, screenings, exhibitions, or culture",
 		color:
-			"border-violet-500/35 bg-violet-500/10 text-violet-800 dark:text-violet-200",
+			"border-violet-500/18 bg-muted/45 text-violet-900/75 dark:text-violet-100/80",
 	},
 	{
 		key: "food",
 		label: "Food",
 		description: "Food, drink, dining, tasting, brunch, or supper-club events",
 		color:
-			"border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200",
+			"border-emerald-500/18 bg-muted/45 text-emerald-900/75 dark:text-emerald-100/80",
 	},
 	{
 		key: "wellness",
 		label: "Wellness",
 		description: "Movement, fitness, rest, health, or wellbeing-led events",
 		color:
-			"border-amber-500/35 bg-amber-500/10 text-amber-800 dark:text-amber-200",
+			"border-teal-500/18 bg-muted/45 text-teal-900/75 dark:text-teal-100/80",
 	},
 ] as const satisfies readonly EventExperienceCategoryDefinition[];
 

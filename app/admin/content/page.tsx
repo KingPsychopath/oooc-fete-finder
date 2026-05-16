@@ -34,10 +34,26 @@ export default async function AdminContentPage() {
 	const editorPayload =
 		editorData.status === "fulfilled" ? editorData.value : undefined;
 	const submissionsPayload =
-		eventSubmissions.status === "fulfilled" ? eventSubmissions.value : undefined;
+		eventSubmissions.status === "fulfilled"
+			? eventSubmissions.value
+			: undefined;
 	const hasPendingSubmissions = Boolean(
 		submissionsPayload?.success && submissionsPayload.pending.length > 0,
 	);
+	const pendingEventReviews = submissionsPayload?.success
+		? submissionsPayload.pending
+				.filter(
+					(submission) =>
+						submission.payload.submissionType === "event_update" ||
+						submission.payload.submissionType === "price_flag",
+				)
+				.map((submission) => ({
+					eventKey: submission.payload.originalEventKey?.trim() ?? "",
+					submissionId: submission.id,
+					submissionType: submission.payload.submissionType,
+				}))
+				.filter((review) => review.eventKey.length > 0)
+		: [];
 	const eventSubmissionsSection = (
 		<section id="event-submissions" className="scroll-mt-44">
 			<EventSubmissionsCard initialPayload={submissionsPayload} />
@@ -49,14 +65,19 @@ export default async function AdminContentPage() {
 				isAuthenticated
 				initialDeploymentId={getCurrentDeploymentId()}
 				initialEditorData={editorPayload}
+				pendingEventReviews={pendingEventReviews}
 			/>
 		</section>
 	);
 
 	return (
 		<div className="space-y-6">
-			{hasPendingSubmissions ? eventSubmissionsSection : eventSheetEditorSection}
-			{hasPendingSubmissions ? eventSheetEditorSection : eventSubmissionsSection}
+			{hasPendingSubmissions
+				? eventSubmissionsSection
+				: eventSheetEditorSection}
+			{hasPendingSubmissions
+				? eventSheetEditorSection
+				: eventSubmissionsSection}
 
 			<section id="location-review" className="scroll-mt-44">
 				<LocationReviewCard

@@ -8,6 +8,8 @@ const AUTH_VERIFY_IP_LIMIT = 60;
 const AUTH_VERIFY_IP_WINDOW_SECONDS = 60;
 const AUTH_VERIFY_EMAIL_IP_LIMIT = 6;
 const AUTH_VERIFY_EMAIL_IP_WINDOW_SECONDS = 15 * 60;
+const AUTH_LOOKUP_IP_LIMIT = 30;
+const AUTH_LOOKUP_IP_WINDOW_SECONDS = 60;
 const EVENT_SUBMIT_IP_LIMIT = 20;
 const EVENT_SUBMIT_IP_WINDOW_SECONDS = 10 * 60;
 const EVENT_SUBMIT_EMAIL_IP_LIMIT = 5;
@@ -27,6 +29,7 @@ const USER_PREFERENCE_IP_WINDOW_SECONDS = 60;
 const RATE_LIMIT_CLEANUP_GRACE_SECONDS = 24 * 60 * 60;
 
 export type RateLimitScope =
+	| "auth_lookup_ip"
 	| "auth_verify_ip"
 	| "auth_verify_email_ip"
 	| "event_submit_ip"
@@ -120,6 +123,7 @@ const rateLimitReasonByScope: Record<
 		"ip_limit" | "email_ip_limit" | "fingerprint_limit" | "session_limit"
 	>
 > = {
+	auth_lookup_ip: "ip_limit",
 	auth_verify_ip: "ip_limit",
 	auth_verify_email_ip: "email_ip_limit",
 	event_submit_ip: "ip_limit",
@@ -193,6 +197,19 @@ export const checkAuthVerifyIpLimit = async (
 		keyParts: [normalizedIp],
 		windowSeconds: AUTH_VERIFY_IP_WINDOW_SECONDS,
 		limit: AUTH_VERIFY_IP_LIMIT,
+	});
+};
+
+export const checkAuthLookupIpLimit = async (
+	ip: string,
+): Promise<RateLimitDecision> => {
+	const scope: RateLimitScope = "auth_lookup_ip";
+	const normalizedIp = ip.trim() || "unknown";
+	return consumeRateLimitWindow({
+		scope,
+		keyParts: [normalizedIp],
+		windowSeconds: AUTH_LOOKUP_IP_WINDOW_SECONDS,
+		limit: AUTH_LOOKUP_IP_LIMIT,
 	});
 };
 

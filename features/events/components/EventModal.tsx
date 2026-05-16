@@ -60,6 +60,7 @@ import {
 import {
 	EVENT_EXPERIENCE_CATEGORIES,
 	type Event,
+	type EventExperienceCategory,
 	MUSIC_GENRES,
 	type ParisArrondissement,
 	VENUE_TYPES,
@@ -135,6 +136,46 @@ const CONTACT_EMAIL = "hello@outofofficecollective.co.uk";
 const MODAL_GENRE_PREVIEW_LIMIT = 8;
 const MODAL_MIN_COLLAPSED_GENRES = 3;
 const COUNTRY_PREVIEW_LIMIT = 3;
+const EVENT_CATEGORY_MODAL_ACCENTS: Record<
+	EventExperienceCategory,
+	{ shell: string; rail: string; badge: string }
+> = {
+	party: {
+		shell:
+			"border-amber-300/55 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(217,119,6,0.16)] dark:border-amber-500/35",
+		rail: "bg-amber-500/75",
+		badge:
+			"border-amber-500/35 bg-amber-500/10 text-amber-900 hover:bg-amber-500/14 dark:text-amber-100",
+	},
+	activity: {
+		shell:
+			"border-sky-300/55 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(14,165,233,0.16)] dark:border-sky-500/35",
+		rail: "bg-sky-500/75",
+		badge:
+			"border-sky-500/35 bg-sky-500/10 text-sky-900 hover:bg-sky-500/14 dark:text-sky-100",
+	},
+	culture: {
+		shell:
+			"border-violet-300/55 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(124,58,237,0.16)] dark:border-violet-500/35",
+		rail: "bg-violet-500/75",
+		badge:
+			"border-violet-500/35 bg-violet-500/10 text-violet-900 hover:bg-violet-500/14 dark:text-violet-100",
+	},
+	food: {
+		shell:
+			"border-emerald-300/55 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(16,185,129,0.16)] dark:border-emerald-500/35",
+		rail: "bg-emerald-500/75",
+		badge:
+			"border-emerald-500/35 bg-emerald-500/10 text-emerald-900 hover:bg-emerald-500/14 dark:text-emerald-100",
+	},
+	wellness: {
+		shell:
+			"border-teal-300/55 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(20,184,166,0.16)] dark:border-teal-500/35",
+		rail: "bg-teal-500/75",
+		badge:
+			"border-teal-500/35 bg-teal-500/10 text-teal-900 hover:bg-teal-500/14 dark:text-teal-100",
+	},
+};
 const FOCUSABLE_MODAL_SELECTOR = [
 	"a[href]",
 	"button:not([disabled])",
@@ -628,6 +669,9 @@ const EventModal: React.FC<EventModalProps> = ({
 	const eventPartyTypeLabel = getPartyEventTypeLabel(event.type);
 	const eventCategoryDefinition =
 		getResolvedEventExperienceCategoryDefinition(event);
+	const eventCategoryModalAccent = eventCategoryDefinition
+		? EVENT_CATEGORY_MODAL_ACCENTS[eventCategoryDefinition.key]
+		: null;
 
 	const handleOpenLocation = async (
 		location: string,
@@ -1355,9 +1399,15 @@ const EventModal: React.FC<EventModalProps> = ({
 				className={`relative max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))] ${
 					isCurrentlyFeatured
 						? "border-amber-300/70 shadow-[0_38px_94px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(212,164,96,0.35)] dark:border-amber-500/45"
-						: "border-border/80"
+						: (eventCategoryModalAccent?.shell ?? "border-border/80")
 				}`}
 			>
+				{eventCategoryModalAccent && !isCurrentlyFeatured && (
+					<div
+						className={`pointer-events-none absolute inset-y-5 left-0 w-1 rounded-r-full ${eventCategoryModalAccent.rail}`}
+						aria-hidden="true"
+					/>
+				)}
 				{isCurrentlyFeatured && (
 					<div
 						className="pointer-events-none absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,rgba(212,164,96,0)_0%,rgba(212,164,96,0.9)_50%,rgba(212,164,96,0)_100%)]"
@@ -1527,7 +1577,10 @@ const EventModal: React.FC<EventModalProps> = ({
 								eventCategoryDefinition && (
 									<Badge
 										variant="outline"
-										className={`${eventCategoryDefinition.color} hover:bg-background/70`}
+										className={
+											eventCategoryModalAccent?.badge ??
+											`${eventCategoryDefinition.color} hover:bg-background/70`
+										}
 									>
 										<Tag className="mr-1 h-3 w-3" />
 										{eventCategoryDefinition.label}

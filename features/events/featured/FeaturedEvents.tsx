@@ -14,8 +14,8 @@ import {
 	formatDayWithDate,
 	formatLocationAreaShort,
 	formatPrice,
-	getPartyEventTypeLabel,
 	getEventDisplayDayNightPeriod,
+	getPartyEventTypeLabel,
 	getPriceMeta,
 } from "@/features/events/types";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
@@ -26,18 +26,21 @@ import {
 	Building2,
 	CalendarDays,
 	ChevronDown,
+	Clock,
 	Crown,
 	Euro,
 	MapPin,
 	Megaphone,
 	Moon,
-	Clock,
 	Star,
 	Sun,
 	Trees,
 	Users,
 } from "lucide-react";
-import { FeaturedEventsHeader } from "./components/FeaturedEventsHeader";
+import {
+	FeaturedEventsHeader,
+	FeaturedEventsSpotlightLink,
+} from "./components/FeaturedEventsHeader";
 import { FEATURED_EVENTS_CONFIG } from "./constants";
 import { useFeaturedEvents } from "./hooks/use-featured-events";
 import type { FeaturedEventsProps } from "./types";
@@ -398,8 +401,22 @@ export function FeaturedEvents({
 					</span>
 				</div>
 				<div className="lg:pl-12">
-					<div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+					<div className="mb-5">
 						<FeaturedEventsHeader rotationContext={rotationContext} />
+					</div>
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1fr)]">
+						{featuredEvents.map((event, index) => (
+							<SpotlightEventPanel
+								key={event.eventKey || event.id}
+								event={event}
+								isDominant={index === 0}
+								onClick={handleSpotlightEventClick}
+								isSaved={isEventSaved(event.eventKey)}
+							/>
+						))}
+					</div>
+					<div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<FeaturedEventsSpotlightLink />
 						{hasMoreEvents && (
 							<div className="sm:shrink-0">
 								<Button
@@ -415,17 +432,6 @@ export function FeaturedEvents({
 								</Button>
 							</div>
 						)}
-					</div>
-					<div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1fr)]">
-						{featuredEvents.map((event, index) => (
-							<SpotlightEventPanel
-								key={event.eventKey || event.id}
-								event={event}
-								isDominant={index === 0}
-								onClick={handleSpotlightEventClick}
-								isSaved={isEventSaved(event.eventKey)}
-							/>
-						))}
 					</div>
 				</div>
 			</div>

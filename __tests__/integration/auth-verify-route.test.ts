@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 type Setup = {
 	POST: typeof import("@/app/api/auth/verify/route").POST;
 	addOrUpdate: ReturnType<typeof vi.fn>;
+	getUserProfile: ReturnType<typeof vi.fn>;
 	getStatus: ReturnType<typeof vi.fn>;
 	checkAuthVerifyIpLimit: ReturnType<typeof vi.fn>;
 	checkAuthVerifyEmailIpLimit: ReturnType<typeof vi.fn>;
@@ -32,6 +33,7 @@ const loadRoute = async (): Promise<Setup> => {
 		},
 		alreadyExisted: false,
 	});
+	const getUserProfile = vi.fn().mockResolvedValue(null);
 	const getStatus = vi.fn().mockResolvedValue({ provider: "postgres" });
 	const checkAuthVerifyIpLimit = vi.fn().mockResolvedValue({
 		allowed: true,
@@ -52,6 +54,7 @@ const loadRoute = async (): Promise<Setup> => {
 	vi.doMock("@/features/auth/user-collection-store", () => ({
 		UserCollectionStore: {
 			addOrUpdate,
+			getUserProfile,
 			getStatus,
 		},
 	}));
@@ -87,6 +90,7 @@ const loadRoute = async (): Promise<Setup> => {
 	return {
 		POST: route.POST,
 		addOrUpdate,
+		getUserProfile,
 		getStatus,
 		checkAuthVerifyIpLimit,
 		checkAuthVerifyEmailIpLimit,
@@ -208,6 +212,45 @@ describe("/api/auth/verify route", () => {
 		);
 		expect(addOrUpdate).toHaveBeenCalledTimes(1);
 		expect(getStatus).toHaveBeenCalledTimes(1);
+	});
+
+	it("reuses stored name and consent for a returning email", async () => {
+		const { POST, addOrUpdate, getUserProfile } = await loadRoute();
+		getUserProfile.mockResolvedValue({
+			user: {
+				userId: "019b0000-0000-7000-8000-000000000123",
+				firstName: "Stored",
+				lastName: "Guest",
+				email: "returning@example.com",
+				timestamp: "2026-05-08T00:00:00.000Z",
+				consent: true,
+				source: "auth-modal",
+			},
+		});
+
+		const response = await POST(
+			new Request("https://example.com/api/auth/verify", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-forwarded-for": "203.0.113.14",
+				},
+				body: JSON.stringify({
+					email: "RETURNING@example.com",
+					source: "auth-modal",
+				}),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(addOrUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				firstName: "Stored",
+				lastName: "Guest",
+				email: "returning@example.com",
+				consent: true,
+			}),
+		);
 	});
 
 	it("fails open and logs hashed context when limiter is unavailable", async () => {

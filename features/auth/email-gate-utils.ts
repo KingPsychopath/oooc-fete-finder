@@ -51,6 +51,11 @@ export const validateEmail = (rawEmail: string): boolean => {
 	return emailRegex.test(rawEmail);
 };
 
+export const validateName = (rawName: string): boolean => {
+	const name = rawName.trim();
+	return name.length >= 2;
+};
+
 export const sanitizeRecentProfile = (
 	value: unknown,
 ): StoredAuthProfile | null => {

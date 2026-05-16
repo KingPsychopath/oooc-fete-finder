@@ -22,6 +22,7 @@ import {
 import { log } from "@/lib/platform/logger";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
+import { getUserCollectionRepository } from "@/lib/platform/postgres/user-collection-repository";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -48,6 +49,24 @@ const verifyBodySchema = z.object({
 const isValidEmail = (email: string): boolean => {
 	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 	return emailRegex.test(email);
+};
+
+const getLookupProfile = async (email: string) => {
+	const repository = getUserCollectionRepository();
+	const normalizedEmail = email.trim().toLowerCase();
+
+	if (!normalizedEmail) {
+		return null;
+	}
+
+	if (repository) {
+		return await repository.findByEmail(normalizedEmail);
+	}
+
+	const storedProfile = await UserCollectionStore.getUserProfile({
+		email: normalizedEmail,
+	});
+	return storedProfile?.user ?? null;
 };
 
 const withRetryAfterHeaders = (retryAfterSeconds: number): HeadersInit => ({
@@ -118,20 +137,8 @@ export async function POST(request: Request) {
 	const firstName = body.firstName?.trim() || "";
 	const lastName = body.lastName?.trim() || "";
 	const email = body.email?.trim().toLowerCase() || "";
-	const consent = Boolean(body.consent);
+	const submittedConsent = Boolean(body.consent);
 
-	if (firstName.length < 2) {
-		return NextResponse.json(
-			{ success: false, error: "First name must be at least 2 characters" },
-			{ status: 400, headers: NO_STORE_HEADERS },
-		);
-	}
-	if (lastName.length < 2) {
-		return NextResponse.json(
-			{ success: false, error: "Last name must be at least 2 characters" },
-			{ status: 400, headers: NO_STORE_HEADERS },
-		);
-	}
 	if (!isValidEmail(email)) {
 		return NextResponse.json(
 			{ success: false, error: "Valid email address is required" },
@@ -139,13 +146,39 @@ export async function POST(request: Request) {
 		);
 	}
 
+	const existingUser = await getLookupProfile(email);
+	const existingFirstName = existingUser?.firstName?.trim() ?? "";
+	const existingLastName = existingUser?.lastName?.trim() ?? "";
+	const hasExistingIdentity = Boolean(
+		existingFirstName &&
+			existingLastName &&
+			existingFirstName.length >= 2 &&
+			existingLastName.length >= 2,
+	);
+	const hasExistingConsent = Boolean(existingUser?.consent);
+	const finalFirstName = hasExistingIdentity ? existingFirstName : firstName;
+	const finalLastName = hasExistingIdentity ? existingLastName : lastName;
+	const finalConsent = hasExistingConsent || submittedConsent;
+
+	if (finalFirstName.length < 2) {
+		return NextResponse.json(
+			{ success: false, error: "First name must be at least 2 characters" },
+			{ status: 400, headers: NO_STORE_HEADERS },
+		);
+	}
+	if (finalLastName.length < 2) {
+		return NextResponse.json(
+			{ success: false, error: "Last name must be at least 2 characters" },
+			{ status: 400, headers: NO_STORE_HEADERS },
+		);
+	}
 	const emailIpDecision = await checkAuthVerifyEmailIpLimit(email, clientIp);
 	logLimiterUnavailable(emailIpDecision);
 	if (!emailIpDecision.allowed) {
 		return rateLimitedResponse(emailIpDecision.retryAfterSeconds ?? 1);
 	}
 
-	if (!consent) {
+	if (!finalConsent) {
 		return NextResponse.json(
 			{ success: false, error: "Consent is required" },
 			{ status: 400, headers: NO_STORE_HEADERS },
@@ -154,8 +187,8 @@ export async function POST(request: Request) {
 
 	try {
 		const user = {
-			firstName,
-			lastName,
+			firstName: finalFirstName,
+			lastName: finalLastName,
 			email,
 			consent: true,
 			source: body.source?.trim() || "fete-finder-auth",

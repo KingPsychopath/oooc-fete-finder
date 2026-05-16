@@ -103,6 +103,27 @@ describe("rate-limiter helpers", () => {
 		});
 	});
 
+	it("uses a separate IP window for auth lookups", async () => {
+		const { repository, limiter } = await loadLimiter();
+		repository.consumeWindow.mockResolvedValue({
+			allowed: true,
+			count: 1,
+			limit: 30,
+			resetAt: "2026-06-21T00:00:00.000Z",
+			retryAfterSeconds: 60,
+		});
+
+		await limiter.checkAuthLookupIpLimit("203.0.113.8");
+
+		expect(repository.consumeWindow).toHaveBeenCalledWith(
+			expect.objectContaining({
+				scope: "auth_lookup_ip",
+				windowSeconds: 60,
+				limit: 30,
+			}),
+		);
+	});
+
 	it("returns fail-open decision when limiter repository is unavailable", async () => {
 		const { limiter } = await loadLimiter({ repositoryAvailable: false });
 

@@ -20,8 +20,8 @@ import type { SpotlightRotationContext } from "@/features/events/featured/select
 import type { SearchChip } from "@/features/events/search-chips";
 import {
 	FETE_FINDER_TOUR_EVENT,
-	FETE_FINDER_TOUR_STORAGE_KEY,
 	PENDING_FETE_FINDER_TOUR_STORAGE_KEY,
+	shouldSuppressFeteFinderTourPrompt,
 } from "@/features/events/tour-events";
 import type { Event } from "@/features/events/types";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
@@ -185,22 +185,12 @@ function EventsClientShell({
 		setHasMountedTourIsland(true);
 	}, []);
 
-	const hasSeenTourState = useCallback(() => {
-		if (typeof window === "undefined") return false;
-		try {
-			return window.localStorage.getItem(FETE_FINDER_TOUR_STORAGE_KEY) !== null;
-		} catch {
-			return false;
-		}
-	}, []);
-
 	useEffect(() => {
 		if (!isAuthResolved || !isAuthenticated || hasMountedTourIsland) return;
-		if (hasSeenTourState()) return;
+		if (shouldSuppressFeteFinderTourPrompt()) return;
 		mountTourIsland();
 	}, [
 		hasMountedTourIsland,
-		hasSeenTourState,
 		isAuthResolved,
 		isAuthenticated,
 		mountTourIsland,

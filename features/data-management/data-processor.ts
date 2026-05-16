@@ -34,6 +34,11 @@ import { performEventQualityChecks } from "./validation/quality-checks";
 // Re-export for backwards compatibility
 export { isValidEventsData, performEventQualityChecks };
 
+const isDraftCsvRow = (row: { detailsQualityOverride?: string }): boolean =>
+	String(row.detailsQualityOverride ?? "")
+		.trim()
+		.toLowerCase() === "draft";
+
 /**
  * Process CSV content into Event objects with fallback logic and enhanced validation
  *
@@ -75,12 +80,14 @@ export async function processCSVData(
 		const dateContext = createDateNormalizationContext(keyedRows.rows, {
 			referenceDate: options.referenceDate,
 		});
-		let events: Event[] = keyedRows.rows.map((row, index) =>
-			assembleEvent(row, index, {
-				dateNormalizationContext: dateContext,
-				genreTaxonomy: options.genreTaxonomy,
-			}),
-		);
+		let events: Event[] = keyedRows.rows
+			.filter((row) => !isDraftCsvRow(row))
+			.map((row, index) =>
+				assembleEvent(row, index, {
+					dateNormalizationContext: dateContext,
+					genreTaxonomy: options.genreTaxonomy,
+				}),
+			);
 		log.info("data", "Event key hydration", {
 			source,
 			missingEventKeyCount: keyedRows.missingEventKeyCount,
@@ -111,12 +118,14 @@ export async function processCSVData(
 						referenceDate: options.referenceDate,
 					},
 				);
-				const localEvents = keyedLocalRows.rows.map((row, index) =>
-					assembleEvent(row, index, {
-						dateNormalizationContext: localDateContext,
-						genreTaxonomy: options.genreTaxonomy,
-					}),
-				);
+				const localEvents = keyedLocalRows.rows
+					.filter((row) => !isDraftCsvRow(row))
+					.map((row, index) =>
+						assembleEvent(row, index, {
+							dateNormalizationContext: localDateContext,
+							genreTaxonomy: options.genreTaxonomy,
+						}),
+					);
 				log.info("data", "Event key hydration", {
 					source: "local-fallback",
 					missingEventKeyCount: keyedLocalRows.missingEventKeyCount,

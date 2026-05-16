@@ -155,6 +155,24 @@ export const EventSubmissionsCard = ({
 		void loadDashboard();
 	}, [initialPayload?.success, loadDashboard]);
 
+	useEffect(() => {
+		const revealHashedSubmission = () => {
+			if (!window.location.hash.startsWith("#submission-")) return;
+			setActiveStatus("pending");
+			setActiveQueueFilter("all");
+			window.setTimeout(() => {
+				document
+					.getElementById(window.location.hash.slice(1))
+					?.scrollIntoView({ behavior: "smooth", block: "center" });
+			}, 80);
+		};
+
+		revealHashedSubmission();
+		window.addEventListener("hashchange", revealHashedSubmission);
+		return () =>
+			window.removeEventListener("hashchange", revealHashedSubmission);
+	}, []);
+
 	const withMutation = useCallback(
 		async (
 			submissionId: string,
@@ -582,7 +600,8 @@ export const EventSubmissionsCard = ({
 								return (
 									<div
 										key={submission.id}
-										className="rounded-md border border-amber-300/80 bg-amber-50/80 p-3 shadow-sm dark:border-amber-400/30 dark:bg-amber-400/10"
+										id={`submission-${submission.id}`}
+										className="scroll-mt-44 rounded-md border border-amber-300/80 bg-amber-50/80 p-3 shadow-sm dark:border-amber-400/30 dark:bg-amber-400/10"
 									>
 										<div className="flex flex-wrap items-start justify-between gap-3">
 											<div className="min-w-0 space-y-1">
@@ -719,7 +738,8 @@ export const EventSubmissionsCard = ({
 								return (
 									<div
 										key={submission.id}
-										className="rounded-md border border-blue-300/70 bg-blue-50/80 p-3 shadow-sm dark:border-blue-400/30 dark:bg-blue-400/10"
+										id={`submission-${submission.id}`}
+										className="scroll-mt-44 rounded-md border border-blue-300/70 bg-blue-50/80 p-3 shadow-sm dark:border-blue-400/30 dark:bg-blue-400/10"
 									>
 										<div className="flex flex-wrap items-start justify-between gap-3">
 											<div className="min-w-0 space-y-1">
@@ -887,7 +907,8 @@ export const EventSubmissionsCard = ({
 								return (
 									<div
 										key={submission.id}
-										className="rounded-md border border-teal-300/70 bg-teal-50/80 p-3 shadow-sm dark:border-teal-400/30 dark:bg-teal-400/10"
+										id={`submission-${submission.id}`}
+										className="scroll-mt-44 rounded-md border border-teal-300/70 bg-teal-50/80 p-3 shadow-sm dark:border-teal-400/30 dark:bg-teal-400/10"
 									>
 										<div className="flex flex-wrap items-start justify-between gap-3">
 											<div className="min-w-0 space-y-1">
@@ -1079,7 +1100,8 @@ export const EventSubmissionsCard = ({
 							return (
 								<div
 									key={submission.id}
-									className="rounded-md border border-slate-200 bg-slate-50/70 p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900/30"
+									id={`submission-${submission.id}`}
+									className="scroll-mt-44 rounded-md border border-slate-200 bg-slate-50/70 p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900/30"
 								>
 									<div className="flex flex-wrap items-start justify-between gap-3">
 										<div className="min-w-0 space-y-1">

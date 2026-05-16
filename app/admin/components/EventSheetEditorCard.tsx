@@ -64,6 +64,7 @@ import {
 } from "@/features/events/nationality-utils";
 import {
 	EVENT_EXPERIENCE_CATEGORIES,
+	type EventExperienceCategory,
 	type EventExperienceCategoryDefinition,
 	formatEventExperienceCategory,
 	normalizeEventExperienceCategory,
@@ -86,6 +87,11 @@ type EventSheetEditorCardProps = {
 	isAuthenticated: boolean;
 	initialDeploymentId: string;
 	initialEditorData?: EditorPayload;
+	pendingEventReviews?: Array<{
+		eventKey: string;
+		submissionId: string;
+		submissionType?: "event_update" | "price_flag" | "new_event";
+	}>;
 	onDataSaved?: () => Promise<void> | void;
 };
 
@@ -206,7 +212,7 @@ type SheetHealthIssue = {
 type RowQualityValue = "complete" | "review" | "blocking" | "draft";
 type RowQualityAssessment = {
 	value: RowQualityValue;
-	source: "inferred" | "manual";
+	source: "inferred" | "manual" | "submission";
 	label: string;
 	description: string;
 	checks: Array<{ label: string; passed: boolean }>;
@@ -302,7 +308,7 @@ const parseBooleanCellValue = (value: string | undefined): boolean => {
 };
 const parseQualityOverride = (
 	value: string | undefined,
-): Exclude<RowQualityValue, "draft"> | null => {
+): RowQualityValue | null => {
 	const normalized = String(value ?? "")
 		.trim()
 		.toLowerCase();
@@ -312,6 +318,7 @@ const parseQualityOverride = (
 	if (normalized === "complete") return "complete";
 	if (normalized === "review" || normalized === "needs review") return "review";
 	if (normalized === "blocking" || normalized === "blocked") return "blocking";
+	if (normalized === "draft") return "draft";
 	return null;
 };
 const getQualityLabel = (value: RowQualityValue): string => {
@@ -324,7 +331,8 @@ const getQualityDescription = (value: RowQualityValue): string => {
 	if (value === "complete") return "Enough public-facing details are present.";
 	if (value === "blocking")
 		return "Important public-facing details are missing.";
-	if (value === "draft") return "Blank row, ignored on save.";
+	if (value === "draft")
+		return "Saved in admin, hidden from public events until changed to Auto, Review, or Complete.";
 	return "Usable, but one or more details should be checked.";
 };
 const getQualityDotClassName = (value: RowQualityValue): string => {
@@ -348,6 +356,7 @@ const hasUsableTextValue = (value: string | undefined): boolean => {
 const getRowQualityAssessment = (
 	row: EditableSheetRow,
 	issues: SheetHealthIssue[],
+	options?: { hasPendingSubmissionReview?: boolean },
 ): RowQualityAssessment => {
 	if (isEditableSheetRowEmpty(row)) {
 		return {
@@ -385,13 +394,24 @@ const getRowQualityAssessment = (
 	const manualValue = parseQualityOverride(
 		row[DETAILS_QUALITY_OVERRIDE_COLUMN_KEY],
 	);
-	const value = manualValue ?? inferredValue;
+	const hasPendingSubmissionReview =
+		options?.hasPendingSubmissionReview === true;
+	const value = hasPendingSubmissionReview
+		? "blocking"
+		: (manualValue ?? inferredValue);
+	const source = hasPendingSubmissionReview
+		? "submission"
+		: manualValue
+			? "manual"
+			: "inferred";
 
 	return {
 		value,
-		source: manualValue ? "manual" : "inferred",
+		source,
 		label: getQualityLabel(value),
-		description: getQualityDescription(value),
+		description: hasPendingSubmissionReview
+			? "A visitor submitted a pending change or price flag for this event. Review the submission, patch the row if needed, then clear the request."
+			: getQualityDescription(value),
 		checks: [
 			{ label: "Title present", passed: titlePresent },
 			{ label: "Date valid", passed: datePresent },
@@ -419,6 +439,48 @@ const SETTING_OPTIONS: SimpleOption[] = [
 ];
 const EVENT_CATEGORY_OPTIONS: readonly EventExperienceCategoryDefinition[] =
 	EVENT_EXPERIENCE_CATEGORIES;
+const EVENT_CATEGORY_ADMIN_OPTION_CLASSES: Record<
+	EventExperienceCategory,
+	{ dot: string; selected: string; highlighted: string }
+> = {
+	party: {
+		dot: "bg-amber-500",
+		selected: "border-amber-500/35 bg-amber-500/10 text-amber-950 dark:text-amber-100",
+		highlighted: "border-amber-500/45 bg-amber-500/15 text-amber-950 dark:text-amber-100",
+	},
+	activity: {
+		dot: "bg-sky-500",
+		selected: "border-sky-500/35 bg-sky-500/10 text-sky-950 dark:text-sky-100",
+		highlighted: "border-sky-500/45 bg-sky-500/15 text-sky-950 dark:text-sky-100",
+	},
+	culture: {
+		dot: "bg-violet-500",
+		selected: "border-violet-500/35 bg-violet-500/10 text-violet-950 dark:text-violet-100",
+		highlighted: "border-violet-500/45 bg-violet-500/15 text-violet-950 dark:text-violet-100",
+	},
+	food: {
+		dot: "bg-emerald-500",
+		selected: "border-emerald-500/35 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100",
+		highlighted: "border-emerald-500/45 bg-emerald-500/15 text-emerald-950 dark:text-emerald-100",
+	},
+	wellness: {
+		dot: "bg-teal-500",
+		selected: "border-teal-500/35 bg-teal-500/10 text-teal-950 dark:text-teal-100",
+		highlighted: "border-teal-500/45 bg-teal-500/15 text-teal-950 dark:text-teal-100",
+	},
+};
+const getEventCategoryAdminOptionClassName = (
+	category: EventExperienceCategory,
+	isSelected: boolean,
+	isHighlighted: boolean,
+): string => {
+	const accent = EVENT_CATEGORY_ADMIN_OPTION_CLASSES[category];
+	const baseClassName =
+		"flex w-full items-center gap-2 rounded border px-2 py-1.5 text-left text-xs transition";
+	if (isHighlighted) return `${baseClassName} ${accent.highlighted}`;
+	if (isSelected) return `${baseClassName} ${accent.selected}`;
+	return `${baseClassName} border-transparent hover:bg-accent/70`;
+};
 const AGE_OPTIONS: SimpleOption[] = [
 	{ value: "18+", label: "18+", description: "Standard adult entry" },
 	{ value: "21+", label: "21+", description: "Older crowd / stricter entry" },
@@ -1136,6 +1198,7 @@ export const EventSheetEditorCard = ({
 	isAuthenticated,
 	initialDeploymentId,
 	initialEditorData,
+	pendingEventReviews = [],
 	onDataSaved,
 }: EventSheetEditorCardProps) => {
 	const initial = initialEditorState(initialEditorData);
@@ -3103,6 +3166,35 @@ export const EventSheetEditorCard = ({
 		}
 		return byRow;
 	}, [sheetHealthIssues]);
+	const pendingEventReviewByEventKey = useMemo(
+		() =>
+			new Map(
+				pendingEventReviews.flatMap((review) => {
+					const eventKey = review.eventKey.trim();
+					if (!eventKey) return [];
+					return [
+						[
+							eventKey,
+							{
+								submissionId: review.submissionId,
+								submissionType: review.submissionType,
+							},
+						] as const,
+					];
+				}),
+			),
+		[pendingEventReviews],
+	);
+	const getPendingEventReviewForRow = useCallback(
+		(row: EditableSheetRow) =>
+			pendingEventReviewByEventKey.get(String(row.eventKey ?? "").trim()) ??
+			null,
+		[pendingEventReviewByEventKey],
+	);
+	const hasPendingEventReviewForRow = useCallback(
+		(row: EditableSheetRow) => Boolean(getPendingEventReviewForRow(row)),
+		[getPendingEventReviewForRow],
+	);
 	const rowQualityCounts = useMemo(() => {
 		const counts = {
 			complete: 0,
@@ -3116,13 +3208,14 @@ export const EventSheetEditorCard = ({
 			const quality = getRowQualityAssessment(
 				row,
 				sheetHealthIssuesByRow.get(index + 1) ?? [],
+				{ hasPendingSubmissionReview: hasPendingEventReviewForRow(row) },
 			);
 			counts[quality.value] += 1;
 			if (quality.source === "manual") counts.manual += 1;
 			if (quality.isConfirmed) counts.sourceConfirmed += 1;
 		});
 		return counts;
-	}, [rows, sheetHealthIssuesByRow]);
+	}, [hasPendingEventReviewForRow, rows, sheetHealthIssuesByRow]);
 	const lifecycleMetadataByEventKey = useMemo(
 		() => new Map(rowMetadata.map((metadata) => [metadata.eventKey, metadata])),
 		[rowMetadata],
@@ -3142,6 +3235,7 @@ export const EventSheetEditorCard = ({
 					const quality = getRowQualityAssessment(
 						row,
 						sheetHealthIssuesByRow.get(index + 1) ?? [],
+						{ hasPendingSubmissionReview: hasPendingEventReviewForRow(row) },
 					);
 					if (quality.value !== qualityFilter) return -1;
 				}
@@ -3149,7 +3243,13 @@ export const EventSheetEditorCard = ({
 				return index;
 			})
 			.filter((index) => index >= 0);
-	}, [qualityFilter, query, rows, sheetHealthIssuesByRow]);
+	}, [
+		hasPendingEventReviewForRow,
+		qualityFilter,
+		query,
+		rows,
+		sheetHealthIssuesByRow,
+	]);
 	const sortedRowIndexes = useMemo(() => {
 		return sortRowIndexes(
 			filteredRowIndexes,
@@ -3342,7 +3442,10 @@ export const EventSheetEditorCard = ({
 					if (!row) return null;
 					const rowIssues =
 						sheetHealthIssuesByRow.get(qualityPopover.rowIndex + 1) ?? [];
-					const rowQuality = getRowQualityAssessment(row, rowIssues);
+					const pendingEventReview = getPendingEventReviewForRow(row);
+					const rowQuality = getRowQualityAssessment(row, rowIssues, {
+						hasPendingSubmissionReview: Boolean(pendingEventReview),
+					});
 
 					return createPortal(
 						<div
@@ -3361,6 +3464,15 @@ export const EventSheetEditorCard = ({
 									{rowQuality.description} Status is {rowQuality.source}.
 								</div>
 							</div>
+							{pendingEventReview && (
+								<a
+									href={`#submission-${pendingEventReview.submissionId}`}
+									className="mb-2 block rounded-md border border-red-200 bg-red-50 px-2 py-1.5 font-medium text-red-700 underline-offset-2 hover:underline dark:border-red-400/30 dark:bg-red-950/30 dark:text-red-200"
+									onClick={() => setQualityPopover(null)}
+								>
+									Jump to matching submission
+								</a>
+							)}
 							<div className="mb-2 grid grid-cols-1 gap-1">
 								{rowQuality.checks.map((check) => (
 									<div
@@ -3421,11 +3533,12 @@ export const EventSheetEditorCard = ({
 										)
 									}
 								/>
-								<span>Source confirmed</span>
+								<span>Location/source confirmed</span>
 							</label>
 							<div className="grid grid-cols-2 gap-1 border-t border-border/70 pt-2">
 								{[
 									{ label: "Auto", value: "" },
+									{ label: "Draft", value: "draft" },
 									{ label: "Complete", value: "complete" },
 									{ label: "Review", value: "review" },
 									{ label: "Needs fix", value: "blocking" },
@@ -3517,14 +3630,16 @@ export const EventSheetEditorCard = ({
 												category,
 											);
 										}}
-										className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
-											optionIndex === highlightedEventCategoryIndex
-												? "bg-accent text-accent-foreground"
-												: isSelected
-													? "bg-muted text-foreground"
-													: "hover:bg-accent/70"
-											}`}
+										className={getEventCategoryAdminOptionClassName(
+											category.key,
+											isSelected,
+											optionIndex === highlightedEventCategoryIndex,
+										)}
 									>
+										<span
+											className={`h-2 w-2 shrink-0 rounded-full ${EVENT_CATEGORY_ADMIN_OPTION_CLASSES[category.key].dot}`}
+											aria-hidden="true"
+										/>
 										<span className="min-w-0 flex-1 truncate font-medium">
 											{category.label}
 										</span>
@@ -4682,10 +4797,10 @@ export const EventSheetEditorCard = ({
 							{rowQualityCounts.draft} draft
 						</button>
 						<span className="border-l border-border/70 pl-2">
-							{rowQualityCounts.sourceConfirmed} source confirmed
+							{rowQualityCounts.sourceConfirmed} location/source confirmed
 						</span>
 						{rowQualityCounts.manual > 0 && (
-							<span>{rowQualityCounts.manual} manual override</span>
+							<span>{rowQualityCounts.manual} quality manual override</span>
 						)}
 					</div>
 					<div className="max-w-full overflow-auto rounded-md border max-h-[70vh]">
@@ -4808,6 +4923,8 @@ export const EventSheetEditorCard = ({
 								) : (
 									visibleRowIndexes.map((rowIndex) => {
 										const row = rows[rowIndex];
+										const hasPendingSubmissionReview =
+											hasPendingEventReviewForRow(row);
 										const categoryValue = getCellDisplayValue(
 											rowIndex,
 											CATEGORY_COLUMN_KEY,
@@ -4832,14 +4949,24 @@ export const EventSheetEditorCard = ({
 										);
 										const rowIssues =
 											sheetHealthIssuesByRow.get(rowIndex + 1) ?? [];
-										const rowQuality = getRowQualityAssessment(row, rowIssues);
+										const rowQuality = getRowQualityAssessment(row, rowIssues, {
+											hasPendingSubmissionReview,
+										});
 										return (
 											<tr
 												key={`row-${rowIndex}`}
-												className="group/row align-top"
+												className={`group/row align-top ${
+													hasPendingSubmissionReview
+														? "bg-red-50/35 dark:bg-red-950/10"
+														: ""
+												}`}
 											>
 												<td
-													className="sticky z-10 border-r border-b bg-background px-1.5 py-1 text-[11px] text-muted-foreground"
+													className={`sticky z-10 border-r border-b px-1.5 py-1 text-[11px] text-muted-foreground ${
+														hasPendingSubmissionReview
+															? "bg-red-50/80 dark:bg-red-950/30"
+															: "bg-background"
+													}`}
 													style={{
 														left: 0,
 														width: `${ROW_NUMBER_COLUMN_WIDTH}px`,
@@ -4942,7 +5069,11 @@ export const EventSheetEditorCard = ({
 												{columns.map((column, columnIndex) => (
 													<td
 														key={`row-${rowIndex}-${column.key}`}
-														className="w-[170px] border-b border-r p-0"
+														className={`w-[170px] border-b border-r p-0 ${
+															hasPendingSubmissionReview
+																? "bg-red-50/25 dark:bg-red-950/10"
+																: ""
+														}`}
 														style={getPinnedColumnStyle(columnIndex, "cell")}
 													>
 														{column.key === CURATED_COLUMN_KEY ? (

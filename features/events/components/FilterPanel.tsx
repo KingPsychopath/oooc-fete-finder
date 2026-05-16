@@ -180,6 +180,29 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		"h-7 w-full min-w-0 overflow-hidden justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground lg:text-[11px]";
 	const regularToggleClassName =
 		"h-8 w-full min-w-0 overflow-hidden justify-start border border-border/75 bg-background/68 text-xs text-foreground/90 hover:bg-accent data-[state=on]:bg-accent data-[state=on]:text-accent-foreground lg:text-[11px]";
+	const eventCategoryToggleBaseClassName =
+		"h-8 w-full min-w-0 overflow-hidden justify-start border bg-background/68 text-xs text-foreground/90 hover:bg-accent lg:text-[11px]";
+	const getEventCategoryToggleClassName = (
+		category: EventExperienceCategory,
+		selected: boolean,
+	): string => {
+		if (!selected) return `${eventCategoryToggleBaseClassName} border-border/75`;
+
+		switch (category) {
+			case "party":
+				return `${eventCategoryToggleBaseClassName} border-amber-500/35 bg-amber-500/10 text-amber-900 dark:text-amber-100`;
+			case "activity":
+				return `${eventCategoryToggleBaseClassName} border-sky-500/35 bg-sky-500/10 text-sky-900 dark:text-sky-100`;
+			case "culture":
+				return `${eventCategoryToggleBaseClassName} border-violet-500/35 bg-violet-500/10 text-violet-900 dark:text-violet-100`;
+			case "food":
+				return `${eventCategoryToggleBaseClassName} border-emerald-500/35 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100`;
+			case "wellness":
+				return `${eventCategoryToggleBaseClassName} border-teal-500/35 bg-teal-500/10 text-teal-900 dark:text-teal-100`;
+			default:
+				return `${eventCategoryToggleBaseClassName} border-border/75 bg-accent text-accent-foreground`;
+		}
+	};
 	const compactRailSectionClassName =
 		"space-y-2.5 rounded-lg border border-border/70 bg-background/58 p-2.5";
 	const genreOptions = availableGenres ?? MUSIC_GENRES;
@@ -1364,33 +1387,39 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															experiences.
 														</p>
 														<div className="grid grid-cols-1 gap-1.5 min-[1180px]:grid-cols-2">
-															{eventCategoryOptions.map((category) => (
-																<Toggle
-																	key={category.key}
-																	pressed={selectedEventCategories.includes(
-																		category.key,
-																	)}
-																	onPressedChange={() =>
-																		handleFilterSelection(() =>
-																			onEventCategoryToggle(category.key),
-																		)
-																	}
-																	className={regularToggleClassName}
-																	size="sm"
-																	title={category.description}
-																>
-																	<span className="inline-flex min-w-0 items-center gap-1 text-xs lg:text-[11px]">
-																		{category.key === "party" ? (
-																			<Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-																		) : (
-																			<Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+															{eventCategoryOptions.map((category) => {
+																const selected =
+																	selectedEventCategories.includes(category.key);
+
+																return (
+																	<Toggle
+																		key={category.key}
+																		pressed={selected}
+																		onPressedChange={() =>
+																			handleFilterSelection(() =>
+																				onEventCategoryToggle(category.key),
+																			)
+																		}
+																		className={getEventCategoryToggleClassName(
+																			category.key,
+																			selected,
 																		)}
-																		<span className="min-w-0 truncate">
-																			{category.label}
+																		size="sm"
+																		title={category.description}
+																	>
+																		<span className="inline-flex min-w-0 items-center gap-1 text-xs lg:text-[11px]">
+																			{category.key === "party" ? (
+																				<Clock className="h-3.5 w-3.5 shrink-0 opacity-75" />
+																			) : (
+																				<Tag className="h-3.5 w-3.5 shrink-0 opacity-75" />
+																			)}
+																			<span className="min-w-0 truncate">
+																				{category.label}
+																			</span>
 																		</span>
-																	</span>
-																</Toggle>
-															))}
+																	</Toggle>
+																);
+															})}
 														</div>
 													</div>
 												)}
@@ -1904,33 +1933,40 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											culture, or wellness experiences.
 										</p>
 										<div className="grid grid-cols-2 gap-1">
-											{eventCategoryOptions.map((category) => (
-												<Toggle
-													key={category.key}
-													pressed={selectedEventCategories.includes(
-														category.key,
-													)}
-													onPressedChange={() =>
-														handleFilterSelection(() =>
-															onEventCategoryToggle(category.key),
-														)
-													}
-													className={regularToggleClassName}
-													size="sm"
-													title={category.description}
-												>
-													<span className="inline-flex min-w-0 items-center gap-1 text-xs">
-														{category.key === "party" ? (
-															<Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-														) : (
-															<Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+											{eventCategoryOptions.map((category) => {
+												const selected = selectedEventCategories.includes(
+													category.key,
+												);
+
+												return (
+													<Toggle
+														key={category.key}
+														pressed={selected}
+														onPressedChange={() =>
+															handleFilterSelection(() =>
+																onEventCategoryToggle(category.key),
+															)
+														}
+														className={getEventCategoryToggleClassName(
+															category.key,
+															selected,
 														)}
-														<span className="min-w-0 truncate">
-															{category.label}
+														size="sm"
+														title={category.description}
+													>
+														<span className="inline-flex min-w-0 items-center gap-1 text-xs">
+															{category.key === "party" ? (
+																<Clock className="h-3.5 w-3.5 shrink-0 opacity-75" />
+															) : (
+																<Tag className="h-3.5 w-3.5 shrink-0 opacity-75" />
+															)}
+															<span className="min-w-0 truncate">
+																{category.label}
+															</span>
 														</span>
-													</span>
-												</Toggle>
-											))}
+													</Toggle>
+												);
+											})}
 										</div>
 									</div>
 								)}

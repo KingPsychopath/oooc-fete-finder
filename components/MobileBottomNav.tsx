@@ -97,11 +97,15 @@ function normalizePathname(pathname: string | null): string {
 
 function useMobileNavVisibility(isPinnedOpen: boolean) {
 	const [isVisible, setIsVisible] = useState(true);
+	const isVisibleRef = useRef(true);
 	const lastYRef = useRef(0);
 
 	useEffect(() => {
 		if (isPinnedOpen) {
-			setIsVisible(true);
+			if (!isVisibleRef.current) {
+				isVisibleRef.current = true;
+				setIsVisible(true);
+			}
 			return;
 		}
 
@@ -111,12 +115,12 @@ function useMobileNavVisibility(isPinnedOpen: boolean) {
 		const updateVisibility = () => {
 			rafId = null;
 			const nextY = window.scrollY;
-			if (nextY < SCROLL_HIDE_THRESHOLD) {
-				setIsVisible(true);
-			} else if (nextY > lastYRef.current) {
-				setIsVisible(false);
-			} else if (nextY < lastYRef.current) {
-				setIsVisible(true);
+			const nextIsVisible =
+				nextY < SCROLL_HIDE_THRESHOLD || nextY < lastYRef.current;
+
+			if (isVisibleRef.current !== nextIsVisible) {
+				isVisibleRef.current = nextIsVisible;
+				setIsVisible(nextIsVisible);
 			}
 
 			lastYRef.current = nextY;

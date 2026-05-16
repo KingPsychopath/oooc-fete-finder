@@ -4,6 +4,7 @@ import {
 	sanitizePastedEmail,
 	sanitizeRecentProfile,
 	validateEmail,
+	validateName,
 } from "@/features/auth/email-gate-utils";
 import { describe, expect, it } from "vitest";
 
@@ -90,6 +91,14 @@ describe("email gate utilities", () => {
 			expect(validateEmail("person@example.com")).toBe(true);
 			expect(validateEmail("person@example")).toBe(false);
 			expect(validateEmail("person example.com")).toBe(false);
+		});
+	});
+
+	describe("validateName", () => {
+		it("requires at least two non-whitespace characters", () => {
+			expect(validateName(" Ada ")).toBe(true);
+			expect(validateName("A")).toBe(false);
+			expect(validateName("   ")).toBe(false);
 		});
 	});
 });

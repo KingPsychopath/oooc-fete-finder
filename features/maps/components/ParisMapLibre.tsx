@@ -1,17 +1,19 @@
 "use client";
 
 import maplibregl from "maplibre-gl";
+import type { ExpressionSpecification } from "maplibre-gl";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import arrondissementData from "@/data/paris-arr-v2.json";
 import { trackDiscoveryAnalytics } from "@/features/events/engagement/client-tracking";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
-import type { Event } from "@/features/events/types";
+import type { Event, EventExperienceCategory } from "@/features/events/types";
 import {
 	type DayNightPeriod,
 	formatDayWithDate,
 	formatPrice,
 	getEventDisplayDayNightPeriod,
+	getResolvedEventExperienceCategoryDefinition,
 } from "@/features/events/types";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { clientLog } from "@/lib/platform/client-logger";
@@ -141,6 +143,28 @@ const ARRONDISSEMENT_COLORS = {
 	/** Hovered arrondissement - Dark gray */
 	HOVER: "#374151",
 } as const;
+const EVENT_CATEGORY_MAP_COLORS: Record<EventExperienceCategory, string> = {
+	party: "#d8a241",
+	activity: "#0284c7",
+	culture: "#7c3aed",
+	food: "#059669",
+	wellness: "#0f766e",
+};
+const EVENT_CATEGORY_MAP_COLOR_EXPRESSION: ExpressionSpecification = [
+	"match",
+	["get", "eventCategory"],
+	"party",
+	EVENT_CATEGORY_MAP_COLORS.party,
+	"activity",
+	EVENT_CATEGORY_MAP_COLORS.activity,
+	"culture",
+	EVENT_CATEGORY_MAP_COLORS.culture,
+	"food",
+	EVENT_CATEGORY_MAP_COLORS.food,
+	"wellness",
+	EVENT_CATEGORY_MAP_COLORS.wellness,
+	"#49382e",
+];
 
 /**
  * Gets the appropriate fill color for an arrondissement based on event count
@@ -1268,6 +1292,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				properties: {
 					id: event.id,
 					name: event.name,
+					eventCategory:
+						getResolvedEventExperienceCategoryDefinition(event)?.key ?? "party",
 					isFeatured: shouldDisplayFeaturedEvent(event),
 					isPromoted: event.isPromoted === true,
 					isOOOCPick: event.isOOOCPick || false,
@@ -1293,6 +1319,26 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				featured_count: ["+", ["case", ["get", "isFeatured"], 1, 0]],
 				promoted_count: ["+", ["case", ["get", "isPromoted"], 1, 0]],
 				oooc_count: ["+", ["case", ["get", "isOOOCPick"], 1, 0]],
+				party_count: [
+					"+",
+					["case", ["==", ["get", "eventCategory"], "party"], 1, 0],
+				],
+				activity_count: [
+					"+",
+					["case", ["==", ["get", "eventCategory"], "activity"], 1, 0],
+				],
+				culture_count: [
+					"+",
+					["case", ["==", ["get", "eventCategory"], "culture"], 1, 0],
+				],
+				food_count: [
+					"+",
+					["case", ["==", ["get", "eventCategory"], "food"], 1, 0],
+				],
+				wellness_count: [
+					"+",
+					["case", ["==", ["get", "eventCategory"], "wellness"], 1, 0],
+				],
 			},
 		});
 
@@ -1311,7 +1357,17 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					"#2f8f8a",
 					[">", ["get", "oooc_count"], 0],
 					"#b7832d",
-					"#49382e",
+					[">", ["get", "activity_count"], 0],
+					EVENT_CATEGORY_MAP_COLORS.activity,
+					[">", ["get", "culture_count"], 0],
+					EVENT_CATEGORY_MAP_COLORS.culture,
+					[">", ["get", "food_count"], 0],
+					EVENT_CATEGORY_MAP_COLORS.food,
+					[">", ["get", "wellness_count"], 0],
+					EVENT_CATEGORY_MAP_COLORS.wellness,
+					[">", ["get", "party_count"], 0],
+					EVENT_CATEGORY_MAP_COLORS.party,
+					EVENT_CATEGORY_MAP_COLOR_EXPRESSION,
 				],
 				"circle-stroke-color": "#fffaf3",
 				"circle-stroke-width": 2.5,
@@ -1364,7 +1420,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					"#2f8f8a",
 					["get", "isOOOCPick"],
 					"#d8a241",
-					"#49382e",
+					EVENT_CATEGORY_MAP_COLOR_EXPRESSION,
 				],
 				"circle-opacity": [
 					"case",
@@ -1407,7 +1463,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					"#2f8f8a",
 					["get", "isOOOCPick"],
 					"#d8a241",
-					"#49382e",
+					EVENT_CATEGORY_MAP_COLOR_EXPRESSION,
 				],
 				"circle-stroke-width": [
 					"case",
@@ -1435,7 +1491,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			],
 			paint: {
 				"circle-radius": 2.6,
-				"circle-color": "#d8a241",
+				"circle-color": "#fffaf3",
 				"circle-opacity": 0.98,
 			},
 		});
