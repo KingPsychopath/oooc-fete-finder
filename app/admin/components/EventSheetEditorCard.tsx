@@ -218,6 +218,13 @@ type QualityPopoverState = {
 	top: number;
 	left: number;
 };
+
+type EventCategoryPopoverState = {
+	rowIndex: number;
+	columnKey: string;
+	top: number;
+	left: number;
+};
 type FocusedCell = {
 	rowIndex: number;
 	columnKey: string;
@@ -258,6 +265,9 @@ const DETAILS_QUALITY_OVERRIDE_COLUMN_KEY = "detailsQualityOverride";
 const COUNTRY_COLUMN_KEYS = new Set(["hostCountry", "audienceCountry"]);
 const TIME_COLUMN_KEYS = new Set([START_TIME_COLUMN_KEY, END_TIME_COLUMN_KEY]);
 const CURATED_PICK_VALUE = "🌟";
+const EVENT_CATEGORY_POPOVER_WIDTH = 288;
+const EVENT_CATEGORY_POPOVER_HEIGHT = 270;
+const EVENT_CATEGORY_POPOVER_PADDING = 12;
 const getRequiredSheetHealthIssues = (
 	rows: EditableSheetRow[],
 ): SheetHealthIssue[] => {
@@ -1223,6 +1233,8 @@ export const EventSheetEditorCard = ({
 	const [highlightedAgeIndex, setHighlightedAgeIndex] = useState(0);
 	const [qualityPopover, setQualityPopover] =
 		useState<QualityPopoverState | null>(null);
+	const [eventCategoryPopover, setEventCategoryPopover] =
+		useState<EventCategoryPopoverState | null>(null);
 	const [activeCellDraft, setActiveCellDraft] = useState<CellDraft | null>(
 		null,
 	);
@@ -1304,6 +1316,7 @@ export const EventSheetEditorCard = ({
 		setAreaSearchQuery("");
 		setFocusedSettingCell(null);
 		setFocusedEventCategoryCell(null);
+		setEventCategoryPopover(null);
 		setFocusedAgeCell(null);
 	}, []);
 
@@ -2763,6 +2776,7 @@ export const EventSheetEditorCard = ({
 			const row = rowsRef.current[rowIndex];
 			if (!row) return;
 			handleCellChange(rowIndex, columnKey, category?.label ?? "");
+			setEventCategoryPopover(null);
 			setCellDraft(null);
 			setFocusedEventCategoryCell({ rowIndex, columnKey });
 			window.setTimeout(() => {
@@ -3171,6 +3185,34 @@ export const EventSheetEditorCard = ({
 		},
 		[],
 	);
+	const openEventCategoryPopover = useCallback(
+		(rowIndex: number, columnKey: string, anchor: HTMLElement) => {
+			const rect = anchor.getBoundingClientRect();
+			const left = Math.min(
+				Math.max(rect.left + 1, EVENT_CATEGORY_POPOVER_PADDING),
+				Math.max(
+					window.innerWidth - EVENT_CATEGORY_POPOVER_WIDTH - EVENT_CATEGORY_POPOVER_PADDING,
+					EVENT_CATEGORY_POPOVER_PADDING,
+				),
+			);
+			const hasRoomBelow =
+				rect.bottom + EVENT_CATEGORY_POPOVER_HEIGHT + EVENT_CATEGORY_POPOVER_PADDING <
+				window.innerHeight - EVENT_CATEGORY_POPOVER_PADDING;
+			const top = hasRoomBelow
+				? rect.bottom + 8
+				: Math.max(
+					rect.top - EVENT_CATEGORY_POPOVER_HEIGHT - 8,
+					EVENT_CATEGORY_POPOVER_PADDING,
+				);
+
+			setEventCategoryPopover((current) =>
+				current?.rowIndex === rowIndex && current.columnKey === columnKey
+					? current
+					: { rowIndex, columnKey, top, left },
+			);
+		},
+		[],
+	);
 	useEffect(() => {
 		if (!qualityPopover) return;
 		const close = () => setQualityPopover(null);
@@ -3200,6 +3242,44 @@ export const EventSheetEditorCard = ({
 			window.removeEventListener("scroll", close, true);
 		};
 	}, [qualityPopover]);
+	useEffect(() => {
+		if (!eventCategoryPopover) return;
+		const close = () => {
+			setEventCategoryPopover(null);
+			setFocusedEventCategoryCell(null);
+		};
+		const closeOnOutsidePointerDown = (event: PointerEvent) => {
+			const target = event.target;
+			if (
+				target instanceof Element &&
+				(target.closest("[data-event-category-popover]") ||
+					target.closest("[data-event-category-cell]"))
+			) {
+				return;
+			}
+			close();
+		};
+		const closeOnEscape = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				close();
+			}
+		};
+		document.addEventListener("pointerdown", closeOnOutsidePointerDown);
+		document.addEventListener("keydown", closeOnEscape);
+		window.addEventListener("resize", close);
+		window.addEventListener("scroll", close, true);
+		return () => {
+			document.removeEventListener("pointerdown", closeOnOutsidePointerDown);
+			document.removeEventListener("keydown", closeOnEscape);
+			window.removeEventListener("resize", close);
+			window.removeEventListener("scroll", close, true);
+		};
+	}, [eventCategoryPopover]);
+	useEffect(() => {
+		if (!focusedEventCategoryCell) {
+			setEventCategoryPopover(null);
+		}
+	}, [focusedEventCategoryCell]);
 
 	const focusCell = (
 		rowIndex: number,
@@ -3254,9 +3334,9 @@ export const EventSheetEditorCard = ({
 		return null;
 	}
 
-	const qualityPopoverPortal =
-		qualityPopover && typeof document !== "undefined"
-			? (() => {
+		const qualityPopoverPortal =
+			qualityPopover && typeof document !== "undefined"
+				? (() => {
 					const row = rows[qualityPopover.rowIndex];
 					if (!row) return null;
 					const rowIssues =
@@ -3377,9 +3457,91 @@ export const EventSheetEditorCard = ({
 					);
 				})()
 			: null;
+		const eventCategoryPopoverPortal =
+			eventCategoryPopover && typeof document !== "undefined"
+				? createPortal(
+					<div
+						data-event-category-popover
+						className="fixed z-[130] w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
+						style={{
+							top: eventCategoryPopover.top,
+							left: eventCategoryPopover.left,
+						}}
+					>
+						<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+							Event Category
+						</div>
+						<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+							Use this to separate parties from activities without changing
+							the card layout.
+						</div>
+						<div className="max-h-60 overflow-y-auto p-1">
+							<button
+								type="button"
+								onMouseDown={(event) => {
+									event.preventDefault();
+									selectEventCategoryForCell(
+										eventCategoryPopover.rowIndex,
+										eventCategoryPopover.columnKey,
+										null,
+									);
+								}}
+								className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-muted-foreground transition hover:bg-accent/70"
+							>
+								Clear
+							</button>
+							{eventCategoryOptionsForFocusedCell.map((category, optionIndex) => {
+								const normalizedCurrent =
+									normalizeEventExperienceCategory(
+										getCellDisplayValue(
+											eventCategoryPopover.rowIndex,
+											eventCategoryPopover.columnKey,
+											rows[eventCategoryPopover.rowIndex]?.[
+												eventCategoryPopover.columnKey
+										] ?? "",
+									),
+									);
+								const isSelected =
+									normalizedCurrent === category.key;
+
+								return (
+									<button
+										key={category.key}
+										type="button"
+										onMouseDown={(event) => {
+											event.preventDefault();
+											selectEventCategoryForCell(
+												eventCategoryPopover.rowIndex,
+												eventCategoryPopover.columnKey,
+												category,
+											);
+										}}
+										className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+											optionIndex === highlightedEventCategoryIndex
+												? "bg-accent text-accent-foreground"
+												: isSelected
+													? "bg-muted text-foreground"
+													: "hover:bg-accent/70"
+											}`}
+									>
+										<span className="min-w-0 flex-1 truncate font-medium">
+											{category.label}
+										</span>
+										<span className="max-w-40 truncate text-[10px] text-muted-foreground">
+											{category.description}
+										</span>
+									</button>
+								);
+							})}
+						</div>
+					</div>,
+					document.body,
+				)
+				: null;
 
 	return (
 		<>
+			{eventCategoryPopoverPortal}
 			{qualityPopoverPortal}
 			<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
 				<CardHeader>
@@ -5761,11 +5923,16 @@ export const EventSheetEditorCard = ({
 																		column.key,
 																		row[column.key] ?? "",
 																	)}
-																	onFocus={() => {
+																	onFocus={(event) => {
 																		beginCellDraft(
 																			rowIndex,
 																			column.key,
 																			row[column.key] ?? "",
+																		);
+																		openEventCategoryPopover(
+																			rowIndex,
+																			column.key,
+																			event.currentTarget,
 																		);
 																		setFocusedEventCategoryCell({
 																			rowIndex,
@@ -5895,82 +6062,8 @@ export const EventSheetEditorCard = ({
 																		focusedEventCategoryCell.columnKey ===
 																			column.key
 																	}
+																	data-event-category-cell
 																/>
-																{focusedEventCategoryCell?.rowIndex ===
-																	rowIndex &&
-																	focusedEventCategoryCell.columnKey ===
-																		column.key && (
-																		<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
-																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-																				Event Category
-																			</div>
-																			<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
-																				Use this to separate parties from
-																				activities without changing the card
-																				layout.
-																			</div>
-																			<div className="max-h-60 overflow-y-auto p-1">
-																				<button
-																					type="button"
-																					onMouseDown={(event) => {
-																						event.preventDefault();
-																						selectEventCategoryForCell(
-																							rowIndex,
-																							column.key,
-																							null,
-																						);
-																					}}
-																					className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-muted-foreground transition hover:bg-accent/70"
-																				>
-																					Clear
-																				</button>
-																				{eventCategoryOptionsForFocusedCell.map(
-																					(category, optionIndex) => {
-																						const normalizedCurrent =
-																							normalizeEventExperienceCategory(
-																								getCellDisplayValue(
-																									rowIndex,
-																									column.key,
-																									row[column.key] ?? "",
-																								),
-																							);
-																						const isSelected =
-																							normalizedCurrent ===
-																							category.key;
-																						return (
-																							<button
-																								key={category.key}
-																								type="button"
-																								onMouseDown={(event) => {
-																									event.preventDefault();
-																									selectEventCategoryForCell(
-																										rowIndex,
-																										column.key,
-																										category,
-																									);
-																								}}
-																								className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
-																									optionIndex ===
-																									highlightedEventCategoryIndex
-																										? "bg-accent text-accent-foreground"
-																										: isSelected
-																											? "bg-muted text-foreground"
-																											: "hover:bg-accent/70"
-																								}`}
-																							>
-																								<span className="min-w-0 flex-1 truncate font-medium">
-																									{category.label}
-																								</span>
-																								<span className="max-w-40 truncate text-[10px] text-muted-foreground">
-																									{category.description}
-																								</span>
-																							</button>
-																						);
-																					},
-																				)}
-																			</div>
-																		</div>
-																	)}
 															</div>
 														) : column.key === SETTING_COLUMN_KEY ? (
 															<div className="relative min-h-9 bg-transparent">

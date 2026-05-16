@@ -168,6 +168,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	const haptics = useAppHaptics();
 	const sectionClassName =
 		"space-y-3 rounded-xl border border-border/70 bg-background/58 p-3";
+	const prioritySectionClassName =
+		"space-y-3 rounded-xl border-2 border-border bg-background/75 p-3 shadow-sm";
 	const sectionTitleClassName =
 		"text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground lg:text-[10px]";
 	const hiddenScrollbarClassName =
@@ -206,7 +208,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	const ooocPickHelp =
 		"OOOC Picks are events highlighted by Out Of Office Collective as especially worth considering.";
 	const eventCategoryHelp =
-		"Event category describes the kind of listing, separate from OOOC Picks and music genres. Only categories already present in the event data are shown here.";
+		"Event category classifies the listing type (party/activity/culture/food/wellness), while music genres describe what kind of music is playing. Only categories already present in the event data are shown here.";
 	const hostNationalityHelp =
 		"The country or cultural background associated with the event host or promoter. Selecting more than one means events must include all selected host nationalities.";
 	const arrondissementHelp =
@@ -1004,7 +1006,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									{/* Days & Times Section */}
 									<AccordionItem value="days">
 										<AccordionTrigger className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground/86 hover:text-foreground transition-colors lg:text-[12px]">
-											Date & Times
+											<span className="inline-flex items-center gap-1.5">
+												<CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+												Date & Times
+											</span>
 											{(hasSelectedDateRange ||
 												selectedDayNightPeriods.length > 0) && (
 												<Badge
@@ -1018,7 +1023,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											)}
 										</AccordionTrigger>
 										<AccordionContent>
-											<div className="space-y-3">
+											<div className={prioritySectionClassName}>
 												{renderDefaultDateRangeHint()}
 												{/* Day/Night Periods */}
 												<div className={compactRailSectionClassName}>
@@ -1327,43 +1332,24 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										</AccordionTrigger>
 										<AccordionContent>
 											<div className="space-y-4">
-												{/* OOOC Picks */}
-												<div className="space-y-2">
-													<div className="flex items-center">
-														<h3 className={sectionTitleClassName}>
-															OOOC Picks
-														</h3>
-														<InfoPopover aria-label="Explain OOOC Picks">
-															{ooocPickHelp}
-														</InfoPopover>
-													</div>
-													<Toggle
-														pressed={selectedOOOCPicks}
-														onPressedChange={(pressed) =>
-															handleFilterSelection(() =>
-																onOOOCPicksToggle(pressed),
-															)
-														}
-														className={denseToggleClassName}
-														size="sm"
-													>
-														<Star className="h-3.5 w-3.5 mr-1.5 shrink-0 fill-yellow-400" />
-														<span className="min-w-0 truncate text-xs lg:text-[11px]">
-															Show only OOOC Picks
-														</span>
-													</Toggle>
-												</div>
-
 												{eventCategoryOptions.length > 0 && (
-													<div>
+													<div className={prioritySectionClassName}>
 														<div className="flex items-center">
 															<h3 className={sectionTitleClassName}>
-																Event Category
+																<span className="inline-flex items-center gap-1.5">
+																	<Tag className="h-3.5 w-3.5" />
+																	Event Category
+																</span>
 															</h3>
 															<InfoPopover aria-label="Explain event category filters">
 																{eventCategoryHelp}
 															</InfoPopover>
 														</div>
+														<p className="text-[11px] leading-relaxed text-muted-foreground">
+															Event category is the listing type (not music genres). Use
+															it to separate party-style events from activities, food,
+															culture, or wellness experiences.
+														</p>
 														<div className="grid grid-cols-1 gap-1.5 min-[1180px]:grid-cols-2">
 															{eventCategoryOptions.map((category) => (
 																<Toggle
@@ -1391,6 +1377,33 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														</div>
 													</div>
 												)}
+
+												{/* OOOC Picks */}
+												<div className="space-y-2">
+													<div className="flex items-center">
+														<h3 className={sectionTitleClassName}>
+															OOOC Picks
+														</h3>
+														<InfoPopover aria-label="Explain OOOC Picks">
+															{ooocPickHelp}
+														</InfoPopover>
+													</div>
+													<Toggle
+														pressed={selectedOOOCPicks}
+														onPressedChange={(pressed) =>
+															handleFilterSelection(() =>
+																onOOOCPicksToggle(pressed),
+															)
+														}
+														className={denseToggleClassName}
+														size="sm"
+													>
+														<Star className="h-3.5 w-3.5 mr-1.5 shrink-0 fill-yellow-400" />
+														<span className="min-w-0 truncate text-xs lg:text-[11px]">
+															Show only OOOC Picks
+														</span>
+													</Toggle>
+												</div>
 
 												{/* Venue Type */}
 												<div>
@@ -1695,32 +1708,35 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						{uiDecisions.useAccordion ? (
 							// Accordion Layout for Desktop when space is needed
 							<div className="hidden lg:block">
-								<Accordion
-									multiple
-									value={openAccordionSections}
-									onValueChange={(value) =>
-										setOpenAccordionSections(value.filter(Boolean) as string[])
-									}
-									className="w-full"
-								>
-									<AccordionItem value="days">
-										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
-											Date & Times
-											{(hasSelectedDateRange ||
-												selectedDayNightPeriods.length > 0) && (
-												<Badge
-													variant="secondary"
-													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+									<Accordion
+										multiple
+										value={openAccordionSections}
+										onValueChange={(value) =>
+											setOpenAccordionSections(value.filter(Boolean) as string[])
+										}
+										className="w-full"
+									>
+										<AccordionItem value="days">
+											<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
+												<span className="inline-flex items-center gap-1.5">
+													<CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+													Date & Times
+												</span>
+												{(hasSelectedDateRange ||
+													selectedDayNightPeriods.length > 0) && (
+													<Badge
+														variant="secondary"
+														className="ml-2 border border-border/70 bg-secondary/72 text-xs"
 												>
 													{(hasSelectedDateRange ? 1 : 0) +
 														selectedDayNightPeriods.length}
 												</Badge>
 											)}
 										</AccordionTrigger>
-										<AccordionContent>
-											{/* Compact Days Section for Accordion */}
-											<div className="space-y-3">
-												{renderDefaultDateRangeHint()}
+											<AccordionContent>
+												{/* Compact Days Section for Accordion */}
+												<div className={prioritySectionClassName}>
+													{renderDefaultDateRangeHint()}
 												{/* Day/Night Periods */}
 												<div className="p-1.5 bg-muted/20 rounded-md border overflow-hidden">
 													<div className="flex items-center justify-between mb-1">
@@ -1776,14 +1792,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						) : (
 							// Expanded Layout (Mobile always, Desktop when space allows)
 							<div className="space-y-6 lg:space-y-4">
-								{/* Days & Times */}
-								<div className={sectionClassName}>
-									<div className="flex items-center mb-3">
-										<h3 className={sectionTitleClassName}>Date & Times</h3>
-										<InfoPopover
-											aria-label="Show day and night time definitions"
-											contentClassName="space-y-1.5"
-										>
+									{/* Days & Times */}
+									<div className={prioritySectionClassName}>
+										<div className="flex items-center mb-3">
+											<div className="inline-flex items-center gap-1.5">
+												<CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+												<h3 className={sectionTitleClassName}>Date & Times</h3>
+											</div>
+											<InfoPopover
+												aria-label="Show day and night time definitions"
+												contentClassName="space-y-1.5"
+											>
 											<p className="inline-flex items-center gap-1.5">
 												<strong>Day:</strong> 6:00 AM - 9:59 PM
 												<Sun className="h-3.5 w-3.5" />
@@ -1795,10 +1814,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										</InfoPopover>
 									</div>
 
-									<div className="space-y-2">
-										{renderDefaultDateRangeHint()}
-										{/* Day/Night Periods */}
-										<div className={sectionClassName}>
+										<div className="space-y-2">
+											{renderDefaultDateRangeHint()}
+											{/* Day/Night Periods */}
+											<div className={sectionClassName}>
 											<div className="flex items-center justify-between mb-2">
 												<h4 className={sectionTitleClassName}>
 													Filter by Time
@@ -1845,62 +1864,73 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</div>
 								</div>
 
-								{/* OOOC Picks */}
-								<div className={sectionClassName}>
-									<div className="flex items-center">
-										<h3 className={sectionTitleClassName}>OOOC Picks</h3>
-										<InfoPopover aria-label="Explain OOOC Picks">
-											{ooocPickHelp}
+									{/* Event Category */}
+									{eventCategoryOptions.length > 0 && (
+										<div className={prioritySectionClassName}>
+											<div className="flex items-center">
+												<h3 className={sectionTitleClassName}>
+													<span className="inline-flex items-center gap-1.5">
+														<Tag className="h-3.5 w-3.5" />
+														Event Category
+													</span>
+												</h3>
+												<InfoPopover aria-label="Explain event category filters">
+													{eventCategoryHelp}
+												</InfoPopover>
+											</div>
+											<p className="text-xs leading-relaxed text-muted-foreground lg:text-[11px]">
+												Event category is the listing type (not music genres). Use it to
+												separate party-style events from activities, food, culture, or
+												wellness experiences.
+											</p>
+											<div className="grid grid-cols-2 gap-1">
+												{eventCategoryOptions.map((category) => (
+													<Toggle
+														key={category.key}
+														pressed={selectedEventCategories.includes(
+															category.key,
+														)}
+														onPressedChange={() =>
+															handleFilterSelection(() =>
+																onEventCategoryToggle(category.key),
+															)
+														}
+														className={regularToggleClassName}
+														size="sm"
+														title={category.description}
+													>
+														<span className="inline-flex min-w-0 items-center gap-1 text-xs">
+															<Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+															<span className="min-w-0 truncate">
+																{category.label}
+															</span>
+														</span>
+													</Toggle>
+												))}
+											</div>
+										</div>
+									)}
+
+									{/* OOOC Picks */}
+									<div className={sectionClassName}>
+										<div className="flex items-center">
+											<h3 className={sectionTitleClassName}>OOOC Picks</h3>
+											<InfoPopover aria-label="Explain OOOC Picks">
+												{ooocPickHelp}
 										</InfoPopover>
 									</div>
-									<Toggle
-										pressed={selectedOOOCPicks}
-										onPressedChange={(pressed) =>
-											handleFilterSelection(() => onOOOCPicksToggle(pressed))
-										}
+										<Toggle
+											pressed={selectedOOOCPicks}
+											onPressedChange={(pressed) =>
+												handleFilterSelection(() => onOOOCPicksToggle(pressed))
+											}
 										className={regularToggleClassName}
 										size="sm"
 									>
 										<Star className="h-4 w-4 mr-2 fill-yellow-400" />
 										<span className="text-xs">Show only OOOC Picks</span>
-									</Toggle>
-								</div>
-
-								{eventCategoryOptions.length > 0 && (
-									<div className={sectionClassName}>
-										<div className="flex items-center">
-											<h3 className={sectionTitleClassName}>Event Category</h3>
-											<InfoPopover aria-label="Explain event category filters">
-												{eventCategoryHelp}
-											</InfoPopover>
-										</div>
-										<div className="grid grid-cols-2 gap-1">
-											{eventCategoryOptions.map((category) => (
-												<Toggle
-													key={category.key}
-													pressed={selectedEventCategories.includes(
-														category.key,
-													)}
-													onPressedChange={() =>
-														handleFilterSelection(() =>
-															onEventCategoryToggle(category.key),
-														)
-													}
-													className={regularToggleClassName}
-													size="sm"
-													title={category.description}
-												>
-													<span className="inline-flex min-w-0 items-center gap-1 text-xs">
-														<Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-														<span className="min-w-0 truncate">
-															{category.label}
-														</span>
-													</span>
-												</Toggle>
-											))}
-										</div>
+										</Toggle>
 									</div>
-								)}
 
 								{/* Venue Type */}
 								<div className={sectionClassName}>

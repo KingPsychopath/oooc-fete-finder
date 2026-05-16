@@ -12,6 +12,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { normalizeSearchText } from "@/features/events/genre-normalization";
 import { normalizeProofLink } from "@/features/events/submissions/proof-link";
 import {
@@ -550,22 +557,28 @@ export function SubmitEventForm({
 					</div>
 					<div className="space-y-2 md:col-span-2">
 						<Label htmlFor="eventCategory">Event Category</Label>
-						<select
-							id="eventCategory"
+						<Select
 							value={form.eventCategory}
-							onChange={(event) =>
-								updateField("eventCategory", event.target.value)
-							}
-							className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+							onValueChange={(value) => updateField("eventCategory", value ?? "")}
 							required
 							disabled={isFormDisabled}
 						>
-							{EVENT_EXPERIENCE_CATEGORIES.map((category) => (
-								<option key={category.key} value={category.label}>
-									{category.label}
-								</option>
-							))}
-						</select>
+							<SelectTrigger id="eventCategory" className="h-10">
+								<SelectValue placeholder="Select a category" />
+							</SelectTrigger>
+							<SelectContent>
+								{EVENT_EXPERIENCE_CATEGORIES.map((category) => (
+									<SelectItem key={category.key} value={category.label}>
+										<div className="min-w-0">
+											<div className="font-medium">{category.label}</div>
+											<div className="text-xs text-muted-foreground">
+												{category.description}
+											</div>
+										</div>
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 					<fieldset className="space-y-2 md:col-span-2">
 						<legend className="text-sm font-medium">Schedule</legend>

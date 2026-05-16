@@ -91,6 +91,9 @@ export function EventCard({
 	const isNewlyAdded = isRecentlyAddedEvent(event);
 	const isRecentlyUpdated = !isNewlyAdded && isRecentlyUpdatedEvent(event);
 	const hasOOOCPick = event.isOOOCPick === true;
+	const eventCategoryDefinition = getEventExperienceCategoryDefinition(
+		event.eventCategory,
+	);
 	const dayNightPeriod = getEventDisplayDayNightPeriod(
 		event,
 		preferredDayNightPeriods,
@@ -98,6 +101,28 @@ export function EventCard({
 	const visibleEventType = getVisibleEventTypeLabel(event.type);
 	const headerEventTypeLabel =
 		visibleEventType ?? (event.type === "Fete" ? "Fête" : null);
+	const contextualPillLabel = eventCategoryDefinition?.key === "party"
+		? headerEventTypeLabel
+		: eventCategoryDefinition?.label;
+	const shouldShowContextualPill = Boolean(contextualPillLabel);
+	const contextualPillClassName = eventCategoryDefinition?.key === "party"
+		? "border-border/70 bg-background/50 text-muted-foreground"
+		: `${eventCategoryDefinition?.color ?? ""} hover:bg-background/60`;
+	const contextualPillIcon = eventCategoryDefinition?.key === "party" ? (
+		<Clock className="h-3 w-3" />
+	) : (
+		<Tag className="h-3 w-3" />
+	);
+	const categoryCardClasses =
+		eventCategoryDefinition?.key === "activity"
+			? "border-sky-300/24 bg-[linear-gradient(145deg,rgba(239,246,255,0.8),rgba(230,242,255,0.56))] hover:bg-[linear-gradient(145deg,rgba(240,247,255,0.9),rgba(233,246,255,0.64))] dark:border-sky-500/22 dark:bg-[linear-gradient(145deg,rgba(19,63,104,0.33),rgba(17,44,70,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(29,73,119,0.38),rgba(27,55,88,0.26))]"
+			: eventCategoryDefinition?.key === "culture"
+				? "border-violet-300/24 bg-[linear-gradient(145deg,rgba(248,245,255,0.8),rgba(238,232,250,0.56))] hover:bg-[linear-gradient(145deg,rgba(249,246,255,0.9),rgba(241,236,252,0.64))] dark:border-violet-500/22 dark:bg-[linear-gradient(145deg,rgba(57,43,90,0.28),rgba(39,30,66,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(73,53,106,0.34),rgba(51,39,81,0.28))]"
+				: eventCategoryDefinition?.key === "food"
+					? "border-emerald-300/24 bg-[linear-gradient(145deg,rgba(236,252,243,0.8),rgba(223,247,230,0.56))] hover:bg-[linear-gradient(145deg,rgba(239,253,246,0.9),rgba(230,250,236,0.64))] dark:border-emerald-500/22 dark:bg-[linear-gradient(145deg,rgba(30,74,51,0.28),rgba(23,58,39,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(35,90,62,0.34),rgba(27,67,45,0.26))]"
+					: eventCategoryDefinition?.key === "wellness"
+						? "border-amber-300/24 bg-[linear-gradient(145deg,rgba(255,250,236,0.8),rgba(255,243,220,0.56))] hover:bg-[linear-gradient(145deg,rgba(255,253,240,0.9),rgba(255,246,224,0.64))] dark:border-amber-500/22 dark:bg-[linear-gradient(145deg,rgba(84,64,30,0.28),rgba(63,46,17,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(95,72,32,0.34),rgba(73,53,22,0.26))]"
+						: null;
 	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
 	const socialProofHistoricalSaveCount =
 		event.socialProofHistoricalSaveCount ?? 0;
@@ -130,12 +155,6 @@ export function EventCard({
 		event.venueTypes && event.venueTypes.length > 0
 			? [...new Set(event.venueTypes)]
 			: [event.indoor ? "indoor" : "outdoor"];
-	const eventCategoryDefinition = getEventExperienceCategoryDefinition(
-		event.eventCategory,
-	);
-	const shouldShowEventCategoryBadge =
-		eventCategoryDefinition && event.eventCategory !== "party";
-
 	const cardClasses = `group relative h-full cursor-pointer rounded-xl border p-4 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-lg ${
 		isCurrentlyFeatured
 			? "border-amber-300/48 bg-[linear-gradient(145deg,rgba(248,238,222,0.82),rgba(244,229,205,0.66))] shadow-[0_14px_30px_-29px_rgba(176,124,54,0.42)] dark:border-amber-500/24 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.38),rgba(47,36,24,0.28))] dark:shadow-[0_16px_34px_-31px_rgba(224,169,85,0.28)]"
@@ -143,7 +162,8 @@ export function EventCard({
 				? "border-border/90 bg-[linear-gradient(145deg,rgba(247,241,231,0.82),rgba(242,235,224,0.68))] dark:bg-[linear-gradient(145deg,rgba(52,41,31,0.36),rgba(42,33,26,0.28))]"
 				: isCurrentlyPromoted
 					? "border-amber-500/45 bg-[linear-gradient(145deg,rgba(250,241,223,0.62),rgba(245,236,222,0.55))] dark:border-amber-600/45 dark:bg-[linear-gradient(145deg,rgba(80,60,36,0.34),rgba(58,43,27,0.28))]"
-					: "border-border/85 bg-card/72 hover:bg-card/88"
+					: categoryCardClasses ??
+						"border-border/85 bg-card/72 hover:bg-card/88"
 	}`;
 
 	return (
@@ -181,12 +201,15 @@ export function EventCard({
 			<div className="mb-2 space-y-2">
 				<div className="flex items-start justify-between gap-3">
 					<div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-						{headerEventTypeLabel && (
+						{shouldShowContextualPill && contextualPillLabel && (
 							<Badge
 								variant="outline"
-								className="max-w-full border-border/70 bg-background/50 px-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground"
+								className={`max-w-full px-2 text-[10px] font-semibold uppercase tracking-[0.12em] shadow-none hover:bg-background/60 ${contextualPillClassName}`}
 							>
-								{headerEventTypeLabel}
+								<span className="inline-flex items-center gap-1">
+									{contextualPillIcon}
+									{contextualPillLabel}
+								</span>
 							</Badge>
 						)}
 						{!isCurrentlyFeatured && !isCurrentlyPromoted && hasOOOCPick && (
@@ -213,17 +236,6 @@ export function EventCard({
 						{isRecentlyUpdated && (
 							<Badge className="max-w-full border border-sky-500/30 bg-sky-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-800 shadow-none hover:bg-sky-500/15 dark:text-sky-200">
 								Updated
-							</Badge>
-						)}
-						{shouldShowEventCategoryBadge && (
-							<Badge
-								variant="outline"
-								className={`${eventCategoryDefinition.color} max-w-full px-2 text-[10px] font-semibold uppercase tracking-[0.12em] shadow-none hover:bg-background/60`}
-							>
-								<span className="inline-flex items-center gap-1">
-									<Tag className="h-3 w-3" />
-									{eventCategoryDefinition.label}
-								</span>
 							</Badge>
 						)}
 					</div>
