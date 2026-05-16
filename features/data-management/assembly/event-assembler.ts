@@ -10,6 +10,7 @@ import {
 	type Event,
 	type ParisArrondissement,
 	getEventTypeForDate,
+	normalizeEventExperienceCategory,
 } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
 import type { CSVEventRow } from "../csv/parser";
@@ -251,6 +252,8 @@ export const assembleEvent = (
 	);
 	const tags = MetadataTransformers.parseTags(csvRow.tags);
 	const venueTypes = VenueTransformers.convertToVenueTypes(csvRow.setting);
+	const eventCategory =
+		normalizeEventExperienceCategory(csvRow.eventCategory) ?? undefined;
 
 	// Determine the event's festival phase from its date.
 	const type = getEventTypeForDate(date);
@@ -301,6 +304,7 @@ export const assembleEvent = (
 		links: ticketLinks.length > 1 ? ticketLinks : undefined,
 		description: csvRow.notes.trim() || undefined,
 		type,
+		eventCategory,
 		genre,
 		tags,
 		venueTypes,

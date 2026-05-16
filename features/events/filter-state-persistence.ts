@@ -2,6 +2,8 @@ import {
 	AGE_RANGE_CONFIG,
 	type AgeRange,
 	type DayNightPeriod,
+	EVENT_EXPERIENCE_CATEGORIES,
+	type EventExperienceCategory,
 	type MusicGenre,
 	type Nationality,
 	PRICE_RANGE_CONFIG,
@@ -26,6 +28,7 @@ const FILTER_PARAM_KEYS = [
 	"arr",
 	"g",
 	"gx",
+	"cat",
 	"nat",
 	"vt",
 	"in",
@@ -38,6 +41,9 @@ const FILTER_PARAM_KEYS = [
 const NATIONALITY_KEYS = new Set(SUPPORTED_NATIONALITY_CODES);
 const DAY_NIGHT_KEYS = new Set<DayNightPeriod>(["day", "night"]);
 const VENUE_TYPE_KEYS = new Set<VenueType>(["indoor", "outdoor"]);
+const EVENT_EXPERIENCE_CATEGORY_KEYS = new Set<EventExperienceCategory>(
+	EVENT_EXPERIENCE_CATEGORIES.map((category) => category.key),
+);
 
 const parseCsvParam = (raw: string | null): string[] => {
 	if (!raw) return [];
@@ -104,6 +110,10 @@ export const parseEventFilterStateFromSearchParams = (
 	);
 	const excludedGenres = Array.from(excludedGenreSet);
 	const includedGenres = genres.filter((genre) => !excludedGenreSet.has(genre));
+	const eventCategories = parseCsvParam(params.get("cat")).filter(
+		(value): value is EventExperienceCategory =>
+			EVENT_EXPERIENCE_CATEGORY_KEYS.has(value as EventExperienceCategory),
+	);
 	const nationalities = parseCsvParam(params.get("nat"))
 		.map((value) => value.toUpperCase())
 		.filter((value): value is Nationality =>
@@ -153,6 +163,7 @@ export const parseEventFilterStateFromSearchParams = (
 		selectedArrondissements: arrondissements,
 		selectedGenres: includedGenres,
 		excludedGenres,
+		selectedEventCategories: eventCategories,
 		selectedNationalities: nationalities,
 		selectedVenueTypes: venueTypes,
 		selectedIndoorPreference,
@@ -226,6 +237,9 @@ export const serializeEventFilterStateToSearchParams = (
 	}
 	if (state.excludedGenres.length > 0) {
 		next.set("gx", state.excludedGenres.join(","));
+	}
+	if (state.selectedEventCategories.length > 0) {
+		next.set("cat", state.selectedEventCategories.join(","));
 	}
 	if (state.selectedNationalities.length > 0) {
 		next.set("nat", state.selectedNationalities.join(","));

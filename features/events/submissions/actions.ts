@@ -58,6 +58,7 @@ const mapSubmissionToSheetRow = (
 
 	row.eventKey = "";
 	row.curated = "";
+	row.eventCategory = submission.payload.eventCategory || "";
 	row.hostCountry = "";
 	row.audienceCountry = "";
 	row.title = submission.payload.eventName;

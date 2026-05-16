@@ -1,5 +1,6 @@
 "use client";
 
+import { useOfflineFallbackGate } from "@/components/online-status-gate";
 import {
 	readHomeEventSnapshot,
 	writeHomeEventSnapshot,
@@ -56,6 +57,7 @@ export function EventsOfflineProvider({
 	children,
 	initialEvents,
 }: EventsOfflineProviderProps) {
+	const isOfflineFallbackActive = useOfflineFallbackGate();
 	const [events, setEvents] = useState(initialEvents);
 	const [eventDataSource, setEventDataSource] =
 		useState<EventDataSource>("live");
@@ -70,10 +72,11 @@ export function EventsOfflineProvider({
 		null,
 	);
 	useEffect(() => {
+		if (isOfflineFallbackActive) return;
 		if (initialEvents.length === 0) return;
 		setEvents(initialEvents);
 		setEventDataSource("live");
-	}, [initialEvents]);
+	}, [initialEvents, isOfflineFallbackActive]);
 
 	useEffect(() => {
 		let isCancelled = false;
@@ -93,13 +96,16 @@ export function EventsOfflineProvider({
 				setEventSnapshotFreshness(freshness);
 				setEventSnapshotSyncState("saved");
 				setEventSnapshotError(null);
+				if (isOfflineFallbackActive || initialEvents.length === 0) {
+					setEvents(snapshot.events);
+					setEventDataSource("saved");
+					return;
+				}
 				if (initialEvents.length > 0) {
 					setEvents(initialEvents);
 					setEventDataSource("live");
 					return;
 				}
-				setEvents(snapshot.events);
-				setEventDataSource("saved");
 			})
 			.catch((error: unknown) => {
 				if (isCancelled) return;
@@ -122,9 +128,10 @@ export function EventsOfflineProvider({
 		return () => {
 			isCancelled = true;
 		};
-	}, [initialEvents]);
+	}, [initialEvents, isOfflineFallbackActive]);
 
 	useEffect(() => {
+		if (isOfflineFallbackActive) return;
 		if (eventDataSource !== "live" || events.length === 0) return;
 
 		setEventSnapshotSyncState("refreshing");
@@ -149,7 +156,7 @@ export function EventsOfflineProvider({
 				setEventSnapshotSyncState("error");
 				setEventSnapshotError(errorMessage);
 			});
-	}, [eventDataSource, events]);
+	}, [eventDataSource, events, isOfflineFallbackActive]);
 
 	const value = useMemo(
 		() => ({

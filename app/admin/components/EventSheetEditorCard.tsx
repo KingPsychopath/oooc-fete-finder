@@ -63,6 +63,12 @@ import {
 	parseSupportedNationalities,
 } from "@/features/events/nationality-utils";
 import {
+	EVENT_EXPERIENCE_CATEGORIES,
+	type EventExperienceCategoryDefinition,
+	formatEventExperienceCategory,
+	normalizeEventExperienceCategory,
+} from "@/features/events/types";
+import {
 	AlertCircle,
 	ArrowDown,
 	ArrowUp,
@@ -235,6 +241,7 @@ const CELL_EDIT_BATCH_WINDOW_MS = 140;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
 const DEFAULT_SORT_MODE: SheetSortMode = "soonest-upcoming";
 const CURATED_COLUMN_KEY = "curated";
+const EVENT_CATEGORY_COLUMN_KEY = "eventCategory";
 const TITLE_COLUMN_KEY = "title";
 const DATE_COLUMN_KEY = "date";
 const START_TIME_COLUMN_KEY = "startTime";
@@ -305,7 +312,8 @@ const getQualityLabel = (value: RowQualityValue): string => {
 };
 const getQualityDescription = (value: RowQualityValue): string => {
 	if (value === "complete") return "Enough public-facing details are present.";
-	if (value === "blocking") return "Important public-facing details are missing.";
+	if (value === "blocking")
+		return "Important public-facing details are missing.";
 	if (value === "draft") return "Blank row, ignored on save.";
 	return "Usable, but one or more details should be checked.";
 };
@@ -344,7 +352,9 @@ const getRowQualityAssessment = (
 	}
 
 	const titlePresent = hasUsableTextValue(row[TITLE_COLUMN_KEY]);
-	const hasBlockingIssue = issues.some((issue) => issue.severity === "blocking");
+	const hasBlockingIssue = issues.some(
+		(issue) => issue.severity === "blocking",
+	);
 	const datePresent =
 		hasUsableTextValue(row[DATE_COLUMN_KEY]) &&
 		!issues.some((issue) => issue.column === "Date");
@@ -362,7 +372,9 @@ const getRowQualityAssessment = (
 			: locationPresent && areaKnown && detailCount >= 2
 				? "complete"
 				: "review";
-	const manualValue = parseQualityOverride(row[DETAILS_QUALITY_OVERRIDE_COLUMN_KEY]);
+	const manualValue = parseQualityOverride(
+		row[DETAILS_QUALITY_OVERRIDE_COLUMN_KEY],
+	);
 	const value = manualValue ?? inferredValue;
 
 	return {
@@ -395,6 +407,8 @@ const SETTING_OPTIONS: SimpleOption[] = [
 		description: "Park, street, terrace, rooftop or open air",
 	},
 ];
+const EVENT_CATEGORY_OPTIONS: readonly EventExperienceCategoryDefinition[] =
+	EVENT_EXPERIENCE_CATEGORIES;
 const AGE_OPTIONS: SimpleOption[] = [
 	{ value: "18+", label: "18+", description: "Standard adult entry" },
 	{ value: "21+", label: "21+", description: "Older crowd / stricter entry" },
@@ -454,8 +468,11 @@ const DEPLOYMENT_POLL_INTERVAL_MS = 30_000;
 const cellRefKey = (rowIndex: number, columnKey: string) =>
 	`${rowIndex}:${columnKey}`;
 
-const urlPartRefKey = (rowIndex: number, columnKey: string, partIndex: number) =>
-	`${rowIndex}:${columnKey}:${partIndex}`;
+const urlPartRefKey = (
+	rowIndex: number,
+	columnKey: string,
+	partIndex: number,
+) => `${rowIndex}:${columnKey}:${partIndex}`;
 
 const getBasePath = (): string =>
 	process.env.NEXT_PUBLIC_BASE_PATH?.trim() ?? "";
@@ -774,6 +791,11 @@ const normalizeSettingValue = (value: string): string => {
 	return selected.length > 0 ? selected.join(", ") : value.trim();
 };
 
+const normalizeEventCategoryValue = (value: string): string => {
+	const category = normalizeEventExperienceCategory(value);
+	return category ? formatEventExperienceCategory(category) : value.trim();
+};
+
 const isCuratedValue = (value: string): boolean => {
 	const normalized = value.trim().toLowerCase();
 	return value.includes(CURATED_PICK_VALUE) || normalized.includes("pick");
@@ -806,22 +828,21 @@ const splitUrlRawParts = (value: string): string[] =>
 		.filter((part) => part.length > 0);
 
 const parseUrlParts = (value: string): ParsedUrlPart[] =>
-	splitUrlRawParts(value)
-		.map((raw) => {
-			const normalized = normalizeUrlPart(raw);
-			try {
-				const url = new URL(normalized);
-				const isValid = url.protocol === "http:" || url.protocol === "https:";
-				return {
-					raw,
-					normalized,
-					isValid,
-					host: isValid ? url.hostname.replace(/^www\./, "") : null,
-				};
-			} catch {
-				return { raw, normalized, isValid: false, host: null };
-			}
-		});
+	splitUrlRawParts(value).map((raw) => {
+		const normalized = normalizeUrlPart(raw);
+		try {
+			const url = new URL(normalized);
+			const isValid = url.protocol === "http:" || url.protocol === "https:";
+			return {
+				raw,
+				normalized,
+				isValid,
+				host: isValid ? url.hostname.replace(/^www\./, "") : null,
+			};
+		} catch {
+			return { raw, normalized, isValid: false, host: null };
+		}
+	});
 
 const isValidHttpUrl = (value: string): boolean => {
 	try {
@@ -1192,6 +1213,10 @@ export const EventSheetEditorCard = ({
 	const [focusedSettingCell, setFocusedSettingCell] =
 		useState<FocusedCell | null>(null);
 	const [highlightedSettingIndex, setHighlightedSettingIndex] = useState(0);
+	const [focusedEventCategoryCell, setFocusedEventCategoryCell] =
+		useState<FocusedCell | null>(null);
+	const [highlightedEventCategoryIndex, setHighlightedEventCategoryIndex] =
+		useState(0);
 	const [focusedAgeCell, setFocusedAgeCell] = useState<FocusedCell | null>(
 		null,
 	);
@@ -1278,6 +1303,7 @@ export const EventSheetEditorCard = ({
 		setFocusedAreaCell(null);
 		setAreaSearchQuery("");
 		setFocusedSettingCell(null);
+		setFocusedEventCategoryCell(null);
 		setFocusedAgeCell(null);
 	}, []);
 
@@ -1581,7 +1607,10 @@ export const EventSheetEditorCard = ({
 				}
 
 				if (versionToSave === editVersionRef.current) {
-					if (mode === "manual" && rowsToSave.length !== rowsRef.current.length) {
+					if (
+						mode === "manual" &&
+						rowsToSave.length !== rowsRef.current.length
+					) {
 						rowsRef.current = rowsToSave;
 						setRows(rowsToSave);
 						setQuery("");
@@ -1927,7 +1956,9 @@ export const EventSheetEditorCard = ({
 				}
 			}
 
-			const normalizedUrl = normalizeUrlValue(row[PRIMARY_URL_COLUMN_KEY] ?? "");
+			const normalizedUrl = normalizeUrlValue(
+				row[PRIMARY_URL_COLUMN_KEY] ?? "",
+			);
 			if ((row[PRIMARY_URL_COLUMN_KEY] ?? "") !== normalizedUrl) {
 				nextRow[PRIMARY_URL_COLUMN_KEY] = normalizedUrl;
 				changesByKind.urls += 1;
@@ -2467,55 +2498,62 @@ export const EventSheetEditorCard = ({
 		});
 	}, [areaSearchQuery, focusedAreaCell, rows]);
 
-	const locationSuggestionsForFocusedCell = useMemo((): LocationSuggestion[] => {
-		if (!focusedLocationCell) return [];
+	const locationSuggestionsForFocusedCell =
+		useMemo((): LocationSuggestion[] => {
+			if (!focusedLocationCell) return [];
 
-		const query = normalizeLocationSearchText(locationSearchQuery);
-		const currentArea = normalizeAreaValue(
-			rows[focusedLocationCell.rowIndex]?.[AREA_COLUMN_KEY] ?? "",
-		);
-		const suggestions = new Map<string, LocationSuggestion>();
+			const query = normalizeLocationSearchText(locationSearchQuery);
+			const currentArea = normalizeAreaValue(
+				rows[focusedLocationCell.rowIndex]?.[AREA_COLUMN_KEY] ?? "",
+			);
+			const suggestions = new Map<string, LocationSuggestion>();
 
-		for (const [rowIndex, row] of rows.entries()) {
-			if (rowIndex === focusedLocationCell.rowIndex) continue;
-			const value = (row[LOCATION_COLUMN_KEY] ?? "").trim();
-			if (!value) continue;
-			const normalized = normalizeLocationSearchText(value);
-			if (!normalized) continue;
-			if (query && !normalized.includes(query)) continue;
+			for (const [rowIndex, row] of rows.entries()) {
+				if (rowIndex === focusedLocationCell.rowIndex) continue;
+				const value = (row[LOCATION_COLUMN_KEY] ?? "").trim();
+				if (!value) continue;
+				const normalized = normalizeLocationSearchText(value);
+				if (!normalized) continue;
+				if (query && !normalized.includes(query)) continue;
 
-			const area = normalizeAreaValue(row[AREA_COLUMN_KEY] ?? "").trim();
-			const existing = suggestions.get(normalized);
-			const isAreaMatch = Boolean(currentArea && area === currentArea);
-			if (!existing) {
-				suggestions.set(normalized, {
-					value,
-					area,
-					count: 1,
-					isAreaMatch,
-				});
-				continue;
-			}
-			existing.count += 1;
-			existing.isAreaMatch = existing.isAreaMatch || isAreaMatch;
-			if (!existing.area && area) existing.area = area;
-		}
-
-		return Array.from(suggestions.values())
-			.sort((left, right) => {
-				if (left.isAreaMatch !== right.isAreaMatch) {
-					return left.isAreaMatch ? -1 : 1;
+				const area = normalizeAreaValue(row[AREA_COLUMN_KEY] ?? "").trim();
+				const existing = suggestions.get(normalized);
+				const isAreaMatch = Boolean(currentArea && area === currentArea);
+				if (!existing) {
+					suggestions.set(normalized, {
+						value,
+						area,
+						count: 1,
+						isAreaMatch,
+					});
+					continue;
 				}
-				if (left.count !== right.count) return right.count - left.count;
-				return left.value.localeCompare(right.value);
-			})
-			.slice(0, 8);
-	}, [focusedLocationCell, locationSearchQuery, rows]);
+				existing.count += 1;
+				existing.isAreaMatch = existing.isAreaMatch || isAreaMatch;
+				if (!existing.area && area) existing.area = area;
+			}
+
+			return Array.from(suggestions.values())
+				.sort((left, right) => {
+					if (left.isAreaMatch !== right.isAreaMatch) {
+						return left.isAreaMatch ? -1 : 1;
+					}
+					if (left.count !== right.count) return right.count - left.count;
+					return left.value.localeCompare(right.value);
+				})
+				.slice(0, 8);
+		}, [focusedLocationCell, locationSearchQuery, rows]);
 
 	const settingOptionsForFocusedCell = useMemo((): SimpleOption[] => {
 		if (!focusedSettingCell) return [];
 		return SETTING_OPTIONS;
 	}, [focusedSettingCell]);
+
+	const eventCategoryOptionsForFocusedCell =
+		useMemo((): readonly EventExperienceCategoryDefinition[] => {
+			if (!focusedEventCategoryCell) return [];
+			return EVENT_CATEGORY_OPTIONS;
+		}, [focusedEventCategoryCell]);
 
 	const ageOptionsForFocusedCell = useMemo((): SimpleOption[] => {
 		if (!focusedAgeCell) return [];
@@ -2658,7 +2696,11 @@ export const EventSheetEditorCard = ({
 
 	const selectDateForCell = useCallback(
 		(rowIndex: number, columnKey: string, date: string) => {
-			handleCellChange(rowIndex, columnKey, formatIsoDateForEditableSheet(date));
+			handleCellChange(
+				rowIndex,
+				columnKey,
+				formatIsoDateForEditableSheet(date),
+			);
 			setFocusedDateCell(null);
 			window.setTimeout(() => {
 				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
@@ -2710,6 +2752,24 @@ export const EventSheetEditorCard = ({
 			}, 0);
 		},
 		[getDraftAwareCellValue, handleCellChange, setCellDraft],
+	);
+
+	const selectEventCategoryForCell = useCallback(
+		(
+			rowIndex: number,
+			columnKey: string,
+			category: EventExperienceCategoryDefinition | null,
+		) => {
+			const row = rowsRef.current[rowIndex];
+			if (!row) return;
+			handleCellChange(rowIndex, columnKey, category?.label ?? "");
+			setCellDraft(null);
+			setFocusedEventCategoryCell({ rowIndex, columnKey });
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange, setCellDraft],
 	);
 
 	const selectAgeForCell = useCallback(
@@ -2999,6 +3059,21 @@ export const EventSheetEditorCard = ({
 					severity: "warning",
 				});
 			}
+
+			const eventCategoryValue = String(
+				row[EVENT_CATEGORY_COLUMN_KEY] ?? "",
+			).trim();
+			if (
+				eventCategoryValue &&
+				!normalizeEventExperienceCategory(eventCategoryValue)
+			) {
+				issues.push({
+					rowIndex: rowNumber,
+					column: "Event Category",
+					message: 'Use "Party", "Activity", "Culture", "Food", or "Wellness".',
+					severity: "warning",
+				});
+			}
 		});
 
 		return [...getRequiredSheetHealthIssues(rows), ...issues];
@@ -3034,10 +3109,7 @@ export const EventSheetEditorCard = ({
 		return counts;
 	}, [rows, sheetHealthIssuesByRow]);
 	const lifecycleMetadataByEventKey = useMemo(
-		() =>
-			new Map(
-				rowMetadata.map((metadata) => [metadata.eventKey, metadata]),
-			),
+		() => new Map(rowMetadata.map((metadata) => [metadata.eventKey, metadata])),
 		[rowMetadata],
 	);
 	const filteredRowIndexes = useMemo(() => {
@@ -3310,909 +3382,765 @@ export const EventSheetEditorCard = ({
 		<>
 			{qualityPopoverPortal}
 			<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
-			<CardHeader>
-				<CardTitle className="text-2xl tracking-tight">
-					Event Sheet Editor
-				</CardTitle>
-				<CardDescription>
-					Spreadsheet editing with dynamic custom columns and autosave to
-					Postgres.
-				</CardDescription>
-				{recoverableDraft && (
-					<div className="flex flex-wrap gap-2 pt-2">
-						<Button type="button" size="sm" onClick={handleRestoreDraft}>
-							Restore Local Draft
-						</Button>
-						<Button
-							type="button"
-							size="sm"
-							variant="outline"
-							onClick={handleDiscardDraft}
-						>
-							Discard Draft
-						</Button>
-					</div>
-				)}
-			</CardHeader>
-			<CardContent className="space-y-4">
-				<div className="flex flex-wrap items-center gap-2" role="status">
-					{isSaving ? (
-						<Badge variant="secondary">Saving...</Badge>
-					) : hasUnsavedChanges ? (
-						<Badge variant="outline">Unsaved changes</Badge>
-					) : (
-						<Badge variant="default">All changes saved</Badge>
+				<CardHeader>
+					<CardTitle className="text-2xl tracking-tight">
+						Event Sheet Editor
+					</CardTitle>
+					<CardDescription>
+						Spreadsheet editing with dynamic custom columns and autosave to
+						Postgres.
+					</CardDescription>
+					{recoverableDraft && (
+						<div className="flex flex-wrap gap-2 pt-2">
+							<Button type="button" size="sm" onClick={handleRestoreDraft}>
+								Restore Local Draft
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								onClick={handleDiscardDraft}
+							>
+								Discard Draft
+							</Button>
+						</div>
 					)}
-					{autosavePauseReason === "blank-draft-row" && (
-						<Badge variant="secondary">Autosave paused for blank draft row</Badge>
-					)}
-					{autosavePauseReason === "missing-required-fields" && (
-						<Badge variant="secondary">
-							Autosave paused: required fields missing
-						</Badge>
-					)}
-					{autosavePauseReason === "awaiting-edit-after-error" && (
-						<Badge variant="secondary">
-							Autosave paused after save error; edit to retry
-						</Badge>
-					)}
-					{autosavePauseReason === "retry-backoff" && (
-						<Badge variant="secondary">Autosave retrying in a few seconds</Badge>
-					)}
-					{lastAutosaveError && (
-						<Badge
-							variant="outline"
-							className="gap-1 border-amber-300/70 bg-amber-50/60 text-amber-900"
-							title={`${lastAutosaveError.message} (${formatAdminDateTime(lastAutosaveError.at)})`}
-						>
-							<AlertCircle className="h-3.5 w-3.5" />
-							Last autosave issue
-						</Badge>
-					)}
-					<Badge variant="outline">Source of truth: Postgres</Badge>
-					{restoreReviewRevision && (
-						<Badge variant="secondary">Revision loaded for review</Badge>
-					)}
-					<span className="text-xs text-muted-foreground">{statusMessage}</span>
-					{lastSavedAt && (
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<div className="flex flex-wrap items-center gap-2" role="status">
+						{isSaving ? (
+							<Badge variant="secondary">Saving...</Badge>
+						) : hasUnsavedChanges ? (
+							<Badge variant="outline">Unsaved changes</Badge>
+						) : (
+							<Badge variant="default">All changes saved</Badge>
+						)}
+						{autosavePauseReason === "blank-draft-row" && (
+							<Badge variant="secondary">
+								Autosave paused for blank draft row
+							</Badge>
+						)}
+						{autosavePauseReason === "missing-required-fields" && (
+							<Badge variant="secondary">
+								Autosave paused: required fields missing
+							</Badge>
+						)}
+						{autosavePauseReason === "awaiting-edit-after-error" && (
+							<Badge variant="secondary">
+								Autosave paused after save error; edit to retry
+							</Badge>
+						)}
+						{autosavePauseReason === "retry-backoff" && (
+							<Badge variant="secondary">
+								Autosave retrying in a few seconds
+							</Badge>
+						)}
+						{lastAutosaveError && (
+							<Badge
+								variant="outline"
+								className="gap-1 border-amber-300/70 bg-amber-50/60 text-amber-900"
+								title={`${lastAutosaveError.message} (${formatAdminDateTime(lastAutosaveError.at)})`}
+							>
+								<AlertCircle className="h-3.5 w-3.5" />
+								Last autosave issue
+							</Badge>
+						)}
+						<Badge variant="outline">Source of truth: Postgres</Badge>
+						{restoreReviewRevision && (
+							<Badge variant="secondary">Revision loaded for review</Badge>
+						)}
 						<span className="text-xs text-muted-foreground">
-							Last saved: {formatAdminDateTime(lastSavedAt)}
+							{statusMessage}
 						</span>
-					)}
-				</div>
-
-				{hasNewDeployment && (
-					<div className="rounded-md border border-amber-300/70 bg-amber-50/80 p-3 text-sm text-amber-950">
-						<div className="flex flex-wrap items-center justify-between gap-3">
-							<div>
-								<p className="font-medium">A new deployment is live.</p>
-								<p className="mt-1 text-xs text-amber-900/85">
-									Editing is paused on this old admin tab. Your current sheet is
-									stored locally in this browser. Deployment checks run every{" "}
-									{DEPLOYMENT_POLL_INTERVAL_MS / 1000}s while this tab is
-									visible.
-								</p>
-							</div>
-							<div className="flex flex-wrap gap-2">
-								<Button
-									type="button"
-									size="sm"
-									onClick={() => void handleReloadForDeployment()}
-									disabled={isSaving}
-								>
-									{hasUnsavedChanges ? "Save and Reload" : "Reload"}
-								</Button>
-								<Badge
-									variant="outline"
-									className="bg-background/70 text-[10px]"
-								>
-									{latestDeploymentId.slice(0, 12)}
-								</Badge>
-							</div>
-						</div>
+						{lastSavedAt && (
+							<span className="text-xs text-muted-foreground">
+								Last saved: {formatAdminDateTime(lastSavedAt)}
+							</span>
+						)}
 					</div>
-				)}
 
-				{recoverableDraft && (
-					<div className="rounded-md border border-emerald-300/70 bg-emerald-50/80 p-3 text-sm text-emerald-950">
-						<div className="flex flex-wrap items-center justify-between gap-3">
-							<div>
-								<p className="font-medium">Local sheet draft available.</p>
-								<p className="mt-1 text-xs text-emerald-900/85">
-									Saved in this browser{" "}
-									{formatAdminDateTime(recoverableDraft.savedAt)}.
-								</p>
-							</div>
-							<div className="flex flex-wrap gap-2">
-								<Button type="button" size="sm" onClick={handleRestoreDraft}>
-									Restore Draft
-								</Button>
-								<Button
-									type="button"
-									size="sm"
-									variant="outline"
-									onClick={handleDiscardDraft}
-								>
-									Discard
-								</Button>
-							</div>
-						</div>
-					</div>
-				)}
-
-				{restoreReviewRevision && (
-					<div className="rounded-md border border-sky-300/70 bg-sky-50/80 p-3 text-sm text-sky-950">
-						<div className="flex flex-wrap items-center justify-between gap-3">
-							<div>
-								<p className="font-medium">Revision loaded for review.</p>
-								<p className="mt-1 text-xs text-sky-900/85">
-									{restoreReviewRevision.summary}. Publish to make it live, or
-									discard to reload the current saved sheet.
-								</p>
-							</div>
-							<div className="flex flex-wrap gap-2">
-								<Button
-									type="button"
-									size="sm"
-									onClick={() => void handleManualSave()}
-									disabled={isSaving}
-								>
-									Publish Revision
-								</Button>
-								<Button
-									type="button"
-									size="sm"
-									variant="outline"
-									onClick={handleDiscardRestoredRevision}
-									disabled={isSaving}
-								>
-									Discard
-								</Button>
-							</div>
-						</div>
-					</div>
-				)}
-
-				{sheetHealthIssues.length > 0 && (
-					<details className="rounded-md border border-amber-300/70 bg-amber-50/75 px-3 py-2 text-xs text-amber-950">
-						<summary className="cursor-pointer font-medium">
-							Sheet health:{" "}
-							{blockingSheetHealthIssues.length > 0
-								? `${blockingSheetHealthIssues.length} required fix${blockingSheetHealthIssues.length === 1 ? "" : "es"} before publishing`
-								: `${sheetHealthIssues.length} value${sheetHealthIssues.length === 1 ? "" : "s"} worth reviewing`}
-						</summary>
-						<div className="mt-2 space-y-1">
-							{sheetHealthIssues.slice(0, 5).map((issue) => (
-								<div
-									key={`${issue.rowIndex}-${issue.column}-${issue.message}`}
-									className="leading-snug"
-								>
-									{issue.severity === "blocking" ? "Required" : "Review"} · Row{" "}
-									{issue.rowIndex} · {issue.column}: {issue.message}
+					{hasNewDeployment && (
+						<div className="rounded-md border border-amber-300/70 bg-amber-50/80 p-3 text-sm text-amber-950">
+							<div className="flex flex-wrap items-center justify-between gap-3">
+								<div>
+									<p className="font-medium">A new deployment is live.</p>
+									<p className="mt-1 text-xs text-amber-900/85">
+										Editing is paused on this old admin tab. Your current sheet
+										is stored locally in this browser. Deployment checks run
+										every {DEPLOYMENT_POLL_INTERVAL_MS / 1000}s while this tab
+										is visible.
+									</p>
 								</div>
-							))}
-							{sheetHealthIssues.length > 5 && (
-								<div className="text-amber-900/80">
-									+{sheetHealthIssues.length - 5} more. Use search or sort to
-									review affected rows.
+								<div className="flex flex-wrap gap-2">
+									<Button
+										type="button"
+										size="sm"
+										onClick={() => void handleReloadForDeployment()}
+										disabled={isSaving}
+									>
+										{hasUnsavedChanges ? "Save and Reload" : "Reload"}
+									</Button>
+									<Badge
+										variant="outline"
+										className="bg-background/70 text-[10px]"
+									>
+										{latestDeploymentId.slice(0, 12)}
+									</Badge>
 								</div>
-							)}
-						</div>
-					</details>
-				)}
-
-				<div className="rounded-md border bg-background/55 p-3">
-					<div className="flex flex-wrap items-start justify-between gap-3">
-						<div className="min-w-0">
-							<div className="flex items-center gap-2">
-								<History className="h-4 w-4 text-muted-foreground" />
-								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-									Sheet revision history
-								</p>
-								<Badge variant="outline" className="text-[10px]">
-									{sheetRevisions.length} loaded
-								</Badge>
 							</div>
-							<p className="mt-1 text-xs text-muted-foreground">
-								Autosaves are grouped into editing sessions. Published saves are
-								listed separately. Restore loads a revision for review before
-								publishing.
-							</p>
-						</div>
-						<div className="flex flex-wrap gap-2">
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								className="h-8"
-								onClick={() => setIsRevisionHistoryOpen(true)}
-								disabled={sheetRevisions.length === 0}
-							>
-								View all
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								className="h-8 gap-1.5"
-								onClick={() => void handleRefreshRevisionHistory()}
-								disabled={isSaving}
-							>
-								<RefreshCw className="h-3.5 w-3.5" />
-								Refresh
-							</Button>
-						</div>
-					</div>
-
-					{!isSheetRevisionSupported ? (
-						<div className="mt-3 rounded-md border border-amber-300/70 bg-amber-50/75 px-3 py-2 text-xs text-amber-950">
-							Sheet revision history requires Postgres.
-						</div>
-					) : visibleSheetRevisions.length > 0 ? (
-						<div className="mt-3 divide-y rounded-md border bg-background/70">
-							{visibleSheetRevisions.map((revision) => (
-								<div
-									key={revision.id}
-									className="grid gap-2 px-3 py-2 md:grid-cols-[minmax(0,1fr)_auto]"
-								>
-									<div className="min-w-0">
-										<div className="flex min-w-0 flex-wrap items-center gap-2">
-											<Badge
-												variant={
-													revision.trigger === "publish"
-														? "default"
-														: "secondary"
-												}
-												className="text-[10px]"
-											>
-												{revision.trigger === "publish"
-													? "Published"
-													: "Autosave"}
-											</Badge>
-											<span className="min-w-0 truncate text-sm font-medium">
-												{revision.summary}
-											</span>
-										</div>
-										<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-											<span>{revision.actorLabel}</span>
-											<span>{formatRevisionTime(revision.updatedAt)}</span>
-											<span>{revision.rowCount} rows</span>
-											{revision.autosaveCount > 1 && (
-												<span>{revision.autosaveCount} autosaves</span>
-											)}
-											{!revision.canRestore && <span>Summary only</span>}
-										</div>
-										{(revision.changedColumns.length > 0 ||
-											revision.sampleAdded.length > 0 ||
-											revision.sampleDeleted.length > 0) && (
-											<details className="mt-1 text-xs text-muted-foreground">
-												<summary className="cursor-pointer">
-													Columns and samples
-												</summary>
-												<div className="mt-1 space-y-1">
-													{revision.changedColumns.length > 0 && (
-														<p>Columns: {revision.changedColumns.join(", ")}</p>
-													)}
-													{revision.sampleAdded.length > 0 && (
-														<p>Added: {revision.sampleAdded.join(", ")}</p>
-													)}
-													{revision.sampleDeleted.length > 0 && (
-														<p>Deleted: {revision.sampleDeleted.join(", ")}</p>
-													)}
-												</div>
-											</details>
-										)}
-									</div>
-									<div className="flex items-start justify-start md:justify-end">
-										<div className="flex flex-wrap justify-start gap-2 md:justify-end">
-											<Badge variant="outline" className="text-[10px]">
-												{formatRevisionStats(revision)}
-											</Badge>
-											<Button
-												type="button"
-												variant="outline"
-												size="sm"
-												className="h-7"
-												onClick={() => void handlePreviewRevision(revision)}
-												disabled={
-													!revision.canRestore || isLoadingRevisionPreview
-												}
-											>
-												Preview
-											</Button>
-										</div>
-									</div>
-								</div>
-							))}
-						</div>
-					) : (
-						<div className="mt-3 rounded-md border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-							No sheet revisions recorded yet.
 						</div>
 					)}
-				</div>
 
-				<Dialog
-					open={isRevisionHistoryOpen}
-					onOpenChange={setIsRevisionHistoryOpen}
-				>
-					<DialogContent className="max-h-[88vh] w-[min(980px,calc(100vw-2rem))] max-w-none overflow-hidden p-5 sm:max-w-none sm:p-6">
-						<DialogHeader className="pr-10">
-							<DialogTitle className="text-xl">
-								Sheet revision history
-							</DialogTitle>
-							<DialogDescription className="max-w-2xl text-base leading-relaxed">
-								Preview a revision before restoring it into the editor. The
-								restore stays unpublished until you save and revalidate.
-							</DialogDescription>
-						</DialogHeader>
+					{recoverableDraft && (
+						<div className="rounded-md border border-emerald-300/70 bg-emerald-50/80 p-3 text-sm text-emerald-950">
+							<div className="flex flex-wrap items-center justify-between gap-3">
+								<div>
+									<p className="font-medium">Local sheet draft available.</p>
+									<p className="mt-1 text-xs text-emerald-900/85">
+										Saved in this browser{" "}
+										{formatAdminDateTime(recoverableDraft.savedAt)}.
+									</p>
+								</div>
+								<div className="flex flex-wrap gap-2">
+									<Button type="button" size="sm" onClick={handleRestoreDraft}>
+										Restore Draft
+									</Button>
+									<Button
+										type="button"
+										size="sm"
+										variant="outline"
+										onClick={handleDiscardDraft}
+									>
+										Discard
+									</Button>
+								</div>
+							</div>
+						</div>
+					)}
 
-						<div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
-							<div className="max-h-[58vh] min-h-0 overflow-y-auto rounded-md border bg-background/70">
-								{sheetRevisions.length > 0 ? (
-									<div className="divide-y">
-										{sheetRevisions.map((revision) => (
-											<button
-												key={revision.id}
-												type="button"
-												className="block w-full px-3 py-2 text-left transition hover:bg-muted/45 disabled:cursor-not-allowed disabled:opacity-60"
-												onClick={() => void handlePreviewRevision(revision)}
-												disabled={
-													!revision.canRestore || isLoadingRevisionPreview
-												}
-											>
-												<div className="flex flex-wrap items-center gap-2">
-													<Badge
-														variant={
-															revision.trigger === "publish"
-																? "default"
-																: "secondary"
-														}
-														className="text-[10px]"
-													>
-														{revision.trigger === "publish"
-															? "Published"
-															: "Autosave"}
-													</Badge>
-													<span className="min-w-0 truncate text-sm font-medium">
-														{revision.summary}
-													</span>
-												</div>
-												<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-													<span>{revision.actorLabel}</span>
-													<span>{formatRevisionTime(revision.updatedAt)}</span>
-													<span>{revision.rowCount} rows</span>
-													<span>{formatRevisionStats(revision)}</span>
-													{revision.autosaveCount > 1 && (
-														<span>{revision.autosaveCount} autosaves</span>
-													)}
-													{!revision.canRestore && <span>Summary only</span>}
-												</div>
-											</button>
-										))}
+					{restoreReviewRevision && (
+						<div className="rounded-md border border-sky-300/70 bg-sky-50/80 p-3 text-sm text-sky-950">
+							<div className="flex flex-wrap items-center justify-between gap-3">
+								<div>
+									<p className="font-medium">Revision loaded for review.</p>
+									<p className="mt-1 text-xs text-sky-900/85">
+										{restoreReviewRevision.summary}. Publish to make it live, or
+										discard to reload the current saved sheet.
+									</p>
+								</div>
+								<div className="flex flex-wrap gap-2">
+									<Button
+										type="button"
+										size="sm"
+										onClick={() => void handleManualSave()}
+										disabled={isSaving}
+									>
+										Publish Revision
+									</Button>
+									<Button
+										type="button"
+										size="sm"
+										variant="outline"
+										onClick={handleDiscardRestoredRevision}
+										disabled={isSaving}
+									>
+										Discard
+									</Button>
+								</div>
+							</div>
+						</div>
+					)}
+
+					{sheetHealthIssues.length > 0 && (
+						<details className="rounded-md border border-amber-300/70 bg-amber-50/75 px-3 py-2 text-xs text-amber-950">
+							<summary className="cursor-pointer font-medium">
+								Sheet health:{" "}
+								{blockingSheetHealthIssues.length > 0
+									? `${blockingSheetHealthIssues.length} required fix${blockingSheetHealthIssues.length === 1 ? "" : "es"} before publishing`
+									: `${sheetHealthIssues.length} value${sheetHealthIssues.length === 1 ? "" : "s"} worth reviewing`}
+							</summary>
+							<div className="mt-2 space-y-1">
+								{sheetHealthIssues.slice(0, 5).map((issue) => (
+									<div
+										key={`${issue.rowIndex}-${issue.column}-${issue.message}`}
+										className="leading-snug"
+									>
+										{issue.severity === "blocking" ? "Required" : "Review"} ·
+										Row {issue.rowIndex} · {issue.column}: {issue.message}
 									</div>
-								) : (
-									<div className="p-3 text-sm text-muted-foreground">
-										No sheet revisions recorded yet.
+								))}
+								{sheetHealthIssues.length > 5 && (
+									<div className="text-amber-900/80">
+										+{sheetHealthIssues.length - 5} more. Use search or sort to
+										review affected rows.
 									</div>
 								)}
 							</div>
+						</details>
+					)}
 
-							<div className="min-h-0 rounded-md border bg-background/70 p-3">
-								{revisionPreview?.revision ? (
-									<div className="space-y-3">
-										<div>
-											<div className="flex flex-wrap items-center gap-2">
+					<div className="rounded-md border bg-background/55 p-3">
+						<div className="flex flex-wrap items-start justify-between gap-3">
+							<div className="min-w-0">
+								<div className="flex items-center gap-2">
+									<History className="h-4 w-4 text-muted-foreground" />
+									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+										Sheet revision history
+									</p>
+									<Badge variant="outline" className="text-[10px]">
+										{sheetRevisions.length} loaded
+									</Badge>
+								</div>
+								<p className="mt-1 text-xs text-muted-foreground">
+									Autosaves are grouped into editing sessions. Published saves
+									are listed separately. Restore loads a revision for review
+									before publishing.
+								</p>
+							</div>
+							<div className="flex flex-wrap gap-2">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="h-8"
+									onClick={() => setIsRevisionHistoryOpen(true)}
+									disabled={sheetRevisions.length === 0}
+								>
+									View all
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="h-8 gap-1.5"
+									onClick={() => void handleRefreshRevisionHistory()}
+									disabled={isSaving}
+								>
+									<RefreshCw className="h-3.5 w-3.5" />
+									Refresh
+								</Button>
+							</div>
+						</div>
+
+						{!isSheetRevisionSupported ? (
+							<div className="mt-3 rounded-md border border-amber-300/70 bg-amber-50/75 px-3 py-2 text-xs text-amber-950">
+								Sheet revision history requires Postgres.
+							</div>
+						) : visibleSheetRevisions.length > 0 ? (
+							<div className="mt-3 divide-y rounded-md border bg-background/70">
+								{visibleSheetRevisions.map((revision) => (
+									<div
+										key={revision.id}
+										className="grid gap-2 px-3 py-2 md:grid-cols-[minmax(0,1fr)_auto]"
+									>
+										<div className="min-w-0">
+											<div className="flex min-w-0 flex-wrap items-center gap-2">
 												<Badge
 													variant={
-														revisionPreview.revision.trigger === "publish"
+														revision.trigger === "publish"
 															? "default"
 															: "secondary"
 													}
 													className="text-[10px]"
 												>
-													{revisionPreview.revision.trigger === "publish"
+													{revision.trigger === "publish"
 														? "Published"
 														: "Autosave"}
 												</Badge>
-												<span className="text-sm font-medium">
-													{formatRevisionTime(
-														revisionPreview.revision.updatedAt,
-													)}
+												<span className="min-w-0 truncate text-sm font-medium">
+													{revision.summary}
 												</span>
 											</div>
-											<p className="mt-2 text-sm">
-												{revisionPreview.revision.summary}
-											</p>
-											<p className="mt-1 text-xs text-muted-foreground">
-												{revisionPreview.rows?.length ?? 0} rows,{" "}
-												{revisionPreview.columns?.length ?? 0} columns
-											</p>
-										</div>
-
-										<div className="space-y-1 text-xs text-muted-foreground">
-											{revisionPreview.revision.changedColumns.length > 0 && (
-												<p>
-													Columns:{" "}
-													{revisionPreview.revision.changedColumns.join(", ")}
-												</p>
+											<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+												<span>{revision.actorLabel}</span>
+												<span>{formatRevisionTime(revision.updatedAt)}</span>
+												<span>{revision.rowCount} rows</span>
+												{revision.autosaveCount > 1 && (
+													<span>{revision.autosaveCount} autosaves</span>
+												)}
+												{!revision.canRestore && <span>Summary only</span>}
+											</div>
+											{(revision.changedColumns.length > 0 ||
+												revision.sampleAdded.length > 0 ||
+												revision.sampleDeleted.length > 0) && (
+												<details className="mt-1 text-xs text-muted-foreground">
+													<summary className="cursor-pointer">
+														Columns and samples
+													</summary>
+													<div className="mt-1 space-y-1">
+														{revision.changedColumns.length > 0 && (
+															<p>
+																Columns: {revision.changedColumns.join(", ")}
+															</p>
+														)}
+														{revision.sampleAdded.length > 0 && (
+															<p>Added: {revision.sampleAdded.join(", ")}</p>
+														)}
+														{revision.sampleDeleted.length > 0 && (
+															<p>
+																Deleted: {revision.sampleDeleted.join(", ")}
+															</p>
+														)}
+													</div>
+												</details>
 											)}
-											{revisionPreview.revision.sampleAdded.length > 0 && (
-												<p>
-													Added:{" "}
-													{revisionPreview.revision.sampleAdded.join(", ")}
-												</p>
-											)}
-											{revisionPreview.revision.sampleDeleted.length > 0 && (
-												<p>
-													Deleted:{" "}
-													{revisionPreview.revision.sampleDeleted.join(", ")}
-												</p>
-											)}
 										</div>
-
-										<div className="max-h-56 overflow-y-auto rounded-md border bg-background">
-											<table className="w-full text-xs">
-												<thead className="sticky top-0 bg-background">
-													<tr>
-														<th className="border-b px-2 py-1 text-left">
-															Title
-														</th>
-														<th className="border-b px-2 py-1 text-left">
-															Date
-														</th>
-													</tr>
-												</thead>
-												<tbody>
-													{(revisionPreview.rows ?? [])
-														.slice(0, 8)
-														.map((row, index) => (
-															<tr
-																key={`${row.eventKey || row.title}-${index}`}
-																className="border-b last:border-0"
-															>
-																<td className="px-2 py-1">
-																	{row.title || "Untitled event"}
-																</td>
-																<td className="px-2 py-1">
-																	{row.date || "TBC"}
-																</td>
-															</tr>
-														))}
-												</tbody>
-											</table>
-										</div>
-
-										<div className="flex flex-wrap justify-end gap-2 border-t pt-3">
-											<Button
-												type="button"
-												variant="outline"
-												onClick={() => setRevisionPreview(null)}
-											>
-												Clear preview
-											</Button>
-											<Button
-												type="button"
-												onClick={handleRestoreRevisionPreview}
-												disabled={isSaving}
-											>
-												Restore as draft
-											</Button>
+										<div className="flex items-start justify-start md:justify-end">
+											<div className="flex flex-wrap justify-start gap-2 md:justify-end">
+												<Badge variant="outline" className="text-[10px]">
+													{formatRevisionStats(revision)}
+												</Badge>
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													className="h-7"
+													onClick={() => void handlePreviewRevision(revision)}
+													disabled={
+														!revision.canRestore || isLoadingRevisionPreview
+													}
+												>
+													Preview
+												</Button>
+											</div>
 										</div>
 									</div>
-								) : (
-									<div className="flex min-h-48 items-center rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground">
-										{isLoadingRevisionPreview
-											? "Loading revision preview..."
-											: "Choose a restorable revision to preview."}
-									</div>
-								)}
+								))}
 							</div>
-						</div>
-					</DialogContent>
-				</Dialog>
-
-				<div className="space-y-3 rounded-md border bg-background/55 p-3">
-					<div className="grid items-end gap-3 xl:grid-cols-[minmax(280px,1fr)_220px_auto]">
-						<div className="space-y-2">
-							<Label htmlFor="sheet-search">Search rows</Label>
-							<Input
-								id="sheet-search"
-								value={query}
-								onChange={(event) => setQuery(event.target.value)}
-								placeholder="Search events, dates, genres..."
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="sheet-sort">Sort rows</Label>
-							<select
-								id="sheet-sort"
-								value={sortMode}
-								onChange={(event) =>
-									setSortMode(event.target.value as SheetSortMode)
-								}
-								className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-							>
-								<option value="soonest-upcoming">Soonest upcoming</option>
-								<option value="latest-upcoming">Latest upcoming</option>
-								<option value="date-asc">Date/time ascending</option>
-								<option value="date-desc">Date/time descending</option>
-								<option value="fresh-lifecycle">Recently added/updated</option>
-								<option value="sheet-order">Sheet order</option>
-							</select>
-						</div>
-						<div className="flex flex-wrap items-center justify-start gap-2 xl:justify-end">
-							{qualityFilter && (
-								<Button
-									type="button"
-									variant="outline"
-									onClick={() => setQualityFilter(null)}
-									className="h-10 border-foreground/30 bg-background px-3 text-xs"
-									title="Clear quality filter"
-								>
-									Quality: {getQualityLabel(qualityFilter)} x
-								</Button>
-							)}
-							<Button
-								onClick={handleManualSave}
-								disabled={isSaving || !hasUnsavedChanges}
-								className="h-10"
-							>
-								Save and Revalidate Homepage
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={handleUndo}
-								disabled={!canUndo || isSaving}
-								className="h-10"
-							>
-								Undo
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={handleRedo}
-								disabled={!canRedo || isSaving}
-								className="h-10"
-							>
-								Redo
-							</Button>
-						</div>
+						) : (
+							<div className="mt-3 rounded-md border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+								No sheet revisions recorded yet.
+							</div>
+						)}
 					</div>
 
-					<div className="flex flex-wrap items-end gap-x-6 gap-y-4 border-t pt-3">
-						<div className="min-w-fit space-y-2">
-							<Label>Sheet actions</Label>
-							<div className="flex flex-wrap gap-2">
-								<Button
-									onClick={handleAddRow}
-									variant="outline"
-									size="sm"
-									className="h-9"
-								>
-									Add row at top
-								</Button>
-								<Button
-									onClick={() => void loadEditorData()}
-									disabled={isSaving}
-									variant="outline"
-									size="sm"
-									className="h-9"
-								>
-									Reload
-								</Button>
-								<Button
-									onClick={handleNormalizeSheet}
-									disabled={isSaving || isLoading}
-									variant="outline"
-									size="sm"
-									className="h-9"
-								>
-									Normalize sheet
-								</Button>
-								<Button
-									onClick={() => setDisplayLimit((current) => current + 50)}
-									disabled={!canShowMoreRows}
-									variant="outline"
-									size="sm"
-									className="h-9"
-								>
-									Show 50 more rows
-								</Button>
-								<Label htmlFor="new-column-label" className="sr-only">
-									New column
-								</Label>
+					<Dialog
+						open={isRevisionHistoryOpen}
+						onOpenChange={setIsRevisionHistoryOpen}
+					>
+						<DialogContent className="max-h-[88vh] w-[min(980px,calc(100vw-2rem))] max-w-none overflow-hidden p-5 sm:max-w-none sm:p-6">
+							<DialogHeader className="pr-10">
+								<DialogTitle className="text-xl">
+									Sheet revision history
+								</DialogTitle>
+								<DialogDescription className="max-w-2xl text-base leading-relaxed">
+									Preview a revision before restoring it into the editor. The
+									restore stays unpublished until you save and revalidate.
+								</DialogDescription>
+							</DialogHeader>
+
+							<div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+								<div className="max-h-[58vh] min-h-0 overflow-y-auto rounded-md border bg-background/70">
+									{sheetRevisions.length > 0 ? (
+										<div className="divide-y">
+											{sheetRevisions.map((revision) => (
+												<button
+													key={revision.id}
+													type="button"
+													className="block w-full px-3 py-2 text-left transition hover:bg-muted/45 disabled:cursor-not-allowed disabled:opacity-60"
+													onClick={() => void handlePreviewRevision(revision)}
+													disabled={
+														!revision.canRestore || isLoadingRevisionPreview
+													}
+												>
+													<div className="flex flex-wrap items-center gap-2">
+														<Badge
+															variant={
+																revision.trigger === "publish"
+																	? "default"
+																	: "secondary"
+															}
+															className="text-[10px]"
+														>
+															{revision.trigger === "publish"
+																? "Published"
+																: "Autosave"}
+														</Badge>
+														<span className="min-w-0 truncate text-sm font-medium">
+															{revision.summary}
+														</span>
+													</div>
+													<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+														<span>{revision.actorLabel}</span>
+														<span>
+															{formatRevisionTime(revision.updatedAt)}
+														</span>
+														<span>{revision.rowCount} rows</span>
+														<span>{formatRevisionStats(revision)}</span>
+														{revision.autosaveCount > 1 && (
+															<span>{revision.autosaveCount} autosaves</span>
+														)}
+														{!revision.canRestore && <span>Summary only</span>}
+													</div>
+												</button>
+											))}
+										</div>
+									) : (
+										<div className="p-3 text-sm text-muted-foreground">
+											No sheet revisions recorded yet.
+										</div>
+									)}
+								</div>
+
+								<div className="min-h-0 rounded-md border bg-background/70 p-3">
+									{revisionPreview?.revision ? (
+										<div className="space-y-3">
+											<div>
+												<div className="flex flex-wrap items-center gap-2">
+													<Badge
+														variant={
+															revisionPreview.revision.trigger === "publish"
+																? "default"
+																: "secondary"
+														}
+														className="text-[10px]"
+													>
+														{revisionPreview.revision.trigger === "publish"
+															? "Published"
+															: "Autosave"}
+													</Badge>
+													<span className="text-sm font-medium">
+														{formatRevisionTime(
+															revisionPreview.revision.updatedAt,
+														)}
+													</span>
+												</div>
+												<p className="mt-2 text-sm">
+													{revisionPreview.revision.summary}
+												</p>
+												<p className="mt-1 text-xs text-muted-foreground">
+													{revisionPreview.rows?.length ?? 0} rows,{" "}
+													{revisionPreview.columns?.length ?? 0} columns
+												</p>
+											</div>
+
+											<div className="space-y-1 text-xs text-muted-foreground">
+												{revisionPreview.revision.changedColumns.length > 0 && (
+													<p>
+														Columns:{" "}
+														{revisionPreview.revision.changedColumns.join(", ")}
+													</p>
+												)}
+												{revisionPreview.revision.sampleAdded.length > 0 && (
+													<p>
+														Added:{" "}
+														{revisionPreview.revision.sampleAdded.join(", ")}
+													</p>
+												)}
+												{revisionPreview.revision.sampleDeleted.length > 0 && (
+													<p>
+														Deleted:{" "}
+														{revisionPreview.revision.sampleDeleted.join(", ")}
+													</p>
+												)}
+											</div>
+
+											<div className="max-h-56 overflow-y-auto rounded-md border bg-background">
+												<table className="w-full text-xs">
+													<thead className="sticky top-0 bg-background">
+														<tr>
+															<th className="border-b px-2 py-1 text-left">
+																Title
+															</th>
+															<th className="border-b px-2 py-1 text-left">
+																Date
+															</th>
+														</tr>
+													</thead>
+													<tbody>
+														{(revisionPreview.rows ?? [])
+															.slice(0, 8)
+															.map((row, index) => (
+																<tr
+																	key={`${row.eventKey || row.title}-${index}`}
+																	className="border-b last:border-0"
+																>
+																	<td className="px-2 py-1">
+																		{row.title || "Untitled event"}
+																	</td>
+																	<td className="px-2 py-1">
+																		{row.date || "TBC"}
+																	</td>
+																</tr>
+															))}
+													</tbody>
+												</table>
+											</div>
+
+											<div className="flex flex-wrap justify-end gap-2 border-t pt-3">
+												<Button
+													type="button"
+													variant="outline"
+													onClick={() => setRevisionPreview(null)}
+												>
+													Clear preview
+												</Button>
+												<Button
+													type="button"
+													onClick={handleRestoreRevisionPreview}
+													disabled={isSaving}
+												>
+													Restore as draft
+												</Button>
+											</div>
+										</div>
+									) : (
+										<div className="flex min-h-48 items-center rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground">
+											{isLoadingRevisionPreview
+												? "Loading revision preview..."
+												: "Choose a restorable revision to preview."}
+										</div>
+									)}
+								</div>
+							</div>
+						</DialogContent>
+					</Dialog>
+
+					<div className="space-y-3 rounded-md border bg-background/55 p-3">
+						<div className="grid items-end gap-3 xl:grid-cols-[minmax(280px,1fr)_220px_auto]">
+							<div className="space-y-2">
+								<Label htmlFor="sheet-search">Search rows</Label>
 								<Input
-									id="new-column-label"
-									value={newColumnLabel}
-									onChange={(event) => setNewColumnLabel(event.target.value)}
-									placeholder="New column"
-									className="h-9 w-44"
+									id="sheet-search"
+									value={query}
+									onChange={(event) => setQuery(event.target.value)}
+									placeholder="Search events, dates, genres..."
 								/>
-								<Button
-									onClick={handleAddColumn}
-									variant="outline"
-									size="sm"
-									disabled={isSaving || isLoading}
-									className="h-9"
-								>
-									Add column
-								</Button>
 							</div>
-						</div>
-
-						<div className="min-w-fit space-y-2">
-							<Label>Genre tools</Label>
-							<div className="flex flex-wrap items-center gap-2">
-								<Badge variant="outline" className="h-8 text-[10px]">
-									{defaultGenres.length} default
-								</Badge>
-								<Badge variant="secondary" className="h-8 text-[10px]">
-									{customGenres.length} custom
-								</Badge>
-								{unknownGenres.length > 0 && (
-									<Badge
+							<div className="space-y-2">
+								<Label htmlFor="sheet-sort">Sort rows</Label>
+								<select
+									id="sheet-sort"
+									value={sortMode}
+									onChange={(event) =>
+										setSortMode(event.target.value as SheetSortMode)
+									}
+									className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+								>
+									<option value="soonest-upcoming">Soonest upcoming</option>
+									<option value="latest-upcoming">Latest upcoming</option>
+									<option value="date-asc">Date/time ascending</option>
+									<option value="date-desc">Date/time descending</option>
+									<option value="fresh-lifecycle">
+										Recently added/updated
+									</option>
+									<option value="sheet-order">Sheet order</option>
+								</select>
+							</div>
+							<div className="flex flex-wrap items-center justify-start gap-2 xl:justify-end">
+								{qualityFilter && (
+									<Button
+										type="button"
 										variant="outline"
-										className="h-8 border-amber-300 bg-amber-50 text-[10px] text-amber-900"
+										onClick={() => setQualityFilter(null)}
+										className="h-10 border-foreground/30 bg-background px-3 text-xs"
+										title="Clear quality filter"
 									>
-										{unknownGenres.length} unknown
-									</Badge>
+										Quality: {getQualityLabel(qualityFilter)} x
+									</Button>
 								)}
 								<Button
+									onClick={handleManualSave}
+									disabled={isSaving || !hasUnsavedChanges}
+									className="h-10"
+								>
+									Save and Revalidate Homepage
+								</Button>
+								<Button
 									type="button"
-									size="sm"
 									variant="outline"
-									className="h-9"
-									onClick={() => setIsGenreManagerOpen(true)}
+									onClick={handleUndo}
+									disabled={!canUndo || isSaving}
+									className="h-10"
 								>
-									Manage genres
+									Undo
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									onClick={handleRedo}
+									disabled={!canRedo || isSaving}
+									className="h-10"
+								>
+									Redo
 								</Button>
 							</div>
 						</div>
 
-						<div className="ml-0 min-w-fit space-y-2 xl:ml-auto">
-							<Label>View options</Label>
-							<div className="flex h-9 items-center overflow-hidden rounded-md border bg-background text-sm whitespace-nowrap">
-								<span className="border-r px-3 text-muted-foreground whitespace-nowrap">
-									Frozen columns
-								</span>
-								<Button
-									type="button"
-									size="sm"
-									variant="ghost"
-									className="h-9 rounded-none px-3"
-									onClick={() =>
-										setPinnedColumnsCount((current) => Math.max(0, current - 1))
-									}
-									disabled={safePinnedCount <= 0}
-									aria-label="Decrease frozen columns"
-								>
-									-
-								</Button>
-								<span className="min-w-8 px-2 text-center font-medium">
-									{safePinnedCount}
-								</span>
-								<Button
-									type="button"
-									size="sm"
-									variant="ghost"
-									className="h-9 rounded-none px-3"
-									onClick={() =>
-										setPinnedColumnsCount((current) =>
-											Math.min(columns.length, MAX_FROZEN_COLUMNS, current + 1),
-										)
-									}
-									disabled={
-										safePinnedCount >= columns.length ||
-										safePinnedCount >= MAX_FROZEN_COLUMNS
-									}
-									aria-label="Increase frozen columns"
-								>
-									+
-								</Button>
-								<Button
-									type="button"
-									size="sm"
-									variant="ghost"
-									className="h-9 rounded-none border-l px-3"
-									onClick={() => setPinnedColumnsCount(0)}
-									disabled={safePinnedCount === 0}
-								>
-									Unfreeze
-								</Button>
+						<div className="flex flex-wrap items-end gap-x-6 gap-y-4 border-t pt-3">
+							<div className="min-w-fit space-y-2">
+								<Label>Sheet actions</Label>
+								<div className="flex flex-wrap gap-2">
+									<Button
+										onClick={handleAddRow}
+										variant="outline"
+										size="sm"
+										className="h-9"
+									>
+										Add row at top
+									</Button>
+									<Button
+										onClick={() => void loadEditorData()}
+										disabled={isSaving}
+										variant="outline"
+										size="sm"
+										className="h-9"
+									>
+										Reload
+									</Button>
+									<Button
+										onClick={handleNormalizeSheet}
+										disabled={isSaving || isLoading}
+										variant="outline"
+										size="sm"
+										className="h-9"
+									>
+										Normalize sheet
+									</Button>
+									<Button
+										onClick={() => setDisplayLimit((current) => current + 50)}
+										disabled={!canShowMoreRows}
+										variant="outline"
+										size="sm"
+										className="h-9"
+									>
+										Show 50 more rows
+									</Button>
+									<Label htmlFor="new-column-label" className="sr-only">
+										New column
+									</Label>
+									<Input
+										id="new-column-label"
+										value={newColumnLabel}
+										onChange={(event) => setNewColumnLabel(event.target.value)}
+										placeholder="New column"
+										className="h-9 w-44"
+									/>
+									<Button
+										onClick={handleAddColumn}
+										variant="outline"
+										size="sm"
+										disabled={isSaving || isLoading}
+										className="h-9"
+									>
+										Add column
+									</Button>
+								</div>
 							</div>
-						</div>
-					</div>
 
-					{unknownGenres.length > 0 && (
-						<div className="border-t pt-3">
-							<div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+							<div className="min-w-fit space-y-2">
+								<Label>Genre tools</Label>
 								<div className="flex flex-wrap items-center gap-2">
-									<span className="font-medium">Unknown genre tags</span>
-									<span className="text-amber-900">
-										Highlighted in the sheet. Add or map before publishing so
-										filters and genre chips stay consistent.
-									</span>
+									<Badge variant="outline" className="h-8 text-[10px]">
+										{defaultGenres.length} default
+									</Badge>
+									<Badge variant="secondary" className="h-8 text-[10px]">
+										{customGenres.length} custom
+									</Badge>
+									{unknownGenres.length > 0 && (
+										<Badge
+											variant="outline"
+											className="h-8 border-amber-300 bg-amber-50 text-[10px] text-amber-900"
+										>
+											{unknownGenres.length} unknown
+										</Badge>
+									)}
 									<Button
 										type="button"
 										size="sm"
 										variant="outline"
-										className="ml-auto h-8 border-amber-300 bg-amber-50"
+										className="h-9"
 										onClick={() => setIsGenreManagerOpen(true)}
 									>
-										Review all
+										Manage genres
 									</Button>
 								</div>
-								<div className="mt-2 flex flex-wrap gap-2">
-									{unknownGenres.slice(0, 6).map((genre) => (
-										<div
-											key={genre.value}
-											className="flex items-center gap-1 rounded-full border border-amber-300 bg-background/80 px-2 py-1 text-xs text-amber-900"
-										>
-											<span>
-												{genre.label} ({genre.count})
-											</span>
-											<Button
-												type="button"
-												size="sm"
-												variant="ghost"
-												className="h-5 px-1.5 text-[10px]"
-												title="Add this as a custom genre everywhere it appears"
-												onClick={() => void handleCreateGenre(genre.label)}
-											>
-												Add globally
-											</Button>
-											<Button
-												type="button"
-												size="sm"
-												variant="ghost"
-												className="h-5 px-1.5 text-[10px]"
-												onClick={() => {
-													setAliasInput(genre.label);
-													setIsGenreManagerOpen(true);
-												}}
-											>
-												Map
-											</Button>
-										</div>
-									))}
-									{unknownGenres.length > 6 && (
-										<Button
-											type="button"
-											size="sm"
-											variant="ghost"
-											className="h-7 text-xs text-amber-950"
-											onClick={() => setIsGenreManagerOpen(true)}
-										>
-											+{unknownGenres.length - 6} more
-										</Button>
-									)}
+							</div>
+
+							<div className="ml-0 min-w-fit space-y-2 xl:ml-auto">
+								<Label>View options</Label>
+								<div className="flex h-9 items-center overflow-hidden rounded-md border bg-background text-sm whitespace-nowrap">
+									<span className="border-r px-3 text-muted-foreground whitespace-nowrap">
+										Frozen columns
+									</span>
+									<Button
+										type="button"
+										size="sm"
+										variant="ghost"
+										className="h-9 rounded-none px-3"
+										onClick={() =>
+											setPinnedColumnsCount((current) =>
+												Math.max(0, current - 1),
+											)
+										}
+										disabled={safePinnedCount <= 0}
+										aria-label="Decrease frozen columns"
+									>
+										-
+									</Button>
+									<span className="min-w-8 px-2 text-center font-medium">
+										{safePinnedCount}
+									</span>
+									<Button
+										type="button"
+										size="sm"
+										variant="ghost"
+										className="h-9 rounded-none px-3"
+										onClick={() =>
+											setPinnedColumnsCount((current) =>
+												Math.min(
+													columns.length,
+													MAX_FROZEN_COLUMNS,
+													current + 1,
+												),
+											)
+										}
+										disabled={
+											safePinnedCount >= columns.length ||
+											safePinnedCount >= MAX_FROZEN_COLUMNS
+										}
+										aria-label="Increase frozen columns"
+									>
+										+
+									</Button>
+									<Button
+										type="button"
+										size="sm"
+										variant="ghost"
+										className="h-9 rounded-none border-l px-3"
+										onClick={() => setPinnedColumnsCount(0)}
+										disabled={safePinnedCount === 0}
+									>
+										Unfreeze
+									</Button>
 								</div>
 							</div>
 						</div>
-					)}
-				</div>
 
-				<Dialog open={isGenreManagerOpen} onOpenChange={setIsGenreManagerOpen}>
-					<DialogContent className="max-h-[88vh] w-[min(1040px,calc(100vw-2rem))] max-w-none overflow-y-auto p-5 sm:max-w-none sm:p-6">
-						<DialogHeader className="pr-10">
-							<DialogTitle className="text-xl">Manage genres</DialogTitle>
-							<DialogDescription className="max-w-2xl text-base leading-relaxed">
-								Default genres are protected. Custom genres and aliases apply
-								across the whole sheet.
-							</DialogDescription>
-						</DialogHeader>
-
-						<div className="space-y-4">
-							<div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-								<div className="min-w-0 space-y-1.5">
-									<Label htmlFor="new-genre-label">Add custom genre</Label>
-									<Input
-										id="new-genre-label"
-										value={newGenreLabel}
-										onChange={(event) => setNewGenreLabel(event.target.value)}
-										placeholder="French Pop"
-										className="h-9"
-										onKeyDown={(event) => {
-											if (event.key === "Enter") {
-												event.preventDefault();
-												void handleCreateGenre(newGenreLabel);
-											}
-										}}
-									/>
-								</div>
-								<Button
-									type="button"
-									size="sm"
-									variant="outline"
-									className="h-9"
-									onClick={() => void handleCreateGenre(newGenreLabel)}
-									disabled={isSaving || isLoading}
-								>
-									Add custom
-								</Button>
-							</div>
-
-							<div className="grid gap-3 xl:grid-cols-2">
-								<div className="min-w-0 space-y-1.5">
-									<div className="flex items-center gap-2">
-										<Label className="text-xs text-muted-foreground whitespace-nowrap">
-											Default genres
-										</Label>
-										<Badge variant="outline" className="text-[10px]">
-											{defaultGenres.length}
-										</Badge>
+						{unknownGenres.length > 0 && (
+							<div className="border-t pt-3">
+								<div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+									<div className="flex flex-wrap items-center gap-2">
+										<span className="font-medium">Unknown genre tags</span>
+										<span className="text-amber-900">
+											Highlighted in the sheet. Add or map before publishing so
+											filters and genre chips stay consistent.
+										</span>
+										<Button
+											type="button"
+											size="sm"
+											variant="outline"
+											className="ml-auto h-8 border-amber-300 bg-amber-50"
+											onClick={() => setIsGenreManagerOpen(true)}
+										>
+											Review all
+										</Button>
 									</div>
-									<div className="flex max-h-56 min-h-24 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-3">
-										{defaultGenres.map((genre) => (
-											<span
-												key={genre.key}
-												className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border/70 bg-background px-2.5 text-xs"
-											>
-												<span
-													className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
-												/>
-												{genre.label}
-											</span>
-										))}
-										{availableGenres.length === 0 && (
-											<span className="text-xs text-muted-foreground">
-												Genre list unavailable. Check the Postgres connection.
-											</span>
-										)}
-									</div>
-								</div>
-
-								<div className="min-w-0 space-y-1.5">
-									<div className="flex items-center gap-2">
-										<Label className="text-xs text-muted-foreground whitespace-nowrap">
-											Custom genres
-										</Label>
-										<Badge variant="secondary" className="text-[10px]">
-											{customGenres.length}
-										</Badge>
-									</div>
-									<div className="flex max-h-56 min-h-24 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-3">
-										{customGenres.map((genre) => (
-											<div
-												key={genre.key}
-												className="inline-flex h-7 items-center overflow-hidden rounded-full border border-border/70 bg-background text-xs"
-											>
-												<span className="inline-flex h-7 items-center gap-1.5 px-2.5">
-													<span
-														className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
-													/>
-													{genre.label}
-												</span>
-												<button
-													type="button"
-													className="h-7 border-l px-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-													onClick={() => void handleRemoveCustomGenre(genre)}
-													aria-label={`Remove ${genre.label}`}
-													title={`Remove ${genre.label}`}
-												>
-													x
-												</button>
-											</div>
-										))}
-										{customGenres.length === 0 && (
-											<span className="text-xs text-muted-foreground">
-												No custom genres yet.
-											</span>
-										)}
-									</div>
-								</div>
-							</div>
-
-							{unknownGenres.length > 0 && (
-								<div className="space-y-2 border-t pt-3">
-									<Label>Unknown genres in the sheet</Label>
-									<div className="flex flex-wrap gap-2">
-										{unknownGenres.map((genre) => (
+									<div className="mt-2 flex flex-wrap gap-2">
+										{unknownGenres.slice(0, 6).map((genre) => (
 											<div
 												key={genre.value}
-												className="flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900"
+												className="flex items-center gap-1 rounded-full border border-amber-300 bg-background/80 px-2 py-1 text-xs text-amber-900"
 											>
 												<span>
 													{genre.label} ({genre.count})
@@ -4232,45 +4160,61 @@ export const EventSheetEditorCard = ({
 													size="sm"
 													variant="ghost"
 													className="h-5 px-1.5 text-[10px]"
-													onClick={() => setAliasInput(genre.label)}
+													onClick={() => {
+														setAliasInput(genre.label);
+														setIsGenreManagerOpen(true);
+													}}
 												>
 													Map
 												</Button>
 											</div>
 										))}
+										{unknownGenres.length > 6 && (
+											<Button
+												type="button"
+												size="sm"
+												variant="ghost"
+												className="h-7 text-xs text-amber-950"
+												onClick={() => setIsGenreManagerOpen(true)}
+											>
+												+{unknownGenres.length - 6} more
+											</Button>
+										)}
 									</div>
 								</div>
-							)}
+							</div>
+						)}
+					</div>
 
-							<div className="space-y-2 border-t pt-3">
-								<Label>Alias mapping</Label>
-								<div className="grid gap-2 md:grid-cols-[minmax(12rem,16rem)_minmax(12rem,1fr)_auto] md:items-end">
-									<div className="min-w-0 space-y-1">
-										<Label htmlFor="genre-alias-target">
-											Treat typed genre as
-										</Label>
-										<select
-											id="genre-alias-target"
-											value={aliasGenreKey}
-											onChange={(event) => setAliasGenreKey(event.target.value)}
-											className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-										>
-											<option value="">Choose genre</option>
-											{availableGenres.map((genre) => (
-												<option key={genre.key} value={genre.key}>
-													{genre.label}
-												</option>
-											))}
-										</select>
-									</div>
-									<div className="min-w-0 space-y-1">
-										<Label htmlFor="genre-alias-input">Typed genre</Label>
+					<Dialog
+						open={isGenreManagerOpen}
+						onOpenChange={setIsGenreManagerOpen}
+					>
+						<DialogContent className="max-h-[88vh] w-[min(1040px,calc(100vw-2rem))] max-w-none overflow-y-auto p-5 sm:max-w-none sm:p-6">
+							<DialogHeader className="pr-10">
+								<DialogTitle className="text-xl">Manage genres</DialogTitle>
+								<DialogDescription className="max-w-2xl text-base leading-relaxed">
+									Default genres are protected. Custom genres and aliases apply
+									across the whole sheet.
+								</DialogDescription>
+							</DialogHeader>
+
+							<div className="space-y-4">
+								<div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+									<div className="min-w-0 space-y-1.5">
+										<Label htmlFor="new-genre-label">Add custom genre</Label>
 										<Input
-											id="genre-alias-input"
-											value={aliasInput}
-											onChange={(event) => setAliasInput(event.target.value)}
-											placeholder="Afro Trap"
-											className="h-9 w-full"
+											id="new-genre-label"
+											value={newGenreLabel}
+											onChange={(event) => setNewGenreLabel(event.target.value)}
+											placeholder="French Pop"
+											className="h-9"
+											onKeyDown={(event) => {
+												if (event.key === "Enter") {
+													event.preventDefault();
+													void handleCreateGenre(newGenreLabel);
+												}
+											}}
 										/>
 									</div>
 									<Button
@@ -4278,308 +4222,465 @@ export const EventSheetEditorCard = ({
 										size="sm"
 										variant="outline"
 										className="h-9"
-										onClick={() => void handleMapAlias(aliasInput)}
-										disabled={!aliasInput.trim() || !aliasGenreKey}
+										onClick={() => void handleCreateGenre(newGenreLabel)}
+										disabled={isSaving || isLoading}
 									>
-										Save mapping
+										Add custom
 									</Button>
 								</div>
-							</div>
 
-							<div className="border-t pt-3">
-								<Accordion>
-									<AccordionItem value="genre-aliases" className="border-0">
-										<AccordionTrigger className="rounded-md border border-border/70 bg-background/70 px-3 py-2 text-sm no-underline hover:bg-muted/40 hover:no-underline">
-											<span className="flex min-w-0 flex-wrap items-center gap-2">
-												<span>Current alias mappings</span>
-												<Badge variant="outline" className="text-[10px]">
-													{aliasMappings.length}
-												</Badge>
-												{customAliasCount > 0 && (
-													<Badge variant="secondary" className="text-[10px]">
-														{customAliasCount} custom
-													</Badge>
-												)}
-											</span>
-										</AccordionTrigger>
-										<AccordionContent className="pt-2 pb-0">
-											{aliasMappings.length > 0 ? (
-												<div className="grid max-h-64 gap-2 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2 sm:grid-cols-2">
-													{aliasMappings.map((alias) => (
-														<div
-															key={`${alias.alias}:${alias.genreKey}`}
-															className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-border/60 bg-background px-2.5 py-2 text-xs"
-														>
-															<span className="min-w-0 truncate">
-																{toGenreLabel(alias.alias)} -&gt;{" "}
-																{alias.genreLabel}
-															</span>
-															{alias.isDefault ? (
-																<Badge
-																	variant="outline"
-																	className="text-[10px]"
-																>
-																	Built-in
-																</Badge>
-															) : (
-																<button
-																	type="button"
-																	className="shrink-0 rounded-sm px-2 py-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-																	onClick={() =>
-																		void handleRemoveAlias(alias.alias)
-																	}
-																	aria-label={`Remove ${alias.alias} alias`}
-																	title={`Remove ${alias.alias} alias`}
-																>
-																	x
-																</button>
-															)}
-														</div>
-													))}
+								<div className="grid gap-3 xl:grid-cols-2">
+									<div className="min-w-0 space-y-1.5">
+										<div className="flex items-center gap-2">
+											<Label className="text-xs text-muted-foreground whitespace-nowrap">
+												Default genres
+											</Label>
+											<Badge variant="outline" className="text-[10px]">
+												{defaultGenres.length}
+											</Badge>
+										</div>
+										<div className="flex max-h-56 min-h-24 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-3">
+											{defaultGenres.map((genre) => (
+												<span
+													key={genre.key}
+													className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border/70 bg-background px-2.5 text-xs"
+												>
+													<span
+														className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
+													/>
+													{genre.label}
+												</span>
+											))}
+											{availableGenres.length === 0 && (
+												<span className="text-xs text-muted-foreground">
+													Genre list unavailable. Check the Postgres connection.
+												</span>
+											)}
+										</div>
+									</div>
+
+									<div className="min-w-0 space-y-1.5">
+										<div className="flex items-center gap-2">
+											<Label className="text-xs text-muted-foreground whitespace-nowrap">
+												Custom genres
+											</Label>
+											<Badge variant="secondary" className="text-[10px]">
+												{customGenres.length}
+											</Badge>
+										</div>
+										<div className="flex max-h-56 min-h-24 flex-wrap content-start gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-3">
+											{customGenres.map((genre) => (
+												<div
+													key={genre.key}
+													className="inline-flex h-7 items-center overflow-hidden rounded-full border border-border/70 bg-background text-xs"
+												>
+													<span className="inline-flex h-7 items-center gap-1.5 px-2.5">
+														<span
+															className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
+														/>
+														{genre.label}
+													</span>
+													<button
+														type="button"
+														className="h-7 border-l px-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+														onClick={() => void handleRemoveCustomGenre(genre)}
+														aria-label={`Remove ${genre.label}`}
+														title={`Remove ${genre.label}`}
+													>
+														x
+													</button>
 												</div>
-											) : (
-												<p className="rounded-md border border-border/70 bg-background/70 p-3 text-xs text-muted-foreground">
-													No alias mappings are available yet.
-												</p>
+											))}
+											{customGenres.length === 0 && (
+												<span className="text-xs text-muted-foreground">
+													No custom genres yet.
+												</span>
 											)}
-										</AccordionContent>
-									</AccordionItem>
-								</Accordion>
-							</div>
-						</div>
-					</DialogContent>
-				</Dialog>
+										</div>
+									</div>
+								</div>
 
-				{errorMessage && (
-					<div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-						{errorMessage}
-					</div>
-				)}
+								{unknownGenres.length > 0 && (
+									<div className="space-y-2 border-t pt-3">
+										<Label>Unknown genres in the sheet</Label>
+										<div className="flex flex-wrap gap-2">
+											{unknownGenres.map((genre) => (
+												<div
+													key={genre.value}
+													className="flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900"
+												>
+													<span>
+														{genre.label} ({genre.count})
+													</span>
+													<Button
+														type="button"
+														size="sm"
+														variant="ghost"
+														className="h-5 px-1.5 text-[10px]"
+														title="Add this as a custom genre everywhere it appears"
+														onClick={() => void handleCreateGenre(genre.label)}
+													>
+														Add globally
+													</Button>
+													<Button
+														type="button"
+														size="sm"
+														variant="ghost"
+														className="h-5 px-1.5 text-[10px]"
+														onClick={() => setAliasInput(genre.label)}
+													>
+														Map
+													</Button>
+												</div>
+											))}
+										</div>
+									</div>
+								)}
 
-				<div className="text-xs text-muted-foreground">
-					`Event Key` is system-managed for stable share links and is read-only.
-				</div>
-				<div className="text-xs text-muted-foreground">
-					When missing, Event Key is generated from canonical identity fields:
-					`Title`, `Date`, `Start Time`, `Location`, `District/Area`.
-				</div>
-				<div className="text-xs text-muted-foreground">
-					{DATE_RANGE_HELPER_MESSAGE}
-				</div>
+								<div className="space-y-2 border-t pt-3">
+									<Label>Alias mapping</Label>
+									<div className="grid gap-2 md:grid-cols-[minmax(12rem,16rem)_minmax(12rem,1fr)_auto] md:items-end">
+										<div className="min-w-0 space-y-1">
+											<Label htmlFor="genre-alias-target">
+												Treat typed genre as
+											</Label>
+											<select
+												id="genre-alias-target"
+												value={aliasGenreKey}
+												onChange={(event) =>
+													setAliasGenreKey(event.target.value)
+												}
+												className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+											>
+												<option value="">Choose genre</option>
+												{availableGenres.map((genre) => (
+													<option key={genre.key} value={genre.key}>
+														{genre.label}
+													</option>
+												))}
+											</select>
+										</div>
+										<div className="min-w-0 space-y-1">
+											<Label htmlFor="genre-alias-input">Typed genre</Label>
+											<Input
+												id="genre-alias-input"
+												value={aliasInput}
+												onChange={(event) => setAliasInput(event.target.value)}
+												placeholder="Afro Trap"
+												className="h-9 w-full"
+											/>
+										</div>
+										<Button
+											type="button"
+											size="sm"
+											variant="outline"
+											className="h-9"
+											onClick={() => void handleMapAlias(aliasInput)}
+											disabled={!aliasInput.trim() || !aliasGenreKey}
+										>
+											Save mapping
+										</Button>
+									</div>
+								</div>
 
-				<div className="text-xs text-muted-foreground">
-					Showing {visibleRowIndexes.length} of {filteredRowIndexes.length}{" "}
-					filtered rows ({rows.length} total).
-					{qualityFilter
-						? ` Quality filter: ${getQualityFilterDescription(qualityFilter)}.`
-						: ""}
-				</div>
-				<div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-background/65 px-3 py-2 text-xs text-muted-foreground">
-					<span className="font-medium text-foreground">Row quality</span>
-					<button
-						type="button"
-						onClick={() => handleQualityFilterToggle("blocking")}
-						className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
-							qualityFilter === "blocking" ? "bg-muted text-foreground" : ""
-						}`}
-						aria-pressed={qualityFilter === "blocking"}
-					>
-						<span className="h-2.5 w-2.5 rounded-full bg-red-600" />
-						{rowQualityCounts.blocking} need fix
-					</button>
-					<button
-						type="button"
-						onClick={() => handleQualityFilterToggle("review")}
-						className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
-							qualityFilter === "review" ? "bg-muted text-foreground" : ""
-						}`}
-						aria-pressed={qualityFilter === "review"}
-					>
-						<span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-						{rowQualityCounts.review} review
-					</button>
-					<button
-						type="button"
-						onClick={() => handleQualityFilterToggle("complete")}
-						className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
-							qualityFilter === "complete" ? "bg-muted text-foreground" : ""
-						}`}
-						aria-pressed={qualityFilter === "complete"}
-					>
-						<span className="h-2.5 w-2.5 rounded-full bg-green-600" />
-						{rowQualityCounts.complete} complete
-					</button>
-					<button
-						type="button"
-						onClick={() => handleQualityFilterToggle("draft")}
-						className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
-							qualityFilter === "draft" ? "bg-muted text-foreground" : ""
-						}`}
-						aria-pressed={qualityFilter === "draft"}
-					>
-						<span className="h-2.5 w-2.5 rounded-full border border-muted-foreground/45" />
-						{rowQualityCounts.draft} draft
-					</button>
-					<span className="border-l border-border/70 pl-2">
-						{rowQualityCounts.sourceConfirmed} source confirmed
-					</span>
-					{rowQualityCounts.manual > 0 && (
-						<span>{rowQualityCounts.manual} manual override</span>
-					)}
-				</div>
-				<div className="max-w-full overflow-auto rounded-md border max-h-[70vh]">
-					<table className="w-max min-w-full table-fixed border-separate border-spacing-0 text-xs">
-						<colgroup>
-							<col style={{ width: `${ROW_NUMBER_COLUMN_WIDTH}px` }} />
-							{columns.map((column) => (
-								<col
-									key={`col-${column.key}`}
-									style={{ width: `${DATA_COLUMN_WIDTH}px` }}
-								/>
-							))}
-						</colgroup>
-						<thead className="sticky top-0 z-20 bg-background/95 backdrop-blur-[2px]">
-							<tr>
-								<th
-									className="sticky z-30 border-b border-r bg-background px-2 py-2 text-left"
-									style={{ left: 0, width: `${ROW_NUMBER_COLUMN_WIDTH}px` }}
-								>
-									Row
-								</th>
-								{columns.map((column, columnIndex) => (
-									<th
-										key={column.key}
-										className="w-[170px] border-b border-r bg-background px-2 py-2 text-left align-top"
-										style={getPinnedColumnStyle(columnIndex, "header")}
-									>
-										<div className="space-y-1">
-											{column.isCore ? (
-												<div className="font-medium">{column.label}</div>
-											) : (
-												<Input
-													key={`${column.key}-${column.label}`}
-													defaultValue={column.label}
-													onBlur={(event) =>
-														handleRenameColumn(column.key, event.target.value)
-													}
-													onKeyDown={(event) => {
-														if (event.key === "Enter") {
-															event.currentTarget.blur();
-														}
-													}}
-													className="h-7 text-xs"
-													aria-label={`Rename column ${column.label}`}
-												/>
-											)}
-											<div className="flex items-center gap-1">
-												{column.isCore ? (
+								<div className="border-t pt-3">
+									<Accordion>
+										<AccordionItem value="genre-aliases" className="border-0">
+											<AccordionTrigger className="rounded-md border border-border/70 bg-background/70 px-3 py-2 text-sm no-underline hover:bg-muted/40 hover:no-underline">
+												<span className="flex min-w-0 flex-wrap items-center gap-2">
+													<span>Current alias mappings</span>
 													<Badge variant="outline" className="text-[10px]">
-														Core
+														{aliasMappings.length}
 													</Badge>
+													{customAliasCount > 0 && (
+														<Badge variant="secondary" className="text-[10px]">
+															{customAliasCount} custom
+														</Badge>
+													)}
+												</span>
+											</AccordionTrigger>
+											<AccordionContent className="pt-2 pb-0">
+												{aliasMappings.length > 0 ? (
+													<div className="grid max-h-64 gap-2 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2 sm:grid-cols-2">
+														{aliasMappings.map((alias) => (
+															<div
+																key={`${alias.alias}:${alias.genreKey}`}
+																className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-border/60 bg-background px-2.5 py-2 text-xs"
+															>
+																<span className="min-w-0 truncate">
+																	{toGenreLabel(alias.alias)} -&gt;{" "}
+																	{alias.genreLabel}
+																</span>
+																{alias.isDefault ? (
+																	<Badge
+																		variant="outline"
+																		className="text-[10px]"
+																	>
+																		Built-in
+																	</Badge>
+																) : (
+																	<button
+																		type="button"
+																		className="shrink-0 rounded-sm px-2 py-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+																		onClick={() =>
+																			void handleRemoveAlias(alias.alias)
+																		}
+																		aria-label={`Remove ${alias.alias} alias`}
+																		title={`Remove ${alias.alias} alias`}
+																	>
+																		x
+																	</button>
+																)}
+															</div>
+														))}
+													</div>
 												) : (
+													<p className="rounded-md border border-border/70 bg-background/70 p-3 text-xs text-muted-foreground">
+														No alias mappings are available yet.
+													</p>
+												)}
+											</AccordionContent>
+										</AccordionItem>
+									</Accordion>
+								</div>
+							</div>
+						</DialogContent>
+					</Dialog>
+
+					{errorMessage && (
+						<div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+							{errorMessage}
+						</div>
+					)}
+
+					<div className="text-xs text-muted-foreground">
+						`Event Key` is system-managed for stable share links and is
+						read-only.
+					</div>
+					<div className="text-xs text-muted-foreground">
+						When missing, Event Key is generated from canonical identity fields:
+						`Title`, `Date`, `Start Time`, `Location`, `District/Area`.
+					</div>
+					<div className="text-xs text-muted-foreground">
+						{DATE_RANGE_HELPER_MESSAGE}
+					</div>
+
+					<div className="text-xs text-muted-foreground">
+						Showing {visibleRowIndexes.length} of {filteredRowIndexes.length}{" "}
+						filtered rows ({rows.length} total).
+						{qualityFilter
+							? ` Quality filter: ${getQualityFilterDescription(qualityFilter)}.`
+							: ""}
+					</div>
+					<div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-background/65 px-3 py-2 text-xs text-muted-foreground">
+						<span className="font-medium text-foreground">Row quality</span>
+						<button
+							type="button"
+							onClick={() => handleQualityFilterToggle("blocking")}
+							className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
+								qualityFilter === "blocking" ? "bg-muted text-foreground" : ""
+							}`}
+							aria-pressed={qualityFilter === "blocking"}
+						>
+							<span className="h-2.5 w-2.5 rounded-full bg-red-600" />
+							{rowQualityCounts.blocking} need fix
+						</button>
+						<button
+							type="button"
+							onClick={() => handleQualityFilterToggle("review")}
+							className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
+								qualityFilter === "review" ? "bg-muted text-foreground" : ""
+							}`}
+							aria-pressed={qualityFilter === "review"}
+						>
+							<span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+							{rowQualityCounts.review} review
+						</button>
+						<button
+							type="button"
+							onClick={() => handleQualityFilterToggle("complete")}
+							className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
+								qualityFilter === "complete" ? "bg-muted text-foreground" : ""
+							}`}
+							aria-pressed={qualityFilter === "complete"}
+						>
+							<span className="h-2.5 w-2.5 rounded-full bg-green-600" />
+							{rowQualityCounts.complete} complete
+						</button>
+						<button
+							type="button"
+							onClick={() => handleQualityFilterToggle("draft")}
+							className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-muted ${
+								qualityFilter === "draft" ? "bg-muted text-foreground" : ""
+							}`}
+							aria-pressed={qualityFilter === "draft"}
+						>
+							<span className="h-2.5 w-2.5 rounded-full border border-muted-foreground/45" />
+							{rowQualityCounts.draft} draft
+						</button>
+						<span className="border-l border-border/70 pl-2">
+							{rowQualityCounts.sourceConfirmed} source confirmed
+						</span>
+						{rowQualityCounts.manual > 0 && (
+							<span>{rowQualityCounts.manual} manual override</span>
+						)}
+					</div>
+					<div className="max-w-full overflow-auto rounded-md border max-h-[70vh]">
+						<table className="w-max min-w-full table-fixed border-separate border-spacing-0 text-xs">
+							<colgroup>
+								<col style={{ width: `${ROW_NUMBER_COLUMN_WIDTH}px` }} />
+								{columns.map((column) => (
+									<col
+										key={`col-${column.key}`}
+										style={{ width: `${DATA_COLUMN_WIDTH}px` }}
+									/>
+								))}
+							</colgroup>
+							<thead className="sticky top-0 z-20 bg-background/95 backdrop-blur-[2px]">
+								<tr>
+									<th
+										className="sticky z-30 border-b border-r bg-background px-2 py-2 text-left"
+										style={{ left: 0, width: `${ROW_NUMBER_COLUMN_WIDTH}px` }}
+									>
+										Row
+									</th>
+									{columns.map((column, columnIndex) => (
+										<th
+											key={column.key}
+											className="w-[170px] border-b border-r bg-background px-2 py-2 text-left align-top"
+											style={getPinnedColumnStyle(columnIndex, "header")}
+										>
+											<div className="space-y-1">
+												{column.isCore ? (
+													<div className="font-medium">{column.label}</div>
+												) : (
+													<Input
+														key={`${column.key}-${column.label}`}
+														defaultValue={column.label}
+														onBlur={(event) =>
+															handleRenameColumn(column.key, event.target.value)
+														}
+														onKeyDown={(event) => {
+															if (event.key === "Enter") {
+																event.currentTarget.blur();
+															}
+														}}
+														className="h-7 text-xs"
+														aria-label={`Rename column ${column.label}`}
+													/>
+												)}
+												<div className="flex items-center gap-1">
+													{column.isCore ? (
+														<Badge variant="outline" className="text-[10px]">
+															Core
+														</Badge>
+													) : (
+														<Button
+															type="button"
+															size="sm"
+															variant="ghost"
+															className="h-6 px-2 text-[10px]"
+															onClick={() => handleDeleteColumn(column)}
+														>
+															Remove
+														</Button>
+													)}
+													{column.isRequired && (
+														<Badge variant="secondary" className="text-[10px]">
+															Required
+														</Badge>
+													)}
+													{SYSTEM_MANAGED_COLUMN_KEYS.has(column.key) && (
+														<Badge variant="outline" className="text-[10px]">
+															System
+														</Badge>
+													)}
+												</div>
+												<div className="flex items-center gap-1">
 													<Button
 														type="button"
 														size="sm"
 														variant="ghost"
 														className="h-6 px-2 text-[10px]"
-														onClick={() => handleDeleteColumn(column)}
+														onClick={() => handleMoveColumn(column.key, -1)}
+														disabled={columnIndex === 0}
 													>
-														Remove
+														←
 													</Button>
-												)}
-												{column.isRequired && (
-													<Badge variant="secondary" className="text-[10px]">
-														Required
-													</Badge>
-												)}
-												{SYSTEM_MANAGED_COLUMN_KEYS.has(column.key) && (
-													<Badge variant="outline" className="text-[10px]">
-														System
-													</Badge>
-												)}
+													<Button
+														type="button"
+														size="sm"
+														variant="ghost"
+														className="h-6 px-2 text-[10px]"
+														onClick={() => handleMoveColumn(column.key, 1)}
+														disabled={columnIndex === columns.length - 1}
+													>
+														→
+													</Button>
+												</div>
 											</div>
-											<div className="flex items-center gap-1">
-												<Button
-													type="button"
-													size="sm"
-													variant="ghost"
-													className="h-6 px-2 text-[10px]"
-													onClick={() => handleMoveColumn(column.key, -1)}
-													disabled={columnIndex === 0}
-												>
-													←
-												</Button>
-												<Button
-													type="button"
-													size="sm"
-													variant="ghost"
-													className="h-6 px-2 text-[10px]"
-													onClick={() => handleMoveColumn(column.key, 1)}
-													disabled={columnIndex === columns.length - 1}
-												>
-													→
-												</Button>
-											</div>
-										</div>
-									</th>
-								))}
-							</tr>
-						</thead>
-						<tbody>
-							{isLoading ? (
-								<tr>
-									<td
-										colSpan={columns.length + 1}
-										className="px-3 py-8 text-center text-muted-foreground"
-									>
-										Loading editor data...
-									</td>
+										</th>
+									))}
 								</tr>
-							) : visibleRowIndexes.length === 0 ? (
-								<tr>
-									<td
-										colSpan={columns.length + 1}
-										className="px-3 py-8 text-center text-muted-foreground"
-									>
-										No rows match your search.
-									</td>
-								</tr>
-							) : (
-								visibleRowIndexes.map((rowIndex) => {
-									const row = rows[rowIndex];
-									const categoryValue = getCellDisplayValue(
-										rowIndex,
-										CATEGORY_COLUMN_KEY,
-										row[CATEGORY_COLUMN_KEY] ?? "",
-									);
-									const selectedGenreKeys = getSelectedGenreKeys(
-										categoryValue,
-										genreTaxonomy,
-									);
-									const dateCellHint = formatDateCellHint(
-										row[DATE_COLUMN_KEY] ?? "",
-										sheetDateContext,
-									);
-									const startTimeHint = formatTwelveHourTime(
-										row[START_TIME_COLUMN_KEY] ?? "",
-									);
-									const endTimeHint = formatTwelveHourTime(
-										row[END_TIME_COLUMN_KEY] ?? "",
-									);
-									const primaryUrlParts = parseUrlParts(
-										row[PRIMARY_URL_COLUMN_KEY] ?? "",
-									);
-									const rowIssues =
-										sheetHealthIssuesByRow.get(rowIndex + 1) ?? [];
-									const rowQuality = getRowQualityAssessment(row, rowIssues);
-									return (
-										<tr key={`row-${rowIndex}`} className="group/row align-top">
-											<td
-												className="sticky z-10 border-r border-b bg-background px-1.5 py-1 text-[11px] text-muted-foreground"
-												style={{
-													left: 0,
-													width: `${ROW_NUMBER_COLUMN_WIDTH}px`,
-												}}
+							</thead>
+							<tbody>
+								{isLoading ? (
+									<tr>
+										<td
+											colSpan={columns.length + 1}
+											className="px-3 py-8 text-center text-muted-foreground"
+										>
+											Loading editor data...
+										</td>
+									</tr>
+								) : visibleRowIndexes.length === 0 ? (
+									<tr>
+										<td
+											colSpan={columns.length + 1}
+											className="px-3 py-8 text-center text-muted-foreground"
+										>
+											No rows match your search.
+										</td>
+									</tr>
+								) : (
+									visibleRowIndexes.map((rowIndex) => {
+										const row = rows[rowIndex];
+										const categoryValue = getCellDisplayValue(
+											rowIndex,
+											CATEGORY_COLUMN_KEY,
+											row[CATEGORY_COLUMN_KEY] ?? "",
+										);
+										const selectedGenreKeys = getSelectedGenreKeys(
+											categoryValue,
+											genreTaxonomy,
+										);
+										const dateCellHint = formatDateCellHint(
+											row[DATE_COLUMN_KEY] ?? "",
+											sheetDateContext,
+										);
+										const startTimeHint = formatTwelveHourTime(
+											row[START_TIME_COLUMN_KEY] ?? "",
+										);
+										const endTimeHint = formatTwelveHourTime(
+											row[END_TIME_COLUMN_KEY] ?? "",
+										);
+										const primaryUrlParts = parseUrlParts(
+											row[PRIMARY_URL_COLUMN_KEY] ?? "",
+										);
+										const rowIssues =
+											sheetHealthIssuesByRow.get(rowIndex + 1) ?? [];
+										const rowQuality = getRowQualityAssessment(row, rowIssues);
+										return (
+											<tr
+												key={`row-${rowIndex}`}
+												className="group/row align-top"
+											>
+												<td
+													className="sticky z-10 border-r border-b bg-background px-1.5 py-1 text-[11px] text-muted-foreground"
+													style={{
+														left: 0,
+														width: `${ROW_NUMBER_COLUMN_WIDTH}px`,
+													}}
 												>
 													<div className="relative flex h-8 items-center gap-1">
 														<span className="min-w-7 px-1 text-center font-mono">
@@ -4589,14 +4690,17 @@ export const EventSheetEditorCard = ({
 															type="button"
 															data-quality-popover
 															onClick={(event) =>
-																openQualityPopover(rowIndex, event.currentTarget)
+																openQualityPopover(
+																	rowIndex,
+																	event.currentTarget,
+																)
 															}
 															className={`h-2.5 w-2.5 shrink-0 rounded-full border ${getQualityDotClassName(
 																rowQuality.value,
 															)} cursor-pointer transition-transform hover:scale-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
 																qualityFilter === rowQuality.value
 																	? "outline outline-2 outline-offset-2 outline-ring"
-																: ""
+																	: ""
 															}`}
 															aria-label={`Open quality details for row ${rowIndex + 1}`}
 															title={`${rowQuality.label}. Click to review or filter.`}
@@ -4607,1003 +4711,1247 @@ export const EventSheetEditorCard = ({
 																title="Source confirmed"
 															/>
 														)}
-													<div className="flex items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
-														<Button
-															type="button"
-															size="sm"
-															variant="ghost"
-															onClick={() => handleInsertRowBelow(rowIndex)}
-															className="h-6 w-6 p-0"
-															aria-label={`Insert row below ${rowIndex + 1}`}
-															title="Insert row below"
-														>
-															<Plus className="h-3.5 w-3.5" />
-														</Button>
-														<Button
-															type="button"
-															size="sm"
-															variant="ghost"
-															onClick={() => handleDuplicateRow(rowIndex)}
-															className="h-6 w-6 p-0"
-															aria-label={`Duplicate row ${rowIndex + 1}`}
-															title="Duplicate row"
-														>
-															<Copy className="h-3.5 w-3.5" />
-														</Button>
-														{canManuallyMoveRows && (
-															<>
-																<Button
-																	type="button"
-																	size="sm"
-																	variant="ghost"
-																	onClick={() => handleMoveRow(rowIndex, -1)}
-																	disabled={rowIndex === 0}
-																	className="h-6 w-6 p-0"
-																	aria-label={`Move row ${rowIndex + 1} up`}
-																	title="Move row up"
-																>
-																	<ArrowUp className="h-3.5 w-3.5" />
-																</Button>
-																<Button
-																	type="button"
-																	size="sm"
-																	variant="ghost"
-																	onClick={() => handleMoveRow(rowIndex, 1)}
-																	disabled={rowIndex >= rows.length - 1}
-																	className="h-6 w-6 p-0"
-																	aria-label={`Move row ${rowIndex + 1} down`}
-																	title="Move row down"
-																>
-																	<ArrowDown className="h-3.5 w-3.5" />
-																</Button>
-															</>
-														)}
-														<Button
-															type="button"
-															size="sm"
-															variant="ghost"
-															onClick={() => handleDeleteRow(rowIndex)}
-															className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-															aria-label={`Delete row ${rowIndex + 1}`}
-															title="Delete row"
-														>
-															<Trash2 className="h-3.5 w-3.5" />
-														</Button>
-													</div>
-												</div>
-											</td>
-											{columns.map((column, columnIndex) => (
-												<td
-													key={`row-${rowIndex}-${column.key}`}
-													className="w-[170px] border-b border-r p-0"
-													style={getPinnedColumnStyle(columnIndex, "cell")}
-												>
-													{column.key === CURATED_COLUMN_KEY ? (
-														<button
-															ref={(node) => {
-																inputRefs.current[
-																	cellRefKey(rowIndex, column.key)
-																] = node;
-															}}
-															type="button"
-															aria-pressed={isCuratedValue(
-																row[column.key] ?? "",
+														<div className="flex items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
+															<Button
+																type="button"
+																size="sm"
+																variant="ghost"
+																onClick={() => handleInsertRowBelow(rowIndex)}
+																className="h-6 w-6 p-0"
+																aria-label={`Insert row below ${rowIndex + 1}`}
+																title="Insert row below"
+															>
+																<Plus className="h-3.5 w-3.5" />
+															</Button>
+															<Button
+																type="button"
+																size="sm"
+																variant="ghost"
+																onClick={() => handleDuplicateRow(rowIndex)}
+																className="h-6 w-6 p-0"
+																aria-label={`Duplicate row ${rowIndex + 1}`}
+																title="Duplicate row"
+															>
+																<Copy className="h-3.5 w-3.5" />
+															</Button>
+															{canManuallyMoveRows && (
+																<>
+																	<Button
+																		type="button"
+																		size="sm"
+																		variant="ghost"
+																		onClick={() => handleMoveRow(rowIndex, -1)}
+																		disabled={rowIndex === 0}
+																		className="h-6 w-6 p-0"
+																		aria-label={`Move row ${rowIndex + 1} up`}
+																		title="Move row up"
+																	>
+																		<ArrowUp className="h-3.5 w-3.5" />
+																	</Button>
+																	<Button
+																		type="button"
+																		size="sm"
+																		variant="ghost"
+																		onClick={() => handleMoveRow(rowIndex, 1)}
+																		disabled={rowIndex >= rows.length - 1}
+																		className="h-6 w-6 p-0"
+																		aria-label={`Move row ${rowIndex + 1} down`}
+																		title="Move row down"
+																	>
+																		<ArrowDown className="h-3.5 w-3.5" />
+																	</Button>
+																</>
 															)}
-															onClick={() =>
-																toggleCuratedForCell(rowIndex, column.key)
-															}
-															onKeyDown={(event) => {
-																if (event.key === "ArrowDown") {
-																	event.preventDefault();
-																	focusCell(rowIndex, column.key, 1, 0);
-																}
-																if (event.key === "ArrowUp") {
-																	event.preventDefault();
-																	focusCell(rowIndex, column.key, -1, 0);
-																}
-																if (
-																	event.key === "ArrowRight" &&
-																	event.altKey
-																) {
-																	event.preventDefault();
-																	focusCell(rowIndex, column.key, 0, 1);
-																}
-																if (event.key === "ArrowLeft" && event.altKey) {
-																	event.preventDefault();
-																	focusCell(rowIndex, column.key, 0, -1);
-																}
-															}}
-															className={`flex h-9 w-full items-center gap-2 px-2 text-left text-xs outline-none transition hover:bg-accent/60 focus:bg-muted/30 ${
-																isCuratedValue(row[column.key] ?? "")
-																	? "text-amber-700"
-																	: "text-muted-foreground"
-															}`}
-														>
-															<span className="text-base leading-none">
-																{isCuratedValue(row[column.key] ?? "")
-																	? CURATED_PICK_VALUE
-																	: "☆"}
-															</span>
-															<span className="truncate">
-																{isCuratedValue(row[column.key] ?? "")
-																	? "OOOC Pick"
-																	: "Not curated"}
-															</span>
-														</button>
-													) : column.key === DATE_COLUMN_KEY ? (
-														<div className="relative min-h-9 bg-transparent px-2 py-1">
-															<input
+															<Button
+																type="button"
+																size="sm"
+																variant="ghost"
+																onClick={() => handleDeleteRow(rowIndex)}
+																className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+																aria-label={`Delete row ${rowIndex + 1}`}
+																title="Delete row"
+															>
+																<Trash2 className="h-3.5 w-3.5" />
+															</Button>
+														</div>
+													</div>
+												</td>
+												{columns.map((column, columnIndex) => (
+													<td
+														key={`row-${rowIndex}-${column.key}`}
+														className="w-[170px] border-b border-r p-0"
+														style={getPinnedColumnStyle(columnIndex, "cell")}
+													>
+														{column.key === CURATED_COLUMN_KEY ? (
+															<button
 																ref={(node) => {
 																	inputRefs.current[
 																		cellRefKey(rowIndex, column.key)
 																	] = node;
 																}}
-																value={row[column.key] ?? ""}
-																onFocus={() => {
-																	setFocusedDateCell({
-																		rowIndex,
-																		columnKey: column.key,
-																	});
-																}}
-																onChange={(event) =>
-																	handleCellChange(
-																		rowIndex,
-																		column.key,
-																		event.target.value,
-																	)
+																type="button"
+																aria-pressed={isCuratedValue(
+																	row[column.key] ?? "",
+																)}
+																onClick={() =>
+																	toggleCuratedForCell(rowIndex, column.key)
 																}
-																onBlur={() => {
-																	commitStandardCell(rowIndex, column.key);
-																	window.setTimeout(() => {
-																		setFocusedDateCell((current) =>
-																			current?.rowIndex === rowIndex &&
-																			current.columnKey === column.key
-																				? null
-																				: current,
-																		);
-																	}, 120);
-																}}
 																onKeyDown={(event) => {
+																	if (event.key === "ArrowDown") {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, 1, 0);
+																	}
+																	if (event.key === "ArrowUp") {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, -1, 0);
+																	}
 																	if (
-																		event.key.toLowerCase() === "d" &&
-																		(event.metaKey || event.ctrlKey)
+																		event.key === "ArrowRight" &&
+																		event.altKey
 																	) {
 																		event.preventDefault();
-																		const didFill = fillDateFromRowAbove(
+																		focusCell(rowIndex, column.key, 0, 1);
+																	}
+																	if (
+																		event.key === "ArrowLeft" &&
+																		event.altKey
+																	) {
+																		event.preventDefault();
+																		focusCell(rowIndex, column.key, 0, -1);
+																	}
+																}}
+																className={`flex h-9 w-full items-center gap-2 px-2 text-left text-xs outline-none transition hover:bg-accent/60 focus:bg-muted/30 ${
+																	isCuratedValue(row[column.key] ?? "")
+																		? "text-amber-700"
+																		: "text-muted-foreground"
+																}`}
+															>
+																<span className="text-base leading-none">
+																	{isCuratedValue(row[column.key] ?? "")
+																		? CURATED_PICK_VALUE
+																		: "☆"}
+																</span>
+																<span className="truncate">
+																	{isCuratedValue(row[column.key] ?? "")
+																		? "OOOC Pick"
+																		: "Not curated"}
+																</span>
+															</button>
+														) : column.key === DATE_COLUMN_KEY ? (
+															<div className="relative min-h-9 bg-transparent px-2 py-1">
+																<input
+																	ref={(node) => {
+																		inputRefs.current[
+																			cellRefKey(rowIndex, column.key)
+																		] = node;
+																	}}
+																	value={row[column.key] ?? ""}
+																	onFocus={() => {
+																		setFocusedDateCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																	}}
+																	onChange={(event) =>
+																		handleCellChange(
 																			rowIndex,
 																			column.key,
-																		);
-																		if (!didFill) {
-																			setStatusMessage(
-																				"No date available in the row above",
+																			event.target.value,
+																		)
+																	}
+																	onBlur={() => {
+																		commitStandardCell(rowIndex, column.key);
+																		window.setTimeout(() => {
+																			setFocusedDateCell((current) =>
+																				current?.rowIndex === rowIndex &&
+																				current.columnKey === column.key
+																					? null
+																					: current,
 																			);
+																		}, 120);
+																	}}
+																	onKeyDown={(event) => {
+																		if (
+																			event.key.toLowerCase() === "d" &&
+																			(event.metaKey || event.ctrlKey)
+																		) {
+																			event.preventDefault();
+																			const didFill = fillDateFromRowAbove(
+																				rowIndex,
+																				column.key,
+																			);
+																			if (!didFill) {
+																				setStatusMessage(
+																					"No date available in the row above",
+																				);
+																			}
+																			return;
 																		}
-																		return;
+																		if (event.key === "Escape") {
+																			setFocusedDateCell(null);
+																			return;
+																		}
+																		if (event.key === "Enter") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (event.key === "ArrowDown") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (event.key === "ArrowUp") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, -1, 0);
+																		}
+																		if (
+																			event.key === "ArrowRight" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 0, 1);
+																		}
+																		if (
+																			event.key === "ArrowLeft" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 0, -1);
+																		}
+																	}}
+																	className="h-5 w-full border-0 bg-transparent p-0 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30"
+																	placeholder="DD-MM-YYYY"
+																	aria-autocomplete="list"
+																	aria-expanded={
+																		focusedDateCell?.rowIndex === rowIndex &&
+																		focusedDateCell.columnKey === column.key
 																	}
-																	if (event.key === "Escape") {
-																		setFocusedDateCell(null);
-																		return;
-																	}
-																	if (event.key === "Enter") {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 1, 0);
-																	}
-																	if (event.key === "ArrowDown") {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 1, 0);
-																	}
-																	if (event.key === "ArrowUp") {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, -1, 0);
-																	}
-																	if (
-																		event.key === "ArrowRight" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 0, 1);
-																	}
-																	if (
-																		event.key === "ArrowLeft" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 0, -1);
-																	}
-																}}
-																className="h-5 w-full border-0 bg-transparent p-0 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30"
-																placeholder="DD-MM-YYYY"
-																aria-autocomplete="list"
-																aria-expanded={
-																	focusedDateCell?.rowIndex === rowIndex &&
-																	focusedDateCell.columnKey === column.key
-																}
-															/>
-															{dateCellHint && (
-																<div className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70">
-																	{dateCellHint}
-																</div>
-															)}
-															{focusedDateCell?.rowIndex === rowIndex &&
-																focusedDateCell.columnKey === column.key && (
-																	<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
-																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-																			Date
-																		</div>
-																		{dateSuggestionState.preview && (
-																			<div
-																				className={`border-b px-2 py-1.5 text-[11px] ${
-																					dateSuggestionState.preview.tone ===
-																					"success"
-																						? "text-foreground/75"
-																						: "text-amber-700"
-																				}`}
-																			>
-																				{dateSuggestionState.preview.message}
+																/>
+																{dateCellHint && (
+																	<div className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70">
+																		{dateCellHint}
+																	</div>
+																)}
+																{focusedDateCell?.rowIndex === rowIndex &&
+																	focusedDateCell.columnKey === column.key && (
+																		<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																				Date
 																			</div>
-																		)}
-																		<div className="max-h-60 overflow-y-auto p-1">
-																			{dateSuggestionState.groups.map(
-																				(group) => (
-																					<div key={group.label}>
-																						<div className="px-2 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-																							{group.label}
-																						</div>
-																						{group.options.map((option) => {
-																							const isSelected =
-																								(row[column.key] ?? "") ===
-																								option.value;
-																							return (
-																								<button
-																									key={`${group.label}-${option.description}-${option.value}`}
-																									type="button"
-																									onMouseDown={(event) => {
-																										event.preventDefault();
-																										selectDateForCell(
-																											rowIndex,
-																											column.key,
-																											option.value,
-																										);
-																									}}
-																									className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
-																										isSelected
-																											? "bg-muted text-foreground"
-																											: "hover:bg-accent/70"
-																									}`}
-																								>
-																									<span className="min-w-0 flex-1 truncate font-medium">
-																										{option.label}
-																									</span>
-																									<span className="font-mono text-[10px] text-muted-foreground">
-																										{option.value}
-																									</span>
-																									<span className="max-w-24 truncate text-[10px] text-muted-foreground">
-																										{option.description}
-																									</span>
-																								</button>
-																							);
-																						})}
-																					</div>
-																				),
-																			)}
-																			{dateSuggestionState.groups.length ===
-																				0 && (
-																				<div className="px-2 py-2 text-xs text-muted-foreground">
-																					No reusable dates yet.
+																			{dateSuggestionState.preview && (
+																				<div
+																					className={`border-b px-2 py-1.5 text-[11px] ${
+																						dateSuggestionState.preview.tone ===
+																						"success"
+																							? "text-foreground/75"
+																							: "text-amber-700"
+																					}`}
+																				>
+																					{dateSuggestionState.preview.message}
 																				</div>
 																			)}
+																			<div className="max-h-60 overflow-y-auto p-1">
+																				{dateSuggestionState.groups.map(
+																					(group) => (
+																						<div key={group.label}>
+																							<div className="px-2 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+																								{group.label}
+																							</div>
+																							{group.options.map((option) => {
+																								const isSelected =
+																									(row[column.key] ?? "") ===
+																									option.value;
+																								return (
+																									<button
+																										key={`${group.label}-${option.description}-${option.value}`}
+																										type="button"
+																										onMouseDown={(event) => {
+																											event.preventDefault();
+																											selectDateForCell(
+																												rowIndex,
+																												column.key,
+																												option.value,
+																											);
+																										}}
+																										className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																											isSelected
+																												? "bg-muted text-foreground"
+																												: "hover:bg-accent/70"
+																										}`}
+																									>
+																										<span className="min-w-0 flex-1 truncate font-medium">
+																											{option.label}
+																										</span>
+																										<span className="font-mono text-[10px] text-muted-foreground">
+																											{option.value}
+																										</span>
+																										<span className="max-w-24 truncate text-[10px] text-muted-foreground">
+																											{option.description}
+																										</span>
+																									</button>
+																								);
+																							})}
+																						</div>
+																					),
+																				)}
+																				{dateSuggestionState.groups.length ===
+																					0 && (
+																					<div className="px-2 py-2 text-xs text-muted-foreground">
+																						No reusable dates yet.
+																					</div>
+																				)}
+																			</div>
 																		</div>
+																	)}
+															</div>
+														) : TIME_COLUMN_KEYS.has(column.key) ? (
+															<div className="relative min-h-9 bg-transparent px-2 py-1">
+																<input
+																	ref={(node) => {
+																		inputRefs.current[
+																			cellRefKey(rowIndex, column.key)
+																		] = node;
+																	}}
+																	value={row[column.key] ?? ""}
+																	onFocus={() => {
+																		setFocusedTimeCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																	}}
+																	onChange={(event) =>
+																		handleCellChange(
+																			rowIndex,
+																			column.key,
+																			event.target.value,
+																		)
+																	}
+																	onBlur={() => {
+																		commitStandardCell(rowIndex, column.key);
+																		window.setTimeout(() => {
+																			setFocusedTimeCell((current) =>
+																				current?.rowIndex === rowIndex &&
+																				current.columnKey === column.key
+																					? null
+																					: current,
+																			);
+																		}, 120);
+																	}}
+																	onKeyDown={(event) => {
+																		if (event.key === "Escape") {
+																			setFocusedTimeCell(null);
+																			return;
+																		}
+																		if (event.key === "Enter") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (event.key === "ArrowDown") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (event.key === "ArrowUp") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, -1, 0);
+																		}
+																		if (
+																			event.key === "ArrowRight" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 0, 1);
+																		}
+																		if (
+																			event.key === "ArrowLeft" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 0, -1);
+																		}
+																	}}
+																	className="h-5 w-full border-0 bg-transparent p-0 font-mono text-xs outline-none focus:bg-muted/30"
+																	placeholder="14:00 or 2 pm"
+																/>
+																{(column.key === START_TIME_COLUMN_KEY
+																	? startTimeHint
+																	: endTimeHint) && (
+																	<div className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70">
+																		{column.key === START_TIME_COLUMN_KEY
+																			? startTimeHint
+																			: endTimeHint}
 																	</div>
 																)}
-														</div>
-													) : TIME_COLUMN_KEYS.has(column.key) ? (
-														<div className="relative min-h-9 bg-transparent px-2 py-1">
-															<input
-																ref={(node) => {
-																	inputRefs.current[
-																		cellRefKey(rowIndex, column.key)
-																	] = node;
-																}}
-																value={row[column.key] ?? ""}
-																onFocus={() => {
-																	setFocusedTimeCell({
-																		rowIndex,
-																		columnKey: column.key,
-																	});
-																}}
-																onChange={(event) =>
-																	handleCellChange(
-																		rowIndex,
-																		column.key,
-																		event.target.value,
-																	)
-																}
-																onBlur={() => {
-																	commitStandardCell(rowIndex, column.key);
-																	window.setTimeout(() => {
-																		setFocusedTimeCell((current) =>
-																			current?.rowIndex === rowIndex &&
-																			current.columnKey === column.key
-																				? null
-																				: current,
+																{focusedTimeCell?.rowIndex === rowIndex &&
+																	focusedTimeCell.columnKey === column.key &&
+																	timeInputPreview && (
+																		<div className="absolute left-1 top-8 z-40 w-56 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																				{column.key === START_TIME_COLUMN_KEY
+																					? "Start time"
+																					: "End time"}
+																			</div>
+																			<div
+																				className={`border-b px-2 py-1.5 text-[11px] ${
+																					timeInputPreview.tone === "success"
+																						? "text-foreground/75"
+																						: "text-muted-foreground"
+																				}`}
+																			>
+																				{timeInputPreview.message}
+																			</div>
+																			<div className="px-2 py-1.5 text-[10px] text-muted-foreground">
+																				Try 2 pm, 14:00, 11.30pm, or 14h00
+																			</div>
+																		</div>
+																	)}
+															</div>
+														) : column.key === LOCATION_COLUMN_KEY ? (
+															<div className="relative min-h-9 bg-transparent">
+																<input
+																	ref={(node) => {
+																		inputRefs.current[
+																			cellRefKey(rowIndex, column.key)
+																		] = node;
+																	}}
+																	value={row[column.key] ?? ""}
+																	onFocus={() => {
+																		setFocusedLocationCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																		setLocationSearchQuery(
+																			row[column.key] ?? "",
 																		);
-																	}, 120);
-																}}
-																onKeyDown={(event) => {
-																	if (event.key === "Escape") {
-																		setFocusedTimeCell(null);
-																		return;
-																	}
-																	if (event.key === "Enter") {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 1, 0);
-																	}
-																	if (event.key === "ArrowDown") {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 1, 0);
-																	}
-																	if (event.key === "ArrowUp") {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, -1, 0);
-																	}
-																	if (
-																		event.key === "ArrowRight" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 0, 1);
-																	}
-																	if (
-																		event.key === "ArrowLeft" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 0, -1);
-																	}
-																}}
-																className="h-5 w-full border-0 bg-transparent p-0 font-mono text-xs outline-none focus:bg-muted/30"
-																placeholder="14:00 or 2 pm"
-															/>
-															{(column.key === START_TIME_COLUMN_KEY
-																? startTimeHint
-																: endTimeHint) && (
-																<div className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70">
-																	{column.key === START_TIME_COLUMN_KEY
-																		? startTimeHint
-																		: endTimeHint}
-																</div>
-															)}
-															{focusedTimeCell?.rowIndex === rowIndex &&
-																focusedTimeCell.columnKey === column.key &&
-																timeInputPreview && (
-																	<div className="absolute left-1 top-8 z-40 w-56 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
-																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-																			{column.key === START_TIME_COLUMN_KEY
-																				? "Start time"
-																				: "End time"}
-																		</div>
-																		<div
-																			className={`border-b px-2 py-1.5 text-[11px] ${
-																				timeInputPreview.tone === "success"
-																					? "text-foreground/75"
-																					: "text-muted-foreground"
-																			}`}
-																		>
-																			{timeInputPreview.message}
-																		</div>
-																		<div className="px-2 py-1.5 text-[10px] text-muted-foreground">
-																			Try 2 pm, 14:00, 11.30pm, or 14h00
-																		</div>
-																	</div>
-																)}
-														</div>
-													) : column.key === LOCATION_COLUMN_KEY ? (
-														<div className="relative min-h-9 bg-transparent">
-															<input
-																ref={(node) => {
-																	inputRefs.current[
-																		cellRefKey(rowIndex, column.key)
-																	] = node;
-																}}
-																value={row[column.key] ?? ""}
-																onFocus={() => {
-																	setFocusedLocationCell({
-																		rowIndex,
-																		columnKey: column.key,
-																	});
-																	setLocationSearchQuery(row[column.key] ?? "");
-																	setHighlightedLocationIndex(0);
-																}}
-																onChange={(event) => {
-																	setFocusedLocationCell((current) =>
-																		current?.rowIndex === rowIndex &&
-																		current.columnKey === column.key
-																			? current
-																			: { rowIndex, columnKey: column.key },
-																	);
-																	setLocationSearchQuery(event.target.value);
-																	setHighlightedLocationIndex(0);
-																	handleCellChange(
-																		rowIndex,
-																		column.key,
-																		event.target.value,
-																	);
-																}}
-																onBlur={() => {
-																	commitStandardCell(rowIndex, column.key);
-																	window.setTimeout(() => {
+																		setHighlightedLocationIndex(0);
+																	}}
+																	onChange={(event) => {
 																		setFocusedLocationCell((current) =>
 																			current?.rowIndex === rowIndex &&
 																			current.columnKey === column.key
-																				? null
-																				: current,
+																				? current
+																				: { rowIndex, columnKey: column.key },
 																		);
-																	}, 120);
-																}}
-																onKeyDown={(event) => {
-																	if (
-																		event.key === "ArrowDown" &&
-																		locationSuggestionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		setHighlightedLocationIndex((current) =>
-																			Math.min(
-																				current + 1,
-																				locationSuggestionsForFocusedCell.length -
-																					1,
-																			),
-																		);
-																		return;
-																	}
-																	if (
-																		event.key === "ArrowUp" &&
-																		locationSuggestionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		setHighlightedLocationIndex((current) =>
-																			Math.max(current - 1, 0),
-																		);
-																		return;
-																	}
-																	if (
-																		event.key === "Enter" &&
-																		locationSuggestionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		selectLocationForCell(
+																		setLocationSearchQuery(event.target.value);
+																		setHighlightedLocationIndex(0);
+																		handleCellChange(
 																			rowIndex,
 																			column.key,
-																			locationSuggestionsForFocusedCell[
-																				highlightedLocationIndex
-																			] ?? locationSuggestionsForFocusedCell[0],
+																			event.target.value,
 																		);
-																		return;
-																	}
-																	if (event.key === "Escape") {
-																		setFocusedLocationCell(null);
-																		return;
-																	}
-																	if (event.key === "Enter") {
-																		event.preventDefault();
+																	}}
+																	onBlur={() => {
 																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 1, 0);
-																	}
-																	if (event.key === "ArrowDown") {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 1, 0);
-																	}
-																	if (event.key === "ArrowUp") {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, -1, 0);
-																	}
-																	if (
-																		event.key === "ArrowRight" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 0, 1);
-																	}
-																	if (
-																		event.key === "ArrowLeft" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitStandardCell(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 0, -1);
-																	}
-																}}
-																className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30"
-																placeholder="Venue or address"
-																aria-autocomplete="list"
-																aria-expanded={
-																	focusedLocationCell?.rowIndex === rowIndex &&
-																	focusedLocationCell.columnKey === column.key
-																}
-															/>
-															{focusedLocationCell?.rowIndex === rowIndex &&
-																focusedLocationCell.columnKey === column.key && (
-																	<div className="absolute left-1 top-8 z-40 w-80 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
-																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-																			Location
-																		</div>
-																		<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
-																			Reuses venues already in this sheet. Matching
-																			area suggestions appear first.
-																		</div>
-																		<div className="max-h-60 overflow-y-auto p-1">
-																			{locationSuggestionsForFocusedCell.map(
-																				(suggestion, optionIndex) => (
-																					<button
-																						key={`${suggestion.value}-${suggestion.area}`}
-																						type="button"
-																						onMouseDown={(event) => {
-																							event.preventDefault();
-																							selectLocationForCell(
-																								rowIndex,
-																								column.key,
-																								suggestion,
-																							);
-																						}}
-																						className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
-																							optionIndex ===
-																							highlightedLocationIndex
-																								? "bg-accent text-accent-foreground"
-																								: suggestion.isAreaMatch
-																									? "bg-muted text-foreground"
-																									: "hover:bg-accent/70"
-																						}`}
-																					>
-																						<span className="min-w-0 flex-1 truncate font-medium">
-																							{suggestion.value}
-																						</span>
-																						{suggestion.area && (
-																							<span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-																								{suggestion.area}
-																							</span>
-																						)}
-																						<span className="text-[10px] text-muted-foreground">
-																							{suggestion.count}x
-																						</span>
-																					</button>
+																		window.setTimeout(() => {
+																			setFocusedLocationCell((current) =>
+																				current?.rowIndex === rowIndex &&
+																				current.columnKey === column.key
+																					? null
+																					: current,
+																			);
+																		}, 120);
+																	}}
+																	onKeyDown={(event) => {
+																		if (
+																			event.key === "ArrowDown" &&
+																			locationSuggestionsForFocusedCell.length >
+																				0
+																		) {
+																			event.preventDefault();
+																			setHighlightedLocationIndex((current) =>
+																				Math.min(
+																					current + 1,
+																					locationSuggestionsForFocusedCell.length -
+																						1,
 																				),
-																			)}
-																			{locationSuggestionsForFocusedCell.length ===
-																				0 && (
-																				<div className="px-2 py-2 text-xs text-muted-foreground">
-																					No matching sheet locations yet.
-																				</div>
-																			)}
-																		</div>
-																	</div>
-																)}
-														</div>
-													) : column.key === CATEGORY_COLUMN_KEY ? (
-														<div className="relative min-h-9 bg-transparent">
-															<input
-																ref={(node) => {
-																	inputRefs.current[
-																		cellRefKey(rowIndex, column.key)
-																	] = node;
-																}}
-																value={categoryValue}
-																onFocus={() => {
-																	beginCellDraft(
-																		rowIndex,
-																		column.key,
-																		row[column.key] ?? "",
-																	);
-																	setFocusedCategoryRowIndex(rowIndex);
-																	setFocusedGenreCell({
-																		rowIndex,
-																		columnKey: column.key,
-																	});
-																	setGenreSearchQuery("");
-																	setHighlightedGenreIndex(0);
-																}}
-																onChange={(event) => {
-																	setFocusedCategoryRowIndex(rowIndex);
-																	setFocusedGenreCell((current) =>
-																		current?.rowIndex === rowIndex &&
-																		current.columnKey === column.key
-																			? current
-																			: { rowIndex, columnKey: column.key },
-																	);
-																	setGenreSearchQuery(
-																		getGenreSearchSegment(event.target.value),
-																	);
-																	setHighlightedGenreIndex(0);
-																	updateCellDraft(
-																		rowIndex,
-																		column.key,
-																		event.target.value,
-																	);
-																}}
-																onBlur={() => {
-																	commitCellDraft(rowIndex, column.key);
-																	window.setTimeout(() => {
-																		setFocusedGenreCell((current) =>
-																			current?.rowIndex === rowIndex &&
-																			current.columnKey === column.key
-																				? null
-																				: current,
-																		);
-																	}, 120);
-																}}
-																onKeyDown={(event) => {
-																	if (
-																		event.key === "ArrowDown" &&
-																		genreOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		setHighlightedGenreIndex((current) =>
-																			Math.min(
-																				current + 1,
-																				genreOptionsForFocusedCell.length - 1,
-																			),
-																		);
-																		return;
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "ArrowUp" &&
+																			locationSuggestionsForFocusedCell.length >
+																				0
+																		) {
+																			event.preventDefault();
+																			setHighlightedLocationIndex((current) =>
+																				Math.max(current - 1, 0),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "Enter" &&
+																			locationSuggestionsForFocusedCell.length >
+																				0
+																		) {
+																			event.preventDefault();
+																			selectLocationForCell(
+																				rowIndex,
+																				column.key,
+																				locationSuggestionsForFocusedCell[
+																					highlightedLocationIndex
+																				] ??
+																					locationSuggestionsForFocusedCell[0],
+																			);
+																			return;
+																		}
+																		if (event.key === "Escape") {
+																			setFocusedLocationCell(null);
+																			return;
+																		}
+																		if (event.key === "Enter") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (event.key === "ArrowDown") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (event.key === "ArrowUp") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, -1, 0);
+																		}
+																		if (
+																			event.key === "ArrowRight" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 0, 1);
+																		}
+																		if (
+																			event.key === "ArrowLeft" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 0, -1);
+																		}
+																	}}
+																	className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30"
+																	placeholder="Venue or address"
+																	aria-autocomplete="list"
+																	aria-expanded={
+																		focusedLocationCell?.rowIndex ===
+																			rowIndex &&
+																		focusedLocationCell.columnKey === column.key
 																	}
-																	if (
-																		event.key === "ArrowUp" &&
-																		genreOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		setHighlightedGenreIndex((current) =>
-																			Math.max(current - 1, 0),
-																		);
-																		return;
-																	}
-																	if (
-																		event.key === "Enter" &&
-																		genreOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		selectGenreForCell(
-																			rowIndex,
-																			column.key,
-																			genreOptionsForFocusedCell[
-																				highlightedGenreIndex
-																			] ?? genreOptionsForFocusedCell[0],
-																		);
-																		return;
-																	}
-																	if (event.key === "Escape") {
-																		event.preventDefault();
-																		setCellDraft(null);
-																		setFocusedGenreCell(null);
-																		return;
-																	}
-																	if (event.key === "Enter") {
-																		event.preventDefault();
-																		commitCellDraft(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 1, 0);
-																	}
-																	if (event.key === "ArrowDown") {
-																		event.preventDefault();
-																		commitCellDraft(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 1, 0);
-																	}
-																	if (event.key === "ArrowUp") {
-																		event.preventDefault();
-																		commitCellDraft(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, -1, 0);
-																	}
-																	if (
-																		event.key === "ArrowRight" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitCellDraft(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 0, 1);
-																	}
-																	if (
-																		event.key === "ArrowLeft" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitCellDraft(rowIndex, column.key);
-																		focusCell(rowIndex, column.key, 0, -1);
-																	}
-																}}
-																className="h-8 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
-																aria-autocomplete="list"
-																aria-expanded={
-																	focusedGenreCell?.rowIndex === rowIndex &&
-																	focusedGenreCell.columnKey === column.key
-																}
-															/>
-															{focusedGenreCell?.rowIndex === rowIndex &&
-																focusedGenreCell.columnKey === column.key && (
-																	<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
-																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-																			Genres
-																		</div>
-																		<div className="max-h-60 overflow-y-auto p-1">
-																			{genreOptionsForFocusedCell.map(
-																				(genre, optionIndex) => {
-																					const isSelected =
-																						selectedGenreKeys.has(genre.key);
-																					return (
+																/>
+																{focusedLocationCell?.rowIndex === rowIndex &&
+																	focusedLocationCell.columnKey ===
+																		column.key && (
+																		<div className="absolute left-1 top-8 z-40 w-80 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																				Location
+																			</div>
+																			<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+																				Reuses venues already in this sheet.
+																				Matching area suggestions appear first.
+																			</div>
+																			<div className="max-h-60 overflow-y-auto p-1">
+																				{locationSuggestionsForFocusedCell.map(
+																					(suggestion, optionIndex) => (
 																						<button
-																							key={genre.key}
+																							key={`${suggestion.value}-${suggestion.area}`}
 																							type="button"
 																							onMouseDown={(event) => {
 																								event.preventDefault();
-																								selectGenreForCell(
+																								selectLocationForCell(
 																									rowIndex,
 																									column.key,
-																									genre,
+																									suggestion,
 																								);
 																							}}
 																							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
 																								optionIndex ===
-																								highlightedGenreIndex
+																								highlightedLocationIndex
 																									? "bg-accent text-accent-foreground"
-																									: isSelected
+																									: suggestion.isAreaMatch
 																										? "bg-muted text-foreground"
 																										: "hover:bg-accent/70"
 																							}`}
 																						>
-																							<span
-																								className={`h-3 w-3 rounded-sm border ${
-																									isSelected
-																										? "border-foreground bg-foreground"
-																										: "border-muted-foreground/40"
-																								}`}
-																								aria-hidden="true"
-																							/>
-																							<span
-																								className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
-																							/>
-																							<span className="min-w-0 flex-1 truncate">
-																								{genre.label}
+																							<span className="min-w-0 flex-1 truncate font-medium">
+																								{suggestion.value}
 																							</span>
+																							{suggestion.area && (
+																								<span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+																									{suggestion.area}
+																								</span>
+																							)}
 																							<span className="text-[10px] text-muted-foreground">
-																								{genre.isDefault
-																									? "Default"
-																									: "Custom"}
+																								{suggestion.count}x
 																							</span>
 																						</button>
-																					);
-																				},
-																			)}
-																			{genreOptionsForFocusedCell.length ===
-																				0 && (
-																				<div className="px-2 py-2 text-xs text-muted-foreground">
-																					No matching genre. Keep typing or add
-																					it from Unknown genres.
-																				</div>
-																			)}
+																					),
+																				)}
+																				{locationSuggestionsForFocusedCell.length ===
+																					0 && (
+																					<div className="px-2 py-2 text-xs text-muted-foreground">
+																						No matching sheet locations yet.
+																					</div>
+																				)}
+																			</div>
 																		</div>
-																	</div>
-																)}
-															<div className="flex min-h-7 flex-wrap gap-1 px-1.5 pb-1.5">
-																{splitGenreCell(
-																	categoryValue,
-																	genreTaxonomy,
-																).map((part) => (
-																	<span
-																		key={`${rowIndex}-${part.value}`}
-																		className={`inline-flex h-5 max-w-full items-center rounded-full border px-1.5 text-[10px] ${
-																			part.resolved
-																				? "border-border/70 bg-muted/45 text-foreground/80"
-																				: "border-amber-300 bg-amber-50 text-amber-900"
-																		}`}
-																		title={
-																			part.resolved
-																				? `Maps to ${part.resolved}`
-																				: "Unknown genre"
-																		}
-																	>
-																		<span className="truncate">
-																			{part.label}
-																		</span>
-																	</span>
-																))}
+																	)}
 															</div>
-														</div>
-													) : column.key === AREA_COLUMN_KEY ? (
-														<div className="relative min-h-9 bg-transparent">
-															<input
-																ref={(node) => {
-																	inputRefs.current[
-																		cellRefKey(rowIndex, column.key)
-																	] = node;
-																}}
-																value={getCellDisplayValue(
-																	rowIndex,
-																	column.key,
-																	row[column.key] ?? "",
-																)}
-																onFocus={() => {
-																	beginCellDraft(
-																		rowIndex,
-																		column.key,
-																		row[column.key] ?? "",
-																	);
-																	setFocusedAreaCell({
-																		rowIndex,
-																		columnKey: column.key,
-																	});
-																	setAreaSearchQuery(row[column.key] ?? "");
-																	setHighlightedAreaIndex(0);
-																}}
-																onChange={(event) => {
-																	setFocusedAreaCell((current) =>
-																		current?.rowIndex === rowIndex &&
-																		current.columnKey === column.key
-																			? current
-																			: { rowIndex, columnKey: column.key },
-																	);
-																	setAreaSearchQuery(event.target.value);
-																	setHighlightedAreaIndex(0);
-																	updateCellDraft(
-																		rowIndex,
-																		column.key,
-																		event.target.value,
-																	);
-																}}
-																onBlur={() => {
-																	commitCellDraft(
-																		rowIndex,
-																		column.key,
-																		normalizeAreaValue,
-																	);
-																	window.setTimeout(() => {
-																		setFocusedAreaCell((current) =>
+														) : column.key === CATEGORY_COLUMN_KEY ? (
+															<div className="relative min-h-9 bg-transparent">
+																<input
+																	ref={(node) => {
+																		inputRefs.current[
+																			cellRefKey(rowIndex, column.key)
+																		] = node;
+																	}}
+																	value={categoryValue}
+																	onFocus={() => {
+																		beginCellDraft(
+																			rowIndex,
+																			column.key,
+																			row[column.key] ?? "",
+																		);
+																		setFocusedCategoryRowIndex(rowIndex);
+																		setFocusedGenreCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																		setGenreSearchQuery("");
+																		setHighlightedGenreIndex(0);
+																	}}
+																	onChange={(event) => {
+																		setFocusedCategoryRowIndex(rowIndex);
+																		setFocusedGenreCell((current) =>
 																			current?.rowIndex === rowIndex &&
 																			current.columnKey === column.key
-																				? null
-																				: current,
+																				? current
+																				: { rowIndex, columnKey: column.key },
 																		);
-																	}, 120);
-																}}
-																onKeyDown={(event) => {
-																	if (
-																		event.key === "ArrowDown" &&
-																		areaOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		setHighlightedAreaIndex((current) =>
-																			Math.min(
-																				current + 1,
-																				areaOptionsForFocusedCell.length - 1,
-																			),
+																		setGenreSearchQuery(
+																			getGenreSearchSegment(event.target.value),
 																		);
-																		return;
-																	}
-																	if (
-																		event.key === "ArrowUp" &&
-																		areaOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		setHighlightedAreaIndex((current) =>
-																			Math.max(current - 1, 0),
-																		);
-																		return;
-																	}
-																	if (
-																		event.key === "Enter" &&
-																		areaOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		selectAreaForCell(
+																		setHighlightedGenreIndex(0);
+																		updateCellDraft(
 																			rowIndex,
 																			column.key,
-																			areaOptionsForFocusedCell[
-																				highlightedAreaIndex
-																			] ?? areaOptionsForFocusedCell[0],
+																			event.target.value,
 																		);
-																		return;
+																	}}
+																	onBlur={() => {
+																		commitCellDraft(rowIndex, column.key);
+																		window.setTimeout(() => {
+																			setFocusedGenreCell((current) =>
+																				current?.rowIndex === rowIndex &&
+																				current.columnKey === column.key
+																					? null
+																					: current,
+																			);
+																		}, 120);
+																	}}
+																	onKeyDown={(event) => {
+																		if (
+																			event.key === "ArrowDown" &&
+																			genreOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			setHighlightedGenreIndex((current) =>
+																				Math.min(
+																					current + 1,
+																					genreOptionsForFocusedCell.length - 1,
+																				),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "ArrowUp" &&
+																			genreOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			setHighlightedGenreIndex((current) =>
+																				Math.max(current - 1, 0),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "Enter" &&
+																			genreOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			selectGenreForCell(
+																				rowIndex,
+																				column.key,
+																				genreOptionsForFocusedCell[
+																					highlightedGenreIndex
+																				] ?? genreOptionsForFocusedCell[0],
+																			);
+																			return;
+																		}
+																		if (event.key === "Escape") {
+																			event.preventDefault();
+																			setCellDraft(null);
+																			setFocusedGenreCell(null);
+																			return;
+																		}
+																		if (event.key === "Enter") {
+																			event.preventDefault();
+																			commitCellDraft(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (event.key === "ArrowDown") {
+																			event.preventDefault();
+																			commitCellDraft(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (event.key === "ArrowUp") {
+																			event.preventDefault();
+																			commitCellDraft(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, -1, 0);
+																		}
+																		if (
+																			event.key === "ArrowRight" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitCellDraft(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 0, 1);
+																		}
+																		if (
+																			event.key === "ArrowLeft" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitCellDraft(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 0, -1);
+																		}
+																	}}
+																	className="h-8 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+																	aria-autocomplete="list"
+																	aria-expanded={
+																		focusedGenreCell?.rowIndex === rowIndex &&
+																		focusedGenreCell.columnKey === column.key
 																	}
-																	if (event.key === "Escape") {
-																		event.preventDefault();
-																		setCellDraft(null);
-																		setFocusedAreaCell(null);
-																		return;
-																	}
-																	if (event.key === "Enter") {
-																		event.preventDefault();
-																		commitCellDraft(
-																			rowIndex,
-																			column.key,
-																			normalizeAreaValue,
-																		);
-																		focusCell(rowIndex, column.key, 1, 0);
-																	}
-																	if (
-																		event.key === "ArrowRight" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitCellDraft(
-																			rowIndex,
-																			column.key,
-																			normalizeAreaValue,
-																		);
-																		focusCell(rowIndex, column.key, 0, 1);
-																	}
-																	if (
-																		event.key === "ArrowLeft" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitCellDraft(
-																			rowIndex,
-																			column.key,
-																			normalizeAreaValue,
-																		);
-																		focusCell(rowIndex, column.key, 0, -1);
-																	}
-																}}
-																className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
-																placeholder="Choose area"
-																aria-autocomplete="list"
-																aria-expanded={
-																	focusedAreaCell?.rowIndex === rowIndex &&
-																	focusedAreaCell.columnKey === column.key
-																}
-															/>
-															{focusedAreaCell?.rowIndex === rowIndex &&
-																focusedAreaCell.columnKey === column.key && (
-																	<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
-																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-																			Area
-																		</div>
-																		<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
-																			Choose arrondissement or area.
-																		</div>
-																		<div className="max-h-60 overflow-y-auto p-1">
-																			{areaOptionsForFocusedCell.map(
-																				(area, optionIndex) => {
-																					const previousArea =
-																						areaOptionsForFocusedCell[
-																							optionIndex - 1
-																						];
-																					const isSelected =
-																						normalizeAreaValue(
-																							getCellDisplayValue(
-																								rowIndex,
-																								column.key,
-																								row[column.key] ?? "",
-																							),
-																						) === area.value;
-																					const showGroup =
-																						!previousArea ||
-																						previousArea.group !== area.group;
-																					return (
-																						<div key={area.value}>
-																							{showGroup && (
-																								<div className="px-2 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-																									{area.group}
-																								</div>
-																							)}
+																/>
+																{focusedGenreCell?.rowIndex === rowIndex &&
+																	focusedGenreCell.columnKey === column.key && (
+																		<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																				Genres
+																			</div>
+																			<div className="max-h-60 overflow-y-auto p-1">
+																				{genreOptionsForFocusedCell.map(
+																					(genre, optionIndex) => {
+																						const isSelected =
+																							selectedGenreKeys.has(genre.key);
+																						return (
 																							<button
+																								key={genre.key}
 																								type="button"
 																								onMouseDown={(event) => {
 																									event.preventDefault();
-																									selectAreaForCell(
+																									selectGenreForCell(
 																										rowIndex,
 																										column.key,
-																										area,
+																										genre,
 																									);
 																								}}
 																								className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
 																									optionIndex ===
-																									highlightedAreaIndex
+																									highlightedGenreIndex
+																										? "bg-accent text-accent-foreground"
+																										: isSelected
+																											? "bg-muted text-foreground"
+																											: "hover:bg-accent/70"
+																								}`}
+																							>
+																								<span
+																									className={`h-3 w-3 rounded-sm border ${
+																										isSelected
+																											? "border-foreground bg-foreground"
+																											: "border-muted-foreground/40"
+																									}`}
+																									aria-hidden="true"
+																								/>
+																								<span
+																									className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
+																								/>
+																								<span className="min-w-0 flex-1 truncate">
+																									{genre.label}
+																								</span>
+																								<span className="text-[10px] text-muted-foreground">
+																									{genre.isDefault
+																										? "Default"
+																										: "Custom"}
+																								</span>
+																							</button>
+																						);
+																					},
+																				)}
+																				{genreOptionsForFocusedCell.length ===
+																					0 && (
+																					<div className="px-2 py-2 text-xs text-muted-foreground">
+																						No matching genre. Keep typing or
+																						add it from Unknown genres.
+																					</div>
+																				)}
+																			</div>
+																		</div>
+																	)}
+																<div className="flex min-h-7 flex-wrap gap-1 px-1.5 pb-1.5">
+																	{splitGenreCell(
+																		categoryValue,
+																		genreTaxonomy,
+																	).map((part) => (
+																		<span
+																			key={`${rowIndex}-${part.value}`}
+																			className={`inline-flex h-5 max-w-full items-center rounded-full border px-1.5 text-[10px] ${
+																				part.resolved
+																					? "border-border/70 bg-muted/45 text-foreground/80"
+																					: "border-amber-300 bg-amber-50 text-amber-900"
+																			}`}
+																			title={
+																				part.resolved
+																					? `Maps to ${part.resolved}`
+																					: "Unknown genre"
+																			}
+																		>
+																			<span className="truncate">
+																				{part.label}
+																			</span>
+																		</span>
+																	))}
+																</div>
+															</div>
+														) : column.key === AREA_COLUMN_KEY ? (
+															<div className="relative min-h-9 bg-transparent">
+																<input
+																	ref={(node) => {
+																		inputRefs.current[
+																			cellRefKey(rowIndex, column.key)
+																		] = node;
+																	}}
+																	value={getCellDisplayValue(
+																		rowIndex,
+																		column.key,
+																		row[column.key] ?? "",
+																	)}
+																	onFocus={() => {
+																		beginCellDraft(
+																			rowIndex,
+																			column.key,
+																			row[column.key] ?? "",
+																		);
+																		setFocusedAreaCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																		setAreaSearchQuery(row[column.key] ?? "");
+																		setHighlightedAreaIndex(0);
+																	}}
+																	onChange={(event) => {
+																		setFocusedAreaCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? current
+																				: { rowIndex, columnKey: column.key },
+																		);
+																		setAreaSearchQuery(event.target.value);
+																		setHighlightedAreaIndex(0);
+																		updateCellDraft(
+																			rowIndex,
+																			column.key,
+																			event.target.value,
+																		);
+																	}}
+																	onBlur={() => {
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			normalizeAreaValue,
+																		);
+																		window.setTimeout(() => {
+																			setFocusedAreaCell((current) =>
+																				current?.rowIndex === rowIndex &&
+																				current.columnKey === column.key
+																					? null
+																					: current,
+																			);
+																		}, 120);
+																	}}
+																	onKeyDown={(event) => {
+																		if (
+																			event.key === "ArrowDown" &&
+																			areaOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			setHighlightedAreaIndex((current) =>
+																				Math.min(
+																					current + 1,
+																					areaOptionsForFocusedCell.length - 1,
+																				),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "ArrowUp" &&
+																			areaOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			setHighlightedAreaIndex((current) =>
+																				Math.max(current - 1, 0),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "Enter" &&
+																			areaOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			selectAreaForCell(
+																				rowIndex,
+																				column.key,
+																				areaOptionsForFocusedCell[
+																					highlightedAreaIndex
+																				] ?? areaOptionsForFocusedCell[0],
+																			);
+																			return;
+																		}
+																		if (event.key === "Escape") {
+																			event.preventDefault();
+																			setCellDraft(null);
+																			setFocusedAreaCell(null);
+																			return;
+																		}
+																		if (event.key === "Enter") {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				normalizeAreaValue,
+																			);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (
+																			event.key === "ArrowRight" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				normalizeAreaValue,
+																			);
+																			focusCell(rowIndex, column.key, 0, 1);
+																		}
+																		if (
+																			event.key === "ArrowLeft" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				normalizeAreaValue,
+																			);
+																			focusCell(rowIndex, column.key, 0, -1);
+																		}
+																	}}
+																	className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+																	placeholder="Choose area"
+																	aria-autocomplete="list"
+																	aria-expanded={
+																		focusedAreaCell?.rowIndex === rowIndex &&
+																		focusedAreaCell.columnKey === column.key
+																	}
+																/>
+																{focusedAreaCell?.rowIndex === rowIndex &&
+																	focusedAreaCell.columnKey === column.key && (
+																		<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																				Area
+																			</div>
+																			<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+																				Choose arrondissement or area.
+																			</div>
+																			<div className="max-h-60 overflow-y-auto p-1">
+																				{areaOptionsForFocusedCell.map(
+																					(area, optionIndex) => {
+																						const previousArea =
+																							areaOptionsForFocusedCell[
+																								optionIndex - 1
+																							];
+																						const isSelected =
+																							normalizeAreaValue(
+																								getCellDisplayValue(
+																									rowIndex,
+																									column.key,
+																									row[column.key] ?? "",
+																								),
+																							) === area.value;
+																						const showGroup =
+																							!previousArea ||
+																							previousArea.group !== area.group;
+																						return (
+																							<div key={area.value}>
+																								{showGroup && (
+																									<div className="px-2 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+																										{area.group}
+																									</div>
+																								)}
+																								<button
+																									type="button"
+																									onMouseDown={(event) => {
+																										event.preventDefault();
+																										selectAreaForCell(
+																											rowIndex,
+																											column.key,
+																											area,
+																										);
+																									}}
+																									className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																										optionIndex ===
+																										highlightedAreaIndex
+																											? "bg-accent text-accent-foreground"
+																											: isSelected
+																												? "bg-muted text-foreground"
+																												: "hover:bg-accent/70"
+																									}`}
+																								>
+																									<span className="min-w-0 flex-1 truncate font-medium">
+																										{area.label}
+																									</span>
+																									<span className="max-w-36 truncate text-[10px] text-muted-foreground">
+																										{area.description}
+																									</span>
+																								</button>
+																							</div>
+																						);
+																					},
+																				)}
+																				{areaOptionsForFocusedCell.length ===
+																					0 && (
+																					<div className="px-2 py-2 text-xs text-muted-foreground">
+																						No matching area. Use `Greater
+																						Paris`, `Outside Paris`, or
+																						`Location TBC`.
+																					</div>
+																				)}
+																			</div>
+																		</div>
+																	)}
+															</div>
+														) : column.key === EVENT_CATEGORY_COLUMN_KEY ? (
+															<div className="relative min-h-9 bg-transparent">
+																<input
+																	ref={(node) => {
+																		inputRefs.current[
+																			cellRefKey(rowIndex, column.key)
+																		] = node;
+																	}}
+																	value={getCellDisplayValue(
+																		rowIndex,
+																		column.key,
+																		row[column.key] ?? "",
+																	)}
+																	onFocus={() => {
+																		beginCellDraft(
+																			rowIndex,
+																			column.key,
+																			row[column.key] ?? "",
+																		);
+																		setFocusedEventCategoryCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																		setHighlightedEventCategoryIndex(0);
+																	}}
+																	onChange={(event) => {
+																		setFocusedEventCategoryCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? current
+																				: { rowIndex, columnKey: column.key },
+																		);
+																		setHighlightedEventCategoryIndex(0);
+																		updateCellDraft(
+																			rowIndex,
+																			column.key,
+																			event.target.value,
+																		);
+																	}}
+																	onBlur={() => {
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			normalizeEventCategoryValue,
+																		);
+																		window.setTimeout(() => {
+																			setFocusedEventCategoryCell((current) =>
+																				current?.rowIndex === rowIndex &&
+																				current.columnKey === column.key
+																					? null
+																					: current,
+																			);
+																		}, 120);
+																	}}
+																	onKeyDown={(event) => {
+																		if (
+																			event.key === "ArrowDown" &&
+																			eventCategoryOptionsForFocusedCell.length >
+																				0
+																		) {
+																			event.preventDefault();
+																			setHighlightedEventCategoryIndex(
+																				(current) =>
+																					Math.min(
+																						current + 1,
+																						eventCategoryOptionsForFocusedCell.length -
+																							1,
+																					),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "ArrowUp" &&
+																			eventCategoryOptionsForFocusedCell.length >
+																				0
+																		) {
+																			event.preventDefault();
+																			setHighlightedEventCategoryIndex(
+																				(current) => Math.max(current - 1, 0),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "Enter" &&
+																			eventCategoryOptionsForFocusedCell.length >
+																				0
+																		) {
+																			event.preventDefault();
+																			selectEventCategoryForCell(
+																				rowIndex,
+																				column.key,
+																				eventCategoryOptionsForFocusedCell[
+																					highlightedEventCategoryIndex
+																				] ??
+																					eventCategoryOptionsForFocusedCell[0],
+																			);
+																			return;
+																		}
+																		if (event.key === "Escape") {
+																			event.preventDefault();
+																			setCellDraft(null);
+																			setFocusedEventCategoryCell(null);
+																			return;
+																		}
+																		if (event.key === "Enter") {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				normalizeEventCategoryValue,
+																			);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (
+																			event.key === "ArrowRight" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				normalizeEventCategoryValue,
+																			);
+																			focusCell(rowIndex, column.key, 0, 1);
+																		}
+																		if (
+																			event.key === "ArrowLeft" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				normalizeEventCategoryValue,
+																			);
+																			focusCell(rowIndex, column.key, 0, -1);
+																		}
+																	}}
+																	className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+																	placeholder="Party / Activity"
+																	aria-autocomplete="list"
+																	aria-expanded={
+																		focusedEventCategoryCell?.rowIndex ===
+																			rowIndex &&
+																		focusedEventCategoryCell.columnKey ===
+																			column.key
+																	}
+																/>
+																{focusedEventCategoryCell?.rowIndex ===
+																	rowIndex &&
+																	focusedEventCategoryCell.columnKey ===
+																		column.key && (
+																		<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																				Event Category
+																			</div>
+																			<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+																				Use this to separate parties from
+																				activities without changing the card
+																				layout.
+																			</div>
+																			<div className="max-h-60 overflow-y-auto p-1">
+																				<button
+																					type="button"
+																					onMouseDown={(event) => {
+																						event.preventDefault();
+																						selectEventCategoryForCell(
+																							rowIndex,
+																							column.key,
+																							null,
+																						);
+																					}}
+																					className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-muted-foreground transition hover:bg-accent/70"
+																				>
+																					Clear
+																				</button>
+																				{eventCategoryOptionsForFocusedCell.map(
+																					(category, optionIndex) => {
+																						const normalizedCurrent =
+																							normalizeEventExperienceCategory(
+																								getCellDisplayValue(
+																									rowIndex,
+																									column.key,
+																									row[column.key] ?? "",
+																								),
+																							);
+																						const isSelected =
+																							normalizedCurrent ===
+																							category.key;
+																						return (
+																							<button
+																								key={category.key}
+																								type="button"
+																								onMouseDown={(event) => {
+																									event.preventDefault();
+																									selectEventCategoryForCell(
+																										rowIndex,
+																										column.key,
+																										category,
+																									);
+																								}}
+																								className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																									optionIndex ===
+																									highlightedEventCategoryIndex
 																										? "bg-accent text-accent-foreground"
 																										: isSelected
 																											? "bg-muted text-foreground"
@@ -5611,467 +5959,912 @@ export const EventSheetEditorCard = ({
 																								}`}
 																							>
 																								<span className="min-w-0 flex-1 truncate font-medium">
-																									{area.label}
+																									{category.label}
 																								</span>
-																								<span className="max-w-36 truncate text-[10px] text-muted-foreground">
-																									{area.description}
+																								<span className="max-w-40 truncate text-[10px] text-muted-foreground">
+																									{category.description}
 																								</span>
 																							</button>
-																						</div>
-																					);
-																				},
-																			)}
-																			{areaOptionsForFocusedCell.length ===
-																				0 && (
-																				<div className="px-2 py-2 text-xs text-muted-foreground">
-																					No matching area. Use `Greater Paris`,
-																					`Outside Paris`, or `Location TBC`.
-																				</div>
-																			)}
+																						);
+																					},
+																				)}
+																			</div>
 																		</div>
-																	</div>
-																)}
-														</div>
-													) : column.key === SETTING_COLUMN_KEY ? (
-														<div className="relative min-h-9 bg-transparent">
-															<input
-																ref={(node) => {
-																	inputRefs.current[
-																		cellRefKey(rowIndex, column.key)
-																	] = node;
-																}}
-																value={getCellDisplayValue(
-																	rowIndex,
-																	column.key,
-																	row[column.key] ?? "",
-																)}
-																onFocus={() => {
-																	beginCellDraft(
+																	)}
+															</div>
+														) : column.key === SETTING_COLUMN_KEY ? (
+															<div className="relative min-h-9 bg-transparent">
+																<input
+																	ref={(node) => {
+																		inputRefs.current[
+																			cellRefKey(rowIndex, column.key)
+																		] = node;
+																	}}
+																	value={getCellDisplayValue(
 																		rowIndex,
 																		column.key,
 																		row[column.key] ?? "",
-																	);
-																	setFocusedSettingCell({
-																		rowIndex,
-																		columnKey: column.key,
-																	});
-																	setHighlightedSettingIndex(0);
-																}}
-																onChange={(event) => {
-																	setFocusedSettingCell((current) =>
-																		current?.rowIndex === rowIndex &&
-																		current.columnKey === column.key
-																			? current
-																			: { rowIndex, columnKey: column.key },
-																	);
-																	setHighlightedSettingIndex(0);
-																	updateCellDraft(
-																		rowIndex,
-																		column.key,
-																		event.target.value,
-																	);
-																}}
-																onBlur={() => {
-																	commitCellDraft(
-																		rowIndex,
-																		column.key,
-																		normalizeSettingValue,
-																	);
-																	window.setTimeout(() => {
+																	)}
+																	onFocus={() => {
+																		beginCellDraft(
+																			rowIndex,
+																			column.key,
+																			row[column.key] ?? "",
+																		);
+																		setFocusedSettingCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																		setHighlightedSettingIndex(0);
+																	}}
+																	onChange={(event) => {
 																		setFocusedSettingCell((current) =>
 																			current?.rowIndex === rowIndex &&
 																			current.columnKey === column.key
-																				? null
-																				: current,
+																				? current
+																				: { rowIndex, columnKey: column.key },
 																		);
-																	}, 120);
-																}}
-																onKeyDown={(event) => {
-																	if (
-																		event.key === "ArrowDown" &&
-																		settingOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		setHighlightedSettingIndex((current) =>
-																			Math.min(
-																				current + 1,
-																				settingOptionsForFocusedCell.length - 1,
-																			),
-																		);
-																		return;
-																	}
-																	if (
-																		event.key === "ArrowUp" &&
-																		settingOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		setHighlightedSettingIndex((current) =>
-																			Math.max(current - 1, 0),
-																		);
-																		return;
-																	}
-																	if (
-																		event.key === "Enter" &&
-																		settingOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		selectSettingForCell(
+																		setHighlightedSettingIndex(0);
+																		updateCellDraft(
 																			rowIndex,
 																			column.key,
-																			settingOptionsForFocusedCell[
-																				highlightedSettingIndex
-																			] ?? settingOptionsForFocusedCell[0],
+																			event.target.value,
 																		);
-																		return;
-																	}
-																	if (event.key === "Escape") {
-																		event.preventDefault();
-																		setCellDraft(null);
-																		setFocusedSettingCell(null);
-																		return;
-																	}
-																	if (event.key === "Enter") {
-																		event.preventDefault();
+																	}}
+																	onBlur={() => {
 																		commitCellDraft(
 																			rowIndex,
 																			column.key,
 																			normalizeSettingValue,
 																		);
-																		focusCell(rowIndex, column.key, 1, 0);
+																		window.setTimeout(() => {
+																			setFocusedSettingCell((current) =>
+																				current?.rowIndex === rowIndex &&
+																				current.columnKey === column.key
+																					? null
+																					: current,
+																			);
+																		}, 120);
+																	}}
+																	onKeyDown={(event) => {
+																		if (
+																			event.key === "ArrowDown" &&
+																			settingOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			setHighlightedSettingIndex((current) =>
+																				Math.min(
+																					current + 1,
+																					settingOptionsForFocusedCell.length -
+																						1,
+																				),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "ArrowUp" &&
+																			settingOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			setHighlightedSettingIndex((current) =>
+																				Math.max(current - 1, 0),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "Enter" &&
+																			settingOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			selectSettingForCell(
+																				rowIndex,
+																				column.key,
+																				settingOptionsForFocusedCell[
+																					highlightedSettingIndex
+																				] ?? settingOptionsForFocusedCell[0],
+																			);
+																			return;
+																		}
+																		if (event.key === "Escape") {
+																			event.preventDefault();
+																			setCellDraft(null);
+																			setFocusedSettingCell(null);
+																			return;
+																		}
+																		if (event.key === "Enter") {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				normalizeSettingValue,
+																			);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (
+																			event.key === "ArrowRight" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				normalizeSettingValue,
+																			);
+																			focusCell(rowIndex, column.key, 0, 1);
+																		}
+																		if (
+																			event.key === "ArrowLeft" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				normalizeSettingValue,
+																			);
+																			focusCell(rowIndex, column.key, 0, -1);
+																		}
+																	}}
+																	className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+																	placeholder="Indoor / Outdoor"
+																	aria-autocomplete="list"
+																	aria-expanded={
+																		focusedSettingCell?.rowIndex === rowIndex &&
+																		focusedSettingCell.columnKey === column.key
 																	}
-																	if (
-																		event.key === "ArrowRight" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitCellDraft(
-																			rowIndex,
-																			column.key,
-																			normalizeSettingValue,
-																		);
-																		focusCell(rowIndex, column.key, 0, 1);
-																	}
-																	if (
-																		event.key === "ArrowLeft" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitCellDraft(
-																			rowIndex,
-																			column.key,
-																			normalizeSettingValue,
-																		);
-																		focusCell(rowIndex, column.key, 0, -1);
-																	}
-																}}
-																className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
-																placeholder="Indoor / Outdoor"
-																aria-autocomplete="list"
-																aria-expanded={
-																	focusedSettingCell?.rowIndex === rowIndex &&
-																	focusedSettingCell.columnKey === column.key
-																}
-															/>
-															{focusedSettingCell?.rowIndex === rowIndex &&
-																focusedSettingCell.columnKey === column.key && (
-																	<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
-																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-																			Setting
+																/>
+																{focusedSettingCell?.rowIndex === rowIndex &&
+																	focusedSettingCell.columnKey ===
+																		column.key && (
+																		<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																				Setting
+																			</div>
+																			<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+																				Select one or both.
+																			</div>
+																			<div className="p-1">
+																				{settingOptionsForFocusedCell.map(
+																					(setting, optionIndex) => {
+																						const selectedValues =
+																							splitSettingCell(
+																								getCellDisplayValue(
+																									rowIndex,
+																									column.key,
+																									row[column.key] ?? "",
+																								),
+																							);
+																						const isSelected =
+																							selectedValues.includes(
+																								setting.value,
+																							);
+																						return (
+																							<button
+																								key={setting.value}
+																								type="button"
+																								onMouseDown={(event) => {
+																									event.preventDefault();
+																									selectSettingForCell(
+																										rowIndex,
+																										column.key,
+																										setting,
+																									);
+																								}}
+																								className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																									optionIndex ===
+																									highlightedSettingIndex
+																										? "bg-accent text-accent-foreground"
+																										: isSelected
+																											? "bg-muted text-foreground"
+																											: "hover:bg-accent/70"
+																								}`}
+																							>
+																								<span
+																									className={`h-3 w-3 rounded-sm border ${
+																										isSelected
+																											? "border-foreground bg-foreground"
+																											: "border-muted-foreground/40"
+																									}`}
+																									aria-hidden="true"
+																								/>
+																								<span className="min-w-0 flex-1 truncate font-medium">
+																									{setting.label}
+																								</span>
+																								<span className="max-w-40 truncate text-[10px] text-muted-foreground">
+																									{setting.description}
+																								</span>
+																							</button>
+																						);
+																					},
+																				)}
+																			</div>
 																		</div>
-																		<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
-																			Select one or both.
-																		</div>
-																		<div className="p-1">
-																			{settingOptionsForFocusedCell.map(
-																				(setting, optionIndex) => {
-																					const selectedValues =
-																						splitSettingCell(
+																	)}
+															</div>
+														) : column.key === AGE_COLUMN_KEY ? (
+															<div className="relative min-h-9 bg-transparent">
+																<input
+																	ref={(node) => {
+																		inputRefs.current[
+																			cellRefKey(rowIndex, column.key)
+																		] = node;
+																	}}
+																	value={getCellDisplayValue(
+																		rowIndex,
+																		column.key,
+																		row[column.key] ?? "",
+																	)}
+																	onFocus={() => {
+																		beginCellDraft(
+																			rowIndex,
+																			column.key,
+																			row[column.key] ?? "",
+																		);
+																		setFocusedAgeCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																		setHighlightedAgeIndex(0);
+																	}}
+																	onChange={(event) => {
+																		setFocusedAgeCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? current
+																				: { rowIndex, columnKey: column.key },
+																		);
+																		setHighlightedAgeIndex(0);
+																		updateCellDraft(
+																			rowIndex,
+																			column.key,
+																			event.target.value,
+																		);
+																	}}
+																	onBlur={() => {
+																		commitCellDraft(
+																			rowIndex,
+																			column.key,
+																			(value) => value.trim(),
+																		);
+																		window.setTimeout(() => {
+																			setFocusedAgeCell((current) =>
+																				current?.rowIndex === rowIndex &&
+																				current.columnKey === column.key
+																					? null
+																					: current,
+																			);
+																		}, 120);
+																	}}
+																	onKeyDown={(event) => {
+																		if (
+																			event.key === "ArrowDown" &&
+																			ageOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			setHighlightedAgeIndex((current) =>
+																				Math.min(
+																					current + 1,
+																					ageOptionsForFocusedCell.length - 1,
+																				),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "ArrowUp" &&
+																			ageOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			setHighlightedAgeIndex((current) =>
+																				Math.max(current - 1, 0),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "Enter" &&
+																			ageOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			selectAgeForCell(
+																				rowIndex,
+																				column.key,
+																				ageOptionsForFocusedCell[
+																					highlightedAgeIndex
+																				] ?? ageOptionsForFocusedCell[0],
+																			);
+																			return;
+																		}
+																		if (event.key === "Escape") {
+																			event.preventDefault();
+																			setCellDraft(null);
+																			setFocusedAgeCell(null);
+																			return;
+																		}
+																		if (event.key === "Enter") {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				(value) => value.trim(),
+																			);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (
+																			event.key === "ArrowRight" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				(value) => value.trim(),
+																			);
+																			focusCell(rowIndex, column.key, 0, 1);
+																		}
+																		if (
+																			event.key === "ArrowLeft" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				(value) => value.trim(),
+																			);
+																			focusCell(rowIndex, column.key, 0, -1);
+																		}
+																	}}
+																	className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+																	placeholder="18+, 21+, TBC"
+																	aria-autocomplete="list"
+																	aria-expanded={
+																		focusedAgeCell?.rowIndex === rowIndex &&
+																		focusedAgeCell.columnKey === column.key
+																	}
+																/>
+																{focusedAgeCell?.rowIndex === rowIndex &&
+																	focusedAgeCell.columnKey === column.key && (
+																		<div className="absolute left-1 top-8 z-40 w-64 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																				Age Guidance
+																			</div>
+																			<div className="max-h-56 overflow-y-auto p-1">
+																				<button
+																					type="button"
+																					onMouseDown={(event) => {
+																						event.preventDefault();
+																						selectAgeForCell(
+																							rowIndex,
+																							column.key,
+																							null,
+																						);
+																					}}
+																					className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-muted-foreground transition hover:bg-accent/70"
+																				>
+																					Clear
+																				</button>
+																				{ageOptionsForFocusedCell.map(
+																					(age, optionIndex) => {
+																						const isSelected =
 																							getCellDisplayValue(
 																								rowIndex,
 																								column.key,
 																								row[column.key] ?? "",
-																							),
-																						);
-																					const isSelected =
-																						selectedValues.includes(
-																							setting.value,
-																						);
-																					return (
-																						<button
-																							key={setting.value}
-																							type="button"
-																							onMouseDown={(event) => {
-																								event.preventDefault();
-																								selectSettingForCell(
-																									rowIndex,
-																									column.key,
-																									setting,
-																								);
-																							}}
-																							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
-																								optionIndex ===
-																								highlightedSettingIndex
-																									? "bg-accent text-accent-foreground"
-																									: isSelected
-																										? "bg-muted text-foreground"
-																										: "hover:bg-accent/70"
-																							}`}
-																						>
-																							<span
-																								className={`h-3 w-3 rounded-sm border ${
-																									isSelected
-																										? "border-foreground bg-foreground"
-																										: "border-muted-foreground/40"
+																							)
+																								.trim()
+																								.toLowerCase() ===
+																							age.value.toLowerCase();
+																						return (
+																							<button
+																								key={age.value}
+																								type="button"
+																								onMouseDown={(event) => {
+																									event.preventDefault();
+																									selectAgeForCell(
+																										rowIndex,
+																										column.key,
+																										age,
+																									);
+																								}}
+																								className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																									optionIndex ===
+																									highlightedAgeIndex
+																										? "bg-accent text-accent-foreground"
+																										: isSelected
+																											? "bg-muted text-foreground"
+																											: "hover:bg-accent/70"
 																								}`}
-																								aria-hidden="true"
-																							/>
-																							<span className="min-w-0 flex-1 truncate font-medium">
-																								{setting.label}
-																							</span>
-																							<span className="max-w-40 truncate text-[10px] text-muted-foreground">
-																								{setting.description}
-																							</span>
-																						</button>
-																					);
-																				},
-																			)}
+																							>
+																								<span className="min-w-0 flex-1 truncate font-medium">
+																									{age.label}
+																								</span>
+																								<span className="max-w-36 truncate text-[10px] text-muted-foreground">
+																									{age.description}
+																								</span>
+																							</button>
+																						);
+																					},
+																				)}
+																			</div>
 																		</div>
+																	)}
+															</div>
+														) : column.key === PRIMARY_URL_COLUMN_KEY ? (
+															<div
+																className="relative min-h-9 bg-transparent px-2 py-1"
+																onBlurCapture={(event) => {
+																	const nextTarget = event.relatedTarget;
+																	if (
+																		nextTarget instanceof Node &&
+																		event.currentTarget.contains(nextTarget)
+																	) {
+																		return;
+																	}
+																	commitStandardCell(rowIndex, column.key);
+																	if (primaryUrlBlurTimerRef.current) {
+																		window.clearTimeout(
+																			primaryUrlBlurTimerRef.current,
+																		);
+																	}
+																	primaryUrlBlurTimerRef.current =
+																		window.setTimeout(() => {
+																			setFocusedPrimaryUrlCell((current) =>
+																				current?.rowIndex === rowIndex &&
+																				current.columnKey === column.key
+																					? null
+																					: current,
+																			);
+																			primaryUrlBlurTimerRef.current = null;
+																		}, 120);
+																}}
+															>
+																<input
+																	ref={(node) => {
+																		inputRefs.current[
+																			cellRefKey(rowIndex, column.key)
+																		] = node;
+																	}}
+																	value={row[column.key] ?? ""}
+																	onFocus={() => {
+																		if (primaryUrlBlurTimerRef.current) {
+																			window.clearTimeout(
+																				primaryUrlBlurTimerRef.current,
+																			);
+																			primaryUrlBlurTimerRef.current = null;
+																		}
+																		setFocusedPrimaryUrlCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																	}}
+																	onClick={() => {
+																		if (primaryUrlBlurTimerRef.current) {
+																			window.clearTimeout(
+																				primaryUrlBlurTimerRef.current,
+																			);
+																			primaryUrlBlurTimerRef.current = null;
+																		}
+																		setFocusedPrimaryUrlCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																	}}
+																	onChange={(event) =>
+																		handleCellChange(
+																			rowIndex,
+																			column.key,
+																			event.target.value,
+																		)
+																	}
+																	onBlur={() => {
+																		commitStandardCell(rowIndex, column.key);
+																	}}
+																	onKeyDown={(event) => {
+																		if (event.key === "Escape") {
+																			setFocusedPrimaryUrlCell(null);
+																			return;
+																		}
+																		if (event.key === "Enter") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (event.key === "ArrowDown") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (event.key === "ArrowUp") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, -1, 0);
+																		}
+																		if (
+																			event.key === "ArrowRight" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 0, 1);
+																		}
+																		if (
+																			event.key === "ArrowLeft" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 0, -1);
+																		}
+																	}}
+																	className="h-5 w-full border-0 bg-transparent p-0 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30"
+																	placeholder="URL, or comma-separated URLs"
+																/>
+																{primaryUrlParts.length > 0 && (
+																	<div className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70">
+																		{primaryUrlParts
+																			.map((part) =>
+																				part.isValid
+																					? part.host
+																					: `Invalid: ${part.raw}`,
+																			)
+																			.join(" / ")}
 																	</div>
 																)}
-														</div>
-													) : column.key === AGE_COLUMN_KEY ? (
-														<div className="relative min-h-9 bg-transparent">
-															<input
-																ref={(node) => {
-																	inputRefs.current[
-																		cellRefKey(rowIndex, column.key)
-																	] = node;
-																}}
-																value={getCellDisplayValue(
-																	rowIndex,
-																	column.key,
-																	row[column.key] ?? "",
-																)}
-																onFocus={() => {
-																	beginCellDraft(
+																{focusedPrimaryUrlCell?.rowIndex === rowIndex &&
+																	focusedPrimaryUrlCell.columnKey ===
+																		column.key && (
+																		<div className="absolute left-1 top-8 z-40 w-80 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																				Primary URL
+																			</div>
+																			<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+																				Separate multiple links with commas or
+																				new lines. Domains are saved with
+																				https://.
+																			</div>
+																			<div className="border-b p-1">
+																				<Button
+																					type="button"
+																					size="sm"
+																					variant="ghost"
+																					className="h-7 w-full justify-start px-2 text-xs"
+																					onMouseDown={(event) => {
+																						event.preventDefault();
+																					}}
+																					onClick={() => {
+																						addPrimaryUrlSlot(
+																							rowIndex,
+																							column.key,
+																						);
+																					}}
+																				>
+																					<Plus className="mr-1 h-3.5 w-3.5" />
+																					Add URL
+																				</Button>
+																			</div>
+																			<div className="max-h-60 overflow-y-auto p-1">
+																				{primaryUrlParts.map(
+																					(part, partIndex) => (
+																						<div
+																							key={urlPartRefKey(
+																								rowIndex,
+																								column.key,
+																								partIndex,
+																							)}
+																							className="rounded px-2 py-1.5 text-xs hover:bg-accent/40"
+																						>
+																							<div className="flex items-center gap-2">
+																								<span
+																									className={`h-2 w-2 rounded-full ${
+																										part.isValid
+																											? "bg-emerald-500"
+																											: "bg-amber-500"
+																									}`}
+																									aria-hidden="true"
+																								/>
+																								<span className="min-w-0 flex-1 truncate font-medium">
+																									{part.isValid
+																										? part.host
+																										: "Needs review"}
+																								</span>
+																								<span className="font-mono text-[10px] text-muted-foreground">
+																									#{partIndex + 1}
+																								</span>
+																								<button
+																									type="button"
+																									className="rounded p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+																									aria-label={`Remove URL ${partIndex + 1}`}
+																									title={`Remove URL ${partIndex + 1}`}
+																									onMouseDown={(event) => {
+																										event.preventDefault();
+																										removePrimaryUrlPart(
+																											rowIndex,
+																											column.key,
+																											partIndex,
+																										);
+																									}}
+																								>
+																									<Trash2 className="h-3 w-3" />
+																								</button>
+																							</div>
+																							<input
+																								ref={(node) => {
+																									urlPartInputRefs.current[
+																										urlPartRefKey(
+																											rowIndex,
+																											column.key,
+																											partIndex,
+																										)
+																									] = node;
+																								}}
+																								value={part.raw}
+																								onChange={(event) =>
+																									updatePrimaryUrlPart(
+																										rowIndex,
+																										column.key,
+																										partIndex,
+																										event.target.value,
+																									)
+																								}
+																								onBlur={() => {
+																									const normalized =
+																										normalizeUrlValue(
+																											rowsRef.current[
+																												rowIndex
+																											]?.[column.key] ?? "",
+																										);
+																									handleCellChange(
+																										rowIndex,
+																										column.key,
+																										normalized,
+																									);
+																								}}
+																								className="mt-1 h-7 w-full rounded border border-border/70 bg-background px-2 font-mono text-[11px] outline-none focus:border-ring"
+																								placeholder="https://example.com/event"
+																							/>
+																							{part.normalized !== part.raw && (
+																								<div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+																									Will save as {part.normalized}
+																								</div>
+																							)}
+																						</div>
+																					),
+																				)}
+																				{primaryUrlParts.length === 0 && (
+																					<div className="px-2 py-2 text-xs text-muted-foreground">
+																						Add a ticket, RSVP, or official
+																						event URL.
+																					</div>
+																				)}
+																			</div>
+																		</div>
+																	)}
+															</div>
+														) : COUNTRY_COLUMN_KEYS.has(column.key) ? (
+															<div className="relative min-h-9 bg-transparent">
+																<input
+																	ref={(node) => {
+																		inputRefs.current[
+																			cellRefKey(rowIndex, column.key)
+																		] = node;
+																	}}
+																	value={getCellDisplayValue(
 																		rowIndex,
 																		column.key,
 																		row[column.key] ?? "",
-																	);
-																	setFocusedAgeCell({
-																		rowIndex,
-																		columnKey: column.key,
-																	});
-																	setHighlightedAgeIndex(0);
-																}}
-																onChange={(event) => {
-																	setFocusedAgeCell((current) =>
-																		current?.rowIndex === rowIndex &&
-																		current.columnKey === column.key
-																			? current
-																			: { rowIndex, columnKey: column.key },
-																	);
-																	setHighlightedAgeIndex(0);
-																	updateCellDraft(
-																		rowIndex,
-																		column.key,
-																		event.target.value,
-																	);
-																}}
-																onBlur={() => {
-																	commitCellDraft(
-																		rowIndex,
-																		column.key,
-																		(value) => value.trim(),
-																	);
-																	window.setTimeout(() => {
-																		setFocusedAgeCell((current) =>
-																			current?.rowIndex === rowIndex &&
-																			current.columnKey === column.key
-																				? null
-																				: current,
+																	)}
+																	onFocus={() => {
+																		beginCellDraft(
+																			rowIndex,
+																			column.key,
+																			row[column.key] ?? "",
 																		);
-																	}, 120);
-																}}
-																onKeyDown={(event) => {
-																	if (
-																		event.key === "ArrowDown" &&
-																		ageOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		setHighlightedAgeIndex((current) =>
-																			Math.min(
-																				current + 1,
-																				ageOptionsForFocusedCell.length - 1,
+																		setFocusedCountryCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																		setCountrySearchQuery(
+																			getCountrySearchSegment(
+																				row[column.key] ?? "",
 																			),
 																		);
-																		return;
-																	}
-																	if (
-																		event.key === "ArrowUp" &&
-																		ageOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		setHighlightedAgeIndex((current) =>
-																			Math.max(current - 1, 0),
+																		setHighlightedCountryIndex(0);
+																	}}
+																	onChange={(event) => {
+																		setFocusedCountryCell((current) =>
+																			current?.rowIndex === rowIndex &&
+																			current.columnKey === column.key
+																				? current
+																				: { rowIndex, columnKey: column.key },
 																		);
-																		return;
-																	}
-																	if (
-																		event.key === "Enter" &&
-																		ageOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		selectAgeForCell(
+																		setCountrySearchQuery(
+																			getCountrySearchSegment(
+																				event.target.value,
+																			),
+																		);
+																		setHighlightedCountryIndex(0);
+																		updateCellDraft(
 																			rowIndex,
 																			column.key,
-																			ageOptionsForFocusedCell[
-																				highlightedAgeIndex
-																			] ?? ageOptionsForFocusedCell[0],
+																			event.target.value,
 																		);
-																		return;
-																	}
-																	if (event.key === "Escape") {
-																		event.preventDefault();
-																		setCellDraft(null);
-																		setFocusedAgeCell(null);
-																		return;
-																	}
-																	if (event.key === "Enter") {
-																		event.preventDefault();
+																	}}
+																	onBlur={() => {
 																		commitCellDraft(
 																			rowIndex,
 																			column.key,
-																			(value) => value.trim(),
+																			normalizeCountryValue,
 																		);
-																		focusCell(rowIndex, column.key, 1, 0);
+																		window.setTimeout(() => {
+																			setFocusedCountryCell((current) =>
+																				current?.rowIndex === rowIndex &&
+																				current.columnKey === column.key
+																					? null
+																					: current,
+																			);
+																		}, 120);
+																	}}
+																	onKeyDown={(event) => {
+																		if (
+																			event.key === "ArrowDown" &&
+																			countryOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			setHighlightedCountryIndex((current) =>
+																				Math.min(
+																					current + 1,
+																					countryOptionsForFocusedCell.length -
+																						1,
+																				),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "ArrowUp" &&
+																			countryOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			setHighlightedCountryIndex((current) =>
+																				Math.max(current - 1, 0),
+																			);
+																			return;
+																		}
+																		if (
+																			event.key === "Enter" &&
+																			countryOptionsForFocusedCell.length > 0
+																		) {
+																			event.preventDefault();
+																			selectCountryForCell(
+																				rowIndex,
+																				column.key,
+																				countryOptionsForFocusedCell[
+																					highlightedCountryIndex
+																				] ?? countryOptionsForFocusedCell[0],
+																			);
+																			return;
+																		}
+																		if (event.key === "Escape") {
+																			event.preventDefault();
+																			setCellDraft(null);
+																			setFocusedCountryCell(null);
+																			return;
+																		}
+																		if (event.key === "Enter") {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				normalizeCountryValue,
+																			);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (
+																			event.key === "ArrowRight" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				normalizeCountryValue,
+																			);
+																			focusCell(rowIndex, column.key, 0, 1);
+																		}
+																		if (
+																			event.key === "ArrowLeft" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitCellDraft(
+																				rowIndex,
+																				column.key,
+																				normalizeCountryValue,
+																			);
+																			focusCell(rowIndex, column.key, 0, -1);
+																		}
+																	}}
+																	className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
+																	aria-autocomplete="list"
+																	aria-expanded={
+																		focusedCountryCell?.rowIndex === rowIndex &&
+																		focusedCountryCell.columnKey === column.key
 																	}
-																	if (
-																		event.key === "ArrowRight" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitCellDraft(
-																			rowIndex,
-																			column.key,
-																			(value) => value.trim(),
-																		);
-																		focusCell(rowIndex, column.key, 0, 1);
-																	}
-																	if (
-																		event.key === "ArrowLeft" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitCellDraft(
-																			rowIndex,
-																			column.key,
-																			(value) => value.trim(),
-																		);
-																		focusCell(rowIndex, column.key, 0, -1);
-																	}
-																}}
-																className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
-																placeholder="18+, 21+, TBC"
-																aria-autocomplete="list"
-																aria-expanded={
-																	focusedAgeCell?.rowIndex === rowIndex &&
-																	focusedAgeCell.columnKey === column.key
-																}
-															/>
-															{focusedAgeCell?.rowIndex === rowIndex &&
-																focusedAgeCell.columnKey === column.key && (
-																	<div className="absolute left-1 top-8 z-40 w-64 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
-																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-																			Age Guidance
-																		</div>
-																		<div className="max-h-56 overflow-y-auto p-1">
-																			<button
-																				type="button"
-																				onMouseDown={(event) => {
-																					event.preventDefault();
-																					selectAgeForCell(
-																						rowIndex,
-																						column.key,
-																						null,
-																					);
-																				}}
-																				className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-muted-foreground transition hover:bg-accent/70"
-																			>
-																				Clear
-																			</button>
-																			{ageOptionsForFocusedCell.map(
-																				(age, optionIndex) => {
-																					const isSelected =
-																						getCellDisplayValue(
-																							rowIndex,
-																							column.key,
-																							row[column.key] ?? "",
-																						)
-																							.trim()
-																							.toLowerCase() ===
-																						age.value.toLowerCase();
-																					return (
-																						<button
-																							key={age.value}
-																							type="button"
-																							onMouseDown={(event) => {
-																								event.preventDefault();
-																								selectAgeForCell(
+																/>
+																{focusedCountryCell?.rowIndex === rowIndex &&
+																	focusedCountryCell.columnKey ===
+																		column.key && (
+																		<div className="absolute left-1 top-8 z-40 w-64 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																				Country
+																			</div>
+																			<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+																				Use comma, slash, +, or & for multiple
+																				countries.
+																			</div>
+																			<div className="max-h-56 overflow-y-auto p-1">
+																				{countryOptionsForFocusedCell.map(
+																					(country, optionIndex) => {
+																						const isSelected =
+																							getSelectedCountryCodes(
+																								getCellDisplayValue(
 																									rowIndex,
 																									column.key,
-																									age,
-																								);
-																							}}
-																							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
-																								optionIndex ===
-																								highlightedAgeIndex
-																									? "bg-accent text-accent-foreground"
-																									: isSelected
-																										? "bg-muted text-foreground"
-																										: "hover:bg-accent/70"
-																							}`}
-																						>
-																							<span className="min-w-0 flex-1 truncate font-medium">
-																								{age.label}
-																							</span>
-																							<span className="max-w-36 truncate text-[10px] text-muted-foreground">
-																								{age.description}
-																							</span>
-																						</button>
-																					);
-																				},
-																			)}
+																									row[column.key] ?? "",
+																								),
+																							).has(country.code);
+																						return (
+																							<button
+																								key={country.code}
+																								type="button"
+																								onMouseDown={(event) => {
+																									event.preventDefault();
+																									selectCountryForCell(
+																										rowIndex,
+																										column.key,
+																										country,
+																									);
+																								}}
+																								className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
+																									optionIndex ===
+																									highlightedCountryIndex
+																										? "bg-accent text-accent-foreground"
+																										: isSelected
+																											? "bg-muted text-foreground"
+																											: "hover:bg-accent/70"
+																								}`}
+																							>
+																								<span
+																									className={`h-3 w-3 rounded-sm border ${
+																										isSelected
+																											? "border-foreground bg-foreground"
+																											: "border-muted-foreground/40"
+																									}`}
+																									aria-hidden="true"
+																								/>
+																								<span className="text-sm">
+																									{country.flag}
+																								</span>
+																								<span className="min-w-0 flex-1 truncate">
+																									{country.label}
+																								</span>
+																								<span className="font-mono text-[10px] text-muted-foreground">
+																									{country.code}
+																								</span>
+																							</button>
+																						);
+																					},
+																				)}
+																				{countryOptionsForFocusedCell.length ===
+																					0 && (
+																					<div className="px-2 py-2 text-xs text-muted-foreground">
+																						No matching country. Keep typing a
+																						code or name.
+																					</div>
+																				)}
+																			</div>
 																		</div>
-																	</div>
-																)}
-														</div>
-													) : column.key === PRIMARY_URL_COLUMN_KEY ? (
-														<div
-															className="relative min-h-9 bg-transparent px-2 py-1"
-															onBlurCapture={(event) => {
-																const nextTarget = event.relatedTarget;
-																if (
-																	nextTarget instanceof Node &&
-																	event.currentTarget.contains(nextTarget)
-																) {
-																	return;
-																}
-																commitStandardCell(rowIndex, column.key);
-																if (primaryUrlBlurTimerRef.current) {
-																	window.clearTimeout(primaryUrlBlurTimerRef.current);
-																}
-																primaryUrlBlurTimerRef.current = window.setTimeout(() => {
-																	setFocusedPrimaryUrlCell((current) =>
-																		current?.rowIndex === rowIndex &&
-																		current.columnKey === column.key
-																			? null
-																			: current,
-																	);
-																	primaryUrlBlurTimerRef.current = null;
-																}, 120);
-															}}
-														>
+																	)}
+															</div>
+														) : (
 															<input
 																ref={(node) => {
 																	inputRefs.current[
@@ -6079,30 +6872,9 @@ export const EventSheetEditorCard = ({
 																	] = node;
 																}}
 																value={row[column.key] ?? ""}
-																onFocus={() => {
-																	if (primaryUrlBlurTimerRef.current) {
-																		window.clearTimeout(
-																			primaryUrlBlurTimerRef.current,
-																		);
-																		primaryUrlBlurTimerRef.current = null;
-																	}
-																	setFocusedPrimaryUrlCell({
-																		rowIndex,
-																		columnKey: column.key,
-																	});
-																}}
-																onClick={() => {
-																	if (primaryUrlBlurTimerRef.current) {
-																		window.clearTimeout(
-																			primaryUrlBlurTimerRef.current,
-																		);
-																		primaryUrlBlurTimerRef.current = null;
-																	}
-																	setFocusedPrimaryUrlCell({
-																		rowIndex,
-																		columnKey: column.key,
-																	});
-																}}
+																readOnly={SYSTEM_MANAGED_COLUMN_KEYS.has(
+																	column.key,
+																)}
 																onChange={(event) =>
 																	handleCellChange(
 																		rowIndex,
@@ -6114,10 +6886,6 @@ export const EventSheetEditorCard = ({
 																	commitStandardCell(rowIndex, column.key);
 																}}
 																onKeyDown={(event) => {
-																	if (event.key === "Escape") {
-																		setFocusedPrimaryUrlCell(null);
-																		return;
-																	}
 																	if (event.key === "Enter") {
 																		event.preventDefault();
 																		commitStandardCell(rowIndex, column.key);
@@ -6150,432 +6918,24 @@ export const EventSheetEditorCard = ({
 																		focusCell(rowIndex, column.key, 0, -1);
 																	}
 																}}
-																className="h-5 w-full border-0 bg-transparent p-0 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30"
-																placeholder="URL, or comma-separated URLs"
+																className={`h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30 ${
+																	SYSTEM_MANAGED_COLUMN_KEYS.has(column.key)
+																		? "cursor-not-allowed bg-muted/25 text-muted-foreground"
+																		: ""
+																}`}
 															/>
-															{primaryUrlParts.length > 0 && (
-																<div className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70">
-																	{primaryUrlParts
-																		.map((part) =>
-																			part.isValid
-																				? part.host
-																				: `Invalid: ${part.raw}`,
-																		)
-																		.join(" / ")}
-																</div>
-															)}
-															{focusedPrimaryUrlCell?.rowIndex === rowIndex &&
-																focusedPrimaryUrlCell.columnKey === column.key && (
-																	<div className="absolute left-1 top-8 z-40 w-80 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
-																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-																			Primary URL
-																		</div>
-																		<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
-																			Separate multiple links with commas or new
-																			lines. Domains are saved with https://.
-																		</div>
-																		<div className="border-b p-1">
-																			<Button
-																				type="button"
-																				size="sm"
-																				variant="ghost"
-																				className="h-7 w-full justify-start px-2 text-xs"
-																				onMouseDown={(event) => {
-																					event.preventDefault();
-																				}}
-																				onClick={() => {
-																					addPrimaryUrlSlot(rowIndex, column.key);
-																				}}
-																			>
-																				<Plus className="mr-1 h-3.5 w-3.5" />
-																				Add URL
-																			</Button>
-																		</div>
-																		<div className="max-h-60 overflow-y-auto p-1">
-																			{primaryUrlParts.map((part, partIndex) => (
-																				<div
-																					key={urlPartRefKey(
-																						rowIndex,
-																						column.key,
-																						partIndex,
-																					)}
-																					className="rounded px-2 py-1.5 text-xs hover:bg-accent/40"
-																				>
-																					<div className="flex items-center gap-2">
-																						<span
-																							className={`h-2 w-2 rounded-full ${
-																								part.isValid
-																									? "bg-emerald-500"
-																									: "bg-amber-500"
-																							}`}
-																							aria-hidden="true"
-																						/>
-																						<span className="min-w-0 flex-1 truncate font-medium">
-																							{part.isValid
-																								? part.host
-																								: "Needs review"}
-																						</span>
-																						<span className="font-mono text-[10px] text-muted-foreground">
-																							#{partIndex + 1}
-																						</span>
-																						<button
-																							type="button"
-																							className="rounded p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-																							aria-label={`Remove URL ${partIndex + 1}`}
-																							title={`Remove URL ${partIndex + 1}`}
-																							onMouseDown={(event) => {
-																								event.preventDefault();
-																								removePrimaryUrlPart(
-																									rowIndex,
-																									column.key,
-																									partIndex,
-																								);
-																							}}
-																						>
-																							<Trash2 className="h-3 w-3" />
-																						</button>
-																					</div>
-																					<input
-																						ref={(node) => {
-																							urlPartInputRefs.current[
-																								urlPartRefKey(
-																									rowIndex,
-																									column.key,
-																									partIndex,
-																								)
-																							] = node;
-																						}}
-																						value={part.raw}
-																						onChange={(event) =>
-																							updatePrimaryUrlPart(
-																								rowIndex,
-																								column.key,
-																								partIndex,
-																								event.target.value,
-																							)
-																						}
-																						onBlur={() => {
-																							const normalized = normalizeUrlValue(
-																								rowsRef.current[rowIndex]?.[
-																									column.key
-																								] ?? "",
-																							);
-																							handleCellChange(
-																								rowIndex,
-																								column.key,
-																								normalized,
-																							);
-																						}}
-																						className="mt-1 h-7 w-full rounded border border-border/70 bg-background px-2 font-mono text-[11px] outline-none focus:border-ring"
-																						placeholder="https://example.com/event"
-																					/>
-																					{part.normalized !== part.raw && (
-																						<div className="mt-0.5 truncate text-[10px] text-muted-foreground">
-																							Will save as {part.normalized}
-																						</div>
-																					)}
-																				</div>
-																			))}
-																			{primaryUrlParts.length === 0 && (
-																				<div className="px-2 py-2 text-xs text-muted-foreground">
-																					Add a ticket, RSVP, or official event
-																					URL.
-																				</div>
-																			)}
-																		</div>
-																	</div>
-																)}
-														</div>
-													) : COUNTRY_COLUMN_KEYS.has(column.key) ? (
-														<div className="relative min-h-9 bg-transparent">
-															<input
-																ref={(node) => {
-																	inputRefs.current[
-																		cellRefKey(rowIndex, column.key)
-																	] = node;
-																}}
-																value={getCellDisplayValue(
-																	rowIndex,
-																	column.key,
-																	row[column.key] ?? "",
-																)}
-																onFocus={() => {
-																	beginCellDraft(
-																		rowIndex,
-																		column.key,
-																		row[column.key] ?? "",
-																	);
-																	setFocusedCountryCell({
-																		rowIndex,
-																		columnKey: column.key,
-																	});
-																	setCountrySearchQuery(
-																		getCountrySearchSegment(
-																			row[column.key] ?? "",
-																		),
-																	);
-																	setHighlightedCountryIndex(0);
-																}}
-																onChange={(event) => {
-																	setFocusedCountryCell((current) =>
-																		current?.rowIndex === rowIndex &&
-																		current.columnKey === column.key
-																			? current
-																			: { rowIndex, columnKey: column.key },
-																	);
-																	setCountrySearchQuery(
-																		getCountrySearchSegment(event.target.value),
-																	);
-																	setHighlightedCountryIndex(0);
-																	updateCellDraft(
-																		rowIndex,
-																		column.key,
-																		event.target.value,
-																	);
-																}}
-																onBlur={() => {
-																	commitCellDraft(
-																		rowIndex,
-																		column.key,
-																		normalizeCountryValue,
-																	);
-																	window.setTimeout(() => {
-																		setFocusedCountryCell((current) =>
-																			current?.rowIndex === rowIndex &&
-																			current.columnKey === column.key
-																				? null
-																				: current,
-																		);
-																	}, 120);
-																}}
-																onKeyDown={(event) => {
-																	if (
-																		event.key === "ArrowDown" &&
-																		countryOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		setHighlightedCountryIndex((current) =>
-																			Math.min(
-																				current + 1,
-																				countryOptionsForFocusedCell.length - 1,
-																			),
-																		);
-																		return;
-																	}
-																	if (
-																		event.key === "ArrowUp" &&
-																		countryOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		setHighlightedCountryIndex((current) =>
-																			Math.max(current - 1, 0),
-																		);
-																		return;
-																	}
-																	if (
-																		event.key === "Enter" &&
-																		countryOptionsForFocusedCell.length > 0
-																	) {
-																		event.preventDefault();
-																		selectCountryForCell(
-																			rowIndex,
-																			column.key,
-																			countryOptionsForFocusedCell[
-																				highlightedCountryIndex
-																			] ?? countryOptionsForFocusedCell[0],
-																		);
-																		return;
-																	}
-																	if (event.key === "Escape") {
-																		event.preventDefault();
-																		setCellDraft(null);
-																		setFocusedCountryCell(null);
-																		return;
-																	}
-																	if (event.key === "Enter") {
-																		event.preventDefault();
-																		commitCellDraft(
-																			rowIndex,
-																			column.key,
-																			normalizeCountryValue,
-																		);
-																		focusCell(rowIndex, column.key, 1, 0);
-																	}
-																	if (
-																		event.key === "ArrowRight" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitCellDraft(
-																			rowIndex,
-																			column.key,
-																			normalizeCountryValue,
-																		);
-																		focusCell(rowIndex, column.key, 0, 1);
-																	}
-																	if (
-																		event.key === "ArrowLeft" &&
-																		event.altKey
-																	) {
-																		event.preventDefault();
-																		commitCellDraft(
-																			rowIndex,
-																			column.key,
-																			normalizeCountryValue,
-																		);
-																		focusCell(rowIndex, column.key, 0, -1);
-																	}
-																}}
-																className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30"
-																aria-autocomplete="list"
-																aria-expanded={
-																	focusedCountryCell?.rowIndex === rowIndex &&
-																	focusedCountryCell.columnKey === column.key
-																}
-															/>
-															{focusedCountryCell?.rowIndex === rowIndex &&
-																focusedCountryCell.columnKey === column.key && (
-																	<div className="absolute left-1 top-8 z-40 w-64 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
-																		<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-																			Country
-																		</div>
-																		<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
-																			Use comma, slash, +, or & for multiple
-																			countries.
-																		</div>
-																		<div className="max-h-56 overflow-y-auto p-1">
-																			{countryOptionsForFocusedCell.map(
-																				(country, optionIndex) => {
-																					const isSelected =
-																						getSelectedCountryCodes(
-																							getCellDisplayValue(
-																								rowIndex,
-																								column.key,
-																								row[column.key] ?? "",
-																							),
-																						).has(country.code);
-																					return (
-																						<button
-																							key={country.code}
-																							type="button"
-																							onMouseDown={(event) => {
-																								event.preventDefault();
-																								selectCountryForCell(
-																									rowIndex,
-																									column.key,
-																									country,
-																								);
-																							}}
-																							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition ${
-																								optionIndex ===
-																								highlightedCountryIndex
-																									? "bg-accent text-accent-foreground"
-																									: isSelected
-																										? "bg-muted text-foreground"
-																										: "hover:bg-accent/70"
-																							}`}
-																						>
-																							<span
-																								className={`h-3 w-3 rounded-sm border ${
-																									isSelected
-																										? "border-foreground bg-foreground"
-																										: "border-muted-foreground/40"
-																								}`}
-																								aria-hidden="true"
-																							/>
-																							<span className="text-sm">
-																								{country.flag}
-																							</span>
-																							<span className="min-w-0 flex-1 truncate">
-																								{country.label}
-																							</span>
-																							<span className="font-mono text-[10px] text-muted-foreground">
-																								{country.code}
-																							</span>
-																						</button>
-																					);
-																				},
-																			)}
-																			{countryOptionsForFocusedCell.length ===
-																				0 && (
-																				<div className="px-2 py-2 text-xs text-muted-foreground">
-																					No matching country. Keep typing a
-																					code or name.
-																				</div>
-																			)}
-																		</div>
-																	</div>
-																)}
-														</div>
-													) : (
-														<input
-															ref={(node) => {
-																inputRefs.current[
-																	cellRefKey(rowIndex, column.key)
-																] = node;
-															}}
-															value={row[column.key] ?? ""}
-															readOnly={SYSTEM_MANAGED_COLUMN_KEYS.has(
-																column.key,
-															)}
-															onChange={(event) =>
-																handleCellChange(
-																	rowIndex,
-																	column.key,
-																	event.target.value,
-																)
-															}
-															onBlur={() => {
-																commitStandardCell(rowIndex, column.key);
-															}}
-															onKeyDown={(event) => {
-																if (event.key === "Enter") {
-																	event.preventDefault();
-																	commitStandardCell(rowIndex, column.key);
-																	focusCell(rowIndex, column.key, 1, 0);
-																}
-																if (event.key === "ArrowDown") {
-																	event.preventDefault();
-																	commitStandardCell(rowIndex, column.key);
-																	focusCell(rowIndex, column.key, 1, 0);
-																}
-																if (event.key === "ArrowUp") {
-																	event.preventDefault();
-																	commitStandardCell(rowIndex, column.key);
-																	focusCell(rowIndex, column.key, -1, 0);
-																}
-																if (
-																	event.key === "ArrowRight" &&
-																	event.altKey
-																) {
-																	event.preventDefault();
-																	commitStandardCell(rowIndex, column.key);
-																	focusCell(rowIndex, column.key, 0, 1);
-																}
-																if (event.key === "ArrowLeft" && event.altKey) {
-																	event.preventDefault();
-																	commitStandardCell(rowIndex, column.key);
-																	focusCell(rowIndex, column.key, 0, -1);
-																}
-															}}
-															className={`h-9 w-full border-0 bg-transparent px-2 text-xs outline-none focus:bg-muted/30 ${
-																SYSTEM_MANAGED_COLUMN_KEYS.has(column.key)
-																	? "cursor-not-allowed bg-muted/25 text-muted-foreground"
-																	: ""
-															}`}
-														/>
-													)}
-												</td>
-											))}
-										</tr>
-									);
-								})
-							)}
-						</tbody>
-					</table>
-				</div>
-			</CardContent>
-		</Card>
+														)}
+													</td>
+												))}
+											</tr>
+										);
+									})
+								)}
+							</tbody>
+						</table>
+					</div>
+				</CardContent>
+			</Card>
 		</>
 	);
 };

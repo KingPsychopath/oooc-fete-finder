@@ -8,6 +8,10 @@ import type {
 	EventSubmissionSpamSignals,
 	ReviewEventSubmissionInput,
 } from "@/features/events/submissions/types";
+import {
+	formatEventExperienceCategory,
+	normalizeEventExperienceCategory,
+} from "@/features/events/types";
 import { getEventSubmissionRepository } from "@/lib/platform/postgres/event-submission-repository";
 import { z } from "zod";
 import { normalizeProofLink, normalizeProofLinks } from "./proof-link";
@@ -20,6 +24,11 @@ const ARRONDISSEMENT_PATTERN =
 
 const normalizeWhitespace = (value: string): string =>
 	value.replace(/\s+/g, " ").trim();
+
+const normalizeEventCategoryField = (value: string): string => {
+	const normalized = normalizeEventExperienceCategory(value);
+	return normalized ? formatEventExperienceCategory(normalized) : "";
+};
 
 const normalizeUpdateFieldValue = (
 	field: EventUpdatePatchField | string,
@@ -73,6 +82,7 @@ const normalizedOptionalUrlListField = (
 
 const EVENT_UPDATE_PATCH_FIELDS = [
 	"eventName",
+	"eventCategory",
 	"date",
 	"startTime",
 	"endTime",
@@ -103,6 +113,21 @@ const eventCoreSnapshotSchema = z.record(
 
 const eventSubmissionBaseSchema = {
 	eventName: z.string().trim().min(2).max(180),
+	eventCategory: z
+		.string()
+		.trim()
+		.transform((value, context) => {
+			const normalized = normalizeEventCategoryField(value);
+			if (!normalized) {
+				context.addIssue({
+					code: "custom",
+					message:
+						"Event category must be Party, Activity, Culture, Food, or Wellness",
+				});
+				return z.NEVER;
+			}
+			return normalized;
+		}),
 	date: z.string().trim().refine(isValidDateValue, "Date must use YYYY-MM-DD"),
 	startTime: z.string().trim().regex(TIME_PATTERN, "Start time must use HH:MM"),
 	location: z.string().trim().min(2).max(240),
@@ -168,6 +193,7 @@ const eventSubmissionUpdateInputSchema = z
 			.default(""),
 		originalEventSnapshot: eventCoreSnapshotSchema.optional().default({}),
 		eventName: z.string().trim().min(2).max(180).optional(),
+		eventCategory: eventSubmissionBaseSchema.eventCategory.optional(),
 		date: z
 			.string()
 			.trim()
@@ -372,6 +398,7 @@ const eventSubmissionNewInputSchema = z.object({
 		.default(""),
 	originalEventSnapshot: eventCoreSnapshotSchema.optional().default({}),
 	eventName: eventSubmissionBaseSchema.eventName,
+	eventCategory: eventSubmissionBaseSchema.eventCategory,
 	date: eventSubmissionBaseSchema.date,
 	startTime: eventSubmissionBaseSchema.startTime,
 	location: eventSubmissionBaseSchema.location,
@@ -420,6 +447,7 @@ export interface NormalizedEventSubmissionInput {
 	originalEventUrl: string;
 	originalEventSnapshot: Record<string, string>;
 	eventName: string;
+	eventCategory: string;
 	date: string;
 	startTime: string;
 	location: string;
@@ -516,6 +544,7 @@ export const parseEventSubmissionInput = (
 			originalEventUrl: normalizeWhitespace(updatePayload.originalEventUrl),
 			originalEventSnapshot: storedSnapshot,
 			eventName: mergeWithSnapshot("eventName"),
+			eventCategory: mergeWithSnapshot("eventCategory"),
 			date: mergeWithSnapshot("date"),
 			startTime: mergeWithSnapshot("startTime"),
 			location: mergeWithSnapshot("location"),
@@ -547,6 +576,7 @@ export const parseEventSubmissionInput = (
 			originalEventUrl: normalizeWhitespace(parsed.originalEventUrl),
 			originalEventSnapshot: normalizedOriginalSnapshot,
 			eventName: normalizeWhitespace(parsed.eventName),
+			eventCategory: normalizedOriginalSnapshot.eventCategory || "",
 			date: normalizeWhitespace(parsed.date),
 			startTime: normalizeWhitespace(parsed.startTime),
 			location: normalizeWhitespace(parsed.location),
@@ -574,6 +604,7 @@ export const parseEventSubmissionInput = (
 		originalEventUrl: normalizeWhitespace(parsed.originalEventUrl),
 		originalEventSnapshot: normalizeSnapshotMap(parsed.originalEventSnapshot),
 		eventName: normalizeWhitespace(parsed.eventName),
+		eventCategory: normalizeEventCategoryField(parsed.eventCategory),
 		date: normalizeWhitespace(parsed.date),
 		startTime: normalizeWhitespace(parsed.startTime),
 		location: normalizeWhitespace(parsed.location),
@@ -659,6 +690,7 @@ const buildSubmissionPayload = (
 	submittedAt: string,
 ): EventSubmissionPayload => ({
 	eventName: input.eventName,
+	eventCategory: input.eventCategory || undefined,
 	date: input.date,
 	startTime: input.startTime,
 	location: input.location,

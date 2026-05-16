@@ -523,6 +523,11 @@ export const EventSubmissionsCard = ({
 								next: string;
 							}> = [
 								["Event", "eventName", submission.payload.eventName],
+								[
+									"Event Category",
+									"eventCategory",
+									submission.payload.eventCategory || "",
+								],
 								["Date", "date", submission.payload.date],
 								["Start", "startTime", submission.payload.startTime],
 								["End", "endTime", submission.payload.endTime || ""],
@@ -975,6 +980,10 @@ export const EventSubmissionsCard = ({
 												Event details
 											</summary>
 											<div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+												<div>
+													Event category:{" "}
+													{submission.payload.eventCategory || "-"}
+												</div>
 												<div>End time: {submission.payload.endTime || "-"}</div>
 												<div>Genre: {submission.payload.genre || "-"}</div>
 												<div>Price: {submission.payload.price || "-"}</div>
@@ -1154,6 +1163,10 @@ export const EventSubmissionsCard = ({
 											Event details
 										</summary>
 										<div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+											<div>
+												Event category:{" "}
+												{submission.payload.eventCategory || "-"}
+											</div>
 											<div>End time: {submission.payload.endTime || "-"}</div>
 											<div>Genre: {submission.payload.genre || "-"}</div>
 											<div>Price: {submission.payload.price || "-"}</div>

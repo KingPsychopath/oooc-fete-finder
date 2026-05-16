@@ -13,6 +13,7 @@ export type EventSubmissionReviewStatus = Exclude<
 
 export interface EventSubmissionPayload {
 	eventName: string;
+	eventCategory?: string;
 	date: string;
 	startTime: string;
 	location: string;
@@ -25,6 +26,7 @@ export interface EventSubmissionPayload {
 	originalEventUrl?: string;
 	originalEventSnapshot?: Partial<{
 		eventName: string;
+		eventCategory: string;
 		date: string;
 		startTime: string;
 		endTime: string;

@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { normalizeSearchText } from "@/features/events/genre-normalization";
 import { normalizeProofLink } from "@/features/events/submissions/proof-link";
 import {
+	EVENT_EXPERIENCE_CATEGORIES,
 	MUSIC_GENRES,
 	type MusicGenreDefinition,
 } from "@/features/events/types";
@@ -27,6 +28,7 @@ const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
 
 type FormState = {
 	eventName: string;
+	eventCategory: string;
 	date: string;
 	startTime: string;
 	location: string;
@@ -45,6 +47,7 @@ type FormState = {
 
 const EMPTY_FORM: FormState = {
 	eventName: "",
+	eventCategory: "Party",
 	date: "",
 	startTime: "",
 	location: "",
@@ -64,6 +67,7 @@ const EMPTY_FORM: FormState = {
 const buildReusableForm = (previous: FormState): FormState => ({
 	...EMPTY_FORM,
 	eventName: previous.eventName,
+	eventCategory: previous.eventCategory || EMPTY_FORM.eventCategory,
 	location: previous.location,
 	hostEmail: previous.hostEmail,
 	genre: previous.genre,
@@ -125,6 +129,10 @@ const toRestoredDraft = (candidate: unknown): FormState | null => {
 	const draft = candidate as Record<string, unknown>;
 	const restoredForm = {
 		eventName: typeof draft.eventName === "string" ? draft.eventName : "",
+		eventCategory:
+			typeof draft.eventCategory === "string"
+				? draft.eventCategory
+				: EMPTY_FORM.eventCategory,
 		date: typeof draft.date === "string" ? draft.date : "",
 		startTime: typeof draft.startTime === "string" ? draft.startTime : "",
 		location: typeof draft.location === "string" ? draft.location : "",
@@ -328,6 +336,7 @@ export function SubmitEventForm({
 
 	const validate = (): string | null => {
 		if (!form.eventName.trim()) return "Event name is required.";
+		if (!form.eventCategory.trim()) return "Event category is required.";
 		if (!form.date.trim()) return "Date is required.";
 		if (!form.startTime.trim()) return "Start time is required.";
 		if (!form.endTime.trim()) return "End time is required.";
@@ -538,6 +547,25 @@ export function SubmitEventForm({
 							required
 							disabled={isFormDisabled}
 						/>
+					</div>
+					<div className="space-y-2 md:col-span-2">
+						<Label htmlFor="eventCategory">Event Category</Label>
+						<select
+							id="eventCategory"
+							value={form.eventCategory}
+							onChange={(event) =>
+								updateField("eventCategory", event.target.value)
+							}
+							className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+							required
+							disabled={isFormDisabled}
+						>
+							{EVENT_EXPERIENCE_CATEGORIES.map((category) => (
+								<option key={category.key} value={category.label}>
+									{category.label}
+								</option>
+							))}
+						</select>
 					</div>
 					<fieldset className="space-y-2 md:col-span-2">
 						<legend className="text-sm font-medium">Schedule</legend>

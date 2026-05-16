@@ -12,6 +12,7 @@ import Papa from "papaparse";
 export const CSV_EVENT_COLUMNS = [
 	"eventKey",
 	"curated",
+	"eventCategory",
 	"hostCountry",
 	"audienceCountry",
 	"title",
@@ -32,6 +33,14 @@ export const CSV_EVENT_COLUMNS = [
 const COLUMN_MAPPINGS = {
 	eventKey: ["Event Key", "eventKey"],
 	curated: ["Curated", "curated", "OOOC Picks", "OOOC Pick"],
+	eventCategory: [
+		"Event Category",
+		"eventCategory",
+		"Experience Category",
+		"Experience Type",
+		"Party / Activity",
+		"Party or Activity",
+	],
 	hostCountry: ["Host Country", "hostCountry", "GB/FR"],
 	audienceCountry: ["Audience Country", "audienceCountry"],
 	title: ["Title", "title", "Name", "Event Name"],
@@ -73,6 +82,7 @@ type StructuralParseError = {
 export type CSVEventRow = {
 	eventKey: string;
 	curated: string;
+	eventCategory?: string;
 	hostCountry: string;
 	audienceCountry: string;
 	title: string;
@@ -133,6 +143,7 @@ const createColumnMapping = (
 	const mapping: Record<keyof CSVEventRow, string | null> = {
 		eventKey: null,
 		curated: null,
+		eventCategory: null,
 		hostCountry: null,
 		audienceCountry: null,
 		title: null,
@@ -357,6 +368,9 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 					eventKey:
 						(columnMapping.eventKey && row[columnMapping.eventKey]) || "",
 					curated: (columnMapping.curated && row[columnMapping.curated]) || "",
+					eventCategory:
+						(columnMapping.eventCategory && row[columnMapping.eventCategory]) ||
+						"",
 					hostCountry:
 						(columnMapping.hostCountry && row[columnMapping.hostCountry]) || "",
 					audienceCountry:

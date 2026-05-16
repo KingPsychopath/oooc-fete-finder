@@ -24,6 +24,7 @@ export function EventsSearchFiltersIsland({
 }: EventsSearchFiltersIslandProps) {
 	const {
 		availableArrondissements,
+		availableEventCategories,
 		availableEventDates,
 		availableGenres,
 		availableNationalities,
@@ -43,6 +44,7 @@ export function EventsSearchFiltersIsland({
 		onDayNightPeriodToggle,
 		onGenreExcludeToggle,
 		onGenreToggle,
+		onEventCategoryToggle,
 		onIndoorPreferenceChange,
 		onIncludeFreeOptionsChange,
 		onNationalityToggle,
@@ -56,6 +58,7 @@ export function EventsSearchFiltersIsland({
 		selectedArrondissements,
 		selectedDateRange,
 		selectedDayNightPeriods,
+		selectedEventCategories,
 		excludedGenres,
 		selectedGenres,
 		selectedIndoorPreference,
@@ -74,7 +77,7 @@ export function EventsSearchFiltersIsland({
 					handleSearchIntent(query, source)
 				}
 				onSearchFocus={handleSearchFocus}
-				placeholder="Search events, locations, genres, phases..."
+				placeholder="Search events, locations, genres, categories..."
 				className="mx-auto w-full"
 				value={searchQuery}
 				resultsCount={filteredEvents.length}
@@ -105,6 +108,7 @@ export function EventsSearchFiltersIsland({
 						selectedArrondissements={selectedArrondissements}
 						selectedGenres={selectedGenres}
 						excludedGenres={excludedGenres}
+						selectedEventCategories={selectedEventCategories}
 						selectedNationalities={selectedNationalities}
 						selectedVenueTypes={selectedVenueTypes}
 						selectedIndoorPreference={selectedIndoorPreference}
@@ -117,6 +121,7 @@ export function EventsSearchFiltersIsland({
 						onArrondissementToggle={onArrondissementToggle}
 						onGenreToggle={onGenreToggle}
 						onGenreExcludeToggle={onGenreExcludeToggle}
+						onEventCategoryToggle={onEventCategoryToggle}
 						onNationalityToggle={onNationalityToggle}
 						onVenueTypeToggle={onVenueTypeToggle}
 						onIndoorPreferenceChange={onIndoorPreferenceChange}
@@ -126,6 +131,7 @@ export function EventsSearchFiltersIsland({
 						onOOOCPicksToggle={onOOOCPicksToggle}
 						onClearFilters={onClearFilters}
 						availableArrondissements={availableArrondissements}
+						availableEventCategories={availableEventCategories}
 						availableGenres={availableGenres}
 						availableNationalities={availableNationalities}
 						availableEventDates={availableEventDates}

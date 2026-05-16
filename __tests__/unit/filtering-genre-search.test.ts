@@ -1,6 +1,7 @@
 import {
 	DEFAULT_EVENT_FILTER_STATE,
 	filterEvents,
+	getAvailableEventExperienceCategories,
 } from "@/features/events/filtering";
 import { type Event, getEventTypeForDate } from "@/features/events/types";
 import { describe, expect, it } from "vitest";
@@ -139,5 +140,33 @@ describe("genre-aware search filtering", () => {
 				includeFreeOptions: true,
 			}).map((event) => event.eventKey),
 		).toEqual(["evt_test_true-free", "evt_test_free-option"]);
+	});
+
+	it("filters explicit event categories and exposes only categories in data", () => {
+		const party = {
+			...makeEvent(["afrobeats"], "party"),
+			eventCategory: "party" as const,
+		};
+		const activity = {
+			...makeEvent(["afrobeats"], "activity"),
+			eventCategory: "activity" as const,
+		};
+		const uncategorized = makeEvent(["afrobeats"], "uncategorized");
+
+		expect(
+			getAvailableEventExperienceCategories([party, activity, uncategorized]),
+		).toEqual(["party", "activity"]);
+		expect(
+			filterEvents([party, activity, uncategorized], {
+				...DEFAULT_EVENT_FILTER_STATE,
+				selectedEventCategories: ["activity"],
+			}).map((event) => event.eventKey),
+		).toEqual(["evt_test_activity"]);
+		expect(
+			filterEvents([activity], {
+				...DEFAULT_EVENT_FILTER_STATE,
+				searchQuery: "activity",
+			}),
+		).toHaveLength(1);
 	});
 });

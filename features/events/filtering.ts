@@ -7,11 +7,14 @@ import {
 	type AgeRange,
 	type DayNightPeriod,
 	type Event,
+	EVENT_EXPERIENCE_CATEGORIES,
+	type EventExperienceCategory,
 	type MusicGenre,
 	type Nationality,
 	PRICE_RANGE_CONFIG,
 	type ParisArrondissement,
 	type VenueType,
+	formatEventExperienceCategory,
 	formatLocationAreaLong,
 	formatPrice,
 	getEventDayNightPeriods,
@@ -34,6 +37,7 @@ export type EventFilterState = {
 	selectedArrondissements: ParisArrondissement[];
 	selectedGenres: MusicGenre[];
 	excludedGenres: MusicGenre[];
+	selectedEventCategories: EventExperienceCategory[];
 	selectedNationalities: Nationality[];
 	selectedVenueTypes: VenueType[];
 	selectedIndoorPreference: boolean | null;
@@ -53,6 +57,7 @@ export const DEFAULT_EVENT_FILTER_STATE: EventFilterState = {
 	selectedArrondissements: [],
 	selectedGenres: [],
 	excludedGenres: [],
+	selectedEventCategories: [],
 	selectedNationalities: [],
 	selectedVenueTypes: [],
 	selectedIndoorPreference: null,
@@ -174,6 +179,9 @@ const matchesSearchQuery = (event: Event, rawQuery: string): boolean => {
 		normalizeSearchText(tag).includes(query),
 	);
 	const matchesType = normalizeSearchText(event.type).includes(query);
+	const matchesEventCategory = normalizeSearchText(
+		formatEventExperienceCategory(event.eventCategory),
+	).includes(query);
 	const priceLabel = normalizeSearchText(formatPrice(event.price));
 	const matchesPrice = priceLabel.includes(query);
 
@@ -188,6 +196,7 @@ const matchesSearchQuery = (event: Event, rawQuery: string): boolean => {
 		matchesGenre ||
 		matchesTags ||
 		matchesType ||
+		matchesEventCategory ||
 		matchesPrice
 	);
 };
@@ -282,6 +291,13 @@ export const filterEvents = (
 			if (hasExcludedGenre) return false;
 		}
 
+		if (filters.selectedEventCategories.length > 0) {
+			if (!event.eventCategory) return false;
+			if (!filters.selectedEventCategories.includes(event.eventCategory)) {
+				return false;
+			}
+		}
+
 		if (filters.selectedNationalities.length > 0) {
 			if (!event.nationality || event.nationality.length === 0) return false;
 			const hasAllSelectedNationalities = filters.selectedNationalities.every(
@@ -338,6 +354,21 @@ export const getAvailableEventDates = (events: Event[]): string[] => {
 			.filter((date): date is string => Boolean(date && isStrictISODate(date))),
 	);
 	return Array.from(dates).sort((left, right) => left.localeCompare(right));
+};
+
+export const getAvailableEventExperienceCategories = (
+	events: Event[],
+): EventExperienceCategory[] => {
+	const categories = new Set(
+		events
+			.map((event) => event.eventCategory)
+			.filter(
+				(category): category is EventExperienceCategory => category != null,
+			),
+	);
+	return EVENT_EXPERIENCE_CATEGORIES.map((category) => category.key).filter(
+		(category) => categories.has(category),
+	);
 };
 
 export const getTopEventDatesByCount = (
@@ -399,6 +430,7 @@ export const hasActiveFilters = (
 		filters.selectedArrondissements.length > 0 ||
 		filters.selectedGenres.length > 0 ||
 		filters.excludedGenres.length > 0 ||
+		filters.selectedEventCategories.length > 0 ||
 		filters.selectedNationalities.length > 0 ||
 		filters.selectedVenueTypes.length > 0 ||
 		filters.selectedIndoorPreference !== null ||
@@ -427,6 +459,7 @@ export const getActiveFiltersCount = (
 		filters.selectedArrondissements.length +
 		filters.selectedGenres.length +
 		filters.excludedGenres.length +
+		filters.selectedEventCategories.length +
 		filters.selectedNationalities.length +
 		filters.selectedVenueTypes.length +
 		(hasCustomPriceRange(filters.selectedPriceRange) ? 1 : 0) +

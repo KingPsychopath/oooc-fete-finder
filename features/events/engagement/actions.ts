@@ -46,6 +46,7 @@ const DISCOVERY_FILTER_GROUPS = [
 	"genre",
 	"genre_include",
 	"genre_exclude",
+	"event_category",
 	"nationality",
 	"venue_type",
 	"venue_setting",

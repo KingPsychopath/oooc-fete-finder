@@ -27,6 +27,7 @@ import {
 	type AgeRange,
 	DAY_NIGHT_PERIODS,
 	type DayNightPeriod,
+	type EventExperienceCategory,
 	MUSIC_GENRES,
 	type MusicGenre,
 	type MusicGenreDefinition,
@@ -36,6 +37,7 @@ import {
 	VENUE_TYPES,
 	type VenueType,
 	formatAgeRange,
+	getEventExperienceCategoryDefinition,
 	formatLocationAreaShort,
 	formatPriceRange,
 } from "@/features/events/types";
@@ -59,6 +61,7 @@ import {
 	Search,
 	Star,
 	Sun,
+	Tag,
 	Trees,
 	Users,
 	X,
@@ -74,6 +77,7 @@ type FilterPanelProps = {
 	selectedArrondissements: ParisArrondissement[];
 	selectedGenres: MusicGenre[];
 	excludedGenres: MusicGenre[];
+	selectedEventCategories: EventExperienceCategory[];
 	selectedNationalities: Nationality[];
 	selectedVenueTypes: VenueType[];
 	selectedIndoorPreference: boolean | null;
@@ -86,6 +90,7 @@ type FilterPanelProps = {
 	onArrondissementToggle: (arrondissement: ParisArrondissement) => void;
 	onGenreToggle: (genre: MusicGenre) => void;
 	onGenreExcludeToggle: (genre: MusicGenre) => void;
+	onEventCategoryToggle: (category: EventExperienceCategory) => void;
 	onNationalityToggle: (nationality: Nationality) => void;
 	onVenueTypeToggle: (venueType: VenueType) => void;
 	onIndoorPreferenceChange: (preference: boolean | null) => void;
@@ -95,6 +100,7 @@ type FilterPanelProps = {
 	onOOOCPicksToggle: (selected: boolean) => void;
 	onClearFilters: () => void;
 	availableArrondissements: ParisArrondissement[];
+	availableEventCategories: EventExperienceCategory[];
 	availableGenres?: MusicGenreDefinition[];
 	availableNationalities?: Array<{
 		key: Nationality;
@@ -121,6 +127,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	selectedArrondissements,
 	selectedGenres,
 	excludedGenres,
+	selectedEventCategories,
 	selectedNationalities,
 	selectedVenueTypes,
 	selectedIndoorPreference,
@@ -133,6 +140,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onArrondissementToggle,
 	onGenreToggle,
 	onGenreExcludeToggle,
+	onEventCategoryToggle,
 	onNationalityToggle,
 	onVenueTypeToggle,
 	onIndoorPreferenceChange,
@@ -142,6 +150,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	onOOOCPicksToggle,
 	onClearFilters,
 	availableArrondissements,
+	availableEventCategories,
 	availableGenres,
 	availableNationalities = [],
 	availableEventDates,
@@ -170,6 +179,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	const compactRailSectionClassName =
 		"space-y-2.5 rounded-lg border border-border/70 bg-background/58 p-2.5";
 	const genreOptions = availableGenres ?? MUSIC_GENRES;
+	const eventCategoryOptions = useMemo(
+		() =>
+			availableEventCategories.flatMap((category) => {
+				const definition = getEventExperienceCategoryDefinition(category);
+				return definition ? [definition] : [];
+			}),
+		[availableEventCategories],
+	);
 	const [genreSearchQuery, setGenreSearchQuery] = useState("");
 	const activeFilterBadgeClassName =
 		"h-7 gap-1 rounded-full border border-border/70 bg-background/72 px-2.5 text-xs font-normal shadow-none lg:text-[11px]";
@@ -188,6 +205,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		}`;
 	const ooocPickHelp =
 		"OOOC Picks are events highlighted by Out Of Office Collective as especially worth considering.";
+	const eventCategoryHelp =
+		"Event category describes the kind of listing, separate from OOOC Picks and music genres. Only categories already present in the event data are shown here.";
 	const hostNationalityHelp =
 		"The country or cultural background associated with the event host or promoter. Selecting more than one means events must include all selected host nationalities.";
 	const arrondissementHelp =
@@ -257,6 +276,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					selectedArrondissements,
 					selectedGenres,
 					excludedGenres,
+					selectedEventCategories,
 					selectedNationalities,
 					selectedVenueTypes,
 					selectedIndoorPreference,
@@ -277,6 +297,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedArrondissements,
 			selectedGenres,
 			excludedGenres,
+			selectedEventCategories,
 			selectedNationalities,
 			selectedVenueTypes,
 			selectedIndoorPreference,
@@ -297,6 +318,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					selectedArrondissements,
 					selectedGenres,
 					excludedGenres,
+					selectedEventCategories,
 					selectedNationalities,
 					selectedVenueTypes,
 					selectedIndoorPreference,
@@ -317,6 +339,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedArrondissements,
 			selectedGenres,
 			excludedGenres,
+			selectedEventCategories,
 			selectedNationalities,
 			selectedVenueTypes,
 			selectedIndoorPreference,
@@ -619,6 +642,37 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</Button>
 							</Badge>
 						))}
+						{selectedEventCategories.map((category) => {
+							const categoryDefinition =
+								getEventExperienceCategoryDefinition(category);
+							const label = categoryDefinition?.label ?? category;
+							return (
+								<Badge
+									key={category}
+									variant="secondary"
+									className={
+										compact
+											? compactActiveFilterBadgeClassName
+											: activeFilterBadgeClassName
+									}
+								>
+									<Tag className="mr-1 h-3 w-3" />
+									{label}
+									<Button
+										variant="ghost"
+										size="sm"
+										className={activeFilterRemoveButtonClassName}
+										onClick={() =>
+											handleFilterSelection(() =>
+												onEventCategoryToggle(category),
+											)
+										}
+									>
+										<X className="h-3 w-3" />
+									</Button>
+								</Badge>
+							);
+						})}
 						{selectedNationalities.map((nationality) => (
 							<Badge
 								key={nationality}
@@ -1247,6 +1301,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
 												includeFreeOptions ||
 												selectedAgeRange !== null ||
+												selectedEventCategories.length > 0 ||
 												selectedOOOCPicks) && (
 												<Badge
 													variant="secondary"
@@ -1262,6 +1317,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																	PRICE_RANGE_CONFIG.max,
 															includeFreeOptions,
 															selectedAgeRange !== null,
+															selectedEventCategories.length > 0,
 															selectedOOOCPicks,
 														].filter(Boolean).length
 													}{" "}
@@ -1297,6 +1353,44 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														</span>
 													</Toggle>
 												</div>
+
+												{eventCategoryOptions.length > 0 && (
+													<div>
+														<div className="flex items-center">
+															<h3 className={sectionTitleClassName}>
+																Event Category
+															</h3>
+															<InfoPopover aria-label="Explain event category filters">
+																{eventCategoryHelp}
+															</InfoPopover>
+														</div>
+														<div className="grid grid-cols-1 gap-1.5 min-[1180px]:grid-cols-2">
+															{eventCategoryOptions.map((category) => (
+																<Toggle
+																	key={category.key}
+																	pressed={selectedEventCategories.includes(
+																		category.key,
+																	)}
+																	onPressedChange={() =>
+																		handleFilterSelection(() =>
+																			onEventCategoryToggle(category.key),
+																		)
+																	}
+																	className={regularToggleClassName}
+																	size="sm"
+																	title={category.description}
+																>
+																	<span className="inline-flex min-w-0 items-center gap-1 text-xs lg:text-[11px]">
+																		<Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+																		<span className="min-w-0 truncate">
+																			{category.label}
+																		</span>
+																	</span>
+																</Toggle>
+															))}
+														</div>
+													</div>
+												)}
 
 												{/* Venue Type */}
 												<div>
@@ -1771,6 +1865,42 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<span className="text-xs">Show only OOOC Picks</span>
 									</Toggle>
 								</div>
+
+								{eventCategoryOptions.length > 0 && (
+									<div className={sectionClassName}>
+										<div className="flex items-center">
+											<h3 className={sectionTitleClassName}>Event Category</h3>
+											<InfoPopover aria-label="Explain event category filters">
+												{eventCategoryHelp}
+											</InfoPopover>
+										</div>
+										<div className="grid grid-cols-2 gap-1">
+											{eventCategoryOptions.map((category) => (
+												<Toggle
+													key={category.key}
+													pressed={selectedEventCategories.includes(
+														category.key,
+													)}
+													onPressedChange={() =>
+														handleFilterSelection(() =>
+															onEventCategoryToggle(category.key),
+														)
+													}
+													className={regularToggleClassName}
+													size="sm"
+													title={category.description}
+												>
+													<span className="inline-flex min-w-0 items-center gap-1 text-xs">
+														<Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+														<span className="min-w-0 truncate">
+															{category.label}
+														</span>
+													</span>
+												</Toggle>
+											))}
+										</div>
+									</div>
+								)}
 
 								{/* Venue Type */}
 								<div className={sectionClassName}>

@@ -19,6 +19,7 @@ import {
 	NATIONALITIES,
 	formatAge,
 	formatDayWithDate,
+	getEventExperienceCategoryDefinition,
 	formatLocationAreaShort,
 	formatPrice,
 	getEventDisplayDayNightPeriod,
@@ -39,6 +40,7 @@ import {
 	Moon,
 	Star,
 	Sun,
+	Tag,
 	Trees,
 	Users,
 } from "lucide-react";
@@ -128,6 +130,11 @@ export function EventCard({
 		event.venueTypes && event.venueTypes.length > 0
 			? [...new Set(event.venueTypes)]
 			: [event.indoor ? "indoor" : "outdoor"];
+	const eventCategoryDefinition = getEventExperienceCategoryDefinition(
+		event.eventCategory,
+	);
+	const shouldShowEventCategoryBadge =
+		eventCategoryDefinition && event.eventCategory !== "party";
 
 	const cardClasses = `group relative h-full cursor-pointer rounded-xl border p-4 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-lg ${
 		isCurrentlyFeatured
@@ -206,6 +213,17 @@ export function EventCard({
 						{isRecentlyUpdated && (
 							<Badge className="max-w-full border border-sky-500/30 bg-sky-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-800 shadow-none hover:bg-sky-500/15 dark:text-sky-200">
 								Updated
+							</Badge>
+						)}
+						{shouldShowEventCategoryBadge && (
+							<Badge
+								variant="outline"
+								className={`${eventCategoryDefinition.color} max-w-full px-2 text-[10px] font-semibold uppercase tracking-[0.12em] shadow-none hover:bg-background/60`}
+							>
+								<span className="inline-flex items-center gap-1">
+									<Tag className="h-3 w-3" />
+									{eventCategoryDefinition.label}
+								</span>
 							</Badge>
 						)}
 					</div>

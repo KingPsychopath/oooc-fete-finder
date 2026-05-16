@@ -213,6 +213,28 @@ describe("event filter defaults", () => {
 		});
 	});
 
+	it("round-trips event category URL filters", () => {
+		const state = {
+			...DEFAULT_EVENT_FILTER_STATE,
+			selectedEventCategories: ["activity" as const, "culture" as const],
+		};
+
+		const params = serializeEventFilterStateToSearchParams(
+			new URLSearchParams("event=abc123"),
+			state,
+		);
+
+		expect(params.get("cat")).toBe("activity,culture");
+
+		const parsed = resolveInitialEventFilterStateFromSearchParams(params, {
+			defaultDateRange: DEFAULT_EVENT_FILTER_STATE.selectedDateRange,
+		});
+
+		expect(parsed).toMatchObject({
+			selectedEventCategories: ["activity", "culture"],
+		});
+	});
+
 	it("keeps explicit valid URL date filters over the default year range", () => {
 		const defaultDateRange = {
 			from: "2026-01-01",

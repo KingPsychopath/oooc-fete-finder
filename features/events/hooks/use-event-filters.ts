@@ -9,6 +9,7 @@ import {
 	type AgeRange,
 	type DayNightPeriod,
 	type Event,
+	type EventExperienceCategory,
 	type MusicGenre,
 	type Nationality,
 	PRICE_RANGE_CONFIG,
@@ -28,6 +29,7 @@ import {
 	filterEvents,
 	getActiveFiltersCount,
 	getAvailableArrondissements,
+	getAvailableEventExperienceCategories,
 	getAvailableEventDates,
 	getDateRangeAfterDefaultDateRangeChange,
 	getDefaultEventFilterState,
@@ -102,6 +104,9 @@ export const useEventFilters = ({
 	const [excludedGenres, setExcludedGenres] = useState<MusicGenre[]>(
 		defaultFilterState.excludedGenres,
 	);
+	const [selectedEventCategories, setSelectedEventCategories] = useState<
+		EventExperienceCategory[]
+	>(defaultFilterState.selectedEventCategories);
 	const [selectedNationalities, setSelectedNationalities] = useState<
 		Nationality[]
 	>(defaultFilterState.selectedNationalities);
@@ -135,6 +140,7 @@ export const useEventFilters = ({
 		setSelectedArrondissements(state.selectedArrondissements);
 		setSelectedGenres(state.selectedGenres);
 		setExcludedGenres(state.excludedGenres);
+		setSelectedEventCategories(state.selectedEventCategories);
 		setSelectedNationalities(state.selectedNationalities);
 		setSelectedVenueTypes(state.selectedVenueTypes);
 		setSelectedIndoorPreference(state.selectedIndoorPreference);
@@ -213,6 +219,7 @@ export const useEventFilters = ({
 			selectedArrondissements,
 			selectedGenres,
 			excludedGenres,
+			selectedEventCategories,
 			selectedNationalities,
 			selectedVenueTypes,
 			selectedIndoorPreference,
@@ -262,6 +269,7 @@ export const useEventFilters = ({
 		selectedDayNightPeriods,
 		selectedGenres,
 		excludedGenres,
+		selectedEventCategories,
 		selectedIndoorPreference,
 		selectedNationalities,
 		selectedOOOCPicks,
@@ -284,6 +292,10 @@ export const useEventFilters = ({
 			getTopEventDatesByCount(events, 4, defaultFilterState.selectedDateRange),
 		[events, defaultFilterState.selectedDateRange],
 	);
+	const availableEventCategories = useMemo(
+		() => getAvailableEventExperienceCategories(events),
+		[events],
+	);
 
 	const filteredEvents = useMemo(
 		() =>
@@ -293,6 +305,7 @@ export const useEventFilters = ({
 				selectedArrondissements,
 				selectedGenres,
 				excludedGenres,
+				selectedEventCategories,
 				selectedNationalities,
 				selectedVenueTypes,
 				selectedIndoorPreference,
@@ -309,6 +322,7 @@ export const useEventFilters = ({
 			selectedArrondissements,
 			selectedGenres,
 			excludedGenres,
+			selectedEventCategories,
 			selectedNationalities,
 			selectedVenueTypes,
 			selectedIndoorPreference,
@@ -329,6 +343,7 @@ export const useEventFilters = ({
 					selectedArrondissements,
 					selectedGenres,
 					excludedGenres,
+					selectedEventCategories,
 					selectedNationalities,
 					selectedVenueTypes,
 					selectedIndoorPreference,
@@ -348,6 +363,7 @@ export const useEventFilters = ({
 			selectedArrondissements,
 			selectedGenres,
 			excludedGenres,
+			selectedEventCategories,
 			selectedNationalities,
 			selectedVenueTypes,
 			selectedIndoorPreference,
@@ -369,6 +385,7 @@ export const useEventFilters = ({
 					selectedArrondissements,
 					selectedGenres,
 					excludedGenres,
+					selectedEventCategories,
 					selectedNationalities,
 					selectedVenueTypes,
 					selectedIndoorPreference,
@@ -388,6 +405,7 @@ export const useEventFilters = ({
 			selectedArrondissements,
 			selectedGenres,
 			excludedGenres,
+			selectedEventCategories,
 			selectedNationalities,
 			selectedVenueTypes,
 			selectedIndoorPreference,
@@ -466,6 +484,19 @@ export const useEventFilters = ({
 				actionType: "filter_apply",
 				filterGroup: "genre_exclude",
 				filterValue: genre,
+			});
+		},
+		[requireAuth],
+	);
+
+	const onEventCategoryToggle = useCallback(
+		(category: EventExperienceCategory) => {
+			if (!requireAuth()) return;
+			setSelectedEventCategories((prev) => toggleArrayValue(prev, category));
+			trackDiscoveryAnalytics({
+				actionType: "filter_apply",
+				filterGroup: "event_category",
+				filterValue: category,
 			});
 		},
 		[requireAuth],
@@ -644,6 +675,7 @@ export const useEventFilters = ({
 		selectedArrondissements,
 		selectedGenres,
 		excludedGenres,
+		selectedEventCategories,
 		selectedNationalities,
 		selectedVenueTypes,
 		selectedIndoorPreference,
@@ -655,6 +687,7 @@ export const useEventFilters = ({
 		availableArrondissements,
 		availableEventDates,
 		quickSelectEventDates,
+		availableEventCategories,
 		filteredEvents,
 		hasAnyActiveFilters,
 		activeFiltersCount,
@@ -663,6 +696,7 @@ export const useEventFilters = ({
 		onArrondissementToggle,
 		onGenreToggle,
 		onGenreExcludeToggle,
+		onEventCategoryToggle,
 		onNationalityToggle,
 		onVenueTypeToggle,
 		onIndoorPreferenceChange,

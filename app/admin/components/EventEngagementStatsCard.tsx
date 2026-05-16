@@ -22,8 +22,12 @@ import {
 } from "@/features/events/engagement/actions";
 import { formatTourSignal } from "@/features/events/engagement/tour-analytics";
 import { parseEventFilterStateFromSearchParams } from "@/features/events/filter-state-persistence";
-import { PRICE_RANGE_CONFIG } from "@/features/events/types";
-import { MUSIC_GENRES, type MusicGenre } from "@/features/events/types";
+import {
+	MUSIC_GENRES,
+	PRICE_RANGE_CONFIG,
+	type EventExperienceCategory,
+	type MusicGenre,
+} from "@/features/events/types";
 import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
 import { CircleHelp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -39,6 +43,7 @@ type DiscoveryFilterGroup =
 	| "genre"
 	| "genre_include"
 	| "genre_exclude"
+	| "event_category"
 	| "nationality"
 	| "venue_type"
 	| "venue_setting"
@@ -284,6 +289,7 @@ const FILTER_GROUP_OPTIONS: Array<{
 	{ value: "venue_type", label: "Venue Type" },
 	{ value: "venue_setting", label: "Venue Setting" },
 	{ value: "oooc_pick", label: "OOOC Pick" },
+	{ value: "event_category", label: "Event Category" },
 	{ value: "price_range", label: "Price Range" },
 	{ value: "age_range", label: "Age Range" },
 	{ value: "date_range", label: "Date Range" },
@@ -300,6 +306,7 @@ const FILTER_VALUE_PLACEHOLDER: Record<DiscoveryFilterGroup, string> = {
 	venue_type: "indoor or outdoor",
 	venue_setting: "indoor or outdoor",
 	oooc_pick: "yes or no",
+	event_category: "activity",
 	price_range: "0:40",
 	age_range: "21:25",
 };
@@ -1033,6 +1040,7 @@ export const EventEngagementStatsCard = ({
 			>;
 			selectedGenres: MusicGenre[];
 			excludedGenres?: MusicGenre[];
+			selectedEventCategories?: EventExperienceCategory[];
 			selectedNationalities: string[];
 			selectedVenueTypes: Array<"indoor" | "outdoor">;
 			selectedIndoorPreference: boolean | null;
@@ -1073,6 +1081,12 @@ export const EventEngagementStatsCard = ({
 				importedRules.push({
 					filterGroup: "genre_exclude",
 					filterValue: genre,
+				});
+			}
+			for (const category of filterState.selectedEventCategories ?? []) {
+				importedRules.push({
+					filterGroup: "event_category",
+					filterValue: category,
 				});
 			}
 			for (const nationality of filterState.selectedNationalities) {

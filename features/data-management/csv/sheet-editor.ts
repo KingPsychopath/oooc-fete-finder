@@ -1,4 +1,8 @@
 import { normalizeSupportedNationalities } from "@/features/events/nationality-utils";
+import {
+	formatEventExperienceCategory,
+	normalizeEventExperienceCategory,
+} from "@/features/events/types";
 import Papa from "papaparse";
 import {
 	createDateNormalizationContext,
@@ -53,6 +57,7 @@ export const formatIsoDateForEditableSheet = (isoDate: string): string => {
 const CORE_COLUMN_LABELS: Record<(typeof CSV_EVENT_COLUMNS)[number], string> = {
 	eventKey: "Event Key",
 	curated: "Curated",
+	eventCategory: "Event Category",
 	hostCountry: "Host Country",
 	audienceCountry: "Audience Country",
 	title: "Title",
@@ -132,6 +137,12 @@ export const normalizeEditableSheetRowValues = (
 	}
 	for (const key of TIME_COLUMN_KEYS) {
 		nextRow[key] = normalizeEditableSheetTimeValue(nextRow[key] ?? "");
+	}
+	const eventCategory = normalizeEventExperienceCategory(
+		nextRow.eventCategory ?? "",
+	);
+	if (eventCategory) {
+		nextRow.eventCategory = formatEventExperienceCategory(eventCategory);
 	}
 	return nextRow;
 };
@@ -466,7 +477,9 @@ export const csvToEditableSheet = (
 			(column) =>
 				normalizeKey(column.label) === normalizedHeader ||
 				normalizeKey(column.key) === normalizedHeader ||
-				column.aliases.some((alias) => normalizeKey(alias) === normalizedHeader),
+				column.aliases.some(
+					(alias) => normalizeKey(alias) === normalizedHeader,
+				),
 		)?.key;
 		let key = coreKey || hiddenKey || normalizedHeader || "custom_column";
 		if (isCoreKey(key)) {

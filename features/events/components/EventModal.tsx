@@ -58,13 +58,16 @@ import {
 	normalizeProofLinks,
 } from "@/features/events/submissions/proof-link";
 import {
+	EVENT_EXPERIENCE_CATEGORIES,
 	type Event,
 	MUSIC_GENRES,
 	type ParisArrondissement,
 	VENUE_TYPES,
 	formatDayWithDate,
+	formatEventExperienceCategory,
 	formatLocationAreaLong,
 	formatPrice,
+	getEventExperienceCategoryDefinition,
 	getPriceMeta,
 } from "@/features/events/types";
 import type { LocationResolution } from "@/features/locations/types";
@@ -148,6 +151,7 @@ interface CountryDisplay {
 
 interface EventUpdateRequestForm {
 	eventName: string;
+	eventCategory: string;
 	date: string;
 	startTime: string;
 	endTime: string;
@@ -218,6 +222,7 @@ const splitTitleForTrailingAdornment = (
 
 const EVENT_UPDATE_DIFF_FIELDS = [
 	"eventName",
+	"eventCategory",
 	"date",
 	"startTime",
 	"endTime",
@@ -265,6 +270,7 @@ const buildEventUpdateRequestForm = (event: Event): EventUpdateRequestForm => {
 
 	return {
 		eventName: event.name,
+		eventCategory: formatEventExperienceCategory(event.eventCategory),
 		date: event.date || "",
 		startTime: event.time && event.time !== "TBC" ? event.time : "",
 		endTime: event.endTime && event.endTime !== "TBC" ? event.endTime : "",
@@ -279,22 +285,6 @@ const buildEventUpdateRequestForm = (event: Event): EventUpdateRequestForm => {
 		hostEmail: "",
 		notes: event.description || "",
 	};
-};
-
-const CATEGORY_COLORS: Record<string, string> = {
-	electronic:
-		"bg-purple-100 text-purple-800 dark:bg-purple-500/18 dark:text-purple-200 dark:border dark:border-purple-400/35",
-	"block-party":
-		"bg-green-100 text-green-800 dark:bg-green-500/18 dark:text-green-200 dark:border dark:border-green-400/35",
-	afterparty:
-		"bg-blue-100 text-blue-800 dark:bg-blue-500/18 dark:text-blue-200 dark:border dark:border-blue-400/35",
-	club: "bg-pink-100 text-pink-800 dark:bg-pink-500/18 dark:text-pink-200 dark:border dark:border-pink-400/35",
-	cruise:
-		"bg-cyan-100 text-cyan-800 dark:bg-cyan-500/18 dark:text-cyan-200 dark:border dark:border-cyan-400/35",
-	outdoor:
-		"bg-emerald-100 text-emerald-800 dark:bg-emerald-500/18 dark:text-emerald-200 dark:border dark:border-emerald-400/35",
-	cultural:
-		"bg-amber-100 text-amber-800 dark:bg-amber-500/18 dark:text-amber-200 dark:border dark:border-amber-400/35",
 };
 
 function getCountryDisplayList(
@@ -627,6 +617,9 @@ const EventModal: React.FC<EventModalProps> = ({
 		socialProofSaveCount,
 		socialProofHistoricalSaveCount,
 	);
+	const eventCategoryDefinition = getEventExperienceCategoryDefinition(
+		event.eventCategory,
+	);
 
 	const handleOpenLocation = async (
 		location: string,
@@ -750,6 +743,7 @@ const EventModal: React.FC<EventModalProps> = ({
 			(!isCurrentlyFeatured && isCurrentlyPromoted) ||
 			event.isOOOCPick ||
 			hasSocialProofBadge ||
+			eventCategoryDefinition ||
 			event.category ||
 			visibleGenres.length > 0 ||
 			extraGenreCount > 0,
@@ -1511,13 +1505,17 @@ const EventModal: React.FC<EventModalProps> = ({
 									{socialProofLabel}
 								</Badge>
 							)}
-							{event.category && (
+							{eventCategoryDefinition && (
 								<Badge
-									className={
-										CATEGORY_COLORS[event.category] ||
-										"bg-gray-100 text-gray-800"
-									}
+									variant="outline"
+									className={`${eventCategoryDefinition.color} hover:bg-background/70`}
 								>
+									<Tag className="mr-1 h-3 w-3" />
+									{eventCategoryDefinition.label}
+								</Badge>
+							)}
+							{event.category && (
+								<Badge className="bg-gray-100 text-gray-800">
 									<Tag className="mr-1 h-3 w-3" />
 									{event.category}
 								</Badge>
@@ -2018,6 +2016,27 @@ const EventModal: React.FC<EventModalProps> = ({
 										}
 										required
 									/>
+								</div>
+								<div className="space-y-1.5 sm:col-span-2">
+									<Label htmlFor="update-event-category">Event category</Label>
+									<select
+										id="update-event-category"
+										value={updateRequestForm.eventCategory}
+										onChange={(inputEvent) =>
+											updateRequestField(
+												"eventCategory",
+												inputEvent.target.value,
+											)
+										}
+										className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+									>
+										<option value="">Not set</option>
+										{EVENT_EXPERIENCE_CATEGORIES.map((category) => (
+											<option key={category.key} value={category.label}>
+												{category.label}
+											</option>
+										))}
+									</select>
 								</div>
 								<div className="space-y-1.5">
 									<Label htmlFor="update-date">Date</Label>

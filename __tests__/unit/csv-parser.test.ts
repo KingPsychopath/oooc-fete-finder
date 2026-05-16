@@ -29,8 +29,8 @@ describe("parseCSVContent", () => {
 
 	it("maps new country/category/url aliases into internal fields", () => {
 		const csv = [
-			"Title,Host Country,Audience Country,Categories,Tags,Primary URL,Age Guidance,Setting,Date",
-			"Block Party,FR,CA,Afrobeats,\"roof,free\",https://example.com,18+,Outdoor,22 June",
+			"Title,Host Country,Audience Country,Event Category,Categories,Tags,Primary URL,Age Guidance,Setting,Date",
+			'Block Party,FR,CA,Party,Afrobeats,"roof,free",https://example.com,18+,Outdoor,22 June',
 		].join("\n");
 
 		const rows = parseCSVContent(csv);
@@ -38,6 +38,7 @@ describe("parseCSVContent", () => {
 		expect(rows[0].title).toBe("Block Party");
 		expect(rows[0].hostCountry).toBe("FR");
 		expect(rows[0].audienceCountry).toBe("CA");
+		expect(rows[0].eventCategory).toBe("Party");
 		expect(rows[0].categories).toBe("Afrobeats");
 		expect(rows[0].tags).toBe("roof,free");
 		expect(rows[0].primaryUrl).toBe("https://example.com");
@@ -71,7 +72,9 @@ describe("parseCSVContent", () => {
 	});
 
 	it("throws when multiple headers map to the same field", () => {
-		const csv = ["Title,title,Date", "Main name,Alt name,2026-06-21"].join("\n");
+		const csv = ["Title,title,Date", "Main name,Alt name,2026-06-21"].join(
+			"\n",
+		);
 
 		expect(() => parseCSVContent(csv)).toThrow(
 			"Duplicate CSV column mappings detected",

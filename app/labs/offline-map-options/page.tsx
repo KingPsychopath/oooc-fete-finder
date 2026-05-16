@@ -8,6 +8,17 @@ import { OfflineMapOptionsClient } from "./OfflineMapOptionsClient";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const previewImagePath = path.join(
+	process.cwd(),
+	"public",
+	"maps",
+	"paris-map-preview.jpg",
+);
+const arrondissementGeoJsonPath = path.join(
+	process.cwd(),
+	"data",
+	"paris-arr-v2.json",
+);
 
 export const metadata: Metadata = generateOGMetadata({
 	title: "Offline Map Options Lab | Fête Finder",
@@ -17,18 +28,18 @@ export const metadata: Metadata = generateOGMetadata({
 	noIndex: true,
 });
 
-const assetSize = async (relativePath: string) => {
+const assetSize = async (filePath: string) => {
 	try {
-		const stats = await stat(path.join(process.cwd(), relativePath));
+		const stats = await stat(filePath);
 		return stats.size;
 	} catch {
 		return null;
 	}
 };
 
-const gzipAssetSize = async (relativePath: string) => {
+const gzipAssetSize = async (filePath: string) => {
 	try {
-		const contents = await readFile(path.join(process.cwd(), relativePath));
+		const contents = await readFile(filePath);
 		return gzipSync(contents).length;
 	} catch {
 		return null;
@@ -42,10 +53,10 @@ export default async function OfflineMapOptionsPage() {
 		previewImageGzipBytes,
 		arrondissementGeoJsonGzipBytes,
 	] = await Promise.all([
-		assetSize("public/maps/paris-map-preview.jpg"),
-		assetSize("data/paris-arr-v2.json"),
-		gzipAssetSize("public/maps/paris-map-preview.jpg"),
-		gzipAssetSize("data/paris-arr-v2.json"),
+		assetSize(previewImagePath),
+		assetSize(arrondissementGeoJsonPath),
+		gzipAssetSize(previewImagePath),
+		gzipAssetSize(arrondissementGeoJsonPath),
 	]);
 
 	return (

@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 
 const validInput = {
 	eventName: "Rooftop Session",
+	eventCategory: "Party",
 	date: "2026-06-21",
 	startTime: "18:00",
 	endTime: "23:00",

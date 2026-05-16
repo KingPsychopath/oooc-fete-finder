@@ -70,6 +70,9 @@ interface EventsSearchFiltersContextValue {
 	availableArrondissements: ReturnType<
 		typeof useEventFilters
 	>["availableArrondissements"];
+	availableEventCategories: ReturnType<
+		typeof useEventFilters
+	>["availableEventCategories"];
 	availableEventDates: ReturnType<
 		typeof useEventFilters
 	>["availableEventDates"];
@@ -106,6 +109,9 @@ interface EventsSearchFiltersContextValue {
 	onGenreExcludeToggle: ReturnType<
 		typeof useEventFilters
 	>["onGenreExcludeToggle"];
+	onEventCategoryToggle: ReturnType<
+		typeof useEventFilters
+	>["onEventCategoryToggle"];
 	onIndoorPreferenceChange: ReturnType<
 		typeof useEventFilters
 	>["onIndoorPreferenceChange"];
@@ -137,6 +143,9 @@ interface EventsSearchFiltersContextValue {
 	>["selectedDayNightPeriods"];
 	selectedGenres: ReturnType<typeof useEventFilters>["selectedGenres"];
 	excludedGenres: ReturnType<typeof useEventFilters>["excludedGenres"];
+	selectedEventCategories: ReturnType<
+		typeof useEventFilters
+	>["selectedEventCategories"];
 	selectedIndoorPreference: ReturnType<
 		typeof useEventFilters
 	>["selectedIndoorPreference"];

@@ -24,6 +24,130 @@ export type EventTemporalPeriod =
 	| "unknown";
 
 export type EventType = "Pre-Fete" | "Fete" | "Post-Fete";
+export type EventExperienceCategory =
+	| "party"
+	| "activity"
+	| "culture"
+	| "food"
+	| "wellness";
+
+export interface EventExperienceCategoryDefinition {
+	key: EventExperienceCategory;
+	label: string;
+	description: string;
+	color: string;
+}
+
+export const EVENT_EXPERIENCE_CATEGORIES = [
+	{
+		key: "party",
+		label: "Party",
+		description: "Dance, club, day party, afterparty, or social event",
+		color: "border-rose-500/35 bg-rose-500/10 text-rose-800 dark:text-rose-200",
+	},
+	{
+		key: "activity",
+		label: "Activity",
+		description: "Things to do with a planned activity or group experience",
+		color: "border-sky-500/35 bg-sky-500/10 text-sky-800 dark:text-sky-200",
+	},
+	{
+		key: "culture",
+		label: "Culture",
+		description: "Art, performance, talks, screenings, exhibitions, or culture",
+		color:
+			"border-violet-500/35 bg-violet-500/10 text-violet-800 dark:text-violet-200",
+	},
+	{
+		key: "food",
+		label: "Food",
+		description: "Food, drink, dining, tasting, brunch, or supper-club events",
+		color:
+			"border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200",
+	},
+	{
+		key: "wellness",
+		label: "Wellness",
+		description: "Movement, fitness, rest, health, or wellbeing-led events",
+		color:
+			"border-amber-500/35 bg-amber-500/10 text-amber-800 dark:text-amber-200",
+	},
+] as const satisfies readonly EventExperienceCategoryDefinition[];
+
+const EVENT_EXPERIENCE_CATEGORY_KEYS = new Set<EventExperienceCategory>(
+	EVENT_EXPERIENCE_CATEGORIES.map((category) => category.key),
+);
+
+const EVENT_EXPERIENCE_CATEGORY_ALIASES: Record<
+	string,
+	EventExperienceCategory
+> = {
+	parties: "party",
+	"club-night": "party",
+	clubnight: "party",
+	nightlife: "party",
+	social: "party",
+	event: "party",
+	events: "party",
+	activities: "activity",
+	experience: "activity",
+	experiences: "activity",
+	"things-to-do": "activity",
+	cultural: "culture",
+	arts: "culture",
+	art: "culture",
+	exhibition: "culture",
+	performance: "culture",
+	screening: "culture",
+	talk: "culture",
+	"food-drink": "food",
+	"food-and-drink": "food",
+	drinks: "food",
+	dining: "food",
+	brunch: "food",
+	wellbeing: "wellness",
+	fitness: "wellness",
+	movement: "wellness",
+	health: "wellness",
+};
+
+const normalizeEventExperienceCategoryToken = (value: string): string =>
+	value
+		.trim()
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/&/g, " and ")
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+
+export const normalizeEventExperienceCategory = (
+	value: string | null | undefined,
+): EventExperienceCategory | null => {
+	if (!value) return null;
+	const normalized = normalizeEventExperienceCategoryToken(value);
+	if (!normalized) return null;
+	if (
+		EVENT_EXPERIENCE_CATEGORY_KEYS.has(normalized as EventExperienceCategory)
+	) {
+		return normalized as EventExperienceCategory;
+	}
+	return EVENT_EXPERIENCE_CATEGORY_ALIASES[normalized] ?? null;
+};
+
+export const getEventExperienceCategoryDefinition = (
+	category: EventExperienceCategory | null | undefined,
+): EventExperienceCategoryDefinition | null => {
+	if (!category) return null;
+	return (
+		EVENT_EXPERIENCE_CATEGORIES.find((option) => option.key === category) ??
+		null
+	);
+};
+
+export const formatEventExperienceCategory = (
+	category: EventExperienceCategory | null | undefined,
+): string => getEventExperienceCategoryDefinition(category)?.label ?? "";
 
 // Host/audience country codes supported by ingestion/filtering.
 export const SUPPORTED_NATIONALITY_CODES = COUNTRY_CODES;
@@ -141,6 +265,7 @@ export type Event = {
 	links?: string[]; // All ticket links, if multiple
 	description?: string;
 	type: EventType; // Festival phase label derived from date
+	eventCategory?: EventExperienceCategory; // Descriptive category such as party/activity/culture
 	genre: MusicGenre[];
 	tags?: string[]; // Metadata tags parsed from the CSV Tags column
 	venueTypes: VenueType[]; // New field for venue types
@@ -172,6 +297,7 @@ export type Event = {
 export type CSVEventRow = {
 	eventKey: string;
 	curated: string; // "🌟" or empty
+	eventCategory?: string; // Party, Activity, Culture, Food, Wellness
 	hostCountry: string; // Country flags/codes/text (for example "🇬🇧", "🇫🇷", "GB/FR")
 	audienceCountry: string; // Audience country flags/codes/text
 	title: string;
@@ -206,6 +332,7 @@ export type EventFilters = {
 	dayNightPeriod?: DayNightPeriod[];
 	arrondissements?: ParisArrondissement[];
 	eventTypes?: EventType[];
+	eventCategories?: EventExperienceCategory[];
 	genres?: MusicGenre[];
 	venueTypes?: VenueType[]; // New venue types filter
 	indoor?: boolean | null; // Deprecated: kept for backwards compatibility

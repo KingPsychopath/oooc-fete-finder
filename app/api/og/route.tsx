@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { readFileSync } from "fs";
+import { readFile } from "fs/promises";
 import { join } from "path";
 import {
 	getCurrentParisYearDateRange,
@@ -90,58 +90,50 @@ type OGContent = {
 	genres: string[];
 };
 
-const loadFontBuffer = (filePath: string): Buffer | null => {
+const readFont = async (
+	name: string,
+	filePath: string,
+): Promise<OGFont | null> => {
 	try {
-		return readFileSync(filePath);
+		return {
+			name,
+			data: await readFile(filePath),
+			weight: 400,
+			style: "normal",
+		};
 	} catch {
 		return null;
 	}
 };
 
-const fontCandidates: Array<{
-	name: string;
-	paths: string[];
-}> = [
-	{
-		name: "Degular",
-		paths: [
-			"public/fonts/degular_regular.ttf",
-			"public/fonts/degular_regular.otf",
-			"public/fonts/degular_regular.woff",
-			"node_modules/geist/dist/fonts/geist-sans/Geist-Regular.ttf",
-			"node_modules/next/dist/compiled/@vercel/og/noto-sans-v27-latin-regular.ttf",
-		],
-	},
-	{
-		name: "Swear Display",
-		paths: [
-			"public/fonts/swear_display_light.ttf",
-			"public/fonts/swear_display_light.otf",
-			"public/fonts/swear_display_light.woff",
-		],
-	},
-];
+const loadOGFonts = async (): Promise<OGFont[]> => {
+	const fallbackSans = await readFont(
+		"Degular",
+		join(
+			process.cwd(),
+			"node_modules",
+			"geist",
+			"dist",
+			"fonts",
+			"geist-sans",
+			"Geist-Regular.ttf",
+		),
+	);
 
-const ogFonts: OGFont[] = fontCandidates
-	.map((candidate) => {
-		for (const relativePath of candidate.paths) {
-			const loaded = loadFontBuffer(join(process.cwd(), relativePath));
-			if (!loaded) continue;
-			return {
-				name: candidate.name,
-				data: loaded,
-				weight: 400 as const,
-				style: "normal" as const,
-			};
-		}
-		return null;
-	})
-	.filter((font): font is OGFont => font !== null);
+	return fallbackSans ? [fallbackSans] : [];
+};
 
-const hasDisplayFont = ogFonts.some((font) => font.name === "Swear Display");
-const ogTitleFontFamily = hasDisplayFont
-	? '"Swear Display", Georgia, "Times New Roman", serif'
-	: '"Degular", "Helvetica Neue", Arial, sans-serif';
+let ogFontsPromise: Promise<OGFont[]> | null = null;
+
+const getOGFonts = (): Promise<OGFont[]> => {
+	ogFontsPromise ??= loadOGFonts();
+	return ogFontsPromise;
+};
+
+const getOGTitleFontFamily = (fonts: OGFont[]): string =>
+	fonts.some((font) => font.name === "Swear Display")
+		? '"Swear Display", Georgia, "Times New Roman", serif'
+		: '"Degular", "Helvetica Neue", Arial, sans-serif';
 
 const THEMES: Record<OGVariant, OGTheme> = {
 	default: {
@@ -532,6 +524,8 @@ export async function GET(request: NextRequest) {
 		const title = sanitizeText(content.title, defaultText.title);
 		const subtitle = sanitizeText(content.subtitle, defaultText.subtitle);
 		const palette = THEMES[variant];
+		const ogFonts = await getOGFonts();
+		const ogTitleFontFamily = getOGTitleFontFamily(ogFonts);
 		const footerLocation =
 			arrondissement && arrondissement !== "Paris"
 				? `${arrondissement} · Paris`
@@ -847,6 +841,8 @@ export async function GET(request: NextRequest) {
 		);
 	} catch (error) {
 		log.error("og-image", "Failed to generate OG image", undefined, error);
+		const ogFonts = await getOGFonts();
+		const ogTitleFontFamily = getOGTitleFontFamily(ogFonts);
 		return new ImageResponse(
 			<div
 				style={{

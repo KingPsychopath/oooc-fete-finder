@@ -14,6 +14,7 @@ const USER_AUTH_COOKIE_NAME = "oooc_user_session";
 const USER_AUTH_COOKIE_AUDIENCE = "oooc-fete-finder:user";
 const USER_AUTH_COOKIE_ISSUER = "oooc-fete-finder";
 const E2E_USER_ID = "019b0000-0000-7000-8000-000000000001";
+const LOCAL_APP_SETTINGS_STORAGE_KEY = "oooc_local_app_settings";
 
 const readLocalEnvValue = (key: string) => {
 	try {
@@ -435,7 +436,25 @@ test.describe("event share routes", () => {
 		).toBeLessThan(8);
 	});
 
-	test("homepage map stays deferred until map intent", async ({ page }) => {
+	test("homepage map preloads by default", async ({ page }) => {
+		await page.goto("/");
+
+		await expect(
+			page.getByRole("button", { name: /expand paris event map/i }),
+		).toBeVisible();
+		await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+	});
+
+	test("homepage map defers when the saved map loading setting requests it", async ({
+		page,
+	}) => {
+		await page.addInitScript((storageKey) => {
+			window.localStorage.setItem(
+				storageKey,
+				JSON.stringify({ mapLoadStrategy: "expand" }),
+			);
+		}, LOCAL_APP_SETTINGS_STORAGE_KEY);
+
 		await page.goto("/");
 
 		await expect(
@@ -482,7 +501,7 @@ test.describe("event share routes", () => {
 		await expect(
 			page.getByText(
 				"Map style, sprite, glyph, and tile assets are online-only. Cached event browsing, search, and filters are still available below.",
-			),
+			).first(),
 		).toBeVisible();
 	});
 
@@ -634,7 +653,7 @@ test.describe("event share routes", () => {
 		await expect(
 			page.getByText(
 				"Map style, sprite, glyph, and tile assets are online-only. Cached event browsing, search, and filters are still available below.",
-			),
+			).first(),
 		).toBeVisible();
 
 		await setBrowserOffline(context, page, false);
@@ -662,25 +681,6 @@ test.describe("event share routes", () => {
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
 	});
 
-	test("blocked app reachability enters offline fallback even when browser reports online", async ({
-		page,
-	}) => {
-		await page.goto("/");
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
-		await waitForHomeEventSnapshot(page);
-		expect(await page.evaluate(() => navigator.onLine)).toBe(true);
-
-		await page.route("**/api/client-health?**", (route) => route.abort());
-		await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-
-		await expect(page.getByText(/^Cached event data:/)).toBeVisible();
-		await expect(page.locator(".maplibregl-canvas")).toHaveCount(0);
-
-		await page.unroute("**/api/client-health?**");
-		await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-
-		await expect(page.getByText(/^Cached event data:/)).toHaveCount(0);
-	});
 });
 
 test.describe("event share routes on mobile", () => {
