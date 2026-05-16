@@ -445,28 +445,28 @@ const EVENT_CATEGORY_ADMIN_OPTION_CLASSES: Record<
 > = {
 	party: {
 		dot: "bg-amber-500",
-		selected: "border-amber-500/35 bg-amber-500/10 text-amber-950 dark:text-amber-100",
-		highlighted: "border-amber-500/45 bg-amber-500/15 text-amber-950 dark:text-amber-100",
+		selected: "border-amber-500/35 bg-amber-500/10 text-amber-950 dark:border-amber-300/28 dark:bg-amber-300/12 dark:text-amber-100",
+		highlighted: "border-amber-500/45 bg-amber-500/15 text-amber-950 dark:border-amber-300/34 dark:bg-amber-300/16 dark:text-amber-100",
 	},
 	activity: {
 		dot: "bg-sky-500",
-		selected: "border-sky-500/35 bg-sky-500/10 text-sky-950 dark:text-sky-100",
-		highlighted: "border-sky-500/45 bg-sky-500/15 text-sky-950 dark:text-sky-100",
+		selected: "border-sky-500/35 bg-sky-500/10 text-sky-950 dark:border-sky-300/28 dark:bg-sky-300/12 dark:text-sky-100",
+		highlighted: "border-sky-500/45 bg-sky-500/15 text-sky-950 dark:border-sky-300/34 dark:bg-sky-300/16 dark:text-sky-100",
 	},
 	culture: {
 		dot: "bg-violet-500",
-		selected: "border-violet-500/35 bg-violet-500/10 text-violet-950 dark:text-violet-100",
-		highlighted: "border-violet-500/45 bg-violet-500/15 text-violet-950 dark:text-violet-100",
+		selected: "border-violet-500/35 bg-violet-500/10 text-violet-950 dark:border-violet-300/28 dark:bg-violet-300/12 dark:text-violet-100",
+		highlighted: "border-violet-500/45 bg-violet-500/15 text-violet-950 dark:border-violet-300/34 dark:bg-violet-300/16 dark:text-violet-100",
 	},
 	food: {
 		dot: "bg-emerald-500",
-		selected: "border-emerald-500/35 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100",
-		highlighted: "border-emerald-500/45 bg-emerald-500/15 text-emerald-950 dark:text-emerald-100",
+		selected: "border-emerald-500/35 bg-emerald-500/10 text-emerald-950 dark:border-emerald-300/28 dark:bg-emerald-300/12 dark:text-emerald-100",
+		highlighted: "border-emerald-500/45 bg-emerald-500/15 text-emerald-950 dark:border-emerald-300/34 dark:bg-emerald-300/16 dark:text-emerald-100",
 	},
 	wellness: {
 		dot: "bg-teal-500",
-		selected: "border-teal-500/35 bg-teal-500/10 text-teal-950 dark:text-teal-100",
-		highlighted: "border-teal-500/45 bg-teal-500/15 text-teal-950 dark:text-teal-100",
+		selected: "border-teal-500/35 bg-teal-500/10 text-teal-950 dark:border-teal-300/28 dark:bg-teal-300/12 dark:text-teal-100",
+		highlighted: "border-teal-500/45 bg-teal-500/15 text-teal-950 dark:border-teal-300/34 dark:bg-teal-300/16 dark:text-teal-100",
 	},
 };
 const getEventCategoryAdminOptionClassName = (

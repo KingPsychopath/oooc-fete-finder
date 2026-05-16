@@ -138,42 +138,37 @@ const MODAL_MIN_COLLAPSED_GENRES = 3;
 const COUNTRY_PREVIEW_LIMIT = 3;
 const EVENT_CATEGORY_MODAL_ACCENTS: Record<
 	EventExperienceCategory,
-	{ shell: string; rail: string; badge: string }
+	{ header: string; badge: string }
 > = {
 	party: {
-		shell:
-			"border-amber-300/55 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(217,119,6,0.16)] dark:border-amber-500/35",
-		rail: "bg-amber-500/75",
+		header:
+			"bg-[radial-gradient(ellipse_at_18%_42%,rgba(217,119,6,0.07)_0%,rgba(217,119,6,0.026)_38%,rgba(217,119,6,0)_72%)] dark:bg-[radial-gradient(ellipse_at_18%_42%,rgba(251,191,36,0.11)_0%,rgba(251,191,36,0.04)_38%,rgba(251,191,36,0)_72%)]",
 		badge:
-			"border-amber-500/35 bg-amber-500/10 text-amber-900 hover:bg-amber-500/14 dark:text-amber-100",
+			"border-amber-500/35 bg-amber-500/10 text-amber-900 hover:bg-amber-500/14 dark:border-amber-300/28 dark:bg-amber-300/12 dark:text-amber-100",
 	},
 	activity: {
-		shell:
-			"border-sky-300/55 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(14,165,233,0.16)] dark:border-sky-500/35",
-		rail: "bg-sky-500/75",
+		header:
+			"bg-[radial-gradient(ellipse_at_18%_42%,rgba(14,165,233,0.06)_0%,rgba(14,165,233,0.022)_38%,rgba(14,165,233,0)_72%)] dark:bg-[radial-gradient(ellipse_at_18%_42%,rgba(125,211,252,0.1)_0%,rgba(125,211,252,0.036)_38%,rgba(125,211,252,0)_72%)]",
 		badge:
-			"border-sky-500/35 bg-sky-500/10 text-sky-900 hover:bg-sky-500/14 dark:text-sky-100",
+			"border-sky-500/35 bg-sky-500/10 text-sky-900 hover:bg-sky-500/14 dark:border-sky-300/28 dark:bg-sky-300/12 dark:text-sky-100",
 	},
 	culture: {
-		shell:
-			"border-violet-300/55 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(124,58,237,0.16)] dark:border-violet-500/35",
-		rail: "bg-violet-500/75",
+		header:
+			"bg-[radial-gradient(ellipse_at_18%_42%,rgba(124,58,237,0.055)_0%,rgba(124,58,237,0.02)_38%,rgba(124,58,237,0)_72%)] dark:bg-[radial-gradient(ellipse_at_18%_42%,rgba(196,181,253,0.095)_0%,rgba(196,181,253,0.034)_38%,rgba(196,181,253,0)_72%)]",
 		badge:
-			"border-violet-500/35 bg-violet-500/10 text-violet-900 hover:bg-violet-500/14 dark:text-violet-100",
+			"border-violet-500/35 bg-violet-500/10 text-violet-900 hover:bg-violet-500/14 dark:border-violet-300/28 dark:bg-violet-300/12 dark:text-violet-100",
 	},
 	food: {
-		shell:
-			"border-emerald-300/55 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(16,185,129,0.16)] dark:border-emerald-500/35",
-		rail: "bg-emerald-500/75",
+		header:
+			"bg-[radial-gradient(ellipse_at_18%_42%,rgba(16,185,129,0.055)_0%,rgba(16,185,129,0.02)_38%,rgba(16,185,129,0)_72%)] dark:bg-[radial-gradient(ellipse_at_18%_42%,rgba(110,231,183,0.095)_0%,rgba(110,231,183,0.034)_38%,rgba(110,231,183,0)_72%)]",
 		badge:
-			"border-emerald-500/35 bg-emerald-500/10 text-emerald-900 hover:bg-emerald-500/14 dark:text-emerald-100",
+			"border-emerald-500/35 bg-emerald-500/10 text-emerald-900 hover:bg-emerald-500/14 dark:border-emerald-300/28 dark:bg-emerald-300/12 dark:text-emerald-100",
 	},
 	wellness: {
-		shell:
-			"border-teal-300/55 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(20,184,166,0.16)] dark:border-teal-500/35",
-		rail: "bg-teal-500/75",
+		header:
+			"bg-[radial-gradient(ellipse_at_18%_42%,rgba(20,184,166,0.055)_0%,rgba(20,184,166,0.02)_38%,rgba(20,184,166,0)_72%)] dark:bg-[radial-gradient(ellipse_at_18%_42%,rgba(94,234,212,0.095)_0%,rgba(94,234,212,0.034)_38%,rgba(94,234,212,0)_72%)]",
 		badge:
-			"border-teal-500/35 bg-teal-500/10 text-teal-900 hover:bg-teal-500/14 dark:text-teal-100",
+			"border-teal-500/35 bg-teal-500/10 text-teal-900 hover:bg-teal-500/14 dark:border-teal-300/28 dark:bg-teal-300/12 dark:text-teal-100",
 	},
 };
 const FOCUSABLE_MODAL_SELECTOR = [
@@ -1399,22 +1394,20 @@ const EventModal: React.FC<EventModalProps> = ({
 				className={`relative max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] w-full max-w-[38rem] overflow-y-auto rounded-[22px] border bg-card/95 shadow-[0_36px_90px_-52px_rgba(0,0,0,0.9)] sm:max-h-[90vh] sm:rounded-[26px] dark:bg-[color-mix(in_oklab,var(--card)_90%,rgba(6,7,9,0.95))] ${
 					isCurrentlyFeatured
 						? "border-amber-300/70 shadow-[0_38px_94px_-52px_rgba(0,0,0,0.9),0_0_0_1px_rgba(212,164,96,0.35)] dark:border-amber-500/45"
-						: (eventCategoryModalAccent?.shell ?? "border-border/80")
+						: "border-border/80"
 				}`}
 			>
-				{eventCategoryModalAccent && !isCurrentlyFeatured && (
-					<div
-						className={`pointer-events-none absolute inset-y-5 left-0 w-1 rounded-r-full ${eventCategoryModalAccent.rail}`}
-						aria-hidden="true"
-					/>
-				)}
 				{isCurrentlyFeatured && (
 					<div
 						className="pointer-events-none absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,rgba(212,164,96,0)_0%,rgba(212,164,96,0.9)_50%,rgba(212,164,96,0)_100%)]"
 						aria-hidden="true"
 					/>
 				)}
-				<CardHeader className="pb-2 sm:pb-3">
+				<CardHeader
+					className={`pb-2 sm:pb-3 ${
+						!isCurrentlyFeatured ? (eventCategoryModalAccent?.header ?? "") : ""
+					}`}
+				>
 					<div className="flex items-start justify-between gap-3">
 						<div className="min-w-0 flex-1">
 							<p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">

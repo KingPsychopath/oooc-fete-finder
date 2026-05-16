@@ -190,15 +190,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 		switch (category) {
 			case "party":
-				return `${eventCategoryToggleBaseClassName} border-amber-500/35 bg-amber-500/10 text-amber-900 dark:text-amber-100`;
+				return `${eventCategoryToggleBaseClassName} border-amber-500/35 bg-amber-500/10 text-amber-900 dark:border-amber-300/28 dark:bg-amber-300/12 dark:text-amber-100`;
 			case "activity":
-				return `${eventCategoryToggleBaseClassName} border-sky-500/35 bg-sky-500/10 text-sky-900 dark:text-sky-100`;
+				return `${eventCategoryToggleBaseClassName} border-sky-500/35 bg-sky-500/10 text-sky-900 dark:border-sky-300/28 dark:bg-sky-300/12 dark:text-sky-100`;
 			case "culture":
-				return `${eventCategoryToggleBaseClassName} border-violet-500/35 bg-violet-500/10 text-violet-900 dark:text-violet-100`;
+				return `${eventCategoryToggleBaseClassName} border-violet-500/35 bg-violet-500/10 text-violet-900 dark:border-violet-300/28 dark:bg-violet-300/12 dark:text-violet-100`;
 			case "food":
-				return `${eventCategoryToggleBaseClassName} border-emerald-500/35 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100`;
+				return `${eventCategoryToggleBaseClassName} border-emerald-500/35 bg-emerald-500/10 text-emerald-900 dark:border-emerald-300/28 dark:bg-emerald-300/12 dark:text-emerald-100`;
 			case "wellness":
-				return `${eventCategoryToggleBaseClassName} border-teal-500/35 bg-teal-500/10 text-teal-900 dark:text-teal-100`;
+				return `${eventCategoryToggleBaseClassName} border-teal-500/35 bg-teal-500/10 text-teal-900 dark:border-teal-300/28 dark:bg-teal-300/12 dark:text-teal-100`;
 			default:
 				return `${eventCategoryToggleBaseClassName} border-border/75 bg-accent text-accent-foreground`;
 		}
