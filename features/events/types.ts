@@ -43,7 +43,8 @@ export const EVENT_EXPERIENCE_CATEGORIES = [
 		key: "party",
 		label: "Party",
 		description: "Dance, club, day party, afterparty, or social event",
-		color: "border-rose-500/35 bg-rose-500/10 text-rose-800 dark:text-rose-200",
+		color:
+			"border-amber-500/35 bg-amber-500/10 text-amber-800 dark:text-amber-200",
 	},
 	{
 		key: "activity",
@@ -77,6 +78,31 @@ export const EVENT_EXPERIENCE_CATEGORIES = [
 const EVENT_EXPERIENCE_CATEGORY_KEYS = new Set<EventExperienceCategory>(
 	EVENT_EXPERIENCE_CATEGORIES.map((category) => category.key),
 );
+const PARTY_EVENT_TYPE_OPTIONS = new Set(["prefete", "fete", "postfete"]);
+const normalizeEventTypeToken = (value: string | null | undefined): string =>
+	value
+		?.trim()
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/[\s_-]/g, "") ?? "";
+
+export const isPartyEventType = (
+	type: EventType | string | null | undefined,
+): boolean => PARTY_EVENT_TYPE_OPTIONS.has(normalizeEventTypeToken(type));
+
+export const getPartyEventTypeLabel = (
+	type: EventType | string | null | undefined,
+): string | null => {
+	const normalized = normalizeEventTypeToken(type);
+	if (!PARTY_EVENT_TYPE_OPTIONS.has(normalized)) return null;
+
+	return normalized === "prefete"
+		? "Pre-Fete"
+		: normalized === "postfete"
+			? "Post-Fete"
+			: "Fête";
+};
 
 const EVENT_EXPERIENCE_CATEGORY_ALIASES: Record<
 	string,
@@ -135,18 +161,30 @@ export const normalizeEventExperienceCategory = (
 	return EVENT_EXPERIENCE_CATEGORY_ALIASES[normalized] ?? null;
 };
 
+const normalizeEventExperienceCategoryInput = (
+	category: EventExperienceCategory | string | null | undefined,
+): EventExperienceCategory | null =>
+	category == null
+		? null
+		: (normalizeEventExperienceCategory(category.toString()) ??
+			(EVENT_EXPERIENCE_CATEGORY_KEYS.has(category as EventExperienceCategory)
+				? (category as EventExperienceCategory)
+				: null));
+
 export const getEventExperienceCategoryDefinition = (
-	category: EventExperienceCategory | null | undefined,
+	category: EventExperienceCategory | string | null | undefined,
 ): EventExperienceCategoryDefinition | null => {
-	if (!category) return null;
+	const normalizedCategory = normalizeEventExperienceCategoryInput(category);
+	if (!normalizedCategory) return null;
 	return (
-		EVENT_EXPERIENCE_CATEGORIES.find((option) => option.key === category) ??
-		null
+		EVENT_EXPERIENCE_CATEGORIES.find(
+			(option) => option.key === normalizedCategory,
+		) ?? null
 	);
 };
 
 export const formatEventExperienceCategory = (
-	category: EventExperienceCategory | null | undefined,
+	category: EventExperienceCategory | string | null | undefined,
 ): string => getEventExperienceCategoryDefinition(category)?.label ?? "";
 
 // Host/audience country codes supported by ingestion/filtering.

@@ -22,9 +22,10 @@ import {
 	getEventExperienceCategoryDefinition,
 	formatLocationAreaShort,
 	formatPrice,
+	getPartyEventTypeLabel,
+	isPartyEventType,
 	getEventDisplayDayNightPeriod,
 	getPriceMeta,
-	getVisibleEventTypeLabel,
 } from "@/features/events/types";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { clientLog } from "@/lib/platform/client-logger";
@@ -91,38 +92,43 @@ export function EventCard({
 	const isNewlyAdded = isRecentlyAddedEvent(event);
 	const isRecentlyUpdated = !isNewlyAdded && isRecentlyUpdatedEvent(event);
 	const hasOOOCPick = event.isOOOCPick === true;
-	const eventCategoryDefinition = getEventExperienceCategoryDefinition(
-		event.eventCategory,
-	);
+	const isPartyTypeEvent = isPartyEventType(event.type);
+	const eventCategoryDefinition =
+		getEventExperienceCategoryDefinition(event.eventCategory) ??
+		getEventExperienceCategoryDefinition(event.category) ??
+		(isPartyTypeEvent ? getEventExperienceCategoryDefinition("party") : null);
 	const dayNightPeriod = getEventDisplayDayNightPeriod(
 		event,
 		preferredDayNightPeriods,
 	);
-	const visibleEventType = getVisibleEventTypeLabel(event.type);
-	const headerEventTypeLabel =
-		visibleEventType ?? (event.type === "Fete" ? "Fête" : null);
-	const contextualPillLabel = eventCategoryDefinition?.key === "party"
-		? headerEventTypeLabel
-		: eventCategoryDefinition?.label;
+	const headerEventTypeLabel = getPartyEventTypeLabel(event.type);
+	const contextualPillLabel =
+		eventCategoryDefinition?.key === "party"
+			? headerEventTypeLabel
+			: eventCategoryDefinition?.label;
 	const shouldShowContextualPill = Boolean(contextualPillLabel);
-	const contextualPillClassName = eventCategoryDefinition?.key === "party"
-		? "border-border/70 bg-background/50 text-muted-foreground"
-		: `${eventCategoryDefinition?.color ?? ""} hover:bg-background/60`;
-	const contextualPillIcon = eventCategoryDefinition?.key === "party" ? (
-		<Clock className="h-3 w-3" />
-	) : (
-		<Tag className="h-3 w-3" />
-	);
+	const contextualPillClassName =
+		eventCategoryDefinition?.key === "party"
+			? "border-border/70 bg-background/50 text-muted-foreground"
+			: `${eventCategoryDefinition?.color ?? ""} hover:bg-background/60`;
+	const contextualPillIcon =
+		eventCategoryDefinition?.key === "party" ? (
+			<Clock className="h-3 w-3" />
+		) : (
+			<Tag className="h-3 w-3" />
+		);
 	const categoryCardClasses =
-		eventCategoryDefinition?.key === "activity"
-			? "border-sky-300/24 bg-[linear-gradient(145deg,rgba(239,246,255,0.8),rgba(230,242,255,0.56))] hover:bg-[linear-gradient(145deg,rgba(240,247,255,0.9),rgba(233,246,255,0.64))] dark:border-sky-500/22 dark:bg-[linear-gradient(145deg,rgba(19,63,104,0.33),rgba(17,44,70,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(29,73,119,0.38),rgba(27,55,88,0.26))]"
-			: eventCategoryDefinition?.key === "culture"
-				? "border-violet-300/24 bg-[linear-gradient(145deg,rgba(248,245,255,0.8),rgba(238,232,250,0.56))] hover:bg-[linear-gradient(145deg,rgba(249,246,255,0.9),rgba(241,236,252,0.64))] dark:border-violet-500/22 dark:bg-[linear-gradient(145deg,rgba(57,43,90,0.28),rgba(39,30,66,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(73,53,106,0.34),rgba(51,39,81,0.28))]"
-				: eventCategoryDefinition?.key === "food"
-					? "border-emerald-300/24 bg-[linear-gradient(145deg,rgba(236,252,243,0.8),rgba(223,247,230,0.56))] hover:bg-[linear-gradient(145deg,rgba(239,253,246,0.9),rgba(230,250,236,0.64))] dark:border-emerald-500/22 dark:bg-[linear-gradient(145deg,rgba(30,74,51,0.28),rgba(23,58,39,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(35,90,62,0.34),rgba(27,67,45,0.26))]"
-					: eventCategoryDefinition?.key === "wellness"
-						? "border-amber-300/24 bg-[linear-gradient(145deg,rgba(255,250,236,0.8),rgba(255,243,220,0.56))] hover:bg-[linear-gradient(145deg,rgba(255,253,240,0.9),rgba(255,246,224,0.64))] dark:border-amber-500/22 dark:bg-[linear-gradient(145deg,rgba(84,64,30,0.28),rgba(63,46,17,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(95,72,32,0.34),rgba(73,53,22,0.26))]"
-						: null;
+		eventCategoryDefinition?.key === "party"
+			? "border-amber-300/24 bg-[linear-gradient(145deg,rgba(255,251,239,0.82),rgba(252,241,227,0.56))] hover:bg-[linear-gradient(145deg,rgba(255,253,245,0.9),rgba(250,235,218,0.64))] dark:border-amber-500/22 dark:bg-[linear-gradient(145deg,rgba(73,53,24,0.28),rgba(53,40,19,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(93,70,30,0.34),rgba(70,50,25,0.26))]"
+			: eventCategoryDefinition?.key === "activity"
+				? "border-sky-300/24 bg-[linear-gradient(145deg,rgba(239,246,255,0.8),rgba(230,242,255,0.56))] hover:bg-[linear-gradient(145deg,rgba(240,247,255,0.9),rgba(233,246,255,0.64))] dark:border-sky-500/22 dark:bg-[linear-gradient(145deg,rgba(19,63,104,0.33),rgba(17,44,70,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(29,73,119,0.38),rgba(27,55,88,0.26))]"
+				: eventCategoryDefinition?.key === "culture"
+					? "border-violet-300/24 bg-[linear-gradient(145deg,rgba(248,245,255,0.8),rgba(238,232,250,0.56))] hover:bg-[linear-gradient(145deg,rgba(249,246,255,0.9),rgba(241,236,252,0.64))] dark:border-violet-500/22 dark:bg-[linear-gradient(145deg,rgba(57,43,90,0.28),rgba(39,30,66,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(73,53,106,0.34),rgba(51,39,81,0.28))]"
+					: eventCategoryDefinition?.key === "food"
+						? "border-emerald-300/24 bg-[linear-gradient(145deg,rgba(236,252,243,0.8),rgba(223,247,230,0.56))] hover:bg-[linear-gradient(145deg,rgba(239,253,246,0.9),rgba(230,250,236,0.64))] dark:border-emerald-500/22 dark:bg-[linear-gradient(145deg,rgba(30,74,51,0.28),rgba(23,58,39,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(35,90,62,0.34),rgba(27,67,45,0.26))]"
+						: eventCategoryDefinition?.key === "wellness"
+							? "border-amber-300/24 bg-[linear-gradient(145deg,rgba(255,250,236,0.8),rgba(255,243,220,0.56))] hover:bg-[linear-gradient(145deg,rgba(255,253,240,0.9),rgba(255,246,224,0.64))] dark:border-amber-500/22 dark:bg-[linear-gradient(145deg,rgba(84,64,30,0.28),rgba(63,46,17,0.2))] dark:hover:bg-[linear-gradient(145deg,rgba(95,72,32,0.34),rgba(73,53,22,0.26))]"
+							: null;
 	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
 	const socialProofHistoricalSaveCount =
 		event.socialProofHistoricalSaveCount ?? 0;
@@ -162,8 +168,8 @@ export function EventCard({
 				? "border-border/90 bg-[linear-gradient(145deg,rgba(247,241,231,0.82),rgba(242,235,224,0.68))] dark:bg-[linear-gradient(145deg,rgba(52,41,31,0.36),rgba(42,33,26,0.28))]"
 				: isCurrentlyPromoted
 					? "border-amber-500/45 bg-[linear-gradient(145deg,rgba(250,241,223,0.62),rgba(245,236,222,0.55))] dark:border-amber-600/45 dark:bg-[linear-gradient(145deg,rgba(80,60,36,0.34),rgba(58,43,27,0.28))]"
-					: categoryCardClasses ??
-						"border-border/85 bg-card/72 hover:bg-card/88"
+					: (categoryCardClasses ??
+						"border-border/85 bg-card/72 hover:bg-card/88")
 	}`;
 
 	return (

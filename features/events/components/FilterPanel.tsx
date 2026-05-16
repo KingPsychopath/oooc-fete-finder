@@ -37,9 +37,9 @@ import {
 	VENUE_TYPES,
 	type VenueType,
 	formatAgeRange,
-	getEventExperienceCategoryDefinition,
 	formatLocationAreaShort,
 	formatPriceRange,
+	getEventExperienceCategoryDefinition,
 } from "@/features/events/types";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
@@ -53,6 +53,7 @@ import {
 	CalendarDays,
 	Check,
 	ChevronDown,
+	Clock,
 	Euro,
 	Filter,
 	Minus,
@@ -170,6 +171,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		"space-y-3 rounded-xl border border-border/70 bg-background/58 p-3";
 	const prioritySectionClassName =
 		"space-y-3 rounded-xl border-2 border-border bg-background/75 p-3 shadow-sm";
+	const priorityEventCategorySectionClassName = `${prioritySectionClassName} border-amber-300/20 bg-amber-100/20 dark:border-amber-600/20 dark:bg-orange-950/15`;
 	const sectionTitleClassName =
 		"text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground lg:text-[10px]";
 	const hiddenScrollbarClassName =
@@ -267,6 +269,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		},
 		[haptics],
 	);
+	const isFreeOnlyPriceRange =
+		selectedPriceRange[0] === PRICE_RANGE_CONFIG.min &&
+		selectedPriceRange[1] === PRICE_RANGE_CONFIG.min;
+	const activeIncludeFreeOptions = isFreeOnlyPriceRange && includeFreeOptions;
 
 	// Memoize the hasActiveFilters calculation
 	const hasActiveFilters = useMemo(
@@ -283,7 +289,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					selectedVenueTypes,
 					selectedIndoorPreference,
 					selectedPriceRange,
-					includeFreeOptions,
+					includeFreeOptions: activeIncludeFreeOptions,
 					selectedAgeRange,
 					selectedOOOCPicks,
 					searchQuery: "",
@@ -304,7 +310,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedVenueTypes,
 			selectedIndoorPreference,
 			selectedPriceRange,
-			includeFreeOptions,
+			activeIncludeFreeOptions,
 			selectedAgeRange,
 			selectedOOOCPicks,
 		],
@@ -325,7 +331,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 					selectedVenueTypes,
 					selectedIndoorPreference,
 					selectedPriceRange,
-					includeFreeOptions,
+					includeFreeOptions: activeIncludeFreeOptions,
 					selectedAgeRange,
 					selectedOOOCPicks,
 					searchQuery: "",
@@ -346,7 +352,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			selectedVenueTypes,
 			selectedIndoorPreference,
 			selectedPriceRange,
-			includeFreeOptions,
+			activeIncludeFreeOptions,
 			selectedAgeRange,
 			selectedOOOCPicks,
 		],
@@ -658,7 +664,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											: activeFilterBadgeClassName
 									}
 								>
-									<Tag className="mr-1 h-3 w-3" />
+									{categoryDefinition?.key === "party" ? (
+										<Clock className="mr-1 h-3 w-3" />
+									) : (
+										<Tag className="mr-1 h-3 w-3" />
+									)}
 									{label}
 									<Button
 										variant="ghost"
@@ -775,7 +785,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 								</Button>
 							</Badge>
 						)}
-						{includeFreeOptions && (
+						{activeIncludeFreeOptions && (
 							<Badge
 								variant="secondary"
 								className={
@@ -1304,7 +1314,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												selectedIndoorPreference !== null ||
 												selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 												selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max ||
-												includeFreeOptions ||
+												activeIncludeFreeOptions ||
 												selectedAgeRange !== null ||
 												selectedEventCategories.length > 0 ||
 												selectedOOOCPicks) && (
@@ -1320,7 +1330,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																PRICE_RANGE_CONFIG.min ||
 																selectedPriceRange[1] !==
 																	PRICE_RANGE_CONFIG.max,
-															includeFreeOptions,
+															activeIncludeFreeOptions,
 															selectedAgeRange !== null,
 															selectedEventCategories.length > 0,
 															selectedOOOCPicks,
@@ -1333,7 +1343,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										<AccordionContent>
 											<div className="space-y-4">
 												{eventCategoryOptions.length > 0 && (
-													<div className={prioritySectionClassName}>
+													<div
+														className={priorityEventCategorySectionClassName}
+													>
 														<div className="flex items-center">
 															<h3 className={sectionTitleClassName}>
 																<span className="inline-flex items-center gap-1.5">
@@ -1346,9 +1358,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															</InfoPopover>
 														</div>
 														<p className="text-[11px] leading-relaxed text-muted-foreground">
-															Event category is the listing type (not music genres). Use
-															it to separate party-style events from activities, food,
-															culture, or wellness experiences.
+															Event category is the listing type (not music
+															genres). Use it to separate party-style events
+															from activities, food, culture, or wellness
+															experiences.
 														</p>
 														<div className="grid grid-cols-1 gap-1.5 min-[1180px]:grid-cols-2">
 															{eventCategoryOptions.map((category) => (
@@ -1367,7 +1380,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 																	title={category.description}
 																>
 																	<span className="inline-flex min-w-0 items-center gap-1 text-xs lg:text-[11px]">
-																		<Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+																		{category.key === "party" ? (
+																			<Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+																		) : (
+																			<Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+																		)}
 																		<span className="min-w-0 truncate">
 																			{category.label}
 																		</span>
@@ -1461,38 +1478,41 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 															center: formatPriceRange(selectedPriceRange),
 															right: `€${PRICE_RANGE_CONFIG.max}+`,
 														})}
-														<button
-															type="button"
-															role="switch"
-															aria-checked={includeFreeOptions}
-															onClick={toggleIncludeFreeOptions}
-															className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/65 px-3 py-2 text-left text-xs text-foreground/85 transition-colors hover:bg-accent/60 lg:text-[11px]"
-														>
-															<span className="min-w-0">
-																<span className="block font-medium">
-																	Include free options
-																</span>
-																<span className="block text-muted-foreground">
-																	Free RSVP, free-before, or free-to-paid ranges
-																</span>
-															</span>
-															<span
-																className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-																	includeFreeOptions
-																		? "bg-emerald-500"
-																		: "bg-muted-foreground/30"
-																}`}
-																aria-hidden="true"
+														{isFreeOnlyPriceRange && (
+															<button
+																type="button"
+																role="switch"
+																aria-checked={activeIncludeFreeOptions}
+																onClick={toggleIncludeFreeOptions}
+																className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/65 px-3 py-2 text-left text-xs text-foreground/85 transition-colors hover:bg-accent/60 lg:text-[11px]"
 															>
+																<span className="min-w-0">
+																	<span className="block font-medium">
+																		Include free options
+																	</span>
+																	<span className="block text-muted-foreground">
+																		Free RSVP, free-before, or free-to-paid
+																		ranges
+																	</span>
+																</span>
 																<span
-																	className={`absolute size-4 rounded-full bg-background shadow-sm transition-transform ${
-																		includeFreeOptions
-																			? "translate-x-4"
-																			: "translate-x-0.5"
+																	className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+																		activeIncludeFreeOptions
+																			? "bg-emerald-500"
+																			: "bg-muted-foreground/30"
 																	}`}
-																/>
-															</span>
-														</button>
+																	aria-hidden="true"
+																>
+																	<span
+																		className={`absolute size-4 rounded-full bg-background shadow-sm transition-transform ${
+																			activeIncludeFreeOptions
+																				? "translate-x-4"
+																				: "translate-x-0.5"
+																		}`}
+																	/>
+																</span>
+															</button>
+														)}
 														{(selectedPriceRange[0] !==
 															PRICE_RANGE_CONFIG.min ||
 															selectedPriceRange[1] !==
@@ -1708,35 +1728,35 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						{uiDecisions.useAccordion ? (
 							// Accordion Layout for Desktop when space is needed
 							<div className="hidden lg:block">
-									<Accordion
-										multiple
-										value={openAccordionSections}
-										onValueChange={(value) =>
-											setOpenAccordionSections(value.filter(Boolean) as string[])
-										}
-										className="w-full"
-									>
-										<AccordionItem value="days">
-											<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
-												<span className="inline-flex items-center gap-1.5">
-													<CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-													Date & Times
-												</span>
-												{(hasSelectedDateRange ||
-													selectedDayNightPeriods.length > 0) && (
-													<Badge
-														variant="secondary"
-														className="ml-2 border border-border/70 bg-secondary/72 text-xs"
+								<Accordion
+									multiple
+									value={openAccordionSections}
+									onValueChange={(value) =>
+										setOpenAccordionSections(value.filter(Boolean) as string[])
+									}
+									className="w-full"
+								>
+									<AccordionItem value="days">
+										<AccordionTrigger className="text-base font-semibold hover:text-primary transition-colors">
+											<span className="inline-flex items-center gap-1.5">
+												<CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+												Date & Times
+											</span>
+											{(hasSelectedDateRange ||
+												selectedDayNightPeriods.length > 0) && (
+												<Badge
+													variant="secondary"
+													className="ml-2 border border-border/70 bg-secondary/72 text-xs"
 												>
 													{(hasSelectedDateRange ? 1 : 0) +
 														selectedDayNightPeriods.length}
 												</Badge>
 											)}
 										</AccordionTrigger>
-											<AccordionContent>
-												{/* Compact Days Section for Accordion */}
-												<div className={prioritySectionClassName}>
-													{renderDefaultDateRangeHint()}
+										<AccordionContent>
+											{/* Compact Days Section for Accordion */}
+											<div className={prioritySectionClassName}>
+												{renderDefaultDateRangeHint()}
 												{/* Day/Night Periods */}
 												<div className="p-1.5 bg-muted/20 rounded-md border overflow-hidden">
 													<div className="flex items-center justify-between mb-1">
@@ -1792,17 +1812,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 						) : (
 							// Expanded Layout (Mobile always, Desktop when space allows)
 							<div className="space-y-6 lg:space-y-4">
-									{/* Days & Times */}
-									<div className={prioritySectionClassName}>
-										<div className="flex items-center mb-3">
-											<div className="inline-flex items-center gap-1.5">
-												<CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-												<h3 className={sectionTitleClassName}>Date & Times</h3>
-											</div>
-											<InfoPopover
-												aria-label="Show day and night time definitions"
-												contentClassName="space-y-1.5"
-											>
+								{/* Days & Times */}
+								<div className={prioritySectionClassName}>
+									<div className="flex items-center mb-3">
+										<div className="inline-flex items-center gap-1.5">
+											<CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+											<h3 className={sectionTitleClassName}>Date & Times</h3>
+										</div>
+										<InfoPopover
+											aria-label="Show day and night time definitions"
+											contentClassName="space-y-1.5"
+										>
 											<p className="inline-flex items-center gap-1.5">
 												<strong>Day:</strong> 6:00 AM - 9:59 PM
 												<Sun className="h-3.5 w-3.5" />
@@ -1814,10 +1834,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 										</InfoPopover>
 									</div>
 
-										<div className="space-y-2">
-											{renderDefaultDateRangeHint()}
-											{/* Day/Night Periods */}
-											<div className={sectionClassName}>
+									<div className="space-y-2">
+										{renderDefaultDateRangeHint()}
+										{/* Day/Night Periods */}
+										<div className={sectionClassName}>
 											<div className="flex items-center justify-between mb-2">
 												<h4 className={sectionTitleClassName}>
 													Filter by Time
@@ -1864,73 +1884,77 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 									</div>
 								</div>
 
-									{/* Event Category */}
-									{eventCategoryOptions.length > 0 && (
-										<div className={prioritySectionClassName}>
-											<div className="flex items-center">
-												<h3 className={sectionTitleClassName}>
-													<span className="inline-flex items-center gap-1.5">
-														<Tag className="h-3.5 w-3.5" />
-														Event Category
-													</span>
-												</h3>
-												<InfoPopover aria-label="Explain event category filters">
-													{eventCategoryHelp}
-												</InfoPopover>
-											</div>
-											<p className="text-xs leading-relaxed text-muted-foreground lg:text-[11px]">
-												Event category is the listing type (not music genres). Use it to
-												separate party-style events from activities, food, culture, or
-												wellness experiences.
-											</p>
-											<div className="grid grid-cols-2 gap-1">
-												{eventCategoryOptions.map((category) => (
-													<Toggle
-														key={category.key}
-														pressed={selectedEventCategories.includes(
-															category.key,
-														)}
-														onPressedChange={() =>
-															handleFilterSelection(() =>
-																onEventCategoryToggle(category.key),
-															)
-														}
-														className={regularToggleClassName}
-														size="sm"
-														title={category.description}
-													>
-														<span className="inline-flex min-w-0 items-center gap-1 text-xs">
-															<Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-															<span className="min-w-0 truncate">
-																{category.label}
-															</span>
-														</span>
-													</Toggle>
-												))}
-											</div>
-										</div>
-									)}
-
-									{/* OOOC Picks */}
-									<div className={sectionClassName}>
+								{/* Event Category */}
+								{eventCategoryOptions.length > 0 && (
+									<div className={priorityEventCategorySectionClassName}>
 										<div className="flex items-center">
-											<h3 className={sectionTitleClassName}>OOOC Picks</h3>
-											<InfoPopover aria-label="Explain OOOC Picks">
-												{ooocPickHelp}
+											<h3 className={sectionTitleClassName}>
+												<span className="inline-flex items-center gap-1.5">
+													<Tag className="h-3.5 w-3.5" />
+													Event Category
+												</span>
+											</h3>
+											<InfoPopover aria-label="Explain event category filters">
+												{eventCategoryHelp}
+											</InfoPopover>
+										</div>
+										<p className="text-xs leading-relaxed text-muted-foreground lg:text-[11px]">
+											Event category is the listing type (not music genres). Use
+											it to separate party-style events from activities, food,
+											culture, or wellness experiences.
+										</p>
+										<div className="grid grid-cols-2 gap-1">
+											{eventCategoryOptions.map((category) => (
+												<Toggle
+													key={category.key}
+													pressed={selectedEventCategories.includes(
+														category.key,
+													)}
+													onPressedChange={() =>
+														handleFilterSelection(() =>
+															onEventCategoryToggle(category.key),
+														)
+													}
+													className={regularToggleClassName}
+													size="sm"
+													title={category.description}
+												>
+													<span className="inline-flex min-w-0 items-center gap-1 text-xs">
+														{category.key === "party" ? (
+															<Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+														) : (
+															<Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+														)}
+														<span className="min-w-0 truncate">
+															{category.label}
+														</span>
+													</span>
+												</Toggle>
+											))}
+										</div>
+									</div>
+								)}
+
+								{/* OOOC Picks */}
+								<div className={sectionClassName}>
+									<div className="flex items-center">
+										<h3 className={sectionTitleClassName}>OOOC Picks</h3>
+										<InfoPopover aria-label="Explain OOOC Picks">
+											{ooocPickHelp}
 										</InfoPopover>
 									</div>
-										<Toggle
-											pressed={selectedOOOCPicks}
-											onPressedChange={(pressed) =>
-												handleFilterSelection(() => onOOOCPicksToggle(pressed))
-											}
+									<Toggle
+										pressed={selectedOOOCPicks}
+										onPressedChange={(pressed) =>
+											handleFilterSelection(() => onOOOCPicksToggle(pressed))
+										}
 										className={regularToggleClassName}
 										size="sm"
 									>
 										<Star className="h-4 w-4 mr-2 fill-yellow-400" />
 										<span className="text-xs">Show only OOOC Picks</span>
-										</Toggle>
-									</div>
+									</Toggle>
+								</div>
 
 								{/* Venue Type */}
 								<div className={sectionClassName}>
@@ -2020,38 +2044,40 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											center: formatPriceRange(selectedPriceRange),
 											right: `€${PRICE_RANGE_CONFIG.max}+`,
 										})}
-										<button
-											type="button"
-											role="switch"
-											aria-checked={includeFreeOptions}
-											onClick={toggleIncludeFreeOptions}
-											className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/65 px-3 py-2 text-left text-xs text-foreground/85 transition-colors hover:bg-accent/60"
-										>
-											<span className="min-w-0">
-												<span className="block font-medium">
-													Include free options
-												</span>
-												<span className="block text-muted-foreground">
-													Free RSVP, free-before, or free-to-paid ranges
-												</span>
-											</span>
-											<span
-												className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-													includeFreeOptions
-														? "bg-emerald-500"
-														: "bg-muted-foreground/30"
-												}`}
-												aria-hidden="true"
+										{isFreeOnlyPriceRange && (
+											<button
+												type="button"
+												role="switch"
+												aria-checked={activeIncludeFreeOptions}
+												onClick={toggleIncludeFreeOptions}
+												className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/65 px-3 py-2 text-left text-xs text-foreground/85 transition-colors hover:bg-accent/60"
 											>
+												<span className="min-w-0">
+													<span className="block font-medium">
+														Include free options
+													</span>
+													<span className="block text-muted-foreground">
+														Free RSVP, free-before, or free-to-paid ranges
+													</span>
+												</span>
 												<span
-													className={`absolute size-4 rounded-full bg-background shadow-sm transition-transform ${
-														includeFreeOptions
-															? "translate-x-4"
-															: "translate-x-0.5"
+													className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+														activeIncludeFreeOptions
+															? "bg-emerald-500"
+															: "bg-muted-foreground/30"
 													}`}
-												/>
-											</span>
-										</button>
+													aria-hidden="true"
+												>
+													<span
+														className={`absolute size-4 rounded-full bg-background shadow-sm transition-transform ${
+															activeIncludeFreeOptions
+																? "translate-x-4"
+																: "translate-x-0.5"
+														}`}
+													/>
+												</span>
+											</button>
+										)}
 										{(selectedPriceRange[0] !== PRICE_RANGE_CONFIG.min ||
 											selectedPriceRange[1] !== PRICE_RANGE_CONFIG.max) && (
 											<div className="flex justify-center">

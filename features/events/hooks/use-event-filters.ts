@@ -65,6 +65,12 @@ const normalizeDateRange = (range: DateRangeFilter): DateRangeFilter => {
 	return { from, to };
 };
 
+const isFreeOnlyPriceRange = (range: [number, number]): boolean => {
+	return (
+		range[0] === PRICE_RANGE_CONFIG.min && range[1] === PRICE_RANGE_CONFIG.min
+	);
+};
+
 export const useEventFilters = ({
 	events,
 	requireAuth,
@@ -145,7 +151,11 @@ export const useEventFilters = ({
 		setSelectedVenueTypes(state.selectedVenueTypes);
 		setSelectedIndoorPreference(state.selectedIndoorPreference);
 		setSelectedPriceRange(state.selectedPriceRange);
-		setIncludeFreeOptions(state.includeFreeOptions);
+		setIncludeFreeOptions(
+			isFreeOnlyPriceRange(state.selectedPriceRange)
+				? state.includeFreeOptions
+				: false,
+		);
 		setSelectedAgeRange(state.selectedAgeRange);
 		setSelectedOOOCPicks(state.selectedOOOCPicks);
 		setSearchQuery(state.searchQuery);
@@ -545,7 +555,15 @@ export const useEventFilters = ({
 	const onPriceRangeChange = useCallback(
 		(range: [number, number]) => {
 			if (!requireAuth()) return;
+			const isCurrentFreeRange = isFreeOnlyPriceRange(selectedPriceRange);
+			const isNextFreeRange = isFreeOnlyPriceRange(range);
+
 			setSelectedPriceRange(range);
+			if (!isNextFreeRange && includeFreeOptions) {
+				setIncludeFreeOptions(false);
+			} else if (isNextFreeRange && !isCurrentFreeRange) {
+				setIncludeFreeOptions(true);
+			}
 			const isDefaultRange =
 				range[0] === PRICE_RANGE_CONFIG.min &&
 				range[1] === PRICE_RANGE_CONFIG.max;
@@ -568,12 +586,13 @@ export const useEventFilters = ({
 				});
 			}, RANGE_FILTER_TRACK_DELAY_MS);
 		},
-		[requireAuth],
+		[includeFreeOptions, requireAuth, selectedPriceRange],
 	);
 
 	const onIncludeFreeOptionsChange = useCallback(
 		(include: boolean) => {
 			if (!requireAuth()) return;
+			if (!isFreeOnlyPriceRange(selectedPriceRange)) return;
 			setIncludeFreeOptions(include);
 			trackDiscoveryAnalytics({
 				actionType: "filter_apply",
@@ -581,7 +600,7 @@ export const useEventFilters = ({
 				filterValue: include ? "include" : "exclude",
 			});
 		},
-		[requireAuth],
+		[requireAuth, selectedPriceRange],
 	);
 
 	const onAgeRangeChange = useCallback(

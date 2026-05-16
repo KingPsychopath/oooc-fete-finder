@@ -17,7 +17,9 @@ import {
 	formatEventExperienceCategory,
 	formatLocationAreaLong,
 	formatPrice,
+	isPartyEventType,
 	getEventDayNightPeriods,
+	getEventExperienceCategoryDefinition,
 	getLocationAreaSortValue,
 	isAgeInRange,
 	isEventInDayNightPeriod,
@@ -125,6 +127,13 @@ export const getDefaultEventFilterState = (
 	...DEFAULT_EVENT_FILTER_STATE,
 	selectedDateRange: getDefaultDateRangeForEvents(events, referenceDate),
 });
+
+const getEventCategoryDefinition = (event: Event) =>
+	getEventExperienceCategoryDefinition(event.eventCategory) ??
+	getEventExperienceCategoryDefinition(event.category) ??
+	(isPartyEventType(event.type)
+		? getEventExperienceCategoryDefinition("party")
+		: null);
 
 export const getDateRangeAfterDefaultDateRangeChange = ({
 	currentDateRange,
@@ -292,8 +301,11 @@ export const filterEvents = (
 		}
 
 		if (filters.selectedEventCategories.length > 0) {
-			if (!event.eventCategory) return false;
-			if (!filters.selectedEventCategories.includes(event.eventCategory)) {
+			const eventCategoryDefinition = getEventCategoryDefinition(event);
+			if (
+				!eventCategoryDefinition ||
+				!filters.selectedEventCategories.includes(eventCategoryDefinition.key)
+			) {
 				return false;
 			}
 		}
@@ -361,7 +373,7 @@ export const getAvailableEventExperienceCategories = (
 ): EventExperienceCategory[] => {
 	const categories = new Set(
 		events
-			.map((event) => event.eventCategory)
+			.map((event) => getEventCategoryDefinition(event)?.key)
 			.filter(
 				(category): category is EventExperienceCategory => category != null,
 			),
@@ -400,6 +412,12 @@ const hasCustomPriceRange = (range: [number, number]): boolean => {
 	);
 };
 
+const isFreeOnlyPriceRange = (range: [number, number]): boolean => {
+	return (
+		range[0] === PRICE_RANGE_CONFIG.min && range[1] === PRICE_RANGE_CONFIG.min
+	);
+};
+
 const hasCustomAgeRange = (range: AgeRange | null): boolean => {
 	if (!range) return false;
 	return range[0] !== AGE_RANGE_CONFIG.min || range[1] !== AGE_RANGE_CONFIG.max;
@@ -424,6 +442,9 @@ export const hasActiveFilters = (
 	const defaultDateRange =
 		options?.defaultDateRange ?? DEFAULT_EVENT_FILTER_STATE.selectedDateRange;
 	const hasSearchQuery = filters.searchQuery.trim().length > 0;
+	const hasActiveFreeOptionFilter =
+		isFreeOnlyPriceRange(filters.selectedPriceRange) &&
+		filters.includeFreeOptions;
 	return (
 		hasCustomSelectedDateRange(filters.selectedDateRange, defaultDateRange) ||
 		filters.selectedDayNightPeriods.length > 0 ||
@@ -435,7 +456,7 @@ export const hasActiveFilters = (
 		filters.selectedVenueTypes.length > 0 ||
 		filters.selectedIndoorPreference !== null ||
 		hasCustomPriceRange(filters.selectedPriceRange) ||
-		filters.includeFreeOptions ||
+		hasActiveFreeOptionFilter ||
 		hasCustomAgeRange(filters.selectedAgeRange) ||
 		filters.selectedOOOCPicks ||
 		hasSearchQuery
@@ -451,6 +472,9 @@ export const getActiveFiltersCount = (
 	const defaultDateRange =
 		options?.defaultDateRange ?? DEFAULT_EVENT_FILTER_STATE.selectedDateRange;
 	const hasSearchQuery = filters.searchQuery.trim().length > 0;
+	const hasActiveFreeOptionFilter =
+		isFreeOnlyPriceRange(filters.selectedPriceRange) &&
+		filters.includeFreeOptions;
 	return (
 		(hasCustomSelectedDateRange(filters.selectedDateRange, defaultDateRange)
 			? 1
@@ -463,7 +487,7 @@ export const getActiveFiltersCount = (
 		filters.selectedNationalities.length +
 		filters.selectedVenueTypes.length +
 		(hasCustomPriceRange(filters.selectedPriceRange) ? 1 : 0) +
-		(filters.includeFreeOptions ? 1 : 0) +
+		(hasActiveFreeOptionFilter ? 1 : 0) +
 		(hasCustomAgeRange(filters.selectedAgeRange) ? 1 : 0) +
 		(filters.selectedIndoorPreference !== null ? 1 : 0) +
 		(filters.selectedOOOCPicks ? 1 : 0) +

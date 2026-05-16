@@ -14,9 +14,9 @@ import {
 	formatDayWithDate,
 	formatLocationAreaShort,
 	formatPrice,
+	getPartyEventTypeLabel,
 	getEventDisplayDayNightPeriod,
 	getPriceMeta,
-	getVisibleEventTypeLabel,
 } from "@/features/events/types";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,7 @@ import {
 	MapPin,
 	Megaphone,
 	Moon,
+	Clock,
 	Star,
 	Sun,
 	Trees,
@@ -54,7 +55,7 @@ function SpotlightEventPanel({
 	isSaved,
 	onClick,
 }: SpotlightEventPanelProps) {
-	const visibleEventType = getVisibleEventTypeLabel(event.type);
+	const visibleEventType = getPartyEventTypeLabel(event.type);
 	const visibleGenres = event.genre.slice(0, 2);
 	const hiddenGenreCount = Math.max(
 		0,
@@ -167,6 +168,7 @@ function SpotlightEventPanel({
 				>
 					{visibleEventType && (
 						<Badge className="border border-border/55 bg-background/56 px-2 text-[10px] font-medium uppercase tracking-[0.12em] text-foreground/72 shadow-none hover:bg-background/56">
+							<Clock className="h-3 w-3" />
 							{visibleEventType}
 						</Badge>
 					)}

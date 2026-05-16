@@ -134,13 +134,17 @@ export const parseEventFilterStateFromSearchParams = (
 		priceRangeRaw[1] <= PRICE_RANGE_CONFIG.max
 			? priceRangeRaw
 			: PRICE_RANGE_CONFIG.defaultRange;
+	const isFreeOnlyPriceRange =
+		selectedPriceRange[0] === PRICE_RANGE_CONFIG.min &&
+		selectedPriceRange[1] === PRICE_RANGE_CONFIG.min;
 	const includeFreeOptionsParam = (params.get("ifo") ?? "")
 		.trim()
 		.toLowerCase();
 	const includeFreeOptions =
-		includeFreeOptionsParam === "1" ||
-		includeFreeOptionsParam === "true" ||
-		includeFreeOptionsParam === "yes";
+		isFreeOnlyPriceRange &&
+		(includeFreeOptionsParam === "1" ||
+			includeFreeOptionsParam === "true" ||
+			includeFreeOptionsParam === "yes");
 
 	const ageRangeRaw = parseRange(params.get("ag"));
 	const selectedAgeRange: AgeRange | null =
@@ -261,7 +265,11 @@ export const serializeEventFilterStateToSearchParams = (
 			`${state.selectedPriceRange[0]}:${state.selectedPriceRange[1]}`,
 		);
 	}
-	if (state.includeFreeOptions) {
+	if (
+		state.selectedPriceRange[0] === PRICE_RANGE_CONFIG.min &&
+		state.selectedPriceRange[1] === PRICE_RANGE_CONFIG.min &&
+		state.includeFreeOptions
+	) {
 		next.set("ifo", "1");
 	}
 

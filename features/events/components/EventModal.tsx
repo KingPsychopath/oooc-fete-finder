@@ -68,6 +68,8 @@ import {
 	formatLocationAreaLong,
 	formatPrice,
 	getEventExperienceCategoryDefinition,
+	getPartyEventTypeLabel,
+	isPartyEventType,
 	getPriceMeta,
 } from "@/features/events/types";
 import type { LocationResolution } from "@/features/locations/types";
@@ -251,6 +253,20 @@ const normalizeEventUpdateText = (value: string): string =>
 const getDisplayGenreLabel = (genre: string) =>
 	MUSIC_GENRES.find((item) => item.key === genre)?.label || toGenreLabel(genre);
 
+const getEventCategoryLabelForSheet = (event: Event): string => {
+	const isPartyTypeEvent = isPartyEventType(event.type);
+	const partyLabel = "Party";
+	const formattedCategory = formatEventExperienceCategory(event.eventCategory);
+	if (formattedCategory) return formattedCategory;
+
+	const legacyFormattedCategory = event.category
+		? formatEventExperienceCategory(event.category)
+		: "";
+	if (legacyFormattedCategory) return legacyFormattedCategory;
+
+	return isPartyTypeEvent ? partyLabel : "";
+};
+
 const buildEventUpdateRequestForm = (event: Event): EventUpdateRequestForm => {
 	const eventLinks =
 		event.links && event.links.length > 0 ? event.links : [event.link];
@@ -270,7 +286,7 @@ const buildEventUpdateRequestForm = (event: Event): EventUpdateRequestForm => {
 
 	return {
 		eventName: event.name,
-		eventCategory: formatEventExperienceCategory(event.eventCategory),
+		eventCategory: getEventCategoryLabelForSheet(event),
 		date: event.date || "",
 		startTime: event.time && event.time !== "TBC" ? event.time : "",
 		endTime: event.endTime && event.endTime !== "TBC" ? event.endTime : "",
@@ -617,8 +633,12 @@ const EventModal: React.FC<EventModalProps> = ({
 		socialProofSaveCount,
 		socialProofHistoricalSaveCount,
 	);
+	const isPartyTypeEvent = isPartyEventType(event.type);
+	const eventPartyTypeLabel = getPartyEventTypeLabel(event.type);
 	const eventCategoryDefinition = getEventExperienceCategoryDefinition(
-		event.eventCategory,
+		event.eventCategory ??
+			event.category ??
+			(isPartyTypeEvent ? "party" : null),
 	);
 
 	const handleOpenLocation = async (
@@ -1505,16 +1525,25 @@ const EventModal: React.FC<EventModalProps> = ({
 									{socialProofLabel}
 								</Badge>
 							)}
-							{eventCategoryDefinition && (
-								<Badge
-									variant="outline"
-									className={`${eventCategoryDefinition.color} hover:bg-background/70`}
-								>
-									<Tag className="mr-1 h-3 w-3" />
-									{eventCategoryDefinition.label}
-								</Badge>
+							{isPartyTypeEvent ? (
+								eventPartyTypeLabel ? (
+									<Badge className="border-border/70 bg-background/50 hover:bg-background/55">
+										<Clock className="mr-1 h-3 w-3" />
+										{eventPartyTypeLabel}
+									</Badge>
+								) : null
+							) : (
+								eventCategoryDefinition && (
+									<Badge
+										variant="outline"
+										className={`${eventCategoryDefinition.color} hover:bg-background/70`}
+									>
+										<Tag className="mr-1 h-3 w-3" />
+										{eventCategoryDefinition.label}
+									</Badge>
+								)
 							)}
-							{event.category && (
+							{!isPartyTypeEvent && event.category && (
 								<Badge className="bg-gray-100 text-gray-800">
 									<Tag className="mr-1 h-3 w-3" />
 									{event.category}
