@@ -122,7 +122,7 @@ const eventSubmissionBaseSchema = {
 				context.addIssue({
 					code: "custom",
 					message:
-						"Event category must be Party, Activity, Culture, Food, or Wellness",
+						"Event category must be Party, Activity, Culture (including Fashion), Food, or Wellness",
 				});
 				return z.NEVER;
 			}

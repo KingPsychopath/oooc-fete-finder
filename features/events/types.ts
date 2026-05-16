@@ -55,7 +55,8 @@ export const EVENT_EXPERIENCE_CATEGORIES = [
 	{
 		key: "culture",
 		label: "Culture",
-		description: "Art, performance, talks, screenings, exhibitions, or culture",
+		description:
+			"Art, fashion, performance, talks, screenings, exhibitions, or culture",
 		color:
 			"border-violet-500/35 bg-violet-500/10 text-violet-800 dark:text-violet-200",
 	},
@@ -131,6 +132,8 @@ const EVENT_EXPERIENCE_CATEGORY_ALIASES: Record<
 	cultural: "culture",
 	arts: "culture",
 	art: "culture",
+	fashion: "culture",
+	"fashion-show": "culture",
 	exhibition: "culture",
 	performance: "culture",
 	screening: "culture",

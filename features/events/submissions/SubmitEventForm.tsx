@@ -12,13 +12,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { normalizeSearchText } from "@/features/events/genre-normalization";
 import { normalizeProofLink } from "@/features/events/submissions/proof-link";
 import {
@@ -557,28 +550,25 @@ export function SubmitEventForm({
 					</div>
 					<div className="space-y-2 md:col-span-2">
 						<Label htmlFor="eventCategory">Event Category</Label>
-						<Select
-							value={form.eventCategory}
-							onValueChange={(value) => updateField("eventCategory", value ?? "")}
-							required
-							disabled={isFormDisabled}
-						>
-							<SelectTrigger id="eventCategory" className="h-10">
-								<SelectValue placeholder="Select a category" />
-							</SelectTrigger>
-							<SelectContent>
+						<div className="relative w-full min-w-0">
+							<select
+								id="eventCategory"
+								value={form.eventCategory}
+								onChange={(event) =>
+									updateField("eventCategory", event.target.value)
+								}
+								required
+								disabled={isFormDisabled}
+								className="bg-background border-input aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 h-10 w-full min-w-0 appearance-none rounded-lg border px-2.5 pr-8 py-1 text-sm transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50"
+							>
 								{EVENT_EXPERIENCE_CATEGORIES.map((category) => (
-									<SelectItem key={category.key} value={category.label}>
-										<div className="min-w-0">
-											<div className="font-medium">{category.label}</div>
-											<div className="text-xs text-muted-foreground">
-												{category.description}
-											</div>
-										</div>
-									</SelectItem>
+									<option key={category.key} value={category.label}>
+										{`${category.label} — ${category.description}`}
+									</option>
 								))}
-							</SelectContent>
-						</Select>
+							</select>
+							<ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+						</div>
 					</div>
 					<fieldset className="space-y-2 md:col-span-2">
 						<legend className="text-sm font-medium">Schedule</legend>

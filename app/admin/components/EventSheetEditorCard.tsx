@@ -3084,7 +3084,8 @@ export const EventSheetEditorCard = ({
 				issues.push({
 					rowIndex: rowNumber,
 					column: "Event Category",
-					message: 'Use "Party", "Activity", "Culture", "Food", or "Wellness".',
+					message:
+						'Use "Party", "Activity", "Culture", "Culture (Fashion)", "Food", or "Wellness".',
 					severity: "warning",
 				});
 			}
