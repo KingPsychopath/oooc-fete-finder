@@ -402,7 +402,29 @@ export function FeaturedEvents({
 				</div>
 				<div className="lg:pl-12">
 					<div className="mb-5">
-						<FeaturedEventsHeader rotationContext={rotationContext} />
+						<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+							<div className="min-w-0">
+								<FeaturedEventsHeader rotationContext={rotationContext} />
+								<div className="hidden sm:block">
+									<FeaturedEventsSpotlightLink />
+								</div>
+							</div>
+							{hasMoreEvents && (
+								<div className="hidden sm:block sm:shrink-0">
+									<Button
+										variant="outline"
+										onClick={() => {
+											haptics.nudge();
+											onScrollToAllEvents();
+										}}
+										className="h-auto min-h-8 w-full whitespace-normal rounded-full border-border/70 bg-background/55 px-3 py-2 text-center leading-tight text-foreground/85 hover:bg-accent sm:h-8 sm:w-auto sm:whitespace-nowrap"
+									>
+										{browseAllLabel}
+										<ChevronDown className="ml-1 h-4 w-4" />
+									</Button>
+								</div>
+							)}
+						</div>
 					</div>
 					<div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1fr)]">
 						{featuredEvents.map((event, index) => (
@@ -415,7 +437,7 @@ export function FeaturedEvents({
 							/>
 						))}
 					</div>
-					<div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+					<div className="mt-4 flex flex-col gap-3 sm:hidden">
 						<FeaturedEventsSpotlightLink />
 						{hasMoreEvents && (
 							<div className="sm:shrink-0">
