@@ -19,11 +19,10 @@ import {
 	NATIONALITIES,
 	formatAge,
 	formatDayWithDate,
-	getEventExperienceCategoryDefinition,
 	formatLocationAreaShort,
 	formatPrice,
+	getResolvedEventExperienceCategoryDefinition,
 	getPartyEventTypeLabel,
-	isPartyEventType,
 	getEventDisplayDayNightPeriod,
 	getPriceMeta,
 } from "@/features/events/types";
@@ -92,11 +91,8 @@ export function EventCard({
 	const isNewlyAdded = isRecentlyAddedEvent(event);
 	const isRecentlyUpdated = !isNewlyAdded && isRecentlyUpdatedEvent(event);
 	const hasOOOCPick = event.isOOOCPick === true;
-	const isPartyTypeEvent = isPartyEventType(event.type);
 	const eventCategoryDefinition =
-		getEventExperienceCategoryDefinition(event.eventCategory) ??
-		getEventExperienceCategoryDefinition(event.category) ??
-		(isPartyTypeEvent ? getEventExperienceCategoryDefinition("party") : null);
+		getResolvedEventExperienceCategoryDefinition(event);
 	const dayNightPeriod = getEventDisplayDayNightPeriod(
 		event,
 		preferredDayNightPeriods,

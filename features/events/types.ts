@@ -104,6 +104,15 @@ export const getPartyEventTypeLabel = (
 			: "Fête";
 };
 
+export const getResolvedEventExperienceCategoryDefinition = (
+	event: Pick<Event, "type" | "eventCategory" | "category">,
+): EventExperienceCategoryDefinition | null =>
+	getEventExperienceCategoryDefinition(event.eventCategory) ??
+	getEventExperienceCategoryDefinition(event.category) ??
+	(isPartyEventType(event.type)
+		? getEventExperienceCategoryDefinition("party")
+		: null);
+
 const EVENT_EXPERIENCE_CATEGORY_ALIASES: Record<
 	string,
 	EventExperienceCategory

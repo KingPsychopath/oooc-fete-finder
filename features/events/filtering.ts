@@ -17,9 +17,8 @@ import {
 	formatEventExperienceCategory,
 	formatLocationAreaLong,
 	formatPrice,
-	isPartyEventType,
 	getEventDayNightPeriods,
-	getEventExperienceCategoryDefinition,
+	getResolvedEventExperienceCategoryDefinition,
 	getLocationAreaSortValue,
 	isAgeInRange,
 	isEventInDayNightPeriod,
@@ -129,11 +128,7 @@ export const getDefaultEventFilterState = (
 });
 
 const getEventCategoryDefinition = (event: Event) =>
-	getEventExperienceCategoryDefinition(event.eventCategory) ??
-	getEventExperienceCategoryDefinition(event.category) ??
-	(isPartyEventType(event.type)
-		? getEventExperienceCategoryDefinition("party")
-		: null);
+	getResolvedEventExperienceCategoryDefinition(event);
 
 export const getDateRangeAfterDefaultDateRangeChange = ({
 	currentDateRange,

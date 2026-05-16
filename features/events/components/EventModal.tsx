@@ -64,10 +64,9 @@ import {
 	type ParisArrondissement,
 	VENUE_TYPES,
 	formatDayWithDate,
-	formatEventExperienceCategory,
 	formatLocationAreaLong,
 	formatPrice,
-	getEventExperienceCategoryDefinition,
+	getResolvedEventExperienceCategoryDefinition,
 	getPartyEventTypeLabel,
 	isPartyEventType,
 	getPriceMeta,
@@ -254,17 +253,9 @@ const getDisplayGenreLabel = (genre: string) =>
 	MUSIC_GENRES.find((item) => item.key === genre)?.label || toGenreLabel(genre);
 
 const getEventCategoryLabelForSheet = (event: Event): string => {
-	const isPartyTypeEvent = isPartyEventType(event.type);
-	const partyLabel = "Party";
-	const formattedCategory = formatEventExperienceCategory(event.eventCategory);
-	if (formattedCategory) return formattedCategory;
-
-	const legacyFormattedCategory = event.category
-		? formatEventExperienceCategory(event.category)
-		: "";
-	if (legacyFormattedCategory) return legacyFormattedCategory;
-
-	return isPartyTypeEvent ? partyLabel : "";
+	const eventCategoryDefinition =
+		getResolvedEventExperienceCategoryDefinition(event);
+	return eventCategoryDefinition?.label ?? "";
 };
 
 const buildEventUpdateRequestForm = (event: Event): EventUpdateRequestForm => {
@@ -635,11 +626,8 @@ const EventModal: React.FC<EventModalProps> = ({
 	);
 	const isPartyTypeEvent = isPartyEventType(event.type);
 	const eventPartyTypeLabel = getPartyEventTypeLabel(event.type);
-	const eventCategoryDefinition = getEventExperienceCategoryDefinition(
-		event.eventCategory ??
-			event.category ??
-			(isPartyTypeEvent ? "party" : null),
-	);
+	const eventCategoryDefinition =
+		getResolvedEventExperienceCategoryDefinition(event);
 
 	const handleOpenLocation = async (
 		location: string,
@@ -1527,7 +1515,10 @@ const EventModal: React.FC<EventModalProps> = ({
 							)}
 							{isPartyTypeEvent ? (
 								eventPartyTypeLabel ? (
-									<Badge className="border-border/70 bg-background/50 hover:bg-background/55">
+									<Badge
+										variant="outline"
+										className="border-border/70 bg-background/50 text-foreground hover:bg-background/55"
+									>
 										<Clock className="mr-1 h-3 w-3" />
 										{eventPartyTypeLabel}
 									</Badge>
