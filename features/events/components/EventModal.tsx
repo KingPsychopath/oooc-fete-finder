@@ -65,6 +65,8 @@ import {
 	type ParisArrondissement,
 	VENUE_TYPES,
 	formatDayWithDate,
+	formatEventDateRangeLabel,
+	formatEventOccurrenceLabel,
 	formatPrice,
 	getEventLocationDisplay,
 	getPartyEventTypeLabel,
@@ -93,6 +95,8 @@ import {
 	CalendarPlus,
 	Check,
 	ChevronDown,
+	ChevronLeft,
+	ChevronRight,
 	CircleHelp,
 	Clock,
 	Copy,
@@ -129,6 +133,8 @@ interface EventModalProps {
 	socialProofMode?: SocialProofDisplayMode;
 	isSaved?: boolean;
 	onToggleSaved?: (event: Event) => boolean;
+	seriesEvents?: Event[];
+	onNavigateSeriesEvent?: (event: Event) => void;
 }
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -472,6 +478,8 @@ const EventModal: React.FC<EventModalProps> = ({
 	socialProofMode,
 	isSaved = false,
 	onToggleSaved,
+	seriesEvents = [],
+	onNavigateSeriesEvent,
 }) => {
 	const modalTitleId = useId();
 	const { mapPreference, setMapPreference, isLoaded } = useMapPreference();
@@ -667,6 +675,24 @@ const EventModal: React.FC<EventModalProps> = ({
 	const eventCategoryModalAccent = eventCategoryDefinition
 		? EVENT_CATEGORY_MODAL_ACCENTS[eventCategoryDefinition.key]
 		: null;
+	const dateRangeLabel = formatEventDateRangeLabel(event);
+	const occurrenceLabel = formatEventOccurrenceLabel(event);
+	const orderedSeriesEvents = seriesEvents
+		.filter((seriesEvent) => seriesEvent.seriesKey === event.seriesKey)
+		.sort((left, right) => left.date.localeCompare(right.date));
+	const activeSeriesIndex = orderedSeriesEvents.findIndex(
+		(seriesEvent) => seriesEvent.eventKey === event.eventKey,
+	);
+	const hasSeriesNavigation =
+		orderedSeriesEvents.length > 1 &&
+		activeSeriesIndex >= 0 &&
+		typeof onNavigateSeriesEvent === "function";
+	const previousSeriesEvent = hasSeriesNavigation
+		? orderedSeriesEvents.at(activeSeriesIndex - 1)
+		: undefined;
+	const nextSeriesEvent = hasSeriesNavigation
+		? orderedSeriesEvents.at(activeSeriesIndex + 1)
+		: undefined;
 
 	const handleOpenLocation = async (
 		location: string,
@@ -1629,6 +1655,12 @@ const EventModal: React.FC<EventModalProps> = ({
 							<p className="mt-0.5 break-words text-[13px] font-medium leading-snug sm:text-sm">
 								{formatDayWithDate(event.day, event.date)}
 							</p>
+							{dateRangeLabel && (
+								<p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+									{dateRangeLabel}
+									{occurrenceLabel ? ` · ${occurrenceLabel}` : ""}
+								</p>
+							)}
 						</div>
 						<div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
 							<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
@@ -1639,6 +1671,83 @@ const EventModal: React.FC<EventModalProps> = ({
 								{timeRange}
 							</p>
 						</div>
+						{(dateRangeLabel || orderedSeriesEvents.length > 1) && (
+							<div className="col-span-2 rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
+								<div className="flex items-center justify-between gap-2">
+									<p className="flex min-w-0 items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
+										<Calendar className="h-3.5 w-3.5" />
+										<span className="truncate">Event series</span>
+									</p>
+									{occurrenceLabel && (
+										<span className="shrink-0 text-[11px] font-medium text-muted-foreground">
+											{occurrenceLabel}
+										</span>
+									)}
+								</div>
+								{orderedSeriesEvents.length > 1 ? (
+									<div className="mt-2 flex items-center gap-1.5">
+										<Button
+											type="button"
+											size="sm"
+											variant="outline"
+											className="h-7 w-7 shrink-0 p-0"
+											disabled={!previousSeriesEvent}
+											onClick={() =>
+												previousSeriesEvent &&
+												onNavigateSeriesEvent?.(previousSeriesEvent)
+											}
+											aria-label="Open previous series date"
+										>
+											<ChevronLeft className="h-3.5 w-3.5" />
+										</Button>
+										<div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+											{orderedSeriesEvents.map((seriesEvent) => {
+												const isActive =
+													seriesEvent.eventKey === event.eventKey;
+												return (
+													<button
+														key={seriesEvent.eventKey}
+														type="button"
+														onClick={() =>
+															!isActive && onNavigateSeriesEvent?.(seriesEvent)
+														}
+														className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+															isActive
+																? "border-foreground bg-foreground text-background"
+																: "border-border/80 bg-background hover:bg-muted"
+														}`}
+														aria-current={isActive ? "date" : undefined}
+													>
+														{formatDayWithDate(
+															seriesEvent.day,
+															seriesEvent.date,
+														)}
+													</button>
+												);
+											})}
+										</div>
+										<Button
+											type="button"
+											size="sm"
+											variant="outline"
+											className="h-7 w-7 shrink-0 p-0"
+											disabled={!nextSeriesEvent}
+											onClick={() =>
+												nextSeriesEvent &&
+												onNavigateSeriesEvent?.(nextSeriesEvent)
+											}
+											aria-label="Open next series date"
+										>
+											<ChevronRight className="h-3.5 w-3.5" />
+										</Button>
+									</div>
+								) : (
+									<p className="mt-1 text-xs font-medium text-foreground">
+										{dateRangeLabel}
+									</p>
+								)}
+							</div>
+						)}
 						<div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
 							<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
 								<Euro className="h-3.5 w-3.5" />

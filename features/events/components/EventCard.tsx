@@ -19,6 +19,8 @@ import {
 	NATIONALITIES,
 	formatAge,
 	formatDayWithDate,
+	formatEventDateRangeLabel,
+	formatEventOccurrenceLabel,
 	formatPrice,
 	getEventDisplayDayNightPeriod,
 	getEventLocationDisplay,
@@ -31,6 +33,7 @@ import { clientLog } from "@/lib/platform/client-logger";
 import {
 	BookmarkCheck,
 	Building2,
+	CalendarDays,
 	Clock,
 	Crown,
 	Euro,
@@ -158,6 +161,8 @@ export function EventCard({
 		event.venueTypes && event.venueTypes.length > 0
 			? [...new Set(event.venueTypes)]
 			: [event.indoor ? "indoor" : "outdoor"];
+	const dateRangeLabel = formatEventDateRangeLabel(event);
+	const occurrenceLabel = formatEventOccurrenceLabel(event);
 	const cardClasses = `group relative h-full cursor-pointer rounded-xl border p-4 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-lg ${
 		isCurrentlyFeatured
 			? "border-amber-300/48 bg-[linear-gradient(145deg,rgba(248,238,222,0.82),rgba(244,229,205,0.66))] shadow-[0_14px_30px_-29px_rgba(176,124,54,0.42)] dark:border-amber-500/24 dark:bg-[linear-gradient(145deg,rgba(65,49,30,0.38),rgba(47,36,24,0.28))] dark:shadow-[0_16px_34px_-31px_rgba(224,169,85,0.28)]"
@@ -285,6 +290,15 @@ export function EventCard({
 						</span>
 					)}
 				</div>
+				{dateRangeLabel && (
+					<div className="flex items-center space-x-1">
+						<CalendarDays className="h-3 w-3 flex-shrink-0" />
+						<span className="truncate text-xs font-medium text-muted-foreground">
+							{dateRangeLabel}
+							{occurrenceLabel ? ` · ${occurrenceLabel}` : ""}
+						</span>
+					</div>
+				)}
 				{locationDisplay.cardLabel &&
 					locationDisplay.state !== "multiple-unlisted" && (
 						<div className="flex items-center space-x-1">

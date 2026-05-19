@@ -78,8 +78,11 @@ import {
 	ArrowUp,
 	CalendarDays,
 	Copy,
+	Eye,
+	EyeOff,
 	History,
 	Link2,
+	PanelRightOpen,
 	Plus,
 	RefreshCw,
 	Trash2,
@@ -271,6 +274,7 @@ const MAX_FROZEN_COLUMNS = 4;
 const AUTOSAVE_RETRY_BACKOFF_MS = 15_000;
 const CELL_EDIT_BATCH_WINDOW_MS = 140;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
+const ADVANCED_COLUMN_KEYS = new Set(["seriesKey", "eventKey"]);
 const DEFAULT_SORT_MODE: SheetSortMode = "soonest-upcoming";
 const CURATED_COLUMN_KEY = "curated";
 const EVENT_CATEGORY_COLUMN_KEY = "eventCategory";
@@ -1311,6 +1315,7 @@ export const EventSheetEditorCard = ({
 	const [newColumnLabel, setNewColumnLabel] = useState("");
 	const [displayLimit, setDisplayLimit] = useState(50);
 	const [pinnedColumnsCount, setPinnedColumnsCount] = useState(0);
+	const [showAdvancedColumns, setShowAdvancedColumns] = useState(false);
 	const [sortMode, setSortMode] = useState<SheetSortMode>(DEFAULT_SORT_MODE);
 	const [qualityFilter, setQualityFilter] = useState<RowQualityValue | null>(
 		null,
@@ -1389,6 +1394,7 @@ export const EventSheetEditorCard = ({
 	const [rangePreviewRowIndex, setRangePreviewRowIndex] = useState<
 		number | null
 	>(null);
+	const [detailRowIndex, setDetailRowIndex] = useState<number | null>(null);
 	const [activeCellDraft, setActiveCellDraft] = useState<CellDraft | null>(
 		null,
 	);
@@ -1493,6 +1499,14 @@ export const EventSheetEditorCard = ({
 	useEffect(() => {
 		columnsRef.current = columns;
 	}, [columns]);
+
+	const visibleColumns = useMemo(
+		() =>
+			showAdvancedColumns
+				? columns
+				: columns.filter((column) => !ADVANCED_COLUMN_KEYS.has(column.key)),
+		[columns, showAdvancedColumns],
+	);
 
 	useEffect(() => {
 		editingLockedRef.current = hasNewDeployment;
@@ -3752,12 +3766,14 @@ export const EventSheetEditorCard = ({
 		deltaRow: number,
 		deltaColumn: number,
 	) => {
-		const columnIndex = columns.findIndex((column) => column.key === columnKey);
+		const columnIndex = visibleColumns.findIndex(
+			(column) => column.key === columnKey,
+		);
 		if (columnIndex < 0) return;
 
 		const nextRowIndex = rowIndex + deltaRow;
 		const nextColumnIndex = columnIndex + deltaColumn;
-		const nextColumn = columns[nextColumnIndex];
+		const nextColumn = visibleColumns[nextColumnIndex];
 		if (!nextColumn) return;
 
 		const targetKey = cellRefKey(nextRowIndex, nextColumn.key);
@@ -3772,7 +3788,7 @@ export const EventSheetEditorCard = ({
 
 	const safePinnedCount = Math.max(
 		0,
-		Math.min(pinnedColumnsCount, columns.length, MAX_FROZEN_COLUMNS),
+		Math.min(pinnedColumnsCount, visibleColumns.length, MAX_FROZEN_COLUMNS),
 	);
 
 	const getPinnedColumnStyle = (
@@ -3839,6 +3855,51 @@ export const EventSheetEditorCard = ({
 	const rangePreviewDates = rangePreviewRow
 		? getEditableSheetDateRangeDates(rangePreviewRow, sheetDateContext)
 		: [];
+	const detailRow = detailRowIndex !== null ? rows[detailRowIndex] : undefined;
+	const detailCustomColumns = columns.filter(
+		(column) => !column.isCore && !ADVANCED_COLUMN_KEYS.has(column.key),
+	);
+	const renderDetailField = (
+		label: string,
+		columnKey: string,
+		options: { multiline?: boolean; readOnly?: boolean } = {},
+	): ReactNode => {
+		if (detailRowIndex === null || !detailRow) return null;
+		const value = detailRow[columnKey] ?? "";
+		const inputClassName =
+			"mt-1 w-full rounded-md border border-border/70 bg-background px-2 py-1.5 text-xs outline-none focus:border-ring";
+		return (
+			<label className="block text-xs font-medium text-foreground">
+				{label}
+				{options.multiline ? (
+					<textarea
+						value={value}
+						readOnly={options.readOnly}
+						onChange={(event) =>
+							handleCellChange(detailRowIndex, columnKey, event.target.value)
+						}
+						onBlur={() => commitStandardCell(detailRowIndex, columnKey)}
+						rows={4}
+						className={`${inputClassName} min-h-24 resize-y`}
+					/>
+				) : (
+					<input
+						value={value}
+						readOnly={options.readOnly}
+						onChange={(event) =>
+							handleCellChange(detailRowIndex, columnKey, event.target.value)
+						}
+						onBlur={() => commitStandardCell(detailRowIndex, columnKey)}
+						className={`${inputClassName} ${
+							options.readOnly
+								? "cursor-not-allowed bg-muted/35 text-muted-foreground"
+								: ""
+						}`}
+					/>
+				)}
+			</label>
+		);
+	};
 
 	if (!isAuthenticated) {
 		return null;
@@ -4680,6 +4741,153 @@ export const EventSheetEditorCard = ({
 						</DialogContent>
 					</Dialog>
 
+					<Dialog
+						open={detailRowIndex !== null}
+						onOpenChange={(open) => {
+							if (!open) setDetailRowIndex(null);
+						}}
+					>
+						<DialogContent className="top-0 right-0 left-auto h-dvh max-h-dvh w-[min(560px,100vw)] translate-x-0 translate-y-0 overflow-y-auto rounded-none border-y-0 border-r-0 p-5 sm:max-w-none sm:p-6">
+							<DialogHeader className="pr-10">
+								<DialogTitle className="text-xl">
+									Row {detailRowIndex !== null ? detailRowIndex + 1 : ""}{" "}
+									details
+								</DialogTitle>
+								<DialogDescription className="max-w-lg text-sm leading-relaxed">
+									Edit complex rows here without leaving the sheet. Changes save
+									back into the same row.
+								</DialogDescription>
+							</DialogHeader>
+
+							{detailRow && detailRowIndex !== null ? (
+								<div className="space-y-5">
+									<section className="space-y-3">
+										<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+											Identity
+										</div>
+										<div className="grid gap-3 sm:grid-cols-2">
+											{renderDetailField("Series Key", SERIES_KEY_COLUMN_KEY)}
+											{renderDetailField("Event Key", "eventKey", {
+												readOnly: true,
+											})}
+										</div>
+										<div className="flex flex-wrap gap-2">
+											<Button
+												type="button"
+												size="sm"
+												variant="outline"
+												onClick={() =>
+													generateSeriesKeyForCell(
+														detailRowIndex,
+														SERIES_KEY_COLUMN_KEY,
+													)
+												}
+											>
+												<RefreshCw className="mr-1 h-3.5 w-3.5" />
+												Generate series key
+											</Button>
+											<Button
+												type="button"
+												size="sm"
+												variant="outline"
+												onClick={() => {
+													setShowAdvancedColumns(true);
+													setDetailRowIndex(null);
+												}}
+											>
+												<Eye className="mr-1 h-3.5 w-3.5" />
+												Show key columns
+											</Button>
+										</div>
+									</section>
+
+									<section className="space-y-3">
+										<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+											Schedule
+										</div>
+										<div className="grid gap-3 sm:grid-cols-2">
+											{renderDetailField("Date", DATE_COLUMN_KEY)}
+											{renderDetailField("Date To", DATE_TO_COLUMN_KEY)}
+											{renderDetailField("Start Time", START_TIME_COLUMN_KEY)}
+											{renderDetailField("End Time", END_TIME_COLUMN_KEY)}
+										</div>
+										{getEditableSheetDateRangeDates(detailRow, sheetDateContext)
+											.length > 1 && (
+											<Button
+												type="button"
+												size="sm"
+												variant="outline"
+												onClick={() => {
+													setRangePreviewRowIndex(detailRowIndex);
+													setDetailRowIndex(null);
+												}}
+											>
+												<CalendarDays className="mr-1 h-3.5 w-3.5" />
+												Preview generated dates
+											</Button>
+										)}
+									</section>
+
+									<section className="space-y-3">
+										<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+											Location and links
+										</div>
+										<div className="grid gap-3">
+											{renderDetailField("Location", LOCATION_COLUMN_KEY)}
+											{renderDetailField("District/Area", AREA_COLUMN_KEY)}
+											{renderDetailField(
+												"Primary URL",
+												PRIMARY_URL_COLUMN_KEY,
+												{
+													multiline: true,
+												},
+											)}
+										</div>
+									</section>
+
+									<section className="space-y-3">
+										<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+											Classification
+										</div>
+										<div className="grid gap-3 sm:grid-cols-2">
+											{renderDetailField("Curated", CURATED_COLUMN_KEY)}
+											{renderDetailField(
+												"Event Category",
+												EVENT_CATEGORY_COLUMN_KEY,
+											)}
+											{renderDetailField("Categories", CATEGORY_COLUMN_KEY)}
+											{renderDetailField("Host Country", "hostCountry")}
+											{renderDetailField("Audience Country", "audienceCountry")}
+											{renderDetailField("Setting", SETTING_COLUMN_KEY)}
+											{renderDetailField("Age Guidance", AGE_COLUMN_KEY)}
+											{renderDetailField("Price", PRICE_COLUMN_KEY)}
+										</div>
+									</section>
+
+									<section className="space-y-3">
+										<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+											Notes and custom fields
+										</div>
+										{renderDetailField("Notes", "notes", { multiline: true })}
+										{detailCustomColumns.length > 0 && (
+											<div className="grid gap-3 sm:grid-cols-2">
+												{detailCustomColumns.map((column) => (
+													<div key={column.key}>
+														{renderDetailField(column.label, column.key)}
+													</div>
+												))}
+											</div>
+										)}
+									</section>
+								</div>
+							) : (
+								<div className="rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground">
+									No row selected.
+								</div>
+							)}
+						</DialogContent>
+					</Dialog>
+
 					<div className="space-y-3 rounded-md border bg-background/55 p-3">
 						<div className="grid items-end gap-3 xl:grid-cols-[minmax(280px,1fr)_220px_auto]">
 							<div className="space-y-2">
@@ -4873,14 +5081,14 @@ export const EventSheetEditorCard = ({
 										onClick={() =>
 											setPinnedColumnsCount((current) =>
 												Math.min(
-													columns.length,
+													visibleColumns.length,
 													MAX_FROZEN_COLUMNS,
 													current + 1,
 												),
 											)
 										}
 										disabled={
-											safePinnedCount >= columns.length ||
+											safePinnedCount >= visibleColumns.length ||
 											safePinnedCount >= MAX_FROZEN_COLUMNS
 										}
 										aria-label="Increase frozen columns"
@@ -4896,6 +5104,22 @@ export const EventSheetEditorCard = ({
 										disabled={safePinnedCount === 0}
 									>
 										Unfreeze
+									</Button>
+									<Button
+										type="button"
+										size="sm"
+										variant="ghost"
+										className="h-9 rounded-none border-l px-3"
+										onClick={() =>
+											setShowAdvancedColumns((current) => !current)
+										}
+									>
+										{showAdvancedColumns ? (
+											<EyeOff className="mr-1 h-3.5 w-3.5" />
+										) : (
+											<Eye className="mr-1 h-3.5 w-3.5" />
+										)}
+										{showAdvancedColumns ? "Hide keys" : "Show keys"}
 									</Button>
 								</div>
 							</div>
@@ -5313,7 +5537,7 @@ export const EventSheetEditorCard = ({
 						<table className="w-max min-w-full table-fixed border-separate border-spacing-0 text-xs">
 							<colgroup>
 								<col style={{ width: `${ROW_NUMBER_COLUMN_WIDTH}px` }} />
-								{columns.map((column) => (
+								{visibleColumns.map((column) => (
 									<col
 										key={`col-${column.key}`}
 										style={{ width: `${DATA_COLUMN_WIDTH}px` }}
@@ -5328,7 +5552,7 @@ export const EventSheetEditorCard = ({
 									>
 										Row
 									</th>
-									{columns.map((column, columnIndex) => (
+									{visibleColumns.map((column, columnIndex) => (
 										<th
 											key={column.key}
 											className="w-[170px] border-b border-r bg-background px-2 py-2 text-left align-top"
@@ -5397,7 +5621,7 @@ export const EventSheetEditorCard = ({
 														variant="ghost"
 														className="h-6 px-2 text-[10px]"
 														onClick={() => handleMoveColumn(column.key, 1)}
-														disabled={columnIndex === columns.length - 1}
+														disabled={columnIndex === visibleColumns.length - 1}
 													>
 														→
 													</Button>
@@ -5411,7 +5635,7 @@ export const EventSheetEditorCard = ({
 								{isLoading ? (
 									<tr>
 										<td
-											colSpan={columns.length + 1}
+											colSpan={visibleColumns.length + 1}
 											className="px-3 py-8 text-center text-muted-foreground"
 										>
 											Loading editor data...
@@ -5420,7 +5644,7 @@ export const EventSheetEditorCard = ({
 								) : visibleRowIndexes.length === 0 ? (
 									<tr>
 										<td
-											colSpan={columns.length + 1}
+											colSpan={visibleColumns.length + 1}
 											className="px-3 py-8 text-center text-muted-foreground"
 										>
 											No rows match your search.
@@ -5541,6 +5765,17 @@ export const EventSheetEditorCard = ({
 																type="button"
 																size="sm"
 																variant="ghost"
+																onClick={() => setDetailRowIndex(rowIndex)}
+																className="h-6 w-6 p-0"
+																aria-label={`Open row ${rowIndex + 1} details`}
+																title="Open row details"
+															>
+																<PanelRightOpen className="h-3.5 w-3.5" />
+															</Button>
+															<Button
+																type="button"
+																size="sm"
+																variant="ghost"
 																onClick={() => handleInsertRowBelow(rowIndex)}
 																className="h-6 w-6 p-0"
 																aria-label={`Insert row below ${rowIndex + 1}`}
@@ -5601,7 +5836,7 @@ export const EventSheetEditorCard = ({
 														</div>
 													</div>
 												</td>
-												{columns.map((column, columnIndex) => (
+												{visibleColumns.map((column, columnIndex) => (
 													<td
 														key={`row-${rowIndex}-${column.key}`}
 														className={`w-[170px] border-b border-r p-0 ${

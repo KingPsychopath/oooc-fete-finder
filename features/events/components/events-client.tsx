@@ -189,12 +189,7 @@ function EventsClientShell({
 		if (!isAuthResolved || !isAuthenticated || hasMountedTourIsland) return;
 		if (shouldSuppressFeteFinderTourPrompt()) return;
 		mountTourIsland();
-	}, [
-		hasMountedTourIsland,
-		isAuthResolved,
-		isAuthenticated,
-		mountTourIsland,
-	]);
+	}, [hasMountedTourIsland, isAuthResolved, isAuthenticated, mountTourIsland]);
 
 	useEffect(() => {
 		if (!isOnline) return;
@@ -234,6 +229,12 @@ function EventsClientShell({
 			events.map((event) => [event.eventKey.toLowerCase(), event]),
 		);
 	}, [events]);
+	const selectedSeriesEvents = useMemo(() => {
+		if (!selectedEvent?.seriesKey) return [];
+		return events
+			.filter((event) => event.seriesKey === selectedEvent.seriesKey)
+			.sort((left, right) => left.date.localeCompare(right.date));
+	}, [events, selectedEvent?.seriesKey]);
 
 	useEffect(() => {
 		setSelectedEvent((current) => {
@@ -432,6 +433,29 @@ function EventsClientShell({
 		},
 		[buildEventPath, isAuthenticated, searchParams, updateUrlWithoutNavigation],
 	);
+	const handleSeriesEventNavigate = useCallback(
+		(event: Event) => {
+			setSelectedEvent((current) =>
+				current?.eventKey === event.eventKey ? current : event,
+			);
+			const currentParams =
+				typeof window !== "undefined"
+					? new URLSearchParams(window.location.search)
+					: new URLSearchParams(searchParams.toString());
+			currentParams.delete(REQUEST_UPDATE_PARAM);
+			updateUrlWithoutNavigation(
+				buildEventPath(event, currentParams),
+				"replace",
+			);
+			void requestEventDetails(event.eventKey);
+		},
+		[
+			buildEventPath,
+			requestEventDetails,
+			searchParams,
+			updateUrlWithoutNavigation,
+		],
+	);
 
 	const handleEventClose = useCallback(() => {
 		setSelectedEvent((current) => (current ? null : current));
@@ -566,6 +590,8 @@ function EventsClientShell({
 				isRequestUpdateOpen={isRequestUpdateOpen}
 				onClose={handleEventClose}
 				onRequestUpdateOpenChange={handleRequestUpdateOpenChange}
+				seriesEvents={selectedSeriesEvents}
+				onNavigateSeriesEvent={handleSeriesEventNavigate}
 			/>
 
 			<ScrollToTopButton

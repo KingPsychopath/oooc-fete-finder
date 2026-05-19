@@ -1398,6 +1398,52 @@ export const formatDayWithDate = (day: EventDay, isoDate: string): string => {
 	return `${capitalizedDay} ${dayNumber}${getOrdinalSuffix(dayNumber)}`;
 };
 
+const parseIsoDateOnly = (isoDate: string | undefined): Date | null => {
+	if (!isoDate) return null;
+	const trimmedDate = isoDate.trim();
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) return null;
+	const parsed = new Date(`${trimmedDate}T00:00:00.000Z`);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatRangeDatePart = (
+	date: Date,
+	options: { includeMonth: boolean; includeYear: boolean },
+): string =>
+	new Intl.DateTimeFormat("en-GB", {
+		day: "numeric",
+		month: options.includeMonth ? "short" : undefined,
+		year: options.includeYear ? "numeric" : undefined,
+		timeZone: "UTC",
+	}).format(date);
+
+export const formatEventDateRangeLabel = (event: Event): string | null => {
+	if ((event.occurrenceCount ?? 1) <= 1) return null;
+	const start = parseIsoDateOnly(event.dateRangeStart);
+	const end = parseIsoDateOnly(event.dateRangeEnd);
+	if (!start || !end || end.getTime() <= start.getTime()) return null;
+
+	const sameMonth =
+		start.getUTCFullYear() === end.getUTCFullYear() &&
+		start.getUTCMonth() === end.getUTCMonth();
+	const sameYear = start.getUTCFullYear() === end.getUTCFullYear();
+	const startLabel = formatRangeDatePart(start, {
+		includeMonth: !sameMonth,
+		includeYear: !sameYear,
+	});
+	const endLabel = formatRangeDatePart(end, {
+		includeMonth: true,
+		includeYear: !sameYear,
+	});
+	return `${startLabel}-${endLabel}`;
+};
+
+export const formatEventOccurrenceLabel = (event: Event): string | null => {
+	const count = event.occurrenceCount ?? 1;
+	if (count <= 1 || event.occurrenceIndex === undefined) return null;
+	return `Day ${event.occurrenceIndex + 1} of ${count}`;
+};
+
 export const VENUE_TYPES = [
 	{ key: "indoor" as const, label: "Indoor", icon: "🏢" },
 	{ key: "outdoor" as const, label: "Outdoor", icon: "🌤️" },

@@ -13,6 +13,8 @@ interface EventModalIslandProps {
 	onClose: () => void;
 	onRequestUpdateOpenChange: (open: boolean) => void;
 	submissionsEnabled: boolean;
+	seriesEvents?: Event[];
+	onNavigateSeriesEvent?: (event: Event) => void;
 }
 
 export function EventModalIsland({
@@ -22,6 +24,8 @@ export function EventModalIsland({
 	onClose,
 	onRequestUpdateOpenChange,
 	submissionsEnabled,
+	seriesEvents = [],
+	onNavigateSeriesEvent,
 }: EventModalIslandProps) {
 	const { socialProofDisplayModes } = useEventsSearchFilters();
 	const { isEventSaved, toggleSavedEvent } = useSavedEvents();
@@ -45,6 +49,8 @@ export function EventModalIsland({
 			onToggleSaved={(selectedEvent) =>
 				toggleSavedEvent(selectedEvent, "modal_save_button")
 			}
+			seriesEvents={seriesEvents}
+			onNavigateSeriesEvent={onNavigateSeriesEvent}
 		/>
 	);
 }
