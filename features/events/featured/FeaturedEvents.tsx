@@ -12,9 +12,9 @@ import {
 	NATIONALITIES,
 	formatAge,
 	formatDayWithDate,
-	formatLocationAreaShort,
 	formatPrice,
 	getEventDisplayDayNightPeriod,
+	getEventLocationDisplay,
 	getPartyEventTypeLabel,
 	getPriceMeta,
 } from "@/features/events/types";
@@ -66,7 +66,12 @@ function SpotlightEventPanel({
 	);
 	const priceLabel = formatPrice(event.price);
 	const priceMeta = getPriceMeta(event.price);
-	const areaLabel = formatLocationAreaShort(event.arrondissement);
+	const locationDisplay = getEventLocationDisplay(event);
+	const areaLabel = locationDisplay.areaShortLabel;
+	const cardLocationLabel =
+		locationDisplay.state === "multiple-unlisted"
+			? undefined
+			: locationDisplay.cardLabel;
 	const isFeaturedPlacement = event.isFeatured === true;
 	const isOOOCPick = event.isOOOCPick === true;
 	const isPromoted = event.isPromoted === true;
@@ -245,7 +250,7 @@ function SpotlightEventPanel({
 								</span>
 							)}
 						</div>
-						{(event.location || areaLabel) && (
+						{(cardLocationLabel || areaLabel) && (
 							<div
 								className={cn(
 									"flex min-w-0 max-w-full items-center gap-2",
@@ -254,10 +259,12 @@ function SpotlightEventPanel({
 							>
 								<MapPin className="h-4 w-4 shrink-0 text-amber-800/70 dark:text-amber-100/60" />
 								<span className="inline-flex min-w-0 flex-1 items-center gap-1.5">
-									{event.location && event.location !== "TBA" && (
-										<span className="min-w-0 truncate">{event.location}</span>
+									{cardLocationLabel && (
+										<span className="min-w-0 truncate">
+											{cardLocationLabel}
+										</span>
 									)}
-									{event.location && event.location !== "TBA" && areaLabel && (
+									{cardLocationLabel && areaLabel && (
 										<span className="shrink-0 text-muted-foreground/58">·</span>
 									)}
 									{areaLabel && (

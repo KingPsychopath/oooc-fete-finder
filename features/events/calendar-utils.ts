@@ -1,5 +1,9 @@
 import { parseISODateParts } from "@/features/events/date-utils";
-import { formatPrice, type Event } from "@/features/events/types";
+import {
+	type Event,
+	formatPrice,
+	getEventLocationDisplay,
+} from "@/features/events/types";
 import { clientLog } from "@/lib/platform/client-logger";
 
 export const isCalendarDateValid = (isoDate: string): boolean =>
@@ -81,13 +85,14 @@ export function generateICSContent(event: Event): string {
 	// Prepare event details
 	const summary = event.name.replace(/[,;\\]/g, "\\$&");
 	const description = createEventDescription(event);
+	const locationDisplay = getEventLocationDisplay(event);
 	const location =
-		event.location && event.location !== "TBA"
-			? `${event.location}, ${event.arrondissement}e Arrondissement, Paris, France`.replace(
+		locationDisplay.state === "single" && locationDisplay.singleLocation
+			? `${locationDisplay.singleLocation}, ${locationDisplay.areaLongLabel}, Paris, France`.replace(
 					/[,;\\]/g,
 					"\\$&",
 				)
-			: `${event.arrondissement}e Arrondissement, Paris, France`;
+			: locationDisplay.areaLongLabel.replace(/[,;\\]/g, "\\$&");
 
 	const uid = `oooc-${event.name.replace(/\s+/g, "-").toLowerCase()}-${event.date}@oooc-fete-finder.com`;
 

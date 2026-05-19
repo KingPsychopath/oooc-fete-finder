@@ -9,6 +9,8 @@ import {
 	MUSIC_GENRES,
 	getEventDayNightPeriods,
 	getPriceMeta,
+	isLocationTbcValue,
+	isMultipleLocationPlaceholderValue,
 } from "@/features/events/types";
 import { shouldDisplayFeaturedEvent } from "./featured/utils/timestamp-utils";
 import { DEFAULT_SEARCH_EXAMPLES } from "./search-defaults";
@@ -225,6 +227,8 @@ const buildCandidates = (events: Event[]): SearchChipCandidate[] => {
 		const location = event.location?.replace(/\s+/g, " ").trim();
 		if (
 			location &&
+			!isLocationTbcValue(location) &&
+			!isMultipleLocationPlaceholderValue(location) &&
 			location.length >= 3 &&
 			location.length <= MAX_PUBLIC_LABEL_LENGTH
 		) {

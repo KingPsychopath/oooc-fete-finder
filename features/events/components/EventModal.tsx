@@ -65,8 +65,8 @@ import {
 	type ParisArrondissement,
 	VENUE_TYPES,
 	formatDayWithDate,
-	formatLocationAreaLong,
 	formatPrice,
+	getEventLocationDisplay,
 	getPartyEventTypeLabel,
 	getPriceMeta,
 	getResolvedEventExperienceCategoryDefinition,
@@ -1318,15 +1318,11 @@ const EventModal: React.FC<EventModalProps> = ({
 	const hasHiddenCountries =
 		hostCountries.length > mobileCountryPreviewLimit ||
 		audienceCountries.length > mobileCountryPreviewLimit;
-	const locationLabel = formatLocationAreaLong(event.arrondissement);
-	const eventLocations = event.locations?.length ? event.locations : [];
-	const hasMultipleLocations =
-		event.arrondissement === "multiple-locations" || eventLocations.length > 1;
-	const canOpenSingleLocation =
-		Boolean(event.location) &&
-		event.location !== "TBA" &&
-		event.location !== "TBC" &&
-		event.location !== "Multiple locations";
+	const locationDisplay = getEventLocationDisplay(event);
+	const locationLabel = locationDisplay.areaLongLabel;
+	const eventLocations = locationDisplay.listedLocations;
+	const canOpenSingleLocation = locationDisplay.canOpenSingleLocation;
+	const canOpenAnyLocation = locationDisplay.canOpenAnyLocation;
 	const priceLabel = formatPrice(event.price);
 	const priceMeta = getPriceMeta(event.price);
 	const ageLabel = event.age || "All ages";
@@ -1808,34 +1804,36 @@ const EventModal: React.FC<EventModalProps> = ({
 									<MapPin className="h-3.5 w-3.5" />
 									<span>{locationLabel}</span>
 								</p>
-								<TooltipProvider>
-									<Tooltip>
-										<TooltipTrigger
-											render={
-												<Button
-													variant="outline"
-													size="sm"
-													onClick={() => setShowMapSettings(!showMapSettings)}
-													className="h-6.5 px-2 text-[10px]"
-												/>
-											}
-										>
-											<Settings className="mr-1 h-3 w-3" />
-											Map
-										</TooltipTrigger>
-										<TooltipContent>
-											<p>Map preferences</p>
-										</TooltipContent>
-									</Tooltip>
-								</TooltipProvider>
+								{canOpenAnyLocation && (
+									<TooltipProvider>
+										<Tooltip>
+											<TooltipTrigger
+												render={
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => setShowMapSettings(!showMapSettings)}
+														className="h-6.5 px-2 text-[10px]"
+													/>
+												}
+											>
+												<Settings className="mr-1 h-3 w-3" />
+												Map
+											</TooltipTrigger>
+											<TooltipContent>
+												<p>Map preferences</p>
+											</TooltipContent>
+										</Tooltip>
+									</TooltipProvider>
+								)}
 							</div>
-							{hasMultipleLocations && eventLocations.length > 1 ? (
+							{locationDisplay.state === "multiple-listed" ? (
 								<div className="mt-1.5 space-y-1.5">
 									{eventLocations.map((location, locationIndex) => (
 										<button
 											key={`${location}-${locationIndex}`}
 											onClick={() =>
-												handleOpenLocation(location, event.arrondissement, null)
+												handleOpenLocation(location, undefined, null)
 											}
 											className="inline-flex min-h-[32px] w-full items-center justify-between rounded-md border border-border/70 bg-background/80 px-2.5 text-left text-sm text-primary underline-offset-4 transition-colors hover:bg-accent hover:underline dark:bg-white/[0.03] dark:hover:bg-white/[0.08]"
 											title={`Open "${location}" in maps`}
@@ -1848,32 +1846,41 @@ const EventModal: React.FC<EventModalProps> = ({
 										</button>
 									))}
 								</div>
-							) : canOpenSingleLocation ? (
+							) : canOpenSingleLocation && locationDisplay.singleLocation ? (
 								<button
 									onClick={() =>
 										handleOpenLocation(
-											event.location!,
+											locationDisplay.singleLocation!,
 											event.arrondissement,
 											event.locationResolution,
 										)
 									}
 									className="mt-1.5 inline-flex min-h-[32px] w-full items-center justify-between rounded-md border border-border/70 bg-background/80 px-2.5 text-left text-sm text-primary underline-offset-4 transition-colors hover:bg-accent hover:underline dark:bg-white/[0.03] dark:hover:bg-white/[0.08]"
-									title={`Open "${event.location}" in maps`}
+									title={`Open "${locationDisplay.singleLocation}" in maps`}
 								>
-									<span className="truncate">{event.location}</span>
+									<span className="truncate">
+										{locationDisplay.singleLocation}
+									</span>
 									<span className="ml-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.1em] text-primary">
 										Open map
 										<ExternalLink className="h-3 w-3" />
 									</span>
 								</button>
 							) : (
-								<Badge variant="outline" className="mt-1.5">
-									{hasMultipleLocations ? "Multiple locations" : "Location TBA"}
-								</Badge>
+								<div className="mt-1.5 space-y-1">
+									<Badge variant="outline">
+										{locationDisplay.state === "multiple-unlisted"
+											? "Multiple locations"
+											: "Location TBC"}
+									</Badge>
+									<p className="text-xs text-muted-foreground">
+										{locationDisplay.modalLabel}
+									</p>
+								</div>
 							)}
 						</div>
 
-						{showMapSettings && (
+						{showMapSettings && canOpenAnyLocation && (
 							<div className="col-span-2 mt-1 border-t border-border/60 pt-2.5">
 								<MapPreferenceSettings
 									compact={true}

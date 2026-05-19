@@ -19,12 +19,12 @@ import {
 	NATIONALITIES,
 	formatAge,
 	formatDayWithDate,
-	formatLocationAreaShort,
 	formatPrice,
-	getResolvedEventExperienceCategoryDefinition,
-	getPartyEventTypeLabel,
 	getEventDisplayDayNightPeriod,
+	getEventLocationDisplay,
+	getPartyEventTypeLabel,
 	getPriceMeta,
+	getResolvedEventExperienceCategoryDefinition,
 } from "@/features/events/types";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { clientLog } from "@/lib/platform/client-logger";
@@ -138,7 +138,8 @@ export function EventCard({
 		socialProofSaveCount,
 		socialProofHistoricalSaveCount,
 	);
-	const areaLabel = formatLocationAreaShort(event.arrondissement);
+	const locationDisplay = getEventLocationDisplay(event);
+	const areaLabel = locationDisplay.areaShortLabel;
 	const { visibleGenres, hiddenGenreCount } = getGenrePreview(
 		event.genre,
 		genreFrequency,
@@ -284,24 +285,27 @@ export function EventCard({
 						</span>
 					)}
 				</div>
-				{event.location && event.location !== "TBA" && (
-					<div className="flex items-center space-x-1">
-						<MapPin className="h-3 w-3 flex-shrink-0" />
-						<span className="truncate flex-1 min-w-0">{event.location}</span>
-						<span className="inline-flex flex-shrink-0 items-center gap-1 text-muted-foreground">
-							{venueTypes.includes("indoor") && (
-								<span title="Indoor event">
-									<Building2 className="h-3.5 w-3.5" />
-								</span>
-							)}
-							{venueTypes.includes("outdoor") && (
-								<span title="Outdoor event">
-									<Trees className="h-3.5 w-3.5" />
-								</span>
-							)}
-						</span>
-					</div>
-				)}
+				{locationDisplay.cardLabel &&
+					locationDisplay.state !== "multiple-unlisted" && (
+						<div className="flex items-center space-x-1">
+							<MapPin className="h-3 w-3 flex-shrink-0" />
+							<span className="truncate flex-1 min-w-0">
+								{locationDisplay.cardLabel}
+							</span>
+							<span className="inline-flex flex-shrink-0 items-center gap-1 text-muted-foreground">
+								{venueTypes.includes("indoor") && (
+									<span title="Indoor event">
+										<Building2 className="h-3.5 w-3.5" />
+									</span>
+								)}
+								{venueTypes.includes("outdoor") && (
+									<span title="Outdoor event">
+										<Trees className="h-3.5 w-3.5" />
+									</span>
+								)}
+							</span>
+						</div>
+					)}
 				{proximityLabel && (
 					<div className="flex items-center space-x-1 text-sky-800 dark:text-sky-200">
 						<LocateFixed className="h-3 w-3 flex-shrink-0" />

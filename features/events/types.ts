@@ -355,6 +355,104 @@ export type Event = {
 	category?: EventCategory;
 };
 
+export type EventLocationDisplayState =
+	| "single"
+	| "multiple-listed"
+	| "multiple-unlisted"
+	| "tbc";
+
+export type EventLocationDisplay = {
+	state: EventLocationDisplayState;
+	areaShortLabel: string;
+	areaLongLabel: string;
+	cardLabel?: string;
+	modalLabel: string;
+	listedLocations: string[];
+	singleLocation?: string;
+	canOpenSingleLocation: boolean;
+	canOpenAnyLocation: boolean;
+};
+
+export const isLocationTbcValue = (value: string | undefined): boolean => {
+	if (!value) return true;
+	const normalized = value.trim().toLowerCase();
+	return (
+		normalized === "" ||
+		normalized === "tba" ||
+		normalized === "tbc" ||
+		normalized === "location tba" ||
+		normalized === "location tbc"
+	);
+};
+
+export const isMultipleLocationPlaceholderValue = (
+	value: string | undefined,
+): boolean => value?.trim().toLowerCase() === "multiple locations";
+
+export const getEventLocationDisplay = (
+	event: Pick<Event, "arrondissement" | "location" | "locations">,
+): EventLocationDisplay => {
+	const listedLocations = (event.locations ?? [])
+		.map((location) => location.trim())
+		.filter(Boolean);
+	const hasListedLocations = listedLocations.length > 1;
+	const isMultipleLocation =
+		event.arrondissement === "multiple-locations" ||
+		isMultipleLocationPlaceholderValue(event.location) ||
+		hasListedLocations;
+
+	if (hasListedLocations) {
+		return {
+			state: "multiple-listed",
+			areaShortLabel: "Multiple",
+			areaLongLabel: "Multiple Locations",
+			cardLabel: `${listedLocations.length} locations`,
+			modalLabel: `${listedLocations.length} locations listed`,
+			listedLocations,
+			canOpenSingleLocation: false,
+			canOpenAnyLocation: true,
+		};
+	}
+
+	if (isMultipleLocation) {
+		return {
+			state: "multiple-unlisted",
+			areaShortLabel: "Multiple",
+			areaLongLabel: "Multiple Locations",
+			modalLabel: "Several venues; exact list not provided",
+			listedLocations: [],
+			canOpenSingleLocation: false,
+			canOpenAnyLocation: false,
+		};
+	}
+
+	if (isLocationTbcValue(event.location)) {
+		return {
+			state: "tbc",
+			areaShortLabel: "TBC",
+			areaLongLabel: "Location TBC",
+			modalLabel: "Exact location not announced yet",
+			listedLocations: [],
+			canOpenSingleLocation: false,
+			canOpenAnyLocation: false,
+		};
+	}
+
+	const singleLocation = event.location?.trim();
+
+	return {
+		state: "single",
+		areaShortLabel: formatLocationAreaShort(event.arrondissement),
+		areaLongLabel: formatLocationAreaLong(event.arrondissement),
+		cardLabel: singleLocation,
+		modalLabel: singleLocation ?? "Location TBC",
+		listedLocations: [],
+		singleLocation,
+		canOpenSingleLocation: Boolean(singleLocation),
+		canOpenAnyLocation: Boolean(singleLocation),
+	};
+};
+
 // CSV data type matching the structure in ooc_list_tracker.csv
 export type CSVEventRow = {
 	eventKey: string;
