@@ -60,7 +60,6 @@ const getRowEventKey = (row: EventSheetRowRecord): string | null => {
 };
 
 const MEANINGFUL_EVENT_FIELDS = [
-	"seriesKey",
 	"curated",
 	"eventCategory",
 	"hostCountry",
@@ -83,14 +82,61 @@ const MEANINGFUL_EVENT_FIELDS = [
 	"detailsQualityOverride",
 ] as const;
 
+const LEGACY_MEANINGFUL_EVENT_FIELD_SETS = [
+	[
+		"seriesKey",
+		"curated",
+		"eventCategory",
+		"hostCountry",
+		"audienceCountry",
+		"title",
+		"date",
+		"dateTo",
+		"startTime",
+		"endTime",
+		"location",
+		"districtArea",
+		"categories",
+		"tags",
+		"price",
+		"primaryUrl",
+		"ageGuidance",
+		"setting",
+		"notes",
+		"sourceConfirmed",
+		"detailsQualityOverride",
+	],
+	[
+		"curated",
+		"hostCountry",
+		"audienceCountry",
+		"title",
+		"date",
+		"startTime",
+		"endTime",
+		"location",
+		"districtArea",
+		"categories",
+		"tags",
+		"price",
+		"primaryUrl",
+		"ageGuidance",
+		"setting",
+		"notes",
+		"sourceConfirmed",
+		"detailsQualityOverride",
+	],
+] as const;
+
 const normalizeMeaningfulValue = (value: string | undefined): string =>
 	(value ?? "").trim().replace(/\s+/g, " ");
 
-export const buildMeaningfulEventRowHash = (
+const buildMeaningfulEventRowHashForFields = (
 	row: EventSheetRowRecord,
+	fields: readonly string[],
 ): string => {
 	const payload = Object.fromEntries(
-		MEANINGFUL_EVENT_FIELDS.map((field) => [
+		fields.map((field) => [
 			field,
 			normalizeMeaningfulValue(row[field]),
 		]),
@@ -99,6 +145,21 @@ export const buildMeaningfulEventRowHash = (
 		.update(JSON.stringify(payload))
 		.digest("hex")
 		.slice(0, 16);
+};
+
+export const buildMeaningfulEventRowHash = (
+	row: EventSheetRowRecord,
+): string => buildMeaningfulEventRowHashForFields(row, MEANINGFUL_EVENT_FIELDS);
+
+export const isCompatibleMeaningfulEventRowHash = (
+	hash: string | null | undefined,
+	row: EventSheetRowRecord,
+): boolean => {
+	if (!hash) return false;
+	if (hash === buildMeaningfulEventRowHash(row)) return true;
+	return LEGACY_MEANINGFUL_EVENT_FIELD_SETS.some(
+		(fields) => hash === buildMeaningfulEventRowHashForFields(row, fields),
+	);
 };
 
 export class EventSheetStoreRepository {
@@ -405,7 +466,10 @@ export class EventSheetStoreRepository {
 				: defaultFirstSeenAt;
 			const lastMeaningfulChangeAt =
 				baseline?.publicContentHash &&
-				baseline.publicContentHash !== publicContentHash
+				!isCompatibleMeaningfulEventRowHash(
+					baseline.publicContentHash,
+					normalizedRow,
+				)
 					? nowIso
 					: (baseline?.lastMeaningfulChangeAt ?? firstSeenAt);
 			return {

@@ -9,6 +9,7 @@ import {
 	type EventStoreOrigin,
 	buildMeaningfulEventRowHash,
 	getEventSheetStoreRepository,
+	isCompatibleMeaningfulEventRowHash,
 } from "@/lib/platform/postgres/event-sheet-store-repository";
 import Papa from "papaparse";
 import { ensureUniqueEventKeys } from "./assembly/event-key";
@@ -367,7 +368,8 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 					defaultFirstSeenAt;
 				const lastMeaningfulChangeAt =
 					baseline?.publicContentHash &&
-					baseline.publicContentHash !== publicContentHash
+					row &&
+					!isCompatibleMeaningfulEventRowHash(baseline.publicContentHash, row)
 						? nowIso
 						: (baseline?.lastMeaningfulChangeAt ?? firstSeenAt);
 				return {

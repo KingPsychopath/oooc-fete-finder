@@ -1,4 +1,7 @@
-import { buildMeaningfulEventRowHash } from "@/lib/platform/postgres/event-sheet-store-repository";
+import {
+	buildMeaningfulEventRowHash,
+	isCompatibleMeaningfulEventRowHash,
+} from "@/lib/platform/postgres/event-sheet-store-repository";
 import { describe, expect, it } from "vitest";
 
 describe("event row metadata", () => {
@@ -49,5 +52,45 @@ describe("event row metadata", () => {
 		});
 
 		expect(updated).toBe(base);
+	});
+
+	it("does not treat series key changes as public content edits", () => {
+		const base = buildMeaningfulEventRowHash({
+			eventKey: "evt_1",
+			seriesKey: "ser_first",
+			title: "Fete Party",
+			price: "€20",
+		});
+		const updated = buildMeaningfulEventRowHash({
+			eventKey: "evt_1",
+			seriesKey: "ser_second",
+			title: "Fete Party",
+			price: "€20",
+		});
+
+		expect(updated).toBe(base);
+	});
+
+	it("accepts old public-content hash versions as compatible", () => {
+		expect(
+			isCompatibleMeaningfulEventRowHash("3eaf96f3b347c3d3", {
+				eventKey: "evt_1",
+				seriesKey: "ser_first",
+				eventCategory: "Party",
+				title: "Fete Party",
+				price: "€20",
+			}),
+		).toBe(false);
+
+		const hashFromVersionThatIncludedSeriesKey = "e10f30c0d7f1a9a6";
+		expect(
+			isCompatibleMeaningfulEventRowHash(hashFromVersionThatIncludedSeriesKey, {
+				eventKey: "evt_1",
+				seriesKey: "ser_first",
+				eventCategory: "Party",
+				title: "Fete Party",
+				price: "€20",
+			}),
+		).toBe(true);
 	});
 });
