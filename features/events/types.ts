@@ -441,7 +441,7 @@ export const getEventLocationDisplay = (
 			state: "multiple-unlisted",
 			areaShortLabel: "Multi-site",
 			areaLongLabel: "Multiple Locations",
-			sectionLabel: "Location",
+			sectionLabel: "Multiple locations",
 			modalLabel: "Exact venue list not provided",
 			listedLocations: [],
 			listedLocationEntries: [],

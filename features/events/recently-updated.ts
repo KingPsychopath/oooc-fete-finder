@@ -1,6 +1,6 @@
 import type { Event } from "./types";
 
-export const UPDATED_EVENT_WINDOW_DAYS = 4;
+export const UPDATED_EVENT_WINDOW_DAYS = 3;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 

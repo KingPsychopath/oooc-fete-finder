@@ -8,13 +8,13 @@ import { describe, expect, it } from "vitest";
 describe("recently updated events", () => {
 	const now = new Date("2026-05-08T12:00:00.000Z");
 
-	it("uses a four day update window", () => {
-		expect(UPDATED_EVENT_WINDOW_DAYS).toBe(4);
+	it("uses a three day update window", () => {
+		expect(UPDATED_EVENT_WINDOW_DAYS).toBe(3);
 		expect(
 			isRecentlyUpdatedEvent(
 				{
 					firstSeenAt: "2026-04-20T12:00:00.000Z",
-					lastMeaningfulChangeAt: "2026-05-04T12:00:00.000Z",
+					lastMeaningfulChangeAt: "2026-05-05T12:00:00.000Z",
 				},
 				now,
 			),
@@ -23,7 +23,7 @@ describe("recently updated events", () => {
 			isRecentlyUpdatedEvent(
 				{
 					firstSeenAt: "2026-04-20T12:00:00.000Z",
-					lastMeaningfulChangeAt: "2026-05-04T11:59:59.999Z",
+					lastMeaningfulChangeAt: "2026-05-05T11:59:59.999Z",
 				},
 				now,
 			),

@@ -378,6 +378,14 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 				const existing = existingMetadataByEventKey.get(eventKey);
 				const supplied = suppliedMetadataByEventKey.get(eventKey);
 				const baseline = supplied ?? existing;
+				const hasMeaningfulChange = existingRow
+					? !unchangedPublicContent
+					: row
+						? !isCompatibleMeaningfulEventRowHash(
+								baseline?.publicContentHash,
+								row,
+							)
+						: false;
 				const firstSeenAt =
 					baseline?.firstSeenAt ??
 					existingFirstSeenAtByEventKey.get(eventKey) ??
@@ -385,8 +393,7 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 				const lastMeaningfulChangeAt =
 					baseline?.publicContentHash &&
 					row &&
-					!unchangedPublicContent &&
-					!isCompatibleMeaningfulEventRowHash(baseline.publicContentHash, row)
+					hasMeaningfulChange
 						? nowIso
 						: (baseline?.lastMeaningfulChangeAt ?? firstSeenAt);
 				return {

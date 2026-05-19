@@ -487,6 +487,12 @@ export class EventSheetStoreRepository {
 				? suppliedMetadataByEventKey.get(eventKey)
 				: undefined;
 			const baseline = supplied ?? existing;
+			const hasMeaningfulChange = existingRow
+				? !unchangedPublicContent
+				: !isCompatibleMeaningfulEventRowHash(
+						baseline?.publicContentHash,
+						normalizedRow,
+					);
 			const firstSeenAt = eventKey
 				? (baseline?.firstSeenAt ??
 					firstSeenAtByEventKey.get(eventKey) ??
@@ -494,11 +500,7 @@ export class EventSheetStoreRepository {
 				: defaultFirstSeenAt;
 			const lastMeaningfulChangeAt =
 				baseline?.publicContentHash &&
-				!unchangedPublicContent &&
-				!isCompatibleMeaningfulEventRowHash(
-					baseline.publicContentHash,
-					normalizedRow,
-				)
+				hasMeaningfulChange
 					? nowIso
 					: (baseline?.lastMeaningfulChangeAt ?? firstSeenAt);
 			return {

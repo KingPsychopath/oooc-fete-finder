@@ -11,7 +11,7 @@ describe("getEventLocationDisplay", () => {
 		expect(display.state).toBe("multiple-unlisted");
 		expect(display.areaShortLabel).toBe("Multi-site");
 		expect(display.areaLongLabel).toBe("Multiple Locations");
-		expect(display.sectionLabel).toBe("Location");
+		expect(display.sectionLabel).toBe("Multiple locations");
 		expect(display.modalLabel).toBe("Exact venue list not provided");
 	});
 

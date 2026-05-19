@@ -1913,14 +1913,11 @@ const EventModal: React.FC<EventModalProps> = ({
 								<p className="flex min-w-0 items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
 									<MapPin className="h-3.5 w-3.5" />
 									<span>{locationLabel}</span>
-									{!canOpenSingleLocation &&
-										locationDisplay.state !== "multiple-listed" && (
-											<span className="truncate text-[13px] font-medium normal-case tracking-normal text-foreground sm:text-sm">
-												{locationDisplay.state === "multiple-unlisted"
-													? "Multiple locations"
-													: "Location TBC"}
-											</span>
-										)}
+									{locationDisplay.state === "tbc" && (
+										<span className="truncate text-[13px] font-medium normal-case tracking-normal text-foreground sm:text-sm">
+											Location TBC
+										</span>
+									)}
 								</p>
 								{canOpenAnyLocation && (
 									<TooltipProvider>

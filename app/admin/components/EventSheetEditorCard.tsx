@@ -112,6 +112,9 @@ type EventSheetEditorCardProps = {
 	}>;
 	onDataSaved?: () => Promise<void> | void;
 };
+type PendingEventReviewType = NonNullable<
+	EventSheetEditorCardProps["pendingEventReviews"]
+>[number]["submissionType"];
 
 type EditorPayload = {
 	success: boolean;
@@ -209,6 +212,7 @@ type TimeInputPreview = {
 };
 type RowLifecycleBadge = {
 	label: string;
+	shortLabel: string;
 	title: string;
 	tone: "added" | "updated";
 };
@@ -251,6 +255,7 @@ type RowQualityAssessment = {
 	value: RowQualityValue;
 	source: "inferred" | "manual" | "submission";
 	label: string;
+	sourceLabel: string;
 	description: string;
 	checks: Array<{ label: string; passed: boolean }>;
 	issues: SheetHealthIssue[];
@@ -405,6 +410,36 @@ const getQualityDescription = (value: RowQualityValue): string => {
 		return "Saved in admin, hidden from public events until changed to Auto, Review, or Complete.";
 	return "Usable, but one or more details should be checked.";
 };
+const getPendingReviewQualityLabel = (
+	submissionType: PendingEventReviewType,
+): string => {
+	if (submissionType === "price_flag") return "Needs price check";
+	if (submissionType === "event_update") return "Needs update review";
+	if (submissionType === "new_event") return "Needs event review";
+	return "Needs submission review";
+};
+const getPendingReviewSourceLabel = (
+	submissionType: PendingEventReviewType,
+): string => {
+	if (submissionType === "price_flag") return "Price flag";
+	if (submissionType === "event_update") return "Update request";
+	if (submissionType === "new_event") return "New event";
+	return "Submission";
+};
+const getPendingReviewDescription = (
+	submissionType: PendingEventReviewType,
+): string => {
+	if (submissionType === "price_flag") {
+		return "A visitor flagged the listed price. Check the ticket/proof page, update Price if needed, then clear the flag.";
+	}
+	if (submissionType === "event_update") {
+		return "A visitor submitted a pending change for this event. Review the submission, patch the row if needed, then clear the request.";
+	}
+	if (submissionType === "new_event") {
+		return "A visitor submitted this event. Review the submission, patch the row if needed, then clear the request.";
+	}
+	return "A visitor submitted a pending review for this event. Review it, patch the row if needed, then clear the request.";
+};
 const getQualityDotClassName = (value: RowQualityValue): string => {
 	if (value === "complete") return "border-green-600 bg-green-600";
 	if (value === "blocking") return "border-red-600 bg-red-600";
@@ -434,13 +469,17 @@ const isKnownAreaCellValue = (value: string | undefined): boolean => {
 const getRowQualityAssessment = (
 	row: EditableSheetRow,
 	issues: SheetHealthIssue[],
-	options?: { hasPendingSubmissionReview?: boolean },
+	options?: {
+		hasPendingSubmissionReview?: boolean;
+		pendingSubmissionType?: PendingEventReviewType;
+	},
 ): RowQualityAssessment => {
 	if (isEditableSheetRowEmpty(row)) {
 		return {
 			value: "draft",
 			source: "inferred",
 			label: getQualityLabel("draft"),
+			sourceLabel: "Auto",
 			description: getQualityDescription("draft"),
 			checks: [],
 			issues,
@@ -473,7 +512,8 @@ const getRowQualityAssessment = (
 		row[DETAILS_QUALITY_OVERRIDE_COLUMN_KEY],
 	);
 	const hasPendingSubmissionReview =
-		options?.hasPendingSubmissionReview === true;
+		options?.hasPendingSubmissionReview === true ||
+		Boolean(options?.pendingSubmissionType);
 	const value = hasPendingSubmissionReview
 		? "blocking"
 		: (manualValue ?? inferredValue);
@@ -486,9 +526,16 @@ const getRowQualityAssessment = (
 	return {
 		value,
 		source,
-		label: getQualityLabel(value),
+		label: hasPendingSubmissionReview
+			? getPendingReviewQualityLabel(options?.pendingSubmissionType)
+			: getQualityLabel(value),
+		sourceLabel: hasPendingSubmissionReview
+			? getPendingReviewSourceLabel(options?.pendingSubmissionType)
+			: source === "manual"
+				? "Manual"
+				: "Auto",
 		description: hasPendingSubmissionReview
-			? "A visitor submitted a pending change or price flag for this event. Review the submission, patch the row if needed, then clear the request."
+			? getPendingReviewDescription(options?.pendingSubmissionType)
 			: getQualityDescription(value),
 		checks: [
 			{ label: "Title present", passed: titlePresent },
@@ -1117,6 +1164,86 @@ const normalizeSeriesSearchText = (value: string): string =>
 		.replace(/\s+/g, " ")
 		.trim();
 
+const buildSeriesKeySuggestions = (
+	currentRowIndex: number,
+	rows: EditableSheetRow[],
+): SeriesKeySuggestion[] => {
+	const currentRow = rows[currentRowIndex];
+	if (!currentRow) return [];
+
+	const currentSeriesKey = String(
+		currentRow[SERIES_KEY_COLUMN_KEY] ?? "",
+	).trim();
+	const rawQuery =
+		currentSeriesKey ||
+		[
+			currentRow[TITLE_COLUMN_KEY],
+			currentRow[DATE_COLUMN_KEY],
+			currentRow[LOCATION_COLUMN_KEY],
+		]
+			.filter(Boolean)
+			.join(" ");
+	const query = normalizeSeriesSearchText(rawQuery);
+	const explicitSeriesCounts = new Map<string, number>();
+	for (const row of rows) {
+		const key = String(row[SERIES_KEY_COLUMN_KEY] ?? "").trim();
+		if (!key) continue;
+		explicitSeriesCounts.set(key, (explicitSeriesCounts.get(key) ?? 0) + 1);
+	}
+
+	const suggestions = new Map<string, SeriesKeySuggestion>();
+	rows.forEach((row, rowIndex) => {
+		if (rowIndex === currentRowIndex) return;
+		const explicitSeriesKey = String(row[SERIES_KEY_COLUMN_KEY] ?? "").trim();
+		if (explicitSeriesKey && explicitSeriesKey === currentSeriesKey) return;
+		const seriesKey = explicitSeriesKey || generateEditableSheetSeriesKey(row);
+		const mapKey = explicitSeriesKey || `row:${rowIndex}`;
+		if (suggestions.has(mapKey)) return;
+
+		const title = String(row[TITLE_COLUMN_KEY] ?? "").trim();
+		const date = String(row[DATE_COLUMN_KEY] ?? "").trim();
+		const location = String(row[LOCATION_COLUMN_KEY] ?? "").trim();
+		const haystack = normalizeSeriesSearchText(
+			[title, date, location, seriesKey].join(" "),
+		);
+		const isDirectMatch = query.length === 0 || haystack.includes(query);
+		const titleTokens = normalizeSeriesSearchText(
+			String(currentRow[TITLE_COLUMN_KEY] ?? ""),
+		)
+			.split(" ")
+			.filter((token) => token.length >= 4);
+		const hasTitleOverlap =
+			titleTokens.length > 0 &&
+			titleTokens.some((token) => haystack.includes(token));
+		if (!isDirectMatch && !hasTitleOverlap) return;
+
+		suggestions.set(mapKey, {
+			rowIndex,
+			seriesKey,
+			title: title || "Untitled row",
+			date,
+			location,
+			rowCount: explicitSeriesKey
+				? (explicitSeriesCounts.get(explicitSeriesKey) ?? 1)
+				: 1,
+			willCreateSeriesKey: !explicitSeriesKey,
+		});
+	});
+
+	return Array.from(suggestions.values())
+		.sort((left, right) => {
+			const leftExisting = left.willCreateSeriesKey ? 1 : 0;
+			const rightExisting = right.willCreateSeriesKey ? 1 : 0;
+			return (
+				leftExisting - rightExisting ||
+				right.rowCount - left.rowCount ||
+				left.title.localeCompare(right.title) ||
+				left.rowIndex - right.rowIndex
+			);
+		})
+		.slice(0, 8);
+};
+
 const parseNormalizedTimeParts = (
 	value: string,
 ): { hours: number; minutes: number } | null => {
@@ -1312,6 +1439,7 @@ const getRowLifecycleBadge = (
 	if (isRecentlyAddedEvent(metadata)) {
 		return {
 			label: formatRecentlyAddedLabel(metadata),
+			shortLabel: "New",
 			title: "This row was added recently",
 			tone: "added",
 		};
@@ -1322,6 +1450,7 @@ const getRowLifecycleBadge = (
 	if (isRecentlyUpdatedEvent(metadata)) {
 		return {
 			label: formatRecentlyUpdatedLabel(metadata),
+			shortLabel: "Updated",
 			title: "This row was updated recently",
 			tone: "updated",
 		};
@@ -1618,6 +1747,16 @@ export const EventSheetEditorCard = ({
 		setFocusedAgeCell(null);
 		setFocusedSeriesKeyCell(null);
 	}, []);
+
+	const openDetailDrawer = useCallback(
+		(rowIndex: number) => {
+			activeCellEditRef.current = null;
+			clearInlineHelpers();
+			setQualityPopover(null);
+			setDetailRowIndex(rowIndex);
+		},
+		[clearInlineHelpers],
+	);
 
 	useEffect(() => {
 		rowsRef.current = rows;
@@ -2976,81 +3115,7 @@ export const EventSheetEditorCard = ({
 
 	const seriesKeySuggestions = useMemo((): SeriesKeySuggestion[] => {
 		if (!focusedSeriesKeyCell) return [];
-		const currentRow = rows[focusedSeriesKeyCell.rowIndex];
-		if (!currentRow) return [];
-
-		const currentSeriesKey = String(
-			currentRow[SERIES_KEY_COLUMN_KEY] ?? "",
-		).trim();
-		const rawQuery =
-			currentSeriesKey ||
-			[
-				currentRow[TITLE_COLUMN_KEY],
-				currentRow[DATE_COLUMN_KEY],
-				currentRow[LOCATION_COLUMN_KEY],
-			]
-				.filter(Boolean)
-				.join(" ");
-		const query = normalizeSeriesSearchText(rawQuery);
-		const explicitSeriesCounts = new Map<string, number>();
-		for (const row of rows) {
-			const key = String(row[SERIES_KEY_COLUMN_KEY] ?? "").trim();
-			if (!key) continue;
-			explicitSeriesCounts.set(key, (explicitSeriesCounts.get(key) ?? 0) + 1);
-		}
-
-		const suggestions = new Map<string, SeriesKeySuggestion>();
-		rows.forEach((row, rowIndex) => {
-			if (rowIndex === focusedSeriesKeyCell.rowIndex) return;
-			const explicitSeriesKey = String(row[SERIES_KEY_COLUMN_KEY] ?? "").trim();
-			if (explicitSeriesKey && explicitSeriesKey === currentSeriesKey) return;
-			const seriesKey =
-				explicitSeriesKey || generateEditableSheetSeriesKey(row);
-			const mapKey = explicitSeriesKey || `row:${rowIndex}`;
-			if (suggestions.has(mapKey)) return;
-
-			const title = String(row[TITLE_COLUMN_KEY] ?? "").trim();
-			const date = String(row[DATE_COLUMN_KEY] ?? "").trim();
-			const location = String(row[LOCATION_COLUMN_KEY] ?? "").trim();
-			const haystack = normalizeSeriesSearchText(
-				[title, date, location, seriesKey].join(" "),
-			);
-			const isDirectMatch = query.length === 0 || haystack.includes(query);
-			const titleTokens = normalizeSeriesSearchText(
-				String(currentRow[TITLE_COLUMN_KEY] ?? ""),
-			)
-				.split(" ")
-				.filter((token) => token.length >= 4);
-			const hasTitleOverlap =
-				titleTokens.length > 0 &&
-				titleTokens.some((token) => haystack.includes(token));
-			if (!isDirectMatch && !hasTitleOverlap) return;
-
-			suggestions.set(mapKey, {
-				rowIndex,
-				seriesKey,
-				title: title || "Untitled row",
-				date,
-				location,
-				rowCount: explicitSeriesKey
-					? (explicitSeriesCounts.get(explicitSeriesKey) ?? 1)
-					: 1,
-				willCreateSeriesKey: !explicitSeriesKey,
-			});
-		});
-
-		return Array.from(suggestions.values())
-			.sort((left, right) => {
-				const leftExisting = left.willCreateSeriesKey ? 1 : 0;
-				const rightExisting = right.willCreateSeriesKey ? 1 : 0;
-				return (
-					leftExisting - rightExisting ||
-					right.rowCount - left.rowCount ||
-					left.title.localeCompare(right.title) ||
-					left.rowIndex - right.rowIndex
-				);
-			})
-			.slice(0, 8);
+		return buildSeriesKeySuggestions(focusedSeriesKeyCell.rowIndex, rows);
 	}, [focusedSeriesKeyCell, rows]);
 
 	const dateSuggestionState = useMemo((): DateSuggestionState => {
@@ -3822,10 +3887,6 @@ export const EventSheetEditorCard = ({
 			null,
 		[pendingEventReviewByEventKey],
 	);
-	const hasPendingEventReviewForRow = useCallback(
-		(row: EditableSheetRow) => Boolean(getPendingEventReviewForRow(row)),
-		[getPendingEventReviewForRow],
-	);
 	const rowQualityCounts = useMemo(() => {
 		const counts = {
 			complete: 0,
@@ -3836,17 +3897,18 @@ export const EventSheetEditorCard = ({
 			sourceConfirmed: 0,
 		};
 		rows.forEach((row, index) => {
+			const pendingEventReview = getPendingEventReviewForRow(row);
 			const quality = getRowQualityAssessment(
 				row,
 				sheetHealthIssuesByRow.get(index + 1) ?? [],
-				{ hasPendingSubmissionReview: hasPendingEventReviewForRow(row) },
+				{ pendingSubmissionType: pendingEventReview?.submissionType },
 			);
 			counts[quality.value] += 1;
 			if (quality.source === "manual") counts.manual += 1;
 			if (quality.isConfirmed) counts.sourceConfirmed += 1;
 		});
 		return counts;
-	}, [hasPendingEventReviewForRow, rows, sheetHealthIssuesByRow]);
+	}, [getPendingEventReviewForRow, rows, sheetHealthIssuesByRow]);
 	const lifecycleMetadataByEventKey = useMemo(
 		() => new Map(rowMetadata.map((metadata) => [metadata.eventKey, metadata])),
 		[rowMetadata],
@@ -3867,10 +3929,11 @@ export const EventSheetEditorCard = ({
 				}
 
 				if (qualityFilter) {
+					const pendingEventReview = getPendingEventReviewForRow(row);
 					const quality = getRowQualityAssessment(
 						row,
 						sheetHealthIssuesByRow.get(index + 1) ?? [],
-						{ hasPendingSubmissionReview: hasPendingEventReviewForRow(row) },
+						{ pendingSubmissionType: pendingEventReview?.submissionType },
 					);
 					if (quality.value !== qualityFilter) return -1;
 				}
@@ -3879,7 +3942,7 @@ export const EventSheetEditorCard = ({
 			})
 			.filter((index) => index >= 0);
 	}, [
-		hasPendingEventReviewForRow,
+		getPendingEventReviewForRow,
 		qualityFilter,
 		query,
 		rows,
@@ -4131,7 +4194,8 @@ export const EventSheetEditorCard = ({
 	const detailRowQuality =
 		detailRow && detailRowIndex !== null
 			? getRowQualityAssessment(detailRow, detailRowIssues, {
-					hasPendingSubmissionReview: hasPendingEventReviewForRow(detailRow),
+					pendingSubmissionType:
+						getPendingEventReviewForRow(detailRow)?.submissionType,
 				})
 			: null;
 	const detailLifecycleBadge = detailRow
@@ -4156,6 +4220,123 @@ export const EventSheetEditorCard = ({
 	const detailCustomColumns = columns.filter(
 		(column) => !column.isCore && !ADVANCED_COLUMN_KEYS.has(column.key),
 	);
+	const detailSeriesKeySuggestions = useMemo(
+		() =>
+			detailRowIndex === null
+				? []
+				: buildSeriesKeySuggestions(detailRowIndex, rows),
+		[detailRowIndex, rows],
+	);
+	const generateDetailSeriesKey = (rowIndex: number, columnKey: string) => {
+		const row = rowsRef.current[rowIndex];
+		if (!row) return;
+		const seriesKey = generateEditableSheetSeriesKey(row);
+		handleCellChange(rowIndex, columnKey, seriesKey);
+		setStatusMessage(`Generated series key ${seriesKey}`);
+	};
+	const clearDetailSeriesKey = (rowIndex: number, columnKey: string) => {
+		handleCellChange(rowIndex, columnKey, "");
+		setStatusMessage("Series key cleared");
+	};
+	const selectDetailDate = (
+		rowIndex: number,
+		columnKey: string,
+		date: string,
+	) => {
+		handleCellChange(rowIndex, columnKey, formatIsoDateForEditableSheet(date));
+	};
+	const selectDetailEventCategory = (
+		rowIndex: number,
+		columnKey: string,
+		category: EventExperienceCategoryDefinition | null,
+	) => {
+		handleCellChange(rowIndex, columnKey, category?.label ?? "");
+	};
+	const toggleDetailGenre = (
+		rowIndex: number,
+		columnKey: string,
+		genre: GenreTaxonomyDefinition,
+	) => {
+		const row = rowsRef.current[rowIndex];
+		if (!row) return;
+		const storedParts = splitGenreCell(row[columnKey] ?? "", genreTaxonomy);
+		const isSelected = storedParts.some((part) => part.resolved === genre.key);
+		const nextLabels = isSelected
+			? storedParts
+					.filter((part) => part.resolved !== genre.key)
+					.map((part) => part.label)
+			: [...storedParts.map((part) => part.label), genre.label];
+		handleCellChange(rowIndex, columnKey, joinGenreLabels(nextLabels));
+	};
+	const toggleDetailSetting = (
+		rowIndex: number,
+		columnKey: string,
+		setting: SimpleOption,
+	) => {
+		const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
+		const selectedValues = splitSettingCell(currentValue);
+		const nextValues = selectedValues.includes(setting.value)
+			? selectedValues.filter((value) => value !== setting.value)
+			: [...selectedValues, setting.value];
+		handleCellChange(rowIndex, columnKey, nextValues.join(", "));
+	};
+	const selectDetailAge = (
+		rowIndex: number,
+		columnKey: string,
+		age: SimpleOption | null,
+	) => {
+		handleCellChange(rowIndex, columnKey, age?.value ?? "");
+	};
+	const toggleDetailCountry = (
+		rowIndex: number,
+		columnKey: string,
+		country: CountryOption,
+	) => {
+		const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
+		const selectedCodes = splitCountryCell(currentValue);
+		const nextCodes = selectedCodes.includes(country.code)
+			? selectedCodes.filter((code) => code !== country.code)
+			: [...selectedCodes, country.code];
+		handleCellChange(rowIndex, columnKey, joinCountryCodes(nextCodes));
+	};
+	const selectDetailArea = (
+		rowIndex: number,
+		columnKey: string,
+		area: AreaOption,
+	) => {
+		handleCellChange(rowIndex, columnKey, area.value);
+	};
+	const addDetailPrimaryUrlSlot = (rowIndex: number, columnKey: string) => {
+		const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
+		const nextValue = [...splitUrlRawParts(currentValue), "https://"].join(
+			", ",
+		);
+		handleCellChange(rowIndex, columnKey, nextValue);
+	};
+	const updateDetailPrimaryUrlPart = (
+		rowIndex: number,
+		columnKey: string,
+		partIndex: number,
+		value: string,
+	) => {
+		const parts = splitUrlRawParts(
+			rowsRef.current[rowIndex]?.[columnKey] ?? "",
+		);
+		parts[partIndex] = value;
+		handleCellChange(rowIndex, columnKey, parts.join(", "));
+	};
+	const removeDetailPrimaryUrlPart = (
+		rowIndex: number,
+		columnKey: string,
+		partIndex: number,
+	) => {
+		const nextValue = splitUrlRawParts(
+			rowsRef.current[rowIndex]?.[columnKey] ?? "",
+		)
+			.filter((_, index) => index !== partIndex)
+			.join(", ");
+		handleCellChange(rowIndex, columnKey, nextValue);
+	};
 	const renderDetailField = (
 		label: string,
 		columnKey: string,
@@ -4189,50 +4370,135 @@ export const EventSheetEditorCard = ({
 			);
 		}
 
+		if (columnKey === SERIES_KEY_COLUMN_KEY) {
+			return (
+				<div className="block text-xs font-medium text-foreground">
+					{fieldLabel}
+					<input
+						value={value}
+						onChange={(event) =>
+							handleCellChange(detailRowIndex, columnKey, event.target.value)
+						}
+						onBlur={() => commitStandardCell(detailRowIndex, columnKey)}
+						className={`${inputClassName} font-mono text-[11px]`}
+						placeholder="ser_..."
+					/>
+					<div className="mt-2 flex flex-wrap gap-1.5">
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							className="h-8"
+							onClick={() => generateDetailSeriesKey(detailRowIndex, columnKey)}
+						>
+							<RefreshCw className="mr-1 h-3.5 w-3.5" />
+							Generate
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							variant="ghost"
+							className="h-8 px-2 text-xs"
+							disabled={!value.trim()}
+							onClick={() => clearDetailSeriesKey(detailRowIndex, columnKey)}
+						>
+							Clear
+						</Button>
+					</div>
+					{detailSeriesKeySuggestions.length > 0 && (
+						<div className="mt-2 overflow-hidden rounded-md border border-border/70 bg-background/60">
+							<div className="border-b px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+								Link related rows
+							</div>
+							<div className="max-h-44 overflow-y-auto p-1">
+								{detailSeriesKeySuggestions.map((suggestion) => (
+									<button
+										key={`${suggestion.seriesKey}-${suggestion.rowIndex}`}
+										type="button"
+										className="flex w-full items-start gap-2 rounded px-2 py-1.5 text-left text-xs transition hover:bg-accent/70"
+										onClick={() =>
+											linkSeriesKeyForCell(
+												detailRowIndex,
+												columnKey,
+												suggestion,
+											)
+										}
+									>
+										<Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+										<span className="min-w-0 flex-1">
+											<span className="block truncate font-medium">
+												{suggestion.title}
+											</span>
+											<span className="block truncate text-[11px] text-muted-foreground">
+												{[suggestion.date, suggestion.location]
+													.filter(Boolean)
+													.join(" · ") || `Row ${suggestion.rowIndex + 1}`}
+											</span>
+											<span className="block truncate font-mono text-[10px] text-muted-foreground">
+												{suggestion.seriesKey}
+											</span>
+										</span>
+										<Badge
+											variant={
+												suggestion.willCreateSeriesKey ? "secondary" : "outline"
+											}
+											className="shrink-0 text-[10px]"
+										>
+											{suggestion.willCreateSeriesKey
+												? "New"
+												: `${suggestion.rowCount} rows`}
+										</Badge>
+									</button>
+								))}
+							</div>
+						</div>
+					)}
+				</div>
+			);
+		}
+
 		if (columnKey === EVENT_CATEGORY_COLUMN_KEY) {
 			const selectedCategory = normalizeEventExperienceCategory(value);
 			return (
 				<div className="block text-xs font-medium text-foreground">
 					{fieldLabel}
-					<div className="mt-1 grid gap-1.5">
-						<div className="grid gap-1.5 sm:grid-cols-2">
-							{EVENT_CATEGORY_OPTIONS.map((category) => {
-								const selected = selectedCategory === category.key;
-								return (
-									<button
-										key={category.key}
-										type="button"
-										className={getEventCategoryAdminOptionClassName(
-											category.key,
-											selected,
-											false,
-										)}
-										onClick={() =>
-											selectEventCategoryForCell(
-												detailRowIndex,
-												columnKey,
-												category,
-											)
-										}
-									>
-										<span
-											className={`h-2 w-2 rounded-full ${EVENT_CATEGORY_ADMIN_OPTION_CLASSES[category.key].dot}`}
-										/>
-										<span>{category.label}</span>
-									</button>
-								);
-							})}
-						</div>
+					<div className="mt-2 flex flex-wrap gap-1.5">
+						{EVENT_CATEGORY_OPTIONS.map((category) => {
+							const selected = selectedCategory === category.key;
+							return (
+								<button
+									key={category.key}
+									type="button"
+									className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-xs transition ${
+										selected
+											? `${EVENT_CATEGORY_ADMIN_OPTION_CLASSES[category.key].selected}`
+											: "border-border/70 bg-background hover:bg-muted/70"
+									}`}
+									onClick={() =>
+										selectDetailEventCategory(
+											detailRowIndex,
+											columnKey,
+											category,
+										)
+									}
+								>
+									<span
+										className={`h-2 w-2 rounded-full ${EVENT_CATEGORY_ADMIN_OPTION_CLASSES[category.key].dot}`}
+									/>
+									<span>{category.label}</span>
+								</button>
+							);
+						})}
 						<Button
 							type="button"
 							size="sm"
 							variant="ghost"
-							className="h-7 w-fit px-2 text-xs"
+							className="h-8 px-2 text-xs"
 							onClick={() =>
-								selectEventCategoryForCell(detailRowIndex, columnKey, null)
+								selectDetailEventCategory(detailRowIndex, columnKey, null)
 							}
 						>
-							Clear category
+							Clear
 						</Button>
 					</div>
 				</div>
@@ -4241,6 +4507,9 @@ export const EventSheetEditorCard = ({
 
 		if (columnKey === CATEGORY_COLUMN_KEY) {
 			const selectedGenreKeys = getSelectedGenreKeys(value, genreTaxonomy);
+			const selectedGenres = splitGenreCell(value, genreTaxonomy).filter(
+				(part) => part.label.trim(),
+			);
 			return (
 				<div className="block text-xs font-medium text-foreground">
 					{fieldLabel}
@@ -4252,34 +4521,52 @@ export const EventSheetEditorCard = ({
 						onBlur={() => commitStandardCell(detailRowIndex, columnKey)}
 						className={inputClassName}
 					/>
-					<div className="mt-2 max-h-32 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
-						<div className="flex flex-wrap gap-1.5">
-							{availableGenres.map((genre) => (
-								<button
-									key={genre.key}
-									type="button"
-									className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2 text-xs transition ${
-										selectedGenreKeys.has(genre.key)
-											? `${genre.color} border-transparent`
-											: "border-border/70 bg-background hover:bg-muted/70"
-									}`}
-									onClick={() =>
-										toggleGenreForCell(detailRowIndex, columnKey, genre)
-									}
+					{selectedGenres.length > 0 && (
+						<div className="mt-2 flex flex-wrap gap-1.5">
+							{selectedGenres.map((genre) => (
+								<Badge
+									key={`${genre.label}-${genre.resolved ?? genre.value}`}
+									variant="secondary"
+									className="text-[10px]"
 								>
-									<span
-										className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
-									/>
 									{genre.label}
-								</button>
+								</Badge>
 							))}
-							{availableGenres.length === 0 && (
-								<span className="text-xs text-muted-foreground">
-									Genre taxonomy unavailable.
-								</span>
-							)}
 						</div>
-					</div>
+					)}
+					<details className="mt-2 rounded-md border border-border/70 bg-background/60">
+						<summary className="cursor-pointer list-none px-2.5 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground">
+							Genre quick picks
+						</summary>
+						<div className="max-h-32 overflow-y-auto border-t border-border/70 p-2">
+							<div className="flex flex-wrap gap-1.5">
+								{availableGenres.map((genre) => (
+									<button
+										key={genre.key}
+										type="button"
+										className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2 text-xs transition ${
+											selectedGenreKeys.has(genre.key)
+												? `${genre.color} border-transparent`
+												: "border-border/70 bg-background hover:bg-muted/70"
+										}`}
+										onClick={() =>
+											toggleDetailGenre(detailRowIndex, columnKey, genre)
+										}
+									>
+										<span
+											className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
+										/>
+										{genre.label}
+									</button>
+								))}
+								{availableGenres.length === 0 && (
+									<span className="text-xs text-muted-foreground">
+										Genre taxonomy unavailable.
+									</span>
+								)}
+							</div>
+						</div>
+					</details>
 				</div>
 			);
 		}
@@ -4301,7 +4588,7 @@ export const EventSheetEditorCard = ({
 								className="h-8"
 								title={setting.description}
 								onClick={() =>
-									selectSettingForCell(detailRowIndex, columnKey, setting)
+									toggleDetailSetting(detailRowIndex, columnKey, setting)
 								}
 							>
 								{setting.label}
@@ -4325,7 +4612,7 @@ export const EventSheetEditorCard = ({
 								variant={value === age.value ? "default" : "outline"}
 								className="h-8"
 								title={age.description}
-								onClick={() => selectAgeForCell(detailRowIndex, columnKey, age)}
+								onClick={() => selectDetailAge(detailRowIndex, columnKey, age)}
 							>
 								{age.label}
 							</Button>
@@ -4335,7 +4622,7 @@ export const EventSheetEditorCard = ({
 							size="sm"
 							variant="ghost"
 							className="h-8"
-							onClick={() => selectAgeForCell(detailRowIndex, columnKey, null)}
+							onClick={() => selectDetailAge(detailRowIndex, columnKey, null)}
 						>
 							Clear
 						</Button>
@@ -4346,9 +4633,6 @@ export const EventSheetEditorCard = ({
 
 		if (COUNTRY_COLUMN_KEYS.has(columnKey)) {
 			const selectedCodes = getSelectedCountryCodes(value);
-			const commonCountries = DETAIL_COMMON_COUNTRY_CODES.map((code) =>
-				getCountryOption(code),
-			).filter((country): country is CountryOption => Boolean(country));
 			return (
 				<div className="block text-xs font-medium text-foreground">
 					{fieldLabel}
@@ -4366,25 +4650,18 @@ export const EventSheetEditorCard = ({
 						}
 						className={inputClassName}
 					/>
-					<div className="mt-2 flex flex-wrap gap-1.5">
-						{commonCountries.map((country) => (
-							<Button
-								key={country.code}
-								type="button"
-								size="sm"
-								variant={
-									selectedCodes.has(country.code) ? "default" : "outline"
-								}
-								className="h-8 px-2"
-								title={country.label}
-								onClick={() =>
-									selectCountryForCell(detailRowIndex, columnKey, country)
-								}
-							>
-								{country.flag} {country.code}
-							</Button>
-						))}
-					</div>
+					{selectedCodes.size > 0 && (
+						<div className="mt-1 flex flex-wrap gap-1">
+							{[...selectedCodes].map((code) => {
+								const country = getCountryOption(code);
+								return (
+									<Badge key={code} variant="outline" className="text-[10px]">
+										{country ? `${country.flag} ${country.code}` : code}
+									</Badge>
+								);
+							})}
+						</div>
+					)}
 				</div>
 			);
 		}
@@ -4404,25 +4681,30 @@ export const EventSheetEditorCard = ({
 						}
 						className={inputClassName}
 					/>
-					<div className="mt-2 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
-						{AREA_OPTIONS.map((area) => (
-							<button
-								key={area.value}
-								type="button"
-								className={`h-7 rounded-full border px-2 text-xs transition ${
-									normalizedArea === area.value
-										? "border-foreground bg-foreground text-background"
-										: "border-border/70 bg-background hover:bg-muted/70"
-								}`}
-								title={area.description}
-								onClick={() =>
-									selectAreaForCell(detailRowIndex, columnKey, area)
-								}
-							>
-								{area.label}
-							</button>
-						))}
-					</div>
+					<details className="mt-2 rounded-md border border-border/70 bg-background/60">
+						<summary className="cursor-pointer list-none px-2.5 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground">
+							Area quick picks
+						</summary>
+						<div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto border-t border-border/70 p-2">
+							{AREA_OPTIONS.map((area) => (
+								<button
+									key={area.value}
+									type="button"
+									className={`h-7 rounded-full border px-2 text-xs transition ${
+										normalizedArea === area.value
+											? "border-foreground bg-foreground text-background"
+											: "border-border/70 bg-background hover:bg-muted/70"
+									}`}
+									title={area.description}
+									onClick={() =>
+										selectDetailArea(detailRowIndex, columnKey, area)
+									}
+								>
+									{area.label}
+								</button>
+							))}
+						</div>
+					</details>
 				</div>
 			);
 		}
@@ -4463,7 +4745,7 @@ export const EventSheetEditorCard = ({
 								className="h-7 px-2 text-[11px]"
 								title={suggestion.description}
 								onClick={() =>
-									selectDateForCell(detailRowIndex, columnKey, suggestion.value)
+									selectDetailDate(detailRowIndex, columnKey, suggestion.value)
 								}
 							>
 								{suggestion.label}
@@ -4514,7 +4796,7 @@ export const EventSheetEditorCard = ({
 										<input
 											value={part.raw}
 											onChange={(event) =>
-												updatePrimaryUrlPart(
+												updateDetailPrimaryUrlPart(
 													detailRowIndex,
 													columnKey,
 													index,
@@ -4532,7 +4814,11 @@ export const EventSheetEditorCard = ({
 											variant="ghost"
 											className="h-8 px-2"
 											onClick={() =>
-												removePrimaryUrlPart(detailRowIndex, columnKey, index)
+												removeDetailPrimaryUrlPart(
+													detailRowIndex,
+													columnKey,
+													index,
+												)
 											}
 										>
 											Remove
@@ -4570,7 +4856,7 @@ export const EventSheetEditorCard = ({
 							size="sm"
 							variant="outline"
 							className="h-8"
-							onClick={() => addPrimaryUrlSlot(detailRowIndex, columnKey)}
+							onClick={() => addDetailPrimaryUrlSlot(detailRowIndex, columnKey)}
 						>
 							Add another link
 						</Button>
@@ -4612,6 +4898,75 @@ export const EventSheetEditorCard = ({
 		);
 	};
 
+	const renderDetailCountryPair = (): ReactNode => {
+		if (detailRowIndex === null || !detailRow) return null;
+		const commonCountries = DETAIL_COMMON_COUNTRY_CODES.map((code) =>
+			getCountryOption(code),
+		).filter((country): country is CountryOption => Boolean(country));
+		const hostCodes = getSelectedCountryCodes(detailRow.hostCountry ?? "");
+		const audienceCodes = getSelectedCountryCodes(
+			detailRow.audienceCountry ?? "",
+		);
+
+		return (
+			<div className="space-y-2">
+				<div className="grid gap-3 md:grid-cols-2">
+					{renderDetailField("Host Country", "hostCountry")}
+					{renderDetailField("Audience Country", "audienceCountry")}
+				</div>
+				<details className="rounded-md border border-border/70 bg-background/60">
+					<summary className="cursor-pointer list-none px-2.5 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground">
+						Quick countries
+					</summary>
+					<div className="flex flex-wrap gap-1.5 border-t border-border/70 p-2">
+						{commonCountries.map((country) => (
+							<div
+								key={country.code}
+								className="inline-flex h-8 overflow-hidden rounded-md border border-border/70 bg-background text-xs"
+							>
+								<span className="inline-flex items-center border-r border-border/70 px-2">
+									{country.flag} {country.code}
+								</span>
+								<button
+									type="button"
+									className={`w-8 border-r border-border/70 transition ${
+										hostCodes.has(country.code)
+											? "bg-foreground text-background"
+											: "hover:bg-muted/70"
+									}`}
+									title={`Toggle ${country.label} as host country`}
+									onClick={() =>
+										toggleDetailCountry(detailRowIndex, "hostCountry", country)
+									}
+								>
+									H
+								</button>
+								<button
+									type="button"
+									className={`w-8 transition ${
+										audienceCodes.has(country.code)
+											? "bg-foreground text-background"
+											: "hover:bg-muted/70"
+									}`}
+									title={`Toggle ${country.label} as audience country`}
+									onClick={() =>
+										toggleDetailCountry(
+											detailRowIndex,
+											"audienceCountry",
+											country,
+										)
+									}
+								>
+									A
+								</button>
+							</div>
+						))}
+					</div>
+				</details>
+			</div>
+		);
+	};
+
 	if (!isAuthenticated) {
 		return null;
 	}
@@ -4625,7 +4980,7 @@ export const EventSheetEditorCard = ({
 						sheetHealthIssuesByRow.get(qualityPopover.rowIndex + 1) ?? [];
 					const pendingEventReview = getPendingEventReviewForRow(row);
 					const rowQuality = getRowQualityAssessment(row, rowIssues, {
-						hasPendingSubmissionReview: Boolean(pendingEventReview),
+						pendingSubmissionType: pendingEventReview?.submissionType,
 					});
 
 					return createPortal(
@@ -4642,7 +4997,7 @@ export const EventSheetEditorCard = ({
 									{rowQuality.label}
 								</div>
 								<div className="text-muted-foreground">
-									{rowQuality.description} Status is {rowQuality.source}.
+									{rowQuality.description} Status is {rowQuality.sourceLabel}.
 								</div>
 							</div>
 							{pendingEventReview && (
@@ -4842,8 +5197,8 @@ export const EventSheetEditorCard = ({
 						Event Sheet Editor
 					</CardTitle>
 					<CardDescription>
-						Spreadsheet editing with dynamic custom columns and autosave to
-						Postgres.
+						Spreadsheet editing with autosave. Use Save and Revalidate Homepage
+						to publish visible site changes.
 					</CardDescription>
 					{recoverableDraft && (
 						<div className="flex flex-wrap gap-2 pt-2">
@@ -5455,11 +5810,17 @@ export const EventSheetEditorCard = ({
 					<Dialog
 						open={detailRowIndex !== null}
 						onOpenChange={(open) => {
-							if (!open) setDetailRowIndex(null);
+							if (!open) {
+								clearInlineHelpers();
+								setDetailRowIndex(null);
+							}
 						}}
 					>
-						<DialogContent className="top-0 right-0 left-auto h-dvh max-h-dvh w-[min(560px,100vw)] translate-x-0 translate-y-0 overflow-y-auto rounded-none border-y-0 border-r-0 p-5 sm:max-w-none sm:p-6">
-							<DialogHeader className="pr-10">
+						<DialogContent
+							className="top-0 right-0 left-auto flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-y-0 border-r-0 bg-background p-0 opacity-100 shadow-[-24px_0_70px_-38px_rgba(0,0,0,0.72)] sm:w-[min(760px,100vw)] sm:max-w-none xl:w-[min(860px,calc(100vw-2rem))]"
+							style={{ maxHeight: "100dvh" }}
+						>
+							<DialogHeader className="shrink-0 px-5 pt-5 pr-14 sm:px-6 sm:pt-6">
 								<div className="flex flex-wrap items-start justify-between gap-3">
 									<div>
 										<DialogTitle className="text-xl">
@@ -5467,8 +5828,9 @@ export const EventSheetEditorCard = ({
 											details
 										</DialogTitle>
 										<DialogDescription className="max-w-lg text-sm leading-relaxed">
-											Edit complex rows here without leaving the sheet. Changes
-											save back into the same row.
+											Edits update this row in the sheet. Use Save and
+											Revalidate Homepage in the sheet toolbar to publish
+											visible site changes.
 										</DialogDescription>
 									</div>
 									<div className="flex shrink-0 gap-1.5 pr-8">
@@ -5480,6 +5842,7 @@ export const EventSheetEditorCard = ({
 											disabled={detailPreviousRowIndex === null}
 											onClick={() => {
 												if (detailPreviousRowIndex !== null) {
+													clearInlineHelpers();
 													setDetailRowIndex(detailPreviousRowIndex);
 												}
 											}}
@@ -5494,6 +5857,7 @@ export const EventSheetEditorCard = ({
 											disabled={detailNextRowIndex === null}
 											onClick={() => {
 												if (detailNextRowIndex !== null) {
+													clearInlineHelpers();
 													setDetailRowIndex(detailNextRowIndex);
 												}
 											}}
@@ -5505,172 +5869,159 @@ export const EventSheetEditorCard = ({
 							</DialogHeader>
 
 							{detailRow && detailRowIndex !== null ? (
-								<div className="space-y-5">
-									{detailRowQuality && (
-										<section className="rounded-md border border-border/70 bg-background/75 p-3">
-											<div className="flex flex-wrap items-center gap-2">
-												<span
-													className={`h-2.5 w-2.5 rounded-full border ${getQualityDotClassName(
-														detailRowQuality.value,
-													)}`}
-												/>
-												<span className="font-medium">
-													{detailRowQuality.label}
-												</span>
-												<Badge variant="outline" className="text-[10px]">
-													{detailRowQuality.source === "manual"
-														? "Manual"
-														: detailRowQuality.source === "submission"
-															? "Submission"
-															: "Auto"}
-												</Badge>
-												{detailRowQuality.isConfirmed && (
-													<Badge variant="secondary" className="text-[10px]">
-														Source confirmed
-													</Badge>
-												)}
-												{detailLifecycleBadge && (
+								<>
+									<div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+										{detailRowQuality && (
+											<section className="rounded-md border border-border/70 bg-background/75 p-3">
+												<div className="flex flex-wrap items-center gap-2">
+													<span
+														className={`h-2.5 w-2.5 rounded-full border ${getQualityDotClassName(
+															detailRowQuality.value,
+														)}`}
+													/>
+													<span className="font-medium">
+														{detailRowQuality.label}
+													</span>
 													<Badge variant="outline" className="text-[10px]">
-														{detailLifecycleBadge.label}
+														{detailRowQuality.sourceLabel}
 													</Badge>
+													{detailRowQuality.isConfirmed && (
+														<Badge variant="secondary" className="text-[10px]">
+															Source confirmed
+														</Badge>
+													)}
+													{detailLifecycleBadge && (
+														<Badge variant="outline" className="text-[10px]">
+															{detailLifecycleBadge.label}
+														</Badge>
+													)}
+												</div>
+												<p className="mt-2 text-xs text-muted-foreground">
+													{detailRowQuality.description}
+												</p>
+												{detailRowIssues.length > 0 && (
+													<div className="mt-2 space-y-1 text-xs text-red-700 dark:text-red-300">
+														{detailRowIssues.slice(0, 3).map((issue) => (
+															<p
+																key={`${issue.column}-${issue.message}`}
+															>{`${issue.column}: ${issue.message}`}</p>
+														))}
+													</div>
+												)}
+											</section>
+										)}
+
+										<section className="space-y-3">
+											<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+												Identity
+											</div>
+											<div className="grid gap-3 sm:grid-cols-2">
+												{renderDetailField("Series Key", SERIES_KEY_COLUMN_KEY)}
+												{renderDetailField("Event Key", "eventKey", {
+													readOnly: true,
+												})}
+											</div>
+											<div className="flex flex-wrap gap-2">
+												<Button
+													type="button"
+													size="sm"
+													variant="ghost"
+													className="h-8 px-2 text-xs"
+													onClick={() => {
+														setShowAdvancedColumns(true);
+														setDetailRowIndex(null);
+													}}
+												>
+													<Eye className="mr-1 h-3.5 w-3.5" />
+													Reveal key columns in sheet
+												</Button>
+											</div>
+										</section>
+
+										<section className="space-y-3">
+											<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+												Schedule
+											</div>
+											<div className="grid gap-3 sm:grid-cols-2">
+												{renderDetailField("Date", DATE_COLUMN_KEY)}
+												{renderDetailField("Date To", DATE_TO_COLUMN_KEY)}
+												{renderDetailField("Start Time", START_TIME_COLUMN_KEY)}
+												{renderDetailField("End Time", END_TIME_COLUMN_KEY)}
+											</div>
+											{getEditableSheetDateRangeDates(
+												detailRow,
+												sheetDateContext,
+											).length > 1 && (
+												<Button
+													type="button"
+													size="sm"
+													variant="outline"
+													onClick={() => {
+														setRangePreviewRowIndex(detailRowIndex);
+														setDetailRowIndex(null);
+													}}
+												>
+													<CalendarDays className="mr-1 h-3.5 w-3.5" />
+													Preview generated dates
+												</Button>
+											)}
+										</section>
+
+										<section className="space-y-3">
+											<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+												Location and links
+											</div>
+											<div className="grid gap-3">
+												{renderDetailField("Location", LOCATION_COLUMN_KEY)}
+												{renderDetailField("District/Area", AREA_COLUMN_KEY)}
+												{renderDetailField(
+													"Primary URL",
+													PRIMARY_URL_COLUMN_KEY,
+													{
+														multiline: true,
+													},
 												)}
 											</div>
-											<p className="mt-2 text-xs text-muted-foreground">
-												{detailRowQuality.description}
-											</p>
-											{detailRowIssues.length > 0 && (
-												<div className="mt-2 space-y-1 text-xs text-red-700 dark:text-red-300">
-													{detailRowIssues.slice(0, 3).map((issue) => (
-														<p
-															key={`${issue.column}-${issue.message}`}
-														>{`${issue.column}: ${issue.message}`}</p>
+										</section>
+
+										<section className="space-y-3">
+											<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+												Classification
+											</div>
+											<div className="grid gap-3 sm:grid-cols-2">
+												{renderDetailField("Curated", CURATED_COLUMN_KEY)}
+												{renderDetailField(
+													"Event Category",
+													EVENT_CATEGORY_COLUMN_KEY,
+												)}
+												{renderDetailField("Categories", CATEGORY_COLUMN_KEY)}
+												<div className="sm:col-span-2">
+													{renderDetailCountryPair()}
+												</div>
+												{renderDetailField("Setting", SETTING_COLUMN_KEY)}
+												{renderDetailField("Age Guidance", AGE_COLUMN_KEY)}
+												{renderDetailField("Price", PRICE_COLUMN_KEY)}
+											</div>
+										</section>
+
+										<section className="space-y-3">
+											<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+												Notes and custom fields
+											</div>
+											{renderDetailField("Notes", "notes", { multiline: true })}
+											{detailCustomColumns.length > 0 && (
+												<div className="grid gap-3 sm:grid-cols-2">
+													{detailCustomColumns.map((column) => (
+														<div key={column.key}>
+															{renderDetailField(column.label, column.key)}
+														</div>
 													))}
 												</div>
 											)}
 										</section>
-									)}
-
-									<section className="space-y-3">
-										<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-											Identity
-										</div>
-										<div className="grid gap-3 sm:grid-cols-2">
-											{renderDetailField("Series Key", SERIES_KEY_COLUMN_KEY)}
-											{renderDetailField("Event Key", "eventKey", {
-												readOnly: true,
-											})}
-										</div>
-										<div className="flex flex-wrap gap-2">
-											<Button
-												type="button"
-												size="sm"
-												variant="outline"
-												onClick={() =>
-													generateSeriesKeyForCell(
-														detailRowIndex,
-														SERIES_KEY_COLUMN_KEY,
-													)
-												}
-											>
-												<RefreshCw className="mr-1 h-3.5 w-3.5" />
-												Generate series key
-											</Button>
-											<Button
-												type="button"
-												size="sm"
-												variant="outline"
-												onClick={() => {
-													setShowAdvancedColumns(true);
-													setDetailRowIndex(null);
-												}}
-											>
-												<Eye className="mr-1 h-3.5 w-3.5" />
-												Show key columns
-											</Button>
-										</div>
-									</section>
-
-									<section className="space-y-3">
-										<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-											Schedule
-										</div>
-										<div className="grid gap-3 sm:grid-cols-2">
-											{renderDetailField("Date", DATE_COLUMN_KEY)}
-											{renderDetailField("Date To", DATE_TO_COLUMN_KEY)}
-											{renderDetailField("Start Time", START_TIME_COLUMN_KEY)}
-											{renderDetailField("End Time", END_TIME_COLUMN_KEY)}
-										</div>
-										{getEditableSheetDateRangeDates(detailRow, sheetDateContext)
-											.length > 1 && (
-											<Button
-												type="button"
-												size="sm"
-												variant="outline"
-												onClick={() => {
-													setRangePreviewRowIndex(detailRowIndex);
-													setDetailRowIndex(null);
-												}}
-											>
-												<CalendarDays className="mr-1 h-3.5 w-3.5" />
-												Preview generated dates
-											</Button>
-										)}
-									</section>
-
-									<section className="space-y-3">
-										<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-											Location and links
-										</div>
-										<div className="grid gap-3">
-											{renderDetailField("Location", LOCATION_COLUMN_KEY)}
-											{renderDetailField("District/Area", AREA_COLUMN_KEY)}
-											{renderDetailField(
-												"Primary URL",
-												PRIMARY_URL_COLUMN_KEY,
-												{
-													multiline: true,
-												},
-											)}
-										</div>
-									</section>
-
-									<section className="space-y-3">
-										<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-											Classification
-										</div>
-										<div className="grid gap-3 sm:grid-cols-2">
-											{renderDetailField("Curated", CURATED_COLUMN_KEY)}
-											{renderDetailField(
-												"Event Category",
-												EVENT_CATEGORY_COLUMN_KEY,
-											)}
-											{renderDetailField("Categories", CATEGORY_COLUMN_KEY)}
-											{renderDetailField("Host Country", "hostCountry")}
-											{renderDetailField("Audience Country", "audienceCountry")}
-											{renderDetailField("Setting", SETTING_COLUMN_KEY)}
-											{renderDetailField("Age Guidance", AGE_COLUMN_KEY)}
-											{renderDetailField("Price", PRICE_COLUMN_KEY)}
-										</div>
-									</section>
-
-									<section className="space-y-3">
-										<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-											Notes and custom fields
-										</div>
-										{renderDetailField("Notes", "notes", { multiline: true })}
-										{detailCustomColumns.length > 0 && (
-											<div className="grid gap-3 sm:grid-cols-2">
-												{detailCustomColumns.map((column) => (
-													<div key={column.key}>
-														{renderDetailField(column.label, column.key)}
-													</div>
-												))}
-											</div>
-										)}
-									</section>
-
-									<div className="sticky bottom-0 -mx-5 flex flex-wrap justify-between gap-2 border-t bg-background/95 px-5 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-										<div className="flex flex-wrap gap-2">
+									</div>
+									<div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-t bg-background/95 px-5 py-3 backdrop-blur sm:px-6">
+										<div className="flex min-w-0 flex-wrap items-center gap-2">
 											<Button
 												type="button"
 												size="sm"
@@ -5694,6 +6045,13 @@ export const EventSheetEditorCard = ({
 													Split range
 												</Button>
 											)}
+											<span className="text-xs text-muted-foreground">
+												{isSaving
+													? "Saving..."
+													: hasUnsavedChanges
+														? "Unsaved sheet changes"
+														: "Editor changes saved"}
+											</span>
 										</div>
 										<div className="flex flex-wrap gap-2">
 											<Button
@@ -5719,9 +6077,9 @@ export const EventSheetEditorCard = ({
 											</Button>
 										</div>
 									</div>
-								</div>
+								</>
 							) : (
-								<div className="rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground">
+								<div className="m-5 rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground sm:m-6">
 									No row selected.
 								</div>
 							)}
@@ -6493,8 +6851,9 @@ export const EventSheetEditorCard = ({
 								) : (
 									visibleRowIndexes.map((rowIndex) => {
 										const row = rows[rowIndex];
+										const pendingEventReview = getPendingEventReviewForRow(row);
 										const hasPendingSubmissionReview =
-											hasPendingEventReviewForRow(row);
+											Boolean(pendingEventReview);
 										const categoryValue = getCellDisplayValue(
 											rowIndex,
 											CATEGORY_COLUMN_KEY,
@@ -6539,7 +6898,7 @@ export const EventSheetEditorCard = ({
 										const rowIssues =
 											sheetHealthIssuesByRow.get(rowIndex + 1) ?? [];
 										const rowQuality = getRowQualityAssessment(row, rowIssues, {
-											hasPendingSubmissionReview,
+											pendingSubmissionType: pendingEventReview?.submissionType,
 										});
 										const lifecycleBadge = getRowLifecycleBadge(
 											row,
@@ -6568,140 +6927,142 @@ export const EventSheetEditorCard = ({
 														width: `${ROW_NUMBER_COLUMN_WIDTH}px`,
 													}}
 												>
-													<div className="relative flex h-8 items-center gap-1">
-														<span className="min-w-7 px-1 text-center font-mono">
-															{rowIndex + 1}
-														</span>
-														<button
-															type="button"
-															data-quality-popover
-															onClick={(event) =>
-																openQualityPopover(
-																	rowIndex,
-																	event.currentTarget,
-																)
-															}
-															className={`h-2.5 w-2.5 shrink-0 rounded-full border ${getQualityDotClassName(
-																rowQuality.value,
-															)} cursor-pointer transition-transform hover:scale-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
-																qualityFilter === rowQuality.value
-																	? "outline outline-2 outline-offset-2 outline-ring"
-																	: ""
-															}`}
-															aria-label={`Open quality details for row ${rowIndex + 1}`}
-															title={`${rowQuality.label}. Click to review or filter.`}
-														/>
-														{rowQuality.isConfirmed && (
-															<span
-																className="h-1.5 w-1.5 rounded-full bg-green-700"
-																title="Source confirmed"
-															/>
-														)}
-														{lifecycleBadge && (
-															<span
-																role="img"
-																aria-label={`${lifecycleBadge.title}: ${lifecycleBadge.label}`}
-																className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-																	lifecycleBadge.tone === "added"
-																		? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/25 dark:text-emerald-300"
-																		: "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-900/70 dark:bg-sky-950/25 dark:text-sky-300"
-																}`}
-																title={`${lifecycleBadge.title}: ${lifecycleBadge.label}`}
-															>
-																{lifecycleBadge.tone === "added" ? (
-																	<Plus className="h-3 w-3" />
-																) : (
-																	<RefreshCw className="h-3 w-3" />
-																)}
-															</span>
-														)}
-														{rowRangeDates.length > 1 && (
+													<div className="flex min-h-10 flex-col justify-center gap-1">
+														<div className="flex min-w-0 items-center gap-1">
+															<div className="flex min-w-7 items-center justify-center px-1">
+																<span className="font-mono">
+																	{rowIndex + 1}
+																</span>
+															</div>
 															<button
 																type="button"
-																onClick={() =>
-																	setRangePreviewRowIndex(rowIndex)
+																data-quality-popover
+																onClick={(event) =>
+																	openQualityPopover(
+																		rowIndex,
+																		event.currentTarget,
+																	)
 																}
-																className="inline-flex h-6 items-center gap-1 rounded border border-border/70 bg-background px-1.5 text-[10px] font-medium text-foreground transition hover:bg-muted"
-																title="Preview generated range occurrences"
-																aria-label={`Preview ${rowRangeDates.length} generated dates for row ${rowIndex + 1}`}
-															>
-																<CalendarDays className="h-3 w-3" />
-																{rowRangeDates.length}
-															</button>
-														)}
-														<div className="flex items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
-															<Button
-																type="button"
-																size="sm"
-																variant="ghost"
-																onClick={() => setDetailRowIndex(rowIndex)}
-																className="h-6 w-6 p-0"
-																aria-label={`Open row ${rowIndex + 1} details`}
-																title="Open row details"
-															>
-																<PanelRightOpen className="h-3.5 w-3.5" />
-															</Button>
-															<Button
-																type="button"
-																size="sm"
-																variant="ghost"
-																onClick={() => handleInsertRowBelow(rowIndex)}
-																className="hidden h-6 w-6 p-0 sm:inline-flex"
-																aria-label={`Insert row below ${rowIndex + 1}`}
-																title="Insert row below"
-															>
-																<Plus className="h-3.5 w-3.5" />
-															</Button>
-															<Button
-																type="button"
-																size="sm"
-																variant="ghost"
-																onClick={() => handleDuplicateRow(rowIndex)}
-																className="hidden h-6 w-6 p-0 sm:inline-flex"
-																aria-label={`Duplicate row ${rowIndex + 1}`}
-																title="Duplicate row"
-															>
-																<Copy className="h-3.5 w-3.5" />
-															</Button>
-															{canManuallyMoveRows && (
-																<>
-																	<Button
-																		type="button"
-																		size="sm"
-																		variant="ghost"
-																		onClick={() => handleMoveRow(rowIndex, -1)}
-																		disabled={rowIndex === 0}
-																		className="hidden h-6 w-6 p-0 sm:inline-flex"
-																		aria-label={`Move row ${rowIndex + 1} up`}
-																		title="Move row up"
-																	>
-																		<ArrowUp className="h-3.5 w-3.5" />
-																	</Button>
-																	<Button
-																		type="button"
-																		size="sm"
-																		variant="ghost"
-																		onClick={() => handleMoveRow(rowIndex, 1)}
-																		disabled={rowIndex >= rows.length - 1}
-																		className="hidden h-6 w-6 p-0 sm:inline-flex"
-																		aria-label={`Move row ${rowIndex + 1} down`}
-																		title="Move row down"
-																	>
-																		<ArrowDown className="h-3.5 w-3.5" />
-																	</Button>
-																</>
+																className={`h-2.5 w-2.5 shrink-0 rounded-full border ${getQualityDotClassName(
+																	rowQuality.value,
+																)} cursor-pointer transition-transform hover:scale-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
+																	qualityFilter === rowQuality.value
+																		? "outline outline-2 outline-offset-2 outline-ring"
+																		: ""
+																}`}
+																aria-label={`Open quality details for row ${rowIndex + 1}`}
+																title={`${rowQuality.label}. Click to review or filter.`}
+															/>
+															{rowQuality.isConfirmed && (
+																<span
+																	className="h-1.5 w-1.5 rounded-full bg-green-700"
+																	title="Source confirmed"
+																/>
 															)}
-															<Button
-																type="button"
-																size="sm"
-																variant="ghost"
-																onClick={() => handleDeleteRow(rowIndex)}
-																className="hidden h-6 w-6 p-0 text-muted-foreground hover:text-destructive sm:inline-flex"
-																aria-label={`Delete row ${rowIndex + 1}`}
-																title="Delete row"
-															>
-																<Trash2 className="h-3.5 w-3.5" />
-															</Button>
+															{rowRangeDates.length > 1 && (
+																<button
+																	type="button"
+																	onClick={() =>
+																		setRangePreviewRowIndex(rowIndex)
+																	}
+																	className="inline-flex h-6 items-center gap-1 rounded border border-border/70 bg-background px-1.5 text-[10px] font-medium text-foreground transition hover:bg-muted"
+																	title="Preview generated range occurrences"
+																	aria-label={`Preview ${rowRangeDates.length} generated dates for row ${rowIndex + 1}`}
+																>
+																	<CalendarDays className="h-3 w-3" />
+																	{rowRangeDates.length}
+																</button>
+															)}
+															<div className="flex items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
+																<Button
+																	type="button"
+																	size="sm"
+																	variant="ghost"
+																	onClick={() => openDetailDrawer(rowIndex)}
+																	className="h-6 w-6 p-0"
+																	aria-label={`Open row ${rowIndex + 1} details`}
+																	title="Open row details"
+																>
+																	<PanelRightOpen className="h-3.5 w-3.5" />
+																</Button>
+																<Button
+																	type="button"
+																	size="sm"
+																	variant="ghost"
+																	onClick={() => handleInsertRowBelow(rowIndex)}
+																	className="hidden h-6 w-6 p-0 sm:inline-flex"
+																	aria-label={`Insert row below ${rowIndex + 1}`}
+																	title="Insert row below"
+																>
+																	<Plus className="h-3.5 w-3.5" />
+																</Button>
+																<Button
+																	type="button"
+																	size="sm"
+																	variant="ghost"
+																	onClick={() => handleDuplicateRow(rowIndex)}
+																	className="hidden h-6 w-6 p-0 sm:inline-flex"
+																	aria-label={`Duplicate row ${rowIndex + 1}`}
+																	title="Duplicate row"
+																>
+																	<Copy className="h-3.5 w-3.5" />
+																</Button>
+																{canManuallyMoveRows && (
+																	<>
+																		<Button
+																			type="button"
+																			size="sm"
+																			variant="ghost"
+																			onClick={() =>
+																				handleMoveRow(rowIndex, -1)
+																			}
+																			disabled={rowIndex === 0}
+																			className="hidden h-6 w-6 p-0 sm:inline-flex"
+																			aria-label={`Move row ${rowIndex + 1} up`}
+																			title="Move row up"
+																		>
+																			<ArrowUp className="h-3.5 w-3.5" />
+																		</Button>
+																		<Button
+																			type="button"
+																			size="sm"
+																			variant="ghost"
+																			onClick={() => handleMoveRow(rowIndex, 1)}
+																			disabled={rowIndex >= rows.length - 1}
+																			className="hidden h-6 w-6 p-0 sm:inline-flex"
+																			aria-label={`Move row ${rowIndex + 1} down`}
+																			title="Move row down"
+																		>
+																			<ArrowDown className="h-3.5 w-3.5" />
+																		</Button>
+																	</>
+																)}
+																<Button
+																	type="button"
+																	size="sm"
+																	variant="ghost"
+																	onClick={() => handleDeleteRow(rowIndex)}
+																	className="hidden h-6 w-6 p-0 text-muted-foreground hover:text-destructive sm:inline-flex"
+																	aria-label={`Delete row ${rowIndex + 1}`}
+																	title="Delete row"
+																>
+																	<Trash2 className="h-3.5 w-3.5" />
+																</Button>
+															</div>
+														</div>
+														<div className="min-h-[0.65rem] pl-1">
+															{lifecycleBadge && (
+																<span
+																	className={`block max-w-[5rem] truncate text-[9px] font-medium leading-none ${
+																		lifecycleBadge.tone === "added"
+																			? "text-emerald-700/80 dark:text-emerald-300/85"
+																			: "text-sky-700/80 dark:text-sky-300/85"
+																	}`}
+																	title={`${lifecycleBadge.title}: ${lifecycleBadge.label}`}
+																>
+																	{lifecycleBadge.shortLabel}
+																</span>
+															)}
 														</div>
 													</div>
 												</td>
