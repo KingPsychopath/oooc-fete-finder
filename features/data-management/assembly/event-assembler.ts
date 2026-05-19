@@ -37,6 +37,7 @@ import {
 	MetadataTransformers,
 	NationalityTransformers,
 	VenueTransformers,
+	splitLocationList,
 } from "./field-transformers";
 
 const EVENT_KEY_FINGERPRINT_FIELDS: readonly (keyof CSVEventRow)[] = [
@@ -254,6 +255,11 @@ export const assembleEvent = (
 	const venueTypes = VenueTransformers.convertToVenueTypes(csvRow.setting);
 	const eventCategory =
 		normalizeEventExperienceCategory(csvRow.eventCategory) ?? undefined;
+	const locations = splitLocationList(csvRow.location);
+	const location =
+		arrondissement === "multiple-locations" && locations.length > 1
+			? "Multiple locations"
+			: csvRow.location.trim() || undefined;
 
 	// Determine the event's festival phase from its date.
 	const type = getEventTypeForDate(date);
@@ -299,7 +305,8 @@ export const assembleEvent = (
 		time: time || undefined,
 		endTime: endTime || undefined,
 		arrondissement,
-		location: csvRow.location.trim() || undefined,
+		location,
+		locations: locations.length > 1 ? locations : undefined,
 		link: mainLink,
 		links: ticketLinks.length > 1 ? ticketLinks : undefined,
 		description: csvRow.notes.trim() || undefined,

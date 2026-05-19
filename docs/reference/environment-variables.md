@@ -12,6 +12,7 @@ Validation schema: `lib/config/env.ts`
 | `ADMIN_RESET_PASSCODE` | No | - | Optional admin reset passcode |
 | `DATABASE_URL` | No | - | Postgres connection string |
 | `POSTGRES_POOL_MAX` | No | - | Optional pool tuning |
+| `ALLOW_LOCAL_ENV_OVERRIDE` | No | - | Development-only escape hatch. Set to `1` only when intentionally letting shell env override critical project env values like `DATABASE_URL` or `DATA_MODE` |
 | `DATA_MODE` | Prod on Vercel: Yes | `remote` | `remote`, `local`, or `test` |
 | `GOOGLE_MAPS_API_KEY` | No | - | Enables address geocoding |
 | `CRON_SECRET` | No | - | Protects cron endpoints |
@@ -62,6 +63,7 @@ Validation schema: `lib/config/env.ts`
 
 - In Vercel `preview`/`production`, missing `DATA_MODE` triggers startup failure
 - For Postgres-backed runtime behavior, set `DATABASE_URL` and `DATA_MODE=remote`
+- In local development, startup fails if shell env already has different critical values than the project env file, currently `DATABASE_URL` or `DATA_MODE`. Run `unset DATABASE_URL` / `unset DATA_MODE` before `pnpm dev`, or set `ALLOW_LOCAL_ENV_OVERRIDE=1` for an intentional one-off override.
 
 ## Secret Generation
 

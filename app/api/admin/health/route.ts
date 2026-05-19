@@ -1,4 +1,5 @@
 import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
+import { csvToEditableSheet } from "@/features/data-management/csv/sheet-editor";
 import { DataManager } from "@/features/data-management/data-manager";
 import { processCSVData } from "@/features/data-management/data-processor";
 import { LocalEventStore } from "@/features/data-management/local-event-store";
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
 			csv,
 			dataConfig,
 			runtimeDataStatus,
+			freshDataStatus,
 			eventStoreCounts,
 			eventStoreMeta,
 		] = await Promise.all([
@@ -35,6 +37,7 @@ export async function GET(request: NextRequest) {
 			LocalEventStore.getCsv(),
 			DataManager.getDataConfigStatus(),
 			getRuntimeDataStatusFromSource(),
+			DataManager.getEventsData({ populateCoordinates: false }),
 			eventRepository?.getCounts() ??
 				Promise.resolve({
 					rowCount: 0,
@@ -50,17 +53,18 @@ export async function GET(request: NextRequest) {
 				}),
 		]);
 
-		const csvLineCount = csv
-			? csv
-					.split("\n")
-					.map((line) => line.trim())
-					.filter((line) => line.length > 0).length
-			: 0;
-		const csvRowCount = Math.max(0, csvLineCount - 1);
+		const sheet = csv?.trim() ? csvToEditableSheet(csv) : null;
+		const csvRowCount = sheet?.rows.length ?? 0;
+		const csvPublishableRowCount =
+			sheet?.rows.filter(
+				(row) =>
+					String(row.detailsQualityOverride ?? "").trim().toLowerCase() !==
+					"draft",
+			).length ?? 0;
 
 		let parsedEventCount = 0;
 		let parsingWarnings: string[] = [];
-		if (csv) {
+		if (csv?.trim()) {
 			const parsed = await processCSVData(csv, "store", false, {
 				populateCoordinates: false,
 			});
@@ -74,14 +78,23 @@ export async function GET(request: NextRequest) {
 				`Metadata rowCount (${storeStatus.rowCount}) differs from raw CSV rows (${csvRowCount})`,
 			);
 		}
-		if (parsedEventCount !== csvRowCount) {
+		if (parsedEventCount !== csvPublishableRowCount) {
 			mismatches.push(
-				`Parsed event count (${parsedEventCount}) differs from raw CSV rows (${csvRowCount}); this usually means rows were filtered/invalid during parsing`,
+				`Parsed event count (${parsedEventCount}) differs from publishable CSV rows (${csvPublishableRowCount}); this usually means rows were filtered/invalid during parsing`,
 			);
 		}
 		if (runtimeDataStatus.eventCount !== parsedEventCount) {
 			mismatches.push(
 				`Live runtime event count (${runtimeDataStatus.eventCount}) differs from parsed event count (${parsedEventCount}); runtime source may still be on fallback`,
+			);
+		}
+		if (
+			freshDataStatus.success &&
+			(runtimeDataStatus.eventCount !== freshDataStatus.count ||
+				runtimeDataStatus.dataSource !== freshDataStatus.source)
+		) {
+			mismatches.push(
+				`Cached runtime source (${runtimeDataStatus.dataSource}, ${runtimeDataStatus.eventCount} events) differs from fresh source (${freshDataStatus.source}, ${freshDataStatus.count} events)`,
 			);
 		}
 		if (eventStoreMeta.rowCount !== eventStoreCounts.rowCount) {
@@ -110,8 +123,12 @@ export async function GET(request: NextRequest) {
 				counts: {
 					storeMetadataRows: storeStatus.rowCount,
 					csvRawRows: csvRowCount,
+					csvPublishableRows: csvPublishableRowCount,
 					parsedEvents: parsedEventCount,
 					liveRuntimeEvents: runtimeDataStatus.eventCount,
+					freshSourceEvents: freshDataStatus.success
+						? freshDataStatus.count
+						: 0,
 					liveEvents: runtimeDataStatus.eventCount,
 					currentYearEvents: runtimeDataStatus.currentYearEventCount,
 				},
@@ -134,6 +151,10 @@ export async function GET(request: NextRequest) {
 				runtime: {
 					lastCheckTime: runtimeDataStatus.lastFetchTime,
 					lastErrorMessage: runtimeDataStatus.lastRemoteErrorMessage,
+					cachedSource: runtimeDataStatus.dataSource,
+					freshSource: freshDataStatus.source,
+					freshSourceSuccess: freshDataStatus.success,
+					freshSourceError: freshDataStatus.error ?? "",
 				},
 			},
 			{ headers: NO_STORE_HEADERS },

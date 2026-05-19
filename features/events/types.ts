@@ -252,11 +252,13 @@ export type ParisArrondissement =
 	| 20
 	| "greater-paris"
 	| "outside-paris"
+	| "multiple-locations"
 	| "unknown";
 
 export const NON_PARIS_AREA_VALUES = [
 	"greater-paris",
 	"outside-paris",
+	"multiple-locations",
 	"unknown",
 ] as const satisfies ParisArrondissement[];
 
@@ -268,6 +270,7 @@ export const isNumberedArrondissement = (
 export const formatLocationAreaShort = (value: ParisArrondissement): string => {
 	if (value === "greater-paris") return "Greater Paris";
 	if (value === "outside-paris") return "Outside Paris";
+	if (value === "multiple-locations") return "Multiple";
 	if (value === "unknown") return "TBC";
 	return `${value}e`;
 };
@@ -275,6 +278,7 @@ export const formatLocationAreaShort = (value: ParisArrondissement): string => {
 export const formatLocationAreaLong = (value: ParisArrondissement): string => {
 	if (value === "greater-paris") return "Greater Paris Area";
 	if (value === "outside-paris") return "Outside Paris";
+	if (value === "multiple-locations") return "Multiple Locations";
 	if (value === "unknown") return "Location TBC";
 	return `${value}e Arrondissement`;
 };
@@ -285,7 +289,8 @@ export const getLocationAreaSortValue = (
 	if (typeof value === "number") return value;
 	if (value === "greater-paris") return 21;
 	if (value === "outside-paris") return 22;
-	return 23;
+	if (value === "multiple-locations") return 23;
+	return 24;
 };
 
 // Legacy type for backwards compatibility
@@ -309,6 +314,7 @@ export type Event = {
 	endTime?: string; // 24-hour format (HH:MM) or 'TBC'
 	arrondissement: ParisArrondissement;
 	location?: string;
+	locations?: string[];
 	coordinates?: Coordinates; // Event-specific coordinates from geocoding or manual entry
 	locationResolution?: LocationResolution; // Optional trusted/approximate location enrichment
 	link: string;

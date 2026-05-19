@@ -8,6 +8,71 @@ const isVercelHosted = process.env.VERCEL === "1";
 const vercelEnv = process.env.VERCEL_ENV;
 const isVercelDeployTarget =
 	isVercelHosted && (vercelEnv === "production" || vercelEnv === "preview");
+const nodeEnv = process.env.NODE_ENV || "development";
+const LOCAL_ENV_OVERRIDE_FLAG = "ALLOW_LOCAL_ENV_OVERRIDE";
+const CRITICAL_LOCAL_ENV_KEYS = ["DATABASE_URL", "DATA_MODE"] as const;
+
+const parseEnvFileValue = (content: string, key: string): string | null => {
+	for (const line of content.split(/\r?\n/)) {
+		const trimmed = line.trim();
+		if (!trimmed || trimmed.startsWith("#")) continue;
+		const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+		if (!match || match[1] !== key) continue;
+
+		const rawValue = match[2].trim();
+		if (
+			(rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+			(rawValue.startsWith("'") && rawValue.endsWith("'"))
+		) {
+			return rawValue.slice(1, -1);
+		}
+		return rawValue.split(/\s+#/)[0].trim();
+	}
+	return null;
+};
+
+const getProjectEnvFileValue = (key: string): string | null => {
+	if (!isServerRuntime) return null;
+	const fs = require("node:fs") as typeof import("node:fs");
+	const path = require("node:path") as typeof import("node:path");
+	const candidates = [
+		`.env.${nodeEnv}.local`,
+		nodeEnv === "test" ? null : ".env.local",
+		`.env.${nodeEnv}`,
+		".env",
+	].filter((file): file is string => Boolean(file));
+
+	for (const file of candidates) {
+		const filePath = path.join(process.cwd(), file);
+		if (!fs.existsSync(filePath)) continue;
+		const value = parseEnvFileValue(fs.readFileSync(filePath, "utf8"), key);
+		if (value) return value;
+	}
+	return null;
+};
+
+if (
+	isServerRuntime &&
+	nodeEnv === "development" &&
+	!isVercelHosted &&
+	process.env[LOCAL_ENV_OVERRIDE_FLAG] !== "1"
+) {
+	const mismatchedKeys = CRITICAL_LOCAL_ENV_KEYS.filter((key) => {
+		const processValue = process.env[key]?.trim() ?? "";
+		const projectValue = getProjectEnvFileValue(key)?.trim() ?? "";
+		return processValue && projectValue && processValue !== projectValue;
+	});
+
+	if (mismatchedKeys.length > 0) {
+		throw new Error(
+			[
+				`Shell environment is overriding project env for: ${mismatchedKeys.join(", ")}.`,
+				"Stop the dev server, unset the conflicting variable(s), then start it again.",
+				`Set ${LOCAL_ENV_OVERRIDE_FLAG}=1 only when you intentionally want shell env to win.`,
+			].join(" "),
+		);
+	}
+}
 
 if (
 	isServerRuntime &&

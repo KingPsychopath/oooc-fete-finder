@@ -75,7 +75,8 @@ const parseArrondissements = (raw: string | null): ParisArrondissement[] => {
 			if (
 				value === "unknown" ||
 				value === "greater-paris" ||
-				value === "outside-paris"
+				value === "outside-paris" ||
+				value === "multiple-locations"
 			) {
 				return value;
 			}

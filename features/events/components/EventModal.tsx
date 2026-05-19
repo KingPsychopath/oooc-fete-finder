@@ -67,10 +67,10 @@ import {
 	formatDayWithDate,
 	formatLocationAreaLong,
 	formatPrice,
-	getResolvedEventExperienceCategoryDefinition,
 	getPartyEventTypeLabel,
-	isPartyEventType,
 	getPriceMeta,
+	getResolvedEventExperienceCategoryDefinition,
+	isPartyEventType,
 } from "@/features/events/types";
 import type { LocationResolution } from "@/features/locations/types";
 import { MapPreferenceSettings } from "@/features/maps/components/map-preference-settings";
@@ -1319,6 +1319,14 @@ const EventModal: React.FC<EventModalProps> = ({
 		hostCountries.length > mobileCountryPreviewLimit ||
 		audienceCountries.length > mobileCountryPreviewLimit;
 	const locationLabel = formatLocationAreaLong(event.arrondissement);
+	const eventLocations = event.locations?.length ? event.locations : [];
+	const hasMultipleLocations =
+		event.arrondissement === "multiple-locations" || eventLocations.length > 1;
+	const canOpenSingleLocation =
+		Boolean(event.location) &&
+		event.location !== "TBA" &&
+		event.location !== "TBC" &&
+		event.location !== "Multiple locations";
 	const priceLabel = formatPrice(event.price);
 	const priceMeta = getPriceMeta(event.price);
 	const ageLabel = event.age || "All ages";
@@ -1821,7 +1829,26 @@ const EventModal: React.FC<EventModalProps> = ({
 									</Tooltip>
 								</TooltipProvider>
 							</div>
-							{event.location && event.location !== "TBA" ? (
+							{hasMultipleLocations && eventLocations.length > 1 ? (
+								<div className="mt-1.5 space-y-1.5">
+									{eventLocations.map((location, locationIndex) => (
+										<button
+											key={`${location}-${locationIndex}`}
+											onClick={() =>
+												handleOpenLocation(location, event.arrondissement, null)
+											}
+											className="inline-flex min-h-[32px] w-full items-center justify-between rounded-md border border-border/70 bg-background/80 px-2.5 text-left text-sm text-primary underline-offset-4 transition-colors hover:bg-accent hover:underline dark:bg-white/[0.03] dark:hover:bg-white/[0.08]"
+											title={`Open "${location}" in maps`}
+										>
+											<span className="truncate">{location}</span>
+											<span className="ml-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.1em] text-primary">
+												Open map
+												<ExternalLink className="h-3 w-3" />
+											</span>
+										</button>
+									))}
+								</div>
+							) : canOpenSingleLocation ? (
 								<button
 									onClick={() =>
 										handleOpenLocation(
@@ -1841,7 +1868,7 @@ const EventModal: React.FC<EventModalProps> = ({
 								</button>
 							) : (
 								<Badge variant="outline" className="mt-1.5">
-									Location TBA
+									{hasMultipleLocations ? "Multiple locations" : "Location TBA"}
 								</Badge>
 							)}
 						</div>

@@ -79,7 +79,7 @@ import {
 	RefreshCw,
 	Trash2,
 } from "lucide-react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -238,6 +238,11 @@ type FocusedCell = {
 type CellDraft = FocusedCell & {
 	value: string;
 };
+type CellPopoverProps = {
+	children: ReactNode;
+	className: string;
+	style: CSSProperties;
+};
 
 const ROW_DELETE_CONFIRMATION =
 	"Delete this row from the event sheet? This will be removed on next save.";
@@ -274,6 +279,19 @@ const CURATED_PICK_VALUE = "🌟";
 const EVENT_CATEGORY_POPOVER_WIDTH = 288;
 const EVENT_CATEGORY_POPOVER_HEIGHT = 270;
 const EVENT_CATEGORY_POPOVER_PADDING = 12;
+const CELL_POPOVER_VIEWPORT_PADDING = 8;
+
+const CellPopover = ({ children, className, style }: CellPopoverProps) => {
+	if (typeof document === "undefined") return null;
+
+	return createPortal(
+		<div className={className} style={style}>
+			{children}
+		</div>,
+		document.body,
+	);
+};
+
 const getRequiredSheetHealthIssues = (
 	rows: EditableSheetRow[],
 ): SheetHealthIssue[] => {
@@ -445,28 +463,38 @@ const EVENT_CATEGORY_ADMIN_OPTION_CLASSES: Record<
 > = {
 	party: {
 		dot: "bg-amber-500",
-		selected: "border-amber-500/35 bg-amber-500/10 text-amber-950 dark:border-amber-300/28 dark:bg-amber-300/12 dark:text-amber-100",
-		highlighted: "border-amber-500/45 bg-amber-500/15 text-amber-950 dark:border-amber-300/34 dark:bg-amber-300/16 dark:text-amber-100",
+		selected:
+			"border-amber-500/35 bg-amber-500/10 text-amber-950 dark:border-amber-300/28 dark:bg-amber-300/12 dark:text-amber-100",
+		highlighted:
+			"border-amber-500/45 bg-amber-500/15 text-amber-950 dark:border-amber-300/34 dark:bg-amber-300/16 dark:text-amber-100",
 	},
 	activity: {
 		dot: "bg-sky-500",
-		selected: "border-sky-500/35 bg-sky-500/10 text-sky-950 dark:border-sky-300/28 dark:bg-sky-300/12 dark:text-sky-100",
-		highlighted: "border-sky-500/45 bg-sky-500/15 text-sky-950 dark:border-sky-300/34 dark:bg-sky-300/16 dark:text-sky-100",
+		selected:
+			"border-sky-500/35 bg-sky-500/10 text-sky-950 dark:border-sky-300/28 dark:bg-sky-300/12 dark:text-sky-100",
+		highlighted:
+			"border-sky-500/45 bg-sky-500/15 text-sky-950 dark:border-sky-300/34 dark:bg-sky-300/16 dark:text-sky-100",
 	},
 	culture: {
 		dot: "bg-violet-500",
-		selected: "border-violet-500/35 bg-violet-500/10 text-violet-950 dark:border-violet-300/28 dark:bg-violet-300/12 dark:text-violet-100",
-		highlighted: "border-violet-500/45 bg-violet-500/15 text-violet-950 dark:border-violet-300/34 dark:bg-violet-300/16 dark:text-violet-100",
+		selected:
+			"border-violet-500/35 bg-violet-500/10 text-violet-950 dark:border-violet-300/28 dark:bg-violet-300/12 dark:text-violet-100",
+		highlighted:
+			"border-violet-500/45 bg-violet-500/15 text-violet-950 dark:border-violet-300/34 dark:bg-violet-300/16 dark:text-violet-100",
 	},
 	food: {
 		dot: "bg-emerald-500",
-		selected: "border-emerald-500/35 bg-emerald-500/10 text-emerald-950 dark:border-emerald-300/28 dark:bg-emerald-300/12 dark:text-emerald-100",
-		highlighted: "border-emerald-500/45 bg-emerald-500/15 text-emerald-950 dark:border-emerald-300/34 dark:bg-emerald-300/16 dark:text-emerald-100",
+		selected:
+			"border-emerald-500/35 bg-emerald-500/10 text-emerald-950 dark:border-emerald-300/28 dark:bg-emerald-300/12 dark:text-emerald-100",
+		highlighted:
+			"border-emerald-500/45 bg-emerald-500/15 text-emerald-950 dark:border-emerald-300/34 dark:bg-emerald-300/16 dark:text-emerald-100",
 	},
 	wellness: {
 		dot: "bg-teal-500",
-		selected: "border-teal-500/35 bg-teal-500/10 text-teal-950 dark:border-teal-300/28 dark:bg-teal-300/12 dark:text-teal-100",
-		highlighted: "border-teal-500/45 bg-teal-500/15 text-teal-950 dark:border-teal-300/34 dark:bg-teal-300/16 dark:text-teal-100",
+		selected:
+			"border-teal-500/35 bg-teal-500/10 text-teal-950 dark:border-teal-300/28 dark:bg-teal-300/12 dark:text-teal-100",
+		highlighted:
+			"border-teal-500/45 bg-teal-500/15 text-teal-950 dark:border-teal-300/34 dark:bg-teal-300/16 dark:text-teal-100",
 	},
 };
 const getEventCategoryAdminOptionClassName = (
@@ -519,6 +547,19 @@ const AREA_OPTIONS: AreaOption[] = [
 		aliases: ["outside", "out of paris", "not paris"],
 	},
 	{
+		value: "Multiple Locations",
+		label: "Multiple Locations",
+		group: "Unconfirmed",
+		description: "Several venues, route, or exact locations not confirmed",
+		aliases: [
+			"multiple",
+			"multiple locations",
+			"multi location",
+			"various",
+			"various locations",
+		],
+	},
+	{
 		value: "Location TBC",
 		label: "Location TBC",
 		group: "Unconfirmed",
@@ -541,6 +582,12 @@ const cellRefKey = (rowIndex: number, columnKey: string) =>
 	`${rowIndex}:${columnKey}`;
 
 const urlPartRefKey = (
+	rowIndex: number,
+	columnKey: string,
+	partIndex: number,
+) => `${rowIndex}:${columnKey}:${partIndex}`;
+
+const locationPartRefKey = (
 	rowIndex: number,
 	columnKey: string,
 	partIndex: number,
@@ -945,6 +992,18 @@ const normalizeLocationSearchText = (value: string): string =>
 		.replace(/\s+/g, " ")
 		.trim();
 
+const splitLocationRawParts = (value: string): string[] =>
+	value
+		.split(/[\n\r|;]+/)
+		.map((part) => part.trim())
+		.filter((part) => part.length > 0);
+
+const joinLocationParts = (values: string[]): string =>
+	values
+		.map((value) => value.trim())
+		.filter((value) => value.length > 0)
+		.join(" | ");
+
 const toUTCDateOnlyTime = (date: Date): number =>
 	Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 
@@ -1333,6 +1392,9 @@ export const EventSheetEditorCard = ({
 	);
 	const dirtyRowIndexesRef = useRef<Set<number>>(new Set());
 	const inputRefs = useRef<Record<string, HTMLElement | null>>({});
+	const locationPartInputRefs = useRef<Record<string, HTMLInputElement | null>>(
+		{},
+	);
 	const urlPartInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 	const primaryUrlBlurTimerRef = useRef<number | null>(null);
 	const isAutosaveInBackoff =
@@ -2913,6 +2975,64 @@ export const EventSheetEditorCard = ({
 		[handleCellChange],
 	);
 
+	const addLocationSlot = useCallback(
+		(rowIndex: number, columnKey: string) => {
+			const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
+			const parts = splitLocationRawParts(currentValue);
+			const nextParts = [...parts, "New location"];
+			const nextPartIndex = nextParts.length - 1;
+			handleCellChange(rowIndex, columnKey, joinLocationParts(nextParts));
+			handleCellChange(rowIndex, AREA_COLUMN_KEY, "Multiple Locations");
+			window.setTimeout(() => {
+				const input =
+					locationPartInputRefs.current[
+						locationPartRefKey(rowIndex, columnKey, nextPartIndex)
+					];
+				input?.focus();
+				input?.select();
+			}, 0);
+		},
+		[handleCellChange],
+	);
+
+	const markMultipleLocationsForCell = useCallback(
+		(rowIndex: number, columnKey: string) => {
+			handleCellChange(rowIndex, AREA_COLUMN_KEY, "Multiple Locations");
+			setFocusedLocationCell({ rowIndex, columnKey });
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange],
+	);
+
+	const updateLocationPart = useCallback(
+		(rowIndex: number, columnKey: string, partIndex: number, value: string) => {
+			const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
+			const parts = splitLocationRawParts(currentValue);
+			parts[partIndex] = value;
+			handleCellChange(rowIndex, columnKey, joinLocationParts(parts));
+			if (parts.filter((part) => part.trim()).length > 1) {
+				handleCellChange(rowIndex, AREA_COLUMN_KEY, "Multiple Locations");
+			}
+		},
+		[handleCellChange],
+	);
+
+	const removeLocationPart = useCallback(
+		(rowIndex: number, columnKey: string, partIndex: number) => {
+			const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
+			const nextParts = splitLocationRawParts(currentValue).filter(
+				(_, index) => index !== partIndex,
+			);
+			handleCellChange(rowIndex, columnKey, joinLocationParts(nextParts));
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange],
+	);
+
 	const addPrimaryUrlSlot = useCallback(
 		(rowIndex: number, columnKey: string) => {
 			const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
@@ -3292,19 +3412,23 @@ export const EventSheetEditorCard = ({
 			const left = Math.min(
 				Math.max(rect.left + 1, EVENT_CATEGORY_POPOVER_PADDING),
 				Math.max(
-					window.innerWidth - EVENT_CATEGORY_POPOVER_WIDTH - EVENT_CATEGORY_POPOVER_PADDING,
+					window.innerWidth -
+						EVENT_CATEGORY_POPOVER_WIDTH -
+						EVENT_CATEGORY_POPOVER_PADDING,
 					EVENT_CATEGORY_POPOVER_PADDING,
 				),
 			);
 			const hasRoomBelow =
-				rect.bottom + EVENT_CATEGORY_POPOVER_HEIGHT + EVENT_CATEGORY_POPOVER_PADDING <
+				rect.bottom +
+					EVENT_CATEGORY_POPOVER_HEIGHT +
+					EVENT_CATEGORY_POPOVER_PADDING <
 				window.innerHeight - EVENT_CATEGORY_POPOVER_PADDING;
 			const top = hasRoomBelow
 				? rect.bottom + 8
 				: Math.max(
-					rect.top - EVENT_CATEGORY_POPOVER_HEIGHT - 8,
-					EVENT_CATEGORY_POPOVER_PADDING,
-				);
+						rect.top - EVENT_CATEGORY_POPOVER_HEIGHT - 8,
+						EVENT_CATEGORY_POPOVER_PADDING,
+					);
 
 			setEventCategoryPopover((current) =>
 				current?.rowIndex === rowIndex && current.columnKey === columnKey
@@ -3431,13 +3555,52 @@ export const EventSheetEditorCard = ({
 		};
 	};
 
+	const getCellPopoverStyle = (
+		rowIndex: number,
+		columnKey: string,
+		width: number,
+		estimatedHeight = 280,
+	): CSSProperties => {
+		if (typeof window === "undefined") {
+			return {
+				left: CELL_POPOVER_VIEWPORT_PADDING,
+				top: CELL_POPOVER_VIEWPORT_PADDING,
+			};
+		}
+
+		const anchor = inputRefs.current[cellRefKey(rowIndex, columnKey)];
+		if (!anchor) {
+			return {
+				left: CELL_POPOVER_VIEWPORT_PADDING,
+				top: CELL_POPOVER_VIEWPORT_PADDING,
+			};
+		}
+
+		const rect = anchor.getBoundingClientRect();
+		const left = Math.min(
+			Math.max(rect.left + 4, CELL_POPOVER_VIEWPORT_PADDING),
+			Math.max(
+				window.innerWidth - width - CELL_POPOVER_VIEWPORT_PADDING,
+				CELL_POPOVER_VIEWPORT_PADDING,
+			),
+		);
+		const hasRoomBelow =
+			rect.bottom + estimatedHeight + CELL_POPOVER_VIEWPORT_PADDING <=
+			window.innerHeight;
+		const top = hasRoomBelow
+			? rect.bottom + 6
+			: Math.max(rect.top - estimatedHeight - 6, CELL_POPOVER_VIEWPORT_PADDING);
+
+		return { left, top };
+	};
+
 	if (!isAuthenticated) {
 		return null;
 	}
 
-		const qualityPopoverPortal =
-			qualityPopover && typeof document !== "undefined"
-				? (() => {
+	const qualityPopoverPortal =
+		qualityPopover && typeof document !== "undefined"
+			? (() => {
 					const row = rows[qualityPopover.rowIndex];
 					if (!row) return null;
 					const rowIssues =
@@ -3571,9 +3734,9 @@ export const EventSheetEditorCard = ({
 					);
 				})()
 			: null;
-		const eventCategoryPopoverPortal =
-			eventCategoryPopover && typeof document !== "undefined"
-				? createPortal(
+	const eventCategoryPopoverPortal =
+		eventCategoryPopover && typeof document !== "undefined"
+			? createPortal(
 					<div
 						data-event-category-popover
 						className="fixed z-[130] w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
@@ -3586,8 +3749,8 @@ export const EventSheetEditorCard = ({
 							Event Category
 						</div>
 						<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
-							Use this to separate parties from activities without changing
-							the card layout.
+							Use this to separate parties from activities without changing the
+							card layout.
 						</div>
 						<div className="max-h-60 overflow-y-auto p-1">
 							<button
@@ -3604,56 +3767,56 @@ export const EventSheetEditorCard = ({
 							>
 								Clear
 							</button>
-							{eventCategoryOptionsForFocusedCell.map((category, optionIndex) => {
-								const normalizedCurrent =
-									normalizeEventExperienceCategory(
+							{eventCategoryOptionsForFocusedCell.map(
+								(category, optionIndex) => {
+									const normalizedCurrent = normalizeEventExperienceCategory(
 										getCellDisplayValue(
 											eventCategoryPopover.rowIndex,
 											eventCategoryPopover.columnKey,
 											rows[eventCategoryPopover.rowIndex]?.[
 												eventCategoryPopover.columnKey
-										] ?? "",
-									),
+											] ?? "",
+										),
 									);
-								const isSelected =
-									normalizedCurrent === category.key;
+									const isSelected = normalizedCurrent === category.key;
 
-								return (
-									<button
-										key={category.key}
-										type="button"
-										onMouseDown={(event) => {
-											event.preventDefault();
-											selectEventCategoryForCell(
-												eventCategoryPopover.rowIndex,
-												eventCategoryPopover.columnKey,
-												category,
-											);
-										}}
-										className={getEventCategoryAdminOptionClassName(
-											category.key,
-											isSelected,
-											optionIndex === highlightedEventCategoryIndex,
-										)}
-									>
-										<span
-											className={`h-2 w-2 shrink-0 rounded-full ${EVENT_CATEGORY_ADMIN_OPTION_CLASSES[category.key].dot}`}
-											aria-hidden="true"
-										/>
-										<span className="min-w-0 flex-1 truncate font-medium">
-											{category.label}
-										</span>
-										<span className="max-w-40 truncate text-[10px] text-muted-foreground">
-											{category.description}
-										</span>
-									</button>
-								);
-							})}
+									return (
+										<button
+											key={category.key}
+											type="button"
+											onMouseDown={(event) => {
+												event.preventDefault();
+												selectEventCategoryForCell(
+													eventCategoryPopover.rowIndex,
+													eventCategoryPopover.columnKey,
+													category,
+												);
+											}}
+											className={getEventCategoryAdminOptionClassName(
+												category.key,
+												isSelected,
+												optionIndex === highlightedEventCategoryIndex,
+											)}
+										>
+											<span
+												className={`h-2 w-2 shrink-0 rounded-full ${EVENT_CATEGORY_ADMIN_OPTION_CLASSES[category.key].dot}`}
+												aria-hidden="true"
+											/>
+											<span className="min-w-0 flex-1 truncate font-medium">
+												{category.label}
+											</span>
+											<span className="max-w-40 truncate text-[10px] text-muted-foreground">
+												{category.description}
+											</span>
+										</button>
+									);
+								},
+							)}
 						</div>
 					</div>,
 					document.body,
 				)
-				: null;
+			: null;
 
 	return (
 		<>
@@ -4947,6 +5110,13 @@ export const EventSheetEditorCard = ({
 										const primaryUrlParts = parseUrlParts(
 											row[PRIMARY_URL_COLUMN_KEY] ?? "",
 										);
+										const locationParts = splitLocationRawParts(
+											getCellDisplayValue(
+												rowIndex,
+												LOCATION_COLUMN_KEY,
+												row[LOCATION_COLUMN_KEY] ?? "",
+											),
+										);
 										const rowIssues =
 											sheetHealthIssuesByRow.get(rowIndex + 1) ?? [];
 										const rowQuality = getRowQualityAssessment(row, rowIssues, {
@@ -5232,7 +5402,14 @@ export const EventSheetEditorCard = ({
 																)}
 																{focusedDateCell?.rowIndex === rowIndex &&
 																	focusedDateCell.columnKey === column.key && (
-																		<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<CellPopover
+																			className="fixed z-[140] w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
+																			style={getCellPopoverStyle(
+																				rowIndex,
+																				column.key,
+																				288,
+																			)}
+																		>
 																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 																				Date
 																			</div>
@@ -5299,7 +5476,7 @@ export const EventSheetEditorCard = ({
 																					</div>
 																				)}
 																			</div>
-																		</div>
+																		</CellPopover>
 																	)}
 															</div>
 														) : TIME_COLUMN_KEYS.has(column.key) ? (
@@ -5387,7 +5564,15 @@ export const EventSheetEditorCard = ({
 																{focusedTimeCell?.rowIndex === rowIndex &&
 																	focusedTimeCell.columnKey === column.key &&
 																	timeInputPreview && (
-																		<div className="absolute left-1 top-8 z-40 w-56 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<CellPopover
+																			className="fixed z-[140] w-56 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
+																			style={getCellPopoverStyle(
+																				rowIndex,
+																				column.key,
+																				224,
+																				112,
+																			)}
+																		>
 																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 																				{column.key === START_TIME_COLUMN_KEY
 																					? "Start time"
@@ -5405,7 +5590,7 @@ export const EventSheetEditorCard = ({
 																			<div className="px-2 py-1.5 text-[10px] text-muted-foreground">
 																				Try 2 pm, 14:00, 11.30pm, or 14h00
 																			</div>
-																		</div>
+																		</CellPopover>
 																	)}
 															</div>
 														) : column.key === LOCATION_COLUMN_KEY ? (
@@ -5544,15 +5729,123 @@ export const EventSheetEditorCard = ({
 																{focusedLocationCell?.rowIndex === rowIndex &&
 																	focusedLocationCell.columnKey ===
 																		column.key && (
-																		<div className="absolute left-1 top-8 z-40 w-80 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<CellPopover
+																			className="fixed z-[140] w-80 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
+																			style={getCellPopoverStyle(
+																				rowIndex,
+																				column.key,
+																				320,
+																			)}
+																		>
 																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 																				Location
 																			</div>
 																			<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
-																				Reuses venues already in this sheet.
-																				Matching area suggestions appear first.
+																				Use | between venues when you want to
+																				list exact places. Use Multiple
+																				Locations when the event has several
+																				places but no map pin.
 																			</div>
-																			<div className="max-h-60 overflow-y-auto p-1">
+																			<div className="border-b p-1">
+																				<div className="grid grid-cols-2 gap-1">
+																					<Button
+																						type="button"
+																						size="sm"
+																						variant="ghost"
+																						className="h-7 justify-start px-2 text-xs"
+																						onMouseDown={(event) => {
+																							event.preventDefault();
+																						}}
+																						onClick={() =>
+																							addLocationSlot(
+																								rowIndex,
+																								column.key,
+																							)
+																						}
+																					>
+																						<Plus className="mr-1 h-3.5 w-3.5" />
+																						Add location
+																					</Button>
+																					<Button
+																						type="button"
+																						size="sm"
+																						variant="ghost"
+																						className="h-7 justify-start px-2 text-xs"
+																						onMouseDown={(event) => {
+																							event.preventDefault();
+																						}}
+																						onClick={() =>
+																							markMultipleLocationsForCell(
+																								rowIndex,
+																								column.key,
+																							)
+																						}
+																					>
+																						Multiple locations
+																					</Button>
+																				</div>
+																			</div>
+																			{locationParts.length > 0 && (
+																				<div className="border-b p-1">
+																					{locationParts.map(
+																						(part, partIndex) => (
+																							<div
+																								key={locationPartRefKey(
+																									rowIndex,
+																									column.key,
+																									partIndex,
+																								)}
+																								className="rounded px-1 py-1"
+																							>
+																								<div className="flex items-center gap-1">
+																									<input
+																										ref={(node) => {
+																											locationPartInputRefs.current[
+																												locationPartRefKey(
+																													rowIndex,
+																													column.key,
+																													partIndex,
+																												)
+																											] = node;
+																										}}
+																										value={part}
+																										onChange={(event) =>
+																											updateLocationPart(
+																												rowIndex,
+																												column.key,
+																												partIndex,
+																												event.target.value,
+																											)
+																										}
+																										className="h-7 min-w-0 flex-1 rounded border border-border/70 bg-background px-2 text-xs outline-none focus:border-ring"
+																										placeholder={`Location ${partIndex + 1}`}
+																									/>
+																									<button
+																										type="button"
+																										className="rounded p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+																										aria-label={`Remove location ${partIndex + 1}`}
+																										title={`Remove location ${partIndex + 1}`}
+																										onMouseDown={(event) => {
+																											event.preventDefault();
+																											removeLocationPart(
+																												rowIndex,
+																												column.key,
+																												partIndex,
+																											);
+																										}}
+																									>
+																										<Trash2 className="h-3 w-3" />
+																									</button>
+																								</div>
+																							</div>
+																						),
+																					)}
+																				</div>
+																			)}
+																			<div className="max-h-52 overflow-y-auto p-1">
+																				<div className="px-2 pb-1 pt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+																					Reused locations
+																				</div>
 																				{locationSuggestionsForFocusedCell.map(
 																					(suggestion, optionIndex) => (
 																						<button
@@ -5596,7 +5889,7 @@ export const EventSheetEditorCard = ({
 																					</div>
 																				)}
 																			</div>
-																		</div>
+																		</CellPopover>
 																	)}
 															</div>
 														) : column.key === CATEGORY_COLUMN_KEY ? (
@@ -5736,7 +6029,14 @@ export const EventSheetEditorCard = ({
 																/>
 																{focusedGenreCell?.rowIndex === rowIndex &&
 																	focusedGenreCell.columnKey === column.key && (
-																		<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<CellPopover
+																			className="fixed z-[140] w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
+																			style={getCellPopoverStyle(
+																				rowIndex,
+																				column.key,
+																				288,
+																			)}
+																		>
 																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 																				Genres
 																			</div>
@@ -5797,7 +6097,7 @@ export const EventSheetEditorCard = ({
 																					</div>
 																				)}
 																			</div>
-																		</div>
+																		</CellPopover>
 																	)}
 																<div className="flex min-h-7 flex-wrap gap-1 px-1.5 pb-1.5">
 																	{splitGenreCell(
@@ -5968,7 +6268,14 @@ export const EventSheetEditorCard = ({
 																/>
 																{focusedAreaCell?.rowIndex === rowIndex &&
 																	focusedAreaCell.columnKey === column.key && (
-																		<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<CellPopover
+																			className="fixed z-[140] w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
+																			style={getCellPopoverStyle(
+																				rowIndex,
+																				column.key,
+																				288,
+																			)}
+																		>
 																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 																				Area
 																			</div>
@@ -6039,7 +6346,7 @@ export const EventSheetEditorCard = ({
 																					</div>
 																				)}
 																			</div>
-																		</div>
+																		</CellPopover>
 																	)}
 															</div>
 														) : column.key === EVENT_CATEGORY_COLUMN_KEY ? (
@@ -6341,7 +6648,15 @@ export const EventSheetEditorCard = ({
 																{focusedSettingCell?.rowIndex === rowIndex &&
 																	focusedSettingCell.columnKey ===
 																		column.key && (
-																		<div className="absolute left-1 top-8 z-40 w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<CellPopover
+																			className="fixed z-[140] w-72 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
+																			style={getCellPopoverStyle(
+																				rowIndex,
+																				column.key,
+																				288,
+																				172,
+																			)}
+																		>
 																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 																				Setting
 																			</div>
@@ -6403,7 +6718,7 @@ export const EventSheetEditorCard = ({
 																					},
 																				)}
 																			</div>
-																		</div>
+																		</CellPopover>
 																	)}
 															</div>
 														) : column.key === AGE_COLUMN_KEY ? (
@@ -6548,7 +6863,15 @@ export const EventSheetEditorCard = ({
 																/>
 																{focusedAgeCell?.rowIndex === rowIndex &&
 																	focusedAgeCell.columnKey === column.key && (
-																		<div className="absolute left-1 top-8 z-40 w-64 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<CellPopover
+																			className="fixed z-[140] w-64 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
+																			style={getCellPopoverStyle(
+																				rowIndex,
+																				column.key,
+																				256,
+																				248,
+																			)}
+																		>
 																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 																				Age Guidance
 																			</div>
@@ -6610,7 +6933,7 @@ export const EventSheetEditorCard = ({
 																					},
 																				)}
 																			</div>
-																		</div>
+																		</CellPopover>
 																	)}
 															</div>
 														) : column.key === PRIMARY_URL_COLUMN_KEY ? (
@@ -6737,7 +7060,14 @@ export const EventSheetEditorCard = ({
 																{focusedPrimaryUrlCell?.rowIndex === rowIndex &&
 																	focusedPrimaryUrlCell.columnKey ===
 																		column.key && (
-																		<div className="absolute left-1 top-8 z-40 w-80 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<CellPopover
+																			className="fixed z-[140] w-80 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
+																			style={getCellPopoverStyle(
+																				rowIndex,
+																				column.key,
+																				320,
+																			)}
+																		>
 																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 																				Primary URL
 																			</div>
@@ -6861,7 +7191,7 @@ export const EventSheetEditorCard = ({
 																					</div>
 																				)}
 																			</div>
-																		</div>
+																		</CellPopover>
 																	)}
 															</div>
 														) : COUNTRY_COLUMN_KEYS.has(column.key) ? (
@@ -7017,7 +7347,14 @@ export const EventSheetEditorCard = ({
 																{focusedCountryCell?.rowIndex === rowIndex &&
 																	focusedCountryCell.columnKey ===
 																		column.key && (
-																		<div className="absolute left-1 top-8 z-40 w-64 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl">
+																		<CellPopover
+																			className="fixed z-[140] w-64 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
+																			style={getCellPopoverStyle(
+																				rowIndex,
+																				column.key,
+																				256,
+																			)}
+																		>
 																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 																				Country
 																			</div>
@@ -7086,7 +7423,7 @@ export const EventSheetEditorCard = ({
 																					</div>
 																				)}
 																			</div>
-																		</div>
+																		</CellPopover>
 																	)}
 															</div>
 														) : (

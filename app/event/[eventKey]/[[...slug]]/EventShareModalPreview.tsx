@@ -1,8 +1,8 @@
 import {
+	type Event,
 	formatDayWithDate,
 	formatLocationAreaLong,
 	formatPrice,
-	type Event,
 } from "@/features/events/types";
 import Link from "next/link";
 
@@ -39,12 +39,16 @@ export function EventShareModalPreview({ event }: EventShareModalPreviewProps) {
 		: "Date TBC";
 	const priceLabel = formatPrice(event.price);
 	const locationArea = formatLocationAreaLong(event.arrondissement);
+	const locationDisplay =
+		event.locations && event.locations.length > 1
+			? event.locations.join(" / ")
+			: event.arrondissement === "multiple-locations"
+				? "Multiple locations"
+				: event.location || "Location TBC";
 	const venueTypeLabel =
 		event.venueTypes.length > 0
 			? event.venueTypes
-					.map((venueType) =>
-						venueType === "indoor" ? "Indoor" : "Outdoor",
-					)
+					.map((venueType) => (venueType === "indoor" ? "Indoor" : "Outdoor"))
 					.join(" & ")
 			: event.indoor
 				? "Indoor"
@@ -127,7 +131,7 @@ export function EventShareModalPreview({ event }: EventShareModalPreviewProps) {
 						{locationArea}
 					</p>
 					<p className="mt-2 rounded-lg border border-border/60 bg-card/80 px-3 py-2 text-sm text-foreground">
-						{event.location || "Location TBC"}
+						{locationDisplay}
 					</p>
 				</div>
 

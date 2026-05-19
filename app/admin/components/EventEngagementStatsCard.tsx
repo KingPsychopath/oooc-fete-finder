@@ -23,10 +23,10 @@ import {
 import { formatTourSignal } from "@/features/events/engagement/tour-analytics";
 import { parseEventFilterStateFromSearchParams } from "@/features/events/filter-state-persistence";
 import {
-	MUSIC_GENRES,
-	PRICE_RANGE_CONFIG,
 	type EventExperienceCategory,
+	MUSIC_GENRES,
 	type MusicGenre,
+	PRICE_RANGE_CONFIG,
 } from "@/features/events/types";
 import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
 import { CircleHelp } from "lucide-react";
@@ -1036,7 +1036,11 @@ export const EventEngagementStatsCard = ({
 			selectedDateRange: { from: string | null; to: string | null };
 			selectedDayNightPeriods: Array<"day" | "night">;
 			selectedArrondissements: Array<
-				number | "greater-paris" | "outside-paris" | "unknown"
+				| number
+				| "greater-paris"
+				| "outside-paris"
+				| "multiple-locations"
+				| "unknown"
 			>;
 			selectedGenres: MusicGenre[];
 			excludedGenres?: MusicGenre[];

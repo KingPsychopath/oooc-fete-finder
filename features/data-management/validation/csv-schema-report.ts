@@ -1,6 +1,6 @@
-import type { EditableSheetRow } from "../csv/sheet-editor";
-import { normalizeEventKey } from "../assembly/event-key";
 import { parseSupportedNationalities } from "@/features/events/nationality-utils";
+import { normalizeEventKey } from "../assembly/event-key";
+import type { EditableSheetRow } from "../csv/sheet-editor";
 
 export type CsvSchemaIssueSeverity = "warning" | "error";
 
@@ -30,13 +30,12 @@ export interface CsvSchemaReport {
 }
 
 const hasAnyRowValue = (row: EditableSheetRow): boolean => {
-	return Object.values(row).some((value) => String(value ?? "").trim().length > 0);
+	return Object.values(row).some(
+		(value) => String(value ?? "").trim().length > 0,
+	);
 };
 
-const pushIssue = (
-	issues: CsvSchemaIssue[],
-	issue: CsvSchemaIssue,
-): void => {
+const pushIssue = (issues: CsvSchemaIssue[], issue: CsvSchemaIssue): void => {
 	issues.push(issue);
 };
 
@@ -48,7 +47,8 @@ const keySeverity = (mode: EventKeyMode): CsvSchemaIssueSeverity | null => {
 	return null;
 };
 
-const hasExplicitYear = (value: string): boolean => /\b(19|20)\d{2}\b/.test(value);
+const hasExplicitYear = (value: string): boolean =>
+	/\b(19|20)\d{2}\b/.test(value);
 
 export const analyzeCsvSchemaRows = (
 	rows: EditableSheetRow[],
@@ -94,7 +94,7 @@ export const analyzeCsvSchemaRows = (
 					rowIndex,
 					value: "",
 					message:
-						'Missing Event Key. Key will be auto-generated unless source is corrected.',
+						"Missing Event Key. Key will be auto-generated unless source is corrected.",
 				});
 			} else {
 				const normalized = normalizeEventKey(rawEventKey);
@@ -126,7 +126,11 @@ export const analyzeCsvSchemaRows = (
 			}
 		}
 
-		if (rawPicks && rawPicks !== "🌟" && !rawPicks.toLowerCase().includes("pick")) {
+		if (
+			rawPicks &&
+			rawPicks !== "🌟" &&
+			!rawPicks.toLowerCase().includes("pick")
+		) {
 			pushIssue(issues, {
 				severity: "warning",
 				code: "ooc_picks_unexpected",
@@ -166,9 +170,21 @@ export const analyzeCsvSchemaRows = (
 		}
 
 		if (rawArrondissement && rawArrondissement !== "-") {
+			const normalizedArea = rawArrondissement
+				.trim()
+				.toLowerCase()
+				.replace(/[\s_]+/g, "-");
+			const isNamedArea = [
+				"greater-paris",
+				"grand-paris",
+				"outside-paris",
+				"location-tbc",
+				"multiple-locations",
+			].includes(normalizedArea);
 			const number = Number.parseInt(rawArrondissement, 10);
 			const isValid =
-				Number.isInteger(number) && number >= 1 && number <= 20;
+				isNamedArea ||
+				(Number.isInteger(number) && number >= 1 && number <= 20);
 			if (!isValid) {
 				pushIssue(issues, {
 					severity: "warning",
@@ -177,7 +193,7 @@ export const analyzeCsvSchemaRows = (
 					rowIndex,
 					value: rawArrondissement,
 					message:
-						'Unexpected district/area value. Use 1-20, "-" or leave blank.',
+						'Unexpected district/area value. Use 1-20, "Multiple Locations", "Location TBC", "-" or leave blank.',
 				});
 			}
 		}

@@ -1607,7 +1607,15 @@ export async function getEventLocationReviewData(
 			LocalEventStore.getCsv(),
 			LocationRepository.load(),
 		]);
-		const processed = await processCSVData(csv ?? "", "store", false, {
+		if (!csv?.trim()) {
+			return {
+				success: true,
+				providerConfigured: createGoogleGeocodingProvider().isConfigured(),
+				items: [],
+			};
+		}
+
+		const processed = await processCSVData(csv, "store", false, {
 			populateCoordinates: false,
 		});
 		const itemsByKey = new Map<

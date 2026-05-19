@@ -32,9 +32,11 @@ export function isCoordinateResolvableInput(
 		normalizedLocation !== "tba" &&
 		normalizedLocation !== "tbc" &&
 		normalizedLocation !== "location tbc" &&
-		normalizedLocation !== "location tba";
+		normalizedLocation !== "location tba" &&
+		normalizedLocation !== "multiple locations";
 
-	const hasValidArrondissement = arrondissement !== "unknown";
+	const hasValidArrondissement =
+		arrondissement !== "unknown" && arrondissement !== "multiple-locations";
 
 	return hasValidLocation && hasValidArrondissement;
 }

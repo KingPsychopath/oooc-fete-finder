@@ -20,7 +20,7 @@ const MIN_FORM_COMPLETION_SECONDS = 4;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const ARRONDISSEMENT_PATTERN =
-	/^([1-9]|1\d|20|greater-paris|outside-paris|unknown)$/;
+	/^([1-9]|1\d|20|greater-paris|outside-paris|multiple-locations|unknown)$/;
 
 const normalizeWhitespace = (value: string): string =>
 	value.replace(/\s+/g, " ").trim();
@@ -165,7 +165,7 @@ const eventSubmissionBaseSchema = {
 		.max(32)
 		.refine(
 			(value) => value === "" || ARRONDISSEMENT_PATTERN.test(value),
-			"Arrondissement must be 1-20, greater-paris, outside-paris, or unknown",
+			"Arrondissement must be 1-20, greater-paris, outside-paris, multiple-locations, or unknown",
 		)
 		.optional()
 		.default(""),
@@ -246,7 +246,7 @@ const eventSubmissionUpdateInputSchema = z
 			.max(32)
 			.refine(
 				(value) => value === "" || ARRONDISSEMENT_PATTERN.test(value),
-				"Arrondissement must be 1-20, greater-paris, outside-paris, or unknown",
+				"Arrondissement must be 1-20, greater-paris, outside-paris, multiple-locations, or unknown",
 			)
 			.optional(),
 		ticketLink: z

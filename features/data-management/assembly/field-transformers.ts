@@ -123,6 +123,18 @@ export const LocationTransformers = {
 		if (["outside paris", "outside-paris", "out of paris"].includes(cleaned)) {
 			return "outside-paris";
 		}
+		if (
+			[
+				"multiple locations",
+				"multiple-locations",
+				"multi location",
+				"multi-location",
+				"various locations",
+				"various",
+			].includes(cleaned)
+		) {
+			return "multiple-locations";
+		}
 		if (["location tbc", "tbc", "unknown", "-"].includes(cleaned)) {
 			return "unknown";
 		}
@@ -279,6 +291,12 @@ export const LocationTransformers = {
 		return "unknown";
 	},
 };
+
+export const splitLocationList = (value: string): string[] =>
+	value
+		.split(/[\n\r|;]+/)
+		.map((part) => part.trim())
+		.filter((part) => part.length > 0);
 
 /**
  * Nationality and Country Transformers

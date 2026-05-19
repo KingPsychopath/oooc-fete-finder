@@ -228,7 +228,12 @@ const isValidArrondissementInput = (value: string): boolean => {
 	if (!normalized) return true;
 	return (
 		/^([1-9]|1\d|20)$/.test(normalized) ||
-		["greater-paris", "outside-paris", "unknown"].includes(normalized)
+		[
+			"greater-paris",
+			"outside-paris",
+			"multiple-locations",
+			"unknown",
+		].includes(normalized)
 	);
 };
 
@@ -350,7 +355,7 @@ export function SubmitEventForm({
 			return "Proof link must be a valid URL.";
 		}
 		if (!isValidArrondissementInput(form.arrondissement)) {
-			return "Arrondissement must be 1-20, greater-paris, outside-paris, or unknown.";
+			return "Arrondissement must be 1-20, greater-paris, outside-paris, multiple-locations, or unknown.";
 		}
 		return null;
 	};

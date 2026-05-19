@@ -220,6 +220,36 @@ describe("event assembler identity", () => {
 		]);
 	});
 
+	it("supports explicit multiple-location events", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				location: "Venue A | Venue B",
+				districtArea: "Multiple Locations",
+			},
+			0,
+		);
+
+		expect(event.arrondissement).toBe("multiple-locations");
+		expect(event.location).toBe("Multiple locations");
+		expect(event.locations).toEqual(["Venue A", "Venue B"]);
+	});
+
+	it("supports multiple-location events without exact venues", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				location: "",
+				districtArea: "Multiple Locations",
+			},
+			0,
+		);
+
+		expect(event.arrondissement).toBe("multiple-locations");
+		expect(event.location).toBeUndefined();
+		expect(event.locations).toBeUndefined();
+	});
+
 	it("preserves metadata tags from the csv row", () => {
 		const event = assembleEvent(
 			{
