@@ -62,6 +62,9 @@ export const SearchChipSettingsCard = ({
 	const [signalStatus, setSignalStatus] = useState(
 		initialSettings?.success ? initialSettings.signalStatus : undefined,
 	);
+	const [chipDebugMatches, setChipDebugMatches] = useState(
+		initialSettings?.success ? (initialSettings.chipDebugMatches ?? []) : [],
+	);
 	const [isSaving, setIsSaving] = useState(false);
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const [statusMessage, setStatusMessage] = useState("");
@@ -103,6 +106,7 @@ export const SearchChipSettingsCard = ({
 			}
 			applySettings(result.settings, result.store);
 			setSignalStatus(result.signalStatus);
+			setChipDebugMatches(result.chipDebugMatches ?? []);
 			setStatusMessage("Search chip settings refreshed");
 		} catch (error) {
 			setErrorMessage(
@@ -129,6 +133,7 @@ export const SearchChipSettingsCard = ({
 				if (!active) return;
 				applySettings(result.settings, result.store);
 				setSignalStatus(result.signalStatus);
+				setChipDebugMatches(result.chipDebugMatches ?? []);
 			} catch (error) {
 				if (!active) return;
 				setErrorMessage(
@@ -162,6 +167,7 @@ export const SearchChipSettingsCard = ({
 			}
 			applySettings(result.settings, result.store);
 			setSignalStatus(result.signalStatus);
+			setChipDebugMatches(result.chipDebugMatches ?? []);
 			setStatusMessage(result.message || "Search chip settings saved");
 		} catch (error) {
 			setEnabled(!nextEnabled);
@@ -262,6 +268,62 @@ export const SearchChipSettingsCard = ({
 					</p>
 					{signalStatus?.error && (
 						<p className="mt-2 text-xs text-rose-700">{signalStatus.error}</p>
+					)}
+				</div>
+
+				<div className="rounded-md border bg-background/60 p-3 text-sm">
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<div>
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Popular Debug
+							</p>
+							<p className="mt-1 font-medium">
+								{chipDebugMatches.length > 0
+									? `${chipDebugMatches.length.toLocaleString()} visible match${
+											chipDebugMatches.length === 1 ? "" : "es"
+										}`
+									: "No visible dynamic chips"}
+							</p>
+						</div>
+						<Badge variant="outline">Admin only</Badge>
+					</div>
+					{chipDebugMatches.length > 0 && (
+						<div className="mt-3 grid gap-2">
+							{chipDebugMatches.map((match) => (
+								<div
+									key={`${match.label}-${match.matchedSignalQuery}`}
+									className="rounded-md border bg-muted/25 p-2"
+								>
+									<div className="flex flex-wrap items-center justify-between gap-2">
+										<p className="font-medium">{match.label}</p>
+										<div className="flex flex-wrap gap-1">
+											{match.eventDate && (
+												<Badge variant="outline">{match.eventDate}</Badge>
+											)}
+											<Badge variant="secondary">{match.kind}</Badge>
+										</div>
+									</div>
+									<p className="mt-1 text-xs text-muted-foreground">
+										Matched search: "{match.matchedSignalQuery}" -{" "}
+										{match.matchedSignalCount.toLocaleString()} total -{" "}
+										{match.matchedSignalRecentCount.toLocaleString()} recent
+										{match.matchedSignalSources &&
+										match.matchedSignalSources.length > 0
+											? ` - ${match.matchedSignalSources.join(", ")}`
+											: ""}
+									</p>
+									<p className="mt-1 text-xs text-muted-foreground">
+										Confidence {(match.confidence * 100).toFixed(0)}% - Score{" "}
+										{match.score.toFixed(1)}
+										{match.matchedSignalLastSeenAt
+											? ` - Last seen ${formatAdminDateTime(
+													match.matchedSignalLastSeenAt,
+												)}`
+											: ""}
+									</p>
+								</div>
+							))}
+						</div>
 					)}
 				</div>
 

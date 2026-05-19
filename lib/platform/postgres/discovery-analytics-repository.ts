@@ -396,6 +396,7 @@ export class DiscoveryAnalyticsRepository {
 			count: number;
 			recentCount: number;
 			lastSeenAt: string;
+			sources?: string[];
 		}>
 	> {
 		await this.ready();
@@ -411,13 +412,19 @@ export class DiscoveryAnalyticsRepository {
 				count: number;
 				recentCount: number;
 				lastSeenAt: Date | string;
+				sources: string[] | null;
 			}>
 		>`
 			SELECT
 				search_query AS query,
 				COUNT(*)::int AS count,
 				COUNT(*) FILTER (WHERE recorded_at >= ${input.recentStartAt})::int AS "recentCount",
-				MAX(recorded_at) AS "lastSeenAt"
+				MAX(recorded_at) AS "lastSeenAt",
+				COALESCE(
+					ARRAY_AGG(DISTINCT filter_value ORDER BY filter_value)
+						FILTER (WHERE filter_group = 'search_source' AND filter_value IS NOT NULL),
+					ARRAY[]::text[]
+				) AS sources
 			FROM app_discovery_analytics_stats
 			WHERE action_type = 'search'
 				AND search_query IS NOT NULL
@@ -429,15 +436,19 @@ export class DiscoveryAnalyticsRepository {
 			ORDER BY count DESC, "recentCount" DESC, MAX(recorded_at) DESC
 			LIMIT ${safeLimit}
 		`;
-		return rows.map((row) => ({
-			query: row.query,
-			count: row.count,
-			recentCount: row.recentCount,
-			lastSeenAt:
-				row.lastSeenAt instanceof Date
-					? row.lastSeenAt.toISOString()
-					: new Date(row.lastSeenAt).toISOString(),
-		}));
+		return rows.map((row) => {
+			const sources = row.sources?.filter(Boolean) ?? [];
+			return {
+				query: row.query,
+				count: row.count,
+				recentCount: row.recentCount,
+				...(sources.length > 0 ? { sources } : {}),
+				lastSeenAt:
+					row.lastSeenAt instanceof Date
+						? row.lastSeenAt.toISOString()
+						: new Date(row.lastSeenAt).toISOString(),
+			};
+		});
 	}
 
 	async listUserFilterMatches(input: {

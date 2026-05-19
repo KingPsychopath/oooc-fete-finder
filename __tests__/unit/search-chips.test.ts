@@ -1,4 +1,5 @@
 import {
+	buildDynamicSearchChipDebugMatches,
 	buildDynamicSearchChips,
 	buildStaticSearchChips,
 } from "@/features/events/search-chips";
@@ -133,8 +134,18 @@ describe("search chips", () => {
 	it("includes shortened event-title chips when event searches are popular", () => {
 		const chips = buildDynamicSearchChips(
 			[
-				{ query: "La Sunday Abidjan", count: 30, recentCount: 12 },
-				{ query: "This is LA VIE (Saturday)", count: 28, recentCount: 11 },
+				{
+					query: "La Sunday Abidjan",
+					count: 30,
+					recentCount: 12,
+					sources: ["input"],
+				},
+				{
+					query: "This is LA VIE (Saturday)",
+					count: 28,
+					recentCount: 11,
+					sources: ["input"],
+				},
 				{ query: "Saturday", count: 4, recentCount: 2 },
 			],
 			[
@@ -168,12 +179,121 @@ describe("search chips", () => {
 		);
 	});
 
+	it("does not promote an event title from a broad facet search", () => {
+		const chips = buildDynamicSearchChips(
+			[{ query: "free", count: 20, recentCount: 8, sources: ["curated_chip"] }],
+			[
+				makeEvent({
+					id: "free-youth",
+					name: "SSSOUND x Free the Youth",
+					date: "2026-06-21",
+				}),
+			],
+			{ staticQueries: [], maxChips: 4 },
+		);
+
+		expect(chips.map((chip) => chip.query)).not.toContain(
+			"SSSOUND x Free the Youth",
+		);
+		expect(chips).toEqual([
+			expect.objectContaining({ query: "Free", kind: "facet" }),
+		]);
+	});
+
+	it("requires typed input before promoting exact event-title signals", () => {
+		const chips = buildDynamicSearchChips(
+			[
+				{
+					query: "La Sunday Abidjan",
+					count: 30,
+					recentCount: 12,
+					sources: ["curated_chip"],
+				},
+			],
+			[makeEvent({ id: "event-title", name: "La Sunday Abidjan" })],
+			{ staticQueries: [], maxChips: 4 },
+		);
+
+		expect(chips.map((chip) => chip.query)).not.toContain("La Sunday Abidjan");
+	});
+
+	it("excludes old event-title candidates when current-year events exist", () => {
+		const chips = buildDynamicSearchChips(
+			[
+				{
+					query: "SSSOUND x Free the Youth",
+					count: 20,
+					recentCount: 8,
+					sources: ["input"],
+				},
+			],
+			[
+				makeEvent({
+					id: "old-free-youth",
+					name: "SSSOUND x Free the Youth",
+					date: "2025-06-21",
+				}),
+				makeEvent({
+					id: "current",
+					name: "Amapiano Night",
+					date: "2026-06-21",
+				}),
+			],
+			{ staticQueries: [], maxChips: 4 },
+		);
+
+		expect(chips.map((chip) => chip.query)).not.toContain(
+			"SSSOUND x Free the Youth",
+		);
+	});
+
+	it("can explain the signal behind a popular chip", () => {
+		const matches = buildDynamicSearchChipDebugMatches(
+			[
+				{
+					query: "La Sunday Abidjan",
+					count: 30,
+					recentCount: 12,
+					lastSeenAt: "2026-05-19T10:00:00.000Z",
+					sources: ["input"],
+				},
+			],
+			[makeEvent({ id: "event-title", name: "La Sunday Abidjan" })],
+			{ staticQueries: [], maxChips: 4 },
+		);
+
+		expect(matches).toEqual([
+			expect.objectContaining({
+				label: "La Sunday Abidjan",
+				eventDate: "2026-06-21",
+				matchedSignalQuery: "La Sunday Abidjan",
+				matchedSignalCount: 30,
+				matchedSignalSources: ["input"],
+			}),
+		]);
+	});
+
 	it("suppresses repeated event chips when alternatives exist", () => {
 		const chips = buildDynamicSearchChips(
 			[
-				{ query: "Repeated Event", count: 60, recentCount: 20 },
-				{ query: "Fresh Event", count: 30, recentCount: 10 },
-				{ query: "Another Fresh Event", count: 25, recentCount: 8 },
+				{
+					query: "Repeated Event",
+					count: 60,
+					recentCount: 20,
+					sources: ["input"],
+				},
+				{
+					query: "Fresh Event",
+					count: 30,
+					recentCount: 10,
+					sources: ["input"],
+				},
+				{
+					query: "Another Fresh Event",
+					count: 25,
+					recentCount: 8,
+					sources: ["input"],
+				},
 			],
 			[
 				makeEvent({ id: "repeated", name: "Repeated Event" }),
@@ -201,7 +321,14 @@ describe("search chips", () => {
 
 	it("falls back to suppressed event chips when there are not enough alternatives", () => {
 		const chips = buildDynamicSearchChips(
-			[{ query: "Repeated Event", count: 60, recentCount: 20 }],
+			[
+				{
+					query: "Repeated Event",
+					count: 60,
+					recentCount: 20,
+					sources: ["input"],
+				},
+			],
 			[makeEvent({ id: "repeated", name: "Repeated Event" })],
 			{
 				staticQueries: [],
@@ -218,8 +345,18 @@ describe("search chips", () => {
 	it("prefers organic event chips over paid placements when scores are close", () => {
 		const chips = buildDynamicSearchChips(
 			[
-				{ query: "Promoted Event", count: 20, recentCount: 8 },
-				{ query: "Organic Event", count: 19, recentCount: 8 },
+				{
+					query: "Promoted Event",
+					count: 20,
+					recentCount: 8,
+					sources: ["input"],
+				},
+				{
+					query: "Organic Event",
+					count: 19,
+					recentCount: 8,
+					sources: ["input"],
+				},
 			],
 			[
 				makeEvent({

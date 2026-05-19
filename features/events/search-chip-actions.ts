@@ -2,11 +2,16 @@
 
 import { recordAdminActivity } from "@/features/admin/activity/record";
 import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
+import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
 import {
 	SEARCH_CHIP_SIGNALS_REVALIDATE_SECONDS,
 	invalidateSearchChipSettingsCache,
 } from "./search-chip-cache";
+import {
+	buildDynamicSearchChipDebugMatches,
+	type SearchChipDebugMatch,
+} from "./search-chips";
 import {
 	type SearchChipSettings,
 	SearchChipSettingsStore,
@@ -31,6 +36,7 @@ interface SearchChipAdminResponse {
 	settings?: SearchChipSettings;
 	store?: SearchChipStoreStatus;
 	signalStatus?: SearchChipSignalStatus;
+	chipDebugMatches?: SearchChipDebugMatch[];
 	error?: string;
 	message?: string;
 }
@@ -97,6 +103,25 @@ async function getSearchChipSignalStatus(): Promise<SearchChipSignalStatus> {
 	}
 }
 
+async function getSearchChipDebugMatches(
+	maxDynamicChips: number,
+): Promise<SearchChipDebugMatch[]> {
+	const repository = getDiscoveryAnalyticsRepository();
+	if (!repository) return [];
+	const [signals, eventsResult] = await Promise.all([
+		repository.listTopSearchSignals({
+			...buildSignalWindow(),
+			limit: 250,
+			excludeSearchSource: "popular_chip",
+		}),
+		getLiveEvents({ includeEngagementProjection: false }),
+	]);
+	if (!eventsResult.success || eventsResult.data.length === 0) return [];
+	return buildDynamicSearchChipDebugMatches(signals, eventsResult.data, {
+		maxChips: maxDynamicChips,
+	});
+}
+
 export async function getAdminSearchChipSettings(
 	keyOrToken?: string,
 ): Promise<SearchChipAdminResponse> {
@@ -109,7 +134,10 @@ export async function getAdminSearchChipSettings(
 			SearchChipSettingsStore.getStatus(),
 			getSearchChipSignalStatus(),
 		]);
-		return { success: true, settings, store, signalStatus };
+		const chipDebugMatches = settings.dynamicChipsEnabled
+			? await getSearchChipDebugMatches(settings.maxDynamicChips)
+			: [];
+		return { success: true, settings, store, signalStatus, chipDebugMatches };
 	} catch (error) {
 		return {
 			success: false,
@@ -151,6 +179,9 @@ export async function updateAdminSearchChipSettings(
 			settings,
 			store,
 			signalStatus: await getSearchChipSignalStatus(),
+			chipDebugMatches: settings.dynamicChipsEnabled
+				? await getSearchChipDebugMatches(settings.maxDynamicChips)
+				: [],
 			message: settings.dynamicChipsEnabled
 				? "Dynamic search chips enabled"
 				: "Dynamic search chips disabled",

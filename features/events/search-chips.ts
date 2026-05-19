@@ -12,6 +12,10 @@ import {
 	isLocationTbcValue,
 	isMultipleLocationPlaceholderValue,
 } from "@/features/events/types";
+import {
+	getDefaultDateRangeForEvents,
+	type DateRangeFilter,
+} from "./filtering";
 import { shouldDisplayFeaturedEvent } from "./featured/utils/timestamp-utils";
 import { DEFAULT_SEARCH_EXAMPLES } from "./search-defaults";
 
@@ -29,6 +33,23 @@ export interface SearchChipSignal {
 	count: number;
 	recentCount?: number;
 	lastSeenAt?: string;
+	sources?: string[];
+}
+
+export interface SearchChipDebugMatch {
+	label: string;
+	query: string;
+	kind: SearchChipCandidateKind;
+	source: SearchChipSource;
+	eventDate?: string;
+	score: number;
+	confidence: number;
+	totalCount: number;
+	matchedSignalQuery: string;
+	matchedSignalCount: number;
+	matchedSignalRecentCount: number;
+	matchedSignalLastSeenAt?: string;
+	matchedSignalSources?: string[];
 }
 
 type SearchChipCandidateKind = "facet" | "genre" | "event" | "venue" | "tag";
@@ -39,6 +60,7 @@ interface SearchChipCandidate {
 	aliases: string[];
 	resultCount: number;
 	kind: SearchChipCandidateKind;
+	eventDate?: string;
 	isPaidPlacement?: boolean;
 }
 
@@ -47,6 +69,7 @@ type MatchedCandidate = {
 	score: number;
 	confidence: number;
 	totalCount: number;
+	signal: SearchChipSignal;
 };
 
 const MAX_DYNAMIC_CHIPS = 4;
@@ -166,6 +189,13 @@ const isEligibleEventCandidate = (event: Event): boolean => {
 	return true;
 };
 
+const isEventInDateRange = (event: Event, range: DateRangeFilter): boolean => {
+	if (!range.from && !range.to) return true;
+	if (range.from && event.date < range.from) return false;
+	if (range.to && event.date > range.to) return false;
+	return true;
+};
+
 const addCandidate = (
 	candidates: Map<string, SearchChipCandidate>,
 	input: SearchChipCandidate,
@@ -196,6 +226,7 @@ const buildCandidates = (events: Event[]): SearchChipCandidate[] => {
 	const genreLabelByKey = new Map<string, string>(
 		MUSIC_GENRES.map((genre) => [genre.key, genre.label]),
 	);
+	const eventChipDateRange = getDefaultDateRangeForEvents(events);
 
 	const facetCounts = new Map<string, number>();
 	const tagCounts = new Map<string, number>();
@@ -255,7 +286,8 @@ const buildCandidates = (events: Event[]): SearchChipCandidate[] => {
 		if (
 			name.length >= 3 &&
 			isSafePublicQuery(name) &&
-			isEligibleEventCandidate(event)
+			isEligibleEventCandidate(event) &&
+			isEventInDateRange(event, eventChipDateRange)
 		) {
 			eventNameCounts.set(name, (eventNameCounts.get(name) ?? 0) + 1);
 		}
@@ -319,6 +351,7 @@ const buildCandidates = (events: Event[]): SearchChipCandidate[] => {
 			aliases: [eventName],
 			resultCount,
 			kind: "event",
+			eventDate: event?.date,
 			isPaidPlacement:
 				event?.isPromoted === true ||
 				(event ? shouldDisplayFeaturedEvent(event) : false),
@@ -354,6 +387,9 @@ const getMatchConfidence = (
 	const normalizedQuery = normalize(query);
 	if (!normalizedQuery) return 0;
 	const compactQuery = normalizedQuery.replace(/\s+/g, "");
+	const queryTokens = normalizedQuery
+		.split(" ")
+		.filter((token) => token.length > 0);
 
 	let best = 0;
 	for (const alias of candidate.aliases) {
@@ -361,6 +397,32 @@ const getMatchConfidence = (
 		if (!compactAlias) continue;
 		if (normalizedQuery === alias || compactQuery === compactAlias) {
 			best = Math.max(best, 1);
+			continue;
+		}
+		if (candidate.kind === "event") {
+			const aliasTokens = alias.split(" ").filter((token) => token.length > 0);
+			const tokenExactMatch =
+				queryTokens.length === 1 &&
+				queryTokens[0].length >= 5 &&
+				aliasTokens.includes(queryTokens[0]);
+			const multiWordPartial =
+				queryTokens.length >= 2 &&
+				normalizedQuery.length >= 7 &&
+				(alias.includes(normalizedQuery) || normalizedQuery.includes(alias));
+			if (tokenExactMatch) {
+				best = Math.max(best, 0.82);
+				continue;
+			}
+			if (multiWordPartial) {
+				best = Math.max(best, 0.84);
+				continue;
+			}
+			const minLength = Math.min(compactQuery.length, compactAlias.length);
+			const maxLength = Math.max(compactQuery.length, compactAlias.length);
+			if (minLength < 7) continue;
+			const distance = levenshteinDistance(compactQuery, compactAlias);
+			const ratio = maxLength === 0 ? 1 : distance / maxLength;
+			if (distance <= 2 && ratio <= 0.2) best = Math.max(best, 0.72);
 			continue;
 		}
 		if (alias.includes(normalizedQuery) || normalizedQuery.includes(alias)) {
@@ -380,14 +442,7 @@ const getMatchConfidence = (
 	return best;
 };
 
-export const buildStaticSearchChips = (): SearchChip[] =>
-	DEFAULT_SEARCH_EXAMPLES.map((label) => ({
-		label,
-		query: label,
-		source: "static",
-	}));
-
-export const buildDynamicSearchChips = (
+const selectDynamicSearchChipMatches = (
 	signals: SearchChipSignal[],
 	events: Event[],
 	options?: {
@@ -395,7 +450,7 @@ export const buildDynamicSearchChips = (
 		staticQueries?: readonly string[];
 		suppressedEventQueries?: readonly string[];
 	},
-): SearchChip[] => {
+): MatchedCandidate[] => {
 	const maxChips = Math.max(
 		0,
 		Math.min(options?.maxChips ?? MAX_DYNAMIC_CHIPS, 6),
@@ -416,7 +471,9 @@ export const buildDynamicSearchChips = (
 	for (const signal of signals) {
 		if (signal.count < MIN_SIGNAL_COUNT || !isSafePublicQuery(signal.query))
 			continue;
+		const isTypedInputSignal = signal.sources?.includes("input") === true;
 		for (const candidate of candidates) {
+			if (candidate.kind === "event" && !isTypedInputSignal) continue;
 			const canonical = normalize(candidate.label);
 			if (staticQueries.has(canonical)) continue;
 			const confidence = getMatchConfidence(signal.query, candidate);
@@ -440,6 +497,7 @@ export const buildDynamicSearchChips = (
 					score,
 					confidence,
 					totalCount: signal.count,
+					signal,
 				});
 			} else {
 				current.totalCount += signal.count;
@@ -500,17 +558,62 @@ export const buildDynamicSearchChips = (
 		selected.push(match);
 	}
 
-	return selected
-		.sort((left, right) => {
-			if (right.score !== left.score) return right.score - left.score;
-			if (right.totalCount !== left.totalCount)
-				return right.totalCount - left.totalCount;
-			return left.candidate.label.localeCompare(right.candidate.label);
-		})
-		.map(({ candidate }) => ({
+	return selected.sort((left, right) => {
+		if (right.score !== left.score) return right.score - left.score;
+		if (right.totalCount !== left.totalCount)
+			return right.totalCount - left.totalCount;
+		return left.candidate.label.localeCompare(right.candidate.label);
+	});
+};
+
+export const buildStaticSearchChips = (): SearchChip[] =>
+	DEFAULT_SEARCH_EXAMPLES.map((label) => ({
+		label,
+		query: label,
+		source: "static",
+	}));
+
+export const buildDynamicSearchChips = (
+	signals: SearchChipSignal[],
+	events: Event[],
+	options?: {
+		maxChips?: number;
+		staticQueries?: readonly string[];
+		suppressedEventQueries?: readonly string[];
+	},
+): SearchChip[] =>
+	selectDynamicSearchChipMatches(signals, events, options).map(
+		({ candidate }) => ({
 			label: candidate.label,
 			query: candidate.query,
 			source: "popular",
 			kind: candidate.kind,
-		}));
-};
+		}),
+	);
+
+export const buildDynamicSearchChipDebugMatches = (
+	signals: SearchChipSignal[],
+	events: Event[],
+	options?: {
+		maxChips?: number;
+		staticQueries?: readonly string[];
+		suppressedEventQueries?: readonly string[];
+	},
+): SearchChipDebugMatch[] =>
+	selectDynamicSearchChipMatches(signals, events, options).map(
+		({ candidate, score, confidence, totalCount, signal }) => ({
+			label: candidate.label,
+			query: candidate.query,
+			kind: candidate.kind,
+			source: "popular",
+			eventDate: candidate.eventDate,
+			score,
+			confidence,
+			totalCount,
+			matchedSignalQuery: signal.query,
+			matchedSignalCount: signal.count,
+			matchedSignalRecentCount: signal.recentCount ?? 0,
+			matchedSignalLastSeenAt: signal.lastSeenAt,
+			matchedSignalSources: signal.sources,
+		}),
+	);
