@@ -84,6 +84,35 @@ describe("search chips", () => {
 		expect(buildDynamicSearchChips([], [makeEvent({ id: "one" })])).toEqual([]);
 	});
 
+	it("includes listed multi-location venue chips but not the placeholder", () => {
+		const chips = buildDynamicSearchChips(
+			[
+				{ query: "Hidden Loft", count: 10, recentCount: 4 },
+				{ query: "Multiple locations", count: 10, recentCount: 4 },
+			],
+			[
+				makeEvent({
+					id: "multi",
+					arrondissement: "multiple-locations",
+					location: "Multiple locations",
+					locations: ["Venue A", "Hidden Loft"],
+					locationEntries: [
+						{ name: "Venue A", arrondissement: 10 },
+						{ name: "Hidden Loft", arrondissement: 11 },
+					],
+				}),
+			],
+			{ staticQueries: [], maxChips: 4 },
+		);
+
+		expect(chips).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ label: "Hidden Loft", kind: "venue" }),
+			]),
+		);
+		expect(chips.map((chip) => chip.label)).not.toContain("Multiple locations");
+	});
+
 	it("caps dynamic chips", () => {
 		const chips = buildDynamicSearchChips(
 			[

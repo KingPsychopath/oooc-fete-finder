@@ -1711,60 +1711,75 @@ export async function getEventLocationReviewData(
 		>();
 
 		for (const event of processed.events) {
-			const locationName = event.location?.trim() || "";
-			const arrondissement = event.arrondissement;
-			const isResolvable = isCoordinateResolvableInput(
-				locationName,
-				arrondissement,
-			);
-			const id = isResolvable
-				? generateLocationStorageKey(locationName, arrondissement)
-				: `${locationName.toLowerCase()}_${String(arrondissement)}`;
-			const existing = itemsByKey.get(id);
-			if (existing) {
-				existing.eventCount += 1;
-				if (
-					existing.sampleEvents.length < 4 &&
-					!existing.sampleEvents.some(
-						(sampleEvent) => sampleEvent.eventKey === event.eventKey,
-					)
-				) {
-					existing.sampleEvents.push({
-						eventKey: event.eventKey,
-						slug: event.slug,
-						name: event.name,
-						date: event.date,
-						time: event.time,
-					});
-					existing.sampleEventNames = existing.sampleEvents.map(
-						(sampleEvent) => sampleEvent.name,
-					);
-				}
-				continue;
-			}
+			const reviewLocations =
+				event.locationEntries && event.locationEntries.length > 0
+					? event.locationEntries.map((entry) => ({
+							locationName: entry.name.trim(),
+							arrondissement: entry.arrondissement ?? event.arrondissement,
+						}))
+					: [
+							{
+								locationName: event.location?.trim() || "",
+								arrondissement: event.arrondissement,
+							},
+						];
 
-			const sampleEvents = event.name
-				? [
-						{
+			for (const reviewLocation of reviewLocations) {
+				const locationName = reviewLocation.locationName;
+				const arrondissement = reviewLocation.arrondissement;
+				const isResolvable = isCoordinateResolvableInput(
+					locationName,
+					arrondissement,
+				);
+				const id = isResolvable
+					? generateLocationStorageKey(locationName, arrondissement)
+					: `${locationName.toLowerCase()}_${String(arrondissement)}`;
+				const existing = itemsByKey.get(id);
+				if (existing) {
+					existing.eventCount += 1;
+					if (
+						existing.sampleEvents.length < 4 &&
+						!existing.sampleEvents.some(
+							(sampleEvent) => sampleEvent.eventKey === event.eventKey,
+						)
+					) {
+						existing.sampleEvents.push({
 							eventKey: event.eventKey,
 							slug: event.slug,
 							name: event.name,
 							date: event.date,
 							time: event.time,
-						},
-					]
-				: [];
+						});
+						existing.sampleEventNames = existing.sampleEvents.map(
+							(sampleEvent) => sampleEvent.name,
+						);
+					}
+					continue;
+				}
 
-			itemsByKey.set(id, {
-				id,
-				locationName,
-				arrondissement,
-				eventCount: 1,
-				sampleEvents,
-				sampleEventNames: sampleEvents.map((sampleEvent) => sampleEvent.name),
-				isResolvable,
-				resolution: isResolvable ? (storedLocations.get(id) ?? null) : null,
-			});
+				const sampleEvents = event.name
+					? [
+							{
+								eventKey: event.eventKey,
+								slug: event.slug,
+								name: event.name,
+								date: event.date,
+								time: event.time,
+							},
+						]
+					: [];
+
+				itemsByKey.set(id, {
+					id,
+					locationName,
+					arrondissement,
+					eventCount: 1,
+					sampleEvents,
+					sampleEventNames: sampleEvents.map((sampleEvent) => sampleEvent.name),
+					isResolvable,
+					resolution: isResolvable ? (storedLocations.get(id) ?? null) : null,
+				});
+			}
 		}
 
 		const providerConfigured = createGoogleGeocodingProvider().isConfigured();

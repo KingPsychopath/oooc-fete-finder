@@ -392,6 +392,14 @@ const hasUsableTextValue = (value: string | undefined): boolean => {
 		.toLowerCase();
 	return Boolean(normalized) && !["tba", "tbc", "#"].includes(normalized);
 };
+const isKnownAreaCellValue = (value: string | undefined): boolean => {
+	const parts = String(value ?? "")
+		.split(/[\n\r|;]+/)
+		.map((part) => part.trim())
+		.filter(Boolean);
+	if (parts.length === 0) return false;
+	return parts.every((part) => Boolean(findAreaOption(part)));
+};
 const getRowQualityAssessment = (
 	row: EditableSheetRow,
 	issues: SheetHealthIssue[],
@@ -417,7 +425,7 @@ const getRowQualityAssessment = (
 		hasUsableTextValue(row[DATE_COLUMN_KEY]) &&
 		!issues.some((issue) => issue.column === "Date");
 	const locationPresent = hasUsableTextValue(row[LOCATION_COLUMN_KEY]);
-	const areaKnown = Boolean(findAreaOption(row[AREA_COLUMN_KEY] ?? ""));
+	const areaKnown = isKnownAreaCellValue(row[AREA_COLUMN_KEY]);
 	const startTimePresent = hasUsableTextValue(row[START_TIME_COLUMN_KEY]);
 	const urlPresent = hasUsableTextValue(row[PRIMARY_URL_COLUMN_KEY]);
 	const pricePresent = hasUsableTextValue(row[PRICE_COLUMN_KEY]);
@@ -3575,6 +3583,47 @@ export const EventSheetEditorCard = ({
 					message: 'Use "Indoor", "Outdoor", or both.',
 					severity: "warning",
 				});
+			}
+
+			const locationParts = splitLocationRawParts(
+				String(row[LOCATION_COLUMN_KEY] ?? ""),
+			);
+			const areaParts = String(row[AREA_COLUMN_KEY] ?? "")
+				.split(/[\n\r|;]+/)
+				.map((part) => part.trim())
+				.filter(Boolean);
+			if (locationParts.length > 1) {
+				const unknownAreas = areaParts.filter((part) => !findAreaOption(part));
+				if (unknownAreas.length > 0) {
+					issues.push({
+						rowIndex: rowNumber,
+						column: "District/Area",
+						message: `Unknown area token: ${unknownAreas.join(", ")}.`,
+						severity: "warning",
+					});
+				}
+				const normalizedAreas = areaParts.map(normalizeAreaValue);
+				const hasSharedArea =
+					normalizedAreas.length === 1 &&
+					normalizedAreas[0] !== "Multiple Locations";
+				const hasMultiplePlaceholder =
+					normalizedAreas.length === 1 &&
+					normalizedAreas[0] === "Multiple Locations";
+				const hasPerLocationAreas =
+					normalizedAreas.length === locationParts.length;
+				if (
+					normalizedAreas.length > 0 &&
+					!hasSharedArea &&
+					!hasMultiplePlaceholder &&
+					!hasPerLocationAreas
+				) {
+					issues.push({
+						rowIndex: rowNumber,
+						column: "District/Area",
+						message: `${locationParts.length} locations, ${normalizedAreas.length} areas. Areas link by list order, so use one shared area, ${locationParts.length} areas, or Multiple Locations.`,
+						severity: "warning",
+					});
+				}
 			}
 
 			const eventCategoryValue = String(

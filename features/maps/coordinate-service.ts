@@ -268,9 +268,13 @@ export function isCoordinateResolvableInput(
 		locationName !== "TBA" &&
 		locationName !== "TBC" &&
 		locationName.toLowerCase() !== "location tbc" &&
-		locationName.toLowerCase() !== "location tba";
+		locationName.toLowerCase() !== "location tba" &&
+		locationName.toLowerCase() !== "multiple locations";
 
-	const hasValidArrondissement = arrondissement && arrondissement !== "unknown";
+	const hasValidArrondissement =
+		arrondissement &&
+		arrondissement !== "unknown" &&
+		arrondissement !== "multiple-locations";
 
 	return Boolean(hasValidLocation && hasValidArrondissement);
 }

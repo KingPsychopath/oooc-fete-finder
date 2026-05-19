@@ -13,6 +13,7 @@ import {
 	formatLocationAreaLong,
 	formatPrice,
 	getEventDayNightPeriods,
+	getEventLocationSearchText,
 } from "@/features/events/types";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { Search, TrendingUp, X } from "lucide-react";
@@ -177,8 +178,9 @@ const searchEvents = (events: Event[], query: string): SearchResult[] => {
 		}
 
 		// PRIORITY 3: Location (Score: 60 + match quality)
-		if (event.location) {
-			const locationScore = getMatchScore(event.location, searchTerms);
+		const locationSearchText = getEventLocationSearchText(event);
+		if (locationSearchText) {
+			const locationScore = getMatchScore(locationSearchText, searchTerms);
 			if (locationScore > 0) {
 				totalScore += 60 + locationScore;
 				matchedFields.push("location");

@@ -39,7 +39,7 @@ export function EventShareModalPreview({ event }: EventShareModalPreviewProps) {
 		: "Date TBC";
 	const priceLabel = formatPrice(event.price);
 	const eventLocationDisplay = getEventLocationDisplay(event);
-	const locationArea = eventLocationDisplay.areaLongLabel;
+	const locationArea = eventLocationDisplay.sectionLabel;
 	const locationDisplay =
 		eventLocationDisplay.state === "multiple-listed"
 			? eventLocationDisplay.listedLocations.join(" / ")

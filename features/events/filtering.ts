@@ -6,8 +6,8 @@ import {
 	AGE_RANGE_CONFIG,
 	type AgeRange,
 	type DayNightPeriod,
-	type Event,
 	EVENT_EXPERIENCE_CATEGORIES,
+	type Event,
 	type EventExperienceCategory,
 	type MusicGenre,
 	type Nationality,
@@ -15,11 +15,11 @@ import {
 	type ParisArrondissement,
 	type VenueType,
 	formatEventExperienceCategory,
-	formatLocationAreaLong,
 	formatPrice,
 	getEventDayNightPeriods,
-	getResolvedEventExperienceCategoryDefinition,
+	getEventLocationSearchText,
 	getLocationAreaSortValue,
+	getResolvedEventExperienceCategoryDefinition,
 	isAgeInRange,
 	isEventInDayNightPeriod,
 	isPriceInRange,
@@ -160,18 +160,16 @@ const matchesSearchQuery = (event: Event, rawQuery: string): boolean => {
 				)
 			: normalizeSearchText(event.date);
 	const matchesName = normalizeSearchText(event.name).includes(query);
-	const matchesLocation = normalizeSearchText(event.location ?? "").includes(
-		query,
-	);
+	const matchesLocation = normalizeSearchText(
+		getEventLocationSearchText(event),
+	).includes(query);
 	const matchesDescription = normalizeSearchText(
 		event.description ?? "",
 	).includes(query);
 	const matchesDate = dateSearchText.includes(query);
 	const matchesArrondissement =
 		event.arrondissement.toString().includes(query) ||
-		normalizeSearchText(formatLocationAreaLong(event.arrondissement)).includes(
-			query,
-		);
+		normalizeSearchText(getEventLocationSearchText(event)).includes(query);
 	const matchesDay = normalizeSearchText(event.day).includes(query);
 	const matchesDayNight = getEventDayNightPeriods(event).some(
 		(period) => query === period,

@@ -88,6 +88,26 @@ describe("genre-aware search filtering", () => {
 		).toHaveLength(1);
 	});
 
+	it("matches listed multi-location venue names", () => {
+		const event = {
+			...makeEvent(["afrobeats"], "multi-location"),
+			arrondissement: "multiple-locations" as const,
+			location: "Multiple locations",
+			locations: ["Venue A", "Hidden Loft"],
+			locationEntries: [
+				{ name: "Venue A", arrondissement: 10 as const },
+				{ name: "Hidden Loft", arrondissement: 11 as const },
+			],
+		};
+
+		expect(
+			filterEvents([event], {
+				...DEFAULT_EVENT_FILTER_STATE,
+				searchQuery: "Hidden Loft",
+			}),
+		).toHaveLength(1);
+	});
+
 	it("matches static chip concepts for price, night, and ordinal date", () => {
 		const event = {
 			...makeEvent(["amapiano"], "chip-concepts"),

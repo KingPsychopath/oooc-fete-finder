@@ -217,7 +217,11 @@ const getReviewHint = (item: EventLocationReviewItem): string => {
 	const status = getLocationStatus(item);
 	if (status === "unresolved") return "Resolve or add manual coordinates";
 	if (status === "approximate") return "Check map link before trusting";
-	if (status === "needs-location") return "Add a venue name in the event sheet";
+	if (status === "needs-location") {
+		return item.locationName.trim()
+			? "Add an area hint in the event sheet"
+			: "Add a venue name in the event sheet";
+	}
 	if (status === "geocoded") return "Spot-check if this venue is reused often";
 	return "Ready for nearby matching";
 };

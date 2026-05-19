@@ -1346,7 +1346,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		hostCountries.length > mobileCountryPreviewLimit ||
 		audienceCountries.length > mobileCountryPreviewLimit;
 	const locationDisplay = getEventLocationDisplay(event);
-	const locationLabel = locationDisplay.areaLongLabel;
+	const locationLabel = locationDisplay.sectionLabel;
 	const eventLocationEntries = locationDisplay.listedLocationEntries;
 	const canOpenSingleLocation = locationDisplay.canOpenSingleLocation;
 	const canOpenAnyLocation = locationDisplay.canOpenAnyLocation;
@@ -1989,7 +1989,7 @@ const EventModal: React.FC<EventModalProps> = ({
 								<div className="mt-1.5 space-y-1">
 									<Badge variant="outline">
 										{locationDisplay.state === "multiple-unlisted"
-											? "Multiple locations"
+											? "Multiple venues"
 											: "Location TBC"}
 									</Badge>
 									<p className="text-xs text-muted-foreground">

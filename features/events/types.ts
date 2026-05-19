@@ -371,6 +371,7 @@ export type EventLocationDisplay = {
 	state: EventLocationDisplayState;
 	areaShortLabel: string;
 	areaLongLabel: string;
+	sectionLabel: string;
 	cardLabel?: string;
 	modalLabel: string;
 	listedLocations: string[];
@@ -423,8 +424,9 @@ export const getEventLocationDisplay = (
 	if (hasListedLocations) {
 		return {
 			state: "multiple-listed",
-			areaShortLabel: "Multiple",
+			areaShortLabel: "Multi-site",
 			areaLongLabel: "Multiple Locations",
+			sectionLabel: "Location",
 			cardLabel: `${listedLocations.length} locations`,
 			modalLabel: `${listedLocations.length} locations listed`,
 			listedLocations,
@@ -437,9 +439,10 @@ export const getEventLocationDisplay = (
 	if (isMultipleLocation) {
 		return {
 			state: "multiple-unlisted",
-			areaShortLabel: "Multiple",
+			areaShortLabel: "Multi-site",
 			areaLongLabel: "Multiple Locations",
-			modalLabel: "Several venues; exact list not provided",
+			sectionLabel: "Location",
+			modalLabel: "Exact venue list not provided",
 			listedLocations: [],
 			listedLocationEntries: [],
 			canOpenSingleLocation: false,
@@ -452,6 +455,7 @@ export const getEventLocationDisplay = (
 			state: "tbc",
 			areaShortLabel: "TBC",
 			areaLongLabel: "Location TBC",
+			sectionLabel: "Location",
 			modalLabel: "Exact location not announced yet",
 			listedLocations: [],
 			listedLocationEntries: [],
@@ -466,6 +470,7 @@ export const getEventLocationDisplay = (
 		state: "single",
 		areaShortLabel: formatLocationAreaShort(event.arrondissement),
 		areaLongLabel: formatLocationAreaLong(event.arrondissement),
+		sectionLabel: formatLocationAreaLong(event.arrondissement),
 		cardLabel: singleLocation,
 		modalLabel: singleLocation ?? "Location TBC",
 		listedLocations: [],
@@ -475,6 +480,22 @@ export const getEventLocationDisplay = (
 		canOpenAnyLocation: Boolean(singleLocation),
 	};
 };
+
+export const getEventLocationSearchText = (
+	event: Pick<
+		Event,
+		"arrondissement" | "location" | "locations" | "locationEntries"
+	>,
+): string =>
+	[
+		event.location,
+		...(event.locations ?? []),
+		...(event.locationEntries ?? []).map((entry) => entry.name),
+		formatLocationAreaLong(event.arrondissement),
+		formatLocationAreaShort(event.arrondissement),
+	]
+		.filter(Boolean)
+		.join(" ");
 
 // CSV data type matching the structure in ooc_list_tracker.csv
 export type CSVEventRow = {

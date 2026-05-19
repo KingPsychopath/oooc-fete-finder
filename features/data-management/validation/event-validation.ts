@@ -5,7 +5,7 @@
  * Separated from transformation logic for better maintainability.
  */
 
-import type { Event } from "@/features/events/types";
+import { type Event, getEventLocationDisplay } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
 
 /**
@@ -94,7 +94,7 @@ export function validateEvent(event: Event): {
 	}
 
 	// Warning-level validation
-	if (!event.location || event.location === "TBA") {
+	if (getEventLocationDisplay(event).state === "tbc") {
 		warnings.push("Event location is missing or TBA");
 	}
 

@@ -5,7 +5,7 @@
  * Focuses on data completeness and user experience factors.
  */
 
-import type { Event } from "@/features/events/types";
+import { type Event, getEventLocationDisplay } from "@/features/events/types";
 
 export interface EventQualityIssueCounts {
 	missingLocation: number;
@@ -35,7 +35,7 @@ export function performEventQualityChecks(events: Event[]): {
 
 	// Check for missing locations
 	const eventsWithoutLocation = events.filter(
-		(event) => !event.location || event.location === "TBA",
+		(event) => getEventLocationDisplay(event).state === "tbc",
 	);
 	if (eventsWithoutLocation.length > 0) {
 		issueCounts.missingLocation = eventsWithoutLocation.length;

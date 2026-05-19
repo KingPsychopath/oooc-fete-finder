@@ -155,7 +155,12 @@ const isSafePublicQuery = (query: string): boolean => {
 
 const isEligibleEventCandidate = (event: Event): boolean => {
 	if (event.detailsQuality === "blocking") return false;
-	if (!event.location?.trim()) return false;
+	if (
+		!event.location?.trim() &&
+		!(event.locationEntries ?? []).some((entry) => entry.name.trim())
+	) {
+		return false;
+	}
 	if (!event.time?.trim() || event.time === "TBC") return false;
 	if (!event.link?.trim()) return false;
 	return true;
@@ -233,6 +238,18 @@ const buildCandidates = (events: Event[]): SearchChipCandidate[] => {
 			location.length <= MAX_PUBLIC_LABEL_LENGTH
 		) {
 			venueCounts.set(location, (venueCounts.get(location) ?? 0) + 1);
+		}
+		for (const entry of event.locationEntries ?? []) {
+			const entryLocation = entry.name.replace(/\s+/g, " ").trim();
+			if (
+				entryLocation.length >= 3 &&
+				entryLocation.length <= MAX_PUBLIC_LABEL_LENGTH
+			) {
+				venueCounts.set(
+					entryLocation,
+					(venueCounts.get(entryLocation) ?? 0) + 1,
+				);
+			}
 		}
 		const name = event.name.replace(/\s+/g, " ").trim();
 		if (
