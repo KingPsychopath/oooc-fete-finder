@@ -35,6 +35,7 @@ import {
 	createBlankEditableSheetRow,
 	createCustomColumnKey,
 	formatIsoDateForEditableSheet,
+	generateEditableSheetSeriesKey,
 	getEditableSheetDateRangeDates,
 	isEditableSheetRowEmpty,
 	normalizeEditableSheetRowValues,
@@ -78,6 +79,7 @@ import {
 	CalendarDays,
 	Copy,
 	History,
+	Link2,
 	Plus,
 	RefreshCw,
 	Trash2,
@@ -196,6 +198,15 @@ type LocationSuggestion = {
 	count: number;
 	isAreaMatch: boolean;
 };
+type SeriesKeySuggestion = {
+	rowIndex: number;
+	seriesKey: string;
+	title: string;
+	date: string;
+	location: string;
+	rowCount: number;
+	willCreateSeriesKey: boolean;
+};
 type ParsedUrlPart = {
 	raw: string;
 	normalized: string;
@@ -285,6 +296,7 @@ const EVENT_CATEGORY_POPOVER_WIDTH = 288;
 const EVENT_CATEGORY_POPOVER_HEIGHT = 270;
 const EVENT_CATEGORY_POPOVER_PADDING = 12;
 const CELL_POPOVER_VIEWPORT_PADDING = 8;
+const SERIES_KEY_POPOVER_WIDTH = 360;
 
 const CellPopover = ({ children, className, style }: CellPopoverProps) => {
 	if (typeof document === "undefined") return null;
@@ -1023,6 +1035,16 @@ const formatDateSuggestionLabel = (isoDate: string): string => {
 	});
 };
 
+const normalizeSeriesSearchText = (value: string): string =>
+	value
+		.trim()
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/[^a-z0-9]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+
 const parseNormalizedTimeParts = (
 	value: string,
 ): { hours: number; minutes: number } | null => {
@@ -1358,6 +1380,8 @@ export const EventSheetEditorCard = ({
 		null,
 	);
 	const [highlightedAgeIndex, setHighlightedAgeIndex] = useState(0);
+	const [focusedSeriesKeyCell, setFocusedSeriesKeyCell] =
+		useState<FocusedCell | null>(null);
 	const [qualityPopover, setQualityPopover] =
 		useState<QualityPopoverState | null>(null);
 	const [eventCategoryPopover, setEventCategoryPopover] =
@@ -1451,6 +1475,7 @@ export const EventSheetEditorCard = ({
 		setFocusedEventCategoryCell(null);
 		setEventCategoryPopover(null);
 		setFocusedAgeCell(null);
+		setFocusedSeriesKeyCell(null);
 	}, []);
 
 	useEffect(() => {
@@ -2470,18 +2495,28 @@ export const EventSheetEditorCard = ({
 		(rowIndex: number, columnKey: string, genre: GenreTaxonomyDefinition) => {
 			const row = rowsRef.current[rowIndex];
 			if (!row) return;
-			const currentValue = getDraftAwareCellValue(rowIndex, columnKey);
+			const storedValue = row[columnKey] ?? "";
+			const draftValue = getDraftAwareCellValue(rowIndex, columnKey);
 			const taxonomy = genreTaxonomy;
-			const parts = splitGenreCell(currentValue, taxonomy);
-			const isSelected = parts.some((part) => part.resolved === genre.key);
+			const storedParts = splitGenreCell(storedValue, taxonomy);
+			const draftParts = splitGenreCell(draftValue, taxonomy);
+			const isSelected = storedParts.some(
+				(part) => part.resolved === genre.key,
+			);
 			const labels = isSelected
-				? parts
+				? storedParts
 						.filter((part) => part.resolved !== genre.key)
 						.map((part) => part.label)
 				: (() => {
-						const nextLabels = parts.map((part) => part.label);
-						const lastPart = parts.at(-1);
+						const nextLabels = draftParts.map((part) => part.label);
+						const lastPart = draftParts.at(-1);
 						const search = normalizeGenreInputText(genreSearchQuery);
+						const alreadyTypedSelectedGenre = draftParts.some(
+							(part) => part.resolved === genre.key,
+						);
+						if (alreadyTypedSelectedGenre) {
+							return nextLabels;
+						}
 						const shouldReplaceTypedSegment =
 							Boolean(search) &&
 							lastPart !== undefined &&
@@ -2746,6 +2781,85 @@ export const EventSheetEditorCard = ({
 		[rows],
 	);
 
+	const seriesKeySuggestions = useMemo((): SeriesKeySuggestion[] => {
+		if (!focusedSeriesKeyCell) return [];
+		const currentRow = rows[focusedSeriesKeyCell.rowIndex];
+		if (!currentRow) return [];
+
+		const currentSeriesKey = String(
+			currentRow[SERIES_KEY_COLUMN_KEY] ?? "",
+		).trim();
+		const rawQuery =
+			currentSeriesKey ||
+			[
+				currentRow[TITLE_COLUMN_KEY],
+				currentRow[DATE_COLUMN_KEY],
+				currentRow[LOCATION_COLUMN_KEY],
+			]
+				.filter(Boolean)
+				.join(" ");
+		const query = normalizeSeriesSearchText(rawQuery);
+		const explicitSeriesCounts = new Map<string, number>();
+		for (const row of rows) {
+			const key = String(row[SERIES_KEY_COLUMN_KEY] ?? "").trim();
+			if (!key) continue;
+			explicitSeriesCounts.set(key, (explicitSeriesCounts.get(key) ?? 0) + 1);
+		}
+
+		const suggestions = new Map<string, SeriesKeySuggestion>();
+		rows.forEach((row, rowIndex) => {
+			if (rowIndex === focusedSeriesKeyCell.rowIndex) return;
+			const explicitSeriesKey = String(row[SERIES_KEY_COLUMN_KEY] ?? "").trim();
+			if (explicitSeriesKey && explicitSeriesKey === currentSeriesKey) return;
+			const seriesKey =
+				explicitSeriesKey || generateEditableSheetSeriesKey(row);
+			const mapKey = explicitSeriesKey || `row:${rowIndex}`;
+			if (suggestions.has(mapKey)) return;
+
+			const title = String(row[TITLE_COLUMN_KEY] ?? "").trim();
+			const date = String(row[DATE_COLUMN_KEY] ?? "").trim();
+			const location = String(row[LOCATION_COLUMN_KEY] ?? "").trim();
+			const haystack = normalizeSeriesSearchText(
+				[title, date, location, seriesKey].join(" "),
+			);
+			const isDirectMatch = query.length === 0 || haystack.includes(query);
+			const titleTokens = normalizeSeriesSearchText(
+				String(currentRow[TITLE_COLUMN_KEY] ?? ""),
+			)
+				.split(" ")
+				.filter((token) => token.length >= 4);
+			const hasTitleOverlap =
+				titleTokens.length > 0 &&
+				titleTokens.some((token) => haystack.includes(token));
+			if (!isDirectMatch && !hasTitleOverlap) return;
+
+			suggestions.set(mapKey, {
+				rowIndex,
+				seriesKey,
+				title: title || "Untitled row",
+				date,
+				location,
+				rowCount: explicitSeriesKey
+					? (explicitSeriesCounts.get(explicitSeriesKey) ?? 1)
+					: 1,
+				willCreateSeriesKey: !explicitSeriesKey,
+			});
+		});
+
+		return Array.from(suggestions.values())
+			.sort((left, right) => {
+				const leftExisting = left.willCreateSeriesKey ? 1 : 0;
+				const rightExisting = right.willCreateSeriesKey ? 1 : 0;
+				return (
+					leftExisting - rightExisting ||
+					right.rowCount - left.rowCount ||
+					left.title.localeCompare(right.title) ||
+					left.rowIndex - right.rowIndex
+				);
+			})
+			.slice(0, 8);
+	}, [focusedSeriesKeyCell, rows]);
+
 	const dateSuggestionState = useMemo((): DateSuggestionState => {
 		if (!focusedDateCell) return { preview: null, groups: [] };
 
@@ -2872,6 +2986,64 @@ export const EventSheetEditorCard = ({
 		[handleCellChange],
 	);
 
+	const generateSeriesKeyForCell = useCallback(
+		(rowIndex: number, columnKey: string) => {
+			const row = rowsRef.current[rowIndex];
+			if (!row) return;
+			const seriesKey = generateEditableSheetSeriesKey(row);
+			handleCellChange(rowIndex, columnKey, seriesKey);
+			setFocusedSeriesKeyCell({ rowIndex, columnKey });
+			setStatusMessage(`Generated series key ${seriesKey}`);
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange],
+	);
+
+	const clearSeriesKeyForCell = useCallback(
+		(rowIndex: number, columnKey: string) => {
+			handleCellChange(rowIndex, columnKey, "");
+			setFocusedSeriesKeyCell({ rowIndex, columnKey });
+			setStatusMessage("Series key cleared");
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange],
+	);
+
+	const linkSeriesKeyForCell = useCallback(
+		(rowIndex: number, columnKey: string, suggestion: SeriesKeySuggestion) => {
+			const currentRows = rowsRef.current;
+			const sourceRow = currentRows[rowIndex];
+			const targetRow = currentRows[suggestion.rowIndex];
+			if (!sourceRow || !targetRow) return;
+
+			const nextRows = currentRows.map((row, index) => {
+				if (index === rowIndex) {
+					return { ...row, [columnKey]: suggestion.seriesKey };
+				}
+				if (
+					index === suggestion.rowIndex &&
+					!String(row[SERIES_KEY_COLUMN_KEY] ?? "").trim()
+				) {
+					return { ...row, [SERIES_KEY_COLUMN_KEY]: suggestion.seriesKey };
+				}
+				return { ...row };
+			});
+
+			commitSheetMutation(
+				columnsRef.current.map((column) => ({ ...column })),
+				nextRows,
+				suggestion.willCreateSeriesKey
+					? `Linked rows with new series key ${suggestion.seriesKey}`
+					: `Linked row to series ${suggestion.seriesKey}`,
+			);
+		},
+		[commitSheetMutation],
+	);
+
 	const selectDateForCell = useCallback(
 		(rowIndex: number, columnKey: string, date: string) => {
 			handleCellChange(
@@ -2919,7 +3091,7 @@ export const EventSheetEditorCard = ({
 		(rowIndex: number, columnKey: string, setting: SimpleOption) => {
 			const row = rowsRef.current[rowIndex];
 			if (!row) return;
-			const currentValue = getDraftAwareCellValue(rowIndex, columnKey);
+			const currentValue = row[columnKey] ?? "";
 			const selectedValues = splitSettingCell(currentValue);
 			const nextValues = selectedValues.includes(setting.value)
 				? selectedValues.filter((value) => value !== setting.value)
@@ -2932,7 +3104,7 @@ export const EventSheetEditorCard = ({
 				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
 			}, 0);
 		},
-		[getDraftAwareCellValue, handleCellChange, setCellDraft],
+		[handleCellChange, setCellDraft],
 	);
 
 	const selectEventCategoryForCell = useCallback(
@@ -2972,7 +3144,7 @@ export const EventSheetEditorCard = ({
 		(rowIndex: number, columnKey: string, country: CountryOption) => {
 			const row = rowsRef.current[rowIndex];
 			if (!row) return;
-			const currentValue = getDraftAwareCellValue(rowIndex, columnKey);
+			const currentValue = row[columnKey] ?? "";
 			const selectedCodes = splitCountryCell(currentValue);
 			const nextCodes = selectedCodes.includes(country.code)
 				? selectedCodes.filter((code) => code !== country.code)
@@ -2986,7 +3158,7 @@ export const EventSheetEditorCard = ({
 				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
 			}, 0);
 		},
-		[getDraftAwareCellValue, handleCellChange, setCellDraft],
+		[handleCellChange, setCellDraft],
 	);
 
 	const selectAreaForCell = useCallback(
@@ -3844,13 +4016,9 @@ export const EventSheetEditorCard = ({
 							{eventCategoryOptionsForFocusedCell.map(
 								(category, optionIndex) => {
 									const normalizedCurrent = normalizeEventExperienceCategory(
-										getCellDisplayValue(
-											eventCategoryPopover.rowIndex,
-											eventCategoryPopover.columnKey,
-											rows[eventCategoryPopover.rowIndex]?.[
-												eventCategoryPopover.columnKey
-											] ?? "",
-										),
+										rows[eventCategoryPopover.rowIndex]?.[
+											eventCategoryPopover.columnKey
+										] ?? "",
 									);
 									const isSelected = normalizedCurrent === category.key;
 
@@ -5269,7 +5437,7 @@ export const EventSheetEditorCard = ({
 											row[CATEGORY_COLUMN_KEY] ?? "",
 										);
 										const selectedGenreKeys = getSelectedGenreKeys(
-											categoryValue,
+											row[CATEGORY_COLUMN_KEY] ?? "",
 											genreTaxonomy,
 										);
 										const dateCellHint = formatDateCellHint(
@@ -6495,11 +6663,7 @@ export const EventSheetEditorCard = ({
 																							];
 																						const isSelected =
 																							normalizeAreaValue(
-																								getCellDisplayValue(
-																									rowIndex,
-																									column.key,
-																									row[column.key] ?? "",
-																								),
+																								row[column.key] ?? "",
 																							) === area.value;
 																						const showGroup =
 																							!previousArea ||
@@ -6872,11 +7036,7 @@ export const EventSheetEditorCard = ({
 																					(setting, optionIndex) => {
 																						const selectedValues =
 																							splitSettingCell(
-																								getCellDisplayValue(
-																									rowIndex,
-																									column.key,
-																									row[column.key] ?? "",
-																								),
+																								row[column.key] ?? "",
 																							);
 																						const isSelected =
 																							selectedValues.includes(
@@ -7097,11 +7257,7 @@ export const EventSheetEditorCard = ({
 																				{ageOptionsForFocusedCell.map(
 																					(age, optionIndex) => {
 																						const isSelected =
-																							getCellDisplayValue(
-																								rowIndex,
-																								column.key,
-																								row[column.key] ?? "",
-																							)
+																							(row[column.key] ?? "")
 																								.trim()
 																								.toLowerCase() ===
 																							age.value.toLowerCase();
@@ -7571,11 +7727,7 @@ export const EventSheetEditorCard = ({
 																					(country, optionIndex) => {
 																						const isSelected =
 																							getSelectedCountryCodes(
-																								getCellDisplayValue(
-																									rowIndex,
-																									column.key,
-																									row[column.key] ?? "",
-																								),
+																								row[column.key] ?? "",
 																							).has(country.code);
 																						return (
 																							<button
@@ -7624,6 +7776,209 @@ export const EventSheetEditorCard = ({
 																					<div className="px-2 py-2 text-xs text-muted-foreground">
 																						No matching country. Keep typing a
 																						code or name.
+																					</div>
+																				)}
+																			</div>
+																		</CellPopover>
+																	)}
+															</div>
+														) : column.key === SERIES_KEY_COLUMN_KEY ? (
+															<div className="relative min-h-9 bg-transparent">
+																<input
+																	ref={(node) => {
+																		inputRefs.current[
+																			cellRefKey(rowIndex, column.key)
+																		] = node;
+																	}}
+																	value={row[column.key] ?? ""}
+																	onFocus={() => {
+																		setFocusedSeriesKeyCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																	}}
+																	onChange={(event) => {
+																		setFocusedSeriesKeyCell({
+																			rowIndex,
+																			columnKey: column.key,
+																		});
+																		handleCellChange(
+																			rowIndex,
+																			column.key,
+																			event.target.value,
+																		);
+																	}}
+																	onBlur={() => {
+																		commitStandardCell(rowIndex, column.key);
+																		window.setTimeout(() => {
+																			setFocusedSeriesKeyCell((current) =>
+																				current?.rowIndex === rowIndex &&
+																				current.columnKey === column.key
+																					? null
+																					: current,
+																			);
+																		}, 120);
+																	}}
+																	onKeyDown={(event) => {
+																		if (event.key === "Escape") {
+																			event.preventDefault();
+																			setFocusedSeriesKeyCell(null);
+																			return;
+																		}
+																		if (event.key === "Enter") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (event.key === "ArrowDown") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 1, 0);
+																		}
+																		if (event.key === "ArrowUp") {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, -1, 0);
+																		}
+																		if (
+																			event.key === "ArrowRight" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 0, 1);
+																		}
+																		if (
+																			event.key === "ArrowLeft" &&
+																			event.altKey
+																		) {
+																			event.preventDefault();
+																			commitStandardCell(rowIndex, column.key);
+																			focusCell(rowIndex, column.key, 0, -1);
+																		}
+																	}}
+																	className="h-9 w-full border-0 bg-transparent px-2 font-mono text-[11px] outline-none focus:bg-muted/30"
+																	placeholder="ser_..."
+																/>
+																{focusedSeriesKeyCell?.rowIndex === rowIndex &&
+																	focusedSeriesKeyCell.columnKey ===
+																		column.key && (
+																		<CellPopover
+																			className="fixed z-[140] w-[360px] overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
+																			style={getCellPopoverStyle(
+																				rowIndex,
+																				column.key,
+																				SERIES_KEY_POPOVER_WIDTH,
+																				340,
+																			)}
+																		>
+																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																				Series Key
+																			</div>
+																			<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
+																				Group related rows without merging their
+																				dates, times, locations, or links.
+																			</div>
+																			<div className="border-b p-1">
+																				<Button
+																					type="button"
+																					size="sm"
+																					variant="ghost"
+																					className="h-7 w-full justify-start px-2 text-xs"
+																					onMouseDown={(event) => {
+																						event.preventDefault();
+																					}}
+																					onClick={() =>
+																						generateSeriesKeyForCell(
+																							rowIndex,
+																							column.key,
+																						)
+																					}
+																				>
+																					<RefreshCw className="mr-1 h-3.5 w-3.5" />
+																					Generate from this row
+																				</Button>
+																				<Button
+																					type="button"
+																					size="sm"
+																					variant="ghost"
+																					className="h-7 w-full justify-start px-2 text-xs"
+																					onMouseDown={(event) => {
+																						event.preventDefault();
+																					}}
+																					onClick={() =>
+																						clearSeriesKeyForCell(
+																							rowIndex,
+																							column.key,
+																						)
+																					}
+																					disabled={
+																						!String(
+																							row[column.key] ?? "",
+																						).trim()
+																					}
+																				>
+																					<Trash2 className="mr-1 h-3.5 w-3.5" />
+																					Clear series key
+																				</Button>
+																			</div>
+																			<div className="max-h-60 overflow-y-auto p-1">
+																				<div className="px-2 pb-1 pt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+																					Link to another row
+																				</div>
+																				{seriesKeySuggestions.map(
+																					(suggestion) => (
+																						<button
+																							key={`${suggestion.seriesKey}-${suggestion.rowIndex}`}
+																							type="button"
+																							onMouseDown={(event) => {
+																								event.preventDefault();
+																								linkSeriesKeyForCell(
+																									rowIndex,
+																									column.key,
+																									suggestion,
+																								);
+																							}}
+																							className="flex w-full items-start gap-2 rounded px-2 py-1.5 text-left text-xs transition hover:bg-accent/70"
+																						>
+																							<Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+																							<span className="min-w-0 flex-1">
+																								<span className="block truncate font-medium">
+																									{suggestion.title}
+																								</span>
+																								<span className="block truncate text-[11px] text-muted-foreground">
+																									{[
+																										suggestion.date,
+																										suggestion.location,
+																									]
+																										.filter(Boolean)
+																										.join(" · ") ||
+																										`Row ${suggestion.rowIndex + 1}`}
+																								</span>
+																								<span className="block truncate font-mono text-[10px] text-muted-foreground">
+																									{suggestion.seriesKey}
+																								</span>
+																							</span>
+																							<Badge
+																								variant={
+																									suggestion.willCreateSeriesKey
+																										? "secondary"
+																										: "outline"
+																								}
+																								className="shrink-0 text-[10px]"
+																							>
+																								{suggestion.willCreateSeriesKey
+																									? "New"
+																									: `${suggestion.rowCount} rows`}
+																							</Badge>
+																						</button>
+																					),
+																				)}
+																				{seriesKeySuggestions.length === 0 && (
+																					<div className="px-2 py-2 text-xs text-muted-foreground">
+																						No matching rows yet. Type or paste
+																						a key manually, or generate one from
+																						this row.
 																					</div>
 																				)}
 																			</div>

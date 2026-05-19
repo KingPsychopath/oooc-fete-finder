@@ -81,6 +81,8 @@ const REQUIRED_CORE_COLUMNS = new Set<string>(["title", "date"]);
 const REQUIRED_CORE_COLUMN_KEYS = ["title", "date"] as const;
 const LEGACY_FEATURED_COLUMN_KEY = "featured";
 const CORE_COLUMN_SET = new Set<string>(CSV_EVENT_COLUMNS);
+const IDENTITY_COLUMN_ORDER = ["seriesKey", "eventKey"] as const;
+const IDENTITY_COLUMN_SET = new Set<string>(IDENTITY_COLUMN_ORDER);
 const HIDDEN_EVENT_COLUMN_SET = new Set<string>(
 	HIDDEN_EVENT_COLUMNS.map((column) => column.key),
 );
@@ -387,8 +389,35 @@ export const toEditableSheetRowSortableDateTime = (
 	return Number.isNaN(time) ? null : time;
 };
 
+const getSheetCoreColumnOrder = (): Array<
+	(typeof CSV_EVENT_COLUMNS)[number]
+> => [
+	...CSV_EVENT_COLUMNS.filter((key) => !IDENTITY_COLUMN_SET.has(key)),
+	...IDENTITY_COLUMN_ORDER,
+];
+
+const orderEditableSheetColumns = (
+	columns: EditableSheetColumn[],
+): EditableSheetColumn[] => {
+	const identityColumns = new Map(
+		IDENTITY_COLUMN_ORDER.map((key) => [
+			key,
+			columns.find((column) => column.key === key),
+		]),
+	);
+	return [
+		...columns
+			.filter((column) => !IDENTITY_COLUMN_SET.has(column.key))
+			.map((column) => ({ ...column })),
+		...IDENTITY_COLUMN_ORDER.flatMap((key) => {
+			const column = identityColumns.get(key);
+			return column ? [{ ...column }] : [];
+		}),
+	];
+};
+
 const buildCoreColumns = (): EditableSheetColumn[] => {
-	return CSV_EVENT_COLUMNS.map((key) => ({
+	return getSheetCoreColumnOrder().map((key) => ({
 		key,
 		label: CORE_COLUMN_LABELS[key],
 		isCore: true,
@@ -503,7 +532,7 @@ export const ensureCoreColumns = (
 	const nextRows = pruneEmptyEditableSheetRows(stripped.rows);
 	const existingKeys = new Set(nextColumns.map((column) => column.key));
 
-	for (const coreKey of CSV_EVENT_COLUMNS) {
+	for (const coreKey of getSheetCoreColumnOrder()) {
 		if (existingKeys.has(coreKey)) continue;
 		nextColumns.push({
 			key: coreKey,
@@ -532,7 +561,7 @@ export const ensureCoreColumns = (
 	});
 
 	return {
-		columns: normalizedColumns,
+		columns: orderEditableSheetColumns(normalizedColumns),
 		rows: nextRows,
 	};
 };

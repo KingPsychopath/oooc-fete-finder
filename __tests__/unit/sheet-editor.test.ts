@@ -124,6 +124,45 @@ describe("sortEditableSheetRowsByDefaultDate", () => {
 		).toEqual(["ISO,21-06-2026", "Slash,21-06-2026", "Text,21-06-2026"]);
 	});
 
+	it("keeps Series Key and Event Key as the final editor/export columns", () => {
+		const result = validateEditableSheet(
+			[
+				{
+					key: "eventKey",
+					label: "Event Key",
+					isCore: true,
+					isRequired: false,
+				},
+				{ key: "title", label: "Title", isCore: true, isRequired: true },
+				{
+					key: "seriesKey",
+					label: "Series Key",
+					isCore: true,
+					isRequired: false,
+				},
+				{ key: "date", label: "Date", isCore: true, isRequired: true },
+				{ key: "extra", label: "Extra", isCore: false, isRequired: false },
+			],
+			[
+				{
+					eventKey: "evt_existing1234",
+					seriesKey: "ser_existing1234",
+					title: "Event",
+					date: "2026-06-21",
+					extra: "Custom",
+				},
+			],
+		);
+
+		expect(result.columns.slice(-2).map((column) => column.key)).toEqual([
+			"seriesKey",
+			"eventKey",
+		]);
+		expect(
+			editableSheetToCsv(result.columns, result.rows).split("\n")[0],
+		).toMatch(/Series Key,Event Key$/);
+	});
+
 	it("normalizes Date To when exporting source CSV", () => {
 		const csv = editableSheetToCsv(
 			[
