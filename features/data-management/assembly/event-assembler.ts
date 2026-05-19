@@ -25,7 +25,9 @@ import {
 	buildEventSlug,
 	ensureUniqueEventKeys,
 	generateEventKeyFromRow,
+	generateSeriesKeyFromRow,
 	normalizeEventKey,
+	normalizeSeriesKey,
 } from "./event-key";
 
 // Import our focused transformers
@@ -47,6 +49,16 @@ const EVENT_KEY_FINGERPRINT_FIELDS: readonly (keyof CSVEventRow)[] = [
 	"location",
 	"districtArea",
 ];
+const SERIES_KEY_FINGERPRINT_FIELDS: readonly (keyof CSVEventRow)[] = [
+	"title",
+	"startTime",
+	"location",
+	"districtArea",
+	"primaryUrl",
+];
+
+type DateWarningColumnType = "date" | "dateTo";
+type NormalizedDate = ReturnType<typeof normalizeCsvDate>;
 
 const parseSourceConfirmation = (value: string | undefined): boolean | null => {
 	if (!value) return null;
@@ -171,11 +183,13 @@ const emitDateWarning = (
 	warning: DateNormalizationWarning,
 	csvRow: CSVEventRow,
 	index: number,
+	columnType: DateWarningColumnType = "date",
+	originalValue: string = csvRow.date,
 ): void => {
 	WarningSystem.addDateFormatWarning({
-		originalValue: csvRow.date,
+		originalValue,
 		eventName: csvRow.title,
-		columnType: "date",
+		columnType,
 		warningType: toWarningType(warning),
 		potentialFormats: {
 			us: {
@@ -198,31 +212,158 @@ const emitDateWarning = (
 	});
 };
 
-/**
- * Main event assembly function
- * Converts a CSV row into a complete Event object
- */
-export const assembleEvent = (
+const buildEmptyDateWarning = (): DateNormalizationWarning => ({
+	type: "unparseable",
+	detectedFormat: "empty",
+	message: "Date value is empty.",
+	recommendedAction: "Provide a valid event date in the Date column.",
+});
+
+const buildInvalidDatePlaceholder = (): NormalizedDate => ({
+	isoDate: "",
+	day: "tbc",
+	year: null,
+	usedInferredYear: false,
+	warning: buildEmptyDateWarning(),
+});
+
+const normalizeDateColumnValue = (
+	csvRow: CSVEventRow,
+	dateContext: DateNormalizationContext,
+	index: number,
+	columnType: DateWarningColumnType,
+): NormalizedDate | null => {
+	const rawValue =
+		columnType === "dateTo" ? (csvRow.dateTo ?? "") : csvRow.date;
+	const trimmed = rawValue.trim();
+	if (columnType === "dateTo" && !trimmed) return null;
+	const normalized = normalizeCsvDate(trimmed, dateContext);
+	if (normalized.warning) {
+		emitDateWarning(normalized.warning, csvRow, index, columnType, trimmed);
+	}
+	return normalized;
+};
+
+const buildDateSeries = (
+	csvRow: CSVEventRow,
+	dateContext: DateNormalizationContext,
+	index: number,
+): NormalizedDate[] => {
+	const start = normalizeDateColumnValue(csvRow, dateContext, index, "date");
+	if (!start?.isoDate) return [start ?? buildInvalidDatePlaceholder()];
+
+	const end = normalizeDateColumnValue(csvRow, dateContext, index, "dateTo");
+	if (!end?.isoDate || end.isoDate === start.isoDate) return [start];
+
+	if (end.isoDate < start.isoDate) {
+		emitDateWarning(
+			{
+				type: "invalid",
+				detectedFormat: "date-range",
+				message: `Date To "${end.isoDate}" is before Date "${start.isoDate}".`,
+				recommendedAction:
+					"Set Date To to the same date or a later date for this range.",
+				potentialFormats: {
+					us: "",
+					uk: "",
+					iso: "",
+				},
+			},
+			csvRow,
+			index,
+			"dateTo",
+			csvRow.dateTo ?? "",
+		);
+		return [start];
+	}
+
+	const dates: NormalizedDate[] = [];
+	for (
+		let cursor = new Date(`${start.isoDate}T00:00:00.000Z`);
+		cursor.getTime() <= new Date(`${end.isoDate}T00:00:00.000Z`).getTime();
+		cursor = new Date(
+			Date.UTC(
+				cursor.getUTCFullYear(),
+				cursor.getUTCMonth(),
+				cursor.getUTCDate() + 1,
+			),
+		)
+	) {
+		const isoDate = cursor.toISOString().slice(0, 10);
+		dates.push({
+			isoDate,
+			day: DateTransformers.convertToEventDay(isoDate),
+			year: Number.parseInt(isoDate.slice(0, 4), 10),
+			usedInferredYear: false,
+		});
+	}
+	return dates.length > 0 ? dates : [start];
+};
+
+const getOccurrenceEventKey = (
+	csvRow: CSVEventRow,
+	rowIndex: number,
+	occurrenceIndex: number,
+	occurrenceDate: string,
+): string => {
+	const explicitEventKey = normalizeEventKey(csvRow.eventKey);
+	if (occurrenceIndex === 0 && explicitEventKey) return explicitEventKey;
+
+	return generateEventKeyFromRow(
+		{
+			...csvRow,
+			eventKey: "",
+			date: occurrenceDate,
+			dateTo: "",
+		},
+		{
+			stableKeys: EVENT_KEY_FINGERPRINT_FIELDS,
+			salt: rowIndex + occurrenceIndex,
+		},
+	);
+};
+
+const getSeriesKey = (
+	csvRow: CSVEventRow,
+	occurrenceCount: number,
+): string | undefined => {
+	const explicitSeriesKey = normalizeSeriesKey(csvRow.seriesKey);
+	if (explicitSeriesKey) return explicitSeriesKey;
+	if (occurrenceCount <= 1) return undefined;
+	return generateSeriesKeyFromRow(
+		{
+			...csvRow,
+			eventKey: "",
+			date: "",
+			dateTo: "",
+			seriesKey: "",
+		},
+		{ stableKeys: SERIES_KEY_FINGERPRINT_FIELDS },
+	);
+};
+
+const assembleEventFromNormalizedDate = (
 	csvRow: CSVEventRow,
 	index: number,
-	options: EventAssemblyOptions = {},
+	normalizedDate: NormalizedDate,
+	options: EventAssemblyOptions,
+	rangeContext?: {
+		eventKey: string;
+		seriesKey?: string;
+		sourceEventKey?: string;
+		occurrenceIndex: number;
+		occurrenceCount: number;
+		dateRangeStart?: string;
+		dateRangeEnd?: string;
+	},
 ): Event => {
 	const eventKey =
+		rangeContext?.eventKey ??
 		normalizeEventKey(csvRow.eventKey) ??
 		generateEventKeyFromRow(csvRow, {
 			stableKeys: EVENT_KEY_FINGERPRINT_FIELDS,
 			salt: index,
 		});
-
-	const dateContext =
-		options.dateNormalizationContext ??
-		createDateNormalizationContext([csvRow], {
-			referenceDate: options.referenceDate,
-		});
-	const normalizedDate = normalizeCsvDate(csvRow.date, dateContext);
-	if (normalizedDate.warning) {
-		emitDateWarning(normalizedDate.warning, csvRow, index);
-	}
 
 	// Transform individual fields using our focused transformers
 	const day = normalizedDate.day;
@@ -297,6 +438,12 @@ export const assembleEvent = (
 	// Assemble the complete event
 	const event: Event = {
 		eventKey,
+		seriesKey: rangeContext?.seriesKey,
+		sourceEventKey: rangeContext?.sourceEventKey,
+		occurrenceIndex: rangeContext?.occurrenceIndex,
+		occurrenceCount: rangeContext?.occurrenceCount,
+		dateRangeStart: rangeContext?.dateRangeStart,
+		dateRangeEnd: rangeContext?.dateRangeEnd,
 		slug: buildEventSlug(csvRow.title.trim()),
 		id: eventKey,
 		name: csvRow.title.trim(),
@@ -336,6 +483,37 @@ export const assembleEvent = (
 };
 
 /**
+ * Main event assembly function
+ * Converts a CSV row into the first Event object represented by that row.
+ * Batch assembly expands Date To ranges into all public occurrences.
+ */
+export const assembleEvent = (
+	csvRow: CSVEventRow,
+	index: number,
+	options: EventAssemblyOptions = {},
+): Event => {
+	const dateContext =
+		options.dateNormalizationContext ??
+		createDateNormalizationContext([csvRow], {
+			referenceDate: options.referenceDate,
+		});
+	const [normalizedDate] = buildDateSeries(csvRow, dateContext, index);
+	return assembleEventFromNormalizedDate(
+		csvRow,
+		index,
+		normalizedDate,
+		options,
+		{
+			eventKey: getOccurrenceEventKey(csvRow, index, 0, normalizedDate.isoDate),
+			seriesKey: getSeriesKey(csvRow, 1),
+			sourceEventKey: normalizeEventKey(csvRow.eventKey) ?? undefined,
+			occurrenceIndex: 0,
+			occurrenceCount: 1,
+		},
+	);
+};
+
+/**
  * Batch processing function for multiple CSV rows
  */
 export const assembleEvents = (
@@ -350,12 +528,54 @@ export const assembleEvents = (
 		createDateNormalizationContext(withEventKeys.rows, {
 			referenceDate: options.referenceDate,
 		});
-	return withEventKeys.rows.map((row, index) =>
-		assembleEvent(row, index, {
-			...options,
-			dateNormalizationContext: dateContext,
-		}),
-	);
+
+	const events: Event[] = [];
+	for (let rowIndex = 0; rowIndex < withEventKeys.rows.length; rowIndex += 1) {
+		const row = withEventKeys.rows[rowIndex];
+		const normalizedDates = buildDateSeries(row, dateContext, rowIndex);
+		const occurrenceCount = normalizedDates.length;
+		const seriesKey = getSeriesKey(row, occurrenceCount);
+		const sourceEventKey = normalizeEventKey(row.eventKey) ?? undefined;
+		const dateRangeStart =
+			occurrenceCount > 1 ? normalizedDates[0]?.isoDate : undefined;
+		const dateRangeEnd =
+			occurrenceCount > 1
+				? normalizedDates[occurrenceCount - 1]?.isoDate
+				: undefined;
+
+		for (
+			let occurrenceIndex = 0;
+			occurrenceIndex < normalizedDates.length;
+			occurrenceIndex += 1
+		) {
+			const normalizedDate = normalizedDates[occurrenceIndex];
+			const occurrenceDate = normalizedDate.isoDate;
+			events.push(
+				assembleEventFromNormalizedDate(
+					{ ...row, date: occurrenceDate, dateTo: "" },
+					rowIndex,
+					normalizedDate,
+					options,
+					{
+						eventKey: getOccurrenceEventKey(
+							row,
+							rowIndex,
+							occurrenceIndex,
+							occurrenceDate,
+						),
+						seriesKey,
+						sourceEventKey,
+						occurrenceIndex,
+						occurrenceCount,
+						dateRangeStart,
+						dateRangeEnd,
+					},
+				),
+			);
+		}
+	}
+
+	return events;
 };
 
 /**
@@ -400,13 +620,50 @@ export const assembleEventsSafely = (
 			referenceDate: options.referenceDate,
 		});
 
-	for (let i = 0; i < csvRows.length; i++) {
+	for (let i = 0; i < withEventKeys.rows.length; i += 1) {
+		const row = withEventKeys.rows[i];
 		try {
-			const event = assembleEvent(withEventKeys.rows[i], i, {
-				...options,
-				dateNormalizationContext: dateContext,
-			});
-			events.push(event);
+			const normalizedDates = buildDateSeries(row, dateContext, i);
+			const occurrenceCount = normalizedDates.length;
+			const seriesKey = getSeriesKey(row, occurrenceCount);
+			const sourceEventKey = normalizeEventKey(row.eventKey) ?? undefined;
+			const dateRangeStart =
+				occurrenceCount > 1 ? normalizedDates[0]?.isoDate : undefined;
+			const dateRangeEnd =
+				occurrenceCount > 1
+					? normalizedDates[occurrenceCount - 1]?.isoDate
+					: undefined;
+
+			for (
+				let occurrenceIndex = 0;
+				occurrenceIndex < normalizedDates.length;
+				occurrenceIndex += 1
+			) {
+				const normalizedDate = normalizedDates[occurrenceIndex];
+				const occurrenceDate = normalizedDate.isoDate;
+				events.push(
+					assembleEventFromNormalizedDate(
+						{ ...row, date: occurrenceDate, dateTo: "" },
+						i,
+						normalizedDate,
+						options,
+						{
+							eventKey: getOccurrenceEventKey(
+								row,
+								i,
+								occurrenceIndex,
+								occurrenceDate,
+							),
+							seriesKey,
+							sourceEventKey,
+							occurrenceIndex,
+							occurrenceCount,
+							dateRangeStart,
+							dateRangeEnd,
+						},
+					),
+				);
+			}
 		} catch (error) {
 			errors.push({
 				index: i,

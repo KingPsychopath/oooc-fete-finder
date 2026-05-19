@@ -46,6 +46,19 @@ describe("parseCSVContent", () => {
 		expect(rows[0].setting).toBe("Outdoor");
 	});
 
+	it("supports Series Key and Date To as dedicated range columns", () => {
+		const csv = [
+			"Title,Date,Date To,Series Key,Location",
+			"Weekend Session,18 June,20 June,ser_weekendrange12,Paris",
+		].join("\n");
+
+		const rows = parseCSVContent(csv);
+		expect(rows).toHaveLength(1);
+		expect(rows[0].date).toBe("18 June");
+		expect(rows[0].dateTo).toBe("20 June");
+		expect(rows[0].seriesKey).toBe("ser_weekendrange12");
+	});
+
 	it("parses legacy verified column as source confirmation", () => {
 		const csv = [
 			"Title,Date,Location,Verified",

@@ -305,6 +305,12 @@ export type EventCategory =
 
 export type Event = {
 	eventKey: string;
+	seriesKey?: string;
+	sourceEventKey?: string;
+	occurrenceIndex?: number;
+	occurrenceCount?: number;
+	dateRangeStart?: string;
+	dateRangeEnd?: string;
 	slug: string;
 	id: string;
 	name: string;
@@ -352,12 +358,14 @@ export type Event = {
 // CSV data type matching the structure in ooc_list_tracker.csv
 export type CSVEventRow = {
 	eventKey: string;
+	seriesKey?: string; // Stable group key for related range/materialized occurrences
 	curated: string; // "🌟" or empty
 	eventCategory?: string; // Party, Activity, Culture, Food, Wellness
 	hostCountry: string; // Country flags/codes/text (for example "🇬🇧", "🇫🇷", "GB/FR")
 	audienceCountry: string; // Audience country flags/codes/text
 	title: string;
 	date: string;
+	dateTo?: string;
 	startTime: string;
 	endTime: string;
 	location: string;

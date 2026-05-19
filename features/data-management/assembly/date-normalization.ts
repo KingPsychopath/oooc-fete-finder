@@ -2,6 +2,7 @@ import type { EventDay } from "@/features/events/types";
 
 type DateLikeRow = {
 	date: string;
+	dateTo?: string;
 };
 
 const DAY_MAPPING: Record<number, EventDay> = {
@@ -426,7 +427,10 @@ export const createDateNormalizationContext = (
 	const referenceYear = referenceDate.getUTCFullYear();
 
 	const explicitYears = rows
-		.map((row) => extractExplicitYear(row.date))
+		.flatMap((row) => [
+			extractExplicitYear(row.date),
+			extractExplicitYear(row.dateTo ?? ""),
+		])
 		.filter((year): year is number => year !== null);
 
 	return {
@@ -468,8 +472,7 @@ export const normalizeCsvDate = (
 					type: "ambiguous",
 					detectedFormat: parsed.detectedFormat,
 					message: parsed.message,
-					recommendedAction:
-						"Use DD-MM-YYYY, YYYY-MM-DD, or month names.",
+					recommendedAction: "Use DD-MM-YYYY, YYYY-MM-DD, or month names.",
 					potentialFormats: parsed.potentialFormats,
 				},
 			};

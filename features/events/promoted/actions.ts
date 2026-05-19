@@ -1,7 +1,7 @@
 "use server";
 
-import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import { recordAdminActivity } from "@/features/admin/activity/record";
+import { validateAdminAccessFromServerContext } from "@/features/auth/admin-validation";
 import {
 	getLiveEvents,
 	revalidateEventsPaths,
@@ -33,11 +33,20 @@ const sortEventOptions = (
 		.sort((left, right) => left.name.localeCompare(right.name))
 		.map((event) => ({
 			eventKey: event.eventKey,
+			seriesKey: event.seriesKey ?? "",
 			name: event.name,
 			date: event.date,
+			dateRangeStart: event.dateRangeStart ?? "",
+			dateRangeEnd: event.dateRangeEnd ?? "",
+			occurrenceIndex: event.occurrenceIndex ?? null,
+			occurrenceCount: event.occurrenceCount ?? null,
 			time: event.time || "",
 		}));
 };
+
+const normalizeEventKeys = (eventKeys: readonly string[]): string[] => [
+	...new Set(eventKeys.map((key) => key.trim()).filter(Boolean)),
+];
 
 export async function listPromotedQueue(): Promise<{
 	success: boolean;
@@ -60,8 +69,13 @@ export async function listPromotedQueue(): Promise<{
 	}>;
 	events?: Array<{
 		eventKey: string;
+		seriesKey: string;
 		name: string;
 		date: string;
+		dateRangeStart: string;
+		dateRangeEnd: string;
+		occurrenceIndex: number | null;
+		occurrenceCount: number | null;
 		time: string;
 	}>;
 	error?: string;
@@ -111,8 +125,8 @@ export async function listPromotedQueue(): Promise<{
 	}
 }
 
-export async function schedulePromotedEvent(
-	eventKey: string,
+export async function schedulePromotedEvents(
+	eventKeys: readonly string[],
 	requestedStartAt: string,
 	durationHours?: number,
 ): Promise<{
@@ -122,29 +136,61 @@ export async function schedulePromotedEvent(
 }> {
 	try {
 		await assertAdmin();
-		if (!eventKey || eventKey.trim().length === 0) {
+		const keys = normalizeEventKeys(eventKeys);
+		if (keys.length === 0) {
 			return { success: false, message: "Event key is required" };
 		}
-		await schedulePromotedEntry({
-			eventKey,
-			requestedStartAt,
-			durationHours,
-			createdBy: "admin-panel",
-		});
+		const results = await Promise.allSettled(
+			keys.map((eventKey) =>
+				schedulePromotedEntry({
+					eventKey,
+					requestedStartAt,
+					durationHours,
+					createdBy: "admin-panel",
+				}),
+			),
+		);
+		const failedEventKeys = keys.filter(
+			(_, index) => results[index]?.status === "rejected",
+		);
+		const scheduledEventKeys = keys.filter(
+			(_, index) => results[index]?.status === "fulfilled",
+		);
 		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.promoted.scheduled",
 			category: "placements",
 			targetType: "promoted_placement",
-			targetId: eventKey,
-			targetLabel: eventKey,
-			summary: `Promoted placement scheduled for ${eventKey}`,
-			metadata: { requestedStartAt, durationHours },
+			targetId: scheduledEventKeys[0] ?? keys[0],
+			targetLabel:
+				scheduledEventKeys.length > 1
+					? `${scheduledEventKeys.length} promoted occurrences`
+					: (scheduledEventKeys[0] ?? keys[0]),
+			summary:
+				scheduledEventKeys.length > 1
+					? `${scheduledEventKeys.length} promoted occurrences scheduled`
+					: `Promoted placement scheduled for ${scheduledEventKeys[0] ?? keys[0]}`,
+			metadata: {
+				requestedStartAt,
+				durationHours,
+				eventKeys: scheduledEventKeys,
+				failedEventKeys,
+			},
 			href: "/admin/placements#featured-events-manager",
 		});
+		if (failedEventKeys.length > 0) {
+			return {
+				success: false,
+				message: `Scheduled ${scheduledEventKeys.length} of ${keys.length} promoted occurrence${keys.length === 1 ? "" : "s"}`,
+				error: `${failedEventKeys.length} event(s) could not be scheduled`,
+			};
+		}
 		return {
 			success: true,
-			message: "Promoted schedule saved and pages revalidated",
+			message:
+				scheduledEventKeys.length > 1
+					? `Promoted schedule saved for ${scheduledEventKeys.length} occurrences and pages revalidated`
+					: "Promoted schedule saved and pages revalidated",
 		};
 	} catch (error) {
 		return {
@@ -153,6 +199,18 @@ export async function schedulePromotedEvent(
 			error: error instanceof Error ? error.message : "Unknown schedule error",
 		};
 	}
+}
+
+export async function schedulePromotedEvent(
+	eventKey: string,
+	requestedStartAt: string,
+	durationHours?: number,
+): Promise<{
+	success: boolean;
+	message: string;
+	error?: string;
+}> {
+	return schedulePromotedEvents([eventKey], requestedStartAt, durationHours);
 }
 
 export async function cancelPromotedSchedule(entryId: string): Promise<{

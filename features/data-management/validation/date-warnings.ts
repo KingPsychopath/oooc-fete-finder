@@ -8,7 +8,7 @@
 export type DateFormatWarning = {
 	originalValue: string;
 	eventName?: string;
-	columnType: "date" | "startTime" | "endTime";
+	columnType: "date" | "dateTo" | "startTime" | "endTime";
 	warningType: "ambiguous" | "inferred_year" | "invalid" | "unparseable";
 	potentialFormats: {
 		us: { date: string; description: string };
@@ -105,6 +105,7 @@ export const WarningSystem = {
 
 		const byColumn: Record<DateFormatWarning["columnType"], number> = {
 			date: 0,
+			dateTo: 0,
 			startTime: 0,
 			endTime: 0,
 		};

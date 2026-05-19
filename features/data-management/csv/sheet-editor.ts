@@ -56,12 +56,14 @@ export const formatIsoDateForEditableSheet = (isoDate: string): string => {
 
 const CORE_COLUMN_LABELS: Record<(typeof CSV_EVENT_COLUMNS)[number], string> = {
 	eventKey: "Event Key",
+	seriesKey: "Series Key",
 	curated: "Curated",
 	eventCategory: "Event Category",
 	hostCountry: "Host Country",
 	audienceCountry: "Audience Country",
 	title: "Title",
 	date: "Date",
+	dateTo: "Date To",
 	startTime: "Start Time",
 	endTime: "End Time",
 	location: "Location",
@@ -84,8 +86,10 @@ const HIDDEN_EVENT_COLUMN_SET = new Set<string>(
 );
 const COUNTRY_COLUMN_KEYS = new Set<string>(["hostCountry", "audienceCountry"]);
 const TIME_COLUMN_KEYS = new Set<string>(["startTime", "endTime"]);
+const DATE_COLUMN_KEYS = new Set<string>(["date", "dateTo"]);
 const DEFAULT_UNKNOWN_TIME_HOUR = 23;
 const DEFAULT_UNKNOWN_TIME_MINUTE = 59;
+const SERIES_KEY_PATTERN = /^ser_[a-z0-9]{12,20}$/;
 
 const CORE_HEADER_LOOKUP = new Map<string, string>(
 	CSV_EVENT_COLUMNS.flatMap((key) => [
@@ -123,9 +127,13 @@ export const normalizeEditableSheetRowValues = (
 ): EditableSheetRow => {
 	const nextRow = { ...row };
 	if (context) {
-		const normalizedDate = normalizeCsvDate(nextRow.date ?? "", context);
-		if (normalizedDate.isoDate) {
-			nextRow.date = formatIsoDateForEditableSheet(normalizedDate.isoDate);
+		for (const key of DATE_COLUMN_KEYS) {
+			const value = nextRow[key] ?? "";
+			if (!value.trim()) continue;
+			const normalizedDate = normalizeCsvDate(value, context);
+			if (normalizedDate.isoDate) {
+				nextRow[key] = formatIsoDateForEditableSheet(normalizedDate.isoDate);
+			}
 		}
 	}
 	for (const key of COUNTRY_COLUMN_KEYS) {
@@ -149,6 +157,139 @@ export const normalizeEditableSheetRowValues = (
 
 const toUTCDateOnlyTime = (date: Date): number =>
 	Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+
+const addDays = (isoDate: string, days: number): string => {
+	const date = new Date(`${isoDate}T00:00:00.000Z`);
+	date.setUTCDate(date.getUTCDate() + days);
+	return date.toISOString().slice(0, 10);
+};
+
+const hashText = (value: string): string => {
+	let hash = 0x811c9dc5;
+	for (let index = 0; index < value.length; index += 1) {
+		hash ^= value.charCodeAt(index);
+		hash = Math.imul(hash, 0x01000193);
+	}
+	return (hash >>> 0).toString(16).padStart(8, "0");
+};
+
+export const normalizeEditableSheetSeriesKey = (
+	value: string | null | undefined,
+): string | null => {
+	if (!value) return null;
+	const normalized = value.trim().toLowerCase();
+	return SERIES_KEY_PATTERN.test(normalized) ? normalized : null;
+};
+
+export const generateEditableSheetSeriesKey = (
+	row: EditableSheetRow,
+): string => {
+	const fingerprint = [
+		row.title,
+		row.startTime,
+		row.location,
+		row.districtArea,
+		row.primaryUrl,
+	]
+		.map((value) =>
+			String(value ?? "")
+				.trim()
+				.toLowerCase()
+				.replace(/\s+/g, " "),
+		)
+		.join("|");
+	return `ser_${hashText(`series|${fingerprint}`)}${hashText(fingerprint).slice(0, 8)}`;
+};
+
+export const getEditableSheetDateRangeDates = (
+	row: EditableSheetRow,
+	context: ReturnType<typeof createDateNormalizationContext>,
+): string[] => {
+	const start = normalizeCsvDate(row.date ?? "", context);
+	if (!start.isoDate) return [];
+	const endValue = String(row.dateTo ?? "").trim();
+	if (!endValue) return [start.isoDate];
+	const end = normalizeCsvDate(endValue, context);
+	if (!end.isoDate || end.isoDate <= start.isoDate) return [start.isoDate];
+
+	const dates: string[] = [];
+	for (
+		let cursor = start.isoDate;
+		cursor <= end.isoDate;
+		cursor = addDays(cursor, 1)
+	) {
+		dates.push(cursor);
+	}
+	return dates;
+};
+
+export const splitEditableSheetRangeRow = (
+	rows: EditableSheetRow[],
+	rowIndex: number,
+	selectedDate?: string,
+): EditableSheetRow[] => {
+	const row = rows[rowIndex];
+	if (!row) return rows.map((item) => ({ ...item }));
+	const context = createDateNormalizationContext(
+		rows.map((item) => ({ date: item.date ?? "", dateTo: item.dateTo ?? "" })),
+	);
+	const dates = getEditableSheetDateRangeDates(row, context);
+	if (dates.length <= 1) return rows.map((item) => ({ ...item }));
+
+	const chosenDate =
+		selectedDate && dates.includes(selectedDate) ? selectedDate : null;
+	const seriesKey =
+		normalizeEditableSheetSeriesKey(row.seriesKey) ??
+		generateEditableSheetSeriesKey(row);
+	const makeRow = (
+		startDate: string,
+		endDate: string | null,
+		eventKey: string,
+	): EditableSheetRow => ({
+		...row,
+		eventKey,
+		seriesKey,
+		date: formatIsoDateForEditableSheet(startDate),
+		dateTo:
+			endDate && endDate !== startDate
+				? formatIsoDateForEditableSheet(endDate)
+				: "",
+	});
+
+	const replacementRows: EditableSheetRow[] = [];
+	if (!chosenDate) {
+		dates.forEach((date, index) => {
+			replacementRows.push(
+				makeRow(date, null, index === 0 ? (row.eventKey ?? "") : ""),
+			);
+		});
+	} else {
+		const selectedIndex = dates.indexOf(chosenDate);
+		if (selectedIndex > 0) {
+			replacementRows.push(
+				makeRow(dates[0], dates[selectedIndex - 1], row.eventKey ?? ""),
+			);
+		}
+		replacementRows.push(
+			makeRow(
+				chosenDate,
+				null,
+				selectedIndex === 0 ? (row.eventKey ?? "") : "",
+			),
+		);
+		if (selectedIndex < dates.length - 1) {
+			replacementRows.push(
+				makeRow(dates[selectedIndex + 1], dates.at(-1) ?? "", ""),
+			);
+		}
+	}
+
+	return [
+		...rows.slice(0, rowIndex).map((item) => ({ ...item })),
+		...replacementRows,
+		...rows.slice(rowIndex + 1).map((item) => ({ ...item })),
+	];
+};
 
 const parseSortableTime = (rawTime: string): [number, number] => {
 	const normalized = rawTime.trim().toLowerCase();
@@ -317,7 +458,10 @@ export const sortEditableSheetRowsByDefaultDate = (
 	const referenceDate = options.referenceDate ?? new Date();
 	const today = toUTCDateOnlyTime(referenceDate);
 	const context = createDateNormalizationContext(
-		rows.map((row) => ({ date: row.date ?? "" })),
+		rows.map((row) => ({
+			date: row.date ?? "",
+			dateTo: row.dateTo ?? "",
+		})),
 		{ referenceDate },
 	);
 
@@ -538,7 +682,10 @@ export const editableSheetToCsv = (
 	);
 	const csvColumns = [...normalized.columns, ...metadataColumns];
 	const context = createDateNormalizationContext(
-		normalized.rows.map((row) => ({ date: row.date ?? "" })),
+		normalized.rows.map((row) => ({
+			date: row.date ?? "",
+			dateTo: row.dateTo ?? "",
+		})),
 	);
 	const headerLine = csvColumns
 		.map((column) => toCsvValue(column.label))

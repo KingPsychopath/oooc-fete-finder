@@ -1,7 +1,10 @@
+import { createDateNormalizationContext } from "@/features/data-management/assembly/date-normalization";
 import {
 	editableSheetToCsv,
+	getEditableSheetDateRangeDates,
 	pruneEmptyEditableSheetRows,
 	sortEditableSheetRowsByDefaultDate,
+	splitEditableSheetRangeRow,
 	validateEditableSheet,
 } from "@/features/data-management/csv/sheet-editor";
 import { describe, expect, it } from "vitest";
@@ -119,6 +122,85 @@ describe("sortEditableSheetRowsByDefaultDate", () => {
 				.slice(1)
 				.map((line) => line.split(",").slice(0, 2).join(",")),
 		).toEqual(["ISO,21-06-2026", "Slash,21-06-2026", "Text,21-06-2026"]);
+	});
+
+	it("normalizes Date To when exporting source CSV", () => {
+		const csv = editableSheetToCsv(
+			[
+				{ key: "title", label: "Title", isCore: true, isRequired: true },
+				{ key: "date", label: "Date", isCore: true, isRequired: true },
+				{ key: "dateTo", label: "Date To", isCore: true, isRequired: false },
+			],
+			[
+				{
+					title: "Range",
+					date: "21 June 2026",
+					dateTo: "23 June 2026",
+				},
+			],
+		);
+
+		expect(csv.split("\n")[1]?.startsWith("Range,21-06-2026,23-06-2026")).toBe(
+			true,
+		);
+	});
+
+	it("can materialize a range row into editable per-day rows", () => {
+		const rows = [
+			{
+				eventKey: "evt_explicitrange123",
+				title: "Range",
+				date: "21 June 2026",
+				dateTo: "23 June 2026",
+				startTime: "19:00",
+			},
+		];
+
+		const nextRows = splitEditableSheetRangeRow(rows, 0);
+
+		expect(nextRows).toHaveLength(3);
+		expect(nextRows.map((row) => row.date)).toEqual([
+			"21-06-2026",
+			"22-06-2026",
+			"23-06-2026",
+		]);
+		expect(nextRows.every((row) => row.dateTo === "")).toBe(true);
+		expect(nextRows.every((row) => row.seriesKey?.startsWith("ser_"))).toBe(
+			true,
+		);
+		expect(nextRows[0].eventKey).toBe("evt_explicitrange123");
+		expect(nextRows[1].eventKey).toBe("");
+	});
+
+	it("can split one date out while preserving compact surrounding ranges", () => {
+		const rows = [
+			{
+				eventKey: "evt_explicitrange123",
+				title: "Range",
+				date: "21 June 2026",
+				dateTo: "24 June 2026",
+				startTime: "19:00",
+			},
+		];
+
+		const context = createDateNormalizationContext([
+			{ date: rows[0].date, dateTo: rows[0].dateTo },
+		]);
+		expect(getEditableSheetDateRangeDates(rows[0], context)).toEqual([
+			"2026-06-21",
+			"2026-06-22",
+			"2026-06-23",
+			"2026-06-24",
+		]);
+
+		const nextRows = splitEditableSheetRangeRow(rows, 0, "2026-06-23");
+
+		expect(nextRows.map((row) => [row.date, row.dateTo])).toEqual([
+			["21-06-2026", "22-06-2026"],
+			["23-06-2026", ""],
+			["24-06-2026", ""],
+		]);
+		expect(new Set(nextRows.map((row) => row.seriesKey)).size).toBe(1);
 	});
 
 	it("normalizes parseable start and end times to 24-hour clock when exporting CSV", () => {

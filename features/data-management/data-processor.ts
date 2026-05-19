@@ -9,7 +9,7 @@ import { createGoogleGeocodingProvider } from "@/features/locations/providers/go
 import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
 import { log } from "@/lib/platform/logger";
 import { createDateNormalizationContext } from "./assembly/date-normalization";
-import { assembleEvent } from "./assembly/event-assembler";
+import { assembleEvents } from "./assembly/event-assembler";
 import { ensureUniqueEventKeys } from "./assembly/event-key";
 import { parseCSVContent } from "./csv/parser";
 import {
@@ -80,14 +80,13 @@ export async function processCSVData(
 		const dateContext = createDateNormalizationContext(keyedRows.rows, {
 			referenceDate: options.referenceDate,
 		});
-		let events: Event[] = keyedRows.rows
-			.filter((row) => !isDraftCsvRow(row))
-			.map((row, index) =>
-				assembleEvent(row, index, {
-					dateNormalizationContext: dateContext,
-					genreTaxonomy: options.genreTaxonomy,
-				}),
-			);
+		let events: Event[] = assembleEvents(
+			keyedRows.rows.filter((row) => !isDraftCsvRow(row)),
+			{
+				dateNormalizationContext: dateContext,
+				genreTaxonomy: options.genreTaxonomy,
+			},
+		);
 		log.info("data", "Event key hydration", {
 			source,
 			missingEventKeyCount: keyedRows.missingEventKeyCount,
@@ -118,14 +117,13 @@ export async function processCSVData(
 						referenceDate: options.referenceDate,
 					},
 				);
-				const localEvents = keyedLocalRows.rows
-					.filter((row) => !isDraftCsvRow(row))
-					.map((row, index) =>
-						assembleEvent(row, index, {
-							dateNormalizationContext: localDateContext,
-							genreTaxonomy: options.genreTaxonomy,
-						}),
-					);
+				const localEvents = assembleEvents(
+					keyedLocalRows.rows.filter((row) => !isDraftCsvRow(row)),
+					{
+						dateNormalizationContext: localDateContext,
+						genreTaxonomy: options.genreTaxonomy,
+					},
+				);
 				log.info("data", "Event key hydration", {
 					source: "local-fallback",
 					missingEventKeyCount: keyedLocalRows.missingEventKeyCount,

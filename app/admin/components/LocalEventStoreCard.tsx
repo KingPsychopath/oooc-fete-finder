@@ -13,6 +13,7 @@ import {
 	createEventStoreBackup,
 	getEventStoreBackupStatus,
 	getEventStoreRecentBackups,
+	getExpandedEventStoreCsv,
 	getLocalEventStoreCsv,
 	getLocalEventStorePreview,
 	getLocalEventStoreStatus,
@@ -358,6 +359,33 @@ export const LocalEventStoreCard = ({
 		});
 	};
 
+	const handleExportExpandedCsv = async () => {
+		await withTask(async () => {
+			const result = await getExpandedEventStoreCsv();
+			if (!result.success) {
+				throw new Error(
+					result.error || "Failed to export generated events CSV",
+				);
+			}
+
+			const csvContent = (result.csvContent || "").trim();
+			if (!csvContent) {
+				throw new Error("No generated event data exists in store");
+			}
+
+			const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+			const url = URL.createObjectURL(blob);
+			const anchor = document.createElement("a");
+			anchor.href = url;
+			anchor.download = `oooc-events-expanded-${new Date().toISOString().split("T")[0]}.csv`;
+			document.body.appendChild(anchor);
+			anchor.click();
+			document.body.removeChild(anchor);
+			URL.revokeObjectURL(url);
+			setMessage(`Generated events CSV exported (${result.count ?? 0} rows)`);
+		});
+	};
+
 	const handleClearStore = async () => {
 		if (
 			!window.confirm("Clear all event data from store? This cannot be undone.")
@@ -549,6 +577,14 @@ export const LocalEventStoreCard = ({
 						onClick={handleExportCsv}
 					>
 						Export Store CSV
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						disabled={isLoading}
+						onClick={handleExportExpandedCsv}
+					>
+						Export Generated CSV
 					</Button>
 					<Button
 						type="button"

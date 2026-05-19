@@ -60,11 +60,14 @@ const getRowEventKey = (row: EventSheetRowRecord): string | null => {
 };
 
 const MEANINGFUL_EVENT_FIELDS = [
+	"seriesKey",
 	"curated",
+	"eventCategory",
 	"hostCountry",
 	"audienceCountry",
 	"title",
 	"date",
+	"dateTo",
 	"startTime",
 	"endTime",
 	"location",

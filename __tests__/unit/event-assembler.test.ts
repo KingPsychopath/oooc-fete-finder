@@ -261,4 +261,101 @@ describe("event assembler identity", () => {
 
 		expect(event.tags).toEqual(["roof", "free"]);
 	});
+
+	it("expands Date To ranges into one occurrence per day", () => {
+		const events = assembleEvents([
+			{
+				...baseRow,
+				title: "Weekend Session",
+				date: "18 June 2026",
+				dateTo: "20 June 2026",
+			},
+		]);
+
+		expect(events).toHaveLength(3);
+		expect(events.map((event) => event.date)).toEqual([
+			"2026-06-18",
+			"2026-06-19",
+			"2026-06-20",
+		]);
+		expect(events.every((event) => event.seriesKey?.startsWith("ser_"))).toBe(
+			true,
+		);
+		expect(events.map((event) => event.occurrenceIndex)).toEqual([0, 1, 2]);
+		expect(events.every((event) => event.occurrenceCount === 3)).toBe(true);
+		expect(events.every((event) => event.dateRangeStart === "2026-06-18")).toBe(
+			true,
+		);
+		expect(events.every((event) => event.dateRangeEnd === "2026-06-20")).toBe(
+			true,
+		);
+	});
+
+	it("keeps an explicit event key for the first range occurrence and generates the rest", () => {
+		const events = assembleEvents([
+			{
+				...baseRow,
+				eventKey: "evt_explicitrange123",
+				seriesKey: "ser_explicitrange12",
+				date: "18 June 2026",
+				dateTo: "20 June 2026",
+			},
+		]);
+
+		expect(events).toHaveLength(3);
+		expect(events[0].eventKey).toBe("evt_explicitrange123");
+		expect(events[1].eventKey).not.toBe("evt_explicitrange123");
+		expect(events[1].eventKey).not.toBe(events[2].eventKey);
+		expect(
+			events.every((event) => event.seriesKey === "ser_explicitrange12"),
+		).toBe(true);
+	});
+
+	it("falls back to a single occurrence and warns when Date To is before Date", () => {
+		WarningSystem.clearDateFormatWarnings();
+		const events = assembleEvents([
+			{
+				...baseRow,
+				title: "Backwards Range",
+				date: "20 June 2026",
+				dateTo: "18 June 2026",
+			},
+		]);
+
+		expect(events).toHaveLength(1);
+		expect(events[0].date).toBe("2026-06-20");
+		expect(
+			WarningSystem.getDateFormatWarnings().some(
+				(warning) =>
+					warning.columnType === "dateTo" && warning.warningType === "invalid",
+			),
+		).toBe(true);
+	});
+
+	it("preserves multiple locations, multiple links, and non-number areas across range occurrences", () => {
+		const events = assembleEvents([
+			{
+				...baseRow,
+				title: "Travelling Weekender",
+				date: "18 June 2026",
+				dateTo: "19 June 2026",
+				location: "Venue A | Venue B",
+				districtArea: "Multiple Locations",
+				primaryUrl: "example.com/a | https://example.com/b",
+			},
+		]);
+
+		expect(events).toHaveLength(2);
+		for (const event of events) {
+			expect(event.arrondissement).toBe("multiple-locations");
+			expect(event.location).toBe("Multiple locations");
+			expect(event.locations).toEqual(["Venue A", "Venue B"]);
+			expect(event.link).toBe("https://example.com/a");
+			expect(event.links).toEqual([
+				"https://example.com/a",
+				"https://example.com/b",
+			]);
+			expect(event.seriesKey?.startsWith("ser_")).toBe(true);
+		}
+	});
 });

@@ -1,4 +1,8 @@
 import { parseSupportedNationalities } from "@/features/events/nationality-utils";
+import {
+	createDateNormalizationContext,
+	normalizeCsvDate,
+} from "../assembly/date-normalization";
 import { normalizeEventKey } from "../assembly/event-key";
 import type { EditableSheetRow } from "../csv/sheet-editor";
 
@@ -12,6 +16,9 @@ export interface CsvSchemaIssue {
 		| "event_key_duplicate"
 		| "featured_legacy_value"
 		| "ooc_picks_unexpected"
+		| "date_range_invalid"
+		| "date_range_long"
+		| "date_range_too_long"
 		| "nationality_unsupported"
 		| "arrondissement_unexpected"
 		| "indoor_outdoor_unexpected"
@@ -49,6 +56,9 @@ const keySeverity = (mode: EventKeyMode): CsvSchemaIssueSeverity | null => {
 
 const hasExplicitYear = (value: string): boolean =>
 	/\b(19|20)\d{2}\b/.test(value);
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const LONG_DATE_RANGE_WARNING_DAYS = 14;
+const MAX_DATE_RANGE_DAYS = 31;
 
 export const analyzeCsvSchemaRows = (
 	rows: EditableSheetRow[],
@@ -72,6 +82,7 @@ export const analyzeCsvSchemaRows = (
 		const rawArrondissement = String(row.districtArea ?? "").trim();
 		const rawVenue = String(row.setting ?? "").trim();
 		const rawDate = String(row.date ?? "").trim();
+		const rawDateTo = String(row.dateTo ?? "").trim();
 
 		if (rawFeatured.length > 0) {
 			pushIssue(issues, {
@@ -225,6 +236,62 @@ export const analyzeCsvSchemaRows = (
 				message:
 					"Date has no explicit year; import will infer year from context/reference date.",
 			});
+		}
+
+		if (rawDateTo && !hasExplicitYear(rawDateTo)) {
+			pushIssue(issues, {
+				severity: "warning",
+				code: "date_missing_year",
+				column: "Date To",
+				rowIndex,
+				value: rawDateTo,
+				message:
+					"Date To has no explicit year; import will infer year from context/reference date.",
+			});
+		}
+
+		if (rawDate && rawDateTo) {
+			const dateContext = createDateNormalizationContext(
+				[{ date: rawDate, dateTo: rawDateTo }],
+				{ referenceDate: new Date() },
+			);
+			const normalizedDate = normalizeCsvDate(rawDate, dateContext);
+			const normalizedDateTo = normalizeCsvDate(rawDateTo, dateContext);
+			if (normalizedDate.isoDate && normalizedDateTo.isoDate) {
+				if (normalizedDateTo.isoDate < normalizedDate.isoDate) {
+					pushIssue(issues, {
+						severity: "error",
+						code: "date_range_invalid",
+						column: "Date To",
+						rowIndex,
+						value: rawDateTo,
+						message: `Date To "${normalizedDateTo.isoDate}" is before Date "${normalizedDate.isoDate}".`,
+					});
+				} else {
+					const startMs = Date.parse(`${normalizedDate.isoDate}T00:00:00.000Z`);
+					const endMs = Date.parse(`${normalizedDateTo.isoDate}T00:00:00.000Z`);
+					const rangeDays = Math.floor((endMs - startMs) / DAY_IN_MS) + 1;
+					if (rangeDays > MAX_DATE_RANGE_DAYS) {
+						pushIssue(issues, {
+							severity: "error",
+							code: "date_range_too_long",
+							column: "Date To",
+							rowIndex,
+							value: rawDateTo,
+							message: `Date range expands to ${rangeDays} days. Split or shorten ranges over ${MAX_DATE_RANGE_DAYS} days.`,
+						});
+					} else if (rangeDays > LONG_DATE_RANGE_WARNING_DAYS) {
+						pushIssue(issues, {
+							severity: "warning",
+							code: "date_range_long",
+							column: "Date To",
+							rowIndex,
+							value: rawDateTo,
+							message: `Date range expands to ${rangeDays} days. Confirm this should create one occurrence per day.`,
+						});
+					}
+				}
+			}
 		}
 	});
 

@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "crypto";
 
 const EVENT_KEY_PATTERN = /^evt_[a-z0-9]{12,20}$/;
+const SERIES_KEY_PATTERN = /^ser_[a-z0-9]{12,20}$/;
 const EVENT_KEY_MIN_HASH_LENGTH = 12;
 const EVENT_KEY_MAX_HASH_LENGTH = 20;
 const EVENT_KEY_DEFAULT_HASH_LENGTH = 16;
@@ -73,6 +74,31 @@ export const generateEventKeyFromRow = (
 	return `evt_${hash.slice(0, hashLength)}`;
 };
 
+export const normalizeSeriesKey = (
+	value: string | null | undefined,
+): string | null => {
+	if (!value) return null;
+	const normalized = value.trim().toLowerCase();
+	return SERIES_KEY_PATTERN.test(normalized) ? normalized : null;
+};
+
+export const generateSeriesKeyFromRow = (
+	row: Record<string, string>,
+	options?: {
+		stableKeys?: readonly string[];
+		hashLength?: number;
+	},
+): string => {
+	const hashLength = clampHashLength(
+		options?.hashLength ?? EVENT_KEY_DEFAULT_HASH_LENGTH,
+	);
+	const fingerprint = buildFingerprint(row, options?.stableKeys);
+	const hash = createHash("sha256")
+		.update(`series|${fingerprint}`)
+		.digest("hex");
+	return `ser_${hash.slice(0, hashLength)}`;
+};
+
 type KeyedRow = {
 	eventKey?: string | null;
 } & Record<string, unknown>;
@@ -141,4 +167,3 @@ export const buildEventSlug = (name: string): string => {
 	const trimmed = normalized.slice(0, 80).replace(/-+$/g, "");
 	return trimmed || "event";
 };
-

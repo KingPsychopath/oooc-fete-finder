@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 describe("processCSVData date normalization", () => {
 	it("normalizes mixed date formats and keeps invalid rows as tbc", async () => {
-		process.env.AUTH_SECRET ??= "test-auth-secret-0123456789-abcdefghijklmnopqrstuvwxyz";
+		process.env.AUTH_SECRET ??=
+			"test-auth-secret-0123456789-abcdefghijklmnopqrstuvwxyz";
 		const { processCSVData } = await import(
 			"@/features/data-management/data-processor"
 		);
@@ -22,7 +23,9 @@ describe("processCSVData date normalization", () => {
 
 		expect(result.count).toBe(4);
 
-		const explicit = result.events.find((event) => event.name === "Explicit Year");
+		const explicit = result.events.find(
+			(event) => event.name === "Explicit Year",
+		);
 		const yearless = result.events.find((event) => event.name === "Yearless");
 		const ambiguous = result.events.find((event) => event.name === "Ambiguous");
 		const invalid = result.events.find((event) => event.name === "Invalid");
@@ -42,5 +45,31 @@ describe("processCSVData date normalization", () => {
 		expect(warningTypes).toContain("inferred_year");
 		expect(warningTypes).toContain("ambiguous");
 		expect(warningTypes).toContain("invalid");
+	});
+
+	it("expands Date To ranges into generated occurrences", async () => {
+		process.env.AUTH_SECRET ??=
+			"test-auth-secret-0123456789-abcdefghijklmnopqrstuvwxyz";
+		const { processCSVData } = await import(
+			"@/features/data-management/data-processor"
+		);
+
+		const csv = [
+			"Title,Date,Date To,Location",
+			"Weekend Session,18 June,20 June,Paris",
+		].join("\n");
+
+		const result = await processCSVData(csv, "store", false, {
+			populateCoordinates: false,
+			referenceDate: new Date("2026-01-01T00:00:00.000Z"),
+		});
+
+		expect(result.count).toBe(3);
+		expect(result.events.map((event) => event.date)).toEqual([
+			"2026-06-18",
+			"2026-06-19",
+			"2026-06-20",
+		]);
+		expect(result.events.every((event) => event.seriesKey)).toBe(true);
 	});
 });

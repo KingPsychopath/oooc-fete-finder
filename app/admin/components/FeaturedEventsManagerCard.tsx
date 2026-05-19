@@ -18,6 +18,7 @@ import {
 	listFeaturedQueue,
 	rescheduleFeaturedEvent,
 	scheduleFeaturedEvent,
+	scheduleFeaturedEvents,
 } from "@/features/events/featured/actions";
 import { getSpotlightRotationContext } from "@/features/events/featured/selection";
 import { getCurrentParisYearDateRange } from "@/features/events/filtering";
@@ -28,6 +29,7 @@ import {
 	listPromotedQueue,
 	reschedulePromotedEvent,
 	schedulePromotedEvent,
+	schedulePromotedEvents,
 } from "@/features/events/promoted/actions";
 import {
 	getOrCreatePartnerReportForPlacement,
@@ -38,6 +40,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 type FeaturedQueuePayload = Awaited<ReturnType<typeof listFeaturedQueue>>;
 type PromotedQueuePayload = Awaited<ReturnType<typeof listPromotedQueue>>;
 type PlacementMode = "spotlight" | "promoted";
+type PlacementScope = "single" | "series";
 
 type QueueRow = {
 	id: string;
@@ -130,6 +133,8 @@ export const FeaturedEventsManagerCard = ({
 }) => {
 	const [placementMode, setPlacementMode] =
 		useState<PlacementMode>("spotlight");
+	const [placementScope, setPlacementScope] =
+		useState<PlacementScope>("single");
 	const [featuredPayload, setFeaturedPayload] =
 		useState<FeaturedQueuePayload | null>(initialPayload ?? null);
 	const [promotedPayload, setPromotedPayload] =
@@ -225,6 +230,25 @@ export const FeaturedEventsManagerCard = ({
 		() => events.find((event) => event.eventKey === selectedEventKey),
 		[events, selectedEventKey],
 	);
+	const selectedSeriesEvents = useMemo(() => {
+		if (!selectedEvent?.seriesKey) return [];
+		return events
+			.filter((event) => event.seriesKey === selectedEvent.seriesKey)
+			.sort((left, right) => left.date.localeCompare(right.date));
+	}, [events, selectedEvent]);
+	const targetEventKeys = useMemo(() => {
+		if (!selectedEvent) return [];
+		if (placementScope === "series" && selectedSeriesEvents.length > 1) {
+			return selectedSeriesEvents.map((event) => event.eventKey);
+		}
+		return [selectedEvent.eventKey];
+	}, [placementScope, selectedEvent, selectedSeriesEvents]);
+	const canTargetSeries = selectedSeriesEvents.length > 1;
+	useEffect(() => {
+		if (!canTargetSeries && placementScope === "series") {
+			setPlacementScope("single");
+		}
+	}, [canTargetSeries, placementScope]);
 
 	const scheduleTimezone =
 		currentPayload?.slotConfig?.timezone || "Europe/Paris";
@@ -340,14 +364,24 @@ export const FeaturedEventsManagerCard = ({
 		const parsedDuration = Number.parseInt(durationHours, 10);
 		if (placementMode === "spotlight") {
 			await withMutation(() =>
-				scheduleFeaturedEvent(selectedEventKey, "", parsedDuration),
+				targetEventKeys.length > 1
+					? scheduleFeaturedEvents(targetEventKeys, "", parsedDuration)
+					: scheduleFeaturedEvent(selectedEventKey, "", parsedDuration),
 			);
 			return;
 		}
 		await withMutation(() =>
-			schedulePromotedEvent(selectedEventKey, "", parsedDuration),
+			targetEventKeys.length > 1
+				? schedulePromotedEvents(targetEventKeys, "", parsedDuration)
+				: schedulePromotedEvent(selectedEventKey, "", parsedDuration),
 		);
-	}, [durationHours, placementMode, selectedEventKey, withMutation]);
+	}, [
+		durationHours,
+		placementMode,
+		selectedEventKey,
+		targetEventKeys,
+		withMutation,
+	]);
 
 	const handleSchedule = useCallback(async () => {
 		if (!selectedEventKey) {
@@ -361,18 +395,23 @@ export const FeaturedEventsManagerCard = ({
 		const parsedDuration = Number.parseInt(durationHours, 10);
 		if (placementMode === "spotlight") {
 			await withMutation(() =>
-				scheduleFeaturedEvent(selectedEventKey, scheduleAt, parsedDuration),
+				targetEventKeys.length > 1
+					? scheduleFeaturedEvents(targetEventKeys, scheduleAt, parsedDuration)
+					: scheduleFeaturedEvent(selectedEventKey, scheduleAt, parsedDuration),
 			);
 			return;
 		}
 		await withMutation(() =>
-			schedulePromotedEvent(selectedEventKey, scheduleAt, parsedDuration),
+			targetEventKeys.length > 1
+				? schedulePromotedEvents(targetEventKeys, scheduleAt, parsedDuration)
+				: schedulePromotedEvent(selectedEventKey, scheduleAt, parsedDuration),
 		);
 	}, [
 		durationHours,
 		placementMode,
 		scheduleAt,
 		selectedEventKey,
+		targetEventKeys,
 		withMutation,
 	]);
 
@@ -608,23 +647,64 @@ export const FeaturedEventsManagerCard = ({
 								)}
 							</div>
 							{selectedEvent ? (
-								<div className="flex flex-wrap items-center gap-2 rounded-md border bg-background/60 px-2.5 py-2">
-									<Badge variant="outline">Selected</Badge>
-									<p className="max-w-full truncate text-xs font-medium">
-										{selectedEvent.name}
-									</p>
-									<Button
-										type="button"
-										size="sm"
-										variant="ghost"
-										className="h-7 px-2"
-										onClick={() => {
-											setSelectedEventKey("");
-											setEventQuery("");
-										}}
-									>
-										Clear
-									</Button>
+								<div className="space-y-2 rounded-md border bg-background/60 px-2.5 py-2">
+									<div className="flex flex-wrap items-center gap-2">
+										<Badge variant="outline">Selected</Badge>
+										<p className="max-w-full truncate text-xs font-medium">
+											{selectedEvent.name}
+										</p>
+										<Button
+											type="button"
+											size="sm"
+											variant="ghost"
+											className="h-7 px-2"
+											onClick={() => {
+												setSelectedEventKey("");
+												setEventQuery("");
+												setPlacementScope("single");
+											}}
+										>
+											Clear
+										</Button>
+									</div>
+									<div className="flex flex-wrap items-center gap-2 text-xs">
+										<Badge variant="secondary">
+											Targeting {targetEventKeys.length} occurrence
+											{targetEventKeys.length === 1 ? "" : "s"}
+										</Badge>
+										{canTargetSeries && (
+											<div className="inline-flex overflow-hidden rounded-md border bg-background">
+												<button
+													type="button"
+													className={`px-2 py-1 ${
+														placementScope === "single"
+															? "bg-muted text-foreground"
+															: "text-muted-foreground"
+													}`}
+													onClick={() => setPlacementScope("single")}
+												>
+													Single date
+												</button>
+												<button
+													type="button"
+													className={`border-l px-2 py-1 ${
+														placementScope === "series"
+															? "bg-muted text-foreground"
+															: "text-muted-foreground"
+													}`}
+													onClick={() => setPlacementScope("series")}
+												>
+													Whole series
+												</button>
+											</div>
+										)}
+										{canTargetSeries && (
+											<span className="text-muted-foreground">
+												{selectedSeriesEvents[0]?.date} to{" "}
+												{selectedSeriesEvents.at(-1)?.date}
+											</span>
+										)}
+									</div>
 								</div>
 							) : (
 								<p className="text-[11px] text-muted-foreground">

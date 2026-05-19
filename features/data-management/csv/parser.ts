@@ -11,12 +11,14 @@ import Papa from "papaparse";
 
 export const CSV_EVENT_COLUMNS = [
 	"eventKey",
+	"seriesKey",
 	"curated",
 	"eventCategory",
 	"hostCountry",
 	"audienceCountry",
 	"title",
 	"date",
+	"dateTo",
 	"startTime",
 	"endTime",
 	"location",
@@ -32,6 +34,7 @@ export const CSV_EVENT_COLUMNS = [
 
 const COLUMN_MAPPINGS = {
 	eventKey: ["Event Key", "eventKey"],
+	seriesKey: ["Series Key", "seriesKey", "Event Series", "Series"],
 	curated: ["Curated", "curated", "OOOC Picks", "OOOC Pick"],
 	eventCategory: [
 		"Event Category",
@@ -45,6 +48,7 @@ const COLUMN_MAPPINGS = {
 	audienceCountry: ["Audience Country", "audienceCountry"],
 	title: ["Title", "title", "Name", "Event Name"],
 	date: ["Date", "date"],
+	dateTo: ["Date To", "Date To (End)", "Date Until", "End Date", "dateTo"],
 	startTime: ["Start Time", "startTime", "Start time"],
 	endTime: ["End Time", "endTime", "End time"],
 	location: ["Location", "location"],
@@ -81,12 +85,14 @@ type StructuralParseError = {
 
 export type CSVEventRow = {
 	eventKey: string;
+	seriesKey?: string;
 	curated: string;
 	eventCategory?: string;
 	hostCountry: string;
 	audienceCountry: string;
 	title: string;
 	date: string;
+	dateTo?: string;
 	startTime: string;
 	endTime: string;
 	location: string;
@@ -142,12 +148,14 @@ const createColumnMapping = (
 ): Record<keyof CSVEventRow, string | null> => {
 	const mapping: Record<keyof CSVEventRow, string | null> = {
 		eventKey: null,
+		seriesKey: null,
 		curated: null,
 		eventCategory: null,
 		hostCountry: null,
 		audienceCountry: null,
 		title: null,
 		date: null,
+		dateTo: null,
 		startTime: null,
 		endTime: null,
 		location: null,
@@ -219,6 +227,7 @@ const createColumnMapping = (
 };
 
 const RECOVERABLE_TRAILING_FIELDS = new Set<keyof CSVEventRow>([
+	"dateTo",
 	"notes",
 	"sourceConfirmed",
 	"detailsQualityOverride",
@@ -367,6 +376,8 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 				const csvRow: CSVEventRow = {
 					eventKey:
 						(columnMapping.eventKey && row[columnMapping.eventKey]) || "",
+					seriesKey:
+						(columnMapping.seriesKey && row[columnMapping.seriesKey]) || "",
 					curated: (columnMapping.curated && row[columnMapping.curated]) || "",
 					eventCategory:
 						(columnMapping.eventCategory && row[columnMapping.eventCategory]) ||
@@ -379,6 +390,7 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 						"",
 					title: (columnMapping.title && row[columnMapping.title]) || "",
 					date: (columnMapping.date && row[columnMapping.date]) || "",
+					dateTo: (columnMapping.dateTo && row[columnMapping.dateTo]) || "",
 					startTime:
 						(columnMapping.startTime && row[columnMapping.startTime]) || "",
 					endTime: (columnMapping.endTime && row[columnMapping.endTime]) || "",

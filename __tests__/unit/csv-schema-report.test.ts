@@ -77,4 +77,51 @@ describe("analyzeCsvSchemaRows", () => {
 			countryIssues.some((issue) => issue.column === "Audience Country"),
 		).toBe(true);
 	});
+
+	it("warns when Date To has no explicit year", () => {
+		const report = analyzeCsvSchemaRows([
+			{
+				title: "Range Event",
+				date: "21 June",
+				dateTo: "23 June",
+			},
+		]);
+
+		expect(
+			report.issues.some(
+				(issue) =>
+					issue.code === "date_missing_year" && issue.column === "Date To",
+			),
+		).toBe(true);
+	});
+
+	it("blocks backwards Date To ranges", () => {
+		const report = analyzeCsvSchemaRows([
+			{
+				title: "Backwards Range",
+				date: "23 June 2026",
+				dateTo: "21 June 2026",
+			},
+		]);
+
+		expect(report.hasBlockingIssues).toBe(true);
+		expect(
+			report.issues.some((issue) => issue.code === "date_range_invalid"),
+		).toBe(true);
+	});
+
+	it("blocks very long automatic ranges", () => {
+		const report = analyzeCsvSchemaRows([
+			{
+				title: "Long Range",
+				date: "1 June 2026",
+				dateTo: "15 July 2026",
+			},
+		]);
+
+		expect(report.hasBlockingIssues).toBe(true);
+		expect(
+			report.issues.some((issue) => issue.code === "date_range_too_long"),
+		).toBe(true);
+	});
 });

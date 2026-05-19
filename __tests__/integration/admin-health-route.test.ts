@@ -7,6 +7,7 @@ type Setup = {
 	getStatus: ReturnType<typeof vi.fn>;
 	getCsv: ReturnType<typeof vi.fn>;
 	getDataConfigStatus: ReturnType<typeof vi.fn>;
+	getEventsData: ReturnType<typeof vi.fn>;
 	getRuntimeDataStatusFromSource: ReturnType<typeof vi.fn>;
 	processCSVData: ReturnType<typeof vi.fn>;
 	getAppKVStoreRepository: ReturnType<typeof vi.fn>;
@@ -29,10 +30,17 @@ const loadRoute = async (): Promise<Setup> => {
 		provider: "postgres",
 		providerLocation: "postgres://example",
 	});
-	const getCsv = vi.fn().mockResolvedValue("Title,Date\nA,2026-01-01\nB,2026-01-02");
+	const getCsv = vi
+		.fn()
+		.mockResolvedValue("Title,Date\nA,2026-01-01\nB,2026-01-02");
 	const getDataConfigStatus = vi.fn().mockResolvedValue({
 		dataSource: "remote",
 		remoteConfigured: true,
+	});
+	const getEventsData = vi.fn().mockResolvedValue({
+		success: true,
+		count: 4,
+		source: "local",
 	});
 	const getRuntimeDataStatusFromSource = vi.fn().mockResolvedValue({
 		dataSource: "local",
@@ -69,6 +77,7 @@ const loadRoute = async (): Promise<Setup> => {
 	vi.doMock("@/features/data-management/data-manager", () => ({
 		DataManager: {
 			getDataConfigStatus,
+			getEventsData,
 		},
 	}));
 	vi.doMock("@/features/data-management/runtime-service", () => ({
@@ -98,6 +107,7 @@ const loadRoute = async (): Promise<Setup> => {
 		getStatus,
 		getCsv,
 		getDataConfigStatus,
+		getEventsData,
 		getRuntimeDataStatusFromSource,
 		processCSVData,
 		getAppKVStoreRepository,
@@ -119,7 +129,10 @@ describe("/api/admin/health route", () => {
 		const response = await GET(
 			new NextRequest("https://example.com/api/admin/health"),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(401);
 		expect(payload).toEqual({ success: false, error: "Unauthorized" });
@@ -183,7 +196,10 @@ describe("/api/admin/health route", () => {
 		const response = await GET(
 			new NextRequest("https://example.com/api/admin/health"),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(500);
 		expect(payload.success).toBe(false);

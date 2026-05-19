@@ -35,9 +35,11 @@ import {
 	createBlankEditableSheetRow,
 	createCustomColumnKey,
 	formatIsoDateForEditableSheet,
+	getEditableSheetDateRangeDates,
 	isEditableSheetRowEmpty,
 	normalizeEditableSheetRowValues,
 	pruneEmptyEditableSheetRows,
+	splitEditableSheetRangeRow,
 	toEditableSheetRowSortableDateTime,
 } from "@/features/data-management/csv/sheet-editor";
 import type {
@@ -73,6 +75,7 @@ import {
 	AlertCircle,
 	ArrowDown,
 	ArrowUp,
+	CalendarDays,
 	Copy,
 	History,
 	Plus,
@@ -247,7 +250,7 @@ type CellPopoverProps = {
 const ROW_DELETE_CONFIRMATION =
 	"Delete this row from the event sheet? This will be removed on next save.";
 const DATE_RANGE_HELPER_MESSAGE =
-	"The Date column is single-date. For multi-day events, duplicate the row and set each day's date explicitly.";
+	"Use Date To for identical multi-day runs. The app generates one public occurrence per day; split a range when one day needs different details.";
 const COLUMN_DELETE_CONFIRMATION =
 	"Delete this custom column? This will remove values for this column from all rows.";
 const HISTORY_LIMIT = 120;
@@ -262,6 +265,8 @@ const CURATED_COLUMN_KEY = "curated";
 const EVENT_CATEGORY_COLUMN_KEY = "eventCategory";
 const TITLE_COLUMN_KEY = "title";
 const DATE_COLUMN_KEY = "date";
+const DATE_TO_COLUMN_KEY = "dateTo";
+const SERIES_KEY_COLUMN_KEY = "seriesKey";
 const START_TIME_COLUMN_KEY = "startTime";
 const END_TIME_COLUMN_KEY = "endTime";
 const CATEGORY_COLUMN_KEY = "categories";
@@ -1194,7 +1199,7 @@ const sortRowIndexes = (
 	const referenceDate = new Date();
 	const today = toUTCDateOnlyTime(referenceDate);
 	const context = createDateNormalizationContext(
-		rows.map((row) => ({ date: row.date ?? "" })),
+		rows.map((row) => ({ date: row.date ?? "", dateTo: row.dateTo ?? "" })),
 		{ referenceDate },
 	);
 	const dateTimes = new Map<number, number | null>(
@@ -1357,6 +1362,9 @@ export const EventSheetEditorCard = ({
 		useState<QualityPopoverState | null>(null);
 	const [eventCategoryPopover, setEventCategoryPopover] =
 		useState<EventCategoryPopoverState | null>(null);
+	const [rangePreviewRowIndex, setRangePreviewRowIndex] = useState<
+		number | null
+	>(null);
 	const [activeCellDraft, setActiveCellDraft] = useState<CellDraft | null>(
 		null,
 	);
@@ -2019,7 +2027,10 @@ export const EventSheetEditorCard = ({
 		const trimmed = value.trim();
 		if (!trimmed) return "";
 		const context = createDateNormalizationContext(
-			rowsRef.current.map((row) => ({ date: row.date ?? "" })),
+			rowsRef.current.map((row) => ({
+				date: row.date ?? "",
+				dateTo: row.dateTo ?? "",
+			})),
 		);
 		const normalized = normalizeCsvDate(trimmed, context);
 		if (normalized.isoDate) {
@@ -2034,7 +2045,7 @@ export const EventSheetEditorCard = ({
 
 	const normalizeValueForColumn = useCallback(
 		(columnKey: string, value: string): string => {
-			if (columnKey === DATE_COLUMN_KEY) {
+			if (columnKey === DATE_COLUMN_KEY || columnKey === DATE_TO_COLUMN_KEY) {
 				return normalizeDateCellValue(value);
 			}
 			if (TIME_COLUMN_KEYS.has(columnKey)) {
@@ -2066,7 +2077,10 @@ export const EventSheetEditorCard = ({
 	const handleNormalizeSheet = useCallback(() => {
 		const currentRows = rowsRef.current;
 		const context = createDateNormalizationContext(
-			currentRows.map((row) => ({ date: row.date ?? "" })),
+			currentRows.map((row) => ({
+				date: row.date ?? "",
+				dateTo: row.dateTo ?? "",
+			})),
 		);
 		const changesByKind = {
 			dates: 0,
@@ -2366,6 +2380,32 @@ export const EventSheetEditorCard = ({
 		}
 		await performSave("manual");
 	};
+
+	const handleSplitRangeRow = useCallback(
+		(rowIndex: number, selectedDate?: string) => {
+			const row = rowsRef.current[rowIndex];
+			if (!row) return;
+			const nextRows = splitEditableSheetRangeRow(
+				rowsRef.current,
+				rowIndex,
+				selectedDate,
+			);
+			if (nextRows.length === rowsRef.current.length) {
+				setStatusMessage("No multi-day range to split for this row.");
+				return;
+			}
+			commitSheetMutation(
+				columnsRef.current.map((column) => ({ ...column })),
+				nextRows,
+				selectedDate
+					? `Split ${formatDateSuggestionLabel(selectedDate)} out of range`
+					: "Split range into daily rows",
+			);
+			setRangePreviewRowIndex(null);
+			setSortMode("sheet-order");
+		},
+		[commitSheetMutation],
+	);
 
 	const handleRestoreDraft = () => {
 		if (!recoverableDraft) return;
@@ -2701,7 +2741,7 @@ export const EventSheetEditorCard = ({
 	const sheetDateContext = useMemo(
 		() =>
 			createDateNormalizationContext(
-				rows.map((row) => ({ date: row.date ?? "" })),
+				rows.map((row) => ({ date: row.date ?? "", dateTo: row.dateTo ?? "" })),
 			),
 		[rows],
 	);
@@ -2852,7 +2892,10 @@ export const EventSheetEditorCard = ({
 			const rowAbove = rowsRef.current[rowIndex - 1];
 			if (!rowAbove) return false;
 			const context = createDateNormalizationContext(
-				rowsRef.current.map((row) => ({ date: row.date ?? "" })),
+				rowsRef.current.map((row) => ({
+					date: row.date ?? "",
+					dateTo: row.dateTo ?? "",
+				})),
 			);
 			const rowAboveDate = getNormalizedSheetDate(
 				rowAbove[DATE_COLUMN_KEY] ?? "",
@@ -3176,7 +3219,7 @@ export const EventSheetEditorCard = ({
 	const sheetHealthIssues = useMemo((): SheetHealthIssue[] => {
 		const referenceDate = new Date();
 		const context = createDateNormalizationContext(
-			rows.map((row) => ({ date: row.date ?? "" })),
+			rows.map((row) => ({ date: row.date ?? "", dateTo: row.dateTo ?? "" })),
 			{ referenceDate },
 		);
 		const issues: SheetHealthIssue[] = [];
@@ -3194,6 +3237,31 @@ export const EventSheetEditorCard = ({
 						column: "Date",
 						message: normalized.warning.message,
 						severity: "warning",
+					});
+				}
+			}
+			const dateToValue = String(row[DATE_TO_COLUMN_KEY] ?? "").trim();
+			if (dateToValue) {
+				const normalizedStart = normalizeCsvDate(dateValue, context);
+				const normalizedEnd = normalizeCsvDate(dateToValue, context);
+				if (normalizedEnd.warning) {
+					issues.push({
+						rowIndex: rowNumber,
+						column: "Date To",
+						message: normalizedEnd.warning.message,
+						severity: "warning",
+					});
+				}
+				if (
+					normalizedStart.isoDate &&
+					normalizedEnd.isoDate &&
+					normalizedEnd.isoDate < normalizedStart.isoDate
+				) {
+					issues.push({
+						rowIndex: rowNumber,
+						column: "Date To",
+						message: `Date To ${normalizedEnd.isoDate} is before Date ${normalizedStart.isoDate}.`,
+						severity: "blocking",
 					});
 				}
 			}
@@ -3593,6 +3661,12 @@ export const EventSheetEditorCard = ({
 
 		return { left, top };
 	};
+
+	const rangePreviewRow =
+		rangePreviewRowIndex !== null ? rows[rangePreviewRowIndex] : undefined;
+	const rangePreviewDates = rangePreviewRow
+		? getEditableSheetDateRangeDates(rangePreviewRow, sheetDateContext)
+		: [];
 
 	if (!isAuthenticated) {
 		return null;
@@ -4334,6 +4408,107 @@ export const EventSheetEditorCard = ({
 									)}
 								</div>
 							</div>
+						</DialogContent>
+					</Dialog>
+
+					<Dialog
+						open={rangePreviewRowIndex !== null}
+						onOpenChange={(open) => {
+							if (!open) setRangePreviewRowIndex(null);
+						}}
+					>
+						<DialogContent className="max-h-[88vh] w-[min(720px,calc(100vw-2rem))] max-w-none overflow-y-auto p-5 sm:max-w-none sm:p-6">
+							<DialogHeader className="pr-10">
+								<DialogTitle className="text-xl">
+									Generated occurrences
+								</DialogTitle>
+								<DialogDescription className="max-w-2xl text-base leading-relaxed">
+									This source row will render as one public event per date.
+									Split the row when a date needs a different time, link,
+									location, or price.
+								</DialogDescription>
+							</DialogHeader>
+
+							{rangePreviewRow && rangePreviewRowIndex !== null ? (
+								<div className="space-y-4">
+									<div className="rounded-md border bg-background/70 p-3">
+										<div className="font-medium">
+											{rangePreviewRow[TITLE_COLUMN_KEY] || "Untitled event"}
+										</div>
+										<div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+											<span>
+												{rangePreviewRow[DATE_COLUMN_KEY] || "TBC"} to{" "}
+												{rangePreviewRow[DATE_TO_COLUMN_KEY] || "TBC"}
+											</span>
+											{rangePreviewRow[SERIES_KEY_COLUMN_KEY] && (
+												<span className="font-mono">
+													{rangePreviewRow[SERIES_KEY_COLUMN_KEY]}
+												</span>
+											)}
+										</div>
+									</div>
+
+									<div className="overflow-hidden rounded-md border">
+										<table className="w-full text-sm">
+											<thead className="bg-muted/50 text-xs text-muted-foreground">
+												<tr>
+													<th className="px-3 py-2 text-left">Date</th>
+													<th className="px-3 py-2 text-left">Occurrence</th>
+													<th className="px-3 py-2 text-right">Action</th>
+												</tr>
+											</thead>
+											<tbody className="divide-y">
+												{rangePreviewDates.map((date, index) => (
+													<tr key={date}>
+														<td className="px-3 py-2 font-medium">
+															{formatDateSuggestionLabel(date)}
+														</td>
+														<td className="px-3 py-2 text-xs text-muted-foreground">
+															Day {index + 1} of {rangePreviewDates.length}
+														</td>
+														<td className="px-3 py-2 text-right">
+															<Button
+																type="button"
+																size="sm"
+																variant="outline"
+																className="h-8"
+																onClick={() =>
+																	handleSplitRangeRow(
+																		rangePreviewRowIndex,
+																		date,
+																	)
+																}
+															>
+																Split this date
+															</Button>
+														</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									</div>
+
+									<div className="flex flex-wrap justify-end gap-2">
+										<Button
+											type="button"
+											variant="outline"
+											onClick={() => setRangePreviewRowIndex(null)}
+										>
+											Close
+										</Button>
+										<Button
+											type="button"
+											onClick={() => handleSplitRangeRow(rangePreviewRowIndex)}
+										>
+											Split all dates into rows
+										</Button>
+									</div>
+								</div>
+							) : (
+								<div className="rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground">
+									No range row selected.
+								</div>
+							)}
 						</DialogContent>
 					</Dialog>
 
@@ -5101,6 +5276,14 @@ export const EventSheetEditorCard = ({
 											row[DATE_COLUMN_KEY] ?? "",
 											sheetDateContext,
 										);
+										const dateToCellHint = formatDateCellHint(
+											row[DATE_TO_COLUMN_KEY] ?? "",
+											sheetDateContext,
+										);
+										const rowRangeDates = getEditableSheetDateRangeDates(
+											row,
+											sheetDateContext,
+										);
 										const startTimeHint = formatTwelveHourTime(
 											row[START_TIME_COLUMN_KEY] ?? "",
 										);
@@ -5170,6 +5353,20 @@ export const EventSheetEditorCard = ({
 																className="h-1.5 w-1.5 rounded-full bg-green-700"
 																title="Source confirmed"
 															/>
+														)}
+														{rowRangeDates.length > 1 && (
+															<button
+																type="button"
+																onClick={() =>
+																	setRangePreviewRowIndex(rowIndex)
+																}
+																className="inline-flex h-6 items-center gap-1 rounded border border-border/70 bg-background px-1.5 text-[10px] font-medium text-foreground transition hover:bg-muted"
+																title="Preview generated range occurrences"
+																aria-label={`Preview ${rowRangeDates.length} generated dates for row ${rowIndex + 1}`}
+															>
+																<CalendarDays className="h-3 w-3" />
+																{rowRangeDates.length}
+															</button>
 														)}
 														<div className="flex items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
 															<Button
@@ -5301,7 +5498,8 @@ export const EventSheetEditorCard = ({
 																		: "Not curated"}
 																</span>
 															</button>
-														) : column.key === DATE_COLUMN_KEY ? (
+														) : column.key === DATE_COLUMN_KEY ||
+															column.key === DATE_TO_COLUMN_KEY ? (
 															<div className="relative min-h-9 bg-transparent px-2 py-1">
 																<input
 																	ref={(node) => {
@@ -5395,9 +5593,13 @@ export const EventSheetEditorCard = ({
 																		focusedDateCell.columnKey === column.key
 																	}
 																/>
-																{dateCellHint && (
+																{(column.key === DATE_COLUMN_KEY
+																	? dateCellHint
+																	: dateToCellHint) && (
 																	<div className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70">
-																		{dateCellHint}
+																		{column.key === DATE_COLUMN_KEY
+																			? dateCellHint
+																			: dateToCellHint}
 																	</div>
 																)}
 																{focusedDateCell?.rowIndex === rowIndex &&
@@ -5411,7 +5613,9 @@ export const EventSheetEditorCard = ({
 																			)}
 																		>
 																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-																				Date
+																				{column.key === DATE_TO_COLUMN_KEY
+																					? "Date To"
+																					: "Date"}
 																			</div>
 																			{dateSuggestionState.preview && (
 																				<div

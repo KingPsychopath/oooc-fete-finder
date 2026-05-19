@@ -805,6 +805,93 @@ export async function getLocalEventStoreCsv(keyOrToken?: string): Promise<{
 	}
 }
 
+const toCsvValue = (value: string): string => {
+	if (value.includes('"') || value.includes(",") || value.includes("\n")) {
+		return `"${value.replaceAll('"', '""')}"`;
+	}
+	return value;
+};
+
+export async function getExpandedEventStoreCsv(keyOrToken?: string): Promise<{
+	success: boolean;
+	csvContent?: string;
+	count?: number;
+	error?: string;
+}> {
+	if (!(await validateAdminAccess(keyOrToken))) {
+		return { success: false, error: "Unauthorized access" };
+	}
+
+	try {
+		const sourceCsv = await LocalEventStore.getCsv();
+		if (!sourceCsv?.trim()) {
+			return { success: true, csvContent: "", count: 0 };
+		}
+		const result = await processCSVData(sourceCsv, "store", false, {
+			populateCoordinates: false,
+			genreTaxonomy: await loadAdminGenreTaxonomy(),
+		});
+		const columns = [
+			"Event Key",
+			"Series Key",
+			"Source Event Key",
+			"Occurrence Index",
+			"Occurrence Count",
+			"Title",
+			"Date",
+			"Date Range Start",
+			"Date Range End",
+			"Start Time",
+			"End Time",
+			"Location",
+			"District/Area",
+			"Categories",
+			"Tags",
+			"Price",
+			"Primary URL",
+			"Age Guidance",
+			"Setting",
+			"Notes",
+		];
+		const rows = result.events.map((event) => [
+			event.eventKey,
+			event.seriesKey ?? "",
+			event.sourceEventKey ?? "",
+			event.occurrenceIndex != null ? String(event.occurrenceIndex + 1) : "",
+			event.occurrenceCount != null ? String(event.occurrenceCount) : "",
+			event.name,
+			event.date,
+			event.dateRangeStart ?? "",
+			event.dateRangeEnd ?? "",
+			event.time ?? "",
+			event.endTime ?? "",
+			event.location ?? "",
+			String(event.arrondissement ?? ""),
+			event.genre.join(", "),
+			event.tags?.join(", ") ?? "",
+			event.price ?? "",
+			event.link,
+			event.age ?? "",
+			event.venueTypes.join(", "),
+			event.description ?? "",
+		]);
+		const csvContent = [
+			columns.map(toCsvValue).join(","),
+			...rows.map((row) => row.map(toCsvValue).join(",")),
+		].join("\n");
+		return {
+			success: true,
+			csvContent,
+			count: result.events.length,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
 /**
  * Save local event store CSV content
  */
