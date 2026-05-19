@@ -351,7 +351,10 @@ export async function acceptEventSubmission(
 			};
 		}
 
-		const acceptedEventKey = parseAcceptedEventKey(nextRows, acceptedRow);
+		const acceptedEventKey = parseAcceptedEventKey(
+			saveResult.rows ?? nextRows,
+			acceptedRow,
+		);
 		const reviewed = await reviewEventSubmission({
 			id: normalizedSubmissionId,
 			status: "accepted",

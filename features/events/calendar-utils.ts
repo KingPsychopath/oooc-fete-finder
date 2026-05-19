@@ -1,6 +1,7 @@
 import { parseISODateParts } from "@/features/events/date-utils";
 import {
 	type Event,
+	formatLocationAreaShort,
 	formatPrice,
 	getEventLocationDisplay,
 } from "@/features/events/types";
@@ -8,6 +9,43 @@ import { clientLog } from "@/lib/platform/client-logger";
 
 export const isCalendarDateValid = (isoDate: string): boolean =>
 	parseISODateParts(isoDate) !== null;
+
+const escapeICSValue = (value: string): string =>
+	value.replace(/[,;\\]/g, "\\$&");
+
+const getCalendarLocation = (event: Event): string => {
+	const locationDisplay = getEventLocationDisplay(event);
+
+	if (locationDisplay.state === "single" && locationDisplay.singleLocation) {
+		return `${locationDisplay.singleLocation}, ${locationDisplay.areaLongLabel}, Paris, France`;
+	}
+
+	if (locationDisplay.state === "multiple-listed") {
+		const locations = locationDisplay.listedLocationEntries.length
+			? locationDisplay.listedLocationEntries
+			: locationDisplay.listedLocations.map((name) => ({
+					name,
+					arrondissement: undefined,
+				}));
+		const label = locations
+			.map((location) => {
+				const area = location.arrondissement
+					? ` (${formatLocationAreaShort(location.arrondissement)})`
+					: "";
+				return `${location.name}${area}`;
+			})
+			.join(" / ");
+		return label
+			? `${label}, Paris, France`
+			: "Multiple locations, Paris, France";
+	}
+
+	if (locationDisplay.state === "multiple-unlisted") {
+		return "Multiple locations, Paris, France";
+	}
+
+	return "Location TBC";
+};
 
 /**
  * Generate an .ics file content for a calendar event
@@ -85,14 +123,7 @@ export function generateICSContent(event: Event): string {
 	// Prepare event details
 	const summary = event.name.replace(/[,;\\]/g, "\\$&");
 	const description = createEventDescription(event);
-	const locationDisplay = getEventLocationDisplay(event);
-	const location =
-		locationDisplay.state === "single" && locationDisplay.singleLocation
-			? `${locationDisplay.singleLocation}, ${locationDisplay.areaLongLabel}, Paris, France`.replace(
-					/[,;\\]/g,
-					"\\$&",
-				)
-			: locationDisplay.areaLongLabel.replace(/[,;\\]/g, "\\$&");
+	const location = escapeICSValue(getCalendarLocation(event));
 
 	const uid = `oooc-${event.name.replace(/\s+/g, "-").toLowerCase()}-${event.date}@oooc-fete-finder.com`;
 

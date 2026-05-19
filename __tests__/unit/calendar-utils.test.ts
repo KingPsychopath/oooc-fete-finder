@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
 	generateICSContent,
 	isCalendarDateValid,
 } from "@/features/events/calendar-utils";
-import { getEventTypeForDate, type Event } from "@/features/events/types";
+import { type Event, getEventTypeForDate } from "@/features/events/types";
+import { describe, expect, it } from "vitest";
 
 const makeEvent = (date: string): Event => ({
 	eventKey: "evt_calendar0001",
@@ -46,6 +46,55 @@ describe("calendar utils", () => {
 		});
 
 		expect(content).toContain("Price: €28.00 - €35.84");
+	});
+
+	it("uses the concrete venue for single-location calendar exports", () => {
+		const content = generateICSContent({
+			...makeEvent("2026-06-21"),
+			location: "Le Klub",
+			arrondissement: 11,
+		});
+
+		expect(content).toContain(
+			"LOCATION:Le Klub\\, 11e Arrondissement\\, Paris\\, France",
+		);
+	});
+
+	it("uses listed venue names for multi-location calendar exports", () => {
+		const content = generateICSContent({
+			...makeEvent("2026-06-21"),
+			arrondissement: "multiple-locations",
+			location: "Multiple locations",
+			locations: ["Venue A", "Hidden Loft"],
+			locationEntries: [
+				{ name: "Venue A", arrondissement: 10 },
+				{ name: "Hidden Loft", arrondissement: 11 },
+			],
+		});
+
+		expect(content).toContain(
+			"LOCATION:Venue A (10e) / Hidden Loft (11e)\\, Paris\\, France",
+		);
+	});
+
+	it("uses a clear placeholder for unlisted multi-location calendar exports", () => {
+		const content = generateICSContent({
+			...makeEvent("2026-06-21"),
+			arrondissement: "multiple-locations",
+			location: "Multiple locations",
+			locations: [],
+		});
+
+		expect(content).toContain("LOCATION:Multiple locations\\, Paris\\, France");
+	});
+
+	it("uses Location TBC for unknown calendar locations", () => {
+		const content = generateICSContent({
+			...makeEvent("2026-06-21"),
+			location: "TBC",
+		});
+
+		expect(content).toContain("LOCATION:Location TBC");
 	});
 
 	it("returns empty content when event date is invalid", () => {

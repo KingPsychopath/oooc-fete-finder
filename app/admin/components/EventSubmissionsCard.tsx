@@ -22,6 +22,7 @@ import {
 	type EventSubmissionStatus,
 } from "@/features/events/submissions/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ADMIN_EVENT_SHEET_REFRESH_EVENT } from "./admin-content-events";
 
 const STATUS_TABS: Array<{ key: EventSubmissionStatus; label: string }> = [
 	{ key: "pending", label: "Pending" },
@@ -181,6 +182,7 @@ export const EventSubmissionsCard = ({
 				message: string;
 				error?: string;
 			}>,
+			options: { refreshEventSheet?: boolean } = {},
 		) => {
 			setIsMutating(true);
 			setBusySubmissionId(submissionId);
@@ -196,6 +198,13 @@ export const EventSubmissionsCard = ({
 				await loadDashboard();
 				if (onSubmissionReviewed) {
 					await onSubmissionReviewed();
+				}
+				if (options.refreshEventSheet) {
+					window.dispatchEvent(
+						new CustomEvent(ADMIN_EVENT_SHEET_REFRESH_EVENT, {
+							detail: { reason: "submission-accepted", submissionId },
+						}),
+					);
 				}
 			} finally {
 				setIsMutating(false);
@@ -238,8 +247,10 @@ export const EventSubmissionsCard = ({
 
 	const handleAccept = useCallback(
 		async (submissionId: string) => {
-			await withMutation(submissionId, () =>
-				acceptEventSubmission(submissionId),
+			await withMutation(
+				submissionId,
+				() => acceptEventSubmission(submissionId),
+				{ refreshEventSheet: true },
 			);
 		},
 		[withMutation],

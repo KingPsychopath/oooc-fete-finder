@@ -59,6 +59,13 @@ const getRowEventKey = (row: EventSheetRowRecord): string | null => {
 	return value ? value : null;
 };
 
+const normalizeRowDataRecord = (
+	row: EventSheetRowRecord,
+): EventSheetRowRecord =>
+	Object.fromEntries(
+		Object.entries(row).map(([key, value]) => [key, String(value ?? "")]),
+	);
+
 const MEANINGFUL_EVENT_FIELDS = [
 	"curated",
 	"eventCategory",
@@ -408,8 +415,12 @@ export class EventSheetStoreRepository {
 		await this.ready();
 		const now = new Date();
 		const nowIso = now.toISOString();
-		const existingMetadata = await this.getRowMetadata();
-		const hasExistingRows = (await this.getCounts()).rowCount > 0;
+		const [existingMetadata, existingRows, counts] = await Promise.all([
+			this.getRowMetadata(),
+			this.getRows(),
+			this.getCounts(),
+		]);
+		const hasExistingRows = counts.rowCount > 0;
 		const defaultFirstSeenAt = hasExistingRows
 			? nowIso
 			: getBackfillFirstSeenAt(now);
@@ -421,6 +432,17 @@ export class EventSheetStoreRepository {
 		);
 		const suppliedMetadataByEventKey = new Map(
 			(options?.rowMetadata ?? []).map((record) => [record.eventKey, record]),
+		);
+		const existingRowsByEventKey = new Map(
+			existingRows
+				.map((row) => {
+					const normalizedRow = normalizeRowDataRecord(row);
+					return [getRowEventKey(normalizedRow), normalizedRow] as const;
+				})
+				.filter(
+					(entry): entry is readonly [string, EventSheetRowRecord] =>
+						Boolean(entry[0]),
+				),
 		);
 
 		await this.sql`DELETE FROM app_event_store_rows`;
@@ -447,11 +469,17 @@ export class EventSheetStoreRepository {
 		}
 
 		const rowRows = rows.map((row, displayOrder) => {
-			const normalizedRow = Object.fromEntries(
-				Object.entries(row).map(([key, value]) => [key, String(value ?? "")]),
-			);
+			const normalizedRow = normalizeRowDataRecord(row);
 			const eventKey = getRowEventKey(normalizedRow);
 			const publicContentHash = buildMeaningfulEventRowHash(normalizedRow);
+			const existingRow = eventKey
+				? existingRowsByEventKey.get(eventKey)
+				: undefined;
+			const existingCurrentContentHash = existingRow
+				? buildMeaningfulEventRowHash(existingRow)
+				: null;
+			const unchangedPublicContent =
+				existingCurrentContentHash === publicContentHash;
 			const existing = eventKey
 				? existingMetadataByEventKey.get(eventKey)
 				: undefined;
@@ -466,6 +494,7 @@ export class EventSheetStoreRepository {
 				: defaultFirstSeenAt;
 			const lastMeaningfulChangeAt =
 				baseline?.publicContentHash &&
+				!unchangedPublicContent &&
 				!isCompatibleMeaningfulEventRowHash(
 					baseline.publicContentHash,
 					normalizedRow,

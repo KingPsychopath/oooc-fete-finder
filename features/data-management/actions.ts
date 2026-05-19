@@ -1548,6 +1548,8 @@ export async function saveEventSheetEditorRows(
 ): Promise<{
 	success: boolean;
 	message: string;
+	columns?: EditableSheetColumn[];
+	rows?: EditableSheetRow[];
 	rowCount?: number;
 	updatedAt?: string;
 	rowMetadata?: EventRowLifecycleMetadata[];
@@ -1627,6 +1629,10 @@ export async function saveEventSheetEditorRows(
 			origin: "manual",
 			rowMetadata: restoreRowMetadata,
 		});
+		const savedCsv = await LocalEventStore.getCsv();
+		const savedSheet = savedCsv?.trim()
+			? csvToEditableSheet(savedCsv)
+			: { columns: validation.columns, rows: validation.rows };
 		const rowMetadata = await LocalEventStore.getRowMetadata();
 		if (shouldRevalidateHomepage) {
 			await warmCoordinateCacheFromCsv(csvContent, "save-sheet-editor");
@@ -1664,6 +1670,8 @@ export async function saveEventSheetEditorRows(
 			message: shouldRevalidateHomepage
 				? "Saved event sheet to store and revalidated homepage"
 				: "Saved event sheet to store",
+			columns: savedSheet.columns,
+			rows: savedSheet.rows,
 			rowCount: saved.rowCount,
 			updatedAt: saved.updatedAt,
 			rowMetadata,

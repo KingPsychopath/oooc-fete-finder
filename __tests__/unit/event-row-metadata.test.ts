@@ -93,4 +93,21 @@ describe("event row metadata", () => {
 			}),
 		).toBe(true);
 	});
+
+	it("detects unchanged public content with the current hash", () => {
+		const before = buildMeaningfulEventRowHash({
+			eventKey: "evt_1",
+			title: "Fete Party",
+			location: "Venue A",
+			seriesKey: "",
+		});
+		const after = buildMeaningfulEventRowHash({
+			eventKey: "evt_1",
+			title: "Fete Party",
+			location: "Venue A",
+			seriesKey: "ser_new",
+		});
+
+		expect(after).toBe(before);
+	});
 });

@@ -50,6 +50,7 @@ import type {
 import {
 	type CountryOption,
 	filterCountryOptions,
+	getCountryOption,
 } from "@/features/events/countries";
 import {
 	DEFAULT_GENRE_ALIASES,
@@ -65,6 +66,14 @@ import {
 	normalizeSupportedNationalities,
 	parseSupportedNationalities,
 } from "@/features/events/nationality-utils";
+import {
+	formatRecentlyAddedLabel,
+	isRecentlyAddedEvent,
+} from "@/features/events/recently-added";
+import {
+	formatRecentlyUpdatedLabel,
+	isRecentlyUpdatedEvent,
+} from "@/features/events/recently-updated";
 import {
 	EVENT_EXPERIENCE_CATEGORIES,
 	type EventExperienceCategory,
@@ -90,6 +99,7 @@ import {
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { ADMIN_EVENT_SHEET_REFRESH_EVENT } from "./admin-content-events";
 
 type EventSheetEditorCardProps = {
 	isAuthenticated: boolean;
@@ -120,6 +130,8 @@ type EditorPayload = {
 type SaveEventSheetResult = {
 	success: boolean;
 	message: string;
+	columns?: EditableSheetColumn[];
+	rows?: EditableSheetRow[];
 	rowCount?: number;
 	updatedAt?: string;
 	rowMetadata?: EventRowLifecycleMetadata[];
@@ -195,6 +207,14 @@ type TimeInputPreview = {
 	tone: "success" | "muted";
 	message: string;
 };
+type RowLifecycleBadge = {
+	label: string;
+	title: string;
+	tone: "added" | "updated";
+};
+type RowLifecycleOptions = {
+	suppressUpdated?: boolean;
+};
 type LocationSuggestion = {
 	value: string;
 	area: string;
@@ -268,7 +288,7 @@ const DATE_RANGE_HELPER_MESSAGE =
 const COLUMN_DELETE_CONFIRMATION =
 	"Delete this custom column? This will remove values for this column from all rows.";
 const HISTORY_LIMIT = 120;
-const ROW_NUMBER_COLUMN_WIDTH = 144;
+const ROW_NUMBER_COLUMN_WIDTH = 156;
 const DATA_COLUMN_WIDTH = 170;
 const MAX_FROZEN_COLUMNS = 4;
 const AUTOSAVE_RETRY_BACKOFF_MS = 15_000;
@@ -296,6 +316,17 @@ const DETAILS_QUALITY_OVERRIDE_COLUMN_KEY = "detailsQualityOverride";
 const COUNTRY_COLUMN_KEYS = new Set(["hostCountry", "audienceCountry"]);
 const TIME_COLUMN_KEYS = new Set([START_TIME_COLUMN_KEY, END_TIME_COLUMN_KEY]);
 const CURATED_PICK_VALUE = "🌟";
+const DETAIL_COMMON_COUNTRY_CODES = [
+	"FR",
+	"GB",
+	"US",
+	"NG",
+	"JM",
+	"TT",
+	"BR",
+	"ES",
+	"PT",
+] as const;
 const EVENT_CATEGORY_POPOVER_WIDTH = 288;
 const EVENT_CATEGORY_POPOVER_HEIGHT = 270;
 const EVENT_CATEGORY_POPOVER_PADDING = 12;
@@ -1229,13 +1260,74 @@ const getRowDateTime = (
 const getRowLifecycleTime = (
 	row: EditableSheetRow,
 	metadataByEventKey: Map<string, EventRowLifecycleMetadata>,
+	options: RowLifecycleOptions = {},
 ): number => {
 	const eventKey = row.eventKey?.trim();
 	const metadata = eventKey ? metadataByEventKey.get(eventKey) : undefined;
-	const changedTime = Date.parse(metadata?.lastMeaningfulChangeAt ?? "");
-	if (Number.isFinite(changedTime)) return changedTime;
+	if (!options.suppressUpdated) {
+		const changedTime = Date.parse(metadata?.lastMeaningfulChangeAt ?? "");
+		if (Number.isFinite(changedTime)) return changedTime;
+	}
 	const firstSeenTime = Date.parse(metadata?.firstSeenAt ?? "");
 	return Number.isFinite(firstSeenTime) ? firstSeenTime : 0;
+};
+
+const getLifecycleMinuteKey = (value: string): string | null => {
+	const time = Date.parse(value);
+	if (!Number.isFinite(time)) return null;
+	return new Date(Math.floor(time / 60_000) * 60_000).toISOString();
+};
+
+const hasLifecycleUpdateFlood = (
+	metadata: EventRowLifecycleMetadata[],
+): boolean => {
+	if (metadata.length < 20) return false;
+	const updatedMinuteCounts = new Map<string, number>();
+
+	for (const record of metadata) {
+		if (!isRecentlyUpdatedEvent(record)) continue;
+		const minuteKey = getLifecycleMinuteKey(record.lastMeaningfulChangeAt);
+		if (!minuteKey) continue;
+		updatedMinuteCounts.set(
+			minuteKey,
+			(updatedMinuteCounts.get(minuteKey) ?? 0) + 1,
+		);
+	}
+
+	const largestBucket = Math.max(0, ...updatedMinuteCounts.values());
+	return (
+		largestBucket >= 20 && largestBucket / Math.max(1, metadata.length) >= 0.35
+	);
+};
+
+const getRowLifecycleBadge = (
+	row: EditableSheetRow,
+	metadataByEventKey: Map<string, EventRowLifecycleMetadata>,
+	options: RowLifecycleOptions = {},
+): RowLifecycleBadge | null => {
+	const eventKey = row.eventKey?.trim();
+	const metadata = eventKey ? metadataByEventKey.get(eventKey) : undefined;
+	if (!metadata) return null;
+
+	if (isRecentlyAddedEvent(metadata)) {
+		return {
+			label: formatRecentlyAddedLabel(metadata),
+			title: "This row was added recently",
+			tone: "added",
+		};
+	}
+
+	if (options.suppressUpdated) return null;
+
+	if (isRecentlyUpdatedEvent(metadata)) {
+		return {
+			label: formatRecentlyUpdatedLabel(metadata),
+			title: "This row was updated recently",
+			tone: "updated",
+		};
+	}
+
+	return null;
 };
 
 const sortRowIndexes = (
@@ -1243,6 +1335,7 @@ const sortRowIndexes = (
 	rows: EditableSheetRow[],
 	sortMode: SheetSortMode,
 	metadataByEventKey: Map<string, EventRowLifecycleMetadata> = new Map(),
+	lifecycleOptions: RowLifecycleOptions = {},
 ): number[] => {
 	if (sortMode === "sheet-order") {
 		return indexes;
@@ -1250,10 +1343,15 @@ const sortRowIndexes = (
 
 	if (sortMode === "fresh-lifecycle") {
 		return [...indexes].sort((leftIndex, rightIndex) => {
-			const leftTime = getRowLifecycleTime(rows[leftIndex], metadataByEventKey);
+			const leftTime = getRowLifecycleTime(
+				rows[leftIndex],
+				metadataByEventKey,
+				lifecycleOptions,
+			);
 			const rightTime = getRowLifecycleTime(
 				rows[rightIndex],
 				metadataByEventKey,
+				lifecycleOptions,
 			);
 			return rightTime - leftTime || leftIndex - rightIndex;
 		});
@@ -1737,6 +1835,34 @@ export const EventSheetEditorCard = ({
 	}, [hasInitialEditorData, loadEditorData]);
 
 	useEffect(() => {
+		if (!isAuthenticated) return;
+
+		const handleEventSheetRefresh = async () => {
+			if (hasUnsavedChanges) {
+				setStatusMessage(
+					"Submission accepted. Save or discard local sheet edits, then reload to see the new row.",
+				);
+				return;
+			}
+			await loadEditorData();
+			setSortMode("fresh-lifecycle");
+			setDisplayLimit(50);
+			setStatusMessage(
+				"Submission accepted. Showing recently added/updated rows first.",
+			);
+		};
+
+		const refreshListener = () => void handleEventSheetRefresh();
+		window.addEventListener(ADMIN_EVENT_SHEET_REFRESH_EVENT, refreshListener);
+		return () => {
+			window.removeEventListener(
+				ADMIN_EVENT_SHEET_REFRESH_EVENT,
+				refreshListener,
+			);
+		};
+	}, [hasUnsavedChanges, isAuthenticated, loadEditorData]);
+
+	useEffect(() => {
 		const draft = readStoredEditorDraft();
 		if (!draft) return;
 		setRecoverableDraft(draft);
@@ -1829,12 +1955,18 @@ export const EventSheetEditorCard = ({
 				}
 
 				if (versionToSave === editVersionRef.current) {
+					const savedColumns = result.columns ?? columnsRef.current;
+					const savedRows = result.rows ?? rowsToSave;
 					if (
 						mode === "manual" &&
-						rowsToSave.length !== rowsRef.current.length
+						(result.columns ||
+							result.rows ||
+							rowsToSave.length !== rowsRef.current.length)
 					) {
-						rowsRef.current = rowsToSave;
-						setRows(rowsToSave);
+						columnsRef.current = savedColumns;
+						rowsRef.current = savedRows;
+						setColumns(savedColumns);
+						setRows(savedRows);
 						setQuery("");
 						setSortMode("sheet-order");
 					}
@@ -1850,17 +1982,27 @@ export const EventSheetEditorCard = ({
 					setRowMetadata(result.rowMetadata);
 				}
 				updateRevisionHistory(result.revision);
+				const hasFreshPublishActivity =
+					mode === "manual" &&
+					((result.revision?.addedRows ?? 0) > 0 ||
+						(result.revision?.changedRows ?? 0) > 0);
+				if (hasFreshPublishActivity) {
+					setSortMode("fresh-lifecycle");
+					setDisplayLimit(50);
+				}
 				if (mode === "manual") {
 					setRestoreReviewRevision(null);
 				}
 				setStatusMessage(
-					mode === "auto"
-						? removedBlankRowCount === 0
-							? "Autosaved to Postgres (homepage revalidation pending)"
-							: "Removed blank rows and autosaved to Postgres"
-						: removedBlankRowCount === 0
-							? "Saved to Postgres and homepage revalidated"
-							: "Removed blank rows, saved to Postgres, and homepage revalidated",
+					hasFreshPublishActivity
+						? "Saved to Postgres and homepage revalidated. Showing recently added/updated rows first."
+						: mode === "auto"
+							? removedBlankRowCount === 0
+								? "Autosaved to Postgres (homepage revalidation pending)"
+								: "Removed blank rows and autosaved to Postgres"
+							: removedBlankRowCount === 0
+								? "Saved to Postgres and homepage revalidated"
+								: "Removed blank rows, saved to Postgres, and homepage revalidated",
 				);
 
 				if (onDataSaved && mode === "manual") {
@@ -3709,6 +3851,10 @@ export const EventSheetEditorCard = ({
 		() => new Map(rowMetadata.map((metadata) => [metadata.eventKey, metadata])),
 		[rowMetadata],
 	);
+	const suppressUpdatedLifecycleBadges = useMemo(
+		() => hasLifecycleUpdateFlood(rowMetadata),
+		[rowMetadata],
+	);
 	const filteredRowIndexes = useMemo(() => {
 		const needle = query.trim().toLowerCase();
 		return rows
@@ -3745,8 +3891,15 @@ export const EventSheetEditorCard = ({
 			rows,
 			sortMode,
 			lifecycleMetadataByEventKey,
+			{ suppressUpdated: suppressUpdatedLifecycleBadges },
 		);
-	}, [filteredRowIndexes, lifecycleMetadataByEventKey, rows, sortMode]);
+	}, [
+		filteredRowIndexes,
+		lifecycleMetadataByEventKey,
+		rows,
+		sortMode,
+		suppressUpdatedLifecycleBadges,
+	]);
 	const visibleRowIndexes = useMemo(() => {
 		return sortedRowIndexes.slice(0, displayLimit);
 	}, [sortedRowIndexes, displayLimit]);
@@ -3971,6 +4124,35 @@ export const EventSheetEditorCard = ({
 		? getEditableSheetDateRangeDates(rangePreviewRow, sheetDateContext)
 		: [];
 	const detailRow = detailRowIndex !== null ? rows[detailRowIndex] : undefined;
+	const detailRowIssues =
+		detailRowIndex !== null
+			? (sheetHealthIssuesByRow.get(detailRowIndex + 1) ?? [])
+			: [];
+	const detailRowQuality =
+		detailRow && detailRowIndex !== null
+			? getRowQualityAssessment(detailRow, detailRowIssues, {
+					hasPendingSubmissionReview: hasPendingEventReviewForRow(detailRow),
+				})
+			: null;
+	const detailLifecycleBadge = detailRow
+		? getRowLifecycleBadge(detailRow, lifecycleMetadataByEventKey, {
+				suppressUpdated: suppressUpdatedLifecycleBadges,
+			})
+		: null;
+	const detailRangeDates = detailRow
+		? getEditableSheetDateRangeDates(detailRow, sheetDateContext)
+		: [];
+	const detailVisiblePosition =
+		detailRowIndex !== null ? visibleRowIndexes.indexOf(detailRowIndex) : -1;
+	const detailPreviousRowIndex =
+		detailVisiblePosition > 0
+			? (visibleRowIndexes[detailVisiblePosition - 1] ?? null)
+			: null;
+	const detailNextRowIndex =
+		detailVisiblePosition >= 0 &&
+		detailVisiblePosition < visibleRowIndexes.length - 1
+			? (visibleRowIndexes[detailVisiblePosition + 1] ?? null)
+			: null;
 	const detailCustomColumns = columns.filter(
 		(column) => !column.isCore && !ADVANCED_COLUMN_KEYS.has(column.key),
 	);
@@ -3983,6 +4165,420 @@ export const EventSheetEditorCard = ({
 		const value = detailRow[columnKey] ?? "";
 		const inputClassName =
 			"mt-1 w-full rounded-md border border-border/70 bg-background px-2 py-1.5 text-xs outline-none focus:border-ring";
+		const fieldLabel = (
+			<span className="block text-xs font-medium text-foreground">{label}</span>
+		);
+
+		if (columnKey === CURATED_COLUMN_KEY) {
+			const isCurated = isCuratedValue(value);
+			return (
+				<div className="block text-xs font-medium text-foreground">
+					{fieldLabel}
+					<div className="mt-1 flex flex-wrap gap-2">
+						<Button
+							type="button"
+							size="sm"
+							variant={isCurated ? "default" : "outline"}
+							className="h-8"
+							onClick={() => toggleCuratedForCell(detailRowIndex, columnKey)}
+						>
+							{isCurated ? "OOOC pick" : "Mark OOOC pick"}
+						</Button>
+					</div>
+				</div>
+			);
+		}
+
+		if (columnKey === EVENT_CATEGORY_COLUMN_KEY) {
+			const selectedCategory = normalizeEventExperienceCategory(value);
+			return (
+				<div className="block text-xs font-medium text-foreground">
+					{fieldLabel}
+					<div className="mt-1 grid gap-1.5">
+						<div className="grid gap-1.5 sm:grid-cols-2">
+							{EVENT_CATEGORY_OPTIONS.map((category) => {
+								const selected = selectedCategory === category.key;
+								return (
+									<button
+										key={category.key}
+										type="button"
+										className={getEventCategoryAdminOptionClassName(
+											category.key,
+											selected,
+											false,
+										)}
+										onClick={() =>
+											selectEventCategoryForCell(
+												detailRowIndex,
+												columnKey,
+												category,
+											)
+										}
+									>
+										<span
+											className={`h-2 w-2 rounded-full ${EVENT_CATEGORY_ADMIN_OPTION_CLASSES[category.key].dot}`}
+										/>
+										<span>{category.label}</span>
+									</button>
+								);
+							})}
+						</div>
+						<Button
+							type="button"
+							size="sm"
+							variant="ghost"
+							className="h-7 w-fit px-2 text-xs"
+							onClick={() =>
+								selectEventCategoryForCell(detailRowIndex, columnKey, null)
+							}
+						>
+							Clear category
+						</Button>
+					</div>
+				</div>
+			);
+		}
+
+		if (columnKey === CATEGORY_COLUMN_KEY) {
+			const selectedGenreKeys = getSelectedGenreKeys(value, genreTaxonomy);
+			return (
+				<div className="block text-xs font-medium text-foreground">
+					{fieldLabel}
+					<input
+						value={value}
+						onChange={(event) =>
+							handleCellChange(detailRowIndex, columnKey, event.target.value)
+						}
+						onBlur={() => commitStandardCell(detailRowIndex, columnKey)}
+						className={inputClassName}
+					/>
+					<div className="mt-2 max-h-32 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
+						<div className="flex flex-wrap gap-1.5">
+							{availableGenres.map((genre) => (
+								<button
+									key={genre.key}
+									type="button"
+									className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2 text-xs transition ${
+										selectedGenreKeys.has(genre.key)
+											? `${genre.color} border-transparent`
+											: "border-border/70 bg-background hover:bg-muted/70"
+									}`}
+									onClick={() =>
+										toggleGenreForCell(detailRowIndex, columnKey, genre)
+									}
+								>
+									<span
+										className={`h-2 w-2 rounded-full ${genre.color || "bg-stone-500"}`}
+									/>
+									{genre.label}
+								</button>
+							))}
+							{availableGenres.length === 0 && (
+								<span className="text-xs text-muted-foreground">
+									Genre taxonomy unavailable.
+								</span>
+							)}
+						</div>
+					</div>
+				</div>
+			);
+		}
+
+		if (columnKey === SETTING_COLUMN_KEY) {
+			const selectedValues = splitSettingCell(value);
+			return (
+				<div className="block text-xs font-medium text-foreground">
+					{fieldLabel}
+					<div className="mt-1 flex flex-wrap gap-1.5">
+						{SETTING_OPTIONS.map((setting) => (
+							<Button
+								key={setting.value}
+								type="button"
+								size="sm"
+								variant={
+									selectedValues.includes(setting.value) ? "default" : "outline"
+								}
+								className="h-8"
+								title={setting.description}
+								onClick={() =>
+									selectSettingForCell(detailRowIndex, columnKey, setting)
+								}
+							>
+								{setting.label}
+							</Button>
+						))}
+					</div>
+				</div>
+			);
+		}
+
+		if (columnKey === AGE_COLUMN_KEY) {
+			return (
+				<div className="block text-xs font-medium text-foreground">
+					{fieldLabel}
+					<div className="mt-1 flex flex-wrap gap-1.5">
+						{AGE_OPTIONS.map((age) => (
+							<Button
+								key={age.value}
+								type="button"
+								size="sm"
+								variant={value === age.value ? "default" : "outline"}
+								className="h-8"
+								title={age.description}
+								onClick={() => selectAgeForCell(detailRowIndex, columnKey, age)}
+							>
+								{age.label}
+							</Button>
+						))}
+						<Button
+							type="button"
+							size="sm"
+							variant="ghost"
+							className="h-8"
+							onClick={() => selectAgeForCell(detailRowIndex, columnKey, null)}
+						>
+							Clear
+						</Button>
+					</div>
+				</div>
+			);
+		}
+
+		if (COUNTRY_COLUMN_KEYS.has(columnKey)) {
+			const selectedCodes = getSelectedCountryCodes(value);
+			const commonCountries = DETAIL_COMMON_COUNTRY_CODES.map((code) =>
+				getCountryOption(code),
+			).filter((country): country is CountryOption => Boolean(country));
+			return (
+				<div className="block text-xs font-medium text-foreground">
+					{fieldLabel}
+					<input
+						value={value}
+						onChange={(event) =>
+							handleCellChange(
+								detailRowIndex,
+								columnKey,
+								normalizeCountryValue(event.target.value),
+							)
+						}
+						onBlur={() =>
+							commitCellDraft(detailRowIndex, columnKey, normalizeCountryValue)
+						}
+						className={inputClassName}
+					/>
+					<div className="mt-2 flex flex-wrap gap-1.5">
+						{commonCountries.map((country) => (
+							<Button
+								key={country.code}
+								type="button"
+								size="sm"
+								variant={
+									selectedCodes.has(country.code) ? "default" : "outline"
+								}
+								className="h-8 px-2"
+								title={country.label}
+								onClick={() =>
+									selectCountryForCell(detailRowIndex, columnKey, country)
+								}
+							>
+								{country.flag} {country.code}
+							</Button>
+						))}
+					</div>
+				</div>
+			);
+		}
+
+		if (columnKey === AREA_COLUMN_KEY) {
+			const normalizedArea = normalizeAreaValue(value);
+			return (
+				<div className="block text-xs font-medium text-foreground">
+					{fieldLabel}
+					<input
+						value={value}
+						onChange={(event) =>
+							handleCellChange(detailRowIndex, columnKey, event.target.value)
+						}
+						onBlur={() =>
+							commitCellDraft(detailRowIndex, columnKey, normalizeAreaValue)
+						}
+						className={inputClassName}
+					/>
+					<div className="mt-2 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-background/70 p-2">
+						{AREA_OPTIONS.map((area) => (
+							<button
+								key={area.value}
+								type="button"
+								className={`h-7 rounded-full border px-2 text-xs transition ${
+									normalizedArea === area.value
+										? "border-foreground bg-foreground text-background"
+										: "border-border/70 bg-background hover:bg-muted/70"
+								}`}
+								title={area.description}
+								onClick={() =>
+									selectAreaForCell(detailRowIndex, columnKey, area)
+								}
+							>
+								{area.label}
+							</button>
+						))}
+					</div>
+				</div>
+			);
+		}
+
+		if (columnKey === DATE_COLUMN_KEY || columnKey === DATE_TO_COLUMN_KEY) {
+			const hint = formatDateCellHint(value, sheetDateContext);
+			const suggestions = buildCommonFeteDates(
+				pickUsefulFeteYear(detailRowIndex, rows, sheetDateContext),
+			);
+			return (
+				<label className="block text-xs font-medium text-foreground">
+					{label}
+					<input
+						value={value}
+						readOnly={options.readOnly}
+						onChange={(event) =>
+							handleCellChange(detailRowIndex, columnKey, event.target.value)
+						}
+						onBlur={() => commitStandardCell(detailRowIndex, columnKey)}
+						className={`${inputClassName} ${
+							options.readOnly
+								? "cursor-not-allowed bg-muted/35 text-muted-foreground"
+								: ""
+						}`}
+					/>
+					{hint && (
+						<span className="mt-1 block text-[11px] text-muted-foreground">
+							{hint}
+						</span>
+					)}
+					<div className="mt-2 flex flex-wrap gap-1.5">
+						{suggestions.map((suggestion) => (
+							<Button
+								key={suggestion.value}
+								type="button"
+								size="sm"
+								variant="outline"
+								className="h-7 px-2 text-[11px]"
+								title={suggestion.description}
+								onClick={() =>
+									selectDateForCell(detailRowIndex, columnKey, suggestion.value)
+								}
+							>
+								{suggestion.label}
+							</Button>
+						))}
+					</div>
+				</label>
+			);
+		}
+
+		if (TIME_COLUMN_KEYS.has(columnKey)) {
+			const preview = getTimeInputPreview(value);
+			return (
+				<label className="block text-xs font-medium text-foreground">
+					{label}
+					<input
+						value={value}
+						readOnly={options.readOnly}
+						onChange={(event) =>
+							handleCellChange(detailRowIndex, columnKey, event.target.value)
+						}
+						onBlur={() => commitStandardCell(detailRowIndex, columnKey)}
+						className={`${inputClassName} ${
+							options.readOnly
+								? "cursor-not-allowed bg-muted/35 text-muted-foreground"
+								: ""
+						}`}
+					/>
+					{preview && (
+						<span className="mt-1 block text-[11px] text-muted-foreground">
+							{preview.message}
+						</span>
+					)}
+				</label>
+			);
+		}
+
+		if (columnKey === PRIMARY_URL_COLUMN_KEY) {
+			const parts = parseUrlParts(value);
+			return (
+				<div className="block text-xs font-medium text-foreground">
+					{fieldLabel}
+					<div className="mt-1 space-y-2">
+						{parts.length > 0 ? (
+							parts.map((part, index) => (
+								<div key={`${part.raw}-${index}`} className="space-y-1">
+									<div className="flex gap-1.5">
+										<input
+											value={part.raw}
+											onChange={(event) =>
+												updatePrimaryUrlPart(
+													detailRowIndex,
+													columnKey,
+													index,
+													event.target.value,
+												)
+											}
+											onBlur={() =>
+												commitStandardCell(detailRowIndex, columnKey)
+											}
+											className={`${inputClassName} mt-0`}
+										/>
+										<Button
+											type="button"
+											size="sm"
+											variant="ghost"
+											className="h-8 px-2"
+											onClick={() =>
+												removePrimaryUrlPart(detailRowIndex, columnKey, index)
+											}
+										>
+											Remove
+										</Button>
+									</div>
+									<span
+										className={`block text-[11px] ${
+											part.isValid
+												? "text-muted-foreground"
+												: "text-amber-700 dark:text-amber-300"
+										}`}
+									>
+										{part.isValid
+											? (part.host ?? "Valid URL")
+											: "Check this URL before publishing"}
+									</span>
+								</div>
+							))
+						) : (
+							<input
+								value={value}
+								onChange={(event) =>
+									handleCellChange(
+										detailRowIndex,
+										columnKey,
+										event.target.value,
+									)
+								}
+								onBlur={() => commitStandardCell(detailRowIndex, columnKey)}
+								className={inputClassName}
+							/>
+						)}
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							className="h-8"
+							onClick={() => addPrimaryUrlSlot(detailRowIndex, columnKey)}
+						>
+							Add another link
+						</Button>
+					</div>
+				</div>
+			);
+		}
+
 		return (
 			<label className="block text-xs font-medium text-foreground">
 				{label}
@@ -4864,18 +5460,96 @@ export const EventSheetEditorCard = ({
 					>
 						<DialogContent className="top-0 right-0 left-auto h-dvh max-h-dvh w-[min(560px,100vw)] translate-x-0 translate-y-0 overflow-y-auto rounded-none border-y-0 border-r-0 p-5 sm:max-w-none sm:p-6">
 							<DialogHeader className="pr-10">
-								<DialogTitle className="text-xl">
-									Row {detailRowIndex !== null ? detailRowIndex + 1 : ""}{" "}
-									details
-								</DialogTitle>
-								<DialogDescription className="max-w-lg text-sm leading-relaxed">
-									Edit complex rows here without leaving the sheet. Changes save
-									back into the same row.
-								</DialogDescription>
+								<div className="flex flex-wrap items-start justify-between gap-3">
+									<div>
+										<DialogTitle className="text-xl">
+											Row {detailRowIndex !== null ? detailRowIndex + 1 : ""}{" "}
+											details
+										</DialogTitle>
+										<DialogDescription className="max-w-lg text-sm leading-relaxed">
+											Edit complex rows here without leaving the sheet. Changes
+											save back into the same row.
+										</DialogDescription>
+									</div>
+									<div className="flex shrink-0 gap-1.5 pr-8">
+										<Button
+											type="button"
+											size="sm"
+											variant="outline"
+											className="h-8"
+											disabled={detailPreviousRowIndex === null}
+											onClick={() => {
+												if (detailPreviousRowIndex !== null) {
+													setDetailRowIndex(detailPreviousRowIndex);
+												}
+											}}
+										>
+											Prev
+										</Button>
+										<Button
+											type="button"
+											size="sm"
+											variant="outline"
+											className="h-8"
+											disabled={detailNextRowIndex === null}
+											onClick={() => {
+												if (detailNextRowIndex !== null) {
+													setDetailRowIndex(detailNextRowIndex);
+												}
+											}}
+										>
+											Next
+										</Button>
+									</div>
+								</div>
 							</DialogHeader>
 
 							{detailRow && detailRowIndex !== null ? (
 								<div className="space-y-5">
+									{detailRowQuality && (
+										<section className="rounded-md border border-border/70 bg-background/75 p-3">
+											<div className="flex flex-wrap items-center gap-2">
+												<span
+													className={`h-2.5 w-2.5 rounded-full border ${getQualityDotClassName(
+														detailRowQuality.value,
+													)}`}
+												/>
+												<span className="font-medium">
+													{detailRowQuality.label}
+												</span>
+												<Badge variant="outline" className="text-[10px]">
+													{detailRowQuality.source === "manual"
+														? "Manual"
+														: detailRowQuality.source === "submission"
+															? "Submission"
+															: "Auto"}
+												</Badge>
+												{detailRowQuality.isConfirmed && (
+													<Badge variant="secondary" className="text-[10px]">
+														Source confirmed
+													</Badge>
+												)}
+												{detailLifecycleBadge && (
+													<Badge variant="outline" className="text-[10px]">
+														{detailLifecycleBadge.label}
+													</Badge>
+												)}
+											</div>
+											<p className="mt-2 text-xs text-muted-foreground">
+												{detailRowQuality.description}
+											</p>
+											{detailRowIssues.length > 0 && (
+												<div className="mt-2 space-y-1 text-xs text-red-700 dark:text-red-300">
+													{detailRowIssues.slice(0, 3).map((issue) => (
+														<p
+															key={`${issue.column}-${issue.message}`}
+														>{`${issue.column}: ${issue.message}`}</p>
+													))}
+												</div>
+											)}
+										</section>
+									)}
+
 									<section className="space-y-3">
 										<div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
 											Identity
@@ -4994,6 +5668,57 @@ export const EventSheetEditorCard = ({
 											</div>
 										)}
 									</section>
+
+									<div className="sticky bottom-0 -mx-5 flex flex-wrap justify-between gap-2 border-t bg-background/95 px-5 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+										<div className="flex flex-wrap gap-2">
+											<Button
+												type="button"
+												size="sm"
+												variant="outline"
+												onClick={() => handleDuplicateRow(detailRowIndex)}
+											>
+												<Copy className="mr-1 h-3.5 w-3.5" />
+												Duplicate
+											</Button>
+											{detailRangeDates.length > 1 && (
+												<Button
+													type="button"
+													size="sm"
+													variant="outline"
+													onClick={() => {
+														setRangePreviewRowIndex(detailRowIndex);
+														setDetailRowIndex(null);
+													}}
+												>
+													<CalendarDays className="mr-1 h-3.5 w-3.5" />
+													Split range
+												</Button>
+											)}
+										</div>
+										<div className="flex flex-wrap gap-2">
+											<Button
+												type="button"
+												size="sm"
+												variant="outline"
+												onClick={() => setDetailRowIndex(null)}
+											>
+												Close
+											</Button>
+											<Button
+												type="button"
+												size="sm"
+												variant="outline"
+												className="border-destructive/40 text-destructive hover:bg-destructive/10"
+												onClick={() => {
+													handleDeleteRow(detailRowIndex);
+													setDetailRowIndex(null);
+												}}
+											>
+												<Trash2 className="mr-1 h-3.5 w-3.5" />
+												Delete
+											</Button>
+										</div>
+									</div>
 								</div>
 							) : (
 								<div className="rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground">
@@ -5816,6 +6541,13 @@ export const EventSheetEditorCard = ({
 										const rowQuality = getRowQualityAssessment(row, rowIssues, {
 											hasPendingSubmissionReview,
 										});
+										const lifecycleBadge = getRowLifecycleBadge(
+											row,
+											lifecycleMetadataByEventKey,
+											{
+												suppressUpdated: suppressUpdatedLifecycleBadges,
+											},
+										);
 										return (
 											<tr
 												key={`row-${rowIndex}`}
@@ -5865,6 +6597,24 @@ export const EventSheetEditorCard = ({
 																title="Source confirmed"
 															/>
 														)}
+														{lifecycleBadge && (
+															<span
+																role="img"
+																aria-label={`${lifecycleBadge.title}: ${lifecycleBadge.label}`}
+																className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+																	lifecycleBadge.tone === "added"
+																		? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/25 dark:text-emerald-300"
+																		: "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-900/70 dark:bg-sky-950/25 dark:text-sky-300"
+																}`}
+																title={`${lifecycleBadge.title}: ${lifecycleBadge.label}`}
+															>
+																{lifecycleBadge.tone === "added" ? (
+																	<Plus className="h-3 w-3" />
+																) : (
+																	<RefreshCw className="h-3 w-3" />
+																)}
+															</span>
+														)}
 														{rowRangeDates.length > 1 && (
 															<button
 																type="button"
@@ -5896,7 +6646,7 @@ export const EventSheetEditorCard = ({
 																size="sm"
 																variant="ghost"
 																onClick={() => handleInsertRowBelow(rowIndex)}
-																className="h-6 w-6 p-0"
+																className="hidden h-6 w-6 p-0 sm:inline-flex"
 																aria-label={`Insert row below ${rowIndex + 1}`}
 																title="Insert row below"
 															>
@@ -5907,7 +6657,7 @@ export const EventSheetEditorCard = ({
 																size="sm"
 																variant="ghost"
 																onClick={() => handleDuplicateRow(rowIndex)}
-																className="h-6 w-6 p-0"
+																className="hidden h-6 w-6 p-0 sm:inline-flex"
 																aria-label={`Duplicate row ${rowIndex + 1}`}
 																title="Duplicate row"
 															>
@@ -5921,7 +6671,7 @@ export const EventSheetEditorCard = ({
 																		variant="ghost"
 																		onClick={() => handleMoveRow(rowIndex, -1)}
 																		disabled={rowIndex === 0}
-																		className="h-6 w-6 p-0"
+																		className="hidden h-6 w-6 p-0 sm:inline-flex"
 																		aria-label={`Move row ${rowIndex + 1} up`}
 																		title="Move row up"
 																	>
@@ -5933,7 +6683,7 @@ export const EventSheetEditorCard = ({
 																		variant="ghost"
 																		onClick={() => handleMoveRow(rowIndex, 1)}
 																		disabled={rowIndex >= rows.length - 1}
-																		className="h-6 w-6 p-0"
+																		className="hidden h-6 w-6 p-0 sm:inline-flex"
 																		aria-label={`Move row ${rowIndex + 1} down`}
 																		title="Move row down"
 																	>
@@ -5946,7 +6696,7 @@ export const EventSheetEditorCard = ({
 																size="sm"
 																variant="ghost"
 																onClick={() => handleDeleteRow(rowIndex)}
-																className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+																className="hidden h-6 w-6 p-0 text-muted-foreground hover:text-destructive sm:inline-flex"
 																aria-label={`Delete row ${rowIndex + 1}`}
 																title="Delete row"
 															>

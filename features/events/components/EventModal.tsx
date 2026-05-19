@@ -1910,9 +1910,17 @@ const EventModal: React.FC<EventModalProps> = ({
 						</div>
 						<div className="col-span-2 rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 dark:bg-white/[0.04]">
 							<div className="flex items-start justify-between gap-2">
-								<p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
+								<p className="flex min-w-0 items-center gap-1.5 text-[10px] uppercase tracking-[0.11em] text-muted-foreground">
 									<MapPin className="h-3.5 w-3.5" />
 									<span>{locationLabel}</span>
+									{!canOpenSingleLocation &&
+										locationDisplay.state !== "multiple-listed" && (
+											<span className="truncate text-[13px] font-medium normal-case tracking-normal text-foreground sm:text-sm">
+												{locationDisplay.state === "multiple-unlisted"
+													? "Multiple locations"
+													: "Location TBC"}
+											</span>
+										)}
 								</p>
 								{canOpenAnyLocation && (
 									<TooltipProvider>
@@ -1987,11 +1995,6 @@ const EventModal: React.FC<EventModalProps> = ({
 								</button>
 							) : (
 								<div className="mt-1.5 space-y-1">
-									<Badge variant="outline">
-										{locationDisplay.state === "multiple-unlisted"
-											? "Multiple venues"
-											: "Location TBC"}
-									</Badge>
 									<p className="text-xs text-muted-foreground">
 										{locationDisplay.modalLabel}
 									</p>

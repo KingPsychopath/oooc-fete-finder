@@ -344,6 +344,16 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 		const suppliedMetadataByEventKey = new Map(
 			(meta.rowMetadata ?? []).map((record) => [record.eventKey, record]),
 		);
+		const existingRowsByEventKey = new Map(
+			this.state.rows
+				.map((row) => {
+					const eventKey = row.eventKey?.trim();
+					return [eventKey, row] as const;
+				})
+				.filter((entry): entry is readonly [string, EventSheetRowRecord] =>
+					Boolean(entry[0]),
+				),
+		);
 		const rowByEventKey = new Map(
 			sanitized.rows
 				.map((row) => [row.eventKey?.trim(), row] as const)
@@ -359,6 +369,12 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 			.map((eventKey) => {
 				const row = rowByEventKey.get(eventKey);
 				const publicContentHash = row ? buildMeaningfulEventRowHash(row) : "";
+				const existingRow = existingRowsByEventKey.get(eventKey);
+				const existingCurrentContentHash = existingRow
+					? buildMeaningfulEventRowHash(existingRow)
+					: null;
+				const unchangedPublicContent =
+					existingCurrentContentHash === publicContentHash;
 				const existing = existingMetadataByEventKey.get(eventKey);
 				const supplied = suppliedMetadataByEventKey.get(eventKey);
 				const baseline = supplied ?? existing;
@@ -369,6 +385,7 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 				const lastMeaningfulChangeAt =
 					baseline?.publicContentHash &&
 					row &&
+					!unchangedPublicContent &&
 					!isCompatibleMeaningfulEventRowHash(baseline.publicContentHash, row)
 						? nowIso
 						: (baseline?.lastMeaningfulChangeAt ?? firstSeenAt);
