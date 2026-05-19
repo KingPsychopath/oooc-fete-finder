@@ -1025,6 +1025,35 @@ const joinLocationParts = (values: string[]): string =>
 		.filter((value) => value.length > 0)
 		.join(" | ");
 
+const splitAreaRawParts = (value: string): string[] =>
+	value
+		.split(/[\n\r|;]+/)
+		.map((part) => normalizeAreaValue(part.trim()))
+		.filter((part) => part.length > 0);
+
+const joinAreaParts = (values: string[]): string =>
+	values
+		.map((value) => normalizeAreaValue(value.trim()))
+		.filter((value) => value.length > 0)
+		.join(" | ");
+
+const buildLocationAreaPairs = (
+	locationValue: string,
+	areaValue: string,
+): Array<{ location: string; area: string }> => {
+	const locations = splitLocationRawParts(locationValue);
+	const areas = splitAreaRawParts(areaValue);
+	return locations.map((location, index) => ({
+		location,
+		area:
+			areas.length === locations.length
+				? (areas[index] ?? "")
+				: areas.length === 1 && areas[0] !== "Multiple Locations"
+					? areas[0]
+					: "",
+	}));
+};
+
 const toUTCDateOnlyTime = (date: Date): number =>
 	Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 
@@ -3244,6 +3273,43 @@ export const EventSheetEditorCard = ({
 			if (parts.filter((part) => part.trim()).length > 1) {
 				handleCellChange(rowIndex, AREA_COLUMN_KEY, "Multiple Locations");
 			}
+		},
+		[handleCellChange],
+	);
+
+	const updateLocationAreaPart = useCallback(
+		(rowIndex: number, partIndex: number, areaValue: string) => {
+			const locationParts = splitLocationRawParts(
+				rowsRef.current[rowIndex]?.[LOCATION_COLUMN_KEY] ?? "",
+			);
+			const currentAreaParts = splitAreaRawParts(
+				rowsRef.current[rowIndex]?.[AREA_COLUMN_KEY] ?? "",
+			);
+			const nextAreaParts = locationParts.map((_, index) => {
+				if (index === partIndex) return normalizeAreaValue(areaValue);
+				if (currentAreaParts.length === locationParts.length) {
+					return currentAreaParts[index] ?? "";
+				}
+				if (
+					currentAreaParts.length === 1 &&
+					currentAreaParts[0] !== "Multiple Locations"
+				) {
+					return currentAreaParts[0];
+				}
+				return "";
+			});
+			handleCellChange(rowIndex, AREA_COLUMN_KEY, joinAreaParts(nextAreaParts));
+		},
+		[handleCellChange],
+	);
+
+	const applyOneAreaForAllLocations = useCallback(
+		(rowIndex: number, areaValue: string) => {
+			handleCellChange(
+				rowIndex,
+				AREA_COLUMN_KEY,
+				normalizeAreaValue(areaValue),
+			);
 		},
 		[handleCellChange],
 	);
@@ -5692,6 +5758,10 @@ export const EventSheetEditorCard = ({
 												row[LOCATION_COLUMN_KEY] ?? "",
 											),
 										);
+										const locationAreaPairs = buildLocationAreaPairs(
+											row[LOCATION_COLUMN_KEY] ?? "",
+											row[AREA_COLUMN_KEY] ?? "",
+										);
 										const rowIssues =
 											sheetHealthIssuesByRow.get(rowIndex + 1) ?? [];
 										const rowQuality = getRowQualityAssessment(row, rowIssues, {
@@ -6427,6 +6497,39 @@ export const EventSheetEditorCard = ({
 																										className="h-7 min-w-0 flex-1 rounded border border-border/70 bg-background px-2 text-xs outline-none focus:border-ring"
 																										placeholder={`Location ${partIndex + 1}`}
 																									/>
+																									<select
+																										value={
+																											locationAreaPairs[
+																												partIndex
+																											]?.area ?? ""
+																										}
+																										onChange={(event) =>
+																											updateLocationAreaPart(
+																												rowIndex,
+																												partIndex,
+																												event.target.value,
+																											)
+																										}
+																										onMouseDown={(event) => {
+																											event.stopPropagation();
+																										}}
+																										className="h-7 w-24 rounded border border-border/70 bg-background px-1.5 text-[11px] outline-none focus:border-ring"
+																										aria-label={`Area for location ${partIndex + 1}`}
+																									>
+																										<option value="">
+																											Area
+																										</option>
+																										{AREA_OPTIONS.map(
+																											(area) => (
+																												<option
+																													key={`${partIndex}-${area.value}`}
+																													value={area.value}
+																												>
+																													{area.label}
+																												</option>
+																											),
+																										)}
+																									</select>
 																									<button
 																										type="button"
 																										className="rounded p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
@@ -6446,6 +6549,37 @@ export const EventSheetEditorCard = ({
 																								</div>
 																							</div>
 																						),
+																					)}
+																					{locationParts.length > 1 && (
+																						<div className="mt-1 border-t border-border/60 px-1 pt-2">
+																							<div className="mb-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+																								Shared area
+																							</div>
+																							<div className="flex flex-wrap gap-1">
+																								{AREA_OPTIONS.slice(0, 20).map(
+																									(area) => (
+																										<button
+																											key={`shared-${area.value}`}
+																											type="button"
+																											className="rounded border border-border/70 px-1.5 py-0.5 text-[10px] text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+																											onMouseDown={(event) => {
+																												event.preventDefault();
+																												applyOneAreaForAllLocations(
+																													rowIndex,
+																													area.value,
+																												);
+																											}}
+																										>
+																											{area.label}
+																										</button>
+																									),
+																								)}
+																							</div>
+																							<p className="mt-1 text-[10px] text-muted-foreground">
+																								Per-location areas are linked by
+																								list order.
+																							</p>
+																						</div>
 																					)}
 																				</div>
 																			)}
@@ -6887,8 +7021,60 @@ export const EventSheetEditorCard = ({
 																				Area
 																			</div>
 																			<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
-																				Choose arrondissement or area.
+																				Choose one area, or pair areas to
+																				locations with | in list order.
 																			</div>
+																			{locationAreaPairs.length > 1 && (
+																				<div className="border-b p-2">
+																					<div className="mb-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+																						Location area links
+																					</div>
+																					<div className="space-y-1">
+																						{locationAreaPairs.map(
+																							(pair, pairIndex) => (
+																								<div
+																									key={`${pair.location}-${pairIndex}`}
+																									className="grid grid-cols-[1fr_6rem] items-center gap-1"
+																								>
+																									<span className="truncate text-xs">
+																										{pair.location}
+																									</span>
+																									<select
+																										value={pair.area}
+																										onChange={(event) =>
+																											updateLocationAreaPart(
+																												rowIndex,
+																												pairIndex,
+																												event.target.value,
+																											)
+																										}
+																										className="h-7 rounded border border-border/70 bg-background px-1.5 text-[11px] outline-none focus:border-ring"
+																										aria-label={`Area for ${pair.location}`}
+																									>
+																										<option value="">
+																											Area
+																										</option>
+																										{AREA_OPTIONS.map(
+																											(area) => (
+																												<option
+																													key={`${pairIndex}-${area.value}`}
+																													value={area.value}
+																												>
+																													{area.label}
+																												</option>
+																											),
+																										)}
+																									</select>
+																								</div>
+																							),
+																						)}
+																					</div>
+																					<p className="mt-1.5 text-[10px] text-muted-foreground">
+																						Stored as `Location A | Location B`
+																						and `10e | 11e`.
+																					</p>
+																				</div>
+																			)}
 																			<div className="max-h-60 overflow-y-auto p-1">
 																				{areaOptionsForFocusedCell.map(
 																					(area, optionIndex) => {

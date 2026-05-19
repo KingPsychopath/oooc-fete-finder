@@ -227,6 +227,11 @@ export type EventLocation = {
 	lastUpdated: string; // ISO timestamp
 };
 
+export type EventLocationEntry = {
+	name: string;
+	arrondissement?: ParisArrondissement;
+};
+
 export type MusicGenre = string;
 
 export type ParisArrondissement =
@@ -321,6 +326,7 @@ export type Event = {
 	arrondissement: ParisArrondissement;
 	location?: string;
 	locations?: string[];
+	locationEntries?: EventLocationEntry[];
 	coordinates?: Coordinates; // Event-specific coordinates from geocoding or manual entry
 	locationResolution?: LocationResolution; // Optional trusted/approximate location enrichment
 	link: string;
@@ -368,6 +374,7 @@ export type EventLocationDisplay = {
 	cardLabel?: string;
 	modalLabel: string;
 	listedLocations: string[];
+	listedLocationEntries: EventLocationEntry[];
 	singleLocation?: string;
 	canOpenSingleLocation: boolean;
 	canOpenAnyLocation: boolean;
@@ -390,11 +397,23 @@ export const isMultipleLocationPlaceholderValue = (
 ): boolean => value?.trim().toLowerCase() === "multiple locations";
 
 export const getEventLocationDisplay = (
-	event: Pick<Event, "arrondissement" | "location" | "locations">,
+	event: Pick<
+		Event,
+		"arrondissement" | "location" | "locations" | "locationEntries"
+	>,
 ): EventLocationDisplay => {
 	const listedLocations = (event.locations ?? [])
 		.map((location) => location.trim())
 		.filter(Boolean);
+	const listedLocationEntries =
+		"locationEntries" in event && event.locationEntries
+			? event.locationEntries
+					.map((entry) => ({
+						name: entry.name.trim(),
+						arrondissement: entry.arrondissement,
+					}))
+					.filter((entry) => entry.name.length > 0)
+			: listedLocations.map((name) => ({ name }));
 	const hasListedLocations = listedLocations.length > 1;
 	const isMultipleLocation =
 		event.arrondissement === "multiple-locations" ||
@@ -409,6 +428,7 @@ export const getEventLocationDisplay = (
 			cardLabel: `${listedLocations.length} locations`,
 			modalLabel: `${listedLocations.length} locations listed`,
 			listedLocations,
+			listedLocationEntries,
 			canOpenSingleLocation: false,
 			canOpenAnyLocation: true,
 		};
@@ -421,6 +441,7 @@ export const getEventLocationDisplay = (
 			areaLongLabel: "Multiple Locations",
 			modalLabel: "Several venues; exact list not provided",
 			listedLocations: [],
+			listedLocationEntries: [],
 			canOpenSingleLocation: false,
 			canOpenAnyLocation: false,
 		};
@@ -433,6 +454,7 @@ export const getEventLocationDisplay = (
 			areaLongLabel: "Location TBC",
 			modalLabel: "Exact location not announced yet",
 			listedLocations: [],
+			listedLocationEntries: [],
 			canOpenSingleLocation: false,
 			canOpenAnyLocation: false,
 		};
@@ -447,6 +469,7 @@ export const getEventLocationDisplay = (
 		cardLabel: singleLocation,
 		modalLabel: singleLocation ?? "Location TBC",
 		listedLocations: [],
+		listedLocationEntries: [],
 		singleLocation,
 		canOpenSingleLocation: Boolean(singleLocation),
 		canOpenAnyLocation: Boolean(singleLocation),

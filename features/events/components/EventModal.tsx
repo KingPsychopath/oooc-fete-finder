@@ -67,6 +67,7 @@ import {
 	formatDayWithDate,
 	formatEventDateRangeLabel,
 	formatEventOccurrenceLabel,
+	formatLocationAreaShort,
 	formatPrice,
 	getEventLocationDisplay,
 	getPartyEventTypeLabel,
@@ -1346,7 +1347,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		audienceCountries.length > mobileCountryPreviewLimit;
 	const locationDisplay = getEventLocationDisplay(event);
 	const locationLabel = locationDisplay.areaLongLabel;
-	const eventLocations = locationDisplay.listedLocations;
+	const eventLocationEntries = locationDisplay.listedLocationEntries;
 	const canOpenSingleLocation = locationDisplay.canOpenSingleLocation;
 	const canOpenAnyLocation = locationDisplay.canOpenAnyLocation;
 	const priceLabel = formatPrice(event.price);
@@ -1938,17 +1939,26 @@ const EventModal: React.FC<EventModalProps> = ({
 							</div>
 							{locationDisplay.state === "multiple-listed" ? (
 								<div className="mt-1.5 space-y-1.5">
-									{eventLocations.map((location, locationIndex) => (
+									{eventLocationEntries.map((locationEntry, locationIndex) => (
 										<button
-											key={`${location}-${locationIndex}`}
+											key={`${locationEntry.name}-${locationIndex}`}
 											onClick={() =>
-												handleOpenLocation(location, undefined, null)
+												handleOpenLocation(
+													locationEntry.name,
+													locationEntry.arrondissement,
+													null,
+												)
 											}
 											className="inline-flex min-h-[32px] w-full items-center justify-between rounded-md border border-border/70 bg-background/80 px-2.5 text-left text-sm text-primary underline-offset-4 transition-colors hover:bg-accent hover:underline dark:bg-white/[0.03] dark:hover:bg-white/[0.08]"
-											title={`Open "${location}" in maps`}
+											title={`Open "${locationEntry.name}" in maps`}
 										>
-											<span className="truncate">{location}</span>
+											<span className="truncate">{locationEntry.name}</span>
 											<span className="ml-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.1em] text-primary">
+												{locationEntry.arrondissement
+													? formatLocationAreaShort(
+															locationEntry.arrondissement,
+														)
+													: null}
 												Open map
 												<ExternalLink className="h-3 w-3" />
 											</span>

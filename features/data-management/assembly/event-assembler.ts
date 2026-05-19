@@ -39,6 +39,7 @@ import {
 	MetadataTransformers,
 	NationalityTransformers,
 	VenueTransformers,
+	splitAreaList,
 	splitLocationList,
 } from "./field-transformers";
 
@@ -370,11 +371,15 @@ const assembleEventFromNormalizedDate = (
 	const date = normalizedDate.isoDate;
 	const time = DateTransformers.convertToTime(csvRow.startTime);
 	const endTime = DateTransformers.convertToTime(csvRow.endTime);
+	const locations = splitLocationList(csvRow.location);
+	const locationAreas = splitAreaList(csvRow.districtArea);
 
-	const arrondissement = LocationTransformers.convertToArrondissement(
+	const baseArrondissement = LocationTransformers.convertToArrondissement(
 		csvRow.districtArea,
 		csvRow.location,
 	);
+	const arrondissement =
+		locations.length > 1 ? "multiple-locations" : baseArrondissement;
 
 	const nationalityInput = [csvRow.hostCountry, csvRow.audienceCountry]
 		.map((value) => value.trim())
@@ -396,7 +401,18 @@ const assembleEventFromNormalizedDate = (
 	const venueTypes = VenueTransformers.convertToVenueTypes(csvRow.setting);
 	const eventCategory =
 		normalizeEventExperienceCategory(csvRow.eventCategory) ?? undefined;
-	const locations = splitLocationList(csvRow.location);
+	const locationEntries =
+		locations.length > 1
+			? locations.map((name, locationIndex) => {
+					const entryArea =
+						locationAreas.length === locations.length
+							? locationAreas[locationIndex]
+							: locationAreas.length === 1
+								? locationAreas[0]
+								: undefined;
+					return entryArea ? { name, arrondissement: entryArea } : { name };
+				})
+			: undefined;
 	const location =
 		arrondissement === "multiple-locations" && locations.length > 1
 			? "Multiple locations"
@@ -454,6 +470,7 @@ const assembleEventFromNormalizedDate = (
 		arrondissement,
 		location,
 		locations: locations.length > 1 ? locations : undefined,
+		locationEntries,
 		link: mainLink,
 		links: ticketLinks.length > 1 ? ticketLinks : undefined,
 		description: csvRow.notes.trim() || undefined,

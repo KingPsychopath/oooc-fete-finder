@@ -233,6 +233,45 @@ describe("event assembler identity", () => {
 		expect(event.arrondissement).toBe("multiple-locations");
 		expect(event.location).toBe("Multiple locations");
 		expect(event.locations).toEqual(["Venue A", "Venue B"]);
+		expect(event.locationEntries).toEqual([
+			{ name: "Venue A" },
+			{ name: "Venue B" },
+		]);
+	});
+
+	it("pairs multiple locations with area list entries by order", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				location: "Venue A | Venue B",
+				districtArea: "10e | 11e",
+			},
+			0,
+		);
+
+		expect(event.arrondissement).toBe("multiple-locations");
+		expect(event.locationEntries).toEqual([
+			{ name: "Venue A", arrondissement: 10 },
+			{ name: "Venue B", arrondissement: 11 },
+		]);
+	});
+
+	it("applies one shared area to every listed location without creating one event pin", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				location: "Venue A | Venue B",
+				districtArea: "10e",
+			},
+			0,
+		);
+
+		expect(event.arrondissement).toBe("multiple-locations");
+		expect(event.location).toBe("Multiple locations");
+		expect(event.locationEntries).toEqual([
+			{ name: "Venue A", arrondissement: 10 },
+			{ name: "Venue B", arrondissement: 10 },
+		]);
 	});
 
 	it("supports multiple-location events without exact venues", () => {

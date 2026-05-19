@@ -114,6 +114,13 @@ export const LocationTransformers = {
 
 		// Clean the string and extract number
 		const cleaned = arrStr.trim().toLowerCase();
+		const areaParts = arrStr
+			.split(/[\n\r|;]+/)
+			.map((part) => part.trim())
+			.filter(Boolean);
+		if (areaParts.length > 1) {
+			return "multiple-locations";
+		}
 
 		if (
 			["greater paris", "grand paris", "paris suburbs", "idf"].includes(cleaned)
@@ -297,6 +304,17 @@ export const splitLocationList = (value: string): string[] =>
 		.split(/[\n\r|;]+/)
 		.map((part) => part.trim())
 		.filter((part) => part.length > 0);
+
+export const splitAreaList = (value: string): ParisArrondissement[] =>
+	value
+		.split(/[\n\r|;]+/)
+		.map((part) => part.trim())
+		.filter((part) => part.length > 0)
+		.map((part) => LocationTransformers.convertToArrondissement(part, ""))
+		.filter(
+			(area): area is ParisArrondissement =>
+				area !== "unknown" && area !== "multiple-locations",
+		);
 
 /**
  * Nationality and Country Transformers
