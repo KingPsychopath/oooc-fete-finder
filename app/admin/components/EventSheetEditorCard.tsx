@@ -310,6 +310,7 @@ const SERIES_KEY_COLUMN_KEY = "seriesKey";
 const START_TIME_COLUMN_KEY = "startTime";
 const END_TIME_COLUMN_KEY = "endTime";
 const CATEGORY_COLUMN_KEY = "categories";
+const TAGS_COLUMN_KEY = "tags";
 const LOCATION_COLUMN_KEY = "location";
 const AREA_COLUMN_KEY = "districtArea";
 const AGE_COLUMN_KEY = "ageGuidance";
@@ -5916,6 +5917,9 @@ export const EventSheetEditorCard = ({
 												Identity
 											</div>
 											<div className="grid gap-3 sm:grid-cols-2">
+												<div className="sm:col-span-2">
+													{renderDetailField("Title", TITLE_COLUMN_KEY)}
+												</div>
 												{renderDetailField("Series Key", SERIES_KEY_COLUMN_KEY)}
 												{renderDetailField("Event Key", "eventKey", {
 													readOnly: true,
@@ -5995,6 +5999,7 @@ export const EventSheetEditorCard = ({
 													EVENT_CATEGORY_COLUMN_KEY,
 												)}
 												{renderDetailField("Categories", CATEGORY_COLUMN_KEY)}
+												{renderDetailField("Tags", TAGS_COLUMN_KEY)}
 												<div className="sm:col-span-2">
 													{renderDetailCountryPair()}
 												</div>
