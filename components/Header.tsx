@@ -221,9 +221,9 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 								<p className="truncate text-[10px] uppercase tracking-[0.26em] text-foreground/55 sm:text-[11px]">
 									Out Of Office Collective
 								</p>
-								<h1 className="truncate text-lg leading-none [font-family:var(--ooo-font-display)] font-light text-foreground sm:text-2xl">
+								<p className="truncate text-lg leading-none [font-family:var(--ooo-font-display)] font-light text-foreground sm:text-2xl">
 									Fete Finder
-								</h1>
+								</p>
 							</div>
 						</Link>
 

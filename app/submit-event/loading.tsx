@@ -1,16 +1,16 @@
 export default function SubmitEventLoading() {
 	return (
-		<main id="main-content" className="container mx-auto px-4 py-8">
+		<div className="container mx-auto px-4 py-8">
 			<section className="mx-auto max-w-3xl space-y-4" aria-hidden="true">
 				<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 					Host Submission
 				</p>
-				<h1
+				<div
 					className="text-3xl font-light tracking-tight text-foreground sm:text-4xl"
 					style={{ fontFamily: "var(--ooo-font-display)" }}
 				>
 					Submit Your Event
-				</h1>
+				</div>
 				<p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
 					Share the essentials and we will review your event for inclusion in Fete
 					Finder. Accepted submissions are published by the admin team.
@@ -32,6 +32,6 @@ export default function SubmitEventLoading() {
 					<div className="mt-5 h-11 w-full animate-pulse rounded-full bg-muted/55" />
 				</div>
 			</section>
-		</main>
+		</div>
 	);
 }

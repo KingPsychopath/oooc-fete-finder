@@ -1,7 +1,7 @@
 export default function PrivacyLoading() {
 	return (
 		<div className="min-h-screen bg-background">
-			<main className="container mx-auto max-w-4xl px-4 py-8" aria-hidden="true">
+			<div className="container mx-auto max-w-4xl px-4 py-8" aria-hidden="true">
 				<div className="mb-6 h-5 w-36 animate-pulse rounded bg-muted/55" />
 				<div className="rounded-xl border border-border bg-card p-6">
 					<div className="h-8 w-56 animate-pulse rounded bg-muted/55" />
@@ -16,7 +16,7 @@ export default function PrivacyLoading() {
 					</div>
 					<div className="mt-8 h-24 animate-pulse rounded-lg bg-muted/45" />
 				</div>
-			</main>
+			</div>
 		</div>
 	);
 }

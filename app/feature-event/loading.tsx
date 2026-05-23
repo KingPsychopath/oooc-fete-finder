@@ -1,6 +1,6 @@
 export default function FeatureEventLoading() {
 	return (
-		<main className="container mx-auto max-w-6xl px-4 py-10 pb-28 sm:pb-12">
+		<div className="container mx-auto max-w-6xl px-4 py-10 pb-28 sm:pb-12">
 			<div className="space-y-8" aria-hidden="true">
 				<section className="rounded-2xl border border-border/80 bg-card/85 p-6 sm:p-8">
 					<div className="h-3 w-40 animate-pulse rounded bg-muted/60" />
@@ -29,6 +29,6 @@ export default function FeatureEventLoading() {
 					<div className="h-56 animate-pulse rounded-xl border border-border bg-card/60" />
 				</section>
 			</div>
-		</main>
+		</div>
 	);
 }

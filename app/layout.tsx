@@ -25,6 +25,37 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 // Get the site URL from environment or default to localhost for development
 const siteUrl = getSiteUrl();
+const siteStructuredData = {
+	"@context": "https://schema.org",
+	"@graph": [
+		{
+			"@type": "WebSite",
+			"@id": `${siteUrl}/#website`,
+			url: siteUrl,
+			name: "Fête Finder",
+			description:
+				"Curated Paris music events by Out Of Office Collective.",
+			publisher: {
+				"@id": `${siteUrl}/#organization`,
+			},
+		},
+		{
+			"@type": "Organization",
+			"@id": `${siteUrl}/#organization`,
+			name: "Out Of Office Collective",
+			url: "https://www.outofofficecollective.co.uk/",
+			logo: `${siteUrl}/OOOCLogoDark.svg`,
+			sameAs: [
+				"https://www.instagram.com/outofofficecollectivee/",
+				"https://www.tiktok.com/@outofofficecollective",
+			],
+		},
+	],
+};
+const siteStructuredDataJson = JSON.stringify(siteStructuredData).replace(
+	/</g,
+	"\\u003c",
+);
 
 const prata = Prata({
 	weight: "400",
@@ -173,6 +204,10 @@ export default function RootLayout({
 				<meta
 					name="msapplication-TileImage"
 					content={`${basePath}/icons/icon-192x192.png`}
+				/>
+				<script
+					type="application/ld+json"
+					dangerouslySetInnerHTML={{ __html: siteStructuredDataJson }}
 				/>
 			</head>
 			<body

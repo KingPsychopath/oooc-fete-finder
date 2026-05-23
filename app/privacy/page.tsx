@@ -1,6 +1,6 @@
 import { CopyEmailButton } from "@/components/CopyEmailButton";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
 	generateOGMetadata,
 	generatePresetOGImage,
@@ -24,7 +24,11 @@ export const dynamic = "force-static";
 export default function PrivacyPolicy() {
 	return (
 		<div className="min-h-screen bg-background">
-			<div className="container mx-auto px-4 py-8 max-w-4xl">
+			<main
+				id="main-content"
+				className="container mx-auto px-4 py-8 max-w-4xl"
+				tabIndex={-1}
+			>
 				{/* Back Button */}
 				<Link
 					href="/"
@@ -36,14 +40,14 @@ export default function PrivacyPolicy() {
 
 				<Card>
 					<CardHeader>
-						<CardTitle className="text-2xl">Privacy Policy</CardTitle>
+						<h1 className="text-2xl font-medium leading-snug">Privacy Policy</h1>
 						<p className="text-sm text-muted-foreground">
 							Last updated: 8 May 2026
 						</p>
 					</CardHeader>
 					<CardContent className="prose prose-sm max-w-none space-y-6">
 						<section>
-							<h3 className="text-lg font-semibold mb-3">What We Collect</h3>
+							<h2 className="text-lg font-semibold mb-3">What We Collect</h2>
 							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
 								<li>Name and email when you register</li>
 								<li>
@@ -62,9 +66,9 @@ export default function PrivacyPolicy() {
 						</section>
 
 						<section>
-							<h3 className="text-lg font-semibold mb-3">
+							<h2 className="text-lg font-semibold mb-3">
 								How We Use Your Data
-							</h3>
+							</h2>
 							<p className="text-muted-foreground mb-2">
 								<strong>Legal basis:</strong> Consent and legitimate interest
 								(you can withdraw consent for marketing at any time).
@@ -89,9 +93,9 @@ export default function PrivacyPolicy() {
 						</section>
 
 						<section>
-							<h3 className="text-lg font-semibold mb-3">
+							<h2 className="text-lg font-semibold mb-3">
 								Data Storage & Security
-							</h3>
+							</h2>
 							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
 								<li>
 									Your account and event engagement records are stored on our
@@ -115,7 +119,7 @@ export default function PrivacyPolicy() {
 						</section>
 
 						<section>
-							<h3 className="text-lg font-semibold mb-3">Your Rights</h3>
+							<h2 className="text-lg font-semibold mb-3">Your Rights</h2>
 							<p className="text-muted-foreground">
 								Under GDPR, you have the right to:
 							</p>
@@ -129,7 +133,7 @@ export default function PrivacyPolicy() {
 						</section>
 
 						<section>
-							<h3 className="text-lg font-semibold mb-3">Data Sharing</h3>
+							<h2 className="text-lg font-semibold mb-3">Data Sharing</h2>
 							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
 								<li>We do not sell your personal data.</li>
 								<li>
@@ -143,7 +147,9 @@ export default function PrivacyPolicy() {
 						</section>
 
 						<section>
-							<h3 className="text-lg font-semibold mb-3">Cookies & Tracking</h3>
+							<h2 className="text-lg font-semibold mb-3">
+								Cookies & Tracking
+							</h2>
 							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
 								<li>
 									We use first-party session cookies to keep you signed in and
@@ -166,7 +172,7 @@ export default function PrivacyPolicy() {
 						</section>
 
 						<section>
-							<h3 className="text-lg font-semibold mb-3">Contact Us</h3>
+							<h2 className="text-lg font-semibold mb-3">Contact Us</h2>
 							<p className="text-muted-foreground">
 								If you have any questions about this privacy policy or want to
 								exercise your rights, please contact us at{" "}
@@ -176,9 +182,9 @@ export default function PrivacyPolicy() {
 						</section>
 
 						<section>
-							<h3 className="text-lg font-semibold mb-3">
+							<h2 className="text-lg font-semibold mb-3">
 								Changes to This Policy
-							</h3>
+							</h2>
 							<p className="text-muted-foreground">
 								We may update this privacy policy from time to time. Any changes
 								will be posted on this page with an updated date.
@@ -195,7 +201,7 @@ export default function PrivacyPolicy() {
 						</div>
 					</CardContent>
 				</Card>
-			</div>
+			</main>
 			<ScrollToTopButton mobileDock="stacked-with-filter" />
 		</div>
 	);

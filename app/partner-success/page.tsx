@@ -17,6 +17,7 @@ export const metadata: Metadata = generateOGMetadata({
 		"Your payment was received. The OOOC team will activate your placement shortly.",
 	ogImageUrl: generatePresetOGImage("partner-success"),
 	url: buildSiteUrl("/partner-success"),
+	noIndex: true,
 });
 
 export default function PartnerSuccessPage() {

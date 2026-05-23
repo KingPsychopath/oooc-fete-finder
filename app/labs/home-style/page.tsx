@@ -29,7 +29,7 @@ const CARD_OPTIONS = [
 const basePath = getBasePath();
 
 export const metadata: Metadata = generateOGMetadata({
-	title: "Homepage Style Lab | Fête Finder",
+	title: "Homepage Style Lab",
 	description: "Private Fête Finder homepage style lab.",
 	ogImageUrl: generateMainOGImage(),
 	url: buildSiteUrl("/labs/home-style"),

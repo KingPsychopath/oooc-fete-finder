@@ -1,6 +1,6 @@
 export default function PartnerSuccessLoading() {
 	return (
-		<main className="container mx-auto max-w-3xl px-4 py-12" aria-hidden="true">
+		<div className="container mx-auto max-w-3xl px-4 py-12" aria-hidden="true">
 			<section className="rounded-2xl border border-border/80 bg-card/90 p-8 text-center">
 				<div className="mx-auto h-12 w-12 animate-pulse rounded-full bg-muted/55" />
 				<div className="mx-auto mt-4 h-3 w-32 animate-pulse rounded bg-muted/55" />
@@ -12,6 +12,6 @@ export default function PartnerSuccessLoading() {
 					<div className="h-10 w-40 animate-pulse rounded-full bg-muted/55" />
 				</div>
 			</section>
-		</main>
+		</div>
 	);
 }

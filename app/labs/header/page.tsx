@@ -61,7 +61,7 @@ const HEADER_OPTIONS: HeaderOption[] = [
 const basePath = getBasePath();
 
 export const metadata: Metadata = generateOGMetadata({
-	title: "Header Lab | Fête Finder",
+	title: "Header Lab",
 	description: "Private Fête Finder header design lab.",
 	ogImageUrl: generateMainOGImage(),
 	url: buildSiteUrl("/labs/header"),
@@ -70,7 +70,7 @@ export const metadata: Metadata = generateOGMetadata({
 
 export default function HeaderLabPage() {
 	return (
-		<div className="ooo-site-shell px-4 py-8 sm:px-6">
+		<main className="ooo-site-shell px-4 py-8 sm:px-6">
 			<div className="mx-auto w-full max-w-[1240px]">
 				<div className="mb-6 flex flex-wrap items-center justify-between gap-3">
 					<div>
@@ -156,6 +156,6 @@ export default function HeaderLabPage() {
 					))}
 				</div>
 			</div>
-		</div>
+		</main>
 	);
 }

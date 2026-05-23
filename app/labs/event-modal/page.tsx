@@ -27,7 +27,7 @@ type WildConcept = {
 const basePath = getBasePath();
 
 export const metadata: Metadata = generateOGMetadata({
-	title: "Event Modal Lab | Fête Finder",
+	title: "Event Modal Lab",
 	description: "Private Fête Finder event modal design lab.",
 	ogImageUrl: generateMainOGImage(),
 	url: buildSiteUrl("/labs/event-modal"),

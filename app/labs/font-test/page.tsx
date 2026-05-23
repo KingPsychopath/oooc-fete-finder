@@ -17,7 +17,7 @@ import {
 import Link from "next/link";
 
 export const metadata: Metadata = {
-	title: "Font Test | Fête Finder",
+	title: "Font Test",
 	robots: {
 		index: false,
 		follow: false,

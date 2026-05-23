@@ -21,7 +21,7 @@ const arrondissementGeoJsonPath = path.join(
 );
 
 export const metadata: Metadata = generateOGMetadata({
-	title: "Offline Map Options Lab | Fête Finder",
+	title: "Offline Map Options Lab",
 	description: "Compare offline map rendering options for Fête Finder.",
 	ogImageUrl: generateMainOGImage(),
 	url: buildSiteUrl("/labs/offline-map-options"),
