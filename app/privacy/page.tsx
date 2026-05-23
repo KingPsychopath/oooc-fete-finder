@@ -5,19 +5,17 @@ import {
 	generateOGMetadata,
 	generatePresetOGImage,
 } from "@/lib/social/og-utils";
+import { buildSiteUrl } from "@/lib/site-url";
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
 export const metadata: Metadata = generateOGMetadata({
-	title: "Privacy Policy | Fête Finder",
+	title: "Privacy Policy",
 	description:
 		"How Out Of Office Collective handles attendee, host and partner data for Fête Finder.",
 	ogImageUrl: generatePresetOGImage("privacy"),
-	url: `${siteUrl}${basePath || ""}/privacy`,
+	url: buildSiteUrl("/privacy"),
 });
 
 // Force static generation for this page

@@ -2,11 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadOgUtils = async () => {
 	vi.resetModules();
-	vi.doMock("@/lib/config/env", () => ({
-		env: {
-			NEXT_PUBLIC_SITE_URL: "https://fete-finder.ooo",
-		},
-	}));
+	process.env.NEXT_PUBLIC_SITE_URL = "https://fete-finder.ooo";
+	process.env.NEXT_PUBLIC_BASE_PATH = "";
 	return import("@/lib/social/og-utils");
 };
 
@@ -50,5 +47,26 @@ describe("og-utils", () => {
 		expect(metadata.twitter.images[0]).toMatchObject({
 			url: "/api/og?variant=default",
 		});
+	});
+
+	it("normalizes trailing site URL slashes in canonical metadata", async () => {
+		vi.resetModules();
+		process.env.NEXT_PUBLIC_SITE_URL = "https://fete-finder.ooo/";
+		process.env.NEXT_PUBLIC_BASE_PATH = "";
+
+		const [{ generateOGMetadata }, { buildSiteUrl }] = await Promise.all([
+			import("@/lib/social/og-utils"),
+			import("@/lib/site-url"),
+		]);
+		const metadata = generateOGMetadata({
+			title: "Privacy Policy",
+			description: "Data handling",
+			ogImageUrl: "/og/privacy.png",
+			url: buildSiteUrl("/privacy"),
+		});
+
+		expect(metadata.alternates.canonical).toBe(
+			"https://fete-finder.ooo/privacy",
+		);
 	});
 });

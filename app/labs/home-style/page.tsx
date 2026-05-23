@@ -1,4 +1,5 @@
 import { generateMainOGImage, generateOGMetadata } from "@/lib/social/og-utils";
+import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -25,14 +26,13 @@ const CARD_OPTIONS = [
 	},
 ];
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const basePath = getBasePath();
 
 export const metadata: Metadata = generateOGMetadata({
 	title: "Homepage Style Lab | Fête Finder",
 	description: "Private Fête Finder homepage style lab.",
 	ogImageUrl: generateMainOGImage(),
-	url: `${siteUrl}${basePath || ""}/labs/home-style`,
+	url: buildSiteUrl("/labs/home-style"),
 	noIndex: true,
 });
 

@@ -3,7 +3,7 @@
  * Static public pages use fixed PNGs; event shares stay dynamic.
  */
 
-import { env } from "@/lib/config/env";
+import { buildSiteUrl } from "@/lib/site-url";
 
 type OGImageVariant = "default" | "event-modal";
 type LegacyTheme = "default" | "event" | "admin" | "custom";
@@ -148,8 +148,7 @@ export const generateOGMetadata = (params: {
 	url?: string;
 	noIndex?: boolean;
 }) => {
-	const siteUrl = env.NEXT_PUBLIC_SITE_URL;
-	const url = params.url || siteUrl;
+	const url = params.url || buildSiteUrl("/");
 
 	return {
 		title: params.title,

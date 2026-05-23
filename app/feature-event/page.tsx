@@ -8,6 +8,7 @@ import {
 	generateOGMetadata,
 	generatePresetOGImage,
 } from "@/lib/social/og-utils";
+import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import {
 	ArrowRight,
 	CircleHelp,
@@ -28,11 +29,11 @@ import { FeatureEventStatusSection } from "./FeatureEventStatusSection";
 
 export const metadata: Metadata = {
 	...generateOGMetadata({
-		title: "Partner With OOOC | Fete Finder",
+		title: "Partner With OOOC",
 		description:
 			"Request Spotlight and Promoted placements for Fete de la Musique 2026 in minutes.",
 		ogImageUrl: generatePresetOGImage("feature-event"),
-		url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${process.env.NEXT_PUBLIC_BASE_PATH || ""}/feature-event`,
+		url: buildSiteUrl("/feature-event"),
 	}),
 	keywords: [
 		"fete de la musique",
@@ -44,7 +45,7 @@ export const metadata: Metadata = {
 
 export const revalidate = false;
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const basePath = getBasePath();
 const contactEmail = "hello@outofofficecollective.co.uk";
 const fallbackContactHref = `mailto:${contactEmail}?subject=OOOC%20Fete%202026%20-%20Partnership%20Inquiry`;
 const mediaKitHref = `${basePath}/media-kit/OOOC-Fete-2026-Media-Kit.pdf`;

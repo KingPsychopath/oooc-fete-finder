@@ -14,15 +14,13 @@ import {
 	generateEventOGImage,
 	generateOGMetadata,
 } from "@/lib/social/og-utils";
+import { buildSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { HomeHeader } from "../../../HomeHeader";
 import { EventShareClient } from "./EventShareClient";
 import { EventShareModalPreview } from "./EventShareModalPreview";
-
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 type EventSharePageProps = {
 	params: Promise<{ eventKey: string; slug?: string[] }>;
@@ -45,11 +43,6 @@ const toDisplayTitle = (value: string): string => {
 		.split(/\s+/)
 		.map((segment) => segment[0]?.toUpperCase() + segment.slice(1))
 		.join(" ");
-};
-
-const normalizeBasePath = (value: string): string => {
-	if (!value || value === "/") return "";
-	return value.endsWith("/") ? value.slice(0, -1) : value;
 };
 
 const getSlug = (value: string[] | undefined): string =>
@@ -109,8 +102,7 @@ const buildShareDescription = (event: EventShareDetails | null): string => {
 const buildEventSharePath = (eventKey: string, slug: string): string => {
 	const encodedKey = encodeURIComponent(eventKey);
 	const encodedSlug = slug ? `/${encodeURIComponent(slug)}` : "";
-	const normalizedBasePath = normalizeBasePath(basePath);
-	return `${normalizedBasePath}/event/${encodedKey}${encodedSlug}`;
+	return `/event/${encodedKey}${encodedSlug}`;
 };
 
 export async function generateMetadata({
@@ -130,7 +122,7 @@ export async function generateMetadata({
 		matchedEvent?.eventKey || eventKey,
 		matchedEvent?.slug || resolvedSlug,
 	);
-	const eventUrl = new URL(eventSharePath, siteUrl);
+	const eventUrl = buildSiteUrl(eventSharePath);
 	const durationMs = Date.now() - startedAt;
 	if (durationMs >= 500) {
 		log.warn("event-share-page", "Slow event metadata generation", {
@@ -147,12 +139,12 @@ export async function generateMetadata({
 			ogImageUrl: generateEventOGImage({
 				eventKey,
 			}),
-			url: eventUrl.toString(),
+			url: eventUrl,
 			noIndex: true,
 		}),
 		title: eventTitle,
 		alternates: {
-			canonical: eventUrl.toString(),
+			canonical: eventUrl,
 		},
 	};
 }

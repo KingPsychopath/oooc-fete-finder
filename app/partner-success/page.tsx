@@ -3,19 +3,20 @@ import {
 	generateOGMetadata,
 	generatePresetOGImage,
 } from "@/lib/social/og-utils";
+import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import { CheckCircle2 } from "lucide-react";
 import type { Metadata } from "next";
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const basePath = getBasePath();
 
 export const revalidate = false;
 
 export const metadata: Metadata = generateOGMetadata({
-	title: "Payment Received | OOOC Fete Finder",
+	title: "Payment Received",
 	description:
 		"Your payment was received. The OOOC team will activate your placement shortly.",
 	ogImageUrl: generatePresetOGImage("partner-success"),
-	url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}${basePath || ""}/partner-success`,
+	url: buildSiteUrl("/partner-success"),
 });
 
 export default function PartnerSuccessPage() {

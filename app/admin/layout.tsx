@@ -1,23 +1,21 @@
 import { getAdminSessionStatus } from "@/features/auth/actions";
-import { env } from "@/lib/config/env";
 import { getEventSubmissionRepository } from "@/lib/platform/postgres/event-submission-repository";
 import { getPartnerActivationRepository } from "@/lib/platform/postgres/partner-activation-repository";
 import {
 	generateMainOGImage,
 	generateOGMetadata,
 } from "@/lib/social/og-utils";
+import { buildSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
 import { AdminAuthClient } from "./AdminAuthClient";
 import { AdminShell } from "./components/AdminShell";
 
-const siteUrl = env.NEXT_PUBLIC_SITE_URL;
-
 export const metadata: Metadata = generateOGMetadata({
-	title: "Admin Dashboard | Fête Finder - OOOC",
+	title: "Admin Dashboard",
 	description:
 		"Event management dashboard for Fête Finder. Monitor runtime data status, manage data sources, and view collected user interactions.",
 	ogImageUrl: generateMainOGImage(),
-	url: `${siteUrl}/admin`,
+	url: buildSiteUrl("/admin"),
 	noIndex: true,
 });
 

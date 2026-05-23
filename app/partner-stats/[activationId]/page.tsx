@@ -11,12 +11,12 @@ import {
 	generateOGMetadata,
 	generatePresetOGImage,
 } from "@/lib/social/og-utils";
+import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import { ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const basePath = getBasePath();
 
 const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
@@ -32,11 +32,11 @@ export async function generateMetadata({
 	const encodedActivationId = encodeURIComponent(activationId);
 
 	return generateOGMetadata({
-		title: "Partner Performance Report | OOOC Fete Finder",
+		title: "Partner Performance Report",
 		description:
 			"Private partner performance metrics for OOOC campaign placements.",
 		ogImageUrl: generatePresetOGImage("partner-performance-report"),
-		url: `${siteUrl}${basePath || ""}/partner-stats/${encodedActivationId}`,
+		url: buildSiteUrl(`/partner-stats/${encodedActivationId}`),
 		noIndex: true,
 	});
 }

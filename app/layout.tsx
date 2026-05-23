@@ -13,6 +13,7 @@ import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { AuthProvider } from "@/features/auth/auth-context";
 import { CommunityInvite } from "@/features/social/components/CommunityInvite";
 import { generateMainOGImage } from "@/lib/social/og-utils";
+import { getSiteUrl } from "@/lib/site-url";
 import { Analytics } from "@vercel/analytics/next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
@@ -23,7 +24,7 @@ import { Prata } from "next/font/google";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 // Get the site URL from environment or default to localhost for development
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const siteUrl = getSiteUrl();
 
 const prata = Prata({
 	weight: "400",

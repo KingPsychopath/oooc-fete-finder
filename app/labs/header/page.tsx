@@ -1,4 +1,5 @@
 import { generateMainOGImage, generateOGMetadata } from "@/lib/social/og-utils";
+import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -57,14 +58,13 @@ const HEADER_OPTIONS: HeaderOption[] = [
 			"border-white/20 bg-white/10 text-white/90 hover:bg-white/18",
 	},
 ];
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const basePath = getBasePath();
 
 export const metadata: Metadata = generateOGMetadata({
 	title: "Header Lab | Fête Finder",
 	description: "Private Fête Finder header design lab.",
 	ogImageUrl: generateMainOGImage(),
-	url: `${siteUrl}${basePath || ""}/labs/header`,
+	url: buildSiteUrl("/labs/header"),
 	noIndex: true,
 });
 

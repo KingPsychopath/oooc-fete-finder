@@ -1,15 +1,8 @@
 import type { MetadataRoute } from "next";
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-
-const normalizeBasePath = (value: string): string => {
-	if (!value || value === "/") return "";
-	return value.endsWith("/") ? value.slice(0, -1) : value;
-};
+import { buildSiteUrl, getBasePath, getSiteUrl } from "@/lib/site-url";
 
 const withBasePath = (path: string): string =>
-	`${normalizeBasePath(basePath)}${path}`;
+	`${getBasePath()}${path}`;
 
 export default function robots(): MetadataRoute.Robots {
 	return {
@@ -29,10 +22,7 @@ export default function robots(): MetadataRoute.Robots {
 				withBasePath("/social"),
 			],
 		},
-		sitemap: new URL(
-			`${normalizeBasePath(basePath)}/sitemap.xml`,
-			siteUrl,
-		).toString(),
-		host: siteUrl,
+		sitemap: buildSiteUrl("/sitemap.xml"),
+		host: getSiteUrl(),
 	};
 }

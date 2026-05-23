@@ -2,12 +2,12 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { generateMainOGImage, generateOGMetadata } from "@/lib/social/og-utils";
+import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { OfflineMapOptionsClient } from "./OfflineMapOptionsClient";
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const basePath = getBasePath();
 const previewImagePath = path.join(
 	process.cwd(),
 	"public",
@@ -24,7 +24,7 @@ export const metadata: Metadata = generateOGMetadata({
 	title: "Offline Map Options Lab | Fête Finder",
 	description: "Compare offline map rendering options for Fête Finder.",
 	ogImageUrl: generateMainOGImage(),
-	url: `${siteUrl}${basePath || ""}/labs/offline-map-options`,
+	url: buildSiteUrl("/labs/offline-map-options"),
 	noIndex: true,
 });
 

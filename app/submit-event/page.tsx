@@ -1,19 +1,19 @@
 import { generateOGMetadata, generatePresetOGImage } from "@/lib/social/og-utils";
+import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { SubmitEventFormSection } from "./SubmitEventFormSection";
 import { SubmitEventFormSectionLoading } from "./SubmitEventFormSectionLoading";
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const basePath = getBasePath();
 
 export const metadata: Metadata = generateOGMetadata({
-	title: "Submit Event | Fête Finder",
+	title: "Submit Event",
 	description:
 		"Submit your event to Out Of Office Collective with only the essential details. Our team reviews every submission before publishing.",
 	ogImageUrl: generatePresetOGImage("submit-event"),
-	url: `${siteUrl}${basePath || ""}/submit-event`,
+	url: buildSiteUrl("/submit-event"),
 });
 
 export const revalidate = false;
