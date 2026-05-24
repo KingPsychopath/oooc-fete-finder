@@ -71,6 +71,31 @@ describe("event row metadata", () => {
 		expect(updated).toBe(base);
 	});
 
+	it("does not treat classification-only edits as public event detail updates", () => {
+		const base = buildMeaningfulEventRowHash({
+			eventKey: "evt_1",
+			title: "Fete Party",
+			price: "€20",
+			eventCategory: "Party",
+			tags: "afrobeats",
+			curated: "",
+			sourceConfirmed: "",
+			detailsQualityOverride: "",
+		});
+		const updated = buildMeaningfulEventRowHash({
+			eventKey: "evt_1",
+			title: "Fete Party",
+			price: "€20",
+			eventCategory: "Culture",
+			tags: "afrobeats, amapiano",
+			curated: "🌟",
+			sourceConfirmed: "yes",
+			detailsQualityOverride: "complete",
+		});
+
+		expect(updated).toBe(base);
+	});
+
 	it("accepts old public-content hash versions as compatible", () => {
 		expect(
 			isCompatibleMeaningfulEventRowHash("3eaf96f3b347c3d3", {
@@ -90,6 +115,17 @@ describe("event row metadata", () => {
 				eventCategory: "Party",
 				title: "Fete Party",
 				price: "€20",
+			}),
+		).toBe(true);
+
+		const hashFromVersionBeforeDateToWasTracked = "957c4b3da1c85d26";
+		expect(
+			isCompatibleMeaningfulEventRowHash(hashFromVersionBeforeDateToWasTracked, {
+				eventKey: "evt_1",
+				eventCategory: "Party",
+				title: "Fete Party",
+				price: "€20",
+				dateTo: "2026-06-22",
 			}),
 		).toBe(true);
 	});
