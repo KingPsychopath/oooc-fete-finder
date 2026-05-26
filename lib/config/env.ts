@@ -43,7 +43,7 @@ const getProjectEnvFileValue = (key: string): string | null => {
 	].filter((file): file is string => Boolean(file));
 
 	for (const file of candidates) {
-		const filePath = path.join(process.cwd(), file);
+		const filePath = path.join(/*turbopackIgnore: true*/ process.cwd(), file);
 		if (!fs.existsSync(filePath)) continue;
 		const value = parseEnvFileValue(fs.readFileSync(filePath, "utf8"), key);
 		if (value) return value;
@@ -181,8 +181,14 @@ export const env = createEnv({
 		NEXT_PUBLIC_TOILET_FINDER_IOS_URL: z.string().url().optional(),
 		NEXT_PUBLIC_TOILET_FINDER_ANDROID_URL: z.string().url().optional(),
 		NEXT_PUBLIC_FOOD_GUIDE_URL: z.string().url().optional(),
-		NEXT_PUBLIC_PRICE_RATE_GBP_TO_EUR: z.coerce.number().positive().default(1.154),
-		NEXT_PUBLIC_PRICE_RATE_USD_TO_EUR: z.coerce.number().positive().default(0.854),
+		NEXT_PUBLIC_PRICE_RATE_GBP_TO_EUR: z.coerce
+			.number()
+			.positive()
+			.default(1.154),
+		NEXT_PUBLIC_PRICE_RATE_USD_TO_EUR: z.coerce
+			.number()
+			.positive()
+			.default(0.854),
 	},
 
 	/**
@@ -226,14 +232,12 @@ export const env = createEnv({
 		NEXT_PUBLIC_YOUTUBE_MUSIC_PLAYLIST_URL:
 			process.env.NEXT_PUBLIC_YOUTUBE_MUSIC_PLAYLIST_URL,
 		NEXT_PUBLIC_OOOC_WEBSITE_URL: process.env.NEXT_PUBLIC_OOOC_WEBSITE_URL,
-		NEXT_PUBLIC_OOOC_INSTAGRAM_URL:
-			process.env.NEXT_PUBLIC_OOOC_INSTAGRAM_URL,
+		NEXT_PUBLIC_OOOC_INSTAGRAM_URL: process.env.NEXT_PUBLIC_OOOC_INSTAGRAM_URL,
 		NEXT_PUBLIC_OOOC_TIKTOK_URL: process.env.NEXT_PUBLIC_OOOC_TIKTOK_URL,
 		NEXT_PUBLIC_OOOC_CONTACT_URL: process.env.NEXT_PUBLIC_OOOC_CONTACT_URL,
 		NEXT_PUBLIC_OOOC_FAQ_URL: process.env.NEXT_PUBLIC_OOOC_FAQ_URL,
 		NEXT_PUBLIC_CREATOR_X_URL: process.env.NEXT_PUBLIC_CREATOR_X_URL,
-		NEXT_PUBLIC_SUPPORT_COFFEE_URL:
-			process.env.NEXT_PUBLIC_SUPPORT_COFFEE_URL,
+		NEXT_PUBLIC_SUPPORT_COFFEE_URL: process.env.NEXT_PUBLIC_SUPPORT_COFFEE_URL,
 		NEXT_PUBLIC_TOILET_FINDER_IOS_URL:
 			process.env.NEXT_PUBLIC_TOILET_FINDER_IOS_URL,
 		NEXT_PUBLIC_TOILET_FINDER_ANDROID_URL:

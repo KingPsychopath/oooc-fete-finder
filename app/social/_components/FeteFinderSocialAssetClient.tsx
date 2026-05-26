@@ -44,7 +44,8 @@ const socialAssetVariants: Record<
 		title: "Share Fête Finder on Twitter",
 		description:
 			"A wide social card for posts, link previews and announcement threads.",
-		exportHint: "Exports at 1600 x 900 for Twitter, LinkedIn and widescreen posts.",
+		exportHint:
+			"Exports at 1600 x 900 for Twitter, LinkedIn and widescreen posts.",
 		previewScaleClassName:
 			"[--asset-scale:0.22] sm:[--asset-scale:0.32] xl:[--asset-scale:0.42]",
 	},
@@ -261,6 +262,7 @@ function BrandMark({ size = 80 }: { size?: number }) {
 				src="/OOOCLogoDark.svg"
 				alt=""
 				fill
+				unoptimized
 				priority
 				sizes={`${size}px`}
 				className="object-contain"
@@ -297,8 +299,8 @@ function StoryArtwork() {
 					Fête Finder
 				</h1>
 				<p className="m-0 mt-8 max-w-[760px] text-[46px] leading-[1.08] text-[#3a2a20]">
-					Your curated guide to Paris music events, mapped by area, genre,
-					price and vibe.
+					Your curated guide to Paris music events, mapped by area, genre, price
+					and vibe.
 				</p>
 			</div>
 

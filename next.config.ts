@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
 	reactStrictMode: true,
 	trailingSlash: false,
 	outputFileTracingIncludes: {
-		"/*": ["./data/events.csv"],
+		"/*": ["./data/events.csv", "./public/fonts/Geist-Regular.ttf"],
 	},
 	async headers() {
 		return [

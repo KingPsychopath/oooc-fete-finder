@@ -6,6 +6,8 @@ export const getCurrentDeploymentId = (): string => {
 		process.env.VERCEL_DEPLOYMENT_ID,
 		process.env.VERCEL_URL,
 		process.env.VERCEL_GIT_COMMIT_SHA,
+		process.env.RAILWAY_DEPLOYMENT_ID,
+		process.env.RAILWAY_GIT_COMMIT_SHA,
 		process.env.BUILD_ID,
 	];
 

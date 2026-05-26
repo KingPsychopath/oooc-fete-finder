@@ -1,15 +1,17 @@
 import "server-only";
 
 import path from "path";
-import { isPostgresConfigured } from "@/lib/platform/postgres/postgres-client";
 import { log } from "@/lib/platform/logger";
+import { isPostgresConfigured } from "@/lib/platform/postgres/postgres-client";
 import { FileKVStore } from "./file-kv-store";
-import type { KeyValueStore, KVProviderInfo } from "./kv-types";
+import type { KVProviderInfo, KeyValueStore } from "./kv-types";
 import { MemoryKVStore } from "./memory-kv-store";
 import { PostgresKVStore } from "./postgres-kv-store";
 
-let storeSingleton: Promise<{ store: KeyValueStore; info: KVProviderInfo }> | null =
-	null;
+let storeSingleton: Promise<{
+	store: KeyValueStore;
+	info: KVProviderInfo;
+}> | null = null;
 
 const isVercelDeployRuntime = (): boolean => {
 	if (process.env.VERCEL !== "1") {
@@ -21,6 +23,9 @@ const isVercelDeployRuntime = (): boolean => {
 		process.env.VERCEL_ENV === "preview"
 	);
 };
+
+const isStrictProductionRuntime = (): boolean =>
+	process.env.NODE_ENV === "production" || isVercelDeployRuntime();
 
 const createPostgresStore = async (): Promise<{
 	store: KeyValueStore;
@@ -41,26 +46,28 @@ const createStore = async (): Promise<{
 	store: KeyValueStore;
 	info: KVProviderInfo;
 }> => {
-	const strictRuntime = isVercelDeployRuntime();
+	const strictRuntime = isStrictProductionRuntime();
 	const isEdgeRuntime = process.env.NEXT_RUNTIME === "edge";
 	const postgresConfigured = isPostgresConfigured();
 
 	if (strictRuntime) {
 		if (isEdgeRuntime) {
 			const message =
-				"KV strict mode requires a Node.js runtime in Vercel preview/production.";
+				"KV strict mode requires a Node.js runtime in deployed production.";
 			log.error("kv", message, {
 				runtime: process.env.NEXT_RUNTIME ?? "unknown",
 				vercelEnv: process.env.VERCEL_ENV ?? "unknown",
+				railwayEnvironment: process.env.RAILWAY_ENVIRONMENT_NAME ?? "unknown",
 			});
 			throw new Error(message);
 		}
 
 		if (!postgresConfigured) {
 			const message =
-				"KV strict mode is active in Vercel preview/production. Configure DATABASE_URL for Postgres KV.";
+				"KV strict mode is active in production. Configure DATABASE_URL for Postgres KV.";
 			log.error("kv", message, {
 				vercelEnv: process.env.VERCEL_ENV ?? "unknown",
+				railwayEnvironment: process.env.RAILWAY_ENVIRONMENT_NAME ?? "unknown",
 			});
 			throw new Error(message);
 		}
@@ -75,6 +82,7 @@ const createStore = async (): Promise<{
 				message,
 				{
 					vercelEnv: process.env.VERCEL_ENV ?? "unknown",
+					railwayEnvironment: process.env.RAILWAY_ENVIRONMENT_NAME ?? "unknown",
 				},
 				error,
 			);
@@ -82,16 +90,19 @@ const createStore = async (): Promise<{
 		}
 	}
 
-	const shouldPreferPostgres =
-		!isEdgeRuntime && postgresConfigured;
+	const shouldPreferPostgres = !isEdgeRuntime && postgresConfigured;
 
 	if (shouldPreferPostgres) {
 		try {
 			return await createPostgresStore();
 		} catch (error) {
-			log.warn("kv", "Failed to initialize Postgres KV store; falling back to file", {
-				error: error instanceof Error ? error.message : "Unknown error",
-			});
+			log.warn(
+				"kv",
+				"Failed to initialize Postgres KV store; falling back to file",
+				{
+					error: error instanceof Error ? error.message : "Unknown error",
+				},
+			);
 		}
 	}
 
@@ -106,9 +117,13 @@ const createStore = async (): Promise<{
 				info: { provider: "file", location: filePath },
 			};
 		} catch (error) {
-			log.warn("kv", "Failed to initialize file KV store; falling back to memory", {
-				error: error instanceof Error ? error.message : "Unknown error",
-			});
+			log.warn(
+				"kv",
+				"Failed to initialize file KV store; falling back to memory",
+				{
+					error: error instanceof Error ? error.message : "Unknown error",
+				},
+			);
 		}
 	}
 

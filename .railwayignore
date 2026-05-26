@@ -1,0 +1,11 @@
+.env
+.env.*
+.next
+node_modules
+coverage
+test-results
+.vercel
+.DS_Store
+*.tsbuildinfo
+service-account.json
+data/local-kv-store.json

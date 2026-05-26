@@ -12,8 +12,8 @@ import { OnlineStatusProvider } from "@/components/online-status-gate";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { AuthProvider } from "@/features/auth/auth-context";
 import { CommunityInvite } from "@/features/social/components/CommunityInvite";
-import { generateMainOGImage } from "@/lib/social/og-utils";
 import { getSiteUrl } from "@/lib/site-url";
+import { generateMainOGImage } from "@/lib/social/og-utils";
 import { Analytics } from "@vercel/analytics/next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
@@ -25,6 +25,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 // Get the site URL from environment or default to localhost for development
 const siteUrl = getSiteUrl();
+const isVercelRuntime = process.env.VERCEL === "1";
 const siteStructuredData = {
 	"@context": "https://schema.org",
 	"@graph": [
@@ -33,8 +34,7 @@ const siteStructuredData = {
 			"@id": `${siteUrl}/#website`,
 			url: siteUrl,
 			name: "Fête Finder",
-			description:
-				"Curated Paris music events by Out Of Office Collective.",
+			description: "Curated Paris music events by Out Of Office Collective.",
 			publisher: {
 				"@id": `${siteUrl}/#organization`,
 			},
@@ -243,7 +243,7 @@ export default function RootLayout({
 						</AuthProvider>
 					</OnlineStatusProvider>
 				</ThemeProvider>
-				<Analytics />
+				{isVercelRuntime ? <Analytics /> : null}
 			</body>
 		</html>
 	);

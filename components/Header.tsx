@@ -23,7 +23,7 @@ const EmailGateModal = lazy(
 );
 
 // Get base path from environment variable directly
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const ooocFaqUrl =
 	process.env.NEXT_PUBLIC_OOOC_FAQ_URL?.trim() ||
 	"https://outofofficecollective.co.uk/faqs";
@@ -212,6 +212,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 									src={`${basePath}/OOOCLogoDark.svg`}
 									alt=""
 									fill
+									unoptimized
 									priority
 									sizes="(max-width: 640px) 40px, 48px"
 									className="object-contain transition-transform hover:scale-105 dark:invert"

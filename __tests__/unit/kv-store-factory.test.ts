@@ -6,6 +6,7 @@ const resetEnv = () => {
 	process.env = { ...ORIGINAL_ENV };
 	delete process.env.VERCEL;
 	delete process.env.VERCEL_ENV;
+	delete process.env.RAILWAY_ENVIRONMENT_NAME;
 	delete process.env.NEXT_RUNTIME;
 };
 
@@ -28,7 +29,23 @@ describe("kv-store-factory", () => {
 		const { getKVStore } = await import("@/lib/platform/kv/kv-store-factory");
 
 		await expect(getKVStore()).rejects.toThrow(
-			"KV strict mode is active in Vercel preview/production. Configure DATABASE_URL for Postgres KV.",
+			"KV strict mode is active in production. Configure DATABASE_URL for Postgres KV.",
+		);
+	});
+
+	it("throws in generic production strict mode when Postgres is not configured", async () => {
+		process.env.NODE_ENV = "production";
+		process.env.RAILWAY_ENVIRONMENT_NAME = "production";
+		process.env.NEXT_RUNTIME = "nodejs";
+
+		vi.doMock("@/lib/platform/postgres/postgres-client", () => ({
+			isPostgresConfigured: () => false,
+		}));
+
+		const { getKVStore } = await import("@/lib/platform/kv/kv-store-factory");
+
+		await expect(getKVStore()).rejects.toThrow(
+			"KV strict mode is active in production. Configure DATABASE_URL for Postgres KV.",
 		);
 	});
 
@@ -82,7 +99,9 @@ describe("kv-store-factory", () => {
 			},
 		}));
 
-		const { getKVStoreInfo } = await import("@/lib/platform/kv/kv-store-factory");
+		const { getKVStoreInfo } = await import(
+			"@/lib/platform/kv/kv-store-factory"
+		);
 		const info = await getKVStoreInfo();
 
 		expect(info.provider).toBe("file");
@@ -114,7 +133,9 @@ describe("kv-store-factory", () => {
 			},
 		}));
 
-		const { getKVStoreInfo } = await import("@/lib/platform/kv/kv-store-factory");
+		const { getKVStoreInfo } = await import(
+			"@/lib/platform/kv/kv-store-factory"
+		);
 		const info = await getKVStoreInfo();
 
 		expect(info.provider).toBe("memory");

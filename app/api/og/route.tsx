@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
-import { readFile } from "fs/promises";
 import { join } from "path";
+import { DataManager } from "@/features/data-management/data-manager";
 import {
 	getCurrentParisYearDateRange,
 	getEventCountForDateRange,
@@ -16,15 +16,14 @@ import {
 	type EventShareDetails,
 	getEventShareDetails,
 } from "@/lib/social/event-share-details";
-import { DataManager } from "@/features/data-management/data-manager";
-import { ImageResponse } from "next/og";
+import { readFile } from "fs/promises";
 import { unstable_cache } from "next/cache";
+import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
-const OG_CACHE_CONTROL =
-	"public, max-age=0, must-revalidate";
+const OG_CACHE_CONTROL = "public, max-age=0, must-revalidate";
 const OG_CDN_CACHE_CONTROL =
 	"public, s-maxage=86400, stale-while-revalidate=604800";
 const OG_RESPONSE_HEADERS = {
@@ -107,20 +106,17 @@ const readFont = async (
 };
 
 const loadOGFonts = async (): Promise<OGFont[]> => {
-	const fallbackSans = await readFont(
-		"Degular",
-		join(
-			process.cwd(),
-			"node_modules",
-			"geist",
-			"dist",
-			"fonts",
-			"geist-sans",
-			"Geist-Regular.ttf",
-		),
-	);
+	const fontCandidates = [
+		join(process.cwd(), "public", "fonts", "Geist-Regular.ttf"),
+	];
 
-	return fallbackSans ? [fallbackSans] : [];
+	for (const fontPath of fontCandidates) {
+		const fallbackSans = await readFont("Degular", fontPath);
+		if (fallbackSans) return [fallbackSans];
+	}
+
+	log.warn("og-image", "No OG fonts loaded; ImageResponse may fail");
+	return [];
 };
 
 let ogFontsPromise: Promise<OGFont[]> | null = null;
@@ -219,7 +215,16 @@ export async function HEAD(request: NextRequest) {
 
 const STATIC_PRESET_CONTENT: Record<
 	Exclude<OGPreset, "event">,
-	Omit<OGContent, "eventCount" | "arrondissement" | "date" | "time" | "price" | "venue" | "genres">
+	Omit<
+		OGContent,
+		| "eventCount"
+		| "arrondissement"
+		| "date"
+		| "time"
+		| "price"
+		| "venue"
+		| "genres"
+	>
 > = {
 	home: {
 		variant: "default",
@@ -229,7 +234,8 @@ const STATIC_PRESET_CONTENT: Record<
 	"how-it-works": {
 		variant: "default",
 		title: "How Fête Finder Works",
-		subtitle: "Plan your Paris music weekend with curated picks, filters and community tips",
+		subtitle:
+			"Plan your Paris music weekend with curated picks, filters and community tips",
 	},
 	privacy: {
 		variant: "default",
@@ -426,7 +432,9 @@ const resolveStaticPresetContent = (
 
 const getCachedCurrentYearEventCount = unstable_cache(
 	async (): Promise<number> => {
-		const result = await DataManager.getEventsData({ populateCoordinates: false });
+		const result = await DataManager.getEventsData({
+			populateCoordinates: false,
+		});
 		if (!result.success) {
 			return 0;
 		}
@@ -531,8 +539,7 @@ export async function GET(request: NextRequest) {
 				? `${arrondissement} · Paris`
 				: "Paris";
 		const isEventCard = variant === "event-modal";
-		const titleFontSize =
-			title.length > 58 ? 62 : title.length > 38 ? 76 : 98;
+		const titleFontSize = title.length > 58 ? 62 : title.length > 38 ? 76 : 98;
 		const cardMaxWidth = isEventCard ? 1000 : 980;
 		const cardPadding = isEventCard ? "36px 40px" : "34px 38px";
 		const subtitleFontSize = isEventCard ? 28 : 32;
