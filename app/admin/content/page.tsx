@@ -89,21 +89,21 @@ export default async function AdminContentPage() {
 				/>
 			</section>
 
-			<section id="search-chips" className="scroll-mt-44">
-				<SearchChipSettingsCard
-					initialSettings={
-						searchChipSettings.status === "fulfilled"
-							? searchChipSettings.value
-							: undefined
-					}
-				/>
-			</section>
-
 			<section id="sliding-banner" className="scroll-mt-44">
 				<SlidingBannerSettingsCard
 					initialSettings={
 						slidingBannerSettings.status === "fulfilled"
 							? slidingBannerSettings.value
+							: undefined
+					}
+				/>
+			</section>
+
+			<section id="search-chips" className="scroll-mt-44">
+				<SearchChipSettingsCard
+					initialSettings={
+						searchChipSettings.status === "fulfilled"
+							? searchChipSettings.value
 							: undefined
 					}
 				/>

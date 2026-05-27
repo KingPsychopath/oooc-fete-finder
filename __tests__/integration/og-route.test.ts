@@ -76,7 +76,7 @@ describe("/api/og route", () => {
 		vi.clearAllMocks();
 	});
 
-	it("returns a cacheable preset OG image response when request is within limit", async () => {
+	it("returns a revalidating preset OG image response when request is within limit", async () => {
 		const { GET, kv } = await loadRoute(null);
 		const request = new Request(
 			"https://example.com/api/og?preset=feature-event",
@@ -95,10 +95,10 @@ describe("/api/og route", () => {
 			"max-age=0, must-revalidate",
 		);
 		expect(response.headers.get("vercel-cdn-cache-control")).toContain(
-			"s-maxage=86400",
+			"max-age=0, must-revalidate",
 		);
 		expect(response.headers.get("cdn-cache-control")).toContain(
-			"s-maxage=86400",
+			"max-age=0, must-revalidate",
 		);
 		expect(response.headers.get("vercel-cache-tag")).toBe(
 			"og,preset,preset-feature-event",

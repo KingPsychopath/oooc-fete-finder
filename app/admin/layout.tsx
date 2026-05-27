@@ -1,11 +1,8 @@
 import { getAdminSessionStatus } from "@/features/auth/actions";
 import { getEventSubmissionRepository } from "@/lib/platform/postgres/event-submission-repository";
 import { getPartnerActivationRepository } from "@/lib/platform/postgres/partner-activation-repository";
-import {
-	generateMainOGImage,
-	generateOGMetadata,
-} from "@/lib/social/og-utils";
 import { buildSiteUrl } from "@/lib/site-url";
+import { generateMainOGImage, generateOGMetadata } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import { AdminAuthClient } from "./AdminAuthClient";
 import { AdminShell } from "./components/AdminShell";
@@ -27,6 +24,9 @@ const emptyNotificationSummary = {
 	newestCreatedAt: null,
 };
 
+const getErrorMessage = (reason: unknown): string =>
+	reason instanceof Error ? reason.message : "Unknown notification load error";
+
 const computeNotificationCounts = async () => {
 	const eventSubmissionRepository = getEventSubmissionRepository();
 	const partnerActivationRepository = getPartnerActivationRepository();
@@ -44,6 +44,20 @@ const computeNotificationCounts = async () => {
 		placementsResult.status === "fulfilled"
 			? placementsResult.value
 			: emptyNotificationSummary;
+	const loadErrors = [
+		eventSubmissionRepository
+			? null
+			: "Event submissions: repository unavailable",
+		eventSubmissionsResult.status === "rejected"
+			? `Event submissions: ${getErrorMessage(eventSubmissionsResult.reason)}`
+			: null,
+		partnerActivationRepository
+			? null
+			: "Paid placements: repository unavailable",
+		placementsResult.status === "rejected"
+			? `Paid placements: ${getErrorMessage(placementsResult.reason)}`
+			: null,
+	].filter((error): error is string => Boolean(error));
 
 	return {
 		pendingSubmissions: eventSubmissionsSummary.count,
@@ -52,6 +66,7 @@ const computeNotificationCounts = async () => {
 		oldestPendingPlacementAt: placementsSummary.oldestCreatedAt,
 		newestPendingSubmissionAt: eventSubmissionsSummary.newestCreatedAt,
 		newestPendingPlacementAt: placementsSummary.newestCreatedAt,
+		loadError: loadErrors.length > 0 ? loadErrors.join("; ") : null,
 		lastUpdatedAt: new Date().toISOString(),
 	};
 };
@@ -71,10 +86,6 @@ export default async function AdminLayout({
 	const notificationCounts = await computeNotificationCounts();
 
 	return (
-		<AdminShell
-			notificationCounts={notificationCounts}
-		>
-			{children}
-		</AdminShell>
+		<AdminShell notificationCounts={notificationCounts}>{children}</AdminShell>
 	);
 }

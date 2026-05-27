@@ -186,6 +186,16 @@ export async function getEventEngagementDashboard(
 					pageViewCount: number;
 					uniqueVisitorCount: number;
 				}>;
+				topTimezones: Array<{
+					label: string;
+					pageViewCount: number;
+					uniqueVisitorCount: number;
+				}>;
+				topLocales: Array<{
+					label: string;
+					pageViewCount: number;
+					uniqueVisitorCount: number;
+				}>;
 				topDevices: Array<{
 					label: string;
 					pageViewCount: number;
@@ -330,6 +340,8 @@ export async function getEventEngagementDashboard(
 			topHostnames,
 			topReferrers,
 			topCountries,
+			topTimezones,
+			topLocales,
 			topDevices,
 			topPlatforms,
 			topBrowsers,
@@ -499,6 +511,24 @@ export async function getEventEngagementDashboard(
 						startAt,
 						endAt,
 						limit: 20,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopTrafficDimension({
+						dimension: "timezone",
+						startAt,
+						endAt,
+						limit: 12,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopTrafficDimension({
+						dimension: "locale",
+						startAt,
+						endAt,
+						limit: 12,
 						includeAuthenticatedOnly,
 					})
 				: Promise.resolve([]),
@@ -723,6 +753,8 @@ export async function getEventEngagementDashboard(
 				topHostnames,
 				topReferrers,
 				topCountries,
+				topTimezones,
+				topLocales,
 				topDevices,
 				topPlatforms,
 				topBrowsers,
@@ -1085,6 +1117,8 @@ export async function exportFirstPartyTrafficCsv(input: {
 			["utm_mediums", "utmMedium"],
 			["utm_campaigns", "utmCampaign"],
 			["countries", "countryCode"],
+			["browser_timezones", "timezone"],
+			["browser_locales", "locale"],
 			["devices", "deviceClass"],
 			["operating_systems", "platform"],
 			["browsers", "browserFamily"],

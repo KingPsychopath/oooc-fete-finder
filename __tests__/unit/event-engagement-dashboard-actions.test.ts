@@ -1,7 +1,9 @@
+import type * as EngagementActions from "@/features/events/engagement/actions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type Setup = {
-	getEventEngagementDashboard: typeof import("@/features/events/engagement/actions").getEventEngagementDashboard;
+	getEventEngagementDashboard: typeof EngagementActions.getEventEngagementDashboard;
+	exportFirstPartyTrafficCsv: typeof EngagementActions.exportFirstPartyTrafficCsv;
 	validateAdminAccess: ReturnType<typeof vi.fn>;
 	getEngagementRepository: {
 		summarizeWindow: ReturnType<typeof vi.fn>;
@@ -85,7 +87,29 @@ const loadActions = async (): Promise<Setup> => {
 				engagedSessionCount: 3,
 			},
 		]),
-		listTopTrafficDimension: vi.fn().mockResolvedValue([]),
+		listTopTrafficDimension: vi
+			.fn()
+			.mockImplementation(({ dimension }: { dimension: string }) => {
+				if (dimension === "timezone") {
+					return Promise.resolve([
+						{
+							label: "Europe/London",
+							pageViewCount: 7,
+							uniqueVisitorCount: 3,
+						},
+					]);
+				}
+				if (dimension === "locale") {
+					return Promise.resolve([
+						{
+							label: "en-GB",
+							pageViewCount: 6,
+							uniqueVisitorCount: 2,
+						},
+					]);
+				}
+				return Promise.resolve([]);
+			}),
 		listTopLandingPages: vi.fn().mockResolvedValue([
 			{
 				path: "/",
@@ -149,6 +173,7 @@ const loadActions = async (): Promise<Setup> => {
 
 	return {
 		getEventEngagementDashboard: actions.getEventEngagementDashboard,
+		exportFirstPartyTrafficCsv: actions.exportFirstPartyTrafficCsv,
 		validateAdminAccess,
 		getEngagementRepository,
 		getDiscoveryRepository,
@@ -202,8 +227,40 @@ describe("getEventEngagementDashboard", () => {
 			outboundVisitRate: 20,
 			calendarVisitRate: 20,
 		});
+		expect(result.traffic.topTimezones).toEqual([
+			{
+				label: "Europe/London",
+				pageViewCount: 7,
+				uniqueVisitorCount: 3,
+			},
+		]);
+		expect(result.traffic.topLocales).toEqual([
+			{
+				label: "en-GB",
+				pageViewCount: 6,
+				uniqueVisitorCount: 2,
+			},
+		]);
 		expect(getDiscoveryRepository.listTopTrafficDimension).toHaveBeenCalledWith(
 			expect.objectContaining({ dimension: "referrer" }),
 		);
+		expect(getDiscoveryRepository.listTopTrafficDimension).toHaveBeenCalledWith(
+			expect.objectContaining({ dimension: "timezone" }),
+		);
+		expect(getDiscoveryRepository.listTopTrafficDimension).toHaveBeenCalledWith(
+			expect.objectContaining({ dimension: "locale" }),
+		);
+	});
+
+	it("exports browser timezone and locale traffic panels", async () => {
+		const { exportFirstPartyTrafficCsv } = await loadActions();
+		const result = await exportFirstPartyTrafficCsv({ windowDays: 7 });
+
+		expect(result.success).toBe(true);
+		if (result.success !== true) {
+			throw new Error("Expected traffic export to succeed");
+		}
+		expect(result.csv).toContain("browser_timezones,Europe/London,7,3,,,,");
+		expect(result.csv).toContain("browser_locales,en-GB,6,2,,,,");
 	});
 });

@@ -6,6 +6,7 @@ import { clientLog } from "@/lib/platform/client-logger";
 import { AlertTriangle, Home, RefreshCw, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
+import { withAdminBasePath } from "./config";
 
 type AdminErrorPageProps = {
 	error: Error & { digest?: string };
@@ -16,7 +17,12 @@ export default function AdminError({ error, reset }: AdminErrorPageProps) {
 	const router = useRouter();
 
 	React.useEffect(() => {
-		clientLog.error("admin", "Admin panel error boundary caught an error", undefined, error);
+		clientLog.error(
+			"admin",
+			"Admin panel error boundary caught an error",
+			undefined,
+			error,
+		);
 	}, [error]);
 
 	const goHome = () => {
@@ -25,7 +31,7 @@ export default function AdminError({ error, reset }: AdminErrorPageProps) {
 
 	const goToAdminLogin = () => {
 		// Clear any admin state and redirect to admin login
-		router.push("/admin");
+		router.push(withAdminBasePath("/admin"));
 	};
 
 	// Check if this is an authentication error
@@ -63,7 +69,11 @@ export default function AdminError({ error, reset }: AdminErrorPageProps) {
 							Admin Login
 						</Button>
 					) : (
-						<Button onClick={reset} className="flex items-center gap-2" size="lg">
+						<Button
+							onClick={reset}
+							className="flex items-center gap-2"
+							size="lg"
+						>
 							<RefreshCw className="h-4 w-4" />
 							Retry
 						</Button>

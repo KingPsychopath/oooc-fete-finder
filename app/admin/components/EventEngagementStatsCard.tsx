@@ -386,6 +386,9 @@ const formatTrafficDimensionLabel = (value: string): string => {
 	return TRAFFIC_LABEL_OVERRIDES[normalized] ?? formatContextLabel(value);
 };
 
+const formatRawSignalLabel = (value: string): string =>
+	value.trim().toLowerCase() === "unknown" ? "Unknown" : value;
+
 const formatCountLabel = (count: number, singular: string): string =>
 	`${count.toLocaleString()} ${singular}${count === 1 ? "" : "s"}`;
 
@@ -738,6 +741,9 @@ export const EventEngagementStatsCard = ({
 		() => filteredRows.slice(0, tableRowLimit),
 		[filteredRows, tableRowLimit],
 	);
+	const staleEventRowCount = payload?.success
+		? payload.rows.filter((row) => !row.isLiveEvent).length
+		: 0;
 	const shouldClampPerformanceTable = rows.length > 8;
 
 	const summary = payload?.success
@@ -777,6 +783,8 @@ export const EventEngagementStatsCard = ({
 				topHostnames: [],
 				topReferrers: [],
 				topCountries: [],
+				topTimezones: [],
+				topLocales: [],
 				topDevices: [],
 				topPlatforms: [],
 				topBrowsers: [],
@@ -1841,7 +1849,7 @@ export const EventEngagementStatsCard = ({
 								Diagnostic breakdowns for explaining a traffic change. Start
 								with Source Conversion and Landing Pages for decisions; use this
 								panel to spot attribution gaps, wrong domains, geography shifts,
-								and device/browser QA issues.
+								browser timezone/locale clues, and device/browser QA issues.
 							</p>
 							<InfoPopover
 								aria-label="How to use traffic drill-down"
@@ -1850,7 +1858,9 @@ export const EventEngagementStatsCard = ({
 								Rows are ranked by page views. Visitors are distinct
 								first-party browser sessions. These dimensions explain where
 								traffic came from and whether tracking is healthy; they are not
-								a replacement for conversion or event-intent metrics.
+								a replacement for conversion or event-intent metrics. Timezone
+								and locale are browser settings, not identity and not proof of
+								country.
 							</InfoPopover>
 						</div>
 						<div className="mt-3 grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
@@ -1914,6 +1924,26 @@ export const EventEngagementStatsCard = ({
 												: row.label.toUpperCase(),
 									})),
 									empty: "No country data yet.",
+								},
+								{
+									label: "Browser Timezones",
+									description:
+										"Use as a coarse clue when country is unknown. This is browser-reported context, not a country substitute or user fingerprint.",
+									rows: traffic.topTimezones.map((row) => ({
+										...row,
+										label: formatRawSignalLabel(row.label),
+									})),
+									empty: "No browser timezone data yet.",
+								},
+								{
+									label: "Browser Locales",
+									description:
+										"Use to understand language/format settings and QA content. Locale can differ from physical country.",
+									rows: traffic.topLocales.map((row) => ({
+										...row,
+										label: formatRawSignalLabel(row.label),
+									})),
+									empty: "No browser locale data yet.",
 								},
 								{
 									label: "Device Classes",
@@ -2119,14 +2149,21 @@ export const EventEngagementStatsCard = ({
 								side="top"
 							>
 								Events are grouped by opens and external-link intent using
-								thresholds from the current top events. Click a quadrant to see
-								every event inside it.
+								thresholds from the current top events. Click a quadrant heading
+								to see every event inside it.
 							</InfoPopover>
 						</div>
 						<p className="text-xs text-muted-foreground">
 							Use this to decide what to feature, what to fix, and what can
 							wait.
 						</p>
+						{staleEventRowCount > 0 ? (
+							<p className="text-[11px] text-muted-foreground">
+								{staleEventRowCount} tracked{" "}
+								{staleEventRowCount === 1 ? "event no longer matches" : "events no longer match"}{" "}
+								the current live event store and will be marked as no live match.
+							</p>
+						) : null}
 						{chartRows.length === 0 ? (
 							<p className="text-xs text-muted-foreground">
 								No event view data yet.
@@ -2134,33 +2171,35 @@ export const EventEngagementStatsCard = ({
 						) : (
 							<div className="grid gap-2 sm:grid-cols-2">
 								{decisionBuckets.map((bucket) => (
-									<button
+									<div
 										key={bucket.key}
-										type="button"
-										onClick={() =>
-											setExpandedDecisionBucket((current) =>
-												current === bucket.key ? null : bucket.key,
-											)
-										}
-										className={`min-h-32 rounded-md border bg-background/70 p-2 text-left transition-colors hover:bg-accent/45 ${
+										className={`min-h-32 rounded-md border bg-background/70 p-2 transition-colors ${
 											expandedDecisionBucket === bucket.key
 												? "border-foreground/35 bg-accent/35"
 												: ""
 										}`}
 									>
-										<div className="mb-2 flex items-start justify-between gap-2">
-											<div className="min-w-0 flex-1">
-												<p className="text-xs font-semibold text-foreground">
+										<button
+											type="button"
+											onClick={() =>
+												setExpandedDecisionBucket((current) =>
+													current === bucket.key ? null : bucket.key,
+												)
+											}
+											className="mb-2 flex w-full items-start justify-between gap-2 rounded-sm text-left outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+										>
+											<span className="min-w-0 flex-1">
+												<span className="block text-xs font-semibold text-foreground">
 													{bucket.label}
-												</p>
-												<p className="text-[11px] text-muted-foreground">
+												</span>
+												<span className="block text-[11px] text-muted-foreground">
 													{bucket.description}
-												</p>
-											</div>
+												</span>
+											</span>
 											<span className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-border bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
 												{bucket.rows.length} events
 											</span>
-										</div>
+										</button>
 										{bucket.rows.length === 0 ? (
 											<p className="text-[11px] text-muted-foreground">
 												No events in this group.
@@ -2186,7 +2225,7 @@ export const EventEngagementStatsCard = ({
 												))}
 											</div>
 										)}
-									</button>
+									</div>
 								))}
 								{expandedDecisionBucket ? (
 									<div className="space-y-2 rounded-md border bg-background/70 p-2 sm:col-span-2">

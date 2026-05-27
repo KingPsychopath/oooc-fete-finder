@@ -494,6 +494,8 @@ export class DiscoveryAnalyticsRepository {
 			| "utmMedium"
 			| "utmCampaign"
 			| "countryCode"
+			| "timezone"
+			| "locale"
 			| "deviceClass"
 			| "platform"
 			| "browserFamily";
@@ -530,6 +532,10 @@ export class DiscoveryAnalyticsRepository {
 					return this.sql`COALESCE(NULLIF(utm_campaign, ''), 'none')`;
 				case "countryCode":
 					return this.sql`COALESCE(NULLIF(country_code, ''), 'unknown')`;
+				case "timezone":
+					return this.sql`COALESCE(NULLIF(timezone, ''), 'unknown')`;
+				case "locale":
+					return this.sql`COALESCE(NULLIF(locale, ''), 'unknown')`;
 				case "deviceClass":
 					return this.sql`COALESCE(NULLIF(device_class, ''), 'unknown')`;
 				case "platform":

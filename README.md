@@ -128,7 +128,7 @@ In `DATA_MODE=remote`, event reads use this source order:
 2. Latest Postgres event-store backup if the live store is unavailable or invalid
 3. Bundled local CSV fallback if remote reads and backups are unavailable
 
-Public pages are static-first where possible. Admin routes and admin APIs are authenticated, dynamic, and request-time rendered. The app does not use Google Sheets as a runtime or admin data source.
+Public pages are static-first where possible. Admin routes and admin APIs are authenticated, dynamic, and request-time rendered.
 
 See [docs/architecture/overview.md](./docs/architecture/overview.md) for the full rendering, auth, data, and code-map contract.
 

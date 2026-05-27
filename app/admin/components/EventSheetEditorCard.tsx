@@ -37,7 +37,10 @@ import {
 	formatIsoDateForEditableSheet,
 	generateEditableSheetSeriesKey,
 	getEditableSheetDateRangeDates,
+	isEditableSheetColumn,
+	isEditableSheetRow,
 	isEditableSheetRowEmpty,
+	isPlainRecord,
 	normalizeEditableSheetRowValues,
 	pruneEmptyEditableSheetRows,
 	splitEditableSheetRangeRow,
@@ -705,26 +708,6 @@ const getBasePath = (): string =>
 	process.env.NEXT_PUBLIC_BASE_PATH?.trim() ?? "";
 
 const buildApiPath = (path: string): string => `${getBasePath()}${path}`;
-
-const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isEditableSheetColumn = (
-	value: unknown,
-): value is EditableSheetColumn => {
-	if (!isPlainRecord(value)) return false;
-	return (
-		typeof value.key === "string" &&
-		typeof value.label === "string" &&
-		typeof value.isCore === "boolean" &&
-		typeof value.isRequired === "boolean"
-	);
-};
-
-const isEditableSheetRow = (value: unknown): value is EditableSheetRow => {
-	if (!isPlainRecord(value)) return false;
-	return Object.values(value).every((item) => typeof item === "string");
-};
 
 const isStoredEditorDraft = (value: unknown): value is StoredEditorDraft => {
 	if (!isPlainRecord(value)) return false;
@@ -8009,9 +7992,9 @@ export const EventSheetEditorCard = ({
 																	{splitGenreCell(
 																		categoryValue,
 																		genreTaxonomy,
-																	).map((part) => (
+																	).map((part, partIndex) => (
 																		<span
-																			key={`${rowIndex}-${part.value}`}
+																			key={`${rowIndex}-${part.value}-${partIndex}`}
 																			className={`inline-flex h-5 max-w-full items-center rounded-full border px-1.5 text-[10px] ${
 																				part.resolved
 																					? "border-border/70 bg-muted/45 text-foreground/80"

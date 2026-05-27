@@ -19,6 +19,30 @@ export interface EditableSheetColumn {
 
 export type EditableSheetRow = Record<string, string>;
 
+export const isPlainRecord = (
+	value: unknown,
+): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null && !Array.isArray(value);
+
+export const isEditableSheetColumn = (
+	value: unknown,
+): value is EditableSheetColumn => {
+	if (!isPlainRecord(value)) return false;
+	return (
+		typeof value.key === "string" &&
+		typeof value.label === "string" &&
+		typeof value.isCore === "boolean" &&
+		typeof value.isRequired === "boolean"
+	);
+};
+
+export const isEditableSheetRow = (
+	value: unknown,
+): value is EditableSheetRow => {
+	if (!isPlainRecord(value)) return false;
+	return Object.values(value).every((item) => typeof item === "string");
+};
+
 const HIDDEN_EVENT_COLUMNS = [
 	{
 		key: "sourceConfirmed",

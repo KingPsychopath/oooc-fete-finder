@@ -33,6 +33,7 @@ type AdminShellProps = {
 		oldestPendingPlacementAt: string | null;
 		newestPendingSubmissionAt: string | null;
 		newestPendingPlacementAt: string | null;
+		loadError: string | null;
 		lastUpdatedAt: string;
 	};
 };
@@ -59,6 +60,7 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 	const totalNotifications =
 		notificationCounts.pendingSubmissions +
 		notificationCounts.pendingPlacements;
+	const notificationCountsDegraded = Boolean(notificationCounts.loadError);
 
 	const formatRelativeAge = (isoDate: string | null): string | null => {
 		if (!isoDate) return null;
@@ -285,14 +287,21 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 						>
 							<Bell className="h-3.5 w-3.5" />
 							Action Center
-							{totalNotifications > 0 && (
+							{notificationCountsDegraded ? (
+								<Badge
+									variant="destructive"
+									className="h-5 shrink-0 whitespace-nowrap rounded-full px-1.5 text-[10px]"
+								>
+									Check
+								</Badge>
+							) : totalNotifications > 0 ? (
 								<Badge
 									variant="destructive"
 									className="h-5 min-w-5 shrink-0 whitespace-nowrap rounded-full px-1.5 text-[10px]"
 								>
 									{totalNotifications}
 								</Badge>
-							)}
+							) : null}
 							{(isSubmissionNewSinceLastVisit ||
 								isPlacementNewSinceLastVisit) && (
 								<span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-emerald-500" />
@@ -458,6 +467,12 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 							{isRefreshingCounts ? "Refreshing..." : "Refresh counts"}
 						</Button>
 					</div>
+					{notificationCounts.loadError ? (
+						<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+							Action Center counts may be incomplete:{" "}
+							{notificationCounts.loadError}
+						</div>
+					) : null}
 					<div className="space-y-2">
 						<button
 							type="button"
@@ -507,7 +522,7 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 								</Badge>
 							)}
 						</button>
-						{totalNotifications === 0 && (
+						{totalNotifications === 0 && !notificationCountsDegraded && (
 							<div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
 								All caught up. No pending submissions or paid orders.
 							</div>

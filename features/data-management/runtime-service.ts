@@ -75,7 +75,6 @@ const EVENTS_CACHE_TAGS = [
 	"featured-events",
 	"promoted-events",
 ] as const;
-const EVENTS_SOURCE_CACHE_REVALIDATE_SECONDS = false;
 const EVENTS_PUBLIC_LAYOUT_PATHS = ["/", "/feature-event"] as const;
 const SOCIAL_PROOF_COUNTS_REVALIDATE_SECONDS = 30 * 60;
 
@@ -126,19 +125,8 @@ const toEventsResult = (
 	};
 };
 
-const getCachedSourceEvents = unstable_cache(
-	async () => DataManager.getEventsData({ populateCoordinates: false }),
-	["events-source-data"],
-	{
-		revalidate: EVENTS_SOURCE_CACHE_REVALIDATE_SECONDS,
-		tags: ["events", "events-data"],
-	},
-);
-
 const getSourceEventsForRequest = cache(async (populateCoordinates: boolean) =>
-	populateCoordinates
-		? DataManager.getEventsData({ populateCoordinates })
-		: getCachedSourceEvents(),
+	DataManager.getEventsData({ populateCoordinates }),
 );
 
 const getCachedSocialProofSaveCountEntries = unstable_cache(
@@ -327,7 +315,7 @@ export async function fullEventsRevalidation(
 export async function getRuntimeDataStatusFromSource(): Promise<RuntimeDataStatus> {
 	const [configStatus, statusRead] = await Promise.all([
 		DataManager.getDataConfigStatus(),
-		getSourceEventsForRequest(false),
+		DataManager.getEventsData({ populateCoordinates: false }),
 	]);
 
 	const source = statusRead.success

@@ -4,10 +4,12 @@ import {
 	getEventSheetRevisionSnapshot,
 	saveEventSheetEditorRows,
 } from "@/features/data-management/actions";
-import type {
-	EditableSheetColumn,
-	EditableSheetRow,
+import {
+	isEditableSheetColumn,
+	isEditableSheetRow,
+	isPlainRecord,
 } from "@/features/data-management/csv/sheet-editor";
+import { getAdminCredentialFromRequest } from "@/lib/http/admin-request";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	EVENT_SHEET_JSON_BODY_LIMIT_BYTES,
@@ -18,42 +20,11 @@ import {
 } from "@/lib/http/request-security";
 import { NextRequest, NextResponse } from "next/server";
 
-const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isEditableSheetColumn = (
-	value: unknown,
-): value is EditableSheetColumn => {
-	if (!isPlainRecord(value)) return false;
-	return (
-		typeof value.key === "string" &&
-		typeof value.label === "string" &&
-		typeof value.isCore === "boolean" &&
-		typeof value.isRequired === "boolean"
-	);
-};
-
-const isEditableSheetRow = (value: unknown): value is EditableSheetRow => {
-	if (!isPlainRecord(value)) return false;
-	return Object.values(value).every((item) => typeof item === "string");
-};
-
 const parseBooleanOption = (value: unknown): boolean | undefined =>
 	typeof value === "boolean" ? value : undefined;
 
-const getAdminCredential = (request: NextRequest): string | null => {
-	const direct = request.headers.get("x-admin-key");
-	if (direct) return direct;
-
-	const auth = request.headers.get("authorization");
-	if (!auth) return null;
-	const [scheme, token] = auth.split(" ");
-	if (scheme?.toLowerCase() !== "bearer" || !token) return null;
-	return token;
-};
-
 export async function GET(request: NextRequest) {
-	const credential = getAdminCredential(request);
+	const credential = getAdminCredentialFromRequest(request);
 	if (!(await validateAdminKeyForApiRoute(request, credential))) {
 		return NextResponse.json(
 			{ success: false, error: "Unauthorized" },
@@ -80,7 +51,7 @@ export async function POST(request: NextRequest) {
 		return tooLargeNoStoreResponse();
 	}
 
-	const credential = getAdminCredential(request);
+	const credential = getAdminCredentialFromRequest(request);
 	if (!(await validateAdminKeyForApiRoute(request, credential))) {
 		return NextResponse.json(
 			{ success: false, error: "Unauthorized" },

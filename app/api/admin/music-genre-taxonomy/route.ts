@@ -5,6 +5,8 @@ import {
 	removeMusicGenreAliasFromEditor,
 	removeMusicGenreFromEditor,
 } from "@/features/data-management/actions";
+import { isPlainRecord } from "@/features/data-management/csv/sheet-editor";
+import { getAdminCredentialFromRequest } from "@/lib/http/admin-request";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	DEFAULT_JSON_BODY_LIMIT_BYTES,
@@ -15,26 +17,12 @@ import {
 } from "@/lib/http/request-security";
 import { NextRequest, NextResponse } from "next/server";
 
-const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
-
 const readString = (
 	payload: Record<string, unknown>,
 	key: string,
 ): string | null => {
 	const value = payload[key];
 	return typeof value === "string" && value.trim() ? value : null;
-};
-
-const getAdminCredential = (request: NextRequest): string | null => {
-	const direct = request.headers.get("x-admin-key");
-	if (direct) return direct;
-
-	const auth = request.headers.get("authorization");
-	if (!auth) return null;
-	const [scheme, token] = auth.split(" ");
-	if (scheme?.toLowerCase() !== "bearer" || !token) return null;
-	return token;
 };
 
 export async function POST(request: NextRequest) {
@@ -45,7 +33,7 @@ export async function POST(request: NextRequest) {
 		return tooLargeNoStoreResponse();
 	}
 
-	const credential = getAdminCredential(request);
+	const credential = getAdminCredentialFromRequest(request);
 	if (!(await validateAdminKeyForApiRoute(request, credential))) {
 		return NextResponse.json(
 			{ success: false, error: "Unauthorized" },

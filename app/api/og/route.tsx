@@ -17,15 +17,13 @@ import {
 	getEventShareDetails,
 } from "@/lib/social/event-share-details";
 import { readFile } from "fs/promises";
-import { unstable_cache } from "next/cache";
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
 const OG_CACHE_CONTROL = "public, max-age=0, must-revalidate";
-const OG_CDN_CACHE_CONTROL =
-	"public, s-maxage=86400, stale-while-revalidate=604800";
+const OG_CDN_CACHE_CONTROL = "public, max-age=0, must-revalidate";
 const OG_RESPONSE_HEADERS = {
 	"Cache-Control": OG_CACHE_CONTROL,
 	"CDN-Cache-Control": OG_CDN_CACHE_CONTROL,
@@ -430,25 +428,15 @@ const resolveStaticPresetContent = (
 	};
 };
 
-const getCachedCurrentYearEventCount = unstable_cache(
-	async (): Promise<number> => {
-		const result = await DataManager.getEventsData({
-			populateCoordinates: false,
-		});
-		if (!result.success) {
-			return 0;
-		}
-		return getEventCountForDateRange(
-			result.data,
-			getCurrentParisYearDateRange(),
-		);
-	},
-	["og-current-year-event-count"],
-	{
-		revalidate: false,
-		tags: ["events", "events-data"],
-	},
-);
+const getCurrentYearEventCount = async (): Promise<number> => {
+	const result = await DataManager.getEventsData({
+		populateCoordinates: false,
+	});
+	if (!result.success) {
+		return 0;
+	}
+	return getEventCountForDateRange(result.data, getCurrentParisYearDateRange());
+};
 
 const resolveEventContent = async (
 	searchParams: URLSearchParams,
@@ -497,7 +485,7 @@ const resolveOGContent = async (
 	return {
 		...content,
 		subtitle: "Curated Paris music events by Out Of Office Collective",
-		eventCount: await getCachedCurrentYearEventCount(),
+		eventCount: await getCurrentYearEventCount(),
 	};
 };
 

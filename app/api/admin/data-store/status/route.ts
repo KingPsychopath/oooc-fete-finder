@@ -5,22 +5,12 @@ import {
 	getRuntimeDataStatusFromSource,
 	getRuntimeMetrics,
 } from "@/features/data-management/runtime-service";
+import { getAdminCredentialFromRequest } from "@/lib/http/admin-request";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { NextRequest, NextResponse } from "next/server";
 
-const getAdminCredential = (request: NextRequest): string | null => {
-	const direct = request.headers.get("x-admin-key");
-	if (direct) return direct;
-
-	const auth = request.headers.get("authorization");
-	if (!auth) return null;
-	const [scheme, token] = auth.split(" ");
-	if (scheme?.toLowerCase() !== "bearer" || !token) return null;
-	return token;
-};
-
 export async function GET(request: NextRequest) {
-	const credential = getAdminCredential(request);
+	const credential = getAdminCredentialFromRequest(request);
 	if (!(await validateAdminKeyForApiRoute(request, credential))) {
 		return NextResponse.json(
 			{ success: false, error: "Unauthorized" },
