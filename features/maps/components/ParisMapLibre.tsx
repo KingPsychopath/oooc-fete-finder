@@ -170,18 +170,54 @@ const ARRONDISSEMENT_COLORS = {
 	HOVER: "#374151",
 } as const;
 
+const DISTRICT_ACTIVITY_LEVELS = [
+	{
+		label: "Quiet",
+		rangeLabel: "0",
+		activityLabel: "No current events",
+		minEventCount: 0,
+		maxEventCount: 0,
+		color: ARRONDISSEMENT_COLORS.EMPTY,
+	},
+	{
+		label: "Light",
+		rangeLabel: "1-3",
+		activityLabel: "Low activity district",
+		minEventCount: 1,
+		maxEventCount: 3,
+		color: ARRONDISSEMENT_COLORS.LOW,
+	},
+	{
+		label: "Warm",
+		rangeLabel: "4-7",
+		activityLabel: "Busy district",
+		minEventCount: 4,
+		maxEventCount: 7,
+		color: ARRONDISSEMENT_COLORS.MEDIUM,
+	},
+	{
+		label: "Hotspot",
+		rangeLabel: "8+",
+		activityLabel: "Hotspot district",
+		minEventCount: 8,
+		maxEventCount: Number.POSITIVE_INFINITY,
+		color: ARRONDISSEMENT_COLORS.HIGH,
+	},
+] as const;
+
+const getDistrictActivityLevel = (eventCount: number) =>
+	DISTRICT_ACTIVITY_LEVELS.find(
+		({ minEventCount, maxEventCount }) =>
+			eventCount >= minEventCount && eventCount <= maxEventCount,
+	) ?? DISTRICT_ACTIVITY_LEVELS[0];
+
 /**
  * Gets the appropriate fill color for an arrondissement based on event count
  * @param eventCount - Number of events in the arrondissement
  * @returns Hex color string for the arrondissement fill
  */
-const getArrondissementFillColor = (eventCount: number): string => {
-	if (eventCount === 0) return ARRONDISSEMENT_COLORS.EMPTY;
-	if (eventCount >= 5) return ARRONDISSEMENT_COLORS.HIGH;
-	if (eventCount >= 2) return ARRONDISSEMENT_COLORS.MEDIUM;
-	if (eventCount >= 1) return ARRONDISSEMENT_COLORS.LOW;
-	return ARRONDISSEMENT_COLORS.EMPTY;
-};
+const getArrondissementFillColor = (eventCount: number): string =>
+	getDistrictActivityLevel(eventCount).color;
 
 const isParisArrondissementFeatureWithGeometry = (
 	feature: ParisArrondissementFeature,
@@ -199,12 +235,8 @@ const PARIS_ARRONDISSEMENT_DATA = {
 	).features.filter(isParisArrondissementFeatureWithGeometry),
 };
 
-const getDistrictActivityLabel = (eventCount: number): string => {
-	if (eventCount >= 5) return "High activity district";
-	if (eventCount >= 2) return "Medium activity district";
-	if (eventCount === 1) return "Low activity district";
-	return "No current events";
-};
+const getDistrictActivityLabel = (eventCount: number): string =>
+	getDistrictActivityLevel(eventCount).activityLabel;
 
 const buildNearbyRadiusPolygon = (
 	center: Coordinates,
@@ -261,6 +293,15 @@ const formatEventMapSchedule = (event: Event): string => {
 	return `${dateLabel} • ${event.time}`;
 };
 
+type CoordinateEventStack = {
+	key: string;
+	coordinates: Coordinates;
+	events: Event[];
+};
+
+const getCoordinateStackKey = (coordinates: Coordinates): string =>
+	`${coordinates.lat.toFixed(6)}:${coordinates.lng.toFixed(6)}`;
+
 const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	events,
 	onEventClick,
@@ -314,6 +355,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const [showCoordinates, setShowCoordinates] = useState(true);
 	const [showLocateNotice, setShowLocateNotice] = useState(false);
 	const [showTileLoadingNotice, setShowTileLoadingNotice] = useState(false);
+	const [selectedCoordinateStackKey, setSelectedCoordinateStackKey] = useState<
+		string | null
+	>(null);
 	const nearbyViewKeyRef = useRef<string | null>(null);
 
 	// Filter events based on selected day
@@ -340,6 +384,67 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			).length,
 		[filteredEvents],
 	);
+
+	const coordinateEventStacks = React.useMemo<CoordinateEventStack[]>(() => {
+		const stacksByCoordinate = new Map<string, CoordinateEventStack>();
+
+		for (const event of filteredEvents) {
+			const coordinates = event.coordinates;
+			if (
+				!coordinates ||
+				typeof coordinates.lat !== "number" ||
+				typeof coordinates.lng !== "number" ||
+				isNaN(coordinates.lat) ||
+				isNaN(coordinates.lng)
+			) {
+				continue;
+			}
+
+			const key = getCoordinateStackKey(coordinates);
+			const existingStack = stacksByCoordinate.get(key);
+			if (existingStack) {
+				existingStack.events.push(event);
+				continue;
+			}
+
+			stacksByCoordinate.set(key, {
+				key,
+				coordinates,
+				events: [event],
+			});
+		}
+
+		return Array.from(stacksByCoordinate.values()).map((stack) => ({
+			...stack,
+			events: stack.events.slice().sort((left, right) => {
+				const leftRank = shouldDisplayFeaturedEvent(left)
+					? 4
+					: left.isPromoted === true
+						? 3
+						: left.isOOOCPick
+							? 2
+							: 1;
+				const rightRank = shouldDisplayFeaturedEvent(right)
+					? 4
+					: right.isPromoted === true
+						? 3
+						: right.isOOOCPick
+							? 2
+							: 1;
+				if (leftRank !== rightRank) return rightRank - leftRank;
+				return left.name.localeCompare(right.name);
+			}),
+		}));
+	}, [filteredEvents]);
+
+	const coordinateEventStacksByKey = React.useMemo(
+		() => new Map(coordinateEventStacks.map((stack) => [stack.key, stack])),
+		[coordinateEventStacks],
+	);
+
+	const selectedCoordinateStack = selectedCoordinateStackKey
+		? (coordinateEventStacksByKey.get(selectedCoordinateStackKey) ?? null)
+		: null;
 
 	const canShowCoordinates = eventsWithCoordinatesCount > 0;
 	const areEventPinsVisible = showCoordinates && canShowCoordinates;
@@ -372,6 +477,15 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			setIsLegendExpanded(false);
 		}
 	}, [isFullscreen, selectedArrondissement]);
+
+	useEffect(() => {
+		if (
+			selectedCoordinateStackKey &&
+			!coordinateEventStacksByKey.has(selectedCoordinateStackKey)
+		) {
+			setSelectedCoordinateStackKey(null);
+		}
+	}, [coordinateEventStacksByKey, selectedCoordinateStackKey]);
 
 	const arrondissementEventCounts = React.useMemo(() => {
 		const counts: Record<number, number> = {};
@@ -527,6 +641,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			} else {
 				haptics.selection();
 			}
+			setSelectedCoordinateStackKey(null);
 			setSelectedArrondissement((current) =>
 				current === arrondissement ? null : arrondissement,
 			);
@@ -559,13 +674,51 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		) => {
 			const renderedFeatures =
 				map.current?.queryRenderedFeatures(e.point, {
-					layers: ["event-markers", "event-star-markers"],
+					layers: [
+						"event-markers",
+						"event-star-markers",
+						"event-stack-counts",
+					],
 				}) ??
 				e.features ??
 				[];
+			const stackKey = renderedFeatures
+				.map((feature) => feature.properties?.stackKey)
+				.find(
+					(candidate): candidate is string => typeof candidate === "string",
+				);
+			if (stackKey) {
+				const stack = coordinateEventStacksByKey.get(stackKey);
+				if (stack && stack.events.length > 1) {
+					haptics.selection();
+					setSelectedArrondissement(null);
+					setSelectedCoordinateStackKey(stack.key);
+					return;
+				}
+				const singleEvent = stack?.events[0];
+				if (singleEvent) {
+					if (
+						shouldDisplayFeaturedEvent(singleEvent) ||
+						singleEvent.isOOOCPick
+					) {
+						haptics.success();
+					} else {
+						haptics.selection();
+					}
+					onEventClick(singleEvent);
+					return;
+				}
+			}
+
 			const clickedEvents = renderedFeatures
-				.map((feature) => feature.properties?.id)
-				.filter((eventId): eventId is string => typeof eventId === "string")
+				.flatMap((feature) => {
+					const eventIdsValue = feature.properties?.eventIds;
+					if (typeof eventIdsValue === "string") {
+						return eventIdsValue.split("|");
+					}
+					const eventId = feature.properties?.id;
+					return typeof eventId === "string" ? [eventId] : [];
+				})
 				.map((eventId) => eventsById.get(eventId))
 				.filter((event): event is Event => Boolean(event));
 			const preferredEvent =
@@ -594,7 +747,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				onEventClick(event);
 			}
 		},
-		[eventsById, haptics, onEventClick],
+		[coordinateEventStacksByKey, eventsById, haptics, onEventClick],
 	);
 
 	const handleEventClusterClick = useCallback(
@@ -1270,6 +1423,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				currentMap.off("click", "event-star-markers", handleEventMarkersClick);
 			} catch {}
 			try {
+				currentMap.off("click", "event-stack-counts", handleEventMarkersClick);
+			} catch {}
+			try {
 				currentMap.off(
 					"mouseenter",
 					"event-markers",
@@ -1280,6 +1436,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				currentMap.off(
 					"mouseenter",
 					"event-star-markers",
+					handleEventMarkersMouseEnter,
+				);
+			} catch {}
+			try {
+				currentMap.off(
+					"mouseenter",
+					"event-stack-counts",
 					handleEventMarkersMouseEnter,
 				);
 			} catch {}
@@ -1308,6 +1471,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				currentMap.off(
 					"mouseleave",
 					"event-star-markers",
+					handleEventMarkersMouseLeave,
+				);
+			} catch {}
+			try {
+				currentMap.off(
+					"mouseleave",
+					"event-stack-counts",
 					handleEventMarkersMouseLeave,
 				);
 			} catch {}
@@ -1341,6 +1511,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				}
 			} catch {}
 			try {
+				if (currentMap.getLayer("event-stack-counts")) {
+					currentMap.removeLayer("event-stack-counts");
+				}
+			} catch {}
+			try {
 				if (currentMap.getLayer("event-marker-centers")) {
 					currentMap.removeLayer("event-marker-centers");
 				}
@@ -1370,23 +1545,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		teardownEventMarkers();
 		if (!areEventPinsVisible) return teardownEventMarkers;
 
-		// Filter events with coordinates
-		const eventsWithCoords = filteredEvents.filter(
-			(event) =>
-				event.coordinates &&
-				typeof event.coordinates.lat === "number" &&
-				typeof event.coordinates.lng === "number" &&
-				!isNaN(event.coordinates.lat) &&
-				!isNaN(event.coordinates.lng),
-		);
+		if (coordinateEventStacks.length === 0) return teardownEventMarkers;
 
-		if (eventsWithCoords.length === 0) return teardownEventMarkers;
-
-		// Create GeoJSON for events
+		// Create one map feature per exact coordinate. Real coordinates are never offset.
 		const eventsGeoJSON = {
 			type: "FeatureCollection" as const,
-			features: eventsWithCoords.map((event) => {
-				const eventCoordinates = event.coordinates!;
+			features: coordinateEventStacks.map((stack) => {
+				const eventCoordinates = stack.coordinates;
 				const distanceKm = nearbyLocation
 					? calculateDistanceKm(
 							nearbyLocation.coordinates,
@@ -1397,7 +1562,20 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					isNearbyInsideParisMap &&
 					distanceKm !== null &&
 					distanceKm <= nearbyRadiusKm;
-				const isFeatured = shouldDisplayFeaturedEvent(event);
+				const isFeatured = stack.events.some((event) =>
+					shouldDisplayFeaturedEvent(event),
+				);
+				const isPromoted = stack.events.some(
+					(event) => event.isPromoted === true,
+				);
+				const isOOOCPick = stack.events.some((event) => event.isOOOCPick);
+				const markerRank = isFeatured
+					? 4
+					: isPromoted
+						? 3
+						: isOOOCPick
+							? 2
+							: 1;
 				return {
 					type: "Feature" as const,
 					geometry: {
@@ -1408,19 +1586,16 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						],
 					},
 					properties: {
-						id: event.id,
-						name: event.name,
+						id: stack.events[0]?.id,
+						eventIds: stack.events.map((event) => event.id).join("|"),
+						stackKey: stack.key,
+						name: stack.events[0]?.location ?? stack.events[0]?.name ?? "Venue",
+						eventCount: stack.events.length,
 						isFeatured,
-						isPromoted: event.isPromoted === true,
-						isOOOCPick: event.isOOOCPick || false,
+						isPromoted,
+						isOOOCPick,
 						isWithinNearbyRadius,
-						markerRank: isFeatured
-							? 4
-							: event.isPromoted === true
-								? 3
-								: event.isOOOCPick
-									? 2
-									: 1,
+						markerRank,
 					},
 				};
 			}),
@@ -1441,6 +1616,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					"+",
 					["case", ["get", "isWithinNearbyRadius"], 1, 0],
 				],
+				event_count_sum: ["+", ["get", "eventCount"]],
 			},
 		});
 
@@ -1450,7 +1626,15 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			source: "events",
 			filter: ["has", "point_count"],
 			paint: {
-				"circle-radius": ["step", ["get", "point_count"], 17, 5, 20, 12, 24],
+				"circle-radius": [
+					"step",
+					["get", "event_count_sum"],
+					17,
+					5,
+					20,
+					12,
+					24,
+				],
 				"circle-color": [
 					"case",
 					[">", ["get", "featured_count"], 0],
@@ -1475,7 +1659,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			source: "events",
 			filter: ["has", "point_count"],
 			layout: {
-				"text-field": ["get", "point_count_abbreviated"],
+				"text-field": ["to-string", ["get", "event_count_sum"]],
 				"text-font": MAP_TEXT_FONT,
 				"text-size": 12,
 				"text-allow-overlap": true,
@@ -1499,6 +1683,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			paint: {
 				"circle-radius": [
 					"case",
+					[">", ["get", "eventCount"], 1],
+					18,
 					["get", "isFeatured"],
 					17,
 					["get", "isPromoted"],
@@ -1519,6 +1705,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				],
 				"circle-opacity": [
 					"case",
+					[">", ["get", "eventCount"], 1],
+					0.28,
 					["get", "isFeatured"],
 					0.32,
 					["get", "isPromoted"],
@@ -1572,6 +1760,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			paint: {
 				"circle-radius": [
 					"case",
+					[">", ["get", "eventCount"], 1],
+					10.5,
 					["get", "isFeatured"],
 					9.5,
 					["get", "isPromoted"],
@@ -1592,6 +1782,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				],
 				"circle-stroke-width": [
 					"case",
+					[">", ["get", "eventCount"], 1],
+					3,
 					["get", "isFeatured"],
 					3,
 					["get", "isOOOCPick"],
@@ -1626,6 +1818,31 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		});
 
 		currentMap.addLayer({
+			id: "event-stack-counts",
+			type: "symbol",
+			source: "events",
+			filter: [
+				"all",
+				["!", ["has", "point_count"]],
+				[">", ["get", "eventCount"], 1],
+			],
+			layout: {
+				"text-field": ["to-string", ["get", "eventCount"]],
+				"text-font": MAP_TEXT_FONT,
+				"text-size": 10,
+				"text-offset": [0.8, -0.8],
+				"text-allow-overlap": true,
+				"text-ignore-placement": true,
+				"symbol-sort-key": ["get", "markerRank"],
+			},
+			paint: {
+				"text-color": "#fffaf3",
+				"text-halo-color": "#49382e",
+				"text-halo-width": 1.6,
+			},
+		});
+
+		currentMap.addLayer({
 			id: "event-star-markers",
 			type: "symbol",
 			source: "events",
@@ -1650,6 +1867,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		currentMap.on("click", "event-cluster-counts", handleEventClusterClick);
 		currentMap.on("click", "event-markers", handleEventMarkersClick);
 		currentMap.on("click", "event-star-markers", handleEventMarkersClick);
+		currentMap.on("click", "event-stack-counts", handleEventMarkersClick);
 		currentMap.on(
 			"mouseenter",
 			"event-cluster-badges",
@@ -1664,6 +1882,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		currentMap.on(
 			"mouseenter",
 			"event-star-markers",
+			handleEventMarkersMouseEnter,
+		);
+		currentMap.on(
+			"mouseenter",
+			"event-stack-counts",
 			handleEventMarkersMouseEnter,
 		);
 		currentMap.on(
@@ -1682,10 +1905,15 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			"event-star-markers",
 			handleEventMarkersMouseLeave,
 		);
+		currentMap.on(
+			"mouseleave",
+			"event-stack-counts",
+			handleEventMarkersMouseLeave,
+		);
 		return teardownEventMarkers;
 	}, [
 		mapLoaded,
-		filteredEvents,
+		coordinateEventStacks,
 		areEventPinsVisible,
 		isNearbyInsideParisMap,
 		nearbyLocation,
@@ -2224,35 +2452,174 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				<div
 					className={cn(
 						"ooo-site-card absolute bottom-3 left-3 z-[2] rounded-xl border border-border/75 px-2.5 py-2 shadow-[0_14px_30px_-24px_rgba(16,12,9,0.55)] backdrop-blur-md sm:bottom-4 sm:left-4",
+						isFullscreen ? "px-3 py-2.5" : "",
 						selectedArrondissement ? "hidden sm:block" : "block",
 					)}
 				>
 					<h4 className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 						District activity
 					</h4>
-					<div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-						<div className="flex flex-col items-center gap-1">
-							<div className="h-2 w-4 rounded-sm bg-gray-300" />
-							<span>0</span>
+					<div
+						className={cn(
+							"grid grid-cols-4 gap-1.5 text-[10px] text-muted-foreground",
+							isFullscreen ? "w-64" : "w-36",
+						)}
+					>
+						{DISTRICT_ACTIVITY_LEVELS.map((level) => (
+							<div
+								aria-label={`${level.label}: ${level.rangeLabel} events`}
+								className="flex min-w-0 flex-col items-center gap-1"
+								key={level.label}
+								title={`${level.label}: ${level.rangeLabel} events`}
+							>
+								<div
+									aria-hidden="true"
+									className="h-2 w-full rounded-sm"
+									style={{ backgroundColor: level.color }}
+								/>
+								<span
+									className={cn(
+										"min-h-3.5 truncate font-medium text-foreground",
+										isFullscreen ? "" : "sr-only",
+									)}
+								>
+									{level.label}
+								</span>
+								<span>{level.rangeLabel}</span>
+							</div>
+						))}
+					</div>
+				</div>
+			)}
+
+			{/* Exact coordinate event stack */}
+			{selectedCoordinateStack && (
+				<div className="absolute inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-[4] md:top-3 md:right-3 md:bottom-3 md:left-auto md:w-[25.5rem] md:max-w-[calc(100%-1.5rem)]">
+					<div className="ooo-site-card flex max-h-[min(calc(62dvh_-_env(safe-area-inset-bottom)),26rem)] flex-col rounded-2xl border border-border/80 p-3.5 shadow-[0_24px_44px_-32px_rgba(16,12,9,0.6)] backdrop-blur-xl md:max-h-[30rem]">
+						<div className="mb-2 flex items-start justify-between gap-3">
+							<div className="min-w-0">
+								<p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+									Same Location
+								</p>
+								<h3 className="truncate text-[1.02rem] [font-family:var(--ooo-font-display)] font-light leading-tight">
+									{selectedCoordinateStack.events[0]?.location ||
+										"Shared venue"}
+								</h3>
+								<p className="mt-0.5 text-xs text-muted-foreground">
+									{selectedCoordinateStack.events.length} events at this exact
+									pin
+								</p>
+							</div>
+							<button
+								type="button"
+								onClick={() => {
+									haptics.light();
+									setSelectedCoordinateStackKey(null);
+								}}
+								className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/70 bg-background/68 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+								aria-label="Close location events"
+							>
+								<X className="h-4 w-4" />
+							</button>
 						</div>
-						<div className="flex flex-col items-center gap-1">
-							<div className="h-2 w-4 rounded-sm bg-green-600" />
-							<span>1</span>
-						</div>
-						<div className="flex flex-col items-center gap-1">
-							<div className="h-2 w-4 rounded-sm bg-orange-600" />
-							<span>2-4</span>
-						</div>
-						<div className="flex flex-col items-center gap-1">
-							<div className="h-2 w-4 rounded-sm bg-red-600" />
-							<span>5+</span>
+						<div className="mb-2 h-px bg-border/70" />
+						<div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+							{selectedCoordinateStack.events.map((event) => {
+								const dayNightPeriod = getEventDisplayDayNightPeriod(
+									event,
+									selectedDayNightPeriods,
+								);
+								const venueTypes = getEventVenueTypes(event);
+								const isFeatured = shouldDisplayFeaturedEvent(event);
+								const isPromoted = !isFeatured && event.isPromoted === true;
+								const buttonClassName =
+									isFeatured && event.isOOOCPick
+										? featuredOoocEventButtonClassName
+										: isFeatured
+											? featuredEventButtonClassName
+											: isPromoted
+												? promotedEventButtonClassName
+												: event.isOOOCPick
+													? ooocEventButtonClassName
+													: regularEventButtonClassName;
+
+								return (
+									<button
+										key={event.id}
+										type="button"
+										className={`${baseEventButtonClassName} ${buttonClassName}`}
+										onClick={() => {
+											if (isFeatured || event.isOOOCPick) {
+												haptics.success();
+											} else {
+												haptics.selection();
+											}
+											onEventClick(event);
+										}}
+									>
+										<div className="flex items-center justify-between">
+											<div className="min-w-0 flex-1">
+												<div className="flex flex-wrap items-center gap-1.5">
+													<p className="text-sm font-medium text-foreground">
+														{event.name}
+													</p>
+													{isFeatured && (
+														<span className="rounded-full border border-rose-400/80 bg-rose-100/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-rose-700 dark:border-rose-400/65 dark:bg-rose-500/20 dark:text-rose-200">
+															Featured
+														</span>
+													)}
+													{isPromoted && (
+														<span className="rounded-full border border-rose-300/65 bg-rose-50/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-rose-700/85 dark:border-rose-300/45 dark:bg-rose-400/15 dark:text-rose-100/90">
+															Featured
+														</span>
+													)}
+													{event.isOOOCPick && (
+														<span className="inline-flex items-center gap-0.5 rounded-full border border-amber-400/70 bg-amber-100/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-amber-700 dark:border-amber-400/60 dark:bg-amber-500/20 dark:text-amber-200">
+															<Star className="h-2.5 w-2.5 fill-current" />
+															OOOC
+														</span>
+													)}
+												</div>
+												<p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+													<span>{formatEventMapSchedule(event)}</span>
+													{dayNightPeriod === "day" ? (
+														<Sun className="h-3 w-3" />
+													) : dayNightPeriod === "night" ? (
+														<Moon className="h-3 w-3" />
+													) : null}
+												</p>
+												<div className="mt-1 flex items-center space-x-1">
+													<span className="inline-flex items-center gap-0.5 text-muted-foreground">
+														{venueTypes.includes("indoor") && (
+															<Building2 className="h-3 w-3" />
+														)}
+														{venueTypes.includes("outdoor") && (
+															<Trees className="h-3 w-3" />
+														)}
+													</span>
+													<Euro className="h-3 w-3 text-muted-foreground" />
+													<span
+														className={`text-xs ${
+															formatPrice(event.price) === "Free"
+																? "font-medium text-green-600 dark:text-green-400"
+																: "text-muted-foreground"
+														}`}
+													>
+														{formatPrice(event.price)}
+													</span>
+												</div>
+											</div>
+										</div>
+									</button>
+								);
+							})}
 						</div>
 					</div>
 				</div>
 			)}
 
 			{/* Selected arrondissement events */}
-			{selectedArrondissement && (
+			{selectedArrondissement && !selectedCoordinateStack && (
 				<div className="absolute inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-[3] md:top-3 md:right-3 md:bottom-3 md:left-auto md:w-[25.5rem] md:max-w-[calc(100%-1.5rem)]">
 					<div className="ooo-site-card flex max-h-[min(calc(62dvh_-_env(safe-area-inset-bottom)),26rem)] flex-col rounded-2xl border border-border/80 p-3.5 shadow-[0_24px_44px_-32px_rgba(16,12,9,0.6)] backdrop-blur-xl md:h-full md:max-h-none">
 						<div className="mb-2 flex items-start justify-between gap-3">

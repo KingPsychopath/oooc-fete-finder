@@ -1068,7 +1068,7 @@ export const EventSheetOcrDraftModal = ({
 													<p className="mt-1 text-xs text-muted-foreground">
 														{combinedDraft.edited
 															? "Edited draft; accepts into sheet autosave."
-															: "AI draft; accepts into sheet autosave."}
+															: "AI draft; accepts into sheet autosave. Draft stays admin-only."}
 													</p>
 												</div>
 												<div className="flex items-center gap-2">
@@ -1089,7 +1089,7 @@ export const EventSheetOcrDraftModal = ({
 														}
 														className="h-8 rounded-md border border-input bg-background px-2 text-xs"
 													>
-														<option value="draft">Draft hidden</option>
+														<option value="draft">Draft (admin only)</option>
 														<option value="review">Review-ready</option>
 													</select>
 												</div>
@@ -1195,7 +1195,7 @@ export const EventSheetOcrDraftModal = ({
 																	<p className="mt-1 text-xs text-muted-foreground">
 																		{item.edited
 																			? "Edited draft; accepts into sheet autosave."
-																			: "AI draft; accepts into sheet autosave."}
+																			: "AI draft; accepts into sheet autosave. Draft stays admin-only."}
 																	</p>
 																</div>
 																<div className="flex items-center gap-2">
@@ -1219,7 +1219,9 @@ export const EventSheetOcrDraftModal = ({
 																		}
 																		className="h-8 rounded-md border border-input bg-background px-2 text-xs"
 																	>
-																		<option value="draft">Draft hidden</option>
+																		<option value="draft">
+																			Draft (admin only)
+																		</option>
 																		<option value="review">Review-ready</option>
 																	</select>
 																</div>

@@ -434,7 +434,7 @@ const parseQualityOverride = (
 const getQualityLabel = (value: RowQualityValue): string => {
 	if (value === "complete") return "Details complete";
 	if (value === "blocking") return "Needs fix";
-	if (value === "draft") return "Draft row";
+	if (value === "draft") return "Draft (admin only)";
 	return "Review recommended";
 };
 const getQualityDescription = (value: RowQualityValue): string => {
@@ -484,7 +484,7 @@ const getQualityDotClassName = (value: RowQualityValue): string => {
 const getQualityFilterDescription = (value: RowQualityValue): string => {
 	if (value === "complete") return "details complete rows";
 	if (value === "blocking") return "rows that need fixes";
-	if (value === "draft") return "draft rows";
+	if (value === "draft") return "admin-only draft rows";
 	return "rows recommended for review";
 };
 const hasUsableTextValue = (value: string | undefined): boolean => {
@@ -2826,6 +2826,10 @@ export const EventSheetEditorCard = ({
 	const handleAcceptOcrRows = useCallback(
 		(acceptedRows: EditableSheetRow[], options: { saveAfterAdd: boolean }) => {
 			if (acceptedRows.length === 0) return;
+			const acceptedDraftCount = acceptedRows.filter(
+				(row) =>
+					parseRowQualityOverride(row.detailsQualityOverride) === "draft",
+			).length;
 			const currentColumns = columnsRef.current.map((column) => ({
 				...column,
 			}));
@@ -2842,11 +2846,13 @@ export const EventSheetEditorCard = ({
 			commitSheetMutation(
 				currentColumns,
 				nextRows,
-				`Added ${acceptedRows.length} OCR suggestion${acceptedRows.length === 1 ? "" : "s"} to the sheet`,
+				acceptedDraftCount > 0
+					? `Added ${acceptedDraftCount} admin-only OCR draft${acceptedDraftCount === 1 ? "" : "s"} to the sheet. Showing drafts now.`
+					: `Added ${acceptedRows.length} OCR suggestion${acceptedRows.length === 1 ? "" : "s"} to the sheet`,
 			);
 			setSortMode("sheet-order");
 			setQuery("");
-			setQualityFilter(null);
+			setQualityFilter(acceptedDraftCount > 0 ? "draft" : null);
 			if (options.saveAfterAdd) {
 				window.setTimeout(() => {
 					void handleManualSave();
@@ -6952,7 +6958,7 @@ export const EventSheetEditorCard = ({
 							aria-pressed={qualityFilter === "draft"}
 						>
 							<span className="h-2.5 w-2.5 rounded-full border border-muted-foreground/45" />
-							{rowQualityCounts.draft} draft
+							{rowQualityCounts.draft} admin drafts
 						</button>
 						<span className="border-l border-border/70 pl-2">
 							{rowQualityCounts.sourceConfirmed} location/source confirmed
