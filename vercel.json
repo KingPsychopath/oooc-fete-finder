@@ -1,16 +1,6 @@
 {
-  "functions": {
-    "app/api/og/route.tsx": { "maxDuration": 10 }
-  },
-  "headers": [
-    {
-      "source": "/api/og",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
-        { "key": "CDN-Cache-Control", "value": "public, s-maxage=86400, stale-while-revalidate=604800" },
-        { "key": "Vercel-CDN-Cache-Control", "value": "public, s-maxage=86400, stale-while-revalidate=604800" },
-        { "key": "Content-Type", "value": "image/png" }
-      ]
-    }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": false
+  }
 }
