@@ -31,6 +31,10 @@ import {
 	generateLocationStorageKey,
 	isCoordinateResolvableInput,
 } from "@/features/locations/location-utils";
+import {
+	type SheetLocationResolutionIndex,
+	toSheetLocationResolutionIndex,
+} from "@/features/locations/location-sheet-status";
 import { createGoogleGeocodingProvider } from "@/features/locations/providers/google-geocoding-provider";
 import type { StoredLocationResolution } from "@/features/locations/types";
 import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
@@ -1180,6 +1184,7 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 	success: boolean;
 	columns?: EditableSheetColumn[];
 	rows?: EditableSheetRow[];
+	locationResolutionIndex?: SheetLocationResolutionIndex;
 	genreTaxonomy?: GenreTaxonomySnapshot;
 	rowMetadata?: EventRowLifecycleMetadata[];
 	sheetRevisions?: EventSheetRevisionRecord[];
@@ -1194,13 +1199,21 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 
 	try {
 		const revisionRepository = getEventSheetRevisionRepository();
-		const [status, csv, rowMetadata, genreTaxonomy, sheetRevisions] =
+		const [
+			status,
+			csv,
+			rowMetadata,
+			genreTaxonomy,
+			sheetRevisions,
+			storedLocations,
+		] =
 			await Promise.all([
 				LocalEventStore.getStatus(),
 				LocalEventStore.getCsv(),
 				LocalEventStore.getRowMetadata(),
 				loadAdminGenreTaxonomy(),
 				revisionRepository ? revisionRepository.listRecent(24) : [],
+				LocationRepository.load(),
 			]);
 		const sheet = csvToEditableSheet(csv);
 		const sanitized = stripLegacyFeaturedColumn(sheet.columns, sheet.rows);
@@ -1210,6 +1223,9 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 			success: true,
 			columns: sanitized.columns,
 			rows: sortedRows,
+			locationResolutionIndex: toSheetLocationResolutionIndex(
+				storedLocations.values(),
+			),
 			rowMetadata,
 			genreTaxonomy,
 			sheetRevisions,
@@ -1550,6 +1566,7 @@ export async function saveEventSheetEditorRows(
 	message: string;
 	columns?: EditableSheetColumn[];
 	rows?: EditableSheetRow[];
+	locationResolutionIndex?: SheetLocationResolutionIndex;
 	rowCount?: number;
 	updatedAt?: string;
 	rowMetadata?: EventRowLifecycleMetadata[];
@@ -1640,6 +1657,9 @@ export async function saveEventSheetEditorRows(
 		} else {
 			revalidateEventsPaths(["/"]);
 		}
+		const storedLocations = shouldRevalidateHomepage
+			? await LocationRepository.load()
+			: null;
 		const revision = await recordEventSheetRevision({
 			trigger: shouldRevalidateHomepage ? "publish" : "autosave",
 			rowCount: saved.rowCount,
@@ -1672,6 +1692,9 @@ export async function saveEventSheetEditorRows(
 				: "Saved event sheet to store",
 			columns: savedSheet.columns,
 			rows: savedSheet.rows,
+			locationResolutionIndex: storedLocations
+				? toSheetLocationResolutionIndex(storedLocations.values())
+				: undefined,
 			rowCount: saved.rowCount,
 			updatedAt: saved.updatedAt,
 			rowMetadata,

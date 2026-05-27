@@ -15,8 +15,11 @@ import { Textarea } from "@/components/ui/textarea";
 import type { EditableSheetRow } from "@/features/data-management/csv/sheet-editor";
 import {
 	EVENT_OCR_FIELD_KEYS,
+	type EventOcrFieldCandidate,
 	type EventOcrFieldKey,
 	type EventOcrFieldSuggestion,
+	type EventOcrSourceImage,
+	type EventOcrUsage,
 } from "@/features/data-management/event-ocr/types";
 import {
 	AlertCircle,
@@ -27,7 +30,7 @@ import {
 	Trash2,
 	Upload,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type OcrStatusPayload = {
 	success: boolean;
@@ -42,11 +45,13 @@ type OcrStatusPayload = {
 type OcrDraftPayload = {
 	id: string;
 	fileName: string;
+	sourceImages: EventOcrSourceImage[];
 	provider: string;
 	model: string;
 	fields: Record<EventOcrFieldKey, EventOcrFieldSuggestion>;
 	rawText: string;
 	warnings: string[];
+	usage: EventOcrUsage | null;
 	row: EditableSheetRow;
 	missingRequiredFields: string[];
 	averageConfidence: number;
@@ -77,6 +82,14 @@ type LocalOcrItem = {
 	base64: string;
 	previewUrl: string;
 	status: "queued" | "extracting" | "ready" | "error";
+	error?: string;
+	selected: boolean;
+	rowQuality: "draft" | "review";
+	draft?: OcrDraftPayload;
+};
+
+type CombinedDraftState = {
+	status: "idle" | "extracting" | "ready" | "error";
 	error?: string;
 	selected: boolean;
 	rowQuality: "draft" | "review";
@@ -141,6 +154,13 @@ const formatBytes = (bytes: number): string => {
 
 const formatConfidence = (value: number): string =>
 	`${Math.round(Math.min(1, Math.max(0, value)) * 100)}%`;
+
+const formatTokenUsage = (usage: EventOcrUsage | null | undefined): string => {
+	if (!usage) return "";
+	const total = usage.totalTokenCount ?? usage.promptTokenCount;
+	const tokenText = total === null ? "usage tracked" : `${total} tokens`;
+	return `${tokenText} · ${usage.imageCount} image${usage.imageCount === 1 ? "" : "s"} · ${formatBytes(usage.imageBytes)}`;
+};
 
 const fileToDataUrl = (file: File): Promise<string> =>
 	new Promise((resolve, reject) => {
@@ -207,6 +227,9 @@ const updateDraftField = (
 				value: null,
 				evidence: null,
 				confidence: 0,
+				sourceImageIds: [],
+				sourceFileNames: [],
+				alternatives: [],
 			}),
 			value: value.trim() ? value : null,
 		},
@@ -216,6 +239,50 @@ const updateDraftField = (
 	),
 });
 
+const applyDraftCandidate = (
+	draft: OcrDraftPayload,
+	fieldKey: EventOcrFieldKey,
+	candidate: EventOcrFieldCandidate,
+): OcrDraftPayload => ({
+	...draft,
+	row: {
+		...draft.row,
+		[fieldKey]: candidate.value ?? "",
+	},
+	fields: {
+		...draft.fields,
+		[fieldKey]: {
+			...(draft.fields[fieldKey] ?? {
+				value: null,
+				evidence: null,
+				confidence: 0,
+				sourceImageIds: [],
+				sourceFileNames: [],
+				alternatives: [],
+			}),
+			...candidate,
+		},
+	},
+	missingRequiredFields: ["title", "date"].filter(
+		(key) =>
+			!String(
+				key === fieldKey ? (candidate.value ?? "") : (draft.row[key] ?? ""),
+			).trim(),
+	),
+});
+
+const getFieldSourceLabel = (
+	field: EventOcrFieldSuggestion | undefined,
+	draft: OcrDraftPayload,
+): string => {
+	if (!field) return "";
+	if (field.sourceFileNames.length > 0) return field.sourceFileNames.join(", ");
+	const sourceNames = draft.sourceImages
+		.filter((image) => field.sourceImageIds.includes(image.id))
+		.map((image) => image.fileName);
+	return sourceNames.join(", ");
+};
+
 export const EventSheetOcrDraftModal = ({
 	open,
 	onOpenChange,
@@ -223,6 +290,14 @@ export const EventSheetOcrDraftModal = ({
 }: EventSheetOcrDraftModalProps) => {
 	const [status, setStatus] = useState<OcrStatusPayload | null>(null);
 	const [items, setItems] = useState<LocalOcrItem[]>([]);
+	const [extractionMode, setExtractionMode] = useState<"combined" | "separate">(
+		"combined",
+	);
+	const [combinedDraft, setCombinedDraft] = useState<CombinedDraftState>({
+		status: "idle",
+		selected: true,
+		rowQuality: "draft",
+	});
 	const [isPreparing, setIsPreparing] = useState(false);
 	const [modalError, setModalError] = useState("");
 	const inputRef = useRef<HTMLInputElement | null>(null);
@@ -280,78 +355,120 @@ export const EventSheetOcrDraftModal = ({
 			),
 		[readyItems],
 	);
+	const canAcceptCombinedDraft =
+		extractionMode === "combined" &&
+		combinedDraft.status === "ready" &&
+		Boolean(combinedDraft.draft && isRowAcceptable(combinedDraft.draft.row));
+	const selectedCombinedCount =
+		canAcceptCombinedDraft && combinedDraft.selected ? 1 : 0;
 	const hasExtractableItems = items.some(
 		(item) => item.status === "queued" || item.status === "error",
 	);
-	const isExtracting = items.some((item) => item.status === "extracting");
+	const canRunExtraction =
+		extractionMode === "combined" ? items.length > 0 : hasExtractableItems;
+	const isExtracting =
+		items.some((item) => item.status === "extracting") ||
+		combinedDraft.status === "extracting";
 	const maxImages = status?.maxImages ?? 6;
 	const maxImageBytes = status?.maxImageBytes ?? 5 * 1024 * 1024;
 
-	const handleFiles = async (files: FileList | File[]) => {
-		const candidates = Array.from(files).filter((file) =>
-			file.type.startsWith("image/"),
-		);
-		if (candidates.length === 0) return;
-		setModalError("");
-		const remainingSlots = Math.max(0, maxImages - items.length);
-		if (remainingSlots === 0) {
-			setModalError(`OCR accepts up to ${maxImages} images at once.`);
-			return;
-		}
-		const accepted = candidates.slice(0, remainingSlots);
-		if (accepted.length < candidates.length) {
-			setModalError(
-				`Added ${accepted.length}; OCR accepts ${maxImages} images at once.`,
+	const handleFiles = useCallback(
+		async (files: FileList | File[]) => {
+			const candidates = Array.from(files).filter((file) =>
+				file.type.startsWith("image/"),
 			);
-		}
+			if (candidates.length === 0) return;
+			setModalError("");
+			const remainingSlots = Math.max(0, maxImages - items.length);
+			if (remainingSlots === 0) {
+				setModalError(`OCR accepts up to ${maxImages} images at once.`);
+				return;
+			}
+			const accepted = candidates.slice(0, remainingSlots);
+			if (accepted.length < candidates.length) {
+				setModalError(
+					`Added ${accepted.length}; OCR accepts ${maxImages} images at once.`,
+				);
+			}
 
-		setIsPreparing(true);
-		try {
-			const preparedItems = await Promise.all(
-				accepted.map(async (file): Promise<LocalOcrItem> => {
-					const prepared = await prepareImageForOcr(file);
-					if (prepared.base64.length > maxImageBytes) {
+			setIsPreparing(true);
+			try {
+				const preparedItems = await Promise.all(
+					accepted.map(async (file): Promise<LocalOcrItem> => {
+						const prepared = await prepareImageForOcr(file);
+						if (prepared.base64.length > maxImageBytes) {
+							return {
+								id: newId(),
+								fileName: file.name,
+								mimeType: prepared.mimeType,
+								base64: prepared.base64,
+								previewUrl: prepared.previewUrl,
+								status: "error",
+								error: `Image is still too large after compression (${formatBytes(prepared.base64.length)}).`,
+								selected: false,
+								rowQuality: "draft",
+							};
+						}
 						return {
 							id: newId(),
 							fileName: file.name,
 							mimeType: prepared.mimeType,
 							base64: prepared.base64,
 							previewUrl: prepared.previewUrl,
-							status: "error",
-							error: `Image is still too large after compression (${formatBytes(prepared.base64.length)}).`,
-							selected: false,
+							status: "queued",
+							selected: true,
 							rowQuality: "draft",
 						};
-					}
-					return {
-						id: newId(),
-						fileName: file.name,
-						mimeType: prepared.mimeType,
-						base64: prepared.base64,
-						previewUrl: prepared.previewUrl,
-						status: "queued",
-						selected: true,
-						rowQuality: "draft",
-					};
-				}),
+					}),
+				);
+				setItems((current) => [...current, ...preparedItems]);
+				setCombinedDraft({
+					status: "idle",
+					selected: true,
+					rowQuality: combinedDraft.rowQuality,
+				});
+			} catch (error) {
+				setModalError(
+					error instanceof Error ? error.message : "Failed to prepare images",
+				);
+			} finally {
+				setIsPreparing(false);
+				if (inputRef.current) inputRef.current.value = "";
+			}
+		},
+		[combinedDraft.rowQuality, items.length, maxImageBytes, maxImages],
+	);
+
+	useEffect(() => {
+		if (!open) return;
+		const handlePaste = (event: ClipboardEvent) => {
+			const files = Array.from(event.clipboardData?.files ?? []).filter(
+				(file) => file.type.startsWith("image/"),
 			);
-			setItems((current) => [...current, ...preparedItems]);
-		} catch (error) {
-			setModalError(
-				error instanceof Error ? error.message : "Failed to prepare images",
-			);
-		} finally {
-			setIsPreparing(false);
-			if (inputRef.current) inputRef.current.value = "";
-		}
-	};
+			if (files.length === 0) return;
+			event.preventDefault();
+			void handleFiles(files);
+		};
+		window.addEventListener("paste", handlePaste);
+		return () => window.removeEventListener("paste", handlePaste);
+	}, [handleFiles, open]);
 
 	const runOcr = async () => {
-		const pending = items.filter(
-			(item) => item.status === "queued" || item.status === "error",
-		);
+		const pending =
+			extractionMode === "combined"
+				? items
+				: items.filter(
+						(item) => item.status === "queued" || item.status === "error",
+					);
 		if (pending.length === 0 || isExtracting) return;
 		setModalError("");
+		if (extractionMode === "combined") {
+			setCombinedDraft({
+				status: "extracting",
+				selected: true,
+				rowQuality: combinedDraft.rowQuality,
+			});
+		}
 		setItems((current) =>
 			current.map((item) =>
 				pending.some((pendingItem) => pendingItem.id === item.id)
@@ -370,6 +487,7 @@ export const EventSheetOcrDraftModal = ({
 				},
 				cache: "no-store",
 				body: JSON.stringify({
+					combineImages: extractionMode === "combined",
 					images: pending.map((item) => ({
 						id: item.id,
 						fileName: item.fileName,
@@ -382,6 +500,42 @@ export const EventSheetOcrDraftModal = ({
 			setStatus(payload);
 			if (!response.ok || !payload.success) {
 				throw new Error(payload.error || `OCR failed (${response.status})`);
+			}
+			if (extractionMode === "combined") {
+				const result = payload.results?.[0];
+				if (!result) {
+					throw new Error("OCR did not return a combined result.");
+				}
+				if (!result.success) {
+					setCombinedDraft({
+						status: "error",
+						error: result.error,
+						selected: false,
+						rowQuality: combinedDraft.rowQuality,
+					});
+					setItems((current) =>
+						current.map((item) =>
+							pending.some((pendingItem) => pendingItem.id === item.id)
+								? { ...item, status: "error", error: result.error }
+								: item,
+						),
+					);
+					return;
+				}
+				setCombinedDraft({
+					status: "ready",
+					selected: isRowAcceptable(result.draft.row),
+					rowQuality: combinedDraft.rowQuality,
+					draft: result.draft,
+				});
+				setItems((current) =>
+					current.map((item) =>
+						pending.some((pendingItem) => pendingItem.id === item.id)
+							? { ...item, status: "ready", error: undefined }
+							: item,
+					),
+				);
+				return;
 			}
 			const resultsById = new Map(
 				(payload.results ?? []).map((result) => [
@@ -421,6 +575,14 @@ export const EventSheetOcrDraftModal = ({
 		} catch (error) {
 			const message =
 				error instanceof Error ? error.message : "OCR extraction failed";
+			if (extractionMode === "combined") {
+				setCombinedDraft({
+					status: "error",
+					error: message,
+					selected: false,
+					rowQuality: combinedDraft.rowQuality,
+				});
+			}
 			setItems((current) =>
 				current.map((item) =>
 					pending.some((pendingItem) => pendingItem.id === item.id)
@@ -433,6 +595,21 @@ export const EventSheetOcrDraftModal = ({
 
 	const removeItem = (itemId: string) => {
 		setItems((current) => current.filter((item) => item.id !== itemId));
+		setCombinedDraft((current) => ({
+			status: "idle",
+			selected: true,
+			rowQuality: current.rowQuality,
+		}));
+	};
+
+	const clearImages = () => {
+		setItems([]);
+		setCombinedDraft((current) => ({
+			status: "idle",
+			selected: true,
+			rowQuality: current.rowQuality,
+		}));
+		if (inputRef.current) inputRef.current.value = "";
 	};
 
 	const updateItem = (
@@ -446,6 +623,27 @@ export const EventSheetOcrDraftModal = ({
 
 	const acceptSelected = (saveAfterAdd: boolean) => {
 		const rows: EditableSheetRow[] = [];
+		if (
+			extractionMode === "combined" &&
+			combinedDraft.selected &&
+			combinedDraft.draft &&
+			isRowAcceptable(combinedDraft.draft.row)
+		) {
+			rows.push({
+				...combinedDraft.draft.row,
+				detailsQualityOverride: combinedDraft.rowQuality,
+				sourceConfirmed: "",
+				eventKey: "",
+			});
+			onAcceptRows(rows, { saveAfterAdd });
+			setItems([]);
+			setCombinedDraft({
+				status: "idle",
+				selected: true,
+				rowQuality: "draft",
+			});
+			return;
+		}
 		for (const item of selectedReadyItems) {
 			const row = item.draft?.row;
 			if (!row) continue;
@@ -468,6 +666,76 @@ export const EventSheetOcrDraftModal = ({
 		);
 	};
 
+	const renderDraftFields = (
+		draft: OcrDraftPayload,
+		onDraftChange: (nextDraft: OcrDraftPayload) => void,
+	) => (
+		<div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+			{EVENT_OCR_FIELD_KEYS.map((fieldKey) => {
+				const field = draft.fields[fieldKey];
+				const value = draft.row[fieldKey] ?? "";
+				const id = `${draft.id}-${fieldKey}`;
+				const isLong = LONG_FIELD_KEYS.has(fieldKey);
+				const sourceLabel = getFieldSourceLabel(field, draft);
+				const alternatives = field?.alternatives ?? [];
+				return (
+					<div key={fieldKey} className={isLong ? "xl:col-span-2" : ""}>
+						<Label htmlFor={id} className="text-xs">
+							{FIELD_LABELS[fieldKey]}
+						</Label>
+						{fieldKey === "notes" ? (
+							<Textarea
+								id={id}
+								value={value}
+								rows={3}
+								onChange={(event) =>
+									onDraftChange(
+										updateDraftField(draft, fieldKey, event.target.value),
+									)
+								}
+							/>
+						) : (
+							<Input
+								id={id}
+								value={value}
+								onChange={(event) =>
+									onDraftChange(
+										updateDraftField(draft, fieldKey, event.target.value),
+									)
+								}
+							/>
+						)}
+						{field?.evidence && (
+							<p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">
+								{formatConfidence(field.confidence)}
+								{sourceLabel ? ` · ${sourceLabel}` : ""} · {field.evidence}
+							</p>
+						)}
+						{alternatives.length > 0 && (
+							<div className="mt-1 flex flex-wrap gap-1">
+								{alternatives.map((candidate, index) => (
+									<button
+										key={`${candidate.value}-${index}`}
+										type="button"
+										className="max-w-full truncate rounded border bg-muted/35 px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted"
+										onClick={() =>
+											onDraftChange(
+												applyDraftCandidate(draft, fieldKey, candidate),
+											)
+										}
+										title={candidate.evidence ?? candidate.value ?? ""}
+									>
+										{index + 1}. {candidate.value}
+									</button>
+								))}
+							</div>
+						)}
+					</div>
+				);
+			})}
+		</div>
+	);
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-h-[92vh] w-[min(1180px,calc(100vw-1rem))] max-w-none overflow-hidden p-0 sm:max-w-none">
@@ -479,8 +747,9 @@ export const EventSheetOcrDraftModal = ({
 									Extract events from screenshots
 								</DialogTitle>
 								<DialogDescription className="mt-1 max-w-2xl">
-									Upload flyers or screenshots, review the suggested fields,
-									then add accepted rows to the event sheet.
+									Upload one or more screenshots, review the suggested fields
+									with source evidence, then add accepted rows to the event
+									sheet.
 								</DialogDescription>
 							</div>
 							<div className="flex flex-wrap items-center gap-2 text-xs">
@@ -529,14 +798,56 @@ export const EventSheetOcrDraftModal = ({
 										<Upload className="h-5 w-5" />
 									</div>
 									<div>
-										<p className="font-medium">Drop screenshots here</p>
+										<p className="font-medium">
+											Drop or paste screenshots here
+										</p>
 										<p className="text-xs text-muted-foreground">
-											PNG, JPEG, or WebP. Up to {maxImages} images, compressed
-											before upload.
+											PNG, JPEG, WebP, or clipboard images. Up to {maxImages}.
+											Combine mode treats them as evidence for one event.
 										</p>
 									</div>
 								</div>
 								<div className="flex flex-wrap gap-2">
+									<div className="flex h-9 rounded-md border bg-background p-0.5">
+										<Button
+											type="button"
+											variant={
+												extractionMode === "combined" ? "secondary" : "ghost"
+											}
+											size="sm"
+											className="h-8"
+											onClick={() => {
+												setExtractionMode("combined");
+												setCombinedDraft((current) => ({
+													status: "idle",
+													selected: true,
+													rowQuality: current.rowQuality,
+												}));
+											}}
+										>
+											One event
+										</Button>
+										<Button
+											type="button"
+											variant={
+												extractionMode === "separate" ? "secondary" : "ghost"
+											}
+											size="sm"
+											className="h-8"
+											onClick={() => {
+												setExtractionMode("separate");
+												setItems((current) =>
+													current.map((item) =>
+														item.status === "ready" && !item.draft
+															? { ...item, status: "queued" }
+															: item,
+													),
+												);
+											}}
+										>
+											Separate events
+										</Button>
+									</div>
 									<Input
 										ref={inputRef}
 										type="file"
@@ -554,7 +865,7 @@ export const EventSheetOcrDraftModal = ({
 										size="sm"
 										className="h-9 gap-2"
 										disabled={
-											!hasExtractableItems ||
+											!canRunExtraction ||
 											isExtracting ||
 											isPreparing ||
 											status?.configured === false
@@ -566,8 +877,23 @@ export const EventSheetOcrDraftModal = ({
 										) : (
 											<Sparkles className="h-4 w-4" />
 										)}
-										Extract details
+										{extractionMode === "combined"
+											? "Extract one event"
+											: "Extract details"}
 									</Button>
+									{items.length > 0 && (
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className="h-9 gap-2"
+											disabled={isExtracting || isPreparing}
+											onClick={clearImages}
+										>
+											<Trash2 className="h-4 w-4" />
+											Clear images
+										</Button>
+									)}
 								</div>
 							</div>
 						</div>
@@ -577,6 +903,125 @@ export const EventSheetOcrDraftModal = ({
 								<div className="rounded-md border bg-background/55 px-4 py-8 text-center text-sm text-muted-foreground">
 									<ImageIcon className="mx-auto mb-2 h-8 w-8 opacity-70" />
 									No screenshots queued yet.
+								</div>
+							) : extractionMode === "combined" ? (
+								<div className="rounded-md border bg-background/55 p-3">
+									<div className="mb-3 flex flex-wrap gap-2">
+										{items.map((item, index) => (
+											<div
+												key={item.id}
+												className="flex w-44 items-center gap-2 rounded-md border bg-muted/20 p-2"
+											>
+												<img
+													src={item.previewUrl}
+													alt=""
+													className="h-12 w-12 rounded border object-contain bg-background"
+												/>
+												<div className="min-w-0 flex-1">
+													<p className="truncate text-xs font-medium">
+														{index + 1}. {item.fileName}
+													</p>
+													<p className="text-[11px] text-muted-foreground">
+														{item.status}
+													</p>
+												</div>
+												<Button
+													type="button"
+													variant="ghost"
+													size="icon"
+													className="h-7 w-7"
+													onClick={() => removeItem(item.id)}
+													title="Remove screenshot"
+												>
+													<Trash2 className="h-4 w-4" />
+												</Button>
+											</div>
+										))}
+									</div>
+
+									{combinedDraft.status === "idle" && (
+										<div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+											Ready to extract one event from all screenshots.
+										</div>
+									)}
+									{combinedDraft.status === "extracting" && (
+										<div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+											<Loader2 className="h-4 w-4 animate-spin" />
+											Reading all screenshots as one event...
+										</div>
+									)}
+									{combinedDraft.status === "error" && (
+										<div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+											<AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+											<span>{combinedDraft.error ?? "OCR failed"}</span>
+										</div>
+									)}
+									{combinedDraft.status === "ready" && combinedDraft.draft && (
+										<div className="space-y-3">
+											<div className="flex flex-wrap items-center justify-between gap-2">
+												<div>
+													<label className="flex items-center gap-2 text-sm font-medium">
+														<input
+															type="checkbox"
+															checked={combinedDraft.selected}
+															disabled={!canAcceptCombinedDraft}
+															onChange={(event) =>
+																setCombinedDraft((current) => ({
+																	...current,
+																	selected: event.target.checked,
+																}))
+															}
+														/>
+														Select merged event for sheet
+													</label>
+													{combinedDraft.draft.usage && (
+														<p className="mt-1 text-xs text-muted-foreground">
+															{formatTokenUsage(combinedDraft.draft.usage)}
+														</p>
+													)}
+												</div>
+												<div className="flex items-center gap-2">
+													<Label htmlFor="combined-quality" className="text-xs">
+														Sheet status
+													</Label>
+													<select
+														id="combined-quality"
+														value={combinedDraft.rowQuality}
+														onChange={(event) =>
+															setCombinedDraft((current) => ({
+																...current,
+																rowQuality:
+																	event.target.value === "review"
+																		? "review"
+																		: "draft",
+															}))
+														}
+														className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+													>
+														<option value="draft">Draft hidden</option>
+														<option value="review">Review-ready</option>
+													</select>
+												</div>
+											</div>
+											{!canAcceptCombinedDraft && (
+												<div className="rounded-md border border-amber-300/70 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-100">
+													Title and date are required before this suggestion can
+													be added.
+												</div>
+											)}
+											{renderDraftFields(combinedDraft.draft, (nextDraft) =>
+												setCombinedDraft((current) => ({
+													...current,
+													draft: nextDraft,
+												})),
+											)}
+											{combinedDraft.draft.warnings.length > 0 && (
+												<div className="rounded-md border bg-muted/25 px-3 py-2 text-xs text-muted-foreground">
+													{combinedDraft.draft.warnings.join(" ")}
+												</div>
+											)}
+										</div>
+									)}
 								</div>
 							) : (
 								items.map((item) => {
@@ -601,7 +1046,7 @@ export const EventSheetOcrDraftModal = ({
 															</p>
 															<p className="text-xs text-muted-foreground">
 																{item.status === "ready" && item.draft
-																	? `${formatConfidence(item.draft.averageConfidence)} avg confidence`
+																	? `${formatConfidence(item.draft.averageConfidence)} avg confidence${item.draft.usage ? ` · ${formatTokenUsage(item.draft.usage)}` : ""}`
 																	: item.status}
 															</p>
 														</div>
@@ -685,70 +1130,12 @@ export const EventSheetOcrDraftModal = ({
 																	suggestion can be added.
 																</div>
 															)}
-															<div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-																{EVENT_OCR_FIELD_KEYS.map((fieldKey) => {
-																	const field = item.draft?.fields[fieldKey];
-																	const value = item.draft?.row[fieldKey] ?? "";
-																	const id = `${item.id}-${fieldKey}`;
-																	const isLong = LONG_FIELD_KEYS.has(fieldKey);
-																	return (
-																		<div
-																			key={fieldKey}
-																			className={isLong ? "xl:col-span-2" : ""}
-																		>
-																			<Label htmlFor={id} className="text-xs">
-																				{FIELD_LABELS[fieldKey]}
-																			</Label>
-																			{fieldKey === "notes" ? (
-																				<Textarea
-																					id={id}
-																					value={value}
-																					rows={3}
-																					onChange={(event) =>
-																						updateItem(item.id, (current) =>
-																							current.draft
-																								? {
-																										...current,
-																										draft: updateDraftField(
-																											current.draft,
-																											fieldKey,
-																											event.target.value,
-																										),
-																									}
-																								: current,
-																						)
-																					}
-																				/>
-																			) : (
-																				<Input
-																					id={id}
-																					value={value}
-																					onChange={(event) =>
-																						updateItem(item.id, (current) =>
-																							current.draft
-																								? {
-																										...current,
-																										draft: updateDraftField(
-																											current.draft,
-																											fieldKey,
-																											event.target.value,
-																										),
-																									}
-																								: current,
-																						)
-																					}
-																				/>
-																			)}
-																			{field?.evidence && (
-																				<p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">
-																					{formatConfidence(field.confidence)} ·{" "}
-																					{field.evidence}
-																				</p>
-																			)}
-																		</div>
-																	);
-																})}
-															</div>
+															{renderDraftFields(item.draft, (nextDraft) =>
+																updateItem(item.id, (current) => ({
+																	...current,
+																	draft: nextDraft,
+																})),
+															)}
 															{item.draft.warnings.length > 0 && (
 																<div className="rounded-md border bg-muted/25 px-3 py-2 text-xs text-muted-foreground">
 																	{item.draft.warnings.join(" ")}
@@ -768,11 +1155,15 @@ export const EventSheetOcrDraftModal = ({
 					<div className="shrink-0 border-t bg-background px-5 py-3 sm:px-6">
 						<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 							<div className="text-sm text-muted-foreground">
-								{selectedReadyItems.length > 0 ? (
+								{selectedCombinedCount + selectedReadyItems.length > 0 ? (
 									<span className="inline-flex items-center gap-2">
 										<CheckCircle2 className="h-4 w-4 text-green-600" />
-										{selectedReadyItems.length} suggestion
-										{selectedReadyItems.length === 1 ? "" : "s"} ready
+										{selectedCombinedCount + selectedReadyItems.length}{" "}
+										suggestion
+										{selectedCombinedCount + selectedReadyItems.length === 1
+											? ""
+											: "s"}{" "}
+										ready
 									</span>
 								) : (
 									"Review suggestions before adding them to the sheet."
@@ -789,14 +1180,18 @@ export const EventSheetOcrDraftModal = ({
 								<Button
 									type="button"
 									variant="outline"
-									disabled={selectedReadyItems.length === 0}
+									disabled={
+										selectedCombinedCount + selectedReadyItems.length === 0
+									}
 									onClick={() => acceptSelected(false)}
 								>
 									Add selected
 								</Button>
 								<Button
 									type="button"
-									disabled={selectedReadyItems.length === 0}
+									disabled={
+										selectedCombinedCount + selectedReadyItems.length === 0
+									}
 									onClick={() => acceptSelected(true)}
 								>
 									Add selected and save

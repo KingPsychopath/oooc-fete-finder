@@ -115,6 +115,7 @@ export const normalizeRawOcrDraft = (value: unknown): EventOcrRawDraft => {
 		warnings: rawWarnings
 			.map((warning) => (typeof warning === "string" ? warning.trim() : ""))
 			.filter(Boolean),
+		usage: null,
 	};
 };
 

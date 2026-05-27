@@ -3,7 +3,10 @@ import { buildEditableRowFromOcrDraft } from "./normalizer";
 import type {
 	EventOcrDraft,
 	EventOcrExtractionResult,
+	EventOcrFieldCandidate,
+	EventOcrFieldSuggestion,
 	EventOcrImageInput,
+	EventOcrRawDraft,
 } from "./types";
 
 export const getEventOcrStatus = (): {
@@ -29,6 +32,54 @@ export const getEventOcrStatus = (): {
 		};
 	}
 };
+
+const normalizeCandidateSources = (
+	candidate: EventOcrFieldCandidate,
+	sourceImages: EventOcrImageInput[],
+): EventOcrFieldCandidate => {
+	const sourceById = new Map(
+		sourceImages.map((image) => [image.id, image.fileName]),
+	);
+	const fileNameToId = new Map(
+		sourceImages.map((image) => [image.fileName, image.id]),
+	);
+	const sourceImageIds = [
+		...new Set([
+			...candidate.sourceImageIds.filter((id) => sourceById.has(id)),
+			...candidate.sourceFileNames
+				.map((fileName) => fileNameToId.get(fileName))
+				.filter((id): id is string => Boolean(id)),
+		]),
+	];
+	return {
+		...candidate,
+		sourceImageIds,
+		sourceFileNames: sourceImageIds.map((id) => sourceById.get(id) ?? id),
+	};
+};
+
+const normalizeFieldSources = (
+	field: EventOcrFieldSuggestion,
+	sourceImages: EventOcrImageInput[],
+): EventOcrFieldSuggestion => ({
+	...normalizeCandidateSources(field, sourceImages),
+	alternatives: field.alternatives.map((candidate) =>
+		normalizeCandidateSources(candidate, sourceImages),
+	),
+});
+
+const normalizeDraftSources = (
+	draft: EventOcrRawDraft,
+	sourceImages: EventOcrImageInput[],
+): EventOcrRawDraft => ({
+	...draft,
+	fields: Object.fromEntries(
+		Object.entries(draft.fields).map(([fieldKey, field]) => [
+			fieldKey,
+			normalizeFieldSources(field, sourceImages),
+		]),
+	) as EventOcrRawDraft["fields"],
+});
 
 export const extractEventOcrDrafts = async (
 	images: EventOcrImageInput[],
@@ -60,7 +111,10 @@ export const extractEventOcrDrafts = async (
 	const results: EventOcrExtractionResult[] = [];
 	for (const image of images) {
 		try {
-			const rawDraft = await extractor.extract(image);
+			const rawDraft = normalizeDraftSources(
+				await extractor.extractBatch([image]),
+				[image],
+			);
 			const normalized = buildEditableRowFromOcrDraft(rawDraft);
 			results.push({
 				success: true,
@@ -95,7 +149,9 @@ export const extractCombinedEventOcrDraft = async (
 ): Promise<EventOcrExtractionResult> => {
 	const id = `combined_${images.map((image) => image.id).join("_")}`;
 	const fileName =
-		images.length === 1 ? images[0]?.fileName || "Combined event" : "Combined event";
+		images.length === 1
+			? images[0]?.fileName || "Combined event"
+			: "Combined event";
 	let extractor;
 	try {
 		extractor = getEventOcrExtractor();
@@ -121,7 +177,10 @@ export const extractCombinedEventOcrDraft = async (
 	}
 
 	try {
-		const rawDraft = await extractor.extractBatch(images);
+		const rawDraft = normalizeDraftSources(
+			await extractor.extractBatch(images),
+			images,
+		);
 		const normalized = buildEditableRowFromOcrDraft(rawDraft);
 		const draft: EventOcrDraft = {
 			...rawDraft,

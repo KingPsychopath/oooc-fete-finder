@@ -41,6 +41,7 @@ describe("event OCR draft normalization", () => {
 		expect(result.row.detailsQualityOverride).toBe("draft");
 		expect(result.missingRequiredFields).toEqual([]);
 		expect(result.averageConfidence).toBeGreaterThan(0.8);
+		expect(draft.usage).toBeNull();
 	});
 
 	it("keeps missing required fields explicit", () => {
@@ -55,5 +56,41 @@ describe("event OCR draft normalization", () => {
 		expect(result.row.title).toBe("Untitled Party");
 		expect(result.row.date).toBe("");
 		expect(result.missingRequiredFields).toEqual(["date"]);
+	});
+
+	it("keeps OCR source images and ranked alternatives deterministic", () => {
+		const draft = normalizeRawOcrDraft({
+			fields: {
+				location: {
+					value: "Parc de Belleville",
+					evidence: "PARC DE BELLEVILLE",
+					confidence: 0.91,
+					sourceImageIds: ["flyer"],
+					sourceFileNames: ["flyer.jpg"],
+					alternatives: [
+						{
+							value: "Belleville Park",
+							evidence: "BELLEVILLE",
+							confidence: 0.63,
+							sourceImageIds: ["caption"],
+							sourceFileNames: ["caption.jpg"],
+						},
+						{
+							value: "",
+							confidence: 0.2,
+						},
+					],
+				},
+			},
+		});
+
+		expect(draft.fields.location.sourceImageIds).toEqual(["flyer"]);
+		expect(draft.fields.location.sourceFileNames).toEqual(["flyer.jpg"]);
+		expect(draft.fields.location.alternatives).toHaveLength(1);
+		expect(draft.fields.location.alternatives[0]).toMatchObject({
+			value: "Belleville Park",
+			sourceImageIds: ["caption"],
+			sourceFileNames: ["caption.jpg"],
+		});
 	});
 });

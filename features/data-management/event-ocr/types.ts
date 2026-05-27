@@ -48,10 +48,19 @@ export type EventOcrFieldSuggestion = EventOcrFieldCandidate & {
 	alternatives: EventOcrFieldCandidate[];
 };
 
+export type EventOcrUsage = {
+	promptTokenCount: number | null;
+	candidatesTokenCount: number | null;
+	totalTokenCount: number | null;
+	imageCount: number;
+	imageBytes: number;
+};
+
 export type EventOcrRawDraft = {
 	fields: Record<EventOcrFieldKey, EventOcrFieldSuggestion>;
 	rawText: string;
 	warnings: string[];
+	usage: EventOcrUsage | null;
 };
 
 export type EventOcrDraft = EventOcrRawDraft & {
@@ -83,6 +92,5 @@ export interface EventOcrExtractor {
 	readonly provider: EventOcrProviderId;
 	readonly model: string;
 	isConfigured(): boolean;
-	extract(input: EventOcrImageInput): Promise<EventOcrRawDraft>;
 	extractBatch(inputs: EventOcrImageInput[]): Promise<EventOcrRawDraft>;
 }

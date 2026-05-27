@@ -81,9 +81,21 @@ import {
 	EVENT_EXPERIENCE_CATEGORIES,
 	type EventExperienceCategory,
 	type EventExperienceCategoryDefinition,
+	type ParisArrondissement,
 	formatEventExperienceCategory,
 	normalizeEventExperienceCategory,
 } from "@/features/events/types";
+import {
+	findLikelyLocationAliases,
+	getSheetLocationResolutionKey,
+	getSheetLocationTrustState,
+	type LocationAliasCandidate,
+	type LocationAliasMatch,
+	type SheetLocationResolution,
+	type SheetLocationResolutionIndex,
+	type SheetLocationTrustState,
+} from "@/features/locations/location-sheet-status";
+import { isCoordinateResolvableInput } from "@/features/locations/location-utils";
 import {
 	AlertCircle,
 	ArrowDown,
@@ -125,6 +137,7 @@ type EditorPayload = {
 	success: boolean;
 	columns?: EditableSheetColumn[];
 	rows?: EditableSheetRow[];
+	locationResolutionIndex?: SheetLocationResolutionIndex;
 	rowMetadata?: EventRowLifecycleMetadata[];
 	genreTaxonomy?: GenreTaxonomySnapshot;
 	sheetRevisions?: EventSheetRevisionRecord[];
@@ -140,6 +153,7 @@ type SaveEventSheetResult = {
 	message: string;
 	columns?: EditableSheetColumn[];
 	rows?: EditableSheetRow[];
+	locationResolutionIndex?: SheetLocationResolutionIndex;
 	rowCount?: number;
 	updatedAt?: string;
 	rowMetadata?: EventRowLifecycleMetadata[];
@@ -229,6 +243,21 @@ type LocationSuggestion = {
 	area: string;
 	count: number;
 	isAreaMatch: boolean;
+};
+type LocationCellPartStatus = {
+	name: string;
+	arrondissement: ParisArrondissement;
+	key: string;
+	resolution: SheetLocationResolution | null;
+	trustState: SheetLocationTrustState;
+	aliases: LocationAliasMatch[];
+};
+type LocationCellStatus = {
+	parts: LocationCellPartStatus[];
+	trustState: SheetLocationTrustState;
+	label: string;
+	title: string;
+	hasAliasWarning: boolean;
 };
 type SeriesKeySuggestion = {
 	rowIndex: number;
@@ -965,6 +994,20 @@ const findAreaOption = (value: string): AreaOption | null => {
 const normalizeAreaValue = (value: string): string =>
 	findAreaOption(value)?.value ?? value;
 
+const areaOptionToArrondissement = (
+	option: AreaOption | null,
+): ParisArrondissement => {
+	if (!option) return "unknown";
+	const numeric = Number(option.value);
+	if (Number.isInteger(numeric) && numeric >= 1 && numeric <= 20) {
+		return numeric as ParisArrondissement;
+	}
+	if (option.value === "Greater Paris") return "greater-paris";
+	if (option.value === "Outside Paris") return "outside-paris";
+	if (option.value === "Multiple Locations") return "multiple-locations";
+	return "unknown";
+};
+
 const filterAreaOptions = (query: string): AreaOption[] => {
 	const normalized = normalizeAreaSearchText(query);
 	if (!normalized) return AREA_OPTIONS;
@@ -1124,6 +1167,53 @@ const buildLocationAreaPairs = (
 					? areas[0]
 					: "",
 	}));
+};
+
+const getLocationTrustRank = (state: SheetLocationTrustState): number => {
+	if (state === "unresolved") return 0;
+	if (state === "approximate") return 1;
+	if (state === "geocoded") return 2;
+	return 3;
+};
+
+const getLocationCellLabel = (
+	state: SheetLocationTrustState,
+	hasAliasWarning: boolean,
+): string => {
+	if (hasAliasWarning) return "Check similar location";
+	if (state === "manual") return "Manual coordinates";
+	if (state === "geocoded") return "Geocoded";
+	if (state === "approximate") return "Approximate";
+	return "Unresolved";
+};
+
+const getLocationDotClassName = (
+	state: SheetLocationTrustState,
+	hasAliasWarning: boolean,
+): string => {
+	if (hasAliasWarning) return "border-amber-500 bg-amber-500";
+	if (state === "manual") return "border-emerald-700 bg-emerald-700";
+	if (state === "geocoded") return "border-emerald-500 bg-emerald-500";
+	if (state === "approximate") return "border-amber-400 bg-transparent";
+	return "border-muted-foreground/35 bg-transparent";
+};
+
+const buildLocationCellTitle = (status: LocationCellStatus): string => {
+	const lines = status.parts.map((part) => {
+		const base = `${part.name || "Location TBC"}: ${getLocationCellLabel(
+			part.trustState,
+			part.aliases.length > 0,
+		)}`;
+		const address = part.resolution?.formattedAddress
+			? ` (${part.resolution.formattedAddress})`
+			: "";
+		const aliases =
+			part.aliases.length > 0
+				? `; similar: ${part.aliases.map((alias) => alias.name).join(", ")}`
+				: "";
+		return `${base}${address}${aliases}`;
+	});
+	return lines.join("\n");
 };
 
 const toUTCDateOnlyTime = (date: Date): number =>
@@ -1578,6 +1668,10 @@ export const EventSheetEditorCard = ({
 	const [rowMetadata, setRowMetadata] = useState<EventRowLifecycleMetadata[]>(
 		initialEditorData?.rowMetadata ?? [],
 	);
+	const [locationResolutionIndex, setLocationResolutionIndex] =
+		useState<SheetLocationResolutionIndex>(
+			initialEditorData?.locationResolutionIndex ?? {},
+		);
 	const [sheetRevisions, setSheetRevisions] = useState<
 		EventSheetRevisionRecord[]
 	>(initialEditorData?.sheetRevisions ?? []);
@@ -1829,6 +1923,7 @@ export const EventSheetEditorCard = ({
 
 			setColumns(result.columns);
 			setRows(result.rows);
+			setLocationResolutionIndex(result.locationResolutionIndex ?? {});
 			setGenreTaxonomy(result.genreTaxonomy);
 			setSheetRevisions(result.sheetRevisions ?? []);
 			setIsSheetRevisionSupported(result.sheetRevisionSupported !== false);
@@ -2106,6 +2201,9 @@ export const EventSheetEditorCard = ({
 				setLastSavedAt(result.updatedAt || new Date().toISOString());
 				if (result.rowMetadata) {
 					setRowMetadata(result.rowMetadata);
+				}
+				if (result.locationResolutionIndex) {
+					setLocationResolutionIndex(result.locationResolutionIndex);
 				}
 				updateRevisionHistory(result.revision);
 				const hasFreshPublishActivity =
@@ -3108,6 +3206,99 @@ export const EventSheetEditorCard = ({
 				})
 				.slice(0, 8);
 		}, [focusedLocationCell, locationSearchQuery, rows]);
+
+	const locationAliasCandidates = useMemo((): LocationAliasCandidate[] => {
+		const candidates = new Map<string, LocationAliasCandidate>();
+		for (const row of rows) {
+			for (const pair of buildLocationAreaPairs(
+				row[LOCATION_COLUMN_KEY] ?? "",
+				row[AREA_COLUMN_KEY] ?? "",
+			)) {
+				const name = pair.location.trim();
+				const arrondissement = areaOptionToArrondissement(
+					findAreaOption(pair.area),
+				);
+				if (!isCoordinateResolvableInput(name, arrondissement)) continue;
+				const key = getSheetLocationResolutionKey(name, arrondissement);
+				if (!candidates.has(key)) {
+					candidates.set(key, { key, name, arrondissement });
+				}
+			}
+		}
+		for (const resolution of Object.values(locationResolutionIndex)) {
+			if (
+				!isCoordinateResolvableInput(resolution.name, resolution.arrondissement)
+			) {
+				continue;
+			}
+			if (!candidates.has(resolution.id)) {
+				candidates.set(resolution.id, {
+					key: resolution.id,
+					name: resolution.name,
+					arrondissement: resolution.arrondissement,
+				});
+			}
+		}
+		return Array.from(candidates.values());
+	}, [locationResolutionIndex, rows]);
+
+	const locationStatusByRowIndex = useMemo(() => {
+		const statuses = new Map<number, LocationCellStatus>();
+		rows.forEach((row, rowIndex) => {
+			const parts = buildLocationAreaPairs(
+				row[LOCATION_COLUMN_KEY] ?? "",
+				row[AREA_COLUMN_KEY] ?? "",
+			).map((pair): LocationCellPartStatus => {
+				const name = pair.location.trim();
+				const arrondissement = areaOptionToArrondissement(
+					findAreaOption(pair.area),
+				);
+				const isResolvable = isCoordinateResolvableInput(name, arrondissement);
+				const key = isResolvable
+					? getSheetLocationResolutionKey(name, arrondissement)
+					: `${name.toLowerCase()}_${String(arrondissement)}`;
+				const resolution = isResolvable
+					? (locationResolutionIndex[key] ?? null)
+					: null;
+				const trustState = getSheetLocationTrustState(resolution);
+				const aliases = isResolvable
+					? findLikelyLocationAliases(
+							{ key, name, arrondissement },
+							locationAliasCandidates,
+						)
+					: [];
+				return {
+					name,
+					arrondissement,
+					key,
+					resolution,
+					trustState,
+					aliases,
+				};
+			});
+
+			if (parts.length === 0) return;
+			const trustState = parts.reduce<SheetLocationTrustState>(
+				(current, part) =>
+					getLocationTrustRank(part.trustState) <
+					getLocationTrustRank(current)
+						? part.trustState
+						: current,
+				"manual",
+			);
+			const hasAliasWarning = parts.some((part) => part.aliases.length > 0);
+			const status: LocationCellStatus = {
+				parts,
+				trustState,
+				hasAliasWarning,
+				label: getLocationCellLabel(trustState, hasAliasWarning),
+				title: "",
+			};
+			status.title = buildLocationCellTitle(status);
+			statuses.set(rowIndex, status);
+		});
+		return statuses;
+	}, [locationAliasCandidates, locationResolutionIndex, rows]);
 
 	const settingOptionsForFocusedCell = useMemo((): SimpleOption[] => {
 		if (!focusedSettingCell) return [];
@@ -6934,6 +7125,8 @@ export const EventSheetEditorCard = ({
 											row[LOCATION_COLUMN_KEY] ?? "",
 											row[AREA_COLUMN_KEY] ?? "",
 										);
+										const locationCellStatus =
+											locationStatusByRowIndex.get(rowIndex);
 										const rowIssues =
 											sheetHealthIssuesByRow.get(rowIndex + 1) ?? [];
 										const rowQuality = getRowQualityAssessment(row, rowIssues, {
@@ -7471,6 +7664,16 @@ export const EventSheetEditorCard = ({
 															</div>
 														) : column.key === LOCATION_COLUMN_KEY ? (
 															<div className="relative min-h-9 bg-transparent">
+																{locationCellStatus && (
+																	<span
+																		className={`absolute left-2 top-1/2 z-10 h-2.5 w-2.5 -translate-y-1/2 rounded-full border ${getLocationDotClassName(
+																			locationCellStatus.trustState,
+																			locationCellStatus.hasAliasWarning,
+																		)}`}
+																		title={locationCellStatus.title}
+																		aria-label={locationCellStatus.label}
+																	/>
+																)}
 																<input
 																	ref={(node) => {
 																		inputRefs.current[
@@ -7593,7 +7796,9 @@ export const EventSheetEditorCard = ({
 																			focusCell(rowIndex, column.key, 0, -1);
 																		}
 																	}}
-																	className="h-9 w-full border-0 bg-transparent px-2 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30"
+																	className={`h-9 w-full border-0 bg-transparent py-0 pr-2 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30 ${
+																		locationCellStatus ? "pl-6" : "pl-2"
+																	}`}
 																	placeholder="Venue or address"
 																	aria-autocomplete="list"
 																	aria-expanded={
@@ -7616,6 +7821,56 @@ export const EventSheetEditorCard = ({
 																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 																				Location
 																			</div>
+																			{locationCellStatus && (
+																				<div className="border-b px-2 py-1.5">
+																					<div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+																						<span
+																							className={`h-2 w-2 rounded-full border ${getLocationDotClassName(
+																								locationCellStatus.trustState,
+																								locationCellStatus.hasAliasWarning,
+																							)}`}
+																						/>
+																						<span className="font-medium text-foreground/75">
+																							{locationCellStatus.label}
+																						</span>
+																						{locationCellStatus.parts.length > 1 && (
+																							<span>
+																								{locationCellStatus.parts.length} locations
+																							</span>
+																						)}
+																					</div>
+																					{locationCellStatus.parts.some(
+																						(part) =>
+																							part.resolution?.formattedAddress ||
+																							part.aliases.length > 0,
+																					) && (
+																						<div className="mt-1 space-y-0.5 text-[10px] leading-4 text-muted-foreground">
+																							{locationCellStatus.parts.map((part) => (
+																								<div
+																									key={part.key}
+																									className="truncate"
+																									title={
+																										part.resolution?.formattedAddress ??
+																										undefined
+																									}
+																								>
+																									<span className="font-medium text-foreground/65">
+																										{part.name || "Location TBC"}
+																									</span>
+																									{part.resolution?.formattedAddress
+																										? ` -> ${part.resolution.formattedAddress}`
+																										: ""}
+																									{part.aliases.length > 0
+																										? `; similar: ${part.aliases
+																												.map((alias) => alias.name)
+																												.join(", ")}`
+																										: ""}
+																								</div>
+																							))}
+																						</div>
+																					)}
+																				</div>
+																			)}
 																			<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
 																				Use | between venues when you want to
 																				list exact places. Use Multiple
