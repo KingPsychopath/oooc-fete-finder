@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AppSettingsSync } from "@/components/AppSettingsSync";
+import { FirstPartyAnalytics } from "@/components/FirstPartyAnalytics";
 import Footer from "@/components/Footer";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
@@ -228,6 +229,7 @@ export default function RootLayout({
 					<SmoothAnchorScroll />
 					<ServiceWorkerRegistration />
 					<ThemeColorSync />
+					<FirstPartyAnalytics />
 					<OnlineStatusProvider>
 						<AuthProvider>
 							<AppSettingsSync />

@@ -86,6 +86,9 @@ export async function getEventEngagementDashboard(
 				endAt: string;
 			};
 			summary: {
+				pageViewCount: number;
+				uniqueVisitorCount: number;
+				engagedVisitRate: number;
 				clickCount: number;
 				dedupedViewCount: number;
 				outboundClickCount: number;
@@ -106,6 +109,9 @@ export async function getEventEngagementDashboard(
 			};
 			dailySeries: Array<{
 				day: string;
+				pageViewCount: number;
+				uniqueVisitorCount: number;
+				engagedSessionCount: number;
 				clickCount: number;
 				outboundClickCount: number;
 				calendarSyncCount: number;
@@ -137,6 +143,43 @@ export async function getEventEngagementDashboard(
 				count: number;
 				uniqueSessionCount: number;
 			}>;
+			traffic: {
+				topPages: Array<{
+					label: string;
+					pageViewCount: number;
+					uniqueVisitorCount: number;
+				}>;
+				topHostnames: Array<{
+					label: string;
+					pageViewCount: number;
+					uniqueVisitorCount: number;
+				}>;
+				topReferrers: Array<{
+					label: string;
+					pageViewCount: number;
+					uniqueVisitorCount: number;
+				}>;
+				topCountries: Array<{
+					label: string;
+					pageViewCount: number;
+					uniqueVisitorCount: number;
+				}>;
+				topDevices: Array<{
+					label: string;
+					pageViewCount: number;
+					uniqueVisitorCount: number;
+				}>;
+				topPlatforms: Array<{
+					label: string;
+					pageViewCount: number;
+					uniqueVisitorCount: number;
+				}>;
+				topBrowsers: Array<{
+					label: string;
+					pageViewCount: number;
+					uniqueVisitorCount: number;
+				}>;
+			};
 			discovery: {
 				searchClusterMode: SearchClusterMode;
 				searchCount: number;
@@ -224,6 +267,15 @@ export async function getEventEngagementDashboard(
 			topNavigationClicks,
 			mapProviders,
 			topGenresRaw,
+			trafficSummary,
+			dailyTrafficSeries,
+			topPages,
+			topHostnames,
+			topReferrers,
+			topCountries,
+			topDevices,
+			topPlatforms,
+			topBrowsers,
 		] = await Promise.all([
 			engagementRepository.summarizeWindow({
 				startAt,
@@ -332,6 +384,89 @@ export async function getEventEngagementDashboard(
 			preferenceRepository
 				? preferenceRepository.listTopGenres({ limit: 10 })
 				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.summarizeTrafficWindow({
+						startAt,
+						endAt,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve({
+						pageViewCount: 0,
+						uniqueVisitorCount: 0,
+						knownHostCount: 0,
+						knownReferrerCount: 0,
+						engagedSessionCount: 0,
+					}),
+			discoveryRepository
+				? discoveryRepository.listDailyTrafficSeries({
+						startAt,
+						endAt,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopTrafficDimension({
+						dimension: "path",
+						startAt,
+						endAt,
+						limit: 30,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopTrafficDimension({
+						dimension: "hostname",
+						startAt,
+						endAt,
+						limit: 10,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopTrafficDimension({
+						dimension: "referrer",
+						startAt,
+						endAt,
+						limit: 20,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopTrafficDimension({
+						dimension: "countryCode",
+						startAt,
+						endAt,
+						limit: 20,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopTrafficDimension({
+						dimension: "deviceClass",
+						startAt,
+						endAt,
+						limit: 8,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopTrafficDimension({
+						dimension: "platform",
+						startAt,
+						endAt,
+						limit: 8,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopTrafficDimension({
+						dimension: "browserFamily",
+						startAt,
+						endAt,
+						limit: 8,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
 		]);
 
 		const eventNameByKey = new Map<string, string>();
@@ -356,6 +491,12 @@ export async function getEventEngagementDashboard(
 			windowDays: safeWindowDays,
 			range: { startAt, endAt },
 			summary: {
+				pageViewCount: trafficSummary.pageViewCount,
+				uniqueVisitorCount: trafficSummary.uniqueVisitorCount,
+				engagedVisitRate: toPercent(
+					trafficSummary.engagedSessionCount,
+					trafficSummary.uniqueVisitorCount,
+				),
 				clickCount: summary.clickCount,
 				dedupedViewCount: summary.dedupedViewCount,
 				outboundClickCount: summary.outboundClickCount,
@@ -389,7 +530,21 @@ export async function getEventEngagementDashboard(
 				),
 				mapInteractionRate: toPercent(summary.mapOpenCount, summary.clickCount),
 			},
-			dailySeries,
+			dailySeries: dailyTrafficSeries.map((trafficRow) => {
+				const engagementRow = dailySeries.find(
+					(row) => row.day === trafficRow.day,
+				);
+				return {
+					day: trafficRow.day,
+					pageViewCount: trafficRow.pageViewCount,
+					uniqueVisitorCount: trafficRow.uniqueVisitorCount,
+					engagedSessionCount: trafficRow.engagedSessionCount,
+					clickCount: engagementRow?.clickCount ?? 0,
+					outboundClickCount: engagementRow?.outboundClickCount ?? 0,
+					calendarSyncCount: engagementRow?.calendarSyncCount ?? 0,
+					mapOpenCount: engagementRow?.mapOpenCount ?? 0,
+				};
+			}),
 			rows: topRows.map((row) => ({
 				eventKey: row.eventKey,
 				eventName: eventNameByKey.get(row.eventKey) || row.eventKey,
@@ -427,6 +582,15 @@ export async function getEventEngagementDashboard(
 				mapInteractionRate: toPercent(row.mapOpenCount, row.clickCount),
 			})),
 			mapProviders,
+			traffic: {
+				topPages,
+				topHostnames,
+				topReferrers,
+				topCountries,
+				topDevices,
+				topPlatforms,
+				topBrowsers,
+			},
 			discovery: {
 				searchClusterMode,
 				searchCount: discoverySummary.searchCount,
@@ -725,6 +889,85 @@ export async function exportAudienceSegmentCsv(input: {
 				error instanceof Error
 					? error.message
 					: "Unknown audience export error",
+		};
+	}
+}
+
+export async function exportFirstPartyTrafficCsv(input: {
+	windowDays?: number;
+	includeAuthenticatedOnly?: boolean;
+}): Promise<
+	| { success: true; csv: string; filename: string; count: number }
+	| { success: false; error: string }
+> {
+	try {
+		await assertAdmin();
+		const discoveryRepository = getDiscoveryAnalyticsRepository();
+		if (!discoveryRepository) {
+			return {
+				success: false,
+				error: "First-party analytics database unavailable",
+			};
+		}
+		const { safeWindowDays, startAt, endAt } = buildWindow(
+			input.windowDays ?? 7,
+		);
+		const includeAuthenticatedOnly = input.includeAuthenticatedOnly ?? false;
+		const dimensions = [
+			["pages", "path"],
+			["hostnames", "hostname"],
+			["referrers", "referrer"],
+			["countries", "countryCode"],
+			["devices", "deviceClass"],
+			["operating_systems", "platform"],
+			["browsers", "browserFamily"],
+		] as const;
+		const rows: Array<{
+			panel: string;
+			label: string;
+			pageViewCount: number;
+			uniqueVisitorCount: number;
+		}> = [];
+		for (const [panel, dimension] of dimensions) {
+			const panelRows = await discoveryRepository.listTopTrafficDimension({
+				dimension,
+				startAt,
+				endAt,
+				limit: 100,
+				includeAuthenticatedOnly,
+			});
+			for (const row of panelRows) {
+				rows.push({ panel, ...row });
+			}
+		}
+		const csv = [
+			["panel", "label", "page_views", "visitors"]
+				.map(escapeCsvCell)
+				.join(","),
+			...rows.map((row) =>
+				[
+					row.panel,
+					row.label,
+					row.pageViewCount,
+					row.uniqueVisitorCount,
+				]
+					.map(escapeCsvCell)
+					.join(","),
+			),
+		].join("\n");
+		return {
+			success: true,
+			csv,
+			filename: `first-party-traffic-${safeWindowDays}d.csv`,
+			count: rows.length,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error:
+				error instanceof Error
+					? error.message
+					: "Unknown first-party traffic export error",
 		};
 	}
 }

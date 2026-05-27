@@ -28,6 +28,7 @@ const recordedAtSchema = z
 
 const discoveryTrackSchema = z.object({
 	actionType: z.enum([
+		"page_view",
 		"search",
 		"filter_apply",
 		"filter_clear",
@@ -42,6 +43,8 @@ const discoveryTrackSchema = z.object({
 	filterValue: z.string().trim().max(120).optional(),
 	searchQuery: z.string().trim().max(280).optional(),
 	path: z.string().trim().max(280).optional(),
+	hostname: z.string().trim().max(120).optional(),
+	referrer: z.string().trim().max(180).optional(),
 	recordedAt: recordedAtSchema,
 	clientContext: z
 		.object({
@@ -106,6 +109,13 @@ const parseCookieByName = (
 	return undefined;
 };
 
+const extractCountryCode = (headers: Headers): string | null => {
+	const value =
+		headers.get("cf-ipcountry") || headers.get("x-country-code");
+	const normalized = value?.trim().toUpperCase();
+	return normalized && /^[A-Z]{2}$/.test(normalized) ? normalized : null;
+};
+
 export async function POST(request: Request) {
 	if (!isSameOriginRequest(request)) {
 		return accepted();
@@ -153,6 +163,10 @@ export async function POST(request: Request) {
 	}
 
 	const validEvents = events.filter((body) => {
+		if (body.actionType === "page_view") {
+			const path = (body.path ?? "").trim();
+			return path.startsWith("/") && !path.startsWith("//");
+		}
 		if (body.actionType === "filter_apply") {
 			const filterGroup = (body.filterGroup ?? "").trim().toLowerCase();
 			const filterValue = (body.filterValue ?? "").trim().toLowerCase();
@@ -220,6 +234,9 @@ export async function POST(request: Request) {
 				filterValue: body.filterValue?.trim().toLowerCase() ?? null,
 				searchQuery: body.searchQuery?.trim().toLowerCase() ?? null,
 				path: body.path ?? null,
+				hostname: body.hostname?.trim().toLowerCase() ?? null,
+				referrer: body.referrer?.trim().toLowerCase() ?? null,
+				countryCode: extractCountryCode(request.headers),
 				isAuthenticated: userSession.isAuthenticated,
 				deviceClass: body.clientContext?.deviceClass ?? null,
 				platform: body.clientContext?.platform ?? null,

@@ -11,6 +11,9 @@ type Setup = {
 	};
 	getDiscoveryRepository: {
 		summarizeWindow: ReturnType<typeof vi.fn>;
+		summarizeTrafficWindow: ReturnType<typeof vi.fn>;
+		listDailyTrafficSeries: ReturnType<typeof vi.fn>;
+		listTopTrafficDimension: ReturnType<typeof vi.fn>;
 		listTopSearches: ReturnType<typeof vi.fn>;
 		listTopFilters: ReturnType<typeof vi.fn>;
 		listTopDiscoveryActions: ReturnType<typeof vi.fn>;
@@ -65,6 +68,22 @@ const loadActions = async (): Promise<Setup> => {
 			navClickCount: 0,
 			uniqueSessionCount: 0,
 		}),
+		summarizeTrafficWindow: vi.fn().mockResolvedValue({
+			pageViewCount: 12,
+			uniqueVisitorCount: 5,
+			knownHostCount: 1,
+			knownReferrerCount: 2,
+			engagedSessionCount: 3,
+		}),
+		listDailyTrafficSeries: vi.fn().mockResolvedValue([
+			{
+				day: "2026-05-27",
+				pageViewCount: 12,
+				uniqueVisitorCount: 5,
+				engagedSessionCount: 3,
+			},
+		]),
+		listTopTrafficDimension: vi.fn().mockResolvedValue([]),
 		listTopSearches: vi.fn().mockResolvedValue([]),
 		listTopFilters: vi.fn().mockResolvedValue([]),
 		listTopDiscoveryActions: vi.fn().mockResolvedValue([]),
@@ -128,5 +147,27 @@ describe("getEventEngagementDashboard", () => {
 			throw new Error("Expected dashboard query to succeed");
 		}
 		expect(result.summary.mapPreferenceChangeCount).toBe(4);
+	});
+
+	it("surfaces first-party traffic summary and daily page views", async () => {
+		const { getEventEngagementDashboard, getDiscoveryRepository } =
+			await loadActions();
+		const result = await getEventEngagementDashboard(7);
+
+		expect(result.success).toBe(true);
+		if (result.success !== true) {
+			throw new Error("Expected dashboard query to succeed");
+		}
+		expect(result.summary.pageViewCount).toBe(12);
+		expect(result.summary.uniqueVisitorCount).toBe(5);
+		expect(result.summary.engagedVisitRate).toBe(60);
+		expect(result.dailySeries[0]).toMatchObject({
+			day: "2026-05-27",
+			pageViewCount: 12,
+			uniqueVisitorCount: 5,
+		});
+		expect(getDiscoveryRepository.listTopTrafficDimension).toHaveBeenCalledWith(
+			expect.objectContaining({ dimension: "referrer" }),
+		);
 	});
 });

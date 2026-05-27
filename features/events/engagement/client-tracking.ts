@@ -20,6 +20,7 @@ const MAP_OPEN_DEDUPE_MS = 30_000;
 
 type ClientContext = ReturnType<typeof getClientContext>;
 type DiscoveryAnalyticsAction =
+	| "page_view"
 	| "search"
 	| "filter_apply"
 	| "filter_clear"
@@ -47,6 +48,8 @@ type DiscoveryAnalyticsPayload = {
 	filterValue?: string;
 	searchQuery?: string;
 	path: string;
+	hostname?: string;
+	referrer?: string;
 	clientContext: ClientContext;
 	recordedAt: string;
 };
@@ -100,6 +103,7 @@ const HIGH_VALUE_ENGAGEMENT_ACTIONS = new Set<EventEngagementAction>([
 	"map_preference_change",
 ]);
 const HIGH_VALUE_DISCOVERY_ACTIONS = new Set<DiscoveryAnalyticsAction>([
+	"page_view",
 	"tour_interaction",
 ]);
 const LOW_VALUE_DISCOVERY_ACTIONS = new Set<DiscoveryAnalyticsAction>([
@@ -498,6 +502,9 @@ export const trackDiscoveryAnalytics = (input: {
 	filterGroup?: string;
 	filterValue?: string;
 	searchQuery?: string;
+	path?: string;
+	hostname?: string;
+	referrer?: string;
 }) => {
 	if (typeof window === "undefined") return;
 	if (!shouldTrackDiscoveryAction(input.actionType)) return;
@@ -506,7 +513,7 @@ export const trackDiscoveryAnalytics = (input: {
 		input.filterGroup ?? "",
 		input.filterValue ?? "",
 		input.searchQuery ?? "",
-		window.location.pathname,
+		input.path ?? window.location.pathname,
 	].join(":");
 	if (
 		shouldSkipRecentAction(
@@ -524,11 +531,27 @@ export const trackDiscoveryAnalytics = (input: {
 		filterGroup: input.filterGroup,
 		filterValue: input.filterValue,
 		searchQuery: input.searchQuery,
-		path: window.location.pathname,
+		path: input.path ?? window.location.pathname,
+		hostname: input.hostname,
+		referrer: input.referrer,
 		clientContext: getClientContext(),
 		recordedAt: new Date().toISOString(),
 	};
 	enqueuePayload("discovery", payload);
+};
+
+export const trackPageView = (input?: {
+	path?: string;
+	hostname?: string;
+	referrer?: string;
+}) => {
+	if (typeof window === "undefined") return;
+	trackDiscoveryAnalytics({
+		actionType: "page_view",
+		path: input?.path ?? window.location.pathname,
+		hostname: input?.hostname ?? window.location.hostname,
+		referrer: input?.referrer,
+	});
 };
 
 export const trackTourInteraction = (input: {

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/tooltip";
 import {
 	exportAudienceSegmentCsv,
+	exportFirstPartyTrafficCsv,
 	getEventEngagementDashboard,
 } from "@/features/events/engagement/actions";
 import { formatTourSignal } from "@/features/events/engagement/tour-analytics";
@@ -78,6 +79,27 @@ const ANALYTICS_SCOPE_OPTIONS = ["all", "authenticatedOnly"] as const;
 const DEFAULT_WINDOW_DAYS = 7;
 
 type AnalyticsScope = (typeof ANALYTICS_SCOPE_OPTIONS)[number];
+
+const TRAFFIC_SUMMARY_METRICS = [
+	{
+		key: "pageViewCount",
+		label: "Page Views",
+		description: "First-party page-view events recorded by this app.",
+	},
+	{
+		key: "uniqueVisitorCount",
+		label: "Visitors",
+		description:
+			"Distinct first-party browser sessions with at least one page view.",
+	},
+	{
+		key: "engagedVisitRate",
+		label: "Engaged Visit Rate",
+		description:
+			"Sessions with explicit search, filter, map, navigation, or event action divided by visitor sessions.",
+		format: (value: number) => `${value.toFixed(1)}%`,
+	},
+] as const;
 
 const SUMMARY_METRICS = [
 	{
@@ -501,6 +523,7 @@ export const EventEngagementStatsCard = ({
 	);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isExporting, setIsExporting] = useState(false);
+	const [isTrafficExporting, setIsTrafficExporting] = useState(false);
 	const [errorMessage, setErrorMessage] = useState("");
 	const [segmentMessage, setSegmentMessage] = useState("");
 	const [eventSearchTerm, setEventSearchTerm] = useState("");
@@ -599,6 +622,9 @@ export const EventEngagementStatsCard = ({
 	const summary = payload?.success
 		? payload.summary
 		: {
+				pageViewCount: 0,
+				uniqueVisitorCount: 0,
+				engagedVisitRate: 0,
 				clickCount: 0,
 				dedupedViewCount: 0,
 				outboundClickCount: 0,
@@ -616,6 +642,18 @@ export const EventEngagementStatsCard = ({
 				outboundInteractionRate: 0,
 				calendarInteractionRate: 0,
 				mapInteractionRate: 0,
+			};
+
+	const traffic = payload?.success
+		? payload.traffic
+		: {
+				topPages: [],
+				topHostnames: [],
+				topReferrers: [],
+				topCountries: [],
+				topDevices: [],
+				topPlatforms: [],
+				topBrowsers: [],
 			};
 
 	const discovery = payload?.success
@@ -686,6 +724,7 @@ export const EventEngagementStatsCard = ({
 		: [];
 	const hasDailyActivity = dailyRows.some(
 		(row) =>
+			row.pageViewCount > 0 ||
 			row.clickCount > 0 ||
 			row.outboundClickCount > 0 ||
 			row.calendarSyncCount > 0 ||
@@ -695,6 +734,8 @@ export const EventEngagementStatsCard = ({
 		1,
 		...dailyRows.map((row) =>
 			Math.max(
+				row.pageViewCount,
+				row.uniqueVisitorCount,
 				row.clickCount,
 				row.outboundClickCount,
 				row.calendarSyncCount,
@@ -1213,6 +1254,34 @@ export const EventEngagementStatsCard = ({
 		segmentMinHits,
 	]);
 
+	const handleExportTrafficCsv = useCallback(async () => {
+		setIsTrafficExporting(true);
+		setErrorMessage("");
+		setSegmentMessage("");
+		try {
+			const result = await exportFirstPartyTrafficCsv({
+				windowDays,
+				includeAuthenticatedOnly: analyticsScope === "authenticatedOnly",
+			});
+			if (!result.success) {
+				setErrorMessage(result.error);
+				return;
+			}
+			const blob = new Blob([result.csv], { type: "text/csv;charset=utf-8;" });
+			const url = URL.createObjectURL(blob);
+			const anchor = document.createElement("a");
+			anchor.href = url;
+			anchor.download = result.filename;
+			document.body.appendChild(anchor);
+			anchor.click();
+			document.body.removeChild(anchor);
+			URL.revokeObjectURL(url);
+			setSegmentMessage(`Exported ${result.count} traffic rows`);
+		} finally {
+			setIsTrafficExporting(false);
+		}
+	}, [analyticsScope, windowDays]);
+
 	return (
 		<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
 			<CardHeader className="space-y-4">
@@ -1309,6 +1378,25 @@ export const EventEngagementStatsCard = ({
 
 				<div className="space-y-2">
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+						First-Party Traffic
+					</p>
+					<div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+						{TRAFFIC_SUMMARY_METRICS.map((metric) => (
+							<SummaryMetric
+								key={metric.key}
+								label={metric.label}
+								value={
+									"format" in metric
+										? metric.format(summary[metric.key])
+										: summary[metric.key]
+								}
+								description={metric.description}
+							/>
+						))}
+					</div>
+				</div>
+				<div className="space-y-2">
+					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						Event Performance
 					</p>
 					<div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
@@ -1366,6 +1454,129 @@ export const EventEngagementStatsCard = ({
 			</CardHeader>
 
 			<CardContent className="space-y-6">
+				<section className="space-y-3 rounded-md border bg-background/55 p-3">
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<div className="flex items-center">
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								First-Party Traffic Overview
+							</p>
+							<InfoPopover aria-label="Explain first-party traffic" side="top">
+								Page views are recorded by this app through the same first-party
+								analytics queue as search, filter, map, and event actions.
+								Referrers are stored as hostnames only, not full URLs.
+							</InfoPopover>
+						</div>
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onClick={() => void handleExportTrafficCsv()}
+							disabled={isTrafficExporting || !payload?.success}
+						>
+							{isTrafficExporting ? "Exporting..." : "Export Traffic CSV"}
+						</Button>
+					</div>
+					<div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+						{[
+							{
+								label: "Pages",
+								rows: traffic.topPages,
+								empty: "No page-view data yet.",
+							},
+							{
+								label: "Referrers",
+								rows: traffic.topReferrers,
+								empty: "No referrer data yet.",
+							},
+							{
+								label: "Hostnames",
+								rows: traffic.topHostnames,
+								empty: "No hostname data yet.",
+							},
+							{
+								label: "Countries",
+								rows: traffic.topCountries.map((row) => ({
+									...row,
+									label:
+										row.label === "unknown" ? "Unknown" : row.label.toUpperCase(),
+								})),
+								empty: "No country data yet.",
+							},
+							{
+								label: "Devices",
+								rows: traffic.topDevices.map((row) => ({
+									...row,
+									label: formatContextLabel(row.label),
+								})),
+								empty: "No device data yet.",
+							},
+							{
+								label: "Operating Systems",
+								rows: traffic.topPlatforms.map((row) => ({
+									...row,
+									label: formatContextLabel(row.label),
+								})),
+								empty: "No OS data yet.",
+							},
+							{
+								label: "Browsers",
+								rows: traffic.topBrowsers.map((row) => ({
+									...row,
+									label: formatContextLabel(row.label),
+								})),
+								empty: "No browser data yet.",
+							},
+						].map((group) => {
+							const maxGroupValue = Math.max(
+								1,
+								...group.rows.map((row) => row.pageViewCount),
+							);
+							return (
+								<div key={group.label} className="space-y-2">
+									<p className="text-xs font-medium text-foreground">
+										{group.label}
+									</p>
+									{group.rows.length === 0 ? (
+										<p className="text-xs text-muted-foreground">
+											{group.empty}
+										</p>
+									) : (
+										<div className="space-y-1.5">
+											{group.rows.slice(0, 8).map((row) => (
+												<div key={row.label} className="space-y-1">
+													<div className="flex justify-between gap-2 text-xs">
+														<span className="min-w-0 truncate">
+															{row.label}
+														</span>
+														<span className="shrink-0 tabular-nums">
+															{row.pageViewCount} views ·{" "}
+															{row.uniqueVisitorCount} visitors
+														</span>
+													</div>
+													<div className="h-2 rounded-full bg-muted/70">
+														<div
+															className="h-2 rounded-full bg-sky-700/80"
+															style={{
+																width: `${Math.max(
+																	row.pageViewCount > 0 ? 6 : 0,
+																	Math.round(
+																		(row.pageViewCount / maxGroupValue) *
+																			100,
+																	),
+																)}%`,
+															}}
+														/>
+													</div>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							);
+						})}
+					</div>
+				</section>
+
 				<section className="grid gap-4 xl:grid-cols-2">
 					<div className="space-y-2 rounded-md border bg-background/55 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -1755,6 +1966,10 @@ export const EventEngagementStatsCard = ({
 						<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
 							<span>Last {dailyRows.length} days</span>
 							<span className="inline-flex items-center gap-1">
+								<span className="h-1.5 w-5 rounded-full bg-sky-700/80" />
+								Page views
+							</span>
+							<span className="inline-flex items-center gap-1">
 								<span className="h-1.5 w-5 rounded-full bg-amber-600/80" />
 								Opens
 							</span>
@@ -1767,7 +1982,7 @@ export const EventEngagementStatsCard = ({
 								Event map
 							</span>
 							<span className="inline-flex items-center gap-1">
-								<span className="h-1.5 w-5 rounded-full bg-sky-700/80" />
+								<span className="h-1.5 w-5 rounded-full bg-cyan-700/80" />
 								Calendar
 							</span>
 						</div>
@@ -1781,12 +1996,28 @@ export const EventEngagementStatsCard = ({
 									<div
 										key={row.day}
 										className="grid grid-cols-[4.5rem_1fr] items-center gap-2"
-										title={`${row.day}: ${row.clickCount} opens, ${row.outboundClickCount} external links, ${row.mapOpenCount} event map opens, ${row.calendarSyncCount} calendar`}
+										title={`${row.day}: ${row.pageViewCount} page views, ${row.uniqueVisitorCount} visitors, ${row.clickCount} opens, ${row.outboundClickCount} external links, ${row.mapOpenCount} event map opens, ${row.calendarSyncCount} calendar`}
 									>
 										<p className="truncate text-[11px] text-muted-foreground">
 											{row.day.slice(5)}
 										</p>
 										<div className="space-y-1">
+											<div className="flex items-center gap-1.5">
+												<div className="h-1.5 flex-1 rounded-full bg-muted/70">
+													<div
+														className="h-1.5 rounded-full bg-sky-700/80"
+														style={{
+															width: `${Math.max(
+																row.pageViewCount > 0 ? 5 : 0,
+																(row.pageViewCount / maxDailyValue) * 100,
+															)}%`,
+														}}
+													/>
+												</div>
+												<span className="w-6 text-right text-[10px] tabular-nums">
+													{row.pageViewCount}
+												</span>
+											</div>
 											<div className="flex items-center gap-1.5">
 												<div className="h-1.5 flex-1 rounded-full bg-muted/70">
 													<div
@@ -1838,7 +2069,7 @@ export const EventEngagementStatsCard = ({
 											<div className="flex items-center gap-1.5">
 												<div className="h-1.5 flex-1 rounded-full bg-muted/70">
 													<div
-														className="h-1.5 rounded-full bg-sky-700/80"
+														className="h-1.5 rounded-full bg-cyan-700/80"
 														style={{
 															width: `${Math.max(
 																row.calendarSyncCount > 0 ? 5 : 0,

@@ -12,6 +12,7 @@ declare global {
 }
 
 export type DiscoveryActionType =
+	| "page_view"
 	| "search"
 	| "filter_apply"
 	| "filter_clear"
@@ -30,6 +31,9 @@ export interface DiscoveryAnalyticsRecordInput {
 	filterValue?: string | null;
 	searchQuery?: string | null;
 	path?: string | null;
+	hostname?: string | null;
+	referrer?: string | null;
+	countryCode?: string | null;
 	isAuthenticated?: boolean | null;
 	deviceClass?: string | null;
 	platform?: string | null;
@@ -80,7 +84,7 @@ export class DiscoveryAnalyticsRepository {
 		await this.sql`
 			CREATE TABLE IF NOT EXISTS app_discovery_analytics_stats (
 				id BIGSERIAL PRIMARY KEY,
-				action_type TEXT NOT NULL CHECK (action_type IN ('search', 'filter_apply', 'filter_clear', 'map_interaction', 'sort_change', 'location_request', 'tour_interaction', 'nav_click')),
+				action_type TEXT NOT NULL CHECK (action_type IN ('page_view', 'search', 'filter_apply', 'filter_clear', 'map_interaction', 'sort_change', 'location_request', 'tour_interaction', 'nav_click')),
 				session_id TEXT,
 				user_id TEXT,
 				user_email TEXT,
@@ -88,6 +92,9 @@ export class DiscoveryAnalyticsRepository {
 				filter_value TEXT,
 				search_query TEXT,
 				path TEXT,
+				hostname TEXT,
+				referrer TEXT,
+				country_code TEXT,
 				is_authenticated BOOLEAN,
 				device_class TEXT,
 				platform TEXT,
@@ -105,10 +112,16 @@ export class DiscoveryAnalyticsRepository {
 				DROP CONSTRAINT IF EXISTS app_discovery_analytics_stats_action_type_check;
 				ALTER TABLE app_discovery_analytics_stats
 				ADD CONSTRAINT app_discovery_analytics_stats_action_type_check
-				CHECK (action_type IN ('search', 'filter_apply', 'filter_clear', 'map_interaction', 'sort_change', 'location_request', 'tour_interaction', 'nav_click'));
+				CHECK (action_type IN ('page_view', 'search', 'filter_apply', 'filter_clear', 'map_interaction', 'sort_change', 'location_request', 'tour_interaction', 'nav_click'));
 			END $$;
 		`;
 
+		await this
+			.sql`ALTER TABLE app_discovery_analytics_stats ADD COLUMN IF NOT EXISTS hostname TEXT`;
+		await this
+			.sql`ALTER TABLE app_discovery_analytics_stats ADD COLUMN IF NOT EXISTS referrer TEXT`;
+		await this
+			.sql`ALTER TABLE app_discovery_analytics_stats ADD COLUMN IF NOT EXISTS country_code TEXT`;
 		await this.sql`
 			ALTER TABLE app_discovery_analytics_stats
 			ADD COLUMN IF NOT EXISTS user_id TEXT
@@ -141,6 +154,16 @@ export class DiscoveryAnalyticsRepository {
 			ON app_discovery_analytics_stats (search_query, recorded_at DESC)
 		`;
 		await this.sql`
+			CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_page_path
+			ON app_discovery_analytics_stats (path, recorded_at DESC)
+			WHERE action_type = 'page_view'
+		`;
+		await this.sql`
+			CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_referrer
+			ON app_discovery_analytics_stats (referrer, recorded_at DESC)
+			WHERE action_type = 'page_view'
+		`;
+		await this.sql`
 				CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_user_time
 				ON app_discovery_analytics_stats (user_id, recorded_at DESC)
 			`;
@@ -168,6 +191,9 @@ export class DiscoveryAnalyticsRepository {
 				filter_value,
 				search_query,
 				path,
+				hostname,
+				referrer,
+				country_code,
 				is_authenticated,
 				device_class,
 				platform,
@@ -185,6 +211,9 @@ export class DiscoveryAnalyticsRepository {
 				${cleanString(input.filterValue, 120)},
 				${cleanString(input.searchQuery, 280)},
 				${cleanString(input.path, 280)},
+				${cleanString(input.hostname, 120)},
+				${cleanString(input.referrer, 180)},
+				${cleanString(input.countryCode?.toUpperCase(), 2)},
 				${input.isAuthenticated ?? null},
 				${cleanString(input.deviceClass, 40)},
 				${cleanString(input.platform, 40)},
@@ -271,7 +300,7 @@ export class DiscoveryAnalyticsRepository {
 				COUNT(*) FILTER (WHERE action_type = 'location_request')::int AS "locationRequestCount",
 				COUNT(*) FILTER (WHERE action_type = 'tour_interaction')::int AS "tourInteractionCount",
 				COUNT(*) FILTER (WHERE action_type = 'nav_click')::int AS "navClickCount",
-				COUNT(DISTINCT session_id)::int AS "uniqueSessionCount"
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type <> 'page_view')::int AS "uniqueSessionCount"
 			FROM app_discovery_analytics_stats
 			WHERE recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
@@ -290,6 +319,167 @@ export class DiscoveryAnalyticsRepository {
 				uniqueSessionCount: 0,
 			}
 		);
+	}
+
+	async summarizeTrafficWindow(input: {
+		startAt: string;
+		endAt: string;
+		includeAuthenticatedOnly?: boolean;
+	}): Promise<{
+		pageViewCount: number;
+		uniqueVisitorCount: number;
+		knownHostCount: number;
+		knownReferrerCount: number;
+		engagedSessionCount: number;
+	}> {
+		await this.ready();
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND user_id IS NOT NULL`
+			: this.sql``;
+		const rows = await this.sql<
+			Array<{
+				pageViewCount: number;
+				uniqueVisitorCount: number;
+				knownHostCount: number;
+				knownReferrerCount: number;
+				engagedSessionCount: number;
+			}>
+		>`
+			SELECT
+				COUNT(*) FILTER (WHERE action_type = 'page_view')::int AS "pageViewCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'page_view')::int AS "uniqueVisitorCount",
+				COUNT(DISTINCT hostname) FILTER (WHERE action_type = 'page_view' AND hostname IS NOT NULL)::int AS "knownHostCount",
+				COUNT(DISTINCT referrer) FILTER (
+					WHERE action_type = 'page_view'
+						AND referrer IS NOT NULL
+						AND referrer NOT IN ('direct', 'internal')
+				)::int AS "knownReferrerCount",
+				COUNT(DISTINCT session_id) FILTER (
+					WHERE action_type <> 'page_view'
+						AND session_id IS NOT NULL
+				)::int AS "engagedSessionCount"
+			FROM app_discovery_analytics_stats
+			WHERE recorded_at >= ${input.startAt}
+				AND recorded_at < ${input.endAt}
+				${userScopeFilter}
+		`;
+		return (
+			rows[0] ?? {
+				pageViewCount: 0,
+				uniqueVisitorCount: 0,
+				knownHostCount: 0,
+				knownReferrerCount: 0,
+				engagedSessionCount: 0,
+			}
+		);
+	}
+
+	async listDailyTrafficSeries(input: {
+		startAt: string;
+		endAt: string;
+		includeAuthenticatedOnly?: boolean;
+	}): Promise<
+		Array<{
+			day: string;
+			pageViewCount: number;
+			uniqueVisitorCount: number;
+			engagedSessionCount: number;
+		}>
+	> {
+		await this.ready();
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND user_id IS NOT NULL`
+			: this.sql``;
+		const rows = await this.sql<
+			Array<{
+				day: string;
+				pageViewCount: number;
+				uniqueVisitorCount: number;
+				engagedSessionCount: number;
+			}>
+		>`
+			SELECT
+				TO_CHAR(DATE_TRUNC('day', recorded_at), 'YYYY-MM-DD') AS day,
+				COUNT(*) FILTER (WHERE action_type = 'page_view')::int AS "pageViewCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'page_view')::int AS "uniqueVisitorCount",
+				COUNT(DISTINCT session_id) FILTER (
+					WHERE action_type <> 'page_view'
+						AND session_id IS NOT NULL
+				)::int AS "engagedSessionCount"
+			FROM app_discovery_analytics_stats
+			WHERE recorded_at >= ${input.startAt}
+				AND recorded_at < ${input.endAt}
+				${userScopeFilter}
+			GROUP BY 1
+			ORDER BY 1 ASC
+		`;
+		return rows;
+	}
+
+	async listTopTrafficDimension(input: {
+		dimension:
+			| "path"
+			| "hostname"
+			| "referrer"
+			| "countryCode"
+			| "deviceClass"
+			| "platform"
+			| "browserFamily";
+		startAt: string;
+		endAt: string;
+		limit: number;
+		includeAuthenticatedOnly?: boolean;
+	}): Promise<
+		Array<{
+			label: string;
+			pageViewCount: number;
+			uniqueVisitorCount: number;
+		}>
+	> {
+		await this.ready();
+		const safeLimit = Math.max(1, Math.min(input.limit, 100));
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND user_id IS NOT NULL`
+			: this.sql``;
+		const dimensionSql = (() => {
+			switch (input.dimension) {
+				case "path":
+					return this.sql`COALESCE(NULLIF(path, ''), '/')`;
+				case "hostname":
+					return this.sql`COALESCE(NULLIF(hostname, ''), 'unknown')`;
+				case "referrer":
+					return this.sql`COALESCE(NULLIF(referrer, ''), 'direct')`;
+				case "countryCode":
+					return this.sql`COALESCE(NULLIF(country_code, ''), 'unknown')`;
+				case "deviceClass":
+					return this.sql`COALESCE(NULLIF(device_class, ''), 'unknown')`;
+				case "platform":
+					return this.sql`COALESCE(NULLIF(platform, ''), 'unknown')`;
+				case "browserFamily":
+					return this.sql`COALESCE(NULLIF(browser_family, ''), 'unknown')`;
+			}
+		})();
+		const rows = await this.sql<
+			Array<{
+				label: string;
+				pageViewCount: number;
+				uniqueVisitorCount: number;
+			}>
+		>`
+			SELECT
+				${dimensionSql} AS label,
+				COUNT(*)::int AS "pageViewCount",
+				COUNT(DISTINCT session_id)::int AS "uniqueVisitorCount"
+			FROM app_discovery_analytics_stats
+			WHERE action_type = 'page_view'
+				AND recorded_at >= ${input.startAt}
+				AND recorded_at < ${input.endAt}
+				${userScopeFilter}
+			GROUP BY 1
+			ORDER BY "pageViewCount" DESC, "uniqueVisitorCount" DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows;
 	}
 
 	async listTopDiscoveryActions(input: {
