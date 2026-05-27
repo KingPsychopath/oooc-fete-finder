@@ -60,6 +60,8 @@ export const buildLocationSearchQuery = (
 const formatCoordinates = ({ lat, lng }: Coordinates): string =>
 	`${lat},${lng}`;
 
+const hasUsableSearchText = (value: string): boolean => value.trim().length > 0;
+
 export const buildMapLink = ({
 	locationInput,
 	arrondissement,
@@ -70,9 +72,15 @@ export const buildMapLink = ({
 	const trustedCoordinates = isTrustedLocationResolution(resolution)
 		? resolution?.coordinates
 		: null;
-	const query = trustedCoordinates
-		? formatCoordinates(trustedCoordinates)
-		: buildLocationSearchQuery(locationInput, arrondissement, place);
+	const searchQuery = buildLocationSearchQuery(
+		locationInput,
+		arrondissement,
+		place,
+	);
+	const query =
+		hasUsableSearchText(searchQuery) || !trustedCoordinates
+			? searchQuery
+			: formatCoordinates(trustedCoordinates);
 	const encodedQuery = encodeURIComponent(query);
 
 	if (provider === "apple") {
@@ -81,5 +89,9 @@ export const buildMapLink = ({
 	if (provider === "geo") {
 		return `geo:0,0?q=${encodedQuery}`;
 	}
-	return `https://www.google.com/maps/search/?api=1&query=${encodedQuery}`;
+	const placeId =
+		hasUsableSearchText(searchQuery) && resolution?.providerPlaceId
+			? `&query_place_id=${encodeURIComponent(resolution.providerPlaceId)}`
+			: "";
+	return `https://www.google.com/maps/search/?api=1&query=${encodedQuery}${placeId}`;
 };

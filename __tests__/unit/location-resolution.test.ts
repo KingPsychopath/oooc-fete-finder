@@ -215,7 +215,7 @@ describe("location resolution", () => {
 		expect(provider.geocode).toHaveBeenCalledOnce();
 	});
 
-	it("uses trusted coordinates for map links but text search for approximate locations", () => {
+	it("uses human place search for map links when location text is available", () => {
 		const trustedUrl = buildMapLink({
 			locationInput: "Le Klub",
 			arrondissement: 11,
@@ -225,6 +225,7 @@ describe("location resolution", () => {
 				source: "geocoded",
 				precision: "venue",
 				confidence: 0.9,
+				providerPlaceId: "google-place-123",
 			},
 		});
 		const approximateUrl = buildMapLink({
@@ -239,10 +240,29 @@ describe("location resolution", () => {
 			},
 		});
 
-		expect(decodeURIComponent(trustedUrl)).toContain("48.857,2.381");
+		expect(decodeURIComponent(trustedUrl)).toContain(
+			"Le Klub 11th arrondissement",
+		);
+		expect(trustedUrl).toContain("query_place_id=google-place-123");
+		expect(decodeURIComponent(trustedUrl)).not.toContain("48.857,2.381");
 		expect(decodeURIComponent(approximateUrl)).toContain(
 			"Le Klub 11th arrondissement",
 		);
+	});
+
+	it("falls back to trusted coordinates for map links when no search text exists", () => {
+		const trustedUrl = buildMapLink({
+			locationInput: "",
+			provider: "google",
+			resolution: {
+				coordinates: { lat: 48.857, lng: 2.381 },
+				source: "geocoded",
+				precision: "venue",
+				confidence: 0.9,
+			},
+		});
+
+		expect(decodeURIComponent(trustedUrl)).toContain("48.857,2.381");
 	});
 
 	it("nearby events only use trusted coordinate resolutions", () => {
