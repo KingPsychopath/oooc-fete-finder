@@ -247,6 +247,10 @@ type RowLifecycleOptions = {
 type LocationSuggestion = {
 	value: string;
 	area: string;
+	address: string;
+	postalCode: string;
+	city: string;
+	countryCode: string;
 	count: number;
 	isAreaMatch: boolean;
 };
@@ -339,7 +343,7 @@ const MAX_FROZEN_COLUMNS = 4;
 const AUTOSAVE_RETRY_BACKOFF_MS = 15_000;
 const CELL_EDIT_BATCH_WINDOW_MS = 140;
 const SYSTEM_MANAGED_COLUMN_KEYS = new Set(["eventKey"]);
-const ADVANCED_COLUMN_KEYS = new Set(["seriesKey", "eventKey"]);
+const ADVANCED_COLUMN_KEYS = new Set(["area", "seriesKey", "eventKey"]);
 const DEFAULT_SORT_MODE: SheetSortMode = "soonest-upcoming";
 const CURATED_COLUMN_KEY = "curated";
 const EVENT_CATEGORY_COLUMN_KEY = "eventCategory";
@@ -511,6 +515,44 @@ const isKnownAreaCellValue = (value: string | undefined): boolean => {
 	if (parts.length === 0) return false;
 	return parts.every((part) => Boolean(findAreaOption(part)));
 };
+const splitKnownAreaMetadataValue = (value: string | undefined): string[] =>
+	String(value ?? "")
+		.split(/[\n\r|;]+/)
+		.map((part) => part.trim());
+
+const hasKnownAreaForRow = (row: EditableSheetRow): boolean => {
+	if (splitKnownAreaMetadataValue(row[AREA_COLUMN_KEY]).some(Boolean)) {
+		return isKnownAreaCellValue(row[AREA_COLUMN_KEY]);
+	}
+	const locationCount = splitKnownAreaMetadataValue(
+		row[LOCATION_COLUMN_KEY],
+	).filter(Boolean).length;
+	const postalCodes = splitKnownAreaMetadataValue(row[POSTAL_CODE_COLUMN_KEY]);
+	const cities = splitKnownAreaMetadataValue(row[CITY_COLUMN_KEY]);
+	const metadataCount = Math.max(
+		locationCount,
+		postalCodes.length,
+		cities.length,
+	);
+	if (metadataCount <= 1) {
+		return Boolean(
+			deriveAreaFromPostalCodeCity(
+				normalizePostalCode(postalCodes[0]),
+				normalizeCity(cities[0]),
+			),
+		);
+	}
+	return Array.from({ length: metadataCount }).every((_, index) =>
+		Boolean(
+			deriveAreaFromPostalCodeCity(
+				normalizePostalCode(
+					postalCodes.length === 1 ? postalCodes[0] : postalCodes[index],
+				),
+				normalizeCity(cities.length === 1 ? cities[0] : cities[index]),
+			),
+		),
+	);
+};
 const getRowQualityAssessment = (
 	row: EditableSheetRow,
 	issues: SheetHealthIssue[],
@@ -540,7 +582,7 @@ const getRowQualityAssessment = (
 		hasUsableTextValue(row[DATE_COLUMN_KEY]) &&
 		!issues.some((issue) => issue.column === "Date");
 	const locationPresent = hasUsableTextValue(row[LOCATION_COLUMN_KEY]);
-	const areaKnown = isKnownAreaCellValue(row[AREA_COLUMN_KEY]);
+	const areaKnown = hasKnownAreaForRow(row);
 	const startTimePresent = hasUsableTextValue(row[START_TIME_COLUMN_KEY]);
 	const urlPresent = hasUsableTextValue(row[PRIMARY_URL_COLUMN_KEY]);
 	const pricePresent = hasUsableTextValue(row[PRICE_COLUMN_KEY]);
@@ -1031,6 +1073,13 @@ const filterAreaOptions = (query: string): AreaOption[] => {
 const normalizeCountryValue = (value: string): string =>
 	normalizeSupportedNationalities(value) || value;
 
+const normalizePlaceCountryCodeInput = (value: string): string =>
+	value
+		.trim()
+		.toUpperCase()
+		.replace(/[^A-Z]/g, "")
+		.slice(0, 2);
+
 const SETTING_SEPARATOR_REGEX = /[,/&+\n\r]+/;
 
 const splitSettingCell = (value: string): string[] =>
@@ -1182,6 +1231,15 @@ const buildLocationAreaPairs = (
 const splitMetadataRawParts = (value: string | undefined): string[] =>
 	(value ?? "").split(/[\n\r|;]+/).map((part) => part.trim());
 
+const joinMetadataParts = (values: string[], minLength = 0): string => {
+	const parts = values.map((value) => value.trim());
+	if (!parts.some(Boolean)) return "";
+	while (parts.length > minLength && !parts[parts.length - 1]) {
+		parts.pop();
+	}
+	return parts.join(" | ");
+};
+
 const getMetadataPart = (
 	value: string | undefined,
 	index: number,
@@ -1220,6 +1278,17 @@ const deriveAreaLabelFromRow = (
 	if (derived === "greater-paris") return "Greater Paris";
 	if (derived === "outside-paris") return "Outside Paris";
 	return "";
+};
+
+const getEffectiveAreaLabelFromRow = (
+	row: EditableSheetRow,
+	index: number = 0,
+): string => {
+	const area = buildLocationAreaPairs(
+		row[LOCATION_COLUMN_KEY] ?? "",
+		row[AREA_COLUMN_KEY] ?? "",
+	)[index]?.area;
+	return area || deriveAreaLabelFromRow(row, index);
 };
 
 const getLocationTrustRank = (state: SheetLocationTrustState): number => {
@@ -3224,36 +3293,55 @@ export const EventSheetEditorCard = ({
 			if (!focusedLocationCell) return [];
 
 			const query = normalizeLocationSearchText(locationSearchQuery);
-			const currentArea = normalizeAreaValue(
-				rows[focusedLocationCell.rowIndex]?.[AREA_COLUMN_KEY] ?? "",
-			);
+			const currentRow = rows[focusedLocationCell.rowIndex];
+			const currentArea = currentRow
+				? normalizeAreaValue(getEffectiveAreaLabelFromRow(currentRow))
+				: "";
 			const suggestions = new Map<string, LocationSuggestion>();
 
 			for (const [rowIndex, row] of rows.entries()) {
 				if (rowIndex === focusedLocationCell.rowIndex) continue;
-				const value = (row[LOCATION_COLUMN_KEY] ?? "").trim();
-				if (!value) continue;
-				const normalized = normalizeLocationSearchText(value);
-				if (!normalized) continue;
-				if (query && !normalized.includes(query)) continue;
+				const locationParts = splitLocationRawParts(
+					row[LOCATION_COLUMN_KEY] ?? "",
+				);
+				for (const [partIndex, value] of locationParts.entries()) {
+					const normalized = normalizeLocationSearchText(value);
+					if (!normalized) continue;
+					if (query && !normalized.includes(query)) continue;
 
-				const area =
-					normalizeAreaValue(row[AREA_COLUMN_KEY] ?? "").trim() ||
-					deriveAreaLabelFromRow(row);
-				const existing = suggestions.get(normalized);
-				const isAreaMatch = Boolean(currentArea && area === currentArea);
-				if (!existing) {
-					suggestions.set(normalized, {
-						value,
-						area,
-						count: 1,
-						isAreaMatch,
-					});
-					continue;
+					const area = getEffectiveAreaLabelFromRow(row, partIndex);
+					const place = buildLocationPlaceContext(row, partIndex);
+					const existing = suggestions.get(normalized);
+					const isAreaMatch = Boolean(currentArea && area === currentArea);
+					if (!existing) {
+						suggestions.set(normalized, {
+							value,
+							area,
+							address: place.address ?? "",
+							postalCode: place.postalCode ?? "",
+							city: place.city ?? "",
+							countryCode: place.countryCode ?? "",
+							count: 1,
+							isAreaMatch,
+						});
+						continue;
+					}
+					existing.count += 1;
+					existing.isAreaMatch = existing.isAreaMatch || isAreaMatch;
+					if (!existing.area && area) existing.area = area;
+					if (!existing.address && place.address) {
+						existing.address = place.address;
+					}
+					if (!existing.postalCode && place.postalCode) {
+						existing.postalCode = place.postalCode;
+					}
+					if (!existing.city && place.city) {
+						existing.city = place.city;
+					}
+					if (!existing.countryCode && place.countryCode) {
+						existing.countryCode = place.countryCode;
+					}
 				}
-				existing.count += 1;
-				existing.isAreaMatch = existing.isAreaMatch || isAreaMatch;
-				if (!existing.area && area) existing.area = area;
 			}
 
 			return Array.from(suggestions.values())
@@ -3709,9 +3797,42 @@ export const EventSheetEditorCard = ({
 
 	const selectLocationForCell = useCallback(
 		(rowIndex: number, columnKey: string, suggestion: LocationSuggestion) => {
+			const currentRow = rowsRef.current[rowIndex] ?? {};
+			const currentLocationValue = currentRow[columnKey] ?? "";
+			const preserveMissingMetadata =
+				normalizeLocationSearchText(currentLocationValue) ===
+				normalizeLocationSearchText(suggestion.value);
+			const nextAddress =
+				suggestion.address ||
+				(preserveMissingMetadata
+					? (currentRow[LOCATION_ADDRESS_COLUMN_KEY] ?? "")
+					: "");
+			const nextPostalCode =
+				suggestion.postalCode ||
+				(preserveMissingMetadata
+					? (currentRow[POSTAL_CODE_COLUMN_KEY] ?? "")
+					: "");
+			const nextCity =
+				suggestion.city ||
+				(preserveMissingMetadata ? (currentRow[CITY_COLUMN_KEY] ?? "") : "");
+			const nextCountryCode =
+				suggestion.countryCode ||
+				(preserveMissingMetadata
+					? (currentRow[COUNTRY_CODE_COLUMN_KEY] ?? "")
+					: "");
 			handleCellChange(rowIndex, columnKey, suggestion.value);
+			handleCellChange(rowIndex, LOCATION_ADDRESS_COLUMN_KEY, nextAddress);
+			handleCellChange(rowIndex, POSTAL_CODE_COLUMN_KEY, nextPostalCode);
+			handleCellChange(rowIndex, CITY_COLUMN_KEY, nextCity);
+			handleCellChange(rowIndex, COUNTRY_CODE_COLUMN_KEY, nextCountryCode);
 			const currentArea = rowsRef.current[rowIndex]?.[AREA_COLUMN_KEY] ?? "";
-			if (!currentArea.trim() && suggestion.area) {
+			const derivedArea = deriveAreaFromPostalCodeCity(
+				nextPostalCode,
+				nextCity,
+			);
+			if (derivedArea) {
+				handleCellChange(rowIndex, AREA_COLUMN_KEY, "");
+			} else if (!currentArea.trim() && suggestion.area) {
 				handleCellChange(rowIndex, AREA_COLUMN_KEY, suggestion.area);
 			}
 			setFocusedLocationCell({ rowIndex, columnKey });
@@ -3730,7 +3851,6 @@ export const EventSheetEditorCard = ({
 			const nextParts = [...parts, "New location"];
 			const nextPartIndex = nextParts.length - 1;
 			handleCellChange(rowIndex, columnKey, joinLocationParts(nextParts));
-			handleCellChange(rowIndex, AREA_COLUMN_KEY, "Multiple Locations");
 			window.setTimeout(() => {
 				const input =
 					locationPartInputRefs.current[
@@ -3745,6 +3865,7 @@ export const EventSheetEditorCard = ({
 
 	const markMultipleLocationsForCell = useCallback(
 		(rowIndex: number, columnKey: string) => {
+			handleCellChange(rowIndex, columnKey, "Multiple locations");
 			handleCellChange(rowIndex, AREA_COLUMN_KEY, "Multiple Locations");
 			setFocusedLocationCell({ rowIndex, columnKey });
 			window.setTimeout(() => {
@@ -3760,9 +3881,6 @@ export const EventSheetEditorCard = ({
 			const parts = splitLocationRawParts(currentValue);
 			parts[partIndex] = value;
 			handleCellChange(rowIndex, columnKey, joinLocationParts(parts));
-			if (parts.filter((part) => part.trim()).length > 1) {
-				handleCellChange(rowIndex, AREA_COLUMN_KEY, "Multiple Locations");
-			}
 		},
 		[handleCellChange],
 	);
@@ -3793,12 +3911,27 @@ export const EventSheetEditorCard = ({
 		[handleCellChange],
 	);
 
-	const applyOneAreaForAllLocations = useCallback(
-		(rowIndex: number, areaValue: string) => {
+	const updateLocationMetadataPart = useCallback(
+		(
+			rowIndex: number,
+			columnKey: string,
+			partIndex: number,
+			value: string,
+			normalizeValue: (input: string) => string = (input) => input,
+		) => {
+			const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
+			const parts = splitMetadataRawParts(currentValue);
+			while (parts.length <= partIndex) {
+				parts.push("");
+			}
+			parts[partIndex] = normalizeValue(value);
+			const locationPartCount = splitLocationRawParts(
+				rowsRef.current[rowIndex]?.[LOCATION_COLUMN_KEY] ?? "",
+			).length;
 			handleCellChange(
 				rowIndex,
-				AREA_COLUMN_KEY,
-				normalizeAreaValue(areaValue),
+				columnKey,
+				joinMetadataParts(parts, locationPartCount > 1 ? locationPartCount : 0),
 			);
 		},
 		[handleCellChange],
@@ -3811,6 +3944,25 @@ export const EventSheetEditorCard = ({
 				(_, index) => index !== partIndex,
 			);
 			handleCellChange(rowIndex, columnKey, joinLocationParts(nextParts));
+			for (const metadataColumnKey of [
+				LOCATION_ADDRESS_COLUMN_KEY,
+				POSTAL_CODE_COLUMN_KEY,
+				CITY_COLUMN_KEY,
+				COUNTRY_CODE_COLUMN_KEY,
+				AREA_COLUMN_KEY,
+			]) {
+				const metadataParts = splitMetadataRawParts(
+					rowsRef.current[rowIndex]?.[metadataColumnKey] ?? "",
+				);
+				if (metadataParts.length <= 1) continue;
+				handleCellChange(
+					rowIndex,
+					metadataColumnKey,
+					joinMetadataParts(
+						metadataParts.filter((_, index) => index !== partIndex),
+					),
+				);
+			}
 			window.setTimeout(() => {
 				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
 			}, 0);
@@ -4074,16 +4226,16 @@ export const EventSheetEditorCard = ({
 				.split(/[\n\r|;]+/)
 				.map((part) => part.trim())
 				.filter(Boolean);
+			const unknownAreas = areaParts.filter((part) => !findAreaOption(part));
+			if (unknownAreas.length > 0) {
+				issues.push({
+					rowIndex: rowNumber,
+					column: "Area",
+					message: `Unknown area token: ${unknownAreas.join(", ")}.`,
+					severity: "warning",
+				});
+			}
 			if (locationParts.length > 1) {
-				const unknownAreas = areaParts.filter((part) => !findAreaOption(part));
-				if (unknownAreas.length > 0) {
-					issues.push({
-						rowIndex: rowNumber,
-						column: "Area",
-						message: `Unknown area token: ${unknownAreas.join(", ")}.`,
-						severity: "warning",
-					});
-				}
 				const normalizedAreas = areaParts.map(normalizeAreaValue);
 				const hasSharedArea =
 					normalizedAreas.length === 1 &&
@@ -4581,14 +4733,6 @@ export const EventSheetEditorCard = ({
 	) => {
 		handleCellChange(rowIndex, columnKey, area.value);
 	};
-	const applyDerivedDetailArea = (rowIndex: number) => {
-		const row = rowsRef.current[rowIndex];
-		if (!row) return;
-		const derivedArea = deriveAreaLabelFromRow(row);
-		if (derivedArea) {
-			handleCellChange(rowIndex, AREA_COLUMN_KEY, derivedArea);
-		}
-	};
 	const addDetailPrimaryUrlSlot = (rowIndex: number, columnKey: string) => {
 		const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
 		const nextValue = [...splitUrlRawParts(currentValue), "https://"].join(
@@ -4951,6 +5095,7 @@ export const EventSheetEditorCard = ({
 
 		if (columnKey === AREA_COLUMN_KEY) {
 			const normalizedArea = normalizeAreaValue(value);
+			const derivedArea = deriveAreaLabelFromRow(detailRow);
 			return (
 				<div className="block text-xs font-medium text-foreground">
 					{fieldLabel}
@@ -4963,10 +5108,16 @@ export const EventSheetEditorCard = ({
 							commitCellDraft(detailRowIndex, columnKey, normalizeAreaValue)
 						}
 						className={inputClassName}
+						placeholder={derivedArea ? `Auto: ${derivedArea}` : "Auto"}
 					/>
+					{derivedArea && (
+						<div className="mt-1 text-[11px] text-muted-foreground">
+							{`Auto area: ${normalizeAreaValue(derivedArea)}`}
+						</div>
+					)}
 					<details className="mt-2 rounded-md border border-border/70 bg-background/60">
 						<summary className="cursor-pointer list-none px-2.5 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground">
-							Area quick picks
+							Override quick picks
 						</summary>
 						<div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto border-t border-border/70 p-2">
 							{AREA_OPTIONS.map((area) => (
@@ -6219,7 +6370,7 @@ export const EventSheetEditorCard = ({
 													}}
 												>
 													<Eye className="mr-1 h-3.5 w-3.5" />
-													Reveal key columns in sheet
+													Reveal advanced columns in sheet
 												</Button>
 											</div>
 										</section>
@@ -6260,39 +6411,19 @@ export const EventSheetEditorCard = ({
 											<div className="grid gap-3">
 												{renderDetailField("Location", LOCATION_COLUMN_KEY)}
 												<div className="grid gap-3 sm:grid-cols-2">
-													{renderDetailField("Area", AREA_COLUMN_KEY)}
 													{renderDetailField(
 														"Postal Code",
 														POSTAL_CODE_COLUMN_KEY,
 													)}
+													{renderDetailField("City", CITY_COLUMN_KEY)}
 												</div>
 												<div className="grid gap-3 sm:grid-cols-2">
-													{renderDetailField("City", CITY_COLUMN_KEY)}
+													{renderDetailField("Area override", AREA_COLUMN_KEY)}
+												</div>
+												<div className="grid gap-3 sm:grid-cols-2">
 													{renderDetailField(
 														"Address",
 														LOCATION_ADDRESS_COLUMN_KEY,
-													)}
-												</div>
-												<div className="flex flex-wrap items-center gap-2">
-													<Button
-														type="button"
-														size="sm"
-														variant="outline"
-														className="h-8"
-														disabled={!deriveAreaLabelFromRow(detailRow)}
-														onClick={() =>
-															applyDerivedDetailArea(detailRowIndex)
-														}
-													>
-														<RefreshCw className="mr-1 h-3.5 w-3.5" />
-														Derive area
-													</Button>
-													{deriveAreaLabelFromRow(detailRow) && (
-														<span className="text-[11px] text-muted-foreground">
-															{`Postal code suggests ${normalizeAreaValue(
-																deriveAreaLabelFromRow(detailRow),
-															)}`}
-														</span>
 													)}
 												</div>
 												<details className="rounded-md border border-border/70 bg-background/60">
@@ -6665,7 +6796,7 @@ export const EventSheetEditorCard = ({
 										) : (
 											<Eye className="mr-1 h-3.5 w-3.5" />
 										)}
-										{showAdvancedColumns ? "Hide keys" : "Show keys"}
+										{showAdvancedColumns ? "Hide advanced" : "Show advanced"}
 									</Button>
 								</div>
 							</div>
@@ -7929,11 +8060,12 @@ export const EventSheetEditorCard = ({
 																	focusedLocationCell.columnKey ===
 																		column.key && (
 																		<CellPopover
-																			className="fixed z-[140] w-80 overflow-hidden rounded-md border border-border/80 bg-popover shadow-xl"
+																			className="fixed z-[140] max-h-[calc(100vh-1rem)] w-[min(28rem,calc(100vw-1rem))] overflow-y-auto rounded-md border border-border/80 bg-popover shadow-xl"
 																			style={getCellPopoverStyle(
 																				rowIndex,
 																				column.key,
-																				320,
+																				448,
+																				520,
 																			)}
 																		>
 																			<div className="border-b px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -8003,12 +8135,6 @@ export const EventSheetEditorCard = ({
 																					)}
 																				</div>
 																			)}
-																			<div className="border-b px-2 py-1.5 text-[11px] text-muted-foreground">
-																				Use | between venues when you want to
-																				list exact places. Use Multiple
-																				Locations when the event has several
-																				places but no map pin.
-																			</div>
 																			<div className="border-b p-1">
 																				<div className="grid grid-cols-2 gap-1">
 																					<Button
@@ -8051,121 +8177,179 @@ export const EventSheetEditorCard = ({
 																			{locationParts.length > 0 && (
 																				<div className="border-b p-1">
 																					{locationParts.map(
-																						(part, partIndex) => (
-																							<div
-																								key={locationPartRefKey(
-																									rowIndex,
-																									column.key,
+																						(part, partIndex) => {
+																							const place =
+																								buildLocationPlaceContext(
+																									row,
 																									partIndex,
-																								)}
-																								className="rounded px-1 py-1"
-																							>
-																								<div className="flex items-center gap-1">
-																									<input
-																										ref={(node) => {
-																											locationPartInputRefs.current[
-																												locationPartRefKey(
+																								);
+																							const explicitArea =
+																								locationAreaPairs[partIndex]
+																									?.area ?? "";
+																							const derivedArea =
+																								deriveAreaLabelFromRow(
+																									row,
+																									partIndex,
+																								);
+																							return (
+																								<div
+																									key={locationPartRefKey(
+																										rowIndex,
+																										column.key,
+																										partIndex,
+																									)}
+																									className="rounded px-1 py-1.5"
+																								>
+																									<div className="grid gap-1">
+																										<div className="flex items-center gap-1">
+																											<input
+																												ref={(node) => {
+																													locationPartInputRefs.current[
+																														locationPartRefKey(
+																															rowIndex,
+																															column.key,
+																															partIndex,
+																														)
+																													] = node;
+																												}}
+																												value={part}
+																												onChange={(event) =>
+																													updateLocationPart(
+																														rowIndex,
+																														column.key,
+																														partIndex,
+																														event.target.value,
+																													)
+																												}
+																												className="h-7 min-w-0 flex-1 rounded border border-border/70 bg-background px-2 text-xs outline-none focus:border-ring"
+																												placeholder={`Location ${partIndex + 1}`}
+																											/>
+																											<button
+																												type="button"
+																												className="rounded p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+																												aria-label={`Remove location ${partIndex + 1}`}
+																												title={`Remove location ${partIndex + 1}`}
+																												onMouseDown={(
+																													event,
+																												) => {
+																													event.preventDefault();
+																													removeLocationPart(
+																														rowIndex,
+																														column.key,
+																														partIndex,
+																													);
+																												}}
+																											>
+																												<Trash2 className="h-3 w-3" />
+																											</button>
+																										</div>
+																										<input
+																											value={
+																												place.address ?? ""
+																											}
+																											onChange={(event) =>
+																												updateLocationMetadataPart(
 																													rowIndex,
-																													column.key,
+																													LOCATION_ADDRESS_COLUMN_KEY,
 																													partIndex,
+																													event.target.value,
 																												)
-																											] = node;
-																										}}
-																										value={part}
-																										onChange={(event) =>
-																											updateLocationPart(
-																												rowIndex,
-																												column.key,
-																												partIndex,
-																												event.target.value,
-																											)
-																										}
-																										className="h-7 min-w-0 flex-1 rounded border border-border/70 bg-background px-2 text-xs outline-none focus:border-ring"
-																										placeholder={`Location ${partIndex + 1}`}
-																									/>
-																									<select
-																										value={
-																											locationAreaPairs[
-																												partIndex
-																											]?.area ?? ""
-																										}
-																										onChange={(event) =>
-																											updateLocationAreaPart(
-																												rowIndex,
-																												partIndex,
-																												event.target.value,
-																											)
-																										}
-																										onMouseDown={(event) => {
-																											event.stopPropagation();
-																										}}
-																										className="h-7 w-24 rounded border border-border/70 bg-background px-1.5 text-[11px] outline-none focus:border-ring"
-																										aria-label={`Area for location ${partIndex + 1}`}
-																									>
-																										<option value="">
-																											Area
-																										</option>
-																										{AREA_OPTIONS.map(
-																											(area) => (
-																												<option
-																													key={`${partIndex}-${area.value}`}
-																													value={area.value}
-																												>
-																													{area.label}
+																											}
+																											className="h-7 rounded border border-border/70 bg-background px-2 text-xs outline-none focus:border-ring"
+																											placeholder="Address"
+																										/>
+																										<div className="grid grid-cols-[6.5rem_1fr_4.25rem] gap-1">
+																											<input
+																												value={
+																													place.postalCode ?? ""
+																												}
+																												onChange={(event) =>
+																													updateLocationMetadataPart(
+																														rowIndex,
+																														POSTAL_CODE_COLUMN_KEY,
+																														partIndex,
+																														event.target.value,
+																														normalizePostalCode,
+																													)
+																												}
+																												className="h-7 rounded border border-border/70 bg-background px-2 text-xs outline-none focus:border-ring"
+																												placeholder="Postal"
+																											/>
+																											<input
+																												value={place.city ?? ""}
+																												onChange={(event) =>
+																													updateLocationMetadataPart(
+																														rowIndex,
+																														CITY_COLUMN_KEY,
+																														partIndex,
+																														event.target.value,
+																														normalizeCity,
+																													)
+																												}
+																												className="h-7 rounded border border-border/70 bg-background px-2 text-xs outline-none focus:border-ring"
+																												placeholder="City"
+																											/>
+																											<input
+																												value={
+																													place.countryCode ??
+																													""
+																												}
+																												onChange={(event) =>
+																													updateLocationMetadataPart(
+																														rowIndex,
+																														COUNTRY_CODE_COLUMN_KEY,
+																														partIndex,
+																														event.target.value,
+																														normalizePlaceCountryCodeInput,
+																													)
+																												}
+																												className="h-7 rounded border border-border/70 bg-background px-2 text-xs uppercase outline-none focus:border-ring"
+																												placeholder="FR"
+																												maxLength={2}
+																											/>
+																										</div>
+																										<div className="grid grid-cols-[1fr_7.5rem] items-center gap-1">
+																											<div className="truncate text-[10px] text-muted-foreground">
+																												{derivedArea
+																													? `Auto area ${normalizeAreaValue(derivedArea)}`
+																													: "Auto area pending"}
+																											</div>
+																											<select
+																												value={explicitArea}
+																												onChange={(event) =>
+																													updateLocationAreaPart(
+																														rowIndex,
+																														partIndex,
+																														event.target.value,
+																													)
+																												}
+																												onMouseDown={(
+																													event,
+																												) => {
+																													event.stopPropagation();
+																												}}
+																												className="h-7 rounded border border-border/70 bg-background px-1.5 text-[11px] outline-none focus:border-ring"
+																												aria-label={`Area override for location ${partIndex + 1}`}
+																											>
+																												<option value="">
+																													Auto area
 																												</option>
-																											),
-																										)}
-																									</select>
-																									<button
-																										type="button"
-																										className="rounded p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-																										aria-label={`Remove location ${partIndex + 1}`}
-																										title={`Remove location ${partIndex + 1}`}
-																										onMouseDown={(event) => {
-																											event.preventDefault();
-																											removeLocationPart(
-																												rowIndex,
-																												column.key,
-																												partIndex,
-																											);
-																										}}
-																									>
-																										<Trash2 className="h-3 w-3" />
-																									</button>
+																												{AREA_OPTIONS.map(
+																													(area) => (
+																														<option
+																															key={`${partIndex}-${area.value}`}
+																															value={area.value}
+																														>
+																															{area.label}
+																														</option>
+																													),
+																												)}
+																											</select>
+																										</div>
+																									</div>
 																								</div>
-																							</div>
-																						),
-																					)}
-																					{locationParts.length > 1 && (
-																						<div className="mt-1 border-t border-border/60 px-1 pt-2">
-																							<div className="mb-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-																								Shared area
-																							</div>
-																							<div className="flex flex-wrap gap-1">
-																								{AREA_OPTIONS.slice(0, 20).map(
-																									(area) => (
-																										<button
-																											key={`shared-${area.value}`}
-																											type="button"
-																											className="rounded border border-border/70 px-1.5 py-0.5 text-[10px] text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
-																											onMouseDown={(event) => {
-																												event.preventDefault();
-																												applyOneAreaForAllLocations(
-																													rowIndex,
-																													area.value,
-																												);
-																											}}
-																										>
-																											{area.label}
-																										</button>
-																									),
-																								)}
-																							</div>
-																							<p className="mt-1 text-[10px] text-muted-foreground">
-																								Per-location areas are linked by
-																								list order.
-																							</p>
-																						</div>
+																							);
+																						},
 																					)}
 																				</div>
 																			)}

@@ -130,6 +130,15 @@ const IDENTITY_COLUMN_SET = new Set<string>(IDENTITY_COLUMN_ORDER);
 const HIDDEN_EVENT_COLUMN_SET = new Set<string>(
 	HIDDEN_EVENT_COLUMNS.map((column) => column.key),
 );
+const HIDDEN_EVENT_HEADER_LOOKUP = new Map<string, string>(
+	HIDDEN_EVENT_COLUMNS.flatMap((column) => [
+		[normalizeKey(column.key), column.key],
+		[normalizeKey(column.label), column.key],
+		...column.aliases.map(
+			(alias) => [normalizeKey(alias), column.key] as const,
+		),
+	]),
+);
 const COUNTRY_COLUMN_KEYS = new Set<string>(["hostCountry", "audienceCountry"]);
 const TIME_COLUMN_KEYS = new Set<string>(["startTime", "endTime"]);
 const DATE_COLUMN_KEYS = new Set<string>(["date", "dateTo"]);
@@ -155,6 +164,24 @@ const resolveCoreKeyFromHeader = (header: string): string | null => {
 	const normalized = normalizeKey(header);
 	return CORE_HEADER_LOOKUP.get(normalized) ?? null;
 };
+
+const stripGeneratedColumnSuffix = (value: string): string =>
+	value.replace(/_\d+$/, "");
+
+const resolveHiddenEventKeyFromHeader = (header: string): string | null => {
+	const normalized = normalizeKey(header);
+	return (
+		HIDDEN_EVENT_HEADER_LOOKUP.get(normalized) ??
+		HIDDEN_EVENT_HEADER_LOOKUP.get(stripGeneratedColumnSuffix(normalized)) ??
+		null
+	);
+};
+
+const resolveHiddenEventKeyFromColumn = (
+	column: EditableSheetColumn,
+): string | null =>
+	resolveHiddenEventKeyFromHeader(column.key) ??
+	resolveHiddenEventKeyFromHeader(column.label);
 
 const buildBlankRow = (columns: EditableSheetColumn[]): EditableSheetRow => {
 	return Object.fromEntries(columns.map((column) => [column.key, ""]));
@@ -529,6 +556,40 @@ export const stripLegacyFeaturedColumn = (
 	return { columns: nextColumns, rows: nextRows };
 };
 
+const absorbHiddenMetadataColumns = (
+	columns: EditableSheetColumn[],
+	rows: EditableSheetRow[],
+): {
+	columns: EditableSheetColumn[];
+	rows: EditableSheetRow[];
+} => {
+	const nextRows = rows.map((row) => ({ ...row }));
+	const nextColumns: EditableSheetColumn[] = [];
+
+	for (const column of columns) {
+		const hiddenKey = resolveHiddenEventKeyFromColumn(column);
+		if (!hiddenKey) {
+			nextColumns.push({ ...column });
+			continue;
+		}
+
+		for (const row of nextRows) {
+			const sourceValue = String(row[column.key] ?? "");
+			const canonicalValue = String(row[hiddenKey] ?? "");
+			if (!canonicalValue.trim() && sourceValue.trim()) {
+				row[hiddenKey] = sourceValue;
+			} else {
+				row[hiddenKey] = canonicalValue;
+			}
+			if (column.key !== hiddenKey) {
+				delete row[column.key];
+			}
+		}
+	}
+
+	return { columns: nextColumns, rows: nextRows };
+};
+
 export const sortEditableSheetRowsByDefaultDate = (
 	rows: EditableSheetRow[],
 	options: {
@@ -579,8 +640,9 @@ export const ensureCoreColumns = (
 	rows: EditableSheetRow[];
 } => {
 	const stripped = stripLegacyFeaturedColumn(columns, rows);
-	const nextColumns = [...stripped.columns];
-	const nextRows = pruneEmptyEditableSheetRows(stripped.rows);
+	const absorbed = absorbHiddenMetadataColumns(stripped.columns, stripped.rows);
+	const nextColumns = [...absorbed.columns];
+	const nextRows = pruneEmptyEditableSheetRows(absorbed.rows);
 	const existingKeys = new Set(nextColumns.map((column) => column.key));
 
 	for (const coreKey of getSheetCoreColumnOrder()) {
@@ -697,17 +759,12 @@ export const csvToEditableSheet = (
 	for (const header of rawHeaders) {
 		const coreKey = resolveCoreKeyFromHeader(header);
 		const normalizedHeader = normalizeKey(header);
-		const hiddenKey = HIDDEN_EVENT_COLUMNS.find(
-			(column) =>
-				normalizeKey(column.label) === normalizedHeader ||
-				normalizeKey(column.key) === normalizedHeader ||
-				column.aliases.some(
-					(alias) => normalizeKey(alias) === normalizedHeader,
-				),
-		)?.key;
+		const hiddenKey = resolveHiddenEventKeyFromHeader(header);
 		let key = coreKey || hiddenKey || normalizedHeader || "custom_column";
 		if (isCoreKey(key)) {
 			key = key;
+		} else if (isHiddenEventKey(key)) {
+			key = hiddenKey ?? key;
 		} else if (usedKeys.has(key)) {
 			let suffix = 2;
 			while (usedKeys.has(`${key}_${suffix}`)) {
@@ -733,7 +790,14 @@ export const csvToEditableSheet = (
 	const rows = result.data.map((rawRow) => {
 		const row: EditableSheetRow = {};
 		for (const mapping of headerMappings) {
-			row[mapping.key] = rawRow[mapping.header] ?? "";
+			const value = rawRow[mapping.header] ?? "";
+			if (
+				isHiddenEventKey(mapping.key) &&
+				String(row[mapping.key] ?? "").trim()
+			) {
+				continue;
+			}
+			row[mapping.key] = value;
 		}
 		return row;
 	});

@@ -328,11 +328,10 @@ export const splitAreaList = (value: string): ParisArrondissement[] =>
 
 export const splitLocationMetadataList = (
 	value: string | undefined,
-): string[] =>
-	(value ?? "")
-		.split(/[\n\r|;]+/)
-		.map((part) => part.trim())
-		.filter((part) => part.length > 0);
+): string[] => {
+	const parts = (value ?? "").split(/[\n\r|;]+/).map((part) => part.trim());
+	return parts.some(Boolean) ? parts : [];
+};
 
 /**
  * Nationality and Country Transformers

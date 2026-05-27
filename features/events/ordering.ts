@@ -1,4 +1,7 @@
-import { isStrictISODate, parseISODateParts } from "@/features/events/date-utils";
+import {
+	isStrictISODate,
+	parseISODateParts,
+} from "@/features/events/date-utils";
 import { isRecentlyAddedEvent } from "@/features/events/recently-added";
 import { isRecentlyUpdatedEvent } from "@/features/events/recently-updated";
 import type { Event } from "@/features/events/types";
@@ -27,7 +30,12 @@ const parseTime = (rawTime: string): [number, number] | null => {
 	if (!Number.isFinite(parsedHours) || !Number.isFinite(parsedMinutes)) {
 		return null;
 	}
-	if (parsedHours < 0 || parsedHours > 23 || parsedMinutes < 0 || parsedMinutes > 59) {
+	if (
+		parsedHours < 0 ||
+		parsedHours > 23 ||
+		parsedMinutes < 0 ||
+		parsedMinutes > 59
+	) {
 		return null;
 	}
 
@@ -83,29 +91,28 @@ const getRegularEventSortTime = (event: Event): RegularEventSortTime => {
 const compareNames = (left: Event, right: Event): number =>
 	left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
 
-const FRESH_ACTIVITY_NEW_SCORE = 1_000_000;
-const FRESH_ACTIVITY_UPDATED_SCORE = 700_000;
-const FRESH_ACTIVITY_SAVE_SCORE = 1_000;
 const FRESH_ACTIVITY_SAVE_CAP = 250;
 
-const getFreshActivityScore = (event: Event, now: Date): number => {
-	const newScore = isRecentlyAddedEvent(event, now)
-		? FRESH_ACTIVITY_NEW_SCORE
-		: 0;
-	const updatedScore = isRecentlyUpdatedEvent(event, now)
-		? FRESH_ACTIVITY_UPDATED_SCORE
-		: 0;
-	const saveScore =
-		Math.min(event.socialProofSaveCount ?? 0, FRESH_ACTIVITY_SAVE_CAP) *
-		FRESH_ACTIVITY_SAVE_SCORE;
-	const changedTime = Date.parse(event.lastMeaningfulChangeAt ?? "");
-	const firstSeenTime = Date.parse(event.firstSeenAt ?? "");
-	const freshnessTime = Math.max(
-		Number.isFinite(changedTime) ? changedTime : 0,
-		Number.isFinite(firstSeenTime) ? firstSeenTime : 0,
-	);
-	return newScore + updatedScore + saveScore + Math.floor(freshnessTime / 86_400_000);
+const parseTimestamp = (value: string | undefined): number | null => {
+	const timestamp = Date.parse(value ?? "");
+	return Number.isFinite(timestamp) ? timestamp : null;
 };
+
+const getFreshActivityTime = (event: Event, now: Date): number | null => {
+	const firstSeenTime = isRecentlyAddedEvent(event, now)
+		? parseTimestamp(event.firstSeenAt)
+		: null;
+	const changedTime = isRecentlyUpdatedEvent(event, now)
+		? parseTimestamp(event.lastMeaningfulChangeAt)
+		: null;
+
+	if (firstSeenTime === null) return changedTime;
+	if (changedTime === null) return firstSeenTime;
+	return Math.max(firstSeenTime, changedTime);
+};
+
+const getFreshSaveCount = (event: Event): number =>
+	Math.min(event.socialProofSaveCount ?? 0, FRESH_ACTIVITY_SAVE_CAP);
 
 export const createRegularEventsComparator = (
 	now: Date,
@@ -158,9 +165,20 @@ export const createFreshActivityComparator = (
 	const regularComparator = createRegularEventsComparator(now);
 
 	return (left, right) => {
-		const scoreDelta =
-			getFreshActivityScore(right, now) - getFreshActivityScore(left, now);
-		if (scoreDelta !== 0) return scoreDelta;
+		const leftActivityTime = getFreshActivityTime(left, now);
+		const rightActivityTime = getFreshActivityTime(right, now);
+
+		if (leftActivityTime !== null || rightActivityTime !== null) {
+			if (leftActivityTime === null) return 1;
+			if (rightActivityTime === null) return -1;
+			if (leftActivityTime !== rightActivityTime) {
+				return rightActivityTime - leftActivityTime;
+			}
+		}
+
+		const saveCountDelta = getFreshSaveCount(right) - getFreshSaveCount(left);
+		if (saveCountDelta !== 0) return saveCountDelta;
+
 		return regularComparator(left, right);
 	};
 };

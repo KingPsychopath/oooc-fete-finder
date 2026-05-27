@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
 	createFreshActivityComparator,
 	createRegularEventsComparator,
 } from "@/features/events/ordering";
-import { getEventTypeForDate, type Event } from "@/features/events/types";
+import { type Event, getEventTypeForDate } from "@/features/events/types";
+import { describe, expect, it } from "vitest";
 
 const makeEvent = ({
 	eventKey,
@@ -183,6 +183,37 @@ describe("createFreshActivityComparator", () => {
 		expect(sorted.map((event) => event.eventKey)).toEqual([
 			"updated",
 			"many-saves",
+		]);
+	});
+
+	it("orders fresh events by exact latest activity timestamp", () => {
+		const now = new Date("2026-05-08T12:00:00.000Z");
+		const events: Event[] = [
+			makeEvent({
+				eventKey: "new-earlier",
+				date: "2026-06-20",
+				firstSeenAt: "2026-05-08T08:15:00.000Z",
+				lastMeaningfulChangeAt: "2026-05-08T08:15:00.000Z",
+			}),
+			makeEvent({
+				eventKey: "updated-latest",
+				date: "2026-06-22",
+				firstSeenAt: "2026-04-20T12:00:00.000Z",
+				lastMeaningfulChangeAt: "2026-05-08T10:30:00.000Z",
+			}),
+			makeEvent({
+				eventKey: "updated-middle",
+				date: "2026-06-21",
+				firstSeenAt: "2026-04-20T12:00:00.000Z",
+				lastMeaningfulChangeAt: "2026-05-08T09:45:00.000Z",
+			}),
+		];
+
+		const sorted = [...events].sort(createFreshActivityComparator(now));
+		expect(sorted.map((event) => event.eventKey)).toEqual([
+			"updated-latest",
+			"updated-middle",
+			"new-earlier",
 		]);
 	});
 });

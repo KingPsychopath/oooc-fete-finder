@@ -103,6 +103,29 @@ describe("event row metadata", () => {
 		expect(updated).toBe(base);
 	});
 
+	it("does not treat hidden location metadata as public event detail updates", () => {
+		const base = buildMeaningfulEventRowHash({
+			eventKey: "evt_1",
+			title: "Fete Party",
+			date: "2026-06-21",
+			location: "Venue A",
+			area: "11",
+		});
+		const updated = buildMeaningfulEventRowHash({
+			eventKey: "evt_1",
+			title: "Fete Party",
+			date: "2026-06-21",
+			location: "Venue A",
+			area: "11",
+			locationAddress: "10 Rue Oberkampf",
+			postalCode: "75011",
+			city: "Paris",
+			countryCode: "FR",
+		});
+
+		expect(updated).toBe(base);
+	});
+
 	it("accepts old public-content hash versions as compatible", () => {
 		expect(
 			isCompatibleMeaningfulEventRowHash("3eaf96f3b347c3d3", {

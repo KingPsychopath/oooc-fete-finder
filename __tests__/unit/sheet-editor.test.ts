@@ -1,5 +1,6 @@
 import { createDateNormalizationContext } from "@/features/data-management/assembly/date-normalization";
 import {
+	csvToEditableSheet,
 	editableSheetToCsv,
 	getEditableSheetDateRangeDates,
 	pruneEmptyEditableSheetRows,
@@ -161,6 +162,137 @@ describe("sortEditableSheetRowsByDefaultDate", () => {
 		expect(
 			editableSheetToCsv(result.columns, result.rows).split("\n")[0],
 		).toMatch(/Series Key,Event Key$/);
+	});
+
+	it("absorbs suffixed location metadata columns into hidden canonical fields", () => {
+		const result = validateEditableSheet(
+			[
+				{ key: "title", label: "Title", isCore: true, isRequired: true },
+				{ key: "date", label: "Date", isCore: true, isRequired: true },
+				{
+					key: "address_1",
+					label: "Address_1",
+					isCore: false,
+					isRequired: false,
+				},
+				{
+					key: "postal_code_1",
+					label: "Postal Code_1",
+					isCore: false,
+					isRequired: false,
+				},
+				{ key: "city_1", label: "City_1", isCore: false, isRequired: false },
+				{
+					key: "country_code_1",
+					label: "Country Code_1",
+					isCore: false,
+					isRequired: false,
+				},
+			],
+			[
+				{
+					title: "Event",
+					date: "21-06-2026",
+					address_1: "10 Rue Oberkampf",
+					postal_code_1: "75011",
+					city_1: "Paris",
+					country_code_1: "FR",
+				},
+			],
+		);
+
+		expect(result.valid).toBe(true);
+		expect(result.columns.map((column) => column.key)).not.toEqual(
+			expect.arrayContaining([
+				"address_1",
+				"postal_code_1",
+				"city_1",
+				"country_code_1",
+			]),
+		);
+		expect(result.rows[0]).toMatchObject({
+			locationAddress: "10 Rue Oberkampf",
+			postalCode: "75011",
+			city: "Paris",
+			countryCode: "FR",
+		});
+		expect(result.rows[0]).not.toHaveProperty("address_1");
+	});
+
+	it("does not overwrite canonical location metadata with duplicate custom columns", () => {
+		const result = validateEditableSheet(
+			[
+				{ key: "title", label: "Title", isCore: true, isRequired: true },
+				{ key: "date", label: "Date", isCore: true, isRequired: true },
+				{
+					key: "postal_code_1",
+					label: "Postal Code_1",
+					isCore: false,
+					isRequired: false,
+				},
+			],
+			[
+				{
+					title: "Event",
+					date: "21-06-2026",
+					postalCode: "75011",
+					postal_code_1: "75012",
+				},
+			],
+		);
+
+		expect(result.rows[0].postalCode).toBe("75011");
+		expect(result.rows[0]).not.toHaveProperty("postal_code_1");
+	});
+
+	it("imports suffixed location metadata headers as hidden fields", () => {
+		const result = csvToEditableSheet(
+			[
+				"Title,Date,Address_1,Postal Code_1,City_1,Country Code_1",
+				"Event,21-06-2026,10 Rue Oberkampf,75011,Paris,FR",
+			].join("\n"),
+		);
+
+		expect(result.columns.map((column) => column.key)).not.toEqual(
+			expect.arrayContaining([
+				"address_1",
+				"postal_code_1",
+				"city_1",
+				"country_code_1",
+			]),
+		);
+		expect(result.rows[0]).toMatchObject({
+			locationAddress: "10 Rue Oberkampf",
+			postalCode: "75011",
+			city: "Paris",
+			countryCode: "FR",
+		});
+	});
+
+	it("exports hidden location metadata only when populated", () => {
+		const columns = [
+			{ key: "title", label: "Title", isCore: true, isRequired: true },
+			{ key: "date", label: "Date", isCore: true, isRequired: true },
+		];
+
+		const withMetadata = editableSheetToCsv(columns, [
+			{
+				title: "Event",
+				date: "21-06-2026",
+				locationAddress: "10 Rue Oberkampf",
+				postalCode: "75011",
+				city: "Paris",
+				countryCode: "FR",
+			},
+		]);
+		const withoutMetadata = editableSheetToCsv(columns, [
+			{ title: "Event", date: "21-06-2026" },
+		]);
+
+		expect(withMetadata.split("\n")[0]).toContain(
+			"Address,Postal Code,City,Country Code",
+		);
+		expect(withoutMetadata.split("\n")[0]).not.toContain("Postal Code");
 	});
 
 	it("normalizes Date To when exporting source CSV", () => {

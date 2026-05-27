@@ -87,6 +87,7 @@ const COLUMN_MAPPINGS = {
 } as const;
 
 type RawCSVRow = Record<string, string>;
+type ColumnMapping = Record<keyof CSVEventRow, string[]>;
 
 type StructuralParseError = {
 	code: string;
@@ -132,6 +133,14 @@ const normalizeHeaderKey = (value: string): string => {
 		.trim();
 };
 
+const stripGeneratedHeaderSuffix = (value: string): string =>
+	value.replace(/\s+\d+$/, "");
+
+const isGeneratedHeader = (header: string): boolean => {
+	const normalized = normalizeHeaderKey(header);
+	return stripGeneratedHeaderSuffix(normalized) !== normalized;
+};
+
 const buildAliasLookup = (): Map<string, Array<keyof CSVEventRow>> => {
 	const lookup = new Map<string, Array<keyof CSVEventRow>>();
 
@@ -158,36 +167,34 @@ const buildAliasLookup = (): Map<string, Array<keyof CSVEventRow>> => {
 
 const HEADER_ALIAS_LOOKUP = buildAliasLookup();
 
-const createColumnMapping = (
-	headers: string[],
-): Record<keyof CSVEventRow, string | null> => {
-	const mapping: Record<keyof CSVEventRow, string | null> = {
-		eventKey: null,
-		seriesKey: null,
-		curated: null,
-		eventCategory: null,
-		hostCountry: null,
-		audienceCountry: null,
-		title: null,
-		date: null,
-		dateTo: null,
-		startTime: null,
-		endTime: null,
-		location: null,
-		locationAddress: null,
-		postalCode: null,
-		city: null,
-		countryCode: null,
-		area: null,
-		categories: null,
-		tags: null,
-		price: null,
-		primaryUrl: null,
-		ageGuidance: null,
-		setting: null,
-		notes: null,
-		sourceConfirmed: null,
-		detailsQualityOverride: null,
+const createColumnMapping = (headers: string[]): ColumnMapping => {
+	const mapping: ColumnMapping = {
+		eventKey: [],
+		seriesKey: [],
+		curated: [],
+		eventCategory: [],
+		hostCountry: [],
+		audienceCountry: [],
+		title: [],
+		date: [],
+		dateTo: [],
+		startTime: [],
+		endTime: [],
+		location: [],
+		locationAddress: [],
+		postalCode: [],
+		city: [],
+		countryCode: [],
+		area: [],
+		categories: [],
+		tags: [],
+		price: [],
+		primaryUrl: [],
+		ageGuidance: [],
+		setting: [],
+		notes: [],
+		sourceConfirmed: [],
+		detailsQualityOverride: [],
 	};
 	const ambiguousHeaders: Array<{ header: string; fields: string[] }> = [];
 	const duplicateFieldMatches: Array<{
@@ -198,7 +205,10 @@ const createColumnMapping = (
 	for (const header of headers) {
 		const normalized = normalizeHeaderKey(header);
 		if (!normalized) continue;
-		const matches = HEADER_ALIAS_LOOKUP.get(normalized) ?? [];
+		const matches =
+			HEADER_ALIAS_LOOKUP.get(normalized) ??
+			HEADER_ALIAS_LOOKUP.get(stripGeneratedHeaderSuffix(normalized)) ??
+			[];
 		if (matches.length === 0) continue;
 		if (matches.length > 1) {
 			ambiguousHeaders.push({
@@ -209,14 +219,27 @@ const createColumnMapping = (
 		}
 
 		const field = matches[0];
-		if (mapping[field] && mapping[field] !== header) {
+		const mappedHeaders = mapping[field];
+		if (mappedHeaders.length > 0) {
+			const currentIsGenerated = isGeneratedHeader(header);
+			const hasCanonicalHeader = mappedHeaders.some(
+				(mappedHeader) => !isGeneratedHeader(mappedHeader),
+			);
+			if (currentIsGenerated) {
+				mappedHeaders.push(header);
+				continue;
+			}
+			if (!hasCanonicalHeader) {
+				mappedHeaders.unshift(header);
+				continue;
+			}
 			duplicateFieldMatches.push({
 				field,
-				headers: [mapping[field] as string, header],
+				headers: [mappedHeaders[0], header],
 			});
 			continue;
 		}
-		mapping[field] = header;
+		mappedHeaders.push(header);
 	}
 
 	if (ambiguousHeaders.length > 0) {
@@ -260,7 +283,7 @@ const isRecoverableTooFewFieldsError = (
 	error: StructuralParseError,
 	rows: Array<RawCSVRow | null | undefined>,
 	headers: string[],
-	columnMapping: Record<keyof CSVEventRow, string | null>,
+	columnMapping: ColumnMapping,
 ): boolean => {
 	if (error.code !== "TooFewFields" || typeof error.row !== "number") {
 		return false;
@@ -299,8 +322,7 @@ const isRecoverableTooFewFieldsError = (
 
 	const headerToField = new Map<string, keyof CSVEventRow>();
 	for (const field of Object.keys(columnMapping) as Array<keyof CSVEventRow>) {
-		const mappedHeader = columnMapping[field];
-		if (mappedHeader) {
+		for (const mappedHeader of columnMapping[field]) {
 			headerToField.set(mappedHeader, field);
 		}
 	}
@@ -310,6 +332,18 @@ const isRecoverableTooFewFieldsError = (
 		if (!field) return true;
 		return RECOVERABLE_TRAILING_FIELDS.has(field);
 	});
+};
+
+const getMappedValue = (
+	row: RawCSVRow,
+	columnMapping: ColumnMapping,
+	field: keyof CSVEventRow,
+): string => {
+	for (const header of columnMapping[field]) {
+		const value = row[header] ?? "";
+		if (value.trim()) return value;
+	}
+	return "";
 };
 
 export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
@@ -383,7 +417,7 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 
 		const essentialColumns = ["title", "date"] as const;
 		const missingEssential = essentialColumns.filter(
-			(column) => !columnMapping[column],
+			(column) => columnMapping[column].length === 0,
 		);
 		if (missingEssential.length > 0) {
 			throw new Error(
@@ -397,56 +431,48 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 			)
 			.map((row) => {
 				const csvRow: CSVEventRow = {
-					eventKey:
-						(columnMapping.eventKey && row[columnMapping.eventKey]) || "",
-					seriesKey:
-						(columnMapping.seriesKey && row[columnMapping.seriesKey]) || "",
-					curated: (columnMapping.curated && row[columnMapping.curated]) || "",
-					eventCategory:
-						(columnMapping.eventCategory && row[columnMapping.eventCategory]) ||
-						"",
-					hostCountry:
-						(columnMapping.hostCountry && row[columnMapping.hostCountry]) || "",
-					audienceCountry:
-						(columnMapping.audienceCountry &&
-							row[columnMapping.audienceCountry]) ||
-						"",
-					title: (columnMapping.title && row[columnMapping.title]) || "",
-					date: (columnMapping.date && row[columnMapping.date]) || "",
-					dateTo: (columnMapping.dateTo && row[columnMapping.dateTo]) || "",
-					startTime:
-						(columnMapping.startTime && row[columnMapping.startTime]) || "",
-					endTime: (columnMapping.endTime && row[columnMapping.endTime]) || "",
-					location:
-						(columnMapping.location && row[columnMapping.location]) || "",
-					locationAddress:
-						(columnMapping.locationAddress &&
-							row[columnMapping.locationAddress]) ||
-						"",
-					postalCode:
-						(columnMapping.postalCode && row[columnMapping.postalCode]) || "",
-					city: (columnMapping.city && row[columnMapping.city]) || "",
-					countryCode:
-						(columnMapping.countryCode && row[columnMapping.countryCode]) || "",
-					area: (columnMapping.area && row[columnMapping.area]) || "",
-					categories:
-						(columnMapping.categories && row[columnMapping.categories]) || "",
-					tags: (columnMapping.tags && row[columnMapping.tags]) || "",
-					price: (columnMapping.price && row[columnMapping.price]) || "",
-					primaryUrl:
-						(columnMapping.primaryUrl && row[columnMapping.primaryUrl]) || "",
-					ageGuidance:
-						(columnMapping.ageGuidance && row[columnMapping.ageGuidance]) || "",
-					setting: (columnMapping.setting && row[columnMapping.setting]) || "",
-					notes: (columnMapping.notes && row[columnMapping.notes]) || "",
-					sourceConfirmed:
-						(columnMapping.sourceConfirmed &&
-							row[columnMapping.sourceConfirmed]) ||
-						"",
-					detailsQualityOverride:
-						(columnMapping.detailsQualityOverride &&
-							row[columnMapping.detailsQualityOverride]) ||
-						"",
+					eventKey: getMappedValue(row, columnMapping, "eventKey"),
+					seriesKey: getMappedValue(row, columnMapping, "seriesKey"),
+					curated: getMappedValue(row, columnMapping, "curated"),
+					eventCategory: getMappedValue(row, columnMapping, "eventCategory"),
+					hostCountry: getMappedValue(row, columnMapping, "hostCountry"),
+					audienceCountry: getMappedValue(
+						row,
+						columnMapping,
+						"audienceCountry",
+					),
+					title: getMappedValue(row, columnMapping, "title"),
+					date: getMappedValue(row, columnMapping, "date"),
+					dateTo: getMappedValue(row, columnMapping, "dateTo"),
+					startTime: getMappedValue(row, columnMapping, "startTime"),
+					endTime: getMappedValue(row, columnMapping, "endTime"),
+					location: getMappedValue(row, columnMapping, "location"),
+					locationAddress: getMappedValue(
+						row,
+						columnMapping,
+						"locationAddress",
+					),
+					postalCode: getMappedValue(row, columnMapping, "postalCode"),
+					city: getMappedValue(row, columnMapping, "city"),
+					countryCode: getMappedValue(row, columnMapping, "countryCode"),
+					area: getMappedValue(row, columnMapping, "area"),
+					categories: getMappedValue(row, columnMapping, "categories"),
+					tags: getMappedValue(row, columnMapping, "tags"),
+					price: getMappedValue(row, columnMapping, "price"),
+					primaryUrl: getMappedValue(row, columnMapping, "primaryUrl"),
+					ageGuidance: getMappedValue(row, columnMapping, "ageGuidance"),
+					setting: getMappedValue(row, columnMapping, "setting"),
+					notes: getMappedValue(row, columnMapping, "notes"),
+					sourceConfirmed: getMappedValue(
+						row,
+						columnMapping,
+						"sourceConfirmed",
+					),
+					detailsQualityOverride: getMappedValue(
+						row,
+						columnMapping,
+						"detailsQualityOverride",
+					),
 				};
 				return csvRow;
 			})

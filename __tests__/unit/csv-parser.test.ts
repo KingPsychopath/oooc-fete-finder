@@ -70,6 +70,34 @@ describe("parseCSVContent", () => {
 		expect(rows[0].sourceConfirmed).toBe("yes");
 	});
 
+	it("maps generated suffixed location metadata headers", () => {
+		const csv = [
+			"Title,Date,Location,Address_1,Postal Code_1,City_1,Country Code_1",
+			"Block Party,22 June,Le Klub,10 Rue Saint-Maur,75011,Paris,FR",
+		].join("\n");
+
+		const rows = parseCSVContent(csv);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({
+			locationAddress: "10 Rue Saint-Maur",
+			postalCode: "75011",
+			city: "Paris",
+			countryCode: "FR",
+		});
+	});
+
+	it("uses canonical metadata columns before generated duplicate headers", () => {
+		const csv = [
+			"Title,Date,Location,Postal Code,Postal Code_1",
+			"Block Party,22 June,Le Klub,75011,75012",
+			"Fallback Party,23 June,Le Klub,,75012",
+		].join("\n");
+
+		const rows = parseCSVContent(csv);
+		expect(rows[0].postalCode).toBe("75011");
+		expect(rows[1].postalCode).toBe("75012");
+	});
+
 	it("throws a clear error when essential headers are missing", () => {
 		const csv = ["Location,Genre", "Paris,Afro"].join("\n");
 

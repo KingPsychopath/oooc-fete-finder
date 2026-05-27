@@ -256,6 +256,24 @@ describe("event assembler identity", () => {
 		expect(event.city).toBe("Paris");
 	});
 
+	it("keeps explicit area-only current rows complete when postal code is blank", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				location: "Le Klub",
+				area: "11",
+				postalCode: "",
+				city: "",
+			},
+			0,
+		);
+
+		expect(event.arrondissement).toBe(11);
+		expect(event.postalCode).toBeUndefined();
+		expect(event.detailsQuality).toBe("complete");
+		expect(event.detailsQualitySource).toBe("inferred");
+	});
+
 	it("maps 75116 to the 16e arrondissement", () => {
 		const event = assembleEvent(
 			{
@@ -364,6 +382,32 @@ describe("event assembler identity", () => {
 				postalCode: "75010",
 				city: "Paris",
 			},
+		]);
+	});
+
+	it("does not share explicitly blank multiple-location metadata across venues", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				location: "Venue A | Venue B",
+				area: "",
+				postalCode: "75010 |",
+				city: "Paris |",
+				locationAddress: "10 Rue Example |",
+			},
+			0,
+		);
+
+		expect(event.arrondissement).toBe(10);
+		expect(event.locationEntries).toEqual([
+			{
+				name: "Venue A",
+				arrondissement: 10,
+				address: "10 Rue Example",
+				postalCode: "75010",
+				city: "Paris",
+			},
+			{ name: "Venue B" },
 		]);
 	});
 
