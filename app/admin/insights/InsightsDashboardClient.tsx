@@ -111,6 +111,23 @@ export function InsightsDashboardClient({
 		navigator.clipboard.writeText(emailList);
 	}, []);
 
+	const emailCollectionSection =
+		activeTab === "audience" ? (
+			<section id="collected-users" className="scroll-mt-44">
+				<EmailCollectionCard
+					emails={emails}
+					store={emailStore}
+					analytics={emailAnalytics}
+					onCopyEmails={copyVisibleEmails}
+					onExportCSV={() => void exportAsCSV()}
+					onRefresh={loadEmails}
+					onDeleteEmails={deleteCollectedEmails}
+					onImportEmails={importCollectedEmails}
+					onGetUserProfile={getCollectedUserProfile}
+				/>
+			</section>
+		) : null;
+
 	return (
 		<div className="space-y-6">
 			<div className="ooo-admin-card-soft rounded-md border p-3">
@@ -140,28 +157,13 @@ export function InsightsDashboardClient({
 					))}
 				</div>
 			</div>
+			{emailCollectionSection}
 			<section id="event-engagement-stats" className="scroll-mt-44">
 				<EventEngagementStatsCard
 					initialPayload={initialData.eventEngagementDashboard}
 					activeTab={activeTab}
 				/>
 			</section>
-
-			{activeTab === "audience" ? (
-				<section id="collected-users" className="scroll-mt-44">
-					<EmailCollectionCard
-						emails={emails}
-						store={emailStore}
-						analytics={emailAnalytics}
-						onCopyEmails={copyVisibleEmails}
-						onExportCSV={() => void exportAsCSV()}
-						onRefresh={loadEmails}
-						onDeleteEmails={deleteCollectedEmails}
-						onImportEmails={importCollectedEmails}
-						onGetUserProfile={getCollectedUserProfile}
-					/>
-				</section>
-			) : null}
 		</div>
 	);
 }

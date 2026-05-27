@@ -29,13 +29,17 @@ import {
 	type MusicGenre,
 	PRICE_RANGE_CONFIG,
 } from "@/features/events/types";
-import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
+import { formatAdminDate, formatAdminDateTime } from "@/lib/ui/admin-date-format";
 import { CircleHelp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type EventEngagementPayload = Awaited<
 	ReturnType<typeof getEventEngagementDashboard>
 >;
+type EventEngagementDashboardRow = Extract<
+	EventEngagementPayload,
+	{ success: true }
+>["rows"][number];
 
 type InsightsTab = "traffic" | "discovery" | "events" | "audience" | "advanced";
 
@@ -358,6 +362,96 @@ const formatContextLabel = (value: string): string =>
 		.filter(Boolean)
 		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
 		.join(" ");
+
+const TRAFFIC_LABEL_OVERRIDES: Record<string, string> = {
+	direct: "Direct / no referrer",
+	internal: "Internal navigation",
+	unknown: "Unknown",
+	ios: "iOS",
+	macos: "macOS",
+	windows: "Windows",
+	android: "Android",
+	linux: "Linux",
+	safari: "Safari",
+	chrome: "Chrome",
+	firefox: "Firefox",
+	edge: "Edge",
+	mobile: "Mobile",
+	desktop: "Desktop",
+	tablet: "Tablet",
+};
+
+const formatTrafficDimensionLabel = (value: string): string => {
+	const normalized = value.trim().toLowerCase();
+	return TRAFFIC_LABEL_OVERRIDES[normalized] ?? formatContextLabel(value);
+};
+
+const formatCountLabel = (count: number, singular: string): string =>
+	`${count.toLocaleString()} ${singular}${count === 1 ? "" : "s"}`;
+
+const formatTrafficCountPair = (row: {
+	pageViewCount: number;
+	uniqueVisitorCount: number;
+}): string =>
+	`${formatCountLabel(row.pageViewCount, "view")} · ${formatCountLabel(
+		row.uniqueVisitorCount,
+		"visitor",
+	)}`;
+
+const formatDateRange = (range: { startAt: string; endAt: string }): string =>
+	`${formatAdminDate(range.startAt)}-${formatAdminDate(range.endAt)}`;
+
+const normalizeBasePath = (value: string): string => {
+	if (!value || value === "/") return "";
+	return value.endsWith("/") ? value.slice(0, -1) : value;
+};
+
+const buildEventHref = (row: Pick<EventEngagementDashboardRow, "eventKey" | "eventSlug">): string => {
+	const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || "");
+	const encodedEventKey = encodeURIComponent(row.eventKey);
+	const encodedSlug = row.eventSlug
+		? `/${encodeURIComponent(row.eventSlug)}`
+		: "";
+	return `${basePath}/event/${encodedEventKey}${encodedSlug}`;
+};
+
+const EventNameLink = ({
+	row,
+	className = "",
+	showMissingMeta = false,
+}: {
+	row: Pick<
+		EventEngagementDashboardRow,
+		"eventKey" | "eventName" | "eventSlug" | "isLiveEvent"
+	>;
+	className?: string;
+	showMissingMeta?: boolean;
+}) => {
+	if (!row.isLiveEvent) {
+		return (
+			<span className={className} title="No current live event matches this tracked key">
+				{row.eventName}
+				{showMissingMeta ? (
+					<span className="ml-1 text-[10px] font-normal text-muted-foreground">
+						no live match
+					</span>
+				) : null}
+			</span>
+		);
+	}
+	return (
+		<a
+			href={buildEventHref(row)}
+			target="_blank"
+			rel="noreferrer"
+			className={`${className} underline-offset-2 hover:underline`}
+			title="Open public event card"
+			onClick={(event) => event.stopPropagation()}
+		>
+			{row.eventName}
+		</a>
+	);
+};
 
 const getOrdinalSuffix = (value: number): string => {
 	const mod100 = value % 100;
@@ -713,6 +807,18 @@ export const EventEngagementStatsCard = ({
 				topTourInteractions: [],
 				topNavigationClicks: [],
 			};
+	const currentTrafficWindowLabel = payload?.success
+		? formatDateRange(payload.range)
+		: `${windowDays}d`;
+	const previousTrafficWindowLabel = payload?.success
+		? formatDateRange({
+				startAt: new Date(
+					new Date(payload.range.startAt).getTime() -
+						payload.windowDays * 24 * 60 * 60 * 1000,
+				).toISOString(),
+				endAt: payload.range.startAt,
+			})
+		: `previous ${windowDays}d`;
 
 	const chartRows = useMemo(() => filteredRows.slice(0, 8), [filteredRows]);
 	const maxChartClicks = Math.max(1, ...chartRows.map((row) => row.clickCount));
@@ -791,9 +897,12 @@ export const EventEngagementStatsCard = ({
 					label: "Best Source",
 					title:
 						topAttributionSource.campaign !== "none"
-							? `${formatContextLabel(topAttributionSource.source)} / ${topAttributionSource.campaign}`
-							: formatContextLabel(topAttributionSource.source),
-					detail: `${topAttributionSource.outboundSessionCount} ticket/info sessions from ${topAttributionSource.visitorCount} visitors`,
+							? `${formatTrafficDimensionLabel(topAttributionSource.source)} / ${topAttributionSource.campaign}`
+							: formatTrafficDimensionLabel(topAttributionSource.source),
+					detail: `${formatCountLabel(
+						topAttributionSource.outboundSessionCount,
+						"ticket/info session",
+					)} from ${formatCountLabel(topAttributionSource.visitorCount, "visitor")}`,
 					value: formatPercent(topAttributionSource.outboundVisitRate),
 				}
 			: null,
@@ -802,7 +911,10 @@ export const EventEngagementStatsCard = ({
 					key: "top-landing",
 					label: "Top Landing Page",
 					title: topLandingPage.path,
-					detail: `${topLandingPage.engagedSessionCount} engaged sessions from ${topLandingPage.visitorCount} visitors`,
+					detail: `${formatCountLabel(
+						topLandingPage.engagedSessionCount,
+						"engaged session",
+					)} from ${formatCountLabel(topLandingPage.visitorCount, "visitor")}`,
 					value: formatPercent(topLandingPage.engagedVisitRate),
 				}
 			: null,
@@ -811,7 +923,10 @@ export const EventEngagementStatsCard = ({
 					key: "top-campaign",
 					label: "Top Campaign",
 					title: topCampaign.label,
-					detail: `${topCampaign.pageViewCount} page views, ${topCampaign.uniqueVisitorCount} visitors`,
+					detail: `${formatCountLabel(
+						topCampaign.pageViewCount,
+						"page view",
+					)}, ${formatCountLabel(topCampaign.uniqueVisitorCount, "visitor")}`,
 					value: `${topCampaign.uniqueVisitorCount}`,
 				}
 			: null,
@@ -1483,6 +1598,10 @@ export const EventEngagementStatsCard = ({
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						First-Party Traffic
 					</p>
+					<p className="text-xs text-muted-foreground">
+						Percent changes compare {currentTrafficWindowLabel} with{" "}
+						{previousTrafficWindowLabel}.
+					</p>
 					<div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
 						{TRAFFIC_SUMMARY_METRICS.map((metric) => (
 							<SummaryMetric
@@ -1609,9 +1728,16 @@ export const EventEngagementStatsCard = ({
 					) : null}
 					<div className="grid gap-4 lg:grid-cols-2">
 						<div className="space-y-2">
-							<p className="text-xs font-medium text-foreground">
-								Source Conversion
-							</p>
+							<div className="flex items-center gap-1">
+								<p className="text-xs font-medium text-foreground">
+									Source Conversion
+								</p>
+								<InfoPopover aria-label="Explain source conversion" side="top">
+									First-touch traffic source by session, ranked by downstream
+									intent. Use this to decide which channel deserves more effort,
+									and which links need cleaner UTM tags.
+								</InfoPopover>
+							</div>
 							{traffic.topAttributionSources.length === 0 ? (
 								<p className="text-xs text-muted-foreground">
 									No source conversion data yet.
@@ -1626,22 +1752,31 @@ export const EventEngagementStatsCard = ({
 											<div className="flex items-start justify-between gap-2">
 												<div className="min-w-0">
 													<p className="truncate text-xs font-medium">
-														{formatContextLabel(row.source)}
+														{formatTrafficDimensionLabel(row.source)}
 														{row.campaign !== "none"
 															? ` / ${row.campaign}`
 															: ""}
 													</p>
 													<p className="truncate text-[11px] text-muted-foreground">
-														{row.medium} · {row.referrer}
+														{row.medium} ·{" "}
+														{formatTrafficDimensionLabel(row.referrer)}
 													</p>
 												</div>
 												<p className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-													{row.visitorCount} visitors
+													{formatCountLabel(row.visitorCount, "visitor")}
 												</p>
 											</div>
 											<p className="mt-1 text-[11px] text-muted-foreground">
-												{row.eventOpenSessionCount} opened events ·{" "}
-												{row.outboundSessionCount} clicked links ·{" "}
+												{formatCountLabel(
+													row.eventOpenSessionCount,
+													"opened event",
+												)}{" "}
+												·{" "}
+												{formatCountLabel(
+													row.outboundSessionCount,
+													"clicked link",
+												)}{" "}
+												·{" "}
 												{formatPercent(row.outboundVisitRate)} link rate
 											</p>
 										</div>
@@ -1650,9 +1785,16 @@ export const EventEngagementStatsCard = ({
 							)}
 						</div>
 						<div className="space-y-2">
-							<p className="text-xs font-medium text-foreground">
-								Landing Pages
-							</p>
+							<div className="flex items-center gap-1">
+								<p className="text-xs font-medium text-foreground">
+									Landing Pages
+								</p>
+								<InfoPopover aria-label="Explain landing pages" side="top">
+									First page seen in each visitor session. Use this to decide
+									which entry pages should get clearer CTAs, better internal
+									links, or campaign-specific copy.
+								</InfoPopover>
+							</div>
 							{traffic.topLandingPages.length === 0 ? (
 								<p className="text-xs text-muted-foreground">
 									No landing page data yet.
@@ -1669,13 +1811,20 @@ export const EventEngagementStatsCard = ({
 													{row.path}
 												</p>
 												<p className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-													{row.visitorCount} visitors
+													{formatCountLabel(row.visitorCount, "visitor")}
 												</p>
 											</div>
 											<p className="mt-1 text-[11px] text-muted-foreground">
 												{formatPercent(row.engagedVisitRate)} engaged ·{" "}
-												{row.eventOpenSessionCount} event-open sessions ·{" "}
-												{row.outboundSessionCount} link sessions
+												{formatCountLabel(
+													row.eventOpenSessionCount,
+													"event-open session",
+												)}{" "}
+												·{" "}
+												{formatCountLabel(
+													row.outboundSessionCount,
+													"link session",
+												)}
 											</p>
 										</div>
 									))}
@@ -1717,7 +1866,10 @@ export const EventEngagementStatsCard = ({
 									label: "Referrer Hosts",
 									description:
 										"Find external sites sending traffic outside tagged campaigns.",
-									rows: traffic.topReferrers,
+									rows: traffic.topReferrers.map((row) => ({
+										...row,
+										label: formatTrafficDimensionLabel(row.label),
+									})),
 									empty: "No referrer data yet.",
 								},
 								{
@@ -1729,7 +1881,7 @@ export const EventEngagementStatsCard = ({
 										label:
 											row.label === "none"
 												? "Missing source"
-												: formatContextLabel(row.label),
+												: formatTrafficDimensionLabel(row.label),
 									})),
 									empty: "No UTM source data yet.",
 								},
@@ -1758,7 +1910,7 @@ export const EventEngagementStatsCard = ({
 										...row,
 										label:
 											row.label === "unknown"
-												? "Unknown"
+												? "Unknown (no geo header)"
 												: row.label.toUpperCase(),
 									})),
 									empty: "No country data yet.",
@@ -1769,7 +1921,7 @@ export const EventEngagementStatsCard = ({
 										"Use for responsive QA and mobile/desktop behavior differences.",
 									rows: traffic.topDevices.map((row) => ({
 										...row,
-										label: formatContextLabel(row.label),
+										label: formatTrafficDimensionLabel(row.label),
 									})),
 									empty: "No device data yet.",
 								},
@@ -1779,7 +1931,7 @@ export const EventEngagementStatsCard = ({
 										"Use with browsers to reproduce platform-specific bugs or conversion drops.",
 									rows: traffic.topPlatforms.map((row) => ({
 										...row,
-										label: formatContextLabel(row.label),
+										label: formatTrafficDimensionLabel(row.label),
 									})),
 									empty: "No OS data yet.",
 								},
@@ -1789,7 +1941,7 @@ export const EventEngagementStatsCard = ({
 										"Use for QA prioritization when a browser-specific issue is suspected.",
 									rows: traffic.topBrowsers.map((row) => ({
 										...row,
-										label: formatContextLabel(row.label),
+										label: formatTrafficDimensionLabel(row.label),
 									})),
 									empty: "No browser data yet.",
 								},
@@ -1824,8 +1976,7 @@ export const EventEngagementStatsCard = ({
 																{row.label}
 															</span>
 															<span className="shrink-0 tabular-nums">
-																{row.pageViewCount} views ·{" "}
-																{row.uniqueVisitorCount} visitors
+																{formatTrafficCountPair(row)}
 															</span>
 														</div>
 														<div className="h-2 rounded-full bg-muted/70">
@@ -1872,9 +2023,10 @@ export const EventEngagementStatsCard = ({
 								{chartRows.map((row) => (
 									<div key={row.eventKey} className="space-y-1.5">
 										<div className="mb-1 flex items-center justify-between gap-2">
-											<p className="truncate text-xs font-medium">
-												{row.eventName}
-											</p>
+											<EventNameLink
+												row={row}
+												className="truncate text-xs font-medium"
+											/>
 											<p className="text-xs tabular-nums">
 												{row.clickCount} opens
 											</p>
@@ -2020,9 +2172,11 @@ export const EventEngagementStatsCard = ({
 														key={row.eventKey}
 														className="rounded border border-border/70 bg-background px-2 py-1"
 													>
-														<p className="truncate text-xs font-medium">
-															{row.eventName}
-														</p>
+														<EventNameLink
+															row={row}
+															className="block truncate text-xs font-medium"
+															showMissingMeta
+														/>
 														<p className="text-[11px] text-muted-foreground">
 															{row.clickCount} opens ·{" "}
 															{formatPercent(row.outboundSessionRate)} link
@@ -2044,9 +2198,11 @@ export const EventEngagementStatsCard = ({
 													className="grid gap-2 rounded border border-border/70 bg-background px-2 py-1.5 sm:grid-cols-[minmax(0,1fr)_auto]"
 												>
 													<div className="min-w-0">
-														<p className="truncate text-xs font-medium">
-															{row.eventName}
-														</p>
+														<EventNameLink
+															row={row}
+															className="block truncate text-xs font-medium"
+															showMissingMeta
+														/>
 														<p className="truncate text-[11px] text-muted-foreground">
 															{row.eventKey}
 														</p>
@@ -2101,12 +2257,12 @@ export const EventEngagementStatsCard = ({
 									) : (
 										<div className="space-y-1">
 											{item.rows.slice(0, 2).map((row) => (
-												<p
+												<EventNameLink
 													key={row.eventKey}
-													className="truncate text-[11px] text-muted-foreground"
-												>
-													{row.eventName}
-												</p>
+													row={row}
+													className="block truncate text-[11px] text-muted-foreground"
+													showMissingMeta
+												/>
 											))}
 										</div>
 									)}
@@ -2145,12 +2301,12 @@ export const EventEngagementStatsCard = ({
 									) : (
 										<div className="space-y-1">
 											{flag.rows.slice(0, 2).map((row) => (
-												<p
+												<EventNameLink
 													key={row.eventKey}
-													className="truncate text-[11px] text-muted-foreground"
-												>
-													{row.eventName}
-												</p>
+													row={row}
+													className="block truncate text-[11px] text-muted-foreground"
+													showMissingMeta
+												/>
 											))}
 										</div>
 									)}
@@ -3293,7 +3449,7 @@ export const EventEngagementStatsCard = ({
 														: ""
 												}`}
 											>
-												{row.eventName}
+												<EventNameLink row={row} showMissingMeta />
 											</td>
 											<td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
 												{row.eventKey}

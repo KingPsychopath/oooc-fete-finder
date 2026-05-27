@@ -24,6 +24,7 @@ describe("DiscoveryAnalyticsRepository", () => {
 		expect(queries).toContain("ADD COLUMN IF NOT EXISTS utm_source TEXT");
 		expect(queries).toContain("ADD COLUMN IF NOT EXISTS utm_campaign TEXT");
 		expect(queries).toContain("ADD COLUMN IF NOT EXISTS country_code TEXT");
+		expect(queries).toContain("WHERE engagement.action_type <> 'page_view'");
 	});
 
 	it("lists first-party traffic panels from page-view rows only", async () => {
@@ -60,6 +61,9 @@ describe("DiscoveryAnalyticsRepository", () => {
 		]);
 		const trafficCall = calls.find((call) => call.query.includes("AS label"));
 		expect(trafficCall?.query).toContain("WHERE action_type = 'page_view'");
+		expect(calls.map((call) => call.query).join("\n")).toContain(
+			"LOWER(hostname) NOT IN ('localhost', '127.0.0.1', '::1', '0.0.0.0')",
+		);
 	});
 
 	it("can exclude popular chip searches from public search chip signals", async () => {

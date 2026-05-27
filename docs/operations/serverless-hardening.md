@@ -1,4 +1,4 @@
-# Serverless Hardening (Vercel)
+# Serverless Hardening
 
 This runbook defines production and preview runtime rules.
 
@@ -18,7 +18,11 @@ This runbook defines production and preview runtime rules.
 
 ## Cron Endpoints
 
-Configured in `vercel.json`:
+Configured as Railway production cron services. The repo-owned expected config is `config/railway-cron-services.json`, and the dashboard state is verified with:
+
+```bash
+pnpm check:railway-cron
+```
 
 - `GET /api/cron/cleanup-admin-sessions` at `0 4 * * *`
 - `GET /api/cron/cleanup-rate-limits` at `10 4 * * *`
@@ -26,6 +30,12 @@ Configured in `vercel.json`:
 - `GET /api/cron/cleanup-dismissed-partner-reports` at `30 4 * * *`
 
 All require: `Authorization: Bearer <CRON_SECRET>`
+
+Each Railway cron service uses `node scripts/railway-cron-trigger.mjs` with a no-op build command and watch patterns limited to:
+
+- `scripts/railway-cron-trigger.mjs`
+- `package.json`
+- `pnpm-lock.yaml`
 
 ## Failure Checks
 

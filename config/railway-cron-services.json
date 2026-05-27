@@ -1,0 +1,37 @@
+{
+	"projectId": "762c1d14-1d6a-4171-9c6b-dfd216c9a12f",
+	"environmentName": "production",
+	"repo": "KingPsychopath/oooc-fete-finder",
+	"branch": "main",
+	"runner": {
+		"buildCommand": "true",
+		"startCommand": "node scripts/railway-cron-trigger.mjs",
+		"watchPatterns": [
+			"scripts/railway-cron-trigger.mjs",
+			"package.json",
+			"pnpm-lock.yaml"
+		]
+	},
+	"services": [
+		{
+			"name": "cron-cleanup-admin-sessions",
+			"schedule": "0 4 * * *",
+			"targetPath": "/api/cron/cleanup-admin-sessions"
+		},
+		{
+			"name": "cron-cleanup-rate-limits",
+			"schedule": "10 4 * * *",
+			"targetPath": "/api/cron/cleanup-rate-limits"
+		},
+		{
+			"name": "cron-backup-event-store",
+			"schedule": "20 4 * * *",
+			"targetPath": "/api/cron/backup-event-store"
+		},
+		{
+			"name": "cron-cleanup-dismissed-partner-reports",
+			"schedule": "30 4 * * *",
+			"targetPath": "/api/cron/cleanup-dismissed-partner-reports"
+		}
+	]
+}

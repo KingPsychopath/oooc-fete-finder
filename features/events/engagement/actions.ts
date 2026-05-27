@@ -50,7 +50,7 @@ const buildPreviousWindow = (startAt: string, windowDays: number) => {
 };
 
 const toDeltaPercent = (current: number, previous: number): number | null => {
-	if (previous <= 0) return current > 0 ? 100 : null;
+	if (previous <= 0) return null;
 	return Math.round(((current - previous) / previous) * 1000) / 10;
 };
 
@@ -140,6 +140,8 @@ export async function getEventEngagementDashboard(
 			rows: Array<{
 				eventKey: string;
 				eventName: string;
+				eventSlug: string | null;
+				isLiveEvent: boolean;
 				clickCount: number;
 				dedupedViewCount: number;
 				outboundClickCount: number;
@@ -576,10 +578,13 @@ export async function getEventEngagementDashboard(
 					}),
 		]);
 
-		const eventNameByKey = new Map<string, string>();
+		const eventMetaByKey = new Map<string, { name: string; slug: string }>();
 		if (eventsResult.success) {
 			for (const event of eventsResult.data) {
-				eventNameByKey.set(event.eventKey, event.name);
+				eventMetaByKey.set(event.eventKey, {
+					name: event.name,
+					slug: event.slug,
+				});
 			}
 		}
 
@@ -671,42 +676,47 @@ export async function getEventEngagementDashboard(
 					mapOpenCount: engagementRow?.mapOpenCount ?? 0,
 				};
 			}),
-			rows: topRows.map((row) => ({
-				eventKey: row.eventKey,
-				eventName: eventNameByKey.get(row.eventKey) || row.eventKey,
-				clickCount: row.clickCount,
-				dedupedViewCount: row.dedupedViewCount,
-				outboundClickCount: row.outboundClickCount,
-				calendarSyncCount: row.calendarSyncCount,
-				mapOpenCount: row.mapOpenCount,
-				mapPreferenceChangeCount: row.mapPreferenceChangeCount,
-				uniqueSessionCount: row.uniqueSessionCount,
-				uniqueViewSessionCount: row.uniqueViewSessionCount,
-				uniqueOutboundSessionCount: row.uniqueOutboundSessionCount,
-				uniqueCalendarSessionCount: row.uniqueCalendarSessionCount,
-				uniqueMapSessionCount: row.uniqueMapSessionCount,
-				outboundSessionRate: toPercent(
-					row.uniqueOutboundSessionCount,
-					row.uniqueViewSessionCount,
-				),
-				calendarSessionRate: toPercent(
-					row.uniqueCalendarSessionCount,
-					row.uniqueViewSessionCount,
-				),
-				mapSessionRate: toPercent(
-					row.uniqueMapSessionCount,
-					row.uniqueViewSessionCount,
-				),
-				outboundInteractionRate: toPercent(
-					row.outboundClickCount,
-					row.clickCount,
-				),
-				calendarInteractionRate: toPercent(
-					row.calendarSyncCount,
-					row.clickCount,
-				),
-				mapInteractionRate: toPercent(row.mapOpenCount, row.clickCount),
-			})),
+			rows: topRows.map((row) => {
+				const eventMeta = eventMetaByKey.get(row.eventKey);
+				return {
+					eventKey: row.eventKey,
+					eventName: eventMeta?.name ?? row.eventKey,
+					eventSlug: eventMeta?.slug ?? null,
+					isLiveEvent: Boolean(eventMeta),
+					clickCount: row.clickCount,
+					dedupedViewCount: row.dedupedViewCount,
+					outboundClickCount: row.outboundClickCount,
+					calendarSyncCount: row.calendarSyncCount,
+					mapOpenCount: row.mapOpenCount,
+					mapPreferenceChangeCount: row.mapPreferenceChangeCount,
+					uniqueSessionCount: row.uniqueSessionCount,
+					uniqueViewSessionCount: row.uniqueViewSessionCount,
+					uniqueOutboundSessionCount: row.uniqueOutboundSessionCount,
+					uniqueCalendarSessionCount: row.uniqueCalendarSessionCount,
+					uniqueMapSessionCount: row.uniqueMapSessionCount,
+					outboundSessionRate: toPercent(
+						row.uniqueOutboundSessionCount,
+						row.uniqueViewSessionCount,
+					),
+					calendarSessionRate: toPercent(
+						row.uniqueCalendarSessionCount,
+						row.uniqueViewSessionCount,
+					),
+					mapSessionRate: toPercent(
+						row.uniqueMapSessionCount,
+						row.uniqueViewSessionCount,
+					),
+					outboundInteractionRate: toPercent(
+						row.outboundClickCount,
+						row.clickCount,
+					),
+					calendarInteractionRate: toPercent(
+						row.calendarSyncCount,
+						row.clickCount,
+					),
+					mapInteractionRate: toPercent(row.mapOpenCount, row.clickCount),
+				};
+			}),
 			mapProviders,
 			traffic: {
 				topPages,

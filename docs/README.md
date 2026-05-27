@@ -17,6 +17,7 @@ If you are new to this codebase, start here.
 - I need stable event links: [Event Identity](./architecture/event-identity.md)
 - I need to run/admin the app: [Admin Workflow](./operations/admin-workflow.md)
 - I need deploy/runtime guardrails: [Serverless Hardening](./operations/serverless-hardening.md)
+- I need to verify Railway cron jobs: `pnpm check:railway-cron`
 - I need Postgres cutover or recovery steps: [Postgres Migration](./operations/postgres-migration.md)
 - I need to remove legacy browser storage migration: [User ID Local Storage Migration Removal](./operations/user-id-local-storage-migration-removal.md)
 - I need logs/troubleshooting context: [Logging & Observability](./operations/logging-and-observability.md)

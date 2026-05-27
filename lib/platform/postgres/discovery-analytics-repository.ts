@@ -76,6 +76,16 @@ const toSafeIsoTimestamp = (value?: string): string => {
 	return parsed.toISOString();
 };
 
+const productionTrafficHostSql = (sql: Sql) => sql`
+	(
+		hostname IS NULL
+		OR (
+			LOWER(hostname) NOT IN ('localhost', '127.0.0.1', '::1', '0.0.0.0')
+			AND LOWER(hostname) NOT LIKE '%.local'
+		)
+	)
+`;
+
 export class DiscoveryAnalyticsRepository {
 	private readonly sql: Sql;
 	private readonly ensureTablePromise: Promise<void>;
@@ -371,6 +381,7 @@ export class DiscoveryAnalyticsRepository {
 		const userScopeFilter = input.includeAuthenticatedOnly
 			? this.sql`AND user_id IS NOT NULL`
 			: this.sql``;
+		const productionTrafficHost = productionTrafficHostSql(this.sql);
 		const rows = await this.sql<
 			Array<{
 				pageViewCount: number;
@@ -381,17 +392,35 @@ export class DiscoveryAnalyticsRepository {
 			}>
 		>`
 			SELECT
-				COUNT(*) FILTER (WHERE action_type = 'page_view')::int AS "pageViewCount",
-				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'page_view')::int AS "uniqueVisitorCount",
-				COUNT(DISTINCT hostname) FILTER (WHERE action_type = 'page_view' AND hostname IS NOT NULL)::int AS "knownHostCount",
+				COUNT(*) FILTER (
+					WHERE action_type = 'page_view' AND ${productionTrafficHost}
+				)::int AS "pageViewCount",
+				COUNT(DISTINCT session_id) FILTER (
+					WHERE action_type = 'page_view' AND ${productionTrafficHost}
+				)::int AS "uniqueVisitorCount",
+				COUNT(DISTINCT hostname) FILTER (
+					WHERE action_type = 'page_view'
+						AND ${productionTrafficHost}
+						AND hostname IS NOT NULL
+				)::int AS "knownHostCount",
 				COUNT(DISTINCT referrer) FILTER (
 					WHERE action_type = 'page_view'
+						AND ${productionTrafficHost}
 						AND referrer IS NOT NULL
 						AND referrer NOT IN ('direct', 'internal')
 				)::int AS "knownReferrerCount",
 				COUNT(DISTINCT session_id) FILTER (
-					WHERE action_type <> 'page_view'
+					WHERE action_type = 'page_view'
+						AND ${productionTrafficHost}
 						AND session_id IS NOT NULL
+						AND session_id IN (
+							SELECT DISTINCT engagement.session_id
+							FROM app_discovery_analytics_stats engagement
+							WHERE engagement.action_type <> 'page_view'
+								AND engagement.session_id IS NOT NULL
+								AND engagement.recorded_at >= ${input.startAt}
+								AND engagement.recorded_at < ${input.endAt}
+						)
 				)::int AS "engagedSessionCount"
 			FROM app_discovery_analytics_stats
 			WHERE recorded_at >= ${input.startAt}
@@ -425,6 +454,7 @@ export class DiscoveryAnalyticsRepository {
 		const userScopeFilter = input.includeAuthenticatedOnly
 			? this.sql`AND user_id IS NOT NULL`
 			: this.sql``;
+		const productionTrafficHost = productionTrafficHostSql(this.sql);
 		const rows = await this.sql<
 			Array<{
 				day: string;
@@ -435,8 +465,12 @@ export class DiscoveryAnalyticsRepository {
 		>`
 			SELECT
 				TO_CHAR(DATE_TRUNC('day', recorded_at), 'YYYY-MM-DD') AS day,
-				COUNT(*) FILTER (WHERE action_type = 'page_view')::int AS "pageViewCount",
-				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'page_view')::int AS "uniqueVisitorCount",
+				COUNT(*) FILTER (
+					WHERE action_type = 'page_view' AND ${productionTrafficHost}
+				)::int AS "pageViewCount",
+				COUNT(DISTINCT session_id) FILTER (
+					WHERE action_type = 'page_view' AND ${productionTrafficHost}
+				)::int AS "uniqueVisitorCount",
 				COUNT(DISTINCT session_id) FILTER (
 					WHERE action_type <> 'page_view'
 						AND session_id IS NOT NULL
@@ -479,6 +513,7 @@ export class DiscoveryAnalyticsRepository {
 		const userScopeFilter = input.includeAuthenticatedOnly
 			? this.sql`AND user_id IS NOT NULL`
 			: this.sql``;
+		const productionTrafficHost = productionTrafficHostSql(this.sql);
 		const dimensionSql = (() => {
 			switch (input.dimension) {
 				case "path":
@@ -516,6 +551,7 @@ export class DiscoveryAnalyticsRepository {
 				COUNT(DISTINCT session_id)::int AS "uniqueVisitorCount"
 			FROM app_discovery_analytics_stats
 			WHERE action_type = 'page_view'
+				AND ${productionTrafficHost}
 				AND recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
 				${userScopeFilter}
@@ -546,6 +582,7 @@ export class DiscoveryAnalyticsRepository {
 		const userScopeFilter = input.includeAuthenticatedOnly
 			? this.sql`AND page_views.user_id IS NOT NULL`
 			: this.sql``;
+		const productionTrafficHost = productionTrafficHostSql(this.sql);
 		const rows = await this.sql<
 			Array<{
 				path: string;
@@ -564,6 +601,7 @@ export class DiscoveryAnalyticsRepository {
 					user_id
 				FROM app_discovery_analytics_stats page_views
 				WHERE action_type = 'page_view'
+					AND ${productionTrafficHost}
 					AND session_id IS NOT NULL
 					AND recorded_at >= ${input.startAt}
 					AND recorded_at < ${input.endAt}
@@ -635,6 +673,7 @@ export class DiscoveryAnalyticsRepository {
 		const userScopeFilter = input.includeAuthenticatedOnly
 			? this.sql`AND page_views.user_id IS NOT NULL`
 			: this.sql``;
+		const productionTrafficHost = productionTrafficHostSql(this.sql);
 		const rows = await this.sql<
 			Array<{
 				source: string;
@@ -659,6 +698,7 @@ export class DiscoveryAnalyticsRepository {
 					user_id
 				FROM app_discovery_analytics_stats page_views
 				WHERE action_type = 'page_view'
+					AND ${productionTrafficHost}
 					AND session_id IS NOT NULL
 					AND recorded_at >= ${input.startAt}
 					AND recorded_at < ${input.endAt}

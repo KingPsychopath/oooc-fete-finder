@@ -27,6 +27,7 @@
     "backfill:user-identity": "node scripts/backfill-user-identity.mjs",
     "db:pull-events-csv": "node scripts/pull-event-store-csv.mjs",
     "check:user-id-drift": "node scripts/check-user-identity-drift.mjs",
+    "check:railway-cron": "node scripts/check-railway-cron-config.mjs",
     "health:check": "node scripts/health-check.mjs",
     "check:public-routes": "node scripts/check-public-routes.mjs",
     "generate:og": "node scripts/generate-static-og-images.mjs",

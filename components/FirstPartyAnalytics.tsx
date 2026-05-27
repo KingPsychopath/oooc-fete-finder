@@ -5,6 +5,21 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 const EXCLUDED_PATH_PREFIXES = ["/admin"] as const;
+const LOCAL_ANALYTICS_HOSTS = new Set([
+	"localhost",
+	"127.0.0.1",
+	"::1",
+	"0.0.0.0",
+]);
+
+const shouldSuppressPageViewForHost = (hostname: string): boolean => {
+	const normalized = hostname.trim().toLowerCase();
+	return (
+		LOCAL_ANALYTICS_HOSTS.has(normalized) ||
+		normalized.endsWith(".local")
+	);
+};
+
 const normalizeReferrer = (referrer: string): string => {
 	if (!referrer) return "direct";
 	try {
@@ -21,6 +36,10 @@ export function FirstPartyAnalytics() {
 	const previousPathname = useRef<string | null>(null);
 
 	useEffect(() => {
+		if (shouldSuppressPageViewForHost(window.location.hostname)) {
+			previousPathname.current = pathname;
+			return;
+		}
 		if (
 			EXCLUDED_PATH_PREFIXES.some(
 				(prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
