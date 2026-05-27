@@ -15,10 +15,8 @@ import { AuthProvider } from "@/features/auth/auth-context";
 import { CommunityInvite } from "@/features/social/components/CommunityInvite";
 import { getSiteUrl } from "@/lib/site-url";
 import { generateMainOGImage } from "@/lib/social/og-utils";
-import { GeistMono } from "geist/font/mono";
-import { GeistSans } from "geist/font/sans";
 import { ThemeProvider } from "next-themes";
-import { Prata } from "next/font/google";
+import localFont from "next/font/local";
 
 // Get base path from environment variable - use direct access for build-time
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -56,9 +54,18 @@ const siteStructuredDataJson = JSON.stringify(siteStructuredData).replace(
 	"\\u003c",
 );
 
-const prata = Prata({
+const degular = localFont({
+	src: "../public/fonts/degular_regular.woff2",
 	weight: "400",
-	subsets: ["latin"],
+	style: "normal",
+	display: "swap",
+	variable: "--font-degular",
+});
+
+const prata = localFont({
+	src: "../public/fonts/prata_regular.woff2",
+	weight: "400",
+	style: "normal",
 	display: "swap",
 	variable: "--font-prata",
 });
@@ -147,7 +154,7 @@ export default function RootLayout({
 	return (
 		<html
 			lang="en"
-			className={`${GeistSans.variable} ${GeistMono.variable} ${prata.variable}`}
+			className={`${degular.variable} ${prata.variable}`}
 			style={{ backgroundColor: "var(--background, #f6f3ee)" }}
 			suppressHydrationWarning
 		>

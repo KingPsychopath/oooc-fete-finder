@@ -761,7 +761,7 @@ export const EventSheetOcrDraftModal = ({
 								<PopoverContent
 									align="start"
 									side="bottom"
-									className="w-[min(340px,calc(100vw-2rem))] p-2"
+									className="z-[120] w-[min(340px,calc(100vw-2rem))] p-2"
 								>
 									<div className="space-y-1.5">
 										<div className="rounded-md border bg-muted/25 px-2 py-1.5">

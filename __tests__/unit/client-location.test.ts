@@ -1,4 +1,5 @@
 import {
+	getParisTestClientLocation,
 	readLastKnownClientLocation,
 	requestClientLocation,
 	writeLastKnownClientLocation,
@@ -90,6 +91,19 @@ describe("client location storage", () => {
 				source: "last-known",
 			},
 			status: "last-known",
+		});
+	});
+
+	it("creates a stable Paris test location for development QA", () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-05-09T12:00:00.000Z"));
+
+		expect(getParisTestClientLocation()).toMatchObject({
+			accuracy: 25,
+			coordinates: { lat: 48.8566, lng: 2.3522 },
+			source: "current",
+			savedAt: "2026-05-09T12:00:00.000Z",
+			expiresAt: "2026-05-10T12:00:00.000Z",
 		});
 	});
 });

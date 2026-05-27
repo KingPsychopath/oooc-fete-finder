@@ -27,7 +27,6 @@ const OG_CDN_CACHE_CONTROL = "public, max-age=0, must-revalidate";
 const OG_RESPONSE_HEADERS = {
 	"Cache-Control": OG_CACHE_CONTROL,
 	"CDN-Cache-Control": OG_CDN_CACHE_CONTROL,
-	"Vercel-CDN-Cache-Control": OG_CDN_CACHE_CONTROL,
 } as const;
 const RATE_LIMIT_KEY_PREFIX = "og-rate:";
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
@@ -70,7 +69,7 @@ type OGTheme = {
 type OGFont = {
 	name: string;
 	data: Buffer;
-	weight: 400;
+	weight: 300 | 400;
 	style: "normal";
 };
 
@@ -90,12 +89,13 @@ type OGContent = {
 const readFont = async (
 	name: string,
 	filePath: string,
+	weight: OGFont["weight"],
 ): Promise<OGFont | null> => {
 	try {
 		return {
 			name,
 			data: await readFile(filePath),
-			weight: 400,
+			weight,
 			style: "normal",
 		};
 	} catch {
@@ -104,13 +104,23 @@ const readFont = async (
 };
 
 const loadOGFonts = async (): Promise<OGFont[]> => {
-	const fontCandidates = [
-		join(process.cwd(), "public", "fonts", "Geist-Regular.ttf"),
-	];
+	const fonts = (
+		await Promise.all([
+			readFont(
+				"Prata",
+				join(process.cwd(), "public", "fonts", "prata_regular.woff2"),
+				400,
+			),
+			readFont(
+				"Degular",
+				join(process.cwd(), "public", "fonts", "degular_regular.woff2"),
+				400,
+			),
+		])
+	).filter((font): font is OGFont => Boolean(font));
 
-	for (const fontPath of fontCandidates) {
-		const fallbackSans = await readFont("Degular", fontPath);
-		if (fallbackSans) return [fallbackSans];
+	if (fonts.length > 0) {
+		return fonts;
 	}
 
 	log.warn("og-image", "No OG fonts loaded; ImageResponse may fail");
@@ -125,8 +135,8 @@ const getOGFonts = (): Promise<OGFont[]> => {
 };
 
 const getOGTitleFontFamily = (fonts: OGFont[]): string =>
-	fonts.some((font) => font.name === "Swear Display")
-		? '"Swear Display", Georgia, "Times New Roman", serif'
+	fonts.some((font) => font.name === "Prata")
+		? '"Prata", Georgia, "Times New Roman", serif'
 		: '"Degular", "Helvetica Neue", Arial, sans-serif';
 
 const THEMES: Record<OGVariant, OGTheme> = {
@@ -200,7 +210,7 @@ const getOGCacheTags = (searchParams: URLSearchParams): string => {
 
 const getOGResponseHeaders = (cacheTags: string): HeadersInit => ({
 	...OG_RESPONSE_HEADERS,
-	"Vercel-Cache-Tag": cacheTags,
+	"Cache-Tag": cacheTags,
 });
 
 export async function HEAD(request: NextRequest) {

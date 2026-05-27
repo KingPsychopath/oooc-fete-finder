@@ -22,7 +22,7 @@ The project is maintained for Out Of Office Collective and is designed around a 
 - Postgres
 - Vitest
 - Biome
-- Vercel-oriented deployment/runtime conventions
+- Railway-oriented deployment/runtime conventions
 
 ## Repository Status
 

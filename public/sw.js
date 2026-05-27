@@ -12,7 +12,6 @@ const SAME_ORIGIN_CACHEABLE_DESTINATIONS = new Set([
 
 const APP_SHELL_URLS = ["/", "/manifest.webmanifest"];
 const SENSITIVE_PATH_PREFIXES = [
-	"/_vercel",
 	"/admin",
 	"/api/admin",
 	"/api/auth",

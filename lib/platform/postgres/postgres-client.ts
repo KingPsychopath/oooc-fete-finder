@@ -52,15 +52,10 @@ export const getPostgresClient = (): Sql | null => {
 			1,
 			10,
 		);
-		const isVercelHosted =
-			process.env.VERCEL === "1" &&
-			(process.env.VERCEL_ENV === "preview" ||
-				process.env.VERCEL_ENV === "production");
-
-		if (isVercelHosted && !isLikelyPooledConnection) {
+		if (env.NODE_ENV === "production" && !isLikelyPooledConnection) {
 			log.warn(
 				"postgres",
-				"Direct Postgres connection detected on Vercel runtime",
+				"Direct Postgres connection detected in production runtime",
 				{
 					poolMax,
 					recommendation:

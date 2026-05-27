@@ -94,13 +94,10 @@ describe("/api/og route", () => {
 		expect(response.headers.get("cache-control")).toContain(
 			"max-age=0, must-revalidate",
 		);
-		expect(response.headers.get("vercel-cdn-cache-control")).toContain(
-			"max-age=0, must-revalidate",
-		);
 		expect(response.headers.get("cdn-cache-control")).toContain(
 			"max-age=0, must-revalidate",
 		);
-		expect(response.headers.get("vercel-cache-tag")).toBe(
+		expect(response.headers.get("cache-tag")).toBe(
 			"og,preset,preset-feature-event",
 		);
 		expect(kv.get).toHaveBeenCalledTimes(1);
@@ -149,7 +146,7 @@ describe("/api/og route", () => {
 
 		expect(response.status).toBe(200);
 		expect(response.headers.get("content-type")).toBe("image/png");
-		expect(response.headers.get("vercel-cache-tag")).toBe(
+		expect(response.headers.get("cache-tag")).toBe(
 			"og,event,event-evt_77b18c8e22eadd87",
 		);
 		expect(mockedGetEventsData).toHaveBeenCalledWith({

@@ -13,19 +13,8 @@ let storeSingleton: Promise<{
 	info: KVProviderInfo;
 }> | null = null;
 
-const isVercelDeployRuntime = (): boolean => {
-	if (process.env.VERCEL !== "1") {
-		return false;
-	}
-
-	return (
-		process.env.VERCEL_ENV === "production" ||
-		process.env.VERCEL_ENV === "preview"
-	);
-};
-
 const isStrictProductionRuntime = (): boolean =>
-	process.env.NODE_ENV === "production" || isVercelDeployRuntime();
+	process.env.NODE_ENV === "production";
 
 const createPostgresStore = async (): Promise<{
 	store: KeyValueStore;
@@ -56,7 +45,6 @@ const createStore = async (): Promise<{
 				"KV strict mode requires a Node.js runtime in deployed production.";
 			log.error("kv", message, {
 				runtime: process.env.NEXT_RUNTIME ?? "unknown",
-				vercelEnv: process.env.VERCEL_ENV ?? "unknown",
 				railwayEnvironment: process.env.RAILWAY_ENVIRONMENT_NAME ?? "unknown",
 			});
 			throw new Error(message);
@@ -66,7 +54,6 @@ const createStore = async (): Promise<{
 			const message =
 				"KV strict mode is active in production. Configure DATABASE_URL for Postgres KV.";
 			log.error("kv", message, {
-				vercelEnv: process.env.VERCEL_ENV ?? "unknown",
 				railwayEnvironment: process.env.RAILWAY_ENVIRONMENT_NAME ?? "unknown",
 			});
 			throw new Error(message);
@@ -81,7 +68,6 @@ const createStore = async (): Promise<{
 				"kv",
 				message,
 				{
-					vercelEnv: process.env.VERCEL_ENV ?? "unknown",
 					railwayEnvironment: process.env.RAILWAY_ENVIRONMENT_NAME ?? "unknown",
 				},
 				error,

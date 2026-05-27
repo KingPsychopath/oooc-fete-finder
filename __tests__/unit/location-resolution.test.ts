@@ -173,6 +173,29 @@ describe("location resolution", () => {
 		expect(results.map((event) => event.eventKey)).toEqual(["trusted"]);
 	});
 
+	it("nearby events can be limited to a selected radius", () => {
+		const results = findNearbyEvents(
+			[
+				makeEvent("inside", undefined, {
+					coordinates: { lat: 48.857, lng: 2.381 },
+					source: "geocoded",
+					precision: "venue",
+					confidence: 0.9,
+				}),
+				makeEvent("outside", undefined, {
+					coordinates: { lat: 48.886, lng: 2.45 },
+					source: "geocoded",
+					precision: "venue",
+					confidence: 0.9,
+				}),
+			],
+			{ lat: 48.856, lng: 2.38 },
+			{ maxDistanceKm: 3 },
+		);
+
+		expect(results.map((event) => event.eventKey)).toEqual(["inside"]);
+	});
+
 	it("hydrates stored coordinates without calling a geocoding provider", async () => {
 		vi.spyOn(LocationRepository, "load").mockResolvedValue(
 			new Map<string, StoredLocationResolution>([

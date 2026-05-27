@@ -8,6 +8,11 @@ import {
 	panelActionIconClassName,
 } from "@/features/events/components/filter-action-button-styles";
 import type { DayNightPeriod, Event } from "@/features/events/types";
+import type { SavedClientLocation } from "@/features/locations/client-location";
+import type {
+	NearbyLocationScope,
+	NearbyRadiusKm,
+} from "@/features/locations/nearby-location";
 import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
 import { LAYERS } from "@/lib/ui/layers";
 import { cn } from "@/lib/utils";
@@ -33,8 +38,21 @@ type EventsMapCardProps = {
 	onFullscreenClose?: () => void;
 	hasActiveFilters?: boolean;
 	activeFiltersCount?: number;
+	canUseParisTestLocation?: boolean;
 	isOfflineMode?: boolean;
 	selectedDayNightPeriods?: DayNightPeriod[];
+	isNearbyActive?: boolean;
+	nearbyEventsError?: string | null;
+	nearbyEventsStatus?: string;
+	nearbyLocation?: SavedClientLocation | null;
+	nearbyLocationScope?: NearbyLocationScope | null;
+	nearbyMatchedEventsCount?: number;
+	nearbyRadiusKm?: NearbyRadiusKm;
+	nearbyRadiusOptionsKm?: readonly NearbyRadiusKm[];
+	onNearbyClick?: () => void;
+	onNearbyRadiusChange?: (radiusKm: NearbyRadiusKm) => void;
+	onNearbyResultsClick?: () => void;
+	onParisTestLocationClick?: () => void;
 };
 
 function MapPreview() {
@@ -59,8 +77,21 @@ export function EventsMapCard({
 	onFullscreenClose,
 	hasActiveFilters = false,
 	activeFiltersCount = 0,
+	canUseParisTestLocation = false,
 	isOfflineMode = false,
 	selectedDayNightPeriods = [],
+	isNearbyActive = false,
+	nearbyEventsError = null,
+	nearbyEventsStatus = "idle",
+	nearbyLocation = null,
+	nearbyLocationScope = null,
+	nearbyMatchedEventsCount = 0,
+	nearbyRadiusKm,
+	nearbyRadiusOptionsKm = [],
+	onNearbyClick,
+	onNearbyRadiusChange,
+	onNearbyResultsClick,
+	onParisTestLocationClick,
 }: EventsMapCardProps) {
 	const isOnline = useOnlineStatus();
 	const [hasMountedMap, setHasMountedMap] = useState(false);
@@ -263,6 +294,16 @@ export function EventsMapCard({
 		}
 		handleOpenFullscreen();
 	};
+	const handleNearbyResultsClick = () => {
+		if (isFullscreen) {
+			setIsFullscreen(false);
+			window.setTimeout(() => {
+				onNearbyResultsClick?.();
+			}, 80);
+			return;
+		}
+		onNearbyResultsClick?.();
+	};
 
 	const mapContent = (
 		<ParisMapLibre
@@ -274,8 +315,21 @@ export function EventsMapCard({
 			onFilterClick={onFilterClick}
 			hasActiveFilters={hasActiveFilters}
 			activeFiltersCount={activeFiltersCount}
+			canUseParisTestLocation={canUseParisTestLocation}
 			isOfflineMode={isOfflineMode}
 			selectedDayNightPeriods={selectedDayNightPeriods}
+			isNearbyActive={isNearbyActive}
+			nearbyEventsError={nearbyEventsError}
+			nearbyEventsStatus={nearbyEventsStatus}
+			nearbyLocation={nearbyLocation}
+			nearbyLocationScope={nearbyLocationScope}
+			nearbyMatchedEventsCount={nearbyMatchedEventsCount}
+			nearbyRadiusKm={nearbyRadiusKm}
+			nearbyRadiusOptionsKm={nearbyRadiusOptionsKm}
+			onNearbyClick={onNearbyClick}
+			onNearbyRadiusChange={onNearbyRadiusChange}
+			onNearbyResultsClick={handleNearbyResultsClick}
+			onParisTestLocationClick={onParisTestLocationClick}
 			className={isFullscreen ? "h-[100dvh] rounded-none border-0" : undefined}
 		/>
 	);

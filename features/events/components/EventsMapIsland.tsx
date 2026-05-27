@@ -112,16 +112,33 @@ export function EventsMapIsland({
 }: EventsMapIslandProps) {
 	const {
 		activeFiltersCount,
+		applyParisTestLocation,
+		canUseParisTestLocation,
 		filteredEvents,
 		hasAnyActiveFilters,
+		nearbyEventsError,
+		nearbyEventsStatus,
+		nearbyLocation,
+		nearbyLocationScope,
+		nearbyMatchedEventsCount,
+		nearbyRadiusKm,
+		nearbyRadiusOptionsKm,
 		openFilterDrawer,
 		selectedDayNightPeriods,
 		setIsFilterOpen,
+		setNearbyRadiusKm,
+		showNearbyEventsList,
+		sortMode,
+		toggleNearbyEvents,
 	} = useEventsSearchFilters();
 	const isOnline = useOnlineStatus();
 	const handleFullscreenClose = useCallback(() => {
 		setIsFilterOpen(false);
 	}, [setIsFilterOpen]);
+	const handleNearbyResultsClick = useCallback(() => {
+		setIsFilterOpen(false);
+		showNearbyEventsList();
+	}, [setIsFilterOpen, showNearbyEventsList]);
 
 	return (
 		<div
@@ -139,8 +156,21 @@ export function EventsMapIsland({
 					onFullscreenClose={handleFullscreenClose}
 					hasActiveFilters={hasAnyActiveFilters}
 					activeFiltersCount={activeFiltersCount}
+					canUseParisTestLocation={canUseParisTestLocation}
 					isOfflineMode={!isOnline}
 					selectedDayNightPeriods={selectedDayNightPeriods}
+					isNearbyActive={sortMode === "nearby"}
+					nearbyEventsError={nearbyEventsError}
+					nearbyEventsStatus={nearbyEventsStatus}
+					nearbyLocation={nearbyLocation}
+					nearbyLocationScope={nearbyLocationScope}
+					nearbyMatchedEventsCount={nearbyMatchedEventsCount}
+					nearbyRadiusKm={nearbyRadiusKm}
+					nearbyRadiusOptionsKm={nearbyRadiusOptionsKm}
+					onNearbyClick={() => toggleNearbyEvents("map")}
+					onNearbyRadiusChange={setNearbyRadiusKm}
+					onNearbyResultsClick={handleNearbyResultsClick}
+					onParisTestLocationClick={() => applyParisTestLocation("map")}
 				/>
 			</EventsMapErrorBoundary>
 		</div>

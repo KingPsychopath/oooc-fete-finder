@@ -4,8 +4,6 @@ const ORIGINAL_ENV = { ...process.env };
 
 const resetEnv = () => {
 	process.env = { ...ORIGINAL_ENV };
-	delete process.env.VERCEL;
-	delete process.env.VERCEL_ENV;
 	delete process.env.RAILWAY_ENVIRONMENT_NAME;
 	delete process.env.NEXT_RUNTIME;
 };
@@ -17,20 +15,28 @@ describe("kv-store-factory", () => {
 		resetEnv();
 	});
 
-	it("throws in Vercel preview/production strict mode when Postgres is not configured", async () => {
-		process.env.VERCEL = "1";
-		process.env.VERCEL_ENV = "preview";
+	it("does not use strict mode for host-specific env vars without NODE_ENV production", async () => {
+		process.env.RAILWAY_ENVIRONMENT_NAME = "production";
 		process.env.NEXT_RUNTIME = "nodejs";
 
 		vi.doMock("@/lib/platform/postgres/postgres-client", () => ({
 			isPostgresConfigured: () => false,
 		}));
 
-		const { getKVStore } = await import("@/lib/platform/kv/kv-store-factory");
+		vi.doMock("@/lib/platform/kv/file-kv-store", () => ({
+			FileKVStore: class {
+				async list(): Promise<string[]> {
+					return [];
+				}
+			},
+		}));
 
-		await expect(getKVStore()).rejects.toThrow(
-			"KV strict mode is active in production. Configure DATABASE_URL for Postgres KV.",
+		const { getKVStoreInfo } = await import(
+			"@/lib/platform/kv/kv-store-factory"
 		);
+		const info = await getKVStoreInfo();
+
+		expect(info.provider).toBe("file");
 	});
 
 	it("throws in generic production strict mode when Postgres is not configured", async () => {
@@ -49,9 +55,8 @@ describe("kv-store-factory", () => {
 		);
 	});
 
-	it("throws in Vercel preview/production strict mode when Postgres init fails", async () => {
-		process.env.VERCEL = "1";
-		process.env.VERCEL_ENV = "production";
+	it("throws in production strict mode when Postgres init fails", async () => {
+		process.env.NODE_ENV = "production";
 		process.env.NEXT_RUNTIME = "nodejs";
 
 		vi.doMock("@/lib/platform/postgres/postgres-client", () => ({

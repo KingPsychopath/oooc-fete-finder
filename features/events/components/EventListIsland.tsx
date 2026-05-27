@@ -29,10 +29,14 @@ export function EventListIsland({
 		hasAnyActiveFilters,
 		nearbyEventsError,
 		nearbyEventsStatus,
+		nearbyLocationScope,
 		nearbyMatchedEventsCount,
+		nearbyRadiusKm,
+		nearbyRadiusOptionsKm,
 		onClearFilters,
 		selectedDayNightPeriods,
 		setSortMode,
+		setNearbyRadiusKm,
 		socialProofDisplayModes,
 		sortMode,
 		toggleNearbyEvents,
@@ -68,8 +72,12 @@ export function EventListIsland({
 			isAuthResolved={isAuthResolved}
 			nearbyEventsError={nearbyEventsError}
 			nearbyEventsStatus={nearbyEventsStatus}
+			nearbyLocationScope={nearbyLocationScope}
 			nearbyMatchedEventsCount={nearbyMatchedEventsCount}
+			nearbyRadiusKm={nearbyRadiusKm}
+			nearbyRadiusOptionsKm={nearbyRadiusOptionsKm}
 			onNearbyClick={toggleNearbyEvents}
+			onNearbyRadiusChange={setNearbyRadiusKm}
 			isEventSaved={isEventSaved}
 			savedEventsCount={savedEventsCount}
 			pendingSavedMutationCount={pendingSavedMutationCount}

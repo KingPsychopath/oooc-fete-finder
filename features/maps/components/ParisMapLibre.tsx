@@ -9,10 +9,21 @@ import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/tim
 import type { Event } from "@/features/events/types";
 import {
 	type DayNightPeriod,
+	type Coordinates,
 	formatDayWithDate,
 	formatPrice,
 	getEventDisplayDayNightPeriod,
 } from "@/features/events/types";
+import type { SavedClientLocation } from "@/features/locations/client-location";
+import {
+	DEFAULT_NEARBY_RADIUS_KM,
+	NEARBY_RADIUS_OPTIONS_KM,
+	PARIS_MAP_BOUNDS,
+	type NearbyLocationScope,
+	type NearbyRadiusKm,
+	getNearbyLocationScope,
+} from "@/features/locations/nearby-location";
+import { calculateDistanceKm } from "@/features/locations/nearby-event-service";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { clientLog } from "@/lib/platform/client-logger";
 import { cn } from "@/lib/utils";
@@ -107,13 +118,27 @@ interface ParisMapLibreProps {
 	onFilterClick?: () => void;
 	hasActiveFilters?: boolean;
 	activeFiltersCount?: number;
+	canUseParisTestLocation?: boolean;
 	isOfflineMode?: boolean;
 	selectedDayNightPeriods?: DayNightPeriod[];
+	isNearbyActive?: boolean;
+	nearbyEventsError?: string | null;
+	nearbyEventsStatus?: string;
+	nearbyLocation?: SavedClientLocation | null;
+	nearbyLocationScope?: NearbyLocationScope | null;
+	nearbyMatchedEventsCount?: number;
+	nearbyRadiusKm?: NearbyRadiusKm;
+	nearbyRadiusOptionsKm?: readonly NearbyRadiusKm[];
+	onNearbyClick?: () => void;
+	onNearbyRadiusChange?: (radiusKm: NearbyRadiusKm) => void;
+	onNearbyResultsClick?: () => void;
+	onParisTestLocationClick?: () => void;
 }
 
 // Paris center coordinates
 const PARIS_CENTER: [number, number] = [2.3522, 48.8566]; // [lng, lat]
 const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const MAP_TEXT_FONT = ["Noto Sans Regular"];
 const MAP_LOAD_ERROR_GRACE_MS = 10000;
 const MAP_INIT_RETRY_DELAY_MS = 900;
 const MAX_MAP_INIT_ATTEMPTS = 2;
@@ -122,6 +147,9 @@ const MAP_PREVIEW_IMAGE_URL = "/maps/paris-map-preview.jpg";
 const MAP_ONLINE_ONLY_MESSAGE =
 	"Map style, sprite, glyph, and tile assets are online-only";
 const MAP_MIN_ZOOM = 9.25;
+const NEARBY_RADIUS_POLYGON_STEPS = 96;
+const KM_PER_LATITUDE_DEGREE = 110.574;
+const KM_PER_LONGITUDE_DEGREE_AT_EQUATOR = 111.32;
 
 /**
  * Arrondissement fill colors based on event density
@@ -178,6 +206,51 @@ const getDistrictActivityLabel = (eventCount: number): string => {
 	return "No current events";
 };
 
+const buildNearbyRadiusPolygon = (
+	center: Coordinates,
+	radiusKm: number,
+): GeoJSON.Feature<GeoJSON.Polygon> => {
+	const coordinates: [number, number][] = [];
+	const centerLatRadians = (center.lat * Math.PI) / 180;
+	const lngDegreeKm = Math.max(
+		KM_PER_LONGITUDE_DEGREE_AT_EQUATOR * Math.cos(centerLatRadians),
+		0.0001,
+	);
+
+	for (let index = 0; index <= NEARBY_RADIUS_POLYGON_STEPS; index += 1) {
+		const angle = (index / NEARBY_RADIUS_POLYGON_STEPS) * Math.PI * 2;
+		const lat = center.lat + (Math.sin(angle) * radiusKm) / KM_PER_LATITUDE_DEGREE;
+		const lng = center.lng + (Math.cos(angle) * radiusKm) / lngDegreeKm;
+		coordinates.push([lng, lat]);
+	}
+
+	return {
+		type: "Feature",
+		geometry: {
+			type: "Polygon",
+			coordinates: [coordinates],
+		},
+		properties: {},
+	};
+};
+
+const getNearbyRadiusBounds = (
+	center: Coordinates,
+	radiusKm: number,
+): [[number, number], [number, number]] => {
+	const centerLatRadians = (center.lat * Math.PI) / 180;
+	const lngDegreeKm = Math.max(
+		KM_PER_LONGITUDE_DEGREE_AT_EQUATOR * Math.cos(centerLatRadians),
+		0.0001,
+	);
+	const latDelta = radiusKm / KM_PER_LATITUDE_DEGREE;
+	const lngDelta = radiusKm / lngDegreeKm;
+	return [
+		[center.lng - lngDelta, center.lat - latDelta],
+		[center.lng + lngDelta, center.lat + latDelta],
+	];
+};
+
 const formatEventMapSchedule = (event: Event): string => {
 	const dateLabel = formatDayWithDate(event.day, event.date);
 	const hasStartTime = Boolean(event.time && event.time !== "TBC");
@@ -199,8 +272,21 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	onFilterClick,
 	hasActiveFilters = false,
 	activeFiltersCount = 0,
+	canUseParisTestLocation = false,
 	isOfflineMode = false,
 	selectedDayNightPeriods = [],
+	isNearbyActive = false,
+	nearbyEventsError = null,
+	nearbyEventsStatus = "idle",
+	nearbyLocation = null,
+	nearbyLocationScope = null,
+	nearbyMatchedEventsCount = 0,
+	nearbyRadiusKm = DEFAULT_NEARBY_RADIUS_KM,
+	nearbyRadiusOptionsKm = NEARBY_RADIUS_OPTIONS_KM,
+	onNearbyClick,
+	onNearbyRadiusChange,
+	onNearbyResultsClick,
+	onParisTestLocationClick,
 }) => {
 	const haptics = useAppHaptics();
 	const mapContainer = useRef<HTMLDivElement>(null);
@@ -228,6 +314,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const [showCoordinates, setShowCoordinates] = useState(true);
 	const [showLocateNotice, setShowLocateNotice] = useState(false);
 	const [showTileLoadingNotice, setShowTileLoadingNotice] = useState(false);
+	const nearbyViewKeyRef = useRef<string | null>(null);
 
 	// Filter events based on selected day
 	const filteredEvents = React.useMemo(() => {
@@ -256,6 +343,25 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 	const canShowCoordinates = eventsWithCoordinatesCount > 0;
 	const areEventPinsVisible = showCoordinates && canShowCoordinates;
+	const effectiveNearbyLocationScope = nearbyLocation
+		? (nearbyLocationScope ?? getNearbyLocationScope(nearbyLocation.coordinates))
+		: null;
+	const isNearbyInsideParisMap =
+		isNearbyActive &&
+		nearbyLocation !== null &&
+		effectiveNearbyLocationScope === "paris-map";
+	const isNearbyOutsideParisMap =
+		isNearbyActive &&
+		nearbyLocation !== null &&
+		effectiveNearbyLocationScope === "outside-paris-map";
+	const shouldShowNearbyStatus =
+		mapLoaded &&
+		(isNearbyActive ||
+			nearbyEventsStatus === "requesting" ||
+			Boolean(nearbyEventsError));
+	const outsideParisMapCopy = isFullscreen
+		? "You're outside the Paris map area, so the map stays on Paris."
+		: "You're outside the Paris map area, so the map stays on Paris. Nearest events are in the list.";
 
 	useEffect(() => {
 		setIsLegendExpanded(!isFullscreen);
@@ -555,8 +661,12 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		trackDiscoveryAnalytics({
 			actionType: "location_request",
 			filterGroup: "nearby",
-			filterValue: "map_locate_notice",
+			filterValue: isNearbyActive ? "map_nearby_disable" : "map_nearby_request",
 		});
+		if (onNearbyClick) {
+			onNearbyClick();
+			return;
+		}
 		setShowLocateNotice(true);
 		if (locateNoticeTimeoutRef.current) {
 			clearTimeout(locateNoticeTimeoutRef.current);
@@ -564,7 +674,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		locateNoticeTimeoutRef.current = setTimeout(() => {
 			setShowLocateNotice(false);
 		}, 3600);
-	}, [haptics]);
+	}, [haptics, isNearbyActive, onNearbyClick]);
 
 	const handleFullscreenClick = useCallback(() => {
 		haptics.nudge();
@@ -710,15 +820,24 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						customAttribution: "OpenFreeMap (c)",
 					},
 					maxBounds: [
-						[2.02, 48.72], // Southwest corner with room to zoom out
-						[2.68, 49.02], // Northeast corner with room to zoom out
+						[PARIS_MAP_BOUNDS.southWest.lng, PARIS_MAP_BOUNDS.southWest.lat],
+						[PARIS_MAP_BOUNDS.northEast.lng, PARIS_MAP_BOUNDS.northEast.lat],
 					],
 				});
 				const currentMap = map.current;
 				if (!currentMap) return;
 
+				const hasMapStyle = (): boolean => {
+					try {
+						return (currentMap.getStyle() as unknown) !== undefined;
+					} catch {
+						return false;
+					}
+				};
+
 				const isMapUsable = (): boolean => {
 					try {
+						if (!hasMapStyle()) return false;
 						return currentMap.isStyleLoaded() === true;
 					} catch {
 						return false;
@@ -727,6 +846,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 
 				const isMapFullySettled = (): boolean => {
 					try {
+						if (!hasMapStyle()) return false;
 						return (
 							currentMap.isStyleLoaded() === true &&
 							currentMap.areTilesLoaded() === true
@@ -1236,6 +1356,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				}
 			} catch {}
 			try {
+				if (currentMap.getLayer("event-nearby-rings")) {
+					currentMap.removeLayer("event-nearby-rings");
+				}
+			} catch {}
+			try {
 				if (currentMap.getSource("events")) {
 					currentMap.removeSource("events");
 				}
@@ -1260,30 +1385,45 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		// Create GeoJSON for events
 		const eventsGeoJSON = {
 			type: "FeatureCollection" as const,
-			features: eventsWithCoords.map((event) => ({
-				type: "Feature" as const,
-				geometry: {
-					type: "Point" as const,
-					coordinates: [event.coordinates!.lng, event.coordinates!.lat] as [
-						number,
-						number,
-					],
-				},
-				properties: {
-					id: event.id,
-					name: event.name,
-					isFeatured: shouldDisplayFeaturedEvent(event),
-					isPromoted: event.isPromoted === true,
-					isOOOCPick: event.isOOOCPick || false,
-					markerRank: shouldDisplayFeaturedEvent(event)
-						? 4
-						: event.isPromoted === true
-							? 3
-							: event.isOOOCPick
-								? 2
-								: 1,
-				},
-			})),
+			features: eventsWithCoords.map((event) => {
+				const eventCoordinates = event.coordinates!;
+				const distanceKm = nearbyLocation
+					? calculateDistanceKm(
+							nearbyLocation.coordinates,
+							eventCoordinates,
+						)
+					: null;
+				const isWithinNearbyRadius =
+					isNearbyInsideParisMap &&
+					distanceKm !== null &&
+					distanceKm <= nearbyRadiusKm;
+				const isFeatured = shouldDisplayFeaturedEvent(event);
+				return {
+					type: "Feature" as const,
+					geometry: {
+						type: "Point" as const,
+						coordinates: [eventCoordinates.lng, eventCoordinates.lat] as [
+							number,
+							number,
+						],
+					},
+					properties: {
+						id: event.id,
+						name: event.name,
+						isFeatured,
+						isPromoted: event.isPromoted === true,
+						isOOOCPick: event.isOOOCPick || false,
+						isWithinNearbyRadius,
+						markerRank: isFeatured
+							? 4
+							: event.isPromoted === true
+								? 3
+								: event.isOOOCPick
+									? 2
+									: 1,
+					},
+				};
+			}),
 		};
 
 		// Add source and layer
@@ -1297,6 +1437,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				featured_count: ["+", ["case", ["get", "isFeatured"], 1, 0]],
 				promoted_count: ["+", ["case", ["get", "isPromoted"], 1, 0]],
 				oooc_count: ["+", ["case", ["get", "isOOOCPick"], 1, 0]],
+				nearby_count: [
+					"+",
+					["case", ["get", "isWithinNearbyRadius"], 1, 0],
+				],
 			},
 		});
 
@@ -1311,6 +1455,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					"case",
 					[">", ["get", "featured_count"], 0],
 					"#d8a241",
+					[">", ["get", "nearby_count"], 0],
+					"#2563eb",
 					[">", ["get", "promoted_count"], 0],
 					"#2f8f8a",
 					[">", ["get", "oooc_count"], 0],
@@ -1330,6 +1476,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			filter: ["has", "point_count"],
 			layout: {
 				"text-field": ["get", "point_count_abbreviated"],
+				"text-font": MAP_TEXT_FONT,
 				"text-size": 12,
 				"text-allow-overlap": true,
 				"text-ignore-placement": true,
@@ -1385,6 +1532,36 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		});
 
 		currentMap.addLayer({
+			id: "event-nearby-rings",
+			type: "circle",
+			source: "events",
+			filter: [
+				"all",
+				["!", ["has", "point_count"]],
+				["get", "isWithinNearbyRadius"],
+			],
+			layout: {
+				"circle-sort-key": ["get", "markerRank"],
+			},
+			paint: {
+				"circle-radius": [
+					"case",
+					["get", "isFeatured"],
+					18,
+					["get", "isPromoted"],
+					17,
+					["get", "isOOOCPick"],
+					17,
+					14,
+				],
+				"circle-color": "#2563eb",
+				"circle-opacity": 0.22,
+				"circle-stroke-color": "#eff6ff",
+				"circle-stroke-width": 1.5,
+			},
+		});
+
+		currentMap.addLayer({
 			id: "event-markers",
 			type: "circle",
 			source: "events",
@@ -1422,7 +1599,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					2,
 				],
 				"circle-stroke-color": "#fffaf3",
-				"circle-opacity": 0.96,
+				"circle-opacity": isNearbyInsideParisMap
+					? ["case", ["get", "isWithinNearbyRadius"], 0.98, 0.42]
+					: 0.96,
 			},
 		});
 
@@ -1440,7 +1619,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			paint: {
 				"circle-radius": 2.6,
 				"circle-color": "#d8a241",
-				"circle-opacity": 0.98,
+				"circle-opacity": isNearbyInsideParisMap
+					? ["case", ["get", "isWithinNearbyRadius"], 0.98, 0.45]
+					: 0.98,
 			},
 		});
 
@@ -1455,6 +1636,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			],
 			layout: {
 				"text-field": "★",
+				"text-font": MAP_TEXT_FONT,
 				"text-size": 12,
 				"text-allow-overlap": true,
 				"symbol-sort-key": ["get", "markerRank"],
@@ -1505,10 +1687,138 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		mapLoaded,
 		filteredEvents,
 		areEventPinsVisible,
+		isNearbyInsideParisMap,
+		nearbyLocation,
+		nearbyRadiusKm,
 		handleEventClusterClick,
 		handleEventMarkersClick,
 		handleEventMarkersMouseEnter,
 		handleEventMarkersMouseLeave,
+	]);
+
+	useEffect(() => {
+		if (!map.current || !mapLoaded) return () => {};
+		const currentMap = map.current;
+		const teardownNearbyLocation = () => {
+			for (const layerId of [
+				"nearby-user-dot",
+				"nearby-user-pulse",
+				"nearby-radius-line",
+				"nearby-radius-fill",
+			]) {
+				try {
+					if (currentMap.getLayer(layerId)) {
+						currentMap.removeLayer(layerId);
+					}
+				} catch {}
+			}
+			for (const sourceId of ["nearby-user-location", "nearby-radius"]) {
+				try {
+					if (currentMap.getSource(sourceId)) {
+						currentMap.removeSource(sourceId);
+					}
+				} catch {}
+			}
+		};
+
+		teardownNearbyLocation();
+		if (!isNearbyInsideParisMap || !nearbyLocation) {
+			nearbyViewKeyRef.current = null;
+			return teardownNearbyLocation;
+		}
+
+		const userPoint: GeoJSON.Feature<GeoJSON.Point> = {
+			type: "Feature",
+			geometry: {
+				type: "Point",
+				coordinates: [
+					nearbyLocation.coordinates.lng,
+					nearbyLocation.coordinates.lat,
+				],
+			},
+			properties: {},
+		};
+		currentMap.addSource("nearby-radius", {
+			type: "geojson",
+			data: buildNearbyRadiusPolygon(nearbyLocation.coordinates, nearbyRadiusKm),
+		});
+		currentMap.addSource("nearby-user-location", {
+			type: "geojson",
+			data: userPoint,
+		});
+		const radiusBeforeLayer = currentMap.getLayer("event-nearby-rings")
+			? "event-nearby-rings"
+			: undefined;
+		currentMap.addLayer(
+			{
+				id: "nearby-radius-fill",
+				type: "fill",
+				source: "nearby-radius",
+				paint: {
+					"fill-color": "#2563eb",
+					"fill-opacity": 0.13,
+				},
+			},
+			radiusBeforeLayer,
+		);
+		currentMap.addLayer(
+			{
+				id: "nearby-radius-line",
+				type: "line",
+				source: "nearby-radius",
+				paint: {
+					"line-color": "#2563eb",
+					"line-opacity": 0.55,
+					"line-width": 1.5,
+				},
+			},
+			radiusBeforeLayer,
+		);
+		currentMap.addLayer({
+			id: "nearby-user-pulse",
+			type: "circle",
+			source: "nearby-user-location",
+			paint: {
+				"circle-radius": 15,
+				"circle-color": "#2563eb",
+				"circle-opacity": 0.18,
+				"circle-blur": 0.35,
+			},
+		});
+		currentMap.addLayer({
+			id: "nearby-user-dot",
+			type: "circle",
+			source: "nearby-user-location",
+			paint: {
+				"circle-radius": 6,
+				"circle-color": "#2563eb",
+				"circle-stroke-color": "#eff6ff",
+				"circle-stroke-width": 2.5,
+			},
+		});
+
+		const viewKey = `${nearbyLocation.coordinates.lat}:${nearbyLocation.coordinates.lng}:${nearbyRadiusKm}`;
+		if (nearbyViewKeyRef.current !== viewKey) {
+			nearbyViewKeyRef.current = viewKey;
+			currentMap.fitBounds(
+				getNearbyRadiusBounds(nearbyLocation.coordinates, nearbyRadiusKm),
+				{
+					padding: isFullscreen
+						? { top: 96, right: 96, bottom: 96, left: 96 }
+						: { top: 88, right: 76, bottom: 76, left: 76 },
+					maxZoom: 14.4,
+					duration: 650,
+				},
+			);
+		}
+
+		return teardownNearbyLocation;
+	}, [
+		isFullscreen,
+		isNearbyInsideParisMap,
+		mapLoaded,
+		nearbyLocation,
+		nearbyRadiusKm,
 	]);
 
 	// Error state
@@ -1626,8 +1936,21 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 						<button
 							type="button"
 							onClick={handleLocateClick}
-							className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border/70 bg-background/92 text-foreground shadow-sm transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-							aria-label="Find events near me"
+							disabled={nearbyEventsStatus === "requesting"}
+							className={cn(
+								"inline-flex h-9 w-9 items-center justify-center rounded-lg border shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-65",
+								isNearbyActive
+									? "border-blue-700 bg-blue-700 text-white hover:bg-blue-800 dark:border-blue-300 dark:bg-blue-300 dark:text-blue-950 dark:hover:bg-blue-200"
+									: "border-border/70 bg-background/92 text-foreground hover:bg-accent",
+							)}
+							aria-pressed={isNearbyActive}
+							aria-label={
+								nearbyEventsStatus === "requesting"
+									? "Locating nearby events"
+									: isNearbyActive
+									? "Turn off events near me"
+									: "Find events near me"
+							}
 						>
 							<Locate className="h-3.5 w-3.5" />
 						</button>
@@ -1637,8 +1960,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 									Use the event list
 								</p>
 								<p className="mt-0.5 text-muted-foreground">
-									Near me sorting is available in All Events and works with
-									saved offline data.
+									Near me sorting needs the event controls to finish loading.
 								</p>
 							</div>
 						)}
@@ -1675,6 +1997,81 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 							<Maximize2 className="h-3.5 w-3.5" />
 						)}
 					</button>
+				</div>
+			)}
+
+			{shouldShowNearbyStatus && (
+				<div className="absolute right-14 top-2 z-[3] w-[min(17rem,calc(100%-4.5rem))] rounded-xl border border-border/75 bg-card/92 px-3 py-2 text-xs shadow-[0_16px_34px_-24px_rgba(16,12,9,0.7)] backdrop-blur-md">
+					<div className="flex items-start justify-between gap-2">
+						<div className="min-w-0">
+							<p className="font-medium text-foreground">
+								{nearbyEventsStatus === "requesting"
+									? "Locating..."
+									: "Near me"}
+							</p>
+							<p className="mt-0.5 leading-snug text-muted-foreground">
+								{nearbyEventsError
+									? nearbyEventsError
+									: isNearbyOutsideParisMap
+										? outsideParisMapCopy
+										: isNearbyInsideParisMap
+											? `${nearbyMatchedEventsCount} event${
+													nearbyMatchedEventsCount === 1 ? "" : "s"
+												} within ${nearbyRadiusKm} km.`
+											: "Choose Near me to use your location."}
+							</p>
+						</div>
+					</div>
+					{isNearbyOutsideParisMap && onNearbyResultsClick && (
+						<button
+							type="button"
+							onClick={() => {
+								haptics.selection();
+								onNearbyResultsClick();
+							}}
+							className="mt-2 inline-flex h-7 items-center rounded-full border border-border/75 bg-background/76 px-2.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+						>
+							View nearest events
+						</button>
+					)}
+					{canUseParisTestLocation && onParisTestLocationClick && (
+						<button
+							type="button"
+							onClick={() => {
+								haptics.selection();
+								onParisTestLocationClick();
+							}}
+							className="mt-2 ml-1 inline-flex h-7 items-center rounded-full border border-blue-700/40 bg-blue-600/10 px-2.5 text-[11px] font-medium text-blue-800 transition-colors hover:bg-blue-600/16 dark:border-blue-300/40 dark:text-blue-200"
+						>
+							Use Paris test location
+						</button>
+					)}
+					{isNearbyInsideParisMap && nearbyRadiusOptionsKm.length > 0 && (
+						<div className="mt-2 flex flex-wrap gap-1">
+							{nearbyRadiusOptionsKm.map((radiusKm) => {
+								const isSelected = radiusKm === nearbyRadiusKm;
+								return (
+									<button
+										key={radiusKm}
+										type="button"
+										onClick={() => {
+											haptics.selection();
+											onNearbyRadiusChange?.(radiusKm);
+										}}
+										aria-pressed={isSelected}
+										className={cn(
+											"h-6 rounded-full border px-2 text-[11px] transition-colors",
+											isSelected
+												? "border-blue-700 bg-blue-700 text-white dark:border-blue-300 dark:bg-blue-300 dark:text-blue-950"
+												: "border-border/70 bg-background/72 text-muted-foreground hover:bg-accent hover:text-foreground",
+										)}
+									>
+										{radiusKm} km
+									</button>
+								);
+							})}
+						</div>
+					)}
 				</div>
 			)}
 

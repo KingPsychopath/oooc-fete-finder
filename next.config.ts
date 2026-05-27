@@ -31,6 +31,13 @@ const securityHeaders = [
 	{ key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 
+const fontCacheHeaders = [
+	{
+		key: "Cache-Control",
+		value: "public, max-age=31536000, immutable",
+	},
+];
+
 const nextConfig: NextConfig = {
 	// Configuration for subdirectory deployment
 	// Use direct env access for build-time configuration
@@ -39,13 +46,21 @@ const nextConfig: NextConfig = {
 	reactStrictMode: true,
 	trailingSlash: false,
 	outputFileTracingIncludes: {
-		"/*": ["./data/events.csv", "./public/fonts/Geist-Regular.ttf"],
+		"/*": [
+			"./data/events.csv",
+			"./public/fonts/degular_regular.woff2",
+			"./public/fonts/prata_regular.woff2",
+		],
 	},
 	async headers() {
 		return [
 			{
 				source: "/:path*",
 				headers: securityHeaders,
+			},
+			{
+				source: "/fonts/:path*",
+				headers: fontCacheHeaders,
 			},
 		];
 	},

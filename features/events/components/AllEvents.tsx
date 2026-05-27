@@ -9,6 +9,10 @@ import { trackNavigationClick } from "@/features/events/engagement/client-tracki
 import { buildGenreFrequency } from "@/features/events/genre-preview";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { DayNightPeriod, Event } from "@/features/events/types";
+import type {
+	NearbyLocationScope,
+	NearbyRadiusKm,
+} from "@/features/locations/nearby-location";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import {
 	BookmarkCheck,
@@ -66,8 +70,12 @@ type AllEventsProps = {
 	isAuthResolved: boolean;
 	nearbyEventsError: string | null;
 	nearbyEventsStatus: string;
+	nearbyLocationScope: NearbyLocationScope | null;
 	nearbyMatchedEventsCount: number;
+	nearbyRadiusKm: NearbyRadiusKm;
+	nearbyRadiusOptionsKm: readonly NearbyRadiusKm[];
 	onNearbyClick: () => void;
+	onNearbyRadiusChange: (radiusKm: NearbyRadiusKm) => void;
 	isEventSaved: (eventKey: string) => boolean;
 	savedEventsCount: number;
 	pendingSavedMutationCount: number;
@@ -95,8 +103,12 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			isAuthResolved,
 			nearbyEventsError,
 			nearbyEventsStatus,
+			nearbyLocationScope,
 			nearbyMatchedEventsCount,
+			nearbyRadiusKm,
+			nearbyRadiusOptionsKm,
 			onNearbyClick,
+			onNearbyRadiusChange,
 			isEventSaved,
 			savedEventsCount,
 			pendingSavedMutationCount,
@@ -176,6 +188,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			/>
 		) : null;
 		const isNearbyActive = sortMode === "nearby";
+		const isNearbyOutsideParis = nearbyLocationScope === "outside-paris-map";
 		const nearbyButtonControl = (
 			<Button
 				type="button"
@@ -221,6 +234,35 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 				</span>
 			</Button>
 		);
+		const nearbyRadiusControl =
+			isNearbyActive && !isNearbyOutsideParis ? (
+				<div
+					className="flex flex-wrap items-center gap-1.5"
+					aria-label="Near me radius"
+				>
+					{nearbyRadiusOptionsKm.map((radiusKm) => {
+						const isSelected = radiusKm === nearbyRadiusKm;
+						return (
+							<button
+								key={radiusKm}
+								type="button"
+								onClick={() => {
+									haptics.selection();
+									onNearbyRadiusChange(radiusKm);
+								}}
+								aria-pressed={isSelected}
+								className={`h-6 rounded-full border px-2.5 text-[11px] transition-colors ${
+									isSelected
+										? "border-blue-700 bg-blue-700 text-white dark:border-blue-300 dark:bg-blue-300 dark:text-blue-950"
+										: "border-border/75 bg-background/70 text-muted-foreground hover:bg-accent hover:text-foreground"
+								}`}
+							>
+								{radiusKm} km
+							</button>
+						);
+					})}
+				</div>
+			) : null;
 
 		return (
 			<Card
@@ -304,7 +346,11 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 						{isNearbyActive || nearbyEventsError ? (
 							<p className="text-xs leading-relaxed text-muted-foreground">
 								{isNearbyActive
-									? `Ordered by distance: ${nearbyMatchedEventsCount} event${
+									? isNearbyOutsideParis
+										? `You're outside the Paris map area, so these are the nearest ${nearbyMatchedEventsCount} Paris event${
+												nearbyMatchedEventsCount === 1 ? "" : "s"
+											} with trusted coordinates.`
+										: `Within ${nearbyRadiusKm} km: ${nearbyMatchedEventsCount} event${
 											nearbyMatchedEventsCount === 1 ? "" : "s"
 										} with trusted coordinates nearest to ${
 											nearbyEventsStatus === "active-last-known"
@@ -318,6 +364,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 									: nearbyEventsError}
 							</p>
 						) : null}
+						{nearbyRadiusControl}
 					</div>
 				</CardHeader>
 				<CardContent className="py-5">

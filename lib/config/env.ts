@@ -4,10 +4,6 @@ import { z } from "zod";
 
 const isServerRuntime = typeof window === "undefined";
 const rawDataMode = process.env.DATA_MODE?.trim() ?? "";
-const isVercelHosted = process.env.VERCEL === "1";
-const vercelEnv = process.env.VERCEL_ENV;
-const isVercelDeployTarget =
-	isVercelHosted && (vercelEnv === "production" || vercelEnv === "preview");
 const nodeEnv = process.env.NODE_ENV || "development";
 const LOCAL_ENV_OVERRIDE_FLAG = "ALLOW_LOCAL_ENV_OVERRIDE";
 const CRITICAL_LOCAL_ENV_KEYS = ["DATABASE_URL", "DATA_MODE"] as const;
@@ -54,7 +50,6 @@ const getProjectEnvFileValue = (key: string): string | null => {
 if (
 	isServerRuntime &&
 	nodeEnv === "development" &&
-	!isVercelHosted &&
 	process.env[LOCAL_ENV_OVERRIDE_FLAG] !== "1"
 ) {
 	const mismatchedKeys = CRITICAL_LOCAL_ENV_KEYS.filter((key) => {
@@ -77,7 +72,6 @@ if (
 if (
 	isServerRuntime &&
 	process.env.NODE_ENV === "production" &&
-	isVercelDeployTarget &&
 	!rawDataMode
 ) {
 	throw new Error(
@@ -88,7 +82,7 @@ if (
 if (isServerRuntime && !rawDataMode) {
 	clientLog.warn(
 		"env",
-		"DATA_MODE is not set; defaulting to remote. Set DATA_MODE explicitly for Vercel preview/production deploys.",
+		"DATA_MODE is not set; defaulting to remote. Set DATA_MODE explicitly for production deploys.",
 	);
 }
 

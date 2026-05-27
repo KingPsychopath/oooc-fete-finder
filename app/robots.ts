@@ -14,7 +14,6 @@ export default function robots(): MetadataRoute.Robots {
 				withBasePath("/api"),
 				withBasePath("/event"),
 				withBasePath("/labs/event-modal"),
-				withBasePath("/labs/font-test"),
 				withBasePath("/labs/header"),
 				withBasePath("/labs/home-style"),
 				withBasePath("/partner-stats"),

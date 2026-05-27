@@ -28,8 +28,19 @@ import {
 } from "@/features/events/types";
 import {
 	type SavedClientLocation,
+	getParisTestClientLocation,
+	isClientLocationDevToolsEnabled,
 	requestClientLocation,
 } from "@/features/locations/client-location";
+import {
+	DEFAULT_NEARBY_RADIUS_KM,
+	NEARBY_RADIUS_OPTIONS_KM,
+	type NearbyLocationScope,
+	type NearbyRadiusKm,
+	getNearbyLocationScope,
+	normalizeNearbyRadiusKm,
+	shouldApplyNearbyRadius,
+} from "@/features/locations/nearby-location";
 import { findNearbyEvents } from "@/features/locations/nearby-event-service";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import {
@@ -44,6 +55,7 @@ import {
 } from "react";
 
 export type EventSortMode = "upcoming" | "fresh-activity" | "nearby";
+export type NearbyEventsRequestSource = "list" | "map";
 export type NearbyEventsStatus =
 	| "idle"
 	| "requesting"
@@ -95,7 +107,11 @@ interface EventsSearchFiltersContextValue {
 	nearbyEventsError: string | null;
 	nearbyEventsStatus: NearbyEventsStatus;
 	nearbyLocation: SavedClientLocation | null;
+	nearbyLocationScope: NearbyLocationScope | null;
 	nearbyMatchedEventsCount: number;
+	nearbyRadiusKm: NearbyRadiusKm;
+	nearbyRadiusOptionsKm: readonly NearbyRadiusKm[];
+	canUseParisTestLocation: boolean;
 	onAgeRangeChange: ReturnType<typeof useEventFilters>["onAgeRangeChange"];
 	onArrondissementToggle: ReturnType<
 		typeof useEventFilters
@@ -157,7 +173,9 @@ interface EventsSearchFiltersContextValue {
 	selectedPriceRange: ReturnType<typeof useEventFilters>["selectedPriceRange"];
 	selectedVenueTypes: ReturnType<typeof useEventFilters>["selectedVenueTypes"];
 	setIsFilterOpen: (isOpen: boolean) => void;
+	setNearbyRadiusKm: (radiusKm: NearbyRadiusKm) => void;
 	setSortMode: (sortMode: EventSortMode) => void;
+	showNearbyEventsList: () => void;
 	socialProofDisplayModes: Map<
 		string,
 		ReturnType<typeof getSocialProofDisplayModes> extends Map<string, infer T>
@@ -167,9 +185,10 @@ interface EventsSearchFiltersContextValue {
 	sortMode: EventSortMode;
 	spotlightRotationContext: SpotlightRotationContext;
 	spotlightEventsOrdered: Event[];
-	toggleNearbyEvents: () => void;
+	toggleNearbyEvents: (source?: NearbyEventsRequestSource) => void;
 	toggleFilterExpansion: () => void;
 	toggleFilterPanel: () => void;
+	applyParisTestLocation: (source?: NearbyEventsRequestSource) => void;
 }
 
 const EventsSearchFiltersContext =
@@ -277,6 +296,9 @@ export function EventsSearchFiltersProvider({
 	);
 	const [nearbyLocation, setNearbyLocation] =
 		useState<SavedClientLocation | null>(null);
+	const [nearbyRadiusKm, setNearbyRadiusKmState] = useState<NearbyRadiusKm>(
+		DEFAULT_NEARBY_RADIUS_KM,
+	);
 	const pendingAuthActionRef = useRef<PendingAuthAction | null>(null);
 	const lastAppliedDefaultSortRef = useRef<EventSortMode | null>(null);
 	const filters = useEventFilters({
@@ -431,50 +453,113 @@ export function EventsSearchFiltersProvider({
 		);
 	}, [areLocalSettingsLoaded, localAppSettings.defaultEventSortMode]);
 
-	const toggleNearbyEvents = useCallback(async () => {
-		if (sortMode === "nearby") {
-			handleSortModeChange("upcoming");
-			setNearbyEventsError(null);
-			return;
-		}
-		if (!requireAuth()) return;
-
-		trackDiscoveryAnalytics({
-			actionType: "location_request",
-			filterGroup: "nearby",
-			filterValue: "all_events_request",
-		});
-		setNearbyEventsStatus("requesting");
-		setNearbyEventsError(null);
-		const result = await requestClientLocation();
-		if (!result.location) {
-			setNearbyEventsStatus("unavailable");
-			setNearbyEventsError(result.error);
-			trackDiscoveryAnalytics({
-				actionType: "location_request",
-				filterGroup: "nearby",
-				filterValue: "all_events_unavailable",
-			});
-			return;
-		}
-
-		setNearbyLocation(result.location);
-		setNearbyEventsStatus(
-			result.status === "last-known" ? "active-last-known" : "active-current",
-		);
-		handleSortModeChange("nearby");
-		trackDiscoveryAnalytics({
-			actionType: "location_request",
-			filterGroup: "nearby",
-			filterValue:
-				result.status === "last-known"
-					? "all_events_last_known"
-					: "all_events_current",
-		});
+	const canUseParisTestLocation = isClientLocationDevToolsEnabled();
+	const showNearbyEventsList = useCallback(() => {
 		window.requestAnimationFrame(() => {
 			onScrollToAllEvents();
 		});
-	}, [handleSortModeChange, onScrollToAllEvents, requireAuth, sortMode]);
+	}, [onScrollToAllEvents]);
+	const shouldScrollAfterNearbyRequest = useCallback(
+		(source: NearbyEventsRequestSource) => source !== "map",
+		[],
+	);
+
+	const applyNearbyLocation = useCallback(
+		(input: {
+			location: SavedClientLocation;
+			requestSource: NearbyEventsRequestSource;
+			status: Exclude<NearbyEventsStatus, "idle" | "requesting" | "unavailable">;
+			trackingValue: string;
+		}) => {
+			setNearbyLocation(input.location);
+			setNearbyEventsStatus(input.status);
+			handleSortModeChange("nearby");
+			trackDiscoveryAnalytics({
+				actionType: "location_request",
+				filterGroup: "nearby",
+				filterValue: input.trackingValue,
+			});
+			if (shouldScrollAfterNearbyRequest(input.requestSource)) {
+				showNearbyEventsList();
+			}
+		},
+		[handleSortModeChange, shouldScrollAfterNearbyRequest, showNearbyEventsList],
+	);
+
+	const toggleNearbyEvents = useCallback(
+		async (source: NearbyEventsRequestSource = "list") => {
+			if (sortMode === "nearby") {
+				handleSortModeChange("upcoming");
+				setNearbyEventsError(null);
+				return;
+			}
+			if (!requireAuth()) return;
+
+			trackDiscoveryAnalytics({
+				actionType: "location_request",
+				filterGroup: "nearby",
+				filterValue: source === "map" ? "map_request" : "all_events_request",
+			});
+			setNearbyEventsStatus("requesting");
+			setNearbyEventsError(null);
+			const result = await requestClientLocation();
+			if (!result.location) {
+				setNearbyEventsStatus("unavailable");
+				setNearbyEventsError(result.error);
+				trackDiscoveryAnalytics({
+					actionType: "location_request",
+					filterGroup: "nearby",
+					filterValue:
+						source === "map" ? "map_unavailable" : "all_events_unavailable",
+				});
+				return;
+			}
+
+			applyNearbyLocation({
+				location: result.location,
+				requestSource: source,
+				status:
+					result.status === "last-known"
+						? "active-last-known"
+						: "active-current",
+				trackingValue:
+					result.status === "last-known"
+						? source === "map"
+							? "map_last_known"
+							: "all_events_last_known"
+						: source === "map"
+							? "map_current"
+							: "all_events_current",
+			});
+		},
+		[applyNearbyLocation, handleSortModeChange, requireAuth, sortMode],
+	);
+
+	const applyParisTestLocation = useCallback(
+		(source: NearbyEventsRequestSource = "map") => {
+			if (!canUseParisTestLocation) return;
+			applyNearbyLocation({
+				location: getParisTestClientLocation(),
+				requestSource: source,
+				status: "active-current",
+				trackingValue:
+					source === "map"
+						? "map_paris_test_location"
+						: "all_events_paris_test_location",
+			});
+			setNearbyEventsError(null);
+		},
+		[applyNearbyLocation, canUseParisTestLocation],
+	);
+
+	const setNearbyRadiusKm = useCallback((radiusKm: NearbyRadiusKm) => {
+		setNearbyRadiusKmState(normalizeNearbyRadiusKm(radiusKm));
+		trackDiscoveryAnalytics({
+			actionType: "filter_apply",
+			filterGroup: "nearby_radius",
+			filterValue: `${radiusKm}km`,
+		});
+	}, []);
 
 	useEffect(() => {
 		if (!isAuthenticated) return;
@@ -512,10 +597,22 @@ export function EventsSearchFiltersProvider({
 
 	const nearbyEventsOrdered = useMemo(() => {
 		if (!nearbyLocation) return [];
+		const maxDistanceKm = shouldApplyNearbyRadius(nearbyLocation.coordinates)
+			? nearbyRadiusKm
+			: undefined;
 		return findNearbyEvents(filteredEvents, nearbyLocation.coordinates, {
 			limit: filteredEvents.length,
+			maxDistanceKm,
 		});
-	}, [filteredEvents, nearbyLocation]);
+	}, [filteredEvents, nearbyLocation, nearbyRadiusKm]);
+
+	const nearbyLocationScope = useMemo(
+		() =>
+			nearbyLocation
+				? getNearbyLocationScope(nearbyLocation.coordinates)
+				: null,
+		[nearbyLocation],
+	);
 
 	const allEventsOrdered = useMemo(() => {
 		if (sortMode === "nearby") return nearbyEventsOrdered;
@@ -533,6 +630,7 @@ export function EventsSearchFiltersProvider({
 			allEventsOrdered,
 			availableGenres,
 			availableNationalities,
+			canUseParisTestLocation,
 			handleOOOCPicksCalloutClick,
 			handleSearchFocus,
 			handleSearchIntent,
@@ -542,11 +640,16 @@ export function EventsSearchFiltersProvider({
 			nearbyEventsError,
 			nearbyEventsStatus,
 			nearbyLocation,
+			nearbyLocationScope,
 			nearbyMatchedEventsCount: nearbyEventsOrdered.length,
+			nearbyRadiusKm,
+			nearbyRadiusOptionsKm: NEARBY_RADIUS_OPTIONS_KM,
 			openFilterDrawer,
 			openFilterPanel,
 			setIsFilterOpen: setFilterOpen,
+			setNearbyRadiusKm,
 			setSortMode: handleSortModeChange,
+			showNearbyEventsList,
 			socialProofDisplayModes,
 			sortMode,
 			spotlightRotationContext,
@@ -554,12 +657,14 @@ export function EventsSearchFiltersProvider({
 			toggleNearbyEvents,
 			toggleFilterExpansion,
 			toggleFilterPanel,
+			applyParisTestLocation,
 		}),
 		[
 			filters,
 			allEventsOrdered,
 			availableGenres,
 			availableNationalities,
+			canUseParisTestLocation,
 			handleOOOCPicksCalloutClick,
 			handleSearchFocus,
 			handleSearchIntent,
@@ -569,11 +674,15 @@ export function EventsSearchFiltersProvider({
 			nearbyEventsError,
 			nearbyEventsStatus,
 			nearbyLocation,
+			nearbyLocationScope,
 			nearbyEventsOrdered.length,
+			nearbyRadiusKm,
 			openFilterDrawer,
 			openFilterPanel,
 			setFilterOpen,
+			setNearbyRadiusKm,
 			handleSortModeChange,
+			showNearbyEventsList,
 			socialProofDisplayModes,
 			sortMode,
 			spotlightRotationContext,
@@ -581,6 +690,7 @@ export function EventsSearchFiltersProvider({
 			toggleNearbyEvents,
 			toggleFilterExpansion,
 			toggleFilterPanel,
+			applyParisTestLocation,
 		],
 	);
 

@@ -24,6 +24,11 @@ const GEOLOCATION_TIMEOUT_MS = 6000;
 const MAXIMUM_CACHED_LOCATION_AGE_MS = 10 * 60 * 1000;
 const LAST_KNOWN_LOCATION_TTL_MS = 24 * 60 * 60 * 1000;
 const COORDINATE_DECIMAL_PLACES = 4;
+const PARIS_TEST_LOCATION: Pick<SavedClientLocation, "accuracy" | "coordinates"> =
+	{
+		accuracy: 25,
+		coordinates: { lat: 48.8566, lng: 2.3522 },
+	};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
@@ -100,6 +105,20 @@ export const writeLastKnownClientLocation = (
 	);
 	return savedLocation;
 };
+
+export const isClientLocationDevToolsEnabled = (): boolean =>
+	process.env.NODE_ENV === "development";
+
+export const getParisTestClientLocation = (): SavedClientLocation => ({
+	accuracy: PARIS_TEST_LOCATION.accuracy,
+	coordinates: {
+		lat: roundCoordinate(PARIS_TEST_LOCATION.coordinates.lat),
+		lng: roundCoordinate(PARIS_TEST_LOCATION.coordinates.lng),
+	},
+	expiresAt: new Date(Date.now() + LAST_KNOWN_LOCATION_TTL_MS).toISOString(),
+	source: "current",
+	savedAt: new Date().toISOString(),
+});
 
 const getCurrentClientLocation = (): Promise<SavedClientLocation> =>
 	new Promise((resolve, reject) => {
