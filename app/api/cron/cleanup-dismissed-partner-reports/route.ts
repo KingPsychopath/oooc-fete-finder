@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 /**
  * Cron endpoint: delete old dismissed internal partner reports.
  * Paid order records are retained unless an admin removes that behavior later.
- * Secure with CRON_SECRET (Vercel sends Authorization: Bearer <CRON_SECRET>).
+ * Secure with CRON_SECRET via Authorization: Bearer <CRON_SECRET>.
  */
 export async function GET(request: NextRequest) {
 	const secret = process.env.CRON_SECRET?.trim();

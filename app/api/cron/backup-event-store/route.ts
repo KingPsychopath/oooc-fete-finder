@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 /**
  * Cron endpoint: create periodic operational backups.
- * Secure with CRON_SECRET (Vercel sends Authorization: Bearer <CRON_SECRET>).
+ * Secure with CRON_SECRET via Authorization: Bearer <CRON_SECRET>.
  */
 export async function GET(request: NextRequest) {
 	const secret = process.env.CRON_SECRET?.trim();

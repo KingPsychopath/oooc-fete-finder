@@ -24,5 +24,3 @@ if (!response.ok) {
 }
 
 console.log(`Cron target succeeded: ${response.status} ${targetUrl}`);
-
-export {};
