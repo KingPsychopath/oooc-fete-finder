@@ -15,6 +15,11 @@ Validation schema: `lib/config/env.ts`
 | `ALLOW_LOCAL_ENV_OVERRIDE` | No | - | Development-only escape hatch. Set to `1` only when intentionally letting shell env override critical project env values like `DATABASE_URL` or `DATA_MODE` |
 | `DATA_MODE` | Prod on Vercel: Yes | `remote` | `remote`, `local`, or `test` |
 | `GOOGLE_MAPS_API_KEY` | No | - | Enables address geocoding |
+| `EVENT_OCR_PROVIDER` | No | `gemini` | Admin event sheet OCR provider. Supported today: `gemini` |
+| `EVENT_OCR_MODEL` | No | `gemini-2.5-flash-lite` | OCR vision model name passed to the selected provider |
+| `EVENT_OCR_API_KEY` | No | - | Generic OCR provider API key; preferred for provider-agnostic config |
+| `GEMINI_API_KEY` | No | - | Gemini-specific fallback key when `EVENT_OCR_API_KEY` is unset |
+| `EVENT_OCR_TIMEOUT_MS` | No | `25000` | Per-image OCR provider timeout |
 | `CRON_SECRET` | No | - | Protects cron endpoints |
 | `DEPLOY_REVALIDATE_SECRET` | No | - | Protects deploy revalidation endpoint |
 | `STRIPE_WEBHOOK_SECRET` | No | - | Verifies Stripe webhook events for partner activation ingestion |

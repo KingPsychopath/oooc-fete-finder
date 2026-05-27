@@ -97,11 +97,13 @@ import {
 	PanelRightOpen,
 	Plus,
 	RefreshCw,
+	Sparkles,
 	Trash2,
 } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { EventSheetOcrDraftModal } from "./EventSheetOcrDraftModal";
 import { ADMIN_EVENT_SHEET_REFRESH_EVENT } from "./admin-content-events";
 
 type EventSheetEditorCardProps = {
@@ -1583,6 +1585,7 @@ export const EventSheetEditorCard = ({
 		initialEditorData?.sheetRevisionSupported !== false,
 	);
 	const [isRevisionHistoryOpen, setIsRevisionHistoryOpen] = useState(false);
+	const [isOcrDraftModalOpen, setIsOcrDraftModalOpen] = useState(false);
 	const [revisionPreview, setRevisionPreview] =
 		useState<RevisionSnapshotPayload | null>(null);
 	const [isLoadingRevisionPreview, setIsLoadingRevisionPreview] =
@@ -2708,7 +2711,7 @@ export const EventSheetEditorCard = ({
 		applySnapshot(next, "Redid last change");
 	};
 
-	const handleManualSave = async () => {
+	const handleManualSave = useCallback(async () => {
 		const blockingIssues = getRequiredSheetHealthIssues(rowsRef.current);
 		if (blockingIssues.length > 0) {
 			setErrorMessage(
@@ -2720,7 +2723,40 @@ export const EventSheetEditorCard = ({
 			return;
 		}
 		await performSave("manual");
-	};
+	}, [performSave]);
+
+	const handleAcceptOcrRows = useCallback(
+		(acceptedRows: EditableSheetRow[], options: { saveAfterAdd: boolean }) => {
+			if (acceptedRows.length === 0) return;
+			const currentColumns = columnsRef.current.map((column) => ({
+				...column,
+			}));
+			const nextAcceptedRows = acceptedRows.map((row) => ({
+				...createBlankEditableSheetRow(currentColumns),
+				...row,
+				eventKey: "",
+				sourceConfirmed: "",
+			}));
+			const nextRows = [
+				...nextAcceptedRows,
+				...rowsRef.current.map((row) => ({ ...row })),
+			];
+			commitSheetMutation(
+				currentColumns,
+				nextRows,
+				`Added ${acceptedRows.length} OCR suggestion${acceptedRows.length === 1 ? "" : "s"} to the sheet`,
+			);
+			setSortMode("sheet-order");
+			setQuery("");
+			setQualityFilter(null);
+			if (options.saveAfterAdd) {
+				window.setTimeout(() => {
+					void handleManualSave();
+				}, 0);
+			}
+		},
+		[commitSheetMutation, handleManualSave],
+	);
 
 	const handleSplitRangeRow = useCallback(
 		(rowIndex: number, selectedDate?: string) => {
@@ -6074,6 +6110,12 @@ export const EventSheetEditorCard = ({
 						</DialogContent>
 					</Dialog>
 
+					<EventSheetOcrDraftModal
+						open={isOcrDraftModalOpen}
+						onOpenChange={setIsOcrDraftModalOpen}
+						onAcceptRows={handleAcceptOcrRows}
+					/>
+
 					<div className="space-y-3 rounded-md border bg-background/55 p-3">
 						<div className="grid items-end gap-3 xl:grid-cols-[minmax(280px,1fr)_220px_auto]">
 							<div className="space-y-2">
@@ -6156,6 +6198,15 @@ export const EventSheetEditorCard = ({
 										className="h-9"
 									>
 										Add row at top
+									</Button>
+									<Button
+										onClick={() => setIsOcrDraftModalOpen(true)}
+										variant="outline"
+										size="sm"
+										className="h-9 gap-2"
+									>
+										<Sparkles className="h-4 w-4" />
+										OCR screenshots
 									</Button>
 									<Button
 										onClick={() => void loadEditorData()}

@@ -149,6 +149,11 @@ export const env = createEnv({
 
 		// Google configuration
 		GOOGLE_MAPS_API_KEY: z.string().optional(),
+		GEMINI_API_KEY: z.string().optional(),
+		EVENT_OCR_PROVIDER: z.string().default("gemini"),
+		EVENT_OCR_MODEL: z.string().optional(),
+		EVENT_OCR_API_KEY: z.string().optional(),
+		EVENT_OCR_TIMEOUT_MS: z.string().optional(),
 		CRON_SECRET: z.string().optional(),
 		DEPLOY_REVALIDATE_SECRET: z.string().optional(),
 		STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -207,6 +212,11 @@ export const env = createEnv({
 
 		// Google configuration
 		GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
+		GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+		EVENT_OCR_PROVIDER: process.env.EVENT_OCR_PROVIDER,
+		EVENT_OCR_MODEL: process.env.EVENT_OCR_MODEL,
+		EVENT_OCR_API_KEY: process.env.EVENT_OCR_API_KEY,
+		EVENT_OCR_TIMEOUT_MS: process.env.EVENT_OCR_TIMEOUT_MS,
 		CRON_SECRET: process.env.CRON_SECRET,
 		DEPLOY_REVALIDATE_SECRET: process.env.DEPLOY_REVALIDATE_SECRET,
 		STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
