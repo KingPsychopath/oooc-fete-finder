@@ -11,6 +11,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import type { EditableSheetRow } from "@/features/data-management/csv/sheet-editor";
 import {
@@ -29,6 +34,7 @@ import {
 	Sparkles,
 	Trash2,
 	Upload,
+	UploadCloud,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -85,6 +91,7 @@ type LocalOcrItem = {
 	error?: string;
 	selected: boolean;
 	rowQuality: "draft" | "review";
+	edited: boolean;
 	draft?: OcrDraftPayload;
 };
 
@@ -93,6 +100,7 @@ type CombinedDraftState = {
 	error?: string;
 	selected: boolean;
 	rowQuality: "draft" | "review";
+	edited: boolean;
 	draft?: OcrDraftPayload;
 };
 
@@ -283,6 +291,22 @@ const getFieldSourceLabel = (
 	return sourceNames.join(", ");
 };
 
+const formatCandidateMeta = (
+	candidate: EventOcrFieldCandidate,
+	draft: OcrDraftPayload,
+): string => {
+	const sourceLabel =
+		candidate.sourceFileNames.length > 0
+			? candidate.sourceFileNames.join(", ")
+			: draft.sourceImages
+					.filter((image) => candidate.sourceImageIds.includes(image.id))
+					.map((image) => image.fileName)
+					.join(", ");
+	return [formatConfidence(candidate.confidence), sourceLabel]
+		.filter(Boolean)
+		.join(" · ");
+};
+
 export const EventSheetOcrDraftModal = ({
 	open,
 	onOpenChange,
@@ -297,6 +321,7 @@ export const EventSheetOcrDraftModal = ({
 		status: "idle",
 		selected: true,
 		rowQuality: "draft",
+		edited: false,
 	});
 	const [isPreparing, setIsPreparing] = useState(false);
 	const [modalError, setModalError] = useState("");
@@ -407,6 +432,7 @@ export const EventSheetOcrDraftModal = ({
 								error: `Image is still too large after compression (${formatBytes(prepared.base64.length)}).`,
 								selected: false,
 								rowQuality: "draft",
+								edited: false,
 							};
 						}
 						return {
@@ -418,6 +444,7 @@ export const EventSheetOcrDraftModal = ({
 							status: "queued",
 							selected: true,
 							rowQuality: "draft",
+							edited: false,
 						};
 					}),
 				);
@@ -426,6 +453,7 @@ export const EventSheetOcrDraftModal = ({
 					status: "idle",
 					selected: true,
 					rowQuality: combinedDraft.rowQuality,
+					edited: false,
 				});
 			} catch (error) {
 				setModalError(
@@ -467,6 +495,7 @@ export const EventSheetOcrDraftModal = ({
 				status: "extracting",
 				selected: true,
 				rowQuality: combinedDraft.rowQuality,
+				edited: false,
 			});
 		}
 		setItems((current) =>
@@ -512,6 +541,7 @@ export const EventSheetOcrDraftModal = ({
 						error: result.error,
 						selected: false,
 						rowQuality: combinedDraft.rowQuality,
+						edited: false,
 					});
 					setItems((current) =>
 						current.map((item) =>
@@ -526,6 +556,7 @@ export const EventSheetOcrDraftModal = ({
 					status: "ready",
 					selected: isRowAcceptable(result.draft.row),
 					rowQuality: combinedDraft.rowQuality,
+					edited: false,
 					draft: result.draft,
 				});
 				setItems((current) =>
@@ -581,6 +612,7 @@ export const EventSheetOcrDraftModal = ({
 					error: message,
 					selected: false,
 					rowQuality: combinedDraft.rowQuality,
+					edited: false,
 				});
 			}
 			setItems((current) =>
@@ -599,6 +631,7 @@ export const EventSheetOcrDraftModal = ({
 			status: "idle",
 			selected: true,
 			rowQuality: current.rowQuality,
+			edited: false,
 		}));
 	};
 
@@ -608,6 +641,7 @@ export const EventSheetOcrDraftModal = ({
 			status: "idle",
 			selected: true,
 			rowQuality: current.rowQuality,
+			edited: false,
 		}));
 		if (inputRef.current) inputRef.current.value = "";
 	};
@@ -641,6 +675,7 @@ export const EventSheetOcrDraftModal = ({
 				status: "idle",
 				selected: true,
 				rowQuality: "draft",
+				edited: false,
 			});
 			return;
 		}
@@ -712,23 +747,62 @@ export const EventSheetOcrDraftModal = ({
 							</p>
 						)}
 						{alternatives.length > 0 && (
-							<div className="mt-1 flex flex-wrap gap-1">
-								{alternatives.map((candidate, index) => (
-									<button
-										key={`${candidate.value}-${index}`}
-										type="button"
-										className="max-w-full truncate rounded border bg-muted/35 px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted"
-										onClick={() =>
-											onDraftChange(
-												applyDraftCandidate(draft, fieldKey, candidate),
-											)
-										}
-										title={candidate.evidence ?? candidate.value ?? ""}
-									>
-										{index + 1}. {candidate.value}
-									</button>
-								))}
-							</div>
+							<Popover>
+								<PopoverTrigger
+									render={
+										<button
+											type="button"
+											className="mt-1 rounded border bg-muted/30 px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted"
+										>
+											{alternatives.length + 1} possible values
+										</button>
+									}
+								/>
+								<PopoverContent
+									align="start"
+									side="bottom"
+									className="w-[min(340px,calc(100vw-2rem))] p-2"
+								>
+									<div className="space-y-1.5">
+										<div className="rounded-md border bg-muted/25 px-2 py-1.5">
+											<p className="text-xs font-medium">Current pick</p>
+											<p className="break-words text-sm">
+												{field.value ?? "Empty"}
+											</p>
+											<p className="mt-0.5 text-[11px] text-muted-foreground">
+												{formatCandidateMeta(field, draft)}
+											</p>
+										</div>
+										{alternatives.map((candidate, index) => (
+											<button
+												key={`${candidate.value}-${index}`}
+												type="button"
+												className="w-full rounded-md border bg-background px-2 py-1.5 text-left hover:bg-muted/45"
+												onClick={() =>
+													onDraftChange(
+														applyDraftCandidate(draft, fieldKey, candidate),
+													)
+												}
+											>
+												<span className="block text-xs font-medium">
+													Option {index + 2}
+												</span>
+												<span className="block break-words text-sm">
+													{candidate.value}
+												</span>
+												<span className="mt-0.5 block text-[11px] text-muted-foreground">
+													{formatCandidateMeta(candidate, draft)}
+												</span>
+												{candidate.evidence && (
+													<span className="mt-1 line-clamp-2 block text-[11px] text-muted-foreground">
+														{candidate.evidence}
+													</span>
+												)}
+											</button>
+										))}
+									</div>
+								</PopoverContent>
+							</Popover>
 						)}
 					</div>
 				);
@@ -803,25 +877,26 @@ export const EventSheetOcrDraftModal = ({
 										</p>
 										<p className="text-xs text-muted-foreground">
 											PNG, JPEG, WebP, or clipboard images. Up to {maxImages}.
-											Combine mode treats them as evidence for one event.
+											One event mode treats them as shared evidence.
 										</p>
 									</div>
 								</div>
-								<div className="flex flex-wrap gap-2">
-									<div className="flex h-9 rounded-md border bg-background p-0.5">
+								<div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
+									<div className="flex h-9 w-full rounded-md border bg-background p-0.5 sm:w-auto">
 										<Button
 											type="button"
 											variant={
 												extractionMode === "combined" ? "secondary" : "ghost"
 											}
 											size="sm"
-											className="h-8"
+											className="h-8 flex-1 sm:flex-none"
 											onClick={() => {
 												setExtractionMode("combined");
 												setCombinedDraft((current) => ({
 													status: "idle",
 													selected: true,
 													rowQuality: current.rowQuality,
+													edited: false,
 												}));
 											}}
 										>
@@ -833,7 +908,7 @@ export const EventSheetOcrDraftModal = ({
 												extractionMode === "separate" ? "secondary" : "ghost"
 											}
 											size="sm"
-											className="h-8"
+											className="h-8 flex-1 sm:flex-none"
 											onClick={() => {
 												setExtractionMode("separate");
 												setItems((current) =>
@@ -853,7 +928,7 @@ export const EventSheetOcrDraftModal = ({
 										type="file"
 										accept="image/png,image/jpeg,image/webp"
 										multiple
-										className="h-9 w-64"
+										className="sr-only"
 										onChange={(event) => {
 											if (event.target.files)
 												void handleFiles(event.target.files);
@@ -863,7 +938,18 @@ export const EventSheetOcrDraftModal = ({
 										type="button"
 										variant="outline"
 										size="sm"
-										className="h-9 gap-2"
+										className="h-9 w-full gap-2 sm:w-auto"
+										disabled={isExtracting || isPreparing}
+										onClick={() => inputRef.current?.click()}
+									>
+										<UploadCloud className="h-4 w-4" />
+										Choose images
+									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										className="h-9 w-full gap-2 sm:w-auto"
 										disabled={
 											!canRunExtraction ||
 											isExtracting ||
@@ -886,7 +972,7 @@ export const EventSheetOcrDraftModal = ({
 											type="button"
 											variant="ghost"
 											size="sm"
-											className="h-9 gap-2"
+											className="h-9 w-full gap-2 sm:w-auto"
 											disabled={isExtracting || isPreparing}
 											onClick={clearImages}
 										>
@@ -910,7 +996,7 @@ export const EventSheetOcrDraftModal = ({
 										{items.map((item, index) => (
 											<div
 												key={item.id}
-												className="flex w-44 items-center gap-2 rounded-md border bg-muted/20 p-2"
+												className="flex w-full items-center gap-2 rounded-md border bg-muted/20 p-2 sm:w-44"
 											>
 												<img
 													src={item.previewUrl}
@@ -979,6 +1065,11 @@ export const EventSheetOcrDraftModal = ({
 															{formatTokenUsage(combinedDraft.draft.usage)}
 														</p>
 													)}
+													<p className="mt-1 text-xs text-muted-foreground">
+														{combinedDraft.edited
+															? "Edited draft; accepts into sheet autosave."
+															: "AI draft; accepts into sheet autosave."}
+													</p>
 												</div>
 												<div className="flex items-center gap-2">
 													<Label htmlFor="combined-quality" className="text-xs">
@@ -1013,6 +1104,8 @@ export const EventSheetOcrDraftModal = ({
 												setCombinedDraft((current) => ({
 													...current,
 													draft: nextDraft,
+													edited: true,
+													rowQuality: "draft",
 												})),
 											)}
 											{combinedDraft.draft.warnings.length > 0 && (
@@ -1084,20 +1177,27 @@ export const EventSheetOcrDraftModal = ({
 													{item.status === "ready" && item.draft && (
 														<div className="space-y-3">
 															<div className="flex flex-wrap items-center justify-between gap-2">
-																<label className="flex items-center gap-2 text-sm font-medium">
-																	<input
-																		type="checkbox"
-																		checked={item.selected}
-																		disabled={!canAccept}
-																		onChange={(event) =>
-																			updateItem(item.id, (current) => ({
-																				...current,
-																				selected: event.target.checked,
-																			}))
-																		}
-																	/>
-																	Select for sheet
-																</label>
+																<div>
+																	<label className="flex items-center gap-2 text-sm font-medium">
+																		<input
+																			type="checkbox"
+																			checked={item.selected}
+																			disabled={!canAccept}
+																			onChange={(event) =>
+																				updateItem(item.id, (current) => ({
+																					...current,
+																					selected: event.target.checked,
+																				}))
+																			}
+																		/>
+																		Select for sheet
+																	</label>
+																	<p className="mt-1 text-xs text-muted-foreground">
+																		{item.edited
+																			? "Edited draft; accepts into sheet autosave."
+																			: "AI draft; accepts into sheet autosave."}
+																	</p>
+																</div>
 																<div className="flex items-center gap-2">
 																	<Label
 																		htmlFor={`${item.id}-quality`}
@@ -1134,6 +1234,8 @@ export const EventSheetOcrDraftModal = ({
 																updateItem(item.id, (current) => ({
 																	...current,
 																	draft: nextDraft,
+																	edited: true,
+																	rowQuality: "draft",
 																})),
 															)}
 															{item.draft.warnings.length > 0 && (
@@ -1173,6 +1275,7 @@ export const EventSheetOcrDraftModal = ({
 								<Button
 									type="button"
 									variant="outline"
+									className="w-full sm:w-auto"
 									onClick={() => onOpenChange(false)}
 								>
 									Close
@@ -1180,6 +1283,7 @@ export const EventSheetOcrDraftModal = ({
 								<Button
 									type="button"
 									variant="outline"
+									className="w-full sm:w-auto"
 									disabled={
 										selectedCombinedCount + selectedReadyItems.length === 0
 									}
@@ -1189,6 +1293,7 @@ export const EventSheetOcrDraftModal = ({
 								</Button>
 								<Button
 									type="button"
+									className="w-full sm:w-auto"
 									disabled={
 										selectedCombinedCount + selectedReadyItems.length === 0
 									}

@@ -85,12 +85,16 @@ export class LocationResolver {
 				storedLocations.set(storageKey, storedResolution);
 				return geocoded;
 			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
 				log.warn("locations", "Provider geocoding failed", {
 					provider: this.provider.name,
 					locationName: query.locationName,
 					arrondissement: query.arrondissement,
-					error: error instanceof Error ? error.message : String(error),
+					error: message,
 				});
+				if (resolvedPolicy.throwOnProviderError) {
+					throw new Error(message);
+				}
 			}
 		}
 

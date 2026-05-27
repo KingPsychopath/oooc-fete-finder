@@ -1893,6 +1893,7 @@ export async function resolveEventLocation(
 				allowProviderLookup: true,
 				allowArrondissementFallback: false,
 				forceRefresh: options?.forceRefresh ?? true,
+				throwOnProviderError: true,
 			},
 		);
 

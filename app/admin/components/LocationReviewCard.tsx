@@ -78,11 +78,32 @@ const SORT_MODES: Array<{ value: SortMode; label: string }> = [
 ];
 
 const PAGE_SIZES = [10, 25, 50] as const;
+const BATCH_PROVIDER_RESOLVE_CONCURRENCY = 3;
+const BATCH_PROVIDER_RESOLVE_START_SPACING_MS = 700;
+const BATCH_PROVIDER_RETRY_DELAYS_MS = [3000, 10_000] as const;
 const MAP_LINK_PROVIDERS: Array<{ value: MapLinkProvider; label: string }> = [
 	{ value: "google", label: "Google" },
 	{ value: "apple", label: "Apple" },
 	{ value: "geo", label: "Native geo" },
 ];
+
+const wait = (delayMs: number): Promise<void> =>
+	new Promise((resolve) => window.setTimeout(resolve, delayMs));
+
+const isRetryableBatchError = (message: string): boolean => {
+	const normalized = message.toLowerCase();
+	return (
+		normalized.includes("over_query_limit") ||
+		normalized.includes("rate-limit") ||
+		normalized.includes("rate limit") ||
+		normalized.includes("timeout") ||
+		normalized.includes("429") ||
+		normalized.includes("500") ||
+		normalized.includes("502") ||
+		normalized.includes("503") ||
+		normalized.includes("504")
+	);
+};
 
 const getLocationStatus = (item: EventLocationReviewItem): LocationStatus => {
 	if (!item.isResolvable) return "needs-location";
@@ -309,24 +330,79 @@ export const LocationReviewCard = ({
 			error?: string;
 		}>,
 		successLabel: string,
+		options: {
+			concurrency?: number;
+			startSpacingMs?: number;
+			retryDelaysMs?: readonly number[];
+		} = {},
 	) => {
 		if (targetItems.length === 0) return;
 		setIsBatchRunning(true);
 		setMessage("");
 		setError("");
 		try {
+			const concurrency = Math.max(
+				1,
+				Math.min(options.concurrency ?? 1, targetItems.length),
+			);
+			const startSpacingMs = options.startSpacingMs ?? 0;
+			const retryDelaysMs = options.retryDelaysMs ?? [];
 			let completed = 0;
+			let cursor = 0;
+			let nextStartAt = Date.now();
 			const failures: string[] = [];
-			for (const item of targetItems) {
-				const result = await task(item);
-				if (result.success) {
-					completed += 1;
-				} else {
-					failures.push(
-						`${item.locationName || "TBA"}: ${result.error || result.message}`,
+
+			const waitForStartSlot = async () => {
+				const now = Date.now();
+				const delayMs = Math.max(0, nextStartAt - now);
+				nextStartAt = Math.max(now, nextStartAt) + startSpacingMs;
+				if (delayMs > 0) {
+					await wait(delayMs);
+				}
+			};
+
+			const runItem = async (item: EventLocationReviewItem) => {
+				for (let attempt = 0; ; attempt++) {
+					await waitForStartSlot();
+					const result = await task(item);
+					const errorMessage = result.error || result.message;
+					const retryDelayMs = retryDelaysMs[attempt];
+					if (
+						result.success ||
+						retryDelayMs == null ||
+						!isRetryableBatchError(errorMessage)
+					) {
+						return result;
+					}
+					await wait(retryDelayMs);
+				}
+			};
+
+			const runWorker = async () => {
+				for (;;) {
+					const item = targetItems[cursor];
+					cursor += 1;
+					if (!item) return;
+
+					const result = await runItem(item);
+					if (result.success) {
+						completed += 1;
+					} else {
+						failures.push(
+							`${item.locationName || "TBA"}: ${result.error || result.message}`,
+						);
+					}
+					const processed = completed + failures.length;
+					setMessage(
+						`${successLabel}: ${processed} of ${targetItems.length} processed`,
 					);
 				}
-			}
+			};
+
+			setMessage(`Starting ${targetItems.length} location updates...`);
+			await Promise.all(
+				Array.from({ length: concurrency }, () => runWorker()),
+			);
 			setSelectedIds(new Set());
 			setManualDraft(null);
 			await loadReviewData();
@@ -497,6 +573,11 @@ export const LocationReviewCard = ({
 					},
 				),
 			"Resolved selected locations",
+			{
+				concurrency: BATCH_PROVIDER_RESOLVE_CONCURRENCY,
+				startSpacingMs: BATCH_PROVIDER_RESOLVE_START_SPACING_MS,
+				retryDelaysMs: BATCH_PROVIDER_RETRY_DELAYS_MS,
+			},
 		);
 
 	const handleBatchClear = () =>

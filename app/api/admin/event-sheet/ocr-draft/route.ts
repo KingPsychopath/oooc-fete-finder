@@ -1,10 +1,15 @@
+import { recordAdminActivity } from "@/features/admin/activity/record";
 import { validateAdminKeyForApiRoute } from "@/features/auth/admin-validation";
 import {
 	extractCombinedEventOcrDraft,
 	extractEventOcrDrafts,
 	getEventOcrStatus,
 } from "@/features/data-management/event-ocr/service";
-import type { EventOcrImageInput } from "@/features/data-management/event-ocr/types";
+import type {
+	EventOcrExtractionResult,
+	EventOcrImageInput,
+	EventOcrUsage,
+} from "@/features/data-management/event-ocr/types";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	EVENT_SHEET_OCR_JSON_BODY_LIMIT_BYTES,
@@ -34,6 +39,74 @@ const getAdminCredential = (request: NextRequest): string | null => {
 
 const isSupportedImageMimeType = (mimeType: string): boolean =>
 	["image/png", "image/jpeg", "image/webp"].includes(mimeType);
+
+const sumUsage = (
+	results: EventOcrExtractionResult[],
+): {
+	promptTokenCount: number | null;
+	candidatesTokenCount: number | null;
+	totalTokenCount: number | null;
+	imageBytes: number;
+} => {
+	const usages = results
+		.map((result) => (result.success ? result.draft.usage : null))
+		.filter((usage): usage is EventOcrUsage => Boolean(usage));
+	const sumNullable = (
+		key: "promptTokenCount" | "candidatesTokenCount" | "totalTokenCount",
+	): number | null => {
+		const values = usages
+			.map((usage) => usage[key])
+			.filter((value): value is number => typeof value === "number");
+		return values.length > 0
+			? values.reduce((sum, value) => sum + value, 0)
+			: null;
+	};
+	return {
+		promptTokenCount: sumNullable("promptTokenCount"),
+		candidatesTokenCount: sumNullable("candidatesTokenCount"),
+		totalTokenCount: sumNullable("totalTokenCount"),
+		imageBytes: usages.reduce((sum, usage) => sum + usage.imageBytes, 0),
+	};
+};
+
+const recordOcrUsageActivity = async (input: {
+	mode: "combined" | "separate";
+	provider: string;
+	model: string;
+	images: EventOcrImageInput[];
+	results: EventOcrExtractionResult[];
+}): Promise<void> => {
+	const successCount = input.results.filter((result) => result.success).length;
+	const failureCount = input.results.length - successCount;
+	const usage = sumUsage(input.results);
+	await recordAdminActivity({
+		action: "event_sheet_ocr_extracted",
+		category: "content",
+		targetType: "event_sheet_ocr",
+		targetLabel: "Event sheet OCR",
+		summary: `OCR extracted ${successCount}/${input.results.length} suggestion${input.results.length === 1 ? "" : "s"} from ${input.images.length} image${input.images.length === 1 ? "" : "s"}`,
+		metadata: {
+			mode: input.mode,
+			provider: input.provider,
+			model: input.model,
+			imageCount: input.images.length,
+			resultCount: input.results.length,
+			successCount,
+			failureCount,
+			promptTokenCount: usage.promptTokenCount,
+			candidatesTokenCount: usage.candidatesTokenCount,
+			totalTokenCount: usage.totalTokenCount,
+			imageBytes: usage.imageBytes,
+			sourceFileNames: input.images.map((image) => image.fileName),
+			errors: input.results
+				.filter((result) => !result.success)
+				.map((result) => result.error)
+				.slice(0, 3),
+		},
+		href: "/admin/content#event-sheet-editor",
+		severity: failureCount > 0 ? "warning" : "info",
+	});
+};
 
 const parseImage = (value: unknown): EventOcrImageInput | null => {
 	if (!isPlainRecord(value)) return null;
@@ -134,10 +207,18 @@ export async function POST(request: NextRequest) {
 	const results = combineImages
 		? [await extractCombinedEventOcrDraft(parsedImages)]
 		: await extractEventOcrDrafts(parsedImages);
+	const status = getEventOcrStatus();
+	await recordOcrUsageActivity({
+		mode: combineImages ? "combined" : "separate",
+		provider: status.provider,
+		model: status.model,
+		images: parsedImages,
+		results,
+	});
 	return NextResponse.json(
 		{
 			success: true,
-			...getEventOcrStatus(),
+			...status,
 			mode: combineImages ? "combined" : "separate",
 			results,
 		},

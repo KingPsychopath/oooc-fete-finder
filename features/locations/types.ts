@@ -37,6 +37,7 @@ export interface LocationResolutionPolicy {
 	allowProviderLookup: boolean;
 	allowArrondissementFallback: boolean;
 	forceRefresh?: boolean;
+	throwOnProviderError?: boolean;
 }
 
 export interface StoredLocationResolution extends LocationResolution {

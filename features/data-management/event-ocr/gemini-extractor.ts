@@ -59,10 +59,12 @@ const normalizeGeminiUsage = (
 	),
 });
 
+const getCurrentIsoDate = (): string => new Date().toISOString().slice(0, 10);
+
 const buildPrompt = (inputs: EventOcrImageInput[]): string => `
 Extract one event draft from the attached screenshot(s) for an internal event sheet.
 
-Current date: 2026-05-27.
+Current date: ${getCurrentIsoDate()}.
 Images:
 ${inputs.map((input, index) => `- Image ${index + 1}: id=${input.id}, fileName=${input.fileName}`).join("\n")}
 
@@ -74,7 +76,7 @@ alternatives contains up to 3 ranked objects with the same shape except alternat
 Use null unless the image explicitly supports the value. Do not invent URLs, venue names, prices, dates, or times.
 Dates: ISO yyyy-mm-dd only when explicit or safely implied by flyer context. Times: 24-hour HH:mm only when present.
 districtArea: explicit Paris arrondissement or visible named area. setting: Indoor, Outdoor, or Indoor/Outdoor only when visible or strongly implied.
-For multiple screenshots, merge only if they appear to describe one event. Put conflicts in alternatives and warnings. If clearly different events, return the strongest single event and warn to use Separate events mode.
+For multiple screenshots, assume the editor intentionally uploaded sources for one event. Merge complementary details into one draft even when title, dates, venue, ticketing, caption, or lineup appear across different images. Treat weekender, series, road-to, and day-by-day screenshots as one event when there is shared branding/context; use date/dateTo/notes where supported. Put genuine field conflicts in alternatives and warnings. Only warn to use Separate events mode when images are obviously unrelated and impossible to reconcile.
 `;
 
 const parseJsonResponse = (text: string): unknown => {

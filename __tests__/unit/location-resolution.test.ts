@@ -102,6 +102,25 @@ describe("location resolution", () => {
 		expect(result.coordinates).toBeNull();
 	});
 
+	it("can surface provider failures for explicit admin refreshes", async () => {
+		const provider = makeProvider({
+			geocode: vi.fn().mockRejectedValue(new Error("OVER_QUERY_LIMIT")),
+		});
+		const resolver = new LocationResolver(provider);
+
+		await expect(
+			resolver.resolve(
+				{ locationName: "Le Klub", arrondissement: 11 },
+				new Map<string, StoredLocationResolution>(),
+				{
+					allowProviderLookup: true,
+					allowArrondissementFallback: false,
+					throwOnProviderError: true,
+				},
+			),
+		).rejects.toThrow("OVER_QUERY_LIMIT");
+	});
+
 	it("uses trusted coordinates for map links but text search for approximate locations", () => {
 		const trustedUrl = buildMapLink({
 			locationInput: "Le Klub",
