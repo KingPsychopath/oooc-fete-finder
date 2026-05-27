@@ -45,6 +45,11 @@ const discoveryTrackSchema = z.object({
 	path: z.string().trim().max(280).optional(),
 	hostname: z.string().trim().max(120).optional(),
 	referrer: z.string().trim().max(180).optional(),
+	utmSource: z.string().trim().max(120).optional(),
+	utmMedium: z.string().trim().max(80).optional(),
+	utmCampaign: z.string().trim().max(160).optional(),
+	utmContent: z.string().trim().max(160).optional(),
+	utmTerm: z.string().trim().max(160).optional(),
 	recordedAt: recordedAtSchema,
 	clientContext: z
 		.object({
@@ -116,6 +121,14 @@ const extractCountryCode = (headers: Headers): string | null => {
 	return normalized && /^[A-Z]{2}$/.test(normalized) ? normalized : null;
 };
 
+const isBotUserAgent = (userAgent: string | null): boolean => {
+	const normalized = userAgent?.toLowerCase() ?? "";
+	if (!normalized) return false;
+	return /bot|crawler|spider|preview|facebookexternalhit|slurp|bingpreview|whatsapp|telegrambot|uptime|monitor|lighthouse|pagespeed/.test(
+		normalized,
+	);
+};
+
 export async function POST(request: Request) {
 	if (!isSameOriginRequest(request)) {
 		return accepted();
@@ -165,7 +178,9 @@ export async function POST(request: Request) {
 	const validEvents = events.filter((body) => {
 		if (body.actionType === "page_view") {
 			const path = (body.path ?? "").trim();
-			return path.startsWith("/") && !path.startsWith("//");
+			if (!path.startsWith("/") || path.startsWith("//")) return false;
+			if (path === "/admin" || path.startsWith("/admin/")) return false;
+			return !isBotUserAgent(request.headers.get("user-agent"));
 		}
 		if (body.actionType === "filter_apply") {
 			const filterGroup = (body.filterGroup ?? "").trim().toLowerCase();
@@ -236,6 +251,11 @@ export async function POST(request: Request) {
 				path: body.path ?? null,
 				hostname: body.hostname?.trim().toLowerCase() ?? null,
 				referrer: body.referrer?.trim().toLowerCase() ?? null,
+				utmSource: body.utmSource?.trim().toLowerCase() ?? null,
+				utmMedium: body.utmMedium?.trim().toLowerCase() ?? null,
+				utmCampaign: body.utmCampaign?.trim().toLowerCase() ?? null,
+				utmContent: body.utmContent?.trim().toLowerCase() ?? null,
+				utmTerm: body.utmTerm?.trim().toLowerCase() ?? null,
 				countryCode: extractCountryCode(request.headers),
 				isAuthenticated: userSession.isAuthenticated,
 				deviceClass: body.clientContext?.deviceClass ?? null,

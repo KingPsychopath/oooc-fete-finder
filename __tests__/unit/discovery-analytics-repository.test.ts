@@ -21,6 +21,8 @@ describe("DiscoveryAnalyticsRepository", () => {
 		expect(queries).toContain("action_type IN ('page_view'");
 		expect(queries).toContain("ADD COLUMN IF NOT EXISTS hostname TEXT");
 		expect(queries).toContain("ADD COLUMN IF NOT EXISTS referrer TEXT");
+		expect(queries).toContain("ADD COLUMN IF NOT EXISTS utm_source TEXT");
+		expect(queries).toContain("ADD COLUMN IF NOT EXISTS utm_campaign TEXT");
 		expect(queries).toContain("ADD COLUMN IF NOT EXISTS country_code TEXT");
 	});
 

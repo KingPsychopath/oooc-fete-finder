@@ -39,6 +39,21 @@ const buildWindow = (
 	return { safeWindowDays, startAt, endAt };
 };
 
+const buildPreviousWindow = (startAt: string, windowDays: number) => {
+	const endDate = new Date(startAt);
+	const startDate = new Date(endDate);
+	startDate.setDate(startDate.getDate() - windowDays);
+	return {
+		startAt: startDate.toISOString(),
+		endAt: endDate.toISOString(),
+	};
+};
+
+const toDeltaPercent = (current: number, previous: number): number | null => {
+	if (previous <= 0) return current > 0 ? 100 : null;
+	return Math.round(((current - previous) / previous) * 1000) / 10;
+};
+
 const DISCOVERY_FILTER_GROUPS = [
 	"date_range",
 	"day_night",
@@ -89,6 +104,11 @@ export async function getEventEngagementDashboard(
 				pageViewCount: number;
 				uniqueVisitorCount: number;
 				engagedVisitRate: number;
+				trafficDeltas: {
+					pageViewCount: number | null;
+					uniqueVisitorCount: number | null;
+					engagedVisitRate: number | null;
+				};
 				clickCount: number;
 				dedupedViewCount: number;
 				outboundClickCount: number;
@@ -179,6 +199,40 @@ export async function getEventEngagementDashboard(
 					pageViewCount: number;
 					uniqueVisitorCount: number;
 				}>;
+				topUtmSources: Array<{
+					label: string;
+					pageViewCount: number;
+					uniqueVisitorCount: number;
+				}>;
+				topUtmCampaigns: Array<{
+					label: string;
+					pageViewCount: number;
+					uniqueVisitorCount: number;
+				}>;
+				topLandingPages: Array<{
+					path: string;
+					visitorCount: number;
+					engagedSessionCount: number;
+					eventOpenSessionCount: number;
+					outboundSessionCount: number;
+					calendarSessionCount: number;
+					engagedVisitRate: number;
+					outboundVisitRate: number;
+				}>;
+				topAttributionSources: Array<{
+					source: string;
+					medium: string;
+					campaign: string;
+					referrer: string;
+					visitorCount: number;
+					engagedSessionCount: number;
+					eventOpenSessionCount: number;
+					outboundSessionCount: number;
+					calendarSessionCount: number;
+					engagedVisitRate: number;
+					outboundVisitRate: number;
+					calendarVisitRate: number;
+				}>;
 			};
 			discovery: {
 				searchClusterMode: SearchClusterMode;
@@ -250,6 +304,7 @@ export async function getEventEngagementDashboard(
 		const preferenceRepository = getUserGenrePreferenceRepository();
 
 		const { safeWindowDays, startAt, endAt } = buildWindow(windowDays);
+		const previousWindow = buildPreviousWindow(startAt, safeWindowDays);
 		const includeAuthenticatedOnly = options.includeAuthenticatedOnly ?? false;
 
 		const [
@@ -276,6 +331,11 @@ export async function getEventEngagementDashboard(
 			topDevices,
 			topPlatforms,
 			topBrowsers,
+			topUtmSources,
+			topUtmCampaigns,
+			topLandingPagesRaw,
+			topAttributionSourcesRaw,
+			previousTrafficSummary,
 		] = await Promise.all([
 			engagementRepository.summarizeWindow({
 				startAt,
@@ -467,6 +527,53 @@ export async function getEventEngagementDashboard(
 						includeAuthenticatedOnly,
 					})
 				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopTrafficDimension({
+						dimension: "utmSource",
+						startAt,
+						endAt,
+						limit: 12,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopTrafficDimension({
+						dimension: "utmCampaign",
+						startAt,
+						endAt,
+						limit: 12,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopLandingPages({
+						startAt,
+						endAt,
+						limit: 12,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopAttributionSources({
+						startAt,
+						endAt,
+						limit: 12,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.summarizeTrafficWindow({
+						startAt: previousWindow.startAt,
+						endAt: previousWindow.endAt,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve({
+						pageViewCount: 0,
+						uniqueVisitorCount: 0,
+						knownHostCount: 0,
+						knownReferrerCount: 0,
+						engagedSessionCount: 0,
+					}),
 		]);
 
 		const eventNameByKey = new Map<string, string>();
@@ -485,6 +592,14 @@ export async function getEventEngagementDashboard(
 			20,
 			searchClusterMode,
 		);
+		const currentEngagedVisitRate = toPercent(
+			trafficSummary.engagedSessionCount,
+			trafficSummary.uniqueVisitorCount,
+		);
+		const previousEngagedVisitRate = toPercent(
+			previousTrafficSummary.engagedSessionCount,
+			previousTrafficSummary.uniqueVisitorCount,
+		);
 
 		return {
 			success: true,
@@ -493,10 +608,21 @@ export async function getEventEngagementDashboard(
 			summary: {
 				pageViewCount: trafficSummary.pageViewCount,
 				uniqueVisitorCount: trafficSummary.uniqueVisitorCount,
-				engagedVisitRate: toPercent(
-					trafficSummary.engagedSessionCount,
-					trafficSummary.uniqueVisitorCount,
-				),
+				engagedVisitRate: currentEngagedVisitRate,
+				trafficDeltas: {
+					pageViewCount: toDeltaPercent(
+						trafficSummary.pageViewCount,
+						previousTrafficSummary.pageViewCount,
+					),
+					uniqueVisitorCount: toDeltaPercent(
+						trafficSummary.uniqueVisitorCount,
+						previousTrafficSummary.uniqueVisitorCount,
+					),
+					engagedVisitRate: toDeltaPercent(
+						currentEngagedVisitRate,
+						previousEngagedVisitRate,
+					),
+				},
 				clickCount: summary.clickCount,
 				dedupedViewCount: summary.dedupedViewCount,
 				outboundClickCount: summary.outboundClickCount,
@@ -590,6 +716,34 @@ export async function getEventEngagementDashboard(
 				topDevices,
 				topPlatforms,
 				topBrowsers,
+				topUtmSources,
+				topUtmCampaigns,
+				topLandingPages: topLandingPagesRaw.map((row) => ({
+					...row,
+					engagedVisitRate: toPercent(
+						row.engagedSessionCount,
+						row.visitorCount,
+					),
+					outboundVisitRate: toPercent(
+						row.outboundSessionCount,
+						row.visitorCount,
+					),
+				})),
+				topAttributionSources: topAttributionSourcesRaw.map((row) => ({
+					...row,
+					engagedVisitRate: toPercent(
+						row.engagedSessionCount,
+						row.visitorCount,
+					),
+					outboundVisitRate: toPercent(
+						row.outboundSessionCount,
+						row.visitorCount,
+					),
+					calendarVisitRate: toPercent(
+						row.calendarSessionCount,
+						row.visitorCount,
+					),
+				})),
 			},
 			discovery: {
 				searchClusterMode,
@@ -917,6 +1071,9 @@ export async function exportFirstPartyTrafficCsv(input: {
 			["pages", "path"],
 			["hostnames", "hostname"],
 			["referrers", "referrer"],
+			["utm_sources", "utmSource"],
+			["utm_mediums", "utmMedium"],
+			["utm_campaigns", "utmCampaign"],
 			["countries", "countryCode"],
 			["devices", "deviceClass"],
 			["operating_systems", "platform"],
@@ -927,6 +1084,10 @@ export async function exportFirstPartyTrafficCsv(input: {
 			label: string;
 			pageViewCount: number;
 			uniqueVisitorCount: number;
+			engagedSessionCount?: number;
+			eventOpenSessionCount?: number;
+			outboundSessionCount?: number;
+			calendarSessionCount?: number;
 		}> = [];
 		for (const [panel, dimension] of dimensions) {
 			const panelRows = await discoveryRepository.listTopTrafficDimension({
@@ -940,8 +1101,55 @@ export async function exportFirstPartyTrafficCsv(input: {
 				rows.push({ panel, ...row });
 			}
 		}
+		const [landingPages, attributionSources] = await Promise.all([
+			discoveryRepository.listTopLandingPages({
+				startAt,
+				endAt,
+				limit: 100,
+				includeAuthenticatedOnly,
+			}),
+			discoveryRepository.listTopAttributionSources({
+				startAt,
+				endAt,
+				limit: 100,
+				includeAuthenticatedOnly,
+			}),
+		]);
+		for (const row of landingPages) {
+			rows.push({
+				panel: "landing_pages",
+				label: row.path,
+				pageViewCount: 0,
+				uniqueVisitorCount: row.visitorCount,
+				engagedSessionCount: row.engagedSessionCount,
+				eventOpenSessionCount: row.eventOpenSessionCount,
+				outboundSessionCount: row.outboundSessionCount,
+				calendarSessionCount: row.calendarSessionCount,
+			});
+		}
+		for (const row of attributionSources) {
+			rows.push({
+				panel: "source_conversion",
+				label: `${row.source} / ${row.medium} / ${row.campaign} / ${row.referrer}`,
+				pageViewCount: 0,
+				uniqueVisitorCount: row.visitorCount,
+				engagedSessionCount: row.engagedSessionCount,
+				eventOpenSessionCount: row.eventOpenSessionCount,
+				outboundSessionCount: row.outboundSessionCount,
+				calendarSessionCount: row.calendarSessionCount,
+			});
+		}
 		const csv = [
-			["panel", "label", "page_views", "visitors"]
+			[
+				"panel",
+				"label",
+				"page_views",
+				"visitors",
+				"engaged_sessions",
+				"event_open_sessions",
+				"outbound_sessions",
+				"calendar_sessions",
+			]
 				.map(escapeCsvCell)
 				.join(","),
 			...rows.map((row) =>
@@ -950,6 +1158,10 @@ export async function exportFirstPartyTrafficCsv(input: {
 					row.label,
 					row.pageViewCount,
 					row.uniqueVisitorCount,
+					row.engagedSessionCount ?? "",
+					row.eventOpenSessionCount ?? "",
+					row.outboundSessionCount ?? "",
+					row.calendarSessionCount ?? "",
 				]
 					.map(escapeCsvCell)
 					.join(","),

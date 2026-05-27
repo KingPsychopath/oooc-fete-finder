@@ -50,6 +50,11 @@ type DiscoveryAnalyticsPayload = {
 	path: string;
 	hostname?: string;
 	referrer?: string;
+	utmSource?: string;
+	utmMedium?: string;
+	utmCampaign?: string;
+	utmContent?: string;
+	utmTerm?: string;
 	clientContext: ClientContext;
 	recordedAt: string;
 };
@@ -505,6 +510,11 @@ export const trackDiscoveryAnalytics = (input: {
 	path?: string;
 	hostname?: string;
 	referrer?: string;
+	utmSource?: string;
+	utmMedium?: string;
+	utmCampaign?: string;
+	utmContent?: string;
+	utmTerm?: string;
 }) => {
 	if (typeof window === "undefined") return;
 	if (!shouldTrackDiscoveryAction(input.actionType)) return;
@@ -534,6 +544,11 @@ export const trackDiscoveryAnalytics = (input: {
 		path: input.path ?? window.location.pathname,
 		hostname: input.hostname,
 		referrer: input.referrer,
+		utmSource: input.utmSource,
+		utmMedium: input.utmMedium,
+		utmCampaign: input.utmCampaign,
+		utmContent: input.utmContent,
+		utmTerm: input.utmTerm,
 		clientContext: getClientContext(),
 		recordedAt: new Date().toISOString(),
 	};
@@ -544,6 +559,11 @@ export const trackPageView = (input?: {
 	path?: string;
 	hostname?: string;
 	referrer?: string;
+	utmSource?: string;
+	utmMedium?: string;
+	utmCampaign?: string;
+	utmContent?: string;
+	utmTerm?: string;
 }) => {
 	if (typeof window === "undefined") return;
 	trackDiscoveryAnalytics({
@@ -551,6 +571,11 @@ export const trackPageView = (input?: {
 		path: input?.path ?? window.location.pathname,
 		hostname: input?.hostname ?? window.location.hostname,
 		referrer: input?.referrer,
+		utmSource: input?.utmSource,
+		utmMedium: input?.utmMedium,
+		utmCampaign: input?.utmCampaign,
+		utmContent: input?.utmContent,
+		utmTerm: input?.utmTerm,
 	});
 };
 

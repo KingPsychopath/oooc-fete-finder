@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 const EXCLUDED_PATH_PREFIXES = ["/admin"] as const;
-
 const normalizeReferrer = (referrer: string): string => {
 	if (!referrer) return "direct";
 	try {
@@ -34,11 +33,17 @@ export function FirstPartyAnalytics() {
 			previousPathname.current === null
 				? normalizeReferrer(document.referrer)
 				: "internal";
+		const searchParams = new URLSearchParams(window.location.search);
 		previousPathname.current = pathname;
 		trackPageView({
 			path: pathname,
 			hostname: window.location.hostname,
 			referrer,
+			utmSource: searchParams.get("utm_source") ?? undefined,
+			utmMedium: searchParams.get("utm_medium") ?? undefined,
+			utmCampaign: searchParams.get("utm_campaign") ?? undefined,
+			utmContent: searchParams.get("utm_content") ?? undefined,
+			utmTerm: searchParams.get("utm_term") ?? undefined,
 		});
 	}, [pathname]);
 

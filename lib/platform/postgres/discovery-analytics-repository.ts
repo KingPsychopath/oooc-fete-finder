@@ -33,6 +33,11 @@ export interface DiscoveryAnalyticsRecordInput {
 	path?: string | null;
 	hostname?: string | null;
 	referrer?: string | null;
+	utmSource?: string | null;
+	utmMedium?: string | null;
+	utmCampaign?: string | null;
+	utmContent?: string | null;
+	utmTerm?: string | null;
 	countryCode?: string | null;
 	isAuthenticated?: boolean | null;
 	deviceClass?: string | null;
@@ -94,6 +99,11 @@ export class DiscoveryAnalyticsRepository {
 				path TEXT,
 				hostname TEXT,
 				referrer TEXT,
+				utm_source TEXT,
+				utm_medium TEXT,
+				utm_campaign TEXT,
+				utm_content TEXT,
+				utm_term TEXT,
 				country_code TEXT,
 				is_authenticated BOOLEAN,
 				device_class TEXT,
@@ -120,6 +130,16 @@ export class DiscoveryAnalyticsRepository {
 			.sql`ALTER TABLE app_discovery_analytics_stats ADD COLUMN IF NOT EXISTS hostname TEXT`;
 		await this
 			.sql`ALTER TABLE app_discovery_analytics_stats ADD COLUMN IF NOT EXISTS referrer TEXT`;
+		await this
+			.sql`ALTER TABLE app_discovery_analytics_stats ADD COLUMN IF NOT EXISTS utm_source TEXT`;
+		await this
+			.sql`ALTER TABLE app_discovery_analytics_stats ADD COLUMN IF NOT EXISTS utm_medium TEXT`;
+		await this
+			.sql`ALTER TABLE app_discovery_analytics_stats ADD COLUMN IF NOT EXISTS utm_campaign TEXT`;
+		await this
+			.sql`ALTER TABLE app_discovery_analytics_stats ADD COLUMN IF NOT EXISTS utm_content TEXT`;
+		await this
+			.sql`ALTER TABLE app_discovery_analytics_stats ADD COLUMN IF NOT EXISTS utm_term TEXT`;
 		await this
 			.sql`ALTER TABLE app_discovery_analytics_stats ADD COLUMN IF NOT EXISTS country_code TEXT`;
 		await this.sql`
@@ -164,6 +184,11 @@ export class DiscoveryAnalyticsRepository {
 			WHERE action_type = 'page_view'
 		`;
 		await this.sql`
+			CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_utm
+			ON app_discovery_analytics_stats (utm_source, utm_medium, utm_campaign, recorded_at DESC)
+			WHERE action_type = 'page_view'
+		`;
+		await this.sql`
 				CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_user_time
 				ON app_discovery_analytics_stats (user_id, recorded_at DESC)
 			`;
@@ -193,6 +218,11 @@ export class DiscoveryAnalyticsRepository {
 				path,
 				hostname,
 				referrer,
+				utm_source,
+				utm_medium,
+				utm_campaign,
+				utm_content,
+				utm_term,
 				country_code,
 				is_authenticated,
 				device_class,
@@ -213,6 +243,11 @@ export class DiscoveryAnalyticsRepository {
 				${cleanString(input.path, 280)},
 				${cleanString(input.hostname, 120)},
 				${cleanString(input.referrer, 180)},
+				${cleanString(input.utmSource?.toLowerCase(), 120)},
+				${cleanString(input.utmMedium?.toLowerCase(), 80)},
+				${cleanString(input.utmCampaign?.toLowerCase(), 160)},
+				${cleanString(input.utmContent?.toLowerCase(), 160)},
+				${cleanString(input.utmTerm?.toLowerCase(), 160)},
 				${cleanString(input.countryCode?.toUpperCase(), 2)},
 				${input.isAuthenticated ?? null},
 				${cleanString(input.deviceClass, 40)},
@@ -421,6 +456,9 @@ export class DiscoveryAnalyticsRepository {
 			| "path"
 			| "hostname"
 			| "referrer"
+			| "utmSource"
+			| "utmMedium"
+			| "utmCampaign"
 			| "countryCode"
 			| "deviceClass"
 			| "platform"
@@ -449,6 +487,12 @@ export class DiscoveryAnalyticsRepository {
 					return this.sql`COALESCE(NULLIF(hostname, ''), 'unknown')`;
 				case "referrer":
 					return this.sql`COALESCE(NULLIF(referrer, ''), 'direct')`;
+				case "utmSource":
+					return this.sql`COALESCE(NULLIF(utm_source, ''), 'none')`;
+				case "utmMedium":
+					return this.sql`COALESCE(NULLIF(utm_medium, ''), 'none')`;
+				case "utmCampaign":
+					return this.sql`COALESCE(NULLIF(utm_campaign, ''), 'none')`;
 				case "countryCode":
 					return this.sql`COALESCE(NULLIF(country_code, ''), 'unknown')`;
 				case "deviceClass":
@@ -477,6 +521,190 @@ export class DiscoveryAnalyticsRepository {
 				${userScopeFilter}
 			GROUP BY 1
 			ORDER BY "pageViewCount" DESC, "uniqueVisitorCount" DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows;
+	}
+
+	async listTopLandingPages(input: {
+		startAt: string;
+		endAt: string;
+		limit: number;
+		includeAuthenticatedOnly?: boolean;
+	}): Promise<
+		Array<{
+			path: string;
+			visitorCount: number;
+			engagedSessionCount: number;
+			eventOpenSessionCount: number;
+			outboundSessionCount: number;
+			calendarSessionCount: number;
+		}>
+	> {
+		await this.ready();
+		const safeLimit = Math.max(1, Math.min(input.limit, 100));
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND page_views.user_id IS NOT NULL`
+			: this.sql``;
+		const rows = await this.sql<
+			Array<{
+				path: string;
+				visitorCount: number;
+				engagedSessionCount: number;
+				eventOpenSessionCount: number;
+				outboundSessionCount: number;
+				calendarSessionCount: number;
+			}>
+		>`
+			WITH first_page_views AS (
+				SELECT DISTINCT ON (session_id)
+					session_id,
+					COALESCE(NULLIF(path, ''), '/') AS path,
+					recorded_at,
+					user_id
+				FROM app_discovery_analytics_stats page_views
+				WHERE action_type = 'page_view'
+					AND session_id IS NOT NULL
+					AND recorded_at >= ${input.startAt}
+					AND recorded_at < ${input.endAt}
+					${userScopeFilter}
+				ORDER BY session_id, recorded_at ASC
+			),
+			discovery_engagement AS (
+				SELECT DISTINCT session_id
+				FROM app_discovery_analytics_stats
+				WHERE action_type <> 'page_view'
+					AND session_id IS NOT NULL
+					AND recorded_at >= ${input.startAt}
+					AND recorded_at < ${input.endAt}
+			),
+			event_engagement AS (
+				SELECT
+					session_id,
+					BOOL_OR(action_type = 'click') AS opened_event,
+					BOOL_OR(action_type = 'outbound_click') AS clicked_outbound,
+					BOOL_OR(action_type = 'calendar_sync') AS synced_calendar
+				FROM app_event_engagement_stats
+				WHERE session_id IS NOT NULL
+					AND recorded_at >= ${input.startAt}
+					AND recorded_at < ${input.endAt}
+				GROUP BY session_id
+			)
+			SELECT
+				first_page_views.path,
+				COUNT(*)::int AS "visitorCount",
+				COUNT(*) FILTER (
+					WHERE discovery_engagement.session_id IS NOT NULL
+						OR event_engagement.session_id IS NOT NULL
+				)::int AS "engagedSessionCount",
+				COUNT(*) FILTER (WHERE event_engagement.opened_event)::int AS "eventOpenSessionCount",
+				COUNT(*) FILTER (WHERE event_engagement.clicked_outbound)::int AS "outboundSessionCount",
+				COUNT(*) FILTER (WHERE event_engagement.synced_calendar)::int AS "calendarSessionCount"
+			FROM first_page_views
+			LEFT JOIN discovery_engagement
+				ON discovery_engagement.session_id = first_page_views.session_id
+			LEFT JOIN event_engagement
+				ON event_engagement.session_id = first_page_views.session_id
+			GROUP BY first_page_views.path
+			ORDER BY "visitorCount" DESC, "engagedSessionCount" DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows;
+	}
+
+	async listTopAttributionSources(input: {
+		startAt: string;
+		endAt: string;
+		limit: number;
+		includeAuthenticatedOnly?: boolean;
+	}): Promise<
+		Array<{
+			source: string;
+			medium: string;
+			campaign: string;
+			referrer: string;
+			visitorCount: number;
+			engagedSessionCount: number;
+			eventOpenSessionCount: number;
+			outboundSessionCount: number;
+			calendarSessionCount: number;
+		}>
+	> {
+		await this.ready();
+		const safeLimit = Math.max(1, Math.min(input.limit, 100));
+		const userScopeFilter = input.includeAuthenticatedOnly
+			? this.sql`AND page_views.user_id IS NOT NULL`
+			: this.sql``;
+		const rows = await this.sql<
+			Array<{
+				source: string;
+				medium: string;
+				campaign: string;
+				referrer: string;
+				visitorCount: number;
+				engagedSessionCount: number;
+				eventOpenSessionCount: number;
+				outboundSessionCount: number;
+				calendarSessionCount: number;
+			}>
+		>`
+			WITH first_page_views AS (
+				SELECT DISTINCT ON (session_id)
+					session_id,
+					COALESCE(NULLIF(utm_source, ''), NULLIF(referrer, ''), 'direct') AS source,
+					COALESCE(NULLIF(utm_medium, ''), CASE WHEN referrer IN ('direct', 'internal') OR referrer IS NULL THEN 'direct' ELSE 'referral' END) AS medium,
+					COALESCE(NULLIF(utm_campaign, ''), 'none') AS campaign,
+					COALESCE(NULLIF(referrer, ''), 'direct') AS referrer,
+					recorded_at,
+					user_id
+				FROM app_discovery_analytics_stats page_views
+				WHERE action_type = 'page_view'
+					AND session_id IS NOT NULL
+					AND recorded_at >= ${input.startAt}
+					AND recorded_at < ${input.endAt}
+					${userScopeFilter}
+				ORDER BY session_id, recorded_at ASC
+			),
+			discovery_engagement AS (
+				SELECT DISTINCT session_id
+				FROM app_discovery_analytics_stats
+				WHERE action_type <> 'page_view'
+					AND session_id IS NOT NULL
+					AND recorded_at >= ${input.startAt}
+					AND recorded_at < ${input.endAt}
+			),
+			event_engagement AS (
+				SELECT
+					session_id,
+					BOOL_OR(action_type = 'click') AS opened_event,
+					BOOL_OR(action_type = 'outbound_click') AS clicked_outbound,
+					BOOL_OR(action_type = 'calendar_sync') AS synced_calendar
+				FROM app_event_engagement_stats
+				WHERE session_id IS NOT NULL
+					AND recorded_at >= ${input.startAt}
+					AND recorded_at < ${input.endAt}
+				GROUP BY session_id
+			)
+			SELECT
+				first_page_views.source,
+				first_page_views.medium,
+				first_page_views.campaign,
+				first_page_views.referrer,
+				COUNT(*)::int AS "visitorCount",
+				COUNT(*) FILTER (
+					WHERE discovery_engagement.session_id IS NOT NULL
+						OR event_engagement.session_id IS NOT NULL
+				)::int AS "engagedSessionCount",
+				COUNT(*) FILTER (WHERE event_engagement.opened_event)::int AS "eventOpenSessionCount",
+				COUNT(*) FILTER (WHERE event_engagement.clicked_outbound)::int AS "outboundSessionCount",
+				COUNT(*) FILTER (WHERE event_engagement.synced_calendar)::int AS "calendarSessionCount"
+			FROM first_page_views
+			LEFT JOIN discovery_engagement
+				ON discovery_engagement.session_id = first_page_views.session_id
+			LEFT JOIN event_engagement
+				ON event_engagement.session_id = first_page_views.session_id
+			GROUP BY first_page_views.source, first_page_views.medium, first_page_views.campaign, first_page_views.referrer
+			ORDER BY "outboundSessionCount" DESC, "calendarSessionCount" DESC, "eventOpenSessionCount" DESC, "visitorCount" DESC
 			LIMIT ${safeLimit}
 		`;
 		return rows;

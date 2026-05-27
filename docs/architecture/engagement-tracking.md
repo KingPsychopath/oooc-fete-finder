@@ -45,8 +45,8 @@ Additional first-party analytics routes:
 - `POST /api/analytics/discovery`
 - Tracks `page_view`, `search`, `filter_apply`, `filter_clear`, map, sort, location, tour, and navigation signals
 - Writes to `app_discovery_analytics_stats`
-- Page views are first-party product traffic events. They store path, hostname, coarse referrer hostname, optional country code from deployment headers, device class, platform, browser family, timezone, locale, session ID, and authenticated user context when available.
-- Admin routes are not page-view tracked, so analytics usage does not inflate product traffic panels.
+- Page views are first-party product traffic events. They store path, hostname, coarse referrer hostname, UTM source/medium/campaign/content/term, optional country code from deployment headers, device class, platform, browser family, timezone, locale, session ID, and authenticated user context when available.
+- Admin routes and obvious bot/preview/monitor user agents are not page-view tracked, so analytics usage and crawlers do not inflate product traffic panels.
 
 - `POST /api/user/preferences`
 - Tracks authenticated genre preference increments
@@ -57,7 +57,7 @@ Additional first-party analytics routes:
 Analytics is available in `/admin/insights`:
 
 - `Event Engagement Stats` card
-- First-party traffic overview (page views, visitors, engaged visit rate, pages, referrers, hostnames, countries, devices, operating systems, browsers)
+- First-party traffic overview (page views, visitors, previous-period deltas, engaged visit rate, source conversion, landing pages, UTM campaigns, referrers, hostnames, countries, devices, operating systems, browsers)
 - Event-level ROI metrics (views, outbound, calendar)
 - Discovery analytics (top searches and filters)
 - Traffic CSV export

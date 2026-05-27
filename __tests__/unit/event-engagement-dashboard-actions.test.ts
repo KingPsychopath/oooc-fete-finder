@@ -14,6 +14,8 @@ type Setup = {
 		summarizeTrafficWindow: ReturnType<typeof vi.fn>;
 		listDailyTrafficSeries: ReturnType<typeof vi.fn>;
 		listTopTrafficDimension: ReturnType<typeof vi.fn>;
+		listTopLandingPages: ReturnType<typeof vi.fn>;
+		listTopAttributionSources: ReturnType<typeof vi.fn>;
 		listTopSearches: ReturnType<typeof vi.fn>;
 		listTopFilters: ReturnType<typeof vi.fn>;
 		listTopDiscoveryActions: ReturnType<typeof vi.fn>;
@@ -84,6 +86,29 @@ const loadActions = async (): Promise<Setup> => {
 			},
 		]),
 		listTopTrafficDimension: vi.fn().mockResolvedValue([]),
+		listTopLandingPages: vi.fn().mockResolvedValue([
+			{
+				path: "/",
+				visitorCount: 5,
+				engagedSessionCount: 3,
+				eventOpenSessionCount: 2,
+				outboundSessionCount: 1,
+				calendarSessionCount: 1,
+			},
+		]),
+		listTopAttributionSources: vi.fn().mockResolvedValue([
+			{
+				source: "instagram",
+				medium: "social",
+				campaign: "launch",
+				referrer: "instagram.com",
+				visitorCount: 5,
+				engagedSessionCount: 3,
+				eventOpenSessionCount: 2,
+				outboundSessionCount: 1,
+				calendarSessionCount: 1,
+			},
+		]),
 		listTopSearches: vi.fn().mockResolvedValue([]),
 		listTopFilters: vi.fn().mockResolvedValue([]),
 		listTopDiscoveryActions: vi.fn().mockResolvedValue([]),
@@ -161,10 +186,21 @@ describe("getEventEngagementDashboard", () => {
 		expect(result.summary.pageViewCount).toBe(12);
 		expect(result.summary.uniqueVisitorCount).toBe(5);
 		expect(result.summary.engagedVisitRate).toBe(60);
+		expect(result.summary.trafficDeltas.pageViewCount).toBe(0);
 		expect(result.dailySeries[0]).toMatchObject({
 			day: "2026-05-27",
 			pageViewCount: 12,
 			uniqueVisitorCount: 5,
+		});
+		expect(result.traffic.topLandingPages[0]).toMatchObject({
+			path: "/",
+			engagedVisitRate: 60,
+			outboundVisitRate: 20,
+		});
+		expect(result.traffic.topAttributionSources[0]).toMatchObject({
+			source: "instagram",
+			outboundVisitRate: 20,
+			calendarVisitRate: 20,
 		});
 		expect(getDiscoveryRepository.listTopTrafficDimension).toHaveBeenCalledWith(
 			expect.objectContaining({ dimension: "referrer" }),

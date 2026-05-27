@@ -335,6 +335,12 @@ const FILTER_VALUE_PLACEHOLDER: Record<DiscoveryFilterGroup, string> = {
 
 const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
+const formatDelta = (value: number | null): string => {
+	if (value === null) return "new";
+	if (value > 0) return `+${value.toFixed(1)}%`;
+	return `${value.toFixed(1)}%`;
+};
+
 const normalizeRuleKey = (rule: SegmentFilterRule): string =>
 	`${rule.filterGroup}:${rule.filterValue.trim().toLowerCase()}`;
 
@@ -475,10 +481,12 @@ const SummaryMetric = ({
 	label,
 	value,
 	description,
+	delta,
 }: {
 	label: string;
 	value: string | number;
 	description: string;
+	delta?: number | null;
 }) => (
 	<div className="rounded-md border bg-background/60 px-2.5 py-2">
 		<div className="flex items-start justify-between gap-2">
@@ -504,7 +512,22 @@ const SummaryMetric = ({
 				</Tooltip>
 			</TooltipProvider>
 		</div>
-		<p className="mt-0.5 text-sm font-semibold tabular-nums">{value}</p>
+		<div className="mt-0.5 flex items-baseline justify-between gap-2">
+			<p className="text-sm font-semibold tabular-nums">{value}</p>
+			{delta !== undefined ? (
+				<p
+					className={`text-[10px] tabular-nums ${
+						delta === null
+							? "text-muted-foreground"
+							: delta >= 0
+								? "text-emerald-700"
+								: "text-rose-700"
+					}`}
+				>
+					{formatDelta(delta)}
+				</p>
+			) : null}
+		</div>
 	</div>
 );
 
@@ -625,6 +648,11 @@ export const EventEngagementStatsCard = ({
 				pageViewCount: 0,
 				uniqueVisitorCount: 0,
 				engagedVisitRate: 0,
+				trafficDeltas: {
+					pageViewCount: null,
+					uniqueVisitorCount: null,
+					engagedVisitRate: null,
+				},
 				clickCount: 0,
 				dedupedViewCount: 0,
 				outboundClickCount: 0,
@@ -654,6 +682,10 @@ export const EventEngagementStatsCard = ({
 				topDevices: [],
 				topPlatforms: [],
 				topBrowsers: [],
+				topUtmSources: [],
+				topUtmCampaigns: [],
+				topLandingPages: [],
+				topAttributionSources: [],
 			};
 
 	const discovery = payload?.success
@@ -742,6 +774,51 @@ export const EventEngagementStatsCard = ({
 				row.mapOpenCount,
 			),
 		),
+	);
+	const topAttributionSource = traffic.topAttributionSources[0] ?? null;
+	const topLandingPage = traffic.topLandingPages[0] ?? null;
+	const topCampaign = traffic.topUtmCampaigns.find(
+		(row) => row.label !== "none",
+	);
+	const trafficActionCards = [
+		topAttributionSource
+			? {
+					key: "best-source",
+					label: "Best Source",
+					title:
+						topAttributionSource.campaign !== "none"
+							? `${formatContextLabel(topAttributionSource.source)} / ${topAttributionSource.campaign}`
+							: formatContextLabel(topAttributionSource.source),
+					detail: `${topAttributionSource.outboundSessionCount} ticket/info sessions from ${topAttributionSource.visitorCount} visitors`,
+					value: formatPercent(topAttributionSource.outboundVisitRate),
+				}
+			: null,
+		topLandingPage
+			? {
+					key: "top-landing",
+					label: "Top Landing Page",
+					title: topLandingPage.path,
+					detail: `${topLandingPage.engagedSessionCount} engaged sessions from ${topLandingPage.visitorCount} visitors`,
+					value: formatPercent(topLandingPage.engagedVisitRate),
+				}
+			: null,
+		topCampaign
+			? {
+					key: "top-campaign",
+					label: "Top Campaign",
+					title: topCampaign.label,
+					detail: `${topCampaign.pageViewCount} page views, ${topCampaign.uniqueVisitorCount} visitors`,
+					value: `${topCampaign.uniqueVisitorCount}`,
+				}
+			: null,
+	].filter(
+		(card): card is {
+			key: string;
+			label: string;
+			title: string;
+			detail: string;
+			value: string;
+		} => Boolean(card),
 	);
 	const selectedRuleCount =
 		filterRules.length + genreRules.length + (searchRule ? 1 : 0);
@@ -1391,6 +1468,7 @@ export const EventEngagementStatsCard = ({
 										: summary[metric.key]
 								}
 								description={metric.description}
+								delta={summary.trafficDeltas[metric.key]}
 							/>
 						))}
 					</div>
@@ -1476,105 +1554,235 @@ export const EventEngagementStatsCard = ({
 							{isTrafficExporting ? "Exporting..." : "Export Traffic CSV"}
 						</Button>
 					</div>
-					<div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-						{[
-							{
-								label: "Pages",
-								rows: traffic.topPages,
-								empty: "No page-view data yet.",
-							},
-							{
-								label: "Referrers",
-								rows: traffic.topReferrers,
-								empty: "No referrer data yet.",
-							},
-							{
-								label: "Hostnames",
-								rows: traffic.topHostnames,
-								empty: "No hostname data yet.",
-							},
-							{
-								label: "Countries",
-								rows: traffic.topCountries.map((row) => ({
-									...row,
-									label:
-										row.label === "unknown" ? "Unknown" : row.label.toUpperCase(),
-								})),
-								empty: "No country data yet.",
-							},
-							{
-								label: "Devices",
-								rows: traffic.topDevices.map((row) => ({
-									...row,
-									label: formatContextLabel(row.label),
-								})),
-								empty: "No device data yet.",
-							},
-							{
-								label: "Operating Systems",
-								rows: traffic.topPlatforms.map((row) => ({
-									...row,
-									label: formatContextLabel(row.label),
-								})),
-								empty: "No OS data yet.",
-							},
-							{
-								label: "Browsers",
-								rows: traffic.topBrowsers.map((row) => ({
-									...row,
-									label: formatContextLabel(row.label),
-								})),
-								empty: "No browser data yet.",
-							},
-						].map((group) => {
-							const maxGroupValue = Math.max(
-								1,
-								...group.rows.map((row) => row.pageViewCount),
-							);
-							return (
-								<div key={group.label} className="space-y-2">
-									<p className="text-xs font-medium text-foreground">
-										{group.label}
+					{trafficActionCards.length > 0 ? (
+						<div className="grid gap-2 lg:grid-cols-3">
+							{trafficActionCards.map((card) => (
+								<div
+									key={card.key}
+									className="rounded-md border bg-background/70 p-3"
+								>
+									<p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+										{card.label}
 									</p>
-									{group.rows.length === 0 ? (
-										<p className="text-xs text-muted-foreground">
-											{group.empty}
-										</p>
-									) : (
-										<div className="space-y-1.5">
-											{group.rows.slice(0, 8).map((row) => (
-												<div key={row.label} className="space-y-1">
-													<div className="flex justify-between gap-2 text-xs">
-														<span className="min-w-0 truncate">
-															{row.label}
-														</span>
-														<span className="shrink-0 tabular-nums">
-															{row.pageViewCount} views ·{" "}
-															{row.uniqueVisitorCount} visitors
-														</span>
-													</div>
-													<div className="h-2 rounded-full bg-muted/70">
-														<div
-															className="h-2 rounded-full bg-sky-700/80"
-															style={{
-																width: `${Math.max(
-																	row.pageViewCount > 0 ? 6 : 0,
-																	Math.round(
-																		(row.pageViewCount / maxGroupValue) *
-																			100,
-																	),
-																)}%`,
-															}}
-														/>
-													</div>
-												</div>
-											))}
+									<div className="mt-1 flex items-start justify-between gap-3">
+										<div className="min-w-0">
+											<p className="truncate text-sm font-medium text-foreground">
+												{card.title}
+											</p>
+											<p className="mt-0.5 text-[11px] text-muted-foreground">
+												{card.detail}
+											</p>
 										</div>
-									)}
+										<p className="shrink-0 text-sm font-semibold tabular-nums">
+											{card.value}
+										</p>
+									</div>
 								</div>
-							);
-						})}
+							))}
+						</div>
+					) : null}
+					<div className="grid gap-4 lg:grid-cols-2">
+						<div className="space-y-2">
+							<p className="text-xs font-medium text-foreground">
+								Source Conversion
+							</p>
+							{traffic.topAttributionSources.length === 0 ? (
+								<p className="text-xs text-muted-foreground">
+									No source conversion data yet.
+								</p>
+							) : (
+								<div className="space-y-1.5">
+									{traffic.topAttributionSources.slice(0, 6).map((row) => (
+										<div
+											key={`${row.source}-${row.medium}-${row.campaign}-${row.referrer}`}
+											className="rounded-md border bg-background/70 p-2"
+										>
+											<div className="flex items-start justify-between gap-2">
+												<div className="min-w-0">
+													<p className="truncate text-xs font-medium">
+														{formatContextLabel(row.source)}
+														{row.campaign !== "none"
+															? ` / ${row.campaign}`
+															: ""}
+													</p>
+													<p className="truncate text-[11px] text-muted-foreground">
+														{row.medium} · {row.referrer}
+													</p>
+												</div>
+												<p className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+													{row.visitorCount} visitors
+												</p>
+											</div>
+											<p className="mt-1 text-[11px] text-muted-foreground">
+												{row.eventOpenSessionCount} opened events ·{" "}
+												{row.outboundSessionCount} clicked links ·{" "}
+												{formatPercent(row.outboundVisitRate)} link rate
+											</p>
+										</div>
+									))}
+								</div>
+							)}
+						</div>
+						<div className="space-y-2">
+							<p className="text-xs font-medium text-foreground">
+								Landing Pages
+							</p>
+							{traffic.topLandingPages.length === 0 ? (
+								<p className="text-xs text-muted-foreground">
+									No landing page data yet.
+								</p>
+							) : (
+								<div className="space-y-1.5">
+									{traffic.topLandingPages.slice(0, 6).map((row) => (
+										<div
+											key={row.path}
+											className="rounded-md border bg-background/70 p-2"
+										>
+											<div className="flex items-start justify-between gap-2">
+												<p className="min-w-0 truncate text-xs font-medium">
+													{row.path}
+												</p>
+												<p className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+													{row.visitorCount} visitors
+												</p>
+											</div>
+											<p className="mt-1 text-[11px] text-muted-foreground">
+												{formatPercent(row.engagedVisitRate)} engaged ·{" "}
+												{row.eventOpenSessionCount} event-open sessions ·{" "}
+												{row.outboundSessionCount} link sessions
+											</p>
+										</div>
+									))}
+								</div>
+							)}
+						</div>
 					</div>
+					<details className="rounded-md border bg-background/45 p-3">
+						<summary className="cursor-pointer text-xs font-medium text-foreground">
+							Advanced traffic breakdown
+						</summary>
+						<div className="mt-3 grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+							{[
+								{
+									label: "Pages",
+									rows: traffic.topPages,
+									empty: "No page-view data yet.",
+								},
+								{
+									label: "Referrers",
+									rows: traffic.topReferrers,
+									empty: "No referrer data yet.",
+								},
+								{
+									label: "UTM Sources",
+									rows: traffic.topUtmSources.map((row) => ({
+										...row,
+										label:
+											row.label === "none"
+												? "No UTM source"
+												: formatContextLabel(row.label),
+									})),
+									empty: "No UTM source data yet.",
+								},
+								{
+									label: "UTM Campaigns",
+									rows: traffic.topUtmCampaigns.map((row) => ({
+										...row,
+										label: row.label === "none" ? "No campaign" : row.label,
+									})),
+									empty: "No UTM campaign data yet.",
+								},
+								{
+									label: "Hostnames",
+									rows: traffic.topHostnames,
+									empty: "No hostname data yet.",
+								},
+								{
+									label: "Countries",
+									rows: traffic.topCountries.map((row) => ({
+										...row,
+										label:
+											row.label === "unknown"
+												? "Unknown"
+												: row.label.toUpperCase(),
+									})),
+									empty: "No country data yet.",
+								},
+								{
+									label: "Devices",
+									rows: traffic.topDevices.map((row) => ({
+										...row,
+										label: formatContextLabel(row.label),
+									})),
+									empty: "No device data yet.",
+								},
+								{
+									label: "Operating Systems",
+									rows: traffic.topPlatforms.map((row) => ({
+										...row,
+										label: formatContextLabel(row.label),
+									})),
+									empty: "No OS data yet.",
+								},
+								{
+									label: "Browsers",
+									rows: traffic.topBrowsers.map((row) => ({
+										...row,
+										label: formatContextLabel(row.label),
+									})),
+									empty: "No browser data yet.",
+								},
+							].map((group) => {
+								const maxGroupValue = Math.max(
+									1,
+									...group.rows.map((row) => row.pageViewCount),
+								);
+								return (
+									<div key={group.label} className="space-y-2">
+										<p className="text-xs font-medium text-foreground">
+											{group.label}
+										</p>
+										{group.rows.length === 0 ? (
+											<p className="text-xs text-muted-foreground">
+												{group.empty}
+											</p>
+										) : (
+											<div className="space-y-1.5">
+												{group.rows.slice(0, 8).map((row) => (
+													<div key={row.label} className="space-y-1">
+														<div className="flex justify-between gap-2 text-xs">
+															<span className="min-w-0 truncate">
+																{row.label}
+															</span>
+															<span className="shrink-0 tabular-nums">
+																{row.pageViewCount} views ·{" "}
+																{row.uniqueVisitorCount} visitors
+															</span>
+														</div>
+														<div className="h-2 rounded-full bg-muted/70">
+															<div
+																className="h-2 rounded-full bg-sky-700/80"
+																style={{
+																	width: `${Math.max(
+																		row.pageViewCount > 0 ? 6 : 0,
+																		Math.round(
+																			(row.pageViewCount /
+																				maxGroupValue) *
+																				100,
+																		),
+																	)}%`,
+																}}
+															/>
+														</div>
+													</div>
+												))}
+											</div>
+										)}
+									</div>
+								);
+							})}
+						</div>
+					</details>
 				</section>
 
 				<section className="grid gap-4 xl:grid-cols-2">

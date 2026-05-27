@@ -9,7 +9,7 @@
 ## Public Tracking
 
 - `POST /api/analytics/event`: event engagement tracking (`click`, `outbound_click`, `calendar_sync`)
-- `POST /api/analytics/discovery`: discovery analytics tracking (`search`, `filter_apply`, `filter_clear`)
+- `POST /api/analytics/discovery`: first-party traffic and discovery analytics tracking (`page_view`, `search`, `filter_apply`, `filter_clear`, map/sort/location/tour/nav signals)
 - `POST /api/user/preferences`: authenticated user genre preference signal
 
 ## Public Media + Utility
