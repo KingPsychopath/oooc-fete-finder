@@ -17,6 +17,40 @@ import type {
 	UserCollectionStoreSummary,
 } from "../types";
 
+type InsightsTab = "traffic" | "discovery" | "events" | "audience" | "advanced";
+
+const INSIGHTS_TABS: Array<{
+	key: InsightsTab;
+	label: string;
+	description: string;
+}> = [
+	{
+		key: "traffic",
+		label: "Traffic",
+		description: "Visitors, sources, campaigns, landing pages.",
+	},
+	{
+		key: "discovery",
+		label: "Discovery",
+		description: "Search, filters, map, sort, location, tour.",
+	},
+	{
+		key: "events",
+		label: "Events",
+		description: "Event attention, intent, funnel, quality.",
+	},
+	{
+		key: "audience",
+		label: "Audience",
+		description: "Segments, exports, collected users.",
+	},
+	{
+		key: "advanced",
+		label: "Advanced",
+		description: "Raw breakdowns and full event table.",
+	},
+];
+
 type InsightsDashboardClientProps = {
 	initialData: AdminInsightsInitialData;
 };
@@ -38,6 +72,7 @@ export function InsightsDashboardClient({
 				? (initialEmailsResult.analytics ?? null)
 				: null,
 		);
+	const [activeTab, setActiveTab] = useState<InsightsTab>("traffic");
 
 	const loadEmails = useCallback(async () => {
 		const result = await getCollectedEmails();
@@ -78,25 +113,55 @@ export function InsightsDashboardClient({
 
 	return (
 		<div className="space-y-6">
+			<div className="ooo-admin-card-soft rounded-md border p-3">
+				<div className="flex flex-wrap gap-2">
+					{INSIGHTS_TABS.map((tab) => (
+						<button
+							key={tab.key}
+							type="button"
+							onClick={() => setActiveTab(tab.key)}
+							className={`rounded-md border px-3 py-2 text-left transition-colors ${
+								activeTab === tab.key
+									? "border-foreground/35 bg-foreground text-background"
+									: "bg-background/70 text-foreground hover:bg-accent"
+							}`}
+						>
+							<span className="block text-xs font-semibold">{tab.label}</span>
+							<span
+								className={`block text-[11px] ${
+									activeTab === tab.key
+										? "text-background/75"
+										: "text-muted-foreground"
+								}`}
+							>
+								{tab.description}
+							</span>
+						</button>
+					))}
+				</div>
+			</div>
 			<section id="event-engagement-stats" className="scroll-mt-44">
 				<EventEngagementStatsCard
 					initialPayload={initialData.eventEngagementDashboard}
+					activeTab={activeTab}
 				/>
 			</section>
 
-			<section id="collected-users" className="scroll-mt-44">
-				<EmailCollectionCard
-					emails={emails}
-					store={emailStore}
-					analytics={emailAnalytics}
-					onCopyEmails={copyVisibleEmails}
-					onExportCSV={() => void exportAsCSV()}
-					onRefresh={loadEmails}
-					onDeleteEmails={deleteCollectedEmails}
-					onImportEmails={importCollectedEmails}
-					onGetUserProfile={getCollectedUserProfile}
-				/>
-			</section>
+			{activeTab === "audience" ? (
+				<section id="collected-users" className="scroll-mt-44">
+					<EmailCollectionCard
+						emails={emails}
+						store={emailStore}
+						analytics={emailAnalytics}
+						onCopyEmails={copyVisibleEmails}
+						onExportCSV={() => void exportAsCSV()}
+						onRefresh={loadEmails}
+						onDeleteEmails={deleteCollectedEmails}
+						onImportEmails={importCollectedEmails}
+						onGetUserProfile={getCollectedUserProfile}
+					/>
+				</section>
+			) : null}
 		</div>
 	);
 }

@@ -37,6 +37,8 @@ type EventEngagementPayload = Awaited<
 	ReturnType<typeof getEventEngagementDashboard>
 >;
 
+type InsightsTab = "traffic" | "discovery" | "events" | "audience" | "advanced";
+
 type DiscoveryFilterGroup =
 	| "date_range"
 	| "day_night"
@@ -533,8 +535,10 @@ const SummaryMetric = ({
 
 export const EventEngagementStatsCard = ({
 	initialPayload,
+	activeTab = "traffic",
 }: {
 	initialPayload?: EventEngagementPayload;
+	activeTab?: InsightsTab;
 }) => {
 	const [windowDays, setWindowDays] = useState<number>(
 		initialPayload && initialPayload.success
@@ -820,6 +824,11 @@ export const EventEngagementStatsCard = ({
 			value: string;
 		} => Boolean(card),
 	);
+	const showTrafficTab = activeTab === "traffic";
+	const showDiscoveryTab = activeTab === "discovery";
+	const showEventsTab = activeTab === "events";
+	const showAudienceTab = activeTab === "audience";
+	const showAdvancedTab = activeTab === "advanced";
 	const selectedRuleCount =
 		filterRules.length + genreRules.length + (searchRule ? 1 : 0);
 	const attentionThreshold = getMedian(chartRows.map((row) => row.clickCount));
@@ -1367,10 +1376,27 @@ export const EventEngagementStatsCard = ({
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Audience + Performance
 						</p>
-						<CardTitle>Discovery & Event Performance</CardTitle>
+						<CardTitle>
+							{activeTab === "traffic"
+								? "Traffic & Acquisition"
+								: activeTab === "discovery"
+									? "Discovery Behavior"
+									: activeTab === "events"
+										? "Event Performance"
+										: activeTab === "audience"
+											? "Audience Builder"
+											: "Advanced Analytics"}
+						</CardTitle>
 						<CardDescription>
-							Event opens, discovery behavior, external link actions, and
-							audience export in one panel.
+							{activeTab === "traffic"
+								? "Visitors, acquisition sources, campaign attribution, and landing page intent."
+								: activeTab === "discovery"
+									? "Search, filter, map, sort, location, tour, and navigation behavior."
+									: activeTab === "events"
+										? "Event opens, external link intent, calendar actions, and quality signals."
+										: activeTab === "audience"
+											? "Build exportable audience segments from live behavior and collected users."
+											: "Raw traffic dimensions, full live signals, and the complete event performance table."}
 						</CardDescription>
 					</div>
 					<div className="flex max-w-full flex-col items-end gap-2 lg:justify-self-end">
@@ -1453,7 +1479,7 @@ export const EventEngagementStatsCard = ({
 					</div>
 				</div>
 
-				<div className="space-y-2">
+				{(showTrafficTab || showAdvancedTab) ? <div className="space-y-2">
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						First-Party Traffic
 					</p>
@@ -1472,8 +1498,8 @@ export const EventEngagementStatsCard = ({
 							/>
 						))}
 					</div>
-				</div>
-				<div className="space-y-2">
+				</div> : null}
+				{(showEventsTab || showAdvancedTab) ? <div className="space-y-2">
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						Event Performance
 					</p>
@@ -1487,8 +1513,8 @@ export const EventEngagementStatsCard = ({
 							/>
 						))}
 					</div>
-				</div>
-				<div className="space-y-2">
+				</div> : null}
+				{(showDiscoveryTab || showAudienceTab || showAdvancedTab) ? <div className="space-y-2">
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						Discovery Behavior
 					</p>
@@ -1502,8 +1528,8 @@ export const EventEngagementStatsCard = ({
 							/>
 						))}
 					</div>
-				</div>
-				<div className="space-y-2">
+				</div> : null}
+				{(showEventsTab || showAdvancedTab) ? <div className="space-y-2">
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						External Link Action Rates
 					</p>
@@ -1517,7 +1543,7 @@ export const EventEngagementStatsCard = ({
 							/>
 						))}
 					</div>
-				</div>
+				</div> : null}
 
 				{errorMessage ? (
 					<div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
@@ -1532,7 +1558,7 @@ export const EventEngagementStatsCard = ({
 			</CardHeader>
 
 			<CardContent className="space-y-6">
-				<section className="space-y-3 rounded-md border bg-background/55 p-3">
+				{(showTrafficTab || showAdvancedTab) ? <section className="space-y-3 rounded-md border bg-background/55 p-3">
 					<div className="flex flex-wrap items-center justify-between gap-2">
 						<div className="flex items-center">
 							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -1783,9 +1809,9 @@ export const EventEngagementStatsCard = ({
 							})}
 						</div>
 					</details>
-				</section>
+				</section> : null}
 
-				<section className="grid gap-4 xl:grid-cols-2">
+				{(showEventsTab || showAdvancedTab) ? <section className="grid gap-4 xl:grid-cols-2">
 					<div className="space-y-2 rounded-md border bg-background/55 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Top Events By Attention
@@ -1999,9 +2025,9 @@ export const EventEngagementStatsCard = ({
 							</div>
 						)}
 					</div>
-				</section>
+				</section> : null}
 
-				<section className="grid gap-4 xl:grid-cols-3">
+				{(showEventsTab || showAudienceTab || showAdvancedTab) ? <section className="grid gap-4 xl:grid-cols-3">
 					<div className="space-y-2 rounded-md border bg-background/55 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Action Queue
@@ -2125,9 +2151,9 @@ export const EventEngagementStatsCard = ({
 							</div>
 						)}
 					</div>
-				</section>
+				</section> : null}
 
-				<section className="grid gap-4 xl:grid-cols-2">
+				{(showTrafficTab || showEventsTab || showAdvancedTab) ? <section className="grid gap-4 xl:grid-cols-2">
 					<div className="space-y-2 rounded-md border bg-background/55 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Engagement Funnel
@@ -2296,9 +2322,9 @@ export const EventEngagementStatsCard = ({
 							</div>
 						)}
 					</div>
-				</section>
+				</section> : null}
 
-				<section className="space-y-2 rounded-md border bg-background/55 p-3">
+				{(showEventsTab || showAdvancedTab) ? <section className="space-y-2 rounded-md border bg-background/55 p-3">
 					<div className="flex items-center">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Map App Preference
@@ -2363,9 +2389,9 @@ export const EventEngagementStatsCard = ({
 							)}
 						</div>
 					</div>
-				</section>
+				</section> : null}
 
-				<section className="space-y-2 rounded-md border bg-background/55 p-3">
+				{(showDiscoveryTab || showAdvancedTab) ? <section className="space-y-2 rounded-md border bg-background/55 p-3">
 					<div className="flex items-center">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Live Signal Bars
@@ -2540,9 +2566,9 @@ export const EventEngagementStatsCard = ({
 							</div>
 						))}
 					</div>
-				</section>
+				</section> : null}
 
-				<section className="space-y-3 rounded-md border bg-background/55 p-3">
+				{showAudienceTab ? <section className="space-y-3 rounded-md border bg-background/55 p-3">
 					<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 						Audience Segment Export
 					</p>
@@ -2927,7 +2953,7 @@ export const EventEngagementStatsCard = ({
 							{isExporting ? "Exporting..." : "Export Audience Segment CSV"}
 						</Button>
 					</div>
-				</section>
+				</section> : null}
 
 				<section className="grid gap-4 xl:grid-cols-2">
 					<div className="space-y-2 rounded-md border bg-background/55 p-3">
