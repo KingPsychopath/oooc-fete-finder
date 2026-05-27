@@ -13,6 +13,10 @@ export type SheetLocationResolution = Pick<
 	| "id"
 	| "name"
 	| "arrondissement"
+	| "address"
+	| "postalCode"
+	| "city"
+	| "countryCode"
 	| "coordinates"
 	| "source"
 	| "precision"
@@ -23,12 +27,18 @@ export type SheetLocationResolution = Pick<
 	| "lastResolvedAt"
 >;
 
-export type SheetLocationResolutionIndex = Record<string, SheetLocationResolution>;
+export type SheetLocationResolutionIndex = Record<
+	string,
+	SheetLocationResolution
+>;
 
 export type LocationAliasCandidate = {
 	key: string;
 	name: string;
 	arrondissement: ParisArrondissement;
+	postalCode?: string;
+	city?: string;
+	countryCode?: string;
 };
 
 export type LocationAliasMatch = LocationAliasCandidate & {
@@ -44,6 +54,10 @@ export const toSheetLocationResolutionIndex = (
 			id: resolution.id,
 			name: resolution.name,
 			arrondissement: resolution.arrondissement,
+			address: resolution.address,
+			postalCode: resolution.postalCode,
+			city: resolution.city,
+			countryCode: resolution.countryCode,
 			coordinates: resolution.coordinates,
 			source: resolution.source,
 			precision: resolution.precision,
@@ -60,7 +74,11 @@ export const toSheetLocationResolutionIndex = (
 export const getSheetLocationResolutionKey = (
 	locationName: string,
 	arrondissement: ParisArrondissement,
-): string => generateLocationStorageKey(locationName, arrondissement);
+	place: Pick<
+		StoredLocationResolution,
+		"address" | "postalCode" | "city" | "countryCode"
+	> = {},
+): string => generateLocationStorageKey(locationName, arrondissement, place);
 
 export const getSheetLocationTrustState = (
 	resolution: SheetLocationResolution | null | undefined,
@@ -89,14 +107,16 @@ const levenshteinDistance = (left: string, right: string): number => {
 	if (!left) return right.length;
 	if (!right) return left.length;
 
-	const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+	const previous = Array.from(
+		{ length: right.length + 1 },
+		(_, index) => index,
+	);
 	const current = Array.from({ length: right.length + 1 }, () => 0);
 
 	for (let leftIndex = 1; leftIndex <= left.length; leftIndex++) {
 		current[0] = leftIndex;
 		for (let rightIndex = 1; rightIndex <= right.length; rightIndex++) {
-			const cost =
-				left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+			const cost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
 			current[rightIndex] = Math.min(
 				current[rightIndex - 1] + 1,
 				previous[rightIndex] + 1,

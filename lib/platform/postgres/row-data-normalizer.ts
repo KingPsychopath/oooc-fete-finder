@@ -16,10 +16,14 @@ export const normalizeEventSheetRowData = (
 		return {};
 	}
 
-	return Object.fromEntries(
-		Object.entries(source).map(([key, raw]) => [
-			key,
-			raw == null ? "" : String(raw),
-		]),
-	);
+	const entries = Object.entries(source).map(([key, raw]) => [
+		key,
+		raw == null ? "" : String(raw),
+	]);
+	const normalized = Object.fromEntries(entries);
+	if (!normalized.area && normalized.districtArea) {
+		normalized.area = normalized.districtArea;
+	}
+	delete normalized.districtArea;
+	return normalized;
 };

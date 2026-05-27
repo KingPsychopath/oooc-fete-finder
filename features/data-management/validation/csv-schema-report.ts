@@ -79,7 +79,7 @@ export const analyzeCsvSchemaRows = (
 		const rawPicks = String(row.curated ?? "").trim();
 		const rawHostCountry = String(row.hostCountry ?? "").trim();
 		const rawAudienceCountry = String(row.audienceCountry ?? "").trim();
-		const rawArrondissement = String(row.districtArea ?? "").trim();
+		const rawArrondissement = String(row.area ?? "").trim();
 		const rawVenue = String(row.setting ?? "").trim();
 		const rawDate = String(row.date ?? "").trim();
 		const rawDateTo = String(row.dateTo ?? "").trim();
@@ -200,11 +200,11 @@ export const analyzeCsvSchemaRows = (
 				pushIssue(issues, {
 					severity: "warning",
 					code: "arrondissement_unexpected",
-					column: "District/Area",
+					column: "Area",
 					rowIndex,
 					value: rawArrondissement,
 					message:
-						'Unexpected district/area value. Use 1-20, "Multiple Locations", "Location TBC", "-" or leave blank.',
+						'Unexpected area value. Use 1-20, "Multiple Locations", "Location TBC", "-" or leave blank.',
 				});
 			}
 		}

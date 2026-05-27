@@ -22,7 +22,7 @@ export const CSV_EVENT_COLUMNS = [
 	"startTime",
 	"endTime",
 	"location",
-	"districtArea",
+	"area",
 	"categories",
 	"tags",
 	"price",
@@ -52,7 +52,18 @@ const COLUMN_MAPPINGS = {
 	startTime: ["Start Time", "startTime", "Start time"],
 	endTime: ["End Time", "endTime", "End time"],
 	location: ["Location", "location"],
-	districtArea: ["District/Area", "districtArea", "Arr.", "Arrondissement"],
+	locationAddress: ["Address", "Location Address", "locationAddress"],
+	postalCode: ["Postal Code", "Postcode", "Code Postal", "postalCode"],
+	city: ["City", "Ville", "city"],
+	countryCode: ["Country Code", "countryCode"],
+	area: [
+		"Area",
+		"District/Area",
+		"area",
+		"districtArea",
+		"Arr.",
+		"Arrondissement",
+	],
 	categories: ["Categories", "categories", "Genre", "Genres"],
 	tags: ["Tags", "tags"],
 	price: ["Price", "price"],
@@ -96,7 +107,11 @@ export type CSVEventRow = {
 	startTime: string;
 	endTime: string;
 	location: string;
-	districtArea: string;
+	locationAddress?: string;
+	postalCode?: string;
+	city?: string;
+	countryCode?: string;
+	area: string;
 	categories: string;
 	tags: string;
 	price: string;
@@ -159,7 +174,11 @@ const createColumnMapping = (
 		startTime: null,
 		endTime: null,
 		location: null,
-		districtArea: null,
+		locationAddress: null,
+		postalCode: null,
+		city: null,
+		countryCode: null,
+		area: null,
 		categories: null,
 		tags: null,
 		price: null,
@@ -228,6 +247,10 @@ const createColumnMapping = (
 
 const RECOVERABLE_TRAILING_FIELDS = new Set<keyof CSVEventRow>([
 	"dateTo",
+	"locationAddress",
+	"postalCode",
+	"city",
+	"countryCode",
 	"notes",
 	"sourceConfirmed",
 	"detailsQualityOverride",
@@ -396,9 +419,16 @@ export const parseCSVContent = (csvContent: string): CSVEventRow[] => {
 					endTime: (columnMapping.endTime && row[columnMapping.endTime]) || "",
 					location:
 						(columnMapping.location && row[columnMapping.location]) || "",
-					districtArea:
-						(columnMapping.districtArea && row[columnMapping.districtArea]) ||
+					locationAddress:
+						(columnMapping.locationAddress &&
+							row[columnMapping.locationAddress]) ||
 						"",
+					postalCode:
+						(columnMapping.postalCode && row[columnMapping.postalCode]) || "",
+					city: (columnMapping.city && row[columnMapping.city]) || "",
+					countryCode:
+						(columnMapping.countryCode && row[columnMapping.countryCode]) || "",
+					area: (columnMapping.area && row[columnMapping.area]) || "",
 					categories:
 						(columnMapping.categories && row[columnMapping.categories]) || "",
 					tags: (columnMapping.tags && row[columnMapping.tags]) || "",

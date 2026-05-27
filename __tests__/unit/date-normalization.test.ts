@@ -15,7 +15,7 @@ const makeRow = (date: string): CSVEventRow => ({
 	startTime: "",
 	endTime: "",
 	location: "Paris",
-	districtArea: "11",
+	area: "11",
 	categories: "",
 	tags: "",
 	price: "",

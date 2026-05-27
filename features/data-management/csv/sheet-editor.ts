@@ -45,6 +45,26 @@ export const isEditableSheetRow = (
 
 const HIDDEN_EVENT_COLUMNS = [
 	{
+		key: "locationAddress",
+		label: "Address",
+		aliases: ["Location Address"],
+	},
+	{
+		key: "postalCode",
+		label: "Postal Code",
+		aliases: ["Postcode", "Code Postal"],
+	},
+	{
+		key: "city",
+		label: "City",
+		aliases: ["Ville"],
+	},
+	{
+		key: "countryCode",
+		label: "Country Code",
+		aliases: ["Location Country"],
+	},
+	{
 		key: "sourceConfirmed",
 		label: "Source Confirmed",
 		aliases: ["Details Confirmed", "Verified"],
@@ -91,7 +111,7 @@ const CORE_COLUMN_LABELS: Record<(typeof CSV_EVENT_COLUMNS)[number], string> = {
 	startTime: "Start Time",
 	endTime: "End Time",
 	location: "Location",
-	districtArea: "District/Area",
+	area: "Area",
 	categories: "Categories",
 	tags: "Tags",
 	price: "Price",
@@ -123,6 +143,9 @@ const CORE_HEADER_LOOKUP = new Map<string, string>(
 		[normalizeKey(CORE_COLUMN_LABELS[key]), key],
 	]),
 );
+CORE_HEADER_LOOKUP.set(normalizeKey("District/Area"), "area");
+CORE_HEADER_LOOKUP.set(normalizeKey("Arrondissement"), "area");
+CORE_HEADER_LOOKUP.set(normalizeKey("districtArea"), "area");
 
 const isCoreKey = (key: string): boolean => CORE_COLUMN_SET.has(key);
 const isHiddenEventKey = (key: string): boolean =>
@@ -178,6 +201,10 @@ export const normalizeEditableSheetRowValues = (
 	if (eventCategory) {
 		nextRow.eventCategory = formatEventExperienceCategory(eventCategory);
 	}
+	nextRow.postalCode = (nextRow.postalCode ?? "").trim().replace(/\s+/g, "");
+	nextRow.city = (nextRow.city ?? "").trim().replace(/\s+/g, " ");
+	const countryCode = (nextRow.countryCode ?? "").trim().toUpperCase();
+	nextRow.countryCode = /^[A-Z]{2}$/.test(countryCode) ? countryCode : "";
 	return nextRow;
 };
 
@@ -214,7 +241,7 @@ export const generateEditableSheetSeriesKey = (
 		row.title,
 		row.startTime,
 		row.location,
-		row.districtArea,
+		row.area,
 		row.primaryUrl,
 	]
 		.map((value) =>

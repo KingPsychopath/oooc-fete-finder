@@ -28,13 +28,14 @@ import {
 import { LocationRepository } from "@/features/locations/location-repository";
 import { LocationResolver } from "@/features/locations/location-resolver";
 import {
-	generateLocationStorageKey,
-	isCoordinateResolvableInput,
-} from "@/features/locations/location-utils";
-import {
 	type SheetLocationResolutionIndex,
 	toSheetLocationResolutionIndex,
 } from "@/features/locations/location-sheet-status";
+import {
+	canUseProviderLookupForLocationQuery,
+	generateLocationStorageKey,
+	isCoordinateResolvableInput,
+} from "@/features/locations/location-utils";
 import { createGoogleGeocodingProvider } from "@/features/locations/providers/google-geocoding-provider";
 import type { StoredLocationResolution } from "@/features/locations/types";
 import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
@@ -138,6 +139,10 @@ export interface EventLocationReviewItem {
 	id: string;
 	locationName: string;
 	arrondissement: ParisArrondissement;
+	address?: string;
+	postalCode?: string;
+	city?: string;
+	countryCode?: string;
 	eventCount: number;
 	sampleEvents: Array<{
 		eventKey: string;
@@ -848,7 +853,7 @@ export async function getExpandedEventStoreCsv(keyOrToken?: string): Promise<{
 			"Start Time",
 			"End Time",
 			"Location",
-			"District/Area",
+			"Area",
 			"Categories",
 			"Tags",
 			"Price",
@@ -1206,15 +1211,14 @@ export async function getEventSheetEditorData(keyOrToken?: string): Promise<{
 			genreTaxonomy,
 			sheetRevisions,
 			storedLocations,
-		] =
-			await Promise.all([
-				LocalEventStore.getStatus(),
-				LocalEventStore.getCsv(),
-				LocalEventStore.getRowMetadata(),
-				loadAdminGenreTaxonomy(),
-				revisionRepository ? revisionRepository.listRecent(24) : [],
-				LocationRepository.load(),
-			]);
+		] = await Promise.all([
+			LocalEventStore.getStatus(),
+			LocalEventStore.getCsv(),
+			LocalEventStore.getRowMetadata(),
+			loadAdminGenreTaxonomy(),
+			revisionRepository ? revisionRepository.listRecent(24) : [],
+			LocationRepository.load(),
+		]);
 		const sheet = csvToEditableSheet(csv);
 		const sanitized = stripLegacyFeaturedColumn(sheet.columns, sheet.rows);
 		const sortedRows = sortEditableSheetRowsByDefaultDate(sanitized.rows);
@@ -1747,11 +1751,19 @@ export async function getEventLocationReviewData(
 					? event.locationEntries.map((entry) => ({
 							locationName: entry.name.trim(),
 							arrondissement: entry.arrondissement ?? event.arrondissement,
+							address: entry.address,
+							postalCode: entry.postalCode,
+							city: entry.city,
+							countryCode: entry.countryCode,
 						}))
 					: [
 							{
 								locationName: event.location?.trim() || "",
 								arrondissement: event.arrondissement,
+								address: event.locationAddress,
+								postalCode: event.postalCode,
+								city: event.city,
+								countryCode: event.countryCode,
 							},
 						];
 
@@ -1763,7 +1775,12 @@ export async function getEventLocationReviewData(
 					arrondissement,
 				);
 				const id = isResolvable
-					? generateLocationStorageKey(locationName, arrondissement)
+					? generateLocationStorageKey(locationName, arrondissement, {
+							address: reviewLocation.address,
+							postalCode: reviewLocation.postalCode,
+							city: reviewLocation.city,
+							countryCode: reviewLocation.countryCode,
+						})
 					: `${locationName.toLowerCase()}_${String(arrondissement)}`;
 				const existing = itemsByKey.get(id);
 				if (existing) {
@@ -1804,6 +1821,10 @@ export async function getEventLocationReviewData(
 					id,
 					locationName,
 					arrondissement,
+					address: reviewLocation.address,
+					postalCode: reviewLocation.postalCode,
+					city: reviewLocation.city,
+					countryCode: reviewLocation.countryCode,
 					eventCount: 1,
 					sampleEvents,
 					sampleEventNames: sampleEvents.map((sampleEvent) => sampleEvent.name),
@@ -1849,7 +1870,13 @@ export async function resolveEventLocation(
 	keyOrToken: string | undefined,
 	locationName: string,
 	arrondissementInput: ParisArrondissement,
-	options?: { forceRefresh?: boolean },
+	options?: {
+		forceRefresh?: boolean;
+		address?: string;
+		postalCode?: string;
+		city?: string;
+		countryCode?: string;
+	},
 ): Promise<{
 	success: boolean;
 	message: string;
@@ -1868,8 +1895,22 @@ export async function resolveEventLocation(
 	if (!isCoordinateResolvableInput(name, arrondissement)) {
 		return {
 			success: false,
+			message: "Location needs a venue/address and area before resolving",
+		};
+	}
+	const locationQuery = {
+		locationName: name,
+		arrondissement,
+		address: options?.address,
+		postalCode: options?.postalCode,
+		city: options?.city,
+		countryCode: options?.countryCode,
+	};
+	if (!canUseProviderLookupForLocationQuery(locationQuery)) {
+		return {
+			success: false,
 			message:
-				"Location needs a venue/address and arrondissement before resolving",
+				"Outside Paris and Greater Paris locations need a city, postcode, or address before geocoding",
 		};
 	}
 
@@ -1886,16 +1927,12 @@ export async function resolveEventLocation(
 	try {
 		const storedLocations = await LocationRepository.load();
 		const resolver = new LocationResolver(provider);
-		const resolution = await resolver.resolve(
-			{ locationName: name, arrondissement },
-			storedLocations,
-			{
-				allowProviderLookup: true,
-				allowArrondissementFallback: false,
-				forceRefresh: options?.forceRefresh ?? true,
-				throwOnProviderError: true,
-			},
-		);
+		const resolution = await resolver.resolve(locationQuery, storedLocations, {
+			allowProviderLookup: true,
+			allowArrondissementFallback: false,
+			forceRefresh: options?.forceRefresh ?? true,
+			throwOnProviderError: true,
+		});
 
 		if (!resolution.coordinates || resolution.source !== "geocoded") {
 			return {
@@ -1907,7 +1944,12 @@ export async function resolveEventLocation(
 		await LocationRepository.save(storedLocations);
 		revalidateEventsPaths(["/"]);
 
-		const storageKey = generateLocationStorageKey(name, arrondissement);
+		const storageKey = generateLocationStorageKey(name, arrondissement, {
+			address: options?.address,
+			postalCode: options?.postalCode,
+			city: options?.city,
+			countryCode: options?.countryCode,
+		});
 		await recordAdminActivity({
 			action: "location.resolved",
 			category: "content",
@@ -1952,8 +1994,7 @@ export async function saveManualEventLocation(
 	if (!isCoordinateResolvableInput(name, arrondissement)) {
 		return {
 			success: false,
-			message:
-				"Location needs a venue/address and arrondissement before saving",
+			message: "Location needs a venue/address and area before saving",
 		};
 	}
 	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {

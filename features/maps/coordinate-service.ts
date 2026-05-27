@@ -8,6 +8,10 @@ import {
 	isNumberedArrondissement,
 } from "@/features/events/types";
 import {
+	buildStructuredLocationSearchQuery,
+	canUseProviderLookupForLocationQuery,
+} from "@/features/locations/location-utils";
+import {
 	type GeocodingResult as GCPGeocodingResult,
 	GoogleCloudAPI,
 } from "@/lib/google/api";
@@ -34,6 +38,10 @@ export type GeocodingError = {
 export type GeocodingRequest = {
 	locationName: string;
 	arrondissement: ParisArrondissement;
+	address?: string;
+	postalCode?: string;
+	city?: string;
+	countryCode?: string;
 	region?: string;
 };
 
@@ -75,18 +83,7 @@ const PARIS_GEOCODING_CONFIG = {
  * Build a comprehensive search query for Paris locations
  */
 function buildParisSearchQuery(request: GeocodingRequest): string {
-	const { locationName, arrondissement } = request;
-
-	let query = locationName.trim();
-
-	// Add arrondissement context if not "unknown"
-	if (arrondissement !== "unknown" && typeof arrondissement === "number") {
-		query += `, ${arrondissement}e arrondissement, Paris, France`;
-	} else {
-		query += ", Paris, France";
-	}
-
-	return query;
+	return buildStructuredLocationSearchQuery(request);
 }
 
 /**
@@ -310,6 +307,10 @@ export class CoordinateService {
 		if (!isCoordinateResolvableInput(locationName, arrondissement)) {
 			return null;
 		}
+		const geocodingRequest: GeocodingRequest = {
+			locationName,
+			arrondissement,
+		};
 
 		const storageKey = generateLocationStorageKey(locationName, arrondissement);
 
@@ -319,7 +320,8 @@ export class CoordinateService {
 			if (
 				stored.source !== "estimated" ||
 				!GoogleCloudAPI.supportsGeocoding() ||
-				geocodingUnavailable
+				geocodingUnavailable ||
+				!canUseProviderLookupForLocationQuery(geocodingRequest)
 			) {
 				return {
 					coordinates: stored.coordinates,
@@ -383,11 +385,9 @@ export class CoordinateService {
 
 		// Try geocoding with unified GCP API
 		try {
-			const geocodingRequest: GeocodingRequest = {
-				locationName,
-				arrondissement,
-			};
-
+			if (!canUseProviderLookupForLocationQuery(geocodingRequest)) {
+				return null;
+			}
 			const result = await geocodeLocation(geocodingRequest);
 
 			// Create location record for storage

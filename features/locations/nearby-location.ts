@@ -6,8 +6,8 @@ export const DEFAULT_NEARBY_RADIUS_KM = 3;
 export type NearbyRadiusKm = (typeof NEARBY_RADIUS_OPTIONS_KM)[number];
 
 export const PARIS_MAP_BOUNDS = {
-	southWest: { lat: 48.72, lng: 2.02 },
-	northEast: { lat: 49.02, lng: 2.68 },
+	southWest: { lat: 48.58, lng: 1.95 },
+	northEast: { lat: 49.03, lng: 2.75 },
 } as const;
 
 export type NearbyLocationScope = "paris-map" | "outside-paris-map";

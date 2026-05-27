@@ -75,7 +75,7 @@ Each field value shape: {value:string|null,evidence:string|null,confidence:numbe
 alternatives contains up to 3 ranked objects with the same shape except alternatives.
 Use null unless the image explicitly supports the value. Do not invent URLs, venue names, prices, dates, or times.
 Dates: ISO yyyy-mm-dd only when explicit or safely implied by flyer context. Times: 24-hour HH:mm only when present.
-districtArea: explicit Paris arrondissement or visible named area. setting: Indoor, Outdoor, or Indoor/Outdoor only when visible or strongly implied.
+area: explicit Paris arrondissement or visible named area. setting: Indoor, Outdoor, or Indoor/Outdoor only when visible or strongly implied.
 For multiple screenshots, assume the editor intentionally uploaded sources for one event. Merge complementary details into one draft even when title, dates, venue, ticketing, caption, or lineup appear across different images. Treat weekender, series, road-to, and day-by-day screenshots as one event when there is shared branding/context; use date/dateTo/notes where supported. Put genuine field conflicts in alternatives and warnings. Only warn to use Separate events mode when images are obviously unrelated and impossible to reconcile.
 `;
 

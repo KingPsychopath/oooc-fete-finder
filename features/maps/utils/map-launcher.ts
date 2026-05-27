@@ -1,9 +1,12 @@
+import type { ParisArrondissement } from "@/features/events/types";
 import {
 	buildLocationSearchQuery,
 	buildMapLink,
 } from "@/features/locations/map-link-builder";
-import type { LocationResolution } from "@/features/locations/types";
-import type { ParisArrondissement } from "@/features/events/types";
+import type {
+	LocationQuery,
+	LocationResolution,
+} from "@/features/locations/types";
 import type { MapProvider } from "../types";
 
 /**
@@ -182,6 +185,9 @@ export const openLocationInMaps = async (
 	preference: MapProvider = "system",
 	onAskForPreference?: () => Promise<MapProvider>,
 	resolution?: LocationResolution | null,
+	place?: Partial<
+		Pick<LocationQuery, "address" | "postalCode" | "city" | "countryCode">
+	>,
 ): Promise<void> => {
 	const { isUrl, value } = parseLocationInput(locationInput);
 
@@ -193,7 +199,7 @@ export const openLocationInMaps = async (
 		return;
 	}
 
-	const searchQuery = buildLocationSearchQuery(value, arrondissement);
+	const searchQuery = buildLocationSearchQuery(value, arrondissement, place);
 
 	// Handle preference
 	let actualPreference = preference;

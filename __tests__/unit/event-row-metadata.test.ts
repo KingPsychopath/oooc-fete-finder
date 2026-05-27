@@ -1,8 +1,15 @@
+import { createHash } from "crypto";
 import {
 	buildMeaningfulEventRowHash,
 	isCompatibleMeaningfulEventRowHash,
 } from "@/lib/platform/postgres/event-sheet-store-repository";
 import { describe, expect, it } from "vitest";
+
+const hashPayload = (payload: Record<string, string>): string =>
+	createHash("sha256")
+		.update(JSON.stringify(payload))
+		.digest("hex")
+		.slice(0, 16);
 
 describe("event row metadata", () => {
 	it("ignores whitespace-only edits in meaningful public fields", () => {
@@ -120,13 +127,16 @@ describe("event row metadata", () => {
 
 		const hashFromVersionBeforeDateToWasTracked = "957c4b3da1c85d26";
 		expect(
-			isCompatibleMeaningfulEventRowHash(hashFromVersionBeforeDateToWasTracked, {
-				eventKey: "evt_1",
-				eventCategory: "Party",
-				title: "Fete Party",
-				price: "€20",
-				dateTo: "2026-06-22",
-			}),
+			isCompatibleMeaningfulEventRowHash(
+				hashFromVersionBeforeDateToWasTracked,
+				{
+					eventKey: "evt_1",
+					eventCategory: "Party",
+					title: "Fete Party",
+					price: "€20",
+					dateTo: "2026-06-22",
+				},
+			),
 		).toBe(true);
 	});
 
@@ -145,5 +155,39 @@ describe("event row metadata", () => {
 		});
 
 		expect(after).toBe(before);
+	});
+
+	it("treats legacy districtArea hashes as compatible with canonical area rows", () => {
+		const legacyHash = hashPayload({
+			curated: "",
+			eventCategory: "",
+			hostCountry: "",
+			audienceCountry: "",
+			title: "Fete Party",
+			date: "",
+			dateTo: "",
+			startTime: "",
+			endTime: "",
+			location: "Venue A",
+			districtArea: "11",
+			categories: "",
+			tags: "",
+			price: "€20",
+			primaryUrl: "",
+			ageGuidance: "",
+			setting: "",
+			notes: "",
+			sourceConfirmed: "",
+			detailsQualityOverride: "",
+		});
+
+		expect(
+			isCompatibleMeaningfulEventRowHash(legacyHash, {
+				title: "Fete Party",
+				location: "Venue A",
+				area: "11",
+				price: "€20",
+			}),
+		).toBe(true);
 	});
 });

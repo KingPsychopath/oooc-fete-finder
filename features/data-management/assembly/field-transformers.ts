@@ -20,6 +20,7 @@ import type {
 	ParisArrondissement,
 	VenueType,
 } from "@/features/events/types";
+import { deriveAreaFromPostalCodeCity } from "@/features/locations/location-utils";
 import {
 	createDateNormalizationContext,
 	normalizeCsvDate,
@@ -106,10 +107,16 @@ export const LocationTransformers = {
 	convertToArrondissement: (
 		arrStr: string,
 		location: string,
+		context: {
+			postalCode?: string | null;
+			city?: string | null;
+		} = {},
 	): ParisArrondissement => {
 		if (!arrStr || arrStr.trim() === "") {
-			// Fall back to location-based estimation if arrondissement is empty
-			return LocationTransformers.estimateArrondissement(location);
+			return (
+				deriveAreaFromPostalCodeCity(context.postalCode, context.city) ??
+				LocationTransformers.estimateArrondissement(location)
+			);
 		}
 
 		// Clean the string and extract number
@@ -186,7 +193,10 @@ export const LocationTransformers = {
 		}
 
 		// Fallback to location estimation
-		return LocationTransformers.estimateArrondissement(location);
+		return (
+			deriveAreaFromPostalCodeCity(context.postalCode, context.city) ??
+			LocationTransformers.estimateArrondissement(location)
+		);
 	},
 
 	/**
@@ -315,6 +325,14 @@ export const splitAreaList = (value: string): ParisArrondissement[] =>
 			(area): area is ParisArrondissement =>
 				area !== "unknown" && area !== "multiple-locations",
 		);
+
+export const splitLocationMetadataList = (
+	value: string | undefined,
+): string[] =>
+	(value ?? "")
+		.split(/[\n\r|;]+/)
+		.map((part) => part.trim())
+		.filter((part) => part.length > 0);
 
 /**
  * Nationality and Country Transformers

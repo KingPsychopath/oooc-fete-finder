@@ -1,7 +1,4 @@
-import type {
-	Coordinates,
-	ParisArrondissement,
-} from "@/features/events/types";
+import type { Coordinates, ParisArrondissement } from "@/features/events/types";
 
 export type LocationResolutionSource =
 	| "manual"
@@ -18,6 +15,10 @@ export type LocationResolutionPrecision =
 export interface LocationQuery {
 	locationName: string;
 	arrondissement: ParisArrondissement;
+	address?: string;
+	postalCode?: string;
+	city?: string;
+	countryCode?: string;
 	region?: string;
 }
 
@@ -44,6 +45,10 @@ export interface StoredLocationResolution extends LocationResolution {
 	id: string;
 	name: string;
 	arrondissement: ParisArrondissement;
+	address?: string;
+	postalCode?: string;
+	city?: string;
+	countryCode?: string;
 	lastUpdated: string;
 }
 

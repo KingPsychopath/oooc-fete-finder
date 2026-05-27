@@ -9,6 +9,10 @@ const toStoredLocationResolution = (
 	id: location.id,
 	name: location.name,
 	arrondissement: location.arrondissement,
+	address: location.address,
+	postalCode: location.postalCode,
+	city: location.city,
+	countryCode: location.countryCode,
 	coordinates: location.coordinates,
 	source:
 		location.source === "estimated"
@@ -35,6 +39,10 @@ const toEventLocation = (
 		id: resolution.id,
 		name: resolution.name,
 		arrondissement: resolution.arrondissement,
+		address: resolution.address,
+		postalCode: resolution.postalCode,
+		city: resolution.city,
+		countryCode: resolution.countryCode,
 		coordinates: resolution.coordinates,
 		confidence: resolution.confidence,
 		source:
@@ -59,11 +67,22 @@ export class LocationRepository {
 			const normalizedKey = generateLocationStorageKey(
 				storedResolution.name,
 				storedResolution.arrondissement,
+				storedResolution,
 			);
 			resolutions.set(normalizedKey, {
 				...storedResolution,
 				id: normalizedKey,
 			});
+			const locationAreaKey = generateLocationStorageKey(
+				storedResolution.name,
+				storedResolution.arrondissement,
+			);
+			if (!resolutions.has(locationAreaKey)) {
+				resolutions.set(locationAreaKey, {
+					...storedResolution,
+					id: locationAreaKey,
+				});
+			}
 		}
 		return resolutions;
 	}
@@ -86,6 +105,10 @@ export class LocationRepository {
 		name: string,
 		arrondissement: StoredLocationResolution["arrondissement"],
 		resolution: LocationResolution,
+		place: Pick<
+			StoredLocationResolution,
+			"address" | "postalCode" | "city" | "countryCode"
+		> = {},
 	): StoredLocationResolution {
 		const now = new Date().toISOString();
 		return {
@@ -93,6 +116,10 @@ export class LocationRepository {
 			id,
 			name,
 			arrondissement,
+			address: place.address,
+			postalCode: place.postalCode,
+			city: place.city,
+			countryCode: place.countryCode,
 			lastUpdated: now,
 			lastResolvedAt: resolution.lastResolvedAt ?? now,
 		};

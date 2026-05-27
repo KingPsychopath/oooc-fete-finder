@@ -216,6 +216,10 @@ export type EventLocation = {
 	id: string;
 	name: string;
 	arrondissement: ParisArrondissement;
+	address?: string;
+	postalCode?: string;
+	city?: string;
+	countryCode?: string;
 	coordinates: Coordinates;
 	confidence?: number; // Geocoding confidence score 0-1
 	source: "manual" | "geocoded" | "estimated" | "estimated_arrondissement";
@@ -230,6 +234,10 @@ export type EventLocation = {
 export type EventLocationEntry = {
 	name: string;
 	arrondissement?: ParisArrondissement;
+	address?: string;
+	postalCode?: string;
+	city?: string;
+	countryCode?: string;
 };
 
 export type MusicGenre = string;
@@ -325,6 +333,10 @@ export type Event = {
 	endTime?: string; // 24-hour format (HH:MM) or 'TBC'
 	arrondissement: ParisArrondissement;
 	location?: string;
+	locationAddress?: string;
+	postalCode?: string;
+	city?: string;
+	countryCode?: string;
 	locations?: string[];
 	locationEntries?: EventLocationEntry[];
 	coordinates?: Coordinates; // Event-specific coordinates from geocoding or manual entry
@@ -511,7 +523,7 @@ export type CSVEventRow = {
 	startTime: string;
 	endTime: string;
 	location: string;
-	districtArea: string; // District/Area column
+	area: string; // Area column
 	categories: string; // Comma-separated genres/categories
 	tags: string; // Comma-separated metadata tags
 	price: string;

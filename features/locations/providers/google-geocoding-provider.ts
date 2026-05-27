@@ -1,7 +1,8 @@
 import type { Coordinates } from "@/features/events/types";
 import { GoogleCloudAPI } from "@/lib/google/api";
+import { buildStructuredLocationSearchQuery } from "../location-utils";
+import type { LocationResolution } from "../types";
 import type { GeocodingProvider } from "./geocoding-provider";
-import type { LocationQuery, LocationResolution } from "../types";
 
 const PARIS_BOUNDS = {
 	north: 48.92,
@@ -23,22 +24,11 @@ const isWithinParisBounds = ({ lat, lng }: Coordinates): boolean =>
 	lng >= PARIS_BOUNDS.west &&
 	lng <= PARIS_BOUNDS.east;
 
-const buildParisSearchQuery = ({
-	locationName,
-	arrondissement,
-}: LocationQuery): string => {
-	const location = locationName.trim();
-	if (arrondissement !== "unknown" && typeof arrondissement === "number") {
-		return `${location}, ${arrondissement}e arrondissement, Paris, France`;
-	}
-	return `${location}, Paris, France`;
-};
-
 export const createGoogleGeocodingProvider = (): GeocodingProvider => ({
 	name: "google",
 	isConfigured: GoogleCloudAPI.supportsGeocoding,
 	geocode: async (query): Promise<LocationResolution> => {
-		const searchQuery = buildParisSearchQuery(query);
+		const searchQuery = buildStructuredLocationSearchQuery(query);
 		const result = await GoogleCloudAPI.geocodeAddress(searchQuery);
 		const coordinates = {
 			lat: result.latitude,

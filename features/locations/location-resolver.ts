@@ -1,6 +1,7 @@
 import { log } from "@/lib/platform/logger";
 import { LocationRepository } from "./location-repository";
 import {
+	canUseProviderLookupForLocationQuery,
 	generateLocationStorageKey,
 	getArrondissementCenter,
 	isCoordinateResolvableInput,
@@ -53,6 +54,7 @@ export class LocationResolver {
 		const storageKey = generateLocationStorageKey(
 			query.locationName,
 			query.arrondissement,
+			query,
 		);
 
 		if (
@@ -73,7 +75,11 @@ export class LocationResolver {
 			return toResolution(stored);
 		}
 
-		if (resolvedPolicy.allowProviderLookup && this.provider.isConfigured()) {
+		if (
+			resolvedPolicy.allowProviderLookup &&
+			this.provider.isConfigured() &&
+			canUseProviderLookupForLocationQuery(query)
+		) {
 			try {
 				const geocoded = await this.provider.geocode(query);
 				const storedResolution = LocationRepository.toStoredResolution(
@@ -81,6 +87,7 @@ export class LocationResolver {
 					query.locationName,
 					query.arrondissement,
 					geocoded,
+					query,
 				);
 				storedLocations.set(storageKey, storedResolution);
 				return geocoded;
@@ -116,6 +123,7 @@ export class LocationResolver {
 						query.locationName,
 						query.arrondissement,
 						fallback,
+						query,
 					),
 				);
 				return fallback;

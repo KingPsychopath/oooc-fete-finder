@@ -16,7 +16,7 @@ const baseRow: CSVEventRow = {
 	startTime: "18:00",
 	endTime: "23:00",
 	location: "Paris",
-	districtArea: "11",
+	area: "11",
 	categories: "Afrobeats",
 	tags: "",
 	price: "Free",
@@ -107,7 +107,7 @@ describe("event assembler identity", () => {
 			{
 				...baseRow,
 				location: "",
-				districtArea: "",
+				area: "",
 				date: "",
 				sourceConfirmed: "true",
 			},
@@ -225,7 +225,7 @@ describe("event assembler identity", () => {
 			{
 				...baseRow,
 				location: "Venue A | Venue B",
-				districtArea: "Multiple Locations",
+				area: "Multiple Locations",
 			},
 			0,
 		);
@@ -239,12 +239,76 @@ describe("event assembler identity", () => {
 		]);
 	});
 
+	it("derives Paris area from postal code when area is blank", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				location: "Le Klub",
+				area: "",
+				postalCode: "75011",
+				city: "Paris",
+			},
+			0,
+		);
+
+		expect(event.arrondissement).toBe(11);
+		expect(event.postalCode).toBe("75011");
+		expect(event.city).toBe("Paris");
+	});
+
+	it("maps 75116 to the 16e arrondissement", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				location: "Trocadero",
+				area: "",
+				postalCode: "75116",
+				city: "Paris",
+			},
+			0,
+		);
+
+		expect(event.arrondissement).toBe(16);
+	});
+
+	it("derives Greater Paris from near-suburb postal codes", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				location: "La Marbrerie",
+				area: "",
+				postalCode: "93100",
+				city: "Montreuil",
+			},
+			0,
+		);
+
+		expect(event.arrondissement).toBe("greater-paris");
+		expect(event.postalCode).toBe("93100");
+		expect(event.city).toBe("Montreuil");
+	});
+
+	it("keeps manual area over postal-code derived area", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				location: "La Marbrerie",
+				area: "Outside Paris",
+				postalCode: "93100",
+				city: "Montreuil",
+			},
+			0,
+		);
+
+		expect(event.arrondissement).toBe("outside-paris");
+	});
+
 	it("pairs multiple locations with area list entries by order", () => {
 		const event = assembleEvent(
 			{
 				...baseRow,
 				location: "Venue A | Venue B",
-				districtArea: "10e | 11e",
+				area: "10e | 11e",
 			},
 			0,
 		);
@@ -261,16 +325,45 @@ describe("event assembler identity", () => {
 			{
 				...baseRow,
 				location: "Venue A | Venue B",
-				districtArea: "10e",
+				area: "10e",
 			},
 			0,
 		);
 
-		expect(event.arrondissement).toBe("multiple-locations");
+		expect(event.arrondissement).toBe(10);
 		expect(event.location).toBe("Multiple locations");
 		expect(event.locationEntries).toEqual([
 			{ name: "Venue A", arrondissement: 10 },
 			{ name: "Venue B", arrondissement: 10 },
+		]);
+	});
+
+	it("pairs multiple locations with postal code and city metadata by order", () => {
+		const event = assembleEvent(
+			{
+				...baseRow,
+				location: "Venue A | Venue B",
+				area: "",
+				postalCode: "75010 | 75010",
+				city: "Paris | Paris",
+			},
+			0,
+		);
+
+		expect(event.arrondissement).toBe(10);
+		expect(event.locationEntries).toEqual([
+			{
+				name: "Venue A",
+				arrondissement: 10,
+				postalCode: "75010",
+				city: "Paris",
+			},
+			{
+				name: "Venue B",
+				arrondissement: 10,
+				postalCode: "75010",
+				city: "Paris",
+			},
 		]);
 	});
 
@@ -279,7 +372,7 @@ describe("event assembler identity", () => {
 			{
 				...baseRow,
 				location: "",
-				districtArea: "Multiple Locations",
+				area: "Multiple Locations",
 			},
 			0,
 		);
@@ -379,7 +472,7 @@ describe("event assembler identity", () => {
 				date: "18 June 2026",
 				dateTo: "19 June 2026",
 				location: "Venue A | Venue B",
-				districtArea: "Multiple Locations",
+				area: "Multiple Locations",
 				primaryUrl: "example.com/a | https://example.com/b",
 			},
 		]);

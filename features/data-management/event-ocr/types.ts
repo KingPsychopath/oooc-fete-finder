@@ -10,7 +10,7 @@ export const EVENT_OCR_FIELD_KEYS = [
 	"startTime",
 	"endTime",
 	"location",
-	"districtArea",
+	"area",
 	"categories",
 	"tags",
 	"price",

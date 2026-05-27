@@ -1,13 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
-import type { GeocodingProvider } from "@/features/locations/providers/geocoding-provider";
+import type { Event } from "@/features/events/types";
+import { LocationRepository } from "@/features/locations/location-repository";
+import { LocationResolver } from "@/features/locations/location-resolver";
+import {
+	buildStructuredLocationSearchQuery,
+	generateLocationStorageKey,
+} from "@/features/locations/location-utils";
 import { buildMapLink } from "@/features/locations/map-link-builder";
 import { findNearbyEvents } from "@/features/locations/nearby-event-service";
-import { LocationResolver } from "@/features/locations/location-resolver";
-import { LocationRepository } from "@/features/locations/location-repository";
-import { generateLocationStorageKey } from "@/features/locations/location-utils";
-import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
+import type { GeocodingProvider } from "@/features/locations/providers/geocoding-provider";
 import type { StoredLocationResolution } from "@/features/locations/types";
-import type { Event } from "@/features/events/types";
+import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
+import { describe, expect, it, vi } from "vitest";
 
 const makeProvider = (
 	overrides: Partial<GeocodingProvider> = {},
@@ -62,6 +65,31 @@ describe("location resolution", () => {
 		expect(variants[0]).toBe("le_klub_11");
 	});
 
+	it("uses structured place metadata in location storage keys when available", () => {
+		expect(
+			generateLocationStorageKey("La Marbrerie", "greater-paris", {
+				address: "21 Rue Alexis Lepère",
+				postalCode: "93100",
+				city: "Montreuil",
+			}),
+		).toBe("la_marbrerie_21_rue_alexis_lepere_93100_montreuil_FR");
+		expect(generateLocationStorageKey("La Marbrerie", 11)).toBe(
+			"la_marbrerie_11",
+		);
+	});
+
+	it("builds outside-Paris geocoding queries from structured fields", () => {
+		const query = buildStructuredLocationSearchQuery({
+			locationName: "La Marbrerie",
+			arrondissement: "greater-paris",
+			postalCode: "93100",
+			city: "Montreuil",
+		});
+
+		expect(query).toBe("La Marbrerie, 93100 Montreuil, France");
+		expect(query).not.toContain("Paris, France");
+	});
+
 	it("uses arrondissement fallback only as approximate area precision", async () => {
 		const resolver = new LocationResolver(
 			makeProvider({ isConfigured: () => false }),
@@ -102,6 +130,36 @@ describe("location resolution", () => {
 		expect(result.coordinates).toBeNull();
 	});
 
+	it("passes structured place context through the resolver and cache key", async () => {
+		const provider = makeProvider();
+		const resolver = new LocationResolver(provider);
+		const storedLocations = new Map<string, StoredLocationResolution>();
+		const result = await resolver.resolve(
+			{
+				locationName: "La Marbrerie",
+				arrondissement: "greater-paris",
+				postalCode: "93100",
+				city: "Montreuil",
+			},
+			storedLocations,
+			{
+				allowProviderLookup: true,
+				allowArrondissementFallback: false,
+			},
+		);
+
+		expect(result.source).toBe("geocoded");
+		expect(provider.geocode).toHaveBeenCalledWith(
+			expect.objectContaining({
+				locationName: "La Marbrerie",
+				arrondissement: "greater-paris",
+				postalCode: "93100",
+				city: "Montreuil",
+			}),
+		);
+		expect(storedLocations.has("la_marbrerie_93100_montreuil_FR")).toBe(true);
+	});
+
 	it("can surface provider failures for explicit admin refreshes", async () => {
 		const provider = makeProvider({
 			geocode: vi.fn().mockRejectedValue(new Error("OVER_QUERY_LIMIT")),
@@ -119,6 +177,42 @@ describe("location resolution", () => {
 				},
 			),
 		).rejects.toThrow("OVER_QUERY_LIMIT");
+	});
+
+	it("does not provider-geocode broad outside Paris locations without locality context", async () => {
+		const provider = makeProvider();
+		const resolver = new LocationResolver(provider);
+
+		const broadResult = await resolver.resolve(
+			{
+				locationName: "Domaine de la Grange-la-Prévôté",
+				arrondissement: "outside-paris",
+			},
+			new Map<string, StoredLocationResolution>(),
+			{
+				allowProviderLookup: true,
+				allowArrondissementFallback: false,
+			},
+		);
+
+		expect(provider.geocode).not.toHaveBeenCalled();
+		expect(broadResult.source).toBe("unresolved");
+
+		await resolver.resolve(
+			{
+				locationName: "Domaine de la Grange-la-Prévôté",
+				arrondissement: "outside-paris",
+				postalCode: "77176",
+				city: "Savigny-le-Temple",
+			},
+			new Map<string, StoredLocationResolution>(),
+			{
+				allowProviderLookup: true,
+				allowArrondissementFallback: false,
+			},
+		);
+
+		expect(provider.geocode).toHaveBeenCalledOnce();
 	});
 
 	it("uses trusted coordinates for map links but text search for approximate locations", () => {
@@ -222,5 +316,54 @@ describe("location resolution", () => {
 
 		expect(event.coordinates).toEqual({ lat: 48.857, lng: 2.381 });
 		expect(event.locationResolution?.source).toBe("manual");
+	});
+
+	it("hydrates structured stored locations when event rows only carry venue and area", async () => {
+		const structuredKey = generateLocationStorageKey(
+			"Domaine de la Grange-la-Prévôté",
+			"outside-paris",
+			{
+				address: "Avenue du 8 Mai 1945",
+				postalCode: "77176",
+				city: "Savigny-le-Temple",
+				countryCode: "FR",
+			},
+		);
+		vi.spyOn(LocationRepository, "load").mockResolvedValue(
+			new Map<string, StoredLocationResolution>([
+				[
+					generateLocationStorageKey(
+						"Domaine de la Grange-la-Prévôté",
+						"outside-paris",
+					),
+					{
+						id: structuredKey,
+						name: "Domaine de la Grange-la-Prévôté",
+						arrondissement: "outside-paris",
+						address: "Avenue du 8 Mai 1945",
+						postalCode: "77176",
+						city: "Savigny-le-Temple",
+						countryCode: "FR",
+						coordinates: { lat: 48.6003155, lng: 2.5560718 },
+						source: "geocoded",
+						precision: "venue",
+						confidence: 0.7,
+						lastUpdated: "2026-05-27T00:00:00.000Z",
+						lastResolvedAt: "2026-05-27T00:00:00.000Z",
+					},
+				],
+			]),
+		);
+
+		const [event] = await EventCoordinatePopulator.hydrateStoredCoordinates([
+			{
+				...makeEvent("nickipik"),
+				location: "Domaine de la Grange-la-Prévôté",
+				arrondissement: "outside-paris",
+			},
+		]);
+
+		expect(event.coordinates).toEqual({ lat: 48.6003155, lng: 2.5560718 });
+		expect(event.locationResolution?.source).toBe("geocoded");
 	});
 });

@@ -127,7 +127,7 @@ const FIELD_LABELS: Record<EventOcrFieldKey, string> = {
 	startTime: "Start time",
 	endTime: "End time",
 	location: "Location",
-	districtArea: "District/Area",
+	area: "Area",
 	categories: "Categories",
 	tags: "Tags",
 	price: "Price",

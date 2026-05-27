@@ -9,8 +9,12 @@ import { describe, expect, it } from "vitest";
 describe("nearby location scope", () => {
 	it("treats Paris-area coordinates as drawable on the Paris map", () => {
 		const paris = { lat: 48.8566, lng: 2.3522 };
+		const savignyLeTemple = { lat: 48.6003155, lng: 2.5560718 };
+		const chillyMazarin = { lat: 48.7142153, lng: 2.2989456 };
 
 		expect(getNearbyLocationScope(paris)).toBe("paris-map");
+		expect(getNearbyLocationScope(savignyLeTemple)).toBe("paris-map");
+		expect(getNearbyLocationScope(chillyMazarin)).toBe("paris-map");
 		expect(shouldApplyNearbyRadius(paris)).toBe(true);
 	});
 

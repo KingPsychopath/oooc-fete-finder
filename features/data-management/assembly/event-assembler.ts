@@ -12,6 +12,12 @@ import {
 	getEventTypeForDate,
 	normalizeEventExperienceCategory,
 } from "@/features/events/types";
+import {
+	deriveAreaFromPostalCodeCity,
+	normalizeCity,
+	normalizeCountryCode,
+	normalizePostalCode,
+} from "@/features/locations/location-utils";
 import { log } from "@/lib/platform/logger";
 import type { CSVEventRow } from "../csv/parser";
 import { WarningSystem } from "../validation/date-warnings";
@@ -41,6 +47,7 @@ import {
 	VenueTransformers,
 	splitAreaList,
 	splitLocationList,
+	splitLocationMetadataList,
 } from "./field-transformers";
 
 const EVENT_KEY_FINGERPRINT_FIELDS: readonly (keyof CSVEventRow)[] = [
@@ -48,13 +55,13 @@ const EVENT_KEY_FINGERPRINT_FIELDS: readonly (keyof CSVEventRow)[] = [
 	"date",
 	"startTime",
 	"location",
-	"districtArea",
+	"area",
 ];
 const SERIES_KEY_FINGERPRINT_FIELDS: readonly (keyof CSVEventRow)[] = [
 	"title",
 	"startTime",
 	"location",
-	"districtArea",
+	"area",
 	"primaryUrl",
 ];
 
@@ -228,6 +235,26 @@ const buildInvalidDatePlaceholder = (): NormalizedDate => ({
 	warning: buildEmptyDateWarning(),
 });
 
+const uniqueKnownAreas = (
+	areas: ParisArrondissement[],
+): ParisArrondissement[] => {
+	const seen = new Set<ParisArrondissement>();
+	for (const area of areas) {
+		if (area === "unknown" || area === "multiple-locations") continue;
+		seen.add(area);
+	}
+	return [...seen];
+};
+
+const pickMetadataPart = (
+	values: string[],
+	index: number,
+): string | undefined => {
+	if (values.length === 0) return undefined;
+	if (values.length === 1) return values[0];
+	return values[index];
+};
+
 const normalizeDateColumnValue = (
 	csvRow: CSVEventRow,
 	dateContext: DateNormalizationContext,
@@ -372,14 +399,28 @@ const assembleEventFromNormalizedDate = (
 	const time = DateTransformers.convertToTime(csvRow.startTime);
 	const endTime = DateTransformers.convertToTime(csvRow.endTime);
 	const locations = splitLocationList(csvRow.location);
-	const locationAreas = splitAreaList(csvRow.districtArea);
+	const locationAddresses = splitLocationMetadataList(csvRow.locationAddress);
+	const postalCodes = splitLocationMetadataList(csvRow.postalCode);
+	const cities = splitLocationMetadataList(csvRow.city);
+	const countryCodes = splitLocationMetadataList(csvRow.countryCode);
+	const normalizedPostalCode =
+		locations.length <= 1 ? normalizePostalCode(csvRow.postalCode) : "";
+	const normalizedCity =
+		locations.length <= 1 ? normalizeCity(csvRow.city) : "";
+	const normalizedCountryCode =
+		csvRow.countryCode?.trim() && locations.length <= 1
+			? normalizeCountryCode(csvRow.countryCode)
+			: undefined;
+	const locationAreas = splitAreaList(csvRow.area);
 
 	const baseArrondissement = LocationTransformers.convertToArrondissement(
-		csvRow.districtArea,
+		csvRow.area,
 		csvRow.location,
+		{
+			postalCode: normalizedPostalCode,
+			city: normalizedCity,
+		},
 	);
-	const arrondissement =
-		locations.length > 1 ? "multiple-locations" : baseArrondissement;
 
 	const nationalityInput = [csvRow.hostCountry, csvRow.audienceCountry]
 		.map((value) => value.trim())
@@ -404,17 +445,57 @@ const assembleEventFromNormalizedDate = (
 	const locationEntries =
 		locations.length > 1
 			? locations.map((name, locationIndex) => {
+					const entryPostalCode = normalizePostalCode(
+						pickMetadataPart(postalCodes, locationIndex),
+					);
+					const entryCity = normalizeCity(
+						pickMetadataPart(cities, locationIndex),
+					);
+					const entryCountryCode = pickMetadataPart(
+						countryCodes,
+						locationIndex,
+					)?.trim()
+						? normalizeCountryCode(
+								pickMetadataPart(countryCodes, locationIndex),
+							)
+						: undefined;
+					const derivedArea = deriveAreaFromPostalCodeCity(
+						entryPostalCode,
+						entryCity,
+					);
 					const entryArea =
 						locationAreas.length === locations.length
 							? locationAreas[locationIndex]
 							: locationAreas.length === 1
 								? locationAreas[0]
-								: undefined;
-					return entryArea ? { name, arrondissement: entryArea } : { name };
+								: derivedArea;
+					return {
+						name,
+						...(entryArea ? { arrondissement: entryArea } : {}),
+						...(pickMetadataPart(locationAddresses, locationIndex)
+							? {
+									address: pickMetadataPart(locationAddresses, locationIndex),
+								}
+							: {}),
+						...(entryPostalCode ? { postalCode: entryPostalCode } : {}),
+						...(entryCity ? { city: entryCity } : {}),
+						...(entryCountryCode ? { countryCode: entryCountryCode } : {}),
+					};
 				})
 			: undefined;
+	const locationEntryAreas = uniqueKnownAreas(
+		locationEntries
+			?.map((entry) => entry.arrondissement)
+			.filter((area): area is ParisArrondissement => Boolean(area)) ?? [],
+	);
+	const arrondissement =
+		locations.length > 1
+			? locationEntryAreas.length === 1
+				? locationEntryAreas[0]
+				: "multiple-locations"
+			: baseArrondissement;
 	const location =
-		arrondissement === "multiple-locations" && locations.length > 1
+		locations.length > 1
 			? "Multiple locations"
 			: csvRow.location.trim() || undefined;
 
@@ -469,6 +550,10 @@ const assembleEventFromNormalizedDate = (
 		endTime: endTime || undefined,
 		arrondissement,
 		location,
+		locationAddress: csvRow.locationAddress?.trim() || undefined,
+		postalCode: normalizedPostalCode || undefined,
+		city: normalizedCity || undefined,
+		countryCode: normalizedCountryCode,
 		locations: locations.length > 1 ? locations : undefined,
 		locationEntries,
 		link: mainLink,

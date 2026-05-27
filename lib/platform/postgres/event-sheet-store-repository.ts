@@ -1,9 +1,9 @@
 import "server-only";
 
 import { createHash, randomUUID } from "crypto";
+import type { EventRowLifecycleMetadata } from "@/features/data-management/event-sheet-revision-types";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
-import type { EventRowLifecycleMetadata } from "@/features/data-management/event-sheet-revision-types";
 import {
 	type NormalizedRowDataRecord,
 	normalizeEventSheetRowData,
@@ -61,10 +61,16 @@ const getRowEventKey = (row: EventSheetRowRecord): string | null => {
 
 const normalizeRowDataRecord = (
 	row: EventSheetRowRecord,
-): EventSheetRowRecord =>
-	Object.fromEntries(
+): EventSheetRowRecord => {
+	const normalized = Object.fromEntries(
 		Object.entries(row).map(([key, value]) => [key, String(value ?? "")]),
 	);
+	if (!normalized.area && normalized.districtArea) {
+		normalized.area = normalized.districtArea;
+	}
+	delete normalized.districtArea;
+	return normalized;
+};
 
 const MEANINGFUL_EVENT_FIELDS = [
 	"hostCountry",
@@ -75,7 +81,7 @@ const MEANINGFUL_EVENT_FIELDS = [
 	"startTime",
 	"endTime",
 	"location",
-	"districtArea",
+	"area",
 	"categories",
 	"price",
 	"primaryUrl",
@@ -176,6 +182,15 @@ const LEGACY_MEANINGFUL_EVENT_FIELD_SETS = [
 const normalizeMeaningfulValue = (value: string | undefined): string =>
 	(value ?? "").trim().replace(/\s+/g, " ");
 
+const getMeaningfulFieldValue = (
+	row: EventSheetRowRecord,
+	field: string,
+): string | undefined => {
+	if (field === "area") return row.area ?? row.districtArea;
+	if (field === "districtArea") return row.districtArea ?? row.area;
+	return row[field];
+};
+
 const buildMeaningfulEventRowHashForFields = (
 	row: EventSheetRowRecord,
 	fields: readonly string[],
@@ -183,7 +198,7 @@ const buildMeaningfulEventRowHashForFields = (
 	const payload = Object.fromEntries(
 		fields.map((field) => [
 			field,
-			normalizeMeaningfulValue(row[field]),
+			normalizeMeaningfulValue(getMeaningfulFieldValue(row, field)),
 		]),
 	);
 	return createHash("sha256")
@@ -192,9 +207,8 @@ const buildMeaningfulEventRowHashForFields = (
 		.slice(0, 16);
 };
 
-export const buildMeaningfulEventRowHash = (
-	row: EventSheetRowRecord,
-): string => buildMeaningfulEventRowHashForFields(row, MEANINGFUL_EVENT_FIELDS);
+export const buildMeaningfulEventRowHash = (row: EventSheetRowRecord): string =>
+	buildMeaningfulEventRowHashForFields(row, MEANINGFUL_EVENT_FIELDS);
 
 export const isCompatibleMeaningfulEventRowHash = (
 	hash: string | null | undefined,
@@ -477,9 +491,8 @@ export class EventSheetStoreRepository {
 					const normalizedRow = normalizeRowDataRecord(row);
 					return [getRowEventKey(normalizedRow), normalizedRow] as const;
 				})
-				.filter(
-					(entry): entry is readonly [string, EventSheetRowRecord] =>
-						Boolean(entry[0]),
+				.filter((entry): entry is readonly [string, EventSheetRowRecord] =>
+					Boolean(entry[0]),
 				),
 		);
 
@@ -537,8 +550,7 @@ export class EventSheetStoreRepository {
 					defaultFirstSeenAt)
 				: defaultFirstSeenAt;
 			const lastMeaningfulChangeAt =
-				baseline?.publicContentHash &&
-				hasMeaningfulChange
+				baseline?.publicContentHash && hasMeaningfulChange
 					? nowIso
 					: (baseline?.lastMeaningfulChangeAt ?? firstSeenAt);
 			return {

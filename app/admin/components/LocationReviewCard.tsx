@@ -400,9 +400,7 @@ export const LocationReviewCard = ({
 			};
 
 			setMessage(`Starting ${targetItems.length} location updates...`);
-			await Promise.all(
-				Array.from({ length: concurrency }, () => runWorker()),
-			);
+			await Promise.all(Array.from({ length: concurrency }, () => runWorker()));
 			setSelectedIds(new Set());
 			setManualDraft(null);
 			await loadReviewData();
@@ -425,6 +423,10 @@ export const LocationReviewCard = ({
 		withItemTask(item, async () =>
 			resolveEventLocation(undefined, item.locationName, item.arrondissement, {
 				forceRefresh: true,
+				address: item.address,
+				postalCode: item.postalCode,
+				city: item.city,
+				countryCode: item.countryCode,
 			}),
 		);
 
@@ -867,6 +869,15 @@ export const LocationReviewCard = ({
 											<p className="text-xs text-muted-foreground">
 												{getReviewHint(item)}
 											</p>
+											{[item.address, item.postalCode, item.city]
+												.filter(Boolean)
+												.join(" · ") && (
+												<p className="truncate text-xs text-muted-foreground">
+													{[item.address, item.postalCode, item.city]
+														.filter(Boolean)
+														.join(" · ")}
+												</p>
+											)}
 										</div>
 
 										<div className="min-w-0 space-y-2">

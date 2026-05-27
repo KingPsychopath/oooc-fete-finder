@@ -122,8 +122,8 @@ const loadActions = async (): Promise<Setup> => {
 			{ key: "endTime", label: "End Time", isCore: true, isRequired: false },
 			{ key: "location", label: "Location", isCore: true, isRequired: false },
 			{
-				key: "districtArea",
-				label: "District/Area",
+				key: "area",
+				label: "Area",
 				isCore: true,
 				isRequired: false,
 			},

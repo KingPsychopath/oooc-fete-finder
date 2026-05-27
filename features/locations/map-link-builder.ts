@@ -1,12 +1,16 @@
 import type { Coordinates, ParisArrondissement } from "@/features/events/types";
+import { buildStructuredLocationSearchQuery } from "./location-utils";
 import { isTrustedLocationResolution } from "./types";
-import type { LocationResolution } from "./types";
+import type { LocationQuery, LocationResolution } from "./types";
 
 export type MapLinkProvider = "google" | "apple" | "geo";
 
 export interface MapLinkInput {
 	locationInput: string;
 	arrondissement?: ParisArrondissement;
+	place?: Partial<
+		Pick<LocationQuery, "address" | "postalCode" | "city" | "countryCode">
+	>;
 	resolution?: LocationResolution | null;
 	provider: MapLinkProvider;
 }
@@ -25,8 +29,24 @@ const getOrdinal = (num: number): string => {
 export const buildLocationSearchQuery = (
 	locationInput: string,
 	arrondissement?: ParisArrondissement,
+	place: MapLinkInput["place"] = {},
 ): string => {
 	const value = locationInput.trim();
+	if (
+		place.address?.trim() ||
+		place.postalCode?.trim() ||
+		place.city?.trim() ||
+		place.countryCode?.trim()
+	) {
+		return buildStructuredLocationSearchQuery({
+			locationName: value,
+			arrondissement: arrondissement ?? "unknown",
+			address: place.address,
+			postalCode: place.postalCode,
+			city: place.city,
+			countryCode: place.countryCode,
+		});
+	}
 	if (
 		arrondissement &&
 		arrondissement !== "unknown" &&
@@ -37,11 +57,13 @@ export const buildLocationSearchQuery = (
 	return value;
 };
 
-const formatCoordinates = ({ lat, lng }: Coordinates): string => `${lat},${lng}`;
+const formatCoordinates = ({ lat, lng }: Coordinates): string =>
+	`${lat},${lng}`;
 
 export const buildMapLink = ({
 	locationInput,
 	arrondissement,
+	place,
 	resolution,
 	provider,
 }: MapLinkInput): string => {
@@ -50,7 +72,7 @@ export const buildMapLink = ({
 		: null;
 	const query = trustedCoordinates
 		? formatCoordinates(trustedCoordinates)
-		: buildLocationSearchQuery(locationInput, arrondissement);
+		: buildLocationSearchQuery(locationInput, arrondissement, place);
 	const encodedQuery = encodeURIComponent(query);
 
 	if (provider === "apple") {

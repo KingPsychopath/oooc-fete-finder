@@ -39,7 +39,7 @@ const CORE_COLUMN_LABELS = {
 	startTime: "Start Time",
 	endTime: "End Time",
 	location: "Location",
-	districtArea: "District/Area",
+	area: "Area",
 	categories: "Categories",
 	tags: "Tags",
 	price: "Price",

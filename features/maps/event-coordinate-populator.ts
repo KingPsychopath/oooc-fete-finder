@@ -17,6 +17,22 @@ import {
 } from "./coordinate-service";
 import { LocationStorage } from "./location-storage";
 
+const getEventLocationQueryContext = (
+	event: Event,
+): Pick<
+	StoredLocationResolution,
+	"address" | "postalCode" | "city" | "countryCode"
+> => {
+	const singleEntry =
+		event.locationEntries?.length === 1 ? event.locationEntries[0] : null;
+	return {
+		address: event.locationAddress ?? singleEntry?.address,
+		postalCode: event.postalCode ?? singleEntry?.postalCode,
+		city: event.city ?? singleEntry?.city,
+		countryCode: event.countryCode ?? singleEntry?.countryCode,
+	};
+};
+
 /**
  * Options for coordinate population
  */
@@ -56,6 +72,7 @@ export class EventCoordinatePopulator {
 			const storageKey = generateLocationStorageKey(
 				event.location || "",
 				event.arrondissement,
+				getEventLocationQueryContext(event),
 			);
 			const stored = storedLocations.get(storageKey);
 			if (!stored?.coordinates) {
@@ -100,7 +117,11 @@ export class EventCoordinatePopulator {
 				continue;
 			}
 			activeKeys.add(
-				generateLocationStorageKey(location, event.arrondissement),
+				generateLocationStorageKey(
+					location,
+					event.arrondissement,
+					getEventLocationQueryContext(event),
+				),
 			);
 		}
 
@@ -183,12 +204,14 @@ export class EventCoordinatePopulator {
 					const storageKey = generateLocationStorageKey(
 						event.location || "",
 						event.arrondissement,
+						getEventLocationQueryContext(event),
 					);
 					const hadStoredLocation = storedLocations.has(storageKey);
 					const result = await resolver.resolve(
 						{
 							locationName: event.location || "",
 							arrondissement: event.arrondissement,
+							...getEventLocationQueryContext(event),
 						},
 						storedLocations,
 						{

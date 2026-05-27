@@ -75,7 +75,10 @@ import {
 	getResolvedEventExperienceCategoryDefinition,
 	isPartyEventType,
 } from "@/features/events/types";
-import type { LocationResolution } from "@/features/locations/types";
+import type {
+	LocationQuery,
+	LocationResolution,
+} from "@/features/locations/types";
 import { MapPreferenceSettings } from "@/features/maps/components/map-preference-settings";
 import { MapSelectionModal } from "@/features/maps/components/map-selection-modal";
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
@@ -504,6 +507,9 @@ const EventModal: React.FC<EventModalProps> = ({
 		location: string;
 		arrondissement?: ParisArrondissement;
 		resolution?: LocationResolution | null;
+		place?: Partial<
+			Pick<LocationQuery, "address" | "postalCode" | "city" | "countryCode">
+		>;
 	} | null>(null);
 	const [showAllGenres, setShowAllGenres] = useState(false);
 	const [showCountryDetails, setShowCountryDetails] = useState(false);
@@ -699,11 +705,14 @@ const EventModal: React.FC<EventModalProps> = ({
 		location: string,
 		arrondissement?: ParisArrondissement,
 		resolution?: LocationResolution | null,
+		place?: Partial<
+			Pick<LocationQuery, "address" | "postalCode" | "city" | "countryCode">
+		>,
 	) => {
 		if (!isLoaded) return;
 
 		if (mapPreference === "ask") {
-			setPendingLocationData({ location, arrondissement, resolution });
+			setPendingLocationData({ location, arrondissement, resolution, place });
 			haptics.nudge();
 			setShowMapSelection(true);
 		} else {
@@ -719,6 +728,7 @@ const EventModal: React.FC<EventModalProps> = ({
 				mapPreference,
 				undefined,
 				resolution,
+				place,
 			);
 		}
 	};
@@ -736,6 +746,7 @@ const EventModal: React.FC<EventModalProps> = ({
 				selectedProvider,
 				undefined,
 				pendingLocationData.resolution,
+				pendingLocationData.place,
 			);
 			setPendingLocationData(null);
 		}
@@ -1952,6 +1963,12 @@ const EventModal: React.FC<EventModalProps> = ({
 													locationEntry.name,
 													locationEntry.arrondissement,
 													null,
+													{
+														address: locationEntry.address,
+														postalCode: locationEntry.postalCode,
+														city: locationEntry.city,
+														countryCode: locationEntry.countryCode,
+													},
 												)
 											}
 											className="inline-flex min-h-[32px] w-full items-center justify-between rounded-md border border-border/70 bg-background/80 px-2.5 text-left text-sm text-primary underline-offset-4 transition-colors hover:bg-accent hover:underline dark:bg-white/[0.03] dark:hover:bg-white/[0.08]"
@@ -1977,6 +1994,12 @@ const EventModal: React.FC<EventModalProps> = ({
 											locationDisplay.singleLocation!,
 											event.arrondissement,
 											event.locationResolution,
+											{
+												address: event.locationAddress,
+												postalCode: event.postalCode,
+												city: event.city,
+												countryCode: event.countryCode,
+											},
 										)
 									}
 									className="mt-1.5 inline-flex min-h-[32px] w-full items-center justify-between rounded-md border border-border/70 bg-background/80 px-2.5 text-left text-sm text-primary underline-offset-4 transition-colors hover:bg-accent hover:underline dark:bg-white/[0.03] dark:hover:bg-white/[0.08]"
