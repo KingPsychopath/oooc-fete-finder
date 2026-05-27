@@ -94,7 +94,15 @@ export class LocationRepository {
 		for (const [key, resolution] of resolutions.entries()) {
 			const eventLocation = toEventLocation(resolution);
 			if (eventLocation) {
-				locations.set(key, eventLocation);
+				const canonicalKey = generateLocationStorageKey(
+					resolution.name,
+					resolution.arrondissement,
+					resolution,
+				);
+				locations.set(canonicalKey || key, {
+					...eventLocation,
+					id: canonicalKey || key,
+				});
 			}
 		}
 		await LocationStorage.save(locations);

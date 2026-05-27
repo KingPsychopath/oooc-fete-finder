@@ -86,4 +86,27 @@ describe("location sheet status", () => {
 			}),
 		]);
 	});
+
+	it("does not warn when a structured location only matches its older area-only key", () => {
+		const matches = findLikelyLocationAliases(
+			{
+				key: "panic_room_101_rue_amelot_75011_paris_FR",
+				name: "Panic Room",
+				arrondissement: 11,
+				address: "101 Rue Amelot",
+				postalCode: "75011",
+				city: "Paris",
+				countryCode: "FR",
+			},
+			[
+				{
+					key: "panic_room_11",
+					name: "Panic Room",
+					arrondissement: 11,
+				},
+			],
+		);
+
+		expect(matches).toEqual([]);
+	});
 });

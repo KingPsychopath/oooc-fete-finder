@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { resolveEventLocation } from "@/features/data-management/actions";
 import {
 	createDateNormalizationContext,
 	normalizeCsvDate,
@@ -111,6 +112,7 @@ import {
 	Eye,
 	EyeOff,
 	History,
+	Info,
 	Link2,
 	PanelRightOpen,
 	Plus,
@@ -123,6 +125,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EventSheetOcrDraftModal } from "./EventSheetOcrDraftModal";
 import { ADMIN_EVENT_SHEET_REFRESH_EVENT } from "./admin-content-events";
+import {
+	type RevisionDiff,
+	type RevisionRowDiff,
+	buildRevisionDiff,
+	getRevisionDiffTotal,
+} from "./event-sheet-revision-diff";
 
 type EventSheetEditorCardProps = {
 	isAuthenticated: boolean;
@@ -254,6 +262,14 @@ type LocationSuggestion = {
 	count: number;
 	isAreaMatch: boolean;
 };
+type ResolvedLocationMetadataSuggestion = {
+	address: string;
+	postalCode: string;
+	city: string;
+	countryCode: string;
+	sourceLabel: string;
+	summary: string;
+};
 type LocationCellPartStatus = {
 	name: string;
 	arrondissement: ParisArrondissement;
@@ -327,6 +343,7 @@ type CellDraft = FocusedCell & {
 type CellPopoverProps = {
 	children: ReactNode;
 	className: string;
+	popoverKey?: string;
 	style: CSSProperties;
 };
 
@@ -385,17 +402,36 @@ const EVENT_CATEGORY_POPOVER_WIDTH = 288;
 const EVENT_CATEGORY_POPOVER_HEIGHT = 270;
 const EVENT_CATEGORY_POPOVER_PADDING = 12;
 const CELL_POPOVER_VIEWPORT_PADDING = 8;
+const CELL_POPOVER_MIN_USEFUL_HEIGHT = 220;
 const SERIES_KEY_POPOVER_WIDTH = 360;
+const AREA_AUTOFILL_RULES =
+	"Auto area uses postcode: 75001-75020 -> 1e-20e; 75116 -> 16e; 92/93/94 -> Greater Paris; any other French 5-digit postcode -> Outside Paris. Paris with no postcode stays unknown because the arrondissement cannot be inferred.";
 
-const CellPopover = ({ children, className, style }: CellPopoverProps) => {
+const CellPopover = ({
+	children,
+	className,
+	popoverKey,
+	style,
+}: CellPopoverProps) => {
 	if (typeof document === "undefined") return null;
 
 	return createPortal(
-		<div className={className} style={style}>
+		<div
+			className={className}
+			data-cell-popover={popoverKey ?? ""}
+			style={style}
+		>
 			{children}
 		</div>,
 		document.body,
 	);
+};
+
+const isFocusInsideCellPopover = (popoverKey: string): boolean => {
+	if (typeof document === "undefined") return false;
+	const activeElement = document.activeElement;
+	if (!(activeElement instanceof HTMLElement)) return false;
+	return Boolean(activeElement.closest(`[data-cell-popover="${popoverKey}"]`));
 };
 
 const getRequiredSheetHealthIssues = (
@@ -931,6 +967,170 @@ const formatRevisionStats = (revision: EventSheetRevisionRecord): string => {
 	return parts.length > 0 ? parts.join(" · ") : "No row diff";
 };
 
+const formatDiffCount = (count: number, noun: string): string =>
+	`${count} ${noun}${count === 1 ? "" : "s"}`;
+
+const getRevisionDiffBadgeClassName = (type: RevisionRowDiff["type"]) => {
+	if (type === "added") {
+		return "border-emerald-300/70 bg-emerald-50 text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-100";
+	}
+	if (type === "deleted") {
+		return "border-rose-300/70 bg-rose-50 text-rose-900 dark:border-rose-500/40 dark:bg-rose-950/35 dark:text-rose-100";
+	}
+	return "border-amber-300/70 bg-amber-50 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-100";
+};
+
+const RevisionDiffGroup = ({
+	title,
+	description,
+	rows,
+	type,
+}: {
+	title: string;
+	description: string;
+	rows: RevisionRowDiff[];
+	type: RevisionRowDiff["type"];
+}) => {
+	if (rows.length === 0) return null;
+
+	return (
+		<div className="rounded-md border bg-background">
+			<div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+				<div>
+					<p className="text-sm font-medium">{title}</p>
+					<p className="text-xs text-muted-foreground">{description}</p>
+				</div>
+				<Badge
+					variant="outline"
+					className={getRevisionDiffBadgeClassName(type)}
+				>
+					{rows.length}
+				</Badge>
+			</div>
+			<div className="divide-y">
+				{rows.slice(0, 8).map((row) => (
+					<div key={row.key} className="px-3 py-2">
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
+							<span className="min-w-0 truncate text-sm font-medium">
+								{row.label}
+							</span>
+							{row.subtitle && (
+								<span className="text-xs text-muted-foreground">
+									{row.subtitle}
+								</span>
+							)}
+						</div>
+						{row.changedCells.length > 0 && (
+							<div className="mt-2 space-y-1">
+								{row.changedCells.slice(0, 5).map((cell) => (
+									<div
+										key={cell.key}
+										className="grid gap-1 rounded border bg-muted/20 px-2 py-1.5 text-xs sm:grid-cols-[7rem_minmax(0,1fr)]"
+									>
+										<div className="font-medium text-muted-foreground">
+											{cell.label}
+										</div>
+										<div className="min-w-0">
+											<div className="grid gap-1 md:grid-cols-2">
+												<div className="min-w-0">
+													<div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+														Current
+													</div>
+													<div className="truncate" title={cell.currentValue}>
+														{cell.currentValue || "Blank"}
+													</div>
+												</div>
+												<div className="min-w-0">
+													<div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+														Selected revision
+													</div>
+													<div className="truncate" title={cell.revisionValue}>
+														{cell.revisionValue || "Blank"}
+													</div>
+												</div>
+											</div>
+										</div>
+									</div>
+								))}
+								{row.changedCells.length > 5 && (
+									<p className="text-xs text-muted-foreground">
+										+{row.changedCells.length - 5} more changed fields
+									</p>
+								)}
+							</div>
+						)}
+					</div>
+				))}
+				{rows.length > 8 && (
+					<div className="px-3 py-2 text-xs text-muted-foreground">
+						+{rows.length - 8} more rows in this group
+					</div>
+				)}
+			</div>
+		</div>
+	);
+};
+
+const RevisionDiffSummary = ({ diff }: { diff: RevisionDiff }) => {
+	const total = getRevisionDiffTotal(diff);
+	if (total === 0) {
+		return (
+			<div className="rounded-md border border-emerald-300/70 bg-emerald-50/70 px-3 py-2 text-sm text-emerald-950 dark:border-emerald-500/40 dark:bg-emerald-950/25 dark:text-emerald-100">
+				This revision matches the sheet currently loaded in the editor.
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-3">
+			<div className="grid gap-2 sm:grid-cols-3">
+				<div className="rounded-md border border-emerald-300/70 bg-emerald-50/70 px-3 py-2 dark:border-emerald-500/40 dark:bg-emerald-950/25">
+					<div className="text-lg font-semibold text-emerald-950 dark:text-emerald-100">
+						{diff.added.length}
+					</div>
+					<div className="text-xs text-emerald-900/80 dark:text-emerald-100/75">
+						rows this revision adds
+					</div>
+				</div>
+				<div className="rounded-md border border-rose-300/70 bg-rose-50/70 px-3 py-2 dark:border-rose-500/40 dark:bg-rose-950/25">
+					<div className="text-lg font-semibold text-rose-950 dark:text-rose-100">
+						{diff.deleted.length}
+					</div>
+					<div className="text-xs text-rose-900/80 dark:text-rose-100/75">
+						current rows it removes
+					</div>
+				</div>
+				<div className="rounded-md border border-amber-300/70 bg-amber-50/70 px-3 py-2 dark:border-amber-500/40 dark:bg-amber-950/25">
+					<div className="text-lg font-semibold text-amber-950 dark:text-amber-100">
+						{diff.changed.length}
+					</div>
+					<div className="text-xs text-amber-900/80 dark:text-amber-100/75">
+						rows with field changes
+					</div>
+				</div>
+			</div>
+			<RevisionDiffGroup
+				type="added"
+				title={`Added by selected revision: ${formatDiffCount(diff.added.length, "row")}`}
+				description="These rows are missing from the current editor and will appear if you load this revision."
+				rows={diff.added}
+			/>
+			<RevisionDiffGroup
+				type="deleted"
+				title={`Removed by selected revision: ${formatDiffCount(diff.deleted.length, "row")}`}
+				description="These current rows are not in the selected revision and will disappear from the draft."
+				rows={diff.deleted}
+			/>
+			<RevisionDiffGroup
+				type="changed"
+				title={`Changed by selected revision: ${formatDiffCount(diff.changed.length, "row")}`}
+				description="For each field, Current is what is loaded now. Selected revision is what restore will load."
+				rows={diff.changed}
+			/>
+		</div>
+	);
+};
+
 const postGenreTaxonomyAction = async (
 	payload:
 		| { action: "create-genre"; label: string }
@@ -1264,6 +1464,100 @@ const buildLocationPlaceContext = (
 		: undefined,
 });
 
+const parseResolvedFormattedAddress = (
+	formattedAddress: string | undefined,
+): Pick<
+	ResolvedLocationMetadataSuggestion,
+	"address" | "postalCode" | "city" | "countryCode"
+> => {
+	const segments = (formattedAddress ?? "")
+		.split(",")
+		.map((segment) => segment.trim())
+		.filter(Boolean);
+	const localitySegment =
+		segments.find((segment) => /\b\d{5}\b/.test(segment)) ?? "";
+	const localityMatch = localitySegment.match(/\b(\d{5})\s+(.+?)\s*$/);
+	const countrySegment = segments[segments.length - 1] ?? "";
+	const countryCode = /^[A-Z]{2}$/i.test(countrySegment)
+		? countrySegment.toUpperCase()
+		: /^france$/i.test(countrySegment)
+			? "FR"
+			: "";
+	return {
+		address:
+			localityMatch && segments[0] !== localitySegment
+				? (segments[0] ?? "")
+				: "",
+		postalCode: normalizePostalCode(localityMatch?.[1] ?? ""),
+		city: normalizeCity(localityMatch?.[2] ?? ""),
+		countryCode,
+	};
+};
+
+const formatResolvedLocationSuggestionSource = (
+	resolution: SheetLocationResolution,
+): string => {
+	const provider = resolution.provider?.trim();
+	if (provider) return `resolved by ${provider}`;
+	if (resolution.source === "geocoded") return "resolved by geocoding";
+	if (resolution.source === "manual") return "stored with coordinates";
+	return "stored from location review";
+};
+
+const buildResolvedLocationMetadataSuggestion = (
+	resolution: SheetLocationResolution | null | undefined,
+): ResolvedLocationMetadataSuggestion | null => {
+	if (!resolution) return null;
+	const parsed = parseResolvedFormattedAddress(resolution.formattedAddress);
+	const suggestion = {
+		address: (resolution.address ?? parsed.address).trim(),
+		postalCode: normalizePostalCode(resolution.postalCode ?? parsed.postalCode),
+		city: normalizeCity(resolution.city ?? parsed.city),
+		countryCode: resolution.countryCode
+			? normalizeCountryCode(resolution.countryCode)
+			: parsed.countryCode,
+		sourceLabel: formatResolvedLocationSuggestionSource(resolution),
+	};
+	const summary = joinUniqueHintParts([
+		suggestion.address,
+		[suggestion.postalCode, suggestion.city].filter(Boolean).join(" "),
+		suggestion.countryCode && suggestion.countryCode !== "FR"
+			? suggestion.countryCode
+			: "",
+	]).join(" · ");
+	if (
+		!suggestion.address &&
+		!suggestion.postalCode &&
+		!suggestion.city &&
+		!suggestion.countryCode
+	) {
+		return null;
+	}
+	return { ...suggestion, summary };
+};
+
+const hasMissingResolvedLocationMetadata = (
+	place: ReturnType<typeof buildLocationPlaceContext>,
+	suggestion: ResolvedLocationMetadataSuggestion | null,
+): suggestion is ResolvedLocationMetadataSuggestion =>
+	Boolean(
+		suggestion &&
+			((!place.address?.trim() && suggestion.address) ||
+				(!place.postalCode?.trim() && suggestion.postalCode) ||
+				(!place.city?.trim() && suggestion.city) ||
+				(!place.countryCode?.trim() && suggestion.countryCode)),
+	);
+
+const formatDerivedLocationArea = (
+	derived: ReturnType<typeof deriveAreaFromPostalCodeCity>,
+): string => {
+	if (!derived) return "";
+	if (typeof derived === "number") return String(derived);
+	if (derived === "greater-paris") return "Greater Paris";
+	if (derived === "outside-paris") return "Outside Paris";
+	return "";
+};
+
 const deriveAreaLabelFromRow = (
 	row: EditableSheetRow,
 	index: number = 0,
@@ -1273,11 +1567,7 @@ const deriveAreaLabelFromRow = (
 		context.postalCode,
 		context.city,
 	);
-	if (!derived) return "";
-	if (typeof derived === "number") return String(derived);
-	if (derived === "greater-paris") return "Greater Paris";
-	if (derived === "outside-paris") return "Outside Paris";
-	return "";
+	return formatDerivedLocationArea(derived);
 };
 
 const getEffectiveAreaLabelFromRow = (
@@ -1289,6 +1579,70 @@ const getEffectiveAreaLabelFromRow = (
 		row[AREA_COLUMN_KEY] ?? "",
 	)[index]?.area;
 	return area || deriveAreaLabelFromRow(row, index);
+};
+
+const formatAreaCellHintLabel = (area: string): string => {
+	const option = findAreaOption(area);
+	return option?.label ?? normalizeAreaValue(area);
+};
+
+const joinUniqueHintParts = (values: string[]): string[] => {
+	const seen = new Set<string>();
+	const parts: string[] = [];
+	for (const value of values) {
+		const part = value.trim();
+		if (!part || seen.has(part.toLowerCase())) continue;
+		seen.add(part.toLowerCase());
+		parts.push(part);
+	}
+	return parts;
+};
+
+const formatLocationMetadataHint = (
+	row: EditableSheetRow,
+	index: number = 0,
+): string => {
+	const place = buildLocationPlaceContext(row, index);
+	const locality = [place.postalCode, place.city].filter(Boolean).join(" ");
+	const country =
+		place.countryCode && place.countryCode !== "FR" ? place.countryCode : "";
+	return joinUniqueHintParts([locality, country, place.address ?? ""]).join(
+		" · ",
+	);
+};
+
+const formatLocationCellHint = (row: EditableSheetRow): string => {
+	const locations = splitLocationRawParts(row[LOCATION_COLUMN_KEY] ?? "");
+	const areaValue = normalizeAreaValue(row[AREA_COLUMN_KEY] ?? "");
+	if (locations.length === 0 && areaValue === "Multiple Locations") {
+		return "Multiple locations";
+	}
+
+	if (locations.length <= 1) {
+		const area = getEffectiveAreaLabelFromRow(row);
+		return joinUniqueHintParts([
+			area ? formatAreaCellHintLabel(area) : "",
+			formatLocationMetadataHint(row),
+		]).join(" · ");
+	}
+
+	const areas = joinUniqueHintParts(
+		locations.map((_, index) => {
+			const area = getEffectiveAreaLabelFromRow(row, index);
+			return area ? formatAreaCellHintLabel(area) : "";
+		}),
+	);
+	const metadata = joinUniqueHintParts(
+		locations.map((_, index) => formatLocationMetadataHint(row, index)),
+	);
+	const areaSummary =
+		areas.length > 0 ? areas.slice(0, 3).join("/") : "areas pending";
+	const metadataSummary = metadata.slice(0, 2).join("; ");
+	return joinUniqueHintParts([
+		`${locations.length} locations`,
+		areaSummary,
+		metadataSummary,
+	]).join(" · ");
 };
 
 const getLocationTrustRank = (state: SheetLocationTrustState): number => {
@@ -1794,6 +2148,14 @@ export const EventSheetEditorCard = ({
 		useState<SheetLocationResolutionIndex>(
 			initialEditorData?.locationResolutionIndex ?? {},
 		);
+	const [resolvingLocationKey, setResolvingLocationKey] = useState<
+		string | null
+	>(null);
+	const [locationResolveFeedback, setLocationResolveFeedback] = useState<{
+		key: string;
+		tone: "success" | "error";
+		message: string;
+	} | null>(null);
 	const [sheetRevisions, setSheetRevisions] = useState<
 		EventSheetRevisionRecord[]
 	>(initialEditorData?.sheetRevisions ?? []);
@@ -2153,7 +2515,7 @@ export const EventSheetEditorCard = ({
 		clearStoredEditorDraft();
 		setRecoverableDraft(null);
 		setStatusMessage(
-			`Restored revision loaded for review (${revisionPreview.rows.length} rows). Publish when ready.`,
+			`Revision draft loaded for review (${revisionPreview.rows.length} rows). Publish to make it live, or reject to reload current.`,
 		);
 		setIsRevisionHistoryOpen(false);
 	};
@@ -3937,6 +4299,122 @@ export const EventSheetEditorCard = ({
 		[handleCellChange],
 	);
 
+	const fillMissingResolvedLocationMetadata = useCallback(
+		(
+			rowIndex: number,
+			partIndex: number,
+			suggestion: ResolvedLocationMetadataSuggestion,
+		) => {
+			const currentRow = rowsRef.current[rowIndex] ?? {};
+			const place = buildLocationPlaceContext(currentRow, partIndex);
+			if (!place.address?.trim() && suggestion.address) {
+				updateLocationMetadataPart(
+					rowIndex,
+					LOCATION_ADDRESS_COLUMN_KEY,
+					partIndex,
+					suggestion.address,
+				);
+			}
+			if (!place.postalCode?.trim() && suggestion.postalCode) {
+				updateLocationMetadataPart(
+					rowIndex,
+					POSTAL_CODE_COLUMN_KEY,
+					partIndex,
+					suggestion.postalCode,
+					normalizePostalCode,
+				);
+			}
+			if (!place.city?.trim() && suggestion.city) {
+				updateLocationMetadataPart(
+					rowIndex,
+					CITY_COLUMN_KEY,
+					partIndex,
+					suggestion.city,
+					normalizeCity,
+				);
+			}
+			if (!place.countryCode?.trim() && suggestion.countryCode) {
+				updateLocationMetadataPart(
+					rowIndex,
+					COUNTRY_CODE_COLUMN_KEY,
+					partIndex,
+					suggestion.countryCode,
+					normalizePlaceCountryCodeInput,
+				);
+			}
+			const nextPostalCode = place.postalCode?.trim() || suggestion.postalCode;
+			const nextCity = place.city?.trim() || suggestion.city;
+			if (deriveAreaFromPostalCodeCity(nextPostalCode, nextCity)) {
+				updateLocationAreaPart(rowIndex, partIndex, "");
+			}
+		},
+		[updateLocationAreaPart, updateLocationMetadataPart],
+	);
+
+	const resolveLocationPart = useCallback(
+		async (rowIndex: number, columnKey: string, partIndex: number) => {
+			const feedbackKey = locationPartRefKey(rowIndex, columnKey, partIndex);
+			const row = rowsRef.current[rowIndex] ?? {};
+			const locationName =
+				splitLocationRawParts(row[columnKey] ?? "")[partIndex]?.trim() ?? "";
+			const place = buildLocationPlaceContext(row, partIndex);
+			const area = getEffectiveAreaLabelFromRow(row, partIndex);
+			const arrondissement = areaOptionToArrondissement(findAreaOption(area));
+			if (!isCoordinateResolvableInput(locationName, arrondissement)) {
+				setLocationResolveFeedback({
+					key: feedbackKey,
+					tone: "error",
+					message: "Add a venue and known area before geocoding.",
+				});
+				return;
+			}
+
+			setResolvingLocationKey(feedbackKey);
+			setLocationResolveFeedback(null);
+			try {
+				const result = await resolveEventLocation(
+					undefined,
+					locationName,
+					arrondissement,
+					{
+						forceRefresh: true,
+						address: place.address,
+						postalCode: place.postalCode,
+						city: place.city,
+						countryCode: place.countryCode,
+					},
+				);
+				if (!result.success || !result.resolution) {
+					throw new Error(result.error || result.message);
+				}
+				const { resolution } = result;
+				setLocationResolutionIndex((current) => ({
+					...current,
+					[resolution.id]: resolution,
+				}));
+				setLocationResolveFeedback({
+					key: feedbackKey,
+					tone: "success",
+					message: "Resolved. Fill missing details if you want to accept them.",
+				});
+			} catch (error) {
+				setLocationResolveFeedback({
+					key: feedbackKey,
+					tone: "error",
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to geocode location.",
+				});
+			} finally {
+				setResolvingLocationKey((current) =>
+					current === feedbackKey ? null : current,
+				);
+			}
+		},
+		[],
+	);
+
 	const removeLocationPart = useCallback(
 		(rowIndex: number, columnKey: string, partIndex: number) => {
 			const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
@@ -4017,6 +4495,21 @@ export const EventSheetEditorCard = ({
 	);
 
 	const visibleSheetRevisions = sheetRevisions.slice(0, 3);
+	const revisionPreviewDiff = useMemo(() => {
+		if (!revisionPreview?.rows) return null;
+		const comparisonColumns = [...columns];
+		const seenColumnKeys = new Set(columns.map((column) => column.key));
+		for (const column of revisionPreview.columns ?? []) {
+			if (seenColumnKeys.has(column.key)) continue;
+			comparisonColumns.push(column);
+			seenColumnKeys.add(column.key);
+		}
+		return buildRevisionDiff({
+			columns: comparisonColumns,
+			currentRows: rows,
+			revisionRows: revisionPreview.rows,
+		});
+	}, [columns, revisionPreview?.columns, revisionPreview?.rows, rows]);
 	const availableGenres = useMemo(
 		() =>
 			(genreTaxonomy?.genres ?? [])
@@ -4598,14 +5091,27 @@ export const EventSheetEditorCard = ({
 				CELL_POPOVER_VIEWPORT_PADDING,
 			),
 		);
-		const hasRoomBelow =
-			rect.bottom + estimatedHeight + CELL_POPOVER_VIEWPORT_PADDING <=
-			window.innerHeight;
-		const top = hasRoomBelow
+		const belowSpace =
+			window.innerHeight - rect.bottom - CELL_POPOVER_VIEWPORT_PADDING;
+		const aboveSpace = rect.top - CELL_POPOVER_VIEWPORT_PADDING;
+		const openBelow =
+			belowSpace >= Math.min(estimatedHeight, CELL_POPOVER_MIN_USEFUL_HEIGHT) ||
+			belowSpace >= aboveSpace;
+		const top = openBelow
 			? rect.bottom + 6
-			: Math.max(rect.top - estimatedHeight - 6, CELL_POPOVER_VIEWPORT_PADDING);
+			: Math.max(
+					rect.top - Math.min(estimatedHeight, aboveSpace) - 6,
+					CELL_POPOVER_VIEWPORT_PADDING,
+				);
+		const availableHeight = openBelow
+			? window.innerHeight - top - CELL_POPOVER_VIEWPORT_PADDING
+			: rect.top - top - 6;
 
-		return { left, top };
+		return {
+			left,
+			top,
+			maxHeight: Math.max(140, availableHeight),
+		};
 	};
 
 	const rangePreviewRow =
@@ -5768,8 +6274,9 @@ export const EventSheetEditorCard = ({
 								<div>
 									<p className="font-medium">Revision loaded for review.</p>
 									<p className="mt-1 text-xs text-sky-900/85">
-										{restoreReviewRevision.summary}. Publish to make it live, or
-										discard to reload the current saved sheet.
+										You are editing a draft copied from{" "}
+										{restoreReviewRevision.summary}. Nothing public changes
+										until you publish. Discard reloads the current saved sheet.
 									</p>
 								</div>
 								<div className="flex flex-wrap gap-2">
@@ -5779,7 +6286,7 @@ export const EventSheetEditorCard = ({
 										onClick={() => void handleManualSave()}
 										disabled={isSaving}
 									>
-										Publish Revision
+										Publish This Revision
 									</Button>
 									<Button
 										type="button"
@@ -5788,7 +6295,7 @@ export const EventSheetEditorCard = ({
 										onClick={handleDiscardRestoredRevision}
 										disabled={isSaving}
 									>
-										Discard
+										Reject and Reload Current
 									</Button>
 								</div>
 							</div>
@@ -5836,9 +6343,9 @@ export const EventSheetEditorCard = ({
 									</Badge>
 								</div>
 								<p className="mt-1 text-xs text-muted-foreground">
-									Autosaves are grouped into editing sessions. Published saves
-									are listed separately. Restore loads a revision for review
-									before publishing.
+									Open a revision to compare it against the sheet currently in
+									the editor. Loading a revision only creates an unpublished
+									draft; publishing is a separate action.
 								</p>
 							</div>
 							<div className="flex flex-wrap gap-2">
@@ -5909,7 +6416,7 @@ export const EventSheetEditorCard = ({
 												revision.sampleDeleted.length > 0) && (
 												<details className="mt-1 text-xs text-muted-foreground">
 													<summary className="cursor-pointer">
-														Columns and samples
+														What this save recorded
 													</summary>
 													<div className="mt-1 space-y-1">
 														{revision.changedColumns.length > 0 && (
@@ -5944,7 +6451,7 @@ export const EventSheetEditorCard = ({
 														!revision.canRestore || isLoadingRevisionPreview
 													}
 												>
-													Preview
+													Compare
 												</Button>
 											</div>
 										</div>
@@ -5968,12 +6475,14 @@ export const EventSheetEditorCard = ({
 									Sheet revision history
 								</DialogTitle>
 								<DialogDescription className="max-w-2xl text-base leading-relaxed">
-									Preview a revision before restoring it into the editor. The
-									restore stays unpublished until you save and revalidate.
+									Compare each revision with the sheet currently loaded in the
+									editor. Load only copies the selected revision into an
+									unpublished draft; Publish This Revision is the separate
+									commit.
 								</DialogDescription>
 							</DialogHeader>
 
-							<div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+							<div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(260px,0.75fr)_minmax(0,1.25fr)]">
 								<div className="max-h-[58vh] min-h-0 overflow-y-auto rounded-md border bg-background/70">
 									{sheetRevisions.length > 0 ? (
 										<div className="divide-y">
@@ -5981,7 +6490,11 @@ export const EventSheetEditorCard = ({
 												<button
 													key={revision.id}
 													type="button"
-													className="block w-full px-3 py-2 text-left transition hover:bg-muted/45 disabled:cursor-not-allowed disabled:opacity-60"
+													className={`block w-full px-3 py-2 text-left transition hover:bg-muted/45 disabled:cursor-not-allowed disabled:opacity-60 ${
+														revisionPreview?.revision?.id === revision.id
+															? "bg-sky-50/80 ring-1 ring-inset ring-sky-300/70 dark:bg-sky-950/25 dark:ring-sky-500/40"
+															: ""
+													}`}
 													onClick={() => void handlePreviewRevision(revision)}
 													disabled={
 														!revision.canRestore || isLoadingRevisionPreview
@@ -6026,90 +6539,55 @@ export const EventSheetEditorCard = ({
 									)}
 								</div>
 
-								<div className="min-h-0 rounded-md border bg-background/70 p-3">
+								<div className="min-h-0 overflow-y-auto rounded-md border bg-background/70 p-3">
 									{revisionPreview?.revision ? (
 										<div className="space-y-3">
 											<div>
-												<div className="flex flex-wrap items-center gap-2">
-													<Badge
-														variant={
-															revisionPreview.revision.trigger === "publish"
-																? "default"
-																: "secondary"
-														}
-														className="text-[10px]"
-													>
-														{revisionPreview.revision.trigger === "publish"
-															? "Published"
-															: "Autosave"}
+												<div className="flex flex-wrap items-start justify-between gap-3">
+													<div className="min-w-0">
+														<div className="flex flex-wrap items-center gap-2">
+															<Badge
+																variant={
+																	revisionPreview.revision.trigger === "publish"
+																		? "default"
+																		: "secondary"
+																}
+																className="text-[10px]"
+															>
+																{revisionPreview.revision.trigger === "publish"
+																	? "Published"
+																	: "Autosave"}
+															</Badge>
+															<span className="text-sm font-medium">
+																{formatRevisionTime(
+																	revisionPreview.revision.updatedAt,
+																)}
+															</span>
+														</div>
+														<p className="mt-2 text-sm">
+															{revisionPreview.revision.summary}
+														</p>
+														<p className="mt-1 text-xs text-muted-foreground">
+															Selected revision contains{" "}
+															{revisionPreview.rows?.length ?? 0} rows and{" "}
+															{revisionPreview.columns?.length ?? 0} columns.
+														</p>
+													</div>
+													<Badge variant="outline" className="text-[10px]">
+														Compared with current editor
 													</Badge>
-													<span className="text-sm font-medium">
-														{formatRevisionTime(
-															revisionPreview.revision.updatedAt,
-														)}
-													</span>
 												</div>
-												<p className="mt-2 text-sm">
-													{revisionPreview.revision.summary}
-												</p>
-												<p className="mt-1 text-xs text-muted-foreground">
-													{revisionPreview.rows?.length ?? 0} rows,{" "}
-													{revisionPreview.columns?.length ?? 0} columns
-												</p>
 											</div>
 
-											<div className="space-y-1 text-xs text-muted-foreground">
-												{revisionPreview.revision.changedColumns.length > 0 && (
-													<p>
-														Columns:{" "}
-														{revisionPreview.revision.changedColumns.join(", ")}
-													</p>
-												)}
-												{revisionPreview.revision.sampleAdded.length > 0 && (
-													<p>
-														Added:{" "}
-														{revisionPreview.revision.sampleAdded.join(", ")}
-													</p>
-												)}
-												{revisionPreview.revision.sampleDeleted.length > 0 && (
-													<p>
-														Deleted:{" "}
-														{revisionPreview.revision.sampleDeleted.join(", ")}
-													</p>
-												)}
+											<div className="rounded-md border border-sky-300/70 bg-sky-50/70 px-3 py-2 text-xs text-sky-950 dark:border-sky-500/40 dark:bg-sky-950/25 dark:text-sky-100">
+												Accept means load this whole revision into the editor as
+												a draft. Reject means close this comparison and keep the
+												current editor state. Neither action publishes.
 											</div>
 
-											<div className="max-h-56 overflow-y-auto rounded-md border bg-background">
-												<table className="w-full text-xs">
-													<thead className="sticky top-0 bg-background">
-														<tr>
-															<th className="border-b px-2 py-1 text-left">
-																Title
-															</th>
-															<th className="border-b px-2 py-1 text-left">
-																Date
-															</th>
-														</tr>
-													</thead>
-													<tbody>
-														{(revisionPreview.rows ?? [])
-															.slice(0, 8)
-															.map((row, index) => (
-																<tr
-																	key={`${row.eventKey || row.title}-${index}`}
-																	className="border-b last:border-0"
-																>
-																	<td className="px-2 py-1">
-																		{row.title || "Untitled event"}
-																	</td>
-																	<td className="px-2 py-1">
-																		{row.date || "TBC"}
-																	</td>
-																</tr>
-															))}
-													</tbody>
-												</table>
-											</div>
+											{revisionPreviewDiff && (
+												<RevisionDiffSummary diff={revisionPreviewDiff} />
+											)}
 
 											<div className="flex flex-wrap justify-end gap-2 border-t pt-3">
 												<Button
@@ -6117,22 +6595,22 @@ export const EventSheetEditorCard = ({
 													variant="outline"
 													onClick={() => setRevisionPreview(null)}
 												>
-													Clear preview
+													Reject: Keep Current
 												</Button>
 												<Button
 													type="button"
 													onClick={handleRestoreRevisionPreview}
 													disabled={isSaving}
 												>
-													Restore as draft
+													Accept: Load as Draft
 												</Button>
 											</div>
 										</div>
 									) : (
 										<div className="flex min-h-48 items-center rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground">
 											{isLoadingRevisionPreview
-												? "Loading revision preview..."
-												: "Choose a restorable revision to preview."}
+												? "Loading revision comparison..."
+												: "Choose a restorable revision to compare with the current editor."}
 										</div>
 									)}
 								</div>
@@ -7376,6 +7854,7 @@ export const EventSheetEditorCard = ({
 										);
 										const locationCellStatus =
 											locationStatusByRowIndex.get(rowIndex);
+										const locationCellHint = formatLocationCellHint(row);
 										const rowIssues =
 											sheetHealthIssuesByRow.get(rowIndex + 1) ?? [];
 										const rowQuality = getRowQualityAssessment(row, rowIssues, {
@@ -7912,10 +8391,10 @@ export const EventSheetEditorCard = ({
 																	)}
 															</div>
 														) : column.key === LOCATION_COLUMN_KEY ? (
-															<div className="relative min-h-9 bg-transparent">
+															<div className="relative min-h-9 bg-transparent px-2 py-1">
 																{locationCellStatus && (
 																	<span
-																		className={`absolute left-2 top-1/2 z-10 h-2.5 w-2.5 -translate-y-1/2 rounded-full border ${getLocationDotClassName(
+																		className={`absolute left-2 top-3.5 z-10 h-2.5 w-2.5 -translate-y-1/2 rounded-full border ${getLocationDotClassName(
 																			locationCellStatus.trustState,
 																			locationCellStatus.hasAliasWarning,
 																		)}`}
@@ -7958,6 +8437,13 @@ export const EventSheetEditorCard = ({
 																	onBlur={() => {
 																		commitStandardCell(rowIndex, column.key);
 																		window.setTimeout(() => {
+																			if (
+																				isFocusInsideCellPopover(
+																					`location-${rowIndex}-${column.key}`,
+																				)
+																			) {
+																				return;
+																			}
 																			setFocusedLocationCell((current) =>
 																				current?.rowIndex === rowIndex &&
 																				current.columnKey === column.key
@@ -8045,8 +8531,8 @@ export const EventSheetEditorCard = ({
 																			focusCell(rowIndex, column.key, 0, -1);
 																		}
 																	}}
-																	className={`h-9 w-full border-0 bg-transparent py-0 pr-2 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30 ${
-																		locationCellStatus ? "pl-6" : "pl-2"
+																	className={`h-5 w-full border-0 bg-transparent p-0 text-xs outline-none placeholder:text-muted-foreground/45 focus:bg-muted/30 ${
+																		locationCellStatus ? "pl-4" : ""
 																	}`}
 																	placeholder="Venue or address"
 																	aria-autocomplete="list"
@@ -8056,11 +8542,22 @@ export const EventSheetEditorCard = ({
 																		focusedLocationCell.columnKey === column.key
 																	}
 																/>
+																{locationCellHint && (
+																	<div
+																		className={`mt-0.5 truncate text-[10px] leading-3 text-muted-foreground/70 ${
+																			locationCellStatus ? "pl-4" : ""
+																		}`}
+																		title={locationCellHint}
+																	>
+																		{locationCellHint}
+																	</div>
+																)}
 																{focusedLocationCell?.rowIndex === rowIndex &&
 																	focusedLocationCell.columnKey ===
 																		column.key && (
 																		<CellPopover
 																			className="fixed z-[140] max-h-[calc(100vh-1rem)] w-[min(28rem,calc(100vw-1rem))] overflow-y-auto rounded-md border border-border/80 bg-popover shadow-xl"
+																			popoverKey={`location-${rowIndex}-${column.key}`}
 																			style={getCellPopoverStyle(
 																				rowIndex,
 																				column.key,
@@ -8118,7 +8615,7 @@ export const EventSheetEditorCard = ({
 																										</span>
 																										{part.resolution
 																											?.formattedAddress
-																											? ` -> ${part.resolution.formattedAddress}`
+																											? ` · Resolved address: ${part.resolution.formattedAddress}`
 																											: ""}
 																										{part.aliases.length > 0
 																											? `; similar: ${part.aliases
@@ -8142,6 +8639,7 @@ export const EventSheetEditorCard = ({
 																						size="sm"
 																						variant="ghost"
 																						className="h-7 justify-start px-2 text-xs"
+																						title="Use when the event spans multiple places but the exact venues are not known yet"
 																						onMouseDown={(event) => {
 																							event.preventDefault();
 																						}}
@@ -8170,7 +8668,7 @@ export const EventSheetEditorCard = ({
 																							)
 																						}
 																					>
-																						Multiple locations
+																						Unknown locations
 																					</Button>
 																				</div>
 																			</div>
@@ -8191,13 +8689,55 @@ export const EventSheetEditorCard = ({
 																									row,
 																									partIndex,
 																								);
+																							const locationPartKey =
+																								locationPartRefKey(
+																									rowIndex,
+																									column.key,
+																									partIndex,
+																								);
+																							const locationStatusPart =
+																								locationCellStatus?.parts[
+																									partIndex
+																								];
+																							const resolvedSuggestion =
+																								buildResolvedLocationMetadataSuggestion(
+																									locationStatusPart?.resolution,
+																								);
+																							const canFillResolvedMetadata =
+																								hasMissingResolvedLocationMetadata(
+																									place,
+																									resolvedSuggestion,
+																								);
+																							const suggestedArea =
+																								formatDerivedLocationArea(
+																									deriveAreaFromPostalCodeCity(
+																										resolvedSuggestion?.postalCode,
+																										resolvedSuggestion?.city,
+																									),
+																								);
+																							const areaHintText = derivedArea
+																								? `Auto area ${normalizeAreaValue(derivedArea)}`
+																								: suggestedArea
+																									? `Suggested area ${normalizeAreaValue(suggestedArea)}`
+																									: "Auto area pending";
+																							const canResolveLocation =
+																								Boolean(locationStatusPart) &&
+																								isCoordinateResolvableInput(
+																									part,
+																									locationStatusPart?.arrondissement ??
+																										"unknown",
+																								);
+																							const isResolvingLocation =
+																								resolvingLocationKey ===
+																								locationPartKey;
+																							const resolveFeedback =
+																								locationResolveFeedback?.key ===
+																								locationPartKey
+																									? locationResolveFeedback
+																									: null;
 																							return (
 																								<div
-																									key={locationPartRefKey(
-																										rowIndex,
-																										column.key,
-																										partIndex,
-																									)}
+																									key={locationPartKey}
 																									className="rounded px-1 py-1.5"
 																								>
 																									<div className="grid gap-1">
@@ -8255,8 +8795,16 @@ export const EventSheetEditorCard = ({
 																													event.target.value,
 																												)
 																											}
-																											className="h-7 rounded border border-border/70 bg-background px-2 text-xs outline-none focus:border-ring"
-																											placeholder="Address"
+																											className={`h-7 rounded border border-border/70 bg-background px-2 text-xs outline-none placeholder:text-muted-foreground/45 focus:border-ring ${
+																												!place.address?.trim() &&
+																												resolvedSuggestion?.address
+																													? "placeholder:text-emerald-700/70 dark:placeholder:text-emerald-300/65"
+																													: ""
+																											}`}
+																											placeholder={
+																												resolvedSuggestion?.address ||
+																												"Address"
+																											}
 																										/>
 																										<div className="grid grid-cols-[6.5rem_1fr_4.25rem] gap-1">
 																											<input
@@ -8272,8 +8820,16 @@ export const EventSheetEditorCard = ({
 																														normalizePostalCode,
 																													)
 																												}
-																												className="h-7 rounded border border-border/70 bg-background px-2 text-xs outline-none focus:border-ring"
-																												placeholder="Postal"
+																												className={`h-7 rounded border border-border/70 bg-background px-2 text-xs outline-none placeholder:text-muted-foreground/45 focus:border-ring ${
+																													!place.postalCode?.trim() &&
+																													resolvedSuggestion?.postalCode
+																														? "placeholder:text-emerald-700/70 dark:placeholder:text-emerald-300/65"
+																														: ""
+																												}`}
+																												placeholder={
+																													resolvedSuggestion?.postalCode ||
+																													"Postal"
+																												}
 																											/>
 																											<input
 																												value={place.city ?? ""}
@@ -8286,8 +8842,16 @@ export const EventSheetEditorCard = ({
 																														normalizeCity,
 																													)
 																												}
-																												className="h-7 rounded border border-border/70 bg-background px-2 text-xs outline-none focus:border-ring"
-																												placeholder="City"
+																												className={`h-7 rounded border border-border/70 bg-background px-2 text-xs outline-none placeholder:text-muted-foreground/45 focus:border-ring ${
+																													!place.city?.trim() &&
+																													resolvedSuggestion?.city
+																														? "placeholder:text-emerald-700/70 dark:placeholder:text-emerald-300/65"
+																														: ""
+																												}`}
+																												placeholder={
+																													resolvedSuggestion?.city ||
+																													"City"
+																												}
 																											/>
 																											<input
 																												value={
@@ -8303,16 +8867,37 @@ export const EventSheetEditorCard = ({
 																														normalizePlaceCountryCodeInput,
 																													)
 																												}
-																												className="h-7 rounded border border-border/70 bg-background px-2 text-xs uppercase outline-none focus:border-ring"
-																												placeholder="FR"
+																												className={`h-7 rounded border border-border/70 bg-background px-2 text-xs uppercase outline-none placeholder:text-muted-foreground/45 focus:border-ring ${
+																													!place.countryCode?.trim() &&
+																													resolvedSuggestion?.countryCode
+																														? "placeholder:text-emerald-700/70 dark:placeholder:text-emerald-300/65"
+																														: ""
+																												}`}
+																												placeholder={
+																													resolvedSuggestion?.countryCode ||
+																													"FR"
+																												}
 																												maxLength={2}
 																											/>
 																										</div>
 																										<div className="grid grid-cols-[1fr_7.5rem] items-center gap-1">
-																											<div className="truncate text-[10px] text-muted-foreground">
-																												{derivedArea
-																													? `Auto area ${normalizeAreaValue(derivedArea)}`
-																													: "Auto area pending"}
+																											<div className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
+																												<span
+																													className="truncate"
+																													title={
+																														AREA_AUTOFILL_RULES
+																													}
+																												>
+																													{areaHintText}
+																												</span>
+																												<span
+																													className="inline-flex shrink-0 text-muted-foreground/75"
+																													title={
+																														AREA_AUTOFILL_RULES
+																													}
+																												>
+																													<Info className="h-3 w-3" />
+																												</span>
 																											</div>
 																											<select
 																												value={explicitArea}
@@ -8345,6 +8930,89 @@ export const EventSheetEditorCard = ({
 																													),
 																												)}
 																											</select>
+																										</div>
+																										{canFillResolvedMetadata && (
+																											<Button
+																												type="button"
+																												size="sm"
+																												variant="ghost"
+																												className="h-7 justify-start px-2 text-[11px] text-emerald-800 hover:text-emerald-900 dark:text-emerald-200 dark:hover:text-emerald-100"
+																												title={`Fill missing fields from ${resolvedSuggestion.sourceLabel}: ${resolvedSuggestion.summary}`}
+																												onMouseDown={(
+																													event,
+																												) => {
+																													event.preventDefault();
+																													fillMissingResolvedLocationMetadata(
+																														rowIndex,
+																														partIndex,
+																														resolvedSuggestion,
+																													);
+																												}}
+																											>
+																												<Sparkles className="mr-1 h-3.5 w-3.5" />
+																												Fill missing details
+																											</Button>
+																										)}
+																										<div className="flex items-center gap-1">
+																											<Button
+																												type="button"
+																												size="sm"
+																												variant="ghost"
+																												className="h-7 justify-start px-2 text-[11px]"
+																												disabled={
+																													isResolvingLocation ||
+																													!canResolveLocation
+																												}
+																												title={
+																													canResolveLocation
+																														? "Run geocoding and save coordinates. This only creates resolved suggestions; sheet details still require acceptance."
+																														: "Add a venue and known area before geocoding."
+																												}
+																												onMouseDown={(
+																													event,
+																												) => {
+																													event.preventDefault();
+																													if (
+																														isResolvingLocation ||
+																														!canResolveLocation
+																													) {
+																														return;
+																													}
+																													void resolveLocationPart(
+																														rowIndex,
+																														column.key,
+																														partIndex,
+																													);
+																												}}
+																											>
+																												<RefreshCw
+																													className={`mr-1 h-3.5 w-3.5 ${
+																														isResolvingLocation
+																															? "animate-spin"
+																															: ""
+																													}`}
+																												/>
+																												{isResolvingLocation
+																													? "Geocoding"
+																													: "Geocode now"}
+																											</Button>
+																											{resolveFeedback && (
+																												<div
+																													className={`min-w-0 truncate text-[10px] ${
+																														resolveFeedback.tone ===
+																														"success"
+																															? "text-emerald-700 dark:text-emerald-300"
+																															: "text-destructive"
+																													}`}
+																													title={
+																														resolveFeedback.message
+																													}
+																												>
+																													{
+																														resolveFeedback.message
+																													}
+																												</div>
+																											)}
 																										</div>
 																									</div>
 																								</div>

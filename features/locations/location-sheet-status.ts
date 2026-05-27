@@ -36,6 +36,7 @@ export type LocationAliasCandidate = {
 	key: string;
 	name: string;
 	arrondissement: ParisArrondissement;
+	address?: string;
 	postalCode?: string;
 	city?: string;
 	countryCode?: string;
@@ -160,7 +161,6 @@ export const findLikelyLocationAliases = (
 
 		if (candidateText === targetText) {
 			seen.add(candidate.key);
-			matches.push({ ...candidate, reason: "same-normalized-name" });
 			continue;
 		}
 

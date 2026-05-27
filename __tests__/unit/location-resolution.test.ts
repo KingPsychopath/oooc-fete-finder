@@ -10,6 +10,7 @@ import { findNearbyEvents } from "@/features/locations/nearby-event-service";
 import type { GeocodingProvider } from "@/features/locations/providers/geocoding-provider";
 import type { StoredLocationResolution } from "@/features/locations/types";
 import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
+import { LocationStorage } from "@/features/maps/location-storage";
 import { describe, expect, it, vi } from "vitest";
 
 const makeProvider = (
@@ -385,5 +386,64 @@ describe("location resolution", () => {
 
 		expect(event.coordinates).toEqual({ lat: 48.6003155, lng: 2.5560718 });
 		expect(event.locationResolution?.source).toBe("geocoded");
+	});
+
+	it("persists structured locations under one canonical key instead of area aliases", async () => {
+		const structuredKey = generateLocationStorageKey("Panic Room", 11, {
+			address: "101 Rue Amelot",
+			postalCode: "75011",
+			city: "Paris",
+			countryCode: "FR",
+		});
+		const saveSpy = vi
+			.spyOn(LocationStorage, "save")
+			.mockResolvedValue(undefined);
+
+		await LocationRepository.save(
+			new Map<string, StoredLocationResolution>([
+				[
+					"panic_room_11",
+					{
+						id: "panic_room_11",
+						name: "Panic Room",
+						arrondissement: 11,
+						address: "101 Rue Amelot",
+						postalCode: "75011",
+						city: "Paris",
+						countryCode: "FR",
+						coordinates: { lat: 48.862, lng: 2.367 },
+						source: "geocoded",
+						precision: "venue",
+						confidence: 0.9,
+						lastUpdated: "2026-05-27T00:00:00.000Z",
+						lastResolvedAt: "2026-05-27T00:00:00.000Z",
+					},
+				],
+				[
+					structuredKey,
+					{
+						id: structuredKey,
+						name: "Panic Room",
+						arrondissement: 11,
+						address: "101 Rue Amelot",
+						postalCode: "75011",
+						city: "Paris",
+						countryCode: "FR",
+						coordinates: { lat: 48.862, lng: 2.367 },
+						source: "geocoded",
+						precision: "venue",
+						confidence: 0.9,
+						lastUpdated: "2026-05-27T00:00:00.000Z",
+						lastResolvedAt: "2026-05-27T00:00:00.000Z",
+					},
+				],
+			]),
+		);
+
+		const savedLocations = saveSpy.mock.calls[0]?.[0];
+		expect(savedLocations?.has("panic_room_11")).toBe(false);
+		expect(savedLocations?.has(structuredKey)).toBe(true);
+		expect(savedLocations?.size).toBe(1);
+		saveSpy.mockRestore();
 	});
 });
