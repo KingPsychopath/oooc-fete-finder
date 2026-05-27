@@ -47,7 +47,7 @@ const INSIGHTS_TABS: Array<{
 	{
 		key: "advanced",
 		label: "Advanced",
-		description: "Raw breakdowns and full event table.",
+		description: "Diagnostics, raw dimensions, full table.",
 	},
 ];
 

@@ -1385,7 +1385,7 @@ export const EventEngagementStatsCard = ({
 										? "Event Performance"
 										: activeTab === "audience"
 											? "Audience Builder"
-											: "Advanced Analytics"}
+											: "Advanced Diagnostics"}
 						</CardTitle>
 						<CardDescription>
 							{activeTab === "traffic"
@@ -1396,7 +1396,7 @@ export const EventEngagementStatsCard = ({
 										? "Event opens, external link intent, calendar actions, and quality signals."
 										: activeTab === "audience"
 											? "Build exportable audience segments from live behavior and collected users."
-											: "Raw traffic dimensions, full live signals, and the complete event performance table."}
+											: "Use this when a headline metric changes: inspect attribution, device/browser QA, raw discovery signals, and the complete event table."}
 						</CardDescription>
 					</div>
 					<div className="flex max-w-full flex-col items-end gap-2 lg:justify-self-end">
@@ -1685,46 +1685,75 @@ export const EventEngagementStatsCard = ({
 					</div>
 					<details className="rounded-md border bg-background/45 p-3">
 						<summary className="cursor-pointer text-xs font-medium text-foreground">
-							Advanced traffic breakdown
+							Traffic drill-down
 						</summary>
+						<div className="mt-2 flex items-start gap-1 text-xs text-muted-foreground">
+							<p>
+								Diagnostic breakdowns for explaining a traffic change. Start
+								with Source Conversion and Landing Pages for decisions; use this
+								panel to spot attribution gaps, wrong domains, geography shifts,
+								and device/browser QA issues.
+							</p>
+							<InfoPopover
+								aria-label="How to use traffic drill-down"
+								side="top"
+							>
+								Rows are ranked by page views. Visitors are distinct
+								first-party browser sessions. These dimensions explain where
+								traffic came from and whether tracking is healthy; they are not
+								a replacement for conversion or event-intent metrics.
+							</InfoPopover>
+						</div>
 						<div className="mt-3 grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
 							{[
 								{
-									label: "Pages",
+									label: "Top Pages",
+									description:
+										"Find content or route demand that does not appear in landing-page conversion.",
 									rows: traffic.topPages,
 									empty: "No page-view data yet.",
 								},
 								{
-									label: "Referrers",
+									label: "Referrer Hosts",
+									description:
+										"Find external sites sending traffic outside tagged campaigns.",
 									rows: traffic.topReferrers,
 									empty: "No referrer data yet.",
 								},
 								{
-									label: "UTM Sources",
+									label: "Campaign Sources",
+									description:
+										"Check whether Instagram, email, partner, and paid links are tagged consistently.",
 									rows: traffic.topUtmSources.map((row) => ({
 										...row,
 										label:
 											row.label === "none"
-												? "No UTM source"
+												? "Missing source"
 												: formatContextLabel(row.label),
 									})),
 									empty: "No UTM source data yet.",
 								},
 								{
-									label: "UTM Campaigns",
+									label: "Campaign Names",
+									description:
+										"Compare named pushes; missing campaigns usually mean links need cleaner UTM tagging.",
 									rows: traffic.topUtmCampaigns.map((row) => ({
 										...row,
-										label: row.label === "none" ? "No campaign" : row.label,
+										label: row.label === "none" ? "Missing campaign" : row.label,
 									})),
 									empty: "No UTM campaign data yet.",
 								},
 								{
-									label: "Hostnames",
+									label: "Site Hostnames",
+									description:
+										"Catch preview, alternate-domain, or production-domain traffic split across hosts.",
 									rows: traffic.topHostnames,
 									empty: "No hostname data yet.",
 								},
 								{
 									label: "Countries",
+									description:
+										"Spot unexpected audience shifts. Country comes from edge headers when available.",
 									rows: traffic.topCountries.map((row) => ({
 										...row,
 										label:
@@ -1735,7 +1764,9 @@ export const EventEngagementStatsCard = ({
 									empty: "No country data yet.",
 								},
 								{
-									label: "Devices",
+									label: "Device Classes",
+									description:
+										"Use for responsive QA and mobile/desktop behavior differences.",
 									rows: traffic.topDevices.map((row) => ({
 										...row,
 										label: formatContextLabel(row.label),
@@ -1744,6 +1775,8 @@ export const EventEngagementStatsCard = ({
 								},
 								{
 									label: "Operating Systems",
+									description:
+										"Use with browsers to reproduce platform-specific bugs or conversion drops.",
 									rows: traffic.topPlatforms.map((row) => ({
 										...row,
 										label: formatContextLabel(row.label),
@@ -1752,6 +1785,8 @@ export const EventEngagementStatsCard = ({
 								},
 								{
 									label: "Browsers",
+									description:
+										"Use for QA prioritization when a browser-specific issue is suspected.",
 									rows: traffic.topBrowsers.map((row) => ({
 										...row,
 										label: formatContextLabel(row.label),
@@ -1765,9 +1800,17 @@ export const EventEngagementStatsCard = ({
 								);
 								return (
 									<div key={group.label} className="space-y-2">
-										<p className="text-xs font-medium text-foreground">
-											{group.label}
-										</p>
+										<div className="flex items-start gap-1">
+											<p className="text-xs font-medium text-foreground">
+												{group.label}
+											</p>
+											<InfoPopover
+												aria-label={`Explain ${group.label}`}
+												side="top"
+											>
+												{group.description}
+											</InfoPopover>
+										</div>
 										{group.rows.length === 0 ? (
 											<p className="text-xs text-muted-foreground">
 												{group.empty}
@@ -2955,7 +2998,7 @@ export const EventEngagementStatsCard = ({
 					</div>
 				</section> : null}
 
-				<section className="grid gap-4 xl:grid-cols-2">
+				{showAdvancedTab ? <section className="grid gap-4 xl:grid-cols-2">
 					<div className="space-y-2 rounded-md border bg-background/55 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Top Search Queries (Clustered)
@@ -3014,9 +3057,9 @@ export const EventEngagementStatsCard = ({
 							)}
 						</div>
 					</div>
-				</section>
+				</section> : null}
 
-				<section>
+				{(showEventsTab || showAdvancedTab) ? <section>
 					<div className="mb-2 space-y-2">
 						<div className="flex flex-wrap items-center justify-between gap-2">
 							<div className="flex items-center gap-2">
@@ -3309,7 +3352,7 @@ export const EventEngagementStatsCard = ({
 							</tbody>
 						</table>
 					</div>
-				</section>
+				</section> : null}
 			</CardContent>
 		</Card>
 	);
