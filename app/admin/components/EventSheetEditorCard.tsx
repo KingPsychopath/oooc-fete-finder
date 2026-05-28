@@ -4259,6 +4259,18 @@ export const EventSheetEditorCard = ({
 		[handleCellChange],
 	);
 
+	const markLocationTbcForCell = useCallback(
+		(rowIndex: number, columnKey: string) => {
+			handleCellChange(rowIndex, columnKey, "");
+			handleCellChange(rowIndex, AREA_COLUMN_KEY, "Location TBC");
+			setFocusedLocationCell({ rowIndex, columnKey });
+			window.setTimeout(() => {
+				inputRefs.current[cellRefKey(rowIndex, columnKey)]?.focus();
+			}, 0);
+		},
+		[handleCellChange],
+	);
+
 	const updateLocationPart = useCallback(
 		(rowIndex: number, columnKey: string, partIndex: number, value: string) => {
 			const currentValue = rowsRef.current[rowIndex]?.[columnKey] ?? "";
@@ -8703,13 +8715,13 @@ export const EventSheetEditorCard = ({
 																				</div>
 																			)}
 																			<div className="border-b p-1">
-																				<div className="grid grid-cols-2 gap-1">
+																				<div className="grid gap-1 sm:grid-cols-3">
 																					<Button
 																						type="button"
 																						size="sm"
 																						variant="ghost"
 																						className="h-7 justify-start px-2 text-xs"
-																						title="Use when the event spans multiple places but the exact venues are not known yet"
+																						title="Add a real venue or address. Use this for geocodeable locations."
 																						onMouseDown={(event) => {
 																							event.preventDefault();
 																						}}
@@ -8721,13 +8733,32 @@ export const EventSheetEditorCard = ({
 																						}
 																					>
 																						<Plus className="mr-1 h-3.5 w-3.5" />
-																						Add location
+																						Add venue
 																					</Button>
 																					<Button
 																						type="button"
 																						size="sm"
 																						variant="ghost"
 																						className="h-7 justify-start px-2 text-xs"
+																						title="Use when this event has one venue but it has not been announced yet."
+																						onMouseDown={(event) => {
+																							event.preventDefault();
+																						}}
+																						onClick={() =>
+																							markLocationTbcForCell(
+																								rowIndex,
+																								column.key,
+																							)
+																						}
+																					>
+																						Venue TBC
+																					</Button>
+																					<Button
+																						type="button"
+																						size="sm"
+																						variant="ghost"
+																						className="h-7 justify-start px-2 text-xs"
+																						title="Use when this event is definitely multi-site, but the venue names are not known yet."
 																						onMouseDown={(event) => {
 																							event.preventDefault();
 																						}}
@@ -8738,22 +8769,34 @@ export const EventSheetEditorCard = ({
 																							)
 																						}
 																					>
-																						Unknown locations
+																						Multi-site TBC
 																					</Button>
 																				</div>
 																			</div>
-																			{locationParts.length === 0 && (
-																				<div className="border-b px-3 py-3 text-xs text-muted-foreground">
-																					<p className="font-medium text-foreground/75">
-																						Location unresolved
-																					</p>
-																					<p className="mt-1">
-																						This event does not have a specific
-																						venue yet. Add a venue or address to
-																						geocode.
-																					</p>
-																				</div>
-																			)}
+																			{locationParts.length === 0 &&
+																				(() => {
+																					const emptyAreaState =
+																						normalizeAreaValue(
+																							row[AREA_COLUMN_KEY] ?? "",
+																						);
+																					const isMultiSiteTbc =
+																						emptyAreaState ===
+																						"Multiple Locations";
+																					return (
+																						<div className="border-b px-3 py-3 text-xs text-muted-foreground">
+																							<p className="font-medium text-foreground/75">
+																								{isMultiSiteTbc
+																									? "Multi-site venues TBC"
+																									: "Venue TBC"}
+																							</p>
+																							<p className="mt-1">
+																								{isMultiSiteTbc
+																									? "This event is marked as multi-site, but the venue names are not known yet. Add each real venue when available."
+																									: "This event has no specific venue yet. Add a venue or address when it is announced."}
+																							</p>
+																						</div>
+																					);
+																				})()}
 																			{locationParts.length > 0 && (
 																				<div className="border-b p-1">
 																					{locationParts.map(
@@ -8789,7 +8832,7 @@ export const EventSheetEditorCard = ({
 																								hasMissingResolvedLocationMetadata(
 																									place,
 																									resolvedSuggestion,
-																								);
+																						);
 																							const suggestedArea =
 																								formatDerivedLocationArea(
 																									deriveAreaFromPostalCodeCity(

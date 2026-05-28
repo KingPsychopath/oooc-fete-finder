@@ -415,19 +415,25 @@ export const getEventLocationDisplay = (
 		"arrondissement" | "location" | "locations" | "locationEntries"
 	>,
 ): EventLocationDisplay => {
-	const listedLocations = (event.locations ?? [])
+	const rawListedLocations = (event.locations ?? [])
 		.map((location) => location.trim())
 		.filter(Boolean);
-	const listedLocationEntries =
+	const explicitLocationEntries: EventLocationEntry[] =
 		"locationEntries" in event && event.locationEntries
 			? event.locationEntries
 					.map((entry) => ({
+						...entry,
 						name: entry.name.trim(),
-						arrondissement: entry.arrondissement,
 					}))
 					.filter((entry) => entry.name.length > 0)
-			: listedLocations.map((name) => ({ name }));
-	const hasListedLocations = listedLocations.length > 1;
+			: [];
+	const listedLocationEntries: EventLocationEntry[] =
+		explicitLocationEntries.length > 0
+			? explicitLocationEntries
+			: rawListedLocations.map((name) => ({ name }));
+	const listedLocations = listedLocationEntries.map((entry) => entry.name);
+	const hasListedLocations = listedLocationEntries.length > 1;
+	const singleListedLocation = listedLocationEntries[0];
 	const isMultipleLocation =
 		event.arrondissement === "multiple-locations" ||
 		isMultipleLocationPlaceholderValue(event.location) ||
@@ -444,6 +450,28 @@ export const getEventLocationDisplay = (
 			listedLocations,
 			listedLocationEntries,
 			canOpenSingleLocation: false,
+			canOpenAnyLocation: true,
+		};
+	}
+
+	if (singleListedLocation && isMultipleLocation) {
+		return {
+			state: "single",
+			areaShortLabel: singleListedLocation.arrondissement
+				? formatLocationAreaShort(singleListedLocation.arrondissement)
+				: formatLocationAreaShort(event.arrondissement),
+			areaLongLabel: singleListedLocation.arrondissement
+				? formatLocationAreaLong(singleListedLocation.arrondissement)
+				: formatLocationAreaLong(event.arrondissement),
+			sectionLabel: singleListedLocation.arrondissement
+				? formatLocationAreaLong(singleListedLocation.arrondissement)
+				: formatLocationAreaLong(event.arrondissement),
+			cardLabel: singleListedLocation.name,
+			modalLabel: singleListedLocation.name,
+			listedLocations: [],
+			listedLocationEntries: [],
+			singleLocation: singleListedLocation.name,
+			canOpenSingleLocation: true,
 			canOpenAnyLocation: true,
 		};
 	}

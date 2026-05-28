@@ -27,4 +27,36 @@ describe("getEventLocationDisplay", () => {
 		expect(display.sectionLabel).toBe("Location");
 		expect(display.cardLabel).toBe("2 locations");
 	});
+
+	it("treats structured location entries as canonical multi-site data", () => {
+		const display = getEventLocationDisplay({
+			arrondissement: "multiple-locations",
+			location: "Multiple locations",
+			locationEntries: [
+				{
+					name: "Venue A",
+					arrondissement: 10,
+					address: "10 Rue Example",
+					postalCode: "75010",
+					city: "Paris",
+				},
+				{
+					name: "Venue B",
+					arrondissement: 11,
+					address: "11 Rue Example",
+					postalCode: "75011",
+					city: "Paris",
+				},
+			],
+		});
+
+		expect(display.state).toBe("multiple-listed");
+		expect(display.cardLabel).toBe("2 locations");
+		expect(display.listedLocations).toEqual(["Venue A", "Venue B"]);
+		expect(display.listedLocationEntries[0]).toMatchObject({
+			name: "Venue A",
+			address: "10 Rue Example",
+			postalCode: "75010",
+		});
+	});
 });
