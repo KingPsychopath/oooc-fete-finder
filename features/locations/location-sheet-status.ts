@@ -6,7 +6,8 @@ export type SheetLocationTrustState =
 	| "manual"
 	| "geocoded"
 	| "approximate"
-	| "unresolved";
+	| "unresolved"
+	| "not-geocodeable";
 
 export type SheetLocationResolution = Pick<
 	StoredLocationResolution,
@@ -103,6 +104,13 @@ export const normalizeLocationAliasText = (value: string): string =>
 		.trim()
 		.replace(/\s+/g, " ");
 
+const hasStructuredAliasPlace = (candidate: LocationAliasCandidate): boolean =>
+	Boolean(
+		candidate.address?.trim() ||
+			candidate.postalCode?.trim() ||
+			candidate.city?.trim(),
+	);
+
 const levenshteinDistance = (left: string, right: string): number => {
 	if (left === right) return 0;
 	if (!left) return right.length;
@@ -161,6 +169,12 @@ export const findLikelyLocationAliases = (
 
 		if (candidateText === targetText) {
 			seen.add(candidate.key);
+			if (
+				hasStructuredAliasPlace(target) &&
+				hasStructuredAliasPlace(candidate)
+			) {
+				matches.push({ ...candidate, reason: "same-normalized-name" });
+			}
 			continue;
 		}
 

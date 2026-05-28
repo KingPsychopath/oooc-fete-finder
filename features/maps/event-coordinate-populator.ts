@@ -3,6 +3,7 @@ import { LocationRepository } from "@/features/locations/location-repository";
 import { LocationResolver } from "@/features/locations/location-resolver";
 import {
 	generateLocationStorageKey,
+	hasStructuredLocationContext,
 	isCoordinateResolvableInput,
 } from "@/features/locations/location-utils";
 import type {
@@ -111,24 +112,52 @@ export class EventCoordinatePopulator {
 		}
 
 		const activeKeys = new Set<string>();
-		for (const event of events) {
-			const location = event.location || "";
-			if (!isCoordinateResolvableInput(location, event.arrondissement)) {
-				continue;
+		const addActiveKey = (
+			location: string | undefined,
+			arrondissement: ParisArrondissement,
+			place: Pick<
+				StoredLocationResolution,
+				"address" | "postalCode" | "city" | "countryCode"
+			> = {},
+		) => {
+			const locationName = location || "";
+			if (!isCoordinateResolvableInput(locationName, arrondissement)) {
+				return;
 			}
 			activeKeys.add(
-				generateLocationStorageKey(
-					location,
-					event.arrondissement,
-					getEventLocationQueryContext(event),
-				),
+				generateLocationStorageKey(locationName, arrondissement, place),
 			);
+		};
+
+		for (const event of events) {
+			addActiveKey(event.location, event.arrondissement, {
+				address: event.locationAddress,
+				postalCode: event.postalCode,
+				city: event.city,
+				countryCode: event.countryCode,
+			});
+			for (const entry of event.locationEntries ?? []) {
+				addActiveKey(entry.name, entry.arrondissement ?? event.arrondissement, {
+					address: entry.address,
+					postalCode: entry.postalCode,
+					city: entry.city,
+					countryCode: entry.countryCode,
+				});
+			}
 		}
 
 		for (const key of Array.from(storedLocations.keys())) {
-			if (!activeKeys.has(key)) {
-				storedLocations.delete(key);
+			const storedLocation = storedLocations.get(key);
+			const storedAreaKey = storedLocation
+				? generateLocationStorageKey(
+						storedLocation.name,
+						storedLocation.arrondissement,
+					)
+				: "";
+			if (activeKeys.has(key) || activeKeys.has(storedAreaKey)) {
+				continue;
 			}
+			storedLocations.delete(key);
 		}
 
 		const afterCount = storedLocations.size;
@@ -342,16 +371,31 @@ export class EventCoordinatePopulator {
 		arrondissement: ParisArrondissement,
 		coordinates: { lat: number; lng: number },
 		confidence: number = 1.0,
+		place: Pick<
+			StoredLocationResolution,
+			"address" | "postalCode" | "city" | "countryCode"
+		> = {},
 	): Promise<void> {
 		const storedLocations = await LocationStorage.load();
-
-		CoordinateService.setManualCoordinates(
+		const storageKey = generateLocationStorageKey(
 			locationName,
 			arrondissement,
-			coordinates,
-			storedLocations,
-			confidence,
+			place,
 		);
+
+		storedLocations.set(storageKey, {
+			id: storageKey,
+			name: locationName,
+			arrondissement,
+			address: place.address,
+			postalCode: place.postalCode,
+			city: place.city,
+			countryCode: place.countryCode,
+			coordinates,
+			confidence,
+			source: "manual",
+			lastUpdated: new Date().toISOString(),
+		});
 
 		await LocationStorage.save(storedLocations);
 		log.info("coordinates", "Manual location set", {
@@ -364,10 +408,39 @@ export class EventCoordinatePopulator {
 	static async removeStoredLocation(
 		locationName: string,
 		arrondissement: ParisArrondissement,
+		place: Pick<
+			StoredLocationResolution,
+			"address" | "postalCode" | "city" | "countryCode"
+		> = {},
 	): Promise<boolean> {
 		const storedLocations = await LocationRepository.load();
-		const storageKey = generateLocationStorageKey(locationName, arrondissement);
-		const removed = storedLocations.delete(storageKey);
+		const storageKey = generateLocationStorageKey(
+			locationName,
+			arrondissement,
+			place,
+		);
+		const areaKey = generateLocationStorageKey(locationName, arrondissement);
+		const hasStructuredPlace = hasStructuredLocationContext(place);
+		let removed = false;
+		for (const [key, storedLocation] of Array.from(storedLocations.entries())) {
+			const storedAreaKey = generateLocationStorageKey(
+				storedLocation.name,
+				storedLocation.arrondissement,
+			);
+			const storedStructuredKey = generateLocationStorageKey(
+				storedLocation.name,
+				storedLocation.arrondissement,
+				storedLocation,
+			);
+			if (
+				key === storageKey ||
+				storedStructuredKey === storageKey ||
+				(hasStructuredPlace ? key === areaKey : storedAreaKey === areaKey)
+			) {
+				storedLocations.delete(key);
+				removed = true;
+			}
+		}
 		if (removed) {
 			await LocationRepository.save(storedLocations);
 			log.info("coordinates", "Stored location removed", {

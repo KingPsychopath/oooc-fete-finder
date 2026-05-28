@@ -1774,14 +1774,15 @@ export async function getEventLocationReviewData(
 					locationName,
 					arrondissement,
 				);
-				const id = isResolvable
-					? generateLocationStorageKey(locationName, arrondissement, {
-							address: reviewLocation.address,
-							postalCode: reviewLocation.postalCode,
-							city: reviewLocation.city,
-							countryCode: reviewLocation.countryCode,
-						})
-					: `${locationName.toLowerCase()}_${String(arrondissement)}`;
+				if (!isResolvable) {
+					continue;
+				}
+				const id = generateLocationStorageKey(locationName, arrondissement, {
+					address: reviewLocation.address,
+					postalCode: reviewLocation.postalCode,
+					city: reviewLocation.city,
+					countryCode: reviewLocation.countryCode,
+				});
 				const existing = itemsByKey.get(id);
 				if (existing) {
 					existing.eventCount += 1;
@@ -1979,6 +1980,12 @@ export async function saveManualEventLocation(
 	locationName: string,
 	arrondissementInput: ParisArrondissement,
 	coordinates: { lat: number; lng: number },
+	options?: {
+		address?: string;
+		postalCode?: string;
+		city?: string;
+		countryCode?: string;
+	},
 ): Promise<{ success: boolean; message: string; error?: string }> {
 	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, message: "Unauthorized access" };
@@ -2011,16 +2018,33 @@ export async function saveManualEventLocation(
 	}
 
 	try {
-		await EventCoordinatePopulator.setManualLocation(name, arrondissement, {
-			lat,
-			lng,
-		});
+		await EventCoordinatePopulator.setManualLocation(
+			name,
+			arrondissement,
+			{
+				lat,
+				lng,
+			},
+			1,
+			{
+				address: options?.address,
+				postalCode: options?.postalCode,
+				city: options?.city,
+				countryCode: options?.countryCode,
+			},
+		);
 		revalidateEventsPaths(["/"]);
+		const storageKey = generateLocationStorageKey(name, arrondissement, {
+			address: options?.address,
+			postalCode: options?.postalCode,
+			city: options?.city,
+			countryCode: options?.countryCode,
+		});
 		await recordAdminActivity({
 			action: "location.manual_coordinates_saved",
 			category: "content",
 			targetType: "location",
-			targetId: generateLocationStorageKey(name, arrondissement),
+			targetId: storageKey,
 			targetLabel: name,
 			summary: `${name} manual coordinates saved`,
 			metadata: { arrondissement },
@@ -2043,6 +2067,12 @@ export async function clearEventLocationResolution(
 	keyOrToken: string | undefined,
 	locationName: string,
 	arrondissementInput: ParisArrondissement,
+	options?: {
+		address?: string;
+		postalCode?: string;
+		city?: string;
+		countryCode?: string;
+	},
 ): Promise<{ success: boolean; message: string; error?: string }> {
 	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, message: "Unauthorized access" };
@@ -2057,15 +2087,27 @@ export async function clearEventLocationResolution(
 		const removed = await EventCoordinatePopulator.removeStoredLocation(
 			locationName.trim(),
 			arrondissement,
+			{
+				address: options?.address,
+				postalCode: options?.postalCode,
+				city: options?.city,
+				countryCode: options?.countryCode,
+			},
 		);
 		revalidateEventsPaths(["/"]);
 		if (removed) {
 			const name = locationName.trim();
+			const storageKey = generateLocationStorageKey(name, arrondissement, {
+				address: options?.address,
+				postalCode: options?.postalCode,
+				city: options?.city,
+				countryCode: options?.countryCode,
+			});
 			await recordAdminActivity({
 				action: "location.cleared",
 				category: "content",
 				targetType: "location",
-				targetId: generateLocationStorageKey(name, arrondissement),
+				targetId: storageKey,
 				targetLabel: name,
 				summary: `${name} stored coordinates removed`,
 				metadata: { arrondissement },

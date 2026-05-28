@@ -29,6 +29,10 @@ import {
 	addToCalendar,
 	isCalendarDateValid,
 } from "@/features/events/calendar-utils";
+import {
+	getSeriesKeyboardNavigationTarget,
+	isEventModalTextEntryKeyTarget,
+} from "@/features/events/components/event-modal-series-navigation";
 import { getCountryOption } from "@/features/events/countries";
 import {
 	trackEventEngagement,
@@ -590,6 +594,25 @@ const EventModal: React.FC<EventModalProps> = ({
 			if (showMapSelection || isUpdateRequestOpen) return;
 			keyboardEvent.preventDefault();
 			onClose();
+			return;
+		}
+
+		if (
+			keyboardEvent.key === "ArrowLeft" ||
+			keyboardEvent.key === "ArrowRight"
+		) {
+			if (showMapSelection || isUpdateRequestOpen) return;
+			if (isEventModalTextEntryKeyTarget(keyboardEvent.target)) return;
+
+			const targetSeriesEvent = getSeriesKeyboardNavigationTarget({
+				currentEvent: event,
+				seriesEvents,
+				key: keyboardEvent.key,
+			});
+			if (!targetSeriesEvent || !onNavigateSeriesEvent) return;
+
+			keyboardEvent.preventDefault();
+			onNavigateSeriesEvent(targetSeriesEvent);
 			return;
 		}
 

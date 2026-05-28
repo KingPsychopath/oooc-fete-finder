@@ -1646,6 +1646,7 @@ const formatLocationCellHint = (row: EditableSheetRow): string => {
 };
 
 const getLocationTrustRank = (state: SheetLocationTrustState): number => {
+	if (state === "not-geocodeable") return -1;
 	if (state === "unresolved") return 0;
 	if (state === "approximate") return 1;
 	if (state === "geocoded") return 2;
@@ -1657,6 +1658,7 @@ const getLocationCellLabel = (
 	hasAliasWarning: boolean,
 ): string => {
 	if (hasAliasWarning) return "Check similar location";
+	if (state === "not-geocodeable") return "Not geocodeable yet";
 	if (state === "manual") return "Manual coordinates";
 	if (state === "geocoded") return "Geocoded";
 	if (state === "approximate") return "Approximate";
@@ -1668,6 +1670,7 @@ const getLocationDotClassName = (
 	hasAliasWarning: boolean,
 ): string => {
 	if (hasAliasWarning) return "border-amber-500 bg-amber-500";
+	if (state === "not-geocodeable") return "border-muted-foreground/35 bg-transparent";
 	if (state === "manual") return "border-emerald-700 bg-emerald-700";
 	if (state === "geocoded") return "border-emerald-500 bg-emerald-500";
 	if (state === "approximate") return "border-amber-400 bg-transparent";
@@ -1676,7 +1679,12 @@ const getLocationDotClassName = (
 
 const buildLocationCellTitle = (status: LocationCellStatus): string => {
 	const lines = status.parts.map((part) => {
-		const base = `${part.name || "Location TBC"}: ${getLocationCellLabel(
+		const displayName =
+			part.name ||
+			(part.arrondissement === "multiple-locations"
+				? "Unknown locations"
+				: "Location TBC");
+		const base = `${displayName}: ${getLocationCellLabel(
 			part.trustState,
 			part.aliases.length > 0,
 		)}`;
@@ -3751,6 +3759,10 @@ export const EventSheetEditorCard = ({
 					key: resolution.id,
 					name: resolution.name,
 					arrondissement: resolution.arrondissement,
+					address: resolution.address,
+					postalCode: resolution.postalCode,
+					city: resolution.city,
+					countryCode: resolution.countryCode,
 				});
 			}
 		}
@@ -3760,10 +3772,18 @@ export const EventSheetEditorCard = ({
 	const locationStatusByRowIndex = useMemo(() => {
 		const statuses = new Map<number, LocationCellStatus>();
 		rows.forEach((row, rowIndex) => {
-			const parts = buildLocationAreaPairs(
+			const areaValue = normalizeAreaValue(row[AREA_COLUMN_KEY] ?? "");
+			const locationAreaPairs = buildLocationAreaPairs(
 				row[LOCATION_COLUMN_KEY] ?? "",
 				row[AREA_COLUMN_KEY] ?? "",
-			).map((pair, partIndex): LocationCellPartStatus => {
+			);
+			const pairs =
+				locationAreaPairs.length > 0
+					? locationAreaPairs
+					: areaValue === "Multiple Locations" || areaValue === "Location TBC"
+						? [{ location: "", area: areaValue }]
+						: [];
+			const parts = pairs.map((pair, partIndex): LocationCellPartStatus => {
 				const name = pair.location.trim();
 				const area = pair.area || deriveAreaLabelFromRow(row, partIndex);
 				const arrondissement = areaOptionToArrondissement(findAreaOption(area));
@@ -3775,7 +3795,9 @@ export const EventSheetEditorCard = ({
 				const resolution = isResolvable
 					? (locationResolutionIndex[key] ?? null)
 					: null;
-				const trustState = getSheetLocationTrustState(resolution);
+				const trustState = isResolvable
+					? getSheetLocationTrustState(resolution)
+					: "not-geocodeable";
 				const aliases = isResolvable
 					? findLikelyLocationAliases(
 							{ key, name, arrondissement, ...place },
@@ -4227,7 +4249,7 @@ export const EventSheetEditorCard = ({
 
 	const markMultipleLocationsForCell = useCallback(
 		(rowIndex: number, columnKey: string) => {
-			handleCellChange(rowIndex, columnKey, "Multiple locations");
+			handleCellChange(rowIndex, columnKey, "");
 			handleCellChange(rowIndex, AREA_COLUMN_KEY, "Multiple Locations");
 			setFocusedLocationCell({ rowIndex, columnKey });
 			window.setTimeout(() => {
@@ -5010,6 +5032,48 @@ export const EventSheetEditorCard = ({
 			setEventCategoryPopover(null);
 		}
 	}, [focusedEventCategoryCell]);
+	useEffect(() => {
+		if (!focusedLocationCell) return;
+		const popoverKey = `location-${focusedLocationCell.rowIndex}-${focusedLocationCell.columnKey}`;
+		const close = () => {
+			setFocusedLocationCell(null);
+			setLocationSearchQuery("");
+		};
+		const closeOnOutsidePointerDown = (event: PointerEvent) => {
+			const target = event.target;
+			if (!(target instanceof Element)) return;
+
+			const popover = target.closest("[data-cell-popover]");
+			if (popover?.getAttribute("data-cell-popover") === popoverKey) {
+				return;
+			}
+
+			const trigger = target.closest("[data-location-cell-trigger]");
+			if (
+				trigger?.getAttribute("data-location-cell-trigger") === popoverKey
+			) {
+				return;
+			}
+
+			close();
+		};
+		const closeOnEscape = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				close();
+			}
+		};
+
+		document.addEventListener("pointerdown", closeOnOutsidePointerDown);
+		document.addEventListener("keydown", closeOnEscape);
+		window.addEventListener("resize", close);
+		window.addEventListener("scroll", close, true);
+		return () => {
+			document.removeEventListener("pointerdown", closeOnOutsidePointerDown);
+			document.removeEventListener("keydown", closeOnEscape);
+			window.removeEventListener("resize", close);
+			window.removeEventListener("scroll", close, true);
+		};
+	}, [focusedLocationCell]);
 
 	const focusCell = (
 		rowIndex: number,
@@ -8391,7 +8455,10 @@ export const EventSheetEditorCard = ({
 																	)}
 															</div>
 														) : column.key === LOCATION_COLUMN_KEY ? (
-															<div className="relative min-h-9 bg-transparent px-2 py-1">
+															<div
+																className="relative min-h-9 bg-transparent px-2 py-1"
+																data-location-cell-trigger={`location-${rowIndex}-${column.key}`}
+															>
 																{locationCellStatus && (
 																	<span
 																		className={`absolute left-2 top-3.5 z-10 h-2.5 w-2.5 -translate-y-1/2 rounded-full border ${getLocationDotClassName(
@@ -8611,7 +8678,10 @@ export const EventSheetEditorCard = ({
 																									>
 																										<span className="font-medium text-foreground/65">
 																											{part.name ||
-																												"Location TBC"}
+																												(part.arrondissement ===
+																												"multiple-locations"
+																													? "Unknown locations"
+																													: "Location TBC")}
 																										</span>
 																										{part.resolution
 																											?.formattedAddress
@@ -8672,6 +8742,18 @@ export const EventSheetEditorCard = ({
 																					</Button>
 																				</div>
 																			</div>
+																			{locationParts.length === 0 && (
+																				<div className="border-b px-3 py-3 text-xs text-muted-foreground">
+																					<p className="font-medium text-foreground/75">
+																						Location unresolved
+																					</p>
+																					<p className="mt-1">
+																						This event does not have a specific
+																						venue yet. Add a venue or address to
+																						geocode.
+																					</p>
+																				</div>
+																			)}
 																			{locationParts.length > 0 && (
 																				<div className="border-b p-1">
 																					{locationParts.map(
@@ -8966,7 +9048,7 @@ export const EventSheetEditorCard = ({
 																												title={
 																													canResolveLocation
 																														? "Run geocoding and save coordinates. This only creates resolved suggestions; sheet details still require acceptance."
-																														: "Add a venue and known area before geocoding."
+																														: "Add a venue or address to geocode."
 																												}
 																												onMouseDown={(
 																													event,
@@ -8994,7 +9076,9 @@ export const EventSheetEditorCard = ({
 																												/>
 																												{isResolvingLocation
 																													? "Geocoding"
-																													: "Geocode now"}
+																													: canResolveLocation
+																														? "Geocode now"
+																														: "Add venue or address to geocode"}
 																											</Button>
 																											{resolveFeedback && (
 																												<div

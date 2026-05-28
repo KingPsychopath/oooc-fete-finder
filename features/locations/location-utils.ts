@@ -8,6 +8,17 @@ import type { LocationQuery } from "./types";
 const PARIS_CENTER: Coordinates = { lat: 48.8566, lng: 2.3522 };
 const DEFAULT_COUNTRY_CODE = "FR";
 const GREATER_PARIS_DEPARTMENT_CODES = new Set(["92", "93", "94"]);
+const PLACEHOLDER_LOCATION_NAMES = new Set([
+	"tba",
+	"tbc",
+	"location tba",
+	"location tbc",
+	"multiple locations",
+	"unknown location",
+	"unknown locations",
+	"central paris",
+	"paris",
+]);
 
 const normalizeKeyPart = (value: string): string =>
 	value
@@ -51,14 +62,10 @@ export function isCoordinateResolvableInput(
 	locationName: string,
 	arrondissement: ParisArrondissement,
 ): boolean {
-	const normalizedLocation = locationName.trim().toLowerCase();
+	const normalizedLocation = locationName.trim().toLowerCase().replace(/\s+/g, " ");
 	const hasValidLocation =
 		normalizedLocation.length > 0 &&
-		normalizedLocation !== "tba" &&
-		normalizedLocation !== "tbc" &&
-		normalizedLocation !== "location tbc" &&
-		normalizedLocation !== "location tba" &&
-		normalizedLocation !== "multiple locations";
+		!PLACEHOLDER_LOCATION_NAMES.has(normalizedLocation);
 
 	const hasValidArrondissement =
 		arrondissement !== "unknown" && arrondissement !== "multiple-locations";

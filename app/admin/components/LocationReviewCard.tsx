@@ -436,6 +436,12 @@ export const LocationReviewCard = ({
 				undefined,
 				item.locationName,
 				item.arrondissement,
+				{
+					address: item.address,
+					postalCode: item.postalCode,
+					city: item.city,
+					countryCode: item.countryCode,
+				},
 			),
 		);
 
@@ -449,6 +455,12 @@ export const LocationReviewCard = ({
 				{
 					lat: Number(manualDraft.lat),
 					lng: Number(manualDraft.lng),
+				},
+				{
+					address: item.address,
+					postalCode: item.postalCode,
+					city: item.city,
+					countryCode: item.countryCode,
 				},
 			),
 		);
@@ -590,6 +602,12 @@ export const LocationReviewCard = ({
 					undefined,
 					item.locationName,
 					item.arrondissement,
+					{
+						address: item.address,
+						postalCode: item.postalCode,
+						city: item.city,
+						countryCode: item.countryCode,
+					},
 				),
 			"Cleared selected stored coords",
 		);

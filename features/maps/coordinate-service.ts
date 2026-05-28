@@ -259,14 +259,21 @@ export function isCoordinateResolvableInput(
 	locationName: string,
 	arrondissement: ParisArrondissement,
 ): boolean {
+	const normalizedLocation = locationName.trim().toLowerCase().replace(/\s+/g, " ");
+	const placeholderLocationNames = new Set([
+		"tba",
+		"tbc",
+		"location tba",
+		"location tbc",
+		"multiple locations",
+		"unknown location",
+		"unknown locations",
+		"central paris",
+		"paris",
+	]);
 	const hasValidLocation =
-		locationName &&
-		locationName.trim() !== "" &&
-		locationName !== "TBA" &&
-		locationName !== "TBC" &&
-		locationName.toLowerCase() !== "location tbc" &&
-		locationName.toLowerCase() !== "location tba" &&
-		locationName.toLowerCase() !== "multiple locations";
+		normalizedLocation.length > 0 &&
+		!placeholderLocationNames.has(normalizedLocation);
 
 	const hasValidArrondissement =
 		arrondissement &&
@@ -464,31 +471,6 @@ export class CoordinateService {
 			}
 			return null;
 		}
-	}
-
-	/**
-	 * Set manual coordinates for a location
-	 */
-	static setManualCoordinates(
-		locationName: string,
-		arrondissement: ParisArrondissement,
-		coordinates: Coordinates,
-		storedLocations: Map<string, EventLocation>,
-		confidence: number = 1.0,
-	): void {
-		const storageKey = generateLocationStorageKey(locationName, arrondissement);
-
-		const eventLocation: EventLocation = {
-			id: storageKey,
-			name: locationName,
-			arrondissement,
-			coordinates,
-			confidence,
-			source: "manual",
-			lastUpdated: new Date().toISOString(),
-		};
-
-		storedLocations.set(storageKey, eventLocation);
 	}
 
 	/**

@@ -1,9 +1,10 @@
-import type { Event } from "@/features/events/types";
+import type { Event, EventLocation } from "@/features/events/types";
 import { LocationRepository } from "@/features/locations/location-repository";
 import { LocationResolver } from "@/features/locations/location-resolver";
 import {
 	buildStructuredLocationSearchQuery,
 	generateLocationStorageKey,
+	isCoordinateResolvableInput,
 } from "@/features/locations/location-utils";
 import { buildMapLink } from "@/features/locations/map-link-builder";
 import { findNearbyEvents } from "@/features/locations/nearby-event-service";
@@ -11,7 +12,11 @@ import type { GeocodingProvider } from "@/features/locations/providers/geocoding
 import type { StoredLocationResolution } from "@/features/locations/types";
 import { EventCoordinatePopulator } from "@/features/maps/event-coordinate-populator";
 import { LocationStorage } from "@/features/maps/location-storage";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+afterEach(() => {
+	vi.restoreAllMocks();
+});
 
 const makeProvider = (
 	overrides: Partial<GeocodingProvider> = {},
@@ -89,6 +94,18 @@ describe("location resolution", () => {
 
 		expect(query).toBe("La Marbrerie, 93100 Montreuil, France");
 		expect(query).not.toContain("Paris, France");
+	});
+
+	it("does not treat placeholder location labels as geocodeable venues", () => {
+		expect(isCoordinateResolvableInput("Multiple locations", 11)).toBe(false);
+		expect(isCoordinateResolvableInput("Unknown locations", 11)).toBe(false);
+		expect(isCoordinateResolvableInput("Central Paris", 1)).toBe(false);
+		expect(isCoordinateResolvableInput("Location TBC", 9)).toBe(false);
+		expect(isCoordinateResolvableInput("Dock B", "unknown")).toBe(false);
+		expect(isCoordinateResolvableInput("Dock B", "multiple-locations")).toBe(
+			false,
+		);
+		expect(isCoordinateResolvableInput("Dock B", "greater-paris")).toBe(true);
 	});
 
 	it("uses arrondissement fallback only as approximate area precision", async () => {
@@ -398,7 +415,6 @@ describe("location resolution", () => {
 		const saveSpy = vi
 			.spyOn(LocationStorage, "save")
 			.mockResolvedValue(undefined);
-
 		await LocationRepository.save(
 			new Map<string, StoredLocationResolution>([
 				[
@@ -445,5 +461,174 @@ describe("location resolution", () => {
 		expect(savedLocations?.has(structuredKey)).toBe(true);
 		expect(savedLocations?.size).toBe(1);
 		saveSpy.mockRestore();
+	});
+
+	it("prunes location storage against all structured location entries", async () => {
+		const leKlubKey = generateLocationStorageKey("Le Klub", 11, {
+			address: "14 Rue Saint-Denis",
+			postalCode: "75011",
+			city: "Paris",
+			countryCode: "FR",
+		});
+		const utopiaKey = generateLocationStorageKey("UTOPIA", 1, {
+			address: "60 Rue de l'Arbre Sec",
+			postalCode: "75001",
+			city: "Paris",
+			countryCode: "FR",
+		});
+		const staleKey = generateLocationStorageKey("Old Venue", 18);
+		const storedLocations = new Map<string, EventLocation>([
+			[
+				leKlubKey,
+				{
+					id: leKlubKey,
+					name: "Le Klub",
+					arrondissement: 11,
+					address: "14 Rue Saint-Denis",
+					postalCode: "75011",
+					city: "Paris",
+					countryCode: "FR",
+					coordinates: { lat: 48.857, lng: 2.381 },
+					source: "geocoded",
+					lastUpdated: "2026-05-27T00:00:00.000Z",
+				},
+			],
+			[
+				utopiaKey,
+				{
+					id: utopiaKey,
+					name: "UTOPIA",
+					arrondissement: 1,
+					address: "60 Rue de l'Arbre Sec",
+					postalCode: "75001",
+					city: "Paris",
+					countryCode: "FR",
+					coordinates: { lat: 48.861, lng: 2.342 },
+					source: "geocoded",
+					lastUpdated: "2026-05-27T00:00:00.000Z",
+				},
+			],
+			[
+				staleKey,
+				{
+					id: staleKey,
+					name: "Old Venue",
+					arrondissement: 18,
+					coordinates: { lat: 48.88, lng: 2.34 },
+					source: "geocoded",
+					lastUpdated: "2026-05-27T00:00:00.000Z",
+				},
+			],
+		]);
+		vi.spyOn(LocationStorage, "load").mockResolvedValue(storedLocations);
+		const saveSpy = vi
+			.spyOn(LocationStorage, "save")
+			.mockResolvedValue(undefined);
+
+		const result = await EventCoordinatePopulator.pruneStorageToEvents([
+			{
+				...makeEvent("multi-location"),
+				locationEntries: [
+					{ name: "Le Klub", arrondissement: 11 },
+					{
+						name: "UTOPIA",
+						arrondissement: 1,
+						address: "60 Rue de l'Arbre Sec",
+						postalCode: "75001",
+						city: "Paris",
+						countryCode: "FR",
+					},
+				],
+			},
+		]);
+
+		expect(result).toEqual({ beforeCount: 3, afterCount: 2, removedCount: 1 });
+		const savedLocations = saveSpy.mock.calls[0]?.[0];
+		expect(savedLocations?.has(leKlubKey)).toBe(true);
+		expect(savedLocations?.has(utopiaKey)).toBe(true);
+		expect(savedLocations?.has(staleKey)).toBe(false);
+	});
+
+	it("clears structured stored locations without regenerating them from area aliases", async () => {
+		const structuredKey = generateLocationStorageKey("Panic Room", 11, {
+			address: "101 Rue Amelot",
+			postalCode: "75011",
+			city: "Paris",
+			countryCode: "FR",
+		});
+		vi.spyOn(LocationStorage, "load").mockResolvedValue(
+			new Map([
+				[
+					structuredKey,
+					{
+						id: structuredKey,
+						name: "Panic Room",
+						arrondissement: 11,
+						address: "101 Rue Amelot",
+						postalCode: "75011",
+						city: "Paris",
+						countryCode: "FR",
+						coordinates: { lat: 48.862, lng: 2.367 },
+						source: "geocoded",
+						lastUpdated: "2026-05-27T00:00:00.000Z",
+					},
+				],
+			]),
+		);
+		const saveSpy = vi
+			.spyOn(LocationStorage, "save")
+			.mockResolvedValue(undefined);
+
+		const removed = await EventCoordinatePopulator.removeStoredLocation(
+			"Panic Room",
+			11,
+			{
+				address: "101 Rue Amelot",
+				postalCode: "75011",
+				city: "Paris",
+				countryCode: "FR",
+			},
+		);
+
+		expect(removed).toBe(true);
+		const savedLocations = saveSpy.mock.calls[0]?.[0];
+		expect(savedLocations?.has(structuredKey)).toBe(false);
+		expect(savedLocations?.size).toBe(0);
+	});
+
+	it("stores manual coordinates under structured keys when place metadata exists", async () => {
+		const structuredKey = generateLocationStorageKey("Panic Room", 11, {
+			address: "101 Rue Amelot",
+			postalCode: "75011",
+			city: "Paris",
+			countryCode: "FR",
+		});
+		vi.spyOn(LocationStorage, "load").mockResolvedValue(new Map());
+		const saveSpy = vi
+			.spyOn(LocationStorage, "save")
+			.mockResolvedValue(undefined);
+		await EventCoordinatePopulator.setManualLocation(
+			"Panic Room",
+			11,
+			{ lat: 48.862, lng: 2.367 },
+			1,
+			{
+				address: "101 Rue Amelot",
+				postalCode: "75011",
+				city: "Paris",
+				countryCode: "FR",
+			},
+		);
+
+		const savedLocations = saveSpy.mock.calls[0]?.[0];
+		expect(savedLocations?.has(structuredKey)).toBe(true);
+		expect(savedLocations?.get(structuredKey)).toMatchObject({
+			address: "101 Rue Amelot",
+			postalCode: "75011",
+			city: "Paris",
+			countryCode: "FR",
+			source: "manual",
+		});
+		expect(savedLocations?.has("panic_room_11")).toBe(false);
 	});
 });
