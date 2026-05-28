@@ -11,7 +11,6 @@ export interface EventQualityIssueCounts {
 	missingLocation: number;
 	missingTime: number;
 	genericName: number;
-	missingDescription: number;
 }
 
 /**
@@ -30,7 +29,6 @@ export function performEventQualityChecks(events: Event[]): {
 		missingLocation: 0,
 		missingTime: 0,
 		genericName: 0,
-		missingDescription: 0,
 	};
 
 	// Check for missing locations
@@ -74,20 +72,8 @@ export function performEventQualityChecks(events: Event[]): {
 		);
 	}
 
-	// Check for missing descriptions
-	const eventsWithoutDescription = events.filter((event) => !event.description);
-	if (eventsWithoutDescription.length > 0) {
-		issueCounts.missingDescription = eventsWithoutDescription.length;
-		issues.push(
-			`${eventsWithoutDescription.length} events missing descriptions`,
-		);
-		recommendations.push(
-			"Add event descriptions to provide more context to users",
-		);
-	}
-
 	// Calculate quality score (0-100)
-	const totalChecks = 4;
+	const totalChecks = 3;
 	const issueWeight = issues.length / totalChecks;
 	const qualityScore = Math.max(0, Math.round((1 - issueWeight) * 100));
 

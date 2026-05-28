@@ -36,6 +36,7 @@ export function useEventDetailHydration({
 	const eventDetailsPromiseRef = useRef(
 		new Map<string, Promise<Event | null>>(),
 	);
+	const eventDetailsCacheRef = useRef(new Map<string, Event>());
 
 	const applyEventDetail = useCallback(
 		(event: Event) => {
@@ -69,6 +70,11 @@ export function useEventDetailHydration({
 	return useCallback(
 		(eventKey: string) => {
 			const normalizedEventKey = eventKey.trim().toLowerCase();
+			const cachedEvent = eventDetailsCacheRef.current.get(normalizedEventKey);
+			if (cachedEvent) {
+				applyEventDetail(cachedEvent);
+				return Promise.resolve(cachedEvent);
+			}
 			const cachedRequest =
 				eventDetailsPromiseRef.current.get(normalizedEventKey);
 			if (cachedRequest) return cachedRequest;
@@ -103,6 +109,7 @@ export function useEventDetailHydration({
 					}
 
 					applyEventDetail(event);
+					eventDetailsCacheRef.current.set(normalizedEventKey, event);
 					await writeEventDetailSnapshot(event);
 					return event;
 				} catch (error: unknown) {

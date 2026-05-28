@@ -102,10 +102,6 @@ export function validateEvent(event: Event): {
 		warnings.push("Event time is missing");
 	}
 
-	if (!event.description) {
-		warnings.push("Event description is missing");
-	}
-
 	if (event.price && typeof event.price !== "string") {
 		warnings.push("Event price should be a string");
 	}

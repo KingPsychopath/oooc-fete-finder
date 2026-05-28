@@ -191,14 +191,12 @@ export async function processCSVData(
 				? options.populateCoordinates
 				: defaultPopulate;
 		let geocodingConfigured = false;
-		if (shouldPopulateCoordinates) {
-			try {
-				geocodingConfigured = createGoogleGeocodingProvider().isConfigured();
-			} catch (error) {
-				log.warn("data", "Unable to determine geocoding availability", {
-					error: error instanceof Error ? error.message : String(error),
-				});
-			}
+		try {
+			geocodingConfigured = createGoogleGeocodingProvider().isConfigured();
+		} catch (error) {
+			log.warn("data", "Unable to determine geocoding availability", {
+				error: error instanceof Error ? error.message : String(error),
+			});
 		}
 
 		log.info("data", "Coordinate population", {
@@ -206,6 +204,9 @@ export async function processCSVData(
 			enabled: shouldPopulateCoordinates,
 			defaultEnabledForSource: defaultPopulate,
 			geocodingConfigured,
+			mode: shouldPopulateCoordinates
+				? "populate-or-hydrate"
+				: "hydrate-stored-only",
 		});
 
 		let coordinatesPopulated = false;

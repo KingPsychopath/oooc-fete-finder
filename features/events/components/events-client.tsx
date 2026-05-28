@@ -362,7 +362,9 @@ function EventsClientShell({
 		setSelectedEvent((current) =>
 			current?.eventKey === resolvedEvent.eventKey ? current : resolvedEvent,
 		);
-		void requestEventDetails(resolvedEvent.eventKey);
+		if (eventDataSource === "saved") {
+			void requestEventDetails(resolvedEvent.eventKey);
+		}
 		const hasRequestUpdateParam =
 			currentSearchParams.get(REQUEST_UPDATE_PARAM) === "1";
 		setIsRequestUpdateOpen(hasRequestUpdateParam && eventUpdateRequestsEnabled);
@@ -393,6 +395,7 @@ function EventsClientShell({
 		}
 	}, [
 		buildEventPath,
+		eventDataSource,
 		eventsByEventKey,
 		getEventKeyFromPath,
 		homePath,
@@ -447,10 +450,13 @@ function EventsClientShell({
 				buildEventPath(event, currentParams),
 				"replace",
 			);
-			void requestEventDetails(event.eventKey);
+			if (eventDataSource === "saved") {
+				void requestEventDetails(event.eventKey);
+			}
 		},
 		[
 			buildEventPath,
+			eventDataSource,
 			requestEventDetails,
 			searchParams,
 			updateUrlWithoutNavigation,
