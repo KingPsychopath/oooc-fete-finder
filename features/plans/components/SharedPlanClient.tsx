@@ -350,7 +350,7 @@ function SharedPlanWorkspace({
 				aria-hidden="true"
 				className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[linear-gradient(115deg,rgba(251,113,133,0.16),transparent_34%),linear-gradient(245deg,rgba(16,185,129,0.15),transparent_36%),linear-gradient(180deg,rgba(255,255,255,0.72),transparent)] dark:bg-[linear-gradient(115deg,rgba(251,113,133,0.12),transparent_34%),linear-gradient(245deg,rgba(16,185,129,0.1),transparent_36%)]"
 			/>
-			<div className="relative mx-auto flex w-full max-w-6xl flex-col gap-5 px-3 pb-[calc(var(--oooc-mobile-nav-offset,5.75rem)+1rem)] pt-4 sm:px-5 lg:px-8 lg:pb-12 lg:pt-8">
+			<div className="relative mx-auto flex w-full max-w-6xl flex-col gap-5 px-3 pb-[calc(var(--oooc-mobile-nav-clearance,5.75rem)+1rem)] pt-4 sm:px-5 lg:px-8 lg:pb-12 lg:pt-8">
 				<section className="grid items-end gap-8 pt-10 pb-8 sm:pt-14 lg:grid-cols-[minmax(0,0.95fr)_minmax(24rem,0.72fr)] lg:pt-18 lg:pb-12">
 					<div className="min-w-0 animate-in fade-in-0 slide-in-from-bottom-3 duration-700">
 						<div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/72 px-3 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur">

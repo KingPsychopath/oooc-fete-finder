@@ -9,7 +9,7 @@ import {
 	type MapLoadStrategy,
 } from "@/features/maps/components/events-map-card";
 import { clientLog } from "@/lib/platform/client-logger";
-import { MapPin } from "lucide-react";
+import { Map } from "lucide-react";
 import { Component, type ErrorInfo, type ReactNode, useCallback } from "react";
 
 interface EventsMapIslandProps {
@@ -75,7 +75,7 @@ function EventsMapFallback({
 			<CardHeader className="border-b border-border/70 bg-background/18 py-5 pb-4">
 				<CardTitle className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
 					<div className="flex items-center gap-2">
-						<MapPin
+						<Map
 							className="h-5.5 w-5.5 flex-shrink-0 text-muted-foreground/75"
 							strokeWidth={1.6}
 						/>

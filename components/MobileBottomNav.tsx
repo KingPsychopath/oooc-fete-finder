@@ -380,9 +380,17 @@ export function MobileBottomNav() {
 		const root = document.documentElement;
 		const shouldReserveNavSpace =
 			isMobileViewport && shouldRender && isVisible && !hasActiveOverlay;
+		const shouldKeepLayoutClearance =
+			isMobileViewport && shouldRender && !hasActiveOverlay;
 		root.style.setProperty(
 			"--oooc-mobile-nav-offset",
 			shouldReserveNavSpace
+				? MOBILE_NAV_VISIBLE_OFFSET
+				: MOBILE_NAV_HIDDEN_OFFSET,
+		);
+		root.style.setProperty(
+			"--oooc-mobile-nav-clearance",
+			shouldKeepLayoutClearance
 				? MOBILE_NAV_VISIBLE_OFFSET
 				: MOBILE_NAV_HIDDEN_OFFSET,
 		);
@@ -401,6 +409,7 @@ export function MobileBottomNav() {
 
 		return () => {
 			root.style.removeProperty("--oooc-mobile-nav-offset");
+			root.style.removeProperty("--oooc-mobile-nav-clearance");
 			root.style.removeProperty("--oooc-mobile-top-offset");
 			root.style.removeProperty("--oooc-mobile-prompt-offset");
 		};

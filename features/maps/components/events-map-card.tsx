@@ -16,7 +16,7 @@ import type {
 import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
 import { LAYERS } from "@/lib/ui/layers";
 import { cn } from "@/lib/utils";
-import { ChevronDown, MapPin, Maximize2 } from "lucide-react";
+import { ChevronDown, Map, Maximize2 } from "lucide-react";
 import {
 	type PointerEvent,
 	useCallback,
@@ -352,7 +352,7 @@ export function EventsMapCard({
 						<div className="flex items-start justify-between gap-3">
 							<CardTitle className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
 								<div className="flex items-center gap-2">
-									<MapPin
+									<Map
 										className="h-5.5 w-5.5 flex-shrink-0 text-muted-foreground/75"
 										strokeWidth={1.6}
 									/>

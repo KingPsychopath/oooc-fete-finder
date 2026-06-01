@@ -1077,7 +1077,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 	};
 
 	return (
-		<div className="mx-auto flex w-full max-w-[110rem] flex-col gap-4 px-3 pb-[calc(var(--oooc-mobile-nav-offset,5.75rem)+1rem)] pt-4 sm:px-5 lg:px-8 lg:pb-10 lg:pt-6">
+		<div className="mx-auto flex w-full max-w-[110rem] flex-col gap-4 px-3 pb-[calc(var(--oooc-mobile-nav-clearance,5.75rem)+1rem)] pt-4 sm:px-5 lg:px-8 lg:pb-10 lg:pt-6">
 			<section className="overflow-hidden rounded-2xl border border-border/70 bg-card/92 shadow-[0_18px_60px_-48px_rgba(20,20,20,0.7)]">
 				<div className="grid gap-4 p-4 min-[560px]:grid-cols-[minmax(0,1fr)_auto] min-[560px]:items-end sm:p-5">
 					<div className="min-w-0">
@@ -1941,8 +1941,32 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 													className="min-w-0 rounded-xl px-2 py-1.5 text-left"
 													aria-current={isActive ? "true" : undefined}
 												>
-													<span className="block truncate text-sm font-medium">
-														{plan.title}
+													<span className="flex min-w-0 items-center gap-2">
+														<span className="min-w-0 truncate text-sm font-medium">
+															{plan.title}
+														</span>
+														{plan.shareToken && (
+															<span
+																className={cn(
+																	"inline-flex h-6 shrink-0 items-center gap-1 rounded-full border px-2 text-[0.68rem] font-medium leading-none",
+																	isActive
+																		? "border-white/25 bg-white/10 text-background/85"
+																		: "border-border bg-muted/50 text-muted-foreground",
+																)}
+																title="Currently shared"
+															>
+																<Share2
+																	className="h-3 w-3"
+																	aria-hidden="true"
+																/>
+																<span className="hidden min-[390px]:inline">
+																	Shared
+																</span>
+																<span className="sr-only">
+																	Currently shared
+																</span>
+															</span>
+														)}
 													</span>
 													<span
 														className={cn(

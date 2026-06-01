@@ -74,7 +74,7 @@ const socialLinks = [
 
 const Footer = () => {
 	return (
-		<footer className="relative overflow-hidden border-t border-border/35 bg-card/36 pb-[calc(5.75rem+env(safe-area-inset-bottom))] backdrop-blur-[2px] lg:pb-0 dark:border-[#f0b668]/18 dark:bg-transparent">
+		<footer className="relative overflow-hidden border-t border-border/35 bg-card/36 pb-[calc(var(--oooc-mobile-nav-clearance,5.75rem)+env(safe-area-inset-bottom))] backdrop-blur-[2px] lg:pb-0 dark:border-[#f0b668]/18 dark:bg-transparent">
 			<div
 				className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f0b668]/22 to-transparent dark:via-[#f0b668]/20"
 				aria-hidden="true"
