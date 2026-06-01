@@ -118,6 +118,7 @@ import {
 	Megaphone,
 	Music,
 	Plus,
+	Route,
 	Settings,
 	Star,
 	Tag,
@@ -140,7 +141,9 @@ interface EventModalProps {
 	onRequestUpdateOpenChange?: (open: boolean) => void;
 	socialProofMode?: SocialProofDisplayMode;
 	isSaved?: boolean;
+	isInPlan?: boolean;
 	onToggleSaved?: (event: Event) => boolean;
+	onAddToPlan?: (event: Event) => number;
 	seriesEvents?: Event[];
 	onNavigateSeriesEvent?: (event: Event) => void;
 }
@@ -485,7 +488,9 @@ const EventModal: React.FC<EventModalProps> = ({
 	onRequestUpdateOpenChange,
 	socialProofMode,
 	isSaved = false,
+	isInPlan = false,
 	onToggleSaved,
+	onAddToPlan,
 	seriesEvents = [],
 	onNavigateSeriesEvent,
 }) => {
@@ -498,8 +503,15 @@ const EventModal: React.FC<EventModalProps> = ({
 		message: string;
 		tone: "success" | "error";
 	} | null>(null);
+	const [planAddStatus, setPlanAddStatus] = useState<{
+		message: string;
+		tone: "success" | "error";
+	} | null>(null);
 	const [isContactEmailCopied, setIsContactEmailCopied] = useState(false);
 	const shareStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
+	const planStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
 	);
 	const modalCardRef = useRef<HTMLDivElement>(null);
@@ -546,6 +558,7 @@ const EventModal: React.FC<EventModalProps> = ({
 			setShowMapSelection(false);
 			setShowMapSettings(false);
 			setLinkShareStatus(null);
+			setPlanAddStatus(null);
 			setPendingLocationData(null);
 			setShowAllGenres(false);
 			setShowCountryDetails(false);
@@ -564,6 +577,9 @@ const EventModal: React.FC<EventModalProps> = ({
 		return () => {
 			if (shareStatusTimeoutRef.current) {
 				clearTimeout(shareStatusTimeoutRef.current);
+			}
+			if (planStatusTimeoutRef.current) {
+				clearTimeout(planStatusTimeoutRef.current);
 			}
 			if (contactCopyTimeoutRef.current) {
 				clearTimeout(contactCopyTimeoutRef.current);
@@ -723,6 +739,15 @@ const EventModal: React.FC<EventModalProps> = ({
 	const nextSeriesEvent = hasSeriesNavigation
 		? orderedSeriesEvents.at(activeSeriesIndex + 1)
 		: undefined;
+	const planButtonTone =
+		planAddStatus?.tone === "success" || isInPlan
+			? "success"
+			: planAddStatus?.tone === "error"
+				? "error"
+				: "idle";
+	const planButtonLabel = isInPlan ? "Event is in plan" : "Add event to plan";
+	const planTooltipLabel =
+		planAddStatus?.message ?? (isInPlan ? "In your plan" : "Add to plan");
 
 	const handleOpenLocation = async (
 		location: string,
@@ -875,6 +900,19 @@ const EventModal: React.FC<EventModalProps> = ({
 		shareStatusTimeoutRef.current = setTimeout(() => {
 			setLinkShareStatus(null);
 		}, 1800);
+	};
+
+	const setTimedPlanStatus = (
+		message: string,
+		tone: "success" | "error" = "success",
+	) => {
+		setPlanAddStatus({ message, tone });
+		if (planStatusTimeoutRef.current) {
+			clearTimeout(planStatusTimeoutRef.current);
+		}
+		planStatusTimeoutRef.current = setTimeout(() => {
+			setPlanAddStatus(null);
+		}, 2200);
 	};
 
 	const buildCanonicalEventUrl = (): string => {
@@ -1425,6 +1463,30 @@ const EventModal: React.FC<EventModalProps> = ({
 		});
 	};
 
+	const handleAddToPlan = () => {
+		if (!onAddToPlan) return;
+		if (!event.date) {
+			haptics.error();
+			setTimedPlanStatus("Needs a confirmed date first", "error");
+			return;
+		}
+		const stopCount = onAddToPlan(event);
+		haptics.success();
+		setTimedPlanStatus(
+			isInPlan
+				? `Already in plan (${stopCount} stops)`
+				: stopCount <= 1
+					? "Started a plan"
+					: `Added to plan (${stopCount} stops)`,
+		);
+		trackEventEngagement({
+			eventKey: event.eventKey,
+			actionType: "saved_toggle",
+			source: "modal_add_to_plan",
+			isAuthenticated,
+		});
+	};
+
 	return createPortal(
 		<div
 			className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-[4px]"
@@ -1505,17 +1567,17 @@ const EventModal: React.FC<EventModalProps> = ({
 							</div>
 						</div>
 						<div className="relative mt-0.5 flex shrink-0 items-center gap-2 self-start">
-							{linkShareStatus && (
+							{(linkShareStatus || planAddStatus) && (
 								<span
 									className={`pointer-events-none absolute -bottom-5 right-0 whitespace-nowrap text-[10px] ${
-										linkShareStatus.tone === "error"
+										(linkShareStatus ?? planAddStatus)?.tone === "error"
 											? "text-amber-700 dark:text-amber-300"
 											: "text-emerald-700 dark:text-emerald-300"
 									}`}
 									role="status"
 									aria-live="polite"
 								>
-									{linkShareStatus.message}
+									{(linkShareStatus ?? planAddStatus)?.message}
 								</span>
 							)}
 							<TooltipProvider>
@@ -1545,6 +1607,37 @@ const EventModal: React.FC<EventModalProps> = ({
 										</TooltipTrigger>
 										<TooltipContent>
 											<p>{isSaved ? "Saved event" : "Save event"}</p>
+										</TooltipContent>
+									</Tooltip>
+								)}
+								{onAddToPlan && (
+									<Tooltip>
+										<TooltipTrigger
+											render={
+												<Button
+													variant="outline"
+													size="icon"
+													onClick={handleAddToPlan}
+													className={`h-10 w-10 rounded-xl border-border/70 bg-background/70 transition-all duration-200 hover:bg-accent dark:bg-white/5 dark:hover:bg-white/10 ${
+														planButtonTone === "success"
+															? "border-emerald-300/80 text-emerald-700 dark:border-emerald-400/45 dark:text-emerald-300"
+															: planButtonTone === "error"
+																? "border-amber-300/80 text-amber-700 dark:border-amber-400/45 dark:text-amber-300"
+																: ""
+													}`}
+													aria-label={planButtonLabel}
+													aria-pressed={isInPlan}
+												/>
+											}
+										>
+											{planButtonTone === "success" ? (
+												<Check className="h-4 w-4" />
+											) : (
+												<Route className="h-4 w-4" />
+											)}
+										</TooltipTrigger>
+										<TooltipContent>
+											<p>{planTooltipLabel}</p>
 										</TooltipContent>
 									</Tooltip>
 								)}

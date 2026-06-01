@@ -5,6 +5,8 @@ import { useEventsSearchFilters } from "@/features/events/components/events-sear
 import { useSavedEvents } from "@/features/events/components/saved-events-provider";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
+import { buildPlanWithAddedEvent } from "@/features/plans/add-event-to-plan";
+import { usePlans } from "@/features/plans/plans-provider";
 
 interface EventModalIslandProps {
 	event: Event | null;
@@ -29,11 +31,20 @@ export function EventModalIsland({
 }: EventModalIslandProps) {
 	const { socialProofDisplayModes } = useEventsSearchFilters();
 	const { isEventSaved, toggleSavedEvent } = useSavedEvents();
+	const { getPlansForDate, upsertPlan } = usePlans();
 
 	if (!event) return null;
 
 	const socialProofMode: SocialProofDisplayMode | undefined =
 		socialProofDisplayModes.get(event.eventKey);
+	const planForEventDate = getPlansForDate(event.date)[0];
+	const isInPlan = Boolean(
+		planForEventDate?.stops.some(
+			(stop) =>
+				stop.eventKey.trim().toLowerCase() ===
+				event.eventKey.trim().toLowerCase(),
+		),
+	);
 
 	return (
 		<EventModal
@@ -46,9 +57,17 @@ export function EventModalIsland({
 			onRequestUpdateOpenChange={onRequestUpdateOpenChange}
 			socialProofMode={socialProofMode}
 			isSaved={isEventSaved(event.eventKey)}
+			isInPlan={isInPlan}
 			onToggleSaved={(selectedEvent) =>
 				toggleSavedEvent(selectedEvent, "modal_save_button")
 			}
+			onAddToPlan={(selectedEvent) => {
+				const plan = upsertPlan(
+					buildPlanWithAddedEvent(selectedEvent, planForEventDate),
+					"modal_add_to_plan",
+				);
+				return plan?.stops.length ?? planForEventDate?.stops.length ?? 0;
+			}}
 			seriesEvents={seriesEvents}
 			onNavigateSeriesEvent={onNavigateSeriesEvent}
 		/>

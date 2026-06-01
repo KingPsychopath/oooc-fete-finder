@@ -12,7 +12,7 @@ import Countdown from "@/features/events/components/Countdown";
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import type { SlidingBannerPublicSettings } from "@/features/site-settings/types";
 // Note: Using process.env directly to avoid server-side env variable access on client
-import { LogOut, UserRoundPlus } from "lucide-react";
+import { LogOut, Route, UserRoundPlus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -94,6 +94,9 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 	const isSubmitPage =
 		pathWithoutBasePath === "/submit-event" ||
 		pathWithoutBasePath.startsWith("/submit-event/");
+	const isPlansPage =
+		pathWithoutBasePath === "/plans" ||
+		pathWithoutBasePath.startsWith("/plans/");
 	const trackHeaderNav = (label: string) => {
 		if (!isHomePage) return;
 		trackNavigationClick({ group: "header_nav", label });
@@ -258,6 +261,16 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 								}`}
 							>
 								Submit Event
+							</Link>
+							<Link
+								href={`${basePath || ""}/plans`}
+								onClick={() => trackHeaderNav("plans")}
+								className={`inline-flex items-center gap-1.5 whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
+									isPlansPage ? "text-foreground" : "text-foreground/75"
+								}`}
+							>
+								<Route className="h-3.5 w-3.5" />
+								Plans
 							</Link>
 							<Link
 								href={`${basePath || ""}/feature-event`}

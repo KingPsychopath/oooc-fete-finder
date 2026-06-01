@@ -172,6 +172,3 @@ export const buildRevisionDiff = ({
 
 	return { added, deleted, changed };
 };
-
-export const getRevisionDiffTotal = (diff: RevisionDiff): number =>
-	diff.added.length + diff.deleted.length + diff.changed.length;

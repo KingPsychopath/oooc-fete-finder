@@ -93,12 +93,20 @@ const compareNames = (left: Event, right: Event): number =>
 
 const FRESH_ACTIVITY_SAVE_CAP = 250;
 
+type FreshActivityRank = {
+	priority: number;
+	timestamp: number;
+};
+
 const parseTimestamp = (value: string | undefined): number | null => {
 	const timestamp = Date.parse(value ?? "");
 	return Number.isFinite(timestamp) ? timestamp : null;
 };
 
-const getFreshActivityTime = (event: Event, now: Date): number | null => {
+const getFreshActivityRank = (
+	event: Event,
+	now: Date,
+): FreshActivityRank | null => {
 	const firstSeenTime = isRecentlyAddedEvent(event, now)
 		? parseTimestamp(event.firstSeenAt)
 		: null;
@@ -106,9 +114,19 @@ const getFreshActivityTime = (event: Event, now: Date): number | null => {
 		? parseTimestamp(event.lastMeaningfulChangeAt)
 		: null;
 
-	if (firstSeenTime === null) return changedTime;
-	if (changedTime === null) return firstSeenTime;
-	return Math.max(firstSeenTime, changedTime);
+	if (firstSeenTime !== null) {
+		return {
+			priority: 2,
+			timestamp: changedTime ?? firstSeenTime,
+		};
+	}
+	if (changedTime !== null) {
+		return {
+			priority: 1,
+			timestamp: changedTime,
+		};
+	}
+	return null;
 };
 
 const getFreshSaveCount = (event: Event): number =>
@@ -165,14 +183,17 @@ export const createFreshActivityComparator = (
 	const regularComparator = createRegularEventsComparator(now);
 
 	return (left, right) => {
-		const leftActivityTime = getFreshActivityTime(left, now);
-		const rightActivityTime = getFreshActivityTime(right, now);
+		const leftActivityRank = getFreshActivityRank(left, now);
+		const rightActivityRank = getFreshActivityRank(right, now);
 
-		if (leftActivityTime !== null || rightActivityTime !== null) {
-			if (leftActivityTime === null) return 1;
-			if (rightActivityTime === null) return -1;
-			if (leftActivityTime !== rightActivityTime) {
-				return rightActivityTime - leftActivityTime;
+		if (leftActivityRank !== null || rightActivityRank !== null) {
+			if (leftActivityRank === null) return 1;
+			if (rightActivityRank === null) return -1;
+			if (leftActivityRank.priority !== rightActivityRank.priority) {
+				return rightActivityRank.priority - leftActivityRank.priority;
+			}
+			if (leftActivityRank.timestamp !== rightActivityRank.timestamp) {
+				return rightActivityRank.timestamp - leftActivityRank.timestamp;
 			}
 		}
 

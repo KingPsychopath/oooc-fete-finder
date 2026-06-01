@@ -27,6 +27,7 @@ import {
 	Pin,
 	PinOff,
 	PlusCircle,
+	Route,
 	Settings,
 	ShieldCheck,
 	Toilet,
@@ -76,7 +77,7 @@ const excludedPathPrefixes = [
 	"/social",
 ] as const;
 
-type NavKey = "home" | "map" | "events" | "submit" | "more";
+type NavKey = "home" | "map" | "events" | "plans" | "submit" | "more";
 
 interface NavItem {
 	key: NavKey;
@@ -442,14 +443,14 @@ export function MobileBottomNav() {
 			isActive: normalizedPathname === "/" && activeSection === "events",
 		},
 		{
-			key: "submit",
-			label: "Submit",
-			href: `${basePath || ""}/submit-event`,
-			icon: PlusCircle,
+			key: "plans",
+			label: "Plans",
+			href: `${basePath || ""}/plans`,
+			icon: Route,
 			isActive:
-				activeSection === "submit" ||
-				normalizedPathname === "/submit-event" ||
-				normalizedPathname.startsWith("/submit-event/"),
+				activeSection === "plans" ||
+				normalizedPathname === "/plans" ||
+				normalizedPathname.startsWith("/plans/"),
 		},
 	];
 
@@ -458,7 +459,9 @@ export function MobileBottomNav() {
 		normalizedPathname === "/how-it-works" ||
 		normalizedPathname.startsWith("/how-it-works/") ||
 		normalizedPathname === "/feature-event" ||
-		normalizedPathname.startsWith("/feature-event/");
+		normalizedPathname.startsWith("/feature-event/") ||
+		normalizedPathname === "/submit-event" ||
+		normalizedPathname.startsWith("/submit-event/");
 	const activeIndex = navItems.findIndex((item) => item.isActive);
 	const resolvedActiveIndex = isMoreActive
 		? navItems.length
@@ -495,7 +498,7 @@ export function MobileBottomNav() {
 			return;
 		}
 
-		if (key === "submit") {
+		if (key === "submit" || key === "plans") {
 			shouldScrollToTopOnRouteRef.current = true;
 			pendingHomeSectionScrollRef.current = null;
 			return;
@@ -645,6 +648,16 @@ export function MobileBottomNav() {
 											<Megaphone className="h-3.5 w-3.5" />
 										</span>
 										<span>Promote</span>
+									</Link>
+									<Link
+										href={`${basePath || ""}/submit-event`}
+										onClick={() => handleMoreLinkClick("submit_event")}
+										className={moreInternalItemClassName}
+									>
+										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+											<PlusCircle className="h-3.5 w-3.5" />
+										</span>
+										<span>Submit event</span>
 									</Link>
 								</div>
 							</div>

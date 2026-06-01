@@ -7,6 +7,8 @@ import {
 	useSavedEvents,
 } from "@/features/events/components/saved-events-provider";
 import type { Event } from "@/features/events/types";
+import { buildPlanWithAddedEvent } from "@/features/plans/add-event-to-plan";
+import { PlansProvider, usePlans } from "@/features/plans/plans-provider";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -41,10 +43,12 @@ export function EventShareClient({
 }: EventShareClientProps) {
 	return (
 		<SavedEventsProvider>
-			<EventShareModal
-				event={event}
-				eventUpdateRequestsEnabled={eventUpdateRequestsEnabled}
-			/>
+			<PlansProvider>
+				<EventShareModal
+					event={event}
+					eventUpdateRequestsEnabled={eventUpdateRequestsEnabled}
+				/>
+			</PlansProvider>
 		</SavedEventsProvider>
 	);
 }
@@ -57,6 +61,15 @@ function EventShareModal({
 	const searchParams = useSearchParams();
 	const { isAuthenticated } = useOptionalAuth();
 	const { isEventSaved, toggleSavedEvent } = useSavedEvents();
+	const { getPlansForDate, upsertPlan } = usePlans();
+	const planForEventDate = getPlansForDate(event.date)[0];
+	const isInPlan = Boolean(
+		planForEventDate?.stops.some(
+			(stop) =>
+				stop.eventKey.trim().toLowerCase() ===
+				event.eventKey.trim().toLowerCase(),
+		),
+	);
 	const [hasHydrated, setHasHydrated] = useState(false);
 	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(
 		() =>
@@ -145,9 +158,17 @@ function EventShareModal({
 			isRequestUpdateOpen={isRequestUpdateOpen}
 			onRequestUpdateOpenChange={handleRequestUpdateOpenChange}
 			isSaved={isEventSaved(event.eventKey)}
+			isInPlan={isInPlan}
 			onToggleSaved={(selectedEvent) =>
 				toggleSavedEvent(selectedEvent, "direct_event_modal_save_button")
 			}
+			onAddToPlan={(selectedEvent) => {
+				const plan = upsertPlan(
+					buildPlanWithAddedEvent(selectedEvent, planForEventDate),
+					"direct_event_modal_add_to_plan",
+				);
+				return plan?.stops.length ?? planForEventDate?.stops.length ?? 0;
+			}}
 		/>
 	);
 }

@@ -1,8 +1,8 @@
-import { buildRevisionDiff } from "@/app/admin/components/event-sheet-revision-diff";
 import type {
 	EditableSheetColumn,
 	EditableSheetRow,
 } from "@/features/data-management/csv/sheet-editor";
+import { buildRevisionDiff } from "@/features/data-management/event-sheet-revision-diff";
 import { describe, expect, it } from "vitest";
 
 const columns: EditableSheetColumn[] = [

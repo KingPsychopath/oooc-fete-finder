@@ -256,12 +256,18 @@ export function SavedEventsProvider({ children }: { children: ReactNode }) {
 					.filter((value): value is string => typeof value === "string")
 					.map(normalizeEventKey)
 					.filter(Boolean);
-				setSavedEventKeys(
-					applyPendingSavedEventMutations(
-						[...remoteKeys, ...pendingAnonymousMergeKeysRef.current],
+				setSavedEventKeys((currentKeys) => {
+					const mergedKeys = applyPendingSavedEventMutations(
+						[
+							...currentKeys,
+							...remoteKeys,
+							...pendingAnonymousMergeKeysRef.current,
+						],
 						getPendingSavedEventMutations(activeOwnerKey),
-					),
-				);
+					);
+					writeLocalSavedEventKeys(activeOwnerKey, mergedKeys);
+					return mergedKeys;
+				});
 			} catch {
 				// Local saves remain available if sync cannot complete.
 			}

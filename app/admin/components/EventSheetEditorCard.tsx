@@ -47,6 +47,11 @@ import {
 	splitEditableSheetRangeRow,
 	toEditableSheetRowSortableDateTime,
 } from "@/features/data-management/csv/sheet-editor";
+import {
+	type RevisionDiff,
+	type RevisionRowDiff,
+	buildRevisionDiff,
+} from "@/features/data-management/event-sheet-revision-diff";
 import type {
 	EventRowLifecycleMetadata,
 	EventSheetRevisionRecord,
@@ -125,12 +130,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EventSheetOcrDraftModal } from "./EventSheetOcrDraftModal";
 import { ADMIN_EVENT_SHEET_REFRESH_EVENT } from "./admin-content-events";
-import {
-	type RevisionDiff,
-	type RevisionRowDiff,
-	buildRevisionDiff,
-	getRevisionDiffTotal,
-} from "./event-sheet-revision-diff";
 
 type EventSheetEditorCardProps = {
 	isAuthenticated: boolean;
@@ -1072,7 +1071,7 @@ const RevisionDiffGroup = ({
 };
 
 const RevisionDiffSummary = ({ diff }: { diff: RevisionDiff }) => {
-	const total = getRevisionDiffTotal(diff);
+	const total = diff.added.length + diff.deleted.length + diff.changed.length;
 	if (total === 0) {
 		return (
 			<div className="rounded-md border border-emerald-300/70 bg-emerald-50/70 px-3 py-2 text-sm text-emerald-950 dark:border-emerald-500/40 dark:bg-emerald-950/25 dark:text-emerald-100">
@@ -1670,7 +1669,8 @@ const getLocationDotClassName = (
 	hasAliasWarning: boolean,
 ): string => {
 	if (hasAliasWarning) return "border-amber-500 bg-amber-500";
-	if (state === "not-geocodeable") return "border-muted-foreground/35 bg-transparent";
+	if (state === "not-geocodeable")
+		return "border-muted-foreground/35 bg-transparent";
 	if (state === "manual") return "border-emerald-700 bg-emerald-700";
 	if (state === "geocoded") return "border-emerald-500 bg-emerald-500";
 	if (state === "approximate") return "border-amber-400 bg-transparent";
@@ -5061,9 +5061,7 @@ export const EventSheetEditorCard = ({
 			}
 
 			const trigger = target.closest("[data-location-cell-trigger]");
-			if (
-				trigger?.getAttribute("data-location-cell-trigger") === popoverKey
-			) {
+			if (trigger?.getAttribute("data-location-cell-trigger") === popoverKey) {
 				return;
 			}
 
@@ -8832,7 +8830,7 @@ export const EventSheetEditorCard = ({
 																								hasMissingResolvedLocationMetadata(
 																									place,
 																									resolvedSuggestion,
-																						);
+																								);
 																							const suggestedArea =
 																								formatDerivedLocationArea(
 																									deriveAreaFromPostalCodeCity(

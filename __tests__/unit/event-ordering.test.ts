@@ -186,14 +186,20 @@ describe("createFreshActivityComparator", () => {
 		]);
 	});
 
-	it("orders fresh events by exact latest activity timestamp", () => {
+	it("orders new events before updated events, then by exact activity timestamp", () => {
 		const now = new Date("2026-05-08T12:00:00.000Z");
 		const events: Event[] = [
 			makeEvent({
-				eventKey: "new-earlier",
+				eventKey: "new-earliest",
 				date: "2026-06-20",
 				firstSeenAt: "2026-05-08T08:15:00.000Z",
 				lastMeaningfulChangeAt: "2026-05-08T08:15:00.000Z",
+			}),
+			makeEvent({
+				eventKey: "new-latest",
+				date: "2026-06-20",
+				firstSeenAt: "2026-05-08T09:15:00.000Z",
+				lastMeaningfulChangeAt: "2026-05-08T09:15:00.000Z",
 			}),
 			makeEvent({
 				eventKey: "updated-latest",
@@ -211,9 +217,10 @@ describe("createFreshActivityComparator", () => {
 
 		const sorted = [...events].sort(createFreshActivityComparator(now));
 		expect(sorted.map((event) => event.eventKey)).toEqual([
+			"new-latest",
+			"new-earliest",
 			"updated-latest",
 			"updated-middle",
-			"new-earlier",
 		]);
 	});
 });

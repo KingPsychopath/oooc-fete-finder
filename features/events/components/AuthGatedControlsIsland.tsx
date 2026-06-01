@@ -4,6 +4,7 @@ import { useOptionalAuth } from "@/features/auth/auth-context";
 import { EventsSearchFiltersProvider } from "@/features/events/components/events-search-filters-provider";
 import { SavedEventsProvider } from "@/features/events/components/saved-events-provider";
 import type { SpotlightRotationContext } from "@/features/events/featured/selection";
+import { PlansProvider } from "@/features/plans/plans-provider";
 import type { ReactNode, RefObject } from "react";
 import { Suspense, lazy, useCallback, useRef, useState } from "react";
 
@@ -102,16 +103,18 @@ export function AuthGatedControlsIsland({
 			initialSpotlightRotationContext={spotlightRotationContext}
 		>
 			<SavedEventsProvider>
-				{children({
-					allEventsRef,
-					authMode,
-					canUseProtectedDiscovery,
-					isAuthResolved,
-					isAuthenticated,
-					isOnline,
-					offlineGraceExpiresAt,
-					onAuthRequired: handleAuthRequired,
-				})}
+				<PlansProvider>
+					{children({
+						allEventsRef,
+						authMode,
+						canUseProtectedDiscovery,
+						isAuthResolved,
+						isAuthenticated,
+						isOnline,
+						offlineGraceExpiresAt,
+						onAuthRequired: handleAuthRequired,
+					})}
+				</PlansProvider>
 			</SavedEventsProvider>
 			{showEmailGate && (
 				<Suspense fallback={NoopSuspenseFallback}>

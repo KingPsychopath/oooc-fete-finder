@@ -1,8 +1,12 @@
 import {
 	discardPendingMutations,
+	enqueueRoutePlanDeleteMutation,
+	enqueueRoutePlanMutation,
 	enqueueSavedEventMutation,
 	flushPendingMutations,
 	getPendingMutationCount,
+	getPendingRoutePlanDeleteMutations,
+	getPendingRoutePlanMutations,
 	getPendingSavedEventMutations,
 	migratePendingMutationOwnerKey,
 } from "@/features/offline-mutations/pending-mutation-queue";
@@ -15,6 +19,7 @@ const storage = new Map<string, string>();
 describe("pending mutation queue", () => {
 	beforeEach(() => {
 		storage.clear();
+		let uuidCounter = 0;
 		vi.stubGlobal("window", {
 			localStorage: {
 				getItem: (key: string) => storage.get(key) ?? null,
@@ -30,7 +35,10 @@ describe("pending mutation queue", () => {
 			},
 		});
 		vi.stubGlobal("crypto", {
-			randomUUID: () => "mutation-id",
+			randomUUID: () => {
+				uuidCounter += 1;
+				return `mutation-id-${uuidCounter}`;
+			},
 		});
 		vi.useRealTimers();
 	});
@@ -219,5 +227,138 @@ describe("pending mutation queue", () => {
 			idempotencyKey:
 				"saved_event:user:019b0000-0000-7000-8000-000000000001:evt_1",
 		});
+	});
+
+	it("compacts route plan mutations by owner and plan", () => {
+		enqueueRoutePlanMutation({
+			ownerKey: "user:a@example.com",
+			planId: "plan-1",
+			plan: { id: "plan-1", title: "First" },
+			source: "plans_page",
+		});
+		enqueueRoutePlanMutation({
+			ownerKey: "user:a@example.com",
+			planId: "plan-1",
+			plan: { id: "plan-1", title: "Updated" },
+			source: "plans_page_reorder",
+		});
+
+		expect(getPendingMutationCount("user:a@example.com")).toBe(1);
+		expect(getPendingRoutePlanMutations("user:a@example.com")).toMatchObject([
+			{
+				type: "route_plan",
+				payload: {
+					planId: "plan-1",
+					plan: { id: "plan-1", title: "Updated" },
+					source: "plans_page_reorder",
+				},
+			},
+		]);
+	});
+
+	it("flushes route plan mutations with their own handler", async () => {
+		enqueueRoutePlanMutation({
+			ownerKey: "user:a@example.com",
+			planId: "plan-1",
+			plan: { id: "plan-1", title: "Route" },
+			source: "plans_page",
+		});
+
+		const result = await flushPendingMutations({
+			ownerKey: "user:a@example.com",
+			savedEvent: async () => true,
+			routePlan: async ({ mutation }) => {
+				expect(mutation.payload.planId).toBe("plan-1");
+				return true;
+			},
+		});
+
+		expect(result).toMatchObject({ attempted: 1, succeeded: 1, remaining: 0 });
+	});
+
+	it("compacts route plan deletes against pending route plan upserts", async () => {
+		enqueueRoutePlanMutation({
+			ownerKey: "user:a@example.com",
+			planId: "plan-1",
+			plan: { id: "plan-1", title: "Route" },
+			source: "plans_page",
+		});
+		enqueueRoutePlanDeleteMutation({
+			ownerKey: "user:a@example.com",
+			planId: "plan-1",
+			source: "plans_page_delete",
+		});
+
+		expect(getPendingMutationCount("user:a@example.com")).toBe(1);
+		expect(getPendingRoutePlanMutations("user:a@example.com")).toHaveLength(0);
+		expect(
+			getPendingRoutePlanDeleteMutations("user:a@example.com"),
+		).toMatchObject([
+			{
+				type: "route_plan_delete",
+				payload: {
+					planId: "plan-1",
+					source: "plans_page_delete",
+				},
+			},
+		]);
+	});
+
+	it("flushes route plan delete mutations with their own handler", async () => {
+		enqueueRoutePlanDeleteMutation({
+			ownerKey: "user:a@example.com",
+			planId: "plan-1",
+			source: "plans_page_delete",
+		});
+
+		const result = await flushPendingMutations({
+			ownerKey: "user:a@example.com",
+			routePlanDelete: async ({ mutation }) => {
+				expect(mutation.payload.planId).toBe("plan-1");
+				return true;
+			},
+		});
+
+		expect(result).toMatchObject({ attempted: 1, succeeded: 1, remaining: 0 });
+	});
+
+	it("does not flush saved-event mutations when only route-plan handler is provided", async () => {
+		enqueueSavedEventMutation({
+			ownerKey: "user:a@example.com",
+			eventKey: "evt_1",
+			isSaved: true,
+			source: "modal_save",
+		});
+		enqueueRoutePlanMutation({
+			ownerKey: "user:a@example.com",
+			planId: "plan-1",
+			plan: { id: "plan-1", title: "Route" },
+			source: "plans_page",
+		});
+
+		const result = await flushPendingMutations({
+			ownerKey: "user:a@example.com",
+			routePlan: async () => true,
+		});
+
+		expect(result).toMatchObject({ attempted: 1, succeeded: 1, remaining: 1 });
+		expect(getPendingSavedEventMutations("user:a@example.com")).toHaveLength(1);
+	});
+
+	it("does not fail route-plan mutations when only saved-event handler is provided", async () => {
+		enqueueRoutePlanMutation({
+			ownerKey: "user:a@example.com",
+			planId: "plan-1",
+			plan: { id: "plan-1", title: "Route" },
+			source: "plans_page",
+		});
+
+		const result = await flushPendingMutations({
+			ownerKey: "user:a@example.com",
+			savedEvent: async () => true,
+		});
+
+		expect(result).toMatchObject({ attempted: 0, succeeded: 0, remaining: 1 });
+		expect(getPendingRoutePlanMutations("user:a@example.com")).toHaveLength(1);
 	});
 });
