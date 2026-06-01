@@ -57,6 +57,8 @@ const ooocFaqUrl =
 	process.env.NEXT_PUBLIC_OOOC_FAQ_URL?.trim() ||
 	"https://outofofficecollective.co.uk/faqs";
 const SCROLL_HIDE_THRESHOLD = 96;
+const SCROLL_DIRECTION_EPSILON = 6;
+const SCROLL_BOTTOM_LOCK_DISTANCE = 96;
 const PIN_STORAGE_KEY = "oooc_mobile_nav_pinned";
 const MOBILE_NAV_VISIBLE_OFFSET = "5.75rem";
 const MOBILE_NAV_HIDDEN_OFFSET = "1rem";
@@ -115,9 +117,20 @@ function useMobileNavVisibility(isPinnedOpen: boolean) {
 
 		const updateVisibility = () => {
 			rafId = null;
-			const nextY = window.scrollY;
+			const maxY = Math.max(
+				0,
+				document.documentElement.scrollHeight -
+					document.documentElement.clientHeight,
+			);
+			const nextY = Math.min(Math.max(window.scrollY, 0), maxY);
+			const deltaY = nextY - lastYRef.current;
+			const isNearTop = nextY < SCROLL_HIDE_THRESHOLD;
+			const isNearBottom = maxY - nextY <= SCROLL_BOTTOM_LOCK_DISTANCE;
+			const hasMeaningfulScroll = Math.abs(deltaY) >= SCROLL_DIRECTION_EPSILON;
 			const nextIsVisible =
-				nextY < SCROLL_HIDE_THRESHOLD || nextY < lastYRef.current;
+				isNearTop ||
+				isNearBottom ||
+				(hasMeaningfulScroll ? deltaY < 0 : isVisibleRef.current);
 
 			if (isVisibleRef.current !== nextIsVisible) {
 				isVisibleRef.current = nextIsVisible;

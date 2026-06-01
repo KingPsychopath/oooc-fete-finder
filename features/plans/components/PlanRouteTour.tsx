@@ -8,7 +8,7 @@ import {
 	setBodyOverlayAttribute,
 } from "@/lib/ui/overlay-state";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -199,22 +199,22 @@ export function PlanRouteTour({
 			{
 				id: "settings",
 				selector: "#plans-route-settings",
-				title: "Set the basics",
-				body: "Pick the day, number of stops, vibe, start time, travel and budget. Leave anything flexible.",
+				title: "Set the mood",
+				body: "Choose the day, stop count, vibe, start time, travel style and budget. Fête Finder uses the choices you make.",
 				preferredSide: "right",
 			},
 			{
 				id: "line",
 				selector: "#plans-route-line",
-				title: "Shape the route",
-				body: "Suggest a route, add saved events, then drag, pin or remove stops. Regenerate keeps pinned stops.",
+				title: "Tune the route",
+				body: "Suggest a route, add saved events, then drag, pin or remove stops. Pinned stops stay put when you regenerate.",
 				preferredSide: "right",
 			},
 			{
 				id: "routes",
 				selector: "#plans-saved-routes",
 				title: "Saved routes",
-				body: "Open any route to edit it. New route starts a separate plan.",
+				body: "Open a route whenever you want to keep editing. New route starts a separate plan for the selected day.",
 				preferredSide: "right",
 			},
 		],
@@ -396,39 +396,63 @@ export function PlanRouteTour({
 				<p className="mt-2 text-sm leading-6 text-muted-foreground">
 					{currentStep.body}
 				</p>
-				<div className="mt-4 flex items-center justify-between gap-2">
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						onClick={() => {
-							haptics.light();
-							setStepIndex((index) => Math.max(index - 1, 0));
-						}}
-						disabled={stepIndex === 0}
-						className="rounded-full"
-					>
-						<ChevronLeft className="mr-1 h-3.5 w-3.5" />
-						Back
-					</Button>
-					<Button
-						type="button"
-						size="sm"
-						onClick={() => {
-							if (isLastStep) {
-								haptics.success();
-								onComplete?.();
-								onClose();
-								return;
-							}
-							haptics.nudge();
-							setStepIndex((index) => Math.min(index + 1, steps.length - 1));
-						}}
-						className="rounded-full"
-					>
-						{isLastStep ? "Done" : "Next"}
-						{!isLastStep && <ChevronRight className="ml-1 h-3.5 w-3.5" />}
-					</Button>
+				<div className="mt-4 flex items-center justify-between gap-3">
+					<div className="flex gap-1.5" aria-hidden="true">
+						{steps.map((step, index) => (
+							<span
+								key={step.id}
+								className={cn(
+									"h-1.5 rounded-full transition-all",
+									index === stepIndex
+										? "w-6 bg-primary"
+										: "w-1.5 bg-muted-foreground/32",
+								)}
+							/>
+						))}
+					</div>
+					<div className="flex items-center gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => {
+								haptics.light();
+								setStepIndex((index) => Math.max(index - 1, 0));
+							}}
+							disabled={stepIndex === 0}
+							className="h-8 rounded-full px-3"
+						>
+							<ChevronLeft className="h-3.5 w-3.5" />
+							<span className="sr-only">Previous step</span>
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							onClick={() => {
+								if (isLastStep) {
+									haptics.success();
+									onComplete?.();
+									onClose();
+									return;
+								}
+								haptics.nudge();
+								setStepIndex((index) => Math.min(index + 1, steps.length - 1));
+							}}
+							className="h-8 rounded-full px-3"
+						>
+							{isLastStep ? (
+								<>
+									<Check className="mr-1.5 h-3.5 w-3.5" />
+									Done
+								</>
+							) : (
+								<>
+									Next
+									<ChevronRight className="ml-1.5 h-3.5 w-3.5" />
+								</>
+							)}
+						</Button>
+					</div>
 				</div>
 			</div>
 		</div>,

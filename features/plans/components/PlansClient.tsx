@@ -1079,7 +1079,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 	return (
 		<div className="mx-auto flex w-full max-w-[110rem] flex-col gap-4 px-3 pb-[calc(var(--oooc-mobile-nav-offset,5.75rem)+1rem)] pt-4 sm:px-5 lg:px-8 lg:pb-10 lg:pt-6">
 			<section className="overflow-hidden rounded-2xl border border-border/70 bg-card/92 shadow-[0_18px_60px_-48px_rgba(20,20,20,0.7)]">
-				<div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+				<div className="grid gap-4 p-4 min-[560px]:grid-cols-[minmax(0,1fr)_auto] min-[560px]:items-end sm:p-5">
 					<div className="min-w-0">
 						<div className="flex flex-wrap items-center gap-2">
 							<Badge className="rounded-full bg-[#111] px-3 py-1 text-white dark:bg-white dark:text-black">
@@ -1102,7 +1102,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 							tune stop by stop. Changes save as you go.
 						</p>
 					</div>
-					<div className="flex items-center justify-start lg:justify-end">
+					<div className="flex items-center justify-start min-[560px]:justify-end">
 						<Button
 							type="button"
 							variant="outline"
@@ -1371,17 +1371,20 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 								</p>
 							</div>
 						</div>
-						<div className="flex flex-wrap items-center gap-2">
+						<div className="grid grid-cols-[repeat(6,max-content)] gap-2 sm:grid-cols-[repeat(3,max-content)] lg:grid-cols-[repeat(6,max-content)] lg:gap-1 xl:grid-cols-[repeat(3,max-content)] xl:gap-2">
 							{activePlan && (
 								<Button
 									type="button"
 									variant="outline"
 									onClick={startNewRoute}
+									aria-label="New route"
 									title="New route"
-									className="rounded-full px-3 sm:px-4"
+									className="rounded-full px-3 sm:px-4 lg:px-3 xl:px-4"
 								>
-									<Plus className="h-4 w-4 sm:mr-2" />
-									<span className="hidden sm:inline">New route</span>
+									<Plus className="h-4 w-4 sm:mr-2 lg:mr-0 xl:mr-2" />
+									<span className="hidden sm:inline lg:hidden xl:inline">
+										New route
+									</span>
 									<span className="sr-only sm:hidden">New route</span>
 								</Button>
 							)}
@@ -1390,11 +1393,14 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 									type="button"
 									variant="outline"
 									onClick={deleteActivePlan}
+									aria-label="Delete route"
 									title="Delete route"
-									className="rounded-full px-3 text-muted-foreground hover:text-destructive sm:px-4"
+									className="rounded-full px-3 text-muted-foreground hover:text-destructive sm:px-4 lg:px-3 xl:px-4"
 								>
-									<Trash2 className="h-4 w-4 sm:mr-2" />
-									<span className="hidden sm:inline">Delete route</span>
+									<Trash2 className="h-4 w-4 sm:mr-2 lg:mr-0 xl:mr-2" />
+									<span className="hidden sm:inline lg:hidden xl:inline">
+										Delete route
+									</span>
 									<span className="sr-only sm:hidden">Delete route</span>
 								</Button>
 							)}
@@ -1408,6 +1414,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 									!regenerationSuggestion ||
 									(isSavingSeparateRoute && isRouteLimitReached)
 								}
+								aria-label={routeActionLabel}
 								title={
 									activePlan
 										? "Build another route from the current settings. Locked stops keep their position."
@@ -1416,22 +1423,28 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 								className="rounded-full"
 							>
 								{activePlan ? (
-									<RefreshCw className="mr-2 h-4 w-4" />
+									<RefreshCw className="h-4 w-4 sm:mr-2 lg:mr-0 xl:mr-2" />
 								) : (
-									<Navigation className="mr-2 h-4 w-4" />
+									<Navigation className="h-4 w-4 sm:mr-2 lg:mr-0 xl:mr-2" />
 								)}
-								{routeActionLabel}
+								<span className="hidden sm:inline lg:hidden xl:inline">
+									{routeActionLabel}
+								</span>
+								<span className="sr-only sm:hidden">{routeActionLabel}</span>
 							</Button>
 							{activePlan && activeEvents.length > 0 && (
 								<Button
 									type="button"
 									variant="outline"
 									onClick={exportRouteToCalendar}
+									aria-label="Export to calendar"
 									title="Export route stops to calendar"
-									className="rounded-full px-3 sm:px-4"
+									className="rounded-full px-3 sm:px-4 lg:px-3 xl:px-4"
 								>
-									<CalendarPlus className="h-4 w-4 sm:mr-2" />
-									<span className="hidden sm:inline">Calendar</span>
+									<CalendarPlus className="h-4 w-4 sm:mr-2 lg:mr-0 xl:mr-2" />
+									<span className="hidden sm:inline lg:hidden xl:inline">
+										Calendar
+									</span>
 									<span className="sr-only sm:hidden">Export to calendar</span>
 								</Button>
 							)}
@@ -1440,11 +1453,14 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 									type="button"
 									variant="outline"
 									onClick={openRouteInMaps}
+									aria-label="Open route in maps"
 									title="Open route in maps"
-									className="rounded-full px-3 sm:px-4"
+									className="rounded-full px-3 sm:px-4 lg:px-3 xl:px-4"
 								>
-									<MapPinned className="h-4 w-4 sm:mr-2" />
-									<span className="hidden sm:inline">Maps</span>
+									<MapPinned className="h-4 w-4 sm:mr-2 lg:mr-0 xl:mr-2" />
+									<span className="hidden sm:inline lg:hidden xl:inline">
+										Maps
+									</span>
 									<span className="sr-only sm:hidden">Open route in maps</span>
 								</Button>
 							)}
@@ -1458,23 +1474,26 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 											: createShareLink(activePlan)
 									}
 									disabled={sharingPlanId === activePlan.id}
+									aria-label={
+										activePlan.shareToken ? "Revoke share link" : "Share"
+									}
 									title={
 										activePlan.shareToken
 											? "Revoke share link"
 											: "Create a revocable unlisted share link"
 									}
 									className={cn(
-										"rounded-full px-3 sm:px-4",
+										"rounded-full px-3 sm:px-4 lg:px-3 xl:px-4",
 										activePlan.shareToken &&
 											"text-muted-foreground hover:text-destructive",
 									)}
 								>
 									{activePlan.shareToken ? (
-										<X className="h-4 w-4 sm:mr-2" />
+										<X className="h-4 w-4 sm:mr-2 lg:mr-0 xl:mr-2" />
 									) : (
-										<Share2 className="h-4 w-4 sm:mr-2" />
+										<Share2 className="h-4 w-4 sm:mr-2 lg:mr-0 xl:mr-2" />
 									)}
-									<span className="hidden sm:inline">
+									<span className="hidden sm:inline lg:hidden xl:inline">
 										{sharingPlanId === activePlan.id
 											? activePlan.shareToken
 												? "Revoking..."
@@ -1866,137 +1885,145 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 								</Badge>
 							)}
 						</div>
-						<div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
-							{savedRouteList.map((plan) => {
-								const isActive = activePlan?.id === plan.id;
-								const isRenaming = renamingPlanId === plan.id;
-								return (
-									<div
-										key={plan.id}
-										className={cn(
-											"grid grid-cols-[minmax(0,1fr)_2.25rem_2.25rem] items-center gap-2 rounded-2xl border p-2",
-											isActive
-												? "border-foreground bg-foreground text-background"
-												: "border-border/70 bg-background hover:border-foreground/30",
-										)}
-									>
-										{isRenaming ? (
-											<form
-												className="min-w-0"
-												onSubmit={(event) => {
-													event.preventDefault();
-													saveRenamePlan(plan);
-												}}
-											>
-												<input
-													value={renameValue}
-													onChange={(event) => {
-														setRenameValue(event.target.value);
-														setRenameError(null);
+						<div className="mt-3 space-y-2">
+							<div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+								{savedRouteList.map((plan) => {
+									const isActive = activePlan?.id === plan.id;
+									const isRenaming = renamingPlanId === plan.id;
+									return (
+										<div
+											key={plan.id}
+											className={cn(
+												"grid grid-cols-[minmax(0,1fr)_2.25rem_2.25rem] items-center gap-2 rounded-2xl border p-2",
+												isActive
+													? "border-foreground bg-foreground text-background"
+													: "border-border/70 bg-background hover:border-foreground/30",
+											)}
+										>
+											{isRenaming ? (
+												<form
+													className="min-w-0"
+													onSubmit={(event) => {
+														event.preventDefault();
+														saveRenamePlan(plan);
 													}}
-													onKeyDown={(event) => {
-														if (event.key === "Escape") cancelRenamePlan();
-													}}
-													autoFocus
-													maxLength={60}
-													aria-label={`Rename ${plan.title}`}
-													aria-invalid={Boolean(renameError)}
-													className={cn(
-														"h-10 w-full rounded-xl border px-3 text-sm outline-none",
-														isActive
-															? "border-white/25 bg-white/10 text-background placeholder:text-background/60"
-															: "border-border bg-background text-foreground",
+												>
+													<input
+														value={renameValue}
+														onChange={(event) => {
+															setRenameValue(event.target.value);
+															setRenameError(null);
+														}}
+														onKeyDown={(event) => {
+															if (event.key === "Escape") cancelRenamePlan();
+														}}
+														autoFocus
+														maxLength={60}
+														aria-label={`Rename ${plan.title}`}
+														aria-invalid={Boolean(renameError)}
+														className={cn(
+															"h-10 w-full rounded-xl border px-3 text-sm outline-none",
+															isActive
+																? "border-white/25 bg-white/10 text-background placeholder:text-background/60"
+																: "border-border bg-background text-foreground",
+														)}
+													/>
+													{renameError && (
+														<p className="mt-1 px-1 text-xs text-destructive">
+															{renameError}
+														</p>
 													)}
-												/>
-												{renameError && (
-													<p className="mt-1 px-1 text-xs text-destructive">
-														{renameError}
-													</p>
-												)}
-											</form>
-										) : (
+												</form>
+											) : (
+												<button
+													type="button"
+													onClick={() => openSavedRoute(plan)}
+													className="min-w-0 rounded-xl px-2 py-1.5 text-left"
+													aria-current={isActive ? "true" : undefined}
+												>
+													<span className="block truncate text-sm font-medium">
+														{plan.title}
+													</span>
+													<span
+														className={cn(
+															"mt-0.5 block text-xs",
+															isActive
+																? "text-background/75"
+																: "text-muted-foreground",
+														)}
+													>
+														{formatPlanDateOption(plan.planDate)} ·{" "}
+														{plan.stops.length} stop
+														{plan.stops.length === 1 ? "" : "s"}
+													</span>
+												</button>
+											)}
 											<button
 												type="button"
-												onClick={() => openSavedRoute(plan)}
-												className="min-w-0 rounded-xl px-2 py-1.5 text-left"
-												aria-current={isActive ? "true" : undefined}
+												aria-label={
+													isRenaming
+														? `Save ${plan.title}`
+														: `Rename ${plan.title}`
+												}
+												title={
+													isRenaming
+														? `Save ${plan.title}`
+														: `Rename ${plan.title}`
+												}
+												onClick={() =>
+													isRenaming
+														? saveRenamePlan(plan)
+														: startRenamePlan(plan)
+												}
+												className={cn(
+													"grid h-9 w-9 place-items-center rounded-full border transition",
+													isActive
+														? "border-white/25 bg-white text-foreground hover:bg-white/90"
+														: "border-border bg-muted/70 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+												)}
 											>
-												<span className="block truncate text-sm font-medium">
-													{plan.title}
-												</span>
-												<span
-													className={cn(
-														"mt-0.5 block text-xs",
-														isActive
-															? "text-background/75"
-															: "text-muted-foreground",
-													)}
-												>
-													{formatPlanDateOption(plan.planDate)} ·{" "}
-													{plan.stops.length} stop
-													{plan.stops.length === 1 ? "" : "s"}
-												</span>
+												{isRenaming ? (
+													<Check className="h-4 w-4" />
+												) : (
+													<Pencil className="h-4 w-4" />
+												)}
 											</button>
-										)}
-										<button
-											type="button"
-											aria-label={
-												isRenaming
-													? `Save ${plan.title}`
-													: `Rename ${plan.title}`
-											}
-											title={
-												isRenaming
-													? `Save ${plan.title}`
-													: `Rename ${plan.title}`
-											}
-											onClick={() =>
-												isRenaming
-													? saveRenamePlan(plan)
-													: startRenamePlan(plan)
-											}
-											className={cn(
-												"grid h-9 w-9 place-items-center rounded-full border transition",
-												isActive
-													? "border-white/25 bg-white text-foreground hover:bg-white/90"
-													: "border-border bg-muted/70 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
-											)}
-										>
-											{isRenaming ? (
-												<Check className="h-4 w-4" />
-											) : (
-												<Pencil className="h-4 w-4" />
-											)}
-										</button>
-										<button
-											type="button"
-											aria-label={
-												isRenaming ? "Cancel rename" : `Delete ${plan.title}`
-											}
-											title={
-												isRenaming ? "Cancel rename" : `Delete ${plan.title}`
-											}
-											onClick={() =>
-												isRenaming
-													? cancelRenamePlan()
-													: deletePlanById(plan.id)
-											}
-											className={cn(
-												"grid h-9 w-9 place-items-center rounded-full border transition",
-												isActive
-													? "border-white/25 bg-white text-foreground hover:bg-destructive hover:text-destructive-foreground"
-													: "border-border bg-muted/70 text-muted-foreground hover:border-destructive/40 hover:bg-destructive hover:text-destructive-foreground",
-											)}
-										>
-											{isRenaming ? (
-												<X className="h-4 w-4" />
-											) : (
-												<Trash2 className="h-4 w-4" />
-											)}
-										</button>
-									</div>
-								);
-							})}
+											<button
+												type="button"
+												aria-label={
+													isRenaming ? "Cancel rename" : `Delete ${plan.title}`
+												}
+												title={
+													isRenaming ? "Cancel rename" : `Delete ${plan.title}`
+												}
+												onClick={() =>
+													isRenaming
+														? cancelRenamePlan()
+														: deletePlanById(plan.id)
+												}
+												className={cn(
+													"grid h-9 w-9 place-items-center rounded-full border transition",
+													isActive
+														? "border-white/25 bg-white text-foreground hover:bg-destructive hover:text-destructive-foreground"
+														: "border-border bg-muted/70 text-muted-foreground hover:border-destructive/40 hover:bg-destructive hover:text-destructive-foreground",
+												)}
+											>
+												{isRenaming ? (
+													<X className="h-4 w-4" />
+												) : (
+													<Trash2 className="h-4 w-4" />
+												)}
+											</button>
+										</div>
+									);
+								})}
+								{savedRouteList.length === 0 && (
+									<p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
+										No saved routes yet. Suggest a route or add a saved event to
+										start one.
+									</p>
+								)}
+							</div>
 							{savedRouteList.length > 0 && (
 								<Button
 									type="button"
@@ -2008,12 +2035,6 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 									<Plus className="mr-2 h-4 w-4" />
 									{isRouteLimitReached ? "Route limit reached" : "New route"}
 								</Button>
-							)}
-							{savedRouteList.length === 0 && (
-								<p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
-									No saved routes yet. Suggest a route or add a saved event to
-									start one.
-								</p>
 							)}
 						</div>
 					</div>
