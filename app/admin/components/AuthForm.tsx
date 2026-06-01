@@ -32,9 +32,7 @@ export const AuthForm = ({
 			<div className="container mx-auto max-w-lg px-6 py-20">
 				<div className="ooo-admin-card rounded-2xl p-8 shadow-lg">
 					<div className="space-y-2">
-						<div className="ooo-admin-kicker">
-							Out Of Office
-						</div>
+						<div className="ooo-admin-kicker">Out Of Office</div>
 						<h1 className="ooo-admin-title text-3xl">Admin Access</h1>
 						<p className="text-sm text-muted-foreground">
 							Secure access to the event workflow console.

@@ -70,15 +70,11 @@ function emit(
 	};
 
 	if (IS_DEV) {
-		if (
-			level === "info" &&
-			shouldSkipDevInfoLog(scope, message, context)
-		) {
+		if (level === "info" && shouldSkipDevInfoLog(scope, message, context)) {
 			return;
 		}
 
-		const prefix =
-			level === "error" ? "✗" : level === "warn" ? "⚠" : "·";
+		const prefix = level === "error" ? "✗" : level === "warn" ? "⚠" : "·";
 		const tag = `[${scope}]`;
 		const extra = context ? ` ${JSON.stringify(context)}` : "";
 		const errLine = err ? `\n  → ${formatError(err).message}` : "";
@@ -101,17 +97,11 @@ function emit(
 }
 
 export const log = {
-	info: (
-		scope: string,
-		message: string,
-		context?: Record<string, unknown>,
-	) => emit("info", scope, message, context),
+	info: (scope: string, message: string, context?: Record<string, unknown>) =>
+		emit("info", scope, message, context),
 
-	warn: (
-		scope: string,
-		message: string,
-		context?: Record<string, unknown>,
-	) => emit("warn", scope, message, context),
+	warn: (scope: string, message: string, context?: Record<string, unknown>) =>
+		emit("warn", scope, message, context),
 
 	error: (
 		scope: string,

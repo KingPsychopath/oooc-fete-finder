@@ -351,16 +351,16 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 												nearbyMatchedEventsCount === 1 ? "" : "s"
 											} with trusted coordinates.`
 										: `Within ${nearbyRadiusKm} km: ${nearbyMatchedEventsCount} event${
-											nearbyMatchedEventsCount === 1 ? "" : "s"
-										} with trusted coordinates nearest to ${
-											nearbyEventsStatus === "active-last-known"
-												? "your last known location"
-												: "you"
-										}${
-											nearbyEventsStatus === "active-last-known"
-												? " from this device."
-												: "."
-										}`
+												nearbyMatchedEventsCount === 1 ? "" : "s"
+											} with trusted coordinates nearest to ${
+												nearbyEventsStatus === "active-last-known"
+													? "your last known location"
+													: "you"
+											}${
+												nearbyEventsStatus === "active-last-known"
+													? " from this device."
+													: "."
+											}`
 									: nearbyEventsError}
 							</p>
 						) : null}

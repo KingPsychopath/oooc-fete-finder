@@ -7,11 +7,11 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { getPartnerStatsSnapshot } from "@/features/partners/partner-stats";
+import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import {
 	generateOGMetadata,
 	generatePresetOGImage,
 } from "@/lib/social/og-utils";
-import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import { ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -129,97 +129,97 @@ export default async function PartnerStatsPage({
 
 	return (
 		<main className="container mx-auto max-w-5xl px-4 py-10 pb-16">
-				<section className="rounded-2xl border border-border/80 bg-card/90 p-6 sm:p-8">
-					<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-						OOOC Partner Performance
-					</p>
-					<div className="mt-2 flex flex-wrap items-center gap-2">
-						<h1
-							className="text-3xl font-light tracking-tight text-foreground sm:text-4xl"
-							style={{ fontFamily: "var(--ooo-font-display)" }}
-						>
-							{data.eventName}
-						</h1>
-						<Badge variant="outline" className="uppercase tracking-[0.08em]">
-							{data.tier}
-						</Badge>
-					</div>
-					<p className="mt-2 text-sm text-muted-foreground">
-						Event key: <span className="font-mono">{data.eventKey}</span>
-					</p>
-					<p className="mt-1 text-xs text-muted-foreground">
-						Window: {new Date(data.range.startAt).toLocaleString()} -{" "}
-						{new Date(data.range.endAt).toLocaleString()}
-					</p>
-					<div className="mt-3">
-						<Link
-							href={`${basePath}/api/partner-stats/${data.activationId}?token=${token}&format=csv`}
-							className="inline-flex items-center rounded-full border border-border px-3 py-1.5 text-xs text-foreground hover:bg-accent"
-						>
-							Download CSV
-						</Link>
-					</div>
-				</section>
+			<section className="rounded-2xl border border-border/80 bg-card/90 p-6 sm:p-8">
+				<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+					OOOC Partner Performance
+				</p>
+				<div className="mt-2 flex flex-wrap items-center gap-2">
+					<h1
+						className="text-3xl font-light tracking-tight text-foreground sm:text-4xl"
+						style={{ fontFamily: "var(--ooo-font-display)" }}
+					>
+						{data.eventName}
+					</h1>
+					<Badge variant="outline" className="uppercase tracking-[0.08em]">
+						{data.tier}
+					</Badge>
+				</div>
+				<p className="mt-2 text-sm text-muted-foreground">
+					Event key: <span className="font-mono">{data.eventKey}</span>
+				</p>
+				<p className="mt-1 text-xs text-muted-foreground">
+					Window: {new Date(data.range.startAt).toLocaleString()} -{" "}
+					{new Date(data.range.endAt).toLocaleString()}
+				</p>
+				<div className="mt-3">
+					<Link
+						href={`${basePath}/api/partner-stats/${data.activationId}?token=${token}&format=csv`}
+						className="inline-flex items-center rounded-full border border-border px-3 py-1.5 text-xs text-foreground hover:bg-accent"
+					>
+						Download CSV
+					</Link>
+				</div>
+			</section>
 
-				<section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-					<PartnerMetricCard
-						label="Event Opens"
-						value={data.metrics.clickCount}
-						description="Times this event page was opened."
-					/>
-					<PartnerMetricCard
-						label="Partner Link Clicks"
-						value={data.metrics.outboundClickCount}
-						description="Clicks through to ticket, venue, or partner links."
-					/>
-					<PartnerMetricCard
-						label="Calendar Adds"
-						value={data.metrics.calendarSyncCount}
-						description="Clicks to save the event to a calendar."
-					/>
-					<PartnerMetricCard
-						label="Engaged Sessions"
-						value={data.metrics.uniqueSessionCount}
-						description="Distinct browser sessions with any tracked engagement."
-					/>
-					<PartnerMetricCard
-						label="Partner Links / Open"
-						value={formatPercent(data.metrics.outboundInteractionRate)}
-						description="Partner link clicks divided by event opens."
-					/>
-					<PartnerMetricCard
-						label="Calendar Adds / Open"
-						value={formatPercent(data.metrics.calendarInteractionRate)}
-						description="Calendar add clicks divided by event opens."
-					/>
-				</section>
+			<section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+				<PartnerMetricCard
+					label="Event Opens"
+					value={data.metrics.clickCount}
+					description="Times this event page was opened."
+				/>
+				<PartnerMetricCard
+					label="Partner Link Clicks"
+					value={data.metrics.outboundClickCount}
+					description="Clicks through to ticket, venue, or partner links."
+				/>
+				<PartnerMetricCard
+					label="Calendar Adds"
+					value={data.metrics.calendarSyncCount}
+					description="Clicks to save the event to a calendar."
+				/>
+				<PartnerMetricCard
+					label="Engaged Sessions"
+					value={data.metrics.uniqueSessionCount}
+					description="Distinct browser sessions with any tracked engagement."
+				/>
+				<PartnerMetricCard
+					label="Partner Links / Open"
+					value={formatPercent(data.metrics.outboundInteractionRate)}
+					description="Partner link clicks divided by event opens."
+				/>
+				<PartnerMetricCard
+					label="Calendar Adds / Open"
+					value={formatPercent(data.metrics.calendarInteractionRate)}
+					description="Calendar add clicks divided by event opens."
+				/>
+			</section>
 
-				<section className="mt-4 rounded-xl border border-border/80 bg-card/90 p-4 text-sm text-muted-foreground">
-					<p>
-						Session context:{" "}
-						<span className="font-medium text-foreground">
-							{formatPercent(data.metrics.outboundSessionRate)}
-						</span>{" "}
-						partner-link sessions per event-open session;{" "}
-						<span className="font-medium text-foreground">
-							{formatPercent(data.metrics.calendarSessionRate)}
-						</span>{" "}
-						calendar-add sessions per event-open session. These can exceed 100%
-						when an action is tracked without a matching event-open record in
-						the same report window.
-					</p>
-				</section>
+			<section className="mt-4 rounded-xl border border-border/80 bg-card/90 p-4 text-sm text-muted-foreground">
+				<p>
+					Session context:{" "}
+					<span className="font-medium text-foreground">
+						{formatPercent(data.metrics.outboundSessionRate)}
+					</span>{" "}
+					partner-link sessions per event-open session;{" "}
+					<span className="font-medium text-foreground">
+						{formatPercent(data.metrics.calendarSessionRate)}
+					</span>{" "}
+					calendar-add sessions per event-open session. These can exceed 100%
+					when an action is tracked without a matching event-open record in the
+					same report window.
+				</p>
+			</section>
 
-				<section className="mt-6 rounded-xl border border-border/80 bg-card/90 p-4 text-sm text-muted-foreground">
-					<p className="flex items-center gap-2 font-medium text-foreground">
-						<ShieldCheck className="h-4 w-4" />
-						Private report
-					</p>
-					<p className="mt-1">
-						This page is private and token-protected. Metrics are first-party
-						engagement actions captured on OOOC Fete Finder.
-					</p>
-				</section>
+			<section className="mt-6 rounded-xl border border-border/80 bg-card/90 p-4 text-sm text-muted-foreground">
+				<p className="flex items-center gap-2 font-medium text-foreground">
+					<ShieldCheck className="h-4 w-4" />
+					Private report
+				</p>
+				<p className="mt-1">
+					This page is private and token-protected. Metrics are first-party
+					engagement actions captured on OOOC Fete Finder.
+				</p>
+			</section>
 		</main>
 	);
 }

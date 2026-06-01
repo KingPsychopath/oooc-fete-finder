@@ -1,10 +1,13 @@
+import type * as RevokeRoute from "@/app/api/admin/tokens/revoke/route";
+import type * as SingleSessionRoute from "@/app/api/admin/tokens/sessions/[jti]/route";
+import type * as SessionsRoute from "@/app/api/admin/tokens/sessions/route";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type Setup = {
-	getSessions: typeof import("@/app/api/admin/tokens/sessions/route").GET;
-	deleteSession: typeof import("@/app/api/admin/tokens/sessions/[jti]/route").DELETE;
-	revokeAll: typeof import("@/app/api/admin/tokens/revoke/route").POST;
+	getSessions: typeof SessionsRoute.GET;
+	deleteSession: typeof SingleSessionRoute.DELETE;
+	revokeAll: typeof RevokeRoute.POST;
 	validateAdminKeyForApiRoute: ReturnType<typeof vi.fn>;
 	listAdminTokenSessions: ReturnType<typeof vi.fn>;
 	getCurrentTokenVersion: ReturnType<typeof vi.fn>;
@@ -90,7 +93,10 @@ describe("admin token API routes", () => {
 		const response = await getSessions(
 			new NextRequest("https://example.com/api/admin/tokens/sessions"),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(500);
 		expect(payload.success).toBe(false);
@@ -106,16 +112,19 @@ describe("admin token API routes", () => {
 		} = await loadRoutes();
 		validateAdminKeyForApiRoute.mockResolvedValue(false);
 
-		const [sessionsResponse, deleteResponse, revokeResponse] = await Promise.all([
-			getSessions(new NextRequest("https://example.com/api/admin/tokens/sessions")),
-			deleteSession(
-				new NextRequest(
-					"https://example.com/api/admin/tokens/sessions/abc",
+		const [sessionsResponse, deleteResponse, revokeResponse] =
+			await Promise.all([
+				getSessions(
+					new NextRequest("https://example.com/api/admin/tokens/sessions"),
 				),
-				{ params: Promise.resolve({ jti: "abc" }) },
-			),
-			revokeAll(new NextRequest("https://example.com/api/admin/tokens/revoke")),
-		]);
+				deleteSession(
+					new NextRequest("https://example.com/api/admin/tokens/sessions/abc"),
+					{ params: Promise.resolve({ jti: "abc" }) },
+				),
+				revokeAll(
+					new NextRequest("https://example.com/api/admin/tokens/revoke"),
+				),
+			]);
 
 		expect(sessionsResponse.status).toBe(401);
 		expect(deleteResponse.status).toBe(401);
@@ -135,7 +144,10 @@ describe("admin token API routes", () => {
 				}),
 			},
 		);
-		const payload = (await response.json()) as { success: boolean; jti: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			jti: string;
+		};
 
 		expect(response.status).toBe(200);
 		expect(payload).toEqual({ success: true, jti: "111 aaa" });
@@ -154,7 +166,10 @@ describe("admin token API routes", () => {
 				}),
 			},
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(404);
 		expect(payload.success).toBe(false);
@@ -189,7 +204,10 @@ describe("admin token API routes", () => {
 				method: "POST",
 			}),
 		);
-		const payload = (await response.json()) as { success: boolean; error: string };
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
 
 		expect(response.status).toBe(500);
 		expect(payload.success).toBe(false);

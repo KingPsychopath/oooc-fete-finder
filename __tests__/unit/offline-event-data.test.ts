@@ -1,14 +1,14 @@
+import { getEventSnapshotFreshness } from "@/features/events/components/events-offline-provider";
 import {
-	createEventDetailSnapshot,
-	createEventSnapshot,
 	EVENT_DETAIL_SNAPSHOT_SCHEMA_NAME,
 	EVENT_DETAIL_SNAPSHOT_SCHEMA_VERSION,
 	EVENT_SNAPSHOT_SCHEMA_NAME,
 	EVENT_SNAPSHOT_SCHEMA_VERSION,
+	createEventDetailSnapshot,
+	createEventSnapshot,
 	validateEventDetailSnapshot,
 	validateEventSnapshot,
 } from "@/features/events/offline-event-snapshot";
-import { getEventSnapshotFreshness } from "@/features/events/components/events-offline-provider";
 import type { Event } from "@/features/events/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

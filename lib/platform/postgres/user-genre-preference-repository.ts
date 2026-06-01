@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { MusicGenre } from "@/features/events/types";
 import { isValidUserId } from "@/features/auth/user-id";
+import type { MusicGenre } from "@/features/events/types";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
 

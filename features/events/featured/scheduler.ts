@@ -54,8 +54,7 @@ export const allocateFeaturedQueueWindows = (
 		}
 
 		const effectiveStart = Math.max(requestedStartAt, slots[slotIndex]);
-		const effectiveEnd =
-			effectiveStart + entry.durationHours * 60 * 60 * 1000;
+		const effectiveEnd = effectiveStart + entry.durationHours * 60 * 60 * 1000;
 
 		slots[slotIndex] = effectiveEnd;
 

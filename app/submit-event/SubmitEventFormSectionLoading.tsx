@@ -1,6 +1,9 @@
 export function SubmitEventFormSectionLoading() {
 	return (
-		<div className="mt-4 rounded-2xl border border-border/80 bg-card/90 p-5" aria-hidden="true">
+		<div
+			className="mt-4 rounded-2xl border border-border/80 bg-card/90 p-5"
+			aria-hidden="true"
+		>
 			<div className="grid gap-4 sm:grid-cols-2">
 				<div className="h-10 animate-pulse rounded bg-muted/55" />
 				<div className="h-10 animate-pulse rounded bg-muted/55" />

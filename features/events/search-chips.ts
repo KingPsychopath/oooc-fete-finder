@@ -12,11 +12,11 @@ import {
 	isLocationTbcValue,
 	isMultipleLocationPlaceholderValue,
 } from "@/features/events/types";
-import {
-	getDefaultDateRangeForEvents,
-	type DateRangeFilter,
-} from "./filtering";
 import { shouldDisplayFeaturedEvent } from "./featured/utils/timestamp-utils";
+import {
+	type DateRangeFilter,
+	getDefaultDateRangeForEvents,
+} from "./filtering";
 import { DEFAULT_SEARCH_EXAMPLES } from "./search-defaults";
 
 export type SearchChipSource = "static" | "popular";

@@ -119,7 +119,9 @@ describe("DataManager source orchestration", () => {
 			},
 		]);
 		processCSVData.mockResolvedValue({
-			events: [{ eventKey: "event-1", name: "Store Event", date: "2026-06-21" }],
+			events: [
+				{ eventKey: "event-1", name: "Store Event", date: "2026-06-21" },
+			],
 			count: 1,
 			source: "store",
 			errors: [],

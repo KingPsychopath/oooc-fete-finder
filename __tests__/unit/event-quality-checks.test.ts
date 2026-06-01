@@ -1,5 +1,5 @@
-import { performEventQualityChecks } from "@/features/data-management/validation/quality-checks";
 import { validateEvent } from "@/features/data-management/validation/event-validation";
+import { performEventQualityChecks } from "@/features/data-management/validation/quality-checks";
 import type { Event } from "@/features/events/types";
 import { describe, expect, it } from "vitest";
 

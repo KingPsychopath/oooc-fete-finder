@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import {
 	parseParisDateTimeInput,
 	toParisDateTimeLocalInput,
 } from "@/features/events/featured/paris-time";
+import { describe, expect, it } from "vitest";
 
 describe("parseParisDateTimeInput", () => {
 	it("accepts valid datetime-local values in Paris time", () => {

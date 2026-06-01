@@ -14,10 +14,7 @@ const LOCAL_ANALYTICS_HOSTS = new Set([
 
 const shouldSuppressPageViewForHost = (hostname: string): boolean => {
 	const normalized = hostname.trim().toLowerCase();
-	return (
-		LOCAL_ANALYTICS_HOSTS.has(normalized) ||
-		normalized.endsWith(".local")
-	);
+	return LOCAL_ANALYTICS_HOSTS.has(normalized) || normalized.endsWith(".local");
 };
 
 const normalizeReferrer = (referrer: string): string => {

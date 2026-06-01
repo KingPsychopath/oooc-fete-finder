@@ -76,7 +76,10 @@ export const Clock = () => {
 					</div>
 				</div>
 
-				<div className="text-center md:hidden sm:block hidden" aria-hidden="true">
+				<div
+					className="text-center md:hidden sm:block hidden"
+					aria-hidden="true"
+				>
 					<div className="invisible text-sm font-mono font-bold">00:00:00</div>
 				</div>
 			</>

@@ -58,8 +58,9 @@ export async function GET(request: NextRequest) {
 		const csvPublishableRowCount =
 			sheet?.rows.filter(
 				(row) =>
-					String(row.detailsQualityOverride ?? "").trim().toLowerCase() !==
-					"draft",
+					String(row.detailsQualityOverride ?? "")
+						.trim()
+						.toLowerCase() !== "draft",
 			).length ?? 0;
 
 		let parsedEventCount = 0;

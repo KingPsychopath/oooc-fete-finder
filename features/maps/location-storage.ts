@@ -1,6 +1,6 @@
 import type { EventLocation } from "@/features/events/types";
-import { log } from "@/lib/platform/logger";
 import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
+import { log } from "@/lib/platform/logger";
 
 /**
  * Location storage configuration
@@ -76,7 +76,12 @@ export class LocationStorage {
 			};
 			await store.set(STORAGE_CONFIG.storageKey, JSON.stringify(data));
 		} catch (error) {
-			log.error("maps.storage", "Failed to save location storage", undefined, error);
+			log.error(
+				"maps.storage",
+				"Failed to save location storage",
+				undefined,
+				error,
+			);
 			throw error;
 		}
 	}

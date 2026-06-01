@@ -8,22 +8,22 @@ import { trackDiscoveryAnalytics } from "@/features/events/engagement/client-tra
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import type { Event } from "@/features/events/types";
 import {
-	type DayNightPeriod,
 	type Coordinates,
+	type DayNightPeriod,
 	formatDayWithDate,
 	formatPrice,
 	getEventDisplayDayNightPeriod,
 } from "@/features/events/types";
 import type { SavedClientLocation } from "@/features/locations/client-location";
+import { calculateDistanceKm } from "@/features/locations/nearby-event-service";
 import {
 	DEFAULT_NEARBY_RADIUS_KM,
 	NEARBY_RADIUS_OPTIONS_KM,
-	PARIS_MAP_BOUNDS,
 	type NearbyLocationScope,
 	type NearbyRadiusKm,
+	PARIS_MAP_BOUNDS,
 	getNearbyLocationScope,
 } from "@/features/locations/nearby-location";
-import { calculateDistanceKm } from "@/features/locations/nearby-event-service";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { clientLog } from "@/lib/platform/client-logger";
 import { cn } from "@/lib/utils";
@@ -251,7 +251,8 @@ const buildNearbyRadiusPolygon = (
 
 	for (let index = 0; index <= NEARBY_RADIUS_POLYGON_STEPS; index += 1) {
 		const angle = (index / NEARBY_RADIUS_POLYGON_STEPS) * Math.PI * 2;
-		const lat = center.lat + (Math.sin(angle) * radiusKm) / KM_PER_LATITUDE_DEGREE;
+		const lat =
+			center.lat + (Math.sin(angle) * radiusKm) / KM_PER_LATITUDE_DEGREE;
 		const lng = center.lng + (Math.cos(angle) * radiusKm) / lngDegreeKm;
 		coordinates.push([lng, lat]);
 	}
@@ -449,7 +450,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 	const canShowCoordinates = eventsWithCoordinatesCount > 0;
 	const areEventPinsVisible = showCoordinates && canShowCoordinates;
 	const effectiveNearbyLocationScope = nearbyLocation
-		? (nearbyLocationScope ?? getNearbyLocationScope(nearbyLocation.coordinates))
+		? (nearbyLocationScope ??
+			getNearbyLocationScope(nearbyLocation.coordinates))
 		: null;
 	const isNearbyInsideParisMap =
 		isNearbyActive &&
@@ -674,11 +676,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		) => {
 			const renderedFeatures =
 				map.current?.queryRenderedFeatures(e.point, {
-					layers: [
-						"event-markers",
-						"event-star-markers",
-						"event-stack-counts",
-					],
+					layers: ["event-markers", "event-star-markers", "event-stack-counts"],
 				}) ??
 				e.features ??
 				[];
@@ -1553,10 +1551,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			features: coordinateEventStacks.map((stack) => {
 				const eventCoordinates = stack.coordinates;
 				const distanceKm = nearbyLocation
-					? calculateDistanceKm(
-							nearbyLocation.coordinates,
-							eventCoordinates,
-						)
+					? calculateDistanceKm(nearbyLocation.coordinates, eventCoordinates)
 					: null;
 				const isWithinNearbyRadius =
 					isNearbyInsideParisMap &&
@@ -1569,13 +1564,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					(event) => event.isPromoted === true,
 				);
 				const isOOOCPick = stack.events.some((event) => event.isOOOCPick);
-				const markerRank = isFeatured
-					? 4
-					: isPromoted
-						? 3
-						: isOOOCPick
-							? 2
-							: 1;
+				const markerRank = isFeatured ? 4 : isPromoted ? 3 : isOOOCPick ? 2 : 1;
 				return {
 					type: "Feature" as const,
 					geometry: {
@@ -1612,10 +1601,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				featured_count: ["+", ["case", ["get", "isFeatured"], 1, 0]],
 				promoted_count: ["+", ["case", ["get", "isPromoted"], 1, 0]],
 				oooc_count: ["+", ["case", ["get", "isOOOCPick"], 1, 0]],
-				nearby_count: [
-					"+",
-					["case", ["get", "isWithinNearbyRadius"], 1, 0],
-				],
+				nearby_count: ["+", ["case", ["get", "isWithinNearbyRadius"], 1, 0]],
 				event_count_sum: ["+", ["get", "eventCount"]],
 			},
 		});
@@ -1968,7 +1954,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 		};
 		currentMap.addSource("nearby-radius", {
 			type: "geojson",
-			data: buildNearbyRadiusPolygon(nearbyLocation.coordinates, nearbyRadiusKm),
+			data: buildNearbyRadiusPolygon(
+				nearbyLocation.coordinates,
+				nearbyRadiusKm,
+			),
 		});
 		currentMap.addSource("nearby-user-location", {
 			type: "geojson",
@@ -2176,8 +2165,8 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 								nearbyEventsStatus === "requesting"
 									? "Locating nearby events"
 									: isNearbyActive
-									? "Turn off events near me"
-									: "Find events near me"
+										? "Turn off events near me"
+										: "Find events near me"
 							}
 						>
 							<Locate className="h-3.5 w-3.5" />

@@ -17,7 +17,12 @@ export default function Error({ error, reset }: ErrorPageProps) {
 
 	React.useEffect(() => {
 		// Log the error to your error reporting service
-		clientLog.error("route-error", "Next.js error boundary caught an error", undefined, error);
+		clientLog.error(
+			"route-error",
+			"Next.js error boundary caught an error",
+			undefined,
+			error,
+		);
 
 		// You could send to an error reporting service here
 		// Example: errorReportingService.captureException(error)

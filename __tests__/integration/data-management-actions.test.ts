@@ -1,3 +1,4 @@
+import type * as DataManagementActions from "@/features/data-management/actions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const makeEvent = (id: string) => ({
@@ -20,7 +21,7 @@ const makeEvent = (id: string) => ({
 });
 
 type Setup = {
-	getLiveSiteEventsSnapshot: typeof import("@/features/data-management/actions").getLiveSiteEventsSnapshot;
+	getLiveSiteEventsSnapshot: typeof DataManagementActions.getLiveSiteEventsSnapshot;
 	getLiveEvents: ReturnType<typeof vi.fn>;
 	getEventsData: ReturnType<typeof vi.fn>;
 	validateAdminAccess: ReturnType<typeof vi.fn>;

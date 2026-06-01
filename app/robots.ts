@@ -1,8 +1,7 @@
-import type { MetadataRoute } from "next";
 import { buildSiteUrl, getBasePath, getSiteUrl } from "@/lib/site-url";
+import type { MetadataRoute } from "next";
 
-const withBasePath = (path: string): string =>
-	`${getBasePath()}${path}`;
+const withBasePath = (path: string): string => `${getBasePath()}${path}`;
 
 export default function robots(): MetadataRoute.Robots {
 	return {

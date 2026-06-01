@@ -26,10 +26,11 @@ export const calculateDistanceKm = (
 	return 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-const getTrustedResolution = (
-	event: Event,
-): LocationResolution | null => {
-	if (event.locationResolution && isTrustedLocationResolution(event.locationResolution)) {
+const getTrustedResolution = (event: Event): LocationResolution | null => {
+	if (
+		event.locationResolution &&
+		isTrustedLocationResolution(event.locationResolution)
+	) {
 		return event.locationResolution;
 	}
 	if (event.coordinates) {

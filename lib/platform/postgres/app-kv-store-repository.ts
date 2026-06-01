@@ -160,9 +160,8 @@ export class AppKVStoreRepository {
 		const limit = Math.max(1, Math.min(options?.limit ?? 100, 1000));
 		const prefix = options?.prefix?.trim() ?? "";
 
-		const rows =
-			!prefix ?
-				await this.sql<
+		const rows = !prefix
+			? await this.sql<
 					{ key: string; value: string; updated_at: Date | string }[]
 				>`
 					SELECT key, value, updated_at
@@ -170,7 +169,7 @@ export class AppKVStoreRepository {
 					ORDER BY key ASC
 					LIMIT ${limit}
 				`
-			:	await this.sql<
+			: await this.sql<
 					{ key: string; value: string; updated_at: Date | string }[]
 				>`
 					SELECT key, value, updated_at
@@ -218,9 +217,9 @@ export class AppKVStoreRepository {
 		const rawCsvRowCount = csvRecord ? countCsvRows(csvRecord.value) : 0;
 		const parsedMeta = metaRecord ? safeParseMeta(metaRecord.value) : null;
 		const metadataRowCount =
-			parsedMeta && typeof parsedMeta.rowCount === "number" ?
-				Math.max(0, parsedMeta.rowCount)
-			:	0;
+			parsedMeta && typeof parsedMeta.rowCount === "number"
+				? Math.max(0, parsedMeta.rowCount)
+				: 0;
 
 		return {
 			hasCsv: Boolean(csvRecord),
@@ -229,9 +228,9 @@ export class AppKVStoreRepository {
 			rawCsvRowCount,
 			rowCountMatches: metadataRowCount === rawCsvRowCount,
 			metadataUpdatedAt:
-				parsedMeta?.updatedAt && typeof parsedMeta.updatedAt === "string" ?
-					parsedMeta.updatedAt
-				:	null,
+				parsedMeta?.updatedAt && typeof parsedMeta.updatedAt === "string"
+					? parsedMeta.updatedAt
+					: null,
 		};
 	}
 }

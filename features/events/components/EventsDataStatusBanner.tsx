@@ -66,9 +66,9 @@ export function EventsDataStatusBanner({
 			<strong>
 				{isStale ? "Stale cached event data:" : "Cached event data:"}
 			</strong>{" "}
-			You are viewing {isStale ? "an older" : "the latest"} event snapshot
-			saved on this device from {savedAtLabel}. Some live details may be
-			unavailable until the app reconnects.
+			You are viewing {isStale ? "an older" : "the latest"} event snapshot saved
+			on this device from {savedAtLabel}. Some live details may be unavailable
+			until the app reconnects.
 			{showOfflineGraceAccess ? (
 				<span>
 					{" "}

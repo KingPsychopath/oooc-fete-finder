@@ -13,9 +13,7 @@ describe("location-aware data processing", () => {
 		const { processCSVData } = await import(
 			"@/features/data-management/data-processor"
 		);
-		const csv = ["Title,Date,Location", "Event,2026-06-21,Le Klub"].join(
-			"\n",
-		);
+		const csv = ["Title,Date,Location", "Event,2026-06-21,Le Klub"].join("\n");
 
 		const result = await processCSVData(csv, "store", false, {
 			populateCoordinates: true,

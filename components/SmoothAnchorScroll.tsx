@@ -10,7 +10,10 @@ function prefersReducedMotion() {
 function findHashTarget(hash: string) {
 	const id = decodeURIComponent(hash.slice(1));
 	if (!id) return null;
-	return document.getElementById(id) ?? document.querySelector(`[name="${CSS.escape(id)}"]`);
+	return (
+		document.getElementById(id) ??
+		document.querySelector(`[name="${CSS.escape(id)}"]`)
+	);
 }
 
 function scrollToHash(hash: string, behavior: ScrollBehavior = "smooth") {
@@ -45,7 +48,8 @@ export function SmoothAnchorScroll() {
 	useEffect(() => {
 		const handleClick = (event: MouseEvent) => {
 			if (event.defaultPrevented || event.button !== 0) return;
-			if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+			if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+				return;
 
 			const anchor = (event.target as Element | null)?.closest("a[href]");
 			if (!anchor) return;
@@ -62,7 +66,11 @@ export function SmoothAnchorScroll() {
 			if (!isSamePage || !url.hash) return;
 
 			event.preventDefault();
-			window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
+			window.history.pushState(
+				null,
+				"",
+				`${url.pathname}${url.search}${url.hash}`,
+			);
 			scrollToHashWhenReady(url.hash);
 		};
 

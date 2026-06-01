@@ -45,9 +45,12 @@ const getUserRelationshipId = async (
 ): Promise<string | null> => {
 	const cookieHeader = request.headers.get("cookie");
 	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
-	const userSession =
-		await getCanonicalUserSessionFromCookieHeader(userCookie);
-	if (!userSession.isAuthenticated || !userSession.userId || !userSession.email) {
+	const userSession = await getCanonicalUserSessionFromCookieHeader(userCookie);
+	if (
+		!userSession.isAuthenticated ||
+		!userSession.userId ||
+		!userSession.email
+	) {
 		return null;
 	}
 	return userSession.userId;

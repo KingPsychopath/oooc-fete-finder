@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { clusterTopSearchQueries } from "@/features/events/engagement/search-query-clustering";
+import { describe, expect, it } from "vitest";
 
 describe("clusterTopSearchQueries", () => {
 	it("clusters genre aliases into the same canonical search family", () => {

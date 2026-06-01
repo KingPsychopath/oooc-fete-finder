@@ -1,5 +1,8 @@
 {
   "$schema": "./node_modules/knip/schema.json",
+  "entry": [
+    "scripts/railway-cron-trigger.mjs"
+  ],
   "exclude": [
     "exports",
     "nsExports",
@@ -10,7 +13,6 @@
     "duplicates"
   ],
   "ignoreDependencies": [
-    "sharp",
     "@types/geojson"
   ],
   "ignoreExportsUsedInFile": true

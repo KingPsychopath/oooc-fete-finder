@@ -2,8 +2,11 @@ import {
 	FeteFinderSocialAssetClient,
 	type SocialAssetVariant,
 } from "@/app/social/_components/FeteFinderSocialAssetClient";
-import { generateOGMetadata, generatePresetOGImage } from "@/lib/social/og-utils";
 import { buildSiteUrl } from "@/lib/site-url";
+import {
+	generateOGMetadata,
+	generatePresetOGImage,
+} from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 
 const variant: SocialAssetVariant = "square";

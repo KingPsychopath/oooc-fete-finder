@@ -24,7 +24,8 @@ type AdminCommandPaletteProps = {
 };
 
 const normalize = (value: string): string => value.trim().toLowerCase();
-const getRoutePathFromCommandPath = (path: string): string => path.split("#")[0];
+const getRoutePathFromCommandPath = (path: string): string =>
+	path.split("#")[0];
 const isCommandPathCurrent = (
 	currentPathname: string,
 	commandPath: string,
@@ -34,8 +35,7 @@ const isCommandPathCurrent = (
 		return currentPathname === "/admin";
 	}
 	return (
-		currentPathname === routePath ||
-		currentPathname.startsWith(`${routePath}/`)
+		currentPathname === routePath || currentPathname.startsWith(`${routePath}/`)
 	);
 };
 
@@ -61,7 +61,10 @@ export function AdminCommandPalette({
 
 		return filtered.sort((left, right) => {
 			const leftIsCurrent = isCommandPathCurrent(normalizedPathname, left.path);
-			const rightIsCurrent = isCommandPathCurrent(normalizedPathname, right.path);
+			const rightIsCurrent = isCommandPathCurrent(
+				normalizedPathname,
+				right.path,
+			);
 
 			if (leftIsCurrent && !rightIsCurrent) return -1;
 			if (!leftIsCurrent && rightIsCurrent) return 1;
@@ -128,16 +131,19 @@ export function AdminCommandPalette({
 					}
 				}}
 			>
-				<DialogContent className="max-w-[min(700px,calc(100%-1.5rem))] p-0" showCloseButton={false}>
-						<DialogHeader className="px-4 pt-4">
-							<DialogTitle className="flex items-center gap-2">
-								<Command className="h-4 w-4" />
-								Jump to admin area or section
-							</DialogTitle>
-							<DialogDescription>
-								Search areas and section anchors, then hit Enter to jump.
-							</DialogDescription>
-						</DialogHeader>
+				<DialogContent
+					className="max-w-[min(700px,calc(100%-1.5rem))] p-0"
+					showCloseButton={false}
+				>
+					<DialogHeader className="px-4 pt-4">
+						<DialogTitle className="flex items-center gap-2">
+							<Command className="h-4 w-4" />
+							Jump to admin area or section
+						</DialogTitle>
+						<DialogDescription>
+							Search areas and section anchors, then hit Enter to jump.
+						</DialogDescription>
+					</DialogHeader>
 
 					<div className="space-y-3 px-4 pb-4">
 						<Input
@@ -160,11 +166,11 @@ export function AdminCommandPalette({
 								</p>
 							) : (
 								<ul className="divide-y">
-										{filteredCommands.map((item) => {
-											const isCurrent = isCommandPathCurrent(
-												normalizedPathname,
-												item.path,
-											);
+									{filteredCommands.map((item) => {
+										const isCurrent = isCommandPathCurrent(
+											normalizedPathname,
+											item.path,
+										);
 										return (
 											<li key={item.id}>
 												<button

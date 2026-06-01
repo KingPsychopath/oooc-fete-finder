@@ -12,10 +12,7 @@ import { LiveEventsSnapshotCard } from "../components/LiveEventsSnapshotCard";
 import { LocalEventStoreCard } from "../components/LocalEventStoreCard";
 import { RuntimeDataStatusCard } from "../components/RuntimeDataStatusCard";
 import { SystemResetCard } from "../components/SystemResetCard";
-import type {
-	AdminOperationsInitialData,
-	RuntimeDataStatus,
-} from "../types";
+import type { AdminOperationsInitialData, RuntimeDataStatus } from "../types";
 
 const FALLBACK_RUNTIME_DATA_STATUS: RuntimeDataStatus = {
 	lastFetchTime: null,
@@ -146,9 +143,7 @@ export function OperationsDashboardClient({
 
 			<section id="factory-reset" className="scroll-mt-44">
 				<SystemResetCard
-					onResetCompleted={
-						statusRefreshing ? undefined : handleStatusRefresh
-					}
+					onResetCompleted={statusRefreshing ? undefined : handleStatusRefresh}
 				/>
 			</section>
 		</div>

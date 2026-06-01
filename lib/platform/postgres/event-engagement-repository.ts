@@ -1,10 +1,10 @@
 import "server-only";
 
+import { isValidUserId } from "@/features/auth/user-id";
 import type {
 	EventEngagementRecordInput,
 	EventEngagementSummary,
 } from "@/features/events/engagement/types";
-import { isValidUserId } from "@/features/auth/user-id";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
 
@@ -305,7 +305,7 @@ export class EventEngagementRepository {
 		uniqueOutboundSessionCount: number;
 		uniqueCalendarSessionCount: number;
 		uniqueMapSessionCount: number;
-		}> {
+	}> {
 		await this.ready();
 		const userScopeFilter = input.includeAuthenticatedOnly
 			? this.sql`AND user_id IS NOT NULL`
@@ -616,7 +616,7 @@ export class EventEngagementRepository {
 				source: string | null;
 				recordedAt: Date | string;
 			}>
-			>`
+		>`
 			SELECT
 				stats.event_key AS "eventKey",
 				stats.action_type AS "actionType",

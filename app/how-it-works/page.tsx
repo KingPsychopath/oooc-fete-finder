@@ -1,7 +1,10 @@
 import Header from "@/components/Header";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
-import { generateOGMetadata, generatePresetOGImage } from "@/lib/social/og-utils";
 import { buildSiteUrl } from "@/lib/site-url";
+import {
+	generateOGMetadata,
+	generatePresetOGImage,
+} from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import { HowItWorksExperience } from "./HowItWorksExperience";
 

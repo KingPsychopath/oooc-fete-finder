@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
 	CARD_SOCIAL_PROOF_MAX_VISIBLE,
-	getSocialProofSaveWindowDays,
 	getSocialProofDisplayModes,
+	getSocialProofSaveWindowDays,
 } from "@/features/events/social-proof";
+import { describe, expect, it } from "vitest";
 
 describe("getSocialProofDisplayModes", () => {
 	it("shows numeric proof for the top three and generic proof for the remaining visible events", () => {

@@ -33,4 +33,5 @@ export const getNearbyLocationScope = (
 
 export const shouldApplyNearbyRadius = (
 	coordinates: Coordinates | null | undefined,
-): boolean => Boolean(coordinates && getNearbyLocationScope(coordinates) === "paris-map");
+): boolean =>
+	Boolean(coordinates && getNearbyLocationScope(coordinates) === "paris-map");

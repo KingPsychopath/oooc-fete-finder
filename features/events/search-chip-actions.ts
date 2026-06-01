@@ -9,14 +9,14 @@ import {
 	invalidateSearchChipSettingsCache,
 } from "./search-chip-cache";
 import {
-	buildDynamicSearchChipDebugMatches,
-	type SearchChipDebugMatch,
-} from "./search-chips";
-import {
 	type SearchChipSettings,
 	SearchChipSettingsStore,
 	type SearchChipStoreStatus,
 } from "./search-chip-settings-store";
+import {
+	type SearchChipDebugMatch,
+	buildDynamicSearchChipDebugMatches,
+} from "./search-chips";
 
 const SIGNAL_WINDOW_DAYS = 7;
 const SIGNAL_RECENT_WINDOW_DAYS = 2;

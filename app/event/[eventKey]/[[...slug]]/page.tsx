@@ -5,6 +5,7 @@ import {
 	formatPrice,
 } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
+import { buildSiteUrl } from "@/lib/site-url";
 import {
 	type EventShareDetails,
 	getEventShareDetails,
@@ -14,7 +15,6 @@ import {
 	generateEventOGImage,
 	generateOGMetadata,
 } from "@/lib/social/og-utils";
-import { buildSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";

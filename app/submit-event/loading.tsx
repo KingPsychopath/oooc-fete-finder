@@ -12,8 +12,8 @@ export default function SubmitEventLoading() {
 					Submit Your Event
 				</div>
 				<p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
-					Share the essentials and we will review your event for inclusion in Fete
-					Finder. Accepted submissions are published by the admin team.
+					Share the essentials and we will review your event for inclusion in
+					Fete Finder. Accepted submissions are published by the admin team.
 				</p>
 				<div className="border-t border-border" role="presentation" />
 				<div className="h-4 w-full max-w-sm animate-pulse rounded bg-muted/45" />

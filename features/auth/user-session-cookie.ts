@@ -1,8 +1,8 @@
 import "server-only";
 
 import { isValidUserId } from "@/features/auth/user-id";
-import { getUserRepository } from "@/lib/platform/postgres/user-repository";
 import { env } from "@/lib/config/env";
+import { getUserRepository } from "@/lib/platform/postgres/user-repository";
 import jwt from "jsonwebtoken";
 
 export const USER_AUTH_COOKIE_NAME = "oooc_user_session";
@@ -32,7 +32,10 @@ const getUserAuthSecret = (): string => {
 	return authSecret;
 };
 
-export const signUserSessionToken = (email: string, userId?: string): string => {
+export const signUserSessionToken = (
+	email: string,
+	userId?: string,
+): string => {
 	const safeUserId = isValidUserId(userId) ? userId : undefined;
 	return jwt.sign(
 		{
@@ -70,7 +73,11 @@ const verifyUserSessionToken = (
 
 export const getUserSessionFromCookieHeader = (
 	cookieValue: string | undefined,
-): { isAuthenticated: boolean; email: string | null; userId: string | null } => {
+): {
+	isAuthenticated: boolean;
+	email: string | null;
+	userId: string | null;
+} => {
 	const payload = verifyUserSessionToken(cookieValue);
 	if (!payload?.email) {
 		return { isAuthenticated: false, email: null, userId: null };
@@ -89,9 +96,17 @@ export const getUserSessionFromCookieHeader = (
 
 export const getCanonicalUserSessionFromCookieHeader = async (
 	cookieValue: string | undefined,
-): Promise<{ isAuthenticated: boolean; email: string | null; userId: string | null }> => {
+): Promise<{
+	isAuthenticated: boolean;
+	email: string | null;
+	userId: string | null;
+}> => {
 	const baseSession = getUserSessionFromCookieHeader(cookieValue);
-	if (!baseSession.isAuthenticated || !baseSession.email || baseSession.userId) {
+	if (
+		!baseSession.isAuthenticated ||
+		!baseSession.email ||
+		baseSession.userId
+	) {
 		return baseSession;
 	}
 

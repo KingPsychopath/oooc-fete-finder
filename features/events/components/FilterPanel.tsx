@@ -186,7 +186,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 		category: EventExperienceCategory,
 		selected: boolean,
 	): string => {
-		if (!selected) return `${eventCategoryToggleBaseClassName} border-border/75`;
+		if (!selected)
+			return `${eventCategoryToggleBaseClassName} border-border/75`;
 
 		switch (category) {
 			case "party":
@@ -1389,7 +1390,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 														<div className="grid grid-cols-1 gap-1.5 min-[1180px]:grid-cols-2">
 															{eventCategoryOptions.map((category) => {
 																const selected =
-																	selectedEventCategories.includes(category.key);
+																	selectedEventCategories.includes(
+																		category.key,
+																	);
 
 																return (
 																	<Toggle

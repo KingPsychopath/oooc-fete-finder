@@ -19,13 +19,11 @@ const loadRoute = async (): Promise<Setup> => {
 		email: "owen@example.com",
 		userId: "019b0000-0000-7000-8000-000000000001",
 	});
-	const getUserSessionFromCookieHeader = vi
-		.fn()
-		.mockReturnValue({
-			isAuthenticated: true,
-			email: "owen@example.com",
-			userId: "019b0000-0000-7000-8000-000000000001",
-		});
+	const getUserSessionFromCookieHeader = vi.fn().mockReturnValue({
+		isAuthenticated: true,
+		email: "owen@example.com",
+		userId: "019b0000-0000-7000-8000-000000000001",
+	});
 	const getUserAuthCookieOptions = vi.fn().mockReturnValue({
 		httpOnly: true,
 		secure: false,

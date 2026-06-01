@@ -22,27 +22,29 @@ export const ThemeToggle = ({ className, triggerId }: ThemeToggleProps) => {
 	const isLightTheme = mounted && theme === "light";
 
 	return (
-			<TooltipProvider>
-				<Tooltip>
-					<TooltipTrigger
-						id={triggerId}
-						render={
-							<Button
-								variant="outline"
-								size="icon"
-								onClick={toggleTheme}
-								className={cn("h-9 w-9", className)}
-								disabled={!mounted}
-							/>
-						}
-					>
-						<span className="inline-flex h-full w-full items-center justify-center text-base leading-none select-none">
-							{isLightTheme ?
-								<Lightbulb className="h-[1.05rem] w-[1.05rem]" />
-							:	currentThemeIcon}
-						</span>
-						<span className="sr-only">Toggle theme</span>
-					</TooltipTrigger>
+		<TooltipProvider>
+			<Tooltip>
+				<TooltipTrigger
+					id={triggerId}
+					render={
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={toggleTheme}
+							className={cn("h-9 w-9", className)}
+							disabled={!mounted}
+						/>
+					}
+				>
+					<span className="inline-flex h-full w-full items-center justify-center text-base leading-none select-none">
+						{isLightTheme ? (
+							<Lightbulb className="h-[1.05rem] w-[1.05rem]" />
+						) : (
+							currentThemeIcon
+						)}
+					</span>
+					<span className="sr-only">Toggle theme</span>
+				</TooltipTrigger>
 				<TooltipContent>
 					<p>
 						{mounted ? `Switch to ${nextThemeLabel} mode` : "Loading theme..."}

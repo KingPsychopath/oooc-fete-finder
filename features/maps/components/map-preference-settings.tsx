@@ -65,10 +65,7 @@ export const MapPreferenceSettings: React.FC<MapPreferenceSettingsProps> = ({
 						<span className="text-sm font-medium">Map Preference</span>
 					</div>
 				)}
-				<Select
-					value={mapPreference}
-					onValueChange={handlePreferenceChange}
-				>
+				<Select value={mapPreference} onValueChange={handlePreferenceChange}>
 					<SelectTrigger className="w-full">
 						<SelectValue>
 							<div className="flex items-center gap-2">
@@ -112,10 +109,7 @@ export const MapPreferenceSettings: React.FC<MapPreferenceSettingsProps> = ({
 					Choose how you'd like to open locations in maps:
 				</div>
 
-				<Select
-					value={mapPreference}
-					onValueChange={handlePreferenceChange}
-				>
+				<Select value={mapPreference} onValueChange={handlePreferenceChange}>
 					<SelectTrigger>
 						<SelectValue>
 							<div className="flex items-center gap-2">

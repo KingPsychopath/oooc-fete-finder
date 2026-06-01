@@ -1,5 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Compass, Home, Map, MapPin, Music2, Send } from "lucide-react";
+import {
+	ArrowRight,
+	Compass,
+	Home,
+	Map,
+	MapPin,
+	Music2,
+	Send,
+} from "lucide-react";
 import Link from "next/link";
 import { NotFoundDevDetails } from "./NotFoundDevDetails";
 

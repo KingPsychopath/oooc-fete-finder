@@ -3,12 +3,12 @@
 import { useFloatingPromptSlot } from "@/hooks/useFloatingPromptSlot";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
+import { useIsRestrictedPromptRoute } from "@/hooks/useRestrictedPromptRoutes";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { LAYERS } from "@/lib/ui/layers";
 import { Croissant } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { useIsRestrictedPromptRoute } from "@/hooks/useRestrictedPromptRoutes";
 
 interface CoffeePromptState {
 	dismissedAt?: number;

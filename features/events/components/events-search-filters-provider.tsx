@@ -32,6 +32,7 @@ import {
 	isClientLocationDevToolsEnabled,
 	requestClientLocation,
 } from "@/features/locations/client-location";
+import { findNearbyEvents } from "@/features/locations/nearby-event-service";
 import {
 	DEFAULT_NEARBY_RADIUS_KM,
 	NEARBY_RADIUS_OPTIONS_KM,
@@ -41,7 +42,6 @@ import {
 	normalizeNearbyRadiusKm,
 	shouldApplyNearbyRadius,
 } from "@/features/locations/nearby-location";
-import { findNearbyEvents } from "@/features/locations/nearby-event-service";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import {
 	type ReactNode,
@@ -468,7 +468,10 @@ export function EventsSearchFiltersProvider({
 		(input: {
 			location: SavedClientLocation;
 			requestSource: NearbyEventsRequestSource;
-			status: Exclude<NearbyEventsStatus, "idle" | "requesting" | "unavailable">;
+			status: Exclude<
+				NearbyEventsStatus,
+				"idle" | "requesting" | "unavailable"
+			>;
 			trackingValue: string;
 		}) => {
 			setNearbyLocation(input.location);
@@ -483,7 +486,11 @@ export function EventsSearchFiltersProvider({
 				showNearbyEventsList();
 			}
 		},
-		[handleSortModeChange, shouldScrollAfterNearbyRequest, showNearbyEventsList],
+		[
+			handleSortModeChange,
+			shouldScrollAfterNearbyRequest,
+			showNearbyEventsList,
+		],
 	);
 
 	const toggleNearbyEvents = useCallback(

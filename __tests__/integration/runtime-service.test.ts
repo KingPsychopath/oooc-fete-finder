@@ -1,9 +1,10 @@
+import type * as RuntimeService from "@/features/data-management/runtime-service";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Setup = {
-	getLiveEvents: typeof import("@/features/data-management/runtime-service").getLiveEvents;
-	forceRefreshEventsData: typeof import("@/features/data-management/runtime-service").forceRefreshEventsData;
-	getRuntimeDataStatusFromSource: typeof import("@/features/data-management/runtime-service").getRuntimeDataStatusFromSource;
+	getLiveEvents: typeof RuntimeService.getLiveEvents;
+	forceRefreshEventsData: typeof RuntimeService.forceRefreshEventsData;
+	getRuntimeDataStatusFromSource: typeof RuntimeService.getRuntimeDataStatusFromSource;
 	dataManagerGetEventsData: ReturnType<typeof vi.fn>;
 	dataManagerGetDataConfigStatus: ReturnType<typeof vi.fn>;
 	applyFeaturedProjectionToEvents: ReturnType<typeof vi.fn>;

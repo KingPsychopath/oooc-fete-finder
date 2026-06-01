@@ -128,7 +128,11 @@ export async function POST(request: Request) {
 	const cookieHeader = request.headers.get("cookie");
 	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
 	const userSession = await getCanonicalUserSessionFromCookieHeader(userCookie);
-	if (!userSession.isAuthenticated || !userSession.userId || !userSession.email) {
+	if (
+		!userSession.isAuthenticated ||
+		!userSession.userId ||
+		!userSession.email
+	) {
 		return accepted();
 	}
 

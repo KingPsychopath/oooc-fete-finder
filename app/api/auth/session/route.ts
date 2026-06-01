@@ -1,8 +1,8 @@
 import { verifyAdminSessionFromRequest } from "@/features/auth/admin-auth-token";
 import {
 	USER_AUTH_COOKIE_NAME,
-	getUserAuthCookieOptions,
 	getCanonicalUserSessionFromCookieHeader,
+	getUserAuthCookieOptions,
 } from "@/features/auth/user-session-cookie";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {

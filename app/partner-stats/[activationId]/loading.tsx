@@ -1,6 +1,9 @@
 export default function PartnerStatsLoading() {
 	return (
-		<main className="container mx-auto max-w-5xl px-4 py-10 pb-16" aria-hidden="true">
+		<main
+			className="container mx-auto max-w-5xl px-4 py-10 pb-16"
+			aria-hidden="true"
+		>
 			<section className="rounded-2xl border border-border/80 bg-card/90 p-6 sm:p-8">
 				<div className="h-3 w-28 animate-pulse rounded bg-muted/60" />
 				<div className="mt-3 h-10 w-full max-w-md animate-pulse rounded bg-muted/55" />

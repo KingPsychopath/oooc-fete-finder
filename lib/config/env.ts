@@ -69,11 +69,7 @@ if (
 	}
 }
 
-if (
-	isServerRuntime &&
-	process.env.NODE_ENV === "production" &&
-	!rawDataMode
-) {
+if (isServerRuntime && process.env.NODE_ENV === "production" && !rawDataMode) {
 	throw new Error(
 		"Missing required DATA_MODE in production. Set DATA_MODE to remote, local, or test.",
 	);

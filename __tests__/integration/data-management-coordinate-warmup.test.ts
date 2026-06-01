@@ -1,8 +1,9 @@
+import type * as DataManagementActions from "@/features/data-management/actions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type Setup = {
-	saveLocalEventStoreCsv: typeof import("@/features/data-management/actions").saveLocalEventStoreCsv;
-	saveEventSheetEditorRows: typeof import("@/features/data-management/actions").saveEventSheetEditorRows;
+	saveLocalEventStoreCsv: typeof DataManagementActions.saveLocalEventStoreCsv;
+	saveEventSheetEditorRows: typeof DataManagementActions.saveEventSheetEditorRows;
 	localEventStoreSaveCsv: ReturnType<typeof vi.fn>;
 	forceRefreshEventsData: ReturnType<typeof vi.fn>;
 	revalidateEventsPaths: ReturnType<typeof vi.fn>;

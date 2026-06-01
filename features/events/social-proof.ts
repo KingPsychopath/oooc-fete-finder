@@ -69,8 +69,7 @@ export const getSocialProofDisplayModes = (
 			)
 			.sort((left, right) => {
 				const syncDelta =
-					(right.socialProofSaveCount ?? 0) -
-					(left.socialProofSaveCount ?? 0);
+					(right.socialProofSaveCount ?? 0) - (left.socialProofSaveCount ?? 0);
 				if (syncDelta !== 0) return syncDelta;
 				const nameOrder = left.name.localeCompare(right.name);
 				if (nameOrder !== 0) return nameOrder;

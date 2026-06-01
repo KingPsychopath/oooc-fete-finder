@@ -5,4 +5,3 @@ export async function HomeHeader() {
 	const bannerSettings = await getPublicSlidingBannerSettingsCached();
 	return <Header bannerSettings={bannerSettings} />;
 }
-

@@ -1,12 +1,12 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import type { Sql } from "postgres";
-import { getPostgresClient } from "./postgres-client";
 import type {
 	FeaturedScheduleEntry,
 	FeaturedScheduleStatus,
 } from "@/features/events/featured/types";
+import type { Sql } from "postgres";
+import { getPostgresClient } from "./postgres-client";
 
 type FeatureScheduleRow = {
 	id: string;
@@ -354,7 +354,8 @@ const createRepositorySession = (
 	clearScheduledEntries: () => clearScheduledEntriesWithClient(sqlClient),
 	clearHistoryEntries: () => clearHistoryEntriesWithClient(sqlClient),
 	clearAllEntries: () => clearAllEntriesWithClient(sqlClient),
-	replaceAllEntries: (entries) => replaceAllEntriesWithClient(sqlClient, entries),
+	replaceAllEntries: (entries) =>
+		replaceAllEntriesWithClient(sqlClient, entries),
 });
 
 export class FeaturedEventRepository {

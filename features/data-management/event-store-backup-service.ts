@@ -384,7 +384,9 @@ export class EventStoreBackupService {
 					? storeMeta.checksum || buildChecksum(normalizedCsv)
 					: "",
 				csvContent: normalizedCsv,
-				rowMetadataJson: normalizedCsv ? stringifyRowMetadata(rowMetadata) : null,
+				rowMetadataJson: normalizedCsv
+					? stringifyRowMetadata(rowMetadata)
+					: null,
 				featuredEntriesJson: stringifyFeaturedEntries(featuredEntries),
 				userCollectionJson: stringifyUserCollection(collectedUsers),
 				operationalStateJson: stringifyOperationalState(operationalState),

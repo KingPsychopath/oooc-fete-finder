@@ -25,7 +25,9 @@ const clampHashLength = (length: number): number => {
 	);
 };
 
-const toStringRecord = (row: Record<string, unknown>): Record<string, string> => {
+const toStringRecord = (
+	row: Record<string, unknown>,
+): Record<string, string> => {
 	return Object.fromEntries(
 		Object.entries(row).map(([key, value]) => [key, String(value ?? "")]),
 	);
@@ -35,10 +37,9 @@ const buildFingerprint = (
 	row: Record<string, string>,
 	stableKeys?: readonly string[],
 ): string => {
-	const keys =
-		stableKeys?.length ?
-			stableKeys.filter((key) => !EVENT_KEY_EXCLUDED_FINGERPRINT_KEYS.has(key))
-		:	Object.keys(row)
+	const keys = stableKeys?.length
+		? stableKeys.filter((key) => !EVENT_KEY_EXCLUDED_FINGERPRINT_KEYS.has(key))
+		: Object.keys(row)
 				.filter((key) => !EVENT_KEY_EXCLUDED_FINGERPRINT_KEYS.has(key))
 				.sort((left, right) => left.localeCompare(right));
 

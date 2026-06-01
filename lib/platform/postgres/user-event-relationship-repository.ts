@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { Sql } from "postgres";
 import { isValidUserId } from "@/features/auth/user-id";
+import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
 
 declare global {

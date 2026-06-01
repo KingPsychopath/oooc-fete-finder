@@ -2,8 +2,8 @@ import "server-only";
 
 import type { Event } from "@/features/events/types";
 import {
-	getFeaturedEventRepository,
 	type FeaturedEventRepositorySession,
+	getFeaturedEventRepository,
 } from "@/lib/platform/postgres/featured-event-repository";
 import { FEATURED_EVENTS_CONFIG } from "./constants";
 import { formatDateTimeInParis, parseParisDateTimeInput } from "./paris-time";

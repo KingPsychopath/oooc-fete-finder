@@ -3,6 +3,7 @@ import {
 	USER_AUTH_COOKIE_NAME,
 	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
+import { APP_PREFERENCES_EVENT_KEY } from "@/features/events/engagement/constants";
 import {
 	EVENT_ENGAGEMENT_ACTIONS,
 	type EventEngagementAction,
@@ -12,7 +13,6 @@ import {
 	checkTrackEventSessionLimit,
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
-import { APP_PREFERENCES_EVENT_KEY } from "@/features/events/engagement/constants";
 import {
 	TRACKING_JSON_BODY_LIMIT_BYTES,
 	acceptedNoStoreResponse,
@@ -115,7 +115,11 @@ const isKnownEventKey = async (eventKey: string): Promise<boolean | null> => {
 	try {
 		const exists = await repository.hasEventKey(eventKey);
 		if (exists) {
-			setBoundedCacheEntry(eventKeyCache, eventKey, nowMs + EVENT_KEY_CACHE_TTL_MS);
+			setBoundedCacheEntry(
+				eventKeyCache,
+				eventKey,
+				nowMs + EVENT_KEY_CACHE_TTL_MS,
+			);
 			unknownEventKeyCache.delete(eventKey);
 		} else {
 			setBoundedCacheEntry(

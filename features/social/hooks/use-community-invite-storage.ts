@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { COMMUNITY_INVITE_CONFIG } from "../config";
 import type {
-	UseCommunityInviteStorageOptions,
 	CommunityInviteStorageReturn,
+	UseCommunityInviteStorageOptions,
 } from "../types";
 
 const COOKIE_MAX_AGE_DAYS = 4;
@@ -82,7 +82,10 @@ export function useCommunityInviteStorage({
 	}, [cookieName]);
 
 	useEffect(() => {
-		const timer = setTimeout(() => setShouldShow(checkShouldShow()), initialDelay);
+		const timer = setTimeout(
+			() => setShouldShow(checkShouldShow()),
+			initialDelay,
+		);
 		return () => clearTimeout(timer);
 	}, [initialDelay, checkShouldShow]);
 

@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { useFloatingPromptSlot } from "@/hooks/useFloatingPromptSlot";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
+import { useIsRestrictedPromptRoute } from "@/hooks/useRestrictedPromptRoutes";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { LAYERS } from "@/lib/ui/layers";
 import { MessageCircle, X } from "lucide-react";
@@ -12,7 +13,6 @@ import { useCallback, useEffect, useState } from "react";
 import { COMMUNITY_INVITE_CONFIG } from "../config";
 import { useCommunityInviteStorage } from "../hooks/use-community-invite-storage";
 import type { CommunityInviteProps } from "../types";
-import { useIsRestrictedPromptRoute } from "@/hooks/useRestrictedPromptRoutes";
 
 const PROMPT_PRIORITY = 20;
 

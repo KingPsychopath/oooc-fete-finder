@@ -391,9 +391,7 @@ class MemoryEventStoreAdapter implements EventStoreAdapter {
 					existingFirstSeenAtByEventKey.get(eventKey) ??
 					defaultFirstSeenAt;
 				const lastMeaningfulChangeAt =
-					baseline?.publicContentHash &&
-					row &&
-					hasMeaningfulChange
+					baseline?.publicContentHash && row && hasMeaningfulChange
 						? nowIso
 						: (baseline?.lastMeaningfulChangeAt ?? firstSeenAt);
 				return {

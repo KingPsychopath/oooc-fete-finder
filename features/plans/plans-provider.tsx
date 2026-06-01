@@ -7,7 +7,6 @@ import {
 	enqueueRoutePlanMutation,
 	flushPendingMutations,
 	getPendingMutationCount,
-	getPendingRoutePlanMutations,
 } from "@/features/offline-mutations/pending-mutation-queue";
 import { sanitizePlanTitleForStorage } from "@/features/plans/plan-title";
 import {
@@ -554,14 +553,3 @@ export function usePlans() {
 	if (!context) throw new Error("usePlans must be used within PlansProvider");
 	return context;
 }
-
-export const applyPendingRoutePlanMutations = (
-	plans: UserPlan[],
-	ownerKey: string,
-): UserPlan[] => {
-	const pending = getPendingRoutePlanMutations(ownerKey);
-	return mergePlans(
-		plans,
-		pending.map((mutation) => mutation.payload.plan).filter(isUserPlan),
-	);
-};

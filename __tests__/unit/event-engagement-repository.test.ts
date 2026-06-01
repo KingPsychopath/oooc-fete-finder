@@ -1,6 +1,6 @@
+import { EventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import type { Sql } from "postgres";
 import { describe, expect, it, vi } from "vitest";
-import { EventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 
 describe("EventEngagementRepository", () => {
 	it("projects public save counts with session dedupe inside the configured window", async () => {
@@ -49,7 +49,9 @@ describe("EventEngagementRepository", () => {
 				const query = strings.join("?");
 				calls.push({ query, values });
 				if (
-					query.includes("COUNT(*) FILTER (WHERE action_type = 'map_preference_change')")
+					query.includes(
+						"COUNT(*) FILTER (WHERE action_type = 'map_preference_change')",
+					)
 				) {
 					return [
 						{
@@ -77,11 +79,12 @@ describe("EventEngagementRepository", () => {
 			endAt: "2026-05-10T23:59:59.999Z",
 		});
 
-		const summaryQuery = calls.find((call) =>
-			call.query.includes("annotated") &&
-			call.query.includes(
-				"COUNT(*) FILTER (WHERE action_type = 'map_preference_change')",
-			),
+		const summaryQuery = calls.find(
+			(call) =>
+				call.query.includes("annotated") &&
+				call.query.includes(
+					"COUNT(*) FILTER (WHERE action_type = 'map_preference_change')",
+				),
 		);
 
 		expect(summary.mapPreferenceChangeCount).toBe(3);

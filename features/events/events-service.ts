@@ -14,7 +14,9 @@ import { log } from "@/lib/platform/logger";
 
 export async function getFeaturedStatusEvents(): Promise<Event[]> {
 	try {
-		const result = await DataManager.getEventsData({ populateCoordinates: false });
+		const result = await DataManager.getEventsData({
+			populateCoordinates: false,
+		});
 		if (!result.success) {
 			if (result.error) {
 				log.error("events", "Error loading featured status events", {

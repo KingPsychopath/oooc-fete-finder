@@ -73,7 +73,6 @@ function getGeocodingApiKey(): string {
 async function geocodeAddressWithMapsAPI(
 	address: string,
 ): Promise<GeocodingResult> {
-
 	if (!address || address.trim().length === 0) {
 		throw new Error("Address cannot be empty");
 	}

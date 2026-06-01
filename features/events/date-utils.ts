@@ -11,10 +11,21 @@ const isValidCalendarDate = (
 	month: number,
 	day: number,
 ): boolean => {
-	if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+	if (
+		!Number.isInteger(year) ||
+		!Number.isInteger(month) ||
+		!Number.isInteger(day)
+	) {
 		return false;
 	}
-	if (year < 1900 || year > 2099 || month < 1 || month > 12 || day < 1 || day > 31) {
+	if (
+		year < 1900 ||
+		year > 2099 ||
+		month < 1 ||
+		month > 12 ||
+		day < 1 ||
+		day > 31
+	) {
 		return false;
 	}
 

@@ -11,6 +11,7 @@ import {
 import { useFloatingPromptSlot } from "@/hooks/useFloatingPromptSlot";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
+import { useIsRestrictedPromptRoute } from "@/hooks/useRestrictedPromptRoutes";
 import { useScrollVisibility } from "@/hooks/useScrollVisibility";
 import { LAYERS } from "@/lib/ui/layers";
 import {
@@ -23,7 +24,6 @@ import {
 	Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useIsRestrictedPromptRoute } from "@/hooks/useRestrictedPromptRoutes";
 
 interface BeforeInstallPromptEvent extends Event {
 	prompt(): Promise<void>;

@@ -1,8 +1,8 @@
 import "server-only";
 
-import postgres, { type Sql } from "postgres";
 import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
+import postgres, { type Sql } from "postgres";
 import { incrementTrackedQueryCount } from "./query-count-context";
 
 declare global {
@@ -41,11 +41,7 @@ export const getPostgresClient = (): Sql | null => {
 			/pgbouncer|pooler|pooled/i.test(databaseUrl) ||
 			/\/pool\//i.test(databaseUrl);
 		const defaultPoolMax =
-			env.NODE_ENV === "production"
-				? isLikelyPooledConnection
-					? 8
-					: 3
-				: 1;
+			env.NODE_ENV === "production" ? (isLikelyPooledConnection ? 8 : 3) : 1;
 		const poolMax = parseBoundedInt(
 			env.POSTGRES_POOL_MAX,
 			defaultPoolMax,

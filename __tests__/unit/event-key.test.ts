@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
 import {
 	buildEventSlug,
 	ensureUniqueEventKeys,
 	generateEventKeyFromRow,
 	normalizeEventKey,
 } from "@/features/data-management/assembly/event-key";
+import { describe, expect, it } from "vitest";
 
 describe("event-key utilities", () => {
 	it("normalizes and validates explicit event keys", () => {
@@ -64,4 +64,3 @@ describe("event-key utilities", () => {
 		expect(buildEventSlug("   ")).toBe("event");
 	});
 });
-

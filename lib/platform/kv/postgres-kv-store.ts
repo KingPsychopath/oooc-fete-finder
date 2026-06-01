@@ -1,9 +1,9 @@
 import "server-only";
 
 import {
+	type AppKVStoreRepository,
 	getAppKVStoreRepository,
 	getAppKVStoreTableName,
-	type AppKVStoreRepository,
 } from "@/lib/platform/postgres/app-kv-store-repository";
 import type { KeyValueStore } from "./kv-types";
 

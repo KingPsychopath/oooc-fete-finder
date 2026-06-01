@@ -1,7 +1,7 @@
 import "server-only";
 
-import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import type { KeyValueStore } from "./kv-types";
 
 type FileKVPayload = {
@@ -68,7 +68,11 @@ export class FileKVStore implements KeyValueStore {
 	}
 
 	private async writePayload(payload: FileKVPayload): Promise<void> {
-		await writeFile(this.absoluteFilePath, JSON.stringify(payload, null, 2), "utf8");
+		await writeFile(
+			this.absoluteFilePath,
+			JSON.stringify(payload, null, 2),
+			"utf8",
+		);
 	}
 
 	private async withLock<T>(task: () => Promise<T>): Promise<T> {

@@ -5,4 +5,3 @@ export async function FeatureEventHeader() {
 	const bannerSettings = await getPublicSlidingBannerSettingsCached();
 	return <Header bannerSettings={bannerSettings} />;
 }
-

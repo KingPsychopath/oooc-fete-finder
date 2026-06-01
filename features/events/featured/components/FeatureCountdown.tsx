@@ -16,9 +16,9 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { clientLog } from "@/lib/platform/client-logger";
 // Note: Using process.env.NODE_ENV directly to avoid server-side env variable access on client
 import type { Event } from "@/features/events/types";
+import { clientLog } from "@/lib/platform/client-logger";
 import { AlertCircle, Clock, Star, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FEATURED_EVENTS_CONFIG } from "../constants";

@@ -1,14 +1,14 @@
-import {
-	getEventTypeForDate,
-	type Event,
-} from "@/features/events/types";
+import { type Event, getEventTypeForDate } from "@/features/events/types";
 
 type LegacyEvent = Omit<Event, "eventKey" | "slug" | "type"> & {
 	type?: string;
 };
 
 const toStableTestKey = (legacyId: string, index: number): string => {
-	const cleaned = legacyId.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8);
+	const cleaned = legacyId
+		.toLowerCase()
+		.replace(/[^a-z0-9]/g, "")
+		.slice(0, 8);
 	const seed = `${legacyId}|${index}`;
 	let hash = 0;
 	for (let i = 0; i < seed.length; i += 1) {

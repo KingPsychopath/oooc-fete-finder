@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
 import { getFeaturedProjection } from "@/features/events/featured/service";
+import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import {
 	generateOGMetadata,
 	generatePresetOGImage,
 } from "@/lib/social/og-utils";
-import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import {
 	ArrowRight,
 	CircleHelp,

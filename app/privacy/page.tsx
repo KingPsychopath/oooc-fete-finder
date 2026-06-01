@@ -1,11 +1,11 @@
 import { CopyEmailButton } from "@/components/CopyEmailButton";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { buildSiteUrl } from "@/lib/site-url";
 import {
 	generateOGMetadata,
 	generatePresetOGImage,
 } from "@/lib/social/og-utils";
-import { buildSiteUrl } from "@/lib/site-url";
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -40,7 +40,9 @@ export default function PrivacyPolicy() {
 
 				<Card>
 					<CardHeader>
-						<h1 className="text-2xl font-medium leading-snug">Privacy Policy</h1>
+						<h1 className="text-2xl font-medium leading-snug">
+							Privacy Policy
+						</h1>
 						<p className="text-sm text-muted-foreground">
 							Last updated: 8 May 2026
 						</p>
@@ -147,9 +149,7 @@ export default function PrivacyPolicy() {
 						</section>
 
 						<section>
-							<h2 className="text-lg font-semibold mb-3">
-								Cookies & Tracking
-							</h2>
+							<h2 className="text-lg font-semibold mb-3">Cookies & Tracking</h2>
 							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
 								<li>
 									We use first-party session cookies to keep you signed in and

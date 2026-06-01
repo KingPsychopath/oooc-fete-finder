@@ -20,7 +20,8 @@ const loadGenerateMetadata = async () => {
 describe("/partner-stats/[activationId] metadata", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		process.env.NEXT_PUBLIC_SITE_URL = "https://fete.outofofficecollective.co.uk";
+		process.env.NEXT_PUBLIC_SITE_URL =
+			"https://fete.outofofficecollective.co.uk";
 		process.env.NEXT_PUBLIC_BASE_PATH = "";
 	});
 

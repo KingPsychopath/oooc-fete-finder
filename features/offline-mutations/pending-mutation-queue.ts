@@ -5,18 +5,13 @@ const MAX_QUEUE_ITEMS = 250;
 const MAX_ATTEMPTS = 8;
 const MAX_MUTATION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-export type PendingMutationType =
-	| "saved_event"
-	| "route_plan"
-	| "route_plan_delete";
-
-export interface SavedEventMutationPayload {
+interface SavedEventMutationPayload {
 	eventKey: string;
 	isSaved: boolean;
 	source: string;
 }
 
-export interface PendingSavedEventMutation {
+interface PendingSavedEventMutation {
 	id: string;
 	type: "saved_event";
 	ownerKey: string;
@@ -28,13 +23,13 @@ export interface PendingSavedEventMutation {
 	idempotencyKey: string;
 }
 
-export interface RoutePlanMutationPayload {
+interface RoutePlanMutationPayload {
 	planId: string;
 	plan: unknown;
 	source: string;
 }
 
-export interface PendingRoutePlanMutation {
+interface PendingRoutePlanMutation {
 	id: string;
 	type: "route_plan";
 	ownerKey: string;
@@ -46,12 +41,12 @@ export interface PendingRoutePlanMutation {
 	idempotencyKey: string;
 }
 
-export interface RoutePlanDeleteMutationPayload {
+interface RoutePlanDeleteMutationPayload {
 	planId: string;
 	source: string;
 }
 
-export interface PendingRoutePlanDeleteMutation {
+interface PendingRoutePlanDeleteMutation {
 	id: string;
 	type: "route_plan_delete";
 	ownerKey: string;
@@ -63,7 +58,7 @@ export interface PendingRoutePlanDeleteMutation {
 	idempotencyKey: string;
 }
 
-export type PendingMutation =
+type PendingMutation =
 	| PendingSavedEventMutation
 	| PendingRoutePlanMutation
 	| PendingRoutePlanDeleteMutation;

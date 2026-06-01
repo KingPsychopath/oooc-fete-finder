@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EventLocation } from "@/features/events/types";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const loadCoordinateService = async (options: {
 	supportsGeocoding: boolean;

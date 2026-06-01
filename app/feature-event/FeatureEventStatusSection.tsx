@@ -1,6 +1,6 @@
-import { unstable_cache as cache } from "next/cache";
 import { getFeaturedStatusEvents } from "@/features/events/events-service";
 import { FeatureCountdown } from "@/features/events/featured/components/FeatureCountdown";
+import { unstable_cache as cache } from "next/cache";
 
 const getFeaturedStatusEventsCached = cache(
 	async () => getFeaturedStatusEvents(),

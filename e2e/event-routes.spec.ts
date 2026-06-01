@@ -499,9 +499,11 @@ test.describe("event share routes", () => {
 		await expect(page.getByText(/\b1 event found\b/)).toBeVisible();
 
 		await expect(
-			page.getByText(
-				"Map style, sprite, glyph, and tile assets are online-only. Cached event browsing, search, and filters are still available below.",
-			).first(),
+			page
+				.getByText(
+					"Map style, sprite, glyph, and tile assets are online-only. Cached event browsing, search, and filters are still available below.",
+				)
+				.first(),
 		).toBeVisible();
 	});
 
@@ -651,9 +653,11 @@ test.describe("event share routes", () => {
 			.click();
 		await expect(page.getByRole("dialog", { name: EVENT_TITLE })).toBeVisible();
 		await expect(
-			page.getByText(
-				"Map style, sprite, glyph, and tile assets are online-only. Cached event browsing, search, and filters are still available below.",
-			).first(),
+			page
+				.getByText(
+					"Map style, sprite, glyph, and tile assets are online-only. Cached event browsing, search, and filters are still available below.",
+				)
+				.first(),
 		).toBeVisible();
 
 		await setBrowserOffline(context, page, false);
@@ -680,7 +684,6 @@ test.describe("event share routes", () => {
 		await expect(page.getByText(/^Cached event data:/)).toHaveCount(0);
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
 	});
-
 });
 
 test.describe("event share routes on mobile", () => {

@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
-import type { Event } from "@/features/events/types";
 import {
 	getFeaturedEventExpirationDate,
 	isFeaturedEventExpired,
 	shouldDisplayFeaturedEvent,
 } from "@/features/events/featured/utils/timestamp-utils";
+import type { Event } from "@/features/events/types";
+import { describe, expect, it } from "vitest";
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({
 	eventKey: "evt_test",

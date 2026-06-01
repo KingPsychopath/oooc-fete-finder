@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import { getAvailableEventDates } from "@/features/events/filtering";
-import { getEventTypeForDate, type Event } from "@/features/events/types";
+import { type Event, getEventTypeForDate } from "@/features/events/types";
+import { describe, expect, it } from "vitest";
 
 const makeEvent = (date: string, index: number): Event => ({
 	eventKey: `evt_test${index.toString().padStart(8, "0")}`,

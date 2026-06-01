@@ -41,8 +41,9 @@ describe("event-store-backup-repository singleton", () => {
 				latestBackup: null,
 			})),
 		};
-		(globalThis as Record<string, unknown>)
-			.__ooocFeteFinderEventStoreBackupRepository = staleRepository;
+		(
+			globalThis as Record<string, unknown>
+		).__ooocFeteFinderEventStoreBackupRepository = staleRepository;
 
 		const { getEventStoreBackupRepository } = await import(
 			"@/lib/platform/postgres/event-store-backup-repository"

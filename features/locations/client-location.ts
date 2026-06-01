@@ -24,11 +24,13 @@ const GEOLOCATION_TIMEOUT_MS = 6000;
 const MAXIMUM_CACHED_LOCATION_AGE_MS = 10 * 60 * 1000;
 const LAST_KNOWN_LOCATION_TTL_MS = 24 * 60 * 60 * 1000;
 const COORDINATE_DECIMAL_PLACES = 4;
-const PARIS_TEST_LOCATION: Pick<SavedClientLocation, "accuracy" | "coordinates"> =
-	{
-		accuracy: 25,
-		coordinates: { lat: 48.8566, lng: 2.3522 },
-	};
+const PARIS_TEST_LOCATION: Pick<
+	SavedClientLocation,
+	"accuracy" | "coordinates"
+> = {
+	accuracy: 25,
+	coordinates: { lat: 48.8566, lng: 2.3522 },
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
@@ -153,25 +155,26 @@ const getCurrentClientLocation = (): Promise<SavedClientLocation> =>
 		);
 	});
 
-export const requestClientLocation = async (): Promise<ClientLocationResult> => {
-	try {
-		return {
-			location: await getCurrentClientLocation(),
-			status: "current",
-		};
-	} catch (error) {
-		const fallbackLocation = readLastKnownClientLocation();
-		if (fallbackLocation) {
+export const requestClientLocation =
+	async (): Promise<ClientLocationResult> => {
+		try {
 			return {
-				location: fallbackLocation,
-				status: "last-known",
+				location: await getCurrentClientLocation(),
+				status: "current",
+			};
+		} catch (error) {
+			const fallbackLocation = readLastKnownClientLocation();
+			if (fallbackLocation) {
+				return {
+					location: fallbackLocation,
+					status: "last-known",
+				};
+			}
+
+			return {
+				error: error instanceof Error ? error.message : "Location unavailable.",
+				location: null,
+				status: "unavailable",
 			};
 		}
-
-		return {
-			error: error instanceof Error ? error.message : "Location unavailable.",
-			location: null,
-			status: "unavailable",
-		};
-	}
-};
+	};

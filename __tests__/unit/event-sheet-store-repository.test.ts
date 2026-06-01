@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { normalizeEventSheetRowData } from "@/lib/platform/postgres/row-data-normalizer";
+import { describe, expect, it } from "vitest";
 
 describe("normalizeEventSheetRowData", () => {
 	it("normalizes plain object values to string records", () => {
@@ -25,7 +25,9 @@ describe("normalizeEventSheetRowData", () => {
 	});
 
 	it("normalizes double-encoded JSON string payload", () => {
-		const raw = JSON.stringify(JSON.stringify({ name: "Event", date: "23 June" }));
+		const raw = JSON.stringify(
+			JSON.stringify({ name: "Event", date: "23 June" }),
+		);
 		const result = normalizeEventSheetRowData(raw);
 		expect(result).toEqual({ name: "Event", date: "23 June" });
 	});

@@ -62,7 +62,10 @@ export function isCoordinateResolvableInput(
 	locationName: string,
 	arrondissement: ParisArrondissement,
 ): boolean {
-	const normalizedLocation = locationName.trim().toLowerCase().replace(/\s+/g, " ");
+	const normalizedLocation = locationName
+		.trim()
+		.toLowerCase()
+		.replace(/\s+/g, " ");
 	const hasValidLocation =
 		normalizedLocation.length > 0 &&
 		!PLACEHOLDER_LOCATION_NAMES.has(normalizedLocation);

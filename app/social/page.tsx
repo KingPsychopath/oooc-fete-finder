@@ -1,6 +1,9 @@
-import { ArrowRight } from "lucide-react";
-import { generateOGMetadata, generatePresetOGImage } from "@/lib/social/og-utils";
 import { buildSiteUrl } from "@/lib/site-url";
+import {
+	generateOGMetadata,
+	generatePresetOGImage,
+} from "@/lib/social/og-utils";
+import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 

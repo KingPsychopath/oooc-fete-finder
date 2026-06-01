@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import { allocateFeaturedQueueWindows } from "@/features/events/featured/scheduler";
 import type { FeaturedScheduleEntry } from "@/features/events/featured/types";
+import { describe, expect, it } from "vitest";
 
 const baseEntry = (
 	id: string,
@@ -23,16 +23,14 @@ describe("allocateFeaturedQueueWindows", () => {
 	it("keeps first three overlapping items at requested start", () => {
 		const start = "2026-06-20T10:00:00.000Z";
 		const windows = allocateFeaturedQueueWindows(
-			[
-				baseEntry("a", start),
-				baseEntry("b", start),
-				baseEntry("c", start),
-			],
+			[baseEntry("a", start), baseEntry("b", start), baseEntry("c", start)],
 			{ maxConcurrent: 3 },
 		);
 
 		expect(windows).toHaveLength(3);
-		expect(new Set(windows.map((window) => window.effectiveStartAt)).size).toBe(1);
+		expect(new Set(windows.map((window) => window.effectiveStartAt)).size).toBe(
+			1,
+		);
 		expect(windows[0].effectiveStartAt).toBe(start);
 	});
 

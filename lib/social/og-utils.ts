@@ -56,7 +56,9 @@ const applyOGImageVersion = (searchParams: URLSearchParams): void => {
 	}
 };
 
-const buildOGRouteUrl = (params: Record<string, string | undefined>): string => {
+const buildOGRouteUrl = (
+	params: Record<string, string | undefined>,
+): string => {
 	const searchParams = new URLSearchParams();
 	for (const [key, value] of Object.entries(params)) {
 		if (value) {

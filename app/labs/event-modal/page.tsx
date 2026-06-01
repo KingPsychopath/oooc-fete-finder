@@ -1,5 +1,5 @@
-import { generateMainOGImage, generateOGMetadata } from "@/lib/social/og-utils";
 import { buildSiteUrl, getBasePath } from "@/lib/site-url";
+import { generateMainOGImage, generateOGMetadata } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import Link from "next/link";
 
