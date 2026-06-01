@@ -7,6 +7,7 @@ Use this for first-time setup, cutover, or restore.
 - Primary runtime source: managed Postgres event store
 - Fallback sources in remote mode: latest Postgres event-store backup, then bundled local CSV (`data/events.csv`)
 - Bundled CSV is a server-side emergency fallback. It is deployment-time data, not a live sync or full browser offline cache.
+- Local production-parity development uses `DATA_MODE=remote` against Postgres. `DATA_MODE=local` exists only for fallback/no-database testing.
 
 ## Required Env
 
@@ -30,6 +31,8 @@ Use this for first-time setup, cutover, or restore.
 ```bash
 DATABASE_URL=... pnpm bootstrap:postgres-store
 ```
+
+For local workflow policy and release fallback refresh steps, see [Local Data Workflow](./local-data-workflow.md).
 
 ## Backups
 

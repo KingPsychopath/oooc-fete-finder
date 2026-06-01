@@ -80,6 +80,14 @@ For a Postgres-backed setup, seed or migrate the event store before relying on `
 pnpm bootstrap:postgres-store
 ```
 
+For local development, prefer `DATA_MODE=remote` with a local or preview Postgres database. `DATA_MODE=local` is an emergency/no-database fallback path that reads only the bundled CSV. See [Local Data Workflow](./docs/operations/local-data-workflow.md).
+
+Before release, refresh the bundled fallback snapshot from the managed store:
+
+```bash
+pnpm db:pull-events-csv
+```
+
 If you are migrating old featured-event values into the scheduler:
 
 ```bash

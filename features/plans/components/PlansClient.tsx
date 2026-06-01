@@ -38,11 +38,9 @@ import {
 } from "@/features/plans/plan-date-options";
 import {
 	PLAN_ROUTE_TOUR_STATE_COMPLETED,
-	PLAN_ROUTE_TOUR_STATE_DISMISSED,
 	PLAN_ROUTE_TOUR_STATE_SKIPPED,
 	consumePendingPlanRouteTourRequest,
 	markPlansPageVisited,
-	shouldSuppressPlanRouteTourPrompt,
 	writePlanRouteTourState,
 } from "@/features/plans/plan-onboarding";
 import { validatePlanTitle } from "@/features/plans/plan-title";
@@ -225,7 +223,6 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		[],
 	);
 	const [showTour, setShowTour] = useState(false);
-	const [showTourPrompt, setShowTourPrompt] = useState(false);
 	const [tourRunId, setTourRunId] = useState(0);
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 	const [isCreatingNewRoute, setIsCreatingNewRoute] = useState(false);
@@ -844,7 +841,6 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 	};
 
 	const startPlanTour = useCallback(() => {
-		setShowTourPrompt(false);
 		setTourRunId((current) => current + 1);
 		setShowTour(true);
 		trackPlanAnalytics({
@@ -861,22 +857,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			const timer = window.setTimeout(startPlanTour, 650);
 			return () => window.clearTimeout(timer);
 		}
-		if (plans.length > 0 || shouldSuppressPlanRouteTourPrompt()) {
-			setShowTourPrompt(false);
-			return;
-		}
-		const timer = window.setTimeout(() => {
-			if (!shouldSuppressPlanRouteTourPrompt()) {
-				setShowTourPrompt(true);
-				trackPlanAnalytics({
-					action: "prompt_shown",
-					surface: "tour",
-					planDate: selectedDate,
-				});
-			}
-		}, 900);
-		return () => window.clearTimeout(timer);
-	}, [plans.length, selectedDate, startPlanTour]);
+	}, [startPlanTour]);
 
 	const selectPlanDate = (date: string) => {
 		setSelectedDate(date);
@@ -1117,41 +1098,9 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 							Plan a route for the day.
 						</h1>
 						<p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-							Pick a date, choose a suggested route, then lock, move or remove
-							stops. Everything saves locally as you edit.
+							Set the day and mood, then let Fete Finder shape a route you can
+							tune stop by stop. Changes save as you go.
 						</p>
-						{showTourPrompt && (
-							<div className="mt-4 flex max-w-xl flex-wrap items-center gap-2 rounded-2xl border border-border/70 bg-background/72 p-2.5 text-sm shadow-sm">
-								<span className="min-w-0 flex-1 text-muted-foreground">
-									New here? Take a quick tour before building your first route.
-								</span>
-								<Button
-									type="button"
-									size="sm"
-									className="rounded-full"
-									onClick={startPlanTour}
-								>
-									Start tour
-								</Button>
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									className="rounded-full"
-									onClick={() => {
-										writePlanRouteTourState(PLAN_ROUTE_TOUR_STATE_DISMISSED);
-										setShowTourPrompt(false);
-										trackPlanAnalytics({
-											action: "prompt_dismissed",
-											surface: "tour",
-											planDate: selectedDate,
-										});
-									}}
-								>
-									Not now
-								</Button>
-							</div>
-						)}
 					</div>
 					<div className="flex items-center justify-start lg:justify-end">
 						<Button
@@ -1653,12 +1602,12 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 					</div>
 
 					{activeEvents.length === 0 ? (
-						<div className="grid min-h-[22rem] place-items-center rounded-2xl border border-dashed border-border/80 bg-muted/30 px-6 text-center lg:min-h-0 lg:flex-1">
-							<div>
+						<div className="grid min-h-[22rem] place-items-center rounded-2xl border border-dashed border-border/80 bg-muted/30 px-6 py-10 text-center lg:min-h-0 lg:flex-1 lg:pb-14 lg:pt-8">
+							<div className="-translate-y-2">
 								<MapPinned className="mx-auto h-10 w-10 text-muted-foreground" />
-								<p className="mt-3 text-lg">Start from your settings.</p>
+								<p className="mt-3 text-lg">Ready to map your day?</p>
 								<p className="mt-1 text-sm text-muted-foreground">
-									Suggest a route from the controls, or add saved events from
+									Use your filters to suggest a route, or add saved events from
 									your shortlist.
 								</p>
 								{routeSuggestionForSettings && (
@@ -1666,7 +1615,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 										type="button"
 										onClick={() => applySuggestion(routeSuggestionForSettings)}
 										disabled={isSavingSeparateRoute && isRouteLimitReached}
-										className="mt-4 rounded-full"
+										className="mt-6 rounded-full"
 									>
 										<Navigation className="mr-2 h-4 w-4" />
 										{createRouteActionLabel}
