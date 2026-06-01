@@ -2,9 +2,11 @@ import "server-only";
 
 import { randomBytes, randomUUID } from "crypto";
 import { isValidUserId } from "@/features/auth/user-id";
+import { sanitizePlanTitleForStorage } from "@/features/plans/plan-title";
 import type {
 	PlanUpsertInput,
 	PlanVisibility,
+	SharedPlan,
 	UserPlan,
 } from "@/features/plans/types";
 import type { Sql } from "postgres";
@@ -22,9 +24,14 @@ type PlanRow = {
 	title: string;
 	visibility: PlanVisibility;
 	share_token: string | null;
+	share_owner_name_visible: boolean | null;
 	created_at: string | Date;
 	updated_at: string | Date;
 	stops: unknown;
+};
+
+type SharedPlanRow = PlanRow & {
+	owner_display_name: string | null;
 };
 
 const cleanString = (
@@ -64,6 +71,7 @@ const normalizePlan = (row: PlanRow): UserPlan => ({
 	title: row.title,
 	visibility: row.visibility,
 	shareToken: row.share_token,
+	shareOwnerNameVisible: row.share_owner_name_visible !== false,
 	createdAt: toIsoString(row.created_at),
 	updatedAt: toIsoString(row.updated_at),
 	stops: Array.isArray(row.stops)
@@ -99,6 +107,14 @@ const normalizePlan = (row: PlanRow): UserPlan => ({
 		: [],
 });
 
+const normalizeSharedPlan = (row: SharedPlanRow): SharedPlan => ({
+	...normalizePlan(row),
+	ownerDisplayName:
+		row.share_owner_name_visible === false
+			? "A shared plan"
+			: (cleanString(row.owner_display_name, 120) ?? "A Fete Finder guest"),
+});
+
 export class UserPlanRepository {
 	private readonly sql: Sql;
 	private readonly ensureSchemaPromise: Promise<void>;
@@ -118,9 +134,14 @@ export class UserPlanRepository {
 				title TEXT NOT NULL,
 				visibility TEXT NOT NULL CHECK (visibility IN ('private', 'unlisted')) DEFAULT 'private',
 				share_token TEXT UNIQUE,
+				share_owner_name_visible BOOLEAN NOT NULL DEFAULT TRUE,
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)
+		`;
+		await this.sql`
+			ALTER TABLE app_user_plans
+			ADD COLUMN IF NOT EXISTS share_owner_name_visible BOOLEAN NOT NULL DEFAULT TRUE
 		`;
 		await this.sql`
 			CREATE TABLE IF NOT EXISTS app_user_plan_stops (
@@ -140,6 +161,11 @@ export class UserPlanRepository {
 		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_app_user_plans_owner_date
 			ON app_user_plans (owner_key, plan_date DESC, updated_at DESC)
+		`;
+		await this.sql`
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_app_user_plans_share_token
+			ON app_user_plans (share_token)
+			WHERE share_token IS NOT NULL
 		`;
 		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_app_user_plan_stops_plan_order
@@ -166,6 +192,7 @@ export class UserPlanRepository {
 				p.title,
 				p.visibility,
 				p.share_token,
+				p.share_owner_name_visible,
 				p.created_at,
 				p.updated_at,
 				COALESCE(
@@ -204,10 +231,14 @@ export class UserPlanRepository {
 		const ownerKey = sanitizeOwnerKey(input.ownerKey);
 		const userId = sanitizeUserId(input.userId);
 		const planId = cleanString(input.plan.id, 80) ?? randomUUID();
-		const title = cleanString(input.plan.title, 120) ?? "My route";
+		const title = sanitizePlanTitleForStorage(input.plan.title, "My route");
 		const visibility =
 			input.plan.visibility === "unlisted" ? "unlisted" : "private";
 		const shareToken = visibility === "unlisted" ? createShareToken() : null;
+		const shareOwnerNameVisible =
+			visibility === "unlisted"
+				? input.plan.shareOwnerNameVisible !== false
+				: true;
 		const existingRows = await this.sql<{ owner_key: string }[]>`
 			SELECT owner_key
 			FROM app_user_plans
@@ -230,6 +261,7 @@ export class UserPlanRepository {
 					title,
 					visibility,
 					share_token,
+					share_owner_name_visible,
 					updated_at
 				)
 				VALUES (
@@ -240,6 +272,7 @@ export class UserPlanRepository {
 					${title},
 					${visibility},
 					${shareToken},
+					${shareOwnerNameVisible},
 					NOW()
 				)
 				ON CONFLICT (id)
@@ -249,6 +282,11 @@ export class UserPlanRepository {
 					plan_date = EXCLUDED.plan_date,
 					title = EXCLUDED.title,
 					visibility = EXCLUDED.visibility,
+					share_owner_name_visible = CASE
+						WHEN EXCLUDED.visibility = 'unlisted'
+							THEN EXCLUDED.share_owner_name_visible
+						ELSE TRUE
+					END,
 					share_token = CASE
 						WHEN EXCLUDED.visibility = 'unlisted'
 							THEN COALESCE(app_user_plans.share_token, EXCLUDED.share_token)
@@ -312,6 +350,53 @@ export class UserPlanRepository {
 		const plan = plans.find((candidate) => candidate.id === planId);
 		if (!plan) throw new Error("Plan was not saved");
 		return plan;
+	}
+
+	async findSharedPlan(input: {
+		shareToken: string;
+	}): Promise<SharedPlan | null> {
+		await this.ready();
+		const shareToken = cleanString(input.shareToken, 80);
+		if (!shareToken) return null;
+		const rows = await this.sql<SharedPlanRow[]>`
+			SELECT
+				p.id,
+				p.user_id,
+				p.owner_key,
+				p.plan_date,
+				p.title,
+				p.visibility,
+				p.share_token,
+				p.share_owner_name_visible,
+				p.created_at,
+				p.updated_at,
+				NULLIF(TRIM(COALESCE(users.first_name, '')), '') AS owner_display_name,
+				COALESCE(
+					json_agg(
+						json_build_object(
+							'id', s.id,
+							'event_key', s.event_key,
+							'stop_order', s.stop_order,
+							'locked', s.locked,
+							'arrival_time', s.arrival_time,
+							'departure_time', s.departure_time,
+							'travel_minutes_from_previous', s.travel_minutes_from_previous,
+							'created_at', s.created_at,
+							'updated_at', s.updated_at
+						)
+						ORDER BY s.stop_order ASC
+					) FILTER (WHERE s.id IS NOT NULL),
+					'[]'::json
+				) AS stops
+			FROM app_user_plans p
+			LEFT JOIN app_users users ON users.id::text = p.user_id
+			LEFT JOIN app_user_plan_stops s ON s.plan_id = p.id
+			WHERE p.share_token = ${shareToken}
+				AND p.visibility = 'unlisted'
+			GROUP BY p.id, users.first_name
+			LIMIT 1
+		`;
+		return rows[0] ? normalizeSharedPlan(rows[0]) : null;
 	}
 
 	async deletePlan(input: { ownerKey: string; planId: string }): Promise<void> {

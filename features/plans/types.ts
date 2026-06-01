@@ -37,9 +37,14 @@ export interface UserPlan {
 	title: string;
 	visibility: PlanVisibility;
 	shareToken: string | null;
+	shareOwnerNameVisible: boolean;
 	stops: UserPlanStop[];
 	createdAt: string;
 	updatedAt: string;
+}
+
+export interface SharedPlan extends UserPlan {
+	ownerDisplayName: string;
 }
 
 export interface PlanRouteLeg {
@@ -66,6 +71,7 @@ export interface PlanUpsertInput {
 	planDate: string;
 	title: string;
 	visibility: PlanVisibility;
+	shareOwnerNameVisible?: boolean;
 	stops: Array<{
 		id?: string;
 		eventKey: string;

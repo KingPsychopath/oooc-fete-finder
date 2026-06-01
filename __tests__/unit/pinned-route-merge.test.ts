@@ -12,6 +12,7 @@ const event = (eventKey: string): Event =>
 		date: "2026-06-19",
 		day: "friday",
 		time: "18:00",
+		arrondissement: 10,
 		link: "#",
 		type: "Fete",
 		eventCategory: "party",

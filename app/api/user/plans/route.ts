@@ -2,6 +2,7 @@ import {
 	USER_AUTH_COOKIE_NAME,
 	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
+import { validatePlanTitle } from "@/features/plans/plan-title";
 import { MAX_PLANS_PER_DATE } from "@/features/plans/types";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
@@ -37,8 +38,9 @@ const planSchema = z.object({
 		.string()
 		.trim()
 		.regex(/^\d{4}-\d{2}-\d{2}$/),
-	title: z.string().trim().min(1).max(120),
+	title: z.string().trim().min(1).max(60),
 	visibility: z.enum(["private", "unlisted"]).default("private"),
+	shareOwnerNameVisible: z.boolean().optional(),
 	stops: z.array(planStopSchema).max(12),
 });
 
@@ -147,6 +149,13 @@ export async function POST(request: Request) {
 			{ status: 400, headers: NO_STORE_HEADERS },
 		);
 	}
+	const titleValidation = validatePlanTitle(parsed.data.plan.title);
+	if (!titleValidation.success) {
+		return NextResponse.json(
+			{ success: false, error: titleValidation.error },
+			{ status: 400, headers: NO_STORE_HEADERS },
+		);
+	}
 
 	try {
 		const existingPlans = await repository.listPlans({
@@ -170,7 +179,7 @@ export async function POST(request: Request) {
 		const plan = await repository.upsertPlan({
 			ownerKey: identity.ownerKey,
 			userId: identity.userId,
-			plan: parsed.data.plan,
+			plan: { ...parsed.data.plan, title: titleValidation.title },
 		});
 		return NextResponse.json(
 			{ success: true, plan },

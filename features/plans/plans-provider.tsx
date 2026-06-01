@@ -9,6 +9,7 @@ import {
 	getPendingMutationCount,
 	getPendingRoutePlanMutations,
 } from "@/features/offline-mutations/pending-mutation-queue";
+import { sanitizePlanTitleForStorage } from "@/features/plans/plan-title";
 import {
 	MAX_PLANS_PER_DATE,
 	type PlanUpsertInput,
@@ -39,6 +40,8 @@ interface PlansContextValue {
 	pendingPlanMutationCount: number;
 	pendingPlanMutationStatus: PendingSyncStatus;
 	upsertPlan: (plan: PlanUpsertInput, source?: string) => UserPlan | null;
+	sharePlan: (plan: UserPlan) => Promise<UserPlan | null>;
+	revokePlanShare: (plan: UserPlan) => Promise<UserPlan | null>;
 	deletePlan: (planId: string) => void;
 	getPlansForDate: (date: string) => UserPlan[];
 }
@@ -94,7 +97,10 @@ const readLocalPlans = (ownerKey: string): UserPlan[] => {
 		if (!raw) return [];
 		const parsed = JSON.parse(raw) as unknown;
 		if (!Array.isArray(parsed)) return [];
-		return parsed.filter(isUserPlan);
+		return parsed.filter(isUserPlan).map((plan) => ({
+			...plan,
+			shareOwnerNameVisible: plan.shareOwnerNameVisible !== false,
+		}));
 	} catch {
 		window.localStorage.removeItem(getStorageKey(ownerKey));
 		return [];
@@ -152,9 +158,11 @@ const toUserPlan = (
 		userId,
 		ownerKey,
 		planDate: input.planDate,
-		title: input.title.trim() || "My route",
+		title: sanitizePlanTitleForStorage(input.title, "My route"),
 		visibility: input.visibility,
 		shareToken: current?.shareToken ?? null,
+		shareOwnerNameVisible:
+			input.shareOwnerNameVisible ?? current?.shareOwnerNameVisible ?? true,
 		createdAt: current?.createdAt ?? timestamp,
 		updatedAt: timestamp,
 		stops: input.stops
@@ -178,7 +186,7 @@ const syncPlan = async (input: {
 	plan: UserPlan;
 	source: string;
 	queueOnFailure?: boolean;
-}): Promise<boolean> => {
+}): Promise<UserPlan | null> => {
 	try {
 		const response = await fetch(`${basePath}/api/user/plans`, {
 			method: "POST",
@@ -189,6 +197,7 @@ const syncPlan = async (input: {
 					planDate: input.plan.planDate,
 					title: input.plan.title,
 					visibility: input.plan.visibility,
+					shareOwnerNameVisible: input.plan.shareOwnerNameVisible,
 					stops: input.plan.stops.map((stop) => ({
 						id: stop.id,
 						eventKey: stop.eventKey,
@@ -203,7 +212,13 @@ const syncPlan = async (input: {
 				idempotencyKey: `route_plan:${input.ownerKey}:${input.plan.id}`,
 			}),
 		});
-		if (response.ok) return true;
+		if (response.ok) {
+			const payload = (await response.json()) as {
+				success: boolean;
+				plan?: UserPlan;
+			};
+			return payload.success && payload.plan ? payload.plan : input.plan;
+		}
 	} catch {
 		// Queue below.
 	}
@@ -215,7 +230,7 @@ const syncPlan = async (input: {
 			source: input.source,
 		});
 	}
-	return false;
+	return null;
 };
 
 const syncPlanDelete = async (input: {
@@ -340,7 +355,7 @@ export function PlansProvider({ children }: { children: ReactNode }) {
 						ownerKey: mutation.ownerKey,
 						plan: mutation.payload.plan as UserPlan,
 						source: mutation.payload.source,
-					}),
+					}).then(Boolean),
 				routePlanDelete: ({ mutation }) =>
 					syncPlanDelete({
 						ownerKey: mutation.ownerKey,
@@ -380,7 +395,20 @@ export function PlansProvider({ children }: { children: ReactNode }) {
 					plan: savedPlan,
 					source,
 					queueOnFailure: true,
-				}).then(() => {
+				}).then((remotePlan) => {
+					if (remotePlan) {
+						setPlans((current) => {
+							const next = [
+								remotePlan,
+								...current.filter((plan) => plan.id !== remotePlan.id),
+							].sort((left, right) =>
+								right.updatedAt.localeCompare(left.updatedAt),
+							);
+							plansRef.current = next;
+							writeLocalPlans(ownerKey, next);
+							return next;
+						});
+					}
 					setPendingPlanMutationCount(getPendingMutationCount(ownerKey));
 				});
 			} else if (isAuthenticated && ownerKey !== "anon") {
@@ -395,6 +423,68 @@ export function PlansProvider({ children }: { children: ReactNode }) {
 			return savedPlan;
 		},
 		[canSync, isAuthenticated, ownerKey, userId],
+	);
+
+	const savePlanVisibility = useCallback(
+		async (
+			plan: UserPlan,
+			visibility: UserPlan["visibility"],
+			source: string,
+		): Promise<UserPlan | null> => {
+			if (!canSync) return null;
+			const savedPlan = toUserPlan(
+				ownerKey,
+				userId,
+				{
+					id: plan.id,
+					planDate: plan.planDate,
+					title: plan.title,
+					visibility,
+					shareOwnerNameVisible: plan.shareOwnerNameVisible,
+					stops: plan.stops,
+				},
+				plan,
+			);
+			const localPlan =
+				visibility === "private"
+					? { ...savedPlan, shareToken: null, shareOwnerNameVisible: true }
+					: savedPlan;
+			const applyPlan = (nextPlan: UserPlan) => {
+				setPlans((current) => {
+					const next = [
+						nextPlan,
+						...current.filter((candidate) => candidate.id !== nextPlan.id),
+					].sort((left, right) =>
+						right.updatedAt.localeCompare(left.updatedAt),
+					);
+					plansRef.current = next;
+					writeLocalPlans(ownerKey, next);
+					return next;
+				});
+			};
+			const remotePlan = await syncPlan({
+				ownerKey,
+				plan: localPlan,
+				source,
+				queueOnFailure: false,
+			});
+			if (remotePlan) applyPlan(remotePlan);
+			setPendingPlanMutationCount(getPendingMutationCount(ownerKey));
+			return remotePlan;
+		},
+		[canSync, ownerKey, userId],
+	);
+
+	const sharePlan = useCallback(
+		(plan: UserPlan) =>
+			savePlanVisibility(plan, "unlisted", "plans_page_share"),
+		[savePlanVisibility],
+	);
+
+	const revokePlanShare = useCallback(
+		(plan: UserPlan) =>
+			savePlanVisibility(plan, "private", "plans_page_revoke_share"),
+		[savePlanVisibility],
 	);
 
 	const deletePlan = useCallback(
@@ -437,6 +527,8 @@ export function PlansProvider({ children }: { children: ReactNode }) {
 			pendingPlanMutationCount,
 			pendingPlanMutationStatus,
 			upsertPlan,
+			sharePlan,
+			revokePlanShare,
 			deletePlan,
 			getPlansForDate,
 		}),
@@ -446,6 +538,8 @@ export function PlansProvider({ children }: { children: ReactNode }) {
 			pendingPlanMutationCount,
 			pendingPlanMutationStatus,
 			plans,
+			revokePlanShare,
+			sharePlan,
 			upsertPlan,
 		],
 	);
