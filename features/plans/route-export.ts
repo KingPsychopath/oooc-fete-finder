@@ -175,7 +175,7 @@ export const buildRouteMapTarget = (
 		return {
 			provider,
 			coverage: "first-leg",
-			url: `https://maps.apple.com/?saddr=${encodeURIComponent(points[0])}&daddr=${encodeURIComponent(points[1])}&dirflg=r`,
+			url: `https://maps.apple.com/?saddr=${encodeURIComponent(points[0])}&daddr=${encodeURIComponent(points[1])}&dirflg=w`,
 		};
 	}
 

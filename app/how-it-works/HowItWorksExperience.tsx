@@ -302,7 +302,10 @@ function DemoStage({ activeStep }: { activeStep: StoryStepId }) {
 					</div>
 				</div>
 				<div className="mt-5 grid gap-3 text-sm text-white/76">
-					<p>18-35-year-old travellers and locals moving through the same weekend.</p>
+					<p>
+						18-35-year-old travellers and locals moving through the same
+						weekend.
+					</p>
 					<p>
 						Recommendations, meeting points and useful “where next?” signal.
 					</p>
@@ -518,7 +521,10 @@ function MobileStepPreview({ stepId }: { stepId: StoryStepId }) {
 					</div>
 				</div>
 				<div className="mt-4 grid gap-2 text-sm text-white/76">
-					<p>18-35-year-old travellers and locals moving through the same weekend.</p>
+					<p>
+						18-35-year-old travellers and locals moving through the same
+						weekend.
+					</p>
 					<p>
 						Recommendations, meeting points and useful “where next?” signal.
 					</p>
@@ -632,7 +638,7 @@ export function HowItWorksExperience() {
 								<ArrowRight className="h-4 w-4" />
 							</Button>
 							<Link
-								href={`${basePath || ""}/`}
+								href={`${basePath || ""}/?map=fullscreen#event-map`}
 								className={cn(
 									buttonVariants({ variant: "outline" }),
 									"h-11 rounded-full bg-background/54 px-5",

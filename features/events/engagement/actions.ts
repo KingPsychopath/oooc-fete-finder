@@ -256,7 +256,9 @@ export async function getEventEngagementDashboard(
 				locationRequestCount: number;
 				tourInteractionCount: number;
 				navClickCount: number;
+				planActionCount: number;
 				uniqueSessionCount: number;
+				uniquePlanSessionCount: number;
 				topSearches: Array<{
 					query: string;
 					count: number;
@@ -289,6 +291,11 @@ export async function getEventEngagementDashboard(
 					count: number;
 				}>;
 				topNavigationClicks: Array<{
+					group: string;
+					value: string;
+					count: number;
+				}>;
+				topPlanActions: Array<{
 					group: string;
 					value: string;
 					count: number;
@@ -332,6 +339,7 @@ export async function getEventEngagementDashboard(
 			topLocationRequests,
 			topTourInteractions,
 			topNavigationClicks,
+			topPlanActions,
 			mapProviders,
 			topGenresRaw,
 			trafficSummary,
@@ -386,7 +394,9 @@ export async function getEventEngagementDashboard(
 						locationRequestCount: 0,
 						tourInteractionCount: 0,
 						navClickCount: 0,
+						planActionCount: 0,
 						uniqueSessionCount: 0,
+						uniquePlanSessionCount: 0,
 					}),
 			discoveryRepository
 				? discoveryRepository.listTopSearches({
@@ -446,6 +456,15 @@ export async function getEventEngagementDashboard(
 						startAt,
 						endAt,
 						limit: 20,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			discoveryRepository
+				? discoveryRepository.listTopDiscoveryActions({
+						actionType: "plan_action",
+						startAt,
+						endAt,
+						limit: 30,
 						includeAuthenticatedOnly,
 					})
 				: Promise.resolve([]),
@@ -797,7 +816,9 @@ export async function getEventEngagementDashboard(
 				locationRequestCount: discoverySummary.locationRequestCount,
 				tourInteractionCount: discoverySummary.tourInteractionCount,
 				navClickCount: discoverySummary.navClickCount,
+				planActionCount: discoverySummary.planActionCount,
 				uniqueSessionCount: discoverySummary.uniqueSessionCount,
+				uniquePlanSessionCount: discoverySummary.uniquePlanSessionCount,
 				topSearches,
 				topFilters,
 				topMapInteractions,
@@ -805,6 +826,7 @@ export async function getEventEngagementDashboard(
 				topLocationRequests,
 				topTourInteractions,
 				topNavigationClicks,
+				topPlanActions,
 			},
 			topGenres: topGenresRaw.map((row) => ({
 				genre: row.genre,

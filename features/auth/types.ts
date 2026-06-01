@@ -20,6 +20,7 @@ export type UserRecord = {
 	linkedSignalCount?: number;
 	searchSignalCount?: number;
 	filterSignalCount?: number;
+	planActionSignalCount?: number;
 	eventActionSignalCount?: number;
 	genrePreferenceSignalCount?: number;
 	lastSignalAt?: string | null;
@@ -63,6 +64,12 @@ export type CollectedUserProfile = {
 	recentFilters: Array<{
 		filterGroup: string;
 		filterValue: string;
+		recordedAt: string;
+	}>;
+	recentPlanActions: Array<{
+		surface: string;
+		action: string;
+		detail: string | null;
 		recordedAt: string;
 	}>;
 	recentEventActions: Array<{

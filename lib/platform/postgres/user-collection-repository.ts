@@ -50,6 +50,7 @@ type SignalCounts = {
 	linkedSignalCount: number;
 	searchSignalCount: number;
 	filterSignalCount: number;
+	planActionSignalCount: number;
 	eventActionSignalCount: number;
 	genrePreferenceSignalCount: number;
 	lastSignalAt: string | null;
@@ -94,6 +95,7 @@ const emptySignalCounts = (): SignalCounts => ({
 	linkedSignalCount: 0,
 	searchSignalCount: 0,
 	filterSignalCount: 0,
+	planActionSignalCount: 0,
 	eventActionSignalCount: 0,
 	genrePreferenceSignalCount: 0,
 	lastSignalAt: null,
@@ -613,6 +615,7 @@ export class UserCollectionRepository {
 					user_id: string;
 					search_count: number;
 					filter_count: number;
+					plan_count: number;
 					last_seen_at: Date | string | null;
 				}>
 			>`
@@ -620,6 +623,7 @@ export class UserCollectionRepository {
 					stats.user_id,
 					COUNT(*) FILTER (WHERE stats.action_type = 'search')::int AS search_count,
 					COUNT(*) FILTER (WHERE stats.action_type = 'filter_apply')::int AS filter_count,
+					COUNT(*) FILTER (WHERE stats.action_type = 'plan_action')::int AS plan_count,
 					MAX(stats.recorded_at) AS last_seen_at
 				FROM app_discovery_analytics_stats stats
 				WHERE stats.user_id = ANY(${userIds})
@@ -642,6 +646,13 @@ export class UserCollectionRepository {
 					row.filter_count,
 					row.last_seen_at,
 				);
+				bumpSignalCounts(
+					counts,
+					email,
+					"planActionSignalCount",
+					row.plan_count,
+					row.last_seen_at,
+				);
 			}
 		}
 
@@ -653,6 +664,7 @@ export class UserCollectionRepository {
 								email: string;
 								search_count: number;
 								filter_count: number;
+								plan_count: number;
 								last_seen_at: Date | string | null;
 							}>
 						>`
@@ -660,6 +672,7 @@ export class UserCollectionRepository {
 								COALESCE(users.email_normalized, LOWER(stats.user_email)) AS email,
 								COUNT(*) FILTER (WHERE stats.action_type = 'search')::int AS search_count,
 								COUNT(*) FILTER (WHERE stats.action_type = 'filter_apply')::int AS filter_count,
+								COUNT(*) FILTER (WHERE stats.action_type = 'plan_action')::int AS plan_count,
 								MAX(stats.recorded_at) AS last_seen_at
 							FROM app_discovery_analytics_stats stats
 							LEFT JOIN app_users users ON users.id = stats.user_id
@@ -675,6 +688,7 @@ export class UserCollectionRepository {
 								email: string;
 								search_count: number;
 								filter_count: number;
+								plan_count: number;
 								last_seen_at: Date | string | null;
 							}>
 						>`
@@ -682,6 +696,7 @@ export class UserCollectionRepository {
 								COALESCE(users.email_normalized, LOWER(stats.user_email)) AS email,
 								COUNT(*) FILTER (WHERE stats.action_type = 'search')::int AS search_count,
 								COUNT(*) FILTER (WHERE stats.action_type = 'filter_apply')::int AS filter_count,
+								COUNT(*) FILTER (WHERE stats.action_type = 'plan_action')::int AS plan_count,
 								MAX(stats.recorded_at) AS last_seen_at
 							FROM app_discovery_analytics_stats stats
 							LEFT JOIN app_users users ON users.id = stats.user_id
@@ -702,6 +717,13 @@ export class UserCollectionRepository {
 					row.email,
 					"filterSignalCount",
 					row.filter_count,
+					row.last_seen_at,
+				);
+				bumpSignalCounts(
+					counts,
+					row.email,
+					"planActionSignalCount",
+					row.plan_count,
 					row.last_seen_at,
 				);
 			}

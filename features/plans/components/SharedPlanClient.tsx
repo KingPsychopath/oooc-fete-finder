@@ -3,6 +3,7 @@
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useOptionalAuth } from "@/features/auth/auth-context";
 import EventModal from "@/features/events/components/EventModal";
+import type { EventAddToPlanResult } from "@/features/events/components/EventModal";
 import {
 	SavedEventsProvider,
 	useSavedEvents,
@@ -11,6 +12,8 @@ import type { Event } from "@/features/events/types";
 import { MapSelectionModal } from "@/features/maps/components/map-selection-modal";
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
 import type { MapProvider } from "@/features/maps/types";
+import { buildPlanWithAddedEvent } from "@/features/plans/add-event-to-plan";
+import { trackPlanAnalytics } from "@/features/plans/analytics";
 import { formatPublicPlanTitle } from "@/features/plans/plan-title";
 import { PlansProvider, usePlans } from "@/features/plans/plans-provider";
 import {
@@ -18,7 +21,7 @@ import {
 	buildRouteText,
 	downloadRouteICSFile,
 } from "@/features/plans/route-export";
-import type { SharedPlan } from "@/features/plans/types";
+import type { SharedPlan, UserPlan } from "@/features/plans/types";
 import { cn } from "@/lib/utils";
 import {
 	CalendarPlus,
@@ -30,7 +33,8 @@ import {
 	Share2,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AddEventToRouteDialog } from "./AddEventToRouteDialog";
 import { PlanRouteSummary } from "./PlanRouteSummary";
 
 const normalizeEventKey = (value: string): string => value.trim().toLowerCase();
@@ -94,6 +98,8 @@ function SharedPlanWorkspace({
 	);
 	const [isRouteMapPickerOpen, setIsRouteMapPickerOpen] = useState(false);
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+	const [routePickerEvent, setRoutePickerEvent] = useState<Event | null>(null);
+	const trackedViewKeyRef = useRef<string | null>(null);
 	const eventsByKey = useMemo(
 		() =>
 			new Map(
@@ -135,6 +141,19 @@ function SharedPlanWorkspace({
 			),
 	);
 
+	useEffect(() => {
+		const viewKey = `${plan.id}:${plan.planDate}:${plan.stops.length}`;
+		if (trackedViewKeyRef.current === viewKey) return;
+		trackedViewKeyRef.current = viewKey;
+		trackPlanAnalytics({
+			action: "shared_plan_view",
+			surface: "shared_plan",
+			planId: plan.id,
+			planDate: plan.planDate,
+			stopCount: plan.stops.length,
+		});
+	}, [plan.id, plan.planDate, plan.stops.length]);
+
 	const saveToMyPlans = () => {
 		const saved = upsertPlan(
 			{
@@ -153,54 +172,104 @@ function SharedPlanWorkspace({
 			"shared_plan_save",
 		);
 		setSaveStatus(saved ? "saved" : "limit");
+		trackPlanAnalytics({
+			action: "shared_plan_save",
+			surface: "shared_plan",
+			planId: plan.id,
+			planDate: plan.planDate,
+			stopCount: plan.stops.length,
+			value: saved ? "success" : "limit",
+		});
 	};
 
-	const addEventFromModalToPlan = (event: Event): number => {
-		const existingPlan =
-			plans.find(
-				(candidate) =>
-					candidate.planDate === event.date &&
-					candidate.stops.some(
-						(stop) =>
-							normalizeEventKey(stop.eventKey) ===
-							normalizeEventKey(event.eventKey),
-					),
-			) ?? plans.find((candidate) => candidate.planDate === event.date);
-		const existingKeys = new Set(
-			(existingPlan?.stops ?? []).map((stop) =>
-				normalizeEventKey(stop.eventKey),
+	const addEventToRoute = (
+		event: Event,
+		targetPlan: UserPlan | undefined,
+	): EventAddToPlanResult => {
+		const alreadyInRoute = Boolean(
+			targetPlan?.stops.some(
+				(stop) =>
+					normalizeEventKey(stop.eventKey) ===
+					normalizeEventKey(event.eventKey),
 			),
 		);
-		if (existingKeys.has(normalizeEventKey(event.eventKey))) {
-			return existingPlan?.stops.length ?? 0;
-		}
 		const saved = upsertPlan(
-			{
-				id: existingPlan?.id,
-				planDate: event.date,
-				title: existingPlan?.title ?? formatPublicPlanTitle(event.date),
-				visibility: existingPlan?.visibility ?? "private",
-				stops: [
-					...(existingPlan?.stops ?? []),
-					{
-						eventKey: event.eventKey,
-						stopOrder: (existingPlan?.stops.length ?? 0) + 1,
-						locked: false,
-						arrivalTime: event.time ?? null,
-						departureTime: event.endTime ?? null,
-						travelMinutesFromPrevious: null,
-					},
-				],
-			},
-			"shared_plan_modal_add_to_plan",
+			buildPlanWithAddedEvent(event, targetPlan),
+			"shared_plan_modal_add_to_route",
 		);
-		return saved?.stops.length ?? existingPlan?.stops.length ?? 0;
+		if (!saved) {
+			trackPlanAnalytics({
+				action: "add_event_from_modal",
+				surface: "shared_plan_modal",
+				planId: targetPlan?.id ?? plan.id,
+				planDate: targetPlan?.planDate ?? event.date,
+				eventKey: event.eventKey,
+				stopCount: targetPlan?.stops.length ?? 0,
+				value: "limit",
+			});
+			return {
+				stopCount: targetPlan?.stops.length ?? 0,
+				routeTitle: targetPlan?.title,
+				alreadyInRoute,
+				message: "Route limit reached for this day.",
+			};
+		}
+		trackPlanAnalytics({
+			action: "add_event_from_modal",
+			surface: "shared_plan_modal",
+			planId: saved.id,
+			planDate: saved.planDate,
+			eventKey: event.eventKey,
+			stopCount: saved.stops.length,
+			value: targetPlan ? "existing_route" : "new_route",
+		});
+		return {
+			stopCount: saved.stops.length,
+			routeTitle: saved.title,
+			alreadyInRoute,
+		};
+	};
+
+	const addEventFromModalToPlan = (
+		event: Event,
+	): EventAddToPlanResult | null => {
+		const sameDayPlans = plans.filter(
+			(candidate) => candidate.planDate === event.date,
+		);
+		const alreadyInAnyRoute = sameDayPlans.some((plan) =>
+			plan.stops.some(
+				(stop) =>
+					normalizeEventKey(stop.eventKey) ===
+					normalizeEventKey(event.eventKey),
+			),
+		);
+		if (sameDayPlans.length > 1 || alreadyInAnyRoute) {
+			trackPlanAnalytics({
+				action: "add_event_dialog_open",
+				surface: "shared_plan_modal",
+				planId: plan.id,
+				planDate: event.date,
+				eventKey: event.eventKey,
+				stopCount: sameDayPlans.length,
+				value: alreadyInAnyRoute ? "already_in_route" : "multiple_routes",
+			});
+			setRoutePickerEvent(event);
+			return null;
+		}
+		return addEventToRoute(event, sameDayPlans[0]);
 	};
 
 	const copyUrl = async () => {
 		try {
 			await navigator.clipboard.writeText(window.location.href);
 			setCopyStatus("copied");
+			trackPlanAnalytics({
+				action: "shared_plan_copy",
+				surface: "shared_plan",
+				planId: plan.id,
+				planDate: plan.planDate,
+				stopCount: plan.stops.length,
+			});
 			window.setTimeout(() => setCopyStatus("idle"), 1800);
 		} catch {
 			setCopyStatus("idle");
@@ -215,6 +284,14 @@ function SharedPlanWorkspace({
 				? "Calendar file downloaded with stops in route order."
 				: "Could not create a calendar file for this route.",
 		);
+		trackPlanAnalytics({
+			action: "route_calendar_export",
+			surface: "shared_plan",
+			planId: plan.id,
+			planDate: plan.planDate,
+			stopCount: routeEvents.length,
+			value: didExport ? "success" : "failure",
+		});
 	};
 
 	const openRouteInMapsWithProvider = async (
@@ -229,6 +306,14 @@ function SharedPlanWorkspace({
 		if (!target) return;
 
 		window.open(target.url, "_blank", "noopener,noreferrer");
+		trackPlanAnalytics({
+			action: "route_map_open",
+			surface: "shared_plan",
+			planId: plan.id,
+			planDate: plan.planDate,
+			stopCount: routeEvents.length,
+			value: `${provider}:${target.coverage}`,
+		});
 
 		if (target.coverage === "first-leg") {
 			try {
@@ -311,6 +396,15 @@ function SharedPlanWorkspace({
 								</Button>
 								<Link
 									href="/plans"
+									onClick={() =>
+										trackPlanAnalytics({
+											action: "shared_plan_open_planner",
+											surface: "shared_plan",
+											planId: plan.id,
+											planDate: plan.planDate,
+											stopCount: plan.stops.length,
+										})
+									}
 									className={cn(
 										buttonVariants({ variant: "outline" }),
 										"rounded-full bg-background/70",
@@ -428,6 +522,33 @@ function SharedPlanWorkspace({
 				}
 				onToggleSaved={(event) => toggleSavedEvent(event, "shared_plan_modal")}
 				onAddToPlan={addEventFromModalToPlan}
+			/>
+			<AddEventToRouteDialog
+				isOpen={Boolean(routePickerEvent)}
+				event={routePickerEvent}
+				plans={plans}
+				suggestedPlanId={
+					routePickerEvent
+						? plans.find(
+								(candidate) => candidate.planDate === routePickerEvent.date,
+							)?.id
+						: null
+				}
+				onClose={() => setRoutePickerEvent(null)}
+				onAddToRoute={(event, targetPlan) => {
+					addEventToRoute(event, targetPlan);
+				}}
+				onOpenRoute={(targetPlan) => {
+					trackPlanAnalytics({
+						action: "add_event_dialog_existing_route",
+						surface: "route_dialog",
+						planId: targetPlan.id,
+						planDate: targetPlan.planDate,
+						eventKey: routePickerEvent?.eventKey,
+						stopCount: targetPlan.stops.length,
+					});
+					window.location.href = "/plans";
+				}}
 			/>
 			<MapSelectionModal
 				isOpen={isRouteMapPickerOpen}

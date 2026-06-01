@@ -1,5 +1,9 @@
 "use client";
 import { Badge } from "@/components/ui/badge";
+import {
+	EventCategoryBadge,
+	getEventCategoryCardClassName,
+} from "@/features/events/components/EventCategoryBadge";
 import { shouldDisplayFeaturedEvent } from "@/features/events/featured/utils/timestamp-utils";
 import { toGenreLabel } from "@/features/events/genre-normalization";
 import {
@@ -30,7 +34,6 @@ import {
 	formatPrice,
 	getEventDisplayDayNightPeriod,
 	getEventLocationDisplay,
-	getPartyEventTypeLabel,
 	getPriceMeta,
 	getResolvedEventExperienceCategoryDefinition,
 } from "@/features/events/types";
@@ -49,7 +52,6 @@ import {
 	Moon,
 	Star,
 	Sun,
-	Tag,
 	Trees,
 	Users,
 } from "lucide-react";
@@ -108,34 +110,9 @@ export function EventCard({
 		event,
 		preferredDayNightPeriods,
 	);
-	const headerEventTypeLabel = getPartyEventTypeLabel(event.type);
-	const contextualPillLabel =
-		eventCategoryDefinition?.key === "party"
-			? headerEventTypeLabel
-			: eventCategoryDefinition?.label;
-	const shouldShowContextualPill = Boolean(contextualPillLabel);
-	const contextualPillClassName =
-		eventCategoryDefinition?.key === "party"
-			? "border-border/70 bg-background/50 text-muted-foreground"
-			: `${eventCategoryDefinition?.color ?? ""} hover:bg-background/60`;
-	const contextualPillIcon =
-		eventCategoryDefinition?.key === "party" ? (
-			<Clock className="h-3 w-3" />
-		) : (
-			<Tag className="h-3 w-3" />
-		);
-	const categoryCardClasses =
-		eventCategoryDefinition?.key === "party"
-			? "border-amber-300/18 bg-[linear-gradient(145deg,var(--card),rgba(255,251,239,0.42))] hover:bg-[linear-gradient(145deg,var(--card),rgba(255,251,239,0.5))] dark:border-amber-500/16 dark:bg-[linear-gradient(145deg,var(--card),rgba(73,53,24,0.14))] dark:hover:bg-[linear-gradient(145deg,var(--card),rgba(73,53,24,0.18))]"
-			: eventCategoryDefinition?.key === "activity"
-				? "border-sky-300/18 bg-[linear-gradient(145deg,var(--card),rgba(239,246,255,0.34))] hover:bg-[linear-gradient(145deg,var(--card),rgba(239,246,255,0.42))] dark:border-sky-500/16 dark:bg-[linear-gradient(145deg,var(--card),rgba(19,63,104,0.14))] dark:hover:bg-[linear-gradient(145deg,var(--card),rgba(19,63,104,0.18))]"
-				: eventCategoryDefinition?.key === "culture"
-					? "border-violet-300/18 bg-[linear-gradient(145deg,var(--card),rgba(248,245,255,0.32))] hover:bg-[linear-gradient(145deg,var(--card),rgba(248,245,255,0.4))] dark:border-violet-500/16 dark:bg-[linear-gradient(145deg,var(--card),rgba(57,43,90,0.14))] dark:hover:bg-[linear-gradient(145deg,var(--card),rgba(57,43,90,0.18))]"
-					: eventCategoryDefinition?.key === "food"
-						? "border-emerald-300/18 bg-[linear-gradient(145deg,var(--card),rgba(236,252,243,0.32))] hover:bg-[linear-gradient(145deg,var(--card),rgba(236,252,243,0.4))] dark:border-emerald-500/16 dark:bg-[linear-gradient(145deg,var(--card),rgba(30,74,51,0.14))] dark:hover:bg-[linear-gradient(145deg,var(--card),rgba(30,74,51,0.18))]"
-						: eventCategoryDefinition?.key === "wellness"
-							? "border-teal-300/18 bg-[linear-gradient(145deg,var(--card),rgba(240,253,250,0.32))] hover:bg-[linear-gradient(145deg,var(--card),rgba(240,253,250,0.4))] dark:border-teal-500/16 dark:bg-[linear-gradient(145deg,var(--card),rgba(20,83,75,0.14))] dark:hover:bg-[linear-gradient(145deg,var(--card),rgba(20,83,75,0.18))]"
-							: null;
+	const categoryCardClasses = getEventCategoryCardClassName(
+		eventCategoryDefinition,
+	);
 	const socialProofSaveCount = event.socialProofSaveCount ?? 0;
 	const socialProofHistoricalSaveCount =
 		event.socialProofHistoricalSaveCount ?? 0;
@@ -217,17 +194,7 @@ export function EventCard({
 			<div className="mb-2 space-y-2">
 				<div className="flex items-start justify-between gap-3">
 					<div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-						{shouldShowContextualPill && contextualPillLabel && (
-							<Badge
-								variant="outline"
-								className={`max-w-full px-2 text-[10px] font-semibold uppercase tracking-[0.12em] shadow-none hover:bg-background/60 ${contextualPillClassName}`}
-							>
-								<span className="inline-flex items-center gap-1">
-									{contextualPillIcon}
-									{contextualPillLabel}
-								</span>
-							</Badge>
-						)}
+						<EventCategoryBadge event={event} />
 						{!isCurrentlyFeatured && !isCurrentlyPromoted && hasOOOCPick && (
 							<Badge className="border border-amber-400/28 bg-amber-400/12 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-900 shadow-none hover:bg-amber-400/12 dark:text-amber-100">
 								<span className="inline-flex items-center gap-1">

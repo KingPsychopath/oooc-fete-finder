@@ -1,6 +1,9 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import {
+	EventCategoryBadge,
+	getEventCategoryCardClassName,
+} from "@/features/events/components/EventCategoryBadge";
 import {
 	type Event,
 	formatLocationAreaShort,
@@ -49,8 +52,10 @@ export function PlanRouteSummary({
 			{stops.map(({ event }, index) => {
 				const category = getResolvedEventExperienceCategoryDefinition(event);
 				const isInteractive = Boolean(onEventSelect);
-				const cardClassName =
-					"rounded-2xl border border-border/70 bg-background/88 p-3 text-left shadow-sm backdrop-blur transition duration-300 group-hover:-translate-y-0.5 group-hover:border-foreground/25 group-hover:shadow-md sm:p-4";
+				const cardClassName = cn(
+					"rounded-2xl border border-border/70 bg-background/88 p-3 text-left shadow-sm backdrop-blur transition duration-300 group-hover:-translate-y-0.5 group-hover:border-foreground/25 group-hover:shadow-md sm:p-4",
+					getEventCategoryCardClassName(category),
+				);
 				const cardContent = (
 					<>
 						<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -68,7 +73,7 @@ export function PlanRouteSummary({
 									{event.date}
 								</span>
 							)}
-							{category && <Badge variant="outline">{category.label}</Badge>}
+							<EventCategoryBadge event={event} />
 						</div>
 						<h3 className="mt-2 text-lg font-medium leading-tight sm:text-xl">
 							{event.name}

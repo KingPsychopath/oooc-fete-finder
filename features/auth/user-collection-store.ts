@@ -401,6 +401,12 @@ export class UserCollectionStore {
 					record.filterGroup &&
 					record.filterValue,
 			).length,
+			planActionSignalCount: recentDiscovery.filter(
+				(record) =>
+					record.actionType === "plan_action" &&
+					record.filterGroup &&
+					record.filterValue,
+			).length,
 			tourSignalCount: recentDiscovery.filter(
 				(record) =>
 					record.actionType === "tour_interaction" &&
@@ -413,6 +419,7 @@ export class UserCollectionStore {
 		const linkedSignalCount =
 			activityCounts.searchSignalCount +
 			activityCounts.filterSignalCount +
+			activityCounts.planActionSignalCount +
 			activityCounts.tourSignalCount +
 			activityCounts.eventActionSignalCount +
 			activityCounts.genrePreferenceSignalCount;
@@ -434,6 +441,10 @@ export class UserCollectionStore {
 				filterSignalCount: maxCount(
 					user.filterSignalCount,
 					activityCounts.filterSignalCount,
+				),
+				planActionSignalCount: maxCount(
+					user.planActionSignalCount,
+					activityCounts.planActionSignalCount,
 				),
 				eventActionSignalCount: maxCount(
 					user.eventActionSignalCount,
@@ -465,6 +476,20 @@ export class UserCollectionStore {
 				.map((record) => ({
 					filterGroup: record.filterGroup ?? "",
 					filterValue: record.filterValue ?? "",
+					recordedAt: record.recordedAt,
+				}))
+				.slice(0, 8),
+			recentPlanActions: recentDiscovery
+				.filter(
+					(record) =>
+						record.actionType === "plan_action" &&
+						record.filterGroup &&
+						record.filterValue,
+				)
+				.map((record) => ({
+					surface: record.filterGroup?.replace(/^plan:/, "") ?? "plan",
+					action: record.filterValue ?? "",
+					detail: record.searchQuery,
 					recordedAt: record.recordedAt,
 				}))
 				.slice(0, 8),

@@ -13,6 +13,7 @@ import { MapPin } from "lucide-react";
 import { Component, type ErrorInfo, type ReactNode, useCallback } from "react";
 
 interface EventsMapIslandProps {
+	fullscreenOpenRequest?: number;
 	isExpanded: boolean;
 	mapLoadStrategy: MapLoadStrategy;
 	onEventClick: (event: Event) => void;
@@ -105,6 +106,7 @@ function EventsMapFallback({
 }
 
 export function EventsMapIsland({
+	fullscreenOpenRequest = 0,
 	isExpanded,
 	mapLoadStrategy,
 	onEventClick,
@@ -148,6 +150,7 @@ export function EventsMapIsland({
 			<EventsMapErrorBoundary isOnline={isOnline}>
 				<EventsMapCard
 					events={filteredEvents}
+					fullscreenOpenRequest={fullscreenOpenRequest}
 					isExpanded={isExpanded}
 					onToggleExpanded={onToggleExpanded}
 					onEventClick={onEventClick}

@@ -28,7 +28,8 @@ type DiscoveryAnalyticsAction =
 	| "sort_change"
 	| "location_request"
 	| "tour_interaction"
-	| "nav_click";
+	| "nav_click"
+	| "plan_action";
 
 type EventEngagementPayload = {
 	eventKey: string;
@@ -110,6 +111,7 @@ const HIGH_VALUE_ENGAGEMENT_ACTIONS = new Set<EventEngagementAction>([
 const HIGH_VALUE_DISCOVERY_ACTIONS = new Set<DiscoveryAnalyticsAction>([
 	"page_view",
 	"tour_interaction",
+	"plan_action",
 ]);
 const LOW_VALUE_DISCOVERY_ACTIONS = new Set<DiscoveryAnalyticsAction>([
 	"nav_click",

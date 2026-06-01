@@ -99,5 +99,6 @@ describe("route export", () => {
 		expect(target?.url).toContain("maps.apple.com");
 		expect(target?.url).toContain("saddr=48.86%2C2.35");
 		expect(target?.url).toContain("daddr=48.87%2C2.36");
+		expect(target?.url).toContain("dirflg=w");
 	});
 });

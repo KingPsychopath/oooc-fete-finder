@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, MapPin, Maximize2 } from "lucide-react";
 import {
 	type PointerEvent,
+	useCallback,
 	useEffect,
 	useLayoutEffect,
 	useRef,
@@ -30,6 +31,7 @@ export type MapLoadStrategy = "immediate" | "expand" | "idle";
 
 type EventsMapCardProps = {
 	events: Event[];
+	fullscreenOpenRequest?: number;
 	isExpanded: boolean;
 	onToggleExpanded: () => void;
 	onEventClick: (event: Event) => void;
@@ -69,6 +71,7 @@ function MapPreview() {
 
 export function EventsMapCard({
 	events,
+	fullscreenOpenRequest = 0,
 	isExpanded,
 	onToggleExpanded,
 	onEventClick,
@@ -101,9 +104,20 @@ export function EventsMapCard({
 	const [mapPortalElement, setMapPortalElement] =
 		useState<HTMLDivElement | null>(null);
 	const fullscreenButtonRef = useRef<HTMLButtonElement>(null);
+	const lastFullscreenOpenRequestRef = useRef(fullscreenOpenRequest);
 	const hasFullscreenHistoryEntryRef = useRef(false);
 	const normalMapSlotRef = useRef<HTMLDivElement>(null);
 	const fullscreenMapSlotRef = useRef<HTMLDivElement>(null);
+
+	const handleOpenFullscreen = useCallback(() => {
+		if (!hasMountedMap) {
+			setHasMountedMap(true);
+			setShouldOpenFullscreenAfterMount(true);
+			return;
+		}
+		setHasMountedMap(true);
+		setIsFullscreen(true);
+	}, [hasMountedMap]);
 
 	useEffect(() => {
 		const element = document.createElement("div");
@@ -164,6 +178,12 @@ export function EventsMapCard({
 			}
 		};
 	}, [isExpanded, hasMountedMap, mapLoadStrategy]);
+
+	useEffect(() => {
+		if (fullscreenOpenRequest <= lastFullscreenOpenRequestRef.current) return;
+		lastFullscreenOpenRequestRef.current = fullscreenOpenRequest;
+		handleOpenFullscreen();
+	}, [fullscreenOpenRequest, handleOpenFullscreen]);
 
 	useEffect(() => {
 		if (!isFullscreen) return;
@@ -268,16 +288,6 @@ export function EventsMapCard({
 		"mr-0 md:mr-1",
 	);
 	const mapHeaderActionLabelClassName = "sr-only text-sm md:not-sr-only";
-
-	const handleOpenFullscreen = () => {
-		if (!hasMountedMap) {
-			setHasMountedMap(true);
-			setShouldOpenFullscreenAfterMount(true);
-			return;
-		}
-		setHasMountedMap(true);
-		setIsFullscreen(true);
-	};
 
 	const handleOpenFullscreenPointerDown = (
 		event: PointerEvent<HTMLButtonElement>,

@@ -143,7 +143,7 @@ interface EventModalProps {
 	isSaved?: boolean;
 	isInPlan?: boolean;
 	onToggleSaved?: (event: Event) => boolean;
-	onAddToPlan?: (event: Event) => number;
+	onAddToPlan?: (event: Event) => EventAddToPlanResult | null;
 	seriesEvents?: Event[];
 	onNavigateSeriesEvent?: (event: Event) => void;
 }
@@ -224,6 +224,13 @@ interface EventUpdateRequestForm {
 interface PriceFlagStatus {
 	message: string;
 	tone: "success" | "error";
+}
+
+export interface EventAddToPlanResult {
+	stopCount: number;
+	routeTitle?: string;
+	alreadyInRoute?: boolean;
+	message?: string;
 }
 
 const parseGenreLabels = (value: string): string[] =>
@@ -745,9 +752,9 @@ const EventModal: React.FC<EventModalProps> = ({
 			: planAddStatus?.tone === "error"
 				? "error"
 				: "idle";
-	const planButtonLabel = isInPlan ? "Event is in plan" : "Add event to plan";
+	const planButtonLabel = isInPlan ? "Event is in a route" : "Add to route";
 	const planTooltipLabel =
-		planAddStatus?.message ?? (isInPlan ? "In your plan" : "Add to plan");
+		planAddStatus?.message ?? (isInPlan ? "In a route" : "Add to route");
 
 	const handleOpenLocation = async (
 		location: string,
@@ -1470,21 +1477,23 @@ const EventModal: React.FC<EventModalProps> = ({
 			setTimedPlanStatus("Needs a confirmed date first", "error");
 			return;
 		}
-		const stopCount = onAddToPlan(event);
+		const result = onAddToPlan(event);
+		if (!result) return;
 		haptics.success();
 		setTimedPlanStatus(
-			isInPlan
-				? `Already in plan (${stopCount} stops)`
-				: stopCount <= 1
-					? "Started a plan"
-					: `Added to plan (${stopCount} stops)`,
+			result.message ??
+				(result.alreadyInRoute
+					? result.routeTitle
+						? `Already in ${result.routeTitle}`
+						: `Already in route (${result.stopCount} stops)`
+					: result.stopCount <= 1
+						? result.routeTitle
+							? `Started ${result.routeTitle}`
+							: "Started a route"
+						: result.routeTitle
+							? `Added to ${result.routeTitle}`
+							: `Added to route (${result.stopCount} stops)`),
 		);
-		trackEventEngagement({
-			eventKey: event.eventKey,
-			actionType: "saved_toggle",
-			source: "modal_add_to_plan",
-			isAuthenticated,
-		});
 	};
 
 	return createPortal(

@@ -35,6 +35,7 @@ type TypeaheadComboboxProps = {
 	clearOnSelect?: boolean;
 	className?: string;
 	leadingIcon?: ReactNode;
+	trailingAdornment?: ReactNode;
 	filterOptions?: (
 		options: TypeaheadComboboxOption[],
 		query: string,
@@ -70,6 +71,7 @@ export function TypeaheadCombobox({
 	clearOnSelect = false,
 	className,
 	leadingIcon = <Search className="h-4 w-4" />,
+	trailingAdornment,
 	filterOptions = defaultFilterOptions,
 }: TypeaheadComboboxProps) {
 	const generatedId = useId();
@@ -234,9 +236,15 @@ export function TypeaheadCombobox({
 					onKeyDown={handleKeyDown}
 					className={cn(
 						"h-11 w-full rounded-xl bg-transparent pr-3 pl-10 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed",
+						trailingAdornment && "pr-16",
 						isOpen && "rounded-b-none",
 					)}
 				/>
+				{trailingAdornment ? (
+					<span className="pointer-events-none absolute top-1/2 right-3 z-10 -translate-y-1/2">
+						{trailingAdornment}
+					</span>
+				) : null}
 				{isOpen ? (
 					<div className="absolute right-[-1px] left-[-1px] top-[calc(100%-1px)] z-40 overflow-hidden rounded-b-xl border border-t-0 border-border/80 bg-card opacity-100 shadow-[0_18px_52px_-34px_rgba(20,20,20,0.75)] animate-in fade-in-0 zoom-in-95 duration-200">
 						<ul

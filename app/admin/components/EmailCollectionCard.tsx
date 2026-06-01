@@ -72,6 +72,7 @@ type EmailActivityFilterMode =
 	| "recently-active"
 	| "searches"
 	| "filters"
+	| "plan-actions"
 	| "event-actions"
 	| "genre-prefs"
 	| "returned-no-activity"
@@ -91,6 +92,7 @@ const ACTIVITY_SEGMENTS: Array<{
 	},
 	{ label: "Searchers", value: "searches", sortMode: "searches" },
 	{ label: "Filter users", value: "filters", sortMode: "filters" },
+	{ label: "Plan users", value: "plan-actions", sortMode: "activity" },
 	{ label: "Event action users", value: "event-actions", sortMode: "activity" },
 	{
 		label: "Genre preference users",
@@ -156,6 +158,8 @@ const FILTER_GROUP_LABELS = {
 const RECENT_LIST_HELP_TEXT = {
 	filters: "Tap a row to open this user's filter state on the home page.",
 	searches: "Tap a search to open the home page with this query prefilled.",
+	planActions:
+		"Recent route planning, sharing, export, and shared-plan actions.",
 	eventActions: "Tap an event action row to open this user's linked event.",
 } as const;
 
@@ -391,6 +395,8 @@ const matchesActivityFilter = (
 			return (user.searchSignalCount ?? 0) > 0;
 		case "filters":
 			return (user.filterSignalCount ?? 0) > 0;
+		case "plan-actions":
+			return (user.planActionSignalCount ?? 0) > 0;
 		case "event-actions":
 			return (user.eventActionSignalCount ?? 0) > 0;
 		case "genre-prefs":
@@ -425,6 +431,7 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		"Linked Activity",
 		"Search Activity",
 		"Filter Activity",
+		"Plan Action Activity",
 		"Event Action Activity",
 		"Genre Preference Activity",
 		"Device",
@@ -445,6 +452,7 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		user.linkedSignalCount ?? 0,
 		user.searchSignalCount ?? 0,
 		user.filterSignalCount ?? 0,
+		user.planActionSignalCount ?? 0,
 		user.eventActionSignalCount ?? 0,
 		user.genrePreferenceSignalCount ?? 0,
 		user.deviceClass ?? "",
@@ -474,6 +482,7 @@ const getProfileSignalCount = (profile: CollectedUserProfile): number =>
 			profile.recentTourInteractions.length +
 			profile.recentSearches.length +
 			profile.recentFilters.length +
+			profile.recentPlanActions.length +
 			profile.recentEventActions.length,
 	);
 
@@ -484,6 +493,7 @@ const getLastActiveAt = (profile: CollectedUserProfile): string | null => {
 		...profile.recentTourInteractions.map((item) => item.recordedAt),
 		...profile.recentSearches.map((item) => item.recordedAt),
 		...profile.recentFilters.map((item) => item.recordedAt),
+		...profile.recentPlanActions.map((item) => item.recordedAt),
 		...profile.recentEventActions.map((item) => item.recordedAt),
 	].filter((value): value is string => Boolean(value));
 	return dates.sort((left, right) => right.localeCompare(left))[0] ?? null;
@@ -502,10 +512,17 @@ const getBehaviorRead = (profile: CollectedUserProfile): string => {
 		profile.user.eventActionSignalCount ?? 0,
 		profile.recentEventActions.length,
 	);
+	const planActions = Math.max(
+		profile.user.planActionSignalCount ?? 0,
+		profile.recentPlanActions.length,
+	);
 	const genres = Math.max(
 		profile.user.genrePreferenceSignalCount ?? 0,
 		profile.genrePreferences.length,
 	);
+	if (planActions >= Math.max(searches + filters + eventActions, 1)) {
+		return "Plan-led browsing";
+	}
 	if (eventActions >= Math.max(searches + filters, 1)) {
 		return "Event-led browsing";
 	}
@@ -532,6 +549,13 @@ const getSignalMetricItems = (profile: CollectedUserProfile) => [
 		value: Math.max(
 			profile.user.filterSignalCount ?? 0,
 			profile.recentFilters.length,
+		),
+	},
+	{
+		label: "Plan actions",
+		value: Math.max(
+			profile.user.planActionSignalCount ?? 0,
+			profile.recentPlanActions.length,
 		),
 	},
 	{
@@ -834,6 +858,7 @@ export const EmailCollectionCard = ({
 						linkedSignalCount: loadedProfile.user.linkedSignalCount,
 						searchSignalCount: loadedProfile.user.searchSignalCount,
 						filterSignalCount: loadedProfile.user.filterSignalCount,
+						planActionSignalCount: loadedProfile.user.planActionSignalCount,
 						eventActionSignalCount: loadedProfile.user.eventActionSignalCount,
 						genrePreferenceSignalCount:
 							loadedProfile.user.genrePreferenceSignalCount,
@@ -1055,6 +1080,7 @@ export const EmailCollectionCard = ({
 						<option value="recently-active">Active last 7d</option>
 						<option value="searches">Searched</option>
 						<option value="filters">Used filters</option>
+						<option value="plan-actions">Used plans</option>
 						<option value="event-actions">Opened/saved events</option>
 						<option value="genre-prefs">Genre prefs</option>
 						<option value="returned-no-activity">Seen after last action</option>
@@ -1307,6 +1333,11 @@ export const EmailCollectionCard = ({
 											{(user.filterSignalCount ?? 0) > 0 && (
 												<Badge variant="outline">
 													Filters: {user.filterSignalCount}
+												</Badge>
+											)}
+											{(user.planActionSignalCount ?? 0) > 0 && (
+												<Badge variant="outline">
+													Plans: {user.planActionSignalCount}
 												</Badge>
 											)}
 											{(user.eventActionSignalCount ?? 0) > 0 && (
@@ -1601,6 +1632,42 @@ export const EmailCollectionCard = ({
 													</p>
 												);
 											})
+										)}
+									</div>
+								</div>
+								<div className="rounded-md border bg-background/60 p-3">
+									<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+										Recent Plan Actions
+									</p>
+									<p className="mt-1 text-xs text-muted-foreground">
+										{RECENT_LIST_HELP_TEXT.planActions}
+									</p>
+									<div className="mt-2 space-y-1.5">
+										{profile.recentPlanActions.length === 0 ? (
+											<p className="text-xs text-muted-foreground">
+												No plan actions linked.
+											</p>
+										) : (
+											profile.recentPlanActions.map((item) => (
+												<p
+													key={`${item.surface}-${item.action}-${item.recordedAt}`}
+													className="flex justify-between gap-2 text-xs"
+												>
+													<span className="min-w-0 flex-1 truncate">
+														{formatContextValue(item.surface)} ·{" "}
+														{formatContextValue(item.action)}
+														{item.detail ? (
+															<span className="text-muted-foreground">
+																{" "}
+																({item.detail})
+															</span>
+														) : null}
+													</span>
+													<span className="shrink-0 text-muted-foreground">
+														{formatAdminDateTime(item.recordedAt)}
+													</span>
+												</p>
+											))
 										)}
 									</div>
 								</div>

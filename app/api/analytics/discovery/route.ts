@@ -4,6 +4,10 @@ import {
 	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
 import {
+	isPlanAnalyticsAction,
+	isPlanAnalyticsGroup,
+} from "@/features/plans/analytics-events";
+import {
 	checkTrackDiscoveryIpLimit,
 	checkTrackDiscoverySessionLimit,
 	extractClientIpFromHeaders,
@@ -37,6 +41,7 @@ const discoveryTrackSchema = z.object({
 		"location_request",
 		"tour_interaction",
 		"nav_click",
+		"plan_action",
 	]),
 	sessionId: z.string().trim().max(120).optional(),
 	filterGroup: z.string().trim().max(80).optional(),
@@ -115,8 +120,7 @@ const parseCookieByName = (
 };
 
 const extractCountryCode = (headers: Headers): string | null => {
-	const value =
-		headers.get("cf-ipcountry") || headers.get("x-country-code");
+	const value = headers.get("cf-ipcountry") || headers.get("x-country-code");
 	const normalized = value?.trim().toUpperCase();
 	return normalized && /^[A-Z]{2}$/.test(normalized) ? normalized : null;
 };
@@ -192,6 +196,16 @@ export async function POST(request: Request) {
 		if (body.actionType === "search") {
 			const searchQuery = (body.searchQuery ?? "").trim().toLowerCase();
 			if (searchQuery.length < 2) {
+				return false;
+			}
+		}
+		if (body.actionType === "plan_action") {
+			const filterGroup = (body.filterGroup ?? "").trim().toLowerCase();
+			const filterValue = (body.filterValue ?? "").trim().toLowerCase();
+			if (
+				!isPlanAnalyticsGroup(filterGroup) ||
+				!isPlanAnalyticsAction(filterValue)
+			) {
 				return false;
 			}
 		}

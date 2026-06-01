@@ -11,6 +11,7 @@ const resetEnv = () => {
 describe("kv-store-factory", () => {
 	afterEach(() => {
 		vi.clearAllMocks();
+		vi.unstubAllEnvs();
 		vi.resetModules();
 		resetEnv();
 	});
@@ -40,7 +41,7 @@ describe("kv-store-factory", () => {
 	});
 
 	it("throws in generic production strict mode when Postgres is not configured", async () => {
-		process.env.NODE_ENV = "production";
+		vi.stubEnv("NODE_ENV", "production");
 		process.env.RAILWAY_ENVIRONMENT_NAME = "production";
 		process.env.NEXT_RUNTIME = "nodejs";
 
@@ -56,7 +57,7 @@ describe("kv-store-factory", () => {
 	});
 
 	it("throws in production strict mode when Postgres init fails", async () => {
-		process.env.NODE_ENV = "production";
+		vi.stubEnv("NODE_ENV", "production");
 		process.env.NEXT_RUNTIME = "nodejs";
 
 		vi.doMock("@/lib/platform/postgres/postgres-client", () => ({

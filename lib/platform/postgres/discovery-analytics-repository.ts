@@ -20,7 +20,8 @@ export type DiscoveryActionType =
 	| "sort_change"
 	| "location_request"
 	| "tour_interaction"
-	| "nav_click";
+	| "nav_click"
+	| "plan_action";
 
 export interface DiscoveryAnalyticsRecordInput {
 	actionType: DiscoveryActionType;
@@ -99,7 +100,7 @@ export class DiscoveryAnalyticsRepository {
 		await this.sql`
 			CREATE TABLE IF NOT EXISTS app_discovery_analytics_stats (
 				id BIGSERIAL PRIMARY KEY,
-				action_type TEXT NOT NULL CHECK (action_type IN ('page_view', 'search', 'filter_apply', 'filter_clear', 'map_interaction', 'sort_change', 'location_request', 'tour_interaction', 'nav_click')),
+				action_type TEXT NOT NULL CHECK (action_type IN ('page_view', 'search', 'filter_apply', 'filter_clear', 'map_interaction', 'sort_change', 'location_request', 'tour_interaction', 'nav_click', 'plan_action')),
 				session_id TEXT,
 				user_id TEXT,
 				user_email TEXT,
@@ -132,7 +133,7 @@ export class DiscoveryAnalyticsRepository {
 				DROP CONSTRAINT IF EXISTS app_discovery_analytics_stats_action_type_check;
 				ALTER TABLE app_discovery_analytics_stats
 				ADD CONSTRAINT app_discovery_analytics_stats_action_type_check
-				CHECK (action_type IN ('page_view', 'search', 'filter_apply', 'filter_clear', 'map_interaction', 'sort_change', 'location_request', 'tour_interaction', 'nav_click'));
+				CHECK (action_type IN ('page_view', 'search', 'filter_apply', 'filter_clear', 'map_interaction', 'sort_change', 'location_request', 'tour_interaction', 'nav_click', 'plan_action'));
 			END $$;
 		`;
 
@@ -317,7 +318,9 @@ export class DiscoveryAnalyticsRepository {
 		locationRequestCount: number;
 		tourInteractionCount: number;
 		navClickCount: number;
+		planActionCount: number;
 		uniqueSessionCount: number;
+		uniquePlanSessionCount: number;
 	}> {
 		await this.ready();
 		const userScopeFilter = input.includeAuthenticatedOnly
@@ -333,7 +336,9 @@ export class DiscoveryAnalyticsRepository {
 				locationRequestCount: number;
 				tourInteractionCount: number;
 				navClickCount: number;
+				planActionCount: number;
 				uniqueSessionCount: number;
+				uniquePlanSessionCount: number;
 			}>
 		>`
 			SELECT
@@ -345,7 +350,9 @@ export class DiscoveryAnalyticsRepository {
 				COUNT(*) FILTER (WHERE action_type = 'location_request')::int AS "locationRequestCount",
 				COUNT(*) FILTER (WHERE action_type = 'tour_interaction')::int AS "tourInteractionCount",
 				COUNT(*) FILTER (WHERE action_type = 'nav_click')::int AS "navClickCount",
-				COUNT(DISTINCT session_id) FILTER (WHERE action_type <> 'page_view')::int AS "uniqueSessionCount"
+				COUNT(*) FILTER (WHERE action_type = 'plan_action')::int AS "planActionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type <> 'page_view')::int AS "uniqueSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'plan_action')::int AS "uniquePlanSessionCount"
 			FROM app_discovery_analytics_stats
 			WHERE recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}
@@ -361,7 +368,9 @@ export class DiscoveryAnalyticsRepository {
 				locationRequestCount: 0,
 				tourInteractionCount: 0,
 				navClickCount: 0,
+				planActionCount: 0,
 				uniqueSessionCount: 0,
+				uniquePlanSessionCount: 0,
 			}
 		);
 	}

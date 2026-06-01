@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { trackTourInteraction } from "@/features/events/engagement/client-tracking";
 import {
 	FETE_FINDER_TOUR_EVENT,
+	FETE_FINDER_TOUR_STATE_COMPLETED,
 	FETE_FINDER_TOUR_STORAGE_KEY,
 	PENDING_FETE_FINDER_TOUR_STORAGE_KEY,
 	shouldSuppressFeteFinderTourPrompt,
@@ -20,7 +21,7 @@ import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-const TOUR_STATE_COMPLETED = "completed";
+const TOUR_STATE_COMPLETED = FETE_FINDER_TOUR_STATE_COMPLETED;
 const TOUR_STATE_SKIPPED = "skipped";
 
 interface TourStep {
@@ -52,6 +53,12 @@ interface FeteFinderTourProps {
 function writeTourState(state: string): void {
 	try {
 		window.localStorage.setItem(FETE_FINDER_TOUR_STORAGE_KEY, state);
+		if (state === TOUR_STATE_COMPLETED) {
+			window.localStorage.setItem(
+				`${FETE_FINDER_TOUR_STORAGE_KEY}:completed-at`,
+				String(Date.now()),
+			);
+		}
 	} catch {
 		// The tour still works when storage is unavailable.
 	}

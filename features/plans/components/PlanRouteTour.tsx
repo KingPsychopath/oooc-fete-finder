@@ -15,6 +15,8 @@ import { createPortal } from "react-dom";
 interface PlanRouteTourProps {
 	isOpen: boolean;
 	onClose: () => void;
+	onComplete?: () => void;
+	onSkip?: () => void;
 }
 
 interface TourStep {
@@ -179,7 +181,12 @@ const getBackdropPanels = (rect: SpotlightRect): BackdropPanel[] => {
 	].filter((panel) => panel.width > 0 && panel.height > 0);
 };
 
-export function PlanRouteTour({ isOpen, onClose }: PlanRouteTourProps) {
+export function PlanRouteTour({
+	isOpen,
+	onClose,
+	onComplete,
+	onSkip,
+}: PlanRouteTourProps) {
 	const haptics = useAppHaptics();
 	const cardRef = useRef<HTMLDivElement>(null);
 	const [mounted, setMounted] = useState(false);
@@ -200,15 +207,8 @@ export function PlanRouteTour({ isOpen, onClose }: PlanRouteTourProps) {
 				id: "line",
 				selector: "#plans-route-line",
 				title: "Shape the route",
-				body: "Suggest a route, then drag, pin or remove stops. Regenerate keeps pinned stops and replaces the rest.",
+				body: "Suggest a route, add saved events, then drag, pin or remove stops. Regenerate keeps pinned stops.",
 				preferredSide: "right",
-			},
-			{
-				id: "saved",
-				selector: "#plans-saved-events",
-				title: "Add saved events",
-				body: "Search events you saved for this day. Adding one puts it into the route you are editing.",
-				preferredSide: "left",
 			},
 			{
 				id: "routes",
@@ -289,8 +289,12 @@ export function PlanRouteTour({ isOpen, onClose }: PlanRouteTourProps) {
 
 	useEffect(() => {
 		if (!isOpen) return;
+		const closeAsSkipped = () => {
+			onSkip?.();
+			onClose();
+		};
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === "Escape") onClose();
+			if (event.key === "Escape") closeAsSkipped();
 			if (event.key === "ArrowRight") {
 				setStepIndex((index) => Math.min(index + 1, steps.length - 1));
 			}
@@ -307,7 +311,12 @@ export function PlanRouteTour({ isOpen, onClose }: PlanRouteTourProps) {
 			window.removeEventListener("resize", handleViewportChange);
 			window.removeEventListener("scroll", handleViewportChange);
 		};
-	}, [isOpen, onClose, steps.length, syncSpotlight]);
+	}, [isOpen, onClose, onSkip, steps.length, syncSpotlight]);
+
+	const closeAsSkipped = () => {
+		onSkip?.();
+		onClose();
+	};
 
 	if (!mounted || !isOpen || !currentStep || !spotlightRect) return null;
 
@@ -377,7 +386,7 @@ export function PlanRouteTour({ isOpen, onClose }: PlanRouteTourProps) {
 						type="button"
 						variant="ghost"
 						size="icon"
-						onClick={onClose}
+						onClick={closeAsSkipped}
 						className="h-8 w-8 rounded-full"
 						aria-label="Close plan tour"
 					>
@@ -408,6 +417,7 @@ export function PlanRouteTour({ isOpen, onClose }: PlanRouteTourProps) {
 						onClick={() => {
 							if (isLastStep) {
 								haptics.success();
+								onComplete?.();
 								onClose();
 								return;
 							}

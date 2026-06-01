@@ -4,9 +4,14 @@ export const FETE_FINDER_TOUR_STORAGE_KEY = `oooc:fete-finder-tour:v${FETE_FINDE
 export const FETE_FINDER_TOUR_SNOOZE_STORAGE_KEY = `${FETE_FINDER_TOUR_STORAGE_KEY}:snoozed-until`;
 export const PENDING_FETE_FINDER_TOUR_STORAGE_KEY =
 	"oooc:fete-finder-tour:pending";
+export const FETE_FINDER_TOUR_STATE_COMPLETED = "completed";
 const FETE_FINDER_TOUR_PROMPT_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
 
-const FINAL_TOUR_STATES = new Set(["completed", "skipped", "dismissed"]);
+const FINAL_TOUR_STATES = new Set([
+	FETE_FINDER_TOUR_STATE_COMPLETED,
+	"skipped",
+	"dismissed",
+]);
 
 const normalizeBasePath = (value: string): string => {
 	if (!value || value === "/") return "";

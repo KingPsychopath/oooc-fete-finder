@@ -25,6 +25,7 @@ import {
 } from "@/features/events/tour-events";
 import type { Event } from "@/features/events/types";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
+import { HomePlanRoutePrompt } from "@/features/plans/components/HomePlanRoutePrompt";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { clientLog } from "@/lib/platform/client-logger";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -48,6 +49,8 @@ interface EventsClientProps {
 }
 
 const EVENT_MODAL_HISTORY_FLAG = "__ooocEventModalHistory";
+const MAP_VIEW_PARAM = "map";
+const MAP_VIEW_FULLSCREEN = "fullscreen";
 const REQUEST_UPDATE_PARAM = "requestUpdate";
 
 const FeteFinderTour = lazy(async () => {
@@ -144,12 +147,15 @@ function EventsClientShell({
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
+	const requestedMapView = searchParams.get(MAP_VIEW_PARAM);
 	const { eventDataSource, events, setEvents } = useEventsOffline();
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+	const [fullscreenMapOpenRequest, setFullscreenMapOpenRequest] = useState(0);
 	const [isMapExpanded, setIsMapExpanded] = useState(false);
 	const [isRequestUpdateOpen, setIsRequestUpdateOpen] = useState(false);
 	const [hasMountedTourIsland, setHasMountedTourIsland] = useState(false);
 	const invalidEventParamCountRef = useRef(0);
+	const consumedMapIntentRef = useRef<string | null>(null);
 	const hasMountedTourIslandRef = useRef(false);
 	const { settings: localAppSettings, isLoaded: areLocalSettingsLoaded } =
 		useLocalAppSettings();
@@ -223,6 +229,25 @@ function EventsClientShell({
 			window.removeEventListener(FETE_FINDER_TOUR_EVENT, mountForTourIntent);
 		};
 	}, [isOnline, mountTourIsland]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		if (requestedMapView !== MAP_VIEW_FULLSCREEN) return;
+
+		const currentParams = new URLSearchParams(window.location.search);
+
+		const currentIntent = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+		if (consumedMapIntentRef.current === currentIntent) return;
+		consumedMapIntentRef.current = currentIntent;
+
+		setIsMapExpanded(true);
+		setFullscreenMapOpenRequest((current) => current + 1);
+
+		currentParams.delete(MAP_VIEW_PARAM);
+		const nextQuery = currentParams.toString();
+		const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
+		window.history.replaceState(window.history.state, "", nextUrl);
+	}, [requestedMapView]);
 
 	const eventsByEventKey = useMemo(() => {
 		return new Map(
@@ -565,6 +590,7 @@ function EventsClientShell({
 			/>
 
 			<EventsMapIsland
+				fullscreenOpenRequest={fullscreenMapOpenRequest}
 				isExpanded={isMapExpanded}
 				mapLoadStrategy={effectiveMapLoadStrategy}
 				onToggleExpanded={toggleMapExpansion}
@@ -599,6 +625,8 @@ function EventsClientShell({
 				seriesEvents={selectedSeriesEvents}
 				onNavigateSeriesEvent={handleSeriesEventNavigate}
 			/>
+
+			<HomePlanRoutePrompt events={events} />
 
 			<ScrollToTopButton
 				mobileDock="stacked-with-filter"

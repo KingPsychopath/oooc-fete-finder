@@ -7,7 +7,14 @@ import {
 	type TypeaheadComboboxOption,
 } from "@/components/ui/typeahead-combobox";
 import { useOptionalAuth } from "@/features/auth/auth-context";
+import {
+	EventCategoryBadge,
+	getEventCategoryCardClassName,
+	getEventCategoryControlClassName,
+	getEventCategoryIcon,
+} from "@/features/events/components/EventCategoryBadge";
 import EventModal from "@/features/events/components/EventModal";
+import type { EventAddToPlanResult } from "@/features/events/components/EventModal";
 import {
 	SavedEventsProvider,
 	useSavedEvents,
@@ -23,7 +30,21 @@ import { MapSelectionModal } from "@/features/maps/components/map-selection-moda
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
 import type { MapProvider } from "@/features/maps/types";
 import { buildPlanWithAddedEvent } from "@/features/plans/add-event-to-plan";
+import { trackPlanAnalytics } from "@/features/plans/analytics";
 import { mergePinnedStopsIntoRoute } from "@/features/plans/pinned-route-merge";
+import {
+	getDefaultPlanDate,
+	getPlanDateOptions,
+} from "@/features/plans/plan-date-options";
+import {
+	PLAN_ROUTE_TOUR_STATE_COMPLETED,
+	PLAN_ROUTE_TOUR_STATE_DISMISSED,
+	PLAN_ROUTE_TOUR_STATE_SKIPPED,
+	consumePendingPlanRouteTourRequest,
+	markPlansPageVisited,
+	shouldSuppressPlanRouteTourPrompt,
+	writePlanRouteTourState,
+} from "@/features/plans/plan-onboarding";
 import { validatePlanTitle } from "@/features/plans/plan-title";
 import { PlansProvider, usePlans } from "@/features/plans/plans-provider";
 import {
@@ -70,7 +91,8 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AddEventToRouteDialog } from "./AddEventToRouteDialog";
 import { PlanRouteTour } from "./PlanRouteTour";
 
 interface PlansClientProps {
@@ -83,6 +105,8 @@ const formatTime = (value: string | undefined | null): string =>
 const normalizeEventKey = (value: string): string => value.trim().toLowerCase();
 const CONTROL_TRANSITION =
 	"transition-[background-color,border-color,color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] active:scale-[0.98]";
+const DESKTOP_RAIL_STICKY_CLASS = "lg:sticky lg:top-[10rem] lg:self-start";
+const DESKTOP_ROUTE_PANEL_HEIGHT_CLASS = "lg:max-h-[calc(100vh-11rem)]";
 const eventKeysMatch = (left: string[], right: string[]): boolean =>
 	left.length === right.length &&
 	left.every(
@@ -163,29 +187,6 @@ const formatPlanDateOption = (date: string): string => {
 	return parts ? `${parts.weekday} ${parts.day} ${parts.month}` : date;
 };
 
-const getDefaultPlanDate = (events: Event[]): string => {
-	const countsByDate = new Map<string, number>();
-	for (const event of events) {
-		if (!event.date) continue;
-		countsByDate.set(event.date, (countsByDate.get(event.date) ?? 0) + 1);
-	}
-	const dates = Array.from(countsByDate.keys()).sort();
-	if (dates.length === 0) return new Date().toISOString().slice(0, 10);
-	const maxYear = dates.reduce(
-		(currentMax, date) => Math.max(currentMax, Number.parseInt(date, 10)),
-		0,
-	);
-	const currentFestivalDates = dates.filter(
-		(date) => Number.parseInt(date, 10) === maxYear,
-	);
-	return (
-		currentFestivalDates.find((date) => (countsByDate.get(date) ?? 0) >= 3) ??
-		currentFestivalDates.find((date) => (countsByDate.get(date) ?? 0) >= 2) ??
-		currentFestivalDates[0] ??
-		dates[0]
-	);
-};
-
 export function PlansClient({ initialEvents }: PlansClientProps) {
 	return (
 		<SavedEventsProvider>
@@ -224,6 +225,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		[],
 	);
 	const [showTour, setShowTour] = useState(false);
+	const [showTourPrompt, setShowTourPrompt] = useState(false);
 	const [tourRunId, setTourRunId] = useState(0);
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 	const [isCreatingNewRoute, setIsCreatingNewRoute] = useState(false);
@@ -235,10 +237,14 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 	const [dragOverEventKey, setDragOverEventKey] = useState<string | null>(null);
 	const [sharingPlanId, setSharingPlanId] = useState<string | null>(null);
 	const [shareStatus, setShareStatus] = useState<string | null>(null);
+	const [copiedSharePlanId, setCopiedSharePlanId] = useState<string | null>(
+		null,
+	);
 	const [routeExportStatus, setRouteExportStatus] = useState<string | null>(
 		null,
 	);
 	const [isRouteMapPickerOpen, setIsRouteMapPickerOpen] = useState(false);
+	const [routePickerEvent, setRoutePickerEvent] = useState<Event | null>(null);
 
 	const eventsByKey = useMemo(
 		() =>
@@ -251,10 +257,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		[initialEvents],
 	);
 	const dateOptions = useMemo(
-		() =>
-			Array.from(
-				new Set(initialEvents.map((event) => event.date).filter(Boolean)),
-			).sort(),
+		() => getPlanDateOptions(initialEvents),
 		[initialEvents],
 	);
 	const dayEvents = useMemo(
@@ -422,12 +425,12 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		events: Event[],
 		source: string,
 		existingPlan: UserPlan | null = activePlan,
-	) => {
+	): UserPlan | null => {
 		if (!existingPlan && isRouteLimitReached) {
 			setPlanLimitMessage(
 				`You can save up to ${MAX_PLANS_PER_DATE} routes for this day. Delete one to make another.`,
 			);
-			return;
+			return null;
 		}
 		setPlanLimitMessage(null);
 		const plan = upsertPlan(
@@ -462,10 +465,11 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			setPlanLimitMessage(
 				`You can save up to ${MAX_PLANS_PER_DATE} routes for this day. Delete one to make another.`,
 			);
-			return;
+			return null;
 		}
 		setSelectedPlanId(plan.id);
 		setIsCreatingNewRoute(false);
+		return plan;
 	};
 
 	const applySuggestion = (
@@ -478,7 +482,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		const events = suggestion.eventKeys
 			.map((eventKey) => eventsByKey.get(normalizeEventKey(eventKey)))
 			.filter((event): event is Event => Boolean(event));
-		savePlanFromEvents(
+		const plan = savePlanFromEvents(
 			mergePinnedStopsIntoRoute({
 				proposedEvents: events,
 				existingStops: activeStops,
@@ -486,6 +490,16 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			}),
 			source,
 		);
+		if (plan) {
+			trackPlanAnalytics({
+				action: activePlan ? "regenerate_route" : "suggest_route",
+				surface: "planner",
+				planId: plan.id,
+				planDate: plan.planDate,
+				stopCount: plan.stops.length,
+				value: suggestion.mode,
+			});
+		}
 	};
 
 	const addEventToPlan = (event: Event) => {
@@ -493,7 +507,20 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			activeEvents.map((item) => normalizeEventKey(item.eventKey)),
 		);
 		if (existingKeys.has(normalizeEventKey(event.eventKey))) return;
-		savePlanFromEvents([...activeEvents, event], "plans_page_add_event");
+		const plan = savePlanFromEvents(
+			[...activeEvents, event],
+			"plans_page_add_event",
+		);
+		if (plan) {
+			trackPlanAnalytics({
+				action: "add_saved_event",
+				surface: "planner",
+				planId: plan.id,
+				planDate: plan.planDate,
+				eventKey: event.eventKey,
+				stopCount: plan.stops.length,
+			});
+		}
 	};
 
 	const moveStop = (eventKey: string, direction: -1 | 1) => {
@@ -507,7 +534,18 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		const [item] = next.splice(index, 1);
 		if (!item) return;
 		next.splice(nextIndex, 0, item);
-		savePlanFromEvents(next, "plans_page_reorder");
+		const plan = savePlanFromEvents(next, "plans_page_reorder");
+		if (plan) {
+			trackPlanAnalytics({
+				action: "reorder_stop",
+				surface: "planner",
+				planId: plan.id,
+				planDate: plan.planDate,
+				eventKey,
+				stopCount: plan.stops.length,
+				value: direction,
+			});
+		}
 	};
 
 	const moveStopToIndex = (eventKey: string, targetIndex: number) => {
@@ -527,17 +565,38 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		const [item] = next.splice(currentIndex, 1);
 		if (!item) return;
 		next.splice(targetIndex, 0, item);
-		savePlanFromEvents(next, "plans_page_drag_reorder");
+		const plan = savePlanFromEvents(next, "plans_page_drag_reorder");
+		if (plan) {
+			trackPlanAnalytics({
+				action: "drag_reorder_stop",
+				surface: "planner",
+				planId: plan.id,
+				planDate: plan.planDate,
+				eventKey,
+				stopCount: plan.stops.length,
+				value: targetIndex + 1,
+			});
+		}
 	};
 
 	const removeStop = (eventKey: string) => {
-		savePlanFromEvents(
+		const plan = savePlanFromEvents(
 			activeEvents.filter(
 				(event) =>
 					normalizeEventKey(event.eventKey) !== normalizeEventKey(eventKey),
 			),
 			"plans_page_remove_stop",
 		);
+		if (plan) {
+			trackPlanAnalytics({
+				action: "remove_stop",
+				surface: "planner",
+				planId: plan.id,
+				planDate: plan.planDate,
+				eventKey,
+				stopCount: plan.stops.length,
+			});
+		}
 	};
 
 	const toggleLock = (eventKey: string) => {
@@ -561,6 +620,20 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		if (!plan) return;
 		setSelectedPlanId(plan.id);
 		setStopCount((current) => Math.max(current, nextLockedCount, 2));
+		trackPlanAnalytics({
+			action: nextStops.some(
+				(stop) =>
+					normalizeEventKey(stop.eventKey) === normalizeEventKey(eventKey) &&
+					stop.locked,
+			)
+				? "pin_stop"
+				: "unpin_stop",
+			surface: "planner",
+			planId: plan.id,
+			planDate: plan.planDate,
+			eventKey,
+			stopCount: plan.stops.length,
+		});
 	};
 
 	const startDraggingStop = (
@@ -604,25 +677,84 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		finishDraggingStop();
 	};
 
-	const addEventFromModalToPlan = (event: Event): number => {
-		const existingPlan =
-			activePlan?.planDate === event.date
-				? activePlan
-				: getPlansForDate(event.date)[0];
+	const addEventToRoute = (
+		event: Event,
+		targetPlan: UserPlan | undefined,
+	): EventAddToPlanResult => {
+		const alreadyInRoute = Boolean(
+			targetPlan?.stops.some(
+				(stop) =>
+					normalizeEventKey(stop.eventKey) ===
+					normalizeEventKey(event.eventKey),
+			),
+		);
 		const plan = upsertPlan(
-			buildPlanWithAddedEvent(event, existingPlan),
-			"plans_page_modal_add_to_plan",
+			buildPlanWithAddedEvent(event, targetPlan),
+			"plans_page_modal_add_to_route",
 		);
 		if (!plan) {
 			setPlanLimitMessage(
 				`You can save up to ${MAX_PLANS_PER_DATE} routes for this day. Delete one to make another.`,
 			);
-			return existingPlan?.stops.length ?? 0;
+			trackPlanAnalytics({
+				action: "add_event_from_modal",
+				surface: "planner_modal",
+				planDate: event.date,
+				eventKey: event.eventKey,
+				value: "limit",
+			});
+			return {
+				stopCount: targetPlan?.stops.length ?? 0,
+				routeTitle: targetPlan?.title,
+				alreadyInRoute,
+				message: "Route limit reached for this day.",
+			};
 		}
 		setSelectedDate(event.date);
 		setSelectedPlanId(plan.id);
 		setIsCreatingNewRoute(false);
-		return plan.stops.length;
+		trackPlanAnalytics({
+			action: "add_event_from_modal",
+			surface: "planner_modal",
+			planId: plan.id,
+			planDate: plan.planDate,
+			eventKey: event.eventKey,
+			stopCount: plan.stops.length,
+			value: targetPlan ? "existing_route" : "new_route",
+		});
+		return {
+			stopCount: plan.stops.length,
+			routeTitle: plan.title,
+			alreadyInRoute,
+		};
+	};
+
+	const addEventFromModalToPlan = (
+		event: Event,
+	): EventAddToPlanResult | null => {
+		const sameDayPlans = getPlansForDate(event.date);
+		const existingPlan =
+			activePlan?.planDate === event.date ? activePlan : sameDayPlans[0];
+		const alreadyInAnyRoute = sameDayPlans.some((plan) =>
+			plan.stops.some(
+				(stop) =>
+					normalizeEventKey(stop.eventKey) ===
+					normalizeEventKey(event.eventKey),
+			),
+		);
+		if (sameDayPlans.length > 1 || alreadyInAnyRoute) {
+			trackPlanAnalytics({
+				action: "add_event_dialog_open",
+				surface: "planner_modal",
+				planDate: event.date,
+				eventKey: event.eventKey,
+				stopCount: sameDayPlans.length,
+				value: alreadyInAnyRoute ? "already_in_route" : "multiple_routes",
+			});
+			setRoutePickerEvent(event);
+			return null;
+		}
+		return addEventToRoute(event, existingPlan);
 	};
 
 	const startNewRoute = () => {
@@ -635,14 +767,28 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		setPlanLimitMessage(null);
 		setSelectedPlanId(null);
 		setIsCreatingNewRoute(true);
+		trackPlanAnalytics({
+			action: "new_route",
+			surface: "planner",
+			planDate: selectedDate,
+			value: "start",
+		});
 	};
 
 	const deletePlanById = (planId: string) => {
+		const plan = plans.find((candidate) => candidate.id === planId);
 		deletePlan(planId);
 		setPlanLimitMessage(null);
 		if (selectedPlanId === planId || activePlan?.id === planId) {
 			setSelectedPlanId(null);
 		}
+		trackPlanAnalytics({
+			action: "delete_route",
+			surface: "planner",
+			planId,
+			planDate: plan?.planDate,
+			stopCount: plan?.stops.length,
+		});
 	};
 
 	const deleteActivePlan = () => {
@@ -685,13 +831,52 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			"plans_page_rename_route",
 		);
 		if (renamedPlan) setSelectedPlanId(renamedPlan.id);
+		if (renamedPlan) {
+			trackPlanAnalytics({
+				action: "rename_route",
+				surface: "planner",
+				planId: renamedPlan.id,
+				planDate: renamedPlan.planDate,
+				stopCount: renamedPlan.stops.length,
+			});
+		}
 		cancelRenamePlan();
 	};
 
-	const startPlanTour = () => {
+	const startPlanTour = useCallback(() => {
+		setShowTourPrompt(false);
 		setTourRunId((current) => current + 1);
 		setShowTour(true);
-	};
+		trackPlanAnalytics({
+			action: "tour_start",
+			surface: "tour",
+			planDate: selectedDate,
+			stopCount: activePlan?.stops.length ?? 0,
+		});
+	}, [activePlan?.stops.length, selectedDate]);
+
+	useEffect(() => {
+		markPlansPageVisited();
+		if (consumePendingPlanRouteTourRequest()) {
+			const timer = window.setTimeout(startPlanTour, 650);
+			return () => window.clearTimeout(timer);
+		}
+		if (plans.length > 0 || shouldSuppressPlanRouteTourPrompt()) {
+			setShowTourPrompt(false);
+			return;
+		}
+		const timer = window.setTimeout(() => {
+			if (!shouldSuppressPlanRouteTourPrompt()) {
+				setShowTourPrompt(true);
+				trackPlanAnalytics({
+					action: "prompt_shown",
+					surface: "tour",
+					planDate: selectedDate,
+				});
+			}
+		}, 900);
+		return () => window.clearTimeout(timer);
+	}, [plans.length, selectedDate, startPlanTour]);
 
 	const selectPlanDate = (date: string) => {
 		setSelectedDate(date);
@@ -699,6 +884,11 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		setIsCreatingNewRoute(false);
 		setPlanLimitMessage(null);
 		setIsDateMenuOpen(false);
+		trackPlanAnalytics({
+			action: "date_select",
+			surface: "planner",
+			planDate: date,
+		});
 	};
 
 	const dateMenuRef = useOutsideClick<HTMLDivElement>(() => {
@@ -710,6 +900,13 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		setSelectedPlanId(plan.id);
 		setIsCreatingNewRoute(false);
 		setPlanLimitMessage(null);
+		trackPlanAnalytics({
+			action: "open_route",
+			surface: "planner",
+			planId: plan.id,
+			planDate: plan.planDate,
+			stopCount: plan.stops.length,
+		});
 	};
 
 	const buildPlanShareUrl = (shareToken: string): string => {
@@ -720,19 +917,54 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		).toString();
 	};
 
-	const copyPlanShareUrl = async (plan: UserPlan): Promise<boolean> => {
-		if (!plan.shareToken) return false;
+	const writeClipboardText = async (value: string): Promise<boolean> => {
 		try {
-			await navigator.clipboard.writeText(buildPlanShareUrl(plan.shareToken));
-			setShareStatus("Share link copied.");
+			await navigator.clipboard.writeText(value);
 			return true;
 		} catch {
-			setShareStatus(buildPlanShareUrl(plan.shareToken));
-			return false;
+			const textarea = document.createElement("textarea");
+			textarea.value = value;
+			textarea.setAttribute("readonly", "");
+			textarea.style.position = "fixed";
+			textarea.style.left = "-9999px";
+			textarea.style.top = "0";
+			document.body.appendChild(textarea);
+			textarea.select();
+			try {
+				return document.execCommand("copy");
+			} finally {
+				document.body.removeChild(textarea);
+			}
 		}
 	};
 
-	const createOrCopyShareLink = async (plan: UserPlan) => {
+	const copyPlanShareUrl = async (plan: UserPlan): Promise<boolean> => {
+		if (!plan.shareToken) return false;
+		const didCopy = await writeClipboardText(
+			buildPlanShareUrl(plan.shareToken),
+		);
+		if (didCopy) {
+			setShareStatus(null);
+			setCopiedSharePlanId(plan.id);
+			trackPlanAnalytics({
+				action: "share_copy",
+				surface: "share",
+				planId: plan.id,
+				planDate: plan.planDate,
+				stopCount: plan.stops.length,
+			});
+			window.setTimeout(() => {
+				setCopiedSharePlanId((current) =>
+					current === plan.id ? null : current,
+				);
+			}, 1600);
+			return true;
+		}
+		setShareStatus("Could not copy the share link.");
+		return false;
+	};
+
+	const createShareLink = async (plan: UserPlan) => {
 		setSharingPlanId(plan.id);
 		setShareStatus(null);
 		const sharedPlan =
@@ -746,7 +978,13 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			);
 			return;
 		}
-		await copyPlanShareUrl(sharedPlan);
+		trackPlanAnalytics({
+			action: "share_create",
+			surface: "share",
+			planId: sharedPlan.id,
+			planDate: sharedPlan.planDate,
+			stopCount: sharedPlan.stops.length,
+		});
 	};
 
 	const revokeShareLink = async (plan: UserPlan) => {
@@ -754,11 +992,17 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		setShareStatus(null);
 		const privatePlan = await revokePlanShare(plan);
 		setSharingPlanId(null);
-		setShareStatus(
-			privatePlan?.visibility === "private"
-				? "Share link revoked."
-				: "Could not revoke the share link. Try again online.",
-		);
+		if (privatePlan?.visibility !== "private") {
+			setShareStatus("Could not revoke the share link. Try again online.");
+			return;
+		}
+		trackPlanAnalytics({
+			action: "share_revoke",
+			surface: "share",
+			planId: privatePlan.id,
+			planDate: privatePlan.planDate,
+			stopCount: privatePlan.stops.length,
+		});
 	};
 
 	const exportRouteToCalendar = () => {
@@ -769,6 +1013,14 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 				? "Calendar file downloaded with stops in route order."
 				: "Could not create a calendar file for this route.",
 		);
+		trackPlanAnalytics({
+			action: "route_calendar_export",
+			surface: "export",
+			planId: activePlan.id,
+			planDate: activePlan.planDate,
+			stopCount: activeEvents.length,
+			value: didExport ? "success" : "failure",
+		});
 	};
 
 	const openRouteInMapsWithProvider = async (
@@ -783,6 +1035,14 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		if (!target) return;
 
 		window.open(target.url, "_blank", "noopener,noreferrer");
+		trackPlanAnalytics({
+			action: "route_map_open",
+			surface: "export",
+			planId: activePlan.id,
+			planDate: activePlan.planDate,
+			stopCount: activeEvents.length,
+			value: `${provider}:${target.coverage}`,
+		});
 
 		if (target.coverage === "first-leg") {
 			try {
@@ -821,13 +1081,18 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		setShareStatus(null);
 		const sharedPlan = await sharePlan({ ...plan, shareOwnerNameVisible });
 		setSharingPlanId(null);
-		setShareStatus(
-			sharedPlan
-				? shareOwnerNameVisible
-					? "Your first name will show on this shared plan."
-					: "Your name is hidden on this shared plan."
-				: "Could not update sharing settings. Try again online.",
-		);
+		if (!sharedPlan) {
+			setShareStatus("Could not update sharing settings. Try again online.");
+			return;
+		}
+		trackPlanAnalytics({
+			action: "share_owner_name_toggle",
+			surface: "share",
+			planId: sharedPlan.id,
+			planDate: sharedPlan.planDate,
+			stopCount: sharedPlan.stops.length,
+			value: shareOwnerNameVisible,
+		});
 	};
 
 	return (
@@ -852,9 +1117,41 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 							Plan a route for the day.
 						</h1>
 						<p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-							Pick a date, choose a suggested route, then pin, move or remove
+							Pick a date, choose a suggested route, then lock, move or remove
 							stops. Everything saves locally as you edit.
 						</p>
+						{showTourPrompt && (
+							<div className="mt-4 flex max-w-xl flex-wrap items-center gap-2 rounded-2xl border border-border/70 bg-background/72 p-2.5 text-sm shadow-sm">
+								<span className="min-w-0 flex-1 text-muted-foreground">
+									New here? Take a quick tour before building your first route.
+								</span>
+								<Button
+									type="button"
+									size="sm"
+									className="rounded-full"
+									onClick={startPlanTour}
+								>
+									Start tour
+								</Button>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									className="rounded-full"
+									onClick={() => {
+										writePlanRouteTourState(PLAN_ROUTE_TOUR_STATE_DISMISSED);
+										setShowTourPrompt(false);
+										trackPlanAnalytics({
+											action: "prompt_dismissed",
+											surface: "tour",
+											planDate: selectedDate,
+										});
+									}}
+								>
+									Not now
+								</Button>
+							</div>
+						)}
 					</div>
 					<div className="flex items-center justify-start lg:justify-end">
 						<Button
@@ -874,7 +1171,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			<section className="grid gap-4 lg:grid-cols-[18.5rem_minmax(0,1.45fr)_20.5rem] xl:grid-cols-[19rem_minmax(0,1.6fr)_21rem]">
 				<aside
 					id="plans-route-settings"
-					className="space-y-3 lg:sticky lg:top-5 lg:self-start"
+					className={cn("space-y-3", DESKTOP_RAIL_STICKY_CLASS)}
 				>
 					<div
 						id="plans-route-day"
@@ -971,12 +1268,13 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 						<div className="mt-3 flex flex-wrap gap-2">
 							{EVENT_EXPERIENCE_CATEGORIES.map((category) => {
 								const selected = selectedVibes.includes(category.key);
+								const CategoryIcon = getEventCategoryIcon(category);
 								return (
 									<Button
 										key={category.key}
 										type="button"
 										size="sm"
-										variant={selected ? "default" : "outline"}
+										variant="outline"
 										onClick={() =>
 											setSelectedVibes((current) =>
 												selected
@@ -984,8 +1282,13 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 													: [...current, category.key],
 											)
 										}
-										className={cn("rounded-full", CONTROL_TRANSITION)}
+										className={cn(
+											"rounded-full border shadow-none",
+											getEventCategoryControlClassName(category, selected),
+											CONTROL_TRANSITION,
+										)}
 									>
+										<CategoryIcon className="mr-1.5 h-3.5 w-3.5" />
 										{category.label}
 									</Button>
 								);
@@ -1041,7 +1344,11 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 
 				<section
 					id="plans-route-line"
-					className="flex min-w-0 flex-col rounded-2xl border border-border/70 bg-card p-3 shadow-sm sm:p-4 lg:sticky lg:top-5 lg:max-h-[calc(100vh-2.5rem)] lg:p-5"
+					className={cn(
+						"flex min-w-0 flex-col rounded-2xl border border-border/70 bg-card p-3 shadow-sm sm:p-4 lg:p-5",
+						DESKTOP_RAIL_STICKY_CLASS,
+						DESKTOP_ROUTE_PANEL_HEIGHT_CLASS,
+					)}
 				>
 					<div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
 						<div>
@@ -1108,89 +1415,14 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 									)}
 								</div>
 							)}
-							<p className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-								<ListChecks className="h-3.5 w-3.5" />
-								{routeStatusLabel}
-							</p>
-							{activePlan?.visibility === "unlisted" &&
-							activePlan.shareToken ? (
-								<p className="mt-1 inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-200">
-									<Share2 className="h-3.5 w-3.5" />
-									Shared by unlisted link
+							<div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+								<p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+									<ListChecks className="h-3.5 w-3.5" />
+									{routeStatusLabel}
 								</p>
-							) : null}
+							</div>
 						</div>
 						<div className="flex flex-wrap items-center gap-2">
-							{activePlan && activeEvents.length > 0 && (
-								<Button
-									type="button"
-									variant="outline"
-									onClick={exportRouteToCalendar}
-									title="Export route stops to calendar"
-									className="rounded-full px-3 sm:px-4"
-								>
-									<CalendarPlus className="h-4 w-4 sm:mr-2" />
-									<span className="hidden sm:inline">Calendar</span>
-									<span className="sr-only sm:hidden">Export to calendar</span>
-								</Button>
-							)}
-							{activePlan && activeEvents.length > 0 && (
-								<Button
-									type="button"
-									variant="outline"
-									onClick={openRouteInMaps}
-									title="Open route in maps"
-									className="rounded-full px-3 sm:px-4"
-								>
-									<MapPinned className="h-4 w-4 sm:mr-2" />
-									<span className="hidden sm:inline">Maps</span>
-									<span className="sr-only sm:hidden">Open route in maps</span>
-								</Button>
-							)}
-							{activePlan && (
-								<Button
-									type="button"
-									variant="outline"
-									onClick={() => createOrCopyShareLink(activePlan)}
-									disabled={sharingPlanId === activePlan.id}
-									title={
-										activePlan.shareToken
-											? "Copy share link"
-											: "Create a revocable unlisted share link"
-									}
-									className="rounded-full px-3 sm:px-4"
-								>
-									{activePlan.shareToken ? (
-										<Copy className="h-4 w-4 sm:mr-2" />
-									) : (
-										<Share2 className="h-4 w-4 sm:mr-2" />
-									)}
-									<span className="hidden sm:inline">
-										{sharingPlanId === activePlan.id
-											? "Sharing..."
-											: activePlan.shareToken
-												? "Copy link"
-												: "Share"}
-									</span>
-									<span className="sr-only sm:hidden">
-										{activePlan.shareToken ? "Copy link" : "Share"}
-									</span>
-								</Button>
-							)}
-							{activePlan?.shareToken && (
-								<Button
-									type="button"
-									variant="outline"
-									onClick={() => revokeShareLink(activePlan)}
-									disabled={sharingPlanId === activePlan.id}
-									title="Revoke share link"
-									className="rounded-full px-3 text-muted-foreground hover:text-destructive sm:px-4"
-								>
-									<X className="h-4 w-4 sm:mr-2" />
-									<span className="hidden sm:inline">Revoke</span>
-									<span className="sr-only sm:hidden">Revoke share link</span>
-								</Button>
-							)}
 							{activePlan && (
 								<Button
 									type="button"
@@ -1229,7 +1461,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 								}
 								title={
 									activePlan
-										? "Build another route from the current settings. Pinned stops keep their position."
+										? "Build another route from the current settings. Locked stops keep their position."
 										: undefined
 								}
 								className="rounded-full"
@@ -1241,6 +1473,72 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 								)}
 								{routeActionLabel}
 							</Button>
+							{activePlan && activeEvents.length > 0 && (
+								<Button
+									type="button"
+									variant="outline"
+									onClick={exportRouteToCalendar}
+									title="Export route stops to calendar"
+									className="rounded-full px-3 sm:px-4"
+								>
+									<CalendarPlus className="h-4 w-4 sm:mr-2" />
+									<span className="hidden sm:inline">Calendar</span>
+									<span className="sr-only sm:hidden">Export to calendar</span>
+								</Button>
+							)}
+							{activePlan && activeEvents.length > 0 && (
+								<Button
+									type="button"
+									variant="outline"
+									onClick={openRouteInMaps}
+									title="Open route in maps"
+									className="rounded-full px-3 sm:px-4"
+								>
+									<MapPinned className="h-4 w-4 sm:mr-2" />
+									<span className="hidden sm:inline">Maps</span>
+									<span className="sr-only sm:hidden">Open route in maps</span>
+								</Button>
+							)}
+							{activePlan && (
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() =>
+										activePlan.shareToken
+											? revokeShareLink(activePlan)
+											: createShareLink(activePlan)
+									}
+									disabled={sharingPlanId === activePlan.id}
+									title={
+										activePlan.shareToken
+											? "Revoke share link"
+											: "Create a revocable unlisted share link"
+									}
+									className={cn(
+										"rounded-full px-3 sm:px-4",
+										activePlan.shareToken &&
+											"text-muted-foreground hover:text-destructive",
+									)}
+								>
+									{activePlan.shareToken ? (
+										<X className="h-4 w-4 sm:mr-2" />
+									) : (
+										<Share2 className="h-4 w-4 sm:mr-2" />
+									)}
+									<span className="hidden sm:inline">
+										{sharingPlanId === activePlan.id
+											? activePlan.shareToken
+												? "Revoking..."
+												: "Sharing..."
+											: activePlan.shareToken
+												? "Revoke"
+												: "Share"}
+									</span>
+									<span className="sr-only sm:hidden">
+										{activePlan.shareToken ? "Revoke share link" : "Share"}
+									</span>
+								</Button>
+							)}
 						</div>
 					</div>
 					{planLimitMessage && (
@@ -1259,19 +1557,100 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 						</p>
 					)}
 					{activePlan?.shareToken && (
-						<label className="mb-4 flex shrink-0 items-center gap-3 rounded-2xl border border-border/70 bg-background px-3 py-2 text-sm text-muted-foreground">
+						<div className="mb-3 flex items-center gap-2 rounded-2xl border border-border/70 bg-background/80 px-2 py-1.5">
 							<input
-								type="checkbox"
-								checked={activePlan.shareOwnerNameVisible !== false}
-								disabled={sharingPlanId === activePlan.id}
-								onChange={(event) =>
-									setShareOwnerNameVisible(activePlan, event.target.checked)
-								}
-								className="h-4 w-4 accent-foreground"
+								type="text"
+								readOnly
+								value={buildPlanShareUrl(activePlan.shareToken)}
+								aria-label="Shared plan link"
+								onFocus={(event) => event.currentTarget.select()}
+								className="min-w-0 flex-1 truncate rounded-xl border border-transparent bg-transparent px-2 py-1 text-xs text-muted-foreground outline-none transition focus:border-border focus:bg-background"
 							/>
-							<span>Show my first name on this shared plan</span>
-						</label>
+							<div className="flex shrink-0 items-center gap-1.5">
+								<button
+									type="button"
+									aria-label={
+										copiedSharePlanId === activePlan.id
+											? "Share link copied"
+											: "Copy share link"
+									}
+									title={
+										copiedSharePlanId === activePlan.id
+											? "Share link copied"
+											: "Copy share link"
+									}
+									onClick={() => void copyPlanShareUrl(activePlan)}
+									className={cn(
+										"grid h-8 w-8 place-items-center rounded-full border border-border bg-background text-muted-foreground transition hover:border-foreground/30 hover:text-foreground",
+										copiedSharePlanId === activePlan.id &&
+											"border-foreground bg-foreground text-background",
+									)}
+								>
+									<span
+										className={cn(
+											"grid place-items-center transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]",
+											copiedSharePlanId === activePlan.id &&
+												"scale-110 rotate-[-6deg]",
+										)}
+									>
+										{copiedSharePlanId === activePlan.id ? (
+											<Check className="h-4 w-4 animate-in zoom-in-50 duration-200" />
+										) : (
+											<Copy className="h-4 w-4 animate-in fade-in-0 zoom-in-75 duration-200" />
+										)}
+									</span>
+								</button>
+								<label className="flex h-8 items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2 text-xs text-muted-foreground">
+									<input
+										type="checkbox"
+										checked={activePlan.shareOwnerNameVisible !== false}
+										disabled={sharingPlanId === activePlan.id}
+										onChange={(event) =>
+											setShareOwnerNameVisible(activePlan, event.target.checked)
+										}
+										className="h-3.5 w-3.5 accent-foreground"
+									/>
+									<span className="max-[360px]:sr-only">Show name</span>
+								</label>
+							</div>
+						</div>
 					)}
+					<div id="plans-saved-events" className="mb-3 shrink-0">
+						<p className="mb-1.5 text-xs text-muted-foreground">
+							Add saved events to this route.
+						</p>
+						<TypeaheadCombobox
+							options={savedEventOptions}
+							placeholder={
+								savedForDate.length > 0
+									? "Search saved events"
+									: "No saved events for this day"
+							}
+							emptyMessage="No saved events match that search"
+							disabled={savedForDate.length === 0}
+							maxVisibleOptions={7}
+							clearOnSelect
+							trailingAdornment={
+								savedForDate.length > 0 ? (
+									<Badge
+										variant="outline"
+										className="rounded-full bg-background"
+									>
+										{savedEventsAlreadyAddedCount}/{savedForDate.length}
+									</Badge>
+								) : null
+							}
+							onSelect={(option) => {
+								const event = eventsByKey.get(normalizeEventKey(option.value));
+								if (event) addEventToPlan(event);
+							}}
+						/>
+						{savedForDate.length === 0 && (
+							<p className="mt-1.5 text-xs text-muted-foreground">
+								Save events for this date to use your own shortlist.
+							</p>
+						)}
+					</div>
 
 					{activeEvents.length === 0 ? (
 						<div className="grid min-h-[22rem] place-items-center rounded-2xl border border-dashed border-border/80 bg-muted/30 px-6 text-center lg:min-h-0 lg:flex-1">
@@ -1306,6 +1685,8 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 									);
 									const category =
 										getResolvedEventExperienceCategoryDefinition(event);
+									const categoryCardClassName =
+										getEventCategoryCardClassName(category);
 									const previousEvent = activeEvents[index - 1];
 									const directDistance =
 										previousEvent && event
@@ -1381,6 +1762,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 												}}
 												className={cn(
 													"relative cursor-pointer rounded-2xl border border-border/70 bg-background p-3 shadow-sm outline-none transition group-hover:border-foreground/25 group-hover:shadow-md focus-visible:border-foreground/40 focus-visible:ring-2 focus-visible:ring-ring/40",
+													categoryCardClassName,
 													savedInShortlist &&
 														"border-emerald-500/20 bg-[linear-gradient(145deg,var(--background),rgba(236,252,243,0.34))] dark:border-emerald-500/18 dark:bg-[linear-gradient(145deg,var(--background),rgba(30,74,51,0.14))]",
 													stop?.locked &&
@@ -1401,11 +1783,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 															<span>
 																{formatLocationAreaShort(event.arrondissement)}
 															</span>
-															{category && (
-																<Badge variant="outline">
-																	{category.label}
-																</Badge>
-															)}
+															<EventCategoryBadge event={event} />
 															{savedInShortlist && (
 																<span className="inline-flex items-center gap-1 text-emerald-800/80 dark:text-emerald-200/85">
 																	<BookmarkCheck className="h-3.5 w-3.5" />
@@ -1480,14 +1858,19 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 																: "Pin stop and position into route rebuilds"
 														}
 														onClick={() => toggleLock(event.eventKey)}
-														className="rounded-full"
+														className="h-9 rounded-full px-3"
 													>
 														{stop?.locked ? (
-															<Lock className="mr-1.5 h-3.5 w-3.5" />
+															<Lock className="h-4 w-4 sm:mr-1.5" />
 														) : (
-															<Unlock className="mr-1.5 h-3.5 w-3.5" />
+															<Unlock className="h-4 w-4 sm:mr-1.5" />
 														)}
-														{stop?.locked ? "Pinned" : "Pin"}
+														<span className="hidden sm:inline">
+															{stop?.locked ? "Pinned" : "Pin"}
+														</span>
+														<span className="sr-only sm:hidden">
+															{stop?.locked ? "Pinned" : "Pin"}
+														</span>
 													</Button>
 													<IconButton
 														label="Remove from route"
@@ -1514,50 +1897,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 					)}
 				</section>
 
-				<aside className="space-y-3 lg:sticky lg:top-5 lg:self-start">
-					<div
-						id="plans-saved-events"
-						className="rounded-2xl border border-border/70 bg-card p-3 shadow-sm"
-					>
-						<div className="flex items-start justify-between gap-3">
-							<div>
-								<p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-									Add events you saved
-								</p>
-								<p className="mt-1 text-xs leading-5 text-muted-foreground">
-									Focus to add from your shortlist.
-								</p>
-							</div>
-							{savedForDate.length > 0 && (
-								<Badge variant="outline" className="shrink-0 rounded-full">
-									{savedEventsAlreadyAddedCount}/{savedForDate.length}
-								</Badge>
-							)}
-						</div>
-						<TypeaheadCombobox
-							className="mt-3"
-							options={savedEventOptions}
-							placeholder={
-								savedForDate.length > 0
-									? "Search saved events"
-									: "No saved events for this day"
-							}
-							emptyMessage="No saved events match that search"
-							disabled={savedForDate.length === 0}
-							maxVisibleOptions={7}
-							clearOnSelect
-							onSelect={(option) => {
-								const event = eventsByKey.get(normalizeEventKey(option.value));
-								if (event) addEventToPlan(event);
-							}}
-						/>
-						{savedForDate.length === 0 && (
-							<p className="mt-3 text-sm text-muted-foreground">
-								Save events for this date to build from your own shortlist.
-							</p>
-						)}
-					</div>
-
+				<aside className={cn("space-y-3", DESKTOP_RAIL_STICKY_CLASS)}>
 					<div
 						id="plans-saved-routes"
 						className="rounded-2xl border border-border/70 bg-card p-3 shadow-sm"
@@ -1734,6 +2074,22 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 				key={tourRunId}
 				isOpen={showTour}
 				onClose={() => setShowTour(false)}
+				onComplete={() => {
+					writePlanRouteTourState(PLAN_ROUTE_TOUR_STATE_COMPLETED);
+					trackPlanAnalytics({
+						action: "tour_complete",
+						surface: "tour",
+						planDate: selectedDate,
+					});
+				}}
+				onSkip={() => {
+					writePlanRouteTourState(PLAN_ROUTE_TOUR_STATE_SKIPPED);
+					trackPlanAnalytics({
+						action: "tour_skip",
+						surface: "tour",
+						planDate: selectedDate,
+					});
+				}}
 			/>
 			<EventModal
 				event={selectedEvent}
@@ -1745,6 +2101,35 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 				isInPlan={selectedEvent ? isEventInPlan(selectedEvent) : false}
 				onToggleSaved={(event) => toggleSavedEvent(event, "plans_page_modal")}
 				onAddToPlan={addEventFromModalToPlan}
+			/>
+			<AddEventToRouteDialog
+				isOpen={Boolean(routePickerEvent)}
+				event={routePickerEvent}
+				plans={plans}
+				suggestedPlanId={
+					routePickerEvent && activePlan?.planDate === routePickerEvent.date
+						? activePlan.id
+						: routePickerEvent
+							? getPlansForDate(routePickerEvent.date)[0]?.id
+							: null
+				}
+				onClose={() => setRoutePickerEvent(null)}
+				onAddToRoute={(event, targetPlan) => {
+					addEventToRoute(event, targetPlan);
+				}}
+				onOpenRoute={(plan) => {
+					setSelectedDate(plan.planDate);
+					setSelectedPlanId(plan.id);
+					setSelectedEvent(null);
+					trackPlanAnalytics({
+						action: "add_event_dialog_existing_route",
+						surface: "route_dialog",
+						planId: plan.id,
+						planDate: plan.planDate,
+						eventKey: routePickerEvent?.eventKey,
+						stopCount: plan.stops.length,
+					});
+				}}
 			/>
 			<MapSelectionModal
 				isOpen={isRouteMapPickerOpen}
