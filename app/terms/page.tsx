@@ -82,7 +82,7 @@ export default function TermsPage() {
 						<section>
 							<h2 className="mb-3 text-lg font-semibold">Staying Safe</h2>
 							<ul className="list-disc space-y-1 pl-6 text-muted-foreground">
-								<li>Avoid screenshots as proof.</li>
+								<li>Do not rely on screenshots alone as proof.</li>
 								<li>Use official ticket transfer links where possible.</li>
 								<li>
 									Double check ticket date, event, platform, and account

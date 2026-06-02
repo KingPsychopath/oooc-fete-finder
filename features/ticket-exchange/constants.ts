@@ -37,7 +37,7 @@ export const TICKET_EXCHANGE_RULES_COPY = [
 ] as const;
 
 export const TICKET_EXCHANGE_SCAM_TIPS = [
-	"Avoid screenshots as proof.",
+	"Do not rely on screenshots alone as proof.",
 	"Use official ticket transfer links where possible.",
 	"Double check ticket date, event, platform, and account details.",
 	"Be wary of urgency or odd payment requests.",
