@@ -78,6 +78,7 @@ export function TypeaheadCombobox({
 	const inputId = id ?? `typeahead-combobox-${generatedId}`;
 	const listboxId = `${inputId}-listbox`;
 	const containerRef = useRef<HTMLDivElement>(null);
+	const inputRef = useRef<HTMLInputElement>(null);
 	const [inputValue, setInputValue] = useState(value ?? "");
 	const [isOpen, setIsOpen] = useState(false);
 	const [highlightedIndex, setHighlightedIndex] = useState(0);
@@ -105,9 +106,16 @@ export function TypeaheadCombobox({
 		isOpen && activeOption ? `${listboxId}-option-${activeIndex}` : undefined;
 
 	useEffect(() => {
-		if (value === undefined || value === inputValue) return;
+		if (
+			value === undefined ||
+			isOpen ||
+			value === inputValue ||
+			document.activeElement === inputRef.current
+		) {
+			return;
+		}
 		setInputValue(value);
-	}, [inputValue, value]);
+	}, [inputValue, isOpen, value]);
 
 	useEffect(() => {
 		if (!isOpen) return;
@@ -219,6 +227,7 @@ export function TypeaheadCombobox({
 					</span>
 				) : null}
 				<input
+					ref={inputRef}
 					id={inputId}
 					type="text"
 					role="combobox"

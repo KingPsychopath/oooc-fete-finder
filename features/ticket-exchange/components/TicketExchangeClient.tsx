@@ -15,8 +15,8 @@ import type { Event } from "@/features/events/types";
 import {
 	createTicketExchangeListing,
 	expressTicketExchangeInterest,
-	repostTicketExchangeListing,
 	reportTicketExchangeListing,
+	repostTicketExchangeListing,
 	saveTicketExchangeContactProfile,
 	updateTicketExchangeListingStatus,
 } from "@/features/ticket-exchange/actions";
@@ -38,6 +38,7 @@ import type {
 	TicketExchangeListingView,
 	TicketExchangePageData,
 	TicketExchangeReportReason,
+	TicketExchangeSummary,
 } from "@/features/ticket-exchange/types";
 import { buildTicketExchangeEventPath } from "@/features/ticket-exchange/urls";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,7 @@ import {
 	Eye,
 	Flag,
 	Instagram,
+	ListChecks,
 	Mail,
 	MessageCircle,
 	Pause,
@@ -64,9 +66,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
-type TabKey = "selling" | "looking" | "mine";
+type TabKey = "all" | "selling" | "looking" | "mine";
+type MarketplaceTabKey = Exclude<TabKey, "mine">;
 
 type TicketExchangeClientProps = {
 	initialData: TicketExchangePageData;
@@ -97,6 +100,13 @@ type PendingAgreementIntent =
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const TICKET_EXCHANGE_AGREEMENT_STORAGE_KEY = `oooc_ticket_exchange_agreement_${TICKET_EXCHANGE_RULES_VERSION}`;
+const CONTROL_TRANSITION =
+	"transition-[background-color,border-color,color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] active:scale-[0.98]";
+const MARKETPLACE_TABS: Array<{ key: MarketplaceTabKey; label: string }> = [
+	{ key: "all", label: "All" },
+	{ key: "selling", label: "Selling" },
+	{ key: "looking", label: "Looking" },
+];
 const WEEKDAY_SHORT_LABELS = {
 	monday: "Mon",
 	tuesday: "Tue",
@@ -335,6 +345,20 @@ const contactIconFor = (label: string) => {
 	return <ExternalLink className="h-3.5 w-3.5" />;
 };
 
+const getPreferredMarketplaceTab = (
+	summaries: TicketExchangeSummary[],
+	selectedEventKey: string | null,
+): MarketplaceTabKey => {
+	const relevantSummaries = selectedEventKey
+		? summaries.filter((summary) => summary.eventKey === selectedEventKey)
+		: summaries;
+	const activeCount = relevantSummaries.reduce(
+		(total, summary) => total + summary.sellingCount + summary.lookingCount,
+		0,
+	);
+	return activeCount > 0 ? "all" : "selling";
+};
+
 export function TicketExchangeClient({
 	initialData,
 }: TicketExchangeClientProps) {
@@ -344,7 +368,12 @@ export function TicketExchangeClient({
 	const [selectedEventKey, setSelectedEventKey] = useState<string | null>(
 		initialData.selectedEventKey,
 	);
-	const [activeTab, setActiveTab] = useState<TabKey>("selling");
+	const [activeTab, setActiveTab] = useState<TabKey>(() =>
+		getPreferredMarketplaceTab(
+			initialData.summaries,
+			initialData.selectedEventKey,
+		),
+	);
 	const [isLoginOpen, setIsLoginOpen] = useState(false);
 	const [isProfileOpen, setIsProfileOpen] = useState(!initialData.profile);
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -380,6 +409,12 @@ export function TicketExchangeClient({
 		null,
 	);
 	const [isEventUpdateOpen, setIsEventUpdateOpen] = useState(false);
+	const hasUserSelectedTabRef = useRef(false);
+
+	useEffect(() => {
+		if (hasUserSelectedTabRef.current) return;
+		setActiveTab(getPreferredMarketplaceTab(data.summaries, selectedEventKey));
+	}, [data.summaries, selectedEventKey]);
 
 	useEffect(() => {
 		if (!hasAcceptedCurrentAgreement(data.profile)) return;
@@ -440,6 +475,13 @@ export function TicketExchangeClient({
 	const selectedEventOption =
 		eventOptions.find((option) => option.value === listingForm.eventKey) ??
 		null;
+	const activeMarketplaceTab =
+		activeTab === "mine"
+			? null
+			: MARKETPLACE_TABS.find((tab) => tab.key === activeTab);
+	const activeMarketplaceTabIndex = activeMarketplaceTab
+		? MARKETPLACE_TABS.findIndex((tab) => tab.key === activeMarketplaceTab.key)
+		: -1;
 	const visibleListings = useMemo(() => {
 		const listingsForEvent = selectedEventKey
 			? data.listings.filter((listing) => listing.eventKey === selectedEventKey)
@@ -451,12 +493,37 @@ export function TicketExchangeClient({
 		}
 		return listingsForEvent.filter(
 			(listing) =>
-				listing.listingType === activeTab &&
+				(activeTab === "all" || listing.listingType === activeTab) &&
 				listing.effectiveStatus !== "expired" &&
 				listing.effectiveStatus !== "resolved" &&
 				listing.effectiveStatus !== "removed",
 		);
 	}, [activeTab, data.listings, selectedEventKey]);
+
+	const selectMarketplaceTab = (tab: TabKey) => {
+		hasUserSelectedTabRef.current = true;
+		setActiveTab(tab);
+	};
+	const emptyListingCopy =
+		activeTab === "mine"
+			? {
+					title: "No activity yet",
+					body: "Your listings, unlocked contacts, and interest will show here.",
+				}
+			: activeTab === "selling"
+				? {
+						title: "No tickets available yet",
+						body: "Post a selling listing if you have tickets, or check Looking to see who needs one.",
+					}
+				: activeTab === "looking"
+					? {
+							title: "No one looking yet",
+							body: "Post a looking listing if you need a ticket, or check Selling for available tickets.",
+						}
+					: {
+							title: "No ticket exchange activity yet",
+							body: "Create a selling or looking listing to get the exchange moving.",
+						};
 
 	const applyResult = (result: TicketExchangeActionResult, success: string) => {
 		if (!result.success) {
@@ -1314,55 +1381,66 @@ export function TicketExchangeClient({
 				</aside>
 
 				<section className="min-w-0 space-y-4">
-					<div className="sticky top-2 z-30 rounded-xl border border-border/70 bg-card/95 p-1.5 shadow-sm backdrop-blur sm:rounded-2xl sm:p-2 lg:static lg:bg-card/72 lg:shadow-none">
-						<div className="grid grid-cols-[1fr_1fr_1.25fr_auto] items-center gap-1.5 sm:flex sm:gap-2">
-							<div className="contents sm:flex sm:min-w-0 sm:flex-1 sm:flex-wrap sm:gap-2">
-								<TabButton
-									active={activeTab === "selling"}
-									onClick={() => setActiveTab("selling")}
-								>
-									Selling
-								</TabButton>
-								<TabButton
-									active={activeTab === "looking"}
-									onClick={() => setActiveTab("looking")}
-								>
-									Looking
-								</TabButton>
-								<TabButton
-									active={activeTab === "mine"}
-									onClick={() => setActiveTab("mine")}
-								>
-									My activity
-								</TabButton>
-							</div>
-							<Button
-								type="button"
-								size="sm"
-								onClick={() =>
-									openCreateListing(
-										activeTab === "looking" ? "looking" : "selling",
-									)
-								}
-								className="h-9 shrink-0 px-2.5 text-xs sm:px-3 sm:text-sm"
+					<div className="sticky top-2 z-30 rounded-[1.15rem] border border-border/65 bg-card/86 p-1.5 shadow-[0_18px_44px_-34px_rgba(20,16,12,0.62),inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-xl sm:rounded-2xl sm:p-2 lg:static lg:bg-card/70 lg:shadow-[inset_0_1px_0_rgba(255,255,255,0.34)] dark:bg-card/58 dark:shadow-[0_18px_44px_-34px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.08)]">
+						<div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+							<div
+								role="group"
+								aria-label="Ticket exchange activity"
+								className="relative isolate grid min-w-0 flex-1 grid-cols-3 overflow-hidden rounded-xl border border-border/70 bg-[radial-gradient(ellipse_115%_130%_at_50%_-18%,rgba(255,255,255,0.42),transparent_54%),radial-gradient(ellipse_90%_92%_at_12%_115%,hsl(var(--primary)/0.12),transparent_64%),linear-gradient(145deg,hsl(var(--background)/0.62),hsl(var(--card)/0.7))] p-1 shadow-[0_18px_42px_-34px_rgba(20,16,12,0.78),inset_0_1px_0_rgba(255,255,255,0.58),inset_0_-1px_0_rgba(20,16,12,0.08)] backdrop-blur-xl sm:rounded-2xl dark:bg-[radial-gradient(ellipse_115%_130%_at_50%_-18%,rgba(255,255,255,0.08),transparent_54%),radial-gradient(ellipse_90%_92%_at_12%_115%,hsl(var(--primary)/0.14),transparent_64%),linear-gradient(145deg,hsl(var(--background)/0.44),hsl(var(--card)/0.58))]"
 							>
-								<Plus className="h-3.5 w-3.5" />
-								Post
-							</Button>
+								<span
+									aria-hidden="true"
+									className={cn(
+										"pointer-events-none absolute top-1 bottom-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-lg border border-white/20 bg-primary shadow-[0_14px_28px_-16px_hsl(var(--primary)/0.7),inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-1px_0_rgba(0,0,0,0.18)] transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] sm:rounded-xl",
+										activeMarketplaceTabIndex < 0 && "opacity-0",
+									)}
+									style={{
+										transform: `translateX(${Math.max(activeMarketplaceTabIndex, 0) * 100}%)`,
+									}}
+								/>
+								{MARKETPLACE_TABS.map((tab) => (
+									<SegmentedTabButton
+										key={tab.key}
+										active={activeTab === tab.key}
+										onClick={() => selectMarketplaceTab(tab.key)}
+									>
+										{tab.label}
+									</SegmentedTabButton>
+								))}
+							</div>
+							<div className="grid grid-cols-[1fr_auto] gap-1.5 sm:flex sm:shrink-0">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => selectMarketplaceTab("mine")}
+									className={cn(
+										"h-9 border-border/65 bg-background/48 px-2.5 text-xs text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-xl sm:px-3 sm:text-sm",
+										CONTROL_TRANSITION,
+										activeTab === "mine"
+											? "border-foreground/18 bg-foreground/8 text-foreground shadow-[0_12px_28px_-24px_rgba(20,16,12,0.76),inset_0_1px_0_rgba(255,255,255,0.58)]"
+											: "hover:border-foreground/20 hover:bg-background/70 hover:text-foreground",
+									)}
+								>
+									<ListChecks className="h-3.5 w-3.5" />
+									My activity
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									onClick={() =>
+										openCreateListing(
+											activeTab === "looking" ? "looking" : "selling",
+										)
+									}
+									className="h-9 shrink-0 px-2.5 text-xs sm:px-3 sm:text-sm"
+								>
+									<Plus className="h-3.5 w-3.5" />
+									Post
+								</Button>
+							</div>
 						</div>
 					</div>
-					{activeTab === "mine" && (
-						<p className="rounded-xl border border-border/70 bg-card/60 p-3 text-sm text-muted-foreground">
-							This is not a ticket wallet. It shows your listings, interest on
-							your listings, and listings where you unlocked contact details.
-						</p>
-					)}
-					<p className="rounded-xl border border-border/70 bg-card/48 px-3 py-2 text-sm text-muted-foreground">
-						You can unlock contact on up to{" "}
-						{TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active listings at
-						once. Closed listings clear after{" "}
-						{TICKET_EXCHANGE_INTEREST_LOCK_MINUTES} minutes.
-					</p>
 					{(data.isAuthenticated || auth.isAuthenticated) &&
 						data.profile &&
 						!hasAcceptedCurrentAgreement(data.profile) && (
@@ -1384,9 +1462,9 @@ export function TicketExchangeClient({
 					{visibleListings.length === 0 ? (
 						<div className="rounded-2xl border border-dashed border-border bg-card/48 p-8 text-center">
 							<Search className="mx-auto h-8 w-8 text-muted-foreground" />
-							<p className="mt-3 font-medium">No listings here yet</p>
+							<p className="mt-3 font-medium">{emptyListingCopy.title}</p>
 							<p className="mt-1 text-sm text-muted-foreground">
-								Create a selling or looking listing to get the exchange moving.
+								{emptyListingCopy.body}
 							</p>
 						</div>
 					) : (
@@ -1600,24 +1678,26 @@ function Field({
 	);
 }
 
-function TabButton({
+function SegmentedTabButton({
 	active,
 	onClick,
 	children,
 }: {
 	active: boolean;
 	onClick: () => void;
-	children: React.ReactNode;
+	children: ReactNode;
 }) {
 	return (
 		<button
 			type="button"
+			aria-pressed={active}
 			onClick={onClick}
 			className={cn(
-				"min-h-9 rounded-lg px-2 text-xs font-medium transition-colors sm:rounded-xl sm:px-4 sm:text-sm",
+				"relative z-10 min-h-8 rounded-lg px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 sm:min-h-9 sm:rounded-xl sm:px-4 sm:text-sm",
+				CONTROL_TRANSITION,
 				active
-					? "bg-primary text-primary-foreground"
-					: "text-muted-foreground hover:bg-muted hover:text-foreground",
+					? "text-primary-foreground"
+					: "text-muted-foreground hover:text-foreground",
 			)}
 		>
 			{children}
@@ -1887,30 +1967,39 @@ function ListingCard({
 					</>
 				) : (
 					<>
-						<Button
-							type="button"
-							size="sm"
-							disabled={listing.effectiveStatus !== "active" || isInterestBusy}
-							title={
-								isAuthenticated && !hasAgreement
-									? "You will review the Ticket Exchange agreement first."
-									: undefined
-							}
-							onClick={() => {
-								if (!isAuthenticated) {
-									onLogin();
-									return;
+						<div className="min-w-[13rem] max-w-full">
+							<Button
+								type="button"
+								size="sm"
+								disabled={
+									listing.effectiveStatus !== "active" || isInterestBusy
 								}
-								onInterest(listing);
-							}}
-						>
-							<Eye className="h-3.5 w-3.5" />
-							{isInterestBusy
-								? "Unlocking..."
-								: listing.myInterest
-									? "Update interest"
-									: "I'm interested"}
-						</Button>
+								title={
+									isAuthenticated && !hasAgreement
+										? "You will review the Ticket Exchange agreement first."
+										: undefined
+								}
+								onClick={() => {
+									if (!isAuthenticated) {
+										onLogin();
+										return;
+									}
+									onInterest(listing);
+								}}
+							>
+								<Eye className="h-3.5 w-3.5" />
+								{isInterestBusy
+									? "Unlocking..."
+									: listing.myInterest
+										? "Update interest"
+										: "I'm interested"}
+							</Button>
+							<p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+								Up to {TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active
+								unlocks. Closed clear after{" "}
+								{TICKET_EXCHANGE_INTEREST_LOCK_MINUTES}m.
+							</p>
+						</div>
 						<Button
 							type="button"
 							variant="outline"
