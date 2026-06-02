@@ -1896,7 +1896,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 											className={cn(
 												"grid grid-cols-[minmax(0,1fr)_2.25rem_2.25rem] items-center gap-2 rounded-2xl border p-2",
 												isActive
-													? "border-foreground bg-foreground text-background"
+													? "border-foreground bg-foreground text-background dark:border-border/80 dark:bg-muted/65 dark:text-foreground dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
 													: "border-border/70 bg-background hover:border-foreground/30",
 											)}
 										>
@@ -1924,7 +1924,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 														className={cn(
 															"h-10 w-full rounded-xl border px-3 text-sm outline-none",
 															isActive
-																? "border-white/25 bg-white/10 text-background placeholder:text-background/60"
+																? "border-white/25 bg-white/10 text-background placeholder:text-background/60 dark:border-border dark:bg-background/55 dark:text-foreground dark:placeholder:text-muted-foreground"
 																: "border-border bg-background text-foreground",
 														)}
 													/>
@@ -1950,7 +1950,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 																className={cn(
 																	"inline-flex h-6 shrink-0 items-center gap-1 rounded-full border px-2 text-[0.68rem] font-medium leading-none",
 																	isActive
-																		? "border-white/25 bg-white/10 text-background/85"
+																		? "border-white/25 bg-white/10 text-background/85 dark:border-border/80 dark:bg-background/40 dark:text-muted-foreground"
 																		: "border-border bg-muted/50 text-muted-foreground",
 																)}
 																title="Currently shared"
@@ -1972,7 +1972,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 														className={cn(
 															"mt-0.5 block text-xs",
 															isActive
-																? "text-background/75"
+																? "text-background/75 dark:text-muted-foreground"
 																: "text-muted-foreground",
 														)}
 													>
@@ -2002,7 +2002,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 												className={cn(
 													"grid h-9 w-9 place-items-center rounded-full border transition",
 													isActive
-														? "border-white/25 bg-white text-foreground hover:bg-white/90"
+														? "border-white/25 bg-white text-foreground hover:bg-white/90 dark:border-border/80 dark:bg-background/55 dark:text-muted-foreground dark:hover:border-foreground/30 dark:hover:bg-muted dark:hover:text-foreground"
 														: "border-border bg-muted/70 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
 												)}
 											>
@@ -2028,7 +2028,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 												className={cn(
 													"grid h-9 w-9 place-items-center rounded-full border transition",
 													isActive
-														? "border-white/25 bg-white text-foreground hover:bg-destructive hover:text-destructive-foreground"
+														? "border-white/25 bg-white text-foreground hover:bg-destructive hover:text-destructive-foreground dark:border-border/80 dark:bg-background/55 dark:text-muted-foreground dark:hover:border-destructive/40 dark:hover:bg-destructive dark:hover:text-destructive-foreground"
 														: "border-border bg-muted/70 text-muted-foreground hover:border-destructive/40 hover:bg-destructive hover:text-destructive-foreground",
 												)}
 											>

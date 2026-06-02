@@ -52,13 +52,9 @@ import {
 	Moon,
 	Star,
 	Sun,
-	Ticket,
 	Trees,
 	Users,
 } from "lucide-react";
-import Link from "next/link";
-
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 type EventCardProps = {
 	event: Event;
@@ -382,14 +378,6 @@ export function EventCard({
 					{socialProofLabel}
 				</div>
 			)}
-			<Link
-				href={`${basePath}/tickets/${event.slug}`}
-				onClick={(clickEvent) => clickEvent.stopPropagation()}
-				className="mt-3 inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-border/75 bg-background/60 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-			>
-				<Ticket className="h-3.5 w-3.5" />
-				Tickets
-			</Link>
 		</div>
 	);
 }
