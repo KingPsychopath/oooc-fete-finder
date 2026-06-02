@@ -4,8 +4,8 @@ import type {
 } from "./types";
 
 export const TICKET_EXCHANGE_RULES_VERSION = "2026-06-01";
-export const TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS = 3;
-export const TICKET_EXCHANGE_MAX_EXPIRY_HOURS = 24;
+export const TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS = 24;
+export const TICKET_EXCHANGE_MAX_EXPIRY_HOURS = 72;
 export const TICKET_EXCHANGE_CONTACT_REVEAL_GRACE_HOURS = 24;
 export const TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT = 2;
 export const TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER = 3;
@@ -51,4 +51,7 @@ export const TICKET_EXCHANGE_EXPIRY_OPTIONS = [
 	{ label: "3 hours", hours: 3 },
 	{ label: "6 hours", hours: 6 },
 	{ label: "24 hours", hours: 24 },
+	{ label: "36 hours", hours: 36 },
+	{ label: "48 hours", hours: 48 },
+	{ label: "72 hours", hours: 72 },
 ] as const;

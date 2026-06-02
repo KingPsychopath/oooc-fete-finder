@@ -22,6 +22,7 @@ import {
 } from "@/features/ticket-exchange/actions";
 import {
 	TICKET_EXCHANGE_CONTACT_METHODS,
+	TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS,
 	TICKET_EXCHANGE_EXPIRY_OPTIONS,
 	TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER,
 	TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT,
@@ -176,7 +177,7 @@ const createListingFormState = (
 	quantityLabel: "",
 	priceLabel: "",
 	note: "",
-	expiryHours: 3,
+	expiryHours: TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS,
 	contactMethods,
 });
 
@@ -1131,7 +1132,7 @@ export function TicketExchangeClient({
 			const result = await repostTicketExchangeListing({
 				listingId: repostListingId,
 				quantityLabel: repostQuantity,
-				expiryHours: 3,
+				expiryHours: TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS,
 				selectedEventKey,
 			});
 			applyResult(result, "Fresh listing posted.");
