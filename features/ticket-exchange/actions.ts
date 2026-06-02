@@ -34,6 +34,7 @@ import {
 	normalizeWhatsAppNumber,
 	normalizeXHandle,
 	resolveExpiryDate,
+	validateTicketExchangeNote,
 } from "./utils";
 
 const hasAcceptedCurrentTicketExchangeRules = (profile: {
@@ -171,7 +172,7 @@ export async function createTicketExchangeListing(input: {
 			listingType,
 			quantityLabel,
 			priceLabel,
-			note: normalizeTicketExchangeText(input.note, 360),
+			note: validateTicketExchangeNote(input.note),
 			ownerUserId: session.userId as string,
 			ownerEmail: session.email as string,
 			contactMethods,

@@ -67,6 +67,82 @@ export const normalizeTicketExchangeText = (
 		? value.trim().replace(/\s+/g, " ").slice(0, maxLength)
 		: "";
 
+export const TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR =
+	"Please remove offensive or abusive language from the note before posting.";
+
+const NOTE_ABUSE_BLOCKLIST = [
+	"fuck",
+	"fucker",
+	"fucked",
+	"fucking",
+	"shit",
+	"shitty",
+	"cunt",
+	"bitch",
+	"bitches",
+	"bastard",
+	"nigger",
+	"nigga",
+	"kike",
+	"faggot",
+	"fag",
+	"tranny",
+	"retard",
+	"spastic",
+	"paki",
+	"chink",
+	"gook",
+	"coon",
+	"dyke",
+	"nazi",
+] as const;
+
+const LEETSPEAK_MAP: Record<string, string> = {
+	"0": "o",
+	"1": "i",
+	"3": "e",
+	"4": "a",
+	"5": "s",
+	"7": "t",
+	"8": "b",
+	"@": "a",
+	"$": "s",
+	"!": "i",
+};
+
+const normalizeLanguageScanText = (value: string): string =>
+	value
+		.normalize("NFKD")
+		.replace(/[\u0300-\u036f]/gu, "")
+		.toLowerCase()
+		.replace(/[0134578@$!]/gu, (match) => LEETSPEAK_MAP[match] ?? match)
+		.replace(/(.)\1{2,}/gu, "$1$1");
+
+const compactLanguageScanText = (value: string): string =>
+	normalizeLanguageScanText(value).replace(/[^a-z0-9]+/gu, "");
+
+export const hasOffensiveTicketExchangeNoteLanguage = (
+	value: string,
+): boolean => {
+	const compact = compactLanguageScanText(value);
+	if (NOTE_ABUSE_BLOCKLIST.some((term) => compact.includes(term))) {
+		return true;
+	}
+
+	const normalized = normalizeLanguageScanText(value);
+	return /\b(?:kill\s+yourself|gas\s+(?:the\s+)?(?:jews|black|blacks|muslims|gays)|white\s+power|heil\s+hitler)\b/iu.test(
+		normalized,
+	);
+};
+
+export const validateTicketExchangeNote = (value: string): string => {
+	const note = normalizeTicketExchangeText(value, 360);
+	if (note && hasOffensiveTicketExchangeNoteLanguage(note)) {
+		throw new Error(TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR);
+	}
+	return note;
+};
+
 export const normalizeContactMethods = (
 	value: unknown,
 ): TicketExchangeContactMethod[] => {

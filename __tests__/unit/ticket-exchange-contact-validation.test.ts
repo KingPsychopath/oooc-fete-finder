@@ -1,8 +1,11 @@
 import {
+	TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR,
+	hasOffensiveTicketExchangeNoteLanguage,
 	normalizeInstagramHandle,
 	normalizeOptionalEmail,
 	normalizeWhatsAppNumber,
 	normalizeXHandle,
+	validateTicketExchangeNote,
 } from "@/features/ticket-exchange/utils";
 import { describe, expect, it } from "vitest";
 
@@ -44,6 +47,21 @@ describe("ticket exchange contact validation", () => {
 		);
 		expect(() => normalizeXHandle("this_handle_is_way_too_long")).toThrow(
 			"Enter a valid Twitter handle.",
+		);
+	});
+
+	it("allows normal Ticket Exchange notes", () => {
+		expect(validateTicketExchangeNote("  Can transfer via Dice after payment  ")).toBe(
+			"Can transfer via Dice after payment",
+		);
+		expect(validateTicketExchangeNote("")).toBe("");
+	});
+
+	it("rejects offensive Ticket Exchange note language", () => {
+		expect(hasOffensiveTicketExchangeNoteLanguage("no f u c k i n g timewasters")).toBe(true);
+		expect(hasOffensiveTicketExchangeNoteLanguage("heil hitler")).toBe(true);
+		expect(() => validateTicketExchangeNote("no sh1t offers")).toThrow(
+			TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR,
 		);
 	});
 });

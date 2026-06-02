@@ -16,6 +16,21 @@ const loadRoute = async () => {
 			getRecentListingsForBot: mockedGetRecentListingsForBot,
 		}),
 	}));
+	vi.doMock("@/features/ticket-exchange/service", () => ({
+		findTicketExchangeEventByKey: (
+			events: Array<{ eventKey: string }>,
+			eventKey: string,
+		) => events.find((event) => event.eventKey === eventKey) ?? null,
+		getTicketExchangeEvents: () =>
+			Promise.resolve([
+				{
+					eventKey: "evt_f034651cf465d832",
+					day: "sunday",
+					date: "2026-06-21",
+					time: "18:00",
+				},
+			]),
+	}));
 
 	return import("@/app/api/ticket-exchange/bot/recent-listings/route");
 };
@@ -52,5 +67,6 @@ describe("/api/ticket-exchange/bot/recent-listings", () => {
 		expect(response.status).toBe(200);
 		expect(body.listings[0].url).toBe("/tickets/evt_f034651cf465d832");
 		expect(body.listings[0].url).not.toContain("la-wine-up-block-party");
+		expect(body.listings[0].eventDateLabel).toBe("Sunday 21st · 18:00");
 	});
 });

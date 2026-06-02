@@ -41,6 +41,10 @@ import type {
 	TicketExchangeSummary,
 } from "@/features/ticket-exchange/types";
 import { buildTicketExchangeEventPath } from "@/features/ticket-exchange/urls";
+import {
+	TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR,
+	hasOffensiveTicketExchangeNoteLanguage,
+} from "@/features/ticket-exchange/utils";
 import { cn } from "@/lib/utils";
 import {
 	AlertTriangle,
@@ -709,6 +713,13 @@ export function TicketExchangeClient({
 			!listingForm.priceLabel.trim()
 		) {
 			setErrorMessage("Add the ticket price before posting a selling listing.");
+			return;
+		}
+		if (
+			listingForm.note.trim() &&
+			hasOffensiveTicketExchangeNoteLanguage(listingForm.note)
+		) {
+			setErrorMessage(TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR);
 			return;
 		}
 		createListingInFlightRef.current = true;
