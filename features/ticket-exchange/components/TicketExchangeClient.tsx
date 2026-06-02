@@ -1880,6 +1880,7 @@ export function TicketExchangeClient({
 				<ModalShell
 					title="Report listing"
 					onClose={() => setReportListingId(null)}
+					closeOnOutsideClick
 				>
 					<form onSubmit={handleReport} className="space-y-3">
 						<p className="rounded-lg border border-border/70 bg-muted/35 p-3 text-sm text-muted-foreground">
@@ -2480,14 +2481,28 @@ function ModalShell({
 	title,
 	children,
 	onClose,
+	closeOnOutsideClick = false,
 }: {
 	title: string;
 	children: React.ReactNode;
 	onClose: () => void;
+	closeOnOutsideClick?: boolean;
 }) {
 	return (
-		<div className="fixed inset-0 z-[120] flex items-end bg-black/40 p-3 sm:items-center sm:justify-center">
-			<div className="w-full max-w-lg rounded-2xl border border-border bg-card p-4 shadow-2xl">
+		<div
+			className="fixed inset-0 z-[120] flex items-end bg-black/40 p-3 sm:items-center sm:justify-center"
+			onMouseDown={(event) => {
+				if (closeOnOutsideClick && event.target === event.currentTarget) {
+					onClose();
+				}
+			}}
+		>
+			<div
+				className="w-full max-w-lg rounded-2xl border border-border bg-card p-4 shadow-2xl"
+				role="dialog"
+				aria-modal="true"
+				aria-label={title}
+			>
 				<div className="mb-3 flex items-center justify-between">
 					<h2 className="text-lg font-semibold">{title}</h2>
 					<Button type="button" variant="ghost" size="icon" onClick={onClose}>
