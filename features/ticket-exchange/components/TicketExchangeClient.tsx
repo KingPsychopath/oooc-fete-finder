@@ -519,38 +519,14 @@ export function TicketExchangeClient({
 		() => new Map(data.summaries.map((summary) => [summary.eventKey, summary])),
 		[data.summaries],
 	);
-	const eventOptions = useMemo<TypeaheadComboboxOption[]>(
+	const activitySortedEvents = useMemo(
 		() =>
 			data.events
 				.map((event, index) => {
 					const summary = summaryByEventKey.get(event.eventKey);
-					const sellingCount = summary?.sellingCount ?? 0;
-					const lookingCount = summary?.lookingCount ?? 0;
-					const activeCount = sellingCount + lookingCount;
-					const activityLabel =
-						activeCount > 0
-							? [
-									sellingCount > 0 ? `${sellingCount} selling` : null,
-									lookingCount > 0 ? `${lookingCount} looking` : null,
-								]
-									.filter(Boolean)
-									.join(" · ")
-							: null;
-					return {
-						value: event.eventKey,
-						label: event.name,
-						description: [
-							activityLabel,
-							formatEventPickerDate(event.date),
-							event.time,
-							event.location,
-						]
-							.filter(Boolean)
-							.join(" · "),
-						rightLabel: formatEventPickerDay(event.day),
-						activeCount,
-						index,
-					};
+					const activeCount =
+						(summary?.sellingCount ?? 0) + (summary?.lookingCount ?? 0);
+					return { event, activeCount, index };
 				})
 				.sort((left, right) => {
 					if (left.activeCount !== right.activeCount) {
@@ -558,10 +534,40 @@ export function TicketExchangeClient({
 					}
 					return left.index - right.index;
 				})
-				.map(
-					({ activeCount: _activeCount, index: _index, ...option }) => option,
-				),
+				.map(({ event }) => event),
 		[data.events, summaryByEventKey],
+	);
+	const eventOptions = useMemo<TypeaheadComboboxOption[]>(
+		() =>
+			activitySortedEvents.map((event) => {
+				const summary = summaryByEventKey.get(event.eventKey);
+				const sellingCount = summary?.sellingCount ?? 0;
+				const lookingCount = summary?.lookingCount ?? 0;
+				const activeCount = sellingCount + lookingCount;
+				const activityLabel =
+					activeCount > 0
+						? [
+								sellingCount > 0 ? `${sellingCount} selling` : null,
+								lookingCount > 0 ? `${lookingCount} looking` : null,
+							]
+								.filter(Boolean)
+								.join(" · ")
+						: null;
+				return {
+					value: event.eventKey,
+					label: event.name,
+					description: [
+						activityLabel,
+						formatEventPickerDate(event.date),
+						event.time,
+						event.location,
+					]
+						.filter(Boolean)
+						.join(" · "),
+					rightLabel: formatEventPickerDay(event.day),
+				};
+			}),
+		[activitySortedEvents, summaryByEventKey],
 	);
 	const selectedEventOption =
 		eventOptions.find((option) => option.value === listingForm.eventKey) ??
@@ -1400,6 +1406,39 @@ export function TicketExchangeClient({
 						Email counts as one contact method. Add one backup method before
 						listing or sharing contact.
 					</p>
+					<details className="group rounded-lg border border-border/60 bg-background/35 px-3 py-2 text-xs text-muted-foreground">
+						<summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-medium text-foreground">
+							<span className="inline-flex items-center gap-1.5">
+								<ShieldAlert className="h-3.5 w-3.5 text-amber-700 dark:text-amber-300" />
+								Scam checks
+							</span>
+							<span className="text-muted-foreground transition-transform group-open:rotate-45">
+								<Plus className="h-3.5 w-3.5" />
+							</span>
+						</summary>
+						<ul className="mt-2 space-y-1.5 leading-5">
+							{[
+								"Prefer payment methods with buyer protection.",
+								...TICKET_EXCHANGE_SCAM_TIPS.filter(
+									(tip) =>
+										tip !== "Prefer payment methods with buyer protection.",
+								),
+							]
+								.slice(0, 3)
+								.map((tip) => (
+									<li key={tip} className="flex gap-2">
+										<AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+										<span>{tip}</span>
+									</li>
+								))}
+						</ul>
+						<Link
+							href={termsHref}
+							className="mt-2 inline-flex font-medium text-foreground underline-offset-4 hover:underline"
+						>
+							Read rules
+						</Link>
+					</details>
 				</div>
 			</section>
 
@@ -1440,7 +1479,7 @@ export function TicketExchangeClient({
 							}}
 						/>
 						<div className="max-h-[34rem] space-y-1 overflow-y-auto">
-							{data.events.map((event) => {
+							{activitySortedEvents.map((event) => {
 								const summary = summaryByEventKey.get(event.eventKey);
 								const activeCount =
 									(summary?.sellingCount ?? 0) + (summary?.lookingCount ?? 0);

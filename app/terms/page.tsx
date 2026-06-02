@@ -85,13 +85,18 @@ export default function TermsPage() {
 								<li>Avoid screenshots as proof.</li>
 								<li>Use official ticket transfer links where possible.</li>
 								<li>
-									Check ticket date, event, platform, and account details.
+									Double check ticket date, event, platform, and account
+									details.
 								</li>
 								<li>
 									Be wary of urgency, unusual payment requests, or prices.
 								</li>
 								<li>Do not share login or verification codes.</li>
 								<li>Prefer payment methods with buyer protection.</li>
+								<li>
+									When in doubt, say no, avoid the trade, or ask an admin in our
+									communication channels for help.
+								</li>
 								<li>Report suspicious listings.</li>
 							</ul>
 						</section>
