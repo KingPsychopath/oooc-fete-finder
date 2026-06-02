@@ -22,12 +22,15 @@ import {
 import {
 	TICKET_EXCHANGE_CONTACT_METHODS,
 	TICKET_EXCHANGE_EXPIRY_OPTIONS,
-	TICKET_EXCHANGE_INTEREST_LOCK_MINUTES,
 	TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER,
 	TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT,
 	TICKET_EXCHANGE_RULES_VERSION,
 	TICKET_EXCHANGE_SCAM_TIPS,
 } from "@/features/ticket-exchange/constants";
+import {
+	isMyTicketExchangeActivityVisible,
+	isPublicTicketExchangeListingVisible,
+} from "@/features/ticket-exchange/listing-visibility";
 import type {
 	TicketExchangeActionResult,
 	TicketExchangeContactMethod,
@@ -84,8 +87,15 @@ type MarketplaceTabKey = Exclude<TabKey, "mine">;
 type TicketExchangeClientProps = {
 	initialData: TicketExchangePageData;
 };
-type TicketExchangeEventModalIslandComponent =
-	typeof import("./TicketExchangeEventModalIsland").TicketExchangeEventModalIsland;
+type TicketExchangeEventModalIslandComponent = (props: {
+	event: Event | null;
+	isAuthenticated: boolean;
+	isRequestUpdateOpen: boolean;
+	onClose: () => void;
+	onRequestUpdateOpenChange: (open: boolean) => void;
+	seriesEvents?: Event[];
+	onNavigateSeriesEvent?: (event: Event) => void;
+}) => ReactNode;
 
 type ProfileFormState = {
 	displayName: string;
@@ -349,6 +359,19 @@ const formatListingQuantityTitle = (
 	return raw;
 };
 
+const getListingStatusLabel = (listing: TicketExchangeListingView): string => {
+	if (listing.effectiveStatus === "active") {
+		return `Expires ${getRelativeTime(listing.expiresAt)}`;
+	}
+	if (listing.effectiveStatus === "paused") return "Paused";
+	if (listing.effectiveStatus === "expired") return "Expired";
+	if (listing.effectiveStatus === "removed") return "Removed";
+	const label = listing.listingType === "selling" ? "Sold" : "Closed";
+	return listing.resolvedAt
+		? `${label} ${getRelativeTime(listing.resolvedAt)}`
+		: label;
+};
+
 const contactIconFor = (label: string) => {
 	if (label === "Email") return <Mail className="h-3.5 w-3.5" />;
 	if (label === "WhatsApp") return <MessageCircle className="h-3.5 w-3.5" />;
@@ -519,20 +542,15 @@ export function TicketExchangeClient({
 		? MARKETPLACE_TABS.findIndex((tab) => tab.key === activeMarketplaceTab.key)
 		: -1;
 	const visibleListings = useMemo(() => {
+		const nowMs = Date.now();
 		const listingsForEvent = selectedEventKey
 			? data.listings.filter((listing) => listing.eventKey === selectedEventKey)
 			: data.listings;
 		if (activeTab === "mine") {
-			return listingsForEvent.filter(
-				(listing) => listing.isOwner || listing.myInterest,
-			);
+			return listingsForEvent.filter(isMyTicketExchangeActivityVisible);
 		}
-		return listingsForEvent.filter(
-			(listing) =>
-				(activeTab === "all" || listing.listingType === activeTab) &&
-				listing.effectiveStatus !== "expired" &&
-				listing.effectiveStatus !== "resolved" &&
-				listing.effectiveStatus !== "removed",
+		return listingsForEvent.filter((listing) =>
+			isPublicTicketExchangeListingVisible(listing, activeTab, nowMs),
 		);
 	}, [activeTab, data.listings, selectedEventKey]);
 
@@ -544,7 +562,7 @@ export function TicketExchangeClient({
 		activeTab === "mine"
 			? {
 					title: "No activity yet",
-					body: "Your listings, unlocked contacts, and interest will show here.",
+					body: "Your listings, replies, and visible contact details will show here.",
 				}
 			: activeTab === "selling"
 				? {
@@ -665,7 +683,7 @@ export function TicketExchangeClient({
 				selectedEventKey,
 				contactMethods: getDefaultContactMethods(profile),
 			});
-			applyResult(result, "Contact details unlocked.");
+			applyResult(result, "Contact details are now visible.");
 		} finally {
 			setInterestListingId(null);
 		}
@@ -974,8 +992,7 @@ export function TicketExchangeClient({
 									Your exchange contacts
 								</h2>
 								<p className="mt-0.5 text-sm leading-5 text-muted-foreground">
-									Shown only after someone registers interest or you unlock a
-									listing.
+									Shown only after someone replies to a listing.
 								</p>
 							</div>
 						</div>
@@ -1095,7 +1112,7 @@ export function TicketExchangeClient({
 										: "Safety agreement required"}
 								</p>
 								<p className="text-xs text-muted-foreground">
-									Required before listing or unlocking contact.
+									Required before listing or sharing contact.
 								</p>
 							</div>
 						</div>
@@ -1339,7 +1356,7 @@ export function TicketExchangeClient({
 					</Button>
 					<p className="px-1 text-xs leading-5 text-muted-foreground">
 						Email counts as one contact method. Add one backup method before
-						listing or unlocking contact.
+						listing or sharing contact.
 					</p>
 				</div>
 			</section>
@@ -1493,7 +1510,7 @@ export function TicketExchangeClient({
 								<span className="font-medium text-foreground">
 									Safety agreement required.
 								</span>{" "}
-								Accept it once before posting or unlocking contact details.{" "}
+								Accept it once before posting or sharing contact details.{" "}
 								<button
 									type="button"
 									onClick={() => openAgreement(null)}
@@ -1829,18 +1846,32 @@ function ListingCard({
 	const isInterestBusy = busyInterestId === listing.id;
 	const isStatusBusy = busyStatusId === listing.id;
 	const listingTitle = formatListingQuantityTitle(listing);
-	const statusLabel =
-		listing.effectiveStatus === "active"
-			? `Expires ${getRelativeTime(listing.expiresAt)}`
-			: listing.effectiveStatus;
+	const statusLabel = getListingStatusLabel(listing);
+	const isActiveListing = listing.effectiveStatus === "active";
+	const isClosedListing = listing.effectiveStatus !== "active";
+	const canOwnerManageLifecycle =
+		listing.status === "active" || listing.status === "paused";
+	const canOwnerRepost =
+		listing.effectiveStatus === "expired" ||
+		listing.effectiveStatus === "resolved";
 	const listingModeLabel =
 		listing.listingType === "selling" ? "Selling" : "Looking";
 	const quantityLabel =
 		listing.listingType === "selling" ? "Available" : "Needed";
 	const priceModeLabel = listing.listingType === "selling" ? "Price" : "Budget";
 	const hasAgreement = hasAcceptedCurrentAgreement(profile);
+	const replyNoun = listing.listingType === "selling" ? "buyer" : "seller";
+	const firstReplyCta =
+		listing.listingType === "selling" ? "I want to buy" : "I can sell";
 	return (
-		<article className="rounded-xl border border-border/70 bg-card/82 p-4 shadow-sm sm:p-5">
+		<article
+			className={cn(
+				"rounded-xl border p-4 shadow-sm sm:p-5",
+				isClosedListing
+					? "border-border/55 bg-card/50 text-muted-foreground"
+					: "border-border/70 bg-card/82",
+			)}
+		>
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0 flex-1">
 					<div className="flex flex-wrap items-center gap-2">
@@ -1854,7 +1885,14 @@ function ListingCard({
 						>
 							{listingModeLabel}
 						</Badge>
-						<Badge variant="outline" className="capitalize">
+						<Badge
+							variant="outline"
+							className={cn(
+								"capitalize",
+								isClosedListing &&
+									"border-border/60 bg-background/35 text-muted-foreground",
+							)}
+						>
 							{statusLabel}
 						</Badge>
 					</div>
@@ -1866,14 +1904,16 @@ function ListingCard({
 						<span className="line-clamp-2">{listing.eventName}</span>
 					</button>
 				</div>
-				<button
+				<Button
 					type="button"
+					variant="outline"
+					size="sm"
 					onClick={() => onEventOpen(listing)}
-					className="mt-0.5 hidden shrink-0 items-center gap-1 rounded-full border border-border/70 bg-background/45 px-2.5 py-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline-flex"
+					className="mt-0.5 hidden shrink-0 sm:inline-flex"
 				>
 					<Ticket className="h-3 w-3" />
 					View event
-				</button>
+				</Button>
 			</div>
 
 			<div className="mt-5 space-y-3">
@@ -1897,14 +1937,16 @@ function ListingCard({
 								</span>
 							</div>
 						) : null}
-						<button
+						<Button
 							type="button"
+							variant="outline"
+							size="sm"
 							onClick={() => onEventOpen(listing)}
-							className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/45 px-3 py-1.5 text-sm font-medium underline-offset-4 hover:underline sm:hidden"
+							className="sm:hidden"
 						>
 							View event
 							<ExternalLink className="h-3.5 w-3.5" />
-						</button>
+						</Button>
 					</div>
 				</div>
 				{listing.note && (
@@ -1913,7 +1955,11 @@ function ListingCard({
 					</p>
 				)}
 				<div className="text-sm text-muted-foreground">
-					<span>Confirm availability directly before sending money.</span>
+					<span>
+						{isClosedListing
+							? "This listing is no longer active."
+							: "Confirm availability directly before sending money."}
+					</span>
 				</div>
 			</div>
 
@@ -1921,13 +1967,13 @@ function ListingCard({
 				<div className="min-w-0">
 					<p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
 						<Clock className="h-3.5 w-3.5" />
-						Interest
+						Replies
 					</p>
 					<p className="mt-1 text-base">
 						<span className="font-semibold">{listing.interestCount}</span>{" "}
 						{listing.interestCount === 1
-							? "person interested"
-							: "people interested"}
+							? `${replyNoun} replied`
+							: `${replyNoun}s replied`}
 					</p>
 				</div>
 				<div className="min-w-0">
@@ -1956,7 +2002,7 @@ function ListingCard({
 						</div>
 					) : (
 						<p className="mt-1 text-sm text-muted-foreground">
-							Available after you register interest.
+							Available after you reply to this listing.
 						</p>
 					)}
 				</div>
@@ -1965,87 +2011,106 @@ function ListingCard({
 			<div className="mt-4 flex flex-wrap items-center gap-2">
 				{listing.isOwner ? (
 					<>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							disabled={isStatusBusy}
-							onClick={() =>
-								onStatus(
-									listing,
-									listing.status === "paused" ? "active" : "paused",
-								)
-							}
-						>
-							<Pause className="h-3.5 w-3.5" />
-							{listing.status === "paused" ? "Resume" : "Pause"}
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							disabled={isStatusBusy}
-							onClick={() => onStatus(listing, "resolved")}
-						>
-							<Check className="h-3.5 w-3.5" />
-							Resolved
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => onRepost(listing)}
-						>
-							<RefreshCw className="h-3.5 w-3.5" />
-							Repost
-						</Button>
-						<Button
-							type="button"
-							variant="destructive"
-							size="sm"
-							disabled={isStatusBusy}
-							onClick={() => onStatus(listing, "removed")}
-							className="ml-auto"
-						>
-							<Trash2 className="h-3.5 w-3.5" />
-							Delete
-						</Button>
+						{canOwnerManageLifecycle && (
+							<>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={isStatusBusy}
+									onClick={() =>
+										onStatus(
+											listing,
+											listing.status === "paused" ? "active" : "paused",
+										)
+									}
+								>
+									<Pause className="h-3.5 w-3.5" />
+									{listing.status === "paused" ? "Resume" : "Pause"}
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={isStatusBusy}
+									onClick={() => onStatus(listing, "resolved")}
+								>
+									<Check className="h-3.5 w-3.5" />
+									Resolved
+								</Button>
+								<Button
+									type="button"
+									variant="destructive"
+									size="sm"
+									disabled={isStatusBusy}
+									onClick={() => onStatus(listing, "removed")}
+									className="ml-auto"
+								>
+									<Trash2 className="h-3.5 w-3.5" />
+									Delete
+								</Button>
+							</>
+						)}
+						{canOwnerRepost && (
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => onRepost(listing)}
+								className={!canOwnerManageLifecycle ? "ml-auto" : undefined}
+							>
+								<RefreshCw className="h-3.5 w-3.5" />
+								Repost
+							</Button>
+						)}
 					</>
 				) : (
 					<>
-						<div className="min-w-[13rem] max-w-full">
-							<Button
-								type="button"
-								size="sm"
-								disabled={
-									listing.effectiveStatus !== "active" || isInterestBusy
-								}
-								title={
-									isAuthenticated && !hasAgreement
-										? "You will review the Ticket Exchange agreement first."
-										: undefined
-								}
-								onClick={() => {
-									if (!isAuthenticated) {
-										onLogin();
-										return;
-									}
-									onInterest(listing);
-								}}
+						{isActiveListing ? (
+							<div className="min-w-[13rem] max-w-full">
+								{listing.myInterest ? (
+									<div className="flex flex-wrap items-center gap-2">
+										<span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+											<Check className="h-3.5 w-3.5" />
+											Contact details shown
+										</span>
+									</div>
+								) : (
+									<Button
+										type="button"
+										size="sm"
+										disabled={isInterestBusy}
+										title={
+											isAuthenticated && !hasAgreement
+												? "You will review the Ticket Exchange agreement first."
+												: undefined
+										}
+										onClick={() => {
+											if (!isAuthenticated) {
+												onLogin();
+												return;
+											}
+											onInterest(listing);
+										}}
+									>
+										<Eye className="h-3.5 w-3.5" />
+										{isInterestBusy ? "Sharing..." : firstReplyCta}
+									</Button>
+								)}
+								<p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+									You can view contact details for up to{" "}
+									{TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active
+									listings.
+								</p>
+							</div>
+						) : (
+							<Badge
+								variant="outline"
+								className="h-8 rounded-full border-border/60 bg-background/35 px-3 text-xs text-muted-foreground"
 							>
-								<Eye className="h-3.5 w-3.5" />
-								{isInterestBusy
-									? "Unlocking..."
-									: listing.myInterest
-										? "Update interest"
-										: "I'm interested"}
-							</Button>
-							<p className="mt-1 text-[11px] leading-4 text-muted-foreground">
-								Up to {TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active
-								unlocks. Closed clear after{" "}
-								{TICKET_EXCHANGE_INTEREST_LOCK_MINUTES}m.
-							</p>
-						</div>
+								{statusLabel}
+							</Badge>
+						)}
 						<Button
 							type="button"
 							variant="outline"

@@ -27,9 +27,10 @@ const assertTicketExchangeAdmin = async () => {
 	return repository;
 };
 
-const revalidateAdminAndTickets = () => {
+const revalidateAdminAndTickets = (eventKey?: string | null) => {
 	revalidatePath("/admin/content");
 	revalidatePath("/tickets");
+	if (eventKey) revalidatePath(`/tickets/${encodeURIComponent(eventKey)}`);
 };
 
 export async function getTicketExchangeAdminDashboard(): Promise<{
@@ -69,7 +70,13 @@ export async function updateTicketExchangeListingStatusAsAdmin(input: {
 		const repository = await assertTicketExchangeAdmin();
 		const listingId = normalizeTicketExchangeText(input.listingId, 100);
 		const status = adminListingStatusSchema.parse(input.status);
-		await repository.updateListingStatusAsAdmin({ listingId, status });
+		const updateResult = await repository.updateListingStatusAsAdmin({
+			listingId,
+			status,
+		});
+		if (!updateResult.updated) {
+			throw new Error("Ticket Exchange listing was not found.");
+		}
 		await recordAdminActivity({
 			action: "ticket_exchange.listing_status_updated",
 			category: "content",
@@ -80,7 +87,7 @@ export async function updateTicketExchangeListingStatusAsAdmin(input: {
 			severity: status === "removed" ? "destructive" : "info",
 			href: "/admin/content#ticket-exchange-moderation",
 		});
-		revalidateAdminAndTickets();
+		revalidateAdminAndTickets(updateResult.eventKey);
 		return {
 			success: true,
 			dashboard: await repository.getAdminDashboard(),
@@ -106,21 +113,27 @@ export async function reviewTicketExchangeReportAsAdmin(input: {
 		const repository = await assertTicketExchangeAdmin();
 		const reportId = normalizeTicketExchangeText(input.reportId, 100);
 		const actor = await getCurrentAdminActivityActor();
-		await repository.reviewReportAsAdmin({
+		const reviewResult = await repository.reviewReportAsAdmin({
 			reportId,
 			reviewedBy: actor.actorLabel,
 			reviewNote: normalizeTicketExchangeText(input.reviewNote ?? "", 240),
 		});
+		if (!reviewResult.reviewed) {
+			throw new Error("Ticket Exchange report was not found.");
+		}
 		await recordAdminActivity({
 			action: "ticket_exchange.report_reviewed",
 			category: "content",
 			targetType: "ticket_exchange_report",
 			targetId: reportId,
 			summary: "Ticket Exchange report reviewed",
-			metadata: { reviewNote: input.reviewNote ?? "" },
+			metadata: {
+				reviewNote: input.reviewNote ?? "",
+				listingId: reviewResult.listingId,
+			},
 			href: "/admin/content#ticket-exchange-moderation",
 		});
-		revalidateAdminAndTickets();
+		revalidateAdminAndTickets(reviewResult.eventKey);
 		return {
 			success: true,
 			dashboard: await repository.getAdminDashboard(),

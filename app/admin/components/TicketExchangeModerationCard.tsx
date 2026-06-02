@@ -22,14 +22,58 @@ import type {
 	TicketExchangeAdminDashboard,
 	TicketExchangeAdminListing,
 	TicketExchangeAdminReport,
+	TicketExchangeListingType,
 	TicketExchangeListingStatus,
 } from "@/features/ticket-exchange/types";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Check, Pause, RefreshCw, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
 type AdminPayload = Awaited<ReturnType<typeof getTicketExchangeAdminDashboard>>;
 type ModerationTab = "review" | "active" | "recent";
+type ListingTypeFilter = "all" | TicketExchangeListingType;
+type ListingStatusFilter = "all" | TicketExchangeListingStatus;
+type ListingSortMode =
+	| "updated-desc"
+	| "expires-asc"
+	| "reports-desc"
+	| "interest-desc"
+	| "event-asc";
+type ReportSortMode = "reported-desc" | "event-asc" | "reason-asc";
+
+const PAGE_SIZE = 6;
+const LISTING_STATUS_FILTERS: Array<{
+	value: ListingStatusFilter;
+	label: string;
+}> = [
+	{ value: "all", label: "All status" },
+	{ value: "active", label: "Active" },
+	{ value: "paused", label: "Paused" },
+	{ value: "resolved", label: "Resolved" },
+	{ value: "expired", label: "Expired" },
+	{ value: "removed", label: "Removed" },
+];
+const LISTING_TYPE_FILTERS: Array<{
+	value: ListingTypeFilter;
+	label: string;
+}> = [
+	{ value: "all", label: "All types" },
+	{ value: "selling", label: "Selling" },
+	{ value: "looking", label: "Looking" },
+];
+const LISTING_SORT_OPTIONS: Array<{ value: ListingSortMode; label: string }> = [
+	{ value: "updated-desc", label: "Recently updated" },
+	{ value: "expires-asc", label: "Expiring first" },
+	{ value: "reports-desc", label: "Most reported" },
+	{ value: "interest-desc", label: "Most interest" },
+	{ value: "event-asc", label: "Event A-Z" },
+];
+const REPORT_SORT_OPTIONS: Array<{ value: ReportSortMode; label: string }> = [
+	{ value: "reported-desc", label: "Recently reported" },
+	{ value: "event-asc", label: "Event A-Z" },
+	{ value: "reason-asc", label: "Reason A-Z" },
+];
 
 const formatDateTime = (value: string | null): string => {
 	if (!value) return "Not yet";
@@ -88,6 +132,137 @@ const reportReasonLabel = (reason: string): string =>
 		.split("_")
 		.map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
 		.join(" ");
+
+const normalizeSearch = (value: string): string =>
+	value.trim().toLowerCase();
+
+const toTime = (value: string | null): number => {
+	if (!value) return 0;
+	const time = new Date(value).getTime();
+	return Number.isFinite(time) ? time : 0;
+};
+
+const listingSearchText = (listing: TicketExchangeAdminListing): string =>
+	[
+		listing.eventName,
+		listing.eventKey,
+		listing.eventSlug,
+		listing.ownerEmail,
+		listing.listingType,
+		listing.status,
+		listing.effectiveStatus,
+		listing.quantityLabel,
+		listing.priceLabel,
+		listing.note,
+	].join(" ");
+
+const reportSearchText = (report: TicketExchangeAdminReport): string =>
+	[
+		report.listing.eventName,
+		report.listing.ownerEmail,
+		report.listing.listingType,
+		report.listing.quantityLabel,
+		report.listing.priceLabel,
+		report.reason,
+		report.details,
+		report.reporterUserId,
+	].join(" ");
+
+const filterListings = (
+	listings: TicketExchangeAdminListing[],
+	input: {
+		query: string;
+		typeFilter: ListingTypeFilter;
+		statusFilter: ListingStatusFilter;
+	},
+): TicketExchangeAdminListing[] => {
+	const query = normalizeSearch(input.query);
+	return listings.filter((listing) => {
+		if (
+			input.typeFilter !== "all" &&
+			listing.listingType !== input.typeFilter
+		) {
+			return false;
+		}
+		if (
+			input.statusFilter !== "all" &&
+			listing.effectiveStatus !== input.statusFilter
+		) {
+			return false;
+		}
+		return !query || listingSearchText(listing).toLowerCase().includes(query);
+	});
+};
+
+const sortListings = (
+	listings: TicketExchangeAdminListing[],
+	sortMode: ListingSortMode,
+): TicketExchangeAdminListing[] =>
+	[...listings].sort((left, right) => {
+		switch (sortMode) {
+			case "expires-asc":
+				return toTime(left.expiresAt) - toTime(right.expiresAt);
+			case "reports-desc":
+				return (
+					right.reportCount - left.reportCount ||
+					toTime(right.updatedAt) - toTime(left.updatedAt)
+				);
+			case "interest-desc":
+				return (
+					right.interestCount - left.interestCount ||
+					toTime(right.updatedAt) - toTime(left.updatedAt)
+				);
+			case "event-asc":
+				return left.eventName.localeCompare(right.eventName);
+			case "updated-desc":
+				return toTime(right.updatedAt) - toTime(left.updatedAt);
+		}
+	});
+
+const filterReports = (
+	reports: TicketExchangeAdminReport[],
+	queryInput: string,
+): TicketExchangeAdminReport[] => {
+	const query = normalizeSearch(queryInput);
+	if (!query) return reports;
+	return reports.filter((report) =>
+		reportSearchText(report).toLowerCase().includes(query),
+	);
+};
+
+const sortReports = (
+	reports: TicketExchangeAdminReport[],
+	sortMode: ReportSortMode,
+): TicketExchangeAdminReport[] =>
+	[...reports].sort((left, right) => {
+		switch (sortMode) {
+			case "event-asc":
+				return left.listing.eventName.localeCompare(right.listing.eventName);
+			case "reason-asc":
+				return (
+					reportReasonLabel(left.reason).localeCompare(
+						reportReasonLabel(right.reason),
+					) || toTime(right.createdAt) - toTime(left.createdAt)
+				);
+			case "reported-desc":
+				return toTime(right.createdAt) - toTime(left.createdAt);
+		}
+	});
+
+const getPageBounds = (totalCount: number, page: number) => {
+	const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+	const safePage = Math.min(Math.max(1, page), pageCount);
+	const startIndex = (safePage - 1) * PAGE_SIZE;
+	const endIndex = Math.min(startIndex + PAGE_SIZE, totalCount);
+	return {
+		pageCount,
+		safePage,
+		startIndex,
+		endIndex,
+		rangeStart: totalCount === 0 ? 0 : startIndex + 1,
+		rangeEnd: endIndex,
+	};
+};
 
 const applyResult = (
 	result: AdminPayload,
@@ -313,6 +488,7 @@ export const TicketExchangeModerationCard = ({
 }: {
 	initialPayload?: AdminPayload;
 }) => {
+	const router = useRouter();
 	const initialDashboard = initialPayload?.success
 		? (initialPayload.dashboard ?? null)
 		: null;
@@ -328,6 +504,16 @@ export const TicketExchangeModerationCard = ({
 	const [activeTab, setActiveTab] = useState<ModerationTab>(
 		initialPendingReportCount > 0 ? "review" : "active",
 	);
+	const [query, setQuery] = useState("");
+	const [listingTypeFilter, setListingTypeFilter] =
+		useState<ListingTypeFilter>("all");
+	const [listingStatusFilter, setListingStatusFilter] =
+		useState<ListingStatusFilter>("all");
+	const [listingSortMode, setListingSortMode] =
+		useState<ListingSortMode>("updated-desc");
+	const [reportSortMode, setReportSortMode] =
+		useState<ReportSortMode>("reported-desc");
+	const [page, setPage] = useState(1);
 	const [isPending, startTransition] = useTransition();
 
 	const reports = useMemo(
@@ -340,6 +526,43 @@ export const TicketExchangeModerationCard = ({
 				(listing) => listing.effectiveStatus === "active",
 			) ?? [],
 		[dashboard],
+	);
+	const listingSource =
+		activeTab === "active" ? activeListings : (dashboard?.recentListings ?? []);
+	const filteredReports = useMemo(
+		() => sortReports(filterReports(reports, query), reportSortMode),
+		[query, reports, reportSortMode],
+	);
+	const filteredListings = useMemo(
+		() =>
+			sortListings(
+				filterListings(listingSource, {
+					query,
+					typeFilter: listingTypeFilter,
+					statusFilter:
+						activeTab === "active" ? "active" : listingStatusFilter,
+				}),
+				listingSortMode,
+			),
+		[
+			activeTab,
+			listingSource,
+			listingSortMode,
+			listingStatusFilter,
+			listingTypeFilter,
+			query,
+		],
+	);
+	const currentTotal =
+		activeTab === "review" ? filteredReports.length : filteredListings.length;
+	const pageBounds = getPageBounds(currentTotal, page);
+	const visibleReports = filteredReports.slice(
+		pageBounds.startIndex,
+		pageBounds.endIndex,
+	);
+	const visibleListings = filteredListings.slice(
+		pageBounds.startIndex,
+		pageBounds.endIndex,
 	);
 	const tabs: Array<{
 		key: ModerationTab;
@@ -355,6 +578,36 @@ export const TicketExchangeModerationCard = ({
 		},
 	];
 
+	const selectTab = (tab: ModerationTab) => {
+		setActiveTab(tab);
+		setPage(1);
+	};
+
+	const updateQuery = (value: string) => {
+		setQuery(value);
+		setPage(1);
+	};
+
+	const updateListingTypeFilter = (value: ListingTypeFilter) => {
+		setListingTypeFilter(value);
+		setPage(1);
+	};
+
+	const updateListingStatusFilter = (value: ListingStatusFilter) => {
+		setListingStatusFilter(value);
+		setPage(1);
+	};
+
+	const updateListingSortMode = (value: ListingSortMode) => {
+		setListingSortMode(value);
+		setPage(1);
+	};
+
+	const updateReportSortMode = (value: ReportSortMode) => {
+		setReportSortMode(value);
+		setPage(1);
+	};
+
 	const refresh = () => {
 		startTransition(async () => {
 			const result = await getTicketExchangeAdminDashboard();
@@ -363,7 +616,7 @@ export const TicketExchangeModerationCard = ({
 					(report) => !report.reviewedAt,
 				).length;
 				if (nextReportCount > 0 && activeTab === "active") {
-					setActiveTab("review");
+					selectTab("review");
 				}
 			}
 			applyResult(
@@ -406,7 +659,10 @@ export const TicketExchangeModerationCard = ({
 				result.dashboard &&
 				result.dashboard.recentReports.every((report) => report.reviewedAt)
 			) {
-				setActiveTab("active");
+				selectTab("active");
+			}
+			if (result.success) {
+				router.refresh();
 			}
 			applyResult(
 				result,
@@ -535,7 +791,7 @@ export const TicketExchangeModerationCard = ({
 								<button
 									key={tab.key}
 									type="button"
-									onClick={() => setActiveTab(tab.key)}
+									onClick={() => selectTab(tab.key)}
 									className={cn(
 										"flex min-h-8 flex-1 items-center justify-center gap-2 rounded-md px-2 text-sm font-medium transition-colors",
 										activeTab === tab.key
@@ -558,10 +814,131 @@ export const TicketExchangeModerationCard = ({
 							))}
 						</div>
 
-						<div className="space-y-3">
+						<div className="rounded-lg border bg-background/70 p-3">
+							<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+								<label className="min-w-0 text-xs font-medium text-muted-foreground">
+									Search
+									<input
+										type="search"
+										value={query}
+										onChange={(event) => updateQuery(event.target.value)}
+										placeholder={
+											activeTab === "review"
+												? "Event, owner, reason, details"
+												: "Event, owner, note, status"
+										}
+										className="mt-1 h-9 w-full rounded-md border bg-background px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/40"
+									/>
+								</label>
+								{activeTab !== "review" ? (
+									<label className="text-xs font-medium text-muted-foreground">
+										Type
+										<select
+											value={listingTypeFilter}
+											onChange={(event) =>
+												updateListingTypeFilter(
+													event.target.value as ListingTypeFilter,
+												)
+											}
+											className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm text-foreground outline-none focus:border-foreground/40 lg:w-36"
+										>
+											{LISTING_TYPE_FILTERS.map((option) => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+									</label>
+								) : null}
+								{activeTab === "recent" ? (
+									<label className="text-xs font-medium text-muted-foreground">
+										Status
+										<select
+											value={listingStatusFilter}
+											onChange={(event) =>
+												updateListingStatusFilter(
+													event.target.value as ListingStatusFilter,
+												)
+											}
+											className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm text-foreground outline-none focus:border-foreground/40 lg:w-40"
+										>
+											{LISTING_STATUS_FILTERS.map((option) => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+									</label>
+								) : null}
+								<label className="text-xs font-medium text-muted-foreground">
+									Sort
+									<select
+										value={
+											activeTab === "review" ? reportSortMode : listingSortMode
+										}
+										onChange={(event) => {
+											if (activeTab === "review") {
+												updateReportSortMode(
+													event.target.value as ReportSortMode,
+												);
+												return;
+											}
+											updateListingSortMode(
+												event.target.value as ListingSortMode,
+											);
+										}}
+										className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm text-foreground outline-none focus:border-foreground/40 lg:w-44"
+									>
+										{(activeTab === "review"
+											? REPORT_SORT_OPTIONS
+											: LISTING_SORT_OPTIONS
+										).map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
+											</option>
+										))}
+									</select>
+								</label>
+							</div>
+							<div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+								<span>
+									Showing {pageBounds.rangeStart}-{pageBounds.rangeEnd} of{" "}
+									{currentTotal}
+								</span>
+								<div className="flex items-center gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										disabled={pageBounds.safePage <= 1}
+										onClick={() => setPage((current) => Math.max(1, current - 1))}
+									>
+										Previous
+									</Button>
+									<span>
+										Page {pageBounds.safePage} of {pageBounds.pageCount}
+									</span>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										disabled={pageBounds.safePage >= pageBounds.pageCount}
+										onClick={() =>
+											setPage((current) =>
+												Math.min(pageBounds.pageCount, current + 1),
+											)
+										}
+									>
+										Next
+									</Button>
+								</div>
+							</div>
+						</div>
+
+						<div className="max-h-[56rem] space-y-3 overflow-y-auto pr-1">
 							{activeTab === "review" ? (
-								reports.length > 0 ? (
-									reports.map((report) => (
+								visibleReports.length > 0 ? (
+									visibleReports.map((report) => (
 										<ReportRow
 											key={report.id}
 											report={report}
@@ -574,14 +951,16 @@ export const TicketExchangeModerationCard = ({
 									))
 								) : (
 									<p className="rounded-lg border bg-background/70 p-3 text-sm text-muted-foreground">
-										No reports need review.
+										{reports.length > 0
+											? "No reports match the current controls."
+											: "No reports need review."}
 									</p>
 								)
 							) : null}
 
 							{activeTab === "active" ? (
-								activeListings.length > 0 ? (
-									activeListings.map((listing) => (
+								visibleListings.length > 0 ? (
+									visibleListings.map((listing) => (
 										<ListingRow
 											key={listing.id}
 											listing={listing}
@@ -591,14 +970,16 @@ export const TicketExchangeModerationCard = ({
 									))
 								) : (
 									<p className="rounded-lg border bg-background/70 p-3 text-sm text-muted-foreground">
-										No active listings right now.
+										{activeListings.length > 0
+											? "No active listings match the current controls."
+											: "No active listings right now."}
 									</p>
 								)
 							) : null}
 
 							{activeTab === "recent" ? (
-								dashboard.recentListings.length > 0 ? (
-									dashboard.recentListings.map((listing) => (
+								visibleListings.length > 0 ? (
+									visibleListings.map((listing) => (
 										<ListingRow
 											key={listing.id}
 											listing={listing}
@@ -609,7 +990,9 @@ export const TicketExchangeModerationCard = ({
 									))
 								) : (
 									<p className="rounded-lg border bg-background/70 p-3 text-sm text-muted-foreground">
-										No Ticket Exchange listings yet.
+										{dashboard.recentListings.length > 0
+											? "No recent listings match the current controls."
+											: "No Ticket Exchange listings yet."}
 									</p>
 								)
 							) : null}

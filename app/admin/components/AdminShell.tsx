@@ -29,10 +29,13 @@ type AdminShellProps = {
 	notificationCounts: {
 		pendingSubmissions: number;
 		pendingPlacements: number;
+		pendingTicketReports: number;
 		oldestPendingSubmissionAt: string | null;
 		oldestPendingPlacementAt: string | null;
+		oldestPendingTicketReportAt: string | null;
 		newestPendingSubmissionAt: string | null;
 		newestPendingPlacementAt: string | null;
+		newestPendingTicketReportAt: string | null;
 		loadError: string | null;
 		lastUpdatedAt: string;
 	};
@@ -50,16 +53,19 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 	const [seenState, setSeenState] = useState<{
 		submissionsNewestSeenAt: string | null;
 		placementsNewestSeenAt: string | null;
+		ticketReportsNewestSeenAt: string | null;
 	}>({
 		submissionsNewestSeenAt: null,
 		placementsNewestSeenAt: null,
+		ticketReportsNewestSeenAt: null,
 	});
 	const [isRefreshingCounts, setIsRefreshingCounts] = useState(false);
 	const normalizedPath = stripAdminBasePath(pathname || "/admin");
 	const activeRoute = getAdminRouteByPath(normalizedPath);
 	const totalNotifications =
 		notificationCounts.pendingSubmissions +
-		notificationCounts.pendingPlacements;
+		notificationCounts.pendingPlacements +
+		notificationCounts.pendingTicketReports;
 	const notificationCountsDegraded = Boolean(notificationCounts.loadError);
 
 	const formatRelativeAge = (isoDate: string | null): string | null => {
@@ -81,6 +87,9 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 	);
 	const oldestPendingPlacementAge = formatRelativeAge(
 		notificationCounts.oldestPendingPlacementAt,
+	);
+	const oldestPendingTicketReportAge = formatRelativeAge(
+		notificationCounts.oldestPendingTicketReportAt,
 	);
 
 	const isSubmissionNewSinceLastVisit = useMemo(() => {
@@ -113,8 +122,28 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 		seenState.placementsNewestSeenAt,
 	]);
 
+	const isTicketReportNewSinceLastVisit = useMemo(() => {
+		if (!notificationCounts.newestPendingTicketReportAt) return false;
+		if (!seenState.ticketReportsNewestSeenAt) {
+			return notificationCounts.pendingTicketReports > 0;
+		}
+		return (
+			new Date(notificationCounts.newestPendingTicketReportAt).getTime() >
+			new Date(seenState.ticketReportsNewestSeenAt).getTime()
+		);
+	}, [
+		notificationCounts.newestPendingTicketReportAt,
+		notificationCounts.pendingTicketReports,
+		seenState.ticketReportsNewestSeenAt,
+	]);
+
 	const getRouteAlertCount = (routeKey: string): number => {
-		if (routeKey === "content") return notificationCounts.pendingSubmissions;
+		if (routeKey === "content") {
+			return (
+				notificationCounts.pendingSubmissions +
+				notificationCounts.pendingTicketReports
+			);
+		}
 		if (routeKey === "placements") return notificationCounts.pendingPlacements;
 		return 0;
 	};
@@ -131,7 +160,15 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 		}
 
 		setPendingAnchor({ pathname: targetPath, anchorId });
-		router.push(withAdminBasePath(pathWithHash));
+		if (
+			typeof window !== "undefined" &&
+			stripAdminBasePath(window.location.pathname) === targetPath
+		) {
+			window.history.replaceState(null, "", `${nextPath}#${anchorId}`);
+			window.dispatchEvent(new HashChangeEvent("hashchange"));
+			return;
+		}
+		router.push(`${nextPath}#${anchorId}`);
 	};
 
 	useEffect(() => {
@@ -142,9 +179,13 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 		const placementsNewestSeenAt = window.localStorage.getItem(
 			"admin-action-center:placements-seen-at",
 		);
+		const ticketReportsNewestSeenAt = window.localStorage.getItem(
+			"admin-action-center:ticket-reports-seen-at",
+		);
 		setSeenState({
 			submissionsNewestSeenAt: submissionsNewestSeenAt || null,
 			placementsNewestSeenAt: placementsNewestSeenAt || null,
+			ticketReportsNewestSeenAt: ticketReportsNewestSeenAt || null,
 		});
 	}, []);
 
@@ -163,14 +204,23 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 				notificationCounts.newestPendingPlacementAt,
 			);
 		}
+		if (notificationCounts.newestPendingTicketReportAt) {
+			window.localStorage.setItem(
+				"admin-action-center:ticket-reports-seen-at",
+				notificationCounts.newestPendingTicketReportAt,
+			);
+		}
 		setSeenState({
 			submissionsNewestSeenAt: notificationCounts.newestPendingSubmissionAt,
 			placementsNewestSeenAt: notificationCounts.newestPendingPlacementAt,
+			ticketReportsNewestSeenAt:
+				notificationCounts.newestPendingTicketReportAt,
 		});
 	}, [
 		isActionCenterOpen,
 		notificationCounts.newestPendingPlacementAt,
 		notificationCounts.newestPendingSubmissionAt,
+		notificationCounts.newestPendingTicketReportAt,
 	]);
 
 	useEffect(() => {
@@ -303,7 +353,8 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 								</Badge>
 							) : null}
 							{(isSubmissionNewSinceLastVisit ||
-								isPlacementNewSinceLastVisit) && (
+								isPlacementNewSinceLastVisit ||
+								isTicketReportNewSinceLastVisit) && (
 								<span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-emerald-500" />
 							)}
 						</Button>
@@ -501,6 +552,30 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 						<button
 							type="button"
 							onClick={() =>
+								navigateToSection("/admin/content#ticket-exchange-moderation")
+							}
+							className="block w-full rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+						>
+							<p className="text-sm font-medium">Ticket Exchange Reports</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								{notificationCounts.pendingTicketReports > 0
+									? `${notificationCounts.pendingTicketReports} pending review`
+									: "No pending ticket reports"}
+							</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								{oldestPendingTicketReportAge
+									? `Oldest pending: ${oldestPendingTicketReportAge}`
+									: "Oldest pending: none"}
+							</p>
+							{isTicketReportNewSinceLastVisit && (
+								<Badge variant="secondary" className="mt-2 text-[10px]">
+									New since last visit
+								</Badge>
+							)}
+						</button>
+						<button
+							type="button"
+							onClick={() =>
 								navigateToSection("/admin/placements#paid-orders-inbox")
 							}
 							className="block w-full rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
@@ -524,7 +599,8 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 						</button>
 						{totalNotifications === 0 && !notificationCountsDegraded && (
 							<div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
-								All caught up. No pending submissions or paid orders.
+								All caught up. No pending submissions, ticket reports, or paid
+								orders.
 							</div>
 						)}
 					</div>

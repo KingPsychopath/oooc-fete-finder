@@ -1,23 +1,23 @@
 import "server-only";
 
 import { generateUserId } from "@/features/auth/user-id";
-import type { Sql } from "postgres";
 import { getPostgresClient } from "@/lib/platform/postgres/postgres-client";
-import { filterContactSnapshot, getEffectiveListingStatus } from "./utils";
+import type { Sql } from "postgres";
 import {
 	TICKET_EXCHANGE_INTEREST_LOCK_MINUTES,
 	TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER,
 	TICKET_EXCHANGE_MAX_DAILY_UNLOCKS_PER_USER,
+	TICKET_EXCHANGE_PUBLIC_RESOLVED_TOMBSTONE_MINUTES,
 	TICKET_EXCHANGE_RULES_VERSION,
 } from "./constants";
 import type {
-	TicketExchangeContactMethod,
-	TicketExchangeContactProfile,
-	TicketExchangeContactSnapshot,
 	TicketExchangeAdminDashboard,
 	TicketExchangeAdminListing,
 	TicketExchangeAdminReport,
 	TicketExchangeAdminUnlockWatch,
+	TicketExchangeContactMethod,
+	TicketExchangeContactProfile,
+	TicketExchangeContactSnapshot,
 	TicketExchangeInterestView,
 	TicketExchangeListingStatus,
 	TicketExchangeListingType,
@@ -25,6 +25,11 @@ import type {
 	TicketExchangeReportReason,
 	TicketExchangeSummary,
 } from "./types";
+import {
+	buildContactSnapshot,
+	filterContactSnapshot,
+	getEffectiveListingStatus,
+} from "./utils";
 
 declare global {
 	var __ooocTicketExchangeRepository: TicketExchangeRepository | undefined;
@@ -121,8 +126,19 @@ type AdminUnlockWatchRow = {
 	latest_unlock_at: string;
 };
 
+type NotificationSummaryRow = {
+	count: number;
+	oldest_created_at: string | null;
+	newest_created_at: string | null;
+};
+
 type DuplicateListingRow = {
 	id: string;
+};
+
+type ContactSnapshotSyncRow = {
+	id: string;
+	contact_methods: TicketExchangeContactMethod[];
 };
 
 const toIso = (value: string | Date | null): string | null => {
@@ -276,6 +292,10 @@ export class TicketExchangeRepository {
 			ON ticket_exchange_listings (owner_user_id, updated_at DESC)
 		`;
 		await this.sql`
+			CREATE INDEX IF NOT EXISTS idx_ticket_exchange_listings_updated
+			ON ticket_exchange_listings (updated_at DESC)
+		`;
+		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_ticket_exchange_interests_actor
 			ON ticket_exchange_interests (actor_user_id, created_at DESC)
 		`;
@@ -401,7 +421,53 @@ export class TicketExchangeRepository {
 				created_at,
 				updated_at
 		`;
-		return toProfile(rows[0]);
+		const profile = toProfile(rows[0]);
+		await this.syncVisibleContactSnapshotsForUser(profile);
+		return profile;
+	}
+
+	private async syncVisibleContactSnapshotsForUser(
+		profile: TicketExchangeContactProfile,
+	): Promise<void> {
+		const snapshot = buildContactSnapshot(profile);
+		const [listingRows, interestRows] = await Promise.all([
+			this.sql<ContactSnapshotSyncRow[]>`
+				SELECT id, contact_methods
+				FROM ticket_exchange_listings
+				WHERE owner_user_id = ${profile.userId}
+					AND status <> 'removed'
+			`,
+			this.sql<ContactSnapshotSyncRow[]>`
+				SELECT id, contact_methods
+				FROM ticket_exchange_interests
+				WHERE actor_user_id = ${profile.userId}
+			`,
+		]);
+
+		await Promise.all([
+			...listingRows.map(
+				(row) =>
+					this.sql`
+					UPDATE ticket_exchange_listings
+					SET
+						contact_snapshot = ${this.sql.json({
+							...filterContactSnapshot(snapshot, row.contact_methods ?? []),
+						})},
+						updated_at = NOW()
+					WHERE id = ${row.id}
+				`,
+			),
+			...interestRows.map(
+				(row) =>
+					this.sql`
+					UPDATE ticket_exchange_interests
+					SET contact_snapshot = ${this.sql.json({
+						...filterContactSnapshot(snapshot, row.contact_methods ?? []),
+					})}
+					WHERE id = ${row.id}
+				`,
+			),
+		]);
 	}
 
 	async createListing(input: {
@@ -505,10 +571,14 @@ export class TicketExchangeRepository {
 					WHERE interests.listing_id = listings.id
 				) AS interest_count
 			FROM ticket_exchange_listings listings
-			WHERE listings.status <> 'removed'
-				AND (${eventKey}::text IS NULL OR listings.event_key = ${eventKey})
+			WHERE (${eventKey}::text IS NULL OR listings.event_key = ${eventKey})
 				AND (
 					(listings.status IN ('active', 'paused') AND listings.expires_at > NOW())
+					OR (
+						listings.status = 'resolved'
+						AND COALESCE(listings.resolved_at, listings.updated_at) >
+							NOW() - (${TICKET_EXCHANGE_PUBLIC_RESOLVED_TOMBSTONE_MINUTES} * INTERVAL '1 minute')
+					)
 					OR listings.owner_user_id = ${userId}
 					OR EXISTS (
 						SELECT 1
@@ -529,9 +599,7 @@ export class TicketExchangeRepository {
 
 		const listingIds = rows.map((row) => row.id);
 		const ownerListingIds = userId
-			? rows
-					.filter((row) => row.owner_user_id === userId)
-					.map((row) => row.id)
+			? rows.filter((row) => row.owner_user_id === userId).map((row) => row.id)
 			: [];
 		const hasOwnerListings = ownerListingIds.length > 0;
 		const ownerListingIdsForQuery = hasOwnerListings ? ownerListingIds : [""];
@@ -945,40 +1013,44 @@ export class TicketExchangeRepository {
 	async getAdminDashboard(limit = 40): Promise<TicketExchangeAdminDashboard> {
 		await this.ready();
 		const safeLimit = Math.min(100, Math.max(1, limit));
-		const [counts] = await this.sql<AdminCountsRow[]>`
-			SELECT
-				COUNT(*) FILTER (
-					WHERE listing_type = 'selling'
-						AND status = 'active'
-						AND expires_at > NOW()
-				)::int AS active_selling_count,
-				COUNT(*) FILTER (
-					WHERE listing_type = 'looking'
-						AND status = 'active'
-						AND expires_at > NOW()
-				)::int AS active_looking_count,
-				(
-					SELECT COUNT(*)::int
-					FROM ticket_exchange_reports
-					WHERE reviewed_at IS NULL
-				) AS pending_report_count,
-				COUNT(*) FILTER (
-					WHERE status = 'active'
-						AND expires_at > NOW()
-						AND bot_announced_at IS NULL
-				)::int AS bot_pending_count,
-				COUNT(*) FILTER (
-					WHERE bot_announced_at IS NOT NULL
-				)::int AS bot_announced_count,
-				(
-					SELECT COUNT(*)::int
-					FROM ticket_exchange_contact_audit
-				) AS contact_unlock_count
-			FROM ticket_exchange_listings
-		`;
-		const recentListings = await this.getAdminListings(safeLimit);
-		const recentReports = await this.getAdminReports(safeLimit);
-		const unlockWatch = await this.getAdminUnlockWatch(8);
+		const [countRows, recentListings, recentReports, unlockWatch] =
+			await Promise.all([
+				this.sql<AdminCountsRow[]>`
+					SELECT
+						COUNT(*) FILTER (
+							WHERE listing_type = 'selling'
+								AND status = 'active'
+								AND expires_at > NOW()
+						)::int AS active_selling_count,
+						COUNT(*) FILTER (
+							WHERE listing_type = 'looking'
+								AND status = 'active'
+								AND expires_at > NOW()
+						)::int AS active_looking_count,
+						(
+							SELECT COUNT(*)::int
+							FROM ticket_exchange_reports
+							WHERE reviewed_at IS NULL
+						) AS pending_report_count,
+						COUNT(*) FILTER (
+							WHERE status = 'active'
+								AND expires_at > NOW()
+								AND bot_announced_at IS NULL
+						)::int AS bot_pending_count,
+						COUNT(*) FILTER (
+							WHERE bot_announced_at IS NOT NULL
+						)::int AS bot_announced_count,
+						(
+							SELECT COUNT(*)::int
+							FROM ticket_exchange_contact_audit
+						) AS contact_unlock_count
+					FROM ticket_exchange_listings
+				`,
+				this.getAdminListings(safeLimit),
+				this.getAdminReports(safeLimit),
+				this.getAdminUnlockWatch(8),
+			]);
+		const counts = countRows[0];
 		return {
 			activeSellingCount: counts?.active_selling_count ?? 0,
 			activeLookingCount: counts?.active_looking_count ?? 0,
@@ -989,6 +1061,28 @@ export class TicketExchangeRepository {
 			unlockWatch,
 			recentListings,
 			recentReports,
+		};
+	}
+
+	async getPendingReportNotificationSummary(): Promise<{
+		count: number;
+		oldestCreatedAt: string | null;
+		newestCreatedAt: string | null;
+	}> {
+		await this.ready();
+		const rows = await this.sql<NotificationSummaryRow[]>`
+			SELECT
+				COUNT(*)::int AS count,
+				MIN(created_at) AS oldest_created_at,
+				MAX(created_at) AS newest_created_at
+			FROM ticket_exchange_reports
+			WHERE reviewed_at IS NULL
+		`;
+		const row = rows[0];
+		return {
+			count: row?.count ?? 0,
+			oldestCreatedAt: toIso(row?.oldest_created_at ?? null),
+			newestCreatedAt: toIso(row?.newest_created_at ?? null),
 		};
 	}
 
@@ -1058,14 +1152,17 @@ export class TicketExchangeRepository {
 				listings.created_at,
 				listings.updated_at,
 				listings.resolved_at,
-				COUNT(DISTINCT interests.id)::int AS interest_count,
-				COUNT(DISTINCT reports.id)::int AS report_count
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_interests interests
+					WHERE interests.listing_id = listings.id
+				) AS interest_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_reports reports
+					WHERE reports.listing_id = listings.id
+				) AS report_count
 			FROM ticket_exchange_listings listings
-			LEFT JOIN ticket_exchange_interests interests
-				ON interests.listing_id = listings.id
-			LEFT JOIN ticket_exchange_reports reports
-				ON reports.listing_id = listings.id
-			GROUP BY listings.id
 			ORDER BY listings.updated_at DESC
 			LIMIT ${safeLimit}
 		`;
@@ -1154,32 +1251,57 @@ export class TicketExchangeRepository {
 	async updateListingStatusAsAdmin(input: {
 		listingId: string;
 		status: Exclude<TicketExchangeListingStatus, "expired">;
-	}): Promise<void> {
+	}): Promise<{ eventKey: string | null; updated: boolean }> {
 		await this.ready();
-		await this.sql`
+		const rows = await this.sql<Array<{ event_key: string }>>`
 			UPDATE ticket_exchange_listings
 			SET
 				status = ${input.status},
 				resolved_at = CASE WHEN ${input.status} = 'resolved' THEN NOW() ELSE resolved_at END,
 				updated_at = NOW()
 			WHERE id = ${input.listingId}
+			RETURNING event_key
 		`;
+		return {
+			eventKey: rows[0]?.event_key ?? null,
+			updated: Boolean(rows[0]),
+		};
 	}
 
 	async reviewReportAsAdmin(input: {
 		reportId: string;
 		reviewedBy: string;
 		reviewNote: string;
-	}): Promise<void> {
+	}): Promise<{
+		eventKey: string | null;
+		listingId: string | null;
+		reviewed: boolean;
+	}> {
 		await this.ready();
-		await this.sql`
-			UPDATE ticket_exchange_reports
-			SET
-				reviewed_at = NOW(),
-				reviewed_by = ${input.reviewedBy},
-				review_note = ${input.reviewNote}
-			WHERE id = ${input.reportId}
+		const rows = await this.sql<
+			Array<{ event_key: string | null; listing_id: string | null }>
+		>`
+			WITH reviewed_report AS (
+				UPDATE ticket_exchange_reports
+				SET
+					reviewed_at = NOW(),
+					reviewed_by = ${input.reviewedBy},
+					review_note = ${input.reviewNote}
+				WHERE id = ${input.reportId}
+				RETURNING listing_id
+			)
+			SELECT
+				reviewed_report.listing_id,
+				listings.event_key
+			FROM reviewed_report
+			LEFT JOIN ticket_exchange_listings listings
+				ON listings.id = reviewed_report.listing_id
 		`;
+		return {
+			eventKey: rows[0]?.event_key ?? null,
+			listingId: rows[0]?.listing_id ?? null,
+			reviewed: Boolean(rows[0]),
+		};
 	}
 }
 

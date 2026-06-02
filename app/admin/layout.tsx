@@ -1,4 +1,5 @@
 import { getAdminSessionStatus } from "@/features/auth/actions";
+import { getTicketExchangeRepository } from "@/features/ticket-exchange/repository";
 import { getEventSubmissionRepository } from "@/lib/platform/postgres/event-submission-repository";
 import { getPartnerActivationRepository } from "@/lib/platform/postgres/partner-activation-repository";
 import { buildSiteUrl } from "@/lib/site-url";
@@ -30,10 +31,14 @@ const getErrorMessage = (reason: unknown): string =>
 const computeNotificationCounts = async () => {
 	const eventSubmissionRepository = getEventSubmissionRepository();
 	const partnerActivationRepository = getPartnerActivationRepository();
-	const [eventSubmissionsResult, placementsResult] = await Promise.allSettled([
+	const ticketExchangeRepository = getTicketExchangeRepository();
+	const [eventSubmissionsResult, placementsResult, ticketReportsResult] =
+		await Promise.allSettled([
 		eventSubmissionRepository?.getPendingNotificationSummary() ??
 			Promise.resolve(emptyNotificationSummary),
 		partnerActivationRepository?.getPendingNotificationSummary() ??
+			Promise.resolve(emptyNotificationSummary),
+		ticketExchangeRepository?.getPendingReportNotificationSummary() ??
 			Promise.resolve(emptyNotificationSummary),
 	]);
 	const eventSubmissionsSummary =
@@ -43,6 +48,10 @@ const computeNotificationCounts = async () => {
 	const placementsSummary =
 		placementsResult.status === "fulfilled"
 			? placementsResult.value
+			: emptyNotificationSummary;
+	const ticketReportsSummary =
+		ticketReportsResult.status === "fulfilled"
+			? ticketReportsResult.value
 			: emptyNotificationSummary;
 	const loadErrors = [
 		eventSubmissionRepository
@@ -57,15 +66,24 @@ const computeNotificationCounts = async () => {
 		placementsResult.status === "rejected"
 			? `Paid placements: ${getErrorMessage(placementsResult.reason)}`
 			: null,
+		ticketExchangeRepository
+			? null
+			: "Ticket Exchange reports: repository unavailable",
+		ticketReportsResult.status === "rejected"
+			? `Ticket Exchange reports: ${getErrorMessage(ticketReportsResult.reason)}`
+			: null,
 	].filter((error): error is string => Boolean(error));
 
 	return {
 		pendingSubmissions: eventSubmissionsSummary.count,
 		pendingPlacements: placementsSummary.count,
+		pendingTicketReports: ticketReportsSummary.count,
 		oldestPendingSubmissionAt: eventSubmissionsSummary.oldestCreatedAt,
 		oldestPendingPlacementAt: placementsSummary.oldestCreatedAt,
+		oldestPendingTicketReportAt: ticketReportsSummary.oldestCreatedAt,
 		newestPendingSubmissionAt: eventSubmissionsSummary.newestCreatedAt,
 		newestPendingPlacementAt: placementsSummary.newestCreatedAt,
+		newestPendingTicketReportAt: ticketReportsSummary.newestCreatedAt,
 		loadError: loadErrors.length > 0 ? loadErrors.join("; ") : null,
 		lastUpdatedAt: new Date().toISOString(),
 	};
