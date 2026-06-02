@@ -1880,7 +1880,6 @@ export function TicketExchangeClient({
 				<ModalShell
 					title="Report listing"
 					onClose={() => setReportListingId(null)}
-					closeOnOutsideClick
 				>
 					<form onSubmit={handleReport} className="space-y-3">
 						<p className="rounded-lg border border-border/70 bg-muted/35 p-3 text-sm text-muted-foreground">
@@ -2146,6 +2145,9 @@ function ListingCard({
 		listing.listingType === "selling" ? "I want to buy" : "I can sell";
 	const resolvedActionLabel =
 		listing.listingType === "selling" ? "Mark sold" : "Mark found";
+	const closedListingTextClassName = isClosedListing
+		? "text-muted-foreground/70"
+		: "text-foreground";
 	const handleCardClick = (event: React.MouseEvent<HTMLElement>) => {
 		const target = event.target as HTMLElement | null;
 		if (
@@ -2161,9 +2163,9 @@ function ListingCard({
 		<article
 			onClick={handleCardClick}
 			className={cn(
-				"cursor-pointer rounded-xl border p-4 shadow-sm sm:p-5",
+				"cursor-pointer rounded-xl border p-4 shadow-sm transition-colors sm:p-5",
 				isClosedListing
-					? "border-border/55 bg-card/50 text-muted-foreground"
+					? "border-border/35 bg-muted/18 text-muted-foreground shadow-none opacity-65 grayscale-[0.25] hover:opacity-75"
 					: "border-border/70 bg-card/82",
 			)}
 		>
@@ -2173,9 +2175,11 @@ function ListingCard({
 						<Badge
 							className={cn(
 								"shadow-none",
-								listing.listingType === "selling"
-									? "border border-emerald-500/25 bg-emerald-500/10 text-emerald-800 dark:text-emerald-100"
-									: "border border-sky-500/25 bg-sky-500/10 text-sky-800 dark:text-sky-100",
+								isClosedListing
+									? "border border-border/40 bg-background/20 text-muted-foreground/65"
+									: listing.listingType === "selling"
+										? "border border-emerald-500/25 bg-emerald-500/10 text-emerald-800 dark:text-emerald-100"
+										: "border border-sky-500/25 bg-sky-500/10 text-sky-800 dark:text-sky-100",
 							)}
 						>
 							{listingModeLabel}
@@ -2194,7 +2198,10 @@ function ListingCard({
 					<button
 						type="button"
 						onClick={() => onEventOpen(listing)}
-						className="mt-2 block max-w-full text-left text-lg font-semibold leading-tight text-foreground underline-offset-4 hover:underline sm:text-xl"
+						className={cn(
+							"mt-2 block max-w-full text-left text-lg font-semibold leading-tight underline-offset-4 hover:underline sm:text-xl",
+							closedListingTextClassName,
+						)}
 					>
 						<span className="line-clamp-2">{listing.eventName}</span>
 					</button>
@@ -2216,13 +2223,25 @@ function ListingCard({
 						<p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
 							{quantityLabel}
 						</p>
-						<p className="mt-1 text-2xl font-semibold leading-tight tracking-normal text-foreground sm:text-3xl">
+						<p
+							className={cn(
+								"mt-1 text-2xl font-semibold leading-tight tracking-normal sm:text-3xl",
+								closedListingTextClassName,
+							)}
+						>
 							{listingTitle}
 						</p>
 					</div>
 					<div className="flex flex-wrap gap-2 sm:justify-end">
 						{listing.priceLabel ? (
-							<div className="rounded-full border border-border/70 bg-background/45 px-3 py-1.5">
+							<div
+								className={cn(
+									"rounded-full border px-3 py-1.5",
+									isClosedListing
+										? "border-border/35 bg-background/20 text-muted-foreground/70"
+										: "border-border/70 bg-background/45",
+								)}
+							>
 								<span className="mr-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
 									{priceModeLabel}
 								</span>
@@ -2247,7 +2266,12 @@ function ListingCard({
 				</div>
 			</div>
 
-			<div className="mt-5 grid gap-4 border-y border-border/70 py-4 sm:grid-cols-[0.75fr_1.25fr]">
+			<div
+				className={cn(
+					"mt-5 grid gap-4 border-y py-4 sm:grid-cols-[0.75fr_1.25fr]",
+					isClosedListing ? "border-border/35" : "border-border/70",
+				)}
+			>
 				<div className="min-w-0">
 					<p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
 						<Clock className="h-3.5 w-3.5" />
@@ -2289,7 +2313,12 @@ function ListingCard({
 											immediate: true,
 										})
 									}
-									className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/70 bg-background/60 px-2 py-1 text-xs font-medium underline-offset-4 hover:underline"
+									className={cn(
+										"inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-medium underline-offset-4 hover:underline",
+										isClosedListing
+											? "border-border/35 bg-background/25 text-muted-foreground/70"
+											: "border-border/70 bg-background/60",
+									)}
 								>
 									{contactIconFor(entry.label)}
 									<span className="truncate">{entry.value}</span>
@@ -2415,7 +2444,14 @@ function ListingCard({
 			</div>
 
 			{listing.isOwner && listing.interests.length > 0 && (
-				<div className="mt-3 rounded-xl border border-border/60 bg-background/45 p-3">
+				<div
+					className={cn(
+						"mt-3 rounded-xl border p-3",
+						isClosedListing
+							? "border-border/35 bg-background/20"
+							: "border-border/60 bg-background/45",
+					)}
+				>
 					<p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
 						<UserRound className="h-3.5 w-3.5" />
 						Interested people
@@ -2481,7 +2517,7 @@ function ModalShell({
 	title,
 	children,
 	onClose,
-	closeOnOutsideClick = false,
+	closeOnOutsideClick = true,
 }: {
 	title: string;
 	children: React.ReactNode;
