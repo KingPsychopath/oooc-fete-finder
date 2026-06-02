@@ -246,13 +246,13 @@ export function MobileBottomNav() {
 		if (
 			pendingHomeSectionScrollRef.current &&
 			normalizePathname(pathname) === "/"
-			) {
-				const sectionId = pendingHomeSectionScrollRef.current;
-				pendingHomeSectionScrollRef.current = null;
-				setActiveSection(null);
+		) {
+			const sectionId = pendingHomeSectionScrollRef.current;
+			pendingHomeSectionScrollRef.current = null;
+			setActiveSection(null);
+			window.requestAnimationFrame(() => {
 				window.requestAnimationFrame(() => {
-					window.requestAnimationFrame(() => {
-						scrollToHomeSectionWhenReady(sectionId, "auto");
+					scrollToHomeSectionWhenReady(sectionId, "auto");
 				});
 			});
 		}
@@ -309,15 +309,13 @@ export function MobileBottomNav() {
 
 			const activationOffset = 24;
 			const currentY = window.scrollY + activationOffset;
-				const hasReachedHomeSection = sections.some(
-					(section) => currentY >= section.offsetTop,
-				);
-				const nextSection: NavKey | null = hasReachedHomeSection
-					? null
-					: "home";
+			const hasReachedHomeSection = sections.some(
+				(section) => currentY >= section.offsetTop,
+			);
+			const nextSection: NavKey | null = hasReachedHomeSection ? null : "home";
 
-				setActiveSection(nextSection);
-			};
+			setActiveSection(nextSection);
+		};
 
 		const onScroll = () => {
 			if (rafId === null) {
@@ -424,11 +422,13 @@ export function MobileBottomNav() {
 		},
 		{
 			key: "tickets",
-			label: "Tickets",
-			href: `${basePath || ""}/tickets`,
+			label: "Exchange",
+			href: `${basePath || ""}/exchange`,
 			icon: Ticket,
 			isActive:
 				activeSection === "tickets" ||
+				normalizedPathname === "/exchange" ||
+				normalizedPathname.startsWith("/exchange/") ||
 				normalizedPathname === "/tickets" ||
 				normalizedPathname.startsWith("/tickets/"),
 		},
@@ -663,7 +663,7 @@ export function MobileBottomNav() {
 										<span>Map</span>
 									</Link>
 									<Link
-										href={`${basePath || ""}/tickets`}
+										href={`${basePath || ""}/exchange`}
 										onClick={() => handleMoreLinkClick("ticket_exchange")}
 										className={moreInternalItemClassName}
 									>

@@ -50,6 +50,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
 	AlertTriangle,
+	ArrowUpRight,
 	AtSign,
 	Check,
 	Clock,
@@ -60,7 +61,6 @@ import {
 	ListChecks,
 	Mail,
 	MessageCircle,
-	Pause,
 	Plus,
 	RefreshCw,
 	Search,
@@ -74,6 +74,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
 	type ReactNode,
+	type RefObject,
 	useEffect,
 	useMemo,
 	useRef,
@@ -366,7 +367,7 @@ const getListingStatusLabel = (listing: TicketExchangeListingView): string => {
 	if (listing.effectiveStatus === "paused") return "Paused";
 	if (listing.effectiveStatus === "expired") return "Expired";
 	if (listing.effectiveStatus === "removed") return "Removed";
-	const label = listing.listingType === "selling" ? "Sold" : "Closed";
+	const label = listing.listingType === "selling" ? "Sold" : "Found";
 	return listing.resolvedAt
 		? `${label} ${getRelativeTime(listing.resolvedAt)}`
 		: label;
@@ -427,6 +428,9 @@ export function TicketExchangeClient({
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [isSavingProfile, setIsSavingProfile] = useState(false);
 	const [isCreatingListing, setIsCreatingListing] = useState(false);
+	const profilePanelRef = useRef<HTMLFormElement | null>(null);
+	const createPanelRef = useRef<HTMLFormElement | null>(null);
+	const boardControlsRef = useRef<HTMLDivElement | null>(null);
 	const createListingInFlightRef = useRef(false);
 	const [isAcceptingAgreement, setIsAcceptingAgreement] = useState(false);
 	const [reportListingId, setReportListingId] = useState<string | null>(null);
@@ -501,7 +505,7 @@ export function TicketExchangeClient({
 
 	const currentTicketPath = selectedEvent
 		? `${basePath}${buildTicketExchangeEventPath(selectedEvent)}`
-		: `${basePath}/tickets`;
+		: `${basePath}/exchange`;
 	const termsHref = `${basePath}/terms?returnTo=${encodeURIComponent(currentTicketPath)}`;
 	const draftContactMethodCount = getDraftContactMethodCount(
 		data.userEmail,
@@ -626,6 +630,38 @@ export function TicketExchangeClient({
 		return false;
 	};
 
+	const scrollPanelIntoView = (ref: RefObject<HTMLElement | null>): void => {
+		const scroll = () => {
+			ref.current?.scrollIntoView({
+				block: "start",
+				behavior: "smooth",
+			});
+		};
+		window.requestAnimationFrame(scroll);
+		window.setTimeout(scroll, 80);
+	};
+
+	const closeContactDetails = (): void => {
+		setIsProfileOpen(false);
+		scrollPanelIntoView(boardControlsRef);
+	};
+
+	const closeCreateListing = (): void => {
+		setIsCreateOpen(false);
+		scrollPanelIntoView(boardControlsRef);
+	};
+
+	const openContactDetails = (): void => {
+		if (!requireLogin()) return;
+		if (isProfileOpen) {
+			closeContactDetails();
+			return;
+		}
+		setIsCreateOpen(false);
+		setIsProfileOpen(true);
+		scrollPanelIntoView(profilePanelRef);
+	};
+
 	const openAgreement = (intent: PendingAgreementIntent) => {
 		setPendingAgreementIntent(intent);
 		setAgreementChecked(false);
@@ -653,6 +689,7 @@ export function TicketExchangeClient({
 		);
 		setIsProfileOpen(true);
 		setIsCreateOpen(false);
+		scrollPanelIntoView(profilePanelRef);
 		return false;
 	};
 
@@ -667,7 +704,9 @@ export function TicketExchangeClient({
 				getDefaultContactMethods(profile),
 			),
 		);
+		setIsProfileOpen(false);
 		setIsCreateOpen(true);
+		scrollPanelIntoView(createPanelRef);
 	};
 
 	const submitInterest = async (
@@ -701,7 +740,7 @@ export function TicketExchangeClient({
 		const nextEvent = eventKey ? eventByKey.get(eventKey) : null;
 		const nextPath = nextEvent
 			? `${basePath}${buildTicketExchangeEventPath(nextEvent)}`
-			: `${basePath}/tickets`;
+			: `${basePath}/exchange`;
 		startRouteTransition(() => {
 			router.push(nextPath, { scroll: false });
 		});
@@ -748,7 +787,7 @@ export function TicketExchangeClient({
 				selectedEventKey,
 			});
 			applyResult(result, "Contact profile saved.");
-			if (result.success) setIsProfileOpen(false);
+			if (result.success) closeContactDetails();
 		} finally {
 			setIsSavingProfile(false);
 		}
@@ -785,7 +824,7 @@ export function TicketExchangeClient({
 			const result = await createTicketExchangeListing(listingForm);
 			applyResult(result, "Listing posted.");
 			if (result.success) {
-				setIsCreateOpen(false);
+				closeCreateListing();
 				setListingForm(
 					createListingFormState(
 						selectedEventKey,
@@ -943,9 +982,7 @@ export function TicketExchangeClient({
 						<Button
 							type="button"
 							variant={isProfileOpen ? "secondary" : "outline"}
-							onClick={() => {
-								if (requireLogin()) setIsProfileOpen((current) => !current);
-							}}
+							onClick={openContactDetails}
 						>
 							<UserRound className="h-4 w-4" />
 							{isProfileOpen ? "Hide contacts" : "Contact details"}
@@ -979,8 +1016,9 @@ export function TicketExchangeClient({
 
 			{isProfileOpen && (
 				<form
+					ref={profilePanelRef}
 					onSubmit={handleProfileSubmit}
-					className="order-4 rounded-xl border border-border/70 bg-card/80 p-3 shadow-sm sm:p-4 lg:order-3"
+					className="order-4 scroll-mt-28 rounded-xl border border-border/70 bg-card/80 p-3 shadow-sm sm:p-4 lg:order-3 lg:scroll-mt-36"
 				>
 					<div className="mb-4 flex items-start justify-between gap-3">
 						<div className="flex min-w-0 gap-3">
@@ -1000,7 +1038,7 @@ export function TicketExchangeClient({
 							type="button"
 							variant="ghost"
 							size="icon"
-							onClick={() => setIsProfileOpen(false)}
+							onClick={closeContactDetails}
 						>
 							<X className="h-4 w-4" />
 						</Button>
@@ -1049,31 +1087,25 @@ export function TicketExchangeClient({
 							/>
 						</Field>
 						<Field label="Instagram">
-							<Input
-								autoCapitalize="none"
-								autoCorrect="off"
+							<HandleInput
 								value={profileForm.instagramHandle}
-								onChange={(event) =>
+								onChange={(value) =>
 									setProfileForm((current) => ({
 										...current,
-										instagramHandle: event.target.value,
+										instagramHandle: value,
 									}))
 								}
-								placeholder="handle"
 							/>
 						</Field>
 						<Field label="Twitter">
-							<Input
-								autoCapitalize="none"
-								autoCorrect="off"
+							<HandleInput
 								value={profileForm.xHandle}
-								onChange={(event) =>
+								onChange={(value) =>
 									setProfileForm((current) => ({
 										...current,
-										xHandle: event.target.value,
+										xHandle: value,
 									}))
 								}
-								placeholder="handle"
 							/>
 						</Field>
 					</div>
@@ -1150,8 +1182,9 @@ export function TicketExchangeClient({
 
 			{isCreateOpen && (
 				<form
+					ref={createPanelRef}
 					onSubmit={handleCreateListing}
-					className="order-4 rounded-xl border border-border/70 bg-card/72 p-4 sm:p-5 lg:order-3"
+					className="order-4 scroll-mt-28 rounded-xl border border-border/70 bg-card/72 p-4 sm:p-5 lg:order-3 lg:scroll-mt-36"
 				>
 					<div className="mb-4 flex items-start justify-between gap-3">
 						<div>
@@ -1164,7 +1197,7 @@ export function TicketExchangeClient({
 							type="button"
 							variant="ghost"
 							size="icon"
-							onClick={() => setIsCreateOpen(false)}
+							onClick={closeCreateListing}
 						>
 							<X className="h-4 w-4" />
 						</Button>
@@ -1340,16 +1373,13 @@ export function TicketExchangeClient({
 						maxVisibleOptions={6}
 						clearOnSelect
 						leadingIcon={<Search className="h-4 w-4" />}
-						className="relative z-50"
 						onSelect={(option) => selectEvent(option.value)}
 					/>
 					<Button
 						type="button"
 						variant={isProfileOpen ? "secondary" : "outline"}
 						className="justify-start"
-						onClick={() => {
-							if (requireLogin()) setIsProfileOpen((current) => !current);
-						}}
+						onClick={openContactDetails}
 					>
 						<UserRound className="h-4 w-4" />
 						{isProfileOpen ? "Hide contacts" : "Contact details"}
@@ -1371,7 +1401,7 @@ export function TicketExchangeClient({
 							Events
 						</p>
 						<Link
-							href={`${basePath}/tickets`}
+							href={`${basePath}/exchange`}
 							className={cn(
 								"mb-1 flex items-center justify-between rounded-lg px-2 py-2 text-sm",
 								!selectedEventKey
@@ -1443,7 +1473,10 @@ export function TicketExchangeClient({
 				</aside>
 
 				<section className="min-w-0 space-y-4">
-					<div className="sticky top-2 z-30 rounded-[1.15rem] border border-border/65 bg-card/86 p-1.5 shadow-[0_18px_44px_-34px_rgba(20,16,12,0.62),inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-xl sm:rounded-2xl sm:p-2 lg:static lg:bg-card/70 lg:shadow-[inset_0_1px_0_rgba(255,255,255,0.34)] dark:bg-card/58 dark:shadow-[0_18px_44px_-34px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.08)]">
+					<div
+						ref={boardControlsRef}
+						className="sticky top-2 z-30 rounded-[1.15rem] border border-border/65 bg-card/86 p-1.5 shadow-[0_18px_44px_-34px_rgba(20,16,12,0.62),inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-xl sm:rounded-2xl sm:p-2 lg:static lg:bg-card/70 lg:shadow-[inset_0_1px_0_rgba(255,255,255,0.34)] dark:bg-card/58 dark:shadow-[0_18px_44px_-34px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.08)]"
+					>
 						<div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
 							<div
 								role="group"
@@ -1741,6 +1774,33 @@ function Field({
 	);
 }
 
+function HandleInput({
+	value,
+	onChange,
+}: {
+	value: string;
+	onChange: (value: string) => void;
+}) {
+	return (
+		<div className="flex h-8 max-w-full min-w-0 items-center rounded-lg border border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30">
+			<span
+				aria-hidden="true"
+				className="shrink-0 pl-2.5 text-base text-muted-foreground md:text-sm"
+			>
+				@
+			</span>
+			<input
+				autoCapitalize="none"
+				autoCorrect="off"
+				className="h-full min-w-0 flex-1 bg-transparent px-1.5 py-1 text-base outline-none placeholder:text-muted-foreground md:text-sm"
+				placeholder="handle"
+				value={value.replace(/^@+/, "")}
+				onChange={(event) => onChange(event.target.value.replace(/^@+/, ""))}
+			/>
+		</div>
+	);
+}
+
 function SegmentedTabButton({
 	active,
 	onClick,
@@ -1863,10 +1923,24 @@ function ListingCard({
 	const replyNoun = listing.listingType === "selling" ? "buyer" : "seller";
 	const firstReplyCta =
 		listing.listingType === "selling" ? "I want to buy" : "I can sell";
+	const resolvedActionLabel =
+		listing.listingType === "selling" ? "Mark sold" : "Mark found";
+	const handleCardClick = (event: React.MouseEvent<HTMLElement>) => {
+		const target = event.target as HTMLElement | null;
+		if (
+			target?.closest(
+				"a, button, input, textarea, select, [role='button'], [data-ticket-action]",
+			)
+		) {
+			return;
+		}
+		onEventOpen(listing);
+	};
 	return (
 		<article
+			onClick={handleCardClick}
 			className={cn(
-				"rounded-xl border p-4 shadow-sm sm:p-5",
+				"cursor-pointer rounded-xl border p-4 shadow-sm sm:p-5",
 				isClosedListing
 					? "border-border/55 bg-card/50 text-muted-foreground"
 					: "border-border/70 bg-card/82",
@@ -1906,13 +1980,12 @@ function ListingCard({
 				</div>
 				<Button
 					type="button"
-					variant="outline"
-					size="sm"
+					variant="link"
 					onClick={() => onEventOpen(listing)}
-					className="mt-0.5 hidden shrink-0 sm:inline-flex"
+					className="mt-0.5 h-auto shrink-0 px-0 py-0 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground"
 				>
-					<Ticket className="h-3 w-3" />
-					View event
+					Event details
+					<ArrowUpRight className="h-3.5 w-3.5" />
 				</Button>
 			</div>
 
@@ -1937,16 +2010,6 @@ function ListingCard({
 								</span>
 							</div>
 						) : null}
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => onEventOpen(listing)}
-							className="sm:hidden"
-						>
-							View event
-							<ExternalLink className="h-3.5 w-3.5" />
-						</Button>
 					</div>
 				</div>
 				{listing.note && (
@@ -2018,25 +2081,10 @@ function ListingCard({
 									variant="outline"
 									size="sm"
 									disabled={isStatusBusy}
-									onClick={() =>
-										onStatus(
-											listing,
-											listing.status === "paused" ? "active" : "paused",
-										)
-									}
-								>
-									<Pause className="h-3.5 w-3.5" />
-									{listing.status === "paused" ? "Resume" : "Pause"}
-								</Button>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									disabled={isStatusBusy}
 									onClick={() => onStatus(listing, "resolved")}
 								>
 									<Check className="h-3.5 w-3.5" />
-									Resolved
+									{resolvedActionLabel}
 								</Button>
 								<Button
 									type="button"
@@ -2097,11 +2145,13 @@ function ListingCard({
 										{isInterestBusy ? "Sharing..." : firstReplyCta}
 									</Button>
 								)}
-								<p className="mt-1 text-[11px] leading-4 text-muted-foreground">
-									You can view contact details for up to{" "}
-									{TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active
-									listings.
-								</p>
+								{!listing.myInterest && (
+									<p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+										You can view contact details for up to{" "}
+										{TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active
+										listings.
+									</p>
+								)}
 							</div>
 						) : (
 							<Badge

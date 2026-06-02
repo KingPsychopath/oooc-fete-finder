@@ -42,14 +42,18 @@ export default function TermsPage() {
 					</CardHeader>
 					<CardContent className="prose prose-sm max-w-none space-y-6">
 						<section>
-							<h2 className="mb-3 text-lg font-semibold">
-								Ticket Exchange
-							</h2>
+							<h2 className="mb-3 text-lg font-semibold">Ticket Exchange</h2>
 							<p className="text-muted-foreground">
 								Ticket Exchange is a community noticeboard. OOOC does not sell,
 								verify, transfer, hold, reserve, guarantee, or process payment
-								for tickets. Any payment, transfer, refund, or dispute is handled
-								directly between users.
+								for tickets. Any payment, transfer, refund, or dispute is
+								handled directly between users.
+							</p>
+							<p className="mt-3 text-muted-foreground">
+								When you post a listing, your selected contact methods are shown
+								to logged-in users who reply to that listing. When you reply to
+								a listing, your selected contact methods are shown to the
+								listing owner so either person can contact the other directly.
 							</p>
 						</section>
 
@@ -61,7 +65,14 @@ export default function TermsPage() {
 								<li>Use official ticket transfer platforms where available.</li>
 								<li>Do not pressure people to pay quickly.</li>
 								<li>Do not share another person&apos;s contact details.</li>
-								<li>Mark your listing resolved when it is no longer active.</li>
+								<li>
+									Mark selling listings sold, and looking listings found, when
+									they are no longer active.
+								</li>
+								<li>
+									Repost only when your ticket availability or ticket need is
+									still genuine.
+								</li>
 								<li>
 									OOOC may remove listings or restrict access at any time.
 								</li>
@@ -73,8 +84,12 @@ export default function TermsPage() {
 							<ul className="list-disc space-y-1 pl-6 text-muted-foreground">
 								<li>Avoid screenshots as proof.</li>
 								<li>Use official ticket transfer links where possible.</li>
-								<li>Check ticket date, event, platform, and account details.</li>
-								<li>Be wary of urgency, unusual payment requests, or prices.</li>
+								<li>
+									Check ticket date, event, platform, and account details.
+								</li>
+								<li>
+									Be wary of urgency, unusual payment requests, or prices.
+								</li>
 								<li>Do not share login or verification codes.</li>
 								<li>Prefer payment methods with buyer protection.</li>
 								<li>Report suspicious listings.</li>
@@ -84,8 +99,7 @@ export default function TermsPage() {
 						<section>
 							<h2 className="mb-3 text-lg font-semibold">Contact</h2>
 							<p className="text-muted-foreground">
-								Questions or concerns? Contact{" "}
-								hello@outofofficecollective.co.uk
+								Questions or concerns? Contact hello@outofofficecollective.co.uk
 								<CopyEmailButton email="hello@outofofficecollective.co.uk" />
 							</p>
 						</section>

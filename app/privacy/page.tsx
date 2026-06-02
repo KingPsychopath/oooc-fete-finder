@@ -101,7 +101,7 @@ export default function PrivacyPolicy() {
 								</li>
 								<li>
 									To operate Ticket Exchange, including showing selected contact
-									details to users who interact with your listing or reply
+									details between listing owners and users who reply
 								</li>
 							</ul>
 							<p className="text-sm text-muted-foreground mt-3">
@@ -135,8 +135,15 @@ export default function PrivacyPolicy() {
 								</li>
 								<li>
 									Ticket Exchange contact details are not public on the site.
-									They are shown only after a user registers interest in a
-									specific listing or replies to a listing.
+									When someone replies to a listing, the listing owner can see
+									the replier&apos;s selected contact methods, and the replier
+									can see the listing owner&apos;s selected contact methods.
+								</li>
+								<li>
+									Expired, sold, found, paused, or removed listings do not
+									accept new replies. Existing reply records may remain visible
+									in the relevant user&apos;s activity view so users can follow
+									up on contacts they already exchanged.
 								</li>
 								<li>
 									We may store a browser-local reminder of the current Ticket
@@ -173,7 +180,9 @@ export default function PrivacyPolicy() {
 								</li>
 								<li>
 									Ticket Exchange users may see the contact methods you choose
-									to share when you post a listing or register interest.
+									to share when you post a listing or reply to one. This sharing
+									is limited to the specific listing relationship, not a public
+									contact directory.
 								</li>
 							</ul>
 						</section>

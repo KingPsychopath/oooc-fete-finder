@@ -98,6 +98,8 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 		pathWithoutBasePath === "/plans" ||
 		pathWithoutBasePath.startsWith("/plans/");
 	const isTicketsPage =
+		pathWithoutBasePath === "/exchange" ||
+		pathWithoutBasePath.startsWith("/exchange/") ||
 		pathWithoutBasePath === "/tickets" ||
 		pathWithoutBasePath.startsWith("/tickets/");
 	const trackHeaderNav = (label: string) => {
@@ -248,14 +250,14 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 								Discover
 							</Link>
 							<Link
-								href={`${basePath || ""}/tickets`}
-								onClick={() => trackHeaderNav("tickets")}
+								href={`${basePath || ""}/exchange`}
+								onClick={() => trackHeaderNav("exchange")}
 								className={`inline-flex items-center gap-1.5 whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
 									isTicketsPage ? "text-foreground" : "text-foreground/75"
 								}`}
 							>
 								<Ticket className="h-3.5 w-3.5" />
-								Tickets
+								Exchange
 							</Link>
 							<Link
 								href={`${basePath || ""}/how-it-works`}

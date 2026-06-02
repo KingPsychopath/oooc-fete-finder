@@ -135,7 +135,7 @@ const Footer = () => {
 								Submit your event
 							</Link>
 							<Link
-								href="/tickets"
+								href="/exchange"
 								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
 							>
 								Ticket Exchange

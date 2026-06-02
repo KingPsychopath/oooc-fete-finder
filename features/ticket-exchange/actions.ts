@@ -37,10 +37,12 @@ import {
 	validateTicketExchangeNote,
 } from "./utils";
 
-const hasAcceptedCurrentTicketExchangeRules = (profile: {
-	rulesAcceptedAt: string | null;
-	rulesVersion: string | null;
-} | null): boolean =>
+const hasAcceptedCurrentTicketExchangeRules = (
+	profile: {
+		rulesAcceptedAt: string | null;
+		rulesVersion: string | null;
+	} | null,
+): boolean =>
 	Boolean(
 		profile?.rulesAcceptedAt &&
 			profile.rulesVersion === TICKET_EXCHANGE_RULES_VERSION,
@@ -62,8 +64,13 @@ const getAuthenticatedContext = async () => {
 };
 
 const revalidateTicketExchange = (eventKey?: string | null) => {
+	revalidatePath("/exchange");
 	revalidatePath("/tickets");
-	if (eventKey) revalidatePath(`/tickets/${encodeURIComponent(eventKey)}`);
+	if (eventKey) {
+		const encodedEventKey = encodeURIComponent(eventKey);
+		revalidatePath(`/exchange/${encodedEventKey}`);
+		revalidatePath(`/tickets/${encodedEventKey}`);
+	}
 };
 
 const dataForSession = async (selectedEventKey?: string | null) => {
@@ -130,8 +137,7 @@ export async function createTicketExchangeListing(input: {
 		const event = findTicketExchangeEventByKey(events, input.eventKey);
 		if (!event) throw new Error("Choose a valid event.");
 
-		const listingType =
-			input.listingType === "looking" ? "looking" : "selling";
+		const listingType = input.listingType === "looking" ? "looking" : "selling";
 		const profile = await repository.getContactProfile(
 			session.userId as string,
 			session.email,
@@ -140,7 +146,9 @@ export async function createTicketExchangeListing(input: {
 			throw new Error("Set up your contact details before posting.");
 		}
 		if (!hasAcceptedCurrentTicketExchangeRules(profile)) {
-			throw new Error("Accept the latest Ticket Exchange agreement before posting.");
+			throw new Error(
+				"Accept the latest Ticket Exchange agreement before posting.",
+			);
 		}
 		const contactMethods = normalizeContactMethods(input.contactMethods);
 		const contactSnapshot = buildContactSnapshot(profile);
@@ -148,7 +156,9 @@ export async function createTicketExchangeListing(input: {
 			contactMethods.length === 0 ||
 			!hasContactForMethods(contactSnapshot, contactMethods)
 		) {
-			throw new Error("Choose at least one contact method with details filled in.");
+			throw new Error(
+				"Choose at least one contact method with details filled in.",
+			);
 		}
 		if (
 			countUsableContactMethods(contactSnapshot, contactMethods) <
@@ -187,7 +197,8 @@ export async function createTicketExchangeListing(input: {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : "Unable to create listing.",
+			error:
+				error instanceof Error ? error.message : "Unable to create listing.",
 		};
 	}
 }
@@ -219,7 +230,9 @@ export async function expressTicketExchangeInterest(input: {
 			contactMethods.length === 0 ||
 			!hasContactForMethods(contactSnapshot, contactMethods)
 		) {
-			throw new Error("Choose at least one contact method with details filled in.");
+			throw new Error(
+				"Choose at least one contact method with details filled in.",
+			);
 		}
 		if (
 			countUsableContactMethods(contactSnapshot, contactMethods) <
@@ -253,7 +266,10 @@ export async function expressTicketExchangeInterest(input: {
 
 export async function updateTicketExchangeListingStatus(input: {
 	listingId: string;
-	status: Extract<TicketExchangeListingStatus, "active" | "paused" | "resolved" | "removed">;
+	status: Extract<
+		TicketExchangeListingStatus,
+		"active" | "paused" | "resolved" | "removed"
+	>;
 	selectedEventKey?: string | null;
 }): Promise<TicketExchangeActionResult> {
 	try {
@@ -304,7 +320,8 @@ export async function repostTicketExchangeListing(input: {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : "Unable to repost listing.",
+			error:
+				error instanceof Error ? error.message : "Unable to repost listing.",
 		};
 	}
 }
@@ -330,7 +347,8 @@ export async function reportTicketExchangeListing(input: {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : "Unable to report listing.",
+			error:
+				error instanceof Error ? error.message : "Unable to report listing.",
 		};
 	}
 }

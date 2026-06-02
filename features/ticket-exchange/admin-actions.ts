@@ -23,14 +23,20 @@ const assertTicketExchangeAdmin = async () => {
 	const authorized = await validateAdminAccessFromServerContext();
 	if (!authorized) throw new Error("Unauthorized access");
 	const repository = getTicketExchangeRepository();
-	if (!repository) throw new Error("Ticket Exchange storage is not configured.");
+	if (!repository)
+		throw new Error("Ticket Exchange storage is not configured.");
 	return repository;
 };
 
 const revalidateAdminAndTickets = (eventKey?: string | null) => {
 	revalidatePath("/admin/content");
+	revalidatePath("/exchange");
 	revalidatePath("/tickets");
-	if (eventKey) revalidatePath(`/tickets/${encodeURIComponent(eventKey)}`);
+	if (eventKey) {
+		const encodedEventKey = encodeURIComponent(eventKey);
+		revalidatePath(`/exchange/${encodedEventKey}`);
+		revalidatePath(`/tickets/${encodedEventKey}`);
+	}
 };
 
 export async function getTicketExchangeAdminDashboard(): Promise<{

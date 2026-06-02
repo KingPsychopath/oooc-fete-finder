@@ -30,6 +30,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			priority: 0.7,
 		},
 		{
+			url: buildSiteUrl("/exchange"),
+			lastModified,
+			changeFrequency: "hourly",
+			priority: 0.8,
+		},
+		{
 			url: buildSiteUrl("/privacy"),
 			lastModified,
 			changeFrequency: "yearly",
