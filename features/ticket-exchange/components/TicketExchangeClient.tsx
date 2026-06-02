@@ -705,6 +705,23 @@ export function TicketExchangeClient({
 		scrollPanelIntoView(boardControlsRef);
 	};
 
+	const openContactDetailsFromListing = (
+		method: TicketExchangeContactMethod,
+	): void => {
+		if (!requireLogin()) return;
+		trackTicketExchangeAnalytics({
+			actionType: "profile_open",
+			eventKey: selectedEventKey,
+			surface: "listing_form",
+			detail: method,
+		});
+		setPendingMessage(
+			`Add ${methodLabels[method]} in contact details. Your listing draft will stay filled in.`,
+		);
+		setIsProfileOpen(true);
+		scrollPanelIntoView(profilePanelRef);
+	};
+
 	const openContactDetails = (): void => {
 		if (!requireLogin()) return;
 		if (isProfileOpen) {
@@ -1474,6 +1491,7 @@ export function TicketExchangeClient({
 								onChange={(contactMethods) =>
 									setListingForm((current) => ({ ...current, contactMethods }))
 								}
+								onUnavailableMethodRequest={openContactDetailsFromListing}
 							/>
 						</Field>
 						<div className="lg:col-span-2">
@@ -2052,34 +2070,60 @@ function ContactMethodPicker({
 	profile,
 	value,
 	onChange,
+	onUnavailableMethodRequest,
 }: {
 	profile: TicketExchangeContactProfile | null;
 	value: TicketExchangeContactMethod[];
 	onChange: (value: TicketExchangeContactMethod[]) => void;
+	onUnavailableMethodRequest: (method: TicketExchangeContactMethod) => void;
 }) {
+	const [promptedMethod, setPromptedMethod] =
+		useState<TicketExchangeContactMethod | null>(null);
+
+	useEffect(() => {
+		if (!promptedMethod || !hasContact(profile, promptedMethod)) return;
+		setPromptedMethod(null);
+	}, [profile, promptedMethod]);
+
 	return (
 		<div className="grid gap-2">
 			<div className="flex flex-wrap gap-2">
 				{TICKET_EXCHANGE_CONTACT_METHODS.map((method) => {
 					const available = hasContact(profile, method);
 					const selected = value.includes(method);
+					const isPrompted = promptedMethod === method;
 					return (
 						<button
 							key={method}
 							type="button"
-							disabled={!available}
-							onClick={() => onChange(toggleMethod(value, method))}
+							aria-disabled={!available}
+							onClick={() => {
+								if (available) {
+									setPromptedMethod(null);
+									onChange(toggleMethod(value, method));
+									return;
+								}
+								if (isPrompted) {
+									onUnavailableMethodRequest(method);
+									setPromptedMethod(null);
+									return;
+								}
+								setPromptedMethod(method);
+							}}
 							className={cn(
 								"rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
 								selected
 									? "border-primary bg-primary text-primary-foreground"
 									: "border-border bg-background/60",
-								!available && "cursor-not-allowed opacity-45",
+								!available &&
+									"border-dashed text-muted-foreground opacity-60 hover:border-primary/50 hover:bg-accent hover:text-foreground",
+								isPrompted &&
+									"border-amber-500/60 bg-amber-500/10 text-amber-900 opacity-100 dark:text-amber-100",
 							)}
 							title={
 								available
 									? undefined
-									: "Add this detail to your contact profile first"
+									: "Add this detail to your contact profile first. Click again to edit contacts."
 							}
 						>
 							{methodLabels[method]}
@@ -2087,9 +2131,18 @@ function ContactMethodPicker({
 					);
 				})}
 			</div>
-			<p className="text-xs text-muted-foreground">
-				Choose at least {TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT}.
-			</p>
+			{promptedMethod ? (
+				<div className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-2.5 py-2 text-xs leading-5 text-amber-900 dark:text-amber-100">
+					Add {methodLabels[promptedMethod]} to your contact details first.
+					Click {methodLabels[promptedMethod]} again to fill it out. Your
+					listing draft will stay filled in.
+				</div>
+			) : (
+				<p className="text-xs text-muted-foreground">
+					Choose at least {TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT}.
+					Grey options need adding to your contact details first.
+				</p>
+			)}
 		</div>
 	);
 }
