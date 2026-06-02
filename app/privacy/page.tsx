@@ -66,7 +66,7 @@ export default function PrivacyPolicy() {
 								</li>
 								<li>
 									Ticket Exchange contact details you choose to provide, such as
-									email, WhatsApp number, Instagram handle, or X handle
+									email, WhatsApp number, Instagram handle, or Twitter handle
 								</li>
 								<li>
 									Ticket Exchange listings, interest actions, reports, and

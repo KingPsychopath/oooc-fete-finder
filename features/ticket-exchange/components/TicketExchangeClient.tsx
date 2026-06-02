@@ -150,7 +150,7 @@ const methodLabels: Record<TicketExchangeContactMethod, string> = {
 	email: "Email",
 	whatsapp: "WhatsApp",
 	instagram: "Instagram",
-	x: "X",
+	x: "Twitter",
 };
 
 const reportReasonLabels: Record<TicketExchangeReportReason, string> = {
@@ -224,6 +224,42 @@ const getDefaultContactMethods = (
 		hasContact(profile, method),
 	).slice(0, TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT);
 
+const createDraftContactProfile = (
+	profile: TicketExchangeContactProfile | null,
+	accountEmail: string | null,
+	form: ProfileFormState,
+): TicketExchangeContactProfile | null => {
+	if (!profile && !accountEmail) return null;
+	const now = new Date().toISOString();
+	return {
+		userId: profile?.userId ?? "",
+		accountEmail: profile?.accountEmail ?? accountEmail ?? "",
+		displayName: form.displayName,
+		alternateEmail: form.alternateEmail,
+		whatsappNumber: form.whatsappNumber,
+		instagramHandle: form.instagramHandle,
+		xHandle: form.xHandle,
+		rulesAcceptedAt: profile?.rulesAcceptedAt ?? null,
+		rulesVersion: profile?.rulesVersion ?? null,
+		createdAt: profile?.createdAt ?? now,
+		updatedAt: profile?.updatedAt ?? now,
+	};
+};
+
+const hasUnsavedContactDraft = (
+	profile: TicketExchangeContactProfile | null,
+	form: ProfileFormState,
+): boolean => {
+	const saved = createProfileFormState(profile);
+	return (
+		saved.displayName !== form.displayName ||
+		saved.alternateEmail !== form.alternateEmail ||
+		saved.whatsappNumber !== form.whatsappNumber ||
+		saved.instagramHandle !== form.instagramHandle ||
+		saved.xHandle !== form.xHandle
+	);
+};
+
 const hasAcceptedCurrentAgreement = (
 	profile: TicketExchangeContactProfile | null,
 ): boolean =>
@@ -261,9 +297,11 @@ const visibleContactEntries = (snapshot?: TicketExchangeContactSnapshot) => {
 				: "",
 		},
 		{
-			label: "X",
+			label: "Twitter",
 			value: snapshot.x ? `@${snapshot.x.replace(/^@+/, "")}` : "",
-			href: snapshot.x ? `https://x.com/${snapshot.x.replace(/^@+/, "")}` : "",
+			href: snapshot.x
+				? `https://twitter.com/${snapshot.x.replace(/^@+/, "")}`
+				: "",
 		},
 	].filter((entry) => entry.value);
 };
@@ -375,6 +413,10 @@ export function TicketExchangeClient({
 		data.userEmail,
 		profileForm,
 	);
+	const draftProfile = useMemo(
+		() => createDraftContactProfile(data.profile, data.userEmail, profileForm),
+		[data.profile, data.userEmail, profileForm],
+	);
 	const summaryByEventKey = useMemo(
 		() => new Map(data.summaries.map((summary) => [summary.eventKey, summary])),
 		[data.summaries],
@@ -430,6 +472,32 @@ export function TicketExchangeClient({
 		setPendingMessage(success);
 		router.refresh();
 	};
+
+	const applyDataFromResult = (result: TicketExchangeActionResult) => {
+		if (!result.success || !result.data) return;
+		setData(result.data);
+		setSelectedEventKey(result.data.selectedEventKey);
+		setProfileForm(createProfileFormState(result.data.profile));
+	};
+
+	const saveContactDraftIfNeeded =
+		async (): Promise<TicketExchangeContactProfile | null> => {
+			if (!hasUnsavedContactDraft(data.profile, profileForm)) {
+				return data.profile;
+			}
+			setPendingMessage("Saving contact details...");
+			const result = await saveTicketExchangeContactProfile({
+				...profileForm,
+				acceptRules: false,
+				selectedEventKey,
+			});
+			if (!result.success) {
+				setErrorMessage(result.error ?? "Unable to save contact details.");
+				return null;
+			}
+			applyDataFromResult(result);
+			return result.data?.profile ?? data.profile;
+		};
 
 	const requireLogin = () => {
 		if (data.isAuthenticated || auth.isAuthenticated) return true;
@@ -528,8 +596,8 @@ export function TicketExchangeClient({
 			openAgreement({ kind: "create", listingType: type });
 			return;
 		}
-		if (!ensureContactDetailsReady(data.profile)) return;
-		startCreateListing(type, data.profile);
+		if (!ensureContactDetailsReady(draftProfile)) return;
+		startCreateListing(type, draftProfile);
 	};
 
 	const openListingEvent = (listing: TicketExchangeListingView) => {
@@ -580,6 +648,10 @@ export function TicketExchangeClient({
 		setIsCreatingListing(true);
 		setPendingMessage("Posting listing...");
 		try {
+			const savedProfile = await saveContactDraftIfNeeded();
+			if (!savedProfile) return;
+			if (!ensureContactDetailsReady(savedProfile)) return;
+			setPendingMessage("Posting listing...");
 			const result = await createTicketExchangeListing(listingForm);
 			applyResult(result, "Listing posted.");
 			if (result.success) {
@@ -604,8 +676,11 @@ export function TicketExchangeClient({
 			openAgreement({ kind: "interest", listing });
 			return;
 		}
-		if (!ensureContactDetailsReady(data.profile)) return;
-		await submitInterest(listing, data.profile);
+		if (!ensureContactDetailsReady(draftProfile)) return;
+		const savedProfile = await saveContactDraftIfNeeded();
+		if (!savedProfile) return;
+		if (!ensureContactDetailsReady(savedProfile)) return;
+		await submitInterest(listing, savedProfile);
 	};
 
 	const handleAgreementAccept = async () => {
@@ -858,7 +933,7 @@ export function TicketExchangeClient({
 								placeholder="handle"
 							/>
 						</Field>
-						<Field label="X/Twitter">
+						<Field label="Twitter">
 							<Input
 								autoCapitalize="none"
 								autoCorrect="off"
@@ -1074,7 +1149,7 @@ export function TicketExchangeClient({
 						</Field>
 						<Field label="Contact people can see">
 							<ContactMethodPicker
-								profile={data.profile}
+								profile={draftProfile}
 								value={listingForm.contactMethods}
 								onChange={(contactMethods) =>
 									setListingForm((current) => ({ ...current, contactMethods }))

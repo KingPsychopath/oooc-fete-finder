@@ -54,7 +54,7 @@ export const normalizeXHandle = (value: string): string => {
 	const normalized = normalizeHandle(value);
 	if (!normalized) return "";
 	if (!/^[A-Za-z0-9_]{1,15}$/.test(normalized)) {
-		throw new Error("Enter a valid X/Twitter handle.");
+		throw new Error("Enter a valid Twitter handle.");
 	}
 	return normalized;
 };

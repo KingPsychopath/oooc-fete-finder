@@ -36,14 +36,14 @@ describe("ticket exchange contact validation", () => {
 		);
 	});
 
-	it("normalizes and validates X handles only", () => {
+	it("normalizes and validates Twitter handles only", () => {
 		expect(normalizeXHandle("@oooc_fete")).toBe("oooc_fete");
 		expect(normalizeXHandle("")).toBe("");
 		expect(() => normalizeXHandle("x.com/oooc_fete")).toThrow(
-			"Enter a valid X/Twitter handle.",
+			"Enter a valid Twitter handle.",
 		);
 		expect(() => normalizeXHandle("this_handle_is_way_too_long")).toThrow(
-			"Enter a valid X/Twitter handle.",
+			"Enter a valid Twitter handle.",
 		);
 	});
 });
