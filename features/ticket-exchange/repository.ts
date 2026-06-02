@@ -267,12 +267,21 @@ export class TicketExchangeRepository {
 			ON ticket_exchange_listings (event_key, status, expires_at DESC)
 		`;
 		await this.sql`
+			CREATE INDEX IF NOT EXISTS idx_ticket_exchange_listings_marketplace
+			ON ticket_exchange_listings (status, expires_at DESC, updated_at DESC)
+			WHERE status <> 'removed'
+		`;
+		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_ticket_exchange_listings_owner
 			ON ticket_exchange_listings (owner_user_id, updated_at DESC)
 		`;
 		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_ticket_exchange_interests_actor
 			ON ticket_exchange_interests (actor_user_id, created_at DESC)
+		`;
+		await this.sql`
+			CREATE INDEX IF NOT EXISTS idx_ticket_exchange_interests_listing_created
+			ON ticket_exchange_interests (listing_id, created_at DESC)
 		`;
 		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_ticket_exchange_reports_review
@@ -490,10 +499,12 @@ export class TicketExchangeRepository {
 				listings.created_at,
 				listings.updated_at,
 				listings.resolved_at,
-				COUNT(interests.id)::int AS interest_count
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_interests interests
+					WHERE interests.listing_id = listings.id
+				) AS interest_count
 			FROM ticket_exchange_listings listings
-			LEFT JOIN ticket_exchange_interests interests
-				ON interests.listing_id = listings.id
 			WHERE listings.status <> 'removed'
 				AND (${eventKey}::text IS NULL OR listings.event_key = ${eventKey})
 				AND (
@@ -506,7 +517,6 @@ export class TicketExchangeRepository {
 							AND mine.actor_user_id = ${userId}
 					)
 				)
-			GROUP BY listings.id
 			ORDER BY
 				CASE
 					WHEN listings.status = 'active' AND listings.expires_at > NOW() THEN 0
@@ -518,8 +528,15 @@ export class TicketExchangeRepository {
 		`;
 
 		const listingIds = rows.map((row) => row.id);
+		const ownerListingIds = userId
+			? rows
+					.filter((row) => row.owner_user_id === userId)
+					.map((row) => row.id)
+			: [];
+		const hasOwnerListings = ownerListingIds.length > 0;
+		const ownerListingIdsForQuery = hasOwnerListings ? ownerListingIds : [""];
 		const interests =
-			listingIds.length > 0
+			userId && listingIds.length > 0
 				? await this.sql<InterestRow[]>`
 					SELECT
 						id,
@@ -531,6 +548,13 @@ export class TicketExchangeRepository {
 						created_at
 					FROM ticket_exchange_interests
 					WHERE listing_id = ANY(${listingIds})
+						AND (
+							actor_user_id = ${userId}
+							OR (
+								${hasOwnerListings} = true
+								AND listing_id = ANY(${ownerListingIdsForQuery})
+							)
+						)
 					ORDER BY created_at DESC
 				`
 				: [];

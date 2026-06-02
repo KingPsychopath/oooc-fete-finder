@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/typeahead-combobox";
 import { useOptionalAuth } from "@/features/auth/auth-context";
 import EmailGateModal from "@/features/auth/components/EmailGateModal";
-import { EventModalIsland } from "@/features/events/components/EventModalIsland";
 import type { Event } from "@/features/events/types";
 import {
 	createTicketExchangeListing,
@@ -70,7 +69,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+	type ReactNode,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useTransition,
+} from "react";
 
 type TabKey = "all" | "selling" | "looking" | "mine";
 type MarketplaceTabKey = Exclude<TabKey, "mine">;
@@ -78,6 +84,8 @@ type MarketplaceTabKey = Exclude<TabKey, "mine">;
 type TicketExchangeClientProps = {
 	initialData: TicketExchangePageData;
 };
+type TicketExchangeEventModalIslandComponent =
+	typeof import("./TicketExchangeEventModalIsland").TicketExchangeEventModalIsland;
 
 type ProfileFormState = {
 	displayName: string;
@@ -368,6 +376,7 @@ export function TicketExchangeClient({
 }: TicketExchangeClientProps) {
 	const router = useRouter();
 	const auth = useOptionalAuth();
+	const [, startRouteTransition] = useTransition();
 	const [data, setData] = useState(initialData);
 	const [selectedEventKey, setSelectedEventKey] = useState<string | null>(
 		initialData.selectedEventKey,
@@ -412,6 +421,8 @@ export function TicketExchangeClient({
 	const [selectedModalEvent, setSelectedModalEvent] = useState<Event | null>(
 		null,
 	);
+	const [TicketExchangeEventModalIsland, setTicketExchangeEventModalIsland] =
+		useState<TicketExchangeEventModalIslandComponent | null>(null);
 	const [isEventUpdateOpen, setIsEventUpdateOpen] = useState(false);
 	const hasUserSelectedTabRef = useRef(false);
 
@@ -444,6 +455,27 @@ export function TicketExchangeClient({
 			.filter((event) => event.seriesKey === selectedModalEvent.seriesKey)
 			.sort((left, right) => left.date.localeCompare(right.date));
 	}, [data.events, selectedModalEvent?.seriesKey]);
+
+	useEffect(() => {
+		if (!selectedModalEvent || TicketExchangeEventModalIsland) return;
+		let isMounted = true;
+		void import("./TicketExchangeEventModalIsland")
+			.then((module) => {
+				if (!isMounted) return;
+				setTicketExchangeEventModalIsland(
+					() => module.TicketExchangeEventModalIsland,
+				);
+			})
+			.catch(() => {
+				if (!isMounted) return;
+				setErrorMessage("Could not load event details. Try again.");
+				setSelectedModalEvent(null);
+			});
+		return () => {
+			isMounted = false;
+		};
+	}, [TicketExchangeEventModalIsland, selectedModalEvent]);
+
 	const currentTicketPath = selectedEvent
 		? `${basePath}${buildTicketExchangeEventPath(selectedEvent)}`
 		: `${basePath}/tickets`;
@@ -652,7 +684,9 @@ export function TicketExchangeClient({
 		const nextPath = nextEvent
 			? `${basePath}${buildTicketExchangeEventPath(nextEvent)}`
 			: `${basePath}/tickets`;
-		window.history.pushState(null, "", nextPath);
+		startRouteTransition(() => {
+			router.push(nextPath, { scroll: false });
+		});
 		const restoreScroll = () => {
 			window.scrollTo({ top: targetY, behavior: "auto" });
 		};
@@ -1657,19 +1691,20 @@ export function TicketExchangeClient({
 					}}
 				/>
 			)}
-			<EventModalIsland
-				event={selectedModalEvent}
-				isAuthenticated={data.isAuthenticated || auth.isAuthenticated}
-				isRequestUpdateOpen={isEventUpdateOpen}
-				onClose={() => {
-					setSelectedModalEvent(null);
-					setIsEventUpdateOpen(false);
-				}}
-				onRequestUpdateOpenChange={setIsEventUpdateOpen}
-				submissionsEnabled
-				seriesEvents={selectedModalSeriesEvents}
-				onNavigateSeriesEvent={setSelectedModalEvent}
-			/>
+			{selectedModalEvent && TicketExchangeEventModalIsland && (
+				<TicketExchangeEventModalIsland
+					event={selectedModalEvent}
+					isAuthenticated={data.isAuthenticated || auth.isAuthenticated}
+					isRequestUpdateOpen={isEventUpdateOpen}
+					onClose={() => {
+						setSelectedModalEvent(null);
+						setIsEventUpdateOpen(false);
+					}}
+					onRequestUpdateOpenChange={setIsEventUpdateOpen}
+					seriesEvents={selectedModalSeriesEvents}
+					onNavigateSeriesEvent={setSelectedModalEvent}
+				/>
+			)}
 		</div>
 	);
 }

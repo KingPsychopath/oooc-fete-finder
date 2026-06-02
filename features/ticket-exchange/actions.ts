@@ -14,7 +14,7 @@ import { getTicketExchangeRepository } from "./repository";
 import {
 	findTicketExchangeEventByKey,
 	getTicketExchangeEvents,
-	getTicketExchangePageData,
+	getTicketExchangePageModel,
 } from "./service";
 import type {
 	TicketExchangeActionResult,
@@ -68,11 +68,11 @@ const revalidateTicketExchange = (eventKey?: string | null) => {
 
 const dataForSession = async (selectedEventKey?: string | null) => {
 	const session = await getTicketExchangeSession();
-	return getTicketExchangePageData({
-		userId: session.userId,
-		userEmail: session.email,
+	const model = await getTicketExchangePageModel({
+		session,
 		selectedEventKey,
 	});
+	return model.data;
 };
 
 export async function saveTicketExchangeContactProfile(input: {

@@ -3,7 +3,10 @@ import "server-only";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import type { Event } from "@/features/events/types";
 import { isTicketExchangeEmailEnabled } from "./email";
-import { getTicketExchangeRepository } from "./repository";
+import {
+	type TicketExchangeRepository,
+	getTicketExchangeRepository,
+} from "./repository";
 import type { TicketExchangePageData, TicketExchangeSummary } from "./types";
 
 const buildEmptySummaries = (events: Event[]): TicketExchangeSummary[] =>
@@ -14,8 +17,31 @@ const buildEmptySummaries = (events: Event[]): TicketExchangeSummary[] =>
 		latestListingAt: null,
 	}));
 
+interface TicketExchangeSessionSnapshot {
+	userId?: string | null;
+	email?: string | null;
+}
+
+interface TicketExchangePageModelInput {
+	selectedEventKey?: string | null;
+	session: TicketExchangeSessionSnapshot;
+}
+
+interface TicketExchangePageDataInput extends TicketExchangePageModelInput {
+	events: Event[];
+	repository: TicketExchangeRepository | null;
+}
+
+export interface TicketExchangePageModel {
+	data: TicketExchangePageData;
+	selectedEvent: Event | null;
+}
+
 export const getTicketExchangeEvents = async (): Promise<Event[]> => {
-	const result = await getLiveEvents({ includeEngagementProjection: true });
+	const result = await getLiveEvents({
+		includeFeaturedProjection: false,
+		includeEngagementProjection: false,
+	});
 	return result.data;
 };
 
@@ -39,40 +65,45 @@ export const findTicketExchangeEventByKey = (
 	);
 };
 
-export const getTicketExchangePageData = async (input: {
-	userId?: string | null;
-	userEmail?: string | null;
-	selectedEventKey?: string | null;
-}): Promise<TicketExchangePageData> => {
-	const events = await getTicketExchangeEvents();
+const createTicketExchangePageData = async ({
+	events,
+	repository,
+	selectedEventKey,
+	session,
+}: TicketExchangePageDataInput): Promise<TicketExchangePageModel> => {
 	const selectedEvent = findTicketExchangeEventByKey(
 		events,
-		input.selectedEventKey,
+		selectedEventKey,
 	);
-	const selectedEventKey = selectedEvent?.eventKey ?? null;
-	const repository = getTicketExchangeRepository();
+	const canonicalSelectedEventKey = selectedEvent?.eventKey ?? null;
+	const userId = session.userId ?? null;
+	const userEmail = session.email ?? null;
 
 	if (!repository) {
 		return {
-			events,
-			selectedEventKey,
-			profile: null,
-			listings: [],
-			summaries: buildEmptySummaries(events),
-			isAuthenticated: Boolean(input.userId && input.userEmail),
-			userEmail: input.userEmail ?? null,
-			userId: input.userId ?? null,
-			supported: false,
-			emailEnabled: isTicketExchangeEmailEnabled(),
+			selectedEvent,
+			data: {
+				events,
+				selectedEventKey: canonicalSelectedEventKey,
+				profile: null,
+				listings: [],
+				summaries: buildEmptySummaries(events),
+				isAuthenticated: Boolean(userId && userEmail),
+				userEmail,
+				userId,
+				supported: false,
+				emailEnabled: isTicketExchangeEmailEnabled(),
+			},
 		};
 	}
 
 	const [profile, listings, storedSummaries] = await Promise.all([
-		input.userId
-			? repository.getContactProfile(input.userId, input.userEmail)
+		userId
+			? repository.getContactProfile(userId, userEmail)
 			: Promise.resolve(null),
 		repository.listListings({
-			userId: input.userId,
+			eventKey: canonicalSelectedEventKey,
+			userId,
 		}),
 		repository.getSummaries(events.map((event) => event.eventKey)),
 	]);
@@ -81,23 +112,36 @@ export const getTicketExchangePageData = async (input: {
 	);
 
 	return {
-		events,
-		selectedEventKey,
-		profile,
-		listings,
-		summaries: events.map(
-			(event) =>
-				summaryByEventKey.get(event.eventKey) ?? {
-					eventKey: event.eventKey,
-					sellingCount: 0,
-					lookingCount: 0,
-					latestListingAt: null,
-				},
-		),
-		isAuthenticated: Boolean(input.userId && input.userEmail),
-		userEmail: input.userEmail ?? null,
-		userId: input.userId ?? null,
-		supported: true,
-		emailEnabled: isTicketExchangeEmailEnabled(),
+		selectedEvent,
+		data: {
+			events,
+			selectedEventKey: canonicalSelectedEventKey,
+			profile,
+			listings,
+			summaries: events.map(
+				(event) =>
+					summaryByEventKey.get(event.eventKey) ?? {
+						eventKey: event.eventKey,
+						sellingCount: 0,
+						lookingCount: 0,
+						latestListingAt: null,
+					},
+			),
+			isAuthenticated: Boolean(userId && userEmail),
+			userEmail,
+			userId,
+			supported: true,
+			emailEnabled: isTicketExchangeEmailEnabled(),
+		},
 	};
+};
+
+export const getTicketExchangePageModel = async (
+	input: TicketExchangePageModelInput,
+): Promise<TicketExchangePageModel> => {
+	const [events, repository] = await Promise.all([
+		getTicketExchangeEvents(),
+		Promise.resolve(getTicketExchangeRepository()),
+	]);
+	return createTicketExchangePageData({ ...input, events, repository });
 };
