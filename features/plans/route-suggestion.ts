@@ -12,6 +12,7 @@ import type {
 } from "@/features/plans/types";
 
 const EARTH_RADIUS_KM = 6371;
+const MIN_ROUTE_START_GAP_MINUTES = 60;
 
 const DEFAULT_PREFERENCES: Omit<PlanPreferenceInput, "date"> = {
 	stopCount: 3,
@@ -229,17 +230,32 @@ const orderCandidates = (
 		}
 	}
 
+	const hasCandidate = (candidate: Candidate): boolean =>
+		selected.some(
+			(item) =>
+				normalizeKey(item.event.eventKey) ===
+				normalizeKey(candidate.event.eventKey),
+		);
+	const hasBreathingRoom = (candidate: Candidate): boolean =>
+		candidate.startMinutes == null ||
+		selected.every(
+			(item) =>
+				item.startMinutes == null ||
+				Math.abs(candidate.startMinutes - item.startMinutes) >=
+					MIN_ROUTE_START_GAP_MINUTES,
+		);
+
 	for (const candidate of candidates) {
 		if (selected.length >= preferences.stopCount) break;
-		if (
-			selected.some(
-				(item) =>
-					normalizeKey(item.event.eventKey) ===
-					normalizeKey(candidate.event.eventKey),
-			)
-		) {
+		if (hasCandidate(candidate) || !hasBreathingRoom(candidate)) {
 			continue;
 		}
+		selected.push(candidate);
+	}
+
+	for (const candidate of candidates) {
+		if (selected.length >= preferences.stopCount) break;
+		if (hasCandidate(candidate)) continue;
 		selected.push(candidate);
 	}
 

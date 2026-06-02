@@ -257,8 +257,9 @@ describe("buildSuggestedPlans", () => {
 		const suggestions = buildSuggestedPlans({
 			events: [
 				event({
-					eventKey: "popular-far",
+					eventKey: "popular-anchor",
 					time: "18:00",
+					isOOOCPick: true,
 					socialProofSaveCount: 20,
 					coordinates: { lat: 48.86, lng: 2.35 },
 				}),
@@ -269,18 +270,19 @@ describe("buildSuggestedPlans", () => {
 					coordinates: { lat: 48.89, lng: 2.42 },
 				}),
 				event({
-					eventKey: "saved-far",
+					eventKey: "popular-far",
 					time: "20:00",
+					socialProofSaveCount: 20,
 					coordinates: { lat: 48.83, lng: 2.28 },
 				}),
 				event({
 					eventKey: "near-one",
-					time: "18:30",
+					time: "19:00",
 					coordinates: { lat: 48.861, lng: 2.351 },
 				}),
 				event({
 					eventKey: "near-two",
-					time: "19:30",
+					time: "20:00",
 					coordinates: { lat: 48.862, lng: 2.352 },
 				}),
 			],
@@ -288,9 +290,6 @@ describe("buildSuggestedPlans", () => {
 			preferences: {
 				budget: "any",
 				stopCount: 3,
-			},
-			signals: {
-				savedEventKeys: ["saved-far"],
 			},
 		});
 
@@ -301,6 +300,50 @@ describe("buildSuggestedPlans", () => {
 		expect(suggestions.map((suggestion) => suggestion.title)).toContain(
 			"Low-travel route",
 		);
+	});
+
+	it("prefers route stops with at least an hour between event starts", () => {
+		const suggestions = buildSuggestedPlans({
+			events: [
+				event({ eventKey: "saved-start", time: "18:00" }),
+				event({
+					eventKey: "too-soon",
+					time: "18:30",
+					isOOOCPick: true,
+					socialProofSaveCount: 10,
+				}),
+				event({ eventKey: "one-hour-later", time: "19:00" }),
+				event({ eventKey: "two-hours-later", time: "20:00" }),
+			],
+			date: "2026-06-19",
+			preferences: {
+				stopCount: 3,
+			},
+			signals: {
+				savedEventKeys: ["saved-start"],
+			},
+		});
+
+		expect(suggestions[0]?.eventKeys).toEqual([
+			"saved-start",
+			"one-hour-later",
+			"two-hours-later",
+		]);
+	});
+
+	it("falls back to tighter timing when there are not enough spaced stops", () => {
+		const suggestions = buildSuggestedPlans({
+			events: [
+				event({ eventKey: "first", time: "18:00" }),
+				event({ eventKey: "only-other-option", time: "18:30" }),
+			],
+			date: "2026-06-19",
+			preferences: {
+				stopCount: 2,
+			},
+		});
+
+		expect(suggestions[0]?.eventKeys).toEqual(["first", "only-other-option"]);
 	});
 
 	it("does not show duplicate suggestions for the same ordered route", () => {
