@@ -8,7 +8,9 @@ import {
 	getEffectiveListingStatus,
 } from "./utils";
 import {
+	TICKET_EXCHANGE_INTEREST_LOCK_MINUTES,
 	TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER,
+	TICKET_EXCHANGE_MAX_DAILY_UNLOCKS_PER_USER,
 	TICKET_EXCHANGE_RULES_VERSION,
 } from "./constants";
 import type {
@@ -584,75 +586,115 @@ export class TicketExchangeRepository {
 		contactSnapshot: TicketExchangeContactSnapshot;
 	}): Promise<void> {
 		await this.ready();
-		const rows = await this.sql<Array<{ owner_user_id: string; status: string; expires_at: string }>>`
-			SELECT owner_user_id, status, expires_at
-			FROM ticket_exchange_listings
-			WHERE id = ${input.listingId}
-				AND status = 'active'
-				AND expires_at > NOW()
-			LIMIT 1
-		`;
-		const listing = rows[0];
-		if (!listing) {
-			throw new Error("This listing is not accepting interest right now.");
-		}
-		if (listing.owner_user_id === input.actorUserId) {
-			throw new Error("You cannot register interest in your own listing.");
-		}
-		const activeInterestRows = await this.sql<Array<{ count: number }>>`
-			SELECT COUNT(DISTINCT interests.listing_id)::int AS count
-			FROM ticket_exchange_interests interests
-			INNER JOIN ticket_exchange_listings listings
-				ON listings.id = interests.listing_id
-			WHERE interests.actor_user_id = ${input.actorUserId}
-				AND interests.listing_id <> ${input.listingId}
-				AND listings.status = 'active'
-				AND listings.expires_at > NOW()
-		`;
-		const activeInterestCount = activeInterestRows[0]?.count ?? 0;
-		if (activeInterestCount >= TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER) {
-			throw new Error(
-				`You can have interest open on up to ${TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active listings at once.`,
-			);
-		}
+		await this.sql.begin(async (transactionSql) => {
+			const lockedSql = transactionSql as unknown as Sql;
+			await lockedSql`
+				SELECT pg_advisory_xact_lock(hashtext('ticket_exchange_interest'), hashtext(${input.actorUserId}))
+			`;
 
-		await this.sql`
-			INSERT INTO ticket_exchange_interests (
-				id,
-				listing_id,
-				actor_user_id,
-				actor_email,
-				contact_methods,
-				contact_snapshot
-			)
-			VALUES (
-				${generateUserId()},
-				${input.listingId},
-				${input.actorUserId},
-				${input.actorEmail},
-				${this.sql.json(input.contactMethods)},
-				${this.sql.json({ ...input.contactSnapshot })}
-			)
-			ON CONFLICT (listing_id, actor_user_id)
-			DO UPDATE SET
-				actor_email = EXCLUDED.actor_email,
-				contact_methods = EXCLUDED.contact_methods,
-				contact_snapshot = EXCLUDED.contact_snapshot,
-				created_at = NOW()
-		`;
+			const rows = await lockedSql<
+				Array<{ owner_user_id: string; status: string; expires_at: string }>
+			>`
+				SELECT owner_user_id, status, expires_at
+				FROM ticket_exchange_listings
+				WHERE id = ${input.listingId}
+					AND status = 'active'
+					AND expires_at > NOW()
+				LIMIT 1
+				FOR UPDATE
+			`;
+			const listing = rows[0];
+			if (!listing) {
+				throw new Error("This listing is not accepting interest right now.");
+			}
+			if (listing.owner_user_id === input.actorUserId) {
+				throw new Error("You cannot register interest in your own listing.");
+			}
 
-		await this.sql`
-			INSERT INTO ticket_exchange_contact_audit (
-				id,
-				listing_id,
-				viewer_user_id,
-				viewed_user_id,
-				reason
-			)
-			VALUES
-				(${generateUserId()}, ${input.listingId}, ${input.actorUserId}, ${listing.owner_user_id}, 'interest_owner_reveal'),
-				(${generateUserId()}, ${input.listingId}, ${listing.owner_user_id}, ${input.actorUserId}, 'interest_actor_reveal')
-		`;
+			const existingInterestRows = await lockedSql<Array<{ id: string }>>`
+				SELECT id
+				FROM ticket_exchange_interests
+				WHERE listing_id = ${input.listingId}
+					AND actor_user_id = ${input.actorUserId}
+				LIMIT 1
+				FOR UPDATE
+			`;
+			const isNewUnlock = existingInterestRows.length === 0;
+
+			if (isNewUnlock) {
+				const activeInterestRows = await lockedSql<Array<{ count: number }>>`
+					SELECT COUNT(DISTINCT interests.listing_id)::int AS count
+					FROM ticket_exchange_interests interests
+					INNER JOIN ticket_exchange_listings listings
+						ON listings.id = interests.listing_id
+					WHERE interests.actor_user_id = ${input.actorUserId}
+						AND (
+							(listings.status = 'active' AND listings.expires_at > NOW())
+							OR interests.created_at > NOW() - (${TICKET_EXCHANGE_INTEREST_LOCK_MINUTES} * INTERVAL '1 minute')
+						)
+				`;
+				const activeInterestCount = activeInterestRows[0]?.count ?? 0;
+				if (
+					activeInterestCount >= TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER
+				) {
+					throw new Error(
+						`You can have interest open on up to ${TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active listings at once. Slots unlock after listings close or after ${TICKET_EXCHANGE_INTEREST_LOCK_MINUTES} minutes for closed listings.`,
+					);
+				}
+
+				const dailyUnlockRows = await lockedSql<Array<{ count: number }>>`
+					SELECT COUNT(DISTINCT listing_id)::int AS count
+					FROM ticket_exchange_interests
+					WHERE actor_user_id = ${input.actorUserId}
+						AND created_at > NOW() - INTERVAL '24 hours'
+				`;
+				const dailyUnlockCount = dailyUnlockRows[0]?.count ?? 0;
+				if (dailyUnlockCount >= TICKET_EXCHANGE_MAX_DAILY_UNLOCKS_PER_USER) {
+					throw new Error(
+						`You can unlock contact on up to ${TICKET_EXCHANGE_MAX_DAILY_UNLOCKS_PER_USER} new listings in 24 hours.`,
+					);
+				}
+			}
+
+			await lockedSql`
+				INSERT INTO ticket_exchange_interests (
+					id,
+					listing_id,
+					actor_user_id,
+					actor_email,
+					contact_methods,
+					contact_snapshot
+				)
+				VALUES (
+					${generateUserId()},
+					${input.listingId},
+					${input.actorUserId},
+					${input.actorEmail},
+					${lockedSql.json(input.contactMethods)},
+					${lockedSql.json({ ...input.contactSnapshot })}
+				)
+				ON CONFLICT (listing_id, actor_user_id)
+				DO UPDATE SET
+					actor_email = EXCLUDED.actor_email,
+					contact_methods = EXCLUDED.contact_methods,
+					contact_snapshot = EXCLUDED.contact_snapshot
+			`;
+
+			if (isNewUnlock) {
+				await lockedSql`
+					INSERT INTO ticket_exchange_contact_audit (
+						id,
+						listing_id,
+						viewer_user_id,
+						viewed_user_id,
+						reason
+					)
+					VALUES
+						(${generateUserId()}, ${input.listingId}, ${input.actorUserId}, ${listing.owner_user_id}, 'interest_owner_reveal'),
+						(${generateUserId()}, ${input.listingId}, ${listing.owner_user_id}, ${input.actorUserId}, 'interest_actor_reveal')
+				`;
+			}
+		});
 	}
 
 	async updateListingStatus(input: {
