@@ -521,19 +521,47 @@ export function TicketExchangeClient({
 	);
 	const eventOptions = useMemo<TypeaheadComboboxOption[]>(
 		() =>
-			data.events.map((event) => ({
-				value: event.eventKey,
-				label: event.name,
-				description: [
-					formatEventPickerDate(event.date),
-					event.time,
-					event.location,
-				]
-					.filter(Boolean)
-					.join(" · "),
-				rightLabel: formatEventPickerDay(event.day),
-			})),
-		[data.events],
+			data.events
+				.map((event, index) => {
+					const summary = summaryByEventKey.get(event.eventKey);
+					const sellingCount = summary?.sellingCount ?? 0;
+					const lookingCount = summary?.lookingCount ?? 0;
+					const activeCount = sellingCount + lookingCount;
+					const activityLabel =
+						activeCount > 0
+							? [
+									sellingCount > 0 ? `${sellingCount} selling` : null,
+									lookingCount > 0 ? `${lookingCount} looking` : null,
+								]
+									.filter(Boolean)
+									.join(" · ")
+							: null;
+					return {
+						value: event.eventKey,
+						label: event.name,
+						description: [
+							activityLabel,
+							formatEventPickerDate(event.date),
+							event.time,
+							event.location,
+						]
+							.filter(Boolean)
+							.join(" · "),
+						rightLabel: formatEventPickerDay(event.day),
+						activeCount,
+						index,
+					};
+				})
+				.sort((left, right) => {
+					if (left.activeCount !== right.activeCount) {
+						return right.activeCount - left.activeCount;
+					}
+					return left.index - right.index;
+				})
+				.map(
+					({ activeCount: _activeCount, index: _index, ...option }) => option,
+				),
+		[data.events, summaryByEventKey],
 	);
 	const selectedEventOption =
 		eventOptions.find((option) => option.value === listingForm.eventKey) ??
@@ -729,13 +757,6 @@ export function TicketExchangeClient({
 	};
 
 	const selectEvent = (eventKey: string | null) => {
-		const scrollY = window.scrollY;
-		const boardTop =
-			document.getElementById("ticket-exchange-board")?.getBoundingClientRect()
-				.top ?? 0;
-		const boardY = Math.max(0, window.scrollY + boardTop - 12);
-		const isMobile = window.matchMedia("(max-width: 1023px)").matches;
-		const targetY = isMobile ? Math.max(scrollY, boardY) : scrollY;
 		setSelectedEventKey(eventKey);
 		const nextEvent = eventKey ? eventByKey.get(eventKey) : null;
 		const nextPath = nextEvent
@@ -744,12 +765,6 @@ export function TicketExchangeClient({
 		startRouteTransition(() => {
 			router.push(nextPath, { scroll: false });
 		});
-		const restoreScroll = () => {
-			window.scrollTo({ top: targetY, behavior: "auto" });
-		};
-		window.requestAnimationFrame(restoreScroll);
-		window.setTimeout(restoreScroll, 0);
-		window.setTimeout(restoreScroll, 80);
 	};
 
 	const openCreateListing = (type: TicketExchangeListingType = "selling") => {
@@ -955,9 +970,6 @@ export function TicketExchangeClient({
 								<Ticket className="mr-1 h-3 w-3" />
 								Ticket Exchange
 							</Badge>
-							{selectedEvent && (
-								<Badge variant="outline">{selectedEvent.name}</Badge>
-							)}
 						</div>
 						<div>
 							<h1 className="text-xl font-semibold tracking-normal text-foreground sm:text-3xl">
@@ -1477,6 +1489,25 @@ export function TicketExchangeClient({
 						ref={boardControlsRef}
 						className="sticky top-2 z-30 rounded-[1.15rem] border border-border/65 bg-card/86 p-1.5 shadow-[0_18px_44px_-34px_rgba(20,16,12,0.62),inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-xl sm:rounded-2xl sm:p-2 lg:static lg:bg-card/70 lg:shadow-[inset_0_1px_0_rgba(255,255,255,0.34)] dark:bg-card/58 dark:shadow-[0_18px_44px_-34px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.08)]"
 					>
+						{selectedEvent ? (
+							<div className="mb-1.5 flex items-center gap-2 border-b border-border/60 px-1 pb-1.5 sm:mb-2 sm:px-1.5 sm:pb-2">
+								<div className="min-w-0 flex flex-1 items-center gap-2">
+									<span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+										Event
+									</span>
+									<span className="min-w-0 truncate text-sm font-semibold text-foreground">
+										{selectedEvent.name}
+									</span>
+								</div>
+								<button
+									type="button"
+									onClick={() => selectEvent(null)}
+									className="shrink-0 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+								>
+									Show all
+								</button>
+							</div>
+						) : null}
 						<div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
 							<div
 								role="group"

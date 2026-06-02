@@ -156,12 +156,12 @@ export function TypeaheadCombobox({
 	const selectOption = useCallback(
 		(option: TypeaheadComboboxOption) => {
 			if (option.disabled) return;
-			onSelect(option);
 			const nextValue = clearOnSelect ? "" : option.label;
 			setInputValue(nextValue);
 			onInputChange?.(nextValue);
 			setIsOpen(false);
 			setHighlightedIndex(0);
+			onSelect(option);
 		},
 		[clearOnSelect, onInputChange, onSelect],
 	);
