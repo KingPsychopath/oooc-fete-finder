@@ -57,9 +57,9 @@ const getAuthenticatedContext = async () => {
 	return { session, repository };
 };
 
-const revalidateTicketExchange = (eventSlug?: string | null) => {
+const revalidateTicketExchange = (eventKey?: string | null) => {
 	revalidatePath("/tickets");
-	if (eventSlug) revalidatePath(`/tickets/${eventSlug}`);
+	if (eventKey) revalidatePath(`/tickets/${encodeURIComponent(eventKey)}`);
 };
 
 const dataForSession = async (selectedEventKey?: string | null) => {
@@ -172,7 +172,7 @@ export async function createTicketExchangeListing(input: {
 			contactSnapshot,
 			expiresAt: resolveExpiryDate(input.expiryHours),
 		});
-		revalidateTicketExchange(event.slug);
+		revalidateTicketExchange(event.eventKey);
 		return {
 			success: true,
 			data: await dataForSession(event.eventKey),

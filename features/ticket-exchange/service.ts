@@ -19,6 +19,15 @@ export const getTicketExchangeEvents = async (): Promise<Event[]> => {
 	return result.data;
 };
 
+export const getTicketExchangeSummariesForEvents = async (
+	events: Event[],
+): Promise<TicketExchangeSummary[]> => {
+	if (events.length === 0) return [];
+	const repository = getTicketExchangeRepository();
+	if (!repository) return buildEmptySummaries(events);
+	return repository.getSummaries(events.map((event) => event.eventKey));
+};
+
 export const findTicketExchangeEvent = (
 	events: Event[],
 	value: string | null | undefined,

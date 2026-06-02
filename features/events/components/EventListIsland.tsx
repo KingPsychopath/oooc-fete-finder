@@ -38,6 +38,7 @@ export function EventListIsland({
 		setSortMode,
 		setNearbyRadiusKm,
 		socialProofDisplayModes,
+		ticketActivityDisplayModes,
 		sortMode,
 		toggleNearbyEvents,
 		toggleFilterPanel,
@@ -61,6 +62,7 @@ export function EventListIsland({
 			events={visibleEvents}
 			onEventClick={onEventClick}
 			socialProofDisplayModes={socialProofDisplayModes}
+			ticketActivityDisplayModes={ticketActivityDisplayModes}
 			sortMode={sortMode}
 			onSortModeChange={setSortMode}
 			onFilterClickAction={toggleFilterPanel}

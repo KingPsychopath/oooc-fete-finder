@@ -37,6 +37,7 @@ import type {
 	TicketExchangePageData,
 	TicketExchangeReportReason,
 } from "@/features/ticket-exchange/types";
+import { buildTicketExchangeEventPath } from "@/features/ticket-exchange/urls";
 import { cn } from "@/lib/utils";
 import {
 	AlertTriangle,
@@ -356,7 +357,7 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 			.sort((left, right) => left.date.localeCompare(right.date));
 	}, [data.events, selectedModalEvent?.seriesKey]);
 	const currentTicketPath = selectedEvent
-		? `${basePath}/tickets/${selectedEvent.slug}`
+		? `${basePath}${buildTicketExchangeEventPath(selectedEvent)}`
 		: `${basePath}/tickets`;
 	const termsHref = `${basePath}/terms?returnTo=${encodeURIComponent(currentTicketPath)}`;
 	const draftContactMethodCount = getDraftContactMethodCount(
@@ -491,7 +492,7 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 		setSelectedEventKey(eventKey);
 		const nextEvent = eventKey ? eventByKey.get(eventKey) : null;
 		const nextPath = nextEvent
-			? `${basePath}/tickets/${nextEvent.slug}`
+			? `${basePath}${buildTicketExchangeEventPath(nextEvent)}`
 			: `${basePath}/tickets`;
 		window.history.pushState(null, "", nextPath);
 		const restoreScroll = () => {
@@ -1162,7 +1163,7 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 								return (
 									<Link
 										key={event.eventKey}
-										href={`${basePath}/tickets/${event.slug}`}
+										href={`${basePath}${buildTicketExchangeEventPath(event)}`}
 										className={cn(
 											"block rounded-lg px-2 py-2 text-sm transition-colors hover:bg-muted",
 											selectedEventKey === event.eventKey &&
@@ -1537,8 +1538,9 @@ function ListingCard({
 	const quantityLabel =
 		listing.listingType === "selling" ? "Available" : "Needed";
 	const priceModeLabel = listing.listingType === "selling" ? "Price" : "Budget";
+	const hasAgreement = hasAcceptedCurrentAgreement(profile);
 	return (
-		<article className="rounded-xl border border-border/70 bg-card/82 p-3 shadow-sm sm:p-4">
+		<article className="rounded-xl border border-border/70 bg-card/82 p-4 shadow-sm sm:p-5">
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0 flex-1">
 					<div className="flex flex-wrap items-center gap-2">
@@ -1567,64 +1569,64 @@ function ListingCard({
 				<button
 					type="button"
 					onClick={() => onEventOpen(listing)}
-					className="mt-0.5 hidden shrink-0 items-center gap-1 rounded-lg border border-border/70 bg-background/55 px-2 py-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline-flex"
+					className="mt-0.5 hidden shrink-0 items-center gap-1 rounded-full border border-border/70 bg-background/45 px-2.5 py-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline-flex"
 				>
 					<Ticket className="h-3 w-3" />
-					Event
+					View event
 				</button>
 			</div>
 
-			<div className="mt-4 space-y-3">
-				<div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-					<div className="min-w-0 rounded-lg border border-border/60 bg-background/45 p-3">
-						<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+			<div className="mt-5 space-y-3">
+				<div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+					<div className="min-w-0">
+						<p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
 							{quantityLabel}
 						</p>
-						<p className="mt-1 text-xl font-semibold tracking-normal text-foreground">
+						<p className="mt-1 text-2xl font-semibold leading-tight tracking-normal text-foreground sm:text-3xl">
 							{listingTitle}
 						</p>
 					</div>
-					{listing.priceLabel ? (
-						<div className="rounded-lg border border-border/60 bg-background/45 p-3 sm:min-w-36">
-							<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-								{priceModeLabel}
-							</p>
-							<p className="mt-1 text-base font-semibold text-foreground">
-								{listing.priceLabel}
-							</p>
-						</div>
-					) : null}
+					<div className="flex flex-wrap gap-2 sm:justify-end">
+						{listing.priceLabel ? (
+							<div className="rounded-full border border-border/70 bg-background/45 px-3 py-1.5">
+								<span className="mr-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+									{priceModeLabel}
+								</span>
+								<span className="text-sm font-semibold">{listing.priceLabel}</span>
+							</div>
+						) : null}
+						<button
+							type="button"
+							onClick={() => onEventOpen(listing)}
+							className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/45 px-3 py-1.5 text-sm font-medium underline-offset-4 hover:underline sm:hidden"
+						>
+							View event
+							<ExternalLink className="h-3.5 w-3.5" />
+						</button>
+					</div>
 				</div>
 				{listing.note && (
 					<p className="max-w-2xl text-sm leading-6 text-muted-foreground">
 						{listing.note}
 					</p>
 				)}
-				<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+				<div className="text-sm text-muted-foreground">
 					<span>Confirm availability directly before sending money.</span>
-					<button
-						type="button"
-						onClick={() => onEventOpen(listing)}
-						className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline"
-					>
-						View event
-						<ExternalLink className="h-3 w-3" />
-					</button>
 				</div>
 			</div>
 
-			<div className="mt-4 grid gap-3 border-t border-border/70 pt-3 sm:grid-cols-[0.85fr_1.15fr]">
-				<div>
+			<div className="mt-5 grid gap-4 border-y border-border/70 py-4 sm:grid-cols-[0.75fr_1.25fr]">
+				<div className="min-w-0">
 					<p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
 						<Clock className="h-3.5 w-3.5" />
 						Interest
 					</p>
-					<p className="mt-1 text-sm">
+					<p className="mt-1 text-base">
 						<span className="font-semibold">{listing.interestCount}</span>{" "}
 						{listing.interestCount === 1 ? "person interested" : "people interested"}
 					</p>
 				</div>
-				<div>
+				<div className="min-w-0">
 					<p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
 						<MessageCircle className="h-3.5 w-3.5" />
 						Contact
@@ -1646,13 +1648,13 @@ function ListingCard({
 						</div>
 					) : (
 						<p className="mt-1 text-sm text-muted-foreground">
-							Unlocks after interest.
+							Available after you register interest.
 						</p>
 					)}
 				</div>
 			</div>
 
-			<div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
+			<div className="mt-4 flex flex-wrap items-center gap-2">
 				{listing.isOwner ? (
 					<>
 						<Button
@@ -1707,6 +1709,11 @@ function ListingCard({
 							type="button"
 							size="sm"
 							disabled={listing.effectiveStatus !== "active" || isInterestBusy}
+							title={
+								isAuthenticated && !hasAgreement
+									? "You will review the Ticket Exchange agreement first."
+									: undefined
+							}
 							onClick={() => {
 								if (!isAuthenticated) {
 									onLogin();
@@ -1720,7 +1727,9 @@ function ListingCard({
 								? "Unlocking..."
 								: listing.myInterest
 									? "Update interest"
-									: "I'm interested"}
+									: hasAgreement || !isAuthenticated
+										? "I'm interested"
+										: "Review agreement"}
 						</Button>
 						<Button
 							type="button"
@@ -1755,21 +1764,29 @@ function ListingCard({
 								</p>
 								<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
 									{visibleContactEntries(interest.contactSnapshot).map((entry) => (
-										<span key={`${interest.id}-${entry.label}`}>
-											{entry.label}: {entry.value}
-										</span>
+										<a
+											key={`${interest.id}-${entry.label}`}
+											href={entry.href}
+											target={
+												entry.href.startsWith("http") ? "_blank" : undefined
+											}
+											rel={
+												entry.href.startsWith("http")
+													? "noopener noreferrer"
+													: undefined
+											}
+											className="inline-flex max-w-full items-center gap-1 rounded-full border border-border/60 bg-background/55 px-2 py-1 font-medium text-foreground underline-offset-4 hover:underline"
+										>
+											{contactIconFor(entry.label)}
+											<span className="text-muted-foreground">{entry.label}</span>
+											<span className="truncate">{entry.value}</span>
+										</a>
 									))}
 								</div>
 							</div>
 						))}
 					</div>
 				</div>
-			)}
-
-			{!hasAcceptedCurrentAgreement(profile) && !listing.isOwner && (
-				<p className="mt-3 text-xs text-muted-foreground">
-					Accept the Ticket Exchange agreement before sharing interest.
-				</p>
 			)}
 		</article>
 	);

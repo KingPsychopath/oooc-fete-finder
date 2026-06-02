@@ -7,7 +7,10 @@ import {
 	filterContactSnapshot,
 	getEffectiveListingStatus,
 } from "./utils";
-import { TICKET_EXCHANGE_RULES_VERSION } from "./constants";
+import {
+	TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER,
+	TICKET_EXCHANGE_RULES_VERSION,
+} from "./constants";
 import type {
 	TicketExchangeContactMethod,
 	TicketExchangeContactProfile,
@@ -595,6 +598,22 @@ export class TicketExchangeRepository {
 		}
 		if (listing.owner_user_id === input.actorUserId) {
 			throw new Error("You cannot register interest in your own listing.");
+		}
+		const activeInterestRows = await this.sql<Array<{ count: number }>>`
+			SELECT COUNT(DISTINCT interests.listing_id)::int AS count
+			FROM ticket_exchange_interests interests
+			INNER JOIN ticket_exchange_listings listings
+				ON listings.id = interests.listing_id
+			WHERE interests.actor_user_id = ${input.actorUserId}
+				AND interests.listing_id <> ${input.listingId}
+				AND listings.status = 'active'
+				AND listings.expires_at > NOW()
+		`;
+		const activeInterestCount = activeInterestRows[0]?.count ?? 0;
+		if (activeInterestCount >= TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER) {
+			throw new Error(
+				`You can have interest open on up to ${TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active listings at once.`,
+			);
 		}
 
 		await this.sql`

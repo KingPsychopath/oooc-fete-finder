@@ -23,6 +23,11 @@ import {
 	shouldShowSocialProofBadge,
 } from "@/features/events/social-proof";
 import {
+	type TicketActivityDisplayMode,
+	formatTicketActivityLabel,
+	shouldShowTicketActivityBadge,
+} from "@/features/events/ticket-activity";
+import {
 	type DayNightPeriod,
 	type Event,
 	MUSIC_GENRES,
@@ -52,6 +57,7 @@ import {
 	Moon,
 	Star,
 	Sun,
+	Ticket,
 	Trees,
 	Users,
 } from "lucide-react";
@@ -60,6 +66,7 @@ type EventCardProps = {
 	event: Event;
 	onClick: (event: Event) => void;
 	socialProofMode?: SocialProofDisplayMode;
+	ticketActivityMode?: TicketActivityDisplayMode;
 	genreFrequency?: GenreFrequency;
 	isSaved?: boolean;
 	proximityLabel?: string;
@@ -74,6 +81,7 @@ export function EventCard({
 	event,
 	onClick,
 	socialProofMode,
+	ticketActivityMode,
 	genreFrequency,
 	isSaved = false,
 	proximityLabel,
@@ -125,6 +133,17 @@ export function EventCard({
 		socialProofMode,
 		socialProofSaveCount,
 		socialProofHistoricalSaveCount,
+	);
+	const ticketExchangeSellingCount = event.ticketExchangeSellingCount ?? 0;
+	const ticketExchangeLookingCount = event.ticketExchangeLookingCount ?? 0;
+	const ticketActivityLabel = formatTicketActivityLabel(
+		ticketExchangeSellingCount,
+		ticketExchangeLookingCount,
+	);
+	const hasTicketActivityBadge = shouldShowTicketActivityBadge(
+		ticketActivityMode,
+		ticketExchangeSellingCount,
+		ticketExchangeLookingCount,
 	);
 	const locationDisplay = getEventLocationDisplay(event);
 	const areaLabel = locationDisplay.areaShortLabel;
@@ -376,6 +395,19 @@ export function EventCard({
 				<div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-800 dark:text-amber-200">
 					<Flame className="h-3 w-3" />
 					{socialProofLabel}
+				</div>
+			)}
+			{hasTicketActivityBadge && (
+				<div
+					className={`mt-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${
+						ticketActivityMode === "fresh"
+							? "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+							: "border-sky-500/28 bg-sky-500/10 text-sky-800 dark:text-sky-200"
+					}`}
+					title="Active community ticket exchange listing"
+				>
+					<Ticket className="h-3 w-3" />
+					{ticketActivityLabel}
 				</div>
 			)}
 		</div>

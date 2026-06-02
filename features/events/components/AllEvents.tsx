@@ -8,6 +8,7 @@ import { FilterButton } from "@/features/events/components/FilterButton";
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import { buildGenreFrequency } from "@/features/events/genre-preview";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
+import type { TicketActivityDisplayMode } from "@/features/events/ticket-activity";
 import type { DayNightPeriod, Event } from "@/features/events/types";
 import type {
 	NearbyLocationScope,
@@ -59,6 +60,7 @@ type AllEventsProps = {
 	events: Event[];
 	onEventClick: (event: Event) => void;
 	socialProofDisplayModes: Map<string, SocialProofDisplayMode>;
+	ticketActivityDisplayModes: Map<string, TicketActivityDisplayMode>;
 	sortMode: EventSortMode;
 	onSortModeChange: (mode: EventSortMode) => void;
 	onFilterClickAction: () => void;
@@ -92,6 +94,7 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			events,
 			onEventClick,
 			socialProofDisplayModes,
+			ticketActivityDisplayModes,
 			sortMode,
 			onSortModeChange,
 			onFilterClickAction,
@@ -420,6 +423,9 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 										socialProofMode={socialProofDisplayModes.get(
 											event.eventKey,
 										)}
+										ticketActivityMode={ticketActivityDisplayModes.get(
+											event.eventKey,
+										)}
 										genreFrequency={genreFrequency}
 										isSaved={isEventSaved(event.eventKey)}
 										proximityLabel={
@@ -486,6 +492,9 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 												event={event}
 												onClick={onEventClick}
 												socialProofMode={socialProofDisplayModes.get(
+													event.eventKey,
+												)}
+												ticketActivityMode={ticketActivityDisplayModes.get(
 													event.eventKey,
 												)}
 												genreFrequency={genreFrequency}

@@ -366,6 +366,9 @@ export type Event = {
 	lastMeaningfulChangeAt?: string; // ISO timestamp when public event details last changed in the managed store
 	socialProofSaveCount?: number; // Public numeric proof count from fresh, deduped save/calendar actions
 	socialProofHistoricalSaveCount?: number; // Generic proof fallback count from the broader historical save window
+	ticketExchangeSellingCount?: number; // Active Ticket Exchange listings from people selling for this event
+	ticketExchangeLookingCount?: number; // Active Ticket Exchange listings from people looking for this event
+	ticketExchangeLatestListingAt?: string | null; // Most recent active Ticket Exchange listing timestamp
 	nationality?: Nationality[]; // GB/FR indicators from CSV - now supports multiple
 	hostCountries?: Nationality[]; // Host Country column, kept separate for detail views
 	audienceCountries?: Nationality[]; // Audience Country column, kept separate for detail views

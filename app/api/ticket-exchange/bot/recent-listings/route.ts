@@ -3,6 +3,7 @@ import {
 	parseTicketExchangeBotLimit,
 } from "@/features/ticket-exchange/bot-auth";
 import { getTicketExchangeRepository } from "@/features/ticket-exchange/repository";
+import { buildTicketExchangeEventPath } from "@/features/ticket-exchange/urls";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
 				note: listing.note,
 				expiresAt: listing.expiresAt,
 				createdAt: listing.createdAt,
-				url: `/tickets/${listing.eventSlug}`,
+				url: buildTicketExchangeEventPath(listing),
 			})),
 		},
 		{ headers: NO_STORE_HEADERS },

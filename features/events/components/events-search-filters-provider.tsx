@@ -21,6 +21,10 @@ import {
 } from "@/features/events/ordering";
 import { getSocialProofDisplayModes } from "@/features/events/social-proof";
 import {
+	type TicketActivityDisplayMode,
+	getTicketActivityDisplayModes,
+} from "@/features/events/ticket-activity";
+import {
 	type Event,
 	MUSIC_GENRES,
 	type MusicGenreDefinition,
@@ -182,6 +186,7 @@ interface EventsSearchFiltersContextValue {
 			? T
 			: never
 	>;
+	ticketActivityDisplayModes: Map<string, TicketActivityDisplayMode>;
 	sortMode: EventSortMode;
 	spotlightRotationContext: SpotlightRotationContext;
 	spotlightEventsOrdered: Event[];
@@ -630,6 +635,10 @@ export function EventsSearchFiltersProvider({
 		() => getSocialProofDisplayModes(spotlightEligibleEvents),
 		[spotlightEligibleEvents],
 	);
+	const ticketActivityDisplayModes = useMemo(
+		() => getTicketActivityDisplayModes(spotlightEligibleEvents),
+		[spotlightEligibleEvents],
+	);
 
 	const value = useMemo(
 		() => ({
@@ -658,6 +667,7 @@ export function EventsSearchFiltersProvider({
 			setSortMode: handleSortModeChange,
 			showNearbyEventsList,
 			socialProofDisplayModes,
+			ticketActivityDisplayModes,
 			sortMode,
 			spotlightRotationContext,
 			spotlightEventsOrdered,
@@ -691,6 +701,7 @@ export function EventsSearchFiltersProvider({
 			handleSortModeChange,
 			showNearbyEventsList,
 			socialProofDisplayModes,
+			ticketActivityDisplayModes,
 			sortMode,
 			spotlightRotationContext,
 			spotlightEventsOrdered,

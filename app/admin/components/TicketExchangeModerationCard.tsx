@@ -48,6 +48,22 @@ const statusVariant = (status: TicketExchangeListingStatus) => {
 const listingLabel = (listing: TicketExchangeAdminListing): string =>
 	listing.listingType === "selling" ? "Selling" : "Looking";
 
+const quantitySummary = (listing: TicketExchangeAdminListing): string => {
+	const rawQuantity = listing.quantityLabel.trim();
+	if (!rawQuantity) return "Not provided";
+	if (!/^\d+$/.test(rawQuantity)) return rawQuantity;
+
+	const ticketWord = rawQuantity === "1" ? "ticket" : "tickets";
+	return listing.listingType === "selling"
+		? `${rawQuantity} ${ticketWord} available`
+		: `Looking for ${rawQuantity} ${ticketWord}`;
+};
+
+const priceSummary = (listing: TicketExchangeAdminListing): string => {
+	if (listing.priceLabel) return listing.priceLabel;
+	return listing.listingType === "selling" ? "Missing price" : "Not listed";
+};
+
 const statusLabel = (status: TicketExchangeListingStatus): string => {
 	switch (status) {
 		case "active":
@@ -101,83 +117,132 @@ const ListingRow = ({
 	) => void;
 	isMutating: boolean;
 	compact?: boolean;
-}) => (
-	<div className="rounded-lg border bg-background/70 p-3 transition-colors hover:bg-background">
-		<div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-			<div className="min-w-0 space-y-2">
-				<div className="flex flex-wrap items-center gap-2">
-					<Badge variant="outline">{listingLabel(listing)}</Badge>
-					<Badge variant={statusVariant(listing.effectiveStatus)}>
-						{statusLabel(listing.effectiveStatus)}
-					</Badge>
-					{listing.reportCount > 0 ? (
-						<Badge variant="destructive">
-							{listing.reportCount}{" "}
-							{listing.reportCount === 1 ? "Report" : "Reports"}
+}) => {
+	const listingFacts = [
+		{
+			label: listing.listingType === "selling" ? "Available" : "Needed",
+			value: quantitySummary(listing),
+		},
+		{
+			label: listing.listingType === "selling" ? "Price" : "Budget",
+			value: priceSummary(listing),
+			muted: !listing.priceLabel,
+		},
+		{
+			label: "Interest",
+			value: `${listing.interestCount} ${
+				listing.interestCount === 1 ? "person" : "people"
+			}`,
+		},
+		{ label: "Expires", value: formatDateTime(listing.expiresAt) },
+		{ label: "Bot", value: formatDateTime(listing.botAnnouncedAt) },
+	];
+
+	return (
+		<div className="rounded-lg border bg-background/70 p-3 transition-colors hover:bg-background">
+			<div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+				<div className="min-w-0 space-y-3">
+					<div className="flex flex-wrap items-center gap-2">
+						<Badge variant="outline">{listingLabel(listing)}</Badge>
+						<Badge variant={statusVariant(listing.effectiveStatus)}>
+							{statusLabel(listing.effectiveStatus)}
 						</Badge>
+						{listing.reportCount > 0 ? (
+							<Badge variant="destructive">
+								{listing.reportCount}{" "}
+								{listing.reportCount === 1 ? "Report" : "Reports"}
+							</Badge>
+						) : null}
+					</div>
+					<div>
+						<p className="text-base font-semibold leading-snug">
+							{listing.eventName}
+						</p>
+						<p className="text-xs text-muted-foreground">
+							Owner: {listing.ownerEmail || "Unknown"}
+						</p>
+					</div>
+					<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+						{listingFacts.map((fact) => (
+							<div
+								key={fact.label}
+								className="rounded-md border bg-muted/20 px-2.5 py-2"
+							>
+								<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+									{fact.label}
+								</p>
+								<p
+									className={cn(
+										"mt-1 text-sm font-medium leading-snug",
+										fact.muted ? "text-muted-foreground" : "text-foreground",
+									)}
+								>
+									{fact.value}
+								</p>
+							</div>
+						))}
+					</div>
+					{listing.note && !compact ? (
+						<p className="line-clamp-2 rounded-md border bg-muted/15 px-2.5 py-2 text-sm text-muted-foreground">
+							{listing.note}
+						</p>
 					) : null}
 				</div>
-				<p className="font-medium leading-snug">{listing.eventName}</p>
-				<p className="text-sm text-muted-foreground">
-					{listing.quantityLabel}
-					{listing.priceLabel ? ` · ${listing.priceLabel}` : ""}
-				</p>
-				<p className="text-xs text-muted-foreground">
-					{listing.ownerEmail} · {listing.interestCount} interest · expires{" "}
-					{formatDateTime(listing.expiresAt)} · bot{" "}
-					{formatDateTime(listing.botAnnouncedAt)}
-				</p>
-				{listing.note && !compact ? (
-					<p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-						{listing.note}
+				<div className="rounded-lg border bg-muted/20 p-2 lg:min-w-72 lg:self-start">
+					<p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+						Moderation actions
 					</p>
-				) : null}
-			</div>
-			<div className="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					disabled={isMutating || listing.status === "paused"}
-					onClick={() => onMutate(listing.id, "paused")}
-				>
-					<Pause />
-					Pause
-				</Button>
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					disabled={isMutating || listing.status === "active"}
-					onClick={() => onMutate(listing.id, "active")}
-				>
-					<RefreshCw />
-					Restore
-				</Button>
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					disabled={isMutating || listing.status === "resolved"}
-					onClick={() => onMutate(listing.id, "resolved")}
-				>
-					<Check />
-					Resolve
-				</Button>
-				<Button
-					type="button"
-					variant="destructive"
-					size="sm"
-					disabled={isMutating || listing.status === "removed"}
-					onClick={() => onMutate(listing.id, "removed")}
-				>
-					<Trash2 />
-					Remove
-				</Button>
+					<div className="grid grid-cols-2 gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="justify-start"
+							disabled={isMutating || listing.status === "paused"}
+							onClick={() => onMutate(listing.id, "paused")}
+						>
+							<Pause />
+							Pause
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="justify-start"
+							disabled={isMutating || listing.status === "active"}
+							onClick={() => onMutate(listing.id, "active")}
+						>
+							<RefreshCw />
+							Restore
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="justify-start"
+							disabled={isMutating || listing.status === "resolved"}
+							onClick={() => onMutate(listing.id, "resolved")}
+						>
+							<Check />
+							Resolve
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							size="sm"
+							className="justify-start"
+							disabled={isMutating || listing.status === "removed"}
+							onClick={() => onMutate(listing.id, "removed")}
+						>
+							<Trash2 />
+							Remove
+						</Button>
+					</div>
+				</div>
 			</div>
 		</div>
-	</div>
-);
+	);
+};
 
 const ReportRow = ({
 	report,

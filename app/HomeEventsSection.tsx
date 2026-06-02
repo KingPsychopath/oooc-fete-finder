@@ -10,6 +10,7 @@ import {
 import { buildDynamicSearchChips } from "@/features/events/search-chips";
 import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
+import { getTicketExchangeSummariesForEvents } from "@/features/ticket-exchange/service";
 import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
 
@@ -38,8 +39,27 @@ export async function HomeEventsSection({
 			getPublicSearchChipSettingsCached(),
 			getPopularSearchChipSignalsCached(),
 		]);
+	const ticketExchangeSummaries = await getTicketExchangeSummariesForEvents(
+		result.data,
+	).catch((error: unknown) => {
+		log.warn("home", "Unable to load ticket exchange summaries", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+		return [];
+	});
+	const ticketExchangeSummaryByEventKey = new Map(
+		ticketExchangeSummaries.map((summary) => [summary.eventKey, summary]),
+	);
 	const suppressedEventQueries: string[] = [];
-	const homepageEvents = result.data.map(toHomepageEventPayload);
+	const homepageEvents = result.data.map((event) => {
+		const summary = ticketExchangeSummaryByEventKey.get(event.eventKey);
+		return toHomepageEventPayload({
+			...event,
+			ticketExchangeSellingCount: summary?.sellingCount ?? 0,
+			ticketExchangeLookingCount: summary?.lookingCount ?? 0,
+			ticketExchangeLatestListingAt: summary?.latestListingAt ?? null,
+		});
+	});
 	const defaultDateRange = getDefaultDateRangeForEvents(homepageEvents);
 	const isRemoteMode = env.DATA_MODE === "remote";
 	const isBackupFallback = isRemoteMode && result.source === "backup";

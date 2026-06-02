@@ -62,6 +62,12 @@ import {
 	normalizeProofLinks,
 } from "@/features/events/submissions/proof-link";
 import {
+	formatTicketActivityLabel,
+	isTicketActivityFresh,
+	shouldShowTicketActivityBadge,
+} from "@/features/events/ticket-activity";
+import { buildTicketExchangeEventPath } from "@/features/ticket-exchange/urls";
+import {
 	EVENT_EXPERIENCE_CATEGORIES,
 	type Event,
 	type EventExperienceCategory,
@@ -122,6 +128,7 @@ import {
 	Settings,
 	Star,
 	Tag,
+	Ticket,
 	Trash2,
 	User,
 	Users,
@@ -721,6 +728,20 @@ const EventModal: React.FC<EventModalProps> = ({
 		socialProofSaveCount,
 		socialProofHistoricalSaveCount,
 	);
+	const ticketExchangeSellingCount = event.ticketExchangeSellingCount ?? 0;
+	const ticketExchangeLookingCount = event.ticketExchangeLookingCount ?? 0;
+	const hasTicketActivityBadge = shouldShowTicketActivityBadge(
+		"active",
+		ticketExchangeSellingCount,
+		ticketExchangeLookingCount,
+	);
+	const isFreshTicketActivity = isTicketActivityFresh(
+		event.ticketExchangeLatestListingAt,
+	);
+	const ticketActivityLabel = formatTicketActivityLabel(
+		ticketExchangeSellingCount,
+		ticketExchangeLookingCount,
+	);
 	const isPartyTypeEvent = isPartyEventType(event.type);
 	const eventPartyTypeLabel = getPartyEventTypeLabel(event.type);
 	const eventCategoryDefinition =
@@ -849,6 +870,7 @@ const EventModal: React.FC<EventModalProps> = ({
 		event.links && event.links.length > 0 ? event.links : [event.link];
 	const primaryLink = allLinks[0];
 	const secondaryLinks = allLinks.slice(1);
+	const ticketExchangePath = `${basePath}${buildTicketExchangeEventPath(event)}`;
 	const detailsQuality = event.detailsQuality ?? "review";
 	const sourceConfirmed = event.sourceConfirmed ?? false;
 	const detailsStatus = sourceConfirmed
@@ -883,6 +905,7 @@ const EventModal: React.FC<EventModalProps> = ({
 			(!isCurrentlyFeatured && isCurrentlyPromoted) ||
 			event.isOOOCPick ||
 			hasSocialProofBadge ||
+			hasTicketActivityBadge ||
 			eventCategoryDefinition ||
 			event.category ||
 			visibleGenres.length > 0 ||
@@ -1444,6 +1467,17 @@ const EventModal: React.FC<EventModalProps> = ({
 		window.open(url, "_blank", "noopener,noreferrer");
 	};
 
+	const openTicketExchange = () => {
+		haptics.selection();
+		trackEventEngagement({
+			eventKey: event.eventKey,
+			actionType: "click",
+			source: "modal_ticket_exchange",
+			isAuthenticated,
+		});
+		window.location.assign(ticketExchangePath);
+	};
+
 	const handleCalendarSync = () => {
 		haptics.success();
 		trackEventEngagement({
@@ -1721,6 +1755,19 @@ const EventModal: React.FC<EventModalProps> = ({
 								<Badge className="border-amber-300/70 bg-amber-500/15 text-amber-900 hover:bg-amber-500/20 dark:border-amber-400/45 dark:text-amber-200">
 									<Flame className="mr-1 h-3.5 w-3.5" />
 									{socialProofLabel}
+								</Badge>
+							)}
+							{hasTicketActivityBadge && (
+								<Badge
+									variant="outline"
+									className={
+										isFreshTicketActivity
+											? "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 hover:bg-emerald-500/12 dark:text-emerald-200"
+											: "border-sky-500/25 bg-sky-500/8 text-sky-800 hover:bg-sky-500/10 dark:text-sky-200"
+									}
+								>
+									<Ticket className="mr-1 h-3.5 w-3.5" />
+									{ticketActivityLabel}
 								</Badge>
 							)}
 							{isPartyTypeEvent ? (
@@ -2262,6 +2309,20 @@ const EventModal: React.FC<EventModalProps> = ({
 									</Button>
 								))}
 							</div>
+						)}
+
+						{hasTicketActivityBadge && (
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={openTicketExchange}
+								className="h-9 w-full border-border/75 bg-background/45 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+								title={ticketActivityLabel}
+							>
+								<Ticket className="mr-1.5 h-3.5 w-3.5" />
+								View ticket exchange
+							</Button>
 						)}
 					</div>
 
