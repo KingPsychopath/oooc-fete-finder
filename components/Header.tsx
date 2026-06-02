@@ -83,17 +83,11 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 			? normalizedPathname.slice(basePath.length) || "/"
 			: normalizedPathname;
 	const isHomePage = pathWithoutBasePath === "/";
-	const isHowItWorksPage =
-		pathWithoutBasePath === "/how-it-works" ||
-		pathWithoutBasePath.startsWith("/how-it-works/");
 	const isPromotePage =
 		pathWithoutBasePath === "/feature-event" ||
 		pathWithoutBasePath.startsWith("/feature-event/") ||
 		pathWithoutBasePath === "/featured-event" ||
 		pathWithoutBasePath.startsWith("/featured-event/");
-	const isSubmitPage =
-		pathWithoutBasePath === "/submit-event" ||
-		pathWithoutBasePath.startsWith("/submit-event/");
 	const isPlansPage =
 		pathWithoutBasePath === "/plans" ||
 		pathWithoutBasePath.startsWith("/plans/");
@@ -258,24 +252,6 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							>
 								<Ticket className="h-3.5 w-3.5" />
 								Exchange
-							</Link>
-							<Link
-								href={`${basePath || ""}/how-it-works`}
-								onClick={() => trackHeaderNav("how_it_works")}
-								className={`whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
-									isHowItWorksPage ? "text-foreground" : "text-foreground/75"
-								}`}
-							>
-								How it works
-							</Link>
-							<Link
-								href={`${basePath || ""}/submit-event`}
-								onClick={() => trackHeaderNav("submit_event")}
-								className={`whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
-									isSubmitPage ? "text-foreground" : "text-foreground/75"
-								}`}
-							>
-								Submit Event
 							</Link>
 							<Link
 								href={`${basePath || ""}/plans`}
