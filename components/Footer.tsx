@@ -135,6 +135,12 @@ const Footer = () => {
 								Submit your event
 							</Link>
 							<Link
+								href="/tickets"
+								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+							>
+								Ticket Exchange
+							</Link>
+							<Link
 								href="/feature-event"
 								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
 							>
@@ -145,6 +151,12 @@ const Footer = () => {
 								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
 							>
 								Privacy Policy
+							</Link>
+							<Link
+								href="/terms"
+								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+							>
+								Terms
 							</Link>
 							<Link
 								href={ooocContactUrl}

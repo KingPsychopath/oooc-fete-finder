@@ -131,6 +131,14 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 				keywords: ["sheet", "editor", "rows", "events"],
 			},
 			{
+				id: "ticket-exchange-moderation",
+				label: "Ticket Exchange Moderation",
+				description: "Review reported listings and manage exchange posts.",
+				path: "/admin/content#ticket-exchange-moderation",
+				moduleKey: "content",
+				keywords: ["tickets", "exchange", "marketplace", "reports"],
+			},
+			{
 				id: "location-review",
 				label: "Location Review",
 				description: "Review venue coordinates for nearby matching and maps.",

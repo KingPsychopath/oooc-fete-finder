@@ -5,6 +5,7 @@ import {
 import { getAdminSearchChipSettings } from "@/features/events/search-chip-actions";
 import { getEventSubmissionsDashboard } from "@/features/events/submissions/actions";
 import { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
+import { getTicketExchangeAdminDashboard } from "@/features/ticket-exchange/admin-actions";
 import { getCurrentDeploymentId } from "@/lib/deployment/build-id";
 import { unstable_noStore as noStore } from "next/cache";
 import { EventSheetEditorCard } from "../components/EventSheetEditorCard";
@@ -12,6 +13,7 @@ import { EventSubmissionsCard } from "../components/EventSubmissionsCard";
 import { LocationReviewCard } from "../components/LocationReviewCard";
 import { SearchChipSettingsCard } from "../components/SearchChipSettingsCard";
 import { SlidingBannerSettingsCard } from "../components/SlidingBannerSettingsCard";
+import { TicketExchangeModerationCard } from "../components/TicketExchangeModerationCard";
 
 export const dynamic = "force-dynamic";
 
@@ -24,12 +26,14 @@ export default async function AdminContentPage() {
 		locationReview,
 		searchChipSettings,
 		slidingBannerSettings,
+		ticketExchangeModeration,
 	] = await Promise.allSettled([
 		getEventSheetEditorData(),
 		getEventSubmissionsDashboard(),
 		getEventLocationReviewData(),
 		getAdminSearchChipSettings(),
 		getAdminSlidingBannerSettings(),
+		getTicketExchangeAdminDashboard(),
 	]);
 	const editorPayload =
 		editorData.status === "fulfilled" ? editorData.value : undefined;
@@ -78,6 +82,16 @@ export default async function AdminContentPage() {
 			{hasPendingSubmissions
 				? eventSheetEditorSection
 				: eventSubmissionsSection}
+
+			<section id="ticket-exchange-moderation" className="scroll-mt-44">
+				<TicketExchangeModerationCard
+					initialPayload={
+						ticketExchangeModeration.status === "fulfilled"
+							? ticketExchangeModeration.value
+							: undefined
+					}
+				/>
+			</section>
 
 			<section id="location-review" className="scroll-mt-44">
 				<LocationReviewCard

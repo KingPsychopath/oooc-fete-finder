@@ -152,6 +152,12 @@ export const env = createEnv({
 		STRIPE_PAYMENT_LINK_ID_PROMOTED: z.string().optional(),
 		STRIPE_PAYMENT_LINK_ID_ADDON_WHATSAPP: z.string().optional(),
 		STRIPE_PAYMENT_LINK_ID_ADDON_NEWSLETTER: z.string().optional(),
+		TICKET_EXCHANGE_EMAIL_ENABLED: z
+			.enum(["true", "false"])
+			.default("false"),
+		TICKET_EXCHANGE_FROM_EMAIL: z.string().optional(),
+		TICKET_EXCHANGE_REPLY_TO: z.string().optional(),
+		TICKET_EXCHANGE_BOT_SECRET: z.string().optional(),
 	},
 
 	/**
@@ -220,6 +226,11 @@ export const env = createEnv({
 			process.env.STRIPE_PAYMENT_LINK_ID_ADDON_WHATSAPP,
 		STRIPE_PAYMENT_LINK_ID_ADDON_NEWSLETTER:
 			process.env.STRIPE_PAYMENT_LINK_ID_ADDON_NEWSLETTER,
+		TICKET_EXCHANGE_EMAIL_ENABLED:
+			process.env.TICKET_EXCHANGE_EMAIL_ENABLED,
+		TICKET_EXCHANGE_FROM_EMAIL: process.env.TICKET_EXCHANGE_FROM_EMAIL,
+		TICKET_EXCHANGE_REPLY_TO: process.env.TICKET_EXCHANGE_REPLY_TO,
+		TICKET_EXCHANGE_BOT_SECRET: process.env.TICKET_EXCHANGE_BOT_SECRET,
 
 		// Client
 		NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH,

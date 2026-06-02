@@ -14,8 +14,8 @@ import { cn } from "@/lib/utils";
 import {
 	CalendarDays,
 	CircleHelp,
+	Compass,
 	ExternalLink,
-	House,
 	Info,
 	LogIn,
 	LogOut,
@@ -30,6 +30,7 @@ import {
 	Route,
 	Settings,
 	ShieldCheck,
+	Ticket,
 	Toilet,
 	Utensils,
 	X,
@@ -79,7 +80,7 @@ const excludedPathPrefixes = [
 	"/social",
 ] as const;
 
-type NavKey = "home" | "map" | "events" | "plans" | "submit" | "more";
+type NavKey = "home" | "tickets" | "plans" | "more";
 
 interface NavItem {
 	key: NavKey;
@@ -245,13 +246,13 @@ export function MobileBottomNav() {
 		if (
 			pendingHomeSectionScrollRef.current &&
 			normalizePathname(pathname) === "/"
-		) {
-			const sectionId = pendingHomeSectionScrollRef.current;
-			pendingHomeSectionScrollRef.current = null;
-			setActiveSection(sectionId === "event-map" ? "map" : "events");
-			window.requestAnimationFrame(() => {
+			) {
+				const sectionId = pendingHomeSectionScrollRef.current;
+				pendingHomeSectionScrollRef.current = null;
+				setActiveSection(null);
 				window.requestAnimationFrame(() => {
-					scrollToHomeSectionWhenReady(sectionId, "auto");
+					window.requestAnimationFrame(() => {
+						scrollToHomeSectionWhenReady(sectionId, "auto");
 				});
 			});
 		}
@@ -278,16 +279,6 @@ export function MobileBottomNav() {
 				return;
 			}
 
-			if (window.location.hash === "#event-map") {
-				setActiveSection("map");
-				return;
-			}
-
-			if (window.location.hash === "#all-events") {
-				setActiveSection("events");
-				return;
-			}
-
 			setActiveSection(null);
 		};
 
@@ -304,19 +295,9 @@ export function MobileBottomNav() {
 		if (normalizedPathname !== "/") return;
 
 		const sections = [
-			{ key: "map" as const, element: document.getElementById("event-map") },
-			{
-				key: "events" as const,
-				element: document.getElementById("all-events"),
-			},
-		].filter(
-			(
-				section,
-			): section is {
-				key: "map" | "events";
-				element: HTMLElement;
-			} => section.element !== null,
-		);
+			document.getElementById("event-map"),
+			document.getElementById("all-events"),
+		].filter((section): section is HTMLElement => section !== null);
 
 		if (sections.length === 0) return;
 
@@ -328,22 +309,15 @@ export function MobileBottomNav() {
 
 			const activationOffset = 24;
 			const currentY = window.scrollY + activationOffset;
-			let nextSection: NavKey | null = null;
-			const mapSection = sections.find((section) => section.key === "map");
-			const eventsSection = sections.find(
-				(section) => section.key === "events",
-			);
+				const hasReachedHomeSection = sections.some(
+					(section) => currentY >= section.offsetTop,
+				);
+				const nextSection: NavKey | null = hasReachedHomeSection
+					? null
+					: "home";
 
-			if (mapSection && currentY >= mapSection.element.offsetTop) {
-				nextSection = "map";
-			}
-
-			if (eventsSection && currentY >= eventsSection.element.offsetTop) {
-				nextSection = "events";
-			}
-
-			setActiveSection(nextSection);
-		};
+				setActiveSection(nextSection);
+			};
 
 		const onScroll = () => {
 			if (rafId === null) {
@@ -441,28 +415,22 @@ export function MobileBottomNav() {
 	const navItems: NavItem[] = [
 		{
 			key: "home",
-			label: "Home",
+			label: "Discover",
 			href: basePath || "/",
-			icon: House,
+			icon: Compass,
 			isActive:
 				activeSection === "home" ||
 				(normalizedPathname === "/" && activeSection === null),
 		},
 		{
-			key: "map",
-			label: "Map",
-			href: `${basePath || ""}/#event-map`,
-			icon: Map,
-			sectionId: "event-map",
-			isActive: normalizedPathname === "/" && activeSection === "map",
-		},
-		{
-			key: "events",
-			label: "Events",
-			href: `${basePath || ""}/#all-events`,
-			icon: CalendarDays,
-			sectionId: "all-events",
-			isActive: normalizedPathname === "/" && activeSection === "events",
+			key: "tickets",
+			label: "Tickets",
+			href: `${basePath || ""}/tickets`,
+			icon: Ticket,
+			isActive:
+				activeSection === "tickets" ||
+				normalizedPathname === "/tickets" ||
+				normalizedPathname.startsWith("/tickets/"),
 		},
 		{
 			key: "plans",
@@ -520,7 +488,7 @@ export function MobileBottomNav() {
 			return;
 		}
 
-		if (key === "submit" || key === "plans") {
+		if (key === "tickets" || key === "plans") {
 			shouldScrollToTopOnRouteRef.current = true;
 			pendingHomeSectionScrollRef.current = null;
 			return;
@@ -578,6 +546,23 @@ export function MobileBottomNav() {
 		haptics.selection();
 		trackNavigationClick({ group: "mobile_nav", label });
 		setIsMoreOpen(false);
+	};
+	const handleMoreSectionClick = (label: string, sectionId: string) => {
+		haptics.selection();
+		trackNavigationClick({ group: "mobile_nav", label });
+		setIsMoreOpen(false);
+		pendingHomeSectionScrollRef.current =
+			normalizedPathname !== "/" ? sectionId : null;
+		if (normalizedPathname !== "/") {
+			window.sessionStorage.setItem(
+				PENDING_HOME_SECTION_STORAGE_KEY,
+				sectionId,
+			);
+			return;
+		}
+		window.requestAnimationFrame(() => {
+			scrollToHomeSectionWhenReady(sectionId, "smooth");
+		});
 	};
 	const moreItemClassName =
 		"rounded-xl px-2.5 py-2 text-sm text-foreground/86 transition-colors hover:bg-accent hover:text-foreground";
@@ -651,6 +636,42 @@ export function MobileBottomNav() {
 									Guide
 								</p>
 								<div className="grid gap-0.5">
+									<Link
+										href={`${basePath || ""}/#all-events`}
+										scroll={false}
+										onClick={() =>
+											handleMoreSectionClick("all_events", "all-events")
+										}
+										className={moreInternalItemClassName}
+									>
+										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+											<CalendarDays className="h-3.5 w-3.5" />
+										</span>
+										<span>Events</span>
+									</Link>
+									<Link
+										href={`${basePath || ""}/#event-map`}
+										scroll={false}
+										onClick={() =>
+											handleMoreSectionClick("event_map", "event-map")
+										}
+										className={moreInternalItemClassName}
+									>
+										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+											<Map className="h-3.5 w-3.5" />
+										</span>
+										<span>Map</span>
+									</Link>
+									<Link
+										href={`${basePath || ""}/tickets`}
+										onClick={() => handleMoreLinkClick("ticket_exchange")}
+										className={moreInternalItemClassName}
+									>
+										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+											<Ticket className="h-3.5 w-3.5" />
+										</span>
+										<span>Ticket Exchange</span>
+									</Link>
 									<Link
 										href={`${basePath || ""}/how-it-works`}
 										onClick={() => handleMoreLinkClick("how_it_works")}
@@ -822,7 +843,7 @@ export function MobileBottomNav() {
 				)}
 				<nav
 					aria-label="Mobile primary"
-					className="relative mx-auto grid max-w-md grid-cols-5 rounded-2xl border border-border/80 bg-card/96 p-1 shadow-[0_14px_34px_rgba(20,16,12,0.24)] backdrop-blur-xl"
+					className="relative mx-auto grid max-w-md grid-cols-4 rounded-2xl border border-border/80 bg-card/96 p-1 shadow-[0_14px_34px_rgba(20,16,12,0.24)] backdrop-blur-xl"
 				>
 					<button
 						type="button"
@@ -846,7 +867,7 @@ export function MobileBottomNav() {
 						<span
 							className="pointer-events-none absolute bottom-1 left-1 top-1 z-0 rounded-xl bg-primary transition-transform duration-300 ease-out"
 							style={{
-								width: "calc((100% - 0.5rem) / 5)",
+								width: "calc((100% - 0.5rem) / 4)",
 								transform: `translateX(calc(${resolvedActiveIndex} * 100%))`,
 							}}
 							aria-hidden="true"

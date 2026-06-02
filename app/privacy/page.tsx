@@ -44,7 +44,7 @@ export default function PrivacyPolicy() {
 							Privacy Policy
 						</h1>
 						<p className="text-sm text-muted-foreground">
-							Last updated: 8 May 2026
+							Last updated: 1 June 2026
 						</p>
 					</CardHeader>
 					<CardContent className="prose prose-sm max-w-none space-y-6">
@@ -63,6 +63,18 @@ export default function PrivacyPolicy() {
 								<li>
 									Technical security logs and rate-limiting data to protect the
 									service
+								</li>
+								<li>
+									Ticket Exchange contact details you choose to provide, such as
+									email, WhatsApp number, Instagram handle, or X handle
+								</li>
+								<li>
+									Ticket Exchange listings, interest actions, reports, and
+									contact-reveal audit records
+								</li>
+								<li>
+									Ticket Exchange agreement acceptance timestamp and agreement
+									version
 								</li>
 							</ul>
 						</section>
@@ -86,6 +98,10 @@ export default function PrivacyPolicy() {
 								<li>
 									To provide anonymized, aggregated performance reporting to
 									venue and promoter partners
+								</li>
+								<li>
+									To operate Ticket Exchange, including showing selected contact
+									details to users who interact with your listing or reply
 								</li>
 							</ul>
 							<p className="text-sm text-muted-foreground mt-3">
@@ -117,6 +133,16 @@ export default function PrivacyPolicy() {
 									We retain data only as long as needed for service delivery,
 									reporting, legal, and security obligations.
 								</li>
+								<li>
+									Ticket Exchange contact details are not public on the site.
+									They are shown only after a user registers interest in a
+									specific listing or replies to a listing.
+								</li>
+								<li>
+									We may store a browser-local reminder of the current Ticket
+									Exchange agreement version, but your account record is the
+									source of truth.
+								</li>
 							</ul>
 						</section>
 
@@ -144,6 +170,10 @@ export default function PrivacyPolicy() {
 								</li>
 								<li>
 									Partners only receive aggregated campaign performance metrics.
+								</li>
+								<li>
+									Ticket Exchange users may see the contact methods you choose
+									to share when you post a listing or register interest.
 								</li>
 							</ul>
 						</section>
