@@ -150,6 +150,36 @@ export interface TicketExchangeAdminDashboard {
 	recentReports: TicketExchangeAdminReport[];
 }
 
+export interface TicketExchangeAdminStatsWindow {
+	listingCreateCount: number;
+	sellingListingCreateCount: number;
+	lookingListingCreateCount: number;
+	uniqueListingOwnerCount: number;
+	interestCreateCount: number;
+	uniqueInterestedUserCount: number;
+	reportCreateCount: number;
+	uniqueReportedListingCount: number;
+	resolvedListingCount: number;
+	removedListingCount: number;
+	activeSellingCount: number;
+	activeLookingCount: number;
+	pendingReportCount: number;
+	botPendingCount: number;
+	botAnnouncedCount: number;
+	contactUnlockCount: number;
+}
+
+export interface TicketExchangeAdminEventStats {
+	eventKey: string;
+	eventName: string;
+	listingCreateCount: number;
+	sellingListingCreateCount: number;
+	lookingListingCreateCount: number;
+	interestCreateCount: number;
+	reportCreateCount: number;
+	resolvedListingCount: number;
+}
+
 export interface TicketExchangePageData {
 	events: Event[];
 	selectedEventKey: string | null;

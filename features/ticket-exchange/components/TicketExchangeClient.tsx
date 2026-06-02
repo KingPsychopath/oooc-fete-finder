@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/typeahead-combobox";
 import { useOptionalAuth } from "@/features/auth/auth-context";
 import EmailGateModal from "@/features/auth/components/EmailGateModal";
+import { trackTicketExchangeAnalytics } from "@/features/events/engagement/client-tracking";
 import type { Event } from "@/features/events/types";
 import {
 	createTicketExchangeListing,
@@ -459,6 +460,14 @@ export function TicketExchangeClient({
 	}, [data.summaries, selectedEventKey]);
 
 	useEffect(() => {
+		trackTicketExchangeAnalytics({
+			actionType: "exchange_view",
+			eventKey: selectedEventKey,
+			surface: "marketplace",
+		});
+	}, [selectedEventKey]);
+
+	useEffect(() => {
 		if (!hasAcceptedCurrentAgreement(data.profile)) return;
 		window.localStorage.setItem(
 			TICKET_EXCHANGE_AGREEMENT_STORAGE_KEY,
@@ -595,6 +604,12 @@ export function TicketExchangeClient({
 	const selectMarketplaceTab = (tab: TabKey) => {
 		hasUserSelectedTabRef.current = true;
 		setActiveTab(tab);
+		trackTicketExchangeAnalytics({
+			actionType: "tab_change",
+			eventKey: selectedEventKey,
+			surface: "marketplace",
+			detail: tab,
+		});
 	};
 	const emptyListingCopy =
 		activeTab === "mine"
@@ -655,6 +670,11 @@ export function TicketExchangeClient({
 				return null;
 			}
 			applyDataFromResult(result);
+			trackTicketExchangeAnalytics({
+				actionType: "profile_save",
+				eventKey: selectedEventKey,
+				surface: "listing_form",
+			});
 			return result.data?.profile ?? data.profile;
 		};
 
@@ -691,12 +711,31 @@ export function TicketExchangeClient({
 			closeContactDetails();
 			return;
 		}
+		trackTicketExchangeAnalytics({
+			actionType: "profile_open",
+			eventKey: selectedEventKey,
+			surface: "profile_panel",
+		});
 		setIsCreateOpen(false);
 		setIsProfileOpen(true);
 		scrollPanelIntoView(profilePanelRef);
 	};
 
 	const openAgreement = (intent: PendingAgreementIntent) => {
+		trackTicketExchangeAnalytics({
+			actionType: "agreement_open",
+			eventKey:
+				intent?.kind === "interest"
+					? intent.listing.eventKey
+					: selectedEventKey,
+			listingId: intent?.kind === "interest" ? intent.listing.id : undefined,
+			listingType:
+				intent?.kind === "interest"
+					? intent.listing.listingType
+					: intent?.listingType,
+			surface: "agreement_modal",
+			detail: intent?.kind ?? "review",
+		});
 		setPendingAgreementIntent(intent);
 		setAgreementChecked(false);
 		setIsAgreementOpen(true);
@@ -731,6 +770,12 @@ export function TicketExchangeClient({
 		type: TicketExchangeListingType,
 		profile: TicketExchangeContactProfile | null,
 	) => {
+		trackTicketExchangeAnalytics({
+			actionType: "listing_form_open",
+			eventKey: selectedEventKey,
+			listingType: type,
+			surface: "listing_form",
+		});
 		setListingForm(
 			createListingFormState(
 				selectedEventKey,
@@ -757,6 +802,17 @@ export function TicketExchangeClient({
 				contactMethods: getDefaultContactMethods(profile),
 			});
 			applyResult(result, "Contact details are now visible.");
+			if (result.success) {
+				trackTicketExchangeAnalytics({
+					actionType: "contact_unlock",
+					eventKey: listing.eventKey,
+					listingId: listing.id,
+					listingType: listing.listingType,
+					listingStatus: listing.effectiveStatus,
+					surface: "listing_card",
+					immediate: true,
+				});
+			}
 		} finally {
 			setInterestListingId(null);
 		}
@@ -764,6 +820,12 @@ export function TicketExchangeClient({
 
 	const selectEvent = (eventKey: string | null) => {
 		setSelectedEventKey(eventKey);
+		trackTicketExchangeAnalytics({
+			actionType: "event_select",
+			eventKey,
+			surface: "event_filter",
+			detail: eventKey ? "event" : "all",
+		});
 		const nextEvent = eventKey ? eventByKey.get(eventKey) : null;
 		const nextPath = nextEvent
 			? `${basePath}${buildTicketExchangeEventPath(nextEvent)}`
@@ -791,6 +853,14 @@ export function TicketExchangeClient({
 		}
 		setErrorMessage(null);
 		setSelectedModalEvent(event);
+		trackTicketExchangeAnalytics({
+			actionType: "event_details_open",
+			eventKey: listing.eventKey,
+			listingId: listing.id,
+			listingType: listing.listingType,
+			listingStatus: listing.effectiveStatus,
+			surface: "event_modal",
+		});
 	};
 
 	const handleProfileSubmit = async (
@@ -808,7 +878,15 @@ export function TicketExchangeClient({
 				selectedEventKey,
 			});
 			applyResult(result, "Contact profile saved.");
-			if (result.success) closeContactDetails();
+			if (result.success) {
+				trackTicketExchangeAnalytics({
+					actionType: "profile_save",
+					eventKey: selectedEventKey,
+					surface: "profile_panel",
+					immediate: true,
+				});
+				closeContactDetails();
+			}
 		} finally {
 			setIsSavingProfile(false);
 		}
@@ -845,6 +923,13 @@ export function TicketExchangeClient({
 			const result = await createTicketExchangeListing(listingForm);
 			applyResult(result, "Listing posted.");
 			if (result.success) {
+				trackTicketExchangeAnalytics({
+					actionType: "listing_create",
+					eventKey: listingForm.eventKey,
+					listingType: listingForm.listingType,
+					surface: "listing_form",
+					immediate: true,
+				});
 				closeCreateListing();
 				setListingForm(
 					createListingFormState(
@@ -886,6 +971,24 @@ export function TicketExchangeClient({
 			});
 			applyResult(result, "Ticket Exchange agreement accepted.");
 			if (!result.success) return;
+			trackTicketExchangeAnalytics({
+				actionType: "agreement_accept",
+				eventKey:
+					pendingAgreementIntent?.kind === "interest"
+						? pendingAgreementIntent.listing.eventKey
+						: selectedEventKey,
+				listingId:
+					pendingAgreementIntent?.kind === "interest"
+						? pendingAgreementIntent.listing.id
+						: undefined,
+				listingType:
+					pendingAgreementIntent?.kind === "interest"
+						? pendingAgreementIntent.listing.listingType
+						: pendingAgreementIntent?.listingType,
+				surface: "agreement_modal",
+				detail: pendingAgreementIntent?.kind ?? "review",
+				immediate: true,
+			});
 			const nextProfile = result.data?.profile ?? data.profile;
 			setIsAgreementOpen(false);
 			setPendingAgreementIntent(null);
@@ -917,6 +1020,18 @@ export function TicketExchangeClient({
 				selectedEventKey,
 			});
 			applyResult(result, "Listing updated.");
+			if (result.success) {
+				trackTicketExchangeAnalytics({
+					actionType: "listing_status_update",
+					eventKey: listing.eventKey,
+					listingId: listing.id,
+					listingType: listing.listingType,
+					listingStatus: status,
+					surface: "listing_card",
+					detail: status,
+					immediate: true,
+				});
+			}
 		} finally {
 			setStatusListingId(null);
 		}
@@ -926,6 +1041,9 @@ export function TicketExchangeClient({
 		event.preventDefault();
 		if (isReporting) return;
 		if (!reportListingId || !requireLogin()) return;
+		const reportedListing = data.listings.find(
+			(listing) => listing.id === reportListingId,
+		);
 		setIsReporting(true);
 		try {
 			const result = await reportTicketExchangeListing({
@@ -936,6 +1054,16 @@ export function TicketExchangeClient({
 			});
 			applyResult(result, "Report sent.");
 			if (result.success) {
+				trackTicketExchangeAnalytics({
+					actionType: "report_submit",
+					eventKey: reportedListing?.eventKey ?? selectedEventKey,
+					listingId: reportListingId,
+					listingType: reportedListing?.listingType,
+					listingStatus: reportedListing?.effectiveStatus,
+					surface: "report_modal",
+					detail: reportReason,
+					immediate: true,
+				});
 				setReportListingId(null);
 				setReportDetails("");
 			}
@@ -948,6 +1076,9 @@ export function TicketExchangeClient({
 		event.preventDefault();
 		if (isReposting) return;
 		if (!repostListingId) return;
+		const repostedListing = data.listings.find(
+			(listing) => listing.id === repostListingId,
+		);
 		setIsReposting(true);
 		try {
 			const result = await repostTicketExchangeListing({
@@ -958,6 +1089,15 @@ export function TicketExchangeClient({
 			});
 			applyResult(result, "Fresh listing posted.");
 			if (result.success) {
+				trackTicketExchangeAnalytics({
+					actionType: "listing_repost",
+					eventKey: repostedListing?.eventKey ?? selectedEventKey,
+					listingId: repostListingId,
+					listingType: repostedListing?.listingType,
+					listingStatus: repostedListing?.effectiveStatus,
+					surface: "listing_card",
+					immediate: true,
+				});
 				setRepostListingId(null);
 				setRepostQuantity("");
 			}
@@ -1643,7 +1783,17 @@ export function TicketExchangeClient({
 									onLogin={() => setIsLoginOpen(true)}
 									onInterest={handleInterest}
 									onStatus={handleStatus}
-									onReport={(id) => setReportListingId(id)}
+									onReport={(id) => {
+										trackTicketExchangeAnalytics({
+											actionType: "report_open",
+											eventKey: listing.eventKey,
+											listingId: id,
+											listingType: listing.listingType,
+											listingStatus: listing.effectiveStatus,
+											surface: "report_modal",
+										});
+										setReportListingId(id);
+									}}
 									onEventOpen={openListingEvent}
 									onRepost={(item) => {
 										setRepostListingId(item.id);
@@ -2126,6 +2276,18 @@ function ListingCard({
 											? "noopener noreferrer"
 											: undefined
 									}
+									onClick={() =>
+										trackTicketExchangeAnalytics({
+											actionType: "contact_link_click",
+											eventKey: listing.eventKey,
+											listingId: listing.id,
+											listingType: listing.listingType,
+											listingStatus: listing.effectiveStatus,
+											surface: "listing_card",
+											detail: entry.label.toLowerCase(),
+											immediate: true,
+										})
+									}
 									className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/70 bg-background/60 px-2 py-1 text-xs font-medium underline-offset-4 hover:underline"
 								>
 									{contactIconFor(entry.label)}
@@ -2281,6 +2443,18 @@ function ListingCard({
 													entry.href.startsWith("http")
 														? "noopener noreferrer"
 														: undefined
+												}
+												onClick={() =>
+													trackTicketExchangeAnalytics({
+														actionType: "contact_link_click",
+														eventKey: listing.eventKey,
+														listingId: listing.id,
+														listingType: listing.listingType,
+														listingStatus: listing.effectiveStatus,
+														surface: "listing_card",
+														detail: `owner:${entry.label.toLowerCase()}`,
+														immediate: true,
+													})
 												}
 												className="inline-flex max-w-full items-center gap-1 rounded-full border border-border/60 bg-background/55 px-2 py-1 font-medium text-foreground underline-offset-4 hover:underline"
 											>

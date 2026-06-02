@@ -4,6 +4,10 @@ import {
 } from "@/features/events/engagement/tour-analytics";
 import type { EventEngagementAction } from "@/features/events/engagement/types";
 import type { MapProvider } from "@/features/maps/types";
+import type {
+	TicketExchangeAnalyticsAction,
+	TicketExchangeAnalyticsSurface,
+} from "@/features/ticket-exchange/analytics-events";
 
 const SESSION_STORAGE_KEY = "oooc:event-engagement-session";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -15,6 +19,7 @@ const MAX_TRACKING_EVENT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const QUEUE_STORAGE_PREFIX = "oooc:analytics-queue:";
 const RECENT_EVENT_ACTION_DEDUPE_MS = 2_000;
 const RECENT_DISCOVERY_ACTION_DEDUPE_MS = 1_500;
+const RECENT_TICKET_EXCHANGE_ACTION_DEDUPE_MS = 1_500;
 const RECENT_GENRE_PREFERENCE_DEDUPE_MS = 10_000;
 const MAP_OPEN_DEDUPE_MS = 30_000;
 
@@ -67,12 +72,27 @@ type GenrePreferencePayload = {
 	recordedAt: string;
 };
 
-type QueueName = "engagement" | "discovery" | "preference";
+type TicketExchangeAnalyticsPayload = {
+	actionType: TicketExchangeAnalyticsAction;
+	sessionId: string | null;
+	eventKey?: string;
+	listingId?: string;
+	listingType?: "selling" | "looking";
+	listingStatus?: "active" | "paused" | "resolved" | "expired" | "removed";
+	surface?: TicketExchangeAnalyticsSurface;
+	detail?: string;
+	path: string;
+	clientContext: ClientContext;
+	recordedAt: string;
+};
+
+type QueueName = "engagement" | "discovery" | "preference" | "ticketExchange";
 
 const queues: Record<QueueName, unknown[]> = {
 	engagement: [],
 	discovery: [],
 	preference: [],
+	ticketExchange: [],
 };
 const flushTimers: Partial<Record<QueueName, ReturnType<typeof setTimeout>>> =
 	{};
@@ -80,17 +100,20 @@ const loadedQueues = new Set<QueueName>();
 const recentMapOpenKeys = new Map<string, number>();
 const recentEventActionKeys = new Map<string, number>();
 const recentDiscoveryActionKeys = new Map<string, number>();
+const recentTicketExchangeActionKeys = new Map<string, number>();
 const recentGenrePreferenceKeys = new Map<string, number>();
 const queueRetryAttempts: Record<QueueName, number> = {
 	engagement: 0,
 	discovery: 0,
 	preference: 0,
+	ticketExchange: 0,
 };
 
 const endpoints: Record<QueueName, string> = {
 	engagement: `${basePath}/api/analytics/event`,
 	discovery: `${basePath}/api/analytics/discovery`,
 	preference: `${basePath}/api/user/preferences`,
+	ticketExchange: `${basePath}/api/analytics/ticket-exchange`,
 };
 
 const clampSampleRate = (
@@ -408,12 +431,14 @@ const installFlushListeners = (() => {
 			flushQueue("engagement", true);
 			flushQueue("discovery", true);
 			flushQueue("preference", true);
+			flushQueue("ticketExchange", true);
 		};
 		const flushAllWhenOnline = () => {
 			if (isBrowserOffline()) return;
 			flushQueue("engagement");
 			flushQueue("discovery");
 			flushQueue("preference");
+			flushQueue("ticketExchange");
 		};
 		window.addEventListener("pagehide", flushAll);
 		window.addEventListener("online", flushAllWhenOnline);
@@ -579,6 +604,66 @@ export const trackPageView = (input?: {
 		utmContent: input?.utmContent,
 		utmTerm: input?.utmTerm,
 	});
+};
+
+export const trackTicketExchangeAnalytics = (input: {
+	actionType: TicketExchangeAnalyticsAction;
+	eventKey?: string | null;
+	listingId?: string | null;
+	listingType?: "selling" | "looking" | null;
+	listingStatus?:
+		| "active"
+		| "paused"
+		| "resolved"
+		| "expired"
+		| "removed"
+		| null;
+	surface?: TicketExchangeAnalyticsSurface;
+	detail?: string | null;
+	immediate?: boolean;
+}) => {
+	if (typeof window === "undefined") return;
+	const path = window.location.pathname;
+	if (path !== "/exchange" && !path.startsWith("/exchange/")) return;
+
+	const dedupeKey = [
+		input.actionType,
+		input.eventKey ?? "",
+		input.listingId ?? "",
+		input.listingType ?? "",
+		input.listingStatus ?? "",
+		input.surface ?? "",
+		input.detail ?? "",
+		path,
+	].join(":");
+	if (
+		shouldSkipRecentAction(
+			recentTicketExchangeActionKeys,
+			dedupeKey,
+			RECENT_TICKET_EXCHANGE_ACTION_DEDUPE_MS,
+		)
+	) {
+		return;
+	}
+
+	installFlushListeners();
+	const payload: TicketExchangeAnalyticsPayload = {
+		actionType: input.actionType,
+		sessionId: getOrCreateEngagementSessionId(),
+		eventKey: input.eventKey?.trim() || undefined,
+		listingId: input.listingId?.trim() || undefined,
+		listingType: input.listingType ?? undefined,
+		listingStatus: input.listingStatus ?? undefined,
+		surface: input.surface,
+		detail: input.detail?.trim().slice(0, 160) || undefined,
+		path,
+		clientContext: getClientContext(),
+		recordedAt: new Date().toISOString(),
+	};
+	enqueuePayload("ticketExchange", payload);
+	if (input.immediate) {
+		flushQueue("ticketExchange", true);
+	}
 };
 
 export const trackTourInteraction = (input: {

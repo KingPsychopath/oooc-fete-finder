@@ -65,7 +65,7 @@ describe("/api/ticket-exchange/bot/recent-listings", () => {
 		const body = await response.json();
 
 		expect(response.status).toBe(200);
-		expect(body.listings[0].url).toBe("/tickets/evt_f034651cf465d832");
+		expect(body.listings[0].url).toBe("/exchange/evt_f034651cf465d832");
 		expect(body.listings[0].url).not.toContain("la-wine-up-block-party");
 		expect(body.listings[0].eventDateLabel).toBe("Sunday 21st · 18:00");
 	});

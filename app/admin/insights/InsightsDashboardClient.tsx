@@ -17,7 +17,14 @@ import type {
 	UserCollectionStoreSummary,
 } from "../types";
 
-type InsightsTab = "traffic" | "discovery" | "events" | "audience" | "advanced";
+type InsightsTab =
+	| "traffic"
+	| "discovery"
+	| "planning"
+	| "exchange"
+	| "events"
+	| "audience"
+	| "advanced";
 
 const INSIGHTS_TABS: Array<{
 	key: InsightsTab;
@@ -33,6 +40,16 @@ const INSIGHTS_TABS: Array<{
 		key: "discovery",
 		label: "Discovery",
 		description: "Search, filters, map, sort, location, tour.",
+	},
+	{
+		key: "planning",
+		label: "Planning",
+		description: "Routes, shares, exports, shared-plan intent.",
+	},
+	{
+		key: "exchange",
+		label: "Exchange",
+		description: "Ticket traffic, listings, unlocks, reports.",
 	},
 	{
 		key: "events",

@@ -12,8 +12,10 @@ import {
 } from "./constants";
 import type {
 	TicketExchangeAdminDashboard,
+	TicketExchangeAdminEventStats,
 	TicketExchangeAdminListing,
 	TicketExchangeAdminReport,
+	TicketExchangeAdminStatsWindow,
 	TicketExchangeAdminUnlockWatch,
 	TicketExchangeContactMethod,
 	TicketExchangeContactProfile,
@@ -116,6 +118,36 @@ type AdminCountsRow = {
 	bot_pending_count: number;
 	bot_announced_count: number;
 	contact_unlock_count: number;
+};
+
+type AdminStatsWindowRow = {
+	listing_create_count: number;
+	selling_listing_create_count: number;
+	looking_listing_create_count: number;
+	unique_listing_owner_count: number;
+	interest_create_count: number;
+	unique_interested_user_count: number;
+	report_create_count: number;
+	unique_reported_listing_count: number;
+	resolved_listing_count: number;
+	removed_listing_count: number;
+	active_selling_count: number;
+	active_looking_count: number;
+	pending_report_count: number;
+	bot_pending_count: number;
+	bot_announced_count: number;
+	contact_unlock_count: number;
+};
+
+type AdminEventStatsWindowRow = {
+	event_key: string;
+	event_name: string;
+	listing_create_count: number;
+	selling_listing_create_count: number;
+	looking_listing_create_count: number;
+	interest_create_count: number;
+	report_create_count: number;
+	resolved_listing_count: number;
 };
 
 type AdminUnlockWatchRow = {
@@ -1043,6 +1075,7 @@ export class TicketExchangeRepository {
 						(
 							SELECT COUNT(*)::int
 							FROM ticket_exchange_contact_audit
+							WHERE reason = 'interest_owner_reveal'
 						) AS contact_unlock_count
 					FROM ticket_exchange_listings
 				`,
@@ -1062,6 +1095,227 @@ export class TicketExchangeRepository {
 			recentListings,
 			recentReports,
 		};
+	}
+
+	async getAdminStatsWindow(input: {
+		startAt: string;
+		endAt: string;
+	}): Promise<TicketExchangeAdminStatsWindow> {
+		await this.ready();
+		const rows = await this.sql<AdminStatsWindowRow[]>`
+			SELECT
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_listings
+					WHERE created_at >= ${input.startAt}
+						AND created_at < ${input.endAt}
+				) AS listing_create_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_listings
+					WHERE listing_type = 'selling'
+						AND created_at >= ${input.startAt}
+						AND created_at < ${input.endAt}
+				) AS selling_listing_create_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_listings
+					WHERE listing_type = 'looking'
+						AND created_at >= ${input.startAt}
+						AND created_at < ${input.endAt}
+				) AS looking_listing_create_count,
+				(
+					SELECT COUNT(DISTINCT owner_user_id)::int
+					FROM ticket_exchange_listings
+					WHERE created_at >= ${input.startAt}
+						AND created_at < ${input.endAt}
+				) AS unique_listing_owner_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_interests
+					WHERE created_at >= ${input.startAt}
+						AND created_at < ${input.endAt}
+				) AS interest_create_count,
+				(
+					SELECT COUNT(DISTINCT actor_user_id)::int
+					FROM ticket_exchange_interests
+					WHERE created_at >= ${input.startAt}
+						AND created_at < ${input.endAt}
+				) AS unique_interested_user_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_reports
+					WHERE created_at >= ${input.startAt}
+						AND created_at < ${input.endAt}
+				) AS report_create_count,
+				(
+					SELECT COUNT(DISTINCT listing_id)::int
+					FROM ticket_exchange_reports
+					WHERE created_at >= ${input.startAt}
+						AND created_at < ${input.endAt}
+				) AS unique_reported_listing_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_listings
+					WHERE status = 'resolved'
+						AND COALESCE(resolved_at, updated_at) >= ${input.startAt}
+						AND COALESCE(resolved_at, updated_at) < ${input.endAt}
+				) AS resolved_listing_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_listings
+					WHERE status = 'removed'
+						AND updated_at >= ${input.startAt}
+						AND updated_at < ${input.endAt}
+				) AS removed_listing_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_listings
+					WHERE listing_type = 'selling'
+						AND status = 'active'
+						AND expires_at > NOW()
+				) AS active_selling_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_listings
+					WHERE listing_type = 'looking'
+						AND status = 'active'
+						AND expires_at > NOW()
+				) AS active_looking_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_reports
+					WHERE reviewed_at IS NULL
+				) AS pending_report_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_listings
+					WHERE status = 'active'
+						AND expires_at > NOW()
+						AND bot_announced_at IS NULL
+				) AS bot_pending_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_listings
+					WHERE bot_announced_at IS NOT NULL
+				) AS bot_announced_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_contact_audit
+					WHERE reason = 'interest_owner_reveal'
+						AND created_at >= ${input.startAt}
+						AND created_at < ${input.endAt}
+				) AS contact_unlock_count
+		`;
+		const row = rows[0];
+		return {
+			listingCreateCount: row?.listing_create_count ?? 0,
+			sellingListingCreateCount: row?.selling_listing_create_count ?? 0,
+			lookingListingCreateCount: row?.looking_listing_create_count ?? 0,
+			uniqueListingOwnerCount: row?.unique_listing_owner_count ?? 0,
+			interestCreateCount: row?.interest_create_count ?? 0,
+			uniqueInterestedUserCount: row?.unique_interested_user_count ?? 0,
+			reportCreateCount: row?.report_create_count ?? 0,
+			uniqueReportedListingCount: row?.unique_reported_listing_count ?? 0,
+			resolvedListingCount: row?.resolved_listing_count ?? 0,
+			removedListingCount: row?.removed_listing_count ?? 0,
+			activeSellingCount: row?.active_selling_count ?? 0,
+			activeLookingCount: row?.active_looking_count ?? 0,
+			pendingReportCount: row?.pending_report_count ?? 0,
+			botPendingCount: row?.bot_pending_count ?? 0,
+			botAnnouncedCount: row?.bot_announced_count ?? 0,
+			contactUnlockCount: row?.contact_unlock_count ?? 0,
+		};
+	}
+
+	async listAdminEventStatsWindow(input: {
+		startAt: string;
+		endAt: string;
+		limit?: number;
+	}): Promise<TicketExchangeAdminEventStats[]> {
+		await this.ready();
+		const safeLimit = Math.min(100, Math.max(1, input.limit ?? 20));
+		const rows = await this.sql<AdminEventStatsWindowRow[]>`
+			WITH listing_counts AS (
+				SELECT
+					event_key,
+					MAX(event_name) AS event_name,
+					COUNT(*)::int AS listing_create_count,
+					COUNT(*) FILTER (WHERE listing_type = 'selling')::int AS selling_listing_create_count,
+					COUNT(*) FILTER (WHERE listing_type = 'looking')::int AS looking_listing_create_count
+				FROM ticket_exchange_listings
+				WHERE created_at >= ${input.startAt}
+					AND created_at < ${input.endAt}
+				GROUP BY event_key
+			),
+			resolved_counts AS (
+				SELECT
+					event_key,
+					COUNT(*)::int AS resolved_listing_count
+				FROM ticket_exchange_listings
+				WHERE status = 'resolved'
+					AND COALESCE(resolved_at, updated_at) >= ${input.startAt}
+					AND COALESCE(resolved_at, updated_at) < ${input.endAt}
+				GROUP BY event_key
+			),
+			interest_counts AS (
+				SELECT
+					listings.event_key,
+					COUNT(*)::int AS interest_create_count
+				FROM ticket_exchange_interests interests
+				INNER JOIN ticket_exchange_listings listings
+					ON listings.id = interests.listing_id
+				WHERE interests.created_at >= ${input.startAt}
+					AND interests.created_at < ${input.endAt}
+				GROUP BY listings.event_key
+			),
+			report_counts AS (
+				SELECT
+					listings.event_key,
+					COUNT(*)::int AS report_create_count
+				FROM ticket_exchange_reports reports
+				INNER JOIN ticket_exchange_listings listings
+					ON listings.id = reports.listing_id
+				WHERE reports.created_at >= ${input.startAt}
+					AND reports.created_at < ${input.endAt}
+				GROUP BY listings.event_key
+			),
+			event_keys AS (
+				SELECT event_key FROM listing_counts
+				UNION
+				SELECT event_key FROM resolved_counts
+				UNION
+				SELECT event_key FROM interest_counts
+				UNION
+				SELECT event_key FROM report_counts
+			)
+			SELECT
+				event_keys.event_key,
+				COALESCE(listing_counts.event_name, event_keys.event_key) AS event_name,
+				COALESCE(listing_counts.listing_create_count, 0)::int AS listing_create_count,
+				COALESCE(listing_counts.selling_listing_create_count, 0)::int AS selling_listing_create_count,
+				COALESCE(listing_counts.looking_listing_create_count, 0)::int AS looking_listing_create_count,
+				COALESCE(interest_counts.interest_create_count, 0)::int AS interest_create_count,
+				COALESCE(report_counts.report_create_count, 0)::int AS report_create_count,
+				COALESCE(resolved_counts.resolved_listing_count, 0)::int AS resolved_listing_count
+			FROM event_keys
+			LEFT JOIN listing_counts ON listing_counts.event_key = event_keys.event_key
+			LEFT JOIN resolved_counts ON resolved_counts.event_key = event_keys.event_key
+			LEFT JOIN interest_counts ON interest_counts.event_key = event_keys.event_key
+			LEFT JOIN report_counts ON report_counts.event_key = event_keys.event_key
+			ORDER BY interest_create_count DESC, listing_create_count DESC, report_create_count DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows.map((row) => ({
+			eventKey: row.event_key,
+			eventName: row.event_name,
+			listingCreateCount: row.listing_create_count,
+			sellingListingCreateCount: row.selling_listing_create_count,
+			lookingListingCreateCount: row.looking_listing_create_count,
+			interestCreateCount: row.interest_create_count,
+			reportCreateCount: row.report_create_count,
+			resolvedListingCount: row.resolved_listing_count,
+		}));
 	}
 
 	async getPendingReportNotificationSummary(): Promise<{

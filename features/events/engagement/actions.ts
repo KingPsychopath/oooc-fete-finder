@@ -10,7 +10,9 @@ import {
 import { MUSIC_GENRES, type MusicGenre } from "@/features/events/types";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
+import { getTicketExchangeAnalyticsRepository } from "@/lib/platform/postgres/ticket-exchange-analytics-repository";
 import { getUserGenrePreferenceRepository } from "@/lib/platform/postgres/user-genre-preference-repository";
+import { getTicketExchangeRepository } from "@/features/ticket-exchange/repository";
 
 const assertAdmin = async () => {
 	const authorized = await validateAdminAccessFromServerContext();
@@ -246,6 +248,81 @@ export async function getEventEngagementDashboard(
 					calendarVisitRate: number;
 				}>;
 			};
+			ticketExchange: {
+				summary: {
+					exchangeViewCount: number;
+					uniqueExchangeViewSessionCount: number;
+					eventSelectCount: number;
+					eventDetailsOpenCount: number;
+					tabChangeCount: number;
+					profileOpenCount: number;
+					profileSaveCount: number;
+					agreementOpenCount: number;
+					agreementAcceptCount: number;
+					listingFormOpenCount: number;
+					listingCreateCount: number;
+					contactUnlockCount: number;
+					contactLinkClickCount: number;
+					listingStatusUpdateCount: number;
+					listingRepostCount: number;
+					reportOpenCount: number;
+					reportSubmitCount: number;
+					uniqueActionSessionCount: number;
+					uniqueListingCreateSessionCount: number;
+					uniqueContactUnlockSessionCount: number;
+					uniqueReportSubmitSessionCount: number;
+					viewToListingRate: number;
+					viewToUnlockRate: number;
+					listingToUnlockRate: number;
+					reportRate: number;
+				};
+				operations: {
+					listingCreateCount: number;
+					sellingListingCreateCount: number;
+					lookingListingCreateCount: number;
+					uniqueListingOwnerCount: number;
+					interestCreateCount: number;
+					uniqueInterestedUserCount: number;
+					reportCreateCount: number;
+					uniqueReportedListingCount: number;
+					resolvedListingCount: number;
+					removedListingCount: number;
+					activeSellingCount: number;
+					activeLookingCount: number;
+					pendingReportCount: number;
+					botPendingCount: number;
+					botAnnouncedCount: number;
+					contactUnlockCount: number;
+				};
+				dailySeries: Array<{
+					day: string;
+					exchangeViewCount: number;
+					listingCreateCount: number;
+					contactUnlockCount: number;
+					reportSubmitCount: number;
+				}>;
+				topEvents: Array<{
+					eventKey: string;
+					eventName: string;
+					eventSlug: string | null;
+					isLiveEvent: boolean;
+					exchangeViewCount: number;
+					eventSelectCount: number;
+					listingCreateCount: number;
+					contactUnlockCount: number;
+					reportSubmitCount: number;
+					uniqueSessionCount: number;
+					operationalListingCreateCount: number;
+					operationalInterestCreateCount: number;
+					operationalReportCreateCount: number;
+					operationalResolvedListingCount: number;
+				}>;
+				topActions: Array<{
+					actionType: string;
+					surface: string;
+					count: number;
+				}>;
+			};
 			discovery: {
 				searchClusterMode: SearchClusterMode;
 				searchCount: number;
@@ -320,6 +397,9 @@ export async function getEventEngagementDashboard(
 			return { success: false, error: "Postgres not configured" };
 		}
 		const discoveryRepository = getDiscoveryAnalyticsRepository();
+		const ticketExchangeAnalyticsRepository =
+			getTicketExchangeAnalyticsRepository();
+		const ticketExchangeRepository = getTicketExchangeRepository();
 		const preferenceRepository = getUserGenrePreferenceRepository();
 
 		const { safeWindowDays, startAt, endAt } = buildWindow(windowDays);
@@ -358,6 +438,12 @@ export async function getEventEngagementDashboard(
 			topLandingPagesRaw,
 			topAttributionSourcesRaw,
 			previousTrafficSummary,
+			ticketExchangeSummary,
+			ticketExchangeDailySeries,
+			ticketExchangeTopEventsRaw,
+			ticketExchangeTopActions,
+			ticketExchangeOperations,
+			ticketExchangeOperationalEvents,
 		] = await Promise.all([
 			engagementRepository.summarizeWindow({
 				startAt,
@@ -625,6 +711,85 @@ export async function getEventEngagementDashboard(
 						knownReferrerCount: 0,
 						engagedSessionCount: 0,
 					}),
+			ticketExchangeAnalyticsRepository
+				? ticketExchangeAnalyticsRepository.summarizeWindow({
+						startAt,
+						endAt,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve({
+						exchangeViewCount: 0,
+						uniqueExchangeViewSessionCount: 0,
+						eventSelectCount: 0,
+						eventDetailsOpenCount: 0,
+						tabChangeCount: 0,
+						profileOpenCount: 0,
+						profileSaveCount: 0,
+						agreementOpenCount: 0,
+						agreementAcceptCount: 0,
+						listingFormOpenCount: 0,
+						listingCreateCount: 0,
+						contactUnlockCount: 0,
+						contactLinkClickCount: 0,
+						listingStatusUpdateCount: 0,
+						listingRepostCount: 0,
+						reportOpenCount: 0,
+						reportSubmitCount: 0,
+						uniqueActionSessionCount: 0,
+						uniqueListingCreateSessionCount: 0,
+						uniqueContactUnlockSessionCount: 0,
+						uniqueReportSubmitSessionCount: 0,
+					}),
+			ticketExchangeAnalyticsRepository
+				? ticketExchangeAnalyticsRepository.listDailySeries({
+						startAt,
+						endAt,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			ticketExchangeAnalyticsRepository
+				? ticketExchangeAnalyticsRepository.listTopEvents({
+						startAt,
+						endAt,
+						limit: 20,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			ticketExchangeAnalyticsRepository
+				? ticketExchangeAnalyticsRepository.listTopActions({
+						startAt,
+						endAt,
+						limit: 20,
+						includeAuthenticatedOnly,
+					})
+				: Promise.resolve([]),
+			ticketExchangeRepository
+				? ticketExchangeRepository.getAdminStatsWindow({ startAt, endAt })
+				: Promise.resolve({
+						listingCreateCount: 0,
+						sellingListingCreateCount: 0,
+						lookingListingCreateCount: 0,
+						uniqueListingOwnerCount: 0,
+						interestCreateCount: 0,
+						uniqueInterestedUserCount: 0,
+						reportCreateCount: 0,
+						uniqueReportedListingCount: 0,
+						resolvedListingCount: 0,
+						removedListingCount: 0,
+						activeSellingCount: 0,
+						activeLookingCount: 0,
+						pendingReportCount: 0,
+						botPendingCount: 0,
+						botAnnouncedCount: 0,
+						contactUnlockCount: 0,
+					}),
+			ticketExchangeRepository
+				? ticketExchangeRepository.listAdminEventStatsWindow({
+						startAt,
+						endAt,
+						limit: 20,
+					})
+				: Promise.resolve([]),
 		]);
 
 		const eventMetaByKey = new Map<string, { name: string; slug: string }>();
@@ -646,6 +811,16 @@ export async function getEventEngagementDashboard(
 			20,
 			searchClusterMode,
 		);
+		const operationalExchangeByEvent = new Map(
+			ticketExchangeOperationalEvents.map((row) => [row.eventKey, row]),
+		);
+		const exchangeAnalyticsByEvent = new Map(
+			ticketExchangeTopEventsRaw.map((row) => [row.eventKey, row]),
+		);
+		const exchangeTopEventKeys = new Set([
+			...ticketExchangeTopEventsRaw.map((row) => row.eventKey),
+			...ticketExchangeOperationalEvents.map((row) => row.eventKey),
+		]);
 		const currentEngagedVisitRate = toPercent(
 			trafficSummary.engagedSessionCount,
 			trafficSummary.uniqueVisitorCount,
@@ -805,6 +980,72 @@ export async function getEventEngagementDashboard(
 						row.visitorCount,
 					),
 				})),
+			},
+			ticketExchange: {
+				summary: {
+					...ticketExchangeSummary,
+					viewToListingRate: toPercent(
+						ticketExchangeSummary.uniqueListingCreateSessionCount,
+						ticketExchangeSummary.uniqueExchangeViewSessionCount,
+					),
+					viewToUnlockRate: toPercent(
+						ticketExchangeSummary.uniqueContactUnlockSessionCount,
+						ticketExchangeSummary.uniqueExchangeViewSessionCount,
+					),
+					listingToUnlockRate: toPercent(
+						ticketExchangeOperations.interestCreateCount,
+						ticketExchangeOperations.listingCreateCount,
+					),
+					reportRate: toPercent(
+						ticketExchangeOperations.reportCreateCount,
+						Math.max(
+							1,
+							ticketExchangeOperations.listingCreateCount +
+								ticketExchangeOperations.interestCreateCount,
+						),
+					),
+				},
+				operations: ticketExchangeOperations,
+				dailySeries: ticketExchangeDailySeries,
+				topEvents: [...exchangeTopEventKeys]
+					.map((eventKey) => {
+						const analyticsRow = exchangeAnalyticsByEvent.get(eventKey);
+						const operationalRow = operationalExchangeByEvent.get(eventKey);
+						const eventMeta = eventMetaByKey.get(eventKey);
+						return {
+							eventKey,
+							eventName:
+								eventMeta?.name ??
+								operationalRow?.eventName ??
+								analyticsRow?.eventKey ??
+								eventKey,
+							eventSlug: eventMeta?.slug ?? null,
+							isLiveEvent: Boolean(eventMeta),
+							exchangeViewCount: analyticsRow?.exchangeViewCount ?? 0,
+							eventSelectCount: analyticsRow?.eventSelectCount ?? 0,
+							listingCreateCount: analyticsRow?.listingCreateCount ?? 0,
+							contactUnlockCount: analyticsRow?.contactUnlockCount ?? 0,
+							reportSubmitCount: analyticsRow?.reportSubmitCount ?? 0,
+							uniqueSessionCount: analyticsRow?.uniqueSessionCount ?? 0,
+							operationalListingCreateCount:
+								operationalRow?.listingCreateCount ?? 0,
+							operationalInterestCreateCount:
+								operationalRow?.interestCreateCount ?? 0,
+							operationalReportCreateCount:
+								operationalRow?.reportCreateCount ?? 0,
+							operationalResolvedListingCount:
+								operationalRow?.resolvedListingCount ?? 0,
+						};
+					})
+					.sort(
+						(left, right) =>
+							right.operationalInterestCreateCount -
+								left.operationalInterestCreateCount ||
+							right.operationalListingCreateCount -
+								left.operationalListingCreateCount ||
+							right.exchangeViewCount - left.exchangeViewCount,
+					),
+				topActions: ticketExchangeTopActions,
 			},
 			discovery: {
 				searchClusterMode,

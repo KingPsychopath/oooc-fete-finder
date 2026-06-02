@@ -7,7 +7,7 @@ describe("buildTicketExchangeEventPath", () => {
 			eventKey: "evt_f034651cf465d832",
 		});
 
-		expect(path).toBe("/tickets/evt_f034651cf465d832");
+		expect(path).toBe("/exchange/evt_f034651cf465d832");
 		expect(path).not.toContain("la-wine-up-block-party");
 	});
 });

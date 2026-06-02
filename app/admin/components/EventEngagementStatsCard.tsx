@@ -44,7 +44,14 @@ type EventEngagementDashboardRow = Extract<
 	{ success: true }
 >["rows"][number];
 
-type InsightsTab = "traffic" | "discovery" | "events" | "audience" | "advanced";
+type InsightsTab =
+	| "traffic"
+	| "discovery"
+	| "planning"
+	| "exchange"
+	| "events"
+	| "audience"
+	| "advanced";
 
 type DiscoveryFilterGroup =
 	| "date_range"
@@ -200,6 +207,77 @@ const DISCOVERY_SUMMARY_METRICS = [
 		label: "Plan Sessions",
 		description:
 			"Distinct browser sessions with at least one route planning or shared-plan action.",
+	},
+] as const;
+
+const TICKET_EXCHANGE_SUMMARY_METRICS = [
+	{
+		key: "uniqueExchangeViewSessionCount",
+		label: "Exchange Visitors",
+		description:
+			"Distinct sessions that loaded the Ticket Exchange experience.",
+	},
+	{
+		key: "listingCreateCount",
+		label: "Listings Posted",
+		description: "Client-confirmed successful listing posts.",
+	},
+	{
+		key: "contactUnlockCount",
+		label: "Contact Unlocks",
+		description: "Client-confirmed successful contact reveals.",
+	},
+	{
+		key: "reportSubmitCount",
+		label: "Reports Sent",
+		description: "Client-confirmed listing reports submitted by users.",
+	},
+	{
+		key: "viewToListingRate",
+		label: "View to Listing",
+		description:
+			"Unique listing-post sessions divided by unique exchange visitor sessions.",
+		format: (value: number) => `${value.toFixed(1)}%`,
+	},
+	{
+		key: "viewToUnlockRate",
+		label: "View to Contact",
+		description:
+			"Unique contact-unlock sessions divided by unique exchange visitor sessions.",
+		format: (value: number) => `${value.toFixed(1)}%`,
+	},
+] as const;
+
+const TICKET_EXCHANGE_OPERATION_METRICS = [
+	{
+		key: "listingCreateCount",
+		label: "Actual Listings",
+		description: "Authoritative listing rows created in the selected window.",
+	},
+	{
+		key: "interestCreateCount",
+		label: "Actual Unlocks",
+		description: "Authoritative interest rows created in the selected window.",
+	},
+	{
+		key: "resolvedListingCount",
+		label: "Resolved",
+		description: "Listings marked sold/found in the selected window.",
+	},
+	{
+		key: "pendingReportCount",
+		label: "Pending Reports",
+		description: "Reports awaiting moderation now.",
+	},
+	{
+		key: "activeSellingCount",
+		label: "Active Selling",
+		description: "Currently live selling listings.",
+	},
+	{
+		key: "activeLookingCount",
+		label: "Active Looking",
+		description: "Currently live looking listings.",
 	},
 ] as const;
 
@@ -838,6 +916,58 @@ export const EventEngagementStatsCard = ({
 				topNavigationClicks: [],
 				topPlanActions: [],
 			};
+	const ticketExchange = payload?.success
+		? payload.ticketExchange
+		: {
+				summary: {
+					exchangeViewCount: 0,
+					uniqueExchangeViewSessionCount: 0,
+					eventSelectCount: 0,
+					eventDetailsOpenCount: 0,
+					tabChangeCount: 0,
+					profileOpenCount: 0,
+					profileSaveCount: 0,
+					agreementOpenCount: 0,
+					agreementAcceptCount: 0,
+					listingFormOpenCount: 0,
+					listingCreateCount: 0,
+					contactUnlockCount: 0,
+					contactLinkClickCount: 0,
+					listingStatusUpdateCount: 0,
+					listingRepostCount: 0,
+					reportOpenCount: 0,
+					reportSubmitCount: 0,
+					uniqueActionSessionCount: 0,
+					uniqueListingCreateSessionCount: 0,
+					uniqueContactUnlockSessionCount: 0,
+					uniqueReportSubmitSessionCount: 0,
+					viewToListingRate: 0,
+					viewToUnlockRate: 0,
+					listingToUnlockRate: 0,
+					reportRate: 0,
+				},
+				operations: {
+					listingCreateCount: 0,
+					sellingListingCreateCount: 0,
+					lookingListingCreateCount: 0,
+					uniqueListingOwnerCount: 0,
+					interestCreateCount: 0,
+					uniqueInterestedUserCount: 0,
+					reportCreateCount: 0,
+					uniqueReportedListingCount: 0,
+					resolvedListingCount: 0,
+					removedListingCount: 0,
+					activeSellingCount: 0,
+					activeLookingCount: 0,
+					pendingReportCount: 0,
+					botPendingCount: 0,
+					botAnnouncedCount: 0,
+					contactUnlockCount: 0,
+				},
+				dailySeries: [],
+				topEvents: [],
+				topActions: [],
+			};
 	const currentTrafficWindowLabel = payload?.success
 		? formatDateRange(payload.range)
 		: `${windowDays}d`;
@@ -920,6 +1050,27 @@ export const EventEngagementStatsCard = ({
 			),
 		),
 	);
+	const exchangeDailyRows = ticketExchange.dailySeries.slice(
+		-Math.min(windowDays, 30),
+	);
+	const hasExchangeDailyActivity = exchangeDailyRows.some(
+		(row) =>
+			row.exchangeViewCount > 0 ||
+			row.listingCreateCount > 0 ||
+			row.contactUnlockCount > 0 ||
+			row.reportSubmitCount > 0,
+	);
+	const maxExchangeDailyValue = Math.max(
+		1,
+		...exchangeDailyRows.map((row) =>
+			Math.max(
+				row.exchangeViewCount,
+				row.listingCreateCount,
+				row.contactUnlockCount,
+				row.reportSubmitCount,
+			),
+		),
+	);
 	const topAttributionSource = traffic.topAttributionSources[0] ?? null;
 	const topLandingPage = traffic.topLandingPages[0] ?? null;
 	const topCampaign = traffic.topUtmCampaigns.find(
@@ -978,6 +1129,8 @@ export const EventEngagementStatsCard = ({
 	);
 	const showTrafficTab = activeTab === "traffic";
 	const showDiscoveryTab = activeTab === "discovery";
+	const showPlanningTab = activeTab === "planning";
+	const showExchangeTab = activeTab === "exchange";
 	const showEventsTab = activeTab === "events";
 	const showAudienceTab = activeTab === "audience";
 	const showAdvancedTab = activeTab === "advanced";
@@ -1533,22 +1686,30 @@ export const EventEngagementStatsCard = ({
 								? "Traffic & Acquisition"
 								: activeTab === "discovery"
 									? "Discovery Behavior"
-									: activeTab === "events"
-										? "Event Performance"
-										: activeTab === "audience"
-											? "Audience Builder"
-											: "Advanced Diagnostics"}
+									: activeTab === "planning"
+										? "Planning Behavior"
+										: activeTab === "exchange"
+											? "Ticket Exchange"
+											: activeTab === "events"
+												? "Event Performance"
+												: activeTab === "audience"
+													? "Audience Builder"
+													: "Advanced Diagnostics"}
 						</CardTitle>
 						<CardDescription>
 							{activeTab === "traffic"
 								? "Visitors, acquisition sources, campaign attribution, and landing page intent."
 								: activeTab === "discovery"
 									? "Search, filter, map, sort, location, tour, and navigation behavior."
-									: activeTab === "events"
-										? "Event opens, external link intent, calendar actions, and quality signals."
-										: activeTab === "audience"
-											? "Build exportable audience segments from live behavior and collected users."
-											: "Use this when a headline metric changes: inspect attribution, device/browser QA, raw discovery signals, and the complete event table."}
+									: activeTab === "planning"
+										? "Route suggestions, edits, shares, exports, and shared-plan activity."
+										: activeTab === "exchange"
+											? "Exchange traffic, listing creation, contact unlocks, reports, and moderation risk."
+											: activeTab === "events"
+												? "Event opens, external link intent, calendar actions, and quality signals."
+												: activeTab === "audience"
+													? "Build exportable audience segments from live behavior and collected users."
+													: "Use this when a headline metric changes: inspect attribution, device/browser QA, raw discovery signals, and the complete event table."}
 						</CardDescription>
 					</div>
 					<div className="flex max-w-full flex-col items-end gap-2 lg:justify-self-end">
@@ -1685,6 +1846,81 @@ export const EventEngagementStatsCard = ({
 									key={metric.key}
 									label={metric.label}
 									value={discovery[metric.key]}
+									description={metric.description}
+								/>
+							))}
+						</div>
+					</div>
+				) : null}
+				{showPlanningTab || showAdvancedTab ? (
+					<div className="space-y-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Planning Behavior
+						</p>
+						<div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+							<SummaryMetric
+								label="Plan Actions"
+								value={discovery.planActionCount}
+								description="All route planning, route sharing, shared-plan, map export, calendar export, and plan-tour events."
+							/>
+							<SummaryMetric
+								label="Plan Sessions"
+								value={discovery.uniquePlanSessionCount}
+								description="Distinct browser sessions with at least one route planning or shared-plan action."
+							/>
+							<SummaryMetric
+								label="Plan Share/Export Signals"
+								value={topPlanActionRows
+									.filter((row) =>
+										/share|export|copy|route_map_open/.test(row.value),
+									)
+									.reduce((total, row) => total + row.count, 0)}
+								description="Share, copy, map-open, and calendar-export plan actions."
+							/>
+							<SummaryMetric
+								label="Top Plan Action"
+								value={topPlanActionRows[0]?.count ?? 0}
+								description={
+									topPlanActionRows[0]
+										? `${topPlanActionRows[0].group.replace(/^plan:/, "")}: ${topPlanActionRows[0].value}`
+										: "No plan action has been recorded in this window."
+								}
+							/>
+						</div>
+					</div>
+				) : null}
+				{showExchangeTab || showAdvancedTab ? (
+					<div className="space-y-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Ticket Exchange Funnel
+						</p>
+						<div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+							{TICKET_EXCHANGE_SUMMARY_METRICS.map((metric) => (
+								<SummaryMetric
+									key={metric.key}
+									label={metric.label}
+									value={
+										"format" in metric
+											? metric.format(ticketExchange.summary[metric.key])
+											: ticketExchange.summary[metric.key]
+									}
+									description={metric.description}
+								/>
+							))}
+						</div>
+					</div>
+				) : null}
+				{showExchangeTab || showAdvancedTab ? (
+					<div className="space-y-2">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Exchange Operations
+						</p>
+						<div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+							{TICKET_EXCHANGE_OPERATION_METRICS.map((metric) => (
+								<SummaryMetric
+									key={metric.key}
+									label={metric.label}
+									value={ticketExchange.operations[metric.key]}
 									description={metric.description}
 								/>
 							))}
@@ -2314,6 +2550,299 @@ export const EventEngagementStatsCard = ({
 									</p>
 								</div>
 							)}
+						</div>
+					</section>
+				) : null}
+
+				{showPlanningTab || showAdvancedTab ? (
+					<section className="space-y-3 rounded-md border bg-background/55 p-3">
+						<div className="flex items-center">
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Planning Actions
+							</p>
+							<InfoPopover aria-label="Explain planning analytics" side="top">
+								Planner signals come from the planning page, event modal
+								add-to-route flows, shared plan pages, route map opens, calendar
+								exports, and route sharing actions.
+							</InfoPopover>
+						</div>
+						<div className="grid gap-4 lg:grid-cols-2">
+							<div className="space-y-2">
+								<p className="text-xs font-medium text-foreground">
+									Top plan actions
+								</p>
+								{topPlanActionRows.length === 0 ? (
+									<p className="text-xs text-muted-foreground">
+										No plan action data yet.
+									</p>
+								) : (
+									<div className="space-y-1.5">
+										{topPlanActionRows.map((row) => (
+											<div
+												key={`${row.group}-${row.value}`}
+												className="space-y-1 rounded-md border bg-background/70 p-2"
+											>
+												<div className="flex justify-between gap-2 text-xs">
+													<span className="truncate font-medium">
+														{formatContextLabel(
+															row.group.replace(/^plan:/, ""),
+														)}
+														: {formatContextLabel(row.value)}
+													</span>
+													<span className="tabular-nums">{row.count}</span>
+												</div>
+												<div className="h-2 rounded-full bg-muted/70">
+													<div
+														className="h-2 rounded-full bg-cyan-700/80"
+														style={{
+															width: `${Math.max(
+																row.count > 0 ? 6 : 0,
+																(row.count / maxDiscoverySignal) * 100,
+															)}%`,
+														}}
+													/>
+												</div>
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+							<div className="space-y-2 rounded-md border bg-background/70 p-3">
+								<p className="text-xs font-medium text-foreground">
+									Planning review
+								</p>
+								<div className="space-y-2 text-xs text-muted-foreground">
+									<p>
+										{discovery.uniquePlanSessionCount > 0
+											? `${formatCountLabel(discovery.uniquePlanSessionCount, "session")} used planning in this window.`
+											: "Planning has no recorded sessions in this window."}
+									</p>
+									<p>
+										{topPlanActionRows.some((row) =>
+											row.value.includes("share"),
+										)
+											? "Sharing signals are present, so shared-route flows are visible in analytics."
+											: "No route-share signal yet; validate share CTAs if planning traffic is expected."}
+									</p>
+									<p>
+										{topPlanActionRows.some(
+											(row) =>
+												row.value === "route_map_open" ||
+												row.value === "route_calendar_export",
+										)
+											? "Export/map intent is present, which is useful for route utility decisions."
+											: "No map/calendar export signal yet; this may be normal if route planning is still early."}
+									</p>
+								</div>
+							</div>
+						</div>
+					</section>
+				) : null}
+
+				{showExchangeTab || showAdvancedTab ? (
+					<section className="space-y-3 rounded-md border bg-background/55 p-3">
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<div className="flex items-center">
+								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+									Ticket Exchange Performance
+								</p>
+								<InfoPopover aria-label="Explain exchange analytics" side="top">
+									Client analytics show funnel intent. Operational counts come
+									from the Ticket Exchange tables, so listing, unlock, and
+									report outcomes remain visible even when client analytics is
+									blocked.
+								</InfoPopover>
+							</div>
+							<a
+								href="/admin/content#ticket-exchange-moderation"
+								className="rounded-md border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+							>
+								Open moderation
+							</a>
+						</div>
+						<div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+							<div className="space-y-2">
+								<p className="text-xs font-medium text-foreground">
+									Top exchange events
+								</p>
+								{ticketExchange.topEvents.length === 0 ? (
+									<p className="text-xs text-muted-foreground">
+										No exchange event activity yet.
+									</p>
+								) : (
+									<div className="space-y-1.5">
+										{ticketExchange.topEvents.slice(0, 8).map((row) => (
+											<div
+												key={row.eventKey}
+												className="grid gap-2 rounded-md border bg-background/70 p-2 sm:grid-cols-[minmax(0,1fr)_auto]"
+											>
+												<div className="min-w-0">
+													{row.eventSlug ? (
+														<a
+															href={`/event/${encodeURIComponent(row.eventKey)}/${encodeURIComponent(row.eventSlug)}`}
+															className="block truncate text-xs font-medium underline-offset-4 hover:underline"
+														>
+															{row.eventName}
+														</a>
+													) : (
+														<p className="truncate text-xs font-medium">
+															{row.eventName}
+														</p>
+													)}
+													<p className="truncate text-[11px] text-muted-foreground">
+														{row.exchangeViewCount} views ·{" "}
+														{row.operationalListingCreateCount} listings ·{" "}
+														{row.operationalInterestCreateCount} unlocks ·{" "}
+														{row.operationalReportCreateCount} reports
+													</p>
+												</div>
+												<p className="text-[11px] text-muted-foreground sm:text-right">
+													{row.operationalResolvedListingCount} resolved
+													{row.isLiveEvent ? "" : " · no live match"}
+												</p>
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+							<div className="space-y-2">
+								<p className="text-xs font-medium text-foreground">
+									Exchange action mix
+								</p>
+								{ticketExchange.topActions.length === 0 ? (
+									<p className="text-xs text-muted-foreground">
+										No exchange action data yet.
+									</p>
+								) : (
+									<div className="space-y-1.5">
+										{ticketExchange.topActions.slice(0, 8).map((row) => (
+											<div
+												key={`${row.actionType}-${row.surface}`}
+												className="space-y-1 rounded-md border bg-background/70 p-2"
+											>
+												<div className="flex justify-between gap-2 text-xs">
+													<span className="truncate font-medium">
+														{formatContextLabel(row.actionType)} ·{" "}
+														{formatContextLabel(row.surface)}
+													</span>
+													<span className="tabular-nums">{row.count}</span>
+												</div>
+												<div className="h-2 rounded-full bg-muted/70">
+													<div
+														className="h-2 rounded-full bg-amber-700/80"
+														style={{
+															width: `${Math.max(
+																row.count > 0 ? 6 : 0,
+																(row.count /
+																	Math.max(
+																		1,
+																		ticketExchange.summary.exchangeViewCount,
+																	)) *
+																	100,
+															)}%`,
+														}}
+													/>
+												</div>
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+						</div>
+						<div className="grid gap-4 xl:grid-cols-2">
+							<div className="space-y-2 rounded-md border bg-background/70 p-3">
+								<p className="text-xs font-medium text-foreground">
+									Exchange daily pulse
+								</p>
+								{exchangeDailyRows.length === 0 || !hasExchangeDailyActivity ? (
+									<p className="text-xs text-muted-foreground">
+										No daily exchange activity in this window yet.
+									</p>
+								) : (
+									<div className="space-y-2">
+										{exchangeDailyRows.map((row) => (
+											<div
+												key={row.day}
+												className="grid grid-cols-[4.5rem_1fr] items-center gap-2"
+											>
+												<p className="truncate text-[11px] text-muted-foreground">
+													{row.day.slice(5)}
+												</p>
+												<div className="space-y-1">
+													{[
+														{
+															label: "views",
+															value: row.exchangeViewCount,
+															className: "bg-sky-700/80",
+														},
+														{
+															label: "listings",
+															value: row.listingCreateCount,
+															className: "bg-emerald-700/80",
+														},
+														{
+															label: "unlocks",
+															value: row.contactUnlockCount,
+															className: "bg-amber-700/80",
+														},
+														{
+															label: "reports",
+															value: row.reportSubmitCount,
+															className: "bg-rose-700/80",
+														},
+													].map((item) => (
+														<div
+															key={item.label}
+															className="flex items-center gap-1.5"
+														>
+															<div className="h-1.5 flex-1 rounded-full bg-muted/70">
+																<div
+																	className={`h-1.5 rounded-full ${item.className}`}
+																	style={{
+																		width: `${Math.max(
+																			item.value > 0 ? 5 : 0,
+																			(item.value / maxExchangeDailyValue) *
+																				100,
+																		)}%`,
+																	}}
+																/>
+															</div>
+															<span className="w-6 text-right text-[10px] tabular-nums">
+																{item.value}
+															</span>
+														</div>
+													))}
+												</div>
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+							<div className="space-y-2 rounded-md border bg-background/70 p-3">
+								<p className="text-xs font-medium text-foreground">
+									Operational review
+								</p>
+								<div className="space-y-2 text-xs text-muted-foreground">
+									<p>
+										{ticketExchange.operations.pendingReportCount > 0
+											? `${ticketExchange.operations.pendingReportCount} report${ticketExchange.operations.pendingReportCount === 1 ? "" : "s"} need moderation.`
+											: "No reports need moderation right now."}
+									</p>
+									<p>
+										{ticketExchange.operations.botPendingCount > 0
+											? `${ticketExchange.operations.botPendingCount} active listing${ticketExchange.operations.botPendingCount === 1 ? "" : "s"} still need bot announcement.`
+											: "No active listings are waiting on bot announcement."}
+									</p>
+									<p>
+										{formatPercent(ticketExchange.summary.listingToUnlockRate)}{" "}
+										unlock/listing rate this window from authoritative rows.
+									</p>
+									<p>
+										{formatPercent(ticketExchange.summary.reportRate)} report
+										rate across new listings and unlocks.
+									</p>
+								</div>
+							</div>
 						</div>
 					</section>
 				) : null}
