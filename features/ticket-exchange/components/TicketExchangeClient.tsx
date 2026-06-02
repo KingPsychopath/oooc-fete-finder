@@ -195,6 +195,7 @@ const reportReasonLabels: Record<TicketExchangeReportReason, string> = {
 	spam: "Spam or duplicate",
 	other: "Other",
 };
+const CREATE_LISTING_CONTROL_CLASS = "h-11 rounded-xl px-3";
 
 const getRelativeTime = (iso: string): string => {
 	const ms = new Date(iso).getTime();
@@ -220,6 +221,16 @@ const formatEventPickerDate = (date: string): string => {
 const formatEventPickerDay = (day: string): string =>
 	WEEKDAY_SHORT_LABELS[day as keyof typeof WEEKDAY_SHORT_LABELS] ??
 	day.slice(0, 1).toUpperCase() + day.slice(1);
+
+const formatEventListMetadata = (event: Event): string =>
+	[
+		formatEventPickerDay(event.day),
+		formatEventPickerDate(event.date),
+		event.time,
+		event.location,
+	]
+		.filter(Boolean)
+		.join(" · ");
 
 const hasContact = (
 	profile: TicketExchangeContactProfile | null,
@@ -433,6 +444,7 @@ export function TicketExchangeClient({
 	const createPanelRef = useRef<HTMLFormElement | null>(null);
 	const boardControlsRef = useRef<HTMLDivElement | null>(null);
 	const createListingInFlightRef = useRef(false);
+	const shouldReturnToCreateAfterContactRef = useRef(false);
 	const [isAcceptingAgreement, setIsAcceptingAgreement] = useState(false);
 	const [reportListingId, setReportListingId] = useState<string | null>(null);
 	const [reportReason, setReportReason] =
@@ -693,14 +705,25 @@ export function TicketExchangeClient({
 		};
 		window.requestAnimationFrame(scroll);
 		window.setTimeout(scroll, 80);
+		window.setTimeout(scroll, 180);
 	};
 
 	const closeContactDetails = (): void => {
 		setIsProfileOpen(false);
+		if (shouldReturnToCreateAfterContactRef.current) {
+			shouldReturnToCreateAfterContactRef.current = false;
+			if (!isCreateOpen) {
+				setIsCreateOpen(true);
+			}
+			scrollPanelIntoView(createPanelRef);
+			return;
+		}
+		shouldReturnToCreateAfterContactRef.current = false;
 		scrollPanelIntoView(boardControlsRef);
 	};
 
 	const closeCreateListing = (): void => {
+		shouldReturnToCreateAfterContactRef.current = false;
 		setIsCreateOpen(false);
 		scrollPanelIntoView(boardControlsRef);
 	};
@@ -716,8 +739,12 @@ export function TicketExchangeClient({
 			detail: method,
 		});
 		setPendingMessage(
-			`Add ${methodLabels[method]} in contact details. Your listing draft will stay filled in.`,
+			`Contact details opened. Your listing draft is still here.`,
 		);
+		shouldReturnToCreateAfterContactRef.current = true;
+		if (window.matchMedia("(max-width: 1023px)").matches) {
+			setIsCreateOpen(false);
+		}
 		setIsProfileOpen(true);
 		scrollPanelIntoView(profilePanelRef);
 	};
@@ -733,12 +760,14 @@ export function TicketExchangeClient({
 			eventKey: selectedEventKey,
 			surface: "profile_panel",
 		});
+		shouldReturnToCreateAfterContactRef.current = false;
 		setIsCreateOpen(false);
 		setIsProfileOpen(true);
 		scrollPanelIntoView(profilePanelRef);
 	};
 
 	const openAgreement = (intent: PendingAgreementIntent) => {
+		shouldReturnToCreateAfterContactRef.current = false;
 		trackTicketExchangeAnalytics({
 			actionType: "agreement_open",
 			eventKey:
@@ -800,6 +829,7 @@ export function TicketExchangeClient({
 				getDefaultContactMethods(profile),
 			),
 		);
+		shouldReturnToCreateAfterContactRef.current = false;
 		setIsProfileOpen(false);
 		setIsCreateOpen(true);
 		scrollPanelIntoView(createPanelRef);
@@ -1377,8 +1407,8 @@ export function TicketExchangeClient({
 							<X className="h-4 w-4" />
 						</Button>
 					</div>
-					<div className="grid gap-3 lg:grid-cols-2">
-						<Field label="What are you doing?">
+					<div className="grid gap-x-3 gap-y-4 lg:grid-cols-2">
+						<Field label="What are you doing?" className="gap-2">
 							<div className="grid grid-cols-2 gap-2">
 								{(["selling", "looking"] as const).map((type) => (
 									<button
@@ -1392,7 +1422,7 @@ export function TicketExchangeClient({
 											}))
 										}
 										className={cn(
-											"rounded-lg border px-3 py-2 text-sm font-medium",
+											"flex h-11 items-center justify-center rounded-xl border px-3 text-sm font-medium transition-colors",
 											listingForm.listingType === type
 												? "border-primary bg-primary text-primary-foreground"
 												: "border-border bg-background/60",
@@ -1445,6 +1475,7 @@ export function TicketExchangeClient({
 										: "Looking for 1 ticket"
 								}
 								required
+								className={CREATE_LISTING_CONTROL_CLASS}
 							/>
 						</Field>
 						<Field
@@ -1464,6 +1495,7 @@ export function TicketExchangeClient({
 										: "Optional - £35 / face value"
 								}
 								required={listingForm.listingType === "selling"}
+								className={CREATE_LISTING_CONTROL_CLASS}
 							/>
 						</Field>
 						<Field label="Expires after">
@@ -1475,7 +1507,7 @@ export function TicketExchangeClient({
 										expiryHours: Number(event.target.value),
 									}))
 								}
-								className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+								className="h-11 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
 							>
 								{TICKET_EXCHANGE_EXPIRY_OPTIONS.map((option) => (
 									<option key={option.hours} value={option.hours}>
@@ -1505,12 +1537,17 @@ export function TicketExchangeClient({
 										}))
 									}
 									placeholder="Use official transfer where possible. Availability may change."
+									className="min-h-20 rounded-xl px-3"
 								/>
 							</Field>
 						</div>
 					</div>
 					<div className="mt-4 flex justify-end">
-						<Button type="submit" disabled={isCreatingListing}>
+						<Button
+							type="submit"
+							className="h-10 px-3"
+							disabled={isCreatingListing}
+						>
 							<Ticket className="h-4 w-4" />
 							{isCreatingListing ? "Posting..." : "Post listing"}
 						</Button>
@@ -1641,6 +1678,7 @@ export function TicketExchangeClient({
 								const summary = summaryByEventKey.get(event.eventKey);
 								const activeCount =
 									(summary?.sellingCount ?? 0) + (summary?.lookingCount ?? 0);
+								const eventMetadata = formatEventListMetadata(event);
 								return (
 									<Link
 										key={event.eventKey}
@@ -1658,6 +1696,11 @@ export function TicketExchangeClient({
 										<span className="line-clamp-1 font-medium">
 											{event.name}
 										</span>
+										{eventMetadata ? (
+											<span className="mt-0.5 block line-clamp-1 text-xs opacity-70">
+												{eventMetadata}
+											</span>
+										) : null}
 										<span className="mt-0.5 block text-xs opacity-75">
 											{activeCount > 0
 												? `${summary?.sellingCount ?? 0} selling · ${summary?.lookingCount ?? 0} looking`
@@ -2000,12 +2043,14 @@ export function TicketExchangeClient({
 function Field({
 	label,
 	children,
+	className,
 }: {
 	label: string;
-	children: React.ReactNode;
+	children: ReactNode;
+	className?: string;
 }) {
 	return (
-		<label className="grid gap-1.5 text-sm">
+		<label className={cn("grid gap-1.5 text-sm", className)}>
 			<span className="font-medium text-foreground">{label}</span>
 			{children}
 		</label>
@@ -2096,7 +2141,6 @@ function ContactMethodPicker({
 						<button
 							key={method}
 							type="button"
-							aria-disabled={!available}
 							onClick={() => {
 								if (available) {
 									setPromptedMethod(null);
@@ -2116,14 +2160,14 @@ function ContactMethodPicker({
 									? "border-primary bg-primary text-primary-foreground"
 									: "border-border bg-background/60",
 								!available &&
-									"border-dashed text-muted-foreground opacity-60 hover:border-primary/50 hover:bg-accent hover:text-foreground",
+									"border-dashed text-muted-foreground opacity-65 hover:border-primary/40 hover:bg-accent hover:text-foreground",
 								isPrompted &&
 									"border-amber-500/60 bg-amber-500/10 text-amber-900 opacity-100 dark:text-amber-100",
 							)}
 							title={
 								available
 									? undefined
-									: "Add this detail to your contact profile first. Click again to edit contacts."
+									: "Add this detail to use this option. Click again to edit contact details."
 							}
 						>
 							{methodLabels[method]}
@@ -2133,9 +2177,9 @@ function ContactMethodPicker({
 			</div>
 			{promptedMethod ? (
 				<div className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-2.5 py-2 text-xs leading-5 text-amber-900 dark:text-amber-100">
-					Add {methodLabels[promptedMethod]} to your contact details first.
-					Click {methodLabels[promptedMethod]} again to fill it out. Your
-					listing draft will stay filled in.
+					Add {methodLabels[promptedMethod]} to use this option. Click{" "}
+					{methodLabels[promptedMethod]} again to edit contact details. Your
+					listing draft stays here.
 				</div>
 			) : (
 				<p className="text-xs text-muted-foreground">
