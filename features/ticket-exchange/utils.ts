@@ -1,4 +1,6 @@
 import type { Event } from "@/features/events/types";
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
+import { z } from "zod";
 import {
 	TICKET_EXCHANGE_CONTACT_METHODS,
 	TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS,
@@ -13,6 +15,49 @@ import type {
 
 export const normalizeHandle = (value: string): string =>
 	value.trim().replace(/^@+/, "");
+
+export const normalizeOptionalEmail = (value: string): string => {
+	const normalized = value.trim().toLowerCase();
+	if (!normalized) return "";
+	const parsed = z.email().safeParse(normalized);
+	if (!parsed.success) {
+		throw new Error("Enter a valid email address.");
+	}
+	return normalized;
+};
+
+export const normalizeWhatsAppNumber = (value: string): string => {
+	const normalized = value.trim();
+	if (!normalized) return "";
+	const parsed = parsePhoneNumberFromString(normalized);
+	if (!parsed?.isValid()) {
+		throw new Error("Enter a valid WhatsApp number with country code.");
+	}
+	return parsed.number;
+};
+
+export const normalizeInstagramHandle = (value: string): string => {
+	const normalized = normalizeHandle(value);
+	if (!normalized) return "";
+	if (
+		!/^[A-Za-z0-9._]{1,30}$/.test(normalized) ||
+		normalized.startsWith(".") ||
+		normalized.endsWith(".") ||
+		normalized.includes("..")
+	) {
+		throw new Error("Enter a valid Instagram handle.");
+	}
+	return normalized;
+};
+
+export const normalizeXHandle = (value: string): string => {
+	const normalized = normalizeHandle(value);
+	if (!normalized) return "";
+	if (!/^[A-Za-z0-9_]{1,15}$/.test(normalized)) {
+		throw new Error("Enter a valid X/Twitter handle.");
+	}
+	return normalized;
+};
 
 export const normalizeTicketExchangeText = (
 	value: unknown,

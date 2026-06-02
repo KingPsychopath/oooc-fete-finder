@@ -28,18 +28,14 @@ export const getTicketExchangeSummariesForEvents = async (
 	return repository.getSummaries(events.map((event) => event.eventKey));
 };
 
-export const findTicketExchangeEvent = (
+export const findTicketExchangeEventByKey = (
 	events: Event[],
-	value: string | null | undefined,
+	eventKey: string | null | undefined,
 ): Event | null => {
-	const normalized = value?.trim().toLowerCase();
+	const normalized = eventKey?.trim().toLowerCase();
 	if (!normalized) return null;
 	return (
-		events.find(
-			(event) =>
-				event.eventKey.toLowerCase() === normalized ||
-				event.slug.toLowerCase() === normalized,
-		) ?? null
+		events.find((event) => event.eventKey.toLowerCase() === normalized) ?? null
 	);
 };
 
@@ -49,7 +45,10 @@ export const getTicketExchangePageData = async (input: {
 	selectedEventKey?: string | null;
 }): Promise<TicketExchangePageData> => {
 	const events = await getTicketExchangeEvents();
-	const selectedEvent = findTicketExchangeEvent(events, input.selectedEventKey);
+	const selectedEvent = findTicketExchangeEventByKey(
+		events,
+		input.selectedEventKey,
+	);
 	const selectedEventKey = selectedEvent?.eventKey ?? null;
 	const repository = getTicketExchangeRepository();
 

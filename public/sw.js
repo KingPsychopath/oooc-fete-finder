@@ -1,4 +1,4 @@
-const CACHE_VERSION = "oooc-fete-finder-v5";
+const CACHE_VERSION = "oooc-fete-finder-v6";
 const APP_SHELL_CACHE = `${CACHE_VERSION}:app-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}:static`;
 const SAFE_API_CACHE = `${CACHE_VERSION}:safe-api`;
@@ -53,6 +53,9 @@ const isSafeApiPath = (pathname) => {
 
 const isStaticAssetPath = (pathname) =>
 	STATIC_CACHE_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
+const isNextStaticAssetPath = (pathname) =>
+	pathname.startsWith("/_next/static/");
 
 self.addEventListener("install", (event) => {
 	event.waitUntil(
@@ -166,6 +169,16 @@ self.addEventListener("fetch", (event) => {
 		event.respondWith(
 			fetchAndCache(request, SAFE_API_CACHE).catch(async () => {
 				const cache = await caches.open(SAFE_API_CACHE);
+				return (await cache.match(request)) || Response.error();
+			}),
+		);
+		return;
+	}
+
+	if (isNextStaticAssetPath(pathname)) {
+		event.respondWith(
+			fetchAndCache(request, STATIC_CACHE).catch(async () => {
+				const cache = await caches.open(STATIC_CACHE);
 				return (await cache.match(request)) || Response.error();
 			}),
 		);

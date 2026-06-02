@@ -4,7 +4,7 @@ import { getDefaultDateRangeForEvents } from "@/features/events/filtering";
 import { getTicketExchangeSession } from "@/features/ticket-exchange/auth";
 import { TicketExchangeShell } from "@/features/ticket-exchange/components/TicketExchangeShell";
 import {
-	findTicketExchangeEvent,
+	findTicketExchangeEventByKey,
 	getTicketExchangeEvents,
 	getTicketExchangePageData,
 } from "@/features/ticket-exchange/service";
@@ -15,15 +15,15 @@ import { notFound } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 type TicketsEventPageProps = {
-	params: Promise<{ eventSlug: string }>;
+	params: Promise<{ eventKey: string }>;
 };
 
 export async function generateMetadata({
 	params,
 }: TicketsEventPageProps): Promise<Metadata> {
-	const { eventSlug } = await params;
+	const { eventKey } = await params;
 	const events = await getTicketExchangeEvents();
-	const event = findTicketExchangeEvent(events, eventSlug);
+	const event = findTicketExchangeEventByKey(events, eventKey);
 	return {
 		title: event
 			? `${event.name} Tickets | Fete Finder`
@@ -34,13 +34,13 @@ export async function generateMetadata({
 }
 
 export default async function TicketsEventPage({ params }: TicketsEventPageProps) {
-	const { eventSlug } = await params;
+	const { eventKey } = await params;
 	const [session, events, bannerSettings] = await Promise.all([
 		getTicketExchangeSession(),
 		getTicketExchangeEvents(),
 		getPublicSlidingBannerSettingsCached(),
 	]);
-	const event = findTicketExchangeEvent(events, eventSlug);
+	const event = findTicketExchangeEventByKey(events, eventKey);
 	if (!event) notFound();
 	const data = await getTicketExchangePageData({
 		userId: session.userId,

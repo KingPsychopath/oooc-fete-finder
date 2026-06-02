@@ -12,7 +12,7 @@ import { sendTicketExchangeInterestEmail } from "./email";
 import { getTicketExchangeSession } from "./auth";
 import { getTicketExchangeRepository } from "./repository";
 import {
-	findTicketExchangeEvent,
+	findTicketExchangeEventByKey,
 	getTicketExchangeEvents,
 	getTicketExchangePageData,
 } from "./service";
@@ -28,8 +28,11 @@ import {
 	countUsableContactMethods,
 	hasContactForMethods,
 	normalizeContactMethods,
-	normalizeHandle,
+	normalizeInstagramHandle,
+	normalizeOptionalEmail,
 	normalizeTicketExchangeText,
+	normalizeWhatsAppNumber,
+	normalizeXHandle,
 	resolveExpiryDate,
 } from "./utils";
 
@@ -86,13 +89,16 @@ export async function saveTicketExchangeContactProfile(input: {
 			userId: session.userId as string,
 			accountEmail: session.email as string,
 			displayName: normalizeTicketExchangeText(input.displayName, 80),
-			alternateEmail: normalizeTicketExchangeText(input.alternateEmail, 160)
-				.toLowerCase(),
-			whatsappNumber: normalizeTicketExchangeText(input.whatsappNumber, 40),
-			instagramHandle: normalizeHandle(
+			alternateEmail: normalizeOptionalEmail(
+				normalizeTicketExchangeText(input.alternateEmail, 160),
+			),
+			whatsappNumber: normalizeWhatsAppNumber(
+				normalizeTicketExchangeText(input.whatsappNumber, 40),
+			),
+			instagramHandle: normalizeInstagramHandle(
 				normalizeTicketExchangeText(input.instagramHandle, 60),
 			),
-			xHandle: normalizeHandle(normalizeTicketExchangeText(input.xHandle, 60)),
+			xHandle: normalizeXHandle(normalizeTicketExchangeText(input.xHandle, 60)),
 			acceptRules: Boolean(input.acceptRules),
 		});
 		revalidateTicketExchange();
@@ -120,7 +126,7 @@ export async function createTicketExchangeListing(input: {
 	try {
 		const { session, repository } = await getAuthenticatedContext();
 		const events = await getTicketExchangeEvents();
-		const event = findTicketExchangeEvent(events, input.eventKey);
+		const event = findTicketExchangeEventByKey(events, input.eventKey);
 		if (!event) throw new Error("Choose a valid event.");
 
 		const listingType =

@@ -516,18 +516,7 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 	};
 
 	const openListingEvent = (listing: TicketExchangeListingView) => {
-		const listingEventName = listing.eventName.trim().toLowerCase();
-		const event =
-			eventByKey.get(listing.eventKey) ??
-			data.events.find(
-				(item) =>
-					item.eventKey.toLowerCase() === listing.eventKey.toLowerCase() ||
-					item.slug === listing.eventSlug ||
-					item.name === listing.eventName ||
-					item.name.trim().toLowerCase() === listingEventName ||
-					item.name.trim().toLowerCase().includes(listingEventName) ||
-					listingEventName.includes(item.name.trim().toLowerCase()),
-			);
+		const event = eventByKey.get(listing.eventKey);
 		if (!event) {
 			setErrorMessage("Could not open event details for this listing.");
 			return;
@@ -815,6 +804,8 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 						</Field>
 						<Field label="WhatsApp number">
 							<Input
+								type="tel"
+								inputMode="tel"
 								value={profileForm.whatsappNumber}
 								onChange={(event) =>
 									setProfileForm((current) => ({
@@ -822,11 +813,13 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 										whatsappNumber: event.target.value,
 									}))
 								}
-								placeholder="+44..."
+								placeholder="+44 7123 456789"
 							/>
 						</Field>
 						<Field label="Instagram">
 							<Input
+								autoCapitalize="none"
+								autoCorrect="off"
 								value={profileForm.instagramHandle}
 								onChange={(event) =>
 									setProfileForm((current) => ({
@@ -834,11 +827,13 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 										instagramHandle: event.target.value,
 									}))
 								}
-								placeholder="@handle"
+								placeholder="handle"
 							/>
 						</Field>
 						<Field label="X/Twitter">
 							<Input
+								autoCapitalize="none"
+								autoCorrect="off"
 								value={profileForm.xHandle}
 								onChange={(event) =>
 									setProfileForm((current) => ({
@@ -846,7 +841,7 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 										xHandle: event.target.value,
 									}))
 								}
-								placeholder="@handle"
+								placeholder="handle"
 							/>
 						</Field>
 					</div>
@@ -1229,6 +1224,23 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 							your listings, and listings where you unlocked contact details.
 						</p>
 					)}
+					{(data.isAuthenticated || auth.isAuthenticated) &&
+						data.profile &&
+						!hasAcceptedCurrentAgreement(data.profile) && (
+							<div className="rounded-xl border border-amber-500/25 bg-amber-500/8 px-3 py-2 text-sm text-muted-foreground">
+								<span className="font-medium text-foreground">
+									Safety agreement required.
+								</span>{" "}
+								Accept it once before posting or unlocking contact details.{" "}
+								<button
+									type="button"
+									onClick={() => openAgreement(null)}
+									className="font-medium text-foreground underline underline-offset-4"
+								>
+									Review terms
+								</button>
+							</div>
+						)}
 
 					{visibleListings.length === 0 ? (
 						<div className="rounded-2xl border border-dashed border-border bg-card/48 p-8 text-center">
@@ -1727,15 +1739,19 @@ function ListingCard({
 								? "Unlocking..."
 								: listing.myInterest
 									? "Update interest"
-									: hasAgreement || !isAuthenticated
-										? "I'm interested"
-										: "Review agreement"}
+									: "I'm interested"}
 						</Button>
 						<Button
 							type="button"
 							variant="outline"
 							size="sm"
-							onClick={() => onReport(listing.id)}
+							onClick={() => {
+								if (!isAuthenticated) {
+									onLogin();
+									return;
+								}
+								onReport(listing.id);
+							}}
 							className="ml-auto"
 						>
 							<Flag className="h-3.5 w-3.5" />
