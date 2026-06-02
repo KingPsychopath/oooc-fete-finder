@@ -4,6 +4,7 @@ import type {
 	MusicGenre,
 	ParisArrondissement,
 } from "@/features/events/types";
+import { getTicketExchangeSummariesForEvents } from "@/features/ticket-exchange/service";
 import { unstable_cache } from "next/cache";
 
 export interface EventShareDetails {
@@ -74,6 +75,20 @@ const findFreshEventShareEvent = async (
 	}
 };
 
+const withTicketExchangeProjection = async (event: Event): Promise<Event> => {
+	try {
+		const [summary] = await getTicketExchangeSummariesForEvents([event]);
+		return {
+			...event,
+			ticketExchangeSellingCount: summary?.sellingCount ?? 0,
+			ticketExchangeLookingCount: summary?.lookingCount ?? 0,
+			ticketExchangeLatestListingAt: summary?.latestListingAt ?? null,
+		};
+	} catch {
+		return event;
+	}
+};
+
 export const getEventShareEvent = async (
 	eventKey: string,
 	options?: { bypassCache?: boolean },
@@ -84,17 +99,19 @@ export const getEventShareEvent = async (
 	}
 
 	if (options?.bypassCache) {
-		return findFreshEventShareEvent(normalizedEventKey);
+		const event = await findFreshEventShareEvent(normalizedEventKey);
+		return event ? withTicketExchangeProjection(event) : null;
 	}
 
 	try {
 		const index = await getCachedEventShareIndex();
-		return (
+		const event =
 			index[normalizedEventKey] ??
-			(await findFreshEventShareEvent(normalizedEventKey))
-		);
+			(await findFreshEventShareEvent(normalizedEventKey));
+		return event ? withTicketExchangeProjection(event) : null;
 	} catch {
-		return findFreshEventShareEvent(normalizedEventKey);
+		const event = await findFreshEventShareEvent(normalizedEventKey);
+		return event ? withTicketExchangeProjection(event) : null;
 	}
 };
 

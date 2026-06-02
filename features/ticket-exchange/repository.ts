@@ -3,10 +3,7 @@ import "server-only";
 import { generateUserId } from "@/features/auth/user-id";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "@/lib/platform/postgres/postgres-client";
-import {
-	filterContactSnapshot,
-	getEffectiveListingStatus,
-} from "./utils";
+import { filterContactSnapshot, getEffectiveListingStatus } from "./utils";
 import {
 	TICKET_EXCHANGE_INTEREST_LOCK_MINUTES,
 	TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER,
@@ -20,6 +17,7 @@ import type {
 	TicketExchangeAdminDashboard,
 	TicketExchangeAdminListing,
 	TicketExchangeAdminReport,
+	TicketExchangeAdminUnlockWatch,
 	TicketExchangeInterestView,
 	TicketExchangeListingStatus,
 	TicketExchangeListingType,
@@ -113,6 +111,14 @@ type AdminCountsRow = {
 	bot_pending_count: number;
 	bot_announced_count: number;
 	contact_unlock_count: number;
+};
+
+type AdminUnlockWatchRow = {
+	actor_user_id: string;
+	actor_email: string;
+	active_or_locked_count: number;
+	daily_unlock_count: number;
+	latest_unlock_at: string;
 };
 
 type DuplicateListingRow = {
@@ -822,7 +828,9 @@ export class TicketExchangeRepository {
 		}));
 	}
 
-	async getRecentListingsForBot(limit = 10): Promise<TicketExchangeListingView[]> {
+	async getRecentListingsForBot(
+		limit = 10,
+	): Promise<TicketExchangeListingView[]> {
 		await this.ready();
 		const safeLimit = Math.min(20, Math.max(1, limit));
 		const rows = await this.sql<ListingRow[]>`
@@ -946,6 +954,7 @@ export class TicketExchangeRepository {
 		`;
 		const recentListings = await this.getAdminListings(safeLimit);
 		const recentReports = await this.getAdminReports(safeLimit);
+		const unlockWatch = await this.getAdminUnlockWatch(8);
 		return {
 			activeSellingCount: counts?.active_selling_count ?? 0,
 			activeLookingCount: counts?.active_looking_count ?? 0,
@@ -953,9 +962,53 @@ export class TicketExchangeRepository {
 			botPendingCount: counts?.bot_pending_count ?? 0,
 			botAnnouncedCount: counts?.bot_announced_count ?? 0,
 			contactUnlockCount: counts?.contact_unlock_count ?? 0,
+			unlockWatch,
 			recentListings,
 			recentReports,
 		};
+	}
+
+	async getAdminUnlockWatch(
+		limit = 8,
+	): Promise<TicketExchangeAdminUnlockWatch[]> {
+		await this.ready();
+		const safeLimit = Math.min(20, Math.max(1, limit));
+		const rows = await this.sql<AdminUnlockWatchRow[]>`
+			SELECT
+				interests.actor_user_id,
+				MAX(interests.actor_email) AS actor_email,
+				COUNT(DISTINCT interests.listing_id) FILTER (
+					WHERE
+						(listings.status = 'active' AND listings.expires_at > NOW())
+						OR interests.created_at > NOW() - (${TICKET_EXCHANGE_INTEREST_LOCK_MINUTES} * INTERVAL '1 minute')
+				)::int AS active_or_locked_count,
+				COUNT(DISTINCT interests.listing_id) FILTER (
+					WHERE interests.created_at > NOW() - INTERVAL '24 hours'
+				)::int AS daily_unlock_count,
+				MAX(interests.created_at) AS latest_unlock_at
+			FROM ticket_exchange_interests interests
+			INNER JOIN ticket_exchange_listings listings
+				ON listings.id = interests.listing_id
+			GROUP BY interests.actor_user_id
+			HAVING
+				COUNT(DISTINCT interests.listing_id) FILTER (
+					WHERE
+						(listings.status = 'active' AND listings.expires_at > NOW())
+						OR interests.created_at > NOW() - (${TICKET_EXCHANGE_INTEREST_LOCK_MINUTES} * INTERVAL '1 minute')
+				) > 0
+				OR COUNT(DISTINCT interests.listing_id) FILTER (
+					WHERE interests.created_at > NOW() - INTERVAL '24 hours'
+				) > 0
+			ORDER BY daily_unlock_count DESC, active_or_locked_count DESC, latest_unlock_at DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows.map((row) => ({
+			actorUserId: row.actor_user_id,
+			actorEmail: row.actor_email,
+			activeOrLockedCount: row.active_or_locked_count,
+			dailyUnlockCount: row.daily_unlock_count,
+			latestUnlockAt: toIso(row.latest_unlock_at) ?? new Date(0).toISOString(),
+		}));
 	}
 
 	async getAdminListings(limit = 40): Promise<TicketExchangeAdminListing[]> {

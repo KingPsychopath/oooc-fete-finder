@@ -66,7 +66,6 @@ import {
 	isTicketActivityFresh,
 	shouldShowTicketActivityBadge,
 } from "@/features/events/ticket-activity";
-import { buildTicketExchangeEventPath } from "@/features/ticket-exchange/urls";
 import {
 	EVENT_EXPERIENCE_CATEGORIES,
 	type Event,
@@ -94,6 +93,7 @@ import { MapSelectionModal } from "@/features/maps/components/map-selection-moda
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
 import type { MapProvider } from "@/features/maps/types";
 import { openLocationInMaps } from "@/features/maps/utils/map-launcher";
+import { buildTicketExchangeEventPath } from "@/features/ticket-exchange/urls";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { LAYERS } from "@/lib/ui/layers";
 import {

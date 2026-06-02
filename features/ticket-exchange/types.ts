@@ -130,6 +130,14 @@ export interface TicketExchangeAdminReport {
 	>;
 }
 
+export interface TicketExchangeAdminUnlockWatch {
+	actorUserId: string;
+	actorEmail: string;
+	activeOrLockedCount: number;
+	dailyUnlockCount: number;
+	latestUnlockAt: string;
+}
+
 export interface TicketExchangeAdminDashboard {
 	activeSellingCount: number;
 	activeLookingCount: number;
@@ -137,6 +145,7 @@ export interface TicketExchangeAdminDashboard {
 	botPendingCount: number;
 	botAnnouncedCount: number;
 	contactUnlockCount: number;
+	unlockWatch: TicketExchangeAdminUnlockWatch[];
 	recentListings: TicketExchangeAdminListing[];
 	recentReports: TicketExchangeAdminReport[];
 }

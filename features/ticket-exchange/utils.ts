@@ -63,7 +63,9 @@ export const normalizeTicketExchangeText = (
 	value: unknown,
 	maxLength: number,
 ): string =>
-	typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, maxLength) : "";
+	typeof value === "string"
+		? value.trim().replace(/\s+/g, " ").slice(0, maxLength)
+		: "";
 
 export const normalizeContactMethods = (
 	value: unknown,

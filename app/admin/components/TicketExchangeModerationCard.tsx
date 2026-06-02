@@ -14,6 +14,10 @@ import {
 	reviewTicketExchangeReportAsAdmin,
 	updateTicketExchangeListingStatusAsAdmin,
 } from "@/features/ticket-exchange/admin-actions";
+import {
+	TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER,
+	TICKET_EXCHANGE_MAX_DAILY_UNLOCKS_PER_USER,
+} from "@/features/ticket-exchange/constants";
 import type {
 	TicketExchangeAdminDashboard,
 	TicketExchangeAdminListing,
@@ -475,6 +479,55 @@ export const TicketExchangeModerationCard = ({
 									</Badge>
 								) : null}
 							</div>
+						</div>
+
+						<div className="rounded-lg border bg-background/70 p-3">
+							<div className="flex flex-wrap items-start justify-between gap-3">
+								<div>
+									<p className="text-sm font-medium">Unlock watch</p>
+									<p className="text-xs text-muted-foreground">
+										Active/locked slots and new contact unlocks in the last 24
+										hours.
+									</p>
+								</div>
+								<Badge variant="outline">
+									{dashboard.unlockWatch.length} user
+									{dashboard.unlockWatch.length === 1 ? "" : "s"}
+								</Badge>
+							</div>
+							{dashboard.unlockWatch.length > 0 ? (
+								<div className="mt-3 grid gap-2">
+									{dashboard.unlockWatch.map((item) => (
+										<div
+											key={item.actorUserId}
+											className="grid gap-2 rounded-md border bg-muted/20 px-2.5 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+										>
+											<div className="min-w-0">
+												<p className="truncate font-medium">
+													{item.actorEmail || item.actorUserId}
+												</p>
+												<p className="text-xs text-muted-foreground">
+													Latest unlock {formatDateTime(item.latestUnlockAt)}
+												</p>
+											</div>
+											<div className="flex flex-wrap gap-2 text-xs">
+												<Badge variant="outline">
+													{item.activeOrLockedCount}/
+													{TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active
+												</Badge>
+												<Badge variant="outline">
+													{item.dailyUnlockCount}/
+													{TICKET_EXCHANGE_MAX_DAILY_UNLOCKS_PER_USER} today
+												</Badge>
+											</div>
+										</div>
+									))}
+								</div>
+							) : (
+								<p className="mt-3 rounded-md border bg-muted/20 px-2.5 py-2 text-sm text-muted-foreground">
+									No active or recent contact unlocks.
+								</p>
+							)}
 						</div>
 
 						<div className="flex gap-1 rounded-lg border bg-background/70 p-1">

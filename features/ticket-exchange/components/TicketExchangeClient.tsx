@@ -23,6 +23,8 @@ import {
 import {
 	TICKET_EXCHANGE_CONTACT_METHODS,
 	TICKET_EXCHANGE_EXPIRY_OPTIONS,
+	TICKET_EXCHANGE_INTEREST_LOCK_MINUTES,
+	TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER,
 	TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT,
 	TICKET_EXCHANGE_RULES_VERSION,
 	TICKET_EXCHANGE_SCAM_TIPS,
@@ -190,7 +192,8 @@ const hasContact = (
 	method: TicketExchangeContactMethod,
 ): boolean => {
 	if (!profile) return false;
-	if (method === "email") return Boolean(profile.alternateEmail || profile.accountEmail);
+	if (method === "email")
+		return Boolean(profile.alternateEmail || profile.accountEmail);
 	if (method === "whatsapp") return Boolean(profile.whatsappNumber);
 	if (method === "instagram") return Boolean(profile.instagramHandle);
 	return Boolean(profile.xHandle);
@@ -250,7 +253,9 @@ const visibleContactEntries = (snapshot?: TicketExchangeContactSnapshot) => {
 		},
 		{
 			label: "Instagram",
-			value: snapshot.instagram ? `@${snapshot.instagram.replace(/^@+/, "")}` : "",
+			value: snapshot.instagram
+				? `@${snapshot.instagram.replace(/^@+/, "")}`
+				: "",
 			href: snapshot.instagram
 				? `https://instagram.com/${snapshot.instagram.replace(/^@+/, "")}`
 				: "",
@@ -292,7 +297,9 @@ const contactIconFor = (label: string) => {
 	return <ExternalLink className="h-3.5 w-3.5" />;
 };
 
-export function TicketExchangeClient({ initialData }: TicketExchangeClientProps) {
+export function TicketExchangeClient({
+	initialData,
+}: TicketExchangeClientProps) {
 	const router = useRouter();
 	const auth = useOptionalAuth();
 	const [data, setData] = useState(initialData);
@@ -327,9 +334,13 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 	const [repostListingId, setRepostListingId] = useState<string | null>(null);
 	const [repostQuantity, setRepostQuantity] = useState("");
 	const [isReposting, setIsReposting] = useState(false);
-	const [interestListingId, setInterestListingId] = useState<string | null>(null);
+	const [interestListingId, setInterestListingId] = useState<string | null>(
+		null,
+	);
 	const [statusListingId, setStatusListingId] = useState<string | null>(null);
-	const [selectedModalEvent, setSelectedModalEvent] = useState<Event | null>(null);
+	const [selectedModalEvent, setSelectedModalEvent] = useState<Event | null>(
+		null,
+	);
 	const [isEventUpdateOpen, setIsEventUpdateOpen] = useState(false);
 
 	useEffect(() => {
@@ -373,7 +384,11 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 			data.events.map((event) => ({
 				value: event.eventKey,
 				label: event.name,
-				description: [formatEventPickerDate(event.date), event.time, event.location]
+				description: [
+					formatEventPickerDate(event.date),
+					event.time,
+					event.location,
+				]
 					.filter(Boolean)
 					.join(" · "),
 				rightLabel: formatEventPickerDay(event.day),
@@ -457,7 +472,11 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 		profile: TicketExchangeContactProfile | null,
 	) => {
 		setListingForm(
-			createListingFormState(selectedEventKey, type, getDefaultContactMethods(profile)),
+			createListingFormState(
+				selectedEventKey,
+				type,
+				getDefaultContactMethods(profile),
+			),
 		);
 		setIsCreateOpen(true);
 	};
@@ -503,9 +522,7 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 		window.setTimeout(restoreScroll, 80);
 	};
 
-	const openCreateListing = (
-		type: TicketExchangeListingType = "selling",
-	) => {
+	const openCreateListing = (type: TicketExchangeListingType = "selling") => {
 		if (!requireLogin()) return;
 		if (!hasAcceptedCurrentAgreement(data.profile)) {
 			openAgreement({ kind: "create", listingType: type });
@@ -525,7 +542,9 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 		setSelectedModalEvent(event);
 	};
 
-	const handleProfileSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+	const handleProfileSubmit = async (
+		event: React.FormEvent<HTMLFormElement>,
+	) => {
 		event.preventDefault();
 		if (isSavingProfile) return;
 		if (!requireLogin()) return;
@@ -544,11 +563,16 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 		}
 	};
 
-	const handleCreateListing = async (event: React.FormEvent<HTMLFormElement>) => {
+	const handleCreateListing = async (
+		event: React.FormEvent<HTMLFormElement>,
+	) => {
 		event.preventDefault();
 		if (createListingInFlightRef.current || isCreatingListing) return;
 		if (!requireLogin()) return;
-		if (listingForm.listingType === "selling" && !listingForm.priceLabel.trim()) {
+		if (
+			listingForm.listingType === "selling" &&
+			!listingForm.priceLabel.trim()
+		) {
 			setErrorMessage("Add the ticket price before posting a selling listing.");
 			return;
 		}
@@ -721,10 +745,7 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 							<UserRound className="h-4 w-4" />
 							{isProfileOpen ? "Hide contacts" : "Contact details"}
 						</Button>
-						<Button
-							type="button"
-							onClick={() => openCreateListing("selling")}
-						>
+						<Button type="button" onClick={() => openCreateListing("selling")}>
 							<Plus className="h-4 w-4" />
 							Post ticket
 						</Button>
@@ -762,14 +783,21 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 								<UserRound className="h-4 w-4 text-muted-foreground" />
 							</div>
 							<div className="min-w-0">
-								<h2 className="text-base font-semibold">Your exchange contacts</h2>
+								<h2 className="text-base font-semibold">
+									Your exchange contacts
+								</h2>
 								<p className="mt-0.5 text-sm leading-5 text-muted-foreground">
 									Shown only after someone registers interest or you unlock a
 									listing.
 								</p>
 							</div>
 						</div>
-						<Button type="button" variant="ghost" size="icon" onClick={() => setIsProfileOpen(false)}>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							onClick={() => setIsProfileOpen(false)}
+						>
 							<X className="h-4 w-4" />
 						</Button>
 					</div>
@@ -856,8 +884,8 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 							)}
 						/>
 						<span className="font-medium text-foreground">
-							{draftContactMethodCount}/{TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT}{" "}
-							methods ready.
+							{draftContactMethodCount}/
+							{TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT} methods ready.
 						</span>
 						<span>Email plus one backup is required.</span>
 					</p>
@@ -928,7 +956,12 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 								No reservations here. People message you directly to confirm.
 							</p>
 						</div>
-						<Button type="button" variant="ghost" size="icon" onClick={() => setIsCreateOpen(false)}>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							onClick={() => setIsCreateOpen(false)}
+						>
 							<X className="h-4 w-4" />
 						</Button>
 					</div>
@@ -966,7 +999,10 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 								emptyMessage="No matching events"
 								maxVisibleOptions={7}
 								onInputChange={(value) => {
-									if (selectedEventOption && value !== selectedEventOption.label) {
+									if (
+										selectedEventOption &&
+										value !== selectedEventOption.label
+									) {
 										setListingForm((current) => ({
 											...current,
 											eventKey: "",
@@ -999,7 +1035,9 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 								required
 							/>
 						</Field>
-						<Field label={listingForm.listingType === "selling" ? "Price" : "Budget"}>
+						<Field
+							label={listingForm.listingType === "selling" ? "Price" : "Budget"}
+						>
 							<Input
 								value={listingForm.priceLabel}
 								onChange={(event) =>
@@ -1119,7 +1157,10 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 				</div>
 			</section>
 
-			<div id="ticket-exchange-board" className="order-5 grid gap-4 lg:grid-cols-[17rem_1fr]">
+			<div
+				id="ticket-exchange-board"
+				className="order-5 grid gap-4 lg:grid-cols-[17rem_1fr]"
+			>
 				<aside className="hidden space-y-3 lg:sticky lg:top-[9rem] lg:block lg:self-start">
 					<div className="rounded-2xl border border-border/70 bg-card/72 p-3">
 						<p className="px-1 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -1129,7 +1170,9 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 							href={`${basePath}/tickets`}
 							className={cn(
 								"mb-1 flex items-center justify-between rounded-lg px-2 py-2 text-sm",
-								!selectedEventKey ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+								!selectedEventKey
+									? "bg-primary text-primary-foreground"
+									: "hover:bg-muted",
 							)}
 							onClick={(clickEvent) => {
 								clickEvent.preventDefault();
@@ -1169,7 +1212,9 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 											selectEvent(event.eventKey);
 										}}
 									>
-										<span className="line-clamp-1 font-medium">{event.name}</span>
+										<span className="line-clamp-1 font-medium">
+											{event.name}
+										</span>
 										<span className="mt-0.5 block text-xs opacity-75">
 											{activeCount > 0
 												? `${summary?.sellingCount ?? 0} selling · ${summary?.lookingCount ?? 0} looking`
@@ -1197,20 +1242,33 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 					<div className="sticky top-2 z-30 rounded-xl border border-border/70 bg-card/95 p-1.5 shadow-sm backdrop-blur sm:rounded-2xl sm:p-2 lg:static lg:bg-card/72 lg:shadow-none">
 						<div className="grid grid-cols-[1fr_1fr_1.25fr_auto] items-center gap-1.5 sm:flex sm:gap-2">
 							<div className="contents sm:flex sm:min-w-0 sm:flex-1 sm:flex-wrap sm:gap-2">
-								<TabButton active={activeTab === "selling"} onClick={() => setActiveTab("selling")}>
+								<TabButton
+									active={activeTab === "selling"}
+									onClick={() => setActiveTab("selling")}
+								>
 									Selling
 								</TabButton>
-								<TabButton active={activeTab === "looking"} onClick={() => setActiveTab("looking")}>
+								<TabButton
+									active={activeTab === "looking"}
+									onClick={() => setActiveTab("looking")}
+								>
 									Looking
 								</TabButton>
-								<TabButton active={activeTab === "mine"} onClick={() => setActiveTab("mine")}>
+								<TabButton
+									active={activeTab === "mine"}
+									onClick={() => setActiveTab("mine")}
+								>
 									My activity
 								</TabButton>
 							</div>
 							<Button
 								type="button"
 								size="sm"
-								onClick={() => openCreateListing(activeTab === "looking" ? "looking" : "selling")}
+								onClick={() =>
+									openCreateListing(
+										activeTab === "looking" ? "looking" : "selling",
+									)
+								}
 								className="h-9 shrink-0 px-2.5 text-xs sm:px-3 sm:text-sm"
 							>
 								<Plus className="h-3.5 w-3.5" />
@@ -1224,6 +1282,12 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 							your listings, and listings where you unlocked contact details.
 						</p>
 					)}
+					<p className="rounded-xl border border-border/70 bg-card/48 px-3 py-2 text-sm text-muted-foreground">
+						You can unlock contact on up to{" "}
+						{TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active listings at
+						once. Closed listings clear after{" "}
+						{TICKET_EXCHANGE_INTEREST_LOCK_MINUTES} minutes.
+					</p>
 					{(data.isAuthenticated || auth.isAuthenticated) &&
 						data.profile &&
 						!hasAcceptedCurrentAgreement(data.profile) && (
@@ -1277,35 +1341,41 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 			</div>
 
 			{isAgreementOpen && (
-				<ModalShell
-					title="Ticket Exchange agreement"
-					onClose={closeAgreement}
-				>
+				<ModalShell title="Ticket Exchange agreement" onClose={closeAgreement}>
 					<div className="space-y-4">
 						<div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-950 dark:text-amber-100">
 							<p className="font-medium">OOOC is only a connector.</p>
 							<p className="mt-1 leading-6">
 								We do not verify, sell, hold, transfer, reserve, or guarantee
-								tickets. You are responsible for checking the ticket, the person,
-								the transfer method, and whether the exchange is safe for you.
+								tickets. You are responsible for checking the ticket, the
+								person, the transfer method, and whether the exchange is safe
+								for you.
 							</p>
 						</div>
 						<ul className="space-y-2 text-sm text-muted-foreground">
 							<li className="flex gap-2">
 								<Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-								<span>Use official transfer where the event or platform supports it.</span>
+								<span>
+									Use official transfer where the event or platform supports it.
+								</span>
 							</li>
 							<li className="flex gap-2">
 								<Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-								<span>Do your own due diligence before sending money or tickets.</span>
+								<span>
+									Do your own due diligence before sending money or tickets.
+								</span>
 							</li>
 							<li className="flex gap-2">
 								<Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-								<span>Keep your listing accurate and mark it resolved when done.</span>
+								<span>
+									Keep your listing accurate and mark it resolved when done.
+								</span>
 							</li>
 							<li className="flex gap-2">
 								<Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-								<span>Report suspicious, misleading, abusive, or duplicate listings.</span>
+								<span>
+									Report suspicious, misleading, abusive, or duplicate listings.
+								</span>
 							</li>
 						</ul>
 						<label className="flex gap-2 rounded-xl border border-border/70 bg-background/55 p-3 text-sm">
@@ -1318,10 +1388,7 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 							<span>
 								I understand OOOC does not take responsibility for ticket
 								exchanges, and I agree to the{" "}
-								<Link
-									href={termsHref}
-									className="underline underline-offset-4"
-								>
+								<Link href={termsHref} className="underline underline-offset-4">
 									Ticket Exchange terms
 								</Link>
 								.
@@ -1342,13 +1409,22 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 			)}
 
 			{reportListingId && (
-				<ModalShell title="Report listing" onClose={() => setReportListingId(null)}>
+				<ModalShell
+					title="Report listing"
+					onClose={() => setReportListingId(null)}
+				>
 					<form onSubmit={handleReport} className="space-y-3">
+						<p className="rounded-lg border border-border/70 bg-muted/35 p-3 text-sm text-muted-foreground">
+							Reports go to OOOC moderators. They do not cancel a trade, reverse
+							a payment, or guarantee a refund.
+						</p>
 						<Field label="Reason">
 							<select
 								value={reportReason}
 								onChange={(event) =>
-									setReportReason(event.target.value as TicketExchangeReportReason)
+									setReportReason(
+										event.target.value as TicketExchangeReportReason,
+									)
 								}
 								className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
 							>
@@ -1367,7 +1443,11 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 							/>
 						</Field>
 						<div className="flex justify-end">
-							<Button type="submit" variant="destructive" disabled={isReporting}>
+							<Button
+								type="submit"
+								variant="destructive"
+								disabled={isReporting}
+							>
 								<Flag className="h-4 w-4" />
 								{isReporting ? "Sending..." : "Send report"}
 							</Button>
@@ -1377,7 +1457,10 @@ export function TicketExchangeClient({ initialData }: TicketExchangeClientProps)
 			)}
 
 			{repostListingId && (
-				<ModalShell title="Repost with new quantity" onClose={() => setRepostListingId(null)}>
+				<ModalShell
+					title="Repost with new quantity"
+					onClose={() => setRepostListingId(null)}
+				>
 					<form onSubmit={handleRepost} className="space-y-3">
 						<Field label="New quantity">
 							<Input
@@ -1479,28 +1562,32 @@ function ContactMethodPicker({
 	return (
 		<div className="grid gap-2">
 			<div className="flex flex-wrap gap-2">
-			{TICKET_EXCHANGE_CONTACT_METHODS.map((method) => {
-				const available = hasContact(profile, method);
-				const selected = value.includes(method);
-				return (
-					<button
-						key={method}
-						type="button"
-						disabled={!available}
-						onClick={() => onChange(toggleMethod(value, method))}
-						className={cn(
-							"rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
-							selected
-								? "border-primary bg-primary text-primary-foreground"
-								: "border-border bg-background/60",
-							!available && "cursor-not-allowed opacity-45",
-						)}
-						title={available ? undefined : "Add this detail to your contact profile first"}
-					>
-						{methodLabels[method]}
-					</button>
-				);
-			})}
+				{TICKET_EXCHANGE_CONTACT_METHODS.map((method) => {
+					const available = hasContact(profile, method);
+					const selected = value.includes(method);
+					return (
+						<button
+							key={method}
+							type="button"
+							disabled={!available}
+							onClick={() => onChange(toggleMethod(value, method))}
+							className={cn(
+								"rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
+								selected
+									? "border-primary bg-primary text-primary-foreground"
+									: "border-border bg-background/60",
+								!available && "cursor-not-allowed opacity-45",
+							)}
+							title={
+								available
+									? undefined
+									: "Add this detail to your contact profile first"
+							}
+						>
+							{methodLabels[method]}
+						</button>
+					);
+				})}
 			</div>
 			<p className="text-xs text-muted-foreground">
 				Choose at least {TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT}.
@@ -1604,7 +1691,9 @@ function ListingCard({
 								<span className="mr-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
 									{priceModeLabel}
 								</span>
-								<span className="text-sm font-semibold">{listing.priceLabel}</span>
+								<span className="text-sm font-semibold">
+									{listing.priceLabel}
+								</span>
 							</div>
 						) : null}
 						<button
@@ -1635,7 +1724,9 @@ function ListingCard({
 					</p>
 					<p className="mt-1 text-base">
 						<span className="font-semibold">{listing.interestCount}</span>{" "}
-						{listing.interestCount === 1 ? "person interested" : "people interested"}
+						{listing.interestCount === 1
+							? "person interested"
+							: "people interested"}
 					</p>
 				</div>
 				<div className="min-w-0">
@@ -1650,7 +1741,11 @@ function ListingCard({
 									key={`${entry.label}-${entry.value}`}
 									href={entry.href}
 									target={entry.href.startsWith("http") ? "_blank" : undefined}
-									rel={entry.href.startsWith("http") ? "noopener noreferrer" : undefined}
+									rel={
+										entry.href.startsWith("http")
+											? "noopener noreferrer"
+											: undefined
+									}
 									className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/70 bg-background/60 px-2 py-1 text-xs font-medium underline-offset-4 hover:underline"
 								>
 									{contactIconFor(entry.label)}
@@ -1779,25 +1874,29 @@ function ListingCard({
 										"Interested user"}
 								</p>
 								<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-									{visibleContactEntries(interest.contactSnapshot).map((entry) => (
-										<a
-											key={`${interest.id}-${entry.label}`}
-											href={entry.href}
-											target={
-												entry.href.startsWith("http") ? "_blank" : undefined
-											}
-											rel={
-												entry.href.startsWith("http")
-													? "noopener noreferrer"
-													: undefined
-											}
-											className="inline-flex max-w-full items-center gap-1 rounded-full border border-border/60 bg-background/55 px-2 py-1 font-medium text-foreground underline-offset-4 hover:underline"
-										>
-											{contactIconFor(entry.label)}
-											<span className="text-muted-foreground">{entry.label}</span>
-											<span className="truncate">{entry.value}</span>
-										</a>
-									))}
+									{visibleContactEntries(interest.contactSnapshot).map(
+										(entry) => (
+											<a
+												key={`${interest.id}-${entry.label}`}
+												href={entry.href}
+												target={
+													entry.href.startsWith("http") ? "_blank" : undefined
+												}
+												rel={
+													entry.href.startsWith("http")
+														? "noopener noreferrer"
+														: undefined
+												}
+												className="inline-flex max-w-full items-center gap-1 rounded-full border border-border/60 bg-background/55 px-2 py-1 font-medium text-foreground underline-offset-4 hover:underline"
+											>
+												{contactIconFor(entry.label)}
+												<span className="text-muted-foreground">
+													{entry.label}
+												</span>
+												<span className="truncate">{entry.value}</span>
+											</a>
+										),
+									)}
 								</div>
 							</div>
 						))}
