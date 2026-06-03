@@ -86,6 +86,21 @@ After deploy:
 7. Confirm `/api/admin/deployment-status` reports the expected deployment id.
 8. Confirm the homepage/runtime data source is live Postgres in admin runtime cards.
 
+## Deferred Cleanup
+
+- Added 2026-06-03: auth marketing preference now uses soft opt-in via
+  `marketingOptedOut` in the email gate UI and `/api/auth/verify`.
+- Keep the legacy `marketingConsent` request-field compatibility path for at
+  least one production deploy cycle so old open tabs or cached bundles can still
+  submit the wording they saw.
+- Cleanup is safe when production has run the new build long enough for old
+  clients to age out, service-worker/frontend cache behavior has been checked,
+  and logs show no `/api/auth/verify` requests still submitting
+  `marketingConsent`.
+- When safe, remove `marketingConsent` from the verify route schema and legacy
+  auth verify test, leaving `marketingOptedOut` as the only client preference
+  field.
+
 ## Cron Verification
 
 Railway cron services should match `config/railway-cron-services.json`.
