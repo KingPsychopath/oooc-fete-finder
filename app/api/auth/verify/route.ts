@@ -208,7 +208,10 @@ export async function POST(request: Request) {
 
 	if (!finalConsent) {
 		return NextResponse.json(
-			{ success: false, error: "Consent is required" },
+			{
+				success: false,
+				error: "Please accept our Terms and Privacy Policy to continue",
+			},
 			{ status: 400, headers: NO_STORE_HEADERS },
 		);
 	}

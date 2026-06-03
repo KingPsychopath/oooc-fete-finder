@@ -46,7 +46,7 @@ const LAST_AUTH_PROFILE_KEY = "oooc_last_auth_profile_v1";
 
 const EMAIL_TEXT = {
 	emailCheckFailed:
-		"We could not auto-check this email yet. Please fill the form to continue.",
+		"We could not check this email yet. Please fill in your details to continue.",
 };
 
 const EmailGateModal = ({
@@ -270,6 +270,34 @@ const EmailGateModal = ({
 	const isCheckingEmail = lookupState === "checking";
 	const submitButtonText =
 		flowStep === "email" ? "Continue" : "Continue to Events";
+	const trimmedFirstName = firstName.trim();
+	const trimmedLastName = lastName.trim();
+	const firstNameValidationError = shouldCollectName
+		? getNameValidationError(trimmedFirstName, "First name")
+		: null;
+	const lastNameValidationError = shouldCollectName
+		? getNameValidationError(trimmedLastName, "Last name")
+		: null;
+	const getDetailsRequirementMessage = (): string => {
+		if (flowStep !== "details") return "";
+		if (shouldCollectName && !trimmedFirstName) {
+			return "Enter your first name to continue.";
+		}
+		if (shouldCollectName && firstNameValidationError) {
+			return firstNameValidationError;
+		}
+		if (shouldCollectName && !trimmedLastName) {
+			return "Enter your last name to continue.";
+		}
+		if (shouldCollectName && lastNameValidationError) {
+			return lastNameValidationError;
+		}
+		if (shouldCollectConsent && !consent) {
+			return "Accept the Terms and Privacy Policy to continue.";
+		}
+		return "";
+	};
+	const detailsRequirementMessage = getDetailsRequirementMessage();
 
 	const handleSubmit = async (event: React.FormEvent) => {
 		event.preventDefault();
@@ -302,8 +330,8 @@ const EmailGateModal = ({
 			}
 		}
 
-		const resolvedFirstName = shouldRequireLookupName ? firstName.trim() : "";
-		const resolvedLastName = shouldRequireLookupName ? lastName.trim() : "";
+		const resolvedFirstName = shouldRequireLookupName ? trimmedFirstName : "";
+		const resolvedLastName = shouldRequireLookupName ? trimmedLastName : "";
 		const shouldRequireName = flowStep === "details" && shouldRequireLookupName;
 		const shouldRequireConsent =
 			flowStep === "details" && shouldRequireLookupConsent;
@@ -667,14 +695,19 @@ const EmailGateModal = ({
 								isCheckingEmail ||
 								(flowStep === "details" &&
 									shouldCollectName &&
-									(!validateName(firstName.trim()) ||
-										!validateName(lastName.trim()))) ||
+									(!validateName(trimmedFirstName) ||
+										!validateName(trimmedLastName))) ||
 								(flowStep === "details" && shouldCollectConsent && !consent) ||
 								(flowStep === "email" && !validateEmail(normalizedEmail))
 							}
 						>
 							{isSubmitting ? "Verifying..." : submitButtonText}
 						</Button>
+						{detailsRequirementMessage && !error && (
+							<p className="text-xs text-muted-foreground text-center">
+								{detailsRequirementMessage}
+							</p>
+						)}
 						<p className="text-xs text-muted-foreground text-center">
 							Your data is secure and will only be used as described in our
 							Terms and Privacy Policy.
