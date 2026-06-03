@@ -20,8 +20,9 @@ import sharp from "sharp";
 
 export const runtime = "nodejs";
 
-const OG_CACHE_CONTROL = "public, max-age=0, must-revalidate";
-const OG_CDN_CACHE_CONTROL = "public, max-age=0, must-revalidate";
+const OG_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=86400";
+const OG_CDN_CACHE_CONTROL =
+	"public, max-age=86400, stale-while-revalidate=604800";
 const OG_RESPONSE_HEADERS = {
 	"Cache-Control": OG_CACHE_CONTROL,
 	"CDN-Cache-Control": OG_CDN_CACHE_CONTROL,

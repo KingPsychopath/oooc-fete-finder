@@ -76,7 +76,7 @@ describe("/api/og route", () => {
 		vi.clearAllMocks();
 	});
 
-	it("returns a revalidating preset OG image response when request is within limit", async () => {
+	it("returns a cacheable preset OG image response when request is within limit", async () => {
 		const { GET, kv } = await loadRoute(null);
 		const request = new Request(
 			"https://example.com/api/og?preset=feature-event",
@@ -92,10 +92,10 @@ describe("/api/og route", () => {
 		expect(response.status).toBe(200);
 		expect(response.headers.get("content-type")).toBe("image/png");
 		expect(response.headers.get("cache-control")).toContain(
-			"max-age=0, must-revalidate",
+			"max-age=300, stale-while-revalidate=86400",
 		);
 		expect(response.headers.get("cdn-cache-control")).toContain(
-			"max-age=0, must-revalidate",
+			"max-age=86400, stale-while-revalidate=604800",
 		);
 		expect(response.headers.get("cache-tag")).toBe(
 			"og,preset,preset-feature-event",
