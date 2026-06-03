@@ -1,16 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { Resvg } from "@resvg/resvg-js";
-import sharp from "sharp";
+import {
+	OG_HEIGHT,
+	OG_WIDTH,
+	renderOGSvgToPng,
+} from "../lib/social/og-renderer.mjs";
 
-const WIDTH = 1200;
-const HEIGHT = 630;
+const WIDTH = OG_WIDTH;
+const HEIGHT = OG_HEIGHT;
 const OUT_DIR = path.join(process.cwd(), "public", "og");
-const FONT_ROOT = path.join(process.cwd(), "public", "fonts");
-const OG_FONT_FILES = [
-	path.join(FONT_ROOT, "degular_regular.ttf"),
-	path.join(FONT_ROOT, "prata_regular.ttf"),
-];
 
 const presets = {
 	home: {
@@ -262,8 +260,8 @@ const buildSvg = ({ label, title, titleLines, subtitle, accent, facts }) => {
 			.metaLabel { font: 700 10px "Degular", sans-serif; letter-spacing: 1.8px; fill: ${accent}; text-transform: uppercase; }
 			.meta { font: 700 17px "Degular", sans-serif; fill: #2f241b; }
 			.footer { font: 700 15px "Degular", sans-serif; letter-spacing: 2.1px; fill: #6a5849; }
-			.railText { font: 700 16px "Degular", sans-serif; letter-spacing: 2.6px; fill: #fff8ef; stroke: #fff8ef; stroke-width: 0.35px; paint-order: stroke fill; }
-			.railSmall { font: 700 15px "Degular", sans-serif; fill: #f5debd; stroke: #f5debd; stroke-width: 0.3px; paint-order: stroke fill; }
+			.railText { font: 700 16px "Degular", sans-serif; letter-spacing: 2.6px; fill: #fff8ef; }
+			.railSmall { font: 700 15px "Degular", sans-serif; fill: #f5debd; }
 		</style>
 	</defs>
 	<rect width="${WIDTH}" height="${HEIGHT}" fill="url(#bg)"/>
@@ -305,32 +303,10 @@ const buildSvg = ({ label, title, titleLines, subtitle, accent, facts }) => {
 </svg>`;
 };
 
-const renderPng = async (svg) => {
-	const png2x = new Resvg(svg, {
-		font: {
-			fontFiles: OG_FONT_FILES,
-			loadSystemFonts: false,
-			defaultFontFamily: "Degular",
-			serifFamily: "Prata",
-			sansSerifFamily: "Degular",
-		},
-		fitTo: { mode: "width", value: WIDTH * 2 },
-		logLevel: "error",
-		textRendering: 1,
-	})
-		.render()
-		.asPng();
-
-	return sharp(png2x)
-		.resize(WIDTH, HEIGHT, { kernel: "lanczos3" })
-		.png({ compressionLevel: 9 })
-		.toBuffer();
-};
-
 await fs.mkdir(OUT_DIR, { recursive: true });
 
 for (const [slug, content] of Object.entries(presets)) {
 	const outputPath = path.join(OUT_DIR, `${slug}.png`);
-	await fs.writeFile(outputPath, await renderPng(buildSvg(content)));
+	await fs.writeFile(outputPath, await renderOGSvgToPng(buildSvg(content)));
 	console.log(outputPath);
 }

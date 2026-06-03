@@ -44,7 +44,7 @@ const nextConfig: NextConfig = {
 	basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
 	assetPrefix: process.env.NEXT_PUBLIC_BASE_PATH || "",
 	reactStrictMode: true,
-	serverExternalPackages: ["@resvg/resvg-js"],
+	serverExternalPackages: ["@resvg/resvg-js", "sharp"],
 	trailingSlash: false,
 	outputFileTracingIncludes: {
 		"/*": [

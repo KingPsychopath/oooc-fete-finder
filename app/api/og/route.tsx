@@ -15,9 +15,8 @@ import {
 	type EventShareDetails,
 	getEventShareDetails,
 } from "@/lib/social/event-share-details";
+import { renderOGSvgToPng } from "@/lib/social/og-renderer.mjs";
 import type { NextRequest } from "next/server";
-import { join } from "node:path";
-import { Resvg } from "@resvg/resvg-js";
 
 export const runtime = "nodejs";
 
@@ -28,7 +27,6 @@ const OG_RESPONSE_HEADERS = {
 	"Cache-Control": OG_CACHE_CONTROL,
 	"CDN-Cache-Control": OG_CDN_CACHE_CONTROL,
 } as const;
-const FONT_ROOT = join(process.cwd(), "public", "fonts");
 const RATE_LIMIT_KEY_PREFIX = "og-rate:";
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 120;
@@ -71,11 +69,6 @@ type OGContent = {
 	venue: string;
 	genres: string[];
 };
-
-const OG_FONT_FILES = [
-	join(FONT_ROOT, "degular_regular.ttf"),
-	join(FONT_ROOT, "prata_regular.ttf"),
-];
 
 const THEMES: Record<OGVariant, OGTheme> = {
 	default: {
@@ -408,7 +401,7 @@ const resolveSharedPlanContent = (searchParams: URLSearchParams): OGContent => {
 
 	return {
 		variant: "event-modal",
-		title: "Shared Fête Finder Plan",
+		title: "Shared Route",
 		subtitle: `${dateLabel} route with ${stopLabel}. Save it, remix it, and make it yours.`,
 		eventCount: 0,
 		arrondissement: "Paris",
@@ -527,8 +520,8 @@ const getSvgTitleLayout = (title: string, isEventCard: boolean) => {
 	const candidates = isEventCard
 		? [
 				{ maxChars: 18, size: 76, maxLines: 2 },
-				{ maxChars: 22, size: 64, maxLines: 2 },
-				{ maxChars: 25, size: 56, maxLines: 2 },
+				{ maxChars: 20, size: 64, maxLines: 2 },
+				{ maxChars: 22, size: 56, maxLines: 2 },
 			]
 		: [
 				{ maxChars: 18, size: 82, maxLines: 2 },
@@ -688,8 +681,8 @@ const renderOGSvg = (content: {
 			.metaLabel { font: 700 13px "Degular", sans-serif; letter-spacing: 1.8px; fill: ${content.accent}; text-transform: uppercase; }
 			.meta { font: 700 22px "Degular", sans-serif; fill: #2f241b; }
 			.footer { font: 700 18px "Degular", sans-serif; letter-spacing: 2.1px; fill: #6a5849; text-transform: uppercase; }
-			.railText { font: 700 16px "Degular", sans-serif; letter-spacing: 2.6px; fill: #fff8ef; stroke: #fff8ef; stroke-width: 0.35px; paint-order: stroke fill; }
-			.railSmall { font: 700 15px "Degular", sans-serif; fill: #f5debd; stroke: #f5debd; stroke-width: 0.3px; paint-order: stroke fill; }
+			.railText { font: 700 16px "Degular", sans-serif; letter-spacing: 2.6px; fill: #fff8ef; }
+			.railSmall { font: 700 15px "Degular", sans-serif; fill: #f5debd; }
 		</style>
 	</defs>
 	<rect width="1200" height="630" fill="url(#bg)"/>
@@ -742,18 +735,7 @@ const renderOGPng = async (content: {
 	accent: string;
 	chips: MetaFact[];
 }): Promise<Buffer> =>
-	new Resvg(renderOGSvg(content), {
-		font: {
-			fontFiles: OG_FONT_FILES,
-			loadSystemFonts: false,
-			defaultFontFamily: "Degular",
-			serifFamily: "Prata",
-			sansSerifFamily: "Degular",
-		},
-		fitTo: { mode: "original" },
-		logLevel: "error",
-		textRendering: 1,
-	}).render().asPng();
+	renderOGSvgToPng(renderOGSvg(content));
 
 export async function GET(request: NextRequest) {
 	const startedAt = Date.now();
@@ -789,7 +771,7 @@ export async function GET(request: NextRequest) {
 		const svgIsEventCard = variant === "event-modal";
 		const svgFooterLocation = formatFooterLocation(arrondissement);
 		const svgLabel =
-			title === "Shared Fête Finder Plan"
+			title === "Shared Route"
 				? "Shared Plan"
 				: svgIsEventCard
 					? "Event Pick"
