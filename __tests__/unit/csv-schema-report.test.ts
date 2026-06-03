@@ -2,7 +2,7 @@ import { analyzeCsvSchemaRows } from "@/features/data-management/validation/csv-
 import { describe, expect, it } from "vitest";
 
 describe("analyzeCsvSchemaRows", () => {
-	it("flags legacy featured values as blocking", () => {
+	it("flags retired featured values as blocking", () => {
 		const report = analyzeCsvSchemaRows([
 			{
 				title: "Event",

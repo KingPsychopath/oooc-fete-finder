@@ -201,7 +201,7 @@ a full Workbox/Serwist strategy.
 
 Production hardening tasks:
 
-- Decide whether to keep the hand-written service worker or migrate to Serwist.
+- Decide whether to keep the hand-written service worker or replace it with Serwist.
 - Extend observability for install, activate, cache hit/miss, and offline
   fallback paths if production debugging needs it.
 - Review cache eviction and storage pressure behavior on mobile browsers.

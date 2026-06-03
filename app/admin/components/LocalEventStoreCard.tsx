@@ -315,9 +315,9 @@ export const LocalEventStoreCard = ({
 			return;
 		}
 
-		const confirmed = window.confirm(
-			`Restore snapshot from ${formatAdminDateTime(selectedBackup.createdAt)} (${selectedBackup.trigger}, ${selectedBackup.rowCount} rows, ${selectedBackup.userCollectionCount ?? "legacy"} emails)? This overwrites current store, featured schedule data, and collected emails when the snapshot includes them.`,
-		);
+			const confirmed = window.confirm(
+				`Restore snapshot from ${formatAdminDateTime(selectedBackup.createdAt)} (${selectedBackup.trigger}, ${selectedBackup.rowCount} rows, ${selectedBackup.userCollectionCount ?? "unknown"} emails)? This overwrites current store, featured schedule data, and collected emails when the snapshot includes them.`,
+			);
 		if (!confirmed) return;
 
 		await withTask(async () => {
@@ -634,9 +634,9 @@ export const LocalEventStoreCard = ({
 								>
 									{recentBackups.map((backup) => (
 										<option key={backup.id} value={backup.id}>
-											{formatAdminDateTime(backup.createdAt)} | {backup.trigger}{" "}
-											| {backup.rowCount} rows |{" "}
-											{backup.userCollectionCount ?? "legacy"} emails
+												{formatAdminDateTime(backup.createdAt)} | {backup.trigger}{" "}
+												| {backup.rowCount} rows |{" "}
+												{backup.userCollectionCount ?? "unknown"} emails
 										</option>
 									))}
 								</select>

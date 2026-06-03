@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 describe("location-aware data processing", () => {
 	it("does not fail event processing when coordinate population is requested without a provider", async () => {
 		vi.resetModules();
-		vi.doMock("@/lib/google/api", () => ({
-			GoogleCloudAPI: {
+		vi.doMock("@/lib/google/geocoding/api", () => ({
+			GoogleGeocodingAPI: {
 				supportsGeocoding: () => false,
 				geocodeAddress: vi.fn(),
 			},

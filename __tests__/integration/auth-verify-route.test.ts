@@ -15,6 +15,9 @@ const validBody = {
 	lastName: "Hahaha",
 	email: "OWEN@example.com",
 	consent: true,
+	termsAccepted: true,
+	privacyAccepted: true,
+	marketingConsent: false,
 	source: "auth-modal",
 };
 
@@ -29,6 +32,12 @@ const loadRoute = async (): Promise<Setup> => {
 			email: "owen@example.com",
 			timestamp: "2026-05-08T00:00:00.000Z",
 			consent: true,
+			termsVersion: "2026-06-03",
+			termsAcceptedAt: "2026-06-03T00:00:00.000Z",
+			privacyVersion: "2026-06-01",
+			privacyAcceptedAt: "2026-06-03T00:00:00.000Z",
+			marketingConsent: false,
+			eventUpdateConsent: false,
 			source: "auth-modal",
 		},
 		alreadyExisted: false,
@@ -211,6 +220,17 @@ describe("/api/auth/verify route", () => {
 			"203.0.113.12",
 		);
 		expect(addOrUpdate).toHaveBeenCalledTimes(1);
+		expect(addOrUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				consent: true,
+				termsVersion: "2026-06-03",
+				termsAcceptedAt: expect.any(String),
+				privacyVersion: "2026-06-01",
+				privacyAcceptedAt: expect.any(String),
+				marketingConsent: false,
+				eventUpdateConsent: false,
+			}),
+		);
 		expect(getStatus).toHaveBeenCalledTimes(1);
 	});
 
@@ -224,6 +244,12 @@ describe("/api/auth/verify route", () => {
 				email: "returning@example.com",
 				timestamp: "2026-05-08T00:00:00.000Z",
 				consent: true,
+				termsVersion: "2026-06-03",
+				termsAcceptedAt: "2026-06-03T00:00:00.000Z",
+				privacyVersion: "2026-06-01",
+				privacyAcceptedAt: "2026-06-03T00:00:00.000Z",
+				marketingConsent: true,
+				eventUpdateConsent: true,
 				source: "auth-modal",
 			},
 		});
@@ -249,6 +275,10 @@ describe("/api/auth/verify route", () => {
 				lastName: "Guest",
 				email: "returning@example.com",
 				consent: true,
+				termsVersion: "2026-06-03",
+				privacyVersion: "2026-06-01",
+				marketingConsent: true,
+				eventUpdateConsent: true,
 			}),
 		);
 	});

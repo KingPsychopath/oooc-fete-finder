@@ -45,9 +45,8 @@ For a new local or preview database, seed from `data/events.csv`:
 pnpm bootstrap:postgres-store
 ```
 
-The bootstrap script uses existing legacy KV CSV data if present; otherwise it uses `data/events.csv`. It only seeds event rows when the event-store table is empty.
+The bootstrap script seeds from available project event data and only writes event rows when the event-store table is empty.
 
 ## When To Use DATA_MODE=local
 
 Use `DATA_MODE=local` only to confirm the emergency CSV path works or when no database is available. It does not exercise Postgres tables, admin store writes, backups, restores, user plans, saved events, analytics, rate limits, or production database failure modes.
-

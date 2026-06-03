@@ -13,8 +13,8 @@ import {
 } from "@/features/locations/location-utils";
 import {
 	type GeocodingResult as GCPGeocodingResult,
-	GoogleCloudAPI,
-} from "@/lib/google/api";
+	GoogleGeocodingAPI,
+} from "@/lib/google/geocoding/api";
 import { log } from "@/lib/platform/logger";
 
 /**
@@ -149,7 +149,7 @@ export function getArrondissementCenter(
 }
 
 /**
- * Geocode a Paris location using the unified GoogleCloudAPI
+ * Geocode a Paris location using Google Maps Geocoding.
  */
 export async function geocodeLocation(
 	request: GeocodingRequest,
@@ -157,7 +157,7 @@ export async function geocodeLocation(
 	const query = buildParisSearchQuery(request);
 
 	try {
-		const result = await GoogleCloudAPI.geocodeAddress(query);
+		const result = await GoogleGeocodingAPI.geocodeAddress(query);
 
 		// Validate coordinates are within Paris bounds
 		if (!isWithinParisBounds({ lat: result.latitude, lng: result.longitude })) {
@@ -328,8 +328,8 @@ export class CoordinateService {
 		if (!forceRefresh && storedLocations.has(storageKey)) {
 			const stored = storedLocations.get(storageKey)!;
 			if (
-				stored.source !== "estimated" ||
-				!GoogleCloudAPI.supportsGeocoding() ||
+					stored.source !== "estimated" ||
+					!GoogleGeocodingAPI.supportsGeocoding() ||
 				geocodingUnavailable ||
 				!canUseProviderLookupForLocationQuery(geocodingRequest)
 			) {

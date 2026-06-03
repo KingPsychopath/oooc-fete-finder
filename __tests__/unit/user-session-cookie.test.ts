@@ -7,13 +7,16 @@ import { describe, expect, it } from "vitest";
 
 describe("user session cookie helpers", () => {
 	it("signs a normalized 30-day user session token", () => {
-		const token = signUserSessionToken("  OWEN@example.com ");
+		const token = signUserSessionToken(
+			"  OWEN@example.com ",
+			"019b0000-0000-7000-8000-000000000001",
+		);
 		const session = getUserSessionFromCookieHeader(token);
 
 		expect(session).toEqual({
 			isAuthenticated: true,
 			email: "owen@example.com",
-			userId: null,
+			userId: "019b0000-0000-7000-8000-000000000001",
 		});
 		expect(getUserAuthCookieOptions()).toMatchObject({
 			httpOnly: true,
@@ -24,7 +27,10 @@ describe("user session cookie helpers", () => {
 	});
 
 	it("rejects missing or tampered tokens", () => {
-		const token = signUserSessionToken("owen@example.com");
+		const token = signUserSessionToken(
+			"owen@example.com",
+			"019b0000-0000-7000-8000-000000000001",
+		);
 		const tamperedToken = `${token.slice(0, -1)}x`;
 
 		expect(getUserSessionFromCookieHeader(undefined)).toEqual({
@@ -50,5 +56,11 @@ describe("user session cookie helpers", () => {
 			email: "owen@example.com",
 			userId: "019b0000-0000-7000-8000-000000000001",
 		});
+	});
+
+	it("requires a valid user id when signing", () => {
+		expect(() => signUserSessionToken("owen@example.com", "")).toThrow(
+			"A valid userId is required",
+		);
 	});
 });

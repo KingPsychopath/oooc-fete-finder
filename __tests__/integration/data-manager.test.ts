@@ -55,6 +55,9 @@ const loadDataManager = async (
 
 	vi.doMock("@/features/data-management/data-processor", () => ({
 		processCSVData,
+	}));
+
+	vi.doMock("@/features/data-management/validation/event-validation", () => ({
 		isValidEventsData,
 	}));
 

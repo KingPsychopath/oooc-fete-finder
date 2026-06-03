@@ -83,6 +83,10 @@ describe("/api/auth/lookup route", () => {
 				email: "known@example.com",
 				timestamp: "2026-05-08T00:00:00.000Z",
 				consent: true,
+				termsVersion: "2026-06-03",
+				termsAcceptedAt: "2026-06-03T00:00:00.000Z",
+				privacyVersion: "2026-06-01",
+				privacyAcceptedAt: "2026-06-03T00:00:00.000Z",
 				source: "auth-modal",
 			},
 		});

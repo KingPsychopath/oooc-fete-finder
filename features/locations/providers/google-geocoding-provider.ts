@@ -1,5 +1,5 @@
 import type { Coordinates } from "@/features/events/types";
-import { GoogleCloudAPI } from "@/lib/google/api";
+import { GoogleGeocodingAPI } from "@/lib/google/geocoding/api";
 import { buildStructuredLocationSearchQuery } from "../location-utils";
 import type { LocationResolution } from "../types";
 import type { GeocodingProvider } from "./geocoding-provider";
@@ -26,10 +26,10 @@ const isWithinParisBounds = ({ lat, lng }: Coordinates): boolean =>
 
 export const createGoogleGeocodingProvider = (): GeocodingProvider => ({
 	name: "google",
-	isConfigured: GoogleCloudAPI.supportsGeocoding,
+	isConfigured: GoogleGeocodingAPI.supportsGeocoding,
 	geocode: async (query): Promise<LocationResolution> => {
 		const searchQuery = buildStructuredLocationSearchQuery(query);
-		const result = await GoogleCloudAPI.geocodeAddress(searchQuery);
+		const result = await GoogleGeocodingAPI.geocodeAddress(searchQuery);
 		const coordinates = {
 			lat: result.latitude,
 			lng: result.longitude,

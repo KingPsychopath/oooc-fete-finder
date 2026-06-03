@@ -10,8 +10,9 @@ import { env } from "@/lib/config/env";
 import { getEventStoreBackupRepository } from "@/lib/platform/postgres/event-store-backup-repository";
 import { loadGenreTaxonomySnapshot } from "@/lib/platform/postgres/music-genre-taxonomy-repository";
 import { fetchLocalCSV } from "./csv/fetcher";
-import { isValidEventsData, processCSVData } from "./data-processor";
+import { processCSVData } from "./data-processor";
 import { LocalEventStore } from "./local-event-store";
+import { isValidEventsData } from "./validation/event-validation";
 
 export type ConfiguredDataMode = "remote" | "local" | "test";
 

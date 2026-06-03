@@ -27,12 +27,7 @@ export interface ProcessedDataResult {
 	coordinatesCount?: number; // Number of events with coordinates
 }
 
-// Import validation functions from focused module
-import { isValidEventsData } from "./validation/event-validation";
 import { performEventQualityChecks } from "./validation/quality-checks";
-
-// Re-export for backwards compatibility
-export { isValidEventsData, performEventQualityChecks };
 
 const isDraftCsvRow = (row: { detailsQualityOverride?: string }): boolean =>
 	String(row.detailsQualityOverride ?? "")

@@ -17,8 +17,8 @@ const loadCoordinateService = async (options: {
 			accuracy: "ROOFTOP",
 		});
 
-	vi.doMock("@/lib/google/api", () => ({
-		GoogleCloudAPI: {
+	vi.doMock("@/lib/google/geocoding/api", () => ({
+		GoogleGeocodingAPI: {
 			geocodeAddress,
 			supportsGeocoding: () => options.supportsGeocoding,
 		},

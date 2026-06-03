@@ -63,7 +63,6 @@ export function AppSettingsSync() {
 		isAuthResolved,
 		isAuthenticated,
 		isOnline,
-		userEmail,
 		userId,
 	} = useOptionalAuth();
 	const { settings, isLoaded, replaceLocalAppSettings } = useLocalAppSettings();
@@ -98,7 +97,6 @@ export function AppSettingsSync() {
 	const canSyncAccountSettings = canSyncAccountData(syncMode);
 	const targetProfileId = getUserProfileStorageKey({
 		userId,
-		email: userEmail,
 		isAuthenticated,
 		anonymousKey: ANONYMOUS_PROFILE_ID,
 	});

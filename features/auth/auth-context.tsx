@@ -1,7 +1,6 @@
 "use client";
 
 import { useOnlineStatus } from "@/components/online-status-gate";
-import { migrateUserScopedLocalStorageKeys } from "@/features/auth/client-storage-migration";
 import {
 	type OfflineGraceState,
 	createOfflineGraceState,
@@ -40,7 +39,6 @@ type AuthProviderProps = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const OFFLINE_GRACE_STORAGE_KEY = "oooc_offline_auth_grace_v1";
-const DEPRECATED_STORAGE_KEYS = ["oooc_auth_session_hint_v1"] as const;
 const AUTH_TIMING_LOG_ENABLED =
 	process.env.NODE_ENV === "development" ||
 	process.env.NEXT_PUBLIC_AUTH_TIMING_LOG === "1";
@@ -111,10 +109,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 			setUserEmail(normalizedEmail);
 			setUserId(normalizedUserId);
 			setAuthMode("live");
-			migrateUserScopedLocalStorageKeys({
-				email: normalizedEmail,
-				userId: normalizedUserId,
-			});
 			if (!normalizedUserId) {
 				clearOfflineGraceState();
 				setOfflineGraceExpiresAt(null);
@@ -262,14 +256,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 		}
 		setIsAuthResolved(true);
 	}, [isOnline, refreshSession, setSignedOutState, tryApplyOfflineGraceState]);
-
-	useEffect(() => {
-		if (typeof window === "undefined") return;
-
-		DEPRECATED_STORAGE_KEYS.forEach((key) => {
-			window.localStorage.removeItem(key);
-		});
-	}, []);
 
 	const logout = async () => {
 		try {

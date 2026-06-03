@@ -2,7 +2,6 @@ import "server-only";
 
 import { isValidUserId } from "@/features/auth/user-id";
 import { env } from "@/lib/config/env";
-import { getUserRepository } from "@/lib/platform/postgres/user-repository";
 import jwt from "jsonwebtoken";
 
 export const USER_AUTH_COOKIE_NAME = "oooc_user_session";
@@ -13,8 +12,8 @@ const MIN_AUTH_SECRET_LENGTH = 32;
 
 type UserSessionPayload = {
 	email: string;
-	userId?: string;
-	v: 1 | 2;
+	userId: string;
+	v: 2;
 } & jwt.JwtPayload;
 
 const getUserAuthSecret = (): string => {
@@ -34,14 +33,16 @@ const getUserAuthSecret = (): string => {
 
 export const signUserSessionToken = (
 	email: string,
-	userId?: string,
+	userId: string,
 ): string => {
-	const safeUserId = isValidUserId(userId) ? userId : undefined;
+	if (!isValidUserId(userId)) {
+		throw new Error("A valid userId is required to sign a user session token");
+	}
 	return jwt.sign(
 		{
 			email: email.toLowerCase().trim(),
-			...(safeUserId ? { userId: safeUserId } : {}),
-			v: safeUserId ? 2 : 1,
+			userId,
+			v: 2,
 		},
 		getUserAuthSecret(),
 		{
@@ -83,9 +84,14 @@ export const getUserSessionFromCookieHeader = (
 		return { isAuthenticated: false, email: null, userId: null };
 	}
 	const userId =
-		typeof payload.userId === "string" && isValidUserId(payload.userId)
+		typeof payload.userId === "string" &&
+		payload.v === 2 &&
+		isValidUserId(payload.userId)
 			? payload.userId
 			: null;
+	if (!userId) {
+		return { isAuthenticated: false, email: null, userId: null };
+	}
 
 	return {
 		isAuthenticated: true,
@@ -101,29 +107,7 @@ export const getCanonicalUserSessionFromCookieHeader = async (
 	email: string | null;
 	userId: string | null;
 }> => {
-	const baseSession = getUserSessionFromCookieHeader(cookieValue);
-	if (
-		!baseSession.isAuthenticated ||
-		!baseSession.email ||
-		baseSession.userId
-	) {
-		return baseSession;
-	}
-
-	const repository = getUserRepository();
-	if (!repository) {
-		return baseSession;
-	}
-
-	const canonicalUser = await repository.getByEmail(baseSession.email);
-	if (!canonicalUser?.id) {
-		return baseSession;
-	}
-
-	return {
-		...baseSession,
-		userId: canonicalUser.id,
-	};
+	return getUserSessionFromCookieHeader(cookieValue);
 };
 
 export const getUserAuthCookieOptions = () => ({

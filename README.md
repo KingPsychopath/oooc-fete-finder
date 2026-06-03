@@ -26,7 +26,7 @@ The project is maintained for Out Of Office Collective and is designed around a 
 
 ## Repository Status
 
-This repository is source-available, not open-source licensed. The code is shared for transparency and review, but reuse, copying, modification, distribution, sublicensing, or sale is not permitted without prior written permission.
+This repository is source-available, not open-source licensed. The code is shared for transparency and review, but reuse, copying, modification, distribution, sublicensing, sale, resale, scraping, commercial exploitation, or incorporation into another work is not permitted without prior written permission.
 
 See [LICENSE](./LICENSE) for the full terms.
 
@@ -74,7 +74,7 @@ The app will be available at [http://localhost:3000](http://localhost:3000).
 
 ### Seed Runtime Data
 
-For a Postgres-backed setup, seed or migrate the event store before relying on `DATA_MODE=remote`:
+For a Postgres-backed setup, seed the event store before relying on `DATA_MODE=remote`:
 
 ```bash
 pnpm bootstrap:postgres-store
@@ -202,6 +202,8 @@ This README intentionally does not include screenshots. The project is primarily
 
 ## License
 
-Copyright (c) 2026 Out Of Office Collective.
+Copyright (c) 2026 OUT OF OFFICE COLLECTIVE LTD.
 
 All rights reserved. This project is proprietary. See [LICENSE](./LICENSE).
+
+Out Of Office Collective is a registered trade mark of OUT OF OFFICE COLLECTIVE LTD. OOOC, Fete Finder, Fête Finder, and associated logos and brand assets are trade marks or claimed trade marks of OUT OF OFFICE COLLECTIVE LTD. No permission is granted to use them in a way that suggests endorsement, affiliation, sponsorship, origin, or permission.

@@ -15,7 +15,7 @@ import { getEventEngagementRepository } from "@/lib/platform/postgres/event-enga
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { cache } from "react";
 import { DataManager } from "./data-manager";
-import { isValidEventsData } from "./data-processor";
+import { isValidEventsData } from "./validation/event-validation";
 
 export type DataSource = "backup" | "local" | "store" | "test";
 

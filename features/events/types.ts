@@ -306,7 +306,6 @@ export const getLocationAreaSortValue = (
 	return 24;
 };
 
-// Legacy type for backwards compatibility
 export type EventCategory =
 	| "electronic"
 	| "block-party"
@@ -348,8 +347,8 @@ export type Event = {
 	eventCategory?: EventExperienceCategory; // Descriptive category such as party/activity/culture
 	genre: MusicGenre[];
 	tags?: string[]; // Metadata tags parsed from the CSV Tags column
-	venueTypes: VenueType[]; // New field for venue types
-	indoor: boolean; // Deprecated: kept for backwards compatibility
+	venueTypes: VenueType[];
+	indoor: boolean; // Derived boolean used by existing filters and map/card UI
 	detailsQuality?: "complete" | "review" | "blocking";
 	detailsQualitySource?: "inferred" | "manual";
 	sourceConfirmed?: boolean;
@@ -372,7 +371,6 @@ export type Event = {
 	nationality?: Nationality[]; // GB/FR indicators from CSV - now supports multiple
 	hostCountries?: Nationality[]; // Host Country column, kept separate for detail views
 	audienceCountries?: Nationality[]; // Audience Country column, kept separate for detail views
-	// Legacy field for backwards compatibility
 	category?: EventCategory;
 };
 
@@ -583,8 +581,8 @@ export type EventFilters = {
 	eventTypes?: EventType[];
 	eventCategories?: EventExperienceCategory[];
 	genres?: MusicGenre[];
-	venueTypes?: VenueType[]; // New venue types filter
-	indoor?: boolean | null; // Deprecated: kept for backwards compatibility
+	venueTypes?: VenueType[];
+	indoor?: boolean | null;
 	searchTerm?: string;
 	priceRange?: [number, number]; // [min, max] price range
 };
@@ -1426,7 +1424,6 @@ export const formatAgeRange = (range: [number, number]): string => {
 // Utility function to format venue type icons
 export const formatVenueTypeIcons = (event: Event): string => {
 	if (!event.venueTypes || event.venueTypes.length === 0) {
-		// Fallback to legacy indoor field
 		return event.indoor ? "🏢" : "🌤️";
 	}
 

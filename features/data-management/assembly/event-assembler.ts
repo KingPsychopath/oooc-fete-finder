@@ -529,8 +529,7 @@ const assembleEventFromNormalizedDate = (
 	const explicitConfirmation = parseSourceConfirmation(csvRow.sourceConfirmed);
 	const sourceConfirmed = explicitConfirmation === true;
 
-	// Handle legacy indoor field (backwards compatibility)
-	const indoor = venueTypes.includes("indoor");
+		const indoor = venueTypes.includes("indoor");
 
 	// Assemble the complete event
 	const event: Event = {
@@ -564,7 +563,7 @@ const assembleEventFromNormalizedDate = (
 		genre,
 		tags,
 		venueTypes,
-		indoor, // Legacy field
+			indoor,
 		detailsQuality: detailsQuality.quality,
 		detailsQualitySource: detailsQuality.source,
 		sourceConfirmed,

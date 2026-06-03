@@ -3,7 +3,7 @@ import type {
 	TicketExchangeReportReason,
 } from "./types";
 
-export const TICKET_EXCHANGE_RULES_VERSION = "2026-06-01";
+export const TICKET_EXCHANGE_RULES_VERSION = "2026-06-03";
 export const TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS = 24;
 export const TICKET_EXCHANGE_MAX_EXPIRY_HOURS = 72;
 export const TICKET_EXCHANGE_CONTACT_REVEAL_GRACE_HOURS = 24;

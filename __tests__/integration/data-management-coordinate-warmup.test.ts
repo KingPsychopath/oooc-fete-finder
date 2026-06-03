@@ -183,7 +183,7 @@ describe("data-management coordinate warm-up", () => {
 		expect(result.error).toContain("Coordinate population failed");
 	});
 
-	it("rejects sheet save when legacy Featured column is present", async () => {
+	it("rejects sheet save when retired Featured column is present", async () => {
 		const { saveEventSheetEditorRows, localEventStoreSaveCsv, processCSVData } =
 			await loadActions();
 

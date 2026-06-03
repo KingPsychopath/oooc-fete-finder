@@ -19,6 +19,7 @@ import {
 	isWithinBodySizeLimit,
 	tooLargeNoStoreResponse,
 } from "@/lib/http/request-security";
+import { legalPrivacyVersion, legalTermsVersion } from "@/lib/legal";
 import { log } from "@/lib/platform/logger";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
@@ -41,6 +42,9 @@ const verifyBodySchema = z.object({
 	lastName: z.string().optional(),
 	email: z.string().optional(),
 	consent: z.boolean().optional(),
+	termsAccepted: z.boolean().optional(),
+	privacyAccepted: z.boolean().optional(),
+	marketingConsent: z.boolean().optional(),
 	source: z.string().optional(),
 	anonymousSessionId: z.string().trim().max(120).nullable().optional(),
 	clientContext: clientContextSchema,
@@ -137,7 +141,13 @@ export async function POST(request: Request) {
 	const firstName = body.firstName?.trim() || "";
 	const lastName = body.lastName?.trim() || "";
 	const email = body.email?.trim().toLowerCase() || "";
-	const submittedConsent = Boolean(body.consent);
+	const hasExplicitRequiredAcceptance =
+		typeof body.termsAccepted === "boolean" ||
+		typeof body.privacyAccepted === "boolean";
+	const submittedRequiredAcceptance = hasExplicitRequiredAcceptance
+		? Boolean(body.termsAccepted && body.privacyAccepted)
+		: Boolean(body.consent);
+	const submittedMarketingConsent = Boolean(body.marketingConsent);
 
 	if (!isValidEmail(email)) {
 		return NextResponse.json(
@@ -155,10 +165,16 @@ export async function POST(request: Request) {
 			existingFirstName.length >= 2 &&
 			existingLastName.length >= 2,
 	);
-	const hasExistingConsent = Boolean(existingUser?.consent);
+	const hasExistingConsent = Boolean(
+		existingUser?.consent &&
+			existingUser.termsAcceptedAt &&
+			existingUser.termsVersion === legalTermsVersion &&
+			existingUser.privacyAcceptedAt &&
+			existingUser.privacyVersion === legalPrivacyVersion,
+	);
 	const finalFirstName = hasExistingIdentity ? existingFirstName : firstName;
 	const finalLastName = hasExistingIdentity ? existingLastName : lastName;
-	const finalConsent = hasExistingConsent || submittedConsent;
+	const finalConsent = hasExistingConsent || submittedRequiredAcceptance;
 
 	if (finalFirstName.length < 2) {
 		return NextResponse.json(
@@ -186,13 +202,22 @@ export async function POST(request: Request) {
 	}
 
 	try {
+		const acceptedAt = new Date().toISOString();
 		const user = {
 			firstName: finalFirstName,
 			lastName: finalLastName,
 			email,
 			consent: true,
+			termsVersion: legalTermsVersion,
+			termsAcceptedAt: acceptedAt,
+			privacyVersion: legalPrivacyVersion,
+			privacyAcceptedAt: acceptedAt,
+			marketingConsent:
+				Boolean(existingUser?.marketingConsent) || submittedMarketingConsent,
+			eventUpdateConsent:
+				Boolean(existingUser?.eventUpdateConsent) || submittedMarketingConsent,
 			source: body.source?.trim() || "fete-finder-auth",
-			timestamp: new Date().toISOString(),
+			timestamp: acceptedAt,
 			deviceClass: body.clientContext?.deviceClass ?? null,
 			platform: body.clientContext?.platform ?? null,
 			browserFamily: body.clientContext?.browserFamily ?? null,
@@ -201,6 +226,9 @@ export async function POST(request: Request) {
 		};
 
 		const storeResult = await UserCollectionStore.addOrUpdate(user);
+		if (!storeResult.record.userId) {
+			throw new Error("User verification completed without a canonical userId");
+		}
 		const anonymousSessionId = body.anonymousSessionId?.trim();
 		let linkedEventRows = 0;
 		let linkedDiscoveryRows = 0;
@@ -230,7 +258,7 @@ export async function POST(request: Request) {
 			{
 				success: true,
 				email,
-				userId: storeResult.record.userId ?? null,
+				userId: storeResult.record.userId,
 				storedIn: storeStatus.provider,
 				linkedBehaviorRows: linkedEventRows + linkedDiscoveryRows,
 				message: storeResult.alreadyExisted

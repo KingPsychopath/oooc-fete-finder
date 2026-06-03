@@ -13,6 +13,7 @@ import {
 	isWithinBodySizeLimit,
 	tooLargeNoStoreResponse,
 } from "@/lib/http/request-security";
+import { legalPrivacyVersion, legalTermsVersion } from "@/lib/legal";
 import { log } from "@/lib/platform/logger";
 import { getUserCollectionRepository } from "@/lib/platform/postgres/user-collection-repository";
 import { NextResponse } from "next/server";
@@ -50,6 +51,17 @@ const hasValidStoredName = (
 			profile?.lastName?.trim() &&
 			profile.firstName.trim().length >= 2 &&
 			profile.lastName.trim().length >= 2,
+	);
+
+const hasCurrentLegalAcceptance = (
+	profile: Awaited<ReturnType<typeof getLookupProfile>>,
+): boolean =>
+	Boolean(
+		profile?.consent &&
+			profile.termsAcceptedAt &&
+			profile.termsVersion === legalTermsVersion &&
+			profile.privacyAcceptedAt &&
+			profile.privacyVersion === legalPrivacyVersion,
 	);
 
 const withRetryAfterHeaders = (retryAfterSeconds: number): HeadersInit => ({
@@ -127,7 +139,7 @@ export async function POST(request: Request) {
 
 	const profile = await getLookupProfile(email);
 	const hasStoredName = hasValidStoredName(profile);
-	const hasStoredConsent = Boolean(profile?.consent);
+	const hasStoredConsent = hasCurrentLegalAcceptance(profile);
 
 	return NextResponse.json(
 		{

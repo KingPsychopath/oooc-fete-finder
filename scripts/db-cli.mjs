@@ -1,14 +1,11 @@
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import Papa from "papaparse";
 import postgres from "postgres";
 
 const TABLE_NAME = "app_kv_store";
 const EVENT_COLUMNS_TABLE = "app_event_store_columns";
 const EVENT_ROWS_TABLE = "app_event_store_rows";
 const EVENT_META_TABLE = "app_event_store_meta";
-const EVENTS_CSV_KEY = "events-store:csv";
-const EVENTS_META_KEY = "events-store:meta";
 const DEFAULT_BASE_URL = "http://localhost:3000";
 const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 const adminKey = process.env.ADMIN_KEY || "";
@@ -69,14 +66,6 @@ const ensureEventTables = async () => {
 	`;
 };
 
-const countCsvRows = (csv) => {
-	const lines = csv
-		.split("\n")
-		.map((line) => line.trim())
-		.filter((line) => line.length > 0);
-	return Math.max(0, lines.length - 1);
-};
-
 const randomSample = (rows, count) => {
 	if (rows.length <= count) return rows.slice();
 	const next = rows.slice();
@@ -117,28 +106,10 @@ const getRecord = async (key) => {
 	return rows[0] ?? null;
 };
 
-const getStoreStats = async () => {
-	const [meta, csv, keyCount] = await Promise.all([
-		getRecord(EVENTS_META_KEY),
-		getRecord(EVENTS_CSV_KEY),
-		sql`SELECT COUNT(*)::int AS count FROM app_kv_store`,
-	]);
-
-	const parsedMeta = meta?.value ? safeParseJson(meta.value) : null;
-	const metadataRowCount =
-		parsedMeta && typeof parsedMeta.rowCount === "number" ?
-			Math.max(0, parsedMeta.rowCount)
-		:	0;
-	const csvRawRowCount = csv?.value ? countCsvRows(csv.value) : 0;
-
+const getKvStats = async () => {
+	const keyCount = await sql`SELECT COUNT(*)::int AS count FROM app_kv_store`;
 	return {
 		keyCount: keyCount[0]?.count ?? 0,
-		hasMeta: Boolean(meta),
-		hasCsv: Boolean(csv),
-		metadataRowCount,
-		csvRawRowCount,
-		rowCountMatches: metadataRowCount === csvRawRowCount,
-		metaUpdatedAt: parsedMeta?.updatedAt || null,
 	};
 };
 
@@ -176,17 +147,11 @@ const cmdStatus = async () => {
 	await ensureTable();
 	await ensureEventTables();
 	await sql`select 1`;
-	const stats = await getStoreStats();
+	const stats = await getKvStats();
 	const eventStats = await getEventTableStats();
 	console.log("\nPostgres status");
 	console.log(`- table: ${TABLE_NAME}`);
 	console.log(`- key count: ${stats.keyCount}`);
-	console.log(`- has events meta: ${stats.hasMeta}`);
-	console.log(`- has events csv: ${stats.hasCsv}`);
-	console.log(`- events metadata rows: ${stats.metadataRowCount}`);
-	console.log(`- events raw csv rows: ${stats.csvRawRowCount}`);
-	console.log(`- row counts match: ${stats.rowCountMatches ? "yes" : "no"}`);
-	console.log(`- meta updated at: ${stats.metaUpdatedAt ?? "n/a"}`);
 	console.log(`- event table rows (${EVENT_ROWS_TABLE}): ${eventStats.rowCount}`);
 	console.log(
 		`- event table columns (${EVENT_COLUMNS_TABLE}): ${eventStats.columnCount}`,
@@ -245,14 +210,8 @@ const cmdGet = async (key) => {
 const cmdRows = async () => {
 	await ensureTable();
 	await ensureEventTables();
-	const [stats, eventStats] = await Promise.all([
-		getStoreStats(),
-		getEventTableStats(),
-	]);
+	const eventStats = await getEventTableStats();
 	console.log("\nEvents row diagnostics");
-	console.log(`- legacy KV metadata rowCount: ${stats.metadataRowCount}`);
-	console.log(`- legacy KV raw CSV row count: ${stats.csvRawRowCount}`);
-	console.log(`- legacy KV counts match: ${stats.rowCountMatches ? "yes" : "no"}`);
 	console.log(`- table rows count: ${eventStats.rowCount}`);
 	console.log(`- table meta row_count: ${eventStats.metadataRowCount}`);
 	console.log(`- table counts match: ${eventStats.rowCountMatches ? "yes" : "no"}`);
@@ -290,28 +249,7 @@ const cmdSample = async (count = 2) => {
 		}
 		return;
 	}
-
-	const csvRecord = await getRecord(EVENTS_CSV_KEY);
-	if (!csvRecord) {
-		console.log("No events found in table store or legacy KV store.");
-		return;
-	}
-
-	const parsed = Papa.parse(csvRecord.value, {
-		header: true,
-		skipEmptyLines: "greedy",
-		transform: (value) => value.trim(),
-	});
-	const rows = parsed.data || [];
-	const headers = parsed.meta.fields || [];
-	const sample = randomSample(rows, normalizedCount);
-
-	console.log(`\nRandom sample (${sample.length} rows) [legacy KV CSV]`);
-	console.log(headers.join(" | "));
-	for (const row of sample) {
-		const line = headers.map((header) => row[header] ?? "").join(" | ");
-		console.log(line);
-	}
+	console.log("No events found in table store.");
 };
 
 const cmdHealth = async (baseUrl = DEFAULT_BASE_URL) => {
@@ -346,7 +284,7 @@ Commands:
   status                    Postgres + KV + event tables summary
   keys [prefix] [limit]     List keys in app_kv_store
   get <key>                 Show value for one key
-  rows                      Compare row counts across legacy KV and event tables
+  rows                      Compare event table row counts with metadata
   sample [count]            Print random event rows (table store first)
   health [baseUrl]          Call /api/admin/health (requires ADMIN_KEY)
   help                      Show this message

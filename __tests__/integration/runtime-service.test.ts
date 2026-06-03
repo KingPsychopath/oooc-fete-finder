@@ -41,7 +41,7 @@ const loadRuntimeService = async (): Promise<Setup> => {
 		},
 	}));
 
-	vi.doMock("@/features/data-management/data-processor", () => ({
+	vi.doMock("@/features/data-management/validation/event-validation", () => ({
 		isValidEventsData,
 	}));
 

@@ -1,6 +1,7 @@
-# Postgres Migration Runbook
+# Postgres Setup And Recovery
 
-Use this for first-time setup, cutover, or restore.
+Use this for first-time setup, production-parity local setup, backup review, or
+restore.
 
 ## Target State
 
@@ -14,19 +15,21 @@ Use this for first-time setup, cutover, or restore.
 - `DATABASE_URL`
 - `AUTH_SECRET`
 - `DATA_MODE=remote`
-- `ADMIN_KEY` (if admin auth is enabled)
+- `ADMIN_KEY` if admin auth is enabled
 
-## Cutover Steps
+## First-Time Setup
 
-1. Create/connect Postgres and set `DATABASE_URL`
-2. Open `/admin`
-3. Load data with `Upload CSV to Store`
-4. Run `Backup Now`
-5. Review and save in `Event Sheet Editor`
-6. `Save and Revalidate Homepage`
-7. Verify source/status in admin runtime cards
+1. Create/connect Postgres and set `DATABASE_URL`.
+2. Open `/admin`.
+3. Load data with `Upload CSV to Store`.
+4. Run `Backup Now`.
+5. Review and save in `Event Sheet Editor`.
+6. Run `Save and Revalidate Homepage`.
+7. Verify source/status in admin runtime cards.
 
-## CLI Bootstrap (Optional)
+## CLI Bootstrap
+
+For a new local or preview database:
 
 ```bash
 DATABASE_URL=... pnpm bootstrap:postgres-store
@@ -42,13 +45,13 @@ For local workflow policy and release fallback refresh steps, see [Local Data Wo
 - Contents: events, placements, paid orders, submissions, settings, and collected emails
 - Retention: newest 30 snapshots; older snapshots are pruned after successful backup/pre-restore snapshot creation
 
-## Rollback
+## Recovery
 
-Fastest fallback:
+Fastest recovery:
 
-1. Restore latest/selected snapshot in admin
-2. Revalidate homepage
+1. Restore latest/selected snapshot in admin.
+2. Revalidate homepage.
 
 Emergency-only fallback:
 
-- Set `DATA_MODE=local` to force local CSV runtime
+- Set `DATA_MODE=local` to force local CSV runtime.

@@ -4,7 +4,7 @@ Featured events are now managed by a dedicated Postgres-backed scheduler.
 
 ## Source of truth
 
-Do not use the legacy `Featured` CSV column to activate featuring.
+Do not use the retired `Featured` CSV column to activate featuring.
 
 - Canonical source: `app_featured_event_schedule`
 - Canonical key: `eventKey`
@@ -29,7 +29,7 @@ Scheduler output persists:
 
 - Homepage/runtime projections set `event.isFeatured` and `event.featuredAt` from active scheduler windows only.
 - Feature status surfaces can also show recently ended entries (48h window).
-- Legacy free-text/timestamp parsing from CSV is no longer canonical behavior.
+- Free-text/timestamp parsing from CSV is no longer canonical behavior.
 
 ## Admin actions
 
@@ -44,7 +44,7 @@ These actions revalidate both `/` and `/feature-event` after mutation.
 
 ## Strict cutover guardrail
 
-CSV and sheet-save flows reject non-empty legacy `Featured` values with:
+CSV and sheet-save flows reject non-empty retired `Featured` values with:
 
 `Featured selection moved to Featured Manager.`
 

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { generateUserId, isValidUserId } from "@/features/auth/user-id";
+import { legalPrivacyVersion, legalTermsVersion } from "@/lib/legal";
 import type { Sql } from "postgres";
 import { getPostgresClient } from "./postgres-client";
 
@@ -13,7 +14,10 @@ export interface CanonicalUserInput {
 	firstName: string;
 	lastName: string;
 	source: string;
+	termsAccepted: boolean;
 	privacyConsent: boolean;
+	marketingConsent?: boolean;
+	eventUpdateConsent?: boolean;
 	deviceClass?: string | null;
 	platform?: string | null;
 	browserFamily?: string | null;
@@ -41,8 +45,6 @@ type UserRow = {
 type ColumnTypeRow = {
 	column_type: string;
 };
-
-const PRIVACY_VERSION = "2026-05-08";
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
@@ -85,7 +87,9 @@ export class UserRepository {
 				event_update_consent BOOLEAN NOT NULL DEFAULT FALSE,
 				event_update_consent_at TIMESTAMPTZ,
 				privacy_accepted_at TIMESTAMPTZ,
-				privacy_version TEXT NOT NULL DEFAULT '2026-05-08',
+				privacy_version TEXT NOT NULL DEFAULT '2026-06-01',
+				terms_accepted_at TIMESTAMPTZ,
+				terms_version TEXT NOT NULL DEFAULT '2026-06-03',
 				email_notifications_enabled BOOLEAN NOT NULL DEFAULT TRUE,
 				last_device_class TEXT,
 				last_platform TEXT,
@@ -124,7 +128,11 @@ export class UserRepository {
 		await this
 			.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS privacy_accepted_at TIMESTAMPTZ`;
 		await this
-			.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS privacy_version TEXT NOT NULL DEFAULT '2026-05-08'`;
+			.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS privacy_version TEXT NOT NULL DEFAULT '2026-06-01'`;
+		await this
+			.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ`;
+		await this
+			.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS terms_version TEXT NOT NULL DEFAULT '2026-06-03'`;
 		await this
 			.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS email_notifications_enabled BOOLEAN NOT NULL DEFAULT TRUE`;
 		await this
@@ -160,18 +168,18 @@ export class UserRepository {
 						AND table_name = 'app_users'
 						AND column_name = 'email'
 				) THEN
-					EXECUTE $migration$
+						EXECUTE $user_email_backfill$
 						UPDATE app_users
 						SET
 							email_normalized = LOWER(NULLIF(email::text, '')),
 							email_display = NULLIF(email::text, '')
 						WHERE email_normalized IS NULL
 							AND NULLIF(email::text, '') IS NOT NULL
-					$migration$;
+						$user_email_backfill$;
 				END IF;
 
 				IF to_regclass('app_user_collection_rollup') IS NOT NULL THEN
-					EXECUTE $migration$
+						EXECUTE $user_rollup_backfill$
 						UPDATE app_users users
 						SET
 							email_normalized = LOWER(rollup.email),
@@ -188,7 +196,7 @@ export class UserRepository {
 						FROM app_user_collection_rollup rollup
 						WHERE rollup.user_id = users.id
 							AND users.email_normalized IS NULL
-					$migration$;
+						$user_rollup_backfill$;
 				END IF;
 			END $$;
 		`;
@@ -261,7 +269,10 @@ export class UserRepository {
 		await this.ready();
 		const email = normalizeEmail(input.email);
 		const timestamp = toSafeIsoTimestamp(input.timestamp);
+		const termsAccepted = Boolean(input.termsAccepted);
 		const privacyConsent = Boolean(input.privacyConsent);
+		const marketingConsent = Boolean(input.marketingConsent);
+		const eventUpdateConsent = Boolean(input.eventUpdateConsent);
 		const rows = await this.sql<UserRow[]>`
 			INSERT INTO app_users (
 				id,
@@ -270,10 +281,14 @@ export class UserRepository {
 				first_name,
 				last_name,
 				source,
+				marketing_consent,
+				marketing_consent_at,
 				event_update_consent,
 				event_update_consent_at,
 				privacy_accepted_at,
 				privacy_version,
+				terms_accepted_at,
+				terms_version,
 				last_device_class,
 				last_platform,
 				last_browser_family,
@@ -292,10 +307,14 @@ export class UserRepository {
 				${input.firstName.trim()},
 				${input.lastName.trim()},
 				${input.source.trim() || "fete-finder-auth"},
-				${privacyConsent},
+				${marketingConsent},
+				${marketingConsent ? timestamp : null},
+				${eventUpdateConsent},
+				${eventUpdateConsent ? timestamp : null},
 				${privacyConsent ? timestamp : null},
-				${privacyConsent ? timestamp : null},
-				${PRIVACY_VERSION},
+				${legalPrivacyVersion},
+				${termsAccepted ? timestamp : null},
+				${legalTermsVersion},
 				${input.deviceClass ?? null},
 				${input.platform ?? null},
 				${input.browserFamily ?? null},
@@ -313,10 +332,22 @@ export class UserRepository {
 				first_name = EXCLUDED.first_name,
 				last_name = EXCLUDED.last_name,
 				source = EXCLUDED.source,
+				marketing_consent = app_users.marketing_consent OR EXCLUDED.marketing_consent,
+				marketing_consent_at = COALESCE(app_users.marketing_consent_at, EXCLUDED.marketing_consent_at),
 				event_update_consent = app_users.event_update_consent OR EXCLUDED.event_update_consent,
 				event_update_consent_at = COALESCE(app_users.event_update_consent_at, EXCLUDED.event_update_consent_at),
-				privacy_accepted_at = COALESCE(app_users.privacy_accepted_at, EXCLUDED.privacy_accepted_at),
+				privacy_accepted_at = CASE
+					WHEN EXCLUDED.privacy_accepted_at IS NULL THEN app_users.privacy_accepted_at
+					WHEN app_users.privacy_version = EXCLUDED.privacy_version THEN app_users.privacy_accepted_at
+					ELSE EXCLUDED.privacy_accepted_at
+				END,
 				privacy_version = EXCLUDED.privacy_version,
+				terms_accepted_at = CASE
+					WHEN EXCLUDED.terms_accepted_at IS NULL THEN app_users.terms_accepted_at
+					WHEN app_users.terms_version = EXCLUDED.terms_version THEN app_users.terms_accepted_at
+					ELSE EXCLUDED.terms_accepted_at
+				END,
+				terms_version = EXCLUDED.terms_version,
 				last_device_class = COALESCE(EXCLUDED.last_device_class, app_users.last_device_class),
 				last_platform = COALESCE(EXCLUDED.last_platform, app_users.last_platform),
 				last_browser_family = COALESCE(EXCLUDED.last_browser_family, app_users.last_browser_family),

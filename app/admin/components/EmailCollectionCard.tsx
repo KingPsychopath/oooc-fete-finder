@@ -417,6 +417,12 @@ const toCsvCell = (value: string | number | boolean | null | undefined) => {
 	return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 };
 
+const hasTermsAcceptance = (user: EmailRecord): boolean =>
+	Boolean(user.consent && user.termsAcceptedAt && user.termsVersion);
+
+const hasPrivacyAcceptance = (user: EmailRecord): boolean =>
+	Boolean(user.consent && user.privacyAcceptedAt && user.privacyVersion);
+
 const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 	if (records.length === 0 || typeof document === "undefined") return;
 	const header = [
@@ -426,7 +432,14 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		"First Sign-in At",
 		"Last Sign-in At",
 		"Last Active At",
-		"Consent",
+		"Terms Accepted",
+		"Terms Version",
+		"Terms Accepted At",
+		"Privacy Accepted",
+		"Privacy Version",
+		"Privacy Accepted At",
+		"Marketing Consent",
+		"Event Update Consent",
 		"Collection Origin",
 		"Linked Activity",
 		"Search Activity",
@@ -447,7 +460,14 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		user.firstSignInAt ?? "",
 		user.timestamp,
 		user.lastSignalAt ?? "",
-		user.consent,
+		hasTermsAcceptance(user),
+		user.termsVersion ?? "",
+		user.termsAcceptedAt ?? "",
+		hasPrivacyAcceptance(user),
+		user.privacyVersion ?? "",
+		user.privacyAcceptedAt ?? "",
+		Boolean(user.marketingConsent),
+		Boolean(user.eventUpdateConsent),
 		user.source,
 		user.linkedSignalCount ?? 0,
 		user.searchSignalCount ?? 0,
@@ -585,8 +605,36 @@ const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 				: "Unknown",
 	},
 	{
-		label: "Consent",
-		value: profile.user.consent ? "Consented" : "No consent",
+		label: "Terms",
+		value: hasTermsAcceptance(profile.user)
+			? `Accepted ${profile.user.termsVersion ?? ""}`.trim()
+			: "Not accepted",
+	},
+	{
+		label: "Terms accepted at",
+		value: profile.user.termsAcceptedAt
+			? formatAdminDateTime(profile.user.termsAcceptedAt)
+			: "Not recorded",
+	},
+	{
+		label: "Privacy",
+		value: hasPrivacyAcceptance(profile.user)
+			? `Accepted ${profile.user.privacyVersion ?? ""}`.trim()
+			: "Not accepted",
+	},
+	{
+		label: "Privacy accepted at",
+		value: profile.user.privacyAcceptedAt
+			? formatAdminDateTime(profile.user.privacyAcceptedAt)
+			: "Not recorded",
+	},
+	{
+		label: "Marketing updates",
+		value: profile.user.marketingConsent ? "Opted in" : "Not opted in",
+	},
+	{
+		label: "Event updates",
+		value: profile.user.eventUpdateConsent ? "Opted in" : "Not opted in",
 	},
 	{ label: "Collection origin", value: profile.user.source || "Unknown" },
 	{
@@ -1326,10 +1374,32 @@ export const EmailCollectionCard = ({
 													{user.linkedSignalCount ?? 0} activity
 												</Badge>
 												<Badge
-													variant={user.consent ? "default" : "destructive"}
+													variant={
+														hasTermsAcceptance(user) ? "default" : "destructive"
+													}
 												>
-													{user.consent ? "Consented" : "No consent"}
+													{hasTermsAcceptance(user) ? "Terms" : "No terms"}
 												</Badge>
+												<Badge
+													variant={
+														hasPrivacyAcceptance(user)
+															? "outline"
+															: "destructive"
+													}
+												>
+													{hasPrivacyAcceptance(user)
+														? "Privacy"
+														: "No privacy"}
+												</Badge>
+												{user.marketingConsent && (
+													<Badge variant="outline">Marketing opt-in</Badge>
+												)}
+												{user.eventUpdateConsent && !user.marketingConsent && (
+													<Badge variant="outline">Event updates</Badge>
+												)}
+												{!user.marketingConsent && !user.eventUpdateConsent && (
+													<Badge variant="secondary">No marketing</Badge>
+												)}
 											</span>
 										</span>
 										<span className="mt-2 flex flex-wrap gap-1.5">

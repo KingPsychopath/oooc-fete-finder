@@ -299,4 +299,5 @@ export const GoogleGeocodingAPI = {
 	geocodeAddress: geocodeAddressWithMapsAPI,
 	geocodeAddressesBatch: geocodeAddressesBatchOptimized,
 	reverseGeocode: reverseGeocodeWithMapsAPI,
+	supportsGeocoding: () => Boolean(env.GOOGLE_MAPS_API_KEY?.trim()),
 } as const;

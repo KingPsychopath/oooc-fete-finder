@@ -84,12 +84,16 @@ export default function PrivacyPolicy() {
 								How We Use Your Data
 							</h2>
 							<p className="text-muted-foreground mb-2">
-								<strong>Legal basis:</strong> Consent and legitimate interest
-								(you can withdraw consent for marketing at any time).
+								<strong>Legal basis:</strong> Contract, legitimate interest, and
+								consent. Marketing and community update emails are optional, and
+								you can withdraw that consent at any time.
 							</p>
 							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
 								<li>To provide personalized event recommendations</li>
-								<li>To send event updates and OOOC community communications</li>
+								<li>
+									To send event updates and OOOC community communications when
+									you opt in
+								</li>
 								<li>To improve our service and user experience</li>
 								<li>
 									To understand first-party audience patterns, such as which
@@ -128,6 +132,12 @@ export default function PrivacyPolicy() {
 								<li>
 									We use access controls, token-protected partner reporting
 									pages, and security monitoring.
+								</li>
+								<li>
+									We do not currently ask users to create passwords for Fete
+									Finder accounts. Access is based on the details you provide
+									and first-party session controls, so you should keep access to
+									your device, browser, and email account secure.
 								</li>
 								<li>
 									We retain data only as long as needed for service delivery,
@@ -183,6 +193,12 @@ export default function PrivacyPolicy() {
 									to share when you post a listing or reply to one. This sharing
 									is limited to the specific listing relationship, not a public
 									contact directory.
+								</li>
+								<li>
+									Do not share sensitive private information through Ticket
+									Exchange. Only add contact details you are comfortable being
+									seen, copied, or saved by the other person in that listing
+									relationship.
 								</li>
 							</ul>
 						</section>

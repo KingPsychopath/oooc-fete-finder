@@ -59,7 +59,7 @@ describe("parseCSVContent", () => {
 		expect(rows[0].seriesKey).toBe("ser_weekendrange12");
 	});
 
-	it("parses legacy verified column as source confirmation", () => {
+	it("parses verified column as source confirmation", () => {
 		const csv = [
 			"Title,Date,Location,Verified",
 			"Block Party,22 June,Canal,yes",

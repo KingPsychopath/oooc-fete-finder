@@ -11,6 +11,12 @@ export type UserRecord = {
 	timestamp: string;
 	firstSignInAt?: string;
 	consent: boolean;
+	termsVersion?: string | null;
+	termsAcceptedAt?: string | null;
+	privacyVersion?: string | null;
+	privacyAcceptedAt?: string | null;
+	marketingConsent?: boolean;
+	eventUpdateConsent?: boolean;
 	source: string;
 	deviceClass?: string | null;
 	platform?: string | null;

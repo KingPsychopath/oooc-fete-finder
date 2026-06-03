@@ -63,7 +63,7 @@ describe("offline event snapshots", () => {
 			...createEventSnapshot([baseEvent]),
 			metadata: {
 				eventCount: 1,
-				schemaName: "legacy-home-events",
+					schemaName: "wrong-home-events",
 				schemaVersion: EVENT_SNAPSHOT_SCHEMA_VERSION,
 			},
 		};
@@ -144,7 +144,7 @@ describe("offline event snapshots", () => {
 			...createEventDetailSnapshot(baseEvent),
 			metadata: {
 				eventKey: baseEvent.eventKey,
-				schemaName: "legacy-event-detail",
+					schemaName: "wrong-event-detail",
 				schemaVersion: EVENT_DETAIL_SNAPSHOT_SCHEMA_VERSION,
 			},
 		};

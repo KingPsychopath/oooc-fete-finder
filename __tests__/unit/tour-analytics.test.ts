@@ -21,7 +21,7 @@ describe("tour analytics", () => {
 		});
 	});
 
-	it("parses legacy source-only records without treating the source as a step", () => {
+	it("parses source-only records without treating the source as a step", () => {
 		expect(parseTourInteraction("auth_required:manual")).toEqual({
 			action: "auth_required",
 			stepId: null,

@@ -180,8 +180,8 @@ describe("event row metadata", () => {
 		expect(after).toBe(before);
 	});
 
-	it("treats legacy districtArea hashes as compatible with canonical area rows", () => {
-		const legacyHash = hashPayload({
+	it("treats previous districtArea hashes as compatible with canonical area rows", () => {
+		const previousHash = hashPayload({
 			curated: "",
 			eventCategory: "",
 			hostCountry: "",
@@ -205,7 +205,7 @@ describe("event row metadata", () => {
 		});
 
 		expect(
-			isCompatibleMeaningfulEventRowHash(legacyHash, {
+			isCompatibleMeaningfulEventRowHash(previousHash, {
 				title: "Fete Party",
 				location: "Venue A",
 				area: "11",

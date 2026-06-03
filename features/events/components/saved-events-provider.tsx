@@ -51,12 +51,11 @@ const getStorageKey = (ownerKey: string): string =>
 
 export const getSavedEventsOwnerKey = (
 	userId: string | null,
-	email: string | null,
+	_email: string | null,
 	isAuthenticated: boolean,
 ): string =>
 	getUserProfileStorageKey({
 		userId,
-		email,
 		isAuthenticated,
 		anonymousKey: "anon",
 	});

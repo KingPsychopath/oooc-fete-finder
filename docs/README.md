@@ -18,8 +18,7 @@ If you are new to this codebase, start here.
 - I need to run/admin the app: [Admin Workflow](./operations/admin-workflow.md)
 - I need a production deploy/incident checklist: [Production Readiness](./operations/production-readiness.md)
 - I need to verify Railway cron jobs: `pnpm check:railway-cron`
-- I need Postgres cutover or recovery steps: [Postgres Migration](./operations/postgres-migration.md)
-- I need to remove the current browser storage migration: [User ID Local Storage Migration Removal](./operations/user-id-local-storage-migration-removal.md)
+- I need Postgres setup or recovery steps: [Postgres Setup And Recovery](./operations/postgres-setup-and-recovery.md)
 - I need logs/troubleshooting context: [Logging & Observability](./operations/logging-and-observability.md)
 - I need abuse protection details: [Rate Limiting](./security/rate-limiting.md)
 - I need endpoint inventory: [API Endpoints](./reference/api-endpoints.md)

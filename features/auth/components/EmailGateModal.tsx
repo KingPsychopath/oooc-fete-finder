@@ -23,6 +23,7 @@ import {
 	getOrCreateEngagementSessionId,
 } from "@/features/events/engagement/client-tracking";
 import { Lock, Mail, User } from "lucide-react";
+import Link from "next/link";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 type EmailGateModalProps = {
@@ -41,7 +42,6 @@ type LookupState = "idle" | "checking" | "ready";
 type AuthFlowStep = "email" | "details";
 
 const LAST_AUTH_PROFILE_KEY = "oooc_last_auth_profile_v1";
-const DEPRECATED_LAST_AUTH_EMAIL_KEY = "oooc_last_auth_email_v1";
 
 const EMAIL_TEXT = {
 	emailCheckFailed:
@@ -54,10 +54,13 @@ const EmailGateModal = ({
 	onClose,
 }: EmailGateModalProps) => {
 	const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+	const privacyHref = `${basePath}/privacy`;
+	const termsHref = `${basePath}/terms`;
 	const [firstName, setFirstName] = useState("");
 	const [lastName, setLastName] = useState("");
 	const [email, setEmail] = useState("");
 	const [consent, setConsent] = useState(false);
+	const [marketingConsent, setMarketingConsent] = useState(false);
 	const [lookupState, setLookupState] = useState<LookupState>("idle");
 	const [lookupResult, setLookupResult] = useState<AuthLookupResult | null>(
 		null,
@@ -76,7 +79,6 @@ const EmailGateModal = ({
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
-		window.localStorage.removeItem(DEPRECATED_LAST_AUTH_EMAIL_KEY);
 		const storedProfileRaw = window.localStorage.getItem(LAST_AUTH_PROFILE_KEY);
 		if (!storedProfileRaw) {
 			return;
@@ -106,6 +108,7 @@ const EmailGateModal = ({
 			setFirstName("");
 			setLastName("");
 			setConsent(false);
+			setMarketingConsent(false);
 			setFlowStep("email");
 			clearLookupState();
 		},
@@ -320,7 +323,7 @@ const EmailGateModal = ({
 			return;
 		}
 		if (shouldRequireConsent && !consent) {
-			setError("Please accept our privacy policy to continue");
+			setError("Please accept our Terms and Privacy Policy to continue");
 			return;
 		}
 
@@ -338,6 +341,9 @@ const EmailGateModal = ({
 					lastName: resolvedLastName,
 					email: finalEmail,
 					consent: shouldRequireConsent ? consent : true,
+					termsAccepted: shouldRequireConsent ? consent : true,
+					privacyAccepted: shouldRequireConsent ? consent : true,
+					marketingConsent,
 					source: "fete-finder-auth",
 					anonymousSessionId: getOrCreateEngagementSessionId(),
 					clientContext: getClientContext(),
@@ -351,7 +357,6 @@ const EmailGateModal = ({
 
 			if (result.success) {
 				if (typeof window !== "undefined") {
-					window.localStorage.removeItem(DEPRECATED_LAST_AUTH_EMAIL_KEY);
 					if (
 						validateName(resolvedFirstName) &&
 						validateName(resolvedLastName)
@@ -415,8 +420,8 @@ const EmailGateModal = ({
 					</DialogTitle>
 					<DialogDescription>
 						To use filters and explore events, please provide your details. We
-						will use this to improve our recommendations and keep you updated on
-						future events.
+						use this to provide gated features, improve recommendations, and
+						keep the community experience safe.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -544,8 +549,11 @@ const EmailGateModal = ({
 							)}
 
 							{shouldCollectConsent ? (
-								<div className="space-y-2">
-									<div className="flex items-start space-x-2">
+								<div className="space-y-3">
+									<label
+										htmlFor="consent"
+										className="grid cursor-pointer grid-cols-[1rem_minmax(0,1fr)] gap-3 py-1 text-xs leading-relaxed"
+									>
 										<input
 											id="consent"
 											type="checkbox"
@@ -557,30 +565,74 @@ const EmailGateModal = ({
 											className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
 											disabled={isSubmitting}
 										/>
-										<Label
-											htmlFor="consent"
-											className="text-xs leading-relaxed cursor-pointer"
-										>
-											I agree to the collection and processing of my personal
-											information for event recommendations and updates.
-										</Label>
-									</div>
+										<span className="block min-w-0">
+											<span className="block text-muted-foreground">
+												I agree to the{" "}
+												<Link
+													href={termsHref}
+													target="_blank"
+													rel="noopener noreferrer"
+													className="underline underline-offset-4"
+												>
+													Terms
+												</Link>{" "}
+												and acknowledge the{" "}
+												<Link
+													href={privacyHref}
+													target="_blank"
+													rel="noopener noreferrer"
+													className="underline underline-offset-4"
+												>
+													Privacy Policy
+												</Link>
+												. We use these details to provide gated features, event
+												recommendations, and service updates.
+											</span>
+										</span>
+									</label>
+									<label className="grid cursor-pointer grid-cols-[1rem_minmax(0,1fr)] gap-3 rounded-md border border-border/50 bg-muted/15 px-3 py-3 text-xs leading-relaxed">
+										<input
+											type="checkbox"
+											checked={marketingConsent}
+											onChange={(event) =>
+												setMarketingConsent(event.target.checked)
+											}
+											className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+											disabled={isSubmitting}
+										/>
+										<span className="block min-w-0">
+											<span className="block text-muted-foreground">
+												Send me optional event recommendations, community
+												updates, and future event announcements. I can
+												unsubscribe at any time.
+											</span>
+										</span>
+									</label>
 								</div>
 							) : (
 								<p className="rounded-md border border-border/50 bg-muted/35 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-									Privacy policy already accepted for this email.
+									Terms and Privacy Policy already accepted for this email.
 								</p>
 							)}
 
-							<button
-								type="button"
-								onClick={() => {
-									window.open("./privacy", "_blank");
-								}}
-								className="text-xs text-primary underline hover:no-underline"
-							>
-								Read our Privacy Policy
-							</button>
+							<div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+								<Link
+									href={termsHref}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="text-primary underline hover:no-underline"
+								>
+									Read Terms
+								</Link>
+								<Link
+									href={privacyHref}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="text-primary underline hover:no-underline"
+								>
+									Read Privacy Policy
+								</Link>
+							</div>
 						</>
 					) : null}
 
@@ -617,7 +669,7 @@ const EmailGateModal = ({
 						</Button>
 						<p className="text-xs text-muted-foreground text-center">
 							Your data is secure and will only be used as described in our
-							privacy policy.
+							Terms and Privacy Policy.
 						</p>
 					</div>
 				</form>

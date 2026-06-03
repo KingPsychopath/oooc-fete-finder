@@ -53,7 +53,14 @@ const buildCollectedUsersCsv = (users: UserRecord[]): string => {
 		"Last Name",
 		"Email",
 		"Timestamp",
-		"Consent",
+		"Terms Accepted",
+		"Terms Version",
+		"Terms Accepted At",
+		"Privacy Accepted",
+		"Privacy Version",
+		"Privacy Accepted At",
+		"Marketing Consent",
+		"Event Update Consent",
 		"Source",
 	];
 	const rows = users.map((user) => [
@@ -62,6 +69,13 @@ const buildCollectedUsersCsv = (users: UserRecord[]): string => {
 		user.email,
 		user.timestamp,
 		String(user.consent),
+		user.termsVersion ?? "",
+		user.termsAcceptedAt ?? "",
+		String(Boolean(user.privacyAcceptedAt)),
+		user.privacyVersion ?? "",
+		user.privacyAcceptedAt ?? "",
+		String(Boolean(user.marketingConsent)),
+		String(Boolean(user.eventUpdateConsent)),
 		user.source,
 	]);
 
@@ -123,7 +137,13 @@ const rowToUserRecord = (
 			getHeaderValue(row, ["timestamp", "submitted at", "last seen", "date"]),
 		),
 		consent: parseConsent(
-			getHeaderValue(row, ["consent", "marketing consent", "opt in", "opt-in"]),
+			getHeaderValue(row, ["terms accepted", "consent", "service consent"]),
+		),
+		marketingConsent: parseConsent(
+			getHeaderValue(row, ["marketing consent", "opt in", "opt-in"]),
+		),
+		eventUpdateConsent: parseConsent(
+			getHeaderValue(row, ["event update consent", "event updates"]),
 		),
 		source: getHeaderValue(row, ["source"]) || fallbackSource,
 	};

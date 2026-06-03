@@ -9,9 +9,6 @@ const EVENT_COLUMNS_TABLE = "app_event_store_columns";
 const EVENT_ROWS_TABLE = "app_event_store_rows";
 const EVENT_META_TABLE = "app_event_store_meta";
 const EVENT_SETTINGS_TABLE = "app_event_store_settings";
-const EVENTS_CSV_KEY = "events-store:csv";
-const EVENTS_META_KEY = "events-store:meta";
-const EVENTS_SETTINGS_KEY = "events-store:settings";
 const USERS_COLLECTION_KEY = "users:collection:v1";
 
 const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
@@ -208,23 +205,6 @@ const upsertKey = async (key, value) => {
 	`;
 };
 
-const getKey = async (key) => {
-	const rows = await sql`
-		SELECT value
-		FROM app_kv_store
-		WHERE key = ${key}
-		LIMIT 1
-	`;
-	return rows[0]?.value ?? null;
-};
-
-const deleteKey = async (key) => {
-	await sql`
-		DELETE FROM app_kv_store
-		WHERE key = ${key}
-	`;
-};
-
 const bootstrap = async () => {
 	const nowIso = new Date().toISOString();
 
@@ -237,22 +217,10 @@ const bootstrap = async () => {
 	`;
 
 	if ((existingRows[0]?.count ?? 0) === 0) {
-		const legacyCsv = await getKey(EVENTS_CSV_KEY);
-		let csvContent = "";
-		let seedOrigin = "local-file-import";
-		let seedBy = "bootstrap-script";
-
-		if (legacyCsv && legacyCsv.trim().length > 0) {
-			csvContent = sanitizeCsv(legacyCsv);
-			seedOrigin = "legacy-kv-import";
-			seedBy = "bootstrap-legacy-migration";
-			console.log("Using legacy KV CSV as seed source.");
-		} else {
-			const csvPath = path.join(process.cwd(), "data", "events.csv");
-			const csvRaw = await readFile(csvPath, "utf8");
-			csvContent = sanitizeCsv(csvRaw);
-			console.log("Using data/events.csv as seed source.");
-		}
+		const csvPath = path.join(process.cwd(), "data", "events.csv");
+		const csvRaw = await readFile(csvPath, "utf8");
+		const csvContent = sanitizeCsv(csvRaw);
+		console.log("Using data/events.csv as seed source.");
 
 		if (csvContent.length > 0) {
 			const sheet = toSheet(csvContent);
@@ -317,13 +285,13 @@ const bootstrap = async () => {
 						checksum
 					)
 					VALUES (
-						TRUE,
-						${sheet.rows.length},
-						${nowIso},
-						${seedBy},
-						${seedOrigin},
-						${checksum(csvContent)}
-					)
+							TRUE,
+							${sheet.rows.length},
+							${nowIso},
+							${"bootstrap-script"},
+							${"local-file-import"},
+							${checksum(csvContent)}
+						)
 					ON CONFLICT (singleton)
 					DO UPDATE SET
 						row_count = EXCLUDED.row_count,
@@ -345,13 +313,8 @@ const bootstrap = async () => {
 				`;
 			});
 
-			console.log(`Seeded event tables with ${sheet.rows.length} rows.`);
-
-			await deleteKey(EVENTS_CSV_KEY);
-			await deleteKey(EVENTS_META_KEY);
-			await deleteKey(EVENTS_SETTINGS_KEY);
-			console.log("Removed legacy events-store KV keys after table bootstrap.");
-		}
+				console.log(`Seeded event tables with ${sheet.rows.length} rows.`);
+			}
 	} else {
 		console.log("Event tables already contain rows. Skipping seed.");
 	}

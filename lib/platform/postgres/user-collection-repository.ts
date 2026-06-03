@@ -30,6 +30,12 @@ type RollupRow = {
 	first_name: string;
 	last_name: string;
 	consent: boolean;
+	terms_version: string | null;
+	terms_accepted_at: Date | string | null;
+	privacy_version: string | null;
+	privacy_accepted_at: Date | string | null;
+	marketing_consent: boolean | null;
+	event_update_consent: boolean | null;
 	source: string;
 	device_class: string | null;
 	platform: string | null;
@@ -245,7 +251,10 @@ export class UserCollectionRepository {
 			firstName: user.firstName,
 			lastName: user.lastName,
 			source: user.source,
+			termsAccepted: user.consent,
 			privacyConsent: user.consent,
+			marketingConsent: user.marketingConsent ?? false,
+			eventUpdateConsent: user.eventUpdateConsent ?? false,
 			deviceClass: user.deviceClass,
 			platform: user.platform,
 			browserFamily: user.browserFamily,
@@ -352,21 +361,27 @@ export class UserCollectionRepository {
 		await this.ready();
 		const safeLimit = Math.max(1, Math.min(limit, 20_000));
 		const rows = await this.sql<RollupRow[]>`
-			SELECT
-				COALESCE(r.user_id, u.id) AS user_id,
-				r.email,
-				r.first_name,
-				r.last_name,
-				r.consent,
-				r.source,
-				r.device_class,
-				r.platform,
-				r.browser_family,
-				r.timezone,
-				r.locale,
-				r.first_seen_at,
-				r.last_seen_at,
-				r.updated_at
+				SELECT
+					COALESCE(r.user_id, u.id) AS user_id,
+					r.email,
+					r.first_name,
+					r.last_name,
+					r.consent,
+					u.terms_version,
+					u.terms_accepted_at,
+					u.privacy_version,
+					u.privacy_accepted_at,
+					u.marketing_consent,
+					u.event_update_consent,
+					r.source,
+					r.device_class,
+					r.platform,
+					r.browser_family,
+					r.timezone,
+					r.locale,
+					r.first_seen_at,
+					r.last_seen_at,
+					r.updated_at
 			FROM app_user_collection_rollup r
 			LEFT JOIN app_users u ON u.email_normalized = LOWER(r.email)
 			ORDER BY r.last_seen_at DESC
@@ -384,6 +399,12 @@ export class UserCollectionRepository {
 			timestamp: toIsoString(row.last_seen_at) || new Date(0).toISOString(),
 			firstSignInAt: toIsoString(row.first_seen_at) || undefined,
 			consent: row.consent,
+			termsVersion: row.terms_version,
+			termsAcceptedAt: toIsoString(row.terms_accepted_at),
+			privacyVersion: row.privacy_version,
+			privacyAcceptedAt: toIsoString(row.privacy_accepted_at),
+			marketingConsent: Boolean(row.marketing_consent),
+			eventUpdateConsent: Boolean(row.event_update_consent),
 			source: row.source,
 			deviceClass: row.device_class,
 			platform: row.platform,
@@ -400,21 +421,27 @@ export class UserCollectionRepository {
 		if (!normalizedEmail) return null;
 
 		const rows = await this.sql<RollupRow[]>`
-			SELECT
-				COALESCE(r.user_id, u.id) AS user_id,
-				r.email,
-				r.first_name,
-				r.last_name,
-				r.consent,
-				r.source,
-				r.device_class,
-				r.platform,
-				r.browser_family,
-				r.timezone,
-				r.locale,
-				r.first_seen_at,
-				r.last_seen_at,
-				r.updated_at
+				SELECT
+					COALESCE(r.user_id, u.id) AS user_id,
+					r.email,
+					r.first_name,
+					r.last_name,
+					r.consent,
+					u.terms_version,
+					u.terms_accepted_at,
+					u.privacy_version,
+					u.privacy_accepted_at,
+					u.marketing_consent,
+					u.event_update_consent,
+					r.source,
+					r.device_class,
+					r.platform,
+					r.browser_family,
+					r.timezone,
+					r.locale,
+					r.first_seen_at,
+					r.last_seen_at,
+					r.updated_at
 			FROM app_user_collection_rollup r
 			LEFT JOIN app_users u ON u.email_normalized = r.email
 			WHERE r.email = ${normalizedEmail}
@@ -434,6 +461,12 @@ export class UserCollectionRepository {
 			timestamp: toIsoString(row.last_seen_at) || new Date(0).toISOString(),
 			firstSignInAt: toIsoString(row.first_seen_at) || undefined,
 			consent: row.consent,
+			termsVersion: row.terms_version,
+			termsAcceptedAt: toIsoString(row.terms_accepted_at),
+			privacyVersion: row.privacy_version,
+			privacyAcceptedAt: toIsoString(row.privacy_accepted_at),
+			marketingConsent: Boolean(row.marketing_consent),
+			eventUpdateConsent: Boolean(row.event_update_consent),
 			source: row.source,
 			deviceClass: row.device_class,
 			platform: row.platform,
@@ -450,21 +483,27 @@ export class UserCollectionRepository {
 		await this.ready();
 
 		const rows = await this.sql<RollupRow[]>`
-			SELECT
-				COALESCE(r.user_id, u.id) AS user_id,
-				r.email,
-				r.first_name,
-				r.last_name,
-				r.consent,
-				r.source,
-				r.device_class,
-				r.platform,
-				r.browser_family,
-				r.timezone,
-				r.locale,
-				r.first_seen_at,
-				r.last_seen_at,
-				r.updated_at
+				SELECT
+					COALESCE(r.user_id, u.id) AS user_id,
+					r.email,
+					r.first_name,
+					r.last_name,
+					r.consent,
+					u.terms_version,
+					u.terms_accepted_at,
+					u.privacy_version,
+					u.privacy_accepted_at,
+					u.marketing_consent,
+					u.event_update_consent,
+					r.source,
+					r.device_class,
+					r.platform,
+					r.browser_family,
+					r.timezone,
+					r.locale,
+					r.first_seen_at,
+					r.last_seen_at,
+					r.updated_at
 			FROM app_user_collection_rollup r
 			LEFT JOIN app_users u ON u.email_normalized = r.email
 			WHERE COALESCE(r.user_id, u.id) = ${normalizedUserId}
@@ -484,6 +523,12 @@ export class UserCollectionRepository {
 			timestamp: toIsoString(row.last_seen_at) || new Date(0).toISOString(),
 			firstSignInAt: toIsoString(row.first_seen_at) || undefined,
 			consent: row.consent,
+			termsVersion: row.terms_version,
+			termsAcceptedAt: toIsoString(row.terms_accepted_at),
+			privacyVersion: row.privacy_version,
+			privacyAcceptedAt: toIsoString(row.privacy_accepted_at),
+			marketingConsent: Boolean(row.marketing_consent),
+			eventUpdateConsent: Boolean(row.event_update_consent),
 			source: row.source,
 			deviceClass: row.device_class,
 			platform: row.platform,
