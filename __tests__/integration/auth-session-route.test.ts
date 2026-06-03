@@ -8,6 +8,8 @@ type Setup = {
 	getCanonicalUserSessionFromCookieHeader: ReturnType<typeof vi.fn>;
 	getUserSessionFromCookieHeader: ReturnType<typeof vi.fn>;
 	getUserAuthCookieOptions: ReturnType<typeof vi.fn>;
+	touchContext: ReturnType<typeof vi.fn>;
+	logWarn: ReturnType<typeof vi.fn>;
 };
 
 const loadRoute = async (): Promise<Setup> => {
@@ -31,6 +33,8 @@ const loadRoute = async (): Promise<Setup> => {
 		path: "/",
 		maxAge: 60 * 60 * 24 * 30,
 	});
+	const touchContext = vi.fn().mockResolvedValue(undefined);
+	const logWarn = vi.fn();
 
 	vi.doMock("@/features/auth/admin-auth-token", () => ({
 		verifyAdminSessionFromRequest,
@@ -42,6 +46,14 @@ const loadRoute = async (): Promise<Setup> => {
 		getUserSessionFromCookieHeader,
 		getUserAuthCookieOptions,
 	}));
+	vi.doMock("@/lib/platform/postgres/user-repository", () => ({
+		getUserRepository: () => ({ touchContext }),
+	}));
+	vi.doMock("@/lib/platform/logger", () => ({
+		log: {
+			warn: logWarn,
+		},
+	}));
 
 	const route = await import("@/app/api/auth/session/route");
 	return {
@@ -51,6 +63,8 @@ const loadRoute = async (): Promise<Setup> => {
 		getCanonicalUserSessionFromCookieHeader,
 		getUserSessionFromCookieHeader,
 		getUserAuthCookieOptions,
+		touchContext,
+		logWarn,
 	};
 };
 
@@ -65,6 +79,7 @@ describe("/api/auth/session route", () => {
 			verifyAdminSessionFromRequest,
 			getCanonicalUserSessionFromCookieHeader,
 			getUserSessionFromCookieHeader,
+			touchContext,
 		} = await loadRoute();
 		verifyAdminSessionFromRequest.mockResolvedValue({ jti: "session-jti" });
 
@@ -99,6 +114,38 @@ describe("/api/auth/session route", () => {
 		);
 		expect(getUserSessionFromCookieHeader).toHaveBeenCalledTimes(0);
 		expect(verifyAdminSessionFromRequest).toHaveBeenCalledTimes(1);
+		expect(touchContext).toHaveBeenCalledWith({
+			userId: "019b0000-0000-7000-8000-000000000001",
+			email: "owen@example.com",
+		});
+	});
+
+	it("keeps session reads working when last-seen tracking fails", async () => {
+		const { GET, touchContext, logWarn } = await loadRoute();
+		touchContext.mockRejectedValue(new Error("database unavailable"));
+
+		const response = await GET(
+			new NextRequest("https://example.com/api/auth/session", {
+				headers: {
+					cookie: "oooc_user_session=test-token",
+				},
+			}),
+		);
+		const payload = (await response.json()) as {
+			success: boolean;
+			isAuthenticated: boolean;
+		};
+
+		expect(response.status).toBe(200);
+		expect(payload).toMatchObject({
+			success: true,
+			isAuthenticated: true,
+		});
+		expect(logWarn).toHaveBeenCalledWith(
+			"auth-session",
+			"Failed to update user last-seen timestamp",
+			{ message: "database unavailable" },
+		);
 	});
 
 	it("clears auth cookie on DELETE and keeps response non-cacheable", async () => {

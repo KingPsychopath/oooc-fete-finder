@@ -10,6 +10,10 @@ export type UserRecord = {
 	email: string;
 	timestamp: string;
 	firstSignInAt?: string;
+	firstVerifiedAt?: string;
+	lastVerifiedAt?: string;
+	lastSeenAt?: string | null;
+	lastAuthenticatedAt?: string | null;
 	consent: boolean;
 	termsVersion?: string | null;
 	termsAcceptedAt?: string | null;

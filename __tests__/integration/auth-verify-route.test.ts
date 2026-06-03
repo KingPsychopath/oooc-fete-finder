@@ -8,6 +8,8 @@ type Setup = {
 	checkAuthVerifyIpLimit: ReturnType<typeof vi.fn>;
 	checkAuthVerifyEmailIpLimit: ReturnType<typeof vi.fn>;
 	logWarn: ReturnType<typeof vi.fn>;
+	attachEventUserToSession: ReturnType<typeof vi.fn>;
+	attachDiscoveryUserToSession: ReturnType<typeof vi.fn>;
 };
 
 const validBody = {
@@ -59,6 +61,8 @@ const loadRoute = async (): Promise<Setup> => {
 		keyHash: "hashed-email-ip",
 	});
 	const logWarn = vi.fn();
+	const attachEventUserToSession = vi.fn().mockResolvedValue(0);
+	const attachDiscoveryUserToSession = vi.fn().mockResolvedValue(0);
 
 	vi.doMock("@/features/auth/user-collection-store", () => ({
 		UserCollectionStore: {
@@ -95,6 +99,18 @@ const loadRoute = async (): Promise<Setup> => {
 		},
 	}));
 
+	vi.doMock("@/lib/platform/postgres/event-engagement-repository", () => ({
+		getEventEngagementRepository: () => ({
+			attachUserToSession: attachEventUserToSession,
+		}),
+	}));
+
+	vi.doMock("@/lib/platform/postgres/discovery-analytics-repository", () => ({
+		getDiscoveryAnalyticsRepository: () => ({
+			attachUserToSession: attachDiscoveryUserToSession,
+		}),
+	}));
+
 	const route = await import("@/app/api/auth/verify/route");
 	return {
 		POST: route.POST,
@@ -104,6 +120,8 @@ const loadRoute = async (): Promise<Setup> => {
 		checkAuthVerifyIpLimit,
 		checkAuthVerifyEmailIpLimit,
 		logWarn,
+		attachEventUserToSession,
+		attachDiscoveryUserToSession,
 	};
 };
 
@@ -181,6 +199,39 @@ describe("/api/auth/verify route", () => {
 		expect(addOrUpdate).not.toHaveBeenCalled();
 	});
 
+	it("rejects names with emoji or symbols", async () => {
+		const { POST, addOrUpdate, checkAuthVerifyEmailIpLimit } =
+			await loadRoute();
+
+		const response = await POST(
+			new Request("https://example.com/api/auth/verify", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-forwarded-for": "203.0.113.16",
+				},
+				body: JSON.stringify({
+					...validBody,
+					firstName: "Pris",
+					lastName: "🥀",
+				}),
+			}),
+		);
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
+
+		expect(response.status).toBe(400);
+		expect(payload).toEqual({
+			success: false,
+			error:
+				"Last name can only include letters, spaces, hyphens, or apostrophes",
+		});
+		expect(checkAuthVerifyEmailIpLimit).not.toHaveBeenCalled();
+		expect(addOrUpdate).not.toHaveBeenCalled();
+	});
+
 	it("succeeds under threshold and sets auth cookie", async () => {
 		const {
 			POST,
@@ -232,6 +283,61 @@ describe("/api/auth/verify route", () => {
 			}),
 		);
 		expect(getStatus).toHaveBeenCalledTimes(1);
+	});
+
+	it("links recent anonymous activity to the verified user", async () => {
+		const { POST, attachEventUserToSession, attachDiscoveryUserToSession } =
+			await loadRoute();
+		attachEventUserToSession.mockResolvedValue(2);
+		attachDiscoveryUserToSession.mockResolvedValue(3);
+
+		const response = await POST(
+			new Request("https://example.com/api/auth/verify", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-forwarded-for": "203.0.113.15",
+				},
+				body: JSON.stringify({
+					...validBody,
+					anonymousSessionId: "anon-session-123",
+					clientContext: {
+						deviceClass: "mobile",
+						platform: "ios",
+						browserFamily: "safari",
+						timezone: "Europe/London",
+						locale: "en-GB",
+					},
+				}),
+			}),
+		);
+		const payload = (await response.json()) as {
+			success: boolean;
+			linkedBehaviorRows: number;
+		};
+
+		expect(response.status).toBe(200);
+		expect(payload.success).toBe(true);
+		expect(payload.linkedBehaviorRows).toBe(5);
+		expect(attachEventUserToSession).toHaveBeenCalledWith(
+			expect.objectContaining({
+				sessionId: "anon-session-123",
+				userId: "019b0000-0000-7000-8000-000000000001",
+				userEmail: "owen@example.com",
+				deviceClass: "mobile",
+				platform: "ios",
+				browserFamily: "safari",
+				timezone: "Europe/London",
+				locale: "en-GB",
+			}),
+		);
+		expect(attachDiscoveryUserToSession).toHaveBeenCalledWith(
+			expect.objectContaining({
+				sessionId: "anon-session-123",
+				userId: "019b0000-0000-7000-8000-000000000001",
+				userEmail: "owen@example.com",
+			}),
+		);
 	});
 
 	it("reuses stored name and consent for a returning email", async () => {

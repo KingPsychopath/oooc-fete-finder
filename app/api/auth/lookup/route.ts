@@ -1,3 +1,4 @@
+import { validateName } from "@/features/auth/email-gate-utils";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import {
 	type RateLimitDecision,
@@ -49,8 +50,8 @@ const hasValidStoredName = (
 	Boolean(
 		profile?.firstName?.trim() &&
 			profile?.lastName?.trim() &&
-			profile.firstName.trim().length >= 2 &&
-			profile.lastName.trim().length >= 2,
+			validateName(profile.firstName) &&
+			validateName(profile.lastName),
 	);
 
 const hasCurrentLegalAcceptance = (

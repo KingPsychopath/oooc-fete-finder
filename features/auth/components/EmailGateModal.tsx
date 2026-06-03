@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import {
 	type StoredAuthProfile,
 	buildSuggestedEmail,
+	getNameValidationError,
 	normalizeEmailInput,
 	sanitizePastedEmail,
 	sanitizeRecentProfile,
@@ -261,8 +262,8 @@ const EmailGateModal = ({
 		recentProfile !== null &&
 		!isSubmitting &&
 		recentProfile.email === normalizedEmail &&
-		recentProfile.firstName.length >= 2 &&
-		recentProfile.lastName.length >= 2 &&
+		validateName(recentProfile.firstName) &&
+		validateName(recentProfile.lastName) &&
 		(recentProfile.firstName !== firstName.trim() ||
 			recentProfile.lastName !== lastName.trim());
 	const isCheckingEmail = lookupState === "checking";
@@ -310,16 +311,21 @@ const EmailGateModal = ({
 			setError("Please enter your first name");
 			return;
 		}
-		if (shouldRequireName && !validateName(resolvedFirstName)) {
-			setError("First name must be at least 2 characters");
+		const firstNameError = getNameValidationError(
+			resolvedFirstName,
+			"First name",
+		);
+		if (shouldRequireName && firstNameError) {
+			setError(firstNameError);
 			return;
 		}
 		if (shouldRequireName && !resolvedLastName) {
 			setError("Please enter your last name");
 			return;
 		}
-		if (shouldRequireName && !validateName(resolvedLastName)) {
-			setError("Last name must be at least 2 characters");
+		const lastNameError = getNameValidationError(resolvedLastName, "Last name");
+		if (shouldRequireName && lastNameError) {
+			setError(lastNameError);
 			return;
 		}
 		if (shouldRequireConsent && !consent) {

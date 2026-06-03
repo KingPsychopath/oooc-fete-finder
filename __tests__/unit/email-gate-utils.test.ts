@@ -83,6 +83,13 @@ describe("email gate utilities", () => {
 					email: "not-an-email",
 				}),
 			).toBe(null);
+			expect(
+				sanitizeRecentProfile({
+					firstName: "Pris",
+					lastName: "🥀",
+					email: "pris@example.com",
+				}),
+			).toBe(null);
 		});
 	});
 
@@ -95,10 +102,22 @@ describe("email gate utilities", () => {
 	});
 
 	describe("validateName", () => {
-		it("requires at least two non-whitespace characters", () => {
+		it("allows common human-name characters", () => {
 			expect(validateName(" Ada ")).toBe(true);
+			expect(validateName("Élodie")).toBe(true);
+			expect(validateName("O'Connor")).toBe(true);
+			expect(validateName("D’Arcy")).toBe(true);
+			expect(validateName("Anne-Marie")).toBe(true);
+			expect(validateName("Mary Jane")).toBe(true);
+		});
+
+		it("rejects too-short names and symbols", () => {
 			expect(validateName("A")).toBe(false);
 			expect(validateName("   ")).toBe(false);
+			expect(validateName("🥀")).toBe(false);
+			expect(validateName("Pris 🥀")).toBe(false);
+			expect(validateName("A1")).toBe(false);
+			expect(validateName("Ada!")).toBe(false);
 		});
 	});
 });

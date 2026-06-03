@@ -44,6 +44,8 @@ type RollupRow = {
 	locale: string | null;
 	first_seen_at: Date | string;
 	last_seen_at: Date | string;
+	user_last_seen_at: Date | string | null;
+	user_last_authenticated_at: Date | string | null;
 	updated_at: Date | string;
 };
 
@@ -67,6 +69,15 @@ const toIsoString = (value: Date | string | null): string | null => {
 	return value instanceof Date
 		? value.toISOString()
 		: new Date(value).toISOString();
+};
+
+const latestIso = (
+	left: string | null | undefined,
+	right: string | null | undefined,
+): string | null => {
+	if (!left) return right ?? null;
+	if (!right) return left;
+	return left > right ? left : right;
 };
 
 const emptyAnalytics = (): UserCollectionAnalytics => ({
@@ -378,12 +389,14 @@ export class UserCollectionRepository {
 					r.platform,
 					r.browser_family,
 					r.timezone,
-					r.locale,
-					r.first_seen_at,
-					r.last_seen_at,
-					r.updated_at
-			FROM app_user_collection_rollup r
-			LEFT JOIN app_users u ON u.email_normalized = LOWER(r.email)
+						r.locale,
+						r.first_seen_at,
+						r.last_seen_at,
+						u.last_seen_at AS user_last_seen_at,
+						u.last_authenticated_at AS user_last_authenticated_at,
+						r.updated_at
+				FROM app_user_collection_rollup r
+				LEFT JOIN app_users u ON u.email_normalized = LOWER(r.email)
 			ORDER BY r.last_seen_at DESC
 			LIMIT ${safeLimit}
 		`;
@@ -391,28 +404,43 @@ export class UserCollectionRepository {
 			rows.map((row) => ({ email: row.email, userId: row.user_id })),
 		);
 
-		return rows.map((row) => ({
-			...(row.user_id ? { userId: row.user_id } : {}),
-			firstName: row.first_name,
-			lastName: row.last_name,
-			email: normalizeEmail(row.email),
-			timestamp: toIsoString(row.last_seen_at) || new Date(0).toISOString(),
-			firstSignInAt: toIsoString(row.first_seen_at) || undefined,
-			consent: row.consent,
-			termsVersion: row.terms_version,
-			termsAcceptedAt: toIsoString(row.terms_accepted_at),
-			privacyVersion: row.privacy_version,
-			privacyAcceptedAt: toIsoString(row.privacy_accepted_at),
-			marketingConsent: Boolean(row.marketing_consent),
-			eventUpdateConsent: Boolean(row.event_update_consent),
-			source: row.source,
-			deviceClass: row.device_class,
-			platform: row.platform,
-			browserFamily: row.browser_family,
-			timezone: row.timezone,
-			locale: row.locale,
-			...signalCounts.get(normalizeEmail(row.email)),
-		}));
+		return rows.map((row) => {
+			const firstVerifiedAt = toIsoString(row.first_seen_at) || undefined;
+			const lastVerifiedAt =
+				toIsoString(row.last_seen_at) || new Date(0).toISOString();
+			const lastSeenAt = latestIso(
+				toIsoString(row.user_last_seen_at),
+				lastVerifiedAt,
+			);
+			const lastAuthenticatedAt =
+				toIsoString(row.user_last_authenticated_at) || lastVerifiedAt;
+			return {
+				...(row.user_id ? { userId: row.user_id } : {}),
+				firstName: row.first_name,
+				lastName: row.last_name,
+				email: normalizeEmail(row.email),
+				timestamp: lastVerifiedAt,
+				firstSignInAt: firstVerifiedAt,
+				firstVerifiedAt,
+				lastVerifiedAt,
+				lastSeenAt,
+				lastAuthenticatedAt,
+				consent: row.consent,
+				termsVersion: row.terms_version,
+				termsAcceptedAt: toIsoString(row.terms_accepted_at),
+				privacyVersion: row.privacy_version,
+				privacyAcceptedAt: toIsoString(row.privacy_accepted_at),
+				marketingConsent: Boolean(row.marketing_consent),
+				eventUpdateConsent: Boolean(row.event_update_consent),
+				source: row.source,
+				deviceClass: row.device_class,
+				platform: row.platform,
+				browserFamily: row.browser_family,
+				timezone: row.timezone,
+				locale: row.locale,
+				...signalCounts.get(normalizeEmail(row.email)),
+			};
+		});
 	}
 
 	async findByEmail(email: string): Promise<UserRecord | null> {
@@ -438,12 +466,14 @@ export class UserCollectionRepository {
 					r.platform,
 					r.browser_family,
 					r.timezone,
-					r.locale,
-					r.first_seen_at,
-					r.last_seen_at,
-					r.updated_at
-			FROM app_user_collection_rollup r
-			LEFT JOIN app_users u ON u.email_normalized = r.email
+						r.locale,
+						r.first_seen_at,
+						r.last_seen_at,
+						u.last_seen_at AS user_last_seen_at,
+						u.last_authenticated_at AS user_last_authenticated_at,
+						r.updated_at
+				FROM app_user_collection_rollup r
+				LEFT JOIN app_users u ON u.email_normalized = r.email
 			WHERE r.email = ${normalizedEmail}
 			LIMIT 1
 		`;
@@ -453,13 +483,26 @@ export class UserCollectionRepository {
 		const signalCounts = await this.listSignalCounts([
 			{ email: row.email, userId: row.user_id },
 		]);
+		const firstVerifiedAt = toIsoString(row.first_seen_at) || undefined;
+		const lastVerifiedAt =
+			toIsoString(row.last_seen_at) || new Date(0).toISOString();
+		const lastSeenAt = latestIso(
+			toIsoString(row.user_last_seen_at),
+			lastVerifiedAt,
+		);
+		const lastAuthenticatedAt =
+			toIsoString(row.user_last_authenticated_at) || lastVerifiedAt;
 		return {
 			...(row.user_id ? { userId: row.user_id } : {}),
 			firstName: row.first_name,
 			lastName: row.last_name,
 			email: normalizeEmail(row.email),
-			timestamp: toIsoString(row.last_seen_at) || new Date(0).toISOString(),
-			firstSignInAt: toIsoString(row.first_seen_at) || undefined,
+			timestamp: lastVerifiedAt,
+			firstSignInAt: firstVerifiedAt,
+			firstVerifiedAt,
+			lastVerifiedAt,
+			lastSeenAt,
+			lastAuthenticatedAt,
 			consent: row.consent,
 			termsVersion: row.terms_version,
 			termsAcceptedAt: toIsoString(row.terms_accepted_at),
@@ -500,12 +543,14 @@ export class UserCollectionRepository {
 					r.platform,
 					r.browser_family,
 					r.timezone,
-					r.locale,
-					r.first_seen_at,
-					r.last_seen_at,
-					r.updated_at
-			FROM app_user_collection_rollup r
-			LEFT JOIN app_users u ON u.email_normalized = r.email
+						r.locale,
+						r.first_seen_at,
+						r.last_seen_at,
+						u.last_seen_at AS user_last_seen_at,
+						u.last_authenticated_at AS user_last_authenticated_at,
+						r.updated_at
+				FROM app_user_collection_rollup r
+				LEFT JOIN app_users u ON u.email_normalized = r.email
 			WHERE COALESCE(r.user_id, u.id) = ${normalizedUserId}
 			LIMIT 1
 		`;
@@ -515,13 +560,26 @@ export class UserCollectionRepository {
 		const signalCounts = await this.listSignalCounts([
 			{ email: row.email, userId: row.user_id },
 		]);
+		const firstVerifiedAt = toIsoString(row.first_seen_at) || undefined;
+		const lastVerifiedAt =
+			toIsoString(row.last_seen_at) || new Date(0).toISOString();
+		const lastSeenAt = latestIso(
+			toIsoString(row.user_last_seen_at),
+			lastVerifiedAt,
+		);
+		const lastAuthenticatedAt =
+			toIsoString(row.user_last_authenticated_at) || lastVerifiedAt;
 		return {
 			...(row.user_id ? { userId: row.user_id } : {}),
 			firstName: row.first_name,
 			lastName: row.last_name,
 			email: normalizeEmail(row.email),
-			timestamp: toIsoString(row.last_seen_at) || new Date(0).toISOString(),
-			firstSignInAt: toIsoString(row.first_seen_at) || undefined,
+			timestamp: lastVerifiedAt,
+			firstSignInAt: firstVerifiedAt,
+			firstVerifiedAt,
+			lastVerifiedAt,
+			lastSeenAt,
+			lastAuthenticatedAt,
 			consent: row.consent,
 			termsVersion: row.terms_version,
 			termsAcceptedAt: toIsoString(row.terms_accepted_at),

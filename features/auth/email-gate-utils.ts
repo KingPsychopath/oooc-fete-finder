@@ -51,9 +51,38 @@ export const validateEmail = (rawEmail: string): boolean => {
 	return emailRegex.test(rawEmail);
 };
 
-export const validateName = (rawName: string): boolean => {
+const NAME_MIN_LETTERS = 2;
+const NAME_MAX_LENGTH = 60;
+const nameLetterRegex = new RegExp("[\\p{L}]", "u");
+const nameShapeRegex = new RegExp(
+	"^\\p{L}[\\p{L}\\p{M}]*(?:[ '\\u2019-]\\p{L}[\\p{L}\\p{M}]*)*$",
+	"u",
+);
+
+export const getNameValidationError = (
+	rawName: string,
+	label = "Name",
+): string | null => {
 	const name = rawName.trim();
-	return name.length >= 2;
+	if (name.length < NAME_MIN_LETTERS) {
+		return `${label} must be at least ${NAME_MIN_LETTERS} characters`;
+	}
+	if (name.length > NAME_MAX_LENGTH) {
+		return `${label} must be ${NAME_MAX_LENGTH} characters or fewer`;
+	}
+
+	const letterCount = Array.from(name).filter((character) =>
+		nameLetterRegex.test(character),
+	).length;
+	if (letterCount < NAME_MIN_LETTERS || !nameShapeRegex.test(name)) {
+		return `${label} can only include letters, spaces, hyphens, or apostrophes`;
+	}
+
+	return null;
+};
+
+export const validateName = (rawName: string): boolean => {
+	return getNameValidationError(rawName) === null;
 };
 
 export const sanitizeRecentProfile = (
@@ -69,6 +98,7 @@ export const sanitizeRecentProfile = (
 	const email =
 		typeof profile.email === "string" ? profile.email.trim().toLowerCase() : "";
 	if (!firstName || !lastName || !email) return null;
+	if (!validateName(firstName) || !validateName(lastName)) return null;
 	if (!validateEmail(email)) return null;
 
 	return { firstName, lastName, email };

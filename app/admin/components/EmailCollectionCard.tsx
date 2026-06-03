@@ -59,6 +59,7 @@ type EmailSortMode =
 	| "likely-test"
 	| "activity"
 	| "last-active"
+	| "last-seen"
 	| "first-sign-in"
 	| "searches"
 	| "filters";
@@ -100,9 +101,9 @@ const ACTIVITY_SEGMENTS: Array<{
 		sortMode: "activity",
 	},
 	{
-		label: "Seen after last action",
+		label: "Returned after activity",
 		value: "returned-no-activity",
-		sortMode: "newest",
+		sortMode: "last-seen",
 	},
 	{ label: "Context available", value: "has-context", sortMode: "last-active" },
 	{ label: "Context missing", value: "missing-context", sortMode: "newest" },
@@ -295,8 +296,17 @@ const getTime = (value: string | null | undefined): number => {
 const getActivityCount = (user: EmailRecord): number =>
 	user.linkedSignalCount ?? 0;
 
+const getFirstVerifiedAt = (user: EmailRecord): string | undefined =>
+	user.firstVerifiedAt ?? user.firstSignInAt;
+
+const getLastVerifiedAt = (user: EmailRecord): string =>
+	user.lastVerifiedAt ?? user.timestamp;
+
+const getUserLastSeenAt = (user: EmailRecord): string =>
+	user.lastSeenAt ?? user.lastAuthenticatedAt ?? getLastVerifiedAt(user);
+
 const hasReturnedWithoutNewActivity = (user: EmailRecord): boolean => {
-	const capturedAt = getTime(user.timestamp);
+	const capturedAt = getTime(getUserLastSeenAt(user));
 	const lastActiveAt = getTime(user.lastSignalAt);
 	return (
 		capturedAt > 0 &&
@@ -310,13 +320,16 @@ const sortEmails = (emails: EmailRecord[], sortMode: EmailSortMode) => {
 		switch (sortMode) {
 			case "first-sign-in":
 				return (
-					getTime(right.firstSignInAt ?? right.timestamp) -
-					getTime(left.firstSignInAt ?? left.timestamp)
+					getTime(getFirstVerifiedAt(right) ?? getLastVerifiedAt(right)) -
+					getTime(getFirstVerifiedAt(left) ?? getLastVerifiedAt(left))
+				);
+			case "last-seen":
+				return (
+					getTime(getUserLastSeenAt(right)) - getTime(getUserLastSeenAt(left))
 				);
 			case "oldest":
 				return (
-					new Date(left.timestamp).getTime() -
-					new Date(right.timestamp).getTime()
+					getTime(getLastVerifiedAt(left)) - getTime(getLastVerifiedAt(right))
 				);
 			case "email":
 				return compareStrings(left.email, right.email);
@@ -342,8 +355,7 @@ const sortEmails = (emails: EmailRecord[], sortMode: EmailSortMode) => {
 				return (right.filterSignalCount ?? 0) - (left.filterSignalCount ?? 0);
 			default:
 				return (
-					new Date(right.timestamp).getTime() -
-					new Date(left.timestamp).getTime()
+					getTime(getLastVerifiedAt(right)) - getTime(getLastVerifiedAt(left))
 				);
 		}
 	});
@@ -429,9 +441,10 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		"First Name",
 		"Last Name",
 		"Email",
-		"First Sign-in At",
-		"Last Sign-in At",
-		"Last Active At",
+		"First Verified At",
+		"Last Verified At",
+		"Last Seen At",
+		"Latest Linked Activity At",
 		"Terms Accepted",
 		"Terms Version",
 		"Terms Accepted At",
@@ -457,8 +470,9 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		user.firstName,
 		user.lastName,
 		user.email,
-		user.firstSignInAt ?? "",
-		user.timestamp,
+		getFirstVerifiedAt(user) ?? "",
+		getLastVerifiedAt(user),
+		getUserLastSeenAt(user),
 		user.lastSignalAt ?? "",
 		hasTermsAcceptance(user),
 		user.termsVersion ?? "",
@@ -638,20 +652,28 @@ const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 	},
 	{ label: "Collection origin", value: profile.user.source || "Unknown" },
 	{
-		label: "Last sign-in",
-		value: formatAdminDateTime(profile.user.timestamp),
+		label: "Last seen",
+		value: formatAdminDateTime(getUserLastSeenAt(profile.user)),
+		help: "Most recent confirmed authenticated session check. This updates when a returning user still has a valid account cookie.",
 	},
 	{
-		label: "First sign-in",
-		value: profile.user.firstSignInAt
-			? formatAdminDateTime(profile.user.firstSignInAt)
+		label: "First verified",
+		value: getFirstVerifiedAt(profile.user)
+			? formatAdminDateTime(getFirstVerifiedAt(profile.user))
 			: "Not yet recorded",
+		help: "First time this email completed verification or was captured into the user collection.",
+	},
+	{
+		label: "Last verified",
+		value: formatAdminDateTime(getLastVerifiedAt(profile.user)),
+		help: "Most recent verification or auth-capture event for this email. This is not the same as every later return visit.",
 	},
 	{
 		label: "Latest linked activity",
 		value: getLastActiveAt(profile)
 			? formatAdminDateTime(getLastActiveAt(profile) ?? "")
 			: "No linked activity",
+		help: "Most recent linked behavior row, such as search, filter, plan, event action, tour, or genre preference. It can happen before verification if anonymous activity was linked during sign-in.",
 	},
 	{
 		label: "Tour progress",
@@ -685,7 +707,7 @@ export const EmailCollectionCard = ({
 	onGetUserProfile,
 }: EmailCollectionCardProps) => {
 	const [query, setQuery] = useState("");
-	const [sortMode, setSortMode] = useState<EmailSortMode>("last-active");
+	const [sortMode, setSortMode] = useState<EmailSortMode>("last-seen");
 	const [filterMode, setFilterMode] = useState<EmailFilterMode>("all");
 	const [activityFilterMode, setActivityFilterMode] =
 		useState<EmailActivityFilterMode>("all");
@@ -724,7 +746,9 @@ export const EmailCollectionCard = ({
 		let usersLast7d = 0;
 
 		for (const user of mergedEmails) {
-			const parsed = getParsedTime(user.firstSignInAt ?? user.timestamp);
+			const parsed = getParsedTime(
+				getFirstVerifiedAt(user) ?? getLastVerifiedAt(user),
+			);
 			if (Number.isNaN(parsed)) continue;
 			if (parsed >= cutoff24h) usersLast24h++;
 			if (parsed >= cutoff7d) usersLast7d++;
@@ -763,7 +787,9 @@ export const EmailCollectionCard = ({
 				user.lastName,
 				user.email,
 				user.source,
-				user.timestamp,
+				getLastVerifiedAt(user),
+				getUserLastSeenAt(user),
+				user.lastSignalAt,
 				user.deviceClass,
 				user.platform,
 				user.browserFamily,
@@ -911,6 +937,10 @@ export const EmailCollectionCard = ({
 						genrePreferenceSignalCount:
 							loadedProfile.user.genrePreferenceSignalCount,
 						lastSignalAt: loadedProfile.user.lastSignalAt,
+						firstVerifiedAt: loadedProfile.user.firstVerifiedAt,
+						lastVerifiedAt: loadedProfile.user.lastVerifiedAt,
+						lastSeenAt: loadedProfile.user.lastSeenAt,
+						lastAuthenticatedAt: loadedProfile.user.lastAuthenticatedAt,
 						deviceClass: loadedProfile.user.deviceClass,
 						platform: loadedProfile.user.platform,
 						browserFamily: loadedProfile.user.browserFamily,
@@ -1139,7 +1169,9 @@ export const EmailCollectionCard = ({
 						<option value="plan-actions">Used plans</option>
 						<option value="event-actions">Opened/saved events</option>
 						<option value="genre-prefs">Genre prefs</option>
-						<option value="returned-no-activity">Seen after last action</option>
+						<option value="returned-no-activity">
+							Returned after activity
+						</option>
 						<option value="has-context">Context available</option>
 						<option value="missing-context">Context missing</option>
 					</select>
@@ -1150,14 +1182,15 @@ export const EmailCollectionCard = ({
 						}
 						className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
 					>
-						<option value="last-active">Last active</option>
-						<option value="newest">Recently seen</option>
-						<option value="oldest">Oldest seen</option>
+						<option value="last-seen">Last seen</option>
+						<option value="last-active">Latest linked activity</option>
+						<option value="newest">Last verified</option>
+						<option value="oldest">Oldest verified</option>
 						<option value="email">Email A-Z</option>
 						<option value="name">Name A-Z</option>
 						<option value="consented">Consent first</option>
 						<option value="likely-test">Tests first</option>
-						<option value="first-sign-in">First sign in</option>
+						<option value="first-sign-in">First verified</option>
 						<option value="activity">Most activity</option>
 						<option value="searches">Most searches</option>
 						<option value="filters">Most filters</option>
@@ -1340,138 +1373,153 @@ export const EmailCollectionCard = ({
 						No matching users.
 					</div>
 				) : (
-					<div className="max-h-[30rem] space-y-2 overflow-y-auto pr-1">
-						{filteredEmails.map((user) => {
-							const isSelected = selectedEmails.includes(user.email);
-							const isTest = isLikelyTestEmail(user.email);
-							return (
-								<div
-									key={`${user.email}-${user.timestamp}`}
-									className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md border bg-background/60 p-3 transition-colors hover:bg-muted/40 sm:grid-cols-[auto_minmax(0,1fr)_auto]"
-								>
-									<input
-										type="checkbox"
-										checked={isSelected}
-										onChange={() => handleToggleEmail(user.email)}
-										className="mt-1 size-4 rounded border-input"
-										aria-label={`Select ${user.email}`}
-									/>
-									<span className="min-w-0 flex-1">
-										<span className="flex flex-wrap items-start justify-between gap-2">
-											<span className="min-w-0">
-												<span className="block truncate text-sm font-medium">
-													{user.firstName || user.lastName
-														? `${user.firstName} ${user.lastName}`.trim()
-														: "No name"}
-												</span>
-												<span className="block truncate text-xs text-muted-foreground">
-													{user.email}
-												</span>
-											</span>
-											<span className="flex flex-wrap gap-1.5">
-												{isTest && <Badge variant="outline">Likely test</Badge>}
-												<Badge variant="outline">
-													{user.linkedSignalCount ?? 0} activity
-												</Badge>
-												<Badge
-													variant={
-														hasTermsAcceptance(user) ? "default" : "destructive"
-													}
-												>
-													{hasTermsAcceptance(user) ? "Terms" : "No terms"}
-												</Badge>
-												<Badge
-													variant={
-														hasPrivacyAcceptance(user)
-															? "outline"
-															: "destructive"
-													}
-												>
-													{hasPrivacyAcceptance(user)
-														? "Privacy"
-														: "No privacy"}
-												</Badge>
-												{user.marketingConsent && (
-													<Badge variant="outline">Marketing opt-in</Badge>
-												)}
-												{user.eventUpdateConsent && !user.marketingConsent && (
-													<Badge variant="outline">Event updates</Badge>
-												)}
-												{!user.marketingConsent && !user.eventUpdateConsent && (
-													<Badge variant="secondary">No marketing</Badge>
-												)}
-											</span>
-										</span>
-										<span className="mt-2 flex flex-wrap gap-1.5">
-											{(user.searchSignalCount ?? 0) > 0 && (
-												<Badge variant="outline">
-													Searches: {user.searchSignalCount}
-												</Badge>
-											)}
-											{(user.filterSignalCount ?? 0) > 0 && (
-												<Badge variant="outline">
-													Filters: {user.filterSignalCount}
-												</Badge>
-											)}
-											{(user.planActionSignalCount ?? 0) > 0 && (
-												<Badge variant="outline">
-													Plans: {user.planActionSignalCount}
-												</Badge>
-											)}
-											{(user.eventActionSignalCount ?? 0) > 0 && (
-												<Badge variant="outline">
-													Events: {user.eventActionSignalCount}
-												</Badge>
-											)}
-											{(user.genrePreferenceSignalCount ?? 0) > 0 && (
-												<Badge variant="outline">
-													Genres: {user.genrePreferenceSignalCount}
-												</Badge>
-											)}
-											{hasReturnedWithoutNewActivity(user) && (
-												<Badge variant="outline">Seen after last action</Badge>
-											)}
-										</span>
-										{getUserContextItems(user).length > 0 && (
-											<span className="mt-2 flex flex-wrap gap-1.5">
-												{getUserContextItems(user).map((item) => (
-													<Badge key={item.label} variant="outline">
-														{item.label}: {item.value}
-													</Badge>
-												))}
-											</span>
-										)}
-										<span className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
-											{user.firstSignInAt && (
-												<span>
-													First sign in{" "}
-													{formatAdminDateTime(user.firstSignInAt)}
-												</span>
-											)}
-											<span>
-												Last sign in {formatAdminDateTime(user.timestamp)}
-											</span>
-											{user.lastSignalAt && (
-												<span>
-													Latest linked activity{" "}
-													{formatAdminDateTime(user.lastSignalAt)}
-												</span>
-											)}
-										</span>
-									</span>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() => void handleOpenProfile(user)}
-										className="col-start-2 w-fit shrink-0 justify-self-start sm:col-start-auto sm:justify-self-end"
+					<div className="rounded-md border bg-background/35 p-2">
+						<div className="max-h-[30rem] space-y-2 overflow-y-auto pr-3 [scrollbar-gutter:stable]">
+							{filteredEmails.map((user) => {
+								const isSelected = selectedEmails.includes(user.email);
+								const isTest = isLikelyTestEmail(user.email);
+								return (
+									<div
+										key={`${user.email}-${getUserLastSeenAt(user)}`}
+										className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md border bg-background/60 p-3 transition-colors hover:bg-muted/40 sm:grid-cols-[auto_minmax(0,1fr)_auto]"
 									>
-										<Eye className="size-4" />
-										View
-									</Button>
-								</div>
-							);
-						})}
+										<input
+											type="checkbox"
+											checked={isSelected}
+											onChange={() => handleToggleEmail(user.email)}
+											className="mt-1 size-4 rounded border-input"
+											aria-label={`Select ${user.email}`}
+										/>
+										<span className="min-w-0 flex-1">
+											<span className="flex flex-wrap items-start justify-between gap-2">
+												<span className="min-w-0">
+													<span className="block truncate text-sm font-medium">
+														{user.firstName || user.lastName
+															? `${user.firstName} ${user.lastName}`.trim()
+															: "No name"}
+													</span>
+													<span className="block truncate text-xs text-muted-foreground">
+														{user.email}
+													</span>
+												</span>
+												<span className="flex flex-wrap gap-1.5">
+													{isTest && (
+														<Badge variant="outline">Likely test</Badge>
+													)}
+													<Badge variant="outline">
+														{user.linkedSignalCount ?? 0} activity
+													</Badge>
+													<Badge
+														variant={
+															hasTermsAcceptance(user)
+																? "default"
+																: "destructive"
+														}
+													>
+														{hasTermsAcceptance(user) ? "Terms" : "No terms"}
+													</Badge>
+													<Badge
+														variant={
+															hasPrivacyAcceptance(user)
+																? "outline"
+																: "destructive"
+														}
+													>
+														{hasPrivacyAcceptance(user)
+															? "Privacy"
+															: "No privacy"}
+													</Badge>
+													{user.marketingConsent && (
+														<Badge variant="outline">Marketing opt-in</Badge>
+													)}
+													{user.eventUpdateConsent &&
+														!user.marketingConsent && (
+															<Badge variant="outline">Event updates</Badge>
+														)}
+													{!user.marketingConsent &&
+														!user.eventUpdateConsent && (
+															<Badge variant="secondary">No marketing</Badge>
+														)}
+												</span>
+											</span>
+											<span className="mt-2 flex flex-wrap gap-1.5">
+												{(user.searchSignalCount ?? 0) > 0 && (
+													<Badge variant="outline">
+														Searches: {user.searchSignalCount}
+													</Badge>
+												)}
+												{(user.filterSignalCount ?? 0) > 0 && (
+													<Badge variant="outline">
+														Filters: {user.filterSignalCount}
+													</Badge>
+												)}
+												{(user.planActionSignalCount ?? 0) > 0 && (
+													<Badge variant="outline">
+														Plans: {user.planActionSignalCount}
+													</Badge>
+												)}
+												{(user.eventActionSignalCount ?? 0) > 0 && (
+													<Badge variant="outline">
+														Events: {user.eventActionSignalCount}
+													</Badge>
+												)}
+												{(user.genrePreferenceSignalCount ?? 0) > 0 && (
+													<Badge variant="outline">
+														Genres: {user.genrePreferenceSignalCount}
+													</Badge>
+												)}
+												{hasReturnedWithoutNewActivity(user) && (
+													<Badge variant="outline">
+														Returned after activity
+													</Badge>
+												)}
+											</span>
+											{getUserContextItems(user).length > 0 && (
+												<span className="mt-2 flex flex-wrap gap-1.5">
+													{getUserContextItems(user).map((item) => (
+														<Badge key={item.label} variant="outline">
+															{item.label}: {item.value}
+														</Badge>
+													))}
+												</span>
+											)}
+											<span className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
+												{getFirstVerifiedAt(user) && (
+													<span>
+														First verified{" "}
+														{formatAdminDateTime(getFirstVerifiedAt(user))}
+													</span>
+												)}
+												<span>
+													Last seen{" "}
+													{formatAdminDateTime(getUserLastSeenAt(user))}
+												</span>
+												<span>
+													Last verified{" "}
+													{formatAdminDateTime(getLastVerifiedAt(user))}
+												</span>
+												{user.lastSignalAt && (
+													<span>
+														Latest linked activity{" "}
+														{formatAdminDateTime(user.lastSignalAt)}
+													</span>
+												)}
+											</span>
+										</span>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() => void handleOpenProfile(user)}
+											className="col-start-2 w-fit shrink-0 justify-self-start sm:col-start-auto sm:justify-self-end"
+										>
+											<Eye className="size-4" />
+											View
+										</Button>
+									</div>
+								);
+							})}
+						</div>
 					</div>
 				)}
 			</CardContent>
@@ -1573,8 +1621,17 @@ export const EmailCollectionCard = ({
 											key={item.label}
 											className="flex justify-between gap-2 rounded-md border bg-background/60 px-2.5 py-2 text-xs"
 										>
-											<span className="text-muted-foreground">
-												{item.label}
+											<span className="flex min-w-0 items-center text-muted-foreground">
+												<span className="truncate">{item.label}</span>
+												{"help" in item && item.help && (
+													<InfoPopover
+														aria-label={`Explain ${item.label}`}
+														side="top"
+														className="ml-1 size-5"
+													>
+														{item.help}
+													</InfoPopover>
+												)}
 											</span>
 											<span className="truncate text-foreground">
 												{item.value}

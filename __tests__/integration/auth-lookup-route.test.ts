@@ -115,6 +115,44 @@ describe("/api/auth/lookup route", () => {
 		expect(payload).not.toHaveProperty("exists");
 	});
 
+	it("requires name again when a stored profile has invalid name characters", async () => {
+		const { POST, getUserProfile } = await loadRoute();
+		getUserProfile.mockResolvedValue({
+			user: {
+				firstName: "Pris",
+				lastName: "🥀",
+				email: "known@example.com",
+				timestamp: "2026-05-08T00:00:00.000Z",
+				consent: true,
+				termsVersion: "2026-06-03",
+				termsAcceptedAt: "2026-06-03T00:00:00.000Z",
+				privacyVersion: "2026-06-01",
+				privacyAcceptedAt: "2026-06-03T00:00:00.000Z",
+				source: "auth-modal",
+			},
+		});
+
+		const response = await POST(
+			new Request("https://example.com/api/auth/lookup", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-forwarded-for": "203.0.113.23",
+				},
+				body: JSON.stringify({ email: "KNOWN@example.com" }),
+			}),
+		);
+		const payload = (await response.json()) as Record<string, unknown>;
+
+		expect(response.status).toBe(200);
+		expect(payload).toEqual({
+			success: true,
+			email: "known@example.com",
+			requiresName: true,
+			requiresConsent: false,
+		});
+	});
+
 	it("returns 429 when lookup rate limit is exceeded", async () => {
 		const { POST, checkAuthLookupIpLimit, getUserProfile } = await loadRoute();
 		checkAuthLookupIpLimit.mockResolvedValue({

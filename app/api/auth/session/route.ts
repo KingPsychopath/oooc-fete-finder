@@ -9,6 +9,8 @@ import {
 	forbiddenNoStoreResponse,
 	isSameOriginRequest,
 } from "@/lib/http/request-security";
+import { log } from "@/lib/platform/logger";
+import { getUserRepository } from "@/lib/platform/postgres/user-repository";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -18,6 +20,22 @@ export async function GET(request: NextRequest) {
 		),
 		verifyAdminSessionFromRequest(request),
 	]);
+	if (session.isAuthenticated) {
+		try {
+			await getUserRepository()?.touchContext({
+				userId: session.userId,
+				email: session.email,
+			});
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Unknown last-seen touch error";
+			log.warn("auth-session", "Failed to update user last-seen timestamp", {
+				message,
+			});
+		}
+	}
 
 	return NextResponse.json(
 		{

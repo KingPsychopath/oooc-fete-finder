@@ -52,7 +52,10 @@ const buildCollectedUsersCsv = (users: UserRecord[]): string => {
 		"First Name",
 		"Last Name",
 		"Email",
-		"Timestamp",
+		"First Verified At",
+		"Last Verified At",
+		"Last Seen At",
+		"Latest Linked Activity At",
 		"Terms Accepted",
 		"Terms Version",
 		"Terms Accepted At",
@@ -67,7 +70,13 @@ const buildCollectedUsersCsv = (users: UserRecord[]): string => {
 		user.firstName,
 		user.lastName,
 		user.email,
-		user.timestamp,
+		user.firstVerifiedAt ?? user.firstSignInAt ?? "",
+		user.lastVerifiedAt ?? user.timestamp,
+		user.lastSeenAt ??
+			user.lastAuthenticatedAt ??
+			user.lastVerifiedAt ??
+			user.timestamp,
+		user.lastSignalAt ?? "",
 		String(user.consent),
 		user.termsVersion ?? "",
 		user.termsAcceptedAt ?? "",

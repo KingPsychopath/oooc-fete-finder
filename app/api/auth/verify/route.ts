@@ -1,3 +1,7 @@
+import {
+	getNameValidationError,
+	validateName,
+} from "@/features/auth/email-gate-utils";
 import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import {
 	USER_AUTH_COOKIE_NAME,
@@ -162,8 +166,8 @@ export async function POST(request: Request) {
 	const hasExistingIdentity = Boolean(
 		existingFirstName &&
 			existingLastName &&
-			existingFirstName.length >= 2 &&
-			existingLastName.length >= 2,
+			validateName(existingFirstName) &&
+			validateName(existingLastName),
 	);
 	const hasExistingConsent = Boolean(
 		existingUser?.consent &&
@@ -176,15 +180,17 @@ export async function POST(request: Request) {
 	const finalLastName = hasExistingIdentity ? existingLastName : lastName;
 	const finalConsent = hasExistingConsent || submittedRequiredAcceptance;
 
-	if (finalFirstName.length < 2) {
+	const firstNameError = getNameValidationError(finalFirstName, "First name");
+	if (firstNameError) {
 		return NextResponse.json(
-			{ success: false, error: "First name must be at least 2 characters" },
+			{ success: false, error: firstNameError },
 			{ status: 400, headers: NO_STORE_HEADERS },
 		);
 	}
-	if (finalLastName.length < 2) {
+	const lastNameError = getNameValidationError(finalLastName, "Last name");
+	if (lastNameError) {
 		return NextResponse.json(
-			{ success: false, error: "Last name must be at least 2 characters" },
+			{ success: false, error: lastNameError },
 			{ status: 400, headers: NO_STORE_HEADERS },
 		);
 	}
