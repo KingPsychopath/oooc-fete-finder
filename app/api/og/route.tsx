@@ -44,6 +44,8 @@ const ALLOWED_PRESETS = [
 	"partner-success",
 	"partner-performance-report",
 	"social-assets",
+	"exchange",
+	"plans",
 	"event",
 	"shared-plan",
 ] as const;
@@ -193,6 +195,16 @@ const STATIC_PRESET_CONTENT: Record<
 		variant: "default",
 		title: "Social Assets",
 		subtitle: "Private branded export routes for creative assets",
+	},
+	exchange: {
+		variant: "default",
+		title: "Ticket Exchange",
+		subtitle: "Find ticket posts linked to curated Fête Finder events",
+	},
+	plans: {
+		variant: "default",
+		title: "Plan Your Route",
+		subtitle: "Save events, order your stops, and share the night",
 	},
 };
 
@@ -530,8 +542,10 @@ const getSvgTitleLayout = (title: string, isEventCard: boolean) => {
 			return {
 				lines,
 				size:
-					!isEventCard && title.length <= 14 && lines.length === 1
-						? 104
+					lines.length === 1 && !isEventCard
+						? title.length <= 14
+							? 104
+							: Math.min(candidate.size, 74)
 						: candidate.size,
 				lineHeight: candidate.size * 0.98,
 			};

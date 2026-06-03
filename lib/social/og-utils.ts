@@ -15,7 +15,9 @@ export type OGPreset =
 	| "feature-event"
 	| "partner-success"
 	| "partner-performance-report"
-	| "social-assets";
+	| "social-assets"
+	| "exchange"
+	| "plans";
 
 const STATIC_OG_IMAGE_BY_PRESET: Record<OGPreset, string> = {
 	home: "/og/home.png",
@@ -26,6 +28,8 @@ const STATIC_OG_IMAGE_BY_PRESET: Record<OGPreset, string> = {
 	"partner-success": "/og/partner-success.png",
 	"partner-performance-report": "/og/partner-performance-report.png",
 	"social-assets": "/og/social-assets.png",
+	exchange: "/og/exchange.png",
+	plans: "/og/plans.png",
 };
 
 type OGImageParams = {

@@ -7,6 +7,12 @@ import {
 	getTicketExchangePageModel,
 } from "@/features/ticket-exchange/service";
 import { getPublicSlidingBannerSettingsCached } from "@/features/site-settings/queries";
+import { buildSiteUrl } from "@/lib/site-url";
+import {
+	generateEventOGImage,
+	generateOGMetadata,
+	generatePresetOGImage,
+} from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -22,13 +28,18 @@ export async function generateMetadata({
 	const { eventKey } = await params;
 	const events = await getTicketExchangeEvents();
 	const event = findTicketExchangeEventByKey(events, eventKey);
-	return {
-		title: event
-			? `${event.name} Tickets | Fete Finder`
-			: "Ticket Exchange | Fete Finder",
+	const title = event
+		? `${event.name} Tickets | Fete Finder`
+		: "Ticket Exchange | Fete Finder";
+	return generateOGMetadata({
+		title,
 		description:
 			"Find people selling or looking for tickets. OOOC only connects people; trades happen off-platform.",
-	};
+		ogImageUrl: event
+			? generateEventOGImage({ eventKey: event.eventKey })
+			: generatePresetOGImage("exchange"),
+		url: buildSiteUrl(`/exchange/${eventKey}`),
+	});
 }
 
 export default async function ExchangeEventPage({

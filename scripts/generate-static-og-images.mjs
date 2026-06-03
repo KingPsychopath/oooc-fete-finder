@@ -1,10 +1,16 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { Resvg } from "@resvg/resvg-js";
 import sharp from "sharp";
 
 const WIDTH = 1200;
 const HEIGHT = 630;
 const OUT_DIR = path.join(process.cwd(), "public", "og");
+const FONT_ROOT = path.join(process.cwd(), "public", "fonts");
+const OG_FONT_FILES = [
+	path.join(FONT_ROOT, "degular_regular.ttf"),
+	path.join(FONT_ROOT, "prata_regular.ttf"),
+];
 
 const presets = {
 	home: {
@@ -96,6 +102,28 @@ const presets = {
 			{ label: "Social", value: "X / LinkedIn" },
 		],
 	},
+	exchange: {
+		label: "Ticket Exchange",
+		title: "Ticket exchange",
+		subtitle: "Find ticket posts linked to curated Fête Finder events.",
+		accent: "#155d63",
+		facts: [
+			{ label: "For", value: "Buyers" },
+			{ label: "Also", value: "Sellers" },
+			{ label: "Trades", value: "Off-platform" },
+		],
+	},
+	plans: {
+		label: "Route Planner",
+		title: "Plan your route",
+		subtitle: "Save events, order your stops, and share the night.",
+		accent: "#2f7652",
+		facts: [
+			{ label: "Save", value: "Events" },
+			{ label: "Order", value: "Stops" },
+			{ label: "Share", value: "A route" },
+		],
+	},
 };
 
 const escapeXml = (value) =>
@@ -153,7 +181,12 @@ const getTitleLayout = (title, forcedLines) => {
 		if (lines.join(" ").replace(/\.\.\.$/, "") === title) {
 			return {
 				lines,
-				size: title.length <= 14 && lines.length === 1 ? 104 : candidate.size,
+				size:
+					lines.length === 1
+						? title.length <= 14
+							? 104
+							: Math.min(candidate.size, 74)
+						: candidate.size,
 				lineHeight: candidate.size * 0.98,
 			};
 		}
@@ -222,15 +255,15 @@ const buildSvg = ({ label, title, titleLines, subtitle, accent, facts }) => {
 			<stop offset="1" stop-color="#fffaf2" stop-opacity="0.08"/>
 		</linearGradient>
 		<style>
-			.eyebrow { font: 700 15px Arial, Helvetica, sans-serif; letter-spacing: 3px; fill: #624f42; }
-			.label { font: 700 17px Arial, Helvetica, sans-serif; letter-spacing: 1.2px; fill: ${accent}; text-transform: uppercase; }
-			.title { font-family: Georgia, 'Times New Roman', serif; font-weight: 500; fill: #211811; }
-			.subtitle { font: 500 30px Arial, Helvetica, sans-serif; fill: #5f5044; }
-			.metaLabel { font: 700 10px Arial, Helvetica, sans-serif; letter-spacing: 1.8px; fill: ${accent}; text-transform: uppercase; }
-			.meta { font: 700 17px Arial, Helvetica, sans-serif; fill: #2f241b; }
-			.footer { font: 700 15px Arial, Helvetica, sans-serif; letter-spacing: 2.1px; fill: #6a5849; }
-			.railText { font: 700 16px Arial, Helvetica, sans-serif; letter-spacing: 2.6px; fill: #fff8ef; }
-			.railSmall { font: 700 15px Arial, Helvetica, sans-serif; fill: #f5debd; }
+			.eyebrow { font: 700 15px "Degular", sans-serif; letter-spacing: 3px; fill: #624f42; }
+			.label { font: 700 17px "Degular", sans-serif; letter-spacing: 1.2px; fill: ${accent}; text-transform: uppercase; }
+			.title { font-family: "Prata", serif; font-weight: 400; fill: #211811; }
+			.subtitle { font: 500 30px "Degular", sans-serif; fill: #5f5044; }
+			.metaLabel { font: 700 10px "Degular", sans-serif; letter-spacing: 1.8px; fill: ${accent}; text-transform: uppercase; }
+			.meta { font: 700 17px "Degular", sans-serif; fill: #2f241b; }
+			.footer { font: 700 15px "Degular", sans-serif; letter-spacing: 2.1px; fill: #6a5849; }
+			.railText { font: 700 16px "Degular", sans-serif; letter-spacing: 2.6px; fill: #fff8ef; stroke: #fff8ef; stroke-width: 0.35px; paint-order: stroke fill; }
+			.railSmall { font: 700 15px "Degular", sans-serif; fill: #f5debd; stroke: #f5debd; stroke-width: 0.3px; paint-order: stroke fill; }
 		</style>
 	</defs>
 	<rect width="${WIDTH}" height="${HEIGHT}" fill="url(#bg)"/>
@@ -272,12 +305,32 @@ const buildSvg = ({ label, title, titleLines, subtitle, accent, facts }) => {
 </svg>`;
 };
 
+const renderPng = async (svg) => {
+	const png2x = new Resvg(svg, {
+		font: {
+			fontFiles: OG_FONT_FILES,
+			loadSystemFonts: false,
+			defaultFontFamily: "Degular",
+			serifFamily: "Prata",
+			sansSerifFamily: "Degular",
+		},
+		fitTo: { mode: "width", value: WIDTH * 2 },
+		logLevel: "error",
+		textRendering: 1,
+	})
+		.render()
+		.asPng();
+
+	return sharp(png2x)
+		.resize(WIDTH, HEIGHT, { kernel: "lanczos3" })
+		.png({ compressionLevel: 9 })
+		.toBuffer();
+};
+
 await fs.mkdir(OUT_DIR, { recursive: true });
 
 for (const [slug, content] of Object.entries(presets)) {
 	const outputPath = path.join(OUT_DIR, `${slug}.png`);
-	await sharp(Buffer.from(buildSvg(content)))
-		.png({ compressionLevel: 9 })
-		.toFile(outputPath);
+	await fs.writeFile(outputPath, await renderPng(buildSvg(content)));
 	console.log(outputPath);
 }
