@@ -511,8 +511,8 @@ const getSvgTitleLayout = (title: string, isEventCard: boolean) => {
 	const candidates = isEventCard
 		? [
 				{ maxChars: 18, size: 76, maxLines: 2 },
-				{ maxChars: 22, size: 64, maxLines: 3 },
-				{ maxChars: 25, size: 56, maxLines: 3 },
+				{ maxChars: 22, size: 64, maxLines: 2 },
+				{ maxChars: 25, size: 56, maxLines: 2 },
 			]
 		: [
 				{ maxChars: 18, size: 82, maxLines: 2 },
@@ -565,22 +565,31 @@ const renderSvgTextLines = ({
 		)
 		.join("");
 
-const renderSvgMetaRows = (items: string[], accent: string): string => {
-	const visible = items.slice(0, 6).map((item) => truncateText(item, 22));
-	const rows = [visible.slice(0, 3), visible.slice(3, 6)].filter(
+const renderSvgMetaRows = (
+	items: string[],
+	accent: string,
+	yPosition: number,
+): string => {
+	const labels = ["Date", "Time", "Access", "Venue", "Sound", "Vibe"];
+	const facts = items.slice(0, 6).map((item, index) => ({
+		label: labels[index] ?? "Detail",
+		value: truncateText(item, 19),
+	}));
+	const rows = [facts.slice(0, 3), facts.slice(3, 6)].filter(
 		(row) => row.length > 0,
 	);
-	return `<g transform="translate(86 462)">
+	return `<g transform="translate(86 ${yPosition})">
 	<line x1="0" y1="0" x2="540" y2="0" stroke="${accent}" stroke-opacity="0.5" stroke-width="2"/>
 	${rows
 		.map((row, rowIndex) =>
 			row
-				.map((item, index) => {
+				.map((fact, index) => {
 					const x = index * 180;
-					const y = 23 + rowIndex * 48;
+					const y = 22 + rowIndex * 56;
 					return `<g transform="translate(${x} ${y})">
-	<line x1="0" y1="-13" x2="0" y2="25" stroke="${accent}" stroke-opacity="0.3"/>
-	<text x="18" y="10" class="meta">${escapeXml(item)}</text>
+	<line x1="0" y1="-10" x2="0" y2="36" stroke="${accent}" stroke-opacity="0.28"/>
+	<text x="18" y="0" class="metaLabel">${escapeXml(fact.label)}</text>
+	<text x="18" y="27" class="meta">${escapeXml(fact.value)}</text>
 </g>`;
 				})
 				.join("\n"),
@@ -602,10 +611,10 @@ const renderOGSvg = (content: {
 	const titleLayout = getSvgTitleLayout(content.title, content.isEventCard);
 	const titleTop = content.isEventCard
 		? titleLayout.lines.length >= 3
-			? 244
+			? 250
 			: titleLayout.lines.length === 2
-				? 252
-				: 246
+				? 260
+				: 264
 		: titleLayout.lines.length === 1
 			? 262
 			: 252;
@@ -617,6 +626,10 @@ const renderOGSvg = (content: {
 		content.isEventCard ? 48 : 42,
 		2,
 	);
+	const subtitleBottom = subtitleTop + (subtitleLines.length - 1) * 41;
+	const factsTop = content.isEventCard
+		? Math.min(Math.max(430, subtitleBottom + 70), 454)
+		: 492;
 	const eventCountChip =
 		!content.isEventCard && content.eventCount > 0
 			? `<rect x="894" y="82" width="202" height="42" rx="21" fill="#fff8ef" fill-opacity="0.14" stroke="#fff8ef" stroke-opacity="0.2"/>
@@ -644,6 +657,7 @@ const renderOGSvg = (content: {
 			.label { font: 700 17px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 1.2px; fill: ${content.accent}; text-transform: uppercase; }
 			.title { font-family: "PrataOG", Georgia, 'Times New Roman', serif; font-weight: 400; fill: #211811; }
 			.subtitle { font: 500 30px "DegularOG", Arial, Helvetica, sans-serif; fill: #5f5044; }
+			.metaLabel { font: 700 10px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 1.8px; fill: ${content.accent}; text-transform: uppercase; }
 			.meta { font: 700 17px "DegularOG", Arial, Helvetica, sans-serif; fill: #2f241b; }
 			.footer { font: 700 15px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 2.1px; fill: #6a5849; text-transform: uppercase; }
 			.railText { font: 700 16px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 2.6px; fill: #fff8ef; }
@@ -675,7 +689,7 @@ const renderOGSvg = (content: {
 		fontSize: 30,
 		lineHeight: 41,
 	})}
-	${renderSvgMetaRows(content.chips, content.accent)}
+	${renderSvgMetaRows(content.chips, content.accent, factsTop)}
 	<text x="54" y="584" class="footer">${escapeXml(content.footerLocation)}</text>
 	<text x="640" y="584" class="footer" text-anchor="end">FETE FINDER</text>
 	${eventCountChip}

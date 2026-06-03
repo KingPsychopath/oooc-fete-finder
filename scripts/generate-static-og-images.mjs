@@ -100,6 +100,9 @@ const wrapText = (value, maxChars, maxLines) => {
 	return visible;
 };
 
+const truncateText = (value, maxChars) =>
+	value.length > maxChars ? `${value.slice(0, maxChars - 1)}…` : value;
+
 const getTitleLayout = (title, forcedLines) => {
 	if (Array.isArray(forcedLines) && forcedLines.length > 0) {
 		return {
@@ -144,15 +147,20 @@ const renderTextLines = ({ lines, x, startY, className, fontSize, lineHeight }) 
 		.join("");
 
 const renderMetaRow = (items, accent) => {
-	const columns = items.slice(0, 3);
+	const labels = ["Focus", "Area", "Format"];
+	const facts = items.slice(0, 3).map((item, index) => ({
+		label: labels[index] ?? "Detail",
+		value: truncateText(item, 19),
+	}));
 	return `<g transform="translate(86 492)">
 	<line x1="0" y1="0" x2="540" y2="0" stroke="${accent}" stroke-opacity="0.5" stroke-width="2"/>
-	${columns
-		.map((item, index) => {
+	${facts
+		.map((fact, index) => {
 			const x = index * 180;
 			return `<g transform="translate(${x} 23)">
-	<line x1="0" y1="-13" x2="0" y2="25" stroke="${accent}" stroke-opacity="0.3"/>
-	<text x="18" y="10" class="meta">${escapeXml(item)}</text>
+	<line x1="0" y1="-10" x2="0" y2="36" stroke="${accent}" stroke-opacity="0.28"/>
+	<text x="18" y="0" class="metaLabel">${escapeXml(fact.label)}</text>
+	<text x="18" y="27" class="meta">${escapeXml(fact.value)}</text>
 </g>`;
 		})
 		.join("\n")}
@@ -187,6 +195,7 @@ const buildSvg = ({ label, title, titleLines, subtitle, accent, chips }) => {
 			.label { font: 700 17px Arial, Helvetica, sans-serif; letter-spacing: 1.2px; fill: ${accent}; text-transform: uppercase; }
 			.title { font-family: Georgia, 'Times New Roman', serif; font-weight: 500; fill: #211811; }
 			.subtitle { font: 500 30px Arial, Helvetica, sans-serif; fill: #5f5044; }
+			.metaLabel { font: 700 10px Arial, Helvetica, sans-serif; letter-spacing: 1.8px; fill: ${accent}; text-transform: uppercase; }
 			.meta { font: 700 17px Arial, Helvetica, sans-serif; fill: #2f241b; }
 			.footer { font: 700 15px Arial, Helvetica, sans-serif; letter-spacing: 2.1px; fill: #6a5849; }
 			.railText { font: 700 16px Arial, Helvetica, sans-serif; letter-spacing: 2.6px; fill: #fff8ef; }
