@@ -16,6 +16,8 @@ import {
 	getEventShareDetails,
 } from "@/lib/social/event-share-details";
 import type { NextRequest } from "next/server";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import sharp from "sharp";
 
 export const runtime = "nodejs";
@@ -27,6 +29,7 @@ const OG_RESPONSE_HEADERS = {
 	"Cache-Control": OG_CACHE_CONTROL,
 	"CDN-Cache-Control": OG_CDN_CACHE_CONTROL,
 } as const;
+const FONT_ROOT = join(process.cwd(), "public", "fonts");
 const RATE_LIMIT_KEY_PREFIX = "og-rate:";
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 120;
@@ -66,6 +69,37 @@ type OGContent = {
 	price: string;
 	venue: string;
 	genres: string[];
+};
+
+let ogFontFaceCss: string | null = null;
+
+const getOGFontFaceCss = (): string => {
+	if (ogFontFaceCss != null) return ogFontFaceCss;
+
+	try {
+		const degular = readFileSync(join(FONT_ROOT, "degular_regular.woff2"));
+		const prata = readFileSync(join(FONT_ROOT, "prata_regular.woff2"));
+		ogFontFaceCss = `
+			@font-face {
+				font-family: "DegularOG";
+				src: url("data:font/woff2;base64,${degular.toString("base64")}") format("woff2");
+				font-weight: 400 800;
+				font-style: normal;
+			}
+			@font-face {
+				font-family: "PrataOG";
+				src: url("data:font/woff2;base64,${prata.toString("base64")}") format("woff2");
+				font-weight: 400;
+				font-style: normal;
+			}`;
+		return ogFontFaceCss;
+	} catch (error) {
+		log.warn("og-image", "Bundled OG fonts unavailable; using renderer fallback", {
+			error: error instanceof Error ? error.message : "unknown",
+		});
+		ogFontFaceCss = "";
+		return ogFontFaceCss;
+	}
 };
 
 const THEMES: Record<OGVariant, OGTheme> = {
@@ -605,14 +639,15 @@ const renderOGSvg = (content: {
 			<stop offset="1" stop-color="#fffaf2" stop-opacity="0.08"/>
 		</linearGradient>
 		<style>
-			.eyebrow { font: 700 15px Arial, Helvetica, sans-serif; letter-spacing: 3px; fill: #624f42; }
-			.label { font: 700 17px Arial, Helvetica, sans-serif; letter-spacing: 1.2px; fill: ${content.accent}; text-transform: uppercase; }
-			.title { font-family: Georgia, 'Times New Roman', serif; font-weight: 500; fill: #211811; }
-			.subtitle { font: 500 30px Arial, Helvetica, sans-serif; fill: #5f5044; }
-			.meta { font: 700 17px Arial, Helvetica, sans-serif; fill: #2f241b; }
-			.footer { font: 700 15px Arial, Helvetica, sans-serif; letter-spacing: 2.1px; fill: #6a5849; text-transform: uppercase; }
-			.railText { font: 700 16px Arial, Helvetica, sans-serif; letter-spacing: 2.6px; fill: #fff8ef; }
-			.railSmall { font: 700 15px Arial, Helvetica, sans-serif; fill: #f5debd; }
+			${getOGFontFaceCss()}
+			.eyebrow { font: 700 15px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 3px; fill: #624f42; }
+			.label { font: 700 17px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 1.2px; fill: ${content.accent}; text-transform: uppercase; }
+			.title { font-family: "PrataOG", Georgia, 'Times New Roman', serif; font-weight: 400; fill: #211811; }
+			.subtitle { font: 500 30px "DegularOG", Arial, Helvetica, sans-serif; fill: #5f5044; }
+			.meta { font: 700 17px "DegularOG", Arial, Helvetica, sans-serif; fill: #2f241b; }
+			.footer { font: 700 15px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 2.1px; fill: #6a5849; text-transform: uppercase; }
+			.railText { font: 700 16px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 2.6px; fill: #fff8ef; }
+			.railSmall { font: 700 15px "DegularOG", Arial, Helvetica, sans-serif; fill: #f5debd; }
 		</style>
 	</defs>
 	<rect width="1200" height="630" fill="url(#bg)"/>
