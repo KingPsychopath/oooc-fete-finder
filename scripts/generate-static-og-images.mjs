@@ -12,28 +12,44 @@ const presets = {
 		title: "Fête Finder",
 		subtitle: "Curated Paris music events by Out Of Office Collective.",
 		accent: "#9a362f",
-		chips: ["Paris", "Music picks", "Route planning"],
+		facts: [
+			{ label: "Picks", value: "Curated music" },
+			{ label: "Where", value: "Paris" },
+			{ label: "When", value: "Fête weekend" },
+		],
 	},
 	"how-it-works": {
 		label: "How It Works",
 		title: "Plan the night without the spreadsheet",
 		subtitle: "Find events, filter by vibe, save your route, and share it.",
 		accent: "#176b65",
-		chips: ["Discover", "Filter", "Share"],
+		facts: [
+			{ label: "Find", value: "Events" },
+			{ label: "Choose", value: "Your vibe" },
+			{ label: "Share", value: "A route" },
+		],
 	},
 	privacy: {
 		label: "Privacy",
 		title: "Clear data rules for Fête Finder",
 		subtitle: "How attendee, host, and partner information is handled.",
 		accent: "#5a4f8f",
-		chips: ["Noindex pages", "Consent first", "OOOC data"],
+		facts: [
+			{ label: "Data", value: "Clear rules" },
+			{ label: "Control", value: "Consent first" },
+			{ label: "Scope", value: "Fête Finder" },
+		],
 	},
 	"submit-event": {
 		label: "Host Submission",
 		title: "Submit your event",
 		subtitle: "Send the essentials for OOOC review and publication.",
 		accent: "#2f7652",
-		chips: ["Hosts", "Review", "Listing"],
+		facts: [
+			{ label: "For", value: "Hosts" },
+			{ label: "Review", value: "OOOC team" },
+			{ label: "Result", value: "Listing" },
+		],
 	},
 	"feature-event": {
 		label: "Partner Placements",
@@ -41,28 +57,44 @@ const presets = {
 		titleLines: ["Partner with", "OOOC"],
 		subtitle: "Spotlight and promoted placements for Fête de la Musique.",
 		accent: "#a35f26",
-		chips: ["Spotlight", "Promoted", "Community"],
+		facts: [
+			{ label: "Reach", value: "Community" },
+			{ label: "Placement", value: "Spotlight" },
+			{ label: "Moment", value: "Fête weekend" },
+		],
 	},
 	"partner-success": {
 		label: "Payment Confirmed",
 		title: "You are in the activation queue",
 		subtitle: "The OOOC team will review and activate your placement.",
 		accent: "#24725b",
-		chips: ["Received", "Queued", "Activation"],
+		facts: [
+			{ label: "Status", value: "Received" },
+			{ label: "Next", value: "Review" },
+			{ label: "Then", value: "Activation" },
+		],
 	},
 	"partner-performance-report": {
 		label: "Private Report",
 		title: "Partner performance report",
 		subtitle: "Private campaign metrics for OOOC placements.",
 		accent: "#2f657d",
-		chips: ["Private", "Reach", "Clicks"],
+		facts: [
+			{ label: "Access", value: "Private" },
+			{ label: "Measure", value: "Reach" },
+			{ label: "Action", value: "Clicks" },
+		],
 	},
 	"social-assets": {
 		label: "Social Assets",
 		title: "Fête Finder social assets",
 		subtitle: "Private branded export routes for OOOC creative assets.",
 		accent: "#754f88",
-		chips: ["Story", "Square", "Twitter"],
+		facts: [
+			{ label: "Story", value: "9:16" },
+			{ label: "Square", value: "1:1" },
+			{ label: "Social", value: "X / LinkedIn" },
+		],
 	},
 };
 
@@ -147,10 +179,9 @@ const renderTextLines = ({ lines, x, startY, className, fontSize, lineHeight }) 
 		.join("");
 
 const renderMetaRow = (items, accent) => {
-	const labels = ["Focus", "Area", "Format"];
-	const facts = items.slice(0, 3).map((item, index) => ({
-		label: labels[index] ?? "Detail",
-		value: truncateText(item, 19),
+	const facts = items.slice(0, 3).map((item) => ({
+		label: truncateText(item.label, 12),
+		value: truncateText(item.value, 19),
 	}));
 	return `<g transform="translate(86 492)">
 	<line x1="0" y1="0" x2="540" y2="0" stroke="${accent}" stroke-opacity="0.5" stroke-width="2"/>
@@ -167,7 +198,7 @@ const renderMetaRow = (items, accent) => {
 </g>`;
 };
 
-const buildSvg = ({ label, title, titleLines, subtitle, accent, chips }) => {
+const buildSvg = ({ label, title, titleLines, subtitle, accent, facts }) => {
 	const titleLayout = getTitleLayout(title, titleLines);
 	const titleTop = titleLayout.lines.length === 1 ? 262 : 252;
 	const titleBottom =
@@ -227,7 +258,7 @@ const buildSvg = ({ label, title, titleLines, subtitle, accent, chips }) => {
 		fontSize: 30,
 		lineHeight: 41,
 	})}
-	${renderMetaRow(chips, accent)}
+	${renderMetaRow(facts, accent)}
 	<text x="54" y="584" class="footer">PARIS</text>
 	<text x="640" y="584" class="footer" text-anchor="end">FETE FINDER</text>
 	<text x="912" y="123" class="railText">PARIS ROUTE</text>

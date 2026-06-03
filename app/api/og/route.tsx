@@ -748,9 +748,6 @@ export async function GET(request: NextRequest) {
 				: svgIsEventCard
 					? "Event Pick"
 					: svgPalette.label;
-		const svgChips = eventCount > 0
-			? [`${eventCount} events`, "Paris", "OOOC"]
-			: ["Paris", "OOOC"];
 		const tagList = genres.slice(0, 3).join(" · ");
 		const svgFacts: MetaFact[] = svgIsEventCard
 			? [
@@ -758,12 +755,16 @@ export async function GET(request: NextRequest) {
 					{ label: "Time", value: time },
 					{ label: "Access", value: price },
 					{ label: "Venue", value: venue },
-					{ label: "Tags", value: tagList, wide: true },
+					{ label: "Vibe", value: tagList, wide: true },
 				].filter((fact) => fact.value)
-			: svgChips.map((value, index) => ({
-					label: ["Focus", "Area", "Format"][index] ?? "Detail",
-					value,
-				}));
+			: [
+					{
+						label: "Picks",
+						value: eventCount > 0 ? `${eventCount} curated` : "Curated music",
+					},
+					{ label: "Where", value: "Paris" },
+					{ label: "When", value: "Fête weekend" },
+				];
 		const png = await renderOGPng({
 			title,
 			subtitle,
