@@ -609,7 +609,7 @@ const EmailGateModal = ({
 													href={termsHref}
 													target="_blank"
 													rel="noopener noreferrer"
-													className="underline underline-offset-4"
+													className="underline underline-offset-4 hover:text-primary"
 												>
 													Terms
 												</Link>{" "}
@@ -618,7 +618,7 @@ const EmailGateModal = ({
 													href={privacyHref}
 													target="_blank"
 													rel="noopener noreferrer"
-													className="underline underline-offset-4"
+													className="underline underline-offset-4 hover:text-primary"
 												>
 													Privacy Policy
 												</Link>
@@ -639,8 +639,10 @@ const EmailGateModal = ({
 										/>
 										<span className="block min-w-0">
 											<span className="block text-muted-foreground">
-												Do not send me optional event recommendations, community
-												updates, and future event announcements.
+												<strong>Do not send me marketing emails</strong>
+												<br />
+												Includes newsletters, event discounts, recommendations,
+												and promotional messages.
 											</span>
 										</span>
 									</label>
@@ -650,25 +652,6 @@ const EmailGateModal = ({
 									Terms and Privacy Policy already accepted for this email.
 								</p>
 							)}
-
-							<div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-								<Link
-									href={termsHref}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="text-primary underline hover:no-underline"
-								>
-									Read Terms
-								</Link>
-								<Link
-									href={privacyHref}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="text-primary underline hover:no-underline"
-								>
-									Read Privacy Policy
-								</Link>
-							</div>
 						</>
 					) : null}
 
