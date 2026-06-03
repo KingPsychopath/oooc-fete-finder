@@ -267,7 +267,7 @@ export default async function FeatureEventPage() {
 
 				<section
 					id="promotion-request"
-					className="mt-8"
+					className="mt-8 scroll-mt-28"
 					aria-label="Promotion request"
 				>
 					<div className="mb-4 flex flex-wrap items-center justify-between gap-3">

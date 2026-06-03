@@ -67,6 +67,8 @@ import {
 	RefreshCw,
 	Search,
 	ShieldAlert,
+	SortAsc,
+	SortDesc,
 	Ticket,
 	Trash2,
 	UserRound,
@@ -86,6 +88,7 @@ import {
 
 type TabKey = "all" | "selling" | "looking" | "mine";
 type MarketplaceTabKey = Exclude<TabKey, "mine">;
+type ListingSortDirection = "newest" | "oldest";
 
 type TicketExchangeClientProps = {
 	initialData: TicketExchangePageData;
@@ -386,6 +389,11 @@ const getListingStatusLabel = (listing: TicketExchangeListingView): string => {
 		: label;
 };
 
+const getListingSortTime = (listing: TicketExchangeListingView): number => {
+	const ms = new Date(listing.createdAt).getTime();
+	return Number.isFinite(ms) ? ms : 0;
+};
+
 const contactIconFor = (label: string) => {
 	if (label === "Email") return <Mail className="h-3.5 w-3.5" />;
 	if (label === "WhatsApp") return <MessageCircle className="h-3.5 w-3.5" />;
@@ -418,12 +426,16 @@ export function TicketExchangeClient({
 	const [selectedEventKey, setSelectedEventKey] = useState<string | null>(
 		initialData.selectedEventKey,
 	);
-	const [activeTab, setActiveTab] = useState<TabKey>(() =>
-		getPreferredMarketplaceTab(
-			initialData.summaries,
-			initialData.selectedEventKey,
-		),
+	const initialMarketplaceTab = getPreferredMarketplaceTab(
+		initialData.summaries,
+		initialData.selectedEventKey,
 	);
+	const [activeTab, setActiveTab] = useState<TabKey>(initialMarketplaceTab);
+	const lastMarketplaceTabRef = useRef<MarketplaceTabKey>(
+		initialMarketplaceTab,
+	);
+	const [listingSortDirection, setListingSortDirection] =
+		useState<ListingSortDirection>("newest");
 	const [isLoginOpen, setIsLoginOpen] = useState(false);
 	const [isProfileOpen, setIsProfileOpen] = useState(!initialData.profile);
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -469,7 +481,12 @@ export function TicketExchangeClient({
 
 	useEffect(() => {
 		if (hasUserSelectedTabRef.current) return;
-		setActiveTab(getPreferredMarketplaceTab(data.summaries, selectedEventKey));
+		const preferredTab = getPreferredMarketplaceTab(
+			data.summaries,
+			selectedEventKey,
+		);
+		lastMarketplaceTabRef.current = preferredTab;
+		setActiveTab(preferredTab);
 	}, [data.summaries, selectedEventKey]);
 
 	useEffect(() => {
@@ -533,6 +550,10 @@ export function TicketExchangeClient({
 		data.userEmail,
 		profileForm,
 	);
+	const isContactReady =
+		draftContactMethodCount >= TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT;
+	const shouldShowContactReadiness =
+		data.isAuthenticated || auth.isAuthenticated;
 	const draftProfile = useMemo(
 		() => createDraftContactProfile(data.profile, data.userEmail, profileForm),
 		[data.profile, data.userEmail, profileForm],
@@ -601,21 +622,64 @@ export function TicketExchangeClient({
 	const activeMarketplaceTabIndex = activeMarketplaceTab
 		? MARKETPLACE_TABS.findIndex((tab) => tab.key === activeMarketplaceTab.key)
 		: -1;
+	const listingCounts = useMemo(() => {
+		const nowMs = Date.now();
+		const listingsForEvent = selectedEventKey
+			? data.listings.filter((listing) => listing.eventKey === selectedEventKey)
+			: data.listings;
+		return {
+			all: listingsForEvent.filter((listing) =>
+				isPublicTicketExchangeListingVisible(listing, "all", nowMs),
+			).length,
+			selling: listingsForEvent.filter((listing) =>
+				isPublicTicketExchangeListingVisible(listing, "selling", nowMs),
+			).length,
+			looking: listingsForEvent.filter((listing) =>
+				isPublicTicketExchangeListingVisible(listing, "looking", nowMs),
+			).length,
+			mine: listingsForEvent.filter(
+				(listing) =>
+					isMyTicketExchangeActivityVisible(listing) &&
+					listing.effectiveStatus === "active",
+			).length,
+		};
+	}, [data.listings, selectedEventKey]);
 	const visibleListings = useMemo(() => {
 		const nowMs = Date.now();
 		const listingsForEvent = selectedEventKey
 			? data.listings.filter((listing) => listing.eventKey === selectedEventKey)
 			: data.listings;
-		if (activeTab === "mine") {
-			return listingsForEvent.filter(isMyTicketExchangeActivityVisible);
-		}
-		return listingsForEvent.filter((listing) =>
-			isPublicTicketExchangeListingVisible(listing, activeTab, nowMs),
+		const filteredListings =
+			activeTab === "mine"
+				? listingsForEvent.filter(isMyTicketExchangeActivityVisible)
+				: listingsForEvent.filter((listing) =>
+						isPublicTicketExchangeListingVisible(listing, activeTab, nowMs),
+					);
+		const sortMultiplier = listingSortDirection === "newest" ? -1 : 1;
+		return [...filteredListings].sort((left, right) => {
+			if (activeTab === "mine") {
+				const leftActive = left.effectiveStatus === "active" ? 0 : 1;
+				const rightActive = right.effectiveStatus === "active" ? 0 : 1;
+				if (leftActive !== rightActive) return leftActive - rightActive;
+			}
+			const createdDelta = getListingSortTime(left) - getListingSortTime(right);
+			if (createdDelta !== 0) return createdDelta * sortMultiplier;
+			return left.id.localeCompare(right.id) * sortMultiplier;
+		});
+	}, [activeTab, data.listings, listingSortDirection, selectedEventKey]);
+	const sortListingsButtonLabel =
+		listingSortDirection === "newest"
+			? "Showing newest listings first"
+			: "Showing oldest listings first";
+	const toggleListingSortDirection = () => {
+		setListingSortDirection((current) =>
+			current === "newest" ? "oldest" : "newest",
 		);
-	}, [activeTab, data.listings, selectedEventKey]);
+	};
 
-	const selectMarketplaceTab = (tab: TabKey) => {
+	const selectMarketplaceTab = (tab: MarketplaceTabKey) => {
 		hasUserSelectedTabRef.current = true;
+		lastMarketplaceTabRef.current = tab;
 		setActiveTab(tab);
 		trackTicketExchangeAnalytics({
 			actionType: "tab_change",
@@ -624,11 +688,26 @@ export function TicketExchangeClient({
 			detail: tab,
 		});
 	};
+	const toggleMyActivityTab = () => {
+		hasUserSelectedTabRef.current = true;
+		const nextTab =
+			activeTab === "mine" ? lastMarketplaceTabRef.current : "mine";
+		if (activeTab !== "mine") {
+			lastMarketplaceTabRef.current = activeTab;
+		}
+		setActiveTab(nextTab);
+		trackTicketExchangeAnalytics({
+			actionType: "tab_change",
+			eventKey: selectedEventKey,
+			surface: "marketplace",
+			detail: nextTab,
+		});
+	};
 	const emptyListingCopy =
 		activeTab === "mine"
 			? {
 					title: "No activity yet",
-					body: "Your listings, replies, and visible contact details will show here.",
+					body: "Listings you posted or replied to will show here.",
 				}
 			: activeTab === "selling"
 				? {
@@ -1191,7 +1270,13 @@ export function TicketExchangeClient({
 							onClick={openContactDetails}
 						>
 							<UserRound className="h-4 w-4" />
-							{isProfileOpen ? "Hide contacts" : "Contact details"}
+							<span>{isProfileOpen ? "Hide contacts" : "Contact details"}</span>
+							{shouldShowContactReadiness ? (
+								<ContactReadinessBadge
+									count={draftContactMethodCount}
+									ready={isContactReady}
+								/>
+							) : null}
 						</Button>
 						<Button type="button" onClick={() => openCreateListing("selling")}>
 							<Plus className="h-4 w-4" />
@@ -1596,7 +1681,13 @@ export function TicketExchangeClient({
 						onClick={openContactDetails}
 					>
 						<UserRound className="h-4 w-4" />
-						{isProfileOpen ? "Hide contacts" : "Contact details"}
+						<span>{isProfileOpen ? "Hide contacts" : "Contact details"}</span>
+						{shouldShowContactReadiness ? (
+							<ContactReadinessBadge
+								count={draftContactMethodCount}
+								ready={isContactReady}
+							/>
+						) : null}
 					</Button>
 					<p className="px-1 text-xs leading-5 text-muted-foreground">
 						Email counts as one contact method. Add one backup method before
@@ -1771,16 +1862,41 @@ export function TicketExchangeClient({
 										active={activeTab === tab.key}
 										onClick={() => selectMarketplaceTab(tab.key)}
 									>
-										{tab.label}
+										<span>{tab.label}</span>
+										{tab.key === "all" ? null : (
+											<TabCountBadge
+												active={activeTab === tab.key}
+												count={listingCounts[tab.key]}
+											/>
+										)}
 									</SegmentedTabButton>
 								))}
 							</div>
-							<div className="grid grid-cols-[1fr_auto] gap-1.5 sm:flex sm:shrink-0">
+							<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-1.5 sm:flex sm:shrink-0">
 								<Button
 									type="button"
 									variant="outline"
 									size="sm"
-									onClick={() => selectMarketplaceTab("mine")}
+									aria-label={sortListingsButtonLabel}
+									title={sortListingsButtonLabel}
+									onClick={toggleListingSortDirection}
+									className={cn(
+										"h-9 w-9 border-border/65 bg-background/48 p-0 text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-xl",
+										CONTROL_TRANSITION,
+										"hover:border-foreground/20 hover:bg-background/70 hover:text-foreground",
+									)}
+								>
+									{listingSortDirection === "newest" ? (
+										<SortDesc className="h-3.5 w-3.5" />
+									) : (
+										<SortAsc className="h-3.5 w-3.5" />
+									)}
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={toggleMyActivityTab}
 									className={cn(
 										"h-9 border-border/65 bg-background/48 px-2.5 text-xs text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-xl sm:px-3 sm:text-sm",
 										CONTROL_TRANSITION,
@@ -1790,7 +1906,14 @@ export function TicketExchangeClient({
 									)}
 								>
 									<ListChecks className="h-3.5 w-3.5" />
-									My activity
+									<span>My activity</span>
+									{listingCounts.mine > 0 ? (
+										<TabCountBadge
+											active={activeTab === "mine"}
+											count={listingCounts.mine}
+											tone="subtle"
+										/>
+									) : null}
 								</Button>
 								<Button
 									type="button"
@@ -2100,7 +2223,7 @@ function SegmentedTabButton({
 			aria-pressed={active}
 			onClick={onClick}
 			className={cn(
-				"relative z-10 min-h-8 rounded-lg px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 sm:min-h-9 sm:rounded-xl sm:px-4 sm:text-sm",
+				"relative z-10 inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 sm:min-h-9 sm:rounded-xl sm:px-4 sm:text-sm",
 				CONTROL_TRANSITION,
 				active
 					? "text-primary-foreground"
@@ -2109,6 +2232,60 @@ function SegmentedTabButton({
 		>
 			{children}
 		</button>
+	);
+}
+
+function TabCountBadge({
+	active,
+	count,
+	tone = "segmented",
+}: {
+	active: boolean;
+	count: number;
+	tone?: "segmented" | "subtle";
+}) {
+	return (
+		<span
+			className={cn(
+				"inline-flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-[10px] leading-none tabular-nums sm:h-5 sm:min-w-5 sm:px-1.5 sm:text-[11px]",
+				active && tone === "segmented"
+					? "border-primary-foreground/25 bg-primary-foreground/15 text-primary-foreground"
+					: active
+						? "border-foreground/15 bg-foreground/10 text-foreground"
+						: "border-border/70 bg-background/55 text-muted-foreground",
+			)}
+		>
+			{count}
+		</span>
+	);
+}
+
+function ContactReadinessBadge({
+	count,
+	ready,
+}: {
+	count: number;
+	ready: boolean;
+}) {
+	const label = ready
+		? "Ready"
+		: `${count}/${TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT}`;
+	return (
+		<span
+			className={cn(
+				"ml-0.5 inline-flex h-5 items-center rounded-full border px-1.5 text-[11px] font-medium leading-none",
+				ready
+					? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+					: "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200",
+			)}
+			title={
+				ready
+					? "Contact details are ready for Ticket Exchange."
+					: "Add one backup contact method before listing or replying."
+			}
+		>
+			{label}
+		</span>
 	);
 }
 
@@ -2184,8 +2361,8 @@ function ContactMethodPicker({
 				</div>
 			) : (
 				<p className="text-xs text-muted-foreground">
-					Choose at least {TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT}.
-					Grey options need adding to your contact details first.
+					Choose at least {TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT}. Grey
+					options need adding to your contact details first.
 				</p>
 			)}
 		</div>
@@ -2261,12 +2438,25 @@ function ListingCard({
 		<article
 			onClick={handleCardClick}
 			className={cn(
-				"cursor-pointer rounded-xl border p-4 shadow-sm transition-colors sm:p-5",
+				"relative overflow-hidden rounded-xl border p-4 shadow-sm transition-colors sm:p-5",
 				isClosedListing
-					? "border-border/35 bg-muted/18 text-muted-foreground shadow-none opacity-65 grayscale-[0.25] hover:opacity-75"
-					: "border-border/70 bg-card/82",
+					? "cursor-pointer border-border/35 bg-muted/18 text-muted-foreground shadow-none opacity-65 grayscale-[0.25] hover:opacity-75"
+					: listing.listingType === "selling"
+						? "cursor-pointer border-emerald-500/18 bg-[linear-gradient(90deg,rgba(16,185,129,0.045),transparent_18%),hsl(var(--card)/0.82)]"
+						: "cursor-pointer border-sky-500/18 bg-[linear-gradient(90deg,rgba(14,165,233,0.045),transparent_18%),hsl(var(--card)/0.82)]",
 			)}
 		>
+			{!isClosedListing ? (
+				<span
+					aria-hidden="true"
+					className={cn(
+						"absolute top-4 bottom-4 left-0 w-1 rounded-r-full",
+						listing.listingType === "selling"
+							? "bg-emerald-500/45"
+							: "bg-sky-500/45",
+					)}
+				/>
+			) : null}
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0 flex-1">
 					<div className="flex flex-wrap items-center gap-2">

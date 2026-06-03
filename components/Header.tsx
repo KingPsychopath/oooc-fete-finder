@@ -184,17 +184,29 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 
 	const isCompressed = scrollState.compressed;
 	const isCollapsed = scrollState.collapsed;
+	const headerClassName = isPromotePage
+		? "relative z-50 bg-background/80 px-3 py-2 backdrop-blur-md sm:sticky sm:top-0 sm:px-4"
+		: "relative z-50 px-3 pt-2 sm:sticky sm:top-0 sm:px-4 sm:pt-3";
+	const headerShellClassName = isPromotePage
+		? "relative mx-auto w-full max-w-6xl overflow-visible rounded-2xl border border-border/65 bg-card/90 shadow-[0_6px_18px_rgba(20,16,12,0.14)] backdrop-blur-lg"
+		: "relative mx-auto w-full max-w-[1400px] overflow-visible rounded-2xl border border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg 2xl:max-w-[1680px]";
+	const headerContentClassName = isPromotePage
+		? "relative z-20 mx-auto flex min-h-[64px] origin-top items-center gap-3 px-3 py-2.5 transition-transform duration-200 ease-out will-change-transform sm:min-h-[68px] sm:px-5 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-4 xl:grid-cols-[minmax(220px,1fr)_auto_minmax(220px,1fr)] xl:gap-6"
+		: "relative z-20 mx-auto flex min-h-[72px] origin-top items-center gap-3 px-3 py-3 transition-transform duration-200 ease-out will-change-transform sm:min-h-[84px] sm:px-5 lg:grid lg:grid-cols-[minmax(190px,1fr)_auto_minmax(170px,1fr)] lg:gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] xl:gap-6";
+	const navClassName = isPromotePage
+		? "hidden items-center gap-5 xl:flex xl:justify-self-center xl:gap-7"
+		: "hidden items-center gap-5 lg:flex lg:justify-self-center xl:gap-7";
 
 	return (
 		<>
-			<header className="relative z-50 px-3 pt-2 sm:sticky sm:top-0 sm:px-4 sm:pt-3">
-				<div className="relative mx-auto w-full max-w-[1400px] overflow-visible rounded-2xl border border-border/65 bg-card/86 shadow-[0_6px_18px_rgba(20,16,12,0.16)] backdrop-blur-lg 2xl:max-w-[1680px]">
+			<header className={headerClassName}>
+				<div className={headerShellClassName}>
 					<div
 						className="pointer-events-none absolute inset-0 rounded-2xl bg-[image:var(--ooo-grain-image)] bg-[length:220px_220px] opacity-[0.055] mix-blend-multiply dark:opacity-[0.075] dark:mix-blend-screen"
 						aria-hidden="true"
 					/>
 					<div
-						className="relative z-20 mx-auto flex min-h-[72px] origin-top items-center gap-3 px-3 py-3 transition-transform duration-200 ease-out will-change-transform sm:min-h-[84px] sm:px-5 lg:grid lg:grid-cols-[minmax(190px,1fr)_auto_minmax(170px,1fr)] lg:gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] xl:gap-6"
+						className={headerContentClassName}
 						style={{
 							transform: isCompressed ? "scale(0.97)" : "scale(1)",
 						}}
@@ -230,10 +242,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							</div>
 						</Link>
 
-						<nav
-							className="hidden items-center gap-5 lg:flex lg:justify-self-center xl:gap-7"
-							aria-label="Main"
-						>
+						<nav className={navClassName} aria-label="Main">
 							<Link
 								href={basePath || "/"}
 								onClick={() => trackHeaderNav("home")}
@@ -344,32 +353,36 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 						</div>
 					</div>
 
-					<div
-						data-header-countdown-strip
-						className="relative z-0 grid overflow-hidden border-border/75 transition-[grid-template-rows,border-width,opacity] duration-200 ease-out"
-						style={{
-							gridTemplateRows: isCollapsed ? "0fr" : "1fr",
-							borderTopWidth: isCollapsed ? "0px" : "1px",
-							opacity: isCollapsed ? 0 : 1,
-						}}
-						aria-hidden={isCollapsed}
-					>
-						<div className="min-h-0 overflow-hidden">
-							<div className="px-3 pt-2 pb-2 sm:px-5 sm:pt-2.5 sm:pb-3">
-								<Countdown isActive={!isCollapsed} />
+					{!isPromotePage && (
+						<div
+							data-header-countdown-strip
+							className="relative z-0 grid overflow-hidden border-border/75 transition-[grid-template-rows,border-width,opacity] duration-200 ease-out"
+							style={{
+								gridTemplateRows: isCollapsed ? "0fr" : "1fr",
+								borderTopWidth: isCollapsed ? "0px" : "1px",
+								opacity: isCollapsed ? 0 : 1,
+							}}
+							aria-hidden={isCollapsed}
+						>
+							<div className="min-h-0 overflow-hidden">
+								<div className="px-3 pt-2 pb-2 sm:px-5 sm:pt-2.5 sm:pb-3">
+									<Countdown isActive={!isCollapsed} />
+								</div>
 							</div>
 						</div>
-					</div>
+					)}
 				</div>
 			</header>
-			{bannerSettings.enabled && bannerSettings.messages.length > 0 && (
-				<SlidingBanner
-					messages={bannerSettings.messages}
-					messageDurationMs={bannerSettings.messageDurationMs}
-					desktopMessageCount={bannerSettings.desktopMessageCount}
-					className="mx-3 mt-2 border-y border-border/20 bg-background/10 dark:border-border/16 dark:bg-background/8 sm:mx-4"
-				/>
-			)}
+			{!isPromotePage &&
+				bannerSettings.enabled &&
+				bannerSettings.messages.length > 0 && (
+					<SlidingBanner
+						messages={bannerSettings.messages}
+						messageDurationMs={bannerSettings.messageDurationMs}
+						desktopMessageCount={bannerSettings.desktopMessageCount}
+						className="mx-3 mt-2 border-y border-border/20 bg-background/10 dark:border-border/16 dark:bg-background/8 sm:mx-4"
+					/>
+				)}
 			<MusicPlatformModal
 				isOpen={isMusicModalOpen}
 				onClose={() => setIsMusicModalOpen(false)}

@@ -4,6 +4,8 @@ import type { Event } from "@/features/events/types";
 const isStrictISODate = (value: string | null | undefined): value is string =>
 	typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
+const DEFAULT_PLAN_DAY_OF_MONTH = "21";
+
 export const getPlanDateOptions = (
 	events: Event[],
 	referenceDate = new Date(),
@@ -28,6 +30,10 @@ export const getDefaultPlanDate = (
 ): string => {
 	const dateOptions = getPlanDateOptions(events, referenceDate);
 	if (dateOptions.length === 0) return new Date().toISOString().slice(0, 10);
+	const defaultDayOption = dateOptions.find(
+		(date) => date.slice(-2) === DEFAULT_PLAN_DAY_OF_MONTH,
+	);
+	if (defaultDayOption) return defaultDayOption;
 
 	const countsByDate = new Map<string, number>();
 	const visibleDates = new Set(dateOptions);

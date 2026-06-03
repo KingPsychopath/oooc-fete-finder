@@ -188,7 +188,7 @@ export function FeatureEventRequestBuilder({
 
 	return (
 		<section
-			className="mt-8 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]"
+			className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,22.5rem)]"
 			aria-label="Promotion request builder"
 		>
 			<div className="space-y-8">
@@ -450,7 +450,7 @@ export function FeatureEventRequestBuilder({
 			</div>
 
 			<aside
-				className="xl:sticky xl:top-24"
+				className="hidden lg:sticky lg:top-28 lg:block"
 				aria-label="Promotion request summary"
 			>
 				<div
