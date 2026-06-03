@@ -1289,24 +1289,32 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 								</div>
 							)}
 						</div>
-						<div className="mt-4 grid grid-cols-3 gap-2">
-							{[2, 3, 4].map((count) => (
-								<Button
-									key={count}
-									type="button"
-									variant={stopCount === count ? "default" : "outline"}
-									onClick={() => setStopCount(count)}
-									disabled={count < lockedStopCount}
-									title={
-										count < lockedStopCount
-											? `${lockedStopCount} kept stops need at least ${lockedStopCount} stops`
-											: undefined
-									}
-									className={cn("rounded-2xl", CONTROL_TRANSITION)}
-								>
-									{count} stops
-								</Button>
-							))}
+						<div className="mt-4">
+							<p className="mb-2 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								Auto-suggest stops
+							</p>
+							<div className="grid grid-cols-3 gap-2">
+								{[3, 4, 5].map((count) => (
+									<Button
+										key={count}
+										type="button"
+										variant={stopCount === count ? "default" : "outline"}
+										onClick={() => setStopCount(count)}
+										disabled={count < lockedStopCount}
+										title={
+											count < lockedStopCount
+												? `${lockedStopCount} kept stops need at least ${lockedStopCount} stops`
+												: undefined
+										}
+										className={cn("rounded-2xl", CONTROL_TRANSITION)}
+									>
+										{count} stops
+									</Button>
+								))}
+							</div>
+							<p className="mt-2 text-xs leading-5 text-muted-foreground">
+								Add more from your saved events after the route is built.
+							</p>
 						</div>
 					</div>
 
@@ -1685,7 +1693,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 					)}
 					<div id="plans-saved-events" className="mb-3 shrink-0">
 						<p className="mb-1.5 text-xs text-muted-foreground">
-							Add saved events to this route.
+							Add saved events to this route. There is no stop limit here.
 						</p>
 						<TypeaheadCombobox
 							options={savedEventOptions}

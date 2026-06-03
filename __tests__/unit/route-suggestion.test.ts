@@ -132,6 +132,25 @@ describe("buildSuggestedPlans", () => {
 		]);
 	});
 
+	it("can suggest a five stop route", () => {
+		const suggestions = buildSuggestedPlans({
+			events: [
+				event({ eventKey: "first", time: "17:00" }),
+				event({ eventKey: "second", time: "18:00" }),
+				event({ eventKey: "third", time: "19:00" }),
+				event({ eventKey: "fourth", time: "20:00" }),
+				event({ eventKey: "fifth", time: "21:00" }),
+				event({ eventKey: "sixth", time: "22:00" }),
+			],
+			date: "2026-06-19",
+			preferences: {
+				stopCount: 5,
+			},
+		});
+
+		expect(suggestions[0]?.eventKeys).toHaveLength(5);
+	});
+
 	it("treats free budget as a strict price constraint", () => {
 		const suggestions = buildSuggestedPlans({
 			events: [

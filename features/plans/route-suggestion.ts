@@ -120,7 +120,7 @@ const buildPreferenceInput = (
 		...preferences,
 		date,
 		stopCount: Math.max(
-			Math.min(Math.max(preferences?.stopCount ?? 3, 2), 4),
+			Math.min(Math.max(preferences?.stopCount ?? 3, 2), 5),
 			mustIncludeEventKeys.length,
 		),
 		mustIncludeEventKeys,
