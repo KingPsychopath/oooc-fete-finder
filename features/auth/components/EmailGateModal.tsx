@@ -641,8 +641,8 @@ const EmailGateModal = ({
 											<span className="block text-muted-foreground">
 												<strong>Do not send me marketing emails</strong>
 												<br />
-												Includes newsletters, event discounts, recommendations,
-												and promotional messages.
+												Includes newsletters, partner discounts,
+												recommendations, and promotional messages.
 											</span>
 										</span>
 									</label>
