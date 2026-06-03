@@ -16,9 +16,13 @@ function findHashTarget(hash: string) {
 	);
 }
 
+function isVisibleTarget(target: Element) {
+	return target.getClientRects().length > 0;
+}
+
 function scrollToHash(hash: string, behavior: ScrollBehavior = "smooth") {
 	const target = findHashTarget(hash);
-	if (!target) return false;
+	if (!target || !isVisibleTarget(target)) return false;
 
 	target.scrollIntoView({
 		block: "start",
@@ -71,6 +75,7 @@ export function SmoothAnchorScroll() {
 				"",
 				`${url.pathname}${url.search}${url.hash}`,
 			);
+			window.dispatchEvent(new HashChangeEvent("hashchange"));
 			scrollToHashWhenReady(url.hash);
 		};
 

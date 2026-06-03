@@ -41,6 +41,9 @@ type AdminShellProps = {
 	};
 };
 
+const isVisibleAnchorTarget = (target: HTMLElement): boolean =>
+	target.getClientRects().length > 0;
+
 export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 	const router = useRouter();
 	const pathname = usePathname();
@@ -230,7 +233,7 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 		const maxAttempts = 10;
 		const scrollToTarget = () => {
 			const target = document.getElementById(pendingAnchor.anchorId);
-			if (target) {
+			if (target && isVisibleAnchorTarget(target)) {
 				target.scrollIntoView({ behavior: "smooth", block: "start" });
 				setPendingAnchor(null);
 				return;
@@ -288,7 +291,7 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 			const maxAttempts = 10;
 			const scrollToTarget = () => {
 				const target = document.getElementById(anchorId);
-				if (target) {
+				if (target && isVisibleAnchorTarget(target)) {
 					target.scrollIntoView({ behavior: "smooth", block: "start" });
 					return;
 				}
