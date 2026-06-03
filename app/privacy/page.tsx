@@ -48,6 +48,15 @@ export default function PrivacyPolicy() {
 						</p>
 					</CardHeader>
 					<CardContent className="prose prose-sm max-w-none space-y-6">
+						<div className="bg-muted/50 p-4 rounded-lg">
+							<p className="text-sm text-muted-foreground">
+								<strong>Simple Summary:</strong> We collect only what we need to
+								run the platform, improve event discovery, and report campaign
+								performance in aggregate. You can request access, correction, or
+								deletion of your data at any time.
+							</p>
+						</div>
+
 						<section>
 							<h2 className="text-lg font-semibold mb-3">What We Collect</h2>
 							<ul className="list-disc pl-6 space-y-1 text-muted-foreground">
@@ -245,15 +254,6 @@ export default function PrivacyPolicy() {
 								will be posted on this page with an updated date.
 							</p>
 						</section>
-
-						<div className="bg-muted/50 p-4 rounded-lg mt-8">
-							<p className="text-sm text-muted-foreground">
-								<strong>Simple Summary:</strong> We collect only what we need to
-								run the platform, improve event discovery, and report campaign
-								performance in aggregate. You can request access, correction, or
-								deletion of your data at any time.
-							</p>
-						</div>
 					</CardContent>
 				</Card>
 			</main>

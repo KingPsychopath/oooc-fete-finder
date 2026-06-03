@@ -48,9 +48,9 @@ export default function TermsPage() {
 						</p>
 					</CardHeader>
 					<CardContent className="prose prose-sm max-w-none space-y-6">
-						<div className="rounded-lg border border-border/60 bg-muted/45 p-4">
+						<div className="rounded-lg bg-muted/50 p-4">
 							<p className="text-sm leading-relaxed text-muted-foreground">
-								<strong>Simple summary:</strong> You can use Fete Finder to
+								<strong>Simple Summary:</strong> You can use Fete Finder to
 								browse, learn, and plan your own events. You cannot copy, clone,
 								scrape, resell, host, commercially exploit, or build a competing
 								product from the site, its data, its design, or the OOOC brand
