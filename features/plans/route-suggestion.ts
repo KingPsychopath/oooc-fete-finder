@@ -236,14 +236,18 @@ const orderCandidates = (
 				normalizeKey(item.event.eventKey) ===
 				normalizeKey(candidate.event.eventKey),
 		);
-	const hasBreathingRoom = (candidate: Candidate): boolean =>
-		candidate.startMinutes == null ||
-		selected.every(
-			(item) =>
-				item.startMinutes == null ||
-				Math.abs(candidate.startMinutes - item.startMinutes) >=
-					MIN_ROUTE_START_GAP_MINUTES,
+	const hasBreathingRoom = (candidate: Candidate): boolean => {
+		const candidateStartMinutes = candidate.startMinutes;
+		return (
+			candidateStartMinutes == null ||
+			selected.every(
+				(item) =>
+					item.startMinutes == null ||
+					Math.abs(candidateStartMinutes - item.startMinutes) >=
+						MIN_ROUTE_START_GAP_MINUTES,
+			)
 		);
+	};
 
 	for (const candidate of candidates) {
 		if (selected.length >= preferences.stopCount) break;
