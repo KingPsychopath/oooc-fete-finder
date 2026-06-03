@@ -16,9 +16,8 @@ import {
 	getEventShareDetails,
 } from "@/lib/social/event-share-details";
 import type { NextRequest } from "next/server";
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import sharp from "sharp";
+import { Resvg } from "@resvg/resvg-js";
 
 export const runtime = "nodejs";
 
@@ -71,36 +70,10 @@ type OGContent = {
 	genres: string[];
 };
 
-let ogFontFaceCss: string | null = null;
-
-const getOGFontFaceCss = (): string => {
-	if (ogFontFaceCss != null) return ogFontFaceCss;
-
-	try {
-		const degular = readFileSync(join(FONT_ROOT, "degular_regular.ttf"));
-		const prata = readFileSync(join(FONT_ROOT, "prata_regular.ttf"));
-		ogFontFaceCss = `
-			@font-face {
-				font-family: "DegularOG";
-				src: url("data:font/ttf;base64,${degular.toString("base64")}") format("truetype");
-				font-weight: 400 800;
-				font-style: normal;
-			}
-			@font-face {
-				font-family: "PrataOG";
-				src: url("data:font/ttf;base64,${prata.toString("base64")}") format("truetype");
-				font-weight: 400;
-				font-style: normal;
-			}`;
-		return ogFontFaceCss;
-	} catch (error) {
-		log.warn("og-image", "Bundled OG fonts unavailable; using renderer fallback", {
-			error: error instanceof Error ? error.message : "unknown",
-		});
-		ogFontFaceCss = "";
-		return ogFontFaceCss;
-	}
-};
+const OG_FONT_FILES = [
+	join(FONT_ROOT, "degular_regular.ttf"),
+	join(FONT_ROOT, "prata_regular.ttf"),
+];
 
 const THEMES: Record<OGVariant, OGTheme> = {
 	default: {
@@ -565,17 +538,22 @@ const renderSvgTextLines = ({
 		)
 		.join("");
 
+type MetaFact = {
+	label: string;
+	value: string;
+	wide?: boolean;
+};
+
 const renderSvgMetaRows = (
-	items: string[],
+	factsInput: MetaFact[],
 	accent: string,
 	yPosition: number,
 ): string => {
-	const labels = ["Date", "Time", "Access", "Venue", "Sound", "Vibe"];
-	const facts = items.slice(0, 6).map((item, index) => ({
-		label: labels[index] ?? "Detail",
-		value: truncateText(item, 19),
+	const facts = factsInput.map((fact) => ({
+		...fact,
+		value: truncateText(fact.value, fact.wide ? 39 : 19),
 	}));
-	const rows = [facts.slice(0, 3), facts.slice(3, 6)].filter(
+	const rows = [facts.slice(0, 3), facts.slice(3, 5)].filter(
 		(row) => row.length > 0,
 	);
 	return `<g transform="translate(86 ${yPosition})">
@@ -585,11 +563,13 @@ const renderSvgMetaRows = (
 			row
 				.map((fact, index) => {
 					const x = index * 180;
+					const width = fact.wide ? 360 : 180;
 					const y = 22 + rowIndex * 56;
 					return `<g transform="translate(${x} ${y})">
 	<line x1="0" y1="-10" x2="0" y2="36" stroke="${accent}" stroke-opacity="0.28"/>
-	<text x="18" y="0" class="metaLabel">${escapeXml(fact.label)}</text>
-	<text x="18" y="27" class="meta">${escapeXml(fact.value)}</text>
+	<text x="18" y="0" class="metaLabel" font-size="13">${escapeXml(fact.label)}</text>
+	<text x="18" y="29" class="meta" font-size="22">${escapeXml(fact.value)}</text>
+	<line x1="${width}" y1="-10" x2="${width}" y2="36" stroke="${accent}" stroke-opacity="0"/>
 </g>`;
 				})
 				.join("\n"),
@@ -606,7 +586,7 @@ const renderOGSvg = (content: {
 	footerLocation: string;
 	isEventCard: boolean;
 	accent: string;
-	chips: string[];
+	chips: MetaFact[];
 }): string => {
 	const titleLayout = getSvgTitleLayout(content.title, content.isEventCard);
 	const titleTop = content.isEventCard
@@ -652,16 +632,15 @@ const renderOGSvg = (content: {
 			<stop offset="1" stop-color="#fffaf2" stop-opacity="0.08"/>
 		</linearGradient>
 		<style>
-			${getOGFontFaceCss()}
-			.eyebrow { font: 700 15px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 3px; fill: #624f42; }
-			.label { font: 700 17px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 1.2px; fill: ${content.accent}; text-transform: uppercase; }
-			.title { font-family: "PrataOG", Georgia, 'Times New Roman', serif; font-weight: 400; fill: #211811; }
-			.subtitle { font: 500 30px "DegularOG", Arial, Helvetica, sans-serif; fill: #5f5044; }
-			.metaLabel { font: 700 10px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 1.8px; fill: ${content.accent}; text-transform: uppercase; }
-			.meta { font: 700 17px "DegularOG", Arial, Helvetica, sans-serif; fill: #2f241b; }
-			.footer { font: 700 15px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 2.1px; fill: #6a5849; text-transform: uppercase; }
-			.railText { font: 700 16px "DegularOG", Arial, Helvetica, sans-serif; letter-spacing: 2.6px; fill: #fff8ef; }
-			.railSmall { font: 700 15px "DegularOG", Arial, Helvetica, sans-serif; fill: #f5debd; }
+			.eyebrow { font: 700 19px "Degular", sans-serif; letter-spacing: 3px; fill: #624f42; }
+			.label { font: 700 22px "Degular", sans-serif; letter-spacing: 1.2px; fill: ${content.accent}; text-transform: uppercase; }
+			.title { font-family: "Prata", serif; font-weight: 400; fill: #211811; }
+			.subtitle { font: 500 34px "Degular", sans-serif; fill: #5f5044; }
+			.metaLabel { font: 700 13px "Degular", sans-serif; letter-spacing: 1.8px; fill: ${content.accent}; text-transform: uppercase; }
+			.meta { font: 700 22px "Degular", sans-serif; fill: #2f241b; }
+			.footer { font: 700 18px "Degular", sans-serif; letter-spacing: 2.1px; fill: #6a5849; text-transform: uppercase; }
+			.railText { font: 700 19px "Degular", sans-serif; letter-spacing: 2.6px; fill: #fff8ef; }
+			.railSmall { font: 700 18px "Degular", sans-serif; fill: #f5debd; }
 		</style>
 	</defs>
 	<rect width="1200" height="630" fill="url(#bg)"/>
@@ -686,8 +665,8 @@ const renderOGSvg = (content: {
 		x: 90,
 		startY: subtitleTop,
 		className: "subtitle",
-		fontSize: 30,
-		lineHeight: 41,
+		fontSize: 34,
+		lineHeight: 43,
 	})}
 	${renderSvgMetaRows(content.chips, content.accent, factsTop)}
 	<text x="54" y="584" class="footer">${escapeXml(content.footerLocation)}</text>
@@ -712,8 +691,20 @@ const renderOGPng = async (content: {
 	footerLocation: string;
 	isEventCard: boolean;
 	accent: string;
-	chips: string[];
-}): Promise<Buffer> => sharp(Buffer.from(renderOGSvg(content))).png().toBuffer();
+	chips: MetaFact[];
+}): Promise<Buffer> =>
+	new Resvg(renderOGSvg(content), {
+		font: {
+			fontFiles: OG_FONT_FILES,
+			loadSystemFonts: false,
+			defaultFontFamily: "Degular",
+			serifFamily: "Prata",
+			sansSerifFamily: "Degular",
+		},
+		fitTo: { mode: "original" },
+		logLevel: "error",
+		textRendering: 1,
+	}).render().asPng();
 
 export async function GET(request: NextRequest) {
 	const startedAt = Date.now();
@@ -757,11 +748,22 @@ export async function GET(request: NextRequest) {
 				: svgIsEventCard
 					? "Event Pick"
 					: svgPalette.label;
-		const svgChips = svgIsEventCard
-			? [date, time, price, venue, ...genres].filter(Boolean)
-			: eventCount > 0
-				? [`${eventCount} events`, "Paris", "OOOC"]
-				: ["Paris", "OOOC"];
+		const svgChips = eventCount > 0
+			? [`${eventCount} events`, "Paris", "OOOC"]
+			: ["Paris", "OOOC"];
+		const tagList = genres.slice(0, 3).join(" · ");
+		const svgFacts: MetaFact[] = svgIsEventCard
+			? [
+					{ label: "Date", value: date },
+					{ label: "Time", value: time },
+					{ label: "Access", value: price },
+					{ label: "Venue", value: venue },
+					{ label: "Tags", value: tagList, wide: true },
+				].filter((fact) => fact.value)
+			: svgChips.map((value, index) => ({
+					label: ["Focus", "Area", "Format"][index] ?? "Detail",
+					value,
+				}));
 		const png = await renderOGPng({
 			title,
 			subtitle,
@@ -770,7 +772,7 @@ export async function GET(request: NextRequest) {
 			footerLocation: svgFooterLocation,
 			isEventCard: svgIsEventCard,
 			accent: svgPalette.accent,
-			chips: svgChips,
+			chips: svgFacts,
 		});
 		const svgDurationMs = Date.now() - startedAt;
 		if (svgDurationMs >= 1000) {
@@ -800,7 +802,10 @@ export async function GET(request: NextRequest) {
 				footerLocation: "Paris",
 				isEventCard: false,
 				accent: THEMES.default.accent,
-				chips: ["Paris", "OOOC"],
+				chips: [
+					{ label: "Area", value: "Paris" },
+					{ label: "Format", value: "OOOC" },
+				],
 			});
 			return new Response(new Uint8Array(fallbackPng), {
 				status: 200,

@@ -44,12 +44,15 @@ const nextConfig: NextConfig = {
 	basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
 	assetPrefix: process.env.NEXT_PUBLIC_BASE_PATH || "",
 	reactStrictMode: true,
+	serverExternalPackages: ["@resvg/resvg-js"],
 	trailingSlash: false,
 	outputFileTracingIncludes: {
 		"/*": [
 			"./data/events.csv",
 			"./public/fonts/degular_regular.woff2",
 			"./public/fonts/prata_regular.woff2",
+			"./public/fonts/degular_regular.ttf",
+			"./public/fonts/prata_regular.ttf",
 		],
 	},
 	async headers() {
