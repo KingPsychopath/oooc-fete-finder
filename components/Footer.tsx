@@ -3,12 +3,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-	legalCompanyNumber,
-	legalEntityName,
-	legalRegisteredOffice,
-	legalRegistrationJurisdiction,
-} from "@/lib/legal";
+import { legalEntityName } from "@/lib/legal";
 import { Croissant, ExternalLink, Globe } from "lucide-react";
 import Link from "next/link";
 
@@ -221,16 +216,16 @@ const Footer = () => {
 								<p>With special thanks to Mel</p>
 							</TooltipContent>
 						</Tooltip>
-						<p className="max-w-md text-xs leading-relaxed text-muted-foreground/65">
-							&copy; 2026 {legalEntityName}. All rights reserved. Fête
-							Finder&trade; and OOOC&trade; are trade marks or claimed trade
-							marks of {legalEntityName}. Out Of Office Collective&reg; is a
-							registered trade mark.
-						</p>
 						<p className="max-w-md text-xs leading-relaxed text-muted-foreground/55">
-							Company number {legalCompanyNumber}. Registered in{" "}
-							{legalRegistrationJurisdiction}. Registered office:{" "}
-							{legalRegisteredOffice}.
+							&copy; 2026 {legalEntityName}. All rights reserved. OOOC and Fête
+							Finder are trade marks. Full legal details are in our{" "}
+							<Link
+								href="/terms"
+								className="underline underline-offset-4 transition-colors hover:text-foreground"
+							>
+								Terms
+							</Link>
+							.
 						</p>
 					</div>
 				</div>
