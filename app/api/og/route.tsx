@@ -77,18 +77,18 @@ const getOGFontFaceCss = (): string => {
 	if (ogFontFaceCss != null) return ogFontFaceCss;
 
 	try {
-		const degular = readFileSync(join(FONT_ROOT, "degular_regular.woff2"));
-		const prata = readFileSync(join(FONT_ROOT, "prata_regular.woff2"));
+		const degular = readFileSync(join(FONT_ROOT, "degular_regular.ttf"));
+		const prata = readFileSync(join(FONT_ROOT, "prata_regular.ttf"));
 		ogFontFaceCss = `
 			@font-face {
 				font-family: "DegularOG";
-				src: url("data:font/woff2;base64,${degular.toString("base64")}") format("woff2");
+				src: url("data:font/ttf;base64,${degular.toString("base64")}") format("truetype");
 				font-weight: 400 800;
 				font-style: normal;
 			}
 			@font-face {
 				font-family: "PrataOG";
-				src: url("data:font/woff2;base64,${prata.toString("base64")}") format("woff2");
+				src: url("data:font/ttf;base64,${prata.toString("base64")}") format("truetype");
 				font-weight: 400;
 				font-style: normal;
 			}`;
