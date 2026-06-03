@@ -668,8 +668,8 @@ const renderOGSvg = (content: {
 	<path d="M1002 92 C938 171 926 247 967 317 C1009 390 995 470 932 543" stroke="${content.accent}" stroke-width="16" stroke-linecap="round"/>
 	<path d="M1002 92 C938 171 926 247 967 317 C1009 390 995 470 932 543" stroke="#fff8ef" stroke-opacity="0.34" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 28"/>
 	<rect x="86" y="82" width="72" height="6" rx="3" fill="${content.accent}"/>
-	<text x="86" y="122" class="eyebrow">OUT OF OFFICE COLLECTIVE</text>
-	<text x="86" y="172" class="label">${escapeXml(content.label)}</text>
+	<text x="86" y="122" class="eyebrow" font-size="19">OUT OF OFFICE COLLECTIVE</text>
+	<text x="86" y="174" class="label" font-size="22">${escapeXml(content.label)}</text>
 	${renderSvgTextLines({
 		lines: titleLayout.lines,
 		x: 86,
