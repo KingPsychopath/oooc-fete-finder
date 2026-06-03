@@ -128,6 +128,7 @@ export const env = createEnv({
 			.enum(["development", "production", "test"])
 			.default("development"),
 		ADMIN_KEY: z.string().default(""),
+		ADMIN_AUTH_TTL_HOURS: z.string().optional(),
 		AUTH_SECRET: z
 			.string()
 			.trim()
@@ -152,9 +153,7 @@ export const env = createEnv({
 		STRIPE_PAYMENT_LINK_ID_PROMOTED: z.string().optional(),
 		STRIPE_PAYMENT_LINK_ID_ADDON_WHATSAPP: z.string().optional(),
 		STRIPE_PAYMENT_LINK_ID_ADDON_NEWSLETTER: z.string().optional(),
-		TICKET_EXCHANGE_EMAIL_ENABLED: z
-			.enum(["true", "false"])
-			.default("false"),
+		TICKET_EXCHANGE_EMAIL_ENABLED: z.enum(["true", "false"]).default("false"),
 		TICKET_EXCHANGE_FROM_EMAIL: z.string().optional(),
 		TICKET_EXCHANGE_REPLY_TO: z.string().optional(),
 		TICKET_EXCHANGE_BOT_SECRET: z.string().optional(),
@@ -200,6 +199,7 @@ export const env = createEnv({
 		// Server
 		NODE_ENV: process.env.NODE_ENV,
 		ADMIN_KEY: process.env.ADMIN_KEY,
+		ADMIN_AUTH_TTL_HOURS: process.env.ADMIN_AUTH_TTL_HOURS,
 		AUTH_SECRET: process.env.AUTH_SECRET,
 		DATABASE_URL: process.env.DATABASE_URL,
 		POSTGRES_POOL_MAX: process.env.POSTGRES_POOL_MAX,
@@ -226,8 +226,7 @@ export const env = createEnv({
 			process.env.STRIPE_PAYMENT_LINK_ID_ADDON_WHATSAPP,
 		STRIPE_PAYMENT_LINK_ID_ADDON_NEWSLETTER:
 			process.env.STRIPE_PAYMENT_LINK_ID_ADDON_NEWSLETTER,
-		TICKET_EXCHANGE_EMAIL_ENABLED:
-			process.env.TICKET_EXCHANGE_EMAIL_ENABLED,
+		TICKET_EXCHANGE_EMAIL_ENABLED: process.env.TICKET_EXCHANGE_EMAIL_ENABLED,
 		TICKET_EXCHANGE_FROM_EMAIL: process.env.TICKET_EXCHANGE_FROM_EMAIL,
 		TICKET_EXCHANGE_REPLY_TO: process.env.TICKET_EXCHANGE_REPLY_TO,
 		TICKET_EXCHANGE_BOT_SECRET: process.env.TICKET_EXCHANGE_BOT_SECRET,

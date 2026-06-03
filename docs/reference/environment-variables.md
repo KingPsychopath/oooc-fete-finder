@@ -11,6 +11,7 @@ Some optional diagnostics and maintenance-script variables are read directly fro
 | `NODE_ENV` | No | `development` | `development`, `production`, or `test` |
 | `AUTH_SECRET` | Yes | - | Minimum 32 chars; used for JWT/cookies and hashed security keys |
 | `ADMIN_KEY` | No | `""` | If empty, admin auth is disabled |
+| `ADMIN_AUTH_TTL_HOURS` | No | `24` | Admin cookie/JWT lifetime in hours; values above 168 are capped to 168 |
 | `ADMIN_RESET_PASSCODE` | No | - | Optional admin reset passcode |
 | `DATABASE_URL` | No | - | Postgres connection string |
 | `POSTGRES_URL` | No | - | Script-only fallback for maintenance commands when `DATABASE_URL` is unset |

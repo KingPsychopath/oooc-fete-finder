@@ -13,7 +13,9 @@ const TOKEN_ISSUER = "oooc-fete-finder";
 const TOKEN_AUDIENCE = "admin-api";
 const TOKEN_TYPE = "admin";
 const ADMIN_AUTH_COOKIE_NAME = "oooc-admin-auth";
-const ADMIN_AUTH_TTL_SECONDS = 6 * 60 * 60;
+const DEFAULT_ADMIN_AUTH_TTL_HOURS = 24;
+const MAX_ADMIN_AUTH_TTL_HOURS = 7 * 24;
+const SECONDS_PER_HOUR = 60 * 60;
 
 const TOKEN_VERSION_KEY = "admin-auth:token-version";
 const SESSION_KEY_PREFIX = "admin-auth:session:";
@@ -69,6 +71,15 @@ const parseJson = <T>(raw: string | null): T | null => {
 
 const getAuthSecret = (): string => {
 	return env.AUTH_SECRET;
+};
+
+export const getAdminAuthTtlSeconds = (): number => {
+	const configuredHours = Number.parseInt(env.ADMIN_AUTH_TTL_HOURS ?? "", 10);
+	const safeHours =
+		Number.isInteger(configuredHours) && configuredHours > 0
+			? Math.min(configuredHours, MAX_ADMIN_AUTH_TTL_HOURS)
+			: DEFAULT_ADMIN_AUTH_TTL_HOURS;
+	return safeHours * SECONDS_PER_HOUR;
 };
 
 const sessionKey = (jti: string): string => `${SESSION_KEY_PREFIX}${jti}`;
@@ -299,7 +310,7 @@ export const setAdminSessionCookie = async (token: string): Promise<void> => {
 		sameSite: "lax",
 		secure: env.NODE_ENV === "production",
 		path: "/",
-		maxAge: ADMIN_AUTH_TTL_SECONDS,
+		maxAge: getAdminAuthTtlSeconds(),
 	});
 };
 
@@ -337,7 +348,7 @@ export const signAdminSessionToken = async (): Promise<{
 		getAuthSecret(),
 		{
 			algorithm: "HS256",
-			expiresIn: ADMIN_AUTH_TTL_SECONDS,
+			expiresIn: getAdminAuthTtlSeconds(),
 			issuer: TOKEN_ISSUER,
 			audience: TOKEN_AUDIENCE,
 		},
