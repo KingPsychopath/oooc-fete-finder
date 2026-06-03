@@ -10,7 +10,6 @@ const SAME_ORIGIN_CACHEABLE_DESTINATIONS = new Set([
 	"style",
 ]);
 
-const APP_SHELL_URLS = ["/", "/manifest.webmanifest"];
 const SENSITIVE_PATH_PREFIXES = [
 	"/admin",
 	"/api/admin",
@@ -22,15 +21,6 @@ const SENSITIVE_PATH_PREFIXES = [
 	"/partner-stats",
 ];
 const NETWORK_ONLY_EXACT_PATHS = new Set(["/api/client-health"]);
-
-const withScopePath = (path) => {
-	const scopePath = new URL(self.registration.scope).pathname.replace(
-		/\/$/,
-		"",
-	);
-	if (!scopePath) return path;
-	return `${scopePath}${path === "/" ? "" : path}`;
-};
 
 const getPathWithoutScope = (pathname) => {
 	const scopePath = new URL(self.registration.scope).pathname.replace(
@@ -58,12 +48,7 @@ const isNextStaticAssetPath = (pathname) =>
 	pathname.startsWith("/_next/static/");
 
 self.addEventListener("install", (event) => {
-	event.waitUntil(
-		caches
-			.open(APP_SHELL_CACHE)
-			.then((cache) => cache.addAll(APP_SHELL_URLS.map(withScopePath)))
-			.catch(() => undefined),
-	);
+	event.waitUntil(caches.delete(APP_SHELL_CACHE));
 	self.skipWaiting();
 });
 
@@ -74,7 +59,11 @@ self.addEventListener("activate", (event) => {
 			.then((cacheNames) =>
 				Promise.all(
 					cacheNames
-						.filter((cacheName) => !cacheName.startsWith(CACHE_VERSION))
+						.filter(
+							(cacheName) =>
+								!cacheName.startsWith(CACHE_VERSION) ||
+								cacheName.endsWith(":app-shell"),
+						)
 						.map((cacheName) => caches.delete(cacheName)),
 				),
 			)
@@ -92,6 +81,18 @@ const fetchAndCache = async (request, cacheName) => {
 	const response = await fetch(request);
 	if (isCacheableResponse(response)) {
 		const cache = await caches.open(cacheName);
+		await cache.put(request, response.clone());
+	}
+	return response;
+};
+
+const fetchStaticAsset = async (request) => {
+	const cache = await caches.open(STATIC_CACHE);
+	const cachedResponse = await cache.match(request);
+	if (cachedResponse) return cachedResponse;
+
+	const response = await fetch(request);
+	if (isCacheableResponse(response)) {
 		await cache.put(request, response.clone());
 	}
 	return response;
@@ -152,16 +153,7 @@ self.addEventListener("fetch", (event) => {
 	if (isSensitivePath(pathname)) return;
 
 	if (request.mode === "navigate") {
-		event.respondWith(
-			fetchAndCache(request, APP_SHELL_CACHE).catch(async () => {
-				const cache = await caches.open(APP_SHELL_CACHE);
-				return (
-					(await cache.match(request)) ||
-					(await cache.match(withScopePath("/"))) ||
-					Response.error()
-				);
-			}),
-		);
+		event.respondWith(fetch(request));
 		return;
 	}
 
@@ -176,12 +168,7 @@ self.addEventListener("fetch", (event) => {
 	}
 
 	if (isNextStaticAssetPath(pathname)) {
-		event.respondWith(
-			fetchAndCache(request, STATIC_CACHE).catch(async () => {
-				const cache = await caches.open(STATIC_CACHE);
-				return (await cache.match(request)) || Response.error();
-			}),
-		);
+		event.respondWith(fetchStaticAsset(request).catch(() => Response.error()));
 		return;
 	}
 

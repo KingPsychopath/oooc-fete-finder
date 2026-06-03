@@ -185,7 +185,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 	const isCompressed = scrollState.compressed;
 	const isCollapsed = scrollState.collapsed;
 	const headerClassName = isPromotePage
-		? "relative z-50 bg-background/80 px-3 py-2 backdrop-blur-md sm:sticky sm:top-0 sm:px-4"
+		? "relative z-50 -mb-3 bg-gradient-to-b from-background/90 via-background/55 to-transparent px-3 pt-2 pb-5 backdrop-blur-md sm:sticky sm:top-0 sm:px-4"
 		: "relative z-50 px-3 pt-2 sm:sticky sm:top-0 sm:px-4 sm:pt-3";
 	const headerShellClassName = isPromotePage
 		? "relative mx-auto w-full max-w-6xl overflow-visible rounded-2xl border border-border/65 bg-card/90 shadow-[0_6px_18px_rgba(20,16,12,0.14)] backdrop-blur-lg"

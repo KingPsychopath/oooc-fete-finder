@@ -61,7 +61,7 @@ const EmailGateModal = ({
 	const [lastName, setLastName] = useState("");
 	const [email, setEmail] = useState("");
 	const [consent, setConsent] = useState(false);
-	const [marketingConsent, setMarketingConsent] = useState(false);
+	const [marketingOptedOut, setMarketingOptedOut] = useState(false);
 	const [lookupState, setLookupState] = useState<LookupState>("idle");
 	const [lookupResult, setLookupResult] = useState<AuthLookupResult | null>(
 		null,
@@ -109,7 +109,7 @@ const EmailGateModal = ({
 			setFirstName("");
 			setLastName("");
 			setConsent(false);
-			setMarketingConsent(false);
+			setMarketingOptedOut(false);
 			setFlowStep("email");
 			clearLookupState();
 		},
@@ -125,6 +125,7 @@ const EmailGateModal = ({
 		setFirstName("");
 		setLastName("");
 		setConsent(false);
+		setMarketingOptedOut(false);
 		setFlowStep("email");
 		setError("");
 		setLookupError("");
@@ -349,7 +350,9 @@ const EmailGateModal = ({
 					consent: shouldRequireConsent ? consent : true,
 					termsAccepted: shouldRequireConsent ? consent : true,
 					privacyAccepted: shouldRequireConsent ? consent : true,
-					marketingConsent,
+					marketingOptedOut: shouldRequireConsent
+						? marketingOptedOut
+						: undefined,
 					source: "fete-finder-auth",
 					anonymousSessionId: getOrCreateEngagementSessionId(),
 					clientContext: getClientContext(),
@@ -599,18 +602,17 @@ const EmailGateModal = ({
 									<label className="grid cursor-pointer grid-cols-[1rem_minmax(0,1fr)] gap-3 rounded-md border border-border/50 bg-muted/15 px-3 py-3 text-xs leading-relaxed">
 										<input
 											type="checkbox"
-											checked={marketingConsent}
+											checked={marketingOptedOut}
 											onChange={(event) =>
-												setMarketingConsent(event.target.checked)
+												setMarketingOptedOut(event.target.checked)
 											}
 											className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
 											disabled={isSubmitting}
 										/>
 										<span className="block min-w-0">
 											<span className="block text-muted-foreground">
-												Send me optional event recommendations, community
-												updates, and future event announcements. I can
-												unsubscribe at any time.
+												Do not send me optional event recommendations, community
+												updates, and future event announcements.
 											</span>
 										</span>
 									</label>

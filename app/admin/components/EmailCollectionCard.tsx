@@ -451,8 +451,8 @@ const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 		"Privacy Accepted",
 		"Privacy Version",
 		"Privacy Accepted At",
-		"Marketing Consent",
-		"Event Update Consent",
+		"Marketing Allowed",
+		"Event Updates Allowed",
 		"Collection Origin",
 		"Linked Activity",
 		"Search Activity",
@@ -608,6 +608,34 @@ const getSignalMetricItems = (profile: CollectedUserProfile) => [
 	},
 ];
 
+const getStoreProviderLabel = (
+	provider?: UserCollectionStoreSummary["provider"],
+): string => {
+	switch (provider) {
+		case "postgres":
+			return "Postgres";
+		case "file":
+			return "File";
+		case "memory":
+			return "In-memory";
+		default:
+			return "Unavailable";
+	}
+};
+
+const getStoreSourceRead = (
+	store: UserCollectionStoreSummary | null,
+): string => {
+	if (!store) return "Audience source unavailable";
+	if (store.provider === "postgres") {
+		return "Using the configured DATABASE_URL for audience and email records.";
+	}
+	if (store.provider === "memory") {
+		return "Using an in-memory fallback. These audience records are local to this running process and are not persisted.";
+	}
+	return "Using a file-backed fallback for audience and email records.";
+};
+
 const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 	{ label: "User ID", value: profile.user.userId ?? "Unknown" },
 	{ label: "Email", value: profile.user.email },
@@ -644,11 +672,15 @@ const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 	},
 	{
 		label: "Marketing updates",
-		value: profile.user.marketingConsent ? "Opted in" : "Not opted in",
+		value: profile.user.marketingConsent
+			? "Allowed by soft opt-in"
+			: "Opted out",
 	},
 	{
 		label: "Event updates",
-		value: profile.user.eventUpdateConsent ? "Opted in" : "Not opted in",
+		value: profile.user.eventUpdateConsent
+			? "Allowed by soft opt-in"
+			: "Opted out",
 	},
 	{ label: "Collection origin", value: profile.user.source || "Unknown" },
 	{
@@ -1038,12 +1070,34 @@ export const EmailCollectionCard = ({
 						<p className="mt-0.5 text-[11px] text-muted-foreground">24h / 7d</p>
 					</div>
 				</div>
-				<div className="rounded-md border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-					<p className="break-all">
-						Store path: {store?.location || "Unavailable"}
+				<div
+					className={`rounded-md border px-3 py-2 text-xs ${
+						store?.provider && store.provider !== "postgres"
+							? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100"
+							: "bg-background/60 text-muted-foreground"
+					}`}
+				>
+					<div className="flex flex-wrap items-center gap-2">
+						<p className="text-[11px] font-medium uppercase tracking-[0.14em]">
+							Audience source
+						</p>
+						<Badge
+							variant={store?.provider === "postgres" ? "default" : "outline"}
+						>
+							{getStoreProviderLabel(store?.provider)}
+						</Badge>
+						<InfoPopover aria-label="Explain audience source" side="top">
+							This panel is separate from local event data mode. It reads and
+							writes audience/email records from Postgres when DATABASE_URL is
+							configured, otherwise it uses the available fallback store.
+						</InfoPopover>
+					</div>
+					<p className="mt-1">{getStoreSourceRead(store)}</p>
+					<p className="mt-1 break-all">
+						Location: {store?.location || "Unavailable"}
 					</p>
 					<p className="mt-1">
-						Last updated:{" "}
+						Refreshed:{" "}
 						{store?.lastUpdatedAt
 							? formatAdminDateTime(store.lastUpdatedAt)
 							: "Never"}
@@ -1430,7 +1484,7 @@ export const EmailCollectionCard = ({
 															: "No privacy"}
 													</Badge>
 													{user.marketingConsent && (
-														<Badge variant="outline">Marketing opt-in</Badge>
+														<Badge variant="outline">Marketing allowed</Badge>
 													)}
 													{user.eventUpdateConsent &&
 														!user.marketingConsent && (
@@ -1438,7 +1492,9 @@ export const EmailCollectionCard = ({
 														)}
 													{!user.marketingConsent &&
 														!user.eventUpdateConsent && (
-															<Badge variant="secondary">No marketing</Badge>
+															<Badge variant="secondary">
+																Marketing opted out
+															</Badge>
 														)}
 												</span>
 											</span>

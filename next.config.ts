@@ -38,6 +38,13 @@ const fontCacheHeaders = [
 	},
 ];
 
+const serviceWorkerHeaders = [
+	{
+		key: "Cache-Control",
+		value: "no-store, no-cache, must-revalidate",
+	},
+];
+
 const nextConfig: NextConfig = {
 	// Configuration for subdirectory deployment
 	// Use direct env access for build-time configuration
@@ -64,6 +71,10 @@ const nextConfig: NextConfig = {
 			{
 				source: "/fonts/:path*",
 				headers: fontCacheHeaders,
+			},
+			{
+				source: "/sw.js",
+				headers: serviceWorkerHeaders,
 			},
 		];
 	},

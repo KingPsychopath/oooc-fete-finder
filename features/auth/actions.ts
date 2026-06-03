@@ -62,8 +62,8 @@ const buildCollectedUsersCsv = (users: UserRecord[]): string => {
 		"Privacy Accepted",
 		"Privacy Version",
 		"Privacy Accepted At",
-		"Marketing Consent",
-		"Event Update Consent",
+		"Marketing Allowed",
+		"Event Updates Allowed",
 		"Source",
 	];
 	const rows = users.map((user) => [
@@ -149,10 +149,19 @@ const rowToUserRecord = (
 			getHeaderValue(row, ["terms accepted", "consent", "service consent"]),
 		),
 		marketingConsent: parseConsent(
-			getHeaderValue(row, ["marketing consent", "opt in", "opt-in"]),
+			getHeaderValue(row, [
+				"marketing allowed",
+				"marketing consent",
+				"opt in",
+				"opt-in",
+			]),
 		),
 		eventUpdateConsent: parseConsent(
-			getHeaderValue(row, ["event update consent", "event updates"]),
+			getHeaderValue(row, [
+				"event updates allowed",
+				"event update consent",
+				"event updates",
+			]),
 		),
 		source: getHeaderValue(row, ["source"]) || fallbackSource,
 	};

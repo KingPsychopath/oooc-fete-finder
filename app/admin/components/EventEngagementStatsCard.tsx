@@ -1911,10 +1911,18 @@ export const EventEngagementStatsCard = ({
 							</div>
 						</div>
 						{payload?.success ? (
-							<p className="text-right text-xs text-muted-foreground">
-								Last {payload.windowDays} days · updated{" "}
-								{formatAdminDateTime(payload.range.endAt)}
-							</p>
+							<div className="flex flex-wrap items-center justify-end gap-2 text-right text-xs text-muted-foreground">
+								<Badge variant="default">Analytics source: Postgres</Badge>
+								<InfoPopover aria-label="Explain analytics source" side="top">
+									Insights behavior, traffic, planning, exchange, and event
+									performance metrics are read from the configured DATABASE_URL.
+									This is separate from local event data mode.
+								</InfoPopover>
+								<span>
+									Last {payload.windowDays} days · updated{" "}
+									{formatAdminDateTime(payload.range.endAt)}
+								</span>
+							</div>
 						) : null}
 					</div>
 				</div>

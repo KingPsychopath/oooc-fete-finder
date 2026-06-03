@@ -48,6 +48,7 @@ const verifyBodySchema = z.object({
 	consent: z.boolean().optional(),
 	termsAccepted: z.boolean().optional(),
 	privacyAccepted: z.boolean().optional(),
+	marketingOptedOut: z.boolean().optional(),
 	marketingConsent: z.boolean().optional(),
 	source: z.string().optional(),
 	anonymousSessionId: z.string().trim().max(120).nullable().optional(),
@@ -151,7 +152,12 @@ export async function POST(request: Request) {
 	const submittedRequiredAcceptance = hasExplicitRequiredAcceptance
 		? Boolean(body.termsAccepted && body.privacyAccepted)
 		: Boolean(body.consent);
-	const submittedMarketingConsent = Boolean(body.marketingConsent);
+	const submittedMarketingConsent =
+		typeof body.marketingOptedOut === "boolean"
+			? !body.marketingOptedOut
+			: typeof body.marketingConsent === "boolean"
+				? body.marketingConsent
+				: null;
 
 	if (!isValidEmail(email)) {
 		return NextResponse.json(
@@ -219,9 +225,9 @@ export async function POST(request: Request) {
 			privacyVersion: legalPrivacyVersion,
 			privacyAcceptedAt: acceptedAt,
 			marketingConsent:
-				Boolean(existingUser?.marketingConsent) || submittedMarketingConsent,
+				submittedMarketingConsent ?? Boolean(existingUser?.marketingConsent),
 			eventUpdateConsent:
-				Boolean(existingUser?.eventUpdateConsent) || submittedMarketingConsent,
+				submittedMarketingConsent ?? Boolean(existingUser?.eventUpdateConsent),
 			source: body.source?.trim() || "fete-finder-auth",
 			timestamp: acceptedAt,
 			deviceClass: body.clientContext?.deviceClass ?? null,

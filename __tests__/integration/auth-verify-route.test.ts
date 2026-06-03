@@ -19,7 +19,7 @@ const validBody = {
 	consent: true,
 	termsAccepted: true,
 	privacyAccepted: true,
-	marketingConsent: false,
+	marketingOptedOut: false,
 	source: "auth-modal",
 };
 
@@ -278,11 +278,64 @@ describe("/api/auth/verify route", () => {
 				termsAcceptedAt: expect.any(String),
 				privacyVersion: "2026-06-01",
 				privacyAcceptedAt: expect.any(String),
+				marketingConsent: true,
+				eventUpdateConsent: true,
+			}),
+		);
+		expect(getStatus).toHaveBeenCalledTimes(1);
+	});
+
+	it("stores an opt-out when the soft opt-in checkbox is checked", async () => {
+		const { POST, addOrUpdate } = await loadRoute();
+
+		const response = await POST(
+			new Request("https://example.com/api/auth/verify", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-forwarded-for": "203.0.113.18",
+				},
+				body: JSON.stringify({
+					...validBody,
+					marketingOptedOut: true,
+				}),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(addOrUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({
 				marketingConsent: false,
 				eventUpdateConsent: false,
 			}),
 		);
-		expect(getStatus).toHaveBeenCalledTimes(1);
+	});
+
+	it("still accepts the legacy marketing consent field", async () => {
+		const { POST, addOrUpdate } = await loadRoute();
+
+		const response = await POST(
+			new Request("https://example.com/api/auth/verify", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-forwarded-for": "203.0.113.19",
+				},
+				body: JSON.stringify({
+					...validBody,
+					marketingOptedOut: undefined,
+					marketingConsent: false,
+				}),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(addOrUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				marketingConsent: false,
+				eventUpdateConsent: false,
+			}),
+		);
 	});
 
 	it("links recent anonymous activity to the verified user", async () => {

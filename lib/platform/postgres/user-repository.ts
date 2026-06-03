@@ -332,10 +332,16 @@ export class UserRepository {
 				first_name = EXCLUDED.first_name,
 				last_name = EXCLUDED.last_name,
 				source = EXCLUDED.source,
-				marketing_consent = app_users.marketing_consent OR EXCLUDED.marketing_consent,
-				marketing_consent_at = COALESCE(app_users.marketing_consent_at, EXCLUDED.marketing_consent_at),
-				event_update_consent = app_users.event_update_consent OR EXCLUDED.event_update_consent,
-				event_update_consent_at = COALESCE(app_users.event_update_consent_at, EXCLUDED.event_update_consent_at),
+					marketing_consent = EXCLUDED.marketing_consent,
+					marketing_consent_at = CASE
+						WHEN EXCLUDED.marketing_consent THEN COALESCE(app_users.marketing_consent_at, EXCLUDED.marketing_consent_at)
+						ELSE NULL
+					END,
+					event_update_consent = EXCLUDED.event_update_consent,
+					event_update_consent_at = CASE
+						WHEN EXCLUDED.event_update_consent THEN COALESCE(app_users.event_update_consent_at, EXCLUDED.event_update_consent_at)
+						ELSE NULL
+					END,
 				privacy_accepted_at = CASE
 					WHEN EXCLUDED.privacy_accepted_at IS NULL THEN app_users.privacy_accepted_at
 					WHEN app_users.privacy_version = EXCLUDED.privacy_version THEN app_users.privacy_accepted_at
