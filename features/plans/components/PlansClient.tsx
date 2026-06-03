@@ -89,7 +89,7 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AddEventToRouteDialog } from "./AddEventToRouteDialog";
 import { PlanRouteTour } from "./PlanRouteTour";
 
@@ -242,6 +242,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 	);
 	const [isRouteMapPickerOpen, setIsRouteMapPickerOpen] = useState(false);
 	const [routePickerEvent, setRoutePickerEvent] = useState<Event | null>(null);
+	const trackedNoSuggestionKeyRef = useRef<string | null>(null);
 
 	const eventsByKey = useMemo(
 		() =>
@@ -406,6 +407,40 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		activeEventKeySet.has(normalizeEventKey(event.eventKey)),
 	).length;
 
+	useEffect(() => {
+		if (dayEvents.length === 0 || suggestions.length > 0) return;
+		const noSuggestionKey = [
+			selectedDate,
+			effectiveStopCount,
+			startPeriod,
+			travelTolerance,
+			budget,
+			selectedVibes.slice().sort().join(","),
+			lockedEventKeys.map(normalizeEventKey).sort().join(","),
+		].join("|");
+		if (trackedNoSuggestionKeyRef.current === noSuggestionKey) return;
+		trackedNoSuggestionKeyRef.current = noSuggestionKey;
+		trackPlanAnalytics({
+			action: "route_suggest_no_results",
+			surface: "planner",
+			planId: activePlan?.id,
+			planDate: selectedDate,
+			stopCount: effectiveStopCount,
+			value: activePlan ? "regenerate" : "suggest",
+		});
+	}, [
+		activePlan,
+		budget,
+		dayEvents.length,
+		effectiveStopCount,
+		lockedEventKeys,
+		selectedDate,
+		selectedVibes,
+		startPeriod,
+		suggestions.length,
+		travelTolerance,
+	]);
+
 	const getPlanForEvent = (event: Event): UserPlan | undefined =>
 		getPlansForDate(event.date).find((plan) =>
 			plan.stops.some(
@@ -427,6 +462,13 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			setPlanLimitMessage(
 				`You can save up to ${MAX_PLANS_PER_DATE} routes for this day. Delete one to make another.`,
 			);
+			trackPlanAnalytics({
+				action: "route_limit_reached",
+				surface: "planner",
+				planDate: selectedDate,
+				stopCount: plansForDate.length,
+				value: source,
+			});
 			return null;
 		}
 		setPlanLimitMessage(null);
@@ -462,6 +504,13 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			setPlanLimitMessage(
 				`You can save up to ${MAX_PLANS_PER_DATE} routes for this day. Delete one to make another.`,
 			);
+			trackPlanAnalytics({
+				action: "route_limit_reached",
+				surface: "planner",
+				planDate: selectedDate,
+				stopCount: plansForDate.length,
+				value: source,
+			});
 			return null;
 		}
 		setSelectedPlanId(plan.id);
@@ -759,6 +808,13 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			setPlanLimitMessage(
 				`You can save up to ${MAX_PLANS_PER_DATE} routes for this day. Delete one to make another.`,
 			);
+			trackPlanAnalytics({
+				action: "route_limit_reached",
+				surface: "planner",
+				planDate: selectedDate,
+				stopCount: plansForDate.length,
+				value: "new_route",
+			});
 			return;
 		}
 		setPlanLimitMessage(null);
@@ -933,6 +989,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 				planId: plan.id,
 				planDate: plan.planDate,
 				stopCount: plan.stops.length,
+				flushImmediately: true,
 			});
 			window.setTimeout(() => {
 				setCopiedSharePlanId((current) =>
@@ -942,6 +999,14 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			return true;
 		}
 		setShareStatus("Could not copy the share link.");
+		trackPlanAnalytics({
+			action: "share_copy_failed",
+			surface: "share",
+			planId: plan.id,
+			planDate: plan.planDate,
+			stopCount: plan.stops.length,
+			flushImmediately: true,
+		});
 		return false;
 	};
 
@@ -965,6 +1030,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			planId: sharedPlan.id,
 			planDate: sharedPlan.planDate,
 			stopCount: sharedPlan.stops.length,
+			flushImmediately: true,
 		});
 	};
 
@@ -983,6 +1049,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			planId: privatePlan.id,
 			planDate: privatePlan.planDate,
 			stopCount: privatePlan.stops.length,
+			flushImmediately: true,
 		});
 	};
 
@@ -1001,7 +1068,18 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			planDate: activePlan.planDate,
 			stopCount: activeEvents.length,
 			value: didExport ? "success" : "failure",
+			flushImmediately: true,
 		});
+		if (!didExport) {
+			trackPlanAnalytics({
+				action: "route_calendar_export_failed",
+				surface: "export",
+				planId: activePlan.id,
+				planDate: activePlan.planDate,
+				stopCount: activeEvents.length,
+				flushImmediately: true,
+			});
+		}
 	};
 
 	const openRouteInMapsWithProvider = async (
@@ -1013,7 +1091,18 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			provider,
 			typeof navigator === "undefined" ? "" : navigator.userAgent,
 		);
-		if (!target) return;
+		if (!target) {
+			trackPlanAnalytics({
+				action: "route_map_unavailable",
+				surface: "export",
+				planId: activePlan.id,
+				planDate: activePlan.planDate,
+				stopCount: activeEvents.length,
+				value: provider,
+				flushImmediately: true,
+			});
+			return;
+		}
 
 		window.open(target.url, "_blank", "noopener,noreferrer");
 		trackPlanAnalytics({
@@ -1023,6 +1112,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			planDate: activePlan.planDate,
 			stopCount: activeEvents.length,
 			value: `${provider}:${target.coverage}`,
+			flushImmediately: true,
 		});
 
 		if (target.coverage === "first-leg") {
@@ -1048,6 +1138,16 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 
 	const openRouteInMaps = () => {
 		if (mapPreference === "ask") {
+			if (activePlan) {
+				trackPlanAnalytics({
+					action: "route_map_picker_open",
+					surface: "export",
+					planId: activePlan.id,
+					planDate: activePlan.planDate,
+					stopCount: activeEvents.length,
+					flushImmediately: true,
+				});
+			}
 			setIsRouteMapPickerOpen(true);
 			return;
 		}

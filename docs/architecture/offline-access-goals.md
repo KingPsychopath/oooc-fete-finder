@@ -47,6 +47,11 @@ reload while offline:
 - `features/events/components/EventsMapIsland.tsx` and
   `features/maps/components/ParisMapLibre.tsx` keep map failures from blocking
   event discovery and show offline fallback copy.
+- `components/online-status-gate.tsx` treats global online state as app
+  reachability: `navigator.onLine === false` marks the app offline immediately,
+  and `navigator.onLine === true` is confirmed with `/api/client-health` probes.
+  When the app is unreachable, MapLibre is removed in favor of the offline map
+  fallback instead of relying on opportunistic cached map assets.
 - `e2e/event-routes.spec.ts` includes a real browser offline test that waits for
   service worker readiness and IndexedDB snapshot persistence, switches the
   browser context offline, reloads, and verifies saved event list/search plus map
@@ -213,13 +218,15 @@ offline grace expiry, protected discovery access, and browser cache names.
 
 Debug panel entry points:
 
-- Development builds: visible automatically, but service worker fields will show
-  unavailable/not controlled because service worker registration is disabled in
-  `pnpm dev`.
-- Production one-off: add `?offlineDebug=1` to the homepage URL.
-- Production persistent browser toggle: run
+- One-off: add `?offlineDebug=1` to the homepage URL.
+- Persistent browser toggle: run
   `localStorage.setItem("oooc_offline_debug", "1")` in DevTools, then reload.
-- Production build-wide toggle: set `NEXT_PUBLIC_OFFLINE_DEBUG=1` at build time.
+- Build-wide toggle: set `NEXT_PUBLIC_OFFLINE_DEBUG=1` at build time.
+
+The panel is hidden by default in development and production so normal page-load
+QA sees the same first impression users see. In `pnpm dev`, service worker
+fields will show unavailable/not controlled when the panel is enabled because
+service worker registration is disabled outside production.
 
 To hide the persistent browser toggle, run
 `localStorage.removeItem("oooc_offline_debug")` and reload.

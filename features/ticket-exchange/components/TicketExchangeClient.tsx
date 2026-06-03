@@ -686,10 +686,70 @@ export function TicketExchangeClient({
 		listingSortDirection === "newest"
 			? "Showing newest listings first"
 			: "Showing oldest listings first";
+	const trackExchangeFriction = ({
+		reason,
+		surface,
+		detail,
+		listing,
+		immediate = false,
+	}: {
+		reason: string;
+		surface: Parameters<typeof trackTicketExchangeAnalytics>[0]["surface"];
+		detail?: string | null;
+		listing?: TicketExchangeListingView | null;
+		immediate?: boolean;
+	}): void => {
+		trackTicketExchangeAnalytics({
+			actionType: "flow_blocked",
+			eventKey: listing?.eventKey ?? selectedEventKey,
+			listingId: listing?.id,
+			listingType: listing?.listingType,
+			listingStatus: listing?.effectiveStatus,
+			surface,
+			detail: [reason, detail].filter(Boolean).join(":"),
+			immediate,
+		});
+	};
+
+	const trackExchangeValidationError = (
+		field: string,
+		surface: Parameters<typeof trackTicketExchangeAnalytics>[0]["surface"],
+		detail?: string,
+	): void => {
+		trackTicketExchangeAnalytics({
+			actionType: "validation_error",
+			eventKey: selectedEventKey,
+			surface,
+			detail: [field, detail].filter(Boolean).join(":"),
+			immediate: true,
+		});
+	};
+
+	const trackExchangeActionFailure = (
+		action: string,
+		surface: Parameters<typeof trackTicketExchangeAnalytics>[0]["surface"],
+		detail?: string | null,
+	): void => {
+		trackTicketExchangeAnalytics({
+			actionType: "action_failed",
+			eventKey: selectedEventKey,
+			surface,
+			detail: [action, detail].filter(Boolean).join(":"),
+			immediate: true,
+		});
+	};
+
 	const toggleListingSortDirection = () => {
-		setListingSortDirection((current) =>
-			current === "newest" ? "oldest" : "newest",
-		);
+		setListingSortDirection((current) => {
+			const next = current === "newest" ? "oldest" : "newest";
+			trackTicketExchangeAnalytics({
+				actionType: "sort_change",
+				eventKey: selectedEventKey,
+				surface: "marketplace",
+				detail: next,
+			});
+			return next;
+		});
 	};
 
 	const selectMarketplaceTab = (tab: MarketplaceTabKey) => {
@@ -723,21 +783,40 @@ export function TicketExchangeClient({
 			? {
 					title: "No activity yet",
 					body: "Listings you posted or replied to will show here.",
+					cta: "Post a listing",
+					type: "selling" as const,
 				}
 			: activeTab === "selling"
 				? {
 						title: "No tickets available yet",
 						body: "Post a selling listing if you have tickets, or check Looking to see who needs one.",
+						cta: "Post selling",
+						type: "selling" as const,
 					}
 				: activeTab === "looking"
 					? {
 							title: "No one looking yet",
 							body: "Post a looking listing if you need a ticket, or check Selling for available tickets.",
+							cta: "Post looking",
+							type: "looking" as const,
 						}
 					: {
 							title: "No ticket exchange activity yet",
 							body: "Create a selling or looking listing to get the exchange moving.",
+							cta: "Post listing",
+							type: "selling" as const,
 						};
+
+	const openEmptyStateListing = () => {
+		trackTicketExchangeAnalytics({
+			actionType: "empty_state_cta",
+			eventKey: selectedEventKey,
+			listingType: emptyListingCopy.type,
+			surface: "marketplace",
+			detail: activeTab,
+		});
+		openCreateListing(emptyListingCopy.type);
+	};
 
 	const applyResult = (result: TicketExchangeActionResult, success: string) => {
 		if (!result.success) {
@@ -771,6 +850,11 @@ export function TicketExchangeClient({
 			]);
 			if (languageError) {
 				setErrorMessage(languageError);
+				trackExchangeValidationError(
+					"display_name",
+					"listing_form",
+					"contact_draft",
+				);
 				return null;
 			}
 			setPendingMessage("Saving contact details...");
@@ -781,6 +865,11 @@ export function TicketExchangeClient({
 			});
 			if (!result.success) {
 				setErrorMessage(result.error ?? "Unable to save contact details.");
+				trackExchangeActionFailure(
+					"profile_save",
+					"listing_form",
+					result.error,
+				);
 				return null;
 			}
 			applyDataFromResult(result);
@@ -792,8 +881,21 @@ export function TicketExchangeClient({
 			return result.data?.profile ?? data.profile;
 		};
 
-	const requireLogin = () => {
+	const requireLogin = (
+		detail = "unknown",
+		surface: Parameters<
+			typeof trackTicketExchangeAnalytics
+		>[0]["surface"] = "marketplace",
+		listing?: TicketExchangeListingView | null,
+	) => {
 		if (data.isAuthenticated || auth.isAuthenticated) return true;
+		trackExchangeFriction({
+			reason: "login_required",
+			surface,
+			detail,
+			listing,
+			immediate: true,
+		});
 		setIsLoginOpen(true);
 		return false;
 	};
@@ -833,7 +935,7 @@ export function TicketExchangeClient({
 	const openContactDetailsFromListing = (
 		method: TicketExchangeContactMethod,
 	): void => {
-		if (!requireLogin()) return;
+		if (!requireLogin("profile_open", "listing_form")) return;
 		trackTicketExchangeAnalytics({
 			actionType: "profile_open",
 			eventKey: selectedEventKey,
@@ -852,7 +954,7 @@ export function TicketExchangeClient({
 	};
 
 	const openContactDetails = (): void => {
-		if (!requireLogin()) return;
+		if (!requireLogin("profile_open", "profile_panel")) return;
 		if (isProfileOpen) {
 			closeContactDetails();
 			return;
@@ -898,6 +1000,10 @@ export function TicketExchangeClient({
 
 	const ensureContactDetailsReady = (
 		profile: TicketExchangeContactProfile | null,
+		surface: Parameters<
+			typeof trackTicketExchangeAnalytics
+		>[0]["surface"] = "profile_panel",
+		detail = "contact_profile_incomplete",
 	): boolean => {
 		if (
 			getAvailableContactMethodCount(profile) >=
@@ -905,6 +1011,11 @@ export function TicketExchangeClient({
 		) {
 			return true;
 		}
+		trackExchangeFriction({
+			reason: "contact_profile_incomplete",
+			surface,
+			detail,
+		});
 		setPendingMessage(
 			`Your email counts as one contact method. Add at least one backup method before using Ticket Exchange.`,
 		);
@@ -961,6 +1072,17 @@ export function TicketExchangeClient({
 					surface: "listing_card",
 					immediate: true,
 				});
+			} else {
+				trackTicketExchangeAnalytics({
+					actionType: "action_failed",
+					eventKey: listing.eventKey,
+					listingId: listing.id,
+					listingType: listing.listingType,
+					listingStatus: listing.effectiveStatus,
+					surface: "listing_card",
+					detail: ["contact_unlock", result.error].filter(Boolean).join(":"),
+					immediate: true,
+				});
 			}
 		} finally {
 			setInterestListingId(null);
@@ -985,12 +1107,18 @@ export function TicketExchangeClient({
 	};
 
 	const openCreateListing = (type: TicketExchangeListingType = "selling") => {
-		if (!requireLogin()) return;
+		if (!requireLogin("listing_form_open", "listing_form")) return;
 		if (!hasAcceptedCurrentAgreement(data.profile)) {
+			trackExchangeFriction({
+				reason: "agreement_required",
+				surface: "agreement_modal",
+				detail: `create:${type}`,
+			});
 			openAgreement({ kind: "create", listingType: type });
 			return;
 		}
-		if (!ensureContactDetailsReady(draftProfile)) return;
+		if (!ensureContactDetailsReady(draftProfile, "listing_form", "create"))
+			return;
 		startCreateListing(type, draftProfile);
 	};
 
@@ -1017,12 +1145,13 @@ export function TicketExchangeClient({
 	) => {
 		event.preventDefault();
 		if (isSavingProfile) return;
-		if (!requireLogin()) return;
+		if (!requireLogin("profile_save", "profile_panel")) return;
 		const languageError = getTicketExchangeLanguageError([
 			{ fieldLabel: "the display name", value: profileForm.displayName },
 		]);
 		if (languageError) {
 			setErrorMessage(languageError);
+			trackExchangeValidationError("display_name", "profile_panel");
 			return;
 		}
 		setIsSavingProfile(true);
@@ -1042,6 +1171,12 @@ export function TicketExchangeClient({
 					immediate: true,
 				});
 				closeContactDetails();
+			} else {
+				trackExchangeActionFailure(
+					"profile_save",
+					"profile_panel",
+					result.error,
+				);
 			}
 		} finally {
 			setIsSavingProfile(false);
@@ -1053,12 +1188,13 @@ export function TicketExchangeClient({
 	) => {
 		event.preventDefault();
 		if (createListingInFlightRef.current || isCreatingListing) return;
-		if (!requireLogin()) return;
+		if (!requireLogin("listing_create", "listing_form")) return;
 		if (
 			listingForm.listingType === "selling" &&
 			!listingForm.priceLabel.trim()
 		) {
 			setErrorMessage("Add the ticket price before posting a selling listing.");
+			trackExchangeValidationError("price", "listing_form", "required");
 			return;
 		}
 		const languageError = getTicketExchangeLanguageError([
@@ -1075,6 +1211,7 @@ export function TicketExchangeClient({
 		]);
 		if (languageError) {
 			setErrorMessage(languageError);
+			trackExchangeValidationError("listing_copy", "listing_form");
 			return;
 		}
 		createListingInFlightRef.current = true;
@@ -1083,7 +1220,8 @@ export function TicketExchangeClient({
 		try {
 			const savedProfile = await saveContactDraftIfNeeded();
 			if (!savedProfile) return;
-			if (!ensureContactDetailsReady(savedProfile)) return;
+			if (!ensureContactDetailsReady(savedProfile, "listing_form", "create"))
+				return;
 			setPendingMessage("Posting listing...");
 			const result = await createTicketExchangeListing(listingForm);
 			applyResult(result, "Listing posted.");
@@ -1103,6 +1241,12 @@ export function TicketExchangeClient({
 						getDefaultContactMethods(result.data?.profile ?? data.profile),
 					),
 				);
+			} else {
+				trackExchangeActionFailure(
+					"listing_create",
+					"listing_form",
+					result.error,
+				);
 			}
 		} finally {
 			createListingInFlightRef.current = false;
@@ -1111,21 +1255,37 @@ export function TicketExchangeClient({
 	};
 
 	const handleInterest = async (listing: TicketExchangeListingView) => {
-		if (!requireLogin()) return;
+		if (!requireLogin("contact_unlock", "listing_card", listing)) return;
 		if (!hasAcceptedCurrentAgreement(data.profile)) {
+			trackExchangeFriction({
+				reason: "agreement_required",
+				surface: "agreement_modal",
+				detail: "interest",
+				listing,
+			});
 			openAgreement({ kind: "interest", listing });
 			return;
 		}
-		if (!ensureContactDetailsReady(draftProfile)) return;
+		if (!ensureContactDetailsReady(draftProfile, "listing_card", "interest"))
+			return;
 		const savedProfile = await saveContactDraftIfNeeded();
 		if (!savedProfile) return;
-		if (!ensureContactDetailsReady(savedProfile)) return;
+		if (!ensureContactDetailsReady(savedProfile, "listing_card", "interest"))
+			return;
 		await submitInterest(listing, savedProfile);
 	};
 
 	const handleAgreementAccept = async () => {
 		if (isAcceptingAgreement) return;
-		if (!requireLogin() || !agreementChecked) return;
+		if (!requireLogin("agreement_accept", "agreement_modal")) return;
+		if (!agreementChecked) {
+			trackExchangeFriction({
+				reason: "agreement_checkbox_required",
+				surface: "agreement_modal",
+				detail: pendingAgreementIntent?.kind ?? "review",
+			});
+			return;
+		}
 		setIsAcceptingAgreement(true);
 		setPendingMessage("Saving Ticket Exchange agreement...");
 		try {
@@ -1135,7 +1295,14 @@ export function TicketExchangeClient({
 				selectedEventKey,
 			});
 			applyResult(result, "Ticket Exchange agreement accepted.");
-			if (!result.success) return;
+			if (!result.success) {
+				trackExchangeActionFailure(
+					"agreement_accept",
+					"agreement_modal",
+					result.error,
+				);
+				return;
+			}
 			trackTicketExchangeAnalytics({
 				actionType: "agreement_accept",
 				eventKey:
@@ -1158,7 +1325,10 @@ export function TicketExchangeClient({
 			setIsAgreementOpen(false);
 			setPendingAgreementIntent(null);
 			setAgreementChecked(false);
-			if (!ensureContactDetailsReady(nextProfile)) return;
+			if (
+				!ensureContactDetailsReady(nextProfile, "agreement_modal", "accepted")
+			)
+				return;
 			if (pendingAgreementIntent?.kind === "create") {
 				startCreateListing(pendingAgreementIntent.listingType, nextProfile);
 				return;
@@ -1196,6 +1366,19 @@ export function TicketExchangeClient({
 					detail: status,
 					immediate: true,
 				});
+			} else {
+				trackTicketExchangeAnalytics({
+					actionType: "action_failed",
+					eventKey: listing.eventKey,
+					listingId: listing.id,
+					listingType: listing.listingType,
+					listingStatus: listing.effectiveStatus,
+					surface: "listing_card",
+					detail: ["listing_status_update", status, result.error]
+						.filter(Boolean)
+						.join(":"),
+					immediate: true,
+				});
 			}
 		} finally {
 			setStatusListingId(null);
@@ -1205,12 +1388,14 @@ export function TicketExchangeClient({
 	const handleReport = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (isReporting) return;
-		if (!reportListingId || !requireLogin()) return;
+		if (!reportListingId || !requireLogin("report_submit", "report_modal"))
+			return;
 		const languageError = getTicketExchangeLanguageError([
 			{ fieldLabel: "the report details", value: reportDetails },
 		]);
 		if (languageError) {
 			setErrorMessage(languageError);
+			trackExchangeValidationError("report_details", "report_modal");
 			return;
 		}
 		const reportedListing = data.listings.find(
@@ -1238,6 +1423,17 @@ export function TicketExchangeClient({
 				});
 				setReportListingId(null);
 				setReportDetails("");
+			} else {
+				trackTicketExchangeAnalytics({
+					actionType: "action_failed",
+					eventKey: reportedListing?.eventKey ?? selectedEventKey,
+					listingId: reportListingId,
+					listingType: reportedListing?.listingType,
+					listingStatus: reportedListing?.effectiveStatus,
+					surface: "report_modal",
+					detail: ["report_submit", result.error].filter(Boolean).join(":"),
+					immediate: true,
+				});
 			}
 		} finally {
 			setIsReporting(false);
@@ -1253,6 +1449,7 @@ export function TicketExchangeClient({
 		]);
 		if (languageError) {
 			setErrorMessage(languageError);
+			trackExchangeValidationError("repost_quantity", "listing_card");
 			return;
 		}
 		const repostedListing = data.listings.find(
@@ -1279,6 +1476,17 @@ export function TicketExchangeClient({
 				});
 				setRepostListingId(null);
 				setRepostQuantity("");
+			} else {
+				trackTicketExchangeAnalytics({
+					actionType: "action_failed",
+					eventKey: repostedListing?.eventKey ?? selectedEventKey,
+					listingId: repostListingId,
+					listingType: repostedListing?.listingType,
+					listingStatus: repostedListing?.effectiveStatus,
+					surface: "listing_card",
+					detail: ["listing_repost", result.error].filter(Boolean).join(":"),
+					immediate: true,
+				});
 			}
 		} finally {
 			setIsReposting(false);
@@ -2008,6 +2216,14 @@ export function TicketExchangeClient({
 							<p className="mt-1 text-sm text-muted-foreground">
 								{emptyListingCopy.body}
 							</p>
+							<Button
+								type="button"
+								onClick={openEmptyStateListing}
+								className="mt-4"
+							>
+								<Plus className="h-4 w-4" />
+								{emptyListingCopy.cta}
+							</Button>
 						</div>
 					) : (
 						<div className="grid gap-3">

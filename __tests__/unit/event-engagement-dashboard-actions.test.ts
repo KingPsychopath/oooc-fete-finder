@@ -70,7 +70,9 @@ const loadActions = async (): Promise<Setup> => {
 			locationRequestCount: 0,
 			tourInteractionCount: 0,
 			navClickCount: 0,
+			planActionCount: 0,
 			uniqueSessionCount: 0,
+			uniquePlanSessionCount: 0,
 		}),
 		summarizeTrafficWindow: vi.fn().mockResolvedValue({
 			pageViewCount: 12,

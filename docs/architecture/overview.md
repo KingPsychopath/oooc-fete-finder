@@ -12,25 +12,32 @@ This app is a Next.js App Router project for Fete event discovery, with a server
 
 ## Rendering Contract
 
-1. Public routes are static-first (`/`, `/feature-event`, etc.)
+1. Public routes are cache-friendly where possible, but data-dependent public
+   routes may opt into dynamic rendering or indefinite cache with explicit
+   revalidation from admin/deploy hooks.
 2. Admin routes are dynamic and authenticated (`/admin/*`)
 3. `app/layout.tsx` stays cache-friendly and should not depend on request cookies
 
 ### Current Route Cache Rules
 
-- `/`: ISR, `revalidate = 300`
-- `/feature-event`: static-first with short cached featured reads (`revalidate = 60`)
-- `/submit-event`: static-first (`revalidate = 300`)
-- `/partner-success`: static-first (`revalidate = 300`)
+- `/`: `revalidate = false`; event edits trigger explicit revalidation
+- `/feature-event`: `revalidate = false`
+- `/submit-event`: `revalidate = false`
+- `/partner-success`: `revalidate = false`
+- `/plans`: `revalidate = false`
+- `/plans/[shareToken]`: `revalidate = 0`
 - `/privacy`: `force-static`
+- `/terms`: `force-static`
 - `/event/[eventKey]/[[...slug]]`: dynamic
+- `/exchange` and `/exchange/[eventKey]`: dynamic
 - `/partner-stats/[activationId]`: `force-dynamic`
 - `/admin/*`: `force-dynamic` + `noStore()`
 
 ### Staleness Semantics
 
-For ISR routes, "stale" means users may receive the last cached render until background regeneration completes successfully.
-If regeneration produces identical output, users effectively continue receiving the same payload/content.
+For cacheable public routes, stale content is cleared by admin save/revalidate
+flows and the deploy revalidation hook. Data correctness should be verified in
+the admin runtime cards and with public smoke checks after production changes.
 
 ## Admin Console Contract
 

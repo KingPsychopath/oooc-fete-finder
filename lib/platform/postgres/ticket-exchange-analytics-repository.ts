@@ -45,6 +45,7 @@ type TicketExchangeAnalyticsSummaryRow = {
 	eventSelectCount: number;
 	eventDetailsOpenCount: number;
 	tabChangeCount: number;
+	sortChangeCount: number;
 	profileOpenCount: number;
 	profileSaveCount: number;
 	agreementOpenCount: number;
@@ -57,10 +58,15 @@ type TicketExchangeAnalyticsSummaryRow = {
 	listingRepostCount: number;
 	reportOpenCount: number;
 	reportSubmitCount: number;
+	flowBlockedCount: number;
+	validationErrorCount: number;
+	actionFailedCount: number;
+	emptyStateCtaCount: number;
 	uniqueActionSessionCount: number;
 	uniqueListingCreateSessionCount: number;
 	uniqueContactUnlockSessionCount: number;
 	uniqueReportSubmitSessionCount: number;
+	uniqueFrictionSessionCount: number;
 };
 
 type TicketExchangeAnalyticsDailyRow = {
@@ -109,6 +115,7 @@ const emptySummary = (): TicketExchangeAnalyticsSummaryRow => ({
 	eventSelectCount: 0,
 	eventDetailsOpenCount: 0,
 	tabChangeCount: 0,
+	sortChangeCount: 0,
 	profileOpenCount: 0,
 	profileSaveCount: 0,
 	agreementOpenCount: 0,
@@ -121,10 +128,15 @@ const emptySummary = (): TicketExchangeAnalyticsSummaryRow => ({
 	listingRepostCount: 0,
 	reportOpenCount: 0,
 	reportSubmitCount: 0,
+	flowBlockedCount: 0,
+	validationErrorCount: 0,
+	actionFailedCount: 0,
+	emptyStateCtaCount: 0,
 	uniqueActionSessionCount: 0,
 	uniqueListingCreateSessionCount: 0,
 	uniqueContactUnlockSessionCount: 0,
 	uniqueReportSubmitSessionCount: 0,
+	uniqueFrictionSessionCount: 0,
 });
 
 export class TicketExchangeAnalyticsRepository {
@@ -140,7 +152,7 @@ export class TicketExchangeAnalyticsRepository {
 		await this.sql`
 			CREATE TABLE IF NOT EXISTS ticket_exchange_analytics_stats (
 				id BIGSERIAL PRIMARY KEY,
-				action_type TEXT NOT NULL CHECK (action_type IN ('exchange_view', 'event_select', 'event_details_open', 'tab_change', 'profile_open', 'profile_save', 'agreement_open', 'agreement_accept', 'listing_form_open', 'listing_create', 'contact_unlock', 'contact_link_click', 'listing_status_update', 'listing_repost', 'report_open', 'report_submit')),
+				action_type TEXT NOT NULL CHECK (action_type IN ('exchange_view', 'event_select', 'event_details_open', 'tab_change', 'sort_change', 'profile_open', 'profile_save', 'agreement_open', 'agreement_accept', 'listing_form_open', 'listing_create', 'contact_unlock', 'contact_link_click', 'listing_status_update', 'listing_repost', 'report_open', 'report_submit', 'flow_blocked', 'validation_error', 'action_failed', 'empty_state_cta')),
 				session_id TEXT,
 				user_id TEXT,
 				user_email TEXT,
@@ -168,7 +180,7 @@ export class TicketExchangeAnalyticsRepository {
 				DROP CONSTRAINT IF EXISTS ticket_exchange_analytics_stats_action_type_check;
 				ALTER TABLE ticket_exchange_analytics_stats
 				ADD CONSTRAINT ticket_exchange_analytics_stats_action_type_check
-				CHECK (action_type IN ('exchange_view', 'event_select', 'event_details_open', 'tab_change', 'profile_open', 'profile_save', 'agreement_open', 'agreement_accept', 'listing_form_open', 'listing_create', 'contact_unlock', 'contact_link_click', 'listing_status_update', 'listing_repost', 'report_open', 'report_submit'));
+				CHECK (action_type IN ('exchange_view', 'event_select', 'event_details_open', 'tab_change', 'sort_change', 'profile_open', 'profile_save', 'agreement_open', 'agreement_accept', 'listing_form_open', 'listing_create', 'contact_unlock', 'contact_link_click', 'listing_status_update', 'listing_repost', 'report_open', 'report_submit', 'flow_blocked', 'validation_error', 'action_failed', 'empty_state_cta'));
 			END $$;
 		`;
 
@@ -256,6 +268,7 @@ export class TicketExchangeAnalyticsRepository {
 				COUNT(*) FILTER (WHERE action_type = 'event_select')::int AS "eventSelectCount",
 				COUNT(*) FILTER (WHERE action_type = 'event_details_open')::int AS "eventDetailsOpenCount",
 				COUNT(*) FILTER (WHERE action_type = 'tab_change')::int AS "tabChangeCount",
+				COUNT(*) FILTER (WHERE action_type = 'sort_change')::int AS "sortChangeCount",
 				COUNT(*) FILTER (WHERE action_type = 'profile_open')::int AS "profileOpenCount",
 				COUNT(*) FILTER (WHERE action_type = 'profile_save')::int AS "profileSaveCount",
 				COUNT(*) FILTER (WHERE action_type = 'agreement_open')::int AS "agreementOpenCount",
@@ -268,10 +281,15 @@ export class TicketExchangeAnalyticsRepository {
 				COUNT(*) FILTER (WHERE action_type = 'listing_repost')::int AS "listingRepostCount",
 				COUNT(*) FILTER (WHERE action_type = 'report_open')::int AS "reportOpenCount",
 				COUNT(*) FILTER (WHERE action_type = 'report_submit')::int AS "reportSubmitCount",
+				COUNT(*) FILTER (WHERE action_type = 'flow_blocked')::int AS "flowBlockedCount",
+				COUNT(*) FILTER (WHERE action_type = 'validation_error')::int AS "validationErrorCount",
+				COUNT(*) FILTER (WHERE action_type = 'action_failed')::int AS "actionFailedCount",
+				COUNT(*) FILTER (WHERE action_type = 'empty_state_cta')::int AS "emptyStateCtaCount",
 				COUNT(DISTINCT session_id)::int AS "uniqueActionSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'listing_create')::int AS "uniqueListingCreateSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'contact_unlock')::int AS "uniqueContactUnlockSessionCount",
-				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'report_submit')::int AS "uniqueReportSubmitSessionCount"
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'report_submit')::int AS "uniqueReportSubmitSessionCount",
+				COUNT(DISTINCT session_id) FILTER (WHERE action_type IN ('flow_blocked', 'validation_error', 'action_failed'))::int AS "uniqueFrictionSessionCount"
 			FROM ticket_exchange_analytics_stats
 			WHERE recorded_at >= ${input.startAt}
 				AND recorded_at < ${input.endAt}

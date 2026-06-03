@@ -16,21 +16,20 @@ If you are new to this codebase, start here.
 - I need the tracking and "saved this" behavior: [Engagement Tracking](./architecture/engagement-tracking.md)
 - I need stable event links: [Event Identity](./architecture/event-identity.md)
 - I need to run/admin the app: [Admin Workflow](./operations/admin-workflow.md)
-- I need deploy/runtime guardrails: [Serverless Hardening](./operations/serverless-hardening.md)
+- I need a production deploy/incident checklist: [Production Readiness](./operations/production-readiness.md)
 - I need to verify Railway cron jobs: `pnpm check:railway-cron`
 - I need Postgres cutover or recovery steps: [Postgres Migration](./operations/postgres-migration.md)
-- I need to remove legacy browser storage migration: [User ID Local Storage Migration Removal](./operations/user-id-local-storage-migration-removal.md)
+- I need to remove the current browser storage migration: [User ID Local Storage Migration Removal](./operations/user-id-local-storage-migration-removal.md)
 - I need logs/troubleshooting context: [Logging & Observability](./operations/logging-and-observability.md)
 - I need abuse protection details: [Rate Limiting](./security/rate-limiting.md)
 - I need endpoint inventory: [API Endpoints](./reference/api-endpoints.md)
 - I need all env vars and requirements: [Environment Variables](./reference/environment-variables.md)
-- I need Google integration behavior: [Google Integrations](./integrations/google.md)
-- I need geocoding behavior: [Geocoding](./integrations/geocoding.md)
+- I need location/geocoding behavior: [Location Resolution](./integrations/geocoding.md)
 
 ## Docs Structure
 
 - `architecture/` system contracts and data/analytics design
-- `operations/` runbooks for admin workflows, deploy, and recovery
+- `operations/` runbooks for admin workflows, deploy, production readiness, and recovery
 - `security/` abuse controls and endpoint hardening
 - `integrations/` external provider behavior (Google)
 - `reference/` endpoint and environment references

@@ -100,4 +100,35 @@ describe("/api/analytics/ticket-exchange", () => {
 		expect(response.status).toBe(202);
 		expect(recordAction).not.toHaveBeenCalled();
 	});
+
+	it("records exchange friction analytics", async () => {
+		const { POST } = await loadRoute();
+		const response = await POST(
+			makeRequest({
+				actionType: "flow_blocked",
+				sessionId: "session-1",
+				eventKey: "evt_abc",
+				listingId: "listing-1",
+				listingType: "looking",
+				listingStatus: "active",
+				surface: "listing_card",
+				detail: "login_required:contact_unlock",
+				path: "/exchange/evt_abc",
+				recordedAt: "2026-06-01T12:00:00.000Z",
+			}),
+		);
+
+		expect(response.status).toBe(202);
+		expect(recordAction).toHaveBeenCalledWith(
+			expect.objectContaining({
+				actionType: "flow_blocked",
+				eventKey: "evt_abc",
+				listingId: "listing-1",
+				listingType: "looking",
+				listingStatus: "active",
+				surface: "listing_card",
+				detail: "login_required:contact_unlock",
+			}),
+		);
+	});
 });

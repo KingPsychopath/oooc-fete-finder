@@ -3,6 +3,7 @@ export const TICKET_EXCHANGE_ANALYTICS_ACTIONS = [
 	"event_select",
 	"event_details_open",
 	"tab_change",
+	"sort_change",
 	"profile_open",
 	"profile_save",
 	"agreement_open",
@@ -15,6 +16,10 @@ export const TICKET_EXCHANGE_ANALYTICS_ACTIONS = [
 	"listing_repost",
 	"report_open",
 	"report_submit",
+	"flow_blocked",
+	"validation_error",
+	"action_failed",
+	"empty_state_cta",
 ] as const;
 
 export type TicketExchangeAnalyticsAction =

@@ -16,6 +16,7 @@ describe("TicketExchangeAnalyticsRepository", () => {
 						eventSelectCount: 1,
 						eventDetailsOpenCount: 1,
 						tabChangeCount: 1,
+						sortChangeCount: 1,
 						profileOpenCount: 1,
 						profileSaveCount: 1,
 						agreementOpenCount: 1,
@@ -28,10 +29,15 @@ describe("TicketExchangeAnalyticsRepository", () => {
 						listingRepostCount: 1,
 						reportOpenCount: 1,
 						reportSubmitCount: 1,
+						flowBlockedCount: 1,
+						validationErrorCount: 1,
+						actionFailedCount: 1,
+						emptyStateCtaCount: 1,
 						uniqueActionSessionCount: 1,
 						uniqueListingCreateSessionCount: 1,
 						uniqueContactUnlockSessionCount: 1,
 						uniqueReportSubmitSessionCount: 1,
+						uniqueFrictionSessionCount: 1,
 					},
 				];
 			}
@@ -51,6 +57,9 @@ describe("TicketExchangeAnalyticsRepository", () => {
 		expect(queries).toContain("ticket_exchange_analytics_stats");
 		expect(queries).toContain("listing_create");
 		expect(queries).toContain("contact_unlock");
+		expect(queries).toContain("flow_blocked");
+		expect(queries).toContain("validation_error");
+		expect(queries).toContain("action_failed");
 		expect(queries).toContain("report_submit");
 		expect(queries).toContain("idx_ticket_exchange_analytics_event_time");
 	});

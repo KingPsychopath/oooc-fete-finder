@@ -269,10 +269,19 @@ function SharedPlanWorkspace({
 				planId: plan.id,
 				planDate: plan.planDate,
 				stopCount: plan.stops.length,
+				flushImmediately: true,
 			});
 			window.setTimeout(() => setCopyStatus("idle"), 1800);
 		} catch {
 			setCopyStatus("idle");
+			trackPlanAnalytics({
+				action: "share_copy_failed",
+				surface: "shared_plan",
+				planId: plan.id,
+				planDate: plan.planDate,
+				stopCount: plan.stops.length,
+				flushImmediately: true,
+			});
 		}
 	};
 
@@ -291,7 +300,18 @@ function SharedPlanWorkspace({
 			planDate: plan.planDate,
 			stopCount: routeEvents.length,
 			value: didExport ? "success" : "failure",
+			flushImmediately: true,
 		});
+		if (!didExport) {
+			trackPlanAnalytics({
+				action: "route_calendar_export_failed",
+				surface: "shared_plan",
+				planId: plan.id,
+				planDate: plan.planDate,
+				stopCount: routeEvents.length,
+				flushImmediately: true,
+			});
+		}
 	};
 
 	const openRouteInMapsWithProvider = async (
@@ -303,7 +323,18 @@ function SharedPlanWorkspace({
 			provider,
 			typeof navigator === "undefined" ? "" : navigator.userAgent,
 		);
-		if (!target) return;
+		if (!target) {
+			trackPlanAnalytics({
+				action: "route_map_unavailable",
+				surface: "shared_plan",
+				planId: plan.id,
+				planDate: plan.planDate,
+				stopCount: routeEvents.length,
+				value: provider,
+				flushImmediately: true,
+			});
+			return;
+		}
 
 		window.open(target.url, "_blank", "noopener,noreferrer");
 		trackPlanAnalytics({
@@ -313,6 +344,7 @@ function SharedPlanWorkspace({
 			planDate: plan.planDate,
 			stopCount: routeEvents.length,
 			value: `${provider}:${target.coverage}`,
+			flushImmediately: true,
 		});
 
 		if (target.coverage === "first-leg") {
@@ -338,6 +370,14 @@ function SharedPlanWorkspace({
 
 	const openRouteInMaps = () => {
 		if (mapPreference === "ask") {
+			trackPlanAnalytics({
+				action: "route_map_picker_open",
+				surface: "shared_plan",
+				planId: plan.id,
+				planDate: plan.planDate,
+				stopCount: routeEvents.length,
+				flushImmediately: true,
+			});
 			setIsRouteMapPickerOpen(true);
 			return;
 		}

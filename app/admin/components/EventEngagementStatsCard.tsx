@@ -228,6 +228,18 @@ const TICKET_EXCHANGE_SUMMARY_METRICS = [
 		description: "Client-confirmed successful contact reveals.",
 	},
 	{
+		key: "flowBlockedCount",
+		label: "Blocked Attempts",
+		description:
+			"Login, agreement, or contact-profile gates that stopped a visible exchange action.",
+	},
+	{
+		key: "actionFailedCount",
+		label: "Failed Actions",
+		description:
+			"Server action failures after the user submitted an exchange action.",
+	},
+	{
 		key: "reportSubmitCount",
 		label: "Reports Sent",
 		description: "Client-confirmed listing reports submitted by users.",
@@ -244,6 +256,13 @@ const TICKET_EXCHANGE_SUMMARY_METRICS = [
 		label: "View to Contact",
 		description:
 			"Unique contact-unlock sessions divided by unique exchange visitor sessions.",
+		format: (value: number) => `${value.toFixed(1)}%`,
+	},
+	{
+		key: "frictionSessionRate",
+		label: "Friction Rate",
+		description:
+			"Sessions with login, agreement, contact, validation, or failed-action friction divided by exchange action sessions.",
 		format: (value: number) => `${value.toFixed(1)}%`,
 	},
 ] as const;
@@ -925,6 +944,7 @@ export const EventEngagementStatsCard = ({
 					eventSelectCount: 0,
 					eventDetailsOpenCount: 0,
 					tabChangeCount: 0,
+					sortChangeCount: 0,
 					profileOpenCount: 0,
 					profileSaveCount: 0,
 					agreementOpenCount: 0,
@@ -937,14 +957,20 @@ export const EventEngagementStatsCard = ({
 					listingRepostCount: 0,
 					reportOpenCount: 0,
 					reportSubmitCount: 0,
+					flowBlockedCount: 0,
+					validationErrorCount: 0,
+					actionFailedCount: 0,
+					emptyStateCtaCount: 0,
 					uniqueActionSessionCount: 0,
 					uniqueListingCreateSessionCount: 0,
 					uniqueContactUnlockSessionCount: 0,
 					uniqueReportSubmitSessionCount: 0,
+					uniqueFrictionSessionCount: 0,
 					viewToListingRate: 0,
 					viewToUnlockRate: 0,
 					listingToUnlockRate: 0,
 					reportRate: 0,
+					frictionSessionRate: 0,
 				},
 				operations: {
 					listingCreateCount: 0,
@@ -1011,9 +1037,110 @@ export const EventEngagementStatsCard = ({
 	const topNavigationRows = payload?.success
 		? payload.discovery.topNavigationClicks.slice(0, 8)
 		: [];
-	const topPlanActionRows = payload?.success
-		? payload.discovery.topPlanActions.slice(0, 8)
+	const allPlanActionRows = payload?.success
+		? payload.discovery.topPlanActions
 		: [];
+	const topPlanActionRows = allPlanActionRows.slice(0, 8);
+	const getPlanActionCount = (action: string): number =>
+		allPlanActionRows
+			.filter((row) => row.value === action)
+			.reduce((total, row) => total + row.count, 0);
+	const planFunnelRows = [
+		{
+			label: "Date selected",
+			value: getPlanActionCount("date_select"),
+			help: "Users choosing a route day.",
+		},
+		{
+			label: "Route suggested",
+			value:
+				getPlanActionCount("suggest_route") +
+				getPlanActionCount("regenerate_route"),
+			help: "Routes generated or regenerated from planner settings.",
+		},
+		{
+			label: "Route edited",
+			value:
+				getPlanActionCount("add_saved_event") +
+				getPlanActionCount("add_event_from_modal") +
+				getPlanActionCount("reorder_stop") +
+				getPlanActionCount("drag_reorder_stop") +
+				getPlanActionCount("remove_stop") +
+				getPlanActionCount("pin_stop") +
+				getPlanActionCount("unpin_stop"),
+			help: "Stops added, reordered, removed, pinned, or unpinned.",
+		},
+		{
+			label: "Shared or copied",
+			value:
+				getPlanActionCount("share_create") +
+				getPlanActionCount("share_copy") +
+				getPlanActionCount("shared_plan_copy"),
+			help: "Private route share links created or copied, plus shared-route link copies.",
+		},
+		{
+			label: "Used externally",
+			value:
+				getPlanActionCount("route_map_open") +
+				getPlanActionCount("route_calendar_export"),
+			help: "Routes opened in maps or exported to calendar.",
+		},
+	];
+	const planIssueRows = [
+		{
+			label: "No route result",
+			value: getPlanActionCount("route_suggest_no_results"),
+			help: "Planner settings could not produce a visible route suggestion.",
+		},
+		{
+			label: "Route limit hit",
+			value: getPlanActionCount("route_limit_reached"),
+			help: "Users tried to create more routes than the per-day limit allows.",
+		},
+		{
+			label: "Map unavailable",
+			value: getPlanActionCount("route_map_unavailable"),
+			help: "A route could not produce a map target for the chosen provider.",
+		},
+		{
+			label: "Calendar failed",
+			value: getPlanActionCount("route_calendar_export_failed"),
+			help: "Calendar export returned a failure.",
+		},
+		{
+			label: "Share copy failed",
+			value: getPlanActionCount("share_copy_failed"),
+			help: "Clipboard copy failed on a private or shared route link.",
+		},
+	];
+	const planIssueSignalCount = planIssueRows.reduce(
+		(total, row) => total + row.value,
+		0,
+	);
+	const exchangeFrictionCount =
+		ticketExchange.summary.flowBlockedCount +
+		ticketExchange.summary.validationErrorCount +
+		ticketExchange.summary.actionFailedCount;
+	const exchangeOpportunityRows = ticketExchange.topEvents
+		.map((row) => ({
+			...row,
+			supplyGap:
+				row.operationalLookingListingCreateCount -
+				row.operationalSellingListingCreateCount,
+		}))
+		.filter(
+			(row) =>
+				row.supplyGap > 0 ||
+				(row.operationalInterestCreateCount > 0 &&
+					row.operationalSellingListingCreateCount === 0),
+		)
+		.sort(
+			(left, right) =>
+				right.supplyGap - left.supplyGap ||
+				right.operationalInterestCreateCount -
+					left.operationalInterestCreateCount,
+		)
+		.slice(0, 5);
 	const maxDiscoverySignal = Math.max(
 		1,
 		...topSearchRows.map((row) => row.count),
@@ -1870,12 +1997,17 @@ export const EventEngagementStatsCard = ({
 							/>
 							<SummaryMetric
 								label="Plan Share/Export Signals"
-								value={topPlanActionRows
+								value={allPlanActionRows
 									.filter((row) =>
 										/share|export|copy|route_map_open/.test(row.value),
 									)
 									.reduce((total, row) => total + row.count, 0)}
 								description="Share, copy, map-open, and calendar-export plan actions."
+							/>
+							<SummaryMetric
+								label="Plan Issue Signals"
+								value={planIssueSignalCount}
+								description="No-result, limit, map, calendar, and share-copy failures that need product follow-up."
 							/>
 							<SummaryMetric
 								label="Top Plan Action"
@@ -2608,6 +2740,81 @@ export const EventEngagementStatsCard = ({
 								)}
 							</div>
 							<div className="space-y-2 rounded-md border bg-background/70 p-3">
+								<div className="flex items-center">
+									<p className="text-xs font-medium text-foreground">
+										Planner funnel
+									</p>
+									<InfoPopover aria-label="Explain planner funnel" side="top">
+										This is an action-count funnel, not a strict per-session
+										conversion funnel. It shows whether people move from
+										choosing a day, to generating and editing a route, to
+										sharing or using it outside the app.
+									</InfoPopover>
+								</div>
+								<div className="space-y-1.5">
+									{planFunnelRows.map((row) => (
+										<div
+											key={row.label}
+											className="flex items-start justify-between gap-3 rounded-md border bg-background/60 p-2 text-xs"
+										>
+											<div className="min-w-0">
+												<p className="font-medium text-foreground">
+													{row.label}
+												</p>
+												<p className="text-[11px] text-muted-foreground">
+													{row.help}
+												</p>
+											</div>
+											<span className="tabular-nums text-muted-foreground">
+												{row.value}
+											</span>
+										</div>
+									))}
+								</div>
+							</div>
+							<div className="space-y-2 rounded-md border bg-background/70 p-3">
+								<div className="flex items-center">
+									<p className="text-xs font-medium text-foreground">
+										Planner issue queue
+									</p>
+									<InfoPopover
+										aria-label="Explain planner issue signals"
+										side="top"
+									>
+										These are visible failure or friction states. A nonzero
+										count is actionable because it points to copy,
+										route-generation, map, calendar, clipboard, or route-limit
+										follow-up.
+									</InfoPopover>
+								</div>
+								<div className="space-y-1.5">
+									{planIssueRows.map((row) => (
+										<div
+											key={row.label}
+											className="flex items-start justify-between gap-3 rounded-md border bg-background/60 p-2 text-xs"
+										>
+											<div className="min-w-0">
+												<p className="font-medium text-foreground">
+													{row.label}
+												</p>
+												<p className="text-[11px] text-muted-foreground">
+													{row.help}
+												</p>
+											</div>
+											<span
+												className={`tabular-nums ${
+													row.value > 0
+														? "font-medium text-amber-700 dark:text-amber-300"
+														: "text-muted-foreground"
+												}`}
+											>
+												{row.value}
+											</span>
+										</div>
+									))}
+								</div>
+							</div>
+							<div className="space-y-2 rounded-md border bg-background/70 p-3">
 								<p className="text-xs font-medium text-foreground">
 									Planning review
 								</p>
@@ -2618,20 +2825,25 @@ export const EventEngagementStatsCard = ({
 											: "Planning has no recorded sessions in this window."}
 									</p>
 									<p>
-										{topPlanActionRows.some((row) =>
+										{allPlanActionRows.some((row) =>
 											row.value.includes("share"),
 										)
 											? "Sharing signals are present, so shared-route flows are visible in analytics."
 											: "No route-share signal yet; validate share CTAs if planning traffic is expected."}
 									</p>
 									<p>
-										{topPlanActionRows.some(
+										{allPlanActionRows.some(
 											(row) =>
 												row.value === "route_map_open" ||
 												row.value === "route_calendar_export",
 										)
 											? "Export/map intent is present, which is useful for route utility decisions."
 											: "No map/calendar export signal yet; this may be normal if route planning is still early."}
+									</p>
+									<p>
+										{planIssueSignalCount > 0
+											? `${formatCountLabel(planIssueSignalCount, "planner issue")} recorded. Check the issue queue before changing route-generation or export copy.`
+											: "No planner issue signals in this window."}
 									</p>
 								</div>
 							</div>
@@ -2691,7 +2903,8 @@ export const EventEngagementStatsCard = ({
 													)}
 													<p className="truncate text-[11px] text-muted-foreground">
 														{row.exchangeViewCount} views ·{" "}
-														{row.operationalListingCreateCount} listings ·{" "}
+														{row.operationalSellingListingCreateCount} selling ·{" "}
+														{row.operationalLookingListingCreateCount} looking ·{" "}
 														{row.operationalInterestCreateCount} unlocks ·{" "}
 														{row.operationalReportCreateCount} reports
 													</p>
@@ -2743,6 +2956,100 @@ export const EventEngagementStatsCard = ({
 														}}
 													/>
 												</div>
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+							<div className="space-y-2 rounded-md border bg-background/70 p-3">
+								<div className="flex items-center">
+									<p className="text-xs font-medium text-foreground">
+										Exchange friction
+									</p>
+									<InfoPopover
+										aria-label="Explain exchange friction"
+										side="top"
+									>
+										Friction covers visible blocked attempts, validation errors,
+										and failed server actions. It separates lack of demand from
+										users trying to act but getting stopped.
+									</InfoPopover>
+								</div>
+								<div className="grid grid-cols-2 gap-2 text-xs">
+									{[
+										{
+											label: "Blocked",
+											value: ticketExchange.summary.flowBlockedCount,
+											help: "Login, agreement, or contact-profile gate.",
+										},
+										{
+											label: "Validation",
+											value: ticketExchange.summary.validationErrorCount,
+											help: "Form copy or required-field errors.",
+										},
+										{
+											label: "Failed",
+											value: ticketExchange.summary.actionFailedCount,
+											help: "Submitted actions that returned an error.",
+										},
+										{
+											label: "Friction sessions",
+											value: ticketExchange.summary.uniqueFrictionSessionCount,
+											help: `${formatPercent(ticketExchange.summary.frictionSessionRate)} of exchange action sessions.`,
+										},
+									].map((row) => (
+										<div
+											key={row.label}
+											className="rounded-md border bg-background/60 p-2"
+										>
+											<p className="font-medium text-foreground">{row.label}</p>
+											<p className="mt-1 text-lg tabular-nums text-foreground">
+												{row.value}
+											</p>
+											<p className="text-[11px] text-muted-foreground">
+												{row.help}
+											</p>
+										</div>
+									))}
+								</div>
+								<p className="text-[11px] text-muted-foreground">
+									Total friction signals: {exchangeFrictionCount}.
+								</p>
+							</div>
+							<div className="space-y-2 rounded-md border bg-background/70 p-3">
+								<div className="flex items-center">
+									<p className="text-xs font-medium text-foreground">
+										Demand / supply watch
+									</p>
+									<InfoPopover
+										aria-label="Explain demand supply watch"
+										side="top"
+									>
+										Events appear here when looking listings or contact-unlock
+										demand outpaces selling listings. Use it to decide where to
+										prompt sellers, feature exchange links, or manually review
+										supply.
+									</InfoPopover>
+								</div>
+								{exchangeOpportunityRows.length === 0 ? (
+									<p className="text-xs text-muted-foreground">
+										No visible supply gap in this window.
+									</p>
+								) : (
+									<div className="space-y-1.5">
+										{exchangeOpportunityRows.map((row) => (
+											<div
+												key={row.eventKey}
+												className="rounded-md border bg-background/60 p-2 text-xs"
+											>
+												<p className="truncate font-medium text-foreground">
+													{row.eventName}
+												</p>
+												<p className="text-[11px] text-muted-foreground">
+													{row.operationalLookingListingCreateCount} looking ·{" "}
+													{row.operationalSellingListingCreateCount} selling ·{" "}
+													{row.operationalInterestCreateCount} unlocks
+												</p>
 											</div>
 										))}
 									</div>

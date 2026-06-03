@@ -8,11 +8,11 @@ import {
 	clusterTopSearchQueries,
 } from "@/features/events/engagement/search-query-clustering";
 import { MUSIC_GENRES, type MusicGenre } from "@/features/events/types";
+import { getTicketExchangeRepository } from "@/features/ticket-exchange/repository";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import { getTicketExchangeAnalyticsRepository } from "@/lib/platform/postgres/ticket-exchange-analytics-repository";
 import { getUserGenrePreferenceRepository } from "@/lib/platform/postgres/user-genre-preference-repository";
-import { getTicketExchangeRepository } from "@/features/ticket-exchange/repository";
 
 const assertAdmin = async () => {
 	const authorized = await validateAdminAccessFromServerContext();
@@ -255,6 +255,7 @@ export async function getEventEngagementDashboard(
 					eventSelectCount: number;
 					eventDetailsOpenCount: number;
 					tabChangeCount: number;
+					sortChangeCount: number;
 					profileOpenCount: number;
 					profileSaveCount: number;
 					agreementOpenCount: number;
@@ -267,14 +268,20 @@ export async function getEventEngagementDashboard(
 					listingRepostCount: number;
 					reportOpenCount: number;
 					reportSubmitCount: number;
+					flowBlockedCount: number;
+					validationErrorCount: number;
+					actionFailedCount: number;
+					emptyStateCtaCount: number;
 					uniqueActionSessionCount: number;
 					uniqueListingCreateSessionCount: number;
 					uniqueContactUnlockSessionCount: number;
 					uniqueReportSubmitSessionCount: number;
+					uniqueFrictionSessionCount: number;
 					viewToListingRate: number;
 					viewToUnlockRate: number;
 					listingToUnlockRate: number;
 					reportRate: number;
+					frictionSessionRate: number;
 				};
 				operations: {
 					listingCreateCount: number;
@@ -313,6 +320,8 @@ export async function getEventEngagementDashboard(
 					reportSubmitCount: number;
 					uniqueSessionCount: number;
 					operationalListingCreateCount: number;
+					operationalSellingListingCreateCount: number;
+					operationalLookingListingCreateCount: number;
 					operationalInterestCreateCount: number;
 					operationalReportCreateCount: number;
 					operationalResolvedListingCount: number;
@@ -723,6 +732,7 @@ export async function getEventEngagementDashboard(
 						eventSelectCount: 0,
 						eventDetailsOpenCount: 0,
 						tabChangeCount: 0,
+						sortChangeCount: 0,
 						profileOpenCount: 0,
 						profileSaveCount: 0,
 						agreementOpenCount: 0,
@@ -735,10 +745,15 @@ export async function getEventEngagementDashboard(
 						listingRepostCount: 0,
 						reportOpenCount: 0,
 						reportSubmitCount: 0,
+						flowBlockedCount: 0,
+						validationErrorCount: 0,
+						actionFailedCount: 0,
+						emptyStateCtaCount: 0,
 						uniqueActionSessionCount: 0,
 						uniqueListingCreateSessionCount: 0,
 						uniqueContactUnlockSessionCount: 0,
 						uniqueReportSubmitSessionCount: 0,
+						uniqueFrictionSessionCount: 0,
 					}),
 			ticketExchangeAnalyticsRepository
 				? ticketExchangeAnalyticsRepository.listDailySeries({
@@ -1004,6 +1019,10 @@ export async function getEventEngagementDashboard(
 								ticketExchangeOperations.interestCreateCount,
 						),
 					),
+					frictionSessionRate: toPercent(
+						ticketExchangeSummary.uniqueFrictionSessionCount,
+						ticketExchangeSummary.uniqueActionSessionCount,
+					),
 				},
 				operations: ticketExchangeOperations,
 				dailySeries: ticketExchangeDailySeries,
@@ -1029,6 +1048,10 @@ export async function getEventEngagementDashboard(
 							uniqueSessionCount: analyticsRow?.uniqueSessionCount ?? 0,
 							operationalListingCreateCount:
 								operationalRow?.listingCreateCount ?? 0,
+							operationalSellingListingCreateCount:
+								operationalRow?.sellingListingCreateCount ?? 0,
+							operationalLookingListingCreateCount:
+								operationalRow?.lookingListingCreateCount ?? 0,
 							operationalInterestCreateCount:
 								operationalRow?.interestCreateCount ?? 0,
 							operationalReportCreateCount:

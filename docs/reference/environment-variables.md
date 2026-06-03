@@ -1,6 +1,8 @@
 # Environment Variables
 
-Validation schema: `lib/config/env.ts`
+Validation schema for core runtime variables: `lib/config/env.ts`.
+Some optional diagnostics and maintenance-script variables are read directly from
+`process.env` and are still listed here and in `.env.example`.
 
 ## Server Variables
 
@@ -11,9 +13,11 @@ Validation schema: `lib/config/env.ts`
 | `ADMIN_KEY` | No | `""` | If empty, admin auth is disabled |
 | `ADMIN_RESET_PASSCODE` | No | - | Optional admin reset passcode |
 | `DATABASE_URL` | No | - | Postgres connection string |
+| `POSTGRES_URL` | No | - | Script-only fallback for maintenance commands when `DATABASE_URL` is unset |
 | `POSTGRES_POOL_MAX` | No | - | Optional pool tuning |
 | `ALLOW_LOCAL_ENV_OVERRIDE` | No | - | Development-only escape hatch. Set to `1` only when intentionally letting shell env override critical project env values like `DATABASE_URL` or `DATA_MODE` |
 | `DATA_MODE` | Production: Yes | `remote` | `remote`, `local`, or `test` |
+| `SKIP_ENV_VALIDATION` | No | - | Optional escape hatch for special build/test workflows |
 | `GOOGLE_MAPS_API_KEY` | No | - | Enables address geocoding |
 | `EVENT_OCR_PROVIDER` | No | `gemini` | Admin event sheet OCR provider. Supported today: `gemini` |
 | `EVENT_OCR_MODEL` | No | `gemini-2.5-flash-lite` | OCR vision model name passed to the selected provider |
@@ -36,6 +40,7 @@ Validation schema: `lib/config/env.ts`
 | `NEXT_PUBLIC_BASE_PATH` | `""` | Optional subpath deploy |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Canonical site origin |
 | `NEXT_PUBLIC_DEPLOYMENT_ID` | - | Optional public deployment/build identifier used by admin deploy-change detection |
+| `NEXT_PUBLIC_OG_IMAGE_VERSION` | - | Optional cache-busting version appended to generated OG image URLs |
 | `NEXT_PUBLIC_WHATSAPP_URL` | - | Community invite link |
 | `NEXT_PUBLIC_SPOTIFY_PLAYLIST_URL` | - | Spotify playlist link |
 | `NEXT_PUBLIC_APPLE_MUSIC_PLAYLIST_URL` | - | Apple Music playlist link |
@@ -56,13 +61,47 @@ Validation schema: `lib/config/env.ts`
 | `NEXT_PUBLIC_DISCOVERY_ANALYTICS_SAMPLE_RATE` | `0.25` | Sampling rate for search/filter/map/sort/location discovery analytics |
 | `NEXT_PUBLIC_LOW_VALUE_ANALYTICS_SAMPLE_RATE` | `0` | Sampling rate for low-value nav/tour analytics |
 | `NEXT_PUBLIC_GENRE_PREFERENCE_ANALYTICS_SAMPLE_RATE` | `0.25` | Sampling rate for genre preference analytics |
-| `NEXT_PUBLIC_STRIPE_LINK_SPOTLIGHT_STANDARD` | - | Partner checkout link |
-| `NEXT_PUBLIC_STRIPE_LINK_SPOTLIGHT_TAKEOVER` | - | Partner checkout link |
-| `NEXT_PUBLIC_STRIPE_LINK_PROMOTED` | - | Partner checkout link |
-| `NEXT_PUBLIC_STRIPE_LINK_ADDON_WHATSAPP` | - | Partner checkout add-on link |
-| `NEXT_PUBLIC_STRIPE_LINK_ADDON_NEWSLETTER` | - | Partner checkout add-on link |
+| `NEXT_PUBLIC_AUTH_TIMING_LOG` | - | Set to `1` to log browser auth refresh timing outside normal development logging |
+| `NEXT_PUBLIC_OFFLINE_DEBUG` | - | Set to `1` to show the offline diagnostics panel without a query/localStorage toggle |
 
-`NEXT_PUBLIC_DEPLOYMENT_ID` and the public Stripe Payment Link values are optional runtime reads and are listed in `.env.example`; they are intentionally not required for local development.
+`NEXT_PUBLIC_DEPLOYMENT_ID`, `NEXT_PUBLIC_OG_IMAGE_VERSION`, diagnostics flags,
+and analytics sample rates are optional runtime reads and are listed in
+`.env.example`; they are intentionally not required for local development.
+
+## Provider And Test Variables
+
+These values are read when the platform or tooling provides them. They are not
+required app configuration and generally should not be set by hand in local
+`.env` files.
+
+- `NEXT_RUNTIME`: provided by Next.js runtime execution.
+- `CI`: provided by CI systems; Playwright uses it to choose retries/reporting.
+- `RAILWAY_DEPLOYMENT_ID`, `RAILWAY_GIT_COMMIT_SHA`, and
+  `RAILWAY_ENVIRONMENT_NAME`: provided by Railway when available.
+- `VERCEL_DEPLOYMENT_ID`, `VERCEL_GIT_COMMIT_SHA`, and `VERCEL_URL`: supported
+  as deployment-id fallbacks if a Vercel-like environment ever supplies them.
+- `BUILD_ID`: optional generic server-side build identifier when provider commit
+  or deployment vars are absent.
+- `PLAYWRIGHT_BASE_URL`: optional e2e target for Playwright; defaults to
+  `http://localhost:3000`.
+
+## Maintenance Script Variables
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `BASE_URL` | `http://localhost:3000` | Used by health and public-route check scripts |
+| `PLAYWRIGHT_BASE_URL` | `http://localhost:3000` | Used by Playwright when tests target an existing server |
+| `TARGET_URL` | - | Required by `scripts/railway-cron-trigger.mjs` |
+| `EVENT_PATH` | Built-in sample event path | Route checked by `scripts/check-public-routes.mjs` |
+| `MAX_EVENT_HTML_BYTES` | `120000` | Event HTML budget for public-route checks |
+| `MAX_HOME_HTML_BYTES` | `360000` | Home HTML budget for public-route checks |
+| `MAX_JS_CHUNK_BYTES` | `1250000` | Per-chunk JS budget for public-route checks |
+| `MAX_TOTAL_JS_CHUNK_BYTES` | `5000000` | Total JS budget for public-route checks |
+| `USER_ID_DRIFT_LOOKBACK_DAYS` | `30` | Recent-window size for identity drift checks |
+| `USER_ID_DRIFT_ALLOWED_UNRECOVERABLE_MISSING_WITH_EMAIL` | `0` | Allowed unrecoverable recent identity misses with email |
+| `USER_ID_DRIFT_ALLOWED_MISSING_WITH_EMAIL` | `0` | Legacy alias for the allowed missing-with-email threshold |
+| `USER_ID_DRIFT_ALLOWED_MALFORMED_IDS` | `0` | Allowed recent malformed identity values |
+| `USER_ID_SESSION_LOOKBACK_DAYS` | `30` | Session mapping window for user identity backfills |
 
 ## Production Notes
 

@@ -582,6 +582,10 @@ export const trackDiscoveryAnalytics = (input: {
 	enqueuePayload("discovery", payload);
 };
 
+export const flushDiscoveryAnalytics = (preferBeacon = false): void => {
+	flushQueue("discovery", preferBeacon);
+};
+
 export const trackPageView = (input?: {
 	path?: string;
 	hostname?: string;

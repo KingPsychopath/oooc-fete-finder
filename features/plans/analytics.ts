@@ -1,6 +1,9 @@
 "use client";
 
-import { trackDiscoveryAnalytics } from "@/features/events/engagement/client-tracking";
+import {
+	flushDiscoveryAnalytics,
+	trackDiscoveryAnalytics,
+} from "@/features/events/engagement/client-tracking";
 import {
 	type PlanAnalyticsAction,
 	type PlanAnalyticsSurface,
@@ -17,6 +20,7 @@ interface PlanAnalyticsInput {
 	eventKey?: string | null;
 	stopCount?: number | null;
 	value?: string | number | boolean | null;
+	flushImmediately?: boolean;
 }
 
 const cleanPart = (value: string): string =>
@@ -59,4 +63,7 @@ export const trackPlanAnalytics = (input: PlanAnalyticsInput): void => {
 		filterValue: input.action,
 		searchQuery: formatDetail(input),
 	});
+	if (input.flushImmediately) {
+		flushDiscoveryAnalytics(true);
+	}
 };

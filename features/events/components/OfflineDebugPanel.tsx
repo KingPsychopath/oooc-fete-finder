@@ -31,7 +31,6 @@ const formatDateTime = (value: number | string | null) => {
 };
 
 const shouldShowDebugPanel = () => {
-	if (process.env.NODE_ENV === "development") return true;
 	if (process.env.NEXT_PUBLIC_OFFLINE_DEBUG === "1") return true;
 	if (typeof window === "undefined") return false;
 	const params = new URLSearchParams(window.location.search);

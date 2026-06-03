@@ -62,7 +62,7 @@ DATA_MODE=remote
 
 `ADMIN_KEY` is optional. If it is empty, admin login and admin APIs are disabled.
 
-Optional provider integrations, such as Google geocoding and Stripe payment links, are documented in [.env.example](./.env.example) and [docs/reference/environment-variables.md](./docs/reference/environment-variables.md).
+Optional provider integrations, such as Google geocoding, event OCR, Stripe webhooks, and ticket-exchange bot auth, are documented in [.env.example](./.env.example) and [docs/reference/environment-variables.md](./docs/reference/environment-variables.md).
 
 ### Run Locally
 
@@ -86,12 +86,6 @@ Before release, refresh the bundled fallback snapshot from the managed store:
 
 ```bash
 pnpm db:pull-events-csv
-```
-
-If you are migrating old featured-event values into the scheduler:
-
-```bash
-pnpm bootstrap:featured-schedule
 ```
 
 ## Common Commands
@@ -169,13 +163,12 @@ Key references:
 - [Event Identity](./docs/architecture/event-identity.md)
 - [Engagement Tracking](./docs/architecture/engagement-tracking.md)
 - [Admin Workflow](./docs/operations/admin-workflow.md)
-- [Serverless Hardening](./docs/operations/serverless-hardening.md)
+- [Production Readiness](./docs/operations/production-readiness.md)
 - [Logging and Observability](./docs/operations/logging-and-observability.md)
 - [Rate Limiting](./docs/security/rate-limiting.md)
 - [API Endpoints](./docs/reference/api-endpoints.md)
 - [Environment Variables](./docs/reference/environment-variables.md)
-- [Google Integrations](./docs/integrations/google.md)
-- [Geocoding](./docs/integrations/geocoding.md)
+- [Location Resolution](./docs/integrations/geocoding.md)
 
 ## Quality Checks
 

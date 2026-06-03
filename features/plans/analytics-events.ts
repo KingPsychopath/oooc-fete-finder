@@ -30,7 +30,13 @@ export const PLAN_ANALYTICS_ACTIONS = [
 	"shared_plan_copy",
 	"shared_plan_open_planner",
 	"route_calendar_export",
+	"route_calendar_export_failed",
 	"route_map_open",
+	"route_map_picker_open",
+	"route_map_unavailable",
+	"route_suggest_no_results",
+	"route_limit_reached",
+	"share_copy_failed",
 ] as const;
 
 export type PlanAnalyticsAction = (typeof PLAN_ANALYTICS_ACTIONS)[number];

@@ -23,6 +23,14 @@
 2. Ensure key is valid for Geocoding API
 3. Set `GOOGLE_MAPS_API_KEY` in env
 
+## Google Scope
+
+Google is optional and currently used only as a geocoding provider.
+
+- Google is not the live runtime event source.
+- User auth data is not stored in Google as primary app behavior.
+- Homepage event loading does not require Google geocoding.
+
 ## Architecture
 
 - `features/locations/location-resolver.ts` owns provider-neutral resolution policy.

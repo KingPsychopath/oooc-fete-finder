@@ -1,6 +1,6 @@
 # Admin Workflow
 
-Use this when operating the new admin console.
+Use this when operating the admin console.
 
 ## Admin Areas
 
