@@ -70,6 +70,9 @@ export const normalizeTicketExchangeText = (
 export const TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR =
 	"Please remove offensive or abusive language from the note before posting.";
 
+export const createTicketExchangeLanguageError = (fieldLabel: string): string =>
+	`Please remove offensive or abusive language from ${fieldLabel}.`;
+
 const NOTE_ABUSE_BLOCKLIST = [
 	"fuck",
 	"fucker",
@@ -106,7 +109,7 @@ const LEETSPEAK_MAP: Record<string, string> = {
 	"7": "t",
 	"8": "b",
 	"@": "a",
-	"$": "s",
+	$: "s",
 	"!": "i",
 };
 
@@ -121,9 +124,7 @@ const normalizeLanguageScanText = (value: string): string =>
 const compactLanguageScanText = (value: string): string =>
 	normalizeLanguageScanText(value).replace(/[^a-z0-9]+/gu, "");
 
-export const hasOffensiveTicketExchangeNoteLanguage = (
-	value: string,
-): boolean => {
+export const hasOffensiveTicketExchangeLanguage = (value: string): boolean => {
 	const compact = compactLanguageScanText(value);
 	if (NOTE_ABUSE_BLOCKLIST.some((term) => compact.includes(term))) {
 		return true;
@@ -135,9 +136,24 @@ export const hasOffensiveTicketExchangeNoteLanguage = (
 	);
 };
 
+export const hasOffensiveTicketExchangeNoteLanguage =
+	hasOffensiveTicketExchangeLanguage;
+
+export const validateTicketExchangeUserText = (
+	value: unknown,
+	maxLength: number,
+	fieldLabel: string,
+): string => {
+	const text = normalizeTicketExchangeText(value, maxLength);
+	if (text && hasOffensiveTicketExchangeLanguage(text)) {
+		throw new Error(createTicketExchangeLanguageError(fieldLabel));
+	}
+	return text;
+};
+
 export const validateTicketExchangeNote = (value: string): string => {
 	const note = normalizeTicketExchangeText(value, 360);
-	if (note && hasOffensiveTicketExchangeNoteLanguage(note)) {
+	if (note && hasOffensiveTicketExchangeLanguage(note)) {
 		throw new Error(TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR);
 	}
 	return note;

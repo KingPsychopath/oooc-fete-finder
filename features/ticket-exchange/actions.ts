@@ -2,14 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getTicketExchangeSession } from "./auth";
 import {
 	TICKET_EXCHANGE_CONTACT_METHODS,
-	TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT,
 	TICKET_EXCHANGE_REPORT_REASONS,
+	TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT,
 	TICKET_EXCHANGE_RULES_VERSION,
 } from "./constants";
 import { sendTicketExchangeInterestEmail } from "./email";
-import { getTicketExchangeSession } from "./auth";
 import { getTicketExchangeRepository } from "./repository";
 import {
 	findTicketExchangeEventByKey,
@@ -35,6 +35,7 @@ import {
 	normalizeXHandle,
 	resolveExpiryDate,
 	validateTicketExchangeNote,
+	validateTicketExchangeUserText,
 } from "./utils";
 
 const hasAcceptedCurrentTicketExchangeRules = (
@@ -96,7 +97,11 @@ export async function saveTicketExchangeContactProfile(input: {
 		await repository.upsertContactProfile({
 			userId: session.userId as string,
 			accountEmail: session.email as string,
-			displayName: normalizeTicketExchangeText(input.displayName, 80),
+			displayName: validateTicketExchangeUserText(
+				input.displayName,
+				80,
+				"the display name",
+			),
 			alternateEmail: normalizeOptionalEmail(
 				normalizeTicketExchangeText(input.alternateEmail, 160),
 			),
@@ -169,9 +174,17 @@ export async function createTicketExchangeListing(input: {
 			);
 		}
 
-		const quantityLabel = normalizeTicketExchangeText(input.quantityLabel, 80);
+		const quantityLabel = validateTicketExchangeUserText(
+			input.quantityLabel,
+			80,
+			"the quantity or ticket need",
+		);
 		if (!quantityLabel) throw new Error("Add the quantity or ticket need.");
-		const priceLabel = normalizeTicketExchangeText(input.priceLabel, 80);
+		const priceLabel = validateTicketExchangeUserText(
+			input.priceLabel,
+			80,
+			"the price or budget",
+		);
 		if (listingType === "selling" && !priceLabel) {
 			throw new Error("Add the ticket price before posting a selling listing.");
 		}
@@ -304,7 +317,11 @@ export async function repostTicketExchangeListing(input: {
 }): Promise<TicketExchangeActionResult> {
 	try {
 		const { session, repository } = await getAuthenticatedContext();
-		const quantityLabel = normalizeTicketExchangeText(input.quantityLabel, 80);
+		const quantityLabel = validateTicketExchangeUserText(
+			input.quantityLabel,
+			80,
+			"the quantity",
+		);
 		if (!quantityLabel) throw new Error("Add the new quantity.");
 		await repository.repostListing({
 			listingId: normalizeTicketExchangeText(input.listingId, 80),
@@ -338,7 +355,11 @@ export async function reportTicketExchangeListing(input: {
 			listingId: normalizeTicketExchangeText(input.listingId, 80),
 			reporterUserId: session.userId as string,
 			reason: reportReasonSchema.parse(input.reason),
-			details: normalizeTicketExchangeText(input.details, 300),
+			details: validateTicketExchangeUserText(
+				input.details,
+				300,
+				"the report details",
+			),
 		});
 		return {
 			success: true,

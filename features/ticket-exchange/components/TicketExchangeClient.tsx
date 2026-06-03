@@ -47,7 +47,8 @@ import type {
 import { buildTicketExchangeEventPath } from "@/features/ticket-exchange/urls";
 import {
 	TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR,
-	hasOffensiveTicketExchangeNoteLanguage,
+	createTicketExchangeLanguageError,
+	hasOffensiveTicketExchangeLanguage,
 } from "@/features/ticket-exchange/utils";
 import { cn } from "@/lib/utils";
 import {
@@ -387,6 +388,20 @@ const getListingStatusLabel = (listing: TicketExchangeListingView): string => {
 	return listing.resolvedAt
 		? `${label} ${getRelativeTime(listing.resolvedAt)}`
 		: label;
+};
+
+const getTicketExchangeLanguageError = (
+	checks: Array<{ fieldLabel: string; value: string; errorMessage?: string }>,
+): string | null => {
+	const flagged = checks.find(
+		(check) =>
+			check.value.trim() && hasOffensiveTicketExchangeLanguage(check.value),
+	);
+	if (!flagged) return null;
+	return (
+		flagged.errorMessage ??
+		createTicketExchangeLanguageError(flagged.fieldLabel)
+	);
 };
 
 const getListingSortTime = (listing: TicketExchangeListingView): number => {
@@ -751,6 +766,13 @@ export function TicketExchangeClient({
 			if (!hasUnsavedContactDraft(data.profile, profileForm)) {
 				return data.profile;
 			}
+			const languageError = getTicketExchangeLanguageError([
+				{ fieldLabel: "the display name", value: profileForm.displayName },
+			]);
+			if (languageError) {
+				setErrorMessage(languageError);
+				return null;
+			}
 			setPendingMessage("Saving contact details...");
 			const result = await saveTicketExchangeContactProfile({
 				...profileForm,
@@ -996,6 +1018,13 @@ export function TicketExchangeClient({
 		event.preventDefault();
 		if (isSavingProfile) return;
 		if (!requireLogin()) return;
+		const languageError = getTicketExchangeLanguageError([
+			{ fieldLabel: "the display name", value: profileForm.displayName },
+		]);
+		if (languageError) {
+			setErrorMessage(languageError);
+			return;
+		}
 		setIsSavingProfile(true);
 		setPendingMessage("Saving contact profile...");
 		try {
@@ -1032,11 +1061,20 @@ export function TicketExchangeClient({
 			setErrorMessage("Add the ticket price before posting a selling listing.");
 			return;
 		}
-		if (
-			listingForm.note.trim() &&
-			hasOffensiveTicketExchangeNoteLanguage(listingForm.note)
-		) {
-			setErrorMessage(TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR);
+		const languageError = getTicketExchangeLanguageError([
+			{
+				fieldLabel: "the quantity or ticket need",
+				value: listingForm.quantityLabel,
+			},
+			{ fieldLabel: "the price or budget", value: listingForm.priceLabel },
+			{
+				fieldLabel: "the note before posting",
+				value: listingForm.note,
+				errorMessage: TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR,
+			},
+		]);
+		if (languageError) {
+			setErrorMessage(languageError);
 			return;
 		}
 		createListingInFlightRef.current = true;
@@ -1168,6 +1206,13 @@ export function TicketExchangeClient({
 		event.preventDefault();
 		if (isReporting) return;
 		if (!reportListingId || !requireLogin()) return;
+		const languageError = getTicketExchangeLanguageError([
+			{ fieldLabel: "the report details", value: reportDetails },
+		]);
+		if (languageError) {
+			setErrorMessage(languageError);
+			return;
+		}
 		const reportedListing = data.listings.find(
 			(listing) => listing.id === reportListingId,
 		);
@@ -1203,6 +1248,13 @@ export function TicketExchangeClient({
 		event.preventDefault();
 		if (isReposting) return;
 		if (!repostListingId) return;
+		const languageError = getTicketExchangeLanguageError([
+			{ fieldLabel: "the quantity", value: repostQuantity },
+		]);
+		if (languageError) {
+			setErrorMessage(languageError);
+			return;
+		}
 		const repostedListing = data.listings.find(
 			(listing) => listing.id === repostListingId,
 		);

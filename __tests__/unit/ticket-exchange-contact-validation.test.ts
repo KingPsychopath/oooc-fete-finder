@@ -1,11 +1,13 @@
 import {
 	TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR,
+	createTicketExchangeLanguageError,
 	hasOffensiveTicketExchangeNoteLanguage,
 	normalizeInstagramHandle,
 	normalizeOptionalEmail,
 	normalizeWhatsAppNumber,
 	normalizeXHandle,
 	validateTicketExchangeNote,
+	validateTicketExchangeUserText,
 } from "@/features/ticket-exchange/utils";
 import { describe, expect, it } from "vitest";
 
@@ -51,17 +53,33 @@ describe("ticket exchange contact validation", () => {
 	});
 
 	it("allows normal Ticket Exchange notes", () => {
-		expect(validateTicketExchangeNote("  Can transfer via Dice after payment  ")).toBe(
-			"Can transfer via Dice after payment",
-		);
+		expect(
+			validateTicketExchangeNote("  Can transfer via Dice after payment  "),
+		).toBe("Can transfer via Dice after payment");
 		expect(validateTicketExchangeNote("")).toBe("");
 	});
 
 	it("rejects offensive Ticket Exchange note language", () => {
-		expect(hasOffensiveTicketExchangeNoteLanguage("no f u c k i n g timewasters")).toBe(true);
+		expect(
+			hasOffensiveTicketExchangeNoteLanguage("no f u c k i n g timewasters"),
+		).toBe(true);
 		expect(hasOffensiveTicketExchangeNoteLanguage("heil hitler")).toBe(true);
 		expect(() => validateTicketExchangeNote("no sh1t offers")).toThrow(
 			TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR,
 		);
+	});
+
+	it("rejects offensive language in visible free-text fields", () => {
+		expect(
+			validateTicketExchangeUserText("  2 tickets available  ", 80, "quantity"),
+		).toBe("2 tickets available");
+		expect(() =>
+			validateTicketExchangeUserText("sh1t budget", 80, "the price or budget"),
+		).toThrow(createTicketExchangeLanguageError("the price or budget"));
+	});
+
+	it("keeps social handles on format validation only", () => {
+		expect(normalizeInstagramHandle("@nazi")).toBe("nazi");
+		expect(normalizeXHandle("@nazi")).toBe("nazi");
 	});
 });
