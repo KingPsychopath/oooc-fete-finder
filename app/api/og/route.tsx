@@ -1,5 +1,4 @@
 import { createHash } from "crypto";
-import { join } from "path";
 import { DataManager } from "@/features/data-management/data-manager";
 import {
 	getCurrentParisYearDateRange,
@@ -16,9 +15,8 @@ import {
 	type EventShareDetails,
 	getEventShareDetails,
 } from "@/lib/social/event-share-details";
-import { readFile } from "fs/promises";
-import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
+import sharp from "sharp";
 
 export const runtime = "nodejs";
 
@@ -44,6 +42,7 @@ const ALLOWED_PRESETS = [
 	"partner-performance-report",
 	"social-assets",
 	"event",
+	"shared-plan",
 ] as const;
 
 type OGVariant = (typeof ALLOWED_VARIANTS)[number];
@@ -52,25 +51,7 @@ type RateState = { count: number; resetAt: number };
 
 type OGTheme = {
 	label: string;
-	background: string;
 	accent: string;
-	accentSoft: string;
-	card: string;
-	border: string;
-	shadow: string;
-	ink: string;
-	muted: string;
-	badge: string;
-	badgeText: string;
-	ambientA: string;
-	ambientB: string;
-};
-
-type OGFont = {
-	name: string;
-	data: Buffer;
-	weight: 300 | 400;
-	style: "normal";
 };
 
 type OGContent = {
@@ -86,95 +67,14 @@ type OGContent = {
 	genres: string[];
 };
 
-const readFont = async (
-	name: string,
-	filePath: string,
-	weight: OGFont["weight"],
-): Promise<OGFont | null> => {
-	try {
-		return {
-			name,
-			data: await readFile(filePath),
-			weight,
-			style: "normal",
-		};
-	} catch {
-		return null;
-	}
-};
-
-const loadOGFonts = async (): Promise<OGFont[]> => {
-	const fonts = (
-		await Promise.all([
-			readFont(
-				"Prata",
-				join(process.cwd(), "public", "fonts", "prata_regular.woff2"),
-				400,
-			),
-			readFont(
-				"Degular",
-				join(process.cwd(), "public", "fonts", "degular_regular.woff2"),
-				400,
-			),
-		])
-	).filter((font): font is OGFont => Boolean(font));
-
-	if (fonts.length > 0) {
-		return fonts;
-	}
-
-	log.warn("og-image", "No OG fonts loaded; ImageResponse may fail");
-	return [];
-};
-
-let ogFontsPromise: Promise<OGFont[]> | null = null;
-
-const getOGFonts = (): Promise<OGFont[]> => {
-	ogFontsPromise ??= loadOGFonts();
-	return ogFontsPromise;
-};
-
-const getOGTitleFontFamily = (fonts: OGFont[]): string =>
-	fonts.some((font) => font.name === "Prata")
-		? '"Prata", Georgia, "Times New Roman", serif'
-		: '"Degular", "Helvetica Neue", Arial, sans-serif';
-
 const THEMES: Record<OGVariant, OGTheme> = {
 	default: {
 		label: "Fête de la Musique · Paris",
-		background:
-			"linear-gradient(145deg, #fbf3e7 0%, #f2dcc3 42%, #dfeee7 100%)",
 		accent: "#7f2f28",
-		accentSoft: "rgba(127,47,40,0.13)",
-		card: "rgba(255,252,247,0.92)",
-		border: "rgba(91,66,48,0.25)",
-		shadow: "0 26px 72px -44px rgba(40, 29, 22, 0.58)",
-		ink: "#241911",
-		muted: "#6d5546",
-		badge: "rgba(255,252,247,0.72)",
-		badgeText: "#5d2f27",
-		ambientA:
-			"radial-gradient(circle at 18% 16%, rgba(191, 75, 55, 0.28), transparent 44%)",
-		ambientB:
-			"radial-gradient(circle at 84% 80%, rgba(27, 105, 95, 0.24), transparent 46%)",
 	},
 	"event-modal": {
 		label: "Event Pick",
-		background:
-			"linear-gradient(148deg, #fbf0e4 0%, #e3eee9 48%, #efd2b3 100%)",
 		accent: "#155d63",
-		accentSoft: "rgba(21,93,99,0.15)",
-		card: "rgba(255,252,247,0.93)",
-		border: "rgba(36,88,84,0.24)",
-		shadow: "0 26px 72px -44px rgba(12, 58, 64, 0.54)",
-		ink: "#1d1a16",
-		muted: "#52625c",
-		badge: "rgba(255,252,247,0.72)",
-		badgeText: "#164f56",
-		ambientA:
-			"radial-gradient(circle at 15% 12%, rgba(24, 115, 122, 0.28), transparent 44%)",
-		ambientB:
-			"radial-gradient(circle at 85% 84%, rgba(192, 86, 54, 0.24), transparent 48%)",
 	},
 };
 
@@ -184,6 +84,17 @@ const sanitizeText = (value: string, fallback: string): string => {
 	return cleaned.length > MAX_TEXT_LENGTH
 		? `${cleaned.slice(0, MAX_TEXT_LENGTH - 1)}…`
 		: cleaned;
+};
+
+const parseBoundedCount = (
+	value: string | null,
+	max: number,
+	fallback = 0,
+): number => {
+	if (!value) return fallback;
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isFinite(parsed)) return fallback;
+	return Math.max(0, Math.min(max, parsed));
 };
 
 const sanitizeCacheTagSegment = (value: string): string =>
@@ -222,7 +133,7 @@ export async function HEAD(request: NextRequest) {
 }
 
 const STATIC_PRESET_CONTENT: Record<
-	Exclude<OGPreset, "event">,
+	Exclude<OGPreset, "event" | "shared-plan">,
 	Omit<
 		OGContent,
 		| "eventCount"
@@ -423,7 +334,7 @@ const parsePreset = (searchParams: URLSearchParams): OGPreset => {
 };
 
 const resolveStaticPresetContent = (
-	preset: Exclude<OGPreset, "event">,
+	preset: Exclude<OGPreset, "event" | "shared-plan">,
 ): OGContent => {
 	const content = STATIC_PRESET_CONTENT[preset];
 	return {
@@ -435,6 +346,26 @@ const resolveStaticPresetContent = (
 		price: "",
 		venue: "",
 		genres: [],
+	};
+};
+
+const resolveSharedPlanContent = (searchParams: URLSearchParams): OGContent => {
+	const stopCount = parseBoundedCount(searchParams.get("stopCount"), 99);
+	const planDate = sanitizeText(searchParams.get("planDate") || "", "");
+	const stopLabel = `${stopCount} stop${stopCount === 1 ? "" : "s"}`;
+	const dateLabel = planDate || "Fête de la Musique";
+
+	return {
+		variant: "event-modal",
+		title: "Shared Fête Finder Plan",
+		subtitle: `${dateLabel} route with ${stopLabel}. Save it, remix it, and make it yours.`,
+		eventCount: 0,
+		arrondissement: "Paris",
+		date: dateLabel,
+		time: "",
+		price: "",
+		venue: stopLabel,
+		genres: ["Route"],
 	};
 };
 
@@ -485,6 +416,9 @@ const resolveOGContent = async (
 	if (preset === "event") {
 		return resolveEventContent(searchParams);
 	}
+	if (preset === "shared-plan") {
+		return resolveSharedPlanContent(searchParams);
+	}
 
 	const content = resolveStaticPresetContent(preset);
 	const requestedPreset = searchParams.get("preset") || "home";
@@ -498,6 +432,238 @@ const resolveOGContent = async (
 		eventCount: await getCurrentYearEventCount(),
 	};
 };
+
+const escapeXml = (value: string): string =>
+	value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
+
+const truncateText = (value: string, maxLength: number): string => {
+	if (value.length <= maxLength) return value;
+	return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+};
+
+const wrapText = (
+	value: string,
+	maxChars: number,
+	maxLines: number,
+): string[] => {
+	const words = value.split(/\s+/).filter(Boolean);
+	const lines: string[] = [];
+	let current = "";
+
+	for (const word of words) {
+		const next = current ? `${current} ${word}` : word;
+		if (next.length > maxChars && current) {
+			lines.push(current);
+			current = word;
+			continue;
+		}
+		current = next;
+	}
+
+	if (current) lines.push(current);
+	const visible = lines.slice(0, maxLines);
+	if (lines.length > maxLines && visible.length > 0) {
+		visible[visible.length - 1] = truncateText(visible[visible.length - 1], 24);
+	}
+	return visible;
+};
+
+const getSvgTitleLayout = (title: string, isEventCard: boolean) => {
+	const candidates = isEventCard
+		? [
+				{ maxChars: 18, size: 76, maxLines: 2 },
+				{ maxChars: 22, size: 64, maxLines: 3 },
+				{ maxChars: 25, size: 56, maxLines: 3 },
+			]
+		: [
+				{ maxChars: 18, size: 82, maxLines: 2 },
+				{ maxChars: 20, size: 74, maxLines: 2 },
+				{ maxChars: 22, size: 66, maxLines: 2 },
+			];
+
+	for (const candidate of candidates) {
+		const lines = wrapText(title, candidate.maxChars, candidate.maxLines);
+		if (lines.join(" ").replace(/\.\.\.$/, "") === title) {
+			return {
+				lines,
+				size: title.length <= 14 && lines.length === 1 ? 104 : candidate.size,
+				lineHeight: candidate.size * 0.98,
+			};
+		}
+	}
+
+	const fallback = candidates[candidates.length - 1];
+	return {
+		lines: wrapText(title, fallback.maxChars, fallback.maxLines),
+		size: fallback.size,
+		lineHeight: fallback.size * 0.98,
+	};
+};
+
+const renderSvgTextLines = ({
+	lines,
+	x,
+	startY,
+	className,
+	fontSize,
+	lineHeight,
+}: {
+	lines: string[];
+	x: number;
+	startY: number;
+	className: string;
+	fontSize: number;
+	lineHeight: number;
+}): string =>
+	lines
+		.map(
+			(line, index) =>
+				`<text x="${x}" y="${
+					startY + index * lineHeight
+				}" class="${className}" font-size="${fontSize}">${escapeXml(
+					line,
+				)}</text>`,
+		)
+		.join("");
+
+const renderSvgMetaRows = (items: string[], accent: string): string => {
+	const visible = items.slice(0, 6).map((item) => truncateText(item, 22));
+	const rows = [visible.slice(0, 3), visible.slice(3, 6)].filter(
+		(row) => row.length > 0,
+	);
+	return `<g transform="translate(86 462)">
+	<line x1="0" y1="0" x2="540" y2="0" stroke="${accent}" stroke-opacity="0.5" stroke-width="2"/>
+	${rows
+		.map((row, rowIndex) =>
+			row
+				.map((item, index) => {
+					const x = index * 180;
+					const y = 23 + rowIndex * 48;
+					return `<g transform="translate(${x} ${y})">
+	<line x1="0" y1="-13" x2="0" y2="25" stroke="${accent}" stroke-opacity="0.3"/>
+	<text x="18" y="10" class="meta">${escapeXml(item)}</text>
+</g>`;
+				})
+				.join("\n"),
+		)
+		.join("\n")}
+</g>`;
+};
+
+const renderOGSvg = (content: {
+	title: string;
+	subtitle: string;
+	label: string;
+	eventCount: number;
+	footerLocation: string;
+	isEventCard: boolean;
+	accent: string;
+	chips: string[];
+}): string => {
+	const titleLayout = getSvgTitleLayout(content.title, content.isEventCard);
+	const titleTop = content.isEventCard
+		? titleLayout.lines.length >= 3
+			? 244
+			: titleLayout.lines.length === 2
+				? 252
+				: 246
+		: titleLayout.lines.length === 1
+			? 262
+			: 252;
+	const titleBottom =
+		titleTop + (titleLayout.lines.length - 1) * titleLayout.lineHeight;
+	const subtitleTop = titleBottom + (content.isEventCard ? 54 : 66);
+	const subtitleLines = wrapText(
+		content.subtitle,
+		content.isEventCard ? 48 : 42,
+		2,
+	);
+	const eventCountChip =
+		!content.isEventCard && content.eventCount > 0
+			? `<rect x="894" y="82" width="202" height="42" rx="21" fill="#fff8ef" fill-opacity="0.14" stroke="#fff8ef" stroke-opacity="0.2"/>
+	<text x="914" y="109" class="railSmall">${content.eventCount} events this year</text>`
+			: "";
+
+	return `<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+			<stop offset="0" stop-color="#fff8ef"/>
+			<stop offset="0.48" stop-color="#f3e1c8"/>
+			<stop offset="1" stop-color="#dce9e1"/>
+		</linearGradient>
+		<linearGradient id="rail" x1="802" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+			<stop stop-color="#201812"/>
+			<stop offset="1" stop-color="#12383a"/>
+		</linearGradient>
+		<linearGradient id="wash" x1="0" y1="0" x2="760" y2="630" gradientUnits="userSpaceOnUse">
+			<stop stop-color="#fffaf2" stop-opacity="0.84"/>
+			<stop offset="1" stop-color="#fffaf2" stop-opacity="0.08"/>
+		</linearGradient>
+		<style>
+			.eyebrow { font: 700 15px Arial, Helvetica, sans-serif; letter-spacing: 3px; fill: #624f42; }
+			.label { font: 700 17px Arial, Helvetica, sans-serif; letter-spacing: 1.2px; fill: ${content.accent}; text-transform: uppercase; }
+			.title { font-family: Georgia, 'Times New Roman', serif; font-weight: 500; fill: #211811; }
+			.subtitle { font: 500 30px Arial, Helvetica, sans-serif; fill: #5f5044; }
+			.meta { font: 700 17px Arial, Helvetica, sans-serif; fill: #2f241b; }
+			.footer { font: 700 15px Arial, Helvetica, sans-serif; letter-spacing: 2.1px; fill: #6a5849; text-transform: uppercase; }
+			.railText { font: 700 16px Arial, Helvetica, sans-serif; letter-spacing: 2.6px; fill: #fff8ef; }
+			.railSmall { font: 700 15px Arial, Helvetica, sans-serif; fill: #f5debd; }
+		</style>
+	</defs>
+	<rect width="1200" height="630" fill="url(#bg)"/>
+	<rect width="820" height="630" fill="url(#wash)"/>
+	<path d="M800 0 L1200 0 L1200 630 L874 630 C802 470 778 295 800 0Z" fill="url(#rail)"/>
+	<path d="M814 0 C782 206 805 442 874 630" stroke="#fff8ef" stroke-opacity="0.23" stroke-width="2"/>
+	<path d="M1002 92 C938 171 926 247 967 317 C1009 390 995 470 932 543" stroke="${content.accent}" stroke-width="16" stroke-linecap="round"/>
+	<path d="M1002 92 C938 171 926 247 967 317 C1009 390 995 470 932 543" stroke="#fff8ef" stroke-opacity="0.34" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 28"/>
+	<rect x="86" y="82" width="72" height="6" rx="3" fill="${content.accent}"/>
+	<text x="86" y="122" class="eyebrow">OUT OF OFFICE COLLECTIVE</text>
+	<text x="86" y="172" class="label">${escapeXml(content.label)}</text>
+	${renderSvgTextLines({
+		lines: titleLayout.lines,
+		x: 86,
+		startY: titleTop,
+		className: "title",
+		fontSize: titleLayout.size,
+		lineHeight: titleLayout.lineHeight,
+	})}
+	${renderSvgTextLines({
+		lines: subtitleLines,
+		x: 90,
+		startY: subtitleTop,
+		className: "subtitle",
+		fontSize: 30,
+		lineHeight: 41,
+	})}
+	${renderSvgMetaRows(content.chips, content.accent)}
+	<text x="54" y="584" class="footer">${escapeXml(content.footerLocation)}</text>
+	<text x="640" y="584" class="footer" text-anchor="end">FETE FINDER</text>
+	${eventCountChip}
+	<text x="912" y="123" class="railText">PARIS ROUTE</text>
+	<text x="912" y="554" class="railText">OOOC</text>
+	<line x1="900" y1="204" x2="1004" y2="204" stroke="#fff8ef" stroke-opacity="0.24"/>
+	<text x="900" y="191" class="railSmall">Curated picks</text>
+	<line x1="950" y1="320" x2="1084" y2="320" stroke="#fff8ef" stroke-opacity="0.24"/>
+	<text x="950" y="307" class="railSmall">Live details</text>
+	<line x1="870" y1="454" x2="986" y2="454" stroke="#fff8ef" stroke-opacity="0.24"/>
+	<text x="870" y="441" class="railSmall">Easy sharing</text>
+</svg>`;
+};
+
+const renderOGPng = async (content: {
+	title: string;
+	subtitle: string;
+	label: string;
+	eventCount: number;
+	footerLocation: string;
+	isEventCard: boolean;
+	accent: string;
+	chips: string[];
+}): Promise<Buffer> => sharp(Buffer.from(renderOGSvg(content))).png().toBuffer();
 
 export async function GET(request: NextRequest) {
 	const startedAt = Date.now();
@@ -529,349 +695,77 @@ export async function GET(request: NextRequest) {
 		const defaultText = buildThemeText(variant, arrondissement, eventCount);
 		const title = sanitizeText(content.title, defaultText.title);
 		const subtitle = sanitizeText(content.subtitle, defaultText.subtitle);
-		const palette = THEMES[variant];
-		const ogFonts = await getOGFonts();
-		const ogTitleFontFamily = getOGTitleFontFamily(ogFonts);
-		const footerLocation =
+		const svgPalette = THEMES[variant];
+		const svgIsEventCard = variant === "event-modal";
+		const svgFooterLocation =
 			arrondissement && arrondissement !== "Paris"
 				? `${arrondissement} · Paris`
 				: "Paris";
-		const isEventCard = variant === "event-modal";
-		const titleFontSize = title.length > 58 ? 62 : title.length > 38 ? 76 : 98;
-		const cardMaxWidth = isEventCard ? 1000 : 980;
-		const cardPadding = isEventCard ? "36px 40px" : "34px 38px";
-		const subtitleFontSize = isEventCard ? 28 : 32;
-		const durationMs = Date.now() - startedAt;
-		if (durationMs >= 1000) {
+		const svgLabel =
+			title === "Shared Fête Finder Plan"
+				? "Shared Plan"
+				: svgIsEventCard
+					? "Event Pick"
+					: svgPalette.label;
+		const svgChips = svgIsEventCard
+			? [date, time, price, venue, ...genres].filter(Boolean)
+			: eventCount > 0
+				? [`${eventCount} events`, "Paris", "OOOC"]
+				: ["Paris", "OOOC"];
+		const png = await renderOGPng({
+			title,
+			subtitle,
+			label: svgLabel,
+			eventCount,
+			footerLocation: svgFooterLocation,
+			isEventCard: svgIsEventCard,
+			accent: svgPalette.accent,
+			chips: svgChips,
+		});
+		const svgDurationMs = Date.now() - startedAt;
+		if (svgDurationMs >= 1000) {
 			log.warn("og-image", "Slow OG image response", {
-				durationMs,
+				durationMs: svgDurationMs,
 				variant,
 				cacheTags,
-				isEventCard,
+				isEventCard: svgIsEventCard,
 			});
 		}
 
-		return new ImageResponse(
-			<div
-				style={{
-					width: "100%",
-					height: "100%",
-					display: "flex",
-					position: "relative",
-					background: palette.background,
-					color: palette.ink,
-					fontFamily: '"Degular", "Helvetica Neue", Arial, sans-serif',
-				}}
-			>
-				<div
-					style={{
-						position: "absolute",
-						inset: 0,
-						display: "flex",
-						background: palette.ambientA,
-					}}
-				/>
-				<div
-					style={{
-						position: "absolute",
-						inset: 0,
-						display: "flex",
-						background: palette.ambientB,
-					}}
-				/>
-				<div
-					style={{
-						position: "absolute",
-						inset: 0,
-						display: "flex",
-						background:
-							"linear-gradient(165deg, rgba(255,255,255,0.22), rgba(255,255,255,0))",
-					}}
-				/>
-
-				<div
-					style={{
-						position: "absolute",
-						left: 44,
-						top: 42,
-						width: 250,
-						height: 250,
-						borderRadius: 999,
-						background:
-							"radial-gradient(circle, rgba(255,255,255,0.3), rgba(255,255,255,0))",
-					}}
-				/>
-				<div
-					style={{
-						position: "relative",
-						display: "flex",
-						width: "100%",
-						height: "100%",
-						padding: "46px 72px 44px 54px",
-						flexDirection: "column",
-						justifyContent: "space-between",
-					}}
-				>
-					<div
-						style={{
-							display: "flex",
-							justifyContent: "space-between",
-							alignItems: "flex-start",
-						}}
-					>
-						<div
-							style={{
-								display: "flex",
-								flexDirection: "column",
-								gap: 11,
-							}}
-						>
-							<div
-								style={{
-									fontSize: 15,
-									letterSpacing: "0.22em",
-									textTransform: "uppercase",
-									color: palette.muted,
-									fontWeight: 600,
-								}}
-							>
-								Out Of Office Collective
-							</div>
-							<div
-								style={{
-									display: "flex",
-									alignItems: "center",
-									padding: "7px 15px",
-									borderRadius: 999,
-									fontSize: 15,
-									fontWeight: 600,
-									color: palette.accent,
-									background: "rgba(255,252,247,0.62)",
-									border: `1px solid ${palette.border}`,
-								}}
-							>
-								{palette.label}
-							</div>
-						</div>
-
-						{eventCount > 0 ? (
-							<div
-								style={{
-									display: "flex",
-									alignItems: "center",
-									padding: "10px 17px",
-									borderRadius: 999,
-									fontSize: 16,
-									fontWeight: 700,
-									color: palette.badgeText,
-									background: palette.badge,
-									border: `1px solid ${palette.border}`,
-								}}
-							>
-								{eventCount} events this year
-							</div>
-						) : null}
-					</div>
-
-					<div
-						style={{
-							display: "flex",
-							flexDirection: "column",
-							gap: isEventCard ? 17 : 18,
-							maxWidth: cardMaxWidth,
-							padding: isEventCard ? cardPadding : "0",
-							borderRadius: isEventCard ? 28 : 0,
-							background: isEventCard ? palette.card : "transparent",
-							border: isEventCard ? `1px solid ${palette.border}` : "none",
-							boxShadow: isEventCard ? palette.shadow : "none",
-						}}
-					>
-						{!isEventCard ? (
-							<div
-								style={{
-									display: "flex",
-									width: 86,
-									height: 4,
-									borderRadius: 999,
-									background: palette.accent,
-									marginBottom: 2,
-								}}
-							/>
-						) : null}
-						<div
-							style={{
-								fontFamily: ogTitleFontFamily,
-								fontSize: titleFontSize,
-								lineHeight: isEventCard ? 1.04 : 0.96,
-								letterSpacing: 0,
-								color: palette.ink,
-								fontWeight: 520,
-							}}
-						>
-							{title}
-						</div>
-						<div
-							style={{
-								fontSize: subtitleFontSize,
-								lineHeight: isEventCard ? 1.28 : 1.22,
-								color: palette.muted,
-								fontWeight: 500,
-								maxWidth: isEventCard ? 820 : 860,
-							}}
-						>
-							{subtitle}
-						</div>
-						{date || time || price || venue || genres.length > 0 ? (
-							<div
-								style={{
-									display: "flex",
-									flexWrap: "wrap",
-									gap: 10,
-									marginTop: 5,
-								}}
-							>
-								{date ? (
-									<div
-										style={{
-											display: "flex",
-											alignItems: "center",
-											padding: "6px 12px",
-											borderRadius: 999,
-											fontSize: 18,
-											fontWeight: 600,
-											color: palette.badgeText,
-											background: palette.badge,
-											border: `1px solid ${palette.border}`,
-										}}
-									>
-										{date}
-									</div>
-								) : null}
-								{time ? (
-									<div
-										style={{
-											display: "flex",
-											alignItems: "center",
-											padding: "6px 12px",
-											borderRadius: 999,
-											fontSize: 18,
-											fontWeight: 600,
-											color: palette.badgeText,
-											background: palette.badge,
-											border: `1px solid ${palette.border}`,
-										}}
-									>
-										{time}
-									</div>
-								) : null}
-								{price ? (
-									<div
-										style={{
-											display: "flex",
-											alignItems: "center",
-											padding: "6px 12px",
-											borderRadius: 999,
-											fontSize: 18,
-											fontWeight: 600,
-											color: palette.badgeText,
-											background: palette.badge,
-											border: `1px solid ${palette.border}`,
-										}}
-									>
-										{price}
-									</div>
-								) : null}
-								{venue ? (
-									<div
-										style={{
-											display: "flex",
-											alignItems: "center",
-											padding: "6px 12px",
-											borderRadius: 999,
-											fontSize: 18,
-											fontWeight: 600,
-											color: palette.badgeText,
-											background: palette.badge,
-											border: `1px solid ${palette.border}`,
-										}}
-									>
-										{venue}
-									</div>
-								) : null}
-								{genres.map((genre) => (
-									<div
-										key={genre}
-										style={{
-											display: "flex",
-											alignItems: "center",
-											padding: "6px 12px",
-											borderRadius: 999,
-											fontSize: 18,
-											fontWeight: 600,
-											color: palette.badgeText,
-											background: palette.badge,
-											border: `1px solid ${palette.border}`,
-										}}
-									>
-										{genre}
-									</div>
-								))}
-							</div>
-						) : null}
-					</div>
-
-					<div
-						style={{
-							display: "flex",
-							justifyContent: "space-between",
-							alignItems: "center",
-							color: palette.muted,
-							fontSize: 17,
-							letterSpacing: "0.1em",
-							textTransform: "uppercase",
-							fontWeight: 600,
-						}}
-					>
-						<div>{footerLocation}</div>
-						<div>OOOC</div>
-					</div>
-				</div>
-			</div>,
-			{
-				width: 1200,
-				height: 630,
-				fonts: ogFonts,
-				headers: getOGResponseHeaders(cacheTags),
+		return new Response(new Uint8Array(png), {
+			status: 200,
+			headers: {
+				...getOGResponseHeaders(cacheTags),
+				"Content-Type": "image/png",
 			},
-		);
+		});
 	} catch (error) {
 		log.error("og-image", "Failed to generate OG image", undefined, error);
-		const ogFonts = await getOGFonts();
-		const ogTitleFontFamily = getOGTitleFontFamily(ogFonts);
-		return new ImageResponse(
-			<div
-				style={{
-					width: "100%",
-					height: "100%",
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					background:
-						"linear-gradient(145deg, #f8f1e8 0%, #eedfcb 50%, #e4ccb1 100%)",
-					color: "#26170f",
-					fontFamily: ogTitleFontFamily,
-					fontSize: 58,
-					letterSpacing: 0,
-				}}
-			>
-				Fête Finder
-			</div>,
-			{
-				width: 1200,
-				height: 630,
-				fonts: ogFonts,
-				headers: getOGResponseHeaders(cacheTags),
-			},
-		);
+		try {
+			const fallbackPng = await renderOGPng({
+				title: "Fête Finder",
+				subtitle: "Curated Paris music picks by Out Of Office Collective.",
+				label: "Event Guide",
+				eventCount: 0,
+				footerLocation: "Paris",
+				isEventCard: false,
+				accent: THEMES.default.accent,
+				chips: ["Paris", "OOOC"],
+			});
+			return new Response(new Uint8Array(fallbackPng), {
+				status: 200,
+				headers: {
+					...getOGResponseHeaders(cacheTags),
+					"Content-Type": "image/png",
+				},
+			});
+		} catch {
+			return new Response("OG image unavailable", {
+				status: 500,
+				headers: {
+					"Cache-Control": "private, no-store",
+				},
+			});
+		}
 	}
 }

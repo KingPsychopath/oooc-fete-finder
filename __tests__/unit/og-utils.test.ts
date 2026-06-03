@@ -28,6 +28,18 @@ describe("og-utils", () => {
 		expect(url).toBe("/api/og?preset=event&eventKey=evt_77b18c8e22eadd87");
 	});
 
+	it("builds a bounded shared plan OG route URL", async () => {
+		const { generateSharedPlanOGImage } = await loadOgUtils();
+		const url = generateSharedPlanOGImage({
+			stopCount: 123,
+			planDateLabel: "Sunday 21st",
+		});
+
+		expect(url).toBe(
+			"/api/og?preset=shared-plan&stopCount=99&planDate=Sunday+21st",
+		);
+	});
+
 	it("builds complete Open Graph/Twitter metadata payload", async () => {
 		const { generateOGMetadata } = await loadOgUtils();
 		const metadata = generateOGMetadata({

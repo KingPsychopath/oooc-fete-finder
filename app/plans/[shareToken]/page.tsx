@@ -6,7 +6,7 @@ import { formatPublicPlanTitle } from "@/features/plans/plan-title";
 import { getPublicSlidingBannerSettingsCached } from "@/features/site-settings/queries";
 import { getUserPlanRepository } from "@/lib/platform/postgres/user-plan-repository";
 import { buildSiteUrl } from "@/lib/site-url";
-import { generateOGImageUrl } from "@/lib/social/og-utils";
+import { generateSharedPlanOGImage } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -43,6 +43,10 @@ export async function generateMetadata({
 		plan.stops.length === 1 ? "" : "s"
 	}. Save it to your own Fete Finder plans.`;
 	const url = buildSiteUrl(`/plans/${shareToken}`);
+	const ogImageUrl = generateSharedPlanOGImage({
+		stopCount: plan.stops.length,
+		planDateLabel: publicPlanTitle,
+	});
 
 	return {
 		title,
@@ -57,12 +61,11 @@ export async function generateMetadata({
 			siteName: "Fete Finder",
 			images: [
 				{
-					url: generateOGImageUrl({
-						title,
-						subtitle: description,
-					}),
+					url: ogImageUrl,
 					width: 1200,
 					height: 630,
+					alt: "Shared Fete Finder route with stop count and plan date",
+					type: "image/png",
 				},
 			],
 		},
@@ -70,6 +73,12 @@ export async function generateMetadata({
 			card: "summary_large_image",
 			title,
 			description,
+			images: [
+				{
+					url: ogImageUrl,
+					alt: "Shared Fete Finder route with stop count and plan date",
+				},
+			],
 		},
 	};
 }

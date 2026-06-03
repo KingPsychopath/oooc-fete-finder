@@ -172,6 +172,27 @@ describe("/api/og route", () => {
 		expect(mockedGetEventsData).not.toHaveBeenCalled();
 	});
 
+	it("renders bounded shared plan preset images without arbitrary text params", async () => {
+		const { GET } = await loadRoute(null);
+		const request = new Request(
+			"https://example.com/api/og?preset=shared-plan&stopCount=8&planDate=Sunday+21st&title=Injected",
+			{
+				headers: {
+					"x-forwarded-for": "203.0.113.13",
+				},
+			},
+		) as NextRequest;
+
+		const response = await GET(request);
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("content-type")).toBe("image/png");
+		expect(response.headers.get("cache-tag")).toBe(
+			"og,preset,preset-shared-plan",
+		);
+		expect(mockedGetEventsData).not.toHaveBeenCalled();
+	});
+
 	it("returns 429 with no-store when rate limit is exceeded", async () => {
 		const futureWindow = Date.now() + 60_000;
 		const { GET, kv } = await loadRoute(

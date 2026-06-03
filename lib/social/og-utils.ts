@@ -42,6 +42,11 @@ type OGImageParams = {
 	genres?: string[];
 };
 
+type SharedPlanOGImageParams = {
+	stopCount: number;
+	planDateLabel?: string;
+};
+
 const getOGImageVersion = (): string =>
 	(
 		process.env.NEXT_PUBLIC_OG_IMAGE_VERSION ||
@@ -118,6 +123,17 @@ export const generatePresetOGImage = (preset: OGPreset): string =>
  */
 export const generateEventOGImage = (params: { eventKey: string }): string =>
 	buildOGRouteUrl({ preset: "event", eventKey: params.eventKey });
+
+export const generateSharedPlanOGImage = (
+	params: SharedPlanOGImageParams,
+): string => {
+	const stopCount = Math.max(0, Math.min(99, Math.floor(params.stopCount)));
+	return buildOGRouteUrl({
+		preset: "shared-plan",
+		stopCount: stopCount.toString(),
+		planDate: params.planDateLabel,
+	});
+};
 
 /**
  * Generate OG:image URL for admin/dashboard content
