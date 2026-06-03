@@ -393,16 +393,23 @@ const resolveStaticPresetContent = (
 	};
 };
 
+const formatPossessive = (value: string): string =>
+	/[sS]$/.test(value) ? `${value}'` : `${value}'s`;
+
 const resolveSharedPlanContent = (searchParams: URLSearchParams): OGContent => {
 	const stopCount = parseBoundedCount(searchParams.get("stopCount"), 99);
 	const planDate = sanitizeText(searchParams.get("planDate") || "", "");
+	const ownerName = sanitizeText(searchParams.get("ownerName") || "", "");
 	const stopLabel = `${stopCount} stop${stopCount === 1 ? "" : "s"}`;
 	const dateLabel = planDate || "Fête de la Musique";
+	const title = ownerName
+		? `${formatPossessive(ownerName)} Route`
+		: "A Fête Route";
 
 	return {
 		variant: "event-modal",
-		title: "Shared Route",
-		subtitle: `${dateLabel} route with ${stopLabel}. Save it, remix it, and make it yours.`,
+		title,
+		subtitle: `${dateLabel} with ${stopLabel}. Save it, remix it, and make it yours.`,
 		eventCount: 0,
 		arrondissement: "Paris",
 		date: dateLabel,
@@ -771,7 +778,7 @@ export async function GET(request: NextRequest) {
 		const svgIsEventCard = variant === "event-modal";
 		const svgFooterLocation = formatFooterLocation(arrondissement);
 		const svgLabel =
-			title === "Shared Route"
+			parsePreset(searchParams) === "shared-plan"
 				? "Shared Plan"
 				: svgIsEventCard
 					? "Event Pick"
