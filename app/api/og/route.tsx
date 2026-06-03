@@ -309,6 +309,24 @@ const formatArrondissement = (
 	return formatLocationAreaLong(value);
 };
 
+const buildEventSubtitle = (
+	value: EventShareDetails["arrondissement"],
+): string => {
+	if (typeof value === "number") {
+		return `Fête de la Musique pick in ${value}e arrondissement`;
+	}
+	if (value === "greater-paris") {
+		return "Fête de la Musique pick across the Greater Paris area";
+	}
+	if (value === "outside-paris") {
+		return "Fête de la Musique pick just outside Paris";
+	}
+	if (value === "multiple-locations") {
+		return "Fête de la Musique pick across multiple locations";
+	}
+	return "Fête de la Musique pick in Paris";
+};
+
 const formatTimeRange = (event: EventShareDetails): string => {
 	const hasStart = Boolean(event.time && event.time !== "TBC");
 	const hasEnd = Boolean(event.endTime && event.endTime !== "TBC");
@@ -406,7 +424,7 @@ const resolveEventContent = async (
 	return {
 		variant: "event-modal",
 		title: event.name,
-		subtitle: `Fête de la Musique pick in ${arrondissement}`,
+		subtitle: buildEventSubtitle(event.arrondissement),
 		eventCount: 0,
 		arrondissement,
 		date: formatEventDate(event),
