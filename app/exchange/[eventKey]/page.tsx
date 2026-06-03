@@ -1,4 +1,5 @@
 import Header from "@/components/Header";
+import { getPublicSlidingBannerSettingsCached } from "@/features/site-settings/queries";
 import { getTicketExchangeSession } from "@/features/ticket-exchange/auth";
 import { TicketExchangeShell } from "@/features/ticket-exchange/components/TicketExchangeShell";
 import {
@@ -6,7 +7,6 @@ import {
 	getTicketExchangeEvents,
 	getTicketExchangePageModel,
 } from "@/features/ticket-exchange/service";
-import { getPublicSlidingBannerSettingsCached } from "@/features/site-settings/queries";
 import { buildSiteUrl } from "@/lib/site-url";
 import {
 	generateEventOGImage,
@@ -39,6 +39,7 @@ export async function generateMetadata({
 			? generateEventOGImage({ eventKey: event.eventKey })
 			: generatePresetOGImage("exchange"),
 		url: buildSiteUrl(`/exchange/${eventKey}`),
+		noIndex: true,
 	});
 }
 

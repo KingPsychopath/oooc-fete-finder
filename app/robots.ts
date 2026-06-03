@@ -5,21 +5,27 @@ const withBasePath = (path: string): string => `${getBasePath()}${path}`;
 
 export default function robots(): MetadataRoute.Robots {
 	return {
-		rules: {
-			userAgent: "*",
-			allow: withBasePath("/"),
-			disallow: [
-				withBasePath("/admin"),
-				withBasePath("/api"),
-				withBasePath("/event"),
-				withBasePath("/labs/event-modal"),
-				withBasePath("/labs/header"),
-				withBasePath("/labs/home-style"),
-				withBasePath("/partner-stats"),
-				withBasePath("/partner-success"),
-				withBasePath("/social"),
-			],
-		},
+		rules: [
+			{
+				userAgent: ["GPTBot", "Google-Extended", "ClaudeBot", "CCBot"],
+				disallow: withBasePath("/"),
+			},
+			{
+				userAgent: "*",
+				allow: withBasePath("/"),
+				disallow: [
+					withBasePath("/admin"),
+					withBasePath("/api"),
+					withBasePath("/event"),
+					withBasePath("/labs"),
+					withBasePath("/partner-stats"),
+					withBasePath("/partner-success"),
+					withBasePath("/plans/"),
+					withBasePath("/social"),
+					withBasePath("/tickets"),
+				],
+			},
+		],
 		sitemap: buildSiteUrl("/sitemap.xml"),
 		host: getSiteUrl(),
 	};
