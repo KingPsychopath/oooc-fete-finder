@@ -21,6 +21,7 @@ export type UserRecord = {
 	privacyAcceptedAt?: string | null;
 	marketingConsent?: boolean;
 	eventUpdateConsent?: boolean;
+	marketingPreferenceUpdated?: boolean;
 	source: string;
 	deviceClass?: string | null;
 	platform?: string | null;

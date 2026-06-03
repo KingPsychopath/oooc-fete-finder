@@ -228,6 +228,7 @@ export async function POST(request: Request) {
 				submittedMarketingConsent ?? Boolean(existingUser?.marketingConsent),
 			eventUpdateConsent:
 				submittedMarketingConsent ?? Boolean(existingUser?.eventUpdateConsent),
+			marketingPreferenceUpdated: submittedMarketingConsent !== null,
 			source: body.source?.trim() || "fete-finder-auth",
 			timestamp: acceptedAt,
 			deviceClass: body.clientContext?.deviceClass ?? null,

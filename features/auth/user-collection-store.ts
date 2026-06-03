@@ -62,6 +62,7 @@ const normalizeUserRecord = (user: UserRecord): UserRecord => ({
 	privacyAcceptedAt: user.privacyAcceptedAt ?? null,
 	marketingConsent: Boolean(user.marketingConsent),
 	eventUpdateConsent: Boolean(user.eventUpdateConsent),
+	marketingPreferenceUpdated: Boolean(user.marketingPreferenceUpdated),
 	source: user.source.trim() || "fete-finder-auth",
 	deviceClass: user.deviceClass ?? null,
 	platform: user.platform ?? null,

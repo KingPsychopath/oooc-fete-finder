@@ -665,6 +665,11 @@ const EmailGateModal = ({
 								isSubmitting ||
 								isOffline ||
 								isCheckingEmail ||
+								(flowStep === "details" &&
+									shouldCollectName &&
+									(!validateName(firstName.trim()) ||
+										!validateName(lastName.trim()))) ||
+								(flowStep === "details" && shouldCollectConsent && !consent) ||
 								(flowStep === "email" && !validateEmail(normalizedEmail))
 							}
 						>

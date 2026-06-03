@@ -115,6 +115,14 @@ const getHeaderValue = (
 	return "";
 };
 
+const hasHeaderValue = (
+	row: Record<string, unknown>,
+	aliases: string[],
+): boolean => {
+	const aliasSet = new Set(aliases.map(normalizeHeader));
+	return Object.keys(row).some((key) => aliasSet.has(normalizeHeader(key)));
+};
+
 const parseConsent = (value: string): boolean => {
 	const normalized = value.trim().toLowerCase();
 	return ["true", "yes", "y", "1", "consented", "opted in", "opt-in"].includes(
@@ -136,6 +144,20 @@ const rowToUserRecord = (
 ): UserRecord | null => {
 	const email = getHeaderValue(row, ["email", "email address", "e-mail"]);
 	if (!EMAIL_PATTERN.test(email.trim().toLowerCase())) return null;
+	const marketingHeaderAliases = [
+		"marketing allowed",
+		"marketing consent",
+		"opt in",
+		"opt-in",
+	];
+	const eventUpdateHeaderAliases = [
+		"event updates allowed",
+		"event update consent",
+		"event updates",
+	];
+	const hasMarketingPreference =
+		hasHeaderValue(row, marketingHeaderAliases) ||
+		hasHeaderValue(row, eventUpdateHeaderAliases);
 
 	return {
 		firstName: getHeaderValue(row, ["first name", "firstname", "first"]) || "",
@@ -148,21 +170,11 @@ const rowToUserRecord = (
 		consent: parseConsent(
 			getHeaderValue(row, ["terms accepted", "consent", "service consent"]),
 		),
-		marketingConsent: parseConsent(
-			getHeaderValue(row, [
-				"marketing allowed",
-				"marketing consent",
-				"opt in",
-				"opt-in",
-			]),
-		),
+		marketingConsent: parseConsent(getHeaderValue(row, marketingHeaderAliases)),
 		eventUpdateConsent: parseConsent(
-			getHeaderValue(row, [
-				"event updates allowed",
-				"event update consent",
-				"event updates",
-			]),
+			getHeaderValue(row, eventUpdateHeaderAliases),
 		),
+		marketingPreferenceUpdated: hasMarketingPreference,
 		source: getHeaderValue(row, ["source"]) || fallbackSource,
 	};
 };

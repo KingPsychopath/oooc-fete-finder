@@ -18,6 +18,7 @@ export interface CanonicalUserInput {
 	privacyConsent: boolean;
 	marketingConsent?: boolean;
 	eventUpdateConsent?: boolean;
+	marketingPreferenceUpdated?: boolean;
 	deviceClass?: string | null;
 	platform?: string | null;
 	browserFamily?: string | null;
@@ -273,6 +274,9 @@ export class UserRepository {
 		const privacyConsent = Boolean(input.privacyConsent);
 		const marketingConsent = Boolean(input.marketingConsent);
 		const eventUpdateConsent = Boolean(input.eventUpdateConsent);
+		const marketingPreferenceUpdated = Boolean(
+			input.marketingPreferenceUpdated,
+		);
 		const rows = await this.sql<UserRow[]>`
 			INSERT INTO app_users (
 				id,
@@ -332,16 +336,24 @@ export class UserRepository {
 				first_name = EXCLUDED.first_name,
 				last_name = EXCLUDED.last_name,
 				source = EXCLUDED.source,
-					marketing_consent = EXCLUDED.marketing_consent,
-					marketing_consent_at = CASE
-						WHEN EXCLUDED.marketing_consent THEN COALESCE(app_users.marketing_consent_at, EXCLUDED.marketing_consent_at)
-						ELSE NULL
-					END,
-					event_update_consent = EXCLUDED.event_update_consent,
-					event_update_consent_at = CASE
-						WHEN EXCLUDED.event_update_consent THEN COALESCE(app_users.event_update_consent_at, EXCLUDED.event_update_consent_at)
-						ELSE NULL
-					END,
+				marketing_consent = CASE
+					WHEN ${marketingPreferenceUpdated} THEN EXCLUDED.marketing_consent
+					ELSE app_users.marketing_consent
+				END,
+				marketing_consent_at = CASE
+					WHEN NOT ${marketingPreferenceUpdated} THEN app_users.marketing_consent_at
+					WHEN EXCLUDED.marketing_consent THEN COALESCE(app_users.marketing_consent_at, EXCLUDED.marketing_consent_at)
+					ELSE NULL
+				END,
+				event_update_consent = CASE
+					WHEN ${marketingPreferenceUpdated} THEN EXCLUDED.event_update_consent
+					ELSE app_users.event_update_consent
+				END,
+				event_update_consent_at = CASE
+					WHEN NOT ${marketingPreferenceUpdated} THEN app_users.event_update_consent_at
+					WHEN EXCLUDED.event_update_consent THEN COALESCE(app_users.event_update_consent_at, EXCLUDED.event_update_consent_at)
+					ELSE NULL
+				END,
 				privacy_accepted_at = CASE
 					WHEN EXCLUDED.privacy_accepted_at IS NULL THEN app_users.privacy_accepted_at
 					WHEN app_users.privacy_version = EXCLUDED.privacy_version THEN app_users.privacy_accepted_at

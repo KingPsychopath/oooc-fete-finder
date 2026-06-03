@@ -266,6 +266,7 @@ export class UserCollectionRepository {
 			privacyConsent: user.consent,
 			marketingConsent: user.marketingConsent ?? false,
 			eventUpdateConsent: user.eventUpdateConsent ?? false,
+			marketingPreferenceUpdated: user.marketingPreferenceUpdated ?? false,
 			deviceClass: user.deviceClass,
 			platform: user.platform,
 			browserFamily: user.browserFamily,

@@ -280,6 +280,7 @@ describe("/api/auth/verify route", () => {
 				privacyAcceptedAt: expect.any(String),
 				marketingConsent: true,
 				eventUpdateConsent: true,
+				marketingPreferenceUpdated: true,
 			}),
 		);
 		expect(getStatus).toHaveBeenCalledTimes(1);
@@ -307,6 +308,7 @@ describe("/api/auth/verify route", () => {
 			expect.objectContaining({
 				marketingConsent: false,
 				eventUpdateConsent: false,
+				marketingPreferenceUpdated: true,
 			}),
 		);
 	});
@@ -334,6 +336,7 @@ describe("/api/auth/verify route", () => {
 			expect.objectContaining({
 				marketingConsent: false,
 				eventUpdateConsent: false,
+				marketingPreferenceUpdated: true,
 			}),
 		);
 	});
@@ -438,6 +441,55 @@ describe("/api/auth/verify route", () => {
 				privacyVersion: "2026-06-01",
 				marketingConsent: true,
 				eventUpdateConsent: true,
+				marketingPreferenceUpdated: false,
+			}),
+		);
+	});
+
+	it("lets a returning user explicitly opt out of marketing updates", async () => {
+		const { POST, addOrUpdate, getUserProfile } = await loadRoute();
+		getUserProfile.mockResolvedValue({
+			user: {
+				userId: "019b0000-0000-7000-8000-000000000456",
+				firstName: "Stored",
+				lastName: "Guest",
+				email: "returning@example.com",
+				timestamp: "2026-05-08T00:00:00.000Z",
+				consent: true,
+				termsVersion: "2026-06-03",
+				termsAcceptedAt: "2026-06-03T00:00:00.000Z",
+				privacyVersion: "2026-06-01",
+				privacyAcceptedAt: "2026-06-03T00:00:00.000Z",
+				marketingConsent: true,
+				eventUpdateConsent: true,
+				source: "auth-modal",
+			},
+		});
+
+		const response = await POST(
+			new Request("https://example.com/api/auth/verify", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-forwarded-for": "203.0.113.24",
+				},
+				body: JSON.stringify({
+					email: "RETURNING@example.com",
+					marketingOptedOut: true,
+					source: "auth-modal",
+				}),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(addOrUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				firstName: "Stored",
+				lastName: "Guest",
+				email: "returning@example.com",
+				marketingConsent: false,
+				eventUpdateConsent: false,
+				marketingPreferenceUpdated: true,
 			}),
 		);
 	});
