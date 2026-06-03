@@ -124,6 +124,9 @@ const normalizeLanguageScanText = (value: string): string =>
 const compactLanguageScanText = (value: string): string =>
 	normalizeLanguageScanText(value).replace(/[^a-z0-9]+/gu, "");
 
+const SEXUAL_SOLICITATION_PATTERN =
+	/\b(?:(?:i(?:'|’)?ll|i\s+will|can|will|wanna|want\s+to)?\s*(?:suck|blow)\s+(?:your\s+)?(?:dick|cock)|(?:give|offer)\s+(?:you\s+)?(?:a\s+)?(?:blowjob|handjob)|(?:blowjob|handjob))\b/iu;
+
 export const hasOffensiveTicketExchangeLanguage = (value: string): boolean => {
 	const compact = compactLanguageScanText(value);
 	if (NOTE_ABUSE_BLOCKLIST.some((term) => compact.includes(term))) {
@@ -131,6 +134,10 @@ export const hasOffensiveTicketExchangeLanguage = (value: string): boolean => {
 	}
 
 	const normalized = normalizeLanguageScanText(value);
+	if (SEXUAL_SOLICITATION_PATTERN.test(normalized)) {
+		return true;
+	}
+
 	return /\b(?:kill\s+yourself|gas\s+(?:the\s+)?(?:jews|black|blacks|muslims|gays)|white\s+power|heil\s+hitler)\b/iu.test(
 		normalized,
 	);

@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { DataManager } from "@/features/data-management/data-manager";
+import { getLiveEvents } from "@/features/data-management/runtime-service";
 import {
 	getCurrentParisYearDateRange,
 	getEventCountForDateRange,
@@ -414,7 +414,9 @@ const resolveSharedPlanContent = (searchParams: URLSearchParams): OGContent => {
 };
 
 const getCurrentYearEventCount = async (): Promise<number> => {
-	const result = await DataManager.getEventsData({
+	const result = await getLiveEvents({
+		includeFeaturedProjection: false,
+		includeEngagementProjection: false,
 		populateCoordinates: false,
 	});
 	if (!result.success) {
@@ -734,8 +736,7 @@ const renderOGPng = async (content: {
 	isEventCard: boolean;
 	accent: string;
 	chips: MetaFact[];
-}): Promise<Buffer> =>
-	renderOGSvgToPng(renderOGSvg(content));
+}): Promise<Buffer> => renderOGSvgToPng(renderOGSvg(content));
 
 export async function GET(request: NextRequest) {
 	const startedAt = Date.now();

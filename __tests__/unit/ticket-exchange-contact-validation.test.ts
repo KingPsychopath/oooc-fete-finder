@@ -63,6 +63,9 @@ describe("ticket exchange contact validation", () => {
 		expect(
 			hasOffensiveTicketExchangeNoteLanguage("no f u c k i n g timewasters"),
 		).toBe(true);
+		expect(hasOffensiveTicketExchangeNoteLanguage("I'll suck your dick")).toBe(
+			true,
+		);
 		expect(hasOffensiveTicketExchangeNoteLanguage("heil hitler")).toBe(true);
 		expect(() => validateTicketExchangeNote("no sh1t offers")).toThrow(
 			TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR,

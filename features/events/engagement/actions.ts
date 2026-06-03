@@ -21,6 +21,42 @@ const assertAdmin = async () => {
 	}
 };
 
+const ADMIN_INSIGHTS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+type EventEngagementDashboardResult = Awaited<
+	ReturnType<typeof loadEventEngagementDashboard>
+>;
+
+declare global {
+	var __ooocFeteFinderEventEngagementDashboardCache:
+		| Map<
+				string,
+				{
+					expiresAt: number;
+					value: EventEngagementDashboardResult;
+				}
+		  >
+		| undefined;
+}
+
+const getEventEngagementDashboardCache = () => {
+	if (!globalThis.__ooocFeteFinderEventEngagementDashboardCache) {
+		globalThis.__ooocFeteFinderEventEngagementDashboardCache = new Map();
+	}
+	return globalThis.__ooocFeteFinderEventEngagementDashboardCache;
+};
+
+const getEventEngagementDashboardCacheKey = (
+	windowDays: number,
+	searchClusterMode: SearchClusterMode,
+	includeAuthenticatedOnly: boolean,
+) =>
+	[
+		Math.max(1, Math.min(windowDays, 365)),
+		searchClusterMode,
+		includeAuthenticatedOnly ? "authenticated" : "all",
+	].join(":");
+
 const toPercent = (numerator: number, denominator: number): number => {
 	if (denominator <= 0) return 0;
 	return Math.round((numerator / denominator) * 1000) / 10;
@@ -88,7 +124,7 @@ type SegmentCriterion = {
 	matches: Map<string, { hitCount: number; lastSeenAt: string }>;
 };
 
-export async function getEventEngagementDashboard(
+async function loadEventEngagementDashboard(
 	windowDays = 7,
 	searchClusterMode: SearchClusterMode = "conservative",
 	options: {
@@ -400,7 +436,6 @@ export async function getEventEngagementDashboard(
 	  }
 > {
 	try {
-		await assertAdmin();
 		const engagementRepository = getEventEngagementRepository();
 		if (!engagementRepository) {
 			return { success: false, error: "Postgres not configured" };
@@ -1108,6 +1143,58 @@ export async function getEventEngagementDashboard(
 					: "Unknown event engagement error",
 		};
 	}
+}
+
+export async function getEventEngagementDashboard(
+	windowDays = 7,
+	searchClusterMode: SearchClusterMode = "conservative",
+	options: {
+		includeAuthenticatedOnly?: boolean;
+	} = {},
+): Promise<EventEngagementDashboardResult> {
+	try {
+		await assertAdmin();
+	} catch (error) {
+		return {
+			success: false,
+			error:
+				error instanceof Error ? error.message : "Unknown authorization error",
+		};
+	}
+
+	const includeAuthenticatedOnly = options.includeAuthenticatedOnly ?? false;
+	if (process.env.NODE_ENV === "test") {
+		return loadEventEngagementDashboard(windowDays, searchClusterMode, {
+			includeAuthenticatedOnly,
+		});
+	}
+
+	const cacheKey = getEventEngagementDashboardCacheKey(
+		windowDays,
+		searchClusterMode,
+		includeAuthenticatedOnly,
+	);
+	const cache = getEventEngagementDashboardCache();
+	const now = Date.now();
+	const cached = cache.get(cacheKey);
+	if (cached && cached.expiresAt > now) {
+		return cached.value;
+	}
+
+	const value = await loadEventEngagementDashboard(
+		windowDays,
+		searchClusterMode,
+		{
+			includeAuthenticatedOnly,
+		},
+	);
+	if (value.success) {
+		cache.set(cacheKey, {
+			expiresAt: now + ADMIN_INSIGHTS_CACHE_TTL_MS,
+			value,
+		});
+	}
+	return value;
 }
 
 export async function exportAudienceSegmentCsv(input: {

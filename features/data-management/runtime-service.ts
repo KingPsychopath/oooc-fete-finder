@@ -77,6 +77,8 @@ const EVENTS_CACHE_TAGS = [
 ] as const;
 const EVENTS_PUBLIC_LAYOUT_PATHS = ["/", "/feature-event"] as const;
 const SOCIAL_PROOF_COUNTS_REVALIDATE_SECONDS = 30 * 60;
+const SOURCE_EVENTS_REVALIDATE_SECONDS = 5 * 60;
+const SOURCE_EVENTS_CACHE_KEY = ["source-events"];
 
 type EventRevalidationScope = "event-data" | "placements" | "page-only";
 
@@ -125,8 +127,18 @@ const toEventsResult = (
 	};
 };
 
-const getSourceEventsForRequest = cache(async (populateCoordinates: boolean) =>
-	DataManager.getEventsData({ populateCoordinates }),
+const getCachedSourceEvents = unstable_cache(
+	async (populateCoordinates: boolean) =>
+		DataManager.getEventsData({ populateCoordinates }),
+	SOURCE_EVENTS_CACHE_KEY,
+	{
+		revalidate: SOURCE_EVENTS_REVALIDATE_SECONDS,
+		tags: ["events", "events-data"],
+	},
+);
+
+const getSourceEventsForRequest = cache((populateCoordinates: boolean) =>
+	getCachedSourceEvents(populateCoordinates),
 );
 
 const getCachedSocialProofSaveCountEntries = unstable_cache(
@@ -230,6 +242,32 @@ export async function getLiveEvents(options?: {
 		options?.includeEngagementProjection !== false,
 		options?.populateCoordinates ?? false,
 		options?.bypassSourceCache ?? false,
+	);
+}
+
+export async function getLiveEventByKey(
+	eventKey: string,
+	options?: {
+		includeFeaturedProjection?: boolean;
+		includeEngagementProjection?: boolean;
+		bypassSourceCache?: boolean;
+	},
+): Promise<Event | null> {
+	const normalizedEventKey = eventKey.trim().toLowerCase();
+	if (!normalizedEventKey) return null;
+
+	const result = await getLiveEvents({
+		includeFeaturedProjection: options?.includeFeaturedProjection ?? false,
+		includeEngagementProjection: options?.includeEngagementProjection ?? false,
+		populateCoordinates: false,
+		bypassSourceCache: options?.bypassSourceCache ?? false,
+	});
+	if (!result.success) return null;
+
+	return (
+		result.data.find(
+			(event) => event.eventKey.trim().toLowerCase() === normalizedEventKey,
+		) ?? null
 	);
 }
 

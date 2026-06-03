@@ -128,6 +128,12 @@ type PendingAgreementIntent =
 	| null;
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const TICKET_EXCHANGE_ACTION_TIMEOUT_MS = 15000;
+const TICKET_EXCHANGE_TIMEOUT_RESULT = {
+	success: false,
+	error:
+		"This is taking longer than expected. Check your connection and try again.",
+} satisfies TicketExchangeActionResult;
 const TICKET_EXCHANGE_AGREEMENT_STORAGE_KEY = `oooc_ticket_exchange_agreement_${TICKET_EXCHANGE_RULES_VERSION}`;
 const CONTROL_TRANSITION =
 	"transition-[background-color,border-color,color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] active:scale-[0.98]";
@@ -415,6 +421,25 @@ const contactIconFor = (label: string) => {
 	if (label === "Instagram") return <Instagram className="h-3.5 w-3.5" />;
 	if (label === "X") return <AtSign className="h-3.5 w-3.5" />;
 	return <ExternalLink className="h-3.5 w-3.5" />;
+};
+
+const withTicketExchangeTimeout = async (
+	action: Promise<TicketExchangeActionResult>,
+): Promise<TicketExchangeActionResult> => {
+	let timeoutId: ReturnType<typeof setTimeout> | undefined;
+	try {
+		return await Promise.race([
+			action,
+			new Promise<TicketExchangeActionResult>((resolve) => {
+				timeoutId = setTimeout(
+					() => resolve(TICKET_EXCHANGE_TIMEOUT_RESULT),
+					TICKET_EXCHANGE_ACTION_TIMEOUT_MS,
+				);
+			}),
+		]);
+	} finally {
+		if (timeoutId) clearTimeout(timeoutId);
+	}
 };
 
 const getPreferredMarketplaceTab = (
@@ -820,6 +845,7 @@ export function TicketExchangeClient({
 
 	const applyResult = (result: TicketExchangeActionResult, success: string) => {
 		if (!result.success) {
+			setPendingMessage(null);
 			setErrorMessage(result.error ?? "Something went wrong.");
 			return;
 		}
@@ -858,12 +884,15 @@ export function TicketExchangeClient({
 				return null;
 			}
 			setPendingMessage("Saving contact details...");
-			const result = await saveTicketExchangeContactProfile({
-				...profileForm,
-				acceptRules: false,
-				selectedEventKey,
-			});
+			const result = await withTicketExchangeTimeout(
+				saveTicketExchangeContactProfile({
+					...profileForm,
+					acceptRules: false,
+					selectedEventKey,
+				}),
+			);
 			if (!result.success) {
+				setPendingMessage(null);
 				setErrorMessage(result.error ?? "Unable to save contact details.");
 				trackExchangeActionFailure(
 					"profile_save",
@@ -1056,11 +1085,13 @@ export function TicketExchangeClient({
 		setInterestListingId(listing.id);
 		setPendingMessage("Sharing contact details...");
 		try {
-			const result = await expressTicketExchangeInterest({
-				listingId: listing.id,
-				selectedEventKey,
-				contactMethods: getDefaultContactMethods(profile),
-			});
+			const result = await withTicketExchangeTimeout(
+				expressTicketExchangeInterest({
+					listingId: listing.id,
+					selectedEventKey,
+					contactMethods: getDefaultContactMethods(profile),
+				}),
+			);
 			applyResult(result, "Contact details are now visible.");
 			if (result.success) {
 				trackTicketExchangeAnalytics({
@@ -1157,11 +1188,13 @@ export function TicketExchangeClient({
 		setIsSavingProfile(true);
 		setPendingMessage("Saving contact profile...");
 		try {
-			const result = await saveTicketExchangeContactProfile({
-				...profileForm,
-				acceptRules: false,
-				selectedEventKey,
-			});
+			const result = await withTicketExchangeTimeout(
+				saveTicketExchangeContactProfile({
+					...profileForm,
+					acceptRules: false,
+					selectedEventKey,
+				}),
+			);
 			applyResult(result, "Contact profile saved.");
 			if (result.success) {
 				trackTicketExchangeAnalytics({
@@ -1223,7 +1256,9 @@ export function TicketExchangeClient({
 			if (!ensureContactDetailsReady(savedProfile, "listing_form", "create"))
 				return;
 			setPendingMessage("Posting listing...");
-			const result = await createTicketExchangeListing(listingForm);
+			const result = await withTicketExchangeTimeout(
+				createTicketExchangeListing(listingForm),
+			);
 			applyResult(result, "Listing posted.");
 			if (result.success) {
 				trackTicketExchangeAnalytics({
@@ -1289,11 +1324,13 @@ export function TicketExchangeClient({
 		setIsAcceptingAgreement(true);
 		setPendingMessage("Saving Ticket Exchange agreement...");
 		try {
-			const result = await saveTicketExchangeContactProfile({
-				...profileForm,
-				acceptRules: true,
-				selectedEventKey,
-			});
+			const result = await withTicketExchangeTimeout(
+				saveTicketExchangeContactProfile({
+					...profileForm,
+					acceptRules: true,
+					selectedEventKey,
+				}),
+			);
 			applyResult(result, "Ticket Exchange agreement accepted.");
 			if (!result.success) {
 				trackExchangeActionFailure(
@@ -1349,11 +1386,13 @@ export function TicketExchangeClient({
 		setStatusListingId(listing.id);
 		setPendingMessage("Updating listing...");
 		try {
-			const result = await updateTicketExchangeListingStatus({
-				listingId: listing.id,
-				status,
-				selectedEventKey,
-			});
+			const result = await withTicketExchangeTimeout(
+				updateTicketExchangeListingStatus({
+					listingId: listing.id,
+					status,
+					selectedEventKey,
+				}),
+			);
 			applyResult(result, "Listing updated.");
 			if (result.success) {
 				trackTicketExchangeAnalytics({
@@ -1403,12 +1442,14 @@ export function TicketExchangeClient({
 		);
 		setIsReporting(true);
 		try {
-			const result = await reportTicketExchangeListing({
-				listingId: reportListingId,
-				reason: reportReason,
-				details: reportDetails,
-				selectedEventKey,
-			});
+			const result = await withTicketExchangeTimeout(
+				reportTicketExchangeListing({
+					listingId: reportListingId,
+					reason: reportReason,
+					details: reportDetails,
+					selectedEventKey,
+				}),
+			);
 			applyResult(result, "Report sent.");
 			if (result.success) {
 				trackTicketExchangeAnalytics({
@@ -1457,12 +1498,14 @@ export function TicketExchangeClient({
 		);
 		setIsReposting(true);
 		try {
-			const result = await repostTicketExchangeListing({
-				listingId: repostListingId,
-				quantityLabel: repostQuantity,
-				expiryHours: TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS,
-				selectedEventKey,
-			});
+			const result = await withTicketExchangeTimeout(
+				repostTicketExchangeListing({
+					listingId: repostListingId,
+					quantityLabel: repostQuantity,
+					expiryHours: TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS,
+					selectedEventKey,
+				}),
+			);
 			applyResult(result, "Fresh listing posted.");
 			if (result.success) {
 				trackTicketExchangeAnalytics({

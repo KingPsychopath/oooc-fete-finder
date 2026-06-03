@@ -185,15 +185,25 @@ export class DiscoveryAnalyticsRepository {
 			ON app_discovery_analytics_stats (search_query, recorded_at DESC)
 		`;
 		await this.sql`
-			CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_page_path
-			ON app_discovery_analytics_stats (path, recorded_at DESC)
-			WHERE action_type = 'page_view'
-		`;
+				CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_page_path
+				ON app_discovery_analytics_stats (path, recorded_at DESC)
+				WHERE action_type = 'page_view'
+			`;
 		await this.sql`
-			CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_referrer
-			ON app_discovery_analytics_stats (referrer, recorded_at DESC)
-			WHERE action_type = 'page_view'
-		`;
+				CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_page_session_time
+				ON app_discovery_analytics_stats (session_id, recorded_at ASC)
+				WHERE action_type = 'page_view' AND session_id IS NOT NULL
+			`;
+		await this.sql`
+				CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_session_time
+				ON app_discovery_analytics_stats (session_id, recorded_at DESC)
+				WHERE session_id IS NOT NULL
+			`;
+		await this.sql`
+				CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_referrer
+				ON app_discovery_analytics_stats (referrer, recorded_at DESC)
+				WHERE action_type = 'page_view'
+			`;
 		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_app_discovery_analytics_utm
 			ON app_discovery_analytics_stats (utm_source, utm_medium, utm_campaign, recorded_at DESC)

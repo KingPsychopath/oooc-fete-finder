@@ -39,6 +39,18 @@ describe("plan date options", () => {
 		).toEqual(["2025-06-19", "2025-06-20"]);
 	});
 
+	it("excludes non-canonical human date labels from plan day options", () => {
+		const events = [
+			eventForDate("2026-06-21", "current-1"),
+			eventForDate(" My June 22nd ", "bad-human-label"),
+			eventForDate("2026-06-22", "current-2"),
+		];
+
+		expect(
+			getPlanDateOptions(events, new Date("2026-06-01T12:00:00Z")),
+		).toEqual(["2026-06-21", "2026-06-22"]);
+	});
+
 	it("prefers the 21st when it is available in visible date options", () => {
 		const events = [
 			eventForDate("2025-06-19", "old"),

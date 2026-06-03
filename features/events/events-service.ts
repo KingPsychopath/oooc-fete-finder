@@ -7,14 +7,16 @@
 
 import "server-only";
 
-import { DataManager } from "@/features/data-management/data-manager";
+import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { buildFeaturedStatusEvents } from "@/features/events/featured/service";
 import type { Event } from "@/features/events/types";
 import { log } from "@/lib/platform/logger";
 
 export async function getFeaturedStatusEvents(): Promise<Event[]> {
 	try {
-		const result = await DataManager.getEventsData({
+		const result = await getLiveEvents({
+			includeFeaturedProjection: false,
+			includeEngagementProjection: false,
 			populateCoordinates: false,
 		});
 		if (!result.success) {

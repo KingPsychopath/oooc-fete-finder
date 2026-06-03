@@ -1,4 +1,7 @@
-import { DataManager } from "@/features/data-management/data-manager";
+import {
+	getLiveEventByKey,
+	getLiveEvents,
+} from "@/features/data-management/runtime-service";
 import type {
 	Event,
 	MusicGenre,
@@ -39,7 +42,9 @@ const toEventShareDetails = (event: Event): EventShareDetails => ({
 
 const getCachedEventShareIndex = unstable_cache(
 	async (): Promise<Record<string, Event>> => {
-		const result = await DataManager.getEventsData({
+		const result = await getLiveEvents({
+			includeFeaturedProjection: false,
+			includeEngagementProjection: false,
 			populateCoordinates: false,
 		});
 		if (!result.success) {
@@ -61,15 +66,11 @@ const findFreshEventShareEvent = async (
 	normalizedEventKey: string,
 ): Promise<Event | null> => {
 	try {
-		const result = await DataManager.getEventsData({
-			populateCoordinates: false,
+		return await getLiveEventByKey(normalizedEventKey, {
+			includeFeaturedProjection: false,
+			includeEngagementProjection: false,
+			bypassSourceCache: true,
 		});
-		if (!result.success) return null;
-		return (
-			result.data.find(
-				(event) => normalizeEventKey(event.eventKey) === normalizedEventKey,
-			) ?? null
-		);
 	} catch {
 		return null;
 	}

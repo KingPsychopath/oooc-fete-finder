@@ -120,14 +120,19 @@ export class EventEngagementRepository {
 			.sql`ALTER TABLE app_event_engagement_stats ADD COLUMN IF NOT EXISTS locale TEXT`;
 
 		await this.sql`
-			CREATE INDEX IF NOT EXISTS idx_app_event_engagement_event_time
-			ON app_event_engagement_stats (event_key, recorded_at DESC)
-		`;
+				CREATE INDEX IF NOT EXISTS idx_app_event_engagement_event_time
+				ON app_event_engagement_stats (event_key, recorded_at DESC)
+			`;
+		await this.sql`
+				CREATE INDEX IF NOT EXISTS idx_app_event_engagement_event_session_action_time
+				ON app_event_engagement_stats (event_key, session_id, action_type, recorded_at ASC)
+				WHERE session_id IS NOT NULL
+			`;
 
 		await this.sql`
-			CREATE INDEX IF NOT EXISTS idx_app_event_engagement_action_time
-			ON app_event_engagement_stats (action_type, recorded_at DESC)
-		`;
+				CREATE INDEX IF NOT EXISTS idx_app_event_engagement_action_time
+				ON app_event_engagement_stats (action_type, recorded_at DESC)
+			`;
 
 		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_app_event_engagement_time
@@ -135,12 +140,17 @@ export class EventEngagementRepository {
 		`;
 
 		await this.sql`
-			CREATE INDEX IF NOT EXISTS idx_app_event_engagement_user_time
-			ON app_event_engagement_stats (user_id, recorded_at DESC)
-		`;
+				CREATE INDEX IF NOT EXISTS idx_app_event_engagement_user_time
+				ON app_event_engagement_stats (user_id, recorded_at DESC)
+			`;
+		await this.sql`
+				CREATE INDEX IF NOT EXISTS idx_app_event_engagement_session_time
+				ON app_event_engagement_stats (session_id, recorded_at DESC)
+				WHERE session_id IS NOT NULL
+			`;
 		await this
 			.sql`CREATE INDEX IF NOT EXISTS idx_app_event_engagement_user_email_time
-				ON app_event_engagement_stats (LOWER(user_email), recorded_at DESC)`;
+					ON app_event_engagement_stats (LOWER(user_email), recorded_at DESC)`;
 	}
 
 	private async ready(): Promise<void> {

@@ -29,6 +29,21 @@ type CollectedUserProfileLookup = {
 	userId?: string;
 };
 
+const COLLECTED_EMAILS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+declare global {
+	var __ooocFeteFinderCollectedEmailsCache:
+		| {
+				expiresAt: number;
+				value: CollectedEmailsResponse;
+		  }
+		| undefined;
+}
+
+const clearCollectedEmailsCache = () => {
+	globalThis.__ooocFeteFinderCollectedEmailsCache = undefined;
+};
+
 /**
  * Admin Management Server Actions
  *
@@ -458,6 +473,11 @@ export async function getCollectedEmails(
 		return { success: false, error: "Unauthorized" };
 	}
 
+	const cached = globalThis.__ooocFeteFinderCollectedEmailsCache;
+	if (cached && cached.expiresAt > Date.now()) {
+		return cached.value;
+	}
+
 	const snapshot = await UserCollectionStore.getAdminSnapshot();
 
 	log.info("admin-users", "Loaded collected users for admin panel", {
@@ -465,13 +485,18 @@ export async function getCollectedEmails(
 		provider: snapshot.status.provider,
 	});
 
-	return {
+	const response: CollectedEmailsResponse = {
 		success: true,
 		emails: snapshot.users,
 		count: snapshot.users.length,
 		store: snapshot.status,
 		analytics: snapshot.analytics,
 	};
+	globalThis.__ooocFeteFinderCollectedEmailsCache = {
+		expiresAt: Date.now() + COLLECTED_EMAILS_CACHE_TTL_MS,
+		value: response,
+	};
+	return response;
 }
 
 export async function getCollectedUserProfile(
@@ -578,6 +603,7 @@ export async function importCollectedEmails(
 		},
 		href: "/admin/insights#collected-users",
 	});
+	clearCollectedEmailsCache();
 	return {
 		success: true,
 		importedCount,
@@ -619,6 +645,7 @@ export async function deleteCollectedEmails(
 		severity: "destructive",
 		href: "/admin/insights#collected-users",
 	});
+	clearCollectedEmailsCache();
 	return {
 		success: true,
 		deletedCount,

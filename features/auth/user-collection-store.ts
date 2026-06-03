@@ -6,7 +6,6 @@ import type {
 	UserRecord,
 } from "@/features/auth/types";
 import { generateUserId, isValidUserId } from "@/features/auth/user-id";
-import { DataManager } from "@/features/data-management/data-manager";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { parseTourInteraction } from "@/features/events/engagement/tour-analytics";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
@@ -395,7 +394,9 @@ export class UserCollectionStore {
 			}
 
 			if (eventsByKey.size < requestedEventKeys.size) {
-				const freshEventsResult = await DataManager.getEventsData({
+				const freshEventsResult = await getLiveEvents({
+					includeFeaturedProjection: false,
+					includeEngagementProjection: false,
 					populateCoordinates: false,
 				});
 				for (const event of freshEventsResult.success

@@ -1,8 +1,13 @@
 import { getDefaultDateRangeForEvents } from "@/features/events/filtering";
 import type { Event } from "@/features/events/types";
 
-const isStrictISODate = (value: string | null | undefined): value is string =>
-	typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+const normalizePlanDateValue = (
+	value: string | null | undefined,
+): string | null => {
+	if (typeof value !== "string") return null;
+	const date = value.trim();
+	return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+};
 
 const DEFAULT_PLAN_DAY_OF_MONTH = "21";
 
@@ -12,7 +17,11 @@ export const getPlanDateOptions = (
 ): string[] => {
 	const defaultRange = getDefaultDateRangeForEvents(events, referenceDate);
 	const allDates = Array.from(
-		new Set(events.map((event) => event.date).filter(isStrictISODate)),
+		new Set(
+			events
+				.map((event) => normalizePlanDateValue(event.date))
+				.filter((date): date is string => Boolean(date)),
+		),
 	).sort();
 	const rangeStart = defaultRange.from;
 	const rangeEnd = defaultRange.to;
@@ -38,10 +47,11 @@ export const getDefaultPlanDate = (
 	const countsByDate = new Map<string, number>();
 	const visibleDates = new Set(dateOptions);
 	for (const event of events) {
-		if (!isStrictISODate(event.date) || !visibleDates.has(event.date)) {
+		const date = normalizePlanDateValue(event.date);
+		if (!date || !visibleDates.has(date)) {
 			continue;
 		}
-		countsByDate.set(event.date, (countsByDate.get(event.date) ?? 0) + 1);
+		countsByDate.set(date, (countsByDate.get(date) ?? 0) + 1);
 	}
 
 	return (
