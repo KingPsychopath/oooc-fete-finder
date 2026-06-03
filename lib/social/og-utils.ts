@@ -49,7 +49,6 @@ type OGImageParams = {
 type SharedPlanOGImageParams = {
 	stopCount: number;
 	planDateLabel?: string;
-	ownerName?: string;
 	planVersion?: string;
 };
 
@@ -144,7 +143,6 @@ export const generateSharedPlanOGImage = (
 		preset: "shared-plan",
 		stopCount: stopCount.toString(),
 		planDate: params.planDateLabel,
-		ownerName: params.ownerName,
 		planVersion: params.planVersion,
 	});
 };

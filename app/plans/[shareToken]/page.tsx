@@ -16,9 +16,6 @@ type SharedPlanPageProps = {
 	params: Promise<{ shareToken: string }>;
 };
 
-const formatPossessive = (value: string): string =>
-	/[sS]$/.test(value) ? `${value}'` : `${value}'s`;
-
 const getSharedPlan = async (shareToken: string) => {
 	const repository = getUserPlanRepository();
 	if (!repository) return null;
@@ -37,10 +34,7 @@ export async function generateMetadata({
 		};
 	}
 
-	const title =
-		plan.shareOwnerNameVisible === false
-			? "A Fête route"
-			: `${formatPossessive(plan.ownerDisplayName)} route`;
+	const title = "A Fête Route";
 	const publicPlanTitle = formatPublicPlanTitle(plan.planDate);
 	const description = `${publicPlanTitle} with ${plan.stops.length} stop${
 		plan.stops.length === 1 ? "" : "s"
@@ -49,8 +43,6 @@ export async function generateMetadata({
 	const ogImageUrl = generateSharedPlanOGImage({
 		stopCount: plan.stops.length,
 		planDateLabel: publicPlanTitle,
-		ownerName:
-			plan.shareOwnerNameVisible === false ? undefined : plan.ownerDisplayName,
 		planVersion: plan.updatedAt,
 	});
 

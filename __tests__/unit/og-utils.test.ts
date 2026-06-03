@@ -47,12 +47,11 @@ describe("og-utils", () => {
 		const url = generateSharedPlanOGImage({
 			stopCount: 123,
 			planDateLabel: "Sunday 21st",
-			ownerName: "Ada",
 			planVersion: "2026-06-03T11:58:00.000Z",
 		});
 
 		expect(url).toBe(
-			"/api/og?preset=shared-plan&stopCount=99&planDate=Sunday+21st&ownerName=Ada&planVersion=2026-06-03T11%3A58%3A00.000Z",
+			"/api/og?preset=shared-plan&stopCount=99&planDate=Sunday+21st&planVersion=2026-06-03T11%3A58%3A00.000Z",
 		);
 	});
 
