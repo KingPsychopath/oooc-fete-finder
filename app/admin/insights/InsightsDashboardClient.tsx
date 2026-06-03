@@ -32,6 +32,11 @@ const INSIGHTS_TABS: Array<{
 	description: string;
 }> = [
 	{
+		key: "audience",
+		label: "Audience",
+		description: "Segments, exports, collected users.",
+	},
+	{
 		key: "traffic",
 		label: "Traffic",
 		description: "Visitors, sources, campaigns, landing pages.",
@@ -55,11 +60,6 @@ const INSIGHTS_TABS: Array<{
 		key: "events",
 		label: "Events",
 		description: "Event attention, intent, funnel, quality.",
-	},
-	{
-		key: "audience",
-		label: "Audience",
-		description: "Segments, exports, collected users.",
 	},
 	{
 		key: "advanced",
@@ -89,7 +89,7 @@ export function InsightsDashboardClient({
 				? (initialEmailsResult.analytics ?? null)
 				: null,
 		);
-	const [activeTab, setActiveTab] = useState<InsightsTab>("traffic");
+	const [activeTab, setActiveTab] = useState<InsightsTab>("audience");
 
 	const loadEmails = useCallback(async () => {
 		const result = await getCollectedEmails();

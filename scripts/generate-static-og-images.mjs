@@ -76,7 +76,7 @@ const presets = {
 	},
 	"partner-performance-report": {
 		label: "Private Report",
-		title: "Partner performance report",
+		title: "Partner performance",
 		subtitle: "Private campaign metrics for OOOC placements.",
 		accent: "#2f657d",
 		facts: [

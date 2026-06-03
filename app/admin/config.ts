@@ -196,20 +196,20 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 		path: "/admin/insights",
 		sections: [
 			{
-				id: "event-engagement-stats",
-				label: "Discovery & Event Performance",
-				description: "Discovery behavior, event opens, and partner actions.",
-				path: "/admin/insights#event-engagement-stats",
-				moduleKey: "insights",
-				keywords: ["analytics", "engagement", "discovery", "roi"],
-			},
-			{
 				id: "collected-users",
 				label: "Collected User Emails",
 				description: "Manage, import, export, and tidy collected user records.",
 				path: "/admin/insights#collected-users",
 				moduleKey: "insights",
 				keywords: ["users", "emails", "export", "import", "csv"],
+			},
+			{
+				id: "event-engagement-stats",
+				label: "Discovery & Event Performance",
+				description: "Discovery behavior, event opens, and partner actions.",
+				path: "/admin/insights#event-engagement-stats",
+				moduleKey: "insights",
+				keywords: ["analytics", "engagement", "discovery", "roi"],
 			},
 		],
 	},

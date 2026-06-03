@@ -186,7 +186,7 @@ const STATIC_PRESET_CONTENT: Record<
 	},
 	"partner-performance-report": {
 		variant: "default",
-		title: "Partner Performance Report",
+		title: "Partner Performance",
 		subtitle: "Private campaign performance metrics",
 	},
 	"social-assets": {
@@ -307,6 +307,19 @@ const formatArrondissement = (
 	if (value === "unknown") return "Paris";
 	if (typeof value === "number") return `${value}e arrondissement`;
 	return formatLocationAreaLong(value);
+};
+
+const formatFooterLocation = (value: string): string => {
+	if (!value || value === "Paris") return "Paris";
+	if (/^\d+e arrondissement$/i.test(value)) return `${value} · Paris`;
+	if (value === "Greater Paris Area") return "Greater Paris";
+	return value;
+};
+
+const capitalizeGenre = (value: string): string => {
+	const trimmed = value.trim();
+	if (!trimmed) return "";
+	return `${trimmed[0]?.toUpperCase() ?? ""}${trimmed.slice(1)}`;
 };
 
 const buildEventSubtitle = (
@@ -516,7 +529,10 @@ const getSvgTitleLayout = (title: string, isEventCard: boolean) => {
 		if (lines.join(" ").replace(/\.\.\.$/, "") === title) {
 			return {
 				lines,
-				size: title.length <= 14 && lines.length === 1 ? 104 : candidate.size,
+				size:
+					!isEventCard && title.length <= 14 && lines.length === 1
+						? 104
+						: candidate.size,
 				lineHeight: candidate.size * 0.98,
 			};
 		}
@@ -609,13 +625,14 @@ const renderOGSvg = (content: {
 	const titleLayout = getSvgTitleLayout(content.title, content.isEventCard);
 	const titleTop = content.isEventCard
 		? titleLayout.lines.length >= 3
-			? 250
+			? 242
 			: titleLayout.lines.length === 2
-				? 260
-				: 264
+				? 248
+				: 252
 		: titleLayout.lines.length === 1
 			? 262
 			: 252;
+	const labelY = content.isEventCard ? 164 : 174;
 	const titleBottom =
 		titleTop + (titleLayout.lines.length - 1) * titleLayout.lineHeight;
 	const subtitleTop = titleBottom + (content.isEventCard ? 54 : 66);
@@ -657,8 +674,8 @@ const renderOGSvg = (content: {
 			.metaLabel { font: 700 13px "Degular", sans-serif; letter-spacing: 1.8px; fill: ${content.accent}; text-transform: uppercase; }
 			.meta { font: 700 22px "Degular", sans-serif; fill: #2f241b; }
 			.footer { font: 700 18px "Degular", sans-serif; letter-spacing: 2.1px; fill: #6a5849; text-transform: uppercase; }
-			.railText { font: 700 19px "Degular", sans-serif; letter-spacing: 2.6px; fill: #fff8ef; }
-			.railSmall { font: 700 18px "Degular", sans-serif; fill: #f5debd; }
+			.railText { font: 700 16px "Degular", sans-serif; letter-spacing: 2.6px; fill: #fff8ef; stroke: #fff8ef; stroke-width: 0.35px; paint-order: stroke fill; }
+			.railSmall { font: 700 15px "Degular", sans-serif; fill: #f5debd; stroke: #f5debd; stroke-width: 0.3px; paint-order: stroke fill; }
 		</style>
 	</defs>
 	<rect width="1200" height="630" fill="url(#bg)"/>
@@ -669,7 +686,7 @@ const renderOGSvg = (content: {
 	<path d="M1002 92 C938 171 926 247 967 317 C1009 390 995 470 932 543" stroke="#fff8ef" stroke-opacity="0.34" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 28"/>
 	<rect x="86" y="82" width="72" height="6" rx="3" fill="${content.accent}"/>
 	<text x="86" y="122" class="eyebrow" font-size="19">OUT OF OFFICE COLLECTIVE</text>
-	<text x="86" y="174" class="label" font-size="22">${escapeXml(content.label)}</text>
+	<text x="86" y="${labelY}" class="label" font-size="22">${escapeXml(content.label)}</text>
 	${renderSvgTextLines({
 		lines: titleLayout.lines,
 		x: 86,
@@ -690,14 +707,14 @@ const renderOGSvg = (content: {
 	<text x="54" y="584" class="footer">${escapeXml(content.footerLocation)}</text>
 	<text x="640" y="584" class="footer" text-anchor="end">FETE FINDER</text>
 	${eventCountChip}
-	<text x="912" y="123" class="railText">PARIS ROUTE</text>
-	<text x="912" y="554" class="railText">OOOC</text>
+	<text x="912" y="123" class="railText" font-size="16">PARIS ROUTE</text>
+	<text x="912" y="554" class="railText" font-size="16">OOOC</text>
 	<line x1="900" y1="204" x2="1004" y2="204" stroke="#fff8ef" stroke-opacity="0.24"/>
-	<text x="900" y="191" class="railSmall">Curated picks</text>
+	<text x="900" y="191" class="railSmall" font-size="15">Curated picks</text>
 	<line x1="950" y1="320" x2="1084" y2="320" stroke="#fff8ef" stroke-opacity="0.24"/>
-	<text x="950" y="307" class="railSmall">Live details</text>
+	<text x="950" y="307" class="railSmall" font-size="15">Live details</text>
 	<line x1="870" y1="454" x2="986" y2="454" stroke="#fff8ef" stroke-opacity="0.24"/>
-	<text x="870" y="441" class="railSmall">Easy sharing</text>
+	<text x="870" y="441" class="railSmall" font-size="15">Easy sharing</text>
 </svg>`;
 };
 
@@ -756,17 +773,14 @@ export async function GET(request: NextRequest) {
 		const subtitle = sanitizeText(content.subtitle, defaultText.subtitle);
 		const svgPalette = THEMES[variant];
 		const svgIsEventCard = variant === "event-modal";
-		const svgFooterLocation =
-			arrondissement && arrondissement !== "Paris"
-				? `${arrondissement} · Paris`
-				: "Paris";
+		const svgFooterLocation = formatFooterLocation(arrondissement);
 		const svgLabel =
 			title === "Shared Fête Finder Plan"
 				? "Shared Plan"
 				: svgIsEventCard
 					? "Event Pick"
 					: svgPalette.label;
-		const tagList = genres.slice(0, 3).join(" · ");
+		const tagList = genres.slice(0, 3).map(capitalizeGenre).join(" · ");
 		const svgFacts: MetaFact[] = svgIsEventCard
 			? [
 					{ label: "Date", value: date },

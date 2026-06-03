@@ -885,6 +885,14 @@ export const EmailCollectionCard = ({
 		}
 	};
 
+	const handleCloseProfile = () => {
+		profileRequestIdRef.current += 1;
+		setProfileEmail(null);
+		setProfile(null);
+		setProfileStatus("");
+		setIsProfileLoading(false);
+	};
+
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
 			<CardHeader className="space-y-3">
@@ -1401,9 +1409,7 @@ export const EmailCollectionCard = ({
 				open={Boolean(profileEmail)}
 				onOpenChange={(open) => {
 					if (!open) {
-						setProfileEmail(null);
-						setProfile(null);
-						setProfileStatus("");
+						handleCloseProfile();
 					}
 				}}
 			>
