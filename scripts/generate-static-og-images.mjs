@@ -31,13 +31,13 @@ const presets = {
 	},
 	privacy: {
 		label: "Privacy",
-		title: "Clear data rules for Fête Finder",
+		title: "Clear data rules",
 		subtitle: "How attendee, host, and partner information is handled.",
 		accent: "#5a4f8f",
 		facts: [
 			{ label: "Data", value: "Clear rules" },
 			{ label: "Control", value: "Consent first" },
-			{ label: "Scope", value: "Fête Finder" },
+			{ label: "Scope", value: "Your details" },
 		],
 	},
 	"submit-event": {
@@ -87,8 +87,8 @@ const presets = {
 	},
 	"social-assets": {
 		label: "Social Assets",
-		title: "Fête Finder social assets",
-		subtitle: "Private branded export routes for OOOC creative assets.",
+		title: "Social assets",
+		subtitle: "Private branded export routes for creative assets.",
 		accent: "#754f88",
 		facts: [
 			{ label: "Story", value: "9:16" },

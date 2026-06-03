@@ -160,7 +160,7 @@ const STATIC_PRESET_CONTENT: Record<
 	},
 	"how-it-works": {
 		variant: "default",
-		title: "How Fête Finder Works",
+		title: "How It Works",
 		subtitle:
 			"Plan your Paris music weekend with curated picks, filters and community tips",
 	},
@@ -177,7 +177,7 @@ const STATIC_PRESET_CONTENT: Record<
 	"feature-event": {
 		variant: "default",
 		title: "Partner With OOOC",
-		subtitle: "Spotlight and promoted placements in Fête Finder",
+		subtitle: "Spotlight and promoted placements for Fête de la Musique",
 	},
 	"partner-success": {
 		variant: "default",
@@ -191,8 +191,8 @@ const STATIC_PRESET_CONTENT: Record<
 	},
 	"social-assets": {
 		variant: "default",
-		title: "Fête Finder Social Assets",
-		subtitle: "Private branded export routes for Out Of Office Collective",
+		title: "Social Assets",
+		subtitle: "Private branded export routes for creative assets",
 	},
 };
 
