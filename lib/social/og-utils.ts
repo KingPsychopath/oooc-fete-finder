@@ -115,8 +115,14 @@ export const generateOGImageUrl = (params: OGImageParams = {}): string => {
 	return `/api/og${query ? `?${query}` : ""}`;
 };
 
-export const generatePresetOGImage = (preset: OGPreset): string =>
-	STATIC_OG_IMAGE_BY_PRESET[preset];
+export const generatePresetOGImage = (preset: OGPreset): string => {
+	const path = STATIC_OG_IMAGE_BY_PRESET[preset];
+	const searchParams = new URLSearchParams();
+	applyOGImageVersion(searchParams);
+
+	const query = searchParams.toString();
+	return query ? `${path}?${query}` : path;
+};
 
 /**
  * Generate OG:image URL for event-specific content

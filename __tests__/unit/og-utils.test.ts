@@ -4,6 +4,7 @@ const loadOgUtils = async () => {
 	vi.resetModules();
 	process.env.NEXT_PUBLIC_SITE_URL = "https://fete-finder.ooo";
 	process.env.NEXT_PUBLIC_BASE_PATH = "";
+	delete process.env.NEXT_PUBLIC_OG_IMAGE_VERSION;
 	return import("@/lib/social/og-utils");
 };
 
@@ -17,6 +18,19 @@ describe("og-utils", () => {
 		const url = generateMainOGImage(81);
 
 		expect(url).toBe("/og/home.png");
+	});
+
+	it("versions static preset OG images when an OG image version is configured", async () => {
+		vi.resetModules();
+		process.env.NEXT_PUBLIC_SITE_URL = "https://fete-finder.ooo";
+		process.env.NEXT_PUBLIC_BASE_PATH = "";
+		process.env.NEXT_PUBLIC_OG_IMAGE_VERSION = "og-20260603";
+
+		const { generatePresetOGImage } = await import("@/lib/social/og-utils");
+
+		expect(generatePresetOGImage("home")).toBe(
+			"/og/home.png?v=og-20260603",
+		);
 	});
 
 	it("builds event OG route URL with only the event key", async () => {
