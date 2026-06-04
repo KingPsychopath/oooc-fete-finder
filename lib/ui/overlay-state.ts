@@ -2,6 +2,7 @@ export const OVERLAY_BODY_ATTRIBUTE = {
 	EVENT_MODAL: "data-event-modal-open",
 	FILTER_PANEL: "data-filter-panel-open",
 	FETE_FINDER_TOUR: "data-fete-finder-tour-open",
+	TICKET_EXCHANGE_MODAL: "data-ticket-exchange-modal-open",
 } as const;
 
 export function setBodyOverlayAttribute(

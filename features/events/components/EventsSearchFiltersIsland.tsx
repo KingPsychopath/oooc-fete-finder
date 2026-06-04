@@ -7,6 +7,7 @@ import { useEventsSearchFilters } from "@/features/events/components/events-sear
 import {
 	MOBILE_DISCOVERY_FILTER_EVENT,
 	MOBILE_DISCOVERY_PENDING_ACTION_KEY,
+	MOBILE_DISCOVERY_PENDING_QUERY_KEY,
 	MOBILE_DISCOVERY_SEARCH_EVENT,
 	MOBILE_DISCOVERY_STATE_EVENT,
 	type MobileDiscoveryPendingAction,
@@ -64,7 +65,6 @@ export function EventsSearchFiltersIsland({
 		onOOOCPicksToggle,
 		onPriceRangeChange,
 		onVenueTypeToggle,
-		openFilterDrawer,
 		openFilterPanel,
 		quickSelectEventDates,
 		searchQuery,
@@ -157,8 +157,7 @@ export function EventsSearchFiltersIsland({
 				onAuthRequired();
 				return;
 			}
-			scrollToEvents("smooth");
-			openFilterDrawer();
+			openFilterPanel();
 		};
 
 		window.addEventListener(MOBILE_DISCOVERY_SEARCH_EVENT, handleMobileSearch);
@@ -169,6 +168,10 @@ export function EventsSearchFiltersIsland({
 		) as MobileDiscoveryPendingAction | null;
 		if (pendingAction) {
 			window.sessionStorage.removeItem(MOBILE_DISCOVERY_PENDING_ACTION_KEY);
+			const pendingQuery =
+				window.sessionStorage.getItem(MOBILE_DISCOVERY_PENDING_QUERY_KEY) ??
+				undefined;
+			window.sessionStorage.removeItem(MOBILE_DISCOVERY_PENDING_QUERY_KEY);
 			window.requestAnimationFrame(() => {
 				if (pendingAction === "filter") {
 					handleMobileFilter();
@@ -176,7 +179,11 @@ export function EventsSearchFiltersIsland({
 				}
 				handleMobileSearch({
 					type: MOBILE_DISCOVERY_SEARCH_EVENT,
-					detail: { behavior: "auto", shouldFocus: false },
+					detail: {
+						behavior: "auto",
+						query: pendingQuery,
+						shouldFocus: false,
+					},
 				} as CustomEvent<MobileDiscoverySearchDetail>);
 			});
 		}
@@ -195,7 +202,7 @@ export function EventsSearchFiltersIsland({
 		canUseProtectedDiscovery,
 		handleSearchIntent,
 		onAuthRequired,
-		openFilterDrawer,
+		openFilterPanel,
 	]);
 
 	const searchSlot = (

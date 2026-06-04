@@ -5,6 +5,10 @@ export const MOBILE_DISCOVERY_FILTER_EVENT = "oooc:mobile-discovery-filter";
 export const MOBILE_DISCOVERY_STATE_EVENT = "oooc:mobile-discovery-state";
 export const MOBILE_DISCOVERY_PENDING_ACTION_KEY =
 	"oooc_mobile_discovery_pending_action";
+export const MOBILE_DISCOVERY_PENDING_DOCK_ACTION_KEY =
+	"oooc_mobile_discovery_pending_dock_action";
+export const MOBILE_DISCOVERY_PENDING_QUERY_KEY =
+	"oooc_mobile_discovery_pending_query";
 
 export type MobileDiscoveryPendingAction = "search" | "filter";
 

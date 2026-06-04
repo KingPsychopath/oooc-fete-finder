@@ -57,6 +57,10 @@ import {
 	validateTicketExchangePriceLabel,
 	validateTicketExchangeQuantityLabel,
 } from "@/features/ticket-exchange/utils";
+import {
+	OVERLAY_BODY_ATTRIBUTE,
+	setBodyOverlayAttribute,
+} from "@/lib/ui/overlay-state";
 import { cn } from "@/lib/utils";
 import {
 	AlertTriangle,
@@ -2597,9 +2601,10 @@ export function TicketExchangeClient({
 								.
 							</span>
 						</label>
-						<div className="flex justify-end">
+						<div className="sticky bottom-0 -mx-1 flex justify-stretch bg-card/95 px-1 pt-2 pb-1 backdrop-blur sm:justify-end">
 							<Button
 								type="button"
+								className="w-full sm:w-auto"
 								disabled={!agreementChecked || isAcceptingAgreement}
 								onClick={handleAgreementAccept}
 							>
@@ -3470,9 +3475,20 @@ function ModalShell({
 	onClose: () => void;
 	closeOnOutsideClick?: boolean;
 }) {
+	useEffect(() => {
+		setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.TICKET_EXCHANGE_MODAL, true);
+
+		return () => {
+			setBodyOverlayAttribute(
+				OVERLAY_BODY_ATTRIBUTE.TICKET_EXCHANGE_MODAL,
+				false,
+			);
+		};
+	}, []);
+
 	return (
 		<div
-			className="fixed inset-0 z-[120] flex items-end bg-black/40 p-3 sm:items-center sm:justify-center"
+			className="fixed inset-x-0 top-0 z-[120] flex h-dvh items-end justify-center bg-black/40 px-3 pt-[max(env(safe-area-inset-top),0.75rem)] pb-[max(env(safe-area-inset-bottom),0.75rem)] sm:items-center sm:p-4"
 			onMouseDown={(event) => {
 				if (closeOnOutsideClick && event.target === event.currentTarget) {
 					onClose();
@@ -3480,18 +3496,20 @@ function ModalShell({
 			}}
 		>
 			<div
-				className="w-full max-w-lg rounded-2xl border border-border bg-card p-4 shadow-2xl"
+				className="flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-2xl"
 				role="dialog"
 				aria-modal="true"
 				aria-label={title}
 			>
-				<div className="mb-3 flex items-center justify-between">
+				<div className="mb-3 flex shrink-0 items-center justify-between">
 					<h2 className="text-lg font-semibold">{title}</h2>
 					<Button type="button" variant="ghost" size="icon" onClick={onClose}>
 						<X className="h-4 w-4" />
 					</Button>
 				</div>
-				{children}
+				<div className="min-h-0 overflow-y-auto overscroll-contain px-1 pb-1">
+					{children}
+				</div>
 			</div>
 		</div>
 	);

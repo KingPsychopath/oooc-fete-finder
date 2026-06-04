@@ -7,6 +7,8 @@ import { useOptionalAuth } from "@/features/auth/auth-context";
 import {
 	MOBILE_DISCOVERY_FILTER_EVENT,
 	MOBILE_DISCOVERY_PENDING_ACTION_KEY,
+	MOBILE_DISCOVERY_PENDING_DOCK_ACTION_KEY,
+	MOBILE_DISCOVERY_PENDING_QUERY_KEY,
 	MOBILE_DISCOVERY_SEARCH_EVENT,
 	MOBILE_DISCOVERY_STATE_EVENT,
 	type MobileDiscoveryPendingAction,
@@ -18,6 +20,7 @@ import { requestFeteFinderTour } from "@/features/events/tour-events";
 import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
+import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { LAYERS } from "@/lib/ui/layers";
 import { cn } from "@/lib/utils";
 import {
@@ -48,7 +51,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
 	type ChangeEvent,
 	type FormEvent,
@@ -218,6 +221,7 @@ function scrollToHomeSectionWhenReady(
 
 export function MobileBottomNav() {
 	const pathname = usePathname();
+	const router = useRouter();
 	const haptics = useAppHaptics();
 	const normalizedPathname = normalizePathname(pathname);
 	const {
@@ -227,6 +231,7 @@ export function MobileBottomNav() {
 		logout,
 		refreshSession,
 	} = useOptionalAuth();
+	const { settings: localAppSettings } = useLocalAppSettings();
 	const [activeSection, setActiveSection] = useState<NavKey | null>(null);
 	const [isPinned, setIsPinned] = useState(false);
 	const [isMoreOpen, setIsMoreOpen] = useState(false);
@@ -241,16 +246,19 @@ export function MobileBottomNav() {
 	const [toiletFinderUrl, setToiletFinderUrl] = useState(toiletFinderIosUrl);
 	const activeSectionLockUntilRef = useRef(0);
 	const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
+	const pendingDiscoveryQueryRef = useRef<string | null>(null);
 	const pendingHomeSectionScrollRef = useRef<string | null>(null);
 	const previousPathnameRef = useRef(pathname);
 	const shouldScrollToTopOnRouteRef = useRef(false);
 	const hasActiveOverlay = useHasActiveBodyOverlay();
+	const hideDiscoveryDockActions = localAppSettings.hideFloatingFilterButton;
+	const isDiscoveryDockExpanded = isDiscoveryOpen && !hideDiscoveryDockActions;
 	const isVisible = useMobileNavVisibility(
 		isPinned ||
 			isMoreOpen ||
 			isMusicModalOpen ||
 			isSettingsOpen ||
-			isDiscoveryOpen,
+			isDiscoveryDockExpanded,
 	);
 
 	useEffect(() => {
@@ -262,20 +270,46 @@ export function MobileBottomNav() {
 	}, []);
 
 	useEffect(() => {
+		if (hideDiscoveryDockActions) {
+			setIsDiscoveryOpen(false);
+		}
+	}, [hideDiscoveryDockActions]);
+
+	useEffect(() => {
 		if (normalizedPathname !== "/") {
 			setIsMobileDiscoveryAvailable(false);
 			setMobileActiveFilterCount(0);
 			setMobileSearchQuery("");
+			return;
 		}
-	}, [normalizedPathname]);
+
+		const pendingDockAction = window.sessionStorage.getItem(
+			MOBILE_DISCOVERY_PENDING_DOCK_ACTION_KEY,
+		) as MobileDiscoveryPendingAction | null;
+		if (!pendingDockAction) return;
+
+		window.sessionStorage.removeItem(MOBILE_DISCOVERY_PENDING_DOCK_ACTION_KEY);
+		const shouldExpandDockSearch =
+			pendingDockAction === "search" && !hideDiscoveryDockActions;
+		setIsDiscoveryOpen(shouldExpandDockSearch);
+		if (shouldExpandDockSearch) {
+			focusMobileSearch();
+		}
+	}, [hideDiscoveryDockActions, normalizedPathname]);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 
 		const handleDiscoveryState = (event: Event) => {
 			const detail = (event as CustomEvent<MobileDiscoveryStateDetail>).detail;
+			const pendingQuery = pendingDiscoveryQueryRef.current;
 			setIsMobileDiscoveryAvailable(detail.isAvailable);
 			setMobileActiveFilterCount(detail.activeFilterCount);
+			if (pendingQuery !== null && detail.query !== pendingQuery) {
+				setMobileSearchQuery(pendingQuery);
+				return;
+			}
+			pendingDiscoveryQueryRef.current = null;
 			setMobileSearchQuery(detail.query);
 		};
 
@@ -529,16 +563,29 @@ export function MobileBottomNav() {
 
 	const navigateToHomeDiscovery = (
 		pendingAction: MobileDiscoveryPendingAction,
+		query?: string,
 	) => {
 		window.sessionStorage.setItem(
 			MOBILE_DISCOVERY_PENDING_ACTION_KEY,
 			pendingAction,
 		);
 		window.sessionStorage.setItem(
+			MOBILE_DISCOVERY_PENDING_DOCK_ACTION_KEY,
+			pendingAction,
+		);
+		if (pendingAction === "search" && typeof query === "string") {
+			pendingDiscoveryQueryRef.current = query;
+			setMobileSearchQuery(query);
+			window.sessionStorage.setItem(MOBILE_DISCOVERY_PENDING_QUERY_KEY, query);
+		} else {
+			pendingDiscoveryQueryRef.current = null;
+			window.sessionStorage.removeItem(MOBILE_DISCOVERY_PENDING_QUERY_KEY);
+		}
+		window.sessionStorage.setItem(
 			PENDING_HOME_SECTION_STORAGE_KEY,
 			"all-events",
 		);
-		window.location.assign(`${basePath || ""}/#all-events`);
+		router.push(`${basePath || ""}/#all-events`);
 	};
 
 	const dispatchMobileDiscoverySearch = (
@@ -581,6 +628,11 @@ export function MobileBottomNav() {
 	) => {
 		const nextQuery = event.target.value;
 		setMobileSearchQuery(nextQuery);
+		if (normalizedPathname !== "/") {
+			navigateToHomeDiscovery("search", nextQuery);
+			return;
+		}
+		pendingDiscoveryQueryRef.current = null;
 		dispatchMobileDiscoverySearch({
 			behavior: "smooth",
 			query: nextQuery,
@@ -590,6 +642,11 @@ export function MobileBottomNav() {
 
 	const handleDiscoverySearchSubmit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
+		if (normalizedPathname !== "/") {
+			navigateToHomeDiscovery("search", mobileSearchQuery);
+			return;
+		}
+		pendingDiscoveryQueryRef.current = null;
 		dispatchMobileDiscoverySearch({
 			behavior: "smooth",
 			query: mobileSearchQuery,
@@ -600,6 +657,7 @@ export function MobileBottomNav() {
 
 	const handleDiscoveryClose = () => {
 		haptics.light();
+		pendingDiscoveryQueryRef.current = null;
 		setIsDiscoveryOpen(false);
 	};
 
@@ -607,6 +665,7 @@ export function MobileBottomNav() {
 		haptics.nudge();
 		trackNavigationClick({ group: "mobile_nav", label: "filters" });
 		setIsMoreOpen(false);
+		setIsDiscoveryOpen(false);
 
 		if (normalizedPathname !== "/") {
 			navigateToHomeDiscovery("filter");
@@ -811,16 +870,6 @@ export function MobileBottomNav() {
 										<span>Map</span>
 									</Link>
 									<Link
-										href={`${basePath || ""}/exchange`}
-										onClick={() => handleMoreLinkClick("ticket_exchange")}
-										className={moreInternalItemClassName}
-									>
-										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
-											<Ticket className="h-3.5 w-3.5" />
-										</span>
-										<span>Ticket Exchange</span>
-									</Link>
-									<Link
 										href={`${basePath || ""}/how-it-works`}
 										onClick={() => handleMoreLinkClick("how_it_works")}
 										className={moreInternalItemClassName}
@@ -1012,15 +1061,19 @@ export function MobileBottomNav() {
 						)}
 					</button>
 					<div
-						data-expanded={isDiscoveryOpen}
+						data-expanded={isDiscoveryDockExpanded}
 						className={cn(
 							"ooo-liquid-dock-panel relative min-w-0 p-1",
-							isDiscoveryOpen ? "w-[7.75rem] shrink-0" : "flex-1",
+							hideDiscoveryDockActions
+								? "flex-1"
+								: isDiscoveryDockExpanded
+									? "w-[7.75rem] shrink-0"
+									: "flex-1",
 						)}
 					>
 						{resolvedActiveIndex >= 0 && (
 							<span
-								className="ooo-liquid-dock-active pointer-events-none absolute bottom-1 left-1 top-1 rounded-xl bg-primary transition-transform duration-300 ease-out"
+								className="ooo-liquid-dock-active pointer-events-none absolute bottom-1 left-1 top-1 bg-primary transition-transform duration-300 ease-out"
 								style={{
 									width: "calc((100% - 0.5rem) / 4)",
 									transform: `translateX(calc(${resolvedActiveIndex} * 100%))`,
@@ -1040,7 +1093,9 @@ export function MobileBottomNav() {
 										onClick={() => handleNavItemClick(item.key, item.sectionId)}
 										className={cn(
 											"flex min-h-14 flex-col items-center justify-center rounded-xl px-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground",
-											isDiscoveryOpen ? "gap-0" : "gap-1 max-[360px]:gap-0",
+											isDiscoveryDockExpanded
+												? "gap-0"
+												: "gap-1 max-[360px]:gap-0",
 											isItemVisuallyActive &&
 												"text-primary-foreground hover:text-primary-foreground",
 										)}
@@ -1051,7 +1106,7 @@ export function MobileBottomNav() {
 										<span
 											className={cn(
 												"max-[360px]:sr-only",
-												isDiscoveryOpen && "sr-only",
+												isDiscoveryDockExpanded && "sr-only",
 											)}
 										>
 											{item.label}
@@ -1064,7 +1119,7 @@ export function MobileBottomNav() {
 								onClick={handleMoreToggle}
 								className={cn(
 									"flex min-h-14 flex-col items-center justify-center rounded-xl px-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground",
-									isDiscoveryOpen ? "gap-0" : "gap-1 max-[360px]:gap-0",
+									isDiscoveryDockExpanded ? "gap-0" : "gap-1 max-[360px]:gap-0",
 									isMoreActive &&
 										"text-primary-foreground hover:text-primary-foreground",
 								)}
@@ -1076,7 +1131,7 @@ export function MobileBottomNav() {
 								<span
 									className={cn(
 										"max-[360px]:sr-only",
-										isDiscoveryOpen && "sr-only",
+										isDiscoveryDockExpanded && "sr-only",
 									)}
 								>
 									More
@@ -1085,78 +1140,82 @@ export function MobileBottomNav() {
 						</div>
 					</div>
 
-					<div
-						data-expanded={isDiscoveryOpen}
-						className={cn(
-							"ooo-liquid-dock-panel flex min-h-16 items-center gap-1 p-1",
-							isDiscoveryOpen ? "min-w-0 flex-1" : "w-[7.75rem] shrink-0",
-						)}
-					>
-						{isDiscoveryOpen ? (
-							<form
-								onSubmit={handleDiscoverySearchSubmit}
-								className="relative min-w-0 flex-1"
-							>
-								<Search
-									className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-									aria-hidden="true"
-								/>
-								<input
-									id={MOBILE_DISCOVERY_INPUT_ID}
-									ref={mobileSearchInputRef}
-									type="text"
-									value={mobileSearchQuery}
-									onChange={handleDiscoverySearchChange}
-									placeholder="Search events..."
-									className="h-12 w-full min-w-0 rounded-xl border border-border/70 bg-background/70 py-2 pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-ring"
-									aria-label="Search events"
-									autoComplete="off"
-								/>
+					{!hideDiscoveryDockActions && (
+						<div
+							data-expanded={isDiscoveryDockExpanded}
+							className={cn(
+								"ooo-liquid-dock-panel flex min-h-16 items-center gap-1 p-1",
+								isDiscoveryDockExpanded
+									? "min-w-0 flex-1"
+									: "w-[7.75rem] shrink-0",
+							)}
+						>
+							{isDiscoveryDockExpanded ? (
+								<form
+									onSubmit={handleDiscoverySearchSubmit}
+									className="relative min-w-0 flex-1"
+								>
+									<Search
+										className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+										aria-hidden="true"
+									/>
+									<input
+										id={MOBILE_DISCOVERY_INPUT_ID}
+										ref={mobileSearchInputRef}
+										type="text"
+										value={mobileSearchQuery}
+										onChange={handleDiscoverySearchChange}
+										placeholder="Search events..."
+										className="h-12 w-full min-w-0 rounded-[1.15rem] border border-border/70 bg-background/70 py-2 pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-ring"
+										aria-label="Search events"
+										autoComplete="off"
+									/>
+									<button
+										type="button"
+										onClick={handleDiscoveryClose}
+										className="absolute right-1.5 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+										aria-label="Close search"
+									>
+										<X className="h-3.5 w-3.5" />
+									</button>
+								</form>
+							) : (
 								<button
 									type="button"
-									onClick={handleDiscoveryClose}
-									className="absolute right-1.5 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-									aria-label="Close search"
+									onClick={handleDiscoverySearchOpen}
+									className="ooo-liquid-dock-control flex h-12 min-w-0 flex-1 items-center justify-center rounded-[1.15rem] text-foreground"
+									aria-label="Search events"
+									aria-controls={
+										isMobileDiscoveryAvailable ? "tour-search" : undefined
+									}
+									title="Search events"
 								>
-									<X className="h-3.5 w-3.5" />
+									<Search className="h-5 w-5 shrink-0" />
 								</button>
-							</form>
-						) : (
+							)}
 							<button
 								type="button"
-								onClick={handleDiscoverySearchOpen}
-								className="ooo-liquid-dock-control flex h-12 min-w-0 flex-1 items-center justify-center rounded-xl text-foreground"
-								aria-label="Search events"
-								aria-controls={
-									isMobileDiscoveryAvailable ? "tour-search" : undefined
+								onClick={handleDiscoveryFilterOpen}
+								className={cn(
+									"ooo-liquid-dock-control relative flex h-12 shrink-0 items-center justify-center rounded-[1.15rem] text-foreground",
+									isDiscoveryDockExpanded ? "w-13" : "w-[3.35rem]",
+								)}
+								aria-label={
+									mobileActiveFilterCount > 0
+										? `Filters, ${mobileActiveFilterCount} active`
+										: "Filters"
 								}
-								title="Search events"
+								title="Filters"
 							>
-								<Search className="h-5 w-5 shrink-0" />
+								<SlidersHorizontal className="h-5 w-5 shrink-0" />
+								{mobileActiveFilterCount > 0 && (
+									<span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
+										{mobileActiveFilterCount}
+									</span>
+								)}
 							</button>
-						)}
-						<button
-							type="button"
-							onClick={handleDiscoveryFilterOpen}
-							className={cn(
-								"ooo-liquid-dock-control relative flex h-12 shrink-0 items-center justify-center rounded-xl text-foreground",
-								isDiscoveryOpen ? "w-13" : "w-[3.35rem]",
-							)}
-							aria-label={
-								mobileActiveFilterCount > 0
-									? `Filters, ${mobileActiveFilterCount} active`
-									: "Filters"
-							}
-							title="Filters"
-						>
-							<SlidersHorizontal className="h-5 w-5 shrink-0" />
-							{mobileActiveFilterCount > 0 && (
-								<span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
-									{mobileActiveFilterCount}
-								</span>
-							)}
-						</button>
-					</div>
+						</div>
+					)}
 				</nav>
 			</div>
 			<MusicPlatformModal

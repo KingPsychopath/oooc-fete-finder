@@ -29,7 +29,6 @@ import { normalizeMapPreference } from "@/lib/user-app-settings";
 import { cn } from "@/lib/utils";
 import {
 	BellOff,
-	EyeOff,
 	Filter,
 	HardDrive,
 	Map,
@@ -37,6 +36,7 @@ import {
 	Monitor,
 	Moon,
 	RefreshCcw,
+	Search,
 	Settings,
 	Smartphone,
 	Sun,
@@ -361,14 +361,14 @@ export function AppSettingsModal({ isOpen, onClose }: AppSettingsModalProps) {
 							>
 								<span className="flex min-w-0 items-center gap-2.5">
 									<span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground">
-										<EyeOff className="h-4 w-4" />
+										<Search className="h-4 w-4" />
 									</span>
 									<span className="min-w-0">
 										<span className="block text-sm font-medium">
-											Hide floating filter button
+											Hide dock search and filters
 										</span>
 										<span className="mt-0.5 block text-xs leading-snug text-muted-foreground sm:hidden">
-											Filters still open from the Events section.
+											Let the main nav use the full bottom bar.
 										</span>
 									</span>
 								</span>

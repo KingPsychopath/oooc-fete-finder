@@ -301,7 +301,7 @@
 	position: relative;
 	overflow: visible;
 	border: 1px solid color-mix(in oklab, var(--border) 84%, rgba(23, 16, 11, 0.16));
-	border-radius: 1.12rem;
+	border-radius: 1.32rem;
 	background:
 		linear-gradient(
 			145deg,
@@ -348,6 +348,7 @@
 
 .ooo-liquid-dock-active {
 	z-index: 1;
+	border-radius: 1.02rem;
 }
 
 .ooo-liquid-dock-items {
@@ -356,7 +357,7 @@
 }
 
 .ooo-liquid-dock-panel[data-expanded="true"] {
-	border-radius: 1.28rem;
+	border-radius: 1.46rem;
 	box-shadow:
 		0 22px 52px -30px rgba(20, 16, 12, 0.52),
 		0 1px 0 rgba(255, 255, 255, 0.58) inset;
