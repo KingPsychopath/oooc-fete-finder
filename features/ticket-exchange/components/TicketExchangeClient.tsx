@@ -38,6 +38,7 @@ import type {
 	TicketExchangeContactMethod,
 	TicketExchangeContactProfile,
 	TicketExchangeContactSnapshot,
+	TicketExchangeListingStatus,
 	TicketExchangeListingType,
 	TicketExchangeListingView,
 	TicketExchangePageData,
@@ -49,7 +50,12 @@ import {
 	TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR,
 	createTicketExchangeLanguageError,
 	hasOffensiveTicketExchangeLanguage,
+	normalizeInstagramHandle,
+	normalizeOptionalEmail,
+	normalizeWhatsAppNumber,
+	normalizeXHandle,
 	validateTicketExchangePriceLabel,
+	validateTicketExchangeQuantityLabel,
 } from "@/features/ticket-exchange/utils";
 import { cn } from "@/lib/utils";
 import {
@@ -112,6 +118,8 @@ type ProfileFormState = {
 	instagramHandle: string;
 	xHandle: string;
 };
+
+type ProfileFormErrors = Partial<Record<keyof ProfileFormState, string>>;
 
 type ListingFormState = {
 	eventKey: string;
@@ -416,6 +424,17 @@ const getListingSortTime = (listing: TicketExchangeListingView): number => {
 	return Number.isFinite(ms) ? ms : 0;
 };
 
+const getMyActivityStatusRank = (
+	status: TicketExchangeListingStatus,
+): number => {
+	if (status === "active") return 0;
+	if (status === "paused") return 1;
+	if (status === "expired") return 2;
+	if (status === "resolved") return 3;
+	if (status === "removed") return 4;
+	return 5;
+};
+
 const contactIconFor = (label: string) => {
 	if (label === "Email") return <Mail className="h-3.5 w-3.5" />;
 	if (label === "WhatsApp") return <MessageCircle className="h-3.5 w-3.5" />;
@@ -492,8 +511,15 @@ export function TicketExchangeClient({
 	const [profileForm, setProfileForm] = useState(() =>
 		createProfileFormState(initialData.profile),
 	);
+	const [profileErrors, setProfileErrors] = useState<ProfileFormErrors>({});
 	const [listingForm, setListingForm] = useState(() =>
 		createListingFormState(initialData.selectedEventKey),
+	);
+	const [listingQuantityError, setListingQuantityError] = useState<
+		string | null
+	>(null);
+	const [listingPriceError, setListingPriceError] = useState<string | null>(
+		null,
 	);
 	const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -704,9 +730,10 @@ export function TicketExchangeClient({
 		const sortMultiplier = listingSortDirection === "newest" ? -1 : 1;
 		return [...filteredListings].sort((left, right) => {
 			if (activeTab === "mine") {
-				const leftActive = left.effectiveStatus === "active" ? 0 : 1;
-				const rightActive = right.effectiveStatus === "active" ? 0 : 1;
-				if (leftActive !== rightActive) return leftActive - rightActive;
+				const statusDelta =
+					getMyActivityStatusRank(left.effectiveStatus) -
+					getMyActivityStatusRank(right.effectiveStatus);
+				if (statusDelta !== 0) return statusDelta;
 			}
 			const createdDelta = getListingSortTime(left) - getListingSortTime(right);
 			if (createdDelta !== 0) return createdDelta * sortMultiplier;
@@ -859,6 +886,7 @@ export function TicketExchangeClient({
 			setData(result.data);
 			setSelectedEventKey(result.data.selectedEventKey);
 			setProfileForm(createProfileFormState(result.data.profile));
+			setProfileErrors({});
 		}
 		setErrorMessage(null);
 		setPendingMessage(success);
@@ -870,6 +898,76 @@ export function TicketExchangeClient({
 		setData(result.data);
 		setSelectedEventKey(result.data.selectedEventKey);
 		setProfileForm(createProfileFormState(result.data.profile));
+		setProfileErrors({});
+	};
+
+	const clearProfileError = (field: keyof ProfileFormState): void => {
+		setProfileErrors((current) => {
+			if (!current[field]) return current;
+			const next = { ...current };
+			delete next[field];
+			return next;
+		});
+	};
+
+	const validateProfileForm = (): ProfileFormErrors => {
+		const errors: ProfileFormErrors = {};
+		const languageError = getTicketExchangeLanguageError([
+			{ fieldLabel: "the display name", value: profileForm.displayName },
+		]);
+		if (languageError) errors.displayName = languageError;
+
+		try {
+			normalizeOptionalEmail(profileForm.alternateEmail);
+		} catch (error) {
+			errors.alternateEmail =
+				error instanceof Error ? error.message : "Enter a valid email address.";
+		}
+
+		try {
+			normalizeWhatsAppNumber(profileForm.whatsappNumber);
+		} catch (error) {
+			errors.whatsappNumber =
+				error instanceof Error
+					? error.message
+					: "Enter a valid WhatsApp number with country code.";
+		}
+
+		try {
+			normalizeInstagramHandle(profileForm.instagramHandle);
+		} catch (error) {
+			errors.instagramHandle =
+				error instanceof Error
+					? error.message
+					: "Enter a valid Instagram handle.";
+		}
+
+		try {
+			normalizeXHandle(profileForm.xHandle);
+		} catch (error) {
+			errors.xHandle =
+				error instanceof Error
+					? error.message
+					: "Enter a valid Twitter handle.";
+		}
+
+		return errors;
+	};
+
+	const focusFirstProfileError = (errors: ProfileFormErrors): void => {
+		const field = (
+			[
+				"displayName",
+				"alternateEmail",
+				"whatsappNumber",
+				"instagramHandle",
+				"xHandle",
+			] satisfies Array<keyof ProfileFormState>
+		).find((field) => Boolean(errors[field]));
+		if (!field) return;
+		window.setTimeout(() => {
+			document.getElementById(`ticket-exchange-profile-${field}`)?.focus();
+		}, 0);
 	};
 
 	const saveContactDraftIfNeeded =
@@ -877,13 +975,17 @@ export function TicketExchangeClient({
 			if (!hasUnsavedContactDraft(data.profile, profileForm)) {
 				return data.profile;
 			}
-			const languageError = getTicketExchangeLanguageError([
-				{ fieldLabel: "the display name", value: profileForm.displayName },
-			]);
-			if (languageError) {
-				setErrorMessage(languageError);
+			const errors = validateProfileForm();
+			if (Object.keys(errors).length > 0) {
+				const firstError = Object.values(errors)[0];
+				setProfileErrors(errors);
+				setPendingMessage(null);
+				setErrorMessage(firstError ?? "Check your contact details.");
+				setIsProfileOpen(true);
+				scrollPanelIntoView(profilePanelRef);
+				focusFirstProfileError(errors);
 				trackExchangeValidationError(
-					"display_name",
+					"contact_profile",
 					"listing_form",
 					"contact_draft",
 				);
@@ -1206,12 +1308,13 @@ export function TicketExchangeClient({
 		event.preventDefault();
 		if (isSavingProfile) return;
 		if (!requireLogin("profile_save", "profile_panel")) return;
-		const languageError = getTicketExchangeLanguageError([
-			{ fieldLabel: "the display name", value: profileForm.displayName },
-		]);
-		if (languageError) {
-			setErrorMessage(languageError);
-			trackExchangeValidationError("display_name", "profile_panel");
+		const errors = validateProfileForm();
+		if (Object.keys(errors).length > 0) {
+			const firstError = Object.values(errors)[0];
+			setProfileErrors(errors);
+			setErrorMessage(firstError ?? "Check your contact details.");
+			focusFirstProfileError(errors);
+			trackExchangeValidationError("contact_profile", "profile_panel");
 			return;
 		}
 		setIsSavingProfile(true);
@@ -1252,14 +1355,34 @@ export function TicketExchangeClient({
 		if (createListingInFlightRef.current || isCreatingListing) return;
 		if (!requireLogin("listing_create", "listing_form")) return;
 		try {
+			validateTicketExchangeQuantityLabel(listingForm.quantityLabel);
+			setListingQuantityError(null);
 			validateTicketExchangePriceLabel(listingForm.priceLabel);
+			setListingPriceError(null);
 		} catch (error) {
-			setErrorMessage(
+			const message =
 				error instanceof Error
 					? error.message
-					: "Add the ticket price or budget before posting.",
+					: "Add the ticket price or budget before posting.";
+			const quantityMessage =
+				message.includes("quantity") || message.includes("ticket need");
+			setListingQuantityError(quantityMessage ? message : null);
+			setListingPriceError(quantityMessage ? null : message);
+			setErrorMessage(message);
+			window.setTimeout(() => {
+				document
+					.getElementById(
+						quantityMessage
+							? "ticket-exchange-quantity-label"
+							: "ticket-exchange-price-label",
+					)
+					?.focus();
+			}, 0);
+			trackExchangeValidationError(
+				quantityMessage ? "quantity" : "price",
+				"listing_form",
+				"invalid",
 			);
-			trackExchangeValidationError("price", "listing_form", "invalid");
 			return;
 		}
 		const languageError = getTicketExchangeLanguageError([
@@ -1584,23 +1707,9 @@ export function TicketExchangeClient({
 								Find people trading tickets
 							</h1>
 							<p className="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground sm:mt-2 sm:leading-6">
-								Pick an event, say whether you are selling or looking, then
-								share the contact details you are comfortable with.
+								Find tickets people are selling, post what you need, and contact
+								each other when there's a match.
 							</p>
-						</div>
-						<div className="grid gap-2 text-xs leading-5 text-muted-foreground sm:grid-cols-2">
-							<div className="rounded-lg border border-border/60 bg-background/45 px-3 py-2">
-								<span className="font-medium text-foreground">
-									Before replying:
-								</span>{" "}
-								accept the rules once, then add one backup contact method.
-							</div>
-							<div className="rounded-lg border border-border/60 bg-background/45 px-3 py-2">
-								<span className="font-medium text-foreground">
-									When you tap buy or sell:
-								</span>{" "}
-								we share your contact details, then reveal theirs.
-							</div>
 						</div>
 						<div className="rounded-lg bg-background/50 p-2 text-xs leading-5 text-muted-foreground">
 							<ShieldAlert className="mr-1 inline h-3.5 w-3.5 text-amber-700 dark:text-amber-300" />
@@ -1685,67 +1794,127 @@ export function TicketExchangeClient({
 						</Button>
 					</div>
 					<div className="grid gap-3 md:grid-cols-2">
-						<Field label="Display name">
+						<Field
+							label="Display name"
+							error={profileErrors.displayName}
+							errorId="ticket-exchange-profile-displayName-error"
+						>
 							<Input
+								id="ticket-exchange-profile-displayName"
 								value={profileForm.displayName}
-								onChange={(event) =>
+								onChange={(event) => {
+									clearProfileError("displayName");
 									setProfileForm((current) => ({
 										...current,
 										displayName: event.target.value,
-									}))
-								}
+									}));
+								}}
 								placeholder="Alex"
+								aria-invalid={Boolean(profileErrors.displayName)}
+								aria-describedby={
+									profileErrors.displayName
+										? "ticket-exchange-profile-displayName-error"
+										: undefined
+								}
 							/>
 						</Field>
 						<Field label="Email">
 							<Input value={data.userEmail ?? ""} disabled />
 						</Field>
-						<Field label="Exchange email override">
+						<Field
+							label="Exchange email override"
+							error={profileErrors.alternateEmail}
+							errorId="ticket-exchange-profile-alternateEmail-error"
+						>
 							<Input
+								id="ticket-exchange-profile-alternateEmail"
 								type="email"
 								value={profileForm.alternateEmail}
-								onChange={(event) =>
+								onChange={(event) => {
+									clearProfileError("alternateEmail");
 									setProfileForm((current) => ({
 										...current,
 										alternateEmail: event.target.value,
-									}))
-								}
+									}));
+								}}
 								placeholder="Use a different email"
+								aria-invalid={Boolean(profileErrors.alternateEmail)}
+								aria-describedby={
+									profileErrors.alternateEmail
+										? "ticket-exchange-profile-alternateEmail-error"
+										: undefined
+								}
 							/>
 						</Field>
-						<Field label="WhatsApp number">
+						<Field
+							label="WhatsApp number"
+							error={profileErrors.whatsappNumber}
+							errorId="ticket-exchange-profile-whatsappNumber-error"
+						>
 							<Input
+								id="ticket-exchange-profile-whatsappNumber"
 								type="tel"
 								inputMode="tel"
 								value={profileForm.whatsappNumber}
-								onChange={(event) =>
+								onChange={(event) => {
+									clearProfileError("whatsappNumber");
 									setProfileForm((current) => ({
 										...current,
 										whatsappNumber: event.target.value,
-									}))
-								}
+									}));
+								}}
 								placeholder="+44 7123 456789"
+								aria-invalid={Boolean(profileErrors.whatsappNumber)}
+								aria-describedby={
+									profileErrors.whatsappNumber
+										? "ticket-exchange-profile-whatsappNumber-error"
+										: undefined
+								}
 							/>
 						</Field>
-						<Field label="Instagram">
+						<Field
+							label="Instagram"
+							error={profileErrors.instagramHandle}
+							errorId="ticket-exchange-profile-instagramHandle-error"
+						>
 							<HandleInput
+								id="ticket-exchange-profile-instagramHandle"
 								value={profileForm.instagramHandle}
-								onChange={(value) =>
+								onChange={(value) => {
+									clearProfileError("instagramHandle");
 									setProfileForm((current) => ({
 										...current,
 										instagramHandle: value,
-									}))
+									}));
+								}}
+								invalid={Boolean(profileErrors.instagramHandle)}
+								describedBy={
+									profileErrors.instagramHandle
+										? "ticket-exchange-profile-instagramHandle-error"
+										: undefined
 								}
 							/>
 						</Field>
-						<Field label="Twitter">
+						<Field
+							label="Twitter"
+							error={profileErrors.xHandle}
+							errorId="ticket-exchange-profile-xHandle-error"
+						>
 							<HandleInput
+								id="ticket-exchange-profile-xHandle"
 								value={profileForm.xHandle}
-								onChange={(value) =>
+								onChange={(value) => {
+									clearProfileError("xHandle");
 									setProfileForm((current) => ({
 										...current,
 										xHandle: value,
-									}))
+									}));
+								}}
+								invalid={Boolean(profileErrors.xHandle)}
+								describedBy={
+									profileErrors.xHandle
+										? "ticket-exchange-profile-xHandle-error"
+										: undefined
 								}
 							/>
 						</Field>
@@ -1896,41 +2065,61 @@ export function TicketExchangeClient({
 								leadingIcon={<Ticket className="h-4 w-4" />}
 							/>
 						</Field>
-						<Field label="Quantity">
+						<Field
+							label="Quantity"
+							error={listingQuantityError}
+							errorId="ticket-exchange-quantity-error"
+						>
 							<Input
+								id="ticket-exchange-quantity-label"
 								value={listingForm.quantityLabel}
-								onChange={(event) =>
+								onChange={(event) => {
+									if (listingQuantityError) setListingQuantityError(null);
 									setListingForm((current) => ({
 										...current,
 										quantityLabel: event.target.value,
-									}))
-								}
+									}));
+								}}
 								placeholder={
 									listingForm.listingType === "selling"
 										? "2 tickets"
 										: "Looking for 1 ticket"
 								}
 								required
+								aria-invalid={Boolean(listingQuantityError)}
+								aria-describedby={
+									listingQuantityError
+										? "ticket-exchange-quantity-error"
+										: undefined
+								}
 								className={CREATE_LISTING_CONTROL_CLASS}
 							/>
 						</Field>
 						<Field
 							label={listingForm.listingType === "selling" ? "Price" : "Budget"}
+							error={listingPriceError}
+							errorId="ticket-exchange-price-error"
 						>
 							<Input
+								id="ticket-exchange-price-label"
 								value={listingForm.priceLabel}
-								onChange={(event) =>
+								onChange={(event) => {
+									if (listingPriceError) setListingPriceError(null);
 									setListingForm((current) => ({
 										...current,
 										priceLabel: event.target.value,
-									}))
-								}
+									}));
+								}}
 								placeholder={
 									listingForm.listingType === "selling"
 										? "Required - £35 each / face value"
 										: "Required - £35 / face value"
 								}
 								required
+								aria-invalid={Boolean(listingPriceError)}
+								aria-describedby={
+									listingPriceError ? "ticket-exchange-price-error" : undefined
+								}
 								className={CREATE_LISTING_CONTROL_CLASS}
 							/>
 						</Field>
@@ -2529,28 +2718,52 @@ function Field({
 	label,
 	children,
 	className,
+	error,
+	errorId,
 }: {
 	label: string;
 	children: ReactNode;
 	className?: string;
+	error?: string | null;
+	errorId?: string;
 }) {
 	return (
 		<label className={cn("grid gap-1.5 text-sm", className)}>
 			<span className="font-medium text-foreground">{label}</span>
 			{children}
+			{error ? (
+				<span
+					id={errorId}
+					className="text-xs font-medium leading-5 text-destructive"
+				>
+					{error}
+				</span>
+			) : null}
 		</label>
 	);
 }
 
 function HandleInput({
+	id,
 	value,
 	onChange,
+	invalid = false,
+	describedBy,
 }: {
+	id?: string;
 	value: string;
 	onChange: (value: string) => void;
+	invalid?: boolean;
+	describedBy?: string;
 }) {
 	return (
-		<div className="flex h-8 max-w-full min-w-0 items-center rounded-lg border border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30">
+		<div
+			className={cn(
+				"flex h-8 max-w-full min-w-0 items-center rounded-lg border border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30",
+				invalid &&
+					"border-destructive focus-within:border-destructive focus-within:ring-destructive/20",
+			)}
+		>
 			<span
 				aria-hidden="true"
 				className="shrink-0 pl-2.5 text-base text-muted-foreground md:text-sm"
@@ -2558,11 +2771,14 @@ function HandleInput({
 				@
 			</span>
 			<input
+				id={id}
 				autoCapitalize="none"
 				autoCorrect="off"
 				className="h-full min-w-0 flex-1 bg-transparent px-1.5 py-1 text-base outline-none placeholder:text-muted-foreground md:text-sm"
 				placeholder="handle"
 				value={value.replace(/^@+/, "")}
+				aria-invalid={invalid}
+				aria-describedby={describedBy}
 				onChange={(event) => onChange(event.target.value.replace(/^@+/, ""))}
 			/>
 		</div>
@@ -2867,9 +3083,11 @@ function ListingCard({
 				"relative overflow-hidden rounded-xl border p-4 shadow-sm transition-colors sm:p-5",
 				isClosedListing
 					? "border-border/35 bg-muted/18 text-muted-foreground shadow-none opacity-65 grayscale-[0.25]"
-					: listing.listingType === "selling"
-						? "border-emerald-500/18 bg-[linear-gradient(90deg,rgba(16,185,129,0.045),transparent_18%),hsl(var(--card)/0.82)]"
-						: "border-sky-500/18 bg-[linear-gradient(90deg,rgba(14,165,233,0.045),transparent_18%),hsl(var(--card)/0.82)]",
+					: listing.isOwner
+						? "border-foreground/18 bg-[linear-gradient(90deg,rgba(20,16,12,0.045),transparent_20%),hsl(var(--card)/0.86)]"
+						: listing.listingType === "selling"
+							? "border-emerald-500/18 bg-[linear-gradient(90deg,rgba(16,185,129,0.045),transparent_18%),hsl(var(--card)/0.82)]"
+							: "border-sky-500/18 bg-[linear-gradient(90deg,rgba(14,165,233,0.045),transparent_18%),hsl(var(--card)/0.82)]",
 			)}
 		>
 			{!isClosedListing ? (
@@ -2908,6 +3126,14 @@ function ListingCard({
 						>
 							{statusLabel}
 						</Badge>
+						{listing.isOwner ? (
+							<Badge
+								variant="outline"
+								className="border-foreground/15 bg-background/45 text-foreground/75 shadow-none"
+							>
+								Your listing
+							</Badge>
+						) : null}
 					</div>
 					<button
 						type="button"

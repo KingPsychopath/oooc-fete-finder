@@ -161,6 +161,24 @@ export const validateTicketExchangeUserText = (
 const FACE_VALUE_PRICE_PATTERN = /\b(?:fv|face\s*value)\b/iu;
 const NUMERIC_PRICE_PATTERN =
 	/(?:[$£€]\s*\d+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?\s*(?:[$£€]|\b(?:gbp|eur|usd|pounds?|euros?)\b)|\b(?:gbp|eur|usd|pounds?|euros?)\s*\d+(?:[.,]\d{1,2})?|\b\d+(?:[.,]\d{1,2})?\b)/iu;
+const TICKET_QUANTITY_PATTERN = /\b\d{1,3}\b/u;
+
+export const validateTicketExchangeQuantityLabel = (value: unknown): string => {
+	const quantityLabel = validateTicketExchangeUserText(
+		value,
+		80,
+		"the quantity or ticket need",
+	);
+	if (!quantityLabel) {
+		throw new Error("Add the quantity or ticket need.");
+	}
+	if (!TICKET_QUANTITY_PATTERN.test(quantityLabel)) {
+		throw new Error(
+			"Use a number for the ticket quantity, like 1 or 2 tickets.",
+		);
+	}
+	return quantityLabel;
+};
 
 export const validateTicketExchangePriceLabel = (value: unknown): string => {
 	const priceLabel = validateTicketExchangeUserText(

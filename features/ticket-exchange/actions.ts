@@ -36,6 +36,7 @@ import {
 	resolveExpiryDate,
 	validateTicketExchangeNote,
 	validateTicketExchangePriceLabel,
+	validateTicketExchangeQuantityLabel,
 	validateTicketExchangeUserText,
 } from "./utils";
 
@@ -175,12 +176,9 @@ export async function createTicketExchangeListing(input: {
 			);
 		}
 
-		const quantityLabel = validateTicketExchangeUserText(
+		const quantityLabel = validateTicketExchangeQuantityLabel(
 			input.quantityLabel,
-			80,
-			"the quantity or ticket need",
 		);
-		if (!quantityLabel) throw new Error("Add the quantity or ticket need.");
 		const priceLabel = validateTicketExchangePriceLabel(input.priceLabel);
 		await repository.createListing({
 			eventKey: event.eventKey,
@@ -311,12 +309,9 @@ export async function repostTicketExchangeListing(input: {
 }): Promise<TicketExchangeActionResult> {
 	try {
 		const { session, repository } = await getAuthenticatedContext();
-		const quantityLabel = validateTicketExchangeUserText(
+		const quantityLabel = validateTicketExchangeQuantityLabel(
 			input.quantityLabel,
-			80,
-			"the quantity",
 		);
-		if (!quantityLabel) throw new Error("Add the new quantity.");
 		await repository.repostListing({
 			listingId: normalizeTicketExchangeText(input.listingId, 80),
 			ownerUserId: session.userId as string,

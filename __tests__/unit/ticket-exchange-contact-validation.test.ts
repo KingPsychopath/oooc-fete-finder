@@ -8,6 +8,7 @@ import {
 	normalizeXHandle,
 	validateTicketExchangeNote,
 	validateTicketExchangePriceLabel,
+	validateTicketExchangeQuantityLabel,
 	validateTicketExchangeUserText,
 } from "@/features/ticket-exchange/utils";
 import { describe, expect, it } from "vitest";
@@ -99,6 +100,22 @@ describe("ticket exchange contact validation", () => {
 		);
 		expect(() => validateTicketExchangePriceLabel("cheap")).toThrow(
 			"Use a number, FV, or face value for the ticket price or budget.",
+		);
+	});
+
+	it("requires a number in the ticket quantity or need", () => {
+		expect(validateTicketExchangeQuantityLabel("  2 tickets available  ")).toBe(
+			"2 tickets available",
+		);
+		expect(validateTicketExchangeQuantityLabel("Looking for 1 ticket")).toBe(
+			"Looking for 1 ticket",
+		);
+
+		expect(() => validateTicketExchangeQuantityLabel("")).toThrow(
+			"Add the quantity or ticket need.",
+		);
+		expect(() => validateTicketExchangeQuantityLabel("ffds")).toThrow(
+			"Use a number for the ticket quantity, like 1 or 2 tickets.",
 		);
 	});
 
