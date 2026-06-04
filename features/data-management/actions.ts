@@ -62,6 +62,7 @@ import {
 } from "./csv/sheet-editor";
 import { DataManager } from "./data-manager";
 import { processCSVData } from "./data-processor";
+import { buildEventSheetChangeSummary } from "./event-sheet-change-summary";
 import type {
 	EventRowLifecycleMetadata,
 	EventSheetRevisionChangeSummary,
@@ -188,68 +189,6 @@ const getCsvRuntimeValidationError = (csvContent: string): string | null => {
 const normalizeCsvForStorage = (csvContent: string): string => {
 	const sheet = csvToEditableSheet(csvContent);
 	return editableSheetToCsv(sheet.columns, sheet.rows);
-};
-
-const getComparableEventSheetRowKey = (row: EditableSheetRow): string => {
-	const eventKey = row.eventKey?.trim();
-	if (eventKey) return `event:${eventKey}`;
-	return [row.title, row.date, row.startTime, row.location, row.primaryUrl]
-		.map((value) => value?.trim().toLowerCase() ?? "")
-		.join("|");
-};
-
-const buildEventSheetChangeSummary = (
-	beforeRows: EditableSheetRow[],
-	afterRows: EditableSheetRow[],
-	columns: EditableSheetColumn[],
-): EventSheetRevisionChangeSummary => {
-	const beforeByKey = new Map(
-		beforeRows.map((row) => [getComparableEventSheetRowKey(row), row]),
-	);
-	const afterByKey = new Map(
-		afterRows.map((row) => [getComparableEventSheetRowKey(row), row]),
-	);
-	const changedColumnLabels = new Set<string>();
-	let changedRows = 0;
-
-	for (const [key, afterRow] of afterByKey.entries()) {
-		const beforeRow = beforeByKey.get(key);
-		if (!beforeRow) continue;
-
-		let rowChanged = false;
-		for (const column of columns) {
-			if ((beforeRow[column.key] ?? "") === (afterRow[column.key] ?? "")) {
-				continue;
-			}
-			rowChanged = true;
-			changedColumnLabels.add(column.label || column.key);
-		}
-		if (rowChanged) changedRows += 1;
-	}
-
-	const addedRows = afterRows.filter(
-		(row) => !beforeByKey.has(getComparableEventSheetRowKey(row)),
-	);
-	const deletedRows = beforeRows.filter(
-		(row) => !afterByKey.has(getComparableEventSheetRowKey(row)),
-	);
-
-	return {
-		addedRows: addedRows.length,
-		deletedRows: deletedRows.length,
-		changedRows,
-		changedColumns: [...changedColumnLabels].slice(0, 12),
-		sampleAdded: addedRows
-			.map(
-				(row) => row.title?.trim() || row.eventKey?.trim() || "Untitled event",
-			)
-			.slice(0, 3),
-		sampleDeleted: deletedRows
-			.map(
-				(row) => row.title?.trim() || row.eventKey?.trim() || "Untitled event",
-			)
-			.slice(0, 3),
-	};
 };
 
 const hasEventSheetChanges = (
@@ -1614,11 +1553,6 @@ export async function saveEventSheetEditorRows(
 		const previousSheet = previousCsv?.trim()
 			? csvToEditableSheet(previousCsv)
 			: { columns: validation.columns, rows: [] };
-		const changeSummary = buildEventSheetChangeSummary(
-			previousSheet.rows,
-			validation.rows,
-			validation.columns,
-		);
 		const shouldRevalidateHomepage = options?.revalidateHomepage !== false;
 		const restoreRevisionId = options?.restoreRevisionId?.trim() || null;
 		if (shouldRevalidateHomepage && restoreRevisionId) {
@@ -1654,6 +1588,14 @@ export async function saveEventSheetEditorRows(
 		const savedSheet = savedCsv?.trim()
 			? csvToEditableSheet(savedCsv)
 			: { columns: validation.columns, rows: validation.rows };
+		const changeSummary = buildEventSheetChangeSummary(
+			previousSheet.rows,
+			savedSheet.rows,
+			savedSheet.columns,
+		);
+		const revisionCsvContent = savedCsv?.trim()
+			? savedCsv
+			: editableSheetToCsv(savedSheet.columns, savedSheet.rows);
 		const rowMetadata = await LocalEventStore.getRowMetadata();
 		if (shouldRevalidateHomepage) {
 			await warmCoordinateCacheFromCsv(csvContent, "save-sheet-editor");
@@ -1667,9 +1609,9 @@ export async function saveEventSheetEditorRows(
 		const revision = await recordEventSheetRevision({
 			trigger: shouldRevalidateHomepage ? "publish" : "autosave",
 			rowCount: saved.rowCount,
-			columnCount: validation.columns.length,
+			columnCount: savedSheet.columns.length,
 			changeSummary,
-			csvContent,
+			csvContent: revisionCsvContent,
 			rowMetadata,
 		});
 		if (shouldRevalidateHomepage) {
@@ -1681,7 +1623,7 @@ export async function saveEventSheetEditorRows(
 				summary: `Event sheet saved and homepage revalidated (${saved.rowCount} rows)`,
 				metadata: {
 					rowCount: saved.rowCount,
-					columnCount: validation.columns.length,
+					columnCount: savedSheet.columns.length,
 					restoreRevisionId,
 					...changeSummary,
 				},

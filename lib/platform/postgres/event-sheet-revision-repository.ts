@@ -291,8 +291,8 @@ export class EventSheetRevisionRepository {
 			[...toStringArray(recent.sample_deleted), ...input.sampleDeleted],
 			6,
 		);
-		const addedRows = recent.added_rows + input.addedRows;
-		const deletedRows = recent.deleted_rows + input.deletedRows;
+		const addedRows = Math.max(recent.added_rows, input.addedRows);
+		const deletedRows = Math.max(recent.deleted_rows, input.deletedRows);
 		const changedRows = Math.max(recent.changed_rows, input.changedRows);
 		const summary = formatSummary("autosave", {
 			...input,
