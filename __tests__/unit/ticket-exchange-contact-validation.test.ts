@@ -7,6 +7,7 @@ import {
 	normalizeWhatsAppNumber,
 	normalizeXHandle,
 	validateTicketExchangeNote,
+	validateTicketExchangePriceLabel,
 	validateTicketExchangeUserText,
 } from "@/features/ticket-exchange/utils";
 import { describe, expect, it } from "vitest";
@@ -79,6 +80,26 @@ describe("ticket exchange contact validation", () => {
 		expect(() =>
 			validateTicketExchangeUserText("sh1t budget", 80, "the price or budget"),
 		).toThrow(createTicketExchangeLanguageError("the price or budget"));
+	});
+
+	it("requires a numeric or face-value ticket price or budget", () => {
+		expect(validateTicketExchangePriceLabel("  £35 each  ")).toBe("£35 each");
+		expect(validateTicketExchangePriceLabel("75€")).toBe("75€");
+		expect(validateTicketExchangePriceLabel("GBP 40")).toBe("GBP 40");
+		expect(validateTicketExchangePriceLabel("35 / face value")).toBe(
+			"35 / face value",
+		);
+		expect(validateTicketExchangePriceLabel("FV")).toBe("FV");
+
+		expect(() => validateTicketExchangePriceLabel("")).toThrow(
+			"Add the ticket price or budget before posting.",
+		);
+		expect(() => validateTicketExchangePriceLabel("DM me")).toThrow(
+			"Use a number, FV, or face value for the ticket price or budget.",
+		);
+		expect(() => validateTicketExchangePriceLabel("cheap")).toThrow(
+			"Use a number, FV, or face value for the ticket price or budget.",
+		);
 	});
 
 	it("keeps social handles on format validation only", () => {

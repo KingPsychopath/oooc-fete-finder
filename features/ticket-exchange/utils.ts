@@ -158,6 +158,30 @@ export const validateTicketExchangeUserText = (
 	return text;
 };
 
+const FACE_VALUE_PRICE_PATTERN = /\b(?:fv|face\s*value)\b/iu;
+const NUMERIC_PRICE_PATTERN =
+	/(?:[$£€]\s*\d+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?\s*(?:[$£€]|\b(?:gbp|eur|usd|pounds?|euros?)\b)|\b(?:gbp|eur|usd|pounds?|euros?)\s*\d+(?:[.,]\d{1,2})?|\b\d+(?:[.,]\d{1,2})?\b)/iu;
+
+export const validateTicketExchangePriceLabel = (value: unknown): string => {
+	const priceLabel = validateTicketExchangeUserText(
+		value,
+		80,
+		"the price or budget",
+	);
+	if (!priceLabel) {
+		throw new Error("Add the ticket price or budget before posting.");
+	}
+	if (
+		!FACE_VALUE_PRICE_PATTERN.test(priceLabel) &&
+		!NUMERIC_PRICE_PATTERN.test(priceLabel)
+	) {
+		throw new Error(
+			"Use a number, FV, or face value for the ticket price or budget.",
+		);
+	}
+	return priceLabel;
+};
+
 export const validateTicketExchangeNote = (value: string): string => {
 	const note = normalizeTicketExchangeText(value, 360);
 	if (note && hasOffensiveTicketExchangeLanguage(note)) {

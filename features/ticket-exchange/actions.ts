@@ -35,6 +35,7 @@ import {
 	normalizeXHandle,
 	resolveExpiryDate,
 	validateTicketExchangeNote,
+	validateTicketExchangePriceLabel,
 	validateTicketExchangeUserText,
 } from "./utils";
 
@@ -180,14 +181,7 @@ export async function createTicketExchangeListing(input: {
 			"the quantity or ticket need",
 		);
 		if (!quantityLabel) throw new Error("Add the quantity or ticket need.");
-		const priceLabel = validateTicketExchangeUserText(
-			input.priceLabel,
-			80,
-			"the price or budget",
-		);
-		if (listingType === "selling" && !priceLabel) {
-			throw new Error("Add the ticket price before posting a selling listing.");
-		}
+		const priceLabel = validateTicketExchangePriceLabel(input.priceLabel);
 		await repository.createListing({
 			eventKey: event.eventKey,
 			eventSlug: event.slug,

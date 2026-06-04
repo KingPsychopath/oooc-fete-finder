@@ -49,6 +49,7 @@ import {
 	TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR,
 	createTicketExchangeLanguageError,
 	hasOffensiveTicketExchangeLanguage,
+	validateTicketExchangePriceLabel,
 } from "@/features/ticket-exchange/utils";
 import { cn } from "@/lib/utils";
 import {
@@ -1222,12 +1223,15 @@ export function TicketExchangeClient({
 		event.preventDefault();
 		if (createListingInFlightRef.current || isCreatingListing) return;
 		if (!requireLogin("listing_create", "listing_form")) return;
-		if (
-			listingForm.listingType === "selling" &&
-			!listingForm.priceLabel.trim()
-		) {
-			setErrorMessage("Add the ticket price before posting a selling listing.");
-			trackExchangeValidationError("price", "listing_form", "required");
+		try {
+			validateTicketExchangePriceLabel(listingForm.priceLabel);
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error
+					? error.message
+					: "Add the ticket price or budget before posting.",
+			);
+			trackExchangeValidationError("price", "listing_form", "invalid");
 			return;
 		}
 		const languageError = getTicketExchangeLanguageError([
@@ -1881,9 +1885,9 @@ export function TicketExchangeClient({
 								placeholder={
 									listingForm.listingType === "selling"
 										? "Required - £35 each / face value"
-										: "Optional - £35 / face value"
+										: "Required - £35 / face value"
 								}
-								required={listingForm.listingType === "selling"}
+								required
 								className={CREATE_LISTING_CONTROL_CLASS}
 							/>
 						</Field>
