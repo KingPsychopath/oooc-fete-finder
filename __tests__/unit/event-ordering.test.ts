@@ -127,7 +127,7 @@ describe("createRegularEventsComparator", () => {
 });
 
 describe("createFreshActivityComparator", () => {
-	it("lifts new, updated, and strongly saved events before regular ordering", () => {
+	it("lifts updated, new, and strongly saved events before regular ordering", () => {
 		const now = new Date("2026-05-08T12:00:00.000Z");
 		const events: Event[] = [
 			makeEvent({
@@ -156,8 +156,8 @@ describe("createFreshActivityComparator", () => {
 
 		const sorted = [...events].sort(createFreshActivityComparator(now));
 		expect(sorted.map((event) => event.eventKey)).toEqual([
-			"new",
 			"updated",
+			"new",
 			"saved",
 			"soon-regular",
 		]);
@@ -186,7 +186,7 @@ describe("createFreshActivityComparator", () => {
 		]);
 	});
 
-	it("orders new events before updated events, then by exact activity timestamp", () => {
+	it("orders same-day updated events before same-day new events, then by exact activity timestamp", () => {
 		const now = new Date("2026-05-08T12:00:00.000Z");
 		const events: Event[] = [
 			makeEvent({
@@ -217,10 +217,41 @@ describe("createFreshActivityComparator", () => {
 
 		const sorted = [...events].sort(createFreshActivityComparator(now));
 		expect(sorted.map((event) => event.eventKey)).toEqual([
-			"new-latest",
-			"new-earliest",
 			"updated-latest",
 			"updated-middle",
+			"new-latest",
+			"new-earliest",
+		]);
+	});
+
+	it("lets new events from today outrank older updates in the fresh window", () => {
+		const now = new Date("2026-05-08T12:00:00.000Z");
+		const events: Event[] = [
+			makeEvent({
+				eventKey: "older-updated",
+				date: "2026-06-20",
+				firstSeenAt: "2026-04-20T12:00:00.000Z",
+				lastMeaningfulChangeAt: "2026-05-06T11:30:00.000Z",
+			}),
+			makeEvent({
+				eventKey: "today-new",
+				date: "2026-06-22",
+				firstSeenAt: "2026-05-08T08:00:00.000Z",
+				lastMeaningfulChangeAt: "2026-05-08T08:00:00.000Z",
+			}),
+			makeEvent({
+				eventKey: "older-new",
+				date: "2026-06-21",
+				firstSeenAt: "2026-05-06T08:00:00.000Z",
+				lastMeaningfulChangeAt: "2026-05-06T08:00:00.000Z",
+			}),
+		];
+
+		const sorted = [...events].sort(createFreshActivityComparator(now));
+		expect(sorted.map((event) => event.eventKey)).toEqual([
+			"today-new",
+			"older-updated",
+			"older-new",
 		]);
 	});
 });

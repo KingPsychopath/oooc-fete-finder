@@ -92,6 +92,7 @@ const compareNames = (left: Event, right: Event): number =>
 	left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
 
 const FRESH_ACTIVITY_SAVE_CAP = 250;
+const FRESH_ACTIVITY_HIGH_PRIORITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type FreshActivityRank = {
 	priority: number;
@@ -102,6 +103,11 @@ const parseTimestamp = (value: string | undefined): number | null => {
 	const timestamp = Date.parse(value ?? "");
 	return Number.isFinite(timestamp) ? timestamp : null;
 };
+
+const isWithinHighPriorityFreshWindow = (
+	timestamp: number,
+	now: Date,
+): boolean => now.getTime() - timestamp <= FRESH_ACTIVITY_HIGH_PRIORITY_WINDOW_MS;
 
 const getFreshActivityRank = (
 	event: Event,
@@ -114,16 +120,34 @@ const getFreshActivityRank = (
 		? parseTimestamp(event.lastMeaningfulChangeAt)
 		: null;
 
-	if (firstSeenTime !== null) {
+	if (
+		changedTime !== null &&
+		isWithinHighPriorityFreshWindow(changedTime, now)
+	) {
 		return {
-			priority: 2,
-			timestamp: changedTime ?? firstSeenTime,
+			priority: 4,
+			timestamp: changedTime,
+		};
+	}
+	if (
+		firstSeenTime !== null &&
+		isWithinHighPriorityFreshWindow(firstSeenTime, now)
+	) {
+		return {
+			priority: 3,
+			timestamp: firstSeenTime,
 		};
 	}
 	if (changedTime !== null) {
 		return {
-			priority: 1,
+			priority: 2,
 			timestamp: changedTime,
+		};
+	}
+	if (firstSeenTime !== null) {
+		return {
+			priority: 1,
+			timestamp: firstSeenTime,
 		};
 	}
 	return null;
