@@ -79,7 +79,7 @@ export const formatTicketActivityLabel = (
 	lookingCount: number,
 ): string => {
 	if (sellingCount > 0 && lookingCount > 0) {
-		return `${sellingCount} selling · ${lookingCount} looking`;
+		return `${sellingCount} selling · ${lookingCount} wanted`;
 	}
 	if (sellingCount > 0) {
 		return sellingCount === 1
@@ -87,6 +87,6 @@ export const formatTicketActivityLabel = (
 			: `${sellingCount} tickets available`;
 	}
 	return lookingCount === 1
-		? "Someone is looking for tickets"
-		: `${lookingCount} looking for tickets`;
+		? "Someone wants tickets"
+		: `${lookingCount} people want tickets`;
 };
