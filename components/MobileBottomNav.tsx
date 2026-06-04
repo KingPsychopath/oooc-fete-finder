@@ -101,6 +101,9 @@ const excludedPathPrefixes = [
 	"/labs/header",
 	"/labs/home-style",
 	"/how-it-works",
+	"/privacy",
+	"/submit-event",
+	"/terms",
 	"/social",
 ] as const;
 
