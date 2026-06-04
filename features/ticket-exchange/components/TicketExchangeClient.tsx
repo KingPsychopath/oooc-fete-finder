@@ -457,6 +457,11 @@ const getPreferredMarketplaceTab = (
 	return activeCount > 0 ? "all" : "selling";
 };
 
+const getContactSetupPrompt = (
+	actionLabel: "reply" | "post" | "use Ticket Exchange" = "use Ticket Exchange",
+): string =>
+	`To ${actionLabel}, you need ${TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT} contact methods. Your account email counts as one, so add WhatsApp, Instagram, or Twitter as a backup.`;
+
 export function TicketExchangeClient({
 	initialData,
 }: TicketExchangeClientProps) {
@@ -1000,6 +1005,23 @@ export function TicketExchangeClient({
 		scrollPanelIntoView(profilePanelRef);
 	};
 
+	const focusContactDetailsForReply = (): void => {
+		if (!requireLogin("profile_open", "listing_card")) return;
+		trackTicketExchangeAnalytics({
+			actionType: "profile_open",
+			eventKey: selectedEventKey,
+			surface: "listing_card",
+			detail: "reply_contact_setup",
+		});
+		setPendingMessage(
+			`${getContactSetupPrompt("reply")} Contact details are open so you can finish setup.`,
+		);
+		shouldReturnToCreateAfterContactRef.current = false;
+		setIsCreateOpen(false);
+		setIsProfileOpen(true);
+		scrollPanelIntoView(profilePanelRef);
+	};
+
 	const openAgreement = (intent: PendingAgreementIntent) => {
 		shouldReturnToCreateAfterContactRef.current = false;
 		trackTicketExchangeAnalytics({
@@ -1046,8 +1068,14 @@ export function TicketExchangeClient({
 			surface,
 			detail,
 		});
+		const actionLabel =
+			detail === "interest"
+				? "reply"
+				: detail === "create"
+					? "post"
+					: "use Ticket Exchange";
 		setPendingMessage(
-			`Your email counts as one contact method. Add at least one backup method before using Ticket Exchange.`,
+			`${getContactSetupPrompt(actionLabel)} Contact details are open so you can finish setup.`,
 		);
 		setIsProfileOpen(true);
 		setIsCreateOpen(false);
@@ -1560,6 +1588,20 @@ export function TicketExchangeClient({
 								share the contact details you are comfortable with.
 							</p>
 						</div>
+						<div className="grid gap-2 text-xs leading-5 text-muted-foreground sm:grid-cols-2">
+							<div className="rounded-lg border border-border/60 bg-background/45 px-3 py-2">
+								<span className="font-medium text-foreground">
+									Before replying:
+								</span>{" "}
+								accept the rules once, then add one backup contact method.
+							</div>
+							<div className="rounded-lg border border-border/60 bg-background/45 px-3 py-2">
+								<span className="font-medium text-foreground">
+									When you tap buy or sell:
+								</span>{" "}
+								we share your contact details, then reveal theirs.
+							</div>
+						</div>
 						<div className="rounded-lg bg-background/50 p-2 text-xs leading-5 text-muted-foreground">
 							<ShieldAlert className="mr-1 inline h-3.5 w-3.5 text-amber-700 dark:text-amber-300" />
 							OOOC only connects people. We do not sell, verify, hold, or
@@ -1628,7 +1670,8 @@ export function TicketExchangeClient({
 									Your exchange contacts
 								</h2>
 								<p className="mt-0.5 text-sm leading-5 text-muted-foreground">
-									Shown only after someone replies to a listing.
+									Required before you can post or reply. Shown only after
+									someone replies to a listing.
 								</p>
 							</div>
 						</div>
@@ -1721,7 +1764,7 @@ export function TicketExchangeClient({
 							{draftContactMethodCount}/
 							{TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT} methods ready.
 						</span>
-						<span>Email plus one backup is required.</span>
+						<span>One backup contact is required before buy/sell replies.</span>
 					</p>
 					<div className="mt-3 flex flex-col gap-2 border-t border-border/70 px-1 pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
 						<div className="flex min-w-0 items-center gap-2">
@@ -1997,8 +2040,8 @@ export function TicketExchangeClient({
 						) : null}
 					</Button>
 					<p className="px-1 text-xs leading-5 text-muted-foreground">
-						Email counts as one contact method. Add one backup method before
-						listing or sharing contact.
+						Accept the rules, then add one backup contact method before posting
+						or replying.
 					</p>
 					<details className="group rounded-lg border border-border/60 bg-background/35 px-3 py-2 text-xs text-muted-foreground">
 						<summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-medium text-foreground">
@@ -2280,7 +2323,10 @@ export function TicketExchangeClient({
 									listing={listing}
 									profile={data.profile}
 									isAuthenticated={data.isAuthenticated || auth.isAuthenticated}
+									contactMethodCount={draftContactMethodCount}
 									onLogin={() => setIsLoginOpen(true)}
+									onAgreementOpen={() => openAgreement(null)}
+									onContactDetailsOpen={focusContactDetailsForReply}
 									onInterest={handleInterest}
 									onStatus={handleStatus}
 									onReport={(id) => {
@@ -2688,7 +2734,10 @@ function ListingCard({
 	listing,
 	profile,
 	isAuthenticated,
+	contactMethodCount,
 	onLogin,
+	onAgreementOpen,
+	onContactDetailsOpen,
 	onInterest,
 	onStatus,
 	onReport,
@@ -2700,7 +2749,10 @@ function ListingCard({
 	listing: TicketExchangeListingView;
 	profile: TicketExchangeContactProfile | null;
 	isAuthenticated: boolean;
+	contactMethodCount: number;
 	onLogin: () => void;
+	onAgreementOpen: () => void;
+	onContactDetailsOpen: () => void;
 	onInterest: (listing: TicketExchangeListingView) => void;
 	onStatus: (
 		listing: TicketExchangeListingView,
@@ -2724,41 +2776,100 @@ function ListingCard({
 	const canOwnerRepost =
 		listing.effectiveStatus === "expired" ||
 		listing.effectiveStatus === "resolved";
+	const canViewerReply =
+		isActiveListing && !listing.isOwner && !listing.myInterest;
 	const listingModeLabel =
 		listing.listingType === "selling" ? "Selling" : "Looking";
 	const quantityLabel =
 		listing.listingType === "selling" ? "Available" : "Needed";
 	const priceModeLabel = listing.listingType === "selling" ? "Price" : "Budget";
 	const hasAgreement = hasAcceptedCurrentAgreement(profile);
+	const hasContactSetup =
+		contactMethodCount >= TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT;
 	const replyNoun = listing.listingType === "selling" ? "buyer" : "seller";
 	const firstReplyCta =
 		listing.listingType === "selling" ? "I want to buy" : "I can sell";
+	const replyRequirementText = !isAuthenticated
+		? "Sign in to reply."
+		: !hasAgreement && !hasContactSetup
+			? "First: accept the rules, then add one backup contact method."
+			: !hasAgreement
+				? "First: accept the Ticket Exchange rules."
+				: !hasContactSetup
+					? "First: add one backup contact method in Contact details."
+					: "This shares your contact details, then reveals theirs.";
 	const resolvedActionLabel =
 		listing.listingType === "selling" ? "Mark sold" : "Mark found";
 	const closedListingTextClassName = isClosedListing
 		? "text-muted-foreground/70"
 		: "text-foreground";
-	const handleCardClick = (event: React.MouseEvent<HTMLElement>) => {
-		const target = event.target as HTMLElement | null;
-		if (
-			target?.closest(
-				"a, button, input, textarea, select, [role='button'], [data-ticket-action]",
-			)
-		) {
+	const setupLinkClassName =
+		"font-medium text-foreground underline underline-offset-4 hover:text-primary";
+	const contactSetupButton = (
+		<button
+			type="button"
+			onClick={onContactDetailsOpen}
+			className={setupLinkClassName}
+		>
+			add one backup contact method
+		</button>
+	);
+	const replyRequirementNote = () => {
+		if (!isAuthenticated) {
+			return "Sign in to reply.";
+		}
+		if (!hasAgreement && !hasContactSetup) {
+			return (
+				<>
+					First:{" "}
+					<button
+						type="button"
+						onClick={onAgreementOpen}
+						className={setupLinkClassName}
+					>
+						accept the rules
+					</button>{" "}
+					and then {contactSetupButton}.
+				</>
+			);
+		}
+		if (!hasAgreement) {
+			return (
+				<>
+					First:{" "}
+					<button
+						type="button"
+						onClick={onAgreementOpen}
+						className={setupLinkClassName}
+					>
+						accept the Ticket Exchange rules
+					</button>
+					.
+				</>
+			);
+		}
+		if (!hasContactSetup) {
+			return <>First: {contactSetupButton}.</>;
+		}
+		return "This shares your contact details, then reveals theirs.";
+	};
+	const startReplyFlow = () => {
+		if (!canViewerReply) return;
+		if (!isAuthenticated) {
+			onLogin();
 			return;
 		}
-		onEventOpen(listing);
+		onInterest(listing);
 	};
 	return (
 		<article
-			onClick={handleCardClick}
 			className={cn(
 				"relative overflow-hidden rounded-xl border p-4 shadow-sm transition-colors sm:p-5",
 				isClosedListing
-					? "cursor-pointer border-border/35 bg-muted/18 text-muted-foreground shadow-none opacity-65 grayscale-[0.25] hover:opacity-75"
+					? "border-border/35 bg-muted/18 text-muted-foreground shadow-none opacity-65 grayscale-[0.25]"
 					: listing.listingType === "selling"
-						? "cursor-pointer border-emerald-500/18 bg-[linear-gradient(90deg,rgba(16,185,129,0.045),transparent_18%),hsl(var(--card)/0.82)]"
-						: "cursor-pointer border-sky-500/18 bg-[linear-gradient(90deg,rgba(14,165,233,0.045),transparent_18%),hsl(var(--card)/0.82)]",
+						? "border-emerald-500/18 bg-[linear-gradient(90deg,rgba(16,185,129,0.045),transparent_18%),hsl(var(--card)/0.82)]"
+						: "border-sky-500/18 bg-[linear-gradient(90deg,rgba(14,165,233,0.045),transparent_18%),hsl(var(--card)/0.82)]",
 			)}
 		>
 			{!isClosedListing ? (
@@ -2929,9 +3040,19 @@ function ListingCard({
 							))}
 						</div>
 					) : (
-						<p className="mt-1 text-sm text-muted-foreground">
+						<button
+							type="button"
+							disabled={!canViewerReply || isInterestBusy}
+							onClick={startReplyFlow}
+							className={cn(
+								"mt-1 block w-full rounded-lg border border-dashed border-border/60 bg-background/35 px-3 py-2 text-left text-sm text-muted-foreground transition-colors",
+								canViewerReply
+									? "hover:border-primary/45 hover:bg-accent hover:text-foreground"
+									: "disabled:cursor-not-allowed disabled:opacity-70",
+							)}
+						>
 							Available after you reply to this listing.
-						</p>
+						</button>
 					)}
 				</div>
 			</div>
@@ -2994,16 +3115,12 @@ function ListingCard({
 										size="sm"
 										disabled={isInterestBusy}
 										title={
-											isAuthenticated && !hasAgreement
-												? "You will review the Ticket Exchange agreement first."
+											isAuthenticated && (!hasAgreement || !hasContactSetup)
+												? replyRequirementText
 												: undefined
 										}
 										onClick={() => {
-											if (!isAuthenticated) {
-												onLogin();
-												return;
-											}
-											onInterest(listing);
+											startReplyFlow();
 										}}
 									>
 										<Eye className="h-3.5 w-3.5" />
@@ -3012,8 +3129,8 @@ function ListingCard({
 								)}
 								{!listing.myInterest && (
 									<p className="mt-1 text-[11px] leading-4 text-muted-foreground">
-										You can view contact details for up to{" "}
-										{TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active
+										{replyRequirementNote()} You can view contact details for up
+										to {TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER} active
 										listings.
 									</p>
 								)}
