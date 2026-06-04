@@ -36,7 +36,7 @@ const signE2eUserSessionToken = (email: string) => {
 		{
 			email: email.toLowerCase().trim(),
 			userId: E2E_USER_ID,
-			v: 1,
+			v: 2,
 		},
 		authSecret,
 		{
@@ -488,7 +488,7 @@ test.describe("event share routes", () => {
 		await expect(page.locator("#tour-first-event-card")).toBeVisible();
 
 		const searchInput = page.getByRole("textbox", {
-			name: "Search events, locations, genres, phases...",
+			name: "Search events, locations, genres, categories...",
 		});
 		await searchInput.fill("Krispy");
 		await expect(
@@ -637,8 +637,12 @@ test.describe("event share routes", () => {
 		await expect(
 			page.getByRole("button", { name: /showing picks/i }),
 		).toBeVisible();
+		await page.getByRole("button", { name: /showing picks/i }).click();
+		await expect(
+			page.getByRole("button", { name: /show picks/i }),
+		).toBeVisible();
 		const searchInput = page.getByRole("textbox", {
-			name: "Search events, locations, genres, phases...",
+			name: "Search events, locations, genres, categories...",
 		});
 		await searchInput.fill("Krispy");
 		await expect(

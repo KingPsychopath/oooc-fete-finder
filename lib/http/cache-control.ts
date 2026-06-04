@@ -4,3 +4,7 @@ export const NO_STORE_HEADERS = Object.freeze({
 	Pragma: "no-cache",
 	Expires: "0",
 });
+
+export const PUBLIC_REVALIDATE_HEADERS = Object.freeze({
+	"Cache-Control": "public, max-age=0, must-revalidate",
+});

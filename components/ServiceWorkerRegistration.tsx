@@ -2,11 +2,8 @@
 
 import { useEffect } from "react";
 
-const STATIC_RESOURCE_PATH_PREFIXES = [
-	"/_next/static/",
-	"/fonts/",
-	"/favicon",
-] as const;
+const STATIC_RESOURCE_PATH_PREFIXES = ["/fonts/", "/favicon"] as const;
+const NEXT_STATIC_RESOURCE_PATH_PREFIX = "/_next/static/";
 
 const normalizeBasePath = (value: string): string => {
 	if (!value || value === "/") return "";
@@ -18,20 +15,23 @@ const withoutBasePath = (pathname: string, basePath: string) => {
 	return pathname.slice(basePath.length) || "/";
 };
 
-const isStaticResourceUrl = (value: string, basePath: string) => {
+const isRuntimeCacheSeedUrl = (value: string, basePath: string) => {
 	try {
 		const url = new URL(value, window.location.origin);
 		if (url.origin !== window.location.origin) return false;
 		const pathname = withoutBasePath(url.pathname, basePath);
-		return STATIC_RESOURCE_PATH_PREFIXES.some((prefix) =>
-			pathname.startsWith(prefix),
+		return (
+			pathname.startsWith(NEXT_STATIC_RESOURCE_PATH_PREFIX) ||
+			STATIC_RESOURCE_PATH_PREFIXES.some((prefix) =>
+				pathname.startsWith(prefix),
+			)
 		);
 	} catch {
 		return false;
 	}
 };
 
-const collectStaticResourceUrls = (basePath: string) => {
+const collectRuntimeCacheSeedUrls = (basePath: string) => {
 	const urls = new Set<string>();
 
 	for (const element of document.querySelectorAll<
@@ -39,13 +39,13 @@ const collectStaticResourceUrls = (basePath: string) => {
 	>("script[src],link[href]")) {
 		const url =
 			element instanceof HTMLScriptElement ? element.src : element.href;
-		if (isStaticResourceUrl(url, basePath)) {
+		if (isRuntimeCacheSeedUrl(url, basePath)) {
 			urls.add(new URL(url, window.location.origin).href);
 		}
 	}
 
 	for (const entry of performance.getEntriesByType("resource")) {
-		if (isStaticResourceUrl(entry.name, basePath)) {
+		if (isRuntimeCacheSeedUrl(entry.name, basePath)) {
 			urls.add(new URL(entry.name, window.location.origin).href);
 		}
 	}
@@ -53,13 +53,22 @@ const collectStaticResourceUrls = (basePath: string) => {
 	return [...urls];
 };
 
-const sendStaticResourcesToServiceWorker = (basePath: string) => {
+const sendRuntimeCacheUrlsToServiceWorker = (basePath: string) => {
 	const controller = navigator.serviceWorker.controller;
 	if (!controller) return;
 
-	const urls = collectStaticResourceUrls(basePath);
+	const urls = collectRuntimeCacheSeedUrls(basePath);
 	if (urls.length === 0) return;
 	controller.postMessage({ type: "CACHE_STATIC_URLS", urls });
+};
+
+const sendNavigationUrlToServiceWorker = () => {
+	const controller = navigator.serviceWorker.controller;
+	if (!controller) return;
+	controller.postMessage({
+		type: "CACHE_NAVIGATION_URL",
+		url: window.location.href,
+	});
 };
 
 export function ServiceWorkerRegistration() {
@@ -86,7 +95,8 @@ export function ServiceWorkerRegistration() {
 		const scheduleStaticCacheSeed = () => {
 			if (timeoutId) clearTimeout(timeoutId);
 			timeoutId = setTimeout(() => {
-				sendStaticResourcesToServiceWorker(basePath);
+				sendNavigationUrlToServiceWorker();
+				sendRuntimeCacheUrlsToServiceWorker(basePath);
 			}, 250);
 		};
 

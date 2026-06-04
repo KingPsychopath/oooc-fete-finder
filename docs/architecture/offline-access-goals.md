@@ -27,14 +27,14 @@ The offline path now supports a first successful online visit followed by a hard
 reload while offline:
 
 - `components/ServiceWorkerRegistration.tsx` registers `/sw.js` in production.
-- `public/sw.js` precaches the app shell, runtime-caches safe same-origin static
-  assets, runtime-caches safe event JSON endpoints, and excludes admin/auth/user
-  endpoints.
-- `components/ServiceWorkerRegistration.tsx` seeds the service worker static
-  cache with same-origin scripts, styles, fonts, and favicons discovered during
-  the first online page load. This closes the first-visit gap where an initially
-  uncontrolled page can load critical hashed chunks before the service worker is
-  able to runtime-cache them.
+- `public/sw.js` uses network-first offline fallback caching for whitelisted
+  public navigation shells, network-first caching for Next static chunks,
+  runtime-caches safe same-origin static assets, runtime-caches safe event JSON
+  endpoints, and excludes admin/auth/user/session-shaped endpoints.
+- `components/ServiceWorkerRegistration.tsx` asks the active service worker to
+  seed the current public navigation shell plus same-origin Next chunks, fonts,
+  and favicons discovered during the first online page load. The service worker
+  validates every URL against its own allowlists.
 - `features/events/offline-event-snapshot.ts` saves the homepage event snapshot
   and event detail snapshots to IndexedDB with schema name/version metadata and
   validation before restore.
@@ -135,8 +135,13 @@ Completed for homepage event snapshots.
 
 Completed as a hand-written baseline.
 
-- The app shell is available offline after a prior successful visit.
-- Same-origin static assets are cached at runtime.
+- Whitelisted public app shells are available offline after a prior successful
+  online visit. Online navigation remains network-first so users do not get stale
+  HTML after deploys.
+- Next static chunks are network-first with exact cached fallback when the
+  network fails or the server returns a non-cacheable/bad chunk response.
+- Same-origin static assets such as fonts, favicons, and images are cached at
+  runtime when their response headers allow it.
 - Safe event detail JSON endpoints are cached:
   - `/api/events/[eventKey]`
 - Sensitive endpoint families are explicitly excluded:
@@ -150,8 +155,9 @@ Completed as a hand-written baseline.
   - `/partner-stats`
 - Cache versioning and old-cache cleanup are implemented with a cache version
   prefix.
-- The controlled page sends loaded static resources to the service worker so
-  critical homepage chunks are cacheable after one successful online visit.
+- The controlled page sends the current navigation URL plus loaded Next chunk,
+  font, and favicon resources to the service worker. The service worker keeps
+  navigation and chunk caches network-first for online freshness.
 
 ### 9. Offline Browser Verification
 
@@ -171,8 +177,10 @@ Completed.
 
 Event detail caching is implemented for events opened during a prior online
 session. The durable source is the versioned `event-detail-snapshots` IndexedDB
-store; the service worker's safe `/api/events/[eventKey]` runtime cache remains
-a secondary network-response cache.
+store; the service worker's safe `/api/events/[eventKey]` runtime cache is a
+secondary network-response cache. Successful event detail responses use
+`Cache-Control: public, max-age=0, must-revalidate` so online requests revalidate
+while offline fallback remains possible.
 
 Known limit:
 
@@ -196,8 +204,8 @@ Production hardening tasks:
 ### Service Worker Strategy
 
 The current service worker is intentionally small and hand-written. It is enough
-for app shell fallback, static assets, and safe event JSON caching, but it is not
-a full Workbox/Serwist strategy.
+for network-first public shell fallback, exact Next chunk rescue, static assets,
+and safe event JSON caching, but it is not a full Workbox/Serwist strategy.
 
 Production hardening tasks:
 
@@ -205,7 +213,7 @@ Production hardening tasks:
 - Extend observability for install, activate, cache hit/miss, and offline
   fallback paths if production debugging needs it.
 - Review cache eviction and storage pressure behavior on mobile browsers.
-- Verify `Cache-Control` behavior for all safe event JSON responses.
+- Keep `Cache-Control` behavior explicit for every safe event JSON response.
 - Add a manual refresh affordance only if product design wants user-controlled
   sync.
 
@@ -314,8 +322,8 @@ Verified in production-mode Playwright against the built app:
 - First online visit renders the homepage event list.
 - `navigator.serviceWorker.ready` resolves and a controlled page is available
   after reload.
-- `_next/static` resources are present in service worker cache before the
-  offline transition.
+- `_next/static` resources loaded through the controlled service worker use a
+  network-first cache entry before the offline transition.
 - The web app manifest is linked at `/manifest.webmanifest`.
 - IndexedDB persists the home event snapshot with `home-events` schema metadata.
 - IndexedDB persists opened event details with `event-detail` schema metadata.
@@ -331,10 +339,11 @@ Verified in production-mode Playwright against the built app:
 - No browser console or page error matching `ChunkLoadError` or chunk loading
   failure was observed during the offline flow.
 
-Serwist decision: still not justified. The fix required first-load static cache
-seeding plus existing runtime caching, not a generated precache manifest. Serwist
-would become more compelling if the app needs broad build-manifest precaching,
-cache expiration policies, or richer service worker lifecycle tooling.
+Serwist decision: still not justified. The current fix uses explicit
+network-first shell/chunk caching plus IndexedDB event data, not a generated
+precache manifest. Serwist would become more compelling if the app needs broad
+build-manifest precaching, cache expiration policies, or richer service worker
+lifecycle tooling.
 
 Commands run for this pass:
 

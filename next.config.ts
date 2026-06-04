@@ -21,8 +21,7 @@ const securityHeaders = [
 	},
 	{
 		key: "Permissions-Policy",
-		value:
-			"camera=(), microphone=(), geolocation=(self), payment=(), usb=(), browsing-topics=()",
+		value: "camera=(), microphone=(), geolocation=(self), payment=(), usb=()",
 	},
 	{ key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
 	{ key: "X-Content-Type-Options", value: "nosniff" },

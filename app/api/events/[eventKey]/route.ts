@@ -1,4 +1,7 @@
-import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
+import {
+	NO_STORE_HEADERS,
+	PUBLIC_REVALIDATE_HEADERS,
+} from "@/lib/http/cache-control";
 import { log } from "@/lib/platform/logger";
 import { getEventShareEvent } from "@/lib/social/event-share-details";
 import { type NextRequest, NextResponse } from "next/server";
@@ -42,7 +45,7 @@ export async function GET(
 	return NextResponse.json(
 		{ event },
 		{
-			headers: NO_STORE_HEADERS,
+			headers: PUBLIC_REVALIDATE_HEADERS,
 		},
 	);
 }

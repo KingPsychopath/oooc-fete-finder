@@ -4,7 +4,8 @@ This app is a Next.js App Router project for Fete event discovery, with a server
 
 ## System At A Glance
 
-- Public pages are static-first and optimized for fast delivery
+- Public pages are static-first where possible and dynamic where shell/chunk
+  freshness matters
 - Admin pages and admin APIs are server-authenticated and module-based
 - Runtime event reads use a source chain controlled by `DATA_MODE`
 - Spotlight/Promoted scheduling is Postgres-backed
@@ -20,11 +21,11 @@ This app is a Next.js App Router project for Fete event discovery, with a server
 
 ### Current Route Cache Rules
 
-- `/`: `revalidate = false`; event edits trigger explicit revalidation
+- `/`: `force-dynamic`, `revalidate = 0`; event data is cached separately
 - `/feature-event`: `revalidate = false`
 - `/submit-event`: `revalidate = false`
 - `/partner-success`: `revalidate = false`
-- `/plans`: `revalidate = false`
+- `/plans`: `force-dynamic`, `revalidate = 0`; event data is cached separately
 - `/plans/[shareToken]`: `revalidate = 0`
 - `/privacy`: `force-static`
 - `/terms`: `force-static`

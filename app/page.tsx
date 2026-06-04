@@ -3,8 +3,9 @@ import { HomeEventsSection } from "./HomeEventsSection";
 import { HomeEventsSectionLoading } from "./HomeEventsSectionLoading";
 import { HomeHeader } from "./HomeHeader";
 
-// Event edits trigger on-demand revalidation; keep public ISR calm by default.
-export const revalidate = false;
+// Keep the HTML/module graph request-scoped; event data is cached separately.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 const homeMapLoadStrategy: "immediate" | "expand" | "idle" = "idle";
 
 export default function Home() {

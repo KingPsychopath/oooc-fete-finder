@@ -1598,11 +1598,23 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			clusterMaxZoom: 15,
 			clusterRadius: 42,
 			clusterProperties: {
-				featured_count: ["+", ["case", ["get", "isFeatured"], 1, 0]],
-				promoted_count: ["+", ["case", ["get", "isPromoted"], 1, 0]],
-				oooc_count: ["+", ["case", ["get", "isOOOCPick"], 1, 0]],
-				nearby_count: ["+", ["case", ["get", "isWithinNearbyRadius"], 1, 0]],
-				event_count_sum: ["+", ["get", "eventCount"]],
+				featured_count: [
+					"+",
+					["case", ["boolean", ["get", "isFeatured"], false], 1, 0],
+				],
+				promoted_count: [
+					"+",
+					["case", ["boolean", ["get", "isPromoted"], false], 1, 0],
+				],
+				oooc_count: [
+					"+",
+					["case", ["boolean", ["get", "isOOOCPick"], false], 1, 0],
+				],
+				nearby_count: [
+					"+",
+					["case", ["boolean", ["get", "isWithinNearbyRadius"], false], 1, 0],
+				],
+				event_count_sum: ["+", ["number", ["get", "eventCount"], 1]],
 			},
 		});
 
@@ -1614,7 +1626,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			paint: {
 				"circle-radius": [
 					"step",
-					["get", "event_count_sum"],
+					["number", ["get", "event_count_sum"], ["get", "point_count"], 1],
 					17,
 					5,
 					20,
@@ -1623,13 +1635,13 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				],
 				"circle-color": [
 					"case",
-					[">", ["get", "featured_count"], 0],
+					[">", ["number", ["get", "featured_count"], 0], 0],
 					"#d8a241",
-					[">", ["get", "nearby_count"], 0],
+					[">", ["number", ["get", "nearby_count"], 0], 0],
 					"#2563eb",
-					[">", ["get", "promoted_count"], 0],
+					[">", ["number", ["get", "promoted_count"], 0], 0],
 					"#2f8f8a",
-					[">", ["get", "oooc_count"], 0],
+					[">", ["number", ["get", "oooc_count"], 0], 0],
 					"#b7832d",
 					"#49382e",
 				],
@@ -1645,7 +1657,10 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			source: "events",
 			filter: ["has", "point_count"],
 			layout: {
-				"text-field": ["to-string", ["get", "event_count_sum"]],
+				"text-field": [
+					"to-string",
+					["number", ["get", "event_count_sum"], ["get", "point_count"], 1],
+				],
 				"text-font": MAP_TEXT_FONT,
 				"text-size": 12,
 				"text-allow-overlap": true,
@@ -1664,40 +1679,40 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			source: "events",
 			filter: ["!", ["has", "point_count"]],
 			layout: {
-				"circle-sort-key": ["get", "markerRank"],
+				"circle-sort-key": ["number", ["get", "markerRank"], 1],
 			},
 			paint: {
 				"circle-radius": [
 					"case",
-					[">", ["get", "eventCount"], 1],
+					[">", ["number", ["get", "eventCount"], 1], 1],
 					18,
-					["get", "isFeatured"],
+					["boolean", ["get", "isFeatured"], false],
 					17,
-					["get", "isPromoted"],
+					["boolean", ["get", "isPromoted"], false],
 					15,
-					["get", "isOOOCPick"],
+					["boolean", ["get", "isOOOCPick"], false],
 					15,
 					12,
 				],
 				"circle-color": [
 					"case",
-					["get", "isFeatured"],
+					["boolean", ["get", "isFeatured"], false],
 					"#d8a241",
-					["get", "isPromoted"],
+					["boolean", ["get", "isPromoted"], false],
 					"#2f8f8a",
-					["get", "isOOOCPick"],
+					["boolean", ["get", "isOOOCPick"], false],
 					"#d8a241",
 					"#49382e",
 				],
 				"circle-opacity": [
 					"case",
-					[">", ["get", "eventCount"], 1],
+					[">", ["number", ["get", "eventCount"], 1], 1],
 					0.28,
-					["get", "isFeatured"],
+					["boolean", ["get", "isFeatured"], false],
 					0.32,
-					["get", "isPromoted"],
+					["boolean", ["get", "isPromoted"], false],
 					0.25,
-					["get", "isOOOCPick"],
+					["boolean", ["get", "isOOOCPick"], false],
 					0.24,
 					0.18,
 				],
@@ -1712,19 +1727,19 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			filter: [
 				"all",
 				["!", ["has", "point_count"]],
-				["get", "isWithinNearbyRadius"],
+				["boolean", ["get", "isWithinNearbyRadius"], false],
 			],
 			layout: {
-				"circle-sort-key": ["get", "markerRank"],
+				"circle-sort-key": ["number", ["get", "markerRank"], 1],
 			},
 			paint: {
 				"circle-radius": [
 					"case",
-					["get", "isFeatured"],
+					["boolean", ["get", "isFeatured"], false],
 					18,
-					["get", "isPromoted"],
+					["boolean", ["get", "isPromoted"], false],
 					17,
-					["get", "isOOOCPick"],
+					["boolean", ["get", "isOOOCPick"], false],
 					17,
 					14,
 				],
@@ -1741,44 +1756,49 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			source: "events",
 			filter: ["!", ["has", "point_count"]],
 			layout: {
-				"circle-sort-key": ["get", "markerRank"],
+				"circle-sort-key": ["number", ["get", "markerRank"], 1],
 			},
 			paint: {
 				"circle-radius": [
 					"case",
-					[">", ["get", "eventCount"], 1],
+					[">", ["number", ["get", "eventCount"], 1], 1],
 					10.5,
-					["get", "isFeatured"],
+					["boolean", ["get", "isFeatured"], false],
 					9.5,
-					["get", "isPromoted"],
+					["boolean", ["get", "isPromoted"], false],
 					8.5,
-					["get", "isOOOCPick"],
+					["boolean", ["get", "isOOOCPick"], false],
 					8.5,
 					6.5,
 				],
 				"circle-color": [
 					"case",
-					["get", "isFeatured"],
+					["boolean", ["get", "isFeatured"], false],
 					"#d8a241",
-					["get", "isPromoted"],
+					["boolean", ["get", "isPromoted"], false],
 					"#2f8f8a",
-					["get", "isOOOCPick"],
+					["boolean", ["get", "isOOOCPick"], false],
 					"#d8a241",
 					"#49382e",
 				],
 				"circle-stroke-width": [
 					"case",
-					[">", ["get", "eventCount"], 1],
+					[">", ["number", ["get", "eventCount"], 1], 1],
 					3,
-					["get", "isFeatured"],
+					["boolean", ["get", "isFeatured"], false],
 					3,
-					["get", "isOOOCPick"],
+					["boolean", ["get", "isOOOCPick"], false],
 					2.5,
 					2,
 				],
 				"circle-stroke-color": "#fffaf3",
 				"circle-opacity": isNearbyInsideParisMap
-					? ["case", ["get", "isWithinNearbyRadius"], 0.98, 0.42]
+					? [
+							"case",
+							["boolean", ["get", "isWithinNearbyRadius"], false],
+							0.98,
+							0.42,
+						]
 					: 0.96,
 			},
 		});
@@ -1790,15 +1810,20 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			filter: [
 				"all",
 				["!", ["has", "point_count"]],
-				["!", ["get", "isFeatured"]],
-				["!", ["get", "isPromoted"]],
-				["!", ["get", "isOOOCPick"]],
+				["!", ["boolean", ["get", "isFeatured"], false]],
+				["!", ["boolean", ["get", "isPromoted"], false]],
+				["!", ["boolean", ["get", "isOOOCPick"], false]],
 			],
 			paint: {
 				"circle-radius": 2.6,
 				"circle-color": "#d8a241",
 				"circle-opacity": isNearbyInsideParisMap
-					? ["case", ["get", "isWithinNearbyRadius"], 0.98, 0.45]
+					? [
+							"case",
+							["boolean", ["get", "isWithinNearbyRadius"], false],
+							0.98,
+							0.45,
+						]
 					: 0.98,
 			},
 		});
@@ -1810,16 +1835,16 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			filter: [
 				"all",
 				["!", ["has", "point_count"]],
-				[">", ["get", "eventCount"], 1],
+				[">", ["number", ["get", "eventCount"], 1], 1],
 			],
 			layout: {
-				"text-field": ["to-string", ["get", "eventCount"]],
+				"text-field": ["to-string", ["number", ["get", "eventCount"], 1]],
 				"text-font": MAP_TEXT_FONT,
 				"text-size": 10,
 				"text-offset": [0.8, -0.8],
 				"text-allow-overlap": true,
 				"text-ignore-placement": true,
-				"symbol-sort-key": ["get", "markerRank"],
+				"symbol-sort-key": ["number", ["get", "markerRank"], 1],
 			},
 			paint: {
 				"text-color": "#fffaf3",
@@ -1835,14 +1860,18 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 			filter: [
 				"all",
 				["!", ["has", "point_count"]],
-				["any", ["get", "isFeatured"], ["get", "isOOOCPick"]],
+				[
+					"any",
+					["boolean", ["get", "isFeatured"], false],
+					["boolean", ["get", "isOOOCPick"], false],
+				],
 			],
 			layout: {
 				"text-field": "★",
 				"text-font": MAP_TEXT_FONT,
 				"text-size": 12,
 				"text-allow-overlap": true,
-				"symbol-sort-key": ["get", "markerRank"],
+				"symbol-sort-key": ["number", ["get", "markerRank"], 1],
 			},
 			paint: {
 				"text-color": "#49382e",

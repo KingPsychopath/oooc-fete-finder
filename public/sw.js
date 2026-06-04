@@ -1,8 +1,23 @@
-const CACHE_VERSION = "oooc-fete-finder-v6";
+const CACHE_VERSION = "oooc-fete-finder-v8";
 const APP_SHELL_CACHE = `${CACHE_VERSION}:app-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}:static`;
 const SAFE_API_CACHE = `${CACHE_VERSION}:safe-api`;
-const STATIC_CACHE_PATH_PREFIXES = ["/_next/static/", "/fonts/", "/favicon"];
+const STATIC_CACHE_PATH_PREFIXES = ["/fonts/", "/favicon"];
+const NAVIGATION_CACHE_EXACT_PATHS = new Set([
+	"/",
+	"/feature-event",
+	"/how-it-works",
+	"/partner-success",
+	"/plans",
+	"/privacy",
+	"/social",
+	"/social/square",
+	"/social/story",
+	"/social/twitter",
+	"/submit-event",
+	"/terms",
+]);
+const NAVIGATION_CACHE_PATH_PREFIXES = ["/event/"];
 const SAME_ORIGIN_CACHEABLE_DESTINATIONS = new Set([
 	"font",
 	"image",
@@ -47,8 +62,11 @@ const isStaticAssetPath = (pathname) =>
 const isNextStaticAssetPath = (pathname) =>
 	pathname.startsWith("/_next/static/");
 
-self.addEventListener("install", (event) => {
-	event.waitUntil(caches.delete(APP_SHELL_CACHE));
+const isCacheableNavigationPath = (pathname) =>
+	NAVIGATION_CACHE_EXACT_PATHS.has(pathname) ||
+	NAVIGATION_CACHE_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
+self.addEventListener("install", () => {
 	self.skipWaiting();
 });
 
@@ -59,11 +77,7 @@ self.addEventListener("activate", (event) => {
 			.then((cacheNames) =>
 				Promise.all(
 					cacheNames
-						.filter(
-							(cacheName) =>
-								!cacheName.startsWith(CACHE_VERSION) ||
-								cacheName.endsWith(":app-shell"),
-						)
+						.filter((cacheName) => !cacheName.startsWith(CACHE_VERSION))
 						.map((cacheName) => caches.delete(cacheName)),
 				),
 			)
@@ -77,6 +91,12 @@ const isCacheableResponse = (response) => {
 	return !/(^|,\s*)(no-store|private)(\s*,|$)/i.test(cacheControl);
 };
 
+const isCacheableNavigationResponse = (response) => {
+	if (!response || !response.ok) return false;
+	const contentType = response.headers.get("Content-Type") || "";
+	return contentType.toLowerCase().includes("text/html");
+};
+
 const fetchAndCache = async (request, cacheName) => {
 	const response = await fetch(request);
 	if (isCacheableResponse(response)) {
@@ -86,31 +106,84 @@ const fetchAndCache = async (request, cacheName) => {
 	return response;
 };
 
-const fetchStaticAsset = async (request) => {
+const fetchNextStaticAsset = async (request) => {
 	const cache = await caches.open(STATIC_CACHE);
 	const cachedResponse = await cache.match(request);
-	if (cachedResponse) return cachedResponse;
 
-	const response = await fetch(request);
-	if (isCacheableResponse(response)) {
-		await cache.put(request, response.clone());
+	try {
+		const response = await fetch(request, { cache: "reload" });
+		if (isCacheableResponse(response)) {
+			await cache.put(request, response.clone());
+			return response;
+		}
+		if (cachedResponse) return cachedResponse;
+		return response;
+	} catch (error) {
+		if (cachedResponse) return cachedResponse;
+		throw error;
 	}
-	return response;
+};
+
+const fetchNavigation = async (request, pathname) => {
+	const canCacheNavigation = isCacheableNavigationPath(pathname);
+	const cache = canCacheNavigation ? await caches.open(APP_SHELL_CACHE) : null;
+
+	try {
+		const response = await fetch(request);
+		if (cache && isCacheableNavigationResponse(response)) {
+			await cache.put(request, response.clone());
+		}
+		return response;
+	} catch (error) {
+		const cachedResponse = cache ? await cache.match(request) : null;
+		if (cachedResponse) return cachedResponse;
+		throw error;
+	}
+};
+
+const cacheNavigationUrl = async (url) => {
+	try {
+		const requestUrl = new URL(url, self.location.origin);
+		if (requestUrl.origin !== self.location.origin) return;
+
+		const pathname = getPathWithoutScope(requestUrl.pathname);
+		if (!isCacheableNavigationPath(pathname) || isSensitivePath(pathname)) {
+			return;
+		}
+
+		const request = new Request(requestUrl.href, {
+			credentials: "same-origin",
+		});
+		const response = await fetch(request);
+		if (!isCacheableNavigationResponse(response)) return;
+
+		const cache = await caches.open(APP_SHELL_CACHE);
+		await cache.put(request, response);
+	} catch {
+		// Navigation shell seeding is best-effort; normal navigation caching remains.
+	}
 };
 
 const cacheStaticUrls = async (urls) => {
-	const cache = await caches.open(STATIC_CACHE);
 	await Promise.all(
 		urls.map(async (url) => {
 			try {
 				const requestUrl = new URL(url, self.location.origin);
 				if (requestUrl.origin !== self.location.origin) return;
 				const pathname = getPathWithoutScope(requestUrl.pathname);
-				if (!isStaticAssetPath(pathname)) return;
+				if (!isStaticAssetPath(pathname) && !isNextStaticAssetPath(pathname)) {
+					return;
+				}
 				const request = new Request(requestUrl.href, {
 					credentials: "same-origin",
 				});
-				const response = await fetch(request);
+				if (isNextStaticAssetPath(pathname)) {
+					await fetchNextStaticAsset(request);
+					return;
+				}
+
+				const cache = await caches.open(STATIC_CACHE);
+				const response = await fetch(request, { cache: "reload" });
 				if (isCacheableResponse(response)) {
 					await cache.put(request, response);
 				}
@@ -135,6 +208,12 @@ self.addEventListener("message", (event) => {
 		return;
 	}
 
+	if (event.data?.type === "CACHE_NAVIGATION_URL") {
+		if (typeof event.data.url !== "string") return;
+		event.waitUntil(cacheNavigationUrl(event.data.url));
+		return;
+	}
+
 	if (event.data?.type !== "CACHE_STATIC_URLS") return;
 	if (!Array.isArray(event.data.urls)) return;
 
@@ -153,7 +232,9 @@ self.addEventListener("fetch", (event) => {
 	if (isSensitivePath(pathname)) return;
 
 	if (request.mode === "navigate") {
-		event.respondWith(fetch(request));
+		event.respondWith(
+			fetchNavigation(request, pathname).catch(() => Response.error()),
+		);
 		return;
 	}
 
@@ -168,7 +249,9 @@ self.addEventListener("fetch", (event) => {
 	}
 
 	if (isNextStaticAssetPath(pathname)) {
-		event.respondWith(fetchStaticAsset(request).catch(() => Response.error()));
+		event.respondWith(
+			fetchNextStaticAsset(request).catch(() => Response.error()),
+		);
 		return;
 	}
 

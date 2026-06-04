@@ -17,7 +17,7 @@
 
 ## Public Event, Plans + User State
 
-- `GET /api/events/[eventKey]`: event detail JSON for client hydration/offline-safe detail cache
+- `GET /api/events/[eventKey]`: public event detail JSON for client hydration and offline-safe detail cache; successful responses use `public, max-age=0, must-revalidate`
 - `GET /api/ticket-exchange/events/[eventKey]/summary`: public ticket-exchange listing summary for one event
 - `GET /api/user/app-settings`: authenticated synced app settings
 - `POST /api/user/app-settings`: authenticated synced app settings update

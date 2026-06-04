@@ -10,7 +10,9 @@ import {
 } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 
-export const revalidate = false;
+// Keep the HTML/module graph request-scoped; event data is cached separately.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = generateOGMetadata({
 	title: "Plans | Fete Finder",
