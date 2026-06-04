@@ -4,8 +4,21 @@ import AuthGate from "@/features/auth/components/AuthGate";
 import FilterPanel from "@/features/events/components/FilterPanel";
 import SearchBar from "@/features/events/components/SearchBar";
 import { useEventsSearchFilters } from "@/features/events/components/events-search-filters-provider";
+import {
+	MOBILE_DISCOVERY_FILTER_EVENT,
+	MOBILE_DISCOVERY_PENDING_ACTION_KEY,
+	MOBILE_DISCOVERY_SEARCH_EVENT,
+	MOBILE_DISCOVERY_STATE_EVENT,
+	type MobileDiscoveryPendingAction,
+	type MobileDiscoverySearchDetail,
+	type MobileDiscoveryStateDetail,
+} from "@/features/events/components/mobile-discovery-events";
+import { getActiveFiltersCount } from "@/features/events/filtering";
 import type { SearchChip } from "@/features/events/search-chips";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
+
+const EVENTS_SEARCH_INPUT_ID = "events-search-input";
 
 interface EventsSearchFiltersIslandProps {
 	canUseProtectedDiscovery: boolean;
@@ -51,6 +64,7 @@ export function EventsSearchFiltersIsland({
 		onOOOCPicksToggle,
 		onPriceRangeChange,
 		onVenueTypeToggle,
+		openFilterDrawer,
 		openFilterPanel,
 		quickSelectEventDates,
 		searchQuery,
@@ -70,6 +84,120 @@ export function EventsSearchFiltersIsland({
 		toggleFilterExpansion,
 	} = useEventsSearchFilters();
 
+	const activeFilterCount = getActiveFiltersCount(
+		{
+			selectedDateRange,
+			selectedDayNightPeriods,
+			selectedArrondissements,
+			selectedGenres,
+			excludedGenres,
+			selectedEventCategories,
+			selectedNationalities,
+			selectedVenueTypes,
+			selectedIndoorPreference,
+			selectedPriceRange,
+			includeFreeOptions,
+			selectedAgeRange,
+			selectedOOOCPicks,
+			searchQuery,
+		},
+		{ defaultDateRange },
+	);
+
+	useEffect(() => {
+		const detail: MobileDiscoveryStateDetail = {
+			activeFilterCount,
+			hasActiveFilters: hasAnyActiveFilters,
+			isAvailable: true,
+			query: searchQuery,
+			resultsCount: filteredEvents.length,
+		};
+		window.dispatchEvent(
+			new CustomEvent<MobileDiscoveryStateDetail>(
+				MOBILE_DISCOVERY_STATE_EVENT,
+				{ detail },
+			),
+		);
+	}, [
+		activeFilterCount,
+		filteredEvents.length,
+		hasAnyActiveFilters,
+		searchQuery,
+	]);
+
+	useEffect(() => {
+		const scrollToEvents = (behavior: ScrollBehavior = "smooth") => {
+			document
+				.getElementById("all-events")
+				?.scrollIntoView({ block: "start", behavior });
+		};
+
+		const focusSearch = () => {
+			window.requestAnimationFrame(() => {
+				const input = document.getElementById(EVENTS_SEARCH_INPUT_ID);
+				if (input instanceof HTMLInputElement) {
+					input.focus({ preventScroll: true });
+				}
+			});
+		};
+
+		const handleMobileSearch = (event: Event) => {
+			const detail = (event as CustomEvent<MobileDiscoverySearchDetail>).detail;
+			scrollToEvents(detail?.behavior);
+			if (typeof detail?.query === "string") {
+				handleSearchIntent(detail.query, "input");
+			}
+			if (detail?.shouldFocus !== false) {
+				focusSearch();
+			}
+		};
+
+		const handleMobileFilter = () => {
+			if (!canUseProtectedDiscovery) {
+				onAuthRequired();
+				return;
+			}
+			scrollToEvents("smooth");
+			openFilterDrawer();
+		};
+
+		window.addEventListener(MOBILE_DISCOVERY_SEARCH_EVENT, handleMobileSearch);
+		window.addEventListener(MOBILE_DISCOVERY_FILTER_EVENT, handleMobileFilter);
+
+		const pendingAction = window.sessionStorage.getItem(
+			MOBILE_DISCOVERY_PENDING_ACTION_KEY,
+		) as MobileDiscoveryPendingAction | null;
+		if (pendingAction) {
+			window.sessionStorage.removeItem(MOBILE_DISCOVERY_PENDING_ACTION_KEY);
+			window.requestAnimationFrame(() => {
+				if (pendingAction === "filter") {
+					handleMobileFilter();
+					return;
+				}
+				handleMobileSearch({
+					type: MOBILE_DISCOVERY_SEARCH_EVENT,
+					detail: { behavior: "auto", shouldFocus: false },
+				} as CustomEvent<MobileDiscoverySearchDetail>);
+			});
+		}
+
+		return () => {
+			window.removeEventListener(
+				MOBILE_DISCOVERY_SEARCH_EVENT,
+				handleMobileSearch,
+			);
+			window.removeEventListener(
+				MOBILE_DISCOVERY_FILTER_EVENT,
+				handleMobileFilter,
+			);
+		};
+	}, [
+		canUseProtectedDiscovery,
+		handleSearchIntent,
+		onAuthRequired,
+		openFilterDrawer,
+	]);
+
 	const searchSlot = (
 		<div id="tour-search" className="w-full">
 			<SearchBar
@@ -84,6 +212,7 @@ export function EventsSearchFiltersIsland({
 				showResultsCount
 				resultsCountLabelMode={hasAnyActiveFilters ? "found" : "available"}
 				dynamicChips={dynamicSearchChips}
+				inputId={EVENTS_SEARCH_INPUT_ID}
 			/>
 		</div>
 	);
@@ -143,7 +272,7 @@ export function EventsSearchFiltersIsland({
 						forceDrawer={isFilterDrawerForced}
 						isExpanded={isFilterExpanded}
 						onToggleExpanded={toggleFilterExpansion}
-						hideFloatingButton={!canUseProtectedDiscovery}
+						hideFloatingButton
 					/>
 				</AuthGate>
 			</aside>

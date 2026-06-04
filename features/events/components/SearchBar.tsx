@@ -36,6 +36,7 @@ type SearchBarProps = {
 	resultsCountLabelMode?: "found" | "available";
 	value?: string;
 	dynamicChips?: SearchChip[];
+	inputId?: string;
 };
 
 type SearchResult = {
@@ -312,6 +313,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 	resultsCountLabelMode = "found",
 	value,
 	dynamicChips = [],
+	inputId,
 }) => {
 	const haptics = useAppHaptics();
 	const [internalQuery, setInternalQuery] = useState("");
@@ -351,6 +353,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 			<div className="relative min-w-0">
 				<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 				<input
+					id={inputId}
 					type="text"
 					value={query}
 					onChange={(e) => handleSearch(e.target.value)}
