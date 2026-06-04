@@ -977,6 +977,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				});
 				const currentMap = map.current;
 				if (!currentMap) return;
+				let hasSeenStyleReadyEvent = false;
 
 				const hasMapStyle = (): boolean => {
 					try {
@@ -989,6 +990,7 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 				const isMapUsable = (): boolean => {
 					try {
 						if (!hasMapStyle()) return false;
+						if (hasSeenStyleReadyEvent) return true;
 						return currentMap.isStyleLoaded() === true;
 					} catch {
 						return false;
@@ -1039,6 +1041,11 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					}
 				};
 
+				const markMapReadyFromStyleEvent = () => {
+					hasSeenStyleReadyEvent = true;
+					markMapReady();
+				};
+
 				const markTilesSettledWhenReady = () => {
 					if (!hasLoadedMapRef.current) return;
 					if (isMapFullySettled()) {
@@ -1072,8 +1079,9 @@ const ParisMapLibre: React.FC<ParisMapLibreProps> = ({
 					}, MAP_INIT_RETRY_DELAY_MS);
 				};
 
-				currentMap.on("style.load", markMapReadyWhenStyleIsReady);
-				currentMap.on("load", markMapReadyWhenStyleIsReady);
+				currentMap.on("style.load", markMapReadyFromStyleEvent);
+				currentMap.on("styledata", markMapReadyFromStyleEvent);
+				currentMap.on("load", markMapReadyFromStyleEvent);
 				currentMap.on("idle", markTilesSettledWhenReady);
 				currentMap.on("sourcedata", markTilesSettledWhenReady);
 				window.requestAnimationFrame(() => {

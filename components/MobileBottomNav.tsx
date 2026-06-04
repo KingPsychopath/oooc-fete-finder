@@ -254,7 +254,8 @@ export function MobileBottomNav() {
 	const previousPathnameRef = useRef(pathname);
 	const shouldScrollToTopOnRouteRef = useRef(false);
 	const hasActiveOverlay = useHasActiveBodyOverlay();
-	const hideDiscoveryDockActions = localAppSettings.hideFloatingFilterButton;
+	const hideDiscoveryDockActions =
+		localAppSettings.hideFloatingFilterButton === true;
 	const isDiscoveryDockExpanded = isDiscoveryOpen && !hideDiscoveryDockActions;
 	const isVisible = useMobileNavVisibility(
 		isPinned ||
