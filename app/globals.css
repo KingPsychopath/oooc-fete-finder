@@ -388,6 +388,12 @@
 	transform: scale(0.94);
 }
 
+body[data-event-modal-open="true"] .ooo-mobile-bottom-nav-shell,
+body[data-fete-finder-tour-open="true"] .ooo-mobile-bottom-nav-shell,
+body[data-ticket-exchange-modal-open="true"] .ooo-mobile-bottom-nav-shell {
+	transform: translateY(calc(100% + 1rem)) !important;
+}
+
 .dark .ooo-liquid-dock-panel {
 	border-color: color-mix(in oklab, var(--border) 84%, rgba(255, 255, 255, 0.12));
 	background:

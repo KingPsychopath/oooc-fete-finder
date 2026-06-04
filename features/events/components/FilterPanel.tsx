@@ -422,17 +422,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 	const isDesktopContentExpanded = isExpanded === undefined || isExpanded;
 
 	useEffect(() => {
-		setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.FILTER_PANEL, isOpen);
-
-		return () => {
+		if (!isOpen || typeof window === "undefined") {
 			setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.FILTER_PANEL, false);
-		};
-	}, [isOpen]);
+			return;
+		}
 
-	useEffect(() => {
-		if (!isOpen || typeof window === "undefined") return;
+		setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.FILTER_PANEL, true);
+
 		const isDesktopViewport = window.matchMedia("(min-width: 1024px)").matches;
-		if (!forceDrawer && isDesktopViewport) return;
+		if (!forceDrawer && isDesktopViewport) {
+			return () => {
+				setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.FILTER_PANEL, false);
+			};
+		}
 
 		const scrollY = window.scrollY;
 		const { style } = document.body;
@@ -454,6 +456,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 			style.top = previousStyles.top;
 			style.width = previousStyles.width;
 			window.scrollTo(0, scrollY);
+			setBodyOverlayAttribute(OVERLAY_BODY_ATTRIBUTE.FILTER_PANEL, false);
 		};
 	}, [forceDrawer, isOpen]);
 

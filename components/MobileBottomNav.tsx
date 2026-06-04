@@ -19,9 +19,9 @@ import { trackNavigationClick } from "@/features/events/engagement/client-tracki
 import { requestFeteFinderTour } from "@/features/events/tour-events";
 import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
-import { useHasActiveBodyOverlay } from "@/hooks/useHasActiveBodyOverlay";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
 import { LAYERS } from "@/lib/ui/layers";
+import { OVERLAY_BODY_ATTRIBUTE } from "@/lib/ui/overlay-state";
 import { cn } from "@/lib/utils";
 import {
 	CalendarDays,
@@ -91,6 +91,7 @@ const MOBILE_TOP_WITHOUT_NAV_OFFSET = "4.75rem";
 const MOBILE_PROMPT_WITH_NAV_OFFSET = "6.25rem";
 const MOBILE_PROMPT_WITHOUT_NAV_OFFSET = "1rem";
 const ACTIVE_SECTION_LOCK_MS = 2200;
+const OVERLAY_CLOSE_SETTLE_MS = 360;
 const PENDING_HOME_SECTION_STORAGE_KEY = "oooc_pending_home_section";
 const MOBILE_DISCOVERY_INPUT_ID = "mobile-discovery-search-input";
 
@@ -126,19 +127,94 @@ function normalizePathname(pathname: string | null): string {
 	return normalized;
 }
 
-function useMobileNavVisibility(isPinnedOpen: boolean) {
+const mobileNavBlockingOverlayAttributes = [
+	OVERLAY_BODY_ATTRIBUTE.EVENT_MODAL,
+	OVERLAY_BODY_ATTRIBUTE.FETE_FINDER_TOUR,
+	OVERLAY_BODY_ATTRIBUTE.TICKET_EXCHANGE_MODAL,
+] as const;
+
+function hasMobileNavBlockingOverlay(): boolean {
+	if (typeof document === "undefined") return false;
+	return mobileNavBlockingOverlayAttributes.some((attribute) =>
+		document.body.hasAttribute(attribute),
+	);
+}
+
+function useHasMobileNavBlockingOverlay(): boolean {
+	const [hasBlockingOverlay, setHasBlockingOverlay] = useState(false);
+
+	useEffect(() => {
+		setHasBlockingOverlay(hasMobileNavBlockingOverlay());
+
+		const observer = new MutationObserver(() => {
+			setHasBlockingOverlay(hasMobileNavBlockingOverlay());
+		});
+
+		observer.observe(document.body, {
+			attributes: true,
+			attributeFilter: [...mobileNavBlockingOverlayAttributes],
+		});
+
+		return () => observer.disconnect();
+	}, []);
+
+	return hasBlockingOverlay;
+}
+
+function useBodyAttribute(attribute: string): boolean {
+	const [hasAttribute, setHasAttribute] = useState(false);
+
+	useEffect(() => {
+		const readAttribute = () => {
+			setHasAttribute(document.body.hasAttribute(attribute));
+		};
+
+		readAttribute();
+
+		const observer = new MutationObserver(readAttribute);
+		observer.observe(document.body, {
+			attributes: true,
+			attributeFilter: [attribute],
+		});
+
+		return () => observer.disconnect();
+	}, [attribute]);
+
+	return hasAttribute;
+}
+
+function useMobileNavVisibility(
+	isPinnedOpen: boolean,
+	isOverlayOpen: boolean,
+	isAutoHidePaused: boolean,
+) {
 	const [isVisible, setIsVisible] = useState(true);
 	const isVisibleRef = useRef(true);
 	const lastYRef = useRef(0);
+	const visibilityState = useMemo(
+		() => ({ isAutoHidePaused, isOverlayOpen, isPinnedOpen }),
+		[isAutoHidePaused, isOverlayOpen, isPinnedOpen],
+	);
 
 	useEffect(() => {
-		if (isPinnedOpen) {
+		if (visibilityState.isOverlayOpen) {
+			lastYRef.current = window.scrollY;
+			if (isVisibleRef.current) {
+				isVisibleRef.current = false;
+				setIsVisible(false);
+			}
+			return;
+		}
+
+		if (visibilityState.isPinnedOpen) {
 			if (!isVisibleRef.current) {
 				isVisibleRef.current = true;
 				setIsVisible(true);
 			}
 			return;
 		}
+
+		if (visibilityState.isAutoHidePaused) return;
 
 		lastYRef.current = window.scrollY;
 		let rafId: number | null = null;
@@ -182,7 +258,7 @@ function useMobileNavVisibility(isPinnedOpen: boolean) {
 				window.cancelAnimationFrame(rafId);
 			}
 		};
-	}, [isPinnedOpen]);
+	}, [visibilityState]);
 
 	return isVisible;
 }
@@ -242,6 +318,7 @@ export function MobileBottomNav() {
 	const [isEmailGateOpen, setIsEmailGateOpen] = useState(false);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
+	const [isOverlaySettling, setIsOverlaySettling] = useState(false);
 	const [mobileSearchQuery, setMobileSearchQuery] = useState("");
 	const [mobileActiveFilterCount, setMobileActiveFilterCount] = useState(0);
 	const [isMobileDiscoveryAvailable, setIsMobileDiscoveryAvailable] =
@@ -253,7 +330,15 @@ export function MobileBottomNav() {
 	const pendingHomeSectionScrollRef = useRef<string | null>(null);
 	const previousPathnameRef = useRef(pathname);
 	const shouldScrollToTopOnRouteRef = useRef(false);
-	const hasActiveOverlay = useHasActiveBodyOverlay();
+	const hadBlockingOverlayRef = useRef(false);
+	const hasBlockingOverlay = useHasMobileNavBlockingOverlay();
+	const hasFilterPanelOverlay = useBodyAttribute(
+		OVERLAY_BODY_ATTRIBUTE.FILTER_PANEL,
+	);
+	const dockOverlayState = useMemo(
+		() => ({ hasBlockingOverlay, hasFilterPanelOverlay }),
+		[hasBlockingOverlay, hasFilterPanelOverlay],
+	);
 	const hideDiscoveryDockActions =
 		localAppSettings.hideFloatingFilterButton === true;
 	const isDiscoveryDockExpanded = isDiscoveryOpen && !hideDiscoveryDockActions;
@@ -263,7 +348,14 @@ export function MobileBottomNav() {
 			isMusicModalOpen ||
 			isSettingsOpen ||
 			isDiscoveryDockExpanded,
+		hasBlockingOverlay,
+		hasFilterPanelOverlay,
 	);
+	const shouldShowDock =
+		isVisible &&
+		!hasBlockingOverlay &&
+		!hasFilterPanelOverlay &&
+		!isOverlaySettling;
 
 	useEffect(() => {
 		setIsPinned(readPinnedPreference());
@@ -272,6 +364,24 @@ export function MobileBottomNav() {
 	useEffect(() => {
 		setToiletFinderUrl(getToiletFinderUrl());
 	}, []);
+
+	useEffect(() => {
+		if (hasBlockingOverlay) {
+			hadBlockingOverlayRef.current = true;
+			setIsOverlaySettling(false);
+			return;
+		}
+
+		if (!hadBlockingOverlayRef.current) return;
+
+		hadBlockingOverlayRef.current = false;
+		setIsOverlaySettling(true);
+		const timeoutId = window.setTimeout(() => {
+			setIsOverlaySettling(false);
+		}, OVERLAY_CLOSE_SETTLE_MS);
+
+		return () => window.clearTimeout(timeoutId);
+	}, [hasBlockingOverlay]);
 
 	useEffect(() => {
 		if (hideDiscoveryDockActions) {
@@ -448,9 +558,12 @@ export function MobileBottomNav() {
 		const isMobileViewport = window.matchMedia("(max-width: 1023px)").matches;
 		const root = document.documentElement;
 		const shouldReserveNavSpace =
-			isMobileViewport && shouldRender && isVisible && !hasActiveOverlay;
+			isMobileViewport && shouldRender && shouldShowDock;
 		const shouldKeepLayoutClearance =
-			isMobileViewport && shouldRender && !hasActiveOverlay;
+			isMobileViewport &&
+			shouldRender &&
+			!dockOverlayState.hasBlockingOverlay &&
+			!dockOverlayState.hasFilterPanelOverlay;
 		root.style.setProperty(
 			"--oooc-mobile-nav-offset",
 			shouldReserveNavSpace
@@ -482,7 +595,7 @@ export function MobileBottomNav() {
 			root.style.removeProperty("--oooc-mobile-top-offset");
 			root.style.removeProperty("--oooc-mobile-prompt-offset");
 		};
-	}, [hasActiveOverlay, isVisible, shouldRender]);
+	}, [dockOverlayState, shouldRender, shouldShowDock]);
 
 	if (!shouldRender) {
 		return null;
@@ -791,8 +904,8 @@ export function MobileBottomNav() {
 		<>
 			<div
 				className={cn(
-					"fixed inset-x-0 bottom-0 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 transition-transform duration-300 ease-out lg:hidden",
-					isVisible && !hasActiveOverlay ? "translate-y-0" : "translate-y-full",
+					"ooo-mobile-bottom-nav-shell fixed inset-x-0 bottom-0 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 transition-transform duration-300 ease-out lg:hidden",
+					shouldShowDock ? "translate-y-0" : "translate-y-[calc(100%+1rem)]",
 				)}
 				style={{
 					zIndex: LAYERS.FLOATING_CONTROL,
