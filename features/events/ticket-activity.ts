@@ -87,6 +87,6 @@ export const formatTicketActivityLabel = (
 			: `${sellingCount} tickets available`;
 	}
 	return lookingCount === 1
-		? "Someone is looking"
+		? "Someone is looking for tickets"
 		: `${lookingCount} looking for tickets`;
 };

@@ -62,7 +62,9 @@ describe("ticket activity", () => {
 	it("formats compact card labels by listing mix", () => {
 		expect(formatTicketActivityLabel(1, 0)).toBe("Ticket available");
 		expect(formatTicketActivityLabel(2, 0)).toBe("2 tickets available");
-		expect(formatTicketActivityLabel(0, 1)).toBe("Someone is looking");
+		expect(formatTicketActivityLabel(0, 1)).toBe(
+			"Someone is looking for tickets",
+		);
 		expect(formatTicketActivityLabel(0, 3)).toBe("3 looking for tickets");
 		expect(formatTicketActivityLabel(2, 3)).toBe("2 selling · 3 looking");
 	});
