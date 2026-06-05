@@ -2094,9 +2094,9 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 																		onClick={() =>
 																			updateStopArrivalTime(event.eventKey, "")
 																		}
-																		className="h-8 rounded-full border border-border bg-background px-3 text-xs text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
+																		className="h-8 rounded-full border border-transparent bg-muted/45 px-3 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
 																	>
-																		Use event time
+																		Clear
 																	</button>
 																)}
 																<button
