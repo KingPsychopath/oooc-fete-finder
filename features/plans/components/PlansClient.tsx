@@ -2109,8 +2109,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 																	Done
 																</button>
 																<p className="w-full text-xs leading-5 text-muted-foreground">
-																	Changes the arrival shown for this stop. Clear
-																	uses the event time again.
+																	Changes the arrival shown for this stop.
 																</p>
 															</div>
 														)}
