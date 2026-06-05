@@ -100,7 +100,22 @@ interface PlansClientProps {
 const formatTime = (value: string | undefined | null): string =>
 	value && value.toLowerCase() !== "tbc" ? value : "Time TBC";
 
+const PLAN_TIME_INPUT_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const normalizeEventKey = (value: string): string => value.trim().toLowerCase();
+const normalizePlanTimeInput = (value: string | undefined | null): string =>
+	value && PLAN_TIME_INPUT_PATTERN.test(value.trim()) ? value.trim() : "";
+const isKnownEventTime = (value: string | undefined | null): value is string =>
+	Boolean(value && value.toLowerCase() !== "tbc");
+const parsePlanTimeToMinutes = (
+	value: string | undefined | null,
+): number | null => {
+	const normalized = normalizePlanTimeInput(value);
+	if (!normalized) return null;
+	const [rawHours, rawMinutes] = normalized.split(":");
+	const hours = Number(rawHours);
+	const minutes = Number(rawMinutes);
+	return hours * 60 + minutes;
+};
 const CONTROL_TRANSITION =
 	"transition-[background-color,border-color,color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] active:scale-[0.98]";
 const DESKTOP_RAIL_STICKY_CLASS = "lg:sticky lg:top-[10rem] lg:self-start";
@@ -218,6 +233,8 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		useState<PlanPreferenceInput["travelTolerance"]>("balanced");
 	const [startPeriod, setStartPeriod] =
 		useState<PlanPreferenceInput["startPeriod"]>("anytime");
+	const [routeStartTime, setRouteStartTime] = useState("");
+	const [showRouteStartTimeInput, setShowRouteStartTimeInput] = useState(false);
 	const [budget, setBudget] = useState<PlanPreferenceInput["budget"]>("any");
 	const [selectedVibes, setSelectedVibes] = useState<EventExperienceCategory[]>(
 		[],
@@ -232,6 +249,9 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 	const [renameError, setRenameError] = useState<string | null>(null);
 	const [draggedEventKey, setDraggedEventKey] = useState<string | null>(null);
 	const [dragOverEventKey, setDragOverEventKey] = useState<string | null>(null);
+	const [editingArrivalEventKey, setEditingArrivalEventKey] = useState<
+		string | null
+	>(null);
 	const [sharingPlanId, setSharingPlanId] = useState<string | null>(null);
 	const [shareStatus, setShareStatus] = useState<string | null>(null);
 	const [copiedSharePlanId, setCopiedSharePlanId] = useState<string | null>(
@@ -285,10 +305,22 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			activeStops.filter((stop) => stop.locked).map((stop) => stop.eventKey),
 		[activeStops],
 	);
+	const anchoredStops = useMemo(
+		() =>
+			activeStops
+				.filter((stop) => stop.locked)
+				.map((stop) => ({
+					eventKey: stop.eventKey,
+					stopOrder: stop.stopOrder,
+				})),
+		[activeStops],
+	);
 	const preferenceInput: Partial<PlanPreferenceInput> = useMemo(
 		() => ({
 			stopCount: effectiveStopCount,
 			startPeriod,
+			routeStartTime: routeStartTime || null,
+			anchoredStops,
 			travelTolerance,
 			budget,
 			vibes: selectedVibes,
@@ -296,8 +328,10 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			mustIncludeEventKeys: lockedEventKeys,
 		}),
 		[
+			anchoredStops,
 			budget,
 			lockedEventKeys,
+			routeStartTime,
 			selectedVibes,
 			startPeriod,
 			effectiveStopCount,
@@ -413,6 +447,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			selectedDate,
 			effectiveStopCount,
 			startPeriod,
+			routeStartTime || "",
 			travelTolerance,
 			budget,
 			selectedVibes.slice().sort().join(","),
@@ -434,6 +469,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		dayEvents.length,
 		effectiveStopCount,
 		lockedEventKeys,
+		routeStartTime,
 		selectedDate,
 		selectedVibes,
 		startPeriod,
@@ -452,6 +488,71 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 
 	const isEventInPlan = (event: Event): boolean =>
 		Boolean(getPlanForEvent(event));
+
+	const getExistingStopForEvent = (
+		plan: UserPlan | null,
+		event: Event,
+	): UserPlan["stops"][number] | undefined =>
+		plan?.stops.find(
+			(stop) =>
+				normalizeEventKey(stop.eventKey) === normalizeEventKey(event.eventKey),
+		);
+
+	const getDefaultArrivalTime = (
+		event: Event,
+		index: number,
+		existingStop: UserPlan["stops"][number] | undefined,
+	): string | null => {
+		if (existingStop) return existingStop.arrivalTime;
+		const routeStartMinutes = parsePlanTimeToMinutes(routeStartTime);
+		if (index === 0 && routeStartMinutes !== null && routeStartTime) {
+			const eventStartMinutes = parsePlanTimeToMinutes(event.time);
+			if (
+				eventStartMinutes === null ||
+				eventStartMinutes <= routeStartMinutes
+			) {
+				return routeStartTime;
+			}
+		}
+		return isKnownEventTime(event.time) ? event.time : null;
+	};
+
+	const updateStopArrivalTime = (eventKey: string, value: string) => {
+		if (!activePlan) return;
+		const normalized = normalizePlanTimeInput(value);
+		const nextStops = activeStops.map((stop) =>
+			normalizeEventKey(stop.eventKey) === normalizeEventKey(eventKey)
+				? { ...stop, arrivalTime: normalized || null }
+				: stop,
+		);
+		const plan = upsertPlan(
+			{
+				id: activePlan.id,
+				planDate: activePlan.planDate,
+				title: activePlan.title,
+				visibility: activePlan.visibility,
+				shareOwnerNameVisible: activePlan.shareOwnerNameVisible,
+				stops: nextStops,
+			},
+			"plans_page_arrival_time_update",
+		);
+		if (!plan) return;
+		setSelectedPlanId(plan.id);
+		trackPlanAnalytics({
+			action: "arrival_time_update",
+			surface: "planner",
+			planId: plan.id,
+			planDate: plan.planDate,
+			eventKey,
+			stopCount: plan.stops.length,
+			value: normalized || "clear",
+		});
+	};
+
+	const updateRouteStartTime = (value: string) => {
+		setRouteStartTime(value);
+		if (value) setStartPeriod("anytime");
+	};
 
 	const savePlanFromEvents = (
 		events: Event[],
@@ -483,17 +584,14 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 					const distance = previous
 						? distanceKmBetweenEvents(previous, event)
 						: null;
+					const existingStop = getExistingStopForEvent(existingPlan, event);
 					return {
+						id: existingStop?.id,
 						eventKey: event.eventKey,
 						stopOrder: index + 1,
-						locked:
-							existingPlan?.stops.find(
-								(stop) =>
-									normalizeEventKey(stop.eventKey) ===
-									normalizeEventKey(event.eventKey),
-							)?.locked ?? false,
-						arrivalTime: event.time ?? null,
-						departureTime: event.endTime ?? null,
+						locked: existingStop?.locked ?? false,
+						arrivalTime: getDefaultArrivalTime(event, index, existingStop),
+						departureTime: existingStop?.departureTime ?? event.endTime ?? null,
 						travelMinutesFromPrevious: estimateTravelMinutes(distance),
 					};
 				}),
@@ -1353,12 +1451,12 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 						</div>
 						<div className="mt-4 grid gap-2">
 							<Segmented
-								label="Start"
+								label="When we stepping?"
 								value={startPeriod}
 								options={[
-									["day", "Day"],
-									["evening", "Evening"],
-									["late", "Late"],
+									["day", "Day", "Day: starts around 10:00-18:00"],
+									["evening", "Evening", "Evening: starts around 17:00-22:00"],
+									["late", "Late", "Late: starts around 21:00 or later"],
 								]}
 								onChange={(value) =>
 									setStartPeriod((current) =>
@@ -1367,8 +1465,67 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 											: (value as PlanPreferenceInput["startPeriod"]),
 									)
 								}
-								emptyLabel="Any start"
+								onBeforeChange={() => setRouteStartTime("")}
+								emptyLabel={
+									routeStartTime ? `From ${routeStartTime}` : "Anytime"
+								}
 							/>
+							<div className="px-1">
+								<div className="flex items-center justify-between gap-2">
+									<button
+										type="button"
+										onClick={() =>
+											setShowRouteStartTimeInput((current) => !current)
+										}
+										aria-expanded={showRouteStartTimeInput}
+										aria-controls="plans-route-start-time-panel"
+										className="inline-flex items-center gap-1 text-left text-xs font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline"
+									>
+										<ChevronDown
+											className={cn(
+												"h-3.5 w-3.5 transition-transform duration-200",
+												showRouteStartTimeInput && "rotate-180",
+											)}
+										/>
+										{showRouteStartTimeInput
+											? "Hide specific time"
+											: routeStartTime
+												? `Change ${routeStartTime}`
+												: "Set a specific time"}
+									</button>
+									{routeStartTime && (
+										<button
+											type="button"
+											onClick={() => setRouteStartTime("")}
+											className="rounded-full px-2 py-0.5 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
+										>
+											Use event time
+										</button>
+									)}
+								</div>
+								{showRouteStartTimeInput && (
+									<div
+										id="plans-route-start-time-panel"
+										className="mt-2 rounded-2xl border border-border/70 bg-background/70 p-2"
+									>
+										<label
+											htmlFor="plans-route-start-time"
+											className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground"
+										>
+											Specific time
+										</label>
+										<input
+											id="plans-route-start-time"
+											type="time"
+											value={routeStartTime}
+											onInput={(event) =>
+												updateRouteStartTime(event.currentTarget.value)
+											}
+											className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-foreground/40 focus:ring-2 focus:ring-ring/30"
+										/>
+									</div>
+								)}
+							</div>
 							<Segmented
 								label="Travel"
 								value={travelTolerance}
@@ -1777,6 +1934,23 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 										normalizeEventKey(dragOverEventKey) ===
 											normalizeEventKey(event.eventKey);
 									const savedInShortlist = isEventSaved(event.eventKey);
+									const plannedArrival = normalizePlanTimeInput(
+										stop?.arrivalTime,
+									);
+									const officialStart = isKnownEventTime(event.time)
+										? event.time
+										: null;
+									const plannedArrivalDiffers =
+										Boolean(plannedArrival) &&
+										Boolean(officialStart) &&
+										plannedArrival !== officialStart;
+									const isEditingArrival =
+										editingArrivalEventKey !== null &&
+										normalizeEventKey(editingArrivalEventKey) ===
+											normalizeEventKey(event.eventKey);
+									const routeTimeLabel = plannedArrivalDiffers
+										? `Arrive ${plannedArrival}`
+										: plannedArrival || formatTime(event.time);
 									return (
 										<li
 											key={event.eventKey}
@@ -1852,10 +2026,29 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 												<div className="flex items-start justify-between gap-3">
 													<div className="min-w-0">
 														<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-															<span className="inline-flex items-center">
-																<Clock className="mr-1 h-3.5 w-3.5" />
-																{formatTime(event.time)}
-															</span>
+															<button
+																type="button"
+																onClick={(timeButtonEvent) => {
+																	timeButtonEvent.stopPropagation();
+																	setEditingArrivalEventKey((current) =>
+																		normalizeEventKey(current ?? "") ===
+																		normalizeEventKey(event.eventKey)
+																			? null
+																			: event.eventKey,
+																	);
+																}}
+																aria-expanded={isEditingArrival}
+																aria-controls={`plans-arrival-editor-${event.eventKey}`}
+																title="Edit planned arrival"
+																className="inline-flex items-center gap-1 rounded-full border border-transparent px-1 py-0.5 transition hover:border-border hover:bg-muted hover:text-foreground"
+															>
+																<Clock className="h-3.5 w-3.5" />
+																<span>{routeTimeLabel}</span>
+																<Pencil className="h-3 w-3 opacity-60" />
+															</button>
+															{plannedArrivalDiffers && (
+																<span>starts {formatTime(event.time)}</span>
+															)}
 															<span>
 																{formatLocationAreaShort(event.arrondissement)}
 															</span>
@@ -1870,6 +2063,57 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 														<h3 className="mt-1 truncate text-lg font-medium">
 															{event.name}
 														</h3>
+														{isEditingArrival && (
+															<div
+																id={`plans-arrival-editor-${event.eventKey}`}
+																onClick={(editorEvent) =>
+																	editorEvent.stopPropagation()
+																}
+																className="mt-2 flex max-w-sm flex-wrap items-end gap-2 rounded-xl border border-border/70 bg-muted/25 p-2"
+															>
+																<label className="min-w-[8.5rem] flex-1">
+																	<span className="block text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+																		Arrive
+																	</span>
+																	<input
+																		type="time"
+																		value={plannedArrival}
+																		onInput={(timeEvent) =>
+																			updateStopArrivalTime(
+																				event.eventKey,
+																				timeEvent.currentTarget.value,
+																			)
+																		}
+																		aria-label={`Planned arrival for ${event.name}`}
+																		className="mt-1 h-8 w-full rounded-lg border border-border bg-background px-2.5 text-sm outline-none transition focus:border-foreground/40 focus:ring-2 focus:ring-ring/30"
+																	/>
+																</label>
+																{plannedArrival && (
+																	<button
+																		type="button"
+																		onClick={() =>
+																			updateStopArrivalTime(event.eventKey, "")
+																		}
+																		className="h-8 rounded-full border border-border bg-background px-3 text-xs text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
+																	>
+																		Clear
+																	</button>
+																)}
+																<button
+																	type="button"
+																	onClick={() =>
+																		setEditingArrivalEventKey(null)
+																	}
+																	className="h-8 rounded-full bg-foreground px-3 text-xs text-background transition hover:opacity-90"
+																>
+																	Done
+																</button>
+																<p className="w-full text-xs leading-5 text-muted-foreground">
+																	Used for this route and calendar export.
+																	Official event time stays unchanged.
+																</p>
+															</div>
+														)}
 														{directDistance !== null ? (
 															<p className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
 																<span
@@ -2253,12 +2497,14 @@ function Segmented({
 	value,
 	options,
 	onChange,
+	onBeforeChange,
 	emptyLabel,
 }: {
 	label: string;
 	value: string;
-	options: Array<[string, string]>;
+	options: Array<[string, string, string?]>;
 	onChange: (value: string) => void;
+	onBeforeChange?: () => void;
 	emptyLabel?: string;
 }) {
 	const selectedIndex = options.findIndex(
@@ -2290,12 +2536,17 @@ function Segmented({
 						transform: `translateX(calc(${Math.max(selectedIndex, 0)} * (100% + 0.25rem)))`,
 					}}
 				/>
-				{options.map(([optionValue, optionLabel]) => (
+				{options.map(([optionValue, optionLabel, optionDescription]) => (
 					<button
 						key={optionValue}
 						type="button"
 						aria-pressed={value === optionValue}
-						onClick={() => onChange(optionValue)}
+						aria-label={optionDescription ?? optionLabel}
+						title={optionDescription}
+						onClick={() => {
+							onBeforeChange?.();
+							onChange(optionValue);
+						}}
 						className={cn(
 							"relative z-10 min-h-9 rounded-xl px-2 text-xs",
 							CONTROL_TRANSITION,

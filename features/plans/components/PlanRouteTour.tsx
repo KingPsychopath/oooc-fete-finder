@@ -200,14 +200,14 @@ export function PlanRouteTour({
 				id: "settings",
 				selector: "#plans-route-settings",
 				title: "Set the mood",
-				body: "Choose the day, stop count, vibe, start time, travel style and budget. Fête Finder uses the choices you make.",
+				body: "Choose the day, stop count, vibe, when you're stepping, travel style and budget. Fête Finder uses the choices you make.",
 				preferredSide: "right",
 			},
 			{
 				id: "line",
 				selector: "#plans-route-line",
 				title: "Tune the route",
-				body: "Suggest a route, add saved events, then drag, pin or remove stops. Pinned stops stay put when you regenerate.",
+				body: "Suggest a route, add saved events, then drag, pin or remove stops. Tap a stop time to tweak arrival; pinned stops stay put when you regenerate.",
 				preferredSide: "right",
 			},
 			{

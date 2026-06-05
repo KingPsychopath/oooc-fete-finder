@@ -21,6 +21,7 @@ const DEFAULT_START_TIME = { hours: 20, minutes: 0 };
 const DEFAULT_DURATION_MINUTES = 90;
 
 const pad = (value: number): string => value.toString().padStart(2, "0");
+const normalizeEventKey = (value: string): string => value.trim().toLowerCase();
 
 const escapeICSValue = (value: string): string =>
 	value
@@ -149,6 +150,29 @@ const getEventPoint = (event: Event): string => {
 	return `${event.name}, ${location}, ${area}, Paris, France`;
 };
 
+const getPlanStopForEvent = (
+	plan: UserPlan,
+	event: Event,
+	index: number,
+): UserPlan["stops"][number] | undefined =>
+	plan.stops.find(
+		(stop) =>
+			normalizeEventKey(stop.eventKey) === normalizeEventKey(event.eventKey),
+	) ?? plan.stops[index];
+
+const getDisplayRouteTime = (
+	plan: UserPlan,
+	event: Event,
+	index: number,
+): string => {
+	const stop = getPlanStopForEvent(plan, event, index);
+	return stop?.arrivalTime && parseClockTime(stop.arrivalTime)
+		? stop.arrivalTime
+		: event.time && event.time !== "TBC"
+			? event.time
+			: "Time TBC";
+};
+
 export const buildRouteMapTarget = (
 	events: Event[],
 	preference: Exclude<MapProvider, "ask">,
@@ -203,7 +227,13 @@ export const buildRouteText = (plan: UserPlan, events: Event[]): string => {
 				: `From stop ${index}: ${distance.toFixed(1)} km direct`;
 		lines.push(
 			[
-				`${index + 1}. ${event.time && event.time !== "TBC" ? event.time : "Time TBC"} ${event.name}`,
+				`${index + 1}. ${getDisplayRouteTime(plan, event, index)} ${event.name}`,
+				getPlanStopForEvent(plan, event, index)?.arrivalTime &&
+				event.time &&
+				event.time !== "TBC" &&
+				getDisplayRouteTime(plan, event, index) !== event.time
+					? `Event starts ${event.time}`
+					: null,
 				formatLocationAreaShort(event.arrondissement),
 				distanceLabel,
 			]
@@ -239,14 +269,23 @@ export const generateRouteICSContent = (
 		const dateParts = parseISODateParts(event.date || plan.planDate);
 		if (!dateParts) continue;
 
-		const startTime = parseClockTime(event.time) ?? DEFAULT_START_TIME;
+		const stop = getPlanStopForEvent(plan, event, index);
+		const startTime =
+			parseClockTime(stop?.arrivalTime) ??
+			parseClockTime(event.time) ??
+			DEFAULT_START_TIME;
 		const startDateTime = addMinutes(dateParts, startTime, 0);
-		const explicitEndTime = parseClockTime(event.endTime);
+		const explicitEndTime =
+			parseClockTime(stop?.departureTime) ?? parseClockTime(event.endTime);
 		const nextEvent = events[index + 1];
+		const nextStop = nextEvent
+			? getPlanStopForEvent(plan, nextEvent, index + 1)
+			: undefined;
 		const nextDateParts = nextEvent
 			? parseISODateParts(nextEvent.date || plan.planDate)
 			: null;
-		const nextStartTime = parseClockTime(nextEvent?.time);
+		const nextStartTime =
+			parseClockTime(nextStop?.arrivalTime) ?? parseClockTime(nextEvent?.time);
 		let endDateTime = explicitEndTime
 			? addMinutes(dateParts, explicitEndTime, 0)
 			: nextDateParts && nextStartTime
@@ -264,6 +303,12 @@ export const generateRouteICSContent = (
 		const description = [
 			plan.title,
 			`Stop ${index + 1} of ${events.length}`,
+			stop?.arrivalTime &&
+			event.time &&
+			event.time !== "TBC" &&
+			stop.arrivalTime !== event.time
+				? `Event starts: ${event.time}`
+				: null,
 			distance === null
 				? null
 				: `From stop ${index}: ${distance.toFixed(1)} km direct`,

@@ -1,6 +1,7 @@
 import type { Event } from "@/features/events/types";
 import {
 	buildRouteMapTarget,
+	buildRouteText,
 	generateRouteICSContent,
 } from "@/features/plans/route-export";
 import type { UserPlan } from "@/features/plans/types";
@@ -41,6 +42,23 @@ const plan: UserPlan = {
 	updatedAt: "2026-06-01T00:00:00.000Z",
 };
 
+const stop = (
+	eventKey: string,
+	stopOrder: number,
+	overrides: Partial<UserPlan["stops"][number]> = {},
+): UserPlan["stops"][number] => ({
+	id: `stop-${eventKey}`,
+	eventKey,
+	stopOrder,
+	locked: false,
+	arrivalTime: null,
+	departureTime: null,
+	travelMinutesFromPrevious: null,
+	createdAt: "2026-06-01T00:00:00.000Z",
+	updatedAt: "2026-06-01T00:00:00.000Z",
+	...overrides,
+});
+
 describe("route export", () => {
 	it("exports one calendar event per stop in route order", () => {
 		const content = generateRouteICSContent(
@@ -59,6 +77,30 @@ describe("route export", () => {
 			content.indexOf("Second Stop"),
 		);
 		expect(content).toContain("DTSTART;TZID=Europe/Paris:20260619T180000");
+	});
+
+	it("uses planned arrival times without hiding official event starts", () => {
+		const routePlan = {
+			...plan,
+			stops: [stop("first", 1, { arrivalTime: "14:00" })],
+		};
+		const firstEvent = event({
+			eventKey: "first",
+			name: "Already Started",
+			time: "12:30",
+		});
+
+		const content = generateRouteICSContent(
+			routePlan,
+			[firstEvent],
+			new Date("2026-06-01T10:00:00.000Z"),
+		);
+		const routeText = buildRouteText(routePlan, [firstEvent]);
+
+		expect(content).toContain("DTSTART;TZID=Europe/Paris:20260619T140000");
+		expect(content).toContain("Event starts: 12:30");
+		expect(routeText).toContain("1. 14:00 Already Started");
+		expect(routeText).toContain("Event starts 12:30");
 	});
 
 	it("builds a full Google route with waypoints", () => {

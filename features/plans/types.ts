@@ -10,6 +10,11 @@ export interface PlanPreferenceInput {
 	date: string;
 	stopCount: number;
 	startPeriod: "day" | "evening" | "late" | "anytime";
+	routeStartTime: string | null;
+	anchoredStops: Array<{
+		eventKey: string;
+		stopOrder: number;
+	}>;
 	vibes: EventExperienceCategory[];
 	travelTolerance: "close" | "balanced" | "adventurous";
 	budget: "free" | "low" | "any";

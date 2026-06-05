@@ -17,6 +17,8 @@ const MIN_ROUTE_START_GAP_MINUTES = 60;
 const DEFAULT_PREFERENCES: Omit<PlanPreferenceInput, "date"> = {
 	stopCount: 3,
 	startPeriod: "anytime",
+	routeStartTime: null,
+	anchoredStops: [],
 	vibes: [],
 	travelTolerance: "balanced",
 	budget: "any",
@@ -44,8 +46,16 @@ interface Candidate {
 	event: Event;
 	category: EventExperienceCategory | null;
 	startMinutes: number | null;
+	endMinutes: number | null;
 	score: number;
 	reasons: string[];
+}
+
+interface RouteStartIntent {
+	kind: "anytime" | "period" | "exact";
+	minMinutes: number | null;
+	maxMinutes: number | null;
+	targetMinutes: number | null;
 }
 
 const normalizeKey = (value: string): string => value.trim().toLowerCase();
@@ -63,16 +73,107 @@ const parseTimeToMinutes = (value: string | undefined): number | null => {
 	return hours * 60 + minutes;
 };
 
-const periodScore = (
-	minutes: number | null,
-	period: PlanPreferenceInput["startPeriod"],
+const getRouteStartIntent = (
+	preferences: PlanPreferenceInput,
+): RouteStartIntent => {
+	const exactStartMinutes = parseTimeToMinutes(
+		preferences.routeStartTime ?? undefined,
+	);
+	if (exactStartMinutes !== null) {
+		return {
+			kind: "exact",
+			minMinutes: exactStartMinutes,
+			maxMinutes: null,
+			targetMinutes: exactStartMinutes,
+		};
+	}
+
+	if (preferences.startPeriod === "day") {
+		return {
+			kind: "period",
+			minMinutes: 10 * 60,
+			maxMinutes: 18 * 60,
+			targetMinutes: 10 * 60,
+		};
+	}
+	if (preferences.startPeriod === "evening") {
+		return {
+			kind: "period",
+			minMinutes: 17 * 60,
+			maxMinutes: 22 * 60,
+			targetMinutes: 17 * 60,
+		};
+	}
+	if (preferences.startPeriod === "late") {
+		return {
+			kind: "period",
+			minMinutes: 21 * 60,
+			maxMinutes: null,
+			targetMinutes: 21 * 60,
+		};
+	}
+
+	return {
+		kind: "anytime",
+		minMinutes: null,
+		maxMinutes: null,
+		targetMinutes: null,
+	};
+};
+
+const isInStartWindow = (
+	candidate: Candidate,
+	intent: RouteStartIntent,
+): boolean => {
+	if (intent.kind === "anytime" || candidate.startMinutes === null) return true;
+	if (intent.kind === "exact") {
+		if (candidate.startMinutes >= (intent.targetMinutes ?? 0)) return true;
+		return (
+			candidate.endMinutes === null ||
+			candidate.endMinutes >= (intent.targetMinutes ?? 0)
+		);
+	}
+	return (
+		candidate.startMinutes >= (intent.minMinutes ?? 0) &&
+		(intent.maxMinutes === null || candidate.startMinutes < intent.maxMinutes)
+	);
+};
+
+const startsAtOrAfterRouteStart = (
+	candidate: Candidate,
+	intent: RouteStartIntent,
+): boolean => {
+	if (intent.kind === "anytime" || candidate.startMinutes === null) return true;
+	return candidate.startMinutes >= (intent.minMinutes ?? 0);
+};
+
+const routeStartScore = (
+	candidate: Candidate,
+	intent: RouteStartIntent,
 ): number => {
-	if (period === "anytime" || minutes == null) return 0;
-	if (period === "day")
-		return minutes >= 10 * 60 && minutes < 18 * 60 ? 12 : -8;
-	if (period === "evening")
-		return minutes >= 17 * 60 && minutes < 22 * 60 ? 12 : -6;
-	return minutes >= 21 * 60 ? 12 : -5;
+	if (intent.kind === "anytime") return 0;
+	if (candidate.startMinutes === null) return -4;
+
+	const target = intent.targetMinutes ?? intent.minMinutes ?? 0;
+	if (intent.kind === "period") {
+		if (isInStartWindow(candidate, intent)) {
+			return (
+				26 -
+				Math.min(Math.floor(Math.abs(candidate.startMinutes - target) / 60), 8)
+			);
+		}
+		return candidate.startMinutes < target ? -24 : -8;
+	}
+
+	if (candidate.startMinutes >= target) {
+		return (
+			30 - Math.min(Math.floor((candidate.startMinutes - target) / 30), 18)
+		);
+	}
+	if (candidate.endMinutes !== null && candidate.endMinutes < target) {
+		return -36;
+	}
+	return 18 - Math.min(Math.floor((target - candidate.startMinutes) / 60), 14);
 };
 
 const resolveBudgetBucket = (
@@ -124,6 +225,7 @@ const buildPreferenceInput = (
 			mustIncludeEventKeys.length,
 		),
 		mustIncludeEventKeys,
+		anchoredStops: preferences?.anchoredStops ?? [],
 		vibes: preferences?.vibes ?? [],
 	};
 };
@@ -147,6 +249,7 @@ const scoreCandidate = (
 	const category =
 		getResolvedEventExperienceCategoryDefinition(event)?.key ?? null;
 	const startMinutes = parseTimeToMinutes(event.time);
+	const endMinutes = parseTimeToMinutes(event.endTime);
 	const reasons: string[] = [];
 	let score = 40;
 
@@ -187,9 +290,7 @@ const scoreCandidate = (
 		score += cost === "free" || cost === "low" ? 10 : -8;
 	}
 
-	score += periodScore(startMinutes, preferences.startPeriod);
-
-	return { event, category, startMinutes, score, reasons };
+	return { event, category, startMinutes, endMinutes, score, reasons };
 };
 
 const travelPenalty = (
@@ -216,6 +317,205 @@ const createLegs = (events: Event[]): PlanRouteLeg[] =>
 		};
 	});
 
+const findAvailableSlotIndex = (
+	slots: Array<Candidate | null>,
+	preferredIndex: number,
+): number | null => {
+	if (!slots[preferredIndex]) return preferredIndex;
+	for (let index = preferredIndex + 1; index < slots.length; index += 1) {
+		if (!slots[index]) return index;
+	}
+	for (let index = preferredIndex - 1; index >= 0; index -= 1) {
+		if (!slots[index]) return index;
+	}
+	return null;
+};
+
+const getTimedNeighbor = (
+	slots: Array<Candidate | null>,
+	slotIndex: number,
+	direction: -1 | 1,
+): number | null => {
+	for (
+		let index = slotIndex + direction;
+		index >= 0 && index < slots.length;
+		index += direction
+	) {
+		const minutes = slots[index]?.startMinutes;
+		if (minutes !== null && minutes !== undefined) return minutes;
+	}
+	return null;
+};
+
+const getSlotTimeBounds = (
+	slots: Array<Candidate | null>,
+	slotIndex: number,
+	intent: RouteStartIntent,
+): {
+	lowerBound: number | null;
+	upperBound: number | null;
+	hasPreviousAnchor: boolean;
+} => {
+	const previousMinutes = getTimedNeighbor(slots, slotIndex, -1);
+	const nextMinutes = getTimedNeighbor(slots, slotIndex, 1);
+	const hasPreviousAnchor = previousMinutes !== null;
+	let lowerBound = previousMinutes;
+	let upperBound = nextMinutes;
+
+	if (intent.kind !== "anytime" && intent.minMinutes !== null) {
+		lowerBound =
+			lowerBound === null
+				? intent.minMinutes
+				: Math.max(lowerBound, intent.minMinutes);
+	}
+	if (
+		!hasPreviousAnchor &&
+		intent.kind === "period" &&
+		intent.maxMinutes !== null
+	) {
+		upperBound =
+			upperBound === null
+				? intent.maxMinutes
+				: Math.min(upperBound, intent.maxMinutes);
+	}
+
+	return { lowerBound, upperBound, hasPreviousAnchor };
+};
+
+const fitsAnchoredSlot = (
+	candidate: Candidate,
+	slots: Array<Candidate | null>,
+	slotIndex: number,
+	intent: RouteStartIntent,
+): boolean => {
+	const { lowerBound, upperBound, hasPreviousAnchor } = getSlotTimeBounds(
+		slots,
+		slotIndex,
+		intent,
+	);
+	if (lowerBound !== null && upperBound !== null && lowerBound > upperBound) {
+		return false;
+	}
+	if (candidate.startMinutes === null) {
+		return lowerBound === null && upperBound === null;
+	}
+	if (lowerBound !== null && candidate.startMinutes < lowerBound) {
+		const canArriveAfterStart =
+			!hasPreviousAnchor &&
+			intent.kind === "exact" &&
+			isInStartWindow(candidate, intent);
+		if (!canArriveAfterStart) return false;
+	}
+	if (upperBound !== null && candidate.startMinutes > upperBound) {
+		return false;
+	}
+	return true;
+};
+
+const hasBreathingRoomInSlots = (
+	candidate: Candidate,
+	slots: Array<Candidate | null>,
+): boolean => {
+	const candidateStartMinutes = candidate.startMinutes;
+	return (
+		candidateStartMinutes === null ||
+		slots.every(
+			(item) =>
+				!item ||
+				item.startMinutes === null ||
+				Math.abs(candidateStartMinutes - item.startMinutes) >=
+					MIN_ROUTE_START_GAP_MINUTES,
+		)
+	);
+};
+
+const orderAnchoredCandidates = (
+	candidates: Candidate[],
+	preferences: PlanPreferenceInput,
+	intent: RouteStartIntent,
+	lockedKeys: Set<string>,
+): Candidate[] | null => {
+	const anchors = preferences.anchoredStops
+		.filter((stop) => lockedKeys.has(normalizeKey(stop.eventKey)))
+		.slice()
+		.sort((left, right) => left.stopOrder - right.stopOrder);
+	if (anchors.length === 0) return null;
+
+	const slots = new Array<Candidate | null>(preferences.stopCount).fill(null);
+	for (const anchor of anchors) {
+		const candidate = candidates.find(
+			(item) =>
+				normalizeKey(item.event.eventKey) === normalizeKey(anchor.eventKey),
+		);
+		if (!candidate) continue;
+		const preferredIndex = Math.min(
+			Math.max(anchor.stopOrder - 1, 0),
+			slots.length - 1,
+		);
+		const slotIndex = findAvailableSlotIndex(slots, preferredIndex);
+		if (slotIndex !== null) slots[slotIndex] = candidate;
+	}
+
+	const candidateRank = new Map(
+		candidates.map((candidate, index) => [
+			normalizeKey(candidate.event.eventKey),
+			index,
+		]),
+	);
+	const hasCandidate = (candidate: Candidate): boolean =>
+		slots.some(
+			(item) =>
+				item &&
+				normalizeKey(item.event.eventKey) ===
+					normalizeKey(candidate.event.eventKey),
+		);
+	const compareForSlot =
+		(slotIndex: number) =>
+		(left: Candidate, right: Candidate): number => {
+			const { lowerBound } = getSlotTimeBounds(slots, slotIndex, intent);
+			const target = lowerBound ?? intent.targetMinutes ?? 0;
+			const leftTime = left.startMinutes ?? 99 * 60;
+			const rightTime = right.startMinutes ?? 99 * 60;
+			return (
+				Math.abs(leftTime - target) - Math.abs(rightTime - target) ||
+				(candidateRank.get(normalizeKey(left.event.eventKey)) ?? 9999) -
+					(candidateRank.get(normalizeKey(right.event.eventKey)) ?? 9999) ||
+				left.event.name.localeCompare(right.event.name)
+			);
+		};
+	const fillSlots = (input: {
+		requireTimeFit: boolean;
+		requireBreathingRoom: boolean;
+	}) => {
+		for (let slotIndex = 0; slotIndex < slots.length; slotIndex += 1) {
+			if (slots[slotIndex]) continue;
+			const candidate = candidates
+				.filter((item) => !lockedKeys.has(normalizeKey(item.event.eventKey)))
+				.filter((item) => !hasCandidate(item))
+				.filter(
+					(item) =>
+						!input.requireTimeFit ||
+						fitsAnchoredSlot(item, slots, slotIndex, intent),
+				)
+				.filter(
+					(item) =>
+						!input.requireBreathingRoom || hasBreathingRoomInSlots(item, slots),
+				)
+				.sort(compareForSlot(slotIndex))[0];
+			if (candidate) slots[slotIndex] = candidate;
+		}
+	};
+
+	fillSlots({ requireTimeFit: true, requireBreathingRoom: true });
+	fillSlots({ requireTimeFit: true, requireBreathingRoom: false });
+	fillSlots({ requireTimeFit: false, requireBreathingRoom: true });
+	fillSlots({ requireTimeFit: false, requireBreathingRoom: false });
+
+	return slots.filter((candidate): candidate is Candidate =>
+		Boolean(candidate),
+	);
+};
+
 const orderCandidates = (
 	candidates: Candidate[],
 	preferences: PlanPreferenceInput,
@@ -223,12 +523,16 @@ const orderCandidates = (
 	const lockedKeys = new Set(
 		preferences.mustIncludeEventKeys.map(normalizeKey),
 	);
+	const intent = getRouteStartIntent(preferences);
 	const selected: Candidate[] = [];
-	for (const candidate of candidates) {
-		if (lockedKeys.has(normalizeKey(candidate.event.eventKey))) {
-			selected.push(candidate);
-		}
-	}
+	let intendedFirstKey: string | null = null;
+	const anchoredOrder = orderAnchoredCandidates(
+		candidates,
+		preferences,
+		intent,
+		lockedKeys,
+	);
+	if (anchoredOrder) return anchoredOrder;
 
 	const hasCandidate = (candidate: Candidate): boolean =>
 		selected.some(
@@ -248,29 +552,130 @@ const orderCandidates = (
 			)
 		);
 	};
-
-	for (const candidate of candidates) {
-		if (selected.length >= preferences.stopCount) break;
-		if (hasCandidate(candidate) || !hasBreathingRoom(candidate)) {
-			continue;
+	const addCandidate = (candidate: Candidate): boolean => {
+		if (selected.length >= preferences.stopCount || hasCandidate(candidate)) {
+			return false;
 		}
 		selected.push(candidate);
-	}
-
-	for (const candidate of candidates) {
-		if (selected.length >= preferences.stopCount) break;
-		if (hasCandidate(candidate)) continue;
-		selected.push(candidate);
-	}
-
-	return selected.slice(0, preferences.stopCount).sort((left, right) => {
+		return true;
+	};
+	const compareByRouteOrder = (left: Candidate, right: Candidate): number => {
 		if (left.startMinutes == null && right.startMinutes == null) {
 			return right.score - left.score;
 		}
 		if (left.startMinutes == null) return 1;
 		if (right.startMinutes == null) return -1;
-		return left.startMinutes - right.startMinutes;
-	});
+		return left.startMinutes - right.startMinutes || right.score - left.score;
+	};
+
+	for (const candidate of candidates) {
+		if (lockedKeys.has(normalizeKey(candidate.event.eventKey))) {
+			addCandidate(candidate);
+		}
+	}
+
+	if (intent.kind === "anytime") {
+		for (const candidate of candidates) {
+			if (selected.length >= preferences.stopCount) break;
+			if (hasCandidate(candidate) || !hasBreathingRoom(candidate)) continue;
+			addCandidate(candidate);
+		}
+
+		for (const candidate of candidates) {
+			if (selected.length >= preferences.stopCount) break;
+			if (hasCandidate(candidate)) continue;
+			addCandidate(candidate);
+		}
+
+		return selected.slice(0, preferences.stopCount).sort(compareByRouteOrder);
+	}
+
+	const unlockedCandidates = candidates.filter(
+		(candidate) => !lockedKeys.has(normalizeKey(candidate.event.eventKey)),
+	);
+	const scoreForFirstStop = (candidate: Candidate): number =>
+		candidate.score + routeStartScore(candidate, intent);
+	const compareByFirstStopFit = (left: Candidate, right: Candidate): number => {
+		if (intent.kind === "period") {
+			const leftInWindow = isInStartWindow(left, intent);
+			const rightInWindow = isInStartWindow(right, intent);
+			if (leftInWindow !== rightInWindow) return leftInWindow ? -1 : 1;
+			return (
+				(left.startMinutes ?? 99 * 60) - (right.startMinutes ?? 99 * 60) ||
+				right.score - left.score ||
+				left.event.name.localeCompare(right.event.name)
+			);
+		}
+		return (
+			scoreForFirstStop(right) - scoreForFirstStop(left) ||
+			(left.startMinutes ?? 99 * 60) - (right.startMinutes ?? 99 * 60) ||
+			left.event.name.localeCompare(right.event.name)
+		);
+	};
+	const compareByFallbackScore = (left: Candidate, right: Candidate): number =>
+		right.score - left.score ||
+		(left.startMinutes ?? 99 * 60) - (right.startMinutes ?? 99 * 60) ||
+		left.event.name.localeCompare(right.event.name);
+
+	if (selected.length === 0) {
+		const firstStop =
+			unlockedCandidates
+				.filter((candidate) => isInStartWindow(candidate, intent))
+				.sort(compareByFirstStopFit)[0] ??
+			unlockedCandidates.slice().sort(compareByFirstStopFit)[0];
+		if (firstStop) {
+			addCandidate(firstStop);
+			intendedFirstKey = normalizeKey(firstStop.event.eventKey);
+		}
+	}
+
+	const routeStartCandidates = unlockedCandidates
+		.filter((candidate) => !hasCandidate(candidate))
+		.filter((candidate) => startsAtOrAfterRouteStart(candidate, intent))
+		.sort(compareByRouteOrder);
+	const fallbackCandidates = unlockedCandidates
+		.filter((candidate) => !hasCandidate(candidate))
+		.sort(compareByFallbackScore);
+
+	for (const candidate of routeStartCandidates) {
+		if (selected.length >= preferences.stopCount) break;
+		if (hasCandidate(candidate) || !hasBreathingRoom(candidate)) {
+			continue;
+		}
+		addCandidate(candidate);
+	}
+
+	for (const candidate of fallbackCandidates) {
+		if (selected.length >= preferences.stopCount) break;
+		if (hasCandidate(candidate) || !hasBreathingRoom(candidate)) {
+			continue;
+		}
+		addCandidate(candidate);
+	}
+
+	for (const candidate of [...routeStartCandidates, ...fallbackCandidates]) {
+		if (selected.length >= preferences.stopCount) break;
+		if (hasCandidate(candidate)) continue;
+		addCandidate(candidate);
+	}
+
+	const ordered = selected
+		.slice(0, preferences.stopCount)
+		.sort(compareByRouteOrder);
+	if (lockedKeys.size > 0 || !intendedFirstKey) {
+		return ordered;
+	}
+	const intendedFirst = ordered.find(
+		(candidate) => normalizeKey(candidate.event.eventKey) === intendedFirstKey,
+	);
+	if (!intendedFirst) return ordered;
+	return [
+		intendedFirst,
+		...ordered.filter(
+			(candidate) =>
+				normalizeKey(candidate.event.eventKey) !== intendedFirstKey,
+		),
+	];
 };
 
 const buildSuggestion = (

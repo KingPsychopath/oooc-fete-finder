@@ -350,6 +350,85 @@ describe("buildSuggestedPlans", () => {
 		]);
 	});
 
+	it("uses the selected period as first-stop intent and builds forward", () => {
+		const suggestions = buildSuggestedPlans({
+			events: [
+				event({
+					eventKey: "saved-lunch",
+					time: "12:00",
+					isOOOCPick: true,
+				}),
+				event({ eventKey: "evening-first", time: "18:00" }),
+				event({ eventKey: "evening-second", time: "19:00" }),
+				event({ eventKey: "late-third", time: "22:00" }),
+			],
+			date: "2026-06-19",
+			preferences: {
+				stopCount: 3,
+				startPeriod: "evening",
+			},
+			signals: {
+				savedEventKeys: ["saved-lunch"],
+			},
+		});
+
+		expect(suggestions[0]?.eventKeys).toEqual([
+			"evening-first",
+			"evening-second",
+			"late-third",
+		]);
+	});
+
+	it("can treat an exact route start as planned arrival at an already-started event", () => {
+		const suggestions = buildSuggestedPlans({
+			events: [
+				event({
+					eventKey: "already-open",
+					time: "12:30",
+					isOOOCPick: true,
+					socialProofSaveCount: 10,
+				}),
+				event({ eventKey: "after-start", time: "15:00" }),
+				event({ eventKey: "later", time: "16:00" }),
+			],
+			date: "2026-06-19",
+			preferences: {
+				stopCount: 3,
+				routeStartTime: "14:00",
+			},
+		});
+
+		expect(suggestions[0]?.eventKeys).toEqual([
+			"already-open",
+			"after-start",
+			"later",
+		]);
+	});
+
+	it("fills around a pinned middle stop as a time anchor", () => {
+		const suggestions = buildSuggestedPlans({
+			events: [
+				event({ eventKey: "before-anchor", time: "10:00" }),
+				event({ eventKey: "too-many-before", time: "11:00" }),
+				event({ eventKey: "pinned-middle", time: "12:00" }),
+				event({ eventKey: "after-anchor", time: "14:00" }),
+			],
+			date: "2026-06-19",
+			preferences: {
+				stopCount: 3,
+				startPeriod: "day",
+				mustIncludeEventKeys: ["pinned-middle"],
+				anchoredStops: [{ eventKey: "pinned-middle", stopOrder: 2 }],
+			},
+		});
+
+		expect(suggestions[0]?.eventKeys).toEqual([
+			"before-anchor",
+			"pinned-middle",
+			"after-anchor",
+		]);
+	});
+
 	it("falls back to tighter timing when there are not enough spaced stops", () => {
 		const suggestions = buildSuggestedPlans({
 			events: [

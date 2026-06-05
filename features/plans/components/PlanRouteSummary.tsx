@@ -23,7 +23,12 @@ const STOP_DOT_CLASSES = [
 const formatTime = (value: string | undefined | null): string =>
 	value && value.toLowerCase() !== "tbc" ? value : "Time TBC";
 
+const PLAN_TIME_INPUT_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const normalizeEventKey = (value: string): string => value.trim().toLowerCase();
+const normalizePlanTimeInput = (value: string | undefined | null): string =>
+	value && PLAN_TIME_INPUT_PATTERN.test(value.trim()) ? value.trim() : "";
+const isKnownEventTime = (value: string | undefined | null): value is string =>
+	Boolean(value && value.toLowerCase() !== "tbc");
 
 export function PlanRouteSummary({
 	plan,
@@ -50,8 +55,15 @@ export function PlanRouteSummary({
 	return (
 		<ol className={cn("relative space-y-3", className)} aria-label="Plan stops">
 			{stops.map(({ event }, index) => {
+				const stop = stops[index]?.stop;
 				const category = getResolvedEventExperienceCategoryDefinition(event);
 				const isInteractive = Boolean(onEventSelect);
+				const plannedArrival = normalizePlanTimeInput(stop?.arrivalTime);
+				const officialStart = isKnownEventTime(event.time) ? event.time : null;
+				const plannedArrivalDiffers =
+					Boolean(plannedArrival) &&
+					Boolean(officialStart) &&
+					plannedArrival !== officialStart;
 				const cardClassName = cn(
 					"rounded-2xl border border-border/70 bg-background/88 p-3 text-left shadow-sm backdrop-blur transition duration-300 group-hover:-translate-y-0.5 group-hover:border-foreground/25 group-hover:shadow-md sm:p-4",
 					getEventCategoryCardClassName(category),
@@ -61,8 +73,13 @@ export function PlanRouteSummary({
 						<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
 							<span className="inline-flex items-center gap-1">
 								<Clock className="h-3.5 w-3.5" />
-								{formatTime(event.time)}
+								{plannedArrival
+									? `Arrive ${plannedArrival}`
+									: formatTime(event.time)}
 							</span>
+							{plannedArrivalDiffers && (
+								<span>Starts {formatTime(event.time)}</span>
+							)}
 							<span className="inline-flex items-center gap-1">
 								<MapPin className="h-3.5 w-3.5" />
 								{formatLocationAreaShort(event.arrondissement)}

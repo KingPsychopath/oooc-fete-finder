@@ -19,6 +19,7 @@ export const PLAN_ANALYTICS_ACTIONS = [
 	"reorder_stop",
 	"drag_reorder_stop",
 	"remove_stop",
+	"arrival_time_update",
 	"pin_stop",
 	"unpin_stop",
 	"share_create",
