@@ -241,7 +241,7 @@ export function PWAInstallPrompt() {
 									</CardTitle>
 								</div>
 								<CardDescription className="mt-3 text-sm leading-relaxed text-muted-foreground">
-									Add the app for quicker loading, offline access, and
+									Add the app for quicker loading, cached essentials, and
 									home-screen launch.
 								</CardDescription>
 							</div>
@@ -261,7 +261,7 @@ export function PWAInstallPrompt() {
 							<div className="rounded-xl border border-border/65 bg-background/58 p-2 text-center">
 								<Wifi className="mx-auto h-3.5 w-3.5 text-foreground/86" />
 								<p className="mt-1 text-[11px] leading-tight text-muted-foreground">
-									Offline-ready
+									Cached basics
 								</p>
 							</div>
 							<div className="rounded-xl border border-border/65 bg-background/58 p-2 text-center">

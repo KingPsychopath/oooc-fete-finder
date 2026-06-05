@@ -53,6 +53,114 @@ const siteStructuredDataJson = JSON.stringify(siteStructuredData).replace(
 	/</g,
 	"\\u003c",
 );
+const assetRecoveryScript = `
+(function () {
+	var RECOVERY_KEY = "oooc:static-asset-recovery:v1";
+	var RECOVERY_WINDOW_MS = 30000;
+	var CACHE_PREFIX = "oooc-fete-finder-";
+	var STATIC_PATH = "/_next/static/";
+
+	function isNextStaticAssetUrl(value) {
+		if (typeof value !== "string" || value.length === 0) return false;
+		try {
+			return new URL(value, window.location.href).pathname.indexOf(STATIC_PATH) !== -1;
+		} catch (error) {
+			return value.indexOf(STATIC_PATH) !== -1;
+		}
+	}
+
+	function errorText(value) {
+		if (!value) return "";
+		if (typeof value === "string") return value;
+		return [value.name, value.message, value.stack].filter(Boolean).join(" ");
+	}
+
+	function isStaticChunkError(value) {
+		var text = errorText(value);
+		return (
+			text.indexOf("ChunkLoadError") !== -1 ||
+			text.indexOf("Loading chunk") !== -1 ||
+			isNextStaticAssetUrl(text)
+		);
+	}
+
+	function hasRecentlyRecovered() {
+		try {
+			var recoveredAt = Number(window.sessionStorage.getItem(RECOVERY_KEY) || "0");
+			return Date.now() - recoveredAt < RECOVERY_WINDOW_MS;
+		} catch (error) {
+			return false;
+		}
+	}
+
+	function markRecovered() {
+		try {
+			window.sessionStorage.setItem(RECOVERY_KEY, String(Date.now()));
+		} catch (error) {}
+	}
+
+	function clearServiceWorkerCaches() {
+		if (!("caches" in window)) return Promise.resolve();
+		return caches.keys().then(function (cacheNames) {
+			return Promise.all(
+				cacheNames
+					.filter(function (cacheName) {
+						return cacheName.indexOf(CACHE_PREFIX) === 0;
+					})
+					.map(function (cacheName) {
+						return caches.delete(cacheName);
+					}),
+			);
+		});
+	}
+
+	function updateServiceWorkers() {
+		if (!("serviceWorker" in navigator)) return Promise.resolve();
+		return navigator.serviceWorker.getRegistrations().then(function (registrations) {
+			return Promise.all(
+				registrations.map(function (registration) {
+					return registration.update().catch(function () {});
+				}),
+			);
+		});
+	}
+
+	function recoverFromMissingStaticAsset() {
+		if (navigator.onLine === false || hasRecentlyRecovered()) return;
+		markRecovered();
+		Promise.all([
+			clearServiceWorkerCaches().catch(function () {}),
+			updateServiceWorkers().catch(function () {}),
+		]).then(function () {
+			window.location.reload();
+		});
+	}
+
+	window.addEventListener(
+		"error",
+		function (event) {
+			var target = event.target;
+			var url = target && (target.src || target.href);
+			if (isNextStaticAssetUrl(url) || isStaticChunkError(event.error || event.message)) {
+				recoverFromMissingStaticAsset();
+			}
+		},
+		true,
+	);
+
+	window.addEventListener("unhandledrejection", function (event) {
+		if (isStaticChunkError(event.reason)) recoverFromMissingStaticAsset();
+	});
+
+	if ("serviceWorker" in navigator) {
+		navigator.serviceWorker.addEventListener("message", function (event) {
+			if (event.data && event.data.type === "MISSING_STATIC_ASSET") {
+				recoverFromMissingStaticAsset();
+			}
+		});
+	}
+})();
+`.replace(/<\/script/gi, "<\\/script");
 
 const degular = localFont({
 	src: "../public/fonts/degular_regular.woff2",
@@ -159,6 +267,7 @@ export default function RootLayout({
 			suppressHydrationWarning
 		>
 			<head>
+				<script dangerouslySetInnerHTML={{ __html: assetRecoveryScript }} />
 				{/* PWA Manifest */}
 				<link rel="manifest" href={`${basePath}/manifest.webmanifest`} />
 				<meta name="theme-color" content="#000000" />

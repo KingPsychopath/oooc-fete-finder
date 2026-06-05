@@ -75,6 +75,10 @@ const nextConfig: NextConfig = {
 				source: "/sw.js",
 				headers: serviceWorkerHeaders,
 			},
+			{
+				source: "/offline.html",
+				headers: serviceWorkerHeaders,
+			},
 		];
 	},
 	turbopack: {},

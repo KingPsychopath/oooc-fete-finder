@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 const STATIC_RESOURCE_PATH_PREFIXES = ["/fonts/", "/favicon"] as const;
@@ -62,16 +63,18 @@ const sendRuntimeCacheUrlsToServiceWorker = (basePath: string) => {
 	controller.postMessage({ type: "CACHE_STATIC_URLS", urls });
 };
 
-const sendNavigationUrlToServiceWorker = () => {
+const sendNavigationSnapshotToServiceWorker = () => {
 	const controller = navigator.serviceWorker.controller;
 	if (!controller) return;
 	controller.postMessage({
-		type: "CACHE_NAVIGATION_URL",
+		type: "CACHE_CURRENT_NAVIGATION",
 		url: window.location.href,
 	});
 };
 
 export function ServiceWorkerRegistration() {
+	const pathname = usePathname();
+
 	useEffect(() => {
 		if (!("serviceWorker" in navigator)) return;
 		if (process.env.NODE_ENV !== "production") {
@@ -91,17 +94,49 @@ export function ServiceWorkerRegistration() {
 
 		let observer: PerformanceObserver | null = null;
 		let timeoutId: ReturnType<typeof setTimeout> | null = null;
+		const originalPushState = window.history.pushState;
+		const originalReplaceState = window.history.replaceState;
 
 		const scheduleStaticCacheSeed = () => {
 			if (timeoutId) clearTimeout(timeoutId);
 			timeoutId = setTimeout(() => {
-				sendNavigationUrlToServiceWorker();
+				sendNavigationSnapshotToServiceWorker();
 				sendRuntimeCacheUrlsToServiceWorker(basePath);
 			}, 250);
 		};
 
+		const handleHistoryChange = () => {
+			scheduleStaticCacheSeed();
+		};
+
+		window.history.pushState = function pushStateWithServiceWorkerCache(
+			data: unknown,
+			unused: string,
+			url?: string | URL | null,
+		) {
+			const result = originalPushState.call(window.history, data, unused, url);
+			handleHistoryChange();
+			return result;
+		};
+		window.history.replaceState = function replaceStateWithServiceWorkerCache(
+			data: unknown,
+			unused: string,
+			url?: string | URL | null,
+		) {
+			const result = originalReplaceState.call(
+				window.history,
+				data,
+				unused,
+				url,
+			);
+			handleHistoryChange();
+			return result;
+		};
+		window.addEventListener("popstate", handleHistoryChange);
+		window.addEventListener("hashchange", handleHistoryChange);
+
 		void navigator.serviceWorker
-			.register(serviceWorkerPath)
+			.register(serviceWorkerPath, { updateViaCache: "none" })
 			.then(async () => {
 				await navigator.serviceWorker.ready;
 				scheduleStaticCacheSeed();
@@ -121,6 +156,10 @@ export function ServiceWorkerRegistration() {
 
 		return () => {
 			if (timeoutId) clearTimeout(timeoutId);
+			window.history.pushState = originalPushState;
+			window.history.replaceState = originalReplaceState;
+			window.removeEventListener("popstate", handleHistoryChange);
+			window.removeEventListener("hashchange", handleHistoryChange);
 			navigator.serviceWorker.removeEventListener(
 				"controllerchange",
 				scheduleStaticCacheSeed,
@@ -128,6 +167,22 @@ export function ServiceWorkerRegistration() {
 			observer?.disconnect();
 		};
 	}, []);
+
+	useEffect(() => {
+		if (!("serviceWorker" in navigator)) return;
+		if (process.env.NODE_ENV !== "production") return;
+		if (!pathname) return;
+
+		const timeoutId = window.setTimeout(() => {
+			sendNavigationSnapshotToServiceWorker();
+			const basePath = normalizeBasePath(
+				process.env.NEXT_PUBLIC_BASE_PATH || "",
+			);
+			sendRuntimeCacheUrlsToServiceWorker(basePath);
+		}, 500);
+
+		return () => window.clearTimeout(timeoutId);
+	}, [pathname]);
 
 	return null;
 }

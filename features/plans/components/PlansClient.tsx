@@ -2109,8 +2109,8 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 																	Done
 																</button>
 																<p className="w-full text-xs leading-5 text-muted-foreground">
-																	Used for this route and calendar export.
-																	Official event time stays unchanged.
+																	Changes the arrival shown for this stop. Clear
+																	uses the event time again.
 																</p>
 															</div>
 														)}

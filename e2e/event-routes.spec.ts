@@ -216,6 +216,74 @@ const waitForNextStaticCache = async (page: Page) => {
 	});
 };
 
+const waitForCoherentCachedNavigation = async (page: Page, path = "/") => {
+	await page.waitForFunction(async (targetPath) => {
+		const cacheNames = await caches.keys();
+		const pageCacheName = cacheNames.find((cacheName) =>
+			cacheName.endsWith(":pages"),
+		);
+		const metadataCacheName = cacheNames.find((cacheName) =>
+			cacheName.endsWith(":page-metadata"),
+		);
+		const staticCacheName = cacheNames.find((cacheName) =>
+			cacheName.endsWith(":static"),
+		);
+		if (!pageCacheName || !metadataCacheName || !staticCacheName) return false;
+
+		const url = new URL(targetPath, window.location.origin);
+		const metadataUrl = new URL(
+			`/__oooc-sw/page-metadata?url=${encodeURIComponent(url.href)}`,
+			window.location.origin,
+		);
+		const [pageCache, metadataCache, staticCache] = await Promise.all([
+			caches.open(pageCacheName),
+			caches.open(metadataCacheName),
+			caches.open(staticCacheName),
+		]);
+		const [pageResponse, metadataResponse] = await Promise.all([
+			pageCache.match(url.href),
+			metadataCache.match(metadataUrl.href),
+		]);
+		if (!pageResponse || !metadataResponse) return false;
+
+		const metadata = (await metadataResponse.json()) as {
+			assetUrls?: unknown[];
+			cacheVersion?: string;
+		};
+		if (
+			typeof metadata.cacheVersion !== "string" ||
+			!Array.isArray(metadata.assetUrls) ||
+			metadata.assetUrls.length === 0
+		) {
+			return false;
+		}
+
+		for (const assetUrl of metadata.assetUrls) {
+			if (typeof assetUrl !== "string") return false;
+			if (!(await staticCache.match(assetUrl))) return false;
+		}
+		return true;
+	}, path);
+};
+
+const getServiceWorkerOfflineStatus = async (page: Page) =>
+	page.evaluate(async () => {
+		if (!navigator.serviceWorker) return null;
+		const registration = await navigator.serviceWorker.ready;
+		const worker = navigator.serviceWorker.controller ?? registration.active;
+		if (!worker) return null;
+
+		return new Promise<unknown>((resolve) => {
+			const channel = new MessageChannel();
+			const timeoutId = window.setTimeout(() => resolve(null), 1000);
+			channel.port1.onmessage = (event) => {
+				window.clearTimeout(timeoutId);
+				resolve(event.data);
+			};
+			worker.postMessage({ type: "GET_OFFLINE_STATUS" }, [channel.port2]);
+		});
+	});
+
 const verifyUserSession = async (page: Page) => {
 	await page.context().addCookies([
 		{
@@ -398,7 +466,7 @@ test.describe("event share routes", () => {
 	}) => {
 		await page.goto("/");
 
-		await page.locator("#tour-first-event-card").click();
+		await page.locator("#tour-first-event-card").first().click();
 
 		await expect(page).toHaveURL(/\/event\/evt_[^/]+\/[^/]+/);
 		await expect(page.getByRole("dialog")).toBeVisible();
@@ -415,7 +483,7 @@ test.describe("event share routes", () => {
 	}) => {
 		await page.goto("/");
 
-		await page.locator("#tour-first-event-card").click();
+		await page.locator("#tour-first-event-card").first().click();
 
 		const modalCard = page.locator("[data-event-modal-card]");
 		await expect(modalCard).toBeVisible();
@@ -473,19 +541,20 @@ test.describe("event share routes", () => {
 	}) => {
 		await verifyUserSession(page);
 		await page.goto("/");
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await expect(page.locator("#tour-first-event-card").first()).toBeVisible();
 		await waitForServiceWorkerReady(page);
 		await page.reload({ waitUntil: "domcontentloaded" });
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await expect(page.locator("#tour-first-event-card").first()).toBeVisible();
 		await waitForHomeEventSnapshot(page);
 		await waitForOfflineGraceState(page);
+		await waitForCoherentCachedNavigation(page);
 
 		await setBrowserOffline(context, page, true);
 		await page.reload({ waitUntil: "domcontentloaded" });
 		await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 
 		await expect(page.getByText(/^Cached event data:/)).toBeVisible();
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await expect(page.locator("#tour-first-event-card").first()).toBeVisible();
 
 		const searchInput = page.getByRole("textbox", {
 			name: "Search events, locations, genres, categories...",
@@ -513,7 +582,7 @@ test.describe("event share routes", () => {
 	}) => {
 		await verifyUserSession(page);
 		await page.goto("/?offlineDebug=1");
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await expect(page.locator("#tour-first-event-card").first()).toBeVisible();
 		const sessionPayload = await page.evaluate(async () => {
 			const response = await fetch("/api/auth/session", { cache: "no-store" });
 			return response.json() as Promise<{ isAuthenticated: boolean }>;
@@ -521,9 +590,13 @@ test.describe("event share routes", () => {
 		expect(sessionPayload).toMatchObject({ isAuthenticated: true });
 		await waitForServiceWorkerReady(page);
 		await page.reload({ waitUntil: "domcontentloaded" });
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await expect(page.locator("#tour-first-event-card").first()).toBeVisible();
 		await waitForHomeEventSnapshot(page);
 		await waitForOfflineGraceState(page);
+		await waitForCoherentCachedNavigation(
+			page,
+			`${new URL(page.url()).pathname}${new URL(page.url()).search}`,
+		);
 		await expect(page.getByText("Auth mode").locator("..")).toContainText(
 			"live",
 		);
@@ -554,10 +627,10 @@ test.describe("event share routes", () => {
 		page,
 	}) => {
 		await page.goto("/");
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await expect(page.locator("#tour-first-event-card").first()).toBeVisible();
 		await waitForServiceWorkerReady(page);
 		await page.reload({ waitUntil: "domcontentloaded" });
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await expect(page.locator("#tour-first-event-card").first()).toBeVisible();
 		await waitForHomeEventSnapshot(page);
 
 		await page
@@ -566,6 +639,10 @@ test.describe("event share routes", () => {
 			.click();
 		await expect(page.getByRole("dialog", { name: EVENT_TITLE })).toBeVisible();
 		await waitForEventDetailSnapshot(page, EVENT_KEY);
+		await waitForCoherentCachedNavigation(
+			page,
+			`${new URL(page.url()).pathname}${new URL(page.url()).search}`,
+		);
 
 		await setBrowserOffline(context, page, true);
 		await page.reload({ waitUntil: "domcontentloaded" });
@@ -590,12 +667,12 @@ test.describe("event share routes", () => {
 		await markTourSeen(page);
 		const assertNoChunkLoadError = failOnChunkLoadError(page);
 		await page.goto("/");
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await expect(page.locator("#tour-first-event-card").first()).toBeVisible();
 		await waitForServiceWorkerReady(page);
 		await waitForServiceWorkerController(page);
 		await waitForNextStaticCache(page);
 		await page.reload({ waitUntil: "domcontentloaded" });
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await expect(page.locator("#tour-first-event-card").first()).toBeVisible();
 
 		const serviceWorkerState = await page.evaluate(() => ({
 			hasController: Boolean(navigator.serviceWorker.controller),
@@ -605,6 +682,18 @@ test.describe("event share routes", () => {
 		}));
 		expect(serviceWorkerState.hasController).toBe(true);
 		expect(serviceWorkerState.manifestHref).toContain("/manifest.webmanifest");
+		const offlineStatus = await getServiceWorkerOfflineStatus(page);
+		expect(offlineStatus).toMatchObject({
+			cacheNames: {
+				pageMetadata: expect.stringContaining(":page-metadata"),
+				pages: expect.stringContaining(":pages"),
+				safeApi: expect.stringContaining(":safe-api"),
+				static: expect.stringContaining(":static"),
+			},
+			offlineFallbackPath: "/offline.html",
+			type: "OFFLINE_STATUS",
+		});
+		expect(JSON.stringify(offlineStatus)).not.toContain("app-shell");
 		await waitForNextStaticCache(page);
 
 		await waitForHomeEventSnapshot(page);
@@ -614,6 +703,10 @@ test.describe("event share routes", () => {
 			.getByRole("heading", { name: EVENT_TITLE })
 			.click();
 		await waitForEventDetailSnapshot(page, EVENT_KEY);
+		await waitForCoherentCachedNavigation(
+			page,
+			`${new URL(page.url()).pathname}${new URL(page.url()).search}`,
+		);
 		await page.getByRole("button", { name: "Close event details" }).click();
 
 		await page.evaluate(async () => {
@@ -669,7 +762,7 @@ test.describe("event share routes", () => {
 		await expect(page.getByRole("dialog", { name: EVENT_TITLE })).toBeVisible();
 		await expect(page.getByText(/^Cached event data:/)).toHaveCount(0);
 		await page.getByRole("button", { name: "Close event details" }).click();
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await expect(page.locator("#tour-first-event-card").first()).toBeVisible();
 		assertNoChunkLoadError();
 	});
 
@@ -678,7 +771,7 @@ test.describe("event share routes", () => {
 		page,
 	}) => {
 		await page.goto("/");
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await expect(page.locator("#tour-first-event-card").first()).toBeVisible();
 		await waitForHomeEventSnapshot(page);
 
 		await setBrowserOffline(context, page, true);
@@ -686,7 +779,7 @@ test.describe("event share routes", () => {
 
 		await setBrowserOffline(context, page, false);
 		await expect(page.getByText(/^Cached event data:/)).toHaveCount(0);
-		await expect(page.locator("#tour-first-event-card")).toBeVisible();
+		await expect(page.locator("#tour-first-event-card").first()).toBeVisible();
 	});
 });
 

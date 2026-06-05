@@ -6,11 +6,13 @@ import { useEffect, useMemo, useState } from "react";
 
 interface ServiceWorkerOfflineStatus {
 	cacheNames: {
-		appShell: string;
+		pageMetadata?: string;
+		pages?: string;
 		static: string;
 		safeApi: string;
 	};
 	cacheVersion: string;
+	offlineFallbackPath?: string;
 	type: "OFFLINE_STATUS";
 }
 
@@ -144,6 +146,10 @@ export function OfflineDebugPanel() {
 			[
 				"Cache names",
 				browserCacheNames.length > 0 ? browserCacheNames.join(", ") : "none",
+			],
+			[
+				"Offline fallback",
+				serviceWorkerStatus?.offlineFallbackPath ?? "unavailable",
 			],
 		],
 		[
