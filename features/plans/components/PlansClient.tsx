@@ -1499,7 +1499,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 											onClick={() => setRouteStartTime("")}
 											className="rounded-full px-2 py-0.5 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
 										>
-											Use event time
+											Use event times
 										</button>
 									)}
 								</div>
@@ -2096,7 +2096,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 																		}
 																		className="h-8 rounded-full border border-border bg-background px-3 text-xs text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
 																	>
-																		Clear
+																		Use event time
 																	</button>
 																)}
 																<button
