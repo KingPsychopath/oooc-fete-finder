@@ -34,6 +34,8 @@ type TypeaheadComboboxProps = {
 	maxVisibleOptions?: number;
 	clearOnSelect?: boolean;
 	className?: string;
+	controlClassName?: string;
+	inputClassName?: string;
 	leadingIcon?: ReactNode;
 	trailingAdornment?: ReactNode;
 	filterOptions?: (
@@ -70,6 +72,8 @@ export function TypeaheadCombobox({
 	maxVisibleOptions = 8,
 	clearOnSelect = false,
 	className,
+	controlClassName,
+	inputClassName,
 	leadingIcon = <Search className="h-4 w-4" />,
 	trailingAdornment,
 	filterOptions = defaultFilterOptions,
@@ -217,6 +221,7 @@ export function TypeaheadCombobox({
 			<div
 				className={cn(
 					"relative rounded-xl border border-border/70 bg-background transition-[border-color,box-shadow,border-radius] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]",
+					controlClassName,
 					isOpen && "rounded-b-none border-foreground/30 shadow-sm",
 					disabled && "opacity-70",
 				)}
@@ -245,6 +250,7 @@ export function TypeaheadCombobox({
 					onKeyDown={handleKeyDown}
 					className={cn(
 						"h-11 w-full rounded-xl bg-transparent pr-3 pl-10 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed",
+						inputClassName,
 						trailingAdornment && "pr-16",
 						isOpen && "rounded-b-none",
 					)}

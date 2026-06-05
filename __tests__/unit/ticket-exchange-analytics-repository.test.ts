@@ -33,6 +33,11 @@ describe("TicketExchangeAnalyticsRepository", () => {
 						validationErrorCount: 1,
 						actionFailedCount: 1,
 						emptyStateCtaCount: 1,
+						tourPromptShownCount: 1,
+						tourPromptDismissCount: 1,
+						tourStartCount: 1,
+						tourCompleteCount: 1,
+						tourSkipCount: 1,
 						uniqueActionSessionCount: 1,
 						uniqueListingCreateSessionCount: 1,
 						uniqueContactUnlockSessionCount: 1,
@@ -61,6 +66,8 @@ describe("TicketExchangeAnalyticsRepository", () => {
 		expect(queries).toContain("validation_error");
 		expect(queries).toContain("action_failed");
 		expect(queries).toContain("report_submit");
+		expect(queries).toContain("tour_start");
+		expect(queries).toContain("tour_complete");
 		expect(queries).toContain("idx_ticket_exchange_analytics_event_time");
 	});
 

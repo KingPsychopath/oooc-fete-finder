@@ -33,6 +33,7 @@ import {
 	isMyTicketExchangeActivityVisible,
 	isPublicTicketExchangeListingVisible,
 } from "@/features/ticket-exchange/listing-visibility";
+import { requestTicketExchangeTour } from "@/features/ticket-exchange/tour-onboarding";
 import type {
 	TicketExchangeActionResult,
 	TicketExchangeContactMethod,
@@ -67,6 +68,7 @@ import {
 	ArrowUpRight,
 	AtSign,
 	Check,
+	CircleHelp,
 	Clock,
 	ExternalLink,
 	Eye,
@@ -91,12 +93,14 @@ import { useRouter } from "next/navigation";
 import {
 	type ReactNode,
 	type RefObject,
+	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
 	useState,
 	useTransition,
 } from "react";
+import { TicketExchangeTour } from "./TicketExchangeTour";
 
 type TabKey = "all" | "selling" | "looking" | "mine";
 type MarketplaceTabKey = Exclude<TabKey, "mine">;
@@ -150,6 +154,8 @@ const TICKET_EXCHANGE_TIMEOUT_RESULT = {
 const TICKET_EXCHANGE_AGREEMENT_STORAGE_KEY = `oooc_ticket_exchange_agreement_${TICKET_EXCHANGE_RULES_VERSION}`;
 const CONTROL_TRANSITION =
 	"transition-[background-color,border-color,color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] active:scale-[0.98]";
+const TICKET_EXCHANGE_SQUIRCLE_BUTTON_CLASS = "rounded-xl";
+const TICKET_EXCHANGE_SQUIRCLE_INPUT_CLASS = "rounded-2xl";
 const MARKETPLACE_TABS: Array<{ key: MarketplaceTabKey; label: string }> = [
 	{ key: "all", label: "All" },
 	{ key: "selling", label: "Selling" },
@@ -744,6 +750,16 @@ export function TicketExchangeClient({
 			return left.id.localeCompare(right.id) * sortMultiplier;
 		});
 	}, [activeTab, data.listings, listingSortDirection, selectedEventKey]);
+	const firstReplyTourListingId = useMemo(
+		() =>
+			visibleListings.find(
+				(listing) =>
+					listing.effectiveStatus === "active" &&
+					!listing.isOwner &&
+					!listing.myInterest,
+			)?.id ?? null,
+		[visibleListings],
+	);
 	const sortListingsButtonLabel =
 		listingSortDirection === "newest"
 			? "Showing newest listings first"
@@ -879,6 +895,10 @@ export function TicketExchangeClient({
 		});
 		openCreateListing(emptyListingCopy.type);
 	};
+
+	const startTicketExchangeTour = useCallback(() => {
+		requestTicketExchangeTour();
+	}, []);
 
 	const applyResult = (result: TicketExchangeActionResult, success: string) => {
 		if (!result.success) {
@@ -1725,11 +1745,19 @@ export function TicketExchangeClient({
 							.
 						</div>
 					</div>
-					<div className="hidden flex-wrap gap-2 lg:flex lg:justify-end">
+					<div
+						id="ticket-exchange-top-actions"
+						className="flex flex-wrap gap-2 lg:justify-end"
+					>
 						<Button
+							id="ticket-exchange-top-contact-button"
 							type="button"
 							variant={isProfileOpen ? "secondary" : "outline"}
 							onClick={openContactDetails}
+							className={cn(
+								"hidden lg:inline-flex",
+								TICKET_EXCHANGE_SQUIRCLE_BUTTON_CLASS,
+							)}
 						>
 							<UserRound className="h-4 w-4" />
 							<span>{isProfileOpen ? "Hide contacts" : "Contact details"}</span>
@@ -1740,7 +1768,21 @@ export function TicketExchangeClient({
 								/>
 							) : null}
 						</Button>
-						<Button type="button" onClick={() => openCreateListing("selling")}>
+						<Button
+							id="ticket-exchange-tour-button"
+							type="button"
+							variant="outline"
+							onClick={startTicketExchangeTour}
+							className={TICKET_EXCHANGE_SQUIRCLE_BUTTON_CLASS}
+						>
+							<CircleHelp className="h-4 w-4" />
+							Tour
+						</Button>
+						<Button
+							id="ticket-exchange-primary-post-button"
+							type="button"
+							onClick={() => openCreateListing("selling")}
+						>
 							<Plus className="h-4 w-4" />
 							Post ticket
 						</Button>
@@ -2209,18 +2251,24 @@ export function TicketExchangeClient({
 				</div>
 				<div className="grid gap-2">
 					<TypeaheadCombobox
+						id="ticket-exchange-mobile-event-filter"
 						options={eventOptions}
 						placeholder="Filter by event"
 						emptyMessage="No matching events"
 						maxVisibleOptions={6}
 						clearOnSelect
+						controlClassName={TICKET_EXCHANGE_SQUIRCLE_INPUT_CLASS}
+						inputClassName={TICKET_EXCHANGE_SQUIRCLE_INPUT_CLASS}
 						leadingIcon={<Search className="h-4 w-4" />}
 						onSelect={(option) => selectEvent(option.value)}
 					/>
 					<Button
 						type="button"
 						variant={isProfileOpen ? "secondary" : "outline"}
-						className="justify-start"
+						className={cn(
+							"justify-start",
+							TICKET_EXCHANGE_SQUIRCLE_BUTTON_CLASS,
+						)}
 						onClick={openContactDetails}
 					>
 						<UserRound className="h-4 w-4" />
@@ -2296,18 +2344,22 @@ export function TicketExchangeClient({
 						>
 							<span>All tickets</span>
 						</Link>
-						<TypeaheadCombobox
-							options={eventOptions}
-							placeholder="Filter by event"
-							emptyMessage="No matching events"
-							maxVisibleOptions={6}
-							clearOnSelect
-							leadingIcon={<Search className="h-4 w-4" />}
-							className="mb-2"
-							onSelect={(option) => {
-								selectEvent(option.value);
-							}}
-						/>
+						<div id="ticket-exchange-event-filter">
+							<TypeaheadCombobox
+								options={eventOptions}
+								placeholder="Filter by event"
+								emptyMessage="No matching events"
+								maxVisibleOptions={6}
+								clearOnSelect
+								leadingIcon={<Search className="h-4 w-4" />}
+								controlClassName={TICKET_EXCHANGE_SQUIRCLE_INPUT_CLASS}
+								inputClassName={TICKET_EXCHANGE_SQUIRCLE_INPUT_CLASS}
+								className="mb-2"
+								onSelect={(option) => {
+									selectEvent(option.value);
+								}}
+							/>
+						</div>
 						<div className="max-h-[34rem] space-y-1 overflow-y-auto">
 							{activitySortedEvents.map((event) => {
 								const summary = summaryByEventKey.get(event.eventKey);
@@ -2361,6 +2413,7 @@ export function TicketExchangeClient({
 
 				<section className="min-w-0 space-y-4">
 					<div
+						id="ticket-exchange-board-controls"
 						ref={boardControlsRef}
 						className="sticky top-2 z-30 rounded-[1.15rem] border border-border/65 bg-card/86 p-1.5 shadow-[0_18px_44px_-34px_rgba(20,16,12,0.62),inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-xl sm:rounded-2xl sm:p-2 lg:static lg:bg-card/70 lg:shadow-[inset_0_1px_0_rgba(255,255,255,0.34)] dark:bg-card/58 dark:shadow-[0_18px_44px_-34px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.08)]"
 					>
@@ -2385,6 +2438,7 @@ export function TicketExchangeClient({
 						) : null}
 						<div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
 							<div
+								id="ticket-exchange-marketplace-tabs"
 								role="group"
 								aria-label="Ticket exchange activity"
 								className="relative isolate grid min-w-0 flex-1 grid-cols-3 overflow-hidden rounded-xl border border-border/70 bg-[radial-gradient(ellipse_115%_130%_at_50%_-18%,rgba(255,255,255,0.42),transparent_54%),radial-gradient(ellipse_90%_92%_at_12%_115%,hsl(var(--primary)/0.12),transparent_64%),linear-gradient(145deg,hsl(var(--background)/0.62),hsl(var(--card)/0.7))] p-1 shadow-[0_18px_42px_-34px_rgba(20,16,12,0.78),inset_0_1px_0_rgba(255,255,255,0.58),inset_0_-1px_0_rgba(20,16,12,0.08)] backdrop-blur-xl sm:rounded-2xl dark:bg-[radial-gradient(ellipse_115%_130%_at_50%_-18%,rgba(255,255,255,0.08),transparent_54%),radial-gradient(ellipse_90%_92%_at_12%_115%,hsl(var(--primary)/0.14),transparent_64%),linear-gradient(145deg,hsl(var(--background)/0.44),hsl(var(--card)/0.58))]"
@@ -2459,6 +2513,7 @@ export function TicketExchangeClient({
 									) : null}
 								</Button>
 								<Button
+									id="ticket-exchange-board-post-button"
 									type="button"
 									size="sm"
 									onClick={() =>
@@ -2514,6 +2569,7 @@ export function TicketExchangeClient({
 								<ListingCard
 									key={listing.id}
 									listing={listing}
+									isReplyTourTarget={listing.id === firstReplyTourListingId}
 									profile={data.profile}
 									isAuthenticated={data.isAuthenticated || auth.isAuthenticated}
 									contactMethodCount={draftContactMethodCount}
@@ -2715,6 +2771,7 @@ export function TicketExchangeClient({
 					onNavigateSeriesEvent={setSelectedModalEvent}
 				/>
 			)}
+			<TicketExchangeTour selectedEventKey={selectedEventKey} />
 		</div>
 	);
 }
@@ -2966,6 +3023,7 @@ function ListingCard({
 	onRepost,
 	busyInterestId,
 	busyStatusId,
+	isReplyTourTarget = false,
 }: {
 	listing: TicketExchangeListingView;
 	profile: TicketExchangeContactProfile | null;
@@ -2984,6 +3042,7 @@ function ListingCard({
 	onRepost: (listing: TicketExchangeListingView) => void;
 	busyInterestId: string | null;
 	busyStatusId: string | null;
+	isReplyTourTarget?: boolean;
 }) {
 	const contactEntries = visibleContactEntries(listing.contactSnapshot);
 	const isInterestBusy = busyInterestId === listing.id;
@@ -3342,9 +3401,15 @@ function ListingCard({
 									</div>
 								) : (
 									<Button
+										id={
+											isReplyTourTarget
+												? "ticket-exchange-first-reply-button"
+												: undefined
+										}
 										type="button"
 										size="sm"
 										disabled={isInterestBusy}
+										className={TICKET_EXCHANGE_SQUIRCLE_BUTTON_CLASS}
 										title={
 											isAuthenticated && (!hasAgreement || !hasContactSetup)
 												? replyRequirementText
@@ -3385,7 +3450,7 @@ function ListingCard({
 								}
 								onReport(listing.id);
 							}}
-							className="ml-auto"
+							className={cn("ml-auto", TICKET_EXCHANGE_SQUIRCLE_BUTTON_CLASS)}
 						>
 							<Flag className="h-3.5 w-3.5" />
 							Report

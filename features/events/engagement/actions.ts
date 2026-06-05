@@ -308,6 +308,11 @@ async function loadEventEngagementDashboard(
 					validationErrorCount: number;
 					actionFailedCount: number;
 					emptyStateCtaCount: number;
+					tourPromptShownCount: number;
+					tourPromptDismissCount: number;
+					tourStartCount: number;
+					tourCompleteCount: number;
+					tourSkipCount: number;
 					uniqueActionSessionCount: number;
 					uniqueListingCreateSessionCount: number;
 					uniqueContactUnlockSessionCount: number;
@@ -784,6 +789,11 @@ async function loadEventEngagementDashboard(
 						validationErrorCount: 0,
 						actionFailedCount: 0,
 						emptyStateCtaCount: 0,
+						tourPromptShownCount: 0,
+						tourPromptDismissCount: 0,
+						tourStartCount: 0,
+						tourCompleteCount: 0,
+						tourSkipCount: 0,
 						uniqueActionSessionCount: 0,
 						uniqueListingCreateSessionCount: 0,
 						uniqueContactUnlockSessionCount: 0,

@@ -131,4 +131,29 @@ describe("/api/analytics/ticket-exchange", () => {
 			}),
 		);
 	});
+
+	it("records ticket exchange tour analytics", async () => {
+		const { POST } = await loadRoute();
+		const response = await POST(
+			makeRequest({
+				actionType: "tour_start",
+				sessionId: "session-1",
+				eventKey: "evt_abc",
+				surface: "tour",
+				detail: "manual",
+				path: "/exchange/evt_abc",
+				recordedAt: "2026-06-01T12:00:00.000Z",
+			}),
+		);
+
+		expect(response.status).toBe(202);
+		expect(recordAction).toHaveBeenCalledWith(
+			expect.objectContaining({
+				actionType: "tour_start",
+				eventKey: "evt_abc",
+				surface: "tour",
+				detail: "manual",
+			}),
+		);
+	});
 });

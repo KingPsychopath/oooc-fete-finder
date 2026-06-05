@@ -62,6 +62,11 @@ type TicketExchangeAnalyticsSummaryRow = {
 	validationErrorCount: number;
 	actionFailedCount: number;
 	emptyStateCtaCount: number;
+	tourPromptShownCount: number;
+	tourPromptDismissCount: number;
+	tourStartCount: number;
+	tourCompleteCount: number;
+	tourSkipCount: number;
 	uniqueActionSessionCount: number;
 	uniqueListingCreateSessionCount: number;
 	uniqueContactUnlockSessionCount: number;
@@ -132,6 +137,11 @@ const emptySummary = (): TicketExchangeAnalyticsSummaryRow => ({
 	validationErrorCount: 0,
 	actionFailedCount: 0,
 	emptyStateCtaCount: 0,
+	tourPromptShownCount: 0,
+	tourPromptDismissCount: 0,
+	tourStartCount: 0,
+	tourCompleteCount: 0,
+	tourSkipCount: 0,
 	uniqueActionSessionCount: 0,
 	uniqueListingCreateSessionCount: 0,
 	uniqueContactUnlockSessionCount: 0,
@@ -152,7 +162,7 @@ export class TicketExchangeAnalyticsRepository {
 		await this.sql`
 			CREATE TABLE IF NOT EXISTS ticket_exchange_analytics_stats (
 				id BIGSERIAL PRIMARY KEY,
-				action_type TEXT NOT NULL CHECK (action_type IN ('exchange_view', 'event_select', 'event_details_open', 'tab_change', 'sort_change', 'profile_open', 'profile_save', 'agreement_open', 'agreement_accept', 'listing_form_open', 'listing_create', 'contact_unlock', 'contact_link_click', 'listing_status_update', 'listing_repost', 'report_open', 'report_submit', 'flow_blocked', 'validation_error', 'action_failed', 'empty_state_cta')),
+				action_type TEXT NOT NULL CHECK (action_type IN ('exchange_view', 'event_select', 'event_details_open', 'tab_change', 'sort_change', 'profile_open', 'profile_save', 'agreement_open', 'agreement_accept', 'listing_form_open', 'listing_create', 'contact_unlock', 'contact_link_click', 'listing_status_update', 'listing_repost', 'report_open', 'report_submit', 'flow_blocked', 'validation_error', 'action_failed', 'empty_state_cta', 'tour_prompt_shown', 'tour_prompt_dismiss', 'tour_start', 'tour_complete', 'tour_skip')),
 				session_id TEXT,
 				user_id TEXT,
 				user_email TEXT,
@@ -180,7 +190,7 @@ export class TicketExchangeAnalyticsRepository {
 				DROP CONSTRAINT IF EXISTS ticket_exchange_analytics_stats_action_type_check;
 				ALTER TABLE ticket_exchange_analytics_stats
 				ADD CONSTRAINT ticket_exchange_analytics_stats_action_type_check
-				CHECK (action_type IN ('exchange_view', 'event_select', 'event_details_open', 'tab_change', 'sort_change', 'profile_open', 'profile_save', 'agreement_open', 'agreement_accept', 'listing_form_open', 'listing_create', 'contact_unlock', 'contact_link_click', 'listing_status_update', 'listing_repost', 'report_open', 'report_submit', 'flow_blocked', 'validation_error', 'action_failed', 'empty_state_cta'));
+				CHECK (action_type IN ('exchange_view', 'event_select', 'event_details_open', 'tab_change', 'sort_change', 'profile_open', 'profile_save', 'agreement_open', 'agreement_accept', 'listing_form_open', 'listing_create', 'contact_unlock', 'contact_link_click', 'listing_status_update', 'listing_repost', 'report_open', 'report_submit', 'flow_blocked', 'validation_error', 'action_failed', 'empty_state_cta', 'tour_prompt_shown', 'tour_prompt_dismiss', 'tour_start', 'tour_complete', 'tour_skip'));
 			END $$;
 		`;
 
@@ -285,6 +295,11 @@ export class TicketExchangeAnalyticsRepository {
 				COUNT(*) FILTER (WHERE action_type = 'validation_error')::int AS "validationErrorCount",
 				COUNT(*) FILTER (WHERE action_type = 'action_failed')::int AS "actionFailedCount",
 				COUNT(*) FILTER (WHERE action_type = 'empty_state_cta')::int AS "emptyStateCtaCount",
+				COUNT(*) FILTER (WHERE action_type = 'tour_prompt_shown')::int AS "tourPromptShownCount",
+				COUNT(*) FILTER (WHERE action_type = 'tour_prompt_dismiss')::int AS "tourPromptDismissCount",
+				COUNT(*) FILTER (WHERE action_type = 'tour_start')::int AS "tourStartCount",
+				COUNT(*) FILTER (WHERE action_type = 'tour_complete')::int AS "tourCompleteCount",
+				COUNT(*) FILTER (WHERE action_type = 'tour_skip')::int AS "tourSkipCount",
 				COUNT(DISTINCT session_id)::int AS "uniqueActionSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'listing_create')::int AS "uniqueListingCreateSessionCount",
 				COUNT(DISTINCT session_id) FILTER (WHERE action_type = 'contact_unlock')::int AS "uniqueContactUnlockSessionCount",

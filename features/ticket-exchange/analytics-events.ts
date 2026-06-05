@@ -20,6 +20,11 @@ export const TICKET_EXCHANGE_ANALYTICS_ACTIONS = [
 	"validation_error",
 	"action_failed",
 	"empty_state_cta",
+	"tour_prompt_shown",
+	"tour_prompt_dismiss",
+	"tour_start",
+	"tour_complete",
+	"tour_skip",
 ] as const;
 
 export type TicketExchangeAnalyticsAction =
@@ -34,6 +39,7 @@ export const TICKET_EXCHANGE_ANALYTICS_SURFACES = [
 	"agreement_modal",
 	"report_modal",
 	"event_modal",
+	"tour",
 ] as const;
 
 export type TicketExchangeAnalyticsSurface =
