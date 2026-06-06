@@ -10,6 +10,12 @@ import {
 	TICKET_EXCHANGE_PUBLIC_RESOLVED_TOMBSTONE_MINUTES,
 	TICKET_EXCHANGE_RULES_VERSION,
 } from "./constants";
+import {
+	type TicketExchangePriceBasis,
+	type TicketExchangePriceCurrency,
+	type TicketExchangePriceSource,
+	parseTicketExchangePriceLabel,
+} from "./pricing";
 import type {
 	TicketExchangeAdminDashboard,
 	TicketExchangeAdminEventStats,
@@ -60,6 +66,10 @@ type ListingRow = {
 	listing_type: TicketExchangeListingType;
 	quantity_label: string;
 	price_label: string;
+	price_amount_minor: number | null;
+	price_currency: TicketExchangePriceCurrency | null;
+	price_basis: TicketExchangePriceBasis | null;
+	price_source: TicketExchangePriceSource | null;
 	note: string;
 	status: TicketExchangeListingStatus;
 	owner_user_id: string;
@@ -106,6 +116,10 @@ type AdminReportRow = {
 	listing_type: TicketExchangeListingType;
 	quantity_label: string;
 	price_label: string;
+	price_amount_minor: number | null;
+	price_currency: TicketExchangePriceCurrency | null;
+	price_basis: TicketExchangePriceBasis | null;
+	price_source: TicketExchangePriceSource | null;
 	status: TicketExchangeListingStatus;
 	owner_email: string;
 	expires_at: string;
@@ -173,10 +187,39 @@ type ContactSnapshotSyncRow = {
 	contact_methods: TicketExchangeContactMethod[];
 };
 
+type PriceBackfillRow = {
+	id: string;
+	price_label: string;
+	price_amount_minor: number | null;
+	price_currency: TicketExchangePriceCurrency | null;
+	price_basis: TicketExchangePriceBasis | null;
+	price_source: TicketExchangePriceSource | null;
+};
+
 const toIso = (value: string | Date | null): string | null => {
 	if (!value) return null;
 	const parsed = value instanceof Date ? value : new Date(value);
 	return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null;
+};
+
+const getRowPrice = (
+	row: Pick<
+		ListingRow,
+		| "price_label"
+		| "price_amount_minor"
+		| "price_currency"
+		| "price_basis"
+		| "price_source"
+	>,
+) => {
+	const parsed = parseTicketExchangePriceLabel(row.price_label);
+	return {
+		priceAmountMinor: row.price_amount_minor ?? parsed.amountMinor,
+		priceCurrency: row.price_currency ?? parsed.currency,
+		priceBasis: row.price_basis ?? parsed.basis,
+		priceSource:
+			row.price_source ?? (parsed.isFaceValue ? "face_value" : "user"),
+	};
 };
 
 const toProfile = (row: ContactProfileRow): TicketExchangeContactProfile => ({
@@ -244,6 +287,10 @@ export class TicketExchangeRepository {
 				listing_type TEXT NOT NULL CHECK (listing_type IN ('selling', 'looking')),
 				quantity_label TEXT NOT NULL DEFAULT '',
 				price_label TEXT NOT NULL DEFAULT '',
+				price_amount_minor INTEGER,
+				price_currency TEXT CHECK (price_currency IS NULL OR price_currency IN ('GBP', 'EUR', 'USD')),
+				price_basis TEXT NOT NULL DEFAULT 'unknown' CHECK (price_basis IN ('per_ticket', 'total', 'unknown')),
+				price_source TEXT NOT NULL DEFAULT 'user' CHECK (price_source IN ('user', 'suggested_event_price', 'face_value')),
 				note TEXT NOT NULL DEFAULT '',
 				status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'resolved', 'expired', 'removed')),
 				owner_user_id TEXT NOT NULL,
@@ -309,6 +356,22 @@ export class TicketExchangeRepository {
 			ALTER TABLE ticket_exchange_reports
 			ADD COLUMN IF NOT EXISTS review_note TEXT NOT NULL DEFAULT ''
 		`;
+		await this.sql`
+			ALTER TABLE ticket_exchange_listings
+			ADD COLUMN IF NOT EXISTS price_amount_minor INTEGER
+		`;
+		await this.sql`
+			ALTER TABLE ticket_exchange_listings
+			ADD COLUMN IF NOT EXISTS price_currency TEXT
+		`;
+		await this.sql`
+			ALTER TABLE ticket_exchange_listings
+			ADD COLUMN IF NOT EXISTS price_basis TEXT NOT NULL DEFAULT 'unknown'
+		`;
+		await this.sql`
+			ALTER TABLE ticket_exchange_listings
+			ADD COLUMN IF NOT EXISTS price_source TEXT NOT NULL DEFAULT 'user'
+		`;
 
 		await this.sql`
 			CREATE INDEX IF NOT EXISTS idx_ticket_exchange_listings_event
@@ -339,6 +402,49 @@ export class TicketExchangeRepository {
 			CREATE INDEX IF NOT EXISTS idx_ticket_exchange_reports_review
 			ON ticket_exchange_reports (reviewed_at, created_at DESC)
 		`;
+
+		await this.backfillStructuredPrices();
+	}
+
+	private async backfillStructuredPrices(): Promise<void> {
+		const rows = await this.sql<PriceBackfillRow[]>`
+			SELECT
+				id,
+				price_label,
+				price_amount_minor,
+				price_currency::text AS price_currency,
+				price_basis::text AS price_basis,
+				price_source::text AS price_source
+			FROM ticket_exchange_listings
+			WHERE price_label <> ''
+				AND (
+					price_amount_minor IS NULL
+					OR price_currency IS NULL
+					OR price_basis IS NULL
+					OR price_source IS NULL
+					OR price_source = 'user'
+				)
+			ORDER BY created_at DESC
+			LIMIT 1000
+		`;
+
+		await Promise.all(
+			rows.map((row) => {
+				const parsed = parseTicketExchangePriceLabel(row.price_label);
+				const nextSource = parsed.isFaceValue
+					? "face_value"
+					: (row.price_source ?? "user");
+				return this.sql`
+					UPDATE ticket_exchange_listings
+					SET
+						price_amount_minor = COALESCE(price_amount_minor, ${parsed.amountMinor}),
+						price_currency = COALESCE(price_currency, ${parsed.currency}),
+						price_basis = COALESCE(price_basis, ${parsed.basis}),
+						price_source = ${nextSource}
+					WHERE id = ${row.id}
+				`;
+			}),
+		);
 	}
 
 	private async ready(): Promise<void> {
@@ -509,6 +615,10 @@ export class TicketExchangeRepository {
 		listingType: TicketExchangeListingType;
 		quantityLabel: string;
 		priceLabel: string;
+		priceAmountMinor: number | null;
+		priceCurrency: TicketExchangePriceCurrency | null;
+		priceBasis: TicketExchangePriceBasis;
+		priceSource: TicketExchangePriceSource;
 		note: string;
 		ownerUserId: string;
 		ownerEmail: string;
@@ -543,6 +653,10 @@ export class TicketExchangeRepository {
 				listing_type,
 				quantity_label,
 				price_label,
+				price_amount_minor,
+				price_currency,
+				price_basis,
+				price_source,
 				note,
 				owner_user_id,
 				owner_email,
@@ -558,6 +672,10 @@ export class TicketExchangeRepository {
 				${input.listingType},
 				${input.quantityLabel},
 				${input.priceLabel},
+				${input.priceAmountMinor},
+				${input.priceCurrency},
+				${input.priceBasis},
+				${input.priceSource},
 				${input.note},
 				${input.ownerUserId},
 				${input.ownerEmail},
@@ -587,6 +705,10 @@ export class TicketExchangeRepository {
 				listings.listing_type::text AS listing_type,
 				listings.quantity_label,
 				listings.price_label,
+				listings.price_amount_minor,
+				listings.price_currency::text AS price_currency,
+				listings.price_basis::text AS price_basis,
+				listings.price_source::text AS price_source,
 				listings.note,
 				listings.status::text AS status,
 				listings.owner_user_id,
@@ -673,6 +795,7 @@ export class TicketExchangeRepository {
 				rowInterests.find((interest) => interest.actorUserId === userId) ??
 				null;
 			const maySeeOwnerContact = isOwner || Boolean(myInterest);
+			const rowPrice = getRowPrice(row);
 			return {
 				id: row.id,
 				eventKey: row.event_key,
@@ -681,6 +804,7 @@ export class TicketExchangeRepository {
 				listingType: row.listing_type,
 				quantityLabel: row.quantity_label,
 				priceLabel: row.price_label,
+				...rowPrice,
 				note: row.note,
 				status: row.status,
 				effectiveStatus: getEffectiveListingStatus({
@@ -860,6 +984,10 @@ export class TicketExchangeRepository {
 				listing_type::text AS listing_type,
 				quantity_label,
 				price_label,
+				price_amount_minor,
+				price_currency::text AS price_currency,
+				price_basis::text AS price_basis,
+				price_source::text AS price_source,
 				note,
 				status::text AS status,
 				owner_user_id,
@@ -890,6 +1018,7 @@ export class TicketExchangeRepository {
 			listingType: source.listing_type,
 			quantityLabel: input.quantityLabel,
 			priceLabel: source.price_label,
+			...getRowPrice(source),
 			note: source.note,
 			ownerUserId: source.owner_user_id,
 			ownerEmail: source.owner_email,
@@ -966,6 +1095,10 @@ export class TicketExchangeRepository {
 				listings.listing_type::text AS listing_type,
 				listings.quantity_label,
 				listings.price_label,
+				listings.price_amount_minor,
+				listings.price_currency::text AS price_currency,
+				listings.price_basis::text AS price_basis,
+				listings.price_source::text AS price_source,
 				listings.note,
 				listings.status::text AS status,
 				listings.owner_user_id,
@@ -992,6 +1125,7 @@ export class TicketExchangeRepository {
 			listingType: row.listing_type,
 			quantityLabel: row.quantity_label,
 			priceLabel: row.price_label,
+			...getRowPrice(row),
 			note: row.note,
 			status: row.status,
 			effectiveStatus: getEffectiveListingStatus({
@@ -1395,6 +1529,10 @@ export class TicketExchangeRepository {
 				listings.listing_type::text AS listing_type,
 				listings.quantity_label,
 				listings.price_label,
+				listings.price_amount_minor,
+				listings.price_currency::text AS price_currency,
+				listings.price_basis::text AS price_basis,
+				listings.price_source::text AS price_source,
 				listings.note,
 				listings.status::text AS status,
 				listings.owner_user_id,
@@ -1428,6 +1566,7 @@ export class TicketExchangeRepository {
 			listingType: row.listing_type,
 			quantityLabel: row.quantity_label,
 			priceLabel: row.price_label,
+			...getRowPrice(row),
 			note: row.note,
 			status: row.status,
 			effectiveStatus: getEffectiveListingStatus({

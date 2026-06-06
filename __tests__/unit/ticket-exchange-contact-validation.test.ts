@@ -1,11 +1,15 @@
 import {
+	TICKET_EXCHANGE_NOTE_CONTACT_ERROR,
 	TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR,
+	createTicketExchangeContactHintError,
 	createTicketExchangeLanguageError,
+	hasTicketExchangeNoteContactHint,
 	hasOffensiveTicketExchangeNoteLanguage,
 	normalizeInstagramHandle,
 	normalizeOptionalEmail,
 	normalizeWhatsAppNumber,
 	normalizeXHandle,
+	validateTicketExchangeDisplayName,
 	validateTicketExchangeNote,
 	validateTicketExchangePriceLabel,
 	validateTicketExchangeQuantityLabel,
@@ -74,6 +78,60 @@ describe("ticket exchange contact validation", () => {
 		);
 	});
 
+	it("rejects contact handles and social links in Ticket Exchange notes", () => {
+		expect(hasTicketExchangeNoteContactHint("dm @7kzaib on instagram")).toBe(
+			true,
+		);
+		expect(hasTicketExchangeNoteContactHint("message @ 7kzaib")).toBe(true);
+		expect(hasTicketExchangeNoteContactHint("IG is sevenkzaib")).toBe(true);
+		expect(hasTicketExchangeNoteContactHint("instagram.com/7kzaib")).toBe(
+			true,
+		);
+		expect(hasTicketExchangeNoteContactHint("linktree.com/7kzaib")).toBe(true);
+		expect(hasTicketExchangeNoteContactHint("email me at a@example.com")).toBe(
+			true,
+		);
+		expect(hasTicketExchangeNoteContactHint("WhatsApp me +44 7123 456789")).toBe(
+			true,
+		);
+		expect(() => validateTicketExchangeNote("dm @7kzaib")).toThrow(
+			TICKET_EXCHANGE_NOTE_CONTACT_ERROR,
+		);
+		expect(() => validateTicketExchangeNote("my insta is sevenkzaib")).toThrow(
+			TICKET_EXCHANGE_NOTE_CONTACT_ERROR,
+		);
+		expect(() => validateTicketExchangeNote("go to https://x.com/7kzaib")).toThrow(
+			TICKET_EXCHANGE_NOTE_CONTACT_ERROR,
+		);
+	});
+
+	it("rejects contact hints in visible listing quantity and price fields", () => {
+		expect(() => validateTicketExchangeQuantityLabel("2 tickets @7kzaib")).toThrow(
+			createTicketExchangeContactHintError("the quantity or ticket need"),
+		);
+		expect(() => validateTicketExchangeQuantityLabel("1 ticket, dm me")).toThrow(
+			createTicketExchangeContactHintError("the quantity or ticket need"),
+		);
+		expect(() => validateTicketExchangePriceLabel("£40 instagram")).toThrow(
+			createTicketExchangeContactHintError("the price or budget"),
+		);
+		expect(() => validateTicketExchangePriceLabel("FV linktree.com/7kzaib")).toThrow(
+			createTicketExchangeContactHintError("the price or budget"),
+		);
+	});
+
+	it("rejects contact hints in Ticket Exchange display names", () => {
+		expect(validateTicketExchangeDisplayName("  Abel Smith  ")).toBe(
+			"Abel Smith",
+		);
+		expect(() => validateTicketExchangeDisplayName("@7kzaib")).toThrow(
+			createTicketExchangeContactHintError("the display name"),
+		);
+		expect(() => validateTicketExchangeDisplayName("instagram.com/7kzaib")).toThrow(
+			createTicketExchangeContactHintError("the display name"),
+		);
+	});
+
 	it("rejects offensive language in visible free-text fields", () => {
 		expect(
 			validateTicketExchangeUserText("  2 tickets available  ", 80, "quantity"),
@@ -96,7 +154,7 @@ describe("ticket exchange contact validation", () => {
 			"Add the ticket price or budget before posting.",
 		);
 		expect(() => validateTicketExchangePriceLabel("DM me")).toThrow(
-			"Use a number, FV, or face value for the ticket price or budget.",
+			createTicketExchangeContactHintError("the price or budget"),
 		);
 		expect(() => validateTicketExchangePriceLabel("cheap")).toThrow(
 			"Use a number, FV, or face value for the ticket price or budget.",

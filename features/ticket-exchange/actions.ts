@@ -10,6 +10,10 @@ import {
 	TICKET_EXCHANGE_RULES_VERSION,
 } from "./constants";
 import { sendTicketExchangeInterestEmail } from "./email";
+import {
+	parseTicketExchangePriceLabel,
+	validateTicketExchangeFairPricePolicy,
+} from "./pricing";
 import { getTicketExchangeRepository } from "./repository";
 import {
 	findTicketExchangeEventByKey,
@@ -34,6 +38,7 @@ import {
 	normalizeWhatsAppNumber,
 	normalizeXHandle,
 	resolveExpiryDate,
+	validateTicketExchangeDisplayName,
 	validateTicketExchangeNote,
 	validateTicketExchangePriceLabel,
 	validateTicketExchangeQuantityLabel,
@@ -99,11 +104,7 @@ export async function saveTicketExchangeContactProfile(input: {
 		await repository.upsertContactProfile({
 			userId: session.userId as string,
 			accountEmail: session.email as string,
-			displayName: validateTicketExchangeUserText(
-				input.displayName,
-				80,
-				"the display name",
-			),
+			displayName: validateTicketExchangeDisplayName(input.displayName),
 			alternateEmail: normalizeOptionalEmail(
 				normalizeTicketExchangeText(input.alternateEmail, 160),
 			),
@@ -180,6 +181,12 @@ export async function createTicketExchangeListing(input: {
 			input.quantityLabel,
 		);
 		const priceLabel = validateTicketExchangePriceLabel(input.priceLabel);
+		validateTicketExchangeFairPricePolicy({
+			event,
+			listingType,
+			priceLabel,
+		});
+		const parsedPrice = parseTicketExchangePriceLabel(priceLabel);
 		await repository.createListing({
 			eventKey: event.eventKey,
 			eventSlug: event.slug,
@@ -187,6 +194,10 @@ export async function createTicketExchangeListing(input: {
 			listingType,
 			quantityLabel,
 			priceLabel,
+			priceAmountMinor: parsedPrice.amountMinor,
+			priceCurrency: parsedPrice.currency,
+			priceBasis: parsedPrice.basis,
+			priceSource: parsedPrice.isFaceValue ? "face_value" : "user",
 			note: validateTicketExchangeNote(input.note),
 			ownerUserId: session.userId as string,
 			ownerEmail: session.email as string,

@@ -3,7 +3,7 @@ import type {
 	TicketExchangeReportReason,
 } from "./types";
 
-export const TICKET_EXCHANGE_RULES_VERSION = "2026-06-03";
+export const TICKET_EXCHANGE_RULES_VERSION = "2026-06-06";
 export const TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS = 24;
 export const TICKET_EXCHANGE_MAX_EXPIRY_HOURS = 72;
 export const TICKET_EXCHANGE_CONTACT_REVEAL_GRACE_HOURS = 24;
@@ -33,6 +33,7 @@ export const TICKET_EXCHANGE_RULES_COPY = [
 	"OOOC does not sell, verify, transfer, hold, or guarantee tickets.",
 	"Ticket Exchange only helps people find and contact each other.",
 	"Any payment, transfer, refund, or dispute is handled directly between users.",
+	"List tickets at face value or less. You can include the original fees you paid, but no markup.",
 	"Use official ticket transfer tools where possible and do your own checks before sending money.",
 ] as const;
 

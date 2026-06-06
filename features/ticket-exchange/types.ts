@@ -1,4 +1,9 @@
 import type { Event } from "@/features/events/types";
+import type {
+	TicketExchangePriceBasis,
+	TicketExchangePriceCurrency,
+	TicketExchangePriceSource,
+} from "./pricing";
 
 export type TicketExchangeListingType = "selling" | "looking";
 export type TicketExchangeListingStatus =
@@ -60,6 +65,10 @@ export interface TicketExchangeListingView {
 	listingType: TicketExchangeListingType;
 	quantityLabel: string;
 	priceLabel: string;
+	priceAmountMinor: number | null;
+	priceCurrency: TicketExchangePriceCurrency | null;
+	priceBasis: TicketExchangePriceBasis;
+	priceSource: TicketExchangePriceSource;
 	note: string;
 	status: TicketExchangeListingStatus;
 	effectiveStatus: TicketExchangeListingStatus;
@@ -92,6 +101,10 @@ export interface TicketExchangeAdminListing {
 	listingType: TicketExchangeListingType;
 	quantityLabel: string;
 	priceLabel: string;
+	priceAmountMinor: number | null;
+	priceCurrency: TicketExchangePriceCurrency | null;
+	priceBasis: TicketExchangePriceBasis;
+	priceSource: TicketExchangePriceSource;
 	note: string;
 	status: TicketExchangeListingStatus;
 	effectiveStatus: TicketExchangeListingStatus;

@@ -33,6 +33,10 @@ import {
 	isMyTicketExchangeActivityVisible,
 	isPublicTicketExchangeListingVisible,
 } from "@/features/ticket-exchange/listing-visibility";
+import {
+	buildTicketExchangePricingSuggestion,
+	validateTicketExchangeFairPricePolicy,
+} from "@/features/ticket-exchange/pricing";
 import { requestTicketExchangeTour } from "@/features/ticket-exchange/tour-onboarding";
 import type {
 	TicketExchangeActionResult,
@@ -55,6 +59,8 @@ import {
 	normalizeOptionalEmail,
 	normalizeWhatsAppNumber,
 	normalizeXHandle,
+	validateTicketExchangeDisplayName,
+	validateTicketExchangeNote,
 	validateTicketExchangePriceLabel,
 	validateTicketExchangeQuantityLabel,
 } from "@/features/ticket-exchange/utils";
@@ -697,6 +703,27 @@ export function TicketExchangeClient({
 	const selectedEventOption =
 		eventOptions.find((option) => option.value === listingForm.eventKey) ??
 		null;
+	const selectedListingEvent = listingForm.eventKey
+		? eventByKey.get(listingForm.eventKey) ?? null
+		: null;
+	const listingPricingSuggestion = useMemo(
+		() =>
+			buildTicketExchangePricingSuggestion({
+				event: selectedListingEvent,
+				listings: data.listings.filter(
+					(listing) => listing.eventKey === listingForm.eventKey,
+				),
+				listingType: listingForm.listingType,
+			}),
+		[
+			data.listings,
+			listingForm.eventKey,
+			listingForm.listingType,
+			selectedListingEvent,
+		],
+	);
+	const priceHelperId = "ticket-exchange-price-helper";
+	const priceCommunityId = "ticket-exchange-price-community";
 	const activeMarketplaceTab =
 		activeTab === "mine"
 			? null
@@ -936,10 +963,14 @@ export function TicketExchangeClient({
 
 	const validateProfileForm = (): ProfileFormErrors => {
 		const errors: ProfileFormErrors = {};
-		const languageError = getTicketExchangeLanguageError([
-			{ fieldLabel: "the display name", value: profileForm.displayName },
-		]);
-		if (languageError) errors.displayName = languageError;
+		try {
+			validateTicketExchangeDisplayName(profileForm.displayName);
+		} catch (error) {
+			errors.displayName =
+				error instanceof Error
+					? error.message
+					: "Check the display name before saving.";
+		}
 
 		try {
 			normalizeOptionalEmail(profileForm.alternateEmail);
@@ -1382,6 +1413,13 @@ export function TicketExchangeClient({
 			validateTicketExchangeQuantityLabel(listingForm.quantityLabel);
 			setListingQuantityError(null);
 			validateTicketExchangePriceLabel(listingForm.priceLabel);
+			if (selectedListingEvent) {
+				validateTicketExchangeFairPricePolicy({
+					event: selectedListingEvent,
+					listingType: listingForm.listingType,
+					priceLabel: listingForm.priceLabel,
+				});
+			}
 			setListingPriceError(null);
 		} catch (error) {
 			const message =
@@ -1424,6 +1462,20 @@ export function TicketExchangeClient({
 		if (languageError) {
 			setErrorMessage(languageError);
 			trackExchangeValidationError("listing_copy", "listing_form");
+			return;
+		}
+		try {
+			validateTicketExchangeNote(listingForm.note);
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR;
+			setErrorMessage(message);
+			window.setTimeout(() => {
+				document.getElementById("ticket-exchange-note")?.focus();
+			}, 0);
+			trackExchangeValidationError("listing_note", "listing_form", "invalid");
 			return;
 		}
 		createListingInFlightRef.current = true;
@@ -2164,10 +2216,46 @@ export function TicketExchangeClient({
 								required
 								aria-invalid={Boolean(listingPriceError)}
 								aria-describedby={
-									listingPriceError ? "ticket-exchange-price-error" : undefined
+									[
+										priceHelperId,
+										listingPricingSuggestion.communityRangeLabel
+											? priceCommunityId
+											: null,
+										listingPriceError ? "ticket-exchange-price-error" : null,
+									]
+										.filter(Boolean)
+										.join(" ") || undefined
 								}
 								className={CREATE_LISTING_CONTROL_CLASS}
 							/>
+							<div className="grid gap-1.5 text-xs leading-5 text-muted-foreground">
+								<p id={priceHelperId}>{listingPricingSuggestion.helperText}</p>
+								{listingPricingSuggestion.communityRangeLabel ? (
+									<p id={priceCommunityId}>
+										{listingPricingSuggestion.communityRangeLabel}
+									</p>
+								) : null}
+								{listingPricingSuggestion.eventSuggestedLabel ? (
+									<div>
+										<button
+											type="button"
+											disabled={isCreatingListing}
+											onClick={() => {
+												setListingPriceError(null);
+												setListingForm((current) => ({
+													...current,
+													priceLabel:
+														listingPricingSuggestion.eventSuggestedLabel ?? "",
+												}));
+											}}
+											className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-border bg-background/70 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+										>
+											<Check className="h-3.5 w-3.5" />
+											Use listed price
+										</button>
+									</div>
+								) : null}
+							</div>
 						</Field>
 						<Field label="Expires after">
 							<select
@@ -2200,6 +2288,7 @@ export function TicketExchangeClient({
 						<div className="lg:col-span-2">
 							<Field label="Note">
 								<Textarea
+									id="ticket-exchange-note"
 									value={listingForm.note}
 									onChange={(event) =>
 										setListingForm((current) => ({

@@ -6,6 +6,7 @@ import {
 	TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS,
 	TICKET_EXCHANGE_MAX_EXPIRY_HOURS,
 } from "./constants";
+import { isTicketExchangePriceLabelShapeValid } from "./pricing";
 import type {
 	TicketExchangeContactMethod,
 	TicketExchangeContactProfile,
@@ -69,6 +70,12 @@ export const normalizeTicketExchangeText = (
 
 export const TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR =
 	"Please remove offensive or abusive language from the note before posting.";
+export const TICKET_EXCHANGE_NOTE_CONTACT_ERROR =
+	"Keep contact details out of the note. Use the selected contact methods instead.";
+export const createTicketExchangeContactHintError = (
+	fieldLabel: string,
+): string =>
+	`Keep contact details out of ${fieldLabel}. Use the selected contact methods instead.`;
 
 export const createTicketExchangeLanguageError = (fieldLabel: string): string =>
 	`Please remove offensive or abusive language from ${fieldLabel}.`;
@@ -126,6 +133,18 @@ const compactLanguageScanText = (value: string): string =>
 
 const SEXUAL_SOLICITATION_PATTERN =
 	/\b(?:(?:i(?:'|’)?ll|i\s+will|can|will|wanna|want\s+to)?\s*(?:suck|blow)\s+(?:your\s+)?(?:dick|cock)|(?:give|offer)\s+(?:you\s+)?(?:a\s+)?(?:blowjob|handjob)|(?:blowjob|handjob))\b/iu;
+const NOTE_SOCIAL_HANDLE_PATTERN =
+	/(^|[\s(["'])@\s*[A-Za-z0-9][A-Za-z0-9._-]{1,30}\b/iu;
+const NOTE_LINK_PATTERN =
+	/\b(?:https?:\/\/|www\.|[A-Za-z0-9-]+\.(?:com|co|uk|net|org|io|app|me|link|live|social|bio)\b)/iu;
+const NOTE_EMAIL_PATTERN =
+	/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/iu;
+const NOTE_PHONE_PATTERN =
+	/(?:^|[^\d])(?:\+|00)?\d[\d\s().-]{7,}\d(?:$|[^\d])/u;
+const NOTE_SOCIAL_PLATFORM_PATTERN =
+	/\b(?:instagram|insta|ig|i\.g\.|twitter|tiktok|tik\s*tok|snapchat|snap|telegram|facebook|fb|threads|linktree|beacons|hoo\.be|lnk\.bio|wa\.me|whatsapp)\b/iu;
+const NOTE_SOCIAL_X_PATTERN = /\b(?:x|twitter)\s*(?:handle|@|\.com|dot\s+com)\b/iu;
+const NOTE_DM_PATTERN = /\b(?:dm|direct\s+message)\s+(?:me|us|my|on)\b/iu;
 
 export const hasOffensiveTicketExchangeLanguage = (value: string): boolean => {
 	const compact = compactLanguageScanText(value);
@@ -146,6 +165,19 @@ export const hasOffensiveTicketExchangeLanguage = (value: string): boolean => {
 export const hasOffensiveTicketExchangeNoteLanguage =
 	hasOffensiveTicketExchangeLanguage;
 
+export const hasTicketExchangeNoteContactHint = (value: string): boolean => {
+	const normalized = value.normalize("NFKC");
+	return (
+		NOTE_SOCIAL_HANDLE_PATTERN.test(normalized) ||
+		NOTE_LINK_PATTERN.test(normalized) ||
+		NOTE_EMAIL_PATTERN.test(normalized) ||
+		NOTE_PHONE_PATTERN.test(normalized) ||
+		NOTE_SOCIAL_PLATFORM_PATTERN.test(normalized) ||
+		NOTE_SOCIAL_X_PATTERN.test(normalized) ||
+		NOTE_DM_PATTERN.test(normalized)
+	);
+};
+
 export const validateTicketExchangeUserText = (
 	value: unknown,
 	maxLength: number,
@@ -158,9 +190,18 @@ export const validateTicketExchangeUserText = (
 	return text;
 };
 
-const FACE_VALUE_PRICE_PATTERN = /\b(?:fv|face\s*value)\b/iu;
-const NUMERIC_PRICE_PATTERN =
-	/(?:[$£€]\s*\d+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?\s*(?:[$£€]|\b(?:gbp|eur|usd|pounds?|euros?)\b)|\b(?:gbp|eur|usd|pounds?|euros?)\s*\d+(?:[.,]\d{1,2})?|\b\d+(?:[.,]\d{1,2})?\b)/iu;
+export const validateTicketExchangeDisplayName = (value: unknown): string => {
+	const displayName = validateTicketExchangeUserText(
+		value,
+		80,
+		"the display name",
+	);
+	if (displayName && hasTicketExchangeNoteContactHint(displayName)) {
+		throw new Error(createTicketExchangeContactHintError("the display name"));
+	}
+	return displayName;
+};
+
 const TICKET_QUANTITY_PATTERN = /\b\d{1,3}\b/u;
 
 export const validateTicketExchangeQuantityLabel = (value: unknown): string => {
@@ -171,6 +212,11 @@ export const validateTicketExchangeQuantityLabel = (value: unknown): string => {
 	);
 	if (!quantityLabel) {
 		throw new Error("Add the quantity or ticket need.");
+	}
+	if (hasTicketExchangeNoteContactHint(quantityLabel)) {
+		throw new Error(
+			createTicketExchangeContactHintError("the quantity or ticket need"),
+		);
 	}
 	if (!TICKET_QUANTITY_PATTERN.test(quantityLabel)) {
 		throw new Error(
@@ -189,10 +235,12 @@ export const validateTicketExchangePriceLabel = (value: unknown): string => {
 	if (!priceLabel) {
 		throw new Error("Add the ticket price or budget before posting.");
 	}
-	if (
-		!FACE_VALUE_PRICE_PATTERN.test(priceLabel) &&
-		!NUMERIC_PRICE_PATTERN.test(priceLabel)
-	) {
+	if (hasTicketExchangeNoteContactHint(priceLabel)) {
+		throw new Error(
+			createTicketExchangeContactHintError("the price or budget"),
+		);
+	}
+	if (!isTicketExchangePriceLabelShapeValid(priceLabel)) {
 		throw new Error(
 			"Use a number, FV, or face value for the ticket price or budget.",
 		);
@@ -204,6 +252,9 @@ export const validateTicketExchangeNote = (value: string): string => {
 	const note = normalizeTicketExchangeText(value, 360);
 	if (note && hasOffensiveTicketExchangeLanguage(note)) {
 		throw new Error(TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR);
+	}
+	if (note && hasTicketExchangeNoteContactHint(note)) {
+		throw new Error(TICKET_EXCHANGE_NOTE_CONTACT_ERROR);
 	}
 	return note;
 };
