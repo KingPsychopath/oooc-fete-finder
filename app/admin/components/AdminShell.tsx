@@ -216,8 +216,7 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 		setSeenState({
 			submissionsNewestSeenAt: notificationCounts.newestPendingSubmissionAt,
 			placementsNewestSeenAt: notificationCounts.newestPendingPlacementAt,
-			ticketReportsNewestSeenAt:
-				notificationCounts.newestPendingTicketReportAt,
+			ticketReportsNewestSeenAt: notificationCounts.newestPendingTicketReportAt,
 		});
 	}, [
 		isActionCenterOpen,
@@ -431,15 +430,16 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 								</p>
 								<div className="mt-2 flex gap-2 overflow-x-auto pb-1">
 									{activeRoute.sections.map((section) => (
-										<Link
+										<button
 											key={section.id}
-											href={withAdminBasePath(
-												`${activeRoute.path}#${section.id}`,
-											)}
+											type="button"
+											onClick={() =>
+												navigateToSection(`${activeRoute.path}#${section.id}`)
+											}
 											className="inline-flex h-7 shrink-0 items-center rounded-md border bg-background px-2.5 text-xs font-medium transition-colors hover:bg-muted"
 										>
 											{section.label}
-										</Link>
+										</button>
 									))}
 								</div>
 							</div>

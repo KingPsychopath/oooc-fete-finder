@@ -2,6 +2,7 @@ import {
 	USER_AUTH_COOKIE_NAME,
 	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
+import { getUserActionPolicyDecision } from "@/features/users/policy";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	DEFAULT_JSON_BODY_LIMIT_BYTES,
@@ -42,7 +43,7 @@ const parseCookieByName = (
 
 const getUserRelationshipId = async (
 	request: Request,
-): Promise<string | null> => {
+): Promise<{ userId: string; email: string | null } | null> => {
 	const cookieHeader = request.headers.get("cookie");
 	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
 	const userSession = await getCanonicalUserSessionFromCookieHeader(userCookie);
@@ -53,13 +54,13 @@ const getUserRelationshipId = async (
 	) {
 		return null;
 	}
-	return userSession.userId;
+	return { userId: userSession.userId, email: userSession.email };
 };
 
 export async function GET(request: Request) {
 	const repository = getUserEventRelationshipRepository();
-	const userId = await getUserRelationshipId(request);
-	if (!repository || !userId) {
+	const identity = await getUserRelationshipId(request);
+	if (!repository || !identity) {
 		return NextResponse.json(
 			{ success: true, eventKeys: [] },
 			{ headers: NO_STORE_HEADERS },
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
 
 	try {
 		const eventKeys = await repository.listEventKeysForUser({
-			userId,
+			userId: identity.userId,
 			relationshipType: "saved",
 		});
 		return NextResponse.json(
@@ -98,8 +99,19 @@ export async function POST(request: Request) {
 	}
 
 	const repository = getUserEventRelationshipRepository();
-	const userId = await getUserRelationshipId(request);
-	if (!repository || !userId) {
+	const identity = await getUserRelationshipId(request);
+	if (!repository || !identity) {
+		return NextResponse.json(
+			{ success: true },
+			{ status: 202, headers: NO_STORE_HEADERS },
+		);
+	}
+	const policyDecision = await getUserActionPolicyDecision({
+		userId: identity.userId,
+		email: identity.email,
+		scope: "saved_events.sync",
+	});
+	if (!policyDecision.allowed) {
 		return NextResponse.json(
 			{ success: true },
 			{ status: 202, headers: NO_STORE_HEADERS },
@@ -140,13 +152,13 @@ export async function POST(request: Request) {
 		for (const eventKey of uniqueEventKeys) {
 			if (parsed.data.isSaved === false) {
 				await repository.deleteRelationship({
-					userId,
+					userId: identity.userId,
 					eventKey,
 					relationshipType: "saved",
 				});
 			} else {
 				await repository.upsertRelationship({
-					userId,
+					userId: identity.userId,
 					eventKey,
 					relationshipType: "saved",
 					source: parsed.data.source ?? "saved_events",

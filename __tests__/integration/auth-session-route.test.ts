@@ -10,6 +10,7 @@ type Setup = {
 	getUserAuthCookieOptions: ReturnType<typeof vi.fn>;
 	touchContext: ReturnType<typeof vi.fn>;
 	logWarn: ReturnType<typeof vi.fn>;
+	getUserActionPolicyDecision: ReturnType<typeof vi.fn>;
 };
 
 const loadRoute = async (): Promise<Setup> => {
@@ -35,6 +36,11 @@ const loadRoute = async (): Promise<Setup> => {
 	});
 	const touchContext = vi.fn().mockResolvedValue(undefined);
 	const logWarn = vi.fn();
+	const getUserActionPolicyDecision = vi.fn().mockResolvedValue({
+		allowed: true,
+		restriction: null,
+		reason: null,
+	});
 
 	vi.doMock("@/features/auth/admin-auth-token", () => ({
 		verifyAdminSessionFromRequest,
@@ -54,6 +60,9 @@ const loadRoute = async (): Promise<Setup> => {
 			warn: logWarn,
 		},
 	}));
+	vi.doMock("@/features/users/policy", () => ({
+		getUserActionPolicyDecision,
+	}));
 
 	const route = await import("@/app/api/auth/session/route");
 	return {
@@ -65,6 +74,7 @@ const loadRoute = async (): Promise<Setup> => {
 		getUserAuthCookieOptions,
 		touchContext,
 		logWarn,
+		getUserActionPolicyDecision,
 	};
 };
 
@@ -146,6 +156,50 @@ describe("/api/auth/session route", () => {
 			"Failed to update user last-seen timestamp",
 			{ message: "database unavailable" },
 		);
+	});
+
+	it("signs the user out before last-seen tracking when login policy denies", async () => {
+		const { GET, getUserActionPolicyDecision, touchContext } =
+			await loadRoute();
+		getUserActionPolicyDecision.mockResolvedValue({
+			allowed: false,
+			restriction: {
+				id: "rst_1",
+				scope: "auth.login",
+			},
+			reason: "Account access is paused.",
+		});
+
+		const response = await GET(
+			new NextRequest("https://example.com/api/auth/session", {
+				headers: {
+					cookie: "oooc_user_session=test-token",
+				},
+			}),
+		);
+		const payload = (await response.json()) as {
+			success: boolean;
+			isAuthenticated: boolean;
+			email: string | null;
+			userId: string | null;
+		};
+		const setCookie = response.headers.get("set-cookie") ?? "";
+
+		expect(response.status).toBe(200);
+		expect(payload).toMatchObject({
+			success: true,
+			isAuthenticated: false,
+			email: null,
+			userId: null,
+		});
+		expect(setCookie).toContain("oooc_user_session=");
+		expect(setCookie.toLowerCase()).toContain("max-age=0");
+		expect(getUserActionPolicyDecision).toHaveBeenCalledWith({
+			userId: "019b0000-0000-7000-8000-000000000001",
+			email: "owen@example.com",
+			scope: "auth.login",
+		});
+		expect(touchContext).not.toHaveBeenCalled();
 	});
 
 	it("clears auth cookie on DELETE and keeps response non-cacheable", async () => {

@@ -95,10 +95,33 @@ const HASH_TO_TAB = new Map<string, ContentTab>(
 );
 HASH_TO_TAB.set("search-chips", "site");
 
-const getTabFromHash = (): ContentTab | null => {
+const getAnchorIdFromHash = (): string | null => {
 	if (typeof window === "undefined") return null;
 	const anchorId = window.location.hash.replace(/^#/, "").trim();
-	return HASH_TO_TAB.get(anchorId) ?? null;
+	return anchorId || null;
+};
+
+const isVisibleAnchorTarget = (target: HTMLElement): boolean =>
+	target.getClientRects().length > 0;
+
+const scrollToContentAnchor = (anchorId: string): void => {
+	if (typeof window === "undefined") return;
+	let attempts = 0;
+	const maxAttempts = 12;
+
+	const scroll = () => {
+		const target = document.getElementById(anchorId);
+		if (target && isVisibleAnchorTarget(target)) {
+			target.scrollIntoView({ behavior: "smooth", block: "start" });
+			return;
+		}
+		if (attempts < maxAttempts) {
+			attempts += 1;
+			window.setTimeout(scroll, 80);
+		}
+	};
+
+	window.setTimeout(scroll, 0);
 };
 
 const getLocationActionCount = (
@@ -127,8 +150,9 @@ export function ContentDashboardClient({
 	const [visitedTabs, setVisitedTabs] = useState<Set<ContentTab>>(
 		() => new Set([defaultTab]),
 	);
-	const pendingSubmissionCount =
-		initialSubmissions?.success ? initialSubmissions.pending.length : 0;
+	const pendingSubmissionCount = initialSubmissions?.success
+		? initialSubmissions.pending.length
+		: 0;
 	const pendingTicketReportCount =
 		initialTicketExchangeModeration?.success &&
 		initialTicketExchangeModeration.dashboard
@@ -153,19 +177,35 @@ export function ContentDashboardClient({
 		const anchorId =
 			CONTENT_TABS.find((candidate) => candidate.key === tab)?.anchorId ??
 			"event-submissions";
-		window.history.replaceState(null, "", `${window.location.pathname}#${anchorId}`);
+		window.history.replaceState(
+			null,
+			"",
+			`${window.location.pathname}#${anchorId}`,
+		);
+		scrollToContentAnchor(anchorId);
 	}, []);
 
 	useEffect(() => {
 		const syncHashToTab = () => {
-			const hashTab = getTabFromHash();
-			if (hashTab) openTab(hashTab, false);
+			const anchorId = getAnchorIdFromHash();
+			if (!anchorId) return;
+			const hashTab = HASH_TO_TAB.get(anchorId) ?? null;
+			if (!hashTab) return;
+			openTab(hashTab, false);
+			scrollToContentAnchor(anchorId);
 		};
 
 		syncHashToTab();
 		window.addEventListener("hashchange", syncHashToTab);
 		return () => window.removeEventListener("hashchange", syncHashToTab);
 	}, [openTab]);
+
+	useEffect(() => {
+		const anchorId = getAnchorIdFromHash();
+		if (!anchorId) return;
+		if (HASH_TO_TAB.get(anchorId) !== activeTab) return;
+		scrollToContentAnchor(anchorId);
+	}, [activeTab]);
 
 	return (
 		<div className="space-y-6">
@@ -214,7 +254,10 @@ export function ContentDashboardClient({
 			{visitedTabs.has("submissions") ? (
 				<section
 					id="event-submissions"
-					className={cn("scroll-mt-44", activeTab !== "submissions" && "hidden")}
+					className={cn(
+						"scroll-mt-44",
+						activeTab !== "submissions" && "hidden",
+					)}
 				>
 					<EventSubmissionsCard initialPayload={initialSubmissions} />
 				</section>
@@ -257,13 +300,18 @@ export function ContentDashboardClient({
 			{visitedTabs.has("site") ? (
 				<section
 					id="sliding-banner"
-					className={cn("space-y-6 scroll-mt-44", activeTab !== "site" && "hidden")}
+					className={cn(
+						"space-y-6 scroll-mt-44",
+						activeTab !== "site" && "hidden",
+					)}
 				>
 					<SlidingBannerSettingsCard
 						initialSettings={initialSlidingBannerSettings}
 					/>
 					<div id="search-chips" className="scroll-mt-44">
-						<SearchChipSettingsCard initialSettings={initialSearchChipSettings} />
+						<SearchChipSettingsCard
+							initialSettings={initialSearchChipSettings}
+						/>
 					</div>
 				</section>
 			) : null}

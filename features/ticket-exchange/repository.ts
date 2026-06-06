@@ -112,6 +112,8 @@ type AdminReportRow = {
 	reviewed_at: string | null;
 	reviewed_by: string | null;
 	review_note: string;
+	listing_event_key: string;
+	listing_event_slug: string;
 	listing_event_name: string;
 	listing_type: TicketExchangeListingType;
 	quantity_label: string;
@@ -121,8 +123,19 @@ type AdminReportRow = {
 	price_basis: TicketExchangePriceBasis | null;
 	price_source: TicketExchangePriceSource | null;
 	status: TicketExchangeListingStatus;
+	owner_user_id: string;
 	owner_email: string;
 	expires_at: string;
+};
+
+type ReportCreateRow = {
+	id: string;
+	listing_id: string;
+	created_at: string;
+	listing_event_key: string | null;
+	listing_event_name: string | null;
+	owner_user_id: string | null;
+	owner_email: string | null;
 };
 
 type AdminCountsRow = {
@@ -1031,31 +1044,86 @@ export class TicketExchangeRepository {
 	async reportListing(input: {
 		listingId: string;
 		reporterUserId: string;
+		reporterEmail: string;
 		reason: TicketExchangeReportReason;
 		details: string;
-	}): Promise<void> {
+	}): Promise<{
+		reportId: string;
+		listingId: string;
+		eventKey: string | null;
+		eventName: string | null;
+		ownerUserId: string | null;
+		ownerEmail: string | null;
+		createdAt: string;
+	}> {
 		await this.ready();
-		await this.sql`
-			INSERT INTO ticket_exchange_reports (
-				id,
-				listing_id,
-				reporter_user_id,
-				reason,
-				details
+		const rows = await this.sql<ReportCreateRow[]>`
+			WITH reportable_listing AS (
+				SELECT
+					id,
+					event_key,
+					event_name,
+					owner_user_id,
+					owner_email
+				FROM ticket_exchange_listings
+				WHERE id = ${input.listingId}
+					AND status = 'active'
+					AND expires_at > NOW()
+					AND owner_user_id <> ${input.reporterUserId}
+					AND LOWER(owner_email) <> ${input.reporterEmail.toLowerCase()}
+			),
+			upserted_report AS (
+				INSERT INTO ticket_exchange_reports (
+					id,
+					listing_id,
+					reporter_user_id,
+					reason,
+					details
+				)
+				SELECT
+					${generateUserId()},
+					reportable_listing.id,
+					${input.reporterUserId},
+					${input.reason},
+					${input.details}
+				FROM reportable_listing
+				ON CONFLICT (listing_id, reporter_user_id)
+				DO UPDATE SET
+					reason = EXCLUDED.reason,
+					details = EXCLUDED.details,
+					created_at = NOW(),
+					reviewed_at = NULL,
+					reviewed_by = NULL,
+					review_note = ''
+				RETURNING id, listing_id, created_at
 			)
-			VALUES (
-				${generateUserId()},
-				${input.listingId},
-				${input.reporterUserId},
-				${input.reason},
-				${input.details}
-			)
-			ON CONFLICT (listing_id, reporter_user_id)
-			DO UPDATE SET
-				reason = EXCLUDED.reason,
-				details = EXCLUDED.details,
-				created_at = NOW()
+			SELECT
+				upserted_report.id,
+				upserted_report.listing_id,
+				upserted_report.created_at,
+				reportable_listing.event_key AS listing_event_key,
+				reportable_listing.event_name AS listing_event_name,
+				reportable_listing.owner_user_id,
+				reportable_listing.owner_email
+			FROM upserted_report
+			INNER JOIN reportable_listing
+				ON reportable_listing.id = upserted_report.listing_id
 		`;
+		const row = rows[0];
+		if (!row) {
+			throw new Error(
+				"Only active Ticket Exchange listings from other users can be reported.",
+			);
+		}
+		return {
+			reportId: row.id,
+			listingId: row.listing_id,
+			eventKey: row.listing_event_key,
+			eventName: row.listing_event_name,
+			ownerUserId: row.owner_user_id,
+			ownerEmail: row.owner_email,
+			createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
+		};
 	}
 
 	async getSummaries(eventKeys?: string[]): Promise<TicketExchangeSummary[]> {
@@ -1600,11 +1668,14 @@ export class TicketExchangeRepository {
 				reports.reviewed_at,
 				reports.reviewed_by,
 				reports.review_note,
+				COALESCE(listings.event_key, '') AS listing_event_key,
+				COALESCE(listings.event_slug, '') AS listing_event_slug,
 				COALESCE(listings.event_name, 'Removed listing') AS listing_event_name,
 				COALESCE(listings.listing_type::text, 'selling') AS listing_type,
 				COALESCE(listings.quantity_label, '') AS quantity_label,
 				COALESCE(listings.price_label, '') AS price_label,
 				COALESCE(listings.status::text, 'removed') AS status,
+				COALESCE(listings.owner_user_id, '') AS owner_user_id,
 				COALESCE(listings.owner_email, '') AS owner_email,
 				COALESCE(listings.expires_at, reports.created_at) AS expires_at
 			FROM ticket_exchange_reports reports
@@ -1627,6 +1698,8 @@ export class TicketExchangeRepository {
 			reviewNote: row.review_note,
 			listing: {
 				id: row.listing_id,
+				eventKey: row.listing_event_key,
+				eventSlug: row.listing_event_slug,
 				eventName: row.listing_event_name,
 				listingType: row.listing_type,
 				quantityLabel: row.quantity_label,
@@ -1636,6 +1709,160 @@ export class TicketExchangeRepository {
 					status: row.status,
 					expiresAt: toIso(row.expires_at) ?? new Date(0).toISOString(),
 				}),
+				ownerUserId: row.owner_user_id,
+				ownerEmail: row.owner_email,
+			},
+		}));
+	}
+
+	async getAdminListingsForUser(input: {
+		userId?: string | null;
+		email?: string | null;
+		limit?: number;
+	}): Promise<TicketExchangeAdminListing[]> {
+		await this.ready();
+		const userId = input.userId?.trim() || null;
+		const email = input.email?.trim().toLowerCase() || null;
+		if (!userId && !email) return [];
+		const safeLimit = Math.min(100, Math.max(1, input.limit ?? 40));
+		const rows = await this.sql<ListingRow[]>`
+			SELECT
+				listings.id,
+				listings.event_key,
+				listings.event_slug,
+				listings.event_name,
+				listings.listing_type::text AS listing_type,
+				listings.quantity_label,
+				listings.price_label,
+				listings.price_amount_minor,
+				listings.price_currency::text AS price_currency,
+				listings.price_basis::text AS price_basis,
+				listings.price_source::text AS price_source,
+				listings.note,
+				listings.status::text AS status,
+				listings.owner_user_id,
+				listings.owner_email,
+				listings.contact_methods,
+				listings.contact_snapshot,
+				listings.expires_at,
+				listings.bot_announced_at,
+				listings.created_at,
+				listings.updated_at,
+				listings.resolved_at,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_interests interests
+					WHERE interests.listing_id = listings.id
+				) AS interest_count,
+				(
+					SELECT COUNT(*)::int
+					FROM ticket_exchange_reports reports
+					WHERE reports.listing_id = listings.id
+				) AS report_count
+			FROM ticket_exchange_listings listings
+			WHERE
+				(${userId}::text IS NOT NULL AND listings.owner_user_id = ${userId})
+				OR (${email}::text IS NOT NULL AND LOWER(listings.owner_email) = ${email})
+			ORDER BY listings.updated_at DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows.map((row) => ({
+			id: row.id,
+			eventKey: row.event_key,
+			eventSlug: row.event_slug,
+			eventName: row.event_name,
+			listingType: row.listing_type,
+			quantityLabel: row.quantity_label,
+			priceLabel: row.price_label,
+			...getRowPrice(row),
+			note: row.note,
+			status: row.status,
+			effectiveStatus: getEffectiveListingStatus({
+				status: row.status,
+				expiresAt: toIso(row.expires_at) ?? new Date(0).toISOString(),
+			}),
+			ownerUserId: row.owner_user_id,
+			ownerEmail: row.owner_email,
+			contactMethods: row.contact_methods ?? [],
+			expiresAt: toIso(row.expires_at) ?? new Date(0).toISOString(),
+			createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
+			updatedAt: toIso(row.updated_at) ?? new Date(0).toISOString(),
+			resolvedAt: toIso(row.resolved_at),
+			interestCount: row.interest_count,
+			reportCount: row.report_count ?? 0,
+			botAnnouncedAt: toIso(row.bot_announced_at ?? null),
+		}));
+	}
+
+	async getAdminReportsForUser(input: {
+		userId?: string | null;
+		email?: string | null;
+		limit?: number;
+	}): Promise<TicketExchangeAdminReport[]> {
+		await this.ready();
+		const userId = input.userId?.trim() || null;
+		const email = input.email?.trim().toLowerCase() || null;
+		if (!userId && !email) return [];
+		const safeLimit = Math.min(100, Math.max(1, input.limit ?? 40));
+		const rows = await this.sql<AdminReportRow[]>`
+			SELECT
+				reports.id,
+				reports.listing_id,
+				reports.reporter_user_id,
+				reports.reason::text AS reason,
+				reports.details,
+				reports.created_at,
+				reports.reviewed_at,
+				reports.reviewed_by,
+				reports.review_note,
+				COALESCE(listings.event_key, '') AS listing_event_key,
+				COALESCE(listings.event_slug, '') AS listing_event_slug,
+				COALESCE(listings.event_name, 'Removed listing') AS listing_event_name,
+				COALESCE(listings.listing_type::text, 'selling') AS listing_type,
+				COALESCE(listings.quantity_label, '') AS quantity_label,
+				COALESCE(listings.price_label, '') AS price_label,
+				COALESCE(listings.price_amount_minor, NULL) AS price_amount_minor,
+				COALESCE(listings.price_currency::text, NULL) AS price_currency,
+				COALESCE(listings.price_basis::text, 'unknown') AS price_basis,
+				COALESCE(listings.price_source::text, 'user') AS price_source,
+				COALESCE(listings.status::text, 'removed') AS status,
+				COALESCE(listings.owner_user_id, '') AS owner_user_id,
+				COALESCE(listings.owner_email, '') AS owner_email,
+				COALESCE(listings.expires_at, reports.created_at) AS expires_at
+			FROM ticket_exchange_reports reports
+			LEFT JOIN ticket_exchange_listings listings
+				ON listings.id = reports.listing_id
+			WHERE
+				(${userId}::text IS NOT NULL AND reports.reporter_user_id = ${userId})
+				OR (${userId}::text IS NOT NULL AND listings.owner_user_id = ${userId})
+				OR (${email}::text IS NOT NULL AND LOWER(listings.owner_email) = ${email})
+			ORDER BY reports.created_at DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows.map((row) => ({
+			id: row.id,
+			listingId: row.listing_id,
+			reporterUserId: row.reporter_user_id,
+			reason: row.reason,
+			details: row.details,
+			createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
+			reviewedAt: toIso(row.reviewed_at),
+			reviewedBy: row.reviewed_by,
+			reviewNote: row.review_note,
+			listing: {
+				id: row.listing_id,
+				eventKey: row.listing_event_key,
+				eventSlug: row.listing_event_slug,
+				eventName: row.listing_event_name,
+				listingType: row.listing_type,
+				quantityLabel: row.quantity_label,
+				priceLabel: row.price_label,
+				status: row.status,
+				effectiveStatus: getEffectiveListingStatus({
+					status: row.status,
+					expiresAt: toIso(row.expires_at) ?? new Date(0).toISOString(),
+				}),
+				ownerUserId: row.owner_user_id,
 				ownerEmail: row.owner_email,
 			},
 		}));

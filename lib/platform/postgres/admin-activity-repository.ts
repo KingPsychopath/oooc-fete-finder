@@ -218,6 +218,49 @@ export class AdminActivityRepository {
 		return rows.map(toEvent);
 	}
 
+	async listForTarget(input: {
+		targetType?: string;
+		targetId?: string | null;
+		targetLabel?: string | null;
+		limit?: number;
+	}): Promise<AdminActivityEvent[]> {
+		await this.ready();
+		const safeLimit = Math.max(1, Math.min(input.limit ?? 50, 200));
+		const targetType = input.targetType?.trim() || null;
+		const targetId = input.targetId?.trim() || null;
+		const targetLabel = input.targetLabel?.trim() || null;
+		if (!targetType && !targetId && !targetLabel) return [];
+
+		const rows = await this.sql<AdminActivityRow[]>`
+			SELECT
+				id,
+				occurred_at,
+				actor_type,
+				actor_label,
+				actor_session_jti,
+				action,
+				category,
+				target_type,
+				target_id,
+				target_label,
+				summary,
+				metadata,
+				severity,
+				href
+			FROM app_admin_activity_events
+			WHERE
+				(${targetType}::text IS NULL OR target_type = ${targetType})
+				AND (
+					(${targetId}::text IS NOT NULL AND target_id = ${targetId})
+					OR (${targetLabel}::text IS NOT NULL AND target_label = ${targetLabel})
+				)
+			ORDER BY occurred_at DESC, id DESC
+			LIMIT ${safeLimit}
+		`;
+
+		return rows.map(toEvent);
+	}
+
 	async countByCategory(): Promise<Record<AdminActivityCategory, number>> {
 		await this.ready();
 		const rows = await this.sql<

@@ -11,6 +11,10 @@ import {
 	checkEventSubmitIpLimit,
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
+import {
+	getUserActionPolicyDecision,
+	getUserRestrictionMessage,
+} from "@/features/users/policy";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	EVENT_SUBMISSION_JSON_BODY_LIMIT_BYTES,
@@ -149,6 +153,20 @@ export async function POST(request: Request) {
 		return NextResponse.json(
 			{ success: false, error: "Invalid submission details" },
 			{ status: 400, headers: NO_STORE_HEADERS },
+		);
+	}
+
+	const submissionPolicyDecision = await getUserActionPolicyDecision({
+		email: normalizedInput.hostEmail,
+		scope: "event_submission.create",
+	});
+	if (!submissionPolicyDecision.allowed) {
+		return NextResponse.json(
+			{
+				success: false,
+				error: getUserRestrictionMessage(submissionPolicyDecision),
+			},
+			{ status: 403, headers: NO_STORE_HEADERS },
 		);
 	}
 

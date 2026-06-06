@@ -11,7 +11,10 @@ import {
 } from "./constants";
 import { sendTicketExchangeInterestEmail } from "./email";
 import { parseTicketExchangePriceLabel } from "./pricing";
+import { getTicketExchangeReportReasonLabel } from "./reporting";
 import { getTicketExchangeRepository } from "./repository";
+import { assertUserActionAllowed } from "@/features/users/policy";
+import { recordAdminActivity } from "@/features/admin/activity/record";
 import {
 	findTicketExchangeEventByKey,
 	getTicketExchangeEvents,
@@ -61,6 +64,11 @@ const getAuthenticatedContext = async () => {
 	if (!session.isAuthenticated || !session.userId || !session.email) {
 		throw new Error("Login is required to use Ticket Exchange.");
 	}
+	await assertUserActionAllowed({
+		userId: session.userId,
+		email: session.email,
+		scope: "all_user_actions",
+	});
 	const repository = getTicketExchangeRepository();
 	if (!repository) {
 		throw new Error("Ticket Exchange storage is not configured yet.");
@@ -138,6 +146,11 @@ export async function createTicketExchangeListing(input: {
 }): Promise<TicketExchangeActionResult> {
 	try {
 		const { session, repository } = await getAuthenticatedContext();
+		await assertUserActionAllowed({
+			userId: session.userId,
+			email: session.email,
+			scope: "ticket_exchange.post",
+		});
 		const events = await getTicketExchangeEvents();
 		const event = findTicketExchangeEventByKey(events, input.eventKey);
 		if (!event) throw new Error("Choose a valid event.");
@@ -218,6 +231,11 @@ export async function expressTicketExchangeInterest(input: {
 }): Promise<TicketExchangeActionResult> {
 	try {
 		const { session, repository } = await getAuthenticatedContext();
+		await assertUserActionAllowed({
+			userId: session.userId,
+			email: session.email,
+			scope: "ticket_exchange.contact_unlock",
+		});
 		const profile = await repository.getContactProfile(
 			session.userId as string,
 			session.email,
@@ -312,6 +330,11 @@ export async function repostTicketExchangeListing(input: {
 }): Promise<TicketExchangeActionResult> {
 	try {
 		const { session, repository } = await getAuthenticatedContext();
+		await assertUserActionAllowed({
+			userId: session.userId,
+			email: session.email,
+			scope: "ticket_exchange.post",
+		});
 		const quantityLabel = validateTicketExchangeQuantityLabel(
 			input.quantityLabel,
 		);
@@ -343,9 +366,15 @@ export async function reportTicketExchangeListing(input: {
 }): Promise<TicketExchangeActionResult> {
 	try {
 		const { session, repository } = await getAuthenticatedContext();
-		await repository.reportListing({
+		await assertUserActionAllowed({
+			userId: session.userId,
+			email: session.email,
+			scope: "ticket_exchange.report",
+		});
+		const report = await repository.reportListing({
 			listingId: normalizeTicketExchangeText(input.listingId, 80),
 			reporterUserId: session.userId as string,
+			reporterEmail: session.email as string,
 			reason: reportReasonSchema.parse(input.reason),
 			details: validateTicketExchangeUserText(
 				input.details,
@@ -353,6 +382,31 @@ export async function reportTicketExchangeListing(input: {
 				"the report details",
 			),
 		});
+		await recordAdminActivity({
+			actorType: "system",
+			actorLabel: "Ticket Exchange report",
+			action: "ticket_exchange.report_created",
+			category: "content",
+			targetType: "ticket_exchange_report",
+			targetId: report.reportId,
+			targetLabel: report.eventName ?? report.listingId,
+			summary: `Ticket Exchange report received: ${getTicketExchangeReportReasonLabel(input.reason)}`,
+			metadata: {
+				reportId: report.reportId,
+				listingId: report.listingId,
+				eventKey: report.eventKey,
+				reporterUserId: session.userId,
+				ownerUserId: report.ownerUserId,
+				ownerEmail: report.ownerEmail,
+				reason: input.reason,
+				hasDetails: Boolean(input.details.trim()),
+			},
+			severity: "warning",
+			href: "/admin/content#ticket-exchange-moderation",
+		});
+		revalidatePath("/admin");
+		revalidatePath("/admin/content");
+		revalidatePath("/admin/users");
 		return {
 			success: true,
 			data: await dataForSession(input.selectedEventKey),

@@ -2,6 +2,7 @@ export type AdminModuleKey =
 	| "hub"
 	| "operations"
 	| "content"
+	| "users"
 	| "placements"
 	| "insights";
 
@@ -186,6 +187,39 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 				path: "/admin/placements#featured-events-manager",
 				moduleKey: "placements",
 				keywords: ["featured", "promoted", "queue", "schedule"],
+			},
+		],
+	},
+	{
+		key: "users",
+		label: "User Management",
+		description:
+			"Person-level trust, notices, restrictions, and activity drilldowns.",
+		path: "/admin/users",
+		sections: [
+			{
+				id: "user-search",
+				label: "User Search",
+				description: "Find users by email, name, or canonical user id.",
+				path: "/admin/users#user-search",
+				moduleKey: "users",
+				keywords: ["users", "trust", "safety", "search", "email"],
+			},
+			{
+				id: "active-restrictions",
+				label: "Active Restrictions",
+				description: "Current account and action-level restrictions.",
+				path: "/admin/users#active-restrictions",
+				moduleKey: "users",
+				keywords: ["ban", "block", "restriction", "policy"],
+			},
+			{
+				id: "global-notices",
+				label: "Global Notices",
+				description: "Global, authenticated, and segment notices.",
+				path: "/admin/users#global-notices",
+				moduleKey: "users",
+				keywords: ["notice", "warning", "message", "global"],
 			},
 		],
 	},

@@ -9,6 +9,7 @@ import {
 	checkUserPreferenceIpLimit,
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
+import { getUserActionPolicyDecision } from "@/features/users/policy";
 import {
 	TRACKING_JSON_BODY_LIMIT_BYTES,
 	acceptedNoStoreResponse,
@@ -133,6 +134,14 @@ export async function POST(request: Request) {
 		!userSession.userId ||
 		!userSession.email
 	) {
+		return accepted();
+	}
+	const policyDecision = await getUserActionPolicyDecision({
+		userId: userSession.userId,
+		email: userSession.email,
+		scope: "user_preferences.write",
+	});
+	if (!policyDecision.allowed) {
 		return accepted();
 	}
 

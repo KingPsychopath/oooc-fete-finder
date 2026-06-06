@@ -37,6 +37,7 @@ import {
 	buildTicketExchangePricingSuggestion,
 	parseTicketExchangePriceLabel,
 } from "@/features/ticket-exchange/pricing";
+import { TICKET_EXCHANGE_REPORT_REASON_LABELS } from "@/features/ticket-exchange/reporting";
 import { requestTicketExchangeTour } from "@/features/ticket-exchange/tour-onboarding";
 import type {
 	TicketExchangeActionResult,
@@ -71,6 +72,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
 	AlertTriangle,
+	ArrowDownNarrowWide,
 	ArrowUpRight,
 	AtSign,
 	Check,
@@ -88,8 +90,6 @@ import {
 	RefreshCw,
 	Search,
 	ShieldAlert,
-	SortAsc,
-	SortDesc,
 	Ticket,
 	Trash2,
 	UserRound,
@@ -224,14 +224,6 @@ const methodLabels: Record<TicketExchangeContactMethod, string> = {
 	x: "Twitter",
 };
 
-const reportReasonLabels: Record<TicketExchangeReportReason, string> = {
-	scam: "Scam suspected",
-	wrong_event: "Wrong event",
-	misleading_price: "Misleading price",
-	abusive_contact: "Abusive contact",
-	spam: "Spam or duplicate",
-	other: "Other",
-};
 const CREATE_LISTING_CONTROL_CLASS = "h-11 rounded-xl px-3";
 
 const getRelativeTime = (iso: string): string => {
@@ -441,13 +433,17 @@ const getListingSortTime = (listing: TicketExchangeListingView): number => {
 	return Number.isFinite(ms) ? ms : 0;
 };
 
-const getListingPriceSortRank = (listing: TicketExchangeListingView): number => {
+const getListingPriceSortRank = (
+	listing: TicketExchangeListingView,
+): number => {
 	if (listing.priceAmountMinor !== null && listing.priceCurrency) return 0;
 	if (listing.priceSource === "face_value") return 1;
 	return 2;
 };
 
-const getListingPriceSortValue = (listing: TicketExchangeListingView): number => {
+const getListingPriceSortValue = (
+	listing: TicketExchangeListingView,
+): number => {
 	if (listing.priceAmountMinor === null || !listing.priceCurrency) {
 		return Number.POSITIVE_INFINITY;
 	}
@@ -757,7 +753,7 @@ export function TicketExchangeClient({
 		eventOptions.find((option) => option.value === listingForm.eventKey) ??
 		null;
 	const selectedListingEvent = listingForm.eventKey
-		? eventByKey.get(listingForm.eventKey) ?? null
+		? (eventByKey.get(listingForm.eventKey) ?? null)
 		: null;
 	const listingPricingSuggestion = useMemo(
 		() =>
@@ -866,8 +862,8 @@ export function TicketExchangeClient({
 	);
 	const sortListingsButtonLabel =
 		listingSortMode === "price"
-			? "Showing lowest prices first"
-			: "Showing newest listings first";
+			? "Showing lowest prices first. Switch to newest first."
+			: "Show lowest price first";
 	const trackExchangeFriction = ({
 		reason,
 		surface,
@@ -2295,9 +2291,7 @@ export function TicketExchangeClient({
 									}
 									className={cn(
 										CREATE_LISTING_CONTROL_CLASS,
-										shouldShowPriceSuggestionAction
-											? "pr-24"
-											: null,
+										shouldShowPriceSuggestionAction ? "pr-24" : null,
 									)}
 								/>
 								{shouldShowPriceSuggestionAction ? (
@@ -2315,7 +2309,9 @@ export function TicketExchangeClient({
 										}}
 										className="absolute right-2 top-1/2 inline-flex h-6 max-w-20 -translate-y-1/2 items-center rounded-md bg-muted/55 px-2 text-[11px] font-medium leading-none text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
 									>
-										<span className="truncate">{priceSuggestionActionLabel}</span>
+										<span className="truncate">
+											{priceSuggestionActionLabel}
+										</span>
 									</button>
 								) : null}
 							</div>
@@ -2654,11 +2650,7 @@ export function TicketExchangeClient({
 												: "hover:border-foreground/20 hover:bg-background/70 hover:text-foreground",
 										)}
 									>
-										{listingSortMode === "price" ? (
-											<SortAsc className="h-3.5 w-3.5" />
-										) : (
-											<SortDesc className="h-3.5 w-3.5" />
-										)}
+										<ArrowDownNarrowWide className="h-3.5 w-3.5" />
 									</Button>
 								) : null}
 								<Button
@@ -2700,11 +2692,9 @@ export function TicketExchangeClient({
 								</Button>
 							</div>
 						</div>
-						{canSortListingsByPrice ? (
+						{canSortListingsByPrice && listingSortMode === "price" ? (
 							<p className="px-1.5 pt-1.5 text-[11px] font-medium text-muted-foreground">
-								{listingSortMode === "price"
-									? "Lowest price first"
-									: "Newest first"}
+								Lowest price first
 							</p>
 						) : null}
 					</div>
@@ -2871,11 +2861,13 @@ export function TicketExchangeClient({
 								}
 								className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
 							>
-								{Object.entries(reportReasonLabels).map(([value, label]) => (
-									<option key={value} value={value}>
-										{label}
-									</option>
-								))}
+								{Object.entries(TICKET_EXCHANGE_REPORT_REASON_LABELS).map(
+									([value, label]) => (
+										<option key={value} value={value}>
+											{label}
+										</option>
+									),
+								)}
 							</select>
 						</Field>
 						<Field label="Details">
@@ -3618,22 +3610,24 @@ function ListingCard({
 								{statusLabel}
 							</Badge>
 						)}
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => {
-								if (!isAuthenticated) {
-									onLogin();
-									return;
-								}
-								onReport(listing.id);
-							}}
-							className={cn("ml-auto", TICKET_EXCHANGE_SQUIRCLE_BUTTON_CLASS)}
-						>
-							<Flag className="h-3.5 w-3.5" />
-							Report
-						</Button>
+						{isActiveListing ? (
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									if (!isAuthenticated) {
+										onLogin();
+										return;
+									}
+									onReport(listing.id);
+								}}
+								className={cn("ml-auto", TICKET_EXCHANGE_SQUIRCLE_BUTTON_CLASS)}
+							>
+								<Flag className="h-3.5 w-3.5" />
+								Report
+							</Button>
+						) : null}
 					</>
 				)}
 			</div>

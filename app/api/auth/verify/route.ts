@@ -14,6 +14,10 @@ import {
 	checkAuthVerifyIpLimit,
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
+import {
+	getUserActionPolicyDecision,
+	getUserRestrictionMessage,
+} from "@/features/users/policy";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	DEFAULT_JSON_BODY_LIMIT_BYTES,
@@ -163,6 +167,20 @@ export async function POST(request: Request) {
 		return NextResponse.json(
 			{ success: false, error: "Valid email address is required" },
 			{ status: 400, headers: NO_STORE_HEADERS },
+		);
+	}
+
+	const loginPolicyDecision = await getUserActionPolicyDecision({
+		email,
+		scope: "auth.login",
+	});
+	if (!loginPolicyDecision.allowed) {
+		return NextResponse.json(
+			{
+				success: false,
+				error: getUserRestrictionMessage(loginPolicyDecision),
+			},
+			{ status: 403, headers: NO_STORE_HEADERS },
 		);
 	}
 

@@ -133,12 +133,15 @@ export interface TicketExchangeAdminReport {
 	listing: Pick<
 		TicketExchangeAdminListing,
 		| "id"
+		| "eventKey"
+		| "eventSlug"
 		| "eventName"
 		| "listingType"
 		| "quantityLabel"
 		| "priceLabel"
 		| "status"
 		| "effectiveStatus"
+		| "ownerUserId"
 		| "ownerEmail"
 	>;
 }

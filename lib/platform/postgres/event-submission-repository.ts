@@ -343,6 +343,38 @@ export class EventSubmissionRepository {
 		return rows.map(toRecord);
 	}
 
+	async listSubmissionsByEmail(
+		email: string,
+		limit = 100,
+	): Promise<EventSubmissionRecord[]> {
+		await this.ready();
+		const normalizedEmail = email.trim().toLowerCase();
+		if (!normalizedEmail) return [];
+		const safeLimit = Math.max(1, Math.min(limit, 500));
+		const rows = await this.sql<EventSubmissionRow[]>`
+			SELECT
+				id,
+				status,
+				payload,
+				host_email,
+				source_ip_hash,
+				email_ip_hash,
+				fingerprint_hash,
+				spam_signals,
+				review_reason,
+				accepted_event_key,
+				reviewed_at,
+				reviewed_by,
+				created_at,
+				updated_at
+			FROM app_event_submissions
+			WHERE LOWER(host_email) = ${normalizedEmail}
+			ORDER BY created_at DESC
+			LIMIT ${safeLimit}
+		`;
+		return rows.map(toRecord);
+	}
+
 	async getSubmissionById(id: string): Promise<EventSubmissionRecord | null> {
 		await this.ready();
 		const rows = await this.sql<EventSubmissionRow[]>`

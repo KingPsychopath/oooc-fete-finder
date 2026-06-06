@@ -1,0 +1,1615 @@
+"use client";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
+	createUserNoticeAsAdmin,
+	createUserRestrictionAsAdmin,
+	getAdminUsersDashboard,
+	revokeUserNoticeAsAdmin,
+} from "@/features/users/admin-actions";
+import {
+	ADMIN_USER_ATTENTION_DETAIL,
+	ADMIN_USER_ATTENTION_SUMMARY,
+	getAdminUserAttentionReasons,
+} from "@/features/users/attention";
+import {
+	getNoticeCtaHrefError,
+	normalizeNoticeCtaHref,
+} from "@/features/users/notice-form";
+import type {
+	AdminUsersActivityFilter,
+	AdminUserSummary,
+	AdminUsersDashboard,
+	AdminUsersSortDirection,
+	AdminUsersSortKey,
+	ManagedUserStatus,
+	UserNoticeSeverity,
+	UserNoticeTargetType,
+	UserRestrictionScope,
+} from "@/features/users/types";
+import { cn } from "@/lib/utils";
+import {
+	AlertTriangle,
+	Bell,
+	Ban,
+	ChevronLeft,
+	ChevronRight,
+	ChevronsLeft,
+	ChevronsRight,
+	Copy,
+	Eye,
+	Fingerprint,
+	Filter,
+	RefreshCw,
+	Search,
+	Send,
+	ShieldAlert,
+	UserRound,
+	X,
+} from "lucide-react";
+import Link from "next/link";
+import { useState, useTransition } from "react";
+import { withAdminBasePath } from "../config";
+
+type UsersDashboardClientProps = {
+	initialDashboard: AdminUsersDashboard;
+};
+
+const formatDateTime = (value: string | null): string => {
+	if (!value) return "Not yet";
+	try {
+		return new Intl.DateTimeFormat("en-GB", {
+			dateStyle: "medium",
+			timeStyle: "short",
+		}).format(new Date(value));
+	} catch {
+		return value;
+	}
+};
+
+const statusVariant = (status: ManagedUserStatus) =>
+	status === "blocked" || status === "deleted"
+		? ("destructive" as const)
+		: status === "active"
+			? ("default" as const)
+			: ("outline" as const);
+
+const statusLabel = (status: ManagedUserStatus): string =>
+	status === "active"
+		? "Active"
+		: status === "blocked"
+			? "Blocked"
+			: status === "deleted"
+				? "Deleted"
+				: "Unsubscribed";
+
+const noticeSeverityClass = (severity: UserNoticeSeverity): string => {
+	switch (severity) {
+		case "critical":
+			return "ooo-notice-card--critical";
+		case "action_required":
+			return "ooo-notice-card--action-required";
+		case "warning":
+			return "ooo-notice-card--warning";
+		case "success":
+			return "ooo-notice-card--success";
+		case "info":
+		default:
+			return "ooo-notice-card--info";
+	}
+};
+
+const noticeSeverityLabel = (severity: UserNoticeSeverity): string => {
+	switch (severity) {
+		case "critical":
+			return "Critical notice";
+		case "action_required":
+			return "Action required";
+		case "warning":
+			return "Heads up";
+		case "success":
+			return "Good news";
+		case "info":
+		default:
+			return "Site notice";
+	}
+};
+
+const noticeStatus = (notice: {
+	startsAt: string;
+	expiresAt: string | null;
+	revokedAt: string | null;
+	isActive: boolean;
+}): { label: string; variant: "default" | "outline" | "destructive" } => {
+	const now = Date.now();
+	const startsAt = new Date(notice.startsAt).getTime();
+	const expiresAt = notice.expiresAt
+		? new Date(notice.expiresAt).getTime()
+		: null;
+	if (notice.revokedAt) return { label: "Revoked", variant: "outline" };
+	if (Number.isFinite(startsAt) && startsAt > now) {
+		return { label: "Scheduled", variant: "outline" };
+	}
+	if (expiresAt && Number.isFinite(expiresAt) && expiresAt <= now) {
+		return { label: "Expired", variant: "outline" };
+	}
+	return notice.isActive
+		? { label: "Live", variant: "default" }
+		: { label: "Inactive", variant: "outline" };
+};
+
+const userDisplayName = (user: AdminUserSummary): string => {
+	const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+	return name || user.email;
+};
+
+const STATUS_OPTIONS: Array<{
+	value: ManagedUserStatus | "all";
+	label: string;
+}> = [
+	{ value: "all", label: "All status" },
+	{ value: "active", label: "Active" },
+	{ value: "blocked", label: "Blocked" },
+	{ value: "unsubscribed", label: "Unsubscribed" },
+	{ value: "deleted", label: "Deleted" },
+];
+
+const SORT_DIRECTION_LABELS: Record<AdminUsersSortDirection, string> = {
+	asc: "low/old first",
+	desc: "high/new first",
+};
+
+const getOptionLabel = <T extends string>(
+	options: Array<{ value: T; label: string }>,
+	value: T,
+): string => options.find((option) => option.value === value)?.label ?? value;
+
+const getPageWindow = (page: number, totalPages: number): number[] => {
+	const safeTotal = Math.max(totalPages, 1);
+	const safePage = Math.min(Math.max(page, 1), safeTotal);
+	const windowSize = Math.min(5, safeTotal);
+	const start = Math.max(
+		1,
+		Math.min(safePage - Math.floor(windowSize / 2), safeTotal - windowSize + 1),
+	);
+	return Array.from({ length: windowSize }, (_, index) => start + index);
+};
+
+const TARGET_OPTIONS: Array<{ value: UserNoticeTargetType; label: string }> = [
+	{ value: "global", label: "Everyone" },
+	{ value: "authenticated_users", label: "Signed-in users" },
+	{ value: "segment", label: "Segment" },
+];
+
+const SEGMENT_OPTIONS = [
+	{ value: "all_known_users", label: "All known users" },
+	{ value: "ticket_exchange_users", label: "Ticket Exchange users" },
+	{ value: "event_submitters", label: "Event submitters" },
+	{ value: "route_planners", label: "Route planners" },
+	{ value: "saved_event_users", label: "Saved event users" },
+];
+
+const SEVERITY_OPTIONS: Array<{ value: UserNoticeSeverity; label: string }> = [
+	{ value: "info", label: "Info" },
+	{ value: "success", label: "Success" },
+	{ value: "warning", label: "Warning" },
+	{ value: "action_required", label: "Action required" },
+	{ value: "critical", label: "Critical" },
+];
+
+const ACTIVITY_OPTIONS: Array<{
+	value: AdminUsersActivityFilter;
+	label: string;
+}> = [
+	{ value: "all", label: "All activity" },
+	{ value: "needs_attention", label: "Needs attention" },
+	{ value: "has_restrictions", label: "Has restrictions" },
+	{ value: "has_notices", label: "Has notices" },
+	{ value: "has_ticket_listings", label: "Has listings" },
+	{ value: "has_active_ticket_listings", label: "Has live listings" },
+	{ value: "has_ticket_reports", label: "Has report history" },
+	{ value: "has_submissions", label: "Has submissions" },
+	{ value: "has_plans", label: "Has routes" },
+	{ value: "has_saved_events", label: "Has saved events" },
+];
+
+const SORT_OPTIONS: Array<{ value: AdminUsersSortKey; label: string }> = [
+	{ value: "last_seen", label: "Last seen" },
+	{ value: "first_seen", label: "First seen" },
+	{ value: "active_restrictions", label: "Restrictions" },
+	{ value: "open_notices", label: "Open notices" },
+	{ value: "ticket_listings", label: "Listings" },
+	{ value: "active_ticket_listings", label: "Live listings" },
+	{ value: "ticket_reports", label: "Report activity" },
+	{ value: "event_submissions", label: "Submissions" },
+	{ value: "plans", label: "Routes" },
+	{ value: "saved_events", label: "Saved events" },
+];
+
+const RESTRICTION_OPTIONS: Array<{
+	value: UserRestrictionScope;
+	label: string;
+}> = [
+	{ value: "all_user_actions", label: "All user actions" },
+	{ value: "auth.login", label: "Login" },
+	{ value: "ticket_exchange.post", label: "Ticket posting" },
+	{ value: "ticket_exchange.contact_unlock", label: "Ticket contact unlocks" },
+	{ value: "ticket_exchange.report", label: "Ticket reports" },
+	{ value: "event_submission.create", label: "Event submissions" },
+	{ value: "plans.sync", label: "Route syncing" },
+	{ value: "saved_events.sync", label: "Saved events" },
+	{ value: "user_preferences.write", label: "Preference writes" },
+	{ value: "app_settings.sync", label: "App settings sync" },
+];
+
+export function UsersDashboardClient({
+	initialDashboard,
+}: UsersDashboardClientProps) {
+	const [dashboard, setDashboard] = useState(initialDashboard);
+	const [query, setQuery] = useState(initialDashboard.query.query ?? "");
+	const [status, setStatus] = useState<ManagedUserStatus | "all">(
+		initialDashboard.query.status ?? "all",
+	);
+	const [activity, setActivity] = useState<AdminUsersActivityFilter>(
+		initialDashboard.query.activity ?? "all",
+	);
+	const [sortKey, setSortKey] = useState<AdminUsersSortKey>(
+		initialDashboard.query.sortKey ?? "last_seen",
+	);
+	const [sortDirection, setSortDirection] = useState<AdminUsersSortDirection>(
+		initialDashboard.query.sortDirection ?? "desc",
+	);
+	const [pageSize, setPageSize] = useState(initialDashboard.pageSize);
+	const [errorMessage, setErrorMessage] = useState(
+		initialDashboard.error ?? "",
+	);
+	const [statusMessage, setStatusMessage] = useState("");
+	const [noticeComposerError, setNoticeComposerError] = useState("");
+	const [quickActionError, setQuickActionError] = useState("");
+	const [quickActionUser, setQuickActionUser] =
+		useState<AdminUserSummary | null>(null);
+	const [quickActionMode, setQuickActionMode] = useState<
+		"notice" | "restriction" | null
+	>(null);
+	const [noticeTargetType, setNoticeTargetType] =
+		useState<UserNoticeTargetType>("global");
+	const [segmentKey, setSegmentKey] = useState("all_known_users");
+	const [noticeSeverity, setNoticeSeverity] =
+		useState<UserNoticeSeverity>("info");
+	const [noticeTitle, setNoticeTitle] = useState("");
+	const [noticeBody, setNoticeBody] = useState("");
+	const [noticeCtaLabel, setNoticeCtaLabel] = useState("");
+	const [noticeCtaHref, setNoticeCtaHref] = useState("");
+	const [noticeRequiresAck, setNoticeRequiresAck] = useState(false);
+	const [noticeDismissible, setNoticeDismissible] = useState(true);
+	const [noticeStartsAt, setNoticeStartsAt] = useState("");
+	const [noticeExpiresAt, setNoticeExpiresAt] = useState("");
+	const [quickRestrictionScope, setQuickRestrictionScope] =
+		useState<UserRestrictionScope>("ticket_exchange.post");
+	const [quickRestrictionReason, setQuickRestrictionReason] = useState("");
+	const [quickRestrictionNote, setQuickRestrictionNote] = useState("");
+	const [quickRestrictionExpiresAt, setQuickRestrictionExpiresAt] =
+		useState("");
+	const [isPending, startTransition] = useTransition();
+
+	const normalizeDateTimeForAction = (value: string): string | null => {
+		if (!value) return null;
+		const parsed = new Date(value);
+		return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : value;
+	};
+
+	const noticePayload = () => ({
+		title: noticeTitle,
+		body: noticeBody,
+		severity: noticeSeverity,
+		ctaLabel: noticeCtaLabel,
+		ctaHref: normalizeNoticeCtaHref(noticeCtaHref),
+		requiresAck: noticeRequiresAck,
+		dismissible: noticeDismissible,
+		startsAt: normalizeDateTimeForAction(noticeStartsAt),
+		expiresAt: normalizeDateTimeForAction(noticeExpiresAt),
+	});
+
+	const validateNoticeComposer = (): string => {
+		if (!noticeTitle.trim() || !noticeBody.trim()) {
+			return "Notice title and body are required.";
+		}
+		if (
+			(Boolean(noticeCtaLabel.trim()) && !noticeCtaHref.trim()) ||
+			(!noticeCtaLabel.trim() && Boolean(noticeCtaHref.trim()))
+		) {
+			return "CTA label and link must be provided together.";
+		}
+		return getNoticeCtaHrefError(noticeCtaHref) ?? "";
+	};
+
+	const refresh = (options?: {
+		nextQuery?: string;
+		nextStatus?: ManagedUserStatus | "all";
+		nextActivity?: AdminUsersActivityFilter;
+		nextSortKey?: AdminUsersSortKey;
+		nextSortDirection?: AdminUsersSortDirection;
+		nextPage?: number;
+		nextPageSize?: number;
+	}) => {
+		const nextQuery = options?.nextQuery ?? query;
+		const nextStatus = options?.nextStatus ?? status;
+		const nextActivity = options?.nextActivity ?? activity;
+		const nextSortKey = options?.nextSortKey ?? sortKey;
+		const nextSortDirection = options?.nextSortDirection ?? sortDirection;
+		const nextPage = options?.nextPage ?? dashboard.page;
+		const nextPageSize = options?.nextPageSize ?? pageSize;
+		startTransition(async () => {
+			const result = await getAdminUsersDashboard({
+				query: nextQuery,
+				status: nextStatus,
+				activity: nextActivity,
+				sortKey: nextSortKey,
+				sortDirection: nextSortDirection,
+				page: nextPage,
+				pageSize: nextPageSize,
+			});
+			setDashboard(result);
+			setErrorMessage(result.error ?? "");
+			setStatusMessage(result.supported ? "Users refreshed." : "");
+		});
+	};
+
+	const submitSearch = () => {
+		refresh({ nextPage: 1 });
+	};
+
+	const copyValue = async (label: string, value: string) => {
+		try {
+			await navigator.clipboard.writeText(value);
+			setStatusMessage(`${label} copied.`);
+		} catch {
+			setErrorMessage(`Could not copy ${label.toLowerCase()}.`);
+		}
+	};
+
+	const openQuickAction = (
+		user: AdminUserSummary,
+		mode: "notice" | "restriction",
+	) => {
+		setErrorMessage("");
+		setStatusMessage("");
+		setQuickActionError("");
+		setQuickActionUser(user);
+		setQuickActionMode(mode);
+	};
+
+	const submitGlobalNotice = () => {
+		const validationError = validateNoticeComposer();
+		setErrorMessage("");
+		setStatusMessage("");
+		setNoticeComposerError(validationError);
+		if (validationError) return;
+		startTransition(async () => {
+			const result = await createUserNoticeAsAdmin({
+				targetType: noticeTargetType,
+				segmentKey: noticeTargetType === "segment" ? segmentKey : null,
+				...noticePayload(),
+			});
+			if (!result.success) {
+				setNoticeComposerError(result.error ?? "Unable to create notice.");
+				return;
+			}
+			setNoticeComposerError("");
+			setNoticeTitle("");
+			setNoticeBody("");
+			setNoticeCtaLabel("");
+			setNoticeCtaHref("");
+			setNoticeStartsAt("");
+			setNoticeExpiresAt("");
+			setNoticeRequiresAck(false);
+			setNoticeDismissible(true);
+			setStatusMessage("Notice created.");
+			refresh();
+		});
+	};
+
+	const submitQuickNotice = () => {
+		if (!quickActionUser) return;
+		const validationError = validateNoticeComposer();
+		setErrorMessage("");
+		setStatusMessage("");
+		setQuickActionError(validationError);
+		if (validationError) return;
+		startTransition(async () => {
+			const result = await createUserNoticeAsAdmin({
+				targetType: "user",
+				targetUserId: quickActionUser.userId,
+				targetEmail: quickActionUser.email,
+				...noticePayload(),
+			});
+			if (!result.success) {
+				setQuickActionError(result.error ?? "Unable to create notice.");
+				return;
+			}
+			setQuickActionError("");
+			setQuickActionUser(null);
+			setQuickActionMode(null);
+			setNoticeTitle("");
+			setNoticeBody("");
+			setNoticeCtaLabel("");
+			setNoticeCtaHref("");
+			setNoticeStartsAt("");
+			setNoticeExpiresAt("");
+			setStatusMessage("User notice created.");
+			refresh();
+		});
+	};
+
+	const submitQuickRestriction = () => {
+		if (!quickActionUser) return;
+		startTransition(async () => {
+			const result = await createUserRestrictionAsAdmin({
+				userId: quickActionUser.userId,
+				email: quickActionUser.email,
+				scope: quickRestrictionScope,
+				reason: quickRestrictionReason,
+				internalNote: quickRestrictionNote,
+				expiresAt: normalizeDateTimeForAction(quickRestrictionExpiresAt),
+			});
+			if (!result.success) {
+				setErrorMessage(result.error ?? "Unable to create restriction.");
+				return;
+			}
+			setQuickActionUser(null);
+			setQuickActionMode(null);
+			setQuickRestrictionReason("");
+			setQuickRestrictionNote("");
+			setQuickRestrictionExpiresAt("");
+			setStatusMessage("User restriction created.");
+			refresh();
+		});
+	};
+
+	const revokeNotice = (noticeId: string) => {
+		startTransition(async () => {
+			const result = await revokeUserNoticeAsAdmin({ noticeId });
+			if (!result.success) {
+				setErrorMessage(result.error ?? "Unable to revoke notice.");
+				return;
+			}
+			setStatusMessage("Notice revoked.");
+			refresh();
+		});
+	};
+
+	const appliedQuery = dashboard.query.query?.trim() ?? "";
+	const appliedStatus = dashboard.query.status ?? "all";
+	const appliedActivity = dashboard.query.activity ?? "all";
+	const appliedSortKey = dashboard.query.sortKey ?? "last_seen";
+	const appliedSortDirection = dashboard.query.sortDirection ?? "desc";
+	const pageWindow = getPageWindow(dashboard.page, dashboard.totalPages);
+	const activeFilterChips: Array<{
+		key: string;
+		label: string;
+		value: string;
+		clear: () => void;
+	}> = [];
+	if (appliedQuery) {
+		activeFilterChips.push({
+			key: "query",
+			label: "Search",
+			value: appliedQuery,
+			clear: () => {
+				setQuery("");
+				refresh({ nextQuery: "", nextPage: 1 });
+			},
+		});
+	}
+	if (appliedStatus !== "all") {
+		activeFilterChips.push({
+			key: "status",
+			label: "Status",
+			value: getOptionLabel(STATUS_OPTIONS, appliedStatus),
+			clear: () => {
+				setStatus("all");
+				refresh({ nextStatus: "all", nextPage: 1 });
+			},
+		});
+	}
+	if (appliedActivity !== "all") {
+		activeFilterChips.push({
+			key: "activity",
+			label: "Activity",
+			value: getOptionLabel(ACTIVITY_OPTIONS, appliedActivity),
+			clear: () => {
+				setActivity("all");
+				refresh({ nextActivity: "all", nextPage: 1 });
+			},
+		});
+	}
+	const activeFilterCount = activeFilterChips.length;
+	const sortSummary = `${getOptionLabel(SORT_OPTIONS, appliedSortKey)} · ${SORT_DIRECTION_LABELS[appliedSortDirection]}`;
+	const reportHistoryLabel = (count: number): string =>
+		`${count} report${count === 1 ? "" : "s"} in history`;
+	const pendingReportAgainstListingsLabel = (count: number): string =>
+		`${count} pending report${count === 1 ? "" : "s"} against listing${count === 1 ? "" : "s"}`;
+
+	return (
+		<div className="space-y-6">
+			<Card className="ooo-admin-card min-w-0 overflow-hidden">
+				<CardHeader className="border-b">
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<CardTitle>User Management</CardTitle>
+							<CardDescription>
+								Search users, inspect risk signals, and manage person-level
+								restrictions and notices.
+							</CardDescription>
+						</div>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => refresh()}
+							disabled={isPending}
+						>
+							<RefreshCw />
+							Refresh
+						</Button>
+					</div>
+				</CardHeader>
+				<CardContent className="grid gap-3 pt-4 sm:grid-cols-2 xl:grid-cols-4">
+					<div className="rounded-md border bg-muted/25 p-3">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Matching Users
+						</p>
+						<p className="mt-1 text-lg font-semibold">{dashboard.totalUsers}</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Page {dashboard.page} of {dashboard.totalPages}
+						</p>
+					</div>
+					<div className="rounded-md border bg-muted/25 p-3">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Active Restrictions
+						</p>
+						<p className="mt-1 text-lg font-semibold">
+							{dashboard.activeRestrictions.length}
+						</p>
+					</div>
+					<div className="rounded-md border bg-muted/25 p-3">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Global Notices
+						</p>
+						<p className="mt-1 text-lg font-semibold">
+							{
+								dashboard.globalNotices.filter((notice) => notice.isActive)
+									.length
+							}
+						</p>
+					</div>
+					<div className="rounded-md border bg-muted/25 p-3">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Needs Attention
+						</p>
+						<p className="mt-1 text-lg font-semibold">
+							{dashboard.attentionUserCount}
+						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							{ADMIN_USER_ATTENTION_SUMMARY}
+						</p>
+					</div>
+				</CardContent>
+			</Card>
+
+			{errorMessage ? (
+				<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+					{errorMessage}
+				</div>
+			) : null}
+			{statusMessage ? (
+				<div className="rounded-lg border bg-muted/45 p-3 text-sm text-muted-foreground">
+					{statusMessage}
+				</div>
+			) : null}
+
+			<section id="user-search" className="scroll-mt-44">
+				<Card className="ooo-admin-card min-w-0 overflow-hidden">
+					<CardHeader className="border-b">
+						<CardTitle>User Search</CardTitle>
+						<CardDescription>
+							Open a user detail page to see their listings, submissions,
+							restrictions, notices, notes, and audit history.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4 pt-4">
+						<div className="grid gap-3 lg:grid-cols-12 lg:items-start">
+							<div className="min-w-0 space-y-1.5 lg:col-span-5">
+								<Label htmlFor="user-search-query">Search</Label>
+								<Input
+									id="user-search-query"
+									value={query}
+									onChange={(event) => setQuery(event.target.value)}
+									placeholder="Email, name, or user id"
+									onKeyDown={(event) => {
+										if (event.key === "Enter") submitSearch();
+									}}
+								/>
+							</div>
+							<div className="min-w-0 space-y-1.5 lg:col-span-3">
+								<Label htmlFor="user-status-filter">Status</Label>
+								<select
+									id="user-status-filter"
+									value={status}
+									onChange={(event) => {
+										const nextStatus = event.target.value as
+											| ManagedUserStatus
+											| "all";
+										setStatus(nextStatus);
+										refresh({ nextStatus, nextPage: 1 });
+									}}
+									className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+								>
+									{STATUS_OPTIONS.map((option) => (
+										<option key={option.value} value={option.value}>
+											{option.label}
+										</option>
+									))}
+								</select>
+								<p className="text-xs text-muted-foreground">
+									Active is the normal state. Other statuses are exceptions.
+								</p>
+							</div>
+							<div className="min-w-0 space-y-1.5 lg:col-span-4">
+								<Label htmlFor="user-activity-filter">Activity</Label>
+								<select
+									id="user-activity-filter"
+									value={activity}
+									onChange={(event) => {
+										const nextActivity = event.target
+											.value as AdminUsersActivityFilter;
+										setActivity(nextActivity);
+										refresh({ nextActivity, nextPage: 1 });
+									}}
+									className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+								>
+									{ACTIVITY_OPTIONS.map((option) => (
+										<option key={option.value} value={option.value}>
+											{option.label}
+										</option>
+									))}
+								</select>
+								<p className="text-xs text-muted-foreground">
+									Needs attention means{" "}
+									{ADMIN_USER_ATTENTION_SUMMARY.toLowerCase()}
+								</p>
+							</div>
+							<div className="min-w-0 space-y-1.5 lg:col-span-4">
+								<Label htmlFor="user-sort-key">Sort</Label>
+								<select
+									id="user-sort-key"
+									value={sortKey}
+									onChange={(event) => {
+										const nextSortKey = event.target.value as AdminUsersSortKey;
+										setSortKey(nextSortKey);
+										refresh({ nextSortKey, nextPage: 1 });
+									}}
+									className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+								>
+									{SORT_OPTIONS.map((option) => (
+										<option key={option.value} value={option.value}>
+											{option.label}
+										</option>
+									))}
+								</select>
+							</div>
+							<div className="min-w-0 space-y-1.5 lg:col-span-3">
+								<Label htmlFor="user-sort-direction">Direction</Label>
+								<select
+									id="user-sort-direction"
+									value={sortDirection}
+									onChange={(event) => {
+										const nextSortDirection = event.target
+											.value as AdminUsersSortDirection;
+										setSortDirection(nextSortDirection);
+										refresh({ nextSortDirection, nextPage: 1 });
+									}}
+									className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+								>
+									<option value="desc">High/new first</option>
+									<option value="asc">Low/old first</option>
+								</select>
+							</div>
+							<div className="min-w-0 space-y-1.5 lg:col-span-2">
+								<Label htmlFor="user-page-size">Rows</Label>
+								<select
+									id="user-page-size"
+									value={pageSize}
+									onChange={(event) => {
+										const nextPageSize = Number(event.target.value);
+										setPageSize(nextPageSize);
+										refresh({ nextPageSize, nextPage: 1 });
+									}}
+									className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+								>
+									<option value={25}>25</option>
+									<option value={50}>50</option>
+									<option value={100}>100</option>
+								</select>
+							</div>
+							<Button
+								type="button"
+								className="w-full lg:col-span-3 lg:self-end"
+								onClick={submitSearch}
+								disabled={isPending}
+							>
+								<Search />
+								Search
+							</Button>
+						</div>
+						<div className="flex flex-wrap items-center gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								title={ADMIN_USER_ATTENTION_DETAIL}
+								onClick={() => {
+									setActivity("needs_attention");
+									refresh({ nextActivity: "needs_attention", nextPage: 1 });
+								}}
+							>
+								<Filter />
+								Needs attention
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									setQuery("");
+									setStatus("all");
+									setActivity("all");
+									setSortKey("last_seen");
+									setSortDirection("desc");
+									refresh({
+										nextQuery: "",
+										nextStatus: "all",
+										nextActivity: "all",
+										nextSortKey: "last_seen",
+										nextSortDirection: "desc",
+										nextPage: 1,
+									});
+								}}
+							>
+								Reset filters
+							</Button>
+						</div>
+						<div className="rounded-lg border bg-muted/20 p-3">
+							<div className="flex flex-wrap items-center justify-between gap-2">
+								<div>
+									<p className="text-sm font-medium">
+										{activeFilterCount} active filter
+										{activeFilterCount === 1 ? "" : "s"}
+									</p>
+									<p className="text-xs text-muted-foreground">
+										Sort: {sortSummary}
+									</p>
+									{appliedActivity === "needs_attention" ? (
+										<p className="mt-1 text-xs text-muted-foreground">
+											{ADMIN_USER_ATTENTION_DETAIL}
+										</p>
+									) : null}
+								</div>
+								{activeFilterCount > 0 ? (
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={() => {
+											setQuery("");
+											setStatus("all");
+											setActivity("all");
+											refresh({
+												nextQuery: "",
+												nextStatus: "all",
+												nextActivity: "all",
+												nextPage: 1,
+											});
+										}}
+									>
+										Clear filters
+									</Button>
+								) : null}
+							</div>
+							{activeFilterCount > 0 ? (
+								<div className="mt-3 flex flex-wrap gap-2">
+									{activeFilterChips.map((chip) => (
+										<button
+											key={chip.key}
+											type="button"
+											className="inline-flex min-h-8 items-center gap-2 rounded-md border bg-background/70 px-2.5 py-1 text-left text-xs transition-colors hover:bg-muted"
+											onClick={chip.clear}
+										>
+											<span className="font-medium text-muted-foreground">
+												{chip.label}
+											</span>
+											<span className="max-w-48 truncate text-foreground">
+												{chip.value}
+											</span>
+											<X className="size-3.5 text-muted-foreground" />
+										</button>
+									))}
+								</div>
+							) : (
+								<p className="mt-3 text-xs text-muted-foreground">
+									No filters applied. You are viewing all known users.
+								</p>
+							)}
+						</div>
+
+						<div className="grid gap-3">
+							{dashboard.users.length > 0 ? (
+								dashboard.users.map((user) => {
+									const attentionReasons = getAdminUserAttentionReasons(user);
+									return (
+										<div
+											key={user.userId}
+											className="grid gap-3 rounded-lg border bg-background/70 p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+										>
+											<div className="min-w-0 space-y-2">
+												<div className="flex flex-wrap items-center gap-2">
+													{user.status !== "active" ? (
+														<Badge variant={statusVariant(user.status)}>
+															{statusLabel(user.status)}
+														</Badge>
+													) : null}
+													{user.activeRestrictionCount > 0 ? (
+														<Badge variant="destructive">
+															<ShieldAlert />
+															{user.activeRestrictionCount} restriction
+															{user.activeRestrictionCount === 1 ? "" : "s"}
+														</Badge>
+													) : null}
+													{user.openNoticeCount > 0 ? (
+														<Badge variant="outline">
+															<Bell />
+															{user.openNoticeCount} notice
+															{user.openNoticeCount === 1 ? "" : "s"}
+														</Badge>
+													) : null}
+													{user.openTicketReportCount > 0 ? (
+														<Badge variant="destructive">
+															<AlertTriangle />
+															{pendingReportAgainstListingsLabel(
+																user.openTicketReportCount,
+															)}
+														</Badge>
+													) : user.ticketReportCount > 0 ? (
+														<Badge variant="outline">
+															<AlertTriangle />
+															{reportHistoryLabel(user.ticketReportCount)}
+														</Badge>
+													) : null}
+												</div>
+												<div>
+													<p className="truncate text-base font-semibold">
+														{userDisplayName(user)}
+													</p>
+													<p className="truncate text-sm text-muted-foreground">
+														{user.email} · {user.userId}
+													</p>
+												</div>
+												{attentionReasons.length > 0 ? (
+													<div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-950 dark:text-amber-100">
+														<span className="font-medium">
+															Needs attention:
+														</span>{" "}
+														{attentionReasons.join(" · ")}
+													</div>
+												) : null}
+												<div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+													<span>
+														Last seen {formatDateTime(user.lastSeenAt)}
+													</span>
+													<span>{user.ticketListingCount} listings</span>
+													{user.openTicketReportCount > 0 ? (
+														<span>
+															{pendingReportAgainstListingsLabel(
+																user.openTicketReportCount,
+															)}
+														</span>
+													) : null}
+													<span>
+														{reportHistoryLabel(user.ticketReportCount)}
+													</span>
+													<span>{user.eventSubmissionCount} submissions</span>
+													<span>{user.planCount} routes</span>
+													<span>{user.savedEventCount} saved events</span>
+												</div>
+											</div>
+											<div className="flex flex-wrap gap-2 lg:justify-end">
+												<Button
+													type="button"
+													variant="outline"
+													size="icon-sm"
+													title="Copy email"
+													onClick={() => void copyValue("Email", user.email)}
+												>
+													<Copy />
+												</Button>
+												<Button
+													type="button"
+													variant="outline"
+													size="icon-sm"
+													title="Copy user ID"
+													onClick={() => void copyValue("User ID", user.userId)}
+												>
+													<Fingerprint />
+												</Button>
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() => openQuickAction(user, "notice")}
+												>
+													<Send />
+													Notice
+												</Button>
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() => openQuickAction(user, "restriction")}
+												>
+													<Ban />
+													Restrict
+												</Button>
+												<Link
+													href={withAdminBasePath(
+														`/admin/users/${encodeURIComponent(user.userId)}`,
+													)}
+												>
+													<Button type="button" variant="outline" size="sm">
+														<UserRound />
+														Open User
+													</Button>
+												</Link>
+											</div>
+										</div>
+									);
+								})
+							) : (
+								<div className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
+									No users match this search.
+								</div>
+							)}
+						</div>
+						<div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+							<p className="text-sm text-muted-foreground">
+								Showing{" "}
+								{dashboard.totalUsers === 0
+									? 0
+									: (dashboard.page - 1) * dashboard.pageSize + 1}
+								-
+								{Math.min(
+									dashboard.page * dashboard.pageSize,
+									dashboard.totalUsers,
+								)}{" "}
+								of {dashboard.totalUsers}
+							</p>
+							<div className="flex flex-wrap gap-1.5">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={isPending || dashboard.page <= 1}
+									onClick={() => refresh({ nextPage: 1 })}
+								>
+									<ChevronsLeft />
+									First
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={isPending || dashboard.page <= 1}
+									onClick={() => refresh({ nextPage: dashboard.page - 1 })}
+								>
+									<ChevronLeft />
+									Previous
+								</Button>
+								{pageWindow.map((pageNumber) => (
+									<Button
+										key={pageNumber}
+										type="button"
+										variant={
+											pageNumber === dashboard.page ? "default" : "outline"
+										}
+										size="sm"
+										disabled={isPending || pageNumber === dashboard.page}
+										onClick={() => refresh({ nextPage: pageNumber })}
+										aria-current={
+											pageNumber === dashboard.page ? "page" : undefined
+										}
+									>
+										{pageNumber}
+									</Button>
+								))}
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={isPending || dashboard.page >= dashboard.totalPages}
+									onClick={() => refresh({ nextPage: dashboard.page + 1 })}
+								>
+									Next
+									<ChevronRight />
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={isPending || dashboard.page >= dashboard.totalPages}
+									onClick={() => refresh({ nextPage: dashboard.totalPages })}
+								>
+									Last
+									<ChevronsRight />
+								</Button>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			</section>
+
+			<section id="active-restrictions" className="scroll-mt-44">
+				<Card className="ooo-admin-card min-w-0 overflow-hidden">
+					<CardHeader className="border-b">
+						<CardTitle>Active Restrictions</CardTitle>
+						<CardDescription>
+							Account and action blocks currently being enforced by server-side
+							policy checks.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3 pt-4">
+						{dashboard.activeRestrictions.length > 0 ? (
+							dashboard.activeRestrictions.map((restriction) => (
+								<div
+									key={restriction.id}
+									className="rounded-lg border bg-background/70 p-3"
+								>
+									<div className="flex flex-wrap items-center gap-2">
+										<Badge variant="destructive">
+											<AlertTriangle />
+											{restriction.scope}
+										</Badge>
+										<Badge variant="outline">
+											{restriction.expiresAt
+												? `Expires ${formatDateTime(restriction.expiresAt)}`
+												: "No expiry"}
+										</Badge>
+									</div>
+									<p className="mt-2 text-sm font-medium">
+										{restriction.email ?? restriction.userId}
+									</p>
+									<p className="mt-1 text-sm text-muted-foreground">
+										{restriction.reason}
+									</p>
+									<div className="mt-3 flex flex-wrap gap-2">
+										<Link
+											href={withAdminBasePath(
+												`/admin/users/${encodeURIComponent(
+													restriction.userId ?? restriction.email ?? "",
+												)}`,
+											)}
+										>
+											<Button type="button" variant="outline" size="sm">
+												<UserRound />
+												Open User
+											</Button>
+										</Link>
+									</div>
+								</div>
+							))
+						) : (
+							<div className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
+								No active restrictions.
+							</div>
+						)}
+					</CardContent>
+				</Card>
+			</section>
+
+			<section id="global-notices" className="scroll-mt-44">
+				<Card className="ooo-admin-card min-w-0 overflow-hidden">
+					<CardHeader className="border-b">
+						<CardTitle>Global Notices</CardTitle>
+						<CardDescription>
+							Send global, signed-in-only, or segment notices shown on the next
+							site visit.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="grid gap-4 pt-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+						<div className="space-y-3 rounded-lg border bg-background/70 p-3">
+							<div className="grid gap-3 sm:grid-cols-2">
+								<div className="space-y-1.5">
+									<Label htmlFor="notice-target">Target</Label>
+									<select
+										id="notice-target"
+										value={noticeTargetType}
+										onChange={(event) =>
+											setNoticeTargetType(
+												event.target.value as UserNoticeTargetType,
+											)
+										}
+										className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+									>
+										{TARGET_OPTIONS.map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
+											</option>
+										))}
+									</select>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="notice-severity">Level</Label>
+									<select
+										id="notice-severity"
+										value={noticeSeverity}
+										onChange={(event) =>
+											setNoticeSeverity(
+												event.target.value as UserNoticeSeverity,
+											)
+										}
+										className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+									>
+										{SEVERITY_OPTIONS.map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
+											</option>
+										))}
+									</select>
+								</div>
+							</div>
+							{noticeTargetType === "segment" ? (
+								<div className="space-y-1.5">
+									<Label htmlFor="notice-segment">Segment</Label>
+									<select
+										id="notice-segment"
+										value={segmentKey}
+										onChange={(event) => setSegmentKey(event.target.value)}
+										className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+									>
+										{SEGMENT_OPTIONS.map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
+											</option>
+										))}
+									</select>
+								</div>
+							) : null}
+							<div className="space-y-1.5">
+								<Label htmlFor="notice-title">Title</Label>
+								<Input
+									id="notice-title"
+									value={noticeTitle}
+									onChange={(event) => setNoticeTitle(event.target.value)}
+									placeholder="Notice title"
+								/>
+							</div>
+							<div className="space-y-1.5">
+								<Label htmlFor="notice-body">Body</Label>
+								<Textarea
+									id="notice-body"
+									value={noticeBody}
+									onChange={(event) => setNoticeBody(event.target.value)}
+									placeholder="Short message shown to users"
+									rows={4}
+								/>
+							</div>
+							<div className="grid gap-3 sm:grid-cols-2">
+								<div className="space-y-1.5">
+									<Label htmlFor="notice-cta-label">CTA Label</Label>
+									<Input
+										id="notice-cta-label"
+										value={noticeCtaLabel}
+										onChange={(event) => setNoticeCtaLabel(event.target.value)}
+										placeholder="Optional"
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="notice-cta-href">CTA Link</Label>
+									<Input
+										id="notice-cta-href"
+										value={noticeCtaHref}
+										onChange={(event) => setNoticeCtaHref(event.target.value)}
+										placeholder="/tickets or example.com"
+									/>
+								</div>
+							</div>
+							<div className="grid gap-3 sm:grid-cols-2">
+								<label className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+									<input
+										type="checkbox"
+										checked={noticeRequiresAck}
+										onChange={(event) =>
+											setNoticeRequiresAck(event.target.checked)
+										}
+									/>
+									Requires acknowledgement
+								</label>
+								<label className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+									<input
+										type="checkbox"
+										checked={noticeDismissible}
+										onChange={(event) =>
+											setNoticeDismissible(event.target.checked)
+										}
+									/>
+									Dismissible
+								</label>
+							</div>
+							<div className="space-y-1.5">
+								<Label htmlFor="notice-starts">Starts At</Label>
+								<Input
+									id="notice-starts"
+									type="datetime-local"
+									value={noticeStartsAt}
+									onChange={(event) => setNoticeStartsAt(event.target.value)}
+								/>
+								<p className="text-xs text-muted-foreground">
+									Leave blank to publish immediately. A future start time queues
+									the notice until that moment.
+								</p>
+							</div>
+							<div className="space-y-1.5">
+								<Label htmlFor="notice-expires">Expires At</Label>
+								<Input
+									id="notice-expires"
+									type="datetime-local"
+									value={noticeExpiresAt}
+									onChange={(event) => setNoticeExpiresAt(event.target.value)}
+								/>
+								<p className="text-xs text-muted-foreground">
+									Optional stop time. After this, the notice disappears for
+									everyone even if they never dismissed it.
+								</p>
+							</div>
+							<div className="rounded-lg border bg-muted/20 p-3">
+								<div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+									<Eye className="size-3.5" />
+									Preview
+								</div>
+								<div
+									className={cn(
+										"ooo-notice-card border p-3 pl-4",
+										noticeSeverityClass(noticeSeverity),
+									)}
+								>
+									<div className="flex flex-wrap items-center justify-between gap-2">
+										<p className="ooo-notice-eyebrow text-[10px] font-medium uppercase tracking-[0.18em]">
+											{noticeSeverityLabel(noticeSeverity)}
+										</p>
+										<p className="text-xs text-muted-foreground">
+											{noticeStartsAt
+												? `Queued for ${formatDateTime(noticeStartsAt)}`
+												: "Publishes immediately"}
+										</p>
+									</div>
+									<p className="ooo-notice-title mt-2 text-[1.15rem] leading-tight">
+										{noticeTitle || "Notice title"}
+									</p>
+									<p className="mt-2 text-sm text-foreground/75">
+										{noticeBody || "Notice body preview"}
+									</p>
+									{noticeExpiresAt ? (
+										<p className="mt-2 text-xs text-muted-foreground">
+											Visible until {formatDateTime(noticeExpiresAt)}
+										</p>
+									) : null}
+								</div>
+							</div>
+							{noticeComposerError ? (
+								<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+									{noticeComposerError}
+								</div>
+							) : null}
+							<Button
+								type="button"
+								onClick={submitGlobalNotice}
+								disabled={isPending}
+							>
+								<Bell />
+								{isPending ? "Creating..." : "Create Notice"}
+							</Button>
+						</div>
+
+						<div className="space-y-3">
+							{dashboard.globalNotices.length > 0 ? (
+								dashboard.globalNotices.map((notice) => {
+									const status = noticeStatus(notice);
+									return (
+										<div
+											key={notice.id}
+											className={cn(
+												"ooo-notice-card border p-3 pl-4",
+												noticeSeverityClass(notice.severity),
+											)}
+										>
+											<div className="flex flex-wrap items-start justify-between gap-2">
+												<div>
+													<p className="ooo-notice-eyebrow text-[10px] font-medium uppercase tracking-[0.18em]">
+														{noticeSeverityLabel(notice.severity)}
+													</p>
+													<p className="ooo-notice-title mt-1 text-[1.12rem] leading-tight">
+														{notice.title}
+													</p>
+												</div>
+												<p className="text-xs font-medium text-muted-foreground">
+													{status.label} · {notice.targetType}
+												</p>
+											</div>
+											<p className="mt-2 line-clamp-2 text-sm text-foreground/75">
+												{notice.body}
+											</p>
+											<p className="mt-2 text-xs text-muted-foreground">
+												Starts {formatDateTime(notice.startsAt)}
+												{notice.expiresAt
+													? ` · visible until ${formatDateTime(notice.expiresAt)}`
+													: " · no expiry"}
+											</p>
+											<div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground sm:grid-cols-4">
+												<span>Delivered {notice.deliveredCount ?? 0}</span>
+												<span>Read {notice.readCount ?? 0}</span>
+												<span>Ack {notice.acknowledgedCount ?? 0}</span>
+												<span>Dismissed {notice.dismissedCount ?? 0}</span>
+											</div>
+											<div className="mt-3 flex flex-wrap gap-2">
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													className="ooo-notice-secondary-action bg-background/45"
+													onClick={() => {
+														setNoticeTargetType(notice.targetType);
+														setSegmentKey(
+															notice.segmentKey ?? "all_known_users",
+														);
+														setNoticeSeverity(notice.severity);
+														setNoticeTitle(notice.title);
+														setNoticeBody(notice.body);
+														setNoticeCtaLabel(notice.ctaLabel ?? "");
+														setNoticeCtaHref(notice.ctaHref ?? "");
+														setNoticeRequiresAck(notice.requiresAck);
+														setNoticeDismissible(notice.dismissible);
+														setNoticeStartsAt("");
+														setNoticeExpiresAt("");
+														setStatusMessage("Notice copied into composer.");
+													}}
+												>
+													<Copy />
+													Duplicate
+												</Button>
+												{notice.revokedAt ? null : (
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														disabled={isPending}
+														className="ooo-notice-secondary-action bg-background/45"
+														onClick={() => revokeNotice(notice.id)}
+													>
+														Revoke
+													</Button>
+												)}
+											</div>
+										</div>
+									);
+								})
+							) : (
+								<div className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
+									No global or segment notices yet.
+								</div>
+							)}
+						</div>
+					</CardContent>
+				</Card>
+			</section>
+
+			<Dialog
+				open={Boolean(quickActionUser && quickActionMode === "notice")}
+				onOpenChange={(open) => {
+					if (!open) {
+						setQuickActionError("");
+						setQuickActionUser(null);
+						setQuickActionMode(null);
+					}
+				}}
+			>
+				<DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
+					<DialogHeader>
+						<DialogTitle>Send User Notice</DialogTitle>
+						<DialogDescription>
+							{quickActionUser
+								? `Send an in-app notice to ${quickActionUser.email}.`
+								: "Send an in-app notice."}
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-3">
+						<select
+							value={noticeSeverity}
+							onChange={(event) =>
+								setNoticeSeverity(event.target.value as UserNoticeSeverity)
+							}
+							className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+						>
+							{SEVERITY_OPTIONS.map((option) => (
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
+							))}
+						</select>
+						<Input
+							value={noticeTitle}
+							onChange={(event) => setNoticeTitle(event.target.value)}
+							placeholder="Notice title"
+						/>
+						<Textarea
+							value={noticeBody}
+							onChange={(event) => setNoticeBody(event.target.value)}
+							placeholder="Notice body"
+							rows={4}
+						/>
+						<div className="grid gap-2 sm:grid-cols-2">
+							<Input
+								value={noticeCtaLabel}
+								onChange={(event) => setNoticeCtaLabel(event.target.value)}
+								placeholder="CTA label"
+							/>
+							<Input
+								value={noticeCtaHref}
+								onChange={(event) => setNoticeCtaHref(event.target.value)}
+								placeholder="/tickets or example.com"
+							/>
+						</div>
+						<div className="grid gap-2 sm:grid-cols-2">
+							<label className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+								<input
+									type="checkbox"
+									checked={noticeRequiresAck}
+									onChange={(event) =>
+										setNoticeRequiresAck(event.target.checked)
+									}
+								/>
+								Requires acknowledgement
+							</label>
+							<label className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+								<input
+									type="checkbox"
+									checked={noticeDismissible}
+									onChange={(event) =>
+										setNoticeDismissible(event.target.checked)
+									}
+								/>
+								Dismissible
+							</label>
+						</div>
+						<div className="grid gap-2 sm:grid-cols-2">
+							<div className="space-y-1.5">
+								<Label>Starts At</Label>
+								<Input
+									type="datetime-local"
+									value={noticeStartsAt}
+									onChange={(event) => setNoticeStartsAt(event.target.value)}
+								/>
+							</div>
+							<div className="space-y-1.5">
+								<Label>Expires At</Label>
+								<Input
+									type="datetime-local"
+									value={noticeExpiresAt}
+									onChange={(event) => setNoticeExpiresAt(event.target.value)}
+								/>
+							</div>
+						</div>
+						{quickActionError ? (
+							<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+								{quickActionError}
+							</div>
+						) : null}
+						<Button
+							type="button"
+							onClick={submitQuickNotice}
+							disabled={isPending}
+						>
+							<Bell />
+							{isPending ? "Sending..." : "Send Notice"}
+						</Button>
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog
+				open={Boolean(quickActionUser && quickActionMode === "restriction")}
+				onOpenChange={(open) => {
+					if (!open) {
+						setQuickActionUser(null);
+						setQuickActionMode(null);
+					}
+				}}
+			>
+				<DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
+					<DialogHeader>
+						<DialogTitle>Add Restriction</DialogTitle>
+						<DialogDescription>
+							{quickActionUser
+								? `Apply an action-level restriction to ${quickActionUser.email}.`
+								: "Apply an action-level restriction."}
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-3">
+						<select
+							value={quickRestrictionScope}
+							onChange={(event) =>
+								setQuickRestrictionScope(
+									event.target.value as UserRestrictionScope,
+								)
+							}
+							className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+						>
+							{RESTRICTION_OPTIONS.map((option) => (
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
+							))}
+						</select>
+						<Input
+							value={quickRestrictionReason}
+							onChange={(event) =>
+								setQuickRestrictionReason(event.target.value)
+							}
+							placeholder="User-facing reason"
+						/>
+						<Textarea
+							value={quickRestrictionNote}
+							onChange={(event) => setQuickRestrictionNote(event.target.value)}
+							placeholder="Internal note"
+							rows={3}
+						/>
+						<div className="space-y-1.5">
+							<Label>Expires At</Label>
+							<Input
+								type="datetime-local"
+								value={quickRestrictionExpiresAt}
+								onChange={(event) =>
+									setQuickRestrictionExpiresAt(event.target.value)
+								}
+							/>
+						</div>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={submitQuickRestriction}
+							disabled={isPending}
+						>
+							<Ban />
+							Add Restriction
+						</Button>
+					</div>
+				</DialogContent>
+			</Dialog>
+		</div>
+	);
+}

@@ -18,6 +18,7 @@ import {
 	TICKET_EXCHANGE_MAX_ACTIVE_INTERESTS_PER_USER,
 	TICKET_EXCHANGE_MAX_DAILY_UNLOCKS_PER_USER,
 } from "@/features/ticket-exchange/constants";
+import { getTicketExchangeReportReasonLabel } from "@/features/ticket-exchange/reporting";
 import type {
 	TicketExchangeAdminDashboard,
 	TicketExchangeAdminListing,
@@ -26,9 +27,19 @@ import type {
 	TicketExchangeListingStatus,
 } from "@/features/ticket-exchange/types";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, Check, Pause, RefreshCw, Trash2 } from "lucide-react";
+import {
+	AlertTriangle,
+	Check,
+	ExternalLink,
+	Pause,
+	RefreshCw,
+	Trash2,
+	UserRound,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { withAdminBasePath } from "../config";
 
 type AdminPayload = Awaited<ReturnType<typeof getTicketExchangeAdminDashboard>>;
 type ModerationTab = "review" | "active" | "recent";
@@ -127,14 +138,7 @@ const statusLabel = (status: TicketExchangeListingStatus): string => {
 	}
 };
 
-const reportReasonLabel = (reason: string): string =>
-	reason
-		.split("_")
-		.map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
-		.join(" ");
-
-const normalizeSearch = (value: string): string =>
-	value.trim().toLowerCase();
+const normalizeSearch = (value: string): string => value.trim().toLowerCase();
 
 const toTime = (value: string | null): number => {
 	if (!value) return 0;
@@ -158,7 +162,9 @@ const listingSearchText = (listing: TicketExchangeAdminListing): string =>
 
 const reportSearchText = (report: TicketExchangeAdminReport): string =>
 	[
+		report.listing.eventKey,
 		report.listing.eventName,
+		report.listing.ownerUserId,
 		report.listing.ownerEmail,
 		report.listing.listingType,
 		report.listing.quantityLabel,
@@ -240,8 +246,8 @@ const sortReports = (
 				return left.listing.eventName.localeCompare(right.listing.eventName);
 			case "reason-asc":
 				return (
-					reportReasonLabel(left.reason).localeCompare(
-						reportReasonLabel(right.reason),
+					getTicketExchangeReportReasonLabel(left.reason).localeCompare(
+						getTicketExchangeReportReasonLabel(right.reason),
 					) || toTime(right.createdAt) - toTime(left.createdAt)
 				);
 			case "reported-desc":
@@ -441,7 +447,9 @@ const ReportRow = ({
 					<Badge variant={report.reviewedAt ? "outline" : "destructive"}>
 						{report.reviewedAt ? "Reviewed" : "Needs review"}
 					</Badge>
-					<Badge variant="outline">{reportReasonLabel(report.reason)}</Badge>
+					<Badge variant="outline">
+						{getTicketExchangeReportReasonLabel(report.reason)}
+					</Badge>
 				</div>
 				<p className="font-medium leading-snug">{report.listing.eventName}</p>
 				<p className="text-sm text-muted-foreground">
@@ -450,12 +458,55 @@ const ReportRow = ({
 					{report.listing.priceLabel ? ` · ${report.listing.priceLabel}` : ""}
 				</p>
 				<p className="mt-1 text-xs text-muted-foreground">
-					Owner {report.listing.ownerEmail || "unknown"} · reported{" "}
-					{formatDateTime(report.createdAt)}
+					Owner {report.listing.ownerEmail || "unknown"} · reporter{" "}
+					{report.reporterUserId} · reported {formatDateTime(report.createdAt)}
 				</p>
-				{report.details ? (
-					<p className="mt-2 text-sm text-muted-foreground">{report.details}</p>
-				) : null}
+				<div className="mt-2 rounded-md border border-amber-300/60 bg-background/65 px-3 py-2">
+					<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-900/80 dark:text-amber-100/80">
+						Report message
+					</p>
+					<p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+						{report.details || "No extra message from the reporter."}
+					</p>
+				</div>
+				<div className="flex flex-wrap gap-2">
+					{report.reporterUserId ? (
+						<Link
+							href={withAdminBasePath(
+								`/admin/users/${encodeURIComponent(report.reporterUserId)}`,
+							)}
+						>
+							<Button type="button" variant="outline" size="sm">
+								<UserRound />
+								Reporter
+							</Button>
+						</Link>
+					) : null}
+					{report.listing.ownerUserId || report.listing.ownerEmail ? (
+						<Link
+							href={withAdminBasePath(
+								`/admin/users/${encodeURIComponent(report.listing.ownerUserId || report.listing.ownerEmail)}`,
+							)}
+						>
+							<Button type="button" variant="outline" size="sm">
+								<UserRound />
+								Owner
+							</Button>
+						</Link>
+					) : null}
+					{report.listing.eventKey ? (
+						<Link
+							href={withAdminBasePath(
+								`/exchange/${encodeURIComponent(report.listing.eventKey)}`,
+							)}
+						>
+							<Button type="button" variant="outline" size="sm">
+								<ExternalLink />
+								Exchange
+							</Button>
+						</Link>
+					) : null}
+				</div>
 			</div>
 			<div className="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
 				<Button
@@ -539,8 +590,7 @@ export const TicketExchangeModerationCard = ({
 				filterListings(listingSource, {
 					query,
 					typeFilter: listingTypeFilter,
-					statusFilter:
-						activeTab === "active" ? "active" : listingStatusFilter,
+					statusFilter: activeTab === "active" ? "active" : listingStatusFilter,
 				}),
 				listingSortMode,
 			),
@@ -911,7 +961,9 @@ export const TicketExchangeModerationCard = ({
 										variant="outline"
 										size="sm"
 										disabled={pageBounds.safePage <= 1}
-										onClick={() => setPage((current) => Math.max(1, current - 1))}
+										onClick={() =>
+											setPage((current) => Math.max(1, current - 1))
+										}
 									>
 										Previous
 									</Button>

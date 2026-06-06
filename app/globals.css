@@ -259,6 +259,108 @@
 	mix-blend-mode: overlay;
 }
 
+.ooo-notice-card {
+	--ooo-notice-accent: #213f43;
+	--ooo-notice-surface: color-mix(in oklab, var(--card) 92%, var(--ooo-notice-accent) 8%);
+	--ooo-notice-border: color-mix(in oklab, var(--ooo-notice-accent) 32%, var(--border));
+	--ooo-notice-soft: color-mix(in oklab, var(--ooo-notice-accent) 10%, transparent);
+	position: relative;
+	overflow: hidden;
+	border-color: var(--ooo-notice-border);
+	border-radius: 0.5rem;
+	background:
+		linear-gradient(135deg, var(--ooo-notice-soft), transparent 44%),
+		var(--ooo-notice-surface);
+	box-shadow:
+		0 18px 42px rgba(25, 19, 15, 0.14),
+		0 1px 0 color-mix(in oklab, white 42%, transparent) inset;
+	backdrop-filter: blur(12px);
+}
+
+.ooo-notice-card::before {
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: 0;
+	width: 0.28rem;
+	content: "";
+	background: var(--ooo-notice-accent);
+}
+
+.ooo-notice-card--info {
+	--ooo-notice-accent: #213f43;
+}
+
+.ooo-notice-card--success {
+	--ooo-notice-accent: #4f7c5b;
+}
+
+.ooo-notice-card--warning {
+	--ooo-notice-accent: #a35f3b;
+}
+
+.ooo-notice-card--action-required {
+	--ooo-notice-accent: #8f3e2f;
+}
+
+.ooo-notice-card--critical {
+	--ooo-notice-accent: #b42318;
+}
+
+.ooo-notice-icon {
+	border-color: color-mix(in oklab, var(--ooo-notice-accent) 36%, transparent);
+	background: color-mix(in oklab, var(--ooo-notice-accent) 13%, var(--card));
+	color: var(--ooo-notice-accent);
+}
+
+.ooo-notice-eyebrow {
+	color: color-mix(in oklab, var(--ooo-notice-accent) 74%, var(--foreground));
+}
+
+.ooo-notice-title {
+	font-family: var(--ooo-font-display);
+	font-weight: 300;
+	letter-spacing: 0.01em;
+}
+
+.ooo-notice-primary-action {
+	border-color: color-mix(in oklab, var(--ooo-notice-accent) 42%, transparent);
+	background: var(--ooo-notice-accent);
+	color: #fff8eb;
+}
+
+.ooo-notice-primary-action:hover {
+	background: color-mix(in oklab, var(--ooo-notice-accent) 88%, black);
+	color: #fff8eb;
+}
+
+.ooo-notice-secondary-action {
+	border-color: color-mix(in oklab, var(--ooo-notice-accent) 34%, var(--border));
+	color: color-mix(in oklab, var(--ooo-notice-accent) 72%, var(--foreground));
+}
+
+.ooo-notice-secondary-action:hover {
+	background: color-mix(in oklab, var(--ooo-notice-accent) 10%, transparent);
+	color: color-mix(in oklab, var(--ooo-notice-accent) 82%, var(--foreground));
+}
+
+.dark .ooo-notice-card {
+	--ooo-notice-surface: color-mix(in oklab, var(--card) 88%, var(--ooo-notice-accent) 12%);
+	--ooo-notice-border: color-mix(in oklab, var(--ooo-notice-accent) 42%, var(--border));
+	--ooo-notice-soft: color-mix(in oklab, var(--ooo-notice-accent) 18%, transparent);
+	box-shadow:
+		0 20px 48px rgba(0, 0, 0, 0.36),
+		0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+
+.dark .ooo-notice-icon {
+	background: color-mix(in oklab, var(--ooo-notice-accent) 20%, var(--card));
+	color: color-mix(in oklab, var(--ooo-notice-accent) 78%, white);
+}
+
+.dark .ooo-notice-eyebrow {
+	color: color-mix(in oklab, var(--ooo-notice-accent) 62%, white);
+}
+
 .ooo-grain-visible::before {
 	opacity: 0.07;
 	mix-blend-mode: multiply;

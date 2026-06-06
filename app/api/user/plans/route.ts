@@ -4,6 +4,10 @@ import {
 } from "@/features/auth/user-session-cookie";
 import { validatePlanTitle } from "@/features/plans/plan-title";
 import { MAX_PLANS_PER_DATE } from "@/features/plans/types";
+import {
+	getUserActionPolicyDecision,
+	getUserRestrictionMessage,
+} from "@/features/users/policy";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	DEFAULT_JSON_BODY_LIMIT_BYTES,
@@ -73,13 +77,14 @@ const parseCookieByName = (
 
 const getUserPlanIdentity = async (
 	request: Request,
-): Promise<{ userId: string; ownerKey: string } | null> => {
+): Promise<{ userId: string; email: string | null; ownerKey: string } | null> => {
 	const cookieHeader = request.headers.get("cookie");
 	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
 	const userSession = await getCanonicalUserSessionFromCookieHeader(userCookie);
 	if (!userSession.isAuthenticated || !userSession.userId) return null;
 	return {
 		userId: userSession.userId,
+		email: userSession.email,
 		ownerKey: `user:${userSession.userId}`,
 	};
 };
@@ -129,6 +134,17 @@ export async function POST(request: Request) {
 		return NextResponse.json(
 			{ success: false, error: "Sign in to sync plans" },
 			{ status: 401, headers: NO_STORE_HEADERS },
+		);
+	}
+	const policyDecision = await getUserActionPolicyDecision({
+		userId: identity.userId,
+		email: identity.email,
+		scope: "plans.sync",
+	});
+	if (!policyDecision.allowed) {
+		return NextResponse.json(
+			{ success: false, error: getUserRestrictionMessage(policyDecision) },
+			{ status: 403, headers: NO_STORE_HEADERS },
 		);
 	}
 
@@ -217,6 +233,17 @@ export async function DELETE(request: Request) {
 		return NextResponse.json(
 			{ success: false, error: "Sign in to sync plans" },
 			{ status: 401, headers: NO_STORE_HEADERS },
+		);
+	}
+	const policyDecision = await getUserActionPolicyDecision({
+		userId: identity.userId,
+		email: identity.email,
+		scope: "plans.sync",
+	});
+	if (!policyDecision.allowed) {
+		return NextResponse.json(
+			{ success: false, error: getUserRestrictionMessage(policyDecision) },
+			{ status: 403, headers: NO_STORE_HEADERS },
 		);
 	}
 

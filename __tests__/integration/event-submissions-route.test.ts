@@ -11,6 +11,7 @@ type Setup = {
 	evaluateSubmissionSpamSignals: ReturnType<typeof vi.fn>;
 	createEventSubmission: ReturnType<typeof vi.fn>;
 	getPublicSettings: ReturnType<typeof vi.fn>;
+	getUserActionPolicyDecision: ReturnType<typeof vi.fn>;
 };
 
 const validBody = {
@@ -82,6 +83,11 @@ const loadRoute = async (): Promise<Setup> => {
 		eventUpdatesEnabled: true,
 		updatedAt: "2026-02-18T00:00:00.000Z",
 	});
+	const getUserActionPolicyDecision = vi.fn().mockResolvedValue({
+		allowed: true,
+		restriction: null,
+		reason: null,
+	});
 
 	vi.doMock("@/features/security/rate-limiter", () => ({
 		extractClientIpFromHeaders: () => "203.0.113.1",
@@ -103,6 +109,13 @@ const loadRoute = async (): Promise<Setup> => {
 		},
 	}));
 
+	vi.doMock("@/features/users/policy", () => ({
+		getUserActionPolicyDecision,
+		getUserRestrictionMessage: vi.fn((decision: { reason?: string | null }) =>
+			decision.reason || "This action is currently restricted for your account.",
+		),
+	}));
+
 	const route = await import("@/app/api/event-submissions/route");
 	return {
 		POST: route.POST,
@@ -114,6 +127,7 @@ const loadRoute = async (): Promise<Setup> => {
 		evaluateSubmissionSpamSignals,
 		createEventSubmission,
 		getPublicSettings,
+		getUserActionPolicyDecision,
 	};
 };
 
@@ -302,6 +316,49 @@ describe("/api/event-submissions route", () => {
 			}),
 		);
 		expect(response.status).toBe(400);
+		expect(createEventSubmission).not.toHaveBeenCalled();
+	});
+
+	it("blocks event submission before email/fingerprint limits when policy denies the host", async () => {
+		const {
+			POST,
+			getUserActionPolicyDecision,
+			checkEventSubmitEmailIpLimit,
+			checkEventSubmitFingerprintLimit,
+			createEventSubmission,
+		} = await loadRoute();
+		getUserActionPolicyDecision.mockResolvedValue({
+			allowed: false,
+			restriction: {
+				id: "rst_1",
+				scope: "event_submission.create",
+			},
+			reason: "Event submissions are paused for this email.",
+		});
+
+		const response = await POST(
+			new Request("https://example.com/api/event-submissions", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(validBody),
+			}),
+		);
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
+
+		expect(response.status).toBe(403);
+		expect(payload).toEqual({
+			success: false,
+			error: "Event submissions are paused for this email.",
+		});
+		expect(getUserActionPolicyDecision).toHaveBeenCalledWith({
+			email: "host@example.com",
+			scope: "event_submission.create",
+		});
+		expect(checkEventSubmitEmailIpLimit).not.toHaveBeenCalled();
+		expect(checkEventSubmitFingerprintLimit).not.toHaveBeenCalled();
 		expect(createEventSubmission).not.toHaveBeenCalled();
 	});
 

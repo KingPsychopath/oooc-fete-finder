@@ -4,6 +4,7 @@ import {
 	getCanonicalUserSessionFromCookieHeader,
 	getUserAuthCookieOptions,
 } from "@/features/auth/user-session-cookie";
+import { getUserActionPolicyDecision } from "@/features/users/policy";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	forbiddenNoStoreResponse,
@@ -21,6 +22,30 @@ export async function GET(request: NextRequest) {
 		verifyAdminSessionFromRequest(request),
 	]);
 	if (session.isAuthenticated) {
+		const loginPolicyDecision = await getUserActionPolicyDecision({
+			userId: session.userId,
+			email: session.email,
+			scope: "auth.login",
+		});
+		if (!loginPolicyDecision.allowed) {
+			const response = NextResponse.json(
+				{
+					success: true,
+					isAuthenticated: false,
+					isAdminAuthenticated: Boolean(adminSession),
+					email: null,
+					userId: null,
+				},
+				{
+					headers: NO_STORE_HEADERS,
+				},
+			);
+			response.cookies.set(USER_AUTH_COOKIE_NAME, "", {
+				...getUserAuthCookieOptions(),
+				maxAge: 0,
+			});
+			return response;
+		}
 		try {
 			await getUserRepository()?.touchContext({
 				userId: session.userId,

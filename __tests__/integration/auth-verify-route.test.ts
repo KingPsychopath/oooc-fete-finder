@@ -10,6 +10,7 @@ type Setup = {
 	logWarn: ReturnType<typeof vi.fn>;
 	attachEventUserToSession: ReturnType<typeof vi.fn>;
 	attachDiscoveryUserToSession: ReturnType<typeof vi.fn>;
+	getUserActionPolicyDecision: ReturnType<typeof vi.fn>;
 };
 
 const validBody = {
@@ -63,6 +64,11 @@ const loadRoute = async (): Promise<Setup> => {
 	const logWarn = vi.fn();
 	const attachEventUserToSession = vi.fn().mockResolvedValue(0);
 	const attachDiscoveryUserToSession = vi.fn().mockResolvedValue(0);
+	const getUserActionPolicyDecision = vi.fn().mockResolvedValue({
+		allowed: true,
+		restriction: null,
+		reason: null,
+	});
 
 	vi.doMock("@/features/auth/user-collection-store", () => ({
 		UserCollectionStore: {
@@ -111,6 +117,13 @@ const loadRoute = async (): Promise<Setup> => {
 		}),
 	}));
 
+	vi.doMock("@/features/users/policy", () => ({
+		getUserActionPolicyDecision,
+		getUserRestrictionMessage: vi.fn((decision: { reason?: string | null }) =>
+			decision.reason || "This action is currently restricted for your account.",
+		),
+	}));
+
 	const route = await import("@/app/api/auth/verify/route");
 	return {
 		POST: route.POST,
@@ -122,6 +135,7 @@ const loadRoute = async (): Promise<Setup> => {
 		logWarn,
 		attachEventUserToSession,
 		attachDiscoveryUserToSession,
+		getUserActionPolicyDecision,
 	};
 };
 
@@ -284,6 +298,52 @@ describe("/api/auth/verify route", () => {
 			}),
 		);
 		expect(getStatus).toHaveBeenCalledTimes(1);
+	});
+
+	it("blocks login before user creation when policy denies the email", async () => {
+		const {
+			POST,
+			addOrUpdate,
+			getUserProfile,
+			checkAuthVerifyEmailIpLimit,
+			getUserActionPolicyDecision,
+		} = await loadRoute();
+		getUserActionPolicyDecision.mockResolvedValue({
+			allowed: false,
+			restriction: {
+				id: "rst_1",
+				scope: "auth.login",
+			},
+			reason: "This email cannot sign in right now.",
+		});
+
+		const response = await POST(
+			new Request("https://example.com/api/auth/verify", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-forwarded-for": "203.0.113.22",
+				},
+				body: JSON.stringify(validBody),
+			}),
+		);
+		const payload = (await response.json()) as {
+			success: boolean;
+			error: string;
+		};
+
+		expect(response.status).toBe(403);
+		expect(payload).toEqual({
+			success: false,
+			error: "This email cannot sign in right now.",
+		});
+		expect(getUserActionPolicyDecision).toHaveBeenCalledWith({
+			email: "owen@example.com",
+			scope: "auth.login",
+		});
+		expect(getUserProfile).not.toHaveBeenCalled();
+		expect(checkAuthVerifyEmailIpLimit).not.toHaveBeenCalled();
+		expect(addOrUpdate).not.toHaveBeenCalled();
 	});
 
 	it("stores an opt-out when the soft opt-in checkbox is checked", async () => {

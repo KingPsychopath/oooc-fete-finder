@@ -8,6 +8,7 @@ import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistratio
 import { SmoothAnchorScroll } from "@/components/SmoothAnchorScroll";
 import { SupportCoffeePrompt } from "@/components/SupportCoffeePrompt";
 import { ThemeColorSync } from "@/components/ThemeColorSync";
+import { UserNoticeCenter } from "@/components/UserNoticeCenter";
 import { OfflineIndicator } from "@/components/offline-indicator";
 import { OnlineStatusProvider } from "@/components/online-status-gate";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
@@ -349,6 +350,7 @@ export default function RootLayout({
 						<AuthProvider>
 							<AppSettingsSync />
 							{children}
+							<UserNoticeCenter />
 							<Footer />
 							<MobileBottomNav />
 							<SupportCoffeePrompt />

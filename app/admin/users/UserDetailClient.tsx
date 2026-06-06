@@ -1,0 +1,1733 @@
+"use client";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
+	addUserAdminNoteAsAdmin,
+	bulkUpdateUserTicketListingsAsAdmin,
+	createUserNoticeAsAdmin,
+	createUserRestrictionAsAdmin,
+	getAdminUserDetail,
+	revokeUserNoticeAsAdmin,
+	revokeUserRestrictionAsAdmin,
+	updateManagedUserStatusAsAdmin,
+	updateUserTicketListingAsAdmin,
+} from "@/features/users/admin-actions";
+import {
+	getNoticeCtaHrefError,
+	normalizeNoticeCtaHref,
+} from "@/features/users/notice-form";
+import type {
+	AdminUserDetail,
+	AdminPlanDetail,
+	ManagedUserStatus,
+	UserAdminNoteCategory,
+	UserNoticeSeverity,
+	UserRestrictionScope,
+} from "@/features/users/types";
+import {
+	USER_ADMIN_NOTE_CATEGORIES,
+	USER_NOTICE_SEVERITIES,
+	USER_RESTRICTION_SCOPES,
+} from "@/features/users/types";
+import { getTicketExchangeReportReasonLabel } from "@/features/ticket-exchange/reporting";
+import type { TicketExchangeAdminReport } from "@/features/ticket-exchange/types";
+import {
+	Ban,
+	Bell,
+	Check,
+	Copy,
+	ExternalLink,
+	Eye,
+	MessageSquare,
+	Pause,
+	RefreshCw,
+	ShieldAlert,
+	Trash2,
+	UserRound,
+} from "lucide-react";
+import Link from "next/link";
+import { useMemo, useState, useTransition } from "react";
+import { withAdminBasePath } from "../config";
+
+type UserDetailClientProps = {
+	lookup: string;
+	initialPayload: {
+		success: boolean;
+		detail?: AdminUserDetail;
+		error?: string;
+	};
+};
+
+const STATUS_OPTIONS: Array<{ value: ManagedUserStatus; label: string }> = [
+	{ value: "active", label: "Active" },
+	{ value: "blocked", label: "Blocked" },
+	{ value: "unsubscribed", label: "Unsubscribed" },
+	{ value: "deleted", label: "Deleted" },
+];
+
+const RESTRICTION_LABELS: Record<UserRestrictionScope, string> = {
+	all_user_actions: "All user actions",
+	"auth.login": "Login",
+	"ticket_exchange.post": "Ticket posting",
+	"ticket_exchange.contact_unlock": "Ticket contact unlocks",
+	"ticket_exchange.report": "Ticket reports",
+	"event_submission.create": "Event submissions",
+	"plans.sync": "Route syncing",
+	"saved_events.sync": "Saved events",
+	"user_preferences.write": "Preference writes",
+	"app_settings.sync": "App settings sync",
+};
+
+const formatDateTime = (value: string | null): string => {
+	if (!value) return "Not yet";
+	try {
+		return new Intl.DateTimeFormat("en-GB", {
+			dateStyle: "medium",
+			timeStyle: "short",
+		}).format(new Date(value));
+	} catch {
+		return value;
+	}
+};
+
+const statusVariant = (status: ManagedUserStatus) =>
+	status === "blocked" || status === "deleted"
+		? ("destructive" as const)
+		: status === "active"
+			? ("default" as const)
+			: ("outline" as const);
+
+const statusLabel = (status: ManagedUserStatus): string =>
+	status === "active"
+		? "Active"
+		: status === "blocked"
+			? "Blocked"
+			: status === "deleted"
+				? "Deleted"
+				: "Unsubscribed";
+
+const noticeVariant = (severity: UserNoticeSeverity) =>
+	severity === "critical" || severity === "action_required"
+		? ("destructive" as const)
+		: ("outline" as const);
+
+const noticeStatus = (notice: {
+	startsAt: string;
+	expiresAt: string | null;
+	revokedAt: string | null;
+	isActive: boolean;
+}): { label: string; variant: "default" | "outline" | "destructive" } => {
+	const now = Date.now();
+	const startsAt = new Date(notice.startsAt).getTime();
+	const expiresAt = notice.expiresAt
+		? new Date(notice.expiresAt).getTime()
+		: null;
+	if (notice.revokedAt) return { label: "Revoked", variant: "outline" };
+	if (Number.isFinite(startsAt) && startsAt > now) {
+		return { label: "Scheduled", variant: "outline" };
+	}
+	if (expiresAt && Number.isFinite(expiresAt) && expiresAt <= now) {
+		return { label: "Expired", variant: "outline" };
+	}
+	return notice.isActive
+		? { label: "Live", variant: "default" }
+		: { label: "Inactive", variant: "outline" };
+};
+
+const Fact = ({
+	label,
+	value,
+}: {
+	label: string;
+	value: string | number | null | undefined;
+}) => (
+	<div className="rounded-md border bg-muted/20 px-3 py-2">
+		<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+			{label}
+		</p>
+		<p className="mt-1 break-words text-sm font-medium">
+			{value ?? "Not available"}
+		</p>
+	</div>
+);
+
+const normalizeExpiryForAction = (value: string): string | null => {
+	if (!value) return null;
+	const parsed = new Date(value);
+	return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : value;
+};
+
+const reportUserRoles = (
+	report: TicketExchangeAdminReport,
+	userId: string | null,
+	email: string | null,
+): string[] => {
+	const roles: string[] = [];
+	if (userId && report.reporterUserId === userId) roles.push("Reporter");
+	if (
+		(userId && report.listing.ownerUserId === userId) ||
+		(email &&
+			report.listing.ownerEmail.trim().toLowerCase() === email.toLowerCase())
+	) {
+		roles.push("Listing owner");
+	}
+	return roles.length > 0 ? roles : ["Connected user"];
+};
+
+const userAdminHref = (userId: string | null, email: string | null): string =>
+	withAdminBasePath(
+		`/admin/users/${encodeURIComponent(userId || email || "unknown")}`,
+	);
+
+export function UserDetailClient({
+	lookup,
+	initialPayload,
+}: UserDetailClientProps) {
+	const [payload, setPayload] = useState(initialPayload);
+	const [errorMessage, setErrorMessage] = useState(initialPayload.error ?? "");
+	const [statusMessage, setStatusMessage] = useState("");
+	const [restrictionScope, setRestrictionScope] =
+		useState<UserRestrictionScope>("ticket_exchange.post");
+	const [restrictionReason, setRestrictionReason] = useState("");
+	const [restrictionNote, setRestrictionNote] = useState("");
+	const [restrictionExpiresAt, setRestrictionExpiresAt] = useState("");
+	const [noticeSeverity, setNoticeSeverity] =
+		useState<UserNoticeSeverity>("warning");
+	const [noticeTitle, setNoticeTitle] = useState("");
+	const [noticeBody, setNoticeBody] = useState("");
+	const [noticeActionError, setNoticeActionError] = useState("");
+	const [noticeRequiresAck, setNoticeRequiresAck] = useState(false);
+	const [noticeDismissible, setNoticeDismissible] = useState(true);
+	const [noticeCtaLabel, setNoticeCtaLabel] = useState("");
+	const [noticeCtaHref, setNoticeCtaHref] = useState("");
+	const [noticeStartsAt, setNoticeStartsAt] = useState("");
+	const [noticeExpiresAt, setNoticeExpiresAt] = useState("");
+	const [adminNote, setAdminNote] = useState("");
+	const [adminNoteCategory, setAdminNoteCategory] =
+		useState<UserAdminNoteCategory>("general");
+	const [nextStatus, setNextStatus] = useState<ManagedUserStatus>("active");
+	const [statusReason, setStatusReason] = useState("");
+	const [bulkListingReason, setBulkListingReason] = useState("");
+	const [selectedPlan, setSelectedPlan] = useState<AdminPlanDetail | null>(
+		null,
+	);
+	const [isSavedEventsOpen, setIsSavedEventsOpen] = useState(false);
+	const [isPending, startTransition] = useTransition();
+
+	const detail = payload.detail;
+	const user = detail?.user ?? null;
+	const collectedUser = detail?.collectedRecord ?? null;
+	const userId = user?.userId ?? collectedUser?.userId ?? null;
+	const email =
+		user?.email ??
+		collectedUser?.email ??
+		(lookup.includes("@") ? lookup : null);
+	const displayName = useMemo(() => {
+		const firstName = user?.firstName ?? collectedUser?.firstName ?? "";
+		const lastName = user?.lastName ?? collectedUser?.lastName ?? "";
+		return (
+			[firstName, lastName].filter(Boolean).join(" ").trim() || email || lookup
+		);
+	}, [collectedUser, email, lookup, user]);
+	const activeRestrictions =
+		detail?.restrictions.filter((restriction) => restriction.isActive) ?? [];
+	const liveNotices = detail?.notices.filter((notice) => notice.isActive) ?? [];
+	const scheduledNotices =
+		detail?.notices.filter((notice) => {
+			if (notice.revokedAt) return false;
+			const startsAt = new Date(notice.startsAt).getTime();
+			return Number.isFinite(startsAt) && startsAt > Date.now();
+		}) ?? [];
+	const activeListings =
+		detail?.ticketListings.filter(
+			(listing) => listing.effectiveStatus === "active",
+		) ?? [];
+	const ticketReportStats = useMemo(() => {
+		const reports = detail?.ticketReports ?? [];
+		return reports.reduce(
+			(stats, report) => {
+				const roles = reportUserRoles(report, userId, email);
+				return {
+					open: stats.open + (report.reviewedAt ? 0 : 1),
+					sent: stats.sent + (roles.includes("Reporter") ? 1 : 0),
+					againstListings:
+						stats.againstListings + (roles.includes("Listing owner") ? 1 : 0),
+				};
+			},
+			{ open: 0, sent: 0, againstListings: 0 },
+		);
+	}, [detail?.ticketReports, email, userId]);
+	const sortedTicketReports = useMemo(
+		() =>
+			[...(detail?.ticketReports ?? [])].sort((left, right) => {
+				if (!left.reviewedAt && right.reviewedAt) return -1;
+				if (left.reviewedAt && !right.reviewedAt) return 1;
+				return (
+					new Date(right.createdAt).getTime() -
+					new Date(left.createdAt).getTime()
+				);
+			}),
+		[detail?.ticketReports],
+	);
+
+	const copyValue = async (label: string, value: string) => {
+		try {
+			await navigator.clipboard.writeText(value);
+			setStatusMessage(`${label} copied.`);
+		} catch {
+			setErrorMessage(`Could not copy ${label.toLowerCase()}.`);
+		}
+	};
+
+	const refresh = () => {
+		startTransition(async () => {
+			const result = await getAdminUserDetail({ userId, email });
+			setPayload(result);
+			setErrorMessage(result.error ?? "");
+			setStatusMessage(result.success ? "User refreshed." : "");
+		});
+	};
+
+	const runMutation = (
+		mutation: () => Promise<{
+			success: boolean;
+			error?: string;
+			updatedCount?: number;
+		}>,
+		successMessage: string,
+		clear?: () => void,
+	) => {
+		startTransition(async () => {
+			const result = await mutation();
+			if (!result.success) {
+				setErrorMessage(result.error ?? "User action failed.");
+				return;
+			}
+			clear?.();
+			setErrorMessage("");
+			setStatusMessage(
+				result.updatedCount != null
+					? `${successMessage} (${result.updatedCount} updated).`
+					: successMessage,
+			);
+			const next = await getAdminUserDetail({ userId, email });
+			setPayload(next);
+		});
+	};
+
+	const submitUserNotice = () => {
+		const ctaHrefError = getNoticeCtaHrefError(noticeCtaHref);
+		const validationError =
+			!noticeTitle.trim() || !noticeBody.trim()
+				? "Notice title and body are required."
+				: (Boolean(noticeCtaLabel.trim()) && !noticeCtaHref.trim()) ||
+						(!noticeCtaLabel.trim() && Boolean(noticeCtaHref.trim()))
+					? "CTA label and link must be provided together."
+					: ctaHrefError;
+
+		setErrorMessage("");
+		setStatusMessage("");
+		setNoticeActionError(validationError ?? "");
+		if (validationError) return;
+
+		startTransition(async () => {
+			const result = await createUserNoticeAsAdmin({
+				targetType: userId ? "user" : "email",
+				targetUserId: userId,
+				targetEmail: email,
+				title: noticeTitle,
+				body: noticeBody,
+				severity: noticeSeverity,
+				ctaLabel: noticeCtaLabel,
+				ctaHref: normalizeNoticeCtaHref(noticeCtaHref),
+				requiresAck: noticeRequiresAck,
+				dismissible: noticeDismissible,
+				startsAt: normalizeExpiryForAction(noticeStartsAt),
+				expiresAt: normalizeExpiryForAction(noticeExpiresAt),
+			});
+			if (!result.success) {
+				setNoticeActionError(result.error ?? "Unable to create notice.");
+				return;
+			}
+			setNoticeActionError("");
+			setNoticeTitle("");
+			setNoticeBody("");
+			setNoticeCtaLabel("");
+			setNoticeCtaHref("");
+			setNoticeStartsAt("");
+			setNoticeExpiresAt("");
+			setErrorMessage("");
+			setStatusMessage("Notice sent");
+			const next = await getAdminUserDetail({ userId, email });
+			setPayload(next);
+		});
+	};
+
+	if (!payload.success || !detail) {
+		return (
+			<Card className="ooo-admin-card">
+				<CardHeader>
+					<CardTitle>User not found</CardTitle>
+					<CardDescription>
+						{errorMessage || "This user could not be loaded."}
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<Link href={withAdminBasePath("/admin/users")}>
+						<Button variant="outline">Back to users</Button>
+					</Link>
+				</CardContent>
+			</Card>
+		);
+	}
+
+	return (
+		<div className="space-y-6">
+			<Card className="ooo-admin-card min-w-0 overflow-hidden">
+				<CardHeader className="border-b">
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<div className="flex flex-wrap items-center gap-2">
+								<CardTitle>{displayName}</CardTitle>
+								{user ? (
+									<Badge variant={statusVariant(user.status)}>
+										{statusLabel(user.status)}
+									</Badge>
+								) : (
+									<Badge variant="outline">Collected user</Badge>
+								)}
+								{activeRestrictions.length > 0 ? (
+									<Badge variant="destructive">
+										<ShieldAlert />
+										{activeRestrictions.length} active restriction
+										{activeRestrictions.length === 1 ? "" : "s"}
+									</Badge>
+								) : null}
+							</div>
+							<CardDescription>
+								{email ?? "No email"} · {userId ?? "No canonical user id"}
+							</CardDescription>
+						</div>
+						<div className="flex flex-wrap gap-2">
+							<Link href={withAdminBasePath("/admin/users")}>
+								<Button variant="outline" size="sm">
+									Back to Users
+								</Button>
+							</Link>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={refresh}
+								disabled={isPending}
+							>
+								<RefreshCw />
+								Refresh
+							</Button>
+						</div>
+					</div>
+				</CardHeader>
+				<CardContent className="grid gap-3 pt-4 sm:grid-cols-2 xl:grid-cols-4">
+					<Fact
+						label="Last Seen"
+						value={formatDateTime(
+							user?.lastSeenAt ?? collectedUser?.lastSeenAt ?? null,
+						)}
+					/>
+					<Fact label="Listings" value={detail.ticketListings.length} />
+					<Fact label="Submissions" value={detail.eventSubmissions.length} />
+					<Fact label="Routes" value={detail.plans.length} />
+				</CardContent>
+			</Card>
+
+			{errorMessage ? (
+				<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+					{errorMessage}
+				</div>
+			) : null}
+			{statusMessage ? (
+				<div className="rounded-lg border bg-muted/45 p-3 text-sm text-muted-foreground">
+					{statusMessage}
+				</div>
+			) : null}
+
+			<div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+				<div className="space-y-6">
+					<section id="identity" className="scroll-mt-44">
+						<Card className="ooo-admin-card min-w-0 overflow-hidden">
+							<CardHeader className="border-b">
+								<CardTitle>Identity & Activity</CardTitle>
+								<CardDescription>
+									Canonical identity, consent context, and current linked usage.
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="grid gap-3 pt-4 md:grid-cols-2 xl:grid-cols-3">
+								<Fact label="Email" value={email} />
+								<Fact label="User ID" value={userId} />
+								<Fact
+									label="Source"
+									value={user?.source ?? collectedUser?.source}
+								/>
+								<Fact
+									label="First Seen"
+									value={formatDateTime(
+										user?.firstSeenAt ?? collectedUser?.firstSignInAt ?? null,
+									)}
+								/>
+								<Fact
+									label="Marketing"
+									value={
+										user?.marketingConsent || collectedUser?.marketingConsent
+											? "Allowed"
+											: "Not allowed"
+									}
+								/>
+								<Fact
+									label="Event Updates"
+									value={
+										user?.eventUpdateConsent ||
+										collectedUser?.eventUpdateConsent
+											? "Allowed"
+											: "Not allowed"
+									}
+								/>
+								<Fact
+									label="Saved Events"
+									value={detail.savedEventKeys.length}
+								/>
+								<Fact label="Live Notices" value={liveNotices.length} />
+								<Fact
+									label="Scheduled Notices"
+									value={scheduledNotices.length}
+								/>
+								<Fact label="Admin Notes" value={detail.adminNotes.length} />
+							</CardContent>
+						</Card>
+					</section>
+
+					<section id="ticket-exchange" className="scroll-mt-44">
+						<Card className="ooo-admin-card min-w-0 overflow-hidden">
+							<CardHeader className="border-b">
+								<CardTitle>Ticket Exchange</CardTitle>
+								<CardDescription>
+									Current and historical listings plus reports connected to this
+									person.
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-4 pt-4">
+								<div className="grid gap-2 rounded-lg border bg-muted/20 p-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
+									<div>
+										<p className="text-sm font-medium">
+											{activeListings.length} active listing
+											{activeListings.length === 1 ? "" : "s"}
+										</p>
+										<p className="text-xs text-muted-foreground">
+											Bulk actions affect active listings only.
+										</p>
+									</div>
+									<Input
+										value={bulkListingReason}
+										onChange={(event) =>
+											setBulkListingReason(event.target.value)
+										}
+										placeholder="Reason required for listing actions"
+										className="sm:min-w-64"
+									/>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										disabled={isPending || activeListings.length === 0}
+										onClick={() =>
+											runMutation(
+												() =>
+													bulkUpdateUserTicketListingsAsAdmin({
+														userId,
+														email,
+														status: "paused",
+														reason: bulkListingReason,
+													}),
+												"Active listings paused",
+												() => setBulkListingReason(""),
+											)
+										}
+									>
+										<Pause />
+										Pause All
+									</Button>
+									<Button
+										type="button"
+										variant="destructive"
+										size="sm"
+										disabled={isPending || activeListings.length === 0}
+										onClick={() =>
+											runMutation(
+												() =>
+													bulkUpdateUserTicketListingsAsAdmin({
+														userId,
+														email,
+														status: "removed",
+														reason: bulkListingReason,
+													}),
+												"Active listings removed",
+												() => setBulkListingReason(""),
+											)
+										}
+									>
+										<Trash2 />
+										Remove All
+									</Button>
+								</div>
+
+								{detail.ticketListings.length > 0 ? (
+									detail.ticketListings.map((listing) => (
+										<div
+											key={listing.id}
+											className="rounded-lg border bg-background/70 p-3"
+										>
+											<div className="flex flex-wrap items-center gap-2">
+												<Badge variant="outline">{listing.listingType}</Badge>
+												<Badge
+													variant={
+														listing.effectiveStatus === "active"
+															? "default"
+															: listing.effectiveStatus === "removed"
+																? "destructive"
+																: "outline"
+													}
+												>
+													{listing.effectiveStatus === "active"
+														? "Live listing"
+														: listing.effectiveStatus}
+												</Badge>
+												{listing.reportCount > 0 ? (
+													<Badge variant="destructive">
+														{listing.reportCount} report
+														{listing.reportCount === 1 ? "" : "s"}
+													</Badge>
+												) : null}
+											</div>
+											<p className="mt-2 font-medium">{listing.eventName}</p>
+											<p className="mt-1 text-sm text-muted-foreground">
+												{listing.quantityLabel || "Quantity missing"} ·{" "}
+												{listing.priceLabel || "No price"} · updated{" "}
+												{formatDateTime(listing.updatedAt)}
+											</p>
+											<div className="mt-3 flex flex-wrap gap-2">
+												<Link
+													href={withAdminBasePath(
+														`/event/${encodeURIComponent(listing.eventKey)}/${encodeURIComponent(listing.eventSlug)}`,
+													)}
+												>
+													<Button type="button" variant="outline" size="sm">
+														<ExternalLink />
+														Event
+													</Button>
+												</Link>
+												<Link
+													href={withAdminBasePath(
+														`/exchange/${encodeURIComponent(listing.eventKey)}`,
+													)}
+												>
+													<Button type="button" variant="outline" size="sm">
+														<ExternalLink />
+														Exchange
+													</Button>
+												</Link>
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() =>
+														void copyValue("Listing ID", listing.id)
+													}
+												>
+													<Copy />
+													Copy ID
+												</Button>
+												{listing.effectiveStatus !== "active" ? (
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														disabled={isPending}
+														onClick={() =>
+															runMutation(
+																() =>
+																	updateUserTicketListingAsAdmin({
+																		userId,
+																		email,
+																		listingId: listing.id,
+																		status: "active",
+																		reason: bulkListingReason,
+																	}),
+																"Listing reactivated",
+															)
+														}
+													>
+														Reactivate
+													</Button>
+												) : (
+													<>
+														<Button
+															type="button"
+															variant="outline"
+															size="sm"
+															disabled={isPending}
+															onClick={() =>
+																runMutation(
+																	() =>
+																		updateUserTicketListingAsAdmin({
+																			userId,
+																			email,
+																			listingId: listing.id,
+																			status: "paused",
+																			reason: bulkListingReason,
+																		}),
+																	"Listing paused",
+																)
+															}
+														>
+															Pause
+														</Button>
+														<Button
+															type="button"
+															variant="outline"
+															size="sm"
+															disabled={isPending}
+															onClick={() =>
+																runMutation(
+																	() =>
+																		updateUserTicketListingAsAdmin({
+																			userId,
+																			email,
+																			listingId: listing.id,
+																			status: "resolved",
+																			reason: bulkListingReason,
+																		}),
+																	"Listing resolved",
+																)
+															}
+														>
+															Resolve
+														</Button>
+														<Button
+															type="button"
+															variant="destructive"
+															size="sm"
+															disabled={isPending}
+															onClick={() =>
+																runMutation(
+																	() =>
+																		updateUserTicketListingAsAdmin({
+																			userId,
+																			email,
+																			listingId: listing.id,
+																			status: "removed",
+																			reason: bulkListingReason,
+																		}),
+																	"Listing removed",
+																)
+															}
+														>
+															Remove
+														</Button>
+													</>
+												)}
+											</div>
+										</div>
+									))
+								) : (
+									<div className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
+										No ticket listings.
+									</div>
+								)}
+
+								{detail.ticketReports.length > 0 ? (
+									<div className="space-y-2">
+										<div>
+											<p className="text-sm font-semibold">
+												Reports involving this user
+											</p>
+											<p className="text-xs text-muted-foreground">
+												Open reports match the moderation queue. Reporter means
+												they made the report; listing owner means the report is
+												against their listing.
+											</p>
+											<p className="mt-1 text-xs text-muted-foreground">
+												{ticketReportStats.open} open · {ticketReportStats.sent}{" "}
+												sent · {ticketReportStats.againstListings} against their
+												listings
+											</p>
+										</div>
+										{sortedTicketReports.map((report) => {
+											const roles = reportUserRoles(report, userId, email);
+											const reporterHref = report.reporterUserId
+												? userAdminHref(report.reporterUserId, null)
+												: null;
+											const ownerHref =
+												report.listing.ownerUserId || report.listing.ownerEmail
+													? userAdminHref(
+															report.listing.ownerUserId || null,
+															report.listing.ownerEmail || null,
+														)
+													: null;
+											const eventHref = report.listing.eventKey
+												? withAdminBasePath(
+														`/event/${encodeURIComponent(report.listing.eventKey)}${
+															report.listing.eventSlug
+																? `/${encodeURIComponent(report.listing.eventSlug)}`
+																: ""
+														}`,
+													)
+												: null;
+											const exchangeHref = report.listing.eventKey
+												? withAdminBasePath(
+														`/exchange/${encodeURIComponent(report.listing.eventKey)}`,
+													)
+												: null;
+											return (
+												<div
+													key={report.id}
+													className="rounded-lg border border-amber-300/40 bg-amber-50/25 p-3 text-sm dark:border-amber-900/50 dark:bg-amber-950/15"
+												>
+													<div className="flex flex-wrap gap-2">
+														<Badge
+															variant={
+																report.reviewedAt ? "outline" : "destructive"
+															}
+														>
+															{report.reviewedAt ? "Reviewed" : "Open report"}
+														</Badge>
+														<Badge variant="outline">
+															{getTicketExchangeReportReasonLabel(
+																report.reason,
+															)}
+														</Badge>
+														{roles.map((role) => (
+															<Badge key={role} variant="outline">
+																{role}
+															</Badge>
+														))}
+													</div>
+													<p className="mt-2 font-medium">
+														{report.listing.eventName}
+													</p>
+													<p className="mt-1 text-xs text-muted-foreground">
+														{report.listing.listingType === "selling"
+															? "Selling"
+															: "Looking"}{" "}
+														·{" "}
+														{report.listing.quantityLabel || "Quantity missing"}
+														{report.listing.priceLabel
+															? ` · ${report.listing.priceLabel}`
+															: ""}{" "}
+														· reported {formatDateTime(report.createdAt)}
+														{report.reviewedAt
+															? ` · reviewed ${formatDateTime(report.reviewedAt)}`
+															: ""}
+													</p>
+													<p className="mt-1 text-xs text-muted-foreground">
+														Reporter {report.reporterUserId || "unknown"} ·
+														owner {report.listing.ownerEmail || "unknown"}
+													</p>
+													<div className="mt-3 rounded-md border border-amber-300/50 bg-background/70 px-3 py-2">
+														<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-900/80 dark:text-amber-100/80">
+															Report message
+														</p>
+														<p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+															{report.details ||
+																"No extra message from the reporter."}
+														</p>
+													</div>
+													<div className="mt-3 flex flex-wrap gap-2">
+														<Link
+															href={withAdminBasePath(
+																"/admin/content#ticket-exchange-moderation",
+															)}
+														>
+															<Button type="button" variant="outline" size="sm">
+																<ExternalLink />
+																Open moderation
+															</Button>
+														</Link>
+														{eventHref ? (
+															<Link href={eventHref}>
+																<Button
+																	type="button"
+																	variant="outline"
+																	size="sm"
+																>
+																	<ExternalLink />
+																	Event
+																</Button>
+															</Link>
+														) : null}
+														{exchangeHref ? (
+															<Link href={exchangeHref}>
+																<Button
+																	type="button"
+																	variant="outline"
+																	size="sm"
+																>
+																	<ExternalLink />
+																	Exchange
+																</Button>
+															</Link>
+														) : null}
+														{reporterHref ? (
+															<Link href={reporterHref}>
+																<Button
+																	type="button"
+																	variant="outline"
+																	size="sm"
+																>
+																	<UserRound />
+																	Reporter
+																</Button>
+															</Link>
+														) : null}
+														{ownerHref ? (
+															<Link href={ownerHref}>
+																<Button
+																	type="button"
+																	variant="outline"
+																	size="sm"
+																>
+																	<UserRound />
+																	Owner
+																</Button>
+															</Link>
+														) : null}
+														<Button
+															type="button"
+															variant="outline"
+															size="sm"
+															onClick={() =>
+																void copyValue("Report ID", report.id)
+															}
+														>
+															<Copy />
+															Copy report
+														</Button>
+														<Button
+															type="button"
+															variant="outline"
+															size="sm"
+															onClick={() =>
+																void copyValue("Listing ID", report.listingId)
+															}
+														>
+															<Copy />
+															Copy listing
+														</Button>
+													</div>
+												</div>
+											);
+										})}
+									</div>
+								) : null}
+							</CardContent>
+						</Card>
+					</section>
+
+					<section id="submissions-plans" className="scroll-mt-44">
+						<div className="grid gap-6 xl:grid-cols-2">
+							<Card className="ooo-admin-card min-w-0 overflow-hidden">
+								<CardHeader className="border-b">
+									<CardTitle>Submissions</CardTitle>
+									<CardDescription>
+										Event submissions, update requests, and price flags.
+									</CardDescription>
+								</CardHeader>
+								<CardContent className="space-y-3 pt-4">
+									{detail.eventSubmissions.length > 0 ? (
+										detail.eventSubmissions.map((submission) => (
+											<div
+												key={submission.id}
+												className="rounded-lg border bg-background/70 p-3"
+											>
+												<div className="flex flex-wrap gap-2">
+													<Badge
+														variant={
+															submission.status === "declined"
+																? "destructive"
+																: "outline"
+														}
+													>
+														{submission.status}
+													</Badge>
+													<Badge variant="outline">
+														{submission.payload.submissionType ?? "new_event"}
+													</Badge>
+												</div>
+												<p className="mt-2 text-sm font-medium">
+													{submission.payload.eventName}
+												</p>
+												<p className="mt-1 text-xs text-muted-foreground">
+													{formatDateTime(submission.createdAt)}
+												</p>
+												<div className="mt-3 flex flex-wrap gap-2">
+													<Link
+														href={withAdminBasePath(
+															"/admin/content#event-submissions",
+														)}
+													>
+														<Button type="button" variant="outline" size="sm">
+															<ExternalLink />
+															Open moderation
+														</Button>
+													</Link>
+													{submission.acceptedEventKey ? (
+														<Link
+															href={withAdminBasePath(
+																`/event/${encodeURIComponent(submission.acceptedEventKey)}`,
+															)}
+														>
+															<Button type="button" variant="outline" size="sm">
+																<ExternalLink />
+																Accepted event
+															</Button>
+														</Link>
+													) : null}
+												</div>
+											</div>
+										))
+									) : (
+										<div className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
+											No submissions.
+										</div>
+									)}
+								</CardContent>
+							</Card>
+
+							<Card className="ooo-admin-card min-w-0 overflow-hidden">
+								<CardHeader className="border-b">
+									<CardTitle>Routes & Saved Events</CardTitle>
+									<CardDescription>
+										Metadata only for private route records.
+									</CardDescription>
+								</CardHeader>
+								<CardContent className="space-y-3 pt-4">
+									{detail.plans.length > 0 ? (
+										detail.plans.map((plan) => (
+											<div
+												key={plan.id}
+												className="rounded-lg border bg-background/70 p-3"
+											>
+												<div className="flex flex-wrap gap-2">
+													<Badge variant="outline">{plan.visibility}</Badge>
+													<Badge variant="outline">
+														{plan.stops.length} stops
+													</Badge>
+												</div>
+												<p className="mt-2 text-sm font-medium">{plan.title}</p>
+												<p className="mt-1 text-xs text-muted-foreground">
+													{plan.planDate} · updated{" "}
+													{formatDateTime(plan.updatedAt)}
+												</p>
+												<div className="mt-3 flex flex-wrap gap-2">
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														onClick={() => setSelectedPlan(plan)}
+													>
+														<Eye />
+														View contents
+													</Button>
+													{plan.publicSharePath ? (
+														<Link
+															href={withAdminBasePath(plan.publicSharePath)}
+														>
+															<Button type="button" variant="outline" size="sm">
+																<ExternalLink />
+																Public plan
+															</Button>
+														</Link>
+													) : null}
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														onClick={() => void copyValue("Plan ID", plan.id)}
+													>
+														<Copy />
+														Copy ID
+													</Button>
+												</div>
+											</div>
+										))
+									) : (
+										<div className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
+											No synced routes.
+										</div>
+									)}
+									<div className="rounded-lg border bg-muted/20 p-3 text-sm">
+										<div className="flex flex-wrap items-center justify-between gap-2">
+											<p className="font-medium">
+												{detail.savedEventKeys.length} saved event
+												{detail.savedEventKeys.length === 1 ? "" : "s"}
+											</p>
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												disabled={detail.savedEvents.length === 0}
+												onClick={() => setIsSavedEventsOpen(true)}
+											>
+												<Eye />
+												View saved events
+											</Button>
+										</div>
+										<p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+											{detail.savedEvents
+												.slice(0, 4)
+												.map((saved) => saved.event.name)
+												.join(", ") || "No saved event keys"}
+										</p>
+									</div>
+								</CardContent>
+							</Card>
+						</div>
+					</section>
+
+					<section id="audit" className="scroll-mt-44">
+						<Card className="ooo-admin-card min-w-0 overflow-hidden">
+							<CardHeader className="border-b">
+								<CardTitle>Admin Audit</CardTitle>
+								<CardDescription>
+									Recent admin actions recorded against this user.
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-3 pt-4">
+								{detail.activityEvents.length > 0 ? (
+									detail.activityEvents.map((event) => (
+										<div
+											key={event.id}
+											className="rounded-lg border bg-background/70 p-3"
+										>
+											<div className="flex flex-wrap gap-2">
+												<Badge variant="outline">{event.category}</Badge>
+												<Badge
+													variant={
+														event.severity === "destructive"
+															? "destructive"
+															: "outline"
+													}
+												>
+													{event.action}
+												</Badge>
+											</div>
+											<p className="mt-2 text-sm font-medium">
+												{event.summary}
+											</p>
+											<p className="mt-1 text-xs text-muted-foreground">
+												{event.actorLabel} · {formatDateTime(event.occurredAt)}
+											</p>
+										</div>
+									))
+								) : (
+									<div className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
+										No admin audit events for this user yet.
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					</section>
+				</div>
+
+				<aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+					<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
+						<CardHeader className="border-b">
+							<CardTitle>User Actions</CardTitle>
+							<CardDescription>
+								Granular restrictions and person-level operations.
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4 pt-4">
+							<div className="space-y-2 rounded-lg border p-3">
+								<p className="text-sm font-semibold">Status</p>
+								<select
+									value={nextStatus}
+									onChange={(event) =>
+										setNextStatus(event.target.value as ManagedUserStatus)
+									}
+									className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+								>
+									{STATUS_OPTIONS.map((option) => (
+										<option key={option.value} value={option.value}>
+											{option.label}
+										</option>
+									))}
+								</select>
+								<Input
+									value={statusReason}
+									onChange={(event) => setStatusReason(event.target.value)}
+									placeholder="Reason required"
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={isPending || !userId}
+									onClick={() =>
+										runMutation(
+											() =>
+												updateManagedUserStatusAsAdmin({
+													userId,
+													email,
+													status: nextStatus,
+													reason: statusReason,
+												}),
+											"User status updated",
+											() => setStatusReason(""),
+										)
+									}
+								>
+									<UserRound />
+									Update Status
+								</Button>
+							</div>
+
+							<div className="space-y-2 rounded-lg border p-3">
+								<p className="text-sm font-semibold">Add Restriction</p>
+								<select
+									value={restrictionScope}
+									onChange={(event) =>
+										setRestrictionScope(
+											event.target.value as UserRestrictionScope,
+										)
+									}
+									className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+								>
+									{USER_RESTRICTION_SCOPES.map((scope) => (
+										<option key={scope} value={scope}>
+											{RESTRICTION_LABELS[scope]}
+										</option>
+									))}
+								</select>
+								<Input
+									value={restrictionReason}
+									onChange={(event) => setRestrictionReason(event.target.value)}
+									placeholder="User-facing reason"
+								/>
+								<Textarea
+									value={restrictionNote}
+									onChange={(event) => setRestrictionNote(event.target.value)}
+									placeholder="Internal note"
+									rows={3}
+								/>
+								<div className="space-y-1.5">
+									<Label htmlFor="restriction-expires">Expires At</Label>
+									<Input
+										id="restriction-expires"
+										type="datetime-local"
+										value={restrictionExpiresAt}
+										onChange={(event) =>
+											setRestrictionExpiresAt(event.target.value)
+										}
+									/>
+								</div>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={isPending}
+									onClick={() =>
+										runMutation(
+											() =>
+												createUserRestrictionAsAdmin({
+													userId,
+													email,
+													scope: restrictionScope,
+													reason: restrictionReason,
+													internalNote: restrictionNote,
+													expiresAt:
+														normalizeExpiryForAction(restrictionExpiresAt),
+												}),
+											"Restriction added",
+											() => {
+												setRestrictionReason("");
+												setRestrictionNote("");
+												setRestrictionExpiresAt("");
+											},
+										)
+									}
+								>
+									<Ban />
+									Add Restriction
+								</Button>
+							</div>
+
+							<div className="space-y-2 rounded-lg border p-3">
+								<p className="text-sm font-semibold">Send Notice</p>
+								<select
+									value={noticeSeverity}
+									onChange={(event) =>
+										setNoticeSeverity(event.target.value as UserNoticeSeverity)
+									}
+									className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+								>
+									{USER_NOTICE_SEVERITIES.map((severity) => (
+										<option key={severity} value={severity}>
+											{severity}
+										</option>
+									))}
+								</select>
+								<Input
+									value={noticeTitle}
+									onChange={(event) => setNoticeTitle(event.target.value)}
+									placeholder="Notice title"
+								/>
+								<Textarea
+									value={noticeBody}
+									onChange={(event) => setNoticeBody(event.target.value)}
+									placeholder="Notice body"
+									rows={3}
+								/>
+								<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+									<Input
+										value={noticeCtaLabel}
+										onChange={(event) => setNoticeCtaLabel(event.target.value)}
+										placeholder="CTA label"
+									/>
+									<Input
+										value={noticeCtaHref}
+										onChange={(event) => setNoticeCtaHref(event.target.value)}
+										placeholder="/tickets or example.com"
+									/>
+								</div>
+								<div className="grid gap-2">
+									<label className="flex items-center gap-2 text-sm">
+										<input
+											type="checkbox"
+											checked={noticeRequiresAck}
+											onChange={(event) =>
+												setNoticeRequiresAck(event.target.checked)
+											}
+										/>
+										Requires acknowledgement
+									</label>
+									<label className="flex items-center gap-2 text-sm">
+										<input
+											type="checkbox"
+											checked={noticeDismissible}
+											onChange={(event) =>
+												setNoticeDismissible(event.target.checked)
+											}
+										/>
+										Dismissible
+									</label>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="user-notice-starts">Starts At</Label>
+									<Input
+										id="user-notice-starts"
+										type="datetime-local"
+										value={noticeStartsAt}
+										onChange={(event) => setNoticeStartsAt(event.target.value)}
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="user-notice-expires">Expires At</Label>
+									<Input
+										id="user-notice-expires"
+										type="datetime-local"
+										value={noticeExpiresAt}
+										onChange={(event) => setNoticeExpiresAt(event.target.value)}
+									/>
+									<p className="text-xs text-muted-foreground">
+										Optional stop time. After this, the notice is no longer
+										shown to the user.
+									</p>
+								</div>
+								{noticeActionError ? (
+									<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+										{noticeActionError}
+									</div>
+								) : null}
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={isPending || (!userId && !email)}
+									onClick={submitUserNotice}
+								>
+									<Bell />
+									{isPending ? "Sending..." : "Send Notice"}
+								</Button>
+							</div>
+
+							<div className="space-y-2 rounded-lg border p-3">
+								<p className="text-sm font-semibold">Internal Note</p>
+								<select
+									value={adminNoteCategory}
+									onChange={(event) =>
+										setAdminNoteCategory(
+											event.target.value as UserAdminNoteCategory,
+										)
+									}
+									className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+								>
+									{USER_ADMIN_NOTE_CATEGORIES.map((category) => (
+										<option key={category} value={category}>
+											{category}
+										</option>
+									))}
+								</select>
+								<Textarea
+									value={adminNote}
+									onChange={(event) => setAdminNote(event.target.value)}
+									placeholder="Private admin note"
+									rows={3}
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={isPending}
+									onClick={() =>
+										runMutation(
+											() =>
+												addUserAdminNoteAsAdmin({
+													userId,
+													email,
+													category: adminNoteCategory,
+													note: adminNote,
+												}),
+											"Admin note added",
+											() => setAdminNote(""),
+										)
+									}
+								>
+									<MessageSquare />
+									Add Note
+								</Button>
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
+						<CardHeader className="border-b">
+							<CardTitle>Restrictions & Notices</CardTitle>
+							<CardDescription>
+								Revoke active policy records from this user.
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4 pt-4">
+							<div className="space-y-2">
+								<p className="text-sm font-semibold">Restrictions</p>
+								{detail.restrictions.length > 0 ? (
+									detail.restrictions.map((restriction) => (
+										<div
+											key={restriction.id}
+											className="rounded-lg border bg-background/70 p-3"
+										>
+											<div className="flex flex-wrap gap-2">
+												<Badge
+													variant={
+														restriction.isActive ? "destructive" : "outline"
+													}
+												>
+													{restriction.scope}
+												</Badge>
+											</div>
+											<p className="mt-2 text-sm text-muted-foreground">
+												{restriction.reason}
+											</p>
+											{restriction.isActive ? (
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													className="mt-3"
+													disabled={isPending}
+													onClick={() =>
+														runMutation(
+															() =>
+																revokeUserRestrictionAsAdmin({
+																	restrictionId: restriction.id,
+																	userId,
+																	email,
+																}),
+															"Restriction revoked",
+														)
+													}
+												>
+													<Check />
+													Revoke
+												</Button>
+											) : null}
+										</div>
+									))
+								) : (
+									<p className="rounded-lg border bg-muted/25 p-3 text-sm text-muted-foreground">
+										No restrictions.
+									</p>
+								)}
+							</div>
+
+							<div className="space-y-2">
+								<p className="text-sm font-semibold">Notices</p>
+								{detail.notices.length > 0 ? (
+									detail.notices.map((notice) => {
+										const status = noticeStatus(notice);
+										return (
+											<div
+												key={notice.id}
+												className="rounded-lg border bg-background/70 p-3"
+											>
+												<div className="flex flex-wrap gap-2">
+													<Badge variant={noticeVariant(notice.severity)}>
+														{notice.severity}
+													</Badge>
+													<Badge variant={status.variant}>{status.label}</Badge>
+													<Badge variant="outline">{notice.targetType}</Badge>
+												</div>
+												<p className="mt-2 text-sm font-medium">
+													{notice.title}
+												</p>
+												<p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+													{notice.body}
+												</p>
+												<p className="mt-2 text-xs text-muted-foreground">
+													Starts {formatDateTime(notice.startsAt)}
+													{notice.expiresAt
+														? ` · expires ${formatDateTime(notice.expiresAt)}`
+														: ""}
+												</p>
+												<p className="mt-1 text-xs text-muted-foreground">
+													Delivered {notice.deliveredCount ?? 0} · read{" "}
+													{notice.readCount ?? 0} · acknowledged{" "}
+													{notice.acknowledgedCount ?? 0} · dismissed{" "}
+													{notice.dismissedCount ?? 0}
+												</p>
+												{notice.revokedAt ? null : (
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														className="mt-3"
+														disabled={isPending}
+														onClick={() =>
+															runMutation(
+																() =>
+																	revokeUserNoticeAsAdmin({
+																		noticeId: notice.id,
+																		userId,
+																		email,
+																	}),
+																"Notice revoked",
+															)
+														}
+													>
+														<Check />
+														Revoke
+													</Button>
+												)}
+											</div>
+										);
+									})
+								) : (
+									<p className="rounded-lg border bg-muted/25 p-3 text-sm text-muted-foreground">
+										No notices.
+									</p>
+								)}
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
+						<CardHeader className="border-b">
+							<CardTitle>Admin Notes</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-3 pt-4">
+							{detail.adminNotes.length > 0 ? (
+								detail.adminNotes.map((note) => (
+									<div key={note.id} className="rounded-lg border p-3">
+										<Badge variant="outline">{note.category}</Badge>
+										<p className="mt-2 text-sm">{note.note}</p>
+										<p className="mt-1 text-xs text-muted-foreground">
+											{note.createdBy} · {formatDateTime(note.createdAt)}
+										</p>
+									</div>
+								))
+							) : (
+								<p className="rounded-lg border bg-muted/25 p-3 text-sm text-muted-foreground">
+									No internal notes.
+								</p>
+							)}
+						</CardContent>
+					</Card>
+				</aside>
+			</div>
+
+			<Dialog
+				open={Boolean(selectedPlan)}
+				onOpenChange={(open) => {
+					if (!open) setSelectedPlan(null);
+				}}
+			>
+				<DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>{selectedPlan?.title ?? "Route"}</DialogTitle>
+						<DialogDescription>
+							{selectedPlan
+								? `${selectedPlan.planDate} · ${selectedPlan.resolvedStops.length} stops`
+								: "Route contents"}
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-3">
+						{selectedPlan?.resolvedStops.length ? (
+							selectedPlan.resolvedStops.map((stop) => (
+								<div
+									key={stop.id}
+									className="rounded-lg border bg-background/70 p-3"
+								>
+									<div className="flex flex-wrap items-center gap-2">
+										<Badge variant="outline">Stop {stop.stopOrder}</Badge>
+										{stop.locked ? (
+											<Badge variant="outline">Locked</Badge>
+										) : null}
+										<Badge variant={stop.event.found ? "default" : "outline"}>
+											{stop.event.found ? "Matched event" : "Event key only"}
+										</Badge>
+									</div>
+									<p className="mt-2 text-sm font-semibold">
+										{stop.event.name}
+									</p>
+									<p className="mt-1 text-xs text-muted-foreground">
+										{stop.event.date || "No date"} ·{" "}
+										{stop.event.areaLabel || stop.event.location || "No area"}
+									</p>
+									<p className="mt-1 text-xs text-muted-foreground">
+										Arrive {stop.arrivalTime ?? "not set"} · depart{" "}
+										{stop.departureTime ?? "not set"} · travel{" "}
+										{stop.travelMinutesFromPrevious ?? 0} mins
+									</p>
+									<div className="mt-3 flex flex-wrap gap-2">
+										<Link href={withAdminBasePath(stop.event.publicPath)}>
+											<Button type="button" variant="outline" size="sm">
+												<ExternalLink />
+												Event
+											</Button>
+										</Link>
+										<Link
+											href={withAdminBasePath(stop.event.ticketExchangePath)}
+										>
+											<Button type="button" variant="outline" size="sm">
+												<ExternalLink />
+												Exchange
+											</Button>
+										</Link>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() =>
+												void copyValue("Event key", stop.event.eventKey)
+											}
+										>
+											<Copy />
+											Copy key
+										</Button>
+									</div>
+								</div>
+							))
+						) : (
+							<div className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
+								This route has no synced stops.
+							</div>
+						)}
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog open={isSavedEventsOpen} onOpenChange={setIsSavedEventsOpen}>
+				<DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>Saved Events</DialogTitle>
+						<DialogDescription>
+							{detail.savedEvents.length} event
+							{detail.savedEvents.length === 1 ? "" : "s"} saved by this user.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-3">
+						{detail.savedEvents.length > 0 ? (
+							detail.savedEvents.map((saved) => (
+								<div
+									key={saved.eventKey}
+									className="rounded-lg border bg-background/70 p-3"
+								>
+									<div className="flex flex-wrap items-center gap-2">
+										<Badge variant={saved.event.found ? "default" : "outline"}>
+											{saved.event.found ? "Matched event" : "Event key only"}
+										</Badge>
+										<Badge variant="outline">{saved.event.areaLabel}</Badge>
+									</div>
+									<p className="mt-2 text-sm font-semibold">
+										{saved.event.name}
+									</p>
+									<p className="mt-1 text-xs text-muted-foreground">
+										{saved.event.date || "No date"} ·{" "}
+										{saved.event.location || "No location"}
+									</p>
+									<div className="mt-3 flex flex-wrap gap-2">
+										<Link href={withAdminBasePath(saved.event.publicPath)}>
+											<Button type="button" variant="outline" size="sm">
+												<ExternalLink />
+												Event
+											</Button>
+										</Link>
+										<Link
+											href={withAdminBasePath(saved.event.ticketExchangePath)}
+										>
+											<Button type="button" variant="outline" size="sm">
+												<ExternalLink />
+												Exchange
+											</Button>
+										</Link>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() =>
+												void copyValue("Event key", saved.eventKey)
+											}
+										>
+											<Copy />
+											Copy key
+										</Button>
+									</div>
+								</div>
+							))
+						) : (
+							<div className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
+								No saved events.
+							</div>
+						)}
+					</div>
+				</DialogContent>
+			</Dialog>
+		</div>
+	);
+}

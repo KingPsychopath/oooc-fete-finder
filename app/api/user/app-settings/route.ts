@@ -3,6 +3,7 @@ import {
 	USER_AUTH_COOKIE_NAME,
 	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
+import { getUserActionPolicyDecision } from "@/features/users/policy";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	DEFAULT_JSON_BODY_LIMIT_BYTES,
@@ -52,13 +53,19 @@ const parseCookieByName = (
 	return undefined;
 };
 
-const getUserSettingsKey = async (request: Request): Promise<string | null> => {
+const getUserSettingsIdentity = async (
+	request: Request,
+): Promise<{ key: string; userId: string; email: string | null } | null> => {
 	const cookieHeader = request.headers.get("cookie");
 	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
 	const userSession = await getCanonicalUserSessionFromCookieHeader(userCookie);
 	if (!userSession.isAuthenticated) return null;
 	if (!userSession.userId || !isValidUserId(userSession.userId)) return null;
-	return `user-app-settings:${userSession.userId}`;
+	return {
+		key: `user-app-settings:${userSession.userId}`,
+		userId: userSession.userId,
+		email: userSession.email,
+	};
 };
 
 const normalizeSyncedSettings = (
@@ -77,8 +84,8 @@ const normalizeSyncedSettings = (
 
 export async function GET(request: Request) {
 	const repository = getAppKVStoreRepository();
-	const key = await getUserSettingsKey(request);
-	if (!repository || !key) {
+	const identity = await getUserSettingsIdentity(request);
+	if (!repository || !identity) {
 		return NextResponse.json(
 			{ success: true, settings: null },
 			{ headers: NO_STORE_HEADERS },
@@ -86,7 +93,7 @@ export async function GET(request: Request) {
 	}
 
 	try {
-		const record = await repository.getRecord(key);
+		const record = await repository.getRecord(identity.key);
 		if (!record) {
 			return NextResponse.json(
 				{ success: true, settings: null },
@@ -126,8 +133,19 @@ export async function POST(request: Request) {
 	}
 
 	const repository = getAppKVStoreRepository();
-	const key = await getUserSettingsKey(request);
-	if (!repository || !key) {
+	const identity = await getUserSettingsIdentity(request);
+	if (!repository || !identity) {
+		return NextResponse.json(
+			{ success: true },
+			{ status: 202, headers: NO_STORE_HEADERS },
+		);
+	}
+	const policyDecision = await getUserActionPolicyDecision({
+		userId: identity.userId,
+		email: identity.email,
+		scope: "app_settings.sync",
+	});
+	if (!policyDecision.allowed) {
 		return NextResponse.json(
 			{ success: true },
 			{ status: 202, headers: NO_STORE_HEADERS },
@@ -148,7 +166,7 @@ export async function POST(request: Request) {
 
 	try {
 		const settings = normalizeSyncedSettings(parsed.data);
-		await repository.upsertValue(key, JSON.stringify(settings));
+		await repository.upsertValue(identity.key, JSON.stringify(settings));
 	} catch (error) {
 		log.warn("user.app-settings", "Failed to save app settings", {
 			error: error instanceof Error ? error.message : "unknown",
