@@ -622,7 +622,7 @@ export function TicketExchangeClient({
 	}, [data.summaries, selectedEventKey]);
 
 	const canSortListingsByPrice = Boolean(
-		selectedEventKey && (activeTab === "selling" || activeTab === "looking"),
+		selectedEventKey && activeTab === "selling",
 	);
 
 	useEffect(() => {
@@ -841,9 +841,7 @@ export function TicketExchangeClient({
 				if (priceRankDelta !== 0) return priceRankDelta;
 				const priceDelta =
 					getListingPriceSortValue(left) - getListingPriceSortValue(right);
-				if (priceDelta !== 0) {
-					return activeTab === "looking" ? -priceDelta : priceDelta;
-				}
+				if (priceDelta !== 0) return priceDelta;
 			}
 			const createdDelta = getListingSortTime(left) - getListingSortTime(right);
 			if (createdDelta !== 0) return createdDelta * -1;
@@ -868,9 +866,7 @@ export function TicketExchangeClient({
 	);
 	const sortListingsButtonLabel =
 		listingSortMode === "price"
-			? activeTab === "looking"
-				? "Showing highest budgets first"
-				: "Showing lowest prices first"
+			? "Showing lowest prices first"
 			: "Showing newest listings first";
 	const trackExchangeFriction = ({
 		reason,
@@ -2704,6 +2700,13 @@ export function TicketExchangeClient({
 								</Button>
 							</div>
 						</div>
+						{canSortListingsByPrice ? (
+							<p className="px-1.5 pt-1.5 text-[11px] font-medium text-muted-foreground">
+								{listingSortMode === "price"
+									? "Lowest price first"
+									: "Newest first"}
+							</p>
+						) : null}
 					</div>
 					{(data.isAuthenticated || auth.isAuthenticated) &&
 						data.profile &&
